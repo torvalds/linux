@@ -1211,7 +1211,7 @@ static int iwl_mld_wait_d3_notif(struct iwl_mld *mld,
 					   iwl_mld_handle_d3_notif,
 					   resume_data);
 
-	ret = iwl_trans_d3_resume(mld->trans, &d3_status, false, false);
+	ret = iwl_trans_d3_resume(mld->trans, &d3_status, false);
 	if (ret || d3_status != IWL_D3_STATUS_ALIVE) {
 		if (d3_status != IWL_D3_STATUS_ALIVE) {
 			IWL_INFO(mld, "Device was reset during suspend\n");
@@ -1272,7 +1272,7 @@ int iwl_mld_no_wowlan_suspend(struct iwl_mld *mld)
 		goto out;
 	}
 
-	ret = iwl_trans_d3_suspend(mld->trans, false, false);
+	ret = iwl_trans_d3_suspend(mld->trans, false);
 	if (ret) {
 		IWL_ERR(mld, "d3 suspend: trans_d3_suspend failed %d\n", ret);
 	} else {

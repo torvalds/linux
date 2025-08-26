@@ -1361,7 +1361,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 
-	ret = iwl_trans_d3_suspend(mvm->trans, false, !unified_image);
+	ret = iwl_trans_d3_suspend(mvm->trans, !unified_image);
  out:
 	if (ret < 0) {
 		iwl_mvm_free_nd(mvm);
@@ -2992,7 +2992,7 @@ static int iwl_mvm_resume_firmware(struct iwl_mvm *mvm)
 	bool reset = fw_has_capa(&mvm->fw->ucode_capa,
 				 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 
-	ret = iwl_trans_d3_resume(mvm->trans, &d3_status, false, !reset);
+	ret = iwl_trans_d3_resume(mvm->trans, &d3_status, !reset);
 	if (ret)
 		return ret;
 
@@ -3255,7 +3255,7 @@ void iwl_mvm_fast_suspend(struct iwl_mvm *mvm)
 		IWL_ERR(mvm,
 			"fast suspend: couldn't send D3_CONFIG_CMD %d\n", ret);
 
-	ret = iwl_trans_d3_suspend(mvm->trans, false, false);
+	ret = iwl_trans_d3_suspend(mvm->trans, false);
 	if (ret)
 		IWL_ERR(mvm, "fast suspend: trans_d3_suspend failed %d\n", ret);
 }

@@ -1065,8 +1065,8 @@ iwl_trans_pcie_dump_data(struct iwl_trans *trans, u32 dump_mask,
 			 void *sanitize_ctx);
 int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 			     enum iwl_d3_status *status,
-			     bool test,  bool reset);
-int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test, bool reset);
+			     bool reset);
+int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool reset);
 void iwl_trans_pci_interrupts(struct iwl_trans *trans, bool enable);
 void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans);
 void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,

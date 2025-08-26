@@ -952,10 +952,10 @@ int iwl_trans_start_fw(struct iwl_trans *trans, const struct iwl_fw *fw,
 
 void iwl_trans_stop_device(struct iwl_trans *trans);
 
-int iwl_trans_d3_suspend(struct iwl_trans *trans, bool test, bool reset);
+int iwl_trans_d3_suspend(struct iwl_trans *trans, bool reset);
 
 int iwl_trans_d3_resume(struct iwl_trans *trans, enum iwl_d3_status *status,
-			bool test, bool reset);
+			bool reset);
 
 struct iwl_trans_dump_data *
 iwl_trans_dump_data(struct iwl_trans *trans, u32 dump_mask,

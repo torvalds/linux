@@ -1437,16 +1437,9 @@ void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state, bool from_irq)
 }
 
 static void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
-					 bool test, bool reset)
+					 bool reset)
 {
 	iwl_disable_interrupts(trans);
-
-	/*
-	 * in testing mode, the host stays awake and the
-	 * hardware won't be reset (not even partially)
-	 */
-	if (test)
-		return;
 
 	iwl_pcie_disable_ict(trans);
 
@@ -1518,7 +1511,7 @@ static int iwl_pcie_d3_handshake(struct iwl_trans *trans, bool suspend)
 	return ret;
 }
 
-int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test, bool reset)
+int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool reset)
 {
 	int ret;
 
@@ -1531,25 +1524,18 @@ int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test, bool reset)
 	if (ret)
 		return ret;
 
-	iwl_pcie_d3_complete_suspend(trans, test, reset);
+	iwl_pcie_d3_complete_suspend(trans, reset);
 
 	return 0;
 }
 
 int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 			     enum iwl_d3_status *status,
-			     bool test,  bool reset)
+			     bool reset)
 {
 	struct iwl_trans_pcie *trans_pcie =  IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 val;
 	int ret;
-
-	if (test) {
-		iwl_enable_interrupts(trans);
-		*status = IWL_D3_STATUS_ALIVE;
-		ret = 0;
-		goto out;
-	}
 
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
 		iwl_set_bit(trans, CSR_GP_CNTRL,
@@ -1594,18 +1580,15 @@ int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 			iwl_read_umac_prph(trans, WFPM_GP2));
 
 	val = iwl_read32(trans, CSR_RESET);
-	if (val & CSR_RESET_REG_FLAG_NEVO_RESET)
+	if (val & CSR_RESET_REG_FLAG_NEVO_RESET) {
 		*status = IWL_D3_STATUS_RESET;
-	else
-		*status = IWL_D3_STATUS_ALIVE;
-
-out:
-	if (*status == IWL_D3_STATUS_ALIVE)
-		ret = iwl_pcie_d3_handshake(trans, false);
-	else
 		trans->state = IWL_TRANS_NO_FW;
+	} else {
+		*status = IWL_D3_STATUS_ALIVE;
+		return iwl_pcie_d3_handshake(trans, false);
+	}
 
-	return ret;
+	return 0;
 }
 
 static void
