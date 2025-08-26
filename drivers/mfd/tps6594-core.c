@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/reboot.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6594.h>
@@ -688,6 +689,19 @@ static int tps6594_enable_crc(struct tps6594 *tps)
 	return ret;
 }
 
+static int tps6594_power_off_handler(struct sys_off_data *data)
+{
+	struct tps6594 *tps = data->cb_data;
+	int ret;
+
+	ret = regmap_update_bits(tps->regmap, TPS6594_REG_FSM_I2C_TRIGGERS,
+				 TPS6594_BIT_TRIGGER_I2C(0), TPS6594_BIT_TRIGGER_I2C(0));
+	if (ret)
+		return notifier_from_errno(ret);
+
+	return NOTIFY_DONE;
+}
+
 int tps6594_device_init(struct tps6594 *tps, bool enable_crc)
 {
 	struct device *dev = tps->dev;
@@ -768,6 +782,12 @@ int tps6594_device_init(struct tps6594 *tps, bool enable_crc)
 					   regmap_irq_get_domain(tps->irq_data));
 		if (ret)
 			return dev_err_probe(dev, ret, "Failed to add RTC child device\n");
+	}
+
+	if (of_device_is_system_power_controller(dev->of_node)) {
+		ret = devm_register_power_off_handler(tps->dev, tps6594_power_off_handler, tps);
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to register power-off handler\n");
 	}
 
 	return 0;
