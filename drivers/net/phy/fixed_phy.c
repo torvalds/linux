@@ -75,8 +75,6 @@ static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 
 	list_for_each_entry(fp, &fmb->phys, node) {
 		if (fp->addr == phy_addr) {
-			struct fixed_phy_status state;
-
 			fp->status.link = !fp->no_carrier;
 
 			/* Issue callback if user registered it. */
@@ -86,9 +84,8 @@ static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 
 			/* Check the GPIO for change in status */
 			fixed_phy_update(fp);
-			state = fp->status;
 
-			return swphy_read_reg(reg_num, &state);
+			return swphy_read_reg(reg_num, &fp->status);
 		}
 	}
 
