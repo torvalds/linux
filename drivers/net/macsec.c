@@ -1665,12 +1665,12 @@ static const struct nla_policy macsec_genl_policy[NUM_MACSEC_ATTR] = {
 
 static const struct nla_policy macsec_genl_rxsc_policy[NUM_MACSEC_RXSC_ATTR] = {
 	[MACSEC_RXSC_ATTR_SCI] = { .type = NLA_U64 },
-	[MACSEC_RXSC_ATTR_ACTIVE] = { .type = NLA_U8 },
+	[MACSEC_RXSC_ATTR_ACTIVE] = NLA_POLICY_MAX(NLA_U8, 1),
 };
 
 static const struct nla_policy macsec_genl_sa_policy[NUM_MACSEC_SA_ATTR] = {
 	[MACSEC_SA_ATTR_AN] = NLA_POLICY_MAX(NLA_U8, MACSEC_NUM_AN - 1),
-	[MACSEC_SA_ATTR_ACTIVE] = { .type = NLA_U8 },
+	[MACSEC_SA_ATTR_ACTIVE] = NLA_POLICY_MAX(NLA_U8, 1),
 	[MACSEC_SA_ATTR_PN] = NLA_POLICY_MIN_LEN(4),
 	[MACSEC_SA_ATTR_KEYID] = { .type = NLA_BINARY,
 				   .len = MACSEC_KEYID_LEN, },
@@ -1734,15 +1734,9 @@ static bool validate_add_rxsa(struct nlattr **attrs)
 	    !attrs[MACSEC_SA_ATTR_KEYID])
 		return false;
 
-
 	if (attrs[MACSEC_SA_ATTR_PN] &&
 	    nla_get_u64(attrs[MACSEC_SA_ATTR_PN]) == 0)
 		return false;
-
-	if (attrs[MACSEC_SA_ATTR_ACTIVE]) {
-		if (nla_get_u8(attrs[MACSEC_SA_ATTR_ACTIVE]) > 1)
-			return false;
-	}
 
 	if (nla_len(attrs[MACSEC_SA_ATTR_KEYID]) != MACSEC_KEYID_LEN)
 		return false;
@@ -1893,11 +1887,6 @@ static bool validate_add_rxsc(struct nlattr **attrs)
 	if (!attrs[MACSEC_RXSC_ATTR_SCI])
 		return false;
 
-	if (attrs[MACSEC_RXSC_ATTR_ACTIVE]) {
-		if (nla_get_u8(attrs[MACSEC_RXSC_ATTR_ACTIVE]) > 1)
-			return false;
-	}
-
 	return true;
 }
 
@@ -1979,11 +1968,6 @@ static bool validate_add_txsa(struct nlattr **attrs)
 
 	if (nla_get_u64(attrs[MACSEC_SA_ATTR_PN]) == 0)
 		return false;
-
-	if (attrs[MACSEC_SA_ATTR_ACTIVE]) {
-		if (nla_get_u8(attrs[MACSEC_SA_ATTR_ACTIVE]) > 1)
-			return false;
-	}
 
 	if (nla_len(attrs[MACSEC_SA_ATTR_KEYID]) != MACSEC_KEYID_LEN)
 		return false;
@@ -2331,11 +2315,6 @@ static bool validate_upd_sa(struct nlattr **attrs)
 
 	if (attrs[MACSEC_SA_ATTR_PN] && nla_get_u64(attrs[MACSEC_SA_ATTR_PN]) == 0)
 		return false;
-
-	if (attrs[MACSEC_SA_ATTR_ACTIVE]) {
-		if (nla_get_u8(attrs[MACSEC_SA_ATTR_ACTIVE]) > 1)
-			return false;
-	}
 
 	return true;
 }
