@@ -9,7 +9,7 @@ void bpf_task_release(struct task_struct *p) __ksym;
 
 /* This test struct_ops BPF programs returning referenced kptr. The verifier should
  * allow a referenced kptr or a NULL pointer to be returned. A referenced kptr to task
- * here is acquried automatically as the task argument is tagged with "__ref".
+ * here is acquired automatically as the task argument is tagged with "__ref".
  */
 SEC("struct_ops/test_return_ref_kptr")
 struct task_struct *BPF_PROG(kptr_return, int dummy,

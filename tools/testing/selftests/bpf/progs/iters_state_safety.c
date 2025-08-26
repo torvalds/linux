@@ -345,7 +345,7 @@ int __naked read_from_iter_slot_fail(void)
 		"r3 = 1000;"
 		"call %[bpf_iter_num_new];"
 
-		/* attemp to leak bpf_iter_num state */
+		/* attempt to leak bpf_iter_num state */
 		"r7 = *(u64 *)(r6 + 0);"
 		"r8 = *(u64 *)(r6 + 8);"
 

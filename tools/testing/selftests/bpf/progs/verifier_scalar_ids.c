@@ -349,7 +349,7 @@ __naked void precision_two_ids(void)
 SEC("socket")
 __success __log_level(2)
 __flag(BPF_F_TEST_STATE_FREQ)
-/* check thar r0 and r6 have different IDs after 'if',
+/* check that r0 and r6 have different IDs after 'if',
  * collect_linked_regs() can't tie more than 6 registers for a single insn.
  */
 __msg("8: (25) if r0 > 0x7 goto pc+0         ; R0=scalar(id=1")

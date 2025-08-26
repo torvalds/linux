@@ -293,7 +293,7 @@ static int get_btf_id_by_fd(int btf_fd, __u32 *id)
  *  1) Create a new btf, it's referenced only by a file descriptor, so refcnt=1
  *  2) Load a BPF prog with fd_array[0] = btf_fd; now btf's refcnt=2
  *  3) Close the btf_fd, now refcnt=1
- * Wait and check that BTF stil exists.
+ * Wait and check that BTF still exists.
  */
 static void check_fd_array_cnt__referenced_btfs(void)
 {

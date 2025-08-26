@@ -463,7 +463,7 @@ static bool skip_entry(char *name)
 	return false;
 }
 
-/* Do comparision by ignoring '.llvm.<hash>' suffixes. */
+/* Do comparison by ignoring '.llvm.<hash>' suffixes. */
 static int compare_name(const char *name1, const char *name2)
 {
 	const char *res1, *res2;

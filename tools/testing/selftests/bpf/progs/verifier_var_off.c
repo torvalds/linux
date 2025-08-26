@@ -114,8 +114,8 @@ __naked void stack_write_priv_vs_unpriv(void)
 }
 
 /* Similar to the previous test, but this time also perform a read from the
- * address written to with a variable offset. The read is allowed, showing that,
- * after a variable-offset write, a priviledged program can read the slots that
+ * address written to with a variable offet. The read is allowed, showing that,
+ * after a variable-offset write, a privileged program can read the slots that
  * were in the range of that write (even if the verifier doesn't actually know if
  * the slot being read was really written to or not.
  *
@@ -157,7 +157,7 @@ __naked void stack_write_followed_by_read(void)
 SEC("socket")
 __description("variable-offset stack write clobbers spilled regs")
 __failure
-/* In the priviledged case, dereferencing a spilled-and-then-filled
+/* In the privileged case, dereferencing a spilled-and-then-filled
  * register is rejected because the previous variable offset stack
  * write might have overwritten the spilled pointer (i.e. we lose track
  * of the spilled register when we analyze the write).
