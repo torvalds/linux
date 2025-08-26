@@ -62,8 +62,7 @@ void bpf_inode_storage_free(struct inode *inode)
 	if (!bsb)
 		return;
 
-	migrate_disable();
-	rcu_read_lock();
+	rcu_read_lock_dont_migrate();
 
 	local_storage = rcu_dereference(bsb->storage);
 	if (!local_storage)
@@ -71,8 +70,7 @@ void bpf_inode_storage_free(struct inode *inode)
 
 	bpf_local_storage_destroy(local_storage);
 out:
-	rcu_read_unlock();
-	migrate_enable();
+	rcu_read_unlock_migrate();
 }
 
 static void *bpf_fd_inode_storage_lookup_elem(struct bpf_map *map, void *key)
