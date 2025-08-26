@@ -1498,6 +1498,19 @@ struct rtw89_pci_rpp_fmt {
 	__le32 dword;
 } __packed;
 
+#define RTW89_PCI_RPP_W0_MACID_V1_MASK		GENMASK(9, 0)
+#define RTW89_PCI_RPP_W0_DMA_CH_MASK		GENMASK(13, 10)
+#define RTW89_PCI_RPP_W0_TX_STATUS_V1_MASK	GENMASK(16, 14)
+#define RTW89_PCI_RPP_W0_PCIE_SEQ_V1_MASK	GENMASK(31, 17)
+#define RTW89_PCI_RPP_W1_QSEL_V1_MASK		GENMASK(5, 0)
+#define RTW89_PCI_RPP_W1_TID_IND		BIT(6)
+#define RTW89_PCI_RPP_W1_CHANGE_LINK		BIT(7)
+
+struct rtw89_pci_rpp_fmt_v1 {
+	__le32 w0;
+	__le32 w1;
+} __packed;
+
 struct rtw89_pci_rx_bd_32 {
 	__le16 buf_size;
 	__le16 opt;
@@ -1736,6 +1749,8 @@ u32 rtw89_pci_fill_txaddr_info_v1(struct rtw89_dev *rtwdev,
 				  dma_addr_t dma, u8 *add_info_nr);
 void rtw89_pci_parse_rpp(struct rtw89_dev *rtwdev, void *_rpp,
 			 struct rtw89_pci_rpp_info *rpp_info);
+void rtw89_pci_parse_rpp_v1(struct rtw89_dev *rtwdev, void *_rpp,
+			    struct rtw89_pci_rpp_info *rpp_info);
 void rtw89_pci_ctrl_dma_all(struct rtw89_dev *rtwdev, bool enable);
 void rtw89_pci_config_intr_mask(struct rtw89_dev *rtwdev);
 void rtw89_pci_config_intr_mask_v1(struct rtw89_dev *rtwdev);

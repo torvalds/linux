@@ -580,6 +580,18 @@ void rtw89_pci_parse_rpp(struct rtw89_dev *rtwdev, void *_rpp,
 }
 EXPORT_SYMBOL(rtw89_pci_parse_rpp);
 
+void rtw89_pci_parse_rpp_v1(struct rtw89_dev *rtwdev, void *_rpp,
+			    struct rtw89_pci_rpp_info *rpp_info)
+{
+	const struct rtw89_pci_rpp_fmt_v1 *rpp = _rpp;
+
+	rpp_info->seq = le32_get_bits(rpp->w0, RTW89_PCI_RPP_W0_PCIE_SEQ_V1_MASK);
+	rpp_info->qsel = le32_get_bits(rpp->w1, RTW89_PCI_RPP_W1_QSEL_V1_MASK);
+	rpp_info->tx_status = le32_get_bits(rpp->w0, RTW89_PCI_RPP_W0_TX_STATUS_V1_MASK);
+	rpp_info->txch = le32_get_bits(rpp->w0, RTW89_PCI_RPP_W0_DMA_CH_MASK);
+}
+EXPORT_SYMBOL(rtw89_pci_parse_rpp_v1);
+
 static void rtw89_pci_release_rpp(struct rtw89_dev *rtwdev, void *rpp)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
