@@ -587,7 +587,7 @@ static int pn_sock_seq_show(struct seq_file *seq, void *v)
 			from_kuid_munged(seq_user_ns(seq), sk_uid(sk)),
 			sock_i_ino(sk),
 			refcount_read(&sk->sk_refcnt), sk,
-			atomic_read(&sk->sk_drops));
+			sk_drops_read(sk));
 	}
 	seq_pad(seq, '\n');
 	return 0;
