@@ -228,43 +228,6 @@ static inline void
 	return (void *)recvmsg->packet;
 }
 
-static struct
-smbdirect_recv_io *get_free_recvmsg(struct smbdirect_socket *sc)
-{
-	struct smbdirect_recv_io *recvmsg = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&sc->recv_io.free.lock, flags);
-	if (!list_empty(&sc->recv_io.free.list)) {
-		recvmsg = list_first_entry(&sc->recv_io.free.list,
-					   struct smbdirect_recv_io,
-					   list);
-		list_del(&recvmsg->list);
-	}
-	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
-	return recvmsg;
-}
-
-static void put_recvmsg(struct smbdirect_socket *sc,
-			struct smbdirect_recv_io *recvmsg)
-{
-	unsigned long flags;
-
-	if (likely(recvmsg->sge.length != 0)) {
-		ib_dma_unmap_single(sc->ib.dev,
-				    recvmsg->sge.addr,
-				    recvmsg->sge.length,
-				    DMA_FROM_DEVICE);
-		recvmsg->sge.length = 0;
-	}
-
-	spin_lock_irqsave(&sc->recv_io.free.lock, flags);
-	list_add(&recvmsg->list, &sc->recv_io.free.list);
-	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
-
-	queue_work(sc->workqueue, &sc->recv_io.posted.refill_work);
-}
-
 static void enqueue_reassembly(struct smbdirect_socket *sc,
 			       struct smbdirect_recv_io *recvmsg,
 			       int data_length)
@@ -438,7 +401,7 @@ static void free_transport(struct smb_direct_transport *t)
 		if (recvmsg) {
 			list_del(&recvmsg->list);
 			spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
-			put_recvmsg(sc, recvmsg);
+			smbdirect_connection_put_recv_io(recvmsg);
 		} else {
 			spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
 		}
@@ -557,7 +520,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	sp = &sc->parameters;
 
 	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_RECV) {
-		put_recvmsg(sc, recvmsg);
+		smbdirect_connection_put_recv_io(recvmsg);
 		if (wc->status != IB_WC_WR_FLUSH_ERR) {
 			pr_err("Recv error. status='%s (%d)' opcode=%d\n",
 			       ib_wc_status_msg(wc->status), wc->status,
@@ -595,7 +558,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 		if (wc->byte_len <
 		    offsetof(struct smbdirect_data_transfer, padding)) {
-			put_recvmsg(sc, recvmsg);
+			smbdirect_connection_put_recv_io(recvmsg);
 			smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 			return;
 		}
@@ -605,7 +568,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		data_offset = le32_to_cpu(data_transfer->data_offset);
 		if (wc->byte_len < data_offset ||
 		    wc->byte_len < (u64)data_offset + data_length) {
-			put_recvmsg(sc, recvmsg);
+			smbdirect_connection_put_recv_io(recvmsg);
 			smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 			return;
 		}
@@ -613,7 +576,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		    data_length > sp->max_fragmented_recv_size ||
 		    (u64)remaining_data_length + (u64)data_length >
 		    (u64)sp->max_fragmented_recv_size) {
-			put_recvmsg(sc, recvmsg);
+			smbdirect_connection_put_recv_io(recvmsg);
 			smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 			return;
 		}
@@ -656,7 +619,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			enqueue_reassembly(sc, recvmsg, (int)data_length);
 			wake_up(&sc->recv_io.reassembly.wait_queue);
 		} else
-			put_recvmsg(sc, recvmsg);
+			smbdirect_connection_put_recv_io(recvmsg);
 
 		return;
 	}
@@ -669,7 +632,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	 * This is an internal error!
 	 */
 	WARN_ON_ONCE(sc->recv_io.expected != SMBDIRECT_EXPECT_DATA_TRANSFER);
-	put_recvmsg(sc, recvmsg);
+	smbdirect_connection_put_recv_io(recvmsg);
 	smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 }
 
@@ -688,7 +651,7 @@ static void smb_direct_negotiate_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	recv_io->cqe.done = recv_done;
 
 	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_RECV) {
-		put_recvmsg(sc, recv_io);
+		smbdirect_connection_put_recv_io(recv_io);
 		if (wc->status != IB_WC_WR_FLUSH_ERR) {
 			pr_err("Negotiate Recv error. status='%s (%d)' opcode=%d\n",
 			       ib_wc_status_msg(wc->status), wc->status,
@@ -711,7 +674,7 @@ static void smb_direct_negotiate_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	 * This is an internal error!
 	 */
 	if (WARN_ON_ONCE(sc->recv_io.expected != SMBDIRECT_EXPECT_NEGOTIATE_REQ)) {
-		put_recvmsg(sc, recv_io);
+		smbdirect_connection_put_recv_io(recv_io);
 		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		return;
 	}
@@ -731,7 +694,7 @@ static void smb_direct_negotiate_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (wc->byte_len >= sizeof(struct smbdirect_negotiate_req))
 		enqueue_reassembly(sc, recv_io, 0);
 	else
-		put_recvmsg(sc, recv_io);
+		smbdirect_connection_put_recv_io(recv_io);
 
 	/*
 	 * Some drivers (at least mlx5_ib and irdma in roce mode)
@@ -914,7 +877,7 @@ again:
 					spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
 				}
 				queue_removed++;
-				put_recvmsg(sc, recvmsg);
+				smbdirect_connection_put_recv_io(recvmsg);
 				offset = 0;
 			} else {
 				offset += to_copy;
@@ -958,7 +921,7 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 
 	if (atomic_read(&sc->recv_io.credits.count) < sc->recv_io.credits.target) {
 		while (true) {
-			recvmsg = get_free_recvmsg(sc);
+			recvmsg = smbdirect_connection_get_recv_io(sc);
 			if (!recvmsg)
 				break;
 
@@ -967,7 +930,7 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 			ret = smb_direct_post_recv(sc, recvmsg);
 			if (ret) {
 				pr_err("Can't post recv: %d\n", ret);
-				put_recvmsg(sc, recvmsg);
+				smbdirect_connection_put_recv_io(recvmsg);
 				break;
 			}
 			credits++;
@@ -2105,7 +2068,7 @@ static int smb_direct_prepare_negotiation(struct smbdirect_socket *sc)
 
 	sc->recv_io.expected = SMBDIRECT_EXPECT_NEGOTIATE_REQ;
 
-	recvmsg = get_free_recvmsg(sc);
+	recvmsg = smbdirect_connection_get_recv_io(sc);
 	if (!recvmsg)
 		return -ENOMEM;
 	recvmsg->cqe.done = smb_direct_negotiate_recv_done;
@@ -2132,7 +2095,7 @@ out_err:
 	 * will unmap it exactly once.
 	 */
 	if (!recv_posted)
-		put_recvmsg(sc, recvmsg);
+		smbdirect_connection_put_recv_io(recvmsg);
 	return ret;
 }
 
@@ -2172,7 +2135,7 @@ static void smb_direct_destroy_pools(struct smbdirect_socket *sc)
 {
 	struct smbdirect_recv_io *recvmsg;
 
-	while ((recvmsg = get_free_recvmsg(sc)))
+	while ((recvmsg = smbdirect_connection_get_recv_io(sc)))
 		mempool_free(recvmsg, sc->recv_io.mem.pool);
 
 	mempool_destroy(sc->recv_io.mem.pool);
@@ -2518,7 +2481,7 @@ put:
 	sc->recv_io.reassembly.queue_length--;
 	list_del(&recvmsg->list);
 	spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
-	put_recvmsg(sc, recvmsg);
+	smbdirect_connection_put_recv_io(recvmsg);
 
 	if (ret == -ECONNABORTED)
 		return ret;
