@@ -1212,6 +1212,9 @@ static int iwl_mld_wait_d3_notif(struct iwl_mld *mld,
 
 	ret = iwl_trans_d3_resume(mld->trans, false);
 	if (ret) {
+		/* Avoid sending commands if the FW is dead */
+		mld->trans->state = IWL_TRANS_NO_FW;
+		set_bit(STATUS_FW_ERROR, &mld->trans->status);
 		iwl_remove_notification(&mld->notif_wait, &wait_d3_notif);
 		return ret;
 	}
@@ -1245,16 +1248,11 @@ int iwl_mld_no_wowlan_suspend(struct iwl_mld *mld)
 
 	iwl_mld_low_latency_stop(mld);
 
-	/* This will happen if iwl_mld_supsend failed with FW error */
-	if (mld->trans->state == IWL_TRANS_NO_FW &&
-	    test_bit(STATUS_FW_ERROR, &mld->trans->status))
-		return -ENODEV;
-
 	ret = iwl_mld_update_device_power(mld, true);
 	if (ret) {
 		IWL_ERR(mld,
 			"d3 suspend: couldn't send power_device %d\n", ret);
-		goto out;
+		return ret;
 	}
 
 	ret = iwl_mld_send_cmd_pdu(mld, D3_CONFIG_CMD,
@@ -1262,22 +1260,19 @@ int iwl_mld_no_wowlan_suspend(struct iwl_mld *mld)
 	if (ret) {
 		IWL_ERR(mld,
 			"d3 suspend: couldn't send D3_CONFIG_CMD %d\n", ret);
-		goto out;
+		return ret;
 	}
 
 	ret = iwl_trans_d3_suspend(mld->trans, false);
 	if (ret) {
 		IWL_ERR(mld, "d3 suspend: trans_d3_suspend failed %d\n", ret);
+		/* We are going to stop the FW. Avoid sending commands in that flow */
+		mld->trans->state = IWL_TRANS_NO_FW;
+		set_bit(STATUS_FW_ERROR, &mld->trans->status);
 	} else {
 		/* Async notification might send hcmds, which is not allowed in suspend */
 		iwl_mld_cancel_async_notifications(mld);
 		mld->fw_status.in_d3 = true;
-	}
-
- out:
-	if (ret) {
-		mld->trans->state = IWL_TRANS_NO_FW;
-		set_bit(STATUS_FW_ERROR, &mld->trans->status);
 	}
 
 	return ret;
@@ -1299,15 +1294,12 @@ int iwl_mld_no_wowlan_resume(struct iwl_mld *mld)
 	iwl_fw_dbg_read_d3_debug_data(&mld->fwrt);
 
 	ret = iwl_mld_wait_d3_notif(mld, &resume_data, false);
+	if (ret)
+		return ret;
 
 	if (!ret && (resume_data.d3_end_flags & IWL_D0I3_RESET_REQUIRE))
 		return -ENODEV;
 
-	if (ret) {
-		mld->trans->state = IWL_TRANS_NO_FW;
-		set_bit(STATUS_FW_ERROR, &mld->trans->status);
-		return ret;
-	}
 	iwl_mld_low_latency_restart(mld);
 
 	return iwl_mld_update_device_power(mld, false);
@@ -1820,7 +1812,6 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 	};
 	int link_id;
 	int ret;
-	bool fw_err = false;
 
 	lockdep_assert_wiphy(mld->wiphy);
 
@@ -1863,7 +1854,6 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 	ret = iwl_mld_wait_d3_notif(mld, &resume_data, true);
 	if (ret) {
 		IWL_ERR(mld, "Couldn't get the d3 notifs %d\n", ret);
-		fw_err = true;
 		goto err;
 	}
 
@@ -1900,11 +1890,6 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 	goto out;
 
  err:
-	if (fw_err) {
-		mld->trans->state = IWL_TRANS_NO_FW;
-		set_bit(STATUS_FW_ERROR, &mld->trans->status);
-	}
-
 	mld->fw_status.in_hw_restart = true;
 	ret = 1;
  out:

@@ -1966,13 +1966,8 @@ iwl_mld_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	iwl_fw_runtime_suspend(&mld->fwrt);
 
 	ret = iwl_mld_wowlan_suspend(mld, wowlan);
-	if (ret) {
-		if (ret < 0) {
-			mld->trans->state = IWL_TRANS_NO_FW;
-			set_bit(STATUS_FW_ERROR, &mld->trans->status);
-		}
+	if (ret)
 		return 1;
-	}
 
 	if (iwl_mld_no_wowlan_suspend(mld))
 		return 1;
