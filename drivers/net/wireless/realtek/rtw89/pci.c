@@ -568,31 +568,40 @@ static void rtw89_pci_release_txwd_skb(struct rtw89_dev *rtwdev,
 		rtw89_pci_enqueue_txwd(tx_ring, txwd);
 }
 
-static void rtw89_pci_release_rpp(struct rtw89_dev *rtwdev,
-				  struct rtw89_pci_rpp_fmt *rpp)
+void rtw89_pci_parse_rpp(struct rtw89_dev *rtwdev, void *_rpp,
+			 struct rtw89_pci_rpp_info *rpp_info)
+{
+	const struct rtw89_pci_rpp_fmt *rpp = _rpp;
+
+	rpp_info->seq = le32_get_bits(rpp->dword, RTW89_PCI_RPP_SEQ);
+	rpp_info->qsel = le32_get_bits(rpp->dword, RTW89_PCI_RPP_QSEL);
+	rpp_info->tx_status = le32_get_bits(rpp->dword, RTW89_PCI_RPP_TX_STATUS);
+	rpp_info->txch = rtw89_core_get_ch_dma(rtwdev, rpp_info->qsel);
+}
+EXPORT_SYMBOL(rtw89_pci_parse_rpp);
+
+static void rtw89_pci_release_rpp(struct rtw89_dev *rtwdev, void *rpp)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
-	struct rtw89_pci_tx_ring *tx_ring;
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	struct rtw89_pci_rpp_info rpp_info = {};
 	struct rtw89_pci_tx_wd_ring *wd_ring;
+	struct rtw89_pci_tx_ring *tx_ring;
 	struct rtw89_pci_tx_wd *txwd;
-	u16 seq;
-	u8 qsel, tx_status, txch;
 
-	seq = le32_get_bits(rpp->dword, RTW89_PCI_RPP_SEQ);
-	qsel = le32_get_bits(rpp->dword, RTW89_PCI_RPP_QSEL);
-	tx_status = le32_get_bits(rpp->dword, RTW89_PCI_RPP_TX_STATUS);
-	txch = rtw89_core_get_ch_dma(rtwdev, qsel);
+	info->parse_rpp(rtwdev, rpp, &rpp_info);
 
-	if (txch == RTW89_TXCH_CH12) {
+	if (rpp_info.txch == RTW89_TXCH_CH12) {
 		rtw89_warn(rtwdev, "should no fwcmd release report\n");
 		return;
 	}
 
-	tx_ring = &rtwpci->tx.rings[txch];
+	tx_ring = &rtwpci->tx.rings[rpp_info.txch];
 	wd_ring = &tx_ring->wd_ring;
-	txwd = &wd_ring->pages[seq];
+	txwd = &wd_ring->pages[rpp_info.seq];
 
-	rtw89_pci_release_txwd_skb(rtwdev, tx_ring, txwd, seq, tx_status);
+	rtw89_pci_release_txwd_skb(rtwdev, tx_ring, txwd, rpp_info.seq,
+				   rpp_info.tx_status);
 }
 
 static void rtw89_pci_release_pending_txwd_skb(struct rtw89_dev *rtwdev,
@@ -617,13 +626,14 @@ static u32 rtw89_pci_release_tx_skbs(struct rtw89_dev *rtwdev,
 				     u32 max_cnt)
 {
 	struct rtw89_pci_dma_ring *bd_ring = &rx_ring->bd_ring;
-	struct rtw89_pci_rx_info *rx_info;
-	struct rtw89_pci_rpp_fmt *rpp;
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	struct rtw89_rx_desc_info desc_info = {};
+	struct rtw89_pci_rx_info *rx_info;
 	struct sk_buff *skb;
-	u32 cnt = 0;
-	u32 rpp_size = sizeof(struct rtw89_pci_rpp_fmt);
+	void *rpp;
 	u32 rxinfo_size = sizeof(struct rtw89_pci_rxbd_info);
+	u32 rpp_size = info->rpp_fmt_size;
+	u32 cnt = 0;
 	u32 skb_idx;
 	u32 offset;
 	int ret;
@@ -649,7 +659,7 @@ static u32 rtw89_pci_release_tx_skbs(struct rtw89_dev *rtwdev,
 	/* first segment has RX desc */
 	offset = desc_info.offset + desc_info.rxd_len;
 	for (; offset + rpp_size <= rx_info->len; offset += rpp_size) {
-		rpp = (struct rtw89_pci_rpp_fmt *)(skb->data + offset);
+		rpp = skb->data + offset;
 		rtw89_pci_release_rpp(rtwdev, rpp);
 	}
 

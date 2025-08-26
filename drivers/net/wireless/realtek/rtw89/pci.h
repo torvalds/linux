@@ -1365,6 +1365,13 @@ struct rtw89_pci_ssid_quirk {
 	unsigned long bitmap; /* bitmap of rtw89_quirks */
 };
 
+struct rtw89_pci_rpp_info {
+	u16 seq;
+	u8 qsel;
+	u8 tx_status;
+	u8 txch;
+};
+
 struct rtw89_pci_info {
 	const struct rtw89_pci_gen_def *gen_def;
 	const struct rtw89_pci_isr_def *isr_def;
@@ -1386,6 +1393,7 @@ struct rtw89_pci_info {
 	bool check_rx_tag;
 	bool no_rxbd_fs;
 	bool group_bd_addr;
+	u32 rpp_fmt_size;
 
 	u32 init_cfg_reg;
 	u32 txhci_en_bit;
@@ -1415,6 +1423,8 @@ struct rtw89_pci_info {
 	u32 (*fill_txaddr_info)(struct rtw89_dev *rtwdev,
 				void *txaddr_info_addr, u32 total_len,
 				dma_addr_t dma, u8 *add_info_nr);
+	void (*parse_rpp)(struct rtw89_dev *rtwdev, void *rpp,
+			  struct rtw89_pci_rpp_info *rpp_info);
 	void (*config_intr_mask)(struct rtw89_dev *rtwdev);
 	void (*enable_intr)(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci);
 	void (*disable_intr)(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci);
@@ -1724,6 +1734,8 @@ u32 rtw89_pci_fill_txaddr_info(struct rtw89_dev *rtwdev,
 u32 rtw89_pci_fill_txaddr_info_v1(struct rtw89_dev *rtwdev,
 				  void *txaddr_info_addr, u32 total_len,
 				  dma_addr_t dma, u8 *add_info_nr);
+void rtw89_pci_parse_rpp(struct rtw89_dev *rtwdev, void *_rpp,
+			 struct rtw89_pci_rpp_info *rpp_info);
 void rtw89_pci_ctrl_dma_all(struct rtw89_dev *rtwdev, bool enable);
 void rtw89_pci_config_intr_mask(struct rtw89_dev *rtwdev);
 void rtw89_pci_config_intr_mask_v1(struct rtw89_dev *rtwdev);
