@@ -3766,12 +3766,12 @@ static const struct nla_policy macsec_rtnl_policy[IFLA_MACSEC_MAX + 1] = {
 	[IFLA_MACSEC_CIPHER_SUITE] = NLA_POLICY_VALIDATE_FN(NLA_U64, validate_cipher_suite),
 	[IFLA_MACSEC_WINDOW] = { .type = NLA_U32 },
 	[IFLA_MACSEC_ENCODING_SA] = { .type = NLA_U8 },
-	[IFLA_MACSEC_ENCRYPT] = { .type = NLA_U8 },
-	[IFLA_MACSEC_PROTECT] = { .type = NLA_U8 },
-	[IFLA_MACSEC_INC_SCI] = { .type = NLA_U8 },
-	[IFLA_MACSEC_ES] = { .type = NLA_U8 },
-	[IFLA_MACSEC_SCB] = { .type = NLA_U8 },
-	[IFLA_MACSEC_REPLAY_PROTECT] = { .type = NLA_U8 },
+	[IFLA_MACSEC_ENCRYPT] = NLA_POLICY_MAX(NLA_U8, 1),
+	[IFLA_MACSEC_PROTECT] = NLA_POLICY_MAX(NLA_U8, 1),
+	[IFLA_MACSEC_INC_SCI] = NLA_POLICY_MAX(NLA_U8, 1),
+	[IFLA_MACSEC_ES] = NLA_POLICY_MAX(NLA_U8, 1),
+	[IFLA_MACSEC_SCB] = NLA_POLICY_MAX(NLA_U8, 1),
+	[IFLA_MACSEC_REPLAY_PROTECT] = NLA_POLICY_MAX(NLA_U8, 1),
 	[IFLA_MACSEC_VALIDATION] = NLA_POLICY_MAX(NLA_U8, MACSEC_VALIDATE_MAX),
 	[IFLA_MACSEC_OFFLOAD] = NLA_POLICY_MAX(NLA_U8, MACSEC_OFFLOAD_MAX),
 };
@@ -4246,7 +4246,6 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[],
 				struct netlink_ext_ack *extack)
 {
 	u8 icv_len = MACSEC_DEFAULT_ICV_LEN;
-	int flag;
 	bool es, scb, sci;
 
 	if (!data)
@@ -4270,15 +4269,6 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[],
 	if (data[IFLA_MACSEC_ENCODING_SA]) {
 		if (nla_get_u8(data[IFLA_MACSEC_ENCODING_SA]) >= MACSEC_NUM_AN)
 			return -EINVAL;
-	}
-
-	for (flag = IFLA_MACSEC_ENCODING_SA + 1;
-	     flag < IFLA_MACSEC_VALIDATION;
-	     flag++) {
-		if (data[flag]) {
-			if (nla_get_u8(data[flag]) > 1)
-				return -EINVAL;
-		}
 	}
 
 	es  = nla_get_u8_default(data[IFLA_MACSEC_ES], false);
