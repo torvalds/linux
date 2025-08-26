@@ -240,10 +240,20 @@ void fbnic_bmc_rpc_init(struct fbnic_dev *fbd)
 
 void fbnic_bmc_rpc_check(struct fbnic_dev *fbd)
 {
+	int err;
+
 	if (fbd->fw_cap.need_bmc_tcam_reinit) {
 		fbnic_bmc_rpc_init(fbd);
 		__fbnic_set_rx_mode(fbd);
 		fbd->fw_cap.need_bmc_tcam_reinit = false;
+	}
+
+	if (fbd->fw_cap.need_bmc_macda_sync) {
+		err = fbnic_fw_xmit_rpc_macda_sync(fbd);
+		if (err)
+			dev_warn(fbd->dev,
+				 "Writing MACDA table to FW failed, err: %d\n", err);
+		fbd->fw_cap.need_bmc_macda_sync = false;
 	}
 }
 
@@ -607,7 +617,7 @@ static void fbnic_write_macda_entry(struct fbnic_dev *fbd, unsigned int idx,
 
 void fbnic_write_macda(struct fbnic_dev *fbd)
 {
-	int idx;
+	int idx, updates = 0;
 
 	for (idx = ARRAY_SIZE(fbd->mac_addr); idx--;) {
 		struct fbnic_mac_addr *mac_addr = &fbd->mac_addr[idx];
@@ -615,6 +625,9 @@ void fbnic_write_macda(struct fbnic_dev *fbd)
 		/* Check if update flag is set else exit. */
 		if (!(mac_addr->state & FBNIC_TCAM_S_UPDATE))
 			continue;
+
+		/* Record update count */
+		updates++;
 
 		/* Clear by writing 0s. */
 		if (mac_addr->state == FBNIC_TCAM_S_DELETE) {
@@ -629,6 +642,14 @@ void fbnic_write_macda(struct fbnic_dev *fbd)
 
 		mac_addr->state = FBNIC_TCAM_S_VALID;
 	}
+
+	/* If reinitializing the BMC TCAM we are doing an initial update */
+	if (fbd->fw_cap.need_bmc_tcam_reinit)
+		updates++;
+
+	/* If needed notify firmware of changes to MACDA TCAM */
+	if (updates != 0 && fbnic_bmc_present(fbd))
+		fbd->fw_cap.need_bmc_macda_sync = true;
 }
 
 static void fbnic_clear_act_tcam(struct fbnic_dev *fbd, unsigned int idx)
