@@ -175,10 +175,10 @@ static void rtw89_pci_clr_idx_all_be(struct rtw89_dev *rtwdev)
 	rtw89_write32(rtwdev, R_BE_RXBD_RWPTR_CLR1_V1,
 		      B_BE_CLR_RXQ0_IDX | B_BE_CLR_RPQ0_IDX);
 
-	rx_ring = &rtwpci->rx_rings[RTW89_RXCH_RXQ];
+	rx_ring = &rtwpci->rx.rings[RTW89_RXCH_RXQ];
 	rtw89_write16(rtwdev, R_BE_RXQ0_RXBD_IDX_V1, rx_ring->bd_ring.len - 1);
 
-	rx_ring = &rtwpci->rx_rings[RTW89_RXCH_RPQ];
+	rx_ring = &rtwpci->rx.rings[RTW89_RXCH_RPQ];
 	rtw89_write16(rtwdev, R_BE_RPQ0_RXBD_IDX_V1, rx_ring->bd_ring.len - 1);
 }
 

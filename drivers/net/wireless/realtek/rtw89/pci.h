@@ -1524,6 +1524,10 @@ struct rtw89_pci_tx_ring {
 	u64 tx_mac_id_drop;
 };
 
+struct rtw89_pci_tx_rings {
+	struct rtw89_pci_tx_ring rings[RTW89_TXCH_NUM];
+};
+
 struct rtw89_pci_rx_ring {
 	struct rtw89_pci_dma_ring bd_ring;
 	struct sk_buff *buf[RTW89_PCI_RXBD_NUM_MAX];
@@ -1531,6 +1535,10 @@ struct rtw89_pci_rx_ring {
 	struct sk_buff *diliver_skb;
 	struct rtw89_rx_desc_info diliver_desc;
 	u32 target_rx_tag:13;
+};
+
+struct rtw89_pci_rx_rings {
+	struct rtw89_pci_rx_ring rings[RTW89_RXCH_NUM];
 };
 
 struct rtw89_pci_isrs {
@@ -1550,8 +1558,8 @@ struct rtw89_pci {
 	bool low_power;
 	bool under_recovery;
 	bool enable_dac;
-	struct rtw89_pci_tx_ring tx_rings[RTW89_TXCH_NUM];
-	struct rtw89_pci_rx_ring rx_rings[RTW89_RXCH_NUM];
+	struct rtw89_pci_tx_rings tx;
+	struct rtw89_pci_rx_rings rx;
 	struct sk_buff_head h2c_queue;
 	struct sk_buff_head h2c_release_queue;
 	DECLARE_BITMAP(kick_map, RTW89_TXCH_NUM);
