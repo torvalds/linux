@@ -5,6 +5,8 @@
 #ifndef __ASM_VDSO_GETTIMEOFDAY_H
 #define __ASM_VDSO_GETTIMEOFDAY_H
 
+#ifdef __aarch64__
+
 #ifndef __ASSEMBLY__
 
 #include <asm/alternative.h>
@@ -95,5 +97,11 @@ static __always_inline const struct vdso_time_data *__arch_get_vdso_u_time_data(
 #endif /* IS_ENABLED(CONFIG_CC_IS_GCC) && IS_ENABLED(CONFIG_PAGE_SIZE_64KB) */
 
 #endif /* !__ASSEMBLY__ */
+
+#else /* !__aarch64__ */
+
+#include "compat_gettimeofday.h"
+
+#endif /* __aarch64__ */
 
 #endif /* __ASM_VDSO_GETTIMEOFDAY_H */
