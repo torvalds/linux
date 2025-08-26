@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/highmem.h>
 #include <linux/folio_queue.h>
-#define __SMBDIRECT_SOCKET_DISCONNECT(__sc) smbd_disconnect_rdma_connection(__sc)
 #include "../common/smbdirect/smbdirect_pdu.h"
 #include "smbdirect.h"
 #include "cifs_debug.h"
@@ -165,8 +164,6 @@ module_param(smbd_logging_level, uint, 0644);
 MODULE_PARM_DESC(smbd_logging_level,
 	"Logging level for SMBD transport, 0 (default): error, 1: info");
 
-static void smbd_disconnect_rdma_connection(struct smbdirect_socket *sc);
-
 /*
  * This is a temporary solution until all code
  * is moved to smbdirect_all_c_files.c and we
@@ -234,74 +231,6 @@ do {									\
 		log_rdma(level, LOG_RDMA_EVENT, fmt, ##args)
 #define log_rdma_mr(level, fmt, args...) \
 		log_rdma(level, LOG_RDMA_MR, fmt, ##args)
-
-static void smbd_disconnect_rdma_connection(struct smbdirect_socket *sc)
-{
-	if (sc->first_error == 0)
-		sc->first_error = -ECONNABORTED;
-
-	/*
-	 * make sure other work (than disconnect_work) is
-	 * not queued again but here we don't block and avoid
-	 * disable[_delayed]_work_sync()
-	 */
-	disable_work(&sc->recv_io.posted.refill_work);
-	disable_work(&sc->mr_io.recovery_work);
-	disable_work(&sc->idle.immediate_work);
-	disable_delayed_work(&sc->idle.timer_work);
-
-	switch (sc->status) {
-	case SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED:
-	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_FAILED:
-	case SMBDIRECT_SOCKET_RDMA_CONNECT_FAILED:
-	case SMBDIRECT_SOCKET_NEGOTIATE_FAILED:
-	case SMBDIRECT_SOCKET_ERROR:
-	case SMBDIRECT_SOCKET_DISCONNECTING:
-	case SMBDIRECT_SOCKET_DISCONNECTED:
-	case SMBDIRECT_SOCKET_DESTROYED:
-		/*
-		 * Keep the current error status
-		 */
-		break;
-
-	case SMBDIRECT_SOCKET_RESOLVE_ADDR_NEEDED:
-	case SMBDIRECT_SOCKET_RESOLVE_ADDR_RUNNING:
-		sc->status = SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED;
-		break;
-
-	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_NEEDED:
-	case SMBDIRECT_SOCKET_RESOLVE_ROUTE_RUNNING:
-		sc->status = SMBDIRECT_SOCKET_RESOLVE_ROUTE_FAILED;
-		break;
-
-	case SMBDIRECT_SOCKET_RDMA_CONNECT_NEEDED:
-	case SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING:
-		sc->status = SMBDIRECT_SOCKET_RDMA_CONNECT_FAILED;
-		break;
-
-	case SMBDIRECT_SOCKET_NEGOTIATE_NEEDED:
-	case SMBDIRECT_SOCKET_NEGOTIATE_RUNNING:
-		sc->status = SMBDIRECT_SOCKET_NEGOTIATE_FAILED;
-		break;
-
-	case SMBDIRECT_SOCKET_CREATED:
-	case SMBDIRECT_SOCKET_LISTENING:
-		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
-		break;
-
-	case SMBDIRECT_SOCKET_CONNECTED:
-		sc->status = SMBDIRECT_SOCKET_ERROR;
-		break;
-	}
-
-	/*
-	 * Wake up all waiters in all wait queues
-	 * in order to notice the broken connection.
-	 */
-	smbdirect_socket_wake_up_all(sc);
-
-	queue_work(sc->workqueue, &sc->disconnect_work);
-}
 
 /* Upcall from RDMA CM */
 static int smbd_conn_upcall(
@@ -470,7 +399,7 @@ smbd_qp_async_error_upcall(struct ib_event *event, void *context)
 	switch (event->event) {
 	case IB_EVENT_CQ_ERR:
 	case IB_EVENT_QP_FATAL:
-		smbd_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		break;
 
 	default:
@@ -567,7 +496,7 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 		log_rdma_send(ERR,
 			"unexpected send completion wc->status=%s (%d) wc->opcode=%d\n",
 			ib_wc_status_msg(wc->status), wc->status, wc->opcode);
-		smbd_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		return;
 	}
 
@@ -588,7 +517,7 @@ skip_free:
 		if (wc->status != IB_WC_WR_FLUSH_ERR)
 			log_rdma_send(ERR, "wc->status=%s wc->opcode=%d\n",
 				ib_wc_status_msg(wc->status), wc->opcode);
-		smbd_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		return;
 	}
 
@@ -790,7 +719,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			negotiate_done = false;
 		if (!negotiate_done) {
 			sc->status = SMBDIRECT_SOCKET_NEGOTIATE_FAILED;
-			smbd_disconnect_rdma_connection(sc);
+			smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		} else {
 			sc->status = SMBDIRECT_SOCKET_CONNECTED;
 			wake_up(&sc->status_wait);
@@ -889,7 +818,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	WARN_ON_ONCE(sc->recv_io.expected != SMBDIRECT_EXPECT_DATA_TRANSFER);
 error:
 	put_receive_buffer(sc, response);
-	smbd_disconnect_rdma_connection(sc);
+	smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 }
 
 static struct rdma_cm_id *smbd_create_id(
@@ -1191,7 +1120,7 @@ static int smbd_ib_post_send(struct smbdirect_socket *sc,
 	ret = ib_post_send(sc->ib.qp, wr, NULL);
 	if (ret) {
 		pr_err("failed to post send: %d\n", ret);
-		smbd_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, ret);
 		ret = -EAGAIN;
 	}
 	return ret;
@@ -1631,7 +1560,7 @@ static int smbd_post_recv(
 		ib_dma_unmap_single(sc->ib.dev, response->sge.addr,
 				    response->sge.length, DMA_FROM_DEVICE);
 		response->sge.length = 0;
-		smbd_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, rc);
 		log_rdma_recv(ERR, "ib_post_recv failed rc=%d\n", rc);
 	}
 
@@ -1842,7 +1771,7 @@ static void idle_connection_timer(struct work_struct *work)
 		log_keep_alive(ERR,
 			"error status sc->idle.keepalive=%d\n",
 			sc->idle.keepalive);
-		smbd_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, -ETIMEDOUT);
 		return;
 	}
 
@@ -2612,7 +2541,7 @@ static void register_mr_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	if (wc->status) {
 		log_rdma_mr(ERR, "status=%d\n", wc->status);
-		smbd_disconnect_rdma_connection(sc);
+		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 	}
 }
 
@@ -2642,7 +2571,7 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 				log_rdma_mr(ERR,
 					"ib_dereg_mr failed rc=%x\n",
 					rc);
-				smbd_disconnect_rdma_connection(sc);
+				smbdirect_socket_schedule_cleanup(sc, rc);
 				continue;
 			}
 
@@ -2650,10 +2579,11 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 				sc->ib.pd, sc->mr_io.type,
 				sp->max_frmr_depth);
 			if (IS_ERR(smbdirect_mr->mr)) {
+				rc = PTR_ERR(smbdirect_mr->mr);
 				log_rdma_mr(ERR, "ib_alloc_mr failed mr_type=%x max_frmr_depth=%x\n",
 					    sc->mr_io.type,
 					    sp->max_frmr_depth);
-				smbd_disconnect_rdma_connection(sc);
+				smbdirect_socket_schedule_cleanup(sc, rc);
 				continue;
 			}
 		} else
@@ -2988,7 +2918,7 @@ dma_map_error:
 	if (atomic_dec_and_test(&sc->mr_io.used.count))
 		wake_up(&sc->mr_io.cleanup.wait_queue);
 
-	smbd_disconnect_rdma_connection(sc);
+	smbdirect_socket_schedule_cleanup(sc, rc);
 
 	/*
 	 * get_mr() gave us a reference
@@ -3063,7 +2993,7 @@ void smbd_deregister_mr(struct smbdirect_mr_io *mr)
 		if (rc) {
 			log_rdma_mr(ERR, "ib_post_send failed rc=%x\n", rc);
 			smbd_mr_disable_locked(mr);
-			smbd_disconnect_rdma_connection(sc);
+			smbdirect_socket_schedule_cleanup(sc, rc);
 			goto done;
 		}
 		wait_for_completion(&mr->invalidate_done);
