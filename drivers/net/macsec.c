@@ -1672,8 +1672,7 @@ static const struct nla_policy macsec_genl_sa_policy[NUM_MACSEC_SA_ATTR] = {
 	[MACSEC_SA_ATTR_AN] = NLA_POLICY_MAX(NLA_U8, MACSEC_NUM_AN - 1),
 	[MACSEC_SA_ATTR_ACTIVE] = NLA_POLICY_MAX(NLA_U8, 1),
 	[MACSEC_SA_ATTR_PN] = NLA_POLICY_MIN_LEN(4),
-	[MACSEC_SA_ATTR_KEYID] = { .type = NLA_BINARY,
-				   .len = MACSEC_KEYID_LEN, },
+	[MACSEC_SA_ATTR_KEYID] = NLA_POLICY_EXACT_LEN(MACSEC_KEYID_LEN),
 	[MACSEC_SA_ATTR_KEY] = { .type = NLA_BINARY,
 				 .len = MACSEC_MAX_KEY_LEN, },
 	[MACSEC_SA_ATTR_SSCI] = { .type = NLA_U32 },
@@ -1735,9 +1734,6 @@ static bool validate_add_rxsa(struct nlattr **attrs)
 
 	if (attrs[MACSEC_SA_ATTR_PN] &&
 	    nla_get_u64(attrs[MACSEC_SA_ATTR_PN]) == 0)
-		return false;
-
-	if (nla_len(attrs[MACSEC_SA_ATTR_KEYID]) != MACSEC_KEYID_LEN)
 		return false;
 
 	return true;
@@ -1958,9 +1954,6 @@ static bool validate_add_txsa(struct nlattr **attrs)
 		return false;
 
 	if (nla_get_u64(attrs[MACSEC_SA_ATTR_PN]) == 0)
-		return false;
-
-	if (nla_len(attrs[MACSEC_SA_ATTR_KEYID]) != MACSEC_KEYID_LEN)
 		return false;
 
 	return true;
