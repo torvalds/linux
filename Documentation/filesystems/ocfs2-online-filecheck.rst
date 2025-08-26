@@ -58,33 +58,33 @@ inode, fixing inode and setting the size of result record history.
     # echo "<inode>" > /sys/fs/ocfs2/<devname>/filecheck/check
     # cat /sys/fs/ocfs2/<devname>/filecheck/check
 
-The output is like this::
+   The output is like this::
 
     INO		DONE	ERROR
     39502		1	GENERATION
 
-    <INO> lists the inode numbers.
-    <DONE> indicates whether the operation has been finished.
-    <ERROR> says what kind of errors was found. For the detailed error numbers,
-    please refer to the file linux/fs/ocfs2/filecheck.h.
+   <INO> lists the inode numbers.
+   <DONE> indicates whether the operation has been finished.
+   <ERROR> says what kind of errors was found. For the detailed error numbers,
+   please refer to the file linux/fs/ocfs2/filecheck.h.
 
 2. If you determine to fix this inode, do::
 
     # echo "<inode>" > /sys/fs/ocfs2/<devname>/filecheck/fix
     # cat /sys/fs/ocfs2/<devname>/filecheck/fix
 
-The output is like this:::
+   The output is like this::
 
     INO		DONE	ERROR
     39502		1	SUCCESS
 
-This time, the <ERROR> column indicates whether this fix is successful or not.
+   This time, the <ERROR> column indicates whether this fix is successful or not.
 
 3. The record cache is used to store the history of check/fix results. It's
-default size is 10, and can be adjust between the range of 10 ~ 100. You can
-adjust the size like this::
+   default size is 10, and can be adjust between the range of 10 ~ 100. You can
+   adjust the size like this::
 
-  # echo "<size>" > /sys/fs/ocfs2/<devname>/filecheck/set
+    # echo "<size>" > /sys/fs/ocfs2/<devname>/filecheck/set
 
 Fixing stuff
 ============
