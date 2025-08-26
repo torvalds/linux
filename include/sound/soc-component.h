@@ -287,20 +287,6 @@ static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
 }
 
 /**
- * snd_soc_dapm_kcontrol_component() - Returns the component associated to a
- * kcontrol
- * @kcontrol: The kcontrol
- *
- * This function must only be used on DAPM contexts that are known to be part of
- * a COMPONENT (e.g. in a COMPONENT driver). Otherwise the behavior is undefined
- */
-static inline struct snd_soc_component *snd_soc_dapm_kcontrol_component(
-	struct snd_kcontrol *kcontrol)
-{
-	return snd_soc_dapm_to_component(snd_soc_dapm_kcontrol_dapm(kcontrol));
-}
-
-/**
  * snd_soc_component_cache_sync() - Sync the register cache with the hardware
  * @component: COMPONENT to sync
  *
