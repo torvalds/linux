@@ -23,11 +23,6 @@ const struct smbdirect_socket_parameters *smbd_get_parameters(struct smbd_connec
 	return &sc->parameters;
 }
 
-static struct smbdirect_recv_io *get_receive_buffer(
-		struct smbdirect_socket *sc);
-static void put_receive_buffer(
-		struct smbdirect_socket *sc,
-		struct smbdirect_recv_io *response);
 static int allocate_receive_buffers(struct smbdirect_socket *sc, int num_buf);
 static void destroy_receive_buffers(struct smbdirect_socket *sc);
 
@@ -628,7 +623,7 @@ static void smbd_post_send_credits(struct work_struct *work)
 	if (sc->recv_io.credits.target >
 		atomic_read(&sc->recv_io.credits.count)) {
 		while (true) {
-			response = get_receive_buffer(sc);
+			response = smbdirect_connection_get_recv_io(sc);
 			if (!response)
 				break;
 
@@ -637,7 +632,7 @@ static void smbd_post_send_credits(struct work_struct *work)
 			if (rc) {
 				log_rdma_recv(ERR,
 					"post_recv failed rc=%d\n", rc);
-				put_receive_buffer(sc, response);
+				smbdirect_connection_put_recv_io(response);
 				break;
 			}
 
@@ -714,7 +709,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		sc->recv_io.reassembly.full_packet_received = true;
 		negotiate_done =
 			process_negotiation_response(response, wc->byte_len);
-		put_receive_buffer(sc, response);
+		smbdirect_connection_put_recv_io(response);
 		if (SMBDIRECT_CHECK_STATUS_WARN(sc, SMBDIRECT_SOCKET_NEGOTIATE_RUNNING))
 			negotiate_done = false;
 		if (!negotiate_done) {
@@ -802,7 +797,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			enqueue_reassembly(sc, response, data_length);
 			wake_up(&sc->recv_io.reassembly.wait_queue);
 		} else
-			put_receive_buffer(sc, response);
+			smbdirect_connection_put_recv_io(response);
 
 		return;
 
@@ -817,7 +812,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	log_rdma_recv(ERR, "unexpected response type=%d\n", sc->recv_io.expected);
 	WARN_ON_ONCE(sc->recv_io.expected != SMBDIRECT_EXPECT_DATA_TRANSFER);
 error:
-	put_receive_buffer(sc, response);
+	smbdirect_connection_put_recv_io(response);
 	smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 }
 
@@ -1572,7 +1567,7 @@ static int smbd_negotiate(struct smbdirect_socket *sc)
 {
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	int rc;
-	struct smbdirect_recv_io *response = get_receive_buffer(sc);
+	struct smbdirect_recv_io *response = smbdirect_connection_get_recv_io(sc);
 
 	WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_NEGOTIATE_NEEDED);
 	sc->status = SMBDIRECT_SOCKET_NEGOTIATE_RUNNING;
@@ -1583,7 +1578,7 @@ static int smbd_negotiate(struct smbdirect_socket *sc)
 		       rc, response->sge.addr,
 		       response->sge.length, response->sge.lkey);
 	if (rc) {
-		put_receive_buffer(sc, response);
+		smbdirect_connection_put_recv_io(response);
 		return rc;
 	}
 
@@ -1659,57 +1654,6 @@ static struct smbdirect_recv_io *_get_first_reassembly(struct smbdirect_socket *
 	return ret;
 }
 
-/*
- * Get a receive buffer
- * For each remote send, we need to post a receive. The receive buffers are
- * pre-allocated in advance.
- * return value: the receive buffer, NULL if none is available
- */
-static struct smbdirect_recv_io *get_receive_buffer(struct smbdirect_socket *sc)
-{
-	struct smbdirect_recv_io *ret = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&sc->recv_io.free.lock, flags);
-	if (!list_empty(&sc->recv_io.free.list)) {
-		ret = list_first_entry(
-			&sc->recv_io.free.list,
-			struct smbdirect_recv_io, list);
-		list_del(&ret->list);
-		sc->statistics.get_receive_buffer++;
-	}
-	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
-
-	return ret;
-}
-
-/*
- * Return a receive buffer
- * Upon returning of a receive buffer, we can post new receive and extend
- * more receive credits to remote peer. This is done immediately after a
- * receive buffer is returned.
- */
-static void put_receive_buffer(
-	struct smbdirect_socket *sc, struct smbdirect_recv_io *response)
-{
-	unsigned long flags;
-
-	if (likely(response->sge.length != 0)) {
-		ib_dma_unmap_single(sc->ib.dev,
-				    response->sge.addr,
-				    response->sge.length,
-				    DMA_FROM_DEVICE);
-		response->sge.length = 0;
-	}
-
-	spin_lock_irqsave(&sc->recv_io.free.lock, flags);
-	list_add_tail(&response->list, &sc->recv_io.free.list);
-	sc->statistics.put_receive_buffer++;
-	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
-
-	queue_work(sc->workqueue, &sc->recv_io.posted.refill_work);
-}
-
 /* Preallocate all receive buffer on transport establishment */
 static int allocate_receive_buffers(struct smbdirect_socket *sc, int num_buf)
 {
@@ -1744,7 +1688,7 @@ static void destroy_receive_buffers(struct smbdirect_socket *sc)
 {
 	struct smbdirect_recv_io *response;
 
-	while ((response = get_receive_buffer(sc)))
+	while ((response = smbdirect_connection_get_recv_io(sc)))
 		mempool_free(response, sc->recv_io.mem.pool);
 }
 
@@ -1850,7 +1794,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 			list_del(&response->list);
 			spin_unlock_irqrestore(
 				&sc->recv_io.reassembly.lock, flags);
-			put_receive_buffer(sc, response);
+			smbdirect_connection_put_recv_io(response);
 		} else
 			spin_unlock_irqrestore(
 				&sc->recv_io.reassembly.lock, flags);
@@ -2389,9 +2333,9 @@ again:
 				}
 				queue_removed++;
 				sc->statistics.dequeue_reassembly_queue++;
-				put_receive_buffer(sc, response);
+				smbdirect_connection_put_recv_io(response);
 				offset = 0;
-				log_read(INFO, "put_receive_buffer offset=0\n");
+				log_read(INFO, "smbdirect_connection_put_recv_io offset=0\n");
 			} else
 				offset += to_copy;
 
