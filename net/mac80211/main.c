@@ -1164,9 +1164,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		if (WARN_ON(!ieee80211_hw_check(hw, MFP_CAPABLE)))
 			return -EINVAL;
 
-		if (WARN_ON(!ieee80211_hw_check(hw, CONNECTION_MONITOR)))
-			return -EINVAL;
-
 		if (WARN_ON(ieee80211_hw_check(hw, NEED_DTIM_BEFORE_ASSOC)))
 			return -EINVAL;
 
