@@ -11,7 +11,6 @@
 #include <linux/of_platform.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/regmap.h>
-#include <linux/soc/airoha/airoha_offload.h>
 
 #include "airoha_eth.h"
 

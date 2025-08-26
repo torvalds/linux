@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/reset.h>
+#include <linux/soc/airoha/airoha_offload.h>
 #include <net/dsa.h>
 
 #define AIROHA_MAX_NUM_GDM_PORTS	4
@@ -226,10 +227,6 @@ struct airoha_hw_stats {
 	u64 rx_fragment;
 	u64 rx_jabber;
 	u64 rx_len[7];
-};
-
-enum {
-	PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED = 0x0f,
 };
 
 enum {
@@ -546,6 +543,7 @@ struct airoha_gdm_port {
 #define AIROHA_RXD4_FOE_ENTRY		GENMASK(15, 0)
 
 struct airoha_ppe {
+	struct airoha_ppe_dev dev;
 	struct airoha_eth *eth;
 
 	void *foe;
@@ -620,9 +618,9 @@ static inline bool airhoa_is_lan_gdm_port(struct airoha_gdm_port *port)
 bool airoha_is_valid_gdm_port(struct airoha_eth *eth,
 			      struct airoha_gdm_port *port);
 
-void airoha_ppe_check_skb(struct airoha_ppe *ppe, struct sk_buff *skb,
-			  u16 hash);
-int airoha_ppe_setup_tc_block_cb(struct net_device *dev, void *type_data);
+void airoha_ppe_check_skb(struct airoha_ppe_dev *dev, struct sk_buff *skb,
+			  u16 hash, bool rx_wlan);
+int airoha_ppe_setup_tc_block_cb(struct airoha_ppe_dev *dev, void *type_data);
 int airoha_ppe_init(struct airoha_eth *eth);
 void airoha_ppe_deinit(struct airoha_eth *eth);
 void airoha_ppe_init_upd_mem(struct airoha_gdm_port *port);

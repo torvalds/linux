@@ -9,6 +9,61 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
+enum {
+	PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED = 0x0f,
+};
+
+struct airoha_ppe_dev {
+	struct {
+		int (*setup_tc_block_cb)(struct airoha_ppe_dev *dev,
+					 void *type_data);
+		void (*check_skb)(struct airoha_ppe_dev *dev,
+				  struct sk_buff *skb, u16 hash,
+				  bool rx_wlan);
+	} ops;
+
+	void *priv;
+};
+
+#if (IS_BUILTIN(CONFIG_NET_AIROHA) || IS_MODULE(CONFIG_NET_AIROHA))
+struct airoha_ppe_dev *airoha_ppe_get_dev(struct device *dev);
+void airoha_ppe_put_dev(struct airoha_ppe_dev *dev);
+
+static inline int airoha_ppe_dev_setup_tc_block_cb(struct airoha_ppe_dev *dev,
+						   void *type_data)
+{
+	return dev->ops.setup_tc_block_cb(dev, type_data);
+}
+
+static inline void airoha_ppe_dev_check_skb(struct airoha_ppe_dev *dev,
+					    struct sk_buff *skb,
+					    u16 hash, bool rx_wlan)
+{
+	dev->ops.check_skb(dev, skb, hash, rx_wlan);
+}
+#else
+static inline struct airoha_ppe_dev *airoha_ppe_get_dev(struct device *dev)
+{
+	return NULL;
+}
+
+static inline void airoha_ppe_put_dev(struct airoha_ppe_dev *dev)
+{
+}
+
+static inline int airoha_ppe_setup_tc_block_cb(struct airoha_ppe_dev *dev,
+					       void *type_data)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void airoha_ppe_dev_check_skb(struct airoha_ppe_dev *dev,
+					    struct sk_buff *skb, u16 hash,
+					    bool rx_wlan)
+{
+}
+#endif
+
 #define NPU_NUM_CORES		8
 #define NPU_NUM_IRQ		6
 #define NPU_RX0_DESC_NUM	512
