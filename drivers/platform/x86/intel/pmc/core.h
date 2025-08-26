@@ -298,6 +298,10 @@ enum ppfear_regs {
 #define PTL_PMC_LTR_CUR_PLT			0x1C2C
 #define PTL_PCD_PMC_MMIO_REG_LEN		0x31A8
 
+/* Wildcat Lake */
+#define WCL_PMC_LTR_RESERVED			0x1B64
+#define WCL_PCD_PMC_MMIO_REG_LEN		0x3178
+
 /* SSRAM PMC Device ID */
 /* LNL */
 #define PMC_DEVID_LNL_SOCM	0xa87f
@@ -508,6 +512,9 @@ extern const struct pmc_bit_map mtl_socm_vnn_misc_status_map[];
 extern const struct pmc_bit_map mtl_socm_signal_status_map[];
 extern const struct pmc_reg_map mtl_socm_reg_map;
 extern const struct pmc_reg_map mtl_ioep_reg_map;
+extern const struct pmc_bit_map ptl_pcdp_clocksource_status_map[];
+extern const struct pmc_bit_map ptl_pcdp_vnn_req_status_3_map[];
+extern const struct pmc_bit_map ptl_pcdp_signal_status_map[];
 
 void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
 int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value, int ignore);
@@ -531,6 +538,7 @@ extern struct pmc_dev_info arl_pmc_dev;
 extern struct pmc_dev_info arl_h_pmc_dev;
 extern struct pmc_dev_info lnl_pmc_dev;
 extern struct pmc_dev_info ptl_pmc_dev;
+extern struct pmc_dev_info wcl_pmc_dev;
 
 void cnl_suspend(struct pmc_dev *pmcdev);
 int cnl_resume(struct pmc_dev *pmcdev);
