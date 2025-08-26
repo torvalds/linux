@@ -70,7 +70,7 @@ static int xgbe_i2c_set_enable(struct xgbe_prv_data *pdata, bool enable)
 
 static int xgbe_i2c_disable(struct xgbe_prv_data *pdata)
 {
-	unsigned int ret;
+	int ret;
 
 	ret = xgbe_i2c_set_enable(pdata, false);
 	if (ret) {
