@@ -41,3 +41,4 @@ Linux Kernel中的文件系统
    gfs2
    gfs2-uevents
    gfs2-glocks
+   inotify
