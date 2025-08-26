@@ -726,7 +726,7 @@ static irqreturn_t bb_SRQ_interrupt(int irq, void *arg)
 static int bb_command(struct gpib_board *board, u8 *buffer,
 		      size_t length, size_t *bytes_written)
 {
-	size_t ret;
+	int ret;
 	struct bb_priv *priv = board->private_data;
 	int i;
 
