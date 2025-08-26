@@ -7,7 +7,6 @@
 
 #include "xe_bo.h"
 #include "xe_gt_stats.h"
-#include "xe_gt_tlb_inval.h"
 #include "xe_migrate.h"
 #include "xe_module.h"
 #include "xe_pm.h"

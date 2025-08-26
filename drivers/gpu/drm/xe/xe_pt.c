@@ -13,7 +13,7 @@
 #include "xe_drm_client.h"
 #include "xe_exec_queue.h"
 #include "xe_gt.h"
-#include "xe_gt_tlb_inval_job.h"
+#include "xe_tlb_inval_job.h"
 #include "xe_migrate.h"
 #include "xe_pt_types.h"
 #include "xe_pt_walk.h"
@@ -21,6 +21,7 @@
 #include "xe_sched_job.h"
 #include "xe_sync.h"
 #include "xe_svm.h"
+#include "xe_tlb_inval_job.h"
 #include "xe_trace.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_vm.h"
@@ -1276,8 +1277,8 @@ static int op_add_deps(struct xe_vm *vm, struct xe_vma_op *op,
 }
 
 static int xe_pt_vm_dependencies(struct xe_sched_job *job,
-				 struct xe_gt_tlb_inval_job *ijob,
-				 struct xe_gt_tlb_inval_job *mjob,
+				 struct xe_tlb_inval_job *ijob,
+				 struct xe_tlb_inval_job *mjob,
 				 struct xe_vm *vm,
 				 struct xe_vma_ops *vops,
 				 struct xe_vm_pgtable_update_ops *pt_update_ops,
@@ -1347,13 +1348,13 @@ static int xe_pt_vm_dependencies(struct xe_sched_job *job,
 
 	if (job) {
 		if (ijob) {
-			err = xe_gt_tlb_inval_job_alloc_dep(ijob);
+			err = xe_tlb_inval_job_alloc_dep(ijob);
 			if (err)
 				return err;
 		}
 
 		if (mjob) {
-			err = xe_gt_tlb_inval_job_alloc_dep(mjob);
+			err = xe_tlb_inval_job_alloc_dep(mjob);
 			if (err)
 				return err;
 		}
@@ -2353,6 +2354,15 @@ static const struct xe_migrate_pt_update_ops svm_migrate_ops = {
 static const struct xe_migrate_pt_update_ops svm_migrate_ops;
 #endif
 
+static struct xe_dep_scheduler *to_dep_scheduler(struct xe_exec_queue *q,
+						 struct xe_gt *gt)
+{
+	if (xe_gt_is_media_type(gt))
+		return q->tlb_inval[XE_EXEC_QUEUE_TLB_INVAL_MEDIA_GT].dep_scheduler;
+
+	return q->tlb_inval[XE_EXEC_QUEUE_TLB_INVAL_PRIMARY_GT].dep_scheduler;
+}
+
 /**
  * xe_pt_update_ops_run() - Run PT update operations
  * @tile: Tile of PT update operations
@@ -2371,7 +2381,7 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 	struct xe_vm_pgtable_update_ops *pt_update_ops =
 		&vops->pt_update_ops[tile->id];
 	struct dma_fence *fence, *ifence, *mfence;
-	struct xe_gt_tlb_inval_job *ijob = NULL, *mjob = NULL;
+	struct xe_tlb_inval_job *ijob = NULL, *mjob = NULL;
 	struct dma_fence **fences = NULL;
 	struct dma_fence_array *cf = NULL;
 	struct xe_range_fence *rfence;
@@ -2403,11 +2413,15 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 #endif
 
 	if (pt_update_ops->needs_invalidation) {
-		ijob = xe_gt_tlb_inval_job_create(pt_update_ops->q,
-						  tile->primary_gt,
-						  pt_update_ops->start,
-						  pt_update_ops->last,
-						  vm->usm.asid);
+		struct xe_exec_queue *q = pt_update_ops->q;
+		struct xe_dep_scheduler *dep_scheduler =
+			to_dep_scheduler(q, tile->primary_gt);
+
+		ijob = xe_tlb_inval_job_create(q, &tile->primary_gt->tlb_inval,
+					       dep_scheduler,
+					       pt_update_ops->start,
+					       pt_update_ops->last,
+					       vm->usm.asid);
 		if (IS_ERR(ijob)) {
 			err = PTR_ERR(ijob);
 			goto kill_vm_tile1;
@@ -2415,11 +2429,14 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 		update.ijob = ijob;
 
 		if (tile->media_gt) {
-			mjob = xe_gt_tlb_inval_job_create(pt_update_ops->q,
-							  tile->media_gt,
-							  pt_update_ops->start,
-							  pt_update_ops->last,
-							  vm->usm.asid);
+			dep_scheduler = to_dep_scheduler(q, tile->media_gt);
+
+			mjob = xe_tlb_inval_job_create(q,
+						       &tile->media_gt->tlb_inval,
+						       dep_scheduler,
+						       pt_update_ops->start,
+						       pt_update_ops->last,
+						       vm->usm.asid);
 			if (IS_ERR(mjob)) {
 				err = PTR_ERR(mjob);
 				goto free_ijob;
@@ -2470,13 +2487,13 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 	if (ijob) {
 		struct dma_fence *__fence;
 
-		ifence = xe_gt_tlb_inval_job_push(ijob, tile->migrate, fence);
+		ifence = xe_tlb_inval_job_push(ijob, tile->migrate, fence);
 		__fence = ifence;
 
 		if (mjob) {
 			fences[0] = ifence;
-			mfence = xe_gt_tlb_inval_job_push(mjob, tile->migrate,
-							  fence);
+			mfence = xe_tlb_inval_job_push(mjob, tile->migrate,
+						       fence);
 			fences[1] = mfence;
 
 			dma_fence_array_init(cf, 2, fences,
@@ -2519,8 +2536,8 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 	if (pt_update_ops->needs_userptr_lock)
 		up_read(&vm->userptr.notifier_lock);
 
-	xe_gt_tlb_inval_job_put(mjob);
-	xe_gt_tlb_inval_job_put(ijob);
+	xe_tlb_inval_job_put(mjob);
+	xe_tlb_inval_job_put(ijob);
 
 	return fence;
 
@@ -2529,8 +2546,8 @@ free_rfence:
 free_ijob:
 	kfree(cf);
 	kfree(fences);
-	xe_gt_tlb_inval_job_put(mjob);
-	xe_gt_tlb_inval_job_put(ijob);
+	xe_tlb_inval_job_put(mjob);
+	xe_tlb_inval_job_put(ijob);
 kill_vm_tile1:
 	if (err != -EAGAIN && err != -ENODATA && tile->id)
 		xe_vm_kill(vops->vm, false);

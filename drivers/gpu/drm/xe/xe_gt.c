@@ -37,7 +37,6 @@
 #include "xe_gt_sriov_pf.h"
 #include "xe_gt_sriov_vf.h"
 #include "xe_gt_sysfs.h"
-#include "xe_gt_tlb_inval.h"
 #include "xe_gt_topology.h"
 #include "xe_guc_exec_queue_types.h"
 #include "xe_guc_pc.h"
@@ -58,6 +57,7 @@
 #include "xe_sa.h"
 #include "xe_sched_job.h"
 #include "xe_sriov.h"
+#include "xe_tlb_inval.h"
 #include "xe_tuning.h"
 #include "xe_uc.h"
 #include "xe_uc_fw.h"
@@ -852,7 +852,7 @@ static int gt_reset(struct xe_gt *gt)
 
 	xe_uc_stop(&gt->uc);
 
-	xe_gt_tlb_inval_reset(gt);
+	xe_tlb_inval_reset(&gt->tlb_inval);
 
 	err = do_gt_reset(gt);
 	if (err)
@@ -1066,5 +1066,5 @@ void xe_gt_declare_wedged(struct xe_gt *gt)
 	xe_gt_assert(gt, gt_to_xe(gt)->wedged.mode);
 
 	xe_uc_declare_wedged(&gt->uc);
-	xe_gt_tlb_inval_reset(gt);
+	xe_tlb_inval_reset(&gt->tlb_inval);
 }

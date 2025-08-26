@@ -11,7 +11,7 @@
 
 #include "xe_assert.h"
 #include "xe_bo.h"
-#include "xe_gt_tlb_inval.h"
+#include "xe_tlb_inval.h"
 #include "xe_lmtt.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
@@ -228,8 +228,8 @@ void xe_lmtt_init_hw(struct xe_lmtt *lmtt)
 
 static int lmtt_invalidate_hw(struct xe_lmtt *lmtt)
 {
-	struct xe_gt_tlb_inval_fence fences[XE_MAX_GT_PER_TILE];
-	struct xe_gt_tlb_inval_fence *fence = fences;
+	struct xe_tlb_inval_fence fences[XE_MAX_GT_PER_TILE];
+	struct xe_tlb_inval_fence *fence = fences;
 	struct xe_tile *tile = lmtt_to_tile(lmtt);
 	struct xe_gt *gt;
 	int result = 0;
@@ -237,8 +237,8 @@ static int lmtt_invalidate_hw(struct xe_lmtt *lmtt)
 	u8 id;
 
 	for_each_gt_on_tile(gt, tile, id) {
-		xe_gt_tlb_inval_fence_init(gt, fence, true);
-		err = xe_gt_tlb_inval_all(gt, fence);
+		xe_tlb_inval_fence_init(&gt->tlb_inval, fence, true);
+		err = xe_tlb_inval_all(&gt->tlb_inval, fence);
 		result = result ?: err;
 		fence++;
 	}
@@ -252,7 +252,7 @@ static int lmtt_invalidate_hw(struct xe_lmtt *lmtt)
 	 */
 	fence = fences;
 	for_each_gt_on_tile(gt, tile, id)
-		xe_gt_tlb_inval_fence_wait(fence++);
+		xe_tlb_inval_fence_wait(fence++);
 
 	return result;
 }
