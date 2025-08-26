@@ -9,6 +9,8 @@
 
 #define SUBMOD_NAME	"smb_direct"
 
+#define SMBDIRECT_USE_INLINE_C_FILES 1
+
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/mempool.h>
@@ -29,6 +31,16 @@
 #include "../common/smbdirect/smbdirect_pdu.h"
 #include "../common/smbdirect/smbdirect_socket.h"
 #include "transport_rdma.h"
+
+static void smb_direct_disconnect_rdma_connection(struct smbdirect_socket *sc);
+
+/*
+ * This is a temporary solution until all code
+ * is moved to smbdirect_all_c_files.c and we
+ * have an smbdirect.ko that exports the required
+ * functions.
+ */
+#include "../common/smbdirect/smbdirect_all_c_files.c"
 
 #define SMB_DIRECT_PORT_IWARP		5445
 #define SMB_DIRECT_PORT_INFINIBAND	445
