@@ -206,6 +206,8 @@ static void fbnic_service_task(struct work_struct *work)
 
 	fbnic_health_check(fbd);
 
+	fbnic_bmc_rpc_check(fbd);
+
 	if (netif_carrier_ok(fbd->netdev))
 		fbnic_napi_depletion_check(fbd->netdev);
 

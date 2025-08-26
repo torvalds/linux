@@ -184,6 +184,7 @@ struct fbnic_net;
 
 void fbnic_bmc_rpc_init(struct fbnic_dev *fbd);
 void fbnic_bmc_rpc_all_multi_config(struct fbnic_dev *fbd, bool enable_host);
+void fbnic_bmc_rpc_check(struct fbnic_dev *fbd);
 
 void fbnic_reset_indir_tbl(struct fbnic_net *fbn);
 void fbnic_rss_key_fill(u32 *buffer);

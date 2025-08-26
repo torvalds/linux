@@ -6,6 +6,7 @@
 #include <net/ipv6.h>
 
 #include "fbnic.h"
+#include "fbnic_fw.h"
 #include "fbnic_netdev.h"
 #include "fbnic_rpc.h"
 
@@ -131,12 +132,9 @@ void fbnic_bmc_rpc_all_multi_config(struct fbnic_dev *fbd,
 		else
 			clear_bit(FBNIC_MAC_ADDR_T_ALLMULTI,
 				  mac_addr->act_tcam);
-	} else if (!test_bit(FBNIC_MAC_ADDR_T_BMC, mac_addr->act_tcam) &&
-		   !is_zero_ether_addr(mac_addr->mask.addr8) &&
-		   mac_addr->state == FBNIC_TCAM_S_VALID) {
-		clear_bit(FBNIC_MAC_ADDR_T_ALLMULTI, mac_addr->act_tcam);
-		clear_bit(FBNIC_MAC_ADDR_T_BMC, mac_addr->act_tcam);
-		mac_addr->state = FBNIC_TCAM_S_DELETE;
+	} else {
+		__fbnic_xc_unsync(mac_addr, FBNIC_MAC_ADDR_T_BMC);
+		__fbnic_xc_unsync(mac_addr, FBNIC_MAC_ADDR_T_ALLMULTI);
 	}
 
 	/* We have to add a special handler for multicast as the
@@ -238,8 +236,15 @@ void fbnic_bmc_rpc_init(struct fbnic_dev *fbd)
 		act_tcam->mask.tcam[j] = 0xffff;
 
 	act_tcam->state = FBNIC_TCAM_S_UPDATE;
+}
 
-	fbnic_bmc_rpc_all_multi_config(fbd, false);
+void fbnic_bmc_rpc_check(struct fbnic_dev *fbd)
+{
+	if (fbd->fw_cap.need_bmc_tcam_reinit) {
+		fbnic_bmc_rpc_init(fbd);
+		__fbnic_set_rx_mode(fbd);
+		fbd->fw_cap.need_bmc_tcam_reinit = false;
+	}
 }
 
 #define FBNIC_ACT1_INIT(_l4, _udp, _ip, _v6)		\
