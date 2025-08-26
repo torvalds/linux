@@ -16,7 +16,16 @@
 #include <linux/spi/spi.h>
 #include <linux/of.h>
 
-#include <asm/mach-ath79/ar71xx_regs.h>
+#define AR71XX_SPI_REG_FS		0x00	/* Function Select */
+#define AR71XX_SPI_REG_CTRL		0x04	/* SPI Control */
+#define AR71XX_SPI_REG_IOC		0x08	/* SPI I/O Control */
+#define AR71XX_SPI_REG_RDS		0x0c	/* Read Data Shift */
+
+#define AR71XX_SPI_FS_GPIO		BIT(0)	/* Enable GPIO mode */
+
+#define AR71XX_SPI_IOC_DO		BIT(0)	/* Data Out pin */
+#define AR71XX_SPI_IOC_CLK		BIT(8)	/* CLK pin */
+#define AR71XX_SPI_IOC_CS(n)		BIT(16 + (n))
 
 struct rb4xx_spi {
 	void __iomem *base;
@@ -63,7 +72,7 @@ static inline void do_spi_clk_two(struct rb4xx_spi *rbspi, u32 spi_ioc,
 	if (value & BIT(1))
 		regval |= AR71XX_SPI_IOC_DO;
 	if (value & BIT(0))
-		regval |= AR71XX_SPI_IOC_CS2;
+		regval |= AR71XX_SPI_IOC_CS(2);
 
 	rb4xx_write(rbspi, AR71XX_SPI_REG_IOC, regval);
 	rb4xx_write(rbspi, AR71XX_SPI_REG_IOC, regval | AR71XX_SPI_IOC_CLK);
@@ -89,7 +98,7 @@ static void rb4xx_set_cs(struct spi_device *spi, bool enable)
 	 */
 	if (enable)
 		rb4xx_write(rbspi, AR71XX_SPI_REG_IOC,
-			    AR71XX_SPI_IOC_CS0 | AR71XX_SPI_IOC_CS1);
+			    AR71XX_SPI_IOC_CS(0) | AR71XX_SPI_IOC_CS(1));
 }
 
 static int rb4xx_transfer_one(struct spi_controller *host,
@@ -109,10 +118,10 @@ static int rb4xx_transfer_one(struct spi_controller *host,
 	 */
 	if (spi_get_chipselect(spi, 0) == 2)
 		/* MMC */
-		spi_ioc = AR71XX_SPI_IOC_CS0;
+		spi_ioc = AR71XX_SPI_IOC_CS(0);
 	else
 		/* Boot flash and CPLD */
-		spi_ioc = AR71XX_SPI_IOC_CS1;
+		spi_ioc = AR71XX_SPI_IOC_CS(1);
 
 	tx_buf = t->tx_buf;
 	rx_buf = t->rx_buf;
