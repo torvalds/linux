@@ -699,6 +699,44 @@ static void rtw89_core_tx_update_llc_hdr(struct rtw89_dev *rtwdev,
 	desc_info->hdr_llc_len >>= 1; /* in unit of 2 bytes */
 }
 
+u8 rtw89_core_get_ch_dma(struct rtw89_dev *rtwdev, u8 qsel)
+{
+	switch (qsel) {
+	default:
+		rtw89_warn(rtwdev, "Cannot map qsel to dma: %d\n", qsel);
+		fallthrough;
+	case RTW89_TX_QSEL_BE_0:
+	case RTW89_TX_QSEL_BE_1:
+	case RTW89_TX_QSEL_BE_2:
+	case RTW89_TX_QSEL_BE_3:
+		return RTW89_TXCH_ACH0;
+	case RTW89_TX_QSEL_BK_0:
+	case RTW89_TX_QSEL_BK_1:
+	case RTW89_TX_QSEL_BK_2:
+	case RTW89_TX_QSEL_BK_3:
+		return RTW89_TXCH_ACH1;
+	case RTW89_TX_QSEL_VI_0:
+	case RTW89_TX_QSEL_VI_1:
+	case RTW89_TX_QSEL_VI_2:
+	case RTW89_TX_QSEL_VI_3:
+		return RTW89_TXCH_ACH2;
+	case RTW89_TX_QSEL_VO_0:
+	case RTW89_TX_QSEL_VO_1:
+	case RTW89_TX_QSEL_VO_2:
+	case RTW89_TX_QSEL_VO_3:
+		return RTW89_TXCH_ACH3;
+	case RTW89_TX_QSEL_B0_MGMT:
+		return RTW89_TXCH_CH8;
+	case RTW89_TX_QSEL_B0_HI:
+		return RTW89_TXCH_CH9;
+	case RTW89_TX_QSEL_B1_MGMT:
+		return RTW89_TXCH_CH10;
+	case RTW89_TX_QSEL_B1_HI:
+		return RTW89_TXCH_CH11;
+	}
+}
+EXPORT_SYMBOL(rtw89_core_get_ch_dma);
+
 static void
 rtw89_core_tx_update_mgmt_info(struct rtw89_dev *rtwdev,
 			       struct rtw89_core_tx_request *tx_req)
@@ -712,7 +750,7 @@ rtw89_core_tx_update_mgmt_info(struct rtw89_dev *rtwdev,
 	u8 qsel, ch_dma;
 
 	qsel = rtw89_core_get_qsel_mgmt(rtwdev, tx_req);
-	ch_dma = rtw89_core_get_ch_dma(rtwdev, qsel);
+	ch_dma = rtw89_chip_get_ch_dma(rtwdev, qsel);
 
 	desc_info->qsel = qsel;
 	desc_info->ch_dma = ch_dma;
@@ -929,7 +967,7 @@ rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 	tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 	tid_indicate = rtw89_core_get_tid_indicate(rtwdev, tid);
 	qsel = desc_info->hiq ? RTW89_TX_QSEL_B0_HI : rtw89_core_get_qsel(rtwdev, tid);
-	ch_dma = rtw89_core_get_ch_dma(rtwdev, qsel);
+	ch_dma = rtw89_chip_get_ch_dma(rtwdev, qsel);
 
 	desc_info->ch_dma = ch_dma;
 	desc_info->tid_indicate = tid_indicate;
@@ -1079,7 +1117,7 @@ void rtw89_core_tx_kick_off(struct rtw89_dev *rtwdev, u8 qsel)
 {
 	u8 ch_dma;
 
-	ch_dma = rtw89_core_get_ch_dma(rtwdev, qsel);
+	ch_dma = rtw89_chip_get_ch_dma(rtwdev, qsel);
 
 	rtw89_hci_tx_kick_off(rtwdev, ch_dma);
 }
@@ -3664,7 +3702,7 @@ static u32 rtw89_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev, u8 tid)
 	u8 qsel, ch_dma;
 
 	qsel = rtw89_core_get_qsel(rtwdev, tid);
-	ch_dma = rtw89_core_get_ch_dma(rtwdev, qsel);
+	ch_dma = rtw89_chip_get_ch_dma(rtwdev, qsel);
 
 	return rtw89_hci_check_and_reclaim_tx_resource(rtwdev, ch_dma);
 }

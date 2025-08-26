@@ -576,7 +576,7 @@ void rtw89_pci_parse_rpp(struct rtw89_dev *rtwdev, void *_rpp,
 	rpp_info->seq = le32_get_bits(rpp->dword, RTW89_PCI_RPP_SEQ);
 	rpp_info->qsel = le32_get_bits(rpp->dword, RTW89_PCI_RPP_QSEL);
 	rpp_info->tx_status = le32_get_bits(rpp->dword, RTW89_PCI_RPP_TX_STATUS);
-	rpp_info->txch = rtw89_core_get_ch_dma(rtwdev, rpp_info->qsel);
+	rpp_info->txch = rtw89_chip_get_ch_dma(rtwdev, rpp_info->qsel);
 }
 EXPORT_SYMBOL(rtw89_pci_parse_rpp);
 
