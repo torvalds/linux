@@ -173,7 +173,6 @@ struct ast_device {
 	enum ast_chip chip;
 
 	uint32_t dram_type;
-	uint32_t mclk;
 
 	void __iomem	*vram;
 	unsigned long	vram_base;

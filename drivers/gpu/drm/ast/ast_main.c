@@ -215,7 +215,6 @@ static int ast_get_dram_info(struct ast_device *ast)
 	struct drm_device *dev = &ast->base;
 	struct device_node *np = dev->dev->of_node;
 	uint32_t mcr_cfg, mcr_scu_mpll, mcr_scu_strap;
-	uint32_t denum, num, div, ref_pll, dsel;
 
 	switch (ast->config_mode) {
 	case ast_use_dt:
@@ -243,10 +242,6 @@ static int ast_get_dram_info(struct ast_device *ast)
 	case ast_use_defaults:
 	default:
 		ast->dram_type = AST_DRAM_1Gx16;
-		if (IS_AST_GEN6(ast))
-			ast->mclk = 800;
-		else
-			ast->mclk = 396;
 		return 0;
 	}
 
@@ -300,27 +295,6 @@ static int ast_get_dram_info(struct ast_device *ast)
 		}
 	}
 
-	if (mcr_scu_strap & 0x2000)
-		ref_pll = 14318;
-	else
-		ref_pll = 12000;
-
-	denum = mcr_scu_mpll & 0x1f;
-	num = (mcr_scu_mpll & 0x3fe0) >> 5;
-	dsel = (mcr_scu_mpll & 0xc000) >> 14;
-	switch (dsel) {
-	case 3:
-		div = 0x4;
-		break;
-	case 2:
-	case 1:
-		div = 0x2;
-		break;
-	default:
-		div = 0x1;
-		break;
-	}
-	ast->mclk = ref_pll * (num + 2) / ((denum + 2) * (div * 1000));
 	return 0;
 }
 
