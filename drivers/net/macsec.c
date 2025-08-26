@@ -3765,7 +3765,7 @@ static const struct nla_policy macsec_rtnl_policy[IFLA_MACSEC_MAX + 1] = {
 	[IFLA_MACSEC_ICV_LEN] = NLA_POLICY_RANGE(NLA_U8, MACSEC_MIN_ICV_LEN, MACSEC_STD_ICV_LEN),
 	[IFLA_MACSEC_CIPHER_SUITE] = NLA_POLICY_VALIDATE_FN(NLA_U64, validate_cipher_suite),
 	[IFLA_MACSEC_WINDOW] = { .type = NLA_U32 },
-	[IFLA_MACSEC_ENCODING_SA] = { .type = NLA_U8 },
+	[IFLA_MACSEC_ENCODING_SA] = NLA_POLICY_MAX(NLA_U8, MACSEC_NUM_AN - 1),
 	[IFLA_MACSEC_ENCRYPT] = NLA_POLICY_MAX(NLA_U8, 1),
 	[IFLA_MACSEC_PROTECT] = NLA_POLICY_MAX(NLA_U8, 1),
 	[IFLA_MACSEC_INC_SCI] = NLA_POLICY_MAX(NLA_U8, 1),
@@ -4264,11 +4264,6 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[],
 				return PTR_ERR(dummy_tfm);
 			crypto_free_aead(dummy_tfm);
 		}
-	}
-
-	if (data[IFLA_MACSEC_ENCODING_SA]) {
-		if (nla_get_u8(data[IFLA_MACSEC_ENCODING_SA]) >= MACSEC_NUM_AN)
-			return -EINVAL;
 	}
 
 	es  = nla_get_u8_default(data[IFLA_MACSEC_ES], false);
