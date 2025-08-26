@@ -277,6 +277,14 @@ struct smbdirect_socket {
 	} statistics;
 };
 
+static void __smbdirect_socket_disabled_work(struct work_struct *work)
+{
+	/*
+	 * Should never be called as disable_[delayed_]work_sync() was used.
+	 */
+	WARN_ON_ONCE(1);
+}
+
 static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 {
 	/*
@@ -286,6 +294,14 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	memset(sc, 0, sizeof(*sc));
 
 	init_waitqueue_head(&sc->status_wait);
+
+	INIT_WORK(&sc->disconnect_work, __smbdirect_socket_disabled_work);
+	disable_work_sync(&sc->disconnect_work);
+
+	INIT_WORK(&sc->idle.immediate_work, __smbdirect_socket_disabled_work);
+	disable_work_sync(&sc->idle.immediate_work);
+	INIT_DELAYED_WORK(&sc->idle.timer_work, __smbdirect_socket_disabled_work);
+	disable_delayed_work_sync(&sc->idle.timer_work);
 
 	atomic_set(&sc->send_io.credits.count, 0);
 	init_waitqueue_head(&sc->send_io.credits.wait_queue);
@@ -298,6 +314,8 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	spin_lock_init(&sc->recv_io.free.lock);
 
 	atomic_set(&sc->recv_io.posted.count, 0);
+	INIT_WORK(&sc->recv_io.posted.refill_work, __smbdirect_socket_disabled_work);
+	disable_work_sync(&sc->recv_io.posted.refill_work);
 
 	atomic_set(&sc->recv_io.credits.count, 0);
 
@@ -313,6 +331,8 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	atomic_set(&sc->mr_io.ready.count, 0);
 	init_waitqueue_head(&sc->mr_io.ready.wait_queue);
 	atomic_set(&sc->mr_io.used.count, 0);
+	INIT_WORK(&sc->mr_io.recovery_work, __smbdirect_socket_disabled_work);
+	disable_work_sync(&sc->mr_io.recovery_work);
 	init_waitqueue_head(&sc->mr_io.cleanup.wait_queue);
 }
 
