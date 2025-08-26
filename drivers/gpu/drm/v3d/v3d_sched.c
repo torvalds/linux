@@ -722,17 +722,19 @@ v3d_cache_clean_job_run(struct drm_sched_job *sched_job)
 }
 
 static enum drm_gpu_sched_stat
-v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
+v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job,
+			  enum v3d_queue q)
 {
 	struct v3d_job *job = to_v3d_job(sched_job);
 	struct v3d_file_priv *v3d_priv = job->file_priv;
-	enum v3d_queue q;
+	unsigned long irqflags;
+	enum v3d_queue i;
 
 	mutex_lock(&v3d->reset_lock);
 
 	/* block scheduler */
-	for (q = 0; q < V3D_MAX_QUEUES; q++)
-		drm_sched_stop(&v3d->queue[q].sched, sched_job);
+	for (i = 0; i < V3D_MAX_QUEUES; i++)
+		drm_sched_stop(&v3d->queue[i].sched, sched_job);
 
 	if (sched_job)
 		drm_sched_increase_karma(sched_job);
@@ -741,15 +743,17 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
 	v3d_reset(v3d);
 
 	v3d->reset_counter++;
-	v3d_priv->reset_counter++;
+	spin_lock_irqsave(&v3d->queue[q].queue_lock, irqflags);
+	if (v3d_priv)
+		v3d_priv->reset_counter++;
+	spin_unlock_irqrestore(&v3d->queue[q].queue_lock, irqflags);
 
-	for (q = 0; q < V3D_MAX_QUEUES; q++)
-		drm_sched_resubmit_jobs(&v3d->queue[q].sched);
+	for (i = 0; i < V3D_MAX_QUEUES; i++)
+		drm_sched_resubmit_jobs(&v3d->queue[i].sched);
 
 	/* Unblock schedulers and restart their jobs. */
-	for (q = 0; q < V3D_MAX_QUEUES; q++) {
-		drm_sched_start(&v3d->queue[q].sched, 0);
-	}
+	for (i = 0; i < V3D_MAX_QUEUES; i++)
+		drm_sched_start(&v3d->queue[i].sched, 0);
 
 	mutex_unlock(&v3d->reset_lock);
 
@@ -777,7 +781,7 @@ v3d_cl_job_timedout(struct drm_sched_job *sched_job, enum v3d_queue q,
 		return DRM_GPU_SCHED_STAT_NO_HANG;
 	}
 
-	return v3d_gpu_reset_for_timeout(v3d, sched_job);
+	return v3d_gpu_reset_for_timeout(v3d, sched_job, q);
 }
 
 static enum drm_gpu_sched_stat
@@ -803,7 +807,7 @@ v3d_tfu_job_timedout(struct drm_sched_job *sched_job)
 {
 	struct v3d_job *job = to_v3d_job(sched_job);
 
-	return v3d_gpu_reset_for_timeout(job->v3d, sched_job);
+	return v3d_gpu_reset_for_timeout(job->v3d, sched_job, V3D_TFU);
 }
 
 static enum drm_gpu_sched_stat
@@ -822,7 +826,7 @@ v3d_csd_job_timedout(struct drm_sched_job *sched_job)
 		return DRM_GPU_SCHED_STAT_NO_HANG;
 	}
 
-	return v3d_gpu_reset_for_timeout(v3d, sched_job);
+	return v3d_gpu_reset_for_timeout(v3d, sched_job, V3D_CSD);
 }
 
 static const struct drm_sched_backend_ops v3d_bin_sched_ops = {
