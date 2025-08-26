@@ -9,6 +9,7 @@
 SEC("raw_tp")
 __description("may_goto 0")
 __arch_x86_64
+__arch_s390x
 __xlated("0: r0 = 1")
 __xlated("1: exit")
 __success
@@ -27,6 +28,7 @@ __naked void may_goto_simple(void)
 SEC("raw_tp")
 __description("batch 2 of may_goto 0")
 __arch_x86_64
+__arch_s390x
 __xlated("0: r0 = 1")
 __xlated("1: exit")
 __success
@@ -47,6 +49,7 @@ __naked void may_goto_batch_0(void)
 SEC("raw_tp")
 __description("may_goto batch with offsets 2/1/0")
 __arch_x86_64
+__arch_s390x
 __xlated("0: r0 = 1")
 __xlated("1: exit")
 __success
@@ -69,8 +72,9 @@ __naked void may_goto_batch_1(void)
 }
 
 SEC("raw_tp")
-__description("may_goto batch with offsets 2/0 - x86_64")
+__description("may_goto batch with offsets 2/0 - x86_64 and s390x")
 __arch_x86_64
+__arch_s390x
 __xlated("0: *(u64 *)(r10 -16) = 65535")
 __xlated("1: *(u64 *)(r10 -8) = 0")
 __xlated("2: r11 = *(u64 *)(r10 -16)")
@@ -84,7 +88,7 @@ __xlated("9: r0 = 1")
 __xlated("10: r0 = 2")
 __xlated("11: exit")
 __success
-__naked void may_goto_batch_2_x86_64(void)
+__naked void may_goto_batch_2_x86_64_s390x(void)
 {
 	asm volatile (
 	".8byte %[may_goto1];"
