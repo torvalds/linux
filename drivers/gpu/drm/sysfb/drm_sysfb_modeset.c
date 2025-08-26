@@ -281,10 +281,7 @@ void drm_sysfb_plane_helper_atomic_disable(struct drm_plane *plane,
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	void __iomem *dst_vmap = dst.vaddr_iomem; /* TODO: Use mapping abstraction */
 	unsigned int dst_pitch = sysfb->fb_pitch;
-	struct drm_crtc_state *crtc_state = crtc_state =
-		drm_atomic_get_new_crtc_state(state, plane_state->crtc);
-	struct drm_sysfb_crtc_state *sysfb_crtc_state = to_drm_sysfb_crtc_state(crtc_state);
-	const struct drm_format_info *dst_format = sysfb_crtc_state->format;
+	const struct drm_format_info *dst_format = sysfb->fb_format;
 	struct drm_rect dst_clip;
 	unsigned long lines, linepixels, i;
 	int idx;
