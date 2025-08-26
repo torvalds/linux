@@ -3757,11 +3757,13 @@ static const struct device_type macsec_type = {
 	.name = "macsec",
 };
 
+static int validate_cipher_suite(const struct nlattr *attr,
+				 struct netlink_ext_ack *extack);
 static const struct nla_policy macsec_rtnl_policy[IFLA_MACSEC_MAX + 1] = {
 	[IFLA_MACSEC_SCI] = { .type = NLA_U64 },
 	[IFLA_MACSEC_PORT] = { .type = NLA_U16 },
 	[IFLA_MACSEC_ICV_LEN] = NLA_POLICY_RANGE(NLA_U8, MACSEC_MIN_ICV_LEN, MACSEC_STD_ICV_LEN),
-	[IFLA_MACSEC_CIPHER_SUITE] = { .type = NLA_U64 },
+	[IFLA_MACSEC_CIPHER_SUITE] = NLA_POLICY_VALIDATE_FN(NLA_U64, validate_cipher_suite),
 	[IFLA_MACSEC_WINDOW] = { .type = NLA_U32 },
 	[IFLA_MACSEC_ENCODING_SA] = { .type = NLA_U8 },
 	[IFLA_MACSEC_ENCRYPT] = { .type = NLA_U8 },
@@ -4225,19 +4227,30 @@ unregister:
 	return err;
 }
 
+static int validate_cipher_suite(const struct nlattr *attr,
+				 struct netlink_ext_ack *extack)
+{
+	switch (nla_get_u64(attr)) {
+	case MACSEC_CIPHER_ID_GCM_AES_128:
+	case MACSEC_CIPHER_ID_GCM_AES_256:
+	case MACSEC_CIPHER_ID_GCM_AES_XPN_128:
+	case MACSEC_CIPHER_ID_GCM_AES_XPN_256:
+	case MACSEC_DEFAULT_CIPHER_ID:
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[],
 				struct netlink_ext_ack *extack)
 {
-	u64 csid = MACSEC_DEFAULT_CIPHER_ID;
 	u8 icv_len = MACSEC_DEFAULT_ICV_LEN;
 	int flag;
 	bool es, scb, sci;
 
 	if (!data)
 		return 0;
-
-	if (data[IFLA_MACSEC_CIPHER_SUITE])
-		csid = nla_get_u64(data[IFLA_MACSEC_CIPHER_SUITE]);
 
 	if (data[IFLA_MACSEC_ICV_LEN]) {
 		icv_len = nla_get_u8(data[IFLA_MACSEC_ICV_LEN]);
@@ -4252,17 +4265,6 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[],
 				return PTR_ERR(dummy_tfm);
 			crypto_free_aead(dummy_tfm);
 		}
-	}
-
-	switch (csid) {
-	case MACSEC_CIPHER_ID_GCM_AES_128:
-	case MACSEC_CIPHER_ID_GCM_AES_256:
-	case MACSEC_CIPHER_ID_GCM_AES_XPN_128:
-	case MACSEC_CIPHER_ID_GCM_AES_XPN_256:
-	case MACSEC_DEFAULT_CIPHER_ID:
-		break;
-	default:
-		return -EINVAL;
 	}
 
 	if (data[IFLA_MACSEC_ENCODING_SA]) {
