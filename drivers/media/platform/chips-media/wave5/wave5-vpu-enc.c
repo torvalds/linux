@@ -543,7 +543,7 @@ static int wave5_vpu_enc_s_fmt_out(struct file *file, void *fh, struct v4l2_form
 	if (!info)
 		return -EINVAL;
 
-	inst->cbcr_interleave = (info->comp_planes == 2) ? true : false;
+	inst->cbcr_interleave = info->comp_planes == 2;
 
 	switch (inst->src_fmt.pixelformat) {
 	case V4L2_PIX_FMT_NV21:
