@@ -364,10 +364,10 @@ struct avs_acpi_boards {
 
 /* supported I2S boards per platform */
 static const struct avs_acpi_boards i2s_boards[] = {
-	AVS_MACH_ENTRY(HDA_SKL_LP, avs_skl_i2s_machines),
-	AVS_MACH_ENTRY(HDA_KBL_LP, avs_kbl_i2s_machines),
-	AVS_MACH_ENTRY(HDA_APL, avs_apl_i2s_machines),
-	AVS_MACH_ENTRY(HDA_GML, avs_gml_i2s_machines),
+	AVS_MACH_ENTRY(HDA_SKL_LP,	avs_skl_i2s_machines),
+	AVS_MACH_ENTRY(HDA_KBL_LP,	avs_kbl_i2s_machines),
+	AVS_MACH_ENTRY(HDA_APL,		avs_apl_i2s_machines),
+	AVS_MACH_ENTRY(HDA_GML,		avs_gml_i2s_machines),
 	AVS_MACH_ENTRY(HDA_CNL_LP,	avs_cnl_i2s_machines),
 	AVS_MACH_ENTRY(HDA_CNL_H,	avs_cnl_i2s_machines),
 	AVS_MACH_ENTRY(HDA_CML_LP,	avs_cnl_i2s_machines),
@@ -382,14 +382,14 @@ static const struct avs_acpi_boards i2s_boards[] = {
 	{ },
 };
 
-static const struct avs_acpi_boards *avs_get_i2s_boards(struct avs_dev *adev)
+static struct snd_soc_acpi_mach *avs_get_i2s_machines(struct avs_dev *adev)
 {
 	int id, i;
 
 	id = adev->base.pci->device;
 	for (i = 0; i < ARRAY_SIZE(i2s_boards); i++)
 		if (i2s_boards[i].id == id)
-			return &i2s_boards[i];
+			return i2s_boards[i].machs;
 	return NULL;
 }
 
@@ -551,7 +551,7 @@ static int avs_register_i2s_board(struct avs_dev *adev, struct snd_soc_acpi_mach
 static int avs_register_i2s_boards(struct avs_dev *adev)
 {
 	int num_ssps = adev->hw_cfg.i2s_caps.ctrl_count;
-	const struct avs_acpi_boards *boards;
+	struct snd_soc_acpi_mach *machs;
 	struct snd_soc_acpi_mach *mach;
 	int ret;
 
@@ -563,13 +563,13 @@ static int avs_register_i2s_boards(struct avs_dev *adev)
 	if (i2s_test)
 		return avs_register_i2s_test_boards(adev);
 
-	boards = avs_get_i2s_boards(adev);
-	if (!boards) {
+	machs = avs_get_i2s_machines(adev);
+	if (!machs) {
 		dev_dbg(adev->dev, "no I2S endpoints supported\n");
 		return 0;
 	}
 
-	for (mach = boards->machs; mach->id[0]; mach++) {
+	for (mach = machs; mach->id[0]; mach++) {
 		if (!acpi_dev_present(mach->id, mach->uid, -1))
 			continue;
 
