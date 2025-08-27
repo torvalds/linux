@@ -6407,7 +6407,8 @@ static void fill_stream_properties_from_drm_display_mode(
 			&& aconnector->force_yuv420_output)
 		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR420;
 	else if ((connector->display_info.color_formats & DRM_COLOR_FORMAT_YCBCR422)
-			&& stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
+			&& aconnector
+			&& aconnector->force_yuv422_output)
 		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR422;
 	else if ((connector->display_info.color_formats & DRM_COLOR_FORMAT_YCBCR444)
 			&& stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
@@ -7669,6 +7670,7 @@ create_validate_stream_for_sink(struct drm_connector *connector,
 		bpc_limit = 8;
 
 	do {
+		drm_dbg_kms(connector->dev, "Trying with %d bpc\n", requested_bpc);
 		stream = create_stream_for_sink(connector, drm_mode,
 						dm_state, old_stream,
 						requested_bpc);
@@ -7704,16 +7706,41 @@ create_validate_stream_for_sink(struct drm_connector *connector,
 
 	} while (stream == NULL && requested_bpc >= bpc_limit);
 
-	if ((dc_result == DC_FAIL_ENC_VALIDATE ||
-	     dc_result == DC_EXCEED_DONGLE_CAP) &&
-	     !aconnector->force_yuv420_output) {
-		DRM_DEBUG_KMS("%s:%d Retry forcing yuv420 encoding\n",
-				     __func__, __LINE__);
-
-		aconnector->force_yuv420_output = true;
+	switch (dc_result) {
+	/*
+	 * If we failed to validate DP bandwidth stream with the requested RGB color depth,
+	 * we try to fallback and configure in order:
+	 * YUV422 (8bpc, 6bpc)
+	 * YUV420 (8bpc, 6bpc)
+	 */
+	case DC_FAIL_ENC_VALIDATE:
+	case DC_EXCEED_DONGLE_CAP:
+	case DC_NO_DP_LINK_BANDWIDTH:
+		/* recursively entered twice and already tried both YUV422 and YUV420 */
+		if (aconnector->force_yuv422_output && aconnector->force_yuv420_output)
+			break;
+		/* first failure; try YUV422 */
+		if (!aconnector->force_yuv422_output) {
+			drm_dbg_kms(connector->dev, "%s:%d Validation failed with %d, retrying w/ YUV422\n",
+				    __func__, __LINE__, dc_result);
+			aconnector->force_yuv422_output = true;
+		/* recursively entered and YUV422 failed, try YUV420 */
+		} else if (!aconnector->force_yuv420_output) {
+			drm_dbg_kms(connector->dev, "%s:%d Validation failed with %d, retrying w/ YUV420\n",
+				    __func__, __LINE__, dc_result);
+			aconnector->force_yuv420_output = true;
+		}
 		stream = create_validate_stream_for_sink(connector, drm_mode,
-						dm_state, old_stream);
+							 dm_state, old_stream);
+		aconnector->force_yuv422_output = false;
 		aconnector->force_yuv420_output = false;
+		break;
+	case DC_OK:
+		break;
+	default:
+		drm_dbg_kms(connector->dev, "%s:%d Unhandled validation failure %d\n",
+			    __func__, __LINE__, dc_result);
+		break;
 	}
 
 	return stream;
