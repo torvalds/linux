@@ -182,41 +182,6 @@ static struct snd_seq_client *client_load_and_use_ptr(int clientid)
 	return client_use_ptr(clientid, IS_ENABLED(CONFIG_MODULES));
 }
 
-/* Take refcount and perform ioctl_mutex lock on the given client;
- * used only for OSS sequencer
- * Unlock via snd_seq_client_ioctl_unlock() below
- */
-bool snd_seq_client_ioctl_lock(int clientid)
-{
-	struct snd_seq_client *client;
-
-	client = client_load_and_use_ptr(clientid);
-	if (!client)
-		return false;
-	mutex_lock(&client->ioctl_mutex);
-	/* The client isn't unrefed here; see snd_seq_client_ioctl_unlock() */
-	return true;
-}
-EXPORT_SYMBOL_GPL(snd_seq_client_ioctl_lock);
-
-/* Unlock and unref the given client; for OSS sequencer use only */
-void snd_seq_client_ioctl_unlock(int clientid)
-{
-	struct snd_seq_client *client;
-
-	client = snd_seq_client_use_ptr(clientid);
-	if (WARN_ON(!client))
-		return;
-	mutex_unlock(&client->ioctl_mutex);
-	/* The doubly unrefs below are intentional; the first one releases the
-	 * leftover from snd_seq_client_ioctl_lock() above, and the second one
-	 * is for releasing snd_seq_client_use_ptr() in this function
-	 */
-	snd_seq_client_unlock(client);
-	snd_seq_client_unlock(client);
-}
-EXPORT_SYMBOL_GPL(snd_seq_client_ioctl_unlock);
-
 static void usage_alloc(struct snd_seq_usage *res, int num)
 {
 	res->cur += num;
@@ -2558,6 +2523,21 @@ int snd_seq_kernel_client_dispatch(int client, struct snd_seq_event * ev,
 }
 EXPORT_SYMBOL(snd_seq_kernel_client_dispatch);
 
+static int call_seq_client_ctl(struct snd_seq_client *client,
+			       unsigned int cmd, void *arg)
+{
+	const struct ioctl_handler *handler;
+
+	for (handler = ioctl_handlers; handler->cmd > 0; ++handler) {
+		if (handler->cmd == cmd)
+			return handler->func(client, arg);
+	}
+
+	pr_debug("ALSA: seq unknown ioctl() 0x%x (type='%c', number=0x%02x)\n",
+		 cmd, _IOC_TYPE(cmd), _IOC_NR(cmd));
+	return -ENOTTY;
+}
+
 /**
  * snd_seq_kernel_client_ctl - operate a command for a client with data in
  *			       kernel space.
@@ -2572,23 +2552,32 @@ EXPORT_SYMBOL(snd_seq_kernel_client_dispatch);
  */
 int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void *arg)
 {
-	const struct ioctl_handler *handler;
 	struct snd_seq_client *client;
 
 	client = clientptr(clientid);
 	if (client == NULL)
 		return -ENXIO;
 
-	for (handler = ioctl_handlers; handler->cmd > 0; ++handler) {
-		if (handler->cmd == cmd)
-			return handler->func(client, arg);
-	}
-
-	pr_debug("ALSA: seq unknown ioctl() 0x%x (type='%c', number=0x%02x)\n",
-		 cmd, _IOC_TYPE(cmd), _IOC_NR(cmd));
-	return -ENOTTY;
+	return call_seq_client_ctl(client, cmd, arg);
 }
 EXPORT_SYMBOL(snd_seq_kernel_client_ctl);
+
+/* a similar like above but taking locks; used only from OSS sequencer layer */
+int snd_seq_kernel_client_ioctl(int clientid, unsigned int cmd, void *arg)
+{
+	struct snd_seq_client *client;
+	int ret;
+
+	client = client_load_and_use_ptr(clientid);
+	if (!client)
+		return -ENXIO;
+	mutex_lock(&client->ioctl_mutex);
+	ret = call_seq_client_ctl(client, cmd, arg);
+	mutex_unlock(&client->ioctl_mutex);
+	snd_seq_client_unlock(client);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_seq_kernel_client_ioctl);
 
 /* exported (for OSS emulator) */
 int snd_seq_kernel_client_write_poll(int clientid, struct file *file, poll_table *wait)

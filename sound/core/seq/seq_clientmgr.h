@@ -94,8 +94,7 @@ int __snd_seq_deliver_single_event(struct snd_seq_client *dest,
 				   int atomic, int hop);
 
 /* only for OSS sequencer */
-bool snd_seq_client_ioctl_lock(int clientid);
-void snd_seq_client_ioctl_unlock(int clientid);
+int snd_seq_kernel_client_ioctl(int clientid, unsigned int cmd, void *arg);
 
 extern int seq_client_load[15];
 
