@@ -262,7 +262,6 @@ static unsigned int bvec_from_pages(struct bio_vec *bvec, struct page **pages,
 int bio_integrity_map_user(struct bio *bio, struct iov_iter *iter)
 {
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
-	unsigned int align = blk_lim_dma_alignment_and_pad(&q->limits);
 	struct page *stack_pages[UIO_FASTIOV], **pages = stack_pages;
 	struct bio_vec stack_vec[UIO_FASTIOV], *bvec = stack_vec;
 	size_t offset, bytes = iter->count;
@@ -285,7 +284,8 @@ int bio_integrity_map_user(struct bio *bio, struct iov_iter *iter)
 		pages = NULL;
 	}
 
-	copy = !iov_iter_is_aligned(iter, align, align);
+	copy = iov_iter_alignment(iter) &
+			blk_lim_dma_alignment_and_pad(&q->limits);
 	ret = iov_iter_extract_pages(iter, &pages, bytes, nr_vecs, 0, &offset);
 	if (unlikely(ret < 0))
 		goto free_bvec;
