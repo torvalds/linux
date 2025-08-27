@@ -3014,8 +3014,13 @@ static int amdgpu_ras_mca2pa_by_idx(struct amdgpu_device *adev,
 	addr_in.ma.err_addr = bps->address;
 	addr_in.ma.socket_id = socket;
 	addr_in.ma.ch_inst = bps->mem_channel;
-	/* tell RAS TA the node instance is not used */
-	addr_in.ma.node_inst = TA_RAS_INV_NODE;
+	if (!amdgpu_ras_smu_eeprom_supported(adev)) {
+		/* tell RAS TA the node instance is not used */
+		addr_in.ma.node_inst = TA_RAS_INV_NODE;
+	} else {
+		addr_in.ma.umc_inst = bps->mcumc_id;
+		addr_in.ma.node_inst = bps->cu;
+	}
 
 	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr)
 		ret = adev->umc.ras->convert_ras_err_addr(adev, err_data,
@@ -3162,7 +3167,11 @@ static int __amdgpu_ras_convert_rec_from_rom(struct amdgpu_device *adev,
 		save_nps = (bps->retired_page >> UMC_NPS_SHIFT) & UMC_NPS_MASK;
 		bps->retired_page &= ~(UMC_NPS_MASK << UMC_NPS_SHIFT);
 	} else {
-		save_nps = nps;
+		/* if pmfw manages eeprom, save_nps is not stored on eeprom,
+		 * we should always convert mca address into physical address,
+		 * make save_nps different from nps
+		 */
+		save_nps = nps + 1;
 	}
 
 	if (save_nps == nps) {

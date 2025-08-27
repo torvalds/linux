@@ -1022,9 +1022,9 @@ int amdgpu_ras_eeprom_read_idx(struct amdgpu_ras_eeprom_control *control,
 		record[i - rec_idx].retired_page = 0x1ULL;
 		record[i - rec_idx].ts = ts;
 		record[i - rec_idx].err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
-		record[i - rec_idx].cu = 0;
 
-		adev->umc.ras->mca_ipid_parse(adev, ipid, NULL,
+		adev->umc.ras->mca_ipid_parse(adev, ipid,
+			(uint32_t *)&(record[i - rec_idx].cu),
 			(uint32_t *)&(record[i - rec_idx].mem_channel),
 			(uint32_t *)&(record[i - rec_idx].mcumc_id), NULL);
 	}
