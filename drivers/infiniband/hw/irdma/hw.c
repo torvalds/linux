@@ -135,76 +135,24 @@ static void irdma_process_ceq(struct irdma_pci_f *rf, struct irdma_ceq *ceq)
 static void irdma_set_flush_fields(struct irdma_sc_qp *qp,
 				   struct irdma_aeqe_info *info)
 {
+	struct qp_err_code qp_err;
+
 	qp->sq_flush_code = info->sq;
 	qp->rq_flush_code = info->rq;
-	qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-
-	switch (info->ae_id) {
-	case IRDMA_AE_AMP_BOUNDS_VIOLATION:
-	case IRDMA_AE_AMP_INVALID_STAG:
-	case IRDMA_AE_AMP_RIGHTS_VIOLATION:
-	case IRDMA_AE_AMP_UNALLOCATED_STAG:
-	case IRDMA_AE_AMP_BAD_PD:
-	case IRDMA_AE_AMP_BAD_QP:
-	case IRDMA_AE_AMP_BAD_STAG_KEY:
-	case IRDMA_AE_AMP_BAD_STAG_INDEX:
-	case IRDMA_AE_AMP_TO_WRAP:
-	case IRDMA_AE_PRIV_OPERATION_DENIED:
-		qp->flush_code = FLUSH_PROT_ERR;
-		qp->event_type = IRDMA_QP_EVENT_ACCESS_ERR;
-		break;
-	case IRDMA_AE_UDA_XMIT_BAD_PD:
-	case IRDMA_AE_WQE_UNEXPECTED_OPCODE:
-		qp->flush_code = FLUSH_LOC_QP_OP_ERR;
-		qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-		break;
-	case IRDMA_AE_UDA_XMIT_DGRAM_TOO_LONG:
-	case IRDMA_AE_UDA_XMIT_DGRAM_TOO_SHORT:
-	case IRDMA_AE_UDA_L4LEN_INVALID:
-	case IRDMA_AE_DDP_UBE_INVALID_MO:
-	case IRDMA_AE_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER:
-		qp->flush_code = FLUSH_LOC_LEN_ERR;
-		qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-		break;
-	case IRDMA_AE_AMP_INVALIDATE_NO_REMOTE_ACCESS_RIGHTS:
-	case IRDMA_AE_IB_REMOTE_ACCESS_ERROR:
-		qp->flush_code = FLUSH_REM_ACCESS_ERR;
-		qp->event_type = IRDMA_QP_EVENT_ACCESS_ERR;
-		break;
-	case IRDMA_AE_LLP_SEGMENT_TOO_SMALL:
-	case IRDMA_AE_LLP_RECEIVED_MPA_CRC_ERROR:
-	case IRDMA_AE_ROCE_RSP_LENGTH_ERROR:
-	case IRDMA_AE_IB_REMOTE_OP_ERROR:
-		qp->flush_code = FLUSH_REM_OP_ERR;
-		qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-		break;
-	case IRDMA_AE_LCE_QP_CATASTROPHIC:
-		qp->flush_code = FLUSH_FATAL_ERR;
-		qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-		break;
-	case IRDMA_AE_IB_RREQ_AND_Q1_FULL:
-		qp->flush_code = FLUSH_GENERAL_ERR;
-		break;
-	case IRDMA_AE_LLP_TOO_MANY_RETRIES:
-		qp->flush_code = FLUSH_RETRY_EXC_ERR;
-		qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-		break;
-	case IRDMA_AE_AMP_MWBIND_INVALID_RIGHTS:
-	case IRDMA_AE_AMP_MWBIND_BIND_DISABLED:
-	case IRDMA_AE_AMP_MWBIND_INVALID_BOUNDS:
-	case IRDMA_AE_AMP_MWBIND_VALID_STAG:
-		qp->flush_code = FLUSH_MW_BIND_ERR;
-		qp->event_type = IRDMA_QP_EVENT_ACCESS_ERR;
-		break;
-	case IRDMA_AE_IB_INVALID_REQUEST:
-		qp->flush_code = FLUSH_REM_INV_REQ_ERR;
-		qp->event_type = IRDMA_QP_EVENT_REQ_ERR;
-		break;
-	default:
-		qp->flush_code = FLUSH_GENERAL_ERR;
-		qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
-		break;
+	if (qp->qp_uk.uk_attrs->hw_rev >= IRDMA_GEN_3) {
+		if (info->sq) {
+			qp->err_sq_idx_valid = true;
+			qp->err_sq_idx = info->wqe_idx;
+		}
+		if (info->rq) {
+			qp->err_rq_idx_valid = true;
+			qp->err_rq_idx = info->wqe_idx;
+		}
 	}
+
+	qp_err = irdma_ae_to_qp_err_code(info->ae_id);
+	qp->flush_code = qp_err.flush_code;
+	qp->event_type = qp_err.event_type;
 }
 
 /**
@@ -320,7 +268,6 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 			if (info->ae_id != IRDMA_AE_QP_SUSPEND_COMPLETE)
 				iwqp->last_aeq = info->ae_id;
 			spin_unlock_irqrestore(&iwqp->lock, flags);
-			ctx_info = &iwqp->ctx_info;
 		} else if (info->srq) {
 			if (info->ae_id != IRDMA_AE_SRQ_LIMIT)
 				continue;
@@ -466,9 +413,11 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 		default:
 			ibdev_err(&iwdev->ibdev, "abnormal ae_id = 0x%x bool qp=%d qp_id = %d, ae_src=%d\n",
 				  info->ae_id, info->qp, info->qp_cq_id, info->ae_src);
-			if (rdma_protocol_roce(&iwdev->ibdev, 1)) {
-				ctx_info->roce_info->err_rq_idx_valid = info->rq;
-				if (info->rq) {
+			ctx_info = &iwqp->ctx_info;
+			if (rdma_protocol_roce(&iwqp->iwdev->ibdev, 1)) {
+				ctx_info->roce_info->err_rq_idx_valid =
+					ctx_info->srq_valid ? false : info->err_rq_idx_valid;
+				if (ctx_info->roce_info->err_rq_idx_valid) {
 					ctx_info->roce_info->err_rq_idx = info->wqe_idx;
 					irdma_sc_qp_setctx_roce(&iwqp->sc_qp, iwqp->host_ctx.va,
 								ctx_info);
@@ -2832,7 +2781,9 @@ void irdma_flush_wqes(struct irdma_qp *iwqp, u32 flush_mask)
 	struct irdma_pci_f *rf = iwqp->iwdev->rf;
 	u8 flush_code = iwqp->sc_qp.flush_code;
 
-	if (!(flush_mask & IRDMA_FLUSH_SQ) && !(flush_mask & IRDMA_FLUSH_RQ))
+	if ((!(flush_mask & IRDMA_FLUSH_SQ) &&
+	     !(flush_mask & IRDMA_FLUSH_RQ)) ||
+	    ((flush_mask & IRDMA_REFLUSH) && rf->rdma_ver >= IRDMA_GEN_3))
 		return;
 
 	/* Set flush info fields*/
@@ -2845,6 +2796,10 @@ void irdma_flush_wqes(struct irdma_qp *iwqp, u32 flush_mask)
 	info.rq_major_code = IRDMA_FLUSH_MAJOR_ERR;
 	info.rq_minor_code = FLUSH_GENERAL_ERR;
 	info.userflushcode = true;
+	info.err_sq_idx_valid = iwqp->sc_qp.err_sq_idx_valid;
+	info.err_sq_idx = iwqp->sc_qp.err_sq_idx;
+	info.err_rq_idx_valid = iwqp->sc_qp.err_rq_idx_valid;
+	info.err_rq_idx = iwqp->sc_qp.err_rq_idx;
 
 	if (flush_mask & IRDMA_REFLUSH) {
 		if (info.sq)

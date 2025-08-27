@@ -97,12 +97,6 @@ enum irdma_term_mpa_errors {
 	MPA_REQ_RSP = 0x04,
 };
 
-enum irdma_qp_event_type {
-	IRDMA_QP_EVENT_CATASTROPHIC,
-	IRDMA_QP_EVENT_ACCESS_ERR,
-	IRDMA_QP_EVENT_REQ_ERR,
-};
-
 enum irdma_hw_stats_index {
 	/* gen1 - 32-bit */
 	IRDMA_HW_STAT_INDEX_IP4RXDISCARD	= 0,
@@ -565,6 +559,10 @@ struct irdma_sc_qp {
 	bool virtual_map:1;
 	bool flush_sq:1;
 	bool flush_rq:1;
+	bool err_sq_idx_valid:1;
+	bool err_rq_idx_valid:1;
+	u32 err_sq_idx;
+	u32 err_rq_idx;
 	bool sq_flush_code:1;
 	bool rq_flush_code:1;
 	u32 pkt_limit;
@@ -1289,6 +1287,8 @@ struct irdma_cqp_manage_push_page_info {
 };
 
 struct irdma_qp_flush_info {
+	u32 err_sq_idx;
+	u32 err_rq_idx;
 	u16 sq_minor_code;
 	u16 sq_major_code;
 	u16 rq_minor_code;
@@ -1299,6 +1299,8 @@ struct irdma_qp_flush_info {
 	bool rq:1;
 	bool userflushcode:1;
 	bool generate_ae:1;
+	bool err_sq_idx_valid:1;
+	bool err_rq_idx_valid:1;
 };
 
 struct irdma_gen_ae_info {

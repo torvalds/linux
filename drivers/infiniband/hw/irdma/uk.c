@@ -1148,6 +1148,7 @@ int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 	__le64 *cqe;
 	struct irdma_qp_uk *qp;
 	struct irdma_srq_uk *srq;
+	struct qp_err_code qp_err;
 	u8 is_srq;
 	struct irdma_ring *pring = NULL;
 	u32 wqe_idx;
@@ -1233,16 +1234,35 @@ int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 	if (info->error) {
 		info->major_err = FIELD_GET(IRDMA_CQ_MAJERR, qword3);
 		info->minor_err = FIELD_GET(IRDMA_CQ_MINERR, qword3);
-		if (info->major_err == IRDMA_FLUSH_MAJOR_ERR) {
-			info->comp_status = IRDMA_COMPL_STATUS_FLUSHED;
+		switch (info->major_err) {
+		case IRDMA_SRQFLUSH_RSVD_MAJOR_ERR:
+			qp_err = irdma_ae_to_qp_err_code(info->minor_err);
+			info->minor_err = qp_err.flush_code;
+			fallthrough;
+		case IRDMA_FLUSH_MAJOR_ERR:
 			/* Set the min error to standard flush error code for remaining cqes */
 			if (info->minor_err != FLUSH_GENERAL_ERR) {
 				qword3 &= ~IRDMA_CQ_MINERR;
 				qword3 |= FIELD_PREP(IRDMA_CQ_MINERR, FLUSH_GENERAL_ERR);
 				set_64bit_val(cqe, 24, qword3);
 			}
-		} else {
-			info->comp_status = IRDMA_COMPL_STATUS_UNKNOWN;
+			info->comp_status = IRDMA_COMPL_STATUS_FLUSHED;
+			break;
+		default:
+#define IRDMA_CIE_SIGNATURE 0xE
+#define IRDMA_CQMAJERR_HIGH_NIBBLE GENMASK(15, 12)
+			if (info->q_type == IRDMA_CQE_QTYPE_SQ &&
+			    qp->qp_type == IRDMA_QP_TYPE_ROCE_UD &&
+			    FIELD_GET(IRDMA_CQMAJERR_HIGH_NIBBLE, info->major_err)
+			    == IRDMA_CIE_SIGNATURE) {
+				info->error = 0;
+				info->major_err = 0;
+				info->minor_err = 0;
+				info->comp_status = IRDMA_COMPL_STATUS_SUCCESS;
+			} else {
+				info->comp_status = IRDMA_COMPL_STATUS_UNKNOWN;
+			}
+			break;
 		}
 	} else {
 		info->comp_status = IRDMA_COMPL_STATUS_SUCCESS;
@@ -1251,7 +1271,6 @@ int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 	get_64bit_val(cqe, 0, &qword0);
 	get_64bit_val(cqe, 16, &qword2);
 
-	info->tcp_seq_num_rtt = (u32)FIELD_GET(IRDMACQ_TCPSEQNUMRTT, qword0);
 	info->qp_id = (u32)FIELD_GET(IRDMACQ_QPID, qword2);
 	info->ud_src_qpn = (u32)FIELD_GET(IRDMACQ_UDSRCQPN, qword2);
 
@@ -1377,9 +1396,15 @@ int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 	ret_code = 0;
 
 exit:
-	if (!ret_code && info->comp_status == IRDMA_COMPL_STATUS_FLUSHED)
+	if (!ret_code && info->comp_status == IRDMA_COMPL_STATUS_FLUSHED) {
 		if (pring && IRDMA_RING_MORE_WORK(*pring))
-			move_cq_head = false;
+		/* Park CQ head during a flush to generate additional CQEs
+		 * from SW for all unprocessed WQEs. For GEN3 and beyond
+		 * FW will generate/flush these CQEs so move to the next CQE
+		 */
+			move_cq_head = qp->uk_attrs->hw_rev <= IRDMA_GEN_2 ?
+						false : true;
+	}
 
 	if (move_cq_head) {
 		IRDMA_RING_MOVE_HEAD_NOCHECK(cq->cq_ring);

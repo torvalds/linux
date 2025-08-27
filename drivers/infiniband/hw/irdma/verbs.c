@@ -542,7 +542,7 @@ static int irdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 
 	iwqp->sc_qp.qp_uk.destroy_pending = true;
 
-	if (iwqp->iwarp_state == IRDMA_QP_STATE_RTS)
+	if (iwqp->iwarp_state >= IRDMA_QP_STATE_IDLE)
 		irdma_modify_qp_to_err(&iwqp->sc_qp);
 
 	if (!iwqp->user_mode)
@@ -4132,6 +4132,7 @@ static int irdma_post_send(struct ib_qp *ibqp,
 		mod_delayed_work(iwqp->iwdev->cleanup_wq, &iwqp->dwork_flush,
 				 msecs_to_jiffies(IRDMA_FLUSH_DELAY_MS));
 	}
+
 	if (err)
 		*bad_wr = ib_wr;
 
@@ -4255,6 +4256,8 @@ static enum ib_wc_status irdma_flush_err_to_ib_wc_status(enum irdma_flush_opcode
 		return IB_WC_MW_BIND_ERR;
 	case FLUSH_REM_INV_REQ_ERR:
 		return IB_WC_REM_INV_REQ_ERR;
+	case FLUSH_RNR_RETRY_EXC_ERR:
+		return IB_WC_RNR_RETRY_EXC_ERR;
 	case FLUSH_FATAL_ERR:
 	default:
 		return IB_WC_FATAL_ERR;

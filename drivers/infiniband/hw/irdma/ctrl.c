@@ -2674,6 +2674,12 @@ int irdma_sc_qp_flush_wqes(struct irdma_sc_qp *qp,
 		info->ae_code | FIELD_PREP(IRDMA_CQPSQ_FWQE_AESOURCE,
 					   info->ae_src) : 0;
 	set_64bit_val(wqe, 8, temp);
+	if (cqp->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_3) {
+		set_64bit_val(wqe, 40,
+			      FIELD_PREP(IRDMA_CQPSQ_FWQE_ERR_SQ_IDX, info->err_sq_idx));
+		set_64bit_val(wqe, 48,
+			      FIELD_PREP(IRDMA_CQPSQ_FWQE_ERR_RQ_IDX, info->err_rq_idx));
+	}
 
 	hdr = qp->qp_uk.qp_id |
 	      FIELD_PREP(IRDMA_CQPSQ_OPCODE, IRDMA_CQP_OP_FLUSH_WQES) |
@@ -2682,6 +2688,9 @@ int irdma_sc_qp_flush_wqes(struct irdma_sc_qp *qp,
 	      FIELD_PREP(IRDMA_CQPSQ_FWQE_FLUSHSQ, flush_sq) |
 	      FIELD_PREP(IRDMA_CQPSQ_FWQE_FLUSHRQ, flush_rq) |
 	      FIELD_PREP(IRDMA_CQPSQ_WQEVALID, cqp->polarity);
+	if (cqp->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_3)
+		hdr |= FIELD_PREP(IRDMA_CQPSQ_FWQE_ERR_SQ_IDX_VALID, info->err_sq_idx_valid) |
+		       FIELD_PREP(IRDMA_CQPSQ_FWQE_ERR_RQ_IDX_VALID, info->err_rq_idx_valid);
 	dma_wmb(); /* make sure WQE is written before valid bit is set */
 
 	set_64bit_val(wqe, 24, hdr);
