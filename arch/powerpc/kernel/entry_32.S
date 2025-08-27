@@ -216,7 +216,7 @@ fast_exception_return:
 	beq	3f			/* if not, we've got problems */
 #endif
 
-2:	lwz	r10,_CCR(r11)
+	lwz	r10,_CCR(r11)
 	REST_GPRS(1, 6, r11)
 	mtcr	r10
 	lwz	r10,_LINK(r11)
@@ -225,9 +225,6 @@ fast_exception_return:
 	li	r10, 0
 	stw	r10, 8(r11)
 	REST_GPR(10, r11)
-#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PERF_EVENTS)
-	mtspr	SPRN_NRI, r0
-#endif
 	mtspr	SPRN_SRR1,r9
 	mtspr	SPRN_SRR0,r12
 	REST_GPR(9, r11)
