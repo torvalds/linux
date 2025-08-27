@@ -427,15 +427,13 @@ static int spi_probe(struct device *dev)
 	if (spi->irq < 0)
 		spi->irq = 0;
 
-	ret = dev_pm_domain_attach(dev, PD_FLAG_ATTACH_POWER_ON);
+	ret = dev_pm_domain_attach(dev, PD_FLAG_ATTACH_POWER_ON |
+					PD_FLAG_DETACH_POWER_OFF);
 	if (ret)
 		return ret;
 
-	if (sdrv->probe) {
+	if (sdrv->probe)
 		ret = sdrv->probe(spi);
-		if (ret)
-			dev_pm_domain_detach(dev, true);
-	}
 
 	return ret;
 }
@@ -446,8 +444,6 @@ static void spi_remove(struct device *dev)
 
 	if (sdrv->remove)
 		sdrv->remove(to_spi_device(dev));
-
-	dev_pm_domain_detach(dev, true);
 }
 
 static void spi_shutdown(struct device *dev)
