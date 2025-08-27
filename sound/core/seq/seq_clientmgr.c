@@ -108,7 +108,6 @@ static struct snd_seq_client *clientptr(int clientid)
 
 static struct snd_seq_client *client_use_ptr(int clientid, bool load_module)
 {
-	unsigned long flags;
 	struct snd_seq_client *client;
 
 	if (clientid < 0 || clientid >= SNDRV_SEQ_MAX_CLIENTS) {
@@ -116,15 +115,13 @@ static struct snd_seq_client *client_use_ptr(int clientid, bool load_module)
 			   clientid);
 		return NULL;
 	}
-	spin_lock_irqsave(&clients_lock, flags);
-	client = clientptr(clientid);
-	if (client)
-		goto __lock;
-	if (clienttablock[clientid]) {
-		spin_unlock_irqrestore(&clients_lock, flags);
-		return NULL;
+	scoped_guard(spinlock_irqsave, &clients_lock) {
+		client = clientptr(clientid);
+		if (client)
+			return snd_seq_client_ref(client);
+		if (clienttablock[clientid])
+			return NULL;
 	}
-	spin_unlock_irqrestore(&clients_lock, flags);
 #ifdef CONFIG_MODULES
 	if (load_module) {
 		static DECLARE_BITMAP(client_requested, SNDRV_SEQ_GLOBAL_CLIENTS);
@@ -153,19 +150,14 @@ static struct snd_seq_client *client_use_ptr(int clientid, bool load_module)
 				snd_seq_device_load_drivers();
 			}
 		}
-		spin_lock_irqsave(&clients_lock, flags);
-		client = clientptr(clientid);
-		if (client)
-			goto __lock;
-		spin_unlock_irqrestore(&clients_lock, flags);
+		scoped_guard(spinlock_irqsave, &clients_lock) {
+			client = clientptr(clientid);
+			if (client)
+				return snd_seq_client_ref(client);
+		}
 	}
 #endif
 	return NULL;
-
-      __lock:
-	snd_use_lock_use(&client->use_lock);
-	spin_unlock_irqrestore(&clients_lock, flags);
-	return client;
 }
 
 /* get snd_seq_client object for the given id quickly */
@@ -227,25 +219,24 @@ static struct snd_seq_client *seq_create_client1(int client_index, int poolsize)
 	client->ump_endpoint_port = -1;
 
 	/* find free slot in the client table */
-	spin_lock_irq(&clients_lock);
-	if (client_index < 0) {
-		for (c = SNDRV_SEQ_DYNAMIC_CLIENTS_BEGIN;
-		     c < SNDRV_SEQ_MAX_CLIENTS;
-		     c++) {
-			if (clienttab[c] || clienttablock[c])
-				continue;
-			clienttab[client->number = c] = client;
-			spin_unlock_irq(&clients_lock);
-			return client;
-		}
-	} else {
-		if (clienttab[client_index] == NULL && !clienttablock[client_index]) {
-			clienttab[client->number = client_index] = client;
-			spin_unlock_irq(&clients_lock);
-			return client;
+	scoped_guard(spinlock_irq, &clients_lock) {
+		if (client_index < 0) {
+			for (c = SNDRV_SEQ_DYNAMIC_CLIENTS_BEGIN;
+			     c < SNDRV_SEQ_MAX_CLIENTS;
+			     c++) {
+				if (clienttab[c] || clienttablock[c])
+					continue;
+				clienttab[client->number = c] = client;
+				return client;
+			}
+		} else {
+			if (clienttab[client_index] == NULL && !clienttablock[client_index]) {
+				clienttab[client->number = client_index] = client;
+				return client;
+			}
 		}
 	}
-	spin_unlock_irq(&clients_lock);
+
 	snd_seq_pool_delete(&client->pool);
 	kfree(client);
 	return NULL;	/* no free slot found or busy, return failure code */
@@ -256,18 +247,18 @@ static int seq_free_client1(struct snd_seq_client *client)
 {
 	if (!client)
 		return 0;
-	spin_lock_irq(&clients_lock);
-	clienttablock[client->number] = 1;
-	clienttab[client->number] = NULL;
-	spin_unlock_irq(&clients_lock);
+	scoped_guard(spinlock_irq, &clients_lock) {
+		clienttablock[client->number] = 1;
+		clienttab[client->number] = NULL;
+	}
 	snd_seq_delete_all_ports(client);
 	snd_seq_queue_client_leave(client->number);
 	snd_use_lock_sync(&client->use_lock);
 	if (client->pool)
 		snd_seq_pool_delete(&client->pool);
-	spin_lock_irq(&clients_lock);
-	clienttablock[client->number] = 0;
-	spin_unlock_irq(&clients_lock);
+	scoped_guard(spinlock_irq, &clients_lock) {
+		clienttablock[client->number] = 0;
+	}
 	return 0;
 }
 

@@ -78,8 +78,20 @@ void snd_sequencer_device_done(void);
 /* get locked pointer to client */
 struct snd_seq_client *snd_seq_client_use_ptr(int clientid);
 
+static inline struct snd_seq_client *
+snd_seq_client_ref(struct snd_seq_client *client)
+{
+	snd_use_lock_use(&client->use_lock);
+	return client;
+}
+
 /* unlock pointer to client */
-#define snd_seq_client_unlock(client) snd_use_lock_free(&(client)->use_lock)
+static inline void snd_seq_client_unref(struct snd_seq_client *client)
+{
+	snd_use_lock_free(&client->use_lock);
+}
+
+#define snd_seq_client_unlock(c)	snd_seq_client_unref(c)
 
 /* dispatch event to client(s) */
 int snd_seq_dispatch_event(struct snd_seq_event_cell *cell, int atomic, int hop);
