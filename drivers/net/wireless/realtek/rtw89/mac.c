@@ -178,7 +178,7 @@ int rtw89_mac_dle_dfi_qempty_cfg(struct rtw89_dev *rtwdev,
 				 struct rtw89_mac_dle_dfi_qempty *qempty)
 {
 	struct rtw89_mac_dle_dfi_ctrl ctrl;
-	u32 ret;
+	int ret;
 
 	ctrl.type = qempty->dle_type;
 	ctrl.target = DLE_DFI_TYPE_QEMPTY;
@@ -986,7 +986,7 @@ static int hfc_upd_ch_info(struct rtw89_dev *rtwdev, u8 ch)
 	struct rtw89_hfc_ch_info *info = param->ch_info;
 	const struct rtw89_hfc_ch_cfg *cfg = param->ch_cfg;
 	u32 val;
-	u32 ret;
+	int ret;
 
 	ret = rtw89_mac_check_mac_en(rtwdev, RTW89_MAC_0, RTW89_DMAC_SEL);
 	if (ret)
@@ -1177,8 +1177,8 @@ int rtw89_mac_hfc_init(struct rtw89_dev *rtwdev, bool reset, bool en, bool h2c_e
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 dma_ch_mask = chip->dma_ch_mask;
+	int ret = 0;
 	u8 ch;
-	u32 ret = 0;
 
 	if (reset)
 		ret = hfc_reset_param(rtwdev);
@@ -1194,7 +1194,7 @@ int rtw89_mac_hfc_init(struct rtw89_dev *rtwdev, bool reset, bool en, bool h2c_e
 	if (!en && h2c_en) {
 		mac->hfc_h2c_cfg(rtwdev);
 		mac->hfc_func_en(rtwdev, en, h2c_en);
-		return ret;
+		return 0;
 	}
 
 	for (ch = RTW89_DMA_ACH0; ch < RTW89_DMA_H2C; ch++) {
@@ -2414,7 +2414,7 @@ static int addr_cam_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 
 static int scheduler_init_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
-	u32 ret;
+	int ret;
 	u32 reg;
 	u32 val;
 
@@ -2955,7 +2955,7 @@ static int rtw89_mac_read_phycap(struct rtw89_dev *rtwdev,
 	struct rtw89_mac_h2c_info h2c_info = {};
 	enum rtw89_mac_c2h_type c2h_type;
 	u8 content_len;
-	u32 ret;
+	int ret;
 
 	if (chip->chip_gen == RTW89_CHIP_AX)
 		content_len = 0;
@@ -3106,10 +3106,10 @@ int rtw89_mac_setup_phycap(struct rtw89_dev *rtwdev)
 static int rtw89_hw_sch_tx_en_h2c(struct rtw89_dev *rtwdev, u8 band,
 				  u16 tx_en_u16, u16 mask_u16)
 {
-	u32 ret;
 	struct rtw89_mac_c2h_info c2h_info = {0};
 	struct rtw89_mac_h2c_info h2c_info = {0};
 	struct rtw89_h2creg_sch_tx_en *sch_tx_en = &h2c_info.u.sch_tx_en;
+	int ret;
 
 	h2c_info.id = RTW89_FWCMD_H2CREG_FUNC_SCH_TX_EN;
 	h2c_info.content_len = sizeof(*sch_tx_en) - RTW89_H2CREG_HDR_LEN;
@@ -6738,7 +6738,7 @@ int rtw89_mac_set_hw_muedca_ctrl(struct rtw89_dev *rtwdev,
 	u8 mac_idx = rtwvif_link->mac_idx;
 	u16 set = mac->muedca_ctrl.mask;
 	u32 reg;
-	u32 ret;
+	int ret;
 
 	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
 	if (ret)
@@ -6880,7 +6880,7 @@ int rtw89_mac_cpu_io_rx(struct rtw89_dev *rtwdev, bool wow_enable)
 {
 	struct rtw89_mac_h2c_info h2c_info = {};
 	struct rtw89_mac_c2h_info c2h_info = {};
-	u32 ret;
+	int ret;
 
 	if (RTW89_CHK_FW_FEATURE(NO_WOW_CPU_IO_RX, &rtwdev->fw))
 		return 0;

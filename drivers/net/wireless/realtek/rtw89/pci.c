@@ -2910,7 +2910,7 @@ static int rtw89_pci_poll_rxdma_ch_idle_ax(struct rtw89_dev *rtwdev)
 
 static int rtw89_pci_poll_dma_all_idle(struct rtw89_dev *rtwdev)
 {
-	u32 ret;
+	int ret;
 
 	ret = rtw89_pci_poll_txdma_ch_idle_ax(rtwdev);
 	if (ret) {
@@ -4396,7 +4396,7 @@ static int rtw89_pci_lv1rst_stop_dma_ax(struct rtw89_dev *rtwdev)
 
 static int rtw89_pci_lv1rst_start_dma_ax(struct rtw89_dev *rtwdev)
 {
-	u32 ret;
+	int ret;
 
 	if (rtwdev->chip->chip_id == RTL8852C)
 		return 0;
@@ -4410,7 +4410,7 @@ static int rtw89_pci_lv1rst_start_dma_ax(struct rtw89_dev *rtwdev)
 		return ret;
 
 	rtw89_pci_ctrl_dma_all(rtwdev, true);
-	return ret;
+	return 0;
 }
 
 static int rtw89_pci_ops_mac_lv1_recovery(struct rtw89_dev *rtwdev,
