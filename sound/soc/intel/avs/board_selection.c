@@ -507,6 +507,9 @@ static int avs_register_i2s_test_boards(struct avs_dev *adev)
 	unsigned long tdm_slots;
 	u32 *array, num_elems;
 
+	if (!i2s_test)
+		return 0;
+
 	ret = parse_int_array(i2s_test, strlen(i2s_test), (int **)&array);
 	if (ret) {
 		dev_err(adev->dev, "failed to parse i2s_test parameter\n");
@@ -559,9 +562,6 @@ static int avs_register_i2s_boards(struct avs_dev *adev)
 		dev_dbg(adev->dev, "no I2S endpoints present\n");
 		return 0;
 	}
-
-	if (i2s_test)
-		return avs_register_i2s_test_boards(adev);
 
 	machs = avs_get_i2s_machines(adev);
 	if (!machs) {
@@ -648,6 +648,10 @@ int avs_register_all_boards(struct avs_dev *adev)
 	if (ret < 0)
 		dev_warn(adev->dev, "enumerate DMIC endpoints failed: %d\n",
 			 ret);
+
+	ret = avs_register_i2s_test_boards(adev);
+	if (ret)
+		dev_dbg(adev->dev, "enumerate I2S TEST endpoints failed: %d\n", ret);
 
 	ret = avs_register_i2s_boards(adev);
 	if (ret < 0)
