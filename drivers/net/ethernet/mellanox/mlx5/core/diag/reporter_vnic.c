@@ -135,7 +135,7 @@ void mlx5_reporter_vnic_create(struct mlx5_core_dev *dev)
 	health->vnic_reporter =
 		devlink_health_reporter_create(devlink,
 					       &mlx5_reporter_vnic_ops,
-					       0, dev);
+					       dev);
 	if (IS_ERR(health->vnic_reporter))
 		mlx5_core_warn(dev,
 			       "Failed to create vnic reporter, err = %ld\n",

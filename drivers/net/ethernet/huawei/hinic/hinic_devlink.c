@@ -443,8 +443,9 @@ int hinic_health_reporters_create(struct hinic_devlink_priv *priv)
 	struct devlink *devlink = priv_to_devlink(priv);
 
 	priv->hw_fault_reporter =
-		devlink_health_reporter_create(devlink, &hinic_hw_fault_reporter_ops,
-					       0, priv);
+		devlink_health_reporter_create(devlink,
+					       &hinic_hw_fault_reporter_ops,
+					       priv);
 	if (IS_ERR(priv->hw_fault_reporter)) {
 		dev_warn(&priv->hwdev->hwif->pdev->dev, "Failed to create hw fault reporter, err: %ld\n",
 			 PTR_ERR(priv->hw_fault_reporter));
@@ -452,8 +453,9 @@ int hinic_health_reporters_create(struct hinic_devlink_priv *priv)
 	}
 
 	priv->fw_fault_reporter =
-		devlink_health_reporter_create(devlink, &hinic_fw_fault_reporter_ops,
-					       0, priv);
+		devlink_health_reporter_create(devlink,
+					       &hinic_fw_fault_reporter_ops,
+					       priv);
 	if (IS_ERR(priv->fw_fault_reporter)) {
 		dev_warn(&priv->hwdev->hwif->pdev->dev, "Failed to create fw fault reporter, err: %ld\n",
 			 PTR_ERR(priv->fw_fault_reporter));

@@ -220,7 +220,7 @@ __bnxt_dl_reporter_create(struct bnxt *bp,
 {
 	struct devlink_health_reporter *reporter;
 
-	reporter = devlink_health_reporter_create(bp->dl, ops, 0, bp);
+	reporter = devlink_health_reporter_create(bp->dl, ops, bp);
 	if (IS_ERR(reporter)) {
 		netdev_warn(bp->dev, "Failed to create %s health reporter, rc = %ld\n",
 			    ops->name, PTR_ERR(reporter));
