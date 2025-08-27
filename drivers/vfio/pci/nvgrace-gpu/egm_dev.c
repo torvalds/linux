@@ -56,6 +56,27 @@ error_exit:
 	return ret;
 }
 
+static int create_egm_symlinks(struct nvgrace_egm_dev *egm_dev,
+			       struct pci_dev *pdev)
+{
+	int ret;
+
+	ret = sysfs_create_link_nowarn(&pdev->dev.kobj,
+				       &egm_dev->aux_dev.dev.kobj,
+				       dev_name(&egm_dev->aux_dev.dev));
+
+	/*
+	 * Allow if Link already exists - created since GPU is the auxiliary
+	 * device's parent; flag the error otherwise.
+	 */
+	if (ret && ret != -EEXIST)
+		return ret;
+
+	return sysfs_create_link(&egm_dev->aux_dev.dev.kobj,
+				 &pdev->dev.kobj,
+				 dev_name(&pdev->dev));
+}
+
 int add_gpu(struct nvgrace_egm_dev *egm_dev, struct pci_dev *pdev)
 {
 	struct gpu_node *node;
@@ -68,7 +89,16 @@ int add_gpu(struct nvgrace_egm_dev *egm_dev, struct pci_dev *pdev)
 
 	list_add_tail(&node->list, &egm_dev->gpus);
 
-	return 0;
+	return create_egm_symlinks(egm_dev, pdev);
+}
+
+static void remove_egm_symlinks(struct nvgrace_egm_dev *egm_dev,
+				struct pci_dev *pdev)
+{
+	sysfs_remove_link(&pdev->dev.kobj,
+			  dev_name(&egm_dev->aux_dev.dev));
+	sysfs_remove_link(&egm_dev->aux_dev.dev.kobj,
+			  dev_name(&pdev->dev));
 }
 
 void remove_gpu(struct nvgrace_egm_dev *egm_dev, struct pci_dev *pdev)
@@ -77,6 +107,7 @@ void remove_gpu(struct nvgrace_egm_dev *egm_dev, struct pci_dev *pdev)
 
 	list_for_each_entry_safe(node, tmp, &egm_dev->gpus, list) {
 		if (node->pdev == pdev) {
+			remove_egm_symlinks(egm_dev, pdev);
 			list_del(&node->list);
 			kvfree(node);
 		}
