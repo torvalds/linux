@@ -85,7 +85,6 @@ echo
 
 echo
 ./futex_priv_hash $COLOR
-./futex_priv_hash -g $COLOR
 
 echo
 ./futex_numa_mpol $COLOR
