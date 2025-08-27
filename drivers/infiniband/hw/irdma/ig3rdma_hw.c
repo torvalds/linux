@@ -5,8 +5,53 @@
 #include "protos.h"
 #include "ig3rdma_hw.h"
 
+/**
+ * ig3rdma_ena_irq - Enable interrupt
+ * @dev: pointer to the device structure
+ * @idx: vector index
+ */
+static void ig3rdma_ena_irq(struct irdma_sc_dev *dev, u32 idx)
+{
+	u32 val;
+	u32 int_stride = 1; /* one u32 per register */
+
+	if (dev->is_pf)
+		int_stride = 0x400;
+	else
+		idx--; /* VFs use DYN_CTL_N */
+
+	val = FIELD_PREP(IRDMA_GLINT_DYN_CTL_INTENA, 1) |
+	      FIELD_PREP(IRDMA_GLINT_DYN_CTL_CLEARPBA, 1);
+
+	writel(val, dev->hw_regs[IRDMA_GLINT_DYN_CTL] + (idx * int_stride));
+}
+
+/**
+ * ig3rdma_disable_irq - Disable interrupt
+ * @dev: pointer to the device structure
+ * @idx: vector index
+ */
+static void ig3rdma_disable_irq(struct irdma_sc_dev *dev, u32 idx)
+{
+	u32 int_stride = 1; /* one u32 per register */
+
+	if (dev->is_pf)
+		int_stride = 0x400;
+	else
+		idx--; /* VFs use DYN_CTL_N */
+
+	writel(0, dev->hw_regs[IRDMA_GLINT_DYN_CTL] + (idx * int_stride));
+}
+
+static const struct irdma_irq_ops ig3rdma_irq_ops = {
+	.irdma_dis_irq = ig3rdma_disable_irq,
+	.irdma_en_irq = ig3rdma_ena_irq,
+};
+
 void ig3rdma_init_hw(struct irdma_sc_dev *dev)
 {
+	dev->irq_ops = &ig3rdma_irq_ops;
+
 	dev->hw_attrs.uk_attrs.hw_rev = IRDMA_GEN_3;
 	dev->hw_attrs.uk_attrs.max_hw_wq_frags = IG3RDMA_MAX_WQ_FRAGMENT_COUNT;
 	dev->hw_attrs.uk_attrs.max_hw_read_sges = IG3RDMA_MAX_SGE_RD;

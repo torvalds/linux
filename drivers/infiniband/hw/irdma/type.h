@@ -472,6 +472,8 @@ struct irdma_sc_aeq {
 	u32 msix_idx;
 	u8 polarity;
 	bool virtual_map:1;
+	bool pasid_valid:1;
+	u32 pasid;
 };
 
 struct irdma_sc_ceq {
@@ -487,13 +489,15 @@ struct irdma_sc_ceq {
 	u8 tph_val;
 	u32 first_pm_pbl_idx;
 	u8 polarity;
-	struct irdma_sc_vsi *vsi;
+	u16 vsi_idx;
 	struct irdma_sc_cq **reg_cq;
 	u32 reg_cq_size;
 	spinlock_t req_cq_lock; /* protect access to reg_cq array */
 	bool virtual_map:1;
 	bool tph_en:1;
 	bool itr_no_expire:1;
+	bool pasid_valid:1;
+	u32 pasid;
 };
 
 struct irdma_sc_cq {
@@ -501,6 +505,7 @@ struct irdma_sc_cq {
 	u64 cq_pa;
 	u64 shadow_area_pa;
 	struct irdma_sc_dev *dev;
+	u16 vsi_idx;
 	struct irdma_sc_vsi *vsi;
 	void *pbl_list;
 	void *back_cq;
@@ -834,8 +839,8 @@ struct irdma_ceq_init_info {
 	bool itr_no_expire:1;
 	u8 pbl_chunk_size;
 	u8 tph_val;
+	u16 vsi_idx;
 	u32 first_pm_pbl_idx;
-	struct irdma_sc_vsi *vsi;
 	struct irdma_sc_cq **reg_cq;
 	u32 reg_cq_idx;
 };
@@ -1042,9 +1047,11 @@ struct irdma_aeqe_info {
 	bool cq:1;
 	bool sq:1;
 	bool rq:1;
+	bool srq:1;
 	bool in_rdrsp_wr:1;
 	bool out_rdrsp:1;
 	bool aeqe_overflow:1;
+	bool err_rq_idx_valid:1;
 	u8 q2_data_written;
 	u8 ae_src;
 };

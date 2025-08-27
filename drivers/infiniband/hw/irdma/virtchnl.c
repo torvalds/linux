@@ -110,6 +110,8 @@ static int irdma_vchnl_req_verify_resp(struct irdma_vchnl_req *vchnl_req,
 			return -EBADMSG;
 		break;
 	case IRDMA_VCHNL_OP_GET_REG_LAYOUT:
+	case IRDMA_VCHNL_OP_QUEUE_VECTOR_MAP:
+	case IRDMA_VCHNL_OP_QUEUE_VECTOR_UNMAP:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -313,6 +315,88 @@ int irdma_vchnl_req_get_reg_layout(struct irdma_sc_dev *dev)
 	}
 
 	return 0;
+}
+
+/**
+ * irdma_vchnl_req_aeq_vec_map - Map AEQ to vector on this function
+ * @dev: RDMA device pointer
+ * @v_idx: vector index
+ */
+int irdma_vchnl_req_aeq_vec_map(struct irdma_sc_dev *dev, u32 v_idx)
+{
+	struct irdma_vchnl_req_init_info info = {};
+	struct irdma_vchnl_qvlist_info *qvl;
+	struct irdma_vchnl_qv_info *qv;
+	u16 qvl_size, num_vectors = 1;
+	int ret;
+
+	if (!dev->vchnl_up)
+		return -EBUSY;
+
+	qvl_size = struct_size(qvl, qv_info, num_vectors);
+
+	qvl = kzalloc(qvl_size, GFP_KERNEL);
+	if (!qvl)
+		return -ENOMEM;
+
+	qvl->num_vectors = 1;
+	qv = qvl->qv_info;
+
+	qv->ceq_idx = IRDMA_Q_INVALID_IDX;
+	qv->v_idx = v_idx;
+	qv->itr_idx = IRDMA_IDX_ITR0;
+
+	info.op_code = IRDMA_VCHNL_OP_QUEUE_VECTOR_MAP;
+	info.op_ver = IRDMA_VCHNL_OP_QUEUE_VECTOR_MAP_V0;
+	info.req_parm = qvl;
+	info.req_parm_len = qvl_size;
+
+	ret = irdma_vchnl_req_send_sync(dev, &info);
+	kfree(qvl);
+
+	return ret;
+}
+
+/**
+ * irdma_vchnl_req_ceq_vec_map - Map CEQ to vector on this function
+ * @dev: RDMA device pointer
+ * @ceq_id: CEQ index
+ * @v_idx: vector index
+ */
+int irdma_vchnl_req_ceq_vec_map(struct irdma_sc_dev *dev, u16 ceq_id, u32 v_idx)
+{
+	struct irdma_vchnl_req_init_info info = {};
+	struct irdma_vchnl_qvlist_info *qvl;
+	struct irdma_vchnl_qv_info *qv;
+	u16 qvl_size, num_vectors = 1;
+	int ret;
+
+	if (!dev->vchnl_up)
+		return -EBUSY;
+
+	qvl_size = struct_size(qvl, qv_info, num_vectors);
+
+	qvl = kzalloc(qvl_size, GFP_KERNEL);
+	if (!qvl)
+		return -ENOMEM;
+
+	qvl->num_vectors = num_vectors;
+	qv = qvl->qv_info;
+
+	qv->aeq_idx = IRDMA_Q_INVALID_IDX;
+	qv->ceq_idx = ceq_id;
+	qv->v_idx = v_idx;
+	qv->itr_idx = IRDMA_IDX_ITR0;
+
+	info.op_code = IRDMA_VCHNL_OP_QUEUE_VECTOR_MAP;
+	info.op_ver = IRDMA_VCHNL_OP_QUEUE_VECTOR_MAP_V0;
+	info.req_parm = qvl;
+	info.req_parm_len = qvl_size;
+
+	ret = irdma_vchnl_req_send_sync(dev, &info);
+	kfree(qvl);
+
+	return ret;
 }
 
 /**

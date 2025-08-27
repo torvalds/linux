@@ -128,12 +128,12 @@ enum init_completion_state {
 	HMC_OBJS_CREATED,
 	HW_RSRC_INITIALIZED,
 	CCQ_CREATED,
-	CEQ0_CREATED, /* Last state of probe */
-	ILQ_CREATED,
-	IEQ_CREATED,
+	CEQ0_CREATED,
 	CEQS_CREATED,
 	PBLE_CHUNK_MEM,
 	AEQ_CREATED,
+	ILQ_CREATED,
+	IEQ_CREATED, /* Last state of probe */
 	IP_ADDR_REGISTERED,  /* Last state of open */
 };
 

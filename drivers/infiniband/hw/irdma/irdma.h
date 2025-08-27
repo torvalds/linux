@@ -32,7 +32,16 @@
 #define IRDMA_PFHMC_SDDATALOW_PMSDDATALOW GENMASK(31, 12)
 #define IRDMA_PFHMC_SDCMD_PMSDWR BIT(31)
 
-#define IRDMA_INVALID_CQ_IDX			0xffffffff
+#define IRDMA_INVALID_CQ_IDX 0xffffffff
+#define IRDMA_Q_INVALID_IDX 0xffff
+
+enum irdma_dyn_idx_t {
+	IRDMA_IDX_ITR0 = 0,
+	IRDMA_IDX_ITR1 = 1,
+	IRDMA_IDX_ITR2 = 2,
+	IRDMA_IDX_NOITR = 3,
+};
+
 enum irdma_registers {
 	IRDMA_CQPTAIL,
 	IRDMA_CQPDB,

@@ -2566,6 +2566,9 @@ static int irdma_sc_cq_create(struct irdma_sc_cq *cq, u64 scratch,
 	      FIELD_PREP(IRDMA_CQPSQ_CQ_LPBLSIZE, cq->pbl_chunk_size) |
 	      FIELD_PREP(IRDMA_CQPSQ_CQ_CHKOVERFLOW, check_overflow) |
 	      FIELD_PREP(IRDMA_CQPSQ_CQ_VIRTMAP, cq->virtual_map) |
+	      FIELD_PREP(IRDMA_CQPSQ_CQ_CQID_HIGH, cq->cq_uk.cq_id >> 22) |
+	      FIELD_PREP(IRDMA_CQPSQ_CQ_CEQID_HIGH,
+			 (cq->ceq_id_valid ? cq->ceq_id : 0) >> 10) |
 	      FIELD_PREP(IRDMA_CQPSQ_CQ_ENCEQEMASK, cq->ceqe_mask) |
 	      FIELD_PREP(IRDMA_CQPSQ_CQ_CEQIDVALID, cq->ceq_id_valid) |
 	      FIELD_PREP(IRDMA_CQPSQ_TPHEN, cq->tph_en) |
@@ -3928,7 +3931,7 @@ int irdma_sc_ceq_init(struct irdma_sc_ceq *ceq,
 	ceq->pbl_list = (ceq->virtual_map ? info->pbl_list : NULL);
 	ceq->tph_en = info->tph_en;
 	ceq->tph_val = info->tph_val;
-	ceq->vsi = info->vsi;
+	ceq->vsi_idx = info->vsi_idx;
 	ceq->polarity = 1;
 	IRDMA_RING_INIT(ceq->ceq_ring, ceq->elem_cnt);
 	ceq->dev->ceq[info->ceq_id] = ceq;
@@ -3961,13 +3964,16 @@ static int irdma_sc_ceq_create(struct irdma_sc_ceq *ceq, u64 scratch,
 		      (ceq->virtual_map ? ceq->first_pm_pbl_idx : 0));
 	set_64bit_val(wqe, 56,
 		      FIELD_PREP(IRDMA_CQPSQ_TPHVAL, ceq->tph_val) |
-		      FIELD_PREP(IRDMA_CQPSQ_VSIIDX, ceq->vsi->vsi_idx));
+		      FIELD_PREP(IRDMA_CQPSQ_PASID, ceq->pasid) |
+		      FIELD_PREP(IRDMA_CQPSQ_VSIIDX, ceq->vsi_idx));
 	hdr = FIELD_PREP(IRDMA_CQPSQ_CEQ_CEQID, ceq->ceq_id) |
+	      FIELD_PREP(IRDMA_CQPSQ_CEQ_CEQID_HIGH, ceq->ceq_id >> 10) |
 	      FIELD_PREP(IRDMA_CQPSQ_OPCODE, IRDMA_CQP_OP_CREATE_CEQ) |
 	      FIELD_PREP(IRDMA_CQPSQ_CEQ_LPBLSIZE, ceq->pbl_chunk_size) |
 	      FIELD_PREP(IRDMA_CQPSQ_CEQ_VMAP, ceq->virtual_map) |
 	      FIELD_PREP(IRDMA_CQPSQ_CEQ_ITRNOEXPIRE, ceq->itr_no_expire) |
 	      FIELD_PREP(IRDMA_CQPSQ_TPHEN, ceq->tph_en) |
+	      FIELD_PREP(IRDMA_CQPSQ_PASID_VALID, ceq->pasid_valid) |
 	      FIELD_PREP(IRDMA_CQPSQ_WQEVALID, cqp->polarity);
 	dma_wmb(); /* make sure WQE is written before valid bit is set */
 
@@ -4022,7 +4028,7 @@ int irdma_sc_cceq_create(struct irdma_sc_ceq *ceq, u64 scratch)
 	int ret_code;
 	struct irdma_sc_dev *dev = ceq->dev;
 
-	dev->ccq->vsi = ceq->vsi;
+	dev->ccq->vsi_idx = ceq->vsi_idx;
 	if (ceq->reg_cq) {
 		ret_code = irdma_sc_add_cq_ctx(ceq, ceq->dev->ccq);
 		if (ret_code)
@@ -4055,11 +4061,14 @@ int irdma_sc_ceq_destroy(struct irdma_sc_ceq *ceq, u64 scratch, bool post_sq)
 
 	set_64bit_val(wqe, 16, ceq->elem_cnt);
 	set_64bit_val(wqe, 48, ceq->first_pm_pbl_idx);
+	set_64bit_val(wqe, 56,
+		      FIELD_PREP(IRDMA_CQPSQ_PASID, ceq->pasid));
 	hdr = ceq->ceq_id |
 	      FIELD_PREP(IRDMA_CQPSQ_OPCODE, IRDMA_CQP_OP_DESTROY_CEQ) |
 	      FIELD_PREP(IRDMA_CQPSQ_CEQ_LPBLSIZE, ceq->pbl_chunk_size) |
 	      FIELD_PREP(IRDMA_CQPSQ_CEQ_VMAP, ceq->virtual_map) |
 	      FIELD_PREP(IRDMA_CQPSQ_TPHEN, ceq->tph_en) |
+	      FIELD_PREP(IRDMA_CQPSQ_PASID_VALID, ceq->pasid_valid) |
 	      FIELD_PREP(IRDMA_CQPSQ_WQEVALID, cqp->polarity);
 	dma_wmb(); /* make sure WQE is written before valid bit is set */
 
@@ -4223,10 +4232,13 @@ static int irdma_sc_aeq_create(struct irdma_sc_aeq *aeq, u64 scratch,
 		      (aeq->virtual_map ? 0 : aeq->aeq_elem_pa));
 	set_64bit_val(wqe, 48,
 		      (aeq->virtual_map ? aeq->first_pm_pbl_idx : 0));
+	set_64bit_val(wqe, 56,
+		      FIELD_PREP(IRDMA_CQPSQ_PASID, aeq->pasid));
 
 	hdr = FIELD_PREP(IRDMA_CQPSQ_OPCODE, IRDMA_CQP_OP_CREATE_AEQ) |
 	      FIELD_PREP(IRDMA_CQPSQ_AEQ_LPBLSIZE, aeq->pbl_chunk_size) |
 	      FIELD_PREP(IRDMA_CQPSQ_AEQ_VMAP, aeq->virtual_map) |
+	      FIELD_PREP(IRDMA_CQPSQ_PASID_VALID, aeq->pasid_valid) |
 	      FIELD_PREP(IRDMA_CQPSQ_WQEVALID, cqp->polarity);
 	dma_wmb(); /* make sure WQE is written before valid bit is set */
 
@@ -4255,7 +4267,8 @@ static int irdma_sc_aeq_destroy(struct irdma_sc_aeq *aeq, u64 scratch,
 	u64 hdr;
 
 	dev = aeq->dev;
-	writel(0, dev->hw_regs[IRDMA_PFINT_AEQCTL]);
+	if (dev->privileged)
+		writel(0, dev->hw_regs[IRDMA_PFINT_AEQCTL]);
 
 	cqp = dev->cqp;
 	wqe = irdma_sc_cqp_get_next_send_wqe(cqp, scratch);
@@ -4263,9 +4276,12 @@ static int irdma_sc_aeq_destroy(struct irdma_sc_aeq *aeq, u64 scratch,
 		return -ENOMEM;
 	set_64bit_val(wqe, 16, aeq->elem_cnt);
 	set_64bit_val(wqe, 48, aeq->first_pm_pbl_idx);
+	set_64bit_val(wqe, 56,
+		      FIELD_PREP(IRDMA_CQPSQ_PASID, aeq->pasid));
 	hdr = FIELD_PREP(IRDMA_CQPSQ_OPCODE, IRDMA_CQP_OP_DESTROY_AEQ) |
 	      FIELD_PREP(IRDMA_CQPSQ_AEQ_LPBLSIZE, aeq->pbl_chunk_size) |
 	      FIELD_PREP(IRDMA_CQPSQ_AEQ_VMAP, aeq->virtual_map) |
+	      FIELD_PREP(IRDMA_CQPSQ_PASID_VALID, aeq->pasid_valid) |
 	      FIELD_PREP(IRDMA_CQPSQ_WQEVALID, cqp->polarity);
 	dma_wmb(); /* make sure WQE is written before valid bit is set */
 
@@ -4306,18 +4322,39 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 	print_hex_dump_debug("WQE: AEQ_ENTRY WQE", DUMP_PREFIX_OFFSET, 16, 8,
 			     aeqe, 16, false);
 
-	ae_src = (u8)FIELD_GET(IRDMA_AEQE_AESRC, temp);
-	info->wqe_idx = (u16)FIELD_GET(IRDMA_AEQE_WQDESCIDX, temp);
-	info->qp_cq_id = (u32)FIELD_GET(IRDMA_AEQE_QPCQID_LOW, temp) |
+	if (aeq->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_3) {
+		ae_src = (u8)FIELD_GET(IRDMA_AEQE_AESRC_GEN_3, temp);
+		info->wqe_idx = (u16)FIELD_GET(IRDMA_AEQE_WQDESCIDX_GEN_3,
+					       temp);
+		info->qp_cq_id = (u32)FIELD_GET(IRDMA_AEQE_QPCQID_GEN_3, temp);
+		info->ae_id = (u16)FIELD_GET(IRDMA_AEQE_AECODE_GEN_3, temp);
+		info->tcp_state = (u8)FIELD_GET(IRDMA_AEQE_TCPSTATE_GEN_3, compl_ctx);
+		info->iwarp_state = (u8)FIELD_GET(IRDMA_AEQE_IWSTATE_GEN_3, temp);
+		info->q2_data_written = (u8)FIELD_GET(IRDMA_AEQE_Q2DATA_GEN_3, compl_ctx);
+		info->aeqe_overflow = (bool)FIELD_GET(IRDMA_AEQE_OVERFLOW_GEN_3, temp);
+		info->compl_ctx = FIELD_GET(IRDMA_AEQE_CMPL_CTXT, compl_ctx);
+		compl_ctx = FIELD_GET(IRDMA_AEQE_CMPL_CTXT, compl_ctx) << IRDMA_AEQE_CMPL_CTXT_S;
+	} else {
+		ae_src = (u8)FIELD_GET(IRDMA_AEQE_AESRC, temp);
+		info->wqe_idx = (u16)FIELD_GET(IRDMA_AEQE_WQDESCIDX, temp);
+		info->qp_cq_id = (u32)FIELD_GET(IRDMA_AEQE_QPCQID_LOW, temp) |
 			 ((u32)FIELD_GET(IRDMA_AEQE_QPCQID_HI, temp) << 18);
-	info->ae_id = (u16)FIELD_GET(IRDMA_AEQE_AECODE, temp);
-	info->tcp_state = (u8)FIELD_GET(IRDMA_AEQE_TCPSTATE, temp);
-	info->iwarp_state = (u8)FIELD_GET(IRDMA_AEQE_IWSTATE, temp);
-	info->q2_data_written = (u8)FIELD_GET(IRDMA_AEQE_Q2DATA, temp);
-	info->aeqe_overflow = (bool)FIELD_GET(IRDMA_AEQE_OVERFLOW, temp);
+		info->ae_id = (u16)FIELD_GET(IRDMA_AEQE_AECODE, temp);
+		info->tcp_state = (u8)FIELD_GET(IRDMA_AEQE_TCPSTATE, temp);
+		info->iwarp_state = (u8)FIELD_GET(IRDMA_AEQE_IWSTATE, temp);
+		info->q2_data_written = (u8)FIELD_GET(IRDMA_AEQE_Q2DATA, temp);
+		info->aeqe_overflow = (bool)FIELD_GET(IRDMA_AEQE_OVERFLOW,
+						      temp);
+	}
 
 	info->ae_src = ae_src;
 	switch (info->ae_id) {
+	case IRDMA_AE_SRQ_LIMIT:
+		info->srq = true;
+		/* [63:6] from CMPL_CTXT, [5:0] from WQDESCIDX. */
+		info->compl_ctx = compl_ctx | info->wqe_idx;
+		ae_src = IRDMA_AE_SOURCE_RSVD;
+		break;
 	case IRDMA_AE_PRIV_OPERATION_DENIED:
 	case IRDMA_AE_AMP_INVALIDATE_TYPE1_MW:
 	case IRDMA_AE_AMP_MWBIND_ZERO_BASED_TYPE1_MW:
@@ -4350,6 +4387,10 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 	case IRDMA_AE_LLP_RECEIVED_MPA_CRC_ERROR:
 	case IRDMA_AE_LLP_SEGMENT_TOO_SMALL:
 	case IRDMA_AE_LLP_TOO_MANY_RETRIES:
+	case IRDMA_AE_LLP_TOO_MANY_RNRS:
+	case IRDMA_AE_REMOTE_QP_CATASTROPHIC:
+	case IRDMA_AE_LOCAL_QP_CATASTROPHIC:
+	case IRDMA_AE_RCE_QP_CATASTROPHIC:
 	case IRDMA_AE_LLP_DOUBT_REACHABILITY:
 	case IRDMA_AE_LLP_CONNECTION_ESTABLISHED:
 	case IRDMA_AE_RESET_SENT:
@@ -4395,6 +4436,7 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 		info->qp = true;
 		info->rq = true;
 		info->compl_ctx = compl_ctx;
+		info->err_rq_idx_valid = true;
 		break;
 	case IRDMA_AE_SOURCE_CQ:
 	case IRDMA_AE_SOURCE_CQ_0110:
@@ -4410,8 +4452,18 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 		info->compl_ctx = compl_ctx;
 		break;
 	case IRDMA_AE_SOURCE_IN_RR_WR:
+		info->qp = true;
+		if (aeq->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_3)
+			info->err_rq_idx_valid = true;
+		info->compl_ctx = compl_ctx;
+		info->in_rdrsp_wr = true;
+		break;
 	case IRDMA_AE_SOURCE_IN_RR_WR_1011:
 		info->qp = true;
+		if (aeq->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_3) {
+			info->sq = true;
+			info->err_rq_idx_valid = true;
+		}
 		info->compl_ctx = compl_ctx;
 		info->in_rdrsp_wr = true;
 		break;
