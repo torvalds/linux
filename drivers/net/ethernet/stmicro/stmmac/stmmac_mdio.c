@@ -131,11 +131,8 @@ err_disable_clks:
 static int stmmac_xgmac2_mdio_read_c22(struct mii_bus *bus, int phyaddr,
 				       int phyreg)
 {
-	struct net_device *ndev = bus->priv;
-	struct stmmac_priv *priv;
+	struct stmmac_priv *priv = netdev_priv(bus->priv);
 	u32 addr;
-
-	priv = netdev_priv(ndev);
 
 	/* Until ver 2.20 XGMAC does not support C22 addr >= 4 */
 	if (priv->synopsys_id < DWXGMAC_CORE_2_20 &&
@@ -150,11 +147,8 @@ static int stmmac_xgmac2_mdio_read_c22(struct mii_bus *bus, int phyaddr,
 static int stmmac_xgmac2_mdio_read_c45(struct mii_bus *bus, int phyaddr,
 				       int devad, int phyreg)
 {
-	struct net_device *ndev = bus->priv;
-	struct stmmac_priv *priv;
+	struct stmmac_priv *priv = netdev_priv(bus->priv);
 	u32 addr;
-
-	priv = netdev_priv(ndev);
 
 	stmmac_xgmac2_c45_format(priv, phyaddr, devad, phyreg, &addr);
 
@@ -209,11 +203,8 @@ err_disable_clks:
 static int stmmac_xgmac2_mdio_write_c22(struct mii_bus *bus, int phyaddr,
 					int phyreg, u16 phydata)
 {
-	struct net_device *ndev = bus->priv;
-	struct stmmac_priv *priv;
+	struct stmmac_priv *priv = netdev_priv(bus->priv);
 	u32 addr;
-
-	priv = netdev_priv(ndev);
 
 	/* Until ver 2.20 XGMAC does not support C22 addr >= 4 */
 	if (priv->synopsys_id < DWXGMAC_CORE_2_20 &&
@@ -229,11 +220,8 @@ static int stmmac_xgmac2_mdio_write_c22(struct mii_bus *bus, int phyaddr,
 static int stmmac_xgmac2_mdio_write_c45(struct mii_bus *bus, int phyaddr,
 					int devad, int phyreg, u16 phydata)
 {
-	struct net_device *ndev = bus->priv;
-	struct stmmac_priv *priv;
+	struct stmmac_priv *priv = netdev_priv(bus->priv);
 	u32 addr;
-
-	priv = netdev_priv(ndev);
 
 	stmmac_xgmac2_c45_format(priv, phyaddr, devad, phyreg, &addr);
 
@@ -274,8 +262,7 @@ static int stmmac_mdio_read(struct stmmac_priv *priv, int data, u32 value)
  */
 static int stmmac_mdio_read_c22(struct mii_bus *bus, int phyaddr, int phyreg)
 {
-	struct net_device *ndev = bus->priv;
-	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct stmmac_priv *priv = netdev_priv(bus->priv);
 	u32 value = MII_BUSY;
 	int data = 0;
 
@@ -312,8 +299,7 @@ static int stmmac_mdio_read_c22(struct mii_bus *bus, int phyaddr, int phyreg)
 static int stmmac_mdio_read_c45(struct mii_bus *bus, int phyaddr, int devad,
 				int phyreg)
 {
-	struct net_device *ndev = bus->priv;
-	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct stmmac_priv *priv = netdev_priv(bus->priv);
 	u32 value = MII_BUSY;
 	int data = 0;
 
@@ -373,8 +359,7 @@ static int stmmac_mdio_write(struct stmmac_priv *priv, int data, u32 value)
 static int stmmac_mdio_write_c22(struct mii_bus *bus, int phyaddr, int phyreg,
 				 u16 phydata)
 {
-	struct net_device *ndev = bus->priv;
-	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct stmmac_priv *priv = netdev_priv(bus->priv);
 	int ret, data = phydata;
 	u32 value = MII_BUSY;
 
@@ -412,8 +397,7 @@ static int stmmac_mdio_write_c22(struct mii_bus *bus, int phyaddr, int phyreg,
 static int stmmac_mdio_write_c45(struct mii_bus *bus, int phyaddr,
 				 int devad, int phyreg, u16 phydata)
 {
-	struct net_device *ndev = bus->priv;
-	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct stmmac_priv *priv = netdev_priv(bus->priv);
 	int ret, data = phydata;
 	u32 value = MII_BUSY;
 
@@ -452,8 +436,7 @@ static int stmmac_mdio_write_c45(struct mii_bus *bus, int phyaddr,
 int stmmac_mdio_reset(struct mii_bus *bus)
 {
 #if IS_ENABLED(CONFIG_STMMAC_PLATFORM)
-	struct net_device *ndev = bus->priv;
-	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct stmmac_priv *priv = netdev_priv(bus->priv);
 	unsigned int mii_address = priv->hw->mii.addr;
 
 #ifdef CONFIG_OF
@@ -497,12 +480,11 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 
 int stmmac_pcs_setup(struct net_device *ndev)
 {
+	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct fwnode_handle *devnode, *pcsnode;
 	struct dw_xpcs *xpcs = NULL;
-	struct stmmac_priv *priv;
 	int addr, ret;
 
-	priv = netdev_priv(ndev);
 	devnode = priv->plat->port_node;
 
 	if (priv->plat->pcs_init) {
