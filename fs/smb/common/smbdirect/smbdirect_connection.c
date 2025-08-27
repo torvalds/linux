@@ -82,3 +82,34 @@ smbdirect_connection_reassembly_first_recv_io(struct smbdirect_socket *sc)
 
 	return msg;
 }
+
+static void smbdirect_connection_idle_timer_work(struct work_struct *work)
+{
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, idle.timer_work.work);
+	const struct smbdirect_socket_parameters *sp = &sc->parameters;
+
+	if (sc->idle.keepalive != SMBDIRECT_KEEPALIVE_NONE) {
+		smbdirect_log_keep_alive(sc, SMBDIRECT_LOG_ERR,
+			"%s => timeout sc->idle.keepalive=%s\n",
+			smbdirect_socket_status_string(sc->status),
+			sc->idle.keepalive == SMBDIRECT_KEEPALIVE_SENT ?
+			"SENT" : "PENDING");
+		smbdirect_socket_schedule_cleanup(sc, -ETIMEDOUT);
+		return;
+	}
+
+	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
+		return;
+
+	/*
+	 * Now use the keepalive timeout (instead of keepalive interval)
+	 * in order to wait for a response
+	 */
+	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_PENDING;
+	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
+			 msecs_to_jiffies(sp->keepalive_timeout_msec));
+	smbdirect_log_keep_alive(sc, SMBDIRECT_LOG_INFO,
+		"schedule send of empty idle message\n");
+	queue_work(sc->workqueue, &sc->idle.immediate_work);
+}

@@ -27,6 +27,8 @@ static void smbdirect_socket_prepare_create(struct smbdirect_socket *sc,
 	sc->workqueue = workqueue;
 
 	INIT_WORK(&sc->disconnect_work, smbdirect_socket_cleanup_work);
+
+	INIT_DELAYED_WORK(&sc->idle.timer_work, smbdirect_connection_idle_timer_work);
 }
 
 __maybe_unused /* this is temporary while this file is included in others */
@@ -67,7 +69,6 @@ static void smbdirect_socket_wake_up_all(struct smbdirect_socket *sc)
 	wake_up_all(&sc->mr_io.cleanup.wait_queue);
 }
 
-__maybe_unused /* this is temporary while this file is included in others */
 static void __smbdirect_socket_schedule_cleanup(struct smbdirect_socket *sc,
 						const char *macro_name,
 						unsigned int lvl,
