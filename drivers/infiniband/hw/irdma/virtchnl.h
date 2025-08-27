@@ -17,6 +17,8 @@
 #define IRDMA_VCHNL_OP_GET_REG_LAYOUT_V0 0
 #define IRDMA_VCHNL_OP_QUEUE_VECTOR_MAP_V0 0
 #define IRDMA_VCHNL_OP_QUEUE_VECTOR_UNMAP_V0 0
+#define IRDMA_VCHNL_OP_ADD_VPORT_V0 0
+#define IRDMA_VCHNL_OP_DEL_VPORT_V0 0
 #define IRDMA_VCHNL_OP_GET_RDMA_CAPS_V0 0
 #define IRDMA_VCHNL_OP_GET_RDMA_CAPS_MIN_SIZE 1
 
@@ -57,6 +59,8 @@ enum irdma_vchnl_ops {
 	IRDMA_VCHNL_OP_GET_RDMA_CAPS = 13,
 	IRDMA_VCHNL_OP_QUEUE_VECTOR_MAP = 14,
 	IRDMA_VCHNL_OP_QUEUE_VECTOR_UNMAP = 15,
+	IRDMA_VCHNL_OP_ADD_VPORT = 16,
+	IRDMA_VCHNL_OP_DEL_VPORT = 17,
 };
 
 struct irdma_vchnl_req_hmc_info {
@@ -79,6 +83,15 @@ struct irdma_vchnl_qv_info {
 struct irdma_vchnl_qvlist_info {
 	u32 num_vectors;
 	struct irdma_vchnl_qv_info qv_info[];
+};
+
+struct irdma_vchnl_req_vport_info {
+	u16 vport_id;
+	u32 qp1_id;
+};
+
+struct irdma_vchnl_resp_vport_info {
+	u16 qs_handle[IRDMA_MAX_USER_PRIORITY];
 };
 
 struct irdma_vchnl_op_buf {
@@ -141,6 +154,8 @@ struct irdma_vchnl_req_init_info {
 	u16 op_ver;
 } __packed;
 
+struct irdma_qos;
+
 int irdma_sc_vchnl_init(struct irdma_sc_dev *dev,
 			struct irdma_vchnl_init_info *info);
 int irdma_vchnl_req_get_ver(struct irdma_sc_dev *dev, u16 ver_req,
@@ -154,4 +169,8 @@ int irdma_vchnl_req_get_reg_layout(struct irdma_sc_dev *dev);
 int irdma_vchnl_req_aeq_vec_map(struct irdma_sc_dev *dev, u32 v_idx);
 int irdma_vchnl_req_ceq_vec_map(struct irdma_sc_dev *dev, u16 ceq_id,
 				u32 v_idx);
+int irdma_vchnl_req_add_vport(struct irdma_sc_dev *dev, u16 vport_id,
+			      u32 qp1_id, struct irdma_qos *qos);
+int irdma_vchnl_req_del_vport(struct irdma_sc_dev *dev, u16 vport_id,
+			      u32 qp1_id);
 #endif /* IRDMA_VIRTCHNL_H */

@@ -74,6 +74,14 @@ static void irdma_set_qos_info(struct irdma_sc_vsi  *vsi,
 {
 	u8 i;
 
+	if (vsi->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_3) {
+		for (i = 0; i < IRDMA_MAX_USER_PRIORITY; i++) {
+			vsi->qos[i].qs_handle = vsi->dev->qos[i].qs_handle;
+			vsi->qos[i].valid = true;
+		}
+
+		return;
+	}
 	vsi->qos_rel_bw = l2p->vsi_rel_bw;
 	vsi->qos_prio_type = l2p->vsi_prio_type;
 	vsi->dscp_mode = l2p->dscp_mode;
@@ -1877,7 +1885,7 @@ void irdma_sc_vsi_init(struct irdma_sc_vsi  *vsi,
 		mutex_init(&vsi->qos[i].qos_mutex);
 		INIT_LIST_HEAD(&vsi->qos[i].qplist);
 	}
-	if (vsi->register_qset) {
+	if (vsi->dev->hw_attrs.uk_attrs.hw_rev == IRDMA_GEN_2) {
 		vsi->dev->ws_add = irdma_ws_add;
 		vsi->dev->ws_remove = irdma_ws_remove;
 		vsi->dev->ws_reset = irdma_ws_reset;

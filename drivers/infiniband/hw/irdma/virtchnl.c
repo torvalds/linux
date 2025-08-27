@@ -112,6 +112,8 @@ static int irdma_vchnl_req_verify_resp(struct irdma_vchnl_req *vchnl_req,
 	case IRDMA_VCHNL_OP_GET_REG_LAYOUT:
 	case IRDMA_VCHNL_OP_QUEUE_VECTOR_MAP:
 	case IRDMA_VCHNL_OP_QUEUE_VECTOR_UNMAP:
+	case IRDMA_VCHNL_OP_ADD_VPORT:
+	case IRDMA_VCHNL_OP_DEL_VPORT:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -315,6 +317,56 @@ int irdma_vchnl_req_get_reg_layout(struct irdma_sc_dev *dev)
 	}
 
 	return 0;
+}
+
+int irdma_vchnl_req_add_vport(struct irdma_sc_dev *dev, u16 vport_id,
+			      u32 qp1_id, struct irdma_qos *qos)
+{
+	struct irdma_vchnl_resp_vport_info resp_vport = { 0 };
+	struct irdma_vchnl_req_vport_info req_vport = { 0 };
+	struct irdma_vchnl_req_init_info info = { 0 };
+	int ret, i;
+
+	if (!dev->vchnl_up)
+		return -EBUSY;
+
+	info.op_code = IRDMA_VCHNL_OP_ADD_VPORT;
+	info.op_ver = IRDMA_VCHNL_OP_ADD_VPORT_V0;
+	req_vport.vport_id = vport_id;
+	req_vport.qp1_id = qp1_id;
+	info.req_parm_len = sizeof(req_vport);
+	info.req_parm = &req_vport;
+	info.resp_parm = &resp_vport;
+	info.resp_parm_len = sizeof(resp_vport);
+
+	ret = irdma_vchnl_req_send_sync(dev, &info);
+	if (ret)
+		return ret;
+
+	for (i = 0;  i < IRDMA_MAX_USER_PRIORITY; i++) {
+		qos[i].qs_handle = resp_vport.qs_handle[i];
+		qos[i].valid = true;
+	}
+
+	return 0;
+}
+
+int irdma_vchnl_req_del_vport(struct irdma_sc_dev *dev, u16 vport_id, u32 qp1_id)
+{
+	struct irdma_vchnl_req_init_info info = { 0 };
+	struct irdma_vchnl_req_vport_info req_vport = { 0 };
+
+	if (!dev->vchnl_up)
+		return -EBUSY;
+
+	info.op_code = IRDMA_VCHNL_OP_DEL_VPORT;
+	info.op_ver = IRDMA_VCHNL_OP_DEL_VPORT_V0;
+	req_vport.vport_id = vport_id;
+	req_vport.qp1_id = qp1_id;
+	info.req_parm_len = sizeof(req_vport);
+	info.req_parm = &req_vport;
+
+	return irdma_vchnl_req_send_sync(dev, &info);
 }
 
 /**
