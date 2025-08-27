@@ -5672,6 +5672,9 @@ static inline void irdma_sc_init_hw(struct irdma_sc_dev *dev)
 	case IRDMA_GEN_2:
 		icrdma_init_hw(dev);
 		break;
+	case IRDMA_GEN_3:
+		ig3rdma_init_hw(dev);
+		break;
 	}
 }
 
@@ -5742,18 +5745,26 @@ int irdma_sc_dev_init(enum irdma_vers ver, struct irdma_sc_dev *dev,
 
 	irdma_sc_init_hw(dev);
 
-	if (irdma_wait_pe_ready(dev))
-		return -ETIMEDOUT;
+	if (dev->privileged) {
+		if (irdma_wait_pe_ready(dev))
+			return -ETIMEDOUT;
 
-	val = readl(dev->hw_regs[IRDMA_GLPCI_LBARCTRL]);
-	db_size = (u8)FIELD_GET(IRDMA_GLPCI_LBARCTRL_PE_DB_SIZE, val);
-	if (db_size != IRDMA_PE_DB_SIZE_4M && db_size != IRDMA_PE_DB_SIZE_8M) {
-		ibdev_dbg(to_ibdev(dev),
-			  "DEV: RDMA PE doorbell is not enabled in CSR val 0x%x db_size=%d\n",
-			  val, db_size);
-		return -ENODEV;
+		val = readl(dev->hw_regs[IRDMA_GLPCI_LBARCTRL]);
+		db_size = (u8)FIELD_GET(IRDMA_GLPCI_LBARCTRL_PE_DB_SIZE, val);
+		if (db_size != IRDMA_PE_DB_SIZE_4M &&
+		    db_size != IRDMA_PE_DB_SIZE_8M) {
+			ibdev_dbg(to_ibdev(dev),
+				  "DEV: RDMA PE doorbell is not enabled in CSR val 0x%x db_size=%d\n",
+				  val, db_size);
+			return -ENODEV;
+			}
+	} else {
+		ret_code = irdma_vchnl_req_get_reg_layout(dev);
+		if (ret_code)
+			ibdev_dbg(to_ibdev(dev),
+				  "DEV: Get Register layout failed ret = %d\n",
+				  ret_code);
 	}
-	dev->db_addr = dev->hw->hw_addr + (uintptr_t)dev->hw_regs[IRDMA_DB_ADDR_OFFSET];
 
 	return ret_code;
 }

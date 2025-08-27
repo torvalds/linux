@@ -11,6 +11,51 @@
 #include "i40iw_hw.h"
 #include "ig3rdma_hw.h"
 
+struct vchnl_reg_map_elem {
+	u16 reg_id;
+	u16 reg_idx;
+	bool pg_rel;
+};
+
+struct vchnl_regfld_map_elem {
+	u16 regfld_id;
+	u16 regfld_idx;
+};
+
+static struct vchnl_reg_map_elem vchnl_reg_map[] = {
+	{IRDMA_VCHNL_REG_ID_CQPTAIL, IRDMA_CQPTAIL, false},
+	{IRDMA_VCHNL_REG_ID_CQPDB, IRDMA_CQPDB, false},
+	{IRDMA_VCHNL_REG_ID_CCQPSTATUS, IRDMA_CCQPSTATUS, false},
+	{IRDMA_VCHNL_REG_ID_CCQPHIGH, IRDMA_CCQPHIGH, false},
+	{IRDMA_VCHNL_REG_ID_CCQPLOW, IRDMA_CCQPLOW, false},
+	{IRDMA_VCHNL_REG_ID_CQARM, IRDMA_CQARM, false},
+	{IRDMA_VCHNL_REG_ID_CQACK, IRDMA_CQACK, false},
+	{IRDMA_VCHNL_REG_ID_AEQALLOC, IRDMA_AEQALLOC, false},
+	{IRDMA_VCHNL_REG_ID_CQPERRCODES, IRDMA_CQPERRCODES, false},
+	{IRDMA_VCHNL_REG_ID_WQEALLOC, IRDMA_WQEALLOC, false},
+	{IRDMA_VCHNL_REG_ID_DB_ADDR_OFFSET, IRDMA_DB_ADDR_OFFSET, false },
+	{IRDMA_VCHNL_REG_ID_DYN_CTL, IRDMA_GLINT_DYN_CTL, false },
+	{IRDMA_VCHNL_REG_INV_ID, IRDMA_VCHNL_REG_INV_ID, false }
+};
+
+static struct vchnl_regfld_map_elem vchnl_regfld_map[] = {
+	{IRDMA_VCHNL_REGFLD_ID_CCQPSTATUS_CQP_OP_ERR, IRDMA_CCQPSTATUS_CCQP_ERR_M},
+	{IRDMA_VCHNL_REGFLD_ID_CCQPSTATUS_CCQP_DONE, IRDMA_CCQPSTATUS_CCQP_DONE_M},
+	{IRDMA_VCHNL_REGFLD_ID_CQPSQ_STAG_PDID, IRDMA_CQPSQ_STAG_PDID_M},
+	{IRDMA_VCHNL_REGFLD_ID_CQPSQ_CQ_CEQID, IRDMA_CQPSQ_CQ_CEQID_M},
+	{IRDMA_VCHNL_REGFLD_ID_CQPSQ_CQ_CQID, IRDMA_CQPSQ_CQ_CQID_M},
+	{IRDMA_VCHNL_REGFLD_ID_COMMIT_FPM_CQCNT, IRDMA_COMMIT_FPM_CQCNT_M},
+	{IRDMA_VCHNL_REGFLD_ID_UPESD_HMCN_ID, IRDMA_CQPSQ_UPESD_HMCFNID_M},
+	{IRDMA_VCHNL_REGFLD_INV_ID, IRDMA_VCHNL_REGFLD_INV_ID}
+};
+
+#define IRDMA_VCHNL_REG_COUNT ARRAY_SIZE(vchnl_reg_map)
+#define IRDMA_VCHNL_REGFLD_COUNT ARRAY_SIZE(vchnl_regfld_map)
+#define IRDMA_VCHNL_REGFLD_BUF_SIZE \
+	(IRDMA_VCHNL_REG_COUNT * sizeof(struct irdma_vchnl_reg_info) + \
+	 IRDMA_VCHNL_REGFLD_COUNT * sizeof(struct irdma_vchnl_reg_field_info))
+#define IRDMA_REGMAP_RESP_BUF_SIZE (IRDMA_VCHNL_RESP_MIN_SIZE + IRDMA_VCHNL_REGFLD_BUF_SIZE)
+
 /**
  * irdma_sc_vchnl_init - Initialize dev virtchannel and get hw_rev
  * @dev: dev structure to update
@@ -63,6 +108,8 @@ static int irdma_vchnl_req_verify_resp(struct irdma_vchnl_req *vchnl_req,
 	case IRDMA_VCHNL_OP_GET_RDMA_CAPS:
 		if (resp_len < IRDMA_VCHNL_OP_GET_RDMA_CAPS_MIN_SIZE)
 			return -EBADMSG;
+		break;
+	case IRDMA_VCHNL_OP_GET_REG_LAYOUT:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -135,6 +182,137 @@ exit:
 	irdma_free_vchnl_req_msg(&vchnl_req);
 
 	return ret;
+}
+
+/**
+ * irdma_vchnl_req_get_reg_layout - Get Register Layout
+ * @dev: RDMA device pointer
+ */
+int irdma_vchnl_req_get_reg_layout(struct irdma_sc_dev *dev)
+{
+	u16 reg_idx, reg_id, tmp_reg_id, regfld_idx, regfld_id, tmp_regfld_id;
+	struct irdma_vchnl_reg_field_info *regfld_array = NULL;
+	u8 resp_buffer[IRDMA_REGMAP_RESP_BUF_SIZE] = {};
+	struct vchnl_regfld_map_elem *regfld_map_array;
+	struct irdma_vchnl_req_init_info info = {};
+	struct vchnl_reg_map_elem *reg_map_array;
+	struct irdma_vchnl_reg_info *reg_array;
+	u8 num_bits, shift_cnt;
+	u16 buf_len = 0;
+	u64 bitmask;
+	u32 rindex;
+	int ret;
+
+	if (!dev->vchnl_up)
+		return -EBUSY;
+
+	info.op_code = IRDMA_VCHNL_OP_GET_REG_LAYOUT;
+	info.op_ver = IRDMA_VCHNL_OP_GET_REG_LAYOUT_V0;
+	info.resp_parm = resp_buffer;
+	info.resp_parm_len = sizeof(resp_buffer);
+
+	ret = irdma_vchnl_req_send_sync(dev, &info);
+
+	if (ret)
+		return ret;
+
+	/* parse the response buffer and update reg info*/
+	/* Parse registers till invalid */
+	/* Parse register fields till invalid */
+	reg_array = (struct irdma_vchnl_reg_info *)resp_buffer;
+	for (rindex = 0; rindex < IRDMA_VCHNL_REG_COUNT; rindex++) {
+		buf_len += sizeof(struct irdma_vchnl_reg_info);
+		if (buf_len >= sizeof(resp_buffer))
+			return -ENOMEM;
+
+		regfld_array =
+			(struct irdma_vchnl_reg_field_info *)&reg_array[rindex + 1];
+		reg_id = reg_array[rindex].reg_id;
+		if (reg_id == IRDMA_VCHNL_REG_INV_ID)
+			break;
+
+		reg_id &= ~IRDMA_VCHNL_REG_PAGE_REL;
+		if (reg_id >= IRDMA_VCHNL_REG_COUNT)
+			return -EINVAL;
+
+		/* search regmap for register index in hw_regs.*/
+		reg_map_array = vchnl_reg_map;
+		do {
+			tmp_reg_id = reg_map_array->reg_id;
+			if (tmp_reg_id == reg_id)
+				break;
+
+			reg_map_array++;
+		} while (tmp_reg_id != IRDMA_VCHNL_REG_INV_ID);
+		if (tmp_reg_id != reg_id)
+			continue;
+
+		reg_idx = reg_map_array->reg_idx;
+
+		/* Page relative, DB Offset do not need bar offset */
+		if (reg_idx == IRDMA_DB_ADDR_OFFSET ||
+		    (reg_array[rindex].reg_id & IRDMA_VCHNL_REG_PAGE_REL)) {
+			dev->hw_regs[reg_idx] =
+				(u32 __iomem *)(uintptr_t)reg_array[rindex].reg_offset;
+			continue;
+		}
+
+		/* Update the local HW struct */
+		dev->hw_regs[reg_idx] = ig3rdma_get_reg_addr(dev->hw,
+						reg_array[rindex].reg_offset);
+		if (!dev->hw_regs[reg_idx])
+			return -EINVAL;
+	}
+
+	if (!regfld_array)
+		return -ENOMEM;
+
+	/* set up doorbell variables using mapped DB page */
+	dev->wqe_alloc_db = dev->hw_regs[IRDMA_WQEALLOC];
+	dev->cq_arm_db = dev->hw_regs[IRDMA_CQARM];
+	dev->aeq_alloc_db = dev->hw_regs[IRDMA_AEQALLOC];
+	dev->cqp_db = dev->hw_regs[IRDMA_CQPDB];
+	dev->cq_ack_db = dev->hw_regs[IRDMA_CQACK];
+
+	for (rindex = 0; rindex < IRDMA_VCHNL_REGFLD_COUNT; rindex++) {
+		buf_len += sizeof(struct irdma_vchnl_reg_field_info);
+		if ((buf_len - 1) > sizeof(resp_buffer))
+			break;
+
+		if (regfld_array[rindex].fld_id == IRDMA_VCHNL_REGFLD_INV_ID)
+			break;
+
+		regfld_id = regfld_array[rindex].fld_id;
+		regfld_map_array = vchnl_regfld_map;
+		do {
+			tmp_regfld_id = regfld_map_array->regfld_id;
+			if (tmp_regfld_id == regfld_id)
+				break;
+
+			regfld_map_array++;
+		} while (tmp_regfld_id != IRDMA_VCHNL_REGFLD_INV_ID);
+
+		if (tmp_regfld_id != regfld_id)
+			continue;
+
+		regfld_idx = regfld_map_array->regfld_idx;
+
+		num_bits = regfld_array[rindex].fld_bits;
+		shift_cnt = regfld_array[rindex].fld_shift;
+		if ((num_bits + shift_cnt > 64) || !num_bits) {
+			ibdev_dbg(to_ibdev(dev),
+				  "ERR: Invalid field mask id %d bits %d shift %d",
+				  regfld_id, num_bits, shift_cnt);
+
+			continue;
+		}
+
+		bitmask = (1ULL << num_bits) - 1;
+		dev->hw_masks[regfld_idx] = bitmask << shift_cnt;
+		dev->hw_shifts[regfld_idx] = shift_cnt;
+	}
+
+	return 0;
 }
 
 /**

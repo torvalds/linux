@@ -16,6 +16,7 @@ irdma-objs := cm.o        \
 	      ig3rdma_if.o\
 	      icrdma_if.o \
               icrdma_hw.o \
+	      ig3rdma_hw.o\
               main.o      \
               pble.o      \
               puda.o      \

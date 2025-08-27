@@ -14,13 +14,44 @@
 #define IRDMA_VCHNL_OP_GET_HMC_FCN_V1 1
 #define IRDMA_VCHNL_OP_GET_HMC_FCN_V2 2
 #define IRDMA_VCHNL_OP_PUT_HMC_FCN_V0 0
+#define IRDMA_VCHNL_OP_GET_REG_LAYOUT_V0 0
 #define IRDMA_VCHNL_OP_GET_RDMA_CAPS_V0 0
 #define IRDMA_VCHNL_OP_GET_RDMA_CAPS_MIN_SIZE 1
+
+#define IRDMA_VCHNL_REG_ID_CQPTAIL 0
+#define IRDMA_VCHNL_REG_ID_CQPDB 1
+#define IRDMA_VCHNL_REG_ID_CCQPSTATUS 2
+#define IRDMA_VCHNL_REG_ID_CCQPHIGH 3
+#define IRDMA_VCHNL_REG_ID_CCQPLOW 4
+#define IRDMA_VCHNL_REG_ID_CQARM 5
+#define IRDMA_VCHNL_REG_ID_CQACK 6
+#define IRDMA_VCHNL_REG_ID_AEQALLOC 7
+#define IRDMA_VCHNL_REG_ID_CQPERRCODES 8
+#define IRDMA_VCHNL_REG_ID_WQEALLOC 9
+#define IRDMA_VCHNL_REG_ID_IPCONFIG0 10
+#define IRDMA_VCHNL_REG_ID_DB_ADDR_OFFSET 11
+#define IRDMA_VCHNL_REG_ID_DYN_CTL 12
+#define IRDMA_VCHNL_REG_ID_AEQITRMASK 13
+#define IRDMA_VCHNL_REG_ID_CEQITRMASK 14
+#define IRDMA_VCHNL_REG_INV_ID 0xFFFF
+#define IRDMA_VCHNL_REG_PAGE_REL 0x8000
+
+#define IRDMA_VCHNL_REGFLD_ID_CCQPSTATUS_CQP_OP_ERR 2
+#define IRDMA_VCHNL_REGFLD_ID_CCQPSTATUS_CCQP_DONE 5
+#define IRDMA_VCHNL_REGFLD_ID_CQPSQ_STAG_PDID 6
+#define IRDMA_VCHNL_REGFLD_ID_CQPSQ_CQ_CEQID 7
+#define IRDMA_VCHNL_REGFLD_ID_CQPSQ_CQ_CQID 8
+#define IRDMA_VCHNL_REGFLD_ID_COMMIT_FPM_CQCNT 9
+#define IRDMA_VCHNL_REGFLD_ID_UPESD_HMCN_ID 10
+#define IRDMA_VCHNL_REGFLD_INV_ID 0xFFFF
+
+#define IRDMA_VCHNL_RESP_MIN_SIZE (sizeof(struct irdma_vchnl_resp_buf))
 
 enum irdma_vchnl_ops {
 	IRDMA_VCHNL_OP_GET_VER = 0,
 	IRDMA_VCHNL_OP_GET_HMC_FCN = 1,
 	IRDMA_VCHNL_OP_PUT_HMC_FCN = 2,
+	IRDMA_VCHNL_OP_GET_REG_LAYOUT = 11,
 	IRDMA_VCHNL_OP_GET_RDMA_CAPS = 13,
 };
 
@@ -65,6 +96,18 @@ struct irdma_vchnl_init_info {
 	bool is_pf;
 };
 
+struct irdma_vchnl_reg_info {
+	u32 reg_offset;
+	u16 field_cnt;
+	u16 reg_id; /* High bit of reg_id: bar or page relative */
+};
+
+struct irdma_vchnl_reg_field_info {
+	u8 fld_shift;
+	u8 fld_bits;
+	u16 fld_id;
+};
+
 struct irdma_vchnl_req {
 	struct irdma_vchnl_op_buf *vchnl_msg;
 	void *parm;
@@ -91,4 +134,5 @@ int irdma_vchnl_req_put_hmc_fcn(struct irdma_sc_dev *dev);
 int irdma_vchnl_req_get_caps(struct irdma_sc_dev *dev);
 int irdma_vchnl_req_get_resp(struct irdma_sc_dev *dev,
 			     struct irdma_vchnl_req *vc_req);
+int irdma_vchnl_req_get_reg_layout(struct irdma_sc_dev *dev);
 #endif /* IRDMA_VIRTCHNL_H */

@@ -67,6 +67,7 @@ enum irdma_shifts {
 	IRDMA_CQPSQ_CQ_CEQID_S,
 	IRDMA_CQPSQ_CQ_CQID_S,
 	IRDMA_COMMIT_FPM_CQCNT_S,
+	IRDMA_CQPSQ_UPESD_HMCFNID_S,
 	IRDMA_MAX_SHIFTS,
 };
 
@@ -77,6 +78,7 @@ enum irdma_masks {
 	IRDMA_CQPSQ_CQ_CEQID_M,
 	IRDMA_CQPSQ_CQ_CQID_M,
 	IRDMA_COMMIT_FPM_CQCNT_M,
+	IRDMA_CQPSQ_UPESD_HMCFNID_M,
 	IRDMA_MAX_MASKS, /* Must be last entry */
 };
 
@@ -121,6 +123,7 @@ struct irdma_uk_attrs {
 	u32 max_hw_wq_quanta;
 	u32 min_hw_cq_size;
 	u32 max_hw_cq_size;
+	u32 max_hw_srq_quanta;
 	u16 max_hw_sq_chunk;
 	u16 min_hw_wq_size;
 	u8 hw_rev;
@@ -156,4 +159,6 @@ struct irdma_hw_attrs {
 
 void i40iw_init_hw(struct irdma_sc_dev *dev);
 void icrdma_init_hw(struct irdma_sc_dev *dev);
+void ig3rdma_init_hw(struct irdma_sc_dev *dev);
+void __iomem *ig3rdma_get_reg_addr(struct irdma_hw *hw, u64 reg_offset);
 #endif /* IRDMA_H*/
