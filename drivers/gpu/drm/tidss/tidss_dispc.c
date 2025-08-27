@@ -594,13 +594,6 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
  * number. For example 7:0
  */
 
-#define FLD_GET(val, start, end)					\
-	({								\
-		int _end = (end);					\
-		u32 _ret_val = ((val) & GENMASK((start), _end)) >> _end; \
-		_ret_val;						\
-	})
-
 #define FLD_MOD(orig, val, start, end)					\
 	({								\
 		int _start = (start), _end = (end);			\
@@ -610,7 +603,8 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
 	})
 
 #define REG_GET(dispc, idx, start, end)					\
-	((u32)FLD_GET(dispc_read((dispc), (idx)), (start), (end)))
+	((u32)FIELD_GET(GENMASK((start), (end)),			\
+			dispc_read((dispc), (idx))))
 
 #define REG_FLD_MOD(dispc, idx, val, start, end)			\
 	({								\
@@ -622,7 +616,8 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
 	})
 
 #define VID_REG_GET(dispc, hw_plane, idx, start, end)			\
-	((u32)FLD_GET(dispc_vid_read((dispc), (hw_plane), (idx)), (start), (end)))
+	((u32)FIELD_GET(GENMASK((start), (end)),			\
+			dispc_vid_read((dispc), (hw_plane), (idx))))
 
 #define VID_REG_FLD_MOD(dispc, hw_plane, idx, val, start, end)		\
 	({								\
@@ -635,7 +630,8 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
 	})
 
 #define VP_REG_GET(dispc, vp, idx, start, end)				\
-	((u32)FLD_GET(dispc_vp_read((dispc), (vp), (idx)), (start), (end)))
+	((u32)FIELD_GET(GENMASK((start), (end)),			\
+			dispc_vp_read((dispc), (vp), (idx))))
 
 #define VP_REG_FLD_MOD(dispc, vp, idx, val, start, end)			\
 	({								\
