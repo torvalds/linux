@@ -369,7 +369,7 @@ static bool tb_domain_event_cb(void *data, enum tb_cfg_pkg_type type,
  * Call tb_domain_put() to release the domain before it has been added
  * to the system.
  *
- * Return: allocated domain structure on %NULL in case of error
+ * Return: Pointer to &struct tb or %NULL in case of error.
  */
 struct tb *tb_domain_alloc(struct tb_nhi *nhi, int timeout_msec, size_t privsize)
 {
@@ -431,7 +431,7 @@ err_free:
  * and release the domain after this function has been called, call
  * tb_domain_remove().
  *
- * Return: %0 in case of success and negative errno in case of error
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_domain_add(struct tb *tb, bool reset)
 {
@@ -519,6 +519,8 @@ void tb_domain_remove(struct tb *tb)
  * @tb: Domain to suspend
  *
  * Suspends all devices in the domain and stops the control channel.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_domain_suspend_noirq(struct tb *tb)
 {
@@ -545,6 +547,8 @@ int tb_domain_suspend_noirq(struct tb *tb)
  *
  * Re-starts the control channel, and resumes all devices connected to
  * the domain.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_domain_resume_noirq(struct tb *tb)
 {
@@ -644,6 +648,8 @@ int tb_domain_disapprove_switch(struct tb *tb, struct tb_switch *sw)
  * This will approve switch by connection manager specific means. In
  * case of success the connection manager will create PCIe tunnel from
  * parent to @sw.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_domain_approve_switch(struct tb *tb, struct tb_switch *sw)
 {
@@ -742,7 +748,7 @@ int tb_domain_challenge_switch_key(struct tb *tb, struct tb_switch *sw)
  * This needs to be called in preparation for NVM upgrade of the host
  * controller. Makes sure all PCIe paths are disconnected.
  *
- * Return %0 on success and negative errno in case of error.
+ * Return: %0 on success and negative errno in case of error.
  */
 int tb_domain_disconnect_pcie_paths(struct tb *tb)
 {
@@ -764,9 +770,11 @@ int tb_domain_disconnect_pcie_paths(struct tb *tb)
  * Calls connection manager specific method to enable DMA paths to the
  * XDomain in question.
  *
- * Return: 0% in case of success and negative errno otherwise. In
- * particular returns %-ENOTSUPP if the connection manager
- * implementation does not support XDomains.
+ * Return:
+ * * %0 - On success.
+ * * %-ENOTSUPP - If the connection manager implementation does not support
+ *   XDomains.
+ * * Negative errno - An error occurred.
  */
 int tb_domain_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
 				    int transmit_path, int transmit_ring,
@@ -791,9 +799,11 @@ int tb_domain_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
  * Calls connection manager specific method to disconnect DMA paths to
  * the XDomain in question.
  *
- * Return: 0% in case of success and negative errno otherwise. In
- * particular returns %-ENOTSUPP if the connection manager
- * implementation does not support XDomains.
+ * Return:
+ * * %0 - On success.
+ * * %-ENOTSUPP - If the connection manager implementation does not support
+ *   XDomains.
+ * * Negative errno - An error occurred.
  */
 int tb_domain_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
 				       int transmit_path, int transmit_ring,
