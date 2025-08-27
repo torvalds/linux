@@ -159,9 +159,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 static int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid);
-static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
-				       struct btrfs_root *root,
-				       struct btrfs_root *log,
+static noinline int replay_dir_deletes(struct walk_control *wc,
 				       struct btrfs_path *path,
 				       u64 dirid, bool del_all);
 static void wait_log_commit(struct btrfs_root *root, int transid);
@@ -1727,9 +1725,10 @@ process_slot:
  * number of back refs found.  If it goes down to zero, the iput
  * will free the inode.
  */
-static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
+static noinline int fixup_inode_link_count(struct walk_control *wc,
 					   struct btrfs_inode *inode)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
 	struct btrfs_root *root = inode->root;
 	struct btrfs_path *path;
 	int ret;
@@ -1765,7 +1764,7 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 
 	if (inode->vfs_inode.i_nlink == 0) {
 		if (S_ISDIR(inode->vfs_inode.i_mode)) {
-			ret = replay_dir_deletes(trans, root, NULL, path, ino, true);
+			ret = replay_dir_deletes(wc, path, ino, true);
 			if (ret)
 				goto out;
 		}
@@ -1779,8 +1778,7 @@ out:
 	return ret;
 }
 
-static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
-					    struct btrfs_root *root,
+static noinline int fixup_inode_link_counts(struct walk_control *wc,
 					    struct btrfs_path *path)
 {
 	int ret;
@@ -1790,6 +1788,8 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_ORPHAN_ITEM_KEY;
 	key.offset = (u64)-1;
 	while (1) {
+		struct btrfs_trans_handle *trans = wc->trans;
+		struct btrfs_root *root = wc->root;
 		struct btrfs_inode *inode;
 
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
@@ -1819,7 +1819,7 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 			break;
 		}
 
-		ret = fixup_inode_link_count(trans, inode);
+		ret = fixup_inode_link_count(wc, inode);
 		iput(&inode->vfs_inode);
 		if (ret)
 			break;
@@ -2455,12 +2455,13 @@ out:
  * Anything we don't find in the log is unlinked and removed from the
  * directory.
  */
-static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
-				       struct btrfs_root *root,
-				       struct btrfs_root *log,
+static noinline int replay_dir_deletes(struct walk_control *wc,
 				       struct btrfs_path *path,
 				       u64 dirid, bool del_all)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
+	struct btrfs_root *root = wc->root;
+	struct btrfs_root *log = (del_all ? NULL : wc->log);
 	u64 range_start;
 	u64 range_end;
 	int ret = 0;
@@ -2650,8 +2651,7 @@ static int replay_one_buffer(struct extent_buffer *eb,
 				break;
 			mode = btrfs_inode_mode(eb, inode_item);
 			if (S_ISDIR(mode)) {
-				ret = replay_dir_deletes(trans, root, log, path,
-							 key.objectid, false);
+				ret = replay_dir_deletes(wc, path, key.objectid, false);
 				if (ret)
 					break;
 			}
@@ -7530,7 +7530,7 @@ again:
 		if (wc.stage == LOG_WALK_REPLAY_ALL) {
 			struct btrfs_root *root = wc.root;
 
-			ret = fixup_inode_link_counts(trans, root, path);
+			ret = fixup_inode_link_counts(&wc, path);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
 				goto next;
