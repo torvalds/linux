@@ -2081,8 +2081,9 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
  * for user application to monitor various board reated attributes.
  *
  * The amdgpu driver provides a sysfs API for reporting board attributes. Presently,
- * only two types of attributes are reported, baseboard temperature and
- * gpu board temperature. Both of them are reported as binary files.
+ * seven types of attributes are reported. Baseboard temperature and
+ * gpu board temperature are reported as binary files. Npm status, current node power limit,
+ * max node power limit, node power and global ppt residency is reported as ASCII text file.
  *
  * * .. code-block:: console
  *
@@ -2090,6 +2091,15 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
  *
  *      hexdump /sys/bus/pci/devices/.../board/gpuboard_temp
  *
+ *      hexdump /sys/bus/pci/devices/.../board/npm_status
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/cur_node_power_limit
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/max_node_power_limit
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/node_power
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/global_ppt_resid
  */
 
 /**
@@ -2168,8 +2178,129 @@ out:
 	return size;
 }
 
+/**
+ * DOC: cur_node_power_limit
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current node power limit.
+ * The file cur_node_power_limit is used for this.
+ */
+static ssize_t amdgpu_show_cur_node_power_limit(struct device *dev,
+						struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 nplimit;
+	int r;
+
+	/* get the current node power limit */
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_NODEPOWERLIMIT,
+					 (void *)&nplimit);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%u\n", nplimit);
+}
+
+/**
+ * DOC: node_power
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current node power.
+ * The file node_power is used for this.
+ */
+static ssize_t amdgpu_show_node_power(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 npower;
+	int r;
+
+	/* get the node power */
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_NODEPOWER,
+					 (void *)&npower);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%u\n", npower);
+}
+
+/**
+ * DOC: npm_status
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current node power management status.
+ * The file npm_status is used for this. It shows the status as enabled or disabled based on
+ * current node power value. If node power is zero, status is disabled else enabled.
+ */
+static ssize_t amdgpu_show_npm_status(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 npower;
+	int r;
+
+	/* get the node power */
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_NODEPOWER,
+					 (void *)&npower);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%s\n", npower ? "enabled" : "disabled");
+}
+
+/**
+ * DOC: global_ppt_resid
+ *
+ * The amdgpu driver provides a sysfs API for retrieving global ppt residency.
+ * The file global_ppt_resid is used for this.
+ */
+static ssize_t amdgpu_show_global_ppt_resid(struct device *dev,
+					    struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 gpptresid;
+	int r;
+
+	/* get the global ppt residency */
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPPTRESIDENCY,
+					 (void *)&gpptresid);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%u\n", gpptresid);
+}
+
+/**
+ * DOC: max_node_power_limit
+ *
+ * The amdgpu driver provides a sysfs API for retrieving maximum node power limit.
+ * The file max_node_power_limit is used for this.
+ */
+static ssize_t amdgpu_show_max_node_power_limit(struct device *dev,
+						struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 max_nplimit;
+	int r;
+
+	/* get the max node power limit */
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT,
+					 (void *)&max_nplimit);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%u\n", max_nplimit);
+}
+
 static DEVICE_ATTR(baseboard_temp, 0444, amdgpu_get_baseboard_temp_metrics, NULL);
 static DEVICE_ATTR(gpuboard_temp, 0444, amdgpu_get_gpuboard_temp_metrics, NULL);
+static DEVICE_ATTR(cur_node_power_limit, 0444, amdgpu_show_cur_node_power_limit, NULL);
+static DEVICE_ATTR(node_power, 0444, amdgpu_show_node_power, NULL);
+static DEVICE_ATTR(global_ppt_resid, 0444, amdgpu_show_global_ppt_resid, NULL);
+static DEVICE_ATTR(max_node_power_limit, 0444, amdgpu_show_max_node_power_limit, NULL);
+static DEVICE_ATTR(npm_status, 0444, amdgpu_show_npm_status, NULL);
 
 static struct attribute *board_attrs[] = {
 	&dev_attr_baseboard_temp.attr,
@@ -4534,6 +4665,7 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 {
 	enum amdgpu_sriov_vf_mode mode;
 	uint32_t mask = 0;
+	uint32_t tmp;
 	int ret;
 
 	if (adev->pm.sysfs_initialized)
@@ -4600,6 +4732,21 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 					    &amdgpu_board_attr_group);
 		if (ret)
 			goto err_out0;
+		if (amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT,
+						 (void *)&tmp) != -EOPNOTSUPP) {
+			sysfs_add_file_to_group(&adev->dev->kobj,
+						&dev_attr_cur_node_power_limit.attr,
+						amdgpu_board_attr_group.name);
+			sysfs_add_file_to_group(&adev->dev->kobj, &dev_attr_node_power.attr,
+						amdgpu_board_attr_group.name);
+			sysfs_add_file_to_group(&adev->dev->kobj, &dev_attr_global_ppt_resid.attr,
+						amdgpu_board_attr_group.name);
+			sysfs_add_file_to_group(&adev->dev->kobj,
+						&dev_attr_max_node_power_limit.attr,
+						amdgpu_board_attr_group.name);
+			sysfs_add_file_to_group(&adev->dev->kobj, &dev_attr_npm_status.attr,
+						amdgpu_board_attr_group.name);
+		}
 	}
 
 	adev->pm.sysfs_initialized = true;
