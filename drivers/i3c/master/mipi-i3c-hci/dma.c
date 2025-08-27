@@ -248,8 +248,9 @@ static int hci_dma_init(struct i3c_hci *hci)
 		regval = rh_reg_read(CR_SETUP);
 		rh->xfer_struct_sz = FIELD_GET(CR_XFER_STRUCT_SIZE, regval);
 		rh->resp_struct_sz = FIELD_GET(CR_RESP_STRUCT_SIZE, regval);
-		DBG("xfer_struct_sz = %d, resp_struct_sz = %d",
-		    rh->xfer_struct_sz, rh->resp_struct_sz);
+		dev_dbg(&hci->master.dev,
+			"xfer_struct_sz = %d, resp_struct_sz = %d",
+			rh->xfer_struct_sz, rh->resp_struct_sz);
 		xfers_sz = rh->xfer_struct_sz * rh->xfer_entries;
 		resps_sz = rh->resp_struct_sz * rh->xfer_entries;
 
@@ -523,11 +524,11 @@ static void hci_dma_xfer_done(struct i3c_hci *hci, struct hci_rh_data *rh)
 		ring_resp = rh->resp + rh->resp_struct_sz * done_ptr;
 		resp = *ring_resp;
 		tid = RESP_TID(resp);
-		DBG("resp = 0x%08x", resp);
+		dev_dbg(&hci->master.dev, "resp = 0x%08x", resp);
 
 		xfer = rh->src_xfers[done_ptr];
 		if (!xfer) {
-			DBG("orphaned ring entry");
+			dev_dbg(&hci->master.dev, "orphaned ring entry");
 		} else {
 			hci_dma_unmap_xfer(hci, xfer, 1);
 			xfer->ring_entry = -1;
@@ -630,7 +631,7 @@ static void hci_dma_process_ibi(struct i3c_hci *hci, struct hci_rh_data *rh)
 
 		ring_ibi_status = rh->ibi_status + rh->ibi_status_sz * ptr;
 		ibi_status = *ring_ibi_status;
-		DBG("status = %#x", ibi_status);
+		dev_dbg(&hci->master.dev, "status = %#x", ibi_status);
 
 		if (ibi_status_error) {
 			/* we no longer care */
@@ -658,7 +659,9 @@ static void hci_dma_process_ibi(struct i3c_hci *hci, struct hci_rh_data *rh)
 
 	if (last_ptr == -1) {
 		/* this IBI sequence is not yet complete */
-		DBG("no LAST_STATUS available (e=%d d=%d)", enq_ptr, deq_ptr);
+		dev_dbg(&hci->master.dev,
+			"no LAST_STATUS available (e=%d d=%d)",
+			enq_ptr, deq_ptr);
 		return;
 	}
 	deq_ptr = last_ptr + 1;

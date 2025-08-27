@@ -147,7 +147,7 @@ static int i3c_hci_bus_init(struct i3c_master_controller *m)
 		amd_set_resp_buf_thld(hci);
 
 	reg_set(HC_CONTROL, HC_CONTROL_BUS_ENABLE);
-	DBG("HC_CONTROL = %#x", reg_read(HC_CONTROL));
+	dev_dbg(&hci->master.dev, "HC_CONTROL = %#x", reg_read(HC_CONTROL));
 
 	return 0;
 }
@@ -192,8 +192,8 @@ static int i3c_hci_send_ccc_cmd(struct i3c_master_controller *m,
 	DECLARE_COMPLETION_ONSTACK(done);
 	int i, last, ret = 0;
 
-	DBG("cmd=%#x rnw=%d ndests=%d data[0].len=%d",
-	    ccc->id, ccc->rnw, ccc->ndests, ccc->dests[0].payload.len);
+	dev_dbg(&hci->master.dev, "cmd=%#x rnw=%d ndests=%d data[0].len=%d",
+		ccc->id, ccc->rnw, ccc->ndests, ccc->dests[0].payload.len);
 
 	xfer = hci_alloc_xfer(nxfers);
 	if (!xfer)
@@ -251,8 +251,8 @@ static int i3c_hci_send_ccc_cmd(struct i3c_master_controller *m,
 	}
 
 	if (ccc->rnw)
-		DBG("got: %*ph",
-		    ccc->dests[0].payload.len, ccc->dests[0].payload.data);
+		dev_dbg(&hci->master.dev, "got: %*ph",
+			ccc->dests[0].payload.len, ccc->dests[0].payload.data);
 
 out:
 	hci_free_xfer(xfer, nxfers);
@@ -277,7 +277,7 @@ static int i3c_hci_priv_xfers(struct i3c_dev_desc *dev,
 	unsigned int size_limit;
 	int i, last, ret = 0;
 
-	DBG("nxfers = %d", nxfers);
+	dev_dbg(&hci->master.dev, "nxfers = %d", nxfers);
 
 	xfer = hci_alloc_xfer(nxfers);
 	if (!xfer)
@@ -335,7 +335,7 @@ static int i3c_hci_i2c_xfers(struct i2c_dev_desc *dev,
 	DECLARE_COMPLETION_ONSTACK(done);
 	int i, last, ret = 0;
 
-	DBG("nxfers = %d", nxfers);
+	dev_dbg(&hci->master.dev, "nxfers = %d", nxfers);
 
 	xfer = hci_alloc_xfer(nxfers);
 	if (!xfer)
@@ -587,7 +587,7 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	}
 
 	hci->caps = reg_read(HC_CAPABILITIES);
-	DBG("caps = %#x", hci->caps);
+	dev_dbg(&hci->master.dev, "caps = %#x", hci->caps);
 
 	size_in_dwords = hci->version_major < 1 ||
 			 (hci->version_major == 1 && hci->version_minor < 1);
