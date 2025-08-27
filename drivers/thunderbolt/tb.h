@@ -324,7 +324,7 @@ struct usb4_port {
 };
 
 /**
- * tb_retimer: Thunderbolt retimer
+ * struct tb_retimer - Thunderbolt retimer
  * @dev: Device for the retimer
  * @tb: Pointer to the domain the retimer belongs to
  * @index: Retimer index facing the router USB4 port
@@ -552,6 +552,7 @@ static inline void *tb_priv(struct tb *tb)
 
 /**
  * tb_upstream_port() - return the upstream port of a switch
+ * @sw: Router
  *
  * Every switch has an upstream port (for the root switch it is the NHI).
  *
@@ -1241,6 +1242,7 @@ static inline int tb_route_length(u64 route)
 
 /**
  * tb_downstream_route() - get route to downstream switch
+ * @port: Port to check
  *
  * Port must not be the upstream port (otherwise a loop is created).
  *
@@ -1364,7 +1366,7 @@ int usb4_port_asym_set_link_width(struct tb_port *port, enum tb_link_width width
 int usb4_port_asym_start(struct tb_port *port);
 
 /**
- * enum tb_sb_target - Sideband transaction target
+ * enum usb4_sb_target - Sideband transaction target
  * @USB4_SB_TARGET_ROUTER: Target is the router itself
  * @USB4_SB_TARGET_PARTNER: Target is partner
  * @USB4_SB_TARGET_RETIMER: Target is retimer
@@ -1409,6 +1411,8 @@ enum usb4_margining_lane {
  * @voltage_time_offset: Offset for voltage / time for software margining
  * @optional_voltage_offset_range: Enable optional extended voltage range
  * @right_high: %false if left/low margin test is performed, %true if right/high
+ * @upper_eye: %true if margin test is done on upper eye, %false if done on
+ *	       lower eye
  * @time: %true if time margining is used instead of voltage
  */
 struct usb4_port_margining_params {
