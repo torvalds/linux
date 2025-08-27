@@ -46,7 +46,7 @@ properties:
     const: 0
 
 patternProperties:
-  "^panel@[0-3]$":
+  "^(panel|bridge)@[0-3]$":
     description: Panels connected to the DSI link
     type: object
 
