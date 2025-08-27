@@ -1,14 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * ChaCha stream cipher (P10 accelerated)
  *
  * Copyright 2023- IBM Corp. All rights reserved.
  */
 
-#include <crypto/chacha.h>
 #include <crypto/internal/simd.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/cpufeature.h>
 #include <linux/sizes.h>
 #include <asm/simd.h>
@@ -48,15 +46,10 @@ static void chacha_p10_do_8x(struct chacha_state *state, u8 *dst, const u8 *src,
 		chacha_crypt_generic(state, dst, src, bytes, nrounds);
 }
 
-void hchacha_block_arch(const struct chacha_state *state,
-			u32 out[HCHACHA_OUT_WORDS], int nrounds)
-{
-	hchacha_block_generic(state, out, nrounds);
-}
-EXPORT_SYMBOL(hchacha_block_arch);
+#define hchacha_block_arch hchacha_block_generic /* not implemented yet */
 
-void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
-		       unsigned int bytes, int nrounds)
+static void chacha_crypt_arch(struct chacha_state *state, u8 *dst,
+			      const u8 *src, unsigned int bytes, int nrounds)
 {
 	if (!static_branch_likely(&have_p10) || bytes <= CHACHA_BLOCK_SIZE ||
 	    !crypto_simd_usable())
@@ -74,21 +67,10 @@ void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
 		dst += todo;
 	} while (bytes);
 }
-EXPORT_SYMBOL(chacha_crypt_arch);
 
-static int __init chacha_p10_init(void)
+#define chacha_mod_init_arch chacha_mod_init_arch
+static void chacha_mod_init_arch(void)
 {
 	if (cpu_has_feature(CPU_FTR_ARCH_31))
 		static_branch_enable(&have_p10);
-	return 0;
 }
-subsys_initcall(chacha_p10_init);
-
-static void __exit chacha_p10_exit(void)
-{
-}
-module_exit(chacha_p10_exit);
-
-MODULE_DESCRIPTION("ChaCha stream cipher (P10 accelerated)");
-MODULE_AUTHOR("Danny Tsen <dtsen@linux.ibm.com>");
-MODULE_LICENSE("GPL v2");

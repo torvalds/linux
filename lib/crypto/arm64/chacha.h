@@ -18,11 +18,9 @@
  * (at your option) any later version.
  */
 
-#include <crypto/chacha.h>
 #include <crypto/internal/simd.h>
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 
 #include <asm/hwcap.h>
 #include <asm/neon.h>
@@ -61,8 +59,8 @@ static void chacha_doneon(struct chacha_state *state, u8 *dst, const u8 *src,
 	}
 }
 
-void hchacha_block_arch(const struct chacha_state *state,
-			u32 out[HCHACHA_OUT_WORDS], int nrounds)
+static void hchacha_block_arch(const struct chacha_state *state,
+			       u32 out[HCHACHA_OUT_WORDS], int nrounds)
 {
 	if (!static_branch_likely(&have_neon) || !crypto_simd_usable()) {
 		hchacha_block_generic(state, out, nrounds);
@@ -72,10 +70,9 @@ void hchacha_block_arch(const struct chacha_state *state,
 		kernel_neon_end();
 	}
 }
-EXPORT_SYMBOL(hchacha_block_arch);
 
-void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
-		       unsigned int bytes, int nrounds)
+static void chacha_crypt_arch(struct chacha_state *state, u8 *dst,
+			      const u8 *src, unsigned int bytes, int nrounds)
 {
 	if (!static_branch_likely(&have_neon) || bytes <= CHACHA_BLOCK_SIZE ||
 	    !crypto_simd_usable())
@@ -93,21 +90,10 @@ void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
 		dst += todo;
 	} while (bytes);
 }
-EXPORT_SYMBOL(chacha_crypt_arch);
 
-static int __init chacha_simd_mod_init(void)
+#define chacha_mod_init_arch chacha_mod_init_arch
+static void chacha_mod_init_arch(void)
 {
 	if (cpu_have_named_feature(ASIMD))
 		static_branch_enable(&have_neon);
-	return 0;
 }
-subsys_initcall(chacha_simd_mod_init);
-
-static void __exit chacha_simd_mod_exit(void)
-{
-}
-module_exit(chacha_simd_mod_exit);
-
-MODULE_DESCRIPTION("ChaCha and HChaCha functions (ARM64 optimized)");
-MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
-MODULE_LICENSE("GPL v2");

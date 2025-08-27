@@ -15,11 +15,6 @@ obj-$(CONFIG_CRYPTO_HASH_INFO)			+= hash_info.o
 obj-$(CONFIG_CRYPTO_LIB_UTILS)			+= libcryptoutils.o
 libcryptoutils-y				:= memneq.o utils.o
 
-# chacha20_block() is used by the /dev/random driver which is always builtin
-obj-y						+= chacha-block-generic.o
-obj-$(CONFIG_CRYPTO_LIB_CHACHA_GENERIC)		+= libchacha.o
-libchacha-y := chacha.o
-
 obj-$(CONFIG_CRYPTO_LIB_AES)			+= libaes.o
 libaes-y					:= aes.o
 
@@ -39,6 +34,39 @@ obj-y						+= libblake2s.o
 libblake2s-y					:= blake2s.o
 libblake2s-$(CONFIG_CRYPTO_LIB_BLAKE2S_GENERIC)	+= blake2s-generic.o
 libblake2s-$(CONFIG_CRYPTO_SELFTESTS)		+= blake2s-selftest.o
+
+################################################################################
+
+# chacha20_block() is used by the /dev/random driver which is always builtin
+obj-y += chacha-block-generic.o
+
+obj-$(CONFIG_CRYPTO_LIB_CHACHA) += libchacha.o
+libchacha-y := chacha.o
+
+ifeq ($(CONFIG_CRYPTO_LIB_CHACHA_ARCH),y)
+CFLAGS_chacha.o += -I$(src)/$(SRCARCH)
+
+ifeq ($(CONFIG_ARM),y)
+libchacha-y += arm/chacha-scalar-core.o
+libchacha-$(CONFIG_KERNEL_MODE_NEON) += arm/chacha-neon-core.o
+endif
+
+libchacha-$(CONFIG_ARM64) += arm64/chacha-neon-core.o
+
+ifeq ($(CONFIG_MIPS),y)
+libchacha-y += mips/chacha-core.o
+AFLAGS_mips/chacha-core.o += -O2 # needed to fill branch delay slots
+endif
+
+libchacha-$(CONFIG_PPC) += powerpc/chacha-p10le-8x.o
+libchacha-$(CONFIG_RISCV) += riscv/chacha-riscv64-zvkb.o
+libchacha-$(CONFIG_S390) += s390/chacha-s390.o
+libchacha-$(CONFIG_X86) += x86/chacha-ssse3-x86_64.o \
+			   x86/chacha-avx2-x86_64.o \
+			   x86/chacha-avx512vl-x86_64.o
+endif # CONFIG_CRYPTO_LIB_CHACHA_ARCH
+
+################################################################################
 
 obj-$(CONFIG_CRYPTO_LIB_CHACHA20POLY1305)	+= libchacha20poly1305.o
 libchacha20poly1305-y				+= chacha20poly1305.o
@@ -231,11 +259,6 @@ obj-$(CONFIG_CRYPTO_LIB_SM3)			+= libsm3.o
 libsm3-y					:= sm3.o
 
 obj-$(CONFIG_ARM) += arm/
-obj-$(CONFIG_ARM64) += arm64/
-obj-$(CONFIG_MIPS) += mips/
-obj-$(CONFIG_PPC) += powerpc/
-obj-$(CONFIG_RISCV) += riscv/
-obj-$(CONFIG_S390) += s390/
 obj-$(CONFIG_X86) += x86/
 
 # clean-files must be defined unconditionally

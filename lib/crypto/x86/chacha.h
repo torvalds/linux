@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * ChaCha and HChaCha functions (x86_64 optimized)
  *
@@ -6,10 +6,8 @@
  */
 
 #include <asm/simd.h>
-#include <crypto/chacha.h>
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/sizes.h>
 
 asmlinkage void chacha_block_xor_ssse3(const struct chacha_state *state,
@@ -126,8 +124,8 @@ static void chacha_dosimd(struct chacha_state *state, u8 *dst, const u8 *src,
 	}
 }
 
-void hchacha_block_arch(const struct chacha_state *state,
-			u32 out[HCHACHA_OUT_WORDS], int nrounds)
+static void hchacha_block_arch(const struct chacha_state *state,
+			       u32 out[HCHACHA_OUT_WORDS], int nrounds)
 {
 	if (!static_branch_likely(&chacha_use_simd)) {
 		hchacha_block_generic(state, out, nrounds);
@@ -137,10 +135,9 @@ void hchacha_block_arch(const struct chacha_state *state,
 		kernel_fpu_end();
 	}
 }
-EXPORT_SYMBOL(hchacha_block_arch);
 
-void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
-		       unsigned int bytes, int nrounds)
+static void chacha_crypt_arch(struct chacha_state *state, u8 *dst,
+			      const u8 *src, unsigned int bytes, int nrounds)
 {
 	if (!static_branch_likely(&chacha_use_simd) ||
 	    bytes <= CHACHA_BLOCK_SIZE)
@@ -158,12 +155,12 @@ void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
 		dst += todo;
 	} while (bytes);
 }
-EXPORT_SYMBOL(chacha_crypt_arch);
 
-static int __init chacha_simd_mod_init(void)
+#define chacha_mod_init_arch chacha_mod_init_arch
+static void chacha_mod_init_arch(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_SSSE3))
-		return 0;
+		return;
 
 	static_branch_enable(&chacha_use_simd);
 
@@ -176,15 +173,4 @@ static int __init chacha_simd_mod_init(void)
 		    boot_cpu_has(X86_FEATURE_AVX512BW)) /* kmovq */
 			static_branch_enable(&chacha_use_avx512vl);
 	}
-	return 0;
 }
-subsys_initcall(chacha_simd_mod_init);
-
-static void __exit chacha_simd_mod_exit(void)
-{
-}
-module_exit(chacha_simd_mod_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Martin Willi <martin@strongswan.org>");
-MODULE_DESCRIPTION("ChaCha and HChaCha functions (x86_64 optimized)");

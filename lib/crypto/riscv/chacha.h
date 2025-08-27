@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ChaCha stream cipher (RISC-V optimized)
  *
@@ -8,25 +8,18 @@
 
 #include <asm/simd.h>
 #include <asm/vector.h>
-#include <crypto/chacha.h>
 #include <crypto/internal/simd.h>
 #include <linux/linkage.h>
-#include <linux/module.h>
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(use_zvkb);
 
 asmlinkage void chacha_zvkb(struct chacha_state *state, const u8 *in, u8 *out,
 			    size_t nblocks, int nrounds);
 
-void hchacha_block_arch(const struct chacha_state *state,
-			u32 out[HCHACHA_OUT_WORDS], int nrounds)
-{
-	hchacha_block_generic(state, out, nrounds);
-}
-EXPORT_SYMBOL(hchacha_block_arch);
+#define hchacha_block_arch hchacha_block_generic /* not implemented yet */
 
-void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
-		       unsigned int bytes, int nrounds)
+static void chacha_crypt_arch(struct chacha_state *state, u8 *dst,
+			      const u8 *src, unsigned int bytes, int nrounds)
 {
 	u8 block_buffer[CHACHA_BLOCK_SIZE];
 	unsigned int full_blocks = bytes / CHACHA_BLOCK_SIZE;
@@ -48,22 +41,11 @@ void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
 	}
 	kernel_vector_end();
 }
-EXPORT_SYMBOL(chacha_crypt_arch);
 
-static int __init riscv64_chacha_mod_init(void)
+#define chacha_mod_init_arch chacha_mod_init_arch
+static void chacha_mod_init_arch(void)
 {
 	if (riscv_isa_extension_available(NULL, ZVKB) &&
 	    riscv_vector_vlen() >= 128)
 		static_branch_enable(&use_zvkb);
-	return 0;
 }
-subsys_initcall(riscv64_chacha_mod_init);
-
-static void __exit riscv64_chacha_mod_exit(void)
-{
-}
-module_exit(riscv64_chacha_mod_exit);
-
-MODULE_DESCRIPTION("ChaCha stream cipher (RISC-V optimized)");
-MODULE_AUTHOR("Jerry Shih <jerry.shih@sifive.com>");
-MODULE_LICENSE("GPL");
