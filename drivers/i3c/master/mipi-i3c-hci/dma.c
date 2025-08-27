@@ -760,7 +760,8 @@ static bool hci_dma_irq_handler(struct i3c_hci *hci)
 
 		rh = &rings->headers[i];
 		status = rh_reg_read(INTR_STATUS);
-		DBG("rh%d status: %#x", i, status);
+		dev_dbg(&hci->master.dev, "Ring %d: RH_INTR_STATUS %#x",
+			i, status);
 		if (!status)
 			continue;
 		rh_reg_write(INTR_STATUS, status);

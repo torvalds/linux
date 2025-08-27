@@ -553,7 +553,7 @@ static irqreturn_t i3c_hci_irq_handler(int irq, void *dev_id)
 
 	val = reg_read(INTR_STATUS);
 	reg_write(INTR_STATUS, val);
-	DBG("INTR_STATUS = %#x", val);
+	dev_dbg(&hci->master.dev, "INTR_STATUS %#x", val);
 
 	if (val)
 		result = IRQ_HANDLED;

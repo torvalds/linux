@@ -986,7 +986,8 @@ static bool hci_pio_irq_handler(struct i3c_hci *hci)
 
 	spin_lock(&pio->lock);
 	status = pio_reg_read(INTR_STATUS);
-	DBG("(in) status: %#x/%#x", status, pio->enabled_irqs);
+	dev_dbg(&hci->master.dev, "PIO_INTR_STATUS %#x/%#x",
+		status, pio->enabled_irqs);
 	status &= pio->enabled_irqs | STAT_LATENCY_WARNINGS;
 	if (!status) {
 		spin_unlock(&pio->lock);
@@ -1023,8 +1024,8 @@ static bool hci_pio_irq_handler(struct i3c_hci *hci)
 			pio->enabled_irqs &= ~STAT_CMD_QUEUE_READY;
 
 	pio_reg_write(INTR_SIGNAL_ENABLE, pio->enabled_irqs);
-	DBG("(out) status: %#x/%#x",
-	    pio_reg_read(INTR_STATUS), pio_reg_read(INTR_SIGNAL_ENABLE));
+	dev_dbg(&hci->master.dev, "PIO_INTR_STATUS %#x/%#x",
+		pio_reg_read(INTR_STATUS), pio_reg_read(INTR_SIGNAL_ENABLE));
 	spin_unlock(&pio->lock);
 	return true;
 }
