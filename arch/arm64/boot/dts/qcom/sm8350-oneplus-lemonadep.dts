@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2023 Igalia S.L.
+ * Authors:
+ *	Nia Espera <nespera@igalia.com>
+ */
+
+/dts-v1/;
+
+#include "sm8350-oneplus-common.dtsi"
+
+/ {
+	compatible = "oneplus,lemonadep", "qcom,sm8350";
+	model = "OnePlus 9 Pro";
+};
+
+&display_panel {
+	compatible = "samsung,amb670yf01";
+	status = "fail";
+};
+
+&mpss {
+	pinctrl-0 = <&rf_cable_ant0_active>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&qca6490_pd {
+	rf-gpios = <&tlmm 165 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&tlmm {
+	tp_enable_2v8: tp-2v8-enable-state {
+		pins = "gpio31", "gpio197";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+		output-high;
+	};
+
+	tp_rst_suspend: tp-rst-suspend-state {
+		pins = "gpio22";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-down;
+	};
+};
