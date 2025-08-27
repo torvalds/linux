@@ -77,7 +77,6 @@
 #define INTR_TRANSFER_COMPLETION	BIT(11)
 #define INTR_RING_OP			BIT(10)
 #define INTR_TRANSFER_ERR		BIT(9)
-#define INTR_WARN_INS_STOP_MODE		BIT(7)
 #define INTR_IBI_RING_FULL		BIT(6)
 #define INTR_TRANSFER_ABORT		BIT(5)
 
@@ -278,7 +277,6 @@ static int hci_dma_init(struct i3c_hci *hci)
 						 INTR_TRANSFER_COMPLETION |
 						 INTR_RING_OP |
 						 INTR_TRANSFER_ERR |
-						 INTR_WARN_INS_STOP_MODE |
 						 INTR_IBI_RING_FULL |
 						 INTR_TRANSFER_ABORT);
 
@@ -795,9 +793,6 @@ static bool hci_dma_irq_handler(struct i3c_hci *hci)
 							   RING_CTRL_RUN_STOP);
 			}
 		}
-		if (status & INTR_WARN_INS_STOP_MODE)
-			dev_warn_ratelimited(&hci->master.dev,
-				"ring %d: Inserted Stop on Mode Change\n", i);
 		if (status & INTR_IBI_RING_FULL)
 			dev_err_ratelimited(&hci->master.dev,
 				"ring %d: IBI Ring Full Condition\n", i);
