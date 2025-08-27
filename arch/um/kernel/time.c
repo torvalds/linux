@@ -1005,7 +1005,7 @@ __uml_help(setup_time_travel,
 "have more than one system simultaneously be on simulated time. The virtio\n"
 "driver code in UML knows about this so you can also simulate networks and\n"
 "devices using it, assuming the device has the right capabilities.\n"
-"The optional ID is a 64-bit integer that's sent to the central scheduler.\n");
+"The optional ID is a 64-bit integer that's sent to the central scheduler.\n\n");
 
 static int setup_time_travel_start(char *str)
 {
@@ -1023,7 +1023,8 @@ __setup("time-travel-start=", setup_time_travel_start);
 __uml_help(setup_time_travel_start,
 "time-travel-start=<nanoseconds>\n"
 "Configure the UML instance's wall clock to start at this value rather than\n"
-"the host's wall clock at the time of UML boot.\n");
+"the host's wall clock at the time of UML boot.\n\n");
+
 static struct kobject *bc_time_kobject;
 
 static ssize_t bc_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)

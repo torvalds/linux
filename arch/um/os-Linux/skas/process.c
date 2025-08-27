@@ -895,7 +895,7 @@ __uml_setup("noreboot", noreboot_cmd_param,
 "noreboot\n"
 "    Rather than rebooting, exit always, akin to QEMU's -no-reboot option.\n"
 "    This is useful if you're using CONFIG_PANIC_TIMEOUT in order to catch\n"
-"    crashes in CI\n");
+"    crashes in CI\n\n");
 
 void reboot_skas(void)
 {

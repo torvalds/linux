@@ -38,5 +38,5 @@ static int __init uml_dtb_setup(char *line, int *add)
 
 __uml_setup("dtb=", uml_dtb_setup,
 "dtb=<file>\n"
-"    Boot the kernel with the devicetree blob from the specified file.\n"
+"    Boot the kernel with the devicetree blob from the specified file.\n\n"
 );
