@@ -3762,7 +3762,7 @@ lpfc_issue_els_rdf(struct lpfc_vport *vport, uint8_t retry)
 	memset(prdf, 0, cmdsize);
 	prdf->rdf.fpin_cmd = ELS_RDF;
 	prdf->rdf.desc_len = cpu_to_be32(sizeof(struct lpfc_els_rdf_req) -
-					 sizeof(struct fc_els_rdf));
+					 sizeof(struct fc_els_rdf_hdr));
 	prdf->reg_d1.reg_desc.desc_tag = cpu_to_be32(ELS_DTAG_FPIN_REGISTER);
 	prdf->reg_d1.reg_desc.desc_len = cpu_to_be32(
 				FC_TLV_DESC_LENGTH_FROM_SZ(prdf->reg_d1));
