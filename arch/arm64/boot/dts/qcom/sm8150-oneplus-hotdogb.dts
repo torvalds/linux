@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+#include <dt-bindings/gpio/gpio.h>
+#include "sm8150-oneplus-common.dtsi"
+
+/ {
+	model = "OnePlus 7T";
+	compatible = "oneplus,hotdobg", "oneplus,oneplus7", "qcom,sm8150";
+
+	aliases {
+		display0 = &framebuffer0;
+	};
+
+	chosen {
+		#address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+		stdout-path = "display0";
+
+		/*
+         * hack: Use framebuffer setup by the bootloader for simplefb.
+         * the address is taken from the bootloader config (strings xbl.img | grep "Display Reserved")
+         */
+        framebuffer0: framebuffer@9C000000 {
+            compatible = "simple-framebuffer";
+            reg = <0 0x9C000000 0 (1080 * 2400 * 4)>;
+            width = <1080>;
+            height = <2400>;
+            stride = <(1080 * 4)>;
+            format = "a8r8g8b8";
+            status = "okay";
+
+        };
+	};
+
+	reserved-memory {
+	// hack: Bootloader framebuffer memory region
+        fb_mem: memory@a1a10000 {
+            compatible = "removed-dma-pool";
+            no-map;
+            reg = <0 0x9C000000 0 (1080 * 2400 * 4)>;
+        };
+
+		removed_region: removed-region@89d00000 {
+			reg = <0x0 0x89d00000 0x0 0x1a00000>;
+			no-map;
+		};
+		ramoops: ramoops@0xA9800000 {
+			compatible = "ramoops";
+			reg = <0 0xA9800000 0 0x400000>;
+			record-size = <0x40000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x40000>;
+			pmsg-size = <0x200000>;
+			devinfo-size = <0x1000>;
+			ecc-size = <0x0>;
+		};
+	};
+};

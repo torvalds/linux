@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Devicetree for the OnePlus 7 Pro. This device uses a samsung touch driver
+ * and has a 1440p panel but is otherwise similar to the rest of the series.
+ *
+ * Copyright (c) 2021, Caleb Connolly <caleb@connolly.tech>
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+#include <dt-bindings/gpio/gpio.h>
+#include "sm8150-oneplus-common.dtsi"
+
+/ {
+	model = "OnePlus 7 Pro";
+	compatible = "oneplus,guacamole", "oneplus,oneplus7", "qcom,sm8150";
+
+	aliases {
+		display0 = &framebuffer0;
+	};
+
+	chosen {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		stdout-path = "display0";
+
+		/*
+		 * hack: Use framebuffer setup by the bootloader for simplefb.
+		 * the address is taken from the bootloader config (strings xbl.img | grep "Display Reserved")
+		 */
+		framebuffer0: framebuffer@9C000000 {
+			compatible = "simple-framebuffer";
+			reg = <0 0x9C000000 0 (1440 * 3120 * 4)>;
+			width = <1440>;
+			height = <3120>;
+			stride = <(1440 * 4)>;
+			format = "a8r8g8b8";
+			status = "okay";
+
+		};
+	};
+
+	reserved-memory {
+	// hack: Bootloader framebuffer memory region
+		fb_mem: memory@a1a10000 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0 0x9C000000 0 (1440 * 3120 * 4)>;
+		};
+	};
+};
+
+&i2c17 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	touchscreen@48 {
+		compatible = "samsung,s6sy761";
+		status = "okay";
+		reg = <0x48>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <122 0x2008>;
+		vdd-supply = <&vreg_l17a_3p0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_irq_active &tp_rst_active &tp_1v8_active>;
+	};
+};
