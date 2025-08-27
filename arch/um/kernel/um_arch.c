@@ -331,9 +331,7 @@ int __init linux_main(int argc, char **argv, char **envp)
 
 	host_task_size = get_top_address(envp);
 	/* reserve a few pages for the stubs */
-	stub_start = host_task_size - STUB_DATA_PAGES * PAGE_SIZE;
-	/* another page for the code portion */
-	stub_start -= PAGE_SIZE;
+	stub_start = host_task_size - STUB_SIZE;
 	host_task_size = stub_start;
 
 	/* Limit TASK_SIZE to what is addressable by the page table */
