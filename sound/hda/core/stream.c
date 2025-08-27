@@ -922,12 +922,11 @@ int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 	struct hdac_bus *bus = azx_dev->bus;
 	int err;
 
-	snd_hdac_dsp_lock(azx_dev);
+	guard(snd_hdac_dsp_lock)(azx_dev);
 	spin_lock_irq(&bus->reg_lock);
 	if (azx_dev->running || azx_dev->locked) {
 		spin_unlock_irq(&bus->reg_lock);
-		err = -EBUSY;
-		goto unlock;
+		return -EBUSY;
 	}
 	azx_dev->locked = true;
 	spin_unlock_irq(&bus->reg_lock);
@@ -951,7 +950,6 @@ int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 		goto error;
 
 	snd_hdac_stream_setup(azx_dev, true);
-	snd_hdac_dsp_unlock(azx_dev);
 	return azx_dev->stream_tag;
 
  error:
@@ -960,8 +958,6 @@ int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 	spin_lock_irq(&bus->reg_lock);
 	azx_dev->locked = false;
 	spin_unlock_irq(&bus->reg_lock);
- unlock:
-	snd_hdac_dsp_unlock(azx_dev);
 	return err;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_dsp_prepare);
@@ -993,7 +989,7 @@ void snd_hdac_dsp_cleanup(struct hdac_stream *azx_dev,
 	if (!dmab->area || !azx_dev->locked)
 		return;
 
-	snd_hdac_dsp_lock(azx_dev);
+	guard(snd_hdac_dsp_lock)(azx_dev);
 	/* reset BDL address */
 	snd_hdac_stream_writel(azx_dev, SD_BDLPL, 0);
 	snd_hdac_stream_writel(azx_dev, SD_BDLPU, 0);
@@ -1008,7 +1004,6 @@ void snd_hdac_dsp_cleanup(struct hdac_stream *azx_dev,
 	spin_lock_irq(&bus->reg_lock);
 	azx_dev->locked = false;
 	spin_unlock_irq(&bus->reg_lock);
-	snd_hdac_dsp_unlock(azx_dev);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_dsp_cleanup);
 #endif /* CONFIG_SND_HDA_DSP_LOADER */
