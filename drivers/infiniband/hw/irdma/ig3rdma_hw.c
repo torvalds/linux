@@ -120,9 +120,6 @@ void ig3rdma_init_hw(struct irdma_sc_dev *dev)
 	dev->hw_attrs.first_hw_vf_fpm_id = 0;
 	dev->hw_attrs.max_hw_vf_fpm_id = IG3_MAX_APFS + IG3_MAX_AVFS;
 	dev->hw_attrs.uk_attrs.feature_flags |= IRDMA_FEATURE_64_BYTE_CQE;
-	if (dev->feature_info[IRDMA_FTN_FLAGS] & IRDMA_ATOMICS_ALLOWED_BIT)
-		dev->hw_attrs.uk_attrs.feature_flags |=
-			IRDMA_FEATURE_ATOMIC_OPS;
 	dev->hw_attrs.uk_attrs.feature_flags |= IRDMA_FEATURE_CQE_TIMESTAMPING;
 
 	dev->hw_attrs.uk_attrs.feature_flags |= IRDMA_FEATURE_SRQ;
