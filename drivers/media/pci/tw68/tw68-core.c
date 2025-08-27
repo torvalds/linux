@@ -71,7 +71,7 @@ static const struct pci_device_id tw68_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_TECHWELL, PCI_DEVICE_ID_TECHWELL_6816_4)},
 	{0,}
 };
-
+MODULE_DEVICE_TABLE(pci, tw68_pci_tbl);
 /* ------------------------------------------------------------------ */
 
 
