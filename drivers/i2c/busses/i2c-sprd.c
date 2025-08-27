@@ -425,7 +425,7 @@ static irqreturn_t sprd_i2c_isr(int irq, void *dev_id)
 	 * If we did not get one ACK from target when writing data, then we
 	 * should finish this transmission since we got some errors.
 	 *
-	 * When writing data, if i2c_tran == 0 which means we have writen
+	 * When writing data, if i2c_tran == 0 which means we have written
 	 * done all data, then we can finish this transmission.
 	 *
 	 * When reading data, if conut < rx fifo full threshold, which
