@@ -215,7 +215,7 @@ void alc_update_knob_master(struct hda_codec *codec,
 {
 	unsigned int val;
 	struct snd_kcontrol *kctl;
-	struct snd_ctl_elem_value *uctl;
+	struct snd_ctl_elem_value *uctl __free(kfree) = NULL;
 
 	kctl = snd_hda_find_mixer_ctl(codec, "Master Playback Volume");
 	if (!kctl)
@@ -229,7 +229,6 @@ void alc_update_knob_master(struct hda_codec *codec,
 	uctl->value.integer.value[0] = val;
 	uctl->value.integer.value[1] = val;
 	kctl->put(kctl, uctl);
-	kfree(uctl);
 }
 EXPORT_SYMBOL_NS_GPL(alc_update_knob_master, "SND_HDA_CODEC_REALTEK");
 
