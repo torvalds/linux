@@ -594,14 +594,6 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
  * number. For example 7:0
  */
 
-#define FLD_MOD(orig, val, start, end)					\
-	({								\
-		int _start = (start), _end = (end);			\
-		u32 _masked_val = (orig) & ~GENMASK(_start, _end);	\
-		u32 _new_val = _masked_val | FIELD_PREP(GENMASK(_start, _end), (val)); \
-		_new_val;						\
-	})
-
 #define REG_GET(dispc, idx, start, end)					\
 	((u32)FIELD_GET(GENMASK((start), (end)),			\
 			dispc_read((dispc), (idx))))
@@ -610,9 +602,9 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
 	({								\
 		struct dispc_device *_dispc = (dispc);			\
 		u32 _idx = (idx);					\
-		u32 _curr = dispc_read(_dispc, _idx);			\
-		u32 _new = FLD_MOD(_curr, (val), (start), (end));	\
-		dispc_write(_dispc, _idx, _new);			\
+		u32 _reg = dispc_read(_dispc, _idx);			\
+		FIELD_MODIFY(GENMASK((start), (end)), &_reg, (val));	\
+		dispc_write(_dispc, _idx, _reg);			\
 	})
 
 #define VID_REG_GET(dispc, hw_plane, idx, start, end)			\
@@ -624,9 +616,9 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
 		struct dispc_device *_dispc = (dispc);			\
 		u32 _hw_plane = (hw_plane);				\
 		u32 _idx = (idx);					\
-		u32 _curr = dispc_vid_read(_dispc, _hw_plane, _idx);	\
-		u32 _new = FLD_MOD(_curr, (val), (start), (end));	\
-		dispc_vid_write(_dispc, _hw_plane, _idx, _new);		\
+		u32 _reg = dispc_vid_read(_dispc, _hw_plane, _idx);	\
+		FIELD_MODIFY(GENMASK((start), (end)), &_reg, (val));	\
+		dispc_vid_write(_dispc, _hw_plane, _idx, _reg);		\
 	})
 
 #define VP_REG_GET(dispc, vp, idx, start, end)				\
@@ -638,19 +630,19 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
 		struct dispc_device *_dispc = (dispc);			\
 		u32 _vp = (vp);						\
 		u32 _idx = (idx);					\
-		u32 _curr = dispc_vp_read(_dispc, _vp, _idx);		\
-		u32 _new = FLD_MOD(_curr, (val), (start), (end));	\
-		dispc_vp_write(_dispc, _vp, _idx, _new);		\
+		u32 _reg = dispc_vp_read(_dispc, _vp, _idx);		\
+		FIELD_MODIFY(GENMASK((start), (end)), &_reg, (val));	\
+		dispc_vp_write(_dispc, _vp, _idx, _reg);		\
 	})
 
 #define OVR_REG_FLD_MOD(dispc, ovr, idx, val, start, end)		\
 	({								\
 		struct dispc_device *_dispc = (dispc);			\
-		u32 _ovr = (ovr);						\
+		u32 _ovr = (ovr);					\
 		u32 _idx = (idx);					\
-		u32 _curr = dispc_ovr_read(_dispc, _ovr, _idx);		\
-		u32 _new = FLD_MOD(_curr, (val), (start), (end));	\
-		dispc_ovr_write(_dispc, _ovr, _idx, _new);		\
+		u32 _reg = dispc_ovr_read(_dispc, _ovr, _idx);		\
+		FIELD_MODIFY(GENMASK((start), (end)), &_reg, (val));	\
+		dispc_ovr_write(_dispc, _ovr, _idx, _reg);		\
 	})
 
 static dispc_irq_t dispc_vp_irq_from_raw(u32 stat, u32 hw_videoport)
@@ -1147,7 +1139,7 @@ static void dispc_enable_am65x_oldi(struct dispc_device *dispc, u32 hw_videoport
 
 	oldi_cfg |= BIT(7); /* DEPOL */
 
-	oldi_cfg = FLD_MOD(oldi_cfg, fmt->am65x_oldi_mode_reg_val, 3, 1);
+	FIELD_MODIFY(GENMASK(3, 1), &oldi_cfg, fmt->am65x_oldi_mode_reg_val);
 
 	oldi_cfg |= BIT(12); /* SOFTRST */
 
