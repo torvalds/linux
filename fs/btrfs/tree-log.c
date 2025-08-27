@@ -2254,13 +2254,14 @@ out:
  * item is not in the log, the item is removed and the inode it points
  * to is unlinked
  */
-static noinline int check_item_in_log(struct btrfs_trans_handle *trans,
-				      struct btrfs_root *log,
+static noinline int check_item_in_log(struct walk_control *wc,
 				      struct btrfs_path *path,
 				      struct btrfs_path *log_path,
 				      struct btrfs_inode *dir,
-				      struct btrfs_key *dir_key)
+				      struct btrfs_key *dir_key,
+				      bool force_remove)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
 	struct btrfs_root *root = dir->root;
 	int ret;
 	struct extent_buffer *eb;
@@ -2287,10 +2288,10 @@ static noinline int check_item_in_log(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	if (log) {
+	if (!force_remove) {
 		struct btrfs_dir_item *log_di;
 
-		log_di = btrfs_lookup_dir_index_item(trans, log, log_path,
+		log_di = btrfs_lookup_dir_index_item(trans, wc->log, log_path,
 						     dir_key->objectid,
 						     dir_key->offset, &name, 0);
 		if (IS_ERR(log_di)) {
@@ -2540,9 +2541,8 @@ static noinline int replay_dir_deletes(struct walk_control *wc,
 			if (found_key.offset > range_end)
 				break;
 
-			ret = check_item_in_log(trans, log, path,
-						log_path, dir,
-						&found_key);
+			ret = check_item_in_log(wc, path, log_path, dir,
+						&found_key, del_all);
 			if (ret)
 				goto out;
 			if (found_key.offset == (u64)-1)
