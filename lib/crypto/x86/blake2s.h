@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR MIT
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
  * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
@@ -7,8 +7,6 @@
 #include <asm/fpu/api.h>
 #include <asm/processor.h>
 #include <asm/simd.h>
-#include <crypto/internal/blake2s.h>
-#include <linux/init.h>
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
 #include <linux/sizes.h>
@@ -23,8 +21,8 @@ asmlinkage void blake2s_compress_avx512(struct blake2s_state *state,
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(blake2s_use_ssse3);
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(blake2s_use_avx512);
 
-void blake2s_compress(struct blake2s_state *state, const u8 *block,
-		      size_t nblocks, const u32 inc)
+static void blake2s_compress(struct blake2s_state *state, const u8 *block,
+			     size_t nblocks, const u32 inc)
 {
 	/* SIMD disables preemption, so relax after processing each page. */
 	BUILD_BUG_ON(SZ_4K / BLAKE2S_BLOCK_SIZE < 8);
@@ -49,9 +47,9 @@ void blake2s_compress(struct blake2s_state *state, const u8 *block,
 		block += blocks * BLAKE2S_BLOCK_SIZE;
 	} while (nblocks);
 }
-EXPORT_SYMBOL(blake2s_compress);
 
-static int __init blake2s_mod_init(void)
+#define blake2s_mod_init_arch blake2s_mod_init_arch
+static void blake2s_mod_init_arch(void)
 {
 	if (boot_cpu_has(X86_FEATURE_SSSE3))
 		static_branch_enable(&blake2s_use_ssse3);
@@ -63,8 +61,4 @@ static int __init blake2s_mod_init(void)
 	    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM |
 			      XFEATURE_MASK_AVX512, NULL))
 		static_branch_enable(&blake2s_use_avx512);
-
-	return 0;
 }
-
-subsys_initcall(blake2s_mod_init);

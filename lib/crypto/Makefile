@@ -29,9 +29,15 @@ libarc4-y					:= arc4.o
 
 obj-$(CONFIG_CRYPTO_LIB_GF128MUL)		+= gf128mul.o
 
+################################################################################
+
 # blake2s is used by the /dev/random driver which is always builtin
-obj-y						+= libblake2s.o
-libblake2s-y					:= blake2s.o
+obj-y += blake2s.o
+ifeq ($(CONFIG_CRYPTO_LIB_BLAKE2S_ARCH),y)
+CFLAGS_blake2s.o += -I$(src)/$(SRCARCH)
+obj-$(CONFIG_ARM) += arm/blake2s-core.o
+obj-$(CONFIG_X86) += x86/blake2s-core.o
+endif
 
 ################################################################################
 
@@ -255,9 +261,6 @@ obj-$(CONFIG_CRYPTO_SELFTESTS_FULL)		+= simd.o
 
 obj-$(CONFIG_CRYPTO_LIB_SM3)			+= libsm3.o
 libsm3-y					:= sm3.o
-
-obj-$(CONFIG_ARM) += arm/
-obj-$(CONFIG_X86) += x86/
 
 # clean-files must be defined unconditionally
 clean-files += arm/sha256-core.S arm/sha512-core.S

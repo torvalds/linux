@@ -8,7 +8,7 @@
  *
  */
 
-#include <crypto/internal/blake2s.h>
+#include <crypto/blake2s.h>
 #include <linux/bug.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
@@ -16,7 +16,6 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
-#ifdef CONFIG_CRYPTO_LIB_BLAKE2S_GENERIC
 static const u8 blake2s_sigma[10][16] = {
 	{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
 	{ 14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3 },
@@ -37,12 +36,9 @@ static inline void blake2s_increment_counter(struct blake2s_state *state,
 	state->t[1] += (state->t[0] < inc);
 }
 
-void blake2s_compress(struct blake2s_state *state, const u8 *block,
-		      size_t nblocks, const u32 inc)
-		      __weak __alias(blake2s_compress_generic);
-
-void blake2s_compress_generic(struct blake2s_state *state, const u8 *block,
-			      size_t nblocks, const u32 inc)
+static void __maybe_unused
+blake2s_compress_generic(struct blake2s_state *state, const u8 *block,
+			 size_t nblocks, const u32 inc)
 {
 	u32 m[16];
 	u32 v[16];
@@ -107,8 +103,12 @@ void blake2s_compress_generic(struct blake2s_state *state, const u8 *block,
 		--nblocks;
 	}
 }
-EXPORT_SYMBOL(blake2s_compress_generic);
-#endif /* CONFIG_CRYPTO_LIB_BLAKE2S_GENERIC */
+
+#ifdef CONFIG_CRYPTO_LIB_BLAKE2S_ARCH
+#include "blake2s.h" /* $(SRCARCH)/blake2s.h */
+#else
+#define blake2s_compress blake2s_compress_generic
+#endif
 
 static inline void blake2s_set_lastblock(struct blake2s_state *state)
 {
@@ -151,6 +151,15 @@ void blake2s_final(struct blake2s_state *state, u8 *out)
 	memzero_explicit(state, sizeof(*state));
 }
 EXPORT_SYMBOL(blake2s_final);
+
+#ifdef blake2s_mod_init_arch
+static int __init blake2s_mod_init(void)
+{
+	blake2s_mod_init_arch();
+	return 0;
+}
+subsys_initcall(blake2s_mod_init);
+#endif
 
 MODULE_DESCRIPTION("BLAKE2s hash function");
 MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
