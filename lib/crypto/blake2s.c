@@ -11,7 +11,6 @@
 #include <crypto/internal/blake2s.h>
 #include <linux/bug.h>
 #include <linux/export.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -59,14 +58,5 @@ void blake2s_final(struct blake2s_state *state, u8 *out)
 }
 EXPORT_SYMBOL(blake2s_final);
 
-static int __init blake2s_mod_init(void)
-{
-	if (IS_ENABLED(CONFIG_CRYPTO_SELFTESTS) &&
-	    WARN_ON(!blake2s_selftest()))
-		return -ENODEV;
-	return 0;
-}
-
-module_init(blake2s_mod_init);
 MODULE_DESCRIPTION("BLAKE2s hash function");
 MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
