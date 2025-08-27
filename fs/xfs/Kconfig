@@ -137,7 +137,7 @@ config XFS_BTREE_IN_MEM
 
 config XFS_ONLINE_SCRUB
 	bool "XFS online metadata check support"
-	default n
+	default y
 	depends on XFS_FS
 	depends on TMPFS && SHMEM
 	select XFS_LIVE_HOOKS
@@ -150,11 +150,7 @@ config XFS_ONLINE_SCRUB
 	  advantage here is to look for problems proactively so that
 	  they can be dealt with in a controlled manner.
 
-	  This feature is considered EXPERIMENTAL.  Use with caution!
-
 	  See the xfs_scrub man page in section 8 for additional information.
-
-	  If unsure, say N.
 
 config XFS_ONLINE_SCRUB_STATS
 	bool "XFS online metadata check usage data collection"
@@ -171,11 +167,9 @@ config XFS_ONLINE_SCRUB_STATS
 
 	  Usage data are collected in /sys/kernel/debug/xfs/scrub.
 
-	  If unsure, say N.
-
 config XFS_ONLINE_REPAIR
 	bool "XFS online metadata repair support"
-	default n
+	default y
 	depends on XFS_FS && XFS_ONLINE_SCRUB
 	select XFS_BTREE_IN_MEM
 	help
@@ -186,11 +180,7 @@ config XFS_ONLINE_REPAIR
 	  formatted with secondary metadata, such as reverse mappings and inode
 	  parent pointers.
 
-	  This feature is considered EXPERIMENTAL.  Use with caution!
-
 	  See the xfs_scrub man page in section 8 for additional information.
-
-	  If unsure, say N.
 
 config XFS_WARN
 	bool "XFS Verbose Warnings"
