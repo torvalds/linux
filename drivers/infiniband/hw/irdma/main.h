@@ -66,7 +66,8 @@ extern struct iidc_rdma_core_auxiliary_drv ig3rdma_core_auxiliary_drv;
 #define IRDMA_MACIP_ADD		1
 #define IRDMA_MACIP_DELETE	2
 
-#define IW_CCQ_SIZE	(IRDMA_CQP_SW_SQSIZE_2048 + 1)
+#define IW_GEN_3_CCQ_SIZE  (2 * IRDMA_CQP_SW_SQSIZE_2048 + 2)
+#define IW_CCQ_SIZE	(IRDMA_CQP_SW_SQSIZE_2048 + 2)
 #define IW_CEQ_SIZE	2048
 #define IW_AEQ_SIZE	2048
 

@@ -1117,13 +1117,15 @@ static int irdma_create_ccq(struct irdma_pci_f *rf)
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct irdma_ccq_init_info info = {};
 	struct irdma_ccq *ccq = &rf->ccq;
+	int ccq_size;
 	int status;
 
 	dev->ccq = &ccq->sc_cq;
 	dev->ccq->dev = dev;
 	info.dev = dev;
+	ccq_size = (rf->rdma_ver >= IRDMA_GEN_3) ? IW_GEN_3_CCQ_SIZE : IW_CCQ_SIZE;
 	ccq->shadow_area.size = sizeof(struct irdma_cq_shadow_area);
-	ccq->mem_cq.size = ALIGN(sizeof(struct irdma_cqe) * IW_CCQ_SIZE,
+	ccq->mem_cq.size = ALIGN(sizeof(struct irdma_cqe) * ccq_size,
 				 IRDMA_CQ0_ALIGNMENT);
 	ccq->mem_cq.va = dma_alloc_coherent(dev->hw->device, ccq->mem_cq.size,
 					    &ccq->mem_cq.pa, GFP_KERNEL);
@@ -1140,7 +1142,7 @@ static int irdma_create_ccq(struct irdma_pci_f *rf)
 	/* populate the ccq init info */
 	info.cq_base = ccq->mem_cq.va;
 	info.cq_pa = ccq->mem_cq.pa;
-	info.num_elem = IW_CCQ_SIZE;
+	info.num_elem = ccq_size;
 	info.shadow_area = ccq->shadow_area.va;
 	info.shadow_area_pa = ccq->shadow_area.pa;
 	info.ceqe_mask = false;

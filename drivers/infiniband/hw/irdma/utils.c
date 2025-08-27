@@ -2338,7 +2338,10 @@ bool irdma_cq_empty(struct irdma_cq *iwcq)
 	u8 polarity;
 
 	ukcq  = &iwcq->sc_cq.cq_uk;
-	cqe = IRDMA_GET_CURRENT_CQ_ELEM(ukcq);
+	if (ukcq->avoid_mem_cflct)
+		cqe = IRDMA_GET_CURRENT_EXTENDED_CQ_ELEM(ukcq);
+	else
+		cqe = IRDMA_GET_CURRENT_CQ_ELEM(ukcq);
 	get_64bit_val(cqe, 24, &qword3);
 	polarity = (u8)FIELD_GET(IRDMA_CQ_VALID, qword3);
 
