@@ -39,7 +39,7 @@ static bool io_kbuf_inc_commit(struct io_buffer_list *bl, int len)
 		u32 this_len;
 
 		buf = io_ring_head_to_buf(bl->buf_ring, bl->head, bl->mask);
-		this_len = min_t(int, len, buf->len);
+		this_len = min_t(u32, len, buf->len);
 		buf->len -= this_len;
 		if (buf->len) {
 			buf->addr += this_len;
