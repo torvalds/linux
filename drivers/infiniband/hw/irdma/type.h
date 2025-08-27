@@ -8,6 +8,8 @@
 #include "hmc.h"
 #include "uda.h"
 #include "ws.h"
+#include "virtchnl.h"
+
 #define IRDMA_DEBUG_ERR		"ERR"
 #define IRDMA_DEBUG_INIT	"INIT"
 #define IRDMA_DEBUG_DEV		"DEV"
@@ -159,7 +161,34 @@ enum irdma_hw_stats_index {
 enum irdma_feature_type {
 	IRDMA_FEATURE_FW_INFO = 0,
 	IRDMA_HW_VERSION_INFO = 1,
+	IRDMA_QP_MAX_INCR     = 2,
+	IRDMA_CQ_MAX_INCR     = 3,
+	IRDMA_CEQ_MAX_INCR    = 4,
+	IRDMA_SD_MAX_INCR     = 5,
+	IRDMA_QP_SMALL        = 6,
+	IRDMA_QP_MEDIUM       = 7,
+	IRDMA_QP_LARGE        = 8,
+	IRDMA_QP_XLARGE       = 9,
+	IRDMA_CQ_SMALL        = 10,
+	IRDMA_CQ_MEDIUM       = 11,
+	IRDMA_CQ_LARGE        = 12,
+	IRDMA_CQ_XLARGE       = 13,
+	IRDMA_CEQ_SMALL       = 14,
+	IRDMA_CEQ_MEDIUM      = 15,
+	IRDMA_CEQ_LARGE       = 16,
+	IRDMA_CEQ_XLARGE      = 17,
+	IRDMA_SD_SMALL        = 18,
+	IRDMA_SD_MEDIUM       = 19,
+	IRDMA_SD_LARGE        = 20,
+	IRDMA_SD_XLARGE       = 21,
+	IRDMA_OBJ_1           = 22,
+	IRDMA_OBJ_2           = 23,
+	IRDMA_ENDPT_TRK       = 24,
+	IRDMA_FTN_INLINE_MAX  = 25,
 	IRDMA_QSETS_MAX       = 26,
+	IRDMA_ASO	      = 27,
+	IRDMA_FTN_FLAGS	      = 32,
+	IRDMA_FTN_NOP         = 33,
 	IRDMA_MAX_FEATURES, /* Must be last entry */
 };
 
@@ -310,9 +339,21 @@ struct irdma_vsi_pestat {
 	spinlock_t lock; /* rdma stats lock */
 };
 
+struct irdma_mmio_region {
+	u8 __iomem *addr;
+	resource_size_t len;
+	resource_size_t offset;
+};
+
 struct irdma_hw {
-	u8 __iomem *hw_addr;
-	u8 __iomem *priv_hw_addr;
+	union {
+		u8 __iomem *hw_addr;
+		struct {
+			struct irdma_mmio_region rdma_reg; /* RDMA region */
+			struct irdma_mmio_region *io_regs; /* Non-RDMA MMIO regions */
+			u16 num_io_regions; /* Number of Non-RDMA MMIO regions */
+		};
+	};
 	struct device *device;
 	struct irdma_hmc_info hmc;
 };
@@ -495,7 +536,7 @@ struct irdma_stats_inst_info {
 struct irdma_up_info {
 	u8 map[8];
 	u8 cnp_up_override;
-	u8 hmc_fcn_idx;
+	u16 hmc_fcn_idx;
 	bool use_vlan:1;
 	bool use_cnp_up_override:1;
 };
@@ -518,6 +559,7 @@ struct irdma_ws_node_info {
 struct irdma_hmc_fpm_misc {
 	u32 max_ceqs;
 	u32 max_sds;
+	u32 loc_mem_pages;
 	u32 xf_block_size;
 	u32 q1_block_size;
 	u32 ht_multiplier;
@@ -526,6 +568,7 @@ struct irdma_hmc_fpm_misc {
 	u32 ooiscf_block_size;
 };
 
+#define IRDMA_VCHNL_MAX_MSG_SIZE 512
 #define IRDMA_LEAF_DEFAULT_REL_BW		64
 #define IRDMA_PARENT_DEFAULT_REL_BW		1
 
@@ -601,19 +644,28 @@ struct irdma_sc_dev {
 	u64 cqp_cmd_stats[IRDMA_MAX_CQP_OPS];
 	struct irdma_hw_attrs hw_attrs;
 	struct irdma_hmc_info *hmc_info;
+	struct irdma_vchnl_rdma_caps vc_caps;
+	u8 vc_recv_buf[IRDMA_VCHNL_MAX_MSG_SIZE];
+	u16 vc_recv_len;
 	struct irdma_sc_cqp *cqp;
 	struct irdma_sc_aeq *aeq;
 	struct irdma_sc_ceq *ceq[IRDMA_CEQ_MAX_COUNT];
 	struct irdma_sc_cq *ccq;
 	const struct irdma_irq_ops *irq_ops;
+	struct irdma_qos qos[IRDMA_MAX_USER_PRIORITY];
 	struct irdma_hmc_fpm_misc hmc_fpm_misc;
 	struct irdma_ws_node *ws_tree_root;
 	struct mutex ws_mutex; /* ws tree mutex */
+	u32 vchnl_ver;
 	u16 num_vfs;
-	u8 hmc_fn_id;
+	u16 hmc_fn_id;
 	u8 vf_id;
+	bool privileged:1;
 	bool vchnl_up:1;
 	bool ceq_valid:1;
+	bool is_pf:1;
+	u8 protocol_used;
+	struct mutex vchnl_mutex; /* mutex to synchronize RDMA virtual channel messages */
 	u8 pci_rev;
 	int (*ws_add)(struct irdma_sc_vsi *vsi, u8 user_pri);
 	void (*ws_remove)(struct irdma_sc_vsi *vsi, u8 user_pri);
@@ -720,7 +772,7 @@ struct irdma_vsi_init_info {
 
 struct irdma_vsi_stats_info {
 	struct irdma_vsi_pestat *pestat;
-	u8 fcn_id;
+	u16 fcn_id;
 	bool alloc_stats_inst;
 };
 
@@ -731,7 +783,8 @@ struct irdma_device_init_info {
 	__le64 *fpm_commit_buf;
 	struct irdma_hw *hw;
 	void __iomem *bar0;
-	u8 hmc_fn_id;
+	enum irdma_protocol_used protocol_used;
+	u16 hmc_fn_id;
 };
 
 struct irdma_ceq_init_info {
@@ -972,7 +1025,7 @@ struct irdma_allocate_stag_info {
 	bool use_hmc_fcn_index:1;
 	bool use_pf_rid:1;
 	bool all_memory:1;
-	u8 hmc_fcn_index;
+	u16 hmc_fcn_index;
 };
 
 struct irdma_mw_alloc_info {

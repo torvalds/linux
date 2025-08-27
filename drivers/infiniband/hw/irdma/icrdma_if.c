@@ -214,6 +214,8 @@ static void icrdma_fill_device_info(struct irdma_device *iwdev,
 	rf->pf_id = idc_priv->pf_id;
 	rf->rdma_ver = IRDMA_GEN_2;
 	rf->sc_dev.hw_attrs.uk_attrs.hw_rev = IRDMA_GEN_2;
+	rf->sc_dev.is_pf = true;
+	rf->sc_dev.privileged = true;
 
 	rf->gen_ops.register_qset = icrdma_lan_register_qset;
 	rf->gen_ops.unregister_qset = icrdma_lan_unregister_qset;

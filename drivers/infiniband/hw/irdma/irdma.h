@@ -92,7 +92,7 @@ struct irdma_mcast_grp_ctx_entry_info {
 struct irdma_mcast_grp_info {
 	u8 dest_mac_addr[ETH_ALEN];
 	u16 vlan_id;
-	u8 hmc_fcn_id;
+	u16 hmc_fcn_id;
 	bool ipv4_valid:1;
 	bool vlan_valid:1;
 	u16 mg_id;
@@ -107,6 +107,9 @@ enum irdma_vers {
 	IRDMA_GEN_RSVD,
 	IRDMA_GEN_1,
 	IRDMA_GEN_2,
+	IRDMA_GEN_3,
+	IRDMA_GEN_NEXT,
+	IRDMA_GEN_MAX = IRDMA_GEN_NEXT-1
 };
 
 struct irdma_uk_attrs {

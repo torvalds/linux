@@ -33,6 +33,7 @@ static struct irdma_rsrc_limits rsrc_limits_table[] = {
 static enum irdma_hmc_rsrc_type iw_hmc_obj_types[] = {
 	IRDMA_HMC_IW_QP,
 	IRDMA_HMC_IW_CQ,
+	IRDMA_HMC_IW_SRQ,
 	IRDMA_HMC_IW_HTE,
 	IRDMA_HMC_IW_ARP,
 	IRDMA_HMC_IW_APBVT_ENTRY,
@@ -1569,6 +1570,8 @@ static void irdma_del_init_mem(struct irdma_pci_f *rf)
 {
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 
+	if (!rf->sc_dev.privileged)
+		irdma_vchnl_req_put_hmc_fcn(&rf->sc_dev);
 	kfree(dev->hmc_info->sd_table.sd_entry);
 	dev->hmc_info->sd_table.sd_entry = NULL;
 	vfree(rf->mem_rsrc);
@@ -1635,6 +1638,7 @@ static int irdma_initialize_dev(struct irdma_pci_f *rf)
 
 	info.bar0 = rf->hw.hw_addr;
 	info.hmc_fn_id = rf->pf_id;
+	info.protocol_used = rf->protocol_used;
 	info.hw = &rf->hw;
 	status = irdma_sc_dev_init(rf->rdma_ver, &rf->sc_dev, &info);
 	if (status)
@@ -1907,6 +1911,13 @@ int irdma_ctrl_init_hw(struct irdma_pci_f *rf)
 			break;
 		rf->init_state = CQP_CREATED;
 
+		dev->feature_info[IRDMA_FEATURE_FW_INFO] = IRDMA_FW_VER_DEFAULT;
+		if (rf->rdma_ver != IRDMA_GEN_1) {
+			status = irdma_get_rdma_features(dev);
+			if (status)
+				break;
+		}
+
 		status = irdma_hmc_setup(rf);
 		if (status)
 			break;
@@ -1921,13 +1932,6 @@ int irdma_ctrl_init_hw(struct irdma_pci_f *rf)
 		if (status)
 			break;
 		rf->init_state = CCQ_CREATED;
-
-		dev->feature_info[IRDMA_FEATURE_FW_INFO] = IRDMA_FW_VER_DEFAULT;
-		if (rf->rdma_ver != IRDMA_GEN_1) {
-			status = irdma_get_rdma_features(dev);
-			if (status)
-				break;
-		}
 
 		status = irdma_setup_ceq_0(rf);
 		if (status)

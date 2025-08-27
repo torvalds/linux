@@ -54,6 +54,7 @@
 
 extern struct auxiliary_driver i40iw_auxiliary_drv;
 extern struct iidc_rdma_core_auxiliary_drv icrdma_core_auxiliary_drv;
+extern struct iidc_rdma_core_auxiliary_drv ig3rdma_core_auxiliary_drv;
 
 #define IRDMA_FW_VER_DEFAULT	2
 #define IRDMA_HW_VER	        2
@@ -327,6 +328,7 @@ struct irdma_pci_f {
 	wait_queue_head_t vchnl_waitq;
 	struct workqueue_struct *cqp_cmpl_wq;
 	struct work_struct cqp_cmpl_work;
+	struct workqueue_struct *vchnl_wq;
 	struct irdma_sc_vsi default_vsi;
 	void *back_fcn;
 	struct irdma_gen_ops gen_ops;
