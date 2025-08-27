@@ -180,22 +180,14 @@ enum irdma_feature_type {
 	IRDMA_CQ_MAX_INCR     = 3,
 	IRDMA_CEQ_MAX_INCR    = 4,
 	IRDMA_SD_MAX_INCR     = 5,
-	IRDMA_QP_SMALL        = 6,
-	IRDMA_QP_MEDIUM       = 7,
-	IRDMA_QP_LARGE        = 8,
-	IRDMA_QP_XLARGE       = 9,
-	IRDMA_CQ_SMALL        = 10,
-	IRDMA_CQ_MEDIUM       = 11,
-	IRDMA_CQ_LARGE        = 12,
-	IRDMA_CQ_XLARGE       = 13,
-	IRDMA_CEQ_SMALL       = 14,
-	IRDMA_CEQ_MEDIUM      = 15,
-	IRDMA_CEQ_LARGE       = 16,
-	IRDMA_CEQ_XLARGE      = 17,
-	IRDMA_SD_SMALL        = 18,
-	IRDMA_SD_MEDIUM       = 19,
-	IRDMA_SD_LARGE        = 20,
-	IRDMA_SD_XLARGE       = 21,
+	IRDMA_MR_MAX_INCR     = 6,
+	IRDMA_Q1_MAX_INCR     = 7,
+	IRDMA_AH_MAX_INCR     = 8,
+	IRDMA_SRQ_MAX_INCR    = 9,
+	IRDMA_TIMER_MAX_INCR  = 10,
+	IRDMA_XF_MAX_INCR     = 11,
+	IRDMA_RRF_MAX_INCR    = 12,
+	IRDMA_PBLE_MAX_INCR   = 13,
 	IRDMA_OBJ_1           = 22,
 	IRDMA_OBJ_2           = 23,
 	IRDMA_ENDPT_TRK       = 24,
@@ -615,6 +607,7 @@ struct irdma_hmc_fpm_misc {
 	u32 max_ceqs;
 	u32 max_sds;
 	u32 loc_mem_pages;
+	u8 ird;
 	u32 xf_block_size;
 	u32 q1_block_size;
 	u32 ht_multiplier;
