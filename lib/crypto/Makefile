@@ -18,6 +18,7 @@ libcryptoutils-y				:= memneq.o utils.o
 # chacha20_block() is used by the /dev/random driver which is always builtin
 obj-y						+= chacha-block-generic.o
 obj-$(CONFIG_CRYPTO_LIB_CHACHA_GENERIC)		+= libchacha.o
+libchacha-y := chacha.o
 
 obj-$(CONFIG_CRYPTO_LIB_AES)			+= libaes.o
 libaes-y					:= aes.o
