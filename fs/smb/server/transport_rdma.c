@@ -228,35 +228,6 @@ static inline void
 	return (void *)recvmsg->packet;
 }
 
-static void enqueue_reassembly(struct smbdirect_socket *sc,
-			       struct smbdirect_recv_io *recvmsg,
-			       int data_length)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
-	list_add_tail(&recvmsg->list, &sc->recv_io.reassembly.list);
-	sc->recv_io.reassembly.queue_length++;
-	/*
-	 * Make sure reassembly_data_length is updated after list and
-	 * reassembly_queue_length are updated. On the dequeue side
-	 * reassembly_data_length is checked without a lock to determine
-	 * if reassembly_queue_length and list is up to date
-	 */
-	virt_wmb();
-	sc->recv_io.reassembly.data_length += data_length;
-	spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
-}
-
-static struct smbdirect_recv_io *get_first_reassembly(struct smbdirect_socket *sc)
-{
-	if (!list_empty(&sc->recv_io.reassembly.list))
-		return list_first_entry(&sc->recv_io.reassembly.list,
-				struct smbdirect_recv_io, list);
-	else
-		return NULL;
-}
-
 static void smb_direct_send_immediate_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
@@ -397,7 +368,7 @@ static void free_transport(struct smb_direct_transport *t)
 		unsigned long flags;
 
 		spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
-		recvmsg = get_first_reassembly(sc);
+		recvmsg = smbdirect_connection_reassembly_first_recv_io(sc);
 		if (recvmsg) {
 			list_del(&recvmsg->list);
 			spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
@@ -616,7 +587,7 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			    sc->recv_io.credits.target > old_recv_credit_target)
 				queue_work(sc->workqueue, &sc->recv_io.posted.refill_work);
 
-			enqueue_reassembly(sc, recvmsg, (int)data_length);
+			smbdirect_connection_reassembly_append_recv_io(sc, recvmsg, data_length);
 			wake_up(&sc->recv_io.reassembly.wait_queue);
 		} else
 			smbdirect_connection_put_recv_io(recvmsg);
@@ -692,7 +663,7 @@ static void smb_direct_negotiate_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	 */
 	sc->recv_io.reassembly.full_packet_received = true;
 	if (wc->byte_len >= sizeof(struct smbdirect_negotiate_req))
-		enqueue_reassembly(sc, recv_io, 0);
+		smbdirect_connection_reassembly_append_recv_io(sc, recv_io, 0);
 	else
 		smbdirect_connection_put_recv_io(recv_io);
 
@@ -742,7 +713,7 @@ static void smb_direct_negotiate_recv_work(struct work_struct *work)
 	 * If smb_direct_negotiate_recv_done() detected an
 	 * invalid request we want to disconnect.
 	 */
-	recv_io = get_first_reassembly(sc);
+	recv_io = smbdirect_connection_reassembly_first_recv_io(sc);
 	if (!recv_io) {
 		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 		return;
@@ -821,7 +792,7 @@ again:
 		/*
 		 * Need to make sure reassembly_data_length is read before
 		 * reading reassembly_queue_length and calling
-		 * get_first_reassembly. This call is lock free
+		 * smbdirect_connection_reassembly_first_recv_io. This call is lock free
 		 * as we never read at the end of the queue which are being
 		 * updated in SOFTIRQ as more data is received
 		 */
@@ -831,7 +802,7 @@ again:
 		to_read = size;
 		offset = sc->recv_io.reassembly.first_entry_offset;
 		while (data_read < size) {
-			recvmsg = get_first_reassembly(sc);
+			recvmsg = smbdirect_connection_reassembly_first_recv_io(sc);
 			data_transfer = smbdirect_recv_io_payload(recvmsg);
 			data_length = le32_to_cpu(data_transfer->data_length);
 			remaining_data_length =
@@ -2432,7 +2403,7 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 	if (ret <= 0 || sc->status != SMBDIRECT_SOCKET_NEGOTIATE_RUNNING)
 		return ret < 0 ? ret : -ETIMEDOUT;
 
-	recvmsg = get_first_reassembly(sc);
+	recvmsg = smbdirect_connection_reassembly_first_recv_io(sc);
 	if (!recvmsg)
 		return -ECONNABORTED;
 
