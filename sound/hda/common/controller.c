@@ -245,31 +245,29 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		snd_pcm_trigger_done(s, substream);
 	}
 
-	spin_lock(&bus->reg_lock);
+	scoped_guard(spinlock, &bus->reg_lock) {
+		/* first, set SYNC bits of corresponding streams */
+		snd_hdac_stream_sync_trigger(hstr, true, sbits, sync_reg);
 
-	/* first, set SYNC bits of corresponding streams */
-	snd_hdac_stream_sync_trigger(hstr, true, sbits, sync_reg);
-
-	snd_pcm_group_for_each_entry(s, substream) {
-		if (s->pcm->card != substream->pcm->card)
-			continue;
-		azx_dev = get_azx_dev(s);
-		if (start) {
-			azx_dev->insufficient = 1;
-			snd_hdac_stream_start(azx_stream(azx_dev));
-		} else {
-			snd_hdac_stream_stop(azx_stream(azx_dev));
+		snd_pcm_group_for_each_entry(s, substream) {
+			if (s->pcm->card != substream->pcm->card)
+				continue;
+			azx_dev = get_azx_dev(s);
+			if (start) {
+				azx_dev->insufficient = 1;
+				snd_hdac_stream_start(azx_stream(azx_dev));
+			} else {
+				snd_hdac_stream_stop(azx_stream(azx_dev));
+			}
 		}
 	}
-	spin_unlock(&bus->reg_lock);
 
 	snd_hdac_stream_sync(hstr, start, sbits);
 
-	spin_lock(&bus->reg_lock);
+	guard(spinlock)(&bus->reg_lock);
 	/* reset SYNC bits */
 	snd_hdac_stream_sync_trigger(hstr, false, sbits, sync_reg);
 	snd_hdac_stream_timecounter_init(hstr, sbits, start);
-	spin_unlock(&bus->reg_lock);
 	return 0;
 }
 
@@ -964,19 +962,18 @@ int snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,
 
 	azx_dev = azx_get_dsp_loader_dev(chip);
 	hstr = azx_stream(azx_dev);
-	spin_lock_irq(&bus->reg_lock);
-	if (hstr->opened) {
-		chip->saved_azx_dev = *azx_dev;
-		saved = true;
+	scoped_guard(spinlock_irq, &bus->reg_lock) {
+		if (hstr->opened) {
+			chip->saved_azx_dev = *azx_dev;
+			saved = true;
+		}
 	}
-	spin_unlock_irq(&bus->reg_lock);
 
 	err = snd_hdac_dsp_prepare(hstr, format, byte_size, bufp);
 	if (err < 0) {
-		spin_lock_irq(&bus->reg_lock);
+		guard(spinlock_irq)(&bus->reg_lock);
 		if (saved)
 			*azx_dev = chip->saved_azx_dev;
-		spin_unlock_irq(&bus->reg_lock);
 		return err;
 	}
 
@@ -1007,11 +1004,10 @@ void snd_hda_codec_load_dsp_cleanup(struct hda_codec *codec,
 		return;
 
 	snd_hdac_dsp_cleanup(hstr, dmab);
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 	if (hstr->opened)
 		*azx_dev = chip->saved_azx_dev;
 	hstr->locked = false;
-	spin_unlock_irq(&bus->reg_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_load_dsp_cleanup);
 #endif /* CONFIG_SND_HDA_DSP_LOADER */
@@ -1072,10 +1068,10 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 		if (!pm_runtime_active(chip->card->dev))
 			return IRQ_NONE;
 
-	spin_lock(&bus->reg_lock);
+	guard(spinlock)(&bus->reg_lock);
 
 	if (chip->disabled)
-		goto unlock;
+		return IRQ_NONE;
 
 	do {
 		status = azx_readl(chip, INTSTS);
@@ -1106,9 +1102,6 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 			}
 		}
 	} while (active && ++repeat < 10);
-
- unlock:
-	spin_unlock(&bus->reg_lock);
 
 	return IRQ_RETVAL(handled);
 }

@@ -1748,9 +1748,9 @@ int snd_hda_lock_devices(struct hda_bus *bus)
 	struct snd_card *card = bus->card;
 	struct hda_codec *codec;
 
-	spin_lock(&card->files_lock);
+	guard(spinlock)(&card->files_lock);
 	if (card->shutdown)
-		goto err_unlock;
+		return -EINVAL;
 	card->shutdown = 1;
 	if (!list_empty(&card->ctl_files))
 		goto err_clear;
@@ -1765,13 +1765,10 @@ int snd_hda_lock_devices(struct hda_bus *bus)
 				goto err_clear;
 		}
 	}
-	spin_unlock(&card->files_lock);
 	return 0;
 
  err_clear:
 	card->shutdown = 0;
- err_unlock:
-	spin_unlock(&card->files_lock);
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(snd_hda_lock_devices);
@@ -1784,9 +1781,8 @@ void snd_hda_unlock_devices(struct hda_bus *bus)
 {
 	struct snd_card *card = bus->card;
 
-	spin_lock(&card->files_lock);
+	guard(spinlock)(&card->files_lock);
 	card->shutdown = 0;
-	spin_unlock(&card->files_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hda_unlock_devices);
 
