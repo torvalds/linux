@@ -2336,12 +2336,13 @@ out:
 	return ret;
 }
 
-static int replay_xattr_deletes(struct btrfs_trans_handle *trans,
-			      struct btrfs_root *root,
-			      struct btrfs_root *log,
-			      struct btrfs_path *path,
-			      const u64 ino)
+static int replay_xattr_deletes(struct walk_control *wc,
+				struct btrfs_path *path,
+				const u64 ino)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
+	struct btrfs_root *root = wc->root;
+	struct btrfs_root *log = wc->log;
 	struct btrfs_key search_key;
 	struct btrfs_path *log_path;
 	int i;
@@ -2645,7 +2646,7 @@ static int replay_one_buffer(struct extent_buffer *eb,
 		    wc->stage == LOG_WALK_REPLAY_INODES) {
 			u32 mode;
 
-			ret = replay_xattr_deletes(trans, root, log, path, key.objectid);
+			ret = replay_xattr_deletes(wc, path, key.objectid);
 			if (ret)
 				break;
 			mode = btrfs_inode_mode(eb, inode_item);
