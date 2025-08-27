@@ -2742,6 +2742,89 @@ static inline void irdma_get_cqp_reg_info(struct irdma_sc_cqp *cqp, u32 *val,
 }
 
 /**
+ * irdma_sc_cqp_def_cmpl_ae_handler - remove completed requests from pending list
+ * @dev: sc device struct
+ * @info: AE entry info
+ * @first: true if this is the first call to this handler for given AEQE
+ * @scratch: (out) scratch entry pointer
+ * @sw_def_info: (in/out) SW ticket value for this AE
+ *
+ * In case of AE_DEF_CMPL event, this function should be called in a loop
+ * until it returns NULL-ptr via scratch.
+ * For each call, it looks for a matching CQP request on pending list,
+ * removes it from the list and returns the pointer to the associated scratch
+ * entry.
+ * If this is the first call to this function for given AEQE, sw_def_info
+ * value is not used to find matching requests.  Instead, it is populated
+ * with the value from the first matching cqp_request on the list.
+ * For subsequent calls, ooo_op->sw_def_info need to match the value passed
+ * by a caller.
+ *
+ * Return: scratch entry pointer for cqp_request to be released or NULL
+ * if no matching request is found.
+ */
+void irdma_sc_cqp_def_cmpl_ae_handler(struct irdma_sc_dev *dev,
+				      struct irdma_aeqe_info *info,
+				      bool first, u64 *scratch,
+				      u32 *sw_def_info)
+{
+	struct irdma_ooo_cqp_op *ooo_op;
+	unsigned long flags;
+
+	*scratch = 0;
+
+	spin_lock_irqsave(&dev->cqp->ooo_list_lock, flags);
+	list_for_each_entry(ooo_op, &dev->cqp->ooo_pnd, list_entry) {
+		if (ooo_op->deferred &&
+		    ((first && ooo_op->def_info == info->def_info) ||
+		     (!first && ooo_op->sw_def_info == *sw_def_info))) {
+			*sw_def_info = ooo_op->sw_def_info;
+			*scratch = ooo_op->scratch;
+
+			list_move(&ooo_op->list_entry, &dev->cqp->ooo_avail);
+			atomic64_inc(&dev->cqp->completed_ops);
+
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&dev->cqp->ooo_list_lock, flags);
+
+	if (first && !*scratch)
+		ibdev_dbg(to_ibdev(dev),
+			  "AEQ: deferred completion with unknown ticket: def_info 0x%x\n",
+			   info->def_info);
+}
+
+/**
+ * irdma_sc_cqp_cleanup_handler - remove requests from pending list
+ * @dev: sc device struct
+ *
+ * This function should be called in a loop from irdma_cleanup_pending_cqp_op.
+ * For each call, it returns first CQP request on pending list, removes it
+ * from the list and returns the pointer to the associated scratch entry.
+ *
+ * Return: scratch entry pointer for cqp_request to be released or NULL
+ * if pending list is empty.
+ */
+u64 irdma_sc_cqp_cleanup_handler(struct irdma_sc_dev *dev)
+{
+	struct irdma_ooo_cqp_op *ooo_op;
+	u64 scratch = 0;
+
+	list_for_each_entry(ooo_op, &dev->cqp->ooo_pnd, list_entry) {
+		scratch = ooo_op->scratch;
+
+		list_del(&ooo_op->list_entry);
+		list_add(&ooo_op->list_entry, &dev->cqp->ooo_avail);
+		atomic64_inc(&dev->cqp->completed_ops);
+
+		break;
+	}
+
+	return scratch;
+}
+
+/**
  * irdma_cqp_poll_registers - poll cqp registers
  * @cqp: struct for cqp hw
  * @tail: wqtail register value
@@ -3126,6 +3209,8 @@ exit:
 int irdma_sc_cqp_init(struct irdma_sc_cqp *cqp,
 		      struct irdma_cqp_init_info *info)
 {
+	struct irdma_ooo_cqp_op *ooo_op;
+	u32 num_ooo_ops;
 	u8 hw_sq_size;
 
 	if (info->sq_size > IRDMA_CQP_SW_SQSIZE_2048 ||
@@ -3156,17 +3241,43 @@ int irdma_sc_cqp_init(struct irdma_sc_cqp *cqp,
 	cqp->rocev2_rto_policy = info->rocev2_rto_policy;
 	cqp->protocol_used = info->protocol_used;
 	memcpy(&cqp->dcqcn_params, &info->dcqcn_params, sizeof(cqp->dcqcn_params));
+	if (cqp->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_3) {
+		cqp->ooisc_blksize = info->ooisc_blksize;
+		cqp->rrsp_blksize = info->rrsp_blksize;
+		cqp->q1_blksize = info->q1_blksize;
+		cqp->xmit_blksize = info->xmit_blksize;
+		cqp->blksizes_valid = info->blksizes_valid;
+		cqp->ts_shift = info->ts_shift;
+		cqp->ts_override = info->ts_override;
+		cqp->en_fine_grained_timers = info->en_fine_grained_timers;
+		cqp->pe_en_vf_cnt = info->pe_en_vf_cnt;
+		cqp->ooo_op_array = info->ooo_op_array;
+		/* initialize the OOO lists */
+		INIT_LIST_HEAD(&cqp->ooo_avail);
+		INIT_LIST_HEAD(&cqp->ooo_pnd);
+		if (cqp->ooo_op_array) {
+			/* Populate avail list entries */
+			for (num_ooo_ops = 0, ooo_op = info->ooo_op_array;
+			     num_ooo_ops < cqp->sq_size;
+			     num_ooo_ops++, ooo_op++)
+				list_add(&ooo_op->list_entry, &cqp->ooo_avail);
+		}
+	}
 	info->dev->cqp = cqp;
 
 	IRDMA_RING_INIT(cqp->sq_ring, cqp->sq_size);
+	cqp->last_def_cmpl_ticket = 0;
+	cqp->sw_def_cmpl_ticket = 0;
 	cqp->requested_ops = 0;
 	atomic64_set(&cqp->completed_ops, 0);
 	/* for the cqp commands backlog. */
 	INIT_LIST_HEAD(&cqp->dev->cqp_cmd_head);
 
 	writel(0, cqp->dev->hw_regs[IRDMA_CQPTAIL]);
-	writel(0, cqp->dev->hw_regs[IRDMA_CQPDB]);
-	writel(0, cqp->dev->hw_regs[IRDMA_CCQPSTATUS]);
+	if (cqp->dev->hw_attrs.uk_attrs.hw_rev <= IRDMA_GEN_2) {
+		writel(0, cqp->dev->hw_regs[IRDMA_CQPDB]);
+		writel(0, cqp->dev->hw_regs[IRDMA_CCQPSTATUS]);
+	}
 
 	ibdev_dbg(to_ibdev(cqp->dev),
 		  "WQE: sq_size[%04d] hw_sq_size[%04d] sq_base[%p] sq_pa[%p] cqp[%p] polarity[x%04x]\n",
@@ -3198,6 +3309,7 @@ int irdma_sc_cqp_create(struct irdma_sc_cqp *cqp, u16 *maj_err, u16 *min_err)
 		return -ENOMEM;
 
 	spin_lock_init(&cqp->dev->cqp_lock);
+	spin_lock_init(&cqp->ooo_list_lock);
 
 	temp = FIELD_PREP(IRDMA_CQPHC_SQSIZE, cqp->hw_sq_size) |
 	       FIELD_PREP(IRDMA_CQPHC_SVER, cqp->struct_ver) |
@@ -3209,12 +3321,29 @@ int irdma_sc_cqp_create(struct irdma_sc_cqp *cqp, u16 *maj_err, u16 *min_err)
 			FIELD_PREP(IRDMA_CQPHC_PROTOCOL_USED,
 				   cqp->protocol_used);
 	}
+	if (hw_rev >= IRDMA_GEN_3)
+		temp |= FIELD_PREP(IRDMA_CQPHC_EN_FINE_GRAINED_TIMERS,
+				   cqp->en_fine_grained_timers);
 
 	set_64bit_val(cqp->host_ctx, 0, temp);
 	set_64bit_val(cqp->host_ctx, 8, cqp->sq_pa);
 
 	temp = FIELD_PREP(IRDMA_CQPHC_ENABLED_VFS, cqp->ena_vf_count) |
 	       FIELD_PREP(IRDMA_CQPHC_HMC_PROFILE, cqp->hmc_profile);
+
+	if (hw_rev >= IRDMA_GEN_3)
+		temp |= FIELD_PREP(IRDMA_CQPHC_OOISC_BLKSIZE,
+				   cqp->ooisc_blksize) |
+			FIELD_PREP(IRDMA_CQPHC_RRSP_BLKSIZE,
+				   cqp->rrsp_blksize) |
+			FIELD_PREP(IRDMA_CQPHC_Q1_BLKSIZE, cqp->q1_blksize) |
+			FIELD_PREP(IRDMA_CQPHC_XMIT_BLKSIZE,
+				   cqp->xmit_blksize) |
+			FIELD_PREP(IRDMA_CQPHC_BLKSIZES_VALID,
+				   cqp->blksizes_valid) |
+			FIELD_PREP(IRDMA_CQPHC_TIMESTAMP_OVERRIDE,
+				   cqp->ts_override) |
+			FIELD_PREP(IRDMA_CQPHC_TS_SHIFT, cqp->ts_shift);
 	set_64bit_val(cqp->host_ctx, 16, temp);
 	set_64bit_val(cqp->host_ctx, 24, (uintptr_t)cqp);
 	temp = FIELD_PREP(IRDMA_CQPHC_HW_MAJVER, cqp->hw_maj_ver) |
@@ -3376,6 +3505,87 @@ void irdma_sc_ccq_arm(struct irdma_sc_cq *ccq)
 }
 
 /**
+ * irdma_sc_process_def_cmpl - process deferred or pending completion
+ * @cqp: CQP sc struct
+ * @info: CQP CQE info
+ * @wqe_idx: CQP WQE descriptor index
+ * @def_info: deferred op ticket value or out-of-order completion id
+ * @def_cmpl: true for deferred completion, false for pending (RCA)
+ */
+static void irdma_sc_process_def_cmpl(struct irdma_sc_cqp *cqp,
+				      struct irdma_ccq_cqe_info *info,
+				      u32 wqe_idx, u32 def_info, bool def_cmpl)
+{
+	struct irdma_ooo_cqp_op *ooo_op;
+	unsigned long flags;
+
+	/* Deferred and out-of-order completions share the same list of pending
+	 * completions.  Since the list can be also accessed from AE handler,
+	 * it must be protected by a lock.
+	 */
+	spin_lock_irqsave(&cqp->ooo_list_lock, flags);
+
+	/* For deferred completions bump up SW completion ticket value. */
+	if (def_cmpl) {
+		cqp->last_def_cmpl_ticket = def_info;
+		cqp->sw_def_cmpl_ticket++;
+	}
+	if (!list_empty(&cqp->ooo_avail)) {
+		ooo_op = (struct irdma_ooo_cqp_op *)
+			 list_entry(cqp->ooo_avail.next,
+				    struct irdma_ooo_cqp_op, list_entry);
+
+		list_del(&ooo_op->list_entry);
+		ooo_op->scratch = info->scratch;
+		ooo_op->def_info = def_info;
+		ooo_op->sw_def_info = cqp->sw_def_cmpl_ticket;
+		ooo_op->deferred = def_cmpl;
+		ooo_op->wqe_idx = wqe_idx;
+		/* Pending completions must be chronologically ordered,
+		 * so adding at the end of list.
+		 */
+		list_add_tail(&ooo_op->list_entry, &cqp->ooo_pnd);
+	}
+	spin_unlock_irqrestore(&cqp->ooo_list_lock, flags);
+
+	info->pending = true;
+}
+
+/**
+ * irdma_sc_process_ooo_cmpl - process out-of-order (final) completion
+ * @cqp: CQP sc struct
+ * @info: CQP CQE info
+ * @def_info: out-of-order completion id
+ */
+static void irdma_sc_process_ooo_cmpl(struct irdma_sc_cqp *cqp,
+				      struct irdma_ccq_cqe_info *info,
+				      u32 def_info)
+{
+	struct irdma_ooo_cqp_op *ooo_op_tmp;
+	struct irdma_ooo_cqp_op *ooo_op;
+	unsigned long flags;
+
+	info->scratch = 0;
+
+	spin_lock_irqsave(&cqp->ooo_list_lock, flags);
+	list_for_each_entry_safe(ooo_op, ooo_op_tmp, &cqp->ooo_pnd,
+				 list_entry) {
+		if (!ooo_op->deferred && ooo_op->def_info == def_info) {
+			list_del(&ooo_op->list_entry);
+			info->scratch = ooo_op->scratch;
+			list_add(&ooo_op->list_entry, &cqp->ooo_avail);
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&cqp->ooo_list_lock, flags);
+
+	if (!info->scratch)
+		ibdev_dbg(to_ibdev(cqp->dev),
+			  "CQP: DEBUG_FW_OOO out-of-order completion with unknown def_info = 0x%x\n",
+			  def_info);
+}
+
+/**
  * irdma_sc_ccq_get_cqe_info - get ccq's cq entry
  * @ccq: ccq sc struct
  * @info: completion q entry to return
@@ -3383,6 +3593,10 @@ void irdma_sc_ccq_arm(struct irdma_sc_cq *ccq)
 int irdma_sc_ccq_get_cqe_info(struct irdma_sc_cq *ccq,
 			      struct irdma_ccq_cqe_info *info)
 {
+	u32 def_info;
+	bool def_cmpl = false;
+	bool pend_cmpl = false;
+	bool ooo_final_cmpl = false;
 	u64 qp_ctx, temp, temp1;
 	__le64 *cqe;
 	struct irdma_sc_cqp *cqp;
@@ -3390,6 +3604,7 @@ int irdma_sc_ccq_get_cqe_info(struct irdma_sc_cq *ccq,
 	u32 error;
 	u8 polarity;
 	int ret_code = 0;
+	unsigned long flags;
 
 	if (ccq->cq_uk.avoid_mem_cflct)
 		cqe = IRDMA_GET_CURRENT_EXTENDED_CQ_ELEM(&ccq->cq_uk);
@@ -3421,6 +3636,25 @@ int irdma_sc_ccq_get_cqe_info(struct irdma_sc_cq *ccq,
 
 	get_64bit_val(cqe, 16, &temp1);
 	info->op_ret_val = (u32)FIELD_GET(IRDMA_CCQ_OPRETVAL, temp1);
+	if (cqp->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_3) {
+		def_cmpl = info->maj_err_code == IRDMA_CQPSQ_MAJ_NO_ERROR &&
+			   info->min_err_code == IRDMA_CQPSQ_MIN_DEF_CMPL;
+		def_info = (u32)FIELD_GET(IRDMA_CCQ_DEFINFO, temp1);
+
+		pend_cmpl = info->maj_err_code == IRDMA_CQPSQ_MAJ_NO_ERROR &&
+			    info->min_err_code == IRDMA_CQPSQ_MIN_OOO_CMPL;
+
+		ooo_final_cmpl = (bool)FIELD_GET(IRDMA_OOO_CMPL, temp);
+
+		if (def_cmpl || pend_cmpl || ooo_final_cmpl) {
+			if (ooo_final_cmpl)
+				irdma_sc_process_ooo_cmpl(cqp, info, def_info);
+			else
+				irdma_sc_process_def_cmpl(cqp, info, wqe_idx,
+							  def_info, def_cmpl);
+		}
+	}
+
 	get_64bit_val(cqp->sq_base[wqe_idx].elem, 24, &temp1);
 	info->op_code = (u8)FIELD_GET(IRDMA_CQPSQ_OPCODE, temp1);
 	info->cqp = cqp;
@@ -3437,7 +3671,16 @@ int irdma_sc_ccq_get_cqe_info(struct irdma_sc_cq *ccq,
 
 	dma_wmb(); /* make sure shadow area is updated before moving tail */
 
-	IRDMA_RING_MOVE_TAIL(cqp->sq_ring);
+	spin_lock_irqsave(&cqp->dev->cqp_lock, flags);
+	if (!ooo_final_cmpl)
+		IRDMA_RING_MOVE_TAIL(cqp->sq_ring);
+	spin_unlock_irqrestore(&cqp->dev->cqp_lock, flags);
+
+	/* Do not increment completed_ops counter on pending or deferred
+	 * completions.
+	 */
+	if (pend_cmpl || def_cmpl)
+		return ret_code;
 	atomic64_inc(&cqp->completed_ops);
 
 	return ret_code;
@@ -4121,6 +4364,10 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 	case IRDMA_AE_LCE_CQ_CATASTROPHIC:
 		info->cq = true;
 		info->compl_ctx = compl_ctx << 1;
+		ae_src = IRDMA_AE_SOURCE_RSVD;
+		break;
+	case IRDMA_AE_CQP_DEFERRED_COMPLETE:
+		info->def_info = info->wqe_idx;
 		ae_src = IRDMA_AE_SOURCE_RSVD;
 		break;
 	case IRDMA_AE_ROCE_EMPTY_MCG:

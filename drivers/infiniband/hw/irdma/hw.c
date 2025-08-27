@@ -208,6 +208,51 @@ static void irdma_set_flush_fields(struct irdma_sc_qp *qp,
 }
 
 /**
+ * irdma_complete_cqp_request - perform post-completion cleanup
+ * @cqp: device CQP
+ * @cqp_request: CQP request
+ *
+ * Mark CQP request as done, wake up waiting thread or invoke
+ * callback function and release/free CQP request.
+ */
+static void irdma_complete_cqp_request(struct irdma_cqp *cqp,
+				       struct irdma_cqp_request *cqp_request)
+{
+	if (cqp_request->waiting) {
+		WRITE_ONCE(cqp_request->request_done, true);
+		wake_up(&cqp_request->waitq);
+	} else if (cqp_request->callback_fcn) {
+		cqp_request->callback_fcn(cqp_request);
+	}
+	irdma_put_cqp_request(cqp, cqp_request);
+}
+
+/**
+ * irdma_process_ae_def_cmpl - handle IRDMA_AE_CQP_DEFERRED_COMPLETE event
+ * @rf: RDMA PCI function
+ * @info: AEQ entry info
+ */
+static void irdma_process_ae_def_cmpl(struct irdma_pci_f *rf,
+				      struct irdma_aeqe_info *info)
+{
+	u32 sw_def_info;
+	u64 scratch;
+
+	irdma_cqp_ce_handler(rf, &rf->ccq.sc_cq);
+
+	irdma_sc_cqp_def_cmpl_ae_handler(&rf->sc_dev, info, true,
+					 &scratch, &sw_def_info);
+	while (scratch) {
+		struct irdma_cqp_request *cqp_request =
+			(struct irdma_cqp_request *)(uintptr_t)scratch;
+
+		irdma_complete_cqp_request(&rf->cqp, cqp_request);
+		irdma_sc_cqp_def_cmpl_ae_handler(&rf->sc_dev, info, false,
+						 &scratch, &sw_def_info);
+	}
+}
+
+/**
  * irdma_process_aeq - handle aeq events
  * @rf: RDMA PCI function
  */
@@ -269,7 +314,8 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 			spin_unlock_irqrestore(&iwqp->lock, flags);
 			ctx_info = &iwqp->ctx_info;
 		} else {
-			if (info->ae_id != IRDMA_AE_CQ_OPERATION_ERROR)
+			if (info->ae_id != IRDMA_AE_CQ_OPERATION_ERROR &&
+			    info->ae_id != IRDMA_AE_CQP_DEFERRED_COMPLETE)
 				continue;
 		}
 
@@ -363,6 +409,12 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 							 iwcq->ibcq.cq_context);
 			}
 			irdma_cq_rem_ref(&iwcq->ibcq);
+			break;
+		case IRDMA_AE_CQP_DEFERRED_COMPLETE:
+			/* Remove completed CQP requests from pending list
+			 * and notify about those CQP ops completion.
+			 */
+			irdma_process_ae_def_cmpl(rf, info);
 			break;
 		case IRDMA_AE_RESET_NOT_SENT:
 		case IRDMA_AE_LLP_DOUBT_REACHABILITY:
@@ -600,6 +652,8 @@ static void irdma_destroy_cqp(struct irdma_pci_f *rf)
 	dma_free_coherent(dev->hw->device, cqp->sq.size, cqp->sq.va,
 			  cqp->sq.pa);
 	cqp->sq.va = NULL;
+	kfree(cqp->oop_op_array);
+	cqp->oop_op_array = NULL;
 	kfree(cqp->scratch_array);
 	cqp->scratch_array = NULL;
 	kfree(cqp->cqp_requests);
@@ -943,6 +997,13 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 		goto err_scratch;
 	}
 
+	cqp->oop_op_array = kcalloc(sqsize, sizeof(*cqp->oop_op_array),
+				    GFP_KERNEL);
+	if (!cqp->oop_op_array) {
+		status = -ENOMEM;
+		goto err_oop;
+	}
+	cqp_init_info.ooo_op_array = cqp->oop_op_array;
 	dev->cqp = &cqp->sc_cqp;
 	dev->cqp->dev = dev;
 	cqp->sq.size = ALIGN(sizeof(struct irdma_cqp_sq_wqe) * sqsize,
@@ -979,6 +1040,10 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 	case IRDMA_GEN_2:
 		cqp_init_info.hw_maj_ver = IRDMA_CQPHC_HW_MAJVER_GEN_2;
 		break;
+	case IRDMA_GEN_3:
+		cqp_init_info.hw_maj_ver = IRDMA_CQPHC_HW_MAJVER_GEN_3;
+		cqp_init_info.ts_override = 1;
+		break;
 	}
 	status = irdma_sc_cqp_init(dev->cqp, &cqp_init_info);
 	if (status) {
@@ -1013,6 +1078,9 @@ err_ctx:
 			  cqp->sq.va, cqp->sq.pa);
 	cqp->sq.va = NULL;
 err_sq:
+	kfree(cqp->oop_op_array);
+	cqp->oop_op_array = NULL;
+err_oop:
 	kfree(cqp->scratch_array);
 	cqp->scratch_array = NULL;
 err_scratch:
@@ -2104,15 +2172,16 @@ void irdma_cqp_ce_handler(struct irdma_pci_f *rf, struct irdma_sc_cq *cq)
 			cqp_request->compl_info.op_ret_val = info.op_ret_val;
 			cqp_request->compl_info.error = info.error;
 
-			if (cqp_request->waiting) {
-				WRITE_ONCE(cqp_request->request_done, true);
-				wake_up(&cqp_request->waitq);
-				irdma_put_cqp_request(&rf->cqp, cqp_request);
-			} else {
-				if (cqp_request->callback_fcn)
-					cqp_request->callback_fcn(cqp_request);
-				irdma_put_cqp_request(&rf->cqp, cqp_request);
-			}
+			/*
+			 * If this is deferred or pending completion, then mark
+			 * CQP request as pending to not block the CQ, but don't
+			 * release CQP request, as it is still on the OOO list.
+			 */
+			if (info.pending)
+				cqp_request->pending = true;
+			else
+				irdma_complete_cqp_request(&rf->cqp,
+							   cqp_request);
 		}
 
 		cqe_count++;

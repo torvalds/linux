@@ -481,6 +481,7 @@ void irdma_free_cqp_request(struct irdma_cqp *cqp,
 		WRITE_ONCE(cqp_request->request_done, false);
 		cqp_request->callback_fcn = NULL;
 		cqp_request->waiting = false;
+		cqp_request->pending = false;
 
 		spin_lock_irqsave(&cqp->req_lock, flags);
 		list_add_tail(&cqp_request->list, &cqp->cqp_avail_reqs);
@@ -521,6 +522,22 @@ irdma_free_pending_cqp_request(struct irdma_cqp *cqp,
 }
 
 /**
+ * irdma_cleanup_deferred_cqp_ops - clean-up cqp with no completions
+ * @dev: sc_dev
+ * @cqp: cqp
+ */
+static void irdma_cleanup_deferred_cqp_ops(struct irdma_sc_dev *dev,
+					   struct irdma_cqp *cqp)
+{
+	u64 scratch;
+
+	/* process all CQP requests with deferred/pending completions */
+	while ((scratch = irdma_sc_cqp_cleanup_handler(dev)))
+		irdma_free_pending_cqp_request(cqp, (struct irdma_cqp_request *)
+						    (uintptr_t)scratch);
+}
+
+/**
  * irdma_cleanup_pending_cqp_op - clean-up cqp with no
  * completions
  * @rf: RDMA PCI function
@@ -533,6 +550,8 @@ void irdma_cleanup_pending_cqp_op(struct irdma_pci_f *rf)
 	struct cqp_cmds_info *pcmdinfo = NULL;
 	u32 i, pending_work, wqe_idx;
 
+	if (dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_3)
+		irdma_cleanup_deferred_cqp_ops(dev, cqp);
 	pending_work = IRDMA_RING_USED_QUANTA(cqp->sc_cqp.sq_ring);
 	wqe_idx = IRDMA_RING_CURRENT_TAIL(cqp->sc_cqp.sq_ring);
 	for (i = 0; i < pending_work; i++) {
@@ -552,6 +571,26 @@ void irdma_cleanup_pending_cqp_op(struct irdma_pci_f *rf)
 	}
 }
 
+static int irdma_get_timeout_threshold(struct irdma_sc_dev *dev)
+{
+	u16 time_s = dev->vc_caps.cqp_timeout_s;
+
+	if (!time_s)
+		return CQP_TIMEOUT_THRESHOLD;
+
+	return time_s * 1000 / dev->hw_attrs.max_cqp_compl_wait_time_ms;
+}
+
+static int irdma_get_def_timeout_threshold(struct irdma_sc_dev *dev)
+{
+	u16 time_s = dev->vc_caps.cqp_def_timeout_s;
+
+	if (!time_s)
+		return CQP_DEF_CMPL_TIMEOUT_THRESHOLD;
+
+	return time_s * 1000 / dev->hw_attrs.max_cqp_compl_wait_time_ms;
+}
+
 /**
  * irdma_wait_event - wait for completion
  * @rf: RDMA PCI function
@@ -561,6 +600,7 @@ static int irdma_wait_event(struct irdma_pci_f *rf,
 			    struct irdma_cqp_request *cqp_request)
 {
 	struct irdma_cqp_timeout cqp_timeout = {};
+	int timeout_threshold = irdma_get_timeout_threshold(&rf->sc_dev);
 	bool cqp_error = false;
 	int err_code = 0;
 
@@ -572,9 +612,17 @@ static int irdma_wait_event(struct irdma_pci_f *rf,
 				       msecs_to_jiffies(CQP_COMPL_WAIT_TIME_MS)))
 			break;
 
+		if (cqp_request->pending)
+			/* There was a deferred or pending completion
+			 * received for this CQP request, so we need
+			 * to wait longer than usual.
+			 */
+			timeout_threshold =
+				irdma_get_def_timeout_threshold(&rf->sc_dev);
+
 		irdma_check_cqp_progress(&cqp_timeout, &rf->sc_dev);
 
-		if (cqp_timeout.count < CQP_TIMEOUT_THRESHOLD)
+		if (cqp_timeout.count < timeout_threshold)
 			continue;
 
 		if (!rf->reset) {

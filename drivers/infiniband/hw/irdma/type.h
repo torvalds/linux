@@ -262,12 +262,22 @@ struct irdma_cqp_init_info {
 	__le64 *host_ctx;
 	u64 *scratch_array;
 	u32 sq_size;
+	struct irdma_ooo_cqp_op *ooo_op_array;
+	u32 pe_en_vf_cnt;
 	u16 hw_maj_ver;
 	u16 hw_min_ver;
 	u8 struct_ver;
 	u8 hmc_profile;
 	u8 ena_vf_count;
 	u8 ceqs_per_vf;
+	u8 ooisc_blksize;
+	u8 rrsp_blksize;
+	u8 q1_blksize;
+	u8 xmit_blksize;
+	u8 ts_override;
+	u8 ts_shift;
+	u8 en_fine_grained_timers;
+	u8 blksizes_valid;
 	bool en_datacenter_tcp:1;
 	bool disable_packed:1;
 	bool rocev2_rto_policy:1;
@@ -392,7 +402,21 @@ struct irdma_cqp_quanta {
 	__le64 elem[IRDMA_CQP_WQE_SIZE];
 };
 
+struct irdma_ooo_cqp_op {
+	struct list_head list_entry;
+	u64 scratch;
+	u32 def_info;
+	u32 sw_def_info;
+	u32 wqe_idx;
+	bool deferred:1;
+};
+
 struct irdma_sc_cqp {
+	spinlock_t ooo_list_lock; /* protects list of pending completions */
+	struct list_head ooo_avail;
+	struct list_head ooo_pnd;
+	u32 last_def_cmpl_ticket;
+	u32 sw_def_cmpl_ticket;
 	u32 size;
 	u64 sq_pa;
 	u64 host_ctx_pa;
@@ -408,8 +432,10 @@ struct irdma_sc_cqp {
 	u64 *scratch_array;
 	u64 requested_ops;
 	atomic64_t completed_ops;
+	struct irdma_ooo_cqp_op *ooo_op_array;
 	u32 cqp_id;
 	u32 sq_size;
+	u32 pe_en_vf_cnt;
 	u32 hw_sq_size;
 	u16 hw_maj_ver;
 	u16 hw_min_ver;
@@ -419,6 +445,14 @@ struct irdma_sc_cqp {
 	u8 ena_vf_count;
 	u8 timeout_count;
 	u8 ceqs_per_vf;
+	u8 ooisc_blksize;
+	u8 rrsp_blksize;
+	u8 q1_blksize;
+	u8 xmit_blksize;
+	u8 ts_override;
+	u8 ts_shift;
+	u8 en_fine_grained_timers;
+	u8 blksizes_valid;
 	bool en_datacenter_tcp:1;
 	bool disable_packed:1;
 	bool rocev2_rto_policy:1;
@@ -723,7 +757,8 @@ struct irdma_ccq_cqe_info {
 	u16 maj_err_code;
 	u16 min_err_code;
 	u8 op_code;
-	bool error;
+	bool error:1;
+	bool pending:1;
 };
 
 struct irdma_dcb_app_info {
@@ -998,6 +1033,7 @@ struct irdma_qp_host_ctx_info {
 struct irdma_aeqe_info {
 	u64 compl_ctx;
 	u32 qp_cq_id;
+	u32 def_info;	/* only valid for DEF_CMPL */
 	u16 ae_id;
 	u16 wqe_idx;
 	u8 tcp_state;
@@ -1242,6 +1278,11 @@ void irdma_sc_pd_init(struct irdma_sc_dev *dev, struct irdma_sc_pd *pd, u32 pd_i
 void irdma_cfg_aeq(struct irdma_sc_dev *dev, u32 idx, bool enable);
 void irdma_check_cqp_progress(struct irdma_cqp_timeout *cqp_timeout,
 			      struct irdma_sc_dev *dev);
+void irdma_sc_cqp_def_cmpl_ae_handler(struct irdma_sc_dev *dev,
+				      struct irdma_aeqe_info *info,
+				      bool first, u64 *scratch,
+				      u32 *sw_def_info);
+u64 irdma_sc_cqp_cleanup_handler(struct irdma_sc_dev *dev);
 int irdma_sc_cqp_create(struct irdma_sc_cqp *cqp, u16 *maj_err, u16 *min_err);
 int irdma_sc_cqp_destroy(struct irdma_sc_cqp *cqp);
 int irdma_sc_cqp_init(struct irdma_sc_cqp *cqp,

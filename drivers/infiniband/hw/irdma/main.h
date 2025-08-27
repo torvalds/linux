@@ -168,6 +168,7 @@ struct irdma_cqp_request {
 	bool request_done; /* READ/WRITE_ONCE macros operate on it */
 	bool waiting:1;
 	bool dynamic:1;
+	bool pending:1;
 };
 
 struct irdma_cqp {
@@ -180,6 +181,7 @@ struct irdma_cqp {
 	struct irdma_dma_mem host_ctx;
 	u64 *scratch_array;
 	struct irdma_cqp_request *cqp_requests;
+	struct irdma_ooo_cqp_op *oop_op_array;
 	struct list_head cqp_avail_reqs;
 	struct list_head cqp_pending_reqs;
 };
