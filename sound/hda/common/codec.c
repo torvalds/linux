@@ -32,6 +32,23 @@
 #define codec_has_clkstop(codec) \
 	((codec)->core.power_caps & AC_PWRST_CLKSTOP)
 
+static int call_exec_verb(struct hda_bus *bus, struct hda_codec *codec,
+			  unsigned int cmd, unsigned int flags,
+			  unsigned int *res)
+{
+	int err;
+
+	CLASS(snd_hda_power_pm, pm)(codec);
+	mutex_lock(&bus->core.cmd_mutex);
+	if (flags & HDA_RW_NO_RESPONSE_FALLBACK)
+		bus->no_response_fallback = 1;
+	err = snd_hdac_bus_exec_verb_unlocked(&bus->core, codec->core.addr,
+					      cmd, res);
+	bus->no_response_fallback = 0;
+	mutex_unlock(&bus->core.cmd_mutex);
+	return err;
+}
+
 /*
  * Send and receive a verb - passed to exec_verb override for hdac_device
  */
@@ -46,15 +63,7 @@ static int codec_exec_verb(struct hdac_device *dev, unsigned int cmd,
 		return -1;
 
  again:
-	snd_hda_power_up_pm(codec);
-	mutex_lock(&bus->core.cmd_mutex);
-	if (flags & HDA_RW_NO_RESPONSE_FALLBACK)
-		bus->no_response_fallback = 1;
-	err = snd_hdac_bus_exec_verb_unlocked(&bus->core, codec->core.addr,
-					      cmd, res);
-	bus->no_response_fallback = 0;
-	mutex_unlock(&bus->core.cmd_mutex);
-	snd_hda_power_down_pm(codec);
+	err = call_exec_verb(bus, codec, cmd, flags, res);
 	if (!codec_in_pm(codec) && res && err == -EAGAIN) {
 		if (bus->response_reset) {
 			codec_dbg(codec,
@@ -633,12 +642,11 @@ static void hda_jackpoll_work(struct work_struct *work)
 		return;
 
 	/* the power-up/down sequence triggers the runtime resume */
-	snd_hda_power_up(codec);
+	CLASS(snd_hda_power, pm)(codec);
 	/* update jacks manually if polling is required, too */
 	snd_hda_jack_set_dirty_all(codec);
 	snd_hda_jack_poll_all(codec);
 	schedule_delayed_work(&codec->jackpoll_work, codec->jackpoll_interval);
-	snd_hda_power_down(codec);
 }
 
 /* release all pincfg lists */

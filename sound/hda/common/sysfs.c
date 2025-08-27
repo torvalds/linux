@@ -129,21 +129,18 @@ static int reconfig_codec(struct hda_codec *codec)
 {
 	int err;
 
-	snd_hda_power_up(codec);
+	CLASS(snd_hda_power, pm)(codec);
 	codec_info(codec, "hda-codec: reconfiguring\n");
 	err = snd_hda_codec_reset(codec);
 	if (err < 0) {
 		codec_err(codec,
 			   "The codec is being used, can't reconfigure.\n");
-		goto error;
+		return err;
 	}
 	err = device_reprobe(hda_codec_dev(codec));
 	if (err < 0)
-		goto error;
-	err = snd_card_register(codec->card);
- error:
-	snd_hda_power_down(codec);
-	return err;
+		return err;
+	return snd_card_register(codec->card);
 }
 
 /*
