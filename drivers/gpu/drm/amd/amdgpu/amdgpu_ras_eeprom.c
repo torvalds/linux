@@ -874,13 +874,33 @@ Out:
 int amdgpu_ras_eeprom_update_record_num(struct amdgpu_ras_eeprom_control *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
+	int ret, timeout = 1000;
 
 	if (!amdgpu_ras_smu_eeprom_supported(adev))
 		return 0;
 
 	control->ras_num_recs_old = control->ras_num_recs;
-	return amdgpu_ras_smu_get_badpage_count(adev,
+
+	do {
+		ret = amdgpu_ras_smu_get_badpage_count(adev,
 			&(control->ras_num_recs), 12);
+		if (!ret &&
+		    (control->ras_num_recs_old == control->ras_num_recs)) {
+			/* record number update in PMFW needs some time */
+			msleep(50);
+			timeout -= 50;
+		} else {
+			break;
+		}
+	} while (timeout);
+
+	/* no update of record number is not a real failure,
+	 * don't print warning here
+	 */
+	if (!ret && (control->ras_num_recs_old == control->ras_num_recs))
+		ret = -EINVAL;
+
+	return ret;
 }
 
 /**
