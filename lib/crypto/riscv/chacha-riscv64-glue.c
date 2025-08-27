@@ -50,12 +50,6 @@ void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
 }
 EXPORT_SYMBOL(chacha_crypt_arch);
 
-bool chacha_is_arch_optimized(void)
-{
-	return static_key_enabled(&use_zvkb);
-}
-EXPORT_SYMBOL(chacha_is_arch_optimized);
-
 static int __init riscv64_chacha_mod_init(void)
 {
 	if (riscv_isa_extension_available(NULL, ZVKB) &&

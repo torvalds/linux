@@ -119,13 +119,4 @@ static inline void chacha_zeroize_state(struct chacha_state *state)
 	memzero_explicit(state, sizeof(*state));
 }
 
-#if IS_ENABLED(CONFIG_CRYPTO_ARCH_HAVE_LIB_CHACHA)
-bool chacha_is_arch_optimized(void);
-#else
-static inline bool chacha_is_arch_optimized(void)
-{
-	return false;
-}
-#endif
-
 #endif /* _CRYPTO_CHACHA_H */

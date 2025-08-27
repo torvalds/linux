@@ -47,11 +47,5 @@ void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
 }
 EXPORT_SYMBOL(chacha_crypt_arch);
 
-bool chacha_is_arch_optimized(void)
-{
-	return cpu_has_vx();
-}
-EXPORT_SYMBOL(chacha_is_arch_optimized);
-
 MODULE_DESCRIPTION("ChaCha stream cipher (s390 optimized)");
 MODULE_LICENSE("GPL v2");

@@ -160,12 +160,6 @@ void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
 }
 EXPORT_SYMBOL(chacha_crypt_arch);
 
-bool chacha_is_arch_optimized(void)
-{
-	return static_key_enabled(&chacha_use_simd);
-}
-EXPORT_SYMBOL(chacha_is_arch_optimized);
-
 static int __init chacha_simd_mod_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_SSSE3))

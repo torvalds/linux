@@ -101,13 +101,6 @@ void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
 }
 EXPORT_SYMBOL(chacha_crypt_arch);
 
-bool chacha_is_arch_optimized(void)
-{
-	/* We always can use at least the ARM scalar implementation. */
-	return true;
-}
-EXPORT_SYMBOL(chacha_is_arch_optimized);
-
 static int __init chacha_arm_mod_init(void)
 {
 	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && (elf_hwcap & HWCAP_NEON)) {

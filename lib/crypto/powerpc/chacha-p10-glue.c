@@ -76,12 +76,6 @@ void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
 }
 EXPORT_SYMBOL(chacha_crypt_arch);
 
-bool chacha_is_arch_optimized(void)
-{
-	return static_key_enabled(&have_p10);
-}
-EXPORT_SYMBOL(chacha_is_arch_optimized);
-
 static int __init chacha_p10_init(void)
 {
 	if (cpu_has_feature(CPU_FTR_ARCH_31))

@@ -18,12 +18,6 @@ asmlinkage void hchacha_block_arch(const struct chacha_state *state,
 				   u32 out[HCHACHA_OUT_WORDS], int nrounds);
 EXPORT_SYMBOL(hchacha_block_arch);
 
-bool chacha_is_arch_optimized(void)
-{
-	return true;
-}
-EXPORT_SYMBOL(chacha_is_arch_optimized);
-
 MODULE_DESCRIPTION("ChaCha and HChaCha functions (MIPS optimized)");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_LICENSE("GPL v2");
