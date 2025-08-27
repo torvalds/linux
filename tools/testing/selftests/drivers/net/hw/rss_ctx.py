@@ -118,7 +118,7 @@ def test_rss_key_indir(cfg):
 
     qcnt = len(_get_rx_cnts(cfg))
     if qcnt < 3:
-        KsftSkipEx("Device has fewer than 3 queues (or doesn't support queue stats)")
+        raise KsftSkipEx("Device has fewer than 3 queues (or doesn't support queue stats)")
 
     data = get_rss(cfg)
     want_keys = ['rss-hash-key', 'rss-hash-function', 'rss-indirection-table']
