@@ -525,7 +525,7 @@ static const struct v4l2_subdev_internal_ops csi2_internal_ops = {
 
 int csi2_init(struct csi2_device *csi2, struct dentry *debugfs)
 {
-	unsigned int ret;
+	int ret;
 
 	spin_lock_init(&csi2->errors_lock);
 
