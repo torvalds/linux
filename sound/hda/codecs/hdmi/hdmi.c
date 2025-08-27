@@ -1270,16 +1270,15 @@ static void hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 	 * the unsolicited response to avoid custom WARs.
 	 */
 	int present;
-	int ret;
 
 #ifdef	CONFIG_PM
 	if (dev->power.runtime_status == RPM_SUSPENDING)
 		return;
 #endif
 
-	ret = snd_hda_power_up_pm(codec);
-	if (ret < 0 && pm_runtime_suspended(dev))
-		goto out;
+	CLASS(snd_hda_power_pm, pm)(codec);
+	if (pm.err < 0 && pm_runtime_suspended(dev))
+		return;
 
 	present = snd_hda_jack_pin_sense(codec, pin_nid, dev_id);
 
@@ -1302,8 +1301,6 @@ static void hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 
 	update_eld(codec, per_pin, eld, repoll);
 	mutex_unlock(&per_pin->lock);
- out:
-	snd_hda_power_down_pm(codec);
 }
 
 static void silent_stream_enable(struct hda_codec *codec,
@@ -1318,11 +1315,10 @@ static void silent_stream_enable(struct hda_codec *codec,
 	 * have to be done without mutex held.
 	 */
 
-	err = snd_hda_power_up_pm(codec);
-	if (err < 0 && err != -EACCES) {
+	CLASS(snd_hda_power_pm, pm)(codec);
+	if (pm.err < 0 && pm.err != -EACCES) {
 		codec_err(codec,
-			  "Failed to power up codec for silent stream enable ret=[%d]\n", err);
-		snd_hda_power_down_pm(codec);
+			  "Failed to power up codec for silent stream enable ret=[%d]\n", pm.err);
 		return;
 	}
 
@@ -1361,8 +1357,6 @@ static void silent_stream_enable(struct hda_codec *codec,
 
  unlock_out:
 	mutex_unlock(&per_pin->lock);
-
-	snd_hda_power_down_pm(codec);
 }
 
 static void silent_stream_disable(struct hda_codec *codec,
@@ -1370,14 +1364,13 @@ static void silent_stream_disable(struct hda_codec *codec,
 {
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_spec_per_cvt *per_cvt;
-	int cvt_idx, err;
+	int cvt_idx;
 
-	err = snd_hda_power_up_pm(codec);
-	if (err < 0 && err != -EACCES) {
+	CLASS(snd_hda_power_pm, pm)(codec);
+	if (pm.err < 0 && pm.err != -EACCES) {
 		codec_err(codec,
 			  "Failed to power up codec for silent stream disable ret=[%d]\n",
-			  err);
-		snd_hda_power_down_pm(codec);
+			  pm.err);
 		return;
 	}
 
@@ -1401,8 +1394,6 @@ static void silent_stream_disable(struct hda_codec *codec,
 
  unlock_out:
 	mutex_unlock(&per_pin->lock);
-
-	snd_hda_power_down_pm(codec);
 }
 
 /* update ELD and jack state via audio component */
