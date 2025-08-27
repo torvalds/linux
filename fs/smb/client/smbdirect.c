@@ -1397,7 +1397,9 @@ static void enqueue_reassembly(
 	struct smbdirect_recv_io *response,
 	int data_length)
 {
-	spin_lock(&sc->recv_io.reassembly.lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
 	list_add_tail(&response->list, &sc->recv_io.reassembly.list);
 	sc->recv_io.reassembly.queue_length++;
 	/*
@@ -1408,7 +1410,7 @@ static void enqueue_reassembly(
 	 */
 	virt_wmb();
 	sc->recv_io.reassembly.data_length += data_length;
-	spin_unlock(&sc->recv_io.reassembly.lock);
+	spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
 	sc->statistics.enqueue_reassembly_queue++;
 }
 
@@ -2076,6 +2078,7 @@ again:
 	if (sc->recv_io.reassembly.data_length >= size) {
 		int queue_length;
 		int queue_removed = 0;
+		unsigned long flags;
 
 		/*
 		 * Need to make sure reassembly_data_length is read before
@@ -2135,11 +2138,11 @@ again:
 				if (queue_length)
 					list_del(&response->list);
 				else {
-					spin_lock_irq(
-						&sc->recv_io.reassembly.lock);
+					spin_lock_irqsave(
+						&sc->recv_io.reassembly.lock, flags);
 					list_del(&response->list);
-					spin_unlock_irq(
-						&sc->recv_io.reassembly.lock);
+					spin_unlock_irqrestore(
+						&sc->recv_io.reassembly.lock, flags);
 				}
 				queue_removed++;
 				sc->statistics.dequeue_reassembly_queue++;
@@ -2157,10 +2160,10 @@ again:
 				 to_read, data_read, offset);
 		}
 
-		spin_lock_irq(&sc->recv_io.reassembly.lock);
+		spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
 		sc->recv_io.reassembly.data_length -= data_read;
 		sc->recv_io.reassembly.queue_length -= queue_removed;
-		spin_unlock_irq(&sc->recv_io.reassembly.lock);
+		spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
 
 		sc->recv_io.reassembly.first_entry_offset = offset;
 		log_read(INFO, "returning to thread data_read=%d reassembly_data_length=%d first_entry_offset=%d\n",
@@ -2432,6 +2435,7 @@ cleanup_entries:
 static struct smbdirect_mr_io *get_mr(struct smbdirect_socket *sc)
 {
 	struct smbdirect_mr_io *ret;
+	unsigned long flags;
 	int rc;
 again:
 	rc = wait_event_interruptible(sc->mr_io.ready.wait_queue,
@@ -2447,18 +2451,18 @@ again:
 		return NULL;
 	}
 
-	spin_lock(&sc->mr_io.all.lock);
+	spin_lock_irqsave(&sc->mr_io.all.lock, flags);
 	list_for_each_entry(ret, &sc->mr_io.all.list, list) {
 		if (ret->state == SMBDIRECT_MR_READY) {
 			ret->state = SMBDIRECT_MR_REGISTERED;
-			spin_unlock(&sc->mr_io.all.lock);
+			spin_unlock_irqrestore(&sc->mr_io.all.lock, flags);
 			atomic_dec(&sc->mr_io.ready.count);
 			atomic_inc(&sc->mr_io.used.count);
 			return ret;
 		}
 	}
 
-	spin_unlock(&sc->mr_io.all.lock);
+	spin_unlock_irqrestore(&sc->mr_io.all.lock, flags);
 	/*
 	 * It is possible that we could fail to get MR because other processes may
 	 * try to acquire a MR at the same time. If this is the case, retry it.
