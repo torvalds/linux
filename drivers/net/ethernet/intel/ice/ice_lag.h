@@ -82,7 +82,6 @@ struct ice_lag_work {
 	} info;
 };
 
-void ice_lag_move_new_vf_nodes(struct ice_vf *vf);
 void ice_lag_aa_failover(struct ice_lag *lag, u8 dest, struct ice_pf *e_pf);
 int ice_init_lag(struct ice_pf *pf);
 void ice_deinit_lag(struct ice_pf *pf);
