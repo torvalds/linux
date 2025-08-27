@@ -1684,20 +1684,14 @@ static int chipio_write(struct hda_codec *codec,
 	struct ca0132_spec *spec = codec->spec;
 	int err;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	/* write the address, and if successful proceed to write data */
 	err = chipio_write_address(codec, chip_addx);
 	if (err < 0)
-		goto exit;
+		return err;
 
-	err = chipio_write_data(codec, data);
-	if (err < 0)
-		goto exit;
-
-exit:
-	mutex_unlock(&spec->chipio_mutex);
-	return err;
+	return chipio_write_data(codec, data);
 }
 
 /*
@@ -1735,16 +1729,12 @@ static int chipio_write_multiple(struct hda_codec *codec,
 	struct ca0132_spec *spec = codec->spec;
 	int status;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 	status = chipio_write_address(codec, chip_addx);
 	if (status < 0)
-		goto error;
+		return status;
 
-	status = chipio_write_data_multiple(codec, data, count);
-error:
-	mutex_unlock(&spec->chipio_mutex);
-
-	return status;
+	return chipio_write_data_multiple(codec, data, count);
 }
 
 /*
@@ -1757,20 +1747,14 @@ static int chipio_read(struct hda_codec *codec,
 	struct ca0132_spec *spec = codec->spec;
 	int err;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	/* write the address, and if successful proceed to write data */
 	err = chipio_write_address(codec, chip_addx);
 	if (err < 0)
-		goto exit;
+		return err;
 
-	err = chipio_read_data(codec, data);
-	if (err < 0)
-		goto exit;
-
-exit:
-	mutex_unlock(&spec->chipio_mutex);
-	return err;
+	return chipio_read_data(codec, data);
 }
 
 /*
@@ -1803,7 +1787,7 @@ static void chipio_set_control_param(struct hda_codec *codec,
 		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
 				    VENDOR_CHIPIO_PARAM_SET, val);
 	} else {
-		mutex_lock(&spec->chipio_mutex);
+		guard(mutex)(&spec->chipio_mutex);
 		if (chipio_send(codec, VENDOR_CHIPIO_STATUS, 0) == 0) {
 			snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
 					    VENDOR_CHIPIO_PARAM_EX_ID_SET,
@@ -1812,7 +1796,6 @@ static void chipio_set_control_param(struct hda_codec *codec,
 					    VENDOR_CHIPIO_PARAM_EX_VALUE_SET,
 					    param_val);
 		}
-		mutex_unlock(&spec->chipio_mutex);
 	}
 }
 
@@ -1977,12 +1960,10 @@ static void chipio_8051_write_exram(struct hda_codec *codec,
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	chipio_8051_set_address(codec, addr);
 	chipio_8051_set_data(codec, data);
-
-	mutex_unlock(&spec->chipio_mutex);
 }
 
 static void chipio_8051_write_exram_no_mutex(struct hda_codec *codec,
@@ -2005,12 +1986,10 @@ static void chipio_8051_write_pll_pmu(struct hda_codec *codec,
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	chipio_8051_set_address(codec, addr & 0xff);
 	chipio_8051_set_data_pll(codec, data);
-
-	mutex_unlock(&spec->chipio_mutex);
 }
 
 static void chipio_8051_write_pll_pmu_no_mutex(struct hda_codec *codec,
@@ -2027,13 +2006,11 @@ static void chipio_enable_clocks(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	chipio_8051_write_pll_pmu_no_mutex(codec, 0x00, 0xff);
 	chipio_8051_write_pll_pmu_no_mutex(codec, 0x05, 0x0b);
 	chipio_8051_write_pll_pmu_no_mutex(codec, 0x06, 0xff);
-
-	mutex_unlock(&spec->chipio_mutex);
 }
 
 /*
@@ -2084,22 +2061,20 @@ static int dspio_write(struct hda_codec *codec, unsigned int scp_data)
 
 	dspio_write_wait(codec);
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 	status = dspio_send(codec, VENDOR_DSPIO_SCP_WRITE_DATA_LOW,
 			    scp_data & 0xffff);
 	if (status < 0)
-		goto error;
+		return status;
 
 	status = dspio_send(codec, VENDOR_DSPIO_SCP_WRITE_DATA_HIGH,
 				    scp_data >> 16);
 	if (status < 0)
-		goto error;
+		return status;
 
 	/* OK, now check if the write itself has executed*/
 	status = snd_hda_codec_read(codec, WIDGET_DSP_CTRL, 0,
 				    VENDOR_DSPIO_STATUS, 0);
-error:
-	mutex_unlock(&spec->chipio_mutex);
 
 	return (status == VENDOR_STATUS_DSPIO_SCP_COMMAND_QUEUE_FULL) ?
 			-EIO : 0;
@@ -5584,13 +5559,12 @@ static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 		int ch = get_amp_channels(kcontrol);
 		unsigned long pval;
 
-		mutex_lock(&codec->control_mutex);
+		guard(mutex)(&codec->control_mutex);
 		pval = kcontrol->private_value;
 		kcontrol->private_value = HDA_COMPOSE_AMP_VAL(shared_nid, ch,
 								0, dir);
 		ret = snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
 		kcontrol->private_value = pval;
-		mutex_unlock(&codec->control_mutex);
 	}
 
 	return ret;
@@ -6459,22 +6433,22 @@ static int ca0132_volume_info(struct snd_kcontrol *kcontrol,
 	case VNID_SPK:
 		/* follow shared_out info */
 		nid = spec->shared_out_nid;
-		mutex_lock(&codec->control_mutex);
-		pval = kcontrol->private_value;
-		kcontrol->private_value = HDA_COMPOSE_AMP_VAL(nid, ch, 0, dir);
-		err = snd_hda_mixer_amp_volume_info(kcontrol, uinfo);
-		kcontrol->private_value = pval;
-		mutex_unlock(&codec->control_mutex);
+		scoped_guard(mutex, &codec->control_mutex) {
+			pval = kcontrol->private_value;
+			kcontrol->private_value = HDA_COMPOSE_AMP_VAL(nid, ch, 0, dir);
+			err = snd_hda_mixer_amp_volume_info(kcontrol, uinfo);
+			kcontrol->private_value = pval;
+		}
 		break;
 	case VNID_MIC:
 		/* follow shared_mic info */
 		nid = spec->shared_mic_nid;
-		mutex_lock(&codec->control_mutex);
-		pval = kcontrol->private_value;
-		kcontrol->private_value = HDA_COMPOSE_AMP_VAL(nid, ch, 0, dir);
-		err = snd_hda_mixer_amp_volume_info(kcontrol, uinfo);
-		kcontrol->private_value = pval;
-		mutex_unlock(&codec->control_mutex);
+		scoped_guard(mutex, &codec->control_mutex) {
+			pval = kcontrol->private_value;
+			kcontrol->private_value = HDA_COMPOSE_AMP_VAL(nid, ch, 0, dir);
+			err = snd_hda_mixer_amp_volume_info(kcontrol, uinfo);
+			kcontrol->private_value = pval;
+		}
 		break;
 	default:
 		err = snd_hda_mixer_amp_volume_info(kcontrol, uinfo);
@@ -6532,13 +6506,12 @@ static int ca0132_volume_put(struct snd_kcontrol *kcontrol,
 		unsigned long pval;
 
 		CLASS(snd_hda_power, pm)(codec);
-		mutex_lock(&codec->control_mutex);
+		guard(mutex)(&codec->control_mutex);
 		pval = kcontrol->private_value;
 		kcontrol->private_value = HDA_COMPOSE_AMP_VAL(shared_nid, ch,
 								0, dir);
 		changed = snd_hda_mixer_amp_volume_put(kcontrol, ucontrol);
 		kcontrol->private_value = pval;
-		mutex_unlock(&codec->control_mutex);
 	}
 
 	return changed;
@@ -6558,7 +6531,6 @@ static int ca0132_alt_volume_put(struct snd_kcontrol *kcontrol,
 	int ch = get_amp_channels(kcontrol);
 	long *valp = ucontrol->value.integer.value;
 	hda_nid_t vnid = 0;
-	int changed;
 
 	switch (nid) {
 	case 0x02:
@@ -6581,11 +6553,8 @@ static int ca0132_alt_volume_put(struct snd_kcontrol *kcontrol,
 
 	CLASS(snd_hda_power, pm)(codec);
 	ca0132_alt_dsp_volume_put(codec, vnid);
-	mutex_lock(&codec->control_mutex);
-	changed = snd_hda_mixer_amp_volume_put(kcontrol, ucontrol);
-	mutex_unlock(&codec->control_mutex);
-
-	return changed;
+	guard(mutex)(&codec->control_mutex);
+	return snd_hda_mixer_amp_volume_put(kcontrol, ucontrol);
 }
 
 static int ca0132_volume_tlv(struct snd_kcontrol *kcontrol, int op_flag,
@@ -6603,22 +6572,22 @@ static int ca0132_volume_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	case VNID_SPK:
 		/* follow shared_out tlv */
 		nid = spec->shared_out_nid;
-		mutex_lock(&codec->control_mutex);
-		pval = kcontrol->private_value;
-		kcontrol->private_value = HDA_COMPOSE_AMP_VAL(nid, ch, 0, dir);
-		err = snd_hda_mixer_amp_tlv(kcontrol, op_flag, size, tlv);
-		kcontrol->private_value = pval;
-		mutex_unlock(&codec->control_mutex);
+		scoped_guard(mutex, &codec->control_mutex) {
+			pval = kcontrol->private_value;
+			kcontrol->private_value = HDA_COMPOSE_AMP_VAL(nid, ch, 0, dir);
+			err = snd_hda_mixer_amp_tlv(kcontrol, op_flag, size, tlv);
+			kcontrol->private_value = pval;
+		}
 		break;
 	case VNID_MIC:
 		/* follow shared_mic tlv */
 		nid = spec->shared_mic_nid;
-		mutex_lock(&codec->control_mutex);
-		pval = kcontrol->private_value;
-		kcontrol->private_value = HDA_COMPOSE_AMP_VAL(nid, ch, 0, dir);
-		err = snd_hda_mixer_amp_tlv(kcontrol, op_flag, size, tlv);
-		kcontrol->private_value = pval;
-		mutex_unlock(&codec->control_mutex);
+		scoped_guard(mutex, &codec->control_mutex) {
+			pval = kcontrol->private_value;
+			kcontrol->private_value = HDA_COMPOSE_AMP_VAL(nid, ch, 0, dir);
+			err = snd_hda_mixer_amp_tlv(kcontrol, op_flag, size, tlv);
+			kcontrol->private_value = pval;
+		}
 		break;
 	default:
 		err = snd_hda_mixer_amp_tlv(kcontrol, op_flag, size, tlv);
@@ -7500,12 +7469,10 @@ static void ca0132_init_analog_mic2(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	chipio_8051_write_exram_no_mutex(codec, 0x1920, 0x00);
 	chipio_8051_write_exram_no_mutex(codec, 0x192d, 0x00);
-
-	mutex_unlock(&spec->chipio_mutex);
 }
 
 static void ca0132_refresh_widget_caps(struct hda_codec *codec)
@@ -7595,18 +7562,16 @@ static void ca0132_alt_start_dsp_audio_streams(struct hda_codec *codec)
 	 * Check if any of the default streams are active, and if they are,
 	 * stop them.
 	 */
-	mutex_lock(&spec->chipio_mutex);
+	scoped_guard(mutex, &spec->chipio_mutex) {
+		for (i = 0; i < ARRAY_SIZE(dsp_dma_stream_ids); i++) {
+			chipio_get_stream_control(codec, dsp_dma_stream_ids[i], &tmp);
 
-	for (i = 0; i < ARRAY_SIZE(dsp_dma_stream_ids); i++) {
-		chipio_get_stream_control(codec, dsp_dma_stream_ids[i], &tmp);
-
-		if (tmp) {
-			chipio_set_stream_control(codec,
-					dsp_dma_stream_ids[i], 0);
+			if (tmp) {
+				chipio_set_stream_control(codec,
+							  dsp_dma_stream_ids[i], 0);
+			}
 		}
 	}
-
-	mutex_unlock(&spec->chipio_mutex);
 
 	/*
 	 * If all DSP streams are inactive, there should be no active DSP DMA
@@ -7615,7 +7580,7 @@ static void ca0132_alt_start_dsp_audio_streams(struct hda_codec *codec)
 	 */
 	ca0132_alt_free_active_dma_channels(codec);
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	/* Make sure stream 0x0c is six channels. */
 	chipio_set_stream_channels(codec, 0x0c, 6);
@@ -7627,8 +7592,6 @@ static void ca0132_alt_start_dsp_audio_streams(struct hda_codec *codec)
 		/* Give the DSP some time to setup the DMA channel. */
 		msleep(75);
 	}
-
-	mutex_unlock(&spec->chipio_mutex);
 }
 
 /*
@@ -7820,7 +7783,7 @@ static void sbz_connect_streams(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	codec_dbg(codec, "Connect Streams entered, mutex locked and loaded.\n");
 
@@ -7835,8 +7798,6 @@ static void sbz_connect_streams(struct hda_codec *codec)
 	chipio_set_stream_control(codec, 0x14, 1);
 
 	codec_dbg(codec, "Connect Streams exited, mutex released.\n");
-
-	mutex_unlock(&spec->chipio_mutex);
 }
 
 /*
@@ -7850,7 +7811,7 @@ static void sbz_chipio_startup_data(struct hda_codec *codec)
 	const struct chipio_stream_remap_data *dsp_out_remap_data;
 	struct ca0132_spec *spec = codec->spec;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 	codec_dbg(codec, "Startup Data entered, mutex locked and loaded.\n");
 
 	/* Remap DAC0's output ports. */
@@ -7875,7 +7836,6 @@ static void sbz_chipio_startup_data(struct hda_codec *codec)
 		chipio_remap_stream(codec, dsp_out_remap_data);
 
 	codec_dbg(codec, "Startup Data exited, mutex released.\n");
-	mutex_unlock(&spec->chipio_mutex);
 }
 
 static void ca0132_alt_dsp_initial_mic_setup(struct hda_codec *codec)
@@ -7967,7 +7927,7 @@ static void ae5_post_dsp_stream_setup(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0, 0x725, 0x81);
 
@@ -7985,15 +7945,13 @@ static void ae5_post_dsp_stream_setup(struct hda_codec *codec)
 	chipio_8051_write_pll_pmu_no_mutex(codec, 0x43, 0xc7);
 
 	ca0113_mmio_command_set(codec, 0x48, 0x01, 0x80);
-
-	mutex_unlock(&spec->chipio_mutex);
 }
 
 static void ae5_post_dsp_startup_data(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	chipio_write_no_mutex(codec, 0x189000, 0x0001f101);
 	chipio_write_no_mutex(codec, 0x189004, 0x0001f101);
@@ -8017,15 +7975,13 @@ static void ae5_post_dsp_startup_data(struct hda_codec *codec)
 
 	ca0113_mmio_command_set(codec, 0x48, 0x0f, 0x00);
 	ca0113_mmio_command_set(codec, 0x48, 0x10, 0x00);
-
-	mutex_unlock(&spec->chipio_mutex);
 }
 
 static void ae7_post_dsp_setup_ports(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	/* Seems to share the same port remapping as the SBZ. */
 	chipio_remap_stream(codec, &stream_remap_data[1]);
@@ -8038,15 +7994,13 @@ static void ae7_post_dsp_setup_ports(struct hda_codec *codec)
 	ca0113_mmio_command_set(codec, 0x48, 0x12, 0xff);
 	ca0113_mmio_command_set(codec, 0x48, 0x13, 0xff);
 	ca0113_mmio_command_set(codec, 0x48, 0x14, 0x7f);
-
-	mutex_unlock(&spec->chipio_mutex);
 }
 
 static void ae7_post_dsp_asi_stream_setup(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0, 0x725, 0x81);
 	ca0113_mmio_command_set(codec, 0x30, 0x2b, 0x00);
@@ -8061,8 +8015,6 @@ static void ae7_post_dsp_asi_stream_setup(struct hda_codec *codec)
 	chipio_set_stream_control(codec, 0x18, 1);
 
 	chipio_set_control_param_no_mutex(codec, CONTROL_PARAM_ASI, 4);
-
-	mutex_unlock(&spec->chipio_mutex);
 }
 
 static void ae7_post_dsp_pll_setup(struct hda_codec *codec)
@@ -8090,7 +8042,7 @@ static void ae7_post_dsp_asi_setup_ports(struct hda_codec *codec)
 	};
 	unsigned int i;
 
-	mutex_lock(&spec->chipio_mutex);
+	guard(mutex)(&spec->chipio_mutex);
 
 	chipio_8051_write_pll_pmu_no_mutex(codec, 0x43, 0xc7);
 
@@ -8152,8 +8104,6 @@ static void ae7_post_dsp_asi_setup_ports(struct hda_codec *codec)
 	 */
 	ae7_post_dsp_pll_setup(codec);
 	chipio_set_control_param_no_mutex(codec, CONTROL_PARAM_ASI, 7);
-
-	mutex_unlock(&spec->chipio_mutex);
 }
 
 /*
