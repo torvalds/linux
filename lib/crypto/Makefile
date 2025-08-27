@@ -15,8 +15,8 @@ obj-$(CONFIG_CRYPTO_HASH_INFO)			+= hash_info.o
 obj-$(CONFIG_CRYPTO_LIB_UTILS)			+= libcryptoutils.o
 libcryptoutils-y				:= memneq.o utils.o
 
-# chacha is used by the /dev/random driver which is always builtin
-obj-y						+= chacha.o
+# chacha20_block() is used by the /dev/random driver which is always builtin
+obj-y						+= chacha-block-generic.o
 obj-$(CONFIG_CRYPTO_LIB_CHACHA_GENERIC)		+= libchacha.o
 
 obj-$(CONFIG_CRYPTO_LIB_AES)			+= libaes.o
