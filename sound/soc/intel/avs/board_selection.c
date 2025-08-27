@@ -58,19 +58,13 @@ static const struct dmi_system_id kblr_dmi_table[] = {
 static struct snd_soc_acpi_mach *dmi_match_quirk(void *arg)
 {
 	struct snd_soc_acpi_mach *mach = arg;
-	const struct dmi_system_id *dmi_id;
 	struct dmi_system_id *dmi_table;
-
-	if (mach->quirk_data == NULL)
-		return mach;
 
 	dmi_table = (struct dmi_system_id *)mach->quirk_data;
 
-	dmi_id = dmi_first_match(dmi_table);
-	if (!dmi_id)
-		return NULL;
-
-	return mach;
+	if (!dmi_table || dmi_first_match(dmi_table))
+		return mach;
+	return NULL;
 }
 
 #define AVS_SSP(x)		(BIT(x))
