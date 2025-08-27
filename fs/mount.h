@@ -66,7 +66,8 @@ struct mount {
 	struct list_head mnt_child;	/* and going through their mnt_child */
 	struct mount *mnt_next_for_sb;	/* the next two fields are hlist_node, */
 	struct mount * __aligned(1) *mnt_pprev_for_sb;
-					/* except that LSB of pprev will be stolen */
+					/* except that LSB of pprev is stolen */
+#define WRITE_HOLD 1			/* ... for use by mnt_hold_writers() */
 	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */
 	struct list_head mnt_list;
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
@@ -242,6 +243,28 @@ static inline struct mount *topmost_overmount(struct mount *m)
 	while (m->overmount)
 		m = m->overmount;
 	return m;
+}
+
+static inline bool __test_write_hold(struct mount * __aligned(1) *val)
+{
+	return (unsigned long)val & WRITE_HOLD;
+}
+
+static inline bool test_write_hold(const struct mount *m)
+{
+	return __test_write_hold(m->mnt_pprev_for_sb);
+}
+
+static inline void set_write_hold(struct mount *m)
+{
+	m->mnt_pprev_for_sb = (void *)((unsigned long)m->mnt_pprev_for_sb
+				       | WRITE_HOLD);
+}
+
+static inline void clear_write_hold(struct mount *m)
+{
+	m->mnt_pprev_for_sb = (void *)((unsigned long)m->mnt_pprev_for_sb
+				       & ~WRITE_HOLD);
 }
 
 struct mnt_namespace *mnt_ns_from_dentry(struct dentry *dentry);
