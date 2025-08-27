@@ -212,7 +212,7 @@ static void clear_subscriber_list(struct snd_seq_client *client,
 	list_for_each_safe(p, n, &grp->list_head) {
 		struct snd_seq_subscribers *subs;
 		struct snd_seq_client *c __free(snd_seq_client) = NULL;
-		struct snd_seq_client_port *aport;
+		struct snd_seq_client_port *aport __free(snd_seq_port) = NULL;
 
 		subs = get_subscriber(p, is_src);
 		if (is_src)
@@ -234,7 +234,6 @@ static void clear_subscriber_list(struct snd_seq_client *client,
 		/* ok we got the connected port */
 		delete_and_unsubscribe_port(c, aport, subs, !is_src, true);
 		kfree(subs);
-		snd_seq_port_unlock(aport);
 	}
 }
 
