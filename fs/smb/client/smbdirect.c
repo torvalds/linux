@@ -1649,35 +1649,6 @@ static void send_immediate_empty_message(struct work_struct *work)
 	smbd_post_send_empty(sc);
 }
 
-/* Implement idle connection timer [MS-SMBD] 3.1.6.2 */
-static void idle_connection_timer(struct work_struct *work)
-{
-	struct smbdirect_socket *sc =
-		container_of(work, struct smbdirect_socket, idle.timer_work.work);
-	struct smbdirect_socket_parameters *sp = &sc->parameters;
-
-	if (sc->idle.keepalive != SMBDIRECT_KEEPALIVE_NONE) {
-		log_keep_alive(ERR,
-			"error status sc->idle.keepalive=%d\n",
-			sc->idle.keepalive);
-		smbdirect_socket_schedule_cleanup(sc, -ETIMEDOUT);
-		return;
-	}
-
-	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
-		return;
-
-	/*
-	 * Now use the keepalive timeout (instead of keepalive interval)
-	 * in order to wait for a response
-	 */
-	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_PENDING;
-	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
-			 msecs_to_jiffies(sp->keepalive_timeout_msec));
-	log_keep_alive(INFO, "schedule send of empty idle message\n");
-	queue_work(sc->workqueue, &sc->idle.immediate_work);
-}
-
 /*
  * Destroy the transport and related RDMA and memory resources
  * Need to go through all the pending counters and make sure on one is using
@@ -2081,7 +2052,6 @@ static struct smbd_connection *_smbd_get_connection(
 	}
 
 	INIT_WORK(&sc->idle.immediate_work, send_immediate_empty_message);
-	INIT_DELAYED_WORK(&sc->idle.timer_work, idle_connection_timer);
 	/*
 	 * start with the negotiate timeout and SMBDIRECT_KEEPALIVE_PENDING
 	 * so that the timer will cause a disconnect.
