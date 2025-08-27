@@ -299,9 +299,9 @@ static void remove_trail_spaces(char *str)
 
 static int parse_hints(struct hda_codec *codec, const char *buf)
 {
-	char *key, *val;
+	char *key __free(kfree) = NULL;
+	char *val;
 	struct hda_hint *hint;
-	int err = 0;
 
 	buf = skip_spaces(buf);
 	if (!*buf || *buf == '#' || *buf == '\n')
@@ -313,10 +313,8 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 		return -ENOMEM;
 	/* extract key and val */
 	val = strchr(key, '=');
-	if (!val) {
-		kfree(key);
+	if (!val)
 		return -EINVAL;
-	}
 	*val++ = 0;
 	val = skip_spaces(val);
 	remove_trail_spaces(key);
@@ -326,25 +324,18 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 	if (hint) {
 		/* replace */
 		kfree(hint->key);
-		hint->key = key;
-		hint->val = val;
-		goto unlock;
+		goto replace;
 	}
 	/* allocate a new hint entry */
 	if (codec->hints.used >= MAX_HINTS)
-		hint = NULL;
-	else
-		hint = snd_array_new(&codec->hints);
-	if (hint) {
-		hint->key = key;
-		hint->val = val;
-	} else {
-		err = -ENOMEM;
-	}
- unlock:
-	if (err)
-		kfree(key);
-	return err;
+		return -ENOMEM;
+	hint = snd_array_new(&codec->hints);
+	if (!hint)
+		return -ENOMEM;
+ replace:
+	hint->key = no_free_ptr(key);
+	hint->val = val;
+	return 0;
 }
 
 static ssize_t hints_store(struct device *dev,
