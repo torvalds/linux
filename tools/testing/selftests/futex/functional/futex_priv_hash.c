@@ -188,7 +188,7 @@ int main(int argc, char *argv[])
 	if (ret != 0)
 		ksft_exit_fail_msg("pthread_join() failed: %d, %m\n", ret);
 
-	/* First thread, has to initialiaze private hash */
+	/* First thread, has to initialize private hash */
 	futex_slots1 = futex_hash_slots_get();
 	if (futex_slots1 <= 0) {
 		ksft_print_msg("Current hash buckets: %d\n", futex_slots1);
@@ -256,17 +256,17 @@ retry_getslots:
 
 	futex_hash_slots_set_verify(2);
 	join_max_threads();
-	ksft_test_result(counter == MAX_THREADS, "Created of waited for %d of %d threads\n",
+	ksft_test_result(counter == MAX_THREADS, "Created and waited for %d of %d threads\n",
 			 counter, MAX_THREADS);
 	counter = 0;
-	/* Once the user set something, auto reisze must be disabled */
+	/* Once the user set something, auto resize must be disabled */
 	ret = pthread_barrier_init(&barrier_main, NULL, MAX_THREADS);
 
 	create_max_threads(thread_lock_fn);
 	join_max_threads();
 
 	ret = futex_hash_slots_get();
-	ksft_test_result(ret == 2, "No more auto-resize after manaul setting, got %d\n",
+	ksft_test_result(ret == 2, "No more auto-resize after manual setting, got %d\n",
 			 ret);
 
 	futex_hash_slots_set_must_fail(1 << 29);
