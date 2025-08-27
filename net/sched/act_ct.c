@@ -1410,11 +1410,11 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 		goto cleanup;
 
 	params->action = parm->action;
-	spin_lock_bh(&c->tcf_lock);
+	spin_lock(&c->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	params = rcu_replace_pointer(c->params, params,
 				     lockdep_is_held(&c->tcf_lock));
-	spin_unlock_bh(&c->tcf_lock);
+	spin_unlock(&c->tcf_lock);
 
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);

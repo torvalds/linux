@@ -258,11 +258,11 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 
 	cp_new->action = actparm->action;
 
-	spin_lock_bh(&ci->tcf_lock);
+	spin_lock(&ci->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, actparm->action, goto_ch);
 	cp_new = rcu_replace_pointer(ci->params, cp_new,
 				     lockdep_is_held(&ci->tcf_lock));
-	spin_unlock_bh(&ci->tcf_lock);
+	spin_unlock(&ci->tcf_lock);
 
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);

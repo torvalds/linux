@@ -280,10 +280,10 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 
 	p = to_pedit(*a);
 	nparms->action = parm->action;
-	spin_lock_bh(&p->tcf_lock);
+	spin_lock(&p->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	oparms = rcu_replace_pointer(p->parms, nparms, 1);
-	spin_unlock_bh(&p->tcf_lock);
+	spin_unlock(&p->tcf_lock);
 
 	if (oparms)
 		call_rcu(&oparms->rcu, tcf_pedit_cleanup_rcu);

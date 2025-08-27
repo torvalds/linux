@@ -169,10 +169,10 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 
 	nparms->action = parm->action;
 
-	spin_lock_bh(&ci->tcf_lock);
+	spin_lock(&ci->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	oparms = rcu_replace_pointer(ci->parms, nparms, lockdep_is_held(&ci->tcf_lock));
-	spin_unlock_bh(&ci->tcf_lock);
+	spin_unlock(&ci->tcf_lock);
 
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);

@@ -101,11 +101,11 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 	params_new->update_flags = parm->update_flags;
 	params_new->action = parm->action;
 
-	spin_lock_bh(&p->tcf_lock);
+	spin_lock(&p->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	params_new = rcu_replace_pointer(p->params, params_new,
 					 lockdep_is_held(&p->tcf_lock));
-	spin_unlock_bh(&p->tcf_lock);
+	spin_unlock(&p->tcf_lock);
 
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);

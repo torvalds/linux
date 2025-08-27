@@ -95,10 +95,10 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 
 	p = to_tcf_nat(*a);
 
-	spin_lock_bh(&p->tcf_lock);
+	spin_lock(&p->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	oparm = rcu_replace_pointer(p->parms, nparm, lockdep_is_held(&p->tcf_lock));
-	spin_unlock_bh(&p->tcf_lock);
+	spin_unlock(&p->tcf_lock);
 
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
