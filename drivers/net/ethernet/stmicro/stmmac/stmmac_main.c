@@ -149,33 +149,34 @@ static void stmmac_exit_fs(struct net_device *dev);
 
 int stmmac_bus_clks_config(struct stmmac_priv *priv, bool enabled)
 {
-	int ret = 0;
+	struct plat_stmmacenet_data *plat_dat = priv->plat;
+	int ret;
 
 	if (enabled) {
-		ret = clk_prepare_enable(priv->plat->stmmac_clk);
+		ret = clk_prepare_enable(plat_dat->stmmac_clk);
 		if (ret)
 			return ret;
-		ret = clk_prepare_enable(priv->plat->pclk);
+		ret = clk_prepare_enable(plat_dat->pclk);
 		if (ret) {
-			clk_disable_unprepare(priv->plat->stmmac_clk);
+			clk_disable_unprepare(plat_dat->stmmac_clk);
 			return ret;
 		}
-		if (priv->plat->clks_config) {
-			ret = priv->plat->clks_config(priv->plat->bsp_priv, enabled);
+		if (plat_dat->clks_config) {
+			ret = plat_dat->clks_config(plat_dat->bsp_priv, enabled);
 			if (ret) {
-				clk_disable_unprepare(priv->plat->stmmac_clk);
-				clk_disable_unprepare(priv->plat->pclk);
+				clk_disable_unprepare(plat_dat->stmmac_clk);
+				clk_disable_unprepare(plat_dat->pclk);
 				return ret;
 			}
 		}
 	} else {
-		clk_disable_unprepare(priv->plat->stmmac_clk);
-		clk_disable_unprepare(priv->plat->pclk);
-		if (priv->plat->clks_config)
-			priv->plat->clks_config(priv->plat->bsp_priv, enabled);
+		clk_disable_unprepare(plat_dat->stmmac_clk);
+		clk_disable_unprepare(plat_dat->pclk);
+		if (plat_dat->clks_config)
+			plat_dat->clks_config(plat_dat->bsp_priv, enabled);
 	}
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(stmmac_bus_clks_config);
 
