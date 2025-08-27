@@ -398,15 +398,27 @@ struct drm_gem_object {
 	struct dma_resv _resv;
 
 	/**
-	 * @gpuva:
-	 *
-	 * Provides the list of GPU VAs attached to this GEM object.
-	 *
-	 * Drivers should lock list accesses with the GEMs &dma_resv lock
-	 * (&drm_gem_object.resv) or a custom lock if one is provided.
+	 * @gpuva: Fields used by GPUVM to manage mappings pointing to this GEM object.
 	 */
 	struct {
+		/**
+		 * @gpuva.list: list of GPUVM mappings attached to this GEM object.
+		 *
+		 * Drivers should lock list accesses with either the GEMs
+		 * &dma_resv lock (&drm_gem_object.resv) or the
+		 * &drm_gem_object.gpuva.lock mutex.
+		 */
 		struct list_head list;
+
+		/**
+		 * @gpuva.lock: lock protecting access to &drm_gem_object.gpuva.list
+		 * when the resv lock can't be used.
+		 *
+		 * Should only be used when the VM is being modified in a fence
+		 * signalling path, otherwise you should use &drm_gem_object.resv to
+		 * protect accesses to &drm_gem_object.gpuva.list.
+		 */
+		struct mutex lock;
 
 #ifdef CONFIG_LOCKDEP
 		struct lockdep_map *lock_dep_map;
