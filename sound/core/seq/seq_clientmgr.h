@@ -91,7 +91,7 @@ static inline void snd_seq_client_unref(struct snd_seq_client *client)
 	snd_use_lock_free(&client->use_lock);
 }
 
-#define snd_seq_client_unlock(c)	snd_seq_client_unref(c)
+DEFINE_FREE(snd_seq_client, struct snd_seq_client *, if (!IS_ERR_OR_NULL(_T)) snd_seq_client_unref(_T))
 
 /* dispatch event to client(s) */
 int snd_seq_dispatch_event(struct snd_seq_event_cell *cell, int atomic, int hop);
