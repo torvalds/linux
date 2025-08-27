@@ -73,6 +73,8 @@ struct snd_seq_queue *queueptr(int queueid);
 /* unlock */
 #define queuefree(q) snd_use_lock_free(&(q)->use_lock)
 
+DEFINE_FREE(snd_seq_queue, struct snd_seq_queue *, if (!IS_ERR_OR_NULL(_T)) queuefree(_T))
+
 /* return the (first) queue matching with the specified name */
 struct snd_seq_queue *snd_seq_queue_find_name(char *name);
 
