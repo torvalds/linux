@@ -485,6 +485,41 @@ int amdgpu_vm_lock_pd(struct amdgpu_vm *vm, struct drm_exec *exec,
 }
 
 /**
+ * amdgpu_vm_lock_done_list - lock all BOs on the done list
+ * @exec: drm execution context
+ * @num_fences: number of extra fences to reserve
+ *
+ * Lock the BOs on the done list in the DRM execution context.
+ */
+int amdgpu_vm_lock_done_list(struct amdgpu_vm *vm, struct drm_exec *exec,
+			     unsigned int num_fences)
+{
+	struct list_head *prev = &vm->done;
+	struct amdgpu_bo_va *bo_va;
+	struct amdgpu_bo *bo;
+	int ret;
+
+	/* We can only trust prev->next while holding the lock */
+	spin_lock(&vm->status_lock);
+	while (!list_is_head(prev->next, &vm->done)) {
+		bo_va = list_entry(prev->next, typeof(*bo_va), base.vm_status);
+		spin_unlock(&vm->status_lock);
+
+		bo = bo_va->base.bo;
+		if (bo) {
+			ret = drm_exec_prepare_obj(exec, &bo->tbo.base, 1);
+			if (unlikely(ret))
+				return ret;
+		}
+		spin_lock(&vm->status_lock);
+		prev = prev->next;
+	}
+	spin_unlock(&vm->status_lock);
+
+	return 0;
+}
+
+/**
  * amdgpu_vm_move_to_lru_tail - move all BOs to the end of LRU
  *
  * @adev: amdgpu device pointer

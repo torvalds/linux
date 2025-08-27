@@ -706,108 +706,106 @@ amdgpu_userq_restore_all(struct amdgpu_userq_mgr *uq_mgr)
 	return ret;
 }
 
-static int
-amdgpu_userq_validate_vm_bo(void *_unused, struct amdgpu_bo *bo)
+static int amdgpu_userq_validate_vm(void *param, struct amdgpu_bo *bo)
 {
 	struct ttm_operation_ctx ctx = { false, false };
-	int ret;
 
 	amdgpu_bo_placement_from_domain(bo, bo->allowed_domains);
-
-	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-	if (ret)
-		DRM_ERROR("Fail to validate\n");
-
-	return ret;
+	return ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 }
 
+/* Handle all BOs on the invalidated list, validate them and update the PTs */
 static int
-amdgpu_userq_validate_bos(struct amdgpu_userq_mgr *uq_mgr)
+amdgpu_userq_bo_validate(struct amdgpu_device *adev, struct drm_exec *exec,
+			 struct amdgpu_vm *vm)
 {
-	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
-	struct amdgpu_vm *vm = &fpriv->vm;
-	struct amdgpu_device *adev = uq_mgr->adev;
+	struct ttm_operation_ctx ctx = { false, false };
 	struct amdgpu_bo_va *bo_va;
-	struct ww_acquire_ctx *ticket;
-	struct drm_exec exec;
 	struct amdgpu_bo *bo;
-	struct dma_resv *resv;
-	bool clear, unlock;
-	int ret = 0;
-
-	drm_exec_init(&exec, DRM_EXEC_IGNORE_DUPLICATES, 0);
-	drm_exec_until_all_locked(&exec) {
-		ret = amdgpu_vm_lock_pd(vm, &exec, 2);
-		drm_exec_retry_on_contention(&exec);
-		if (unlikely(ret)) {
-			drm_file_err(uq_mgr->file, "Failed to lock PD\n");
-			goto unlock_all;
-		}
-
-		/* Lock the done list */
-		list_for_each_entry(bo_va, &vm->done, base.vm_status) {
-			bo = bo_va->base.bo;
-			if (!bo)
-				continue;
-
-			ret = drm_exec_lock_obj(&exec, &bo->tbo.base);
-			drm_exec_retry_on_contention(&exec);
-			if (unlikely(ret))
-				goto unlock_all;
-		}
-	}
+	int ret;
 
 	spin_lock(&vm->status_lock);
-	while (!list_empty(&vm->moved)) {
-		bo_va = list_first_entry(&vm->moved, struct amdgpu_bo_va,
-					 base.vm_status);
-		spin_unlock(&vm->status_lock);
-
-		/* Per VM BOs never need to bo cleared in the page tables */
-		ret = amdgpu_vm_bo_update(adev, bo_va, false);
-		if (ret)
-			goto unlock_all;
-		spin_lock(&vm->status_lock);
-	}
-
-	ticket = &exec.ticket;
 	while (!list_empty(&vm->invalidated)) {
-		bo_va = list_first_entry(&vm->invalidated, struct amdgpu_bo_va,
+		bo_va = list_first_entry(&vm->invalidated,
+					 struct amdgpu_bo_va,
 					 base.vm_status);
-		resv = bo_va->base.bo->tbo.base.resv;
 		spin_unlock(&vm->status_lock);
 
 		bo = bo_va->base.bo;
-		ret = amdgpu_userq_validate_vm_bo(NULL, bo);
-		if (ret) {
-			drm_file_err(uq_mgr->file, "Failed to validate BO\n");
-			goto unlock_all;
-		}
+		ret = drm_exec_prepare_obj(exec, &bo->tbo.base, 2);
+		if (unlikely(ret))
+			return ret;
 
-		/* Try to reserve the BO to avoid clearing its ptes */
-		if (!adev->debug_vm && dma_resv_trylock(resv)) {
-			clear = false;
-			unlock = true;
-		/* The caller is already holding the reservation lock */
-		} else if (dma_resv_locking_ctx(resv) == ticket) {
-			clear = false;
-			unlock = false;
-		/* Somebody else is using the BO right now */
-		} else {
-			clear = true;
-			unlock = false;
-		}
-
-		ret = amdgpu_vm_bo_update(adev, bo_va, clear);
-
-		if (unlock)
-			dma_resv_unlock(resv);
+		amdgpu_bo_placement_from_domain(bo, bo->allowed_domains);
+		ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		if (ret)
-			goto unlock_all;
+			return ret;
+
+		/* This moves the bo_va to the done list */
+		ret = amdgpu_vm_bo_update(adev, bo_va, false);
+		if (ret)
+			return ret;
 
 		spin_lock(&vm->status_lock);
 	}
 	spin_unlock(&vm->status_lock);
+
+	return 0;
+}
+
+/* Make sure the whole VM is ready to be used */
+static int
+amdgpu_userq_vm_validate(struct amdgpu_userq_mgr *uq_mgr)
+{
+	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
+	struct amdgpu_device *adev = uq_mgr->adev;
+	struct amdgpu_vm *vm = &fpriv->vm;
+	struct amdgpu_bo_va *bo_va;
+	struct drm_exec exec;
+	int ret;
+
+	drm_exec_init(&exec, DRM_EXEC_IGNORE_DUPLICATES, 0);
+	drm_exec_until_all_locked(&exec) {
+		ret = amdgpu_vm_lock_pd(vm, &exec, 1);
+		drm_exec_retry_on_contention(&exec);
+		if (unlikely(ret))
+			goto unlock_all;
+
+		ret = amdgpu_vm_lock_done_list(vm, &exec, 1);
+		drm_exec_retry_on_contention(&exec);
+		if (unlikely(ret))
+			goto unlock_all;
+
+		/* This validates PDs, PTs and per VM BOs */
+		ret = amdgpu_vm_validate(adev, vm, NULL,
+					 amdgpu_userq_validate_vm,
+					 NULL);
+		if (unlikely(ret))
+			goto unlock_all;
+
+		/* This locks and validates the remaining evicted BOs */
+		ret = amdgpu_userq_bo_validate(adev, &exec, vm);
+		drm_exec_retry_on_contention(&exec);
+		if (unlikely(ret))
+			goto unlock_all;
+	}
+
+	ret = amdgpu_vm_handle_moved(adev, vm, NULL);
+	if (ret)
+		goto unlock_all;
+
+	ret = amdgpu_vm_update_pdes(adev, vm, false);
+	if (ret)
+		goto unlock_all;
+
+	/*
+	 * We need to wait for all VM updates to finish before restarting the
+	 * queues. Using the done list like that is now ok since everything is
+	 * locked in place.
+	 */
+	list_for_each_entry(bo_va, &vm->done, base.vm_status)
+		dma_fence_wait(bo_va->last_pt_update, false);
+	dma_fence_wait(vm->last_update, false);
 
 	ret = amdgpu_eviction_fence_replace_fence(&fpriv->evf_mgr, &exec);
 	if (ret)
@@ -828,7 +826,7 @@ static void amdgpu_userq_restore_worker(struct work_struct *work)
 
 	mutex_lock(&uq_mgr->userq_mutex);
 
-	ret = amdgpu_userq_validate_bos(uq_mgr);
+	ret = amdgpu_userq_vm_validate(uq_mgr);
 	if (ret) {
 		drm_file_err(uq_mgr->file, "Failed to validate BOs to restore\n");
 		goto unlock;
