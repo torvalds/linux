@@ -101,6 +101,57 @@ enum {
 	LOG_WALK_REPLAY_ALL,
 };
 
+/*
+ * The walk control struct is used to pass state down the chain when processing
+ * the log tree. The stage field tells us which part of the log tree processing
+ * we are currently doing.
+ */
+struct walk_control {
+	/*
+	 * Signal that we are freeing the metadata extents of a log tree.
+	 * This is used at transaction commit time while freeing a log tree.
+	 */
+	bool free;
+
+	/*
+	 * Signal that we are pinning the metadata extents of a log tree and the
+	 * data extents its leaves point to (if using mixed block groups).
+	 * This happens in the first stage of log replay to ensure that during
+	 * replay, while we are modifying subvolume trees, we don't overwrite
+	 * the metadata extents of log trees.
+	 */
+	bool pin;
+
+	/* What stage of the replay code we're currently in. */
+	int stage;
+
+	/*
+	 * Ignore any items from the inode currently being processed. Needs
+	 * to be set every time we find a BTRFS_INODE_ITEM_KEY.
+	 */
+	bool ignore_cur_inode;
+
+	/*
+	 * The root we are currently replaying to. This is NULL for the replay
+	 * stage LOG_WALK_PIN_ONLY.
+	 */
+	struct btrfs_root *root;
+
+	/* The log tree we are currently processing (not NULL for any stage). */
+	struct btrfs_root *log;
+
+	/* The transaction handle used for replaying all log trees. */
+	struct btrfs_trans_handle *trans;
+
+	/*
+	 * The function that gets used to process blocks we find in the tree.
+	 * Note the extent_buffer might not be up to date when it is passed in,
+	 * and it must be checked or read if you need the data inside it.
+	 */
+	int (*process_func)(struct extent_buffer *eb,
+			    struct walk_control *wc, u64 gen, int level);
+};
+
 static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 			   struct btrfs_inode *inode,
 			   int inode_only,
@@ -298,58 +349,6 @@ void btrfs_end_log_trans(struct btrfs_root *root)
 		cond_wake_up_nomb(&root->log_writer_wait);
 	}
 }
-
-/*
- * the walk control struct is used to pass state down the chain when
- * processing the log tree.  The stage field tells us which part
- * of the log tree processing we are currently doing.  The others
- * are state fields used for that specific part
- */
-struct walk_control {
-	/*
-	 * Signal that we are freeing the metadata extents of a log tree.
-	 * This is used at transaction commit time while freeing a log tree.
-	 */
-	bool free;
-
-	/*
-	 * Signal that we are pinning the metadata extents of a log tree and the
-	 * data extents its leaves point to (if using mixed block groups).
-	 * This happens in the first stage of log replay to ensure that during
-	 * replay, while we are modifying subvolume trees, we don't overwrite
-	 * the metadata extents of log trees.
-	 */
-	bool pin;
-
-	/* what stage of the replay code we're currently in */
-	int stage;
-
-	/*
-	 * Ignore any items from the inode currently being processed. Needs
-	 * to be set every time we find a BTRFS_INODE_ITEM_KEY.
-	 */
-	bool ignore_cur_inode;
-
-	/*
-	 * The root we are currently replaying to. This is NULL for the replay
-	 * stage LOG_WALK_PIN_ONLY.
-	 */
-	struct btrfs_root *root;
-
-	/* The log tree we are currently processing (not NULL for any stage). */
-	struct btrfs_root *log;
-
-	/* the trans handle for the current replay */
-	struct btrfs_trans_handle *trans;
-
-	/* the function that gets used to process blocks we find in the
-	 * tree.  Note the extent_buffer might not be up to date when it is
-	 * passed in, and it must be checked or read if you need the data
-	 * inside it
-	 */
-	int (*process_func)(struct extent_buffer *eb,
-			    struct walk_control *wc, u64 gen, int level);
-};
 
 /*
  * process_func used to pin down extents, write them or wait on them
