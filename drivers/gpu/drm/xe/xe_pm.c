@@ -18,7 +18,7 @@
 #include "xe_device.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
-#include "xe_guc.h"
+#include "xe_gt_idle.h"
 #include "xe_i2c.h"
 #include "xe_irq.h"
 #include "xe_pcode.h"
@@ -176,6 +176,9 @@ int xe_pm_resume(struct xe_device *xe)
 
 	drm_dbg(&xe->drm, "Resuming device\n");
 	trace_xe_pm_resume(xe, __builtin_return_address(0));
+
+	for_each_gt(gt, xe, id)
+		xe_gt_idle_disable_c6(gt);
 
 	for_each_tile(tile, xe, id)
 		xe_wa_apply_tile_workarounds(tile);
@@ -536,6 +539,9 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 	xe_pm_write_callback_task(xe, current);
 
 	xe_rpm_lockmap_acquire(xe);
+
+	for_each_gt(gt, xe, id)
+		xe_gt_idle_disable_c6(gt);
 
 	if (xe->d3cold.allowed) {
 		err = xe_pcode_ready(xe, true);
