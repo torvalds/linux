@@ -1114,7 +1114,7 @@ static void dispc_set_num_datalines(struct dispc_device *dispc,
 	}
 
 	VP_REG_FLD_MOD(dispc, hw_videoport, DISPC_VP_CONTROL, v,
-		       GENMASK(10, 8));
+		       DISPC_VP_CONTROL_DATALINES_MASK);
 }
 
 static void dispc_enable_am65x_oldi(struct dispc_device *dispc, u32 hw_videoport,
@@ -1137,7 +1137,8 @@ static void dispc_enable_am65x_oldi(struct dispc_device *dispc, u32 hw_videoport
 
 	oldi_cfg |= BIT(7); /* DEPOL */
 
-	FIELD_MODIFY(GENMASK(3, 1), &oldi_cfg, fmt->am65x_oldi_mode_reg_val);
+	FIELD_MODIFY(DISPC_VP_DSS_OLDI_CFG_MAP_MASK, &oldi_cfg,
+		     fmt->am65x_oldi_mode_reg_val);
 
 	oldi_cfg |= BIT(12); /* SOFTRST */
 
@@ -1199,14 +1200,14 @@ void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,
 	vbp = mode->crtc_vtotal - mode->crtc_vsync_end;
 
 	dispc_vp_write(dispc, hw_videoport, DISPC_VP_TIMING_H,
-		       FIELD_PREP(GENMASK(7, 0), hsw - 1) |
-		       FIELD_PREP(GENMASK(19, 8), hfp - 1) |
-		       FIELD_PREP(GENMASK(31, 20), hbp - 1));
+		       FIELD_PREP(DISPC_VP_TIMING_H_SYNC_PULSE_MASK, hsw - 1) |
+		       FIELD_PREP(DISPC_VP_TIMING_H_FRONT_PORCH_MASK, hfp - 1) |
+		       FIELD_PREP(DISPC_VP_TIMING_H_BACK_PORCH_MASK, hbp - 1));
 
 	dispc_vp_write(dispc, hw_videoport, DISPC_VP_TIMING_V,
-		       FIELD_PREP(GENMASK(7, 0), vsw - 1) |
-		       FIELD_PREP(GENMASK(19, 8), vfp) |
-		       FIELD_PREP(GENMASK(31, 20), vbp));
+		       FIELD_PREP(DISPC_VP_TIMING_V_SYNC_PULSE_MASK, vsw - 1) |
+		       FIELD_PREP(DISPC_VP_TIMING_V_FRONT_PORCH_MASK, vfp) |
+		       FIELD_PREP(DISPC_VP_TIMING_V_BACK_PORCH_MASK, vbp));
 
 	ivs = !!(mode->flags & DRM_MODE_FLAG_NVSYNC);
 
@@ -1229,26 +1230,28 @@ void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,
 		ieo = false;
 
 	dispc_vp_write(dispc, hw_videoport, DISPC_VP_POL_FREQ,
-		       FIELD_PREP(GENMASK(18, 18), align) |
-		       FIELD_PREP(GENMASK(17, 17), onoff) |
-		       FIELD_PREP(GENMASK(16, 16), rf) |
-		       FIELD_PREP(GENMASK(15, 15), ieo) |
-		       FIELD_PREP(GENMASK(14, 14), ipc) |
-		       FIELD_PREP(GENMASK(13, 13), ihs) |
-		       FIELD_PREP(GENMASK(12, 12), ivs));
+		       FIELD_PREP(DISPC_VP_POL_FREQ_ALIGN_MASK, align) |
+		       FIELD_PREP(DISPC_VP_POL_FREQ_ONOFF_MASK, onoff) |
+		       FIELD_PREP(DISPC_VP_POL_FREQ_RF_MASK, rf) |
+		       FIELD_PREP(DISPC_VP_POL_FREQ_IEO_MASK, ieo) |
+		       FIELD_PREP(DISPC_VP_POL_FREQ_IPC_MASK, ipc) |
+		       FIELD_PREP(DISPC_VP_POL_FREQ_IHS_MASK, ihs) |
+		       FIELD_PREP(DISPC_VP_POL_FREQ_IVS_MASK, ivs));
 
 	dispc_vp_write(dispc, hw_videoport, DISPC_VP_SIZE_SCREEN,
-		       FIELD_PREP(GENMASK(11, 0), mode->crtc_hdisplay - 1) |
-		       FIELD_PREP(GENMASK(27, 16), mode->crtc_vdisplay - 1));
+		       FIELD_PREP(DISPC_VP_SIZE_SCREEN_HDISPLAY_MASK,
+				  mode->crtc_hdisplay - 1) |
+		       FIELD_PREP(DISPC_VP_SIZE_SCREEN_VDISPLAY_MASK,
+				  mode->crtc_vdisplay - 1));
 
 	VP_REG_FLD_MOD(dispc, hw_videoport, DISPC_VP_CONTROL, 1,
-		       GENMASK(0, 0));
+		       DISPC_VP_CONTROL_ENABLE_MASK);
 }
 
 void dispc_vp_disable(struct dispc_device *dispc, u32 hw_videoport)
 {
 	VP_REG_FLD_MOD(dispc, hw_videoport, DISPC_VP_CONTROL, 0,
-		       GENMASK(0, 0));
+		       DISPC_VP_CONTROL_ENABLE_MASK);
 }
 
 void dispc_vp_unprepare(struct dispc_device *dispc, u32 hw_videoport)
@@ -1263,14 +1266,15 @@ void dispc_vp_unprepare(struct dispc_device *dispc, u32 hw_videoport)
 bool dispc_vp_go_busy(struct dispc_device *dispc, u32 hw_videoport)
 {
 	return VP_REG_GET(dispc, hw_videoport, DISPC_VP_CONTROL,
-			  GENMASK(5, 5));
+			  DISPC_VP_CONTROL_GOBIT_MASK);
 }
 
 void dispc_vp_go(struct dispc_device *dispc, u32 hw_videoport)
 {
-	WARN_ON(VP_REG_GET(dispc, hw_videoport, DISPC_VP_CONTROL, GENMASK(5, 5)));
+	WARN_ON(VP_REG_GET(dispc, hw_videoport, DISPC_VP_CONTROL,
+			   DISPC_VP_CONTROL_GOBIT_MASK));
 	VP_REG_FLD_MOD(dispc, hw_videoport, DISPC_VP_CONTROL, 1,
-		       GENMASK(5, 5));
+		       DISPC_VP_CONTROL_GOBIT_MASK);
 }
 
 enum c8_to_c12_mode { C8_TO_C12_REPLICATE, C8_TO_C12_MAX, C8_TO_C12_MIN };
@@ -1470,11 +1474,11 @@ static void dispc_am65x_ovr_set_plane(struct dispc_device *dispc,
 	u32 hw_id = dispc->feat->vid_info[hw_plane].hw_id;
 
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES(layer),
-			hw_id, GENMASK(4, 1));
+			hw_id, DISPC_OVR_ATTRIBUTES_CHANNELIN_MASK);
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES(layer), x,
-			GENMASK(17, 6));
+			DISPC_OVR_ATTRIBUTES_POSX_MASK);
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES(layer), y,
-			GENMASK(30, 19));
+			DISPC_OVR_ATTRIBUTES_POSY_MASK);
 }
 
 static void dispc_j721e_ovr_set_plane(struct dispc_device *dispc,
@@ -1484,11 +1488,11 @@ static void dispc_j721e_ovr_set_plane(struct dispc_device *dispc,
 	u32 hw_id = dispc->feat->vid_info[hw_plane].hw_id;
 
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES(layer),
-			hw_id, GENMASK(4, 1));
+			hw_id, DISPC_OVR_ATTRIBUTES_CHANNELIN_MASK);
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES2(layer), x,
-			GENMASK(13, 0));
+			DISPC_OVR_ATTRIBUTES2_POSX_MASK);
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES2(layer), y,
-			GENMASK(29, 16));
+			DISPC_OVR_ATTRIBUTES2_POSY_MASK);
 }
 
 void dispc_ovr_set_plane(struct dispc_device *dispc, u32 hw_plane,
@@ -1523,7 +1527,7 @@ void dispc_ovr_enable_layer(struct dispc_device *dispc,
 		return;
 
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES(layer),
-			!!enable, GENMASK(0, 0));
+			!!enable, DISPC_OVR_ATTRIBUTES_ENABLE_MASK);
 }
 
 /* CSC */
@@ -1747,7 +1751,7 @@ static void dispc_vid_csc_enable(struct dispc_device *dispc, u32 hw_plane,
 				 bool enable)
 {
 	VID_REG_FLD_MOD(dispc, hw_plane, DISPC_VID_ATTRIBUTES, !!enable,
-			GENMASK(9, 9));
+			DISPC_VID_ATTRIBUTES_COLORCONVENABLE_MASK);
 }
 
 /* SCALER */
@@ -2005,11 +2009,11 @@ static void dispc_vid_set_scaling(struct dispc_device *dispc,
 {
 	/* HORIZONTAL RESIZE ENABLE */
 	VID_REG_FLD_MOD(dispc, hw_plane, DISPC_VID_ATTRIBUTES, sp->scale_x,
-			GENMASK(7, 7));
+			DISPC_VID_ATTRIBUTES_HRESIZEENABLE_MASK);
 
 	/* VERTICAL RESIZE ENABLE */
 	VID_REG_FLD_MOD(dispc, hw_plane, DISPC_VID_ATTRIBUTES, sp->scale_y,
-			GENMASK(8, 8));
+			DISPC_VID_ATTRIBUTES_VRESIZEENABLE_MASK);
 
 	/* Skip the rest if no scaling is used */
 	if (!sp->scale_x && !sp->scale_y)
@@ -2017,7 +2021,7 @@ static void dispc_vid_set_scaling(struct dispc_device *dispc,
 
 	/* VERTICAL 5-TAPS  */
 	VID_REG_FLD_MOD(dispc, hw_plane, DISPC_VID_ATTRIBUTES, sp->five_taps,
-			GENMASK(21, 21));
+			DISPC_VID_ATTRIBUTES_VERTICALTAPS_MASK);
 
 	if (dispc_fourcc_is_yuv(fourcc)) {
 		if (sp->scale_x) {
@@ -2107,7 +2111,7 @@ static void dispc_plane_set_pixel_format(struct dispc_device *dispc,
 		if (dispc_color_formats[i].fourcc == fourcc) {
 			VID_REG_FLD_MOD(dispc, hw_plane, DISPC_VID_ATTRIBUTES,
 					dispc_color_formats[i].dss_code,
-					GENMASK(6, 1));
+					DISPC_VID_ATTRIBUTES_FORMAT_MASK);
 			return;
 		}
 	}
@@ -2229,7 +2233,8 @@ void dispc_plane_setup(struct dispc_device *dispc, u32 hw_plane,
 	dispc_vid_write(dispc, hw_plane, DISPC_VID_BA_EXT_1, (u64)dma_addr >> 32);
 
 	dispc_vid_write(dispc, hw_plane, DISPC_VID_PICTURE_SIZE,
-			(scale.in_w - 1) | ((scale.in_h - 1) << 16));
+			FIELD_PREP(DISPC_VID_PICTURE_SIZE_MEMSIZEY_MASK, scale.in_h - 1) |
+			FIELD_PREP(DISPC_VID_PICTURE_SIZE_MEMSIZEX_MASK, scale.in_w - 1));
 
 	/* For YUV422 format we use the macropixel size for pixel inc */
 	if (fourcc == DRM_FORMAT_YUYV || fourcc == DRM_FORMAT_UYVY)
@@ -2266,8 +2271,10 @@ void dispc_plane_setup(struct dispc_device *dispc, u32 hw_plane,
 
 	if (!lite) {
 		dispc_vid_write(dispc, hw_plane, DISPC_VID_SIZE,
-				(state->crtc_w - 1) |
-				((state->crtc_h - 1) << 16));
+				FIELD_PREP(DISPC_VID_SIZE_SIZEY_MASK,
+					   state->crtc_h - 1) |
+				FIELD_PREP(DISPC_VID_SIZE_SIZEX_MASK,
+					   state->crtc_w - 1));
 
 		dispc_vid_set_scaling(dispc, hw_plane, &scale, fourcc);
 	}
@@ -2281,40 +2288,45 @@ void dispc_plane_setup(struct dispc_device *dispc, u32 hw_plane,
 	}
 
 	dispc_vid_write(dispc, hw_plane, DISPC_VID_GLOBAL_ALPHA,
-			0xFF & (state->alpha >> 8));
+			FIELD_PREP(DISPC_VID_GLOBAL_ALPHA_GLOBALALPHA_MASK,
+				   state->alpha >> 8));
 
 	if (state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI)
 		VID_REG_FLD_MOD(dispc, hw_plane, DISPC_VID_ATTRIBUTES, 1,
-				GENMASK(28, 28));
+				DISPC_VID_ATTRIBUTES_PREMULTIPLYALPHA_MASK);
 	else
 		VID_REG_FLD_MOD(dispc, hw_plane, DISPC_VID_ATTRIBUTES, 0,
-				GENMASK(28, 28));
+				DISPC_VID_ATTRIBUTES_PREMULTIPLYALPHA_MASK);
 }
 
 void dispc_plane_enable(struct dispc_device *dispc, u32 hw_plane, bool enable)
 {
 	VID_REG_FLD_MOD(dispc, hw_plane, DISPC_VID_ATTRIBUTES, !!enable,
-			GENMASK(0, 0));
+			DISPC_VID_ATTRIBUTES_ENABLE_MASK);
 }
 
 static u32 dispc_vid_get_fifo_size(struct dispc_device *dispc, u32 hw_plane)
 {
 	return VID_REG_GET(dispc, hw_plane, DISPC_VID_BUF_SIZE_STATUS,
-			   GENMASK(15, 0));
+			   DISPC_VID_BUF_SIZE_STATUS_BUFSIZE_MASK);
 }
 
 static void dispc_vid_set_mflag_threshold(struct dispc_device *dispc,
 					  u32 hw_plane, u32 low, u32 high)
 {
 	dispc_vid_write(dispc, hw_plane, DISPC_VID_MFLAG_THRESHOLD,
-			FIELD_PREP(GENMASK(31, 16), high) | FIELD_PREP(GENMASK(15, 0), low));
+			FIELD_PREP(DISPC_VID_MFLAG_THRESHOLD_HT_MFLAG_MASK, high) |
+			FIELD_PREP(DISPC_VID_MFLAG_THRESHOLD_LT_MFLAG_MASK, low));
 }
 
 static void dispc_vid_set_buf_threshold(struct dispc_device *dispc,
 					u32 hw_plane, u32 low, u32 high)
 {
 	dispc_vid_write(dispc, hw_plane, DISPC_VID_BUF_THRESHOLD,
-			FIELD_PREP(GENMASK(31, 16), high) | FIELD_PREP(GENMASK(15, 0), low));
+			FIELD_PREP(DISPC_VID_BUF_THRESHOLD_BUFHIGHTHRESHOLD_MASK,
+				   high) |
+			FIELD_PREP(DISPC_VID_BUF_THRESHOLD_BUFLOWTHRESHOLD_MASK,
+				   low));
 }
 
 static void dispc_k2g_plane_init(struct dispc_device *dispc)
@@ -2324,9 +2336,11 @@ static void dispc_k2g_plane_init(struct dispc_device *dispc)
 	dev_dbg(dispc->dev, "%s()\n", __func__);
 
 	/* MFLAG_CTRL = ENABLED */
-	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 2, GENMASK(1, 0));
+	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 2,
+		    DISPC_GLOBAL_MFLAG_ATTRIBUTE_MFLAG_CTRL_MASK);
 	/* MFLAG_START = MFLAGNORMALSTARTMODE */
-	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 0, GENMASK(6, 6));
+	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 0,
+		    DISPC_GLOBAL_MFLAG_ATTRIBUTE_MFLAG_START_MASK);
 
 	for (hw_plane = 0; hw_plane < dispc->feat->num_vids; hw_plane++) {
 		u32 size = dispc_vid_get_fifo_size(dispc, hw_plane);
@@ -2363,7 +2377,7 @@ static void dispc_k2g_plane_init(struct dispc_device *dispc)
 		 * register is ignored.
 		 */
 		VID_REG_FLD_MOD(dispc, hw_plane, DISPC_VID_ATTRIBUTES, 1,
-				GENMASK(19, 19));
+				DISPC_VID_ATTRIBUTES_BUFPRELOAD_MASK);
 	}
 }
 
@@ -2375,13 +2389,15 @@ static void dispc_k3_plane_init(struct dispc_device *dispc)
 
 	dev_dbg(dispc->dev, "%s()\n", __func__);
 
-	REG_FLD_MOD(dispc, DSS_CBA_CFG, cba_lo_pri, GENMASK(2, 0));
-	REG_FLD_MOD(dispc, DSS_CBA_CFG, cba_hi_pri, GENMASK(5, 3));
+	REG_FLD_MOD(dispc, DSS_CBA_CFG, cba_lo_pri, DSS_CBA_CFG_PRI_LO_MASK);
+	REG_FLD_MOD(dispc, DSS_CBA_CFG, cba_hi_pri, DSS_CBA_CFG_PRI_HI_MASK);
 
 	/* MFLAG_CTRL = ENABLED */
-	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 2, GENMASK(1, 0));
+	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 2,
+		    DISPC_GLOBAL_MFLAG_ATTRIBUTE_MFLAG_CTRL_MASK);
 	/* MFLAG_START = MFLAGNORMALSTARTMODE */
-	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 0, GENMASK(6, 6));
+	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 0,
+		    DISPC_GLOBAL_MFLAG_ATTRIBUTE_MFLAG_START_MASK);
 
 	for (hw_plane = 0; hw_plane < dispc->feat->num_vids; hw_plane++) {
 		u32 size = dispc_vid_get_fifo_size(dispc, hw_plane);
@@ -2414,7 +2430,7 @@ static void dispc_k3_plane_init(struct dispc_device *dispc)
 
 		/* Prefech up to PRELOAD value */
 		VID_REG_FLD_MOD(dispc, hw_plane, DISPC_VID_ATTRIBUTES, 0,
-				GENMASK(19, 19));
+				DISPC_VID_ATTRIBUTES_BUFPRELOAD_MASK);
 	}
 }
 
@@ -2444,7 +2460,8 @@ static void dispc_vp_init(struct dispc_device *dispc)
 
 	/* Enable the gamma Shadow bit-field for all VPs*/
 	for (i = 0; i < dispc->feat->num_vps; i++)
-		VP_REG_FLD_MOD(dispc, i, DISPC_VP_CONFIG, 1, GENMASK(2, 2));
+		VP_REG_FLD_MOD(dispc, i, DISPC_VP_CONFIG, 1,
+			       DISPC_VP_CONFIG_GAMMAENABLE_MASK);
 }
 
 static void dispc_initial_config(struct dispc_device *dispc)
@@ -2455,8 +2472,8 @@ static void dispc_initial_config(struct dispc_device *dispc)
 	/* Note: Hardcoded DPI routing on J721E for now */
 	if (dispc->feat->subrev == DISPC_J721E) {
 		dispc_write(dispc, DISPC_CONNECTIONS,
-			    FIELD_PREP(GENMASK(3, 0), 2) |		/* VP1 to DPI0 */
-			    FIELD_PREP(GENMASK(7, 4), 8)		/* VP3 to DPI1 */
+			    FIELD_PREP(DISPC_CONNECTIONS_DPI_0_CONN_MASK, 2) |		/* VP1 to DPI0 */
+			    FIELD_PREP(DISPC_CONNECTIONS_DPI_1_CONN_MASK, 8)		/* VP3 to DPI1 */
 			);
 	}
 }
@@ -2678,7 +2695,7 @@ static void dispc_k2g_vp_set_ctm(struct dispc_device *dispc, u32 hw_videoport,
 	}
 
 	VP_REG_FLD_MOD(dispc, hw_videoport, DISPC_VP_CONFIG, cprenable,
-		       GENMASK(15, 15));
+		       DISPC_VP_CONFIG_CPR_MASK);
 }
 
 static s16 dispc_S31_32_to_s3_8(s64 coef)
@@ -2744,7 +2761,7 @@ static void dispc_k3_vp_set_ctm(struct dispc_device *dispc, u32 hw_videoport,
 	}
 
 	VP_REG_FLD_MOD(dispc, hw_videoport, DISPC_VP_CONFIG, colorconvenable,
-		       GENMASK(24, 24));
+		       DISPC_VP_CONFIG_COLORCONVENABLE_MASK);
 }
 
 static void dispc_vp_set_color_mgmt(struct dispc_device *dispc,
@@ -2799,7 +2816,7 @@ int dispc_runtime_resume(struct dispc_device *dispc)
 
 	clk_prepare_enable(dispc->fclk);
 
-	if (REG_GET(dispc, DSS_SYSSTATUS, GENMASK(0, 0)) == 0)
+	if (REG_GET(dispc, DSS_SYSSTATUS, DSS_SYSSTATUS_DISPC_FUNC_RESETDONE) == 0)
 		dev_warn(dispc->dev, "DSS FUNC RESET not done!\n");
 
 	dev_dbg(dispc->dev, "OMAP DSS7 rev 0x%x\n",
@@ -2818,7 +2835,7 @@ int dispc_runtime_resume(struct dispc_device *dispc)
 			REG_GET(dispc, DSS_SYSSTATUS, GENMASK(7, 7)));
 
 	dev_dbg(dispc->dev, "DISPC IDLE %d\n",
-		REG_GET(dispc, DSS_SYSSTATUS, GENMASK(9, 9)));
+		REG_GET(dispc, DSS_SYSSTATUS, DSS_SYSSTATUS_DISPC_IDLE_STATUS));
 
 	dispc_initial_config(dispc);
 
@@ -2896,7 +2913,7 @@ static void dispc_softreset_k2g(struct dispc_device *dispc)
 
 	for (unsigned int vp_idx = 0; vp_idx < dispc->feat->num_vps; ++vp_idx)
 		VP_REG_FLD_MOD(dispc, vp_idx, DISPC_VP_CONTROL, 0,
-			       GENMASK(0, 0));
+			       DISPC_VP_CONTROL_ENABLE_MASK);
 }
 
 static int dispc_softreset(struct dispc_device *dispc)
@@ -2910,7 +2927,7 @@ static int dispc_softreset(struct dispc_device *dispc)
 	}
 
 	/* Soft reset */
-	REG_FLD_MOD(dispc, DSS_SYSCONFIG, 1, GENMASK(1, 1));
+	REG_FLD_MOD(dispc, DSS_SYSCONFIG, 1, DSS_SYSCONFIG_SOFTRESET_MASK);
 	/* Wait for reset to complete */
 	ret = readl_poll_timeout(dispc->base_common + DSS_SYSSTATUS,
 				 val, val & 1, 100, 5000);
