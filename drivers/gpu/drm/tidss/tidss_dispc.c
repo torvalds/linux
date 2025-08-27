@@ -594,31 +594,24 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
  * number. For example 7:0
  */
 
-#define FLD_MASK(start, end)						\
-	({								\
-		int _end_inner = (end);					\
-		u32 _mask = ((1 << ((start) - _end_inner + 1)) - 1) << _end_inner; \
-		_mask;							\
-	})
-
 #define FLD_VAL(val, start, end)					\
 	({								\
 		int _end_inner = (end);					\
-		u32 _new_val = ((val) << _end_inner) & FLD_MASK((start), _end_inner); \
+		u32 _new_val = ((val) << _end_inner) & GENMASK((start), _end_inner); \
 		_new_val;						\
 	})
 
 #define FLD_GET(val, start, end)					\
 	({								\
 		int _end = (end);					\
-		u32 _ret_val = ((val) & FLD_MASK((start), _end)) >> _end; \
+		u32 _ret_val = ((val) & GENMASK((start), _end)) >> _end; \
 		_ret_val;						\
 	})
 
 #define FLD_MOD(orig, val, start, end)					\
 	({								\
 		int _start = (start), _end = (end);			\
-		u32 _masked_val = (orig) & ~FLD_MASK(_start, _end);	\
+		u32 _masked_val = (orig) & ~GENMASK(_start, _end);	\
 		u32 _new_val = _masked_val | FLD_VAL((val), _start, _end); \
 		_new_val;						\
 	})
