@@ -342,7 +342,7 @@ They depend on various facilities being available:
 	When using pxelinux, the kernel image is specified using
 	"kernel <relative-path-below /tftpboot>". The nfsroot parameters
 	are passed to the kernel by adding them to the "append" line.
-	It is common to use serial console in conjunction with pxeliunx,
+	It is common to use serial console in conjunction with pxelinux,
 	see Documentation/admin-guide/serial-console.rst for more information.
 
 	For more information on isolinux, including how to create bootdisks
