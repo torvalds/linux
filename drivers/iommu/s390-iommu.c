@@ -1032,7 +1032,8 @@ struct zpci_iommu_ctrs *zpci_get_iommu_ctrs(struct zpci_dev *zdev)
 
 	lockdep_assert_held(&zdev->dom_lock);
 
-	if (zdev->s390_domain->type == IOMMU_DOMAIN_BLOCKED)
+	if (zdev->s390_domain->type == IOMMU_DOMAIN_BLOCKED ||
+	    zdev->s390_domain->type == IOMMU_DOMAIN_IDENTITY)
 		return NULL;
 
 	s390_domain = to_s390_domain(zdev->s390_domain);
