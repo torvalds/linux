@@ -606,9 +606,8 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
 		dispc_write(_dispc, _idx, _reg);			\
 	})
 
-#define VID_REG_GET(dispc, hw_plane, idx, start, end)			\
-	((u32)FIELD_GET(GENMASK((start), (end)),			\
-			dispc_vid_read((dispc), (hw_plane), (idx))))
+#define VID_REG_GET(dispc, hw_plane, idx, mask)				\
+	((u32)FIELD_GET((mask), dispc_vid_read((dispc), (hw_plane), (idx))))
 
 #define VID_REG_FLD_MOD(dispc, hw_plane, idx, val, start, end)		\
 	({								\
@@ -2294,7 +2293,8 @@ void dispc_plane_enable(struct dispc_device *dispc, u32 hw_plane, bool enable)
 
 static u32 dispc_vid_get_fifo_size(struct dispc_device *dispc, u32 hw_plane)
 {
-	return VID_REG_GET(dispc, hw_plane, DISPC_VID_BUF_SIZE_STATUS, 15, 0);
+	return VID_REG_GET(dispc, hw_plane, DISPC_VID_BUF_SIZE_STATUS,
+			   GENMASK(15, 0));
 }
 
 static void dispc_vid_set_mflag_threshold(struct dispc_device *dispc,
