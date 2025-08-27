@@ -619,9 +619,8 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
 		dispc_vid_write(_dispc, _hw_plane, _idx, _reg);		\
 	})
 
-#define VP_REG_GET(dispc, vp, idx, start, end)				\
-	((u32)FIELD_GET(GENMASK((start), (end)),			\
-			dispc_vp_read((dispc), (vp), (idx))))
+#define VP_REG_GET(dispc, vp, idx, mask)				\
+	((u32)FIELD_GET((mask), dispc_vp_read((dispc), (vp), (idx))))
 
 #define VP_REG_FLD_MOD(dispc, vp, idx, val, start, end)			\
 	({								\
@@ -1260,12 +1259,13 @@ void dispc_vp_unprepare(struct dispc_device *dispc, u32 hw_videoport)
 
 bool dispc_vp_go_busy(struct dispc_device *dispc, u32 hw_videoport)
 {
-	return VP_REG_GET(dispc, hw_videoport, DISPC_VP_CONTROL, 5, 5);
+	return VP_REG_GET(dispc, hw_videoport, DISPC_VP_CONTROL,
+			  GENMASK(5, 5));
 }
 
 void dispc_vp_go(struct dispc_device *dispc, u32 hw_videoport)
 {
-	WARN_ON(VP_REG_GET(dispc, hw_videoport, DISPC_VP_CONTROL, 5, 5));
+	WARN_ON(VP_REG_GET(dispc, hw_videoport, DISPC_VP_CONTROL, GENMASK(5, 5)));
 	VP_REG_FLD_MOD(dispc, hw_videoport, DISPC_VP_CONTROL, 1, 5, 5);
 }
 
