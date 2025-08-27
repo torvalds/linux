@@ -730,6 +730,27 @@ static inline void mnt_unhold_writers(struct mount *mnt)
 	mnt->mnt.mnt_flags &= ~MNT_WRITE_HOLD;
 }
 
+static inline void mnt_del_instance(struct mount *m)
+{
+	struct mount **p = m->mnt_pprev_for_sb;
+	struct mount *next = m->mnt_next_for_sb;
+
+	if (next)
+		next->mnt_pprev_for_sb = p;
+	*p = next;
+}
+
+static inline void mnt_add_instance(struct mount *m, struct super_block *s)
+{
+	struct mount *first = s->s_mounts;
+
+	if (first)
+		first->mnt_pprev_for_sb = &m->mnt_next_for_sb;
+	m->mnt_next_for_sb = first;
+	m->mnt_pprev_for_sb = &s->s_mounts;
+	s->s_mounts = m;
+}
+
 static int mnt_make_readonly(struct mount *mnt)
 {
 	int ret;
@@ -743,7 +764,6 @@ static int mnt_make_readonly(struct mount *mnt)
 
 int sb_prepare_remount_readonly(struct super_block *sb)
 {
-	struct mount *mnt;
 	int err = 0;
 
 	/* Racy optimization.  Recheck the counter under MNT_WRITE_HOLD */
@@ -751,9 +771,9 @@ int sb_prepare_remount_readonly(struct super_block *sb)
 		return -EBUSY;
 
 	lock_mount_hash();
-	list_for_each_entry(mnt, &sb->s_mounts, mnt_instance) {
-		if (!(mnt->mnt.mnt_flags & MNT_READONLY)) {
-			err = mnt_hold_writers(mnt);
+	for (struct mount *m = sb->s_mounts; m; m = m->mnt_next_for_sb) {
+		if (!(m->mnt.mnt_flags & MNT_READONLY)) {
+			err = mnt_hold_writers(m);
 			if (err)
 				break;
 		}
@@ -763,9 +783,9 @@ int sb_prepare_remount_readonly(struct super_block *sb)
 
 	if (!err)
 		sb_start_ro_state_change(sb);
-	list_for_each_entry(mnt, &sb->s_mounts, mnt_instance) {
-		if (mnt->mnt.mnt_flags & MNT_WRITE_HOLD)
-			mnt->mnt.mnt_flags &= ~MNT_WRITE_HOLD;
+	for (struct mount *m = sb->s_mounts; m; m = m->mnt_next_for_sb) {
+		if (m->mnt.mnt_flags & MNT_WRITE_HOLD)
+			m->mnt.mnt_flags &= ~MNT_WRITE_HOLD;
 	}
 	unlock_mount_hash();
 
@@ -1207,7 +1227,7 @@ static void setup_mnt(struct mount *m, struct dentry *root)
 	m->mnt_parent = m;
 
 	lock_mount_hash();
-	list_add_tail(&m->mnt_instance, &s->s_mounts);
+	mnt_add_instance(m, s);
 	unlock_mount_hash();
 }
 
@@ -1425,7 +1445,7 @@ static void mntput_no_expire(struct mount *mnt)
 	mnt->mnt.mnt_flags |= MNT_DOOMED;
 	rcu_read_unlock();
 
-	list_del(&mnt->mnt_instance);
+	mnt_del_instance(mnt);
 	if (unlikely(!list_empty(&mnt->mnt_expire)))
 		list_del(&mnt->mnt_expire);
 
