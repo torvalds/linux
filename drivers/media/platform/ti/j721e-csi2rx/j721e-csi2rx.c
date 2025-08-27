@@ -497,7 +497,7 @@ static void ti_csi2rx_request_max_ppc(struct ti_csi2rx_dev *csi)
 	int ret;
 
 	pad = media_entity_remote_source_pad_unique(&csi->vdev.entity);
-	if (!pad)
+	if (IS_ERR(pad))
 		return;
 
 	ret = cdns_csi2rx_negotiate_ppc(csi->source, pad->index, &ppc);
