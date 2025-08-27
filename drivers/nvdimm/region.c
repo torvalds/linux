@@ -70,7 +70,7 @@ static int nd_region_probe(struct device *dev)
 	 * "<async-registered>/<total>" namespace count.
 	 */
 	dev_err(dev, "failed to register %d namespace%s, continuing...\n",
-			err, err == 1 ? "" : "s");
+			err, str_plural(err));
 	return 0;
 }
 

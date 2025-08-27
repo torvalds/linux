@@ -1983,7 +1983,7 @@ static struct device **scan_labels(struct nd_region *nd_region)
 	}
 
 	dev_dbg(&nd_region->dev, "discovered %d namespace%s\n", count,
-		count == 1 ? "" : "s");
+		str_plural(count));
 
 	if (count == 0) {
 		struct nd_namespace_pmem *nspm;
