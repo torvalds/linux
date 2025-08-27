@@ -1984,7 +1984,7 @@ static int parse_output_paths(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	struct auto_pin_cfg *best_cfg;
+	struct auto_pin_cfg *best_cfg __free(kfree) = NULL;
 	unsigned int val;
 	int best_badness = INT_MAX;
 	int badness;
@@ -2000,10 +2000,8 @@ static int parse_output_paths(struct hda_codec *codec)
 	for (;;) {
 		badness = fill_and_eval_dacs(codec, fill_hardwired,
 					     fill_mio_first);
-		if (badness < 0) {
-			kfree(best_cfg);
+		if (badness < 0)
 			return badness;
-		}
 		debug_badness("==> lo_type=%d, wired=%d, mio=%d, badness=0x%x\n",
 			      cfg->line_out_type, fill_hardwired, fill_mio_first,
 			      badness);
@@ -2096,7 +2094,6 @@ static int parse_output_paths(struct hda_codec *codec)
 	if (spec->indep_hp && !indep_hp_possible(codec))
 		spec->indep_hp = 0;
 
-	kfree(best_cfg);
 	return 0;
 }
 
