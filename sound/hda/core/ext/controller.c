@@ -300,7 +300,7 @@ int snd_hdac_ext_bus_link_get(struct hdac_bus *bus,
 	unsigned long codec_mask;
 	int ret = 0;
 
-	mutex_lock(&bus->lock);
+	guard(mutex)(&bus->lock);
 
 	/*
 	 * if we move from 0 to 1, count will be 1 so power up this link
@@ -331,7 +331,6 @@ int snd_hdac_ext_bus_link_get(struct hdac_bus *bus,
 			bus->codec_mask = codec_mask;
 	}
 
-	mutex_unlock(&bus->lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_get);
@@ -343,7 +342,7 @@ int snd_hdac_ext_bus_link_put(struct hdac_bus *bus,
 	struct hdac_ext_link *hlink_tmp;
 	bool link_up = false;
 
-	mutex_lock(&bus->lock);
+	guard(mutex)(&bus->lock);
 
 	/*
 	 * if we move from 1 to 0, count will be 0
@@ -369,7 +368,6 @@ int snd_hdac_ext_bus_link_put(struct hdac_bus *bus,
 		}
 	}
 
-	mutex_unlock(&bus->lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_put);
