@@ -876,6 +876,7 @@ int netdev_nl_bind_rx_doit(struct sk_buff *skb, struct genl_info *info)
 	u32 ifindex, dmabuf_fd, rxq_idx;
 	struct netdev_nl_sock *priv;
 	struct net_device *netdev;
+	struct device *dma_dev;
 	struct sk_buff *rsp;
 	struct nlattr *attr;
 	int rem, err = 0;
@@ -921,8 +922,9 @@ int netdev_nl_bind_rx_doit(struct sk_buff *skb, struct genl_info *info)
 		goto err_unlock;
 	}
 
-	binding = net_devmem_bind_dmabuf(netdev, DMA_FROM_DEVICE, dmabuf_fd,
-					 priv, info->extack);
+	dma_dev = netdev_queue_get_dma_dev(netdev, 0);
+	binding = net_devmem_bind_dmabuf(netdev, dma_dev, DMA_FROM_DEVICE,
+					 dmabuf_fd, priv, info->extack);
 	if (IS_ERR(binding)) {
 		err = PTR_ERR(binding);
 		goto err_unlock;
@@ -986,6 +988,7 @@ int netdev_nl_bind_tx_doit(struct sk_buff *skb, struct genl_info *info)
 	struct net_devmem_dmabuf_binding *binding;
 	struct netdev_nl_sock *priv;
 	struct net_device *netdev;
+	struct device *dma_dev;
 	u32 ifindex, dmabuf_fd;
 	struct sk_buff *rsp;
 	int err = 0;
@@ -1032,8 +1035,9 @@ int netdev_nl_bind_tx_doit(struct sk_buff *skb, struct genl_info *info)
 		goto err_unlock_netdev;
 	}
 
-	binding = net_devmem_bind_dmabuf(netdev, DMA_TO_DEVICE, dmabuf_fd, priv,
-					 info->extack);
+	dma_dev = netdev_queue_get_dma_dev(netdev, 0);
+	binding = net_devmem_bind_dmabuf(netdev, dma_dev, DMA_TO_DEVICE,
+					 dmabuf_fd, priv, info->extack);
 	if (IS_ERR(binding)) {
 		err = PTR_ERR(binding);
 		goto err_unlock_netdev;
