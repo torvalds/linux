@@ -1189,7 +1189,7 @@ static int i2c_hid_core_register_panel_follower(struct i2c_hid *ihid)
 	struct device *dev = &ihid->client->dev;
 	int ret;
 
-	if (ihid->hid->initial_quirks | HID_QUIRK_POWER_ON_AFTER_BACKLIGHT)
+	if (ihid->hid->initial_quirks & HID_QUIRK_POWER_ON_AFTER_BACKLIGHT)
 		ihid->panel_follower.funcs = &i2c_hid_core_panel_follower_enable_funcs;
 	else
 		ihid->panel_follower.funcs = &i2c_hid_core_panel_follower_prepare_funcs;
