@@ -274,6 +274,8 @@ struct irdma_pci_f {
 	u32 max_mr;
 	u32 max_qp;
 	u32 max_cq;
+	u32 max_srq;
+	u32 next_srq;
 	u32 max_ah;
 	u32 next_ah;
 	u32 max_mcg;
@@ -287,6 +289,7 @@ struct irdma_pci_f {
 	u32 mr_stagmask;
 	u32 used_pds;
 	u32 used_cqs;
+	u32 used_srqs;
 	u32 used_mrs;
 	u32 used_qps;
 	u32 arp_table_size;
@@ -298,6 +301,7 @@ struct irdma_pci_f {
 	unsigned long *allocated_ws_nodes;
 	unsigned long *allocated_qps;
 	unsigned long *allocated_cqs;
+	unsigned long *allocated_srqs;
 	unsigned long *allocated_mrs;
 	unsigned long *allocated_pds;
 	unsigned long *allocated_mcgs;
@@ -421,6 +425,11 @@ static inline struct irdma_pci_f *dev_to_rf(struct irdma_sc_dev *dev)
 	return container_of(dev, struct irdma_pci_f, sc_dev);
 }
 
+static inline struct irdma_srq *to_iwsrq(struct ib_srq *ibsrq)
+{
+	return container_of(ibsrq, struct irdma_srq, ibsrq);
+}
+
 /**
  * irdma_alloc_resource - allocate a resource
  * @iwdev: device pointer
@@ -516,7 +525,8 @@ int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 void irdma_cq_add_ref(struct ib_cq *ibcq);
 void irdma_cq_rem_ref(struct ib_cq *ibcq);
 void irdma_cq_wq_destroy(struct irdma_pci_f *rf, struct irdma_sc_cq *cq);
-
+void irdma_srq_event(struct irdma_sc_srq *srq);
+void irdma_srq_wq_destroy(struct irdma_pci_f *rf, struct irdma_sc_srq *srq);
 void irdma_cleanup_pending_cqp_op(struct irdma_pci_f *rf);
 int irdma_hw_modify_qp(struct irdma_device *iwdev, struct irdma_qp *iwqp,
 		       struct irdma_modify_qp_info *info, bool wait);

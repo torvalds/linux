@@ -60,6 +60,7 @@ enum irdma_device_caps_const {
 	IRDMA_GATHER_STATS_BUF_SIZE =		1024,
 	IRDMA_MIN_IW_QP_ID =			0,
 	IRDMA_MAX_IW_QP_ID =			262143,
+	IRDMA_MIN_IW_SRQ_ID =			0,
 	IRDMA_MIN_CEQID =			0,
 	IRDMA_MAX_CEQID =			1023,
 	IRDMA_CEQ_MAX_COUNT =			IRDMA_MAX_CEQID + 1,
@@ -148,6 +149,8 @@ enum irdma_qp_caps {
 	IRDMA_PUSH_MODE      = 8,
 };
 
+struct irdma_srq_uk;
+struct irdma_srq_uk_init_info;
 struct irdma_qp_uk;
 struct irdma_cq_uk;
 struct irdma_qp_uk_init_info;
@@ -301,6 +304,39 @@ int irdma_uk_calc_depth_shift_sq(struct irdma_qp_uk_init_info *ukinfo,
 				 u32 *sq_depth, u8 *sq_shift);
 int irdma_uk_calc_depth_shift_rq(struct irdma_qp_uk_init_info *ukinfo,
 				 u32 *rq_depth, u8 *rq_shift);
+int irdma_uk_srq_init(struct irdma_srq_uk *srq,
+		      struct irdma_srq_uk_init_info *info);
+int irdma_uk_srq_post_receive(struct irdma_srq_uk *srq,
+			      struct irdma_post_rq_info *info);
+
+struct irdma_srq_uk {
+	u32 srq_caps;
+	struct irdma_qp_quanta *srq_base;
+	struct irdma_uk_attrs *uk_attrs;
+	__le64 *shadow_area;
+	struct irdma_ring srq_ring;
+	struct irdma_ring initial_ring;
+	u32 srq_id;
+	u32 srq_size;
+	u32 max_srq_frag_cnt;
+	struct irdma_wqe_uk_ops wqe_ops;
+	u8 srwqe_polarity;
+	u8 wqe_size;
+	u8 wqe_size_multiplier;
+	u8 deferred_flag;
+};
+
+struct irdma_srq_uk_init_info {
+	struct irdma_qp_quanta *srq;
+	struct irdma_uk_attrs *uk_attrs;
+	__le64 *shadow_area;
+	u64 *srq_wrid_array;
+	u32 srq_id;
+	u32 srq_caps;
+	u32 srq_size;
+	u32 max_srq_frag_cnt;
+};
+
 struct irdma_sq_uk_wr_trk_info {
 	u64 wrid;
 	u32 wr_len;
@@ -345,6 +381,7 @@ struct irdma_qp_uk {
 	bool destroy_pending:1; /* Indicates the QP is being destroyed */
 	void *back_qp;
 	u8 dbg_rq_flushed;
+	struct irdma_srq_uk *srq_uk;
 	u8 sq_flush_seen;
 	u8 rq_flush_seen;
 };
@@ -384,6 +421,7 @@ struct irdma_qp_uk_init_info {
 	u8 rq_shift;
 	int abi_ver;
 	bool legacy_mode;
+	struct irdma_srq_uk *srq_uk;
 };
 
 struct irdma_cq_uk_init_info {
@@ -399,6 +437,7 @@ struct irdma_cq_uk_init_info {
 __le64 *irdma_qp_get_next_send_wqe(struct irdma_qp_uk *qp, u32 *wqe_idx,
 				   u16 quanta, u32 total_size,
 				   struct irdma_post_sq_info *info);
+__le64 *irdma_srq_get_next_recv_wqe(struct irdma_srq_uk *srq, u32 *wqe_idx);
 __le64 *irdma_qp_get_next_recv_wqe(struct irdma_qp_uk *qp, u32 *wqe_idx);
 void irdma_uk_clean_cq(void *q, struct irdma_cq_uk *cq);
 int irdma_nop(struct irdma_qp_uk *qp, u64 wr_id, bool signaled, bool post_sq);
@@ -410,5 +449,7 @@ int irdma_get_sqdepth(struct irdma_uk_attrs *uk_attrs, u32 sq_size, u8 shift,
 		      u32 *wqdepth);
 int irdma_get_rqdepth(struct irdma_uk_attrs *uk_attrs, u32 rq_size, u8 shift,
 		      u32 *wqdepth);
+int irdma_get_srqdepth(struct irdma_uk_attrs *uk_attrs, u32 srq_size, u8 shift,
+		       u32 *srqdepth);
 void irdma_clr_wqes(struct irdma_qp_uk *qp, u32 qp_wqe_idx);
 #endif /* IRDMA_USER_H */

@@ -242,6 +242,7 @@ enum irdma_syn_rst_handling {
 enum irdma_queue_type {
 	IRDMA_QUEUE_TYPE_SQ_RQ = 0,
 	IRDMA_QUEUE_TYPE_CQP,
+	IRDMA_QUEUE_TYPE_SRQ,
 };
 
 struct irdma_sc_dev;
@@ -732,6 +733,51 @@ struct irdma_modify_cq_info {
 	bool cq_resize:1;
 };
 
+struct irdma_srq_init_info {
+	struct irdma_sc_pd *pd;
+	struct irdma_sc_vsi *vsi;
+	u64 srq_pa;
+	u64 shadow_area_pa;
+	u32 first_pm_pbl_idx;
+	u32 pasid;
+	u32 srq_size;
+	u16 srq_limit;
+	u8 pasid_valid;
+	u8 wqe_size;
+	u8 leaf_pbl_size;
+	u8 virtual_map;
+	u8 tph_en;
+	u8 arm_limit_event;
+	u8 tph_value;
+	u8 pbl_chunk_size;
+	struct irdma_srq_uk_init_info srq_uk_init_info;
+};
+
+struct irdma_sc_srq {
+	struct irdma_sc_dev *dev;
+	struct irdma_sc_vsi *vsi;
+	struct irdma_sc_pd *pd;
+	struct irdma_srq_uk srq_uk;
+	void *back_srq;
+	u64 srq_pa;
+	u64 shadow_area_pa;
+	u32 first_pm_pbl_idx;
+	u32 pasid;
+	u32 hw_srq_size;
+	u16 srq_limit;
+	u8 pasid_valid;
+	u8 leaf_pbl_size;
+	u8 virtual_map;
+	u8 tph_en;
+	u8 arm_limit_event;
+	u8 tph_val;
+};
+
+struct irdma_modify_srq_info {
+	u16 srq_limit;
+	u8 arm_limit_event;
+};
+
 struct irdma_create_qp_info {
 	bool ord_valid:1;
 	bool tcp_ctx_valid:1;
@@ -1038,6 +1084,7 @@ struct irdma_qp_host_ctx_info {
 	};
 	u32 send_cq_num;
 	u32 rcv_cq_num;
+	u32 srq_id;
 	u32 rem_endpoint_idx;
 	u16 stats_idx;
 	bool srq_valid:1;
@@ -1337,6 +1384,8 @@ void irdma_sc_cq_resize(struct irdma_sc_cq *cq, struct irdma_modify_cq_info *inf
 int irdma_sc_static_hmc_pages_allocated(struct irdma_sc_cqp *cqp, u64 scratch,
 					u8 hmc_fn_id, bool post_sq,
 					bool poll_registers);
+int irdma_sc_srq_init(struct irdma_sc_srq *srq,
+		      struct irdma_srq_init_info *info);
 
 void sc_vsi_update_stats(struct irdma_sc_vsi *vsi);
 struct cqp_info {
@@ -1580,6 +1629,23 @@ struct cqp_info {
 			struct irdma_dma_mem query_buff_mem;
 			u64 scratch;
 		} query_rdma;
+
+		struct {
+			struct irdma_sc_srq *srq;
+			u64 scratch;
+		} srq_create;
+
+		struct {
+			struct irdma_sc_srq *srq;
+			struct irdma_modify_srq_info info;
+			u64 scratch;
+		} srq_modify;
+
+		struct {
+			struct irdma_sc_srq *srq;
+			u64 scratch;
+		} srq_destroy;
+
 	} u;
 };
 

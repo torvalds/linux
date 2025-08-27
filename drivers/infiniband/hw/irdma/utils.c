@@ -697,6 +697,9 @@ static const char *const irdma_cqp_cmd_names[IRDMA_MAX_CQP_OPS] = {
 	[IRDMA_OP_ADD_LOCAL_MAC_ENTRY] = "Add Local MAC Entry Cmd",
 	[IRDMA_OP_DELETE_LOCAL_MAC_ENTRY] = "Delete Local MAC Entry Cmd",
 	[IRDMA_OP_CQ_MODIFY] = "CQ Modify Cmd",
+	[IRDMA_OP_SRQ_CREATE] = "Create SRQ Cmd",
+	[IRDMA_OP_SRQ_MODIFY] = "Modify SRQ Cmd",
+	[IRDMA_OP_SRQ_DESTROY] = "Destroy SRQ Cmd",
 };
 
 static const struct irdma_cqp_err_info irdma_noncrit_err_list[] = {
@@ -1165,6 +1168,30 @@ void irdma_free_qp_rsrc(struct irdma_qp *iwqp)
 	iwqp->kqp.dma_mem.va = NULL;
 	kfree(iwqp->kqp.sq_wrid_mem);
 	kfree(iwqp->kqp.rq_wrid_mem);
+}
+
+/**
+ * irdma_srq_wq_destroy - send srq destroy cqp
+ * @rf: RDMA PCI function
+ * @srq: hardware control srq
+ */
+void irdma_srq_wq_destroy(struct irdma_pci_f *rf, struct irdma_sc_srq *srq)
+{
+	struct irdma_cqp_request *cqp_request;
+	struct cqp_cmds_info *cqp_info;
+
+	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, true);
+	if (!cqp_request)
+		return;
+
+	cqp_info = &cqp_request->info;
+	cqp_info->cqp_cmd = IRDMA_OP_SRQ_DESTROY;
+	cqp_info->post_sq = 1;
+	cqp_info->in.u.srq_destroy.srq = srq;
+	cqp_info->in.u.srq_destroy.scratch = (uintptr_t)cqp_request;
+
+	irdma_handle_cqp_op(rf, cqp_request);
+	irdma_put_cqp_request(&rf->cqp, cqp_request);
 }
 
 /**

@@ -162,6 +162,7 @@ struct irdma_hw_attrs {
 	u32 max_done_count;
 	u32 max_sleep_count;
 	u32 max_cqp_compl_wait_time_ms;
+	u32 min_hw_srq_id;
 	u16 max_stat_inst;
 	u16 max_stat_idx;
 };

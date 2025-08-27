@@ -8,6 +8,7 @@
 
 #define IRDMA_PKEY_TBL_SZ		1
 #define IRDMA_DEFAULT_PKEY		0xFFFF
+#define IRDMA_SHADOW_PGCNT		1
 
 struct irdma_ucontext {
 	struct ib_ucontext ibucontext;
@@ -17,6 +18,8 @@ struct irdma_ucontext {
 	spinlock_t cq_reg_mem_list_lock; /* protect CQ memory list */
 	struct list_head qp_reg_mem_list;
 	spinlock_t qp_reg_mem_list_lock; /* protect QP memory list */
+	struct list_head srq_reg_mem_list;
+	spinlock_t srq_reg_mem_list_lock; /* protect SRQ memory list */
 	int abi_ver;
 	u8 legacy_mode : 1;
 	u8 use_raw_attrs : 1;
@@ -65,10 +68,16 @@ struct irdma_cq_mr {
 	bool split;
 };
 
+struct irdma_srq_mr {
+	struct irdma_hmc_pble srq_pbl;
+	dma_addr_t shadow;
+};
+
 struct irdma_qp_mr {
 	struct irdma_hmc_pble sq_pbl;
 	struct irdma_hmc_pble rq_pbl;
 	dma_addr_t shadow;
+	dma_addr_t rq_pa;
 	struct page *sq_page;
 };
 
@@ -85,6 +94,7 @@ struct irdma_pbl {
 	union {
 		struct irdma_qp_mr qp_mr;
 		struct irdma_cq_mr cq_mr;
+		struct irdma_srq_mr srq_mr;
 	};
 
 	bool pbl_allocated:1;
@@ -110,6 +120,21 @@ struct irdma_mr {
 	u64 len;
 	u64 pgaddrmem[IRDMA_MAX_SAVED_PHY_PGADDR];
 	struct irdma_pbl iwpbl;
+};
+
+struct irdma_srq {
+	struct ib_srq ibsrq;
+	struct irdma_sc_srq sc_srq __aligned(64);
+	struct irdma_dma_mem kmem;
+	u64 *srq_wrid_mem;
+	refcount_t refcnt;
+	spinlock_t lock; /* for poll srq */
+	struct irdma_pbl *iwpbl;
+	struct irdma_sge *sg_list;
+	u16 srq_head;
+	u32 srq_num;
+	u32 max_wr;
+	bool user_mode:1;
 };
 
 struct irdma_cq {

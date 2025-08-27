@@ -269,6 +269,7 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 	struct irdma_sc_qp *qp = NULL;
 	struct irdma_qp_host_ctx_info *ctx_info = NULL;
 	struct irdma_device *iwdev = rf->iwdev;
+	struct irdma_sc_srq *srq;
 	unsigned long flags;
 
 	u32 aeqcnt = 0;
@@ -320,6 +321,9 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 				iwqp->last_aeq = info->ae_id;
 			spin_unlock_irqrestore(&iwqp->lock, flags);
 			ctx_info = &iwqp->ctx_info;
+		} else if (info->srq) {
+			if (info->ae_id != IRDMA_AE_SRQ_LIMIT)
+				continue;
 		} else {
 			if (info->ae_id != IRDMA_AE_CQ_OPERATION_ERROR &&
 			    info->ae_id != IRDMA_AE_CQP_DEFERRED_COMPLETE)
@@ -416,6 +420,12 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 							 iwcq->ibcq.cq_context);
 			}
 			irdma_cq_rem_ref(&iwcq->ibcq);
+			break;
+		case IRDMA_AE_SRQ_LIMIT:
+			srq = (struct irdma_sc_srq *)(uintptr_t)info->compl_ctx;
+			irdma_srq_event(srq);
+			break;
+		case IRDMA_AE_SRQ_CATASTROPHIC_ERROR:
 			break;
 		case IRDMA_AE_CQP_DEFERRED_COMPLETE:
 			/* Remove completed CQP requests from pending list
@@ -1839,7 +1849,9 @@ static void irdma_get_used_rsrc(struct irdma_device *iwdev)
 	iwdev->rf->used_qps = find_first_zero_bit(iwdev->rf->allocated_qps,
 						 iwdev->rf->max_qp);
 	iwdev->rf->used_cqs = find_first_zero_bit(iwdev->rf->allocated_cqs,
-						 iwdev->rf->max_cq);
+						  iwdev->rf->max_cq);
+	iwdev->rf->used_srqs = find_first_zero_bit(iwdev->rf->allocated_srqs,
+						   iwdev->rf->max_srq);
 	iwdev->rf->used_mrs = find_first_zero_bit(iwdev->rf->allocated_mrs,
 						 iwdev->rf->max_mr);
 }
@@ -2056,7 +2068,8 @@ static void irdma_set_hw_rsrc(struct irdma_pci_f *rf)
 	rf->allocated_qps = (void *)(rf->mem_rsrc +
 		   (sizeof(struct irdma_arp_entry) * rf->arp_table_size));
 	rf->allocated_cqs = &rf->allocated_qps[BITS_TO_LONGS(rf->max_qp)];
-	rf->allocated_mrs = &rf->allocated_cqs[BITS_TO_LONGS(rf->max_cq)];
+	rf->allocated_srqs = &rf->allocated_cqs[BITS_TO_LONGS(rf->max_cq)];
+	rf->allocated_mrs = &rf->allocated_srqs[BITS_TO_LONGS(rf->max_srq)];
 	rf->allocated_pds = &rf->allocated_mrs[BITS_TO_LONGS(rf->max_mr)];
 	rf->allocated_ahs = &rf->allocated_pds[BITS_TO_LONGS(rf->max_pd)];
 	rf->allocated_mcgs = &rf->allocated_ahs[BITS_TO_LONGS(rf->max_ah)];
@@ -2084,12 +2097,14 @@ static u32 irdma_calc_mem_rsrc_size(struct irdma_pci_f *rf)
 	rsrc_size += sizeof(unsigned long) * BITS_TO_LONGS(rf->max_qp);
 	rsrc_size += sizeof(unsigned long) * BITS_TO_LONGS(rf->max_mr);
 	rsrc_size += sizeof(unsigned long) * BITS_TO_LONGS(rf->max_cq);
+	rsrc_size += sizeof(unsigned long) * BITS_TO_LONGS(rf->max_srq);
 	rsrc_size += sizeof(unsigned long) * BITS_TO_LONGS(rf->max_pd);
 	rsrc_size += sizeof(unsigned long) * BITS_TO_LONGS(rf->arp_table_size);
 	rsrc_size += sizeof(unsigned long) * BITS_TO_LONGS(rf->max_ah);
 	rsrc_size += sizeof(unsigned long) * BITS_TO_LONGS(rf->max_mcg);
 	rsrc_size += sizeof(struct irdma_qp **) * rf->max_qp;
 	rsrc_size += sizeof(struct irdma_cq **) * rf->max_cq;
+	rsrc_size += sizeof(struct irdma_srq **) * rf->max_srq;
 
 	return rsrc_size;
 }
@@ -2117,6 +2132,7 @@ u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf)
 	rf->max_qp = rf->sc_dev.hmc_info->hmc_obj[IRDMA_HMC_IW_QP].cnt;
 	rf->max_mr = rf->sc_dev.hmc_info->hmc_obj[IRDMA_HMC_IW_MR].cnt;
 	rf->max_cq = rf->sc_dev.hmc_info->hmc_obj[IRDMA_HMC_IW_CQ].cnt;
+	rf->max_srq = rf->sc_dev.hmc_info->hmc_obj[IRDMA_HMC_IW_SRQ].cnt;
 	rf->max_pd = rf->sc_dev.hw_attrs.max_hw_pds;
 	rf->arp_table_size = rf->sc_dev.hmc_info->hmc_obj[IRDMA_HMC_IW_ARP].cnt;
 	rf->max_ah = rf->sc_dev.hmc_info->hmc_obj[IRDMA_HMC_IW_FSIAV].cnt;
@@ -2136,6 +2152,7 @@ u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf)
 	set_bit(0, rf->allocated_mrs);
 	set_bit(0, rf->allocated_qps);
 	set_bit(0, rf->allocated_cqs);
+	set_bit(0, rf->allocated_srqs);
 	set_bit(0, rf->allocated_pds);
 	set_bit(0, rf->allocated_arps);
 	set_bit(0, rf->allocated_ahs);
