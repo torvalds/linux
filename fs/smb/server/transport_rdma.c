@@ -239,30 +239,6 @@ static void smb_direct_send_immediate_work(struct work_struct *work)
 	smb_direct_post_send_data(sc, NULL, NULL, 0, 0);
 }
 
-static void smb_direct_idle_connection_timer(struct work_struct *work)
-{
-	struct smbdirect_socket *sc =
-		container_of(work, struct smbdirect_socket, idle.timer_work.work);
-	struct smbdirect_socket_parameters *sp = &sc->parameters;
-
-	if (sc->idle.keepalive != SMBDIRECT_KEEPALIVE_NONE) {
-		smbdirect_socket_schedule_cleanup(sc, -ETIMEDOUT);
-		return;
-	}
-
-	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
-		return;
-
-	/*
-	 * Now use the keepalive timeout (instead of keepalive interval)
-	 * in order to wait for a response
-	 */
-	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_PENDING;
-	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
-			 msecs_to_jiffies(sp->keepalive_timeout_msec));
-	queue_work(sc->workqueue, &sc->idle.immediate_work);
-}
-
 static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 {
 	struct smb_direct_transport *t;
@@ -304,8 +280,6 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	cm_id->context = sc;
 
 	sc->ib.dev = sc->rdma.cm_id->device;
-
-	INIT_DELAYED_WORK(&sc->idle.timer_work, smb_direct_idle_connection_timer);
 
 	conn = ksmbd_conn_alloc();
 	if (!conn)
