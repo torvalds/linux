@@ -96,7 +96,7 @@ static int tb_path_find_src_hopid(struct tb_port *src,
  * that the @dst port is the expected one. If it is not, the path can be
  * cleaned up by calling tb_path_deactivate() before tb_path_free().
  *
- * Return: Discovered path on success, %NULL in case of failure
+ * Return: Pointer to &struct tb_path, %NULL in case of failure.
  */
 struct tb_path *tb_path_discover(struct tb_port *src, int src_hopid,
 				 struct tb_port *dst, int dst_hopid,
@@ -233,7 +233,7 @@ err:
  * links on the path, prioritizes using @link_nr but takes into account
  * that the lanes may be bonded.
  *
- * Return: Returns a tb_path on success or NULL on failure.
+ * Return: Pointer to &struct tb_path, %NULL in case of failure.
  */
 struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 			      struct tb_port *dst, int dst_hopid, int link_nr,
@@ -452,7 +452,9 @@ static int __tb_path_deactivate_hop(struct tb_port *port, int hop_index,
  * @hop_index: HopID of the path to be cleared
  *
  * This deactivates or clears a single path config space entry at
- * @hop_index. Returns %0 in success and negative errno otherwise.
+ * @hop_index.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_path_deactivate_hop(struct tb_port *port, int hop_index)
 {
@@ -498,7 +500,7 @@ void tb_path_deactivate(struct tb_path *path)
  * Activate a path starting with the last hop and iterating backwards. The
  * caller must fill path->hops before calling tb_path_activate().
  *
- * Return: Returns 0 on success or an error code on failure.
+ * Return: %0 on success, negative errno otherwise.
  */
 int tb_path_activate(struct tb_path *path)
 {
@@ -592,7 +594,7 @@ err:
  * tb_path_is_invalid() - check whether any ports on the path are invalid
  * @path: Path to check
  *
- * Return: Returns true if the path is invalid, false otherwise.
+ * Return: %true if the path is invalid, %false otherwise.
  */
 bool tb_path_is_invalid(struct tb_path *path)
 {
@@ -613,6 +615,8 @@ bool tb_path_is_invalid(struct tb_path *path)
  *
  * Goes over all hops on path and checks if @port is any of them.
  * Direction does not matter.
+ *
+ * Return: %true if port is on the path, %false otherwise.
  */
 bool tb_path_port_on_path(const struct tb_path *path, const struct tb_port *port)
 {
