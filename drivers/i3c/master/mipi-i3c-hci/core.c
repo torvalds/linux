@@ -121,8 +121,6 @@ static int i3c_hci_bus_init(struct i3c_master_controller *m)
 	struct i3c_device_info info;
 	int ret;
 
-	DBG("");
-
 	if (hci->cmd == &mipi_i3c_hci_cmd_v1) {
 		ret = mipi_i3c_hci_dat_v1.init(hci);
 		if (ret)
@@ -158,8 +156,6 @@ static void i3c_hci_bus_cleanup(struct i3c_master_controller *m)
 {
 	struct i3c_hci *hci = to_i3c_hci(m);
 	struct platform_device *pdev = to_platform_device(m->dev.parent);
-
-	DBG("");
 
 	reg_clear(HC_CONTROL, HC_CONTROL_BUS_ENABLE);
 	synchronize_irq(platform_get_irq(pdev, 0));
@@ -266,8 +262,6 @@ out:
 static int i3c_hci_daa(struct i3c_master_controller *m)
 {
 	struct i3c_hci *hci = to_i3c_hci(m);
-
-	DBG("");
 
 	return hci->cmd->perform_daa(hci);
 }
@@ -385,8 +379,6 @@ static int i3c_hci_attach_i3c_dev(struct i3c_dev_desc *dev)
 	struct i3c_hci_dev_data *dev_data;
 	int ret;
 
-	DBG("");
-
 	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data)
 		return -ENOMEM;
@@ -410,8 +402,6 @@ static int i3c_hci_reattach_i3c_dev(struct i3c_dev_desc *dev, u8 old_dyn_addr)
 	struct i3c_hci *hci = to_i3c_hci(m);
 	struct i3c_hci_dev_data *dev_data = i3c_dev_get_master_data(dev);
 
-	DBG("");
-
 	if (hci->cmd == &mipi_i3c_hci_cmd_v1)
 		mipi_i3c_hci_dat_v1.set_dynamic_addr(hci, dev_data->dat_idx,
 					     dev->info.dyn_addr);
@@ -423,8 +413,6 @@ static void i3c_hci_detach_i3c_dev(struct i3c_dev_desc *dev)
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct i3c_hci *hci = to_i3c_hci(m);
 	struct i3c_hci_dev_data *dev_data = i3c_dev_get_master_data(dev);
-
-	DBG("");
 
 	i3c_dev_set_master_data(dev, NULL);
 	if (hci->cmd == &mipi_i3c_hci_cmd_v1)
@@ -438,8 +426,6 @@ static int i3c_hci_attach_i2c_dev(struct i2c_dev_desc *dev)
 	struct i3c_hci *hci = to_i3c_hci(m);
 	struct i3c_hci_dev_data *dev_data;
 	int ret;
-
-	DBG("");
 
 	if (hci->cmd != &mipi_i3c_hci_cmd_v1)
 		return 0;
@@ -463,8 +449,6 @@ static void i3c_hci_detach_i2c_dev(struct i2c_dev_desc *dev)
 	struct i3c_master_controller *m = i2c_dev_get_master(dev);
 	struct i3c_hci *hci = to_i3c_hci(m);
 	struct i3c_hci_dev_data *dev_data = i2c_dev_get_master_data(dev);
-
-	DBG("");
 
 	if (dev_data) {
 		i2c_dev_set_master_data(dev, NULL);
