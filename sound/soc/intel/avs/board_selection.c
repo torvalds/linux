@@ -442,7 +442,7 @@ static struct platform_device *avs_register_board_pdata(struct avs_dev *adev, co
 	return avs_register_board(adev, name, mach, sizeof(*mach));
 }
 
-static int __maybe_unused avs_register_probe_board2(struct avs_dev *adev)
+static int __maybe_unused avs_register_probe_board(struct avs_dev *adev)
 {
 	struct platform_device *pdev;
 
@@ -453,8 +453,7 @@ static int __maybe_unused avs_register_probe_board2(struct avs_dev *adev)
 	return avs_register_probe_component(adev, dev_name(&pdev->dev));
 }
 
-__maybe_unused
-static int avs_register_dmic_board2(struct avs_dev *adev)
+static int avs_register_dmic_board(struct avs_dev *adev)
 {
 	static struct snd_soc_acpi_mach mach = {
 		.tplg_filename = "dmic-tplg.bin",
@@ -483,178 +482,7 @@ static int avs_register_dmic_board2(struct avs_dev *adev)
 	return avs_register_dmic_component(adev, dev_name(&pdev->dev));
 }
 
-/* platform devices owned by AVS audio are removed with this hook */
-static void board_pdev_unregister(void *data)
-{
-	platform_device_unregister(data);
-}
-
-static int __maybe_unused avs_register_probe_board(struct avs_dev *adev)
-{
-	struct platform_device *board;
-	struct snd_soc_acpi_mach mach = {{0}};
-	int ret;
-
-	ret = avs_register_probe_component(adev, "probe-platform");
-	if (ret < 0)
-		return ret;
-
-	mach.mach_params.platform = "probe-platform";
-
-	board = platform_device_register_data(NULL, "avs_probe_mb", PLATFORM_DEVID_NONE,
-					      (const void *)&mach, sizeof(mach));
-	if (IS_ERR(board)) {
-		dev_err(adev->dev, "probe board register failed\n");
-		return PTR_ERR(board);
-	}
-
-	ret = devm_add_action(adev->dev, board_pdev_unregister, board);
-	if (ret < 0) {
-		platform_device_unregister(board);
-		return ret;
-	}
-	return 0;
-}
-
-static int avs_register_dmic_board(struct avs_dev *adev)
-{
-	struct platform_device *codec, *board;
-	struct snd_soc_acpi_mach mach = {{0}};
-	struct avs_mach_pdata *pdata;
-	int ret;
-
-	if (!acpi_nhlt_find_endpoint(ACPI_NHLT_LINKTYPE_PDM, -1, -1, -1)) {
-		dev_dbg(adev->dev, "no DMIC endpoints present\n");
-		return 0;
-	}
-
-	codec = platform_device_register_simple("dmic-codec", PLATFORM_DEVID_NONE, NULL, 0);
-	if (IS_ERR(codec)) {
-		dev_err(adev->dev, "dmic codec register failed\n");
-		return PTR_ERR(codec);
-	}
-
-	ret = devm_add_action(adev->dev, board_pdev_unregister, codec);
-	if (ret < 0) {
-		platform_device_unregister(codec);
-		return ret;
-	}
-
-	ret = avs_register_dmic_component(adev, "dmic-platform");
-	if (ret < 0)
-		return ret;
-
-	pdata = devm_kzalloc(adev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return -ENOMEM;
-	pdata->obsolete_card_names = obsolete_card_names;
-	mach.pdata = pdata;
-	mach.tplg_filename = "dmic-tplg.bin";
-	mach.mach_params.platform = "dmic-platform";
-
-	board = platform_device_register_data(NULL, "avs_dmic", PLATFORM_DEVID_NONE,
-					(const void *)&mach, sizeof(mach));
-	if (IS_ERR(board)) {
-		dev_err(adev->dev, "dmic board register failed\n");
-		return PTR_ERR(board);
-	}
-
-	ret = devm_add_action(adev->dev, board_pdev_unregister, board);
-	if (ret < 0) {
-		platform_device_unregister(board);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int avs_register_i2s_board(struct avs_dev *adev, struct snd_soc_acpi_mach *mach)
-{
-	struct platform_device *board;
-	struct avs_mach_pdata *pdata;
-	int num_ssps;
-	char *name;
-	int ret;
-	int uid;
-
-	num_ssps = adev->hw_cfg.i2s_caps.ctrl_count;
-	if (fls(mach->mach_params.i2s_link_mask) > num_ssps) {
-		dev_err(adev->dev, "Platform supports %d SSPs but board %s requires SSP%ld\n",
-			num_ssps, mach->drv_name,
-			(unsigned long)__fls(mach->mach_params.i2s_link_mask));
-		return -ENODEV;
-	}
-
-	pdata = mach->pdata;
-	if (!pdata)
-		pdata = devm_kzalloc(adev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return -ENOMEM;
-	pdata->obsolete_card_names = obsolete_card_names;
-	mach->pdata = pdata;
-
-	uid = mach->mach_params.i2s_link_mask;
-	if (avs_mach_singular_ssp(mach))
-		uid = (uid << AVS_CHANNELS_MAX) + avs_mach_ssp_tdm(mach, avs_mach_ssp_port(mach));
-
-	name = devm_kasprintf(adev->dev, GFP_KERNEL, "%s.%d-platform", mach->drv_name, uid);
-	if (!name)
-		return -ENOMEM;
-
-	ret = avs_register_i2s_component(adev, name, mach->mach_params.i2s_link_mask, pdata->tdms);
-	if (ret < 0)
-		return ret;
-
-	mach->mach_params.platform = name;
-
-	board = platform_device_register_data(NULL, mach->drv_name, uid,
-					      (const void *)mach, sizeof(*mach));
-	if (IS_ERR(board)) {
-		dev_err(adev->dev, "ssp board register failed\n");
-		return PTR_ERR(board);
-	}
-
-	ret = devm_add_action(adev->dev, board_pdev_unregister, board);
-	if (ret < 0) {
-		platform_device_unregister(board);
-		return ret;
-	}
-
-	return 0;
-}
-
 static int avs_register_i2s_test_board(struct avs_dev *adev, int ssp_port, int tdm_slot)
-{
-	struct snd_soc_acpi_mach *mach;
-	int tdm_mask = BIT(tdm_slot);
-	unsigned long *tdm_cfg;
-	char *tplg_name;
-	int ret;
-
-	mach = devm_kzalloc(adev->dev, sizeof(*mach), GFP_KERNEL);
-	tdm_cfg = devm_kcalloc(adev->dev, ssp_port + 1, sizeof(unsigned long), GFP_KERNEL);
-	tplg_name = devm_kasprintf(adev->dev, GFP_KERNEL, AVS_STRING_FMT("i2s", "-test-tplg.bin",
-				   ssp_port, tdm_slot));
-	if (!mach || !tdm_cfg || !tplg_name)
-		return -ENOMEM;
-
-	mach->drv_name = "avs_i2s_test";
-	mach->mach_params.i2s_link_mask = AVS_SSP(ssp_port);
-	tdm_cfg[ssp_port] = tdm_mask;
-	mach->pdata = tdm_cfg;
-	mach->tplg_filename = tplg_name;
-
-	ret = avs_register_i2s_board(adev, mach);
-	if (ret < 0) {
-		dev_warn(adev->dev, "register i2s %s failed: %d\n", mach->drv_name, ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-__maybe_unused
-static int avs_register_i2s_test_board2(struct avs_dev *adev, int ssp_port, int tdm_slot)
 {
 	struct snd_soc_acpi_mach mach = {{0}};
 	struct platform_device *pdev;
@@ -710,8 +538,7 @@ static int avs_register_i2s_test_boards(struct avs_dev *adev)
 	return 0;
 }
 
-__maybe_unused
-static int avs_register_i2s_board2(struct avs_dev *adev, struct snd_soc_acpi_mach *mach)
+static int avs_register_i2s_board(struct avs_dev *adev, struct snd_soc_acpi_mach *mach)
 {
 	u32 i2s_mask = mach->mach_params.i2s_link_mask;
 	struct platform_device *pdev;
@@ -729,6 +556,7 @@ static int avs_register_i2s_board2(struct avs_dev *adev, struct snd_soc_acpi_mac
 
 static int avs_register_i2s_boards(struct avs_dev *adev)
 {
+	int num_ssps = adev->hw_cfg.i2s_caps.ctrl_count;
 	const struct avs_acpi_boards *boards;
 	struct snd_soc_acpi_mach *mach;
 	int ret;
@@ -751,6 +579,12 @@ static int avs_register_i2s_boards(struct avs_dev *adev)
 		if (!acpi_dev_present(mach->id, mach->uid, -1))
 			continue;
 
+		if (fls(mach->mach_params.i2s_link_mask) > num_ssps) {
+			dev_err(adev->dev, "Platform supports %d SSPs but board %s requires SSP%ld\n",
+				num_ssps, mach->drv_name,
+				(unsigned long)__fls(mach->mach_params.i2s_link_mask));
+			continue;
+		}
 		if (mach->machine_quirk)
 			if (!mach->machine_quirk(mach))
 				continue;
@@ -764,54 +598,6 @@ static int avs_register_i2s_boards(struct avs_dev *adev)
 }
 
 static int avs_register_hda_board(struct avs_dev *adev, struct hda_codec *codec)
-{
-	struct snd_soc_acpi_mach mach = {{0}};
-	struct platform_device *board;
-	struct avs_mach_pdata *pdata;
-	struct hdac_device *hdev = &codec->core;
-	char *pname;
-	int ret, id;
-
-	pname = devm_kasprintf(adev->dev, GFP_KERNEL, "%s-platform", dev_name(&hdev->dev));
-	if (!pname)
-		return -ENOMEM;
-
-	pdata = devm_kzalloc(adev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return -ENOMEM;
-	pdata->obsolete_card_names = obsolete_card_names;
-	pdata->codec = codec;
-
-	ret = avs_register_hda_component(adev, pname);
-	if (ret < 0)
-		return ret;
-
-	mach.pdata = pdata;
-	mach.mach_params.platform = pname;
-	mach.tplg_filename = devm_kasprintf(adev->dev, GFP_KERNEL, "hda-%08x-tplg.bin",
-					    hdev->vendor_id);
-	if (!mach.tplg_filename)
-		return -ENOMEM;
-
-	id = adev->base.core.idx * HDA_MAX_CODECS + hdev->addr;
-	board = platform_device_register_data(NULL, "avs_hdaudio", id, (const void *)&mach,
-					      sizeof(mach));
-	if (IS_ERR(board)) {
-		dev_err(adev->dev, "hda board register failed\n");
-		return PTR_ERR(board);
-	}
-
-	ret = devm_add_action(adev->dev, board_pdev_unregister, board);
-	if (ret < 0) {
-		platform_device_unregister(board);
-		return ret;
-	}
-
-	return 0;
-}
-
-__maybe_unused
-static int avs_register_hda_board2(struct avs_dev *adev, struct hda_codec *codec)
 {
 	struct hdac_device *hdev = &codec->core;
 	struct snd_soc_acpi_mach mach = {{0}};

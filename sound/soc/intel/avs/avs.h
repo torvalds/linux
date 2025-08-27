@@ -22,7 +22,6 @@
 struct avs_dev;
 struct avs_tplg;
 struct avs_tplg_library;
-struct avs_soc_component;
 struct avs_ipc_msg;
 
 #ifdef CONFIG_ACPI
