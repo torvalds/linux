@@ -343,6 +343,32 @@ static char *egm_devnode(const struct device *device, umode_t *mode)
 	return NULL;
 }
 
+static ssize_t egm_size_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct chardev *egm_chardev = container_of(dev, struct chardev, device);
+	struct nvgrace_egm_dev *egm_dev =
+		egm_chardev_to_nvgrace_egm_dev(egm_chardev);
+
+	return sysfs_emit(buf, "0x%lx\n", egm_dev->egmlength);
+}
+
+static DEVICE_ATTR_RO(egm_size);
+
+static struct attribute *attrs[] = {
+	&dev_attr_egm_size.attr,
+	NULL,
+};
+
+static struct attribute_group attr_group = {
+	.attrs = attrs,
+};
+
+static const struct attribute_group *attr_groups[2] = {
+	&attr_group,
+	NULL
+};
+
 static int __init nvgrace_egm_init(void)
 {
 	int ret;
@@ -364,6 +390,7 @@ static int __init nvgrace_egm_init(void)
 	}
 
 	class->devnode = egm_devnode;
+	class->dev_groups = attr_groups;
 
 	ret = auxiliary_driver_register(&egm_driver);
 	if (!ret)
