@@ -443,7 +443,7 @@ int blk_rq_append_bio(struct request *rq, struct bio *bio)
 	int ret;
 
 	/* check that the data layout matches the hardware restrictions */
-	ret = bio_split_rw_at(bio, lim, &nr_segs, max_bytes);
+	ret = bio_split_io_at(bio, lim, &nr_segs, max_bytes, 0);
 	if (ret) {
 		/* if we would have to split the bio, copy instead */
 		if (ret > 0)

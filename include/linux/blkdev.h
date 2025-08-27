@@ -1870,6 +1870,13 @@ bdev_atomic_write_unit_max_bytes(struct block_device *bdev)
 	return queue_atomic_write_unit_max_bytes(bdev_get_queue(bdev));
 }
 
+static inline int bio_split_rw_at(struct bio *bio,
+		const struct queue_limits *lim,
+		unsigned *segs, unsigned max_bytes)
+{
+	return bio_split_io_at(bio, lim, segs, max_bytes, lim->dma_alignment);
+}
+
 #define DEFINE_IO_COMP_BATCH(name)	struct io_comp_batch name = { }
 
 #endif /* _LINUX_BLKDEV_H */
