@@ -594,13 +594,6 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
  * number. For example 7:0
  */
 
-#define FLD_VAL(val, start, end)					\
-	({								\
-		int _end_inner = (end);					\
-		u32 _new_val = ((val) << _end_inner) & GENMASK((start), _end_inner); \
-		_new_val;						\
-	})
-
 #define FLD_GET(val, start, end)					\
 	({								\
 		int _end = (end);					\
@@ -612,7 +605,7 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
 	({								\
 		int _start = (start), _end = (end);			\
 		u32 _masked_val = (orig) & ~GENMASK(_start, _end);	\
-		u32 _new_val = _masked_val | FLD_VAL((val), _start, _end); \
+		u32 _new_val = _masked_val | FIELD_PREP(GENMASK(_start, _end), (val)); \
 		_new_val;						\
 	})
 
@@ -1220,14 +1213,14 @@ void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,
 	vbp = mode->crtc_vtotal - mode->crtc_vsync_end;
 
 	dispc_vp_write(dispc, hw_videoport, DISPC_VP_TIMING_H,
-		       FLD_VAL(hsw - 1, 7, 0) |
-		       FLD_VAL(hfp - 1, 19, 8) |
-		       FLD_VAL(hbp - 1, 31, 20));
+		       FIELD_PREP(GENMASK(7, 0), hsw - 1) |
+		       FIELD_PREP(GENMASK(19, 8), hfp - 1) |
+		       FIELD_PREP(GENMASK(31, 20), hbp - 1));
 
 	dispc_vp_write(dispc, hw_videoport, DISPC_VP_TIMING_V,
-		       FLD_VAL(vsw - 1, 7, 0) |
-		       FLD_VAL(vfp, 19, 8) |
-		       FLD_VAL(vbp, 31, 20));
+		       FIELD_PREP(GENMASK(7, 0), vsw - 1) |
+		       FIELD_PREP(GENMASK(19, 8), vfp) |
+		       FIELD_PREP(GENMASK(31, 20), vbp));
 
 	ivs = !!(mode->flags & DRM_MODE_FLAG_NVSYNC);
 
@@ -1250,17 +1243,17 @@ void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,
 		ieo = false;
 
 	dispc_vp_write(dispc, hw_videoport, DISPC_VP_POL_FREQ,
-		       FLD_VAL(align, 18, 18) |
-		       FLD_VAL(onoff, 17, 17) |
-		       FLD_VAL(rf, 16, 16) |
-		       FLD_VAL(ieo, 15, 15) |
-		       FLD_VAL(ipc, 14, 14) |
-		       FLD_VAL(ihs, 13, 13) |
-		       FLD_VAL(ivs, 12, 12));
+		       FIELD_PREP(GENMASK(18, 18), align) |
+		       FIELD_PREP(GENMASK(17, 17), onoff) |
+		       FIELD_PREP(GENMASK(16, 16), rf) |
+		       FIELD_PREP(GENMASK(15, 15), ieo) |
+		       FIELD_PREP(GENMASK(14, 14), ipc) |
+		       FIELD_PREP(GENMASK(13, 13), ihs) |
+		       FIELD_PREP(GENMASK(12, 12), ivs));
 
 	dispc_vp_write(dispc, hw_videoport, DISPC_VP_SIZE_SCREEN,
-		       FLD_VAL(mode->crtc_hdisplay - 1, 11, 0) |
-		       FLD_VAL(mode->crtc_vdisplay - 1, 27, 16));
+		       FIELD_PREP(GENMASK(11, 0), mode->crtc_hdisplay - 1) |
+		       FIELD_PREP(GENMASK(27, 16), mode->crtc_vdisplay - 1));
 
 	VP_REG_FLD_MOD(dispc, hw_videoport, DISPC_VP_CONTROL, 1, 0, 0);
 }
@@ -1576,14 +1569,14 @@ struct dispc_csc_coef {
 static
 void dispc_csc_offset_regval(const struct dispc_csc_coef *csc, u32 *regval)
 {
-#define OVAL(x, y) (FLD_VAL(x, 15, 3) | FLD_VAL(y, 31, 19))
+#define OVAL(x, y) (FIELD_PREP(GENMASK(15, 3), x) | FIELD_PREP(GENMASK(31, 19), y))
 	regval[5] = OVAL(csc->preoffset[0], csc->preoffset[1]);
 	regval[6] = OVAL(csc->preoffset[2], csc->postoffset[0]);
 	regval[7] = OVAL(csc->postoffset[1], csc->postoffset[2]);
 #undef OVAL
 }
 
-#define CVAL(x, y) (FLD_VAL(x, 10, 0) | FLD_VAL(y, 26, 16))
+#define CVAL(x, y) (FIELD_PREP(GENMASK(10, 0), x) | FIELD_PREP(GENMASK(26, 16), y))
 static
 void dispc_csc_yuv2rgb_regval(const struct dispc_csc_coef *csc, u32 *regval)
 {
@@ -1822,7 +1815,8 @@ static void dispc_vid_write_fir_coefs(struct dispc_device *dispc,
 
 		c1 = coefs->c1[phase];
 		c2 = coefs->c2[phase];
-		c12 = FLD_VAL(c1, 19, 10) | FLD_VAL(c2, 29, 20);
+		c12 = FIELD_PREP(GENMASK(19, 10), c1) | FIELD_PREP(GENMASK(29, 20),
+								   c2);
 
 		dispc_vid_write(dispc, hw_plane, reg, c12);
 	}
@@ -2320,14 +2314,14 @@ static void dispc_vid_set_mflag_threshold(struct dispc_device *dispc,
 					  u32 hw_plane, u32 low, u32 high)
 {
 	dispc_vid_write(dispc, hw_plane, DISPC_VID_MFLAG_THRESHOLD,
-			FLD_VAL(high, 31, 16) | FLD_VAL(low, 15, 0));
+			FIELD_PREP(GENMASK(31, 16), high) | FIELD_PREP(GENMASK(15, 0), low));
 }
 
 static void dispc_vid_set_buf_threshold(struct dispc_device *dispc,
 					u32 hw_plane, u32 low, u32 high)
 {
 	dispc_vid_write(dispc, hw_plane, DISPC_VID_BUF_THRESHOLD,
-			FLD_VAL(high, 31, 16) | FLD_VAL(low, 15, 0));
+			FIELD_PREP(GENMASK(31, 16), high) | FIELD_PREP(GENMASK(15, 0), low));
 }
 
 static void dispc_k2g_plane_init(struct dispc_device *dispc)
@@ -2468,8 +2462,8 @@ static void dispc_initial_config(struct dispc_device *dispc)
 	/* Note: Hardcoded DPI routing on J721E for now */
 	if (dispc->feat->subrev == DISPC_J721E) {
 		dispc_write(dispc, DISPC_CONNECTIONS,
-			    FLD_VAL(2, 3, 0) |		/* VP1 to DPI0 */
-			    FLD_VAL(8, 7, 4)		/* VP3 to DPI1 */
+			    FIELD_PREP(GENMASK(3, 0), 2) |		/* VP1 to DPI0 */
+			    FIELD_PREP(GENMASK(7, 4), 8)		/* VP3 to DPI1 */
 			);
 	}
 }
@@ -2647,8 +2641,8 @@ static void dispc_k2g_cpr_from_ctm(const struct drm_color_ctm *ctm,
 	cpr->m[CSC_BB] = dispc_S31_32_to_s2_8(ctm->matrix[8]);
 }
 
-#define CVAL(xR, xG, xB) (FLD_VAL(xR, 9, 0) | FLD_VAL(xG, 20, 11) |	\
-			  FLD_VAL(xB, 31, 22))
+#define CVAL(xR, xG, xB) (FIELD_PREP(GENMASK(9, 0), xR) | FIELD_PREP(GENMASK(20, 11), xG) |	\
+			  FIELD_PREP(GENMASK(31, 22), xB))
 
 static void dispc_k2g_vp_csc_cpr_regval(const struct dispc_csc_coef *csc,
 					u32 *regval)
