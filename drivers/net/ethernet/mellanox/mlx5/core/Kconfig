@@ -8,7 +8,6 @@ config MLX5_CORE
 	depends on PCI
 	select AUXILIARY_BUS
 	select NET_DEVLINK
-	depends on VXLAN || !VXLAN
 	depends on MLXFW || !MLXFW
 	depends on PTP_1588_CLOCK_OPTIONAL
 	depends on PCI_HYPERV_INTERFACE || !PCI_HYPERV_INTERFACE
