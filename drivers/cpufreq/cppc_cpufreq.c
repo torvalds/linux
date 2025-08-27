@@ -722,8 +722,8 @@ static int cppc_get_perf_ctrs_sample(int cpu,
 
 static unsigned int cppc_cpufreq_get_rate(unsigned int cpu)
 {
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	struct cppc_perf_fb_ctrs fb_ctrs_t0 = {0}, fb_ctrs_t1 = {0};
-	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
 	struct cppc_cpudata *cpu_data;
 	u64 delivered_perf;
 	int ret;
@@ -732,8 +732,6 @@ static unsigned int cppc_cpufreq_get_rate(unsigned int cpu)
 		return 0;
 
 	cpu_data = policy->driver_data;
-
-	cpufreq_cpu_put(policy);
 
 	ret = cppc_get_perf_ctrs_sample(cpu, &fb_ctrs_t0, &fb_ctrs_t1);
 	if (ret) {
