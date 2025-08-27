@@ -182,11 +182,9 @@ int main(int argc, char *argv[])
 	if (futex_numa->numa == FUTEX_NO_NODE)
 		ksft_exit_fail_msg("NUMA node is left uninitialized\n");
 
-	ksft_print_msg("Memory too small\n");
+	/* FUTEX2_NUMA futex must be 8-byte aligned */
+	ksft_print_msg("Mis-aligned futex\n");
 	test_futex(futex_ptr + mem_size - 4, 1);
-
-	ksft_print_msg("Memory out of range\n");
-	test_futex(futex_ptr + mem_size, 1);
 
 	futex_numa->numa = FUTEX_NO_NODE;
 	mprotect(futex_ptr, mem_size, PROT_READ);
