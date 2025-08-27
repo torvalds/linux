@@ -150,21 +150,24 @@ static struct
 smbdirect_recv_io *get_free_recvmsg(struct smbdirect_socket *sc)
 {
 	struct smbdirect_recv_io *recvmsg = NULL;
+	unsigned long flags;
 
-	spin_lock(&sc->recv_io.free.lock);
+	spin_lock_irqsave(&sc->recv_io.free.lock, flags);
 	if (!list_empty(&sc->recv_io.free.list)) {
 		recvmsg = list_first_entry(&sc->recv_io.free.list,
 					   struct smbdirect_recv_io,
 					   list);
 		list_del(&recvmsg->list);
 	}
-	spin_unlock(&sc->recv_io.free.lock);
+	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
 	return recvmsg;
 }
 
 static void put_recvmsg(struct smbdirect_socket *sc,
 			struct smbdirect_recv_io *recvmsg)
 {
+	unsigned long flags;
+
 	if (likely(recvmsg->sge.length != 0)) {
 		ib_dma_unmap_single(sc->ib.dev,
 				    recvmsg->sge.addr,
@@ -173,9 +176,9 @@ static void put_recvmsg(struct smbdirect_socket *sc,
 		recvmsg->sge.length = 0;
 	}
 
-	spin_lock(&sc->recv_io.free.lock);
+	spin_lock_irqsave(&sc->recv_io.free.lock, flags);
 	list_add(&recvmsg->list, &sc->recv_io.free.list);
-	spin_unlock(&sc->recv_io.free.lock);
+	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
 
 	queue_work(sc->workqueue, &sc->recv_io.posted.refill_work);
 }
@@ -184,7 +187,9 @@ static void enqueue_reassembly(struct smbdirect_socket *sc,
 			       struct smbdirect_recv_io *recvmsg,
 			       int data_length)
 {
-	spin_lock(&sc->recv_io.reassembly.lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
 	list_add_tail(&recvmsg->list, &sc->recv_io.reassembly.list);
 	sc->recv_io.reassembly.queue_length++;
 	/*
@@ -195,7 +200,7 @@ static void enqueue_reassembly(struct smbdirect_socket *sc,
 	 */
 	virt_wmb();
 	sc->recv_io.reassembly.data_length += data_length;
-	spin_unlock(&sc->recv_io.reassembly.lock);
+	spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
 }
 
 static struct smbdirect_recv_io *get_first_reassembly(struct smbdirect_socket *sc)
@@ -468,14 +473,16 @@ static void free_transport(struct smb_direct_transport *t)
 
 	ksmbd_debug(RDMA, "drain the reassembly queue\n");
 	do {
-		spin_lock(&sc->recv_io.reassembly.lock);
+		unsigned long flags;
+
+		spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
 		recvmsg = get_first_reassembly(sc);
 		if (recvmsg) {
 			list_del(&recvmsg->list);
-			spin_unlock(&sc->recv_io.reassembly.lock);
+			spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
 			put_recvmsg(sc, recvmsg);
 		} else {
-			spin_unlock(&sc->recv_io.reassembly.lock);
+			spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
 		}
 	} while (recvmsg);
 	sc->recv_io.reassembly.data_length = 0;
@@ -768,6 +775,7 @@ again:
 	if (sc->recv_io.reassembly.data_length >= size) {
 		int queue_length;
 		int queue_removed = 0;
+		unsigned long flags;
 
 		/*
 		 * Need to make sure reassembly_data_length is read before
@@ -823,9 +831,9 @@ again:
 				if (queue_length) {
 					list_del(&recvmsg->list);
 				} else {
-					spin_lock_irq(&sc->recv_io.reassembly.lock);
+					spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
 					list_del(&recvmsg->list);
-					spin_unlock_irq(&sc->recv_io.reassembly.lock);
+					spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
 				}
 				queue_removed++;
 				put_recvmsg(sc, recvmsg);
@@ -838,10 +846,10 @@ again:
 			data_read += to_copy;
 		}
 
-		spin_lock_irq(&sc->recv_io.reassembly.lock);
+		spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
 		sc->recv_io.reassembly.data_length -= data_read;
 		sc->recv_io.reassembly.queue_length -= queue_removed;
-		spin_unlock_irq(&sc->recv_io.reassembly.lock);
+		spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
 
 		sc->recv_io.reassembly.first_entry_offset = offset;
 		ksmbd_debug(RDMA,
@@ -2107,6 +2115,7 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct smbdirect_recv_io *recvmsg;
 	struct smbdirect_negotiate_req *req;
+	unsigned long flags;
 	int ret;
 
 	/*
@@ -2153,10 +2162,10 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 
 	ret = smb_direct_send_negotiate_response(sc, ret);
 out:
-	spin_lock_irq(&sc->recv_io.reassembly.lock);
+	spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
 	sc->recv_io.reassembly.queue_length--;
 	list_del(&recvmsg->list);
-	spin_unlock_irq(&sc->recv_io.reassembly.lock);
+	spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
 	put_recvmsg(sc, recvmsg);
 
 	return ret;
