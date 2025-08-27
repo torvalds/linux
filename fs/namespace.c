@@ -526,8 +526,8 @@ int mnt_get_write_access(struct vfsmount *m)
 			 * the same CPU as the task that is spinning here.
 			 */
 			preempt_enable();
-			lock_mount_hash();
-			unlock_mount_hash();
+			read_seqlock_excl(&mount_lock);
+			read_sequnlock_excl(&mount_lock);
 			preempt_disable();
 		}
 	}
@@ -671,7 +671,7 @@ EXPORT_SYMBOL(mnt_drop_write_file);
  * a call to mnt_unhold_writers() in order to stop preventing write access to
  * @mnt.
  *
- * Context: This function expects lock_mount_hash() to be held serializing
+ * Context: This function expects to be in mount_locked_reader scope serializing
  *          setting WRITE_HOLD.
  * Return: On success 0 is returned.
  *	   On error, -EBUSY is returned.
@@ -716,7 +716,8 @@ static inline int mnt_hold_writers(struct mount *mnt)
  *
  * This function can only be called after a call to mnt_hold_writers().
  *
- * Context: This function expects lock_mount_hash() to be held.
+ * Context: This function expects to be in the same mount_locked_reader scope
+ * as the matching mnt_hold_writers().
  */
 static inline void mnt_unhold_writers(struct mount *mnt)
 {
@@ -770,7 +771,8 @@ int sb_prepare_remount_readonly(struct super_block *sb)
 	if (atomic_long_read(&sb->s_remove_count))
 		return -EBUSY;
 
-	lock_mount_hash();
+	guard(mount_locked_reader)();
+
 	for (struct mount *m = sb->s_mounts; m; m = m->mnt_next_for_sb) {
 		if (!(m->mnt.mnt_flags & MNT_READONLY)) {
 			err = mnt_hold_writers(m);
@@ -787,7 +789,6 @@ int sb_prepare_remount_readonly(struct super_block *sb)
 		if (test_write_hold(m))
 			clear_write_hold(m);
 	}
-	unlock_mount_hash();
 
 	return err;
 }
@@ -1226,9 +1227,8 @@ static void setup_mnt(struct mount *m, struct dentry *root)
 	m->mnt_mountpoint = m->mnt.mnt_root;
 	m->mnt_parent = m;
 
-	lock_mount_hash();
+	guard(mount_locked_reader)();
 	mnt_add_instance(m, s);
-	unlock_mount_hash();
 }
 
 /**
