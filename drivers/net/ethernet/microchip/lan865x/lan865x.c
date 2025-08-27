@@ -423,10 +423,11 @@ static void lan865x_remove(struct spi_device *spi)
 	free_netdev(priv->netdev);
 }
 
-static const struct spi_device_id spidev_spi_ids[] = {
+static const struct spi_device_id lan865x_ids[] = {
 	{ .name = "lan8650" },
 	{},
 };
+MODULE_DEVICE_TABLE(spi, lan865x_ids);
 
 static const struct of_device_id lan865x_dt_ids[] = {
 	{ .compatible = "microchip,lan8650" },
@@ -441,7 +442,7 @@ static struct spi_driver lan865x_driver = {
 	 },
 	.probe = lan865x_probe,
 	.remove = lan865x_remove,
-	.id_table = spidev_spi_ids,
+	.id_table = lan865x_ids,
 };
 module_spi_driver(lan865x_driver);
 
