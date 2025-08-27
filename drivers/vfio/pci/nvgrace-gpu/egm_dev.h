@@ -16,8 +16,9 @@ void remove_gpu(struct nvgrace_egm_dev *egm_dev, struct pci_dev *pdev);
 
 struct nvgrace_egm_dev *
 nvgrace_gpu_create_aux_device(struct pci_dev *pdev, const char *name,
-			      u64 egmphys, u64 egmlength, u64 egmpxm);
+			      u64 egmphys, u64 egmlength, u64 egmpxm,
+			      u64 retiredpagesphys);
 
 int nvgrace_gpu_fetch_egm_property(struct pci_dev *pdev, u64 *pegmphys,
-				   u64 *pegmlength);
+				   u64 *pegmlength, u64 *pretiredpagesphys);
 #endif /* EGM_DEV_H */

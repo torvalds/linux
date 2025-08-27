@@ -67,7 +67,7 @@ static struct list_head egm_dev_list;
 static int nvgrace_gpu_create_egm_aux_device(struct pci_dev *pdev)
 {
 	struct nvgrace_egm_dev_entry *egm_entry;
-	u64 egmphys, egmlength, egmpxm;
+	u64 egmphys, egmlength, egmpxm, retiredpagesphys;
 	int ret = 0;
 
 	/*
@@ -79,7 +79,8 @@ static int nvgrace_gpu_create_egm_aux_device(struct pci_dev *pdev)
 	if (nvgrace_gpu_has_egm_property(pdev, &egmpxm))
 		goto exit;
 
-	ret = nvgrace_gpu_fetch_egm_property(pdev, &egmphys, &egmlength);
+	ret = nvgrace_gpu_fetch_egm_property(pdev, &egmphys, &egmlength,
+					     &retiredpagesphys);
 	if (ret)
 		goto exit;
 
@@ -100,7 +101,8 @@ static int nvgrace_gpu_create_egm_aux_device(struct pci_dev *pdev)
 
 	egm_entry->egm_dev =
 		nvgrace_gpu_create_aux_device(pdev, NVGRACE_EGM_DEV_NAME,
-					      egmphys, egmlength, egmpxm);
+					      egmphys, egmlength, egmpxm,
+					      retiredpagesphys);
 	if (!egm_entry->egm_dev) {
 		kvfree(egm_entry);
 		ret = -EINVAL;

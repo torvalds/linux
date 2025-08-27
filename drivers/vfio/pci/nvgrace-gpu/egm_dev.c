@@ -18,22 +18,41 @@ int nvgrace_gpu_has_egm_property(struct pci_dev *pdev, u64 *pegmpxm)
 }
 
 int nvgrace_gpu_fetch_egm_property(struct pci_dev *pdev, u64 *pegmphys,
-				   u64 *pegmlength)
+				   u64 *pegmlength, u64 *pretiredpagesphys)
 {
 	int ret;
 
 	/*
-	 * The memory information is present in the system ACPI tables as DSD
-	 * properties nvidia,egm-base-pa and nvidia,egm-size.
+	 * The EGM memory information is present in the system ACPI tables
+	 * as DSD properties nvidia,egm-base-pa and nvidia,egm-size.
 	 */
 	ret = device_property_read_u64(&pdev->dev, "nvidia,egm-size",
 				       pegmlength);
 	if (ret)
-		return ret;
+		goto error_exit;
 
 	ret = device_property_read_u64(&pdev->dev, "nvidia,egm-base-pa",
 				       pegmphys);
+	if (ret)
+		goto error_exit;
 
+	/*
+	 * SBIOS puts the list of retired pages on a region. The region
+	 * SPA is exposed as "nvidia,egm-retired-pages-data-base".
+	 */
+	ret = device_property_read_u64(&pdev->dev,
+				       "nvidia,egm-retired-pages-data-base",
+				       pretiredpagesphys);
+	if (ret)
+		goto error_exit;
+
+	/* Catch firmware bug and avoid a crash */
+	if (*pretiredpagesphys == 0) {
+		dev_err(&pdev->dev, "Retired pages region is not setup\n");
+		ret = -EINVAL;
+	}
+
+error_exit:
 	return ret;
 }
 
@@ -74,7 +93,8 @@ static void nvgrace_gpu_release_aux_device(struct device *device)
 
 struct nvgrace_egm_dev *
 nvgrace_gpu_create_aux_device(struct pci_dev *pdev, const char *name,
-			      u64 egmphys, u64 egmlength, u64 egmpxm)
+			      u64 egmphys, u64 egmlength, u64 egmpxm,
+			      u64 retiredpagesphys)
 {
 	struct nvgrace_egm_dev *egm_dev;
 	int ret;
@@ -86,6 +106,8 @@ nvgrace_gpu_create_aux_device(struct pci_dev *pdev, const char *name,
 	egm_dev->egmpxm = egmpxm;
 	egm_dev->egmphys = egmphys;
 	egm_dev->egmlength = egmlength;
+	egm_dev->retiredpagesphys = retiredpagesphys;
+
 	INIT_LIST_HEAD(&egm_dev->gpus);
 
 	egm_dev->aux_dev.id = egmpxm;

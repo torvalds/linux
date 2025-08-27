@@ -8,6 +8,11 @@
 
 #define MAX_EGM_NODES 4
 
+struct h_node {
+	unsigned long mem_offset;
+	struct hlist_node node;
+};
+
 static dev_t dev;
 static struct class *class;
 static DEFINE_XARRAY(egm_chardevs);
@@ -16,6 +21,7 @@ struct chardev {
 	struct device device;
 	struct cdev cdev;
 	atomic_t open_count;
+	DECLARE_HASHTABLE(htbl, 0x10);
 };
 
 static struct nvgrace_egm_dev *
@@ -145,20 +151,86 @@ static void del_egm_chardev(struct chardev *egm_chardev)
 	put_device(&egm_chardev->device);
 }
 
+static void cleanup_retired_pages(struct chardev *egm_chardev)
+{
+	struct h_node *cur_page;
+	unsigned long bkt;
+	struct hlist_node *temp_node;
+
+	hash_for_each_safe(egm_chardev->htbl, bkt, temp_node, cur_page, node) {
+		hash_del(&cur_page->node);
+		kvfree(cur_page);
+	}
+}
+
+static int nvgrace_egm_fetch_retired_pages(struct nvgrace_egm_dev *egm_dev,
+					   struct chardev *egm_chardev)
+{
+	u64 count;
+	void *memaddr;
+	int index, ret = 0;
+
+	memaddr = memremap(egm_dev->retiredpagesphys, PAGE_SIZE, MEMREMAP_WB);
+	if (!memaddr)
+		return -ENOMEM;
+
+	count = *(u64 *)memaddr;
+
+	for (index = 0; index < count; index++) {
+		struct h_node *retired_page;
+
+		/*
+		 * Since the EGM is linearly mapped, the offset in the
+		 * carveout is the same offset in the VM system memory.
+		 *
+		 * Calculate the offset to communicate to the usermode
+		 * apps.
+		 */
+		retired_page = kvzalloc(sizeof(*retired_page), GFP_KERNEL);
+		if (!retired_page) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		retired_page->mem_offset = *((u64 *)memaddr + index + 1) -
+					   egm_dev->egmphys;
+		hash_add(egm_chardev->htbl, &retired_page->node,
+			 retired_page->mem_offset);
+	}
+
+	memunmap(memaddr);
+
+	if (ret)
+		cleanup_retired_pages(egm_chardev);
+
+	return ret;
+}
+
 static int egm_driver_probe(struct auxiliary_device *aux_dev,
 			    const struct auxiliary_device_id *id)
 {
 	struct nvgrace_egm_dev *egm_dev =
 		container_of(aux_dev, struct nvgrace_egm_dev, aux_dev);
 	struct chardev *egm_chardev;
+	int ret;
 
 	egm_chardev = setup_egm_chardev(egm_dev);
 	if (!egm_chardev)
 		return -EINVAL;
 
+	hash_init(egm_chardev->htbl);
+
+	ret = nvgrace_egm_fetch_retired_pages(egm_dev, egm_chardev);
+	if (ret)
+		goto error_exit;
+
 	xa_store(&egm_chardevs, egm_dev->egmpxm, egm_chardev, GFP_KERNEL);
 
 	return 0;
+
+error_exit:
+	del_egm_chardev(egm_chardev);
+	return ret;
 }
 
 static void egm_driver_remove(struct auxiliary_device *aux_dev)
@@ -166,10 +238,19 @@ static void egm_driver_remove(struct auxiliary_device *aux_dev)
 	struct nvgrace_egm_dev *egm_dev =
 		container_of(aux_dev, struct nvgrace_egm_dev, aux_dev);
 	struct chardev *egm_chardev = xa_erase(&egm_chardevs, egm_dev->egmpxm);
+	struct h_node *cur_page;
+	unsigned long bkt;
+	struct hlist_node *temp_node;
 
 	if (!egm_chardev)
 		return;
 
+	hash_for_each_safe(egm_chardev->htbl, bkt, temp_node, cur_page, node) {
+		hash_del(&cur_page->node);
+		kvfree(cur_page);
+	}
+
+	cleanup_retired_pages(egm_chardev);
 	del_egm_chardev(egm_chardev);
 }
 
