@@ -158,16 +158,16 @@ static void tas2781_hda_playback_hook(struct device *dev, int action)
 	switch (action) {
 	case HDA_GEN_PCM_ACT_OPEN:
 		pm_runtime_get_sync(dev);
-		mutex_lock(&tas_hda->priv->codec_lock);
-		tasdevice_tuning_switch(tas_hda->priv, 0);
-		tas_hda->priv->playback_started = true;
-		mutex_unlock(&tas_hda->priv->codec_lock);
+		scoped_guard(mutex, &tas_hda->priv->codec_lock) {
+			tasdevice_tuning_switch(tas_hda->priv, 0);
+			tas_hda->priv->playback_started = true;
+		}
 		break;
 	case HDA_GEN_PCM_ACT_CLOSE:
-		mutex_lock(&tas_hda->priv->codec_lock);
-		tasdevice_tuning_switch(tas_hda->priv, 1);
-		tas_hda->priv->playback_started = false;
-		mutex_unlock(&tas_hda->priv->codec_lock);
+		scoped_guard(mutex, &tas_hda->priv->codec_lock) {
+			tasdevice_tuning_switch(tas_hda->priv, 1);
+			tas_hda->priv->playback_started = false;
+		}
 
 		pm_runtime_put_autosuspend(dev);
 		break;
@@ -184,14 +184,12 @@ static int tas2781_amp_getvol(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	int ret;
 
-	mutex_lock(&tas_priv->codec_lock);
+	guard(mutex)(&tas_priv->codec_lock);
 
 	ret = tasdevice_amp_getvol(tas_priv, ucontrol, mc);
 
 	dev_dbg(tas_priv->dev, "%s: kcontrol %s: %ld\n",
 		__func__, kcontrol->id.name, ucontrol->value.integer.value[0]);
-
-	mutex_unlock(&tas_priv->codec_lock);
 
 	return ret;
 }
@@ -202,19 +200,14 @@ static int tas2781_amp_putvol(struct snd_kcontrol *kcontrol,
 	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	int ret;
 
-	mutex_lock(&tas_priv->codec_lock);
+	guard(mutex)(&tas_priv->codec_lock);
 
 	dev_dbg(tas_priv->dev, "%s: kcontrol %s: -> %ld\n",
 		__func__, kcontrol->id.name, ucontrol->value.integer.value[0]);
 
 	/* The check of the given value is in tasdevice_amp_putvol. */
-	ret = tasdevice_amp_putvol(tas_priv, ucontrol, mc);
-
-	mutex_unlock(&tas_priv->codec_lock);
-
-	return ret;
+	return tasdevice_amp_putvol(tas_priv, ucontrol, mc);
 }
 
 static int tas2781_force_fwload_get(struct snd_kcontrol *kcontrol,
@@ -222,13 +215,11 @@ static int tas2781_force_fwload_get(struct snd_kcontrol *kcontrol,
 {
 	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
 
-	mutex_lock(&tas_priv->codec_lock);
+	guard(mutex)(&tas_priv->codec_lock);
 
 	ucontrol->value.integer.value[0] = (int)tas_priv->force_fwload_status;
 	dev_dbg(tas_priv->dev, "%s: kcontrol %s: %d\n",
 		__func__, kcontrol->id.name, tas_priv->force_fwload_status);
-
-	mutex_unlock(&tas_priv->codec_lock);
 
 	return 0;
 }
@@ -239,7 +230,7 @@ static int tas2781_force_fwload_put(struct snd_kcontrol *kcontrol,
 	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
 	bool change, val = (bool)ucontrol->value.integer.value[0];
 
-	mutex_lock(&tas_priv->codec_lock);
+	guard(mutex)(&tas_priv->codec_lock);
 
 	dev_dbg(tas_priv->dev, "%s: kcontrol %s: %d -> %d\n",
 		__func__, kcontrol->id.name,
@@ -251,8 +242,6 @@ static int tas2781_force_fwload_put(struct snd_kcontrol *kcontrol,
 		change = true;
 		tas_priv->force_fwload_status = val;
 	}
-
-	mutex_unlock(&tas_priv->codec_lock);
 
 	return change;
 }
@@ -711,7 +700,7 @@ static int tas2781_runtime_suspend(struct device *dev)
 
 	dev_dbg(tas_hda->dev, "Runtime Suspend\n");
 
-	mutex_lock(&tas_hda->priv->codec_lock);
+	guard(mutex)(&tas_hda->priv->codec_lock);
 
 	/* The driver powers up the amplifiers at module load time.
 	 * Stop the playback if it's unused.
@@ -720,8 +709,6 @@ static int tas2781_runtime_suspend(struct device *dev)
 		tasdevice_tuning_switch(tas_hda->priv, 1);
 		tas_hda->priv->playback_started = false;
 	}
-
-	mutex_unlock(&tas_hda->priv->codec_lock);
 
 	return 0;
 }
@@ -732,11 +719,9 @@ static int tas2781_runtime_resume(struct device *dev)
 
 	dev_dbg(tas_hda->dev, "Runtime Resume\n");
 
-	mutex_lock(&tas_hda->priv->codec_lock);
+	guard(mutex)(&tas_hda->priv->codec_lock);
 
 	tasdevice_prmg_load(tas_hda->priv, tas_hda->priv->cur_prog);
-
-	mutex_unlock(&tas_hda->priv->codec_lock);
 
 	return 0;
 }
@@ -747,13 +732,11 @@ static int tas2781_system_suspend(struct device *dev)
 
 	dev_dbg(tas_hda->priv->dev, "System Suspend\n");
 
-	mutex_lock(&tas_hda->priv->codec_lock);
+	guard(mutex)(&tas_hda->priv->codec_lock);
 
 	/* Shutdown chip before system suspend */
 	if (tas_hda->priv->playback_started)
 		tasdevice_tuning_switch(tas_hda->priv, 1);
-
-	mutex_unlock(&tas_hda->priv->codec_lock);
 
 	/*
 	 * Reset GPIO may be shared, so cannot reset here.
@@ -769,7 +752,7 @@ static int tas2781_system_resume(struct device *dev)
 
 	dev_dbg(tas_hda->priv->dev, "System Resume\n");
 
-	mutex_lock(&tas_hda->priv->codec_lock);
+	guard(mutex)(&tas_hda->priv->codec_lock);
 
 	for (i = 0; i < tas_hda->priv->ndev; i++) {
 		tas_hda->priv->tasdevice[i].cur_book = -1;
@@ -781,8 +764,6 @@ static int tas2781_system_resume(struct device *dev)
 
 	if (tas_hda->priv->playback_started)
 		tasdevice_tuning_switch(tas_hda->priv, 0);
-
-	mutex_unlock(&tas_hda->priv->codec_lock);
 
 	return 0;
 }
