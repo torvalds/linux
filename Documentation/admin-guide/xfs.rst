@@ -253,9 +253,8 @@ latest version and try again.
 
 The deprecation will take place in two parts.  Support for mounting V4
 filesystems can now be disabled at kernel build time via Kconfig option.
-The option will default to yes until September 2025, at which time it
-will be changed to default to no.  In September 2030, support will be
-removed from the codebase entirely.
+These options were changed to default to no in September 2025.  In
+September 2030, support will be removed from the codebase entirely.
 
 Note: Distributors may choose to withdraw V4 format support earlier than
 the dates listed above.
