@@ -775,7 +775,7 @@ static bool hci_dma_irq_handler(struct i3c_hci *hci)
 			u32 ring_status;
 
 			dev_notice_ratelimited(&hci->master.dev,
-				"ring %d: Transfer Aborted\n", i);
+				"Ring %d: Transfer Aborted\n", i);
 			mipi_i3c_hci_resume(hci);
 			ring_status = rh_reg_read(RING_STATUS);
 			if (!(ring_status & RING_STATUS_RUNNING) &&
@@ -795,7 +795,7 @@ static bool hci_dma_irq_handler(struct i3c_hci *hci)
 		}
 		if (status & INTR_IBI_RING_FULL)
 			dev_err_ratelimited(&hci->master.dev,
-				"ring %d: IBI Ring Full Condition\n", i);
+				"Ring %d: IBI Ring Full Condition\n", i);
 
 		handled = true;
 	}
