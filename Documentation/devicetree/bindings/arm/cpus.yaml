@@ -347,9 +347,22 @@ properties:
     deprecated: true
     description: Use 'cpu-supply' instead
 
+  soc-supply:
+    deprecated: true
+    description: Only for i.MX6/7 Soc.
+
   sram-supply:
     deprecated: true
     description: Use 'mem-supply' instead
+
+  fsl,soc-operating-points:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    description: FSL i.MX6 Soc operation-points when change cpu frequency
+    deprecated: true
+    items:
+      items:
+        - description: Frequency in kHz
+        - description: Voltage for OPP in uV
 
   mediatek,cci:
     $ref: /schemas/types.yaml#/definitions/phandle
