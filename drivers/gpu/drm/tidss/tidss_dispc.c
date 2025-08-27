@@ -594,72 +594,82 @@ void tidss_disable_oldi(struct tidss_device *tidss, u32 hw_videoport)
  * number. For example 7:0
  */
 
-static u32 FLD_MASK(u32 start, u32 end)
-{
-	return ((1 << (start - end + 1)) - 1) << end;
-}
+#define FLD_MASK(start, end)						\
+	({								\
+		int _end_inner = (end);					\
+		u32 _mask = ((1 << ((start) - _end_inner + 1)) - 1) << _end_inner; \
+		_mask;							\
+	})
 
-static u32 FLD_VAL(u32 val, u32 start, u32 end)
-{
-	return (val << end) & FLD_MASK(start, end);
-}
+#define FLD_VAL(val, start, end)					\
+	({								\
+		int _end_inner = (end);					\
+		u32 _new_val = ((val) << _end_inner) & FLD_MASK((start), _end_inner); \
+		_new_val;						\
+	})
 
-static u32 FLD_GET(u32 val, u32 start, u32 end)
-{
-	return (val & FLD_MASK(start, end)) >> end;
-}
+#define FLD_GET(val, start, end)					\
+	({								\
+		int _end = (end);					\
+		u32 _ret_val = ((val) & FLD_MASK((start), _end)) >> _end; \
+		_ret_val;						\
+	})
 
-static u32 FLD_MOD(u32 orig, u32 val, u32 start, u32 end)
-{
-	return (orig & ~FLD_MASK(start, end)) | FLD_VAL(val, start, end);
-}
+#define FLD_MOD(orig, val, start, end)					\
+	({								\
+		int _start = (start), _end = (end);			\
+		u32 _masked_val = (orig) & ~FLD_MASK(_start, _end);	\
+		u32 _new_val = _masked_val | FLD_VAL((val), _start, _end); \
+		_new_val;						\
+	})
 
-static u32 REG_GET(struct dispc_device *dispc, u32 idx, u32 start, u32 end)
-{
-	return FLD_GET(dispc_read(dispc, idx), start, end);
-}
+#define REG_GET(dispc, idx, start, end)					\
+	((u32)FLD_GET(dispc_read((dispc), (idx)), (start), (end)))
 
-static void REG_FLD_MOD(struct dispc_device *dispc, u32 idx, u32 val,
-			u32 start, u32 end)
-{
-	dispc_write(dispc, idx, FLD_MOD(dispc_read(dispc, idx), val,
-					start, end));
-}
+#define REG_FLD_MOD(dispc, idx, val, start, end)			\
+	({								\
+		struct dispc_device *_dispc = (dispc);			\
+		u32 _idx = (idx);					\
+		u32 _curr = dispc_read(_dispc, _idx);			\
+		u32 _new = FLD_MOD(_curr, (val), (start), (end));	\
+		dispc_write(_dispc, _idx, _new);			\
+	})
 
-static u32 VID_REG_GET(struct dispc_device *dispc, u32 hw_plane, u32 idx,
-		       u32 start, u32 end)
-{
-	return FLD_GET(dispc_vid_read(dispc, hw_plane, idx), start, end);
-}
+#define VID_REG_GET(dispc, hw_plane, idx, start, end)			\
+	((u32)FLD_GET(dispc_vid_read((dispc), (hw_plane), (idx)), (start), (end)))
 
-static void VID_REG_FLD_MOD(struct dispc_device *dispc, u32 hw_plane, u32 idx,
-			    u32 val, u32 start, u32 end)
-{
-	dispc_vid_write(dispc, hw_plane, idx,
-			FLD_MOD(dispc_vid_read(dispc, hw_plane, idx),
-				val, start, end));
-}
+#define VID_REG_FLD_MOD(dispc, hw_plane, idx, val, start, end)		\
+	({								\
+		struct dispc_device *_dispc = (dispc);			\
+		u32 _hw_plane = (hw_plane);				\
+		u32 _idx = (idx);					\
+		u32 _curr = dispc_vid_read(_dispc, _hw_plane, _idx);	\
+		u32 _new = FLD_MOD(_curr, (val), (start), (end));	\
+		dispc_vid_write(_dispc, _hw_plane, _idx, _new);		\
+	})
 
-static u32 VP_REG_GET(struct dispc_device *dispc, u32 vp, u32 idx,
-		      u32 start, u32 end)
-{
-	return FLD_GET(dispc_vp_read(dispc, vp, idx), start, end);
-}
+#define VP_REG_GET(dispc, vp, idx, start, end)				\
+	((u32)FLD_GET(dispc_vp_read((dispc), (vp), (idx)), (start), (end)))
 
-static void VP_REG_FLD_MOD(struct dispc_device *dispc, u32 vp, u32 idx, u32 val,
-			   u32 start, u32 end)
-{
-	dispc_vp_write(dispc, vp, idx, FLD_MOD(dispc_vp_read(dispc, vp, idx),
-					       val, start, end));
-}
+#define VP_REG_FLD_MOD(dispc, vp, idx, val, start, end)			\
+	({								\
+		struct dispc_device *_dispc = (dispc);			\
+		u32 _vp = (vp);						\
+		u32 _idx = (idx);					\
+		u32 _curr = dispc_vp_read(_dispc, _vp, _idx);		\
+		u32 _new = FLD_MOD(_curr, (val), (start), (end));	\
+		dispc_vp_write(_dispc, _vp, _idx, _new);		\
+	})
 
-static void OVR_REG_FLD_MOD(struct dispc_device *dispc, u32 ovr, u32 idx,
-			    u32 val, u32 start, u32 end)
-{
-	dispc_ovr_write(dispc, ovr, idx,
-			FLD_MOD(dispc_ovr_read(dispc, ovr, idx),
-				val, start, end));
-}
+#define OVR_REG_FLD_MOD(dispc, ovr, idx, val, start, end)		\
+	({								\
+		struct dispc_device *_dispc = (dispc);			\
+		u32 _ovr = (ovr);						\
+		u32 _idx = (idx);					\
+		u32 _curr = dispc_ovr_read(_dispc, _ovr, _idx);		\
+		u32 _new = FLD_MOD(_curr, (val), (start), (end));	\
+		dispc_ovr_write(_dispc, _ovr, _idx, _new);		\
+	})
 
 static dispc_irq_t dispc_vp_irq_from_raw(u32 stat, u32 hw_videoport)
 {
