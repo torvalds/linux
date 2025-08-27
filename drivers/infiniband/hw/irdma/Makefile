@@ -13,6 +13,7 @@ irdma-objs := cm.o        \
               hw.o        \
               i40iw_hw.o  \
               i40iw_if.o  \
+	      icrdma_if.o \
               icrdma_hw.o \
               main.o      \
               pble.o      \

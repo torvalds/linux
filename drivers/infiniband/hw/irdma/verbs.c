@@ -4539,7 +4539,7 @@ static bool irdma_ah_exists(struct irdma_device *iwdev,
 		  new_ah->sc_ah.ah_info.dest_ip_addr[2] ^
 		  new_ah->sc_ah.ah_info.dest_ip_addr[3];
 
-	hash_for_each_possible(iwdev->ah_hash_tbl, ah, list, key) {
+	hash_for_each_possible(iwdev->rf->ah_hash_tbl, ah, list, key) {
 		/* Set ah_valid and ah_id the same so memcmp can work */
 		new_ah->sc_ah.ah_info.ah_idx = ah->sc_ah.ah_info.ah_idx;
 		new_ah->sc_ah.ah_info.ah_valid = ah->sc_ah.ah_info.ah_valid;
@@ -4565,14 +4565,14 @@ static int irdma_destroy_ah(struct ib_ah *ibah, u32 ah_flags)
 	struct irdma_ah *ah = to_iwah(ibah);
 
 	if ((ah_flags & RDMA_DESTROY_AH_SLEEPABLE) && ah->parent_ah) {
-		mutex_lock(&iwdev->ah_tbl_lock);
+		mutex_lock(&iwdev->rf->ah_tbl_lock);
 		if (!refcount_dec_and_test(&ah->parent_ah->refcnt)) {
-			mutex_unlock(&iwdev->ah_tbl_lock);
+			mutex_unlock(&iwdev->rf->ah_tbl_lock);
 			return 0;
 		}
 		hash_del(&ah->parent_ah->list);
 		kfree(ah->parent_ah);
-		mutex_unlock(&iwdev->ah_tbl_lock);
+		mutex_unlock(&iwdev->rf->ah_tbl_lock);
 	}
 
 	irdma_ah_cqp_op(iwdev->rf, &ah->sc_ah, IRDMA_OP_AH_DESTROY,
@@ -4609,11 +4609,11 @@ static int irdma_create_user_ah(struct ib_ah *ibah,
 	err = irdma_setup_ah(ibah, attr);
 	if (err)
 		return err;
-	mutex_lock(&iwdev->ah_tbl_lock);
+	mutex_lock(&iwdev->rf->ah_tbl_lock);
 	if (!irdma_ah_exists(iwdev, ah)) {
 		err = irdma_create_hw_ah(iwdev, ah, true);
 		if (err) {
-			mutex_unlock(&iwdev->ah_tbl_lock);
+			mutex_unlock(&iwdev->rf->ah_tbl_lock);
 			return err;
 		}
 		/* Add new AH to list */
@@ -4625,11 +4625,11 @@ static int irdma_create_user_ah(struct ib_ah *ibah,
 				  parent_ah->sc_ah.ah_info.dest_ip_addr[3];
 
 			ah->parent_ah = parent_ah;
-			hash_add(iwdev->ah_hash_tbl, &parent_ah->list, key);
+			hash_add(iwdev->rf->ah_hash_tbl, &parent_ah->list, key);
 			refcount_set(&parent_ah->refcnt, 1);
 		}
 	}
-	mutex_unlock(&iwdev->ah_tbl_lock);
+	mutex_unlock(&iwdev->rf->ah_tbl_lock);
 
 	uresp.ah_id = ah->sc_ah.ah_info.ah_idx;
 	err = ib_copy_to_udata(udata, &uresp, min(sizeof(uresp), udata->outlen));
