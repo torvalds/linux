@@ -132,6 +132,13 @@ static const struct regmap_config adv7511_regmap_config = {
 	.volatile_reg = adv7511_register_volatile,
 };
 
+static const struct regmap_config adv7511_packet_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = 0xff,
+};
+
 /* -----------------------------------------------------------------------------
  * Hardware configuration
  */
@@ -889,6 +896,12 @@ static int adv7511_bridge_hdmi_clear_infoframe(struct drm_bridge *bridge,
 	case HDMI_INFOFRAME_TYPE_AVI:
 		adv7511_packet_disable(adv7511, ADV7511_PACKET_ENABLE_AVI_INFOFRAME);
 		break;
+	case HDMI_INFOFRAME_TYPE_SPD:
+		adv7511_packet_disable(adv7511, ADV7511_PACKET_ENABLE_SPD);
+		break;
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		adv7511_packet_disable(adv7511, ADV7511_PACKET_ENABLE_SPARE1);
+		break;
 	default:
 		drm_dbg_driver(adv7511->bridge.dev, "Unsupported HDMI InfoFrame %x\n", type);
 		break;
@@ -912,6 +925,16 @@ static int adv7511_bridge_hdmi_write_infoframe(struct drm_bridge *bridge,
 				  buffer + 1, len - 1);
 
 		adv7511_packet_enable(adv7511, ADV7511_PACKET_ENABLE_AVI_INFOFRAME);
+		break;
+	case HDMI_INFOFRAME_TYPE_SPD:
+		regmap_bulk_write(adv7511->regmap_packet, ADV7511_PACKET_SPD(0),
+				  buffer, len);
+		adv7511_packet_enable(adv7511, ADV7511_PACKET_ENABLE_SPD);
+		break;
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		regmap_bulk_write(adv7511->regmap_packet, ADV7511_PACKET_SPARE1(0),
+				  buffer, len);
+		adv7511_packet_enable(adv7511, ADV7511_PACKET_ENABLE_SPARE1);
 		break;
 	default:
 		drm_dbg_driver(adv7511->bridge.dev, "Unsupported HDMI InfoFrame %x\n", type);
@@ -1240,6 +1263,13 @@ static int adv7511_probe(struct i2c_client *i2c)
 	if (IS_ERR(adv7511->i2c_packet)) {
 		ret = PTR_ERR(adv7511->i2c_packet);
 		goto err_i2c_unregister_edid;
+	}
+
+	adv7511->regmap_packet = devm_regmap_init_i2c(adv7511->i2c_packet,
+						      &adv7511_packet_config);
+	if (IS_ERR(adv7511->regmap_packet)) {
+		ret = PTR_ERR(adv7511->regmap_packet);
+		goto err_i2c_unregister_packet;
 	}
 
 	regmap_write(adv7511->regmap, ADV7511_REG_PACKET_I2C_ADDR,
