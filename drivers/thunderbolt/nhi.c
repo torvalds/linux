@@ -344,8 +344,10 @@ EXPORT_SYMBOL_GPL(__tb_ring_enqueue);
  *
  * This function can be called when @start_poll callback of the @ring
  * has been called. It will read one completed frame from the ring and
- * return it to the caller. Returns %NULL if there is no more completed
- * frames.
+ * return it to the caller.
+ *
+ * Return: Pointer to &struct ring_frame, %NULL if there is no more
+ * completed frames.
  */
 struct ring_frame *tb_ring_poll(struct tb_ring *ring)
 {
@@ -640,6 +642,8 @@ err_free_ring:
  * @hop: HopID (ring) to allocate
  * @size: Number of entries in the ring
  * @flags: Flags for the ring
+ *
+ * Return: Pointer to &struct tb_ring, %NULL otherwise.
  */
 struct tb_ring *tb_ring_alloc_tx(struct tb_nhi *nhi, int hop, int size,
 				 unsigned int flags)
@@ -661,6 +665,8 @@ EXPORT_SYMBOL_GPL(tb_ring_alloc_tx);
  *		interrupt is triggered and masked, instead of callback
  *		in each Rx frame.
  * @poll_data: Optional data passed to @start_poll
+ *
+ * Return: Pointer to &struct tb_ring, %NULL otherwise.
  */
 struct tb_ring *tb_ring_alloc_rx(struct tb_nhi *nhi, int hop, int size,
 				 unsigned int flags, int e2e_tx_hop,
@@ -854,8 +860,9 @@ EXPORT_SYMBOL_GPL(tb_ring_free);
  * @cmd: Command to send
  * @data: Data to be send with the command
  *
- * Sends mailbox command to the firmware running on NHI. Returns %0 in
- * case of success and negative errno in case of failure.
+ * Sends mailbox command to the firmware running on NHI.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int nhi_mailbox_cmd(struct tb_nhi *nhi, enum nhi_mailbox_cmd cmd, u32 data)
 {
@@ -891,6 +898,8 @@ int nhi_mailbox_cmd(struct tb_nhi *nhi, enum nhi_mailbox_cmd cmd, u32 data)
  *
  * The function reads current firmware operation mode using NHI mailbox
  * registers and returns it to the caller.
+ *
+ * Return: &enum nhi_fw_mode.
  */
 enum nhi_fw_mode nhi_mailbox_mode(struct tb_nhi *nhi)
 {
