@@ -7,7 +7,7 @@
 #define ATH12K_DP_RX_H
 
 #include "core.h"
-#include "rx_desc.h"
+#include "wifi7/hal_rx_desc.h"
 #include "debug.h"
 
 #define DP_MAX_NWIFI_HDR_LEN	30

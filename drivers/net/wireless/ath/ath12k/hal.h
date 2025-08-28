@@ -8,7 +8,7 @@
 #define ATH12K_HAL_H
 
 #include "wifi7/hal_desc.h"
-#include "rx_desc.h"
+#include "wifi7/hal_rx_desc.h"
 
 struct ath12k_base;
 
@@ -29,6 +29,11 @@ struct ath12k_base;
 #define EHT_MAX_USER_INFO	4
 #define HAL_RX_MON_MAX_AGGR_SIZE	128
 #define HAL_MAX_UL_MU_USERS	37
+
+#define MAX_USER_POS 8
+#define MAX_MU_GROUP_ID 64
+#define MAX_MU_GROUP_SHOW 16
+#define MAX_MU_GROUP_LENGTH (6 * MAX_MU_GROUP_SHOW)
 
 #define HAL_CE_REMAP_REG_BASE	(ab->ce_remap_base_addr)
 
@@ -822,6 +827,47 @@ struct hal_srng_params {
 enum hal_srng_dir {
 	HAL_SRNG_DIR_SRC,
 	HAL_SRNG_DIR_DST
+};
+
+enum rx_msdu_start_pkt_type {
+	RX_MSDU_START_PKT_TYPE_11A,
+	RX_MSDU_START_PKT_TYPE_11B,
+	RX_MSDU_START_PKT_TYPE_11N,
+	RX_MSDU_START_PKT_TYPE_11AC,
+	RX_MSDU_START_PKT_TYPE_11AX,
+	RX_MSDU_START_PKT_TYPE_11BA,
+	RX_MSDU_START_PKT_TYPE_11BE,
+};
+
+enum rx_msdu_start_sgi {
+	RX_MSDU_START_SGI_0_8_US,
+	RX_MSDU_START_SGI_0_4_US,
+	RX_MSDU_START_SGI_1_6_US,
+	RX_MSDU_START_SGI_3_2_US,
+};
+
+enum rx_msdu_start_recv_bw {
+	RX_MSDU_START_RECV_BW_20MHZ,
+	RX_MSDU_START_RECV_BW_40MHZ,
+	RX_MSDU_START_RECV_BW_80MHZ,
+	RX_MSDU_START_RECV_BW_160MHZ,
+};
+
+enum rx_msdu_start_reception_type {
+	RX_MSDU_START_RECEPTION_TYPE_SU,
+	RX_MSDU_START_RECEPTION_TYPE_DL_MU_MIMO,
+	RX_MSDU_START_RECEPTION_TYPE_DL_MU_OFDMA,
+	RX_MSDU_START_RECEPTION_TYPE_DL_MU_OFDMA_MIMO,
+	RX_MSDU_START_RECEPTION_TYPE_UL_MU_MIMO,
+	RX_MSDU_START_RECEPTION_TYPE_UL_MU_OFDMA,
+	RX_MSDU_START_RECEPTION_TYPE_UL_MU_OFDMA_MIMO,
+};
+
+enum rx_desc_decap_type {
+	RX_DESC_DECAP_TYPE_RAW,
+	RX_DESC_DECAP_TYPE_NATIVE_WIFI,
+	RX_DESC_DECAP_TYPE_ETHERNET2_DIX,
+	RX_DESC_DECAP_TYPE_8023,
 };
 
 struct hal_rx_user_status {
