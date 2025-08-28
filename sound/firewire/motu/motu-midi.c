@@ -15,17 +15,15 @@ static int midi_open(struct snd_rawmidi_substream *substream)
 	if (err < 0)
 		return err;
 
-	mutex_lock(&motu->mutex);
-
-	err = snd_motu_stream_reserve_duplex(motu, 0, 0, 0);
-	if (err >= 0) {
-		++motu->substreams_counter;
-		err = snd_motu_stream_start_duplex(motu);
-		if (err < 0)
-			--motu->substreams_counter;
+	scoped_guard(mutex, &motu->mutex) {
+		err = snd_motu_stream_reserve_duplex(motu, 0, 0, 0);
+		if (err >= 0) {
+			++motu->substreams_counter;
+			err = snd_motu_stream_start_duplex(motu);
+			if (err < 0)
+				--motu->substreams_counter;
+		}
 	}
-
-	mutex_unlock(&motu->mutex);
 
 	if (err < 0)
 		snd_motu_stream_lock_release(motu);
@@ -37,12 +35,10 @@ static int midi_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_motu *motu = substream->rmidi->private_data;
 
-	mutex_lock(&motu->mutex);
-
-	--motu->substreams_counter;
-	snd_motu_stream_stop_duplex(motu);
-
-	mutex_unlock(&motu->mutex);
+	scoped_guard(mutex, &motu->mutex) {
+		--motu->substreams_counter;
+		snd_motu_stream_stop_duplex(motu);
+	}
 
 	snd_motu_stream_lock_release(motu);
 	return 0;
