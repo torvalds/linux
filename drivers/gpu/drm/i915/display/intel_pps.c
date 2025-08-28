@@ -627,11 +627,9 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 		    intel_de_read(display, pp_stat_reg),
 		    intel_de_read(display, pp_ctrl_reg));
 
-	ret = read_poll_timeout(intel_de_read, val,
-				(val & mask) == value,
-				10 * 1000, 5000 * 1000, true,
-				display, pp_stat_reg);
-
+	ret = poll_timeout_us(val = intel_de_read(display, pp_stat_reg),
+			      (val & mask) == value,
+			      10 * 1000, 5000 * 1000, true);
 	if (ret) {
 		drm_err(display->drm,
 			"[ENCODER:%d:%s] %s panel status timeout: PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
