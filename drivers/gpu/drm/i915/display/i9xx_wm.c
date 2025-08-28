@@ -3,6 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <linux/iopoll.h>
+
 #include "soc/intel_dram.h"
 
 #include "i915_drv.h"
@@ -112,6 +114,7 @@ static const struct cxsr_latency *pnv_get_cxsr_latency(struct intel_display *dis
 static void chv_set_memory_dvfs(struct intel_display *display, bool enable)
 {
 	u32 val;
+	int ret;
 
 	vlv_punit_get(display->drm);
 
@@ -124,8 +127,10 @@ static void chv_set_memory_dvfs(struct intel_display *display, bool enable)
 	val |= FORCE_DDR_FREQ_REQ_ACK;
 	vlv_punit_write(display->drm, PUNIT_REG_DDR_SETUP2, val);
 
-	if (wait_for((vlv_punit_read(display->drm, PUNIT_REG_DDR_SETUP2) &
-		      FORCE_DDR_FREQ_REQ_ACK) == 0, 3))
+	ret = poll_timeout_us(val = vlv_punit_read(display->drm, PUNIT_REG_DDR_SETUP2),
+			      (val & FORCE_DDR_FREQ_REQ_ACK) == 0,
+			      500, 3000, false);
+	if (ret)
 		drm_err(display->drm,
 			"timed out waiting for Punit DDR DVFS request\n");
 
@@ -3905,6 +3910,7 @@ static void vlv_wm_get_hw_state(struct intel_display *display)
 	struct vlv_wm_values *wm = &display->wm.vlv;
 	struct intel_crtc *crtc;
 	u32 val;
+	int ret;
 
 	vlv_read_wm_values(display, wm);
 
@@ -3931,8 +3937,10 @@ static void vlv_wm_get_hw_state(struct intel_display *display)
 		val |= FORCE_DDR_FREQ_REQ_ACK;
 		vlv_punit_write(display->drm, PUNIT_REG_DDR_SETUP2, val);
 
-		if (wait_for((vlv_punit_read(display->drm, PUNIT_REG_DDR_SETUP2) &
-			      FORCE_DDR_FREQ_REQ_ACK) == 0, 3)) {
+		ret = poll_timeout_us(val = vlv_punit_read(display->drm, PUNIT_REG_DDR_SETUP2),
+				      (val & FORCE_DDR_FREQ_REQ_ACK) == 0,
+				      500, 3000, false);
+		if (ret) {
 			drm_dbg_kms(display->drm,
 				    "Punit not acking DDR DVFS request, "
 				    "assuming DDR DVFS is disabled\n");
