@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 #include <linux/hdmi.h>
 #include <linux/i2c.h>
+#include <linux/iopoll.h>
 #include <linux/slab.h>
 #include <linux/string_helpers.h>
 
@@ -1690,11 +1691,10 @@ intel_hdmi_hdcp2_wait_for_msg(struct intel_digital_port *dig_port,
 	if (timeout < 0)
 		return timeout;
 
-	ret = __wait_for(ret = hdcp2_detect_msg_availability(dig_port,
-							     msg_id, &msg_ready,
-							     &msg_sz),
-			 !ret && msg_ready && msg_sz, timeout * 1000,
-			 1000, 5 * 1000);
+	ret = poll_timeout_us(ret = hdcp2_detect_msg_availability(dig_port, msg_id,
+								  &msg_ready, &msg_sz),
+			      !ret && msg_ready && msg_sz,
+			      4000, timeout * 1000, false);
 	if (ret)
 		drm_dbg_kms(display->drm,
 			    "msg_id: %d, ret: %d, timeout: %d\n",
