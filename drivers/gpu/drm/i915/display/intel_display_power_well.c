@@ -3,6 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include <linux/iopoll.h>
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
@@ -527,6 +529,8 @@ icl_tc_phy_aux_power_well_enable(struct intel_display *display,
 	const struct i915_power_well_regs *regs = power_well->desc->ops->regs;
 	bool is_tbt = power_well->desc->is_tc_tbt;
 	bool timeout_expected;
+	u32 val;
+	int ret;
 
 	icl_tc_port_assert_ref_held(display, power_well, dig_port);
 
@@ -553,10 +557,11 @@ icl_tc_phy_aux_power_well_enable(struct intel_display *display,
 
 		tc_port = TGL_AUX_PW_TO_TC_PORT(i915_power_well_instance(power_well)->hsw.idx);
 
-		if (wait_for(intel_dkl_phy_read(display, DKL_CMN_UC_DW_27(tc_port)) &
-			     DKL_CMN_UC_DW27_UC_HEALTH, 1))
-			drm_warn(display->drm,
-				 "Timeout waiting TC uC health\n");
+		ret = poll_timeout_us(val = intel_dkl_phy_read(display, DKL_CMN_UC_DW_27(tc_port)),
+				      val & DKL_CMN_UC_DW27_UC_HEALTH,
+				      100, 1000, false);
+		if (ret)
+			drm_warn(display->drm, "Timeout waiting TC uC health\n");
 	}
 }
 
