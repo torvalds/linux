@@ -1997,23 +1997,23 @@ struct drm_xe_query_eu_stall {
  * union member is used to provide additional parameters for @type.
  *
  * Supported attribute types:
- * - DRM_XE_MEM_RANGE_ATTR_PREFERRED_LOC: Set preferred memory location.
- * - DRM_XE_MEM_RANGE_ATTR_ATOMIC: Set atomic access policy.
- * - DRM_XE_MEM_RANGE_ATTR_PAT: Set page attribute table index.
+ *  - DRM_XE_MEM_RANGE_ATTR_PREFERRED_LOC: Set preferred memory location.
+ *  - DRM_XE_MEM_RANGE_ATTR_ATOMIC: Set atomic access policy.
+ *  - DRM_XE_MEM_RANGE_ATTR_PAT: Set page attribute table index.
  *
  * Example:
  *
  * .. code-block:: C
  *
- * struct drm_xe_madvise madvise = {
- *          .vm_id = vm_id,
- *          .start = 0x100000,
- *          .range = 0x2000,
- *          .type = DRM_XE_MEM_RANGE_ATTR_ATOMIC,
- *          .atomic_val = DRM_XE_ATOMIC_DEVICE,
- *         };
+ *    struct drm_xe_madvise madvise = {
+ *         .vm_id = vm_id,
+ *         .start = 0x100000,
+ *         .range = 0x2000,
+ *         .type = DRM_XE_MEM_RANGE_ATTR_ATOMIC,
+ *         .atomic_val = DRM_XE_ATOMIC_DEVICE,
+ *    };
  *
- * ioctl(fd, DRM_IOCTL_XE_MADVISE, &madvise);
+ *    ioctl(fd, DRM_IOCTL_XE_MADVISE, &madvise);
  *
  */
 struct drm_xe_madvise {
@@ -2042,12 +2042,12 @@ struct drm_xe_madvise {
 		 * Used when @type == DRM_XE_MEM_RANGE_ATTR_PREFERRED_LOC
 		 *
 		 * Supported values for @preferred_mem_loc.devmem_fd:
-		 * - DRM_XE_PREFERRED_LOC_DEFAULT_DEVICE: set vram of faulting tile as preferred loc
-		 * - DRM_XE_PREFERRED_LOC_DEFAULT_SYSTEM: set smem as preferred loc
+		 *  - DRM_XE_PREFERRED_LOC_DEFAULT_DEVICE: set vram of fault tile as preferred loc
+		 *  - DRM_XE_PREFERRED_LOC_DEFAULT_SYSTEM: set smem as preferred loc
 		 *
 		 * Supported values for @preferred_mem_loc.migration_policy:
-		 * - DRM_XE_MIGRATE_ALL_PAGES
-		 * - DRM_XE_MIGRATE_ONLY_SYSTEM_PAGES
+		 *  - DRM_XE_MIGRATE_ALL_PAGES
+		 *  - DRM_XE_MIGRATE_ONLY_SYSTEM_PAGES
 		 */
 		struct {
 #define DRM_XE_PREFERRED_LOC_DEFAULT_DEVICE	0
@@ -2073,12 +2073,12 @@ struct drm_xe_madvise {
 		 * Used when @type == DRM_XE_MEM_RANGE_ATTR_ATOMIC.
 		 *
 		 * Supported values for @atomic.val:
-		 * - DRM_XE_ATOMIC_UNDEFINED: Undefined or default behaviour
-		 *   Support both GPU and CPU atomic operations for system allocator
-		 *   Support GPU atomic operations for normal(bo) allocator
-		 * - DRM_XE_ATOMIC_DEVICE: Support GPU atomic operations
-		 * - DRM_XE_ATOMIC_GLOBAL: Support both GPU and CPU atomic operations
-		 * - DRM_XE_ATOMIC_CPU: Support CPU atomic
+		 *  - DRM_XE_ATOMIC_UNDEFINED: Undefined or default behaviour.
+		 *    Support both GPU and CPU atomic operations for system allocator.
+		 *    Support GPU atomic operations for normal(bo) allocator.
+		 *  - DRM_XE_ATOMIC_DEVICE: Support GPU atomic operations.
+		 *  - DRM_XE_ATOMIC_GLOBAL: Support both GPU and CPU atomic operations.
+		 *  - DRM_XE_ATOMIC_CPU: Support CPU atomic only, no GPU atomics supported.
 		 */
 		struct {
 #define DRM_XE_ATOMIC_UNDEFINED	0
@@ -2196,6 +2196,7 @@ struct drm_xe_mem_range_attr {
  * Example:
  *
  * .. code-block:: C
+ *
  *    struct drm_xe_vm_query_mem_range_attr query = {
  *         .vm_id = vm_id,
  *         .start = 0x100000,
