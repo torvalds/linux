@@ -841,6 +841,8 @@ static inline void _iwl_disable_interrupts(struct iwl_trans *trans)
 			    trans_pcie->fh_init_mask);
 		iwl_write32(trans, CSR_MSIX_HW_INT_MASK_AD,
 			    trans_pcie->hw_init_mask);
+		trans_pcie->fh_mask = 0;
+		trans_pcie->hw_mask = 0;
 	}
 	IWL_DEBUG_ISR(trans, "Disabled interrupts\n");
 }
@@ -1023,6 +1025,7 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 	} else {
 		iwl_write32(trans, CSR_MSIX_FH_INT_MASK_AD,
 			    trans_pcie->fh_init_mask);
+		trans_pcie->fh_mask = 0;
 		iwl_enable_hw_int_msk_msix(trans,
 					   MSIX_HW_INT_CAUSES_REG_RF_KILL);
 	}
