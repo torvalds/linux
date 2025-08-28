@@ -136,6 +136,9 @@ static int msiof_hw_start(struct snd_soc_component *component,
 	priv->err_ovf[substream->stream] =
 	priv->err_udf[substream->stream] = 0;
 
+	/* Start DMAC */
+	snd_dmaengine_pcm_trigger(substream, cmd);
+
 	/* SITMDRx */
 	if (is_play) {
 		val = SITMDR1_PCON |
@@ -185,9 +188,6 @@ static int msiof_hw_start(struct snd_soc_component *component,
 	else
 		val = SICTR_RXE | SICTR_REDG;
 	msiof_update_and_wait(priv, SICTR, val, val, val);
-
-	/* Start DMAC */
-	snd_dmaengine_pcm_trigger(substream, cmd);
 
 	return 0;
 }
