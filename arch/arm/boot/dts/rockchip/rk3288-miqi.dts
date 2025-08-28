@@ -78,6 +78,21 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "HDMI";
+		simple-audio-card,mclk-fs = <512>;
+
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s>;
+		};
+	};
 };
 
 &cpu0 {
@@ -282,6 +297,11 @@
 };
 
 &i2c5 {
+	status = "okay";
+};
+
+&i2s {
+	#sound-dai-cells = <0>;
 	status = "okay";
 };
 
