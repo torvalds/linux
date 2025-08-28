@@ -7,7 +7,7 @@
 #include "wifi7/hal_tx.h"
 #include "wifi7/hal_rx.h"
 #include "debug.h"
-#include "hal_desc.h"
+#include "wifi7/hal_desc.h"
 #include "hif.h"
 
 static const struct hal_srng_config hw_srng_config_template[] = {

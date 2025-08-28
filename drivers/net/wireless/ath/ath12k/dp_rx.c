@@ -10,7 +10,7 @@
 #include <crypto/hash.h>
 #include "core.h"
 #include "debug.h"
-#include "hal_desc.h"
+#include "wifi7/hal_desc.h"
 #include "hw.h"
 #include "dp_rx.h"
 #include "wifi7/hal_rx.h"

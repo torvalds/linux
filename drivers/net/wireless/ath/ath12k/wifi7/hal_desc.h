@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
-#include "core.h"
+#include "../core.h"
 
 #ifndef ATH12K_HAL_DESC_H
 #define ATH12K_HAL_DESC_H
@@ -820,35 +820,6 @@ struct rx_msdu_ext_desc {
  *		Set to the link ID of the PMAC that received the frame
  */
 
-enum hal_reo_dest_ring_buffer_type {
-	HAL_REO_DEST_RING_BUFFER_TYPE_MSDU,
-	HAL_REO_DEST_RING_BUFFER_TYPE_LINK_DESC,
-};
-
-enum hal_reo_dest_ring_push_reason {
-	HAL_REO_DEST_RING_PUSH_REASON_ERR_DETECTED,
-	HAL_REO_DEST_RING_PUSH_REASON_ROUTING_INSTRUCTION,
-};
-
-enum hal_reo_dest_ring_error_code {
-	HAL_REO_DEST_RING_ERROR_CODE_DESC_ADDR_ZERO,
-	HAL_REO_DEST_RING_ERROR_CODE_DESC_INVALID,
-	HAL_REO_DEST_RING_ERROR_CODE_AMPDU_IN_NON_BA,
-	HAL_REO_DEST_RING_ERROR_CODE_NON_BA_DUPLICATE,
-	HAL_REO_DEST_RING_ERROR_CODE_BA_DUPLICATE,
-	HAL_REO_DEST_RING_ERROR_CODE_FRAME_2K_JUMP,
-	HAL_REO_DEST_RING_ERROR_CODE_BAR_2K_JUMP,
-	HAL_REO_DEST_RING_ERROR_CODE_FRAME_OOR,
-	HAL_REO_DEST_RING_ERROR_CODE_BAR_OOR,
-	HAL_REO_DEST_RING_ERROR_CODE_NO_BA_SESSION,
-	HAL_REO_DEST_RING_ERROR_CODE_FRAME_SN_EQUALS_SSN,
-	HAL_REO_DEST_RING_ERROR_CODE_PN_CHECK_FAILED,
-	HAL_REO_DEST_RING_ERROR_CODE_2K_ERR_FLAG_SET,
-	HAL_REO_DEST_RING_ERROR_CODE_PN_ERR_FLAG_SET,
-	HAL_REO_DEST_RING_ERROR_CODE_DESC_BLOCKED,
-	HAL_REO_DEST_RING_ERROR_CODE_MAX,
-};
-
 #define HAL_REO_DEST_RING_INFO0_BUFFER_TYPE		BIT(0)
 #define HAL_REO_DEST_RING_INFO0_PUSH_REASON		GENMASK(2, 1)
 #define HAL_REO_DEST_RING_INFO0_ERROR_CODE		GENMASK(7, 3)
@@ -985,35 +956,6 @@ struct hal_reo_to_ppe_ring {
  * more
  *		More Segments followed
  */
-
-enum hal_reo_entr_rxdma_push_reason {
-	HAL_REO_ENTR_RING_RXDMA_PUSH_REASON_ERR_DETECTED,
-	HAL_REO_ENTR_RING_RXDMA_PUSH_REASON_ROUTING_INSTRUCTION,
-	HAL_REO_ENTR_RING_RXDMA_PUSH_REASON_RX_FLUSH,
-};
-
-enum hal_reo_entr_rxdma_ecode {
-	HAL_REO_ENTR_RING_RXDMA_ECODE_OVERFLOW_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_MPDU_LEN_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_FCS_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_DECRYPT_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_TKIP_MIC_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_UNECRYPTED_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_MSDU_LEN_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_MSDU_LIMIT_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_WIFI_PARSE_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_AMSDU_PARSE_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_SA_TIMEOUT_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_DA_TIMEOUT_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_FLOW_TIMEOUT_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_FLUSH_REQUEST_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_AMSDU_FRAG_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_MULTICAST_ECHO_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_AMSDU_MISMATCH_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_UNAUTH_WDS_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_GRPCAST_AMSDU_WDS_ERR,
-	HAL_REO_ENTR_RING_RXDMA_ECODE_MAX,
-};
 
 enum hal_rx_reo_dest_ring {
 	HAL_RX_REO_DEST_RING_TCL,
@@ -1267,46 +1209,6 @@ struct hal_reo_flush_cache {
 
 #define HAL_TCL_DATA_CMD_INFO5_RING_ID			GENMASK(27, 20)
 #define HAL_TCL_DATA_CMD_INFO5_LOOPING_COUNT		GENMASK(31, 28)
-
-enum hal_encrypt_type {
-	HAL_ENCRYPT_TYPE_WEP_40,
-	HAL_ENCRYPT_TYPE_WEP_104,
-	HAL_ENCRYPT_TYPE_TKIP_NO_MIC,
-	HAL_ENCRYPT_TYPE_WEP_128,
-	HAL_ENCRYPT_TYPE_TKIP_MIC,
-	HAL_ENCRYPT_TYPE_WAPI,
-	HAL_ENCRYPT_TYPE_CCMP_128,
-	HAL_ENCRYPT_TYPE_OPEN,
-	HAL_ENCRYPT_TYPE_CCMP_256,
-	HAL_ENCRYPT_TYPE_GCMP_128,
-	HAL_ENCRYPT_TYPE_AES_GCMP_256,
-	HAL_ENCRYPT_TYPE_WAPI_GCM_SM4,
-};
-
-enum hal_tcl_encap_type {
-	HAL_TCL_ENCAP_TYPE_RAW,
-	HAL_TCL_ENCAP_TYPE_NATIVE_WIFI,
-	HAL_TCL_ENCAP_TYPE_ETHERNET,
-	HAL_TCL_ENCAP_TYPE_802_3 = 3,
-	HAL_TCL_ENCAP_TYPE_MAX
-};
-
-enum hal_tcl_desc_type {
-	HAL_TCL_DESC_TYPE_BUFFER,
-	HAL_TCL_DESC_TYPE_EXT_DESC,
-	HAL_TCL_DESC_TYPE_MAX,
-};
-
-enum hal_wbm_htt_tx_comp_status {
-	HAL_WBM_REL_HTT_TX_COMP_STATUS_OK,
-	HAL_WBM_REL_HTT_TX_COMP_STATUS_DROP,
-	HAL_WBM_REL_HTT_TX_COMP_STATUS_TTL,
-	HAL_WBM_REL_HTT_TX_COMP_STATUS_REINJ,
-	HAL_WBM_REL_HTT_TX_COMP_STATUS_INSPECT,
-	HAL_WBM_REL_HTT_TX_COMP_STATUS_MEC_NOTIFY,
-	HAL_WBM_REL_HTT_TX_COMP_STATUS_VDEVID_MISMATCH,
-	HAL_WBM_REL_HTT_TX_COMP_STATUS_MAX,
-};
 
 struct hal_tcl_data_cmd {
 	struct ath12k_buffer_addr buf_addr_info;
@@ -1764,30 +1666,6 @@ struct hal_ce_srng_dst_status_desc {
 #define HAL_TX_RATE_STATS_INFO0_OFDMA_TX	BIT(16)
 #define HAL_TX_RATE_STATS_INFO0_TONES_IN_RU	GENMASK(28, 17)
 
-enum hal_tx_rate_stats_bw {
-	HAL_TX_RATE_STATS_BW_20,
-	HAL_TX_RATE_STATS_BW_40,
-	HAL_TX_RATE_STATS_BW_80,
-	HAL_TX_RATE_STATS_BW_160,
-};
-
-enum hal_tx_rate_stats_pkt_type {
-	HAL_TX_RATE_STATS_PKT_TYPE_11A,
-	HAL_TX_RATE_STATS_PKT_TYPE_11B,
-	HAL_TX_RATE_STATS_PKT_TYPE_11N,
-	HAL_TX_RATE_STATS_PKT_TYPE_11AC,
-	HAL_TX_RATE_STATS_PKT_TYPE_11AX,
-	HAL_TX_RATE_STATS_PKT_TYPE_11BA,
-	HAL_TX_RATE_STATS_PKT_TYPE_11BE,
-};
-
-enum hal_tx_rate_stats_sgi {
-	HAL_TX_RATE_STATS_SGI_08US,
-	HAL_TX_RATE_STATS_SGI_04US,
-	HAL_TX_RATE_STATS_SGI_16US,
-	HAL_TX_RATE_STATS_SGI_32US,
-};
-
 struct hal_tx_rate_stats {
 	__le32 info0;
 	__le32 tsf;
@@ -1843,28 +1721,6 @@ enum hal_wbm_rel_desc_type {
  *	treat this is the same way as a link descriptor.
  */
 
-enum hal_wbm_rel_bm_act {
-	HAL_WBM_REL_BM_ACT_PUT_IN_IDLE,
-	HAL_WBM_REL_BM_ACT_REL_MSDU,
-};
-
-/* hal_wbm_rel_bm_act
- *
- * put_in_idle_list
- *	Put the buffer or descriptor back in the idle list. In case of MSDU or
- *	MDPU link descriptor, BM does not need to check to release any
- *	individual MSDU buffers.
- *
- * release_msdu_list
- *	This BM action can only be used in combination with desc_type being
- *	msdu_link_descriptor. Field first_msdu_index points out which MSDU
- *	pointer in the MSDU link descriptor is the first of an MPDU that is
- *	released. BM shall release all the MSDU buffers linked to this first
- *	MSDU buffer pointer. All related MSDU buffer pointer entries shall be
- *	set to value 0, which represents the 'NULL' pointer. When all MSDU
- *	buffer pointers in the MSDU link descriptor are 'NULL', the MSDU link
- *	descriptor itself shall also be released.
- */
 #define HAL_WBM_COMPL_RX_INFO0_REL_SRC_MODULE		GENMASK(2, 0)
 #define HAL_WBM_COMPL_RX_INFO0_BM_ACTION		GENMASK(5, 3)
 #define HAL_WBM_COMPL_RX_INFO0_DESC_TYPE		GENMASK(8, 6)
@@ -2330,7 +2186,6 @@ enum hal_desc_buf_type {
 #define HAL_DESC_REO_OWNED		4
 #define HAL_DESC_REO_QUEUE_DESC		8
 #define HAL_DESC_REO_QUEUE_EXT_DESC	9
-#define HAL_DESC_REO_NON_QOS_TID	16
 
 #define HAL_DESC_HDR_INFO0_OWNER	GENMASK(3, 0)
 #define HAL_DESC_HDR_INFO0_BUF_TYPE	GENMASK(7, 4)

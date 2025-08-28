@@ -9,7 +9,7 @@
 #include "../hif.h"
 #include "hal_tx.h"
 #include "hal_rx.h"
-#include "../hal_desc.h"
+#include "hal_desc.h"
 
 static void ath12k_hal_reo_set_desc_hdr(struct hal_desc_header *hdr,
 					u8 owner, u8 buffer_type, u32 magic)
