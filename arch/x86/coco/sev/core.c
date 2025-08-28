@@ -975,7 +975,7 @@ static int wakeup_cpu_via_vmgexit(u32 apic_id, unsigned long start_ip, unsigned 
 	vmsa->x87_fcw		= AP_INIT_X87_FCW_DEFAULT;
 
 	if (cc_platform_has(CC_ATTR_SNP_SECURE_AVIC))
-		vmsa->vintr_ctrl	|= V_GIF_MASK;
+		vmsa->vintr_ctrl |= V_GIF_MASK | V_NMI_ENABLE_MASK;
 
 	/* SVME must be set. */
 	vmsa->efer		= EFER_SVME;
