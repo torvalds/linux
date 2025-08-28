@@ -337,6 +337,12 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		return -EINVAL;
 	}
 
+	if (CSR_HW_RFID_TYPE(drv->trans->info.hw_rf_id) == IWL_CFG_RF_TYPE_WH &&
+	    CSR_HW_RFID_STEP(drv->trans->info.hw_rf_id) == SILICON_A_STEP) {
+		IWL_ERR(drv, "WH A step is not supported\n");
+		return -EINVAL;
+	}
+
 	fw_name_pre = iwl_drv_get_fwname_pre(drv->trans, _fw_name_pre);
 
 	if (first)
