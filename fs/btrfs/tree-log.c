@@ -642,12 +642,13 @@ static int read_alloc_one_name(struct extent_buffer *eb, void *start, int len,
  * The extent is inserted into the file, dropping any existing extents
  * from the file that overlap the new one.
  */
-static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
-				      struct btrfs_root *root,
+static noinline int replay_one_extent(struct walk_control *wc,
 				      struct btrfs_path *path,
 				      struct extent_buffer *eb, int slot,
 				      struct btrfs_key *key)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
+	struct btrfs_root *root = wc->root;
 	struct btrfs_drop_extents_args drop_args = { 0 };
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int found_type;
@@ -2728,7 +2729,7 @@ static int replay_one_buffer(struct extent_buffer *eb,
 			if (ret)
 				break;
 		} else if (key.type == BTRFS_EXTENT_DATA_KEY) {
-			ret = replay_one_extent(trans, root, path, eb, i, &key);
+			ret = replay_one_extent(wc, path, eb, i, &key);
 			if (ret)
 				break;
 		}
