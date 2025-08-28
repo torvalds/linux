@@ -73,7 +73,7 @@ static void nano_register_write(struct histb_combphy_priv *priv,
 
 static int is_mode_fixed(struct histb_combphy_mode *mode)
 {
-	return (mode->fixed != PHY_NONE) ? true : false;
+	return mode->fixed != PHY_NONE;
 }
 
 static int histb_combphy_set_mode(struct histb_combphy_priv *priv)
