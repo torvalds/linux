@@ -116,9 +116,8 @@ static void snd_dg00x_update(struct fw_unit *unit)
 
 	snd_dg00x_transaction_reregister(dg00x);
 
-	mutex_lock(&dg00x->mutex);
+	guard(mutex)(&dg00x->mutex);
 	snd_dg00x_stream_update_duplex(dg00x);
-	mutex_unlock(&dg00x->mutex);
 }
 
 static void snd_dg00x_remove(struct fw_unit *unit)
