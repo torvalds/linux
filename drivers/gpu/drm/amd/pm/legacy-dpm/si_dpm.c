@@ -7992,6 +7992,7 @@ static void si_dpm_print_power_state(void *handle,
 	amdgpu_dpm_dbg_print_class_info(adev, rps->class, rps->class2);
 	amdgpu_dpm_dbg_print_cap_info(adev, rps->caps);
 	drm_dbg(adev_to_drm(adev), "\tuvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+	drm_dbg(adev_to_drm(adev), "\tvce    evclk: %d ecclk: %d\n", rps->evclk, rps->ecclk);
 	for (i = 0; i < ps->performance_level_count; i++) {
 		pl = &ps->performance_levels[i];
 		drm_dbg(adev_to_drm(adev), "\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
