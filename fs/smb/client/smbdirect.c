@@ -166,6 +166,7 @@ static void smbd_disconnect_rdma_work(struct work_struct *work)
 	case SMBDIRECT_SOCKET_NEGOTIATE_RUNNING:
 	case SMBDIRECT_SOCKET_NEGOTIATE_FAILED:
 	case SMBDIRECT_SOCKET_CONNECTED:
+	case SMBDIRECT_SOCKET_ERROR:
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTING;
 		rdma_disconnect(sc->rdma.cm_id);
 		break;
