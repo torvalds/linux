@@ -601,11 +601,11 @@ static int adv7180_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_adv7180_sd(ctrl);
 	struct adv7180_state *state = to_state(sd);
-	int ret = mutex_lock_interruptible(&state->mutex);
+	int ret = 0;
 	int val;
 
-	if (ret)
-		return ret;
+	lockdep_assert_held(&state->mutex);
+
 	val = ctrl->val;
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -647,7 +647,6 @@ static int adv7180_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = -EINVAL;
 	}
 
-	mutex_unlock(&state->mutex);
 	return ret;
 }
 
@@ -668,6 +667,7 @@ static const struct v4l2_ctrl_config adv7180_ctrl_fast_switch = {
 static int adv7180_init_controls(struct adv7180_state *state)
 {
 	v4l2_ctrl_handler_init(&state->ctrl_hdl, 4);
+	state->ctrl_hdl.lock = &state->mutex;
 
 	v4l2_ctrl_new_std(&state->ctrl_hdl, &adv7180_ctrl_ops,
 			  V4L2_CID_BRIGHTNESS, ADV7180_BRI_MIN,
