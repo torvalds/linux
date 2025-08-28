@@ -218,7 +218,7 @@ static int msiof_hw_stop(struct snd_soc_component *component,
 	if (priv->err_syc[substream->stream] ||
 	    priv->err_ovf[substream->stream] ||
 	    priv->err_udf[substream->stream])
-		dev_warn(dev, "FSERR(%s) = %d, FOVF = %d, FUDF = %d\n",
+		dev_warn(dev, "%s: FSERR = %d, FOVF = %d, FUDF = %d\n",
 			 snd_pcm_direction_name(substream->stream),
 			 priv->err_syc[substream->stream],
 			 priv->err_ovf[substream->stream],
