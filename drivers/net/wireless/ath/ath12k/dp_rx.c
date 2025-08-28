@@ -958,6 +958,36 @@ int ath12k_dp_rx_ampdu_stop(struct ath12k *ar,
 	return ret;
 }
 
+static void ath12k_dp_setup_pn_check_reo_cmd(struct ath12k_hal_reo_cmd *cmd,
+					     struct ath12k_dp_rx_tid *rx_tid,
+					     u32 cipher, enum set_key_cmd key_cmd)
+{
+	cmd->flag = HAL_REO_CMD_FLG_NEED_STATUS;
+	cmd->upd0 = HAL_REO_CMD_UPD0_PN |
+			HAL_REO_CMD_UPD0_PN_SIZE |
+			HAL_REO_CMD_UPD0_PN_VALID |
+			HAL_REO_CMD_UPD0_PN_CHECK |
+			HAL_REO_CMD_UPD0_SVLD;
+
+	switch (cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		if (key_cmd == SET_KEY) {
+			cmd->upd1 |= HAL_REO_CMD_UPD1_PN_CHECK;
+			cmd->pn_size = 48;
+		}
+		break;
+	default:
+		break;
+	}
+
+	cmd->addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned);
+	cmd->addr_hi = upper_32_bits(rx_tid->qbuf.paddr_aligned);
+}
+
 int ath12k_dp_rx_peer_pn_replay_config(struct ath12k_link_vif *arvif,
 				       const u8 *peer_addr,
 				       enum set_key_cmd key_cmd,
@@ -978,28 +1008,6 @@ int ath12k_dp_rx_peer_pn_replay_config(struct ath12k_link_vif *arvif,
 	if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
 		return 0;
 
-	cmd.flag = HAL_REO_CMD_FLG_NEED_STATUS;
-	cmd.upd0 = HAL_REO_CMD_UPD0_PN |
-		    HAL_REO_CMD_UPD0_PN_SIZE |
-		    HAL_REO_CMD_UPD0_PN_VALID |
-		    HAL_REO_CMD_UPD0_PN_CHECK |
-		    HAL_REO_CMD_UPD0_SVLD;
-
-	switch (key->cipher) {
-	case WLAN_CIPHER_SUITE_TKIP:
-	case WLAN_CIPHER_SUITE_CCMP:
-	case WLAN_CIPHER_SUITE_CCMP_256:
-	case WLAN_CIPHER_SUITE_GCMP:
-	case WLAN_CIPHER_SUITE_GCMP_256:
-		if (key_cmd == SET_KEY) {
-			cmd.upd1 |= HAL_REO_CMD_UPD1_PN_CHECK;
-			cmd.pn_size = 48;
-		}
-		break;
-	default:
-		break;
-	}
-
 	spin_lock_bh(&ab->base_lock);
 
 	peer = ath12k_peer_find(ab, arvif->vdev_id, peer_addr);
@@ -1014,8 +1022,8 @@ int ath12k_dp_rx_peer_pn_replay_config(struct ath12k_link_vif *arvif,
 		rx_tid = &peer->rx_tid[tid];
 		if (!rx_tid->active)
 			continue;
-		cmd.addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned);
-		cmd.addr_hi = upper_32_bits(rx_tid->qbuf.paddr_aligned);
+
+		ath12k_dp_setup_pn_check_reo_cmd(&cmd, rx_tid, key->cipher, key_cmd);
 		ret = ath12k_dp_reo_cmd_send(ab, rx_tid,
 					     HAL_REO_CMD_UPDATE_RX_QUEUE,
 					     &cmd, NULL);
