@@ -320,11 +320,9 @@ static void tcp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	u32 idiag_states = r->idiag_states;
 	struct inet_hashinfo *hashinfo;
 	int i, num, s_i, s_num;
-	struct nlattr *bc;
 	struct sock *sk;
 
 	hashinfo = net->ipv4.tcp_death_row.hashinfo;
-	bc = cb_data->inet_diag_nla_bc;
 	if (idiag_states & TCPF_SYN_RECV)
 		idiag_states |= TCPF_NEW_SYN_RECV;
 	s_i = cb->args[1];
@@ -365,7 +363,7 @@ static void tcp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 				    r->id.idiag_sport)
 					goto next_listen;
 
-				if (!inet_diag_bc_sk(bc, sk))
+				if (!inet_diag_bc_sk(cb_data, sk))
 					goto next_listen;
 
 				if (inet_sk_diag_fill(sk, inet_csk(sk), skb,
@@ -432,7 +430,7 @@ resume_bind_walk:
 					    r->sdiag_family != sk->sk_family)
 						goto next_bind;
 
-					if (!inet_diag_bc_sk(bc, sk))
+					if (!inet_diag_bc_sk(cb_data, sk))
 						goto next_bind;
 
 					sock_hold(sk);
@@ -519,7 +517,7 @@ next_chunk:
 				goto next_normal;
 			twsk_build_assert();
 
-			if (!inet_diag_bc_sk(bc, sk))
+			if (!inet_diag_bc_sk(cb_data, sk))
 				goto next_normal;
 
 			if (!refcount_inc_not_zero(&sk->sk_refcnt))

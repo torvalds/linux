@@ -591,8 +591,9 @@ static void entry_fill_addrs(struct inet_diag_entry *entry,
 	}
 }
 
-int inet_diag_bc_sk(const struct nlattr *bc, struct sock *sk)
+int inet_diag_bc_sk(const struct inet_diag_dump_data *cb_data, struct sock *sk)
 {
+	const struct nlattr *bc = cb_data->inet_diag_nla_bc;
 	const struct inet_sock *inet = inet_sk(sk);
 	struct inet_diag_entry entry;
 

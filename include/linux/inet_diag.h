@@ -46,7 +46,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		      const struct inet_diag_req_v2 *req,
 		      u16 nlmsg_flags, bool net_admin);
 
-int inet_diag_bc_sk(const struct nlattr *_bc, struct sock *sk);
+int inet_diag_bc_sk(const struct inet_diag_dump_data *cb_data, struct sock *sk);
 
 void inet_diag_msg_common_fill(struct inet_diag_msg *r, struct sock *sk);
 
