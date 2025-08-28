@@ -5,3 +5,6 @@
 !*.h
 !*.S
 !*.sh
+!*.mk
+!.gitignore
+!Makefile
