@@ -23,7 +23,6 @@ static int lpass_hdmi_daiops_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_format_t format = params_format(params);
 	unsigned int rate = params_rate(params);
 	unsigned int channels = params_channels(params);
-	unsigned int ret;
 	int bitwidth;
 	unsigned int word_length;
 	unsigned int ch_sts_buf0;
@@ -33,6 +32,7 @@ static int lpass_hdmi_daiops_hw_params(struct snd_pcm_substream *substream,
 	unsigned int ch = 0;
 	struct lpass_dp_metadata_ctl *meta_ctl = drvdata->meta_ctl;
 	struct lpass_sstream_ctl *sstream_ctl = drvdata->sstream_ctl;
+	int ret;
 
 	bitwidth = snd_pcm_format_width(format);
 	if (bitwidth < 0) {
