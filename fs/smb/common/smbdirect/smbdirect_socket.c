@@ -6,6 +6,22 @@
 
 #include "smbdirect_internal.h"
 
+__maybe_unused /* this is temporary while this file is included in others */
+static bool smbdirect_frwr_is_supported(const struct ib_device_attr *attrs)
+{
+	/*
+	 * Test if FRWR (Fast Registration Work Requests) is supported on the
+	 * device This implementation requires FRWR on RDMA read/write return
+	 * value: true if it is supported
+	 */
+
+	if (!(attrs->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
+		return false;
+	if (attrs->max_fast_reg_page_list_len == 0)
+		return false;
+	return true;
+}
+
 static void smbdirect_socket_cleanup_work(struct work_struct *work);
 
 __maybe_unused /* this is temporary while this file is included in others */
