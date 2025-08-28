@@ -82,13 +82,18 @@ struct msiof_priv {
 #define msiof_write(priv, reg, val)	iowrite32(val, (priv)->base + reg)
 #define msiof_status_clear(priv)	msiof_write(priv, SISTR, SISTR_ERR)
 
-static void msiof_update(struct msiof_priv *priv, u32 reg, u32 mask, u32 val)
+static int msiof_update(struct msiof_priv *priv, u32 reg, u32 mask, u32 val)
 {
 	u32 old = msiof_read(priv, reg);
 	u32 new = (old & ~mask) | (val & mask);
+	int updated = false;
 
-	if (old != new)
+	if (old != new) {
 		msiof_write(priv, reg, new);
+		updated = true;
+	}
+
+	return updated;
 }
 
 static void msiof_update_and_wait(struct msiof_priv *priv, u32 reg, u32 mask, u32 val, u32 expect)
@@ -96,7 +101,9 @@ static void msiof_update_and_wait(struct msiof_priv *priv, u32 reg, u32 mask, u3
 	u32 data;
 	int ret;
 
-	msiof_update(priv, reg, mask, val);
+	ret = msiof_update(priv, reg, mask, val);
+	if (!ret) /* no update */
+		return;
 
 	ret = readl_poll_timeout_atomic(priv->base + reg, data,
 					(data & mask) == expect, 1, 128);
