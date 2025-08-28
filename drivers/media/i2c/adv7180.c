@@ -880,7 +880,7 @@ static int init_device(struct adv7180_state *state)
 {
 	int ret;
 
-	mutex_lock(&state->mutex);
+	lockdep_assert_held(&state->mutex);
 
 	adv7180_set_power_pin(state, true);
 	adv7180_set_reset_pin(state, false);
@@ -890,11 +890,11 @@ static int init_device(struct adv7180_state *state)
 
 	ret = state->chip_info->init(state);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	ret = adv7180_program_std(state);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	adv7180_set_field_mode(state);
 
@@ -905,31 +905,28 @@ static int init_device(struct adv7180_state *state)
 				    ADV7180_ICONF1_ACTIVE_LOW |
 				    ADV7180_ICONF1_PSYNC_ONLY);
 		if (ret < 0)
-			goto out_unlock;
+			return ret;
 
 		ret = adv7180_write(state, ADV7180_REG_IMR1, 0);
 		if (ret < 0)
-			goto out_unlock;
+			return ret;
 
 		ret = adv7180_write(state, ADV7180_REG_IMR2, 0);
 		if (ret < 0)
-			goto out_unlock;
+			return ret;
 
 		/* enable AD change interrupts */
 		ret = adv7180_write(state, ADV7180_REG_IMR3,
 				    ADV7180_IRQ3_AD_CHANGE);
 		if (ret < 0)
-			goto out_unlock;
+			return ret;
 
 		ret = adv7180_write(state, ADV7180_REG_IMR4, 0);
 		if (ret < 0)
-			goto out_unlock;
+			return ret;
 	}
 
-out_unlock:
-	mutex_unlock(&state->mutex);
-
-	return ret;
+	return 0;
 }
 
 static int adv7180_s_stream(struct v4l2_subdev *sd, int enable)
@@ -1479,7 +1476,9 @@ static int adv7180_probe(struct i2c_client *client)
 	if (ret)
 		goto err_free_ctrl;
 
+	mutex_lock(&state->mutex);
 	ret = init_device(state);
+	mutex_unlock(&state->mutex);
 	if (ret)
 		goto err_media_entity_cleanup;
 
@@ -1561,6 +1560,8 @@ static int adv7180_resume(struct device *dev)
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct adv7180_state *state = to_state(sd);
 	int ret;
+
+	guard(mutex)(&state->mutex);
 
 	ret = init_device(state);
 	if (ret < 0)
