@@ -11,6 +11,7 @@
 #include <linux/component.h>
 #include <linux/debugfs.h>
 #include <linux/i2c.h>
+#include <linux/iopoll.h>
 #include <linux/random.h>
 
 #include <drm/display/drm_hdcp_helper.h>
@@ -326,10 +327,9 @@ static int intel_hdcp_poll_ksv_fifo(struct intel_digital_port *dig_port,
 	bool ksv_ready;
 
 	/* Poll for ksv list ready (spec says max time allowed is 5s) */
-	ret = __wait_for(read_ret = shim->read_ksv_ready(dig_port,
-							 &ksv_ready),
-			 read_ret || ksv_ready, 5 * 1000 * 1000, 1000,
-			 100 * 1000);
+	ret = poll_timeout_us(read_ret = shim->read_ksv_ready(dig_port, &ksv_ready),
+			      read_ret || ksv_ready,
+			      100 * 1000, 5 * 1000 * 1000, false);
 	if (ret)
 		return ret;
 	if (read_ret)
