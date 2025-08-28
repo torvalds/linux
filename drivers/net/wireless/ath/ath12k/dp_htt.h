@@ -36,6 +36,8 @@ struct ath12k_dp;
 
 #define HTT_TX_WBM_COMP_INFO2_ACK_RSSI		GENMASK(31, 24)
 
+#define HTT_TARGET_VERSION_TIMEOUT_HZ (3 * HZ)
+
 struct htt_tx_wbm_completion {
 	__le32 rsvd0[2];
 	__le32 info0;
@@ -1514,6 +1516,7 @@ struct htt_mac_addr {
 	__le32 mac_addr_h16;
 } __packed;
 
+int ath12k_dp_htt_connect(struct ath12k_dp *dp);
 int ath12k_dp_tx_htt_srng_setup(struct ath12k_base *ab, u32 ring_id,
 				int mac_id, enum hal_ring_type ring_type);
 

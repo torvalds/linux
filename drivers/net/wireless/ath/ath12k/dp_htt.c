@@ -11,6 +11,35 @@
 #include "debugfs_htt_stats.h"
 #include "debugfs.h"
 
+static void ath12k_dp_htt_htc_tx_complete(struct ath12k_base *ab,
+					  struct sk_buff *skb)
+{
+	dev_kfree_skb_any(skb);
+}
+
+int ath12k_dp_htt_connect(struct ath12k_dp *dp)
+{
+	struct ath12k_htc_svc_conn_req conn_req = {};
+	struct ath12k_htc_svc_conn_resp conn_resp = {};
+	int status;
+
+	conn_req.ep_ops.ep_tx_complete = ath12k_dp_htt_htc_tx_complete;
+	conn_req.ep_ops.ep_rx_complete = ath12k_dp_htt_htc_t2h_msg_handler;
+
+	/* connect to control service */
+	conn_req.service_id = ATH12K_HTC_SVC_ID_HTT_DATA_MSG;
+
+	status = ath12k_htc_connect_service(&dp->ab->htc, &conn_req,
+					    &conn_resp);
+
+	if (status)
+		return status;
+
+	dp->eid = conn_resp.eid;
+
+	return 0;
+}
+
 static int ath12k_get_ppdu_user_index(struct htt_ppdu_stats *ppdu_stats,
 				      u16 peer_id)
 {
@@ -817,8 +846,6 @@ err_free:
 
 	return ret;
 }
-
-#define HTT_TARGET_VERSION_TIMEOUT_HZ (3 * HZ)
 
 int ath12k_dp_tx_htt_h2t_ver_req_msg(struct ath12k_base *ab)
 {

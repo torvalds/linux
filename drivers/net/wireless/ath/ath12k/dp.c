@@ -19,12 +19,6 @@ enum ath12k_dp_desc_type {
 	ATH12K_DP_RX_DESC,
 };
 
-static void ath12k_dp_htt_htc_tx_complete(struct ath12k_base *ab,
-					  struct sk_buff *skb)
-{
-	dev_kfree_skb_any(skb);
-}
-
 void ath12k_dp_peer_cleanup(struct ath12k *ar, int vdev_id, const u8 *addr)
 {
 	struct ath12k_base *ab = ar->ab;
@@ -955,29 +949,6 @@ err:
 	ath12k_dp_pdev_free(ab);
 out:
 	return ret;
-}
-
-int ath12k_dp_htt_connect(struct ath12k_dp *dp)
-{
-	struct ath12k_htc_svc_conn_req conn_req = {};
-	struct ath12k_htc_svc_conn_resp conn_resp = {};
-	int status;
-
-	conn_req.ep_ops.ep_tx_complete = ath12k_dp_htt_htc_tx_complete;
-	conn_req.ep_ops.ep_rx_complete = ath12k_dp_htt_htc_t2h_msg_handler;
-
-	/* connect to control service */
-	conn_req.service_id = ATH12K_HTC_SVC_ID_HTT_DATA_MSG;
-
-	status = ath12k_htc_connect_service(&dp->ab->htc, &conn_req,
-					    &conn_resp);
-
-	if (status)
-		return status;
-
-	dp->eid = conn_resp.eid;
-
-	return 0;
 }
 
 static void ath12k_dp_update_vdev_search(struct ath12k_link_vif *arvif)
