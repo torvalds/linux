@@ -35455,17 +35455,6 @@ static void check_dfs_preorder(struct maple_tree *mt)
 	MT_BUG_ON(mt, count != e);
 	mtree_destroy(mt);
 
-	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
-	mas_reset(&mas);
-	mt_zero_nr_tallocated();
-	mt_set_non_kernel(200);
-	mas_expected_entries(&mas, max);
-	for (count = 0; count <= max; count++) {
-		mas.index = mas.last = count;
-		mas_store(&mas, xa_mk_value(count));
-		MT_BUG_ON(mt, mas_is_err(&mas));
-	}
-	mas_destroy(&mas);
 	rcu_barrier();
 	/*
 	 * pr_info(" ->seq test of 0-%lu %luK in %d active (%d total)\n",
@@ -36454,27 +36443,6 @@ static inline int check_vma_modification(struct maple_tree *mt)
 	return 0;
 }
 
-/*
- * test to check that bulk stores do not use wr_rebalance as the store
- * type.
- */
-static inline void check_bulk_rebalance(struct maple_tree *mt)
-{
-	MA_STATE(mas, mt, ULONG_MAX, ULONG_MAX);
-	int max = 10;
-
-	build_full_tree(mt, 0, 2);
-
-	/* erase every entry in the tree */
-	do {
-		/* set up bulk store mode */
-		mas_expected_entries(&mas, max);
-		mas_erase(&mas);
-		MT_BUG_ON(mt, mas.store_type == wr_rebalance);
-	} while (mas_prev(&mas, 0) != NULL);
-
-	mas_destroy(&mas);
-}
 
 void farmer_tests(void)
 {
@@ -36485,10 +36453,6 @@ void farmer_tests(void)
 
 	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE | MT_FLAGS_LOCK_EXTERN | MT_FLAGS_USE_RCU);
 	check_vma_modification(&tree);
-	mtree_destroy(&tree);
-
-	mt_init(&tree);
-	check_bulk_rebalance(&tree);
 	mtree_destroy(&tree);
 
 	tree.ma_root = xa_mk_value(0);
