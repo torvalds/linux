@@ -15,17 +15,15 @@ static int midi_open(struct snd_rawmidi_substream *substream)
 	if (err < 0)
 		return err;
 
-	mutex_lock(&dice->mutex);
-
-	err = snd_dice_stream_reserve_duplex(dice, 0, 0, 0);
-	if (err >= 0) {
-		++dice->substreams_counter;
-		err = snd_dice_stream_start_duplex(dice);
-		if (err < 0)
-			--dice->substreams_counter;
+	scoped_guard(mutex, &dice->mutex) {
+		err = snd_dice_stream_reserve_duplex(dice, 0, 0, 0);
+		if (err >= 0) {
+			++dice->substreams_counter;
+			err = snd_dice_stream_start_duplex(dice);
+			if (err < 0)
+				--dice->substreams_counter;
+		}
 	}
-
-	mutex_unlock(&dice->mutex);
 
 	if (err < 0)
 		snd_dice_stream_lock_release(dice);
@@ -37,12 +35,10 @@ static int midi_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_dice *dice = substream->rmidi->private_data;
 
-	mutex_lock(&dice->mutex);
-
-	--dice->substreams_counter;
-	snd_dice_stream_stop_duplex(dice);
-
-	mutex_unlock(&dice->mutex);
+	scoped_guard(mutex, &dice->mutex) {
+		--dice->substreams_counter;
+		snd_dice_stream_stop_duplex(dice);
+	}
 
 	snd_dice_stream_lock_release(dice);
 	return 0;
