@@ -1088,9 +1088,8 @@ out:
 	return ret;
 }
 
-static int unlink_refs_not_in_log(struct btrfs_trans_handle *trans,
+static int unlink_refs_not_in_log(struct walk_control *wc,
 				  struct btrfs_path *path,
-				  struct btrfs_root *log_root,
 				  struct btrfs_key *search_key,
 				  struct btrfs_inode *dir,
 				  struct btrfs_inode *inode,
@@ -1108,6 +1107,7 @@ static int unlink_refs_not_in_log(struct btrfs_trans_handle *trans,
 	ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
 	ptr_end = ptr + btrfs_item_size(leaf, path->slots[0]);
 	while (ptr < ptr_end) {
+		struct btrfs_trans_handle *trans = wc->trans;
 		struct fscrypt_str victim_name;
 		struct btrfs_inode_ref *victim_ref;
 		int ret;
@@ -1121,7 +1121,7 @@ static int unlink_refs_not_in_log(struct btrfs_trans_handle *trans,
 			return ret;
 		}
 
-		ret = backref_in_log(log_root, search_key, parent_objectid, &victim_name);
+		ret = backref_in_log(wc->log, search_key, parent_objectid, &victim_name);
 		if (ret) {
 			kfree(victim_name.name);
 			if (ret < 0) {
@@ -1145,10 +1145,8 @@ static int unlink_refs_not_in_log(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static int unlink_extrefs_not_in_log(struct btrfs_trans_handle *trans,
+static int unlink_extrefs_not_in_log(struct walk_control *wc,
 				     struct btrfs_path *path,
-				     struct btrfs_root *root,
-				     struct btrfs_root *log_root,
 				     struct btrfs_key *search_key,
 				     struct btrfs_inode *inode,
 				     u64 inode_objectid,
@@ -1160,6 +1158,9 @@ static int unlink_extrefs_not_in_log(struct btrfs_trans_handle *trans,
 	u32 cur_offset = 0;
 
 	while (cur_offset < item_size) {
+		struct btrfs_trans_handle *trans = wc->trans;
+		struct btrfs_root *root = wc->root;
+		struct btrfs_root *log_root = wc->log;
 		struct btrfs_inode_extref *extref;
 		struct btrfs_inode *victim_parent;
 		struct fscrypt_str victim_name;
@@ -1218,16 +1219,16 @@ next:
 	return 0;
 }
 
-static inline int __add_inode_ref(struct btrfs_trans_handle *trans,
-				  struct btrfs_root *root,
+static inline int __add_inode_ref(struct walk_control *wc,
 				  struct btrfs_path *path,
-				  struct btrfs_root *log_root,
 				  struct btrfs_inode *dir,
 				  struct btrfs_inode *inode,
 				  u64 inode_objectid, u64 parent_objectid,
 				  u64 ref_index, struct fscrypt_str *name)
 {
 	int ret;
+	struct btrfs_trans_handle *trans = wc->trans;
+	struct btrfs_root *root = wc->root;
 	struct btrfs_dir_item *di;
 	struct btrfs_key search_key;
 	struct btrfs_inode_extref *extref;
@@ -1249,8 +1250,8 @@ again:
 		if (search_key.objectid == search_key.offset)
 			return 1;
 
-		ret = unlink_refs_not_in_log(trans, path, log_root, &search_key,
-					     dir, inode, parent_objectid);
+		ret = unlink_refs_not_in_log(wc, path, &search_key, dir, inode,
+					     parent_objectid);
 		if (ret == -EAGAIN)
 			goto again;
 		else if (ret)
@@ -1263,8 +1264,7 @@ again:
 	if (IS_ERR(extref)) {
 		return PTR_ERR(extref);
 	} else if (extref) {
-		ret = unlink_extrefs_not_in_log(trans, path, root, log_root,
-						&search_key, inode,
+		ret = unlink_extrefs_not_in_log(wc, path, &search_key, inode,
 						inode_objectid, parent_objectid);
 		if (ret == -EAGAIN)
 			goto again;
@@ -1349,14 +1349,15 @@ static int ref_get_fields(struct extent_buffer *eb, unsigned long ref_ptr,
  * proper unlink of that name (that is, remove its entry from the inode
  * reference item and both dir index keys).
  */
-static int unlink_old_inode_refs(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root,
+static int unlink_old_inode_refs(struct walk_control *wc,
 				 struct btrfs_path *path,
 				 struct btrfs_inode *inode,
 				 struct extent_buffer *log_eb,
 				 int log_slot,
 				 struct btrfs_key *key)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
+	struct btrfs_root *root = wc->root;
 	int ret;
 	unsigned long ref_ptr;
 	unsigned long ref_end;
@@ -1441,13 +1442,13 @@ again:
  * root is the destination we are replaying into, and path is for temp
  * use by this function.  (it should be released on return).
  */
-static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
-				  struct btrfs_root *root,
-				  struct btrfs_root *log,
+static noinline int add_inode_ref(struct walk_control *wc,
 				  struct btrfs_path *path,
 				  struct extent_buffer *eb, int slot,
 				  struct btrfs_key *key)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
+	struct btrfs_root *root = wc->root;
 	struct btrfs_inode *dir = NULL;
 	struct btrfs_inode *inode = NULL;
 	unsigned long ref_ptr;
@@ -1559,9 +1560,8 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 			 * overwrite any existing back reference, and we don't
 			 * want to create dangling pointers in the directory.
 			 */
-			ret = __add_inode_ref(trans, root, path, log, dir, inode,
-					      inode_objectid, parent_objectid,
-					      ref_index, &name);
+			ret = __add_inode_ref(wc, path, dir, inode, inode_objectid,
+					      parent_objectid, ref_index, &name);
 			if (ret) {
 				if (ret == 1)
 					ret = 0;
@@ -1601,7 +1601,7 @@ next:
 	 * dir index entries exist for a name but there is no inode reference
 	 * item with the same name.
 	 */
-	ret = unlink_old_inode_refs(trans, root, path, inode, eb, slot, key);
+	ret = unlink_old_inode_refs(wc, path, inode, eb, slot, key);
 	if (ret)
 		goto out;
 
@@ -2584,7 +2584,6 @@ static int replay_one_buffer(struct extent_buffer *eb,
 	};
 	struct btrfs_path *path;
 	struct btrfs_root *root = wc->root;
-	struct btrfs_root *log = wc->log;
 	struct btrfs_trans_handle *trans = wc->trans;
 	struct btrfs_key key;
 	int i;
@@ -2725,7 +2724,7 @@ static int replay_one_buffer(struct extent_buffer *eb,
 				break;
 		} else if (key.type == BTRFS_INODE_REF_KEY ||
 			   key.type == BTRFS_INODE_EXTREF_KEY) {
-			ret = add_inode_ref(trans, root, log, path, eb, i, &key);
+			ret = add_inode_ref(wc, path, eb, i, &key);
 			if (ret)
 				break;
 		} else if (key.type == BTRFS_EXTENT_DATA_KEY) {
