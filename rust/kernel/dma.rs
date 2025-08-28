@@ -13,6 +13,16 @@ use crate::{
     types::ARef,
 };
 
+/// DMA address type.
+///
+/// Represents a bus address used for Direct Memory Access (DMA) operations.
+///
+/// This is an alias of the kernel's `dma_addr_t`, which may be `u32` or `u64` depending on
+/// `CONFIG_ARCH_DMA_ADDR_T_64BIT`.
+///
+/// Note that this may be `u64` even on 32-bit architectures.
+pub type DmaAddress = bindings::dma_addr_t;
+
 /// Trait to be implemented by DMA capable bus devices.
 ///
 /// The [`dma::Device`](Device) trait should be implemented by bus specific device representations,
@@ -343,7 +353,7 @@ impl From<DataDirection> for bindings::dma_data_direction {
 // entire `CoherentAllocation` including the allocated memory itself.
 pub struct CoherentAllocation<T: AsBytes + FromBytes> {
     dev: ARef<device::Device>,
-    dma_handle: bindings::dma_addr_t,
+    dma_handle: DmaAddress,
     count: usize,
     cpu_addr: *mut T,
     dma_attrs: Attrs,
@@ -444,7 +454,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
 
     /// Returns a DMA handle which may be given to the device as the DMA address base of
     /// the region.
-    pub fn dma_handle(&self) -> bindings::dma_addr_t {
+    pub fn dma_handle(&self) -> DmaAddress {
         self.dma_handle
     }
 
@@ -452,13 +462,13 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     /// device as the DMA address base of the region.
     ///
     /// Returns `EINVAL` if `offset` is not within the bounds of the allocation.
-    pub fn dma_handle_with_offset(&self, offset: usize) -> Result<bindings::dma_addr_t> {
+    pub fn dma_handle_with_offset(&self, offset: usize) -> Result<DmaAddress> {
         if offset >= self.count {
             Err(EINVAL)
         } else {
             // INVARIANT: The type invariant of `Self` guarantees that `size_of::<T> * count` fits
             // into a `usize`, and `offset` is inferior to `count`.
-            Ok(self.dma_handle + (offset * core::mem::size_of::<T>()) as bindings::dma_addr_t)
+            Ok(self.dma_handle + (offset * core::mem::size_of::<T>()) as DmaAddress)
         }
     }
 

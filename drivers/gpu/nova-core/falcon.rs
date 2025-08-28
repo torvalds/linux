@@ -4,8 +4,8 @@
 
 use core::ops::Deref;
 use hal::FalconHal;
-use kernel::bindings;
 use kernel::device;
+use kernel::dma::DmaAddress;
 use kernel::prelude::*;
 use kernel::sync::aref::ARef;
 use kernel::time::Delta;
@@ -455,7 +455,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
                 fw.dma_handle_with_offset(load_offsets.src_start as usize)?,
             ),
         };
-        if dma_start % bindings::dma_addr_t::from(DMA_LEN) > 0 {
+        if dma_start % DmaAddress::from(DMA_LEN) > 0 {
             dev_err!(
                 self.dev,
                 "DMA transfer start addresses must be a multiple of {}",
