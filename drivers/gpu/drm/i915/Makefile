@@ -13,6 +13,11 @@ subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
 # drivers. Define I915 when building i915.
 subdir-ccflags-y += -DI915
 
+# FIXME: Disable tracepoints on i915 for PREEMPT_RT, unfortunately
+# it's an all or nothing flag. You cannot selectively disable
+# only some tracepoints.
+subdir-ccflags-$(CONFIG_PREEMPT_RT) += -DNOTRACE
+
 subdir-ccflags-y += -I$(src)
 
 # Please keep these build lists sorted!
