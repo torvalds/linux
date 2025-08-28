@@ -156,8 +156,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 			   struct btrfs_inode *inode,
 			   int inode_only,
 			   struct btrfs_log_ctx *ctx);
-static int link_to_fixup_dir(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *root,
+static int link_to_fixup_dir(struct walk_control *wc,
 			     struct btrfs_path *path, u64 objectid);
 static noinline int replay_dir_deletes(struct walk_control *wc,
 				       struct btrfs_path *path,
@@ -927,11 +926,12 @@ out:
 	return ret;
 }
 
-static int unlink_inode_for_log_replay(struct btrfs_trans_handle *trans,
+static int unlink_inode_for_log_replay(struct walk_control *wc,
 				       struct btrfs_inode *dir,
 				       struct btrfs_inode *inode,
 				       const struct fscrypt_str *name)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
 	int ret;
 
 	ret = btrfs_unlink_inode(trans, dir, inode, name);
@@ -959,11 +959,12 @@ static int unlink_inode_for_log_replay(struct btrfs_trans_handle *trans,
  * This is a helper function to do the unlink of a specific directory
  * item
  */
-static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
+static noinline int drop_one_dir_item(struct walk_control *wc,
 				      struct btrfs_path *path,
 				      struct btrfs_inode *dir,
 				      struct btrfs_dir_item *di)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
 	struct btrfs_root *root = dir->root;
 	struct btrfs_inode *inode;
 	struct fscrypt_str name;
@@ -990,11 +991,11 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	ret = link_to_fixup_dir(trans, root, path, location.objectid);
+	ret = link_to_fixup_dir(wc, path, location.objectid);
 	if (ret)
 		goto out;
 
-	ret = unlink_inode_for_log_replay(trans, dir, inode, &name);
+	ret = unlink_inode_for_log_replay(wc, dir, inode, &name);
 out:
 	kfree(name.name);
 	if (inode)
@@ -1135,7 +1136,7 @@ static int unlink_refs_not_in_log(struct walk_control *wc,
 		inc_nlink(&inode->vfs_inode);
 		btrfs_release_path(path);
 
-		ret = unlink_inode_for_log_replay(trans, dir, inode, &victim_name);
+		ret = unlink_inode_for_log_replay(wc, dir, inode, &victim_name);
 		kfree(victim_name.name);
 		if (ret)
 			return ret;
@@ -1207,7 +1208,7 @@ next:
 		inc_nlink(&inode->vfs_inode);
 		btrfs_release_path(path);
 
-		ret = unlink_inode_for_log_replay(trans, victim_parent, inode,
+		ret = unlink_inode_for_log_replay(wc, victim_parent, inode,
 						  &victim_name);
 		iput(&victim_parent->vfs_inode);
 		kfree(victim_name.name);
@@ -1281,7 +1282,7 @@ again:
 		btrfs_abort_transaction(trans, ret);
 		return ret;
 	} else if (di) {
-		ret = drop_one_dir_item(trans, path, dir, di);
+		ret = drop_one_dir_item(wc, path, dir, di);
 		if (ret)
 			return ret;
 	}
@@ -1292,7 +1293,7 @@ again:
 	if (IS_ERR(di)) {
 		return PTR_ERR(di);
 	} else if (di) {
-		ret = drop_one_dir_item(trans, path, dir, di);
+		ret = drop_one_dir_item(wc, path, dir, di);
 		if (ret)
 			return ret;
 	}
@@ -1415,7 +1416,7 @@ again:
 				btrfs_abort_transaction(trans, ret);
 				goto out;
 			}
-			ret = unlink_inode_for_log_replay(trans, dir, inode, &name);
+			ret = unlink_inode_for_log_replay(wc, dir, inode, &name);
 			kfree(name.name);
 			iput(&dir->vfs_inode);
 			if (ret)
@@ -1842,11 +1843,12 @@ static noinline int fixup_inode_link_counts(struct walk_control *wc,
  * count when replay is done.  The link count is incremented here
  * so the inode won't go away until we check it
  */
-static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
-				      struct btrfs_root *root,
+static noinline int link_to_fixup_dir(struct walk_control *wc,
 				      struct btrfs_path *path,
 				      u64 objectid)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
+	struct btrfs_root *root = wc->root;
 	struct btrfs_key key;
 	int ret = 0;
 	struct btrfs_inode *inode;
@@ -1917,7 +1919,7 @@ static noinline int insert_one_name(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static int delete_conflicting_dir_entry(struct btrfs_trans_handle *trans,
+static int delete_conflicting_dir_entry(struct walk_control *wc,
 					struct btrfs_inode *dir,
 					struct btrfs_path *path,
 					struct btrfs_dir_item *dst_di,
@@ -1942,7 +1944,7 @@ static int delete_conflicting_dir_entry(struct btrfs_trans_handle *trans,
 	if (!exists)
 		return 0;
 
-	return drop_one_dir_item(trans, path, dir, dst_di);
+	return drop_one_dir_item(wc, path, dir, dst_di);
 }
 
 /*
@@ -2014,7 +2016,7 @@ static noinline int replay_one_name(struct walk_control *wc,
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	} else if (dir_dst_di) {
-		ret = delete_conflicting_dir_entry(trans, dir, path, dir_dst_di,
+		ret = delete_conflicting_dir_entry(wc, dir, path, dir_dst_di,
 						   &log_key, log_flags, exists);
 		if (ret < 0) {
 			btrfs_abort_transaction(trans, ret);
@@ -2033,7 +2035,7 @@ static noinline int replay_one_name(struct walk_control *wc,
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	} else if (index_dst_di) {
-		ret = delete_conflicting_dir_entry(trans, dir, path, index_dst_di,
+		ret = delete_conflicting_dir_entry(wc, dir, path, index_dst_di,
 						   &log_key, log_flags, exists);
 		if (ret < 0) {
 			btrfs_abort_transaction(trans, ret);
@@ -2161,7 +2163,7 @@ static noinline int replay_one_dir_item(struct walk_control *wc,
 		}
 
 		btrfs_dir_item_key_to_cpu(eb, di, &di_key);
-		ret = link_to_fixup_dir(wc->trans, wc->root, fixup_path, di_key.objectid);
+		ret = link_to_fixup_dir(wc, fixup_path, di_key.objectid);
 		btrfs_free_path(fixup_path);
 	}
 
@@ -2317,12 +2319,12 @@ static noinline int check_item_in_log(struct walk_control *wc,
 		goto out;
 	}
 
-	ret = link_to_fixup_dir(trans, root, path, location.objectid);
+	ret = link_to_fixup_dir(wc, path, location.objectid);
 	if (ret)
 		goto out;
 
 	inc_nlink(&inode->vfs_inode);
-	ret = unlink_inode_for_log_replay(trans, dir, inode, &name);
+	ret = unlink_inode_for_log_replay(wc, dir, inode, &name);
 	/*
 	 * Unlike dir item keys, dir index keys can only have one name (entry) in
 	 * them, as there are no key collisions since each key has a unique offset
@@ -2699,7 +2701,7 @@ static int replay_one_buffer(struct extent_buffer *eb,
 					break;
 			}
 
-			ret = link_to_fixup_dir(trans, root, path, key.objectid);
+			ret = link_to_fixup_dir(wc, path, key.objectid);
 			if (ret)
 				break;
 		}
