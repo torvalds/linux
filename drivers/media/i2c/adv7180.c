@@ -700,7 +700,6 @@ static int adv7180_init_controls(struct adv7180_state *state)
 		v4l2_ctrl_handler_free(&state->ctrl_hdl);
 		return err;
 	}
-	v4l2_ctrl_handler_setup(&state->ctrl_hdl);
 
 	return 0;
 }
@@ -897,6 +896,8 @@ static int init_device(struct adv7180_state *state)
 		return ret;
 
 	adv7180_set_field_mode(state);
+
+	__v4l2_ctrl_handler_setup(&state->ctrl_hdl);
 
 	/* register for interrupts */
 	if (state->irq > 0) {
