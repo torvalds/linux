@@ -288,6 +288,7 @@ static inline void udp_lib_init_sock(struct sock *sk)
 {
 	struct udp_sock *up = udp_sk(sk);
 
+	sk->sk_drop_counters = &up->drop_counters;
 	skb_queue_head_init(&up->reader_queue);
 	INIT_HLIST_NODE(&up->tunnel_list);
 	up->forward_threshold = sk->sk_rcvbuf >> 2;
@@ -627,7 +628,7 @@ static inline struct sk_buff *udp_rcv_segment(struct sock *sk,
 	return segs;
 
 drop:
-	atomic_add(drop_count, &sk->sk_drops);
+	sk_drops_add(sk, drop_count);
 	SNMP_ADD_STATS(__UDPX_MIB(sk, ipv4), UDP_MIB_INERRORS, drop_count);
 	kfree_skb(skb);
 	return NULL;

@@ -356,7 +356,7 @@ static void netlink_overrun(struct sock *sk)
 			sk_error_report(sk);
 		}
 	}
-	atomic_inc(&sk->sk_drops);
+	sk_drops_inc(sk);
 }
 
 static void netlink_rcv_wake(struct sock *sk)
@@ -2711,7 +2711,7 @@ static int netlink_native_seq_show(struct seq_file *seq, void *v)
 			   sk_wmem_alloc_get(s),
 			   READ_ONCE(nlk->cb_running),
 			   refcount_read(&s->sk_refcnt),
-			   atomic_read(&s->sk_drops),
+			   sk_drops_read(s),
 			   sock_i_ino(s)
 			);
 

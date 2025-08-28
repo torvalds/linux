@@ -295,7 +295,7 @@ struct raw6_sock {
 	__u32			offset;		/* checksum offset  */
 	struct icmp6_filter	filter;
 	__u32			ip6mr_table;
-
+	struct socket_drop_counters drop_counters;
 	struct ipv6_pinfo	inet6;
 };
 

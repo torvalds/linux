@@ -1787,7 +1787,7 @@ uncharge_drop:
 	atomic_sub(skb->truesize, &sk->sk_rmem_alloc);
 
 drop:
-	atomic_inc(&sk->sk_drops);
+	sk_drops_inc(sk);
 	busylock_release(busy);
 	return err;
 }
@@ -1852,7 +1852,7 @@ static struct sk_buff *__first_packet_length(struct sock *sk,
 					IS_UDPLITE(sk));
 			__UDP_INC_STATS(sock_net(sk), UDP_MIB_INERRORS,
 					IS_UDPLITE(sk));
-			atomic_inc(&sk->sk_drops);
+			sk_drops_inc(sk);
 			__skb_unlink(skb, rcvq);
 			*total += skb->truesize;
 			kfree_skb_reason(skb, SKB_DROP_REASON_UDP_CSUM);
@@ -2008,7 +2008,7 @@ try_again:
 
 		__UDP_INC_STATS(net, UDP_MIB_CSUMERRORS, is_udplite);
 		__UDP_INC_STATS(net, UDP_MIB_INERRORS, is_udplite);
-		atomic_inc(&sk->sk_drops);
+		sk_drops_inc(sk);
 		kfree_skb_reason(skb, SKB_DROP_REASON_UDP_CSUM);
 		goto try_again;
 	}
@@ -2078,7 +2078,7 @@ try_again:
 
 	if (unlikely(err)) {
 		if (!peeking) {
-			atomic_inc(&sk->sk_drops);
+			sk_drops_inc(sk);
 			UDP_INC_STATS(sock_net(sk),
 				      UDP_MIB_INERRORS, is_udplite);
 		}
@@ -2449,7 +2449,7 @@ csum_error:
 	__UDP_INC_STATS(sock_net(sk), UDP_MIB_CSUMERRORS, is_udplite);
 drop:
 	__UDP_INC_STATS(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
-	atomic_inc(&sk->sk_drops);
+	sk_drops_inc(sk);
 	sk_skb_reason_drop(sk, skb, drop_reason);
 	return -1;
 }
@@ -2534,7 +2534,7 @@ start_lookup:
 		nskb = skb_clone(skb, GFP_ATOMIC);
 
 		if (unlikely(!nskb)) {
-			atomic_inc(&sk->sk_drops);
+			sk_drops_inc(sk);
 			__UDP_INC_STATS(net, UDP_MIB_RCVBUFERRORS,
 					IS_UDPLITE(sk));
 			__UDP_INC_STATS(net, UDP_MIB_INERRORS,
@@ -3386,7 +3386,7 @@ static void udp4_format_sock(struct sock *sp, struct seq_file *f,
 		from_kuid_munged(seq_user_ns(f), sk_uid(sp)),
 		0, sock_i_ino(sp),
 		refcount_read(&sp->sk_refcnt), sp,
-		atomic_read(&sp->sk_drops));
+		sk_drops_read(sp));
 }
 
 int udp4_seq_show(struct seq_file *seq, void *v)

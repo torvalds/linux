@@ -137,7 +137,7 @@ struct sock *__mptcp_nmpc_sk(struct mptcp_sock *msk)
 
 static void mptcp_drop(struct sock *sk, struct sk_buff *skb)
 {
-	sk_drops_add(sk, skb);
+	sk_drops_skbadd(sk, skb);
 	__kfree_skb(skb);
 }
 

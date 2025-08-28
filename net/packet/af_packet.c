@@ -2265,7 +2265,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 
 drop_n_acct:
 	atomic_inc(&po->tp_drops);
-	atomic_inc(&sk->sk_drops);
+	sk_drops_inc(sk);
 	drop_reason = SKB_DROP_REASON_PACKET_SOCK_ERROR;
 
 drop_n_restore:
