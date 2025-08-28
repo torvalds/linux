@@ -301,6 +301,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - rockchip,rk3576-dcphy-grf
               - rockchip,rk3576-vo1-grf
               - rockchip,rk3588-vo-grf
               - rockchip,rk3588-vo0-grf
