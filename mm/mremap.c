@@ -323,6 +323,25 @@ static inline bool arch_supports_page_table_move(void)
 }
 #endif
 
+static inline bool uffd_supports_page_table_move(struct pagetable_move_control *pmc)
+{
+	/*
+	 * If we are moving a VMA that has uffd-wp registered but with
+	 * remap events disabled (new VMA will not be registered with uffd), we
+	 * need to ensure that the uffd-wp state is cleared from all pgtables.
+	 * This means recursing into lower page tables in move_page_tables().
+	 *
+	 * We might get called with VMAs reversed when recovering from a
+	 * failed page table move. In that case, the
+	 * "old"-but-actually-"originally new" VMA during recovery will not have
+	 * a uffd context. Recursing into lower page tables during the original
+	 * move but not during the recovery move will cause trouble, because we
+	 * run into already-existing page tables. So check both VMAs.
+	 */
+	return !vma_has_uffd_without_event_remap(pmc->old) &&
+	       !vma_has_uffd_without_event_remap(pmc->new);
+}
+
 #ifdef CONFIG_HAVE_MOVE_PMD
 static bool move_normal_pmd(struct pagetable_move_control *pmc,
 			pmd_t *old_pmd, pmd_t *new_pmd)
@@ -334,6 +353,8 @@ static bool move_normal_pmd(struct pagetable_move_control *pmc,
 	pmd_t pmd;
 
 	if (!arch_supports_page_table_move())
+		return false;
+	if (!uffd_supports_page_table_move(pmc))
 		return false;
 	/*
 	 * The destination pmd shouldn't be established, free_pgtables()
@@ -359,15 +380,6 @@ static bool move_normal_pmd(struct pagetable_move_control *pmc,
 	 * this point, and verify that it really is empty. We'll see.
 	 */
 	if (WARN_ON_ONCE(!pmd_none(*new_pmd)))
-		return false;
-
-	/* If this pmd belongs to a uffd vma with remap events disabled, we need
-	 * to ensure that the uffd-wp state is cleared from all pgtables. This
-	 * means recursing into lower page tables in move_page_tables(), and we
-	 * can reuse the existing code if we simply treat the entry as "not
-	 * moved".
-	 */
-	if (vma_has_uffd_without_event_remap(vma))
 		return false;
 
 	/*
@@ -418,20 +430,13 @@ static bool move_normal_pud(struct pagetable_move_control *pmc,
 
 	if (!arch_supports_page_table_move())
 		return false;
+	if (!uffd_supports_page_table_move(pmc))
+		return false;
 	/*
 	 * The destination pud shouldn't be established, free_pgtables()
 	 * should have released it.
 	 */
 	if (WARN_ON_ONCE(!pud_none(*new_pud)))
-		return false;
-
-	/* If this pud belongs to a uffd vma with remap events disabled, we need
-	 * to ensure that the uffd-wp state is cleared from all pgtables. This
-	 * means recursing into lower page tables in move_page_tables(), and we
-	 * can reuse the existing code if we simply treat the entry as "not
-	 * moved".
-	 */
-	if (vma_has_uffd_without_event_remap(vma))
 		return false;
 
 	/*
@@ -1620,7 +1625,7 @@ static void notify_uffd(struct vma_remap_struct *vrm, bool failed)
 
 static bool vma_multi_allowed(struct vm_area_struct *vma)
 {
-	struct file *file;
+	struct file *file = vma->vm_file;
 
 	/*
 	 * We can't support moving multiple uffd VMAs as notify requires
@@ -1633,15 +1638,17 @@ static bool vma_multi_allowed(struct vm_area_struct *vma)
 	 * Custom get unmapped area might result in MREMAP_FIXED not
 	 * being obeyed.
 	 */
-	file = vma->vm_file;
-	if (file && !vma_is_shmem(vma) && !is_vm_hugetlb_page(vma)) {
-		const struct file_operations *fop = file->f_op;
+	if (!file || !file->f_op->get_unmapped_area)
+		return true;
+	/* Known good. */
+	if (vma_is_shmem(vma))
+		return true;
+	if (is_vm_hugetlb_page(vma))
+		return true;
+	if (file->f_op->get_unmapped_area == thp_get_unmapped_area)
+		return true;
 
-		if (fop->get_unmapped_area)
-			return false;
-	}
-
-	return true;
+	return false;
 }
 
 static int check_prep_vma(struct vma_remap_struct *vrm)
@@ -1818,10 +1825,11 @@ static unsigned long remap_move(struct vma_remap_struct *vrm)
 	unsigned long start = vrm->addr;
 	unsigned long end = vrm->addr + vrm->old_len;
 	unsigned long new_addr = vrm->new_addr;
-	bool allowed = true, seen_vma = false;
 	unsigned long target_addr = new_addr;
 	unsigned long res = -EFAULT;
 	unsigned long last_end;
+	bool seen_vma = false;
+
 	VMA_ITERATOR(vmi, current->mm, start);
 
 	/*
@@ -1834,9 +1842,7 @@ static unsigned long remap_move(struct vma_remap_struct *vrm)
 		unsigned long addr = max(vma->vm_start, start);
 		unsigned long len = min(end, vma->vm_end) - addr;
 		unsigned long offset, res_vma;
-
-		if (!allowed)
-			return -EFAULT;
+		bool multi_allowed;
 
 		/* No gap permitted at the start of the range. */
 		if (!seen_vma && start < vma->vm_start)
@@ -1865,9 +1871,15 @@ static unsigned long remap_move(struct vma_remap_struct *vrm)
 		vrm->new_addr = target_addr + offset;
 		vrm->old_len = vrm->new_len = len;
 
-		allowed = vma_multi_allowed(vma);
-		if (seen_vma && !allowed)
-			return -EFAULT;
+		multi_allowed = vma_multi_allowed(vma);
+		if (!multi_allowed) {
+			/* This is not the first VMA, abort immediately. */
+			if (seen_vma)
+				return -EFAULT;
+			/* This is the first, but there are more, abort. */
+			if (vma->vm_end < end)
+				return -EFAULT;
+		}
 
 		res_vma = check_prep_vma(vrm);
 		if (!res_vma)
@@ -1876,7 +1888,7 @@ static unsigned long remap_move(struct vma_remap_struct *vrm)
 			return res_vma;
 
 		if (!seen_vma) {
-			VM_WARN_ON_ONCE(allowed && res_vma != new_addr);
+			VM_WARN_ON_ONCE(multi_allowed && res_vma != new_addr);
 			res = res_vma;
 		}
 

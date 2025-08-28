@@ -5332,7 +5332,7 @@ static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool all)
 {
 	int i;
 
-	netdev_assert_locked(bp->dev);
+	netdev_assert_locked_or_invisible(bp->dev);
 
 	/* Under netdev instance lock and all our NAPIs have been disabled.
 	 * It's safe to delete the hash table.

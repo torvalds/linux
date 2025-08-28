@@ -281,8 +281,10 @@ reassess:
 		} else if (test_bit(NETFS_RREQ_SHORT_TRANSFER, &rreq->flags)) {
 			notes |= MADE_PROGRESS;
 		} else {
-			if (!stream->failed)
+			if (!stream->failed) {
 				stream->transferred += transferred;
+				stream->transferred_valid = true;
+			}
 			if (front->transferred < front->len)
 				set_bit(NETFS_RREQ_SHORT_TRANSFER, &rreq->flags);
 			notes |= MADE_PROGRESS;
