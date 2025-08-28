@@ -386,8 +386,7 @@ static int process_one_buffer(struct extent_buffer *eb,
 			return ret;
 		}
 
-		if (btrfs_buffer_uptodate(eb, gen, false) &&
-		    btrfs_header_level(eb) == 0) {
+		if (btrfs_buffer_uptodate(eb, gen, false) && level == 0) {
 			ret = btrfs_exclude_logged_extents(eb);
 			if (ret)
 				btrfs_abort_transaction(trans, ret);
