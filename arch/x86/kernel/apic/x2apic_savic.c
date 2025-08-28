@@ -365,7 +365,8 @@ static void savic_setup(void)
 	if (res != ES_OK)
 		snp_abort();
 
-	native_wrmsrq(MSR_AMD64_SAVIC_CONTROL, gpa | MSR_AMD64_SAVIC_ALLOWEDNMI);
+	native_wrmsrq(MSR_AMD64_SAVIC_CONTROL,
+		      gpa | MSR_AMD64_SAVIC_EN | MSR_AMD64_SAVIC_ALLOWEDNMI);
 }
 
 static int savic_probe(void)
