@@ -73,7 +73,7 @@ struct nft_ct {
 
 struct nft_payload {
 	enum nft_payload_bases	base:8;
-	u8			offset;
+	u16			offset;
 	u8			len;
 	u8			dreg;
 };
