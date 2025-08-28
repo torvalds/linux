@@ -1417,7 +1417,7 @@ cs_slot_process_fault_event_locked(struct panthor_device *ptdev,
 	fault = cs_iface->output->fault;
 	info = cs_iface->output->fault_info;
 
-	if (queue && CS_EXCEPTION_TYPE(fault) == DRM_PANTHOR_EXCEPTION_CS_INHERIT_FAULT) {
+	if (queue) {
 		u64 cs_extract = queue->iface.output->extract;
 		struct panthor_job *job;
 
