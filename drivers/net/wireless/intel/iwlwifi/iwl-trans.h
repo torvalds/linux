@@ -813,7 +813,6 @@ struct iwl_txq {
  * @hw_rf_id: the device RF ID
  * @hw_cnv_id: the device CNV ID
  * @hw_crf_id: the device CRF ID
- * @hw_wfpm_id: the device wfpm ID
  * @hw_id: the ID of the device / sub-device
  *	Bits 0:15 represent the sub-device ID
  *	Bits 16:31 represent the device ID.
@@ -829,7 +828,6 @@ struct iwl_trans_info {
 	u32 hw_rf_id;
 	u32 hw_crf_id;
 	u32 hw_cnv_id;
-	u32 hw_wfpm_id;
 	u32 hw_id;
 	u8 pcie_link_speed;
 	u8 num_rxqs;
