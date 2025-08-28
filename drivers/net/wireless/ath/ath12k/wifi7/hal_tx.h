@@ -1,21 +1,14 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, 2024-2025 Qualcomm Innovation Center, Inc.
- * All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef ATH12K_HAL_TX_H
 #define ATH12K_HAL_TX_H
 
-#include "hal_desc.h"
-#include "core.h"
-
-#define HAL_TX_ADDRX_EN			1
-#define HAL_TX_ADDRY_EN			2
-
-#define HAL_TX_ADDR_SEARCH_DEFAULT	0
-#define HAL_TX_ADDR_SEARCH_INDEX	1
+#include "../hal_desc.h"
+#include "../core.h"
 
 /* TODO: check all these data can be managed with struct ath12k_tx_desc_info for perf */
 struct hal_tx_info {

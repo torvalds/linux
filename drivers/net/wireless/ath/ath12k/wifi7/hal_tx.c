@@ -6,7 +6,7 @@
 
 #include "../hal_desc.h"
 #include "../hal.h"
-#include "../hal_tx.h"
+#include "hal_tx.h"
 #include "../hif.h"
 
 #define DSCP_TID_MAP_TBL_ENTRY_SIZE 64

@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef ATH12K_DP_TX_H
 #define ATH12K_DP_TX_H
 
 #include "core.h"
-#include "hal_tx.h"
+#include "wifi7/hal_tx.h"
 
 struct ath12k_dp_htt_wbm_tx_status {
 	bool acked;

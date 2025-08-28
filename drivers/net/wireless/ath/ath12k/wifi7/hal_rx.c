@@ -7,7 +7,7 @@
 #include "../debug.h"
 #include "../hal.h"
 #include "../hif.h"
-#include "../hal_tx.h"
+#include "hal_tx.h"
 #include "../hal_rx.h"
 #include "../hal_desc.h"
 
