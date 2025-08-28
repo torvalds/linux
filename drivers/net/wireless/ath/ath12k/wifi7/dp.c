@@ -1,0 +1,136 @@
+// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+#include "../core.h"
+#include "../debug.h"
+#include "../dp_rx.h"
+#include "../dp_tx.h"
+#include "../dp_mon.h"
+#include "dp_rx.h"
+#include "dp.h"
+
+int ath12k_dp_service_srng(struct ath12k_base *ab,
+			   struct ath12k_ext_irq_grp *irq_grp,
+			   int budget)
+{
+	struct napi_struct *napi = &irq_grp->napi;
+	int grp_id = irq_grp->grp_id;
+	int work_done = 0;
+	int i = 0, j;
+	int tot_work_done = 0;
+	enum dp_monitor_mode monitor_mode;
+	u8 ring_mask;
+
+	if (ab->hw_params->ring_mask->tx[grp_id]) {
+		i = fls(ab->hw_params->ring_mask->tx[grp_id]) - 1;
+		ath12k_dp_tx_completion_handler(ab, i);
+	}
+
+	if (ab->hw_params->ring_mask->rx_err[grp_id]) {
+		work_done = ath12k_dp_rx_process_err(ab, napi, budget);
+		budget -= work_done;
+		tot_work_done += work_done;
+		if (budget <= 0)
+			goto done;
+	}
+
+	if (ab->hw_params->ring_mask->rx_wbm_rel[grp_id]) {
+		work_done = ath12k_dp_rx_process_wbm_err(ab,
+							 napi,
+							 budget);
+		budget -= work_done;
+		tot_work_done += work_done;
+
+		if (budget <= 0)
+			goto done;
+	}
+
+	if (ab->hw_params->ring_mask->rx[grp_id]) {
+		i = fls(ab->hw_params->ring_mask->rx[grp_id]) - 1;
+		work_done = ath12k_dp_rx_process(ab, i, napi,
+						 budget);
+		budget -= work_done;
+		tot_work_done += work_done;
+		if (budget <= 0)
+			goto done;
+	}
+
+	if (ab->hw_params->ring_mask->rx_mon_status[grp_id]) {
+		ring_mask = ab->hw_params->ring_mask->rx_mon_status[grp_id];
+		for (i = 0; i < ab->num_radios; i++) {
+			for (j = 0; j < ab->hw_params->num_rxdma_per_pdev; j++) {
+				int id = i * ab->hw_params->num_rxdma_per_pdev + j;
+
+				if (ring_mask & BIT(id)) {
+					work_done =
+					ath12k_dp_mon_process_ring(ab, id, napi, budget,
+								   0);
+					budget -= work_done;
+					tot_work_done += work_done;
+					if (budget <= 0)
+						goto done;
+				}
+			}
+		}
+	}
+
+	if (ab->hw_params->ring_mask->rx_mon_dest[grp_id]) {
+		monitor_mode = ATH12K_DP_RX_MONITOR_MODE;
+		ring_mask = ab->hw_params->ring_mask->rx_mon_dest[grp_id];
+		for (i = 0; i < ab->num_radios; i++) {
+			for (j = 0; j < ab->hw_params->num_rxdma_per_pdev; j++) {
+				int id = i * ab->hw_params->num_rxdma_per_pdev + j;
+
+				if (ring_mask & BIT(id)) {
+					work_done =
+					ath12k_dp_mon_process_ring(ab, id, napi, budget,
+								   monitor_mode);
+					budget -= work_done;
+					tot_work_done += work_done;
+
+					if (budget <= 0)
+						goto done;
+				}
+			}
+		}
+	}
+
+	if (ab->hw_params->ring_mask->tx_mon_dest[grp_id]) {
+		monitor_mode = ATH12K_DP_TX_MONITOR_MODE;
+		ring_mask = ab->hw_params->ring_mask->tx_mon_dest[grp_id];
+		for (i = 0; i < ab->num_radios; i++) {
+			for (j = 0; j < ab->hw_params->num_rxdma_per_pdev; j++) {
+				int id = i * ab->hw_params->num_rxdma_per_pdev + j;
+
+				if (ring_mask & BIT(id)) {
+					work_done =
+					ath12k_dp_mon_process_ring(ab, id, napi, budget,
+								   monitor_mode);
+					budget -= work_done;
+					tot_work_done += work_done;
+
+					if (budget <= 0)
+						goto done;
+				}
+			}
+		}
+	}
+
+	if (ab->hw_params->ring_mask->reo_status[grp_id])
+		ath12k_dp_rx_process_reo_status(ab);
+
+	if (ab->hw_params->ring_mask->host2rxdma[grp_id]) {
+		struct ath12k_dp *dp = &ab->dp;
+		struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
+		LIST_HEAD(list);
+
+		ath12k_dp_rx_bufs_replenish(ab, rx_ring, &list, 0);
+	}
+
+	/* TODO: Implement handler for other interrupts */
+
+done:
+	return tot_work_done;
+}

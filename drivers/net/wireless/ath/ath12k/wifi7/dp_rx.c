@@ -1642,3 +1642,82 @@ int ath12k_dp_rxdma_ring_sel_config_wcn7850(struct ath12k_base *ab)
 	return ret;
 }
 EXPORT_SYMBOL(ath12k_dp_rxdma_ring_sel_config_wcn7850);
+
+void ath12k_dp_rx_process_reo_status(struct ath12k_base *ab)
+{
+	struct ath12k_dp *dp = &ab->dp;
+	struct hal_tlv_64_hdr *hdr;
+	struct hal_srng *srng;
+	struct ath12k_dp_rx_reo_cmd *cmd, *tmp;
+	bool found = false;
+	u16 tag;
+	struct hal_reo_status reo_status;
+
+	srng = &ab->hal.srng_list[dp->reo_status_ring.ring_id];
+
+	memset(&reo_status, 0, sizeof(reo_status));
+
+	spin_lock_bh(&srng->lock);
+
+	ath12k_hal_srng_access_begin(ab, srng);
+
+	while ((hdr = ath12k_hal_srng_dst_get_next_entry(ab, srng))) {
+		tag = le64_get_bits(hdr->tl, HAL_SRNG_TLV_HDR_TAG);
+
+		switch (tag) {
+		case HAL_REO_GET_QUEUE_STATS_STATUS:
+			ath12k_hal_reo_status_queue_stats(ab, hdr,
+							  &reo_status);
+			break;
+		case HAL_REO_FLUSH_QUEUE_STATUS:
+			ath12k_hal_reo_flush_queue_status(ab, hdr,
+							  &reo_status);
+			break;
+		case HAL_REO_FLUSH_CACHE_STATUS:
+			ath12k_hal_reo_flush_cache_status(ab, hdr,
+							  &reo_status);
+			break;
+		case HAL_REO_UNBLOCK_CACHE_STATUS:
+			ath12k_hal_reo_unblk_cache_status(ab, hdr,
+							  &reo_status);
+			break;
+		case HAL_REO_FLUSH_TIMEOUT_LIST_STATUS:
+			ath12k_hal_reo_flush_timeout_list_status(ab, hdr,
+								 &reo_status);
+			break;
+		case HAL_REO_DESCRIPTOR_THRESHOLD_REACHED_STATUS:
+			ath12k_hal_reo_desc_thresh_reached_status(ab, hdr,
+								  &reo_status);
+			break;
+		case HAL_REO_UPDATE_RX_REO_QUEUE_STATUS:
+			ath12k_hal_reo_update_rx_reo_queue_status(ab, hdr,
+								  &reo_status);
+			break;
+		default:
+			ath12k_warn(ab, "Unknown reo status type %d\n", tag);
+			continue;
+		}
+
+		spin_lock_bh(&dp->reo_cmd_lock);
+		list_for_each_entry_safe(cmd, tmp, &dp->reo_cmd_list, list) {
+			if (reo_status.uniform_hdr.cmd_num == cmd->cmd_num) {
+				found = true;
+				list_del(&cmd->list);
+				break;
+			}
+		}
+		spin_unlock_bh(&dp->reo_cmd_lock);
+
+		if (found) {
+			cmd->handler(dp, (void *)&cmd->data,
+				     reo_status.uniform_hdr.cmd_status);
+			kfree(cmd);
+		}
+
+		found = false;
+	}
+
+	ath12k_hal_srng_access_end(ab, srng);
+
+	spin_unlock_bh(&srng->lock);
+}

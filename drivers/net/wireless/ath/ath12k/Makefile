@@ -24,7 +24,8 @@ ath12k-$(CONFIG_ATH12K_AHB) += ahb.o
 
 ath12k-y += wifi7/hal_tx.o \
 	    wifi7/hal_rx.o \
-	    wifi7/dp_rx.o
+	    wifi7/dp_rx.o \
+	    wifi7/dp.o
 
 obj-$(CONFIG_ATH12K) += wifi7/
 
