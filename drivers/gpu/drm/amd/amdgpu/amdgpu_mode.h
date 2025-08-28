@@ -496,8 +496,6 @@ struct amdgpu_crtc {
 	struct drm_connector *connector;
 	/* for dpm */
 	u32 line_time;
-	u32 wm_low;
-	u32 wm_high;
 	u32 lb_vblank_lead_lines;
 	struct drm_display_mode hw_mode;
 	/* for virtual dce */
