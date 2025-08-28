@@ -2490,15 +2490,6 @@ static int smb_direct_connect(struct smbdirect_socket *sc)
 	return 0;
 }
 
-static bool rdma_frwr_is_supported(struct ib_device_attr *attrs)
-{
-	if (!(attrs->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
-		return false;
-	if (attrs->max_fast_reg_page_list_len == 0)
-		return false;
-	return true;
-}
-
 static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id,
 					     struct rdma_cm_event *event)
 {
@@ -2511,7 +2502,7 @@ static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id,
 	u8 peer_responder_resources;
 	int ret;
 
-	if (!rdma_frwr_is_supported(&new_cm_id->device->attrs)) {
+	if (!smbdirect_frwr_is_supported(&new_cm_id->device->attrs)) {
 		ksmbd_debug(RDMA,
 			    "Fast Registration Work Requests is not supported. device capabilities=%llx\n",
 			    new_cm_id->device->attrs.device_cap_flags);
@@ -2703,7 +2694,7 @@ static int smb_direct_ib_client_add(struct ib_device *ib_dev)
 {
 	struct smb_direct_device *smb_dev;
 
-	if (!rdma_frwr_is_supported(&ib_dev->attrs))
+	if (!smbdirect_frwr_is_supported(&ib_dev->attrs))
 		return 0;
 
 	smb_dev = kzalloc_obj(*smb_dev, KSMBD_DEFAULT_GFP);
@@ -2851,7 +2842,7 @@ out:
 
 		ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_UNKNOWN);
 		if (ibdev) {
-			rdma_capable = rdma_frwr_is_supported(&ibdev->attrs);
+			rdma_capable = smbdirect_frwr_is_supported(&ibdev->attrs);
 			ib_device_put(ibdev);
 		}
 	}
