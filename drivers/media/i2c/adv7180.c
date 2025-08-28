@@ -545,21 +545,6 @@ static void adv7180_set_reset_pin(struct adv7180_state *state, bool on)
 	}
 }
 
-static int adv7180_s_power(struct v4l2_subdev *sd, int on)
-{
-	struct adv7180_state *state = to_state(sd);
-	int ret;
-
-	ret = mutex_lock_interruptible(&state->mutex);
-	if (ret)
-		return ret;
-
-	ret = adv7180_set_power(state, on);
-
-	mutex_unlock(&state->mutex);
-	return ret;
-}
-
 static const char * const test_pattern_menu[] = {
 	"Single color",
 	"Color bars",
@@ -960,18 +945,29 @@ static int adv7180_s_stream(struct v4l2_subdev *sd, int enable)
 	struct adv7180_state *state = to_state(sd);
 	int ret;
 
-	/* It's always safe to stop streaming, no need to take the lock */
-	if (!enable) {
-		state->streaming = enable;
-		return 0;
-	}
-
 	/* Must wait until querystd released the lock */
-	ret = mutex_lock_interruptible(&state->mutex);
+	guard(mutex)(&state->mutex);
+
+	/*
+	 * Always power off the decoder even if streaming is to be enabled, the
+	 * decoder needs to be off for the device to be configured.
+	 */
+	ret = adv7180_set_power(state, false);
 	if (ret)
 		return ret;
+
+	if (enable) {
+		ret = init_device(state);
+		if (ret)
+			return ret;
+
+		ret = adv7180_set_power(state, true);
+		if (ret)
+			return ret;
+	}
+
 	state->streaming = enable;
-	mutex_unlock(&state->mutex);
+
 	return 0;
 }
 
@@ -1000,7 +996,6 @@ static const struct v4l2_subdev_video_ops adv7180_video_ops = {
 };
 
 static const struct v4l2_subdev_core_ops adv7180_core_ops = {
-	.s_power = adv7180_s_power,
 	.subscribe_event = adv7180_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
