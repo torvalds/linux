@@ -83,6 +83,7 @@ enum smbdirect_keepalive_status {
 struct smbdirect_socket {
 	enum smbdirect_socket_status status;
 	wait_queue_head_t status_wait;
+	int first_error;
 
 	/*
 	 * This points to the workqueue to
