@@ -653,6 +653,9 @@ static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 	fbd->fw_cap.anti_rollback_version =
 		fta_get_uint(results, FBNIC_FW_CAP_RESP_ANTI_ROLLBACK_VERSION);
 
+	/* Always assume we need a BMC reinit */
+	fbd->fw_cap.need_bmc_tcam_reinit = true;
+
 	return 0;
 }
 
@@ -1408,6 +1411,109 @@ void fbnic_mbx_flush_tx(struct fbnic_dev *fbd)
 		msleep(20);
 		fbnic_mbx_process_tx_msgs(fbd);
 	} while (time_is_after_jiffies(timeout));
+}
+
+int fbnic_fw_xmit_rpc_macda_sync(struct fbnic_dev *fbd)
+{
+	struct fbnic_tlv_msg *mac_array;
+	int i, addr_count = 0, err;
+	struct fbnic_tlv_msg *msg;
+	u32 rx_flags = 0;
+
+	/* Nothing to do if there is no FW to sync with */
+	if (!fbd->mbx[FBNIC_IPC_MBX_TX_IDX].ready)
+		return 0;
+
+	msg = fbnic_tlv_msg_alloc(FBNIC_TLV_MSG_ID_RPC_MAC_SYNC_REQ);
+	if (!msg)
+		return -ENOMEM;
+
+	mac_array = fbnic_tlv_attr_nest_start(msg,
+					      FBNIC_FW_RPC_MAC_SYNC_UC_ARRAY);
+	if (!mac_array)
+		goto free_message_nospc;
+
+	/* Populate the unicast MAC addrs and capture PROMISC/ALLMULTI flags */
+	for (addr_count = 0, i = FBNIC_RPC_TCAM_MACDA_PROMISC_IDX;
+	     i >= fbd->mac_addr_boundary; i--) {
+		struct fbnic_mac_addr *mac_addr = &fbd->mac_addr[i];
+
+		if (mac_addr->state != FBNIC_TCAM_S_VALID)
+			continue;
+		if (test_bit(FBNIC_MAC_ADDR_T_ALLMULTI, mac_addr->act_tcam))
+			rx_flags |= FW_RPC_MAC_SYNC_RX_FLAGS_ALLMULTI;
+		if (test_bit(FBNIC_MAC_ADDR_T_PROMISC, mac_addr->act_tcam))
+			rx_flags |= FW_RPC_MAC_SYNC_RX_FLAGS_PROMISC;
+		if (!test_bit(FBNIC_MAC_ADDR_T_UNICAST, mac_addr->act_tcam))
+			continue;
+		if (addr_count == FW_RPC_MAC_SYNC_UC_ARRAY_SIZE) {
+			rx_flags |= FW_RPC_MAC_SYNC_RX_FLAGS_PROMISC;
+			continue;
+		}
+
+		err = fbnic_tlv_attr_put_value(mac_array,
+					       FBNIC_FW_RPC_MAC_SYNC_MAC_ADDR,
+					       mac_addr->value.addr8,
+					       ETH_ALEN);
+		if (err)
+			goto free_message;
+		addr_count++;
+	}
+
+	/* Close array */
+	fbnic_tlv_attr_nest_stop(msg);
+
+	mac_array = fbnic_tlv_attr_nest_start(msg,
+					      FBNIC_FW_RPC_MAC_SYNC_MC_ARRAY);
+	if (!mac_array)
+		goto free_message_nospc;
+
+	/* Repeat for multicast addrs, record BROADCAST/ALLMULTI flags */
+	for (addr_count = 0, i = FBNIC_RPC_TCAM_MACDA_BROADCAST_IDX;
+	     i < fbd->mac_addr_boundary; i++) {
+		struct fbnic_mac_addr *mac_addr = &fbd->mac_addr[i];
+
+		if (mac_addr->state != FBNIC_TCAM_S_VALID)
+			continue;
+		if (test_bit(FBNIC_MAC_ADDR_T_BROADCAST, mac_addr->act_tcam))
+			rx_flags |= FW_RPC_MAC_SYNC_RX_FLAGS_BROADCAST;
+		if (test_bit(FBNIC_MAC_ADDR_T_ALLMULTI, mac_addr->act_tcam))
+			rx_flags |= FW_RPC_MAC_SYNC_RX_FLAGS_ALLMULTI;
+		if (!test_bit(FBNIC_MAC_ADDR_T_MULTICAST, mac_addr->act_tcam))
+			continue;
+		if (addr_count == FW_RPC_MAC_SYNC_MC_ARRAY_SIZE) {
+			rx_flags |= FW_RPC_MAC_SYNC_RX_FLAGS_ALLMULTI;
+			continue;
+		}
+
+		err = fbnic_tlv_attr_put_value(mac_array,
+					       FBNIC_FW_RPC_MAC_SYNC_MAC_ADDR,
+					       mac_addr->value.addr8,
+					       ETH_ALEN);
+		if (err)
+			goto free_message;
+		addr_count++;
+	}
+
+	/* Close array */
+	fbnic_tlv_attr_nest_stop(msg);
+
+	/* Report flags at end of list */
+	err = fbnic_tlv_attr_put_int(msg, FBNIC_FW_RPC_MAC_SYNC_RX_FLAGS,
+				     rx_flags);
+	if (err)
+		goto free_message;
+
+	/* Send message of to FW notifying it of current RPC config */
+	err = fbnic_mbx_map_tlv_msg(fbd, msg);
+	if (err)
+		goto free_message;
+	return 0;
+free_message_nospc:
+	err = -ENOSPC;
+free_message:
+	free_page((unsigned long)msg);
+	return err;
 }
 
 void fbnic_get_fw_ver_commit_str(struct fbnic_dev *fbd, char *fw_version,

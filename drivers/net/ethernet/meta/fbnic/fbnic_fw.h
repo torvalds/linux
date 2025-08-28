@@ -51,8 +51,10 @@ struct fbnic_fw_cap {
 	} stored;
 	u8	active_slot;
 	u8	bmc_mac_addr[4][ETH_ALEN];
-	u8	bmc_present	: 1;
-	u8	all_multi	: 1;
+	u8	bmc_present		: 1;
+	u8	need_bmc_tcam_reinit	: 1;
+	u8	need_bmc_macda_sync	: 1;
+	u8	all_multi		: 1;
 	u8	link_speed;
 	u8	link_fec;
 	u32	anti_rollback_version;
@@ -97,6 +99,7 @@ int fbnic_fw_xmit_tsene_read_msg(struct fbnic_dev *fbd,
 				 struct fbnic_fw_completion *cmpl_data);
 int fbnic_fw_xmit_send_logs(struct fbnic_dev *fbd, bool enable,
 			    bool send_log_history);
+int fbnic_fw_xmit_rpc_macda_sync(struct fbnic_dev *fbd);
 struct fbnic_fw_completion *fbnic_fw_alloc_cmpl(u32 msg_type);
 void fbnic_fw_put_cmpl(struct fbnic_fw_completion *cmpl_data);
 
@@ -143,6 +146,7 @@ enum {
 	FBNIC_TLV_MSG_ID_LOG_SEND_LOGS_REQ		= 0x43,
 	FBNIC_TLV_MSG_ID_LOG_MSG_REQ			= 0x44,
 	FBNIC_TLV_MSG_ID_LOG_MSG_RESP			= 0x45,
+	FBNIC_TLV_MSG_ID_RPC_MAC_SYNC_REQ		= 0x46,
 };
 
 #define FBNIC_FW_CAP_RESP_VERSION_MAJOR		CSR_GENMASK(31, 24)
@@ -234,5 +238,20 @@ enum {
 	FBNIC_FW_LOG_MSG_ARRAY			= 0x6,
 	FBNIC_FW_LOG_MSG_MAX
 };
+
+enum {
+	FBNIC_FW_RPC_MAC_SYNC_RX_FLAGS		= 0x0,
+	FBNIC_FW_RPC_MAC_SYNC_UC_ARRAY		= 0x1,
+	FBNIC_FW_RPC_MAC_SYNC_MC_ARRAY		= 0x2,
+	FBNIC_FW_RPC_MAC_SYNC_MAC_ADDR		= 0x3,
+	FBNIC_FW_RPC_MAC_SYNC_MSG_MAX
+};
+
+#define FW_RPC_MAC_SYNC_RX_FLAGS_PROMISC	1
+#define FW_RPC_MAC_SYNC_RX_FLAGS_ALLMULTI	2
+#define FW_RPC_MAC_SYNC_RX_FLAGS_BROADCAST	4
+
+#define FW_RPC_MAC_SYNC_UC_ARRAY_SIZE		8
+#define FW_RPC_MAC_SYNC_MC_ARRAY_SIZE		8
 
 #endif /* _FBNIC_FW_H_ */
