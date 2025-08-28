@@ -16,7 +16,16 @@
 #include <linux/spi/spi.h>
 #include <linux/of.h>
 
-#include <asm/mach-ath79/ar71xx_regs.h>
+#define AR71XX_SPI_REG_FS		0x00	/* Function Select */
+#define AR71XX_SPI_REG_CTRL		0x04	/* SPI Control */
+#define AR71XX_SPI_REG_IOC		0x08	/* SPI I/O Control */
+#define AR71XX_SPI_REG_RDS		0x0c	/* Read Data Shift */
+
+#define AR71XX_SPI_FS_GPIO		BIT(0)	/* Enable GPIO mode */
+
+#define AR71XX_SPI_IOC_DO		BIT(0)	/* Data Out pin */
+#define AR71XX_SPI_IOC_CLK		BIT(8)	/* CLK pin */
+#define AR71XX_SPI_IOC_CS(n)		BIT(16 + (n))
 
 struct rb4xx_spi {
 	void __iomem *base;
@@ -63,7 +72,7 @@ static inline void do_spi_clk_two(struct rb4xx_spi *rbspi, u32 spi_ioc,
 	if (value & BIT(1))
 		regval |= AR71XX_SPI_IOC_DO;
 	if (value & BIT(0))
-		regval |= AR71XX_SPI_IOC_CS2;
+		regval |= AR71XX_SPI_IOC_CS(2);
 
 	rb4xx_write(rbspi, AR71XX_SPI_REG_IOC, regval);
 	rb4xx_write(rbspi, AR71XX_SPI_REG_IOC, regval | AR71XX_SPI_IOC_CLK);
@@ -89,7 +98,7 @@ static void rb4xx_set_cs(struct spi_device *spi, bool enable)
 	 */
 	if (enable)
 		rb4xx_write(rbspi, AR71XX_SPI_REG_IOC,
-			    AR71XX_SPI_IOC_CS0 | AR71XX_SPI_IOC_CS1);
+			    AR71XX_SPI_IOC_CS(0) | AR71XX_SPI_IOC_CS(1));
 }
 
 static int rb4xx_transfer_one(struct spi_controller *host,
@@ -109,10 +118,10 @@ static int rb4xx_transfer_one(struct spi_controller *host,
 	 */
 	if (spi_get_chipselect(spi, 0) == 2)
 		/* MMC */
-		spi_ioc = AR71XX_SPI_IOC_CS0;
+		spi_ioc = AR71XX_SPI_IOC_CS(0);
 	else
 		/* Boot flash and CPLD */
-		spi_ioc = AR71XX_SPI_IOC_CS1;
+		spi_ioc = AR71XX_SPI_IOC_CS(1);
 
 	tx_buf = t->tx_buf;
 	rx_buf = t->rx_buf;
@@ -147,7 +156,7 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	if (!host)
 		return -ENOMEM;
 
-	ahb_clk = devm_clk_get(&pdev->dev, "ahb");
+	ahb_clk = devm_clk_get_enabled(&pdev->dev, "ahb");
 	if (IS_ERR(ahb_clk))
 		return PTR_ERR(ahb_clk);
 
@@ -163,7 +172,6 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	rbspi = spi_controller_get_devdata(host);
 	rbspi->base = spi_base;
 	rbspi->clk = ahb_clk;
-	platform_set_drvdata(pdev, rbspi);
 
 	err = devm_spi_register_controller(&pdev->dev, host);
 	if (err) {
@@ -171,21 +179,10 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = clk_prepare_enable(ahb_clk);
-	if (err)
-		return err;
-
 	/* Enable SPI */
 	rb4xx_write(rbspi, AR71XX_SPI_REG_FS, AR71XX_SPI_FS_GPIO);
 
 	return 0;
-}
-
-static void rb4xx_spi_remove(struct platform_device *pdev)
-{
-	struct rb4xx_spi *rbspi = platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(rbspi->clk);
 }
 
 static const struct of_device_id rb4xx_spi_dt_match[] = {
@@ -196,10 +193,9 @@ MODULE_DEVICE_TABLE(of, rb4xx_spi_dt_match);
 
 static struct platform_driver rb4xx_spi_drv = {
 	.probe = rb4xx_spi_probe,
-	.remove = rb4xx_spi_remove,
 	.driver = {
 		.name = "rb4xx-spi",
-		.of_match_table = of_match_ptr(rb4xx_spi_dt_match),
+		.of_match_table = rb4xx_spi_dt_match,
 	},
 };
 
