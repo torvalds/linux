@@ -1961,13 +1961,14 @@ static int delete_conflicting_dir_entry(struct btrfs_trans_handle *trans,
  * Returns < 0 on error, 0 if the name wasn't replayed (dentry points to a
  * non-existing inode) and 1 if the name was replayed.
  */
-static noinline int replay_one_name(struct btrfs_trans_handle *trans,
-				    struct btrfs_root *root,
+static noinline int replay_one_name(struct walk_control *wc,
 				    struct btrfs_path *path,
 				    struct extent_buffer *eb,
 				    struct btrfs_dir_item *di,
 				    struct btrfs_key *key)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
+	struct btrfs_root *root = wc->root;
 	struct fscrypt_str name = { 0 };
 	struct btrfs_dir_item *dir_dst_di;
 	struct btrfs_dir_item *index_dst_di;
@@ -2107,8 +2108,7 @@ out:
 }
 
 /* Replay one dir item from a BTRFS_DIR_INDEX_KEY key. */
-static noinline int replay_one_dir_item(struct btrfs_trans_handle *trans,
-					struct btrfs_root *root,
+static noinline int replay_one_dir_item(struct walk_control *wc,
 					struct btrfs_path *path,
 					struct extent_buffer *eb, int slot,
 					struct btrfs_key *key)
@@ -2120,7 +2120,7 @@ static noinline int replay_one_dir_item(struct btrfs_trans_handle *trans,
 	ASSERT(key->type == BTRFS_DIR_INDEX_KEY);
 
 	di = btrfs_item_ptr(eb, slot, struct btrfs_dir_item);
-	ret = replay_one_name(trans, root, path, eb, di, key);
+	ret = replay_one_name(wc, path, eb, di, key);
 	if (ret < 0)
 		return ret;
 
@@ -2156,12 +2156,12 @@ static noinline int replay_one_dir_item(struct btrfs_trans_handle *trans,
 
 		fixup_path = btrfs_alloc_path();
 		if (!fixup_path) {
-			btrfs_abort_transaction(trans, -ENOMEM);
+			btrfs_abort_transaction(wc->trans, -ENOMEM);
 			return -ENOMEM;
 		}
 
 		btrfs_dir_item_key_to_cpu(eb, di, &di_key);
-		ret = link_to_fixup_dir(trans, root, fixup_path, di_key.objectid);
+		ret = link_to_fixup_dir(wc->trans, wc->root, fixup_path, di_key.objectid);
 		btrfs_free_path(fixup_path);
 	}
 
@@ -2709,7 +2709,7 @@ static int replay_one_buffer(struct extent_buffer *eb,
 
 		if (key.type == BTRFS_DIR_INDEX_KEY &&
 		    wc->stage == LOG_WALK_REPLAY_DIR_INDEX) {
-			ret = replay_one_dir_item(trans, root, path, eb, i, &key);
+			ret = replay_one_dir_item(wc, path, eb, i, &key);
 			if (ret)
 				break;
 		}
