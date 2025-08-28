@@ -71,25 +71,25 @@ static void inet_diag_unlock_handler(const struct inet_diag_handler *handler)
 
 void inet_diag_msg_common_fill(struct inet_diag_msg *r, struct sock *sk)
 {
-	r->idiag_family = sk->sk_family;
+	r->idiag_family = READ_ONCE(sk->sk_family);
 
-	r->id.idiag_sport = htons(sk->sk_num);
-	r->id.idiag_dport = sk->sk_dport;
-	r->id.idiag_if = sk->sk_bound_dev_if;
+	r->id.idiag_sport = htons(READ_ONCE(sk->sk_num));
+	r->id.idiag_dport = READ_ONCE(sk->sk_dport);
+	r->id.idiag_if = READ_ONCE(sk->sk_bound_dev_if);
 	sock_diag_save_cookie(sk, r->id.idiag_cookie);
 
 #if IS_ENABLED(CONFIG_IPV6)
-	if (sk->sk_family == AF_INET6) {
-		*(struct in6_addr *)r->id.idiag_src = sk->sk_v6_rcv_saddr;
-		*(struct in6_addr *)r->id.idiag_dst = sk->sk_v6_daddr;
+	if (r->idiag_family == AF_INET6) {
+		data_race(*(struct in6_addr *)r->id.idiag_src = sk->sk_v6_rcv_saddr);
+		data_race(*(struct in6_addr *)r->id.idiag_dst = sk->sk_v6_daddr);
 	} else
 #endif
 	{
 	memset(&r->id.idiag_src, 0, sizeof(r->id.idiag_src));
 	memset(&r->id.idiag_dst, 0, sizeof(r->id.idiag_dst));
 
-	r->id.idiag_src[0] = sk->sk_rcv_saddr;
-	r->id.idiag_dst[0] = sk->sk_daddr;
+	r->id.idiag_src[0] = READ_ONCE(sk->sk_rcv_saddr);
+	r->id.idiag_dst[0] = READ_ONCE(sk->sk_daddr);
 	}
 }
 EXPORT_SYMBOL_GPL(inet_diag_msg_common_fill);
