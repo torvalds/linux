@@ -2033,7 +2033,13 @@ static int move_freepages_block(struct zone *zone, struct page *page,
 /* Look for a buddy that straddles start_pfn */
 static unsigned long find_large_buddy(unsigned long start_pfn)
 {
-	int order = 0;
+	/*
+	 * If start_pfn is not an order-0 PageBuddy, next PageBuddy containing
+	 * start_pfn has minimal order of __ffs(start_pfn) + 1. Start checking
+	 * the order with __ffs(start_pfn). If start_pfn is order-0 PageBuddy,
+	 * the starting order does not matter.
+	 */
+	int order = start_pfn ? __ffs(start_pfn) : MAX_PAGE_ORDER;
 	struct page *page;
 	unsigned long pfn = start_pfn;
 
