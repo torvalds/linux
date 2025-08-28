@@ -30,6 +30,14 @@ static struct cros_ec_platform pd_p = {
 	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX),
 };
 
+static void cros_ec_device_free(void *data)
+{
+	struct cros_ec_device *ec_dev = data;
+
+	mutex_destroy(&ec_dev->lock);
+	lockdep_unregister_key(&ec_dev->lockdep_key);
+}
+
 struct cros_ec_device *cros_ec_device_alloc(struct device *dev)
 {
 	struct cros_ec_device *ec_dev;
@@ -45,7 +53,28 @@ struct cros_ec_device *cros_ec_device_alloc(struct device *dev)
 			    sizeof(struct ec_params_rwsig_action) +
 			    EC_MAX_REQUEST_OVERHEAD;
 
+	ec_dev->din = devm_kzalloc(dev, ec_dev->din_size, GFP_KERNEL);
+	if (!ec_dev->din)
+		return NULL;
+
+	ec_dev->dout = devm_kzalloc(dev, ec_dev->dout_size, GFP_KERNEL);
+	if (!ec_dev->dout)
+		return NULL;
+
 	ec_dev->dev = dev;
+	ec_dev->max_response = sizeof(struct ec_response_get_protocol_info);
+	ec_dev->max_request = sizeof(struct ec_params_rwsig_action);
+	ec_dev->suspend_timeout_ms = EC_HOST_SLEEP_TIMEOUT_DEFAULT;
+
+	BLOCKING_INIT_NOTIFIER_HEAD(&ec_dev->event_notifier);
+	BLOCKING_INIT_NOTIFIER_HEAD(&ec_dev->panic_notifier);
+
+	lockdep_register_key(&ec_dev->lockdep_key);
+	mutex_init(&ec_dev->lock);
+	lockdep_set_class(&ec_dev->lock, &ec_dev->lockdep_key);
+
+	if (devm_add_action_or_reset(dev, cros_ec_device_free, ec_dev))
+		return NULL;
 
 	return ec_dev;
 }
@@ -200,29 +229,7 @@ static int cros_ec_ready_event(struct notifier_block *nb,
 int cros_ec_register(struct cros_ec_device *ec_dev)
 {
 	struct device *dev = ec_dev->dev;
-	int err = 0;
-
-	BLOCKING_INIT_NOTIFIER_HEAD(&ec_dev->event_notifier);
-	BLOCKING_INIT_NOTIFIER_HEAD(&ec_dev->panic_notifier);
-
-	ec_dev->max_request = sizeof(struct ec_params_hello);
-	ec_dev->max_response = sizeof(struct ec_response_get_protocol_info);
-	ec_dev->max_passthru = 0;
-	ec_dev->ec = NULL;
-	ec_dev->pd = NULL;
-	ec_dev->suspend_timeout_ms = EC_HOST_SLEEP_TIMEOUT_DEFAULT;
-
-	ec_dev->din = devm_kzalloc(dev, ec_dev->din_size, GFP_KERNEL);
-	if (!ec_dev->din)
-		return -ENOMEM;
-
-	ec_dev->dout = devm_kzalloc(dev, ec_dev->dout_size, GFP_KERNEL);
-	if (!ec_dev->dout)
-		return -ENOMEM;
-
-	lockdep_register_key(&ec_dev->lockdep_key);
-	mutex_init(&ec_dev->lock);
-	lockdep_set_class(&ec_dev->lock, &ec_dev->lockdep_key);
+	int err;
 
 	/* Send RWSIG continue to jump to RW for devices using RWSIG. */
 	err = cros_ec_rwsig_continue(ec_dev);
@@ -322,8 +329,6 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 exit:
 	platform_device_unregister(ec_dev->ec);
 	platform_device_unregister(ec_dev->pd);
-	mutex_destroy(&ec_dev->lock);
-	lockdep_unregister_key(&ec_dev->lockdep_key);
 	return err;
 }
 EXPORT_SYMBOL(cros_ec_register);
@@ -343,8 +348,6 @@ void cros_ec_unregister(struct cros_ec_device *ec_dev)
 						   &ec_dev->notifier_ready);
 	platform_device_unregister(ec_dev->pd);
 	platform_device_unregister(ec_dev->ec);
-	mutex_destroy(&ec_dev->lock);
-	lockdep_unregister_key(&ec_dev->lockdep_key);
 }
 EXPORT_SYMBOL(cros_ec_unregister);
 
