@@ -666,7 +666,7 @@ static int rk_udphy_orien_sw_set(struct typec_switch_dev *sw,
 		goto unlock_ret;
 	}
 
-	udphy->flip = (orien == TYPEC_ORIENTATION_REVERSE) ? true : false;
+	udphy->flip = orien == TYPEC_ORIENTATION_REVERSE;
 	rk_udphy_set_typec_default_mapping(udphy);
 	rk_udphy_usb_bvalid_enable(udphy, true);
 
