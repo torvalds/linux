@@ -1872,7 +1872,7 @@ F:	arch/arm64/boot/dts/apm/
 APPLIED MICRO (APM) X-GENE SOC EDAC
 M:	Khuong Dinh <khuong@os.amperecomputing.com>
 S:	Supported
-F:	Documentation/devicetree/bindings/edac/apm-xgene-edac.txt
+F:	Documentation/devicetree/bindings/edac/apm,xgene-edac.yaml
 F:	drivers/edac/xgene_edac.c
 
 APPLIED MICRO (APM) X-GENE SOC ETHERNET (V2) DRIVER
