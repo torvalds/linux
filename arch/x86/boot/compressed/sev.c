@@ -62,18 +62,30 @@ static bool sev_snp_enabled(void)
 
 void snp_set_page_private(unsigned long paddr)
 {
+	struct psc_desc d = {
+		SNP_PAGE_STATE_PRIVATE,
+		(struct svsm_ca *)boot_svsm_caa_pa,
+		boot_svsm_caa_pa
+	};
+
 	if (!sev_snp_enabled())
 		return;
 
-	__page_state_change(paddr, paddr, SNP_PAGE_STATE_PRIVATE);
+	__page_state_change(paddr, paddr, &d);
 }
 
 void snp_set_page_shared(unsigned long paddr)
 {
+	struct psc_desc d = {
+		SNP_PAGE_STATE_SHARED,
+		(struct svsm_ca *)boot_svsm_caa_pa,
+		boot_svsm_caa_pa
+	};
+
 	if (!sev_snp_enabled())
 		return;
 
-	__page_state_change(paddr, paddr, SNP_PAGE_STATE_SHARED);
+	__page_state_change(paddr, paddr, &d);
 }
 
 bool early_setup_ghcb(void)
@@ -98,8 +110,14 @@ bool early_setup_ghcb(void)
 
 void snp_accept_memory(phys_addr_t start, phys_addr_t end)
 {
+	struct psc_desc d = {
+		SNP_PAGE_STATE_PRIVATE,
+		(struct svsm_ca *)boot_svsm_caa_pa,
+		boot_svsm_caa_pa
+	};
+
 	for (phys_addr_t pa = start; pa < end; pa += PAGE_SIZE)
-		__page_state_change(pa, pa, SNP_PAGE_STATE_PRIVATE);
+		__page_state_change(pa, pa, &d);
 }
 
 void sev_es_shutdown_ghcb(void)

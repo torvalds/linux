@@ -132,7 +132,7 @@ noinstr void __sev_put_ghcb(struct ghcb_state *state)
 
 void __head
 early_set_pages_state(unsigned long vaddr, unsigned long paddr,
-		      unsigned long npages, enum psc_op op)
+		      unsigned long npages, const struct psc_desc *desc)
 {
 	unsigned long paddr_end;
 
@@ -142,7 +142,7 @@ early_set_pages_state(unsigned long vaddr, unsigned long paddr,
 	paddr_end = paddr + (npages << PAGE_SHIFT);
 
 	while (paddr < paddr_end) {
-		__page_state_change(vaddr, paddr, op);
+		__page_state_change(vaddr, paddr, desc);
 
 		vaddr += PAGE_SIZE;
 		paddr += PAGE_SIZE;
@@ -152,6 +152,10 @@ early_set_pages_state(unsigned long vaddr, unsigned long paddr,
 void __head early_snp_set_memory_private(unsigned long vaddr, unsigned long paddr,
 					 unsigned long npages)
 {
+	struct psc_desc d = {
+		SNP_PAGE_STATE_PRIVATE, svsm_get_caa(), svsm_get_caa_pa()
+	};
+
 	/*
 	 * This can be invoked in early boot while running identity mapped, so
 	 * use an open coded check for SNP instead of using cc_platform_has().
@@ -165,12 +169,16 @@ void __head early_snp_set_memory_private(unsigned long vaddr, unsigned long padd
 	  * Ask the hypervisor to mark the memory pages as private in the RMP
 	  * table.
 	  */
-	early_set_pages_state(vaddr, paddr, npages, SNP_PAGE_STATE_PRIVATE);
+	early_set_pages_state(vaddr, paddr, npages, &d);
 }
 
 void __head early_snp_set_memory_shared(unsigned long vaddr, unsigned long paddr,
 					unsigned long npages)
 {
+	struct psc_desc d = {
+		SNP_PAGE_STATE_SHARED, svsm_get_caa(), svsm_get_caa_pa()
+	};
+
 	/*
 	 * This can be invoked in early boot while running identity mapped, so
 	 * use an open coded check for SNP instead of using cc_platform_has().
@@ -181,7 +189,7 @@ void __head early_snp_set_memory_shared(unsigned long vaddr, unsigned long paddr
 		return;
 
 	 /* Ask hypervisor to mark the memory pages shared in the RMP table. */
-	early_set_pages_state(vaddr, paddr, npages, SNP_PAGE_STATE_SHARED);
+	early_set_pages_state(vaddr, paddr, npages, &d);
 }
 
 /*
