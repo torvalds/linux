@@ -410,12 +410,13 @@ static int process_one_buffer(struct extent_buffer *eb,
  *
  * If the key isn't in the destination yet, a new item is inserted.
  */
-static int overwrite_item(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root,
+static int overwrite_item(struct walk_control *wc,
 			  struct btrfs_path *path,
 			  struct extent_buffer *eb, int slot,
 			  struct btrfs_key *key)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
+	struct btrfs_root *root = wc->root;
 	int ret;
 	u32 item_size;
 	u64 saved_i_size = 0;
@@ -739,7 +740,7 @@ static noinline int replay_one_extent(struct walk_control *wc,
 
 	if (found_type == BTRFS_FILE_EXTENT_INLINE) {
 		/* inline extents are easy, we just overwrite them */
-		ret = overwrite_item(trans, root, path, eb, slot, key);
+		ret = overwrite_item(wc, path, eb, slot, key);
 		if (ret)
 			goto out;
 		goto update_inode;
@@ -1607,7 +1608,7 @@ next:
 		goto out;
 
 	/* finally write the back reference in the inode */
-	ret = overwrite_item(trans, root, path, eb, slot, key);
+	ret = overwrite_item(wc, path, eb, slot, key);
 out:
 	btrfs_release_path(path);
 	kfree(name.name);
@@ -2657,7 +2658,7 @@ static int replay_one_buffer(struct extent_buffer *eb,
 				if (ret)
 					break;
 			}
-			ret = overwrite_item(trans, root, path, eb, i, &key);
+			ret = overwrite_item(wc, path, eb, i, &key);
 			if (ret)
 				break;
 
@@ -2721,7 +2722,7 @@ static int replay_one_buffer(struct extent_buffer *eb,
 
 		/* these keys are simply copied */
 		if (key.type == BTRFS_XATTR_ITEM_KEY) {
-			ret = overwrite_item(trans, root, path, eb, i, &key);
+			ret = overwrite_item(wc, path, eb, i, &key);
 			if (ret)
 				break;
 		} else if (key.type == BTRFS_INODE_REF_KEY ||
