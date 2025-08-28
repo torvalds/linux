@@ -176,6 +176,7 @@ err_close_rxq:
 
 struct net_devmem_dmabuf_binding *
 net_devmem_bind_dmabuf(struct net_device *dev,
+		       struct device *dma_dev,
 		       enum dma_data_direction direction,
 		       unsigned int dmabuf_fd, struct netdev_nl_sock *priv,
 		       struct netlink_ext_ack *extack)
@@ -187,6 +188,11 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 	unsigned int sg_idx, i;
 	unsigned long virtual;
 	int err;
+
+	if (!dma_dev) {
+		NL_SET_ERR_MSG(extack, "Device doesn't support DMA");
+		return ERR_PTR(-EOPNOTSUPP);
+	}
 
 	dmabuf = dma_buf_get(dmabuf_fd);
 	if (IS_ERR(dmabuf))
@@ -209,7 +215,7 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 	binding->dmabuf = dmabuf;
 	binding->direction = direction;
 
-	binding->attachment = dma_buf_attach(binding->dmabuf, dev->dev.parent);
+	binding->attachment = dma_buf_attach(binding->dmabuf, dma_dev);
 	if (IS_ERR(binding->attachment)) {
 		err = PTR_ERR(binding->attachment);
 		NL_SET_ERR_MSG(extack, "Failed to bind dmabuf to device");
