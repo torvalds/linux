@@ -36327,13 +36327,18 @@ extern void test_kmem_cache_bulk(void);
 static inline void check_spanning_store_height(struct maple_tree *mt)
 {
 	int index = 0;
+	int last = 140;
 	MA_STATE(mas, mt, 0, 0);
 	mas_lock(&mas);
 	while (mt_height(mt) != 3) {
 		mas_store_gfp(&mas, xa_mk_value(index), GFP_KERNEL);
 		mas_set(&mas, ++index);
 	}
-	mas_set_range(&mas, 90, 140);
+
+	if (MAPLE_32BIT)
+		last = 155; /* 32 bit higher branching factor. */
+
+	mas_set_range(&mas, 90, last);
 	mas_store_gfp(&mas, xa_mk_value(index), GFP_KERNEL);
 	MT_BUG_ON(mt, mas_mt_height(&mas) != 2);
 	mas_unlock(&mas);
