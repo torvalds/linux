@@ -45,6 +45,8 @@ struct ath12k_dp_rx_reo_cmd {
 			enum hal_reo_cmd_status status);
 };
 
+#define ATH12K_DP_RX_FRAGMENT_TIMEOUT_MS (2 * HZ)
+
 #define ATH12K_DP_RX_REO_DESC_FREE_THRES  64
 #define ATH12K_DP_RX_REO_DESC_FREE_TIMEOUT_MS 1000
 
@@ -351,9 +353,20 @@ void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *napi,
 bool ath12k_dp_rx_check_nwifi_hdr_len_valid(struct ath12k_base *ab,
 					    struct hal_rx_desc *rx_desc,
 					    struct sk_buff *msdu);
-int ath12k_dp_rx_h_null_q_desc(struct ath12k *ar, struct sk_buff *msdu,
-			       struct ath12k_dp_rx_info *rx_info,
-			       struct sk_buff_head *msdu_list);
+void ath12k_dp_rx_h_mpdu(struct ath12k *ar,
+			 struct sk_buff *msdu,
+			 struct hal_rx_desc *rx_desc,
+			 struct ath12k_dp_rx_info *rx_info);
+u64 ath12k_dp_rx_h_get_pn(struct ath12k *ar, struct sk_buff *skb);
+void ath12k_dp_rx_h_sort_frags(struct ath12k_base *ab,
+			       struct sk_buff_head *frag_list,
+			       struct sk_buff *cur_frag);
+void ath12k_dp_rx_h_undecap_frag(struct ath12k *ar, struct sk_buff *msdu,
+				 enum hal_encrypt_type enctype, u32 flags);
+int ath12k_dp_rx_h_verify_tkip_mic(struct ath12k *ar, struct ath12k_peer *peer,
+				   struct sk_buff *msdu);
+void ath12k_dp_rx_frags_cleanup(struct ath12k_dp_rx_tid *rx_tid,
+				bool rel_link_desc);
 int ath12k_dp_rx_ampdu_start(struct ath12k *ar,
 			     struct ieee80211_ampdu_params *params,
 			     u8 link_id);
@@ -381,8 +394,6 @@ int ath12k_dp_rx_pdev_alloc(struct ath12k_base *ab, int pdev_idx);
 void ath12k_dp_rx_pdev_free(struct ath12k_base *ab, int pdev_idx);
 void ath12k_dp_rx_reo_cmd_list_cleanup(struct ath12k_base *ab);
 void ath12k_dp_rx_process_reo_status(struct ath12k_base *ab);
-int ath12k_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
-			     int budget);
 int ath12k_dp_rx_process(struct ath12k_base *ab, int mac_id,
 			 struct napi_struct *napi,
 			 int budget);
