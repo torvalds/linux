@@ -1171,16 +1171,11 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 static void iwl_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (!trans)
 		return;
 
-	cancel_delayed_work_sync(&trans_pcie->me_recheck_wk);
-
-	iwl_drv_stop(trans->drv);
-
-	iwl_trans_pcie_free(trans);
+	iwl_pcie_gen1_2_remove(trans);
 }
 
 #ifdef CONFIG_PM_SLEEP
