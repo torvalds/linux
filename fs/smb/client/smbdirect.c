@@ -922,20 +922,6 @@ out:
 	return ERR_PTR(rc);
 }
 
-/*
- * Test if FRWR (Fast Registration Work Requests) is supported on the device
- * This implementation requires FRWR on RDMA read/write
- * return value: true if it is supported
- */
-static bool frwr_is_supported(struct ib_device_attr *attrs)
-{
-	if (!(attrs->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
-		return false;
-	if (attrs->max_fast_reg_page_list_len == 0)
-		return false;
-	return true;
-}
-
 static int smbd_ia_open(
 		struct smbdirect_socket *sc,
 		struct sockaddr *dstaddr, int port)
@@ -953,7 +939,7 @@ static int smbd_ia_open(
 	}
 	sc->ib.dev = sc->rdma.cm_id->device;
 
-	if (!frwr_is_supported(&sc->ib.dev->attrs)) {
+	if (!smbdirect_frwr_is_supported(&sc->ib.dev->attrs)) {
 		log_rdma_event(ERR, "Fast Registration Work Requests (FRWR) is not supported\n");
 		log_rdma_event(ERR, "Device capability flags = %llx max_fast_reg_page_list_len = %u\n",
 			       sc->ib.dev->attrs.device_cap_flags,
