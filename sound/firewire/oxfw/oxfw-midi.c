@@ -84,9 +84,8 @@ static int midi_playback_close(struct snd_rawmidi_substream *substream)
 static void midi_capture_trigger(struct snd_rawmidi_substream *substrm, int up)
 {
 	struct snd_oxfw *oxfw = substrm->rmidi->private_data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&oxfw->lock, flags);
+	guard(spinlock_irqsave)(&oxfw->lock);
 
 	if (up)
 		amdtp_am824_midi_trigger(&oxfw->tx_stream,
@@ -94,16 +93,13 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *substrm, int up)
 	else
 		amdtp_am824_midi_trigger(&oxfw->tx_stream,
 					 substrm->number, NULL);
-
-	spin_unlock_irqrestore(&oxfw->lock, flags);
 }
 
 static void midi_playback_trigger(struct snd_rawmidi_substream *substrm, int up)
 {
 	struct snd_oxfw *oxfw = substrm->rmidi->private_data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&oxfw->lock, flags);
+	guard(spinlock_irqsave)(&oxfw->lock);
 
 	if (up)
 		amdtp_am824_midi_trigger(&oxfw->rx_stream,
@@ -111,8 +107,6 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *substrm, int up)
 	else
 		amdtp_am824_midi_trigger(&oxfw->rx_stream,
 					 substrm->number, NULL);
-
-	spin_unlock_irqrestore(&oxfw->lock, flags);
 }
 
 static void set_midi_substream_names(struct snd_oxfw *oxfw,
