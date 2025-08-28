@@ -785,8 +785,9 @@ static int aie2_get_clock_metadata(struct amdxdna_client *client,
 
 static int aie2_hwctx_status_cb(struct amdxdna_hwctx *hwctx, void *arg)
 {
-	struct amdxdna_drm_query_hwctx __user *buf, *tmp __free(kfree) = NULL;
+	struct amdxdna_drm_query_hwctx *tmp __free(kfree) = NULL;
 	struct amdxdna_drm_get_info *get_info_args = arg;
+	struct amdxdna_drm_query_hwctx __user *buf;
 
 	if (get_info_args->buffer_size < sizeof(*tmp))
 		return -EINVAL;

@@ -41,6 +41,8 @@ properties:
       - enum:
           # Admatec 9904379 10.1" 1024x600 LVDS panel
           - admatec,9904379
+          # Ampire AMP19201200B5TZQW-T03 10.1" WUXGA (1920x1200) color TFT LCD panel
+          - ampire,amp19201200b5tzqw-t03
           - auo,b101ew05
           # AUO G084SN05 V9 8.4" 800x600 LVDS panel
           - auo,g084sn05

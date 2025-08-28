@@ -371,12 +371,6 @@ struct drm_gpuva *
 msm_gem_vma_new(struct drm_gpuvm *gpuvm, struct drm_gem_object *obj,
 		u64 offset, u64 range_start, u64 range_end)
 {
-	struct drm_gpuva_op_map op_map = {
-		.va.addr = range_start,
-		.va.range = range_end - range_start,
-		.gem.obj = obj,
-		.gem.offset = offset,
-	};
 	struct msm_gem_vm *vm = to_msm_vm(gpuvm);
 	struct drm_gpuvm_bo *vm_bo;
 	struct msm_gem_vma *vma;
@@ -404,6 +398,13 @@ msm_gem_vma_new(struct drm_gpuvm *gpuvm, struct drm_gem_object *obj,
 
 	if (obj)
 		GEM_WARN_ON((range_end - range_start) > obj->size);
+
+	struct drm_gpuva_op_map op_map = {
+		.va.addr = range_start,
+		.va.range = range_end - range_start,
+		.gem.obj = obj,
+		.gem.offset = offset,
+	};
 
 	drm_gpuva_init_from_op(&vma->base, &op_map);
 	vma->mapped = false;
