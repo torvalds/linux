@@ -201,12 +201,12 @@ static u8 xe_zap_ptes_in_madvise_range(struct xe_vm *vm, u64 start, u64 end)
 				if (xe_pt_zap_ptes(tile, vma)) {
 					tile_mask |= BIT(id);
 
-				/*
-				 * WRITE_ONCE pairs with READ_ONCE
-				 * in xe_vm_has_valid_gpu_mapping()
-				 */
-				WRITE_ONCE(vma->tile_invalidated,
-					   vma->tile_invalidated | BIT(id));
+					/*
+					 * WRITE_ONCE pairs with READ_ONCE
+					 * in xe_vm_has_valid_gpu_mapping()
+					 */
+					WRITE_ONCE(vma->tile_invalidated,
+						   vma->tile_invalidated | BIT(id));
 				}
 			}
 		}
