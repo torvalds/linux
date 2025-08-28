@@ -2774,6 +2774,8 @@ static int get_new_segment(struct f2fs_sb_info *sbi,
 	unsigned int total_zones = MAIN_SECS(sbi) / sbi->secs_per_zone;
 	unsigned int hint = GET_SEC_FROM_SEG(sbi, *newseg);
 	unsigned int old_zoneno = GET_ZONE_FROM_SEG(sbi, *newseg);
+	unsigned int alloc_policy = sbi->allocate_section_policy;
+	unsigned int alloc_hint = sbi->allocate_section_hint;
 	bool init = true;
 	int i;
 	int ret = 0;
@@ -2806,6 +2808,21 @@ static int get_new_segment(struct f2fs_sb_info *sbi,
 		hint = GET_SEC_FROM_SEG(sbi, segno);
 	}
 #endif
+
+	/*
+	 * Prevent allocate_section_hint from exceeding MAIN_SECS()
+	 * due to desynchronization.
+	 */
+	if (alloc_policy != ALLOCATE_FORWARD_NOHINT &&
+		alloc_hint > MAIN_SECS(sbi))
+		alloc_hint = MAIN_SECS(sbi);
+
+	if (alloc_policy == ALLOCATE_FORWARD_FROM_HINT &&
+		hint < alloc_hint)
+		hint = alloc_hint;
+	else if (alloc_policy == ALLOCATE_FORWARD_WITHIN_HINT &&
+			hint >= alloc_hint)
+		hint = 0;
 
 find_other_zone:
 	secno = find_next_zero_bit(free_i->free_secmap, MAIN_SECS(sbi), hint);

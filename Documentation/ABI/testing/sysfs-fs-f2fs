@@ -911,3 +911,25 @@ Description:	Used to adjust the BG_GC priority when pending IO, with a default v
 		bggc_io_aware = 1   skip background GC if there is pending read IO
 		bggc_io_aware = 2   don't aware IO for background GC
 		==================  ======================================================
+
+What:		/sys/fs/f2fs/<disk>/allocate_section_hint
+Date:		August 2025
+Contact:	"Liao Yuanhong" <liaoyuanhong@vivo.com>
+Description:	Indicates the hint section between the first device and others in multi-devices
+		setup. It defaults to the end of the first device in sections. For a single storage
+		device, it defaults to the total number of sections. It can be manually set to match
+		scenarios where multi-devices are mapped to the same dm device.
+
+What:		/sys/fs/f2fs/<disk>/allocate_section_policy
+Date:		August 2025
+Contact:	"Liao Yuanhong" <liaoyuanhong@vivo.com>
+Description:	Controls write priority in multi-devices setups. A value of 0 means normal writing.
+		A value of 1 prioritizes writing to devices before the allocate_section_hint. A value of 2
+		prioritizes writing to devices after the allocate_section_hint. The default is 0.
+
+		===========================  ==========================================================
+		value					     description
+		allocate_section_policy = 0  Normal writing
+		allocate_section_policy = 1  Prioritize writing to section before allocate_section_hint
+		allocate_section_policy = 2  Prioritize writing to section after allocate_section_hint
+		===========================  ==========================================================
