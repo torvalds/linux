@@ -1799,19 +1799,14 @@ static void _dpk_onoff(struct rtw89_dev *rtwdev, enum rtw89_rf_path path, bool o
 {
 	struct rtw89_dpk_info *dpk = &rtwdev->dpk;
 	u8 val, kidx = dpk->cur_idx[path];
-	bool off_reverse;
 
 	val = dpk->is_dpk_enable && !off && dpk->bp[path][kidx].path_ok;
-
-	off_reverse = !off;
-
-	val = dpk->is_dpk_enable & off_reverse & dpk->bp[path][kidx].path_ok;
 
 	rtw89_phy_write32_mask(rtwdev, R_DPD_CH0A + (path << 8) + (kidx << 2),
 			       BIT(24), val);
 
 	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DPK] S%d[%d] DPK %s !!!\n", path,
-		    kidx, str_enable_disable(dpk->is_dpk_enable & off_reverse));
+		    kidx, str_enable_disable(dpk->is_dpk_enable && !off));
 }
 
 static void _dpk_one_shot(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
