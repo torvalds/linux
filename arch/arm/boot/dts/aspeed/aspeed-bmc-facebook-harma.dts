@@ -520,6 +520,10 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
+			power-sensor@20 {
+				compatible = "mps,mp5990";
+				reg = <0x20>;
+			};
 			power-monitor@61 {
 				compatible = "isil,isl69260";
 				reg = <0x61>;
