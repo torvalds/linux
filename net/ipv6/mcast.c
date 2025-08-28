@@ -180,7 +180,7 @@ static struct net_device *ip6_mc_find_dev(struct net *net,
 		rcu_read_lock();
 		rt = rt6_lookup(net, group, NULL, 0, NULL, 0);
 		if (rt) {
-			dev = dst_dev(&rt->dst);
+			dev = dst_dev_rcu(&rt->dst);
 			dev_hold(dev);
 			ip6_rt_put(rt);
 		}
