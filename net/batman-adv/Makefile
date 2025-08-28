@@ -23,7 +23,6 @@ batman-adv-y += mesh-interface.o
 batman-adv-$(CONFIG_BATMAN_ADV_MCAST) += multicast.o
 batman-adv-$(CONFIG_BATMAN_ADV_MCAST) += multicast_forw.o
 batman-adv-y += netlink.o
-batman-adv-$(CONFIG_BATMAN_ADV_NC) += network-coding.o
 batman-adv-y += originator.o
 batman-adv-y += routing.o
 batman-adv-y += send.o

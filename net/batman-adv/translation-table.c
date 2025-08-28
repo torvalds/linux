@@ -212,7 +212,7 @@ batadv_tt_global_hash_find(struct batadv_priv *bat_priv, const u8 *addr,
 /**
  * batadv_tt_local_entry_release() - release tt_local_entry from lists and queue
  *  for free after rcu grace period
- * @ref: kref pointer of the nc_node
+ * @ref: kref pointer of the batadv_tt_local_entry
  */
 static void batadv_tt_local_entry_release(struct kref *ref)
 {
@@ -244,7 +244,7 @@ batadv_tt_local_entry_put(struct batadv_tt_local_entry *tt_local_entry)
 /**
  * batadv_tt_global_entry_release() - release tt_global_entry from lists and
  *  queue for free after rcu grace period
- * @ref: kref pointer of the nc_node
+ * @ref: kref pointer of the batadv_tt_global_entry
  */
 void batadv_tt_global_entry_release(struct kref *ref)
 {

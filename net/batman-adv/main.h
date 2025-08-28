@@ -121,8 +121,6 @@
 #define BATADV_RESET_PROTECTION_MS 30000
 #define BATADV_EXPECTED_SEQNO_RANGE	65536
 
-#define BATADV_NC_NODE_TIMEOUT 10000 /* Milliseconds */
-
 /**
  * BATADV_TP_MAX_NUM - maximum number of simultaneously active tp sessions
  */
