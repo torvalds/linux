@@ -521,6 +521,7 @@ void __head sme_enable(struct boot_params *bp)
 		return;
 
 	me_mask = 1UL << (ebx & 0x3f);
+	sev_snp_needs_sfw = !(ebx & BIT(31));
 
 	/* Check the SEV MSR whether SEV or SME is enabled */
 	sev_status = msr = native_rdmsrq(MSR_AMD64_SEV);

@@ -371,6 +371,8 @@ static int sev_check_cpu_support(void)
 	if (!(eax & BIT(1)))
 		return -ENODEV;
 
+	sev_snp_needs_sfw = !(ebx & BIT(31));
+
 	return ebx & 0x3f;
 }
 
