@@ -37,7 +37,6 @@
 /* SISTR */
 #define SISTR_ERR_TX	(SISTR_TFSERR | SISTR_TFOVF | SISTR_TFUDF)
 #define SISTR_ERR_RX	(SISTR_RFSERR | SISTR_RFOVF | SISTR_RFUDF)
-#define SISTR_ERR	(SISTR_ERR_TX | SISTR_ERR_RX)
 
 /*
  * The data on memory in 24bit case is located at <right> side
@@ -80,7 +79,6 @@ struct msiof_priv {
 #define msiof_is_play(substream)	((substream)->stream == SNDRV_PCM_STREAM_PLAYBACK)
 #define msiof_read(priv, reg)		ioread32((priv)->base + reg)
 #define msiof_write(priv, reg, val)	iowrite32(val, (priv)->base + reg)
-#define msiof_status_clear(priv)	msiof_write(priv, SISTR, SISTR_ERR)
 
 static int msiof_update(struct msiof_priv *priv, u32 reg, u32 mask, u32 val)
 {
@@ -174,14 +172,19 @@ static int msiof_hw_start(struct snd_soc_component *component,
 		val = SIIER_RDREQE | SIIER_RDMAE | SISTR_ERR_RX;
 	msiof_update(priv, SIIER, val, val);
 
+	/* clear status */
+	if (is_play)
+		val = SISTR_ERR_TX;
+	else
+		val = SISTR_ERR_RX;
+	msiof_update(priv, SISTR, val, val);
+
 	/* SICTR */
 	if (is_play)
 		val = SICTR_TXE | SICTR_TEDG;
 	else
 		val = SICTR_RXE | SICTR_REDG;
 	msiof_update_and_wait(priv, SICTR, val, val, val);
-
-	msiof_status_clear(priv);
 
 	/* Start DMAC */
 	snd_dmaengine_pcm_trigger(substream, cmd);
@@ -439,7 +442,7 @@ static irqreturn_t msiof_interrupt(int irq, void *data)
 	spin_lock(&priv->lock);
 
 	sistr = msiof_read(priv, SISTR);
-	msiof_status_clear(priv);
+	msiof_write(priv, SISTR, SISTR_ERR_TX | SISTR_ERR_RX);
 
 	spin_unlock(&priv->lock);
 
