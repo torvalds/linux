@@ -30,6 +30,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/sizes.h>
 #include <linux/string.h>
 #include <linux/watchdog.h>
@@ -246,9 +247,28 @@ static int pwec_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int pwec_suspend(struct device *dev)
+{
+	if (watchdog_active(&ec_wdt_dev))
+		return pwec_wdt_stop(&ec_wdt_dev);
+
+	return 0;
+}
+
+static int pwec_resume(struct device *dev)
+{
+	if (watchdog_active(&ec_wdt_dev))
+		return pwec_wdt_start(&ec_wdt_dev);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(pwec_dev_pm_ops, pwec_suspend, pwec_resume);
+
 static struct platform_driver pwec_driver = {
 	.driver = {
 		.name = "portwell-ec",
+		.pm = pm_sleep_ptr(&pwec_dev_pm_ops),
 	},
 	.probe = pwec_probe,
 };
