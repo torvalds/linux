@@ -219,7 +219,8 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 			if (ret == 0) {
 				ret = -EAGAIN;
 			} else if (ret != -ERESTARTSYS) {
-				dev_err(fifo->dt_device, "wait_event_interruptible_timeout() error in read (ret=%i)\n",
+				dev_err(fifo->dt_device,
+					"wait_event_interruptible_timeout() error in read (ret=%i)\n",
 					ret);
 			}
 
@@ -235,7 +236,8 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 	}
 
 	if (bytes_available > len) {
-		dev_err(fifo->dt_device, "user read buffer too small (available bytes=%zu user buffer bytes=%zu)\n",
+		dev_err(fifo->dt_device,
+			"user read buffer too small (available bytes=%zu user buffer bytes=%zu)\n",
 			bytes_available, len);
 		ret = -EINVAL;
 		goto end_unlock;
