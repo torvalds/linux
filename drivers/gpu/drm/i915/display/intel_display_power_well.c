@@ -8,7 +8,6 @@
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "intel_backlight_regs.h"
 #include "intel_combo_phy.h"
 #include "intel_combo_phy_regs.h"
@@ -1127,6 +1126,8 @@ static void vlv_set_power_well(struct intel_display *display,
 	u32 mask;
 	u32 state;
 	u32 ctrl;
+	u32 val;
+	int ret;
 
 	mask = PUNIT_PWRGT_MASK(pw_idx);
 	state = enable ? PUNIT_PWRGT_PWR_ON(pw_idx) :
@@ -1134,10 +1135,8 @@ static void vlv_set_power_well(struct intel_display *display,
 
 	vlv_punit_get(display->drm);
 
-#define COND \
-	((vlv_punit_read(display->drm, PUNIT_REG_PWRGT_STATUS) & mask) == state)
-
-	if (COND)
+	val = vlv_punit_read(display->drm, PUNIT_REG_PWRGT_STATUS);
+	if ((val & mask) == state)
 		goto out;
 
 	ctrl = vlv_punit_read(display->drm, PUNIT_REG_PWRGT_CTRL);
@@ -1145,13 +1144,14 @@ static void vlv_set_power_well(struct intel_display *display,
 	ctrl |= state;
 	vlv_punit_write(display->drm, PUNIT_REG_PWRGT_CTRL, ctrl);
 
-	if (wait_for(COND, 100))
+	ret = poll_timeout_us(val = vlv_punit_read(display->drm, PUNIT_REG_PWRGT_STATUS),
+			      (val & mask) == state,
+			      500, 100 * 1000, false);
+	if (ret)
 		drm_err(display->drm,
 			"timeout setting power well state %08x (%08x)\n",
 			state,
 			vlv_punit_read(display->drm, PUNIT_REG_PWRGT_CTRL));
-
-#undef COND
 
 out:
 	vlv_punit_put(display->drm);
@@ -1716,23 +1716,24 @@ static void chv_set_pipe_power_well(struct intel_display *display,
 	enum pipe pipe = PIPE_A;
 	u32 state;
 	u32 ctrl;
+	int ret;
 
 	state = enable ? DP_SSS_PWR_ON(pipe) : DP_SSS_PWR_GATE(pipe);
 
 	vlv_punit_get(display->drm);
 
-#define COND \
-	((vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM) & DP_SSS_MASK(pipe)) == state)
-
-	if (COND)
+	ctrl = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM);
+	if ((ctrl & DP_SSS_MASK(pipe)) == state)
 		goto out;
 
-	ctrl = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM);
 	ctrl &= ~DP_SSC_MASK(pipe);
 	ctrl |= enable ? DP_SSC_PWR_ON(pipe) : DP_SSC_PWR_GATE(pipe);
 	vlv_punit_write(display->drm, PUNIT_REG_DSPSSPM, ctrl);
 
-	if (wait_for(COND, 100))
+	ret = poll_timeout_us(ctrl = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM),
+			      (ctrl & DP_SSS_MASK(pipe)) == state,
+			      500, 100 * 1000, false);
+	if (ret)
 		drm_err(display->drm,
 			"timeout setting power well state %08x (%08x)\n",
 			state,
