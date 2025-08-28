@@ -1222,11 +1222,15 @@ static int _iwl_pci_resume(struct device *device, bool restore)
 	 * Note: MAC (bits 0:7) will be cleared upon suspend even with wowlan,
 	 * but not bits [15:8]. So if we have bits set in lower word, assume
 	 * the device is alive.
+	 * Alternatively, if the scratch value is 0xFFFFFFFF, then we no longer
+	 * have access to the device and consider it powered off.
 	 * For older devices, just try silently to grab the NIC.
 	 */
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
-		if (!(iwl_read32(trans, CSR_FUNC_SCRATCH) &
-		      CSR_FUNC_SCRATCH_POWER_OFF_MASK))
+		u32 scratch = iwl_read32(trans, CSR_FUNC_SCRATCH);
+
+		if (!(scratch & CSR_FUNC_SCRATCH_POWER_OFF_MASK) ||
+		    scratch == ~0U)
 			device_was_powered_off = true;
 	} else {
 		/*
