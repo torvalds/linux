@@ -817,6 +817,7 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 	enum port port = dig_port->base.port;
 	unsigned long r0_prime_gen_start;
 	int ret, i, tries = 2;
+	u32 val;
 	union {
 		u32 reg[2];
 		u8 shim[DRM_HDCP_AN_LEN];
@@ -905,8 +906,10 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 		       HDCP_CONF_AUTH_AND_ENC);
 
 	/* Wait for R0 ready */
-	if (wait_for(intel_de_read(display, HDCP_STATUS(display, cpu_transcoder, port)) &
-		     (HDCP_STATUS_R0_READY | HDCP_STATUS_ENC), 1)) {
+	ret = poll_timeout_us(val = intel_de_read(display, HDCP_STATUS(display, cpu_transcoder, port)),
+			      val & (HDCP_STATUS_R0_READY | HDCP_STATUS_ENC),
+			      100, 1000, false);
+	if (ret) {
 		drm_err(display->drm, "Timed out waiting for R0 ready\n");
 		return -ETIMEDOUT;
 	}
@@ -938,16 +941,16 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 			       ri.reg);
 
 		/* Wait for Ri prime match */
-		if (!wait_for(intel_de_read(display, HDCP_STATUS(display, cpu_transcoder, port)) &
-			      (HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC), 1))
+		ret = poll_timeout_us(val = intel_de_read(display, HDCP_STATUS(display, cpu_transcoder, port)),
+				      val & (HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC),
+				      100, 1000, false);
+		if (!ret)
 			break;
 	}
 
 	if (i == tries) {
 		drm_dbg_kms(display->drm,
-			    "Timed out waiting for Ri prime match (%x)\n",
-			    intel_de_read(display,
-					  HDCP_STATUS(display, cpu_transcoder, port)));
+			    "Timed out waiting for Ri prime match (%x)\n", val);
 		return -ETIMEDOUT;
 	}
 
