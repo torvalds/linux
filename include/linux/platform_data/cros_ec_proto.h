@@ -33,12 +33,18 @@
 
 /*
  * Max bus-specific overhead incurred by request/responses.
- * I2C requires 1 additional byte for requests.
- * I2C requires 2 additional bytes for responses.
- * SPI requires up to 32 additional bytes for responses.
+ *
+ * Request:
+ * - I2C requires 1 byte (see struct ec_host_request_i2c).
+ * - ISHTP requires 4 bytes (see struct cros_ish_out_msg).
+ *
+ * Response:
+ * - I2C requires 2 bytes (see struct ec_host_response_i2c).
+ * - ISHTP requires 4 bytes (see struct cros_ish_in_msg).
+ * - SPI requires 32 bytes (see EC_MSG_PREAMBLE_COUNT).
  */
 #define EC_PROTO_VERSION_UNKNOWN	0
-#define EC_MAX_REQUEST_OVERHEAD		1
+#define EC_MAX_REQUEST_OVERHEAD		4
 #define EC_MAX_RESPONSE_OVERHEAD	32
 
 /*

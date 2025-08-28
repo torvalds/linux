@@ -38,6 +38,15 @@ struct cros_ec_device *cros_ec_device_alloc(struct device *dev)
 	if (!ec_dev)
 		return NULL;
 
+	ec_dev->din_size = sizeof(struct ec_host_response) +
+			   sizeof(struct ec_response_get_protocol_info) +
+			   EC_MAX_RESPONSE_OVERHEAD;
+	ec_dev->dout_size = sizeof(struct ec_host_request) +
+			    sizeof(struct ec_params_rwsig_action) +
+			    EC_MAX_REQUEST_OVERHEAD;
+
+	ec_dev->dev = dev;
+
 	return ec_dev;
 }
 EXPORT_SYMBOL(cros_ec_device_alloc);
