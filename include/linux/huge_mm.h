@@ -501,6 +501,8 @@ extern unsigned long huge_zero_pfn;
 
 static inline bool is_huge_zero_folio(const struct folio *folio)
 {
+	VM_WARN_ON_ONCE(!folio);
+
 	return READ_ONCE(huge_zero_folio) == folio;
 }
 
