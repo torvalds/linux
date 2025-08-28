@@ -10,7 +10,7 @@
 #include "wifi7/hal_tx.h"
 #include "hif.h"
 #include "debug.h"
-#include "dp_rx.h"
+#include "wifi7/dp_rx.h"
 #include "peer.h"
 #include "dp_mon.h"
 

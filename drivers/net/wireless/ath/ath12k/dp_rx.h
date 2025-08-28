@@ -340,6 +340,20 @@ static inline void ath12k_dp_clean_up_skb_list(struct sk_buff_head *skb_list)
 		dev_kfree_skb_any(skb);
 }
 
+void ath12k_dp_rx_h_undecap(struct ath12k *ar, struct sk_buff *msdu,
+			    struct hal_rx_desc *rx_desc,
+			    enum hal_encrypt_type enctype,
+			    struct ieee80211_rx_status *status,
+			    bool decrypted);
+void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *napi,
+			       struct sk_buff *msdu,
+			       struct ath12k_dp_rx_info *rx_info);
+bool ath12k_dp_rx_check_nwifi_hdr_len_valid(struct ath12k_base *ab,
+					    struct hal_rx_desc *rx_desc,
+					    struct sk_buff *msdu);
+int ath12k_dp_rx_h_null_q_desc(struct ath12k *ar, struct sk_buff *msdu,
+			       struct ath12k_dp_rx_info *rx_info,
+			       struct sk_buff_head *msdu_list);
 int ath12k_dp_rx_ampdu_start(struct ath12k *ar,
 			     struct ieee80211_ampdu_params *params,
 			     u8 link_id);
@@ -367,8 +381,6 @@ int ath12k_dp_rx_pdev_alloc(struct ath12k_base *ab, int pdev_idx);
 void ath12k_dp_rx_pdev_free(struct ath12k_base *ab, int pdev_idx);
 void ath12k_dp_rx_reo_cmd_list_cleanup(struct ath12k_base *ab);
 void ath12k_dp_rx_process_reo_status(struct ath12k_base *ab);
-int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
-				 struct napi_struct *napi, int budget);
 int ath12k_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
 			     int budget);
 int ath12k_dp_rx_process(struct ath12k_base *ab, int mac_id,
@@ -390,7 +402,6 @@ u8 ath12k_dp_rx_h_decap_type(struct ath12k_base *ab,
 			     struct hal_rx_desc *desc);
 u32 ath12k_dp_rx_h_mpdu_err(struct ath12k_base *ab,
 			    struct hal_rx_desc *desc);
-void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct ath12k_dp_rx_info *rx_info);
 int ath12k_dp_rxdma_ring_sel_config_qcn9274(struct ath12k_base *ab);
 int ath12k_dp_rxdma_ring_sel_config_wcn7850(struct ath12k_base *ab);
 
@@ -411,4 +422,5 @@ int ath12k_dp_rx_link_desc_return(struct ath12k_base *ab,
 				  enum hal_wbm_rel_bm_act action);
 bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
 				 struct hal_rx_desc *rx_desc);
+void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct ath12k_dp_rx_info *rx_info);
 #endif /* ATH12K_DP_RX_H */
