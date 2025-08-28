@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <net/mac80211.h>
@@ -14,6 +14,7 @@
 #include "wmi.h"
 #include "hw.h"
 #include "dp_tx.h"
+#include "wifi7/dp_tx.h"
 #include "dp_rx.h"
 #include "testmode.h"
 #include "peer.h"

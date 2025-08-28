@@ -10,6 +10,7 @@
 #include "../dp_mon.h"
 #include "dp_rx.h"
 #include "dp.h"
+#include "dp_tx.h"
 
 int ath12k_dp_service_srng(struct ath12k_base *ab,
 			   struct ath12k_ext_irq_grp *irq_grp,

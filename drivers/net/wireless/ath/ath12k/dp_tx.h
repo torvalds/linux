@@ -19,8 +19,6 @@ int ath12k_dp_tx_htt_h2t_ver_req_msg(struct ath12k_base *ab);
 int ath12k_dp_tx(struct ath12k *ar, struct ath12k_link_vif *arvif,
 		 struct sk_buff *skb, bool gsn_valid, int mcbc_gsn,
 		 bool is_mcast);
-void ath12k_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id);
-
 int ath12k_dp_tx_htt_h2t_ppdu_stats_req(struct ath12k *ar, u32 mask);
 int
 ath12k_dp_tx_htt_h2t_ext_stats_req(struct ath12k *ar, u8 type,
@@ -38,4 +36,20 @@ int ath12k_dp_tx_htt_tx_filter_setup(struct ath12k_base *ab, u32 ring_id,
 				     int tx_buf_size,
 				     struct htt_tx_ring_tlv_filter *htt_tlv_filter);
 int ath12k_dp_tx_htt_monitor_mode_ring_config(struct ath12k *ar, bool reset);
+
+enum hal_tcl_encap_type
+ath12k_dp_tx_get_encap_type(struct ath12k_base *ab, struct sk_buff *skb);
+void ath12k_dp_tx_encap_nwifi(struct sk_buff *skb);
+u8 ath12k_dp_tx_get_tid(struct sk_buff *skb);
+void *ath12k_dp_metadata_align_skb(struct sk_buff *skb, u8 tail_len);
+int ath12k_dp_tx_align_payload(struct ath12k_base *ab,
+			       struct sk_buff **pskb);
+void ath12k_dp_tx_release_txbuf(struct ath12k_dp *dp,
+				struct ath12k_tx_desc_info *tx_desc,
+				u8 pool_id);
+struct ath12k_tx_desc_info *ath12k_dp_tx_assign_buffer(struct ath12k_dp *dp,
+						       u8 pool_id);
+void ath12k_dp_tx_free_txbuf(struct ath12k_base *ab,
+			     struct dp_tx_ring *tx_ring,
+			     struct ath12k_tx_desc_params *desc_params);
 #endif
