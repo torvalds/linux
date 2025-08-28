@@ -518,7 +518,7 @@ static void fbnic_get_ethtool_stats(struct net_device *dev,
 
 	fbnic_get_hw_stats(fbn->fbd);
 
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
 	fbnic_report_hw_stats(fbnic_gstrings_hw_stats, &fbd->hw_stats,
 			      FBNIC_HW_FIXED_STATS_LEN, &data);
 
@@ -555,7 +555,7 @@ static void fbnic_get_ethtool_stats(struct net_device *dev,
 		fbnic_report_hw_stats(fbnic_gstrings_hw_q_stats, hw_q,
 				      FBNIC_HW_Q_STATS_LEN, &data);
 	}
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
 
 	for (i = 0; i < FBNIC_MAX_XDPQS; i++)
 		fbnic_get_xdp_queue_stats(fbn->tx[i + FBNIC_MAX_TXQS], &data);
@@ -1642,6 +1642,62 @@ static void fbnic_set_counter(u64 *stat, struct fbnic_stat_counter *counter)
 }
 
 static void
+fbnic_get_pause_stats(struct net_device *netdev,
+		      struct ethtool_pause_stats *pause_stats)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_mac_stats *mac_stats;
+	struct fbnic_dev *fbd = fbn->fbd;
+
+	mac_stats = &fbd->hw_stats.mac;
+
+	fbd->mac->get_pause_stats(fbd, false, &mac_stats->pause);
+
+	pause_stats->tx_pause_frames = mac_stats->pause.tx_pause_frames.value;
+	pause_stats->rx_pause_frames = mac_stats->pause.rx_pause_frames.value;
+}
+
+static void
+fbnic_get_fec_stats(struct net_device *netdev,
+		    struct ethtool_fec_stats *fec_stats)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_phy_stats *phy_stats;
+	struct fbnic_dev *fbd = fbn->fbd;
+
+	fbnic_get_hw_stats32(fbd);
+	phy_stats = &fbd->hw_stats.phy;
+
+	spin_lock(&fbd->hw_stats.lock);
+	fec_stats->corrected_blocks.total =
+		phy_stats->fec.corrected_blocks.value;
+	fec_stats->uncorrectable_blocks.total =
+		phy_stats->fec.uncorrectable_blocks.value;
+	spin_unlock(&fbd->hw_stats.lock);
+}
+
+static void
+fbnic_get_eth_phy_stats(struct net_device *netdev,
+			struct ethtool_eth_phy_stats *eth_phy_stats)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_phy_stats *phy_stats;
+	struct fbnic_dev *fbd = fbn->fbd;
+	u64 total = 0;
+	int i;
+
+	fbnic_get_hw_stats32(fbd);
+	phy_stats = &fbd->hw_stats.phy;
+
+	spin_lock(&fbd->hw_stats.lock);
+	for (i = 0; i < FBNIC_PCS_MAX_LANES; i++)
+		total += phy_stats->pcs.SymbolErrorDuringCarrier.lanes[i].value;
+
+	eth_phy_stats->SymbolErrorDuringCarrier = total;
+	spin_unlock(&fbd->hw_stats.lock);
+}
+
+static void
 fbnic_get_eth_mac_stats(struct net_device *netdev,
 			struct ethtool_eth_mac_stats *eth_mac_stats)
 {
@@ -1761,6 +1817,7 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.set_coalesce			= fbnic_set_coalesce,
 	.get_ringparam			= fbnic_get_ringparam,
 	.set_ringparam			= fbnic_set_ringparam,
+	.get_pause_stats		= fbnic_get_pause_stats,
 	.get_pauseparam			= fbnic_phylink_get_pauseparam,
 	.set_pauseparam			= fbnic_phylink_set_pauseparam,
 	.get_strings			= fbnic_get_strings,
@@ -1782,7 +1839,9 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.get_ts_info			= fbnic_get_ts_info,
 	.get_ts_stats			= fbnic_get_ts_stats,
 	.get_link_ksettings		= fbnic_phylink_ethtool_ksettings_get,
+	.get_fec_stats			= fbnic_get_fec_stats,
 	.get_fecparam			= fbnic_phylink_get_fecparam,
+	.get_eth_phy_stats		= fbnic_get_eth_phy_stats,
 	.get_eth_mac_stats		= fbnic_get_eth_mac_stats,
 	.get_eth_ctrl_stats		= fbnic_get_eth_ctrl_stats,
 	.get_rmon_stats			= fbnic_get_rmon_stats,

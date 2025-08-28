@@ -424,12 +424,12 @@ static void fbnic_get_stats64(struct net_device *dev,
 	tx_dropped = stats->dropped;
 
 	/* Record drops from Tx HW Datapath */
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
 	tx_dropped += fbd->hw_stats.tmi.drop.frames.value +
 		      fbd->hw_stats.tti.cm_drop.frames.value +
 		      fbd->hw_stats.tti.frame_drop.frames.value +
 		      fbd->hw_stats.tti.tbi_drop.frames.value;
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
 
 	stats64->tx_bytes = tx_bytes;
 	stats64->tx_packets = tx_packets;
@@ -460,7 +460,7 @@ static void fbnic_get_stats64(struct net_device *dev,
 	rx_packets = stats->packets;
 	rx_dropped = stats->dropped;
 
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
 	/* Record drops for the host FIFOs.
 	 * 4: network to Host,	6: BMC to Host
 	 * Exclude the BMC and MC FIFOs as those stats may contain drops
@@ -480,7 +480,7 @@ static void fbnic_get_stats64(struct net_device *dev,
 		/* Report packets with errors */
 		rx_errors += fbd->hw_stats.hw_q[i].rde_pkt_err.value;
 	}
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
 
 	stats64->rx_bytes = rx_bytes;
 	stats64->rx_packets = rx_packets;
@@ -608,12 +608,12 @@ static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,
 
 	fbnic_get_hw_q_stats(fbd, fbd->hw_stats.hw_q);
 
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
 	rx->hw_drop_overruns = fbd->hw_stats.hw_q[idx].rde_pkt_cq_drop.value +
 			       fbd->hw_stats.hw_q[idx].rde_pkt_bdq_drop.value;
 	rx->hw_drops = fbd->hw_stats.hw_q[idx].rde_pkt_err.value +
 		       rx->hw_drop_overruns;
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
 }
 
 static void fbnic_get_queue_stats_tx(struct net_device *dev, int idx,

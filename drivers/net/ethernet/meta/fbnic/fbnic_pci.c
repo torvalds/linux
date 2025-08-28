@@ -304,10 +304,9 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	fbnic_devlink_register(fbd);
 	fbnic_dbg_fbd_init(fbd);
-	spin_lock_init(&fbd->hw_stats_lock);
 
 	/* Capture snapshot of hardware stats so netdev can calculate delta */
-	fbnic_reset_hw_stats(fbd);
+	fbnic_init_hw_stats(fbd);
 
 	fbnic_hwmon_register(fbd);
 
@@ -491,6 +490,10 @@ static void __fbnic_pm_attach(struct device *dev)
 	struct fbnic_dev *fbd = dev_get_drvdata(dev);
 	struct net_device *netdev = fbd->netdev;
 	struct fbnic_net *fbn;
+
+	rtnl_lock();
+	fbnic_reset_hw_stats(fbd);
+	rtnl_unlock();
 
 	if (fbnic_init_failure(fbd))
 		return;
