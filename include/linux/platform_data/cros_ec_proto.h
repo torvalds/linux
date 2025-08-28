@@ -128,6 +128,7 @@ struct cros_ec_command {
  * @dout_size: Size of dout buffer to allocate (zero to use static dout).
  * @wake_enabled: True if this device can wake the system from sleep.
  * @suspended: True if this device had been suspended.
+ * @registered: True if this device had been registered.
  * @cmd_xfer: Send command to EC and get response.
  *            Returns the number of bytes received if the communication
  *            succeeded, but that doesn't mean the EC was happy with the
@@ -186,6 +187,7 @@ struct cros_ec_device {
 	int dout_size;
 	bool wake_enabled;
 	bool suspended;
+	bool registered;
 	int (*cmd_xfer)(struct cros_ec_device *ec,
 			struct cros_ec_command *msg);
 	int (*pkt_xfer)(struct cros_ec_device *ec,
@@ -277,6 +279,8 @@ int cros_ec_cmd(struct cros_ec_device *ec_dev, unsigned int version, int command
 int cros_ec_cmd_readmem(struct cros_ec_device *ec_dev, u8 offset, u8 size, void *dest);
 
 int cros_ec_get_cmd_versions(struct cros_ec_device *ec_dev, u16 cmd);
+
+bool cros_ec_device_registered(struct cros_ec_device *ec_dev);
 
 /**
  * cros_ec_get_time_ns() - Return time in ns.

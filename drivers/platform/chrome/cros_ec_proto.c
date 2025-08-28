@@ -3,6 +3,7 @@
 //
 // Copyright (C) 2015 Google, Inc
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/limits.h>
@@ -1152,6 +1153,20 @@ int cros_ec_get_cmd_versions(struct cros_ec_device *ec_dev, u16 cmd)
 		return resp.version_mask;
 }
 EXPORT_SYMBOL_GPL(cros_ec_get_cmd_versions);
+
+/**
+ * cros_ec_device_registered - Return if the ec_dev is registered.
+ *
+ * @ec_dev: EC device
+ *
+ * Return: true if registered.  Otherwise, false.
+ */
+bool cros_ec_device_registered(struct cros_ec_device *ec_dev)
+{
+	guard(mutex)(&ec_dev->lock);
+	return ec_dev->registered;
+}
+EXPORT_SYMBOL_GPL(cros_ec_device_registered);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ChromeOS EC communication protocol helpers");

@@ -9,6 +9,7 @@
  * battery charging and regulator control, firmware update.
  */
 
+#include <linux/cleanup.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
@@ -316,6 +317,9 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 			goto exit;
 	}
 
+	scoped_guard(mutex, &ec_dev->lock)
+		ec_dev->registered = true;
+
 	dev_info(dev, "Chrome EC device registered\n");
 
 	/*
@@ -343,6 +347,9 @@ EXPORT_SYMBOL(cros_ec_register);
  */
 void cros_ec_unregister(struct cros_ec_device *ec_dev)
 {
+	scoped_guard(mutex, &ec_dev->lock)
+		ec_dev->registered = false;
+
 	if (ec_dev->mkbp_event_supported)
 		blocking_notifier_chain_unregister(&ec_dev->event_notifier,
 						   &ec_dev->notifier_ready);
