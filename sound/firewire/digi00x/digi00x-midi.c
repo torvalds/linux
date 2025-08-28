@@ -49,21 +49,18 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *substream,
 {
 	struct snd_dg00x *dg00x = substream->rmidi->private_data;
 	unsigned int port;
-	unsigned long flags;
 
 	if (substream->rmidi->device == 0)
 		port = substream->number;
 	else
 		port = 2;
 
-	spin_lock_irqsave(&dg00x->lock, flags);
+	guard(spinlock_irqsave)(&dg00x->lock);
 
 	if (up)
 		amdtp_dot_midi_trigger(&dg00x->tx_stream, port, substream);
 	else
 		amdtp_dot_midi_trigger(&dg00x->tx_stream, port, NULL);
-
-	spin_unlock_irqrestore(&dg00x->lock, flags);
 }
 
 static void midi_playback_trigger(struct snd_rawmidi_substream *substream,
@@ -71,21 +68,18 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *substream,
 {
 	struct snd_dg00x *dg00x = substream->rmidi->private_data;
 	unsigned int port;
-	unsigned long flags;
 
 	if (substream->rmidi->device == 0)
 		port = substream->number;
 	else
 		port = 2;
 
-	spin_lock_irqsave(&dg00x->lock, flags);
+	guard(spinlock_irqsave)(&dg00x->lock);
 
 	if (up)
 		amdtp_dot_midi_trigger(&dg00x->rx_stream, port, substream);
 	else
 		amdtp_dot_midi_trigger(&dg00x->rx_stream, port, NULL);
-
-	spin_unlock_irqrestore(&dg00x->lock, flags);
 }
 
 static void set_substream_names(struct snd_dg00x *dg00x,
