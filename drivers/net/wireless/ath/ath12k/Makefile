@@ -2,8 +2,6 @@
 obj-$(CONFIG_ATH12K) += ath12k.o
 ath12k-y += core.o \
 	    hal.o \
-	    hal_tx.o \
-	    hal_rx.o \
 	    wmi.o \
 	    mac.o \
 	    reg.o \
@@ -23,6 +21,9 @@ ath12k-y += core.o \
 	    p2p.o
 
 ath12k-$(CONFIG_ATH12K_AHB) += ahb.o
+
+ath12k-y += wifi7/hal_tx.o \
+	    wifi7/hal_rx.o \
 
 obj-$(CONFIG_ATH12K) += wifi7/
 
