@@ -214,7 +214,6 @@ struct adv7180_state {
 	struct gpio_desc	*pwdn_gpio;
 	struct gpio_desc	*rst_gpio;
 	v4l2_std_id		curr_norm;
-	bool			powered;
 	bool			streaming;
 	u8			input;
 
@@ -556,8 +555,6 @@ static int adv7180_s_power(struct v4l2_subdev *sd, int on)
 		return ret;
 
 	ret = adv7180_set_power(state, on);
-	if (ret == 0)
-		state->powered = on;
 
 	mutex_unlock(&state->mutex);
 	return ret;
@@ -887,6 +884,13 @@ static int init_device(struct adv7180_state *state)
 	adv7180_write(state, ADV7180_REG_PWR_MAN, ADV7180_PWR_MAN_RES);
 	usleep_range(5000, 10000);
 
+	/*
+	 * If the devices decoder is power on after reset, power off so the
+	 * device can be configured.
+	 */
+	if (state->chip_info->flags & ADV7180_FLAG_RESET_POWERED)
+		adv7180_set_power(state, false);
+
 	ret = state->chip_info->init(state);
 	if (ret)
 		return ret;
@@ -926,6 +930,14 @@ static int init_device(struct adv7180_state *state)
 		if (ret < 0)
 			return ret;
 	}
+
+	/*
+	 * If the devices decoder is power on after reset, restore the power
+	 * after configuration. This is to preserve the behavior of the driver,
+	 * not doing this result in the first 35+ frames captured being garbage.
+	 */
+	if (state->chip_info->flags & ADV7180_FLAG_RESET_POWERED)
+		adv7180_set_power(state, true);
 
 	return 0;
 }
@@ -1457,10 +1469,7 @@ static int adv7180_probe(struct i2c_client *client)
 	state->irq = client->irq;
 	mutex_init(&state->mutex);
 	state->curr_norm = V4L2_STD_NTSC;
-	if (state->chip_info->flags & ADV7180_FLAG_RESET_POWERED)
-		state->powered = true;
-	else
-		state->powered = false;
+
 	state->input = 0;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7180_ops);
@@ -1568,11 +1577,12 @@ static int adv7180_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	guard(mutex)(&state->mutex);
-
-	ret = adv7180_set_power(state, state->powered);
-	if (ret)
-		return ret;
+	/* If we were streaming when suspending, start decoder. */
+	if (state->streaming) {
+		ret = adv7180_set_power(state, true);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
