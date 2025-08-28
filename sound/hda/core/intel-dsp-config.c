@@ -116,6 +116,13 @@ static const struct config_entry config_table[] = {
 		.flags = FLAG_SST,
 		.device = PCI_DEVICE_ID_INTEL_HDA_FCL,
 	},
+#else /* AVS disabled; force to legacy as SOF doesn't work for SKL or KBL */
+	{
+		.device = PCI_DEVICE_ID_INTEL_HDA_SKL_LP,
+	},
+	{
+		.device = PCI_DEVICE_ID_INTEL_HDA_KBL_LP,
+	},
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
 	{
