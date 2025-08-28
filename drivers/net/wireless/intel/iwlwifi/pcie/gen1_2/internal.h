@@ -400,6 +400,9 @@ struct iwl_pcie_txqs {
  * @me_recheck_wk: worker to recheck WiAMT/CSME presence
  * @invalid_tx_cmd: invalid TX command buffer
  * @wait_command_queue: wait queue for sync commands
+ * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
+ *	The user should use iwl_trans_{alloc,free}_tx_cmd.
+ * @dev_cmd_pool_name: name for the TX command allocation pool
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
@@ -506,6 +509,9 @@ struct iwl_trans_pcie {
 	struct iwl_dma_ptr invalid_tx_cmd;
 
 	wait_queue_head_t wait_command_queue;
+
+	struct kmem_cache *dev_cmd_pool;
+	char dev_cmd_pool_name[50];
 };
 
 static inline struct iwl_trans_pcie *
@@ -781,6 +787,23 @@ static inline u16 iwl_txq_gen1_tfd_tb_get_len(struct iwl_trans *trans,
 	tb = &tfd->tbs[idx];
 
 	return le16_to_cpu(tb->hi_n_len) >> 4;
+}
+
+static inline struct iwl_device_tx_cmd *
+iwl_pcie_gen1_2_alloc_tx_cmd(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	return kmem_cache_zalloc(trans_pcie->dev_cmd_pool, GFP_ATOMIC);
+}
+
+static inline void
+iwl_pcie_gen1_2_free_tx_cmd(struct iwl_trans *trans,
+			    struct iwl_device_tx_cmd *dev_cmd)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	kmem_cache_free(trans_pcie->dev_cmd_pool, dev_cmd);
 }
 
 void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,

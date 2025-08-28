@@ -2023,6 +2023,7 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 		free_percpu(trans_pcie->txqs.tso_hdr_page);
 	}
 
+	kmem_cache_destroy(trans_pcie->dev_cmd_pool);
 	iwl_trans_free(trans);
 }
 
@@ -3707,27 +3708,39 @@ void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 	iwl_trans_sync_nmi_with_addr(trans, inta_addr, sw_err_bit);
 }
 
-static int iwl_trans_pcie_set_txcmd_info(const struct iwl_mac_cfg *mac_cfg,
-					 unsigned int *txcmd_size,
-					 unsigned int *txcmd_align)
+static int iwl_trans_pcie_alloc_txcmd_pool(struct iwl_trans *trans)
 {
-	if (!mac_cfg->gen2) {
-		*txcmd_size = sizeof(struct iwl_tx_cmd_v6);
-		*txcmd_align = sizeof(void *);
-	} else if (mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210) {
-		*txcmd_size = sizeof(struct iwl_tx_cmd_v9);
-		*txcmd_align = 64;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	unsigned int txcmd_size, txcmd_align;
+
+	if (!trans->mac_cfg->gen2) {
+		txcmd_size = sizeof(struct iwl_tx_cmd_v6);
+		txcmd_align = sizeof(void *);
+	} else if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210) {
+		txcmd_size = sizeof(struct iwl_tx_cmd_v9);
+		txcmd_align = 64;
 	} else {
-		*txcmd_size = sizeof(struct iwl_tx_cmd);
-		*txcmd_align = 128;
+		txcmd_size = sizeof(struct iwl_tx_cmd);
+		txcmd_align = 128;
 	}
 
-	*txcmd_size += sizeof(struct iwl_cmd_header);
-	*txcmd_size += 36; /* biggest possible 802.11 header */
+	txcmd_size += sizeof(struct iwl_cmd_header);
+	txcmd_size += 36; /* biggest possible 802.11 header */
 
 	/* Ensure device TX cmd cannot reach/cross a page boundary in gen2 */
-	if (WARN_ON((mac_cfg->gen2 && *txcmd_size >= *txcmd_align)))
+	if (WARN_ON((trans->mac_cfg->gen2 && txcmd_size >= txcmd_align)))
 		return -EINVAL;
+
+	snprintf(trans_pcie->dev_cmd_pool_name,
+		 sizeof(trans_pcie->dev_cmd_pool_name),
+		 "iwl_cmd_pool:%s", dev_name(trans->dev));
+
+	trans_pcie->dev_cmd_pool =
+		kmem_cache_create(trans_pcie->dev_cmd_pool_name,
+				  txcmd_size, txcmd_align,
+				  SLAB_HWCACHE_ALIGN, NULL);
+	if (!trans_pcie->dev_cmd_pool)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -3738,18 +3751,12 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		     struct iwl_trans_info *info, u8 __iomem *hw_base)
 {
 	struct iwl_trans_pcie *trans_pcie, **priv;
-	unsigned int txcmd_size, txcmd_align;
 	struct iwl_trans *trans;
 	unsigned int bc_tbl_n_entries;
 	int ret, addr_size;
 
-	ret = iwl_trans_pcie_set_txcmd_info(mac_cfg, &txcmd_size,
-					    &txcmd_align);
-	if (ret)
-		return ERR_PTR(ret);
-
 	trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie), &pdev->dev,
-				mac_cfg, txcmd_size, txcmd_align);
+				mac_cfg);
 	if (!trans)
 		return ERR_PTR(-ENOMEM);
 
@@ -3759,6 +3766,10 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	/* Initialize the wait queue for commands */
 	init_waitqueue_head(&trans_pcie->wait_command_queue);
+
+	ret = iwl_trans_pcie_alloc_txcmd_pool(trans);
+	if (ret)
+		goto out_free_trans;
 
 	if (trans->mac_cfg->gen2) {
 		trans_pcie->txqs.tfd.addr_size = 64;
@@ -3779,7 +3790,7 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	trans_pcie->txqs.tso_hdr_page = alloc_percpu(struct iwl_tso_hdr_page);
 	if (!trans_pcie->txqs.tso_hdr_page) {
 		ret = -ENOMEM;
-		goto out_free_trans;
+		goto out_free_txcmd_pool;
 	}
 
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
@@ -3929,6 +3940,8 @@ out_free_ndev:
 	free_netdev(trans_pcie->napi_dev);
 out_free_tso:
 	free_percpu(trans_pcie->txqs.tso_hdr_page);
+out_free_txcmd_pool:
+	kmem_cache_destroy(trans_pcie->dev_cmd_pool);
 out_free_trans:
 	iwl_trans_free(trans);
 	return ERR_PTR(ret);

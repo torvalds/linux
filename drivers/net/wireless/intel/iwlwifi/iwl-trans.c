@@ -268,9 +268,7 @@ static void iwl_trans_restart_wk(struct work_struct *wk)
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
-				  const struct iwl_mac_cfg *mac_cfg,
-				  unsigned int txcmd_size,
-				  unsigned int txcmd_align)
+				  const struct iwl_mac_cfg *mac_cfg)
 {
 	struct iwl_trans *trans;
 #ifdef CONFIG_LOCKDEP
@@ -292,22 +290,12 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 
 	INIT_DELAYED_WORK(&trans->restart.wk, iwl_trans_restart_wk);
 
-	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),
-		 "iwl_cmd_pool:%s", dev_name(trans->dev));
-	trans->dev_cmd_pool =
-		kmem_cache_create(trans->dev_cmd_pool_name,
-				  txcmd_size, txcmd_align,
-				  SLAB_HWCACHE_ALIGN, NULL);
-	if (!trans->dev_cmd_pool)
-		return NULL;
-
 	return trans;
 }
 
 void iwl_trans_free(struct iwl_trans *trans)
 {
 	cancel_delayed_work_sync(&trans->restart.wk);
-	kmem_cache_destroy(trans->dev_cmd_pool);
 }
 
 int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
@@ -344,6 +332,19 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_trans_send_cmd);
+
+struct iwl_device_tx_cmd *iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
+{
+	return iwl_pcie_gen1_2_alloc_tx_cmd(trans);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_alloc_tx_cmd);
+
+void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
+			   struct iwl_device_tx_cmd *dev_cmd)
+{
+	iwl_pcie_gen1_2_free_tx_cmd(trans, dev_cmd);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_free_tx_cmd);
 
 /* Comparator for struct iwl_hcmd_names.
  * Used in the binary search over a list of host commands.
