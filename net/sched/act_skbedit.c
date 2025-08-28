@@ -261,11 +261,11 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		params_new->mask = *mask;
 
 	params_new->action = parm->action;
-	spin_lock_bh(&d->tcf_lock);
+	spin_lock(&d->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	params_new = rcu_replace_pointer(d->params, params_new,
 					 lockdep_is_held(&d->tcf_lock));
-	spin_unlock_bh(&d->tcf_lock);
+	spin_unlock(&d->tcf_lock);
 	if (params_new)
 		kfree_rcu(params_new, rcu);
 	if (goto_ch)

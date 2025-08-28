@@ -296,10 +296,10 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 					     htons(ETH_P_MPLS_UC));
 	p->action = parm->action;
 
-	spin_lock_bh(&m->tcf_lock);
+	spin_lock(&m->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	p = rcu_replace_pointer(m->mpls_p, p, lockdep_is_held(&m->tcf_lock));
-	spin_unlock_bh(&m->tcf_lock);
+	spin_unlock(&m->tcf_lock);
 
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
