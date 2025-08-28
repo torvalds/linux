@@ -605,18 +605,22 @@ int inet_diag_bc_sk(const struct inet_diag_dump_data *cb_data, struct sock *sk)
 	entry.sport = READ_ONCE(inet->inet_num);
 	entry.dport = ntohs(READ_ONCE(inet->inet_dport));
 	entry.ifindex = READ_ONCE(sk->sk_bound_dev_if);
-	entry.userlocks = sk_fullsock(sk) ? READ_ONCE(sk->sk_userlocks) : 0;
-	if (sk_fullsock(sk))
-		entry.mark = READ_ONCE(sk->sk_mark);
-	else if (sk->sk_state == TCP_NEW_SYN_RECV)
-		entry.mark = inet_rsk(inet_reqsk(sk))->ir_mark;
-	else if (sk->sk_state == TCP_TIME_WAIT)
-		entry.mark = inet_twsk(sk)->tw_mark;
-	else
-		entry.mark = 0;
+	if (cb_data->userlocks_needed)
+		entry.userlocks = sk_fullsock(sk) ? READ_ONCE(sk->sk_userlocks) : 0;
+	if (cb_data->mark_needed) {
+		if (sk_fullsock(sk))
+			entry.mark = READ_ONCE(sk->sk_mark);
+		else if (sk->sk_state == TCP_NEW_SYN_RECV)
+			entry.mark = inet_rsk(inet_reqsk(sk))->ir_mark;
+		else if (sk->sk_state == TCP_TIME_WAIT)
+			entry.mark = inet_twsk(sk)->tw_mark;
+		else
+			entry.mark = 0;
+	}
 #ifdef CONFIG_SOCK_CGROUP_DATA
-	entry.cgroup_id = sk_fullsock(sk) ?
-		cgroup_id(sock_cgroup_ptr(&sk->sk_cgrp_data)) : 0;
+	if (cb_data->cgroup_needed)
+		entry.cgroup_id = sk_fullsock(sk) ?
+			cgroup_id(sock_cgroup_ptr(&sk->sk_cgrp_data)) : 0;
 #endif
 
 	return inet_diag_bc_run(bc, &entry);
@@ -716,16 +720,21 @@ static bool valid_cgroupcond(const struct inet_diag_bc_op *op, int len,
 }
 #endif
 
-static int inet_diag_bc_audit(const struct nlattr *attr,
+static int inet_diag_bc_audit(struct inet_diag_dump_data *cb_data,
 			      const struct sk_buff *skb)
 {
-	bool net_admin = netlink_net_capable(skb, CAP_NET_ADMIN);
+	const struct nlattr *attr = cb_data->inet_diag_nla_bc;
 	const void *bytecode, *bc;
 	int bytecode_len, len;
+	bool net_admin;
 
-	if (!attr || nla_len(attr) < sizeof(struct inet_diag_bc_op))
+	if (!attr)
+		return 0;
+
+	if (nla_len(attr) < sizeof(struct inet_diag_bc_op))
 		return -EINVAL;
 
+	net_admin = netlink_net_capable(skb, CAP_NET_ADMIN);
 	bytecode = bc = nla_data(attr);
 	len = bytecode_len = nla_len(attr);
 
@@ -757,14 +766,18 @@ static int inet_diag_bc_audit(const struct nlattr *attr,
 				return -EPERM;
 			if (!valid_markcond(bc, len, &min_len))
 				return -EINVAL;
+			cb_data->mark_needed = true;
 			break;
 #ifdef CONFIG_SOCK_CGROUP_DATA
 		case INET_DIAG_BC_CGROUP_COND:
 			if (!valid_cgroupcond(bc, len, &min_len))
 				return -EINVAL;
+			cb_data->cgroup_needed = true;
 			break;
 #endif
 		case INET_DIAG_BC_AUTO:
+			cb_data->userlocks_needed = true;
+			fallthrough;
 		case INET_DIAG_BC_JMP:
 		case INET_DIAG_BC_NOP:
 			break;
@@ -841,13 +854,10 @@ static int __inet_diag_dump_start(struct netlink_callback *cb, int hdrlen)
 		kfree(cb_data);
 		return err;
 	}
-	nla = cb_data->inet_diag_nla_bc;
-	if (nla) {
-		err = inet_diag_bc_audit(nla, skb);
-		if (err) {
-			kfree(cb_data);
-			return err;
-		}
+	err = inet_diag_bc_audit(cb_data, skb);
+	if (err) {
+		kfree(cb_data);
+		return err;
 	}
 
 	nla = cb_data->inet_diag_nla_bpf_stgs;

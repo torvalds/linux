@@ -38,6 +38,11 @@ struct inet_diag_dump_data {
 #define inet_diag_nla_bpf_stgs req_nlas[INET_DIAG_REQ_SK_BPF_STORAGES]
 
 	struct bpf_sk_storage_diag *bpf_stg_diag;
+	bool mark_needed;	/* INET_DIAG_BC_MARK_COND present. */
+#ifdef CONFIG_SOCK_CGROUP_DATA
+	bool cgroup_needed;	/* INET_DIAG_BC_CGROUP_COND present. */
+#endif
+	bool userlocks_needed;	/* INET_DIAG_BC_AUTO present. */
 };
 
 struct inet_connection_sock;
