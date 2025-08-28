@@ -6,6 +6,7 @@
 #ifndef ATH12K_DP_RX_H
 #define ATH12K_DP_RX_H
 
+#include <crypto/hash.h>
 #include "core.h"
 #include "wifi7/hal_rx_desc.h"
 #include "debug.h"
@@ -353,20 +354,20 @@ void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *napi,
 bool ath12k_dp_rx_check_nwifi_hdr_len_valid(struct ath12k_base *ab,
 					    struct hal_rx_desc *rx_desc,
 					    struct sk_buff *msdu);
-void ath12k_dp_rx_h_mpdu(struct ath12k *ar,
-			 struct sk_buff *msdu,
-			 struct hal_rx_desc *rx_desc,
-			 struct ath12k_dp_rx_info *rx_info);
 u64 ath12k_dp_rx_h_get_pn(struct ath12k *ar, struct sk_buff *skb);
 void ath12k_dp_rx_h_sort_frags(struct ath12k_base *ab,
 			       struct sk_buff_head *frag_list,
 			       struct sk_buff *cur_frag);
 void ath12k_dp_rx_h_undecap_frag(struct ath12k *ar, struct sk_buff *msdu,
 				 enum hal_encrypt_type enctype, u32 flags);
-int ath12k_dp_rx_h_verify_tkip_mic(struct ath12k *ar, struct ath12k_peer *peer,
-				   struct sk_buff *msdu);
 void ath12k_dp_rx_frags_cleanup(struct ath12k_dp_rx_tid *rx_tid,
 				bool rel_link_desc);
+int ath12k_dp_rx_h_michael_mic(struct crypto_shash *tfm, u8 *key,
+			       struct ieee80211_hdr *hdr, u8 *data,
+			       size_t data_len, u8 *mic);
+u16 ath12k_dp_rx_get_peer_id(struct ath12k_base *ab,
+			     enum ath12k_peer_metadata_version ver,
+			     __le32 peer_metadata);
 int ath12k_dp_rx_ampdu_start(struct ath12k *ar,
 			     struct ieee80211_ampdu_params *params,
 			     u8 link_id);
@@ -394,9 +395,6 @@ int ath12k_dp_rx_pdev_alloc(struct ath12k_base *ab, int pdev_idx);
 void ath12k_dp_rx_pdev_free(struct ath12k_base *ab, int pdev_idx);
 void ath12k_dp_rx_reo_cmd_list_cleanup(struct ath12k_base *ab);
 void ath12k_dp_rx_process_reo_status(struct ath12k_base *ab);
-int ath12k_dp_rx_process(struct ath12k_base *ab, int mac_id,
-			 struct napi_struct *napi,
-			 int budget);
 int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab,
 				struct dp_rxdma_ring *rx_ring,
 				struct list_head *used_list,
@@ -431,4 +429,6 @@ int ath12k_dp_rx_link_desc_return(struct ath12k_base *ab,
 bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
 				 struct hal_rx_desc *rx_desc);
 void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct ath12k_dp_rx_info *rx_info);
+struct sk_buff *ath12k_dp_rx_get_msdu_last_buf(struct sk_buff_head *msdu_list,
+					       struct sk_buff *first);
 #endif /* ATH12K_DP_RX_H */
