@@ -2288,6 +2288,8 @@ int xe_vm_query_vmas_attrs_ioctl(struct drm_device *dev, void *data, struct drm_
 
 	err = copy_to_user(attrs_user, mem_attrs,
 			   args->sizeof_mem_range_attr * args->num_mem_ranges);
+	if (err)
+		err = -EFAULT;
 
 free_mem_attrs:
 	kvfree(mem_attrs);
