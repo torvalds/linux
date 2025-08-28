@@ -422,12 +422,13 @@ u32 ath12k_dp_rxdesc_get_ppduid(struct ath12k_base *ab,
 				struct hal_rx_desc *rx_desc);
 bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
 				 struct hal_rx_desc *rx_desc);
-int ath12k_dp_rx_link_desc_return(struct ath12k_base *ab,
-				  struct ath12k_buffer_addr *buf_addr_info,
-				  enum hal_wbm_rel_bm_act action);
 bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
 				 struct hal_rx_desc *rx_desc);
 void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct ath12k_dp_rx_info *rx_info);
 struct sk_buff *ath12k_dp_rx_get_msdu_last_buf(struct sk_buff_head *msdu_list,
 					       struct sk_buff *first);
+void ath12k_dp_reo_cmd_free(struct ath12k_dp *dp, void *ctx,
+			    enum hal_reo_cmd_status status);
+void ath12k_dp_rx_tid_del_func(struct ath12k_dp *dp, void *ctx,
+			       enum hal_reo_cmd_status status);
 #endif /* ATH12K_DP_RX_H */
