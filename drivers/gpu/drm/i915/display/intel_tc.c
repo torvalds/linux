@@ -3,6 +3,8 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <linux/iopoll.h>
+
 #include <drm/drm_print.h>
 
 #include "i915_reg.h"
@@ -1050,8 +1052,13 @@ static bool
 xelpdp_tc_phy_wait_for_tcss_power(struct intel_tc_port *tc, bool enabled)
 {
 	struct intel_display *display = to_intel_display(tc->dig_port);
+	bool is_enabled;
+	int ret;
 
-	if (wait_for(xelpdp_tc_phy_tcss_power_is_enabled(tc) == enabled, 5)) {
+	ret = poll_timeout_us(is_enabled = xelpdp_tc_phy_tcss_power_is_enabled(tc),
+			      is_enabled == enabled,
+			      200, 5000, false);
+	if (ret) {
 		drm_dbg_kms(display->drm,
 			    "Port %s: timeout waiting for TCSS power to get %s\n",
 			    str_enabled_disabled(enabled),
@@ -1332,8 +1339,13 @@ static bool tc_phy_is_connected(struct intel_tc_port *tc,
 static bool tc_phy_wait_for_ready(struct intel_tc_port *tc)
 {
 	struct intel_display *display = to_intel_display(tc->dig_port);
+	bool is_ready;
+	int ret;
 
-	if (wait_for(tc_phy_is_ready(tc), 500)) {
+	ret = poll_timeout_us(is_ready = tc_phy_is_ready(tc),
+			      is_ready,
+			      1000, 500 * 1000, false);
+	if (ret) {
 		drm_err(display->drm, "Port %s: timeout waiting for PHY ready\n",
 			tc->port_name);
 
