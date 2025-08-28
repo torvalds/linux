@@ -2167,7 +2167,7 @@ where 'size' is the size of the DMA buffer in bytes. 'count' is the file count o
 the DMA buffer file. 'exp_name' is the name of the DMA buffer exporter.
 
 VFIO Device files
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 ::
 
