@@ -237,8 +237,8 @@ static inline struct pppox_sock *get_item(struct pppoe_net *pn, __be16 sid,
 	return po;
 }
 
-static inline struct pppox_sock *get_item_by_addr(struct net *net,
-						struct sockaddr_pppox *sp)
+static inline struct pppox_sock *__get_item_by_addr(struct net *net,
+						    struct sockaddr_pppox *sp)
 {
 	struct net_device *dev;
 	struct pppoe_net *pn;
@@ -246,15 +246,13 @@ static inline struct pppox_sock *get_item_by_addr(struct net *net,
 
 	int ifindex;
 
-	rcu_read_lock();
 	dev = dev_get_by_name_rcu(net, sp->sa_addr.pppoe.dev);
 	if (dev) {
 		ifindex = dev->ifindex;
 		pn = pppoe_pernet(net);
-		pppox_sock = get_item(pn, sp->sa_addr.pppoe.sid,
-				sp->sa_addr.pppoe.remote, ifindex);
+		pppox_sock = __get_item(pn, sp->sa_addr.pppoe.sid,
+					sp->sa_addr.pppoe.remote, ifindex);
 	}
-	rcu_read_unlock();
 	return pppox_sock;
 }
 
@@ -381,27 +379,22 @@ static int pppoe_rcv_core(struct sock *sk, struct sk_buff *skb)
 	if (sk->sk_state & PPPOX_BOUND) {
 		ppp_input(&po->chan, skb);
 	} else if (sk->sk_state & PPPOX_RELAY) {
-		relay_po = get_item_by_addr(sock_net(sk),
-					    &po->pppoe_relay);
+		relay_po = __get_item_by_addr(sock_net(sk),
+					      &po->pppoe_relay);
 		if (relay_po == NULL)
 			goto abort_kfree;
 
 		if ((sk_pppox(relay_po)->sk_state & PPPOX_CONNECTED) == 0)
-			goto abort_put;
+			goto abort_kfree;
 
 		if (!__pppoe_xmit(sk_pppox(relay_po), skb))
-			goto abort_put;
-
-		sock_put(sk_pppox(relay_po));
+			goto abort_kfree;
 	} else {
 		if (sock_queue_rcv_skb(sk, skb))
 			goto abort_kfree;
 	}
 
 	return NET_RX_SUCCESS;
-
-abort_put:
-	sock_put(sk_pppox(relay_po));
 
 abort_kfree:
 	kfree_skb(skb);
@@ -447,14 +440,11 @@ static int pppoe_rcv(struct sk_buff *skb, struct net_device *dev,
 	ph = pppoe_hdr(skb);
 	pn = pppoe_pernet(dev_net(dev));
 
-	/* Note that get_item does a sock_hold(), so sk_pppox(po)
-	 * is known to be safe.
-	 */
-	po = get_item(pn, ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
+	po = __get_item(pn, ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
 	if (!po)
 		goto drop;
 
-	return sk_receive_skb(sk_pppox(po), skb, 0);
+	return __sk_receive_skb(sk_pppox(po), skb, 0, 1, false);
 
 drop:
 	kfree_skb(skb);
@@ -820,11 +810,12 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 
 		/* Check that the socket referenced by the address
 		   actually exists. */
-		relay_po = get_item_by_addr(sock_net(sk), &po->pppoe_relay);
+		rcu_read_lock();
+		relay_po = __get_item_by_addr(sock_net(sk), &po->pppoe_relay);
+		rcu_read_unlock();
 		if (!relay_po)
 			break;
 
-		sock_put(sk_pppox(relay_po));
 		sk->sk_state |= PPPOX_RELAY;
 		err = 0;
 		break;
