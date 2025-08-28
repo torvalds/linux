@@ -37,6 +37,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <net/netlink.h>
+#include <net/rtnetlink.h>
 #include <uapi/linux/batadv_packet.h>
 #include <uapi/linux/batman_adv.h>
 
