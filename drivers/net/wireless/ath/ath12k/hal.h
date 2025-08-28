@@ -12,11 +12,21 @@
 
 struct ath12k_base;
 
+#define HAL_INVALID_PEERID	0x3fff
+#define VHT_SIG_SU_NSS_MASK	0x7
+
 #define HAL_TX_ADDRX_EN			1
 #define HAL_TX_ADDRY_EN			2
 
 #define HAL_TX_ADDR_SEARCH_DEFAULT	0
 #define HAL_TX_ADDR_SEARCH_INDEX	1
+
+#define HAL_RX_MAX_MPDU		256
+#define HAL_RX_NUM_WORDS_PER_PPDU_BITMAP	(HAL_RX_MAX_MPDU >> 5)
+
+#define EHT_MAX_USER_INFO	4
+#define HAL_RX_MON_MAX_AGGR_SIZE	128
+#define HAL_MAX_UL_MU_USERS	37
 
 #define HAL_CE_REMAP_REG_BASE	(ab->ce_remap_base_addr)
 
@@ -532,6 +542,64 @@ enum hal_srng_ring_id {
 #define HAL_SRNG_RING_ID_MAX    (HAL_SRNG_RING_ID_DMAC_CMN_ID_END + \
 				 HAL_SRNG_NUM_PMAC_RINGS)
 
+enum hal_rx_su_mu_coding {
+	HAL_RX_SU_MU_CODING_BCC,
+	HAL_RX_SU_MU_CODING_LDPC,
+	HAL_RX_SU_MU_CODING_MAX,
+};
+
+enum hal_rx_gi {
+	HAL_RX_GI_0_8_US,
+	HAL_RX_GI_0_4_US,
+	HAL_RX_GI_1_6_US,
+	HAL_RX_GI_3_2_US,
+	HAL_RX_GI_MAX,
+};
+
+enum hal_rx_bw {
+	HAL_RX_BW_20MHZ,
+	HAL_RX_BW_40MHZ,
+	HAL_RX_BW_80MHZ,
+	HAL_RX_BW_160MHZ,
+	HAL_RX_BW_320MHZ,
+	HAL_RX_BW_MAX,
+};
+
+enum hal_rx_preamble {
+	HAL_RX_PREAMBLE_11A,
+	HAL_RX_PREAMBLE_11B,
+	HAL_RX_PREAMBLE_11N,
+	HAL_RX_PREAMBLE_11AC,
+	HAL_RX_PREAMBLE_11AX,
+	HAL_RX_PREAMBLE_11BA,
+	HAL_RX_PREAMBLE_11BE,
+	HAL_RX_PREAMBLE_MAX,
+};
+
+enum hal_rx_reception_type {
+	HAL_RX_RECEPTION_TYPE_SU,
+	HAL_RX_RECEPTION_TYPE_MU_MIMO,
+	HAL_RX_RECEPTION_TYPE_MU_OFDMA,
+	HAL_RX_RECEPTION_TYPE_MU_OFDMA_MIMO,
+	HAL_RX_RECEPTION_TYPE_MAX,
+};
+
+enum hal_rx_legacy_rate {
+	HAL_RX_LEGACY_RATE_1_MBPS,
+	HAL_RX_LEGACY_RATE_2_MBPS,
+	HAL_RX_LEGACY_RATE_5_5_MBPS,
+	HAL_RX_LEGACY_RATE_6_MBPS,
+	HAL_RX_LEGACY_RATE_9_MBPS,
+	HAL_RX_LEGACY_RATE_11_MBPS,
+	HAL_RX_LEGACY_RATE_12_MBPS,
+	HAL_RX_LEGACY_RATE_18_MBPS,
+	HAL_RX_LEGACY_RATE_24_MBPS,
+	HAL_RX_LEGACY_RATE_36_MBPS,
+	HAL_RX_LEGACY_RATE_48_MBPS,
+	HAL_RX_LEGACY_RATE_54_MBPS,
+	HAL_RX_LEGACY_RATE_INVALID,
+};
+
 enum hal_ring_type {
 	HAL_REO_DST,
 	HAL_REO_EXCEPTION,
@@ -630,6 +698,158 @@ struct hal_srng_params {
 enum hal_srng_dir {
 	HAL_SRNG_DIR_SRC,
 	HAL_SRNG_DIR_DST
+};
+
+struct hal_rx_user_status {
+	u32 mcs:4,
+	nss:3,
+	ofdma_info_valid:1,
+	ul_ofdma_ru_start_index:7,
+	ul_ofdma_ru_width:7,
+	ul_ofdma_ru_size:8;
+	u32 ul_ofdma_user_v0_word0;
+	u32 ul_ofdma_user_v0_word1;
+	u32 ast_index;
+	u32 tid;
+	u16 tcp_msdu_count;
+	u16 tcp_ack_msdu_count;
+	u16 udp_msdu_count;
+	u16 other_msdu_count;
+	u16 frame_control;
+	u8 frame_control_info_valid;
+	u8 data_sequence_control_info_valid;
+	u16 first_data_seq_ctrl;
+	u32 preamble_type;
+	u16 ht_flags;
+	u16 vht_flags;
+	u16 he_flags;
+	u8 rs_flags;
+	u8 ldpc;
+	u32 mpdu_cnt_fcs_ok;
+	u32 mpdu_cnt_fcs_err;
+	u32 mpdu_fcs_ok_bitmap[HAL_RX_NUM_WORDS_PER_PPDU_BITMAP];
+	u32 mpdu_ok_byte_count;
+	u32 mpdu_err_byte_count;
+	bool ampdu_present;
+	u16 ampdu_id;
+};
+
+struct hal_rx_u_sig_info {
+	bool ul_dl;
+	u8 bw;
+	u8 ppdu_type_comp_mode;
+	u8 eht_sig_mcs;
+	u8 num_eht_sig_sym;
+	struct ieee80211_radiotap_eht_usig usig;
+};
+
+struct hal_rx_tlv_aggr_info {
+	bool in_progress;
+	u16 cur_len;
+	u16 tlv_tag;
+	u8 buf[HAL_RX_MON_MAX_AGGR_SIZE];
+};
+
+struct hal_rx_radiotap_eht {
+	__le32 known;
+	__le32 data[9];
+};
+
+struct hal_rx_eht_info {
+	u8 num_user_info;
+	struct hal_rx_radiotap_eht eht;
+	u32 user_info[EHT_MAX_USER_INFO];
+};
+
+struct hal_rx_mon_ppdu_info {
+	u32 ppdu_id;
+	u32 last_ppdu_id;
+	u64 ppdu_ts;
+	u32 num_mpdu_fcs_ok;
+	u32 num_mpdu_fcs_err;
+	u32 preamble_type;
+	u32 mpdu_len;
+	u16 chan_num;
+	u16 freq;
+	u16 tcp_msdu_count;
+	u16 tcp_ack_msdu_count;
+	u16 udp_msdu_count;
+	u16 other_msdu_count;
+	u16 peer_id;
+	u8 rate;
+	u8 mcs;
+	u8 nss;
+	u8 bw;
+	u8 vht_flag_values1;
+	u8 vht_flag_values2;
+	u8 vht_flag_values3[4];
+	u8 vht_flag_values4;
+	u8 vht_flag_values5;
+	u16 vht_flag_values6;
+	u8 is_stbc;
+	u8 gi;
+	u8 sgi;
+	u8 ldpc;
+	u8 beamformed;
+	u8 rssi_comb;
+	u16 tid;
+	u8 fc_valid;
+	u16 ht_flags;
+	u16 vht_flags;
+	u16 he_flags;
+	u16 he_mu_flags;
+	u8 dcm;
+	u8 ru_alloc;
+	u8 reception_type;
+	u64 tsft;
+	u64 rx_duration;
+	u16 frame_control;
+	u32 ast_index;
+	u8 rs_fcs_err;
+	u8 rs_flags;
+	u8 cck_flag;
+	u8 ofdm_flag;
+	u8 ulofdma_flag;
+	u8 frame_control_info_valid;
+	u16 he_per_user_1;
+	u16 he_per_user_2;
+	u8 he_per_user_position;
+	u8 he_per_user_known;
+	u16 he_flags1;
+	u16 he_flags2;
+	u8 he_RU[4];
+	u16 he_data1;
+	u16 he_data2;
+	u16 he_data3;
+	u16 he_data4;
+	u16 he_data5;
+	u16 he_data6;
+	u32 ppdu_len;
+	u32 prev_ppdu_id;
+	u32 device_id;
+	u16 first_data_seq_ctrl;
+	u8 monitor_direct_used;
+	u8 data_sequence_control_info_valid;
+	u8 ltf_size;
+	u8 rxpcu_filter_pass;
+	s8 rssi_chain[8][8];
+	u32 num_users;
+	u32 mpdu_fcs_ok_bitmap[HAL_RX_NUM_WORDS_PER_PPDU_BITMAP];
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u8 addr4[ETH_ALEN];
+	struct hal_rx_user_status userstats[HAL_MAX_UL_MU_USERS];
+	u8 userid;
+	bool first_msdu_in_mpdu;
+	bool is_ampdu;
+	u8 medium_prot_type;
+	bool ppdu_continuation;
+	bool eht_usig;
+	struct hal_rx_u_sig_info u_sig_info;
+	bool is_eht;
+	struct hal_rx_eht_info eht_info;
+	struct hal_rx_tlv_aggr_info tlv_aggr;
 };
 
 /* srng flags */
@@ -1059,6 +1279,81 @@ struct ath12k_hal_tcl_to_wbm_rbm_map  {
 	u8 wbm_ring_num;
 	u8 rbm_id;
 };
+
+#define RU_INVALID		0
+#define RU_26			1
+#define RU_52			2
+#define RU_106			4
+#define RU_242			9
+#define RU_484			18
+#define RU_996			37
+#define RU_2X996		74
+#define RU_3X996		111
+#define RU_4X996		148
+#define RU_52_26		(RU_52 + RU_26)
+#define RU_106_26		(RU_106 + RU_26)
+#define RU_484_242		(RU_484 + RU_242)
+#define RU_996_484		(RU_996 + RU_484)
+#define RU_996_484_242		(RU_996 + RU_484_242)
+#define RU_2X996_484		(RU_2X996 + RU_484)
+#define RU_3X996_484		(RU_3X996 + RU_484)
+
+enum ath12k_eht_ru_size {
+	ATH12K_EHT_RU_26,
+	ATH12K_EHT_RU_52,
+	ATH12K_EHT_RU_106,
+	ATH12K_EHT_RU_242,
+	ATH12K_EHT_RU_484,
+	ATH12K_EHT_RU_996,
+	ATH12K_EHT_RU_996x2,
+	ATH12K_EHT_RU_996x4,
+	ATH12K_EHT_RU_52_26,
+	ATH12K_EHT_RU_106_26,
+	ATH12K_EHT_RU_484_242,
+	ATH12K_EHT_RU_996_484,
+	ATH12K_EHT_RU_996_484_242,
+	ATH12K_EHT_RU_996x2_484,
+	ATH12K_EHT_RU_996x3,
+	ATH12K_EHT_RU_996x3_484,
+
+	/* Keep last */
+	ATH12K_EHT_RU_INVALID,
+};
+
+#define HAL_RX_RU_ALLOC_TYPE_MAX	ATH12K_EHT_RU_INVALID
+
+static inline
+enum nl80211_he_ru_alloc ath12k_he_ru_tones_to_nl80211_he_ru_alloc(u16 ru_tones)
+{
+	enum nl80211_he_ru_alloc ret;
+
+	switch (ru_tones) {
+	case RU_52:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_52;
+		break;
+	case RU_106:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_106;
+		break;
+	case RU_242:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_242;
+		break;
+	case RU_484:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_484;
+		break;
+	case RU_996:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_996;
+		break;
+	case RU_2X996:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_2x996;
+		break;
+	case RU_26:
+		fallthrough;
+	default:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_26;
+		break;
+	}
+	return ret;
+}
 
 struct hal_rx_ops {
 	bool (*rx_desc_get_first_msdu)(struct hal_rx_desc *desc);

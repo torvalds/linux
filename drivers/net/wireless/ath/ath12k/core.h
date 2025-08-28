@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef ATH12K_CORE_H
@@ -26,7 +26,7 @@
 #include "ce.h"
 #include "mac.h"
 #include "hw.h"
-#include "hal_rx.h"
+#include "wifi7/hal_rx.h"
 #include "reg.h"
 #include "dbring.h"
 #include "fw.h"
