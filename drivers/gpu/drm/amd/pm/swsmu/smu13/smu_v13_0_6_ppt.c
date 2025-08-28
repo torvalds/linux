@@ -559,6 +559,10 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 		       PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
 
+	SMU_TABLE_INIT(tables, SMU_TABLE_PMFW_SYSTEM_METRICS,
+		       smu_v13_0_12_get_system_metrics_size(), PAGE_SIZE,
+		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
+
 	metrics_table = kzalloc(METRICS_TABLE_SIZE, GFP_KERNEL);
 	if (!metrics_table)
 		return -ENOMEM;
