@@ -30,6 +30,18 @@ static struct cros_ec_platform pd_p = {
 	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX),
 };
 
+struct cros_ec_device *cros_ec_device_alloc(struct device *dev)
+{
+	struct cros_ec_device *ec_dev;
+
+	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
+	if (!ec_dev)
+		return NULL;
+
+	return ec_dev;
+}
+EXPORT_SYMBOL(cros_ec_device_alloc);
+
 /**
  * cros_ec_irq_handler() - top half part of the interrupt handler
  * @irq: IRQ id

@@ -543,7 +543,7 @@ static int cros_ec_dev_init(struct ishtp_cl_data *client_data)
 	struct cros_ec_device *ec_dev;
 	struct device *dev = cl_data_to_dev(client_data);
 
-	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
+	ec_dev = cros_ec_device_alloc(dev);
 	if (!ec_dev)
 		return -ENOMEM;
 

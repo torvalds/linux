@@ -637,7 +637,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 		}
 	}
 
-	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
+	ec_dev = cros_ec_device_alloc(dev);
 	if (!ec_dev)
 		return -ENOMEM;
 

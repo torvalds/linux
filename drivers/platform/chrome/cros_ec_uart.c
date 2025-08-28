@@ -259,7 +259,7 @@ static int cros_ec_uart_probe(struct serdev_device *serdev)
 	if (!ec_uart)
 		return -ENOMEM;
 
-	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
+	ec_dev = cros_ec_device_alloc(dev);
 	if (!ec_dev)
 		return -ENOMEM;
 

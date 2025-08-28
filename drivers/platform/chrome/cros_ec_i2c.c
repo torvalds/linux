@@ -289,10 +289,10 @@ done:
 static int cros_ec_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct cros_ec_device *ec_dev = NULL;
+	struct cros_ec_device *ec_dev;
 	int err;
 
-	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
+	ec_dev = cros_ec_device_alloc(dev);
 	if (!ec_dev)
 		return -ENOMEM;
 
