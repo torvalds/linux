@@ -15,25 +15,7 @@ struct ath12k_dp_htt_wbm_tx_status {
 	s8 ack_rssi;
 };
 
-int ath12k_dp_tx_htt_h2t_ver_req_msg(struct ath12k_base *ab);
-int ath12k_dp_tx_htt_h2t_ppdu_stats_req(struct ath12k *ar, u32 mask);
-int
-ath12k_dp_tx_htt_h2t_ext_stats_req(struct ath12k *ar, u8 type,
-				   struct htt_ext_stats_cfg_params *cfg_params,
-				   u64 cookie);
-int ath12k_dp_tx_htt_rx_monitor_mode_ring_config(struct ath12k *ar, bool reset);
-
-int ath12k_dp_tx_htt_rx_filter_setup(struct ath12k_base *ab, u32 ring_id,
-				     int mac_id, enum hal_ring_type ring_type,
-				     int rx_buf_size,
-				     struct htt_rx_ring_tlv_filter *tlv_filter);
 void ath12k_dp_tx_put_bank_profile(struct ath12k_dp *dp, u8 bank_id);
-int ath12k_dp_tx_htt_tx_filter_setup(struct ath12k_base *ab, u32 ring_id,
-				     int mac_id, enum hal_ring_type ring_type,
-				     int tx_buf_size,
-				     struct htt_tx_ring_tlv_filter *htt_tlv_filter);
-int ath12k_dp_tx_htt_monitor_mode_ring_config(struct ath12k *ar, bool reset);
-
 enum hal_tcl_encap_type
 ath12k_dp_tx_get_encap_type(struct ath12k_base *ab, struct sk_buff *skb);
 void ath12k_dp_tx_encap_nwifi(struct sk_buff *skb);

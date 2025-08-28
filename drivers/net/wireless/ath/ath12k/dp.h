@@ -441,8 +441,6 @@ void ath12k_dp_partner_cc_init(struct ath12k_base *ab);
 int ath12k_dp_pdev_alloc(struct ath12k_base *ab);
 void ath12k_dp_pdev_pre_alloc(struct ath12k *ar);
 void ath12k_dp_pdev_free(struct ath12k_base *ab);
-int ath12k_dp_tx_htt_srng_setup(struct ath12k_base *ab, u32 ring_id,
-				int mac_id, enum hal_ring_type ring_type);
 int ath12k_dp_peer_setup(struct ath12k *ar, int vdev_id, const u8 *addr);
 void ath12k_dp_peer_cleanup(struct ath12k *ar, int vdev_id, const u8 *addr);
 void ath12k_dp_srng_cleanup(struct ath12k_base *ab, struct dp_srng *ring);
