@@ -2393,7 +2393,7 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_dump_cfg_name *cfg_name;
 	u32 size = sizeof(*tlv) + sizeof(*dump);
 	u32 num_of_cfg_names = 0;
-	u32 hw_type, is_cdb, is_jacket;
+	u32 hw_type, is_cdb;
 
 	list_for_each_entry(node, &fwrt->trans->dbg.debug_info_tlv_list, list) {
 		size += sizeof(*cfg_name);
@@ -2426,11 +2426,7 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	hw_type = CSR_HW_REV_TYPE(fwrt->trans->info.hw_rev);
 
 	is_cdb = CSR_HW_RFID_IS_CDB(fwrt->trans->info.hw_rf_id);
-	is_jacket = !!(iwl_read_umac_prph(fwrt->trans, WFPM_OTP_CFG1_ADDR) &
-				WFPM_OTP_CFG1_IS_JACKET_BIT);
-
-	/* Use bits 12 and 13 to indicate jacket/CDB, respectively */
-	hw_type |= (is_jacket | (is_cdb << 1)) << IWL_JACKET_CDB_SHIFT;
+	hw_type |= IWL_CDB_MASK(is_cdb);
 
 	dump->hw_type = cpu_to_le32(hw_type);
 

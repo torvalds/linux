@@ -4035,6 +4035,7 @@ static void get_crf_id(struct iwl_trans *iwl_trans,
 
 	/* Read cdb info (also contains the jacket info if needed in the future */
 	hw_wfpm_id = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_OTP_CFG1_ADDR);
+
 	IWL_INFO(iwl_trans, "Detected crf-id 0x%x, cnv-id 0x%x wfpm id 0x%x\n",
 		 info->hw_crf_id, info->hw_cnv_id, hw_wfpm_id);
 }
@@ -4050,10 +4051,8 @@ static int map_crf_id(struct iwl_trans *iwl_trans,
 	u32 val = info->hw_crf_id;
 	u32 step_id = REG_CRF_ID_STEP(val);
 	u32 slave_id = REG_CRF_ID_SLAVE(val);
-	u32 jacket_id_cnv = REG_CRF_ID_SLAVE(info->hw_cnv_id);
 	u32 hw_wfpm_id = iwl_read_umac_prph_no_grab(iwl_trans,
 						    WFPM_OTP_CFG1_ADDR);
-	u32 jacket_id_wfpm = WFPM_OTP_CFG1_IS_JACKET(hw_wfpm_id);
 	u32 cdb_id_wfpm = WFPM_OTP_CFG1_IS_CDB(hw_wfpm_id);
 
 	/* Map between crf id to rf id */
@@ -4102,21 +4101,12 @@ static int map_crf_id(struct iwl_trans *iwl_trans,
 		IWL_INFO(iwl_trans, "Adding cdb to rf id\n");
 	}
 
-	/* Set Jacket capabilities */
-	if (jacket_id_wfpm || jacket_id_cnv) {
-		info->hw_rf_id += BIT(29);
-		IWL_INFO(iwl_trans, "Adding jacket to rf id\n");
-	}
-
 	IWL_INFO(iwl_trans,
 		 "Detected rf-type 0x%x step-id 0x%x slave-id 0x%x from crf id 0x%x\n",
 		 REG_CRF_ID_TYPE(val), step_id, slave_id, info->hw_rf_id);
 	IWL_INFO(iwl_trans,
-		 "Detected cdb-id 0x%x jacket-id 0x%x from wfpm id 0x%x\n",
-		 cdb_id_wfpm, jacket_id_wfpm, hw_wfpm_id);
-	IWL_INFO(iwl_trans, "Detected jacket-id 0x%x from cnvi id 0x%x\n",
-		 jacket_id_cnv, info->hw_cnv_id);
-
+		 "Detected cdb-id 0x%x from wfpm id 0x%x\n",
+		 cdb_id_wfpm, hw_wfpm_id);
 out:
 	return ret;
 }
