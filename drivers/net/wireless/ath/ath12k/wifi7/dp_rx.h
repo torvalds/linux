@@ -19,4 +19,10 @@ int ath12k_dp_rx_process(struct ath12k_base *ab, int mac_id,
 void ath12k_dp_rx_process_reo_status(struct ath12k_base *ab);
 int ath12k_dp_rxdma_ring_sel_config_qcn9274(struct ath12k_base *ab);
 int ath12k_dp_rxdma_ring_sel_config_wcn7850(struct ath12k_base *ab);
+void ath12k_dp_setup_pn_check_reo_cmd(struct ath12k_hal_reo_cmd *cmd,
+				      struct ath12k_dp_rx_tid *rx_tid,
+				      u32 cipher, enum set_key_cmd key_cmd);
+int ath12k_dp_rx_assign_reoq(struct ath12k_base *ab, struct ath12k_sta *ahsta,
+			     struct ath12k_dp_rx_tid *rx_tid,
+			     u16 ssn, enum hal_pn_type pn_type);
 #endif
