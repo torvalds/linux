@@ -114,10 +114,10 @@ int fw_iso_resources_allocate(struct fw_iso_resources *r,
 	r->bandwidth = packet_bandwidth(max_payload_bytes, speed);
 
 retry_after_bus_reset:
-	spin_lock_irq(&card->lock);
-	r->generation = card->generation;
-	r->bandwidth_overhead = current_bandwidth_overhead(card);
-	spin_unlock_irq(&card->lock);
+	scoped_guard(spinlock_irq, &card->lock) {
+		r->generation = card->generation;
+		r->bandwidth_overhead = current_bandwidth_overhead(card);
+	}
 
 	err = wait_isoch_resource_delay_after_bus_reset(card);
 	if (err < 0)
@@ -167,10 +167,10 @@ int fw_iso_resources_update(struct fw_iso_resources *r)
 	if (!r->allocated)
 		return 0;
 
-	spin_lock_irq(&card->lock);
-	r->generation = card->generation;
-	r->bandwidth_overhead = current_bandwidth_overhead(card);
-	spin_unlock_irq(&card->lock);
+	scoped_guard(spinlock_irq, &card->lock) {
+		r->generation = card->generation;
+		r->bandwidth_overhead = current_bandwidth_overhead(card);
+	}
 
 	bandwidth = r->bandwidth + r->bandwidth_overhead;
 
