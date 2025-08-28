@@ -36428,6 +36428,7 @@ static void check_nomem_writer_race(struct maple_tree *mt)
   */
 static inline int check_vma_modification(struct maple_tree *mt)
 {
+#if defined(CONFIG_64BIT)
 	MA_STATE(mas, mt, 0, 0);
 
 	mtree_lock(mt);
@@ -36451,6 +36452,8 @@ static inline int check_vma_modification(struct maple_tree *mt)
 
 	mas_destroy(&mas);
 	mtree_unlock(mt);
+#endif
+
 	return 0;
 }
 
