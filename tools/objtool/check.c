@@ -4644,6 +4644,47 @@ static void disas_warned_funcs(struct objtool_file *file)
 		disas_funcs(funcs);
 }
 
+__weak bool arch_absolute_reloc(struct elf *elf, struct reloc *reloc)
+{
+	unsigned int type = reloc_type(reloc);
+	size_t sz = elf_addr_size(elf);
+
+	return (sz == 8) ? (type == R_ABS64) : (type == R_ABS32);
+}
+
+static int check_abs_references(struct objtool_file *file)
+{
+	struct section *sec;
+	struct reloc *reloc;
+	int ret = 0;
+
+	for_each_sec(file, sec) {
+		/* absolute references in non-loadable sections are fine */
+		if (!(sec->sh.sh_flags & SHF_ALLOC))
+			continue;
+
+		/* section must have an associated .rela section */
+		if (!sec->rsec)
+			continue;
+
+		/*
+		 * Special case for compiler generated metadata that is not
+		 * consumed until after boot.
+		 */
+		if (!strcmp(sec->name, "__patchable_function_entries"))
+			continue;
+
+		for_each_reloc(sec->rsec, reloc) {
+			if (arch_absolute_reloc(file->elf, reloc)) {
+				WARN("section %s has absolute relocation at offset 0x%lx",
+				     sec->name, reloc_offset(reloc));
+				ret++;
+			}
+		}
+	}
+	return ret;
+}
+
 struct insn_chunk {
 	void *addr;
 	struct insn_chunk *next;
@@ -4776,6 +4817,9 @@ int check(struct objtool_file *file)
 		if (ret)
 			goto out;
 	}
+
+	if (opts.noabs)
+		warnings += check_abs_references(file);
 
 	if (opts.orc && nr_insns) {
 		ret = orc_create(file);
