@@ -22,11 +22,15 @@ description: |+
 
 properties:
   compatible:
-    enum:
-      - apple,t8103-dart
-      - apple,t8103-usb4-dart
-      - apple,t8110-dart
-      - apple,t6000-dart
+    oneOf:
+      - enum:
+          - apple,t8103-dart
+          - apple,t8103-usb4-dart
+          - apple,t8110-dart
+          - apple,t6000-dart
+      - items:
+          - const: apple,t6020-dart
+          - const: apple,t8110-dart
 
   reg:
     maxItems: 1
