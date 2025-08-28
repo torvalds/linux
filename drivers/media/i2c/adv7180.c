@@ -274,6 +274,38 @@ static int adv7180_vpp_write(struct adv7180_state *state, unsigned int reg,
 	return i2c_smbus_write_byte_data(state->vpp_client, reg, value);
 }
 
+static int adv7180_set_power(struct adv7180_state *state, bool on)
+{
+	u8 val;
+	int ret;
+
+	if (on)
+		val = ADV7180_PWR_MAN_ON;
+	else
+		val = ADV7180_PWR_MAN_OFF;
+
+	ret = adv7180_write(state, ADV7180_REG_PWR_MAN, val);
+	if (ret)
+		return ret;
+
+	if (state->chip_info->flags & ADV7180_FLAG_MIPI_CSI2) {
+		if (on) {
+			adv7180_csi_write(state, 0xDE, 0x02);
+			adv7180_csi_write(state, 0xD2, 0xF7);
+			adv7180_csi_write(state, 0xD8, 0x65);
+			adv7180_csi_write(state, 0xE0, 0x09);
+			adv7180_csi_write(state, 0x2C, 0x00);
+			if (state->field == V4L2_FIELD_NONE)
+				adv7180_csi_write(state, 0x1D, 0x80);
+			adv7180_csi_write(state, 0x00, 0x00);
+		} else {
+			adv7180_csi_write(state, 0x00, 0x80);
+		}
+	}
+
+	return 0;
+}
+
 static v4l2_std_id adv7180_std_to_v4l2(u8 status1)
 {
 	/* in case V4L2_IN_ST_NO_SIGNAL */
@@ -512,38 +544,6 @@ static void adv7180_set_reset_pin(struct adv7180_state *state, bool on)
 		gpiod_set_value_cansleep(state->rst_gpio, 0);
 		usleep_range(5000, 10000);
 	}
-}
-
-static int adv7180_set_power(struct adv7180_state *state, bool on)
-{
-	u8 val;
-	int ret;
-
-	if (on)
-		val = ADV7180_PWR_MAN_ON;
-	else
-		val = ADV7180_PWR_MAN_OFF;
-
-	ret = adv7180_write(state, ADV7180_REG_PWR_MAN, val);
-	if (ret)
-		return ret;
-
-	if (state->chip_info->flags & ADV7180_FLAG_MIPI_CSI2) {
-		if (on) {
-			adv7180_csi_write(state, 0xDE, 0x02);
-			adv7180_csi_write(state, 0xD2, 0xF7);
-			adv7180_csi_write(state, 0xD8, 0x65);
-			adv7180_csi_write(state, 0xE0, 0x09);
-			adv7180_csi_write(state, 0x2C, 0x00);
-			if (state->field == V4L2_FIELD_NONE)
-				adv7180_csi_write(state, 0x1D, 0x80);
-			adv7180_csi_write(state, 0x00, 0x00);
-		} else {
-			adv7180_csi_write(state, 0x00, 0x80);
-		}
-	}
-
-	return 0;
 }
 
 static int adv7180_s_power(struct v4l2_subdev *sd, int on)
@@ -872,6 +872,62 @@ static int adv7180_g_tvnorms(struct v4l2_subdev *sd, v4l2_std_id *norm)
 {
 	*norm = V4L2_STD_ALL;
 	return 0;
+}
+
+static int init_device(struct adv7180_state *state)
+{
+	int ret;
+
+	mutex_lock(&state->mutex);
+
+	adv7180_set_power_pin(state, true);
+	adv7180_set_reset_pin(state, false);
+
+	adv7180_write(state, ADV7180_REG_PWR_MAN, ADV7180_PWR_MAN_RES);
+	usleep_range(5000, 10000);
+
+	ret = state->chip_info->init(state);
+	if (ret)
+		goto out_unlock;
+
+	ret = adv7180_program_std(state);
+	if (ret)
+		goto out_unlock;
+
+	adv7180_set_field_mode(state);
+
+	/* register for interrupts */
+	if (state->irq > 0) {
+		/* config the Interrupt pin to be active low */
+		ret = adv7180_write(state, ADV7180_REG_ICONF1,
+				    ADV7180_ICONF1_ACTIVE_LOW |
+				    ADV7180_ICONF1_PSYNC_ONLY);
+		if (ret < 0)
+			goto out_unlock;
+
+		ret = adv7180_write(state, ADV7180_REG_IMR1, 0);
+		if (ret < 0)
+			goto out_unlock;
+
+		ret = adv7180_write(state, ADV7180_REG_IMR2, 0);
+		if (ret < 0)
+			goto out_unlock;
+
+		/* enable AD change interrupts */
+		ret = adv7180_write(state, ADV7180_REG_IMR3,
+				    ADV7180_IRQ3_AD_CHANGE);
+		if (ret < 0)
+			goto out_unlock;
+
+		ret = adv7180_write(state, ADV7180_REG_IMR4, 0);
+		if (ret < 0)
+			goto out_unlock;
+	}
+
+out_unlock:
+	mutex_unlock(&state->mutex);
+
+	return ret;
 }
 
 static int adv7180_s_stream(struct v4l2_subdev *sd, int enable)
@@ -1342,62 +1398,6 @@ static const struct adv7180_chip_info adv7282_m_info = {
 	.set_std = adv7182_set_std,
 	.select_input = adv7182_select_input,
 };
-
-static int init_device(struct adv7180_state *state)
-{
-	int ret;
-
-	mutex_lock(&state->mutex);
-
-	adv7180_set_power_pin(state, true);
-	adv7180_set_reset_pin(state, false);
-
-	adv7180_write(state, ADV7180_REG_PWR_MAN, ADV7180_PWR_MAN_RES);
-	usleep_range(5000, 10000);
-
-	ret = state->chip_info->init(state);
-	if (ret)
-		goto out_unlock;
-
-	ret = adv7180_program_std(state);
-	if (ret)
-		goto out_unlock;
-
-	adv7180_set_field_mode(state);
-
-	/* register for interrupts */
-	if (state->irq > 0) {
-		/* config the Interrupt pin to be active low */
-		ret = adv7180_write(state, ADV7180_REG_ICONF1,
-						ADV7180_ICONF1_ACTIVE_LOW |
-						ADV7180_ICONF1_PSYNC_ONLY);
-		if (ret < 0)
-			goto out_unlock;
-
-		ret = adv7180_write(state, ADV7180_REG_IMR1, 0);
-		if (ret < 0)
-			goto out_unlock;
-
-		ret = adv7180_write(state, ADV7180_REG_IMR2, 0);
-		if (ret < 0)
-			goto out_unlock;
-
-		/* enable AD change interrupts interrupts */
-		ret = adv7180_write(state, ADV7180_REG_IMR3,
-						ADV7180_IRQ3_AD_CHANGE);
-		if (ret < 0)
-			goto out_unlock;
-
-		ret = adv7180_write(state, ADV7180_REG_IMR4, 0);
-		if (ret < 0)
-			goto out_unlock;
-	}
-
-out_unlock:
-	mutex_unlock(&state->mutex);
-
-	return ret;
-}
 
 static int adv7180_probe(struct i2c_client *client)
 {
