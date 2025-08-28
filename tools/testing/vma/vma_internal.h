@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 
+#include <linux/atomic.h>
 #include <linux/list.h>
 #include <linux/maple_tree.h>
 #include <linux/mm.h>
@@ -1398,15 +1399,8 @@ static inline bool map_deny_write_exec(unsigned long old, unsigned long new)
 
 static inline int mapping_map_writable(struct address_space *mapping)
 {
-	int c = atomic_read(&mapping->i_mmap_writable);
-
-	/* Derived from the raw_atomic_inc_unless_negative() implementation. */
-	do {
-		if (c < 0)
-			return -EPERM;
-	} while (!__sync_bool_compare_and_swap(&mapping->i_mmap_writable, c, c+1));
-
-	return 0;
+	return atomic_inc_unless_negative(&mapping->i_mmap_writable) ?
+		0 : -EPERM;
 }
 
 static inline unsigned long move_page_tables(struct pagetable_move_control *pmc)
