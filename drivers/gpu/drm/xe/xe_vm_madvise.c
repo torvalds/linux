@@ -18,9 +18,8 @@ struct xe_vmas_in_madvise_range {
 	u64 range;
 	struct xe_vma **vmas;
 	int num_vmas;
-	bool has_svm_vmas;
 	bool has_bo_vmas;
-	bool has_userptr_vmas;
+	bool has_svm_userptr_vmas;
 };
 
 static int get_vmas(struct xe_vm *vm, struct xe_vmas_in_madvise_range *madvise_range)
@@ -46,10 +45,8 @@ static int get_vmas(struct xe_vm *vm, struct xe_vmas_in_madvise_range *madvise_r
 
 		if (xe_vma_bo(vma))
 			madvise_range->has_bo_vmas = true;
-		else if (xe_vma_is_cpu_addr_mirror(vma))
-			madvise_range->has_svm_vmas = true;
-		else if (xe_vma_is_userptr(vma))
-			madvise_range->has_userptr_vmas = true;
+		else if (xe_vma_is_cpu_addr_mirror(vma) || xe_vma_is_userptr(vma))
+			madvise_range->has_svm_userptr_vmas = true;
 
 		if (madvise_range->num_vmas == max_vmas) {
 			max_vmas <<= 1;
@@ -409,16 +406,10 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 		}
 	}
 
-	if (madvise_range.has_userptr_vmas) {
-		err = down_read_interruptible(&vm->userptr.notifier_lock);
-		if (err)
-			goto err_fini;
-	}
-
-	if (madvise_range.has_svm_vmas) {
+	if (madvise_range.has_svm_userptr_vmas) {
 		err = down_read_interruptible(&vm->svm.gpusvm.notifier_lock);
 		if (err)
-			goto unlock_userptr;
+			goto err_fini;
 	}
 
 	attr_type = array_index_nospec(args->type, ARRAY_SIZE(madvise_funcs));
@@ -426,12 +417,9 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 
 	err = xe_vm_invalidate_madvise_range(vm, args->start, args->start + args->range);
 
-	if (madvise_range.has_svm_vmas)
+	if (madvise_range.has_svm_userptr_vmas)
 		xe_svm_notifier_unlock(vm);
 
-unlock_userptr:
-	if (madvise_range.has_userptr_vmas)
-		up_read(&vm->userptr.notifier_lock);
 err_fini:
 	if (madvise_range.has_bo_vmas)
 		drm_exec_fini(&exec);

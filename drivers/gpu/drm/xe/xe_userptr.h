@@ -12,6 +12,8 @@
 #include <linux/scatterlist.h>
 #include <linux/spinlock.h>
 
+#include <drm/drm_gpusvm.h>
+
 struct xe_vm;
 struct xe_vma;
 struct xe_userptr_vma;
@@ -24,11 +26,6 @@ struct xe_userptr_vm {
 	 */
 	struct list_head repin_list;
 	/**
-	 * @notifier_lock: protects notifier in write mode and
-	 * submission in read mode.o
-	 */
-	struct rw_semaphore notifier_lock;
-	/**
 	 * @userptr.invalidated_lock: Protects the
 	 * @userptr.invalidated list.
 	 */
@@ -39,7 +36,7 @@ struct xe_userptr_vm {
 	 * up for revalidation. Protected from access with the
 	 * @invalidated_lock. Removing items from the list
 	 * additionally requires @lock in write mode, and adding
-	 * items to the list requires either the @userptr.notifier_lock in
+	 * items to the list requires either the @svm.gpusvm.notifier_lock in
 	 * write mode, OR @lock in write mode.
 	 */
 	struct list_head invalidated;
@@ -52,30 +49,26 @@ struct xe_userptr {
 	/** @userptr: link into VM repin list if userptr. */
 	struct list_head repin_link;
 	/**
+	 * @pages: gpusvm pages for this user pointer.
+	 */
+	struct drm_gpusvm_pages pages;
+	/**
 	 * @notifier: MMU notifier for user pointer (invalidation call back)
 	 */
 	struct mmu_interval_notifier notifier;
-	/** @sgt: storage for a scatter gather table */
-	struct sg_table sgt;
-	/** @sg: allocated scatter gather table */
-	struct sg_table *sg;
-	/** @notifier_seq: notifier sequence number */
-	unsigned long notifier_seq;
-	/** @unmap_mutex: Mutex protecting dma-unmapping */
-	struct mutex unmap_mutex;
+
 	/**
 	 * @initial_bind: user pointer has been bound at least once.
-	 * write: vm->userptr.notifier_lock in read mode and vm->resv held.
-	 * read: vm->userptr.notifier_lock in write mode or vm->resv held.
+	 * write: vm->svm.gpusvm.notifier_lock in read mode and vm->resv held.
+	 * read: vm->svm.gpusvm.notifier_lock in write mode or vm->resv held.
 	 */
 	bool initial_bind;
-	/** @mapped: Whether the @sgt sg-table is dma-mapped. Protected by @unmap_mutex. */
-	bool mapped;
 #if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
 	u32 divisor;
 #endif
 };
 
+#if IS_ENABLED(CONFIG_DRM_GPUSVM)
 void xe_userptr_remove(struct xe_userptr_vma *uvma);
 int xe_userptr_setup(struct xe_userptr_vma *uvma, unsigned long start,
 		     unsigned long range);
@@ -86,6 +79,23 @@ int __xe_vm_userptr_needs_repin(struct xe_vm *vm);
 int xe_vm_userptr_check_repin(struct xe_vm *vm);
 int xe_vma_userptr_pin_pages(struct xe_userptr_vma *uvma);
 int xe_vma_userptr_check_repin(struct xe_userptr_vma *uvma);
+#else
+static inline void xe_userptr_remove(struct xe_userptr_vma *uvma) {}
+
+static inline int xe_userptr_setup(struct xe_userptr_vma *uvma,
+				   unsigned long start, unsigned long range)
+{
+	return -ENODEV;
+}
+
+static inline void xe_userptr_destroy(struct xe_userptr_vma *uvma) {}
+
+static inline int xe_vm_userptr_pin(struct xe_vm *vm) { return 0; }
+static inline int __xe_vm_userptr_needs_repin(struct xe_vm *vm) { return 0; }
+static inline int xe_vm_userptr_check_repin(struct xe_vm *vm) { return 0; }
+static inline int xe_vma_userptr_pin_pages(struct xe_userptr_vma *uvma) { return -ENODEV; }
+static inline int xe_vma_userptr_check_repin(struct xe_userptr_vma *uvma) { return -ENODEV; };
+#endif
 
 #if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
 void xe_vma_userptr_force_invalidate(struct xe_userptr_vma *uvma);
