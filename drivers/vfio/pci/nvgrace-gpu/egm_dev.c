@@ -17,6 +17,33 @@ int nvgrace_gpu_has_egm_property(struct pci_dev *pdev, u64 *pegmpxm)
 					pegmpxm);
 }
 
+int add_gpu(struct nvgrace_egm_dev *egm_dev, struct pci_dev *pdev)
+{
+	struct gpu_node *node;
+
+	node = kvzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
+
+	node->pdev = pdev;
+
+	list_add_tail(&node->list, &egm_dev->gpus);
+
+	return 0;
+}
+
+void remove_gpu(struct nvgrace_egm_dev *egm_dev, struct pci_dev *pdev)
+{
+	struct gpu_node *node, *tmp;
+
+	list_for_each_entry_safe(node, tmp, &egm_dev->gpus, list) {
+		if (node->pdev == pdev) {
+			list_del(&node->list);
+			kvfree(node);
+		}
+	}
+}
+
 static void nvgrace_gpu_release_aux_device(struct device *device)
 {
 	struct auxiliary_device *aux_dev = container_of(device, struct auxiliary_device, dev);
@@ -37,6 +64,8 @@ nvgrace_gpu_create_aux_device(struct pci_dev *pdev, const char *name,
 		goto create_err;
 
 	egm_dev->egmpxm = egmpxm;
+	INIT_LIST_HEAD(&egm_dev->gpus);
+
 	egm_dev->aux_dev.id = egmpxm;
 	egm_dev->aux_dev.name = name;
 	egm_dev->aux_dev.dev.release = nvgrace_gpu_release_aux_device;

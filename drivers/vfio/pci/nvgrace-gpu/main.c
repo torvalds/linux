@@ -79,6 +79,17 @@ static int nvgrace_gpu_create_egm_aux_device(struct pci_dev *pdev)
 	if (nvgrace_gpu_has_egm_property(pdev, &egmpxm))
 		goto exit;
 
+	list_for_each_entry(egm_entry, &egm_dev_list, list) {
+		/*
+		 * A system could have multiple GPUs associated with an
+		 * EGM region and will have the same set of EGM region
+		 * information. Skip the EGM region information fetch if
+		 * already done through a differnt GPU on the same socket.
+		 */
+		if (egm_entry->egm_dev->egmpxm == egmpxm)
+			goto add_gpu;
+	}
+
 	egm_entry = kvzalloc(sizeof(*egm_entry), GFP_KERNEL);
 	if (!egm_entry)
 		return -ENOMEM;
@@ -94,6 +105,10 @@ static int nvgrace_gpu_create_egm_aux_device(struct pci_dev *pdev)
 
 	list_add_tail(&egm_entry->list, &egm_dev_list);
 
+add_gpu:
+	ret = add_gpu(egm_entry->egm_dev, pdev);
+	if (ret)
+		remove_gpu(egm_entry->egm_dev, pdev);
 exit:
 	return ret;
 }
@@ -112,6 +127,10 @@ static void nvgrace_gpu_destroy_egm_aux_device(struct pci_dev *pdev)
 		 * device.
 		 */
 		if (egm_entry->egm_dev->egmpxm == egmpxm) {
+			remove_gpu(egm_entry->egm_dev, pdev);
+			if (!list_empty(&egm_entry->egm_dev->gpus))
+				break;
+
 			auxiliary_device_destroy(&egm_entry->egm_dev->aux_dev);
 			list_del(&egm_entry->list);
 			kvfree(egm_entry);

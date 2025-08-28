@@ -10,9 +10,15 @@
 
 #define NVGRACE_EGM_DEV_NAME "egm"
 
+struct gpu_node {
+	struct list_head list;
+	struct pci_dev *pdev;
+};
+
 struct nvgrace_egm_dev {
 	struct auxiliary_device aux_dev;
 	u64 egmpxm;
+	struct list_head gpus;
 };
 
 struct nvgrace_egm_dev_entry {

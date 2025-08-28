@@ -10,6 +10,10 @@
 
 int nvgrace_gpu_has_egm_property(struct pci_dev *pdev, u64 *pegmpxm);
 
+int add_gpu(struct nvgrace_egm_dev *egm_dev, struct pci_dev *pdev);
+
+void remove_gpu(struct nvgrace_egm_dev *egm_dev, struct pci_dev *pdev);
+
 struct nvgrace_egm_dev *
 nvgrace_gpu_create_aux_device(struct pci_dev *pdev, const char *name,
 			      u64 egmphys);
