@@ -384,8 +384,6 @@ void ath12k_dp_rx_peer_tid_delete(struct ath12k *ar,
 int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_id,
 				u8 tid, u32 ba_win_sz, u16 ssn,
 				enum hal_pn_type pn_type);
-void ath12k_dp_htt_htc_t2h_msg_handler(struct ath12k_base *ab,
-				       struct sk_buff *skb);
 int ath12k_dp_rx_pdev_reo_setup(struct ath12k_base *ab);
 void ath12k_dp_rx_pdev_reo_cleanup(struct ath12k_base *ab);
 int ath12k_dp_rx_htt_setup(struct ath12k_base *ab);
@@ -410,10 +408,6 @@ u8 ath12k_dp_rx_h_decap_type(struct ath12k_base *ab,
 			     struct hal_rx_desc *desc);
 u32 ath12k_dp_rx_h_mpdu_err(struct ath12k_base *ab,
 			    struct hal_rx_desc *desc);
-int ath12k_dp_htt_tlv_iter(struct ath12k_base *ab, const void *ptr, size_t len,
-			   int (*iter)(struct ath12k_base *ar, u16 tag, u16 len,
-				       const void *ptr, void *data),
-			   void *data);
 void ath12k_dp_rx_h_fetch_info(struct ath12k_base *ab,  struct hal_rx_desc *rx_desc,
 			       struct ath12k_dp_rx_info *rx_info);
 

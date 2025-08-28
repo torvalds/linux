@@ -10,6 +10,7 @@ ath12k-y += core.o \
 	    dp.o  \
 	    dp_tx.o \
 	    dp_rx.o \
+	    dp_htt.o \
 	    debug.o \
 	    ce.o \
 	    peer.o \

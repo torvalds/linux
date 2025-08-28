@@ -1514,4 +1514,10 @@ struct htt_mac_addr {
 	__le32 mac_addr_h16;
 } __packed;
 
+int ath12k_dp_htt_tlv_iter(struct ath12k_base *ab, const void *ptr, size_t len,
+			   int (*iter)(struct ath12k_base *ar, u16 tag, u16 len,
+				       const void *ptr, void *data),
+				       void *data);
+void ath12k_dp_htt_htc_t2h_msg_handler(struct ath12k_base *ab,
+				       struct sk_buff *skb);
 #endif
