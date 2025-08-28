@@ -468,22 +468,18 @@ static int adv7180_program_std(struct adv7180_state *state)
 static int adv7180_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct adv7180_state *state = to_state(sd);
-	int ret = mutex_lock_interruptible(&state->mutex);
+	int ret;
 
-	if (ret)
-		return ret;
+	guard(mutex)(&state->mutex);
 
 	/* Make sure we can support this std */
 	ret = v4l2_std_to_adv7180(std);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	state->curr_norm = std;
 
-	ret = adv7180_program_std(state);
-out:
-	mutex_unlock(&state->mutex);
-	return ret;
+	return 0;
 }
 
 static int adv7180_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
