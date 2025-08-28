@@ -933,6 +933,19 @@ static void kvm_sev_hc_page_enc_status(unsigned long pfn, int npages, bool enc)
 
 static void __init kvm_init_platform(void)
 {
+	u64 tolud = PFN_PHYS(e820__end_of_low_ram_pfn());
+	/*
+	 * Note, hardware requires variable MTRR ranges to be power-of-2 sized
+	 * and naturally aligned.  But when forcing guest MTRR state, Linux
+	 * doesn't program the forced ranges into hardware.  Don't bother doing
+	 * the math to generate a technically-legal range.
+	 */
+	struct mtrr_var_range pci_hole = {
+		.base_lo = tolud | X86_MEMTYPE_UC,
+		.mask_lo = (u32)(~(SZ_4G - tolud - 1)) | MTRR_PHYSMASK_V,
+		.mask_hi = (BIT_ULL(boot_cpu_data.x86_phys_bits) - 1) >> 32,
+	};
+
 	if (cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT) &&
 	    kvm_para_has_feature(KVM_FEATURE_MIGRATION_CONTROL)) {
 		unsigned long nr_pages;
@@ -982,8 +995,12 @@ static void __init kvm_init_platform(void)
 	kvmclock_init();
 	x86_platform.apic_post_init = kvm_apic_init;
 
-	/* Set WB as the default cache mode for SEV-SNP and TDX */
-	guest_force_mtrr_state(NULL, 0, MTRR_TYPE_WRBACK);
+	/*
+	 * Set WB as the default cache mode for SEV-SNP and TDX, with a single
+	 * UC range for the legacy PCI hole, e.g. so that devices that expect
+	 * to get UC/WC mappings don't get surprised with WB.
+	 */
+	guest_force_mtrr_state(&pci_hole, 1, MTRR_TYPE_WRBACK);
 }
 
 #if defined(CONFIG_AMD_MEM_ENCRYPT)
