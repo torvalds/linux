@@ -10,6 +10,7 @@
 	aliases {
 		mmc0 = &sdh2; /* eMMC */
 		mmc1 = &sdh0; /* SD card */
+		mmc2 = &sdh1; /* SDIO */
 		serial0 = &uart0;
 	};
 
@@ -286,6 +287,68 @@
 		pinctrl-single,input-schmitt-enable = <0x40 0 0x40 0x40>;
 		pinctrl-single,low-power-mode = <0x208 0x388>;
 	};
+
+	sdh1_pins_0: sdh1-pins-0 {
+		pinctrl-single,pins = <
+			0x170 1
+			0x174 1
+			0x178 1
+			0x17c 1
+			0x180 1
+		>;
+		pinctrl-single,drive-strength = <0x1000 0x1800>;
+		pinctrl-single,bias-pullup = <0 0xc000 0 0xc000>;
+		pinctrl-single,bias-pulldown = <0 0xa000 0 0xa000>;
+		pinctrl-single,input-schmitt = <0 0x30>;
+		pinctrl-single,input-schmitt-enable = <0x40 0 0x40 0x40>;
+		pinctrl-single,low-power-mode = <0 0x388>;
+	};
+
+	sdh1_pins_1: sdh1-pins-1 {
+		pinctrl-single,pins = <0x184 1>;
+		pinctrl-single,drive-strength = <0 0x1800>;
+		pinctrl-single,bias-pullup = <0 0xc000 0 0xc000>;
+		pinctrl-single,bias-pulldown = <0 0xa000 0 0xa000>;
+		pinctrl-single,input-schmitt = <0 0x30>;
+		pinctrl-single,input-schmitt-enable = <0x40 0 0x40 0x40>;
+		pinctrl-single,low-power-mode = <0x208 0x388>;
+	};
+
+	sdh1_pins_2: sdh1-pins-2 {
+		pinctrl-single,pins = <0xec 0>;
+		pinctrl-single,drive-strength = <0x1000 0x1800>;
+		pinctrl-single,bias-pullup = <0x8000 0x8000 0 0xc000>;
+		pinctrl-single,bias-pulldown = <0x8000 0x8000 0 0xa000>;
+		pinctrl-single,input-schmitt = <0 0x30>;
+		pinctrl-single,input-schmitt-enable = <0x40 0 0x40 0x40>;
+		pinctrl-single,low-power-mode = <0 0x388>;
+	};
+
+	sdh1_fast_pins_0: sdh1-fast-pins-0 {
+		pinctrl-single,pins = <
+			0x170 1
+			0x174 1
+			0x178 1
+			0x17c 1
+			0x180 1
+		>;
+		pinctrl-single,drive-strength = <0x1800 0x1800>;
+		pinctrl-single,bias-pullup = <0 0xc000 0 0xc000>;
+		pinctrl-single,bias-pulldown = <0 0xa000 0 0xa000>;
+		pinctrl-single,input-schmitt = <0 0x30>;
+		pinctrl-single,input-schmitt-enable = <0x40 0 0x40 0x40>;
+		pinctrl-single,low-power-mode = <0 0x388>;
+	};
+
+	sdh1_fast_pins_1: sdh1-fast-pins-1 {
+		pinctrl-single,pins = <0x184 1>;
+		pinctrl-single,drive-strength = <0x1800 0x1800>;
+		pinctrl-single,bias-pullup = <0 0xc000 0 0xc000>;
+		pinctrl-single,bias-pulldown = <0 0xa000 0 0xa000>;
+		pinctrl-single,input-schmitt = <0 0x30>;
+		pinctrl-single,input-schmitt-enable = <0x40 0 0x40 0x40>;
+		pinctrl-single,low-power-mode = <0x208 0x388>;
+	};
 };
 
 &uart0 {
@@ -366,4 +429,12 @@
 	wp-inverted;
 	vmmc-supply = <&ldo14>;
 	vqmmc-supply = <&ldo6>;
+};
+
+&sdh1 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&sdh1_pins_0 &sdh1_pins_1 &sdh1_pins_2>;
+	pinctrl-1 = <&sdh1_fast_pins_0 &sdh1_fast_pins_1 &sdh1_pins_2>;
+	bus-width = <4>;
+	non-removable;
 };
