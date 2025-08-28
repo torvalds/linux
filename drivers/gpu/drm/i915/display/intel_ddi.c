@@ -2340,34 +2340,24 @@ static void intel_dp_sink_set_fec_ready(struct intel_dp *intel_dp,
 		drm_dbg_kms(display->drm, "Failed to clear FEC detected flags\n");
 }
 
-static int read_fec_detected_status(struct drm_dp_aux *aux)
-{
-	int ret;
-	u8 status;
-
-	ret = drm_dp_dpcd_readb(aux, DP_FEC_STATUS, &status);
-	if (ret < 0)
-		return ret;
-
-	return status;
-}
-
 static int wait_for_fec_detected(struct drm_dp_aux *aux, bool enabled)
 {
 	struct intel_display *display = to_intel_display(aux->drm_dev);
 	int mask = enabled ? DP_FEC_DECODE_EN_DETECTED : DP_FEC_DECODE_DIS_DETECTED;
-	int status;
-	int err;
+	u8 status = 0;
+	int ret, err;
 
-	err = readx_poll_timeout(read_fec_detected_status, aux, status,
-				 status & mask || status < 0,
-				 10000, 200000);
+	ret = poll_timeout_us(err = drm_dp_dpcd_read_byte(aux, DP_FEC_STATUS, &status),
+			      err || (status & mask),
+			      10 * 1000, 200 * 1000, false);
 
-	if (err || status < 0) {
+	/* Either can be non-zero, but not both */
+	ret = ret ?: err;
+	if (ret) {
 		drm_dbg_kms(display->drm,
-			    "Failed waiting for FEC %s to get detected: %d (status %d)\n",
-			    str_enabled_disabled(enabled), err, status);
-		return err ? err : status;
+			    "Failed waiting for FEC %s to get detected: %d (status 0x%02x)\n",
+			    str_enabled_disabled(enabled), ret, status);
+		return ret;
 	}
 
 	return 0;
