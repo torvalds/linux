@@ -220,12 +220,6 @@ static inline bool xe_vm_in_preempt_fence_mode(struct xe_vm *vm)
 int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q);
 void xe_vm_remove_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q);
 
-int xe_vm_userptr_pin(struct xe_vm *vm);
-
-int __xe_vm_userptr_needs_repin(struct xe_vm *vm);
-
-int xe_vm_userptr_check_repin(struct xe_vm *vm);
-
 int xe_vm_rebind(struct xe_vm *vm, bool rebind_worker);
 struct dma_fence *xe_vma_rebind(struct xe_vm *vm, struct xe_vma *vma,
 				u8 tile_mask);
@@ -265,10 +259,6 @@ static inline void xe_vm_reactivate_rebind(struct xe_vm *vm)
 		xe_vm_queue_rebind_worker(vm);
 	}
 }
-
-int xe_vma_userptr_pin_pages(struct xe_userptr_vma *uvma);
-
-int xe_vma_userptr_check_repin(struct xe_userptr_vma *uvma);
 
 bool xe_vm_validate_should_retry(struct drm_exec *exec, int err, ktime_t *end);
 
@@ -391,11 +381,4 @@ static inline bool xe_vm_is_validating(struct xe_vm *vm)
 #define xe_vm_has_valid_gpu_mapping(tile, tile_present, tile_invalidated)	\
 	((READ_ONCE(tile_present) & ~READ_ONCE(tile_invalidated)) & BIT((tile)->id))
 
-#if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
-void xe_vma_userptr_force_invalidate(struct xe_userptr_vma *uvma);
-#else
-static inline void xe_vma_userptr_force_invalidate(struct xe_userptr_vma *uvma)
-{
-}
-#endif
 #endif

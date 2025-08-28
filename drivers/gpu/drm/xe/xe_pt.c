@@ -24,6 +24,7 @@
 #include "xe_tlb_inval_job.h"
 #include "xe_trace.h"
 #include "xe_ttm_stolen_mgr.h"
+#include "xe_userptr.h"
 #include "xe_vm.h"
 
 struct xe_pt_dir {
