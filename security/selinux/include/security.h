@@ -203,6 +203,12 @@ static inline bool selinux_policycap_netlink_xperm(void)
 		selinux_state.policycap[POLICYDB_CAP_NETLINK_XPERM]);
 }
 
+static inline bool selinux_policycap_functionfs_seclabel(void)
+{
+	return READ_ONCE(
+		selinux_state.policycap[POLICYDB_CAP_FUNCTIONFS_SECLABEL]);
+}
+
 struct selinux_policy_convert_data;
 
 struct selinux_load_state {
