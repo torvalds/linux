@@ -857,8 +857,15 @@ int pci_claim_bridge_resource(struct pci_dev *bridge, int i)
 	if ((bridge->class >> 8) != PCI_CLASS_BRIDGE_PCI)
 		return 0;
 
+	if (i > PCI_BRIDGE_PREF_MEM_WINDOW)
+		return -EINVAL;
+
+	/* Try to clip the resource and claim the smaller window */
 	if (!pci_bus_clip_resource(bridge, i))
 		return -EINVAL;	/* Clipping didn't change anything */
+
+	if (!pci_claim_resource(bridge, i))
+		return -EINVAL;
 
 	switch (i) {
 	case PCI_BRIDGE_IO_WINDOW:
@@ -874,10 +881,7 @@ int pci_claim_bridge_resource(struct pci_dev *bridge, int i)
 		return -EINVAL;
 	}
 
-	if (pci_claim_resource(bridge, i) == 0)
-		return 0;	/* Claimed a smaller window */
-
-	return -EINVAL;
+	return 0;
 }
 
 /*
