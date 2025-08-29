@@ -707,7 +707,6 @@ static void snd_cs46xx_proc_stop(struct snd_cs46xx *chip)
 
 static void snd_cs46xx_set_play_sample_rate(struct snd_cs46xx *chip, unsigned int rate)
 {
-	unsigned long flags;
 	unsigned int tmp1, tmp2;
 	unsigned int phiIncr;
 	unsigned int correctionPerGOF, correctionPerSec;
@@ -744,16 +743,14 @@ static void snd_cs46xx_set_play_sample_rate(struct snd_cs46xx *chip, unsigned in
 	/*
 	 *  Fill in the SampleRateConverter control block.
 	 */
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	snd_cs46xx_poke(chip, BA1_PSRC,
 	  ((correctionPerSec << 16) & 0xFFFF0000) | (correctionPerGOF & 0xFFFF));
 	snd_cs46xx_poke(chip, BA1_PPI, phiIncr);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
 static void snd_cs46xx_set_capture_sample_rate(struct snd_cs46xx *chip, unsigned int rate)
 {
-	unsigned long flags;
 	unsigned int phiIncr, coeffIncr, tmp1, tmp2;
 	unsigned int correctionPerGOF, correctionPerSec, initialDelay;
 	unsigned int frameGroupLength, cnt;
@@ -818,14 +815,14 @@ static void snd_cs46xx_set_capture_sample_rate(struct snd_cs46xx *chip, unsigned
 	/*
 	 *  Fill in the VariDecimate control block.
 	 */
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	snd_cs46xx_poke(chip, BA1_CSRC,
-		((correctionPerSec << 16) & 0xFFFF0000) | (correctionPerGOF & 0xFFFF));
-	snd_cs46xx_poke(chip, BA1_CCI, coeffIncr);
-	snd_cs46xx_poke(chip, BA1_CD,
-		(((BA1_VARIDEC_BUF_1 + (initialDelay << 2)) << 16) & 0xFFFF0000) | 0x80);
-	snd_cs46xx_poke(chip, BA1_CPI, phiIncr);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->reg_lock) {
+		snd_cs46xx_poke(chip, BA1_CSRC,
+			((correctionPerSec << 16) & 0xFFFF0000) | (correctionPerGOF & 0xFFFF));
+		snd_cs46xx_poke(chip, BA1_CCI, coeffIncr);
+		snd_cs46xx_poke(chip, BA1_CD,
+			(((BA1_VARIDEC_BUF_1 + (initialDelay << 2)) << 16) & 0xFFFF0000) | 0x80);
+		snd_cs46xx_poke(chip, BA1_CPI, phiIncr);
+	}
 
 	/*
 	 *  Figure out the frame group length for the write back task.  Basically,
@@ -848,13 +845,12 @@ static void snd_cs46xx_set_capture_sample_rate(struct snd_cs46xx *chip, unsigned
 	/*
 	 * Fill in the WriteBack control block.
 	 */
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	snd_cs46xx_poke(chip, BA1_CFG1, frameGroupLength);
 	snd_cs46xx_poke(chip, BA1_CFG2, (0x00800000 | frameGroupLength));
 	snd_cs46xx_poke(chip, BA1_CCST, 0x0000FFFF);
 	snd_cs46xx_poke(chip, BA1_CSPB, ((65536 * rate) / 24000));
 	snd_cs46xx_poke(chip, (BA1_CSPB + 4), 0x0000FFFF);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
 /*
@@ -969,15 +965,14 @@ static int snd_cs46xx_playback_trigger(struct snd_pcm_substream *substream,
 		if (substream->runtime->periods != CS46XX_FRAGS)
 			snd_cs46xx_playback_transfer(substream);
 #else
-		spin_lock(&chip->reg_lock);
-		if (substream->runtime->periods != CS46XX_FRAGS)
-			snd_cs46xx_playback_transfer(substream);
-		{ unsigned int tmp;
-		tmp = snd_cs46xx_peek(chip, BA1_PCTL);
-		tmp &= 0x0000ffff;
-		snd_cs46xx_poke(chip, BA1_PCTL, chip->play_ctl | tmp);
+		scoped_guard(spinlock, &chip->reg_lock) {
+			unsigned int tmp;
+			if (substream->runtime->periods != CS46XX_FRAGS)
+				snd_cs46xx_playback_transfer(substream);
+			tmp = snd_cs46xx_peek(chip, BA1_PCTL);
+			tmp &= 0x0000ffff;
+			snd_cs46xx_poke(chip, BA1_PCTL, chip->play_ctl | tmp);
 		}
-		spin_unlock(&chip->reg_lock);
 #endif
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -990,13 +985,12 @@ static int snd_cs46xx_playback_trigger(struct snd_pcm_substream *substream,
 		if (!cpcm->pcm_channel->unlinked)
 			cs46xx_dsp_pcm_unlink(chip,cpcm->pcm_channel);
 #else
-		spin_lock(&chip->reg_lock);
-		{ unsigned int tmp;
-		tmp = snd_cs46xx_peek(chip, BA1_PCTL);
-		tmp &= 0x0000ffff;
-		snd_cs46xx_poke(chip, BA1_PCTL, tmp);
+		scoped_guard(spinlock, &chip->reg_lock) {
+			unsigned int tmp;
+			tmp = snd_cs46xx_peek(chip, BA1_PCTL);
+			tmp &= 0x0000ffff;
+			snd_cs46xx_poke(chip, BA1_PCTL, tmp);
 		}
-		spin_unlock(&chip->reg_lock);
 #endif
 		break;
 	default:
@@ -1012,9 +1006,8 @@ static int snd_cs46xx_capture_trigger(struct snd_pcm_substream *substream,
 {
 	struct snd_cs46xx *chip = snd_pcm_substream_chip(substream);
 	unsigned int tmp;
-	int result = 0;
 
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -1029,12 +1022,9 @@ static int snd_cs46xx_capture_trigger(struct snd_pcm_substream *substream,
 		snd_cs46xx_poke(chip, BA1_CCTL, tmp);
 		break;
 	default:
-		result = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	spin_unlock(&chip->reg_lock);
-
-	return result;
+	return 0;
 }
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
@@ -1371,7 +1361,7 @@ static irqreturn_t snd_cs46xx_interrupt(int irq, void *dev_id)
 	if ((status1 & HISR_MIDI) && chip->rmidi) {
 		unsigned char c;
 		
-		spin_lock(&chip->reg_lock);
+		guard(spinlock)(&chip->reg_lock);
 		while ((snd_cs46xx_peekBA0(chip, BA0_MIDSR) & MIDSR_RBE) == 0) {
 			c = snd_cs46xx_peekBA0(chip, BA0_MIDRP);
 			if ((chip->midcr & MIDCR_RIE) == 0)
@@ -1388,7 +1378,6 @@ static irqreturn_t snd_cs46xx_interrupt(int irq, void *dev_id)
 			}
 			snd_cs46xx_pokeBA0(chip, BA0_MIDWP, c);
 		}
-		spin_unlock(&chip->reg_lock);
 	}
 	/*
 	 *  EOI to the PCI part....reenables interrupts
@@ -2509,7 +2498,7 @@ static int snd_cs46xx_midi_input_open(struct snd_rawmidi_substream *substream)
 	struct snd_cs46xx *chip = substream->rmidi->private_data;
 
 	chip->active_ctrl(chip, 1);
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	chip->uartm |= CS46XX_MODE_INPUT;
 	chip->midcr |= MIDCR_RXE;
 	chip->midi_input = substream;
@@ -2518,7 +2507,6 @@ static int snd_cs46xx_midi_input_open(struct snd_rawmidi_substream *substream)
 	} else {
 		snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
 	}
-	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
@@ -2526,16 +2514,16 @@ static int snd_cs46xx_midi_input_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_cs46xx *chip = substream->rmidi->private_data;
 
-	spin_lock_irq(&chip->reg_lock);
-	chip->midcr &= ~(MIDCR_RXE | MIDCR_RIE);
-	chip->midi_input = NULL;
-	if (!(chip->uartm & CS46XX_MODE_OUTPUT)) {
-		snd_cs46xx_midi_reset(chip);
-	} else {
-		snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
+	scoped_guard(spinlock_irq, &chip->reg_lock) {
+		chip->midcr &= ~(MIDCR_RXE | MIDCR_RIE);
+		chip->midi_input = NULL;
+		if (!(chip->uartm & CS46XX_MODE_OUTPUT)) {
+			snd_cs46xx_midi_reset(chip);
+		} else {
+			snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
+		}
+		chip->uartm &= ~CS46XX_MODE_INPUT;
 	}
-	chip->uartm &= ~CS46XX_MODE_INPUT;
-	spin_unlock_irq(&chip->reg_lock);
 	chip->active_ctrl(chip, -1);
 	return 0;
 }
@@ -2546,7 +2534,7 @@ static int snd_cs46xx_midi_output_open(struct snd_rawmidi_substream *substream)
 
 	chip->active_ctrl(chip, 1);
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	chip->uartm |= CS46XX_MODE_OUTPUT;
 	chip->midcr |= MIDCR_TXE;
 	chip->midi_output = substream;
@@ -2555,7 +2543,6 @@ static int snd_cs46xx_midi_output_open(struct snd_rawmidi_substream *substream)
 	} else {
 		snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
 	}
-	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
@@ -2563,26 +2550,25 @@ static int snd_cs46xx_midi_output_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_cs46xx *chip = substream->rmidi->private_data;
 
-	spin_lock_irq(&chip->reg_lock);
-	chip->midcr &= ~(MIDCR_TXE | MIDCR_TIE);
-	chip->midi_output = NULL;
-	if (!(chip->uartm & CS46XX_MODE_INPUT)) {
-		snd_cs46xx_midi_reset(chip);
-	} else {
-		snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
+	scoped_guard(spinlock_irq, &chip->reg_lock) {
+		chip->midcr &= ~(MIDCR_TXE | MIDCR_TIE);
+		chip->midi_output = NULL;
+		if (!(chip->uartm & CS46XX_MODE_INPUT)) {
+			snd_cs46xx_midi_reset(chip);
+		} else {
+			snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
+		}
+		chip->uartm &= ~CS46XX_MODE_OUTPUT;
 	}
-	chip->uartm &= ~CS46XX_MODE_OUTPUT;
-	spin_unlock_irq(&chip->reg_lock);
 	chip->active_ctrl(chip, -1);
 	return 0;
 }
 
 static void snd_cs46xx_midi_input_trigger(struct snd_rawmidi_substream *substream, int up)
 {
-	unsigned long flags;
 	struct snd_cs46xx *chip = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	if (up) {
 		if ((chip->midcr & MIDCR_RIE) == 0) {
 			chip->midcr |= MIDCR_RIE;
@@ -2594,16 +2580,14 @@ static void snd_cs46xx_midi_input_trigger(struct snd_rawmidi_substream *substrea
 			snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
 		}
 	}
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
 static void snd_cs46xx_midi_output_trigger(struct snd_rawmidi_substream *substream, int up)
 {
-	unsigned long flags;
 	struct snd_cs46xx *chip = substream->rmidi->private_data;
 	unsigned char byte;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	if (up) {
 		if ((chip->midcr & MIDCR_TIE) == 0) {
 			chip->midcr |= MIDCR_TIE;
@@ -2624,7 +2608,6 @@ static void snd_cs46xx_midi_output_trigger(struct snd_rawmidi_substream *substre
 			snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
 		}
 	}
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
 static const struct snd_rawmidi_ops snd_cs46xx_midi_output =

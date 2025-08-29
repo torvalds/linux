@@ -1696,7 +1696,7 @@ int cs46xx_dsp_enable_spdif_in (struct snd_cs46xx *chip)
 								ins->spdif_in_src,
 								SCB_ON_PARENT_SUBLIST_SCB);
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 
 	/* reset SPDIF input sample buffer pointer */
 	/*snd_cs46xx_poke (chip, (SPDIFI_SCB_INST + 0x0c) << 2,
@@ -1708,8 +1708,6 @@ int cs46xx_dsp_enable_spdif_in (struct snd_cs46xx *chip)
 
 	/* unmute SRC volume */
 	cs46xx_dsp_scb_set_volume (chip,ins->spdif_in_src,0x7fff,0x7fff);
-
-	spin_unlock_irq(&chip->reg_lock);
 
 	/* set SPDIF input sample rate and unmute
 	   NOTE: only 48khz support for SPDIF input this time */
