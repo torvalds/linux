@@ -473,8 +473,6 @@ static void __assign_resources_sorted(struct list_head *head,
 	struct pci_dev_resource *dev_res, *tmp_res, *dev_res2;
 	struct resource *res;
 	struct pci_dev *dev;
-	const char *res_name;
-	int idx;
 	unsigned long fail_type;
 	resource_size_t add_align, align;
 
@@ -582,14 +580,7 @@ assign:
 		res = dev_res->res;
 		dev = dev_res->dev;
 
-		if (!res->parent)
-			continue;
-
-		idx = pci_resource_num(dev, res);
-		res_name = pci_resource_name(dev, idx);
-		pci_dbg(dev, "%s %pR: releasing\n", res_name, res);
-
-		release_resource(res);
+		pci_release_resource(dev, pci_resource_num(dev, res));
 		restore_dev_resource(dev_res);
 	}
 	/* Restore start/end/flags from saved list */
@@ -1732,7 +1723,7 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 	struct resource *r;
 	unsigned int old_flags;
 	struct resource *b_res;
-	int idx = 1;
+	int idx, ret;
 
 	b_res = &dev->resource[PCI_BRIDGE_RESOURCES];
 
@@ -1766,21 +1757,18 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 
 	/* If there are children, release them all */
 	release_child_resources(r);
-	if (!release_resource(r)) {
-		type = old_flags = r->flags & PCI_RES_TYPE_MASK;
-		pci_info(dev, "resource %d %pR released\n",
-			 PCI_BRIDGE_RESOURCES + idx, r);
-		/* Keep the old size */
-		resource_set_range(r, 0, resource_size(r));
-		r->flags = 0;
 
-		/* Avoiding touch the one without PREF */
-		if (type & IORESOURCE_PREFETCH)
-			type = IORESOURCE_PREFETCH;
-		__pci_setup_bridge(bus, type);
-		/* For next child res under same bridge */
-		r->flags = old_flags;
-	}
+	type = old_flags = r->flags & PCI_RES_TYPE_MASK;
+	ret = pci_release_resource(dev, PCI_BRIDGE_RESOURCES + idx);
+	if (ret)
+		return;
+
+	/* Avoiding touch the one without PREF */
+	if (type & IORESOURCE_PREFETCH)
+		type = IORESOURCE_PREFETCH;
+	__pci_setup_bridge(bus, type);
+	/* For next child res under same bridge */
+	r->flags = old_flags;
 }
 
 enum release_type {
@@ -2425,7 +2413,6 @@ int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
 		for (i = PCI_BRIDGE_RESOURCES; i < PCI_BRIDGE_RESOURCE_END;
 		     i++) {
 			struct resource *res = &bridge->resource[i];
-			const char *res_name = pci_resource_name(bridge, i);
 
 			if ((res->flags ^ type) & PCI_RES_TYPE_MASK)
 				continue;
@@ -2438,12 +2425,7 @@ int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
 			if (ret)
 				goto cleanup;
 
-			pci_info(bridge, "%s %pR: releasing\n", res_name, res);
-
-			if (res->parent)
-				release_resource(res);
-			res->start = 0;
-			res->end = 0;
+			pci_release_resource(bridge, i);
 			break;
 		}
 		if (i == PCI_BRIDGE_RESOURCE_END)
