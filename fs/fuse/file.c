@@ -865,22 +865,20 @@ static void fuse_readpages_end(struct fuse_mount *fm, struct fuse_args *args,
 	struct fuse_args_pages *ap = &ia->ap;
 	size_t count = ia->read.in.size;
 	size_t num_read = args->out_args[0].size;
-	struct address_space *mapping = NULL;
+	struct address_space *mapping;
+	struct inode *inode;
 
-	for (i = 0; mapping == NULL && i < ap->num_folios; i++)
-		mapping = ap->folios[i]->mapping;
+	WARN_ON_ONCE(!ap->num_folios);
+	mapping = ap->folios[0]->mapping;
+	inode = mapping->host;
 
-	if (mapping) {
-		struct inode *inode = mapping->host;
+	/*
+	 * Short read means EOF. If file size is larger, truncate it
+	 */
+	if (!err && num_read < count)
+		fuse_short_read(inode, ia->read.attr_ver, num_read, ap);
 
-		/*
-		 * Short read means EOF. If file size is larger, truncate it
-		 */
-		if (!err && num_read < count)
-			fuse_short_read(inode, ia->read.attr_ver, num_read, ap);
-
-		fuse_invalidate_atime(inode);
-	}
+	fuse_invalidate_atime(inode);
 
 	for (i = 0; i < ap->num_folios; i++) {
 		folio_end_read(ap->folios[i], !err);
