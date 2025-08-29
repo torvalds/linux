@@ -1,0 +1,6 @@
+kfuzztest-bridge-y += bridge.o
+kfuzztest-bridge-y += byte_buffer.o
+kfuzztest-bridge-y += encoder.o
+kfuzztest-bridge-y += input_lexer.o
+kfuzztest-bridge-y += input_parser.o
+kfuzztest-bridge-y += rand_stream.o
