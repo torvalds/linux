@@ -67,7 +67,6 @@ static inline u32 ping_hashfn(const struct net *net, u32 num, u32 mask)
 	pr_debug("hash(%u) = %u\n", num, res);
 	return res;
 }
-EXPORT_SYMBOL_GPL(ping_hash);
 
 static inline struct hlist_head *ping_hashslot(struct ping_table *table,
 					       struct net *net, unsigned int num)
@@ -143,14 +142,6 @@ fail:
 	return -EADDRINUSE;
 }
 EXPORT_SYMBOL_GPL(ping_get_port);
-
-int ping_hash(struct sock *sk)
-{
-	pr_debug("ping_hash(sk->port=%u)\n", inet_sk(sk)->inet_num);
-	BUG(); /* "Please do not press this button again." */
-
-	return 0;
-}
 
 void ping_unhash(struct sock *sk)
 {
@@ -1008,7 +999,6 @@ struct proto ping_prot = {
 	.bind =		ping_bind,
 	.backlog_rcv =	ping_queue_rcv_skb,
 	.release_cb =	ip4_datagram_release_cb,
-	.hash =		ping_hash,
 	.unhash =	ping_unhash,
 	.get_port =	ping_get_port,
 	.put_port =	ping_unhash,
