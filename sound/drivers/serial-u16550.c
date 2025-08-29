@@ -281,29 +281,24 @@ static irqreturn_t snd_uart16550_interrupt(int irq, void *dev_id)
 	struct snd_uart16550 *uart;
 
 	uart = dev_id;
-	spin_lock(&uart->open_lock);
-	if (uart->filemode == SERIAL_MODE_NOT_OPENED) {
-		spin_unlock(&uart->open_lock);
+	guard(spinlock)(&uart->open_lock);
+	if (uart->filemode == SERIAL_MODE_NOT_OPENED)
 		return IRQ_NONE;
-	}
 	/* indicate to the UART that the interrupt has been serviced */
 	inb(uart->base + UART_IIR);
 	snd_uart16550_io_loop(uart);
-	spin_unlock(&uart->open_lock);
 	return IRQ_HANDLED;
 }
 
 /* When the polling mode, this function calls snd_uart16550_io_loop. */
 static void snd_uart16550_buffer_timer(struct timer_list *t)
 {
-	unsigned long flags;
 	struct snd_uart16550 *uart;
 
 	uart = timer_container_of(uart, t, buffer_timer);
-	spin_lock_irqsave(&uart->open_lock, flags);
+	guard(spinlock_irqsave)(&uart->open_lock);
 	snd_uart16550_del_timer(uart);
 	snd_uart16550_io_loop(uart);
-	spin_unlock_irqrestore(&uart->open_lock, flags);
 }
 
 /*
@@ -499,71 +494,61 @@ static void snd_uart16550_do_close(struct snd_uart16550 * uart)
 
 static int snd_uart16550_input_open(struct snd_rawmidi_substream *substream)
 {
-	unsigned long flags;
 	struct snd_uart16550 *uart = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&uart->open_lock, flags);
+	guard(spinlock_irqsave)(&uart->open_lock);
 	if (uart->filemode == SERIAL_MODE_NOT_OPENED)
 		snd_uart16550_do_open(uart);
 	uart->filemode |= SERIAL_MODE_INPUT_OPEN;
 	uart->midi_input[substream->number] = substream;
-	spin_unlock_irqrestore(&uart->open_lock, flags);
 	return 0;
 }
 
 static int snd_uart16550_input_close(struct snd_rawmidi_substream *substream)
 {
-	unsigned long flags;
 	struct snd_uart16550 *uart = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&uart->open_lock, flags);
+	guard(spinlock_irqsave)(&uart->open_lock);
 	uart->filemode &= ~SERIAL_MODE_INPUT_OPEN;
 	uart->midi_input[substream->number] = NULL;
 	if (uart->filemode == SERIAL_MODE_NOT_OPENED)
 		snd_uart16550_do_close(uart);
-	spin_unlock_irqrestore(&uart->open_lock, flags);
 	return 0;
 }
 
 static void snd_uart16550_input_trigger(struct snd_rawmidi_substream *substream,
 					int up)
 {
-	unsigned long flags;
 	struct snd_uart16550 *uart = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&uart->open_lock, flags);
+	guard(spinlock_irqsave)(&uart->open_lock);
 	if (up)
 		uart->filemode |= SERIAL_MODE_INPUT_TRIGGERED;
 	else
 		uart->filemode &= ~SERIAL_MODE_INPUT_TRIGGERED;
-	spin_unlock_irqrestore(&uart->open_lock, flags);
 }
 
 static int snd_uart16550_output_open(struct snd_rawmidi_substream *substream)
 {
-	unsigned long flags;
 	struct snd_uart16550 *uart = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&uart->open_lock, flags);
+	guard(spinlock_irqsave)(&uart->open_lock);
 	if (uart->filemode == SERIAL_MODE_NOT_OPENED)
 		snd_uart16550_do_open(uart);
 	uart->filemode |= SERIAL_MODE_OUTPUT_OPEN;
 	uart->midi_output[substream->number] = substream;
-	spin_unlock_irqrestore(&uart->open_lock, flags);
 	return 0;
 };
 
 static int snd_uart16550_output_close(struct snd_rawmidi_substream *substream)
 {
-	unsigned long flags;
 	struct snd_uart16550 *uart = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&uart->open_lock, flags);
+	guard(spinlock_irqsave)(&uart->open_lock);
 	uart->filemode &= ~SERIAL_MODE_OUTPUT_OPEN;
 	uart->midi_output[substream->number] = NULL;
 	if (uart->filemode == SERIAL_MODE_NOT_OPENED)
 		snd_uart16550_do_close(uart);
-	spin_unlock_irqrestore(&uart->open_lock, flags);
 	return 0;
 };
 
@@ -632,7 +617,6 @@ static int snd_uart16550_output_byte(struct snd_uart16550 *uart,
 
 static void snd_uart16550_output_write(struct snd_rawmidi_substream *substream)
 {
-	unsigned long flags;
 	unsigned char midi_byte, addr_byte;
 	struct snd_uart16550 *uart = substream->rmidi->private_data;
 	char first;
@@ -643,7 +627,7 @@ static void snd_uart16550_output_write(struct snd_rawmidi_substream *substream)
 	 * variables (ie buff_in & buff_out)
 	 */
 
-	spin_lock_irqsave(&uart->open_lock, flags);
+	guard(spinlock_irqsave)(&uart->open_lock);
 
 	if (uart->irq < 0)	/* polling */
 		snd_uart16550_io_loop(uart);
@@ -718,21 +702,19 @@ static void snd_uart16550_output_write(struct snd_rawmidi_substream *substream)
 		}
 		lasttime = jiffies;
 	}
-	spin_unlock_irqrestore(&uart->open_lock, flags);
 }
 
 static void snd_uart16550_output_trigger(struct snd_rawmidi_substream *substream,
 					 int up)
 {
-	unsigned long flags;
 	struct snd_uart16550 *uart = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&uart->open_lock, flags);
-	if (up)
-		uart->filemode |= SERIAL_MODE_OUTPUT_TRIGGERED;
-	else
-		uart->filemode &= ~SERIAL_MODE_OUTPUT_TRIGGERED;
-	spin_unlock_irqrestore(&uart->open_lock, flags);
+	scoped_guard(spinlock_irqsave, &uart->open_lock) {
+		if (up)
+			uart->filemode |= SERIAL_MODE_OUTPUT_TRIGGERED;
+		else
+			uart->filemode &= ~SERIAL_MODE_OUTPUT_TRIGGERED;
+	}
 	if (up)
 		snd_uart16550_output_write(substream);
 }
