@@ -16,6 +16,12 @@
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
 
+#define SILENCE_PERIOD_MIN_TIME	80
+#define SILENCE_PERIOD_MAX_TIME	180
+#define SILENCE_PERIOD_TIME	(SILENCE_PERIOD_MIN_TIME +	\
+				(SILENCE_PERIOD_MAX_TIME -	\
+				 SILENCE_PERIOD_MIN_TIME) / 2)
+
 bool intel_alpm_aux_wake_supported(struct intel_dp *intel_dp)
 {
 	return intel_dp->alpm_dpcd & DP_ALPM_CAP;
@@ -44,10 +50,14 @@ void intel_alpm_init(struct intel_dp *intel_dp)
 	mutex_init(&intel_dp->alpm_parameters.lock);
 }
 
+static int get_silence_period_symbols(const struct intel_crtc_state *crtc_state)
+{
+	return SILENCE_PERIOD_TIME * intel_dp_link_symbol_clock(crtc_state->port_clock) /
+		1000 / 1000;
+}
+
 /*
  * See Bspec: 71632 for the table
- *
- * Silence_period = tSilence,Min + ((tSilence,Max - tSilence,Min) / 2)
  *
  * Half cycle duration:
  *
@@ -60,53 +70,41 @@ void intel_alpm_init(struct intel_dp *intel_dp)
  * FLOOR( LFPS Period in Symbol clocks /
  * (2 * PORT_ALPM_LFPS_CTL[ LFPS Cycle Count ]) )
  */
-static bool _lnl_get_silence_period_and_lfps_half_cycle(int link_rate,
-							int *silence_period,
-							int *lfps_half_cycle)
+static bool _lnl_get_lfps_half_cycle(int link_rate, int *lfps_half_cycle)
 {
 	switch (link_rate) {
 	case 162000:
-		*silence_period = 20;
 		*lfps_half_cycle = 5;
 		break;
 	case 216000:
-		*silence_period = 27;
 		*lfps_half_cycle = 7;
 		break;
 	case 243000:
-		*silence_period = 31;
 		*lfps_half_cycle = 8;
 		break;
 	case 270000:
-		*silence_period = 34;
 		*lfps_half_cycle = 9;
 		break;
 	case 324000:
-		*silence_period = 41;
 		*lfps_half_cycle = 11;
 		break;
 	case 432000:
-		*silence_period = 56;
 		*lfps_half_cycle = 15;
 		break;
 	case 540000:
-		*silence_period = 69;
 		*lfps_half_cycle = 12;
 		break;
 	case 648000:
-		*silence_period = 84;
 		*lfps_half_cycle = 15;
 		break;
 	case 675000:
-		*silence_period = 87;
 		*lfps_half_cycle = 15;
 		break;
 	case 810000:
-		*silence_period = 104;
 		*lfps_half_cycle = 19;
 		break;
 	default:
-		*silence_period = *lfps_half_cycle = -1;
+		*lfps_half_cycle = -1;
 		return false;
 	}
 	return true;
@@ -160,10 +158,9 @@ _lnl_compute_aux_less_alpm_params(struct intel_dp *intel_dp,
 		_lnl_compute_aux_less_wake_time(crtc_state->port_clock);
 	aux_less_wake_lines = intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode,
 						       aux_less_wake_time);
-
-	if (!_lnl_get_silence_period_and_lfps_half_cycle(crtc_state->port_clock,
-							 &silence_period,
-							 &lfps_half_cycle))
+	silence_period = get_silence_period_symbols(crtc_state);
+	if (!_lnl_get_lfps_half_cycle(crtc_state->port_clock,
+				      &lfps_half_cycle))
 		return false;
 
 	if (aux_less_wake_lines > ALPM_CTL_AUX_LESS_WAKE_TIME_MASK ||
