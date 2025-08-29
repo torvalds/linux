@@ -58,58 +58,43 @@ static int get_silence_period_symbols(const struct intel_crtc_state *crtc_state)
 		1000 / 1000;
 }
 
-/*
- * See Bspec: 71632 for the table
- *
- * Half cycle duration:
- *
- * Link rates 1.62 - 4.32 and tLFPS_Cycle = 70 ns
- * FLOOR( (Link Rate * tLFPS_Cycle) / (2 * 10) )
- *
- * Link rates 5.4 - 8.1
- * PORT_ALPM_LFPS_CTL[ LFPS Cycle Count ] = 10
- * LFPS Period chosen is the mid-point of the min:max values from the table
- * FLOOR( LFPS Period in Symbol clocks /
- * (2 * PORT_ALPM_LFPS_CTL[ LFPS Cycle Count ]) )
- */
-static bool _lnl_get_lfps_half_cycle(int link_rate, int *lfps_half_cycle)
+static int get_lfps_cycle_min_max_time(const struct intel_crtc_state *crtc_state,
+				       int *min, int *max)
 {
-	switch (link_rate) {
-	case 162000:
-		*lfps_half_cycle = 5;
-		break;
-	case 216000:
-		*lfps_half_cycle = 7;
-		break;
-	case 243000:
-		*lfps_half_cycle = 8;
-		break;
-	case 270000:
-		*lfps_half_cycle = 9;
-		break;
-	case 324000:
-		*lfps_half_cycle = 11;
-		break;
-	case 432000:
-		*lfps_half_cycle = 15;
-		break;
-	case 540000:
-		*lfps_half_cycle = 12;
-		break;
-	case 648000:
-		*lfps_half_cycle = 15;
-		break;
-	case 675000:
-		*lfps_half_cycle = 15;
-		break;
-	case 810000:
-		*lfps_half_cycle = 19;
-		break;
-	default:
-		*lfps_half_cycle = -1;
-		return false;
+	if (crtc_state->port_clock < 540000) {
+		*min = 65 * LFPS_CYCLE_COUNT;
+		*max = 75 * LFPS_CYCLE_COUNT;
+	} else if (crtc_state->port_clock <= 810000) {
+		*min = 140;
+		*max = 800;
+	} else {
+		*min = *max = -1;
+		return -1;
 	}
-	return true;
+
+	return 0;
+}
+
+static int get_lfps_cycle_time(const struct intel_crtc_state *crtc_state)
+{
+	int tlfps_cycle_min, tlfps_cycle_max, ret;
+
+	ret = get_lfps_cycle_min_max_time(crtc_state, &tlfps_cycle_min,
+					  &tlfps_cycle_max);
+	if (ret)
+		return ret;
+
+	return tlfps_cycle_min +  (tlfps_cycle_max - tlfps_cycle_min) / 2;
+}
+
+static int get_lfps_half_cycle_clocks(const struct intel_crtc_state *crtc_state)
+{
+	int lfps_cycle_time = get_lfps_cycle_time(crtc_state);
+
+	if (lfps_cycle_time < 0)
+		return -1;
+
+	return lfps_cycle_time * crtc_state->port_clock / 1000 / 1000 / (2 * LFPS_CYCLE_COUNT);
 }
 
 /*
@@ -161,8 +146,9 @@ _lnl_compute_aux_less_alpm_params(struct intel_dp *intel_dp,
 	aux_less_wake_lines = intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode,
 						       aux_less_wake_time);
 	silence_period = get_silence_period_symbols(crtc_state);
-	if (!_lnl_get_lfps_half_cycle(crtc_state->port_clock,
-				      &lfps_half_cycle))
+
+	lfps_half_cycle = get_lfps_half_cycle_clocks(crtc_state);
+	if (lfps_half_cycle < 0)
 		return false;
 
 	if (aux_less_wake_lines > ALPM_CTL_AUX_LESS_WAKE_TIME_MASK ||
