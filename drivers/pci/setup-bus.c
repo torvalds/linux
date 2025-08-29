@@ -1122,8 +1122,7 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 			 struct list_head *realloc_head)
 {
 	struct pci_dev *dev;
-	struct resource *b_res = find_bus_resource_of_type(bus, IORESOURCE_IO,
-							   IORESOURCE_IO);
+	struct resource *b_res = pbus_select_window_for_type(bus, IORESOURCE_IO);
 	resource_size_t size = 0, size0 = 0, size1 = 0;
 	resource_size_t children_add_size = 0;
 	resource_size_t min_align, align;
