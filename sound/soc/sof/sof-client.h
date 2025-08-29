@@ -18,14 +18,10 @@ struct sof_ipc4_fw_module;
 /**
  * struct sof_client_dev - SOF client device
  * @auxdev:	auxiliary device
- * @sdev:	pointer to SOF core device struct, resticted for core use only
- * @list:	item in SOF core client dev list, resticted for core use only
  * @data:	device specific data
  */
 struct sof_client_dev {
 	struct auxiliary_device auxdev;
-	struct snd_sof_dev *sdev;
-	struct list_head list;
 	void *data;
 };
 
