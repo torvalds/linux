@@ -1345,7 +1345,17 @@ static int sof_ipc4_update_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_hw
 			snd_fmt = SNDRV_PCM_FORMAT_S24_LE;
 			break;
 		case 32:
-			snd_fmt = SNDRV_PCM_FORMAT_S32_LE;
+			switch (type) {
+			case SOF_IPC4_TYPE_LSB_INTEGER:
+				snd_fmt = SNDRV_PCM_FORMAT_S32_LE;
+				break;
+			case SOF_IPC4_TYPE_FLOAT:
+				snd_fmt = SNDRV_PCM_FORMAT_FLOAT_LE;
+				break;
+			default:
+				dev_err(sdev->dev, "Unsupported PCM 32-bit IPC4 type %d\n", type);
+				return -EINVAL;
+			}
 			break;
 		default:
 			dev_err(sdev->dev, "invalid PCM valid_bits %d\n", valid_bits);
@@ -1473,6 +1483,8 @@ static int sof_ipc4_get_valid_bits(struct snd_sof_dev *sdev, struct snd_pcm_hw_p
 		return 24;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		return 32;
+	case SNDRV_PCM_FORMAT_FLOAT_LE:
+		return 32;
 	default:
 		dev_err(sdev->dev, "invalid pcm frame format %d\n", params_format(params));
 		return -EINVAL;
@@ -1493,6 +1505,8 @@ static int sof_ipc4_get_sample_type(struct snd_sof_dev *sdev, struct snd_pcm_hw_
 	case SNDRV_PCM_FORMAT_S32_LE:
 	case SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE:
 		return SOF_IPC4_TYPE_LSB_INTEGER;
+	case SNDRV_PCM_FORMAT_FLOAT_LE:
+		return SOF_IPC4_TYPE_FLOAT;
 	default:
 		dev_err(sdev->dev, "invalid pcm sample type %d\n", params_format(params));
 		return -EINVAL;
