@@ -114,35 +114,39 @@ config CRYPTO_LIB_MD5_ARCH
 	default y if PPC
 	default y if SPARC64
 
+config CRYPTO_LIB_POLY1305
+	tristate
+	help
+	  The Poly1305 library functions.  Select this if your module uses any
+	  of the functions from <crypto/poly1305.h>.
+
+config CRYPTO_LIB_POLY1305_ARCH
+	bool
+	depends on CRYPTO_LIB_POLY1305 && !UML
+	default y if ARM
+	default y if ARM64 && KERNEL_MODE_NEON
+	default y if MIPS
+	# The PPC64 code needs to be fixed to work in softirq context.
+	default y if PPC64 && CPU_LITTLE_ENDIAN && VSX && BROKEN
+	default y if X86_64
+
+# This symbol controls the inclusion of the Poly1305 generic code.  This differs
+# from most of the other algorithms, which handle the generic code
+# "automatically" via __maybe_unused.  This is needed so that the Adiantum code,
+# which calls the poly1305_core_*() functions directly, can enable them.
+config CRYPTO_LIB_POLY1305_GENERIC
+	bool
+	depends on CRYPTO_LIB_POLY1305
+	# Enable if there's no arch impl or the arch impl requires the generic
+	# impl as a fallback.  (Or if selected explicitly.)
+	default y if !CRYPTO_LIB_POLY1305_ARCH || PPC64
+
 config CRYPTO_LIB_POLY1305_RSIZE
 	int
 	default 2 if MIPS
 	default 11 if X86_64
 	default 9 if ARM || ARM64
 	default 1
-
-config CRYPTO_ARCH_HAVE_LIB_POLY1305
-	bool
-	help
-	  Declares whether the architecture provides an arch-specific
-	  accelerated implementation of the Poly1305 library interface,
-	  either builtin or as a module.
-
-config CRYPTO_LIB_POLY1305_GENERIC
-	tristate
-	default CRYPTO_LIB_POLY1305 if !CRYPTO_ARCH_HAVE_LIB_POLY1305
-	help
-	  This symbol can be selected by arch implementations of the Poly1305
-	  library interface that require the generic code as a fallback, e.g.,
-	  for SIMD implementations. If no arch specific implementation is
-	  enabled, this implementation serves the users of CRYPTO_LIB_POLY1305.
-
-config CRYPTO_LIB_POLY1305
-	tristate
-	help
-	  Enable the Poly1305 library interface. This interface may be fulfilled
-	  by either the generic implementation or an arch-specific one, if one
-	  is available and enabled.
 
 config CRYPTO_LIB_CHACHA20POLY1305
 	tristate

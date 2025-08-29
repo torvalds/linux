@@ -71,13 +71,60 @@ endif # CONFIG_CRYPTO_LIB_MD5_ARCH
 
 ################################################################################
 
-obj-$(CONFIG_CRYPTO_LIB_POLY1305)		+= libpoly1305.o
-libpoly1305-y					+= poly1305.o
+obj-$(CONFIG_CRYPTO_LIB_POLY1305) += libpoly1305.o
+libpoly1305-y := poly1305.o
+ifeq ($(CONFIG_ARCH_SUPPORTS_INT128),y)
+libpoly1305-$(CONFIG_CRYPTO_LIB_POLY1305_GENERIC) += poly1305-donna64.o
+else
+libpoly1305-$(CONFIG_CRYPTO_LIB_POLY1305_GENERIC) += poly1305-donna32.o
+endif
 
-obj-$(CONFIG_CRYPTO_LIB_POLY1305_GENERIC)	+= libpoly1305-generic.o
-libpoly1305-generic-y				:= poly1305-donna32.o
-libpoly1305-generic-$(CONFIG_ARCH_SUPPORTS_INT128) := poly1305-donna64.o
-libpoly1305-generic-y				+= poly1305-generic.o
+ifeq ($(CONFIG_CRYPTO_LIB_POLY1305_ARCH),y)
+CFLAGS_poly1305.o += -I$(src)/$(SRCARCH)
+
+ifeq ($(CONFIG_ARM),y)
+libpoly1305-y += arm/poly1305-core.o
+$(obj)/arm/poly1305-core.S: $(src)/arm/poly1305-armv4.pl
+	$(call cmd,perlasm)
+# massage the perlasm code a bit so we only get the NEON routine if we need it
+poly1305-aflags-$(CONFIG_CPU_V7) := -U__LINUX_ARM_ARCH__ -D__LINUX_ARM_ARCH__=5
+poly1305-aflags-$(CONFIG_KERNEL_MODE_NEON) := -U__LINUX_ARM_ARCH__ -D__LINUX_ARM_ARCH__=7
+AFLAGS_arm/poly1305-core.o += $(poly1305-aflags-y) $(aflags-thumb2-y)
+endif
+
+ifeq ($(CONFIG_ARM64),y)
+libpoly1305-y += arm64/poly1305-core.o
+$(obj)/arm64/poly1305-core.S: $(src)/arm64/poly1305-armv8.pl
+	$(call cmd,perlasm_with_args)
+endif
+
+ifeq ($(CONFIG_MIPS),y)
+libpoly1305-y += mips/poly1305-core.o
+poly1305-perlasm-flavour-$(CONFIG_32BIT) := o32
+poly1305-perlasm-flavour-$(CONFIG_64BIT) := 64
+quiet_cmd_perlasm_poly1305 = PERLASM $@
+      cmd_perlasm_poly1305 = $(PERL) $< $(poly1305-perlasm-flavour-y) $@
+# Use if_changed instead of cmd, in case the flavour changed.
+$(obj)/mips/poly1305-core.S: $(src)/mips/poly1305-mips.pl FORCE
+	$(call if_changed,perlasm_poly1305)
+targets += mips/poly1305-core.S
+endif
+
+libpoly1305-$(CONFIG_PPC) += powerpc/poly1305-p10le_64.o
+
+ifeq ($(CONFIG_X86),y)
+libpoly1305-y += x86/poly1305-x86_64-cryptogams.o
+$(obj)/x86/poly1305-x86_64-cryptogams.S: $(src)/x86/poly1305-x86_64-cryptogams.pl
+	$(call cmd,perlasm)
+endif
+
+endif # CONFIG_CRYPTO_LIB_POLY1305_ARCH
+
+# clean-files must be defined unconditionally
+clean-files += arm/poly1305-core.S \
+	       arm64/poly1305-core.S \
+	       mips/poly1305-core.S \
+	       x86/poly1305-x86_64-cryptogams.S
 
 ################################################################################
 
