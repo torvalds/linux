@@ -18,18 +18,12 @@ struct sof_ipc4_fw_module;
 /**
  * struct sof_client_dev - SOF client device
  * @auxdev:	auxiliary device
- * @sdev:	pointer to SOF core device struct
- * @list:	item in SOF core client dev list
  * @data:	device specific data
  */
 struct sof_client_dev {
 	struct auxiliary_device auxdev;
-	struct snd_sof_dev *sdev;
-	struct list_head list;
 	void *data;
 };
-
-#define sof_client_dev_to_sof_dev(cdev)		((cdev)->sdev)
 
 #define auxiliary_dev_to_sof_client_dev(auxiliary_dev) \
 	container_of(auxiliary_dev, struct sof_client_dev, auxdev)
