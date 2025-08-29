@@ -17,8 +17,14 @@
 
 #include <sound/soc.h>
 #include <sound/sof/header.h>
+#include <sound/sof/ipc4/header.h>
 #include "sof-client.h"
 #include "sof-client-probes.h"
+#include "sof-audio.h"
+
+#ifdef CONFIG_SND_SOC_SOF_IPC4
+#include "ipc4-priv.h"
+#endif
 
 #define SOF_PROBES_SUSPEND_DELAY_MS 3000
 /* only extraction supported for now */
@@ -223,9 +229,13 @@ static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
 	for (i = 0; i < num_desc; i++) {
 		offset = strlen(buf);
 		remaining = PAGE_SIZE - offset;
-		ret = snprintf(buf + offset, remaining,
-			       "Id: %#010x  Purpose: %u  Node id: %#x\n",
-				desc[i].buffer_id, desc[i].purpose, desc[i].stream_tag);
+		if (ipc->point_print)
+			ret = ipc->point_print(cdev, buf + offset, remaining, &desc[i]);
+		else
+			ret = snprintf(buf + offset, remaining,
+				       "Id: %#010x  Purpose: %u  Node id: %#x\n",
+				       desc[i].buffer_id, desc[i].purpose, desc[i].stream_tag);
+
 		if (ret < 0 || ret >= remaining) {
 			/* truncate the output buffer at the last full line */
 			buf[offset] = '\0';

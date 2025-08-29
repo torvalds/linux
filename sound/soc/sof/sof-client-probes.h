@@ -41,6 +41,8 @@ struct sof_probes_ipc_ops {
 	int (*points_info)(struct sof_client_dev *cdev,
 			   struct sof_probe_point_desc **desc,
 			   size_t *num_desc);
+	int (*point_print)(struct sof_client_dev *cdev, char *buf, size_t size,
+			   struct sof_probe_point_desc *desc);
 	int (*points_add)(struct sof_client_dev *cdev,
 			  struct sof_probe_point_desc *desc,
 			  size_t num_desc);
