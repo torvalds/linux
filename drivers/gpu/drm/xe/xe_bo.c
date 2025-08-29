@@ -1260,11 +1260,8 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 		else
 			migrate = mem_type_to_migrate(xe, bo->ttm.resource->mem_type);
 
+		xe_assert(xe, bo->ttm.base.resv == backup->ttm.base.resv);
 		ret = dma_resv_reserve_fences(bo->ttm.base.resv, 1);
-		if (ret)
-			goto out_backup;
-
-		ret = dma_resv_reserve_fences(backup->ttm.base.resv, 1);
 		if (ret)
 			goto out_backup;
 
@@ -1276,8 +1273,6 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 		}
 
 		dma_resv_add_fence(bo->ttm.base.resv, fence,
-				   DMA_RESV_USAGE_KERNEL);
-		dma_resv_add_fence(backup->ttm.base.resv, fence,
 				   DMA_RESV_USAGE_KERNEL);
 		dma_fence_put(fence);
 	} else {
@@ -1356,10 +1351,6 @@ int xe_bo_restore_pinned(struct xe_bo *bo)
 		if (ret)
 			goto out_unlock_bo;
 
-		ret = dma_resv_reserve_fences(backup->ttm.base.resv, 1);
-		if (ret)
-			goto out_unlock_bo;
-
 		fence = xe_migrate_copy(migrate, backup, bo,
 					backup->ttm.resource, bo->ttm.resource,
 					false);
@@ -1369,8 +1360,6 @@ int xe_bo_restore_pinned(struct xe_bo *bo)
 		}
 
 		dma_resv_add_fence(bo->ttm.base.resv, fence,
-				   DMA_RESV_USAGE_KERNEL);
-		dma_resv_add_fence(backup->ttm.base.resv, fence,
 				   DMA_RESV_USAGE_KERNEL);
 		dma_fence_put(fence);
 	} else {
