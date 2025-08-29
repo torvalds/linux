@@ -14,7 +14,6 @@ Statistics for individual zram devices are exported through sysfs nodes at
 Kconfig required:
 CONFIG_ZRAM=y
 CONFIG_CRYPTO_LZ4=y
-CONFIG_ZPOOL=y
 CONFIG_ZSMALLOC=y
 
 ZRAM Testcases

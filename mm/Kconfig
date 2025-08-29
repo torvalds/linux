@@ -9,9 +9,6 @@ menu "Memory Management options"
 config ARCH_NO_SWAP
 	bool
 
-config ZPOOL
-	bool
-
 menuconfig SWAP
 	bool "Support for paging of anonymous memory (swap)"
 	depends on MMU && BLOCK && !ARCH_NO_SWAP
@@ -26,7 +23,7 @@ config ZSWAP
 	bool "Compressed cache for swap pages"
 	depends on SWAP
 	select CRYPTO
-	select ZPOOL
+	select ZSMALLOC
 	help
 	  A lightweight compressed cache for swap pages.  It takes
 	  pages that are in the process of being swapped out and attempts to
@@ -125,45 +122,18 @@ config ZSWAP_COMPRESSOR_DEFAULT
        default "zstd" if ZSWAP_COMPRESSOR_DEFAULT_ZSTD
        default ""
 
-choice
-	prompt "Default allocator"
-	depends on ZSWAP
-	default ZSWAP_ZPOOL_DEFAULT_ZSMALLOC if MMU
-	help
-	  Selects the default allocator for the compressed cache for
-	  swap pages.
-	  The default is 'zbud' for compatibility, however please do
-	  read the description of each of the allocators below before
-	  making a right choice.
-
-	  The selection made here can be overridden by using the kernel
-	  command line 'zswap.zpool=' option.
-
-config ZSWAP_ZPOOL_DEFAULT_ZSMALLOC
-	bool "zsmalloc"
-	select ZSMALLOC
-	help
-	  Use the zsmalloc allocator as the default allocator.
-endchoice
-
-config ZSWAP_ZPOOL_DEFAULT
-       string
-       depends on ZSWAP
-       default "zsmalloc" if ZSWAP_ZPOOL_DEFAULT_ZSMALLOC
-       default ""
-
 config ZSMALLOC
 	tristate
-	prompt "N:1 compression allocator (zsmalloc)" if (ZSWAP || ZRAM)
-	depends on MMU
-	help
-	  zsmalloc is a slab-based memory allocator designed to store
-	  pages of various compression levels efficiently. It achieves
-	  the highest storage density with the least amount of fragmentation.
+
+if ZSMALLOC
+
+menu "Zsmalloc allocator options"
+	depends on ZSMALLOC
+
+comment "Zsmalloc is a common backend allocator for zswap & zram"
 
 config ZSMALLOC_STAT
 	bool "Export zsmalloc statistics"
-	depends on ZSMALLOC
 	select DEBUG_FS
 	help
 	  This option enables code in the zsmalloc to collect various
@@ -175,7 +145,6 @@ config ZSMALLOC_CHAIN_SIZE
 	int "Maximum number of physical pages per-zspage"
 	default 8
 	range 4 16
-	depends on ZSMALLOC
 	help
 	  This option sets the upper limit on the number of physical pages
 	  that a zmalloc page (zspage) can consist of. The optimal zspage
@@ -189,6 +158,10 @@ config ZSMALLOC_CHAIN_SIZE
 	  characteristics.
 
 	  For more information, see zsmalloc documentation.
+
+endmenu
+
+endif
 
 menu "Slab allocator options"
 
