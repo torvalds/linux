@@ -12,6 +12,75 @@
 #include <kunit/test-bug.h>
 #include <kunit/visibility.h>
 
+#define PLATFORM_CASE(platform__, graphics_step__)					\
+	{										\
+		.platform = XE_ ## platform__,						\
+		.subplatform = XE_SUBPLATFORM_NONE,					\
+		.step = { .graphics = STEP_ ## graphics_step__ }			\
+	}
+
+#define SUBPLATFORM_CASE(platform__, subplatform__, graphics_step__)			\
+	{										\
+		.platform = XE_ ## platform__,						\
+		.subplatform = XE_SUBPLATFORM_ ## platform__ ## _ ## subplatform__,	\
+		.step = { .graphics = STEP_ ## graphics_step__ }			\
+	}
+
+#define GMDID_CASE(platform__, graphics_verx100__, graphics_step__,			\
+		   media_verx100__, media_step__)					\
+	{										\
+		.platform = XE_ ## platform__,						\
+		.subplatform = XE_SUBPLATFORM_NONE,					\
+		.graphics_verx100 = graphics_verx100__,					\
+		.media_verx100 = media_verx100__,					\
+		.step = { .graphics = STEP_ ## graphics_step__,				\
+			   .media = STEP_ ## media_step__ }				\
+	}
+
+static const struct xe_pci_fake_data cases[] = {
+	PLATFORM_CASE(TIGERLAKE, B0),
+	PLATFORM_CASE(DG1, A0),
+	PLATFORM_CASE(DG1, B0),
+	PLATFORM_CASE(ALDERLAKE_S, A0),
+	PLATFORM_CASE(ALDERLAKE_S, B0),
+	PLATFORM_CASE(ALDERLAKE_S, C0),
+	PLATFORM_CASE(ALDERLAKE_S, D0),
+	PLATFORM_CASE(ALDERLAKE_P, A0),
+	PLATFORM_CASE(ALDERLAKE_P, B0),
+	PLATFORM_CASE(ALDERLAKE_P, C0),
+	SUBPLATFORM_CASE(ALDERLAKE_S, RPLS, D0),
+	SUBPLATFORM_CASE(ALDERLAKE_P, RPLU, E0),
+	SUBPLATFORM_CASE(DG2, G10, C0),
+	SUBPLATFORM_CASE(DG2, G11, B1),
+	SUBPLATFORM_CASE(DG2, G12, A1),
+	GMDID_CASE(METEORLAKE, 1270, A0, 1300, A0),
+	GMDID_CASE(METEORLAKE, 1271, A0, 1300, A0),
+	GMDID_CASE(METEORLAKE, 1274, A0, 1300, A0),
+	GMDID_CASE(LUNARLAKE, 2004, A0, 2000, A0),
+	GMDID_CASE(LUNARLAKE, 2004, B0, 2000, A0),
+	GMDID_CASE(BATTLEMAGE, 2001, A0, 1301, A1),
+	GMDID_CASE(PANTHERLAKE, 3000, A0, 3000, A0),
+};
+
+KUNIT_ARRAY_PARAM(platform, cases, xe_pci_fake_data_desc);
+
+/**
+ * xe_pci_fake_data_gen_params - Generate struct xe_pci_fake_data parameters
+ * @prev: the pointer to the previous parameter to iterate from or NULL
+ * @desc: output buffer with minimum size of KUNIT_PARAM_DESC_SIZE
+ *
+ * This function prepares struct xe_pci_fake_data parameter.
+ *
+ * To be used only as a parameter generator function in &KUNIT_CASE_PARAM.
+ *
+ * Return: pointer to the next parameter or NULL if no more parameters
+ */
+const void *xe_pci_fake_data_gen_params(const void *prev, char *desc)
+{
+	return platform_gen_params(prev, desc);
+}
+EXPORT_SYMBOL_IF_KUNIT(xe_pci_fake_data_gen_params);
+
 static const struct xe_device_desc *lookup_desc(enum xe_platform p)
 {
 	const struct xe_device_desc *desc;
