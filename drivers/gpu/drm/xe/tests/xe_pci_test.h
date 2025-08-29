@@ -24,6 +24,7 @@ struct xe_pci_fake_data {
 };
 
 int xe_pci_fake_device_init(struct xe_device *xe);
+void xe_pci_fake_data_desc(const struct xe_pci_fake_data *param, char *desc);
 
 const void *xe_pci_graphics_ip_gen_param(const void *prev, char *desc);
 const void *xe_pci_media_ip_gen_param(const void *prev, char *desc);

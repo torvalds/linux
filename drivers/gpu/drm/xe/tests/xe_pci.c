@@ -12,6 +12,123 @@
 #include <kunit/test-bug.h>
 #include <kunit/visibility.h>
 
+static const struct xe_device_desc *lookup_desc(enum xe_platform p)
+{
+	const struct xe_device_desc *desc;
+	const struct pci_device_id *ids;
+
+	for (ids = pciidlist; ids->driver_data; ids++) {
+		desc = (const void *)ids->driver_data;
+		if (desc->platform == p)
+			return desc;
+	}
+	return NULL;
+}
+
+static const struct xe_subplatform_desc *lookup_sub_desc(enum xe_platform p, enum xe_subplatform s)
+{
+	const struct xe_device_desc *desc = lookup_desc(p);
+	const struct xe_subplatform_desc *spd;
+
+	if (desc && desc->subplatforms)
+		for (spd = desc->subplatforms; spd->subplatform; spd++)
+			if (spd->subplatform == s)
+				return spd;
+	return NULL;
+}
+
+static const char *lookup_platform_name(enum xe_platform p)
+{
+	const struct xe_device_desc *desc = lookup_desc(p);
+
+	return desc ? desc->platform_name : "INVALID";
+}
+
+static const char *__lookup_subplatform_name(enum xe_platform p, enum xe_subplatform s)
+{
+	const struct xe_subplatform_desc *desc = lookup_sub_desc(p, s);
+
+	return desc ? desc->name : "INVALID";
+}
+
+static const char *lookup_subplatform_name(enum xe_platform p, enum xe_subplatform s)
+{
+	return s == XE_SUBPLATFORM_NONE ? "" : __lookup_subplatform_name(p, s);
+}
+
+static const char *subplatform_prefix(enum xe_subplatform s)
+{
+	return s == XE_SUBPLATFORM_NONE ? "" : " ";
+}
+
+static const char *step_prefix(enum xe_step step)
+{
+	return step == STEP_NONE ? "" : " ";
+}
+
+static const char *step_name(enum xe_step step)
+{
+	return step == STEP_NONE ? "" : xe_step_name(step);
+}
+
+static const char *sriov_prefix(enum xe_sriov_mode mode)
+{
+	return mode <= XE_SRIOV_MODE_NONE ? "" : " ";
+}
+
+static const char *sriov_name(enum xe_sriov_mode mode)
+{
+	return mode <= XE_SRIOV_MODE_NONE ? "" : xe_sriov_mode_to_string(mode);
+}
+
+static const char *lookup_graphics_name(unsigned int verx100)
+{
+	const struct xe_ip *ip = find_graphics_ip(verx100);
+
+	return ip ? ip->name : "";
+}
+
+static const char *lookup_media_name(unsigned int verx100)
+{
+	const struct xe_ip *ip = find_media_ip(verx100);
+
+	return ip ? ip->name : "";
+}
+
+/**
+ * xe_pci_fake_data_desc - Describe struct xe_pci_fake_data parameter
+ * @param: the &struct xe_pci_fake_data parameter to describe
+ * @desc: output buffer with minimum size of KUNIT_PARAM_DESC_SIZE
+ *
+ * This function prepares description of the struct xe_pci_fake_data parameter.
+ *
+ * It is tailored for use in parameterized KUnit tests where parameter generator
+ * is based on the struct xe_pci_fake_data arrays.
+ */
+void xe_pci_fake_data_desc(const struct xe_pci_fake_data *param, char *desc)
+{
+	if (param->graphics_verx100 || param->media_verx100)
+		snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%s%s%s %u.%02u(%s)%s%s %u.%02u(%s)%s%s%s%s",
+			 lookup_platform_name(param->platform),
+			 subplatform_prefix(param->subplatform),
+			 lookup_subplatform_name(param->platform, param->subplatform),
+			 param->graphics_verx100 / 100, param->graphics_verx100 % 100,
+			 lookup_graphics_name(param->graphics_verx100),
+			 step_prefix(param->step.graphics), step_name(param->step.graphics),
+			 param->media_verx100 / 100, param->media_verx100 % 100,
+			 lookup_media_name(param->media_verx100),
+			 step_prefix(param->step.media), step_name(param->step.media),
+			 sriov_prefix(param->sriov_mode), sriov_name(param->sriov_mode));
+	else
+		snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%s%s%s%s%s%s%s",
+			 lookup_platform_name(param->platform),
+			 subplatform_prefix(param->subplatform),
+			 lookup_subplatform_name(param->platform, param->subplatform),
+			 step_prefix(param->step.graphics), step_name(param->step.graphics),
+			 sriov_prefix(param->sriov_mode), sriov_name(param->sriov_mode));
+}
+EXPORT_SYMBOL_IF_KUNIT(xe_pci_fake_data_desc);
+
 static void xe_ip_kunit_desc(const struct xe_ip *param, char *desc)
 {
 	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%u.%02u %s",
