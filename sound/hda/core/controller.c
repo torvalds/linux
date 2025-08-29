@@ -44,7 +44,7 @@ void snd_hdac_bus_init_cmd_io(struct hdac_bus *bus)
 {
 	WARN_ON_ONCE(!bus->rb.area);
 
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 	/* CORB set up */
 	bus->corb.addr = bus->rb.addr;
 	bus->corb.buf = (__le32 *)bus->rb.area;
@@ -86,7 +86,6 @@ void snd_hdac_bus_init_cmd_io(struct hdac_bus *bus)
 		snd_hdac_chip_writeb(bus, RIRBCTL, AZX_RBCTL_DMA_EN | AZX_RBCTL_IRQ_EN);
 	/* Accept unsolicited responses */
 	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
-	spin_unlock_irq(&bus->reg_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_init_cmd_io);
 
@@ -112,18 +111,17 @@ static void hdac_wait_for_cmd_dmas(struct hdac_bus *bus)
  */
 void snd_hdac_bus_stop_cmd_io(struct hdac_bus *bus)
 {
-	spin_lock_irq(&bus->reg_lock);
-	/* disable ringbuffer DMAs */
-	snd_hdac_chip_writeb(bus, RIRBCTL, 0);
-	snd_hdac_chip_writeb(bus, CORBCTL, 0);
-	spin_unlock_irq(&bus->reg_lock);
+	scoped_guard(spinlock_irq, &bus->reg_lock) {
+		/* disable ringbuffer DMAs */
+		snd_hdac_chip_writeb(bus, RIRBCTL, 0);
+		snd_hdac_chip_writeb(bus, CORBCTL, 0);
+	}
 
 	hdac_wait_for_cmd_dmas(bus);
 
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 	/* disable unsolicited responses */
 	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, 0);
-	spin_unlock_irq(&bus->reg_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_stop_cmd_io);
 
@@ -171,9 +169,8 @@ static int snd_hdac_bus_send_cmd_pio(struct hdac_bus *bus, unsigned int val)
 {
 	unsigned int addr = azx_command_addr(val);
 	int timeout = 50;
-	int ret = -EIO;
 
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 
 	while (timeout--) {
 		/* check ICB bit */
@@ -184,8 +181,7 @@ static int snd_hdac_bus_send_cmd_pio(struct hdac_bus *bus, unsigned int val)
 			/* Set ICB bit */
 			snd_hdac_chip_updatew(bus, IRS, AZX_IRS_BUSY, AZX_IRS_BUSY);
 
-			ret = snd_hdac_bus_wait_for_pio_response(bus, addr);
-			goto out;
+			return snd_hdac_bus_wait_for_pio_response(bus, addr);
 		}
 		udelay(1);
 	}
@@ -193,10 +189,7 @@ static int snd_hdac_bus_send_cmd_pio(struct hdac_bus *bus, unsigned int val)
 	dev_dbg_ratelimited(bus->dev, "send_cmd_pio timeout: IRS=%#x, val=%#x\n",
 			    snd_hdac_chip_readw(bus, IRS), val);
 
-out:
-	spin_unlock_irq(&bus->reg_lock);
-
-	return ret;
+	return -EIO;
 }
 
 /**
@@ -228,7 +221,7 @@ static int snd_hdac_bus_send_cmd_corb(struct hdac_bus *bus, unsigned int val)
 	unsigned int addr = azx_command_addr(val);
 	unsigned int wp, rp;
 
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 
 	bus->last_cmd[azx_command_addr(val)] = val;
 
@@ -236,7 +229,6 @@ static int snd_hdac_bus_send_cmd_corb(struct hdac_bus *bus, unsigned int val)
 	wp = snd_hdac_chip_readw(bus, CORBWP);
 	if (wp == 0xffff) {
 		/* something wrong, controller likely turned to D3 */
-		spin_unlock_irq(&bus->reg_lock);
 		return -EIO;
 	}
 	wp++;
@@ -245,15 +237,12 @@ static int snd_hdac_bus_send_cmd_corb(struct hdac_bus *bus, unsigned int val)
 	rp = snd_hdac_chip_readw(bus, CORBRP);
 	if (wp == rp) {
 		/* oops, it's full */
-		spin_unlock_irq(&bus->reg_lock);
 		return -EAGAIN;
 	}
 
 	bus->rirb.cmds[addr]++;
 	bus->corb.buf[wp] = cpu_to_le32(val);
 	snd_hdac_chip_writew(bus, CORBWP, wp);
-
-	spin_unlock_irq(&bus->reg_lock);
 
 	return 0;
 }
@@ -333,21 +322,20 @@ static int snd_hdac_bus_get_response_rirb(struct hdac_bus *bus,
 	timeout = jiffies + msecs_to_jiffies(1000);
 
 	for (loopcounter = 0;; loopcounter++) {
-		spin_lock_irq(&bus->reg_lock);
-		if (!bus->polling_mode)
-			prepare_to_wait(&bus->rirb_wq, &wait,
-					TASK_UNINTERRUPTIBLE);
-		if (bus->polling_mode)
-			snd_hdac_bus_update_rirb(bus);
-		if (!bus->rirb.cmds[addr]) {
-			if (res)
-				*res = bus->rirb.res[addr]; /* the last value */
+		scoped_guard(spinlock_irq, &bus->reg_lock) {
 			if (!bus->polling_mode)
-				finish_wait(&bus->rirb_wq, &wait);
-			spin_unlock_irq(&bus->reg_lock);
-			return 0;
+				prepare_to_wait(&bus->rirb_wq, &wait,
+						TASK_UNINTERRUPTIBLE);
+			if (bus->polling_mode)
+				snd_hdac_bus_update_rirb(bus);
+			if (!bus->rirb.cmds[addr]) {
+				if (res)
+					*res = bus->rirb.res[addr]; /* the last value */
+				if (!bus->polling_mode)
+					finish_wait(&bus->rirb_wq, &wait);
+				return 0;
+			}
 		}
-		spin_unlock_irq(&bus->reg_lock);
 		if (time_after(jiffies, timeout))
 			break;
 #define LOOP_COUNT_MAX	3000

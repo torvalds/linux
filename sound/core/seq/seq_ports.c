@@ -178,17 +178,10 @@ static int unsubscribe_port(struct snd_seq_client *client,
 static struct snd_seq_client_port *get_client_port(struct snd_seq_addr *addr,
 						   struct snd_seq_client **cp)
 {
-	struct snd_seq_client_port *p;
 	*cp = snd_seq_client_use_ptr(addr->client);
-	if (*cp) {
-		p = snd_seq_port_use_ptr(*cp, addr->port);
-		if (! p) {
-			snd_seq_client_unlock(*cp);
-			*cp = NULL;
-		}
-		return p;
-	}
-	return NULL;
+	if (!*cp)
+		return NULL;
+	return snd_seq_port_use_ptr(*cp, addr->port);
 }
 
 static void delete_and_unsubscribe_port(struct snd_seq_client *client,
@@ -218,8 +211,8 @@ static void clear_subscriber_list(struct snd_seq_client *client,
 
 	list_for_each_safe(p, n, &grp->list_head) {
 		struct snd_seq_subscribers *subs;
-		struct snd_seq_client *c;
-		struct snd_seq_client_port *aport;
+		struct snd_seq_client *c __free(snd_seq_client) = NULL;
+		struct snd_seq_client_port *aport __free(snd_seq_port) = NULL;
 
 		subs = get_subscriber(p, is_src);
 		if (is_src)
@@ -241,8 +234,6 @@ static void clear_subscriber_list(struct snd_seq_client *client,
 		/* ok we got the connected port */
 		delete_and_unsubscribe_port(c, aport, subs, !is_src, true);
 		kfree(subs);
-		snd_seq_port_unlock(aport);
-		snd_seq_client_unlock(c);
 	}
 }
 

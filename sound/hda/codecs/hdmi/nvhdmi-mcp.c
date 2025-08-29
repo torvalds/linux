@@ -131,7 +131,7 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 	struct hda_spdif_out *spdif;
 	struct hdmi_spec_per_cvt *per_cvt;
 
-	mutex_lock(&codec->spdif_mutex);
+	guard(mutex)(&codec->spdif_mutex);
 	per_cvt = get_cvt(spec, 0);
 	spdif = snd_hda_spdif_out_of_nid(codec, per_cvt->cvt_nid);
 
@@ -215,7 +215,6 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	nvhdmi_8ch_7x_set_info_frame_parameters(codec, chs);
 
-	mutex_unlock(&codec->spdif_mutex);
 	return 0;
 }
 
