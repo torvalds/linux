@@ -1169,3 +1169,45 @@ int cxl_gpf_port_setup(struct cxl_dport *dport)
 
 	return 0;
 }
+
+static int count_dports(struct pci_dev *pdev, void *data)
+{
+	struct cxl_walk_context *ctx = data;
+	int type = pci_pcie_type(pdev);
+
+	if (pdev->bus != ctx->bus)
+		return 0;
+	if (!pci_is_pcie(pdev))
+		return 0;
+	if (type != ctx->type)
+		return 0;
+
+	ctx->count++;
+	return 0;
+}
+
+int cxl_port_get_possible_dports(struct cxl_port *port)
+{
+	struct pci_bus *bus = cxl_port_to_pci_bus(port);
+	struct cxl_walk_context ctx;
+	int type;
+
+	if (!bus) {
+		dev_err(&port->dev, "No PCI bus found for port %s\n",
+			dev_name(&port->dev));
+		return -ENXIO;
+	}
+
+	if (pci_is_root_bus(bus))
+		type = PCI_EXP_TYPE_ROOT_PORT;
+	else
+		type = PCI_EXP_TYPE_DOWNSTREAM;
+
+	ctx = (struct cxl_walk_context) {
+		.bus = bus,
+		.type = type,
+	};
+	pci_walk_bus(bus, count_dports, &ctx);
+
+	return ctx.count;
+}

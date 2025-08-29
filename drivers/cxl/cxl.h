@@ -810,12 +810,9 @@ struct cxl_endpoint_dvsec_info {
 	struct range dvsec_range[2];
 };
 
-struct cxl_hdm;
-struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
-				   struct cxl_endpoint_dvsec_info *info);
-int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
-				struct cxl_endpoint_dvsec_info *info);
-int devm_cxl_add_passthrough_decoder(struct cxl_port *port);
+int devm_cxl_switch_port_decoders_setup(struct cxl_port *port);
+int devm_cxl_endpoint_decoders_setup(struct cxl_port *port);
+
 struct cxl_dev_state;
 int cxl_dvsec_rr_decode(struct cxl_dev_state *cxlds,
 			struct cxl_endpoint_dvsec_info *info);

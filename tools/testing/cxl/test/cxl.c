@@ -643,13 +643,6 @@ static struct cxl_hdm *mock_cxl_setup_hdm(struct cxl_port *port,
 	return cxlhdm;
 }
 
-static int mock_cxl_add_passthrough_decoder(struct cxl_port *port)
-{
-	dev_err(&port->dev, "unexpected passthrough decoder for cxl_test\n");
-	return -EOPNOTSUPP;
-}
-
-
 struct target_map_ctx {
 	u32 *target_map;
 	int index;
@@ -921,6 +914,36 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 	return 0;
 }
 
+static int __mock_cxl_decoders_setup(struct cxl_port *port)
+{
+	struct cxl_hdm *cxlhdm;
+
+	cxlhdm = mock_cxl_setup_hdm(port, NULL);
+	if (IS_ERR(cxlhdm)) {
+		if (PTR_ERR(cxlhdm) != -ENODEV)
+			dev_err(&port->dev, "Failed to map HDM decoder capability\n");
+		return PTR_ERR(cxlhdm);
+	}
+
+	return mock_cxl_enumerate_decoders(cxlhdm, NULL);
+}
+
+static int mock_cxl_switch_port_decoders_setup(struct cxl_port *port)
+{
+	if (is_cxl_root(port) || is_cxl_endpoint(port))
+		return -EOPNOTSUPP;
+
+	return __mock_cxl_decoders_setup(port);
+}
+
+static int mock_cxl_endpoint_decoders_setup(struct cxl_port *port)
+{
+	if (!is_cxl_endpoint(port))
+		return -EOPNOTSUPP;
+
+	return __mock_cxl_decoders_setup(port);
+}
+
 static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 {
 	struct platform_device **array;
@@ -1035,10 +1058,9 @@ static struct cxl_mock_ops cxl_mock_ops = {
 	.acpi_table_parse_cedt = mock_acpi_table_parse_cedt,
 	.acpi_evaluate_integer = mock_acpi_evaluate_integer,
 	.acpi_pci_find_root = mock_acpi_pci_find_root,
+	.devm_cxl_switch_port_decoders_setup = mock_cxl_switch_port_decoders_setup,
+	.devm_cxl_endpoint_decoders_setup = mock_cxl_endpoint_decoders_setup,
 	.devm_cxl_port_enumerate_dports = mock_cxl_port_enumerate_dports,
-	.devm_cxl_setup_hdm = mock_cxl_setup_hdm,
-	.devm_cxl_add_passthrough_decoder = mock_cxl_add_passthrough_decoder,
-	.devm_cxl_enumerate_decoders = mock_cxl_enumerate_decoders,
 	.cxl_endpoint_parse_cdat = mock_cxl_endpoint_parse_cdat,
 	.list = LIST_HEAD_INIT(cxl_mock_ops.list),
 };
