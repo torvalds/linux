@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
+#include "fs_core.h"
 #include "eswitch.h"
 
 enum {
@@ -82,6 +83,9 @@ static int mlx5_esw_adj_vport_create(struct mlx5_eswitch *esw, u16 vhca_id)
 	vport->adjacent = true;
 	vport->vhca_id = vhca_id;
 
+	mlx5_fs_vport_egress_acl_ns_add(esw->dev->priv.steering, vport->index);
+	mlx5_fs_vport_ingress_acl_ns_add(esw->dev->priv.steering, vport->index);
+
 	mlx5_esw_adj_vport_modify(esw->dev, vport_num, MLX5_ADJ_VPORT_CONNECT);
 	return 0;
 
@@ -99,6 +103,10 @@ static void mlx5_esw_adj_vport_destroy(struct mlx5_eswitch *esw,
 		  vport_num, vport->vhca_id);
 	mlx5_esw_adj_vport_modify(esw->dev, vport_num,
 				  MLX5_ADJ_VPORT_DISCONNECT);
+	mlx5_fs_vport_egress_acl_ns_remove(esw->dev->priv.steering,
+					   vport->index);
+	mlx5_fs_vport_ingress_acl_ns_remove(esw->dev->priv.steering,
+					    vport->index);
 	mlx5_esw_vport_free(esw, vport);
 	/* Reset the vport index back so new adj vports can use this index.
 	 * When vport count can incrementally change, this needs to be modified.
