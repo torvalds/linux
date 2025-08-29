@@ -185,11 +185,10 @@ static int snd_ak4113_in_error_get(struct snd_kcontrol *kcontrol,
 {
 	struct ak4113 *chip = snd_kcontrol_chip(kcontrol);
 
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 	ucontrol->value.integer.value[0] =
 		chip->errors[kcontrol->private_value];
 	chip->errors[kcontrol->private_value] = 0;
-	spin_unlock_irq(&chip->lock);
 	return 0;
 }
 
@@ -235,14 +234,13 @@ static int snd_ak4113_rx_put(struct snd_kcontrol *kcontrol,
 	int change;
 	u8 old_val;
 
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 	old_val = chip->regmap[AK4113_REG_IO1];
 	change = ucontrol->value.integer.value[0] != AK4113_IPS(old_val);
 	if (change)
 		reg_write(chip, AK4113_REG_IO1,
 				(old_val & (~AK4113_IPS(0xff))) |
 				(AK4113_IPS(ucontrol->value.integer.value[0])));
-	spin_unlock_irq(&chip->lock);
 	return change;
 }
 
@@ -532,27 +530,27 @@ int snd_ak4113_check_rate_and_errors(struct ak4113 *ak4113, unsigned int flags)
 		goto __rate;
 	rcs0 = reg_read(ak4113, AK4113_REG_RCS0);
 	rcs2 = reg_read(ak4113, AK4113_REG_RCS2);
-	spin_lock_irqsave(&ak4113->lock, _flags);
-	if (rcs0 & AK4113_PAR)
-		ak4113->errors[AK4113_PARITY_ERRORS]++;
-	if (rcs0 & AK4113_V)
-		ak4113->errors[AK4113_V_BIT_ERRORS]++;
-	if (rcs2 & AK4113_CCRC)
-		ak4113->errors[AK4113_CCRC_ERRORS]++;
-	if (rcs2 & AK4113_QCRC)
-		ak4113->errors[AK4113_QCRC_ERRORS]++;
-	c0 = (ak4113->rcs0 & (AK4113_QINT | AK4113_CINT | AK4113_STC |
-				AK4113_AUDION | AK4113_AUTO | AK4113_UNLCK)) ^
-		(rcs0 & (AK4113_QINT | AK4113_CINT | AK4113_STC |
-			 AK4113_AUDION | AK4113_AUTO | AK4113_UNLCK));
-	c1 = (ak4113->rcs1 & (AK4113_DTSCD | AK4113_NPCM | AK4113_PEM |
-				AK4113_DAT | 0xf0)) ^
-		(rcs1 & (AK4113_DTSCD | AK4113_NPCM | AK4113_PEM |
-			 AK4113_DAT | 0xf0));
-	ak4113->rcs0 = rcs0 & ~(AK4113_QINT | AK4113_CINT | AK4113_STC);
-	ak4113->rcs1 = rcs1;
-	ak4113->rcs2 = rcs2;
-	spin_unlock_irqrestore(&ak4113->lock, _flags);
+	scoped_guard(spinlock_irqsave, &ak4113->lock) {
+		if (rcs0 & AK4113_PAR)
+			ak4113->errors[AK4113_PARITY_ERRORS]++;
+		if (rcs0 & AK4113_V)
+			ak4113->errors[AK4113_V_BIT_ERRORS]++;
+		if (rcs2 & AK4113_CCRC)
+			ak4113->errors[AK4113_CCRC_ERRORS]++;
+		if (rcs2 & AK4113_QCRC)
+			ak4113->errors[AK4113_QCRC_ERRORS]++;
+		c0 = (ak4113->rcs0 & (AK4113_QINT | AK4113_CINT | AK4113_STC |
+				      AK4113_AUDION | AK4113_AUTO | AK4113_UNLCK)) ^
+			(rcs0 & (AK4113_QINT | AK4113_CINT | AK4113_STC |
+				 AK4113_AUDION | AK4113_AUTO | AK4113_UNLCK));
+		c1 = (ak4113->rcs1 & (AK4113_DTSCD | AK4113_NPCM | AK4113_PEM |
+				      AK4113_DAT | 0xf0)) ^
+			(rcs1 & (AK4113_DTSCD | AK4113_NPCM | AK4113_PEM |
+				 AK4113_DAT | 0xf0));
+		ak4113->rcs0 = rcs0 & ~(AK4113_QINT | AK4113_CINT | AK4113_STC);
+		ak4113->rcs1 = rcs1;
+		ak4113->rcs2 = rcs2;
+	}
 
 	if (rcs0 & AK4113_PAR)
 		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
