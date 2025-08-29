@@ -96,13 +96,6 @@
 
 #define VSRSTS_RETRIES			20
 
-#define RZG2L_CSI2_MIN_WIDTH		320
-#define RZG2L_CSI2_MIN_HEIGHT		240
-#define RZG2L_CSI2_MAX_WIDTH		2800
-#define RZG2L_CSI2_MAX_HEIGHT		4095
-
-#define RZG2L_CSI2_DEFAULT_WIDTH	RZG2L_CSI2_MIN_WIDTH
-#define RZG2L_CSI2_DEFAULT_HEIGHT	RZG2L_CSI2_MIN_HEIGHT
 #define RZG2L_CSI2_DEFAULT_FMT		MEDIA_BUS_FMT_UYVY8_1X16
 
 enum rzg2l_csi2_pads {
@@ -137,6 +130,10 @@ struct rzg2l_csi2_info {
 	int (*dphy_enable)(struct rzg2l_csi2 *csi2);
 	int (*dphy_disable)(struct rzg2l_csi2 *csi2);
 	bool has_system_clk;
+	unsigned int min_width;
+	unsigned int min_height;
+	unsigned int max_width;
+	unsigned int max_height;
 };
 
 struct rzg2l_csi2_timings {
@@ -418,6 +415,10 @@ static const struct rzg2l_csi2_info rzg2l_csi2_info = {
 	.dphy_enable = rzg2l_csi2_dphy_enable,
 	.dphy_disable = rzg2l_csi2_dphy_disable,
 	.has_system_clk = true,
+	.min_width = 320,
+	.min_height = 240,
+	.max_width = 2800,
+	.max_height = 4095,
 };
 
 static int rzg2l_csi2_dphy_setting(struct v4l2_subdev *sd, bool on)
@@ -542,6 +543,10 @@ static const struct rzg2l_csi2_info rzv2h_csi2_info = {
 	.dphy_enable = rzv2h_csi2_dphy_enable,
 	.dphy_disable = rzv2h_csi2_dphy_disable,
 	.has_system_clk = false,
+	.min_width = 320,
+	.min_height = 240,
+	.max_width = 4096,
+	.max_height = 4096,
 };
 
 static int rzg2l_csi2_mipi_link_setting(struct v4l2_subdev *sd, bool on)
@@ -631,6 +636,7 @@ static int rzg2l_csi2_set_format(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *state,
 				 struct v4l2_subdev_format *fmt)
 {
+	struct rzg2l_csi2 *csi2 = sd_to_csi2(sd);
 	struct v4l2_mbus_framefmt *src_format;
 	struct v4l2_mbus_framefmt *sink_format;
 
@@ -653,9 +659,11 @@ static int rzg2l_csi2_set_format(struct v4l2_subdev *sd,
 	sink_format->ycbcr_enc = fmt->format.ycbcr_enc;
 	sink_format->quantization = fmt->format.quantization;
 	sink_format->width = clamp_t(u32, fmt->format.width,
-				     RZG2L_CSI2_MIN_WIDTH, RZG2L_CSI2_MAX_WIDTH);
+				     csi2->info->min_width,
+				     csi2->info->max_width);
 	sink_format->height = clamp_t(u32, fmt->format.height,
-				      RZG2L_CSI2_MIN_HEIGHT, RZG2L_CSI2_MAX_HEIGHT);
+				     csi2->info->min_height,
+				     csi2->info->max_height);
 	fmt->format = *sink_format;
 
 	/* propagate format to source pad */
@@ -668,9 +676,10 @@ static int rzg2l_csi2_init_state(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_subdev_format fmt = { .pad = RZG2L_CSI2_SINK, };
+	struct rzg2l_csi2 *csi2 = sd_to_csi2(sd);
 
-	fmt.format.width = RZG2L_CSI2_DEFAULT_WIDTH;
-	fmt.format.height = RZG2L_CSI2_DEFAULT_HEIGHT;
+	fmt.format.width = csi2->info->min_width;
+	fmt.format.height = csi2->info->min_height;
 	fmt.format.field = V4L2_FIELD_NONE;
 	fmt.format.code = RZG2L_CSI2_DEFAULT_FMT;
 	fmt.format.colorspace = V4L2_COLORSPACE_SRGB;
@@ -697,16 +706,18 @@ static int rzg2l_csi2_enum_frame_size(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_state *sd_state,
 				      struct v4l2_subdev_frame_size_enum *fse)
 {
+	struct rzg2l_csi2 *csi2 = sd_to_csi2(sd);
+
 	if (fse->index != 0)
 		return -EINVAL;
 
 	if (!rzg2l_csi2_code_to_fmt(fse->code))
 		return -EINVAL;
 
-	fse->min_width = RZG2L_CSI2_MIN_WIDTH;
-	fse->min_height = RZG2L_CSI2_MIN_HEIGHT;
-	fse->max_width = RZG2L_CSI2_MAX_WIDTH;
-	fse->max_height = RZG2L_CSI2_MAX_HEIGHT;
+	fse->min_width = csi2->info->min_width;
+	fse->min_height = csi2->info->min_height;
+	fse->max_width = csi2->info->max_width;
+	fse->max_height = csi2->info->max_height;
 
 	return 0;
 }
