@@ -115,8 +115,8 @@ struct notifier_block;
 struct mem_section;
 
 /*
- * Priorities for the hotplug memory callback routines (stored in decreasing
- * order in the callback chain)
+ * Priorities for the hotplug memory callback routines. Invoked from
+ * high to low. Higher priorities correspond to higher numbers.
  */
 #define DEFAULT_CALLBACK_PRI	0
 #define SLAB_CALLBACK_PRI	1
