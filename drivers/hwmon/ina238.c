@@ -118,9 +118,10 @@ struct ina238_config {
 	bool has_power_highest;		/* chip detection power peak */
 	bool has_energy;		/* chip detection energy */
 	u8 temp_resolution;		/* temperature register resolution in bit */
-	u32 power_calculate_factor;	/* fixed parameters for power calculate */
+	u32 power_calculate_factor;	/* fixed parameter for power calculation, from datasheet */
 	u16 config_default;		/* Power-on default state */
 	int bus_voltage_lsb;		/* use for temperature calculate, uV/lsb */
+	int current_lsb;		/* current LSB, in uA */
 };
 
 struct ina238_data {
@@ -130,6 +131,9 @@ struct ina238_data {
 	struct regmap *regmap;
 	u32 rshunt;
 	int gain;
+	int current_lsb;		/* current LSB, in uA */
+	int power_lsb;			/* power LSB, in uW */
+	int energy_lsb;			/* energy LSB, in uJ */
 };
 
 static const struct ina238_config ina238_config[] = {
@@ -422,9 +426,8 @@ static int ina238_read_current(struct device *dev, u32 attr, long *val)
 			regval = (s16)regval;
 		}
 
-		/* Signed register, fixed 1mA current lsb. result in mA */
-		*val = div_s64((s64)regval * INA238_FIXED_SHUNT * data->gain,
-			       data->rshunt * 4);
+		/* Signed register. Result in mA */
+		*val = DIV_S64_ROUND_CLOSEST((s64)regval * data->current_lsb, 1000);
 
 		/* Account for 4 bit offset */
 		if (data->config->has_20bit_voltage_current)
@@ -450,9 +453,7 @@ static int ina238_read_power(struct device *dev, u32 attr, long *val)
 		if (err)
 			return err;
 
-		/* Fixed 1mA lsb, scaled by 1000000 to have result in uW */
-		power = div_u64(regval * 1000ULL * INA238_FIXED_SHUNT * data->gain *
-				data->config->power_calculate_factor, 4 * 100 * data->rshunt);
+		power = (long long)regval * data->power_lsb;
 		/* Clamp value to maximum value of long */
 		*val = clamp_val(power, 0, LONG_MAX);
 		break;
@@ -461,9 +462,7 @@ static int ina238_read_power(struct device *dev, u32 attr, long *val)
 		if (err)
 			return err;
 
-		/* Fixed 1mA lsb, scaled by 1000000 to have result in uW */
-		power = div_u64(regval * 1000ULL * INA238_FIXED_SHUNT * data->gain *
-				data->config->power_calculate_factor, 4 * 100 * data->rshunt);
+		power = (long long)regval * data->power_lsb;
 		/* Clamp value to maximum value of long */
 		*val = clamp_val(power, 0, LONG_MAX);
 		break;
@@ -476,8 +475,7 @@ static int ina238_read_power(struct device *dev, u32 attr, long *val)
 		 * Truncated 24-bit compare register, lower 8-bits are
 		 * truncated. Same conversion to/from uW as POWER register.
 		 */
-		power = div_u64((regval << 8) * 1000ULL * INA238_FIXED_SHUNT * data->gain *
-				data->config->power_calculate_factor, 4 * 100 * data->rshunt);
+		power = ((long long)regval << 8) * data->power_lsb;
 		/* Clamp value to maximum value of long */
 		*val = clamp_val(power, 0, LONG_MAX);
 		break;
@@ -498,7 +496,6 @@ static int ina238_read_power(struct device *dev, u32 attr, long *val)
 static int ina238_write_power_max(struct device *dev, long val)
 {
 	struct ina238_data *data = dev_get_drvdata(dev);
-	long regval;
 
 	/*
 	 * Unsigned postive values. Compared against the 24-bit power register,
@@ -506,12 +503,11 @@ static int ina238_write_power_max(struct device *dev, long val)
 	 * register.
 	 * The first clamp_val() is to establish a baseline to avoid overflows.
 	 */
-	regval = clamp_val(val, 0, LONG_MAX / 2);
-	regval = div_u64(regval * 4 * 100 * data->rshunt, data->config->power_calculate_factor *
-			1000ULL * INA238_FIXED_SHUNT * data->gain);
-	regval = clamp_val(regval >> 8, 0, U16_MAX);
+	val = clamp_val(val, 0, LONG_MAX / 2);
+	val = DIV_ROUND_CLOSEST(val, data->power_lsb);
+	val = clamp_val(val >> 8, 0, U16_MAX);
 
-	return regmap_write(data->regmap, INA238_POWER_LIMIT, regval);
+	return regmap_write(data->regmap, INA238_POWER_LIMIT, val);
 }
 
 static int ina238_temp_from_reg(s16 regval, u8 resolution)
@@ -584,8 +580,7 @@ static ssize_t energy1_input_show(struct device *dev,
 		return ret;
 
 	/* result in uJ */
-	energy = div_u64(regval * INA238_FIXED_SHUNT * data->gain * 16 * 10 *
-			 data->config->power_calculate_factor, 4 * data->rshunt);
+	energy = regval * data->energy_lsb;
 
 	return sysfs_emit(buf, "%llu\n", energy);
 }
@@ -816,6 +811,18 @@ static int ina238_probe(struct i2c_client *client)
 		dev_err(dev, "error configuring the device: %d\n", ret);
 		return -ENODEV;
 	}
+
+	if (data->config->current_lsb)
+		data->current_lsb = data->config->current_lsb;
+	else
+		data->current_lsb = DIV_U64_ROUND_CLOSEST(250ULL * INA238_FIXED_SHUNT * data->gain,
+							  data->rshunt);
+
+	data->power_lsb = DIV_ROUND_CLOSEST(data->current_lsb *
+					    data->config->power_calculate_factor,
+					    100);
+
+	data->energy_lsb = data->power_lsb * 16;
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name, data,
 							 &ina238_chip_info,
