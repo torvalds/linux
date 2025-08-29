@@ -100,9 +100,11 @@ static int ipc3_probes_deinit(struct sof_client_dev *cdev)
 }
 
 static int ipc3_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
-			    void **params, size_t *num_params)
+			    void **params, size_t *num_params,
+			    enum sof_probe_info_type type)
 {
 	size_t max_msg_size = sof_client_get_ipc_max_payload_size(cdev);
+	struct device *dev = &cdev->auxdev.dev;
 	struct sof_ipc_probe_info_params msg = {{{0}}};
 	struct sof_ipc_probe_info_params *reply;
 	size_t bytes;
@@ -110,6 +112,11 @@ static int ipc3_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
 
 	*params = NULL;
 	*num_params = 0;
+
+	if (type != PROBES_INFO_ACTIVE_PROBES) {
+		dev_err(dev, "%s: info type %u not supported", __func__, type);
+		return -EOPNOTSUPP;
+	}
 
 	reply = kzalloc(max_msg_size, GFP_KERNEL);
 	if (!reply)
@@ -142,21 +149,25 @@ exit:
 }
 
 /**
- * ipc3_probes_points_info - retrieve list of active probe points
+ * ipc3_probes_points_info - retrieve list of probe points
  * @cdev:		SOF client device
  * @desc:	Returned list of active probes
  * @num_desc:	Returned count of active probes
+ * @type:	Either PROBES_INFO_ACTIVE_PROBES or PROBES_INFO_AVAILABE_PROBES
  *
- * Host sends PROBE_POINT_INFO request to obtain list of active probe
- * points, valid for disconnection when given probe is no longer
- * required.
+ * If type is PROBES_INFO_ACTIVE_PROBES, host sends PROBE_POINT_INFO
+ * request to obtain list of active probe points, valid for
+ * disconnection when given probe is no longer required.
+ *
+ * Type PROBES_INFO_AVAILABE_PROBES is not yet supported.
  */
 static int ipc3_probes_points_info(struct sof_client_dev *cdev,
 				   struct sof_probe_point_desc **desc,
-				   size_t *num_desc)
+				   size_t *num_desc,
+				   enum sof_probe_info_type type)
 {
 	return ipc3_probes_info(cdev, SOF_IPC_PROBE_POINT_INFO,
-			       (void **)desc, num_desc);
+				(void **)desc, num_desc, type);
 }
 
 /**

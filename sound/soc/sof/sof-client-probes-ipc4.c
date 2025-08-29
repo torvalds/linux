@@ -28,6 +28,7 @@ enum sof_ipc4_probe_runtime_param {
 	SOF_IPC4_PROBE_INJECTION_DMA_DETACH,
 	SOF_IPC4_PROBE_POINTS,
 	SOF_IPC4_PROBE_POINTS_DISCONNECT,
+	SOF_IPC4_PROBE_POINTS_AVAILABLE,
 };
 
 struct sof_ipc4_probe_gtw_cfg {
@@ -192,30 +193,49 @@ static int ipc4_probes_deinit(struct sof_client_dev *cdev)
 }
 
 /**
- * ipc4_probes_points_info - retrieve list of active probe points
+ * ipc4_probes_points_info - retrieve list of probe points
  * @cdev:	SOF client device
  * @desc:	Returned list of active probes
  * @num_desc:	Returned count of active probes
+ * @type:	Either PROBES_INFO_ACTIVE_PROBES or PROBES_INFO_AVAILABE_PROBES
  * @return:	0 on success, negative error code on error
+ *
+ * Returns list if active probe points if type is
+ * PROBES_INFO_ACTIVE_PROBES, or list of all available probe points if
+ * type is PROBES_INFO_AVAILABE_PROBES.
  */
 static int ipc4_probes_points_info(struct sof_client_dev *cdev,
 				   struct sof_probe_point_desc **desc,
-				   size_t *num_desc)
+				   size_t *num_desc,
+				   enum sof_probe_info_type type)
 {
 	struct sof_man4_module *mentry = sof_ipc4_probe_get_module_info(cdev);
 	struct device *dev = &cdev->auxdev.dev;
 	struct sof_ipc4_probe_info *info;
 	struct sof_ipc4_msg msg;
+	u32 param_id;
 	int i, ret;
 
 	if (!mentry)
 		return -ENODEV;
 
+	switch (type) {
+	case PROBES_INFO_ACTIVE_PROBES:
+		param_id = SOF_IPC4_PROBE_POINTS;
+		break;
+	case PROBES_INFO_AVAILABE_PROBES:
+		param_id = SOF_IPC4_PROBE_POINTS_AVAILABLE;
+		break;
+	default:
+		dev_err(dev, "%s: info type %u not supported", __func__, type);
+		return -EOPNOTSUPP;
+	}
+
 	msg.primary = mentry->id;
 	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
 	msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
 
-	msg.extension = SOF_IPC4_MOD_EXT_MSG_PARAM_ID(SOF_IPC4_PROBE_POINTS);
+	msg.extension = SOF_IPC4_MOD_EXT_MSG_PARAM_ID(param_id);
 
 	msg.data_size = sof_client_get_ipc_max_payload_size(cdev);
 	msg.data_ptr = kzalloc(msg.data_size, GFP_KERNEL);
@@ -299,7 +319,7 @@ static int ipc4_probes_points_add(struct sof_client_dev *cdev,
 	int i, ret;
 
 	if (!mentry)
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	/* The sof_probe_point_desc and sof_ipc4_probe_point structs
 	 * are of same size and even the integers are the same in the

@@ -75,7 +75,8 @@ static int sof_probes_compr_shutdown(struct snd_compr_stream *cstream,
 	int i, ret;
 
 	/* disconnect all probe points */
-	ret = ipc->points_info(cdev, &desc, &num_desc);
+	ret = ipc->points_info(cdev, &desc, &num_desc,
+			       PROBES_INFO_ACTIVE_PROBES);
 	if (ret < 0) {
 		dev_err(dai->dev, "Failed to get probe points: %d\n", ret);
 		goto exit;
@@ -195,7 +196,8 @@ static const struct snd_compress_ops sof_probes_compressed_ops = {
 };
 
 static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
-					  size_t count, loff_t *ppos)
+					  size_t count, loff_t *ppos,
+					  enum sof_probe_info_type type)
 {
 	struct sof_client_dev *cdev = file->private_data;
 	struct sof_probes_priv *priv = cdev->data;
@@ -222,7 +224,7 @@ static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
 		goto exit;
 	}
 
-	ret = ipc->points_info(cdev, &desc, &num_desc);
+	ret = ipc->points_info(cdev, &desc, &num_desc, type);
 	if (ret < 0)
 		goto pm_error;
 
@@ -255,6 +257,22 @@ pm_error:
 exit:
 	kfree(buf);
 	return ret;
+}
+
+static ssize_t sof_probes_dfs_active_points_read(struct file *file,
+						 char __user *to,
+						 size_t count, loff_t *ppos)
+{
+	return sof_probes_dfs_points_read(file, to, count, ppos,
+					  PROBES_INFO_ACTIVE_PROBES);
+}
+
+static ssize_t sof_probes_dfs_available_points_read(struct file *file,
+						    char __user *to,
+						    size_t count, loff_t *ppos)
+{
+	return sof_probes_dfs_points_read(file, to, count, ppos,
+					  PROBES_INFO_AVAILABE_PROBES);
 }
 
 static ssize_t
@@ -306,10 +324,18 @@ exit:
 	return ret;
 }
 
-static const struct file_operations sof_probes_points_fops = {
+static const struct file_operations sof_probes_active_points_fops = {
 	.open = simple_open,
-	.read = sof_probes_dfs_points_read,
+	.read = sof_probes_dfs_active_points_read,
 	.write = sof_probes_dfs_points_write,
+	.llseek = default_llseek,
+
+	.owner = THIS_MODULE,
+};
+
+static const struct file_operations sof_probes_available_points_fops = {
+	.open = simple_open,
+	.read = sof_probes_dfs_available_points_read,
 	.llseek = default_llseek,
 
 	.owner = THIS_MODULE,
@@ -459,12 +485,16 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 
 	/* create read-write probes_points debugfs entry */
 	priv->dfs_points = debugfs_create_file("probe_points", 0644, dfsroot,
-					       cdev, &sof_probes_points_fops);
+					       cdev, &sof_probes_active_points_fops);
 
 	/* create read-write probe_points_remove debugfs entry */
 	priv->dfs_points_remove = debugfs_create_file("probe_points_remove", 0644,
 						      dfsroot, cdev,
 						      &sof_probes_points_remove_fops);
+
+	/* create read-write probes_points debugfs entry */
+	priv->dfs_points = debugfs_create_file("probe_points_available", 0644, dfsroot,
+					       cdev, &sof_probes_available_points_fops);
 
 	links = devm_kcalloc(dev, SOF_PROBES_NUM_DAI_LINKS, sizeof(*links), GFP_KERNEL);
 	cpus = devm_kcalloc(dev, SOF_PROBES_NUM_DAI_LINKS, sizeof(*cpus), GFP_KERNEL);
