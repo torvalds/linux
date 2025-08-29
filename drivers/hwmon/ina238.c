@@ -572,7 +572,7 @@ static int ina238_write_temp(struct device *dev, u32 attr, long val)
 		return -EOPNOTSUPP;
 
 	/* Signed */
-	regval = clamp_val(val, -40000, 125000);
+	val = clamp_val(val, -40000, 125000);
 	regval = div_s64(val * 10000, data->config->temp_lsb) << data->config->temp_shift;
 	regval = clamp_val(regval, S16_MIN, S16_MAX) & (0xffff << data->config->temp_shift);
 
