@@ -1096,7 +1096,7 @@ snd_m3_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 	if (snd_BUG_ON(!s))
 		return -ENXIO;
 
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -1117,7 +1117,6 @@ snd_m3_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 		}
 		break;
 	}
-	spin_unlock(&chip->reg_lock);
 	return err;
 }
 
@@ -1412,7 +1411,7 @@ snd_m3_pcm_prepare(struct snd_pcm_substream *subs)
 	    runtime->rate < 8000)
 		return -EINVAL;
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 
 	snd_m3_pcm_setup1(chip, s, subs);
 
@@ -1422,8 +1421,6 @@ snd_m3_pcm_prepare(struct snd_pcm_substream *subs)
 		snd_m3_capture_setup(chip, s, subs);
 
 	snd_m3_pcm_setup2(chip, s, runtime);
-
-	spin_unlock_irq(&chip->reg_lock);
 
 	return 0;
 }
@@ -1466,9 +1463,8 @@ snd_m3_pcm_pointer(struct snd_pcm_substream *subs)
 	if (snd_BUG_ON(!s))
 		return 0;
 
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	ptr = snd_m3_get_pointer(chip, s, subs);
-	spin_unlock(&chip->reg_lock);
 	return bytes_to_frames(subs->runtime, ptr);
 }
 
@@ -1629,13 +1625,12 @@ static irqreturn_t snd_m3_interrupt(int irq, void *dev_id)
 			if (ctl & DSP2HOST_REQ_TIMER) {
 				outb(DSP2HOST_REQ_TIMER, chip->iobase + ASSP_HOST_INT_STATUS);
 				/* update adc/dac info if it was a timer int */
-				spin_lock(&chip->reg_lock);
+				guard(spinlock)(&chip->reg_lock);
 				for (i = 0; i < chip->num_substreams; i++) {
 					struct m3_dma *s = &chip->substreams[i];
 					if (s->running)
 						snd_m3_update_ptr(chip, s);
 				}
-				spin_unlock(&chip->reg_lock);
 			}
 		}
 	}
@@ -1707,18 +1702,16 @@ snd_m3_substream_open(struct snd_m3 *chip, struct snd_pcm_substream *subs)
 	int i;
 	struct m3_dma *s;
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	for (i = 0; i < chip->num_substreams; i++) {
 		s = &chip->substreams[i];
 		if (! s->opened)
 			goto __found;
 	}
-	spin_unlock_irq(&chip->reg_lock);
 	return -ENOMEM;
 __found:
 	s->opened = 1;
 	s->running = 0;
-	spin_unlock_irq(&chip->reg_lock);
 
 	subs->runtime->private_data = s;
 	s->substream = subs;
@@ -1742,7 +1735,7 @@ snd_m3_substream_close(struct snd_m3 *chip, struct snd_pcm_substream *subs)
 	if (s == NULL)
 		return; /* not opened properly */
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	if (s->substream && s->running)
 		snd_m3_pcm_stop(chip, s, s->substream); /* does this happen? */
 	if (s->in_lists) {
@@ -1753,7 +1746,6 @@ snd_m3_substream_close(struct snd_m3 *chip, struct snd_pcm_substream *subs)
 	}
 	s->running = 0;
 	s->opened = 0;
-	spin_unlock_irq(&chip->reg_lock);
 }
 
 static int
@@ -2339,14 +2331,13 @@ static void snd_m3_free(struct snd_card *card)
 	cancel_work_sync(&chip->hwvol_work);
 
 	if (chip->substreams) {
-		spin_lock_irq(&chip->reg_lock);
+		guard(spinlock_irq)(&chip->reg_lock);
 		for (i = 0; i < chip->num_substreams; i++) {
 			s = &chip->substreams[i];
 			/* check surviving pcms; this should not happen though.. */
 			if (s->substream && s->running)
 				snd_m3_pcm_stop(chip, s, s->substream);
 		}
-		spin_unlock_irq(&chip->reg_lock);
 	}
 	if (chip->iobase) {
 		outw(0, chip->iobase + HOST_INT_CTRL); /* disable ints */
