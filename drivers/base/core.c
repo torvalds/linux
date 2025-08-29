@@ -5278,6 +5278,25 @@ void device_set_node(struct device *dev, struct fwnode_handle *fwnode)
 }
 EXPORT_SYMBOL_GPL(device_set_node);
 
+/**
+ * get_dev_from_fwnode - Obtain a reference count of the struct device the
+ * struct fwnode_handle is associated with.
+ * @fwnode: The pointer to the struct fwnode_handle to obtain the struct device
+ * reference count of.
+ *
+ * This function obtains a reference count of the device the device pointer
+ * embedded in the struct fwnode_handle points to.
+ *
+ * Note that the struct device pointer embedded in struct fwnode_handle does
+ * *not* have a reference count of the struct device itself.
+ *
+ * Hence, it is a UAF (and thus a bug) to call this function if the caller can't
+ * guarantee that the last reference count of the corresponding struct device is
+ * not dropped concurrently.
+ *
+ * This is possible since struct fwnode_handle has its own reference count and
+ * hence can out-live the struct device it is associated with.
+ */
 struct device *get_dev_from_fwnode(struct fwnode_handle *fwnode)
 {
 	return get_device((fwnode)->dev);
