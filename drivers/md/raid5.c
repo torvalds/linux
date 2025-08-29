@@ -4097,7 +4097,8 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 				  int disks)
 {
 	int rmw = 0, rcw = 0, i;
-	sector_t resync_offset = conf->mddev->resync_offset;
+	struct mddev *mddev = conf->mddev;
+	sector_t resync_offset = mddev->resync_offset;
 
 	/* Check whether resync is now happening or should start.
 	 * If yes, then the array is dirty (after unclean shutdown or
@@ -4116,6 +4117,12 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 		pr_debug("force RCW rmw_level=%u, resync_offset=%llu sh->sector=%llu\n",
 			 conf->rmw_level, (unsigned long long)resync_offset,
 			 (unsigned long long)sh->sector);
+	} else if (mddev->bitmap_ops && mddev->bitmap_ops->blocks_synced &&
+		   !mddev->bitmap_ops->blocks_synced(mddev, sh->sector)) {
+		/* The initial recover is not done, must read everything */
+		rcw = 1; rmw = 2;
+		pr_debug("force RCW by lazy recovery, sh->sector=%llu\n",
+			 sh->sector);
 	} else for (i = disks; i--; ) {
 		/* would I have to read this buffer for read_modify_write */
 		struct r5dev *dev = &sh->dev[i];
@@ -4148,7 +4155,7 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 	set_bit(STRIPE_HANDLE, &sh->state);
 	if ((rmw < rcw || (rmw == rcw && conf->rmw_level == PARITY_PREFER_RMW)) && rmw > 0) {
 		/* prefer read-modify-write, but need to get some data */
-		mddev_add_trace_msg(conf->mddev, "raid5 rmw %llu %d",
+		mddev_add_trace_msg(mddev, "raid5 rmw %llu %d",
 				sh->sector, rmw);
 
 		for (i = disks; i--; ) {
@@ -4227,8 +4234,8 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 					set_bit(STRIPE_DELAYED, &sh->state);
 			}
 		}
-		if (rcw && !mddev_is_dm(conf->mddev))
-			blk_add_trace_msg(conf->mddev->gendisk->queue,
+		if (rcw && !mddev_is_dm(mddev))
+			blk_add_trace_msg(mddev->gendisk->queue,
 				"raid5 rcw %llu %d %d %d",
 				(unsigned long long)sh->sector, rcw, qread,
 				test_bit(STRIPE_DELAYED, &sh->state));
