@@ -133,10 +133,10 @@ impl DeviceId {
 
     /// Equivalent to C's `PCI_DEVICE` macro.
     ///
-    /// Create a new `pci::DeviceId` from a vendor and device ID number.
-    pub const fn from_id(vendor: u32, device: u32) -> Self {
+    /// Create a new `pci::DeviceId` from a vendor and device ID.
+    pub const fn from_id(vendor: Vendor, device: u32) -> Self {
         Self(bindings::pci_device_id {
-            vendor,
+            vendor: vendor.as_raw() as u32,
             device,
             subvendor: DeviceId::PCI_ANY_ID,
             subdevice: DeviceId::PCI_ANY_ID,
@@ -234,7 +234,7 @@ macro_rules! pci_device_table {
 ///     <MyDriver as pci::Driver>::IdInfo,
 ///     [
 ///         (
-///             pci::DeviceId::from_id(bindings::PCI_VENDOR_ID_REDHAT, bindings::PCI_ANY_ID as u32),
+///             pci::DeviceId::from_id(pci::Vendor::REDHAT, bindings::PCI_ANY_ID as u32),
 ///             (),
 ///         )
 ///     ]
@@ -415,12 +415,29 @@ impl<Ctx: device::DeviceContext> Device<Ctx> {
 }
 
 impl Device {
-    /// Returns the PCI vendor ID.
+    /// Returns the PCI vendor ID as [`Vendor`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use kernel::{device::Core, pci::{self, Vendor}, prelude::*};
+    /// fn log_device_info(pdev: &pci::Device<Core>) -> Result {
+    ///     // Get an instance of `Vendor`.
+    ///     let vendor = pdev.vendor_id();
+    ///     dev_info!(
+    ///         pdev.as_ref(),
+    ///         "Device: Vendor={}, Device=0x{:x}\n",
+    ///         vendor,
+    ///         pdev.device_id()
+    ///     );
+    ///     Ok(())
+    /// }
+    /// ```
     #[inline]
-    pub fn vendor_id(&self) -> u16 {
-        // SAFETY: By its type invariant `self.as_raw` is always a valid pointer to a
-        // `struct pci_dev`.
-        unsafe { (*self.as_raw()).vendor }
+    pub fn vendor_id(&self) -> Vendor {
+        // SAFETY: `self.as_raw` is a valid pointer to a `struct pci_dev`.
+        let vendor_id = unsafe { (*self.as_raw()).vendor };
+        Vendor::from_raw(vendor_id)
     }
 
     /// Returns the PCI device ID.
