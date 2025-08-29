@@ -505,7 +505,7 @@ static void reset_listen_child(struct sock *child)
 
 	chtls_send_reset(child, CPL_ABORT_SEND_RST, skb);
 	sock_orphan(child);
-	INC_ORPHAN_COUNT(child);
+	tcp_orphan_count_inc();
 	if (child->sk_state == TCP_CLOSE)
 		inet_csk_destroy_sock(child);
 }
@@ -870,7 +870,7 @@ static void do_abort_syn_rcv(struct sock *child, struct sock *parent)
 		 * created only after 3 way handshake is done.
 		 */
 		sock_orphan(child);
-		INC_ORPHAN_COUNT(child);
+		tcp_orphan_count_inc();
 		chtls_release_resources(child);
 		chtls_conn_done(child);
 	} else {
