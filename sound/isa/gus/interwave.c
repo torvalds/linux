@@ -239,7 +239,6 @@ static int snd_interwave_detect(struct snd_interwave *iwcard,
 #endif
 				          )
 {
-	unsigned long flags;
 	unsigned char rev1, rev2;
 	int d;
 
@@ -257,12 +256,12 @@ static int snd_interwave_detect(struct snd_interwave *iwcard,
 		dev_dbg(gus->card->dev, "[0x%lx] check 2 failed - 0x%x\n", gus->gf1.port, d);
 		return -ENODEV;
 	}
-	spin_lock_irqsave(&gus->reg_lock, flags);
-	rev1 = snd_gf1_look8(gus, SNDRV_GF1_GB_VERSION_NUMBER);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_VERSION_NUMBER, ~rev1);
-	rev2 = snd_gf1_look8(gus, SNDRV_GF1_GB_VERSION_NUMBER);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_VERSION_NUMBER, rev1);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &gus->reg_lock) {
+		rev1 = snd_gf1_look8(gus, SNDRV_GF1_GB_VERSION_NUMBER);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_VERSION_NUMBER, ~rev1);
+		rev2 = snd_gf1_look8(gus, SNDRV_GF1_GB_VERSION_NUMBER);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_VERSION_NUMBER, rev1);
+	}
 	dev_dbg(gus->card->dev,
 		"[0x%lx] InterWave check - rev1=0x%x, rev2=0x%x\n",
 		gus->gf1.port, rev1, rev2);
@@ -457,18 +456,16 @@ static void snd_interwave_detect_memory(struct snd_gus_card *gus)
 
 static void snd_interwave_init(int dev, struct snd_gus_card *gus)
 {
-	unsigned long flags;
-
 	/* ok.. some InterWave specific initialization */
-	spin_lock_irqsave(&gus->reg_lock, flags);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_SOUND_BLASTER_CONTROL, 0x00);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_COMPATIBILITY, 0x1f);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_DECODE_CONTROL, 0x49);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_VERSION_NUMBER, 0x11);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_MPU401_CONTROL_A, 0x00);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_MPU401_CONTROL_B, 0x30);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_EMULATION_IRQ, 0x00);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &gus->reg_lock) {
+		snd_gf1_write8(gus, SNDRV_GF1_GB_SOUND_BLASTER_CONTROL, 0x00);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_COMPATIBILITY, 0x1f);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_DECODE_CONTROL, 0x49);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_VERSION_NUMBER, 0x11);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_MPU401_CONTROL_A, 0x00);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_MPU401_CONTROL_B, 0x30);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_EMULATION_IRQ, 0x00);
+	}
 	gus->equal_irq = 1;
 	gus->codec_flag = 1;
 	gus->interwave = 1;
