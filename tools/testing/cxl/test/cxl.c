@@ -811,15 +811,21 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 		 */
 		if (WARN_ON(!dev))
 			continue;
+
 		cxlsd = to_cxl_switch_decoder(dev);
 		if (i == 0) {
 			/* put cxl_mem.4 second in the decode order */
-			if (pdev->id == 4)
+			if (pdev->id == 4) {
 				cxlsd->target[1] = dport;
-			else
+				cxld->target_map[1] = dport->port_id;
+			} else {
 				cxlsd->target[0] = dport;
-		} else
+				cxld->target_map[0] = dport->port_id;
+			}
+		} else {
 			cxlsd->target[0] = dport;
+			cxld->target_map[0] = dport->port_id;
+		}
 		cxld = &cxlsd->cxld;
 		cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 		cxld->flags = CXL_DECODER_F_ENABLE;
