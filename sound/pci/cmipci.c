@@ -664,14 +664,11 @@ static int snd_cmipci_playback2_hw_params(struct snd_pcm_substream *substream,
 {
 	struct cmipci *cm = snd_pcm_substream_chip(substream);
 	if (params_channels(hw_params) > 2) {
-		mutex_lock(&cm->open_mutex);
-		if (cm->opened[CM_CH_PLAY]) {
-			mutex_unlock(&cm->open_mutex);
+		guard(mutex)(&cm->open_mutex);
+		if (cm->opened[CM_CH_PLAY])
 			return -EBUSY;
-		}
 		/* reserve the channel A */
 		cm->opened[CM_CH_PLAY] = CM_OPEN_PLAYBACK_MULTI;
-		mutex_unlock(&cm->open_mutex);
 	}
 	return 0;
 }
@@ -1582,11 +1579,9 @@ static int open_device_check(struct cmipci *cm, int mode, struct snd_pcm_substre
 	 * pcm framework doesn't pass file pointer before actually opened,
 	 * we can't know whether blocking mode or not in open callback..
 	 */
-	mutex_lock(&cm->open_mutex);
-	if (cm->opened[ch]) {
-		mutex_unlock(&cm->open_mutex);
+	guard(mutex)(&cm->open_mutex);
+	if (cm->opened[ch])
 		return -EBUSY;
-	}
 	cm->opened[ch] = mode;
 	cm->channel[ch].substream = subs;
 	if (! (mode & CM_OPEN_DAC)) {
@@ -1596,7 +1591,6 @@ static int open_device_check(struct cmipci *cm, int mode, struct snd_pcm_substre
 		snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_ENDBDAC);
 		spin_unlock_irq(&cm->reg_lock);
 	}
-	mutex_unlock(&cm->open_mutex);
 	return 0;
 }
 
@@ -1604,7 +1598,7 @@ static void close_device_check(struct cmipci *cm, int mode)
 {
 	int ch = mode & CM_OPEN_CH_MASK;
 
-	mutex_lock(&cm->open_mutex);
+	guard(mutex)(&cm->open_mutex);
 	if (cm->opened[ch] == mode) {
 		if (cm->channel[ch].substream) {
 			snd_cmipci_ch_reset(cm, ch);
@@ -1620,7 +1614,6 @@ static void close_device_check(struct cmipci *cm, int mode)
 			spin_unlock_irq(&cm->reg_lock);
 		}
 	}
-	mutex_unlock(&cm->open_mutex);
 }
 
 /*
@@ -1685,7 +1678,7 @@ static int snd_cmipci_playback2_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		return err;
 	runtime->hw = snd_cmipci_playback2;
-	mutex_lock(&cm->open_mutex);
+	guard(mutex)(&cm->open_mutex);
 	if (! cm->opened[CM_CH_PLAY]) {
 		if (cm->can_multi_ch) {
 			runtime->hw.channels_max = cm->max_channels;
@@ -1697,7 +1690,6 @@ static int snd_cmipci_playback2_open(struct snd_pcm_substream *substream)
 				snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS, &hw_constraints_channels_8);
 		}
 	}
-	mutex_unlock(&cm->open_mutex);
 	if (cm->chip_version == 68) {
 		runtime->hw.rates |= SNDRV_PCM_RATE_88200 |
 				     SNDRV_PCM_RATE_96000;
