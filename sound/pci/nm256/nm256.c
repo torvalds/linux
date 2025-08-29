@@ -544,12 +544,11 @@ snd_nm256_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct nm256 *chip = snd_pcm_substream_chip(substream);
 	struct nm256_stream *s = substream->runtime->private_data;
-	int err = 0;
 
 	if (snd_BUG_ON(!s))
 		return -ENXIO;
 
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
 		s->suspended = 0;
@@ -570,11 +569,9 @@ snd_nm256_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 		}
 		break;
 	default:
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	spin_unlock(&chip->reg_lock);
-	return err;
+	return 0;
 }
 
 static int
@@ -582,12 +579,11 @@ snd_nm256_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct nm256 *chip = snd_pcm_substream_chip(substream);
 	struct nm256_stream *s = substream->runtime->private_data;
-	int err = 0;
 
 	if (snd_BUG_ON(!s))
 		return -ENXIO;
 
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -604,11 +600,9 @@ snd_nm256_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 		}
 		break;
 	default:
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	spin_unlock(&chip->reg_lock);
-	return err;
+	return 0;
 }
 
 
@@ -628,10 +622,9 @@ static int snd_nm256_pcm_prepare(struct snd_pcm_substream *substream)
 	s->periods = substream->runtime->periods;
 	s->cur_period = 0;
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	s->running = 0;
 	snd_nm256_set_format(chip, s, substream);
-	spin_unlock_irq(&chip->reg_lock);
 
 	return 0;
 }
@@ -996,7 +989,7 @@ snd_nm256_interrupt(int irq, void *dev_id)
 
 	/* Rather boring; check for individual interrupts and process them. */
 
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	if (status & NM_PLAYBACK_INT) {
 		status &= ~NM_PLAYBACK_INT;
 		NM_ACK_INT(chip, NM_PLAYBACK_INT);
@@ -1035,7 +1028,6 @@ snd_nm256_interrupt(int irq, void *dev_id)
 		NM_ACK_INT(chip, status);
 	}
 
-	spin_unlock(&chip->reg_lock);
 	return IRQ_HANDLED;
 }
 
@@ -1062,7 +1054,7 @@ snd_nm256_interrupt_zx(int irq, void *dev_id)
 
 	/* Rather boring; check for individual interrupts and process them. */
 
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	if (status & NM2_PLAYBACK_INT) {
 		status &= ~NM2_PLAYBACK_INT;
 		NM2_ACK_INT(chip, NM2_PLAYBACK_INT);
@@ -1100,7 +1092,6 @@ snd_nm256_interrupt_zx(int irq, void *dev_id)
 		NM2_ACK_INT(chip, status);
 	}
 
-	spin_unlock(&chip->reg_lock);
 	return IRQ_HANDLED;
 }
 
@@ -1389,9 +1380,8 @@ static int nm256_resume(struct device *dev)
 	for (i = 0; i < 2; i++) {
 		struct nm256_stream *s = &chip->streams[i];
 		if (s->substream && s->suspended) {
-			spin_lock_irq(&chip->reg_lock);
+			guard(spinlock_irq)(&chip->reg_lock);
 			snd_nm256_set_format(chip, s, s->substream);
-			spin_unlock_irq(&chip->reg_lock);
 		}
 	}
 
