@@ -1221,19 +1221,20 @@ static inline resource_size_t calculate_mem_align(resource_size_t *aligns,
 /**
  * pbus_upstream_space_available - Check no upstream resource limits allocation
  * @bus:	The bus
- * @mask:	Mask the resource flag, then compare it with type
- * @type:	The type of resource from bridge
+ * @res:	The resource to help select the correct bridge window
  * @size:	The size required from the bridge window
  * @align:	Required alignment for the resource
  *
- * Checks that @size can fit inside the upstream bridge resources that are
- * already assigned.
+ * Check that @size can fit inside the upstream bridge resources that are
+ * already assigned. Select the upstream bridge window based on the type of
+ * @res.
  *
  * Return: %true if enough space is available on all assigned upstream
  * resources.
  */
-static bool pbus_upstream_space_available(struct pci_bus *bus, unsigned long mask,
-					  unsigned long type, resource_size_t size,
+static bool pbus_upstream_space_available(struct pci_bus *bus,
+					  struct resource *res,
+					  resource_size_t size,
 					  resource_size_t align)
 {
 	struct resource_constraint constraint = {
@@ -1241,39 +1242,39 @@ static bool pbus_upstream_space_available(struct pci_bus *bus, unsigned long mas
 		.align = align,
 	};
 	struct pci_bus *downstream = bus;
-	struct resource *res;
 
 	while ((bus = bus->parent)) {
 		if (pci_is_root_bus(bus))
 			break;
 
-		pci_bus_for_each_resource(bus, res) {
-			if (!res || !res->parent || (res->flags & mask) != type)
-				continue;
-
-			if (resource_size(res) >= size) {
-				struct resource gap = {};
-
-				if (find_resource_space(res, &gap, size, &constraint) == 0) {
-					gap.flags = type;
-					pci_dbg(bus->self,
-						"Assigned bridge window %pR to %pR free space at %pR\n",
-						res, &bus->busn_res, &gap);
-					return true;
-				}
-			}
-
-			if (bus->self) {
-				pci_info(bus->self,
-					 "Assigned bridge window %pR to %pR cannot fit 0x%llx required for %s bridging to %pR\n",
-					 res, &bus->busn_res,
-					 (unsigned long long)size,
-					 pci_name(downstream->self),
-					 &downstream->busn_res);
-			}
-
+		res = pbus_select_window(bus, res);
+		if (!res)
 			return false;
+		if (!res->parent)
+			continue;
+
+		if (resource_size(res) >= size) {
+			struct resource gap = {};
+
+			if (find_resource_space(res, &gap, size, &constraint) == 0) {
+				gap.flags = res->flags;
+				pci_dbg(bus->self,
+					"Assigned bridge window %pR to %pR free space at %pR\n",
+					res, &bus->busn_res, &gap);
+				return true;
+			}
 		}
+
+		if (bus->self) {
+			pci_info(bus->self,
+				 "Assigned bridge window %pR to %pR cannot fit 0x%llx required for %s bridging to %pR\n",
+				 res, &bus->busn_res,
+				 (unsigned long long)size,
+				 pci_name(downstream->self),
+				 &downstream->busn_res);
+		}
+
+		return false;
 	}
 
 	return true;
@@ -1395,8 +1396,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 		b_res->flags &= ~IORESOURCE_DISABLED;
 
 	if (bus->self && size0 &&
-	    !pbus_upstream_space_available(bus, mask | IORESOURCE_PREFETCH, type,
-					   size0, min_align)) {
+	    !pbus_upstream_space_available(bus, b_res, size0, min_align)) {
 		relaxed_align = 1ULL << (max_order + __ffs(SZ_1M));
 		relaxed_align = max(relaxed_align, win_align);
 		min_align = min(min_align, relaxed_align);
@@ -1411,8 +1411,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 					  resource_size(b_res), add_align);
 
 		if (bus->self && size1 &&
-		    !pbus_upstream_space_available(bus, mask | IORESOURCE_PREFETCH, type,
-						   size1, add_align)) {
+		    !pbus_upstream_space_available(bus, b_res, size1, add_align)) {
 			relaxed_align = 1ULL << (max_order + __ffs(SZ_1M));
 			relaxed_align = max(relaxed_align, win_align);
 			min_align = min(min_align, relaxed_align);
