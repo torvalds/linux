@@ -736,10 +736,8 @@ static void airoha_ppe_foe_insert_entry(struct airoha_ppe *ppe,
 			continue;
 		}
 
-		if (commit_done || !airoha_ppe_foe_compare_entry(e, hwe)) {
-			e->hash = 0xffff;
+		if (!airoha_ppe_foe_compare_entry(e, hwe))
 			continue;
-		}
 
 		airoha_ppe_foe_commit_entry(ppe, &e->data, hash);
 		commit_done = true;

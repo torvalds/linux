@@ -4189,6 +4189,23 @@ int btrfs_update_inode_fallback(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+static void update_time_after_link_or_unlink(struct btrfs_inode *dir)
+{
+	struct timespec64 now;
+
+	/*
+	 * If we are replaying a log tree, we do not want to update the mtime
+	 * and ctime of the parent directory with the current time, since the
+	 * log replay procedure is responsible for setting them to their correct
+	 * values (the ones it had when the fsync was done).
+	 */
+	if (test_bit(BTRFS_FS_LOG_RECOVERING, &dir->root->fs_info->flags))
+		return;
+
+	now = inode_set_ctime_current(&dir->vfs_inode);
+	inode_set_mtime_to_ts(&dir->vfs_inode, now);
+}
+
 /*
  * unlink helper that gets used here in inode.c and in the tree logging
  * recovery code.  It remove a link in a directory with a given name, and
@@ -4289,7 +4306,7 @@ skip_backref:
 	inode_inc_iversion(&inode->vfs_inode);
 	inode_set_ctime_current(&inode->vfs_inode);
 	inode_inc_iversion(&dir->vfs_inode);
- 	inode_set_mtime_to_ts(&dir->vfs_inode, inode_set_ctime_current(&dir->vfs_inode));
+	update_time_after_link_or_unlink(dir);
 
 	return btrfs_update_inode(trans, dir);
 }
@@ -6683,15 +6700,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 	btrfs_i_size_write(parent_inode, parent_inode->vfs_inode.i_size +
 			   name->len * 2);
 	inode_inc_iversion(&parent_inode->vfs_inode);
-	/*
-	 * If we are replaying a log tree, we do not want to update the mtime
-	 * and ctime of the parent directory with the current time, since the
-	 * log replay procedure is responsible for setting them to their correct
-	 * values (the ones it had when the fsync was done).
-	 */
-	if (!test_bit(BTRFS_FS_LOG_RECOVERING, &root->fs_info->flags))
-		inode_set_mtime_to_ts(&parent_inode->vfs_inode,
-				      inode_set_ctime_current(&parent_inode->vfs_inode));
+	update_time_after_link_or_unlink(parent_inode);
 
 	ret = btrfs_update_inode(trans, parent_inode);
 	if (ret)

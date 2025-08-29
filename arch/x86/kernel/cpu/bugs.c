@@ -1068,10 +1068,8 @@ static void __init gds_select_mitigation(void)
 	if (gds_mitigation == GDS_MITIGATION_AUTO) {
 		if (should_mitigate_vuln(X86_BUG_GDS))
 			gds_mitigation = GDS_MITIGATION_FULL;
-		else {
+		else
 			gds_mitigation = GDS_MITIGATION_OFF;
-			return;
-		}
 	}
 
 	/* No microcode */
