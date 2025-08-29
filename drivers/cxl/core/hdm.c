@@ -52,8 +52,6 @@ static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld)
 static int devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 {
 	struct cxl_switch_decoder *cxlsd;
-	struct cxl_dport *dport = NULL;
-	unsigned long index;
 	struct cxl_hdm *cxlhdm = dev_get_drvdata(&port->dev);
 
 	/*
@@ -68,10 +66,6 @@ static int devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 		return PTR_ERR(cxlsd);
 
 	device_lock_assert(&port->dev);
-
-	xa_for_each(&port->dports, index, dport)
-		break;
-	cxlsd->cxld.target_map[0] = dport->port_id;
 
 	return add_hdm_decoder(port, &cxlsd->cxld);
 }

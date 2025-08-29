@@ -1357,21 +1357,6 @@ static struct cxl_port *find_cxl_port(struct device *dport_dev,
 	return port;
 }
 
-static struct cxl_port *find_cxl_port_at(struct cxl_port *parent_port,
-					 struct device *dport_dev,
-					 struct cxl_dport **dport)
-{
-	struct cxl_find_port_ctx ctx = {
-		.dport_dev = dport_dev,
-		.parent_port = parent_port,
-		.dport = dport,
-	};
-	struct cxl_port *port;
-
-	port = __find_cxl_port(&ctx);
-	return port;
-}
-
 /*
  * All users of grandparent() are using it to walk PCIe-like switch port
  * hierarchy. A PCIe switch is comprised of a bridge device representing the
@@ -1547,13 +1532,154 @@ static resource_size_t find_component_registers(struct device *dev)
 	return map.resource;
 }
 
+static int match_port_by_uport(struct device *dev, const void *data)
+{
+	const struct device *uport_dev = data;
+	struct cxl_port *port;
+
+	if (!is_cxl_port(dev))
+		return 0;
+
+	port = to_cxl_port(dev);
+	return uport_dev == port->uport_dev;
+}
+
+/*
+ * Function takes a device reference on the port device. Caller should do a
+ * put_device() when done.
+ */
+static struct cxl_port *find_cxl_port_by_uport(struct device *uport_dev)
+{
+	struct device *dev;
+
+	dev = bus_find_device(&cxl_bus_type, NULL, uport_dev, match_port_by_uport);
+	if (dev)
+		return to_cxl_port(dev);
+	return NULL;
+}
+
+static int update_decoder_targets(struct device *dev, void *data)
+{
+	struct cxl_dport *dport = data;
+	struct cxl_switch_decoder *cxlsd;
+	struct cxl_decoder *cxld;
+	int i;
+
+	if (!is_switch_decoder(dev))
+		return 0;
+
+	cxlsd = to_cxl_switch_decoder(dev);
+	cxld = &cxlsd->cxld;
+	guard(rwsem_write)(&cxl_rwsem.region);
+
+	for (i = 0; i < cxld->interleave_ways; i++) {
+		if (cxld->target_map[i] == dport->port_id) {
+			cxlsd->target[i] = dport;
+			dev_dbg(dev, "dport%d found in target list, index %d\n",
+				dport->port_id, i);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+DEFINE_FREE(del_cxl_dport, struct cxl_dport *, if (!IS_ERR_OR_NULL(_T)) del_dport(_T))
+static struct cxl_dport *cxl_port_add_dport(struct cxl_port *port,
+					    struct device *dport_dev)
+{
+	struct cxl_dport *dport;
+	int rc;
+
+	device_lock_assert(&port->dev);
+	if (!port->dev.driver)
+		return ERR_PTR(-ENXIO);
+
+	dport = cxl_find_dport_by_dev(port, dport_dev);
+	if (dport) {
+		dev_dbg(&port->dev, "dport%d:%s already exists\n",
+			dport->port_id, dev_name(dport_dev));
+		return ERR_PTR(-EBUSY);
+	}
+
+	struct cxl_dport *new_dport __free(del_cxl_dport) =
+		devm_cxl_add_dport_by_dev(port, dport_dev);
+	if (IS_ERR(new_dport))
+		return new_dport;
+
+	cxl_switch_parse_cdat(port);
+
+	if (ida_is_empty(&port->decoder_ida)) {
+		rc = devm_cxl_switch_port_decoders_setup(port);
+		if (rc)
+			return ERR_PTR(rc);
+		dev_dbg(&port->dev, "first dport%d:%s added with decoders\n",
+			new_dport->port_id, dev_name(dport_dev));
+		return no_free_ptr(new_dport);
+	}
+
+	/* New dport added, update the decoder targets */
+	device_for_each_child(&port->dev, new_dport, update_decoder_targets);
+
+	dev_dbg(&port->dev, "dport%d:%s added\n", new_dport->port_id,
+		dev_name(dport_dev));
+
+	return no_free_ptr(new_dport);
+}
+
+static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
+					      struct cxl_port *parent_port,
+					      struct cxl_dport *parent_dport,
+					      struct device *uport_dev,
+					      struct device *dport_dev)
+{
+	resource_size_t component_reg_phys;
+
+	device_lock_assert(&parent_port->dev);
+	if (!parent_port->dev.driver) {
+		dev_warn(ep_dev,
+			 "port %s:%s:%s disabled, failed to enumerate CXL.mem\n",
+			 dev_name(&parent_port->dev), dev_name(uport_dev),
+			 dev_name(dport_dev));
+	}
+
+	struct cxl_port *port __free(put_cxl_port) =
+		find_cxl_port_by_uport(uport_dev);
+	if (!port) {
+		component_reg_phys = find_component_registers(uport_dev);
+		port = devm_cxl_add_port(&parent_port->dev, uport_dev,
+					 component_reg_phys, parent_dport);
+		if (IS_ERR(port))
+			return ERR_CAST(port);
+
+		/*
+		 * retry to make sure a port is found. a port device
+		 * reference is taken.
+		 */
+		port = find_cxl_port_by_uport(uport_dev);
+		if (!port)
+			return ERR_PTR(-ENODEV);
+
+		dev_dbg(ep_dev, "created port %s:%s\n",
+			dev_name(&port->dev), dev_name(port->uport_dev));
+	} else {
+		/*
+		 * Port was created before right before this function is
+		 * called. Signal the caller to deal with it.
+		 */
+		return ERR_PTR(-EAGAIN);
+	}
+
+	guard(device)(&port->dev);
+	return cxl_port_add_dport(port, dport_dev);
+}
+
 static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 			      struct device *uport_dev,
 			      struct device *dport_dev)
 {
 	struct device *dparent = grandparent(dport_dev);
 	struct cxl_dport *dport, *parent_dport;
-	resource_size_t component_reg_phys;
 	int rc;
 
 	if (is_cxl_host_bridge(dparent)) {
@@ -1568,42 +1694,31 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 	}
 
 	struct cxl_port *parent_port __free(put_cxl_port) =
-		find_cxl_port(dparent, &parent_dport);
+		find_cxl_port_by_uport(dparent->parent);
 	if (!parent_port) {
 		/* iterate to create this parent_port */
 		return -EAGAIN;
 	}
 
-	/*
-	 * Definition with __free() here to keep the sequence of
-	 * dereferencing the device of the port before the parent_port releasing.
-	 */
-	struct cxl_port *port __free(put_cxl_port) = NULL;
 	scoped_guard(device, &parent_port->dev) {
-		if (!parent_port->dev.driver) {
-			dev_warn(&cxlmd->dev,
-				 "port %s:%s disabled, failed to enumerate CXL.mem\n",
-				 dev_name(&parent_port->dev), dev_name(uport_dev));
-			return -ENXIO;
+		parent_dport = cxl_find_dport_by_dev(parent_port, dparent);
+		if (!parent_dport) {
+			parent_dport = cxl_port_add_dport(parent_port, dparent);
+			if (IS_ERR(parent_dport))
+				return PTR_ERR(parent_dport);
 		}
 
-		port = find_cxl_port_at(parent_port, dport_dev, &dport);
-		if (!port) {
-			component_reg_phys = find_component_registers(uport_dev);
-			port = devm_cxl_add_port(&parent_port->dev, uport_dev,
-						 component_reg_phys, parent_dport);
-			if (IS_ERR(port))
-				return PTR_ERR(port);
-
-			/* retry find to pick up the new dport information */
-			port = find_cxl_port_at(parent_port, dport_dev, &dport);
-			if (!port)
-				return -ENXIO;
+		dport = devm_cxl_create_port(&cxlmd->dev, parent_port,
+					     parent_dport, uport_dev,
+					     dport_dev);
+		if (IS_ERR(dport)) {
+			/* Port already exists, restart iteration */
+			if (PTR_ERR(dport) == -EAGAIN)
+				return 0;
+			return PTR_ERR(dport);
 		}
 	}
 
-	dev_dbg(&cxlmd->dev, "add to new port %s:%s\n",
-		dev_name(&port->dev), dev_name(port->uport_dev));
 	rc = cxl_add_ep(dport, &cxlmd->dev);
 	if (rc == -EBUSY) {
 		/*
@@ -1614,6 +1729,25 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 	}
 
 	return rc;
+}
+
+static struct cxl_dport *find_or_add_dport(struct cxl_port *port,
+					   struct device *dport_dev)
+{
+	struct cxl_dport *dport;
+
+	device_lock_assert(&port->dev);
+	dport = cxl_find_dport_by_dev(port, dport_dev);
+	if (!dport) {
+		dport = cxl_port_add_dport(port, dport_dev);
+		if (IS_ERR(dport))
+			return dport;
+
+		/* New dport added, restart iteration */
+		return ERR_PTR(-EAGAIN);
+	}
+
+	return dport;
 }
 
 int devm_cxl_enumerate_ports(struct cxl_memdev *cxlmd)
@@ -1658,12 +1792,26 @@ retry:
 			dev_name(iter), dev_name(dport_dev),
 			dev_name(uport_dev));
 		struct cxl_port *port __free(put_cxl_port) =
-			find_cxl_port(dport_dev, &dport);
+			find_cxl_port_by_uport(uport_dev);
 		if (port) {
 			dev_dbg(&cxlmd->dev,
 				"found already registered port %s:%s\n",
 				dev_name(&port->dev),
 				dev_name(port->uport_dev));
+
+			/*
+			 * RP port enumerated by cxl_acpi without dport will
+			 * have the dport added here.
+			 */
+			scoped_guard(device, &port->dev) {
+				dport = find_or_add_dport(port, dport_dev);
+				if (IS_ERR(dport)) {
+					if (PTR_ERR(dport) == -EAGAIN)
+						goto retry;
+					return PTR_ERR(dport);
+				}
+			}
+
 			rc = cxl_add_ep(dport, &cxlmd->dev);
 
 			/*
@@ -1723,14 +1871,16 @@ static int decoder_populate_targets(struct cxl_switch_decoder *cxlsd,
 	device_lock_assert(&port->dev);
 
 	if (xa_empty(&port->dports))
-		return -EINVAL;
+		return 0;
 
 	guard(rwsem_write)(&cxl_rwsem.region);
 	for (i = 0; i < cxlsd->cxld.interleave_ways; i++) {
 		struct cxl_dport *dport = find_dport(port, cxld->target_map[i]);
 
-		if (!dport)
-			return -ENXIO;
+		if (!dport) {
+			/* dport may be activated later */
+			continue;
+		}
 		cxlsd->target[i] = dport;
 	}
 

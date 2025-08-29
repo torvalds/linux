@@ -338,7 +338,7 @@ static int match_cxlrd_hb(struct device *dev, void *data)
 
 	guard(rwsem_read)(&cxl_rwsem.region);
 	for (int i = 0; i < cxlsd->nr_targets; i++) {
-		if (host_bridge == cxlsd->target[i]->dport_dev)
+		if (cxlsd->target[i] && host_bridge == cxlsd->target[i]->dport_dev)
 			return 1;
 	}
 

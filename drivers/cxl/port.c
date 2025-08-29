@@ -59,18 +59,13 @@ static int discover_region(struct device *dev, void *unused)
 
 static int cxl_switch_port_probe(struct cxl_port *port)
 {
-	int rc;
+	/* Reset nr_dports for rebind of driver */
+	port->nr_dports = 0;
 
 	/* Cache the data early to ensure is_visible() works */
 	read_cdat_data(port);
 
-	rc = devm_cxl_port_enumerate_dports(port);
-	if (rc < 0)
-		return rc;
-
-	cxl_switch_parse_cdat(port);
-
-	return devm_cxl_switch_port_decoders_setup(port);
+	return 0;
 }
 
 static int cxl_endpoint_port_probe(struct cxl_port *port)
