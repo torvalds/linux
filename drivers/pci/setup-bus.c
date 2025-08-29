@@ -1241,24 +1241,24 @@ static bool pbus_upstream_space_available(struct pci_bus *bus, unsigned long mas
 		.align = align,
 	};
 	struct pci_bus *downstream = bus;
-	struct resource *r;
+	struct resource *res;
 
 	while ((bus = bus->parent)) {
 		if (pci_is_root_bus(bus))
 			break;
 
-		pci_bus_for_each_resource(bus, r) {
-			if (!r || !r->parent || (r->flags & mask) != type)
+		pci_bus_for_each_resource(bus, res) {
+			if (!res || !res->parent || (res->flags & mask) != type)
 				continue;
 
-			if (resource_size(r) >= size) {
+			if (resource_size(res) >= size) {
 				struct resource gap = {};
 
-				if (find_resource_space(r, &gap, size, &constraint) == 0) {
+				if (find_resource_space(res, &gap, size, &constraint) == 0) {
 					gap.flags = type;
 					pci_dbg(bus->self,
 						"Assigned bridge window %pR to %pR free space at %pR\n",
-						r, &bus->busn_res, &gap);
+						res, &bus->busn_res, &gap);
 					return true;
 				}
 			}
@@ -1266,7 +1266,7 @@ static bool pbus_upstream_space_available(struct pci_bus *bus, unsigned long mas
 			if (bus->self) {
 				pci_info(bus->self,
 					 "Assigned bridge window %pR to %pR cannot fit 0x%llx required for %s bridging to %pR\n",
-					 r, &bus->busn_res,
+					 res, &bus->busn_res,
 					 (unsigned long long)size,
 					 pci_name(downstream->self),
 					 &downstream->busn_res);
