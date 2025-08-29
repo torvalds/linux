@@ -49,6 +49,7 @@ struct PPTable_t {
 	uint32_t MaxLclkDpmRange;
 	uint32_t MinLclkDpmRange;
 	uint64_t PublicSerialNumber_AID;
+	uint32_t MaxNodePowerLimit;
 	bool Init;
 };
 
@@ -70,6 +71,7 @@ enum smu_v13_0_6_caps {
 	SMU_CAP(BOARD_VOLTAGE),
 	SMU_CAP(PLDM_VERSION),
 	SMU_CAP(TEMP_METRICS),
+	SMU_CAP(NPM_METRICS),
 	SMU_CAP(ALL),
 };
 
@@ -91,6 +93,9 @@ ssize_t smu_v13_0_12_get_xcp_metrics(struct smu_context *smu,
 				     void *smu_metrics);
 int smu_v13_0_12_tables_init(struct smu_context *smu);
 void smu_v13_0_12_tables_fini(struct smu_context *smu);
+int smu_v13_0_12_get_npm_data(struct smu_context *smu,
+			      enum amd_pp_sensors sensor,
+			      uint32_t *value);
 extern const struct cmn2asic_mapping smu_v13_0_12_feature_mask_map[];
 extern const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[];
 extern const struct smu_temp_funcs smu_v13_0_12_temp_funcs;
