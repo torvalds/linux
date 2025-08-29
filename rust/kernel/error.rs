@@ -392,8 +392,43 @@ impl From<core::convert::Infallible> for Error {
 /// [Rust documentation]: https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html
 pub type Result<T = (), E = Error> = core::result::Result<T, E>;
 
-/// Converts an integer as returned by a C kernel function to an error if it's negative, and
-/// `Ok(())` otherwise.
+/// Converts an integer as returned by a C kernel function to a [`Result`].
+///
+/// If the integer is negative, an [`Err`] with an [`Error`] as given by [`Error::from_errno`] is
+/// returned. This means the integer must be `>= -MAX_ERRNO`.
+///
+/// Otherwise, it returns [`Ok`].
+///
+/// It is a bug to pass an out-of-range negative integer. `Err(EINVAL)` is returned in such a case.
+///
+/// # Examples
+///
+/// This function may be used to easily perform early returns with the [`?`] operator when working
+/// with C APIs within Rust abstractions:
+///
+/// ```
+/// # use kernel::error::to_result;
+/// # mod bindings {
+/// #     #![expect(clippy::missing_safety_doc)]
+/// #     use kernel::prelude::*;
+/// #     pub(super) unsafe fn f1() -> c_int { 0 }
+/// #     pub(super) unsafe fn f2() -> c_int { EINVAL.to_errno() }
+/// # }
+/// fn f() -> Result {
+///     // SAFETY: ...
+///     to_result(unsafe { bindings::f1() })?;
+///
+///     // SAFETY: ...
+///     to_result(unsafe { bindings::f2() })?;
+///
+///     // ...
+///
+///     Ok(())
+/// }
+/// # assert_eq!(f(), Err(EINVAL));
+/// ```
+///
+/// [`?`]: https://doc.rust-lang.org/reference/expressions/operator-expr.html#the-question-mark-operator
 pub fn to_result(err: crate::ffi::c_int) -> Result {
     if err < 0 {
         Err(Error::from_errno(err))
