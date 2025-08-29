@@ -73,8 +73,9 @@ static int __init nvic_of_init(struct device_node *node,
 			       struct device_node *parent)
 {
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
-	unsigned int irqs, i, ret, numbanks;
+	unsigned int irqs, i, numbanks;
 	void __iomem *nvic_base;
+	int ret;
 
 	numbanks = (readl_relaxed(V7M_SCS_ICTR) &
 		    V7M_SCS_ICTR_INTLINESNUM_MASK) + 1;
