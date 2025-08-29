@@ -112,6 +112,19 @@ endif
 
 libpoly1305-$(CONFIG_PPC) += powerpc/poly1305-p10le_64.o
 
+ifeq ($(CONFIG_RISCV),y)
+libpoly1305-y += riscv/poly1305-core.o
+poly1305-perlasm-flavour-$(CONFIG_32BIT) := 32
+poly1305-perlasm-flavour-$(CONFIG_64BIT) := 64
+quiet_cmd_perlasm_poly1305 = PERLASM $@
+      cmd_perlasm_poly1305 = $(PERL) $< $(poly1305-perlasm-flavour-y) $@
+# Use if_changed instead of cmd, in case the flavour changed.
+$(obj)/riscv/poly1305-core.S: $(src)/riscv/poly1305-riscv.pl FORCE
+	$(call if_changed,perlasm_poly1305)
+targets += riscv/poly1305-core.S
+AFLAGS_riscv/poly1305-core.o += -Dpoly1305_init=poly1305_block_init
+endif
+
 ifeq ($(CONFIG_X86),y)
 libpoly1305-y += x86/poly1305-x86_64-cryptogams.o
 $(obj)/x86/poly1305-x86_64-cryptogams.S: $(src)/x86/poly1305-x86_64-cryptogams.pl
@@ -124,6 +137,7 @@ endif # CONFIG_CRYPTO_LIB_POLY1305_ARCH
 clean-files += arm/poly1305-core.S \
 	       arm64/poly1305-core.S \
 	       mips/poly1305-core.S \
+	       riscv/poly1305-core.S \
 	       x86/poly1305-x86_64-cryptogams.S
 
 ################################################################################
