@@ -28,8 +28,6 @@ struct panel_lvds {
 	struct device *dev;
 
 	const char *label;
-	unsigned int width;
-	unsigned int height;
 	struct drm_display_mode dmode;
 	u32 bus_flags;
 	unsigned int bus_format;
