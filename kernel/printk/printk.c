@@ -17,7 +17,6 @@
  *	01Mar01 Andrew Morton
  */
 
-#include "linux/panic.h"
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
@@ -49,6 +48,7 @@
 #include <linux/sched/clock.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task_stack.h>
+#include <linux/panic.h>
 
 #include <linux/uaccess.h>
 #include <asm/sections.h>
