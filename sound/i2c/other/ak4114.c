@@ -132,9 +132,9 @@ void snd_ak4114_reinit(struct ak4114 *chip)
 {
 	if (atomic_inc_return(&chip->wq_processing) == 1)
 		cancel_delayed_work_sync(&chip->work);
-	mutex_lock(&chip->reinit_mutex);
-	ak4114_init_regs(chip);
-	mutex_unlock(&chip->reinit_mutex);
+	scoped_guard(mutex, &chip->reinit_mutex) {
+		ak4114_init_regs(chip);
+	}
 	/* bring up statistics / event queing */
 	if (atomic_dec_and_test(&chip->wq_processing))
 		schedule_delayed_work(&chip->work, HZ / 10);
