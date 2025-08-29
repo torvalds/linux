@@ -23,6 +23,10 @@
  *	 - Badari Pulavarty <pbadari@us.ibm.com>, Matthew Wilcox 
  *	   <willy@debian.org>, Kurt Garloff <garloff@suse.de>: 
  *	   Support 32k/1M disks.
+ *	 - Guido Trentalancia <guido@trentalancia.com> ignore Synchronize
+ *	   Cache command failures on hard-drives that do not support it
+ *	   and disable the Write Cache functionality on such devices as a
+ *	   precaution: this allows to keep using several obsolete drives.
  *
  *	Logging policy (needs CONFIG_SCSI_LOGGING defined):
  *	 - setting up transfer: SCSI_LOG_HLQUEUE levels 1 and 2
@@ -1808,6 +1812,20 @@ static int sd_sync_cache(struct scsi_disk *sdkp)
 	res = scsi_execute_cmd(sdp, cmd, REQ_OP_DRV_IN, NULL, 0, timeout,
 			       sdkp->max_retries, &exec_args);
 	if (res) {
+		/*
+		 * sshdr.sense_key == ILLEGAL_REQUEST means this drive
+		 * doesn't support sync. There's not much to do and
+		 * sync shouldn't fail.
+		 */
+		if (sshdr->sense_key == ILLEGAL_REQUEST && sshdr->asc == 0x20) {
+			if (sdkp->WCE) {
+				sdkp->WCE = 0;
+				sd_printk(KERN_NOTICE, sdkp, "Drive does not support Synchronize Cache(10) command: disabling write cache.\n");
+				sd_set_flush_flag(sdkp);
+			}
+			return 0;
+		}
+
 		sd_print_result(sdkp, "Synchronize Cache(10) failed", res);
 
 		if (res < 0)
@@ -2370,6 +2388,17 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 				} else {
 					sd_disable_write_same(sdkp);
 					req->rq_flags |= RQF_QUIET;
+				}
+				break;
+			case SYNCHRONIZE_CACHE:
+				if (sshdr.asc == 0x20) {
+					if (sdkp->WCE) {
+						sdkp->WCE = 0;
+						sd_printk(KERN_NOTICE, sdkp, "Drive does not support Synchronize Cache(10) command: disabling write cache.\n");
+						sd_set_flush_flag(sdkp);
+					}
+					SCpnt->result = 0;
+					good_bytes = scsi_bufflen(SCpnt);
 				}
 				break;
 			}
