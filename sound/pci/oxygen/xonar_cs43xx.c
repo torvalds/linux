@@ -339,11 +339,10 @@ static void xonar_d1_line_mic_ac97_switch(struct oxygen *chip,
 					  unsigned int reg, unsigned int mute)
 {
 	if (reg == AC97_LINE) {
-		spin_lock_irq(&chip->reg_lock);
+		guard(spinlock_irq)(&chip->reg_lock);
 		oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
 				      mute ? GPIO_D1_INPUT_ROUTE : 0,
 				      GPIO_D1_INPUT_ROUTE);
-		spin_unlock_irq(&chip->reg_lock);
 	}
 }
 

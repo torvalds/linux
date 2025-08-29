@@ -432,7 +432,7 @@ static int spdif_bit_switch_put(struct snd_kcontrol *ctl,
 	u32 oldreg, newreg;
 	int changed;
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	oldreg = oxygen_read32(chip, OXYGEN_SPDIF_CONTROL);
 	if (value->value.integer.value[0])
 		newreg = oldreg | bit;
@@ -441,7 +441,6 @@ static int spdif_bit_switch_put(struct snd_kcontrol *ctl,
 	changed = newreg != oldreg;
 	if (changed)
 		oxygen_write32(chip, OXYGEN_SPDIF_CONTROL, newreg);
-	spin_unlock_irq(&chip->reg_lock);
 	return changed;
 }
 
@@ -476,7 +475,7 @@ static int monitor_put(struct snd_kcontrol *ctl,
 	u8 oldreg, newreg;
 	int changed;
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	oldreg = oxygen_read8(chip, OXYGEN_ADC_MONITOR);
 	if ((!!value->value.integer.value[0] ^ !!invert) != 0)
 		newreg = oldreg | bit;
@@ -485,7 +484,6 @@ static int monitor_put(struct snd_kcontrol *ctl,
 	changed = newreg != oldreg;
 	if (changed)
 		oxygen_write8(chip, OXYGEN_ADC_MONITOR, newreg);
-	spin_unlock_irq(&chip->reg_lock);
 	return changed;
 }
 
