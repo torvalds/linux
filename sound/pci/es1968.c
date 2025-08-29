@@ -1318,12 +1318,11 @@ static int calc_available_memory_size(struct es1968 *chip)
 	int max_size = 0;
 	struct esm_memory *buf;
 
-	mutex_lock(&chip->memory_mutex);
+	guard(mutex)(&chip->memory_mutex);
 	list_for_each_entry(buf, &chip->buf_list, list) {
 		if (buf->empty && buf->buf.bytes > max_size)
 			max_size = buf->buf.bytes;
 	}
-	mutex_unlock(&chip->memory_mutex);
 	if (max_size >= 128*1024)
 		max_size = 127*1024;
 	return max_size;
@@ -1335,21 +1334,18 @@ static struct esm_memory *snd_es1968_new_memory(struct es1968 *chip, int size)
 	struct esm_memory *buf;
 
 	size = ALIGN(size, ESM_MEM_ALIGN);
-	mutex_lock(&chip->memory_mutex);
+	guard(mutex)(&chip->memory_mutex);
 	list_for_each_entry(buf, &chip->buf_list, list) {
 		if (buf->empty && buf->buf.bytes >= size)
 			goto __found;
 	}
-	mutex_unlock(&chip->memory_mutex);
 	return NULL;
 
 __found:
 	if (buf->buf.bytes > size) {
 		struct esm_memory *chunk = kmalloc(sizeof(*chunk), GFP_KERNEL);
-		if (chunk == NULL) {
-			mutex_unlock(&chip->memory_mutex);
+		if (chunk == NULL)
 			return NULL;
-		}
 		chunk->buf = buf->buf;
 		chunk->buf.bytes -= size;
 		chunk->buf.area += size;
@@ -1359,7 +1355,6 @@ __found:
 		list_add(&chunk->list, &buf->list);
 	}
 	buf->empty = 0;
-	mutex_unlock(&chip->memory_mutex);
 	return buf;
 }
 
@@ -1368,7 +1363,7 @@ static void snd_es1968_free_memory(struct es1968 *chip, struct esm_memory *buf)
 {
 	struct esm_memory *chunk;
 
-	mutex_lock(&chip->memory_mutex);
+	guard(mutex)(&chip->memory_mutex);
 	buf->empty = 1;
 	if (buf->list.prev != &chip->buf_list) {
 		chunk = list_entry(buf->list.prev, struct esm_memory, list);
@@ -1387,7 +1382,6 @@ static void snd_es1968_free_memory(struct es1968 *chip, struct esm_memory *buf)
 			kfree(chunk);
 		}
 	}
-	mutex_unlock(&chip->memory_mutex);
 }
 
 static void snd_es1968_free_dmabuf(struct es1968 *chip)
