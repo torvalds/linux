@@ -658,11 +658,10 @@ static int capture_pcm_open(struct snd_pcm_substream *substream)
 		DIV_ROUND_CLOSEST(ua->rate, ua->packets_per_second);
 	substream->runtime->delay = substream->runtime->hw.fifo_size;
 
-	mutex_lock(&ua->mutex);
+	guard(mutex)(&ua->mutex);
 	err = start_usb_capture(ua);
 	if (err >= 0)
 		set_bit(ALSA_CAPTURE_OPEN, &ua->states);
-	mutex_unlock(&ua->mutex);
 	return err;
 }
 
@@ -679,31 +678,28 @@ static int playback_pcm_open(struct snd_pcm_substream *substream)
 		DIV_ROUND_CLOSEST(ua->rate * ua->playback.queue_length,
 				  ua->packets_per_second);
 
-	mutex_lock(&ua->mutex);
+	guard(mutex)(&ua->mutex);
 	err = start_usb_capture(ua);
 	if (err < 0)
-		goto error;
+		return err;
 	err = start_usb_playback(ua);
 	if (err < 0) {
 		if (!test_bit(ALSA_CAPTURE_OPEN, &ua->states))
 			stop_usb_capture(ua);
-		goto error;
+		return err;
 	}
 	set_bit(ALSA_PLAYBACK_OPEN, &ua->states);
-error:
-	mutex_unlock(&ua->mutex);
-	return err;
+	return 0;
 }
 
 static int capture_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct ua101 *ua = substream->private_data;
 
-	mutex_lock(&ua->mutex);
+	guard(mutex)(&ua->mutex);
 	clear_bit(ALSA_CAPTURE_OPEN, &ua->states);
 	if (!test_bit(ALSA_PLAYBACK_OPEN, &ua->states))
 		stop_usb_capture(ua);
-	mutex_unlock(&ua->mutex);
 	return 0;
 }
 
@@ -711,12 +707,11 @@ static int playback_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct ua101 *ua = substream->private_data;
 
-	mutex_lock(&ua->mutex);
+	guard(mutex)(&ua->mutex);
 	stop_usb_playback(ua);
 	clear_bit(ALSA_PLAYBACK_OPEN, &ua->states);
 	if (!test_bit(ALSA_CAPTURE_OPEN, &ua->states))
 		stop_usb_capture(ua);
-	mutex_unlock(&ua->mutex);
 	return 0;
 }
 
@@ -724,12 +719,9 @@ static int capture_pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *hw_params)
 {
 	struct ua101 *ua = substream->private_data;
-	int err;
 
-	mutex_lock(&ua->mutex);
-	err = start_usb_capture(ua);
-	mutex_unlock(&ua->mutex);
-	return err;
+	guard(mutex)(&ua->mutex);
+	return start_usb_capture(ua);
 }
 
 static int playback_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -738,11 +730,10 @@ static int playback_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct ua101 *ua = substream->private_data;
 	int err;
 
-	mutex_lock(&ua->mutex);
+	guard(mutex)(&ua->mutex);
 	err = start_usb_capture(ua);
 	if (err >= 0)
 		err = start_usb_playback(ua);
-	mutex_unlock(&ua->mutex);
 	return err;
 }
 
@@ -751,9 +742,9 @@ static int capture_pcm_prepare(struct snd_pcm_substream *substream)
 	struct ua101 *ua = substream->private_data;
 	int err;
 
-	mutex_lock(&ua->mutex);
-	err = start_usb_capture(ua);
-	mutex_unlock(&ua->mutex);
+	scoped_guard(mutex, &ua->mutex) {
+		err = start_usb_capture(ua);
+	}
 	if (err < 0)
 		return err;
 
@@ -781,11 +772,11 @@ static int playback_pcm_prepare(struct snd_pcm_substream *substream)
 	struct ua101 *ua = substream->private_data;
 	int err;
 
-	mutex_lock(&ua->mutex);
-	err = start_usb_capture(ua);
-	if (err >= 0)
-		err = start_usb_playback(ua);
-	mutex_unlock(&ua->mutex);
+	scoped_guard(mutex, &ua->mutex) {
+		err = start_usb_capture(ua);
+		if (err >= 0)
+			err = start_usb_playback(ua);
+	}
 	if (err < 0)
 		return err;
 
@@ -1127,18 +1118,18 @@ static void free_usb_related_resources(struct ua101 *ua,
 	unsigned int i;
 	struct usb_interface *intf;
 
-	mutex_lock(&ua->mutex);
-	free_stream_urbs(&ua->capture);
-	free_stream_urbs(&ua->playback);
-	mutex_unlock(&ua->mutex);
+	scoped_guard(mutex, &ua->mutex) {
+		free_stream_urbs(&ua->capture);
+		free_stream_urbs(&ua->playback);
+	}
 	free_stream_buffers(ua, &ua->capture);
 	free_stream_buffers(ua, &ua->playback);
 
 	for (i = 0; i < ARRAY_SIZE(ua->intf); ++i) {
-		mutex_lock(&ua->mutex);
-		intf = ua->intf[i];
-		ua->intf[i] = NULL;
-		mutex_unlock(&ua->mutex);
+		scoped_guard(mutex, &ua->mutex) {
+			intf = ua->intf[i];
+			ua->intf[i] = NULL;
+		}
 		if (intf) {
 			usb_set_intfdata(intf, NULL);
 			if (intf != interface)
@@ -1192,22 +1183,18 @@ static int ua101_probe(struct usb_interface *interface,
 	    intf_numbers[is_ua1000][0])
 		return -ENODEV;
 
-	mutex_lock(&devices_mutex);
+	guard(mutex)(&devices_mutex);
 
 	for (card_index = 0; card_index < SNDRV_CARDS; ++card_index)
 		if (enable[card_index] && !(devices_used & (1 << card_index)))
 			break;
-	if (card_index >= SNDRV_CARDS) {
-		mutex_unlock(&devices_mutex);
+	if (card_index >= SNDRV_CARDS)
 		return -ENOENT;
-	}
 	err = snd_card_new(&interface->dev,
 			   index[card_index], id[card_index], THIS_MODULE,
 			   sizeof(*ua), &card);
-	if (err < 0) {
-		mutex_unlock(&devices_mutex);
+	if (err < 0)
 		return err;
-	}
 	card->private_free = ua101_card_free;
 	ua = card->private_data;
 	ua->dev = interface_to_usbdev(interface);
@@ -1290,13 +1277,11 @@ static int ua101_probe(struct usb_interface *interface,
 	usb_set_intfdata(interface, ua);
 	devices_used |= 1 << card_index;
 
-	mutex_unlock(&devices_mutex);
 	return 0;
 
 probe_error:
 	free_usb_related_resources(ua, interface);
 	snd_card_free(card);
-	mutex_unlock(&devices_mutex);
 	return err;
 }
 
@@ -1308,7 +1293,7 @@ static void ua101_disconnect(struct usb_interface *interface)
 	if (!ua)
 		return;
 
-	mutex_lock(&devices_mutex);
+	guard(mutex)(&devices_mutex);
 
 	set_bit(DISCONNECTED, &ua->states);
 	wake_up(&ua->rate_feedback_wait);
@@ -1321,18 +1306,16 @@ static void ua101_disconnect(struct usb_interface *interface)
 		snd_usbmidi_disconnect(midi);
 	abort_alsa_playback(ua);
 	abort_alsa_capture(ua);
-	mutex_lock(&ua->mutex);
-	stop_usb_playback(ua);
-	stop_usb_capture(ua);
-	mutex_unlock(&ua->mutex);
+	scoped_guard(mutex, &ua->mutex) {
+		stop_usb_playback(ua);
+		stop_usb_capture(ua);
+	}
 
 	free_usb_related_resources(ua, interface);
 
 	devices_used &= ~(1 << ua->card_index);
 
 	snd_card_free_when_closed(ua->card);
-
-	mutex_unlock(&devices_mutex);
 }
 
 static const struct usb_device_id ua101_ids[] = {
