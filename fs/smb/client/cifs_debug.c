@@ -304,6 +304,8 @@ static int cifs_debug_dirs_proc_show(struct seq_file *m, void *v)
 			list_for_each(tmp1, &ses->tcon_list) {
 				tcon = list_entry(tmp1, struct cifs_tcon, tcon_list);
 				cfids = tcon->cfids;
+				if (!cfids)
+					continue;
 				spin_lock(&cfids->cfid_list_lock); /* check lock ordering */
 				seq_printf(m, "Num entries: %d\n", cfids->num_entries);
 				list_for_each_entry(cfid, &cfids->entries, entry) {
@@ -319,8 +321,6 @@ static int cifs_debug_dirs_proc_show(struct seq_file *m, void *v)
 					seq_printf(m, "\n");
 				}
 				spin_unlock(&cfids->cfid_list_lock);
-
-
 			}
 		}
 	}
