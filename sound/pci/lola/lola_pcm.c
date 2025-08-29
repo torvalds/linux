@@ -214,11 +214,9 @@ static int lola_pcm_open(struct snd_pcm_substream *substream)
 	struct lola_stream *str = lola_get_stream(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	mutex_lock(&chip->open_mutex);
-	if (str->opened) {
-		mutex_unlock(&chip->open_mutex);
+	guard(mutex)(&chip->open_mutex);
+	if (str->opened)
 		return -EBUSY;
-	}
 	str->substream = substream;
 	str->master = NULL;
 	str->opened = 1;
@@ -239,7 +237,6 @@ static int lola_pcm_open(struct snd_pcm_substream *substream)
 				   chip->granularity);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
 				   chip->granularity);
-	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
 
@@ -261,7 +258,7 @@ static int lola_pcm_close(struct snd_pcm_substream *substream)
 	struct lola *chip = snd_pcm_substream_chip(substream);
 	struct lola_stream *str = lola_get_stream(substream);
 
-	mutex_lock(&chip->open_mutex);
+	guard(mutex)(&chip->open_mutex);
 	if (str->substream == substream) {
 		str->substream = NULL;
 		str->opened = 0;
@@ -270,7 +267,6 @@ static int lola_pcm_close(struct snd_pcm_substream *substream)
 		/* release sample rate */
 		chip->sample_rate = 0;
 	}
-	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
 
@@ -291,10 +287,9 @@ static int lola_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct lola_pcm *pcm = lola_get_pcm(substream);
 	struct lola_stream *str = lola_get_stream(substream);
 
-	mutex_lock(&chip->open_mutex);
+	guard(mutex)(&chip->open_mutex);
 	lola_stream_reset(chip, str);
 	lola_cleanup_slave_streams(pcm, str);
-	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
 
@@ -457,18 +452,16 @@ static int lola_pcm_prepare(struct snd_pcm_substream *substream)
 	unsigned int bufsize, period_bytes, format_verb;
 	int i, err;
 
-	mutex_lock(&chip->open_mutex);
-	lola_stream_reset(chip, str);
-	lola_cleanup_slave_streams(pcm, str);
-	if (str->index + runtime->channels > pcm->num_streams) {
-		mutex_unlock(&chip->open_mutex);
-		return -EINVAL;
+	scoped_guard(mutex, &chip->open_mutex) {
+		lola_stream_reset(chip, str);
+		lola_cleanup_slave_streams(pcm, str);
+		if (str->index + runtime->channels > pcm->num_streams)
+			return -EINVAL;
+		for (i = 1; i < runtime->channels; i++) {
+			str[i].master = str;
+			str[i].opened = 1;
+		}
 	}
-	for (i = 1; i < runtime->channels; i++) {
-		str[i].master = str;
-		str[i].opened = 1;
-	}
-	mutex_unlock(&chip->open_mutex);
 
 	bufsize = snd_pcm_lib_buffer_bytes(substream);
 	period_bytes = snd_pcm_lib_period_bytes(substream);
