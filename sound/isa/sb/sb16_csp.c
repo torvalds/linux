@@ -265,14 +265,10 @@ static int snd_sb_csp_release(struct snd_hwdep * hw, struct file *file)
  */
 static int snd_sb_csp_use(struct snd_sb_csp * p)
 {
-	mutex_lock(&p->access_mutex);
-	if (p->used) {
-		mutex_unlock(&p->access_mutex);
+	guard(mutex)(&p->access_mutex);
+	if (p->used)
 		return -EAGAIN;
-	}
 	p->used++;
-	mutex_unlock(&p->access_mutex);
-
 	return 0;
 
 }
@@ -282,10 +278,8 @@ static int snd_sb_csp_use(struct snd_sb_csp * p)
  */
 static int snd_sb_csp_unuse(struct snd_sb_csp * p)
 {
-	mutex_lock(&p->access_mutex);
+	guard(mutex)(&p->access_mutex);
 	p->used--;
-	mutex_unlock(&p->access_mutex);
-
 	return 0;
 }
 
