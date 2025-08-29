@@ -3137,23 +3137,6 @@ DEFINE_EVENT(cfg80211_netdev_mac_evt, cfg80211_notify_new_peer_candidate,
 	TP_ARGS(netdev, macaddr)
 );
 
-DECLARE_EVENT_CLASS(netdev_evt_only,
-	TP_PROTO(struct net_device *netdev),
-	TP_ARGS(netdev),
-	TP_STRUCT__entry(
-		NETDEV_ENTRY
-	),
-	TP_fast_assign(
-		NETDEV_ASSIGN;
-	),
-	TP_printk(NETDEV_PR_FMT , NETDEV_PR_ARG)
-);
-
-DEFINE_EVENT(netdev_evt_only, cfg80211_send_rx_auth,
-	TP_PROTO(struct net_device *netdev),
-	TP_ARGS(netdev)
-);
-
 TRACE_EVENT(cfg80211_send_rx_assoc,
 	TP_PROTO(struct net_device *netdev,
 		 const struct cfg80211_rx_assoc_resp_data *data),
@@ -3478,21 +3461,6 @@ TRACE_EVENT(cfg80211_reg_can_beacon,
 	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT ", iftype=%d prohibited_flags=0x%x permitting_flags=0x%x",
 		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG, __entry->iftype,
 		  __entry->prohibited_flags, __entry->permitting_flags)
-);
-
-TRACE_EVENT(cfg80211_chandef_dfs_required,
-	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef),
-	TP_ARGS(wiphy, chandef),
-	TP_STRUCT__entry(
-		WIPHY_ENTRY
-		CHAN_DEF_ENTRY
-	),
-	TP_fast_assign(
-		WIPHY_ASSIGN;
-		CHAN_DEF_ASSIGN(chandef);
-	),
-	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT,
-		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
 );
 
 TRACE_EVENT(cfg80211_ch_switch_notify,
@@ -3860,30 +3828,6 @@ DECLARE_EVENT_CLASS(cfg80211_bss_evt,
 DEFINE_EVENT(cfg80211_bss_evt, cfg80211_return_bss,
 	TP_PROTO(struct cfg80211_bss *pub),
 	TP_ARGS(pub)
-);
-
-TRACE_EVENT(cfg80211_return_uint,
-	TP_PROTO(unsigned int ret),
-	TP_ARGS(ret),
-	TP_STRUCT__entry(
-		__field(unsigned int, ret)
-	),
-	TP_fast_assign(
-		__entry->ret = ret;
-	),
-	TP_printk("ret: %d", __entry->ret)
-);
-
-TRACE_EVENT(cfg80211_return_u32,
-	TP_PROTO(u32 ret),
-	TP_ARGS(ret),
-	TP_STRUCT__entry(
-		__field(u32, ret)
-	),
-	TP_fast_assign(
-		__entry->ret = ret;
-	),
-	TP_printk("ret: %u", __entry->ret)
 );
 
 TRACE_EVENT(cfg80211_report_wowlan_wakeup,
