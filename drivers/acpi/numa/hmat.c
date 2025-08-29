@@ -367,34 +367,6 @@ static void hmat_update_target_access(struct memory_target *target,
 	}
 }
 
-int hmat_update_target_coordinates(int nid, struct access_coordinate *coord,
-				   enum access_coordinate_class access)
-{
-	struct memory_target *target;
-	int pxm;
-
-	if (nid == NUMA_NO_NODE)
-		return -EINVAL;
-
-	pxm = node_to_pxm(nid);
-	guard(mutex)(&target_lock);
-	target = find_mem_target(pxm);
-	if (!target)
-		return -ENODEV;
-
-	hmat_update_target_access(target, ACPI_HMAT_READ_LATENCY,
-				  coord->read_latency, access);
-	hmat_update_target_access(target, ACPI_HMAT_WRITE_LATENCY,
-				  coord->write_latency, access);
-	hmat_update_target_access(target, ACPI_HMAT_READ_BANDWIDTH,
-				  coord->read_bandwidth, access);
-	hmat_update_target_access(target, ACPI_HMAT_WRITE_BANDWIDTH,
-				  coord->write_bandwidth, access);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(hmat_update_target_coordinates);
-
 static __init void hmat_add_locality(struct acpi_hmat_locality *hmat_loc)
 {
 	struct memory_locality *loc;
