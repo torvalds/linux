@@ -25,6 +25,7 @@
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
 #include "xe_step.h"
+#include "xe_tile_debugfs.h"
 #include "xe_wa.h"
 #include "xe_vsec.h"
 
@@ -329,23 +330,6 @@ static const struct file_operations atomic_svm_timeslice_ms_fops = {
 	.write = atomic_svm_timeslice_ms_set,
 };
 
-static void create_tile_debugfs(struct xe_tile *tile, struct dentry *root)
-{
-	char name[8];
-
-	snprintf(name, sizeof(name), "tile%u", tile->id);
-	tile->debugfs = debugfs_create_dir(name, root);
-	if (IS_ERR(tile->debugfs))
-		return;
-
-	/*
-	 * Store the xe_tile pointer as private data of the tile/ directory
-	 * node so other tile specific attributes under that directory may
-	 * refer to it by looking at its parent node private data.
-	 */
-	tile->debugfs->d_inode->i_private = tile;
-}
-
 void xe_debugfs_register(struct xe_device *xe)
 {
 	struct ttm_device *bdev = &xe->ttm;
@@ -398,7 +382,7 @@ void xe_debugfs_register(struct xe_device *xe)
 		ttm_resource_manager_create_debugfs(man, root, "stolen_mm");
 
 	for_each_tile(tile, xe, tile_id)
-		create_tile_debugfs(tile, root);
+		xe_tile_debugfs_register(tile);
 
 	for_each_gt(gt, xe, id)
 		xe_gt_debugfs_register(gt);

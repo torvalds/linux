@@ -123,18 +123,6 @@ static int powergate_info(struct xe_gt *gt, struct drm_printer *p)
 	return ret;
 }
 
-static int sa_info(struct xe_gt *gt, struct drm_printer *p)
-{
-	struct xe_tile *tile = gt_to_tile(gt);
-
-	xe_pm_runtime_get(gt_to_xe(gt));
-	drm_suballoc_dump_debug_info(&tile->mem.kernel_bb_pool->base, p,
-				     xe_sa_manager_gpu_addr(tile->mem.kernel_bb_pool));
-	xe_pm_runtime_put(gt_to_xe(gt));
-
-	return 0;
-}
-
 static int sa_info_vf_ccs(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
@@ -316,7 +304,6 @@ static int hwconfig(struct xe_gt *gt, struct drm_printer *p)
  * - without access to the PF specific data
  */
 static const struct drm_info_list vf_safe_debugfs_list[] = {
-	{"sa_info", .show = xe_gt_debugfs_simple_show, .data = sa_info},
 	{"topology", .show = xe_gt_debugfs_simple_show, .data = topology},
 	{"ggtt", .show = xe_gt_debugfs_simple_show, .data = ggtt},
 	{"register-save-restore", .show = xe_gt_debugfs_simple_show, .data = register_save_restore},

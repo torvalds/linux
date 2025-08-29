@@ -325,6 +325,7 @@ ifeq ($(CONFIG_DEBUG_FS),y)
 		xe_gt_stats.o \
 		xe_guc_debugfs.o \
 		xe_huc_debugfs.o \
+		xe_tile_debugfs.o \
 		xe_uc_debugfs.o
 
 	xe-$(CONFIG_PCI_IOV) += xe_gt_sriov_pf_debugfs.o
