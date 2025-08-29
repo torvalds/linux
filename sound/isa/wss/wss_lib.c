@@ -618,7 +618,7 @@ static void snd_wss_playback_format(struct snd_wss *chip,
 	unsigned long flags;
 	int full_calib = 1;
 
-	mutex_lock(&chip->mce_mutex);
+	guard(mutex)(&chip->mce_mutex);
 	if (chip->hardware == WSS_HW_CS4231A ||
 	    (chip->hardware & WSS_HW_CS4232_MASK)) {
 		spin_lock_irqsave(&chip->reg_lock, flags);
@@ -669,7 +669,6 @@ static void snd_wss_playback_format(struct snd_wss *chip,
 			udelay(100);	/* this seems to help */
 		snd_wss_mce_down(chip);
 	}
-	mutex_unlock(&chip->mce_mutex);
 }
 
 static void snd_wss_capture_format(struct snd_wss *chip,
@@ -679,7 +678,7 @@ static void snd_wss_capture_format(struct snd_wss *chip,
 	unsigned long flags;
 	int full_calib = 1;
 
-	mutex_lock(&chip->mce_mutex);
+	guard(mutex)(&chip->mce_mutex);
 	if (chip->hardware == WSS_HW_CS4231A ||
 	    (chip->hardware & WSS_HW_CS4232_MASK)) {
 		spin_lock_irqsave(&chip->reg_lock, flags);
@@ -736,7 +735,6 @@ static void snd_wss_capture_format(struct snd_wss *chip,
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
 		snd_wss_mce_down(chip);
 	}
-	mutex_unlock(&chip->mce_mutex);
 }
 
 /*
@@ -862,15 +860,12 @@ static int snd_wss_open(struct snd_wss *chip, unsigned int mode)
 {
 	unsigned long flags;
 
-	mutex_lock(&chip->open_mutex);
+	guard(mutex)(&chip->open_mutex);
 	if ((chip->mode & mode) ||
-	    ((chip->mode & WSS_MODE_OPEN) && chip->single_dma)) {
-		mutex_unlock(&chip->open_mutex);
+	    ((chip->mode & WSS_MODE_OPEN) && chip->single_dma))
 		return -EAGAIN;
-	}
 	if (chip->mode & WSS_MODE_OPEN) {
 		chip->mode |= mode;
-		mutex_unlock(&chip->open_mutex);
 		return 0;
 	}
 	/* ok. now enable and ack CODEC IRQ */
@@ -896,7 +891,6 @@ static int snd_wss_open(struct snd_wss *chip, unsigned int mode)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	chip->mode = mode;
-	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
 
@@ -904,12 +898,10 @@ static void snd_wss_close(struct snd_wss *chip, unsigned int mode)
 {
 	unsigned long flags;
 
-	mutex_lock(&chip->open_mutex);
+	guard(mutex)(&chip->open_mutex);
 	chip->mode &= ~mode;
-	if (chip->mode & WSS_MODE_OPEN) {
-		mutex_unlock(&chip->open_mutex);
+	if (chip->mode & WSS_MODE_OPEN)
 		return;
-	}
 	/* disable IRQ */
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	if (!(chip->hardware & WSS_HW_AD1848_MASK))
@@ -943,7 +935,6 @@ static void snd_wss_close(struct snd_wss *chip, unsigned int mode)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	chip->mode = 0;
-	mutex_unlock(&chip->open_mutex);
 }
 
 /*
