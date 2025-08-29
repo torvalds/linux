@@ -961,7 +961,7 @@ static struct i2c_driver ov02e10_i2c_driver = {
 
 module_i2c_driver(ov02e10_i2c_driver);
 
-MODULE_AUTHOR("Jingjing Xiong <jingjing.xiong@intel.com>");
+MODULE_AUTHOR("Jingjing Xiong");
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_AUTHOR("Alan Stern <stern@rowland.harvard.edu>");
 MODULE_AUTHOR("Bryan O'Donoghue <bryan.odonoghue@linaro.org>");
