@@ -353,6 +353,19 @@ struct sof_ipc4_fw_module *sof_client_ipc4_find_module(struct sof_client_dev *c,
 	return NULL;
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_ipc4_find_module, "SND_SOC_SOF_CLIENT");
+
+struct snd_sof_widget *sof_client_ipc4_find_swidget_by_id(struct sof_client_dev *cdev,
+							  u32 module_id, int instance_id)
+{
+	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
+
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4)
+		return sof_ipc4_find_swidget_by_ids(sdev, module_id, instance_id);
+	dev_err(sdev->dev, "Only supported with IPC4\n");
+
+	return NULL;
+}
+EXPORT_SYMBOL_NS_GPL(sof_client_ipc4_find_swidget_by_id, "SND_SOC_SOF_CLIENT");
 #endif
 
 int sof_suspend_clients(struct snd_sof_dev *sdev, pm_message_t state)
