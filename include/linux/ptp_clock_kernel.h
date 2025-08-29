@@ -361,6 +361,24 @@ extern void ptp_clock_event(struct ptp_clock *ptp,
 extern int ptp_clock_index(struct ptp_clock *ptp);
 
 /**
+ * ptp_clock_index_by_of_node() - obtain the device index of
+ * a PTP clock based on the PTP device of_node
+ *
+ * @np:    The device of_node pointer of the PTP device.
+ * Return: The PHC index on success or -1 on failure.
+ */
+int ptp_clock_index_by_of_node(struct device_node *np);
+
+/**
+ * ptp_clock_index_by_dev() - obtain the device index of
+ * a PTP clock based on the PTP device.
+ *
+ * @parent:    The parent device (PTP device) pointer of the PTP clock.
+ * Return: The PHC index on success or -1 on failure.
+ */
+int ptp_clock_index_by_dev(struct device *parent);
+
+/**
  * ptp_find_pin() - obtain the pin index of a given auxiliary function
  *
  * The caller must hold ptp_clock::pincfg_mux.  Drivers do not have
@@ -424,6 +442,10 @@ static inline void ptp_clock_event(struct ptp_clock *ptp,
 				   struct ptp_clock_event *event)
 { }
 static inline int ptp_clock_index(struct ptp_clock *ptp)
+{ return -1; }
+static inline int ptp_clock_index_by_of_node(struct device_node *np)
+{ return -1; }
+static inline int ptp_clock_index_by_dev(struct device *parent)
 { return -1; }
 static inline int ptp_find_pin(struct ptp_clock *ptp,
 			       enum ptp_pin_function func, unsigned int chan)

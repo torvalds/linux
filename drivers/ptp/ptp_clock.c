@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/posix-clock.h>
 #include <linux/pps_kernel.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
@@ -487,6 +488,58 @@ int ptp_clock_index(struct ptp_clock *ptp)
 	return ptp->index;
 }
 EXPORT_SYMBOL(ptp_clock_index);
+
+static int ptp_clock_of_node_match(struct device *dev, const void *data)
+{
+	const struct device_node *parent_np = data;
+
+	return (dev->parent && dev_of_node(dev->parent) == parent_np);
+}
+
+int ptp_clock_index_by_of_node(struct device_node *np)
+{
+	struct ptp_clock *ptp;
+	struct device *dev;
+	int phc_index;
+
+	dev = class_find_device(&ptp_class, NULL, np,
+				ptp_clock_of_node_match);
+	if (!dev)
+		return -1;
+
+	ptp = dev_get_drvdata(dev);
+	phc_index = ptp_clock_index(ptp);
+	put_device(dev);
+
+	return phc_index;
+}
+EXPORT_SYMBOL_GPL(ptp_clock_index_by_of_node);
+
+static int ptp_clock_dev_match(struct device *dev, const void *data)
+{
+	const struct device *parent = data;
+
+	return dev->parent == parent;
+}
+
+int ptp_clock_index_by_dev(struct device *parent)
+{
+	struct ptp_clock *ptp;
+	struct device *dev;
+	int phc_index;
+
+	dev = class_find_device(&ptp_class, NULL, parent,
+				ptp_clock_dev_match);
+	if (!dev)
+		return -1;
+
+	ptp = dev_get_drvdata(dev);
+	phc_index = ptp_clock_index(ptp);
+	put_device(dev);
+
+	return phc_index;
+}
+EXPORT_SYMBOL_GPL(ptp_clock_index_by_dev);
 
 int ptp_find_pin(struct ptp_clock *ptp,
 		 enum ptp_pin_function func, unsigned int chan)
