@@ -60,51 +60,87 @@ HISI_PMU_EVENT_ATTR_EXTRACTOR(datasrc_cfg, config1, 15, 11);
 HISI_PMU_EVENT_ATTR_EXTRACTOR(datasrc_skt, config1, 16, 16);
 HISI_PMU_EVENT_ATTR_EXTRACTOR(tt_core, config2, 15, 0);
 
-static void hisi_l3c_pmu_config_req_tracetag(struct perf_event *event)
+static int hisi_l3c_pmu_get_event_idx(struct perf_event *event)
 {
 	struct hisi_pmu *l3c_pmu = to_hisi_pmu(event->pmu);
+	unsigned long *used_mask = l3c_pmu->pmu_events.used_mask;
+	u32 num_counters = l3c_pmu->num_counters;
+	int idx;
+
+	idx = find_first_zero_bit(used_mask, num_counters);
+	if (idx == num_counters)
+		return -EAGAIN;
+
+	set_bit(idx, used_mask);
+	event->hw.event_base = (unsigned long)l3c_pmu->base;
+
+	return idx;
+}
+
+static u32 hisi_l3c_pmu_event_readl(struct hw_perf_event *hwc, u32 reg)
+{
+	return readl((void __iomem *)hwc->event_base + reg);
+}
+
+static void hisi_l3c_pmu_event_writel(struct hw_perf_event *hwc, u32 reg, u32 val)
+{
+	writel(val, (void __iomem *)hwc->event_base + reg);
+}
+
+static u64 hisi_l3c_pmu_event_readq(struct hw_perf_event *hwc, u32 reg)
+{
+	return readq((void __iomem *)hwc->event_base + reg);
+}
+
+static void hisi_l3c_pmu_event_writeq(struct hw_perf_event *hwc, u32 reg, u64 val)
+{
+	writeq(val, (void __iomem *)hwc->event_base + reg);
+}
+
+static void hisi_l3c_pmu_config_req_tracetag(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
 	u32 tt_req = hisi_get_tt_req(event);
 
 	if (tt_req) {
 		u32 val;
 
 		/* Set request-type for tracetag */
-		val = readl(l3c_pmu->base + L3C_TRACETAG_CTRL);
+		val = hisi_l3c_pmu_event_readl(hwc, L3C_TRACETAG_CTRL);
 		val |= tt_req << L3C_TRACETAG_REQ_SHIFT;
 		val |= L3C_TRACETAG_REQ_EN;
-		writel(val, l3c_pmu->base + L3C_TRACETAG_CTRL);
+		hisi_l3c_pmu_event_writel(hwc, L3C_TRACETAG_CTRL, val);
 
 		/* Enable request-tracetag statistics */
-		val = readl(l3c_pmu->base + L3C_PERF_CTRL);
+		val = hisi_l3c_pmu_event_readl(hwc, L3C_PERF_CTRL);
 		val |= L3C_TRACETAG_EN;
-		writel(val, l3c_pmu->base + L3C_PERF_CTRL);
+		hisi_l3c_pmu_event_writel(hwc, L3C_PERF_CTRL, val);
 	}
 }
 
 static void hisi_l3c_pmu_clear_req_tracetag(struct perf_event *event)
 {
-	struct hisi_pmu *l3c_pmu = to_hisi_pmu(event->pmu);
+	struct hw_perf_event *hwc = &event->hw;
 	u32 tt_req = hisi_get_tt_req(event);
 
 	if (tt_req) {
 		u32 val;
 
 		/* Clear request-type */
-		val = readl(l3c_pmu->base + L3C_TRACETAG_CTRL);
+		val = hisi_l3c_pmu_event_readl(hwc, L3C_TRACETAG_CTRL);
 		val &= ~(tt_req << L3C_TRACETAG_REQ_SHIFT);
 		val &= ~L3C_TRACETAG_REQ_EN;
-		writel(val, l3c_pmu->base + L3C_TRACETAG_CTRL);
+		hisi_l3c_pmu_event_writel(hwc, L3C_TRACETAG_CTRL, val);
 
 		/* Disable request-tracetag statistics */
-		val = readl(l3c_pmu->base + L3C_PERF_CTRL);
+		val = hisi_l3c_pmu_event_readl(hwc, L3C_PERF_CTRL);
 		val &= ~L3C_TRACETAG_EN;
-		writel(val, l3c_pmu->base + L3C_PERF_CTRL);
+		hisi_l3c_pmu_event_writel(hwc, L3C_PERF_CTRL, val);
 	}
 }
 
 static void hisi_l3c_pmu_write_ds(struct perf_event *event, u32 ds_cfg)
 {
-	struct hisi_pmu *l3c_pmu = to_hisi_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	u32 reg, reg_idx, shift, val;
 	int idx = hwc->idx;
@@ -120,15 +156,15 @@ static void hisi_l3c_pmu_write_ds(struct perf_event *event, u32 ds_cfg)
 	reg_idx = idx % 4;
 	shift = 8 * reg_idx;
 
-	val = readl(l3c_pmu->base + reg);
+	val = hisi_l3c_pmu_event_readl(hwc, reg);
 	val &= ~(L3C_DATSRC_MASK << shift);
 	val |= ds_cfg << shift;
-	writel(val, l3c_pmu->base + reg);
+	hisi_l3c_pmu_event_writel(hwc, reg, val);
 }
 
 static void hisi_l3c_pmu_config_ds(struct perf_event *event)
 {
-	struct hisi_pmu *l3c_pmu = to_hisi_pmu(event->pmu);
+	struct hw_perf_event *hwc = &event->hw;
 	u32 ds_cfg = hisi_get_datasrc_cfg(event);
 	u32 ds_skt = hisi_get_datasrc_skt(event);
 
@@ -138,15 +174,15 @@ static void hisi_l3c_pmu_config_ds(struct perf_event *event)
 	if (ds_skt) {
 		u32 val;
 
-		val = readl(l3c_pmu->base + L3C_DATSRC_CTRL);
+		val = hisi_l3c_pmu_event_readl(hwc, L3C_DATSRC_CTRL);
 		val |= L3C_DATSRC_SKT_EN;
-		writel(val, l3c_pmu->base + L3C_DATSRC_CTRL);
+		hisi_l3c_pmu_event_writel(hwc, L3C_DATSRC_CTRL, val);
 	}
 }
 
 static void hisi_l3c_pmu_clear_ds(struct perf_event *event)
 {
-	struct hisi_pmu *l3c_pmu = to_hisi_pmu(event->pmu);
+	struct hw_perf_event *hwc = &event->hw;
 	u32 ds_cfg = hisi_get_datasrc_cfg(event);
 	u32 ds_skt = hisi_get_datasrc_skt(event);
 
@@ -156,51 +192,51 @@ static void hisi_l3c_pmu_clear_ds(struct perf_event *event)
 	if (ds_skt) {
 		u32 val;
 
-		val = readl(l3c_pmu->base + L3C_DATSRC_CTRL);
+		val = hisi_l3c_pmu_event_readl(hwc, L3C_DATSRC_CTRL);
 		val &= ~L3C_DATSRC_SKT_EN;
-		writel(val, l3c_pmu->base + L3C_DATSRC_CTRL);
+		hisi_l3c_pmu_event_writel(hwc, L3C_DATSRC_CTRL, val);
 	}
 }
 
 static void hisi_l3c_pmu_config_core_tracetag(struct perf_event *event)
 {
-	struct hisi_pmu *l3c_pmu = to_hisi_pmu(event->pmu);
+	struct hw_perf_event *hwc = &event->hw;
 	u32 core = hisi_get_tt_core(event);
 
 	if (core) {
 		u32 val;
 
 		/* Config and enable core information */
-		writel(core, l3c_pmu->base + L3C_CORE_CTRL);
-		val = readl(l3c_pmu->base + L3C_PERF_CTRL);
+		hisi_l3c_pmu_event_writel(hwc, L3C_CORE_CTRL, core);
+		val = hisi_l3c_pmu_event_readl(hwc, L3C_PERF_CTRL);
 		val |= L3C_CORE_EN;
-		writel(val, l3c_pmu->base + L3C_PERF_CTRL);
+		hisi_l3c_pmu_event_writel(hwc, L3C_PERF_CTRL, val);
 
 		/* Enable core-tracetag statistics */
-		val = readl(l3c_pmu->base + L3C_TRACETAG_CTRL);
+		val = hisi_l3c_pmu_event_readl(hwc, L3C_TRACETAG_CTRL);
 		val |= L3C_TRACETAG_CORE_EN;
-		writel(val, l3c_pmu->base + L3C_TRACETAG_CTRL);
+		hisi_l3c_pmu_event_writel(hwc, L3C_TRACETAG_CTRL, val);
 	}
 }
 
 static void hisi_l3c_pmu_clear_core_tracetag(struct perf_event *event)
 {
-	struct hisi_pmu *l3c_pmu = to_hisi_pmu(event->pmu);
+	struct hw_perf_event *hwc = &event->hw;
 	u32 core = hisi_get_tt_core(event);
 
 	if (core) {
 		u32 val;
 
 		/* Clear core information */
-		writel(L3C_COER_NONE, l3c_pmu->base + L3C_CORE_CTRL);
-		val = readl(l3c_pmu->base + L3C_PERF_CTRL);
+		hisi_l3c_pmu_event_writel(hwc, L3C_CORE_CTRL, L3C_COER_NONE);
+		val = hisi_l3c_pmu_event_readl(hwc, L3C_PERF_CTRL);
 		val &= ~L3C_CORE_EN;
-		writel(val, l3c_pmu->base + L3C_PERF_CTRL);
+		hisi_l3c_pmu_event_writel(hwc, L3C_PERF_CTRL, val);
 
 		/* Disable core-tracetag statistics */
-		val = readl(l3c_pmu->base + L3C_TRACETAG_CTRL);
+		val = hisi_l3c_pmu_event_readl(hwc, L3C_TRACETAG_CTRL);
 		val &= ~L3C_TRACETAG_CORE_EN;
-		writel(val, l3c_pmu->base + L3C_TRACETAG_CTRL);
+		hisi_l3c_pmu_event_writel(hwc, L3C_TRACETAG_CTRL, val);
 	}
 }
 
@@ -239,18 +275,19 @@ static u32 hisi_l3c_pmu_get_counter_offset(int cntr_idx)
 static u64 hisi_l3c_pmu_read_counter(struct hisi_pmu *l3c_pmu,
 				     struct hw_perf_event *hwc)
 {
-	return readq(l3c_pmu->base + hisi_l3c_pmu_get_counter_offset(hwc->idx));
+	return hisi_l3c_pmu_event_readq(hwc, hisi_l3c_pmu_get_counter_offset(hwc->idx));
 }
 
 static void hisi_l3c_pmu_write_counter(struct hisi_pmu *l3c_pmu,
 				       struct hw_perf_event *hwc, u64 val)
 {
-	writeq(val, l3c_pmu->base + hisi_l3c_pmu_get_counter_offset(hwc->idx));
+	hisi_l3c_pmu_event_writeq(hwc, hisi_l3c_pmu_get_counter_offset(hwc->idx), val);
 }
 
 static void hisi_l3c_pmu_write_evtype(struct hisi_pmu *l3c_pmu, int idx,
 				      u32 type)
 {
+	struct hw_perf_event *hwc = &l3c_pmu->pmu_events.hw_events[idx]->hw;
 	u32 reg, reg_idx, shift, val;
 
 	/*
@@ -265,10 +302,10 @@ static void hisi_l3c_pmu_write_evtype(struct hisi_pmu *l3c_pmu, int idx,
 	shift = 8 * reg_idx;
 
 	/* Write event code to L3C_EVENT_TYPEx Register */
-	val = readl(l3c_pmu->base + reg);
+	val = hisi_l3c_pmu_event_readl(hwc, reg);
 	val &= ~(L3C_EVTYPE_NONE << shift);
 	val |= (type << shift);
-	writel(val, l3c_pmu->base + reg);
+	hisi_l3c_pmu_event_writel(hwc, reg, val);
 }
 
 static void hisi_l3c_pmu_start_counters(struct hisi_pmu *l3c_pmu)
@@ -303,9 +340,9 @@ static void hisi_l3c_pmu_enable_counter(struct hisi_pmu *l3c_pmu,
 	u32 val;
 
 	/* Enable counter index in L3C_EVENT_CTRL register */
-	val = readl(l3c_pmu->base + L3C_EVENT_CTRL);
+	val = hisi_l3c_pmu_event_readl(hwc, L3C_EVENT_CTRL);
 	val |= (1 << hwc->idx);
-	writel(val, l3c_pmu->base + L3C_EVENT_CTRL);
+	hisi_l3c_pmu_event_writel(hwc, L3C_EVENT_CTRL, val);
 }
 
 static void hisi_l3c_pmu_disable_counter(struct hisi_pmu *l3c_pmu,
@@ -314,9 +351,9 @@ static void hisi_l3c_pmu_disable_counter(struct hisi_pmu *l3c_pmu,
 	u32 val;
 
 	/* Clear counter index in L3C_EVENT_CTRL register */
-	val = readl(l3c_pmu->base + L3C_EVENT_CTRL);
+	val = hisi_l3c_pmu_event_readl(hwc, L3C_EVENT_CTRL);
 	val &= ~(1 << hwc->idx);
-	writel(val, l3c_pmu->base + L3C_EVENT_CTRL);
+	hisi_l3c_pmu_event_writel(hwc, L3C_EVENT_CTRL, val);
 }
 
 static void hisi_l3c_pmu_enable_counter_int(struct hisi_pmu *l3c_pmu,
@@ -324,10 +361,10 @@ static void hisi_l3c_pmu_enable_counter_int(struct hisi_pmu *l3c_pmu,
 {
 	u32 val;
 
-	val = readl(l3c_pmu->base + L3C_INT_MASK);
+	val = hisi_l3c_pmu_event_readl(hwc, L3C_INT_MASK);
 	/* Write 0 to enable interrupt */
 	val &= ~(1 << hwc->idx);
-	writel(val, l3c_pmu->base + L3C_INT_MASK);
+	hisi_l3c_pmu_event_writel(hwc, L3C_INT_MASK, val);
 }
 
 static void hisi_l3c_pmu_disable_counter_int(struct hisi_pmu *l3c_pmu,
@@ -335,10 +372,10 @@ static void hisi_l3c_pmu_disable_counter_int(struct hisi_pmu *l3c_pmu,
 {
 	u32 val;
 
-	val = readl(l3c_pmu->base + L3C_INT_MASK);
+	val = hisi_l3c_pmu_event_readl(hwc, L3C_INT_MASK);
 	/* Write 1 to mask interrupt */
 	val |= (1 << hwc->idx);
-	writel(val, l3c_pmu->base + L3C_INT_MASK);
+	hisi_l3c_pmu_event_writel(hwc, L3C_INT_MASK, val);
 }
 
 static u32 hisi_l3c_pmu_get_int_status(struct hisi_pmu *l3c_pmu)
@@ -348,7 +385,9 @@ static u32 hisi_l3c_pmu_get_int_status(struct hisi_pmu *l3c_pmu)
 
 static void hisi_l3c_pmu_clear_int_status(struct hisi_pmu *l3c_pmu, int idx)
 {
-	writel(1 << idx, l3c_pmu->base + L3C_INT_CLEAR);
+	struct hw_perf_event *hwc = &l3c_pmu->pmu_events.hw_events[idx]->hw;
+
+	hisi_l3c_pmu_event_writel(hwc, L3C_INT_CLEAR, 1 << idx);
 }
 
 static int hisi_l3c_pmu_init_data(struct platform_device *pdev,
@@ -474,7 +513,7 @@ static const struct hisi_pmu_dev_info hisi_l3c_pmu_v2 = {
 
 static const struct hisi_uncore_ops hisi_uncore_l3c_ops = {
 	.write_evtype		= hisi_l3c_pmu_write_evtype,
-	.get_event_idx		= hisi_uncore_pmu_get_event_idx,
+	.get_event_idx		= hisi_l3c_pmu_get_event_idx,
 	.start_counters		= hisi_l3c_pmu_start_counters,
 	.stop_counters		= hisi_l3c_pmu_stop_counters,
 	.enable_counter		= hisi_l3c_pmu_enable_counter,
