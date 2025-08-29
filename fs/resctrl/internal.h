@@ -349,6 +349,8 @@ void rdtgroup_mondata_release(struct kernfs_open_file *of);
 void mon_setup_rmid_read(struct rmid_read *rr, struct rdt_resource *r,
 			  struct rdt_mon_domain *d, struct rdtgroup *rdtgrp,
 			  int evtid, int first, unsigned int ci_id);
+int mon_event_read_setup(struct rmid_read *rr, cpumask_t **cpumask,
+			 struct mon_data *md, struct rdtgroup *rdtgrp);
 void mon_perform_rmid_read(struct rmid_read *rr, cpumask_t *cpumask);
 
 int resctrl_mon_resource_init(void);

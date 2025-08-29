@@ -559,6 +559,58 @@ void mon_setup_rmid_read(struct rmid_read *rr, struct rdt_resource *r,
 	rr->ci_id = ci_id;
 }
 
+int mon_event_read_setup(struct rmid_read *rr, cpumask_t **cpumask,
+			 struct mon_data *md, struct rdtgroup *rdtgrp)
+{
+	enum resctrl_res_level resid;
+	enum resctrl_event_id evtid;
+	struct rdt_domain_hdr *hdr;
+	struct rdt_mon_domain *d;
+	struct rdt_resource *r;
+	struct cacheinfo *ci;
+	int domid, cpu;
+
+	resid = md->rid;
+	domid = md->domid;
+	evtid = md->evtid;
+	r = resctrl_arch_get_resource(resid);
+
+	if (md->sum) {
+		/*
+		 * This file requires summing across all domains that share
+		 * the L3 cache id that was provided in the "domid" field of the
+		 * struct mon_data. Search all domains in the resource for
+		 * one that matches this cache id.
+		 */
+		list_for_each_entry(d, &r->mon_domains, hdr.list) {
+			if (d->ci_id == domid) {
+				cpu = cpumask_any(&d->hdr.cpu_mask);
+				ci = get_cpu_cacheinfo_level(cpu, RESCTRL_L3_CACHE);
+				if (!ci)
+					continue;
+				mon_setup_rmid_read(rr, r, NULL, rdtgrp,
+						     evtid, false, d->ci_id);
+				*cpumask = &ci->shared_cpu_map;
+				return 0;
+			}
+		}
+		return -ENOENT;
+	} else {
+		/*
+		 * This file provides data from a single domain. Search
+		 * the resource to find the domain with "domid".
+		 */
+		hdr = resctrl_find_domain(&r->mon_domains, domid, NULL);
+		if (!hdr || WARN_ON_ONCE(hdr->type != RESCTRL_MON_DOMAIN))
+			return -ENOENT;
+		
+		d = container_of(hdr, struct rdt_mon_domain, hdr);
+		mon_setup_rmid_read(rr, r, d, rdtgrp, evtid, false, d->ci_id);
+		*cpumask = &d->hdr.cpu_mask;
+		return 0;
+	}
+}
+
 void mon_perform_rmid_read(struct rmid_read *rr, cpumask_t *cpumask)
 {
 	int cpu;
@@ -591,15 +643,9 @@ void mon_perform_rmid_read(struct rmid_read *rr, cpumask_t *cpumask)
 int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 {
 	struct kernfs_open_file *of = m->private;
-	enum resctrl_res_level resid;
-	enum resctrl_event_id evtid;
-	struct rdt_domain_hdr *hdr;
 	struct rmid_read rr = {0};
-	struct rdt_mon_domain *d;
 	struct rdtgroup *rdtgrp;
-	int domid, cpu, ret = 0;
-	struct rdt_resource *r;
-	struct cacheinfo *ci;
+	int ret = 0;
 	struct mon_data *md;
 	cpumask_t *cpumask;
 
@@ -615,48 +661,9 @@ int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 		goto out;
 	}
 
-	resid = md->rid;
-	domid = md->domid;
-	evtid = md->evtid;
-	r = resctrl_arch_get_resource(resid);
-
-	if (md->sum) {
-		/*
-		 * This file requires summing across all domains that share
-		 * the L3 cache id that was provided in the "domid" field of the
-		 * struct mon_data. Search all domains in the resource for
-		 * one that matches this cache id.
-		 */
-		list_for_each_entry(d, &r->mon_domains, hdr.list) {
-			if (d->ci_id == domid) {
-				cpu = cpumask_any(&d->hdr.cpu_mask);
-				ci = get_cpu_cacheinfo_level(cpu, RESCTRL_L3_CACHE);
-				if (!ci)
-					continue;
-				mon_setup_rmid_read(&rr, r, NULL, rdtgrp,
-						     evtid, false, d->ci_id);
-				cpumask = &ci->shared_cpu_map;
-				goto perform;
-			}
-		}
-		ret = -ENOENT;
+	ret = mon_event_read_setup(&rr, &cpumask, md, rdtgrp);
+	if (ret)
 		goto out;
-	} else {
-		/*
-		 * This file provides data from a single domain. Search
-		 * the resource to find the domain with "domid".
-		 */
-		hdr = resctrl_find_domain(&r->mon_domains, domid, NULL);
-		if (!hdr || WARN_ON_ONCE(hdr->type != RESCTRL_MON_DOMAIN)) {
-			ret = -ENOENT;
-			goto out;
-		}
-		d = container_of(hdr, struct rdt_mon_domain, hdr);
-		mon_setup_rmid_read(&rr, r, d, rdtgrp, evtid, false, d->ci_id);
-		cpumask = &d->hdr.cpu_mask;
-	}
-
-perform:
 	mon_perform_rmid_read(&rr, cpumask);
 
 	if (rr.err == -EIO)
