@@ -10,12 +10,18 @@
 #include <cxlmem.h>
 #include <cxlpci.h>
 #include "mock.h"
+#include "../exports.h"
 
 static LIST_HEAD(mock);
+
+static struct cxl_dport *
+redirect_devm_cxl_add_dport_by_dev(struct cxl_port *port,
+				   struct device *dport_dev);
 
 void register_cxl_mock_ops(struct cxl_mock_ops *ops)
 {
 	list_add_rcu(&ops->list, &mock);
+	_devm_cxl_add_dport_by_dev = redirect_devm_cxl_add_dport_by_dev;
 }
 EXPORT_SYMBOL_GPL(register_cxl_mock_ops);
 
@@ -23,6 +29,7 @@ DEFINE_STATIC_SRCU(cxl_mock_srcu);
 
 void unregister_cxl_mock_ops(struct cxl_mock_ops *ops)
 {
+	_devm_cxl_add_dport_by_dev = __devm_cxl_add_dport_by_dev;
 	list_del_rcu(&ops->list);
 	synchronize_srcu(&cxl_mock_srcu);
 }
@@ -257,6 +264,22 @@ void __wrap_cxl_dport_init_ras_reporting(struct cxl_dport *dport, struct device 
 	put_cxl_mock_ops(index);
 }
 EXPORT_SYMBOL_NS_GPL(__wrap_cxl_dport_init_ras_reporting, "CXL");
+
+struct cxl_dport *redirect_devm_cxl_add_dport_by_dev(struct cxl_port *port,
+						     struct device *dport_dev)
+{
+	int index;
+	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
+	struct cxl_dport *dport;
+
+	if (ops && ops->is_mock_port(port->uport_dev))
+		dport = ops->devm_cxl_add_dport_by_dev(port, dport_dev);
+	else
+		dport = __devm_cxl_add_dport_by_dev(port, dport_dev);
+	put_cxl_mock_ops(index);
+
+	return dport;
+}
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("cxl_test: emulation module");

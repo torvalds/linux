@@ -41,14 +41,14 @@ static int pci_get_port_num(struct pci_dev *pdev)
 }
 
 /**
- * devm_cxl_add_dport_by_dev - allocate a dport by the dport device
+ * __devm_cxl_add_dport_by_dev - allocate a dport by dport device
  * @port: cxl_port that hosts the dport
  * @dport_dev: 'struct device' of the dport
  *
  * Returns the allocated dport on success or ERR_PTR() of -errno on error
  */
-struct cxl_dport *devm_cxl_add_dport_by_dev(struct cxl_port *port,
-					    struct device *dport_dev)
+struct cxl_dport *__devm_cxl_add_dport_by_dev(struct cxl_port *port,
+					      struct device *dport_dev)
 {
 	struct cxl_register_map map;
 	struct pci_dev *pdev;
@@ -69,6 +69,7 @@ struct cxl_dport *devm_cxl_add_dport_by_dev(struct cxl_port *port,
 	device_lock_assert(&port->dev);
 	return devm_cxl_add_dport(port, dport_dev, port_num, map.resource);
 }
+EXPORT_SYMBOL_NS_GPL(__devm_cxl_add_dport_by_dev, "CXL");
 
 struct cxl_walk_context {
 	struct pci_bus *bus;
