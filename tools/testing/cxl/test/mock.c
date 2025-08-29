@@ -17,11 +17,14 @@ static LIST_HEAD(mock);
 static struct cxl_dport *
 redirect_devm_cxl_add_dport_by_dev(struct cxl_port *port,
 				   struct device *dport_dev);
+static int redirect_devm_cxl_switch_port_decoders_setup(struct cxl_port *port);
 
 void register_cxl_mock_ops(struct cxl_mock_ops *ops)
 {
 	list_add_rcu(&ops->list, &mock);
 	_devm_cxl_add_dport_by_dev = redirect_devm_cxl_add_dport_by_dev;
+	_devm_cxl_switch_port_decoders_setup =
+		redirect_devm_cxl_switch_port_decoders_setup;
 }
 EXPORT_SYMBOL_GPL(register_cxl_mock_ops);
 
@@ -29,6 +32,8 @@ DEFINE_STATIC_SRCU(cxl_mock_srcu);
 
 void unregister_cxl_mock_ops(struct cxl_mock_ops *ops)
 {
+	_devm_cxl_switch_port_decoders_setup =
+		__devm_cxl_switch_port_decoders_setup;
 	_devm_cxl_add_dport_by_dev = __devm_cxl_add_dport_by_dev;
 	list_del_rcu(&ops->list);
 	synchronize_srcu(&cxl_mock_srcu);
@@ -138,7 +143,7 @@ __wrap_nvdimm_bus_register(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(__wrap_nvdimm_bus_register);
 
-int __wrap_devm_cxl_switch_port_decoders_setup(struct cxl_port *port)
+int redirect_devm_cxl_switch_port_decoders_setup(struct cxl_port *port)
 {
 	int rc, index;
 	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
@@ -146,12 +151,11 @@ int __wrap_devm_cxl_switch_port_decoders_setup(struct cxl_port *port)
 	if (ops && ops->is_mock_port(port->uport_dev))
 		rc = ops->devm_cxl_switch_port_decoders_setup(port);
 	else
-		rc = devm_cxl_switch_port_decoders_setup(port);
+		rc = __devm_cxl_switch_port_decoders_setup(port);
 	put_cxl_mock_ops(index);
 
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_switch_port_decoders_setup, "CXL");
 
 int __wrap_devm_cxl_endpoint_decoders_setup(struct cxl_port *port)
 {

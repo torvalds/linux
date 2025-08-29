@@ -811,6 +811,7 @@ struct cxl_endpoint_dvsec_info {
 };
 
 int devm_cxl_switch_port_decoders_setup(struct cxl_port *port);
+int __devm_cxl_switch_port_decoders_setup(struct cxl_port *port);
 int devm_cxl_endpoint_decoders_setup(struct cxl_port *port);
 
 struct cxl_dev_state;
@@ -934,6 +935,7 @@ u16 cxl_gpf_get_dvsec(struct device *dev);
 #ifndef CXL_TEST_ENABLE
 #define DECLARE_TESTABLE(x) __##x
 #define devm_cxl_add_dport_by_dev DECLARE_TESTABLE(devm_cxl_add_dport_by_dev)
+#define devm_cxl_switch_port_decoders_setup DECLARE_TESTABLE(devm_cxl_switch_port_decoders_setup)
 #endif
 
 #endif /* __CXL_H__ */

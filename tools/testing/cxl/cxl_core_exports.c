@@ -17,3 +17,13 @@ struct cxl_dport *devm_cxl_add_dport_by_dev(struct cxl_port *port,
 	return _devm_cxl_add_dport_by_dev(port, dport_dev);
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_dport_by_dev, "CXL");
+
+cxl_switch_decoders_setup_fn _devm_cxl_switch_port_decoders_setup =
+	__devm_cxl_switch_port_decoders_setup;
+EXPORT_SYMBOL_NS_GPL(_devm_cxl_switch_port_decoders_setup, "CXL");
+
+int devm_cxl_switch_port_decoders_setup(struct cxl_port *port)
+{
+	return _devm_cxl_switch_port_decoders_setup(port);
+}
+EXPORT_SYMBOL_NS_GPL(devm_cxl_switch_port_decoders_setup, "CXL");
