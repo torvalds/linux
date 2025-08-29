@@ -1432,7 +1432,7 @@ EXPORT_SYMBOL_NS_GPL(cxl_endpoint_autoremove, "CXL");
  * through ->remove(). This "bottom-up" removal selectively removes individual
  * child ports manually. This depends on devm_cxl_add_port() to not change is
  * devm action registration order, and for dports to have already been
- * destroyed by reap_dports().
+ * destroyed by del_dports().
  */
 static void delete_switch_port(struct cxl_port *port)
 {
@@ -1441,18 +1441,24 @@ static void delete_switch_port(struct cxl_port *port)
 	devm_release_action(port->dev.parent, unregister_port, port);
 }
 
-static void reap_dports(struct cxl_port *port)
+static void del_dport(struct cxl_dport *dport)
+{
+	struct cxl_port *port = dport->port;
+
+	devm_release_action(&port->dev, cxl_dport_unlink, dport);
+	devm_release_action(&port->dev, cxl_dport_remove, dport);
+	devm_kfree(&port->dev, dport);
+}
+
+static void del_dports(struct cxl_port *port)
 {
 	struct cxl_dport *dport;
 	unsigned long index;
 
 	device_lock_assert(&port->dev);
 
-	xa_for_each(&port->dports, index, dport) {
-		devm_release_action(&port->dev, cxl_dport_unlink, dport);
-		devm_release_action(&port->dev, cxl_dport_remove, dport);
-		devm_kfree(&port->dev, dport);
-	}
+	xa_for_each(&port->dports, index, dport)
+		del_dport(dport);
 }
 
 struct detach_ctx {
@@ -1510,7 +1516,7 @@ static void cxl_detach_ep(void *data)
 			 */
 			died = true;
 			port->dead = true;
-			reap_dports(port);
+			del_dports(port);
 		}
 		device_unlock(&port->dev);
 
