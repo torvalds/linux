@@ -57,7 +57,8 @@ static int mlx5_esw_create_esw_vport(struct mlx5_core_dev *dev, u16 vhca_id,
 	return err;
 }
 
-static int mlx5_esw_adj_vport_create(struct mlx5_eswitch *esw, u16 vhca_id)
+static int mlx5_esw_adj_vport_create(struct mlx5_eswitch *esw, u16 vhca_id,
+				     const void *rid_info_reg)
 {
 	struct mlx5_vport *vport;
 	u16 vport_num;
@@ -82,6 +83,12 @@ static int mlx5_esw_adj_vport_create(struct mlx5_eswitch *esw, u16 vhca_id)
 	vport = mlx5_eswitch_get_vport(esw, vport_num);
 	vport->adjacent = true;
 	vport->vhca_id = vhca_id;
+
+	vport->adj_info.parent_pci_devfn =
+		MLX5_GET(function_vhca_rid_info_reg, rid_info_reg,
+			 parent_pci_device_function);
+	vport->adj_info.function_id =
+		MLX5_GET(function_vhca_rid_info_reg, rid_info_reg, function_id);
 
 	mlx5_fs_vport_egress_acl_ns_add(esw->dev->priv.steering, vport->index);
 	mlx5_fs_vport_ingress_acl_ns_add(esw->dev->priv.steering, vport->index);
@@ -176,7 +183,7 @@ void mlx5_esw_adjacent_vhcas_setup(struct mlx5_eswitch *esw)
 	esw_debug(esw->dev, "Delegated vhca functions count %d\n", count);
 
 	for (i = 0; i < count; i++) {
-		void *rid_info, *rid_info_reg;
+		const void *rid_info, *rid_info_reg;
 		u16 vhca_id;
 
 		rid_info = MLX5_ADDR_OF(query_delegated_vhca_out, out,
@@ -187,10 +194,9 @@ void mlx5_esw_adjacent_vhcas_setup(struct mlx5_eswitch *esw)
 
 		vhca_id = MLX5_GET(function_vhca_rid_info_reg, rid_info_reg,
 				   vhca_id);
-		esw_debug(esw->dev, "Delegating vhca_id 0x%x rid info:\n",
-			  vhca_id);
+		esw_debug(esw->dev, "Delegating vhca_id 0x%x\n", vhca_id);
 
-		err = mlx5_esw_adj_vport_create(esw, vhca_id);
+		err = mlx5_esw_adj_vport_create(esw, vhca_id, rid_info_reg);
 		if (err) {
 			esw_warn(esw->dev,
 				 "Failed to init adjacent vhca 0x%x, err %d\n",
