@@ -335,7 +335,7 @@ static const struct kernfs_ops rdtgroup_kf_single_ops = {
 	.seq_show		= rdtgroup_seqfile_show,
 };
 
-static const struct kernfs_ops kf_mondata_ops = {
+const struct kernfs_ops kf_mondata_ops = {
 	.atomic_write_len	= PAGE_SIZE,
 	.seq_show		= rdtgroup_mondata_show,
 	.open			= rdtgroup_mondata_open,
@@ -4350,6 +4350,10 @@ int resctrl_init(void)
 	 */
 	debugfs_resctrl = debugfs_create_dir("resctrl", NULL);
 
+	ret = resctrl_pmu_init();
+	if (ret)
+		pr_warn("Failed to initialize resctrl PMU: %d\n", ret);
+
 	return 0;
 
 cleanup_mountpoint:
@@ -4399,6 +4403,8 @@ static bool resctrl_online_domains_exist(void)
  */
 void resctrl_exit(void)
 {
+	resctrl_pmu_exit();
+
 	cpus_read_lock();
 	WARN_ON_ONCE(resctrl_online_domains_exist());
 

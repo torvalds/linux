@@ -345,6 +345,13 @@ void mon_event_count(void *info);
 int rdtgroup_mondata_show(struct seq_file *m, void *arg);
 int rdtgroup_mondata_open(struct kernfs_open_file *of);
 void rdtgroup_mondata_release(struct kernfs_open_file *of);
+void rdtgroup_get(struct rdtgroup *rdtgrp);
+void rdtgroup_put(struct rdtgroup *rdtgrp);
+
+/* PMU support */
+extern const struct kernfs_ops kf_mondata_ops;
+int resctrl_pmu_init(void);
+void resctrl_pmu_exit(void);
 
 void mon_setup_rmid_read(struct rmid_read *rr, struct rdt_resource *r,
 			  struct rdt_mon_domain *d, struct rdtgroup *rdtgrp,
