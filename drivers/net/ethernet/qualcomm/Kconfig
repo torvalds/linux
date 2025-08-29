@@ -62,8 +62,8 @@ config QCOM_EMAC
 
 config QCOM_PPE
 	tristate "Qualcomm Technologies, Inc. PPE Ethernet support"
-	depends on HAS_IOMEM && OF
-	depends on COMMON_CLK
+	depends on COMMON_CLK && HAS_IOMEM && OF
+	depends on ARCH_QCOM || COMPILE_TEST
 	select REGMAP_MMIO
 	help
 	  This driver supports the Qualcomm Technologies, Inc. packet
