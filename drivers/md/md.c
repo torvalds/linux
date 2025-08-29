@@ -4208,6 +4208,86 @@ static struct md_sysfs_entry md_new_level =
 __ATTR(new_level, 0664, new_level_show, new_level_store);
 
 static ssize_t
+bitmap_type_show(struct mddev *mddev, char *page)
+{
+	struct md_submodule_head *head;
+	unsigned long i;
+	ssize_t len = 0;
+
+	if (mddev->bitmap_id == ID_BITMAP_NONE)
+		len += sprintf(page + len, "[none] ");
+	else
+		len += sprintf(page + len, "none ");
+
+	xa_lock(&md_submodule);
+	xa_for_each(&md_submodule, i, head) {
+		if (head->type != MD_BITMAP)
+			continue;
+
+		if (mddev->bitmap_id == head->id)
+			len += sprintf(page + len, "[%s] ", head->name);
+		else
+			len += sprintf(page + len, "%s ", head->name);
+	}
+	xa_unlock(&md_submodule);
+
+	len += sprintf(page + len, "\n");
+	return len;
+}
+
+static ssize_t
+bitmap_type_store(struct mddev *mddev, const char *buf, size_t len)
+{
+	struct md_submodule_head *head;
+	enum md_submodule_id id;
+	unsigned long i;
+	int err = 0;
+
+	xa_lock(&md_submodule);
+
+	if (mddev->bitmap_ops) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	if (cmd_match(buf, "none")) {
+		mddev->bitmap_id = ID_BITMAP_NONE;
+		goto out;
+	}
+
+	xa_for_each(&md_submodule, i, head) {
+		if (head->type == MD_BITMAP && cmd_match(buf, head->name)) {
+			mddev->bitmap_id = head->id;
+			goto out;
+		}
+	}
+
+	err = kstrtoint(buf, 10, &id);
+	if (err)
+		goto out;
+
+	if (id == ID_BITMAP_NONE) {
+		mddev->bitmap_id = id;
+		goto out;
+	}
+
+	head = xa_load(&md_submodule, id);
+	if (head && head->type == MD_BITMAP) {
+		mddev->bitmap_id = id;
+		goto out;
+	}
+
+	err = -ENOENT;
+
+out:
+	xa_unlock(&md_submodule);
+	return err ? err : len;
+}
+
+static struct md_sysfs_entry md_bitmap_type =
+__ATTR(bitmap_type, 0664, bitmap_type_show, bitmap_type_store);
+
+static ssize_t
 layout_show(struct mddev *mddev, char *page)
 {
 	/* just a number, not meaningful for all levels */
@@ -5813,6 +5893,7 @@ __ATTR(serialize_policy, S_IRUGO | S_IWUSR, serialize_policy_show,
 static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
 	&md_new_level.attr,
+	&md_bitmap_type.attr,
 	&md_layout.attr,
 	&md_raid_disks.attr,
 	&md_uuid.attr,
