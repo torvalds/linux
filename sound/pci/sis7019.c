@@ -902,7 +902,7 @@ static unsigned short sis_ac97_rw(struct sis7019 *sis, int codec, u32 cmd)
 	/* Get the AC97 semaphore -- software first, so we don't spin
 	 * pounding out IO reads on the hardware semaphore...
 	 */
-	mutex_lock(&sis->ac97_mutex);
+	guard(mutex)(&sis->ac97_mutex);
 
 	count = 0xffff;
 	while ((inw(io + SIS_AC97_SEMA) & SIS_AC97_SEMA_BUSY) && --count)
@@ -941,8 +941,6 @@ static unsigned short sis_ac97_rw(struct sis7019 *sis, int codec, u32 cmd)
 timeout_sema:
 	outl(SIS_AC97_SEMA_RELEASE, io + SIS_AC97_SEMA);
 timeout:
-	mutex_unlock(&sis->ac97_mutex);
-
 	if (!count) {
 		dev_err(&sis->pci->dev, "ac97 codec %d timeout cmd 0x%08x\n",
 					codec, cmd);
