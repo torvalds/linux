@@ -43,13 +43,6 @@ static int xe_wa_test_init(struct kunit *test)
 	return 0;
 }
 
-static void xe_wa_test_exit(struct kunit *test)
-{
-	struct xe_device *xe = test->priv;
-
-	drm_kunit_helper_free_device(test, xe->drm.dev);
-}
-
 static void xe_wa_gt(struct kunit *test)
 {
 	struct xe_device *xe = test->priv;
@@ -74,7 +67,6 @@ static struct kunit_case xe_wa_tests[] = {
 static struct kunit_suite xe_rtp_test_suite = {
 	.name = "xe_wa",
 	.init = xe_wa_test_init,
-	.exit = xe_wa_test_exit,
 	.test_cases = xe_wa_tests,
 };
 
