@@ -249,6 +249,9 @@ tc_port_power_domain(struct intel_tc_port *tc)
 {
 	enum tc_port tc_port = intel_encoder_to_tc(&tc->dig_port->base);
 
+	if (tc_port == TC_PORT_NONE)
+		return POWER_DOMAIN_INVALID;
+
 	return POWER_DOMAIN_PORT_DDI_LANES_TC1 + tc_port - TC_PORT_1;
 }
 
