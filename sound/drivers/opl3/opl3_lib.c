@@ -25,7 +25,6 @@ MODULE_LICENSE("GPL");
 
 static void snd_opl2_command(struct snd_opl3 * opl3, unsigned short cmd, unsigned char val)
 {
-	unsigned long flags;
 	unsigned long port;
 
 	/*
@@ -35,20 +34,17 @@ static void snd_opl2_command(struct snd_opl3 * opl3, unsigned short cmd, unsigne
 
 	port = (cmd & OPL3_RIGHT) ? opl3->r_port : opl3->l_port;
 
-	spin_lock_irqsave(&opl3->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl3->reg_lock);
 
 	outb((unsigned char) cmd, port);
 	udelay(10);
 
 	outb((unsigned char) val, port + 1);
 	udelay(30);
-
-	spin_unlock_irqrestore(&opl3->reg_lock, flags);
 }
 
 static void snd_opl3_command(struct snd_opl3 * opl3, unsigned short cmd, unsigned char val)
 {
-	unsigned long flags;
 	unsigned long port;
 
 	/*
@@ -58,7 +54,7 @@ static void snd_opl3_command(struct snd_opl3 * opl3, unsigned short cmd, unsigne
 
 	port = (cmd & OPL3_RIGHT) ? opl3->r_port : opl3->l_port;
 
-	spin_lock_irqsave(&opl3->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl3->reg_lock);
 
 	outb((unsigned char) cmd, port);
 	inb(opl3->l_port);
@@ -67,8 +63,6 @@ static void snd_opl3_command(struct snd_opl3 * opl3, unsigned short cmd, unsigne
 	outb((unsigned char) val, port + 1);
 	inb(opl3->l_port);
 	inb(opl3->l_port);
-
-	spin_unlock_irqrestore(&opl3->reg_lock, flags);
 }
 
 static int snd_opl3_detect(struct snd_opl3 * opl3)
@@ -142,34 +136,30 @@ static int snd_opl3_detect(struct snd_opl3 * opl3)
 
 static int snd_opl3_timer1_start(struct snd_timer * timer)
 {
-	unsigned long flags;
 	unsigned char tmp;
 	unsigned int ticks;
 	struct snd_opl3 *opl3;
 
 	opl3 = snd_timer_chip(timer);
-	spin_lock_irqsave(&opl3->timer_lock, flags);
+	guard(spinlock_irqsave)(&opl3->timer_lock);
 	ticks = timer->sticks;
 	tmp = (opl3->timer_enable | OPL3_TIMER1_START) & ~OPL3_TIMER1_MASK;
 	opl3->timer_enable = tmp;
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER1, 256 - ticks);	/* timer 1 count */
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER_CONTROL, tmp);	/* enable timer 1 IRQ */
-	spin_unlock_irqrestore(&opl3->timer_lock, flags);
 	return 0;
 }
 
 static int snd_opl3_timer1_stop(struct snd_timer * timer)
 {
-	unsigned long flags;
 	unsigned char tmp;
 	struct snd_opl3 *opl3;
 
 	opl3 = snd_timer_chip(timer);
-	spin_lock_irqsave(&opl3->timer_lock, flags);
+	guard(spinlock_irqsave)(&opl3->timer_lock);
 	tmp = (opl3->timer_enable | OPL3_TIMER1_MASK) & ~OPL3_TIMER1_START;
 	opl3->timer_enable = tmp;
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER_CONTROL, tmp);	/* disable timer #1 */
-	spin_unlock_irqrestore(&opl3->timer_lock, flags);
 	return 0;
 }
 
@@ -179,34 +169,30 @@ static int snd_opl3_timer1_stop(struct snd_timer * timer)
 
 static int snd_opl3_timer2_start(struct snd_timer * timer)
 {
-	unsigned long flags;
 	unsigned char tmp;
 	unsigned int ticks;
 	struct snd_opl3 *opl3;
 
 	opl3 = snd_timer_chip(timer);
-	spin_lock_irqsave(&opl3->timer_lock, flags);
+	guard(spinlock_irqsave)(&opl3->timer_lock);
 	ticks = timer->sticks;
 	tmp = (opl3->timer_enable | OPL3_TIMER2_START) & ~OPL3_TIMER2_MASK;
 	opl3->timer_enable = tmp;
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER2, 256 - ticks);	/* timer 1 count */
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER_CONTROL, tmp);	/* enable timer 1 IRQ */
-	spin_unlock_irqrestore(&opl3->timer_lock, flags);
 	return 0;
 }
 
 static int snd_opl3_timer2_stop(struct snd_timer * timer)
 {
-	unsigned long flags;
 	unsigned char tmp;
 	struct snd_opl3 *opl3;
 
 	opl3 = snd_timer_chip(timer);
-	spin_lock_irqsave(&opl3->timer_lock, flags);
+	guard(spinlock_irqsave)(&opl3->timer_lock);
 	tmp = (opl3->timer_enable | OPL3_TIMER2_MASK) & ~OPL3_TIMER2_START;
 	opl3->timer_enable = tmp;
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER_CONTROL, tmp);	/* disable timer #1 */
-	spin_unlock_irqrestore(&opl3->timer_lock, flags);
 	return 0;
 }
 

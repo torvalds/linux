@@ -234,29 +234,27 @@ void snd_opl3_timer_func(struct timer_list *t)
 {
 
 	struct snd_opl3 *opl3 = timer_container_of(opl3, t, tlist);
-	unsigned long flags;
 	int again = 0;
 	int i;
 
-	spin_lock_irqsave(&opl3->voice_lock, flags);
-	for (i = 0; i < opl3->max_voices; i++) {
-		struct snd_opl3_voice *vp = &opl3->voices[i];
-		if (vp->state > 0 && vp->note_off_check) {
-			if (vp->note_off == jiffies)
-				snd_opl3_note_off_unsafe(opl3, vp->note, 0,
-							 vp->chan);
-			else
-				again++;
+	scoped_guard(spinlock_irqsave, &opl3->voice_lock) {
+		for (i = 0; i < opl3->max_voices; i++) {
+			struct snd_opl3_voice *vp = &opl3->voices[i];
+			if (vp->state > 0 && vp->note_off_check) {
+				if (vp->note_off == jiffies)
+					snd_opl3_note_off_unsafe(opl3, vp->note, 0,
+								 vp->chan);
+				else
+					again++;
+			}
 		}
 	}
-	spin_unlock_irqrestore(&opl3->voice_lock, flags);
 
-	spin_lock_irqsave(&opl3->sys_timer_lock, flags);
+	guard(spinlock_irqsave)(&opl3->sys_timer_lock);
 	if (again)
 		mod_timer(&opl3->tlist, jiffies + 1);	/* invoke again */
 	else
 		opl3->sys_timer_status = 0;
-	spin_unlock_irqrestore(&opl3->sys_timer_lock, flags);
 }
 
 /*
@@ -264,13 +262,11 @@ void snd_opl3_timer_func(struct timer_list *t)
  */
 static void snd_opl3_start_timer(struct snd_opl3 *opl3)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&opl3->sys_timer_lock, flags);
+	guard(spinlock_irqsave)(&opl3->sys_timer_lock);
 	if (! opl3->sys_timer_status) {
 		mod_timer(&opl3->tlist, jiffies + 1);
 		opl3->sys_timer_status = 1;
 	}
-	spin_unlock_irqrestore(&opl3->sys_timer_lock, flags);
 }
 
 /* ------------------------------ */
@@ -309,7 +305,6 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 
 	struct fm_patch *patch;
 	struct fm_instrument *fm;
-	unsigned long flags;
 
 	opl3 = p;
 
@@ -337,20 +332,17 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 		prg = chan->midi_program;
 	}
 
-	spin_lock_irqsave(&opl3->voice_lock, flags);
+	guard(spinlock_irqsave)(&opl3->voice_lock);
 
 	if (use_internal_drums) {
 		snd_opl3_drum_switch(opl3, note, vel, 1, chan);
-		spin_unlock_irqrestore(&opl3->voice_lock, flags);
 		return;
 	}
 
  __extra_prg:
 	patch = snd_opl3_find_patch(opl3, prg, bank, 0);
-	if (!patch) {
-		spin_unlock_irqrestore(&opl3->voice_lock, flags);
+	if (!patch)
 		return;
-	}
 
 	fm = &patch->inst;
 	switch (patch->type) {
@@ -364,7 +356,6 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 		}
 		fallthrough;
 	default:
-		spin_unlock_irqrestore(&opl3->voice_lock, flags);
 		return;
 	}
 	opl3_dbg(opl3, "  --> OPL%i instrument: %s\n",
@@ -378,10 +369,8 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 		voice = snd_opl3_oss_map[chan->number];		
 	}
 
-	if (voice < 0) {
-		spin_unlock_irqrestore(&opl3->voice_lock, flags);
+	if (voice < 0)
 		return;
-	}
 
 	if (voice < MAX_OPL2_VOICES) {
 		/* Left register block for voices 0 .. 8 */
@@ -597,7 +586,6 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 		opl3_dbg(opl3, " *** allocating extra program\n");
 		goto __extra_prg;
 	}
-	spin_unlock_irqrestore(&opl3->voice_lock, flags);
 }
 
 static void snd_opl3_kill_voice(struct snd_opl3 *opl3, int voice)
@@ -686,11 +674,9 @@ void snd_opl3_note_off(void *p, int note, int vel,
 		       struct snd_midi_channel *chan)
 {
 	struct snd_opl3 *opl3 = p;
-	unsigned long flags;
 
-	spin_lock_irqsave(&opl3->voice_lock, flags);
+	guard(spinlock_irqsave)(&opl3->voice_lock);
 	snd_opl3_note_off_unsafe(p, note, vel, chan);
-	spin_unlock_irqrestore(&opl3->voice_lock, flags);
 }
 
 /*
@@ -764,9 +750,7 @@ static void snd_opl3_pitch_ctrl(struct snd_opl3 *opl3, struct snd_midi_channel *
 	int voice;
 	struct snd_opl3_voice *vp;
 
-	unsigned long flags;
-
-	spin_lock_irqsave(&opl3->voice_lock, flags);
+	guard(spinlock_irqsave)(&opl3->voice_lock);
 
 	if (opl3->synth_mode == SNDRV_OPL3_MODE_SEQ) {
 		for (voice = 0; voice < opl3->max_voices; voice++) {
@@ -782,7 +766,6 @@ static void snd_opl3_pitch_ctrl(struct snd_opl3 *opl3, struct snd_midi_channel *
 			snd_opl3_update_pitch(opl3, voice);
 		}
 	}
-	spin_unlock_irqrestore(&opl3->voice_lock, flags);
 }
 
 /*
