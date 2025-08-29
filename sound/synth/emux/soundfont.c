@@ -66,11 +66,9 @@ static void snd_sf_clear(struct snd_sf_list *sflist);
 static void
 lock_preset(struct snd_sf_list *sflist)
 {
-	unsigned long flags;
 	mutex_lock(&sflist->presets_mutex);
-	spin_lock_irqsave(&sflist->lock, flags);
+	guard(spinlock_irqsave)(&sflist->lock);
 	sflist->presets_locked = 1;
-	spin_unlock_irqrestore(&sflist->lock, flags);
 }
 
 
@@ -80,10 +78,8 @@ lock_preset(struct snd_sf_list *sflist)
 static void
 unlock_preset(struct snd_sf_list *sflist)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&sflist->lock, flags);
+	guard(spinlock_irqsave)(&sflist->lock);
 	sflist->presets_locked = 0;
-	spin_unlock_irqrestore(&sflist->lock, flags);
 	mutex_unlock(&sflist->presets_mutex);
 }
 
@@ -94,14 +90,11 @@ unlock_preset(struct snd_sf_list *sflist)
 int
 snd_soundfont_close_check(struct snd_sf_list *sflist, int client)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&sflist->lock, flags);
-	if (sflist->open_client == client)  {
-		spin_unlock_irqrestore(&sflist->lock, flags);
-		return close_patch(sflist);
+	scoped_guard(spinlock_irqsave, &sflist->lock) {
+		if (sflist->open_client != client)
+			return 0;
 	}
-	spin_unlock_irqrestore(&sflist->lock, flags);
-	return 0;
+	return close_patch(sflist);
 }
 
 
@@ -119,7 +112,6 @@ snd_soundfont_load(struct snd_card *card,
 		   long count, int client)
 {
 	struct soundfont_patch_info patch;
-	unsigned long flags;
 	int  rc;
 
 	if (count < (long)sizeof(patch)) {
@@ -155,12 +147,10 @@ snd_soundfont_load(struct snd_card *card,
 	}
 
 	/* check if other client already opened patch */
-	spin_lock_irqsave(&sflist->lock, flags);
-	if (sflist->open_client != client) {
-		spin_unlock_irqrestore(&sflist->lock, flags);
-		return -EBUSY;
+	scoped_guard(spinlock_irqsave, &sflist->lock) {
+		if (sflist->open_client != client)
+			return -EBUSY;
 	}
-	spin_unlock_irqrestore(&sflist->lock, flags);
 
 	lock_preset(sflist);
 	rc = -EINVAL;
@@ -223,14 +213,11 @@ open_patch(struct snd_sf_list *sflist, const char __user *data,
 {
 	struct soundfont_open_parm parm;
 	struct snd_soundfont *sf;
-	unsigned long flags;
 
-	spin_lock_irqsave(&sflist->lock, flags);
-	if (sflist->open_client >= 0 || sflist->currsf) {
-		spin_unlock_irqrestore(&sflist->lock, flags);
-		return -EBUSY;
+	scoped_guard(spinlock_irqsave, &sflist->lock) {
+		if (sflist->open_client >= 0 || sflist->currsf)
+			return -EBUSY;
 	}
-	spin_unlock_irqrestore(&sflist->lock, flags);
 
 	if (copy_from_user(&parm, data, sizeof(parm)))
 		return -EFAULT;
@@ -244,10 +231,10 @@ open_patch(struct snd_sf_list *sflist, const char __user *data,
 		return -ENOMEM;
 	}
 
-	spin_lock_irqsave(&sflist->lock, flags);
-	sflist->open_client = client;
-	sflist->currsf = sf;
-	spin_unlock_irqrestore(&sflist->lock, flags);
+	scoped_guard(spinlock_irqsave, &sflist->lock) {
+		sflist->open_client = client;
+		sflist->currsf = sf;
+	}
 
 	return 0;
 }
@@ -305,12 +292,10 @@ is_identical_font(struct snd_soundfont *sf, int type, unsigned char *name)
 static int
 close_patch(struct snd_sf_list *sflist)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&sflist->lock, flags);
-	sflist->currsf = NULL;
-	sflist->open_client = -1;
-	spin_unlock_irqrestore(&sflist->lock, flags);
+	scoped_guard(spinlock_irqsave, &sflist->lock) {
+		sflist->currsf = NULL;
+		sflist->open_client = -1;
+	}
 
 	rebuild_presets(sflist);
 
@@ -1278,17 +1263,14 @@ snd_soundfont_search_zone(struct snd_sf_list *sflist, int *notep, int vel,
 			  struct snd_sf_zone **table, int max_layers)
 {
 	int nvoices;
-	unsigned long flags;
 
 	/* this function is supposed to be called atomically,
 	 * so we check the lock.  if it's busy, just returns 0 to
 	 * tell the caller the busy state
 	 */
-	spin_lock_irqsave(&sflist->lock, flags);
-	if (sflist->presets_locked) {
-		spin_unlock_irqrestore(&sflist->lock, flags);
+	guard(spinlock_irqsave)(&sflist->lock);
+	if (sflist->presets_locked)
 		return 0;
-	}
 	nvoices = search_zones(sflist, notep, vel, preset, bank,
 			       table, max_layers, 0);
 	if (! nvoices) {
@@ -1297,7 +1279,6 @@ snd_soundfont_search_zone(struct snd_sf_list *sflist, int *notep, int vel,
 					       def_preset, def_bank,
 					       table, max_layers, 0);
 	}
-	spin_unlock_irqrestore(&sflist->lock, flags);
 	return nvoices;
 }
 
