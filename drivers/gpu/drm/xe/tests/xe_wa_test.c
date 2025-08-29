@@ -93,8 +93,7 @@ static int xe_wa_test_init(struct kunit *test)
 		.subplatform = param->subplatform,
 		.graphics_verx100 = param->graphics_verx100,
 		.media_verx100 = param->media_verx100,
-		.graphics_step = param->step.graphics,
-		.media_step = param->step.media,
+		.step = param->step,
 	};
 	struct xe_device *xe;
 	struct device *dev;

@@ -10,6 +10,7 @@
 
 #include "xe_platform_types.h"
 #include "xe_sriov_types.h"
+#include "xe_step_types.h"
 
 struct xe_device;
 
@@ -17,10 +18,9 @@ struct xe_pci_fake_data {
 	enum xe_sriov_mode sriov_mode;
 	enum xe_platform platform;
 	enum xe_subplatform subplatform;
+	struct xe_step_info step;
 	u32 graphics_verx100;
 	u32 media_verx100;
-	u32 graphics_step;
-	u32 media_step;
 };
 
 int xe_pci_fake_device_init(struct xe_device *xe);

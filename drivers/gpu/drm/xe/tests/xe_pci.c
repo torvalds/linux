@@ -94,10 +94,10 @@ static void fake_read_gmdid(struct xe_device *xe, enum xe_gmdid_type type,
 
 	if (type == GMDID_MEDIA) {
 		*ver = data->media_verx100;
-		*revid = xe_step_to_gmdid(data->media_step);
+		*revid = xe_step_to_gmdid(data->step.media);
 	} else {
 		*ver = data->graphics_verx100;
-		*revid = xe_step_to_gmdid(data->graphics_step);
+		*revid = xe_step_to_gmdid(data->step.graphics);
 	}
 }
 
