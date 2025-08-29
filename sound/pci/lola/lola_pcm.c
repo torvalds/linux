@@ -523,7 +523,7 @@ static int lola_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	 */
 	sync_streams = (start && snd_pcm_stream_linked(substream));
 	tstamp = lola_get_tstamp(chip, !sync_streams);
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	snd_pcm_group_for_each_entry(s, substream) {
 		if (s->pcm->card != substream->pcm->card)
 			continue;
@@ -536,7 +536,6 @@ static int lola_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		str->paused = !start;
 		snd_pcm_trigger_done(s, substream);
 	}
-	spin_unlock(&chip->reg_lock);
 	return 0;
 }
 
