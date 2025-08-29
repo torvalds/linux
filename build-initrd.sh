@@ -129,7 +129,7 @@ create_initrd() {
         make CC="$CC" -j${NPROC} modules
 
         log "Installing/updating kernel modules..."
-        make INSTALL_MOD_PATH="${PERSISTENT_MODULES}" modules_install
+        make INSTALL_MOD_PATH="${PERSISTENT_MODULES}" INSTALL_MOD_STRIP=1 modules_install
     else
         log "Reusing existing kernel modules from ${PERSISTENT_MODULES}..."
     fi
