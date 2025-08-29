@@ -606,13 +606,12 @@ static int snd_korg1212_OpenCard(struct snd_korg1212 * korg1212)
 {
 	K1212_DEBUG_PRINTK("K1212_DEBUG: OpenCard [%s] %d\n",
 			   stateName[korg1212->cardState], korg1212->opencnt);
-	mutex_lock(&korg1212->open_mutex);
+	guard(mutex)(&korg1212->open_mutex);
         if (korg1212->opencnt++ == 0) {
 		snd_korg1212_TurnOffIdleMonitor(korg1212);
 		snd_korg1212_setCardState(korg1212, K1212_STATE_OPEN);
 	}
 
-	mutex_unlock(&korg1212->open_mutex);
         return 1;
 }
 
@@ -621,11 +620,9 @@ static int snd_korg1212_CloseCard(struct snd_korg1212 * korg1212)
 	K1212_DEBUG_PRINTK("K1212_DEBUG: CloseCard [%s] %d\n",
 			   stateName[korg1212->cardState], korg1212->opencnt);
 
-	mutex_lock(&korg1212->open_mutex);
-	if (--(korg1212->opencnt)) {
-		mutex_unlock(&korg1212->open_mutex);
+	guard(mutex)(&korg1212->open_mutex);
+	if (--(korg1212->opencnt))
 		return 0;
-	}
 
         if (korg1212->cardState == K1212_STATE_SETUP) {
                 int rc = snd_korg1212_Send1212Command(korg1212, K1212_DB_SelectPlayMode,
@@ -633,10 +630,8 @@ static int snd_korg1212_CloseCard(struct snd_korg1212 * korg1212)
 		if (rc)
 			K1212_DEBUG_PRINTK("K1212_DEBUG: CloseCard - RC = %d [%s]\n",
 					   rc, stateName[korg1212->cardState]);
-		if (rc != K1212_CMDRET_Success) {
-			mutex_unlock(&korg1212->open_mutex);
+		if (rc != K1212_CMDRET_Success)
                         return 0;
-		}
         } else if (korg1212->cardState > K1212_STATE_SETUP) {
 		snd_korg1212_SendStopAndWait(korg1212);
         }
@@ -646,7 +641,6 @@ static int snd_korg1212_CloseCard(struct snd_korg1212 * korg1212)
                 snd_korg1212_setCardState(korg1212, K1212_STATE_READY);
 	}
 
-	mutex_unlock(&korg1212->open_mutex);
         return 0;
 }
 
