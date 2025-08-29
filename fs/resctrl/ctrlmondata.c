@@ -546,24 +546,27 @@ struct rdt_domain_hdr *resctrl_find_domain(struct list_head *h, int id,
 	return NULL;
 }
 
-void mon_event_read(struct rmid_read *rr, struct rdt_resource *r,
-		    struct rdt_mon_domain *d, struct rdtgroup *rdtgrp,
-		    cpumask_t *cpumask, int evtid, int first)
+void mon_setup_rmid_read(struct rmid_read *rr, struct rdt_resource *r,
+			  struct rdt_mon_domain *d, struct rdtgroup *rdtgrp,
+			  int evtid, int first, unsigned int ci_id)
+{
+	memset(rr, 0, sizeof(*rr));
+	rr->rgrp = rdtgrp;
+	rr->evtid = evtid;
+	rr->r = r;
+	rr->d = d;
+	rr->first = first;
+	rr->ci_id = ci_id;
+}
+
+void mon_perform_rmid_read(struct rmid_read *rr, cpumask_t *cpumask)
 {
 	int cpu;
 
 	/* When picking a CPU from cpu_mask, ensure it can't race with cpuhp */
 	lockdep_assert_cpus_held();
 
-	/*
-	 * Setup the parameters to pass to mon_event_count() to read the data.
-	 */
-	rr->rgrp = rdtgrp;
-	rr->evtid = evtid;
-	rr->r = r;
-	rr->d = d;
-	rr->first = first;
-	rr->arch_mon_ctx = resctrl_arch_mon_ctx_alloc(r, evtid);
+	rr->arch_mon_ctx = resctrl_arch_mon_ctx_alloc(rr->r, rr->evtid);
 	if (IS_ERR(rr->arch_mon_ctx)) {
 		rr->err = -EINVAL;
 		return;
@@ -582,7 +585,7 @@ void mon_event_read(struct rmid_read *rr, struct rdt_resource *r,
 	else
 		smp_call_on_cpu(cpu, smp_mon_event_count, rr, false);
 
-	resctrl_arch_mon_ctx_free(r, evtid, rr->arch_mon_ctx);
+	resctrl_arch_mon_ctx_free(rr->r, rr->evtid, rr->arch_mon_ctx);
 }
 
 int rdtgroup_mondata_show(struct seq_file *m, void *arg)
@@ -625,13 +628,13 @@ int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 		 */
 		list_for_each_entry(d, &r->mon_domains, hdr.list) {
 			if (d->ci_id == domid) {
-				rr.ci_id = d->ci_id;
 				cpu = cpumask_any(&d->hdr.cpu_mask);
 				ci = get_cpu_cacheinfo_level(cpu, RESCTRL_L3_CACHE);
 				if (!ci)
 					continue;
-				mon_event_read(&rr, r, NULL, rdtgrp,
-					       &ci->shared_cpu_map, evtid, false);
+				mon_setup_rmid_read(&rr, r, NULL, rdtgrp,
+						     evtid, false, d->ci_id);
+				mon_perform_rmid_read(&rr, &ci->shared_cpu_map);
 				goto checkresult;
 			}
 		}
@@ -648,7 +651,8 @@ int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 			goto out;
 		}
 		d = container_of(hdr, struct rdt_mon_domain, hdr);
-		mon_event_read(&rr, r, d, rdtgrp, &d->hdr.cpu_mask, evtid, false);
+		mon_setup_rmid_read(&rr, r, d, rdtgrp, evtid, false, d->ci_id);
+		mon_perform_rmid_read(&rr, &d->hdr.cpu_mask);
 	}
 
 checkresult:

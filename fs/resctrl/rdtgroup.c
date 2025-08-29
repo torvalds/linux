@@ -3096,8 +3096,10 @@ static int mon_add_all_files(struct kernfs_node *kn, struct rdt_mon_domain *d,
 		if (ret)
 			return ret;
 
-		if (!do_sum && resctrl_is_mbm_event(mevt->evtid))
-			mon_event_read(&rr, r, d, prgrp, &d->hdr.cpu_mask, mevt->evtid, true);
+		if (!do_sum && resctrl_is_mbm_event(mevt->evtid)) {
+			mon_setup_rmid_read(&rr, r, d, prgrp, mevt->evtid, true, d->ci_id);
+			mon_perform_rmid_read(&rr, &d->hdr.cpu_mask);
+		}
 	}
 
 	return 0;
