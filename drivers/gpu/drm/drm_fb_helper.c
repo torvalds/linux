@@ -368,6 +368,10 @@ static void drm_fb_helper_fb_dirty(struct drm_fb_helper *helper)
 	unsigned long flags;
 	int ret;
 
+	mutex_lock(&helper->lock);
+	drm_client_modeset_wait_for_vblank(&helper->client, 0);
+	mutex_unlock(&helper->lock);
+
 	if (drm_WARN_ON_ONCE(dev, !helper->funcs->fb_dirty))
 		return;
 
@@ -1068,15 +1072,9 @@ int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg)
 {
 	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_device *dev = fb_helper->dev;
-	struct drm_crtc *crtc;
 	int ret = 0;
 
-	mutex_lock(&fb_helper->lock);
-	if (!drm_master_internal_acquire(dev)) {
-		ret = -EBUSY;
-		goto unlock;
-	}
+	guard(mutex)(&fb_helper->lock);
 
 	switch (cmd) {
 	case FBIO_WAITFORVSYNC:
@@ -1096,28 +1094,12 @@ int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 		 * make. If we're not smart enough here, one should
 		 * just consider switch the userspace to KMS.
 		 */
-		crtc = fb_helper->client.modesets[0].crtc;
-
-		/*
-		 * Only wait for a vblank event if the CRTC is
-		 * enabled, otherwise just don't do anythintg,
-		 * not even report an error.
-		 */
-		ret = drm_crtc_vblank_get(crtc);
-		if (!ret) {
-			drm_crtc_wait_one_vblank(crtc);
-			drm_crtc_vblank_put(crtc);
-		}
-
-		ret = 0;
+		ret = drm_client_modeset_wait_for_vblank(&fb_helper->client, 0);
 		break;
 	default:
 		ret = -ENOTTY;
 	}
 
-	drm_master_internal_release(dev);
-unlock:
-	mutex_unlock(&fb_helper->lock);
 	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_ioctl);

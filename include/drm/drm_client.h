@@ -220,6 +220,7 @@ int drm_client_modeset_check(struct drm_client_dev *client);
 int drm_client_modeset_commit_locked(struct drm_client_dev *client);
 int drm_client_modeset_commit(struct drm_client_dev *client);
 int drm_client_modeset_dpms(struct drm_client_dev *client, int mode);
+int drm_client_modeset_wait_for_vblank(struct drm_client_dev *client, unsigned int crtc_index);
 
 /**
  * drm_client_for_each_modeset() - Iterate over client modesets
