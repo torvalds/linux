@@ -2062,34 +2062,18 @@ static void remove_dev_resource(struct resource *avail, struct pci_dev *dev,
 static void remove_dev_resources(struct pci_dev *dev,
 				 struct resource available[PCI_P2P_BRIDGE_RESOURCE_NUM])
 {
-	struct resource *mmio_pref = &available[PCI_BUS_BRIDGE_PREF_MEM_WINDOW];
-	struct resource *res;
+	struct resource *res, *b_win;
+	int idx;
 
 	pci_dev_for_each_resource(dev, res) {
-		if (resource_type(res) == IORESOURCE_IO) {
-			remove_dev_resource(&available[PCI_BUS_BRIDGE_IO_WINDOW],
-					    dev, res);
-		} else if (resource_type(res) == IORESOURCE_MEM) {
+		b_win = pbus_select_window(dev->bus, res);
+		if (!b_win)
+			continue;
 
-			/*
-			 * Make sure prefetchable memory is reduced from
-			 * the correct resource. Specifically we put 32-bit
-			 * prefetchable memory in non-prefetchable window
-			 * if there is a 64-bit prefetchable window.
-			 *
-			 * See comments in __pci_bus_size_bridges() for
-			 * more information.
-			 */
-			if ((res->flags & IORESOURCE_PREFETCH) &&
-			    ((res->flags & IORESOURCE_MEM_64) ==
-			     (mmio_pref->flags & IORESOURCE_MEM_64))) {
-				remove_dev_resource(&available[PCI_BUS_BRIDGE_PREF_MEM_WINDOW],
-						    dev, res);
-			} else {
-				remove_dev_resource(&available[PCI_BUS_BRIDGE_MEM_WINDOW],
-						    dev, res);
-			}
-		}
+		idx = pci_resource_num(dev->bus->self, b_win);
+		idx -= PCI_BRIDGE_RESOURCES;
+
+		remove_dev_resource(&available[idx], dev, res);
 	}
 }
 
