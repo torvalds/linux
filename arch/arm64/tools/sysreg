@@ -31,7 +31,7 @@
 # Mapping	<name_EL1>
 # EndSysreg
 
-# Where multiple system regsiters are not VHE aliases but share a
+# Where multiple system registers are not VHE aliases but share a
 # common layout, a SysregFields block can be used to describe the
 # shared layout:
 
@@ -54,7 +54,7 @@
 #
 # In general it is recommended that new enumeration items be named for the
 # feature that introduces them (eg, FEAT_LS64_ACCDATA introduces enumeration
-# item ACCDATA) though it may be more taseful to do something else.
+# item ACCDATA) though it may be more tasteful to do something else.
 
 Sysreg	OSDTRRX_EL1	2	0	0	0	2
 Res0	63:32
@@ -474,7 +474,7 @@ EndEnum
 Enum	7:4	Security
 	0b0000	NI
 	0b0001	EL3
-	0b0001	NSACR_RFR
+	0b0010	NSACR_RFR
 EndEnum
 UnsignedEnum	3:0	ProgMod
 	0b0000	NI
@@ -2528,10 +2528,6 @@ Field	17:16	ZEN
 Res0	15:0
 EndSysreg
 
-Sysreg	CPACR_EL12      3	5	1	0	2
-Mapping	CPACR_EL1
-EndSysreg
-
 Sysreg	CPACRALIAS_EL1  3	0	1	4	4
 Mapping	CPACR_EL1
 EndSysreg
@@ -2574,10 +2570,6 @@ EndSysreg
 
 Sysreg	PFAR_EL12	3	5	6	0	5
 Mapping	PFAR_EL1
-EndSysreg
-
-Sysreg	RCWSMASK_EL1	3	0	13	0	3
-Field	63:0	RCWSMASK
 EndSysreg
 
 Sysreg	SCTLR2_EL1      3	0	1	0	3
