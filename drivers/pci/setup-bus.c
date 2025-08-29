@@ -158,11 +158,15 @@ static struct resource *find_bus_resource_of_type(struct pci_bus *bus,
 	struct resource *r, *r_assigned = NULL;
 
 	pci_bus_for_each_resource(bus, r) {
-		if (r == &ioport_resource || r == &iomem_resource)
+		if (!r || r == &ioport_resource || r == &iomem_resource)
 			continue;
-		if (r && (r->flags & type_mask) == type && !r->parent)
+
+		if ((r->flags & type_mask) != type)
+			continue;
+
+		if (!r->parent)
 			return r;
-		if (r && (r->flags & type_mask) == type && !r_assigned)
+		if (!r_assigned)
 			r_assigned = r;
 	}
 	return r_assigned;
