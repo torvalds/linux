@@ -297,9 +297,8 @@ void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value)
 
 void snd_emu1010_fpga_write_lock(struct snd_emu10k1 *emu, u32 reg, u32 value)
 {
-	snd_emu1010_fpga_lock(emu);
+	guard(snd_emu1010_fpga_lock)(emu);
 	snd_emu1010_fpga_write_locked(emu, reg, value);
-	snd_emu1010_fpga_unlock(emu);
 }
 
 void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value)
