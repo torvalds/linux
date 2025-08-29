@@ -398,7 +398,6 @@ DEFINE_FREE(del_cxl_resource, struct resource *, if (_T) del_cxl_resource(_T))
 static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 			     struct cxl_cfmws_context *ctx)
 {
-	int target_map[CXL_DECODER_MAX_INTERLEAVE];
 	struct cxl_port *root_port = ctx->root_port;
 	struct cxl_cxims_context cxims_ctx;
 	struct device *dev = ctx->dev;
@@ -416,8 +415,6 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 	rc = eig_to_granularity(cfmws->granularity, &ig);
 	if (rc)
 		return rc;
-	for (i = 0; i < ways; i++)
-		target_map[i] = cfmws->interleave_targets[i];
 
 	struct resource *res __free(del_cxl_resource) = alloc_cxl_resource(
 		cfmws->base_hpa, cfmws->window_size, ctx->id++);
@@ -443,6 +440,8 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 		.end = cfmws->base_hpa + cfmws->window_size - 1,
 	};
 	cxld->interleave_ways = ways;
+	for (i = 0; i < ways; i++)
+		cxld->target_map[i] = cfmws->interleave_targets[i];
 	/*
 	 * Minimize the x1 granularity to advertise support for any
 	 * valid region granularity
@@ -475,7 +474,7 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_XOR)
 		cxlrd->hpa_to_spa = cxl_xor_hpa_to_spa;
 
-	rc = cxl_decoder_add(cxld, target_map);
+	rc = cxl_decoder_add(cxld);
 	if (rc)
 		return rc;
 

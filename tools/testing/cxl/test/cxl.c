@@ -651,7 +651,7 @@ static int mock_cxl_add_passthrough_decoder(struct cxl_port *port)
 
 
 struct target_map_ctx {
-	int *target_map;
+	u32 *target_map;
 	int index;
 	int target_count;
 };
@@ -863,9 +863,7 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 		target_count = NR_CXL_SWITCH_PORTS;
 
 	for (i = 0; i < NR_CXL_PORT_DECODERS; i++) {
-		int target_map[CXL_DECODER_MAX_INTERLEAVE] = { 0 };
 		struct target_map_ctx ctx = {
-			.target_map = target_map,
 			.target_count = target_count,
 		};
 		struct cxl_decoder *cxld;
@@ -894,6 +892,8 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 			cxld = &cxled->cxld;
 		}
 
+		ctx.target_map = cxld->target_map;
+
 		mock_init_hdm_decoder(cxld);
 
 		if (target_count) {
@@ -905,7 +905,7 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 			}
 		}
 
-		rc = cxl_decoder_add_locked(cxld, target_map);
+		rc = cxl_decoder_add_locked(cxld);
 		if (rc) {
 			put_device(&cxld->dev);
 			dev_err(&port->dev, "Failed to add decoder\n");

@@ -21,12 +21,11 @@ struct cxl_rwsem cxl_rwsem = {
 	.dpa = __RWSEM_INITIALIZER(cxl_rwsem.dpa),
 };
 
-static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
-			   int *target_map)
+static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld)
 {
 	int rc;
 
-	rc = cxl_decoder_add_locked(cxld, target_map);
+	rc = cxl_decoder_add_locked(cxld);
 	if (rc) {
 		put_device(&cxld->dev);
 		dev_err(&port->dev, "Failed to add decoder\n");
@@ -54,7 +53,6 @@ int devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 {
 	struct cxl_switch_decoder *cxlsd;
 	struct cxl_dport *dport = NULL;
-	int single_port_map[1];
 	unsigned long index;
 	struct cxl_hdm *cxlhdm = dev_get_drvdata(&port->dev);
 
@@ -73,9 +71,9 @@ int devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 
 	xa_for_each(&port->dports, index, dport)
 		break;
-	single_port_map[0] = dport->port_id;
+	cxlsd->cxld.target_map[0] = dport->port_id;
 
-	return add_hdm_decoder(port, &cxlsd->cxld, single_port_map);
+	return add_hdm_decoder(port, &cxlsd->cxld);
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_passthrough_decoder, "CXL");
 
@@ -984,7 +982,7 @@ static int cxl_setup_hdm_decoder_from_dvsec(
 }
 
 static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
-			    int *target_map, void __iomem *hdm, int which,
+			    void __iomem *hdm, int which,
 			    u64 *dpa_base, struct cxl_endpoint_dvsec_info *info)
 {
 	struct cxl_endpoint_decoder *cxled = NULL;
@@ -1103,7 +1101,7 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		hi = readl(hdm + CXL_HDM_DECODER0_TL_HIGH(which));
 		target_list.value = (hi << 32) + lo;
 		for (i = 0; i < cxld->interleave_ways; i++)
-			target_map[i] = target_list.target_id[i];
+			cxld->target_map[i] = target_list.target_id[i];
 
 		return 0;
 	}
@@ -1179,7 +1177,6 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 	cxl_settle_decoders(cxlhdm);
 
 	for (i = 0; i < cxlhdm->decoder_count; i++) {
-		int target_map[CXL_DECODER_MAX_INTERLEAVE] = { 0 };
 		int rc, target_count = cxlhdm->target_count;
 		struct cxl_decoder *cxld;
 
@@ -1207,8 +1204,7 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 			cxld = &cxlsd->cxld;
 		}
 
-		rc = init_hdm_decoder(port, cxld, target_map, hdm, i,
-				      &dpa_base, info);
+		rc = init_hdm_decoder(port, cxld, hdm, i, &dpa_base, info);
 		if (rc) {
 			dev_warn(&port->dev,
 				 "Failed to initialize decoder%d.%d\n",
@@ -1216,7 +1212,7 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 			put_device(&cxld->dev);
 			return rc;
 		}
-		rc = add_hdm_decoder(port, cxld, target_map);
+		rc = add_hdm_decoder(port, cxld);
 		if (rc) {
 			dev_warn(&port->dev,
 				 "Failed to add decoder%d.%d\n", port->id, i);

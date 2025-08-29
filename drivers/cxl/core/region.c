@@ -1510,8 +1510,10 @@ add_target:
 				cxl_rr->nr_targets_set);
 			return -ENXIO;
 		}
-	} else
+	} else {
 		cxlsd->target[cxl_rr->nr_targets_set] = ep->dport;
+		cxlsd->cxld.target_map[cxl_rr->nr_targets_set] = ep->dport->port_id;
+	}
 	inc = 1;
 out_target_set:
 	cxl_rr->nr_targets_set += inc;
