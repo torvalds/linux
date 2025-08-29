@@ -190,6 +190,31 @@ static bool pdev_resources_assignable(struct pci_dev *dev)
 	return true;
 }
 
+static bool pdev_resource_assignable(struct pci_dev *dev, struct resource *res)
+{
+	int idx = pci_resource_num(dev, res);
+
+	if (!res->flags)
+		return false;
+
+	if (idx >= PCI_BRIDGE_RESOURCES && idx <= PCI_BRIDGE_RESOURCE_END &&
+	    res->flags & IORESOURCE_DISABLED)
+		return false;
+
+	return true;
+}
+
+static bool pdev_resource_should_fit(struct pci_dev *dev, struct resource *res)
+{
+	if (res->parent)
+		return false;
+
+	if (res->flags & IORESOURCE_PCI_FIXED)
+		return false;
+
+	return pdev_resource_assignable(dev, res);
+}
+
 /* Sort resources by alignment */
 static void pdev_sort_resources(struct pci_dev *dev, struct list_head *head)
 {
@@ -205,10 +230,7 @@ static void pdev_sort_resources(struct pci_dev *dev, struct list_head *head)
 		resource_size_t r_align;
 		struct list_head *n;
 
-		if (r->flags & IORESOURCE_PCI_FIXED)
-			continue;
-
-		if (!(r->flags) || r->parent)
+		if (!pdev_resource_should_fit(dev, r))
 			continue;
 
 		r_align = pci_resource_alignment(dev, r);
@@ -257,8 +279,15 @@ bool pci_resource_is_optional(const struct pci_dev *dev, int resno)
 	return false;
 }
 
-static inline void reset_resource(struct resource *res)
+static inline void reset_resource(struct pci_dev *dev, struct resource *res)
 {
+	int idx = pci_resource_num(dev, res);
+
+	if (idx >= PCI_BRIDGE_RESOURCES && idx <= PCI_BRIDGE_RESOURCE_END) {
+		res->flags |= IORESOURCE_UNSET;
+		return;
+	}
+
 	res->start = 0;
 	res->end = 0;
 	res->flags = 0;
@@ -610,7 +639,7 @@ out:
 				    0 /* don't care */);
 		}
 
-		reset_resource(res);
+		reset_resource(dev, res);
 	}
 
 	free_list(head);
@@ -1014,8 +1043,11 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 
 			if (r->parent || !(r->flags & IORESOURCE_IO))
 				continue;
-			r_size = resource_size(r);
 
+			if (!pdev_resource_assignable(dev, r))
+				continue;
+
+			r_size = resource_size(r);
 			if (r_size < SZ_1K)
 				/* Might be re-aligned for ISA */
 				size += r_size;
@@ -1034,6 +1066,9 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	size0 = calculate_iosize(size, min_size, size1, 0, 0,
 			resource_size(b_res), min_align);
 
+	if (size0)
+		b_res->flags &= ~IORESOURCE_DISABLED;
+
 	size1 = size0;
 	if (realloc_head && (add_size > 0 || children_add_size > 0)) {
 		size1 = calculate_iosize(size, min_size, size1, add_size,
@@ -1045,13 +1080,14 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 		if (bus->self && (b_res->start || b_res->end))
 			pci_info(bus->self, "disabling bridge window %pR to %pR (unused)\n",
 				 b_res, &bus->busn_res);
-		b_res->flags = 0;
+		b_res->flags |= IORESOURCE_DISABLED;
 		return;
 	}
 
 	resource_set_range(b_res, min_align, size0);
 	b_res->flags |= IORESOURCE_STARTALIGN;
 	if (bus->self && size1 > size0 && realloc_head) {
+		b_res->flags &= ~IORESOURCE_DISABLED;
 		add_to_list(realloc_head, bus->self, b_res, size1-size0,
 			    min_align);
 		pci_info(bus->self, "bridge window %pR to %pR add_size %llx\n",
@@ -1198,11 +1234,13 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			const char *r_name = pci_resource_name(dev, i);
 			resource_size_t r_size;
 
-			if (r->parent || (r->flags & IORESOURCE_PCI_FIXED) ||
-			    !pdev_resources_assignable(dev) ||
-			    ((r->flags & mask) != type &&
-			     (r->flags & mask) != type2 &&
-			     (r->flags & mask) != type3))
+			if (!pdev_resources_assignable(dev) ||
+			    !pdev_resource_should_fit(dev, r))
+				continue;
+
+			if ((r->flags & mask) != type &&
+			    (r->flags & mask) != type2 &&
+			    (r->flags & mask) != type3)
 				continue;
 			r_size = resource_size(r);
 
@@ -1253,6 +1291,9 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	min_align = max(min_align, win_align);
 	size0 = calculate_memsize(size, min_size, 0, 0, resource_size(b_res), min_align);
 
+	if (size0)
+		b_res->flags &= ~IORESOURCE_DISABLED;
+
 	if (bus->self && size0 &&
 	    !pbus_upstream_space_available(bus, mask | IORESOURCE_PREFETCH, type,
 					   size0, min_align)) {
@@ -1287,13 +1328,14 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 		if (bus->self && (b_res->start || b_res->end))
 			pci_info(bus->self, "disabling bridge window %pR to %pR (unused)\n",
 				 b_res, &bus->busn_res);
-		b_res->flags = 0;
+		b_res->flags |= IORESOURCE_DISABLED;
 		return 0;
 	}
 
 	resource_set_range(b_res, min_align, size0);
 	b_res->flags |= IORESOURCE_STARTALIGN;
 	if (bus->self && size1 > size0 && realloc_head) {
+		b_res->flags &= ~IORESOURCE_DISABLED;
 		add_to_list(realloc_head, bus->self, b_res, size1-size0, add_align);
 		pci_info(bus->self, "bridge window %pR to %pR add_size %llx add_align %llx\n",
 			   b_res, &bus->busn_res,
@@ -1721,7 +1763,6 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 {
 	struct pci_dev *dev = bus->self;
 	struct resource *r;
-	unsigned int old_flags;
 	struct resource *b_res;
 	int idx, ret;
 
@@ -1758,17 +1799,15 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 	/* If there are children, release them all */
 	release_child_resources(r);
 
-	type = old_flags = r->flags & PCI_RES_TYPE_MASK;
 	ret = pci_release_resource(dev, PCI_BRIDGE_RESOURCES + idx);
 	if (ret)
 		return;
 
+	type = r->flags & PCI_RES_TYPE_MASK;
 	/* Avoiding touch the one without PREF */
 	if (type & IORESOURCE_PREFETCH)
 		type = IORESOURCE_PREFETCH;
 	__pci_setup_bridge(bus, type);
-	/* For next child res under same bridge */
-	r->flags = old_flags;
 }
 
 enum release_type {
@@ -2246,20 +2285,8 @@ static void pci_prepare_next_assign_round(struct list_head *fail_head,
 	}
 
 	/* Restore size and flags */
-	list_for_each_entry(fail_res, fail_head, list) {
-		struct resource *res = fail_res->res;
-		struct pci_dev *dev = fail_res->dev;
-		int idx = pci_resource_num(dev, res);
-
+	list_for_each_entry(fail_res, fail_head, list)
 		restore_dev_resource(fail_res);
-
-		if (!pci_is_bridge(dev))
-			continue;
-
-		if (idx >= PCI_BRIDGE_RESOURCES &&
-		    idx <= PCI_BRIDGE_RESOURCE_END)
-			res->flags = 0;
-	}
 
 	free_list(fail_head);
 }
