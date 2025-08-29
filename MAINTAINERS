@@ -937,7 +937,7 @@ S:	Maintained
 F:	drivers/gpio/gpio-altera.c
 
 ALTERA TRIPLE SPEED ETHERNET DRIVER
-M:	Joyce Ooi <joyce.ooi@intel.com>
+M:	Boon Khai Ng <boon.khai.ng@altera.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/altera/
@@ -17848,7 +17848,6 @@ F:	net/ipv6/syncookies.c
 F:	net/ipv6/tcp*.c
 
 NETWORKING [TLS]
-M:	Boris Pismenny <borisp@nvidia.com>
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Jakub Kicinski <kuba@kernel.org>
 L:	netdev@vger.kernel.org
@@ -20878,8 +20877,8 @@ S:	Maintained
 F:	drivers/firmware/qcom/qcom_qseecom_uefisecapp.c
 
 QUALCOMM RMNET DRIVER
-M:	Subash Abhinov Kasiviswanathan <quic_subashab@quicinc.com>
-M:	Sean Tranchetti <quic_stranche@quicinc.com>
+M:	Subash Abhinov Kasiviswanathan <subash.a.kasiviswanathan@oss.qualcomm.com>
+M:	Sean Tranchetti <sean.tranchetti@oss.qualcomm.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/device_drivers/cellular/qualcomm/rmnet.rst
