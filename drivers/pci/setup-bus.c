@@ -2522,10 +2522,16 @@ void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
 }
 EXPORT_SYMBOL_GPL(pci_assign_unassigned_bridge_resources);
 
-int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
+/*
+ * Walk to the root bus, find the bridge window relevant for @res and
+ * release it when possible. If the bridge window contains assigned
+ * resources, it cannot be released.
+ */
+int pbus_reassign_bridge_resources(struct pci_bus *bus, struct resource *res)
 {
+	unsigned long type = res->flags;
 	struct pci_dev_resource *dev_res;
-	struct pci_dev *next;
+	struct pci_dev *bridge;
 	LIST_HEAD(saved);
 	LIST_HEAD(added);
 	LIST_HEAD(failed);
@@ -2534,33 +2540,25 @@ int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
 
 	down_read(&pci_bus_sem);
 
-	/* Walk to the root hub, releasing bridge BARs when possible */
-	next = bridge;
-	do {
-		bridge = next;
-		for (i = PCI_BRIDGE_RESOURCES; i < PCI_BRIDGE_RESOURCE_END;
-		     i++) {
-			struct resource *res = &bridge->resource[i];
+	while (!pci_is_root_bus(bus)) {
+		bridge = bus->self;
+		res = pbus_select_window(bus, res);
+		if (!res)
+			break;
 
-			if ((res->flags ^ type) & PCI_RES_TYPE_MASK)
-				continue;
+		i = pci_resource_num(bridge, res);
 
-			/* Ignore BARs which are still in use */
-			if (res->child)
-				continue;
-
+		/* Ignore BARs which are still in use */
+		if (!res->child) {
 			ret = add_to_list(&saved, bridge, res, 0, 0);
 			if (ret)
 				goto cleanup;
 
 			pci_release_resource(bridge, i);
-			break;
 		}
-		if (i == PCI_BRIDGE_RESOURCE_END)
-			break;
 
-		next = bridge->bus ? bridge->bus->self : NULL;
-	} while (next);
+		bus = bus->parent;
+	}
 
 	if (list_empty(&saved)) {
 		up_read(&pci_bus_sem);
