@@ -39,6 +39,58 @@ properties:
   interrupts:
     maxItems: 1
 
+  buttons:
+    type: object
+    properties:
+      "#address-cells":
+        const: 1
+
+      "#size-cells":
+        const: 0
+
+    patternProperties:
+      "^onkey@[0-2]$":
+        $ref: /schemas/input/input.yaml#
+        unevaluatedProperties: false
+        type: object
+
+        properties:
+          reg:
+            description: |
+              One of
+              MC13783 BUTTON IDs:
+                0: ONOFD1
+                1: ONOFD2
+                2: ONOFD3
+
+              MC13892 BUTTON IDs:
+                0: PWRON1
+                1: PWRON2
+                2: PWRON3
+
+              MC34708 BUTTON IDs:
+                0: PWRON1
+                1: PWRON2
+            maximum: 2
+
+          debounce-delay-ms:
+            enum: [0, 30, 150, 750]
+            default: 30
+            description:
+              Sets the debouncing delay in milliseconds.
+
+          active-low:
+            description: Set active when pin is pulled low.
+
+          linux,code: true
+
+          fsl,enable-reset:
+            description:
+              Setting of the global reset option.
+            type: boolean
+
+    unevaluatedProperties: false
+
   leds:
     type: object
     $ref: /schemas/leds/common.yaml#
@@ -159,6 +211,12 @@ allOf:
             const: fsl,mc34708
     then:
       properties:
+        buttons:
+          patternProperties:
+            "^onkey@[0-2]$":
+              properties:
+                reg:
+                  maximum: 1
         leds:
           properties:
             led-control:
@@ -186,6 +244,18 @@ examples:
             interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
             fsl,mc13xxx-uses-rtc;
             fsl,mc13xxx-uses-adc;
+
+            buttons {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                onkey@0 {
+                    reg = <0>;
+                    debounce-delay-ms = <30>;
+                    active-low;
+                    fsl,enable-reset;
+                };
+            };
 
             leds {
                 #address-cells = <1>;
