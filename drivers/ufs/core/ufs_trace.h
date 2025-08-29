@@ -11,6 +11,7 @@
 
 #include <ufs/ufs.h>
 #include <linux/tracepoint.h>
+#include "ufs_trace_types.h"
 
 #define str_opcode(opcode)						\
 	__print_symbolic(opcode,					\

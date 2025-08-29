@@ -653,21 +653,4 @@ struct ufs_dev_info {
 	bool hid_sup;
 };
 
-/*
- * This enum is used in string mapping in ufs_trace.h.
- */
-enum ufs_trace_str_t {
-	UFS_CMD_SEND, UFS_CMD_COMP, UFS_DEV_COMP,
-	UFS_QUERY_SEND, UFS_QUERY_COMP, UFS_QUERY_ERR,
-	UFS_TM_SEND, UFS_TM_COMP, UFS_TM_ERR
-};
-
-/*
- * Transaction Specific Fields (TSF) type in the UPIU package, this enum is
- * used in ufs_trace.h for UFS command trace.
- */
-enum ufs_trace_tsf_t {
-	UFS_TSF_CDB, UFS_TSF_OSF, UFS_TSF_TM_INPUT, UFS_TSF_TM_OUTPUT
-};
-
 #endif /* End of Header */
