@@ -111,11 +111,11 @@ create_initrd() {
         return 0
     fi
     
-    log "Creating Ubuntu-compatible initrd using mkinitramfs..."
+    log "Creating portable initrd using dracut..."
     
-    # Check if mkinitramfs is available
-    if ! command -v mkinitramfs >/dev/null 2>&1; then
-        error "mkinitramfs not found. Please install initramfs-tools: apt-get install initramfs-tools"
+    # Check if dracut is available
+    if ! command -v dracut >/dev/null 2>&1; then
+        error "dracut not found. Please install dracut: apt-get install dracut"
     fi
     
     # Install kernel modules to persistent location for reuse
@@ -141,54 +141,20 @@ create_initrd() {
         error "Modules directory not found: ${MODULES_DIR}"
     fi
     
-    # Use mkinitramfs with system configuration and temporarily install our modules
-    log "Creating initramfs using system configuration..."
+    # Use dracut with explicit driver support for cloud/virtualized environments
+    log "Generating initramfs with dracut..."
     
-    # Temporarily install our modules to the system location
-    SYSTEM_MODULES_DIR="/lib/modules/${KERNEL_VERSION}"
-    BACKUP_MODULES=""
+    # AWS and common cloud/virtualization drivers
+    AWS_DRIVERS="ena virtio_net virtio_blk nvme ixgbevf virtio_scsi"
     
-    # Create /lib/modules directory if it doesn't exist
-    sudo mkdir -p "/lib/modules"
-    
-    # Back up existing modules if they exist
-    if [[ -d "${SYSTEM_MODULES_DIR}" ]]; then
-        BACKUP_MODULES="${TEMP_BUILD_DIR}/backup-modules"
-        log "Backing up existing modules to ${BACKUP_MODULES}..."
-        sudo mv "${SYSTEM_MODULES_DIR}" "${BACKUP_MODULES}"
-    fi
-    
-    # Symlink our modules to system location (much faster than copying)
-    log "Temporarily symlinking kernel modules to system location..."
-    sudo ln -sf "${MODULES_DIR}" "${SYSTEM_MODULES_DIR}"
-    
-    # Symlink kernel config to fix mkinitramfs warning
-    BOOT_CONFIG="/boot/config-${KERNEL_VERSION}"
-    BACKUP_CONFIG=""
-    if [[ -f "${BOOT_CONFIG}" ]]; then
-        BACKUP_CONFIG="${TEMP_BUILD_DIR}/backup-config"
-        log "Backing up existing config to ${BACKUP_CONFIG}..."
-        sudo mv "${BOOT_CONFIG}" "${BACKUP_CONFIG}"
-    fi
-    log "Temporarily symlinking kernel config to ${BOOT_CONFIG}..."
-    sudo ln -sf "$(pwd)/.config" "${BOOT_CONFIG}"
-    
-    # Use mkinitramfs with system config directory
-    log "Generating initramfs..."
-    mkinitramfs -d /etc/initramfs-tools -o "${TEMP_BUILD_DIR}/initrd.img" "${KERNEL_VERSION}"
-    
-    # Clean up - remove our symlinks and restore backups if needed
-    sudo rm -f "${SYSTEM_MODULES_DIR}"
-    if [[ -n "${BACKUP_MODULES}" && -d "${BACKUP_MODULES}" ]]; then
-        log "Restoring original modules..."
-        sudo mv "${BACKUP_MODULES}" "${SYSTEM_MODULES_DIR}"
-    fi
-    
-    sudo rm -f "${BOOT_CONFIG}"
-    if [[ -n "${BACKUP_CONFIG}" && -f "${BACKUP_CONFIG}" ]]; then
-        log "Restoring original config..."
-        sudo mv "${BACKUP_CONFIG}" "${BOOT_CONFIG}"
-    fi
+    # Use dracut with no-hostonly for maximum compatibility
+    log "Including AWS/cloud drivers: ${AWS_DRIVERS}"
+    dracut --no-hostonly \
+           --kmoddir "${MODULES_DIR}" \
+           --add-drivers "${AWS_DRIVERS}" \
+           --force \
+           "${TEMP_BUILD_DIR}/initrd.img" \
+           "${KERNEL_VERSION}"
     
     # Calculate SHA256 of the created initrd
     log "Calculating initrd SHA256..."
@@ -201,7 +167,7 @@ create_initrd() {
     cp "${TEMP_BUILD_DIR}/initrd.img" "$cached_initrd"
     echo "$initrd_sha256" > "$cached_sha256"
     
-    log "Ubuntu-compatible initrd created: ${TEMP_BUILD_DIR}/initrd.img"
+    log "Portable initrd created with dracut: ${TEMP_BUILD_DIR}/initrd.img"
     log "Initrd SHA256: $initrd_sha256"
     log "Kernel modules preserved in: ${PERSISTENT_MODULES}"
 }
