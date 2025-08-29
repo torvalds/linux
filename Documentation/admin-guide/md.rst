@@ -388,6 +388,9 @@ All md devices contain:
      bitmap
          The default internal bitmap
 
+If bitmap_type is not none, then additional bitmap attributes bitmap/xxx or
+llbitmap/xxx will be created after md device KOBJ_CHANGE event.
+
 If bitmap_type is bitmap, then the md device will also contain:
 
   bitmap/location
