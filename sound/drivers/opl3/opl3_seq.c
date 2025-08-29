@@ -40,13 +40,11 @@ int snd_opl3_synth_setup(struct snd_opl3 * opl3)
 	int idx;
 	struct snd_hwdep *hwdep = opl3->hwdep;
 
-	mutex_lock(&hwdep->open_mutex);
-	if (hwdep->used) {
-		mutex_unlock(&hwdep->open_mutex);
-		return -EBUSY;
+	scoped_guard(mutex, &hwdep->open_mutex) {
+		if (hwdep->used)
+			return -EBUSY;
+		hwdep->used++;
 	}
-	hwdep->used++;
-	mutex_unlock(&hwdep->open_mutex);
 
 	snd_opl3_reset(opl3);
 
@@ -81,9 +79,9 @@ void snd_opl3_synth_cleanup(struct snd_opl3 * opl3)
 
 	snd_opl3_reset(opl3);
 	hwdep = opl3->hwdep;
-	mutex_lock(&hwdep->open_mutex);
-	hwdep->used--;
-	mutex_unlock(&hwdep->open_mutex);
+	scoped_guard(mutex, &hwdep->open_mutex) {
+		hwdep->used--;
+	}
 	wake_up(&hwdep->open_wait);
 }
 
