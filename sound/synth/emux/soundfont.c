@@ -61,30 +61,6 @@ static void snd_sf_init(struct snd_sf_list *sflist);
 static void snd_sf_clear(struct snd_sf_list *sflist);
 
 /*
- * lock access to sflist
- */
-static void
-lock_preset(struct snd_sf_list *sflist)
-{
-	mutex_lock(&sflist->presets_mutex);
-	guard(spinlock_irqsave)(&sflist->lock);
-	sflist->presets_locked = 1;
-}
-
-
-/*
- * remove lock
- */
-static void
-unlock_preset(struct snd_sf_list *sflist)
-{
-	guard(spinlock_irqsave)(&sflist->lock);
-	sflist->presets_locked = 0;
-	mutex_unlock(&sflist->presets_mutex);
-}
-
-
-/*
  * close the patch if the patch was opened by this client.
  */
 int
@@ -140,10 +116,8 @@ snd_soundfont_load(struct snd_card *card,
 
 	if (patch.type == SNDRV_SFNT_OPEN_PATCH) {
 		/* grab sflist to open */
-		lock_preset(sflist);
-		rc = open_patch(sflist, data, count, client);
-		unlock_preset(sflist);
-		return rc;
+		guard(snd_soundfont_lock_preset)(sflist);
+		return open_patch(sflist, data, count, client);
 	}
 
 	/* check if other client already opened patch */
@@ -152,7 +126,7 @@ snd_soundfont_load(struct snd_card *card,
 			return -EBUSY;
 	}
 
-	lock_preset(sflist);
+	guard(snd_soundfont_lock_preset)(sflist);
 	rc = -EINVAL;
 	switch (patch.type) {
 	case SNDRV_SFNT_LOAD_INFO:
@@ -190,7 +164,6 @@ snd_soundfont_load(struct snd_card *card,
 		}
 		break;
 	}
-	unlock_preset(sflist);
 
 	return rc;
 }
@@ -1153,11 +1126,8 @@ snd_soundfont_load_guspatch(struct snd_card *card,
 			    struct snd_sf_list *sflist, const char __user *data,
 			    long count)
 {
-	int rc;
-	lock_preset(sflist);
-	rc = load_guspatch(card, sflist, data, count);
-	unlock_preset(sflist);
-	return rc;
+	guard(snd_soundfont_lock_preset)(sflist);
+	return load_guspatch(card, sflist, data, count);
 }
 
 
@@ -1446,11 +1416,11 @@ snd_sf_free(struct snd_sf_list *sflist)
 	if (sflist == NULL)
 		return;
 	
-	lock_preset(sflist);
-	if (sflist->callback.sample_reset)
-		sflist->callback.sample_reset(sflist->callback.private_data);
-	snd_sf_clear(sflist);
-	unlock_preset(sflist);
+	scoped_guard(snd_soundfont_lock_preset, sflist) {
+		if (sflist->callback.sample_reset)
+			sflist->callback.sample_reset(sflist->callback.private_data);
+		snd_sf_clear(sflist);
+	}
 
 	kfree(sflist);
 }
@@ -1462,11 +1432,10 @@ snd_sf_free(struct snd_sf_list *sflist)
 int
 snd_soundfont_remove_samples(struct snd_sf_list *sflist)
 {
-	lock_preset(sflist);
+	guard(snd_soundfont_lock_preset)(sflist);
 	if (sflist->callback.sample_reset)
 		sflist->callback.sample_reset(sflist->callback.private_data);
 	snd_sf_clear(sflist);
-	unlock_preset(sflist);
 
 	return 0;
 }
@@ -1482,7 +1451,7 @@ snd_soundfont_remove_unlocked(struct snd_sf_list *sflist)
 	struct snd_sf_zone *zp, *nextzp;
 	struct snd_sf_sample *sp, *nextsp;
 
-	lock_preset(sflist);
+	guard(snd_soundfont_lock_preset)(sflist);
 
 	if (sflist->callback.sample_reset)
 		sflist->callback.sample_reset(sflist->callback.private_data);
@@ -1516,6 +1485,5 @@ snd_soundfont_remove_unlocked(struct snd_sf_list *sflist)
 
 	rebuild_presets(sflist);
 
-	unlock_preset(sflist);
 	return 0;
 }
