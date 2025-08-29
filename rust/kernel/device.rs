@@ -138,7 +138,9 @@ pub mod property;
 /// }
 /// ```
 ///
-/// An example for a class device implementation is [`drm::Device`].
+/// An example for a class device implementation is
+#[cfg_attr(CONFIG_DRM = "y", doc = "[`drm::Device`](kernel::drm::Device).")]
+#[cfg_attr(not(CONFIG_DRM = "y"), doc = "`drm::Device`.")]
 ///
 /// # Invariants
 ///
@@ -151,7 +153,6 @@ pub mod property;
 /// dropped from any thread.
 ///
 /// [`AlwaysRefCounted`]: kernel::types::AlwaysRefCounted
-/// [`drm::Device`]: kernel::drm::Device
 /// [`impl_device_context_deref`]: kernel::impl_device_context_deref
 /// [`pci::Device`]: kernel::pci::Device
 /// [`platform::Device`]: kernel::platform::Device
