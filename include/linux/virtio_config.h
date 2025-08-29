@@ -193,14 +193,15 @@ static inline bool virtio_has_feature(const struct virtio_device *vdev,
 }
 
 static inline void virtio_get_features(struct virtio_device *vdev,
-				       u64 *features)
+				       u64 *features_out)
 {
 	if (vdev->config->get_extended_features) {
-		vdev->config->get_extended_features(vdev, features);
+		vdev->config->get_extended_features(vdev, features_out);
 		return;
 	}
 
-	virtio_features_from_u64(features, vdev->config->get_features(vdev));
+	virtio_features_from_u64(features_out,
+		vdev->config->get_features(vdev));
 }
 
 /**
@@ -326,11 +327,11 @@ int virtqueue_set_affinity(struct virtqueue *vq, const struct cpumask *cpu_mask)
 
 static inline
 bool virtio_get_shm_region(struct virtio_device *vdev,
-			   struct virtio_shm_region *region, u8 id)
+			   struct virtio_shm_region *region_out, u8 id)
 {
 	if (!vdev->config->get_shm_region)
 		return false;
-	return vdev->config->get_shm_region(vdev, region, id);
+	return vdev->config->get_shm_region(vdev, region_out, id);
 }
 
 static inline bool virtio_is_little_endian(struct virtio_device *vdev)
