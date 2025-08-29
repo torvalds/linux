@@ -152,7 +152,8 @@ static bool range_is_swapped(void *addr, size_t size)
 	return true;
 }
 
-static void test_one_folio(size_t size, bool private, bool swapout, bool hugetlb)
+static void test_one_folio(uffd_global_test_opts_t *gopts, size_t size, bool private,
+			   bool swapout, bool hugetlb)
 {
 	struct uffdio_writeprotect wp_prms;
 	uint64_t features = 0;
@@ -176,21 +177,21 @@ static void test_one_folio(size_t size, bool private, bool swapout, bool hugetlb
 	}
 
 	/* Register range for uffd-wp. */
-	if (userfaultfd_open(&features)) {
+	if (userfaultfd_open(gopts, &features)) {
 		if (errno == ENOENT)
 			ksft_test_result_skip("userfaultfd not available\n");
 		else
 			ksft_test_result_fail("userfaultfd_open() failed\n");
 		goto out;
 	}
-	if (uffd_register(uffd, mem, size, false, true, false)) {
+	if (uffd_register(gopts->uffd, mem, size, false, true, false)) {
 		ksft_test_result_fail("uffd_register() failed\n");
 		goto out;
 	}
 	wp_prms.mode = UFFDIO_WRITEPROTECT_MODE_WP;
 	wp_prms.range.start = (uintptr_t)mem;
 	wp_prms.range.len = size;
-	if (ioctl(uffd, UFFDIO_WRITEPROTECT, &wp_prms)) {
+	if (ioctl(gopts->uffd, UFFDIO_WRITEPROTECT, &wp_prms)) {
 		ksft_test_result_fail("ioctl(UFFDIO_WRITEPROTECT) failed\n");
 		goto out;
 	}
@@ -237,9 +238,9 @@ static void test_one_folio(size_t size, bool private, bool swapout, bool hugetlb
 out:
 	if (mem)
 		munmap(mem, size);
-	if (uffd >= 0) {
-		close(uffd);
-		uffd = -1;
+	if (gopts->uffd >= 0) {
+		close(gopts->uffd);
+		gopts->uffd = -1;
 	}
 }
 
@@ -331,6 +332,7 @@ static const struct testcase testcases[] = {
 
 int main(int argc, char **argv)
 {
+	uffd_global_test_opts_t gopts = { 0 };
 	struct thp_settings settings;
 	int i, j, plan = 0;
 
@@ -362,8 +364,8 @@ int main(int argc, char **argv)
 		const struct testcase *tc = &testcases[i];
 
 		for (j = 0; j < *tc->nr_sizes; j++)
-			test_one_folio(tc->sizes[j], tc->private, tc->swapout,
-				       tc->hugetlb);
+			test_one_folio(&gopts, tc->sizes[j], tc->private,
+				       tc->swapout, tc->hugetlb);
 	}
 
 	/* If THP is supported, restore original THP settings. */

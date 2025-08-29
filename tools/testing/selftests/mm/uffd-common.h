@@ -56,20 +56,17 @@
 
 #define err(fmt, ...) errexit(1, fmt, ##__VA_ARGS__)
 
-/* pthread_mutex_t starts at page offset 0 */
-#define area_mutex(___area, ___nr)					\
-	((pthread_mutex_t *) ((___area) + (___nr)*page_size))
-/*
- * count is placed in the page after pthread_mutex_t naturally aligned
- * to avoid non alignment faults on non-x86 archs.
- */
-#define area_count(___area, ___nr)					\
-	((volatile unsigned long long *) ((unsigned long)		\
-				 ((___area) + (___nr)*page_size +	\
-				  sizeof(pthread_mutex_t) +		\
-				  sizeof(unsigned long long) - 1) &	\
-				 ~(unsigned long)(sizeof(unsigned long long) \
-						  -  1)))
+struct uffd_global_test_opts {
+	unsigned long nr_parallel, nr_pages, nr_pages_per_cpu, page_size;
+	char *area_src, *area_src_alias, *area_dst, *area_dst_alias, *area_remap;
+	int uffd, uffd_flags, finished, *pipefd, test_type;
+	bool map_shared;
+	bool test_uffdio_wp;
+	unsigned long long *count_verify;
+	volatile bool test_uffdio_copy_eexist;
+	atomic_bool ready_for_fork;
+};
+typedef struct uffd_global_test_opts uffd_global_test_opts_t;
 
 /* Userfaultfd test statistics */
 struct uffd_args {
@@ -79,50 +76,55 @@ struct uffd_args {
 	unsigned long missing_faults;
 	unsigned long wp_faults;
 	unsigned long minor_faults;
+	struct uffd_global_test_opts *gopts;
 
 	/* A custom fault handler; defaults to uffd_handle_page_fault. */
-	void (*handle_fault)(struct uffd_msg *msg, struct uffd_args *args);
+	void (*handle_fault)(struct uffd_global_test_opts *gopts,
+			     struct uffd_msg *msg,
+			     struct uffd_args *args);
 };
 
 struct uffd_test_ops {
-	int (*allocate_area)(void **alloc_area, bool is_src);
-	void (*release_pages)(char *rel_area);
-	void (*alias_mapping)(__u64 *start, size_t len, unsigned long offset);
-	void (*check_pmd_mapping)(void *p, int expect_nr_hpages);
+	int (*allocate_area)(uffd_global_test_opts_t *gopts, void **alloc_area, bool is_src);
+	void (*release_pages)(uffd_global_test_opts_t *gopts, char *rel_area);
+	void (*alias_mapping)(uffd_global_test_opts_t *gopts,
+			      __u64 *start,
+			      size_t len,
+			      unsigned long offset);
+	void (*check_pmd_mapping)(uffd_global_test_opts_t *gopts, void *p, int expect_nr_hpages);
 };
 typedef struct uffd_test_ops uffd_test_ops_t;
 
 struct uffd_test_case_ops {
-	int (*pre_alloc)(const char **errmsg);
-	int (*post_alloc)(const char **errmsg);
+	int (*pre_alloc)(uffd_global_test_opts_t *gopts, const char **errmsg);
+	int (*post_alloc)(uffd_global_test_opts_t *gopts, const char **errmsg);
 };
 typedef struct uffd_test_case_ops uffd_test_case_ops_t;
 
-extern unsigned long nr_parallel, nr_pages, nr_pages_per_cpu, page_size;
-extern char *area_src, *area_src_alias, *area_dst, *area_dst_alias, *area_remap;
-extern int uffd, uffd_flags, finished, *pipefd, test_type;
-extern bool map_shared;
-extern bool test_uffdio_wp;
-extern unsigned long long *count_verify;
-extern volatile bool test_uffdio_copy_eexist;
-extern atomic_bool ready_for_fork;
-
+extern uffd_global_test_opts_t *uffd_gtest_opts;
 extern uffd_test_ops_t anon_uffd_test_ops;
 extern uffd_test_ops_t shmem_uffd_test_ops;
 extern uffd_test_ops_t hugetlb_uffd_test_ops;
 extern uffd_test_ops_t *uffd_test_ops;
 extern uffd_test_case_ops_t *uffd_test_case_ops;
 
+pthread_mutex_t *area_mutex(char *area, unsigned long nr, uffd_global_test_opts_t *gopts);
+volatile unsigned long long *area_count(char *area,
+					unsigned long nr,
+					uffd_global_test_opts_t *gopts);
+
 void uffd_stats_report(struct uffd_args *args, int n_cpus);
-int uffd_test_ctx_init(uint64_t features, const char **errmsg);
-void uffd_test_ctx_clear(void);
-int userfaultfd_open(uint64_t *features);
-int uffd_read_msg(int ufd, struct uffd_msg *msg);
+int uffd_test_ctx_init(uffd_global_test_opts_t *gopts, uint64_t features, const char **errmsg);
+void uffd_test_ctx_clear(uffd_global_test_opts_t *gopts);
+int userfaultfd_open(uffd_global_test_opts_t *gopts, uint64_t *features);
+int uffd_read_msg(uffd_global_test_opts_t *gopts, struct uffd_msg *msg);
 void wp_range(int ufd, __u64 start, __u64 len, bool wp);
-void uffd_handle_page_fault(struct uffd_msg *msg, struct uffd_args *args);
-int __copy_page(int ufd, unsigned long offset, bool retry, bool wp);
-int copy_page(int ufd, unsigned long offset, bool wp);
-int move_page(int ufd, unsigned long offset, unsigned long len);
+void uffd_handle_page_fault(uffd_global_test_opts_t *gopts,
+			    struct uffd_msg *msg,
+			    struct uffd_args *args);
+int __copy_page(uffd_global_test_opts_t *gopts, unsigned long offset, bool retry, bool wp);
+int copy_page(uffd_global_test_opts_t *gopts, unsigned long offset, bool wp);
+int move_page(uffd_global_test_opts_t *gopts, unsigned long offset, unsigned long len);
 void *uffd_poll_thread(void *arg);
 
 int uffd_open_dev(unsigned int flags);
