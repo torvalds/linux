@@ -125,6 +125,36 @@ out:
 }
 
 /*
+ * Clean up event resources - called when event is destroyed
+ */
+static void resctrl_event_destroy(struct perf_event *event)
+{
+	struct resctrl_pmu_event *resctrl_event = event->pmu_private;
+
+	if (resctrl_event) {
+		struct rdtgroup *rdtgrp = resctrl_event->rdtgrp;
+		
+		if (rdtgrp) {
+			/* Log rdtgroup state before cleanup */
+			pr_info("PMU event cleanup: path=%s\n", resctrl_event->mon_path);
+			pr_info("  rdtgroup: closid=%u, rmid=%u, waitcount=%d\n",
+				rdtgrp->closid, rdtgrp->mon.rmid, atomic_read(&rdtgrp->waitcount));
+			pr_info("  type=%s, mode=%d, flags=0x%x\n",
+				rdtgrp->type == RDTCTRL_GROUP ? "CTRL" : "MON",
+				rdtgrp->mode, rdtgrp->flags);
+			pr_info("  cpu_mask=%*pbl\n", cpumask_pr_args(&rdtgrp->cpu_mask));
+			
+			/* Release the reference we took during init */
+			rdtgroup_put(rdtgrp);
+		}
+		
+		kfree(resctrl_event->mon_path);
+		kfree(resctrl_event);
+		event->pmu_private = NULL;
+	}
+}
+
+/*
  * Initialize a new resctrl perf event
  * The config field contains the file descriptor of the monitoring file
  */
@@ -192,35 +222,6 @@ static int resctrl_event_init(struct perf_event *event)
 	return 0;
 }
 
-/*
- * Clean up event resources - called when event is destroyed
- */
-static void resctrl_event_destroy(struct perf_event *event)
-{
-	struct resctrl_pmu_event *resctrl_event = event->pmu_private;
-
-	if (resctrl_event) {
-		struct rdtgroup *rdtgrp = resctrl_event->rdtgrp;
-		
-		if (rdtgrp) {
-			/* Log rdtgroup state before cleanup */
-			pr_info("PMU event cleanup: path=%s\n", resctrl_event->mon_path);
-			pr_info("  rdtgroup: closid=%u, rmid=%u, waitcount=%d\n",
-				rdtgrp->closid, rdtgrp->mon.rmid, atomic_read(&rdtgrp->waitcount));
-			pr_info("  type=%s, mode=%d, flags=0x%x\n",
-				rdtgrp->type == RDTCTRL_GROUP ? "CTRL" : "MON",
-				rdtgrp->mode, rdtgrp->flags);
-			pr_info("  cpu_mask=%*pbl\n", cpumask_pr_args(&rdtgrp->cpu_mask));
-			
-			/* Release the reference we took during init */
-			rdtgroup_put(rdtgrp);
-		}
-		
-		kfree(resctrl_event->mon_path);
-		kfree(resctrl_event);
-		event->pmu_private = NULL;
-	}
-}
 
 /*
  * Add event to PMU (enable monitoring)
