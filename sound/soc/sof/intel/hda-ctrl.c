@@ -220,6 +220,9 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 	}
 	usleep_range(1000, 1200);
 
+	/* Accept unsolicited responses */
+	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
+
 	hda_codec_detect_mask(sdev);
 
 	/* clear stream status */
