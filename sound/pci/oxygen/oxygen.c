@@ -450,7 +450,7 @@ static int rolloff_put(struct snd_kcontrol *ctl,
 	int changed;
 	u8 reg;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	reg = data->ak4396_regs[0][AK4396_CONTROL_2];
 	if (value->value.enumerated.item[0])
 		reg |= AK4396_SLOW;
@@ -461,7 +461,6 @@ static int rolloff_put(struct snd_kcontrol *ctl,
 		for (i = 0; i < data->dacs; ++i)
 			ak4396_write(chip, i, AK4396_CONTROL_2, reg);
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -499,14 +498,13 @@ static int hpf_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 	unsigned int reg;
 	int changed;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	reg = data->wm8785_regs[WM8785_R2] & ~(WM8785_HPFR | WM8785_HPFL);
 	if (value->value.enumerated.item[0])
 		reg |= WM8785_HPFR | WM8785_HPFL;
 	changed = reg != data->wm8785_regs[WM8785_R2];
 	if (changed)
 		wm8785_write(chip, WM8785_R2, reg);
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -563,7 +561,7 @@ static int meridian_dig_source_put(struct snd_kcontrol *ctl,
 	u16 old_reg, new_reg;
 	int changed;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	old_reg = oxygen_read16(chip, OXYGEN_GPIO_DATA);
 	new_reg = old_reg & ~GPIO_MERIDIAN_DIG_MASK;
 	if (value->value.enumerated.item[0] == 0)
@@ -573,7 +571,6 @@ static int meridian_dig_source_put(struct snd_kcontrol *ctl,
 	changed = new_reg != old_reg;
 	if (changed)
 		oxygen_write16(chip, OXYGEN_GPIO_DATA, new_reg);
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
@@ -584,7 +581,7 @@ static int claro_dig_source_put(struct snd_kcontrol *ctl,
 	u16 old_reg, new_reg;
 	int changed;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	old_reg = oxygen_read16(chip, OXYGEN_GPIO_DATA);
 	new_reg = old_reg & ~GPIO_CLARO_DIG_COAX;
 	if (value->value.enumerated.item[0])
@@ -592,7 +589,6 @@ static int claro_dig_source_put(struct snd_kcontrol *ctl,
 	changed = new_reg != old_reg;
 	if (changed)
 		oxygen_write16(chip, OXYGEN_GPIO_DATA, new_reg);
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 

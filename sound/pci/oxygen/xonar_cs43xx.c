@@ -309,7 +309,7 @@ static int rolloff_put(struct snd_kcontrol *ctl,
 	int changed;
 	u8 reg;
 
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	reg = data->cs4398_regs[7];
 	if (value->value.enumerated.item[0])
 		reg |= CS4398_FILT_SEL;
@@ -324,7 +324,6 @@ static int rolloff_put(struct snd_kcontrol *ctl,
 			reg = data->cs4362a_regs[0x04] & ~CS4362A_FILT_SEL;
 		cs4362a_write(chip, 0x04, reg);
 	}
-	mutex_unlock(&chip->mutex);
 	return changed;
 }
 
