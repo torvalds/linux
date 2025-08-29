@@ -531,22 +531,21 @@ static int init_engine(struct snd_pcm_substream *substream,
 	/* Sets up che hardware. If it's already initialized, reset and
 	 * redo with the new parameters
 	 */
-	spin_lock_irq(&chip->lock);
-	if (pipe->index >= 0) {
-		dev_dbg(chip->card->dev, "hwp_ie free(%d)\n", pipe->index);
-		err = free_pipes(chip, pipe);
-		snd_BUG_ON(err);
-		chip->substream[pipe->index] = NULL;
-	}
+	scoped_guard(spinlock_irq, &chip->lock) {
+		if (pipe->index >= 0) {
+			dev_dbg(chip->card->dev, "hwp_ie free(%d)\n", pipe->index);
+			err = free_pipes(chip, pipe);
+			snd_BUG_ON(err);
+			chip->substream[pipe->index] = NULL;
+		}
 
-	err = allocate_pipes(chip, pipe, pipe_index, interleave);
-	if (err < 0) {
-		spin_unlock_irq(&chip->lock);
-		dev_err(chip->card->dev, "allocate_pipes(%d) err=%d\n",
-			pipe_index, err);
-		return err;
+		err = allocate_pipes(chip, pipe, pipe_index, interleave);
+		if (err < 0) {
+			dev_err(chip->card->dev, "allocate_pipes(%d) err=%d\n",
+				pipe_index, err);
+			return err;
+		}
 	}
-	spin_unlock_irq(&chip->lock);
 	dev_dbg(chip->card->dev, "allocate_pipes()=%d\n", pipe_index);
 
 	dev_dbg(chip->card->dev,
@@ -594,9 +593,8 @@ static int init_engine(struct snd_pcm_substream *substream,
 	smp_wmb();
 	chip->substream[pipe_index] = substream;
 	chip->rate_set = 1;
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 	set_sample_rate(chip, hw_params->rate_num / hw_params->rate_den);
-	spin_unlock_irq(&chip->lock);
 	return 0;
 }
 
@@ -658,14 +656,13 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 	chip = snd_pcm_substream_chip(substream);
 	pipe = (struct audiopipe *) substream->runtime->private_data;
 
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 	if (pipe->index >= 0) {
 		dev_dbg(chip->card->dev, "pcm_hw_free(%d)\n", pipe->index);
 		free_pipes(chip, pipe);
 		chip->substream[pipe->index] = NULL;
 		pipe->index = -1;
 	}
-	spin_unlock_irq(&chip->lock);
 
 	return 0;
 }
@@ -715,15 +712,12 @@ static int pcm_prepare(struct snd_pcm_substream *substream)
 	 * exclusive control
 	 */
 
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 
-	if (snd_BUG_ON(!is_pipe_allocated(chip, pipe_index))) {
-		spin_unlock_irq(&chip->lock);
+	if (snd_BUG_ON(!is_pipe_allocated(chip, pipe_index)))
 		return -EINVAL;
-	}
 
 	set_audio_format(chip, pipe_index, &format);
-	spin_unlock_irq(&chip->lock);
 
 	return 0;
 }
@@ -747,7 +741,7 @@ static int pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		}
 	}
 
-	spin_lock(&chip->lock);
+	guard(spinlock)(&chip->lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_START:
@@ -795,7 +789,6 @@ static int pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	default:
 		err = -EINVAL;
 	}
-	spin_unlock(&chip->lock);
 	return err;
 }
 
@@ -1012,7 +1005,7 @@ static int snd_echo_output_gain_put(struct snd_kcontrol *kcontrol,
 
 	changed = 0;
 	chip = snd_kcontrol_chip(kcontrol);
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 	for (c = 0; c < num_busses_out(chip); c++) {
 		gain = ucontrol->value.integer.value[c];
 		/* Ignore out of range values */
@@ -1025,7 +1018,6 @@ static int snd_echo_output_gain_put(struct snd_kcontrol *kcontrol,
 	}
 	if (changed)
 		update_output_line_level(chip);
-	spin_unlock_irq(&chip->lock);
 	return changed;
 }
 
@@ -1093,7 +1085,7 @@ static int snd_echo_input_gain_put(struct snd_kcontrol *kcontrol,
 
 	changed = 0;
 	chip = snd_kcontrol_chip(kcontrol);
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 	for (c = 0; c < num_analog_busses_in(chip); c++) {
 		gain = ucontrol->value.integer.value[c];
 		/* Ignore out of range values */
@@ -1106,7 +1098,6 @@ static int snd_echo_input_gain_put(struct snd_kcontrol *kcontrol,
 	}
 	if (changed)
 		update_input_line_level(chip);
-	spin_unlock_irq(&chip->lock);
 	return changed;
 }
 
@@ -1162,7 +1153,7 @@ static int snd_echo_output_nominal_put(struct snd_kcontrol *kcontrol,
 
 	changed = 0;
 	chip = snd_kcontrol_chip(kcontrol);
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 	for (c = 0; c < num_analog_busses_out(chip); c++) {
 		if (chip->nominal_level[c] != ucontrol->value.integer.value[c]) {
 			set_nominal_level(chip, c,
@@ -1172,7 +1163,6 @@ static int snd_echo_output_nominal_put(struct snd_kcontrol *kcontrol,
 	}
 	if (changed)
 		update_output_line_level(chip);
-	spin_unlock_irq(&chip->lock);
 	return changed;
 }
 
@@ -1225,7 +1215,7 @@ static int snd_echo_input_nominal_put(struct snd_kcontrol *kcontrol,
 
 	changed = 0;
 	chip = snd_kcontrol_chip(kcontrol);
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 	for (c = 0; c < num_analog_busses_in(chip); c++) {
 		if (chip->nominal_level[bx_analog_in(chip) + c] !=
 		    ucontrol->value.integer.value[c]) {
@@ -1238,7 +1228,6 @@ static int snd_echo_input_nominal_put(struct snd_kcontrol *kcontrol,
 		update_output_line_level(chip);	/* "Output" is not a mistake
 						 * here.
 						 */
-	spin_unlock_irq(&chip->lock);
 	return changed;
 }
 
@@ -1298,10 +1287,9 @@ static int snd_echo_mixer_put(struct snd_kcontrol *kcontrol,
 	if (gain < ECHOGAIN_MINOUT || gain > ECHOGAIN_MAXOUT)
 		return -EINVAL;
 	if (chip->monitor_gain[out][in] != gain) {
-		spin_lock_irq(&chip->lock);
+		guard(spinlock_irq)(&chip->lock);
 		set_monitor_gain(chip, out, in, gain);
 		update_output_line_level(chip);
-		spin_unlock_irq(&chip->lock);
 		changed = 1;
 	}
 	return changed;
@@ -1361,10 +1349,9 @@ static int snd_echo_vmixer_put(struct snd_kcontrol *kcontrol,
 	if (gain < ECHOGAIN_MINOUT || gain > ECHOGAIN_MAXOUT)
 		return -EINVAL;
 	if (chip->vmixer_gain[out][vch] != ucontrol->value.integer.value[0]) {
-		spin_lock_irq(&chip->lock);
+		guard(spinlock_irq)(&chip->lock);
 		set_vmixer_gain(chip, out, vch, ucontrol->value.integer.value[0]);
 		update_vmixer_level(chip);
-		spin_unlock_irq(&chip->lock);
 		changed = 1;
 	}
 	return changed;
@@ -1500,9 +1487,8 @@ static int snd_echo_spdif_mode_put(struct snd_kcontrol *kcontrol,
 	chip = snd_kcontrol_chip(kcontrol);
 	mode = !!ucontrol->value.enumerated.item[0];
 	if (mode != chip->professional_spdif) {
-		spin_lock_irq(&chip->lock);
+		guard(spinlock_irq)(&chip->lock);
 		set_professional_spdif(chip, mode);
-		spin_unlock_irq(&chip->lock);
 		return 1;
 	}
 	return 0;
@@ -1567,11 +1553,10 @@ static int snd_echo_clock_source_put(struct snd_kcontrol *kcontrol,
 	dclock = chip->clock_source_list[eclock];
 	if (chip->input_clock != dclock) {
 		guard(mutex)(&chip->mode_mutex);
-		spin_lock_irq(&chip->lock);
+		guard(spinlock_irq)(&chip->lock);
 		changed = set_input_clock(chip, dclock);
 		if (!changed)
 			changed = 1;	/* no errors */
-		spin_unlock_irq(&chip->lock);
 	}
 
 	if (changed < 0)
@@ -1615,9 +1600,8 @@ static int snd_echo_phantom_power_put(struct snd_kcontrol *kcontrol,
 
 	power = !!ucontrol->value.integer.value[0];
 	if (chip->phantom_power != power) {
-		spin_lock_irq(&chip->lock);
+		guard(spinlock_irq)(&chip->lock);
 		changed = set_phantom_power(chip, power);
-		spin_unlock_irq(&chip->lock);
 		if (changed == 0)
 			changed = 1;	/* no errors */
 	}
@@ -1658,9 +1642,8 @@ static int snd_echo_automute_put(struct snd_kcontrol *kcontrol,
 
 	automute = !!ucontrol->value.integer.value[0];
 	if (chip->digital_in_automute != automute) {
-		spin_lock_irq(&chip->lock);
+		guard(spinlock_irq)(&chip->lock);
 		changed = set_input_auto_mute(chip, automute);
-		spin_unlock_irq(&chip->lock);
 		if (changed == 0)
 			changed = 1;	/* no errors */
 	}
@@ -1688,9 +1671,8 @@ static int snd_echo_vumeters_switch_put(struct snd_kcontrol *kcontrol,
 	struct echoaudio *chip;
 
 	chip = snd_kcontrol_chip(kcontrol);
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 	set_meters_on(chip, ucontrol->value.integer.value[0]);
-	spin_unlock_irq(&chip->lock);
 	return 1;
 }
 
@@ -2135,17 +2117,13 @@ static int snd_echo_suspend(struct device *dev)
 	if (chip->midi_out)
 		snd_echo_midi_output_trigger(chip->midi_out, 0);
 #endif
-	spin_lock_irq(&chip->lock);
-	if (wait_handshake(chip)) {
-		spin_unlock_irq(&chip->lock);
-		return -EIO;
+	scoped_guard(spinlock_irq, &chip->lock) {
+		if (wait_handshake(chip))
+			return -EIO;
+		clear_handshake(chip);
+		if (send_vector(chip, DSP_VC_GO_COMATOSE) < 0)
+			return -EIO;
 	}
-	clear_handshake(chip);
-	if (send_vector(chip, DSP_VC_GO_COMATOSE) < 0) {
-		spin_unlock_irq(&chip->lock);
-		return -EIO;
-	}
-	spin_unlock_irq(&chip->lock);
 
 	chip->dsp_code = NULL;
 	free_irq(chip->irq, chip);
