@@ -805,7 +805,8 @@ err:
 int cache_flush(struct pcache_cache *cache)
 {
 	struct pcache_cache_kset *kset;
-	u32 i, ret;
+	int ret;
+	u32 i;
 
 	for (i = 0; i < cache->n_ksets; i++) {
 		kset = get_kset(cache, i);
