@@ -96,8 +96,14 @@ configure_kernel() {
     # scripts/config --enable CONFIG_PROC_FS
     # scripts/config --enable CONFIG_SYSFS
     
-    # Update config with dependencies
-    make olddefconfig
+    # Update config with dependencies (only on fresh builds)
+    if [[ ! -f ".config.bak" ]]; then
+        log "Fresh build: running olddefconfig to resolve dependencies"
+        cp .config .config.bak
+        make olddefconfig
+    else
+        log "Incremental build: skipping olddefconfig to preserve config stability"
+    fi
 }
 
 # Build the kernel
@@ -148,6 +154,12 @@ create_initrd() {
     
     if [[ ! -f "./build-initrd.sh" ]]; then
         error "build-initrd.sh not found in current directory"
+    fi
+    
+    # Check if config changed and force initrd rebuild if needed
+    if [[ -f ".config.bak" ]] && ! diff -q .config .config.bak >/dev/null 2>&1; then
+        log "Config changed since last build, forcing initrd rebuild"
+        export FORCE_INITRD=1
     fi
     
     # Run the initrd build script with upload flag
