@@ -84,8 +84,13 @@ u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
 	if (!crtc->active)
 		return 0;
 
-	if (!vblank->max_vblank_count)
-		return (u32)drm_crtc_accurate_vblank_count(&crtc->base);
+	if (!vblank->max_vblank_count) {
+		/* On preempt-rt we cannot take the vblank spinlock since this function is called from tracepoints */
+		if (IS_ENABLED(CONFIG_PREEMPT_RT))
+			return (u32)drm_crtc_vblank_count(&crtc->base);
+		else
+			return (u32)drm_crtc_accurate_vblank_count(&crtc->base);
+	}
 
 	return crtc->base.funcs->get_vblank_counter(&crtc->base);
 }
