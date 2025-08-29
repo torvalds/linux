@@ -1512,7 +1512,7 @@ out:
 
 /*
  * Return 0 if we have submitted or queued the sector for submission.
- * Return <0 for critical errors.
+ * Return <0 for critical errors, and the sector will have its dirty flag cleared.
  *
  * Caller should make sure filepos < i_size and handle filepos >= i_size case.
  */
@@ -1535,8 +1535,17 @@ static int submit_one_sector(struct btrfs_inode *inode,
 	ASSERT(filepos < i_size);
 
 	em = btrfs_get_extent(inode, NULL, filepos, sectorsize);
-	if (IS_ERR(em))
+	if (IS_ERR(em)) {
+		/*
+		 * When submission failed, we should still clear the folio dirty.
+		 * Or the folio will be written back again but without any
+		 * ordered extent.
+		 */
+		btrfs_folio_clear_dirty(fs_info, folio, filepos, sectorsize);
+		btrfs_folio_set_writeback(fs_info, folio, filepos, sectorsize);
+		btrfs_folio_clear_writeback(fs_info, folio, filepos, sectorsize);
 		return PTR_ERR(em);
+	}
 
 	extent_offset = filepos - em->start;
 	em_end = btrfs_extent_map_end(em);
@@ -1609,8 +1618,12 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 		folio_unlock(folio);
 		return 1;
 	}
-	if (ret < 0)
+	if (ret < 0) {
+		btrfs_folio_clear_dirty(fs_info, folio, start, len);
+		btrfs_folio_set_writeback(fs_info, folio, start, len);
+		btrfs_folio_clear_writeback(fs_info, folio, start, len);
 		return ret;
+	}
 
 	for (cur = start; cur < start + len; cur += fs_info->sectorsize)
 		set_bit((cur - folio_start) >> fs_info->sectorsize_bits, &range_bitmap);
@@ -1666,8 +1679,8 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 	 * Here we set writeback and clear for the range. If the full folio
 	 * is no longer dirty then we clear the PAGECACHE_TAG_DIRTY tag.
 	 *
-	 * If we hit any error, the corresponding sector will still be dirty
-	 * thus no need to clear PAGECACHE_TAG_DIRTY.
+	 * If we hit any error, the corresponding sector will have its dirty
+	 * flag cleared and writeback finished, thus no need to handle the error case.
 	 */
 	if (!submitted_io && !error) {
 		btrfs_folio_set_writeback(fs_info, folio, start, len);
@@ -1813,6 +1826,7 @@ static noinline_for_stack bool lock_extent_buffer_for_io(struct extent_buffer *e
 		xas_load(&xas);
 		xas_set_mark(&xas, PAGECACHE_TAG_WRITEBACK);
 		xas_clear_mark(&xas, PAGECACHE_TAG_DIRTY);
+		xas_clear_mark(&xas, PAGECACHE_TAG_TOWRITE);
 		xas_unlock_irqrestore(&xas, flags);
 
 		btrfs_set_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN);

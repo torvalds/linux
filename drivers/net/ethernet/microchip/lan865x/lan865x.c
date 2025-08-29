@@ -32,6 +32,10 @@
 /* MAC Specific Addr 1 Top Reg */
 #define LAN865X_REG_MAC_H_SADDR1	0x00010023
 
+/* MAC TSU Timer Increment Register */
+#define LAN865X_REG_MAC_TSU_TIMER_INCR		0x00010077
+#define MAC_TSU_TIMER_INCR_COUNT_NANOSECONDS	0x0028
+
 struct lan865x_priv {
 	struct work_struct multicast_work;
 	struct net_device *netdev;
@@ -311,6 +315,8 @@ static int lan865x_net_open(struct net_device *netdev)
 
 	phy_start(netdev->phydev);
 
+	netif_start_queue(netdev);
+
 	return 0;
 }
 
@@ -342,6 +348,21 @@ static int lan865x_probe(struct spi_device *spi)
 	if (!priv->tc6) {
 		ret = -ENODEV;
 		goto free_netdev;
+	}
+
+	/* LAN865x Rev.B0/B1 configuration parameters from AN1760
+	 * As per the Configuration Application Note AN1760 published in the
+	 * link, https://www.microchip.com/en-us/application-notes/an1760
+	 * Revision F (DS60001760G - June 2024), configure the MAC to set time
+	 * stamping at the end of the Start of Frame Delimiter (SFD) and set the
+	 * Timer Increment reg to 40 ns to be used as a 25 MHz internal clock.
+	 */
+	ret = oa_tc6_write_register(priv->tc6, LAN865X_REG_MAC_TSU_TIMER_INCR,
+				    MAC_TSU_TIMER_INCR_COUNT_NANOSECONDS);
+	if (ret) {
+		dev_err(&spi->dev, "Failed to config TSU Timer Incr reg: %d\n",
+			ret);
+		goto oa_tc6_exit;
 	}
 
 	/* As per the point s3 in the below errata, SPI receive Ethernet frame

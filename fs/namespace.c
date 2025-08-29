@@ -1197,10 +1197,7 @@ static void commit_tree(struct mount *mnt)
 
 	if (!mnt_ns_attached(mnt)) {
 		for (struct mount *m = mnt; m; m = next_mnt(m, mnt))
-			if (unlikely(mnt_ns_attached(m)))
-				m = skip_mnt_tree(m);
-			else
-				mnt_add_to_ns(n, m);
+			mnt_add_to_ns(n, m);
 		n->nr_mounts += n->pending_mounts;
 		n->pending_mounts = 0;
 	}
@@ -2704,6 +2701,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 			lock_mnt_tree(child);
 		q = __lookup_mnt(&child->mnt_parent->mnt,
 				 child->mnt_mountpoint);
+		commit_tree(child);
 		if (q) {
 			struct mountpoint *mp = root.mp;
 			struct mount *r = child;
@@ -2713,7 +2711,6 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 				mp = shorter;
 			mnt_change_mountpoint(r, mp, q);
 		}
-		commit_tree(child);
 	}
 	unpin_mountpoint(&root);
 	unlock_mount_hash();
@@ -2862,6 +2859,19 @@ static int graft_tree(struct mount *mnt, struct mount *p, struct mountpoint *mp)
 	return attach_recursive_mnt(mnt, p, mp);
 }
 
+static int may_change_propagation(const struct mount *m)
+{
+        struct mnt_namespace *ns = m->mnt_ns;
+
+	 // it must be mounted in some namespace
+	 if (IS_ERR_OR_NULL(ns))         // is_mounted()
+		 return -EINVAL;
+	 // and the caller must be admin in userns of that namespace
+	 if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
+		 return -EPERM;
+	 return 0;
+}
+
 /*
  * Sanity check the flags to change_mnt_propagation.
  */
@@ -2898,10 +2908,10 @@ static int do_change_type(struct path *path, int ms_flags)
 		return -EINVAL;
 
 	namespace_lock();
-	if (!check_mnt(mnt)) {
-		err = -EINVAL;
+	err = may_change_propagation(mnt);
+	if (err)
 		goto out_unlock;
-	}
+
 	if (type == MS_SHARED) {
 		err = invent_group_ids(mnt, recurse);
 		if (err)
@@ -3347,18 +3357,11 @@ static int do_set_group(struct path *from_path, struct path *to_path)
 
 	namespace_lock();
 
-	err = -EINVAL;
-	/* To and From must be mounted */
-	if (!is_mounted(&from->mnt))
+	err = may_change_propagation(from);
+	if (err)
 		goto out;
-	if (!is_mounted(&to->mnt))
-		goto out;
-
-	err = -EPERM;
-	/* We should be allowed to modify mount namespaces of both mounts */
-	if (!ns_capable(from->mnt_ns->user_ns, CAP_SYS_ADMIN))
-		goto out;
-	if (!ns_capable(to->mnt_ns->user_ns, CAP_SYS_ADMIN))
+	err = may_change_propagation(to);
+	if (err)
 		goto out;
 
 	err = -EINVAL;
@@ -4551,20 +4554,10 @@ SYSCALL_DEFINE5(move_mount,
 	if (flags & MOVE_MOUNT_SET_GROUP)	mflags |= MNT_TREE_PROPAGATION;
 	if (flags & MOVE_MOUNT_BENEATH)		mflags |= MNT_TREE_BENEATH;
 
-	lflags = 0;
-	if (flags & MOVE_MOUNT_F_SYMLINKS)	lflags |= LOOKUP_FOLLOW;
-	if (flags & MOVE_MOUNT_F_AUTOMOUNTS)	lflags |= LOOKUP_AUTOMOUNT;
 	uflags = 0;
-	if (flags & MOVE_MOUNT_F_EMPTY_PATH)	uflags = AT_EMPTY_PATH;
-	from_name = getname_maybe_null(from_pathname, uflags);
-	if (IS_ERR(from_name))
-		return PTR_ERR(from_name);
+	if (flags & MOVE_MOUNT_T_EMPTY_PATH)
+		uflags = AT_EMPTY_PATH;
 
-	lflags = 0;
-	if (flags & MOVE_MOUNT_T_SYMLINKS)	lflags |= LOOKUP_FOLLOW;
-	if (flags & MOVE_MOUNT_T_AUTOMOUNTS)	lflags |= LOOKUP_AUTOMOUNT;
-	uflags = 0;
-	if (flags & MOVE_MOUNT_T_EMPTY_PATH)	uflags = AT_EMPTY_PATH;
 	to_name = getname_maybe_null(to_pathname, uflags);
 	if (IS_ERR(to_name))
 		return PTR_ERR(to_name);
@@ -4577,10 +4570,23 @@ SYSCALL_DEFINE5(move_mount,
 		to_path = fd_file(f_to)->f_path;
 		path_get(&to_path);
 	} else {
+		lflags = 0;
+		if (flags & MOVE_MOUNT_T_SYMLINKS)
+			lflags |= LOOKUP_FOLLOW;
+		if (flags & MOVE_MOUNT_T_AUTOMOUNTS)
+			lflags |= LOOKUP_AUTOMOUNT;
 		ret = filename_lookup(to_dfd, to_name, lflags, &to_path, NULL);
 		if (ret)
 			return ret;
 	}
+
+	uflags = 0;
+	if (flags & MOVE_MOUNT_F_EMPTY_PATH)
+		uflags = AT_EMPTY_PATH;
+
+	from_name = getname_maybe_null(from_pathname, uflags);
+	if (IS_ERR(from_name))
+		return PTR_ERR(from_name);
 
 	if (!from_name && from_dfd >= 0) {
 		CLASS(fd_raw, f_from)(from_dfd);
@@ -4590,6 +4596,11 @@ SYSCALL_DEFINE5(move_mount,
 		return vfs_move_mount(&fd_file(f_from)->f_path, &to_path, mflags);
 	}
 
+	lflags = 0;
+	if (flags & MOVE_MOUNT_F_SYMLINKS)
+		lflags |= LOOKUP_FOLLOW;
+	if (flags & MOVE_MOUNT_F_AUTOMOUNTS)
+		lflags |= LOOKUP_AUTOMOUNT;
 	ret = filename_lookup(from_dfd, from_name, lflags, &from_path, NULL);
 	if (ret)
 		return ret;
@@ -5176,7 +5187,8 @@ SYSCALL_DEFINE5(open_tree_attr, int, dfd, const char __user *, filename,
 		int ret;
 		struct mount_kattr kattr = {};
 
-		kattr.kflags = MOUNT_KATTR_IDMAP_REPLACE;
+		if (flags & OPEN_TREE_CLONE)
+			kattr.kflags = MOUNT_KATTR_IDMAP_REPLACE;
 		if (flags & AT_RECURSIVE)
 			kattr.kflags |= MOUNT_KATTR_RECURSE;
 
