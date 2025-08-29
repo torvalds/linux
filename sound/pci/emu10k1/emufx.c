@@ -440,13 +440,11 @@ int snd_emu10k1_fx8010_register_irq_handler(struct snd_emu10k1 *emu,
 					    void *private_data,
 					    struct snd_emu10k1_fx8010_irq *irq)
 {
-	unsigned long flags;
-	
 	irq->handler = handler;
 	irq->gpr_running = gpr_running;
 	irq->private_data = private_data;
 	irq->next = NULL;
-	spin_lock_irqsave(&emu->fx8010.irq_lock, flags);
+	guard(spinlock_irqsave)(&emu->fx8010.irq_lock);
 	if (emu->fx8010.irq_handlers == NULL) {
 		emu->fx8010.irq_handlers = irq;
 		emu->dsp_interrupt = snd_emu10k1_fx8010_interrupt;
@@ -455,7 +453,6 @@ int snd_emu10k1_fx8010_register_irq_handler(struct snd_emu10k1 *emu,
 		irq->next = emu->fx8010.irq_handlers;
 		emu->fx8010.irq_handlers = irq;
 	}
-	spin_unlock_irqrestore(&emu->fx8010.irq_lock, flags);
 	return 0;
 }
 
@@ -463,9 +460,8 @@ int snd_emu10k1_fx8010_unregister_irq_handler(struct snd_emu10k1 *emu,
 					      struct snd_emu10k1_fx8010_irq *irq)
 {
 	struct snd_emu10k1_fx8010_irq *tmp;
-	unsigned long flags;
 	
-	spin_lock_irqsave(&emu->fx8010.irq_lock, flags);
+	guard(spinlock_irqsave)(&emu->fx8010.irq_lock);
 	tmp = emu->fx8010.irq_handlers;
 	if (tmp == irq) {
 		emu->fx8010.irq_handlers = tmp->next;
@@ -479,7 +475,6 @@ int snd_emu10k1_fx8010_unregister_irq_handler(struct snd_emu10k1 *emu,
 		if (tmp)
 			tmp->next = tmp->next->next;
 	}
-	spin_unlock_irqrestore(&emu->fx8010.irq_lock, flags);
 	return 0;
 }
 
@@ -1085,7 +1080,6 @@ static int snd_emu10k1_ipcm_poke(struct snd_emu10k1 *emu,
 				 struct snd_emu10k1_fx8010_pcm_rec *ipcm)
 {
 	unsigned int i;
-	int err = 0;
 	struct snd_emu10k1_fx8010_pcm *pcm;
 
 	if (ipcm->substream >= EMU10K1_FX8010_PCM_COUNT)
@@ -1096,19 +1090,15 @@ static int snd_emu10k1_ipcm_poke(struct snd_emu10k1 *emu,
 		return -EINVAL;
 	pcm = &emu->fx8010.pcm[ipcm->substream];
 	guard(mutex)(&emu->fx8010.lock);
-	spin_lock_irq(&emu->reg_lock);
-	if (pcm->opened) {
-		err = -EBUSY;
-		goto __error;
-	}
+	guard(spinlock_irq)(&emu->reg_lock);
+	if (pcm->opened)
+		return -EBUSY;
 	if (ipcm->channels == 0) {	/* remove */
 		pcm->valid = 0;
 	} else {
 		/* FIXME: we need to add universal code to the PCM transfer routine */
-		if (ipcm->channels != 2) {
-			err = -EINVAL;
-			goto __error;
-		}
+		if (ipcm->channels != 2)
+			return -EINVAL;
 		pcm->valid = 1;
 		pcm->opened = 0;
 		pcm->channels = ipcm->channels;
@@ -1123,16 +1113,13 @@ static int snd_emu10k1_ipcm_poke(struct snd_emu10k1 *emu,
 		for (i = 0; i < pcm->channels; i++)
 			pcm->etram[i] = ipcm->etram[i];
 	}
-      __error:
-	spin_unlock_irq(&emu->reg_lock);
-	return err;
+	return 0;
 }
 
 static int snd_emu10k1_ipcm_peek(struct snd_emu10k1 *emu,
 				 struct snd_emu10k1_fx8010_pcm_rec *ipcm)
 {
 	unsigned int i;
-	int err = 0;
 	struct snd_emu10k1_fx8010_pcm *pcm;
 
 	if (ipcm->substream >= EMU10K1_FX8010_PCM_COUNT)
@@ -1141,7 +1128,7 @@ static int snd_emu10k1_ipcm_peek(struct snd_emu10k1 *emu,
 					     EMU10K1_FX8010_PCM_COUNT);
 	pcm = &emu->fx8010.pcm[ipcm->substream];
 	guard(mutex)(&emu->fx8010.lock);
-	spin_lock_irq(&emu->reg_lock);
+	guard(spinlock_irq)(&emu->reg_lock);
 	ipcm->channels = pcm->channels;
 	ipcm->tram_start = pcm->tram_start;
 	ipcm->buffer_size = pcm->buffer_size;
@@ -1155,8 +1142,7 @@ static int snd_emu10k1_ipcm_peek(struct snd_emu10k1 *emu,
 		ipcm->etram[i] = pcm->etram[i];
 	ipcm->res1 = ipcm->res2 = 0;
 	ipcm->pad = 0;
-	spin_unlock_irq(&emu->reg_lock);
-	return err;
+	return 0;
 }
 
 #define SND_EMU10K1_GPR_CONTROLS	44
@@ -2410,9 +2396,9 @@ int snd_emu10k1_fx8010_tram_setup(struct snd_emu10k1 *emu, u32 size)
 	}
 	if ((emu->fx8010.etram_pages.bytes / 2) == size)
 		return 0;
-	spin_lock_irq(&emu->emu_lock);
-	outl(HCFG_LOCKTANKCACHE_MASK | inl(emu->port + HCFG), emu->port + HCFG);
-	spin_unlock_irq(&emu->emu_lock);
+	scoped_guard(spinlock_irq, &emu->emu_lock) {
+		outl(HCFG_LOCKTANKCACHE_MASK | inl(emu->port + HCFG), emu->port + HCFG);
+	}
 	snd_emu10k1_ptr_write(emu, TCB, 0, 0);
 	snd_emu10k1_ptr_write(emu, TCBS, 0, TCBS_BUFFSIZE_16K);
 	if (emu->fx8010.etram_pages.area != NULL) {
@@ -2428,9 +2414,9 @@ int snd_emu10k1_fx8010_tram_setup(struct snd_emu10k1 *emu, u32 size)
 		memset(emu->fx8010.etram_pages.area, 0, size * 2);
 		snd_emu10k1_ptr_write(emu, TCB, 0, emu->fx8010.etram_pages.addr);
 		snd_emu10k1_ptr_write(emu, TCBS, 0, size_reg);
-		spin_lock_irq(&emu->emu_lock);
-		outl(inl(emu->port + HCFG) & ~HCFG_LOCKTANKCACHE_MASK, emu->port + HCFG);
-		spin_unlock_irq(&emu->emu_lock);
+		scoped_guard(spinlock_irq, &emu->emu_lock) {
+			outl(inl(emu->port + HCFG) & ~HCFG_LOCKTANKCACHE_MASK, emu->port + HCFG);
+		}
 	}
 
 	return 0;

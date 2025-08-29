@@ -745,12 +745,12 @@ static void emu1010_clock_event(struct snd_emu10k1 *emu)
 {
 	struct snd_ctl_elem_id id;
 
-	spin_lock_irq(&emu->reg_lock);
-	// This is the only thing that can actually happen.
-	emu->emu1010.clock_source = emu->emu1010.clock_fallback;
-	emu->emu1010.wclock = 1 - emu->emu1010.clock_source;
-	snd_emu1010_update_clock(emu);
-	spin_unlock_irq(&emu->reg_lock);
+	scoped_guard(spinlock_irq, &emu->reg_lock) {
+		// This is the only thing that can actually happen.
+		emu->emu1010.clock_source = emu->emu1010.clock_fallback;
+		emu->emu1010.wclock = 1 - emu->emu1010.clock_source;
+		snd_emu1010_update_clock(emu);
+	}
 	snd_ctl_build_ioff(&id, emu->ctl_clock_source, 0);
 	snd_ctl_notify(emu->card, SNDRV_CTL_EVENT_MASK_VALUE, &id);
 }

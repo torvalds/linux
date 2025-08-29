@@ -261,14 +261,12 @@ int snd_emu10k1_memblk_map(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *b
 	int size;
 	struct list_head *p, *nextp;
 	struct snd_emu10k1_memblk *deleted;
-	unsigned long flags;
 
-	spin_lock_irqsave(&emu->memblk_lock, flags);
+	guard(spinlock_irqsave)(&emu->memblk_lock);
 	if (blk->mapped_page >= 0) {
 		/* update order link */
 		list_move_tail(&blk->mapped_order_link,
 			       &emu->mapped_order_link_head);
-		spin_unlock_irqrestore(&emu->memblk_lock, flags);
 		return 0;
 	}
 	err = map_memblk(emu, blk);
@@ -289,7 +287,6 @@ int snd_emu10k1_memblk_map(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *b
 			}
 		}
 	}
-	spin_unlock_irqrestore(&emu->memblk_lock, flags);
 	return err;
 }
 
@@ -424,13 +421,12 @@ snd_emu10k1_synth_free(struct snd_emu10k1 *emu, struct snd_util_memblk *memblk)
 {
 	struct snd_util_memhdr *hdr = emu->memhdr; 
 	struct snd_emu10k1_memblk *blk = (struct snd_emu10k1_memblk *)memblk;
-	unsigned long flags;
 
 	guard(mutex)(&hdr->block_mutex);
-	spin_lock_irqsave(&emu->memblk_lock, flags);
-	if (blk->mapped_page >= 0)
-		unmap_memblk(emu, blk);
-	spin_unlock_irqrestore(&emu->memblk_lock, flags);
+	scoped_guard(spinlock_irqsave, &emu->memblk_lock) {
+		if (blk->mapped_page >= 0)
+			unmap_memblk(emu, blk);
+	}
 	synth_free_pages(emu, blk);
 	__snd_util_mem_free(hdr, memblk);
 	return 0;
