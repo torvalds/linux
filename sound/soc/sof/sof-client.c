@@ -611,3 +611,9 @@ enum sof_fw_state sof_client_get_fw_state(struct sof_client_dev *cdev)
 	return sdev->fw_state;
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_get_fw_state, "SND_SOC_SOF_CLIENT");
+
+struct snd_sof_dev *sof_client_dev_to_sof_dev(struct sof_client_dev *cdev)
+{
+	return cdev->sdev;
+}
+EXPORT_SYMBOL_NS_GPL(sof_client_dev_to_sof_dev, "SND_SOC_SOF_CLIENT");
