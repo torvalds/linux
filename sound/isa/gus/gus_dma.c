@@ -143,18 +143,15 @@ static void snd_gf1_dma_interrupt(struct snd_gus_card * gus)
 
 int snd_gf1_dma_init(struct snd_gus_card * gus)
 {
-	mutex_lock(&gus->dma_mutex);
+	guard(mutex)(&gus->dma_mutex);
 	gus->gf1.dma_shared++;
-	if (gus->gf1.dma_shared > 1) {
-		mutex_unlock(&gus->dma_mutex);
+	if (gus->gf1.dma_shared > 1)
 		return 0;
-	}
 	gus->gf1.interrupt_handler_dma_write = snd_gf1_dma_interrupt;
 	gus->gf1.dma_data_pcm = 
 	gus->gf1.dma_data_pcm_last =
 	gus->gf1.dma_data_synth = 
 	gus->gf1.dma_data_synth_last = NULL;
-	mutex_unlock(&gus->dma_mutex);
 	return 0;
 }
 
@@ -162,7 +159,7 @@ int snd_gf1_dma_done(struct snd_gus_card * gus)
 {
 	struct snd_gf1_dma_block *block;
 
-	mutex_lock(&gus->dma_mutex);
+	guard(mutex)(&gus->dma_mutex);
 	gus->gf1.dma_shared--;
 	if (!gus->gf1.dma_shared) {
 		snd_dma_disable(gus->gf1.dma1);
@@ -179,7 +176,6 @@ int snd_gf1_dma_done(struct snd_gus_card * gus)
 		gus->gf1.dma_data_pcm_last =
 		gus->gf1.dma_data_synth_last = NULL;
 	}
-	mutex_unlock(&gus->dma_mutex);
 	return 0;
 }
 

@@ -447,4 +447,3 @@ EXPORT_SYMBOL(snd_gf1_translate_freq);
 EXPORT_SYMBOL(snd_gf1_mem_alloc);
 EXPORT_SYMBOL(snd_gf1_mem_xfree);
 EXPORT_SYMBOL(snd_gf1_mem_free);
-EXPORT_SYMBOL(snd_gf1_mem_lock);
