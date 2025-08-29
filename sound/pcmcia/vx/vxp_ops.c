@@ -463,7 +463,7 @@ void vx_set_mic_boost(struct vx_core *chip, int boost)
 	if (chip->chip_status & VX_STAT_IS_STALE)
 		return;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
 	if (pchip->regCDSP & P24_CDSP_MICS_SEL_MASK) {
 		if (boost) {
 			/* boost: 38 dB */
@@ -476,7 +476,6 @@ void vx_set_mic_boost(struct vx_core *chip, int boost)
                 }
 		vx_outb(chip, CDSP, pchip->regCDSP);
 	}
-	mutex_unlock(&chip->lock);
 }
 
 /*
@@ -505,12 +504,11 @@ void vx_set_mic_level(struct vx_core *chip, int level)
 	if (chip->chip_status & VX_STAT_IS_STALE)
 		return;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
 	if (pchip->regCDSP & VXP_CDSP_MIC_SEL_MASK) {
 		level = vx_compute_mic_level(level);
 		vx_outb(chip, MICRO, level);
 	}
-	mutex_unlock(&chip->lock);
 }
 
 
