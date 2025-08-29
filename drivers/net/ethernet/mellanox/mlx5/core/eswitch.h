@@ -838,6 +838,11 @@ void mlx5_esw_vport_vhca_id_unmap(struct mlx5_eswitch *esw,
 int mlx5_eswitch_vhca_id_to_vport(struct mlx5_eswitch *esw, u16 vhca_id, u16 *vport_num);
 bool mlx5_esw_vport_vhca_id(struct mlx5_eswitch *esw, u16 vportn, u16 *vhca_id);
 
+void mlx5_esw_offloads_rep_remove(struct mlx5_eswitch *esw,
+				  const struct mlx5_vport *vport);
+int mlx5_esw_offloads_rep_add(struct mlx5_eswitch *esw,
+			      const struct mlx5_vport *vport);
+
 /**
  * struct mlx5_esw_event_info - Indicates eswitch mode changed/changing.
  *
