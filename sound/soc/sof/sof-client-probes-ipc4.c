@@ -8,7 +8,6 @@
 #include <sound/soc.h>
 #include <sound/sof/ipc4/header.h>
 #include <uapi/sound/sof/header.h>
-#include "sof-priv.h"
 #include "ipc4-priv.h"
 #include "sof-client.h"
 #include "sof-client-probes.h"
@@ -54,6 +53,11 @@ struct sof_ipc4_probe_point {
 	u32 purpose;
 	u32 stream_tag;
 } __packed __aligned(4);
+
+struct sof_ipc4_probe_info {
+	unsigned int num_elems;
+	DECLARE_FLEX_ARRAY(struct sof_ipc4_probe_point, points);
+} __packed;
 
 #define INVALID_PIPELINE_ID      0xFF
 
@@ -169,16 +173,53 @@ static int ipc4_probes_deinit(struct sof_client_dev *cdev)
  * @desc:	Returned list of active probes
  * @num_desc:	Returned count of active probes
  * @return:	0 on success, negative error code on error
- *
- * Dummy implementation returning empty list of probes.
  */
 static int ipc4_probes_points_info(struct sof_client_dev *cdev,
 				   struct sof_probe_point_desc **desc,
 				   size_t *num_desc)
 {
-	/* TODO: Firmware side implementation needed first */
-	*desc = NULL;
-	*num_desc = 0;
+	struct sof_man4_module *mentry = sof_ipc4_probe_get_module_info(cdev);
+	struct device *dev = &cdev->auxdev.dev;
+	struct sof_ipc4_probe_info *info;
+	struct sof_ipc4_msg msg;
+	int i, ret;
+
+	if (!mentry)
+		return -ENODEV;
+
+	msg.primary = mentry->id;
+	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+
+	msg.extension = SOF_IPC4_MOD_EXT_MSG_PARAM_ID(SOF_IPC4_PROBE_POINTS);
+
+	msg.data_size = sof_client_get_ipc_max_payload_size(cdev);
+	msg.data_ptr = kzalloc(msg.data_size, GFP_KERNEL);
+	if (!msg.data_ptr)
+		return -ENOMEM;
+
+	ret = sof_client_ipc_set_get_data(cdev, &msg, false);
+	if (ret) {
+		kfree(msg.data_ptr);
+		return ret;
+	}
+	info = msg.data_ptr;
+	*num_desc = info->num_elems;
+	dev_dbg(dev, "%s: got %zu probe points", __func__, *num_desc);
+
+	*desc = kzalloc(*num_desc * sizeof(**desc), GFP_KERNEL);
+	if (!*desc) {
+		kfree(msg.data_ptr);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < *num_desc; i++) {
+		(*desc)[i].buffer_id = info->points[i].point_id;
+		(*desc)[i].purpose = info->points[i].purpose;
+		(*desc)[i].stream_tag = info->points[i].stream_tag;
+	}
+	kfree(msg.data_ptr);
+
 	return 0;
 }
 
