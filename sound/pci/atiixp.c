@@ -1073,9 +1073,8 @@ static int snd_atiixp_playback_open(struct snd_pcm_substream *substream)
 	struct atiixp *chip = snd_pcm_substream_chip(substream);
 	int err;
 
-	mutex_lock(&chip->open_mutex);
+	guard(mutex)(&chip->open_mutex);
 	err = snd_atiixp_pcm_open(substream, &chip->dmas[ATI_DMA_PLAYBACK], 0);
-	mutex_unlock(&chip->open_mutex);
 	if (err < 0)
 		return err;
 	substream->runtime->hw.channels_max = chip->max_channels;
@@ -1089,11 +1088,9 @@ static int snd_atiixp_playback_open(struct snd_pcm_substream *substream)
 static int snd_atiixp_playback_close(struct snd_pcm_substream *substream)
 {
 	struct atiixp *chip = snd_pcm_substream_chip(substream);
-	int err;
-	mutex_lock(&chip->open_mutex);
-	err = snd_atiixp_pcm_close(substream, &chip->dmas[ATI_DMA_PLAYBACK]);
-	mutex_unlock(&chip->open_mutex);
-	return err;
+
+	guard(mutex)(&chip->open_mutex);
+	return snd_atiixp_pcm_close(substream, &chip->dmas[ATI_DMA_PLAYBACK]);
 }
 
 static int snd_atiixp_capture_open(struct snd_pcm_substream *substream)
@@ -1111,27 +1108,23 @@ static int snd_atiixp_capture_close(struct snd_pcm_substream *substream)
 static int snd_atiixp_spdif_open(struct snd_pcm_substream *substream)
 {
 	struct atiixp *chip = snd_pcm_substream_chip(substream);
-	int err;
-	mutex_lock(&chip->open_mutex);
+
+	guard(mutex)(&chip->open_mutex);
 	if (chip->spdif_over_aclink) /* share DMA_PLAYBACK */
-		err = snd_atiixp_pcm_open(substream, &chip->dmas[ATI_DMA_PLAYBACK], 2);
+		return snd_atiixp_pcm_open(substream, &chip->dmas[ATI_DMA_PLAYBACK], 2);
 	else
-		err = snd_atiixp_pcm_open(substream, &chip->dmas[ATI_DMA_SPDIF], -1);
-	mutex_unlock(&chip->open_mutex);
-	return err;
+		return snd_atiixp_pcm_open(substream, &chip->dmas[ATI_DMA_SPDIF], -1);
 }
 
 static int snd_atiixp_spdif_close(struct snd_pcm_substream *substream)
 {
 	struct atiixp *chip = snd_pcm_substream_chip(substream);
-	int err;
-	mutex_lock(&chip->open_mutex);
+
+	guard(mutex)(&chip->open_mutex);
 	if (chip->spdif_over_aclink)
-		err = snd_atiixp_pcm_close(substream, &chip->dmas[ATI_DMA_PLAYBACK]);
+		return snd_atiixp_pcm_close(substream, &chip->dmas[ATI_DMA_PLAYBACK]);
 	else
-		err = snd_atiixp_pcm_close(substream, &chip->dmas[ATI_DMA_SPDIF]);
-	mutex_unlock(&chip->open_mutex);
-	return err;
+		return snd_atiixp_pcm_close(substream, &chip->dmas[ATI_DMA_SPDIF]);
 }
 
 /* AC97 playback */

@@ -892,24 +892,17 @@ static int snd_atiixp_pcm_close(struct snd_pcm_substream *substream,
 static int snd_atiixp_playback_open(struct snd_pcm_substream *substream)
 {
 	struct atiixp_modem *chip = snd_pcm_substream_chip(substream);
-	int err;
 
-	mutex_lock(&chip->open_mutex);
-	err = snd_atiixp_pcm_open(substream, &chip->dmas[ATI_DMA_PLAYBACK], 0);
-	mutex_unlock(&chip->open_mutex);
-	if (err < 0)
-		return err;
-	return 0;
+	guard(mutex)(&chip->open_mutex);
+	return snd_atiixp_pcm_open(substream, &chip->dmas[ATI_DMA_PLAYBACK], 0);
 }
 
 static int snd_atiixp_playback_close(struct snd_pcm_substream *substream)
 {
 	struct atiixp_modem *chip = snd_pcm_substream_chip(substream);
-	int err;
-	mutex_lock(&chip->open_mutex);
-	err = snd_atiixp_pcm_close(substream, &chip->dmas[ATI_DMA_PLAYBACK]);
-	mutex_unlock(&chip->open_mutex);
-	return err;
+
+	guard(mutex)(&chip->open_mutex);
+	return snd_atiixp_pcm_close(substream, &chip->dmas[ATI_DMA_PLAYBACK]);
 }
 
 static int snd_atiixp_capture_open(struct snd_pcm_substream *substream)
