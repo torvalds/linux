@@ -9,10 +9,26 @@
 
 #define BITMAP_MAGIC 0x6d746962
 
+/*
+ * version 3 is host-endian order, this is deprecated and not used for new
+ * array
+ */
+#define BITMAP_MAJOR_LO		3
+#define BITMAP_MAJOR_HOSTENDIAN	3
+/* version 4 is little-endian order, the default value */
+#define BITMAP_MAJOR_HI		4
+/* version 5 is only used for cluster */
+#define BITMAP_MAJOR_CLUSTERED	5
+/* version 6 is only used for lockless bitmap */
+#define BITMAP_MAJOR_LOCKLESS	6
+
 /* use these for bitmap->flags and bitmap->sb->state bit-fields */
 enum bitmap_state {
-	BITMAP_STALE	   = 1,  /* the bitmap file is out of date or had -EIO */
+	BITMAP_STALE	   = 1, /* the bitmap file is out of date or had -EIO */
 	BITMAP_WRITE_ERROR = 2, /* A write error has occurred */
+	BITMAP_FIRST_USE   = 3, /* llbitmap is just created */
+	BITMAP_CLEAN       = 4, /* llbitmap is created with assume_clean */
+	BITMAP_DAEMON_BUSY = 5, /* llbitmap daemon is not finished after daemon_sleep */
 	BITMAP_HOSTENDIAN  =15,
 };
 
@@ -162,6 +178,19 @@ static inline int md_bitmap_init(void)
 	return 0;
 }
 static inline void md_bitmap_exit(void)
+{
+}
+#endif
+
+#ifdef CONFIG_MD_LLBITMAP
+int md_llbitmap_init(void);
+void md_llbitmap_exit(void);
+#else
+static inline int md_llbitmap_init(void)
+{
+	return 0;
+}
+static inline void md_llbitmap_exit(void)
 {
 }
 #endif

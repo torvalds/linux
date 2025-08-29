@@ -29,6 +29,7 @@ dm-zoned-y	+= dm-zoned-target.o dm-zoned-metadata.o dm-zoned-reclaim.o
 
 md-mod-y	+= md.o
 md-mod-$(CONFIG_MD_BITMAP)	+= md-bitmap.o
+md-mod-$(CONFIG_MD_LLBITMAP)	+= md-llbitmap.o
 raid456-y	+= raid5.o raid5-cache.o raid5-ppl.o
 linear-y       += md-linear.o
 
