@@ -953,6 +953,23 @@ static void __pci_setup_bridge(struct pci_bus *bus, unsigned long type)
 	pci_write_config_word(bridge, PCI_BRIDGE_CONTROL, bus->bridge_ctl);
 }
 
+static void pci_setup_one_bridge_window(struct pci_dev *bridge, int resno)
+{
+	switch (resno) {
+	case PCI_BRIDGE_IO_WINDOW:
+		pci_setup_bridge_io(bridge);
+		break;
+	case PCI_BRIDGE_MEM_WINDOW:
+		pci_setup_bridge_mmio(bridge);
+		break;
+	case PCI_BRIDGE_PREF_MEM_WINDOW:
+		pci_setup_bridge_mmio_pref(bridge);
+		break;
+	default:
+		return;
+	}
+}
+
 void __weak pcibios_setup_bridge(struct pci_bus *bus, unsigned long type)
 {
 }
@@ -987,19 +1004,7 @@ int pci_claim_bridge_resource(struct pci_dev *bridge, int i)
 	if (pci_bus_clip_resource(bridge, i))
 		ret = pci_claim_resource(bridge, i);
 
-	switch (i) {
-	case PCI_BRIDGE_IO_WINDOW:
-		pci_setup_bridge_io(bridge);
-		break;
-	case PCI_BRIDGE_MEM_WINDOW:
-		pci_setup_bridge_mmio(bridge);
-		break;
-	case PCI_BRIDGE_PREF_MEM_WINDOW:
-		pci_setup_bridge_mmio_pref(bridge);
-		break;
-	default:
-		return -EINVAL;
-	}
+	pci_setup_one_bridge_window(bridge, i);
 
 	return ret;
 }
@@ -1839,11 +1844,7 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 	if (ret)
 		return;
 
-	type = r->flags & PCI_RES_TYPE_MASK;
-	/* Avoiding touch the one without PREF */
-	if (type & IORESOURCE_PREFETCH)
-		type = IORESOURCE_PREFETCH;
-	__pci_setup_bridge(bus, type);
+	pci_setup_one_bridge_window(dev, PCI_BRIDGE_RESOURCES + idx);
 }
 
 enum release_type {
