@@ -1284,24 +1284,22 @@ static bool pbus_upstream_space_available(struct pci_bus *bus,
  * pbus_size_mem() - Size the memory window of a given bus
  *
  * @bus:		The bus
- * @mask:		Mask the resource flag, then compare it with type
- * @type:		The type of free resource from bridge
- * @type2:		Second match type
- * @type3:		Third match type
+ * @type:		The type of bridge resource
  * @min_size:		The minimum memory window that must be allocated
  * @add_size:		Additional optional memory window
  * @realloc_head:	Track the additional memory window on this list
  *
- * Calculate the size of the bus and minimal alignment which guarantees
- * that all child resources fit in this size.
+ * Calculate the size of the bus resource for @type and minimal alignment
+ * which guarantees that all child resources fit in this size.
  *
- * Return -ENOSPC if there's no available bus resource of the desired
- * type.  Otherwise, set the bus resource start/end to indicate the
- * required size, add things to realloc_head (if supplied), and return 0.
+ * Set the bus resource start/end to indicate the required size if there an
+ * available unassigned bus resource of the desired @type.
+ *
+ * Add optional resource requests to the @realloc_head list if it is
+ * supplied.
  */
-static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
-			 unsigned long type, unsigned long type2,
-			 unsigned long type3, resource_size_t min_size,
+static void pbus_size_mem(struct pci_bus *bus, unsigned long type,
+			 resource_size_t min_size,
 			 resource_size_t add_size,
 			 struct list_head *realloc_head)
 {
@@ -1309,19 +1307,18 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	resource_size_t min_align, win_align, align, size, size0, size1 = 0;
 	resource_size_t aligns[28]; /* Alignments from 1MB to 128TB */
 	int order, max_order;
-	struct resource *b_res = find_bus_resource_of_type(bus,
-					mask | IORESOURCE_PREFETCH, type);
+	struct resource *b_res = pbus_select_window_for_type(bus, type);
 	resource_size_t children_add_size = 0;
 	resource_size_t children_add_align = 0;
 	resource_size_t add_align = 0;
 	resource_size_t relaxed_align;
 
 	if (!b_res)
-		return -ENOSPC;
+		return;
 
 	/* If resource is already assigned, nothing more to do */
 	if (b_res->parent)
-		return 0;
+		return;
 
 	memset(aligns, 0, sizeof(aligns));
 	max_order = 0;
@@ -1338,11 +1335,9 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			if (!pdev_resources_assignable(dev) ||
 			    !pdev_resource_should_fit(dev, r))
 				continue;
-
-			if ((r->flags & mask) != type &&
-			    (r->flags & mask) != type2 &&
-			    (r->flags & mask) != type3)
+			if (b_res != pbus_select_window(bus, r))
 				continue;
+
 			r_size = resource_size(r);
 
 			/* Put SRIOV requested res to the optional list */
@@ -1428,7 +1423,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			pci_info(bus->self, "disabling bridge window %pR to %pR (unused)\n",
 				 b_res, &bus->busn_res);
 		b_res->flags |= IORESOURCE_DISABLED;
-		return 0;
+		return;
 	}
 
 	resource_set_range(b_res, min_align, size0);
@@ -1441,7 +1436,6 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			   (unsigned long long) (size1 - size0),
 			   (unsigned long long) add_align);
 	}
-	return 0;
 }
 
 unsigned long pci_cardbus_resource_alignment(struct resource *res)
@@ -1546,12 +1540,11 @@ handle_done:
 void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 {
 	struct pci_dev *dev;
-	unsigned long mask, prefmask, type2 = 0, type3 = 0;
 	resource_size_t additional_io_size = 0, additional_mmio_size = 0,
 			additional_mmio_pref_size = 0;
 	struct resource *pref;
 	struct pci_host_bridge *host;
-	int hdr_type, ret;
+	int hdr_type;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		struct pci_bus *b = dev->subordinate;
@@ -1601,71 +1594,15 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 		pbus_size_io(bus, realloc_head ? 0 : additional_io_size,
 			     additional_io_size, realloc_head);
 
-		/*
-		 * If there's a 64-bit prefetchable MMIO window, compute
-		 * the size required to put all 64-bit prefetchable
-		 * resources in it.
-		 */
-		mask = IORESOURCE_MEM;
-		prefmask = IORESOURCE_MEM | IORESOURCE_PREFETCH;
-		if (pref && (pref->flags & IORESOURCE_MEM_64)) {
-			prefmask |= IORESOURCE_MEM_64;
-			ret = pbus_size_mem(bus, prefmask, prefmask,
-				prefmask, prefmask,
-				realloc_head ? 0 : additional_mmio_pref_size,
-				additional_mmio_pref_size, realloc_head);
-
-			/*
-			 * If successful, all non-prefetchable resources
-			 * and any 32-bit prefetchable resources will go in
-			 * the non-prefetchable window.
-			 */
-			if (ret == 0) {
-				mask = prefmask;
-				type2 = prefmask & ~IORESOURCE_MEM_64;
-				type3 = prefmask & ~IORESOURCE_PREFETCH;
-			}
+		if (pref) {
+			pbus_size_mem(bus,
+				      IORESOURCE_MEM | IORESOURCE_PREFETCH |
+				      (pref->flags & IORESOURCE_MEM_64),
+				      realloc_head ? 0 : additional_mmio_pref_size,
+				      additional_mmio_pref_size, realloc_head);
 		}
 
-		/*
-		 * If there is no 64-bit prefetchable window, compute the
-		 * size required to put all prefetchable resources in the
-		 * 32-bit prefetchable window (if there is one).
-		 */
-		if (!type2) {
-			prefmask &= ~IORESOURCE_MEM_64;
-			ret = pbus_size_mem(bus, prefmask, prefmask,
-				prefmask, prefmask,
-				realloc_head ? 0 : additional_mmio_pref_size,
-				additional_mmio_pref_size, realloc_head);
-
-			/*
-			 * If successful, only non-prefetchable resources
-			 * will go in the non-prefetchable window.
-			 */
-			if (ret == 0)
-				mask = prefmask;
-			else
-				additional_mmio_size += additional_mmio_pref_size;
-
-			type2 = type3 = IORESOURCE_MEM;
-		}
-
-		/*
-		 * Compute the size required to put everything else in the
-		 * non-prefetchable window. This includes:
-		 *
-		 *   - all non-prefetchable resources
-		 *   - 32-bit prefetchable resources if there's a 64-bit
-		 *     prefetchable window or no prefetchable window at all
-		 *   - 64-bit prefetchable resources if there's no prefetchable
-		 *     window at all
-		 *
-		 * Note that the strategy in __pci_assign_resource() must match
-		 * that used here. Specifically, we cannot put a 32-bit
-		 * prefetchable resource in a 64-bit prefetchable window.
-		 */
-		pbus_size_mem(bus, mask, IORESOURCE_MEM, type2, type3,
+		pbus_size_mem(bus, IORESOURCE_MEM,
 			      realloc_head ? 0 : additional_mmio_size,
 			      additional_mmio_size, realloc_head);
 		break;
