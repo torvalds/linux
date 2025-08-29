@@ -1855,7 +1855,7 @@ static void pci_bus_release_bridge_resources(struct pci_bus *bus,
 			if (res->parent != b_win)
 				continue;
 
-			pci_bus_release_bridge_resources(b, res, whole_subtree);
+			pci_bus_release_bridge_resources(b, res, rel_type);
 		}
 	}
 
