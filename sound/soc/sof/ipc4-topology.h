@@ -109,6 +109,13 @@ enum sof_ipc4_copier_module_config_params {
 	SOF_IPC4_COPIER_MODULE_CFG_ATTENUATION,
 };
 
+/* Scheduling domain, unset, Low Latency, or Data Processing */
+enum sof_comp_domain {
+	SOF_COMP_DOMAIN_UNSET = 0,	/* Take domain value from manifest */
+	SOF_COMP_DOMAIN_LL,		/* Low Latency scheduling domain */
+	SOF_COMP_DOMAIN_DP,		/* Data Processing scheduling domain */
+};
+
 struct sof_ipc4_copier_config_set_sink_format {
 /* Id of sink */
 	u32 sink_id;

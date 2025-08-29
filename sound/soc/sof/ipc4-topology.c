@@ -38,6 +38,36 @@ MODULE_PARM_DESC(ipc4_ignore_cpc,
 static DEFINE_IDA(alh_group_ida);
 static DEFINE_IDA(pipeline_ida);
 
+struct sof_comp_domains {
+	const char *name;
+	enum sof_comp_domain domain;
+};
+
+static const struct sof_comp_domains sof_domains[] = {
+	{ "LL", SOF_COMP_DOMAIN_LL, },
+	{ "DP", SOF_COMP_DOMAIN_DP, }
+};
+
+static enum sof_comp_domain find_domain(const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sof_domains); i++) {
+		if (strcmp(name, sof_domains[i].name) == 0)
+			return sof_domains[i].domain;
+	}
+	/* No valid value found, fall back to manifest value */
+	return SOF_COMP_DOMAIN_UNSET;
+}
+
+static int get_token_comp_domain(void *elem, void *object, u32 offset)
+{
+	u32 *val = (u32 *)((u8 *)object + offset);
+
+	*val = find_domain((const char *)elem);
+	return 0;
+}
+
 static const struct sof_topology_token ipc4_sched_tokens[] = {
 	{SOF_TKN_SCHED_LP_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct sof_ipc4_pipeline, lp_mode)},
@@ -127,6 +157,8 @@ static const struct sof_topology_token comp_ext_tokens[] = {
 		offsetof(struct snd_sof_widget, uuid)},
 	{SOF_TKN_COMP_CORE_ID, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct snd_sof_widget, core)},
+	{SOF_TKN_COMP_SCHED_DOMAIN, SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_comp_domain,
+		offsetof(struct snd_sof_widget, comp_domain)},
 };
 
 static const struct sof_topology_token gain_tokens[] = {
@@ -497,7 +529,17 @@ static int sof_ipc4_widget_setup_msg(struct snd_sof_widget *swidget, struct sof_
 
 	msg->extension = SOF_IPC4_MOD_EXT_CORE_ID(swidget->core);
 
-	type = (fw_module->man4_module_entry.type & SOF_IPC4_MODULE_DP) ? 1 : 0;
+	switch (swidget->comp_domain) {
+	case SOF_COMP_DOMAIN_LL:
+		type = 0;
+		break;
+	case SOF_COMP_DOMAIN_DP:
+		type = 1;
+		break;
+	default:
+		type = (fw_module->man4_module_entry.type & SOF_IPC4_MODULE_DP) ? 1 : 0;
+		break;
+	}
 	msg->extension |= SOF_IPC4_MOD_EXT_DOMAIN(type);
 
 	return 0;

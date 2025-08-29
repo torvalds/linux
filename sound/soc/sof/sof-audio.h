@@ -451,6 +451,9 @@ struct snd_sof_widget {
 	 */
 	bool dynamic_pipeline_widget;
 
+	/* Scheduling domain (enum sof_comp_domain), unset, Low Latency, or Data Processing */
+	u32 comp_domain;
+
 	struct snd_soc_dapm_widget *widget;
 	struct list_head list;	/* list in sdev widget list */
 	struct snd_sof_pipeline *spipe;
