@@ -4705,10 +4705,21 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 			}
 		} else if (test_bit(In_sync, &rdev->flags))
 			set_bit(R5_Insync, &dev->flags);
-		else if (sh->sector + RAID5_STRIPE_SECTORS(conf) <= rdev->recovery_offset)
-			/* in sync if before recovery_offset */
-			set_bit(R5_Insync, &dev->flags);
-		else if (test_bit(R5_UPTODATE, &dev->flags) &&
+		else if (sh->sector + RAID5_STRIPE_SECTORS(conf) <=
+			 rdev->recovery_offset) {
+			/*
+			 * in sync if:
+			 *  - normal IO, or
+			 *  - resync IO that is not lazy recovery
+			 *
+			 * For lazy recovery, we have to mark the rdev without
+			 * In_sync as failed, to build initial xor data.
+			 */
+			if (!test_bit(STRIPE_SYNCING, &sh->state) ||
+			    !test_bit(MD_RECOVERY_LAZY_RECOVER,
+				      &conf->mddev->recovery))
+				set_bit(R5_Insync, &dev->flags);
+		} else if (test_bit(R5_UPTODATE, &dev->flags) &&
 			 test_bit(R5_Expanded, &dev->flags))
 			/* If we've reshaped into here, we assume it is Insync.
 			 * We will shortly update recovery_offset to make
