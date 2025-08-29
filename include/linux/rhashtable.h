@@ -122,7 +122,7 @@ static inline unsigned int rht_bucket_index(const struct bucket_table *tbl,
 	return hash & (tbl->size - 1);
 }
 
-static inline unsigned int rht_key_get_hash(struct rhashtable *ht,
+static __always_inline unsigned int rht_key_get_hash(struct rhashtable *ht,
 	const void *key, const struct rhashtable_params params,
 	unsigned int hash_rnd)
 {
@@ -152,7 +152,7 @@ static inline unsigned int rht_key_get_hash(struct rhashtable *ht,
 	return hash;
 }
 
-static inline unsigned int rht_key_hashfn(
+static __always_inline unsigned int rht_key_hashfn(
 	struct rhashtable *ht, const struct bucket_table *tbl,
 	const void *key, const struct rhashtable_params params)
 {
@@ -161,7 +161,7 @@ static inline unsigned int rht_key_hashfn(
 	return rht_bucket_index(tbl, hash);
 }
 
-static inline unsigned int rht_head_hashfn(
+static __always_inline unsigned int rht_head_hashfn(
 	struct rhashtable *ht, const struct bucket_table *tbl,
 	const struct rhash_head *he, const struct rhashtable_params params)
 {
@@ -586,7 +586,7 @@ static inline int rhashtable_compare(struct rhashtable_compare_arg *arg,
 }
 
 /* Internal function, do not use. */
-static inline struct rhash_head *__rhashtable_lookup(
+static __always_inline struct rhash_head *__rhashtable_lookup(
 	struct rhashtable *ht, const void *key,
 	const struct rhashtable_params params)
 {
@@ -639,7 +639,7 @@ restart:
  *
  * Returns the first entry on which the compare function returned true.
  */
-static inline void *rhashtable_lookup(
+static __always_inline void *rhashtable_lookup(
 	struct rhashtable *ht, const void *key,
 	const struct rhashtable_params params)
 {
@@ -662,7 +662,7 @@ static inline void *rhashtable_lookup(
  *
  * Returns the first entry on which the compare function returned true.
  */
-static inline void *rhashtable_lookup_fast(
+static __always_inline void *rhashtable_lookup_fast(
 	struct rhashtable *ht, const void *key,
 	const struct rhashtable_params params)
 {
@@ -689,7 +689,7 @@ static inline void *rhashtable_lookup_fast(
  *
  * Returns the list of entries that match the given key.
  */
-static inline struct rhlist_head *rhltable_lookup(
+static __always_inline struct rhlist_head *rhltable_lookup(
 	struct rhltable *hlt, const void *key,
 	const struct rhashtable_params params)
 {
@@ -702,7 +702,7 @@ static inline struct rhlist_head *rhltable_lookup(
  * function returns the existing element already in hashes if there is a clash,
  * otherwise it returns an error via ERR_PTR().
  */
-static inline void *__rhashtable_insert_fast(
+static __always_inline void *__rhashtable_insert_fast(
 	struct rhashtable *ht, const void *key, struct rhash_head *obj,
 	const struct rhashtable_params params, bool rhlist)
 {
@@ -825,7 +825,7 @@ out_unlock:
  * Will trigger an automatic deferred table resizing if residency in the
  * table grows beyond 70%.
  */
-static inline int rhashtable_insert_fast(
+static __always_inline int rhashtable_insert_fast(
 	struct rhashtable *ht, struct rhash_head *obj,
 	const struct rhashtable_params params)
 {
@@ -854,7 +854,7 @@ static inline int rhashtable_insert_fast(
  * Will trigger an automatic deferred table resizing if residency in the
  * table grows beyond 70%.
  */
-static inline int rhltable_insert_key(
+static __always_inline int rhltable_insert_key(
 	struct rhltable *hlt, const void *key, struct rhlist_head *list,
 	const struct rhashtable_params params)
 {
@@ -877,7 +877,7 @@ static inline int rhltable_insert_key(
  * Will trigger an automatic deferred table resizing if residency in the
  * table grows beyond 70%.
  */
-static inline int rhltable_insert(
+static __always_inline int rhltable_insert(
 	struct rhltable *hlt, struct rhlist_head *list,
 	const struct rhashtable_params params)
 {
@@ -902,7 +902,7 @@ static inline int rhltable_insert(
  * Will trigger an automatic deferred table resizing if residency in the
  * table grows beyond 70%.
  */
-static inline int rhashtable_lookup_insert_fast(
+static __always_inline int rhashtable_lookup_insert_fast(
 	struct rhashtable *ht, struct rhash_head *obj,
 	const struct rhashtable_params params)
 {
@@ -929,7 +929,7 @@ static inline int rhashtable_lookup_insert_fast(
  * object if it exists, NULL if it did not and the insertion was successful,
  * and an ERR_PTR otherwise.
  */
-static inline void *rhashtable_lookup_get_insert_fast(
+static __always_inline void *rhashtable_lookup_get_insert_fast(
 	struct rhashtable *ht, struct rhash_head *obj,
 	const struct rhashtable_params params)
 {
@@ -956,7 +956,7 @@ static inline void *rhashtable_lookup_get_insert_fast(
  *
  * Returns zero on success.
  */
-static inline int rhashtable_lookup_insert_key(
+static __always_inline int rhashtable_lookup_insert_key(
 	struct rhashtable *ht, const void *key, struct rhash_head *obj,
 	const struct rhashtable_params params)
 {
@@ -982,7 +982,7 @@ static inline int rhashtable_lookup_insert_key(
  * object if it exists, NULL if it does not and the insertion was successful,
  * and an ERR_PTR otherwise.
  */
-static inline void *rhashtable_lookup_get_insert_key(
+static __always_inline void *rhashtable_lookup_get_insert_key(
 	struct rhashtable *ht, const void *key, struct rhash_head *obj,
 	const struct rhashtable_params params)
 {
@@ -992,7 +992,7 @@ static inline void *rhashtable_lookup_get_insert_key(
 }
 
 /* Internal function, please use rhashtable_remove_fast() instead */
-static inline int __rhashtable_remove_fast_one(
+static __always_inline int __rhashtable_remove_fast_one(
 	struct rhashtable *ht, struct bucket_table *tbl,
 	struct rhash_head *obj, const struct rhashtable_params params,
 	bool rhlist)
@@ -1074,7 +1074,7 @@ unlocked:
 }
 
 /* Internal function, please use rhashtable_remove_fast() instead */
-static inline int __rhashtable_remove_fast(
+static __always_inline int __rhashtable_remove_fast(
 	struct rhashtable *ht, struct rhash_head *obj,
 	const struct rhashtable_params params, bool rhlist)
 {
@@ -1115,7 +1115,7 @@ static inline int __rhashtable_remove_fast(
  *
  * Returns zero on success, -ENOENT if the entry could not be found.
  */
-static inline int rhashtable_remove_fast(
+static __always_inline int rhashtable_remove_fast(
 	struct rhashtable *ht, struct rhash_head *obj,
 	const struct rhashtable_params params)
 {
@@ -1137,7 +1137,7 @@ static inline int rhashtable_remove_fast(
  *
  * Returns zero on success, -ENOENT if the entry could not be found.
  */
-static inline int rhltable_remove(
+static __always_inline int rhltable_remove(
 	struct rhltable *hlt, struct rhlist_head *list,
 	const struct rhashtable_params params)
 {
@@ -1145,7 +1145,7 @@ static inline int rhltable_remove(
 }
 
 /* Internal function, please use rhashtable_replace_fast() instead */
-static inline int __rhashtable_replace_fast(
+static __always_inline int __rhashtable_replace_fast(
 	struct rhashtable *ht, struct bucket_table *tbl,
 	struct rhash_head *obj_old, struct rhash_head *obj_new,
 	const struct rhashtable_params params)
@@ -1208,7 +1208,7 @@ unlocked:
  * Returns zero on success, -ENOENT if the entry could not be found,
  * -EINVAL if hash is not the same for the old and new objects.
  */
-static inline int rhashtable_replace_fast(
+static __always_inline int rhashtable_replace_fast(
 	struct rhashtable *ht, struct rhash_head *obj_old,
 	struct rhash_head *obj_new,
 	const struct rhashtable_params params)
