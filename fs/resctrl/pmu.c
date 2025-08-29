@@ -13,11 +13,7 @@
 #include <linux/perf_event.h>
 #include <linux/errno.h>
 #include <linux/file.h>
-#include <linux/path.h>
-#include <linux/dcache.h>
 #include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/limits.h>
 #include <linux/err.h>
 #include <linux/seq_file.h>
 #include "internal.h"
@@ -31,42 +27,9 @@ static struct pmu resctrl_pmu;
  * Event private data - stores information about the monitored resctrl group
  */
 struct resctrl_pmu_event {
-	char *mon_path;			/* Path extracted from file descriptor */
 	struct rdtgroup *rdtgrp;	/* Reference to rdtgroup being monitored */
 };
 
-/*
- * Get the file path from a file descriptor for debugging
- */
-static char *get_fd_path(int fd)
-{
-	struct file *file;
-	char *path_buf, *path_str = NULL;
-
-	file = fget(fd);
-	if (!file)
-		return ERR_PTR(-EBADF);
-
-	path_buf = kmalloc(PATH_MAX, GFP_KERNEL);
-	if (!path_buf) {
-		fput(file);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	path_str = d_path(&file->f_path, path_buf, PATH_MAX);
-	if (IS_ERR(path_str)) {
-		kfree(path_buf);
-		fput(file);
-		return path_str;
-	}
-
-	/* Make a copy of the path string */
-	path_str = kstrdup(path_str, GFP_KERNEL);
-	kfree(path_buf);
-	fput(file);
-
-	return path_str;
-}
 
 /*
  * Get rdtgroup from file descriptor with proper mutual exclusion
@@ -136,7 +99,7 @@ static void resctrl_event_destroy(struct perf_event *event)
 		
 		if (rdtgrp) {
 			/* Log rdtgroup state before cleanup */
-			pr_info("PMU event cleanup: path=%s\n", resctrl_event->mon_path);
+			pr_info("PMU event cleanup\n");
 			pr_info("  rdtgroup: closid=%u, rmid=%u, waitcount=%d\n",
 				rdtgrp->closid, rdtgrp->mon.rmid, atomic_read(&rdtgrp->waitcount));
 			pr_info("  type=%s, mode=%d, flags=0x%x\n",
@@ -148,7 +111,6 @@ static void resctrl_event_destroy(struct perf_event *event)
 			rdtgroup_put(rdtgrp);
 		}
 		
-		kfree(resctrl_event->mon_path);
 		kfree(resctrl_event);
 		event->pmu_private = NULL;
 	}
@@ -162,7 +124,6 @@ static int resctrl_event_init(struct perf_event *event)
 {
 	struct resctrl_pmu_event *resctrl_event;
 	struct rdtgroup *rdtgrp;
-	char *path;
 	int fd;
 
 	/* Only accept events for this PMU */
@@ -183,27 +144,18 @@ static int resctrl_event_init(struct perf_event *event)
 	if (fd < 0)
 		return -EINVAL;
 
-	/* Get the file path for debugging */
-	path = get_fd_path(fd);
-	if (IS_ERR(path))
-		return PTR_ERR(path);
-
 	/* Get rdtgroup with proper protection and reference counting */
 	rdtgrp = get_rdtgroup_from_fd(fd);
-	if (IS_ERR(rdtgrp)) {
-		kfree(path);
+	if (IS_ERR(rdtgrp))
 		return PTR_ERR(rdtgrp);
-	}
 
 	/* Allocate our private event data */
 	resctrl_event = kzalloc(sizeof(*resctrl_event), GFP_KERNEL);
 	if (!resctrl_event) {
 		rdtgroup_put(rdtgrp);
-		kfree(path);
 		return -ENOMEM;
 	}
 
-	resctrl_event->mon_path = path;
 	resctrl_event->rdtgrp = rdtgrp;
 	event->pmu_private = resctrl_event;
 
@@ -211,7 +163,7 @@ static int resctrl_event_init(struct perf_event *event)
 	event->destroy = resctrl_event_destroy;
 
 	/* Log comprehensive rdtgroup information */
-	pr_info("PMU event initialized: fd=%d, path=%s\n", fd, path);
+	pr_info("PMU event initialized: fd=%d\n", fd);
 	pr_info("  rdtgroup: closid=%u, rmid=%u, waitcount=%d\n",
 		rdtgrp->closid, rdtgrp->mon.rmid, atomic_read(&rdtgrp->waitcount));
 	pr_info("  type=%s, mode=%d, flags=0x%x\n",
