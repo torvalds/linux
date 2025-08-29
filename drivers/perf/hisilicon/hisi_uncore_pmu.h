@@ -24,7 +24,7 @@
 #define pr_fmt(fmt)     "hisi_pmu: " fmt
 
 #define HISI_PMU_V2		0x30
-#define HISI_MAX_COUNTERS 0x10
+#define HISI_MAX_COUNTERS	0x18
 #define to_hisi_pmu(p)	(container_of(p, struct hisi_pmu, pmu))
 
 #define HISI_PMU_ATTR(_name, _func, _config)				\
