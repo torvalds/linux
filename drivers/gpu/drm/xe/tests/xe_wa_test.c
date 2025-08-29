@@ -15,18 +15,8 @@
 #include "xe_tuning.h"
 #include "xe_wa.h"
 
-struct platform_test_case {
-	const char *name;
-	enum xe_platform platform;
-	enum xe_subplatform subplatform;
-	u32 graphics_verx100;
-	u32 media_verx100;
-	struct xe_step_info step;
-};
-
 #define PLATFORM_CASE(platform__, graphics_step__)				\
 	{									\
-		.name = #platform__ " (" #graphics_step__ ")",			\
 		.platform = XE_ ## platform__,					\
 		.subplatform = XE_SUBPLATFORM_NONE,				\
 		.step = { .graphics = STEP_ ## graphics_step__ }		\
@@ -35,7 +25,6 @@ struct platform_test_case {
 
 #define SUBPLATFORM_CASE(platform__, subplatform__, graphics_step__)			\
 	{										\
-		.name = #platform__ "_" #subplatform__ " (" #graphics_step__ ")",	\
 		.platform = XE_ ## platform__,						\
 		.subplatform = XE_SUBPLATFORM_ ## platform__ ## _ ## subplatform__,	\
 		.step = { .graphics = STEP_ ## graphics_step__ }			\
@@ -44,7 +33,6 @@ struct platform_test_case {
 #define GMDID_CASE(platform__, graphics_verx100__, graphics_step__,		\
 		   media_verx100__, media_step__)				\
 	{									\
-		.name = #platform__ " (g:" #graphics_step__ ", m:" #media_step__ ")",\
 		.platform = XE_ ## platform__,					\
 		.subplatform = XE_SUBPLATFORM_NONE,				\
 		.graphics_verx100 = graphics_verx100__,				\
@@ -53,7 +41,7 @@ struct platform_test_case {
 			   .media = STEP_ ## media_step__ }			\
 	}
 
-static const struct platform_test_case cases[] = {
+static const struct xe_pci_fake_data cases[] = {
 	PLATFORM_CASE(TIGERLAKE, B0),
 	PLATFORM_CASE(DG1, A0),
 	PLATFORM_CASE(DG1, B0),
@@ -78,23 +66,12 @@ static const struct platform_test_case cases[] = {
 	GMDID_CASE(PANTHERLAKE, 3000, A0, 3000, A0),
 };
 
-static void platform_desc(const struct platform_test_case *t, char *desc)
-{
-	strscpy(desc, t->name, KUNIT_PARAM_DESC_SIZE);
-}
-
-KUNIT_ARRAY_PARAM(platform, cases, platform_desc);
+KUNIT_ARRAY_PARAM(platform, cases, xe_pci_fake_data_desc);
 
 static int xe_wa_test_init(struct kunit *test)
 {
-	const struct platform_test_case *param = test->param_value;
-	struct xe_pci_fake_data data = {
-		.platform = param->platform,
-		.subplatform = param->subplatform,
-		.graphics_verx100 = param->graphics_verx100,
-		.media_verx100 = param->media_verx100,
-		.step = param->step,
-	};
+	const struct xe_pci_fake_data *param = test->param_value;
+	struct xe_pci_fake_data data = *param;
 	struct xe_device *xe;
 	struct device *dev;
 	int ret;
