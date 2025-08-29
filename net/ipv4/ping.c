@@ -58,8 +58,6 @@ static struct ping_table ping_table;
 struct pingv6_ops pingv6_ops;
 EXPORT_SYMBOL_GPL(pingv6_ops);
 
-static u16 ping_port_rover;
-
 static inline u32 ping_hashfn(const struct net *net, u32 num, u32 mask)
 {
 	u32 res = (num + net_hash_mix(net)) & mask;
@@ -84,12 +82,12 @@ int ping_get_port(struct sock *sk, unsigned short ident)
 	isk = inet_sk(sk);
 	spin_lock(&ping_table.lock);
 	if (ident == 0) {
+		u16 result = net->ipv4.ping_port_rover + 1;
 		u32 i;
-		u16 result = ping_port_rover + 1;
 
 		for (i = 0; i < (1L << 16); i++, result++) {
 			if (!result)
-				result++; /* avoid zero */
+				continue; /* avoid zero */
 			hlist = ping_hashslot(&ping_table, net, result);
 			sk_for_each(sk2, hlist) {
 				if (!net_eq(sock_net(sk2), net))
@@ -101,7 +99,7 @@ int ping_get_port(struct sock *sk, unsigned short ident)
 			}
 
 			/* found */
-			ping_port_rover = ident = result;
+			net->ipv4.ping_port_rover = ident = result;
 			break;
 next_port:
 			;
@@ -1146,6 +1144,8 @@ static int __net_init ping_v4_proc_init_net(struct net *net)
 	if (!proc_create_net("icmp", 0444, net->proc_net, &ping_v4_seq_ops,
 			sizeof(struct ping_iter_state)))
 		return -ENOMEM;
+
+	net->ipv4.ping_port_rover = get_random_u16();
 	return 0;
 }
 
