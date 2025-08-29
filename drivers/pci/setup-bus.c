@@ -2555,6 +2555,12 @@ int pbus_reassign_bridge_resources(struct pci_bus *bus, struct resource *res)
 				goto cleanup;
 
 			pci_release_resource(bridge, i);
+		} else {
+			const char *res_name = pci_resource_name(bridge, i);
+
+			pci_warn(bridge,
+				 "%s %pR: was not released (still contains assigned resources)\n",
+				 res_name, res);
 		}
 
 		bus = bus->parent;
