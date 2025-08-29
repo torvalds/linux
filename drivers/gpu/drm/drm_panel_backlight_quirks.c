@@ -45,6 +45,42 @@ static const struct drm_get_panel_backlight_quirk drm_panel_min_backlight_quirks
 		.ident.name = "NE135A1M-NY1",
 		.quirk = { .min_brightness = 1, },
 	},
+	/* Have OLED Panels with brightness issue when last byte is 0/1 */
+	{
+		.dmi_match.field = DMI_SYS_VENDOR,
+		.dmi_match.value = "AYANEO",
+		.dmi_match_other.field = DMI_PRODUCT_NAME,
+		.dmi_match_other.value = "AYANEO 3",
+		.quirk = { .brightness_mask = 3, },
+	},
+	{
+		.dmi_match.field = DMI_SYS_VENDOR,
+		.dmi_match.value = "ZOTAC",
+		.dmi_match_other.field = DMI_BOARD_NAME,
+		.dmi_match_other.value = "G0A1W",
+		.quirk = { .brightness_mask = 3, },
+	},
+	{
+		.dmi_match.field = DMI_SYS_VENDOR,
+		.dmi_match.value = "ZOTAC",
+		.dmi_match_other.field = DMI_BOARD_NAME,
+		.dmi_match_other.value = "G1A1W",
+		.quirk = { .brightness_mask = 3, },
+	},
+	{
+		.dmi_match.field = DMI_SYS_VENDOR,
+		.dmi_match.value = "ONE-NETBOOK",
+		.dmi_match_other.field = DMI_PRODUCT_NAME,
+		.dmi_match_other.value = "ONEXPLAYER F1Pro",
+		.quirk = { .brightness_mask = 3, },
+	},
+	{
+		.dmi_match.field = DMI_SYS_VENDOR,
+		.dmi_match.value = "ONE-NETBOOK",
+		.dmi_match_other.field = DMI_PRODUCT_NAME,
+		.dmi_match_other.value = "ONEXPLAYER F1 EVA-02",
+		.quirk = { .brightness_mask = 3, },
+	},
 };
 
 static bool drm_panel_min_backlight_quirk_matches(

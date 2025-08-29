@@ -3662,6 +3662,9 @@ static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 		if (panel_backlight_quirk->min_brightness)
 			caps->min_input_signal =
 				panel_backlight_quirk->min_brightness - 1;
+		if (panel_backlight_quirk->brightness_mask)
+			caps->brightness_mask =
+				panel_backlight_quirk->brightness_mask;
 	}
 }
 
@@ -4861,6 +4864,10 @@ static void amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 		amdgpu_atombios_scratch_regs_set_backlight_level(dm->adev, dm->brightness[bl_idx]);
 	brightness = convert_brightness_from_user(caps, dm->brightness[bl_idx]);
 	link = (struct dc_link *)dm->backlight_link[bl_idx];
+
+	/* Apply brightness quirk */
+	if (caps->brightness_mask)
+		brightness |= caps->brightness_mask;
 
 	/* Change brightness based on AUX property */
 	mutex_lock(&dm->dc_lock);
