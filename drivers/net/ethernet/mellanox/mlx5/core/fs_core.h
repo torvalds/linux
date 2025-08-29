@@ -159,8 +159,6 @@ struct mlx5_flow_steering {
 	struct mlx5_flow_root_namespace	*rdma_tx_root_ns;
 	struct mlx5_flow_root_namespace	*egress_root_ns;
 	struct mlx5_flow_root_namespace	*port_sel_root_ns;
-	int esw_egress_acl_vports;
-	int esw_ingress_acl_vports;
 	struct mlx5_flow_root_namespace **rdma_transport_rx_root_ns;
 	struct mlx5_flow_root_namespace **rdma_transport_tx_root_ns;
 	int rdma_transport_rx_vports;
@@ -377,11 +375,6 @@ int mlx5_fs_core_alloc(struct mlx5_core_dev *dev);
 void mlx5_fs_core_free(struct mlx5_core_dev *dev);
 int mlx5_fs_core_init(struct mlx5_core_dev *dev);
 void mlx5_fs_core_cleanup(struct mlx5_core_dev *dev);
-
-int mlx5_fs_egress_acls_init(struct mlx5_core_dev *dev, int total_vports);
-void mlx5_fs_egress_acls_cleanup(struct mlx5_core_dev *dev);
-int mlx5_fs_ingress_acls_init(struct mlx5_core_dev *dev, int total_vports);
-void mlx5_fs_ingress_acls_cleanup(struct mlx5_core_dev *dev);
 
 int mlx5_fs_vport_egress_acl_ns_add(struct mlx5_flow_steering *steering,
 				    u16 vport_idx);

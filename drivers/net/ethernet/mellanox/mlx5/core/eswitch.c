@@ -1439,19 +1439,76 @@ static void mlx5_esw_mode_change_notify(struct mlx5_eswitch *esw, u16 mode)
 	blocking_notifier_call_chain(&esw->n_head, 0, &info);
 }
 
+static int mlx5_esw_egress_acls_init(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_steering *steering = dev->priv.steering;
+	int total_vports = mlx5_eswitch_get_total_vports(dev);
+	int err;
+	int i;
+
+	for (i = 0; i < total_vports; i++) {
+		err = mlx5_fs_vport_egress_acl_ns_add(steering, i);
+		if (err)
+			goto acl_ns_remove;
+	}
+	return 0;
+
+acl_ns_remove:
+	while (i--)
+		mlx5_fs_vport_egress_acl_ns_remove(steering, i);
+	return err;
+}
+
+static void mlx5_esw_egress_acls_cleanup(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_steering *steering = dev->priv.steering;
+	int total_vports = mlx5_eswitch_get_total_vports(dev);
+	int i;
+
+	for (i = total_vports - 1; i >= 0; i--)
+		mlx5_fs_vport_egress_acl_ns_remove(steering, i);
+}
+
+static int mlx5_esw_ingress_acls_init(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_steering *steering = dev->priv.steering;
+	int total_vports = mlx5_eswitch_get_total_vports(dev);
+	int err;
+	int i;
+
+	for (i = 0; i < total_vports; i++) {
+		err = mlx5_fs_vport_ingress_acl_ns_add(steering, i);
+		if (err)
+			goto acl_ns_remove;
+	}
+	return 0;
+
+acl_ns_remove:
+	while (i--)
+		mlx5_fs_vport_ingress_acl_ns_remove(steering, i);
+	return err;
+}
+
+static void mlx5_esw_ingress_acls_cleanup(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_steering *steering = dev->priv.steering;
+	int total_vports = mlx5_eswitch_get_total_vports(dev);
+	int i;
+
+	for (i = total_vports - 1; i >= 0; i--)
+		mlx5_fs_vport_ingress_acl_ns_remove(steering, i);
+}
+
 static int mlx5_esw_acls_ns_init(struct mlx5_eswitch *esw)
 {
 	struct mlx5_core_dev *dev = esw->dev;
-	int total_vports;
 	int err;
 
 	if (esw->flags & MLX5_ESWITCH_VPORT_ACL_NS_CREATED)
 		return 0;
 
-	total_vports = mlx5_eswitch_get_total_vports(dev);
-
 	if (MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support)) {
-		err = mlx5_fs_egress_acls_init(dev, total_vports);
+		err = mlx5_esw_egress_acls_init(dev);
 		if (err)
 			return err;
 	} else {
@@ -1459,7 +1516,7 @@ static int mlx5_esw_acls_ns_init(struct mlx5_eswitch *esw)
 	}
 
 	if (MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support)) {
-		err = mlx5_fs_ingress_acls_init(dev, total_vports);
+		err = mlx5_esw_ingress_acls_init(dev);
 		if (err)
 			goto err;
 	} else {
@@ -1470,7 +1527,7 @@ static int mlx5_esw_acls_ns_init(struct mlx5_eswitch *esw)
 
 err:
 	if (MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support))
-		mlx5_fs_egress_acls_cleanup(dev);
+		mlx5_esw_egress_acls_cleanup(dev);
 	return err;
 }
 
@@ -1480,9 +1537,9 @@ static void mlx5_esw_acls_ns_cleanup(struct mlx5_eswitch *esw)
 
 	esw->flags &= ~MLX5_ESWITCH_VPORT_ACL_NS_CREATED;
 	if (MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support))
-		mlx5_fs_ingress_acls_cleanup(dev);
+		mlx5_esw_ingress_acls_cleanup(dev);
 	if (MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support))
-		mlx5_fs_egress_acls_cleanup(dev);
+		mlx5_esw_egress_acls_cleanup(dev);
 }
 
 /**

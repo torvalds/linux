@@ -3675,75 +3675,6 @@ void mlx5_fs_vport_ingress_acl_ns_remove(struct mlx5_flow_steering *steering,
 					 vport_idx);
 }
 
-int mlx5_fs_egress_acls_init(struct mlx5_core_dev *dev, int total_vports)
-{
-	struct mlx5_flow_steering *steering = dev->priv.steering;
-	int err;
-	int i;
-
-	xa_init(&steering->esw_egress_root_ns);
-
-	for (i = 0; i < total_vports; i++) {
-		err = mlx5_fs_vport_egress_acl_ns_add(steering, i);
-		if (err)
-			goto cleanup_root_ns;
-	}
-	steering->esw_egress_acl_vports = total_vports;
-	return 0;
-
-cleanup_root_ns:
-	while (i--)
-		mlx5_fs_vport_egress_acl_ns_remove(steering, i);
-	xa_destroy(&steering->esw_egress_root_ns);
-	return err;
-}
-
-void mlx5_fs_egress_acls_cleanup(struct mlx5_core_dev *dev)
-{
-	struct mlx5_flow_steering *steering = dev->priv.steering;
-	int i;
-
-	for (i = 0; i < steering->esw_egress_acl_vports; i++)
-		mlx5_fs_vport_egress_acl_ns_remove(steering, i);
-
-	xa_destroy(&steering->esw_egress_root_ns);
-}
-
-int mlx5_fs_ingress_acls_init(struct mlx5_core_dev *dev, int total_vports)
-{
-	struct mlx5_flow_steering *steering = dev->priv.steering;
-	int err;
-	int i;
-
-	xa_init(&steering->esw_ingress_root_ns);
-
-	for (i = 0; i < total_vports; i++) {
-		err = mlx5_fs_vport_ingress_acl_ns_add(steering, i);
-		if (err)
-			goto cleanup_root_ns;
-	}
-	steering->esw_ingress_acl_vports = total_vports;
-	return 0;
-
-cleanup_root_ns:
-	while (i--)
-		mlx5_fs_vport_ingress_acl_ns_remove(steering, i);
-
-	xa_destroy(&steering->esw_ingress_root_ns);
-	return err;
-}
-
-void mlx5_fs_ingress_acls_cleanup(struct mlx5_core_dev *dev)
-{
-	struct mlx5_flow_steering *steering = dev->priv.steering;
-	int i;
-
-	for (i = 0; i < steering->esw_ingress_acl_vports; i++)
-		mlx5_fs_vport_ingress_acl_ns_remove(steering, i);
-
-	xa_destroy(&steering->esw_ingress_root_ns);
-}
-
 u32 mlx5_fs_get_capabilities(struct mlx5_core_dev *dev, enum mlx5_flow_namespace_type type)
 {
 	struct mlx5_flow_root_namespace *root;
@@ -3873,6 +3804,11 @@ void mlx5_fs_core_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_flow_steering *steering = dev->priv.steering;
 
+	WARN_ON(!xa_empty(&steering->esw_egress_root_ns));
+	WARN_ON(!xa_empty(&steering->esw_ingress_root_ns));
+	xa_destroy(&steering->esw_egress_root_ns);
+	xa_destroy(&steering->esw_ingress_root_ns);
+
 	cleanup_root_ns(steering->root_ns);
 	cleanup_fdb_root_ns(steering);
 	cleanup_root_ns(steering->port_sel_root_ns);
@@ -3963,6 +3899,8 @@ int mlx5_fs_core_init(struct mlx5_core_dev *dev)
 			goto err;
 	}
 
+	xa_init(&steering->esw_egress_root_ns);
+	xa_init(&steering->esw_ingress_root_ns);
 	return 0;
 
 err:
