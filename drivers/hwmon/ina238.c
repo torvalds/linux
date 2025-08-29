@@ -517,9 +517,10 @@ static int ina238_write_power(struct device *dev, u32 attr, long val)
 	 * Unsigned postive values. Compared against the 24-bit power register,
 	 * lower 8-bits are truncated. Same conversion to/from uW as POWER
 	 * register.
+	 * The first clamp_val() is to establish a baseline to avoid overflows.
 	 */
-	regval = clamp_val(val, 0, LONG_MAX);
-	regval = div_u64(val * 4 * 100 * data->rshunt, data->config->power_calculate_factor *
+	regval = clamp_val(val, 0, LONG_MAX / 2);
+	regval = div_u64(regval * 4 * 100 * data->rshunt, data->config->power_calculate_factor *
 			1000ULL * INA238_FIXED_SHUNT * data->gain);
 	regval = clamp_val(regval >> 8, 0, U16_MAX);
 
