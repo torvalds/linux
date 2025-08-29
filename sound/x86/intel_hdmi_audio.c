@@ -554,16 +554,13 @@ static int had_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 
 	memset(ucontrol->value.integer.value, 0,
 	       sizeof(long) * HAD_MAX_CHANNEL);
-	mutex_lock(&intelhaddata->mutex);
-	if (!intelhaddata->chmap->chmap) {
-		mutex_unlock(&intelhaddata->mutex);
+	guard(mutex)(&intelhaddata->mutex);
+	if (!intelhaddata->chmap->chmap)
 		return 0;
-	}
 
 	chmap = intelhaddata->chmap->chmap;
 	for (i = 0; i < chmap->channels; i++)
 		ucontrol->value.integer.value[i] = chmap->map[i];
-	mutex_unlock(&intelhaddata->mutex);
 
 	return 0;
 }
@@ -1394,14 +1391,13 @@ static int had_iec958_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_intelhad *intelhaddata = snd_kcontrol_chip(kcontrol);
 
-	mutex_lock(&intelhaddata->mutex);
+	guard(mutex)(&intelhaddata->mutex);
 	ucontrol->value.iec958.status[0] = (intelhaddata->aes_bits >> 0) & 0xff;
 	ucontrol->value.iec958.status[1] = (intelhaddata->aes_bits >> 8) & 0xff;
 	ucontrol->value.iec958.status[2] =
 					(intelhaddata->aes_bits >> 16) & 0xff;
 	ucontrol->value.iec958.status[3] =
 					(intelhaddata->aes_bits >> 24) & 0xff;
-	mutex_unlock(&intelhaddata->mutex);
 	return 0;
 }
 
@@ -1426,12 +1422,11 @@ static int had_iec958_put(struct snd_kcontrol *kcontrol,
 		(ucontrol->value.iec958.status[1] << 8) |
 		(ucontrol->value.iec958.status[2] << 16) |
 		(ucontrol->value.iec958.status[3] << 24);
-	mutex_lock(&intelhaddata->mutex);
+	guard(mutex)(&intelhaddata->mutex);
 	if (intelhaddata->aes_bits != val) {
 		intelhaddata->aes_bits = val;
 		changed = 1;
 	}
-	mutex_unlock(&intelhaddata->mutex);
 	return changed;
 }
 
@@ -1448,10 +1443,9 @@ static int had_ctl_eld_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_intelhad *intelhaddata = snd_kcontrol_chip(kcontrol);
 
-	mutex_lock(&intelhaddata->mutex);
+	guard(mutex)(&intelhaddata->mutex);
 	memcpy(ucontrol->value.bytes.data, intelhaddata->eld,
 	       HDMI_MAX_ELD_BYTES);
-	mutex_unlock(&intelhaddata->mutex);
 	return 0;
 }
 
