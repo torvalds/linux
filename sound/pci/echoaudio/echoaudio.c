@@ -237,7 +237,7 @@ static int hw_rule_sample_rate(struct snd_pcm_hw_params *params,
 	struct snd_interval fixed;
 	int err;
 
-	mutex_lock(&chip->mode_mutex);
+	guard(mutex)(&chip->mode_mutex);
 
 	if (chip->can_set_rate) {
 		err = 0;
@@ -247,7 +247,6 @@ static int hw_rule_sample_rate(struct snd_pcm_hw_params *params,
 		err = snd_interval_refine(rate, &fixed);
 	}
 
-	mutex_unlock(&chip->mode_mutex);
 	return err;
 }
 
@@ -415,7 +414,7 @@ static int pcm_digital_in_open(struct snd_pcm_substream *substream)
 	int err, max_channels;
 
 	max_channels = num_digital_busses_in(chip) - substream->number;
-	mutex_lock(&chip->mode_mutex);
+	guard(mutex)(&chip->mode_mutex);
 	if (chip->digital_mode == DIGITAL_MODE_ADAT)
 		err = pcm_open(substream, max_channels);
 	else	/* If the card has ADAT, subtract the 6 channels
@@ -424,24 +423,22 @@ static int pcm_digital_in_open(struct snd_pcm_substream *substream)
 		err = pcm_open(substream, max_channels - ECHOCARD_HAS_ADAT);
 
 	if (err < 0)
-		goto din_exit;
+		return err;
 
 	err = snd_pcm_hw_rule_add(substream->runtime, 0,
 				  SNDRV_PCM_HW_PARAM_CHANNELS,
 				  hw_rule_capture_channels_by_format, NULL,
 				  SNDRV_PCM_HW_PARAM_FORMAT, -1);
 	if (err < 0)
-		goto din_exit;
+		return err;
 	err = snd_pcm_hw_rule_add(substream->runtime, 0,
 				  SNDRV_PCM_HW_PARAM_FORMAT,
 				  hw_rule_capture_format_by_channels, NULL,
 				  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 	if (err < 0)
-		goto din_exit;
+		return err;
 
-din_exit:
-	mutex_unlock(&chip->mode_mutex);
-	return err;
+	return 0;
 }
 
 
@@ -454,7 +451,7 @@ static int pcm_digital_out_open(struct snd_pcm_substream *substream)
 	int err, max_channels;
 
 	max_channels = num_digital_busses_out(chip) - substream->number;
-	mutex_lock(&chip->mode_mutex);
+	guard(mutex)(&chip->mode_mutex);
 	if (chip->digital_mode == DIGITAL_MODE_ADAT)
 		err = pcm_open(substream, max_channels);
 	else	/* If the card has ADAT, subtract the 6 channels
@@ -463,7 +460,7 @@ static int pcm_digital_out_open(struct snd_pcm_substream *substream)
 		err = pcm_open(substream, max_channels - ECHOCARD_HAS_ADAT);
 
 	if (err < 0)
-		goto dout_exit;
+		return err;
 
 	err = snd_pcm_hw_rule_add(substream->runtime, 0,
 				  SNDRV_PCM_HW_PARAM_CHANNELS,
@@ -471,18 +468,16 @@ static int pcm_digital_out_open(struct snd_pcm_substream *substream)
 				  NULL, SNDRV_PCM_HW_PARAM_FORMAT,
 				  -1);
 	if (err < 0)
-		goto dout_exit;
+		return err;
 	err = snd_pcm_hw_rule_add(substream->runtime, 0,
 				  SNDRV_PCM_HW_PARAM_FORMAT,
 				  hw_rule_playback_format_by_channels,
 				  NULL, SNDRV_PCM_HW_PARAM_CHANNELS,
 				  -1);
 	if (err < 0)
-		goto dout_exit;
+		return err;
 
-dout_exit:
-	mutex_unlock(&chip->mode_mutex);
-	return err;
+	return 0;
 }
 
 #endif /* !ECHOCARD_HAS_VMIXER */
@@ -499,7 +494,7 @@ static int pcm_close(struct snd_pcm_substream *substream)
 	 * freed by its callback
 	 */
 
-	mutex_lock(&chip->mode_mutex);
+	guard(mutex)(&chip->mode_mutex);
 
 	dev_dbg(chip->card->dev, "pcm_open opencount=%d can_set_rate=%d, rate_set=%d",
 		chip->opencount, chip->can_set_rate, chip->rate_set);
@@ -516,7 +511,6 @@ static int pcm_close(struct snd_pcm_substream *substream)
 		break;
 	}
 
-	mutex_unlock(&chip->mode_mutex);
 	return 0;
 }
 
@@ -1440,7 +1434,7 @@ static int snd_echo_digital_mode_put(struct snd_kcontrol *kcontrol,
 	if (dmode != chip->digital_mode) {
 		/* mode_mutex is required to make this operation atomic wrt
 		pcm_digital_*_open() and set_input_clock() functions. */
-		mutex_lock(&chip->mode_mutex);
+		guard(mutex)(&chip->mode_mutex);
 
 		/* Do not allow the user to change the digital mode when a pcm
 		device is open because it also changes the number of channels
@@ -1460,7 +1454,6 @@ static int snd_echo_digital_mode_put(struct snd_kcontrol *kcontrol,
 			if (changed >= 0)
 				changed = 1;	/* No errors */
 		}
-		mutex_unlock(&chip->mode_mutex);
 	}
 	return changed;
 }
@@ -1573,13 +1566,12 @@ static int snd_echo_clock_source_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	dclock = chip->clock_source_list[eclock];
 	if (chip->input_clock != dclock) {
-		mutex_lock(&chip->mode_mutex);
+		guard(mutex)(&chip->mode_mutex);
 		spin_lock_irq(&chip->lock);
 		changed = set_input_clock(chip, dclock);
 		if (!changed)
 			changed = 1;	/* no errors */
 		spin_unlock_irq(&chip->lock);
-		mutex_unlock(&chip->mode_mutex);
 	}
 
 	if (changed < 0)
