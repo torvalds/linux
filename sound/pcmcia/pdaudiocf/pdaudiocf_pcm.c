@@ -64,21 +64,20 @@ static int pdacf_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 	default:
 		return -EINVAL;
 	}
-	mutex_lock(&chip->reg_lock);
-	chip->pcm_running += inc;
-	tmp = pdacf_reg_read(chip, PDAUDIOCF_REG_SCR);
-	if (chip->pcm_running) {
-		if ((chip->ak4117->rcs0 & AK4117_UNLCK) || runtime->rate != rate) {
-			chip->pcm_running -= inc;
-			ret = -EIO;
-			goto __end;
+	scoped_guard(mutex, &chip->reg_lock) {
+		chip->pcm_running += inc;
+		tmp = pdacf_reg_read(chip, PDAUDIOCF_REG_SCR);
+		if (chip->pcm_running) {
+			if ((chip->ak4117->rcs0 & AK4117_UNLCK) || runtime->rate != rate) {
+				chip->pcm_running -= inc;
+				ret = -EIO;
+				break;
+			}
 		}
+		tmp &= ~mask;
+		tmp |= val;
+		pdacf_reg_write(chip, PDAUDIOCF_REG_SCR, tmp);
 	}
-	tmp &= ~mask;
-	tmp |= val;
-	pdacf_reg_write(chip, PDAUDIOCF_REG_SCR, tmp);
-      __end:
-	mutex_unlock(&chip->reg_lock);
 	snd_ak4117_check_rate_and_errors(chip->ak4117, AK4117_CHECK_NO_RATE);
 	return ret;
 }
