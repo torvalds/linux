@@ -601,6 +601,7 @@ int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 	struct rdt_resource *r;
 	struct cacheinfo *ci;
 	struct mon_data *md;
+	cpumask_t *cpumask;
 
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
@@ -634,8 +635,8 @@ int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 					continue;
 				mon_setup_rmid_read(&rr, r, NULL, rdtgrp,
 						     evtid, false, d->ci_id);
-				mon_perform_rmid_read(&rr, &ci->shared_cpu_map);
-				goto checkresult;
+				cpumask = &ci->shared_cpu_map;
+				goto perform;
 			}
 		}
 		ret = -ENOENT;
@@ -652,10 +653,11 @@ int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 		}
 		d = container_of(hdr, struct rdt_mon_domain, hdr);
 		mon_setup_rmid_read(&rr, r, d, rdtgrp, evtid, false, d->ci_id);
-		mon_perform_rmid_read(&rr, &d->hdr.cpu_mask);
+		cpumask = &d->hdr.cpu_mask;
 	}
 
-checkresult:
+perform:
+	mon_perform_rmid_read(&rr, cpumask);
 
 	if (rr.err == -EIO)
 		seq_puts(m, "Error\n");
