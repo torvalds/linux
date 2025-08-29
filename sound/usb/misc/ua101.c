@@ -171,7 +171,6 @@ static void playback_urb_complete(struct urb *usb_urb)
 {
 	struct ua101_urb *urb = (struct ua101_urb *)usb_urb;
 	struct ua101 *ua = urb->urb.context;
-	unsigned long flags;
 
 	if (unlikely(urb->urb.status == -ENOENT ||	/* unlinked */
 		     urb->urb.status == -ENODEV ||	/* device removed */
@@ -184,14 +183,13 @@ static void playback_urb_complete(struct urb *usb_urb)
 
 	if (test_bit(USB_PLAYBACK_RUNNING, &ua->states)) {
 		/* append URB to FIFO */
-		spin_lock_irqsave(&ua->lock, flags);
+		guard(spinlock_irqsave)(&ua->lock);
 		list_add_tail(&urb->ready_list, &ua->ready_playback_urbs);
 		if (ua->rate_feedback_count > 0)
 			queue_work(system_highpri_wq, &ua->playback_work);
 		ua->playback.substream->runtime->delay -=
 				urb->urb.iso_frame_desc[0].length /
 						ua->playback.frame_bytes;
-		spin_unlock_irqrestore(&ua->lock, flags);
 	}
 }
 
@@ -249,7 +247,6 @@ static inline void add_with_wraparound(struct ua101 *ua,
 static void playback_work(struct work_struct *work)
 {
 	struct ua101 *ua = container_of(work, struct ua101, playback_work);
-	unsigned long flags;
 	unsigned int frames;
 	struct ua101_urb *urb;
 	bool do_period_elapsed = false;
@@ -269,43 +266,43 @@ static void playback_work(struct work_struct *work)
 	 * submitting playback URBs is possible as long as both FIFOs are
 	 * nonempty.
 	 */
-	spin_lock_irqsave(&ua->lock, flags);
-	while (ua->rate_feedback_count > 0 &&
-	       !list_empty(&ua->ready_playback_urbs)) {
-		/* take packet size out of FIFO */
-		frames = ua->rate_feedback[ua->rate_feedback_start];
-		add_with_wraparound(ua, &ua->rate_feedback_start, 1);
-		ua->rate_feedback_count--;
+	scoped_guard(spinlock_irqsave, &ua->lock) {
+		while (ua->rate_feedback_count > 0 &&
+		       !list_empty(&ua->ready_playback_urbs)) {
+			/* take packet size out of FIFO */
+			frames = ua->rate_feedback[ua->rate_feedback_start];
+			add_with_wraparound(ua, &ua->rate_feedback_start, 1);
+			ua->rate_feedback_count--;
 
-		/* take URB out of FIFO */
-		urb = list_first_entry(&ua->ready_playback_urbs,
-				       struct ua101_urb, ready_list);
-		list_del(&urb->ready_list);
+			/* take URB out of FIFO */
+			urb = list_first_entry(&ua->ready_playback_urbs,
+					       struct ua101_urb, ready_list);
+			list_del(&urb->ready_list);
 
-		/* fill packet with data or silence */
-		urb->urb.iso_frame_desc[0].length =
-			frames * ua->playback.frame_bytes;
-		if (test_bit(ALSA_PLAYBACK_RUNNING, &ua->states))
-			do_period_elapsed |= copy_playback_data(&ua->playback,
-								&urb->urb,
-								frames);
-		else
-			memset(urb->urb.transfer_buffer, 0,
-			       urb->urb.iso_frame_desc[0].length);
+			/* fill packet with data or silence */
+			urb->urb.iso_frame_desc[0].length =
+				frames * ua->playback.frame_bytes;
+			if (test_bit(ALSA_PLAYBACK_RUNNING, &ua->states))
+				do_period_elapsed |= copy_playback_data(&ua->playback,
+									&urb->urb,
+									frames);
+			else
+				memset(urb->urb.transfer_buffer, 0,
+				       urb->urb.iso_frame_desc[0].length);
 
-		/* and off you go ... */
-		err = usb_submit_urb(&urb->urb, GFP_ATOMIC);
-		if (unlikely(err < 0)) {
-			spin_unlock_irqrestore(&ua->lock, flags);
-			abort_usb_playback(ua);
-			abort_alsa_playback(ua);
-			dev_err(&ua->dev->dev, "USB request error %d: %s\n",
-				err, usb_error_string(err));
-			return;
+			/* and off you go ... */
+			err = usb_submit_urb(&urb->urb, GFP_ATOMIC);
+			if (unlikely(err < 0)) {
+				abort_usb_playback(ua);
+				abort_alsa_playback(ua);
+				dev_err(&ua->dev->dev, "USB request error %d: %s\n",
+					err, usb_error_string(err));
+				return;
+			}
+			ua->playback.substream->runtime->delay += frames;
 		}
-		ua->playback.substream->runtime->delay += frames;
 	}
-	spin_unlock_irqrestore(&ua->lock, flags);
+
 	if (do_period_elapsed)
 		snd_pcm_period_elapsed(ua->playback.substream);
 }
@@ -347,7 +344,6 @@ static void capture_urb_complete(struct urb *urb)
 {
 	struct ua101 *ua = urb->context;
 	struct ua101_stream *stream = &ua->capture;
-	unsigned long flags;
 	unsigned int frames, write_ptr;
 	bool do_period_elapsed;
 	int err;
@@ -364,46 +360,44 @@ static void capture_urb_complete(struct urb *urb)
 	else
 		frames = 0;
 
-	spin_lock_irqsave(&ua->lock, flags);
+	scoped_guard(spinlock_irqsave, &ua->lock) {
 
-	if (frames > 0 && test_bit(ALSA_CAPTURE_RUNNING, &ua->states))
-		do_period_elapsed = copy_capture_data(stream, urb, frames);
-	else
-		do_period_elapsed = false;
+		if (frames > 0 && test_bit(ALSA_CAPTURE_RUNNING, &ua->states))
+			do_period_elapsed = copy_capture_data(stream, urb, frames);
+		else
+			do_period_elapsed = false;
 
-	if (test_bit(USB_CAPTURE_RUNNING, &ua->states)) {
-		err = usb_submit_urb(urb, GFP_ATOMIC);
-		if (unlikely(err < 0)) {
-			spin_unlock_irqrestore(&ua->lock, flags);
-			dev_err(&ua->dev->dev, "USB request error %d: %s\n",
-				err, usb_error_string(err));
-			goto stream_stopped;
+		if (test_bit(USB_CAPTURE_RUNNING, &ua->states)) {
+			err = usb_submit_urb(urb, GFP_ATOMIC);
+			if (unlikely(err < 0)) {
+				dev_err(&ua->dev->dev, "USB request error %d: %s\n",
+					err, usb_error_string(err));
+				goto stream_stopped;
+			}
+
+			/* append packet size to FIFO */
+			write_ptr = ua->rate_feedback_start;
+			add_with_wraparound(ua, &write_ptr, ua->rate_feedback_count);
+			ua->rate_feedback[write_ptr] = frames;
+			if (ua->rate_feedback_count < ua->playback.queue_length) {
+				ua->rate_feedback_count++;
+				if (ua->rate_feedback_count ==
+				    ua->playback.queue_length)
+					wake_up(&ua->rate_feedback_wait);
+			} else {
+				/*
+				 * Ring buffer overflow; this happens when the playback
+				 * stream is not running.  Throw away the oldest entry,
+				 * so that the playback stream, when it starts, sees
+				 * the most recent packet sizes.
+				 */
+				add_with_wraparound(ua, &ua->rate_feedback_start, 1);
+			}
+			if (test_bit(USB_PLAYBACK_RUNNING, &ua->states) &&
+			    !list_empty(&ua->ready_playback_urbs))
+				queue_work(system_highpri_wq, &ua->playback_work);
 		}
-
-		/* append packet size to FIFO */
-		write_ptr = ua->rate_feedback_start;
-		add_with_wraparound(ua, &write_ptr, ua->rate_feedback_count);
-		ua->rate_feedback[write_ptr] = frames;
-		if (ua->rate_feedback_count < ua->playback.queue_length) {
-			ua->rate_feedback_count++;
-			if (ua->rate_feedback_count ==
-						ua->playback.queue_length)
-				wake_up(&ua->rate_feedback_wait);
-		} else {
-			/*
-			 * Ring buffer overflow; this happens when the playback
-			 * stream is not running.  Throw away the oldest entry,
-			 * so that the playback stream, when it starts, sees
-			 * the most recent packet sizes.
-			 */
-			add_with_wraparound(ua, &ua->rate_feedback_start, 1);
-		}
-		if (test_bit(USB_PLAYBACK_RUNNING, &ua->states) &&
-		    !list_empty(&ua->ready_playback_urbs))
-			queue_work(system_highpri_wq, &ua->playback_work);
 	}
-
-	spin_unlock_irqrestore(&ua->lock, flags);
 
 	if (do_period_elapsed)
 		snd_pcm_period_elapsed(stream->substream);
@@ -558,9 +552,9 @@ static int start_usb_playback(struct ua101 *ua)
 	clear_bit(PLAYBACK_URB_COMPLETED, &ua->states);
 	ua->playback.urbs[0]->urb.complete =
 		first_playback_urb_complete;
-	spin_lock_irq(&ua->lock);
-	INIT_LIST_HEAD(&ua->ready_playback_urbs);
-	spin_unlock_irq(&ua->lock);
+	scoped_guard(spinlock_irq, &ua->lock) {
+		INIT_LIST_HEAD(&ua->ready_playback_urbs);
+	}
 
 	/*
 	 * We submit the initial URBs all at once, so we have to wait for the
@@ -581,11 +575,11 @@ static int start_usb_playback(struct ua101 *ua)
 
 	for (i = 0; i < ua->playback.queue_length; ++i) {
 		/* all initial URBs contain silence */
-		spin_lock_irq(&ua->lock);
-		frames = ua->rate_feedback[ua->rate_feedback_start];
-		add_with_wraparound(ua, &ua->rate_feedback_start, 1);
-		ua->rate_feedback_count--;
-		spin_unlock_irq(&ua->lock);
+		scoped_guard(spinlock_irq, &ua->lock) {
+			frames = ua->rate_feedback[ua->rate_feedback_start];
+			add_with_wraparound(ua, &ua->rate_feedback_start, 1);
+			ua->rate_feedback_count--;
+		}
 		urb = &ua->playback.urbs[i]->urb;
 		urb->iso_frame_desc[0].length =
 			frames * ua->playback.frame_bytes;
@@ -834,13 +828,8 @@ static int playback_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 static inline snd_pcm_uframes_t ua101_pcm_pointer(struct ua101 *ua,
 						  struct ua101_stream *stream)
 {
-	unsigned long flags;
-	unsigned int pos;
-
-	spin_lock_irqsave(&ua->lock, flags);
-	pos = stream->buffer_pos;
-	spin_unlock_irqrestore(&ua->lock, flags);
-	return pos;
+	guard(spinlock_irqsave)(&ua->lock);
+	return stream->buffer_pos;
 }
 
 static snd_pcm_uframes_t capture_pcm_pointer(struct snd_pcm_substream *subs)
