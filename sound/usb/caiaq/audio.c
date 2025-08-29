@@ -51,29 +51,24 @@ static void
 activate_substream(struct snd_usb_caiaqdev *cdev,
 	           struct snd_pcm_substream *sub)
 {
-	spin_lock(&cdev->spinlock);
+	guard(spinlock)(&cdev->spinlock);
 
 	if (sub->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		cdev->sub_playback[sub->number] = sub;
 	else
 		cdev->sub_capture[sub->number] = sub;
-
-	spin_unlock(&cdev->spinlock);
 }
 
 static void
 deactivate_substream(struct snd_usb_caiaqdev *cdev,
 		     struct snd_pcm_substream *sub)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&cdev->spinlock, flags);
+	guard(spinlock_irqsave)(&cdev->spinlock);
 
 	if (sub->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		cdev->sub_playback[sub->number] = NULL;
 	else
 		cdev->sub_capture[sub->number] = NULL;
-
-	spin_unlock_irqrestore(&cdev->spinlock, flags);
 }
 
 static int
@@ -285,25 +280,18 @@ snd_usb_caiaq_pcm_pointer(struct snd_pcm_substream *sub)
 {
 	int index = sub->number;
 	struct snd_usb_caiaqdev *cdev = snd_pcm_substream_chip(sub);
-	snd_pcm_uframes_t ptr;
 
-	spin_lock(&cdev->spinlock);
+	guard(spinlock)(&cdev->spinlock);
 
-	if (cdev->input_panic || cdev->output_panic) {
-		ptr = SNDRV_PCM_POS_XRUN;
-		goto unlock;
-	}
+	if (cdev->input_panic || cdev->output_panic)
+		return SNDRV_PCM_POS_XRUN;
 
 	if (sub->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		ptr = bytes_to_frames(sub->runtime,
-					cdev->audio_out_buf_pos[index]);
+		return bytes_to_frames(sub->runtime,
+				       cdev->audio_out_buf_pos[index]);
 	else
-		ptr = bytes_to_frames(sub->runtime,
-					cdev->audio_in_buf_pos[index]);
-
-unlock:
-	spin_unlock(&cdev->spinlock);
-	return ptr;
+		return bytes_to_frames(sub->runtime,
+				       cdev->audio_in_buf_pos[index]);
 }
 
 /* operators for both playback and capture */
@@ -601,7 +589,6 @@ static void read_completed(struct urb *urb)
 	struct device *dev;
 	struct urb *out = NULL;
 	int i, frame, len, send_it = 0, outframe = 0;
-	unsigned long flags;
 	size_t offset = 0;
 
 	if (urb->status || !info)
@@ -638,10 +625,10 @@ static void read_completed(struct urb *urb)
 		offset += len;
 
 		if (len > 0) {
-			spin_lock_irqsave(&cdev->spinlock, flags);
-			fill_out_urb(cdev, out, &out->iso_frame_desc[outframe]);
-			read_in_urb(cdev, urb, &urb->iso_frame_desc[frame]);
-			spin_unlock_irqrestore(&cdev->spinlock, flags);
+			scoped_guard(spinlock_irqsave, &cdev->spinlock) {
+				fill_out_urb(cdev, out, &out->iso_frame_desc[outframe]);
+				read_in_urb(cdev, urb, &urb->iso_frame_desc[frame]);
+			}
 			check_for_elapsed_periods(cdev, cdev->sub_playback);
 			check_for_elapsed_periods(cdev, cdev->sub_capture);
 			send_it = 1;
