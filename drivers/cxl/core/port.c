@@ -1607,7 +1607,7 @@ static struct cxl_dport *cxl_port_add_dport(struct cxl_port *port,
 	if (IS_ERR(new_dport))
 		return new_dport;
 
-	cxl_switch_parse_cdat(port);
+	cxl_switch_parse_cdat(new_dport);
 
 	if (ida_is_empty(&port->decoder_ida)) {
 		rc = devm_cxl_switch_port_decoders_setup(port);
