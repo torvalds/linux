@@ -552,6 +552,16 @@ config VIDEO_OV5695
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov5695.
 
+config VIDEO_OV6211
+	tristate "OmniVision OV6211 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV6211 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov6211.
+
 config VIDEO_OV64A40
 	tristate "OmniVision OV64A40 sensor support"
 	select V4L2_CCI_I2C
