@@ -103,8 +103,23 @@ pub struct Error(NonZeroI32);
 impl Error {
     /// Creates an [`Error`] from a kernel error code.
     ///
-    /// It is a bug to pass an out-of-range `errno`. `EINVAL` would
-    /// be returned in such a case.
+    /// `errno` must be within error code range (i.e. `>= -MAX_ERRNO && < 0`).
+    ///
+    /// It is a bug to pass an out-of-range `errno`. [`code::EINVAL`] is returned in such a case.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// assert_eq!(Error::from_errno(-1), EPERM);
+    /// assert_eq!(Error::from_errno(-2), ENOENT);
+    /// ```
+    ///
+    /// The following calls are considered a bug:
+    ///
+    /// ```
+    /// assert_eq!(Error::from_errno(0), EINVAL);
+    /// assert_eq!(Error::from_errno(-1000000), EINVAL);
+    /// ```
     pub fn from_errno(errno: crate::ffi::c_int) -> Error {
         if let Some(error) = Self::try_from_errno(errno) {
             error
