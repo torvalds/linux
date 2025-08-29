@@ -446,27 +446,25 @@ snd_nm256_set_format(struct nm256 *chip, struct nm256_stream *s,
 /* acquire interrupt */
 static int snd_nm256_acquire_irq(struct nm256 *chip)
 {
-	mutex_lock(&chip->irq_mutex);
+	guard(mutex)(&chip->irq_mutex);
 	if (chip->irq < 0) {
 		if (request_irq(chip->pci->irq, chip->interrupt, IRQF_SHARED,
 				KBUILD_MODNAME, chip)) {
 			dev_err(chip->card->dev,
 				"unable to grab IRQ %d\n", chip->pci->irq);
-			mutex_unlock(&chip->irq_mutex);
 			return -EBUSY;
 		}
 		chip->irq = chip->pci->irq;
 		chip->card->sync_irq = chip->irq;
 	}
 	chip->irq_acks++;
-	mutex_unlock(&chip->irq_mutex);
 	return 0;
 }
 
 /* release interrupt */
 static void snd_nm256_release_irq(struct nm256 *chip)
 {
-	mutex_lock(&chip->irq_mutex);
+	guard(mutex)(&chip->irq_mutex);
 	if (chip->irq_acks > 0)
 		chip->irq_acks--;
 	if (chip->irq_acks == 0 && chip->irq >= 0) {
@@ -474,7 +472,6 @@ static void snd_nm256_release_irq(struct nm256 *chip)
 		chip->irq = -1;
 		chip->card->sync_irq = -1;
 	}
-	mutex_unlock(&chip->irq_mutex);
 }
 
 /*
