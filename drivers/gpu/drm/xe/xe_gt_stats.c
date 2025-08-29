@@ -50,3 +50,17 @@ int xe_gt_stats_print_info(struct xe_gt *gt, struct drm_printer *p)
 
 	return 0;
 }
+
+/**
+ * xe_gt_stats_clear - Clear the GT stats
+ * @gt: GT structure
+ *
+ * This clear (zeros) all the available GT stats.
+ */
+void xe_gt_stats_clear(struct xe_gt *gt)
+{
+	int id;
+
+	for (id = 0; id < ARRAY_SIZE(gt->stats.counters); ++id)
+		atomic64_set(&gt->stats.counters[id], 0);
+}
