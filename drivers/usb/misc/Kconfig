@@ -232,8 +232,8 @@ config USB_EHSET_TEST_FIXTURE
 	  VID/PID pairs. This driver then initiates a corresponding test mode on
 	  the downstream port to which the test fixture is attached.
 
-	  See <http://www.usb.org/developers/onthego/EHSET_v1.01.pdf> for more
-	  information.
+	  See <https://www.usb.org/sites/default/files/EHSET_v1.01%281%29.pdf>
+	  for more information.
 
 config USB_ISIGHTFW
 	tristate "iSight firmware loading support"
