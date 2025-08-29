@@ -684,24 +684,21 @@ static int snd_vt1724_set_pro_rate(struct snd_ice1712 *ice, unsigned int rate,
 	return 0;
 }
 
-static int snd_vt1724_pcm_hw_params(struct snd_pcm_substream *substream,
-				    struct snd_pcm_hw_params *hw_params)
+static int __snd_vt1724_pcm_hw_params(struct snd_pcm_substream *substream,
+				      struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
 	int i, chs;
 
 	chs = params_channels(hw_params);
-	mutex_lock(&ice->open_mutex);
 	/* mark surround channels */
 	if (substream == ice->playback_pro_substream) {
 		/* PDMA0 can be multi-channel up to 8 */
 		chs = chs / 2 - 1;
 		for (i = 0; i < chs; i++) {
 			if (ice->pcm_reserved[i] &&
-			    ice->pcm_reserved[i] != substream) {
-				mutex_unlock(&ice->open_mutex);
+			    ice->pcm_reserved[i] != substream)
 				return -EBUSY;
-			}
 			ice->pcm_reserved[i] = substream;
 		}
 		for (; i < 3; i++) {
@@ -713,16 +710,28 @@ static int snd_vt1724_pcm_hw_params(struct snd_pcm_substream *substream,
 			/* check individual playback stream */
 			if (ice->playback_con_substream_ds[i] == substream) {
 				if (ice->pcm_reserved[i] &&
-				    ice->pcm_reserved[i] != substream) {
-					mutex_unlock(&ice->open_mutex);
+				    ice->pcm_reserved[i] != substream)
 					return -EBUSY;
-				}
 				ice->pcm_reserved[i] = substream;
 				break;
 			}
 		}
 	}
-	mutex_unlock(&ice->open_mutex);
+
+	return 0;
+}
+
+static int snd_vt1724_pcm_hw_params(struct snd_pcm_substream *substream,
+				    struct snd_pcm_hw_params *hw_params)
+{
+	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
+	int err;
+
+	scoped_guard(mutex, &ice->open_mutex) {
+		err = __snd_vt1724_pcm_hw_params(substream, hw_params);
+		if (err < 0)
+			return err;
+	}
 
 	return snd_vt1724_set_pro_rate(ice, params_rate(hw_params), 0);
 }
@@ -732,12 +741,11 @@ static int snd_vt1724_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
 	int i;
 
-	mutex_lock(&ice->open_mutex);
+	guard(mutex)(&ice->open_mutex);
 	/* unmark surround channels */
 	for (i = 0; i < 3; i++)
 		if (ice->pcm_reserved[i] == substream)
 			ice->pcm_reserved[i] = NULL;
-	mutex_unlock(&ice->open_mutex);
 	return 0;
 }
 
@@ -1013,18 +1021,18 @@ static int snd_vt1724_playback_pro_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 	snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
 	set_rate_constraints(ice, substream);
-	mutex_lock(&ice->open_mutex);
-	/* calculate the currently available channels */
-	num_indeps = ice->num_total_dacs / 2 - 1;
-	for (chs = 0; chs < num_indeps; chs++) {
-		if (ice->pcm_reserved[chs])
-			break;
+	scoped_guard(mutex, &ice->open_mutex) {
+		/* calculate the currently available channels */
+		num_indeps = ice->num_total_dacs / 2 - 1;
+		for (chs = 0; chs < num_indeps; chs++) {
+			if (ice->pcm_reserved[chs])
+				break;
+		}
+		chs = (chs + 1) * 2;
+		runtime->hw.channels_max = chs;
+		if (chs > 2) /* channels must be even */
+			snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 	}
-	chs = (chs + 1) * 2;
-	runtime->hw.channels_max = chs;
-	if (chs > 2) /* channels must be even */
-		snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS, 2);
-	mutex_unlock(&ice->open_mutex);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
 				   VT1724_BUFFER_ALIGN);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
@@ -1367,13 +1375,11 @@ static int snd_vt1724_playback_indep_open(struct snd_pcm_substream *substream)
 	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	mutex_lock(&ice->open_mutex);
-	/* already used by PDMA0? */
-	if (ice->pcm_reserved[substream->number]) {
-		mutex_unlock(&ice->open_mutex);
-		return -EBUSY; /* FIXME: should handle blocking mode properly */
+	scoped_guard(mutex, &ice->open_mutex) {
+		/* already used by PDMA0? */
+		if (ice->pcm_reserved[substream->number])
+			return -EBUSY; /* FIXME: should handle blocking mode properly */
 	}
-	mutex_unlock(&ice->open_mutex);
 	runtime->private_data = (void *)&vt1724_playback_dma_regs[substream->number];
 	ice->playback_con_substream_ds[substream->number] = substream;
 	runtime->hw = snd_vt1724_2ch_stereo;
@@ -2220,13 +2226,12 @@ unsigned char snd_vt1724_read_i2c(struct snd_ice1712 *ice,
 {
 	unsigned char val;
 
-	mutex_lock(&ice->i2c_mutex);
+	guard(mutex)(&ice->i2c_mutex);
 	wait_i2c_busy(ice);
 	outb(addr, ICEREG1724(ice, I2C_BYTE_ADDR));
 	outb(dev & ~VT1724_I2C_WRITE, ICEREG1724(ice, I2C_DEV_ADDR));
 	wait_i2c_busy(ice);
 	val = inb(ICEREG1724(ice, I2C_DATA));
-	mutex_unlock(&ice->i2c_mutex);
 	/*
 	dev_dbg(ice->card->dev, "i2c_read: [0x%x,0x%x] = 0x%x\n", dev, addr, val);
 	*/
@@ -2236,7 +2241,7 @@ unsigned char snd_vt1724_read_i2c(struct snd_ice1712 *ice,
 void snd_vt1724_write_i2c(struct snd_ice1712 *ice,
 			  unsigned char dev, unsigned char addr, unsigned char data)
 {
-	mutex_lock(&ice->i2c_mutex);
+	guard(mutex)(&ice->i2c_mutex);
 	wait_i2c_busy(ice);
 	/*
 	dev_dbg(ice->card->dev, "i2c_write: [0x%x,0x%x] = 0x%x\n", dev, addr, data);
@@ -2245,7 +2250,6 @@ void snd_vt1724_write_i2c(struct snd_ice1712 *ice,
 	outb(data, ICEREG1724(ice, I2C_DATA));
 	outb(dev | VT1724_I2C_WRITE, ICEREG1724(ice, I2C_DEV_ADDR));
 	wait_i2c_busy(ice);
-	mutex_unlock(&ice->i2c_mutex);
 }
 
 static int snd_vt1724_read_eeprom(struct snd_ice1712 *ice,
