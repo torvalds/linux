@@ -369,6 +369,12 @@ void mpage_readahead(struct readahead_control *rac, get_block_t get_block)
 		args.folio = folio;
 		args.nr_pages = readahead_count(rac);
 		args.bio = do_mpage_readpage(&args);
+		/*
+		 * If read ahead failed synchronously, it may cause by removed
+		 * device, or some filesystem metadata error.
+		 */
+		if (!folio_test_locked(folio) && !folio_test_uptodate(folio))
+			break;
 	}
 	if (args.bio)
 		mpage_bio_submit_read(args.bio);
