@@ -315,12 +315,10 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
 	if (snd_BUG_ON(!hdr))
 		return NULL;
 
-	mutex_lock(&hdr->block_mutex);
+	guard(mutex)(&hdr->block_mutex);
 	blk = search_empty(emu, runtime->dma_bytes);
-	if (blk == NULL) {
-		mutex_unlock(&hdr->block_mutex);
+	if (blk == NULL)
 		return NULL;
-	}
 	/* fill buffer addresses but pointers are not stored so that
 	 * snd_free_pci_page() is not called in synth_free()
 	 */
@@ -335,7 +333,6 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
 		if (! is_valid_page(emu, addr)) {
 			dev_err_ratelimited(emu->card->dev,
 				"emu: failure page = %d\n", idx);
-			mutex_unlock(&hdr->block_mutex);
 			return NULL;
 		}
 		emu->page_addr_table[page] = addr;
@@ -347,10 +344,8 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
 	err = snd_emu10k1_memblk_map(emu, blk);
 	if (err < 0) {
 		__snd_util_mem_free(hdr, (struct snd_util_memblk *)blk);
-		mutex_unlock(&hdr->block_mutex);
 		return NULL;
 	}
-	mutex_unlock(&hdr->block_mutex);
 	return (struct snd_util_memblk *)blk;
 }
 
@@ -407,19 +402,15 @@ snd_emu10k1_synth_alloc(struct snd_emu10k1 *hw, unsigned int size)
 	struct snd_emu10k1_memblk *blk;
 	struct snd_util_memhdr *hdr = hw->memhdr; 
 
-	mutex_lock(&hdr->block_mutex);
+	guard(mutex)(&hdr->block_mutex);
 	blk = (struct snd_emu10k1_memblk *)__snd_util_mem_alloc(hdr, size);
-	if (blk == NULL) {
-		mutex_unlock(&hdr->block_mutex);
+	if (blk == NULL)
 		return NULL;
-	}
 	if (synth_alloc_pages(hw, blk)) {
 		__snd_util_mem_free(hdr, (struct snd_util_memblk *)blk);
-		mutex_unlock(&hdr->block_mutex);
 		return NULL;
 	}
 	snd_emu10k1_memblk_map(hw, blk);
-	mutex_unlock(&hdr->block_mutex);
 	return (struct snd_util_memblk *)blk;
 }
 
@@ -435,14 +426,13 @@ snd_emu10k1_synth_free(struct snd_emu10k1 *emu, struct snd_util_memblk *memblk)
 	struct snd_emu10k1_memblk *blk = (struct snd_emu10k1_memblk *)memblk;
 	unsigned long flags;
 
-	mutex_lock(&hdr->block_mutex);
+	guard(mutex)(&hdr->block_mutex);
 	spin_lock_irqsave(&emu->memblk_lock, flags);
 	if (blk->mapped_page >= 0)
 		unmap_memblk(emu, blk);
 	spin_unlock_irqrestore(&emu->memblk_lock, flags);
 	synth_free_pages(emu, blk);
 	__snd_util_mem_free(hdr, memblk);
-	mutex_unlock(&hdr->block_mutex);
 	return 0;
 }
 
