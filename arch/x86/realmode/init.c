@@ -221,3 +221,5 @@ static int __init do_init_real_mode(void)
 	return 0;
 }
 early_initcall(do_init_real_mode);
+
+// Local fallback improvement: appended a small comment.
