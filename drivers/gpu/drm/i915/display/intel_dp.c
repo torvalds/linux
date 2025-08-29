@@ -27,6 +27,7 @@
 
 #include <linux/export.h>
 #include <linux/i2c.h>
+#include <linux/iopoll.h>
 #include <linux/log2.h>
 #include <linux/math.h>
 #include <linux/notifier.h>
@@ -5662,14 +5663,9 @@ bool intel_digital_port_connected_locked(struct intel_encoder *encoder)
 	intel_wakeref_t wakeref;
 
 	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref) {
-		unsigned long wait_expires = jiffies + msecs_to_jiffies_timeout(4);
-
-		do {
-			is_connected = dig_port->connected(encoder);
-			if (is_connected || is_glitch_free)
-				break;
-			usleep_range(10, 30);
-		} while (time_before(jiffies, wait_expires));
+		poll_timeout_us(is_connected = dig_port->connected(encoder),
+				is_connected || is_glitch_free,
+				30, 4000, false);
 	}
 
 	return is_connected;
