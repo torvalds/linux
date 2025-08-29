@@ -119,7 +119,8 @@ enum {
 #define PCI_CB_BRIDGE_MEM_1_WINDOW	(PCI_BRIDGE_RESOURCES + 3)
 
 /* Total number of bridge resources for P2P and CardBus */
-#define PCI_BRIDGE_RESOURCE_NUM 4
+#define PCI_P2P_BRIDGE_RESOURCE_NUM	3
+#define PCI_BRIDGE_RESOURCE_NUM		4
 
 	/* Resources assigned to buses behind the bridge */
 	PCI_BRIDGE_RESOURCES,
