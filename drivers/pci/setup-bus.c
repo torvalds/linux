@@ -140,6 +140,34 @@ static void restore_dev_resource(struct pci_dev_resource *dev_res)
 	res->flags = dev_res->flags;
 }
 
+/*
+ * Helper function for sizing routines.  Assigned resources have non-NULL
+ * parent resource.
+ *
+ * Return first unassigned resource of the correct type.  If there is none,
+ * return first assigned resource of the correct type.  If none of the
+ * above, return NULL.
+ *
+ * Returning an assigned resource of the correct type allows the caller to
+ * distinguish between already assigned and no resource of the correct type.
+ */
+static struct resource *find_bus_resource_of_type(struct pci_bus *bus,
+						  unsigned long type_mask,
+						  unsigned long type)
+{
+	struct resource *r, *r_assigned = NULL;
+
+	pci_bus_for_each_resource(bus, r) {
+		if (r == &ioport_resource || r == &iomem_resource)
+			continue;
+		if (r && (r->flags & type_mask) == type && !r->parent)
+			return r;
+		if (r && (r->flags & type_mask) == type && !r_assigned)
+			r_assigned = r;
+	}
+	return r_assigned;
+}
+
 static bool pdev_resources_assignable(struct pci_dev *dev)
 {
 	u16 class = dev->class >> 8, command;
@@ -874,34 +902,6 @@ static void pci_bridge_check_ranges(struct pci_bus *bus)
 					PCI_PREF_RANGE_TYPE_64;
 		}
 	}
-}
-
-/*
- * Helper function for sizing routines.  Assigned resources have non-NULL
- * parent resource.
- *
- * Return first unassigned resource of the correct type.  If there is none,
- * return first assigned resource of the correct type.  If none of the
- * above, return NULL.
- *
- * Returning an assigned resource of the correct type allows the caller to
- * distinguish between already assigned and no resource of the correct type.
- */
-static struct resource *find_bus_resource_of_type(struct pci_bus *bus,
-						  unsigned long type_mask,
-						  unsigned long type)
-{
-	struct resource *r, *r_assigned = NULL;
-
-	pci_bus_for_each_resource(bus, r) {
-		if (r == &ioport_resource || r == &iomem_resource)
-			continue;
-		if (r && (r->flags & type_mask) == type && !r->parent)
-			return r;
-		if (r && (r->flags & type_mask) == type && !r_assigned)
-			r_assigned = r;
-	}
-	return r_assigned;
 }
 
 static resource_size_t calculate_iosize(resource_size_t size,
