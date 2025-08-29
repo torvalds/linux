@@ -130,38 +130,127 @@ graph TD
     style O fill:#fce4ec
 ```
 
-## 4. Monitoring Data Read Flow
+## 4. CPU Selection for Monitoring Data Read
 
-This diagram shows how monitoring data flows from MSRs through the architecture layer to the filesystem layer.
+This diagram focuses on the CPU selection logic from rdtgroup_mondata_show to mon_event_count, highlighting the decision making based on CPU state (nohz_full).
 
 ```mermaid
 graph TD
-    A[rdtgroup_mondata_show] --> C[Parse event/domain from kernfs]
-    C --> D[resctrl_arch_rmid_read]
+    A[rdtgroup_mondata_show] --> B[mon_event_read with cpumask]
     
-    D --> E[logical_rmid_to_physical_rmid]
-    E --> F[__rmid_read_phys]
+    B --> C[cpumask_any_housekeeping with RESCTRL_PICK_ANY_CPU]
+    C --> D[Selected CPU from domain cpumask]
     
-    F --> G[wrmsrl MSR_IA32_QM_EVTSEL]
-    F --> H[rdmsrl MSR_IA32_QM_CTR]
-    F --> I{Counter valid?}
-    I -->|Error bit set| J[Return -EIO]
-    I -->|Unavailable| K[Return -EINVAL]
-    I -->|Valid| L[Process counter value]
+    D --> E{tick_nohz_full_cpu?}
+    E -->|Yes - CPU is nohz_full| F[smp_call_function_any]
+    E -->|No - Regular CPU| G[smp_call_on_cpu]
     
-    L --> M[get_corrected_mbm_count]
-    L --> N[Apply mon_scale factor]
-    L --> O[Handle MBM overflow]
+    F --> H[Any CPU in cpumask can run mon_event_count]
+    G --> I[Specific CPU runs smp_mon_event_count]
     
-    M --> P[Apply hardware corrections]
-    O --> Q[Update arch_mbm_state]
+    H --> J[mon_event_count on selected CPU]
+    I --> K[smp_mon_event_count wrapper]
+    K --> J
     
+    style A fill:#e1f5fe
+    style B fill:#e8f5e8
+    style C fill:#fff3e0
+    style E fill:#f3e5f5
+    style F fill:#ffebee
+    style G fill:#f1f8e9
+```
+
+## 5. Perf CPU Selection for Counter Reads
+
+This diagram shows the CPU selection logic when reading perf counter values via read() syscall.
+
+```mermaid
+graph TD
+    A[perf_read syscall] --> B[__perf_event_read_cpu]
+    
+    B --> C{PMU has READ_SCOPE capability?}
+    C -->|Yes| D{Current CPU in PMU scope?}
+    C -->|No| E{PMU has READ_ACTIVE_PKG capability?}
+    
+    D -->|Yes| F[Read from current CPU]
+    D -->|No| E
+    
+    E -->|Yes| G{Current CPU same package?}
+    E -->|No| H[Must use event's original CPU]
+    
+    G -->|Yes| F
+    G -->|No| H
+    
+    F --> I[Direct PMU read call]
+    H --> J[smp_call_function_single to event_cpu]
+    J --> K[__perf_event_read on target CPU]
+    
+    style A fill:#e1f5fe
+    style B fill:#e8f5e8
+    style C fill:#fff3e0
+    style F fill:#f1f8e9
+    style H fill:#f3e5f5
+    style J fill:#ffebee
+```
+
+## 6. Monitoring Data Read Flow
+
+This diagram shows how monitoring data flows from MSRs through the architecture layer to the filesystem layer. Key functions:
+- `rdtgroup_mondata_show()` in `fs/resctrl/ctrlmondata.c:588`
+- `mon_event_read()` in `fs/resctrl/ctrlmondata.c:549` 
+- `mon_event_count()` in `fs/resctrl/monitor.c:455`
+- `resctrl_arch_rmid_read()` in `arch/x86/kernel/cpu/resctrl/monitor.c:227`
+- `__rmid_read_phys()` in `arch/x86/kernel/cpu/resctrl/monitor.c:141`
+
+```mermaid
+graph TD
+    A[rdtgroup_mondata_show] --> B[Extract event/domain from kernfs node]
+    B --> C[Create struct rmid_read]
+    C --> D[mon_event_read]
+    
+    D --> E[Pick CPU from domain cpumask]
+    E --> F[smp_call_on_cpu or smp_call_function_any]
+    F --> G[mon_event_count]
+    
+    G --> H[__mon_event_count]
+    H --> I[resctrl_arch_reset_rmid if first read]
+    H --> J[resctrl_arch_rmid_read]
+    
+    J --> K[logical_rmid_to_physical_rmid]
+    K --> L{SNC enabled?}
+    L -->|No| M[physical_rmid = logical_rmid]
+    L -->|Yes| N[physical_rmid = logical_rmid + node_offset]
+    
+    M --> O[__rmid_read_phys]
+    N --> O
+    
+    O --> P[wrmsr MSR_IA32_QM_EVTSEL with eventid + prmid]
+    P --> Q[rdmsrq MSR_IA32_QM_CTR]
+    Q --> R{Check error bits}
+    
+    R -->|Bit 63 RMID_VAL_ERROR| S[Return -EIO]
+    R -->|Bit 62 RMID_VAL_UNAVAIL| T[Return -EINVAL]
+    R -->|Valid| U{MBM Event?}
+    
+    U -->|Yes| V[get_arch_mbm_state]
+    U -->|No| W[Apply mon_scale factor]
+    
+    V --> X[mbm_overflow_count - Handle counter width]
+    X --> Y[get_corrected_mbm_count - Apply corrections]
+    Y --> Z[Update arch_mbm_state prev_msr and chunks]
+    Z --> AA[Apply mon_scale factor]
+    
+    W --> BB[Return final value]
+    AA --> BB
     
     style A fill:#e1f5fe
     style D fill:#e8f5e8
     style F fill:#fff3e0
-    style G fill:#f3e5f5
-    style H fill:#f3e5f5
+    style J fill:#f3e5f5
+    style O fill:#f1f8e9
+    style P fill:#fce4ec
+    style Q fill:#fce4ec
+    style V fill:#e1f5fe
 ```
 
 ## 4. MSR Access and Hardware Interface
@@ -188,6 +277,9 @@ graph TD
     D --> N[MSR_IA32_EVT_CFG_BASE 0xc0000400]
     
     E --> O[Event ID + RMID selection]
+    O --> OA[QOS_L3_OCCUP_EVENT_ID 0x01]
+    O --> OB[QOS_L3_MBM_TOTAL_EVENT_ID 0x02]
+    O --> OC[QOS_L3_MBM_LOCAL_EVENT_ID 0x03]
     F --> P[Counter value read]
     G --> Q[CLOSID/RMID association]
     
@@ -683,6 +775,295 @@ graph TD
     style J fill:#fce4ec
 ```
 
+## 18. RMID Limbo Mechanism Flow
+
+This diagram shows how freed RMIDs are managed through the limbo system to ensure metrics have drained before reuse.
+
+```mermaid
+graph TD
+    A[free_rmid] --> B{LLC occupancy monitoring enabled?}
+    B -->|No| C[list_add_tail rmid_free_lru]
+    B -->|Yes| D[add_rmid_to_limbo]
+    
+    D --> E[Mark RMID busy in rmid_busy_llc]
+    E --> F[list_add_tail rmid_limbo_lru]
+    F --> G[atomic_inc rmid_limbo_count]
+    
+    H[cqm_handle_limbo - Periodic worker] --> I[__check_limbo]
+    I --> J[for each RMID in rmid_limbo_lru]
+    J --> K[resctrl_arch_rmid_read QOS_L3_OCCUP_EVENT_ID]
+    
+    K --> L{LLC occupancy < threshold?}
+    L -->|No| M[Keep in limbo]
+    L -->|Yes| N[limbo_release_entry]
+    
+    N --> O[Clear RMID in rmid_busy_llc]
+    O --> P[list_move_tail to rmid_free_lru]
+    P --> Q[atomic_dec rmid_limbo_count]
+    
+    R[Configurable Parameters] --> S[resctrl_rmid_realloc_threshold]
+    R --> T[CQM_LIMBOCHECK_INTERVAL = 1000ms]
+    
+    U[Force Release Option] --> V[limbo_release_entry - Force cleanup]
+    V --> W[Used during resource cleanup]
+    
+    X[Tracing Support] --> Y[trace_mon_llc_occupancy_limbo]
+    Y --> Z[Debug RMID occupancy values]
+    
+    style A fill:#e1f5fe
+    style D fill:#fff3e0
+    style H fill:#e8f5e8
+    style I fill:#f3e5f5
+    style K fill:#f1f8e9
+    style N fill:#fce4ec
+    style R fill:#e1f5fe
+    style U fill:#ffebee
+    style X fill:#e8f5e8
+```
+
+## 19. RMID Allocation and Lifecycle Management
+
+This diagram shows the complete RMID lifecycle from allocation through limbo to reuse.
+
+```mermaid
+graph TD
+    A[rmid_alloc] --> B{rmid_free_lru empty?}
+    B -->|Yes| C[Return -ENOSPC]
+    B -->|No| D[list_first_entry rmid_free_lru]
+    
+    D --> E[list_del RMID from free list]
+    E --> F[Return allocated RMID]
+    
+    G[Resource Group Usage] --> H[RMID active monitoring]
+    H --> I[Tasks assigned CLOSID/RMID]
+    I --> J[MSR_IA32_PQR_ASSOC updates]
+    
+    K[Resource Group Deletion] --> L[free_rmid]
+    L --> M{LLC occupancy enabled?}
+    M -->|No| N[Immediate reuse - add to rmid_free_lru]
+    M -->|Yes| O[Limbo processing - add_rmid_to_limbo]
+    
+    O --> P[Domain Processing]
+    P --> Q[for each domain in L3 mon_domains]
+    Q --> R[set_bit rmid, d->rmid_busy_llc]
+    
+    S[Periodic Limbo Worker] --> T[mod_delayed_work cqm_limbo]
+    T --> U[Check interval: 1000ms]
+    U --> V[__check_limbo for each domain]
+    
+    V --> W[Read LLC occupancy for each limbo RMID]
+    W --> X{Occupancy < threshold?}
+    X -->|Yes| Y[Move to free list]
+    X -->|No| Z[Schedule next check]
+    
+    Y --> AA[Available for allocation]
+    Z --> AB[Remain in limbo]
+    
+    style A fill:#e1f5fe
+    style K fill:#e8f5e8
+    style O fill:#fff3e0
+    style P fill:#f3e5f5
+    style S fill:#f1f8e9
+    style V fill:#fce4ec
+    style Y fill:#e1f5fe
+```
+
+## 20. Complete rmdir Operation Flow: From Syscall to RDT_DELETED and RMID Limbo
+
+This diagram shows the complete call flow from the rmdir syscall on an rdtgroup through to where the group is marked as RDT_DELETED and the RMID is put on the limbo list. This flow is critical for understanding how safe measurement readings can occur even after deletion, since the RMID goes onto the limbo list ensuring gradual metric drainage.
+
+```mermaid
+graph TD
+    A[rmdir syscall] --> B[vfs_rmdir - fs/namei.c]
+    B --> C[kernfs_iop_rmdir - fs/kernfs/dir.c:1274]
+    C --> D[rdtgroup_rmdir - fs/resctrl/rdtgroup.c:3850]
+    
+    D --> E[rdtgroup_kn_lock_live]
+    E --> F{Group Type?}
+    
+    F -->|Control Group| G[rdtgroup_rmdir_ctrl - Line 3803]
+    F -->|Monitor Group| H[rdtgroup_rmdir_mon - Line 3755]
+    
+    G --> I[Move tasks to parent group]
+    G --> J[Set flags = RDT_DELETED - Line 3796]
+    G --> K[update_closid_rmid]
+    G --> L[rdtgroup_ctrl_remove]
+    
+    H --> M[Move tasks to parent group]
+    H --> N[Set flags = RDT_DELETED - Line 3780]
+    H --> O[update_closid_rmid]
+    H --> P[free_rmid - fs/resctrl/monitor.c:320]
+    
+    L --> Q[closid_free]
+    L --> R[kernfs_remove]
+    
+    P --> S{LLC occupancy monitoring enabled?}
+    S -->|No| T[list_add_tail rmid_free_lru - Immediate reuse]
+    S -->|Yes| U[add_rmid_to_limbo - Line 340]
+    
+    U --> V[add_rmid_to_limbo - Line 289-318]
+    V --> W[Mark RMID busy in all domains]
+    V --> X[set_bit idx, d->rmid_busy_llc]
+    V --> Y[entry->busy++]
+    V --> Z[rmid_limbo_count++ - Line 315]
+    V --> AA[Setup limbo handler if needed]
+    
+    AA --> BB[cqm_setup_limbo_handler]
+    BB --> CC[schedule_delayed_work cqm_limbo]
+    
+    DD[Async: cqm_handle_limbo - Line 651] --> EE[__check_limbo]
+    EE --> FF[Read LLC occupancy for limbo RMIDs]
+    FF --> GG{Occupancy < threshold?}
+    GG -->|Yes| HH[limbo_release_entry]
+    GG -->|No| II[Schedule next check]
+    
+    HH --> JJ[Clear RMID busy bit]
+    HH --> KK[Move to rmid_free_lru]
+    HH --> LL[rmid_limbo_count--]
+    
+    MM[Safety Mechanism] --> NN[RDT_DELETED flag prevents new operations]
+    NN --> OO[RMID in limbo ensures safe measurements]
+    OO --> PP[Gradual metric drainage before reuse]
+    
+    KK[Reference Management] --> QQ[rdtgroup_kn_unlock]
+    QQ --> RR[rdtgroup_kn_put]
+    RR --> SS{waitcount == 0 && RDT_DELETED?}
+    SS -->|Yes| TT[rdtgroup_remove - Final cleanup]
+    SS -->|No| UU[Keep structure alive]
+    
+    style A fill:#e1f5fe
+    style D fill:#e8f5e8
+    style J fill:#ffebee
+    style N fill:#ffebee
+    style P fill:#fff3e0
+    style U fill:#f3e5f5
+    style V fill:#f1f8e9
+    style DD fill:#fce4ec
+    style MM fill:#e8f5e8
+    style SS fill:#fff3e0
+```
+
+## 20a. Compact rmdir Flow for Presentation Slides
+
+This is a simplified version of the rmdir flow optimized for presentation slides - focusing on monitor group deletion with LLC occupancy monitoring enabled, including active reference draining.
+
+```mermaid
+graph TD
+    A[rmdir syscall] --> B[vfs_rmdir]
+    B --> C[kernfs_iop_rmdir]  
+    C --> D[rdtgroup_rmdir]
+    
+    D --> E[rdtgroup_kn_lock_live]
+    E --> F[waitcount++ & break_active_protection]
+    F --> G[rdtgroup_rmdir_mon]
+    
+    G --> H[rdt_move_group_tasks]
+    G --> I[Set flags = RDT_DELETED]
+    G --> J[update_closid_rmid]
+    G --> K[free_rmid]
+    
+    K --> L[add_rmid_to_limbo]
+    L --> M[Mark RMID busy]
+    L --> N[rmid_limbo_count++]
+    L --> O[Schedule limbo worker]
+    
+    P[cqm_handle_limbo worker] --> Q[Check LLC occupancy]
+    Q --> R[Move to free list when drained]
+    
+    S[rdtgroup_kn_unlock] --> T[waitcount-- & unbreak_active_protection]
+    T --> U{waitcount == 0 & RDT_DELETED?}
+    U -->|Yes| V[Final cleanup]
+    U -->|No| W[Keep alive for other refs]
+    
+    style A fill:#e1f5fe
+    style D fill:#e8f5e8
+    style F fill:#fff3e0
+    style I fill:#ffebee
+    style K fill:#f3e5f5
+    style L fill:#f1f8e9
+    style P fill:#fce4ec
+    style U fill:#fff3e0
+```
+
+## 20b. Reference Counting Flow: open(), close(), and perf_event_open() to rdtgroup_get/put
+
+This diagram shows how file operations and PMU integration connect to rdtgroup reference counting.
+
+```mermaid
+graph TD
+    %% File Operations Path
+    A1[open mon_data file] --> B1[kernfs_fop_open]
+    B1 --> C1[rdtgroup_mondata_open]
+    C1 --> D1[rdtgroup_get]
+    
+    %% Close Operations Path  
+    E1[close fd] --> F1[kernfs_fop_release]
+    F1 --> G1[rdtgroup_mondata_release]
+    G1 --> H1[rdtgroup_put]
+    
+    %% PMU Integration Path
+    A2[perf_event_open with fd] --> B2[resctrl_event_init]
+    B2 --> C2[get_rdtgroup_from_fd]
+    C2 --> D2[rdtgroup_get]
+    
+    %% PMU Close Path
+    E2[perf event close] --> F2[resctrl_event_del]
+    F2 --> G2[rdtgroup_put]
+    
+    style A1 fill:#e1f5fe
+    style E1 fill:#ffebee
+    style A2 fill:#e8f5e8
+    style E2 fill:#ffebee
+    style D1 fill:#f3e5f5
+    style H1 fill:#f1f8e9
+    style D2 fill:#f3e5f5
+    style G2 fill:#f1f8e9
+```
+
+## 21. RMID Limbo Data Structures and Organization
+
+This diagram shows the key data structures involved in RMID limbo management.
+
+```mermaid
+graph TD
+    A[RMID Management Data Structures] --> B[Global Lists]
+    A --> C[Per-Domain State]
+    A --> D[Worker Infrastructure]
+    
+    B --> E[rmid_free_lru - Ready for allocation]
+    B --> F[rmid_limbo_lru - Draining metrics]
+    B --> G[rmid_limbo_count - Atomic counter]
+    
+    C --> H[struct rdt_mon_domain]
+    H --> I[rmid_busy_llc - Bitmap of limbo RMIDs]
+    H --> J[cqm_limbo - Delayed work struct]
+    H --> K[cqm_work_cpu - CPU for limbo worker]
+    
+    D --> L[cqm_handle_limbo - Worker function]
+    D --> M[__check_limbo - Core logic]
+    D --> N[limbo_release_entry - Release function]
+    
+    O[Configuration] --> P[resctrl_rmid_realloc_threshold]
+    P --> Q[Default: resctrl_rmid_realloc_limit]
+    P --> R[Sysfs configurable]
+    
+    O --> S[CQM_LIMBOCHECK_INTERVAL]
+    S --> T[Fixed: 1000 milliseconds]
+    
+    U[Synchronization] --> V[domain_list_lock mutex]
+    V --> W[Protects domain list operations]
+    
+    U --> X[rmid_busy_llc bitmap]
+    X --> Y[Atomic bit operations]
+    
+    style A fill:#e1f5fe
+    style B fill:#e8f5e8
+    style C fill:#fff3e0
+    style D fill:#f3e5f5
+    style O fill:#f1f8e9
+    style U fill:#fce4ec
+```
+
 ## Key Integration Points
 
 The diagrams show several critical integration points between the filesystem and architecture layers:
@@ -696,6 +1077,7 @@ The diagrams show several critical integration points between the filesystem and
 7. **Task Migration**: When groups are reparented, all associated tasks are moved and their MSRs are updated atomically
 8. **Pseudo-Lock Integration**: Mode transitions and cache loading operations bridge filesystem control with hardware-specific cache manipulation
 9. **Performance Measurement**: Provides comprehensive measurement capabilities using hardware performance counters and tracing
+10. **RMID Limbo Management**: Freed RMIDs are managed through a limbo system to ensure metrics have drained before reuse, preventing measurement interference
 
 ## Rename Operation Characteristics
 
@@ -719,5 +1101,18 @@ The pseudo-lock feature has several key characteristics:
 - **Resource Isolation**: Creates exclusive cache regions that cannot be evicted by other allocations
 - **Thread Safety**: Uses kernel threads and proper synchronization for cache loading operations
 - **Device Interface**: Provides character device and debugfs interfaces for user access and debugging
+
+## RMID Limbo Operation Characteristics
+
+The RMID limbo mechanism has several key characteristics:
+
+- **Metric Draining**: Prevents immediate reuse of freed RMIDs to allow cache occupancy metrics to drain below threshold
+- **Configurable Threshold**: Uses `resctrl_rmid_realloc_threshold` (configurable via sysfs) to determine when RMIDs can be reused
+- **Periodic Processing**: Delayed work runs every 1000ms (`CQM_LIMBOCHECK_INTERVAL`) to check limbo RMIDs
+- **Per-Domain Tracking**: Uses `rmid_busy_llc` bitmaps to track which RMIDs are in limbo per L3 cache domain
+- **Atomic Operations**: Uses atomic counters and bit operations for thread-safe RMID state management
+- **Force Release**: Supports forced cleanup during resource teardown to prevent resource leaks
+- **Tracing Support**: Includes `trace_mon_llc_occupancy_limbo()` events for debugging and monitoring
+- **Measurement Interference Prevention**: Ensures that reused RMIDs don't carry residual cache occupancy from previous usage
 
 These flows demonstrate how the ResCtrl subsystem maintains a clean separation between filesystem operations and hardware-specific implementation details while ensuring proper synchronization and error handling throughout the stack.
