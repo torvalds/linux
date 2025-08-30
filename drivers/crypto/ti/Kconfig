@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config CRYPTO_DEV_TI_DTHEV2
 	tristate "Support for TI DTHE V2 cryptography engine"
-	depends on CRYPTO && CRYPTO_HW && ARCH_K3
+	depends on ARCH_K3 || COMPILE_TEST
 	select CRYPTO_ENGINE
 	select CRYPTO_SKCIPHER
 	select CRYPTO_ECB
