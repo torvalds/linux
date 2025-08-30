@@ -2673,9 +2673,10 @@ config SENSORS_ASUS_EC
 	depends on ACPI_EC
 	help
 	  If you say yes here you get support for the ACPI embedded controller
-	  hardware monitoring interface found in ASUS motherboards. The driver
-	  currently supports B550/X570 boards, although other ASUS boards might
-	  provide this monitoring interface as well.
+	  hardware monitoring interface found in some ASUS motherboards. This is
+	  where such sensors as water flow and temperature, optional fans, and
+	  additional temperature sensors (T_Sensor, chipset temperatures)
+	  find themselves.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_ec_sensors.
