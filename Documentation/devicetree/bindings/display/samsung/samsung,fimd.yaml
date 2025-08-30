@@ -15,7 +15,6 @@ maintainers:
 properties:
   compatible:
     enum:
-      - samsung,s3c2443-fimd
       - samsung,s3c6400-fimd
       - samsung,s5pv210-fimd
       - samsung,exynos3250-fimd
