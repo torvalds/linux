@@ -103,12 +103,10 @@ hwdep_read_locked(struct snd_efw *efw, char __user *buf, long count,
 		.lock_status.type = SNDRV_FIREWIRE_EVENT_LOCK_STATUS,
 	};
 
-	spin_lock_irq(&efw->lock);
-
-	event.lock_status.status = (efw->dev_lock_count > 0);
-	efw->dev_lock_changed = false;
-
-	spin_unlock_irq(&efw->lock);
+	scoped_guard(spinlock_irq, &efw->lock) {
+		event.lock_status.status = (efw->dev_lock_count > 0);
+		efw->dev_lock_changed = false;
+	}
 
 	count = min_t(long, count, sizeof(event.lock_status));
 
@@ -192,13 +190,11 @@ hwdep_poll(struct snd_hwdep *hwdep, struct file *file, poll_table *wait)
 
 	poll_wait(file, &efw->hwdep_wait, wait);
 
-	spin_lock_irq(&efw->lock);
+	guard(spinlock_irq)(&efw->lock);
 	if (efw->dev_lock_changed || efw->pull_ptr != efw->push_ptr)
 		events = EPOLLIN | EPOLLRDNORM;
 	else
 		events = 0;
-	spin_unlock_irq(&efw->lock);
-
 	return events | EPOLLOUT;
 }
 
@@ -225,39 +221,27 @@ hwdep_get_info(struct snd_efw *efw, void __user *arg)
 static int
 hwdep_lock(struct snd_efw *efw)
 {
-	int err;
-
-	spin_lock_irq(&efw->lock);
+	guard(spinlock_irq)(&efw->lock);
 
 	if (efw->dev_lock_count == 0) {
 		efw->dev_lock_count = -1;
-		err = 0;
+		return 0;
 	} else {
-		err = -EBUSY;
+		return -EBUSY;
 	}
-
-	spin_unlock_irq(&efw->lock);
-
-	return err;
 }
 
 static int
 hwdep_unlock(struct snd_efw *efw)
 {
-	int err;
-
-	spin_lock_irq(&efw->lock);
+	guard(spinlock_irq)(&efw->lock);
 
 	if (efw->dev_lock_count == -1) {
 		efw->dev_lock_count = 0;
-		err = 0;
+		return 0;
 	} else {
-		err = -EBADFD;
+		return -EBADFD;
 	}
-
-	spin_unlock_irq(&efw->lock);
-
-	return err;
 }
 
 static int
@@ -265,10 +249,9 @@ hwdep_release(struct snd_hwdep *hwdep, struct file *file)
 {
 	struct snd_efw *efw = hwdep->private_data;
 
-	spin_lock_irq(&efw->lock);
+	guard(spinlock_irq)(&efw->lock);
 	if (efw->dev_lock_count == -1)
 		efw->dev_lock_count = 0;
-	spin_unlock_irq(&efw->lock);
 
 	return 0;
 }

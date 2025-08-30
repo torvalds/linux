@@ -188,32 +188,23 @@ EXPORT_SYMBOL(cmp_connection_destroy);
 int cmp_connection_reserve(struct cmp_connection *c,
 			   unsigned int max_payload_bytes)
 {
-	int err;
+	guard(mutex)(&c->mutex);
 
-	mutex_lock(&c->mutex);
-
-	if (WARN_ON(c->resources.allocated)) {
-		err = -EBUSY;
-		goto end;
-	}
+	if (WARN_ON(c->resources.allocated))
+		return -EBUSY;
 
 	c->speed = min(c->max_speed,
 		       fw_parent_device(c->resources.unit)->max_speed);
 
-	err = fw_iso_resources_allocate(&c->resources, max_payload_bytes,
-					c->speed);
-end:
-	mutex_unlock(&c->mutex);
-
-	return err;
+	return fw_iso_resources_allocate(&c->resources, max_payload_bytes,
+					 c->speed);
 }
 EXPORT_SYMBOL(cmp_connection_reserve);
 
 void cmp_connection_release(struct cmp_connection *c)
 {
-	mutex_lock(&c->mutex);
+	guard(mutex)(&c->mutex);
 	fw_iso_resources_free(&c->resources);
-	mutex_unlock(&c->mutex);
 }
 EXPORT_SYMBOL(cmp_connection_release);
 
@@ -304,12 +295,10 @@ int cmp_connection_establish(struct cmp_connection *c)
 {
 	int err;
 
-	mutex_lock(&c->mutex);
+	guard(mutex)(&c->mutex);
 
-	if (WARN_ON(c->connected)) {
-		mutex_unlock(&c->mutex);
+	if (WARN_ON(c->connected))
 		return -EISCONN;
-	}
 
 retry_after_bus_reset:
 	if (c->direction == CMP_OUTPUT)
@@ -326,8 +315,6 @@ retry_after_bus_reset:
 	}
 	if (err >= 0)
 		c->connected = true;
-
-	mutex_unlock(&c->mutex);
 
 	return err;
 }
@@ -350,19 +337,15 @@ void cmp_connection_break(struct cmp_connection *c)
 {
 	int err;
 
-	mutex_lock(&c->mutex);
+	guard(mutex)(&c->mutex);
 
-	if (!c->connected) {
-		mutex_unlock(&c->mutex);
+	if (!c->connected)
 		return;
-	}
 
 	err = pcr_modify(c, pcr_break_modify, NULL, SUCCEED_ON_BUS_RESET);
 	if (err < 0)
 		cmp_error(c, "plug is still connected\n");
 
 	c->connected = false;
-
-	mutex_unlock(&c->mutex);
 }
 EXPORT_SYMBOL(cmp_connection_break);

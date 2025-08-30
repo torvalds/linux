@@ -149,48 +149,41 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto err_locked;
 
-	mutex_lock(&bebob->mutex);
+	scoped_guard(mutex, &bebob->mutex) {
+		// When source of clock is not internal or any stream is reserved for
+		// transmission of PCM frames, the available sampling rate is limited
+		// at current one.
+		if (src == SND_BEBOB_CLOCK_TYPE_EXTERNAL ||
+		    (bebob->substreams_counter > 0 && d->events_per_period > 0)) {
+			unsigned int frames_per_period = d->events_per_period;
+			unsigned int frames_per_buffer = d->events_per_buffer;
+			unsigned int sampling_rate;
 
-	// When source of clock is not internal or any stream is reserved for
-	// transmission of PCM frames, the available sampling rate is limited
-	// at current one.
-	if (src == SND_BEBOB_CLOCK_TYPE_EXTERNAL ||
-	    (bebob->substreams_counter > 0 && d->events_per_period > 0)) {
-		unsigned int frames_per_period = d->events_per_period;
-		unsigned int frames_per_buffer = d->events_per_buffer;
-		unsigned int sampling_rate;
-
-		err = spec->get(bebob, &sampling_rate);
-		if (err < 0) {
-			mutex_unlock(&bebob->mutex);
-			dev_err(&bebob->unit->device,
-				"fail to get sampling rate: %d\n", err);
-			goto err_locked;
-		}
-
-		substream->runtime->hw.rate_min = sampling_rate;
-		substream->runtime->hw.rate_max = sampling_rate;
-
-		if (frames_per_period > 0) {
-			err = snd_pcm_hw_constraint_minmax(substream->runtime,
-					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
-					frames_per_period, frames_per_period);
+			err = spec->get(bebob, &sampling_rate);
 			if (err < 0) {
-				mutex_unlock(&bebob->mutex);
+				dev_err(&bebob->unit->device,
+					"fail to get sampling rate: %d\n", err);
 				goto err_locked;
 			}
 
-			err = snd_pcm_hw_constraint_minmax(substream->runtime,
-					SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
-					frames_per_buffer, frames_per_buffer);
-			if (err < 0) {
-				mutex_unlock(&bebob->mutex);
-				goto err_locked;
+			substream->runtime->hw.rate_min = sampling_rate;
+			substream->runtime->hw.rate_max = sampling_rate;
+
+			if (frames_per_period > 0) {
+				err = snd_pcm_hw_constraint_minmax(substream->runtime,
+								   SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+								   frames_per_period, frames_per_period);
+				if (err < 0)
+					goto err_locked;
+
+				err = snd_pcm_hw_constraint_minmax(substream->runtime,
+								   SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+								   frames_per_buffer, frames_per_buffer);
+				if (err < 0)
+					goto err_locked;
 			}
 		}
 	}
-
-	mutex_unlock(&bebob->mutex);
 
 	snd_pcm_set_sync(substream);
 
@@ -219,12 +212,11 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 		unsigned int frames_per_period = params_period_size(hw_params);
 		unsigned int frames_per_buffer = params_buffer_size(hw_params);
 
-		mutex_lock(&bebob->mutex);
+		guard(mutex)(&bebob->mutex);
 		err = snd_bebob_stream_reserve_duplex(bebob, rate,
 					frames_per_period, frames_per_buffer);
 		if (err >= 0)
 			++bebob->substreams_counter;
-		mutex_unlock(&bebob->mutex);
 	}
 
 	return err;
@@ -234,14 +226,12 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
 
-	mutex_lock(&bebob->mutex);
+	guard(mutex)(&bebob->mutex);
 
 	if (substream->runtime->state != SNDRV_PCM_STATE_OPEN)
 		bebob->substreams_counter--;
 
 	snd_bebob_stream_stop_duplex(bebob);
-
-	mutex_unlock(&bebob->mutex);
 
 	return 0;
 }
