@@ -16,9 +16,9 @@
 static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
 			struct netlink_callback *cb,
 			const struct inet_diag_req_v2 *req,
-			struct nlattr *bc, bool net_admin)
+			bool net_admin)
 {
-	if (!inet_diag_bc_sk(bc, sk))
+	if (!inet_diag_bc_sk(cb->data, sk))
 		return 0;
 
 	return inet_sk_diag_fill(sk, NULL, skb, cb, req, NLM_F_MULTI,
@@ -92,12 +92,8 @@ static void udp_dump(struct udp_table *table, struct sk_buff *skb,
 {
 	bool net_admin = netlink_net_capable(cb->skb, CAP_NET_ADMIN);
 	struct net *net = sock_net(skb->sk);
-	struct inet_diag_dump_data *cb_data;
 	int num, s_num, slot, s_slot;
-	struct nlattr *bc;
 
-	cb_data = cb->data;
-	bc = cb_data->inet_diag_nla_bc;
 	s_slot = cb->args[0];
 	num = s_num = cb->args[1];
 
@@ -130,7 +126,7 @@ static void udp_dump(struct udp_table *table, struct sk_buff *skb,
 			    r->id.idiag_dport)
 				goto next;
 
-			if (sk_diag_dump(sk, skb, cb, r, bc, net_admin) < 0) {
+			if (sk_diag_dump(sk, skb, cb, r, net_admin) < 0) {
 				spin_unlock_bh(&hslot->lock);
 				goto done;
 			}

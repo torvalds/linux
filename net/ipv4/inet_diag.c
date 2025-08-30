@@ -71,25 +71,25 @@ static void inet_diag_unlock_handler(const struct inet_diag_handler *handler)
 
 void inet_diag_msg_common_fill(struct inet_diag_msg *r, struct sock *sk)
 {
-	r->idiag_family = sk->sk_family;
+	r->idiag_family = READ_ONCE(sk->sk_family);
 
-	r->id.idiag_sport = htons(sk->sk_num);
-	r->id.idiag_dport = sk->sk_dport;
-	r->id.idiag_if = sk->sk_bound_dev_if;
+	r->id.idiag_sport = htons(READ_ONCE(sk->sk_num));
+	r->id.idiag_dport = READ_ONCE(sk->sk_dport);
+	r->id.idiag_if = READ_ONCE(sk->sk_bound_dev_if);
 	sock_diag_save_cookie(sk, r->id.idiag_cookie);
 
 #if IS_ENABLED(CONFIG_IPV6)
-	if (sk->sk_family == AF_INET6) {
-		*(struct in6_addr *)r->id.idiag_src = sk->sk_v6_rcv_saddr;
-		*(struct in6_addr *)r->id.idiag_dst = sk->sk_v6_daddr;
+	if (r->idiag_family == AF_INET6) {
+		data_race(*(struct in6_addr *)r->id.idiag_src = sk->sk_v6_rcv_saddr);
+		data_race(*(struct in6_addr *)r->id.idiag_dst = sk->sk_v6_daddr);
 	} else
 #endif
 	{
 	memset(&r->id.idiag_src, 0, sizeof(r->id.idiag_src));
 	memset(&r->id.idiag_dst, 0, sizeof(r->id.idiag_dst));
 
-	r->id.idiag_src[0] = sk->sk_rcv_saddr;
-	r->id.idiag_dst[0] = sk->sk_daddr;
+	r->id.idiag_src[0] = READ_ONCE(sk->sk_rcv_saddr);
+	r->id.idiag_dst[0] = READ_ONCE(sk->sk_daddr);
 	}
 }
 EXPORT_SYMBOL_GPL(inet_diag_msg_common_fill);
@@ -580,7 +580,7 @@ static void entry_fill_addrs(struct inet_diag_entry *entry,
 			     const struct sock *sk)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	if (sk->sk_family == AF_INET6) {
+	if (entry->family == AF_INET6) {
 		entry->saddr = sk->sk_v6_rcv_saddr.s6_addr32;
 		entry->daddr = sk->sk_v6_daddr.s6_addr32;
 	} else
@@ -591,31 +591,36 @@ static void entry_fill_addrs(struct inet_diag_entry *entry,
 	}
 }
 
-int inet_diag_bc_sk(const struct nlattr *bc, struct sock *sk)
+int inet_diag_bc_sk(const struct inet_diag_dump_data *cb_data, struct sock *sk)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	const struct nlattr *bc = cb_data->inet_diag_nla_bc;
+	const struct inet_sock *inet = inet_sk(sk);
 	struct inet_diag_entry entry;
 
 	if (!bc)
 		return 1;
 
-	entry.family = sk->sk_family;
+	entry.family = READ_ONCE(sk->sk_family);
 	entry_fill_addrs(&entry, sk);
-	entry.sport = inet->inet_num;
-	entry.dport = ntohs(inet->inet_dport);
-	entry.ifindex = sk->sk_bound_dev_if;
-	entry.userlocks = sk_fullsock(sk) ? sk->sk_userlocks : 0;
-	if (sk_fullsock(sk))
-		entry.mark = READ_ONCE(sk->sk_mark);
-	else if (sk->sk_state == TCP_NEW_SYN_RECV)
-		entry.mark = inet_rsk(inet_reqsk(sk))->ir_mark;
-	else if (sk->sk_state == TCP_TIME_WAIT)
-		entry.mark = inet_twsk(sk)->tw_mark;
-	else
-		entry.mark = 0;
+	entry.sport = READ_ONCE(inet->inet_num);
+	entry.dport = ntohs(READ_ONCE(inet->inet_dport));
+	entry.ifindex = READ_ONCE(sk->sk_bound_dev_if);
+	if (cb_data->userlocks_needed)
+		entry.userlocks = sk_fullsock(sk) ? READ_ONCE(sk->sk_userlocks) : 0;
+	if (cb_data->mark_needed) {
+		if (sk_fullsock(sk))
+			entry.mark = READ_ONCE(sk->sk_mark);
+		else if (sk->sk_state == TCP_NEW_SYN_RECV)
+			entry.mark = inet_rsk(inet_reqsk(sk))->ir_mark;
+		else if (sk->sk_state == TCP_TIME_WAIT)
+			entry.mark = inet_twsk(sk)->tw_mark;
+		else
+			entry.mark = 0;
+	}
 #ifdef CONFIG_SOCK_CGROUP_DATA
-	entry.cgroup_id = sk_fullsock(sk) ?
-		cgroup_id(sock_cgroup_ptr(&sk->sk_cgrp_data)) : 0;
+	if (cb_data->cgroup_needed)
+		entry.cgroup_id = sk_fullsock(sk) ?
+			cgroup_id(sock_cgroup_ptr(&sk->sk_cgrp_data)) : 0;
 #endif
 
 	return inet_diag_bc_run(bc, &entry);
@@ -715,16 +720,21 @@ static bool valid_cgroupcond(const struct inet_diag_bc_op *op, int len,
 }
 #endif
 
-static int inet_diag_bc_audit(const struct nlattr *attr,
+static int inet_diag_bc_audit(struct inet_diag_dump_data *cb_data,
 			      const struct sk_buff *skb)
 {
-	bool net_admin = netlink_net_capable(skb, CAP_NET_ADMIN);
+	const struct nlattr *attr = cb_data->inet_diag_nla_bc;
 	const void *bytecode, *bc;
 	int bytecode_len, len;
+	bool net_admin;
 
-	if (!attr || nla_len(attr) < sizeof(struct inet_diag_bc_op))
+	if (!attr)
+		return 0;
+
+	if (nla_len(attr) < sizeof(struct inet_diag_bc_op))
 		return -EINVAL;
 
+	net_admin = netlink_net_capable(skb, CAP_NET_ADMIN);
 	bytecode = bc = nla_data(attr);
 	len = bytecode_len = nla_len(attr);
 
@@ -756,14 +766,18 @@ static int inet_diag_bc_audit(const struct nlattr *attr,
 				return -EPERM;
 			if (!valid_markcond(bc, len, &min_len))
 				return -EINVAL;
+			cb_data->mark_needed = true;
 			break;
 #ifdef CONFIG_SOCK_CGROUP_DATA
 		case INET_DIAG_BC_CGROUP_COND:
 			if (!valid_cgroupcond(bc, len, &min_len))
 				return -EINVAL;
+			cb_data->cgroup_needed = true;
 			break;
 #endif
 		case INET_DIAG_BC_AUTO:
+			cb_data->userlocks_needed = true;
+			fallthrough;
 		case INET_DIAG_BC_JMP:
 		case INET_DIAG_BC_NOP:
 			break;
@@ -840,13 +854,10 @@ static int __inet_diag_dump_start(struct netlink_callback *cb, int hdrlen)
 		kfree(cb_data);
 		return err;
 	}
-	nla = cb_data->inet_diag_nla_bc;
-	if (nla) {
-		err = inet_diag_bc_audit(nla, skb);
-		if (err) {
-			kfree(cb_data);
-			return err;
-		}
+	err = inet_diag_bc_audit(cb_data, skb);
+	if (err) {
+		kfree(cb_data);
+		return err;
 	}
 
 	nla = cb_data->inet_diag_nla_bpf_stgs;

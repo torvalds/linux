@@ -248,12 +248,12 @@ static int tcp_req_diag_fill(struct sock *sk, struct sk_buff *skb,
 	inet_diag_msg_common_fill(r, sk);
 	r->idiag_state = TCP_SYN_RECV;
 	r->idiag_timer = 1;
-	r->idiag_retrans = reqsk->num_retrans;
+	r->idiag_retrans = READ_ONCE(reqsk->num_retrans);
 
 	BUILD_BUG_ON(offsetof(struct inet_request_sock, ir_cookie) !=
 		     offsetof(struct sock, sk_cookie));
 
-	tmo = inet_reqsk(sk)->rsk_timer.expires - jiffies;
+	tmo = READ_ONCE(inet_reqsk(sk)->rsk_timer.expires) - jiffies;
 	r->idiag_expires = jiffies_delta_to_msecs(tmo);
 	r->idiag_rqueue	= 0;
 	r->idiag_wqueue	= 0;
@@ -320,11 +320,9 @@ static void tcp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	u32 idiag_states = r->idiag_states;
 	struct inet_hashinfo *hashinfo;
 	int i, num, s_i, s_num;
-	struct nlattr *bc;
 	struct sock *sk;
 
 	hashinfo = net->ipv4.tcp_death_row.hashinfo;
-	bc = cb_data->inet_diag_nla_bc;
 	if (idiag_states & TCPF_SYN_RECV)
 		idiag_states |= TCPF_NEW_SYN_RECV;
 	s_i = cb->args[1];
@@ -365,7 +363,7 @@ static void tcp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 				    r->id.idiag_sport)
 					goto next_listen;
 
-				if (!inet_diag_bc_sk(bc, sk))
+				if (!inet_diag_bc_sk(cb_data, sk))
 					goto next_listen;
 
 				if (inet_sk_diag_fill(sk, inet_csk(sk), skb,
@@ -432,7 +430,7 @@ resume_bind_walk:
 					    r->sdiag_family != sk->sk_family)
 						goto next_bind;
 
-					if (!inet_diag_bc_sk(bc, sk))
+					if (!inet_diag_bc_sk(cb_data, sk))
 						goto next_bind;
 
 					sock_hold(sk);
@@ -519,7 +517,7 @@ next_chunk:
 				goto next_normal;
 			twsk_build_assert();
 
-			if (!inet_diag_bc_sk(bc, sk))
+			if (!inet_diag_bc_sk(cb_data, sk))
 				goto next_normal;
 
 			if (!refcount_inc_not_zero(&sk->sk_refcnt))
