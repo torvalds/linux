@@ -47,9 +47,8 @@ static int midi_close(struct snd_rawmidi_substream *substream)
 static void midi_capture_trigger(struct snd_rawmidi_substream *substrm, int up)
 {
 	struct snd_motu *motu = substrm->rmidi->private_data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&motu->lock, flags);
+	guard(spinlock_irqsave)(&motu->lock);
 
 	if (up)
 		amdtp_motu_midi_trigger(&motu->tx_stream, substrm->number,
@@ -57,16 +56,13 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *substrm, int up)
 	else
 		amdtp_motu_midi_trigger(&motu->tx_stream, substrm->number,
 					NULL);
-
-	spin_unlock_irqrestore(&motu->lock, flags);
 }
 
 static void midi_playback_trigger(struct snd_rawmidi_substream *substrm, int up)
 {
 	struct snd_motu *motu = substrm->rmidi->private_data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&motu->lock, flags);
+	guard(spinlock_irqsave)(&motu->lock);
 
 	if (up)
 		amdtp_motu_midi_trigger(&motu->rx_stream, substrm->number,
@@ -74,8 +70,6 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *substrm, int up)
 	else
 		amdtp_motu_midi_trigger(&motu->rx_stream, substrm->number,
 					NULL);
-
-	spin_unlock_irqrestore(&motu->lock, flags);
 }
 
 static void set_midi_substream_names(struct snd_motu *motu,
