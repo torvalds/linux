@@ -80,6 +80,7 @@
 #define HZIP_ALG_GZIP_BIT		GENMASK(3, 2)
 #define HZIP_ALG_DEFLATE_BIT		GENMASK(5, 4)
 #define HZIP_ALG_LZ77_BIT		GENMASK(7, 6)
+#define HZIP_ALG_LZ4_BIT		GENMASK(9, 8)
 
 #define HZIP_BUF_SIZE			22
 #define HZIP_SQE_MASK_OFFSET		64
@@ -150,6 +151,12 @@ static const struct qm_dev_alg zip_dev_algs[] = { {
 	}, {
 		.alg_msk = HZIP_ALG_LZ77_BIT,
 		.alg = "lz77_zstd\n",
+	}, {
+		.alg_msk = HZIP_ALG_LZ77_BIT,
+		.alg = "lz77_only\n",
+	}, {
+		.alg_msk = HZIP_ALG_LZ4_BIT,
+		.alg = "lz4\n",
 	},
 };
 
