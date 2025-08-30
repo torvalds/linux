@@ -18,6 +18,7 @@
 / {
 	model = "SHIFT SHIFT6mq";
 	compatible = "shift,axolotl", "qcom,sdm845";
+	chassis-type = "handset";
 	qcom,msm-id = <QCOM_ID_SDM845 0x20001>;
 	qcom,board-id = <11 0>;
 
