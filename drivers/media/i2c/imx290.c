@@ -869,7 +869,6 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_mark_last_busy(imx290->dev);
 	pm_runtime_put_autosuspend(imx290->dev);
 
 	return ret;
@@ -1099,7 +1098,6 @@ static int imx290_set_stream(struct v4l2_subdev *sd, int enable)
 		}
 	} else {
 		imx290_stop_streaming(imx290);
-		pm_runtime_mark_last_busy(imx290->dev);
 		pm_runtime_put_autosuspend(imx290->dev);
 	}
 
@@ -1294,7 +1292,6 @@ static int imx290_subdev_init(struct imx290 *imx290)
 	 * will already be prevented even before the delay.
 	 */
 	v4l2_i2c_subdev_init(&imx290->sd, client, &imx290_subdev_ops);
-	pm_runtime_mark_last_busy(imx290->dev);
 	pm_runtime_put_autosuspend(imx290->dev);
 
 	imx290->sd.internal_ops = &imx290_internal_ops;

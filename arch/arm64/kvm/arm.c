@@ -2408,12 +2408,12 @@ static u64 get_hyp_id_aa64pfr0_el1(void)
 	 */
 	u64 val = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
 
-	val &= ~(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_CSV2) |
-		 ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_CSV3));
+	val &= ~(ID_AA64PFR0_EL1_CSV2 |
+		 ID_AA64PFR0_EL1_CSV3);
 
-	val |= FIELD_PREP(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_CSV2),
+	val |= FIELD_PREP(ID_AA64PFR0_EL1_CSV2,
 			  arm64_get_spectre_v2_state() == SPECTRE_UNAFFECTED);
-	val |= FIELD_PREP(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_CSV3),
+	val |= FIELD_PREP(ID_AA64PFR0_EL1_CSV3,
 			  arm64_get_meltdown_state() == SPECTRE_UNAFFECTED);
 
 	return val;

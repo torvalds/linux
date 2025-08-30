@@ -10,6 +10,7 @@
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_rtbitmap.h"
+#include "xfs_icache.h"
 #include "xfs_zone_alloc.h"
 #include "xfs_zone_priv.h"
 #include "xfs_zones.h"
@@ -230,6 +231,11 @@ xfs_zoned_space_reserve(
 
 	error = xfs_dec_freecounter(mp, XC_FREE_RTEXTENTS, count_fsb,
 			flags & XFS_ZR_RESERVED);
+	if (error == -ENOSPC && !(flags & XFS_ZR_NOWAIT)) {
+		xfs_inodegc_flush(mp);
+		error = xfs_dec_freecounter(mp, XC_FREE_RTEXTENTS, count_fsb,
+				flags & XFS_ZR_RESERVED);
+	}
 	if (error == -ENOSPC && (flags & XFS_ZR_GREEDY) && count_fsb > 1)
 		error = xfs_zoned_reserve_extents_greedy(mp, &count_fsb, flags);
 	if (error)
