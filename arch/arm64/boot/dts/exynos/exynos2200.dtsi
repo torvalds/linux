@@ -274,6 +274,7 @@
 			reg = <0x10200000 0x10000>,     /* GICD */
 			      <0x10240000 0x200000>;    /* GICR * 8 */
 
+			#address-cells = <0>;
 			#interrupt-cells = <4>;
 			interrupt-controller;
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH 0>;
