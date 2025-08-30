@@ -29,6 +29,7 @@
    alias
    mptcp-sysctl
    skbuff
+   generic-hdlc
 
 Todolist:
 
@@ -78,7 +79,6 @@ Todolist:
 *   eql
 *   fib_trie
 *   filter
-*   generic-hdlc
 *   generic_netlink
 *   netlink_spec/index
 *   gen_stats
