@@ -4,6 +4,7 @@
 
 #include <linux/clk.h>
 #include <linux/mutex.h>
+#include <linux/phylink.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -237,6 +238,8 @@ struct gswip_hw_info {
 	enum dsa_tag_protocol tag_protocol;
 	void (*phylink_get_caps)(struct dsa_switch *ds, int port,
 				 struct phylink_config *config);
+	struct phylink_pcs *(*mac_select_pcs)(struct phylink_config *config,
+					      phy_interface_t interface);
 };
 
 struct gswip_gphy_fw {

@@ -1592,10 +1592,23 @@ static int gswip_get_sset_count(struct dsa_switch *ds, int port, int sset)
 	return ARRAY_SIZE(gswip_rmon_cnt);
 }
 
+static struct phylink_pcs *gswip_phylink_mac_select_pcs(struct phylink_config *config,
+							phy_interface_t interface)
+{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct gswip_priv *priv = dp->ds->priv;
+
+	if (priv->hw_info->mac_select_pcs)
+		return priv->hw_info->mac_select_pcs(config, interface);
+
+	return NULL;
+}
+
 static const struct phylink_mac_ops gswip_phylink_mac_ops = {
-	.mac_config	= gswip_phylink_mac_config,
-	.mac_link_down	= gswip_phylink_mac_link_down,
-	.mac_link_up	= gswip_phylink_mac_link_up,
+	.mac_config		= gswip_phylink_mac_config,
+	.mac_link_down		= gswip_phylink_mac_link_down,
+	.mac_link_up		= gswip_phylink_mac_link_up,
+	.mac_select_pcs		= gswip_phylink_mac_select_pcs,
 };
 
 static const struct dsa_switch_ops gswip_switch_ops = {
