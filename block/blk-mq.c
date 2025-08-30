@@ -3912,6 +3912,14 @@ static void blk_mq_clear_flush_rq_mapping(struct blk_mq_tags *tags,
 	spin_unlock_irqrestore(&tags->lock, flags);
 }
 
+static void blk_free_flush_queue_callback(struct rcu_head *head)
+{
+	struct blk_flush_queue *fq =
+		container_of(head, struct blk_flush_queue, rcu_head);
+
+	blk_free_flush_queue(fq);
+}
+
 /* hctx->ctxs will be freed in queue's release handler */
 static void blk_mq_exit_hctx(struct request_queue *q,
 		struct blk_mq_tag_set *set,
@@ -3931,7 +3939,8 @@ static void blk_mq_exit_hctx(struct request_queue *q,
 	if (set->ops->exit_hctx)
 		set->ops->exit_hctx(hctx, hctx_idx);
 
-	blk_free_flush_queue(hctx->fq);
+	call_srcu(&set->tags_srcu, &hctx->fq->rcu_head,
+			blk_free_flush_queue_callback);
 	hctx->fq = NULL;
 
 	xa_erase(&q->hctx_table, hctx_idx);
