@@ -1444,6 +1444,10 @@ static void gswip_phylink_mac_config(struct phylink_config *config,
 	miicfg |= GSWIP_MII_CFG_LDCLKDIS;
 
 	switch (state->interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
+		return;
 	case PHY_INTERFACE_MODE_MII:
 	case PHY_INTERFACE_MODE_INTERNAL:
 		miicfg |= GSWIP_MII_CFG_MODE_MIIM;
