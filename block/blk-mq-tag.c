@@ -576,7 +576,7 @@ out_free_tags:
 	return NULL;
 }
 
-void blk_mq_free_tags(struct blk_mq_tags *tags)
+void blk_mq_free_tags(struct blk_mq_tag_set *set, struct blk_mq_tags *tags)
 {
 	sbitmap_queue_free(&tags->bitmap_tags);
 	sbitmap_queue_free(&tags->breserved_tags);
