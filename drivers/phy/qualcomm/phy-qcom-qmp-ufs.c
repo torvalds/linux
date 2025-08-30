@@ -1107,7 +1107,7 @@ struct qmp_phy_cfg {
 	const struct qmp_phy_cfg_tbls tbls_hs_overlay[NUM_OVERLAY];
 
 	/* regulators to be requested */
-	const char * const *vreg_list;
+	const struct regulator_bulk_data *vreg_list;
 	int num_vregs;
 
 	/* array of registers with different offsets */
@@ -1164,9 +1164,10 @@ static inline void qphy_clrbits(void __iomem *base, u32 offset, u32 val)
 	readl(base + offset);
 }
 
-/* list of regulators */
-static const char * const qmp_phy_vreg_l[] = {
-	"vdda-phy", "vdda-pll",
+/* Default regulator bulk data (no load used) */
+static const struct regulator_bulk_data qmp_phy_vreg_l[] = {
+	{ .supply = "vdda-phy" },
+	{ .supply = "vdda-pll" },
 };
 
 static const struct qmp_ufs_offsets qmp_ufs_offsets = {
@@ -1890,22 +1891,6 @@ static const struct phy_ops qcom_qmp_ufs_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static int qmp_ufs_vreg_init(struct qmp_ufs *qmp)
-{
-	const struct qmp_phy_cfg *cfg = qmp->cfg;
-	struct device *dev = qmp->dev;
-	int num = cfg->num_vregs;
-	int i;
-
-	qmp->vregs = devm_kcalloc(dev, num, sizeof(*qmp->vregs), GFP_KERNEL);
-	if (!qmp->vregs)
-		return -ENOMEM;
-
-	for (i = 0; i < num; i++)
-		qmp->vregs[i].supply = cfg->vreg_list[i];
-
-	return devm_regulator_bulk_get(dev, num, qmp->vregs);
-}
 
 static int qmp_ufs_clk_init(struct qmp_ufs *qmp)
 {
@@ -2068,7 +2053,9 @@ static int qmp_ufs_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = qmp_ufs_vreg_init(qmp);
+	ret = devm_regulator_bulk_get_const(dev, qmp->cfg->num_vregs,
+					    qmp->cfg->vreg_list,
+					    &qmp->vregs);
 	if (ret)
 		return ret;
 
