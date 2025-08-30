@@ -1660,7 +1660,7 @@
 			reg = <0x078b7000 0x600>;
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "core", "iface";
-			clocks = <&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>,
+			clocks = <&gcc GCC_BLSP1_QUP3_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			dmas = <&blsp1_dma 8>, <&blsp1_dma 9>;
 			dma-names = "tx", "rx";
@@ -1751,7 +1751,7 @@
 			reg = <0x07af5000 0x600>;
 			interrupts = <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "core", "iface";
-			clocks = <&gcc GCC_BLSP2_QUP1_I2C_APPS_CLK>,
+			clocks = <&gcc GCC_BLSP2_QUP1_SPI_APPS_CLK>,
 				<&gcc GCC_BLSP2_AHB_CLK>;
 			dmas = <&blsp2_dma 4>, <&blsp2_dma 5>;
 			dma-names = "tx", "rx";
@@ -1791,7 +1791,7 @@
 			reg = <0x07af6000 0x600>;
 			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "core", "iface";
-			clocks = <&gcc GCC_BLSP2_QUP2_I2C_APPS_CLK>,
+			clocks = <&gcc GCC_BLSP2_QUP2_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP2_AHB_CLK>;
 			dmas = <&blsp2_dma 6>, <&blsp2_dma 7>;
 			dma-names = "tx", "rx";
