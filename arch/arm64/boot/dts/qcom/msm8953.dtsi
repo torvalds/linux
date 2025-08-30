@@ -775,45 +775,99 @@
 			};
 
 			spi_3_default: spi-3-default-state {
-				pins = "gpio10", "gpio11";
-				function = "blsp_spi3";
-				drive-strength = <2>;
-				bias-disable;
+				cs-pins {
+					pins = "gpio10";
+					function = "blsp_spi3";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				spi-pins {
+					pins = "gpio8", "gpio9", "gpio11";
+					function = "blsp_spi3";
+					drive-strength = <12>;
+					bias-disable;
+				};
 			};
 
 			spi_3_sleep: spi-3-sleep-state {
-				pins = "gpio10", "gpio11";
-				function = "gpio";
-				drive-strength = <2>;
-				bias-disable;
+				cs-pins {
+					pins = "gpio10";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				spi-pins {
+					pins = "gpio8", "gpio9", "gpio11";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
 			};
 
 			spi_5_default: spi-5-default-state {
-				pins = "gpio18", "gpio19";
-				function = "blsp_spi5";
-				drive-strength = <2>;
-				bias-disable;
+				cs-pins {
+					pins = "gpio18";
+					function = "blsp_spi5";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				spi-pins {
+					pins = "gpio16", "gpio17", "gpio19";
+					function = "blsp_spi5";
+					drive-strength = <12>;
+					bias-disable;
+				};
 			};
 
 			spi_5_sleep: spi-5-sleep-state {
-				pins = "gpio18", "gpio19";
-				function = "gpio";
-				drive-strength = <2>;
-				bias-disable;
+				cs-pins {
+					pins = "gpio18";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				spi-pins {
+					pins = "gpio16", "gpio17", "gpio19";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
 			};
 
 			spi_6_default: spi-6-default-state {
-				pins = "gpio22", "gpio23";
-				function = "blsp_spi6";
-				drive-strength = <2>;
-				bias-disable;
+				cs-pins {
+					pins = "gpio22";
+					function = "blsp_spi6";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				spi-pins {
+					pins = "gpio20", "gpio21", "gpio23";
+					function = "blsp_spi6";
+					drive-strength = <12>;
+					bias-disable;
+				};
 			};
 
 			spi_6_sleep: spi-6-sleep-state {
-				pins = "gpio22", "gpio23";
-				function = "gpio";
-				drive-strength = <2>;
-				bias-disable;
+				cs-pins {
+					pins = "gpio22";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				spi-pins {
+					pins = "gpio20", "gpio21", "gpio23";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
 			};
 
 			uart_5_default: uart-5-default-state {
