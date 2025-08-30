@@ -9,6 +9,7 @@
 
 #include "resctrl.h"
 #include <fcntl.h>
+#include <dirent.h>
 
 #define RESCTRL_PMU_NAME "resctrl"
 
@@ -91,6 +92,116 @@ static int test_resctrl_pmu_event(int pmu_type, int mon_fd)
 	return 0;
 }
 
+static bool is_allowed_file(const char *filename)
+{
+	/* Only llc_occupancy and mbm files should be allowed */
+	return (strstr(filename, "llc_occupancy") != NULL ||
+		strstr(filename, "mbm_total_bytes") != NULL ||
+		strstr(filename, "mbm_local_bytes") != NULL);
+}
+
+static int test_file_safety(int pmu_type, const char *filepath)
+{
+	struct perf_event_attr pe = {0};
+	int fd, perf_fd;
+	bool should_succeed;
+
+	/* Try to open the file */
+	fd = open(filepath, O_RDONLY);
+	if (fd < 0) {
+		/* File couldn't be opened, skip it */
+		return 0;
+	}
+
+	should_succeed = is_allowed_file(filepath);
+
+	/* Setup perf event attributes */
+	pe.type = pmu_type;
+	pe.config = fd;
+	pe.size = sizeof(pe);
+	pe.disabled = 1;
+	pe.exclude_kernel = 0;
+	pe.exclude_hv = 0;
+
+	/* Try to open the perf event */
+	perf_fd = perf_event_open(&pe, -1, 0, -1, 0);
+	
+	if (should_succeed) {
+		if (perf_fd < 0) {
+			ksft_print_msg("FAIL: Expected success but perf_event_open failed for %s: %s\n",
+				       filepath, strerror(errno));
+			close(fd);
+			return -1;
+		}
+		ksft_print_msg("PASS: Allowed file %s successfully opened perf event\n", filepath);
+		close(perf_fd);
+	} else {
+		if (perf_fd >= 0) {
+			ksft_print_msg("FAIL: Expected failure but perf_event_open succeeded for %s\n",
+				       filepath);
+			close(perf_fd);
+			close(fd);
+			return -1;
+		}
+		ksft_print_msg("PASS: Blocked file %s correctly failed perf_event_open: %s\n",
+			       filepath, strerror(errno));
+	}
+
+	close(fd);
+	return 0;
+}
+
+static int walk_directory_recursive(int pmu_type, const char *dir_path)
+{
+	DIR *dir;
+	struct dirent *entry;
+	char full_path[1024];
+	struct stat statbuf;
+	int ret = 0;
+
+	dir = opendir(dir_path);
+	if (!dir) {
+		ksft_print_msg("Failed to open directory %s: %s\n", dir_path, strerror(errno));
+		return -1;
+	}
+
+	while ((entry = readdir(dir)) != NULL) {
+		/* Skip . and .. */
+		if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+			continue;
+
+		snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, entry->d_name);
+
+		if (stat(full_path, &statbuf) != 0) {
+			ksft_print_msg("Failed to stat %s: %s\n", full_path, strerror(errno));
+			continue;
+		}
+
+		if (S_ISDIR(statbuf.st_mode)) {
+			/* Recursively walk subdirectories */
+			if (walk_directory_recursive(pmu_type, full_path) != 0) {
+				ret = -1;
+			}
+		} else if (S_ISREG(statbuf.st_mode)) {
+			/* Test regular files */
+			if (test_file_safety(pmu_type, full_path) != 0) {
+				ret = -1;
+			}
+		}
+	}
+
+	closedir(dir);
+	return ret;
+}
+
+static int test_resctrl_pmu_safety(int pmu_type)
+{
+	ksft_print_msg("Testing resctrl PMU safety - walking all files in %s\n", RESCTRL_PATH);
+	
+	/* Walk through all files and directories in /sys/fs/resctrl */
+	return walk_directory_recursive(pmu_type, RESCTRL_PATH);
+}
+
 static bool pmu_feature_check(const struct resctrl_test *test)
 {
 	return resctrl_mon_feature_exists("L3_MON", "llc_occupancy");
@@ -122,9 +233,19 @@ static int pmu_run_test(const struct resctrl_test *test, const struct user_param
 	/* Clean up */
 	close(mon_fd);
 
+	if (ret != 0) {
+		ksft_print_msg("Basic resctrl PMU test failed\n");
+		return ret;
+	}
+
+	/* Run the safety test to ensure only appropriate files work */
+	ret = test_resctrl_pmu_safety(pmu_type);
+
 	if (ret == 0) {
-		ksft_print_msg("Resctrl PMU test completed successfully\n");
+		ksft_print_msg("All resctrl PMU tests completed successfully\n");
 		ksft_print_msg("Check dmesg for kernel log message with file path\n");
+	} else {
+		ksft_print_msg("Resctrl PMU safety test failed\n");
 	}
 
 	return ret;
