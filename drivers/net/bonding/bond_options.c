@@ -187,7 +187,6 @@ static const struct bond_opt_value bond_primary_reselect_tbl[] = {
 };
 
 static const struct bond_opt_value bond_use_carrier_tbl[] = {
-	{ "off", 0,  0},
 	{ "on",  1,  BOND_VALFLAG_DEFAULT},
 	{ NULL,  -1, 0}
 };
@@ -419,7 +418,7 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 	[BOND_OPT_USE_CARRIER] = {
 		.id = BOND_OPT_USE_CARRIER,
 		.name = "use_carrier",
-		.desc = "Use netif_carrier_ok (vs MII ioctls) in miimon",
+		.desc = "option obsolete, use_carrier cannot be disabled",
 		.values = bond_use_carrier_tbl,
 		.set = bond_option_use_carrier_set
 	},
@@ -1091,10 +1090,6 @@ static int bond_option_peer_notif_delay_set(struct bonding *bond,
 static int bond_option_use_carrier_set(struct bonding *bond,
 				       const struct bond_opt_value *newval)
 {
-	netdev_dbg(bond->dev, "Setting use_carrier to %llu\n",
-		   newval->value);
-	bond->params.use_carrier = newval->value;
-
 	return 0;
 }
 

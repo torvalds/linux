@@ -259,13 +259,11 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 			return err;
 	}
 	if (data[IFLA_BOND_USE_CARRIER]) {
-		int use_carrier = nla_get_u8(data[IFLA_BOND_USE_CARRIER]);
-
-		bond_opt_initval(&newval, use_carrier);
-		err = __bond_opt_set(bond, BOND_OPT_USE_CARRIER, &newval,
-				     data[IFLA_BOND_USE_CARRIER], extack);
-		if (err)
-			return err;
+		if (nla_get_u8(data[IFLA_BOND_USE_CARRIER]) != 1) {
+			NL_SET_ERR_MSG_ATTR(extack, data[IFLA_BOND_USE_CARRIER],
+					    "option obsolete, use_carrier cannot be disabled");
+			return -EINVAL;
+		}
 	}
 	if (data[IFLA_BOND_ARP_INTERVAL]) {
 		int arp_interval = nla_get_u32(data[IFLA_BOND_ARP_INTERVAL]);
@@ -688,7 +686,7 @@ static int bond_fill_info(struct sk_buff *skb,
 			bond->params.peer_notif_delay * bond->params.miimon))
 		goto nla_put_failure;
 
-	if (nla_put_u8(skb, IFLA_BOND_USE_CARRIER, bond->params.use_carrier))
+	if (nla_put_u8(skb, IFLA_BOND_USE_CARRIER, 1))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, IFLA_BOND_ARP_INTERVAL, bond->params.arp_interval))
