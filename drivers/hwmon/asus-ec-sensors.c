@@ -117,10 +117,18 @@ enum ec_sensors {
 	ec_sensor_fan_cpu_opt,
 	/* VRM heat sink fan [RPM] */
 	ec_sensor_fan_vrm_hs,
+	/* VRM east heat sink fan [RPM] */
+	ec_sensor_fan_vrme_hs,
+	/* VRM west heat sink fan [RPM] */
+	ec_sensor_fan_vrmw_hs,
 	/* Chipset fan [RPM] */
 	ec_sensor_fan_chipset,
 	/* Water flow sensor reading [RPM] */
 	ec_sensor_fan_water_flow,
+	/* USB4 fan [RPM] */
+	ec_sensor_fan_usb4,
+	/* M.2 fan [RPM] */
+	ec_sensor_fan_m2,
 	/* CPU current [A] */
 	ec_sensor_curr_cpu,
 	/* "Water_In" temperature sensor reading [℃] */
@@ -150,8 +158,12 @@ enum ec_sensors {
 #define SENSOR_IN_CPU_CORE BIT(ec_sensor_in_cpu_core)
 #define SENSOR_FAN_CPU_OPT BIT(ec_sensor_fan_cpu_opt)
 #define SENSOR_FAN_VRM_HS BIT(ec_sensor_fan_vrm_hs)
+#define SENSOR_FAN_VRME_HS BIT(ec_sensor_fan_vrme_hs)
+#define SENSOR_FAN_VRMW_HS BIT(ec_sensor_fan_vrmw_hs)
 #define SENSOR_FAN_CHIPSET BIT(ec_sensor_fan_chipset)
 #define SENSOR_FAN_WATER_FLOW BIT(ec_sensor_fan_water_flow)
+#define SENSOR_FAN_USB4 BIT(ec_sensor_fan_usb4)
+#define SENSOR_FAN_M2 BIT(ec_sensor_fan_m2)
 #define SENSOR_CURR_CPU BIT(ec_sensor_curr_cpu)
 #define SENSOR_TEMP_WATER_IN BIT(ec_sensor_temp_water_in)
 #define SENSOR_TEMP_WATER_OUT BIT(ec_sensor_temp_water_out)
@@ -168,6 +180,7 @@ enum board_family {
 	family_amd_500_series,
 	family_amd_600_series,
 	family_amd_800_series,
+	family_amd_wrx_90,
 	family_intel_300_series,
 	family_intel_400_series,
 	family_intel_600_series,
@@ -276,6 +289,21 @@ static const struct ec_sensor_info sensors_family_amd_800[] = {
 		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x00, 0x36),
 	[ec_sensor_fan_cpu_opt] =
 		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
+};
+
+static const struct ec_sensor_info sensors_family_amd_wrx_90[] = {
+	[ec_sensor_temp_cpu_package] =
+		EC_SENSOR("CPU Package", hwmon_temp, 1, 0x00, 0x31),
+	[ec_sensor_fan_cpu_opt] =
+		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
+	[ec_sensor_fan_vrmw_hs] =
+		EC_SENSOR("VRMW HS", hwmon_fan, 2, 0x00, 0xb4),
+	[ec_sensor_fan_usb4] = EC_SENSOR("USB4", hwmon_fan, 2, 0x00, 0xb6),
+	[ec_sensor_fan_vrme_hs] =
+		EC_SENSOR("VRME HS", hwmon_fan, 2, 0x00, 0xbc),
+	[ec_sensor_fan_m2] = EC_SENSOR("M.2", hwmon_fan, 2, 0x00, 0xbe),
+	[ec_sensor_temp_t_sensor] =
+		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x01, 0x04),
 };
 
 static const struct ec_sensor_info sensors_family_intel_300[] = {
@@ -419,6 +447,15 @@ static const struct ec_board_info board_info_pro_art_b550_creator = {
 		SENSOR_FAN_CPU_OPT,
 	.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	.family = family_amd_500_series,
+};
+
+static const struct ec_board_info board_info_pro_ws_wrx90e_sage_se = {
+	/* Board also has a nct6798 with 7 more fans and temperatures */
+	.sensors = SENSOR_TEMP_CPU_PACKAGE | SENSOR_TEMP_T_SENSOR |
+		SENSOR_FAN_CPU_OPT | SENSOR_FAN_USB4 | SENSOR_FAN_M2 |
+		SENSOR_FAN_VRME_HS | SENSOR_FAN_VRMW_HS,
+	.mutex_path = ASUS_HW_ACCESS_MUTEX_RMTW_ASMX,
+	.family = family_amd_wrx_90,
 };
 
 static const struct ec_board_info board_info_pro_ws_x570_ace = {
@@ -650,6 +687,8 @@ static const struct dmi_system_id dmi_table[] = {
 					&board_info_pro_art_x870E_creator_wifi),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ProArt B550-CREATOR",
 					&board_info_pro_art_b550_creator),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("Pro WS WRX90E-SAGE SE",
+					&board_info_pro_ws_wrx90e_sage_se),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("Pro WS X570-ACE",
 					&board_info_pro_ws_x570_ace),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG CROSSHAIR VIII DARK HERO",
@@ -1172,6 +1211,9 @@ static int asus_ec_probe(struct platform_device *pdev)
 		break;
 	case family_amd_800_series:
 		ec_data->sensors_info = sensors_family_amd_800;
+		break;
+	case family_amd_wrx_90:
+		ec_data->sensors_info = sensors_family_amd_wrx_90;
 		break;
 	case family_intel_300_series:
 		ec_data->sensors_info = sensors_family_intel_300;
