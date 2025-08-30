@@ -24,7 +24,8 @@ def _assert_napi_threaded_disabled(nl, napi_id) -> None:
 
 
 def _set_threaded_state(cfg, threaded) -> None:
-    cmd(f"echo {threaded} > /sys/class/net/{cfg.ifname}/threaded")
+    with open(f"/sys/class/net/{cfg.ifname}/threaded", "wb") as fp:
+        fp.write(str(threaded).encode('utf-8'))
 
 
 def _setup_deferred_cleanup(cfg) -> None:
