@@ -428,7 +428,7 @@ out_free_cache:
  * mnt_want/drop_write() will _keep_ the filesystem
  * r/w.
  */
-bool __mnt_is_readonly(struct vfsmount *mnt)
+bool __mnt_is_readonly(const struct vfsmount *mnt)
 {
 	return (mnt->mnt_flags & MNT_READONLY) || sb_rdonly(mnt->mnt_sb);
 }
@@ -468,7 +468,7 @@ static unsigned int mnt_get_writers(struct mount *mnt)
 #endif
 }
 
-static int mnt_is_readonly(struct vfsmount *mnt)
+static int mnt_is_readonly(const struct vfsmount *mnt)
 {
 	if (READ_ONCE(mnt->mnt_sb->s_readonly_remount))
 		return 1;
