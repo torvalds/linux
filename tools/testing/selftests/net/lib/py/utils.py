@@ -26,9 +26,12 @@ class cmd:
     """
     Execute a command on local or remote host.
 
+    @shell defaults to false, and class will try to split @comm into a list
+    if it's a string with spaces.
+
     Use bkg() instead to run a command in the background.
     """
-    def __init__(self, comm, shell=True, fail=True, ns=None, background=False,
+    def __init__(self, comm, shell=None, fail=True, ns=None, background=False,
                  host=None, timeout=5, ksft_wait=None):
         if ns:
             comm = f'ip netns exec {ns} ' + comm
@@ -42,6 +45,10 @@ class cmd:
         if host:
             self.proc = host.cmd(comm)
         else:
+            # If user doesn't explicitly request shell try to avoid it.
+            if shell is None and isinstance(comm, str) and ' ' in comm:
+                comm = comm.split()
+
             # ksft_wait lets us wait for the background process to fully start,
             # we pass an FD to the child process, and wait for it to write back.
             # Similarly term_fd tells child it's time to exit.
@@ -108,7 +115,7 @@ class bkg(cmd):
 
         with bkg("my_binary", ksft_wait=5):
     """
-    def __init__(self, comm, shell=True, fail=None, ns=None, host=None,
+    def __init__(self, comm, shell=None, fail=None, ns=None, host=None,
                  exit_wait=False, ksft_wait=None):
         super().__init__(comm, background=True,
                          shell=shell, fail=fail, ns=ns, host=host,
