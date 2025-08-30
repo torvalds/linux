@@ -28,6 +28,7 @@
    netmem
    alias
    mptcp-sysctl
+   skbuff
 
 Todolist:
 
@@ -126,7 +127,6 @@ Todolist:
 *   sctp
 *   secid
 *   seg6-sysctl
-*   skbuff
 *   smc-sysctl
 *   sriov
 *   statistics
