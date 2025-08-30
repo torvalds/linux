@@ -27,6 +27,7 @@
    xfrm_proc
    netmem
    alias
+   mptcp-sysctl
 
 Todolist:
 
@@ -96,7 +97,6 @@ Todolist:
 *   mctp
 *   mpls-sysctl
 *   mptcp
-*   mptcp-sysctl
 *   multiqueue
 *   multi-pf-netdev
 *   net_cachelines/index
