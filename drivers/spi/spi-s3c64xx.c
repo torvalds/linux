@@ -1506,16 +1506,6 @@ static const struct dev_pm_ops s3c64xx_spi_pm = {
 			   s3c64xx_spi_runtime_resume, NULL)
 };
 
-static const struct s3c64xx_spi_port_config s3c2443_spi_port_config = {
-	/* fifo_lvl_mask is deprecated. Use {rx, tx}_fifomask instead. */
-	.fifo_lvl_mask	= { 0x7f },
-	/* rx_lvl_offset is deprecated. Use {rx, tx}_fifomask instead. */
-	.rx_lvl_offset	= 13,
-	.tx_st_done	= 21,
-	.clk_div	= 2,
-	.high_speed	= true,
-};
-
 static const struct s3c64xx_spi_port_config s3c6410_spi_port_config = {
 	/* fifo_lvl_mask is deprecated. Use {rx, tx}_fifomask instead. */
 	.fifo_lvl_mask	= { 0x7f, 0x7F },
@@ -1627,9 +1617,6 @@ static const struct s3c64xx_spi_port_config gs101_spi_port_config = {
 
 static const struct platform_device_id s3c64xx_spi_driver_ids[] = {
 	{
-		.name		= "s3c2443-spi",
-		.driver_data	= (kernel_ulong_t)&s3c2443_spi_port_config,
-	}, {
 		.name		= "s3c6410-spi",
 		.driver_data	= (kernel_ulong_t)&s3c6410_spi_port_config,
 	},
@@ -1640,9 +1627,6 @@ MODULE_DEVICE_TABLE(platform, s3c64xx_spi_driver_ids);
 static const struct of_device_id s3c64xx_spi_dt_match[] = {
 	{ .compatible = "google,gs101-spi",
 			.data = &gs101_spi_port_config,
-	},
-	{ .compatible = "samsung,s3c2443-spi",
-			.data = &s3c2443_spi_port_config,
 	},
 	{ .compatible = "samsung,s3c6410-spi",
 			.data = &s3c6410_spi_port_config,
