@@ -128,7 +128,7 @@ static int get_boost_mode_x86(unsigned int cpu)
 	/* ToDo: Make this more global */
 	unsigned long pstates[MAX_HW_PSTATES] = {0,};
 
-	ret = cpufreq_has_boost_support(cpu, &support, &active, &b_states);
+	ret = cpufreq_has_x86_boost_support(cpu, &support, &active, &b_states);
 	if (ret) {
 		printf(_("Error while evaluating Boost Capabilities"
 				" on CPU %d -- are you root?\n"), cpu);
@@ -204,6 +204,18 @@ static int get_boost_mode_x86(unsigned int cpu)
 	return 0;
 }
 
+static int get_boost_mode_generic(unsigned int cpu)
+{
+	bool active;
+
+	if (!cpufreq_has_generic_boost_support(&active)) {
+		printf(_("  boost state support:\n"));
+		printf(_("    Active: %s\n"), active ? _("yes") : _("no"));
+	}
+
+	return 0;
+}
+
 /* --boost / -b */
 
 static int get_boost_mode(unsigned int cpu)
@@ -214,6 +226,8 @@ static int get_boost_mode(unsigned int cpu)
 	    cpupower_cpu_info.vendor == X86_VENDOR_HYGON ||
 	    cpupower_cpu_info.vendor == X86_VENDOR_INTEL)
 		return get_boost_mode_x86(cpu);
+	else
+		get_boost_mode_generic(cpu);
 
 	freqs = cpufreq_get_boost_frequencies(cpu);
 	if (freqs) {
