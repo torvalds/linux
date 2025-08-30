@@ -15,6 +15,7 @@
 #define DAE_REG_RD_TMOUT_US		USEC_PER_SEC
 
 #define DAE_ALG_NAME			"hashagg"
+#define DAE_V5_ALG_NAME			"hashagg\nudma\nhashjoin\ngather"
 
 /* error */
 #define DAE_AXI_CFG_OFFSET		0x331000
@@ -82,6 +83,7 @@ int hisi_dae_set_user_domain(struct hisi_qm *qm)
 
 int hisi_dae_set_alg(struct hisi_qm *qm)
 {
+	const char *alg_name;
 	size_t len;
 
 	if (!dae_is_support(qm))
@@ -90,9 +92,14 @@ int hisi_dae_set_alg(struct hisi_qm *qm)
 	if (!qm->uacce)
 		return 0;
 
+	if (qm->ver >= QM_HW_V5)
+		alg_name = DAE_V5_ALG_NAME;
+	else
+		alg_name = DAE_ALG_NAME;
+
 	len = strlen(qm->uacce->algs);
 	/* A line break may be required */
-	if (len + strlen(DAE_ALG_NAME) + 1 >= QM_DEV_ALG_MAX_LEN) {
+	if (len + strlen(alg_name) + 1 >= QM_DEV_ALG_MAX_LEN) {
 		pci_err(qm->pdev, "algorithm name is too long!\n");
 		return -EINVAL;
 	}
@@ -100,7 +107,7 @@ int hisi_dae_set_alg(struct hisi_qm *qm)
 	if (len)
 		strcat((char *)qm->uacce->algs, "\n");
 
-	strcat((char *)qm->uacce->algs, DAE_ALG_NAME);
+	strcat((char *)qm->uacce->algs, alg_name);
 
 	return 0;
 }

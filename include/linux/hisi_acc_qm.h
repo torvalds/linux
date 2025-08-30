@@ -125,6 +125,7 @@ enum qm_hw_ver {
 	QM_HW_V2 = 0x21,
 	QM_HW_V3 = 0x30,
 	QM_HW_V4 = 0x50,
+	QM_HW_V5 = 0x51,
 };
 
 enum qm_fun_type {

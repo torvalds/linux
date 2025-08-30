@@ -2742,6 +2742,27 @@ static void qm_remove_uacce(struct hisi_qm *qm)
 	}
 }
 
+static void qm_uacce_api_ver_init(struct hisi_qm *qm)
+{
+	struct uacce_device *uacce = qm->uacce;
+
+	switch (qm->ver) {
+	case QM_HW_V1:
+		uacce->api_ver = HISI_QM_API_VER_BASE;
+		break;
+	case QM_HW_V2:
+		uacce->api_ver = HISI_QM_API_VER2_BASE;
+		break;
+	case QM_HW_V3:
+	case QM_HW_V4:
+		uacce->api_ver = HISI_QM_API_VER3_BASE;
+		break;
+	default:
+		uacce->api_ver = HISI_QM_API_VER5_BASE;
+		break;
+	}
+}
+
 static int qm_alloc_uacce(struct hisi_qm *qm)
 {
 	struct pci_dev *pdev = qm->pdev;
@@ -2776,13 +2797,6 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
 	uacce->priv = qm;
 
 	if (qm->ver == QM_HW_V1)
-		uacce->api_ver = HISI_QM_API_VER_BASE;
-	else if (qm->ver == QM_HW_V2)
-		uacce->api_ver = HISI_QM_API_VER2_BASE;
-	else
-		uacce->api_ver = HISI_QM_API_VER3_BASE;
-
-	if (qm->ver == QM_HW_V1)
 		mmio_page_nr = QM_DOORBELL_PAGE_NR;
 	else if (!test_bit(QM_SUPPORT_DB_ISOLATION, &qm->caps))
 		mmio_page_nr = QM_DOORBELL_PAGE_NR +
@@ -2801,6 +2815,7 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
 	uacce->qf_pg_num[UACCE_QFRT_DUS]  = dus_page_nr;
 
 	qm->uacce = uacce;
+	qm_uacce_api_ver_init(qm);
 	INIT_LIST_HEAD(&qm->isolate_data.qm_hw_errs);
 	mutex_init(&qm->isolate_data.isolate_lock);
 
