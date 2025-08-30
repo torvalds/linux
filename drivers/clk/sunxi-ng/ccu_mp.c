@@ -185,7 +185,7 @@ static unsigned long ccu_mp_recalc_rate(struct clk_hw *hw,
 	p &= (1 << cmp->p.width) - 1;
 
 	if (cmp->common.features & CCU_FEATURE_DUAL_DIV)
-		rate = (parent_rate / p) / m;
+		rate = (parent_rate / (p + cmp->p.offset)) / m;
 	else
 		rate = (parent_rate >> p) / m;
 
