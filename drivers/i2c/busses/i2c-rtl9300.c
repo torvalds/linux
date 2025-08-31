@@ -99,6 +99,9 @@ static int rtl9300_i2c_config_xfer(struct rtl9300_i2c *i2c, struct rtl9300_i2c_c
 {
 	u32 val, mask;
 
+	if (len < 1 || len > 16)
+		return -EINVAL;
+
 	val = chan->bus_freq << RTL9300_I2C_MST_CTRL2_SCL_FREQ_OFS;
 	mask = RTL9300_I2C_MST_CTRL2_SCL_FREQ_MASK;
 
@@ -323,7 +326,7 @@ static const struct i2c_algorithm rtl9300_i2c_algo = {
 };
 
 static struct i2c_adapter_quirks rtl9300_i2c_quirks = {
-	.flags		= I2C_AQ_NO_CLK_STRETCH,
+	.flags		= I2C_AQ_NO_CLK_STRETCH | I2C_AQ_NO_ZERO_LEN,
 	.max_read_len	= 16,
 	.max_write_len	= 16,
 };
