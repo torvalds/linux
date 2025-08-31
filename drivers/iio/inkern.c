@@ -599,13 +599,50 @@ int iio_read_channel_average_raw(struct iio_channel *chan, int *val)
 }
 EXPORT_SYMBOL_GPL(iio_read_channel_average_raw);
 
+int iio_multiply_value(int *result, s64 multiplier,
+		       unsigned int type, int val, int val2)
+{
+	s64 denominator;
+
+	switch (type) {
+	case IIO_VAL_INT:
+		*result = multiplier * val;
+		return IIO_VAL_INT;
+	case IIO_VAL_INT_PLUS_MICRO:
+	case IIO_VAL_INT_PLUS_NANO:
+		switch (type) {
+		case IIO_VAL_INT_PLUS_MICRO:
+			denominator = MICRO;
+			break;
+		case IIO_VAL_INT_PLUS_NANO:
+			denominator = NANO;
+			break;
+		}
+		*result = multiplier * abs(val);
+		*result += div_s64(multiplier * abs(val2), denominator);
+		if (val < 0 || val2 < 0)
+			*result *= -1;
+		return IIO_VAL_INT;
+	case IIO_VAL_FRACTIONAL:
+		*result = div_s64(multiplier * val, val2);
+		return IIO_VAL_INT;
+	case IIO_VAL_FRACTIONAL_LOG2:
+		*result = (multiplier * val) >> val2;
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL_NS_GPL(iio_multiply_value, "IIO_UNIT_TEST");
+
 static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 						 int raw, int *processed,
 						 unsigned int scale)
 {
 	int scale_type, scale_val, scale_val2;
 	int offset_type, offset_val, offset_val2;
-	s64 denominator, raw64 = raw;
+	s64 raw64 = raw;
+	int ret;
 
 	offset_type = iio_channel_read(chan, &offset_val, &offset_val2,
 				       IIO_CHAN_INFO_OFFSET);
@@ -644,35 +681,10 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 		return 0;
 	}
 
-	switch (scale_type) {
-	case IIO_VAL_INT:
-		*processed = raw64 * scale_val * scale;
-		break;
-	case IIO_VAL_INT_PLUS_MICRO:
-	case IIO_VAL_INT_PLUS_NANO:
-		switch (scale_type) {
-		case IIO_VAL_INT_PLUS_MICRO:
-			denominator = MICRO;
-			break;
-		case IIO_VAL_INT_PLUS_NANO:
-			denominator = NANO;
-			break;
-		}
-		*processed = raw64 * scale * abs(scale_val);
-		*processed += div_s64(raw64 * scale * abs(scale_val2), denominator);
-		if (scale_val < 0 || scale_val2 < 0)
-			*processed *= -1;
-		break;
-	case IIO_VAL_FRACTIONAL:
-		*processed = div_s64(raw64 * (s64)scale_val * scale,
-				     scale_val2);
-		break;
-	case IIO_VAL_FRACTIONAL_LOG2:
-		*processed = (raw64 * (s64)scale_val * scale) >> scale_val2;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = iio_multiply_value(processed, raw64 * scale,
+				 scale_type, scale_val, scale_val2);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
