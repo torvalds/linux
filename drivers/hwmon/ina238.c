@@ -103,10 +103,7 @@
 
 #define INA238_SHUNT_VOLTAGE_LSB	5 /* 5 uV/lsb */
 #define INA238_BUS_VOLTAGE_LSB		3125 /* 3.125 mV/lsb */
-#define INA238_DIE_TEMP_LSB		1250000 /* 125.0000 mC/lsb */
 #define SQ52206_BUS_VOLTAGE_LSB		3750 /* 3.75 mV/lsb */
-#define SQ52206_DIE_TEMP_LSB		78125 /* 7.8125 mC/lsb */
-#define INA228_DIE_TEMP_LSB		78125 /* 7.8125 mC/lsb */
 
 static const struct regmap_config ina238_regmap_config = {
 	.max_register = INA238_REGISTERS,
@@ -120,11 +117,10 @@ struct ina238_config {
 	bool has_20bit_voltage_current; /* vshunt, vbus and current are 20-bit fields */
 	bool has_power_highest;		/* chip detection power peak */
 	bool has_energy;		/* chip detection energy */
-	u8 temp_shift;			/* fixed parameters for temp calculate */
+	u8 temp_resolution;		/* temperature register resolution in bit */
 	u32 power_calculate_factor;	/* fixed parameters for power calculate */
 	u16 config_default;		/* Power-on default state */
 	int bus_voltage_lsb;		/* use for temperature calculate, uV/lsb */
-	int temp_lsb;			/* use for temperature calculate */
 };
 
 struct ina238_data {
@@ -141,41 +137,37 @@ static const struct ina238_config ina238_config[] = {
 		.has_20bit_voltage_current = false,
 		.has_energy = false,
 		.has_power_highest = false,
-		.temp_shift = 4,
 		.power_calculate_factor = 20,
 		.config_default = INA238_CONFIG_DEFAULT,
 		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
-		.temp_lsb = INA238_DIE_TEMP_LSB,
+		.temp_resolution = 12,
 	},
 	[ina237] = {
 		.has_20bit_voltage_current = false,
 		.has_energy = false,
 		.has_power_highest = false,
-		.temp_shift = 4,
 		.power_calculate_factor = 20,
 		.config_default = INA238_CONFIG_DEFAULT,
 		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
-		.temp_lsb = INA238_DIE_TEMP_LSB,
+		.temp_resolution = 12,
 	},
 	[sq52206] = {
 		.has_20bit_voltage_current = false,
 		.has_energy = true,
 		.has_power_highest = true,
-		.temp_shift = 0,
 		.power_calculate_factor = 24,
 		.config_default = SQ52206_CONFIG_DEFAULT,
 		.bus_voltage_lsb = SQ52206_BUS_VOLTAGE_LSB,
-		.temp_lsb = SQ52206_DIE_TEMP_LSB,
+		.temp_resolution = 16,
 	},
 	[ina228] = {
 		.has_20bit_voltage_current = true,
 		.has_energy = true,
 		.has_power_highest = false,
-		.temp_shift = 0,
 		.power_calculate_factor = 20,
 		.config_default = INA238_CONFIG_DEFAULT,
 		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
-		.temp_lsb = INA228_DIE_TEMP_LSB,
+		.temp_resolution = 16,
 	},
 };
 
@@ -522,6 +514,11 @@ static int ina238_write_power_max(struct device *dev, long val)
 	return regmap_write(data->regmap, INA238_POWER_LIMIT, regval);
 }
 
+static int ina238_temp_from_reg(s16 regval, u8 resolution)
+{
+	return ((regval >> (16 - resolution)) * 1000) >> (resolution - 9);
+}
+
 static int ina238_read_temp(struct device *dev, u32 attr, long *val)
 {
 	struct ina238_data *data = dev_get_drvdata(dev);
@@ -533,17 +530,14 @@ static int ina238_read_temp(struct device *dev, u32 attr, long *val)
 		err = regmap_read(data->regmap, INA238_DIE_TEMP, &regval);
 		if (err)
 			return err;
-		/* Signed, result in mC */
-		*val = div_s64(((s64)((s16)regval) >> data->config->temp_shift) *
-			       (s64)data->config->temp_lsb, 10000);
+		*val = ina238_temp_from_reg(regval, data->config->temp_resolution);
 		break;
 	case hwmon_temp_max:
 		err = regmap_read(data->regmap, INA238_TEMP_LIMIT, &regval);
 		if (err)
 			return err;
 		/* Signed, result in mC */
-		*val = div_s64(((s64)((s16)regval) >> data->config->temp_shift) *
-			       (s64)data->config->temp_lsb, 10000);
+		*val = ina238_temp_from_reg(regval, data->config->temp_resolution);
 		break;
 	case hwmon_temp_max_alarm:
 		err = regmap_read(data->regmap, INA238_DIAG_ALERT, &regval);
@@ -559,19 +553,21 @@ static int ina238_read_temp(struct device *dev, u32 attr, long *val)
 	return 0;
 }
 
-static int ina238_write_temp(struct device *dev, u32 attr, long val)
+static u16 ina238_temp_to_reg(long val, u8 resolution)
+{
+	int fraction = 1000 - DIV_ROUND_CLOSEST(1000, BIT(resolution - 9));
+
+	val = clamp_val(val, -255000 - fraction, 255000 + fraction);
+
+	return (DIV_ROUND_CLOSEST(val << (resolution - 9), 1000) << (16 - resolution)) & 0xffff;
+}
+
+static int ina238_write_temp_max(struct device *dev, long val)
 {
 	struct ina238_data *data = dev_get_drvdata(dev);
 	int regval;
 
-	if (attr != hwmon_temp_max)
-		return -EOPNOTSUPP;
-
-	/* Signed */
-	val = clamp_val(val, -40000, 125000);
-	regval = div_s64(val * 10000, data->config->temp_lsb) << data->config->temp_shift;
-	regval = clamp_val(regval, S16_MIN, S16_MAX) & (0xffff << data->config->temp_shift);
-
+	regval = ina238_temp_to_reg(val, data->config->temp_resolution);
 	return regmap_write(data->regmap, INA238_TEMP_LIMIT, regval);
 }
 
@@ -628,7 +624,7 @@ static int ina238_write(struct device *dev, enum hwmon_sensor_types type,
 		err = ina238_write_power_max(dev, val);
 		break;
 	case hwmon_temp:
-		err = ina238_write_temp(dev, attr, val);
+		err = ina238_write_temp_max(dev, val);
 		break;
 	default:
 		err = -EOPNOTSUPP;
