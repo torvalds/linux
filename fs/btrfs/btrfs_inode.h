@@ -532,9 +532,9 @@ static inline void btrfs_set_inode_mapping_order(struct btrfs_inode *inode)
 
 	/* We only allow BITS_PER_LONGS blocks for each bitmap. */
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
-	mapping_set_folio_order_range(inode->vfs_inode.i_mapping, 0,
-			ilog2(((BITS_PER_LONG << inode->root->fs_info->sectorsize_bits)
-				>> PAGE_SHIFT)));
+	mapping_set_folio_order_range(inode->vfs_inode.i_mapping,
+				      inode->root->fs_info->block_min_order,
+				      inode->root->fs_info->block_max_order);
 #endif
 }
 
