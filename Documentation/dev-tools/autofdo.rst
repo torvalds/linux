@@ -131,11 +131,11 @@ Here is an example workflow for AutoFDO kernel:
 
      For Zen3::
 
-      $ cat proc/cpuinfo | grep " brs"
+      $ cat /proc/cpuinfo | grep " brs"
 
      For Zen4::
 
-      $ cat proc/cpuinfo | grep amd_lbr_v2
+      $ cat /proc/cpuinfo | grep amd_lbr_v2
 
      The following command generated the perf data file::
 
