@@ -247,6 +247,18 @@ config BATTERY_INGENIC
 	  This driver can also be built as a module. If so, the module will be
 	  called ingenic-battery.
 
+config BATTERY_INTEL_DC_TI
+	tristate "Intel Bay / Cherry Trail Dollar Cove TI battery driver"
+	depends on INTEL_SOC_PMIC_CHTDC_TI && INTEL_DC_TI_ADC && IIO && ACPI
+	select ADC_BATTERY_HELPER
+	help
+	  Choose this option if you want to monitor battery status on Intel
+	  Bay Trail / Cherry Trail tablets using the Dollar Cove TI PMIC's
+	  coulomb-counter as fuel-gauge.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called intel_dc_ti_battery.
+
 config BATTERY_IPAQ_MICRO
 	tristate "iPAQ Atmel Micro ASIC battery driver"
 	depends on MFD_IPAQ_MICRO
