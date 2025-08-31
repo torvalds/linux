@@ -100,7 +100,7 @@ static const struct regmap_config ina238_regmap_config = {
 	.val_bits = 16,
 };
 
-enum ina238_ids { ina238, ina237, sq52206, ina228 };
+enum ina238_ids { ina228, ina237, ina238, sq52206 };
 
 struct ina238_config {
 	bool has_20bit_voltage_current; /* vshunt, vbus and current are 20-bit fields */
@@ -127,7 +127,16 @@ struct ina238_data {
 };
 
 static const struct ina238_config ina238_config[] = {
-	[ina238] = {
+	[ina228] = {
+		.has_20bit_voltage_current = true,
+		.has_energy = true,
+		.has_power_highest = false,
+		.power_calculate_factor = 20,
+		.config_default = INA238_CONFIG_DEFAULT,
+		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
+		.temp_resolution = 16,
+	},
+	[ina237] = {
 		.has_20bit_voltage_current = false,
 		.has_energy = false,
 		.has_power_highest = false,
@@ -136,7 +145,7 @@ static const struct ina238_config ina238_config[] = {
 		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
 		.temp_resolution = 12,
 	},
-	[ina237] = {
+	[ina238] = {
 		.has_20bit_voltage_current = false,
 		.has_energy = false,
 		.has_power_highest = false,
@@ -152,15 +161,6 @@ static const struct ina238_config ina238_config[] = {
 		.power_calculate_factor = 24,
 		.config_default = SQ52206_CONFIG_DEFAULT,
 		.bus_voltage_lsb = SQ52206_BUS_VOLTAGE_LSB,
-		.temp_resolution = 16,
-	},
-	[ina228] = {
-		.has_20bit_voltage_current = true,
-		.has_energy = true,
-		.has_power_highest = false,
-		.power_calculate_factor = 20,
-		.config_default = INA238_CONFIG_DEFAULT,
-		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
 		.temp_resolution = 16,
 	},
 };
