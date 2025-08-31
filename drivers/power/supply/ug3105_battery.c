@@ -161,7 +161,7 @@ static int ug3105_probe(struct i2c_client *client)
 	}
 
 	ret = adc_battery_helper_init(&chip->helper, chip->psy,
-				      ug3105_get_voltage_and_current_now);
+				      ug3105_get_voltage_and_current_now, NULL);
 	if (ret)
 		goto stop;
 

@@ -11,6 +11,7 @@
 #define ADC_BAT_HELPER_MOV_AVG_WINDOW_SIZE		8
 
 struct power_supply;
+struct gpio_desc;
 
 /*
  * The adc battery helper code needs voltage- and current-now to be sampled as
@@ -21,6 +22,7 @@ typedef int (*adc_battery_helper_get_func)(struct power_supply *psy, int *volt, 
 
 struct adc_battery_helper {
 	struct power_supply *psy;
+	struct gpio_desc *charge_finished;
 	struct delayed_work work;
 	struct mutex lock;
 	adc_battery_helper_get_func get_voltage_and_current_now;
@@ -44,7 +46,8 @@ extern const enum power_supply_property adc_battery_helper_properties[];
 #define ADC_HELPER_NUM_PROPERTIES 7
 
 int adc_battery_helper_init(struct adc_battery_helper *help, struct power_supply *psy,
-			    adc_battery_helper_get_func get_voltage_and_current_now);
+			    adc_battery_helper_get_func get_voltage_and_current_now,
+			    struct gpio_desc *charge_finished_gpio);
 /*
  * The below functions can be directly used as power-supply / suspend-resume
  * callbacks. They cast the power_supply_get_drvdata() / dev_get_drvdata() data

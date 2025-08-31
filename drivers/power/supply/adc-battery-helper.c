@@ -51,6 +51,7 @@
 
 #include <linux/cleanup.h>
 #include <linux/devm-helpers.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mutex.h>
 #include <linux/power_supply.h>
 #include <linux/workqueue.h>
@@ -82,8 +83,17 @@ static int adc_battery_helper_get_status(struct adc_battery_helper *help)
 	if (help->curr_ua < -CURR_HYST_UA)
 		return POWER_SUPPLY_STATUS_DISCHARGING;
 
-	if (help->supplied && help->ocv_avg_uv > full_uv)
-		return POWER_SUPPLY_STATUS_FULL;
+	if (help->supplied) {
+		bool full;
+
+		if (help->charge_finished)
+			full = gpiod_get_value_cansleep(help->charge_finished);
+		else
+			full = help->ocv_avg_uv > full_uv;
+
+		if (full)
+			return POWER_SUPPLY_STATUS_FULL;
+	}
 
 	return POWER_SUPPLY_STATUS_NOT_CHARGING;
 }
@@ -255,13 +265,15 @@ static void adc_battery_helper_start_work(struct adc_battery_helper *help)
 }
 
 int adc_battery_helper_init(struct adc_battery_helper *help, struct power_supply *psy,
-			    adc_battery_helper_get_func get_voltage_and_current_now)
+			    adc_battery_helper_get_func get_voltage_and_current_now,
+			    struct gpio_desc *charge_finished_gpio)
 {
 	struct device *dev = psy->dev.parent;
 	int ret;
 
 	help->psy = psy;
 	help->get_voltage_and_current_now = get_voltage_and_current_now;
+	help->charge_finished = charge_finished_gpio;
 
 	ret = devm_mutex_init(dev, &help->lock);
 	if (ret)
