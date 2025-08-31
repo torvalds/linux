@@ -82,6 +82,10 @@ power1_input_highest	Peak Power (uW)
 				(SQ52206 only)
 
 curr1_input		Current measurement (mA)
+curr1_min		Minimum current threshold (mA)
+curr1_min_alarm		Minimum current alarm
+curr1_max		Maximum current threshold (mA)
+curr1_max_alarm		Maximum current alarm
 
 energy1_input		Energy measurement (uJ)
 				(SQ52206 and INA237 only)

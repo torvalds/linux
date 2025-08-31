@@ -335,38 +335,90 @@ static int ina238_write_in(struct device *dev, u32 attr, int channel, long val)
 	}
 }
 
-static int ina238_read_current(struct device *dev, u32 attr, long *val)
+static int __ina238_read_curr(struct ina238_data *data, long *val)
+{
+	u32 lsb = data->current_lsb;
+	int err, regval;
+
+	if (data->config->has_20bit_voltage_current) {
+		err = ina238_read_field_s20(data->client, INA238_CURRENT, &regval);
+		if (err)
+			return err;
+		lsb /= 16;	/* Adjust accuracy */
+	} else {
+		err = regmap_read(data->regmap, INA238_CURRENT, &regval);
+		if (err)
+			return err;
+		regval = (s16)regval;
+	}
+
+	*val = DIV_S64_ROUND_CLOSEST((s64)regval * lsb, 1000);
+	return 0;
+}
+
+static int ina238_read_curr(struct device *dev, u32 attr, long *val)
 {
 	struct ina238_data *data = dev_get_drvdata(dev);
+	int reg, mask = 0;
 	int regval;
 	int err;
 
+	if (attr == hwmon_curr_input)
+		return __ina238_read_curr(data, val);
+
 	switch (attr) {
-	case hwmon_curr_input:
-		if (data->config->has_20bit_voltage_current) {
-			err = ina238_read_field_s20(data->client, INA238_CURRENT, &regval);
-			if (err)
-				return err;
-		} else {
-			err = regmap_read(data->regmap, INA238_CURRENT, &regval);
-			if (err < 0)
-				return err;
-			/* sign-extend */
-			regval = (s16)regval;
-		}
-
-		/* Signed register. Result in mA */
-		*val = DIV_S64_ROUND_CLOSEST((s64)regval * data->current_lsb, 1000);
-
-		/* Account for 4 bit offset */
-		if (data->config->has_20bit_voltage_current)
-			*val /= 16;
+	case hwmon_curr_min:
+		reg = INA238_SHUNT_UNDER_VOLTAGE;
+		break;
+	case hwmon_curr_min_alarm:
+		reg = INA238_DIAG_ALERT;
+		mask = INA238_DIAG_ALERT_SHNTUL;
+		break;
+	case hwmon_curr_max:
+		reg = INA238_SHUNT_OVER_VOLTAGE;
+		break;
+	case hwmon_curr_max_alarm:
+		reg = INA238_DIAG_ALERT;
+		mask = INA238_DIAG_ALERT_SHNTOL;
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
+	err = regmap_read(data->regmap, reg, &regval);
+	if (err < 0)
+		return err;
+
+	if (mask)
+		*val = !!(regval & mask);
+	else
+		*val = DIV_S64_ROUND_CLOSEST((s64)(s16)regval * data->current_lsb, 1000);
+
 	return 0;
+}
+
+static int ina238_write_curr(struct device *dev, u32 attr, long val)
+{
+	struct ina238_data *data = dev_get_drvdata(dev);
+	int regval;
+
+	/* Set baseline range to avoid over/underflows */
+	val = clamp_val(val, -1000000, 1000000);
+	/* Scale */
+	val = DIV_ROUND_CLOSEST(val * 1000, data->current_lsb);
+	/* Clamp to register size */
+	regval = clamp_val(val, S16_MIN, S16_MAX) & 0xffff;
+
+	switch (attr) {
+	case hwmon_curr_min:
+		return regmap_write(data->regmap, INA238_SHUNT_UNDER_VOLTAGE,
+				    regval);
+	case hwmon_curr_max:
+		return regmap_write(data->regmap, INA238_SHUNT_OVER_VOLTAGE,
+				    regval);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int ina238_read_power(struct device *dev, u32 attr, long *val)
@@ -521,7 +573,7 @@ static int ina238_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_in:
 		return ina238_read_in(dev, attr, channel, val);
 	case hwmon_curr:
-		return ina238_read_current(dev, attr, val);
+		return ina238_read_curr(dev, attr, val);
 	case hwmon_power:
 		return ina238_read_power(dev, attr, val);
 	case hwmon_temp:
@@ -543,6 +595,9 @@ static int ina238_write(struct device *dev, enum hwmon_sensor_types type,
 	switch (type) {
 	case hwmon_in:
 		err = ina238_write_in(dev, attr, channel, val);
+		break;
+	case hwmon_curr:
+		err = ina238_write_curr(dev, attr, val);
 		break;
 	case hwmon_power:
 		err = ina238_write_power_max(dev, val);
@@ -582,7 +637,12 @@ static umode_t ina238_is_visible(const void *drvdata,
 	case hwmon_curr:
 		switch (attr) {
 		case hwmon_curr_input:
+		case hwmon_curr_max_alarm:
+		case hwmon_curr_min_alarm:
 			return 0444;
+		case hwmon_curr_max:
+		case hwmon_curr_min:
+			return 0644;
 		default:
 			return 0;
 		}
@@ -627,7 +687,8 @@ static const struct hwmon_channel_info * const ina238_info[] = {
 			   INA238_HWMON_IN_CONFIG),
 	HWMON_CHANNEL_INFO(curr,
 			   /* 0: current through shunt */
-			   HWMON_C_INPUT),
+			   HWMON_C_INPUT | HWMON_C_MIN | HWMON_C_MIN_ALARM |
+			   HWMON_C_MAX | HWMON_C_MAX_ALARM),
 	HWMON_CHANNEL_INFO(power,
 			   /* 0: power */
 			   HWMON_P_INPUT | HWMON_P_MAX |
