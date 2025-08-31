@@ -548,22 +548,19 @@ static int ina238_write_temp_max(struct device *dev, long val)
 	return regmap_write(data->regmap, INA238_TEMP_LIMIT, regval);
 }
 
-static ssize_t energy1_input_show(struct device *dev,
-				  struct device_attribute *da, char *buf)
+static int ina238_read_energy(struct device *dev, s64 *energy)
 {
 	struct ina238_data *data = dev_get_drvdata(dev);
-	int ret;
 	u64 regval;
-	u64 energy;
+	int ret;
 
 	ret = ina238_read_reg40(data->client, SQ52206_ENERGY, &regval);
 	if (ret)
 		return ret;
 
 	/* result in uJ */
-	energy = regval * data->energy_lsb;
-
-	return sysfs_emit(buf, "%llu\n", energy);
+	*energy = regval * data->energy_lsb;
+	return 0;
 }
 
 static int ina238_read(struct device *dev, enum hwmon_sensor_types type,
@@ -576,6 +573,8 @@ static int ina238_read(struct device *dev, enum hwmon_sensor_types type,
 		return ina238_read_curr(dev, attr, val);
 	case hwmon_power:
 		return ina238_read_power(dev, attr, val);
+	case hwmon_energy64:
+		return ina238_read_energy(dev, (s64 *)val);
 	case hwmon_temp:
 		return ina238_read_temp(dev, attr, val);
 	default:
@@ -620,6 +619,7 @@ static umode_t ina238_is_visible(const void *drvdata,
 {
 	const struct ina238_data *data = drvdata;
 	bool has_power_highest = data->config->has_power_highest;
+	bool has_energy = data->config->has_energy;
 
 	switch (type) {
 	case hwmon_in:
@@ -660,6 +660,11 @@ static umode_t ina238_is_visible(const void *drvdata,
 		default:
 			return 0;
 		}
+	case hwmon_energy64:
+		/* hwmon_energy_input */
+		if (has_energy)
+			return 0444;
+		return 0;
 	case hwmon_temp:
 		switch (attr) {
 		case hwmon_temp_input:
@@ -693,6 +698,8 @@ static const struct hwmon_channel_info * const ina238_info[] = {
 			   /* 0: power */
 			   HWMON_P_INPUT | HWMON_P_MAX |
 			   HWMON_P_MAX_ALARM | HWMON_P_INPUT_HIGHEST),
+	HWMON_CHANNEL_INFO(energy64,
+			   HWMON_E_INPUT),
 	HWMON_CHANNEL_INFO(temp,
 			   /* 0: die temperature */
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_ALARM),
@@ -709,15 +716,6 @@ static const struct hwmon_chip_info ina238_chip_info = {
 	.ops = &ina238_hwmon_ops,
 	.info = ina238_info,
 };
-
-/* energy attributes are 5 bytes wide so we need u64 */
-static DEVICE_ATTR_RO(energy1_input);
-
-static struct attribute *ina238_attrs[] = {
-	&dev_attr_energy1_input.attr,
-	NULL,
-};
-ATTRIBUTE_GROUPS(ina238);
 
 static int ina238_probe(struct i2c_client *client)
 {
@@ -818,9 +816,7 @@ static int ina238_probe(struct i2c_client *client)
 	data->energy_lsb = data->power_lsb * 16;
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name, data,
-							 &ina238_chip_info,
-							 data->config->has_energy ?
-								ina238_groups : NULL);
+							 &ina238_chip_info, NULL);
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
