@@ -1087,7 +1087,7 @@ out_exec:
 }
 
 /**
- * drm_amdgpu_gem_list_handles_ioctl - get information about a process' buffer objects
+ * amdgpu_gem_list_handles_ioctl - get information about a process' buffer objects
  *
  * @dev: drm device pointer
  * @data: drm_amdgpu_gem_list_handles
