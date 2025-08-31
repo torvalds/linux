@@ -1046,6 +1046,7 @@ config CHARGER_SURFACE
 config BATTERY_UG3105
 	tristate "uPI uG3105 battery monitor driver"
 	depends on I2C
+	select ADC_BATTERY_HELPER
 	help
 	  Battery monitor driver for the uPI uG3105 battery monitor.
 
