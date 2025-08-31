@@ -32,6 +32,11 @@ Supported chips:
     Datasheet:
 	https://www.ti.com/lit/gpn/ina238
 
+  * Texas Instruments INA780
+
+    Datasheet:
+	https://www.ti.com/product/ina780a
+
   * Silergy SQ52206
 
     Prefix: 'SQ52206'
@@ -55,6 +60,9 @@ device tree is used.
 INA237 is a functionally equivalent variant of INA238 with slightly
 different accuracy. INA228 is another variant of INA238 with higher ADC
 resolution. This chip also reports the energy.
+
+INA780 is a variant of the chip series with built-in shunt resistor.
+It also reports the energy.
 
 SQ52206 is a mostly compatible chip from Sylergy. It reports the energy
 as well as the peak power consumption.
@@ -88,7 +96,7 @@ curr1_max		Maximum current threshold (mA)
 curr1_max_alarm		Maximum current alarm
 
 energy1_input		Energy measurement (uJ)
-				(SQ52206 and INA237 only)
+				(SQ52206, INA237, and INA780 only)
 
 temp1_input		Die temperature measurement (mC)
 temp1_max		Maximum die temperature threshold (mC)

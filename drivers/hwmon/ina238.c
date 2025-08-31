@@ -101,7 +101,7 @@ static const struct regmap_config ina238_regmap_config = {
 	.val_bits = 16,
 };
 
-enum ina238_ids { ina228, ina237, ina238, sq52206 };
+enum ina238_ids { ina228, ina237, ina238, ina780, sq52206 };
 
 struct ina238_config {
 	bool has_20bit_voltage_current; /* vshunt, vbus and current are 20-bit fields */
@@ -154,6 +154,16 @@ static const struct ina238_config ina238_config[] = {
 		.config_default = INA238_CONFIG_DEFAULT,
 		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
 		.temp_resolution = 12,
+	},
+	[ina780] = {
+		.has_20bit_voltage_current = false,
+		.has_energy = true,
+		.has_power_highest = false,
+		.power_calculate_factor = 20,
+		.config_default = INA238_CONFIG_DEFAULT,
+		.bus_voltage_lsb = INA238_BUS_VOLTAGE_LSB,
+		.temp_resolution = 12,
+		.current_lsb = 2400,
 	},
 	[sq52206] = {
 		.has_20bit_voltage_current = false,
@@ -836,6 +846,7 @@ static const struct i2c_device_id ina238_id[] = {
 	{ "ina228", ina228 },
 	{ "ina237", ina237 },
 	{ "ina238", ina238 },
+	{ "ina780", ina780 },
 	{ "sq52206", sq52206 },
 	{ }
 };
@@ -853,6 +864,10 @@ static const struct of_device_id __maybe_unused ina238_of_match[] = {
 	{
 		.compatible = "ti,ina238",
 		.data = (void *)ina238
+	},
+	{
+		.compatible = "ti,ina780",
+		.data = (void *)ina780
 	},
 	{
 		.compatible = "silergy,sq52206",
