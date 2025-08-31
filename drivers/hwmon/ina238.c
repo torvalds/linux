@@ -745,32 +745,48 @@ static int ina238_probe(struct i2c_client *client)
 		return PTR_ERR(data->regmap);
 	}
 
-	/* load shunt value */
-	if (device_property_read_u32(dev, "shunt-resistor", &data->rshunt) < 0)
-		data->rshunt = INA238_RSHUNT_DEFAULT;
-	if (data->rshunt == 0) {
-		dev_err(dev, "invalid shunt resister value %u\n", data->rshunt);
-		return -EINVAL;
-	}
-
-	/* load shunt gain value */
-	if (device_property_read_u32(dev, "ti,shunt-gain", &data->gain) < 0)
-		data->gain = 4; /* Default of ADCRANGE = 0 */
-	if (data->gain != 1 && data->gain != 2 && data->gain != 4) {
-		dev_err(dev, "invalid shunt gain value %u\n", data->gain);
-		return -EINVAL;
-	}
-
 	/* Setup CONFIG register */
 	config = data->config->config_default;
-	if (chip == sq52206) {
-		if (data->gain == 1)
-			config |= SQ52206_CONFIG_ADCRANGE_HIGH; /* ADCRANGE = 10/11 is /1 */
-		else if (data->gain == 2)
-			config |= SQ52206_CONFIG_ADCRANGE_LOW; /* ADCRANGE = 01 is /2 */
-	} else if (data->gain == 1) {
-		config |= INA238_CONFIG_ADCRANGE; /* ADCRANGE = 1 is /1 */
+	if (data->config->current_lsb) {
+		data->voltage_lsb[0] = INA238_SHUNT_VOLTAGE_LSB;
+		data->current_lsb = data->config->current_lsb;
+	} else {
+		/* load shunt value */
+		if (device_property_read_u32(dev, "shunt-resistor", &data->rshunt) < 0)
+			data->rshunt = INA238_RSHUNT_DEFAULT;
+		if (data->rshunt == 0) {
+			dev_err(dev, "invalid shunt resister value %u\n", data->rshunt);
+			return -EINVAL;
+		}
+
+		/* load shunt gain value */
+		if (device_property_read_u32(dev, "ti,shunt-gain", &data->gain) < 0)
+			data->gain = 4;	/* Default of ADCRANGE = 0 */
+		if (data->gain != 1 && data->gain != 2 && data->gain != 4) {
+			dev_err(dev, "invalid shunt gain value %u\n", data->gain);
+			return -EINVAL;
+		}
+
+		/* Setup SHUNT_CALIBRATION register with fixed value */
+		ret = regmap_write(data->regmap, INA238_SHUNT_CALIBRATION,
+				   INA238_CALIBRATION_VALUE);
+		if (ret < 0) {
+			dev_err(dev, "error configuring the device: %d\n", ret);
+			return -ENODEV;
+		}
+		if (chip == sq52206) {
+			if (data->gain == 1)		/* ADCRANGE = 10/11 is /1 */
+				config |= SQ52206_CONFIG_ADCRANGE_HIGH;
+			else if (data->gain == 2)	/* ADCRANGE = 01 is /2 */
+				config |= SQ52206_CONFIG_ADCRANGE_LOW;
+		} else if (data->gain == 1) {		/* ADCRANGE = 1 is /1 */
+			config |= INA238_CONFIG_ADCRANGE;
+		}
+		data->voltage_lsb[0] = INA238_SHUNT_VOLTAGE_LSB * data->gain / 4;
+		data->current_lsb = DIV_U64_ROUND_CLOSEST(250ULL * INA238_FIXED_SHUNT * data->gain,
+							  data->rshunt);
 	}
+
 	ret = regmap_write(data->regmap, INA238_CONFIG, config);
 	if (ret < 0) {
 		dev_err(dev, "error configuring the device: %d\n", ret);
@@ -780,14 +796,6 @@ static int ina238_probe(struct i2c_client *client)
 	/* Setup ADC_CONFIG register */
 	ret = regmap_write(data->regmap, INA238_ADC_CONFIG,
 			   INA238_ADC_CONFIG_DEFAULT);
-	if (ret < 0) {
-		dev_err(dev, "error configuring the device: %d\n", ret);
-		return -ENODEV;
-	}
-
-	/* Setup SHUNT_CALIBRATION register with fixed value */
-	ret = regmap_write(data->regmap, INA238_SHUNT_CALIBRATION,
-			   INA238_CALIBRATION_VALUE);
 	if (ret < 0) {
 		dev_err(dev, "error configuring the device: %d\n", ret);
 		return -ENODEV;
@@ -804,14 +812,7 @@ static int ina238_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	data->voltage_lsb[0] = INA238_SHUNT_VOLTAGE_LSB * data->gain / 4;
 	data->voltage_lsb[1] = data->config->bus_voltage_lsb;
-
-	if (data->config->current_lsb)
-		data->current_lsb = data->config->current_lsb;
-	else
-		data->current_lsb = DIV_U64_ROUND_CLOSEST(250ULL * INA238_FIXED_SHUNT * data->gain,
-							  data->rshunt);
 
 	data->power_lsb = DIV_ROUND_CLOSEST(data->current_lsb *
 					    data->config->power_calculate_factor,
@@ -824,8 +825,9 @@ static int ina238_probe(struct i2c_client *client)
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
-	dev_info(dev, "power monitor %s (Rshunt = %u uOhm, gain = %u)\n",
-		 client->name, data->rshunt, data->gain);
+	if (data->rshunt)
+		dev_info(dev, "power monitor %s (Rshunt = %u uOhm, gain = %u)\n",
+			 client->name, data->rshunt, data->gain);
 
 	return 0;
 }
