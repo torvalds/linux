@@ -726,20 +726,19 @@ int iio_read_channel_processed_scale(struct iio_channel *chan, int *val,
 				     unsigned int scale)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(chan->indio_dev);
-	int ret;
+	int ret, pval, pval2;
 
 	guard(mutex)(&iio_dev_opaque->info_exist_lock);
 	if (!chan->indio_dev->info)
 		return -ENODEV;
 
 	if (iio_channel_has_info(chan->channel, IIO_CHAN_INFO_PROCESSED)) {
-		ret = iio_channel_read(chan, val, NULL,
+		ret = iio_channel_read(chan, &pval, &pval2,
 				       IIO_CHAN_INFO_PROCESSED);
 		if (ret < 0)
 			return ret;
-		*val *= scale;
 
-		return ret;
+		return iio_multiply_value(val, scale, ret, pval, pval2);
 	} else {
 		ret = iio_channel_read(chan, val, NULL, IIO_CHAN_INFO_RAW);
 		if (ret < 0)
