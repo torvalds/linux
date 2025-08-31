@@ -16,8 +16,6 @@
 #include <linux/of.h>
 #include <linux/regmap.h>
 
-#include <linux/platform_data/ina2xx.h>
-
 /* INA238 register definitions */
 #define INA238_CONFIG			0x0
 #define INA238_ADC_CONFIG		0x1
@@ -745,7 +743,6 @@ ATTRIBUTE_GROUPS(ina238);
 
 static int ina238_probe(struct i2c_client *client)
 {
-	struct ina2xx_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
 	struct ina238_data *data;
@@ -772,9 +769,8 @@ static int ina238_probe(struct i2c_client *client)
 	}
 
 	/* load shunt value */
-	data->rshunt = INA238_RSHUNT_DEFAULT;
-	if (device_property_read_u32(dev, "shunt-resistor", &data->rshunt) < 0 && pdata)
-		data->rshunt = pdata->shunt_uohms;
+	if (device_property_read_u32(dev, "shunt-resistor", &data->rshunt) < 0)
+		data->rshunt = INA238_RSHUNT_DEFAULT;
 	if (data->rshunt == 0) {
 		dev_err(dev, "invalid shunt resister value %u\n", data->rshunt);
 		return -EINVAL;

@@ -29,10 +29,10 @@ The INA238 is a current shunt, power and temperature monitor with an I2C
 interface. It includes a number of programmable functions including alerts,
 conversion rate, sample averaging and selectable shunt voltage accuracy.
 
-The shunt value in micro-ohms can be set via platform data or device tree at
-compile-time or via the shunt_resistor attribute in sysfs at run-time. Please
-refer to the Documentation/devicetree/bindings/hwmon/ti,ina2xx.yaml for bindings
-if the device tree is used.
+The shunt value in micro-ohms can be set via device properties, either from
+platform code or from device tree data. Please refer to
+Documentation/devicetree/bindings/hwmon/ti,ina2xx.yaml for bindings if
+device tree is used.
 
 Sysfs entries
 -------------
