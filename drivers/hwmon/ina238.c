@@ -101,9 +101,11 @@
 #define INA238_CALIBRATION_VALUE	16384
 #define INA238_FIXED_SHUNT		20000
 
-#define INA238_SHUNT_VOLTAGE_LSB	5 /* 5 uV/lsb */
-#define INA238_BUS_VOLTAGE_LSB		3125 /* 3.125 mV/lsb */
-#define SQ52206_BUS_VOLTAGE_LSB		3750 /* 3.75 mV/lsb */
+#define INA238_SHUNT_VOLTAGE_LSB	5000	/* 5 uV/lsb, in nV */
+#define INA238_BUS_VOLTAGE_LSB		3125000	/* 3.125 mV/lsb, in nV */
+#define SQ52206_BUS_VOLTAGE_LSB		3750000	/* 3.75 mV/lsb, in nV */
+
+#define NUNIT_PER_MUNIT		1000000	/* n[AV] -> m[AV] */
 
 static const struct regmap_config ina238_regmap_config = {
 	.max_register = INA238_REGISTERS,
@@ -118,9 +120,9 @@ struct ina238_config {
 	bool has_power_highest;		/* chip detection power peak */
 	bool has_energy;		/* chip detection energy */
 	u8 temp_resolution;		/* temperature register resolution in bit */
-	u32 power_calculate_factor;	/* fixed parameter for power calculation, from datasheet */
 	u16 config_default;		/* Power-on default state */
-	int bus_voltage_lsb;		/* use for temperature calculate, uV/lsb */
+	u32 power_calculate_factor;	/* fixed parameter for power calculation, from datasheet */
+	u32 bus_voltage_lsb;		/* bus voltage LSB, in nV */
 	int current_lsb;		/* current LSB, in uA */
 };
 
@@ -131,6 +133,7 @@ struct ina238_data {
 	struct regmap *regmap;
 	u32 rshunt;
 	int gain;
+	u32 voltage_lsb[2];		/* shunt, bus voltage LSB, in nV */
 	int current_lsb;		/* current LSB, in uA */
 	int power_lsb;			/* power LSB, in uW */
 	int energy_lsb;			/* energy LSB, in uJ */
@@ -226,45 +229,28 @@ static int ina238_read_field_s20(const struct i2c_client *client, u8 reg, s32 *v
 	return 0;
 }
 
-static int ina228_read_shunt_voltage(struct device *dev, u32 attr, int channel,
-				     long *val)
+static int ina228_read_voltage(struct ina238_data *data, int channel, long *val)
 {
-	struct ina238_data *data = dev_get_drvdata(dev);
-	int regval;
-	int err;
+	int reg = channel ? INA238_BUS_VOLTAGE : INA238_SHUNT_VOLTAGE;
+	u32 lsb = data->voltage_lsb[channel];
+	u32 factor = NUNIT_PER_MUNIT;
+	int err, regval;
 
-	err = ina238_read_field_s20(data->client, INA238_SHUNT_VOLTAGE, &regval);
-	if (err)
-		return err;
+	if (data->config->has_20bit_voltage_current) {
+		err = ina238_read_field_s20(data->client, reg, &regval);
+		if (err)
+			return err;
+		/* Adjust accuracy: LSB in units of 500 pV */
+		lsb /= 8;
+		factor *= 2;
+	} else {
+		err = regmap_read(data->regmap, reg, &regval);
+		if (err)
+			return err;
+		regval = (s16)regval;
+	}
 
-	/*
-	 * gain of 1 -> LSB / 4
-	 * This field has 16 bit on ina238. ina228 adds another 4 bits of
-	 * precision. ina238 conversion factors can still be applied when
-	 * dividing by 16.
-	 */
-	*val = (regval * INA238_SHUNT_VOLTAGE_LSB) * data->gain / (1000 * 4) / 16;
-	return 0;
-}
-
-static int ina228_read_bus_voltage(struct device *dev, u32 attr, int channel,
-				   long *val)
-{
-	struct ina238_data *data = dev_get_drvdata(dev);
-	int regval;
-	int err;
-
-	err = ina238_read_field_s20(data->client, INA238_BUS_VOLTAGE, &regval);
-	if (err)
-		return err;
-
-	/*
-	 * gain of 1 -> LSB / 4
-	 * This field has 16 bit on ina238. ina228 adds another 4 bits of
-	 * precision. ina238 conversion factors can still be applied when
-	 * dividing by 16.
-	 */
-	*val = (regval * data->config->bus_voltage_lsb) / 1000 / 16;
+	*val = DIV_S64_ROUND_CLOSEST((s64)regval * lsb, factor);
 	return 0;
 }
 
@@ -272,18 +258,16 @@ static int ina238_read_in(struct device *dev, u32 attr, int channel,
 			  long *val)
 {
 	struct ina238_data *data = dev_get_drvdata(dev);
-	int reg, mask;
+	int reg, mask = 0;
 	int regval;
 	int err;
+
+	if (attr == hwmon_in_input)
+		return ina228_read_voltage(data, channel, val);
 
 	switch (channel) {
 	case 0:
 		switch (attr) {
-		case hwmon_in_input:
-			if (data->config->has_20bit_voltage_current)
-				return ina228_read_shunt_voltage(dev, attr, channel, val);
-			reg = INA238_SHUNT_VOLTAGE;
-			break;
 		case hwmon_in_max:
 			reg = INA238_SHUNT_OVER_VOLTAGE;
 			break;
@@ -304,11 +288,6 @@ static int ina238_read_in(struct device *dev, u32 attr, int channel,
 		break;
 	case 1:
 		switch (attr) {
-		case hwmon_in_input:
-			if (data->config->has_20bit_voltage_current)
-				return ina228_read_bus_voltage(dev, attr, channel, val);
-			reg = INA238_BUS_VOLTAGE;
-			break;
 		case hwmon_in_max:
 			reg = INA238_BUS_OVER_VOLTAGE;
 			break;
@@ -335,72 +314,35 @@ static int ina238_read_in(struct device *dev, u32 attr, int channel,
 	if (err < 0)
 		return err;
 
-	switch (attr) {
-	case hwmon_in_input:
-	case hwmon_in_max:
-	case hwmon_in_min:
-		/* signed register, value in mV */
-		regval = (s16)regval;
-		if (channel == 0)
-			/* gain of 1 -> LSB / 4 */
-			*val = (regval * INA238_SHUNT_VOLTAGE_LSB) *
-				data->gain / (1000 * 4);
-		else
-			*val = (regval * data->config->bus_voltage_lsb) / 1000;
-		break;
-	case hwmon_in_max_alarm:
-	case hwmon_in_min_alarm:
+	if (mask)
 		*val = !!(regval & mask);
-		break;
-	}
+	else
+		*val = DIV_S64_ROUND_CLOSEST((s64)(s16)regval * data->voltage_lsb[channel],
+					     NUNIT_PER_MUNIT);
 
 	return 0;
 }
 
-static int ina238_write_in(struct device *dev, u32 attr, int channel,
-			   long val)
+static int ina238_write_in(struct device *dev, u32 attr, int channel, long val)
 {
 	struct ina238_data *data = dev_get_drvdata(dev);
+	static const int low_limits[2] = {-164, 0};
+	static const int high_limits[2] = {164, 150000};
+	static const u8 low_regs[2] = {INA238_SHUNT_UNDER_VOLTAGE, INA238_BUS_UNDER_VOLTAGE};
+	static const u8 high_regs[2] = {INA238_SHUNT_OVER_VOLTAGE, INA238_BUS_OVER_VOLTAGE};
 	int regval;
 
-	if (attr != hwmon_in_max && attr != hwmon_in_min)
-		return -EOPNOTSUPP;
+	/* Initial clamp to avoid overflows */
+	val = clamp_val(val, low_limits[channel], high_limits[channel]);
+	val = DIV_S64_ROUND_CLOSEST((s64)val * NUNIT_PER_MUNIT, data->voltage_lsb[channel]);
+	/* Final clamp to register limits */
+	regval = clamp_val(val, S16_MIN, S16_MAX) & 0xffff;
 
-	/* convert decimal to register value */
-	switch (channel) {
-	case 0:
-		/* signed value, clamp to max range +/-163 mV */
-		regval = clamp_val(val, -163, 163);
-		regval = (regval * 1000 * 4) /
-			 (INA238_SHUNT_VOLTAGE_LSB * data->gain);
-		regval = clamp_val(regval, S16_MIN, S16_MAX) & 0xffff;
-
-		switch (attr) {
-		case hwmon_in_max:
-			return regmap_write(data->regmap,
-					    INA238_SHUNT_OVER_VOLTAGE, regval);
-		case hwmon_in_min:
-			return regmap_write(data->regmap,
-					    INA238_SHUNT_UNDER_VOLTAGE, regval);
-		default:
-			return -EOPNOTSUPP;
-		}
-	case 1:
-		/* signed value, positive values only. Clamp to max 102.396 V */
-		regval = clamp_val(val, 0, 102396);
-		regval = (regval * 1000) / data->config->bus_voltage_lsb;
-		regval = clamp_val(regval, 0, S16_MAX);
-
-		switch (attr) {
-		case hwmon_in_max:
-			return regmap_write(data->regmap,
-					    INA238_BUS_OVER_VOLTAGE, regval);
-		case hwmon_in_min:
-			return regmap_write(data->regmap,
-					    INA238_BUS_UNDER_VOLTAGE, regval);
-		default:
-			return -EOPNOTSUPP;
-		}
+	switch (attr) {
+	case hwmon_in_min:
+		return regmap_write(data->regmap, low_regs[channel], regval);
+	case hwmon_in_max:
+		return regmap_write(data->regmap, high_regs[channel], regval);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -811,6 +753,9 @@ static int ina238_probe(struct i2c_client *client)
 		dev_err(dev, "error configuring the device: %d\n", ret);
 		return -ENODEV;
 	}
+
+	data->voltage_lsb[0] = INA238_SHUNT_VOLTAGE_LSB * data->gain / 4;
+	data->voltage_lsb[1] = data->config->bus_voltage_lsb;
 
 	if (data->config->current_lsb)
 		data->current_lsb = data->config->current_lsb;
