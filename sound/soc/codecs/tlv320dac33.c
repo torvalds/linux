@@ -24,7 +24,6 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
-#include <sound/tlv320dac33-plat.h>
 #include "tlv320dac33.h"
 
 /*
@@ -1462,15 +1461,8 @@ static struct snd_soc_dai_driver dac33_dai = {
 
 static int dac33_i2c_probe(struct i2c_client *client)
 {
-	struct tlv320dac33_platform_data *pdata;
 	struct tlv320dac33_priv *dac33;
 	int ret, i;
-
-	if (client->dev.platform_data == NULL) {
-		dev_err(&client->dev, "Platform data not set\n");
-		return -ENODEV;
-	}
-	pdata = client->dev.platform_data;
 
 	dac33 = devm_kzalloc(&client->dev, sizeof(struct tlv320dac33_priv),
 			     GFP_KERNEL);
@@ -1488,10 +1480,6 @@ static int dac33_i2c_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, dac33);
 
-	dac33->power_gpio = pdata->power_gpio;
-	dac33->burst_bclkdiv = pdata->burst_bclkdiv;
-	dac33->keep_bclk = pdata->keep_bclk;
-	dac33->mode1_latency = pdata->mode1_latency;
 	if (!dac33->mode1_latency)
 		dac33->mode1_latency = 10000; /* 10ms */
 	dac33->irq = client->irq;
