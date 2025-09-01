@@ -11,7 +11,6 @@
 #include "nouveau_exec.h"
 #include "nouveau_abi16.h"
 #include "nouveau_sched.h"
-#include "nouveau_chan.h"
 
 #define NOUVEAU_SCHED_JOB_TIMEOUT_MS		10000
 
@@ -122,9 +121,11 @@ nouveau_job_done(struct nouveau_job *job)
 {
 	struct nouveau_sched *sched = job->sched;
 
-	spin_lock(&sched->job_list.lock);
+	spin_lock(&sched->job.list.lock);
 	list_del(&job->entry);
-	spin_unlock(&sched->job_list.lock);
+	spin_unlock(&sched->job.list.lock);
+
+	wake_up(&sched->job.wq);
 }
 
 void
@@ -305,9 +306,9 @@ nouveau_job_submit(struct nouveau_job *job)
 	}
 
 	/* Submit was successful; add the job to the schedulers job list. */
-	spin_lock(&sched->job_list.lock);
-	list_add(&job->entry, &sched->job_list.head);
-	spin_unlock(&sched->job_list.lock);
+	spin_lock(&sched->job.list.lock);
+	list_add(&job->entry, &sched->job.list.head);
+	spin_unlock(&sched->job.list.lock);
 
 	drm_sched_job_arm(&job->base);
 	job->done_fence = dma_fence_get(&job->base.s_fence->finished);
@@ -392,23 +393,10 @@ nouveau_sched_free_job(struct drm_sched_job *sched_job)
 	nouveau_job_fini(job);
 }
 
-static void
-nouveau_sched_cancel_job(struct drm_sched_job *sched_job)
-{
-	struct nouveau_fence *fence;
-	struct nouveau_job *job;
-
-	job = to_nouveau_job(sched_job);
-	fence = to_nouveau_fence(job->done_fence);
-
-	nouveau_fence_cancel(fence);
-}
-
 static const struct drm_sched_backend_ops nouveau_sched_ops = {
 	.run_job = nouveau_sched_run_job,
 	.timedout_job = nouveau_sched_timedout_job,
 	.free_job = nouveau_sched_free_job,
-	.cancel_job = nouveau_sched_cancel_job,
 };
 
 static int
@@ -458,8 +446,9 @@ nouveau_sched_init(struct nouveau_sched *sched, struct nouveau_drm *drm,
 		goto fail_sched;
 
 	mutex_init(&sched->mutex);
-	spin_lock_init(&sched->job_list.lock);
-	INIT_LIST_HEAD(&sched->job_list.head);
+	spin_lock_init(&sched->job.list.lock);
+	INIT_LIST_HEAD(&sched->job.list.head);
+	init_waitqueue_head(&sched->job.wq);
 
 	return 0;
 
@@ -493,11 +482,15 @@ nouveau_sched_create(struct nouveau_sched **psched, struct nouveau_drm *drm,
 	return 0;
 }
 
+
 static void
 nouveau_sched_fini(struct nouveau_sched *sched)
 {
 	struct drm_gpu_scheduler *drm_sched = &sched->base;
 	struct drm_sched_entity *entity = &sched->entity;
+
+	rmb(); /* for list_empty to work without lock */
+	wait_event(sched->job.wq, list_empty(&sched->job.list.head));
 
 	drm_sched_entity_fini(entity);
 	drm_sched_fini(drm_sched);
