@@ -372,9 +372,11 @@ static inline void *get_key_head_addr(struct pcache_cache *cache)
 
 static inline u32 get_kset_id(struct pcache_cache *cache, u64 off)
 {
-	u32 rem;
-	div_u64_rem(off >> PCACHE_CACHE_SUBTREE_SIZE_SHIFT, cache->n_ksets, &rem);
-	return rem;
+	u32 kset_id;
+
+	div_u64_rem(off >> PCACHE_CACHE_SUBTREE_SIZE_SHIFT, cache->n_ksets, &kset_id);
+
+	return kset_id;
 }
 
 static inline struct pcache_cache_kset *get_kset(struct pcache_cache *cache, u32 kset_id)
