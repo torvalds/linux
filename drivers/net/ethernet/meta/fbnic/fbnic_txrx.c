@@ -997,9 +997,8 @@ static void fbnic_add_rx_frag(struct fbnic_napi_vector *nv, u64 rcd,
 		  FBNIC_BD_FRAG_SIZE;
 
 	/* Sync DMA buffer */
-	dma_sync_single_range_for_cpu(nv->dev,
-				      page_pool_get_dma_addr_netmem(netmem),
-				      pg_off, truesize, DMA_BIDIRECTIONAL);
+	page_pool_dma_sync_netmem_for_cpu(qt->sub1.page_pool, netmem,
+					  pg_off, truesize);
 
 	added = xdp_buff_add_frag(&pkt->buff, netmem, pg_off, len, truesize);
 	if (unlikely(!added)) {
@@ -1515,16 +1514,14 @@ void fbnic_free_napi_vectors(struct fbnic_net *fbn)
 			fbnic_free_napi_vector(fbn, fbn->napi[i]);
 }
 
-#define FBNIC_PAGE_POOL_FLAGS \
-	(PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV)
-
 static int
 fbnic_alloc_qt_page_pools(struct fbnic_net *fbn, struct fbnic_napi_vector *nv,
-			  struct fbnic_q_triad *qt)
+			  struct fbnic_q_triad *qt, unsigned int rxq_idx)
 {
 	struct page_pool_params pp_params = {
 		.order = 0,
-		.flags = FBNIC_PAGE_POOL_FLAGS,
+		.flags = PP_FLAG_DMA_MAP |
+			 PP_FLAG_DMA_SYNC_DEV,
 		.pool_size = fbn->hpq_size + fbn->ppq_size,
 		.nid = NUMA_NO_NODE,
 		.dev = nv->dev,
@@ -1533,6 +1530,7 @@ fbnic_alloc_qt_page_pools(struct fbnic_net *fbn, struct fbnic_napi_vector *nv,
 		.max_len = PAGE_SIZE,
 		.napi	= &nv->napi,
 		.netdev	= fbn->netdev,
+		.queue_idx = rxq_idx,
 	};
 	struct page_pool *pp;
 
@@ -1553,10 +1551,23 @@ fbnic_alloc_qt_page_pools(struct fbnic_net *fbn, struct fbnic_napi_vector *nv,
 		return PTR_ERR(pp);
 
 	qt->sub0.page_pool = pp;
-	page_pool_get(pp);
+	if (netif_rxq_has_unreadable_mp(fbn->netdev, rxq_idx)) {
+		pp_params.flags |= PP_FLAG_ALLOW_UNREADABLE_NETMEM;
+		pp_params.dma_dir = DMA_FROM_DEVICE;
+
+		pp = page_pool_create(&pp_params);
+		if (IS_ERR(pp))
+			goto err_destroy_sub0;
+	} else {
+		page_pool_get(pp);
+	}
 	qt->sub1.page_pool = pp;
 
 	return 0;
+
+err_destroy_sub0:
+	page_pool_destroy(pp);
+	return PTR_ERR(pp);
 }
 
 static void fbnic_ring_init(struct fbnic_ring *ring, u32 __iomem *doorbell,
@@ -1961,7 +1972,7 @@ static int fbnic_alloc_rx_qt_resources(struct fbnic_net *fbn,
 	struct device *dev = fbn->netdev->dev.parent;
 	int err;
 
-	err = fbnic_alloc_qt_page_pools(fbn, nv, qt);
+	err = fbnic_alloc_qt_page_pools(fbn, nv, qt, qt->cmpl.q_idx);
 	if (err)
 		return err;
 
