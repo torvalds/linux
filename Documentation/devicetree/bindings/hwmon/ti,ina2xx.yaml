@@ -32,6 +32,7 @@ properties:
       - ti,ina237
       - ti,ina238
       - ti,ina260
+      - ti,ina700
       - ti,ina780
 
   reg:
@@ -115,6 +116,7 @@ allOf:
               - ti,ina237
               - ti,ina238
               - ti,ina260
+              - ti,ina700
               - ti,ina780
     then:
       properties:
@@ -133,6 +135,7 @@ allOf:
               - ti,ina230
               - ti,ina231
               - ti,ina260
+              - ti,ina700
               - ti,ina780
     then:
       properties:
@@ -143,6 +146,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - ti,ina700
               - ti,ina780
     then:
       properties:
