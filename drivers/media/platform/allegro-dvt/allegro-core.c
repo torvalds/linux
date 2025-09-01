@@ -831,6 +831,20 @@ out:
 	return err;
 }
 
+static unsigned int allegro_mbox_get_available(struct allegro_mbox *mbox)
+{
+	struct regmap *sram = mbox->dev->sram;
+	unsigned int head, tail;
+
+	regmap_read(sram, mbox->head, &head);
+	regmap_read(sram, mbox->tail, &tail);
+
+	if (tail >= head)
+		return tail - head;
+	else
+		return mbox->size - (head - tail);
+}
+
 static ssize_t allegro_mbox_read(struct allegro_mbox *mbox,
 				 u32 *dst, size_t nbyte)
 {
@@ -839,10 +853,14 @@ static ssize_t allegro_mbox_read(struct allegro_mbox *mbox,
 		u16 type;
 	} __attribute__ ((__packed__)) *header;
 	struct regmap *sram = mbox->dev->sram;
-	unsigned int head;
+	unsigned int available, head;
 	ssize_t size;
 	size_t body_no_wrap;
 	int stride = regmap_get_reg_stride(sram);
+
+	available = allegro_mbox_get_available(mbox);
+	if (available < sizeof(*header))
+		return -EAGAIN;
 
 	regmap_read(sram, mbox->head, &head);
 	if (head > mbox->size)
@@ -857,6 +875,8 @@ static ssize_t allegro_mbox_read(struct allegro_mbox *mbox,
 		return -EIO;
 	if (size > nbyte)
 		return -EINVAL;
+	if (size > available)
+		return -EAGAIN;
 
 	/*
 	 * The message might wrap within the mailbox. If the message does not
@@ -916,26 +936,27 @@ out:
  * allegro_mbox_notify() - Notify the mailbox about a new message
  * @mbox: The allegro_mbox to notify
  */
-static void allegro_mbox_notify(struct allegro_mbox *mbox)
+static int allegro_mbox_notify(struct allegro_mbox *mbox)
 {
 	struct allegro_dev *dev = mbox->dev;
 	union mcu_msg_response *msg;
-	ssize_t size;
 	u32 *tmp;
 	int err;
 
 	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
-		return;
+		return -ENOMEM;
 
 	msg->header.version = dev->fw_info->mailbox_version;
 
 	tmp = kmalloc(mbox->size, GFP_KERNEL);
-	if (!tmp)
+	if (!tmp) {
+		err = -ENOMEM;
 		goto out;
+	}
 
-	size = allegro_mbox_read(mbox, tmp, mbox->size);
-	if (size < 0)
+	err = allegro_mbox_read(mbox, tmp, mbox->size);
+	if (err < 0)
 		goto out;
 
 	err = allegro_decode_mail(msg, tmp);
@@ -947,6 +968,8 @@ static void allegro_mbox_notify(struct allegro_mbox *mbox)
 out:
 	kfree(tmp);
 	kfree(msg);
+
+	return err;
 }
 
 static int allegro_encoder_buffer_init(struct allegro_dev *dev,
@@ -2329,7 +2352,10 @@ static irqreturn_t allegro_irq_thread(int irq, void *data)
 	if (!dev->mbox_status)
 		return IRQ_NONE;
 
-	allegro_mbox_notify(dev->mbox_status);
+	while (allegro_mbox_get_available(dev->mbox_status) > 0) {
+		if (allegro_mbox_notify(dev->mbox_status))
+			break;
+	}
 
 	return IRQ_HANDLED;
 }
