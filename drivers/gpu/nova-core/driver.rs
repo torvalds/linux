@@ -54,4 +54,8 @@ impl pci::Driver for NovaCore {
 
         Ok(this)
     }
+
+    fn unbind(pdev: &pci::Device<Core>, this: Pin<&Self>) {
+        this.gpu.unbind(pdev.as_ref());
+    }
 }
