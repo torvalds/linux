@@ -518,10 +518,15 @@ static void smcd_register_dev(struct ism_dev *ism)
 	}
 	mutex_unlock(&smcd_dev_list.mutex);
 
-	pr_warn_ratelimited("smc: adding smcd device %s with pnetid %.16s%s\n",
-			    dev_name(&ism->dev), smcd->pnetid,
-			    smcd->pnetid_by_user ? " (user defined)" : "");
-
+	if (smc_pnet_is_pnetid_set(smcd->pnetid))
+		pr_warn_ratelimited("smc: adding smcd device %s with pnetid %.16s%s\n",
+				    dev_name(&ism->dev), smcd->pnetid,
+				    smcd->pnetid_by_user ?
+					" (user defined)" :
+					"");
+	else
+		pr_warn_ratelimited("smc: adding smcd device %s without pnetid\n",
+				    dev_name(&ism->dev));
 	return;
 }
 
