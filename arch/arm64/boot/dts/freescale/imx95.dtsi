@@ -1843,7 +1843,7 @@
 				     <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&scmi_clk IMX95_CLK_VPU>,
 				 <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_ENC>;
-			assigned-clocks = <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_DEC>;
+			assigned-clocks = <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_ENC>;
 			assigned-clock-parents = <&scmi_clk IMX95_CLK_VPUJPEG>;
 			power-domains = <&scmi_devpd IMX95_PD_VPU>;
 		};
