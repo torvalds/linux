@@ -550,11 +550,11 @@ static void __inode_add_lru(struct inode *inode, bool rotate)
 struct wait_queue_head *inode_bit_waitqueue(struct wait_bit_queue_entry *wqe,
 					    struct inode *inode, u32 bit)
 {
-        void *bit_address;
+	void *bit_address;
 
-        bit_address = inode_state_wait_address(inode, bit);
-        init_wait_var_entry(wqe, bit_address, 0);
-        return __var_waitqueue(bit_address);
+	bit_address = inode_state_wait_address(inode, bit);
+	init_wait_var_entry(wqe, bit_address, 0);
+	return __var_waitqueue(bit_address);
 }
 EXPORT_SYMBOL(inode_bit_waitqueue);
 
@@ -2938,7 +2938,7 @@ EXPORT_SYMBOL(mode_strip_sgid);
  */
 void dump_inode(struct inode *inode, const char *reason)
 {
-       pr_warn("%s encountered for inode %px", reason, inode);
+	pr_warn("%s encountered for inode %px", reason, inode);
 }
 
 EXPORT_SYMBOL(dump_inode);
