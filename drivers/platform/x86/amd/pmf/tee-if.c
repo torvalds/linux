@@ -225,7 +225,7 @@ static void amd_pmf_apply_policies(struct amd_pmf_dev *dev, struct ta_pmf_enact_
 	}
 }
 
-static int amd_pmf_invoke_cmd_enact(struct amd_pmf_dev *dev)
+int amd_pmf_invoke_cmd_enact(struct amd_pmf_dev *dev)
 {
 	struct ta_pmf_shared_memory *ta_sm = NULL;
 	struct ta_pmf_enact_result *out = NULL;
@@ -577,8 +577,10 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 		ret = amd_pmf_start_policy_engine(dev);
 		dev_dbg(dev->dev, "start policy engine ret: %d\n", ret);
 		status = ret == TA_PMF_TYPE_SUCCESS;
-		if (status)
+		if (status) {
+			dev->cb_flag = true;
 			break;
+		}
 		amd_pmf_tee_deinit(dev);
 	}
 
