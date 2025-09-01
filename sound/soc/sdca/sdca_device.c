@@ -7,6 +7,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/soundwire/sdw.h>
@@ -55,11 +56,30 @@ static bool sdca_device_quirk_rt712_vb(struct sdw_slave *slave)
 	return false;
 }
 
+static bool sdca_device_quirk_skip_func_type_patching(struct sdw_slave *slave)
+{
+	const char *vendor, *sku;
+
+	vendor = dmi_get_system_info(DMI_SYS_VENDOR);
+	sku = dmi_get_system_info(DMI_PRODUCT_SKU);
+
+	if (vendor && sku &&
+	    !strcmp(vendor, "Dell Inc.") &&
+	    (!strcmp(sku, "0C62") || !strcmp(sku, "0C63") || !strcmp(sku, "0C6B")) &&
+	    slave->sdca_data.interface_revision == 0x061c &&
+	    slave->id.mfg_id == 0x01fa && slave->id.part_id == 0x4243)
+		return true;
+
+	return false;
+}
+
 bool sdca_device_quirk_match(struct sdw_slave *slave, enum sdca_quirk quirk)
 {
 	switch (quirk) {
 	case SDCA_QUIRKS_RT712_VB:
 		return sdca_device_quirk_rt712_vb(slave);
+	case SDCA_QUIRKS_SKIP_FUNC_TYPE_PATCHING:
+		return sdca_device_quirk_skip_func_type_patching(slave);
 	default:
 		break;
 	}
