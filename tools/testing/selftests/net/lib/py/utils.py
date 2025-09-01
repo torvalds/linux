@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
-import errno
 import json as _json
 import os
-import random
 import re
 import select
 import socket
@@ -21,8 +19,7 @@ def fd_read_timeout(fd, timeout):
     rlist, _, _ = select.select([fd], [], [], timeout)
     if rlist:
         return os.read(fd, 1024)
-    else:
-        raise TimeoutError("Timeout waiting for fd read")
+    raise TimeoutError("Timeout waiting for fd read")
 
 
 class cmd:
@@ -138,8 +135,6 @@ global_defer_queue = []
 
 class defer:
     def __init__(self, func, *args, **kwargs):
-        global global_defer_queue
-
         if not callable(func):
             raise Exception("defer created with un-callable object, did you call the function instead of passing its name?")
 
@@ -227,11 +222,11 @@ def bpftrace(expr, json=None, ns=None, host=None, timeout=None):
     return cmd_obj
 
 
-def rand_port(type=socket.SOCK_STREAM):
+def rand_port(stype=socket.SOCK_STREAM):
     """
     Get a random unprivileged port.
     """
-    with socket.socket(socket.AF_INET6, type) as s:
+    with socket.socket(socket.AF_INET6, stype) as s:
         s.bind(("", 0))
         return s.getsockname()[1]
 
