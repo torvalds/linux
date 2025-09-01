@@ -1383,8 +1383,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 
 	/* ib device init */
 	ibdev->node_type = RDMA_NODE_IB_CA;
-	strscpy(ibdev->node_desc, BNXT_RE_DESC " HCA",
-		strlen(BNXT_RE_DESC) + 5);
+	strscpy(ibdev->node_desc, BNXT_RE_DESC " HCA");
 	ibdev->phys_port_cnt = 1;
 
 	addrconf_addr_eui48((u8 *)&ibdev->node_guid, rdev->netdev->dev_addr);
