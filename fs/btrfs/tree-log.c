@@ -1728,18 +1728,14 @@ process_slot:
  * will free the inode.
  */
 static noinline int fixup_inode_link_count(struct walk_control *wc,
+					   struct btrfs_path *path,
 					   struct btrfs_inode *inode)
 {
 	struct btrfs_trans_handle *trans = wc->trans;
 	struct btrfs_root *root = inode->root;
-	struct btrfs_path *path;
 	int ret;
 	u64 nlink = 0;
 	const u64 ino = btrfs_ino(inode);
-
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
 
 	ret = count_inode_refs(inode, path);
 	if (ret < 0)
@@ -1776,7 +1772,7 @@ static noinline int fixup_inode_link_count(struct walk_control *wc,
 	}
 
 out:
-	btrfs_free_path(path);
+	btrfs_release_path(path);
 	return ret;
 }
 
@@ -1821,7 +1817,7 @@ static noinline int fixup_inode_link_counts(struct walk_control *wc,
 			break;
 		}
 
-		ret = fixup_inode_link_count(wc, inode);
+		ret = fixup_inode_link_count(wc, path, inode);
 		iput(&inode->vfs_inode);
 		if (ret)
 			break;
