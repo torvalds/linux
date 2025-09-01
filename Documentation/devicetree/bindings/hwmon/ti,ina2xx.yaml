@@ -115,9 +115,38 @@ allOf:
               - ti,ina237
               - ti,ina238
               - ti,ina260
+              - ti,ina780
     then:
       properties:
         ti,maximum-expected-current-microamp: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - silergy,sy24655
+              - ti,ina209
+              - ti,ina219
+              - ti,ina220
+              - ti,ina226
+              - ti,ina230
+              - ti,ina231
+              - ti,ina260
+              - ti,ina780
+    then:
+      properties:
+        ti,shunt-gain: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,ina780
+    then:
+      properties:
+        shunt-resistor: false
 
 unevaluatedProperties: false
 
