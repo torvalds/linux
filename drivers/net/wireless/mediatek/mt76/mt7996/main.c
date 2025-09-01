@@ -1220,6 +1220,24 @@ mt7996_mac_sta_remove(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 	mutex_unlock(&dev->mt76.mutex);
 }
 
+static void
+mt7996_set_active_links(struct ieee80211_vif *vif)
+{
+	u16 active_links;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (!ieee80211_vif_is_mld(vif))
+		return;
+
+	active_links = mt76_select_links(vif, MT7996_MAX_RADIOS);
+	if (hweight16(active_links) < 2)
+		return;
+
+	ieee80211_set_active_links_async(vif, active_links);
+}
+
 static int
 mt7996_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		 struct ieee80211_sta *sta, enum ieee80211_sta_state old_state,
@@ -1237,16 +1255,18 @@ mt7996_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		mt7996_mac_sta_remove(dev, vif, sta);
 
 	if (old_state == IEEE80211_STA_AUTH &&
-	    new_state == IEEE80211_STA_ASSOC)
+	    new_state == IEEE80211_STA_ASSOC) {
+		mt7996_set_active_links(vif);
 		ev = MT76_STA_EVENT_ASSOC;
-	else if (old_state == IEEE80211_STA_ASSOC &&
-		 new_state == IEEE80211_STA_AUTHORIZED)
+	} else if (old_state == IEEE80211_STA_ASSOC &&
+		   new_state == IEEE80211_STA_AUTHORIZED) {
 		ev = MT76_STA_EVENT_AUTHORIZE;
-	else if (old_state == IEEE80211_STA_ASSOC &&
-		 new_state == IEEE80211_STA_AUTH)
+	} else if (old_state == IEEE80211_STA_ASSOC &&
+		   new_state == IEEE80211_STA_AUTH) {
 		ev = MT76_STA_EVENT_DISASSOC;
-	else
+	} else {
 		return 0;
+	}
 
 	return mt7996_mac_sta_event(dev, vif, sta, ev);
 }

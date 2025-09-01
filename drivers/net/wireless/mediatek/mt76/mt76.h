@@ -1872,6 +1872,7 @@ mt76_vif_init(struct ieee80211_vif *vif, struct mt76_vif_data *mvif)
 }
 
 void mt76_vif_cleanup(struct mt76_dev *dev, struct ieee80211_vif *vif);
+u16 mt76_select_links(struct ieee80211_vif *vif, int max_active_links);
 
 static inline struct mt76_vif_link *
 mt76_vif_link(struct mt76_dev *dev, struct ieee80211_vif *vif, int link_id)
