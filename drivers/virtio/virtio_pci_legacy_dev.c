@@ -140,9 +140,9 @@ EXPORT_SYMBOL_GPL(vp_legacy_set_status);
  * vp_legacy_queue_vector - set the MSIX vector for a specific virtqueue
  * @ldev: the legacy virtio-pci device
  * @index: queue index
- * @vector: the config vector
+ * @vector: the queue vector
  *
- * Returns the config vector read from the device
+ * Returns the queue vector read from the device
  */
 u16 vp_legacy_queue_vector(struct virtio_pci_legacy_device *ldev,
 			   u16 index, u16 vector)

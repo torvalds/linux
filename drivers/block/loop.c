@@ -139,20 +139,26 @@ static int part_shift;
 
 static loff_t lo_calculate_size(struct loop_device *lo, struct file *file)
 {
-	struct kstat stat;
 	loff_t loopsize;
 	int ret;
 
-	/*
-	 * Get the accurate file size. This provides better results than
-	 * cached inode data, particularly for network filesystems where
-	 * metadata may be stale.
-	 */
-	ret = vfs_getattr_nosec(&file->f_path, &stat, STATX_SIZE, 0);
-	if (ret)
-		return 0;
+	if (S_ISBLK(file_inode(file)->i_mode)) {
+		loopsize = i_size_read(file->f_mapping->host);
+	} else {
+		struct kstat stat;
 
-	loopsize = stat.size;
+		/*
+		 * Get the accurate file size. This provides better results than
+		 * cached inode data, particularly for network filesystems where
+		 * metadata may be stale.
+		 */
+		ret = vfs_getattr_nosec(&file->f_path, &stat, STATX_SIZE, 0);
+		if (ret)
+			return 0;
+
+		loopsize = stat.size;
+	}
+
 	if (lo->lo_offset > 0)
 		loopsize -= lo->lo_offset;
 	/* offset is beyond i_size, weird but possible */

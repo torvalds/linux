@@ -77,6 +77,7 @@ struct dev_ctx {
 	unsigned int	recovery:1;
 	unsigned int	auto_zc_fallback:1;
 	unsigned int	per_io_tasks:1;
+	unsigned int	no_ublk_fixed_fd:1;
 
 	int _evtfd;
 	int _shmid;
@@ -166,7 +167,9 @@ struct ublk_queue {
 
 /* borrow one bit of ublk uapi flags, which may never be used */
 #define UBLKS_Q_AUTO_BUF_REG_FALLBACK	(1ULL << 63)
+#define UBLKS_Q_NO_UBLK_FIXED_FD	(1ULL << 62)
 	__u64 flags;
+	int ublk_fd;	/* cached ublk char device fd */
 	struct ublk_io ios[UBLK_QUEUE_DEPTH];
 };
 
@@ -273,34 +276,48 @@ static inline int ublk_io_alloc_sqes(struct ublk_thread *t,
 	return nr_sqes;
 }
 
-static inline void io_uring_prep_buf_register(struct io_uring_sqe *sqe,
-		int dev_fd, int tag, int q_id, __u64 index)
+static inline int ublk_get_registered_fd(struct ublk_queue *q, int fd_index)
+{
+	if (q->flags & UBLKS_Q_NO_UBLK_FIXED_FD) {
+		if (fd_index == 0)
+			/* Return the raw ublk FD for index 0 */
+			return q->ublk_fd;
+		/* Adjust index for backing files (index 1 becomes 0, etc.) */
+		return fd_index - 1;
+	}
+	return fd_index;
+}
+
+static inline void __io_uring_prep_buf_reg_unreg(struct io_uring_sqe *sqe,
+		struct ublk_queue *q, int tag, int q_id, __u64 index)
 {
 	struct ublksrv_io_cmd *cmd = (struct ublksrv_io_cmd *)sqe->cmd;
+	int dev_fd = ublk_get_registered_fd(q, 0);
 
 	io_uring_prep_read(sqe, dev_fd, 0, 0, 0);
 	sqe->opcode		= IORING_OP_URING_CMD;
-	sqe->flags		|= IOSQE_FIXED_FILE;
-	sqe->cmd_op		= UBLK_U_IO_REGISTER_IO_BUF;
+	if (q->flags & UBLKS_Q_NO_UBLK_FIXED_FD)
+		sqe->flags	&= ~IOSQE_FIXED_FILE;
+	else
+		sqe->flags	|= IOSQE_FIXED_FILE;
 
 	cmd->tag		= tag;
 	cmd->addr		= index;
 	cmd->q_id		= q_id;
 }
 
-static inline void io_uring_prep_buf_unregister(struct io_uring_sqe *sqe,
-		int dev_fd, int tag, int q_id, __u64 index)
+static inline void io_uring_prep_buf_register(struct io_uring_sqe *sqe,
+		struct ublk_queue *q, int tag, int q_id, __u64 index)
 {
-	struct ublksrv_io_cmd *cmd = (struct ublksrv_io_cmd *)sqe->cmd;
+	__io_uring_prep_buf_reg_unreg(sqe, q, tag, q_id, index);
+	sqe->cmd_op		= UBLK_U_IO_REGISTER_IO_BUF;
+}
 
-	io_uring_prep_read(sqe, dev_fd, 0, 0, 0);
-	sqe->opcode		= IORING_OP_URING_CMD;
-	sqe->flags		|= IOSQE_FIXED_FILE;
+static inline void io_uring_prep_buf_unregister(struct io_uring_sqe *sqe,
+		struct ublk_queue *q, int tag, int q_id, __u64 index)
+{
+	__io_uring_prep_buf_reg_unreg(sqe, q, tag, q_id, index);
 	sqe->cmd_op		= UBLK_U_IO_UNREGISTER_IO_BUF;
-
-	cmd->tag		= tag;
-	cmd->addr		= index;
-	cmd->q_id		= q_id;
 }
 
 static inline void *ublk_get_sqe_cmd(const struct io_uring_sqe *sqe)

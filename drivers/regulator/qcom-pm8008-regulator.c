@@ -96,7 +96,7 @@ static int pm8008_regulator_get_voltage_sel(struct regulator_dev *rdev)
 
 	uV = le16_to_cpu(val) * 1000;
 
-	return (uV - preg->desc.min_uV) / preg->desc.uV_step;
+	return regulator_map_voltage_linear_range(rdev, uV, INT_MAX);
 }
 
 static const struct regulator_ops pm8008_regulator_ops = {

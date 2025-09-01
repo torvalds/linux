@@ -77,6 +77,7 @@ struct quicki2c_subip_acpi_parameter {
 	u16 device_address;
 	u64 connection_speed;
 	u8 addressing_mode;
+	u8 reserved;
 } __packed;
 
 /**
@@ -126,6 +127,7 @@ struct quicki2c_subip_acpi_config {
 	u64 HMTD;
 	u64 HMRD;
 	u64 HMSL;
+	u8 reserved;
 };
 
 /**

@@ -719,13 +719,6 @@ static void sev_clflush_pages(struct page *pages[], unsigned long npages)
 static void sev_writeback_caches(struct kvm *kvm)
 {
 	/*
-	 * Note, the caller is responsible for ensuring correctness if the mask
-	 * can be modified, e.g. if a CPU could be doing VMRUN.
-	 */
-	if (cpumask_empty(to_kvm_sev_info(kvm)->have_run_cpus))
-		return;
-
-	/*
 	 * Ensure that all dirty guest tagged cache entries are written back
 	 * before releasing the pages back to the system for use.  CLFLUSH will
 	 * not do this without SME_COHERENT, and flushing many cache lines
@@ -739,6 +732,9 @@ static void sev_writeback_caches(struct kvm *kvm)
 	 * serializing multiple calls and having responding CPUs (to the IPI)
 	 * mark themselves as still running if they are running (or about to
 	 * run) a vCPU for the VM.
+	 *
+	 * Note, the caller is responsible for ensuring correctness if the mask
+	 * can be modified, e.g. if a CPU could be doing VMRUN.
 	 */
 	wbnoinvd_on_cpus_mask(to_kvm_sev_info(kvm)->have_run_cpus);
 }
