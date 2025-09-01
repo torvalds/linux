@@ -314,14 +314,48 @@ class KernelInclude(Directive):
     def run(self):
         """Include a file as part of the content of this reST file."""
         env = self.state.document.settings.env
-        path = os.path.realpath(os.path.expandvars(self.arguments[0]))
 
-        # to get a bit security back, prohibit /etc:
-        if path.startswith(os.sep + "etc"):
-            raise self.severe('Problems with "%s" directive, prohibited path: %s' %
-                              (self.name, path))
+        #
+        # The include logic accepts only patches relative to:
+        #   - Kernel source tree
+        #   - Documentation output directory
+        #
+        # The logic does check it to prevent directory traverse
+        #
+
+        srctree = os.path.abspath(os.environ["srctree"])
+
+        path = os.path.expandvars(self.arguments[0])
+        src_path = os.path.join(srctree, path)
+
+        if os.path.isfile(src_path):
+            base = srctree
+            path = src_path
+        elif os.path.exists(arg):
+            # Allow patches from output dir
+            base = os.getcwd()
+            path = os.path.abspath(path)
+        else:
+            raise self.warning(f'File "%s" doesn\'t exist', path)
+
+        abs_base = os.path.abspath(base)
+        abs_full_path = os.path.abspath(os.path.join(base, path))
+
+        try:
+            if os.path.commonpath([abs_full_path, abs_base]) != abs_base:
+                raise self.severe('Problems with "%s" directive, prohibited path: %s' %
+                                  (self.name, path))
+        except ValueError:
+            # Paths don't have the same drive (Windows) or other incompatibility
+            raise self.severe('Problems with "%s" directive, invalid path: %s' %
+                            (self.name, path))
 
         self.arguments[0] = path
+
+        #
+        # Add path location to Sphinx dependencies to ensure proper cache
+        # invalidation check.
+        #
 
         env.note_dependency(os.path.abspath(path))
 
