@@ -2584,33 +2584,36 @@ static void fbnic_enable_rcq(struct fbnic_napi_vector *nv,
 	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RCQ_CTL, FBNIC_QUEUE_RCQ_CTL_ENABLE);
 }
 
+static void __fbnic_nv_enable(struct fbnic_napi_vector *nv)
+{
+	int j, t;
+
+	/* Setup Tx Queue Triads */
+	for (t = 0; t < nv->txt_count; t++) {
+		struct fbnic_q_triad *qt = &nv->qt[t];
+
+		fbnic_enable_twq0(&qt->sub0);
+		fbnic_enable_twq1(&qt->sub1);
+		fbnic_enable_tcq(nv, &qt->cmpl);
+	}
+
+	/* Setup Rx Queue Triads */
+	for (j = 0; j < nv->rxt_count; j++, t++) {
+		struct fbnic_q_triad *qt = &nv->qt[t];
+
+		fbnic_enable_bdq(&qt->sub0, &qt->sub1);
+		fbnic_config_drop_mode_rcq(nv, &qt->cmpl);
+		fbnic_enable_rcq(nv, &qt->cmpl);
+	}
+}
+
 void fbnic_enable(struct fbnic_net *fbn)
 {
 	struct fbnic_dev *fbd = fbn->fbd;
 	int i;
 
-	for (i = 0; i < fbn->num_napi; i++) {
-		struct fbnic_napi_vector *nv = fbn->napi[i];
-		int j, t;
-
-		/* Setup Tx Queue Triads */
-		for (t = 0; t < nv->txt_count; t++) {
-			struct fbnic_q_triad *qt = &nv->qt[t];
-
-			fbnic_enable_twq0(&qt->sub0);
-			fbnic_enable_twq1(&qt->sub1);
-			fbnic_enable_tcq(nv, &qt->cmpl);
-		}
-
-		/* Setup Rx Queue Triads */
-		for (j = 0; j < nv->rxt_count; j++, t++) {
-			struct fbnic_q_triad *qt = &nv->qt[t];
-
-			fbnic_enable_bdq(&qt->sub0, &qt->sub1);
-			fbnic_config_drop_mode_rcq(nv, &qt->cmpl);
-			fbnic_enable_rcq(nv, &qt->cmpl);
-		}
-	}
+	for (i = 0; i < fbn->num_napi; i++)
+		__fbnic_nv_enable(fbn->napi[i]);
 
 	fbnic_wrfl(fbd);
 }
