@@ -714,6 +714,8 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 
 	fbnic_set_ethtool_ops(netdev);
 
+	netdev->request_ops_lock = true;
+
 	fbn = netdev_priv(netdev);
 
 	fbn->netdev = netdev;

@@ -1501,7 +1501,7 @@ static void fbnic_free_napi_vector(struct fbnic_net *fbn,
 	}
 
 	fbnic_napi_free_irq(fbd, nv);
-	netif_napi_del(&nv->napi);
+	netif_napi_del_locked(&nv->napi);
 	fbn->napi[fbnic_napi_idx(nv)] = NULL;
 	kfree(nv);
 }
@@ -1611,11 +1611,12 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 
 	/* Tie napi to netdev */
 	fbn->napi[fbnic_napi_idx(nv)] = nv;
-	netif_napi_add(fbn->netdev, &nv->napi, fbnic_poll);
+	netif_napi_add_locked(fbn->netdev, &nv->napi, fbnic_poll);
 
 	/* Record IRQ to NAPI struct */
-	netif_napi_set_irq(&nv->napi,
-			   pci_irq_vector(to_pci_dev(fbd->dev), nv->v_idx));
+	netif_napi_set_irq_locked(&nv->napi,
+				  pci_irq_vector(to_pci_dev(fbd->dev),
+						 nv->v_idx));
 
 	/* Tie nv back to PCIe dev */
 	nv->dev = fbd->dev;
@@ -1704,7 +1705,7 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 	return 0;
 
 napi_del:
-	netif_napi_del(&nv->napi);
+	netif_napi_del_locked(&nv->napi);
 	fbn->napi[fbnic_napi_idx(nv)] = NULL;
 	kfree(nv);
 	return err;
@@ -2173,7 +2174,7 @@ void fbnic_napi_disable(struct fbnic_net *fbn)
 	int i;
 
 	for (i = 0; i < fbn->num_napi; i++) {
-		napi_disable(&fbn->napi[i]->napi);
+		napi_disable_locked(&fbn->napi[i]->napi);
 
 		fbnic_nv_irq_disable(fbn->napi[i]);
 	}
@@ -2621,7 +2622,7 @@ void fbnic_napi_enable(struct fbnic_net *fbn)
 	for (i = 0; i < fbn->num_napi; i++) {
 		struct fbnic_napi_vector *nv = fbn->napi[i];
 
-		napi_enable(&nv->napi);
+		napi_enable_locked(&nv->napi);
 
 		fbnic_nv_irq_enable(nv);
 
