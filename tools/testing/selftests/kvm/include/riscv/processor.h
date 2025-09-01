@@ -9,6 +9,7 @@
 
 #include <linux/stringify.h>
 #include <asm/csr.h>
+#include <asm/vdso/processor.h>
 #include "kvm_util.h"
 
 #define INSN_OPCODE_MASK	0x007c
