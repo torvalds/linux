@@ -316,11 +316,9 @@ class KernelInclude(Directive):
         env = self.state.document.settings.env
 
         #
-        # The include logic accepts only patches relative to:
-        #   - Kernel source tree
-        #   - Documentation output directory
-        #
-        # The logic does check it to prevent directory traverse
+        # The include logic accepts only patches relative to the
+        # Kernel source tree.  The logic does check it to prevent
+        # directory traverse issues.
         #
 
         srctree = os.path.abspath(os.environ["srctree"])
@@ -331,10 +329,6 @@ class KernelInclude(Directive):
         if os.path.isfile(src_path):
             base = srctree
             path = src_path
-        elif os.path.exists(arg):
-            # Allow patches from output dir
-            base = os.getcwd()
-            path = os.path.abspath(path)
         else:
             raise self.warning(f'File "%s" doesn\'t exist', path)
 
@@ -358,11 +352,6 @@ class KernelInclude(Directive):
         #
 
         env.note_dependency(os.path.abspath(path))
-
-        # HINT: I had to copy&paste the whole Include.run method. I'am not happy
-        # with this, but due to security reasons, the Include.run method does
-        # not allow absolute or relative pathnames pointing to locations *above*
-        # the filesystem tree where the reST document is placed.
 
         if not self.state.document.settings.file_insertion_enabled:
             raise self.warning('"%s" directive disabled.' % self.name)
