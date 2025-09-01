@@ -2348,25 +2348,28 @@ void fbnic_flush(struct fbnic_net *fbn)
 		fbnic_nv_flush(fbn->napi[i]);
 }
 
+static void fbnic_nv_fill(struct fbnic_napi_vector *nv)
+{
+	int j, t;
+
+	/* Configure NAPI mapping and populate pages
+	 * in the BDQ rings to use for Rx
+	 */
+	for (j = 0, t = nv->txt_count; j < nv->rxt_count; j++, t++) {
+		struct fbnic_q_triad *qt = &nv->qt[t];
+
+		/* Populate the header and payload BDQs */
+		fbnic_fill_bdq(&qt->sub0);
+		fbnic_fill_bdq(&qt->sub1);
+	}
+}
+
 void fbnic_fill(struct fbnic_net *fbn)
 {
 	int i;
 
-	for (i = 0; i < fbn->num_napi; i++) {
-		struct fbnic_napi_vector *nv = fbn->napi[i];
-		int j, t;
-
-		/* Configure NAPI mapping and populate pages
-		 * in the BDQ rings to use for Rx
-		 */
-		for (j = 0, t = nv->txt_count; j < nv->rxt_count; j++, t++) {
-			struct fbnic_q_triad *qt = &nv->qt[t];
-
-			/* Populate the header and payload BDQs */
-			fbnic_fill_bdq(&qt->sub0);
-			fbnic_fill_bdq(&qt->sub1);
-		}
-	}
+	for (i = 0; i < fbn->num_napi; i++)
+		fbnic_nv_fill(fbn->napi[i]);
 }
 
 static void fbnic_enable_twq0(struct fbnic_ring *twq)
