@@ -1480,6 +1480,8 @@ static int dac33_i2c_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, dac33);
 
+	if (!dac33->burst_bclkdiv)
+		dac33->burst_bclkdiv = 8;
 	if (!dac33->mode1_latency)
 		dac33->mode1_latency = 10000; /* 10ms */
 	dac33->irq = client->irq;
