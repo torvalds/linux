@@ -13,8 +13,6 @@ dtb-$(CONFIG_ARCH_SPEAR3XX) += \
 dtb-$(CONFIG_ARCH_SPEAR6XX) += \
 	spear600-evb.dtb
 dtb-$(CONFIG_ARCH_STI) += \
-	stih407-b2120.dtb \
-	stih410-b2120.dtb \
 	stih410-b2260.dtb \
 	stih418-b2199.dtb \
 	stih418-b2264.dtb
