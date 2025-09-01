@@ -71,12 +71,10 @@
  *
  * __cfi_foo:
  *   endbr64
- *   subl 0x12345678, %r10d
- *   jz   foo
- *   ud2
- *   nop
+ *   subl 0x12345678, %eax
+ *   jne.32,pn foo+3
  * foo:
- *   osp nop3			# was endbr64
+ *   nopl -42(%rax)		# was endbr64
  *   ... code here ...
  *   ret
  *
@@ -86,9 +84,9 @@
  * indirect caller:
  *   lea foo(%rip), %r11
  *   ...
- *   movl $0x12345678, %r10d
- *   subl $16, %r11
- *   nop4
+ *   movl $0x12345678, %eax
+ *   lea  -0x10(%r11), %r11
+ *   nop5
  *   call *%r11
  *
  */

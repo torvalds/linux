@@ -5,13 +5,18 @@
 #include <linux/stringify.h>
 #include <linux/instrumentation.h>
 #include <linux/objtool.h>
+#include <asm/asm.h>
 
 /*
  * Despite that some emulators terminate on UD2, we use it for WARN().
  */
-#define ASM_UD2		".byte 0x0f, 0x0b"
+#define ASM_UD2		_ASM_BYTES(0x0f, 0x0b)
 #define INSN_UD2	0x0b0f
 #define LEN_UD2		2
+
+#define ASM_UDB		_ASM_BYTES(0xd6)
+#define INSN_UDB	0xd6
+#define LEN_UDB		1
 
 /*
  * In clang we have UD1s reporting UBSAN failures on X86, 64 and 32bit.
@@ -26,7 +31,7 @@
 #define BUG_UD2			0xfffe
 #define BUG_UD1			0xfffd
 #define BUG_UD1_UBSAN		0xfffc
-#define BUG_EA			0xffea
+#define BUG_UDB			0xffd6
 #define BUG_LOCK		0xfff0
 
 #ifdef CONFIG_GENERIC_BUG

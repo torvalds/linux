@@ -147,10 +147,10 @@ static void *its_init_thunk(void *thunk, int reg)
 		/*
 		 * When ITS uses indirect branch thunk the fineibt_paranoid
 		 * caller sequence doesn't fit in the caller site. So put the
-		 * remaining part of the sequence (<ea> + JNE) into the ITS
+		 * remaining part of the sequence (UDB + JNE) into the ITS
 		 * thunk.
 		 */
-		bytes[i++] = 0xea; /* invalid instruction */
+		bytes[i++] = 0xd6; /* UDB */
 		bytes[i++] = 0x75; /* JNE */
 		bytes[i++] = 0xfd;
 
@@ -163,7 +163,7 @@ static void *its_init_thunk(void *thunk, int reg)
 		reg -= 8;
 	}
 	bytes[i++] = 0xff;
-	bytes[i++] = 0xe0 + reg; /* jmp *reg */
+	bytes[i++] = 0xe0 + reg; /* JMP *reg */
 	bytes[i++] = 0xcc;
 
 	return thunk + offset;
@@ -970,7 +970,7 @@ void __init_or_module noinline apply_retpolines(s32 *start, s32 *end)
 		case JMP32_INSN_OPCODE:
 			/* Check for cfi_paranoid + ITS */
 			dest = addr + insn.length + insn.immediate.value;
-			if (dest[-1] == 0xea && (dest[0] & 0xf0) == 0x70) {
+			if (dest[-1] == 0xd6 && (dest[0] & 0xf0) == 0x70) {
 				WARN_ON_ONCE(cfi_mode != CFI_FINEIBT);
 				continue;
 			}
@@ -1303,9 +1303,8 @@ early_param("cfi", cfi_parse_cmdline);
  *
  * __cfi_\func:					__cfi_\func:
  *	movl   $0x12345678,%eax		// 5	     endbr64			// 4
- *	nop					     subl   $0x12345678,%r10d   // 7
- *	nop					     jne    __cfi_\func+6	// 2
- *	nop					     nop3			// 3
+ *	nop					     subl   $0x12345678,%eax    // 5
+ *	nop					     jne.d32,pn \func+3		// 7
  *	nop
  *	nop
  *	nop
@@ -1314,34 +1313,45 @@ early_param("cfi", cfi_parse_cmdline);
  *	nop
  *	nop
  *	nop
+ *	nop
+ * \func:					\func:
+ *	endbr64					     nopl -42(%rax)
  *
  *
  * caller:					caller:
- *	movl	$(-0x12345678),%r10d	 // 6	     movl   $0x12345678,%r10d	// 6
+ *	movl	$(-0x12345678),%r10d	 // 6	     movl   $0x12345678,%eax	// 5
  *	addl	$-15(%r11),%r10d	 // 4	     lea    -0x10(%r11),%r11	// 4
- *	je	1f			 // 2	     nop4			// 4
+ *	je	1f			 // 2	     nop5			// 5
  *	ud2				 // 2
  * 1:	cs call	__x86_indirect_thunk_r11 // 6	     call   *%r11; nop3;	// 6
  *
+ *
+ * Notably, the FineIBT sequences are crafted such that branches are presumed
+ * non-taken. This is based on Agner Fog's optimization manual, which states:
+ *
+ *  "Make conditional jumps most often not taken: The efficiency and throughput
+ *   for not-taken branches is better than for taken branches on most
+ *   processors. Therefore, it is good to place the most frequent branch first"
  */
 
 /*
  * <fineibt_preamble_start>:
  *  0:   f3 0f 1e fa             endbr64
- *  4:   41 81 <ea> 78 56 34 12  sub    $0x12345678, %r10d
- *  b:   75 f9                   jne    6 <fineibt_preamble_start+0x6>
- *  d:   0f 1f 00                nopl   (%rax)
+ *  4:   2d 78 56 34 12          sub    $0x12345678, %eax
+ *  9:   2e 0f 85 03 00 00 00    jne,pn 13 <fineibt_preamble_start+0x13>
+ * 10:   0f 1f 40 d6             nopl   -0x2a(%rax)
  *
- * Note that the JNE target is the 0xEA byte inside the SUB, this decodes as
- * (bad) on x86_64 and raises #UD.
+ * Note that the JNE target is the 0xD6 byte inside the NOPL, this decodes as
+ * UDB on x86_64 and raises #UD.
  */
 asm(	".pushsection .rodata				\n"
 	"fineibt_preamble_start:			\n"
 	"	endbr64					\n"
-	"	subl	$0x12345678, %r10d		\n"
+	"	subl	$0x12345678, %eax		\n"
 	"fineibt_preamble_bhi:				\n"
-	"	jne	fineibt_preamble_start+6	\n"
-	ASM_NOP3
+	"	cs jne.d32 fineibt_preamble_start+0x13	\n"
+	"#fineibt_func:					\n"
+	"	nopl	-42(%rax)			\n"
 	"fineibt_preamble_end:				\n"
 	".popsection\n"
 );
@@ -1352,20 +1362,20 @@ extern u8 fineibt_preamble_end[];
 
 #define fineibt_preamble_size (fineibt_preamble_end - fineibt_preamble_start)
 #define fineibt_preamble_bhi  (fineibt_preamble_bhi - fineibt_preamble_start)
-#define fineibt_preamble_ud   6
-#define fineibt_preamble_hash 7
+#define fineibt_preamble_ud   0x13
+#define fineibt_preamble_hash 5
 
 /*
  * <fineibt_caller_start>:
- *  0:   41 ba 78 56 34 12       mov    $0x12345678, %r10d
- *  6:   4d 8d 5b f0             lea    -0x10(%r11), %r11
- *  a:   0f 1f 40 00             nopl   0x0(%rax)
+ *  0:   b8 78 56 34 12          mov    $0x12345678, %eax
+ *  5:   4d 8d 5b f0             lea    -0x10(%r11), %r11
+ *  9:   0f 1f 44 00 00          nopl   0x0(%rax,%rax,1)
  */
 asm(	".pushsection .rodata			\n"
 	"fineibt_caller_start:			\n"
-	"	movl	$0x12345678, %r10d	\n"
+	"	movl	$0x12345678, %eax	\n"
 	"	lea	-0x10(%r11), %r11	\n"
-	ASM_NOP4
+	ASM_NOP5
 	"fineibt_caller_end:			\n"
 	".popsection				\n"
 );
@@ -1374,7 +1384,7 @@ extern u8 fineibt_caller_start[];
 extern u8 fineibt_caller_end[];
 
 #define fineibt_caller_size (fineibt_caller_end - fineibt_caller_start)
-#define fineibt_caller_hash 2
+#define fineibt_caller_hash 1
 
 #define fineibt_caller_jmp (fineibt_caller_size - 2)
 
@@ -1391,9 +1401,9 @@ extern u8 fineibt_caller_end[];
  * of adding a load.
  *
  * <fineibt_paranoid_start>:
- *  0:   41 ba 78 56 34 12       mov    $0x12345678, %r10d
- *  6:   45 3b 53 f7             cmp    -0x9(%r11), %r10d
- *  a:   4d 8d 5b <f0>           lea    -0x10(%r11), %r11
+ *  0:   b8 78 56 34 12          mov    $0x12345678, %eax
+ *  5:   41 3b 43 f5             cmp    -0x11(%r11), %eax
+ *  9:   2e 4d 8d 5b <f0>        cs lea -0x10(%r11), %r11
  *  e:   75 fd                   jne    d <fineibt_paranoid_start+0xd>
  * 10:   41 ff d3                call   *%r11
  * 13:   90                      nop
@@ -1405,9 +1415,10 @@ extern u8 fineibt_caller_end[];
  */
 asm(	".pushsection .rodata				\n"
 	"fineibt_paranoid_start:			\n"
-	"	movl	$0x12345678, %r10d		\n"
-	"	cmpl	-9(%r11), %r10d			\n"
-	"	lea	-0x10(%r11), %r11		\n"
+	"	mov	$0x12345678, %eax		\n"
+	"	cmpl	-11(%r11), %eax			\n"
+	"	cs lea	-0x10(%r11), %r11		\n"
+	"#fineibt_caller_size:                          \n"
 	"	jne	fineibt_paranoid_start+0xd	\n"
 	"fineibt_paranoid_ind:				\n"
 	"	call	*%r11				\n"
@@ -1523,51 +1534,67 @@ static int cfi_rand_preamble(s32 *start, s32 *end)
 	return 0;
 }
 
+/*
+ * Inline the bhi-arity 1 case:
+ *
+ * __cfi_foo:
+ *  0: f3 0f 1e fa             endbr64
+ *  4: 2d 78 56 34 12          sub    $0x12345678, %eax
+ *  9: 49 0f 45 fa             cmovne %rax, %rdi
+ *  d: 2e 75 03                jne,pn    foo+0x3
+ *
+ * foo:
+ * 10: 0f 1f 40 <d6>           nopl -42(%rax)
+ *
+ * Notably, this scheme is incompatible with permissive CFI
+ * because the CMOVcc is unconditional and RDI will have been
+ * clobbered.
+ */
+asm(	".pushsection .rodata				\n"
+	"fineibt_bhi1_start:				\n"
+	"	cmovne %rax, %rdi			\n"
+	"	cs jne fineibt_bhi1_func + 0x3		\n"
+	"fineibt_bhi1_func:				\n"
+	"	nopl -42(%rax)				\n"
+	"fineibt_bhi1_end:				\n"
+	".popsection					\n"
+);
+
+extern u8 fineibt_bhi1_start[];
+extern u8 fineibt_bhi1_end[];
+
+#define fineibt_bhi1_size (fineibt_bhi1_end - fineibt_bhi1_start)
+
 static void cfi_fineibt_bhi_preamble(void *addr, int arity)
 {
+	u8 bytes[MAX_INSN_SIZE];
+
 	if (!arity)
 		return;
 
 	if (!cfi_warn && arity == 1) {
-		/*
-		 * Crazy scheme to allow arity-1 inline:
-		 *
-		 * __cfi_foo:
-		 *  0: f3 0f 1e fa             endbr64
-		 *  4: 41 81 <ea> 78 56 34 12  sub     0x12345678, %r10d
-		 *  b: 49 0f 45 fa             cmovne  %r10, %rdi
-		 *  f: 75 f5                   jne     __cfi_foo+6
-		 * 11: 0f 1f 00                nopl    (%rax)
-		 *
-		 * Code that direct calls to foo()+0, decodes the tail end as:
-		 *
-		 * foo:
-		 *  0: f5                      cmc
-		 *  1: 0f 1f 00                nopl    (%rax)
-		 *
-		 * which clobbers CF, but does not affect anything ABI
-		 * wise.
-		 *
-		 * Notably, this scheme is incompatible with permissive CFI
-		 * because the CMOVcc is unconditional and RDI will have been
-		 * clobbered.
-		 */
-		const u8 magic[9] = {
-			0x49, 0x0f, 0x45, 0xfa,
-			0x75, 0xf5,
-			BYTES_NOP3,
-		};
-
-		text_poke_early(addr + fineibt_preamble_bhi, magic, 9);
-
+		text_poke_early(addr + fineibt_preamble_bhi,
+				fineibt_bhi1_start, fineibt_bhi1_size);
 		return;
 	}
 
-	text_poke_early(addr + fineibt_preamble_bhi,
-			text_gen_insn(CALL_INSN_OPCODE,
-				      addr + fineibt_preamble_bhi,
-				      __bhi_args[arity]),
-			CALL_INSN_SIZE);
+	/*
+	 * Replace the bytes at fineibt_preamble_bhi with a CALL instruction
+	 * that lines up exactly with the end of the preamble, such that the
+	 * return address will be foo+0.
+	 *
+	 * __cfi_foo:
+	 *  0: f3 0f 1e fa             endbr64
+	 *  4: 2d 78 56 34 12          sub    $0x12345678, %eax
+	 *  9: 2e 2e e8 DD DD DD DD    cs cs call __bhi_args[arity]
+	 */
+	bytes[0] = 0x2e;
+	bytes[1] = 0x2e;
+	__text_gen_insn(bytes + 2, CALL_INSN_OPCODE,
+			addr + fineibt_preamble_bhi + 2,
+			__bhi_args[arity], CALL_INSN_SIZE);
+
+	text_poke_early(addr + fineibt_preamble_bhi, bytes, 7);
 }
 
 static int cfi_rewrite_preamble(s32 *start, s32 *end)
@@ -1658,8 +1685,6 @@ static int cfi_rewrite_callers(s32 *start, s32 *end)
 {
 	s32 *s;
 
-	BUG_ON(fineibt_paranoid_size != 20);
-
 	for (s = start; s < end; s++) {
 		void *addr = (void *)s + *s;
 		struct insn insn;
@@ -1712,13 +1737,18 @@ static int cfi_rewrite_callers(s32 *start, s32 *end)
 
 #define pr_cfi_debug(X...) if (cfi_debug) pr_info(X)
 
+#define FINEIBT_WARN(_f, _v) \
+	WARN_ONCE((_f) != (_v), "FineIBT: " #_f " %ld != %d\n", _f, _v)
+
 static void __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
 			    s32 *start_cfi, s32 *end_cfi, bool builtin)
 {
 	int ret;
 
-	if (WARN_ONCE(fineibt_preamble_size != 16,
-		      "FineIBT preamble wrong size: %ld", fineibt_preamble_size))
+	if (FINEIBT_WARN(fineibt_preamble_size, 20)			||
+	    FINEIBT_WARN(fineibt_preamble_bhi + fineibt_bhi1_size, 20)	||
+	    FINEIBT_WARN(fineibt_caller_size, 14)			||
+	    FINEIBT_WARN(fineibt_paranoid_size, 20))
 		return;
 
 	if (cfi_mode == CFI_AUTO) {
@@ -1839,11 +1869,11 @@ static void poison_cfi(void *addr)
 
 		/*
 		 * __cfi_\func:
-		 *	osp nopl (%rax)
-		 *	subl	$0, %r10d
-		 *	jz	1f
-		 *	ud2
-		 * 1:	nop
+		 *	nopl	-42(%rax)
+		 *	sub	$0, %eax
+		 *	jne	\func+3
+		 * \func:
+		 *	nopl	-42(%rax)
 		 */
 		poison_endbr(addr);
 		poison_hash(addr + fineibt_preamble_hash);
@@ -1869,12 +1899,14 @@ static void poison_cfi(void *addr)
 	}
 }
 
+#define fineibt_prefix_size (fineibt_preamble_size - ENDBR_INSN_SIZE)
+
 /*
- * When regs->ip points to a 0xEA byte in the FineIBT preamble,
+ * When regs->ip points to a 0xD6 byte in the FineIBT preamble,
  * return true and fill out target and type.
  *
  * We check the preamble by checking for the ENDBR instruction relative to the
- * 0xEA instruction.
+ * UDB instruction.
  */
 static bool decode_fineibt_preamble(struct pt_regs *regs, unsigned long *target, u32 *type)
 {
@@ -1884,10 +1916,10 @@ static bool decode_fineibt_preamble(struct pt_regs *regs, unsigned long *target,
 	if (!exact_endbr((void *)addr))
 		return false;
 
-	*target = addr + fineibt_preamble_size;
+	*target = addr + fineibt_prefix_size;
 
 	__get_kernel_nofault(&hash, addr + fineibt_preamble_hash, u32, Efault);
-	*type = (u32)regs->r10 + hash;
+	*type = (u32)regs->ax + hash;
 
 	/*
 	 * Since regs->ip points to the middle of an instruction; it cannot
@@ -1925,12 +1957,12 @@ static bool decode_fineibt_bhi(struct pt_regs *regs, unsigned long *target, u32 
 	__get_kernel_nofault(&addr, regs->sp, unsigned long, Efault);
 	*target = addr;
 
-	addr -= fineibt_preamble_size;
+	addr -= fineibt_prefix_size;
 	if (!exact_endbr((void *)addr))
 		return false;
 
 	__get_kernel_nofault(&hash, addr + fineibt_preamble_hash, u32, Efault);
-	*type = (u32)regs->r10 + hash;
+	*type = (u32)regs->ax + hash;
 
 	/*
 	 * The UD2 sites are constructed with a RET immediately following,
@@ -1947,7 +1979,7 @@ static bool is_paranoid_thunk(unsigned long addr)
 	u32 thunk;
 
 	__get_kernel_nofault(&thunk, (u32 *)addr, u32, Efault);
-	return (thunk & 0x00FFFFFF) == 0xfd75ea;
+	return (thunk & 0x00FFFFFF) == 0xfd75d6;
 
 Efault:
 	return false;
@@ -1955,8 +1987,7 @@ Efault:
 
 /*
  * regs->ip points to a LOCK Jcc.d8 instruction from the fineibt_paranoid_start[]
- * sequence, or to an invalid instruction (0xea) + Jcc.d8 for cfi_paranoid + ITS
- * thunk.
+ * sequence, or to UDB + Jcc.d8 for cfi_paranoid + ITS thunk.
  */
 static bool decode_fineibt_paranoid(struct pt_regs *regs, unsigned long *target, u32 *type)
 {
@@ -1966,8 +1997,8 @@ static bool decode_fineibt_paranoid(struct pt_regs *regs, unsigned long *target,
 		return false;
 
 	if (is_cfi_trap(addr + fineibt_caller_size - LEN_UD2)) {
-		*target = regs->r11 + fineibt_preamble_size;
-		*type = regs->r10;
+		*target = regs->r11 + fineibt_prefix_size;
+		*type = regs->ax;
 
 		/*
 		 * Since the trapping instruction is the exact, but LOCK prefixed,
@@ -1979,14 +2010,14 @@ static bool decode_fineibt_paranoid(struct pt_regs *regs, unsigned long *target,
 	/*
 	 * The cfi_paranoid + ITS thunk combination results in:
 	 *
-	 *  0:   41 ba 78 56 34 12       mov    $0x12345678, %r10d
-	 *  6:   45 3b 53 f7             cmp    -0x9(%r11), %r10d
-	 *  a:   4d 8d 5b f0             lea    -0x10(%r11), %r11
+	 *  0:   b8 78 56 34 12          mov    $0x12345678, %eax
+	 *  5:   41 3b 43 f7             cmp    -11(%r11), %eax
+	 *  a:   2e 3d 8d 5b f0          cs lea -0x10(%r11), %r11
 	 *  e:   2e e8 XX XX XX XX	 cs call __x86_indirect_paranoid_thunk_r11
 	 *
 	 * Where the paranoid_thunk looks like:
 	 *
-	 *  1d:  <ea>                    (bad)
+	 *  1d:  <d6>                    udb
 	 *  __x86_indirect_paranoid_thunk_r11:
 	 *  1e:  75 fd                   jne 1d
 	 *  __x86_indirect_its_thunk_r11:
@@ -1995,8 +2026,8 @@ static bool decode_fineibt_paranoid(struct pt_regs *regs, unsigned long *target,
 	 *
 	 */
 	if (is_paranoid_thunk(regs->ip)) {
-		*target = regs->r11 + fineibt_preamble_size;
-		*type = regs->r10;
+		*target = regs->r11 + fineibt_prefix_size;
+		*type = regs->ax;
 
 		regs->ip = *target;
 		return true;
