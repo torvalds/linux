@@ -143,6 +143,7 @@ static void amd_pmf_update_bios_inputs(struct amd_pmf_dev *pdev, u32 pending_req
 			continue;
 		amd_pmf_set_ta_custom_bios_input(in, i, custom_policy[i]);
 		pdev->cb_prev.custom_bios_inputs[i] = custom_policy[i];
+		dev_dbg(pdev->dev, "Custom BIOS Input[%d]: %u\n", i, custom_policy[i]);
 	}
 }
 

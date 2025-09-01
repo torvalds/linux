@@ -353,6 +353,8 @@ static void apmf_event_handler_v2(acpi_handle handle, u32 event, void *data)
 		return;
 	}
 
+	dev_dbg(pmf_dev->dev, "Pending request (preq): 0x%x\n", pmf_dev->req.pending_req);
+
 	amd_pmf_handle_early_preq(pmf_dev);
 }
 
@@ -368,6 +370,8 @@ static void apmf_event_handler_v1(acpi_handle handle, u32 event, void *data)
 		dev_err(pmf_dev->dev, "Failed to get v1 SBIOS requests: %d\n", ret);
 		return;
 	}
+
+	dev_dbg(pmf_dev->dev, "Pending request (preq1): 0x%x\n", pmf_dev->req1.pending_req);
 
 	amd_pmf_handle_early_preq(pmf_dev);
 }
