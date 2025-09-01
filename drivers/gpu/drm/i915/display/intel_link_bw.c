@@ -449,17 +449,13 @@ void intel_link_bw_connector_debugfs_add(struct intel_connector *connector)
 	switch (connector->base.connector_type) {
 	case DRM_MODE_CONNECTOR_DisplayPort:
 	case DRM_MODE_CONNECTOR_eDP:
+	case DRM_MODE_CONNECTOR_HDMIA:
 		break;
 	case DRM_MODE_CONNECTOR_VGA:
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_LVDS:
 	case DRM_MODE_CONNECTOR_DVID:
 		if (HAS_FDI(display))
-			break;
-
-		return;
-	case DRM_MODE_CONNECTOR_HDMIA:
-		if (HAS_FDI(display) && !HAS_DDI(display))
 			break;
 
 		return;

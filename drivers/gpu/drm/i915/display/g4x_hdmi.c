@@ -20,7 +20,6 @@
 #include "intel_dp_aux.h"
 #include "intel_dpio_phy.h"
 #include "intel_encoder.h"
-#include "intel_fdi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
@@ -136,11 +135,8 @@ static int g4x_hdmi_compute_config(struct intel_encoder *encoder,
 	struct intel_atomic_state *state = to_intel_atomic_state(crtc_state->uapi.state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	if (HAS_PCH_SPLIT(display)) {
+	if (HAS_PCH_SPLIT(display))
 		crtc_state->has_pch_encoder = true;
-		if (!intel_fdi_compute_pipe_bpp(crtc_state))
-			return -EINVAL;
-	}
 
 	if (display->platform.g4x)
 		crtc_state->has_hdmi_sink = g4x_compute_has_hdmi_sink(state, crtc);
