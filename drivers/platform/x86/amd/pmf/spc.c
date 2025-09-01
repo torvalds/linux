@@ -142,12 +142,18 @@ static void amd_pmf_update_bios_inputs(struct amd_pmf_dev *pdev, u32 pending_req
 		if (!(pending_req & inputs[i].bit_mask))
 			continue;
 		amd_pmf_set_ta_custom_bios_input(in, i, custom_policy[i]);
+		pdev->cb_prev.custom_bios_inputs[i] = custom_policy[i];
 	}
 }
 
 static void amd_pmf_get_custom_bios_inputs(struct amd_pmf_dev *pdev,
 					   struct ta_pmf_enact_table *in)
 {
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(custom_bios_inputs); i++)
+		amd_pmf_set_ta_custom_bios_input(in, i, pdev->cb_prev.custom_bios_inputs[i]);
+
 	if (!(pdev->req.pending_req || pdev->req1.pending_req))
 		return;
 
