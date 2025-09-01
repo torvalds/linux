@@ -60,6 +60,7 @@
 #define INA238_ADC_CONFIG_DEFAULT	0xfb6a
 /* Configure alerts to be based on averaged value (SLOWALERT) */
 #define INA238_DIAG_ALERT_DEFAULT	0x2000
+#define INA238_DIAG_ALERT_APOL		BIT(12)
 /*
  * This driver uses a fixed calibration value in order to scale current/power
  * based on a fixed shunt resistor value. This allows for conversion within the
@@ -793,8 +794,11 @@ static int ina238_probe(struct i2c_client *client)
 	}
 
 	/* Setup alert/alarm configuration */
-	ret = regmap_write(data->regmap, INA238_DIAG_ALERT,
-			   INA238_DIAG_ALERT_DEFAULT);
+	config = INA238_DIAG_ALERT_DEFAULT;
+	if (device_property_read_bool(dev, "ti,alert-polarity-active-high"))
+		config |= INA238_DIAG_ALERT_APOL;
+
+	ret = regmap_write(data->regmap, INA238_DIAG_ALERT, config);
 	if (ret < 0) {
 		dev_err(dev, "error configuring the device: %d\n", ret);
 		return -ENODEV;
