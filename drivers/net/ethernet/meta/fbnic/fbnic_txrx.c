@@ -1528,7 +1528,6 @@ fbnic_alloc_qt_page_pools(struct fbnic_net *fbn, struct fbnic_napi_vector *nv,
 		.dma_dir = DMA_BIDIRECTIONAL,
 		.offset = 0,
 		.max_len = PAGE_SIZE,
-		.napi	= &nv->napi,
 		.netdev	= fbn->netdev,
 		.queue_idx = rxq_idx,
 	};
@@ -2614,6 +2613,11 @@ static void __fbnic_nv_enable(struct fbnic_napi_vector *nv)
 	/* Setup Rx Queue Triads */
 	for (j = 0; j < nv->rxt_count; j++, t++) {
 		struct fbnic_q_triad *qt = &nv->qt[t];
+
+		page_pool_enable_direct_recycling(qt->sub0.page_pool,
+						  &nv->napi);
+		page_pool_enable_direct_recycling(qt->sub1.page_pool,
+						  &nv->napi);
 
 		fbnic_enable_bdq(&qt->sub0, &qt->sub1);
 		fbnic_config_drop_mode_rcq(nv, &qt->cmpl);
