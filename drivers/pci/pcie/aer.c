@@ -96,11 +96,21 @@ struct aer_info {
 };
 
 #define AER_LOG_TLP_MASKS		(PCI_ERR_UNC_POISON_TLP|	\
+					PCI_ERR_UNC_POISON_BLK |	\
 					PCI_ERR_UNC_ECRC|		\
 					PCI_ERR_UNC_UNSUP|		\
 					PCI_ERR_UNC_COMP_ABORT|		\
 					PCI_ERR_UNC_UNX_COMP|		\
-					PCI_ERR_UNC_MALF_TLP)
+					PCI_ERR_UNC_ACSV |		\
+					PCI_ERR_UNC_MCBTLP |		\
+					PCI_ERR_UNC_ATOMEG |		\
+					PCI_ERR_UNC_DMWR_BLK |		\
+					PCI_ERR_UNC_XLAT_BLK |		\
+					PCI_ERR_UNC_TLPPRE |		\
+					PCI_ERR_UNC_MALF_TLP |		\
+					PCI_ERR_UNC_IDE_CHECK |		\
+					PCI_ERR_UNC_MISR_IDE |		\
+					PCI_ERR_UNC_PCRC_CHECK)
 
 #define SYSTEM_ERROR_INTR_ON_MESG_MASK	(PCI_EXP_RTCTL_SECEE|	\
 					PCI_EXP_RTCTL_SENFEE|	\
@@ -796,6 +806,20 @@ static int aer_ratelimit(struct pci_dev *dev, unsigned int severity)
 	}
 }
 
+static bool tlp_header_logged(u32 status, u32 capctl)
+{
+	/* Errors for which a header is always logged (PCIe r7.0 sec 6.2.7) */
+	if (status & AER_LOG_TLP_MASKS)
+		return true;
+
+	/* Completion Timeout header is only logged on capable devices */
+	if (status & PCI_ERR_UNC_COMP_TIME &&
+	    capctl & PCI_ERR_CAP_COMP_TIME_LOG)
+		return true;
+
+	return false;
+}
+
 static void __aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 {
 	const char **strings;
@@ -910,7 +934,7 @@ void pci_print_aer(struct pci_dev *dev, int aer_severity,
 		status = aer->uncor_status;
 		mask = aer->uncor_mask;
 		info.level = KERN_ERR;
-		tlp_header_valid = status & AER_LOG_TLP_MASKS;
+		tlp_header_valid = tlp_header_logged(status, aer->cap_control);
 	}
 
 	info.status = status;
@@ -1401,7 +1425,7 @@ int aer_get_device_error_info(struct aer_err_info *info, int i)
 		pci_read_config_dword(dev, aer + PCI_ERR_CAP, &aercc);
 		info->first_error = PCI_ERR_CAP_FEP(aercc);
 
-		if (info->status & AER_LOG_TLP_MASKS) {
+		if (tlp_header_logged(info->status, aercc)) {
 			info->tlp_header_valid = 1;
 			pcie_read_tlp_log(dev, aer + PCI_ERR_HEADER_LOG,
 					  aer + PCI_ERR_PREFIX_LOG,
