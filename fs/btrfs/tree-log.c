@@ -2147,18 +2147,10 @@ static noinline int replay_one_dir_item(struct walk_control *wc,
 	 * dentries that can never be deleted.
 	 */
 	if (ret == 1 && btrfs_dir_ftype(wc->log_leaf, di) != BTRFS_FT_DIR) {
-		struct btrfs_path *fixup_path;
 		struct btrfs_key di_key;
 
-		fixup_path = btrfs_alloc_path();
-		if (!fixup_path) {
-			btrfs_abort_transaction(wc->trans, -ENOMEM);
-			return -ENOMEM;
-		}
-
 		btrfs_dir_item_key_to_cpu(wc->log_leaf, di, &di_key);
-		ret = link_to_fixup_dir(wc, fixup_path, di_key.objectid);
-		btrfs_free_path(fixup_path);
+		ret = link_to_fixup_dir(wc, path, di_key.objectid);
 	}
 
 	return ret;
