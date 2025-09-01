@@ -539,7 +539,7 @@ void net_drop_ns(void *p)
 		net_passive_dec(net);
 }
 
-struct net *copy_net_ns(unsigned long flags,
+struct net *copy_net_ns(u64 flags,
 			struct user_namespace *user_ns, struct net *old_net)
 {
 	struct ucounts *ucounts;

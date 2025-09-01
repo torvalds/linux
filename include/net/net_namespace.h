@@ -204,7 +204,7 @@ struct net {
 extern struct net init_net;
 
 #ifdef CONFIG_NET_NS
-struct net *copy_net_ns(unsigned long flags, struct user_namespace *user_ns,
+struct net *copy_net_ns(u64 flags, struct user_namespace *user_ns,
 			struct net *old_net);
 
 void net_ns_get_ownership(const struct net *net, kuid_t *uid, kgid_t *gid);
@@ -218,7 +218,7 @@ extern struct task_struct *cleanup_net_task;
 #else /* CONFIG_NET_NS */
 #include <linux/sched.h>
 #include <linux/nsproxy.h>
-static inline struct net *copy_net_ns(unsigned long flags,
+static inline struct net *copy_net_ns(u64 flags,
 	struct user_namespace *user_ns, struct net *old_net)
 {
 	if (flags & CLONE_NEWNET)

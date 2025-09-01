@@ -86,7 +86,7 @@ fail:
  * utsname of this process won't be seen by parent, and vice
  * versa.
  */
-struct uts_namespace *copy_utsname(unsigned long flags,
+struct uts_namespace *copy_utsname(u64 flags,
 	struct user_namespace *user_ns, struct uts_namespace *old_ns)
 {
 	struct uts_namespace *new_ns;
