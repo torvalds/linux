@@ -709,10 +709,6 @@ static int xe_guc_realloc_post_hwconfig(struct xe_guc *guc)
 	if (ret)
 		return ret;
 
-	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->ct.bo);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 
@@ -844,6 +840,10 @@ int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 		return vf_guc_init_post_hwconfig(guc);
 
 	ret = xe_guc_realloc_post_hwconfig(guc);
+	if (ret)
+		return ret;
+
+	ret = xe_guc_ct_init_post_hwconfig(&guc->ct);
 	if (ret)
 		return ret;
 
