@@ -335,19 +335,20 @@ def test_hitless_key_update(cfg):
     data = get_rss(cfg)
     key_len = len(data['rss-hash-key'])
 
-    key = _rss_key_rand(key_len)
+    ethnl = EthtoolFamily()
+    key = random.randbytes(key_len)
 
     tgen = GenerateTraffic(cfg)
     try:
         errors0, carrier0 = get_drop_err_sum(cfg)
         t0 = datetime.datetime.now()
-        ethtool(f"-X {cfg.ifname} hkey " + _rss_key_str(key))
+        ethnl.rss_set({"header": {"dev-index": cfg.ifindex}, "hkey": key})
         t1 = datetime.datetime.now()
         errors1, carrier1 = get_drop_err_sum(cfg)
     finally:
         tgen.wait_pkts_and_stop(5000)
 
-    ksft_lt((t1 - t0).total_seconds(), 0.2)
+    ksft_lt((t1 - t0).total_seconds(), 0.15)
     ksft_eq(errors1 - errors1, 0)
     ksft_eq(carrier1 - carrier0, 0)
 
