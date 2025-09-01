@@ -2257,9 +2257,9 @@ config SENSORS_INA238
 	select REGMAP_I2C
 	help
 	  If you say yes here you get support for INA228, INA237, INA238,
-	  INA780, and SQ52206 power monitor chips. This driver supports voltage,
-	  current, power, energy, and temperature measurements as well as alarm
-	  configuration.
+	  INA700, INA780, and SQ52206 power monitor chips. This driver supports
+	  voltage, current, power, energy, and temperature measurements as well
+	  as alarm configuration.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called ina238.
