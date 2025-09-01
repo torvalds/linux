@@ -2747,24 +2747,21 @@ void kvm_apic_update_apicv(struct kvm_vcpu *vcpu)
 int kvm_alloc_apic_access_page(struct kvm *kvm)
 {
 	void __user *hva;
-	int ret = 0;
 
-	mutex_lock(&kvm->slots_lock);
+	guard(mutex)(&kvm->slots_lock);
+
 	if (kvm->arch.apic_access_memslot_enabled ||
 	    kvm->arch.apic_access_memslot_inhibited)
-		goto out;
+		return 0;
 
 	hva = __x86_set_memory_region(kvm, APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
 				      APIC_DEFAULT_PHYS_BASE, PAGE_SIZE);
-	if (IS_ERR(hva)) {
-		ret = PTR_ERR(hva);
-		goto out;
-	}
+	if (IS_ERR(hva))
+		return PTR_ERR(hva);
 
 	kvm->arch.apic_access_memslot_enabled = true;
-out:
-	mutex_unlock(&kvm->slots_lock);
-	return ret;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_alloc_apic_access_page);
 
