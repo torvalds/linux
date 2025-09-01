@@ -121,11 +121,16 @@ struct fbnic_ring {
 
 	u32 head, tail;			/* Head/Tail of ring */
 
-	/* Deferred_head is used to cache the head for TWQ1 if an attempt
-	 * is made to clean TWQ1 with zero napi_budget. We do not use it for
-	 * any other ring.
-	 */
-	s32 deferred_head;
+	union {
+		/* Rx BDQs only */
+		struct page_pool *page_pool;
+
+		/* Deferred_head is used to cache the head for TWQ1 if
+		 * an attempt is made to clean TWQ1 with zero napi_budget.
+		 * We do not use it for any other ring.
+		 */
+		s32 deferred_head;
+	};
 
 	struct fbnic_queue_stats stats;
 
@@ -142,7 +147,6 @@ struct fbnic_q_triad {
 struct fbnic_napi_vector {
 	struct napi_struct napi;
 	struct device *dev;		/* Device for DMA unmapping */
-	struct page_pool *page_pool;
 	struct fbnic_dev *fbd;
 
 	u16 v_idx;
