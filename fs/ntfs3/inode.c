@@ -975,9 +975,9 @@ out:
 /*
  * ntfs_write_end - Address_space_operations::write_end.
  */
-int ntfs_write_end(const struct kiocb *iocb,
-		   struct address_space *mapping, loff_t pos,
-		   u32 len, u32 copied, struct folio *folio, void *fsdata)
+int ntfs_write_end(const struct kiocb *iocb, struct address_space *mapping,
+		   loff_t pos, u32 len, u32 copied, struct folio *folio,
+		   void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	struct ntfs_inode *ni = ntfs_i(inode);
@@ -1099,7 +1099,7 @@ ntfs_create_reparse_buffer(struct ntfs_sb_info *sbi, const char *symname,
 	typeof(rp->SymbolicLinkReparseBuffer) *rs;
 	bool is_absolute;
 
-	is_absolute = (strlen(symname) > 1 && symname[1] == ':');
+	is_absolute = symname[0] && symname[1] == ':';
 
 	rp = kzalloc(ntfs_reparse_bytes(2 * size + 2, is_absolute), GFP_NOFS);
 	if (!rp)
@@ -1136,17 +1136,19 @@ ntfs_create_reparse_buffer(struct ntfs_sb_info *sbi, const char *symname,
 
 	/* PrintName + SubstituteName. */
 	rs->SubstituteNameOffset = cpu_to_le16(sizeof(short) * err);
-	rs->SubstituteNameLength = cpu_to_le16(sizeof(short) * err + (is_absolute ? 8 : 0));
+	rs->SubstituteNameLength =
+		cpu_to_le16(sizeof(short) * err + (is_absolute ? 8 : 0));
 	rs->PrintNameLength = rs->SubstituteNameOffset;
 
 	/*
 	 * TODO: Use relative path if possible to allow Windows to
 	 * parse this path.
-	 * 0-absolute path 1- relative path (SYMLINK_FLAG_RELATIVE).
+	 * 0-absolute path, 1- relative path (SYMLINK_FLAG_RELATIVE).
 	 */
 	rs->Flags = cpu_to_le32(is_absolute ? 0 : SYMLINK_FLAG_RELATIVE);
 
-	memmove(rp_name + err + (is_absolute ? 4 : 0), rp_name, sizeof(short) * err);
+	memmove(rp_name + err + (is_absolute ? 4 : 0), rp_name,
+		sizeof(short) * err);
 
 	if (is_absolute) {
 		/* Decorate SubstituteName. */
@@ -1635,7 +1637,8 @@ int ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		 * Use ni_find_attr cause layout of MFT record may be changed
 		 * in ntfs_init_acl and ntfs_save_wsl_perm.
 		 */
-		attr = ni_find_attr(ni, NULL, NULL, ATTR_NAME, NULL, 0, NULL, NULL);
+		attr = ni_find_attr(ni, NULL, NULL, ATTR_NAME, NULL, 0, NULL,
+				    NULL);
 		if (attr) {
 			struct ATTR_FILE_NAME *fn;
 
