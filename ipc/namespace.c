@@ -106,7 +106,7 @@ fail:
 	return ERR_PTR(err);
 }
 
-struct ipc_namespace *copy_ipcs(unsigned long flags,
+struct ipc_namespace *copy_ipcs(u64 flags,
 	struct user_namespace *user_ns, struct ipc_namespace *ns)
 {
 	if (!(flags & CLONE_NEWIPC))
