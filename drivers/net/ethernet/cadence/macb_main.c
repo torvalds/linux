@@ -4104,7 +4104,7 @@ static int macb_taprio_setup_replace(struct net_device *ndev,
 		return -EINVAL;
 	}
 
-	if (start_time < 0) {
+	if (conf->base_time < 0) {
 		netdev_err(ndev, "Invalid base_time: must be 0 or positive, got %lld\n",
 			   conf->base_time);
 		return -ERANGE;
