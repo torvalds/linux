@@ -1622,45 +1622,37 @@ static int fuse_notify_poll(struct fuse_conn *fc, unsigned int size,
 			    struct fuse_copy_state *cs)
 {
 	struct fuse_notify_poll_wakeup_out outarg;
-	int err = -EINVAL;
+	int err;
 
 	if (size != sizeof(outarg))
-		goto err;
+		return -EINVAL;
 
 	err = fuse_copy_one(cs, &outarg, sizeof(outarg));
 	if (err)
-		goto err;
+		return err;
 
 	fuse_copy_finish(cs);
 	return fuse_notify_poll_wakeup(fc, &outarg);
-
-err:
-	fuse_copy_finish(cs);
-	return err;
 }
 
 static int fuse_notify_inval_inode(struct fuse_conn *fc, unsigned int size,
 				   struct fuse_copy_state *cs)
 {
 	struct fuse_notify_inval_inode_out outarg;
-	int err = -EINVAL;
+	int err;
 
 	if (size != sizeof(outarg))
-		goto err;
+		return -EINVAL;
 
 	err = fuse_copy_one(cs, &outarg, sizeof(outarg));
 	if (err)
-		goto err;
+		return err;
 	fuse_copy_finish(cs);
 
 	down_read(&fc->killsb);
 	err = fuse_reverse_inval_inode(fc, outarg.ino,
 				       outarg.off, outarg.len);
 	up_read(&fc->killsb);
-	return err;
-
-err:
-	fuse_copy_finish(cs);
 	return err;
 }
 
@@ -1669,29 +1661,26 @@ static int fuse_notify_inval_entry(struct fuse_conn *fc, unsigned int size,
 {
 	struct fuse_notify_inval_entry_out outarg;
 	int err;
-	char *buf = NULL;
+	char *buf;
 	struct qstr name;
 
-	err = -EINVAL;
 	if (size < sizeof(outarg))
-		goto err;
+		return -EINVAL;
 
 	err = fuse_copy_one(cs, &outarg, sizeof(outarg));
 	if (err)
-		goto err;
+		return err;
 
-	err = -ENAMETOOLONG;
 	if (outarg.namelen > fc->name_max)
-		goto err;
+		return -ENAMETOOLONG;
 
 	err = -EINVAL;
 	if (size != sizeof(outarg) + outarg.namelen + 1)
-		goto err;
+		return -EINVAL;
 
-	err = -ENOMEM;
 	buf = kzalloc(outarg.namelen + 1, GFP_KERNEL);
 	if (!buf)
-		goto err;
+		return -ENOMEM;
 
 	name.name = buf;
 	name.len = outarg.namelen;
@@ -1704,12 +1693,8 @@ static int fuse_notify_inval_entry(struct fuse_conn *fc, unsigned int size,
 	down_read(&fc->killsb);
 	err = fuse_reverse_inval_entry(fc, outarg.parent, 0, &name, outarg.flags);
 	up_read(&fc->killsb);
-	kfree(buf);
-	return err;
-
 err:
 	kfree(buf);
-	fuse_copy_finish(cs);
 	return err;
 }
 
@@ -1718,29 +1703,25 @@ static int fuse_notify_delete(struct fuse_conn *fc, unsigned int size,
 {
 	struct fuse_notify_delete_out outarg;
 	int err;
-	char *buf = NULL;
+	char *buf;
 	struct qstr name;
 
-	err = -EINVAL;
 	if (size < sizeof(outarg))
-		goto err;
+		return -EINVAL;
 
 	err = fuse_copy_one(cs, &outarg, sizeof(outarg));
 	if (err)
-		goto err;
+		return err;
 
-	err = -ENAMETOOLONG;
 	if (outarg.namelen > fc->name_max)
-		goto err;
+		return -ENAMETOOLONG;
 
-	err = -EINVAL;
 	if (size != sizeof(outarg) + outarg.namelen + 1)
-		goto err;
+		return -EINVAL;
 
-	err = -ENOMEM;
 	buf = kzalloc(outarg.namelen + 1, GFP_KERNEL);
 	if (!buf)
-		goto err;
+		return -ENOMEM;
 
 	name.name = buf;
 	name.len = outarg.namelen;
@@ -1753,12 +1734,8 @@ static int fuse_notify_delete(struct fuse_conn *fc, unsigned int size,
 	down_read(&fc->killsb);
 	err = fuse_reverse_inval_entry(fc, outarg.parent, outarg.child, &name, 0);
 	up_read(&fc->killsb);
-	kfree(buf);
-	return err;
-
 err:
 	kfree(buf);
-	fuse_copy_finish(cs);
 	return err;
 }
 
@@ -1776,17 +1753,15 @@ static int fuse_notify_store(struct fuse_conn *fc, unsigned int size,
 	loff_t file_size;
 	loff_t end;
 
-	err = -EINVAL;
 	if (size < sizeof(outarg))
-		goto out_finish;
+		return -EINVAL;
 
 	err = fuse_copy_one(cs, &outarg, sizeof(outarg));
 	if (err)
-		goto out_finish;
+		return err;
 
-	err = -EINVAL;
 	if (size - sizeof(outarg) != outarg.size)
-		goto out_finish;
+		return -EINVAL;
 
 	nodeid = outarg.nodeid;
 
@@ -1846,8 +1821,6 @@ out_iput:
 	iput(inode);
 out_up_killsb:
 	up_read(&fc->killsb);
-out_finish:
-	fuse_copy_finish(cs);
 	return err;
 }
 
@@ -1962,13 +1935,12 @@ static int fuse_notify_retrieve(struct fuse_conn *fc, unsigned int size,
 	u64 nodeid;
 	int err;
 
-	err = -EINVAL;
 	if (size != sizeof(outarg))
-		goto copy_finish;
+		return -EINVAL;
 
 	err = fuse_copy_one(cs, &outarg, sizeof(outarg));
 	if (err)
-		goto copy_finish;
+		return err;
 
 	fuse_copy_finish(cs);
 
@@ -1983,10 +1955,6 @@ static int fuse_notify_retrieve(struct fuse_conn *fc, unsigned int size,
 	}
 	up_read(&fc->killsb);
 
-	return err;
-
-copy_finish:
-	fuse_copy_finish(cs);
 	return err;
 }
 
@@ -2098,7 +2066,6 @@ static int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
 		return fuse_notify_inc_epoch(fc);
 
 	default:
-		fuse_copy_finish(cs);
 		return -EINVAL;
 	}
 }
