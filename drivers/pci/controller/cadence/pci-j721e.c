@@ -440,6 +440,7 @@ static const struct of_device_id of_j721e_pcie_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_j721e_pcie_match);
 
 static int j721e_pcie_probe(struct platform_device *pdev)
 {
