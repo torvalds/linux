@@ -55,7 +55,7 @@
 	};
 
 	fsi: gpio-fsi {
-		compatible = "aspeed,ast2400-cf-fsi-master", "fsi-master";
+		compatible = "aspeed,ast2400-cf-fsi-master";
 		#address-cells = <2>;
 		#size-cells = <0>;
 

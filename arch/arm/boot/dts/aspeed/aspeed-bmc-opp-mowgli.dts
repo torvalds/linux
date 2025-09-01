@@ -165,7 +165,7 @@
 	};
 
 	fsi: gpio-fsi {
-		compatible = "fsi-master-gpio", "fsi-master";
+		compatible = "fsi-master-gpio";
 		#address-cells = <2>;
 		#size-cells = <0>;
 		no-gpio-delays;
