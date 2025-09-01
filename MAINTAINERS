@@ -26494,6 +26494,7 @@ F:	drivers/vfio/pci/pds/
 VFIO PLATFORM DRIVER
 M:	Eric Auger <eric.auger@redhat.com>
 R:	Mostafa Saleh <smostafa@google.com>
+R:	Pranjal Shrivastava <praan@google.com>
 L:	kvm@vger.kernel.org
 S:	Maintained
 F:	drivers/vfio/platform/
