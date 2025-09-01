@@ -20,7 +20,6 @@ struct intel_link_bw_limits;
 int intel_fdi_add_affected_crtcs(struct intel_atomic_state *state);
 int intel_fdi_link_freq(struct intel_display *display,
 			const struct intel_crtc_state *pipe_config);
-bool intel_fdi_compute_pipe_bpp(struct intel_crtc_state *crtc_state);
 int ilk_fdi_compute_config(struct intel_crtc *intel_crtc,
 			   struct intel_crtc_state *pipe_config);
 int intel_fdi_atomic_check_link(struct intel_atomic_state *state,

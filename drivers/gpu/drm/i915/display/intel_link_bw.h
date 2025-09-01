@@ -27,6 +27,7 @@ int intel_link_bw_reduce_bpp(struct intel_atomic_state *state,
 			     struct intel_link_bw_limits *limits,
 			     u8 pipe_mask,
 			     const char *reason);
+bool intel_link_bw_compute_pipe_bpp(struct intel_crtc_state *crtc_state);
 bool intel_link_bw_set_bpp_limit_for_pipe(struct intel_atomic_state *state,
 					  const struct intel_link_bw_limits *old_limits,
 					  struct intel_link_bw_limits *new_limits,
