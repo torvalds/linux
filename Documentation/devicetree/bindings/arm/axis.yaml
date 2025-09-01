@@ -8,6 +8,7 @@ title: Axis ARTPEC platforms
 
 maintainers:
   - Jesper Nilsson <jesper.nilsson@axis.com>
+  - Lars Persson <lars.persson@axis.com>
   - linux-arm-kernel@axis.com
 
 description: |
@@ -23,6 +24,12 @@ properties:
           - enum:
               - axis,artpec6-dev-board
           - const: axis,artpec6
+
+      - description: Axis ARTPEC-8 SoC board
+        items:
+          - enum:
+              - axis,artpec8-grizzly
+          - const: axis,artpec8
 
 additionalProperties: true
 
