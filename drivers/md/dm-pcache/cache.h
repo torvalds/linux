@@ -90,7 +90,6 @@ struct pcache_cache_segment {
 	u32			gen_index;
 
 	struct pcache_cache_seg_ctrl *cache_seg_ctrl;
-	struct mutex		ctrl_lock;
 };
 
 /* rbtree for cache entries */

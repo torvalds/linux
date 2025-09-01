@@ -72,7 +72,6 @@ static int cache_seg_ctrl_load(struct pcache_cache_segment *cache_seg)
 	struct pcache_cache_seg_gen cache_seg_gen, *cache_seg_gen_addr;
 	int ret = 0;
 
-	mutex_lock(&cache_seg->ctrl_lock);
 	cache_seg_gen_addr = pcache_meta_find_latest(&cache_seg_ctrl->gen->header,
 					     sizeof(struct pcache_cache_seg_gen),
 					     sizeof(struct pcache_cache_seg_gen),
@@ -93,7 +92,6 @@ static int cache_seg_ctrl_load(struct pcache_cache_segment *cache_seg)
 	cache_seg->gen_seq = cache_seg_gen.header.seq;
 	cache_seg->gen_index = (cache_seg_gen_addr - cache_seg_ctrl->gen);
 out:
-	mutex_unlock(&cache_seg->ctrl_lock);
 
 	return ret;
 }
@@ -105,11 +103,27 @@ static inline struct pcache_cache_seg_gen *get_cache_seg_gen_addr(struct pcache_
 	return (cache_seg_ctrl->gen + cache_seg->gen_index);
 }
 
+/*
+ * cache_seg_ctrl_write - write cache segment control information
+ * @seg: the cache segment to update
+ *
+ * This function writes the control information of a cache segment to media.
+ *
+ * Although this updates shared control data, we intentionally do not use
+ * any locking here.  All accesses to control information are single-threaded:
+ *
+ *   - All reads occur during the init phase, where no concurrent writes
+ *     can happen.
+ *   - Writes happen once during init and once when the last reference
+ *     to the segment is dropped in cache_seg_put().
+ *
+ * Both cases are guaranteed to be single-threaded, so there is no risk
+ * of concurrent read/write races.
+ */
 static void cache_seg_ctrl_write(struct pcache_cache_segment *cache_seg)
 {
 	struct pcache_cache_seg_gen cache_seg_gen;
 
-	mutex_lock(&cache_seg->ctrl_lock);
 	cache_seg_gen.gen = cache_seg->gen;
 	cache_seg_gen.header.seq = ++cache_seg->gen_seq;
 	cache_seg_gen.header.crc = pcache_meta_crc(&cache_seg_gen.header,
@@ -119,7 +133,6 @@ static void cache_seg_ctrl_write(struct pcache_cache_segment *cache_seg)
 	pmem_wmb();
 
 	cache_seg->gen_index = (cache_seg->gen_index + 1) % PCACHE_META_INDEX_MAX;
-	mutex_unlock(&cache_seg->ctrl_lock);
 }
 
 static void cache_seg_ctrl_init(struct pcache_cache_segment *cache_seg)
@@ -177,7 +190,6 @@ int cache_seg_init(struct pcache_cache *cache, u32 seg_id, u32 cache_seg_id,
 	spin_lock_init(&cache_seg->gen_lock);
 	atomic_set(&cache_seg->refs, 0);
 	mutex_init(&cache_seg->info_lock);
-	mutex_init(&cache_seg->ctrl_lock);
 
 	/* init pcache_segment */
 	seg_options.type = PCACHE_SEGMENT_TYPE_CACHE_DATA;
