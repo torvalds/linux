@@ -132,22 +132,46 @@ static void amd_pmf_set_ta_custom_bios_input(struct ta_pmf_enact_table *in, int 
 	}
 }
 
-static void amd_pmf_get_custom_bios_inputs(struct amd_pmf_dev *pdev,
-					   struct ta_pmf_enact_table *in)
+static void amd_pmf_update_bios_inputs(struct amd_pmf_dev *pdev, u32 pending_req,
+				       const struct amd_pmf_pb_bitmap *inputs,
+				       const u32 *custom_policy, struct ta_pmf_enact_table *in)
 {
 	unsigned int i;
 
-	if (!pdev->req.pending_req)
+	for (i = 0; i < ARRAY_SIZE(custom_bios_inputs); i++) {
+		if (!(pending_req & inputs[i].bit_mask))
+			continue;
+		amd_pmf_set_ta_custom_bios_input(in, i, custom_policy[i]);
+	}
+}
+
+static void amd_pmf_get_custom_bios_inputs(struct amd_pmf_dev *pdev,
+					   struct ta_pmf_enact_table *in)
+{
+	if (!(pdev->req.pending_req || pdev->req1.pending_req))
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(custom_bios_inputs); i++) {
-		if (!(pdev->req.pending_req & custom_bios_inputs[i].bit_mask))
-			continue;
-		amd_pmf_set_ta_custom_bios_input(in, i, pdev->req.custom_policy[i]);
+	if (!pdev->smart_pc_enabled)
+		return;
+
+	switch (pdev->pmf_if_version) {
+	case PMF_IF_V1:
+		if (!is_apmf_bios_input_notifications_supported(pdev))
+			return;
+		amd_pmf_update_bios_inputs(pdev, pdev->req1.pending_req, custom_bios_inputs_v1,
+					   pdev->req1.custom_policy, in);
+		break;
+	case PMF_IF_V2:
+		amd_pmf_update_bios_inputs(pdev, pdev->req.pending_req, custom_bios_inputs,
+					   pdev->req.custom_policy, in);
+		break;
+	default:
+		break;
 	}
 
 	/* Clear pending requests after handling */
 	memset(&pdev->req, 0, sizeof(pdev->req));
+	memset(&pdev->req1, 0, sizeof(pdev->req1));
 }
 
 static void amd_pmf_get_c0_residency(u16 *core_res, size_t size, struct ta_pmf_enact_table *in)
