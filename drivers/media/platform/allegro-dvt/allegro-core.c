@@ -2602,8 +2602,14 @@ static int allegro_create_channel(struct allegro_channel *channel)
 	allegro_mcu_send_create_channel(dev, channel);
 	time_left = wait_for_completion_timeout(&channel->completion,
 						msecs_to_jiffies(5000));
-	if (time_left == 0)
+	if (time_left == 0) {
+		v4l2_warn(&dev->v4l2_dev,
+			  "user %d: timeout while creating channel\n",
+			  channel->user_id);
+
 		channel->error = -ETIMEDOUT;
+	}
+
 	if (channel->error)
 		goto err;
 
