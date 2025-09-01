@@ -253,10 +253,10 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	}
 
 	p->action = parm->action;
-	spin_lock(&v->tcf_lock);
+	spin_lock_bh(&v->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	p = rcu_replace_pointer(v->vlan_p, p, lockdep_is_held(&v->tcf_lock));
-	spin_unlock(&v->tcf_lock);
+	spin_unlock_bh(&v->tcf_lock);
 
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);

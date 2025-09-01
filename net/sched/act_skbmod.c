@@ -194,7 +194,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 	p->flags = lflags;
 	p->action = parm->action;
 	if (ovr)
-		spin_lock(&d->tcf_lock);
+		spin_lock_bh(&d->tcf_lock);
 	/* Protected by tcf_lock if overwriting existing action. */
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	p_old = rcu_dereference_protected(d->skbmod_p, 1);
@@ -208,7 +208,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 
 	rcu_assign_pointer(d->skbmod_p, p);
 	if (ovr)
-		spin_unlock(&d->tcf_lock);
+		spin_unlock_bh(&d->tcf_lock);
 
 	if (p_old)
 		kfree_rcu(p_old, rcu);
