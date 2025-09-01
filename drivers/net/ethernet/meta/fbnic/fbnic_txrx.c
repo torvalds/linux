@@ -2297,52 +2297,55 @@ int fbnic_wait_all_queues_idle(struct fbnic_dev *fbd, bool may_fail)
 	return err;
 }
 
+static void fbnic_nv_flush(struct fbnic_napi_vector *nv)
+{
+	int j, t;
+
+	/* Flush any processed Tx Queue Triads and drop the rest */
+	for (t = 0; t < nv->txt_count; t++) {
+		struct fbnic_q_triad *qt = &nv->qt[t];
+		struct netdev_queue *tx_queue;
+
+		/* Clean the work queues of unprocessed work */
+		fbnic_clean_twq0(nv, 0, &qt->sub0, true, qt->sub0.tail);
+		fbnic_clean_twq1(nv, false, &qt->sub1, true,
+				 qt->sub1.tail);
+
+		/* Reset completion queue descriptor ring */
+		memset(qt->cmpl.desc, 0, qt->cmpl.size);
+
+		/* Nothing else to do if Tx queue is disabled */
+		if (qt->sub0.flags & FBNIC_RING_F_DISABLED)
+			continue;
+
+		/* Reset BQL associated with Tx queue */
+		tx_queue = netdev_get_tx_queue(nv->napi.dev,
+					       qt->sub0.q_idx);
+		netdev_tx_reset_queue(tx_queue);
+	}
+
+	/* Flush any processed Rx Queue Triads and drop the rest */
+	for (j = 0; j < nv->rxt_count; j++, t++) {
+		struct fbnic_q_triad *qt = &nv->qt[t];
+
+		/* Clean the work queues of unprocessed work */
+		fbnic_clean_bdq(&qt->sub0, qt->sub0.tail, 0);
+		fbnic_clean_bdq(&qt->sub1, qt->sub1.tail, 0);
+
+		/* Reset completion queue descriptor ring */
+		memset(qt->cmpl.desc, 0, qt->cmpl.size);
+
+		fbnic_put_pkt_buff(qt, qt->cmpl.pkt, 0);
+		memset(qt->cmpl.pkt, 0, sizeof(struct fbnic_pkt_buff));
+	}
+}
+
 void fbnic_flush(struct fbnic_net *fbn)
 {
 	int i;
 
-	for (i = 0; i < fbn->num_napi; i++) {
-		struct fbnic_napi_vector *nv = fbn->napi[i];
-		int j, t;
-
-		/* Flush any processed Tx Queue Triads and drop the rest */
-		for (t = 0; t < nv->txt_count; t++) {
-			struct fbnic_q_triad *qt = &nv->qt[t];
-			struct netdev_queue *tx_queue;
-
-			/* Clean the work queues of unprocessed work */
-			fbnic_clean_twq0(nv, 0, &qt->sub0, true, qt->sub0.tail);
-			fbnic_clean_twq1(nv, false, &qt->sub1, true,
-					 qt->sub1.tail);
-
-			/* Reset completion queue descriptor ring */
-			memset(qt->cmpl.desc, 0, qt->cmpl.size);
-
-			/* Nothing else to do if Tx queue is disabled */
-			if (qt->sub0.flags & FBNIC_RING_F_DISABLED)
-				continue;
-
-			/* Reset BQL associated with Tx queue */
-			tx_queue = netdev_get_tx_queue(nv->napi.dev,
-						       qt->sub0.q_idx);
-			netdev_tx_reset_queue(tx_queue);
-		}
-
-		/* Flush any processed Rx Queue Triads and drop the rest */
-		for (j = 0; j < nv->rxt_count; j++, t++) {
-			struct fbnic_q_triad *qt = &nv->qt[t];
-
-			/* Clean the work queues of unprocessed work */
-			fbnic_clean_bdq(&qt->sub0, qt->sub0.tail, 0);
-			fbnic_clean_bdq(&qt->sub1, qt->sub1.tail, 0);
-
-			/* Reset completion queue descriptor ring */
-			memset(qt->cmpl.desc, 0, qt->cmpl.size);
-
-			fbnic_put_pkt_buff(qt, qt->cmpl.pkt, 0);
-			memset(qt->cmpl.pkt, 0, sizeof(struct fbnic_pkt_buff));
-		}
-	}
+	for (i = 0; i < fbn->num_napi; i++)
+		fbnic_nv_flush(fbn->napi[i]);
 }
 
 void fbnic_fill(struct fbnic_net *fbn)
