@@ -1482,7 +1482,6 @@ static void fbnic_free_napi_vector(struct fbnic_net *fbn,
 	}
 
 	for (j = 0; j < nv->rxt_count; j++, i++) {
-		xdp_rxq_info_unreg(&nv->qt[i].xdp_rxq);
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].sub0);
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].sub1);
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].cmpl);
@@ -1686,11 +1685,6 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 		if (err)
 			goto free_ring_cur_qt;
 
-		err = xdp_rxq_info_reg(&qt->xdp_rxq, fbn->netdev, rxq_idx,
-				       nv->napi.napi_id);
-		if (err)
-			goto free_qt_pp;
-
 		/* Update Rx queue index */
 		rxt_count--;
 		rxq_idx += v_count;
@@ -1704,8 +1698,6 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 	while (rxt_count < nv->rxt_count) {
 		qt--;
 
-		xdp_rxq_info_unreg(&qt->xdp_rxq);
-free_qt_pp:
 		fbnic_free_qt_page_pools(qt);
 free_ring_cur_qt:
 		fbnic_remove_rx_ring(fbn, &qt->sub0);
@@ -1938,6 +1930,11 @@ static void fbnic_free_qt_resources(struct fbnic_net *fbn,
 	fbnic_free_ring_resources(dev, &qt->cmpl);
 	fbnic_free_ring_resources(dev, &qt->sub1);
 	fbnic_free_ring_resources(dev, &qt->sub0);
+
+	if (xdp_rxq_info_is_reg(&qt->xdp_rxq)) {
+		xdp_rxq_info_unreg_mem_model(&qt->xdp_rxq);
+		xdp_rxq_info_unreg(&qt->xdp_rxq);
+	}
 }
 
 static int fbnic_alloc_tx_qt_resources(struct fbnic_net *fbn,
@@ -1968,14 +1965,26 @@ free_sub0:
 }
 
 static int fbnic_alloc_rx_qt_resources(struct fbnic_net *fbn,
+				       struct fbnic_napi_vector *nv,
 				       struct fbnic_q_triad *qt)
 {
 	struct device *dev = fbn->netdev->dev.parent;
 	int err;
 
-	err = fbnic_alloc_rx_ring_resources(fbn, &qt->sub0);
+	err = xdp_rxq_info_reg(&qt->xdp_rxq, fbn->netdev, qt->sub0.q_idx,
+			       nv->napi.napi_id);
 	if (err)
 		return err;
+
+	/* Register XDP memory model for completion queue */
+	err = xdp_rxq_info_reg_mem_model(&qt->xdp_rxq, MEM_TYPE_PAGE_POOL,
+					 qt->sub0.page_pool);
+	if (err)
+		goto unreg_rxq;
+
+	err = fbnic_alloc_rx_ring_resources(fbn, &qt->sub0);
+	if (err)
+		goto unreg_mm;
 
 	err = fbnic_alloc_rx_ring_resources(fbn, &qt->sub1);
 	if (err)
@@ -1991,22 +2000,20 @@ free_sub1:
 	fbnic_free_ring_resources(dev, &qt->sub1);
 free_sub0:
 	fbnic_free_ring_resources(dev, &qt->sub0);
+unreg_mm:
+	xdp_rxq_info_unreg_mem_model(&qt->xdp_rxq);
+unreg_rxq:
+	xdp_rxq_info_unreg(&qt->xdp_rxq);
 	return err;
 }
 
 static void fbnic_free_nv_resources(struct fbnic_net *fbn,
 				    struct fbnic_napi_vector *nv)
 {
-	int i, j;
+	int i;
 
-	/* Free Tx Resources  */
-	for (i = 0; i < nv->txt_count; i++)
+	for (i = 0; i < nv->txt_count + nv->rxt_count; i++)
 		fbnic_free_qt_resources(fbn, &nv->qt[i]);
-
-	for (j = 0; j < nv->rxt_count; j++, i++) {
-		fbnic_free_qt_resources(fbn, &nv->qt[i]);
-		xdp_rxq_info_unreg_mem_model(&nv->qt[i].xdp_rxq);
-	}
 }
 
 static int fbnic_alloc_nv_resources(struct fbnic_net *fbn,
@@ -2023,26 +2030,13 @@ static int fbnic_alloc_nv_resources(struct fbnic_net *fbn,
 
 	/* Allocate Rx Resources */
 	for (j = 0; j < nv->rxt_count; j++, i++) {
-		/* Register XDP memory model for completion queue */
-		err = xdp_reg_mem_model(&nv->qt[i].xdp_rxq.mem,
-					MEM_TYPE_PAGE_POOL,
-					nv->qt[i].sub0.page_pool);
+		err = fbnic_alloc_rx_qt_resources(fbn, nv, &nv->qt[i]);
 		if (err)
-			goto xdp_unreg_mem_model;
-
-		err = fbnic_alloc_rx_qt_resources(fbn, &nv->qt[i]);
-		if (err)
-			goto xdp_unreg_cur_model;
+			goto free_qt_resources;
 	}
 
 	return 0;
 
-xdp_unreg_mem_model:
-	while (j-- && i--) {
-		fbnic_free_qt_resources(fbn, &nv->qt[i]);
-xdp_unreg_cur_model:
-		xdp_rxq_info_unreg_mem_model(&nv->qt[i].xdp_rxq);
-	}
 free_qt_resources:
 	while (i--)
 		fbnic_free_qt_resources(fbn, &nv->qt[i]);
