@@ -156,6 +156,8 @@ struct fbnic_napi_vector {
 	struct fbnic_q_triad qt[];
 };
 
+extern const struct netdev_queue_mgmt_ops fbnic_queue_mgmt_ops;
+
 netdev_tx_t fbnic_xmit_frame(struct sk_buff *skb, struct net_device *dev);
 netdev_features_t
 fbnic_features_check(struct sk_buff *skb, struct net_device *dev,

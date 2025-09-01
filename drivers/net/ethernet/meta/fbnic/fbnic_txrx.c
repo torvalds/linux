@@ -2212,6 +2212,13 @@ static void __fbnic_nv_disable(struct fbnic_napi_vector *nv)
 	}
 }
 
+static void
+fbnic_nv_disable(struct fbnic_net *fbn, struct fbnic_napi_vector *nv)
+{
+	__fbnic_nv_disable(nv);
+	fbnic_wrfl(fbn->fbd);
+}
+
 void fbnic_disable(struct fbnic_net *fbn)
 {
 	struct fbnic_dev *fbd = fbn->fbd;
@@ -2305,6 +2312,44 @@ int fbnic_wait_all_queues_idle(struct fbnic_dev *fbd, bool may_fail)
 	if (err)
 		fbnic_idle_dump(fbd, rx, ARRAY_SIZE(rx), "Rx", err);
 	return err;
+}
+
+static int
+fbnic_wait_queue_idle(struct fbnic_net *fbn, bool rx, unsigned int idx)
+{
+	static const unsigned int tx_regs[] = {
+		FBNIC_QM_TWQ_IDLE(0), FBNIC_QM_TQS_IDLE(0),
+		FBNIC_QM_TDE_IDLE(0), FBNIC_QM_TCQ_IDLE(0),
+	}, rx_regs[] = {
+		FBNIC_QM_HPQ_IDLE(0), FBNIC_QM_PPQ_IDLE(0),
+		FBNIC_QM_RCQ_IDLE(0),
+	};
+	struct fbnic_dev *fbd = fbn->fbd;
+	unsigned int val, mask, off;
+	const unsigned int *regs;
+	unsigned int reg_cnt;
+	int i, err;
+
+	regs = rx ? rx_regs : tx_regs;
+	reg_cnt = rx ? ARRAY_SIZE(rx_regs) : ARRAY_SIZE(tx_regs);
+
+	off = idx / 32;
+	mask = BIT(idx % 32);
+
+	for (i = 0; i < reg_cnt; i++) {
+		err = read_poll_timeout_atomic(fbnic_rd32, val, val & mask,
+					       2, 500000, false,
+					       fbd, regs[i] + off);
+		if (err) {
+			netdev_err(fbd->netdev,
+				   "wait for queue %s%d idle failed 0x%04x(%d): %08x (mask: %08x)\n",
+				   rx ? "Rx" : "Tx", idx, regs[i] + off, i,
+				   val, mask);
+			return err;
+		}
+	}
+
+	return 0;
 }
 
 static void fbnic_nv_flush(struct fbnic_napi_vector *nv)
@@ -2625,6 +2670,12 @@ static void __fbnic_nv_enable(struct fbnic_napi_vector *nv)
 	}
 }
 
+static void fbnic_nv_enable(struct fbnic_net *fbn, struct fbnic_napi_vector *nv)
+{
+	__fbnic_nv_enable(nv);
+	fbnic_wrfl(fbn->fbd);
+}
+
 void fbnic_enable(struct fbnic_net *fbn)
 {
 	struct fbnic_dev *fbd = fbn->fbd;
@@ -2703,3 +2754,123 @@ void fbnic_napi_depletion_check(struct net_device *netdev)
 
 	fbnic_wrfl(fbd);
 }
+
+static int fbnic_queue_mem_alloc(struct net_device *dev, void *qmem, int idx)
+{
+	struct fbnic_net *fbn = netdev_priv(dev);
+	const struct fbnic_q_triad *real;
+	struct fbnic_q_triad *qt = qmem;
+	struct fbnic_napi_vector *nv;
+
+	if (!netif_running(dev))
+		return fbnic_alloc_qt_page_pools(fbn, qt, idx);
+
+	real = container_of(fbn->rx[idx], struct fbnic_q_triad, cmpl);
+	nv = fbn->napi[idx % fbn->num_napi];
+
+	fbnic_ring_init(&qt->sub0, real->sub0.doorbell, real->sub0.q_idx,
+			real->sub0.flags);
+	fbnic_ring_init(&qt->sub1, real->sub1.doorbell, real->sub1.q_idx,
+			real->sub1.flags);
+	fbnic_ring_init(&qt->cmpl, real->cmpl.doorbell, real->cmpl.q_idx,
+			real->cmpl.flags);
+
+	return fbnic_alloc_rx_qt_resources(fbn, nv, qt);
+}
+
+static void fbnic_queue_mem_free(struct net_device *dev, void *qmem)
+{
+	struct fbnic_net *fbn = netdev_priv(dev);
+	struct fbnic_q_triad *qt = qmem;
+
+	if (!netif_running(dev))
+		fbnic_free_qt_page_pools(qt);
+	else
+		fbnic_free_qt_resources(fbn, qt);
+}
+
+static void __fbnic_nv_restart(struct fbnic_net *fbn,
+			       struct fbnic_napi_vector *nv)
+{
+	struct fbnic_dev *fbd = fbn->fbd;
+	int i;
+
+	fbnic_nv_enable(fbn, nv);
+	fbnic_nv_fill(nv);
+
+	napi_enable_locked(&nv->napi);
+	fbnic_nv_irq_enable(nv);
+	fbnic_wr32(fbd, FBNIC_INTR_SET(nv->v_idx / 32), BIT(nv->v_idx % 32));
+	fbnic_wrfl(fbd);
+
+	for (i = 0; i < nv->txt_count; i++)
+		netif_wake_subqueue(fbn->netdev, nv->qt[i].sub0.q_idx);
+}
+
+static int fbnic_queue_start(struct net_device *dev, void *qmem, int idx)
+{
+	struct fbnic_net *fbn = netdev_priv(dev);
+	struct fbnic_napi_vector *nv;
+	struct fbnic_q_triad *real;
+
+	real = container_of(fbn->rx[idx], struct fbnic_q_triad, cmpl);
+	nv = fbn->napi[idx % fbn->num_napi];
+
+	fbnic_aggregate_ring_rx_counters(fbn, &real->sub0);
+	fbnic_aggregate_ring_rx_counters(fbn, &real->sub1);
+	fbnic_aggregate_ring_rx_counters(fbn, &real->cmpl);
+
+	memcpy(real, qmem, sizeof(*real));
+
+	__fbnic_nv_restart(fbn, nv);
+
+	return 0;
+}
+
+static int fbnic_queue_stop(struct net_device *dev, void *qmem, int idx)
+{
+	struct fbnic_net *fbn = netdev_priv(dev);
+	const struct fbnic_q_triad *real;
+	struct fbnic_napi_vector *nv;
+	int i, t;
+	int err;
+
+	real = container_of(fbn->rx[idx], struct fbnic_q_triad, cmpl);
+	nv = fbn->napi[idx % fbn->num_napi];
+
+	napi_disable_locked(&nv->napi);
+	fbnic_nv_irq_disable(nv);
+
+	for (i = 0; i < nv->txt_count; i++)
+		netif_stop_subqueue(dev, nv->qt[i].sub0.q_idx);
+	fbnic_nv_disable(fbn, nv);
+
+	for (t = 0; t < nv->txt_count + nv->rxt_count; t++) {
+		err = fbnic_wait_queue_idle(fbn, t >= nv->txt_count,
+					    nv->qt[t].sub0.q_idx);
+		if (err)
+			goto err_restart;
+	}
+
+	fbnic_synchronize_irq(fbn->fbd, nv->v_idx);
+	fbnic_nv_flush(nv);
+
+	page_pool_disable_direct_recycling(real->sub0.page_pool);
+	page_pool_disable_direct_recycling(real->sub1.page_pool);
+
+	memcpy(qmem, real, sizeof(*real));
+
+	return 0;
+
+err_restart:
+	__fbnic_nv_restart(fbn, nv);
+	return err;
+}
+
+const struct netdev_queue_mgmt_ops fbnic_queue_mgmt_ops = {
+	.ndo_queue_mem_size	= sizeof(struct fbnic_q_triad),
+	.ndo_queue_mem_alloc	= fbnic_queue_mem_alloc,
+	.ndo_queue_mem_free	= fbnic_queue_mem_free,
+	.ndo_queue_start	= fbnic_queue_start,
+	.ndo_queue_stop		= fbnic_queue_stop,
+};
