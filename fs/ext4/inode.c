@@ -3872,47 +3872,12 @@ static int ext4_iomap_overwrite_begin(struct inode *inode, loff_t offset,
 	return ret;
 }
 
-static inline bool ext4_want_directio_fallback(unsigned flags, ssize_t written)
-{
-	/* must be a directio to fall back to buffered */
-	if ((flags & (IOMAP_WRITE | IOMAP_DIRECT)) !=
-		    (IOMAP_WRITE | IOMAP_DIRECT))
-		return false;
-
-	/* atomic writes are all-or-nothing */
-	if (flags & IOMAP_ATOMIC)
-		return false;
-
-	/* can only try again if we wrote nothing */
-	return written == 0;
-}
-
-static int ext4_iomap_end(struct inode *inode, loff_t offset, loff_t length,
-			  ssize_t written, unsigned flags, struct iomap *iomap)
-{
-	/*
-	 * Check to see whether an error occurred while writing out the data to
-	 * the allocated blocks. If so, return the magic error code for
-	 * non-atomic write so that we fallback to buffered I/O and attempt to
-	 * complete the remainder of the I/O.
-	 * For non-atomic writes, any blocks that may have been
-	 * allocated in preparation for the direct I/O will be reused during
-	 * buffered I/O. For atomic write, we never fallback to buffered-io.
-	 */
-	if (ext4_want_directio_fallback(flags, written))
-		return -ENOTBLK;
-
-	return 0;
-}
-
 const struct iomap_ops ext4_iomap_ops = {
 	.iomap_begin		= ext4_iomap_begin,
-	.iomap_end		= ext4_iomap_end,
 };
 
 const struct iomap_ops ext4_iomap_overwrite_ops = {
 	.iomap_begin		= ext4_iomap_overwrite_begin,
-	.iomap_end		= ext4_iomap_end,
 };
 
 static int ext4_iomap_begin_report(struct inode *inode, loff_t offset,
