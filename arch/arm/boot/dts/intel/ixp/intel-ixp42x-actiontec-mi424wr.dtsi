@@ -1,0 +1,272 @@
+// SPDX-License-Identifier: ISC
+/*
+ * Device Tree file for the IXP425-based Actiontec MI424WR
+ * Based on a board file from OpenWrt by Jose Vasconcellos.
+ */
+
+#include "intel-ixp42x.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x02000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+		stdout-path = "uart1:115200n8";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-wan-coax {
+			color = <LED_COLOR_ID_GREEN>;
+			function = "wan-coax";
+			gpios = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led-power-alarm {
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_ALARM;
+			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led-power {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_POWER;
+			gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+		led-wireless {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_WLAN;
+			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led-internet-down {
+			color = <LED_COLOR_ID_RED>;
+			function = "internet-down";
+			gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led-internet-up {
+			color = <LED_COLOR_ID_GREEN>;
+			function = "internet-up";
+			gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led-lan-coax {
+			color = <LED_COLOR_ID_GREEN>;
+			function = "lan-coax";
+			gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led-wan-ethernet-alarm {
+			color = <LED_COLOR_ID_RED>;
+			function = "wan-ethernet-alarm";
+			gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		/* The last three LEDs are not mounted but traces exist on the PCB */
+		led-phone-1 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = "phone-1";
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led-phone-2 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = "phone-2";
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		led-voip {
+			color = <LED_COLOR_ID_GREEN>;
+			function = "voip";
+			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		button-reset {
+			wakeup-source;
+			linux,code = <KEY_RESTART>;
+			label = "reset";
+			gpios = <&gpio0 10 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	spi {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sck-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio0 9 GPIO_ACTIVE_LOW>;
+		num-chipselects = <1>;
+
+		ethernet-switch@0 {
+			compatible = "micrel,ks8995";
+			reg = <0>;
+			spi-max-frequency = <50000000>;
+
+			ethernet-ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ethernet-port@0 {
+					reg = <0>;
+					label = "lan1";
+					phy-mode = "mii";
+					phy-handle = <&phy1>;
+				};
+				ethernet-port@1 {
+					reg = <1>;
+					label = "lan2";
+					phy-mode = "mii";
+					phy-handle = <&phy2>;
+				};
+				ethernet-port@2 {
+					reg = <2>;
+					label = "lan3";
+					phy-mode = "mii";
+					phy-handle = <&phy3>;
+				};
+				ethernet-port@3 {
+					reg = <3>;
+					label = "lan4";
+					phy-mode = "mii";
+					phy-handle = <&phy4>;
+				};
+				ethernet-port@4 {
+					reg = <4>;
+					ethernet = <&ethc>;
+					phy-mode = "mii";
+					fixed-link {
+						speed = <100>;
+						full-duplex;
+					};
+				};
+
+			};
+		};
+	};
+
+	soc {
+		bus@c4000000 {
+			flash@0,0 {
+				compatible = "intel,ixp4xx-flash", "cfi-flash";
+				bank-width = <2>;
+				/*
+				 * 8 MB of Flash in 64 0x20000 sized blocks
+				 * mapped in at CS0.
+				 */
+				reg = <0 0x00000000 0x0800000>;
+
+				/* Configure expansion bus to allow writes */
+				intel,ixp4xx-eb-write-enable = <1>;
+
+				partitions {
+					compatible = "redboot-fis";
+					fis-index-block = <0x3f>;
+				};
+			};
+			gpio1: gpio@1,0 {
+				/* MMIO GPIO at CS1 */
+				compatible = "intel,ixp4xx-expansion-bus-mmio-gpio";
+				gpio-controller;
+				#gpio-cells = <2>;
+				big-endian;
+				reg = <1 0x00000000 0x2>;
+				reg-names = "dat";
+				/* Expansion bus settings */
+				intel,ixp4xx-eb-write-enable = <1>;
+
+				pci-reset-hog {
+					gpio-hog;
+					gpios = <7 GPIO_ACTIVE_HIGH>;
+					output-high;
+					line-name = "PCI reset";
+				};
+				pstn-relay-hog-1 {
+					gpio-hog;
+					gpios = <11 GPIO_ACTIVE_HIGH>;
+					output-low;
+					line-name = "PSTN relay control 1";
+				};
+				pstn-relay-hog-2 {
+					gpio-hog;
+					gpios = <12 GPIO_ACTIVE_HIGH>;
+					output-low;
+					line-name = "PSTN relay control 2";
+				};
+			};
+		};
+
+		pci@c0000000 {
+			status = "okay";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map =
+			/* IDSEL 13 */
+			<0x6800 0 0 1 &gpio0 8 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 13 is irq 8 */
+			<0x6800 0 0 2 &gpio0 6 IRQ_TYPE_LEVEL_LOW>, /* INT B on slot 13 is irq 6 */
+			/* IDSEL 14 */
+			<0x7000 0 0 1 &gpio0 8 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 14 is irq 7 */
+			<0x7000 0 0 2 &gpio0 6 IRQ_TYPE_LEVEL_LOW>, /* INT B on slot 14 is irq 8 */
+			/* IDSEL 15 */
+			<0x7800 0 0 1 &gpio0 8 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 15 is irq 6 */
+			<0x7800 0 0 2 &gpio0 6 IRQ_TYPE_LEVEL_LOW>; /* INT B on slot 15 is irq 7 */
+		};
+
+		ethb: ethernet@c8009000 {
+			status = "okay";
+			queue-rx = <&qmgr 3>;
+			queue-txready = <&qmgr 20>;
+			phy-mode = "mii";
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/* 1, 2, 3 and 4 are ports on the KS8995 switch */
+				phy1: ethernet-phy@1 {
+					/* LAN1 */
+					reg = <1>;
+				};
+				phy2: ethernet-phy@2 {
+					/* LAN2 */
+					reg = <2>;
+				};
+				phy3: ethernet-phy@3 {
+					/* LAN3 */
+					reg = <3>;
+				};
+				phy4: ethernet-phy@4 {
+					/* LAN4 */
+					reg = <4>;
+				};
+			};
+		};
+
+		ethc: ethernet@c800a000 {
+			status = "okay";
+			queue-rx = <&qmgr 4>;
+			queue-txready = <&qmgr 21>;
+			phy-mode = "mii";
+		};
+	};
+};
