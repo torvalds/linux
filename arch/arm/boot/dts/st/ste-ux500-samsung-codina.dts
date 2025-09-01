@@ -479,8 +479,9 @@
 				/* BT_WAKE on GPIO199 */
 				device-wakeup-gpios = <&gpio6 7 GPIO_ACTIVE_HIGH>;
 				/* BT_HOST_WAKE on GPIO97 */
-				/* FIXME: convert to interrupt */
-				host-wakeup-gpios = <&gpio3 1 GPIO_ACTIVE_HIGH>;
+				interrupt-parent = <&gpio3>;
+				interrupts = <1 IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "host-wakeup";
 				/* BT_RST_N on GPIO209 */
 				reset-gpios = <&gpio6 17 GPIO_ACTIVE_LOW>;
 				pinctrl-names = "default";

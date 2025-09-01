@@ -23,7 +23,7 @@
 
 	gpio3: gpio@101e7000 {
 		/* This hog will bias the MMC/SD card detect line */
-		mmcsd-gpio {
+		mmcsd-hog {
 			gpio-hog;
 			gpios = <16 0x0>;
 			output-low;
