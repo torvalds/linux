@@ -383,9 +383,7 @@ static void __sis_unmap_silence(struct sis7019 *sis)
 
 static void sis_free_voice(struct sis7019 *sis, struct voice *voice)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&sis->voice_lock, flags);
+	guard(spinlock_irqsave)(&sis->voice_lock);
 	if (voice->timing) {
 		__sis_unmap_silence(sis);
 		voice->timing->flags &= ~(VOICE_IN_USE | VOICE_SSO_TIMING |
@@ -393,7 +391,6 @@ static void sis_free_voice(struct sis7019 *sis, struct voice *voice)
 		voice->timing = NULL;
 	}
 	voice->flags &= ~(VOICE_IN_USE | VOICE_SSO_TIMING | VOICE_SYNC_TIMING);
-	spin_unlock_irqrestore(&sis->voice_lock, flags);
 }
 
 static struct voice *__sis_alloc_playback_voice(struct sis7019 *sis)
@@ -417,14 +414,8 @@ found_one:
 
 static struct voice *sis_alloc_playback_voice(struct sis7019 *sis)
 {
-	struct voice *voice;
-	unsigned long flags;
-
-	spin_lock_irqsave(&sis->voice_lock, flags);
-	voice = __sis_alloc_playback_voice(sis);
-	spin_unlock_irqrestore(&sis->voice_lock, flags);
-
-	return voice;
+	guard(spinlock_irqsave)(&sis->voice_lock);
+	return __sis_alloc_playback_voice(sis);
 }
 
 static int sis_alloc_timing_voice(struct snd_pcm_substream *substream,
@@ -434,7 +425,6 @@ static int sis_alloc_timing_voice(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct voice *voice = runtime->private_data;
 	unsigned int period_size, buffer_size;
-	unsigned long flags;
 	int needed;
 
 	/* If there are one or two periods per buffer, we don't need a
@@ -447,11 +437,11 @@ static int sis_alloc_timing_voice(struct snd_pcm_substream *substream,
 			period_size != (buffer_size / 2));
 
 	if (needed && !voice->timing) {
-		spin_lock_irqsave(&sis->voice_lock, flags);
-		voice->timing = __sis_alloc_playback_voice(sis);
-		if (voice->timing)
-			__sis_map_silence(sis);
-		spin_unlock_irqrestore(&sis->voice_lock, flags);
+		scoped_guard(spinlock_irqsave, &sis->voice_lock) {
+			voice->timing = __sis_alloc_playback_voice(sis);
+			if (voice->timing)
+				__sis_map_silence(sis);
+		}
 		if (!voice->timing)
 			return -ENOMEM;
 		voice->timing->substream = substream;
@@ -645,17 +635,16 @@ static int sis_capture_open(struct snd_pcm_substream *substream)
 	struct sis7019 *sis = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct voice *voice = &sis->capture_voice;
-	unsigned long flags;
 
 	/* FIXME: The driver only supports recording from one channel
 	 * at the moment, but it could support more.
 	 */
-	spin_lock_irqsave(&sis->voice_lock, flags);
-	if (voice->flags & VOICE_IN_USE)
-		voice = NULL;
-	else
-		voice->flags |= VOICE_IN_USE;
-	spin_unlock_irqrestore(&sis->voice_lock, flags);
+	scoped_guard(spinlock_irqsave, &sis->voice_lock) {
+		if (voice->flags & VOICE_IN_USE)
+			voice = NULL;
+		else
+			voice->flags |= VOICE_IN_USE;
+	}
 
 	if (!voice)
 		return -EAGAIN;
@@ -902,7 +891,7 @@ static unsigned short sis_ac97_rw(struct sis7019 *sis, int codec, u32 cmd)
 	/* Get the AC97 semaphore -- software first, so we don't spin
 	 * pounding out IO reads on the hardware semaphore...
 	 */
-	mutex_lock(&sis->ac97_mutex);
+	guard(mutex)(&sis->ac97_mutex);
 
 	count = 0xffff;
 	while ((inw(io + SIS_AC97_SEMA) & SIS_AC97_SEMA_BUSY) && --count)
@@ -941,8 +930,6 @@ static unsigned short sis_ac97_rw(struct sis7019 *sis, int codec, u32 cmd)
 timeout_sema:
 	outl(SIS_AC97_SEMA_RELEASE, io + SIS_AC97_SEMA);
 timeout:
-	mutex_unlock(&sis->ac97_mutex);
-
 	if (!count) {
 		dev_err(&sis->pci->dev, "ac97 codec %d timeout cmd 0x%08x\n",
 					codec, cmd);

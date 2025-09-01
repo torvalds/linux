@@ -628,16 +628,12 @@ line6_hwdep_write(struct snd_hwdep *hwdep, const char __user *data, long count,
 static __poll_t
 line6_hwdep_poll(struct snd_hwdep *hwdep, struct file *file, poll_table *wait)
 {
-	__poll_t rv;
 	struct usb_line6 *line6 = hwdep->private_data;
 
 	poll_wait(file, &line6->messages.wait_queue, wait);
 
-	mutex_lock(&line6->messages.read_lock);
-	rv = kfifo_len(&line6->messages.fifo) == 0 ? 0 : EPOLLIN | EPOLLRDNORM;
-	mutex_unlock(&line6->messages.read_lock);
-
-	return rv;
+	guard(mutex)(&line6->messages.read_lock);
+	return kfifo_len(&line6->messages.fifo) == 0 ? 0 : EPOLLIN | EPOLLRDNORM;
 }
 
 static const struct snd_hwdep_ops hwdep_ops = {

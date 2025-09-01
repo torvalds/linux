@@ -136,14 +136,12 @@ static int snd_msndmix_volume_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_msnd *msnd = snd_kcontrol_chip(kcontrol);
 	int addr = kcontrol->private_value;
-	unsigned long flags;
 
-	spin_lock_irqsave(&msnd->mixer_lock, flags);
+	guard(spinlock_irqsave)(&msnd->mixer_lock);
 	ucontrol->value.integer.value[0] = msnd->left_levels[addr] * 100;
 	ucontrol->value.integer.value[0] /= 0xFFFF;
 	ucontrol->value.integer.value[1] = msnd->right_levels[addr] * 100;
 	ucontrol->value.integer.value[1] /= 0xFFFF;
-	spin_unlock_irqrestore(&msnd->mixer_lock, flags);
 	return 0;
 }
 
@@ -253,15 +251,13 @@ static int snd_msndmix_volume_put(struct snd_kcontrol *kcontrol,
 	struct snd_msnd *msnd = snd_kcontrol_chip(kcontrol);
 	int change, addr = kcontrol->private_value;
 	int left, right;
-	unsigned long flags;
 
 	left = ucontrol->value.integer.value[0] % 101;
 	right = ucontrol->value.integer.value[1] % 101;
-	spin_lock_irqsave(&msnd->mixer_lock, flags);
+	guard(spinlock_irqsave)(&msnd->mixer_lock);
 	change = msnd->left_levels[addr] != left
 		|| msnd->right_levels[addr] != right;
 	snd_msndmix_set(msnd, addr, left, right);
-	spin_unlock_irqrestore(&msnd->mixer_lock, flags);
 	return change;
 }
 

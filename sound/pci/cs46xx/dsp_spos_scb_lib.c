@@ -63,7 +63,7 @@ static void cs46xx_dsp_proc_scb_info_read (struct snd_info_entry *entry,
 	int j,col;
 	void __iomem *dst = chip->region.idx[1].remap_addr + DSP_PARAMETER_BYTE_OFFSET;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	snd_iprintf(buffer,"%04x %s:\n",scb->address,scb->scb_name);
 
 	for (col = 0,j = 0;j < 0x10; j++,col++) {
@@ -91,7 +91,6 @@ static void cs46xx_dsp_proc_scb_info_read (struct snd_info_entry *entry,
 		    scb->task_entry->address);
 
 	snd_iprintf(buffer,"index [%d] ref_count [%d]\n",scb->index,scb->ref_count);  
-	mutex_unlock(&chip->spos_mutex);
 }
 #endif
 
@@ -160,7 +159,6 @@ static void _dsp_clear_sample_buffer (struct snd_cs46xx *chip, u32 sample_buffer
 void cs46xx_dsp_remove_scb (struct snd_cs46xx *chip, struct dsp_scb_descriptor * scb)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
-	unsigned long flags;
 
 	/* check integrety */
 	if (snd_BUG_ON(scb->index < 0 ||
@@ -176,9 +174,9 @@ void cs46xx_dsp_remove_scb (struct snd_cs46xx *chip, struct dsp_scb_descriptor *
 		goto _end;
 #endif
 
-	spin_lock_irqsave(&chip->reg_lock, flags);    
-	_dsp_unlink_scb (chip,scb);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->reg_lock) {
+		_dsp_unlink_scb(chip, scb);
+	}
 
 	cs46xx_dsp_proc_free_scb_desc(scb);
 	if (snd_BUG_ON(!scb->scb_symbol))
@@ -263,8 +261,6 @@ _dsp_create_generic_scb (struct snd_cs46xx *chip, char * name, u32 * scb_data, u
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 	struct dsp_scb_descriptor * scb;
   
-	unsigned long flags;
-
 	if (snd_BUG_ON(!ins->the_null_scb))
 		return NULL;
 
@@ -318,12 +314,10 @@ _dsp_create_generic_scb (struct snd_cs46xx *chip, char * name, u32 * scb_data, u
 			snd_BUG();
 		}
 
-		spin_lock_irqsave(&chip->reg_lock, flags);
-
-		/* update entry in DSP RAM */
-		cs46xx_dsp_spos_update_scb(chip,scb->parent_scb_ptr);
-
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
+		scoped_guard(spinlock_irqsave, &chip->reg_lock) {
+			/* update entry in DSP RAM */
+			cs46xx_dsp_spos_update_scb(chip, scb->parent_scb_ptr);
+		}
 	}
 
 
@@ -1220,7 +1214,6 @@ cs46xx_dsp_create_pcm_channel (struct snd_cs46xx * chip,
 	/* struct dsp_scb_descriptor * pcm_parent_scb; */
 	char scb_name[DSP_MAX_SCB_NAME];
 	int i, pcm_index = -1, insert_point, src_index = -1, pass_through = 0;
-	unsigned long flags;
 
 	switch (pcm_channel_id) {
 	case DSP_PCM_MAIN_CHANNEL:
@@ -1357,7 +1350,7 @@ cs46xx_dsp_create_pcm_channel (struct snd_cs46xx * chip,
 		return NULL;
 	}
 	
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	ins->pcm_channels[pcm_index].sample_rate = sample_rate;
 	ins->pcm_channels[pcm_index].pcm_reader_scb = pcm_scb;
 	ins->pcm_channels[pcm_index].src_scb = src_scb;
@@ -1368,7 +1361,6 @@ cs46xx_dsp_create_pcm_channel (struct snd_cs46xx * chip,
 	ins->pcm_channels[pcm_index].pcm_slot = pcm_index;
 	ins->pcm_channels[pcm_index].mixer_scb = mixer_scb;
 	ins->npcm_channels ++;
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	return (ins->pcm_channels + pcm_index);
 }
@@ -1456,20 +1448,19 @@ void cs46xx_dsp_destroy_pcm_channel (struct snd_cs46xx * chip,
 				     struct dsp_pcm_channel_descriptor * pcm_channel)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
-	unsigned long flags;
 
 	if (snd_BUG_ON(!pcm_channel->active ||
 		       ins->npcm_channels <= 0 ||
 		       pcm_channel->src_scb->ref_count <= 0))
 		return;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	pcm_channel->unlinked = 1;
-	pcm_channel->active = 0;
-	pcm_channel->private_data = NULL;
-	pcm_channel->src_scb->ref_count --;
-	ins->npcm_channels --;
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->reg_lock) {
+		pcm_channel->unlinked = 1;
+		pcm_channel->active = 0;
+		pcm_channel->private_data = NULL;
+		pcm_channel->src_scb->ref_count--;
+		ins->npcm_channels--;
+	}
 
 	cs46xx_dsp_remove_scb(chip,pcm_channel->pcm_reader_scb);
 
@@ -1488,22 +1479,17 @@ void cs46xx_dsp_destroy_pcm_channel (struct snd_cs46xx * chip,
 int cs46xx_dsp_pcm_unlink (struct snd_cs46xx * chip,
 			   struct dsp_pcm_channel_descriptor * pcm_channel)
 {
-	unsigned long flags;
-
 	if (snd_BUG_ON(!pcm_channel->active ||
 		       chip->dsp_spos_instance->npcm_channels <= 0))
 		return -EIO;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	if (pcm_channel->unlinked) {
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
+	if (pcm_channel->unlinked)
 		return -EIO;
-	}
 
 	pcm_channel->unlinked = 1;
 
 	_dsp_unlink_scb (chip,pcm_channel->pcm_reader_scb);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	return 0;
 }
@@ -1514,14 +1500,11 @@ int cs46xx_dsp_pcm_link (struct snd_cs46xx * chip,
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 	struct dsp_scb_descriptor * parent_scb;
 	struct dsp_scb_descriptor * src_scb = pcm_channel->src_scb;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 
-	if (pcm_channel->unlinked == 0) {
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
+	if (pcm_channel->unlinked == 0)
 		return -EIO;
-	}
 
 	parent_scb = src_scb;
 
@@ -1542,7 +1525,6 @@ int cs46xx_dsp_pcm_link (struct snd_cs46xx * chip,
 	cs46xx_dsp_spos_update_scb(chip,parent_scb);
 
 	pcm_channel->unlinked = 0;
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return 0;
 }
 
@@ -1575,17 +1557,14 @@ cs46xx_add_record_source (struct snd_cs46xx *chip, struct dsp_scb_descriptor * s
 
 int cs46xx_src_unlink(struct snd_cs46xx *chip, struct dsp_scb_descriptor * src)
 {
-	unsigned long flags;
-
 	if (snd_BUG_ON(!src->parent_scb_ptr))
 		return -EINVAL;
 
 	/* mute SCB */
 	cs46xx_dsp_scb_set_volume (chip,src,0,0);
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	_dsp_unlink_scb (chip,src);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	return 0;
 }

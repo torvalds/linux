@@ -74,7 +74,6 @@ static int corb_send_verb(struct lola *chip, unsigned int nid,
 			  unsigned int verb, unsigned int data,
 			  unsigned int extdata)
 {
-	unsigned long flags;
 	int ret = -EIO;
 
 	chip->last_cmd_nid = nid;
@@ -83,7 +82,7 @@ static int corb_send_verb(struct lola *chip, unsigned int nid,
 	chip->last_extdata = extdata;
 	data |= (nid << 20) | (verb << 8);
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	if (chip->rirb.cmds < LOLA_CORB_ENTRIES - 1) {
 		unsigned int wp = chip->corb.wp + 1;
 		wp %= LOLA_CORB_ENTRIES;
@@ -95,7 +94,6 @@ static int corb_send_verb(struct lola *chip, unsigned int nid,
 		smp_wmb();
 		ret = 0;
 	}
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return ret;
 }
 

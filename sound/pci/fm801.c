@@ -279,16 +279,14 @@ static int snd_fm801_update_bits(struct fm801 *chip, unsigned short reg,
 				 unsigned short mask, unsigned short value)
 {
 	int change;
-	unsigned long flags;
 	unsigned short old, new;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	old = fm801_ioread16(chip, reg);
 	new = (old & ~mask) | value;
 	change = old != new;
 	if (change)
 		fm801_iowrite16(chip, reg, new);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return change;
 }
 
@@ -393,7 +391,7 @@ static int snd_fm801_playback_trigger(struct snd_pcm_substream *substream,
 {
 	struct fm801 *chip = snd_pcm_substream_chip(substream);
 
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		chip->ply_ctrl &= ~(FM801_BUF1_LAST |
@@ -414,12 +412,10 @@ static int snd_fm801_playback_trigger(struct snd_pcm_substream *substream,
 		chip->ply_ctrl &= ~FM801_PAUSE;
 		break;
 	default:
-		spin_unlock(&chip->reg_lock);
 		snd_BUG();
 		return -EINVAL;
 	}
 	fm801_writew(chip, PLY_CTRL, chip->ply_ctrl);
-	spin_unlock(&chip->reg_lock);
 	return 0;
 }
 
@@ -428,7 +424,7 @@ static int snd_fm801_capture_trigger(struct snd_pcm_substream *substream,
 {
 	struct fm801 *chip = snd_pcm_substream_chip(substream);
 
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		chip->cap_ctrl &= ~(FM801_BUF1_LAST |
@@ -449,12 +445,10 @@ static int snd_fm801_capture_trigger(struct snd_pcm_substream *substream,
 		chip->cap_ctrl &= ~FM801_PAUSE;
 		break;
 	default:
-		spin_unlock(&chip->reg_lock);
 		snd_BUG();
 		return -EINVAL;
 	}
 	fm801_writew(chip, CAP_CTRL, chip->cap_ctrl);
-	spin_unlock(&chip->reg_lock);
 	return 0;
 }
 
@@ -465,7 +459,7 @@ static int snd_fm801_playback_prepare(struct snd_pcm_substream *substream)
 
 	chip->ply_size = snd_pcm_lib_buffer_bytes(substream);
 	chip->ply_count = snd_pcm_lib_period_bytes(substream);
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	chip->ply_ctrl &= ~(FM801_START | FM801_16BIT |
 			     FM801_STEREO | FM801_RATE_MASK |
 			     FM801_CHANNELS_MASK);
@@ -487,7 +481,6 @@ static int snd_fm801_playback_prepare(struct snd_pcm_substream *substream)
 	fm801_writel(chip, PLY_BUF1, chip->ply_buffer);
 	fm801_writel(chip, PLY_BUF2,
 		     chip->ply_buffer + (chip->ply_count % chip->ply_size));
-	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
@@ -498,7 +491,7 @@ static int snd_fm801_capture_prepare(struct snd_pcm_substream *substream)
 
 	chip->cap_size = snd_pcm_lib_buffer_bytes(substream);
 	chip->cap_count = snd_pcm_lib_period_bytes(substream);
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	chip->cap_ctrl &= ~(FM801_START | FM801_16BIT |
 			     FM801_STEREO | FM801_RATE_MASK);
 	if (snd_pcm_format_width(runtime->format) == 16)
@@ -514,7 +507,6 @@ static int snd_fm801_capture_prepare(struct snd_pcm_substream *substream)
 	fm801_writel(chip, CAP_BUF1, chip->cap_buffer);
 	fm801_writel(chip, CAP_BUF2,
 		     chip->cap_buffer + (chip->cap_count % chip->cap_size));
-	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
@@ -525,13 +517,12 @@ static snd_pcm_uframes_t snd_fm801_playback_pointer(struct snd_pcm_substream *su
 
 	if (!(chip->ply_ctrl & FM801_START))
 		return 0;
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	ptr = chip->ply_pos + (chip->ply_count - 1) - fm801_readw(chip, PLY_COUNT);
 	if (fm801_readw(chip, IRQ_STATUS) & FM801_IRQ_PLAYBACK) {
 		ptr += chip->ply_count;
 		ptr %= chip->ply_size;
 	}
-	spin_unlock(&chip->reg_lock);
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
@@ -542,13 +533,12 @@ static snd_pcm_uframes_t snd_fm801_capture_pointer(struct snd_pcm_substream *sub
 
 	if (!(chip->cap_ctrl & FM801_START))
 		return 0;
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	ptr = chip->cap_pos + (chip->cap_count - 1) - fm801_readw(chip, CAP_COUNT);
 	if (fm801_readw(chip, IRQ_STATUS) & FM801_IRQ_CAPTURE) {
 		ptr += chip->cap_count;
 		ptr %= chip->cap_size;
 	}
-	spin_unlock(&chip->reg_lock);
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
@@ -565,31 +555,31 @@ static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id)
 	/* ack first */
 	fm801_writew(chip, IRQ_STATUS, status);
 	if (chip->pcm && (status & FM801_IRQ_PLAYBACK) && chip->playback_substream) {
-		spin_lock(&chip->reg_lock);
-		chip->ply_buf++;
-		chip->ply_pos += chip->ply_count;
-		chip->ply_pos %= chip->ply_size;
-		tmp = chip->ply_pos + chip->ply_count;
-		tmp %= chip->ply_size;
-		if (chip->ply_buf & 1)
-			fm801_writel(chip, PLY_BUF1, chip->ply_buffer + tmp);
-		else
-			fm801_writel(chip, PLY_BUF2, chip->ply_buffer + tmp);
-		spin_unlock(&chip->reg_lock);
+		scoped_guard(spinlock, &chip->reg_lock) {
+			chip->ply_buf++;
+			chip->ply_pos += chip->ply_count;
+			chip->ply_pos %= chip->ply_size;
+			tmp = chip->ply_pos + chip->ply_count;
+			tmp %= chip->ply_size;
+			if (chip->ply_buf & 1)
+				fm801_writel(chip, PLY_BUF1, chip->ply_buffer + tmp);
+			else
+				fm801_writel(chip, PLY_BUF2, chip->ply_buffer + tmp);
+		}
 		snd_pcm_period_elapsed(chip->playback_substream);
 	}
 	if (chip->pcm && (status & FM801_IRQ_CAPTURE) && chip->capture_substream) {
-		spin_lock(&chip->reg_lock);
-		chip->cap_buf++;
-		chip->cap_pos += chip->cap_count;
-		chip->cap_pos %= chip->cap_size;
-		tmp = chip->cap_pos + chip->cap_count;
-		tmp %= chip->cap_size;
-		if (chip->cap_buf & 1)
-			fm801_writel(chip, CAP_BUF1, chip->cap_buffer + tmp);
-		else
-			fm801_writel(chip, CAP_BUF2, chip->cap_buffer + tmp);
-		spin_unlock(&chip->reg_lock);
+		scoped_guard(spinlock, &chip->reg_lock) {
+			chip->cap_buf++;
+			chip->cap_pos += chip->cap_count;
+			chip->cap_pos %= chip->cap_size;
+			tmp = chip->cap_pos + chip->cap_count;
+			tmp %= chip->cap_size;
+			if (chip->cap_buf & 1)
+				fm801_writel(chip, CAP_BUF1, chip->cap_buffer + tmp);
+			else
+				fm801_writel(chip, CAP_BUF2, chip->cap_buffer + tmp);
+		}
 		snd_pcm_period_elapsed(chip->capture_substream);
 	}
 	if (chip->rmidi && (status & FM801_IRQ_MPU))
@@ -924,10 +914,9 @@ static int snd_fm801_get_double(struct snd_kcontrol *kcontrol,
 	int invert = (kcontrol->private_value >> 24) & 0xff;
 	long *value = ucontrol->value.integer.value;
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	value[0] = (fm801_ioread16(chip, reg) >> shift_left) & mask;
 	value[1] = (fm801_ioread16(chip, reg) >> shift_right) & mask;
-	spin_unlock_irq(&chip->reg_lock);
 	if (invert) {
 		value[0] = mask - value[0];
 		value[1] = mask - value[1];

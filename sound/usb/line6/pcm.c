@@ -295,6 +295,28 @@ snd_pcm_uframes_t snd_line6_pointer(struct snd_pcm_substream *substream)
 	return pstr->pos_done;
 }
 
+/* Stop and release duplex streams */
+static void __line6_pcm_release(struct snd_line6_pcm *line6pcm, int type)
+{
+	struct line6_pcm_stream *pstr;
+	int dir;
+
+	for (dir = 0; dir < 2; dir++)
+		line6_stream_stop(line6pcm, dir, type);
+	for (dir = 0; dir < 2; dir++) {
+		pstr = get_stream(line6pcm, dir);
+		line6_buffer_release(line6pcm, pstr, type);
+	}
+}
+
+/* Stop and release duplex streams */
+void line6_pcm_release(struct snd_line6_pcm *line6pcm, int type)
+{
+	guard(mutex)(&line6pcm->state_mutex);
+	__line6_pcm_release(line6pcm, type);
+}
+EXPORT_SYMBOL_GPL(line6_pcm_release);
+
 /* Acquire and optionally start duplex streams:
  * type is either LINE6_STREAM_IMPULSE or LINE6_STREAM_MONITOR
  */
@@ -304,7 +326,7 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type, bool start)
 	int ret = 0, dir;
 
 	/* TODO: We should assert SNDRV_PCM_STREAM_PLAYBACK/CAPTURE == 0/1 */
-	mutex_lock(&line6pcm->state_mutex);
+	guard(mutex)(&line6pcm->state_mutex);
 	for (dir = 0; dir < 2; dir++) {
 		pstr = get_stream(line6pcm, dir);
 		ret = line6_buffer_acquire(line6pcm, pstr, dir, type);
@@ -321,29 +343,11 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type, bool start)
 		}
 	}
  error:
-	mutex_unlock(&line6pcm->state_mutex);
 	if (ret < 0)
-		line6_pcm_release(line6pcm, type);
+		__line6_pcm_release(line6pcm, type);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(line6_pcm_acquire);
-
-/* Stop and release duplex streams */
-void line6_pcm_release(struct snd_line6_pcm *line6pcm, int type)
-{
-	struct line6_pcm_stream *pstr;
-	int dir;
-
-	mutex_lock(&line6pcm->state_mutex);
-	for (dir = 0; dir < 2; dir++)
-		line6_stream_stop(line6pcm, dir, type);
-	for (dir = 0; dir < 2; dir++) {
-		pstr = get_stream(line6pcm, dir);
-		line6_buffer_release(line6pcm, pstr, type);
-	}
-	mutex_unlock(&line6pcm->state_mutex);
-}
-EXPORT_SYMBOL_GPL(line6_pcm_release);
 
 /* common PCM hw_params callback */
 int snd_line6_hw_params(struct snd_pcm_substream *substream,
@@ -353,16 +357,14 @@ int snd_line6_hw_params(struct snd_pcm_substream *substream,
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 	struct line6_pcm_stream *pstr = get_stream(line6pcm, substream->stream);
 
-	mutex_lock(&line6pcm->state_mutex);
+	guard(mutex)(&line6pcm->state_mutex);
 	ret = line6_buffer_acquire(line6pcm, pstr, substream->stream,
 	                           LINE6_STREAM_PCM);
 	if (ret < 0)
-		goto error;
+		return ret;
 
 	pstr->period = params_period_bytes(hw_params);
- error:
-	mutex_unlock(&line6pcm->state_mutex);
-	return ret;
+	return 0;
 }
 
 /* common PCM hw_free callback */
@@ -371,9 +373,8 @@ int snd_line6_hw_free(struct snd_pcm_substream *substream)
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 	struct line6_pcm_stream *pstr = get_stream(line6pcm, substream->stream);
 
-	mutex_lock(&line6pcm->state_mutex);
+	guard(mutex)(&line6pcm->state_mutex);
 	line6_buffer_release(line6pcm, pstr, LINE6_STREAM_PCM);
-	mutex_unlock(&line6pcm->state_mutex);
 	return 0;
 }
 
@@ -588,7 +589,7 @@ int snd_line6_prepare(struct snd_pcm_substream *substream)
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 	struct line6_pcm_stream *pstr = get_stream(line6pcm, substream->stream);
 
-	mutex_lock(&line6pcm->state_mutex);
+	guard(mutex)(&line6pcm->state_mutex);
 	if (!pstr->running)
 		line6_wait_clear_audio_urbs(line6pcm, pstr);
 
@@ -602,6 +603,5 @@ int snd_line6_prepare(struct snd_pcm_substream *substream)
 		line6pcm->in.bytes = 0;
 	}
 
-	mutex_unlock(&line6pcm->state_mutex);
 	return 0;
 }

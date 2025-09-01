@@ -110,21 +110,19 @@ static int stac9460_dac_mute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	struct prodigy192_spec *spec = ice->spec;
-	int idx, change;
+	int idx;
 
 	if (kcontrol->private_value)
 		idx = STAC946X_MASTER_VOLUME;
 	else
 		idx  = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id) + STAC946X_LF_VOLUME;
 	/* due to possible conflicts with stac9460_set_rate_val, mutexing */
-	mutex_lock(&spec->mute_mutex);
+	guard(mutex)(&spec->mute_mutex);
 	/*
 	dev_dbg(ice->card->dev, "Mute put: reg 0x%02x, ctrl value: 0x%02x\n", idx,
 	       ucontrol->value.integer.value[0]);
 	*/
-	change = stac9460_dac_mute(ice, idx, ucontrol->value.integer.value[0]);
-	mutex_unlock(&spec->mute_mutex);
-	return change;
+	return stac9460_dac_mute(ice, idx, ucontrol->value.integer.value[0]);
 }
 
 /*
@@ -316,7 +314,7 @@ static void stac9460_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 		return;
 	/* change detected, setting master clock, muting first */
 	/* due to possible conflicts with mute controls - mutexing */
-	mutex_lock(&spec->mute_mutex);
+	guard(mutex)(&spec->mute_mutex);
 	/* we have to remember current mute status for each DAC */
 	for (idx = 0; idx < 7 ; ++idx)
 		changed[idx] = stac9460_dac_mute(ice,
@@ -330,7 +328,6 @@ static void stac9460_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 		if (changed[idx])
 			stac9460_dac_mute(ice, STAC946X_MASTER_VOLUME + idx, 1);
 	}
-	mutex_unlock(&spec->mute_mutex);
 }
 
 

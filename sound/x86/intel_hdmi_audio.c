@@ -171,13 +171,11 @@ static struct snd_pcm_substream *
 had_substream_get(struct snd_intelhad *intelhaddata)
 {
 	struct snd_pcm_substream *substream;
-	unsigned long flags;
 
-	spin_lock_irqsave(&intelhaddata->had_spinlock, flags);
+	guard(spinlock_irqsave)(&intelhaddata->had_spinlock);
 	substream = intelhaddata->stream_info.substream;
 	if (substream)
 		intelhaddata->stream_info.substream_refcount++;
-	spin_unlock_irqrestore(&intelhaddata->had_spinlock, flags);
 	return substream;
 }
 
@@ -186,11 +184,8 @@ had_substream_get(struct snd_intelhad *intelhaddata)
  */
 static void had_substream_put(struct snd_intelhad *intelhaddata)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&intelhaddata->had_spinlock, flags);
+	guard(spinlock_irqsave)(&intelhaddata->had_spinlock);
 	intelhaddata->stream_info.substream_refcount--;
-	spin_unlock_irqrestore(&intelhaddata->had_spinlock, flags);
 }
 
 static u32 had_config_offset(int pipe)
@@ -554,16 +549,13 @@ static int had_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 
 	memset(ucontrol->value.integer.value, 0,
 	       sizeof(long) * HAD_MAX_CHANNEL);
-	mutex_lock(&intelhaddata->mutex);
-	if (!intelhaddata->chmap->chmap) {
-		mutex_unlock(&intelhaddata->mutex);
+	guard(mutex)(&intelhaddata->mutex);
+	if (!intelhaddata->chmap->chmap)
 		return 0;
-	}
 
 	chmap = intelhaddata->chmap->chmap;
 	for (i = 0; i < chmap->channels; i++)
 		ucontrol->value.integer.value[i] = chmap->map[i];
-	mutex_unlock(&intelhaddata->mutex);
 
 	return 0;
 }
@@ -949,10 +941,9 @@ static int had_process_ringbuf(struct snd_pcm_substream *substream,
 			       struct snd_intelhad *intelhaddata)
 {
 	int len, processed;
-	unsigned long flags;
 
 	processed = 0;
-	spin_lock_irqsave(&intelhaddata->had_spinlock, flags);
+	guard(spinlock_irqsave)(&intelhaddata->had_spinlock);
 	for (;;) {
 		/* get the remaining bytes on the buffer */
 		had_read_register(intelhaddata,
@@ -961,25 +952,20 @@ static int had_process_ringbuf(struct snd_pcm_substream *substream,
 		if (len < 0 || len > intelhaddata->period_bytes) {
 			dev_dbg(intelhaddata->dev, "Invalid buf length %d\n",
 				len);
-			len = -EPIPE;
-			goto out;
+			return -EPIPE;
 		}
 
 		if (len > 0) /* OK, this is the current buffer */
 			break;
 
 		/* len=0 => already empty, check the next buffer */
-		if (++processed >= intelhaddata->num_bds) {
-			len = -EPIPE; /* all empty? - report underrun */
-			goto out;
-		}
+		if (++processed >= intelhaddata->num_bds)
+			return -EPIPE; /* all empty? - report underrun */
 		had_advance_ringbuf(substream, intelhaddata);
 	}
 
 	len = intelhaddata->period_bytes - len;
 	len += intelhaddata->period_bytes * intelhaddata->pcmbuf_head;
- out:
-	spin_unlock_irqrestore(&intelhaddata->had_spinlock, flags);
 	return len;
 }
 
@@ -1095,10 +1081,10 @@ static int had_pcm_open(struct snd_pcm_substream *substream)
 		goto error;
 
 	/* expose PCM substream */
-	spin_lock_irq(&intelhaddata->had_spinlock);
-	intelhaddata->stream_info.substream = substream;
-	intelhaddata->stream_info.substream_refcount++;
-	spin_unlock_irq(&intelhaddata->had_spinlock);
+	scoped_guard(spinlock_irq, &intelhaddata->had_spinlock) {
+		intelhaddata->stream_info.substream = substream;
+		intelhaddata->stream_info.substream_refcount++;
+	}
 
 	return retval;
  error:
@@ -1156,7 +1142,7 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	intelhaddata = snd_pcm_substream_chip(substream);
 
-	spin_lock(&intelhaddata->had_spinlock);
+	guard(spinlock)(&intelhaddata->had_spinlock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
@@ -1175,7 +1161,6 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	default:
 		retval = -EINVAL;
 	}
-	spin_unlock(&intelhaddata->had_spinlock);
 	return retval;
 }
 
@@ -1314,21 +1299,20 @@ static void had_process_hot_plug(struct snd_intelhad *intelhaddata)
 {
 	struct snd_pcm_substream *substream;
 
-	spin_lock_irq(&intelhaddata->had_spinlock);
-	if (intelhaddata->connected) {
-		dev_dbg(intelhaddata->dev, "Device already connected\n");
-		spin_unlock_irq(&intelhaddata->had_spinlock);
-		return;
-	}
+	scoped_guard(spinlock_irq, &intelhaddata->had_spinlock) {
+		if (intelhaddata->connected) {
+			dev_dbg(intelhaddata->dev, "Device already connected\n");
+			return;
+		}
 
-	/* Disable Audio */
-	had_enable_audio(intelhaddata, false);
+		/* Disable Audio */
+		had_enable_audio(intelhaddata, false);
 
-	intelhaddata->connected = true;
-	dev_dbg(intelhaddata->dev,
-		"%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_CONNECTED\n",
+		intelhaddata->connected = true;
+		dev_dbg(intelhaddata->dev,
+			"%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_CONNECTED\n",
 			__func__, __LINE__);
-	spin_unlock_irq(&intelhaddata->had_spinlock);
+	}
 
 	had_build_channel_allocation_map(intelhaddata);
 
@@ -1347,22 +1331,20 @@ static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 {
 	struct snd_pcm_substream *substream;
 
-	spin_lock_irq(&intelhaddata->had_spinlock);
-	if (!intelhaddata->connected) {
-		dev_dbg(intelhaddata->dev, "Device already disconnected\n");
-		spin_unlock_irq(&intelhaddata->had_spinlock);
-		return;
+	scoped_guard(spinlock_irq, &intelhaddata->had_spinlock) {
+		if (!intelhaddata->connected) {
+			dev_dbg(intelhaddata->dev, "Device already disconnected\n");
+			return;
+		}
 
-	}
+		/* Disable Audio */
+		had_enable_audio(intelhaddata, false);
 
-	/* Disable Audio */
-	had_enable_audio(intelhaddata, false);
-
-	intelhaddata->connected = false;
-	dev_dbg(intelhaddata->dev,
-		"%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_DISCONNECTED\n",
+		intelhaddata->connected = false;
+		dev_dbg(intelhaddata->dev,
+			"%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_DISCONNECTED\n",
 			__func__, __LINE__);
-	spin_unlock_irq(&intelhaddata->had_spinlock);
+	}
 
 	kfree(intelhaddata->chmap->chmap);
 	intelhaddata->chmap->chmap = NULL;
@@ -1394,14 +1376,13 @@ static int had_iec958_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_intelhad *intelhaddata = snd_kcontrol_chip(kcontrol);
 
-	mutex_lock(&intelhaddata->mutex);
+	guard(mutex)(&intelhaddata->mutex);
 	ucontrol->value.iec958.status[0] = (intelhaddata->aes_bits >> 0) & 0xff;
 	ucontrol->value.iec958.status[1] = (intelhaddata->aes_bits >> 8) & 0xff;
 	ucontrol->value.iec958.status[2] =
 					(intelhaddata->aes_bits >> 16) & 0xff;
 	ucontrol->value.iec958.status[3] =
 					(intelhaddata->aes_bits >> 24) & 0xff;
-	mutex_unlock(&intelhaddata->mutex);
 	return 0;
 }
 
@@ -1426,12 +1407,11 @@ static int had_iec958_put(struct snd_kcontrol *kcontrol,
 		(ucontrol->value.iec958.status[1] << 8) |
 		(ucontrol->value.iec958.status[2] << 16) |
 		(ucontrol->value.iec958.status[3] << 24);
-	mutex_lock(&intelhaddata->mutex);
+	guard(mutex)(&intelhaddata->mutex);
 	if (intelhaddata->aes_bits != val) {
 		intelhaddata->aes_bits = val;
 		changed = 1;
 	}
-	mutex_unlock(&intelhaddata->mutex);
 	return changed;
 }
 
@@ -1448,10 +1428,9 @@ static int had_ctl_eld_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_intelhad *intelhaddata = snd_kcontrol_chip(kcontrol);
 
-	mutex_lock(&intelhaddata->mutex);
+	guard(mutex)(&intelhaddata->mutex);
 	memcpy(ucontrol->value.bytes.data, intelhaddata->eld,
 	       HDMI_MAX_ELD_BYTES);
-	mutex_unlock(&intelhaddata->mutex);
 	return 0;
 }
 
@@ -1642,9 +1621,9 @@ static void hdmi_lpe_audio_free(struct snd_card *card)
 	struct intel_hdmi_lpe_audio_pdata *pdata = card_ctx->dev->platform_data;
 	int port;
 
-	spin_lock_irq(&pdata->lpe_audio_slock);
-	pdata->notify_audio_lpe = NULL;
-	spin_unlock_irq(&pdata->lpe_audio_slock);
+	scoped_guard(spinlock_irq, &pdata->lpe_audio_slock) {
+		pdata->notify_audio_lpe = NULL;
+	}
 
 	for_each_port(card_ctx, port) {
 		struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
@@ -1805,9 +1784,9 @@ static int __hdmi_lpe_audio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	spin_lock_irq(&pdata->lpe_audio_slock);
-	pdata->notify_audio_lpe = notify_audio_lpe;
-	spin_unlock_irq(&pdata->lpe_audio_slock);
+	scoped_guard(spinlock_irq, &pdata->lpe_audio_slock) {
+		pdata->notify_audio_lpe = notify_audio_lpe;
+	}
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, INTEL_HDMI_AUDIO_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);

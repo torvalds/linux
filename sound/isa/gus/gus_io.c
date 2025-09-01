@@ -177,55 +177,36 @@ unsigned int snd_gf1_read_addr(struct snd_gus_card * gus,
 
 void snd_gf1_i_ctrl_stop(struct snd_gus_card * gus, unsigned char reg)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	__snd_gf1_ctrl_stop(gus, reg);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 void snd_gf1_i_write8(struct snd_gus_card * gus,
 		      unsigned char reg,
                       unsigned char data)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	__snd_gf1_write8(gus, reg, data);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 unsigned char snd_gf1_i_look8(struct snd_gus_card * gus, unsigned char reg)
 {
-	unsigned long flags;
-	unsigned char res;
-
-	spin_lock_irqsave(&gus->reg_lock, flags);
-	res = __snd_gf1_look8(gus, reg);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
-	return res;
+	guard(spinlock_irqsave)(&gus->reg_lock);
+	return __snd_gf1_look8(gus, reg);
 }
 
 void snd_gf1_i_write16(struct snd_gus_card * gus,
 		       unsigned char reg,
 		       unsigned int data)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	__snd_gf1_write16(gus, reg, data);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 unsigned short snd_gf1_i_look16(struct snd_gus_card * gus, unsigned char reg)
 {
-	unsigned long flags;
-	unsigned short res;
-
-	spin_lock_irqsave(&gus->reg_lock, flags);
-	res = __snd_gf1_look16(gus, reg);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
-	return res;
+	guard(spinlock_irqsave)(&gus->reg_lock);
+	return __snd_gf1_look16(gus, reg);
 }
 
 void snd_gf1_dram_addr(struct snd_gus_card * gus, unsigned int addr)
@@ -242,9 +223,7 @@ void snd_gf1_dram_addr(struct snd_gus_card * gus, unsigned int addr)
 
 void snd_gf1_poke(struct snd_gus_card * gus, unsigned int addr, unsigned char data)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	outb(SNDRV_GF1_GW_DRAM_IO_LOW, gus->gf1.reg_regsel);
 	mb();
 	outw((unsigned short) addr, gus->gf1.reg_data16);
@@ -254,15 +233,11 @@ void snd_gf1_poke(struct snd_gus_card * gus, unsigned int addr, unsigned char da
 	outb((unsigned char) (addr >> 16), gus->gf1.reg_data8);
 	mb();
 	outb(data, gus->gf1.reg_dram);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 unsigned char snd_gf1_peek(struct snd_gus_card * gus, unsigned int addr)
 {
-	unsigned long flags;
-	unsigned char res;
-
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	outb(SNDRV_GF1_GW_DRAM_IO_LOW, gus->gf1.reg_regsel);
 	mb();
 	outw((unsigned short) addr, gus->gf1.reg_data16);
@@ -271,20 +246,16 @@ unsigned char snd_gf1_peek(struct snd_gus_card * gus, unsigned int addr)
 	mb();
 	outb((unsigned char) (addr >> 16), gus->gf1.reg_data8);
 	mb();
-	res = inb(gus->gf1.reg_dram);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
-	return res;
+	return inb(gus->gf1.reg_dram);
 }
 
 #if 0
 
 void snd_gf1_pokew(struct snd_gus_card * gus, unsigned int addr, unsigned short data)
 {
-	unsigned long flags;
-
 	if (!gus->interwave)
 		dev_dbg(gus->card->dev, "%s - GF1!!!\n", __func__);
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	outb(SNDRV_GF1_GW_DRAM_IO_LOW, gus->gf1.reg_regsel);
 	mb();
 	outw((unsigned short) addr, gus->gf1.reg_data16);
@@ -296,17 +267,13 @@ void snd_gf1_pokew(struct snd_gus_card * gus, unsigned int addr, unsigned short 
 	outb(SNDRV_GF1_GW_DRAM_IO16, gus->gf1.reg_regsel);
 	mb();
 	outw(data, gus->gf1.reg_data16);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 unsigned short snd_gf1_peekw(struct snd_gus_card * gus, unsigned int addr)
 {
-	unsigned long flags;
-	unsigned short res;
-
 	if (!gus->interwave)
 		dev_dbg(gus->card->dev, "%s - GF1!!!\n", __func__);
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	outb(SNDRV_GF1_GW_DRAM_IO_LOW, gus->gf1.reg_regsel);
 	mb();
 	outw((unsigned short) addr, gus->gf1.reg_data16);
@@ -317,23 +284,20 @@ unsigned short snd_gf1_peekw(struct snd_gus_card * gus, unsigned int addr)
 	mb();
 	outb(SNDRV_GF1_GW_DRAM_IO16, gus->gf1.reg_regsel);
 	mb();
-	res = inw(gus->gf1.reg_data16);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
-	return res;
+	return inw(gus->gf1.reg_data16);
 }
 
 void snd_gf1_dram_setmem(struct snd_gus_card * gus, unsigned int addr,
 			 unsigned short value, unsigned int count)
 {
 	unsigned long port;
-	unsigned long flags;
 
 	if (!gus->interwave)
 		dev_dbg(gus->card->dev, "%s - GF1!!!\n", __func__);
 	addr &= ~1;
 	count >>= 1;
 	port = GUSP(gus, GF1DATALOW);
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	outb(SNDRV_GF1_GW_DRAM_IO_LOW, gus->gf1.reg_regsel);
 	mb();
 	outw((unsigned short) addr, gus->gf1.reg_data16);
@@ -345,7 +309,6 @@ void snd_gf1_dram_setmem(struct snd_gus_card * gus, unsigned int addr,
 	outb(SNDRV_GF1_GW_DRAM_IO16, gus->gf1.reg_regsel);
 	while (count--)
 		outw(value, port);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 #endif  /*  0  */
