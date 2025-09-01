@@ -735,10 +735,10 @@
 					  "rx-queue-0", "rx-queue-1", "rx-queue-2",
 					  "rx-queue-3", "tx-queue-0", "tx-queue-1",
 					  "tx-queue-2", "tx-queue-3";
-			clocks =  <&cpg CPG_MOD 0xbd>, <&cpg CPG_MOD 0xbc>,
-				  <&cpg CPG_CORE R9A09G056_GBETH_0_CLK_PTP_REF_I>,
-				  <&cpg CPG_MOD 0xb8>, <&cpg CPG_MOD 0xb9>,
-				  <&cpg CPG_MOD 0xba>, <&cpg CPG_MOD 0xbb>;
+			clocks = <&cpg CPG_MOD 0xbd>, <&cpg CPG_MOD 0xbc>,
+				 <&cpg CPG_CORE R9A09G056_GBETH_0_CLK_PTP_REF_I>,
+				 <&cpg CPG_MOD 0xb8>, <&cpg CPG_MOD 0xb9>,
+				 <&cpg CPG_MOD 0xba>, <&cpg CPG_MOD 0xbb>;
 			clock-names = "stmmaceth", "pclk", "ptp_ref",
 				      "tx", "rx", "tx-180", "rx-180";
 			resets = <&cpg 0xb0>;
@@ -836,10 +836,10 @@
 					  "rx-queue-0", "rx-queue-1", "rx-queue-2",
 					  "rx-queue-3", "tx-queue-0", "tx-queue-1",
 					  "tx-queue-2", "tx-queue-3";
-			clocks =  <&cpg CPG_MOD 0xc3>, <&cpg CPG_MOD 0xc2>,
-				  <&cpg CPG_CORE R9A09G056_GBETH_1_CLK_PTP_REF_I>,
-				  <&cpg CPG_MOD 0xbe>, <&cpg CPG_MOD 0xbf>,
-				  <&cpg CPG_MOD 0xc0>, <&cpg CPG_MOD 0xc1>;
+			clocks = <&cpg CPG_MOD 0xc3>, <&cpg CPG_MOD 0xc2>,
+				 <&cpg CPG_CORE R9A09G056_GBETH_1_CLK_PTP_REF_I>,
+				 <&cpg CPG_MOD 0xbe>, <&cpg CPG_MOD 0xbf>,
+				 <&cpg CPG_MOD 0xc0>, <&cpg CPG_MOD 0xc1>;
 			clock-names = "stmmaceth", "pclk", "ptp_ref",
 				      "tx", "rx", "tx-180", "rx-180";
 			resets = <&cpg 0xb1>;

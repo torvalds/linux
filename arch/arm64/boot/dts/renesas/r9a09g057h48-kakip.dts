@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /*
- * Device Tree Source for Yuridenki-Shokai the Kakip board
+ * Device Tree Source for the Yuridenki-Shokai Kakip board
  *
  * Copyright (C) 2024 Nobuhiro Iwamatsu <iwamatsu@nigauri.org>
  */
@@ -84,7 +84,7 @@
 
 &pinctrl {
 	scif_pins: scif {
-		pins =  "SCIF_RXD", "SCIF_TXD";
+		pins = "SCIF_RXD", "SCIF_TXD";
 	};
 
 	sd0-pwr-en-hog {

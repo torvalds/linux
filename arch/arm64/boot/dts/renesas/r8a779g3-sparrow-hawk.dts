@@ -38,6 +38,7 @@
 
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/thermal/thermal.h>
 
 #include "r8a779g3.dtsi"
 
@@ -185,7 +186,42 @@
 		regulator-max-microvolt = <3300000>;
 		gpios = <&gpio8 13 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 0>, <1800000 1>;
+		states = <1800000 0>, <3300000 1>;
+	};
+};
+
+/* Use thermal-idle cooling for all SoC cores */
+&a76_0 {
+	#cooling-cells = <2>;
+
+	a76_0_thermal_idle: thermal-idle {
+		#cooling-cells = <2>;
+		duration-us = <10000>;
+		exit-latency-us = <500>;
+	};
+};
+
+&a76_1 {
+	a76_1_thermal_idle: thermal-idle {
+		#cooling-cells = <2>;
+		duration-us = <10000>;
+		exit-latency-us = <500>;
+	};
+};
+
+&a76_2 {
+	a76_2_thermal_idle: thermal-idle {
+		#cooling-cells = <2>;
+		duration-us = <10000>;
+		exit-latency-us = <500>;
+	};
+};
+
+&a76_3 {
+	a76_3_thermal_idle: thermal-idle {
+		#cooling-cells = <2>;
+		duration-us = <10000>;
+		exit-latency-us = <500>;
 	};
 };
 
@@ -556,6 +592,10 @@
 			drive-strength = <21>;
 		};
 
+		pins-vddq18-25-avb {
+			pins = "PIN_VDDQ_AVB0", "PIN_VDDQ_AVB1", "PIN_VDDQ_AVB2", "PIN_VDDQ_TSN0";
+			power-source = <1800>;
+		};
 	};
 
 	/* Page 28 / CANFD_IF */
@@ -756,7 +796,11 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "spansion,s25fs512s", "jedec,spi-nor";
+		/*
+		 * EVTA1 is populated with Spansion S25FS512S
+		 * EVTB1 is populated with Winbond W77Q51NW
+		 */
+		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <40000000>;
 		spi-rx-bus-width = <4>;
@@ -796,4 +840,105 @@
 /* Page 6 / SCIF_CLK_SOC_V */
 &scif_clk {	/* X12 */
 	clock-frequency = <24000000>;
+};
+
+/* THS sensors in SoC, critical temperature trip point is 100C */
+&sensor1_crit {
+	temperature = <100000>;
+};
+
+&sensor2_crit {
+	temperature = <100000>;
+};
+
+&sensor3_crit {
+	temperature = <100000>;
+};
+
+&sensor4_crit {
+	temperature = <100000>;
+};
+
+/* THS sensor in SoC near CA76 cores does more progressive cooling. */
+&sensor_thermal_ca76 {
+	critical-action = "shutdown";
+
+	cooling-maps {
+		/*
+		 * The cooling-device minimum and maximum parameters inversely
+		 * match opp-table-0 {} node entries in r8a779g0.dtsi, in other
+		 * words, 0 refers to 1.8 GHz OPP and 4 refers to 500 MHz OPP.
+		 * This is because they refer to cooling levels, where maximum
+		 * cooling level happens at 500 MHz OPP, when the CPU core is
+		 * running slowly and therefore generates least heat.
+		 */
+		map0 {
+			/* At 68C, inhibit 1.7 GHz and 1.8 GHz modes */
+			trip = <&sensor3_passive_low>;
+			cooling-device = <&a76_0 2 4>;
+			contribution = <128>;
+		};
+
+		map1 {
+			/* At 72C, inhibit 1.5 GHz mode */
+			trip = <&sensor3_passive_mid>;
+			cooling-device = <&a76_0 3 4>;
+			contribution = <256>;
+		};
+
+		map2 {
+			/* At 76C, start injecting idle states 0..80% of time */
+			trip = <&sensor3_passive_hi>;
+			cooling-device = <&a76_0_thermal_idle 0 80>,
+					 <&a76_1_thermal_idle 0 80>,
+					 <&a76_2_thermal_idle 0 80>,
+					 <&a76_3_thermal_idle 0 80>;
+			contribution = <512>;
+		};
+
+		map3 {
+			/* At 80C, inhibit 1.0 GHz mode */
+			trip = <&sensor3_passive_crit>;
+			cooling-device = <&a76_0 4 4>;
+			contribution = <1024>;
+		};
+	};
+
+	trips {
+		sensor3_passive_low: sensor3-passive-low {
+			temperature = <68000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+
+		sensor3_passive_mid: sensor3-passive-mid {
+			temperature = <72000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+
+		sensor3_passive_hi: sensor3-passive-hi {
+			temperature = <76000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+
+		sensor3_passive_crit: sensor3-passive-crit {
+			temperature = <80000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+	};
+};
+
+&sensor_thermal_cnn {
+	critical-action = "shutdown";
+};
+
+&sensor_thermal_cr52 {
+	critical-action = "shutdown";
+};
+
+&sensor_thermal_ddr1 {
+	critical-action = "shutdown";
 };

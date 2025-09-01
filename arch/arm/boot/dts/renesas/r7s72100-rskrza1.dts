@@ -199,6 +199,7 @@
 
 	/* Serial Console */
 	scif2_pins: serial2 {
+		bootph-all;
 		pinmux = <RZA1_PINMUX(3, 0, 6)>,	/* TxD2 */
 			 <RZA1_PINMUX(3, 2, 4)>;	/* RxD2 */
 	};
@@ -264,6 +265,7 @@
 };
 
 &ostm0 {
+	bootph-all;
 	status = "okay";
 };
 
@@ -278,6 +280,7 @@
 &scif2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&scif2_pins>;
+	bootph-all;
 	status = "okay";
 };
 
