@@ -163,11 +163,12 @@ static void topoext_fixup(struct topo_scan *tscan)
 	    c->x86 != 0x15 || c->x86_model < 0x10 || c->x86_model > 0x6f)
 		return;
 
-	if (msr_set_bit(0xc0011005, 54) <= 0)
+	if (msr_set_bit(MSR_AMD64_CPUID_EXT_FEAT,
+			MSR_AMD64_CPUID_EXT_FEAT_TOPOEXT_BIT) <= 0)
 		return;
 
-	rdmsrq(0xc0011005, msrval);
-	if (msrval & BIT_64(54)) {
+	rdmsrq(MSR_AMD64_CPUID_EXT_FEAT, msrval);
+	if (msrval & MSR_AMD64_CPUID_EXT_FEAT_TOPOEXT) {
 		set_cpu_cap(c, X86_FEATURE_TOPOEXT);
 		pr_info_once(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
 	}
