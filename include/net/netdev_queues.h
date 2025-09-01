@@ -151,6 +151,8 @@ struct netdev_queue_mgmt_ops {
 							 int idx);
 };
 
+bool netif_rxq_has_unreadable_mp(struct net_device *dev, int idx);
+
 /**
  * DOC: Lockless queue stopping / waking helpers.
  *
