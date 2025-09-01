@@ -1033,21 +1033,22 @@ static void init_ring(struct net_device *dev)
 
 	/* Fill in the Rx buffers.  Handle allocation failure gracefully. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
+		dma_addr_t addr;
+
 		struct sk_buff *skb =
 			netdev_alloc_skb(dev, np->rx_buf_sz + 2);
 		np->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
 		skb_reserve(skb, 2);	/* 16 byte align the IP header. */
-		np->rx_ring[i].frag.addr = cpu_to_le32(
-			dma_map_single(&np->pci_dev->dev, skb->data,
-				np->rx_buf_sz, DMA_FROM_DEVICE));
-		if (dma_mapping_error(&np->pci_dev->dev,
-					np->rx_ring[i].frag.addr)) {
+		addr = dma_map_single(&np->pci_dev->dev, skb->data,
+				      np->rx_buf_sz, DMA_FROM_DEVICE);
+		if (dma_mapping_error(&np->pci_dev->dev, addr)) {
 			dev_kfree_skb(skb);
 			np->rx_skbuff[i] = NULL;
 			break;
 		}
+		np->rx_ring[i].frag.addr = cpu_to_le32(addr);
 		np->rx_ring[i].frag.length = cpu_to_le32(np->rx_buf_sz | LastFrag);
 	}
 	np->dirty_rx = (unsigned int)(i - RX_RING_SIZE);
@@ -1088,6 +1089,7 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	struct netdev_desc *txdesc;
+	dma_addr_t addr;
 	unsigned entry;
 
 	/* Calculate the next Tx descriptor entry. */
@@ -1095,13 +1097,14 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 	np->tx_skbuff[entry] = skb;
 	txdesc = &np->tx_ring[entry];
 
+	addr = dma_map_single(&np->pci_dev->dev, skb->data, skb->len,
+			      DMA_TO_DEVICE);
+	if (dma_mapping_error(&np->pci_dev->dev, addr))
+		goto drop_frame;
+
 	txdesc->next_desc = 0;
 	txdesc->status = cpu_to_le32 ((entry << 2) | DisableAlign);
-	txdesc->frag.addr = cpu_to_le32(dma_map_single(&np->pci_dev->dev,
-				skb->data, skb->len, DMA_TO_DEVICE));
-	if (dma_mapping_error(&np->pci_dev->dev,
-				txdesc->frag.addr))
-			goto drop_frame;
+	txdesc->frag.addr = cpu_to_le32(addr);
 	txdesc->frag.length = cpu_to_le32 (skb->len | LastFrag);
 
 	/* Increment cur_tx before tasklet_schedule() */
@@ -1419,6 +1422,8 @@ static void refill_rx (struct net_device *dev)
 	for (;(np->cur_rx - np->dirty_rx + RX_RING_SIZE) % RX_RING_SIZE > 0;
 		np->dirty_rx = (np->dirty_rx + 1) % RX_RING_SIZE) {
 		struct sk_buff *skb;
+		dma_addr_t addr;
+
 		entry = np->dirty_rx % RX_RING_SIZE;
 		if (np->rx_skbuff[entry] == NULL) {
 			skb = netdev_alloc_skb(dev, np->rx_buf_sz + 2);
@@ -1426,15 +1431,15 @@ static void refill_rx (struct net_device *dev)
 			if (skb == NULL)
 				break;		/* Better luck next round. */
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
-			np->rx_ring[entry].frag.addr = cpu_to_le32(
-				dma_map_single(&np->pci_dev->dev, skb->data,
-					np->rx_buf_sz, DMA_FROM_DEVICE));
-			if (dma_mapping_error(&np->pci_dev->dev,
-				    np->rx_ring[entry].frag.addr)) {
+			addr = dma_map_single(&np->pci_dev->dev, skb->data,
+					      np->rx_buf_sz, DMA_FROM_DEVICE);
+			if (dma_mapping_error(&np->pci_dev->dev, addr)) {
 			    dev_kfree_skb_irq(skb);
 			    np->rx_skbuff[entry] = NULL;
 			    break;
 			}
+
+			np->rx_ring[entry].frag.addr = cpu_to_le32(addr);
 		}
 		/* Perhaps we need not reset this field. */
 		np->rx_ring[entry].frag.length =
