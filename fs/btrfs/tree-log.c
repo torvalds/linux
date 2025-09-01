@@ -738,6 +738,7 @@ static noinline int replay_one_extent(struct walk_control *wc, struct btrfs_path
 	drop_args.start = start;
 	drop_args.end = extent_end;
 	drop_args.drop_cache = true;
+	drop_args.path = path;
 	ret = btrfs_drop_extents(trans, root, inode, &drop_args);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
@@ -2676,6 +2677,7 @@ static int replay_one_buffer(struct extent_buffer *eb,
 				drop_args.start = from;
 				drop_args.end = (u64)-1;
 				drop_args.drop_cache = true;
+				drop_args.path = path;
 				ret = btrfs_drop_extents(trans, root, inode,  &drop_args);
 				if (ret) {
 					btrfs_abort_transaction(trans, ret);
