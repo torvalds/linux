@@ -14,7 +14,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -79,7 +79,7 @@ struct tlv320dac33_priv {
 	struct snd_soc_component *component;
 	struct regulator_bulk_data supplies[DAC33_NUM_SUPPLIES];
 	struct snd_pcm_substream *substream;
-	int power_gpio;
+	struct gpio_desc *reset_gpiod;
 	int chip_power;
 	int irq;
 	unsigned int refclk;
@@ -382,14 +382,26 @@ static int dac33_hard_power(struct snd_soc_component *component, int power)
 			goto exit;
 		}
 
-		if (dac33->power_gpio >= 0)
-			gpio_set_value(dac33->power_gpio, 1);
+		if (dac33->reset_gpiod) {
+			ret = gpiod_set_value(dac33->reset_gpiod, 1);
+			if (ret < 0) {
+				dev_err(&dac33->i2c->dev,
+					"Failed to set reset GPIO: %d\n", ret);
+				goto exit;
+			}
+		}
 
 		dac33->chip_power = 1;
 	} else {
 		dac33_soft_power(component, 0);
-		if (dac33->power_gpio >= 0)
-			gpio_set_value(dac33->power_gpio, 0);
+		if (dac33->reset_gpiod) {
+			ret = gpiod_set_value(dac33->reset_gpiod, 0);
+			if (ret < 0) {
+				dev_err(&dac33->i2c->dev,
+					"Failed to set reset GPIO: %d\n", ret);
+				goto exit;
+			}
+		}
 
 		ret = regulator_bulk_disable(ARRAY_SIZE(dac33->supplies),
 					     dac33->supplies);
@@ -1488,16 +1500,14 @@ static int dac33_i2c_probe(struct i2c_client *client)
 	/* Disable FIFO use by default */
 	dac33->fifo_mode = DAC33_FIFO_BYPASS;
 
-	/* Check if the reset GPIO number is valid and request it */
-	if (dac33->power_gpio >= 0) {
-		ret = gpio_request(dac33->power_gpio, "tlv320dac33 reset");
-		if (ret < 0) {
-			dev_err(&client->dev,
-				"Failed to request reset GPIO (%d)\n",
-				dac33->power_gpio);
-			goto err_gpio;
-		}
-		gpio_direction_output(dac33->power_gpio, 0);
+	/* request optional reset GPIO */
+	dac33->reset_gpiod =
+		devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(dac33->reset_gpiod)) {
+		ret = PTR_ERR(dac33->reset_gpiod);
+		dev_err_probe(&client->dev, ret,
+			      "Failed to get reset GPIO\n");
+		goto err;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(dac33->supplies); i++)
@@ -1508,19 +1518,17 @@ static int dac33_i2c_probe(struct i2c_client *client)
 
 	if (ret != 0) {
 		dev_err(&client->dev, "Failed to request supplies: %d\n", ret);
-		goto err_get;
+		goto err;
 	}
 
 	ret = devm_snd_soc_register_component(&client->dev,
 			&soc_component_dev_tlv320dac33, &dac33_dai, 1);
 	if (ret < 0)
-		goto err_get;
+		goto err;
 
 	return ret;
-err_get:
-	if (dac33->power_gpio >= 0)
-		gpio_free(dac33->power_gpio);
-err_gpio:
+
+err:
 	return ret;
 }
 
@@ -1530,9 +1538,6 @@ static void dac33_i2c_remove(struct i2c_client *client)
 
 	if (unlikely(dac33->chip_power))
 		dac33_hard_power(dac33->component, 0);
-
-	if (dac33->power_gpio >= 0)
-		gpio_free(dac33->power_gpio);
 }
 
 static const struct i2c_device_id tlv320dac33_i2c_id[] = {
