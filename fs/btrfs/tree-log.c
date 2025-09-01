@@ -2079,7 +2079,6 @@ static noinline int replay_one_name(struct walk_control *wc,
 		update_size = false;
 		goto out;
 	}
-	btrfs_release_path(path);
 	ret = insert_one_name(trans, root, wc->log_key.objectid, wc->log_key.offset,
 			      &name, &log_key);
 	if (ret && ret != -ENOENT && ret != -EEXIST) {
