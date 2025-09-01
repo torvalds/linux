@@ -1485,7 +1485,6 @@ static void fbnic_free_napi_vector(struct fbnic_net *fbn,
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].sub0);
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].sub1);
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].cmpl);
-		fbnic_free_qt_page_pools(&nv->qt[i]);
 	}
 
 	fbnic_napi_free_irq(fbd, nv);
@@ -1681,10 +1680,6 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 		fbnic_ring_init(&qt->cmpl, db, rxq_idx, FBNIC_RING_F_STATS);
 		fbn->rx[rxq_idx] = &qt->cmpl;
 
-		err = fbnic_alloc_qt_page_pools(fbn, nv, qt);
-		if (err)
-			goto free_ring_cur_qt;
-
 		/* Update Rx queue index */
 		rxt_count--;
 		rxq_idx += v_count;
@@ -1695,26 +1690,6 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 
 	return 0;
 
-	while (rxt_count < nv->rxt_count) {
-		qt--;
-
-		fbnic_free_qt_page_pools(qt);
-free_ring_cur_qt:
-		fbnic_remove_rx_ring(fbn, &qt->sub0);
-		fbnic_remove_rx_ring(fbn, &qt->sub1);
-		fbnic_remove_rx_ring(fbn, &qt->cmpl);
-		rxt_count++;
-	}
-	while (txt_count < nv->txt_count) {
-		qt--;
-
-		fbnic_remove_tx_ring(fbn, &qt->sub0);
-		fbnic_remove_xdp_ring(fbn, &qt->sub1);
-		fbnic_remove_tx_ring(fbn, &qt->cmpl);
-
-		txt_count++;
-	}
-	fbnic_napi_free_irq(fbd, nv);
 napi_del:
 	netif_napi_del(&nv->napi);
 	fbn->napi[fbnic_napi_idx(nv)] = NULL;
@@ -1934,6 +1909,7 @@ static void fbnic_free_qt_resources(struct fbnic_net *fbn,
 	if (xdp_rxq_info_is_reg(&qt->xdp_rxq)) {
 		xdp_rxq_info_unreg_mem_model(&qt->xdp_rxq);
 		xdp_rxq_info_unreg(&qt->xdp_rxq);
+		fbnic_free_qt_page_pools(qt);
 	}
 }
 
@@ -1971,12 +1947,15 @@ static int fbnic_alloc_rx_qt_resources(struct fbnic_net *fbn,
 	struct device *dev = fbn->netdev->dev.parent;
 	int err;
 
-	err = xdp_rxq_info_reg(&qt->xdp_rxq, fbn->netdev, qt->sub0.q_idx,
-			       nv->napi.napi_id);
+	err = fbnic_alloc_qt_page_pools(fbn, nv, qt);
 	if (err)
 		return err;
 
-	/* Register XDP memory model for completion queue */
+	err = xdp_rxq_info_reg(&qt->xdp_rxq, fbn->netdev, qt->sub0.q_idx,
+			       nv->napi.napi_id);
+	if (err)
+		goto free_page_pools;
+
 	err = xdp_rxq_info_reg_mem_model(&qt->xdp_rxq, MEM_TYPE_PAGE_POOL,
 					 qt->sub0.page_pool);
 	if (err)
@@ -2004,6 +1983,8 @@ unreg_mm:
 	xdp_rxq_info_unreg_mem_model(&qt->xdp_rxq);
 unreg_rxq:
 	xdp_rxq_info_unreg(&qt->xdp_rxq);
+free_page_pools:
+	fbnic_free_qt_page_pools(qt);
 	return err;
 }
 
