@@ -321,7 +321,7 @@ span multiple bus types).
 
 fs/ contains a directory for some filesystems.  Currently each
 filesystem wanting to export attributes must create its own hierarchy
-below fs/ (see ./fuse.rst for an example).
+below fs/ (see fuse/fuse.rst for an example).
 
 module/ contains parameter values and state information for all
 loaded system modules, for both builtin and loadable modules.
