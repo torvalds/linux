@@ -2180,31 +2180,35 @@ void fbnic_napi_disable(struct fbnic_net *fbn)
 	}
 }
 
+static void __fbnic_nv_disable(struct fbnic_napi_vector *nv)
+{
+	int i, t;
+
+	/* Disable Tx queue triads */
+	for (t = 0; t < nv->txt_count; t++) {
+		struct fbnic_q_triad *qt = &nv->qt[t];
+
+		fbnic_disable_twq0(&qt->sub0);
+		fbnic_disable_twq1(&qt->sub1);
+		fbnic_disable_tcq(&qt->cmpl);
+	}
+
+	/* Disable Rx queue triads */
+	for (i = 0; i < nv->rxt_count; i++, t++) {
+		struct fbnic_q_triad *qt = &nv->qt[t];
+
+		fbnic_disable_bdq(&qt->sub0, &qt->sub1);
+		fbnic_disable_rcq(&qt->cmpl);
+	}
+}
+
 void fbnic_disable(struct fbnic_net *fbn)
 {
 	struct fbnic_dev *fbd = fbn->fbd;
-	int i, j, t;
+	int i;
 
-	for (i = 0; i < fbn->num_napi; i++) {
-		struct fbnic_napi_vector *nv = fbn->napi[i];
-
-		/* Disable Tx queue triads */
-		for (t = 0; t < nv->txt_count; t++) {
-			struct fbnic_q_triad *qt = &nv->qt[t];
-
-			fbnic_disable_twq0(&qt->sub0);
-			fbnic_disable_twq1(&qt->sub1);
-			fbnic_disable_tcq(&qt->cmpl);
-		}
-
-		/* Disable Rx queue triads */
-		for (j = 0; j < nv->rxt_count; j++, t++) {
-			struct fbnic_q_triad *qt = &nv->qt[t];
-
-			fbnic_disable_bdq(&qt->sub0, &qt->sub1);
-			fbnic_disable_rcq(&qt->cmpl);
-		}
-	}
+	for (i = 0; i < fbn->num_napi; i++)
+		__fbnic_nv_disable(fbn->napi[i]);
 
 	fbnic_wrfl(fbd);
 }
