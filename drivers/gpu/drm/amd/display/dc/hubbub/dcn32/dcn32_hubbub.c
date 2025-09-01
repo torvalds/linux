@@ -1009,6 +1009,8 @@ static const struct hubbub_funcs hubbub32_funcs = {
 	.force_usr_retraining_allow = hubbub32_force_usr_retraining_allow,
 	.set_request_limit = hubbub32_set_request_limit,
 	.get_mall_en = hubbub32_get_mall_en,
+	.get_det_sizes = hubbub3_get_det_sizes,
+	.compbuf_config_error = hubbub3_compbuf_config_error,
 };
 
 void hubbub32_construct(struct dcn20_hubbub *hubbub2,

@@ -766,6 +766,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 14):
 	case IP_VERSION(13, 0, 12):
 		smu_v13_0_6_set_ppt_funcs(smu);
+		smu_v13_0_6_set_temp_funcs(smu);
 		/* Enable pp_od_clk_voltage node */
 		smu->od_enabled = true;
 		break;
@@ -3831,6 +3832,51 @@ int smu_set_pm_policy(struct smu_context *smu, enum pp_pm_policy p_type,
 	return ret;
 }
 
+static ssize_t smu_sys_get_temp_metrics(void *handle, enum smu_temp_metric_type type, void *table)
+{
+	struct smu_context *smu = handle;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+	enum smu_table_id table_id;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	if (!smu->smu_temp.temp_funcs || !smu->smu_temp.temp_funcs->get_temp_metrics)
+		return -EOPNOTSUPP;
+
+	table_id = smu_metrics_get_temp_table_id(type);
+
+	if (table_id == SMU_TABLE_COUNT)
+		return -EINVAL;
+
+	/* If the request is to get size alone, return the cached table size */
+	if (!table && tables[table_id].cache.size)
+		return tables[table_id].cache.size;
+
+	if (smu_table_cache_is_valid(&tables[table_id])) {
+		memcpy(table, tables[table_id].cache.buffer,
+		       tables[table_id].cache.size);
+		return tables[table_id].cache.size;
+	}
+
+	return smu->smu_temp.temp_funcs->get_temp_metrics(smu, type, table);
+}
+
+static bool smu_temp_metrics_is_supported(void *handle, enum smu_temp_metric_type type)
+{
+	struct smu_context *smu = handle;
+	bool ret = false;
+
+	if (!smu->pm_enabled)
+		return false;
+
+	if (smu->smu_temp.temp_funcs && smu->smu_temp.temp_funcs->temp_metrics_is_supported)
+		ret = smu->smu_temp.temp_funcs->temp_metrics_is_supported(smu, type);
+
+	return ret;
+}
+
 static ssize_t smu_sys_get_xcp_metrics(void *handle, int xcp_id, void *table)
 {
 	struct smu_context *smu = handle;
@@ -3903,6 +3949,8 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_dpm_clock_table              = smu_get_dpm_clock_table,
 	.get_smu_prv_buf_details = smu_get_prv_buffer_details,
 	.get_xcp_metrics                  = smu_sys_get_xcp_metrics,
+	.get_temp_metrics             = smu_sys_get_temp_metrics,
+	.temp_metrics_is_supported      = smu_temp_metrics_is_supported,
 };
 
 int smu_wait_for_event(struct smu_context *smu, enum smu_event_type event,
@@ -4072,6 +4120,16 @@ int smu_reset_sdma(struct smu_context *smu, uint32_t inst_mask)
 
 	if (smu->ppt_funcs && smu->ppt_funcs->reset_sdma)
 		ret = smu->ppt_funcs->reset_sdma(smu, inst_mask);
+
+	return ret;
+}
+
+bool smu_reset_vcn_is_supported(struct smu_context *smu)
+{
+	bool ret = false;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->reset_vcn_is_supported)
+		ret = smu->ppt_funcs->reset_vcn_is_supported(smu);
 
 	return ret;
 }

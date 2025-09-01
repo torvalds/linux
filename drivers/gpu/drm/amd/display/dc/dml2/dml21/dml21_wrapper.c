@@ -60,7 +60,7 @@ static void dml21_init(const struct dc *in_dc, struct dml2_context *dml_ctx, con
 
 	DC_FP_START();
 
-	dml21_populate_dml_init_params(&dml_ctx->v21.dml_init, config, in_dc);
+	dml21_populate_dml_init_params(&dml_ctx->v21.dml_init, &dml_ctx->config, in_dc);
 
 	dml2_initialize_instance(&dml_ctx->v21.dml_init);
 

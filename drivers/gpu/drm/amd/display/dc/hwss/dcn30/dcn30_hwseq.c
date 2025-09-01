@@ -1228,3 +1228,51 @@ void dcn30_wait_for_all_pending_updates(const struct pipe_ctx *pipe_ctx)
 		}
 	}
 }
+
+void dcn30_get_underflow_debug_data(const struct dc *dc,
+	struct timing_generator *tg,
+	struct dc_underflow_debug_data *out_data)
+{
+	struct hubbub *hubbub = dc->res_pool->hubbub;
+
+	if (tg) {
+		uint32_t v_blank_start = 0, v_blank_end = 0;
+
+		out_data->otg_inst = tg->inst;
+
+		tg->funcs->get_scanoutpos(tg,
+					  &v_blank_start,
+					  &v_blank_end,
+					  &out_data->h_position,
+					  &out_data->v_position);
+
+		out_data->otg_frame_count = tg->funcs->get_frame_count(tg);
+
+		out_data->otg_underflow = tg->funcs->is_optc_underflow_occurred(tg);
+	}
+
+	for (int i = 0; i < MAX_PIPES; i++) {
+		struct hubp *hubp = dc->res_pool->hubps[i];
+
+		if (hubp) {
+			if (hubp->funcs->hubp_get_underflow_status)
+				out_data->hubps[i].hubp_underflow = hubp->funcs->hubp_get_underflow_status(hubp);
+
+			if (hubp->funcs->hubp_in_blank)
+				out_data->hubps[i].hubp_in_blank = hubp->funcs->hubp_in_blank(hubp);
+
+			if (hubp->funcs->hubp_get_current_read_line)
+				out_data->hubps[i].hubp_readline = hubp->funcs->hubp_get_current_read_line(hubp);
+
+			if (hubp->funcs->hubp_get_det_config_error)
+				out_data->hubps[i].det_config_error = hubp->funcs->hubp_get_det_config_error(hubp);
+		}
+	}
+
+	if (hubbub->funcs->get_det_sizes)
+		hubbub->funcs->get_det_sizes(hubbub, out_data->curr_det_sizes, out_data->target_det_sizes);
+
+	if (hubbub->funcs->compbuf_config_error)
+		out_data->compbuf_config_error = hubbub->funcs->compbuf_config_error(hubbub);
+
+}

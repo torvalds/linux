@@ -1136,7 +1136,7 @@ static void calculate_bandwidth(
 			}
 		}
 	}
-	data->total_dmifmc_urgent_trips = bw_ceil2(bw_div(data->total_requests_for_adjusted_dmif_size, (bw_add(dceip->dmif_request_buffer_size, bw_int_to_fixed(vbios->number_of_request_slots_gmc_reserves_for_dmif_per_channel * data->number_of_dram_channels)))), bw_int_to_fixed(1));
+	data->total_dmifmc_urgent_trips = bw_ceil2(bw_div(data->total_requests_for_adjusted_dmif_size, (bw_add(dceip->dmif_request_buffer_size, bw_int_to_fixed((uint64_t)vbios->number_of_request_slots_gmc_reserves_for_dmif_per_channel * data->number_of_dram_channels)))), bw_int_to_fixed(1));
 	data->total_dmifmc_urgent_latency = bw_mul(vbios->dmifmc_urgent_latency, data->total_dmifmc_urgent_trips);
 	data->total_display_reads_required_data = bw_int_to_fixed(0);
 	data->total_display_reads_required_dram_access_data = bw_int_to_fixed(0);

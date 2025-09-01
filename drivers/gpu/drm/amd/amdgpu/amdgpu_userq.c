@@ -471,6 +471,7 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	if (index == (uint64_t)-EINVAL) {
 		drm_file_err(uq_mgr->file, "Failed to get doorbell for queue\n");
 		kfree(queue);
+		r = -EINVAL;
 		goto unlock;
 	}
 
@@ -566,7 +567,6 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 		    args->in.queue_va ||
 		    args->in.queue_size ||
 		    args->in.rptr_va ||
-		    args->in.wptr_va ||
 		    args->in.wptr_va ||
 		    args->in.mqd ||
 		    args->in.mqd_size)

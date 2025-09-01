@@ -391,7 +391,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 			sizeof(DP_SINK_DEVICE_STR_ID_1)))
 		link->psr_settings.force_ffu_mode = 1;
 
-	copy_settings_data->force_ffu_mode = link->psr_settings.force_ffu_mode;
+	copy_settings_data->force_ffu_mode = link->psr_settings.force_ffu_mode || psr_context->os_request_force_ffu;
 
 	if (((link->dpcd_caps.fec_cap.bits.FEC_CAPABLE &&
 		!link->dc->debug.disable_fec) &&

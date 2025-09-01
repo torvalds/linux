@@ -396,7 +396,7 @@ static int amdgpu_cs_p2_ib(struct amdgpu_cs_parser *p,
 			   chunk_ib->ib_bytes : 0,
 			   AMDGPU_IB_POOL_DELAYED, ib);
 	if (r) {
-		DRM_ERROR("Failed to get ib !\n");
+		drm_err(adev_to_drm(p->adev), "Failed to get ib !\n");
 		return r;
 	}
 
@@ -468,7 +468,7 @@ static int amdgpu_syncobj_lookup_and_add(struct amdgpu_cs_parser *p,
 
 	r = drm_syncobj_find_fence(p->filp, handle, point, flags, &fence);
 	if (r) {
-		DRM_ERROR("syncobj %u failed to find fence @ %llu (%d)!\n",
+		drm_err(adev_to_drm(p->adev), "syncobj %u failed to find fence @ %llu (%d)!\n",
 			  handle, point, r);
 		return r;
 	}
@@ -902,7 +902,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 					 sizeof(struct page *),
 					 GFP_KERNEL);
 		if (!e->user_pages) {
-			DRM_ERROR("kvmalloc_array failure\n");
+			drm_err(adev_to_drm(p->adev), "kvmalloc_array failure\n");
 			r = -ENOMEM;
 			goto out_free_user_pages;
 		}
@@ -983,7 +983,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	r = amdgpu_vm_validate(p->adev, &fpriv->vm, NULL,
 			       amdgpu_cs_bo_validate, p);
 	if (r) {
-		DRM_ERROR("amdgpu_vm_validate() failed.\n");
+		drm_err(adev_to_drm(p->adev), "amdgpu_vm_validate() failed.\n");
 		goto out_free_user_pages;
 	}
 
@@ -1061,13 +1061,13 @@ static int amdgpu_cs_patch_ibs(struct amdgpu_cs_parser *p,
 		va_start = ib->gpu_addr & AMDGPU_GMC_HOLE_MASK;
 		r = amdgpu_cs_find_mapping(p, va_start, &aobj, &m);
 		if (r) {
-			DRM_ERROR("IB va_start is invalid\n");
+			drm_err(adev_to_drm(p->adev), "IB va_start is invalid\n");
 			return r;
 		}
 
 		if ((va_start + ib->length_dw * 4) >
 		    (m->last + 1) * AMDGPU_GPU_PAGE_SIZE) {
-			DRM_ERROR("IB va_start+ib_bytes is invalid\n");
+			drm_err(adev_to_drm(p->adev), "IB va_start+ib_bytes is invalid\n");
 			return -EINVAL;
 		}
 
@@ -1238,7 +1238,7 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
 	r = amdgpu_ctx_wait_prev_fence(p->ctx, p->entities[p->gang_leader_idx]);
 	if (r) {
 		if (r != -ERESTARTSYS)
-			DRM_ERROR("amdgpu_ctx_wait_prev_fence failed.\n");
+			drm_err(adev_to_drm(p->adev), "amdgpu_ctx_wait_prev_fence failed.\n");
 		return r;
 	}
 
@@ -1451,7 +1451,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	r = amdgpu_cs_parser_init(&parser, adev, filp, data);
 	if (r) {
-		DRM_ERROR_RATELIMITED("Failed to initialize parser %d!\n", r);
+		drm_err_ratelimited(dev, "Failed to initialize parser %d!\n", r);
 		return r;
 	}
 
@@ -1466,9 +1466,9 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	r = amdgpu_cs_parser_bos(&parser, data);
 	if (r) {
 		if (r == -ENOMEM)
-			DRM_ERROR("Not enough memory for command submission!\n");
+			drm_err(dev, "Not enough memory for command submission!\n");
 		else if (r != -ERESTARTSYS && r != -EAGAIN)
-			DRM_DEBUG("Failed to process the buffer list %d!\n", r);
+			drm_dbg(dev, "Failed to process the buffer list %d!\n", r);
 		goto error_fini;
 	}
 

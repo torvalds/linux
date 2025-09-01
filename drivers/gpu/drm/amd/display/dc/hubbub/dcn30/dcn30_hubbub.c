@@ -440,6 +440,35 @@ void hubbub3_init_watermarks(struct hubbub *hubbub)
 	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D, reg);
 }
 
+void hubbub3_get_det_sizes(struct hubbub *hubbub, uint32_t *curr_det_sizes, uint32_t *target_det_sizes)
+{
+	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
+
+	REG_GET_2(DCHUBBUB_DET0_CTRL, DET0_SIZE_CURRENT, &curr_det_sizes[0],
+		DET0_SIZE, &target_det_sizes[0]);
+
+	REG_GET_2(DCHUBBUB_DET1_CTRL, DET1_SIZE_CURRENT, &curr_det_sizes[1],
+		DET1_SIZE, &target_det_sizes[1]);
+
+	REG_GET_2(DCHUBBUB_DET2_CTRL, DET2_SIZE_CURRENT, &curr_det_sizes[2],
+		DET2_SIZE, &target_det_sizes[2]);
+
+	REG_GET_2(DCHUBBUB_DET3_CTRL, DET3_SIZE_CURRENT, &curr_det_sizes[3],
+		DET3_SIZE, &target_det_sizes[3]);
+
+}
+
+uint32_t hubbub3_compbuf_config_error(struct hubbub *hubbub)
+{
+	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
+	uint32_t compbuf_config_error = 0;
+
+	REG_GET(DCHUBBUB_COMPBUF_CTRL, CONFIG_ERROR,
+		&compbuf_config_error);
+
+	return compbuf_config_error;
+}
+
 static const struct hubbub_funcs hubbub30_funcs = {
 	.update_dchub = hubbub2_update_dchub,
 	.init_dchub_sys_ctx = hubbub3_init_dchub_sys_ctx,
@@ -457,6 +486,8 @@ static const struct hubbub_funcs hubbub30_funcs = {
 	.force_pstate_change_control = hubbub3_force_pstate_change_control,
 	.init_watermarks = hubbub3_init_watermarks,
 	.hubbub_read_state = hubbub2_read_state,
+	.get_det_sizes = hubbub3_get_det_sizes,
+	.compbuf_config_error = hubbub3_compbuf_config_error,
 };
 
 void hubbub3_construct(struct dcn20_hubbub *hubbub3,

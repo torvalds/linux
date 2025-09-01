@@ -492,8 +492,15 @@ struct ras_ecc_err {
 struct ras_ecc_log_info {
 	struct mutex lock;
 	struct radix_tree_root de_page_tree;
-	uint64_t	de_queried_count;
-	uint64_t	prev_de_queried_count;
+	uint64_t de_queried_count;
+	uint64_t consumption_q_count;
+};
+
+struct ras_critical_region {
+	struct list_head node;
+	struct amdgpu_bo *bo;
+	uint64_t start;
+	uint64_t size;
 };
 
 struct amdgpu_ras {
@@ -515,6 +522,7 @@ struct amdgpu_ras {
 	/* gpu recovery */
 	struct work_struct recovery_work;
 	atomic_t in_recovery;
+	atomic_t rma_in_recovery;
 	struct amdgpu_device *adev;
 	/* error handler data */
 	struct ras_err_handler_data *eh_data;
@@ -557,6 +565,7 @@ struct amdgpu_ras {
 	struct mutex page_retirement_lock;
 	atomic_t page_retirement_req_cnt;
 	atomic_t poison_creation_count;
+	atomic_t poison_consumption_count;
 	struct mutex page_rsv_lock;
 	DECLARE_KFIFO(poison_fifo, struct ras_poison_msg, 128);
 	struct ras_ecc_log_info  umc_ecc_log;
@@ -570,6 +579,17 @@ struct amdgpu_ras {
 	struct ras_event_manager *event_mgr;
 
 	uint64_t reserved_pages_in_bytes;
+
+	pid_t init_task_pid;
+	char init_task_comm[TASK_COMM_LEN];
+
+	int bad_page_num;
+
+	struct list_head critical_region_head;
+	struct mutex critical_region_lock;
+
+	/* Protect poison injection */
+	struct mutex poison_lock;
 };
 
 struct ras_fs_data {
@@ -608,6 +628,7 @@ struct ras_err_handler_data {
 	struct eeprom_table_record *bps;
 	/* the count of entries */
 	int count;
+	int count_saved;
 	/* the space can place new entries */
 	int space_left;
 };
@@ -972,6 +993,9 @@ int amdgpu_ras_mark_ras_event_caller(struct amdgpu_device *adev, enum ras_event_
 				     const void *caller);
 
 int amdgpu_ras_reserve_page(struct amdgpu_device *adev, uint64_t pfn);
+
+int amdgpu_ras_add_critical_region(struct amdgpu_device *adev, struct amdgpu_bo *bo);
+bool amdgpu_ras_check_critical_address(struct amdgpu_device *adev, uint64_t addr);
 
 int amdgpu_ras_put_poison_req(struct amdgpu_device *adev,
 		enum amdgpu_ras_block block, uint16_t pasid,

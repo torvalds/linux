@@ -221,11 +221,6 @@ void mpc401_program_lut_read_write_control(
 		bool lut_bank_a,
 		int mpcc_id);
 
-void mpc401_program_3dlut_size(
-		struct mpc *mpc,
-		bool is_17x17x17,
-		int mpcc_id);
-
 void mpc401_set_gamut_remap(
 	struct mpc *mpc,
 	int mpcc_id,

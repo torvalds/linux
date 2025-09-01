@@ -316,6 +316,7 @@ struct dmub_srv_hw_params {
 	bool disable_sldo_opt;
 	bool enable_non_transparent_setconfig;
 	bool lower_hbr3_phy_ssc;
+	bool override_hbr3_pll_vco;
 };
 
 /**
@@ -567,6 +568,7 @@ struct dmub_srv {
 
 	bool sw_init;
 	bool hw_init;
+	bool dpia_supported;
 
 	uint64_t fb_base;
 	uint64_t fb_offset;
@@ -597,6 +599,8 @@ struct dmub_notification {
 	enum dmub_notification_type type;
 	uint8_t link_index;
 	uint8_t result;
+	/* notify instance from DMUB */
+	uint8_t instance;
 	bool pending_notification;
 	union {
 		struct aux_reply_data aux_reply;

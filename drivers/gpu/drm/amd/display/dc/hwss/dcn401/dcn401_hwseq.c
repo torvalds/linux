@@ -965,6 +965,8 @@ void dcn401_enable_stream(struct pipe_ctx *pipe_ctx)
 		}
 	}
 
+	link_hwss->setup_stream_attribute(pipe_ctx);
+
 	if (dc->res_pool->dccg->funcs->set_pixel_rate_div) {
 		dc->res_pool->dccg->funcs->set_pixel_rate_div(
 			dc->res_pool->dccg,
@@ -1619,20 +1621,28 @@ void dcn401_unblank_stream(struct pipe_ctx *pipe_ctx,
 
 void dcn401_hardware_release(struct dc *dc)
 {
-	dc_dmub_srv_fams2_update_config(dc, dc->current_state, false);
+	if (!dc->debug.disable_force_pstate_allow_on_hw_release) {
+		dc_dmub_srv_fams2_update_config(dc, dc->current_state, false);
 
-	/* If pstate unsupported, or still supported
-	 * by firmware, force it supported by dcn
-	 */
-	if (dc->current_state) {
-		if ((!dc->clk_mgr->clks.p_state_change_support ||
-				dc->current_state->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable) &&
-				dc->res_pool->hubbub->funcs->force_pstate_change_control)
-			dc->res_pool->hubbub->funcs->force_pstate_change_control(
-					dc->res_pool->hubbub, true, true);
+		/* If pstate unsupported, or still supported
+		* by firmware, force it supported by dcn
+		*/
+		if (dc->current_state) {
+			if ((!dc->clk_mgr->clks.p_state_change_support ||
+					dc->current_state->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable) &&
+					dc->res_pool->hubbub->funcs->force_pstate_change_control)
+				dc->res_pool->hubbub->funcs->force_pstate_change_control(
+						dc->res_pool->hubbub, true, true);
 
-		dc->current_state->bw_ctx.bw.dcn.clk.p_state_change_support = true;
-		dc->clk_mgr->funcs->update_clocks(dc->clk_mgr, dc->current_state, true);
+			dc->current_state->bw_ctx.bw.dcn.clk.p_state_change_support = true;
+			dc->clk_mgr->funcs->update_clocks(dc->clk_mgr, dc->current_state, true);
+		}
+	} else {
+		if (dc->current_state) {
+			dc->clk_mgr->clks.p_state_change_support = false;
+			dc->clk_mgr->funcs->update_clocks(dc->clk_mgr, dc->current_state, true);
+		}
+		dc_dmub_srv_fams2_update_config(dc, dc->current_state, false);
 	}
 }
 

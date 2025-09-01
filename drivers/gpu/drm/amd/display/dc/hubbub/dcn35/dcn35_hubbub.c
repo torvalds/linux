@@ -589,6 +589,8 @@ static const struct hubbub_funcs hubbub35_funcs = {
 	.hubbub_read_state = hubbub2_read_state,
 	.force_usr_retraining_allow = hubbub32_force_usr_retraining_allow,
 	.dchubbub_init = hubbub35_init,
+	.get_det_sizes = hubbub3_get_det_sizes,
+	.compbuf_config_error = hubbub3_compbuf_config_error,
 };
 
 void hubbub35_construct(struct dcn20_hubbub *hubbub2,

@@ -201,6 +201,8 @@ struct dml2_core_internal_watermarks {
 	double WritebackFCLKChangeWatermark;
 	double StutterExitWatermark;
 	double StutterEnterPlusExitWatermark;
+	double LowPowerStutterExitWatermark;
+	double LowPowerStutterEnterPlusExitWatermark;
 	double Z8StutterExitWatermark;
 	double Z8StutterEnterPlusExitWatermark;
 	double USRRetrainingWatermark;
@@ -877,6 +879,9 @@ struct dml2_core_internal_mode_program {
 	double Z8StutterEfficiency;
 	unsigned int Z8NumberOfStutterBurstsPerFrame;
 	double Z8StutterEfficiencyNotIncludingVBlank;
+	double LowPowerStutterEfficiency;
+	double LowPowerStutterEfficiencyNotIncludingVBlank;
+	unsigned int LowPowerNumberOfStutterBurstsPerFrame;
 	double StutterPeriod;
 	double Z8StutterEfficiencyBestCase;
 	unsigned int Z8NumberOfStutterBurstsPerFrameBestCase;
@@ -1016,6 +1021,8 @@ struct dml2_core_internal_SOCParametersList {
 	double FCLKChangeLatency;
 	double SRExitTime;
 	double SREnterPlusExitTime;
+	double SRExitTimeLowPower;
+	double SREnterPlusExitTimeLowPower;
 	double SRExitZ8Time;
 	double SREnterPlusExitZ8Time;
 	double USRRetrainingLatency;
@@ -1851,9 +1858,11 @@ struct dml2_core_calcs_CalculateStutterEfficiency_params {
 	unsigned int CompbufReservedSpaceZs;
 	bool hw_debug5;
 	double SRExitTime;
+	double SRExitTimeLowPower;
 	double SRExitZ8Time;
 	bool SynchronizeTimings;
 	double StutterEnterPlusExitWatermark;
+	double LowPowerStutterEnterPlusExitWatermark;
 	double Z8StutterEnterPlusExitWatermark;
 	bool ProgressiveToInterlaceUnitInOPP;
 	double *MinTTUVBlank;
@@ -1879,7 +1888,10 @@ struct dml2_core_calcs_CalculateStutterEfficiency_params {
 	// output
 	double *StutterEfficiencyNotIncludingVBlank;
 	double *StutterEfficiency;
+	double *LowPowerStutterEfficiencyNotIncludingVBlank;
+	double *LowPowerStutterEfficiency;
 	unsigned int *NumberOfStutterBurstsPerFrame;
+	unsigned int *LowPowerNumberOfStutterBurstsPerFrame;
 	double *Z8StutterEfficiencyNotIncludingVBlank;
 	double *Z8StutterEfficiency;
 	unsigned int *Z8NumberOfStutterBurstsPerFrame;

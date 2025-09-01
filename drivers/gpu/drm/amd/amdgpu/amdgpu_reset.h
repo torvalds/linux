@@ -160,4 +160,16 @@ int amdgpu_reset_do_xgmi_reset_on_init(
 
 bool amdgpu_reset_in_recovery(struct amdgpu_device *adev);
 
+static inline void amdgpu_reset_set_dpc_status(struct amdgpu_device *adev,
+					       bool status)
+{
+	adev->pcie_reset_ctx.occurs_dpc = status;
+	adev->no_hw_access = status;
+}
+
+static inline bool amdgpu_reset_in_dpc(struct amdgpu_device *adev)
+{
+	return adev->pcie_reset_ctx.occurs_dpc;
+}
+
 #endif

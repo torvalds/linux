@@ -708,6 +708,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	},
 	.use_max_lb = true,
 	.force_disable_subvp = false,
+	.disable_force_pstate_allow_on_hw_release = false,
 	.exit_idle_opt_for_cursor_updates = true,
 	.using_dml2 = true,
 	.using_dml21 = true,
