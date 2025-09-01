@@ -8,12 +8,18 @@
 #define __RSWITCH_H__
 
 #include <linux/platform_device.h>
+#include <linux/phy.h>
+
 #include "rcar_gen4_ptp.h"
 
 #define RSWITCH_MAX_NUM_QUEUES	128
 
 #define RSWITCH_NUM_AGENTS	5
 #define RSWITCH_NUM_PORTS	3
+
+#define rswitch_for_all_ports(_priv, _rdev)			\
+	list_for_each_entry(_rdev, &_priv->port_list, list)
+
 #define rswitch_for_each_enabled_port(priv, i)		\
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++)		\
 		if (priv->rdev[i]->disabled)		\
@@ -809,7 +815,8 @@ enum rswitch_gwca_mode {
 #define FWPC0_IP4EA		BIT(10)
 #define FWPC0_IPDSA		BIT(12)
 #define FWPC0_IPHLA		BIT(18)
-#define FWPC0_MACSDA		BIT(20)
+#define FWPC0_MACDSA		BIT(20)
+#define FWPC0_MACSSA		BIT(23)
 #define FWPC0_MACHLA		BIT(26)
 #define FWPC0_MACHMA		BIT(27)
 #define FWPC0_VLANSA		BIT(28)
@@ -820,11 +827,17 @@ enum rswitch_gwca_mode {
 
 #define FWPC2(i)		(FWPC20 + (i) * 0x10)
 #define FWCP2_LTWFW		GENMASK(16 + (RSWITCH_NUM_AGENTS - 1), 16)
+#define FWCP2_LTWFW_MASK	GENMASK(16 + (RSWITCH_NUM_AGENTS - 1), 16)
 
 #define FWPBFC(i)		(FWPBFC0 + (i) * 0x10)
 #define FWPBFC_PBDV		GENMASK(RSWITCH_NUM_AGENTS - 1, 0)
 
 #define FWPBFCSDC(j, i)         (FWPBFCSDC00 + (i) * 0x10 + (j) * 0x04)
+
+#define FWMACHEC_MACHMUE_MASK	GENMASK(26, 16)
+
+#define FWMACTIM_MACTIOG	BIT(0)
+#define FWMACTIM_MACTR		BIT(1)
 
 #define FWMACAGUSPC_MACAGUSP	GENMASK(9, 0)
 #define FWMACAGC_MACAGT		GENMASK(15, 0)
@@ -1006,10 +1019,18 @@ struct rswitch_device {
 	DECLARE_BITMAP(ts_skb_used, TS_TAGS_PER_PORT);
 	bool disabled;
 
+	struct list_head list;
+
 	int port;
 	struct rswitch_etha *etha;
 	struct device_node *np_port;
 	struct phy *serdes;
+
+	struct net_device *brdev;	/* master bridge device */
+	unsigned int learning_requested : 1;
+	unsigned int learning_offloaded : 1;
+	unsigned int forwarding_requested : 1;
+	unsigned int forwarding_offloaded : 1;
 };
 
 struct rswitch_mfwd_mac_table_entry {
@@ -1034,11 +1055,17 @@ struct rswitch_private {
 	struct rswitch_etha etha[RSWITCH_NUM_PORTS];
 	struct rswitch_mfwd mfwd;
 
+	struct list_head port_list;
+
 	spinlock_t lock;	/* lock interrupt registers' control */
 	struct clk *clk;
 
 	bool etha_no_runtime_change;
 	bool gwca_halt;
+	struct net_device *offload_brdev;
 };
+
+bool is_rdev(const struct net_device *ndev);
+void rswitch_modify(void __iomem *addr, enum rswitch_reg reg, u32 clear, u32 set);
 
 #endif	/* #ifndef __RSWITCH_H__ */
