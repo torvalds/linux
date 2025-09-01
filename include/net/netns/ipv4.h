@@ -251,6 +251,7 @@ struct netns_ipv4 {
 	int sysctl_igmp_qrv;
 
 	struct ping_group_range ping_group_range;
+	u16			ping_port_rover;
 
 	atomic_t dev_addr_genid;
 
