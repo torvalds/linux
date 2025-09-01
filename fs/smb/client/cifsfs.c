@@ -121,6 +121,44 @@ unsigned int dir_cache_timeout = 30;
 module_param(dir_cache_timeout, uint, 0644);
 MODULE_PARM_DESC(dir_cache_timeout, "Number of seconds to cache directory contents for which we have a lease. Default: 30 "
 				 "Range: 1 to 65000 seconds, 0 to disable caching dir contents");
+
+/*
+ * Write-only module parameter to drop all cached directory entries across
+ * all CIFS mounts. Echo a non-zero value to trigger.
+ */
+static void cifs_drop_all_dir_caches(void)
+{
+	struct TCP_Server_Info *server;
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
+
+	spin_lock(&cifs_tcp_ses_lock);
+	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
+		list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
+			if (cifs_ses_exiting(ses))
+				continue;
+			list_for_each_entry(tcon, &ses->tcon_list, tcon_list)
+				invalidate_all_cached_dirs(tcon);
+		}
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
+}
+
+static int cifs_param_set_drop_dir_cache(const char *val, const struct kernel_param *kp)
+{
+	bool bv;
+	int rc = kstrtobool(val, &bv);
+
+	if (rc)
+		return rc;
+	if (bv)
+		cifs_drop_all_dir_caches();
+	return 0;
+}
+
+module_param_call(drop_dir_cache, cifs_param_set_drop_dir_cache, NULL, NULL, 0200);
+MODULE_PARM_DESC(drop_dir_cache, "Write 1 to drop all cached directory entries across all CIFS mounts");
+
 #ifdef CONFIG_CIFS_STATS2
 unsigned int slow_rsp_threshold = 1;
 module_param(slow_rsp_threshold, uint, 0644);
