@@ -491,7 +491,8 @@ int main(int argc, char *argv[])
 	if (err) {
 		fprintf(stderr, "Can't resolve address [%s]:%s\n",
 			opt.host, opt.service);
-		return ERN_SOCK_CREATE;
+		err = ERN_SOCK_CREATE;
+		goto err_free_buff;
 	}
 
 	if (ai->ai_family == AF_INET6 && opt.sock.proto == IPPROTO_ICMP)
@@ -500,8 +501,8 @@ int main(int argc, char *argv[])
 	fd = socket(ai->ai_family, opt.sock.type, opt.sock.proto);
 	if (fd < 0) {
 		fprintf(stderr, "Can't open socket: %s\n", strerror(errno));
-		freeaddrinfo(ai);
-		return ERN_RESOLVE;
+		err = ERN_RESOLVE;
+		goto err_free_info;
 	}
 
 	if (opt.sock.proto == IPPROTO_ICMP) {
@@ -574,6 +575,9 @@ int main(int argc, char *argv[])
 
 err_out:
 	close(fd);
+err_free_info:
 	freeaddrinfo(ai);
+err_free_buff:
+	free(buf);
 	return err;
 }
