@@ -715,35 +715,47 @@ static void fbnic_clean_tsq(struct fbnic_napi_vector *nv,
 }
 
 static void fbnic_page_pool_init(struct fbnic_ring *ring, unsigned int idx,
-				 struct page *page)
+				 netmem_ref netmem)
 {
 	struct fbnic_rx_buf *rx_buf = &ring->rx_buf[idx];
 
-	page_pool_fragment_page(page, FBNIC_PAGECNT_BIAS_MAX);
+	page_pool_fragment_netmem(netmem, FBNIC_PAGECNT_BIAS_MAX);
 	rx_buf->pagecnt_bias = FBNIC_PAGECNT_BIAS_MAX;
-	rx_buf->page = page;
+	rx_buf->netmem = netmem;
 }
 
-static struct page *fbnic_page_pool_get(struct fbnic_ring *ring,
-					unsigned int idx)
+static struct page *
+fbnic_page_pool_get_head(struct fbnic_q_triad *qt, unsigned int idx)
 {
-	struct fbnic_rx_buf *rx_buf = &ring->rx_buf[idx];
+	struct fbnic_rx_buf *rx_buf = &qt->sub0.rx_buf[idx];
 
 	rx_buf->pagecnt_bias--;
 
-	return rx_buf->page;
+	/* sub0 is always fed system pages, from the NAPI-level page_pool */
+	return netmem_to_page(rx_buf->netmem);
+}
+
+static netmem_ref
+fbnic_page_pool_get_data(struct fbnic_q_triad *qt, unsigned int idx)
+{
+	struct fbnic_rx_buf *rx_buf = &qt->sub1.rx_buf[idx];
+
+	rx_buf->pagecnt_bias--;
+
+	return rx_buf->netmem;
 }
 
 static void fbnic_page_pool_drain(struct fbnic_ring *ring, unsigned int idx,
 				  int budget)
 {
 	struct fbnic_rx_buf *rx_buf = &ring->rx_buf[idx];
-	struct page *page = rx_buf->page;
+	netmem_ref netmem = rx_buf->netmem;
 
-	if (!page_pool_unref_page(page, rx_buf->pagecnt_bias))
-		page_pool_put_unrefed_page(ring->page_pool, page, -1, !!budget);
+	if (!page_pool_unref_netmem(netmem, rx_buf->pagecnt_bias))
+		page_pool_put_unrefed_netmem(ring->page_pool, netmem, -1,
+					     !!budget);
 
-	rx_buf->page = NULL;
+	rx_buf->netmem = 0;
 }
 
 static void fbnic_clean_twq(struct fbnic_napi_vector *nv, int napi_budget,
@@ -844,10 +856,10 @@ static void fbnic_clean_bdq(struct fbnic_ring *ring, unsigned int hw_head,
 	ring->head = head;
 }
 
-static void fbnic_bd_prep(struct fbnic_ring *bdq, u16 id, struct page *page)
+static void fbnic_bd_prep(struct fbnic_ring *bdq, u16 id, netmem_ref netmem)
 {
 	__le64 *bdq_desc = &bdq->desc[id * FBNIC_BD_FRAG_COUNT];
-	dma_addr_t dma = page_pool_get_dma_addr(page);
+	dma_addr_t dma = page_pool_get_dma_addr_netmem(netmem);
 	u64 bd, i = FBNIC_BD_FRAG_COUNT;
 
 	bd = (FBNIC_BD_PAGE_ADDR_MASK & dma) |
@@ -874,10 +886,10 @@ static void fbnic_fill_bdq(struct fbnic_ring *bdq)
 		return;
 
 	do {
-		struct page *page;
+		netmem_ref netmem;
 
-		page = page_pool_dev_alloc_pages(bdq->page_pool);
-		if (!page) {
+		netmem = page_pool_dev_alloc_netmems(bdq->page_pool);
+		if (!netmem) {
 			u64_stats_update_begin(&bdq->stats.syncp);
 			bdq->stats.rx.alloc_failed++;
 			u64_stats_update_end(&bdq->stats.syncp);
@@ -885,8 +897,8 @@ static void fbnic_fill_bdq(struct fbnic_ring *bdq)
 			break;
 		}
 
-		fbnic_page_pool_init(bdq, i, page);
-		fbnic_bd_prep(bdq, i, page);
+		fbnic_page_pool_init(bdq, i, netmem);
+		fbnic_bd_prep(bdq, i, netmem);
 
 		i++;
 		i &= bdq->size_mask;
@@ -933,7 +945,7 @@ static void fbnic_pkt_prepare(struct fbnic_napi_vector *nv, u64 rcd,
 {
 	unsigned int hdr_pg_idx = FIELD_GET(FBNIC_RCD_AL_BUFF_PAGE_MASK, rcd);
 	unsigned int hdr_pg_off = FIELD_GET(FBNIC_RCD_AL_BUFF_OFF_MASK, rcd);
-	struct page *page = fbnic_page_pool_get(&qt->sub0, hdr_pg_idx);
+	struct page *page = fbnic_page_pool_get_head(qt, hdr_pg_idx);
 	unsigned int len = FIELD_GET(FBNIC_RCD_AL_BUFF_LEN_MASK, rcd);
 	unsigned int frame_sz, hdr_pg_start, hdr_pg_end, headroom;
 	unsigned char *hdr_start;
@@ -974,7 +986,7 @@ static void fbnic_add_rx_frag(struct fbnic_napi_vector *nv, u64 rcd,
 	unsigned int pg_idx = FIELD_GET(FBNIC_RCD_AL_BUFF_PAGE_MASK, rcd);
 	unsigned int pg_off = FIELD_GET(FBNIC_RCD_AL_BUFF_OFF_MASK, rcd);
 	unsigned int len = FIELD_GET(FBNIC_RCD_AL_BUFF_LEN_MASK, rcd);
-	struct page *page = fbnic_page_pool_get(&qt->sub1, pg_idx);
+	netmem_ref netmem = fbnic_page_pool_get_data(qt, pg_idx);
 	unsigned int truesize;
 	bool added;
 
@@ -985,11 +997,11 @@ static void fbnic_add_rx_frag(struct fbnic_napi_vector *nv, u64 rcd,
 		  FBNIC_BD_FRAG_SIZE;
 
 	/* Sync DMA buffer */
-	dma_sync_single_range_for_cpu(nv->dev, page_pool_get_dma_addr(page),
+	dma_sync_single_range_for_cpu(nv->dev,
+				      page_pool_get_dma_addr_netmem(netmem),
 				      pg_off, truesize, DMA_BIDIRECTIONAL);
 
-	added = xdp_buff_add_frag(&pkt->buff, page_to_netmem(page), pg_off, len,
-				  truesize);
+	added = xdp_buff_add_frag(&pkt->buff, netmem, pg_off, len, truesize);
 	if (unlikely(!added)) {
 		pkt->add_frag_failed = true;
 		netdev_err_once(nv->napi.dev,
@@ -1007,15 +1019,16 @@ static void fbnic_put_pkt_buff(struct fbnic_q_triad *qt,
 
 	if (xdp_buff_has_frags(&pkt->buff)) {
 		struct skb_shared_info *shinfo;
+		netmem_ref netmem;
 		int nr_frags;
 
 		shinfo = xdp_get_shared_info_from_buff(&pkt->buff);
 		nr_frags = shinfo->nr_frags;
 
 		while (nr_frags--) {
-			page = skb_frag_page(&shinfo->frags[nr_frags]);
-			page_pool_put_full_page(qt->sub1.page_pool, page,
-						!!budget);
+			netmem = skb_frag_netmem(&shinfo->frags[nr_frags]);
+			page_pool_put_full_netmem(qt->sub1.page_pool, netmem,
+						  !!budget);
 		}
 	}
 
