@@ -503,13 +503,10 @@ static int ina238_read_power(struct device *dev, u32 attr, long *val)
 	return 0;
 }
 
-static int ina238_write_power(struct device *dev, u32 attr, long val)
+static int ina238_write_power_max(struct device *dev, long val)
 {
 	struct ina238_data *data = dev_get_drvdata(dev);
 	long regval;
-
-	if (attr != hwmon_power_max)
-		return -EOPNOTSUPP;
 
 	/*
 	 * Unsigned postive values. Compared against the 24-bit power register,
@@ -628,7 +625,7 @@ static int ina238_write(struct device *dev, enum hwmon_sensor_types type,
 		err = ina238_write_in(dev, attr, channel, val);
 		break;
 	case hwmon_power:
-		err = ina238_write_power(dev, attr, val);
+		err = ina238_write_power_max(dev, val);
 		break;
 	case hwmon_temp:
 		err = ina238_write_temp(dev, attr, val);
