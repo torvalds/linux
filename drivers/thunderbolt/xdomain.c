@@ -1951,8 +1951,8 @@ static void tb_xdomain_link_exit(struct tb_xdomain *xd)
 /**
  * tb_xdomain_alloc() - Allocate new XDomain object
  * @tb: Domain where the XDomain belongs
- * @parent: Parent device (the switch through the connection to the
- *	    other domain is reached).
+ * @parent: Parent device (the switch through which the other domain
+ *	    is reached).
  * @route: Route string used to reach the other domain
  * @local_uuid: Our local domain UUID
  * @remote_uuid: UUID of the other domain (optional)
