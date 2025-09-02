@@ -166,6 +166,7 @@ enum hci_conn_flags {
 	HCI_CONN_FLAG_REMOTE_WAKEUP = BIT(0),
 	HCI_CONN_FLAG_DEVICE_PRIVACY = BIT(1),
 	HCI_CONN_FLAG_ADDRESS_RESOLUTION = BIT(2),
+	HCI_CONN_FLAG_PAST = BIT(3),
 };
 typedef u8 hci_conn_flags_t;
 
