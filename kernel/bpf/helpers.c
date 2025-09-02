@@ -3349,6 +3349,36 @@ __bpf_kfunc void __bpf_trap(void)
  * __get_kernel_nofault instead of plain dereference to make them safe.
  */
 
+static int __bpf_strcasecmp(const char *s1, const char *s2, bool ignore_case)
+{
+	char c1, c2;
+	int i;
+
+	if (!copy_from_kernel_nofault_allowed(s1, 1) ||
+	    !copy_from_kernel_nofault_allowed(s2, 1)) {
+		return -ERANGE;
+	}
+
+	guard(pagefault)();
+	for (i = 0; i < XATTR_SIZE_MAX; i++) {
+		__get_kernel_nofault(&c1, s1, char, err_out);
+		__get_kernel_nofault(&c2, s2, char, err_out);
+		if (ignore_case) {
+			c1 = tolower(c1);
+			c2 = tolower(c2);
+		}
+		if (c1 != c2)
+			return c1 < c2 ? -1 : 1;
+		if (c1 == '\0')
+			return 0;
+		s1++;
+		s2++;
+	}
+	return -E2BIG;
+err_out:
+	return -EFAULT;
+}
+
 /**
  * bpf_strcmp - Compare two strings
  * @s1__ign: One string
@@ -3364,28 +3394,25 @@ __bpf_kfunc void __bpf_trap(void)
  */
 __bpf_kfunc int bpf_strcmp(const char *s1__ign, const char *s2__ign)
 {
-	char c1, c2;
-	int i;
+	return __bpf_strcasecmp(s1__ign, s2__ign, false);
+}
 
-	if (!copy_from_kernel_nofault_allowed(s1__ign, 1) ||
-	    !copy_from_kernel_nofault_allowed(s2__ign, 1)) {
-		return -ERANGE;
-	}
-
-	guard(pagefault)();
-	for (i = 0; i < XATTR_SIZE_MAX; i++) {
-		__get_kernel_nofault(&c1, s1__ign, char, err_out);
-		__get_kernel_nofault(&c2, s2__ign, char, err_out);
-		if (c1 != c2)
-			return c1 < c2 ? -1 : 1;
-		if (c1 == '\0')
-			return 0;
-		s1__ign++;
-		s2__ign++;
-	}
-	return -E2BIG;
-err_out:
-	return -EFAULT;
+/**
+ * bpf_strcasecmp - Compare two strings, ignoring the case of the characters
+ * @s1__ign: One string
+ * @s2__ign: Another string
+ *
+ * Return:
+ * * %0       - Strings are equal
+ * * %-1      - @s1__ign is smaller
+ * * %1       - @s2__ign is smaller
+ * * %-EFAULT - Cannot read one of the strings
+ * * %-E2BIG  - One of strings is too large
+ * * %-ERANGE - One of strings is outside of kernel address space
+ */
+__bpf_kfunc int bpf_strcasecmp(const char *s1__ign, const char *s2__ign)
+{
+	return __bpf_strcasecmp(s1__ign, s2__ign, true);
 }
 
 /**
@@ -3832,6 +3859,7 @@ BTF_ID_FLAGS(func, bpf_iter_dmabuf_destroy, KF_ITER_DESTROY | KF_SLEEPABLE)
 #endif
 BTF_ID_FLAGS(func, __bpf_trap)
 BTF_ID_FLAGS(func, bpf_strcmp);
+BTF_ID_FLAGS(func, bpf_strcasecmp);
 BTF_ID_FLAGS(func, bpf_strchr);
 BTF_ID_FLAGS(func, bpf_strchrnul);
 BTF_ID_FLAGS(func, bpf_strnchr);
