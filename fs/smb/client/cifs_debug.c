@@ -347,6 +347,22 @@ static __always_inline const char *compression_alg_str(__le16 alg)
 	}
 }
 
+static __always_inline const char *cipher_alg_str(__le16 cipher)
+{
+	switch (cipher) {
+	case SMB2_ENCRYPTION_AES128_CCM:
+		return "AES128-CCM";
+	case SMB2_ENCRYPTION_AES128_GCM:
+		return "AES128-GCM";
+	case SMB2_ENCRYPTION_AES256_CCM:
+		return "AES256-CCM";
+	case SMB2_ENCRYPTION_AES256_GCM:
+		return "AES256-GCM";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 {
 	struct mid_q_entry *mid_entry;
@@ -539,6 +555,11 @@ skip_rdma:
 		else
 			seq_puts(m, "disabled (not supported by this server)");
 
+		/* Show negotiated encryption cipher, even if not required */
+		seq_puts(m, "\nEncryption: ");
+		if (server->cipher_type)
+			seq_printf(m, "Negotiated cipher (%s)", cipher_alg_str(server->cipher_type));
+
 		seq_printf(m, "\n\n\tSessions: ");
 		i = 0;
 		list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
@@ -576,12 +597,8 @@ skip_rdma:
 
 			/* dump session id helpful for use with network trace */
 			seq_printf(m, " SessionId: 0x%llx", ses->Suid);
-			if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA) {
+			if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA)
 				seq_puts(m, " encrypted");
-				/* can help in debugging to show encryption type */
-				if (server->cipher_type == SMB2_ENCRYPTION_AES256_GCM)
-					seq_puts(m, "(gcm256)");
-			}
 			if (ses->sign)
 				seq_puts(m, " signed");
 
