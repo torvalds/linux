@@ -84,8 +84,8 @@ struct fred_ss {
 			:  4,
 		/* Event was incident to enclave execution */
 		enclave	:  1,
-		/* CPU was in long mode */
-		lm	:  1,
+		/* CPU was in 64-bit mode */
+		l	:  1,
 		/*
 		 * Nested exception during FRED delivery, not set
 		 * for #DF.
