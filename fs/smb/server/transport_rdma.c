@@ -207,6 +207,19 @@ static struct smbdirect_recv_io *get_first_reassembly(struct smbdirect_socket *s
 		return NULL;
 }
 
+static void smb_direct_disconnect_wake_up_all(struct smbdirect_socket *sc)
+{
+	/*
+	 * Wake up all waiters in all wait queues
+	 * in order to notice the broken connection.
+	 */
+	wake_up_all(&sc->status_wait);
+	wake_up_all(&sc->send_io.credits.wait_queue);
+	wake_up_all(&sc->send_io.pending.zero_wait_queue);
+	wake_up_all(&sc->recv_io.reassembly.wait_queue);
+	wake_up_all(&sc->rw_io.credits.wait_queue);
+}
+
 static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
@@ -257,6 +270,12 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 	case SMBDIRECT_SOCKET_DESTROYED:
 		break;
 	}
+
+	/*
+	 * Wake up all waiters in all wait queues
+	 * in order to notice the broken connection.
+	 */
+	smb_direct_disconnect_wake_up_all(sc);
 }
 
 static void
@@ -313,6 +332,12 @@ smb_direct_disconnect_rdma_connection(struct smbdirect_socket *sc)
 		sc->status = SMBDIRECT_SOCKET_ERROR;
 		break;
 	}
+
+	/*
+	 * Wake up all waiters in all wait queues
+	 * in order to notice the broken connection.
+	 */
+	smb_direct_disconnect_wake_up_all(sc);
 
 	queue_work(sc->workqueue, &sc->disconnect_work);
 }
@@ -421,8 +446,14 @@ static void free_transport(struct smb_direct_transport *t)
 					 sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
 	}
 
-	wake_up_all(&sc->send_io.credits.wait_queue);
-	wake_up_all(&sc->send_io.pending.zero_wait_queue);
+	/*
+	 * Wake up all waiters in all wait queues
+	 * in order to notice the broken connection.
+	 *
+	 * Most likely this was already called via
+	 * smb_direct_disconnect_rdma_work(), but call it again...
+	 */
+	smb_direct_disconnect_wake_up_all(sc);
 
 	disable_work_sync(&sc->recv_io.posted.refill_work);
 	disable_delayed_work_sync(&sc->idle.timer_work);
@@ -1644,14 +1675,11 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
 		smb_direct_disconnect_rdma_work(&sc->disconnect_work);
-		wake_up_all(&sc->status_wait);
-		wake_up_all(&sc->recv_io.reassembly.wait_queue);
-		wake_up_all(&sc->send_io.credits.wait_queue);
 		break;
 	}
 	case RDMA_CM_EVENT_CONNECT_ERROR: {
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
-		wake_up_all(&sc->status_wait);
+		smb_direct_disconnect_rdma_work(&sc->disconnect_work);
 		break;
 	}
 	default:
