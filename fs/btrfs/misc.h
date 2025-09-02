@@ -11,6 +11,7 @@
 #include <linux/pagemap.h>
 #include <linux/math64.h>
 #include <linux/rbtree.h>
+#include <linux/bio.h>
 
 /*
  * Enumerate bits using enum autoincrement. Define the @name as the n-th bit.
@@ -19,6 +20,30 @@
 	__ ## name ## _BIT,                             \
 	name = (1U << __ ## name ## _BIT),              \
 	__ ## name ## _SEQ = __ ## name ## _BIT
+
+static inline phys_addr_t bio_iter_phys(struct bio *bio, struct bvec_iter *iter)
+{
+	struct bio_vec bv = bio_iter_iovec(bio, *iter);
+
+	return bvec_phys(&bv);
+}
+
+/*
+ * Iterate bio using btrfs block size.
+ *
+ * This will handle large folio and highmem.
+ *
+ * @paddr:	Physical memory address of each iteration
+ * @bio:	The bio to iterate
+ * @iter:	The bvec_iter (pointer) to use.
+ * @blocksize:	The blocksize to iterate.
+ *
+ * This requires all folios in the bio to cover at least one block.
+ */
+#define btrfs_bio_for_each_block(paddr, bio, iter, blocksize)		\
+	for (; (iter)->bi_size &&					\
+	     (paddr = bio_iter_phys((bio), (iter)), 1);			\
+	     bio_advance_iter_single((bio), (iter), (blocksize)))
 
 static inline void cond_wake_up(struct wait_queue_head *wq)
 {

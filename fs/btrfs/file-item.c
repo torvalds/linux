@@ -775,12 +775,10 @@ int btrfs_csum_one_bio(struct btrfs_bio *bbio)
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	struct bio *bio = &bbio->bio;
 	struct btrfs_ordered_sum *sums;
-	char *data;
-	struct bvec_iter iter;
-	struct bio_vec bvec;
+	struct bvec_iter iter = bio->bi_iter;
+	phys_addr_t paddr;
+	const u32 blocksize = fs_info->sectorsize;
 	int index;
-	unsigned int blockcount;
-	int i;
 	unsigned nofs_flag;
 
 	nofs_flag = memalloc_nofs_save();
@@ -799,21 +797,9 @@ int btrfs_csum_one_bio(struct btrfs_bio *bbio)
 
 	shash->tfm = fs_info->csum_shash;
 
-	bio_for_each_segment(bvec, bio, iter) {
-		blockcount = BTRFS_BYTES_TO_BLKS(fs_info,
-						 bvec.bv_len + fs_info->sectorsize
-						 - 1);
-
-		for (i = 0; i < blockcount; i++) {
-			data = bvec_kmap_local(&bvec);
-			crypto_shash_digest(shash,
-					    data + (i * fs_info->sectorsize),
-					    fs_info->sectorsize,
-					    sums->sums + index);
-			kunmap_local(data);
-			index += fs_info->csum_size;
-		}
-
+	btrfs_bio_for_each_block(paddr, bio, &iter, blocksize) {
+		btrfs_calculate_block_csum(fs_info, paddr, sums->sums + index);
+		index += fs_info->csum_size;
 	}
 
 	bbio->sums = sums;

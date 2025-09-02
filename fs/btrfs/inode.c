@@ -3328,14 +3328,8 @@ int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered)
 	return btrfs_finish_one_ordered(ordered);
 }
 
-/*
- * Verify the checksum for a single sector without any extra action that depend
- * on the type of I/O.
- *
- * @kaddr must be a properly kmapped address.
- */
-int btrfs_check_block_csum(struct btrfs_fs_info *fs_info, phys_addr_t paddr, u8 *csum,
-			   const u8 * const csum_expected)
+void btrfs_calculate_block_csum(struct btrfs_fs_info *fs_info, phys_addr_t paddr,
+				u8 *dest)
 {
 	struct folio *folio = page_folio(phys_to_page(paddr));
 	const u32 blocksize = fs_info->sectorsize;
@@ -3359,11 +3353,21 @@ int btrfs_check_block_csum(struct btrfs_fs_info *fs_info, phys_addr_t paddr, u8 
 			kunmap_local(kaddr);
 			cur += len;
 		}
-		crypto_shash_final(shash, csum);
+		crypto_shash_final(shash, dest);
 	} else {
-		crypto_shash_digest(shash, phys_to_virt(paddr), blocksize, csum);
+		crypto_shash_digest(shash, phys_to_virt(paddr), blocksize, dest);
 	}
-
+}
+/*
+ * Verify the checksum for a single sector without any extra action that depend
+ * on the type of I/O.
+ *
+ * @kaddr must be a properly kmapped address.
+ */
+int btrfs_check_block_csum(struct btrfs_fs_info *fs_info, phys_addr_t paddr, u8 *csum,
+			   const u8 * const csum_expected)
+{
+	btrfs_calculate_block_csum(fs_info, paddr, csum);
 	if (memcmp(csum, csum_expected, fs_info->csum_size))
 		return -EIO;
 	return 0;

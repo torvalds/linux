@@ -1208,17 +1208,16 @@ static void index_one_bio(struct btrfs_raid_bio *rbio, struct bio *bio)
 	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
 	const u32 sectorsize_bits = rbio->bioc->fs_info->sectorsize_bits;
 	struct bvec_iter iter = bio->bi_iter;
+	phys_addr_t paddr;
 	u32 offset = (bio->bi_iter.bi_sector << SECTOR_SHIFT) -
 		     rbio->bioc->full_stripe_logical;
 
-	while (iter.bi_size) {
+	btrfs_bio_for_each_block(paddr, bio, &iter, sectorsize) {
 		unsigned int index = (offset >> sectorsize_bits);
 		struct sector_ptr *sector = &rbio->bio_sectors[index];
-		struct bio_vec bv = bio_iter_iovec(bio, iter);
 
 		sector->has_paddr = true;
-		sector->paddr = bvec_phys(&bv);
-		bio_advance_iter_single(bio, &iter, sectorsize);
+		sector->paddr = paddr;
 		offset += sectorsize;
 	}
 }

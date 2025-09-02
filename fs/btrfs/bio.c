@@ -204,18 +204,21 @@ done:
  */
 static struct btrfs_failed_bio *repair_one_sector(struct btrfs_bio *failed_bbio,
 						  u32 bio_offset,
-						  struct bio_vec *bv,
+						  phys_addr_t paddr,
 						  struct btrfs_failed_bio *fbio)
 {
 	struct btrfs_inode *inode = failed_bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct folio *folio = page_folio(phys_to_page(paddr));
 	const u32 sectorsize = fs_info->sectorsize;
+	const u32 foff = offset_in_folio(folio, paddr);
 	const u64 logical = (failed_bbio->saved_iter.bi_sector << SECTOR_SHIFT);
 	struct btrfs_bio *repair_bbio;
 	struct bio *repair_bio;
 	int num_copies;
 	int mirror;
 
+	ASSERT(foff + sectorsize <= folio_size(folio));
 	btrfs_debug(fs_info, "repair read error: read error at %llu",
 		    failed_bbio->file_offset + bio_offset);
 
@@ -238,7 +241,7 @@ static struct btrfs_failed_bio *repair_one_sector(struct btrfs_bio *failed_bbio,
 	repair_bio = bio_alloc_bioset(NULL, 1, REQ_OP_READ, GFP_NOFS,
 				      &btrfs_repair_bioset);
 	repair_bio->bi_iter.bi_sector = failed_bbio->saved_iter.bi_sector;
-	__bio_add_page(repair_bio, bv->bv_page, bv->bv_len, bv->bv_offset);
+	bio_add_folio_nofail(repair_bio, folio, sectorsize, foff);
 
 	repair_bbio = btrfs_bio(repair_bio);
 	btrfs_bio_init(repair_bbio, fs_info, NULL, fbio);
@@ -259,6 +262,7 @@ static void btrfs_check_read_bio(struct btrfs_bio *bbio, struct btrfs_device *de
 	struct bvec_iter *iter = &bbio->saved_iter;
 	blk_status_t status = bbio->bio.bi_status;
 	struct btrfs_failed_bio *fbio = NULL;
+	phys_addr_t paddr;
 	u32 offset = 0;
 
 	/* Read-repair requires the inode field to be set by the submitter. */
@@ -276,17 +280,11 @@ static void btrfs_check_read_bio(struct btrfs_bio *bbio, struct btrfs_device *de
 	/* Clear the I/O error. A failed repair will reset it. */
 	bbio->bio.bi_status = BLK_STS_OK;
 
-	while (iter->bi_size) {
-		struct bio_vec bv = bio_iter_iovec(&bbio->bio, *iter);
-
-		bv.bv_len = min(bv.bv_len, sectorsize);
-		if (status || !btrfs_data_csum_ok(bbio, dev, offset, bvec_phys(&bv)))
-			fbio = repair_one_sector(bbio, offset, &bv, fbio);
-
-		bio_advance_iter_single(&bbio->bio, iter, sectorsize);
+	btrfs_bio_for_each_block(paddr, &bbio->bio, iter, fs_info->sectorsize) {
+		if (status || !btrfs_data_csum_ok(bbio, dev, offset, paddr))
+			fbio = repair_one_sector(bbio, offset, paddr, fbio);
 		offset += sectorsize;
 	}
-
 	if (bbio->csum != bbio->csum_inline)
 		kfree(bbio->csum);
 
