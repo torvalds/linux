@@ -31,7 +31,7 @@ struct dram_channel_info {
 
 #define DRAM_TYPE_STR(type) [INTEL_DRAM_ ## type] = #type
 
-static const char *intel_dram_type_str(enum intel_dram_type type)
+const char *intel_dram_type_str(enum intel_dram_type type)
 {
 	static const char * const str[] = {
 		DRAM_TYPE_STR(UNKNOWN),

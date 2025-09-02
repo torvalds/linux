@@ -105,8 +105,9 @@ static const struct cxsr_latency *pnv_get_cxsr_latency(struct intel_display *dis
 	}
 
 	drm_dbg_kms(display->drm,
-		    "Could not find CxSR latency for DDR%s, FSB %u kHz, MEM %u kHz\n",
-		    is_ddr3 ? "3" : "2", dram_info->fsb_freq, dram_info->mem_freq);
+		    "Could not find CxSR latency for %s, FSB %u kHz, MEM %u kHz\n",
+		    intel_dram_type_str(dram_info->type),
+		    dram_info->fsb_freq, dram_info->mem_freq);
 
 	return NULL;
 }
