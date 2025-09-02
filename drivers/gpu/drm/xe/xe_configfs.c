@@ -369,7 +369,12 @@ static bool xe_config_device_is_visible(struct config_item *item,
 {
 	struct xe_config_group_device *dev = to_xe_config_group_device(item);
 
-	return dev->desc; /* shall be always true */
+	if (attr == &attr_survivability_mode) {
+		if (!dev->desc->is_dgfx || dev->desc->platform < XE_BATTLEMAGE)
+			return false;
+	}
+
+	return true;
 }
 
 static struct configfs_group_operations xe_config_device_group_ops = {
@@ -556,23 +561,6 @@ bool xe_configfs_get_survivability_mode(struct pci_dev *pdev)
 	config_group_put(&dev->group);
 
 	return mode;
-}
-
-/**
- * xe_configfs_clear_survivability_mode - clear configfs survivability mode
- * @pdev: pci device
- */
-void xe_configfs_clear_survivability_mode(struct pci_dev *pdev)
-{
-	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
-
-	if (!dev)
-		return;
-
-	guard(mutex)(&dev->lock);
-	dev->config.survivability_mode = 0;
-
-	config_group_put(&dev->group);
 }
 
 /**

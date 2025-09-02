@@ -289,19 +289,10 @@ bool xe_survivability_mode_is_requested(struct xe_device *xe)
 	u32 data;
 	bool survivability_mode;
 
-	if (!IS_DGFX(xe) || IS_SRIOV_VF(xe))
+	if (!IS_DGFX(xe) || IS_SRIOV_VF(xe) || xe->info.platform < XE_BATTLEMAGE)
 		return false;
 
 	survivability_mode = xe_configfs_get_survivability_mode(pdev);
-
-	if (xe->info.platform < XE_BATTLEMAGE) {
-		if (survivability_mode) {
-			dev_err(&pdev->dev, "Survivability Mode is not supported on this card\n");
-			xe_configfs_clear_survivability_mode(pdev);
-		}
-		return false;
-	}
-
 	/* Enable survivability mode if set via configfs */
 	if (survivability_mode)
 		return true;
