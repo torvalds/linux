@@ -357,9 +357,7 @@ static void tidss_crtc_reset(struct drm_crtc *crtc)
 	struct tidss_crtc_state *tstate;
 
 	if (crtc->state)
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
-
-	kfree(crtc->state);
+		tidss_crtc_destroy_state(crtc, crtc->state);
 
 	tstate = kzalloc(sizeof(*tstate), GFP_KERNEL);
 	if (!tstate) {
