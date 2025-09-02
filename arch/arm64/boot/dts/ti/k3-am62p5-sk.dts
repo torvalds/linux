@@ -595,6 +595,10 @@
 	};
 };
 
+&usb0_phy_ctrl {
+	bootph-all;
+};
+
 &usb1 {
 	dr_mode = "host";
 	pinctrl-names = "default";
