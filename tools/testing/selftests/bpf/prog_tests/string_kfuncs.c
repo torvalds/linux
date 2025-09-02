@@ -8,6 +8,7 @@
 
 static const char * const test_cases[] = {
 	"strcmp",
+	"strcasecmp",
 	"strchr",
 	"strchrnul",
 	"strnchr",
