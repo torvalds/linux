@@ -216,6 +216,12 @@ struct mlx5_vport {
 	u32                     metadata;
 	int                     vhca_id;
 
+	bool adjacent; /* delegated vhca from adjacent function */
+	struct {
+		u16 parent_pci_devfn; /* Adjacent parent PCI device function */
+		u16 function_id; /* Function ID of the delegated VPort */
+	} adj_info;
+
 	struct mlx5_vport_info  info;
 
 	/* Protected with the E-Switch qos domain lock. The Vport QoS can
@@ -384,6 +390,7 @@ struct mlx5_eswitch {
 
 	struct mlx5_esw_bridge_offloads *br_offloads;
 	struct mlx5_esw_offload offloads;
+	u32 last_vport_idx;
 	int                     mode;
 	u16                     manager_vport;
 	u16                     first_host_vport;
@@ -417,6 +424,8 @@ int mlx5_esw_qos_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num, u32 
 /* E-Switch API */
 int mlx5_eswitch_init(struct mlx5_core_dev *dev);
 void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw);
+int mlx5_esw_vport_alloc(struct mlx5_eswitch *esw, int index, u16 vport_num);
+void mlx5_esw_vport_free(struct mlx5_eswitch *esw, struct mlx5_vport *vport);
 
 #define MLX5_ESWITCH_IGNORE_NUM_VFS (-1)
 int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int num_vfs);
@@ -621,6 +630,9 @@ bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 			       struct mlx5_core_dev *dev1);
 
 const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev);
+
+void mlx5_esw_adjacent_vhcas_setup(struct mlx5_eswitch *esw);
+void mlx5_esw_adjacent_vhcas_cleanup(struct mlx5_eswitch *esw);
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 
@@ -830,6 +842,11 @@ void mlx5_esw_vport_vhca_id_unmap(struct mlx5_eswitch *esw,
 				  struct mlx5_vport *vport);
 int mlx5_eswitch_vhca_id_to_vport(struct mlx5_eswitch *esw, u16 vhca_id, u16 *vport_num);
 bool mlx5_esw_vport_vhca_id(struct mlx5_eswitch *esw, u16 vportn, u16 *vhca_id);
+
+void mlx5_esw_offloads_rep_remove(struct mlx5_eswitch *esw,
+				  const struct mlx5_vport *vport);
+int mlx5_esw_offloads_rep_add(struct mlx5_eswitch *esw,
+			      const struct mlx5_vport *vport);
 
 /**
  * struct mlx5_esw_event_info - Indicates eswitch mode changed/changing.
