@@ -757,13 +757,14 @@ int intel_dram_detect(struct drm_i915_private *i915)
 	drm_dbg_kms(&i915->drm, "DRAM type: %s\n",
 		    intel_dram_type_str(dram_info->type));
 
+	drm_dbg_kms(&i915->drm, "DRAM channels: %u\n", dram_info->num_channels);
+
+	drm_dbg_kms(&i915->drm, "Num QGV points %u\n", dram_info->num_qgv_points);
+	drm_dbg_kms(&i915->drm, "Num PSF GV points %u\n", dram_info->num_psf_gv_points);
+
 	/* TODO: Do we want to abort probe on dram detection failures? */
 	if (ret)
 		return 0;
-
-	drm_dbg_kms(&i915->drm, "Num qgv points %u\n", dram_info->num_qgv_points);
-
-	drm_dbg_kms(&i915->drm, "DRAM channels: %u\n", dram_info->num_channels);
 
 	return 0;
 }
