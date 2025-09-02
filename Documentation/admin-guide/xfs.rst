@@ -289,9 +289,6 @@ The following sysctls are available for the XFS filesystem:
 	removes unused preallocation from clean inodes and releases
 	the unused space back to the free pool.
 
-  fs.xfs.speculative_cow_prealloc_lifetime
-	This is an alias for speculative_prealloc_lifetime.
-
   fs.xfs.error_level		(Min: 0  Default: 3  Max: 11)
 	A volume knob for error reporting when internal errors occur.
 	This will generate detailed messages & backtraces for filesystem
@@ -317,17 +314,6 @@ The following sysctls are available for the XFS filesystem:
 		XFS_PTAG_VERIFIER_ERROR         0x00000100
 
 	This option is intended for debugging only.
-
-  fs.xfs.irix_symlink_mode	(Min: 0  Default: 0  Max: 1)
-	Controls whether symlinks are created with mode 0777 (default)
-	or whether their mode is affected by the umask (irix mode).
-
-  fs.xfs.irix_sgid_inherit	(Min: 0  Default: 0  Max: 1)
-	Controls files created in SGID directories.
-	If the group ID of the new file does not match the effective group
-	ID or one of the supplementary group IDs of the parent dir, the
-	ISGID bit is cleared if the irix_sgid_inherit compatibility sysctl
-	is set.
 
   fs.xfs.inherit_sync		(Min: 0  Default: 1  Max: 1)
 	Setting this to "1" will cause the "sync" flag set
@@ -364,14 +350,7 @@ The following sysctls are available for the XFS filesystem:
 Deprecated Sysctls
 ==================
 
-===========================================     ================
-  Name                                          Removal Schedule
-===========================================     ================
-fs.xfs.irix_sgid_inherit                        September 2025
-fs.xfs.irix_symlink_mode                        September 2025
-fs.xfs.speculative_cow_prealloc_lifetime        September 2025
-===========================================     ================
-
+None currently.
 
 Removed Sysctls
 ===============
@@ -381,6 +360,9 @@ Removed Sysctls
 =============================	=======
   fs.xfs.xfsbufd_centisec	v4.0
   fs.xfs.age_buffer_centisecs	v4.0
+  fs.xfs.irix_symlink_mode      v6.18
+  fs.xfs.irix_sgid_inherit      v6.18
+  fs.xfs.speculative_cow_prealloc_lifetime      v6.18
 =============================	=======
 
 Error handling
