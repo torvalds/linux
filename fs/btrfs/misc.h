@@ -45,6 +45,30 @@ static inline phys_addr_t bio_iter_phys(struct bio *bio, struct bvec_iter *iter)
 	     (paddr = bio_iter_phys((bio), (iter)), 1);			\
 	     bio_advance_iter_single((bio), (iter), (blocksize)))
 
+/* Initialize a bvec_iter to the size of the specified bio. */
+static inline struct bvec_iter init_bvec_iter_for_bio(struct bio *bio)
+{
+	struct bio_vec *bvec;
+	u32 bio_size = 0;
+	int i;
+
+	bio_for_each_bvec_all(bvec, bio, i)
+		bio_size += bvec->bv_len;
+
+	return (struct bvec_iter) {
+		.bi_sector = 0,
+		.bi_size = bio_size,
+		.bi_idx = 0,
+		.bi_bvec_done = 0,
+	};
+}
+
+#define btrfs_bio_for_each_block_all(paddr, bio, blocksize)		\
+	for (struct bvec_iter iter = init_bvec_iter_for_bio(bio);	\
+	     (iter).bi_size &&						\
+	     (paddr = bio_iter_phys((bio), &(iter)), 1);		\
+	     bio_advance_iter_single((bio), &(iter), (blocksize)))
+
 static inline void cond_wake_up(struct wait_queue_head *wq)
 {
 	/*
