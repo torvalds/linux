@@ -301,7 +301,7 @@ static int tb_pci_set_ext_encapsulation(struct tb_tunnel *tunnel, bool enable)
 	struct tb_port *port = tb_upstream_port(tunnel->dst_port->sw);
 	int ret;
 
-	/* Only supported of both routers are at least USB4 v2 */
+	/* Only supported if both routers are at least USB4 v2 */
 	if ((usb4_switch_version(tunnel->src_port->sw) < 2) ||
 	   (usb4_switch_version(tunnel->dst_port->sw) < 2))
 		return 0;
@@ -1170,8 +1170,8 @@ static int tb_dp_bandwidth_mode_maximum_bandwidth(struct tb_tunnel *tunnel,
 
 	/*
 	 * DP IN adapter DP_LOCAL_CAP gets updated to the lowest AUX
-	 * read parameter values so this so we can use this to determine
-	 * the maximum possible bandwidth over this link.
+	 * read parameter values so we can use this to determine the
+	 * maximum possible bandwidth over this link.
 	 *
 	 * See USB4 v2 spec 1.0 10.4.4.5.
 	 */
@@ -1783,8 +1783,8 @@ static int tb_dma_init_rx_path(struct tb_path *path, unsigned int credits)
 
 	/*
 	 * First lane adapter is the one connected to the remote host.
-	 * We don't tunnel other traffic over this link so can use all
-	 * the credits (except the ones reserved for control traffic).
+	 * We don't tunnel other traffic over this link so we can use
+	 * all the credits (except the ones reserved for control traffic).
 	 */
 	hop = &path->hops[0];
 	tmp = min(tb_usable_credits(hop->in_port), credits);
@@ -2044,7 +2044,7 @@ static int tb_usb3_consumed_bandwidth(struct tb_tunnel *tunnel,
 
 	/*
 	 * PCIe tunneling, if enabled, affects the USB3 bandwidth so
-	 * take that it into account here.
+	 * take that into account here.
 	 */
 	*consumed_up = tunnel->allocated_up *
 		(TB_USB3_WEIGHT + pcie_weight) / TB_USB3_WEIGHT;
@@ -2605,7 +2605,7 @@ int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
  * @tunnel: Tunnel whose unused bandwidth to release
  *
  * If tunnel supports dynamic bandwidth management (USB3 tunnels at the
- * moment) this function makes it to release all the unused bandwidth.
+ * moment) this function makes it release all the unused bandwidth.
  *
  * Return: %0 on success, negative errno otherwise.
  */
