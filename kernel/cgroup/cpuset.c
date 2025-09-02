@@ -484,6 +484,9 @@ static inline int alloc_tmpmasks(struct tmpmasks *tmp)
  */
 static inline void free_tmpmasks(struct tmpmasks *tmp)
 {
+	if (!tmp)
+		return;
+
 	free_cpumask_var(tmp->new_cpus);
 	free_cpumask_var(tmp->addmask);
 	free_cpumask_var(tmp->delmask);
