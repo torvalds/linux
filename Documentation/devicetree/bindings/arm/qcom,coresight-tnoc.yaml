@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Trace Network On Chip - TNOC
 
 maintainers:
-  - Yuanfang Zhang <quic_yuanfang@quicinc.com>
+  - Yuanfang Zhang <yuanfang.zhang@oss.qualcomm.com>
 
 description: >
   The Trace Network On Chip (TNOC) is an integration hierarchy hardware
