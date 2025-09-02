@@ -412,7 +412,7 @@ static void tb_ctl_rx_submit(struct ctl_pkg *pkg)
 					     * We ignore failures during stop.
 					     * All rx packets are referenced
 					     * from ctl->rx_packets, so we do
-					     * not loose them.
+					     * not lose them.
 					     */
 }
 
