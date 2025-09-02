@@ -1369,6 +1369,7 @@ static inline bool kvm_system_needs_idmapped_vectors(void)
 }
 
 void kvm_init_host_debug_data(void);
+void kvm_debug_init_vhe(void);
 void kvm_vcpu_load_debug(struct kvm_vcpu *vcpu);
 void kvm_vcpu_put_debug(struct kvm_vcpu *vcpu);
 void kvm_debug_set_guest_ownership(struct kvm_vcpu *vcpu);
