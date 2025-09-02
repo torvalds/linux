@@ -15,11 +15,6 @@ struct intel_panic {
 	void *vaddr;
 };
 
-struct xe_framebuffer {
-	struct intel_framebuffer base;
-	struct intel_panic panic;
-};
-
 static void xe_panic_kunmap(struct intel_panic *panic)
 {
 	if (panic->vaddr) {
@@ -62,17 +57,13 @@ static void xe_panic_page_set_pixel(struct drm_scanout_buffer *sb, unsigned int 
 	}
 }
 
-struct intel_framebuffer *intel_bo_alloc_framebuffer(void)
+struct intel_panic *intel_panic_alloc(void)
 {
-	struct xe_framebuffer *xe_fb;
+	struct intel_panic *panic;
 
-	xe_fb = kzalloc(sizeof(*xe_fb), GFP_KERNEL);
-	if (!xe_fb)
-		return NULL;
+	panic = kzalloc(sizeof(*panic), GFP_KERNEL);
 
-	xe_fb->base.panic = &xe_fb->panic;
-
-	return &xe_fb->base;
+	return panic;
 }
 
 int intel_panic_setup(struct drm_scanout_buffer *sb)

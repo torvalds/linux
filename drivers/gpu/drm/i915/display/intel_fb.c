@@ -2343,7 +2343,22 @@ intel_user_framebuffer_create(struct drm_device *dev,
 
 struct intel_framebuffer *intel_framebuffer_alloc(void)
 {
-	return intel_bo_alloc_framebuffer();
+	struct intel_framebuffer *intel_fb;
+	struct intel_panic *panic;
+
+	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
+	if (!intel_fb)
+		return NULL;
+
+	panic = intel_panic_alloc();
+	if (!panic) {
+		kfree(intel_fb);
+		return NULL;
+	}
+
+	intel_fb->panic = panic;
+
+	return intel_fb;
 }
 
 struct drm_framebuffer *

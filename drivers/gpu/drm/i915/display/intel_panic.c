@@ -4,9 +4,9 @@
 #include "gem/i915_gem_object.h"
 #include "intel_panic.h"
 
-struct intel_framebuffer *intel_bo_alloc_framebuffer(void)
+struct intel_panic *intel_panic_alloc(void)
 {
-	return i915_gem_object_alloc_framebuffer();
+	return i915_gem_object_alloc_panic();
 }
 
 int intel_panic_setup(struct drm_scanout_buffer *sb)

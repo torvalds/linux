@@ -363,11 +363,6 @@ struct intel_panic {
 	void *vaddr;
 };
 
-struct i915_framebuffer {
-	struct intel_framebuffer base;
-	struct intel_panic panic;
-};
-
 static void i915_panic_kunmap(struct intel_panic *panic)
 {
 	if (panic->vaddr) {
@@ -436,17 +431,13 @@ static void i915_gem_object_panic_page_set_pixel(struct drm_scanout_buffer *sb, 
 	}
 }
 
-struct intel_framebuffer *i915_gem_object_alloc_framebuffer(void)
+struct intel_panic *i915_gem_object_alloc_panic(void)
 {
-	struct i915_framebuffer *i915_fb;
+	struct intel_panic *panic;
 
-	i915_fb = kzalloc(sizeof(*i915_fb), GFP_KERNEL);
-	if (!i915_fb)
-		return NULL;
+	panic = kzalloc(sizeof(*panic), GFP_KERNEL);
 
-	i915_fb->base.panic = &i915_fb->panic;
-
-	return &i915_fb->base;
+	return panic;
 }
 
 /*
