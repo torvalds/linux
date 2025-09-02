@@ -28,10 +28,9 @@ static bool policy_has_boost_freq(struct cpufreq_policy *policy)
 	return false;
 }
 
-int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
-				    struct cpufreq_frequency_table *table)
+int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy)
 {
-	struct cpufreq_frequency_table *pos;
+	struct cpufreq_frequency_table *pos, *table = policy->freq_table;
 	unsigned int min_freq = ~0;
 	unsigned int max_freq = 0;
 	unsigned int freq;
@@ -65,10 +64,9 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 		return 0;
 }
 
-int cpufreq_frequency_table_verify(struct cpufreq_policy_data *policy,
-				   struct cpufreq_frequency_table *table)
+int cpufreq_frequency_table_verify(struct cpufreq_policy_data *policy)
 {
-	struct cpufreq_frequency_table *pos;
+	struct cpufreq_frequency_table *pos, *table = policy->freq_table;
 	unsigned int freq, prev_smaller = 0;
 	bool found = false;
 
@@ -110,7 +108,7 @@ int cpufreq_generic_frequency_table_verify(struct cpufreq_policy_data *policy)
 	if (!policy->freq_table)
 		return -ENODEV;
 
-	return cpufreq_frequency_table_verify(policy, policy->freq_table);
+	return cpufreq_frequency_table_verify(policy);
 }
 EXPORT_SYMBOL_GPL(cpufreq_generic_frequency_table_verify);
 
@@ -354,7 +352,7 @@ int cpufreq_table_validate_and_sort(struct cpufreq_policy *policy)
 		return 0;
 	}
 
-	ret = cpufreq_frequency_table_cpuinfo(policy, policy->freq_table);
+	ret = cpufreq_frequency_table_cpuinfo(policy);
 	if (ret)
 		return ret;
 

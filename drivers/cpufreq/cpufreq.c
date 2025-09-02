@@ -2793,7 +2793,7 @@ int cpufreq_boost_set_sw(struct cpufreq_policy *policy, int state)
 	if (!policy->freq_table)
 		return -ENXIO;
 
-	ret = cpufreq_frequency_table_cpuinfo(policy, policy->freq_table);
+	ret = cpufreq_frequency_table_cpuinfo(policy);
 	if (ret) {
 		pr_err("%s: Policy frequency update failed\n", __func__);
 		return ret;
