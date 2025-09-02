@@ -94,8 +94,6 @@ static int tidss_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_display_mode *mode;
 	enum drm_mode_status ok;
 
-	dev_dbg(ddev->dev, "%s\n", __func__);
-
 	if (!crtc_state->enable)
 		return 0;
 
@@ -328,8 +326,6 @@ static int tidss_crtc_enable_vblank(struct drm_crtc *crtc)
 	struct drm_device *ddev = crtc->dev;
 	struct tidss_device *tidss = to_tidss(ddev);
 
-	dev_dbg(ddev->dev, "%s\n", __func__);
-
 	tidss_runtime_get(tidss);
 
 	tidss_irq_enable_vblank(crtc);
@@ -341,8 +337,6 @@ static void tidss_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *ddev = crtc->dev;
 	struct tidss_device *tidss = to_tidss(ddev);
-
-	dev_dbg(ddev->dev, "%s\n", __func__);
 
 	tidss_irq_disable_vblank(crtc);
 

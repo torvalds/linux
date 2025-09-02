@@ -2851,8 +2851,6 @@ int dispc_runtime_resume(struct dispc_device *dispc)
 
 void dispc_remove(struct tidss_device *tidss)
 {
-	dev_dbg(tidss->dev, "%s\n", __func__);
-
 	tidss->dispc = NULL;
 }
 
@@ -2993,8 +2991,6 @@ int dispc_init(struct tidss_device *tidss)
 	const struct dispc_features *feat;
 	unsigned int i, num_fourccs;
 	int r = 0;
-
-	dev_dbg(dev, "%s\n", __func__);
 
 	feat = tidss->feat;
 
