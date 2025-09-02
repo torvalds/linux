@@ -1482,7 +1482,7 @@ static int tegra_xhci_id_notify(struct notifier_block *nb,
 
 	tegra->otg_usb2_port = tegra_xusb_get_usb2_port(tegra, usbphy);
 
-	tegra->host_mode = (usbphy->last_event == USB_EVENT_ID) ? true : false;
+	tegra->host_mode = usbphy->last_event == USB_EVENT_ID;
 
 	schedule_work(&tegra->id_work);
 
