@@ -1096,32 +1096,20 @@ static int ___igt_mmap_migrate(struct drm_i915_private *i915,
 			       unsigned long addr,
 			       bool unfaultable)
 {
-	struct vm_area_struct *area;
-	int err = 0, i;
+	int i;
 
 	pr_info("igt_mmap(%s, %d) @ %lx\n",
 		obj->mm.region->name, I915_MMAP_TYPE_FIXED, addr);
-
-	mmap_read_lock(current->mm);
-	area = vma_lookup(current->mm, addr);
-	mmap_read_unlock(current->mm);
-	if (!area) {
-		pr_err("%s: Did not create a vm_area_struct for the mmap\n",
-		       obj->mm.region->name);
-		err = -EINVAL;
-		goto out_unmap;
-	}
 
 	for (i = 0; i < obj->base.size / sizeof(u32); i++) {
 		u32 __user *ux = u64_to_user_ptr((u64)(addr + i * sizeof(*ux)));
 		u32 x;
 
 		if (get_user(x, ux)) {
-			err = -EFAULT;
 			if (!unfaultable) {
 				pr_err("%s: Unable to read from mmap, offset:%zd\n",
 				       obj->mm.region->name, i * sizeof(x));
-				goto out_unmap;
+				return -EFAULT;
 			}
 
 			continue;
@@ -1130,37 +1118,29 @@ static int ___igt_mmap_migrate(struct drm_i915_private *i915,
 		if (unfaultable) {
 			pr_err("%s: Faulted unmappable memory\n",
 			       obj->mm.region->name);
-			err = -EINVAL;
-			goto out_unmap;
+			return -EINVAL;
 		}
 
 		if (x != expand32(POISON_INUSE)) {
 			pr_err("%s: Read incorrect value from mmap, offset:%zd, found:%x, expected:%x\n",
 			       obj->mm.region->name,
 			       i * sizeof(x), x, expand32(POISON_INUSE));
-			err = -EINVAL;
-			goto out_unmap;
+			return -EINVAL;
 		}
 
 		x = expand32(POISON_FREE);
 		if (put_user(x, ux)) {
 			pr_err("%s: Unable to write to mmap, offset:%zd\n",
 			       obj->mm.region->name, i * sizeof(x));
-			err = -EFAULT;
-			goto out_unmap;
+			return -EFAULT;
 		}
 	}
 
-	if (unfaultable) {
-		if (err == -EFAULT)
-			err = 0;
-	} else {
-		obj->flags &= ~I915_BO_ALLOC_GPU_ONLY;
-		err = wc_check(obj);
-	}
-out_unmap:
-	vm_munmap(addr, obj->base.size);
-	return err;
+	if (unfaultable)
+		return 0;
+
+	obj->flags &= ~I915_BO_ALLOC_GPU_ONLY;
+	return wc_check(obj);
 }
 
 #define IGT_MMAP_MIGRATE_TOPDOWN     (1 << 0)
@@ -1176,6 +1156,7 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 	struct drm_i915_private *i915 = placements[0]->i915;
 	struct drm_i915_gem_object *obj;
 	struct i915_request *rq = NULL;
+	struct vm_area_struct *area;
 	unsigned long addr;
 	LIST_HEAD(objects);
 	u64 offset;
@@ -1207,20 +1188,30 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 		goto out_put;
 	}
 
+	mmap_read_lock(current->mm);
+	area = vma_lookup(current->mm, addr);
+	mmap_read_unlock(current->mm);
+	if (!area) {
+		pr_err("%s: Did not create a vm_area_struct for the mmap\n",
+		       obj->mm.region->name);
+		err = -EINVAL;
+		goto out_addr;
+	}
+
 	if (flags & IGT_MMAP_MIGRATE_FILL) {
 		err = igt_fill_mappable(placements[0], &objects);
 		if (err)
-			goto out_put;
+			goto out_addr;
 	}
 
 	err = i915_gem_object_lock(obj, NULL);
 	if (err)
-		goto out_put;
+		goto out_addr;
 
 	err = i915_gem_object_pin_pages(obj);
 	if (err) {
 		i915_gem_object_unlock(obj);
-		goto out_put;
+		goto out_addr;
 	}
 
 	err = intel_context_migrate_clear(to_gt(i915)->migrate.context, NULL,
@@ -1228,7 +1219,7 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 					  i915_gem_object_is_lmem(obj),
 					  expand32(POISON_INUSE), &rq);
 	i915_gem_object_unpin_pages(obj);
-	if (rq) {
+	if (rq && !err) {
 		err = dma_resv_reserve_fences(obj->base.resv, 1);
 		if (!err)
 			dma_resv_add_fence(obj->base.resv, &rq->fence,
@@ -1237,7 +1228,7 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 	}
 	i915_gem_object_unlock(obj);
 	if (err)
-		goto out_put;
+		goto out_addr;
 
 	if (flags & IGT_MMAP_MIGRATE_EVICTABLE)
 		igt_make_evictable(&objects);
@@ -1245,16 +1236,16 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 	if (flags & IGT_MMAP_MIGRATE_FAIL_GPU) {
 		err = i915_gem_object_lock(obj, NULL);
 		if (err)
-			goto out_put;
+			goto out_addr;
 
 		/*
-		 * Ensure we only simulate the gpu failuire when faulting the
+		 * Ensure we only simulate the gpu failure when faulting the
 		 * pages.
 		 */
 		err = i915_gem_object_wait_moving_fence(obj, true);
 		i915_gem_object_unlock(obj);
 		if (err)
-			goto out_put;
+			goto out_addr;
 		i915_ttm_migrate_set_failure_modes(true, false);
 	}
 
@@ -1297,6 +1288,9 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 			err = -EINVAL;
 		}
 	}
+
+out_addr:
+	vm_munmap(addr, obj->base.size);
 
 out_put:
 	i915_gem_object_put(obj);
