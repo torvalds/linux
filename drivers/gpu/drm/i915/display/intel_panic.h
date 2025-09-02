@@ -8,7 +8,7 @@ struct drm_scanout_buffer;
 struct intel_panic;
 
 struct intel_panic *intel_panic_alloc(void);
-int intel_panic_setup(struct drm_scanout_buffer *sb);
+int intel_panic_setup(struct intel_panic *panic, struct drm_scanout_buffer *sb);
 void intel_panic_finish(struct intel_panic *panic);
 
 #endif /* __INTEL_PANIC_H__ */

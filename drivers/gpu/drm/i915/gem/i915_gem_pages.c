@@ -445,12 +445,11 @@ struct intel_panic *i915_gem_object_alloc_panic(void)
  * Use current vaddr if it exists, or setup a list of pages.
  * pfn is not supported yet.
  */
-int i915_gem_object_panic_setup(struct drm_scanout_buffer *sb)
+int i915_gem_object_panic_setup(struct intel_panic *panic, struct drm_scanout_buffer *sb,
+				struct drm_gem_object *_obj, bool panic_tiling)
 {
 	enum i915_map_type has_type;
-	struct intel_framebuffer *fb = (struct intel_framebuffer *)sb->private;
-	struct intel_panic *panic = fb->panic;
-	struct drm_i915_gem_object *obj = to_intel_bo(intel_fb_bo(&fb->base));
+	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
 	void *ptr;
 
 	ptr = page_unpack_bits(obj->mm.mapping, &has_type);
@@ -460,7 +459,7 @@ int i915_gem_object_panic_setup(struct drm_scanout_buffer *sb)
 		else
 			iosys_map_set_vaddr(&sb->map[0], ptr);
 
-		if (fb->panic_tiling)
+		if (panic_tiling)
 			sb->set_pixel = i915_gem_object_panic_map_set_pixel;
 		return 0;
 	}

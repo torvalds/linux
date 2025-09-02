@@ -66,11 +66,8 @@ struct intel_panic *intel_panic_alloc(void)
 	return panic;
 }
 
-int intel_panic_setup(struct drm_scanout_buffer *sb)
+int intel_panic_setup(struct intel_panic *panic, struct drm_scanout_buffer *sb)
 {
-	struct intel_framebuffer *fb = (struct intel_framebuffer *)sb->private;
-	struct intel_panic *panic = fb->panic;
-
 	panic->page = -1;
 	sb->set_pixel = xe_panic_page_set_pixel;
 	return 0;

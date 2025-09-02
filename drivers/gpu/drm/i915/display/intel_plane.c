@@ -1409,7 +1409,7 @@ static int intel_get_scanout_buffer(struct drm_plane *plane,
 				return -EOPNOTSUPP;
 		}
 		sb->private = intel_fb;
-		ret = intel_panic_setup(sb);
+		ret = intel_panic_setup(intel_fb->panic, sb);
 		if (ret)
 			return ret;
 	}
