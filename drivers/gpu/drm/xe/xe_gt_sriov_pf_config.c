@@ -33,6 +33,7 @@
 #include "xe_migrate.h"
 #include "xe_sriov.h"
 #include "xe_ttm_vram_mgr.h"
+#include "xe_vram_types.h"
 #include "xe_wopcm.h"
 
 #define make_u64_from_u32(hi, lo) ((u64)((u64)(u32)(hi) << 32 | (u32)(lo)))
@@ -1433,7 +1434,8 @@ fail:
 	return err;
 }
 
-static void pf_release_vf_config_lmem(struct xe_gt *gt, struct xe_gt_sriov_config *config)
+/* Return: %true if there was an LMEM provisioned, %false otherwise */
+static bool pf_release_vf_config_lmem(struct xe_gt *gt, struct xe_gt_sriov_config *config)
 {
 	xe_gt_assert(gt, IS_DGFX(gt_to_xe(gt)));
 	xe_gt_assert(gt, xe_gt_is_main_type(gt));
@@ -1442,7 +1444,9 @@ static void pf_release_vf_config_lmem(struct xe_gt *gt, struct xe_gt_sriov_confi
 	if (config->lmem_obj) {
 		xe_bo_unpin_map_no_vm(config->lmem_obj);
 		config->lmem_obj = NULL;
+		return true;
 	}
+	return false;
 }
 
 static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
@@ -1604,7 +1608,7 @@ static u64 pf_query_free_lmem(struct xe_gt *gt)
 {
 	struct xe_tile *tile = gt->tile;
 
-	return xe_ttm_vram_get_avail(&tile->mem.vram.ttm.manager);
+	return xe_ttm_vram_get_avail(&tile->mem.vram->ttm.manager);
 }
 
 static u64 pf_query_max_lmem(struct xe_gt *gt)
@@ -2020,12 +2024,13 @@ static void pf_release_vf_config(struct xe_gt *gt, unsigned int vfid)
 {
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
 	struct xe_device *xe = gt_to_xe(gt);
+	bool released;
 
 	if (xe_gt_is_main_type(gt)) {
 		pf_release_vf_config_ggtt(gt, config);
 		if (IS_DGFX(xe)) {
-			pf_release_vf_config_lmem(gt, config);
-			if (xe_device_has_lmtt(xe))
+			released = pf_release_vf_config_lmem(gt, config);
+			if (released && xe_device_has_lmtt(xe))
 				pf_update_vf_lmtt(xe, vfid);
 		}
 	}

@@ -538,6 +538,11 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	  XE_RTP_RULES(GRAPHICS_VERSION(2004), ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(SET(HALF_SLICE_CHICKEN7, CLEAR_OPTIMIZATION_DISABLE))
 	},
+	{ XE_RTP_NAME("13012615864"),
+	  XE_RTP_RULES(GRAPHICS_VERSION(2004),
+		       FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_ACTIONS(SET(TDL_TSL_CHICKEN, RES_CHK_SPR_DIS))
+	},
 
 	/* Xe2_HPG */
 
@@ -602,6 +607,11 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 		       FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(TDL_TSL_CHICKEN, STK_ID_RESTRICT))
 	},
+	{ XE_RTP_NAME("13012615864"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, 2002),
+		       FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_ACTIONS(SET(TDL_TSL_CHICKEN, RES_CHK_SPR_DIS))
+	},
 
 	/* Xe2_LPM */
 
@@ -647,7 +657,8 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	  XE_RTP_ACTIONS(SET(TDL_CHICKEN, QID_WAIT_FOR_THREAD_NOT_RUN_DISABLE))
 	},
 	{ XE_RTP_NAME("13012615864"),
-	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(3000, 3001),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(3000, 3001), OR,
+		       GRAPHICS_VERSION(3003),
 		       FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(TDL_TSL_CHICKEN, RES_CHK_SPR_DIS))
 	},
@@ -905,13 +916,13 @@ void xe_wa_process_device_oob(struct xe_device *xe)
 }
 
 /**
- * xe_wa_process_oob - process OOB workaround table
+ * xe_wa_process_gt_oob - process GT OOB workaround table
  * @gt: GT instance to process workarounds for
  *
  * Process OOB workaround table for this platform, marking in @gt the
  * workarounds that are active.
  */
-void xe_wa_process_oob(struct xe_gt *gt)
+void xe_wa_process_gt_oob(struct xe_gt *gt)
 {
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(gt);
 
@@ -995,12 +1006,12 @@ int xe_wa_device_init(struct xe_device *xe)
 }
 
 /**
- * xe_wa_init - initialize gt with workaround bookkeeping
+ * xe_wa_gt_init - initialize gt with workaround bookkeeping
  * @gt: GT instance to initialize
  *
  * Returns 0 for success, negative error code otherwise.
  */
-int xe_wa_init(struct xe_gt *gt)
+int xe_wa_gt_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	size_t n_oob, n_lrc, n_engine, n_gt, total;
@@ -1026,7 +1037,7 @@ int xe_wa_init(struct xe_gt *gt)
 
 	return 0;
 }
-ALLOW_ERROR_INJECTION(xe_wa_init, ERRNO); /* See xe_pci_probe() */
+ALLOW_ERROR_INJECTION(xe_wa_gt_init, ERRNO); /* See xe_pci_probe() */
 
 void xe_wa_device_dump(struct xe_device *xe, struct drm_printer *p)
 {
@@ -1079,6 +1090,6 @@ void xe_wa_apply_tile_workarounds(struct xe_tile *tile)
 	if (IS_SRIOV_VF(tile->xe))
 		return;
 
-	if (XE_WA(tile->primary_gt, 22010954014))
+	if (XE_GT_WA(tile->primary_gt, 22010954014))
 		xe_mmio_rmw32(mmio, XEHP_CLOCK_GATE_DIS, 0, SGSI_SIDECLK_DIS);
 }

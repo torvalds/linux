@@ -101,6 +101,11 @@ static void fake_read_gmdid(struct xe_device *xe, enum xe_gmdid_type type,
 	}
 }
 
+static void fake_xe_info_probe_tile_count(struct xe_device *xe)
+{
+	/* Nothing to do, just use the statically defined value. */
+}
+
 int xe_pci_fake_device_init(struct xe_device *xe)
 {
 	struct kunit *test = kunit_get_current_test();
@@ -138,6 +143,8 @@ done:
 			   data->sriov_mode : XE_SRIOV_MODE_NONE;
 
 	kunit_activate_static_stub(test, read_gmdid, fake_read_gmdid);
+	kunit_activate_static_stub(test, xe_info_probe_tile_count,
+				   fake_xe_info_probe_tile_count);
 
 	xe_info_init_early(xe, desc, subplatform_desc);
 	xe_info_init(xe, desc);

@@ -25,6 +25,7 @@
 #include "xe_guc.h"
 #include "xe_guc_hxg_helpers.h"
 #include "xe_guc_relay.h"
+#include "xe_lrc.h"
 #include "xe_mmio.h"
 #include "xe_sriov.h"
 #include "xe_sriov_vf.h"
@@ -748,6 +749,19 @@ int xe_gt_sriov_vf_connect(struct xe_gt *gt)
 failed:
 	xe_gt_sriov_err(gt, "Failed to get version info (%pe)\n", ERR_PTR(err));
 	return err;
+}
+
+/**
+ * xe_gt_sriov_vf_default_lrcs_hwsp_rebase - Update GGTT references in HWSP of default LRCs.
+ * @gt: the &xe_gt struct instance
+ */
+void xe_gt_sriov_vf_default_lrcs_hwsp_rebase(struct xe_gt *gt)
+{
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+
+	for_each_hw_engine(hwe, gt, id)
+		xe_default_lrc_update_memirq_regs_with_address(hwe);
 }
 
 /**

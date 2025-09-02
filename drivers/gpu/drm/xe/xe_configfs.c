@@ -5,6 +5,7 @@
 
 #include <linux/bitops.h>
 #include <linux/configfs.h>
+#include <linux/cleanup.h>
 #include <linux/find.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -12,9 +13,9 @@
 #include <linux/string.h>
 
 #include "xe_configfs.h"
-#include "xe_module.h"
-
 #include "xe_hw_engine_types.h"
+#include "xe_module.h"
+#include "xe_pci_types.h"
 
 /**
  * DOC: Xe Configfs
@@ -23,23 +24,45 @@
  * =========
  *
  * Configfs is a filesystem-based manager of kernel objects. XE KMD registers a
- * configfs subsystem called ``'xe'`` that creates a directory in the mounted configfs directory
- * The user can create devices under this directory and configure them as necessary
- * See Documentation/filesystems/configfs.rst for more information about how configfs works.
+ * configfs subsystem called ``xe`` that creates a directory in the mounted
+ * configfs directory. The user can create devices under this directory and
+ * configure them as necessary. See Documentation/filesystems/configfs.rst for
+ * more information about how configfs works.
  *
  * Create devices
- * ===============
+ * ==============
  *
- * In order to create a device, the user has to create a directory inside ``'xe'``::
+ * To create a device, the ``xe`` module should already be loaded, but some
+ * attributes can only be set before binding the device. It can be accomplished
+ * by blocking the driver autoprobe:
  *
- *	mkdir /sys/kernel/config/xe/0000:03:00.0/
+ *	# echo 0 > /sys/bus/pci/drivers_autoprobe
+ *	# modprobe xe
+ *
+ * In order to create a device, the user has to create a directory inside ``xe``::
+ *
+ *	# mkdir /sys/kernel/config/xe/0000:03:00.0/
  *
  * Every device created is populated by the driver with entries that can be
  * used to configure it::
  *
  *	/sys/kernel/config/xe/
- *		.. 0000:03:00.0/
- *			... survivability_mode
+ *	├── 0000:00:02.0
+ *	│   └── ...
+ *	├── 0000:00:02.1
+ *	│   └── ...
+ *	:
+ *	└── 0000:03:00.0
+ *	    ├── survivability_mode
+ *	    ├── engines_allowed
+ *	    └── enable_psmi
+ *
+ * After configuring the attributes as per next section, the device can be
+ * probed with::
+ *
+ *	# echo 0000:03:00.0 > /sys/bus/pci/drivers/xe/bind
+ *	# # or
+ *	# echo 0000:03:00.0 > /sys/bus/pci/drivers_probe
  *
  * Configure Attributes
  * ====================
@@ -51,7 +74,8 @@
  * effect when probing the device. Example to enable it::
  *
  *	# echo 1 > /sys/kernel/config/xe/0000:03:00.0/survivability_mode
- *	# echo 0000:03:00.0 > /sys/bus/pci/drivers/xe/bind  (Enters survivability mode if supported)
+ *
+ * This attribute can only be set before binding to the device.
  *
  * Allowed engines:
  * ----------------
@@ -77,23 +101,51 @@
  * available for migrations, but it's disabled. This is intended for debugging
  * purposes only.
  *
+ * This attribute can only be set before binding to the device.
+ *
+ * PSMI
+ * ----
+ *
+ * Enable extra debugging capabilities to trace engine execution. Only useful
+ * during early platform enabling and requires additional hardware connected.
+ * Once it's enabled, additionals WAs are added and runtime configuration is
+ * done via debugfs. Example to enable it::
+ *
+ *	# echo 1 > /sys/kernel/config/xe/0000:03:00.0/enable_psmi
+ *
+ * This attribute can only be set before binding to the device.
+ *
  * Remove devices
  * ==============
  *
  * The created device directories can be removed using ``rmdir``::
  *
- *	rmdir /sys/kernel/config/xe/0000:03:00.0/
+ *	# rmdir /sys/kernel/config/xe/0000:03:00.0/
  */
 
-struct xe_config_device {
+struct xe_config_group_device {
 	struct config_group group;
 
-	bool survivability_mode;
-	u64 engines_allowed;
+	struct xe_config_device {
+		u64 engines_allowed;
+		bool survivability_mode;
+		bool enable_psmi;
+	} config;
 
 	/* protects attributes */
 	struct mutex lock;
 };
+
+static const struct xe_config_device device_defaults = {
+	.engines_allowed = U64_MAX,
+	.survivability_mode = false,
+	.enable_psmi = false,
+};
+
+static void set_device_defaults(struct xe_config_device *config)
+{
+	*config = device_defaults;
+}
 
 struct engine_info {
 	const char *cls;
@@ -113,9 +165,40 @@ static const struct engine_info engine_info[] = {
 	{ .cls = "gsccs", .mask = XE_HW_ENGINE_GSCCS_MASK },
 };
 
+static struct xe_config_group_device *to_xe_config_group_device(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct xe_config_group_device, group);
+}
+
 static struct xe_config_device *to_xe_config_device(struct config_item *item)
 {
-	return container_of(to_config_group(item), struct xe_config_device, group);
+	return &to_xe_config_group_device(item)->config;
+}
+
+static bool is_bound(struct xe_config_group_device *dev)
+{
+	unsigned int domain, bus, slot, function;
+	struct pci_dev *pdev;
+	const char *name;
+	bool ret;
+
+	lockdep_assert_held(&dev->lock);
+
+	name = dev->group.cg_item.ci_name;
+	if (sscanf(name, "%x:%x:%x.%x", &domain, &bus, &slot, &function) != 4)
+		return false;
+
+	pdev = pci_get_domain_bus_and_slot(domain, bus, PCI_DEVFN(slot, function));
+	if (!pdev)
+		return false;
+
+	ret = pci_get_drvdata(pdev);
+	pci_dev_put(pdev);
+
+	if (ret)
+		pci_dbg(pdev, "Already bound to driver\n");
+
+	return ret;
 }
 
 static ssize_t survivability_mode_show(struct config_item *item, char *page)
@@ -127,7 +210,7 @@ static ssize_t survivability_mode_show(struct config_item *item, char *page)
 
 static ssize_t survivability_mode_store(struct config_item *item, const char *page, size_t len)
 {
-	struct xe_config_device *dev = to_xe_config_device(item);
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
 	bool survivability_mode;
 	int ret;
 
@@ -135,9 +218,11 @@ static ssize_t survivability_mode_store(struct config_item *item, const char *pa
 	if (ret)
 		return ret;
 
-	mutex_lock(&dev->lock);
-	dev->survivability_mode = survivability_mode;
-	mutex_unlock(&dev->lock);
+	guard(mutex)(&dev->lock);
+	if (is_bound(dev))
+		return -EBUSY;
+
+	dev->config.survivability_mode = survivability_mode;
 
 	return len;
 }
@@ -199,7 +284,7 @@ static bool lookup_engine_mask(const char *pattern, u64 *mask)
 static ssize_t engines_allowed_store(struct config_item *item, const char *page,
 				     size_t len)
 {
-	struct xe_config_device *dev = to_xe_config_device(item);
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
 	size_t patternlen, p;
 	u64 mask, val = 0;
 
@@ -219,25 +304,55 @@ static ssize_t engines_allowed_store(struct config_item *item, const char *page,
 		val |= mask;
 	}
 
-	mutex_lock(&dev->lock);
-	dev->engines_allowed = val;
-	mutex_unlock(&dev->lock);
+	guard(mutex)(&dev->lock);
+	if (is_bound(dev))
+		return -EBUSY;
+
+	dev->config.engines_allowed = val;
 
 	return len;
 }
 
-CONFIGFS_ATTR(, survivability_mode);
+static ssize_t enable_psmi_show(struct config_item *item, char *page)
+{
+	struct xe_config_device *dev = to_xe_config_device(item);
+
+	return sprintf(page, "%d\n", dev->enable_psmi);
+}
+
+static ssize_t enable_psmi_store(struct config_item *item, const char *page, size_t len)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
+	bool val;
+	int ret;
+
+	ret = kstrtobool(page, &val);
+	if (ret)
+		return ret;
+
+	guard(mutex)(&dev->lock);
+	if (is_bound(dev))
+		return -EBUSY;
+
+	dev->config.enable_psmi = val;
+
+	return len;
+}
+
+CONFIGFS_ATTR(, enable_psmi);
 CONFIGFS_ATTR(, engines_allowed);
+CONFIGFS_ATTR(, survivability_mode);
 
 static struct configfs_attribute *xe_config_device_attrs[] = {
-	&attr_survivability_mode,
+	&attr_enable_psmi,
 	&attr_engines_allowed,
+	&attr_survivability_mode,
 	NULL,
 };
 
 static void xe_config_device_release(struct config_item *item)
 {
-	struct xe_config_device *dev = to_xe_config_device(item);
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
 
 	mutex_destroy(&dev->lock);
 	kfree(dev);
@@ -253,29 +368,81 @@ static const struct config_item_type xe_config_device_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
+static const struct xe_device_desc *xe_match_desc(struct pci_dev *pdev)
+{
+	struct device_driver *driver = driver_find("xe", &pci_bus_type);
+	struct pci_driver *drv = to_pci_driver(driver);
+	const struct pci_device_id *ids = drv ? drv->id_table : NULL;
+	const struct pci_device_id *found = pci_match_id(ids, pdev);
+
+	return found ? (const void *)found->driver_data : NULL;
+}
+
+static struct pci_dev *get_physfn_instead(struct pci_dev *virtfn)
+{
+	struct pci_dev *physfn = pci_physfn(virtfn);
+
+	pci_dev_get(physfn);
+	pci_dev_put(virtfn);
+	return physfn;
+}
+
 static struct config_group *xe_config_make_device_group(struct config_group *group,
 							const char *name)
 {
 	unsigned int domain, bus, slot, function;
-	struct xe_config_device *dev;
+	struct xe_config_group_device *dev;
+	const struct xe_device_desc *match;
 	struct pci_dev *pdev;
+	char canonical[16];
+	int vfnumber = 0;
 	int ret;
 
-	ret = sscanf(name, "%04x:%02x:%02x.%x", &domain, &bus, &slot, &function);
+	ret = sscanf(name, "%x:%x:%x.%x", &domain, &bus, &slot, &function);
 	if (ret != 4)
 		return ERR_PTR(-EINVAL);
 
+	ret = scnprintf(canonical, sizeof(canonical), "%04x:%02x:%02x.%d", domain, bus,
+			PCI_SLOT(PCI_DEVFN(slot, function)),
+			PCI_FUNC(PCI_DEVFN(slot, function)));
+	if (ret != 12 || strcmp(name, canonical))
+		return ERR_PTR(-EINVAL);
+
 	pdev = pci_get_domain_bus_and_slot(domain, bus, PCI_DEVFN(slot, function));
+	if (!pdev && function)
+		pdev = pci_get_domain_bus_and_slot(domain, bus, PCI_DEVFN(slot, 0));
+	if (!pdev && slot)
+		pdev = pci_get_domain_bus_and_slot(domain, bus, PCI_DEVFN(0, 0));
 	if (!pdev)
 		return ERR_PTR(-ENODEV);
+
+	if (PCI_DEVFN(slot, function) != pdev->devfn) {
+		pdev = get_physfn_instead(pdev);
+		vfnumber = PCI_DEVFN(slot, function) - pdev->devfn;
+		if (!dev_is_pf(&pdev->dev) || vfnumber > pci_sriov_get_totalvfs(pdev)) {
+			pci_dev_put(pdev);
+			return ERR_PTR(-ENODEV);
+		}
+	}
+
+	match = xe_match_desc(pdev);
+	if (match && vfnumber && !match->has_sriov) {
+		pci_info(pdev, "xe driver does not support VFs on this device\n");
+		match = NULL;
+	} else if (!match) {
+		pci_info(pdev, "xe driver does not support configuration of this device\n");
+	}
+
 	pci_dev_put(pdev);
+
+	if (!match)
+		return ERR_PTR(-ENOENT);
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	/* Default values */
-	dev->engines_allowed = U64_MAX;
+	set_device_defaults(&dev->config);
 
 	config_group_init_type_name(&dev->group, name, &xe_config_device_type);
 
@@ -302,102 +469,145 @@ static struct configfs_subsystem xe_configfs = {
 	},
 };
 
-static struct xe_config_device *configfs_find_group(struct pci_dev *pdev)
+static struct xe_config_group_device *find_xe_config_group_device(struct pci_dev *pdev)
 {
 	struct config_item *item;
-	char name[64];
-
-	snprintf(name, sizeof(name), "%04x:%02x:%02x.%x", pci_domain_nr(pdev->bus),
-		 pdev->bus->number, PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 
 	mutex_lock(&xe_configfs.su_mutex);
-	item = config_group_find_item(&xe_configfs.su_group, name);
+	item = config_group_find_item(&xe_configfs.su_group, pci_name(pdev));
 	mutex_unlock(&xe_configfs.su_mutex);
 
 	if (!item)
 		return NULL;
 
-	return to_xe_config_device(item);
+	return to_xe_config_group_device(item);
+}
+
+static void dump_custom_dev_config(struct pci_dev *pdev,
+				   struct xe_config_group_device *dev)
+{
+#define PRI_CUSTOM_ATTR(fmt_, attr_) do { \
+		if (dev->config.attr_ != device_defaults.attr_) \
+			pci_info(pdev, "configfs: " __stringify(attr_) " = " fmt_ "\n", \
+				 dev->config.attr_); \
+	} while (0)
+
+	PRI_CUSTOM_ATTR("%llx", engines_allowed);
+	PRI_CUSTOM_ATTR("%d", enable_psmi);
+	PRI_CUSTOM_ATTR("%d", survivability_mode);
+
+#undef PRI_CUSTOM_ATTR
+}
+
+/**
+ * xe_configfs_check_device() - Test if device was configured by configfs
+ * @pdev: the &pci_dev device to test
+ *
+ * Try to find the configfs group that belongs to the specified pci device
+ * and print a diagnostic message if different than the default value.
+ */
+void xe_configfs_check_device(struct pci_dev *pdev)
+{
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
+
+	if (!dev)
+		return;
+
+	/* memcmp here is safe as both are zero-initialized */
+	if (memcmp(&dev->config, &device_defaults, sizeof(dev->config))) {
+		pci_info(pdev, "Found custom settings in configfs\n");
+		dump_custom_dev_config(pdev, dev);
+	}
+
+	config_group_put(&dev->group);
 }
 
 /**
  * xe_configfs_get_survivability_mode - get configfs survivability mode attribute
  * @pdev: pci device
  *
- * find the configfs group that belongs to the pci device and return
- * the survivability mode attribute
- *
- * Return: survivability mode if config group is found, false otherwise
+ * Return: survivability_mode attribute in configfs
  */
 bool xe_configfs_get_survivability_mode(struct pci_dev *pdev)
 {
-	struct xe_config_device *dev = configfs_find_group(pdev);
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
 	bool mode;
 
 	if (!dev)
-		return false;
+		return device_defaults.survivability_mode;
 
-	mode = dev->survivability_mode;
-	config_item_put(&dev->group.cg_item);
+	mode = dev->config.survivability_mode;
+	config_group_put(&dev->group);
 
 	return mode;
 }
 
 /**
- * xe_configfs_clear_survivability_mode - clear configfs survivability mode attribute
+ * xe_configfs_clear_survivability_mode - clear configfs survivability mode
  * @pdev: pci device
- *
- * find the configfs group that belongs to the pci device and clear survivability
- * mode attribute
  */
 void xe_configfs_clear_survivability_mode(struct pci_dev *pdev)
 {
-	struct xe_config_device *dev = configfs_find_group(pdev);
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
 
 	if (!dev)
 		return;
 
-	mutex_lock(&dev->lock);
-	dev->survivability_mode = 0;
-	mutex_unlock(&dev->lock);
+	guard(mutex)(&dev->lock);
+	dev->config.survivability_mode = 0;
 
-	config_item_put(&dev->group.cg_item);
+	config_group_put(&dev->group);
 }
 
 /**
  * xe_configfs_get_engines_allowed - get engine allowed mask from configfs
  * @pdev: pci device
  *
- * Find the configfs group that belongs to the pci device and return
- * the mask of engines allowed to be used.
- *
- * Return: engine mask with allowed engines
+ * Return: engine mask with allowed engines set in configfs
  */
 u64 xe_configfs_get_engines_allowed(struct pci_dev *pdev)
 {
-	struct xe_config_device *dev = configfs_find_group(pdev);
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
 	u64 engines_allowed;
 
 	if (!dev)
-		return U64_MAX;
+		return device_defaults.engines_allowed;
 
-	engines_allowed = dev->engines_allowed;
-	config_item_put(&dev->group.cg_item);
+	engines_allowed = dev->config.engines_allowed;
+	config_group_put(&dev->group);
 
 	return engines_allowed;
 }
 
+/**
+ * xe_configfs_get_psmi_enabled - get configfs enable_psmi setting
+ * @pdev: pci device
+ *
+ * Return: enable_psmi setting in configfs
+ */
+bool xe_configfs_get_psmi_enabled(struct pci_dev *pdev)
+{
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
+	bool ret;
+
+	if (!dev)
+		return false;
+
+	ret = dev->config.enable_psmi;
+	config_item_put(&dev->group.cg_item);
+
+	return ret;
+}
+
 int __init xe_configfs_init(void)
 {
-	struct config_group *root = &xe_configfs.su_group;
 	int ret;
 
-	config_group_init(root);
+	config_group_init(&xe_configfs.su_group);
 	mutex_init(&xe_configfs.su_mutex);
 	ret = configfs_register_subsystem(&xe_configfs);
 	if (ret) {
-		pr_err("Error %d while registering %s subsystem\n",
-		       ret, root->cg_item.ci_namebuf);
+		mutex_destroy(&xe_configfs.su_mutex);
 		return ret;
 	}
 
@@ -407,5 +617,5 @@ int __init xe_configfs_init(void)
 void __exit xe_configfs_exit(void)
 {
 	configfs_unregister_subsystem(&xe_configfs);
+	mutex_destroy(&xe_configfs.su_mutex);
 }
-

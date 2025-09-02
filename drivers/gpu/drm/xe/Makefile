@@ -35,6 +35,7 @@ $(obj)/generated/%_device_wa_oob.c $(obj)/generated/%_device_wa_oob.h: $(obj)/xe
 xe-y += xe_bb.o \
 	xe_bo.o \
 	xe_bo_evict.o \
+	xe_dep_scheduler.o \
 	xe_devcoredump.o \
 	xe_device.o \
 	xe_device_sysfs.o \
@@ -60,7 +61,6 @@ xe-y += xe_bb.o \
 	xe_gt_pagefault.o \
 	xe_gt_sysfs.o \
 	xe_gt_throttle.o \
-	xe_gt_tlb_invalidation.o \
 	xe_gt_topology.o \
 	xe_guc.o \
 	xe_guc_ads.o \
@@ -75,16 +75,19 @@ xe-y += xe_bb.o \
 	xe_guc_log.o \
 	xe_guc_pc.o \
 	xe_guc_submit.o \
+	xe_guc_tlb_inval.o \
 	xe_heci_gsc.o \
 	xe_huc.o \
 	xe_hw_engine.o \
 	xe_hw_engine_class_sysfs.o \
 	xe_hw_engine_group.o \
+	xe_hw_error.o \
 	xe_hw_fence.o \
 	xe_irq.o \
 	xe_lrc.o \
 	xe_migrate.o \
 	xe_mmio.o \
+	xe_mmio_gem.o \
 	xe_mocs.o \
 	xe_module.o \
 	xe_nvm.o \
@@ -95,6 +98,7 @@ xe-y += xe_bb.o \
 	xe_pcode.o \
 	xe_pm.o \
 	xe_preempt_fence.o \
+	xe_psmi.o \
 	xe_pt.o \
 	xe_pt_walk.o \
 	xe_pxp.o \
@@ -114,6 +118,8 @@ xe-y += xe_bb.o \
 	xe_sync.o \
 	xe_tile.o \
 	xe_tile_sysfs.o \
+	xe_tlb_inval.o \
+	xe_tlb_inval_job.o \
 	xe_trace.o \
 	xe_trace_bo.o \
 	xe_trace_guc.o \
@@ -125,6 +131,7 @@ xe-y += xe_bb.o \
 	xe_uc.o \
 	xe_uc_fw.o \
 	xe_vm.o \
+	xe_vm_madvise.o \
 	xe_vram.o \
 	xe_vram_freq.o \
 	xe_vsec.o \
@@ -149,6 +156,7 @@ xe-y += \
 	xe_memirq.o \
 	xe_sriov.o \
 	xe_sriov_vf.o \
+	xe_sriov_vf_ccs.o \
 	xe_tile_sriov_vf.o
 
 xe-$(CONFIG_PCI_IOV) += \

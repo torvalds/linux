@@ -17,6 +17,8 @@
 
 #include "display/xe_display.h"
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_regs.h"
+#include "xe_configfs.h"
 #include "xe_device.h"
 #include "xe_drv.h"
 #include "xe_gt.h"
@@ -55,7 +57,7 @@ static const struct xe_graphics_desc graphics_xelp = {
 };
 
 #define XE_HP_FEATURES \
-	.has_range_tlb_invalidation = true, \
+	.has_range_tlb_inval = true, \
 	.va_bits = 48, \
 	.vm_max_level = 3
 
@@ -103,7 +105,7 @@ static const struct xe_graphics_desc graphics_xelpg = {
 	.has_asid = 1, \
 	.has_atomic_enable_pte_bit = 1, \
 	.has_flat_ccs = 1, \
-	.has_range_tlb_invalidation = 1, \
+	.has_range_tlb_inval = 1, \
 	.has_usm = 1, \
 	.has_64bit_timestamp = 1, \
 	.va_bits = 48, \
@@ -169,6 +171,7 @@ static const struct xe_device_desc tgl_desc = {
 	.dma_mask_size = 39,
 	.has_display = true,
 	.has_llc = true,
+	.has_sriov = true,
 	.max_gt_per_tile = 1,
 	.require_force_probe = true,
 };
@@ -193,6 +196,7 @@ static const struct xe_device_desc adl_s_desc = {
 	.dma_mask_size = 39,
 	.has_display = true,
 	.has_llc = true,
+	.has_sriov = true,
 	.max_gt_per_tile = 1,
 	.require_force_probe = true,
 	.subplatforms = (const struct xe_subplatform_desc[]) {
@@ -210,6 +214,7 @@ static const struct xe_device_desc adl_p_desc = {
 	.dma_mask_size = 39,
 	.has_display = true,
 	.has_llc = true,
+	.has_sriov = true,
 	.max_gt_per_tile = 1,
 	.require_force_probe = true,
 	.subplatforms = (const struct xe_subplatform_desc[]) {
@@ -225,6 +230,7 @@ static const struct xe_device_desc adl_n_desc = {
 	.dma_mask_size = 39,
 	.has_display = true,
 	.has_llc = true,
+	.has_sriov = true,
 	.max_gt_per_tile = 1,
 	.require_force_probe = true,
 };
@@ -270,6 +276,7 @@ static const struct xe_device_desc ats_m_desc = {
 
 	DG2_FEATURES,
 	.has_display = false,
+	.has_sriov = true,
 };
 
 static const struct xe_device_desc dg2_desc = {
@@ -599,6 +606,44 @@ static int xe_info_init_early(struct xe_device *xe,
 }
 
 /*
+ * Possibly override number of tile based on configuration register.
+ */
+static void xe_info_probe_tile_count(struct xe_device *xe)
+{
+	struct xe_mmio *mmio;
+	u8 tile_count;
+	u32 mtcfg;
+
+	KUNIT_STATIC_STUB_REDIRECT(xe_info_probe_tile_count, xe);
+
+	/*
+	 * Probe for tile count only for platforms that support multiple
+	 * tiles.
+	 */
+	if (xe->info.tile_count == 1)
+		return;
+
+	if (xe->info.skip_mtcfg)
+		return;
+
+	mmio = xe_root_tile_mmio(xe);
+
+	/*
+	 * Although the per-tile mmio regs are not yet initialized, this
+	 * is fine as it's going to the root tile's mmio, that's
+	 * guaranteed to be initialized earlier in xe_mmio_probe_early()
+	 */
+	mtcfg = xe_mmio_read32(mmio, XEHP_MTCFG_ADDR);
+	tile_count = REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
+
+	if (tile_count < xe->info.tile_count) {
+		drm_info(&xe->drm, "tile_count: %d, reduced_tile_count %d\n",
+			 xe->info.tile_count, tile_count);
+		xe->info.tile_count = tile_count;
+	}
+}
+
+/*
  * Initialize device info content that does require knowledge about
  * graphics / media IP version.
  * Make sure that GT / tile structures allocated by the driver match the data
@@ -668,9 +713,11 @@ static int xe_info_init(struct xe_device *xe,
 	/* Runtime detection may change this later */
 	xe->info.has_flat_ccs = graphics_desc->has_flat_ccs;
 
-	xe->info.has_range_tlb_invalidation = graphics_desc->has_range_tlb_invalidation;
+	xe->info.has_range_tlb_inval = graphics_desc->has_range_tlb_inval;
 	xe->info.has_usm = graphics_desc->has_usm;
 	xe->info.has_64bit_timestamp = graphics_desc->has_64bit_timestamp;
+
+	xe_info_probe_tile_count(xe);
 
 	for_each_remote_tile(tile, xe, id) {
 		int err;
@@ -687,12 +734,17 @@ static int xe_info_init(struct xe_device *xe,
 	 * All of these together determine the overall GT count.
 	 */
 	for_each_tile(tile, xe, id) {
+		int err;
+
 		gt = tile->primary_gt;
 		gt->info.type = XE_GT_TYPE_MAIN;
 		gt->info.id = tile->id * xe->info.max_gt_per_tile;
 		gt->info.has_indirect_ring_state = graphics_desc->has_indirect_ring_state;
 		gt->info.engine_mask = graphics_desc->hw_engine_mask;
-		xe->info.gt_count++;
+
+		err = xe_tile_alloc_vram(tile);
+		if (err)
+			return err;
 
 		if (MEDIA_VER(xe) < 13 && media_desc)
 			gt->info.engine_mask |= media_desc->hw_engine_mask;
@@ -713,8 +765,14 @@ static int xe_info_init(struct xe_device *xe,
 		gt->info.id = tile->id * xe->info.max_gt_per_tile + 1;
 		gt->info.has_indirect_ring_state = media_desc->has_indirect_ring_state;
 		gt->info.engine_mask = media_desc->hw_engine_mask;
-		xe->info.gt_count++;
 	}
+
+	/*
+	 * Now that we have tiles and GTs defined, let's loop over valid GTs
+	 * in order to define gt_count.
+	 */
+	for_each_gt(gt, xe, id)
+		xe->info.gt_count++;
 
 	return 0;
 }
@@ -726,7 +784,7 @@ static void xe_pci_remove(struct pci_dev *pdev)
 	if (IS_SRIOV_PF(xe))
 		xe_pci_sriov_configure(pdev, 0);
 
-	if (xe_survivability_mode_is_enabled(xe))
+	if (xe_survivability_mode_is_boot_enabled(xe))
 		return;
 
 	xe_device_remove(xe);
@@ -758,6 +816,8 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const struct xe_subplatform_desc *subplatform_desc;
 	struct xe_device *xe;
 	int err;
+
+	xe_configfs_check_device(pdev);
 
 	if (desc->require_force_probe && !id_forced(pdev->device)) {
 		dev_info(&pdev->dev,
@@ -806,7 +866,7 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * flashed through mei. Return success, if survivability mode
 	 * is enabled due to pcode failure or configfs being set
 	 */
-	if (xe_survivability_mode_is_enabled(xe))
+	if (xe_survivability_mode_is_boot_enabled(xe))
 		return 0;
 
 	if (err)
@@ -900,7 +960,7 @@ static int xe_pci_suspend(struct device *dev)
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 	int err;
 
-	if (xe_survivability_mode_is_enabled(xe))
+	if (xe_survivability_mode_is_boot_enabled(xe))
 		return -EBUSY;
 
 	err = xe_pm_suspend(xe);

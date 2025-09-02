@@ -26,11 +26,11 @@
 #include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_monitor.h"
 #include "xe_gt_sriov_printk.h"
-#include "xe_gt_tlb_invalidation.h"
 #include "xe_guc.h"
 #include "xe_guc_log.h"
 #include "xe_guc_relay.h"
 #include "xe_guc_submit.h"
+#include "xe_guc_tlb_inval.h"
 #include "xe_map.h"
 #include "xe_pm.h"
 #include "xe_trace_guc.h"
@@ -1416,8 +1416,7 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		ret = xe_guc_pagefault_handler(guc, payload, adj_len);
 		break;
 	case XE_GUC_ACTION_TLB_INVALIDATION_DONE:
-		ret = xe_guc_tlb_invalidation_done_handler(guc, payload,
-							   adj_len);
+		ret = xe_guc_tlb_inval_done_handler(guc, payload, adj_len);
 		break;
 	case XE_GUC_ACTION_ACCESS_COUNTER_NOTIFY:
 		ret = xe_guc_access_counter_notify_handler(guc, payload,
@@ -1618,8 +1617,7 @@ static void g2h_fast_path(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		break;
 	case XE_GUC_ACTION_TLB_INVALIDATION_DONE:
 		__g2h_release_space(ct, len);
-		ret = xe_guc_tlb_invalidation_done_handler(guc, payload,
-							   adj_len);
+		ret = xe_guc_tlb_inval_done_handler(guc, payload, adj_len);
 		break;
 	default:
 		xe_gt_warn(gt, "NOT_POSSIBLE");
