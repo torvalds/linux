@@ -298,21 +298,6 @@ static struct smbdirect_recv_io *get_first_reassembly(struct smbdirect_socket *s
 		return NULL;
 }
 
-static void smb_direct_disconnect_wake_up_all(struct smbdirect_socket *sc)
-{
-	/*
-	 * Wake up all waiters in all wait queues
-	 * in order to notice the broken connection.
-	 */
-	wake_up_all(&sc->status_wait);
-	wake_up_all(&sc->send_io.bcredits.wait_queue);
-	wake_up_all(&sc->send_io.lcredits.wait_queue);
-	wake_up_all(&sc->send_io.credits.wait_queue);
-	wake_up_all(&sc->send_io.pending.zero_wait_queue);
-	wake_up_all(&sc->recv_io.reassembly.wait_queue);
-	wake_up_all(&sc->rw_io.credits.wait_queue);
-}
-
 static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
@@ -370,7 +355,7 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 	 * Wake up all waiters in all wait queues
 	 * in order to notice the broken connection.
 	 */
-	smb_direct_disconnect_wake_up_all(sc);
+	smbdirect_socket_wake_up_all(sc);
 }
 
 static void
@@ -437,7 +422,7 @@ smb_direct_disconnect_rdma_connection(struct smbdirect_socket *sc)
 	 * Wake up all waiters in all wait queues
 	 * in order to notice the broken connection.
 	 */
-	smb_direct_disconnect_wake_up_all(sc);
+	smbdirect_socket_wake_up_all(sc);
 
 	queue_work(sc->workqueue, &sc->disconnect_work);
 }
@@ -563,7 +548,7 @@ static void free_transport(struct smb_direct_transport *t)
 	 * Most likely this was already called via
 	 * smb_direct_disconnect_rdma_work(), but call it again...
 	 */
-	smb_direct_disconnect_wake_up_all(sc);
+	smbdirect_socket_wake_up_all(sc);
 
 	disable_work_sync(&sc->connect.work);
 	disable_work_sync(&sc->recv_io.posted.refill_work);
