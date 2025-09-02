@@ -316,9 +316,9 @@ static int imx_parse_ioremap_memory(struct snd_sof_dev *sdev)
 		}
 
 		sdev->bar[blk_type] = devm_ioremap_resource(sdev->dev, res);
-		if (!sdev->bar[blk_type])
+		if (IS_ERR(sdev->bar[blk_type]))
 			return dev_err_probe(sdev->dev,
-					     -ENOMEM,
+					     PTR_ERR(sdev->bar[blk_type]),
 					     "failed to ioremap %s region\n",
 					     chip_info->memory[i].name);
 	}
