@@ -3209,9 +3209,9 @@ adjust_wm_latency(struct intel_display *display,
 	}
 
 	/*
-	 * WA Level-0 adjustment for 16GB DIMMs: SKL+
+	 * WA Level-0 adjustment for 16Gb DIMMs: SKL+
 	 * If we could not get dimm info enable this WA to prevent from
-	 * any underrun. If not able to get Dimm info assume 16GB dimm
+	 * any underrun. If not able to get DIMM info assume 16Gb DIMM
 	 * to avoid any underrun.
 	 */
 	if (!display->platform.dg2 && dram_info->has_16gb_dimms)
