@@ -871,6 +871,55 @@ impl fmt::Write for Formatter<'_> {
     }
 }
 
+/// A mutable reference to a byte buffer where a string can be written into.
+///
+/// The buffer will be automatically null terminated after the last written character.
+///
+/// # Invariants
+///
+/// * The first byte of `buffer` is always zero.
+/// * The length of `buffer` is at least 1.
+pub(crate) struct NullTerminatedFormatter<'a> {
+    buffer: &'a mut [u8],
+}
+
+impl<'a> NullTerminatedFormatter<'a> {
+    /// Create a new [`Self`] instance.
+    #[expect(dead_code)]
+    pub(crate) fn new(buffer: &'a mut [u8]) -> Option<NullTerminatedFormatter<'a>> {
+        *(buffer.first_mut()?) = 0;
+
+        // INVARIANT:
+        //  - We wrote zero to the first byte above.
+        //  - If buffer was not at least length 1, `buffer.first_mut()` would return None.
+        Some(Self { buffer })
+    }
+}
+
+impl Write for NullTerminatedFormatter<'_> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        let bytes = s.as_bytes();
+        let len = bytes.len();
+
+        // We want space for a zero. By type invariant, buffer length is always at least 1, so no
+        // underflow.
+        if len > self.buffer.len() - 1 {
+            return Err(fmt::Error);
+        }
+
+        let buffer = core::mem::take(&mut self.buffer);
+        // We break the zero start invariant for a short while.
+        buffer[..len].copy_from_slice(bytes);
+        // INVARIANT: We checked above that buffer will have size at least 1 after this assignment.
+        self.buffer = &mut buffer[len..];
+
+        // INVARIANT: We write zero to the first byte of the buffer.
+        self.buffer[0] = 0;
+
+        Ok(())
+    }
+}
+
 /// An owned string that is guaranteed to have exactly one `NUL` byte, which is at the end.
 ///
 /// Used for interoperability with kernel APIs that take C strings.
