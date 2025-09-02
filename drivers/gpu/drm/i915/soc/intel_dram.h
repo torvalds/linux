@@ -31,7 +31,7 @@ struct dram_info {
 	u8 num_qgv_points;
 	u8 num_psf_gv_points;
 	bool symmetric_memory;
-	bool wm_lv_0_adjust_needed;
+	bool has_16gb_dimms;
 };
 
 void intel_dram_edram_detect(struct drm_i915_private *i915);

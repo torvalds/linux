@@ -3214,7 +3214,7 @@ adjust_wm_latency(struct intel_display *display,
 	 * any underrun. If not able to get Dimm info assume 16GB dimm
 	 * to avoid any underrun.
 	 */
-	if (!display->platform.dg2 && dram_info->wm_lv_0_adjust_needed)
+	if (!display->platform.dg2 && dram_info->has_16gb_dimms)
 		wm[0] += 1;
 }
 
