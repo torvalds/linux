@@ -145,6 +145,9 @@ void kvm_vcpu_load_debug(struct kvm_vcpu *vcpu)
 	/* Must be called before kvm_vcpu_load_vhe() */
 	KVM_BUG_ON(vcpu_get_flag(vcpu, SYSREGS_ON_CPU), vcpu->kvm);
 
+	if (has_vhe())
+		*host_data_ptr(host_debug_state.mdcr_el2) = read_sysreg(mdcr_el2);
+
 	/*
 	 * Determine which of the possible debug states we're in:
 	 *
@@ -191,6 +194,9 @@ void kvm_vcpu_load_debug(struct kvm_vcpu *vcpu)
 
 void kvm_vcpu_put_debug(struct kvm_vcpu *vcpu)
 {
+	if (has_vhe())
+		write_sysreg(*host_data_ptr(host_debug_state.mdcr_el2), mdcr_el2);
+
 	if (likely(!(vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)))
 		return;
 
