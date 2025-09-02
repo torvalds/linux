@@ -999,6 +999,7 @@ static int perf_cgroup_ensure_storage(struct perf_event *event,
 
 	for_each_possible_cpu(cpu) {
 		cpuctx = per_cpu_ptr(&perf_cpu_context, cpu);
+		//Skip if existing heap is large enough
 		if (heap_size <= cpuctx->heap_size)
 			continue;
 
@@ -1012,6 +1013,7 @@ static int perf_cgroup_ensure_storage(struct perf_event *event,
 		raw_spin_lock_irq(&cpuctx->ctx.lock);
 		if (cpuctx->heap_size < heap_size) {
 			swap(cpuctx->heap, storage);
+			//If old heap was default static do not free
 			if (storage == cpuctx->heap_default)
 				storage = NULL;
 			cpuctx->heap_size = heap_size;
