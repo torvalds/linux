@@ -376,7 +376,7 @@ struct tb *tb_domain_alloc(struct tb_nhi *nhi, int timeout_msec, size_t privsize
 	struct tb *tb;
 
 	/*
-	 * Make sure the structure sizes map with that the hardware
+	 * Make sure the structure sizes map with what the hardware
 	 * expects because bit-fields are being used.
 	 */
 	BUILD_BUG_ON(sizeof(struct tb_regs_switch_header) != 5 * 4);
