@@ -1157,7 +1157,7 @@ static const struct pinfunction sdm660_functions[] = {
 	MSM_PIN_FUNCTION(gcc_gp1),
 	MSM_PIN_FUNCTION(gcc_gp2),
 	MSM_PIN_FUNCTION(gcc_gp3),
-	MSM_PIN_FUNCTION(gpio),
+	MSM_GPIO_PIN_FUNCTION(gpio),
 	MSM_PIN_FUNCTION(gps_tx_a),
 	MSM_PIN_FUNCTION(gps_tx_b),
 	MSM_PIN_FUNCTION(gps_tx_c),

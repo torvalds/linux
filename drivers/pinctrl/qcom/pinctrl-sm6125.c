@@ -943,7 +943,7 @@ static const char * const dmic1_data_groups[] = {
 
 static const struct pinfunction sm6125_functions[] = {
 	MSM_PIN_FUNCTION(qup00),
-	MSM_PIN_FUNCTION(gpio),
+	MSM_GPIO_PIN_FUNCTION(gpio),
 	MSM_PIN_FUNCTION(qdss),
 	MSM_PIN_FUNCTION(qup01),
 	MSM_PIN_FUNCTION(qup02),

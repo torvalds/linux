@@ -1128,7 +1128,7 @@ static const char * const vsense_trigger_groups[] = {
 };
 
 static const struct pinfunction sar2130p_functions[] = {
-	MSM_PIN_FUNCTION(gpio),
+	MSM_GPIO_PIN_FUNCTION(gpio),
 	MSM_PIN_FUNCTION(qup0),
 	MSM_PIN_FUNCTION(ibi_i3c),
 	MSM_PIN_FUNCTION(jitter_bist),

@@ -1272,7 +1272,7 @@ static const struct pinfunction sc8180x_functions[] = {
 	MSM_PIN_FUNCTION(gcc_gp3),
 	MSM_PIN_FUNCTION(gcc_gp4),
 	MSM_PIN_FUNCTION(gcc_gp5),
-	MSM_PIN_FUNCTION(gpio),
+	MSM_GPIO_PIN_FUNCTION(gpio),
 	MSM_PIN_FUNCTION(gps),
 	MSM_PIN_FUNCTION(grfc),
 	MSM_PIN_FUNCTION(hs1_mi2s),
