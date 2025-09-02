@@ -223,7 +223,16 @@ static int prbtest_reader(struct prbtest_data *test_data, unsigned long timeout_
 	return 0;
 }
 
+KUNIT_DEFINE_ACTION_WRAPPER(prbtest_cpumask_cleanup, free_cpumask_var, struct cpumask *);
 KUNIT_DEFINE_ACTION_WRAPPER(prbtest_kthread_cleanup, kthread_stop, struct task_struct *);
+
+static void prbtest_add_cpumask_cleanup(struct kunit *test, cpumask_var_t mask)
+{
+	int err;
+
+	err = kunit_add_action_or_reset(test, prbtest_cpumask_cleanup, mask);
+	KUNIT_ASSERT_EQ(test, err, 0);
+}
 
 static void prbtest_add_kthread_cleanup(struct kunit *test, struct task_struct *kthread)
 {
@@ -247,8 +256,11 @@ static void test_readerwriter(struct kunit *test)
 	struct prbtest_thread_data *thread_data;
 	struct prbtest_data *test_data;
 	struct task_struct *thread;
-	cpumask_t test_cpus;
+	cpumask_var_t test_cpus;
 	int cpu, reader_cpu;
+
+	KUNIT_ASSERT_TRUE(test, alloc_cpumask_var(&test_cpus, GFP_KERNEL));
+	prbtest_add_cpumask_cleanup(test, test_cpus);
 
 	cpus_read_lock();
 	/*
@@ -257,15 +269,15 @@ static void test_readerwriter(struct kunit *test)
 	 * Instead use a snapshot of the online CPUs.
 	 * If they change during test execution it is unfortunate but not a grave error.
 	 */
-	cpumask_copy(&test_cpus, cpu_online_mask);
+	cpumask_copy(test_cpus, cpu_online_mask);
 	cpus_read_unlock();
 
 	/* One CPU is for the reader, all others are writers */
-	reader_cpu = cpumask_first(&test_cpus);
-	if (cpumask_weight(&test_cpus) == 1)
+	reader_cpu = cpumask_first(test_cpus);
+	if (cpumask_weight(test_cpus) == 1)
 		kunit_warn(test, "more than one CPU is recommended");
 	else
-		cpumask_clear_cpu(reader_cpu, &test_cpus);
+		cpumask_clear_cpu(reader_cpu, test_cpus);
 
 	/* KUnit test can get restarted more times. */
 	prbtest_prb_reinit(&test_rb);
@@ -278,7 +290,7 @@ static void test_readerwriter(struct kunit *test)
 
 	kunit_info(test, "running for %lu ms\n", runtime_ms);
 
-	for_each_cpu(cpu, &test_cpus) {
+	for_each_cpu(cpu, test_cpus) {
 		thread_data = kunit_kmalloc(test, sizeof(*thread_data), GFP_KERNEL);
 		KUNIT_ASSERT_NOT_NULL(test, thread_data);
 		thread_data->test_data = test_data;
