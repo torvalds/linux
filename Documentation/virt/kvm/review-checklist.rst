@@ -98,7 +98,7 @@ New APIs
   It is important to demonstrate your use case.  This can be as simple as
   explaining that the feature is already in use on bare metal, or it can be
   a proof-of-concept implementation in userspace.  The latter need not be
-  open source, though that is of course preferrable for easier testing.
+  open source, though that is of course preferable for easier testing.
   Selftests should test corner cases of the APIs, and should also cover
   basic host and guest operation if no open source VMM uses the feature.
 
