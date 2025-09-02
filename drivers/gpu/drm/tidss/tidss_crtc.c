@@ -343,6 +343,15 @@ static void tidss_crtc_disable_vblank(struct drm_crtc *crtc)
 	tidss_runtime_put(tidss);
 }
 
+static void tidss_crtc_destroy_state(struct drm_crtc *crtc,
+				     struct drm_crtc_state *state)
+{
+	struct tidss_crtc_state *tstate = to_tidss_crtc_state(state);
+
+	__drm_atomic_helper_crtc_destroy_state(&tstate->base);
+	kfree(tstate);
+}
+
 static void tidss_crtc_reset(struct drm_crtc *crtc)
 {
 	struct tidss_crtc_state *tstate;
@@ -398,7 +407,7 @@ static const struct drm_crtc_funcs tidss_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = tidss_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.atomic_destroy_state = tidss_crtc_destroy_state,
 	.enable_vblank = tidss_crtc_enable_vblank,
 	.disable_vblank = tidss_crtc_disable_vblank,
 };
