@@ -812,8 +812,7 @@ static void tegra_xudc_update_data_role(struct tegra_xudc *xudc,
 		return;
 	}
 
-	xudc->device_mode = (usbphy->last_event == USB_EVENT_VBUS) ? true :
-								     false;
+	xudc->device_mode = usbphy->last_event == USB_EVENT_VBUS;
 
 	phy_index = tegra_xudc_get_phy_index(xudc, usbphy);
 	dev_dbg(xudc->dev, "%s(): current phy index is %d\n", __func__,
