@@ -406,6 +406,9 @@ skl_dram_get_channels_info(struct drm_i915_private *i915, struct dram_info *dram
 	u32 val;
 	int ret;
 
+	/* Assume 16Gb DIMMs are present until proven otherwise */
+	dram_info->has_16gb_dimms = true;
+
 	val = intel_uncore_read(&i915->uncore,
 				SKL_MAD_DIMM_CH0_0_0_0_MCHBAR_MCMAIN);
 	ret = skl_dram_get_channel_info(i915, &ch0, 0, val);
@@ -434,6 +437,9 @@ skl_dram_get_channels_info(struct drm_i915_private *i915, struct dram_info *dram
 
 	drm_dbg_kms(&i915->drm, "Memory configuration is symmetric? %s\n",
 		    str_yes_no(dram_info->symmetric_memory));
+
+	drm_dbg_kms(&i915->drm, "16Gb DIMMs: %s\n",
+		    str_yes_no(dram_info->has_16gb_dimms));
 
 	return 0;
 }
@@ -673,8 +679,6 @@ static int gen11_get_dram_info(struct drm_i915_private *i915, struct dram_info *
 
 static int gen12_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
-	dram_info->has_16gb_dimms = false;
-
 	return icl_pcode_read_mem_global_info(i915, dram_info);
 }
 
@@ -736,12 +740,6 @@ int intel_dram_detect(struct drm_i915_private *i915)
 
 	i915->dram_info = dram_info;
 
-	/*
-	 * Assume 16Gb DIMMs are present until proven
-	 * otherwise, this w/a is not needed by bxt/glk.
-	 */
-	dram_info->has_16gb_dimms = !IS_BROXTON(i915) && !IS_GEMINILAKE(i915);
-
 	if (DISPLAY_VER(display) >= 14)
 		ret = xelpdp_get_dram_info(i915, dram_info);
 	else if (GRAPHICS_VER(i915) >= 12)
@@ -765,9 +763,6 @@ int intel_dram_detect(struct drm_i915_private *i915)
 	drm_dbg_kms(&i915->drm, "Num qgv points %u\n", dram_info->num_qgv_points);
 
 	drm_dbg_kms(&i915->drm, "DRAM channels: %u\n", dram_info->num_channels);
-
-	drm_dbg_kms(&i915->drm, "16Gb DIMMs: %s\n",
-		    str_yes_no(dram_info->has_16gb_dimms));
 
 	return 0;
 }
