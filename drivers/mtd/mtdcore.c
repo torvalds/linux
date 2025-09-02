@@ -2389,6 +2389,7 @@ EXPORT_SYMBOL_GPL(mtd_block_isbad);
 int mtd_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct mtd_info *master = mtd_get_master(mtd);
+	loff_t moffs;
 	int ret;
 
 	if (!master->_block_markbad)
@@ -2401,7 +2402,15 @@ int mtd_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	if (mtd->flags & MTD_SLC_ON_MLC_EMULATION)
 		ofs = (loff_t)mtd_div_by_eb(ofs, mtd) * master->erasesize;
 
-	ret = master->_block_markbad(master, mtd_get_master_ofs(mtd, ofs));
+	moffs = mtd_get_master_ofs(mtd, ofs);
+
+	if (master->_block_isbad) {
+		ret = master->_block_isbad(master, moffs);
+		if (ret > 0)
+			return 0;
+	}
+
+	ret = master->_block_markbad(master, moffs);
 	if (ret)
 		return ret;
 
