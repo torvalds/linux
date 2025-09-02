@@ -886,7 +886,6 @@ pub(crate) struct NullTerminatedFormatter<'a> {
 
 impl<'a> NullTerminatedFormatter<'a> {
     /// Create a new [`Self`] instance.
-    #[expect(dead_code)]
     pub(crate) fn new(buffer: &'a mut [u8]) -> Option<NullTerminatedFormatter<'a>> {
         *(buffer.first_mut()?) = 0;
 
