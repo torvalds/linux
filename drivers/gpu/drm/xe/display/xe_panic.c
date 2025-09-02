@@ -76,10 +76,8 @@ int intel_panic_setup(struct drm_scanout_buffer *sb)
 	return 0;
 }
 
-void intel_panic_finish(struct intel_framebuffer *fb)
+void intel_panic_finish(struct intel_panic *panic)
 {
-	struct intel_panic *panic = fb->panic;
-
 	xe_panic_kunmap(panic);
 	panic->page = -1;
 }

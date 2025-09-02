@@ -18,7 +18,6 @@
 
 enum intel_region_id;
 struct drm_scanout_buffer;
-struct intel_framebuffer;
 struct intel_panic;
 
 #define obj_to_i915(obj__) to_i915((obj__)->base.dev)
@@ -696,7 +695,7 @@ int i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 
 struct intel_panic *i915_gem_object_alloc_panic(void);
 int i915_gem_object_panic_setup(struct drm_scanout_buffer *sb);
-void i915_gem_object_panic_finish(struct intel_framebuffer *fb);
+void i915_gem_object_panic_finish(struct intel_panic *panic);
 
 /**
  * i915_gem_object_pin_map - return a contiguous mapping of the entire object

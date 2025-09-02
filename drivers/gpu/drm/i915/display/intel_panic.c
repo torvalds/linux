@@ -14,7 +14,7 @@ int intel_panic_setup(struct drm_scanout_buffer *sb)
 	return i915_gem_object_panic_setup(sb);
 }
 
-void intel_panic_finish(struct intel_framebuffer *fb)
+void intel_panic_finish(struct intel_panic *panic)
 {
-	return i915_gem_object_panic_finish(fb);
+	return i915_gem_object_panic_finish(panic);
 }

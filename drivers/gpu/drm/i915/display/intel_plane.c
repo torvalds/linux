@@ -1326,7 +1326,7 @@ static void intel_panic_flush(struct drm_plane *plane)
 	struct drm_framebuffer *fb = plane_state->hw.fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 
-	intel_panic_finish(intel_fb);
+	intel_panic_finish(intel_fb->panic);
 
 	if (crtc_state->enable_psr2_sel_fetch) {
 		/* Force a full update for psr2 */
