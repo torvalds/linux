@@ -17,6 +17,7 @@ struct dram_info {
 	bool symmetric_memory;
 	enum intel_dram_type {
 		INTEL_DRAM_UNKNOWN,
+		INTEL_DRAM_DDR2,
 		INTEL_DRAM_DDR3,
 		INTEL_DRAM_DDR4,
 		INTEL_DRAM_LPDDR3,

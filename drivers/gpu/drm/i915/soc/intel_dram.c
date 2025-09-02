@@ -35,6 +35,7 @@ static const char *intel_dram_type_str(enum intel_dram_type type)
 {
 	static const char * const str[] = {
 		DRAM_TYPE_STR(UNKNOWN),
+		DRAM_TYPE_STR(DDR2),
 		DRAM_TYPE_STR(DDR3),
 		DRAM_TYPE_STR(DDR4),
 		DRAM_TYPE_STR(LPDDR3),
@@ -55,9 +56,10 @@ static const char *intel_dram_type_str(enum intel_dram_type type)
 
 #undef DRAM_TYPE_STR
 
-static bool pnv_is_ddr3(struct drm_i915_private *i915)
+static enum intel_dram_type pnv_dram_type(struct drm_i915_private *i915)
 {
-	return intel_uncore_read(&i915->uncore, CSHRDDR3CTL) & CSHRDDR3CTL_DDR3;
+	return intel_uncore_read(&i915->uncore, CSHRDDR3CTL) & CSHRDDR3CTL_DDR3 ?
+		INTEL_DRAM_DDR3 : INTEL_DRAM_DDR2;
 }
 
 static unsigned int pnv_mem_freq(struct drm_i915_private *dev_priv)
@@ -252,8 +254,8 @@ static int i915_get_dram_info(struct drm_i915_private *i915, struct dram_info *d
 	if (dram_info->mem_freq)
 		drm_dbg(&i915->drm, "DDR speed: %d kHz\n", dram_info->mem_freq);
 
-	if (IS_PINEVIEW(i915) && pnv_is_ddr3(i915))
-		dram_info->type = INTEL_DRAM_DDR3;
+	if (IS_PINEVIEW(i915))
+		dram_info->type = pnv_dram_type(i915);
 
 	return 0;
 }
