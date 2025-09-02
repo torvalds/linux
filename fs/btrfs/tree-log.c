@@ -471,7 +471,6 @@ static int overwrite_item(struct walk_control *wc, struct btrfs_path *path)
 		}
 		src_copy = kmalloc(item_size, GFP_NOFS);
 		if (!src_copy) {
-			btrfs_release_path(path);
 			btrfs_abort_transaction(trans, -ENOMEM);
 			return -ENOMEM;
 		}
