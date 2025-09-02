@@ -34,22 +34,6 @@ When mounting an XFS filesystem, the following options are accepted.
 	to the file. Specifying a fixed ``allocsize`` value turns off
 	the dynamic behaviour.
 
-  attr2 or noattr2
-	The options enable/disable an "opportunistic" improvement to
-	be made in the way inline extended attributes are stored
-	on-disk.  When the new form is used for the first time when
-	``attr2`` is selected (either when setting or removing extended
-	attributes) the on-disk superblock feature bit field will be
-	updated to reflect this format being in use.
-
-	The default behaviour is determined by the on-disk feature
-	bit indicating that ``attr2`` behaviour is active. If either
-	mount option is set, then that becomes the new default used
-	by the filesystem.
-
-	CRC enabled filesystems always use the ``attr2`` format, and so
-	will reject the ``noattr2`` mount option if it is set.
-
   discard or nodiscard (default)
 	Enable/disable the issuing of commands to let the block
 	device reclaim space freed by the filesystem.  This is
@@ -74,12 +58,6 @@ When mounting an XFS filesystem, the following options are accepted.
 	Make the data allocator use the filestreams allocation mode
 	across the entire filesystem rather than just on directories
 	configured to use it.
-
-  ikeep or noikeep (default)
-	When ``ikeep`` is specified, XFS does not delete empty inode
-	clusters and keeps them around on disk.  When ``noikeep`` is
-	specified, empty inode clusters are returned to the free
-	space pool.
 
   inode32 or inode64 (default)
 	When ``inode32`` is specified, it indicates that XFS limits
@@ -267,8 +245,6 @@ Deprecated Mount Options
 ============================    ================
 Mounting with V4 filesystem     September 2030
 Mounting ascii-ci filesystem    September 2030
-ikeep/noikeep			September 2025
-attr2/noattr2			September 2025
 ============================    ================
 
 
@@ -284,6 +260,8 @@ Removed Mount Options
   osyncisdsync/osyncisosync	v4.0
   barrier			v4.19
   nobarrier			v4.19
+  ikeep/noikeep			v6.18
+  attr2/noattr2			v6.18
 ===========================     =======
 
 sysctls

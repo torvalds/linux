@@ -646,8 +646,7 @@ xfs_iget_cache_miss(
 		goto out_destroy;
 
 	/*
-	 * For version 5 superblocks, if we are initialising a new inode and we
-	 * are not utilising the XFS_FEAT_IKEEP inode cluster mode, we can
+	 * For version 5 superblocks, if we are initialising a new inode, we
 	 * simply build the new inode core with a random generation number.
 	 *
 	 * For version 4 (and older) superblocks, log recovery is dependent on
@@ -655,8 +654,7 @@ xfs_iget_cache_miss(
 	 * value and hence we must also read the inode off disk even when
 	 * initializing new inodes.
 	 */
-	if (xfs_has_v3inodes(mp) &&
-	    (flags & XFS_IGET_CREATE) && !xfs_has_ikeep(mp)) {
+	if (xfs_has_v3inodes(mp) && (flags & XFS_IGET_CREATE)) {
 		VFS_I(ip)->i_generation = get_random_u32();
 	} else {
 		struct xfs_buf		*bp;
