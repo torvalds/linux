@@ -713,26 +713,42 @@ static inline bool is_jcc32(struct insn *insn)
 #if defined(CONFIG_MITIGATION_RETPOLINE) && defined(CONFIG_OBJTOOL)
 
 /*
- * CALL/JMP *%\reg
+ * [CS]{,3} CALL/JMP *%\reg [INT3]*
  */
-static int emit_indirect(int op, int reg, u8 *bytes)
+static int emit_indirect(int op, int reg, u8 *bytes, int len)
 {
+	int cs = 0, bp = 0;
 	int i = 0;
 	u8 modrm;
+
+	/*
+	 * Set @len to the excess bytes after writing the instruction.
+	 */
+	len -= 2 + (reg >= 8);
+	WARN_ON_ONCE(len < 0);
 
 	switch (op) {
 	case CALL_INSN_OPCODE:
 		modrm = 0x10; /* Reg = 2; CALL r/m */
+		/*
+		 * Additional NOP is better than prefix decode penalty.
+		 */
+		if (len <= 3)
+			cs = len;
 		break;
 
 	case JMP32_INSN_OPCODE:
 		modrm = 0x20; /* Reg = 4; JMP r/m */
+		bp = len;
 		break;
 
 	default:
 		WARN_ON_ONCE(1);
 		return -1;
 	}
+
+	while (cs--)
+		bytes[i++] = 0x2e; /* CS-prefix */
 
 	if (reg >= 8) {
 		bytes[i++] = 0x41; /* REX.B prefix */
@@ -744,6 +760,9 @@ static int emit_indirect(int op, int reg, u8 *bytes)
 
 	bytes[i++] = 0xff; /* opcode */
 	bytes[i++] = modrm;
+
+	while (bp--)
+		bytes[i++] = 0xcc; /* INT3 */
 
 	return i;
 }
@@ -918,19 +937,10 @@ static int patch_retpoline(void *addr, struct insn *insn, u8 *bytes)
 		return emit_its_trampoline(addr, insn, reg, bytes);
 #endif
 
-	ret = emit_indirect(op, reg, bytes + i);
+	ret = emit_indirect(op, reg, bytes + i, insn->length - i);
 	if (ret < 0)
 		return ret;
 	i += ret;
-
-	/*
-	 * The compiler is supposed to EMIT an INT3 after every unconditional
-	 * JMP instruction due to AMD BTC. However, if the compiler is too old
-	 * or MITIGATION_SLS isn't enabled, we still need an INT3 after
-	 * indirect JMPs even on Intel.
-	 */
-	if (op == JMP32_INSN_OPCODE && i < insn->length)
-		bytes[i++] = INT3_INSN_OPCODE;
 
 	for (; i < insn->length;)
 		bytes[i++] = BYTES_NOP1;
@@ -1421,8 +1431,7 @@ asm(	".pushsection .rodata				\n"
 	"#fineibt_caller_size:                          \n"
 	"	jne	fineibt_paranoid_start+0xd	\n"
 	"fineibt_paranoid_ind:				\n"
-	"	call	*%r11				\n"
-	"	nop					\n"
+	"	cs call	*%r11				\n"
 	"fineibt_paranoid_end:				\n"
 	".popsection					\n"
 );
@@ -1724,8 +1733,9 @@ static int cfi_rewrite_callers(s32 *start, s32 *end)
 			emit_paranoid_trampoline(addr + fineibt_caller_size,
 						 &insn, 11, bytes + fineibt_caller_size);
 		} else {
-			ret = emit_indirect(op, 11, bytes + fineibt_paranoid_ind);
-			if (WARN_ON_ONCE(ret != 3))
+			int len = fineibt_paranoid_size - fineibt_paranoid_ind;
+			ret = emit_indirect(op, 11, bytes + fineibt_paranoid_ind, len);
+			if (WARN_ON_ONCE(ret != len))
 				continue;
 		}
 
