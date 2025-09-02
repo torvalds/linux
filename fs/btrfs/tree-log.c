@@ -1101,8 +1101,7 @@ out:
 static int unlink_refs_not_in_log(struct walk_control *wc,
 				  struct btrfs_key *search_key,
 				  struct btrfs_inode *dir,
-				  struct btrfs_inode *inode,
-				  u64 parent_objectid)
+				  struct btrfs_inode *inode)
 {
 	struct extent_buffer *leaf = wc->subvol_path->nodes[0];
 	unsigned long ptr;
@@ -1130,7 +1129,7 @@ static int unlink_refs_not_in_log(struct walk_control *wc,
 			return ret;
 		}
 
-		ret = backref_in_log(wc->log, search_key, parent_objectid, &victim_name);
+		ret = backref_in_log(wc->log, search_key, btrfs_ino(dir), &victim_name);
 		if (ret) {
 			kfree(victim_name.name);
 			if (ret < 0) {
@@ -1156,9 +1155,8 @@ static int unlink_refs_not_in_log(struct walk_control *wc,
 
 static int unlink_extrefs_not_in_log(struct walk_control *wc,
 				     struct btrfs_key *search_key,
-				     struct btrfs_inode *inode,
-				     u64 inode_objectid,
-				     u64 parent_objectid)
+				     struct btrfs_inode *dir,
+				     struct btrfs_inode *inode)
 {
 	struct extent_buffer *leaf = wc->subvol_path->nodes[0];
 	const unsigned long base = btrfs_item_ptr_offset(leaf, wc->subvol_path->slots[0]);
@@ -1177,7 +1175,7 @@ static int unlink_extrefs_not_in_log(struct walk_control *wc,
 		extref = (struct btrfs_inode_extref *)(base + cur_offset);
 		victim_name.len = btrfs_inode_extref_name_len(leaf, extref);
 
-		if (btrfs_inode_extref_parent(leaf, extref) != parent_objectid)
+		if (btrfs_inode_extref_parent(leaf, extref) != btrfs_ino(dir))
 			goto next;
 
 		ret = read_alloc_one_name(leaf, &extref->name, victim_name.len,
@@ -1187,12 +1185,12 @@ static int unlink_extrefs_not_in_log(struct walk_control *wc,
 			return ret;
 		}
 
-		search_key->objectid = inode_objectid;
+		search_key->objectid = btrfs_ino(inode);
 		search_key->type = BTRFS_INODE_EXTREF_KEY;
-		search_key->offset = btrfs_extref_hash(parent_objectid,
+		search_key->offset = btrfs_extref_hash(btrfs_ino(dir),
 						       victim_name.name,
 						       victim_name.len);
-		ret = backref_in_log(log_root, search_key, parent_objectid, &victim_name);
+		ret = backref_in_log(log_root, search_key, btrfs_ino(dir), &victim_name);
 		if (ret) {
 			kfree(victim_name.name);
 			if (ret < 0) {
@@ -1204,7 +1202,7 @@ next:
 			continue;
 		}
 
-		victim_parent = btrfs_iget_logging(parent_objectid, root);
+		victim_parent = btrfs_iget_logging(btrfs_ino(dir), root);
 		if (IS_ERR(victim_parent)) {
 			kfree(victim_name.name);
 			ret = PTR_ERR(victim_parent);
@@ -1230,7 +1228,6 @@ next:
 static inline int __add_inode_ref(struct walk_control *wc,
 				  struct btrfs_inode *dir,
 				  struct btrfs_inode *inode,
-				  u64 inode_objectid, u64 parent_objectid,
 				  u64 ref_index, struct fscrypt_str *name)
 {
 	int ret;
@@ -1242,9 +1239,9 @@ static inline int __add_inode_ref(struct walk_control *wc,
 
 again:
 	/* Search old style refs */
-	search_key.objectid = inode_objectid;
+	search_key.objectid = btrfs_ino(inode);
 	search_key.type = BTRFS_INODE_REF_KEY;
-	search_key.offset = parent_objectid;
+	search_key.offset = btrfs_ino(dir);
 	ret = btrfs_search_slot(NULL, root, &search_key, wc->subvol_path, 0, 0);
 	if (ret < 0) {
 		btrfs_abort_transaction(trans, ret);
@@ -1257,8 +1254,7 @@ again:
 		if (search_key.objectid == search_key.offset)
 			return 1;
 
-		ret = unlink_refs_not_in_log(wc, &search_key, dir, inode,
-					     parent_objectid);
+		ret = unlink_refs_not_in_log(wc, &search_key, dir, inode);
 		if (ret == -EAGAIN)
 			goto again;
 		else if (ret)
@@ -1268,12 +1264,11 @@ again:
 
 	/* Same search but for extended refs */
 	extref = btrfs_lookup_inode_extref(root, wc->subvol_path, name,
-					   inode_objectid, parent_objectid);
+					   btrfs_ino(inode), btrfs_ino(dir));
 	if (IS_ERR(extref)) {
 		return PTR_ERR(extref);
 	} else if (extref) {
-		ret = unlink_extrefs_not_in_log(wc, &search_key, inode,
-						inode_objectid, parent_objectid);
+		ret = unlink_extrefs_not_in_log(wc, &search_key, dir, inode);
 		if (ret == -EAGAIN)
 			goto again;
 		else if (ret)
@@ -1559,8 +1554,7 @@ static noinline int add_inode_ref(struct walk_control *wc)
 			 * overwrite any existing back reference, and we don't
 			 * want to create dangling pointers in the directory.
 			 */
-			ret = __add_inode_ref(wc, dir, inode, inode_objectid,
-					      parent_objectid, ref_index, &name);
+			ret = __add_inode_ref(wc, dir, inode, ref_index, &name);
 			if (ret) {
 				if (ret == 1)
 					ret = 0;
