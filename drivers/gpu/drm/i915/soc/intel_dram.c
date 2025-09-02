@@ -669,8 +669,9 @@ static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv,
 
 static int gen11_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
-	int ret = skl_get_dram_info(i915, dram_info);
+	int ret;
 
+	ret = skl_dram_get_channels_info(i915, dram_info);
 	if (ret)
 		return ret;
 
