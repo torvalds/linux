@@ -37,12 +37,6 @@ MODULE_AUTHOR("Microsoft");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Microsoft Hyper-V root partition VMM interface /dev/mshv");
 
-/* TODO move this to mshyperv.h when needed outside driver */
-static inline bool hv_parent_partition(void)
-{
-	return hv_root_partition();
-}
-
 /* TODO move this to another file when debugfs code is added */
 enum hv_stats_vp_counters {			/* HV_THREAD_COUNTER */
 #if defined(CONFIG_X86)
@@ -2074,9 +2068,13 @@ static int __init hv_retrieve_scheduler_type(enum hv_scheduler_type *out)
 /* Retrieve and stash the supported scheduler type */
 static int __init mshv_retrieve_scheduler_type(struct device *dev)
 {
-	int ret;
+	int ret = 0;
 
-	ret = hv_retrieve_scheduler_type(&hv_scheduler_type);
+	if (hv_l1vh_partition())
+		hv_scheduler_type = HV_SCHEDULER_TYPE_CORE_SMT;
+	else
+		ret = hv_retrieve_scheduler_type(&hv_scheduler_type);
+
 	if (ret)
 		return ret;
 
@@ -2203,9 +2201,6 @@ static int __init mshv_root_partition_init(struct device *dev)
 {
 	int err;
 
-	if (mshv_retrieve_scheduler_type(dev))
-		return -ENODEV;
-
 	err = root_scheduler_init(dev);
 	if (err)
 		return err;
@@ -2227,7 +2222,7 @@ static int __init mshv_parent_partition_init(void)
 	struct device *dev;
 	union hv_hypervisor_version_info version_info;
 
-	if (!hv_root_partition() || is_kdump_kernel())
+	if (!hv_parent_partition() || is_kdump_kernel())
 		return -ENODEV;
 
 	if (hv_get_hypervisor_version(&version_info))
@@ -2264,7 +2259,12 @@ static int __init mshv_parent_partition_init(void)
 
 	mshv_cpuhp_online = ret;
 
-	ret = mshv_root_partition_init(dev);
+	ret = mshv_retrieve_scheduler_type(dev);
+	if (ret)
+		goto remove_cpu_state;
+
+	if (hv_root_partition())
+		ret = mshv_root_partition_init(dev);
 	if (ret)
 		goto remove_cpu_state;
 
