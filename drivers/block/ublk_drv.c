@@ -239,6 +239,7 @@ struct ublk_device {
 	struct mutex cancel_mutex;
 	bool canceling;
 	pid_t 	ublksrv_tgid;
+	struct delayed_work	exit_work;
 };
 
 /* header of ublk_params */
@@ -1595,11 +1596,61 @@ static void ublk_set_canceling(struct ublk_device *ub, bool canceling)
 		ublk_get_queue(ub, i)->canceling = canceling;
 }
 
-static int ublk_ch_release(struct inode *inode, struct file *filp)
+static bool ublk_check_and_reset_active_ref(struct ublk_device *ub)
 {
-	struct ublk_device *ub = filp->private_data;
+	int i, j;
+
+	if (!(ub->dev_info.flags & (UBLK_F_SUPPORT_ZERO_COPY |
+					UBLK_F_AUTO_BUF_REG)))
+		return false;
+
+	for (i = 0; i < ub->dev_info.nr_hw_queues; i++) {
+		struct ublk_queue *ubq = ublk_get_queue(ub, i);
+
+		for (j = 0; j < ubq->q_depth; j++) {
+			struct ublk_io *io = &ubq->ios[j];
+			unsigned int refs = refcount_read(&io->ref) +
+				io->task_registered_buffers;
+
+			/*
+			 * UBLK_REFCOUNT_INIT or zero means no active
+			 * reference
+			 */
+			if (refs != UBLK_REFCOUNT_INIT && refs != 0)
+				return true;
+
+			/* reset to zero if the io hasn't active references */
+			refcount_set(&io->ref, 0);
+			io->task_registered_buffers = 0;
+		}
+	}
+	return false;
+}
+
+static void ublk_ch_release_work_fn(struct work_struct *work)
+{
+	struct ublk_device *ub =
+		container_of(work, struct ublk_device, exit_work.work);
 	struct gendisk *disk;
 	int i;
+
+	/*
+	 * For zero-copy and auto buffer register modes, I/O references
+	 * might not be dropped naturally when the daemon is killed, but
+	 * io_uring guarantees that registered bvec kernel buffers are
+	 * unregistered finally when freeing io_uring context, then the
+	 * active references are dropped.
+	 *
+	 * Wait until active references are dropped for avoiding use-after-free
+	 *
+	 * registered buffer may be unregistered in io_ring's release hander,
+	 * so have to wait by scheduling work function for avoiding the two
+	 * file release dependency.
+	 */
+	if (ublk_check_and_reset_active_ref(ub)) {
+		schedule_delayed_work(&ub->exit_work, 1);
+		return;
+	}
 
 	/*
 	 * disk isn't attached yet, either device isn't live, or it has
@@ -1673,6 +1724,23 @@ unlock:
 	ublk_reset_ch_dev(ub);
 out:
 	clear_bit(UB_STATE_OPEN, &ub->state);
+
+	/* put the reference grabbed in ublk_ch_release() */
+	ublk_put_device(ub);
+}
+
+static int ublk_ch_release(struct inode *inode, struct file *filp)
+{
+	struct ublk_device *ub = filp->private_data;
+
+	/*
+	 * Grab ublk device reference, so it won't be gone until we are
+	 * really released from work function.
+	 */
+	ublk_get_device(ub);
+
+	INIT_DELAYED_WORK(&ub->exit_work, ublk_ch_release_work_fn);
+	schedule_delayed_work(&ub->exit_work, 0);
 	return 0;
 }
 

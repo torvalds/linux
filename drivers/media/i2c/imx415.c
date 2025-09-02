@@ -952,7 +952,6 @@ static int imx415_s_stream(struct v4l2_subdev *sd, int enable)
 	if (!enable) {
 		ret = imx415_stream_off(sensor);
 
-		pm_runtime_mark_last_busy(sensor->dev);
 		pm_runtime_put_autosuspend(sensor->dev);
 
 		goto unlock;

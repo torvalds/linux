@@ -730,6 +730,8 @@ bool dpu_encoder_needs_modeset(struct drm_encoder *drm_enc, struct drm_atomic_st
 		return false;
 
 	conn_state = drm_atomic_get_new_connector_state(state, connector);
+	if (!conn_state)
+		return false;
 
 	/**
 	 * These checks are duplicated from dpu_encoder_update_topology() since

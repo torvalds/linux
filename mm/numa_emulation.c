@@ -73,7 +73,7 @@ static int __init emu_setup_memblk(struct numa_meminfo *ei,
 	}
 
 	printk(KERN_INFO "Faking node %d at [mem %#018Lx-%#018Lx] (%LuMB)\n",
-	       nid, eb->start, eb->end - 1, (eb->end - eb->start) >> 20);
+	       nid, eb->start, eb->end - 1, (eb->end - eb->start) / SZ_1M);
 	return 0;
 }
 
@@ -264,7 +264,7 @@ static int __init split_nodes_size_interleave_uniform(struct numa_meminfo *ei,
 	min_size = ALIGN(max(min_size, FAKE_NODE_MIN_SIZE), FAKE_NODE_MIN_SIZE);
 	if (size < min_size) {
 		pr_err("Fake node size %LuMB too small, increasing to %LuMB\n",
-			size >> 20, min_size >> 20);
+			size / SZ_1M, min_size / SZ_1M);
 		size = min_size;
 	}
 	size = ALIGN_DOWN(size, FAKE_NODE_MIN_SIZE);

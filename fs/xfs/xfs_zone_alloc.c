@@ -374,44 +374,6 @@ xfs_zone_free_blocks(
 	return 0;
 }
 
-/*
- * Check if the zone containing the data just before the offset we are
- * writing to is still open and has space.
- */
-static struct xfs_open_zone *
-xfs_last_used_zone(
-	struct iomap_ioend	*ioend)
-{
-	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
-	struct xfs_mount	*mp = ip->i_mount;
-	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSB(mp, ioend->io_offset);
-	struct xfs_rtgroup	*rtg = NULL;
-	struct xfs_open_zone	*oz = NULL;
-	struct xfs_iext_cursor	icur;
-	struct xfs_bmbt_irec	got;
-
-	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	if (!xfs_iext_lookup_extent_before(ip, &ip->i_df, &offset_fsb,
-				&icur, &got)) {
-		xfs_iunlock(ip, XFS_ILOCK_SHARED);
-		return NULL;
-	}
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-
-	rtg = xfs_rtgroup_grab(mp, xfs_rtb_to_rgno(mp, got.br_startblock));
-	if (!rtg)
-		return NULL;
-
-	xfs_ilock(rtg_rmap(rtg), XFS_ILOCK_SHARED);
-	oz = READ_ONCE(rtg->rtg_open_zone);
-	if (oz && (oz->oz_is_gc || !atomic_inc_not_zero(&oz->oz_ref)))
-		oz = NULL;
-	xfs_iunlock(rtg_rmap(rtg), XFS_ILOCK_SHARED);
-
-	xfs_rtgroup_rele(rtg);
-	return oz;
-}
-
 static struct xfs_group *
 xfs_find_free_zone(
 	struct xfs_mount	*mp,
@@ -918,12 +880,9 @@ xfs_zone_alloc_and_submit(
 		goto out_error;
 
 	/*
-	 * If we don't have a cached zone in this write context, see if the
-	 * last extent before the one we are writing to points to an active
-	 * zone.  If so, just continue writing to it.
+	 * If we don't have a locally cached zone in this write context, see if
+	 * the inode is still associated with a zone and use that if so.
 	 */
-	if (!*oz && ioend->io_offset)
-		*oz = xfs_last_used_zone(ioend);
 	if (!*oz)
 		*oz = xfs_cached_zone(mp, ip);
 

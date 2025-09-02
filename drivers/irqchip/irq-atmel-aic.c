@@ -188,7 +188,7 @@ static int aic_irq_domain_xlate(struct irq_domain *d,
 
 	gc = dgc->gc[idx];
 
-	guard(raw_spinlock_irq)(&gc->lock);
+	guard(raw_spinlock_irqsave)(&gc->lock);
 	smr = irq_reg_readl(gc, AT91_AIC_SMR(*out_hwirq));
 	aic_common_set_priority(intspec[2], &smr);
 	irq_reg_writel(gc, smr, AT91_AIC_SMR(*out_hwirq));
