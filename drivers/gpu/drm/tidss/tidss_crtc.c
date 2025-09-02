@@ -345,20 +345,20 @@ static void tidss_crtc_disable_vblank(struct drm_crtc *crtc)
 
 static void tidss_crtc_reset(struct drm_crtc *crtc)
 {
-	struct tidss_crtc_state *tcrtc;
+	struct tidss_crtc_state *tstate;
 
 	if (crtc->state)
 		__drm_atomic_helper_crtc_destroy_state(crtc->state);
 
 	kfree(crtc->state);
 
-	tcrtc = kzalloc(sizeof(*tcrtc), GFP_KERNEL);
-	if (!tcrtc) {
+	tstate = kzalloc(sizeof(*tstate), GFP_KERNEL);
+	if (!tstate) {
 		crtc->state = NULL;
 		return;
 	}
 
-	__drm_atomic_helper_crtc_reset(crtc, &tcrtc->base);
+	__drm_atomic_helper_crtc_reset(crtc, &tstate->base);
 }
 
 static struct drm_crtc_state *tidss_crtc_duplicate_state(struct drm_crtc *crtc)
