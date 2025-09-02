@@ -40,10 +40,6 @@
 
 typedef int (*pm_callback_t)(struct device *);
 
-#define list_for_each_entry_srcu_locked(pos, head, member) \
-	list_for_each_entry_srcu(pos, head, member, \
-			device_links_read_lock_held())
-
 /*
  * The entries in the dpm_list list are in a depth first order, simply
  * because children are guaranteed to be discovered after parents, and
@@ -281,7 +277,7 @@ static void dpm_wait_for_suppliers(struct device *dev, bool async)
 	 * callbacks freeing the link objects for the links in the list we're
 	 * walking.
 	 */
-	list_for_each_entry_srcu_locked(link, &dev->links.suppliers, c_node)
+	dev_for_each_link_to_supplier(link, dev)
 		if (READ_ONCE(link->status) != DL_STATE_DORMANT)
 			dpm_wait(link->supplier, async);
 
@@ -338,7 +334,7 @@ static void dpm_wait_for_consumers(struct device *dev, bool async)
 	 * continue instead of trying to continue in parallel with its
 	 * unregistration).
 	 */
-	list_for_each_entry_srcu_locked(link, &dev->links.consumers, s_node)
+	dev_for_each_link_to_consumer(link, dev)
 		if (READ_ONCE(link->status) != DL_STATE_DORMANT)
 			dpm_wait(link->consumer, async);
 
@@ -675,7 +671,7 @@ static void dpm_async_resume_subordinate(struct device *dev, async_func_t func)
 	idx = device_links_read_lock();
 
 	/* Start processing the device's "async" consumers. */
-	list_for_each_entry_srcu_locked(link, &dev->links.consumers, s_node)
+	dev_for_each_link_to_consumer(link, dev)
 		if (READ_ONCE(link->status) != DL_STATE_DORMANT)
 			dpm_async_with_cleanup(link->consumer, func);
 
@@ -1330,7 +1326,7 @@ static void dpm_async_suspend_superior(struct device *dev, async_func_t func)
 	idx = device_links_read_lock();
 
 	/* Start processing the device's "async" suppliers. */
-	list_for_each_entry_srcu_locked(link, &dev->links.suppliers, c_node)
+	dev_for_each_link_to_supplier(link, dev)
 		if (READ_ONCE(link->status) != DL_STATE_DORMANT)
 			dpm_async_with_cleanup(link->supplier, func);
 
@@ -1384,7 +1380,7 @@ static void dpm_superior_set_must_resume(struct device *dev)
 
 	idx = device_links_read_lock();
 
-	list_for_each_entry_srcu_locked(link, &dev->links.suppliers, c_node)
+	dev_for_each_link_to_supplier(link, dev)
 		link->supplier->power.must_resume = true;
 
 	device_links_read_unlock(idx);
@@ -1813,7 +1809,7 @@ static void dpm_clear_superiors_direct_complete(struct device *dev)
 
 	idx = device_links_read_lock();
 
-	list_for_each_entry_srcu_locked(link, &dev->links.suppliers, c_node) {
+	dev_for_each_link_to_supplier(link, dev) {
 		spin_lock_irq(&link->supplier->power.lock);
 		link->supplier->power.direct_complete = false;
 		spin_unlock_irq(&link->supplier->power.lock);
@@ -2065,7 +2061,7 @@ static bool device_prepare_smart_suspend(struct device *dev)
 
 	idx = device_links_read_lock();
 
-	list_for_each_entry_srcu_locked(link, &dev->links.suppliers, c_node) {
+	dev_for_each_link_to_supplier(link, dev) {
 		if (!device_link_test(link, DL_FLAG_PM_RUNTIME))
 			continue;
 
