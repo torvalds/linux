@@ -29,6 +29,7 @@ enum lpass_codec_version {
 	LPASS_CODEC_VERSION_2_6,
 	LPASS_CODEC_VERSION_2_7,
 	LPASS_CODEC_VERSION_2_8,
+	LPASS_CODEC_VERSION_2_9,
 };
 
 struct lpass_macro {
