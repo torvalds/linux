@@ -950,7 +950,7 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_vsec_init(xe);
 
-	err = xe_sriov_late_init(xe);
+	err = xe_sriov_init_late(xe);
 	if (err)
 		goto err_unregister_display;
 

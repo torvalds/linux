@@ -160,19 +160,15 @@ const char *xe_sriov_function_name(unsigned int n, char *buf, size_t size)
 }
 
 /**
- * xe_sriov_late_init() - SR-IOV late initialization functions.
+ * xe_sriov_init_late() - SR-IOV late initialization functions.
  * @xe: the &xe_device to initialize
- *
- * On VF this function will initialize code for CCS migration.
  *
  * Return: 0 on success or a negative error code on failure.
  */
-int xe_sriov_late_init(struct xe_device *xe)
+int xe_sriov_init_late(struct xe_device *xe)
 {
-	int err = 0;
+	if (IS_SRIOV_VF(xe))
+		return xe_sriov_vf_init_late(xe);
 
-	if (IS_VF_CCS_INIT_NEEDED(xe))
-		err = xe_sriov_vf_ccs_init(xe);
-
-	return err;
+	return 0;
 }
