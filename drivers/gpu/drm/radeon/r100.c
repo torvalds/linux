@@ -1298,8 +1298,8 @@ int r100_reloc_pitch_offset(struct radeon_cs_parser *p,
 
 	r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 	if (r) {
-		DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
-			  idx, reg);
+		dev_warn_once(p->dev, "No reloc for ib[%d]=0x%04X\n",
+			      idx, reg);
 		radeon_cs_dump_packet(p, pkt);
 		return r;
 	}
@@ -1313,7 +1313,7 @@ int r100_reloc_pitch_offset(struct radeon_cs_parser *p,
 			tile_flags |= RADEON_DST_TILE_MACRO;
 		if (reloc->tiling_flags & RADEON_TILING_MICRO) {
 			if (reg == RADEON_SRC_PITCH_OFFSET) {
-				DRM_ERROR("Cannot src blit from microtiled surface\n");
+				dev_warn_once(p->dev, "Cannot src blit from microtiled surface\n");
 				radeon_cs_dump_packet(p, pkt);
 				return -EINVAL;
 			}
@@ -1342,8 +1342,8 @@ int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 	track = (struct r100_cs_track *)p->track;
 	c = radeon_get_ib_value(p, idx++) & 0x1F;
 	if (c > 16) {
-	    DRM_ERROR("Only 16 vertex buffers are allowed %d\n",
-		      pkt->opcode);
+	    dev_warn_once(p->dev, "Only 16 vertex buffers are allowed %d\n",
+			  pkt->opcode);
 	    radeon_cs_dump_packet(p, pkt);
 	    return -EINVAL;
 	}
@@ -1351,8 +1351,8 @@ int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 	for (i = 0; i < (c - 1); i += 2, idx += 3) {
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for packet3 %d\n",
-				  pkt->opcode);
+			dev_warn_once(p->dev, "No reloc for packet3 %d\n",
+				      pkt->opcode);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1364,8 +1364,8 @@ int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 		track->arrays[i + 0].esize &= 0x7F;
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for packet3 %d\n",
-				  pkt->opcode);
+			dev_warn_once(p->dev, "No reloc for packet3 %d\n",
+				      pkt->opcode);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1377,8 +1377,8 @@ int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 	if (c & 1) {
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for packet3 %d\n",
-					  pkt->opcode);
+			dev_warn_once(p->dev, "No reloc for packet3 %d\n",
+				      pkt->opcode);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1470,12 +1470,12 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	/* check its a wait until and only 1 count */
 	if (waitreloc.reg != RADEON_WAIT_UNTIL ||
 	    waitreloc.count != 0) {
-		DRM_ERROR("vline wait had illegal wait until segment\n");
+		dev_warn_once(p->dev, "vline wait had illegal wait until segment\n");
 		return -EINVAL;
 	}
 
 	if (radeon_get_ib_value(p, waitreloc.idx + 1) != RADEON_WAIT_CRTC_VLINE) {
-		DRM_ERROR("vline wait had illegal wait until\n");
+		dev_warn_once(p->dev, "vline wait had illegal wait until\n");
 		return -EINVAL;
 	}
 
@@ -1493,7 +1493,7 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	reg = R100_CP_PACKET0_GET_REG(header);
 	crtc = drm_crtc_find(rdev_to_drm(p->rdev), p->filp, crtc_id);
 	if (!crtc) {
-		DRM_ERROR("cannot find crtc %d\n", crtc_id);
+		dev_warn_once(p->dev, "cannot find crtc %d\n", crtc_id);
 		return -ENOENT;
 	}
 	radeon_crtc = to_radeon_crtc(crtc);
@@ -1514,7 +1514,7 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 			header |= RADEON_CRTC2_GUI_TRIG_VLINE >> 2;
 			break;
 		default:
-			DRM_ERROR("unknown crtc reloc\n");
+			dev_warn_once(p->dev, "unknown crtc reloc\n");
 			return -EINVAL;
 		}
 		ib[h_idx] = header;
@@ -1599,7 +1599,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_CRTC_GUI_TRIG_VLINE:
 		r = r100_cs_packet_parse_vline(p);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			dev_warn_once(p->dev, "No reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -1616,8 +1616,8 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_RB3D_DEPTHOFFSET:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
-				  idx, reg);
+			dev_warn_once(p->dev, "No reloc for ib[%d]=0x%04X\n",
+				      idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1629,8 +1629,8 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_RB3D_COLOROFFSET:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
-				  idx, reg);
+			dev_warn_once(p->dev, "No reloc for ib[%d]=0x%04X\n",
+				      idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1645,8 +1645,8 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		i = (reg - RADEON_PP_TXOFFSET_0) / 24;
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
-				  idx, reg);
+			dev_warn_once(p->dev, "No reloc for ib[%d]=0x%04X\n",
+				      idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1672,8 +1672,8 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		i = (reg - RADEON_PP_CUBIC_OFFSET_T0_0) / 4;
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
-				  idx, reg);
+			dev_warn_once(p->dev, "No reloc for ib[%d]=0x%04X\n",
+				      idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1690,8 +1690,8 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		i = (reg - RADEON_PP_CUBIC_OFFSET_T1_0) / 4;
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
-				  idx, reg);
+			dev_warn_once(p->dev, "No reloc for ib[%d]=0x%04X\n",
+				      idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1708,8 +1708,8 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		i = (reg - RADEON_PP_CUBIC_OFFSET_T2_0) / 4;
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
-				  idx, reg);
+			dev_warn_once(p->dev, "No reloc for ib[%d]=0x%04X\n",
+				      idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1726,8 +1726,8 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_RB3D_COLORPITCH:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
-				  idx, reg);
+			dev_warn_once(p->dev, "No reloc for ib[%d]=0x%04X\n",
+				      idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1768,8 +1768,8 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 			track->cb[0].cpp = 4;
 			break;
 		default:
-			DRM_ERROR("Invalid color buffer format (%d) !\n",
-				  ((idx_value >> RADEON_RB3D_COLOR_FORMAT_SHIFT) & 0x1f));
+			dev_warn_once(p->dev, "Invalid color buffer format (%d) !\n",
+				      ((idx_value >> RADEON_RB3D_COLOR_FORMAT_SHIFT) & 0x1f));
 			return -EINVAL;
 		}
 		track->z_enabled = !!(idx_value & RADEON_Z_ENABLE);
@@ -1797,8 +1797,8 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_RB3D_ZPASS_ADDR:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
-				  idx, reg);
+			dev_warn_once(p->dev, "No reloc for ib[%d]=0x%04X\n",
+				      idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1927,10 +1927,10 @@ int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
 	idx = pkt->idx + 1;
 	value = radeon_get_ib_value(p, idx + 2);
 	if ((value + 1) > radeon_bo_size(robj)) {
-		DRM_ERROR("[drm] Buffer too small for PACKET3 INDX_BUFFER "
-			  "(need %u have %lu) !\n",
-			  value + 1,
-			  radeon_bo_size(robj));
+		dev_warn_once(p->dev, "[drm] Buffer too small for PACKET3 INDX_BUFFER "
+			      "(need %u have %lu) !\n",
+			      value + 1,
+			      radeon_bo_size(robj));
 		return -EINVAL;
 	}
 	return 0;
@@ -1957,7 +1957,7 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 	case PACKET3_INDX_BUFFER:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for packet3 %d\n", pkt->opcode);
+			dev_warn_once(p->dev, "No reloc for packet3 %d\n", pkt->opcode);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1971,7 +1971,7 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 		/* 3D_RNDR_GEN_INDX_PRIM on r100/r200 */
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for packet3 %d\n", pkt->opcode);
+			dev_warn_once(p->dev, "No reloc for packet3 %d\n", pkt->opcode);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
@@ -1992,7 +1992,7 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 		break;
 	case PACKET3_3D_DRAW_IMMD:
 		if (((radeon_get_ib_value(p, idx + 1) >> 4) & 0x3) != 3) {
-			DRM_ERROR("PRIM_WALK must be 3 for IMMD draw\n");
+			dev_warn_once(p->dev, "PRIM_WALK must be 3 for IMMD draw\n");
 			return -EINVAL;
 		}
 		track->vtx_size = r100_get_vtx_size(radeon_get_ib_value(p, idx + 0));
@@ -2005,7 +2005,7 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 		/* triggers drawing using in-packet vertex data */
 	case PACKET3_3D_DRAW_IMMD_2:
 		if (((radeon_get_ib_value(p, idx) >> 4) & 0x3) != 3) {
-			DRM_ERROR("PRIM_WALK must be 3 for IMMD draw\n");
+			dev_warn_once(p->dev, "PRIM_WALK must be 3 for IMMD draw\n");
 			return -EINVAL;
 		}
 		track->vap_vf_cntl = radeon_get_ib_value(p, idx);
@@ -2051,7 +2051,7 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 	case PACKET3_NOP:
 		break;
 	default:
-		DRM_ERROR("Packet3 opcode %x not supported\n", pkt->opcode);
+		dev_warn_once(p->dev, "Packet3 opcode %x not supported\n", pkt->opcode);
 		return -EINVAL;
 	}
 	return 0;
@@ -2093,8 +2093,8 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 			r = r100_packet3_check(p, &pkt);
 			break;
 		default:
-			DRM_ERROR("Unknown packet type %d !\n",
-				  pkt.type);
+			dev_warn_once(p->dev, "Unknown packet type %d !\n",
+				      pkt.type);
 			return -EINVAL;
 		}
 		if (r)
@@ -2105,19 +2105,19 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 
 static void r100_cs_track_texture_print(struct r100_cs_track_texture *t)
 {
-	DRM_ERROR("pitch                      %d\n", t->pitch);
-	DRM_ERROR("use_pitch                  %d\n", t->use_pitch);
-	DRM_ERROR("width                      %d\n", t->width);
-	DRM_ERROR("width_11                   %d\n", t->width_11);
-	DRM_ERROR("height                     %d\n", t->height);
-	DRM_ERROR("height_11                  %d\n", t->height_11);
-	DRM_ERROR("num levels                 %d\n", t->num_levels);
-	DRM_ERROR("depth                      %d\n", t->txdepth);
-	DRM_ERROR("bpp                        %d\n", t->cpp);
-	DRM_ERROR("coordinate type            %d\n", t->tex_coord_type);
-	DRM_ERROR("width round to power of 2  %d\n", t->roundup_w);
-	DRM_ERROR("height round to power of 2 %d\n", t->roundup_h);
-	DRM_ERROR("compress format            %d\n", t->compress_format);
+	DRM_DEBUG("pitch                      %d\n", t->pitch);
+	DRM_DEBUG("use_pitch                  %d\n", t->use_pitch);
+	DRM_DEBUG("width                      %d\n", t->width);
+	DRM_DEBUG("width_11                   %d\n", t->width_11);
+	DRM_DEBUG("height                     %d\n", t->height);
+	DRM_DEBUG("height_11                  %d\n", t->height_11);
+	DRM_DEBUG("num levels                 %d\n", t->num_levels);
+	DRM_DEBUG("depth                      %d\n", t->txdepth);
+	DRM_DEBUG("bpp                        %d\n", t->cpp);
+	DRM_DEBUG("coordinate type            %d\n", t->tex_coord_type);
+	DRM_DEBUG("width round to power of 2  %d\n", t->roundup_w);
+	DRM_DEBUG("height round to power of 2 %d\n", t->roundup_h);
+	DRM_DEBUG("compress format            %d\n", t->compress_format);
 }
 
 static int r100_track_compress_size(int compress_format, int w, int h)
@@ -2172,8 +2172,9 @@ static int r100_cs_track_cube(struct radeon_device *rdev,
 		size += track->textures[idx].cube_info[face].offset;
 
 		if (size > radeon_bo_size(cube_robj)) {
-			DRM_ERROR("Cube texture offset greater than object size %lu %lu\n",
-				  size, radeon_bo_size(cube_robj));
+			dev_warn_once(rdev->dev,
+				      "Cube texture offset greater than object size %lu %lu\n",
+				      size, radeon_bo_size(cube_robj));
 			r100_cs_track_texture_print(&track->textures[idx]);
 			return -1;
 		}
@@ -2196,7 +2197,7 @@ static int r100_cs_track_texture_check(struct radeon_device *rdev,
 			continue;
 		robj = track->textures[u].robj;
 		if (robj == NULL) {
-			DRM_ERROR("No texture bound to unit %u\n", u);
+			dev_warn_once(rdev->dev, "No texture bound to unit %u\n", u);
 			return -EINVAL;
 		}
 		size = 0;
@@ -2249,13 +2250,13 @@ static int r100_cs_track_texture_check(struct radeon_device *rdev,
 				size *= 6;
 			break;
 		default:
-			DRM_ERROR("Invalid texture coordinate type %u for unit "
-				  "%u\n", track->textures[u].tex_coord_type, u);
+			dev_warn_once(rdev->dev, "Invalid texture coordinate type %u for unit "
+				      "%u\n", track->textures[u].tex_coord_type, u);
 			return -EINVAL;
 		}
 		if (size > radeon_bo_size(robj)) {
-			DRM_ERROR("Texture of unit %u needs %lu bytes but is "
-				  "%lu\n", u, size, radeon_bo_size(robj));
+			dev_warn_once(rdev->dev, "Texture of unit %u needs %lu bytes but is "
+				      "%lu\n", u, size, radeon_bo_size(robj));
 			r100_cs_track_texture_print(&track->textures[u]);
 			return -EINVAL;
 		}
@@ -2277,18 +2278,18 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 
 	for (i = 0; i < num_cb; i++) {
 		if (track->cb[i].robj == NULL) {
-			DRM_ERROR("[drm] No buffer for color buffer %d !\n", i);
+			dev_warn_once(rdev->dev, "[drm] No buffer for color buffer %d !\n", i);
 			return -EINVAL;
 		}
 		size = track->cb[i].pitch * track->cb[i].cpp * track->maxy;
 		size += track->cb[i].offset;
 		if (size > radeon_bo_size(track->cb[i].robj)) {
-			DRM_ERROR("[drm] Buffer too small for color buffer %d "
-				  "(need %lu have %lu) !\n", i, size,
-				  radeon_bo_size(track->cb[i].robj));
-			DRM_ERROR("[drm] color buffer %d (%u %u %u %u)\n",
-				  i, track->cb[i].pitch, track->cb[i].cpp,
-				  track->cb[i].offset, track->maxy);
+			dev_warn_once(rdev->dev, "[drm] Buffer too small for color buffer %d "
+				      "(need %lu have %lu) !\n", i, size,
+				      radeon_bo_size(track->cb[i].robj));
+			dev_warn_once(rdev->dev, "[drm] color buffer %d (%u %u %u %u)\n",
+				      i, track->cb[i].pitch, track->cb[i].cpp,
+				      track->cb[i].offset, track->maxy);
 			return -EINVAL;
 		}
 	}
@@ -2296,18 +2297,18 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 
 	if (track->zb_dirty && track->z_enabled) {
 		if (track->zb.robj == NULL) {
-			DRM_ERROR("[drm] No buffer for z buffer !\n");
+			dev_warn_once(rdev->dev, "[drm] No buffer for z buffer !\n");
 			return -EINVAL;
 		}
 		size = track->zb.pitch * track->zb.cpp * track->maxy;
 		size += track->zb.offset;
 		if (size > radeon_bo_size(track->zb.robj)) {
-			DRM_ERROR("[drm] Buffer too small for z buffer "
-				  "(need %lu have %lu) !\n", size,
-				  radeon_bo_size(track->zb.robj));
-			DRM_ERROR("[drm] zbuffer (%u %u %u %u)\n",
-				  track->zb.pitch, track->zb.cpp,
-				  track->zb.offset, track->maxy);
+			dev_warn_once(rdev->dev, "[drm] Buffer too small for z buffer "
+				      "(need %lu have %lu) !\n", size,
+				      radeon_bo_size(track->zb.robj));
+			dev_warn_once(rdev->dev, "[drm] zbuffer (%u %u %u %u)\n",
+				      track->zb.pitch, track->zb.cpp,
+				      track->zb.offset, track->maxy);
 			return -EINVAL;
 		}
 	}
@@ -2315,19 +2316,19 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 
 	if (track->aa_dirty && track->aaresolve) {
 		if (track->aa.robj == NULL) {
-			DRM_ERROR("[drm] No buffer for AA resolve buffer %d !\n", i);
+			dev_warn_once(rdev->dev, "[drm] No buffer for AA resolve buffer %d !\n", i);
 			return -EINVAL;
 		}
 		/* I believe the format comes from colorbuffer0. */
 		size = track->aa.pitch * track->cb[0].cpp * track->maxy;
 		size += track->aa.offset;
 		if (size > radeon_bo_size(track->aa.robj)) {
-			DRM_ERROR("[drm] Buffer too small for AA resolve buffer %d "
-				  "(need %lu have %lu) !\n", i, size,
-				  radeon_bo_size(track->aa.robj));
-			DRM_ERROR("[drm] AA resolve buffer %d (%u %u %u %u)\n",
-				  i, track->aa.pitch, track->cb[0].cpp,
-				  track->aa.offset, track->maxy);
+			dev_warn_once(rdev->dev, "[drm] Buffer too small for AA resolve buffer %d "
+				      "(need %lu have %lu) !\n", i, size,
+				      radeon_bo_size(track->aa.robj));
+			dev_warn_once(rdev->dev, "[drm] AA resolve buffer %d (%u %u %u %u)\n",
+				      i, track->aa.pitch, track->cb[0].cpp,
+				      track->aa.offset, track->maxy);
 			return -EINVAL;
 		}
 	}
@@ -2344,17 +2345,17 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 		for (i = 0; i < track->num_arrays; i++) {
 			size = track->arrays[i].esize * track->max_indx * 4UL;
 			if (track->arrays[i].robj == NULL) {
-				DRM_ERROR("(PW %u) Vertex array %u no buffer "
-					  "bound\n", prim_walk, i);
+				dev_warn_once(rdev->dev, "(PW %u) Vertex array %u no buffer "
+					      "bound\n", prim_walk, i);
 				return -EINVAL;
 			}
 			if (size > radeon_bo_size(track->arrays[i].robj)) {
-				dev_err(rdev->dev, "(PW %u) Vertex array %u "
-					"need %lu dwords have %lu dwords\n",
-					prim_walk, i, size >> 2,
-					radeon_bo_size(track->arrays[i].robj)
-					>> 2);
-				DRM_ERROR("Max indices %u\n", track->max_indx);
+				dev_warn_once(rdev->dev, "(PW %u) Vertex array %u "
+					      "need %lu dwords have %lu dwords\n",
+					      prim_walk, i, size >> 2,
+					      radeon_bo_size(track->arrays[i].robj)
+					      >> 2);
+				dev_warn_once(rdev->dev, "Max indices %u\n", track->max_indx);
 				return -EINVAL;
 			}
 		}
@@ -2363,16 +2364,16 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 		for (i = 0; i < track->num_arrays; i++) {
 			size = track->arrays[i].esize * (nverts - 1) * 4UL;
 			if (track->arrays[i].robj == NULL) {
-				DRM_ERROR("(PW %u) Vertex array %u no buffer "
-					  "bound\n", prim_walk, i);
+				dev_warn_once(rdev->dev, "(PW %u) Vertex array %u no buffer "
+					      "bound\n", prim_walk, i);
 				return -EINVAL;
 			}
 			if (size > radeon_bo_size(track->arrays[i].robj)) {
-				dev_err(rdev->dev, "(PW %u) Vertex array %u "
-					"need %lu dwords have %lu dwords\n",
-					prim_walk, i, size >> 2,
-					radeon_bo_size(track->arrays[i].robj)
-					>> 2);
+				dev_warn_once(rdev->dev, "(PW %u) Vertex array %u "
+					      "need %lu dwords have %lu dwords\n",
+					      prim_walk, i, size >> 2,
+					      radeon_bo_size(track->arrays[i].robj)
+					      >> 2);
 				return -EINVAL;
 			}
 		}
@@ -2380,16 +2381,16 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 	case 3:
 		size = track->vtx_size * nverts;
 		if (size != track->immd_dwords) {
-			DRM_ERROR("IMMD draw %u dwors but needs %lu dwords\n",
-				  track->immd_dwords, size);
-			DRM_ERROR("VAP_VF_CNTL.NUM_VERTICES %u, VTX_SIZE %u\n",
-				  nverts, track->vtx_size);
+			dev_warn_once(rdev->dev, "IMMD draw %u dwors but needs %lu dwords\n",
+				      track->immd_dwords, size);
+			dev_warn_once(rdev->dev, "VAP_VF_CNTL.NUM_VERTICES %u, VTX_SIZE %u\n",
+				      nverts, track->vtx_size);
 			return -EINVAL;
 		}
 		break;
 	default:
-		DRM_ERROR("[drm] Invalid primitive walk %d for VAP_VF_CNTL\n",
-			  prim_walk);
+		dev_warn_once(rdev->dev, "[drm] Invalid primitive walk %d for VAP_VF_CNTL\n",
+			      prim_walk);
 		return -EINVAL;
 	}
 

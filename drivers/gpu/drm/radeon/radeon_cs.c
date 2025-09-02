@@ -834,7 +834,7 @@ void radeon_cs_dump_packet(struct radeon_cs_parser *p,
 	ib = p->ib.ptr;
 	idx = pkt->idx;
 	for (i = 0; i <= (pkt->count + 1); i++, idx++)
-		DRM_INFO("ib[%d]=0x%08X\n", idx, ib[idx]);
+		dev_dbg(p->dev, "ib[%d]=0x%08X\n", idx, ib[idx]);
 }
 
 /**
