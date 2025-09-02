@@ -126,7 +126,7 @@ static void io_uring_cmd_work(struct io_kiocb *req, io_tw_token_t tw)
 }
 
 void __io_uring_cmd_do_in_task(struct io_uring_cmd *ioucmd,
-			void (*task_work_cb)(struct io_uring_cmd *, unsigned),
+			io_uring_cmd_tw_t task_work_cb,
 			unsigned flags)
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
