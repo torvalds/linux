@@ -1585,9 +1585,6 @@ static void verify_bio_data_sectors(struct btrfs_raid_bio *rbio,
 		return;
 
 	bio_for_each_segment_all(bvec, bio, iter_all) {
-		void *kaddr;
-
-		kaddr = bvec_kmap_local(bvec);
 		for (u32 off = 0; off < bvec->bv_len;
 		     off += fs_info->sectorsize, total_sector_nr++) {
 			u8 csum_buf[BTRFS_CSUM_SIZE];
@@ -1599,12 +1596,11 @@ static void verify_bio_data_sectors(struct btrfs_raid_bio *rbio,
 			if (!test_bit(total_sector_nr, rbio->csum_bitmap))
 				continue;
 
-			ret = btrfs_check_sector_csum(fs_info, kaddr + off,
-						      csum_buf, expected_csum);
+			ret = btrfs_check_block_csum(fs_info, bvec_phys(bvec) + off,
+						     csum_buf, expected_csum);
 			if (ret < 0)
 				set_bit(total_sector_nr, rbio->error_bitmap);
 		}
-		kunmap_local(kaddr);
 	}
 }
 
@@ -1802,7 +1798,6 @@ static int verify_one_sector(struct btrfs_raid_bio *rbio,
 	struct sector_ptr *sector;
 	u8 csum_buf[BTRFS_CSUM_SIZE];
 	u8 *csum_expected;
-	void *kaddr;
 	int ret;
 
 	if (!rbio->csum_bitmap || !rbio->csum_buf)
@@ -1824,9 +1819,7 @@ static int verify_one_sector(struct btrfs_raid_bio *rbio,
 	csum_expected = rbio->csum_buf +
 			(stripe_nr * rbio->stripe_nsectors + sector_nr) *
 			fs_info->csum_size;
-	kaddr = kmap_local_sector(sector);
-	ret = btrfs_check_sector_csum(fs_info, kaddr, csum_buf, csum_expected);
-	kunmap_local(kaddr);
+	ret = btrfs_check_block_csum(fs_info, sector->paddr, csum_buf, csum_expected);
 	return ret;
 }
 

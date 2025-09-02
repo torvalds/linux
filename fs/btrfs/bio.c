@@ -167,7 +167,7 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 	int mirror = repair_bbio->mirror_num;
 
 	if (repair_bbio->bio.bi_status ||
-	    !btrfs_data_csum_ok(repair_bbio, dev, 0, bv)) {
+	    !btrfs_data_csum_ok(repair_bbio, dev, 0, bvec_phys(bv))) {
 		bio_reset(&repair_bbio->bio, NULL, REQ_OP_READ);
 		repair_bbio->bio.bi_iter = repair_bbio->saved_iter;
 
@@ -280,7 +280,7 @@ static void btrfs_check_read_bio(struct btrfs_bio *bbio, struct btrfs_device *de
 		struct bio_vec bv = bio_iter_iovec(&bbio->bio, *iter);
 
 		bv.bv_len = min(bv.bv_len, sectorsize);
-		if (status || !btrfs_data_csum_ok(bbio, dev, offset, &bv))
+		if (status || !btrfs_data_csum_ok(bbio, dev, offset, bvec_phys(&bv)))
 			fbio = repair_one_sector(bbio, offset, &bv, fbio);
 
 		bio_advance_iter_single(&bbio->bio, iter, sectorsize);

@@ -696,6 +696,20 @@ static void *scrub_stripe_get_kaddr(struct scrub_stripe *stripe, int sector_nr)
 	return page_address(page) + offset_in_page(offset);
 }
 
+static phys_addr_t scrub_stripe_get_paddr(struct scrub_stripe *stripe, int sector_nr)
+{
+	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
+	u32 offset = (sector_nr << fs_info->sectorsize_bits);
+	const struct page *page = stripe->pages[offset >> PAGE_SHIFT];
+
+	/* stripe->pages[] is allocated by us and no highmem is allowed. */
+	ASSERT(page);
+	ASSERT(!PageHighMem(page));
+	/* And the range must be contained inside the page. */
+	ASSERT(offset_in_page(offset) + fs_info->sectorsize <= PAGE_SIZE);
+	return page_to_phys(page) + offset_in_page(offset);
+}
+
 static void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr)
 {
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
@@ -788,7 +802,7 @@ static void scrub_verify_one_sector(struct scrub_stripe *stripe, int sector_nr)
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 	struct scrub_sector_verification *sector = &stripe->sectors[sector_nr];
 	const u32 sectors_per_tree = fs_info->nodesize >> fs_info->sectorsize_bits;
-	void *kaddr = scrub_stripe_get_kaddr(stripe, sector_nr);
+	phys_addr_t paddr = scrub_stripe_get_paddr(stripe, sector_nr);
 	u8 csum_buf[BTRFS_CSUM_SIZE];
 	int ret;
 
@@ -833,7 +847,7 @@ static void scrub_verify_one_sector(struct scrub_stripe *stripe, int sector_nr)
 		return;
 	}
 
-	ret = btrfs_check_sector_csum(fs_info, kaddr, csum_buf, sector->csum);
+	ret = btrfs_check_block_csum(fs_info, paddr, csum_buf, sector->csum);
 	if (ret < 0) {
 		scrub_bitmap_set_bit_csum_error(stripe, sector_nr);
 		scrub_bitmap_set_bit_error(stripe, sector_nr);

@@ -3334,13 +3334,35 @@ int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered)
  *
  * @kaddr must be a properly kmapped address.
  */
-int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, void *kaddr, u8 *csum,
-			    const u8 * const csum_expected)
+int btrfs_check_block_csum(struct btrfs_fs_info *fs_info, phys_addr_t paddr, u8 *csum,
+			   const u8 * const csum_expected)
 {
+	struct folio *folio = page_folio(phys_to_page(paddr));
+	const u32 blocksize = fs_info->sectorsize;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 
 	shash->tfm = fs_info->csum_shash;
-	crypto_shash_digest(shash, kaddr, fs_info->sectorsize, csum);
+	/* The full block must be inside the folio. */
+	ASSERT(offset_in_folio(folio, paddr) + blocksize <= folio_size(folio));
+
+	if (folio_test_partial_kmap(folio)) {
+		size_t cur = paddr;
+
+		crypto_shash_init(shash);
+		while (cur < paddr + blocksize) {
+			void *kaddr;
+			size_t len = min(paddr + blocksize - cur,
+					 PAGE_SIZE - offset_in_page(cur));
+
+			kaddr = kmap_local_folio(folio, offset_in_folio(folio, cur));
+			crypto_shash_update(shash, kaddr, len);
+			kunmap_local(kaddr);
+			cur += len;
+		}
+		crypto_shash_final(shash, csum);
+	} else {
+		crypto_shash_digest(shash, phys_to_virt(paddr), blocksize, csum);
+	}
 
 	if (memcmp(csum, csum_expected, fs_info->csum_size))
 		return -EIO;
@@ -3361,17 +3383,16 @@ int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, void *kaddr, u8 *csum
  * Return %true if the sector is ok or had no checksum to start with, else %false.
  */
 bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
-			u32 bio_offset, struct bio_vec *bv)
+			u32 bio_offset, phys_addr_t paddr)
 {
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	const u32 blocksize = fs_info->sectorsize;
+	struct folio *folio;
 	u64 file_offset = bbio->file_offset + bio_offset;
-	u64 end = file_offset + bv->bv_len - 1;
+	u64 end = file_offset + blocksize - 1;
 	u8 *csum_expected;
 	u8 csum[BTRFS_CSUM_SIZE];
-	void *kaddr;
-
-	ASSERT(bv->bv_len == fs_info->sectorsize);
 
 	if (!bbio->csum)
 		return true;
@@ -3387,12 +3408,8 @@ bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 
 	csum_expected = bbio->csum + (bio_offset >> fs_info->sectorsize_bits) *
 				fs_info->csum_size;
-	kaddr = bvec_kmap_local(bv);
-	if (btrfs_check_sector_csum(fs_info, kaddr, csum, csum_expected)) {
-		kunmap_local(kaddr);
+	if (btrfs_check_block_csum(fs_info, paddr, csum, csum_expected))
 		goto zeroit;
-	}
-	kunmap_local(kaddr);
 	return true;
 
 zeroit:
@@ -3400,7 +3417,9 @@ zeroit:
 				    bbio->mirror_num);
 	if (dev)
 		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_CORRUPTION_ERRS);
-	memzero_bvec(bv);
+	folio = page_folio(phys_to_page(paddr));
+	ASSERT(offset_in_folio(folio, paddr) + blocksize <= folio_size(folio));
+	folio_zero_range(folio, offset_in_folio(folio, paddr), blocksize);
 	return false;
 }
 
