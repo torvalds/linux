@@ -481,6 +481,9 @@ struct ma_wr_state {
 #define MA_ERROR(err) \
 		((struct maple_enode *)(((unsigned long)err << 2) | 2UL))
 
+/*
+ * When changing MA_STATE, remember to also change rust/kernel/maple_tree.rs
+ */
 #define MA_STATE(name, mt, first, end)					\
 	struct ma_state name = {					\
 		.tree = mt,						\
