@@ -705,6 +705,10 @@
 	};
 };
 
+&usb0_phy_ctrl {
+	bootph-all;
+};
+
 &usbss1 {
 	status = "okay";
 };
