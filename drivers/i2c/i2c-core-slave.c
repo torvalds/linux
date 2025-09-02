@@ -112,10 +112,9 @@ bool i2c_detect_slave_mode(struct device *dev)
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 
 	if (is_of_node(fwnode)) {
-		struct fwnode_handle *child __free(fwnode_handle) = NULL;
 		u32 reg;
 
-		fwnode_for_each_child_node(fwnode, child) {
+		fwnode_for_each_child_node_scoped(fwnode, child) {
 			fwnode_property_read_u32(child, "reg", &reg);
 			if (reg & I2C_OWN_SLAVE_ADDRESS)
 				return true;
