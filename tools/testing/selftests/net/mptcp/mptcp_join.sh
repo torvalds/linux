@@ -74,6 +74,17 @@ unset join_create_err
 unset join_bind_err
 unset join_connect_err
 
+unset fb_ns1
+unset fb_ns2
+unset fb_infinite_map_tx
+unset fb_dss_corruption
+unset fb_simult_conn
+unset fb_mpc_passive
+unset fb_mpc_active
+unset fb_mpc_data
+unset fb_md5_sig
+unset fb_dss
+
 # generated using "nfbpf_compile '(ip && (ip[54] & 0xf0) == 0x30) ||
 #				  (ip6 && (ip6[74] & 0xf0) == 0x30)'"
 CBPF_MPTCP_SUBOPTION_ADD_ADDR="14,
@@ -1399,6 +1410,115 @@ chk_join_tx_nr()
 	print_results "join Tx" ${rc}
 }
 
+chk_fallback_nr()
+{
+	local infinite_map_tx=${fb_infinite_map_tx:-0}
+	local dss_corruption=${fb_dss_corruption:-0}
+	local simult_conn=${fb_simult_conn:-0}
+	local mpc_passive=${fb_mpc_passive:-0}
+	local mpc_active=${fb_mpc_active:-0}
+	local mpc_data=${fb_mpc_data:-0}
+	local md5_sig=${fb_md5_sig:-0}
+	local dss=${fb_dss:-0}
+	local rc=${KSFT_PASS}
+	local ns=$1
+	local count
+
+	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtInfiniteMapTx")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "$infinite_map_tx" ]; then
+		rc=${KSFT_FAIL}
+		print_check "$ns infinite map tx fallback"
+		fail_test "got $count infinite map tx fallback[s] in $ns expected $infinite_map_tx"
+	fi
+
+	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtDSSCorruptionFallback")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "$dss_corruption" ]; then
+		rc=${KSFT_FAIL}
+		print_check "$ns dss corruption fallback"
+		fail_test "got $count dss corruption fallback[s] in $ns expected $dss_corruption"
+	fi
+
+	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtSimultConnectFallback")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "$simult_conn" ]; then
+		rc=${KSFT_FAIL}
+		print_check "$ns simult conn fallback"
+		fail_test "got $count simult conn fallback[s] in $ns expected $simult_conn"
+	fi
+
+	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtMPCapableFallbackACK")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "$mpc_passive" ]; then
+		rc=${KSFT_FAIL}
+		print_check "$ns mpc passive fallback"
+		fail_test "got $count mpc passive fallback[s] in $ns expected $mpc_passive"
+	fi
+
+	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtMPCapableFallbackSYNACK")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "$mpc_active" ]; then
+		rc=${KSFT_FAIL}
+		print_check "$ns mpc active fallback"
+		fail_test "got $count mpc active fallback[s] in $ns expected $mpc_active"
+	fi
+
+	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtMPCapableDataFallback")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "$mpc_data" ]; then
+		rc=${KSFT_FAIL}
+		print_check "$ns mpc data fallback"
+		fail_test "got $count mpc data fallback[s] in $ns expected $mpc_data"
+	fi
+
+	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtMD5SigFallback")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "$md5_sig" ]; then
+		rc=${KSFT_FAIL}
+		print_check "$ns MD5 Sig fallback"
+		fail_test "got $count MD5 Sig fallback[s] in $ns expected $md5_sig"
+	fi
+
+	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtDssFallback")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "$dss" ]; then
+		rc=${KSFT_FAIL}
+		print_check "$ns dss fallback"
+		fail_test "got $count dss fallback[s] in $ns expected $dss"
+	fi
+
+	return $rc
+}
+
+chk_fallback_nr_all()
+{
+	local netns=("ns1" "ns2")
+	local fb_ns=("fb_ns1" "fb_ns2")
+	local rc=${KSFT_PASS}
+
+	for i in 0 1; do
+		if [ -n "${!fb_ns[i]}" ]; then
+			eval "${!fb_ns[i]}" \
+				chk_fallback_nr ${netns[i]} || rc=${?}
+		else
+			chk_fallback_nr ${netns[i]} || rc=${?}
+		fi
+	done
+
+	if [ "${rc}" != "${KSFT_PASS}" ]; then
+		print_results "fallback" ${rc}
+	fi
+}
+
 chk_join_nr()
 {
 	local syn_nr=$1
@@ -1483,6 +1603,8 @@ chk_join_nr()
 
 	join_syn_tx="${join_syn_tx:-${syn_nr}}" \
 		chk_join_tx_nr
+
+	chk_fallback_nr_all
 
 	if $validate_checksum; then
 		chk_csum_nr $csum_ns1 $csum_ns2
@@ -3337,6 +3459,7 @@ fail_tests()
 		join_csum_ns1=+1 join_csum_ns2=+0 \
 			join_fail_nr=1 join_rst_nr=0 join_infi_nr=1 \
 			join_corrupted_pkts="$(pedit_action_pkts)" \
+			fb_ns1="fb_dss=1" fb_ns2="fb_infinite_map_tx=1" \
 			chk_join_nr 0 0 0
 		chk_fail_nr 1 -1 invert
 	fi
