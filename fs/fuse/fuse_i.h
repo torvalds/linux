@@ -1413,6 +1413,12 @@ int fuse_reverse_inval_inode(struct fuse_conn *fc, u64 nodeid,
 int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
 			     u64 child_nodeid, struct qstr *name, u32 flags);
 
+/*
+ * Try to prune this inode.  If neither the inode itself nor dentries associated
+ * with this inode have any external reference, then the inode can be freed.
+ */
+void fuse_try_prune_one_inode(struct fuse_conn *fc, u64 nodeid);
+
 int fuse_do_open(struct fuse_mount *fm, u64 nodeid, struct file *file,
 		 bool isdir);
 

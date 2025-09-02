@@ -585,6 +585,17 @@ int fuse_reverse_inval_inode(struct fuse_conn *fc, u64 nodeid,
 	return 0;
 }
 
+void fuse_try_prune_one_inode(struct fuse_conn *fc, u64 nodeid)
+{
+	struct inode *inode;
+
+	inode = fuse_ilookup(fc, nodeid,  NULL);
+	if (!inode)
+		return;
+	d_prune_aliases(inode);
+	iput(inode);
+}
+
 bool fuse_lock_inode(struct inode *inode)
 {
 	bool locked = false;
