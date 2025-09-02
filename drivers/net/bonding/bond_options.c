@@ -162,10 +162,11 @@ static const struct bond_opt_value bond_lacp_rate_tbl[] = {
 };
 
 static const struct bond_opt_value bond_ad_select_tbl[] = {
-	{ "stable",    BOND_AD_STABLE,    BOND_VALFLAG_DEFAULT},
-	{ "bandwidth", BOND_AD_BANDWIDTH, 0},
-	{ "count",     BOND_AD_COUNT,     0},
-	{ NULL,        -1,                0},
+	{ "stable",          BOND_AD_STABLE,    BOND_VALFLAG_DEFAULT},
+	{ "bandwidth",       BOND_AD_BANDWIDTH, 0},
+	{ "count",           BOND_AD_COUNT,     0},
+	{ "actor_port_prio", BOND_AD_PRIO,      0},
+	{ NULL,              -1,                0},
 };
 
 static const struct bond_opt_value bond_num_peer_notif_tbl[] = {
