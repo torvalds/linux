@@ -9,7 +9,7 @@
 #include "intel_panic.h"
 #include "xe_bo.h"
 
-struct xe_panic_data {
+struct intel_panic {
 	struct page **pages;
 	int page;
 	void *vaddr;
@@ -17,10 +17,10 @@ struct xe_panic_data {
 
 struct xe_framebuffer {
 	struct intel_framebuffer base;
-	struct xe_panic_data panic;
+	struct intel_panic panic;
 };
 
-static void xe_panic_kunmap(struct xe_panic_data *panic)
+static void xe_panic_kunmap(struct intel_panic *panic)
 {
 	if (panic->vaddr) {
 		drm_clflush_virt_range(panic->vaddr, PAGE_SIZE);
@@ -38,7 +38,7 @@ static void xe_panic_page_set_pixel(struct drm_scanout_buffer *sb, unsigned int 
 				    unsigned int y, u32 color)
 {
 	struct intel_framebuffer *fb = (struct intel_framebuffer *)sb->private;
-	struct xe_panic_data *panic = fb->panic;
+	struct intel_panic *panic = fb->panic;
 	struct xe_bo *bo = gem_to_xe_bo(intel_fb_bo(&fb->base));
 	unsigned int new_page;
 	unsigned int offset;
@@ -78,7 +78,7 @@ struct intel_framebuffer *intel_bo_alloc_framebuffer(void)
 int intel_panic_setup(struct drm_scanout_buffer *sb)
 {
 	struct intel_framebuffer *fb = (struct intel_framebuffer *)sb->private;
-	struct xe_panic_data *panic = fb->panic;
+	struct intel_panic *panic = fb->panic;
 
 	panic->page = -1;
 	sb->set_pixel = xe_panic_page_set_pixel;
@@ -87,7 +87,7 @@ int intel_panic_setup(struct drm_scanout_buffer *sb)
 
 void intel_panic_finish(struct intel_framebuffer *fb)
 {
-	struct xe_panic_data *panic = fb->panic;
+	struct intel_panic *panic = fb->panic;
 
 	xe_panic_kunmap(panic);
 	panic->page = -1;
