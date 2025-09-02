@@ -644,6 +644,15 @@ void intel_vrr_enable(const struct intel_crtc_state *crtc_state)
 	}
 }
 
+static void intel_vrr_wait_for_live_status_clear(struct intel_display *display,
+						 enum transcoder cpu_transcoder)
+{
+	if (intel_de_wait_for_clear(display,
+				    TRANS_VRR_STATUS(display, cpu_transcoder),
+				    VRR_STATUS_VRR_EN_LIVE, 1000))
+		drm_err(display->drm, "Timed out waiting for VRR live status to clear\n");
+}
+
 void intel_vrr_disable(const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_display *display = to_intel_display(old_crtc_state);
@@ -655,9 +664,7 @@ void intel_vrr_disable(const struct intel_crtc_state *old_crtc_state)
 	if (!intel_vrr_always_use_vrr_tg(display)) {
 		intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
 			       trans_vrr_ctl(old_crtc_state));
-		intel_de_wait_for_clear(display,
-					TRANS_VRR_STATUS(display, cpu_transcoder),
-					VRR_STATUS_VRR_EN_LIVE, 1000);
+		intel_vrr_wait_for_live_status_clear(display, cpu_transcoder);
 		intel_de_write(display, TRANS_PUSH(display, cpu_transcoder), 0);
 	}
 
@@ -703,8 +710,8 @@ void intel_vrr_transcoder_disable(const struct intel_crtc_state *crtc_state)
 
 	intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder), 0);
 
-	intel_de_wait_for_clear(display, TRANS_VRR_STATUS(display, cpu_transcoder),
-				VRR_STATUS_VRR_EN_LIVE, 1000);
+	intel_vrr_wait_for_live_status_clear(display, cpu_transcoder);
+
 	intel_de_write(display, TRANS_PUSH(display, cpu_transcoder), 0);
 }
 
