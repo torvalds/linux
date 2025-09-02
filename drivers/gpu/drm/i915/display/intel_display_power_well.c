@@ -500,7 +500,6 @@ static void icl_tc_port_assert_ref_held(struct intel_display *display,
 
 static void icl_tc_cold_exit(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	int ret, tries = 0;
 
 	while (1) {
@@ -515,7 +514,7 @@ static void icl_tc_cold_exit(struct intel_display *display)
 		msleep(1);
 
 	/* TODO: turn failure into a error as soon i915 CI updates ICL IFWI */
-	drm_dbg_kms(&i915->drm, "TC cold block %s\n", ret ? "failed" :
+	drm_dbg_kms(display->drm, "TC cold block %s\n", ret ? "failed" :
 		    "succeeded");
 }
 
@@ -1766,7 +1765,6 @@ static void chv_pipe_power_well_disable(struct intel_display *display,
 static void
 tgl_tc_cold_request(struct intel_display *display, bool block)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u8 tries = 0;
 	int ret;
 
@@ -1799,10 +1797,9 @@ tgl_tc_cold_request(struct intel_display *display, bool block)
 	}
 
 	if (ret)
-		drm_err(&i915->drm, "TC cold %sblock failed\n",
-			block ? "" : "un");
+		drm_err(display->drm, "TC cold %sblock failed\n", block ? "" : "un");
 	else
-		drm_dbg_kms(&i915->drm, "TC cold %sblock succeeded\n",
+		drm_dbg_kms(display->drm, "TC cold %sblock succeeded\n",
 			    block ? "" : "un");
 }
 
