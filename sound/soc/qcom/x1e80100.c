@@ -218,6 +218,7 @@ static int x1e80100_platform_probe(struct platform_device *pdev)
 
 static const struct of_device_id snd_x1e80100_dt_match[] = {
 	{ .compatible = "qcom,x1e80100-sndcard", .data = "x1e80100" },
+	{ .compatible = "qcom,glymur-sndcard", .data = "glymur" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, snd_x1e80100_dt_match);
