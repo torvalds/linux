@@ -1,0 +1,1 @@
+cat /proc/sys/vm/drop_cache
