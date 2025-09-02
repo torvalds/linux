@@ -20,11 +20,6 @@ struct xe_framebuffer {
 	struct xe_panic_data panic;
 };
 
-static inline struct xe_panic_data *to_xe_panic_data(struct intel_framebuffer *fb)
-{
-	return &container_of_const(fb, struct xe_framebuffer, base)->panic;
-}
-
 static void xe_panic_kunmap(struct xe_panic_data *panic)
 {
 	if (panic->vaddr) {
@@ -43,7 +38,7 @@ static void xe_panic_page_set_pixel(struct drm_scanout_buffer *sb, unsigned int 
 				    unsigned int y, u32 color)
 {
 	struct intel_framebuffer *fb = (struct intel_framebuffer *)sb->private;
-	struct xe_panic_data *panic = to_xe_panic_data(fb);
+	struct xe_panic_data *panic = fb->panic;
 	struct xe_bo *bo = gem_to_xe_bo(intel_fb_bo(&fb->base));
 	unsigned int new_page;
 	unsigned int offset;
@@ -72,15 +67,18 @@ struct intel_framebuffer *intel_bo_alloc_framebuffer(void)
 	struct xe_framebuffer *xe_fb;
 
 	xe_fb = kzalloc(sizeof(*xe_fb), GFP_KERNEL);
-	if (xe_fb)
-		return &xe_fb->base;
-	return NULL;
+	if (!xe_fb)
+		return NULL;
+
+	xe_fb->base.panic = &xe_fb->panic;
+
+	return &xe_fb->base;
 }
 
 int intel_panic_setup(struct drm_scanout_buffer *sb)
 {
 	struct intel_framebuffer *fb = (struct intel_framebuffer *)sb->private;
-	struct xe_panic_data *panic = to_xe_panic_data(fb);
+	struct xe_panic_data *panic = fb->panic;
 
 	panic->page = -1;
 	sb->set_pixel = xe_panic_page_set_pixel;
@@ -89,7 +87,7 @@ int intel_panic_setup(struct drm_scanout_buffer *sb)
 
 void intel_panic_finish(struct intel_framebuffer *fb)
 {
-	struct xe_panic_data *panic = to_xe_panic_data(fb);
+	struct xe_panic_data *panic = fb->panic;
 
 	xe_panic_kunmap(panic);
 	panic->page = -1;
