@@ -1570,7 +1570,7 @@ repeat:
 
 	if (unlikely(!folio_test_uptodate(folio))) {
 		err = -EIO;
-		goto out_err;
+		goto out_put_err;
 	}
 
 	if (!f2fs_inode_chksum_verify(sbi, folio)) {
