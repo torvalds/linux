@@ -103,7 +103,7 @@ static int tidss_crtc_atomic_check(struct drm_crtc *crtc,
 
 	ok = dispc_vp_mode_valid(dispc, hw_videoport, mode);
 	if (ok != MODE_OK) {
-		dev_dbg(ddev->dev, "%s: bad mode: %ux%u pclk %u kHz\n",
+		drm_dbg(ddev, "%s: bad mode: %ux%u pclk %u kHz\n",
 			__func__, mode->hdisplay, mode->vdisplay, mode->clock);
 		return -EINVAL;
 	}
@@ -172,7 +172,7 @@ static void tidss_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct tidss_device *tidss = to_tidss(ddev);
 	unsigned long flags;
 
-	dev_dbg(ddev->dev, "%s: %s is %sactive, %s modeset, event %p\n",
+	drm_dbg(ddev, "%s: %s is %sactive, %s modeset, event %p\n",
 		__func__, crtc->name, crtc->state->active ? "" : "not ",
 		drm_atomic_crtc_needs_modeset(crtc->state) ? "needs" : "doesn't need",
 		crtc->state->event);
