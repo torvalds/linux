@@ -299,7 +299,6 @@ The top level sysfs directory looks like::
     hypervisor/
     kernel/
     module/
-    net/
     power/
 
 devices/ contains a filesystem representation of the device tree. It maps
