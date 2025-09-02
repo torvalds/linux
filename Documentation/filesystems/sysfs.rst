@@ -312,7 +312,7 @@ kernel. Each bus's directory contains two subdirectories::
 	drivers/
 
 devices/ contains symlinks for each device discovered in the system
-that point to the device's directory under root/.
+that point to the device's directory under /sys/devices.
 
 drivers/ contains a directory for each device driver that is loaded
 for devices on that particular bus (this assumes that drivers do not
@@ -327,7 +327,7 @@ loaded system modules, for both builtin and loadable modules.
 
 dev/ contains two directories: char/ and block/. Inside these two
 directories there are symlinks named <major>:<minor>.  These symlinks
-point to the sysfs directory for the given device.  /sys/dev provides a
+point to the directories under /sys/devices for each device.  /sys/dev provides a
 quick way to lookup the sysfs interface for a device from the result of
 a stat(2) operation.
 
