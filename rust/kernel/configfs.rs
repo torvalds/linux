@@ -1039,3 +1039,5 @@ macro_rules! configfs_attrs {
     };
 
 }
+
+pub use crate::configfs_attrs;
