@@ -333,18 +333,18 @@ EXPORT_SYMBOL(__ubsan_handle_implicit_conversion);
 void __ubsan_handle_divrem_overflow(void *_data, void *lhs, void *rhs)
 {
 	struct overflow_data *data = _data;
-	char rhs_val_str[VALUE_LENGTH];
+	char lhs_val_str[VALUE_LENGTH];
 
 	if (suppress_report(&data->location))
 		return;
 
 	ubsan_prologue(&data->location, "division-overflow");
 
-	val_to_string(rhs_val_str, sizeof(rhs_val_str), data->type, rhs);
+	val_to_string(lhs_val_str, sizeof(lhs_val_str), data->type, lhs);
 
 	if (type_is_signed(data->type) && get_signed_val(data->type, rhs) == -1)
 		pr_err("division of %s by -1 cannot be represented in type %s\n",
-			rhs_val_str, data->type->type_name);
+			lhs_val_str, data->type->type_name);
 	else
 		pr_err("division by zero\n");
 
