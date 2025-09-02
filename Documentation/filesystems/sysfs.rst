@@ -334,8 +334,22 @@ a stat(2) operation.
 More information on driver-model specific features can be found in
 Documentation/driver-api/driver-model/.
 
+block/ contains symlinks to all the block devices discovered on the system.
+These symlinks point to directories under /sys/devices.
 
-TODO: Finish this section.
+class/ contains a directory for each device class, grouped by functional type.
+Each directory in class/ contains symlinks to devices in the /sys/devices directory.
+
+firmware/ contains system firmware data and configuration such as firmware tables,
+ACPI information, and device tree data.
+
+hypervisor/ contains virtualization platform information and provides an interface to
+the underlying hypervisor.  It is only present when running on a virtual machine.
+
+kernel/ contains runtime kernel parameters, configuration settings, and status.
+
+power/ contains power management subsystem information including
+sleep states, suspend/resume capabilities, and policies.
 
 
 Current Interfaces
