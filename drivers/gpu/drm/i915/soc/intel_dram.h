@@ -12,9 +12,6 @@ struct drm_i915_private;
 struct drm_device;
 
 struct dram_info {
-	bool wm_lv_0_adjust_needed;
-	u8 num_channels;
-	bool symmetric_memory;
 	enum intel_dram_type {
 		INTEL_DRAM_UNKNOWN,
 		INTEL_DRAM_DDR2,
@@ -28,10 +25,13 @@ struct dram_info {
 		INTEL_DRAM_GDDR_ECC,
 		__INTEL_DRAM_TYPE_MAX,
 	} type;
-	u8 num_qgv_points;
-	u8 num_psf_gv_points;
 	unsigned int fsb_freq;
 	unsigned int mem_freq;
+	u8 num_channels;
+	u8 num_qgv_points;
+	u8 num_psf_gv_points;
+	bool symmetric_memory;
+	bool wm_lv_0_adjust_needed;
 };
 
 void intel_dram_edram_detect(struct drm_i915_private *i915);
