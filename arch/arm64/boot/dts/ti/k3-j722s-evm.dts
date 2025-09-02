@@ -784,6 +784,10 @@
 	usb-role-switch;
 };
 
+&usb0_phy_ctrl {
+	bootph-all;
+};
+
 &usbss1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_usb1_pins_default>;
