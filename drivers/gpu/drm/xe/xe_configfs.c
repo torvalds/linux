@@ -134,6 +134,8 @@ struct xe_config_group_device {
 
 	/* protects attributes */
 	struct mutex lock;
+	/* matching descriptor */
+	const struct xe_device_desc *desc;
 };
 
 static const struct xe_config_device device_defaults = {
@@ -362,8 +364,21 @@ static struct configfs_item_operations xe_config_device_ops = {
 	.release	= xe_config_device_release,
 };
 
+static bool xe_config_device_is_visible(struct config_item *item,
+					struct configfs_attribute *attr, int n)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
+
+	return dev->desc; /* shall be always true */
+}
+
+static struct configfs_group_operations xe_config_device_group_ops = {
+	.is_visible	= xe_config_device_is_visible,
+};
+
 static const struct config_item_type xe_config_device_type = {
 	.ct_item_ops	= &xe_config_device_ops,
+	.ct_group_ops	= &xe_config_device_group_ops,
 	.ct_attrs	= xe_config_device_attrs,
 	.ct_owner	= THIS_MODULE,
 };
@@ -442,6 +457,7 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
+	dev->desc = match;
 	set_device_defaults(&dev->config);
 
 	config_group_init_type_name(&dev->group, name, &xe_config_device_type);
@@ -451,12 +467,12 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 	return &dev->group;
 }
 
-static struct configfs_group_operations xe_config_device_group_ops = {
+static struct configfs_group_operations xe_config_group_ops = {
 	.make_group	= xe_config_make_device_group,
 };
 
 static const struct config_item_type xe_configfs_type = {
-	.ct_group_ops	= &xe_config_device_group_ops,
+	.ct_group_ops	= &xe_config_group_ops,
 	.ct_owner	= THIS_MODULE,
 };
 
