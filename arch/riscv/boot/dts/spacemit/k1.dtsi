@@ -797,16 +797,7 @@
 				status = "disabled";
 			};
 
-			sec_uart1: serial@f0612000 {
-				compatible = "spacemit,k1-uart",
-					     "intel,xscale-uart";
-				reg = <0x0 0xf0612000 0x0 0x100>;
-				interrupts = <43>;
-				clock-frequency = <14857000>;
-				reg-shift = <2>;
-				reg-io-width = <4>;
-				status = "reserved"; /* for TEE usage */
-			};
+			/* sec_uart1: 0xf0612000, not available from Linux */
 		};
 
 		multimedia-bus {
