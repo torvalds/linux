@@ -18,6 +18,7 @@
 /proc-tid0
 /proc-uptime-001
 /proc-uptime-002
+/proc-pidns
 /read
 /self
 /setns-dcache
