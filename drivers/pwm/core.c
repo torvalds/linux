@@ -276,7 +276,7 @@ int pwm_round_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *
 
 	if (IS_ENABLED(CONFIG_PWM_DEBUG) && ret_fromhw > 0)
 		dev_err(&chip->dev, "Unexpected return value from __pwm_round_waveform_fromhw: requested %llu/%llu [+%llu], return value %d\n",
-			wf_req.duty_length_ns, wf_req.period_length_ns, wf_req.duty_offset_ns, ret_tohw);
+			wf_req.duty_length_ns, wf_req.period_length_ns, wf_req.duty_offset_ns, ret_fromhw);
 
 	if (IS_ENABLED(CONFIG_PWM_DEBUG) &&
 	    (ret_tohw == 0) != pwm_check_rounding(&wf_req, wf))
