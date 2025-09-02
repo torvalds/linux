@@ -77,7 +77,7 @@ struct intel_framebuffer *intel_bo_alloc_framebuffer(void)
 	return NULL;
 }
 
-int intel_bo_panic_setup(struct drm_scanout_buffer *sb)
+int intel_panic_setup(struct drm_scanout_buffer *sb)
 {
 	struct intel_framebuffer *fb = (struct intel_framebuffer *)sb->private;
 	struct xe_panic_data *panic = to_xe_panic_data(fb);
@@ -87,7 +87,7 @@ int intel_bo_panic_setup(struct drm_scanout_buffer *sb)
 	return 0;
 }
 
-void intel_bo_panic_finish(struct intel_framebuffer *fb)
+void intel_panic_finish(struct intel_framebuffer *fb)
 {
 	struct xe_panic_data *panic = to_xe_panic_data(fb);
 
