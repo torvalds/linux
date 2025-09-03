@@ -3524,8 +3524,7 @@ static int gfx_v12_0_gfxhub_enable(struct amdgpu_device *adev)
 
 	amdgpu_device_flush_hdp(adev, NULL);
 
-	value = (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS) ?
-		false : true;
+	value = amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS;
 
 	adev->gfxhub.funcs->set_fault_enable_default(adev, value);
 	/* TODO investigate why this and the hdp flush above is needed,
