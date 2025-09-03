@@ -1049,8 +1049,7 @@ static bool edp_setup_panel_replay(struct dc_link *link, const struct dc_stream_
 
 	replay_context.line_time_in_ns = lineTimeInNs;
 
-	link->replay_settings.replay_feature_enabled =
-			replay->funcs->replay_copy_settings(replay, link, &replay_context, panel_inst);
+	link->replay_settings.replay_feature_enabled = edp_pr_copy_settings(link, &replay_context);
 
 	if (link->replay_settings.replay_feature_enabled) {
 		pr_config_1.bits.PANEL_REPLAY_ENABLE = 1;
@@ -1301,6 +1300,149 @@ bool edp_set_replay_power_opt_and_coasting_vtotal(struct dc_link *link,
 			return false;
 	} else
 		return false;
+
+	return true;
+}
+
+bool edp_pr_enable(struct dc_link *link, bool enable)
+{
+	struct dc  *dc = link->ctx->dc;
+	unsigned int panel_inst = 0;
+	union dmub_rb_cmd cmd;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	//for sending PR enable commands to DMUB
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.pr_enable.header.type = DMUB_CMD__PR;
+	cmd.pr_enable.header.sub_type = DMUB_CMD__PR_ENABLE;
+	cmd.pr_enable.header.payload_bytes = sizeof(struct dmub_cmd_pr_enable_data);
+	cmd.pr_enable.data.panel_inst = panel_inst;
+	cmd.pr_enable.data.enable = enable ? 1 : 0;
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	return true;
+}
+
+bool edp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_context)
+{
+	struct dc  *dc = link->ctx->dc;
+	unsigned int panel_inst = 0;
+	union dmub_rb_cmd cmd;
+	struct pipe_ctx *pipe_ctx = NULL;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	for (unsigned int i = 0; i < MAX_PIPES; i++) {
+		if (dc->current_state->res_ctx.pipe_ctx[i].stream &&
+			dc->current_state->res_ctx.pipe_ctx[i].stream->link &&
+			dc->current_state->res_ctx.pipe_ctx[i].stream->link == link &&
+			dc->current_state->res_ctx.pipe_ctx[i].stream->link->connector_signal == SIGNAL_TYPE_EDP) {
+			pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+			//TODO: refactor for multi edp support
+			break;
+		}
+	}
+
+	if (!pipe_ctx)
+		return false;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.pr_copy_settings.header.type = DMUB_CMD__PR;
+	cmd.pr_copy_settings.header.sub_type = DMUB_CMD__PR_COPY_SETTINGS;
+	cmd.pr_copy_settings.header.payload_bytes = sizeof(struct dmub_cmd_pr_copy_settings_data);
+	cmd.pr_copy_settings.data.panel_inst = panel_inst;
+	// HW inst
+	cmd.pr_copy_settings.data.aux_inst = replay_context->aux_inst;
+	cmd.pr_copy_settings.data.digbe_inst = replay_context->digbe_inst;
+	cmd.pr_copy_settings.data.digfe_inst = replay_context->digfe_inst;
+	if (pipe_ctx->plane_res.dpp)
+		cmd.pr_copy_settings.data.dpp_inst = pipe_ctx->plane_res.dpp->inst;
+	else
+		cmd.pr_copy_settings.data.dpp_inst = 0;
+	if (pipe_ctx->stream_res.tg)
+		cmd.pr_copy_settings.data.otg_inst = pipe_ctx->stream_res.tg->inst;
+	else
+		cmd.pr_copy_settings.data.otg_inst = 0;
+
+	cmd.pr_copy_settings.data.dpphy_inst = link->link_enc->transmitter;
+
+	cmd.pr_copy_settings.data.line_time_in_ns = replay_context->line_time_in_ns;
+	cmd.pr_copy_settings.data.flags.bitfields.fec_enable_status = (link->fec_state == dc_link_fec_enabled);
+	cmd.pr_copy_settings.data.flags.bitfields.dsc_enable_status = (pipe_ctx->stream->timing.flags.DSC == 1);
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	return true;
+}
+
+bool edp_pr_update_state(struct dc_link *link, struct dmub_cmd_pr_update_state_data *update_state_data)
+{
+	struct dc  *dc = link->ctx->dc;
+	unsigned int panel_inst = 0;
+	union dmub_rb_cmd cmd;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.pr_update_state.header.type = DMUB_CMD__PR;
+	cmd.pr_update_state.header.sub_type = DMUB_CMD__PR_UPDATE_STATE;
+	cmd.pr_update_state.header.payload_bytes = sizeof(struct dmub_cmd_pr_update_state_data);
+	cmd.pr_update_state.data.panel_inst = panel_inst;
+
+	memcpy(&cmd.pr_update_state.data, update_state_data, sizeof(struct dmub_cmd_pr_update_state_data));
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	return true;
+}
+
+bool edp_pr_set_general_cmd(struct dc_link *link, struct dmub_cmd_pr_general_cmd_data *general_cmd_data)
+{
+	struct dc  *dc = link->ctx->dc;
+	unsigned int panel_inst = 0;
+	union dmub_rb_cmd cmd;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.pr_general_cmd.header.type = DMUB_CMD__PR;
+	cmd.pr_general_cmd.header.sub_type = DMUB_CMD__PR_GENERAL_CMD;
+	cmd.pr_general_cmd.header.payload_bytes = sizeof(struct dmub_cmd_pr_general_cmd_data);
+	cmd.pr_general_cmd.data.panel_inst = panel_inst;
+
+	memcpy(&cmd.pr_general_cmd.data, general_cmd_data, sizeof(struct dmub_cmd_pr_general_cmd_data));
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	return true;
+}
+
+bool edp_pr_get_state(const struct dc_link *link, uint64_t *state)
+{
+	const struct dc  *dc = link->ctx->dc;
+	unsigned int panel_inst = 0;
+	uint32_t retry_count = 0;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	do {
+		// Send gpint command and wait for ack
+		if (!dc_wake_and_execute_gpint(dc->ctx, DMUB_GPINT__GET_REPLAY_STATE, panel_inst,
+					       (uint32_t *)state, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)) {
+			// Return invalid state when GPINT times out
+			*state = PR_STATE_INVALID;
+		}
+	} while (++retry_count <= 1000 && *state == PR_STATE_INVALID);
+
+	// Assert if max retry hit
+	if (retry_count >= 1000 && *state == PR_STATE_INVALID) {
+		ASSERT(0);
+		/* To-do: Add retry fail log */
+	}
 
 	return true;
 }

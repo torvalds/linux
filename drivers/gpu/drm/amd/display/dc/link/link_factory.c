@@ -229,6 +229,10 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 	link_srv->edp_receiver_ready_T9 = edp_receiver_ready_T9;
 	link_srv->edp_receiver_ready_T7 = edp_receiver_ready_T7;
 	link_srv->edp_power_alpm_dpcd_enable = edp_power_alpm_dpcd_enable;
+	link_srv->edp_pr_enable = edp_pr_enable;
+	link_srv->edp_pr_update_state = edp_pr_update_state;
+	link_srv->edp_pr_set_general_cmd = edp_pr_set_general_cmd;
+	link_srv->edp_pr_get_state = edp_pr_get_state;
 	link_srv->edp_set_panel_power = edp_set_panel_power;
 }
 
