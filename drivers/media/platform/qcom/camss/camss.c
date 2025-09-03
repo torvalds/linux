@@ -3738,7 +3738,6 @@ static int camss_init_subdevices(struct camss *camss)
 }
 
 /*
- * camss_link_entities - Register subdev nodes and create links
  * camss_link_err - print error in case link creation fails
  * @src_name: name for source of the link
  * @sink_name: name for sink of the link
@@ -4233,7 +4232,7 @@ static int camss_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_v4l2_device_unregister;
 
-	ret = camss->res->link_entities(camss);
+	ret = camss_link_entities(camss);
 	if (ret < 0)
 		goto err_register_subdevs;
 
@@ -4318,7 +4317,6 @@ static const struct camss_resources msm8916_resources = {
 	.csiphy_num = ARRAY_SIZE(csiphy_res_8x16),
 	.csid_num = ARRAY_SIZE(csid_res_8x16),
 	.vfe_num = ARRAY_SIZE(vfe_res_8x16),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources msm8953_resources = {
@@ -4332,7 +4330,6 @@ static const struct camss_resources msm8953_resources = {
 	.csiphy_num = ARRAY_SIZE(csiphy_res_8x96),
 	.csid_num = ARRAY_SIZE(csid_res_8x53),
 	.vfe_num = ARRAY_SIZE(vfe_res_8x53),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources msm8996_resources = {
@@ -4344,7 +4341,6 @@ static const struct camss_resources msm8996_resources = {
 	.csiphy_num = ARRAY_SIZE(csiphy_res_8x96),
 	.csid_num = ARRAY_SIZE(csid_res_8x96),
 	.vfe_num = ARRAY_SIZE(vfe_res_8x96),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources qcm2290_resources = {
@@ -4357,7 +4353,6 @@ static const struct camss_resources qcm2290_resources = {
 	.csiphy_num = ARRAY_SIZE(csiphy_res_2290),
 	.csid_num = ARRAY_SIZE(csid_res_2290),
 	.vfe_num = ARRAY_SIZE(vfe_res_2290),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources qcs8300_resources = {
@@ -4372,7 +4367,6 @@ static const struct camss_resources qcs8300_resources = {
 	.csid_num = ARRAY_SIZE(csid_res_8775p),
 	.vfe_num = ARRAY_SIZE(vfe_res_8775p),
 	.icc_path_num = ARRAY_SIZE(icc_res_qcs8300),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources sa8775p_resources = {
@@ -4387,7 +4381,6 @@ static const struct camss_resources sa8775p_resources = {
 	.csid_num = ARRAY_SIZE(csid_res_8775p),
 	.vfe_num = ARRAY_SIZE(vfe_res_8775p),
 	.icc_path_num = ARRAY_SIZE(icc_res_sa8775p),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources sdm660_resources = {
@@ -4399,7 +4392,6 @@ static const struct camss_resources sdm660_resources = {
 	.csiphy_num = ARRAY_SIZE(csiphy_res_660),
 	.csid_num = ARRAY_SIZE(csid_res_660),
 	.vfe_num = ARRAY_SIZE(vfe_res_660),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources sdm670_resources = {
@@ -4410,7 +4402,6 @@ static const struct camss_resources sdm670_resources = {
 	.csiphy_num = ARRAY_SIZE(csiphy_res_670),
 	.csid_num = ARRAY_SIZE(csid_res_670),
 	.vfe_num = ARRAY_SIZE(vfe_res_670),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources sdm845_resources = {
@@ -4422,7 +4413,6 @@ static const struct camss_resources sdm845_resources = {
 	.csiphy_num = ARRAY_SIZE(csiphy_res_845),
 	.csid_num = ARRAY_SIZE(csid_res_845),
 	.vfe_num = ARRAY_SIZE(vfe_res_845),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources sm8250_resources = {
@@ -4436,7 +4426,6 @@ static const struct camss_resources sm8250_resources = {
 	.csiphy_num = ARRAY_SIZE(csiphy_res_8250),
 	.csid_num = ARRAY_SIZE(csid_res_8250),
 	.vfe_num = ARRAY_SIZE(vfe_res_8250),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources sc8280xp_resources = {
@@ -4451,7 +4440,6 @@ static const struct camss_resources sc8280xp_resources = {
 	.csiphy_num = ARRAY_SIZE(csiphy_res_sc8280xp),
 	.csid_num = ARRAY_SIZE(csid_res_sc8280xp),
 	.vfe_num = ARRAY_SIZE(vfe_res_sc8280xp),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources sc7280_resources = {
@@ -4465,7 +4453,6 @@ static const struct camss_resources sc7280_resources = {
 	.csiphy_num = ARRAY_SIZE(csiphy_res_7280),
 	.csid_num = ARRAY_SIZE(csid_res_7280),
 	.vfe_num = ARRAY_SIZE(vfe_res_7280),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources sm8550_resources = {
@@ -4480,7 +4467,6 @@ static const struct camss_resources sm8550_resources = {
 	.csiphy_num = ARRAY_SIZE(csiphy_res_8550),
 	.csid_num = ARRAY_SIZE(csid_res_8550),
 	.vfe_num = ARRAY_SIZE(vfe_res_8550),
-	.link_entities = camss_link_entities
 };
 
 static const struct camss_resources x1e80100_resources = {
@@ -4495,7 +4481,6 @@ static const struct camss_resources x1e80100_resources = {
 	.csiphy_num = ARRAY_SIZE(csiphy_res_x1e80100),
 	.csid_num = ARRAY_SIZE(csid_res_x1e80100),
 	.vfe_num = ARRAY_SIZE(vfe_res_x1e80100),
-	.link_entities = camss_link_entities
 };
 
 static const struct of_device_id camss_dt_match[] = {
