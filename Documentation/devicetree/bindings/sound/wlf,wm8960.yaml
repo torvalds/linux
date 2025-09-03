@@ -9,6 +9,28 @@ title: Wolfson WM8960 audio codec
 maintainers:
   - patches@opensource.cirrus.com
 
+description: |
+  Wolfson WM8960 audio codec
+
+  Pins on the device (for linking into audio routes):
+
+    Outputs:
+      * HP_L    : Left Headphone/Line Output
+      * HP_R    : Right Headphone/Line Output
+      * SPK_LP  : Left Speaker Output (Positive)
+      * SPK_LN  : Left Speaker Output (Negative)
+      * SPK_RP  : Right Speaker Output (Positive)
+      * SPK_RN  : Right Speaker Output (Negative)
+      * OUT3    : Mono, Left, Right or buffered midrail output for capless mode
+
+    Inputs:
+      * LINPUT1 : Left single-ended or negative differential microphone input
+      * RINPUT1 : Right single-ended or negative differential microphone input
+      * LINPUT2 : Left line input or positive differential microphone input
+      * RINPUT2 : Right line input or positive differential microphone input
+      * LINPUT3 : Left line input, positive differential microphone, or Jack Detect 2
+      * RINPUT3 : Right line input, positive differential microphone, or Jack Detect 3
+
 properties:
   compatible:
     const: wlf,wm8960
