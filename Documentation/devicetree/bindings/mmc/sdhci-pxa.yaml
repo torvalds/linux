@@ -44,6 +44,7 @@ allOf:
           items:
             - const: default
             - const: state_cmd_gpio
+          minItems: 1
 
         pinctrl-1:
           description:
@@ -61,6 +62,7 @@ allOf:
           items:
             - const: default
             - const: state_uhs
+          minItems: 1
 
         pinctrl-1:
           description:
