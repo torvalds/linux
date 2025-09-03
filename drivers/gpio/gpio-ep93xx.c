@@ -9,16 +9,16 @@
  *  linux/arch/arm/mach-ep93xx/core.c
  */
 
+#include <linux/bitops.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/slab.h>
-#include <linux/gpio/driver.h>
-#include <linux/bitops.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 struct ep93xx_gpio_irq_chip {
 	void __iomem *base;
