@@ -400,7 +400,9 @@ void nmk_gpio_dbg_show_one(struct seq_file *s, struct pinctrl_dev *pctldev,
 			   struct gpio_chip *chip, unsigned int offset)
 {
 	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(chip);
+#ifdef CONFIG_PINCTRL_NOMADIK
 	struct gpio_desc *desc;
+#endif
 	int mode;
 	bool is_out;
 	bool data_out;
