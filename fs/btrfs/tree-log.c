@@ -1849,6 +1849,8 @@ static noinline int link_to_fixup_dir(struct walk_control *wc, u64 objectid)
 		else
 			inc_nlink(vfs_inode);
 		ret = btrfs_update_inode(trans, inode);
+		if (ret)
+			btrfs_abort_transaction(trans, ret);
 	} else if (ret == -EEXIST) {
 		ret = 0;
 	} else {
