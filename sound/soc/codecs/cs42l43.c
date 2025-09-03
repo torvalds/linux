@@ -2210,13 +2210,12 @@ static const struct cs42l43_irq cs42l43_irqs[] = {
 };
 
 static int cs42l43_request_irq(struct cs42l43_codec *priv,
-			       struct irq_domain *dom, const char * const name,
-			       unsigned int irq, irq_handler_t handler,
-			       unsigned long flags)
+			       const char * const name, unsigned int irq,
+			       irq_handler_t handler, unsigned long flags)
 {
 	int ret;
 
-	ret = irq_create_mapping(dom, irq);
+	ret = irq_create_mapping(priv->dom, irq);
 	if (ret < 0)
 		return dev_err_probe(priv->dev, ret, "Failed to map IRQ %s\n", name);
 
@@ -2230,8 +2229,7 @@ static int cs42l43_request_irq(struct cs42l43_codec *priv,
 	return 0;
 }
 
-static int cs42l43_shutter_irq(struct cs42l43_codec *priv,
-			       struct irq_domain *dom, unsigned int shutter,
+static int cs42l43_shutter_irq(struct cs42l43_codec *priv, unsigned int shutter,
 			       const char * const open_name,
 			       const char * const close_name,
 			       irq_handler_t handler)
@@ -2259,24 +2257,19 @@ static int cs42l43_shutter_irq(struct cs42l43_codec *priv,
 		return 0;
 	}
 
-	ret = cs42l43_request_irq(priv, dom, close_name, close_irq, handler, IRQF_SHARED);
+	ret = cs42l43_request_irq(priv, close_name, close_irq, handler, IRQF_SHARED);
 	if (ret)
 		return ret;
 
-	return cs42l43_request_irq(priv, dom, open_name, open_irq, handler, IRQF_SHARED);
+	return cs42l43_request_irq(priv, open_name, open_irq, handler, IRQF_SHARED);
 }
 
 static int cs42l43_codec_probe(struct platform_device *pdev)
 {
 	struct cs42l43 *cs42l43 = dev_get_drvdata(pdev->dev.parent);
 	struct cs42l43_codec *priv;
-	struct irq_domain *dom;
 	unsigned int val;
 	int i, ret;
-
-	dom = irq_find_matching_fwnode(dev_fwnode(cs42l43->dev), DOMAIN_BUS_ANY);
-	if (!dom)
-		return -EPROBE_DEFER;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -2284,6 +2277,10 @@ static int cs42l43_codec_probe(struct platform_device *pdev)
 
 	priv->dev = &pdev->dev;
 	priv->core = cs42l43;
+
+	priv->dom = irq_find_matching_fwnode(dev_fwnode(cs42l43->dev), DOMAIN_BUS_ANY);
+	if (!priv->dom)
+		return -EPROBE_DEFER;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -2314,7 +2311,7 @@ static int cs42l43_codec_probe(struct platform_device *pdev)
 		goto err_pm;
 
 	for (i = 0; i < ARRAY_SIZE(cs42l43_irqs); i++) {
-		ret = cs42l43_request_irq(priv, dom, cs42l43_irqs[i].name,
+		ret = cs42l43_request_irq(priv, cs42l43_irqs[i].name,
 					  cs42l43_irqs[i].irq,
 					  cs42l43_irqs[i].handler, 0);
 		if (ret)
@@ -2327,13 +2324,13 @@ static int cs42l43_codec_probe(struct platform_device *pdev)
 		goto err_pm;
 	}
 
-	ret = cs42l43_shutter_irq(priv, dom, val & CS42L43_MIC_SHUTTER_CFG_MASK,
+	ret = cs42l43_shutter_irq(priv, val & CS42L43_MIC_SHUTTER_CFG_MASK,
 				  "mic shutter open", "mic shutter close",
 				  cs42l43_mic_shutter);
 	if (ret)
 		goto err_pm;
 
-	ret = cs42l43_shutter_irq(priv, dom, (val & CS42L43_SPK_SHUTTER_CFG_MASK) >>
+	ret = cs42l43_shutter_irq(priv, (val & CS42L43_SPK_SHUTTER_CFG_MASK) >>
 				  CS42L43_SPK_SHUTTER_CFG_SHIFT,
 				  "spk shutter open", "spk shutter close",
 				  cs42l43_spk_shutter);

@@ -44,6 +44,7 @@ struct cs42l43_codec {
 	struct device *dev;
 	struct cs42l43 *core;
 	struct snd_soc_component *component;
+	struct irq_domain *dom;
 
 	struct clk *mclk;
 
