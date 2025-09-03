@@ -1910,116 +1910,68 @@ static void ufs_qcom_config_scaling_param(struct ufs_hba *hba,
 	hba->clk_scaling.suspend_on_no_request = true;
 }
 
-/* Resources */
-static const struct ufshcd_res_info ufs_res_info[RES_MAX] = {
-	{.name = "ufs_mem",},
-	{.name = "mcq",},
-	/* Submission Queue DAO */
-	{.name = "mcq_sqd",},
-	/* Submission Queue Interrupt Status */
-	{.name = "mcq_sqis",},
-	/* Completion Queue DAO */
-	{.name = "mcq_cqd",},
-	/* Completion Queue Interrupt Status */
-	{.name = "mcq_cqis",},
-	/* MCQ vendor specific */
-	{.name = "mcq_vs",},
-};
-
 static int ufs_qcom_mcq_config_resource(struct ufs_hba *hba)
 {
 	struct platform_device *pdev = to_platform_device(hba->dev);
-	struct ufshcd_res_info *res;
-	struct resource *res_mem, *res_mcq;
-	int i, ret;
+	struct resource *res;
 
-	memcpy(hba->res, ufs_res_info, sizeof(ufs_res_info));
-
-	for (i = 0; i < RES_MAX; i++) {
-		res = &hba->res[i];
-		res->resource = platform_get_resource_byname(pdev,
-							     IORESOURCE_MEM,
-							     res->name);
-		if (!res->resource) {
-			dev_info(hba->dev, "Resource %s not provided\n", res->name);
-			if (i == RES_UFS)
-				return -ENODEV;
-			continue;
-		} else if (i == RES_UFS) {
-			res_mem = res->resource;
-			res->base = hba->mmio_base;
-			continue;
-		}
-
-		res->base = devm_ioremap_resource(hba->dev, res->resource);
-		if (IS_ERR(res->base)) {
-			dev_err(hba->dev, "Failed to map res %s, err=%d\n",
-					 res->name, (int)PTR_ERR(res->base));
-			ret = PTR_ERR(res->base);
-			res->base = NULL;
-			return ret;
-		}
+	/* Map the MCQ configuration region */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mcq");
+	if (!res) {
+		dev_err(hba->dev, "MCQ resource not found in device tree\n");
+		return -ENODEV;
 	}
 
-	/* MCQ resource provided in DT */
-	res = &hba->res[RES_MCQ];
-	/* Bail if MCQ resource is provided */
-	if (res->base)
-		goto out;
-
-	/* Explicitly allocate MCQ resource from ufs_mem */
-	res_mcq = devm_kzalloc(hba->dev, sizeof(*res_mcq), GFP_KERNEL);
-	if (!res_mcq)
-		return -ENOMEM;
-
-	res_mcq->start = res_mem->start +
-			 MCQ_SQATTR_OFFSET(hba->mcq_capabilities);
-	res_mcq->end = res_mcq->start + hba->nr_hw_queues * MCQ_QCFG_SIZE - 1;
-	res_mcq->flags = res_mem->flags;
-	res_mcq->name = "mcq";
-
-	ret = insert_resource(&iomem_resource, res_mcq);
-	if (ret) {
-		dev_err(hba->dev, "Failed to insert MCQ resource, err=%d\n",
-			ret);
-		return ret;
+	hba->mcq_base = devm_ioremap_resource(hba->dev, res);
+	if (IS_ERR(hba->mcq_base)) {
+		dev_err(hba->dev, "Failed to map MCQ region: %ld\n",
+			PTR_ERR(hba->mcq_base));
+		return PTR_ERR(hba->mcq_base);
 	}
 
-	res->base = devm_ioremap_resource(hba->dev, res_mcq);
-	if (IS_ERR(res->base)) {
-		dev_err(hba->dev, "MCQ registers mapping failed, err=%d\n",
-			(int)PTR_ERR(res->base));
-		ret = PTR_ERR(res->base);
-		goto ioremap_err;
-	}
-
-out:
-	hba->mcq_base = res->base;
 	return 0;
-ioremap_err:
-	res->base = NULL;
-	remove_resource(res_mcq);
-	return ret;
 }
 
 static int ufs_qcom_op_runtime_config(struct ufs_hba *hba)
 {
-	struct ufshcd_res_info *mem_res, *sqdao_res;
 	struct ufshcd_mcq_opr_info_t *opr;
 	int i;
+	u32 doorbell_offsets[OPR_MAX];
 
-	mem_res = &hba->res[RES_UFS];
-	sqdao_res = &hba->res[RES_MCQ_SQD];
+	/*
+	 * Configure doorbell address offsets in MCQ configuration registers.
+	 * These values are offsets relative to mmio_base (UFS_HCI_BASE).
+	 *
+	 * Memory Layout:
+	 * - mmio_base = UFS_HCI_BASE
+	 * - mcq_base  = MCQ_CONFIG_BASE = mmio_base + (UFS_QCOM_MCQCAP_QCFGPTR * 0x200)
+	 * - Doorbell registers are at: mmio_base + (UFS_QCOM_MCQCAP_QCFGPTR * 0x200) +
+	 * -				UFS_QCOM_MCQ_SQD_OFFSET
+	 * - Which is also: mcq_base +  UFS_QCOM_MCQ_SQD_OFFSET
+	 */
 
-	if (!mem_res->base || !sqdao_res->base)
-		return -EINVAL;
+	doorbell_offsets[OPR_SQD] = UFS_QCOM_SQD_ADDR_OFFSET;
+	doorbell_offsets[OPR_SQIS] = UFS_QCOM_SQIS_ADDR_OFFSET;
+	doorbell_offsets[OPR_CQD] = UFS_QCOM_CQD_ADDR_OFFSET;
+	doorbell_offsets[OPR_CQIS] = UFS_QCOM_CQIS_ADDR_OFFSET;
 
+	/*
+	 * Configure MCQ operation registers.
+	 *
+	 * The doorbell registers are physically located within the MCQ region:
+	 * - doorbell_physical_addr = mmio_base + doorbell_offset
+	 * - doorbell_physical_addr = mcq_base + (doorbell_offset - MCQ_CONFIG_OFFSET)
+	 */
 	for (i = 0; i < OPR_MAX; i++) {
 		opr = &hba->mcq_opr[i];
-		opr->offset = sqdao_res->resource->start -
-			      mem_res->resource->start + 0x40 * i;
-		opr->stride = 0x100;
-		opr->base = sqdao_res->base + 0x40 * i;
+		opr->offset = doorbell_offsets[i];  /* Offset relative to mmio_base */
+		opr->stride = UFS_QCOM_MCQ_STRIDE;  /* 256 bytes between queues */
+
+		/*
+		 * Calculate the actual doorbell base address within MCQ region:
+		 * base = mcq_base + (doorbell_offset - MCQ_CONFIG_OFFSET)
+		 */
+		opr->base = hba->mcq_base + (opr->offset - UFS_QCOM_MCQ_CONFIG_OFFSET);
 	}
 
 	return 0;
@@ -2034,12 +1986,8 @@ static int ufs_qcom_get_hba_mac(struct ufs_hba *hba)
 static int ufs_qcom_get_outstanding_cqs(struct ufs_hba *hba,
 					unsigned long *ocqs)
 {
-	struct ufshcd_res_info *mcq_vs_res = &hba->res[RES_MCQ_VS];
-
-	if (!mcq_vs_res->base)
-		return -EINVAL;
-
-	*ocqs = readl(mcq_vs_res->base + UFS_MEM_CQIS_VS);
+	/* Read from MCQ vendor-specific register in MCQ region */
+	*ocqs = readl(hba->mcq_base + UFS_MEM_CQIS_VS);
 
 	return 0;
 }
