@@ -170,22 +170,6 @@ static unsigned int cond_startup_parent(struct irq_data *data)
 	return 0;
 }
 
-static __always_inline void cond_mask_parent(struct irq_data *data)
-{
-	struct msi_domain_info *info = data->domain->host_data;
-
-	if (unlikely(info->flags & MSI_FLAG_PCI_MSI_MASK_PARENT))
-		irq_chip_mask_parent(data);
-}
-
-static __always_inline void cond_unmask_parent(struct irq_data *data)
-{
-	struct msi_domain_info *info = data->domain->host_data;
-
-	if (unlikely(info->flags & MSI_FLAG_PCI_MSI_MASK_PARENT))
-		irq_chip_unmask_parent(data);
-}
-
 static void pci_irq_shutdown_msi(struct irq_data *data)
 {
 	struct msi_desc *desc = irq_data_get_msi_desc(data);
@@ -208,14 +192,12 @@ static void pci_irq_mask_msi(struct irq_data *data)
 	struct msi_desc *desc = irq_data_get_msi_desc(data);
 
 	pci_msi_mask(desc, BIT(data->irq - desc->irq));
-	cond_mask_parent(data);
 }
 
 static void pci_irq_unmask_msi(struct irq_data *data)
 {
 	struct msi_desc *desc = irq_data_get_msi_desc(data);
 
-	cond_unmask_parent(data);
 	pci_msi_unmask(desc, BIT(data->irq - desc->irq));
 }
 
@@ -268,12 +250,10 @@ static unsigned int pci_irq_startup_msix(struct irq_data *data)
 static void pci_irq_mask_msix(struct irq_data *data)
 {
 	pci_msix_mask(irq_data_get_msi_desc(data));
-	cond_mask_parent(data);
 }
 
 static void pci_irq_unmask_msix(struct irq_data *data)
 {
-	cond_unmask_parent(data);
 	pci_msix_unmask(irq_data_get_msi_desc(data));
 }
 
