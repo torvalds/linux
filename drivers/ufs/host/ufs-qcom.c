@@ -1742,7 +1742,7 @@ static void ufs_qcom_dump_testbus(struct ufs_hba *hba)
 }
 
 static int ufs_qcom_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
-			      const char *prefix, enum ufshcd_res id)
+			      const char *prefix, void __iomem *base)
 {
 	u32 *regs __free(kfree) = NULL;
 	size_t pos;
@@ -1755,7 +1755,7 @@ static int ufs_qcom_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
 		return -ENOMEM;
 
 	for (pos = 0; pos < len; pos += 4)
-		regs[pos / 4] = readl(hba->res[id].base + offset + pos);
+		regs[pos / 4] = readl(base + offset + pos);
 
 	print_hex_dump(KERN_ERR, prefix,
 		       len > 4 ? DUMP_PREFIX_OFFSET : DUMP_PREFIX_NONE,
@@ -1766,30 +1766,34 @@ static int ufs_qcom_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
 
 static void ufs_qcom_dump_mcq_hci_regs(struct ufs_hba *hba)
 {
+	struct ufshcd_mcq_opr_info_t *opr = &hba->mcq_opr[0];
+	void __iomem *mcq_vs_base = hba->mcq_base + UFS_MEM_VS_BASE;
+
 	struct dump_info {
+		void __iomem *base;
 		size_t offset;
 		size_t len;
 		const char *prefix;
-		enum ufshcd_res id;
 	};
 
 	struct dump_info mcq_dumps[] = {
-		{0x0, 256 * 4, "MCQ HCI-0 ", RES_MCQ},
-		{0x400, 256 * 4, "MCQ HCI-1 ", RES_MCQ},
-		{0x0, 5 * 4, "MCQ VS-0 ", RES_MCQ_VS},
-		{0x0, 256 * 4, "MCQ SQD-0 ", RES_MCQ_SQD},
-		{0x400, 256 * 4, "MCQ SQD-1 ", RES_MCQ_SQD},
-		{0x800, 256 * 4, "MCQ SQD-2 ", RES_MCQ_SQD},
-		{0xc00, 256 * 4, "MCQ SQD-3 ", RES_MCQ_SQD},
-		{0x1000, 256 * 4, "MCQ SQD-4 ", RES_MCQ_SQD},
-		{0x1400, 256 * 4, "MCQ SQD-5 ", RES_MCQ_SQD},
-		{0x1800, 256 * 4, "MCQ SQD-6 ", RES_MCQ_SQD},
-		{0x1c00, 256 * 4, "MCQ SQD-7 ", RES_MCQ_SQD},
+		{hba->mcq_base, 0x0, 256 * 4, "MCQ HCI-0 "},
+		{hba->mcq_base, 0x400, 256 * 4, "MCQ HCI-1 "},
+		{mcq_vs_base, 0x0, 5 * 4, "MCQ VS-0 "},
+		{opr->base, 0x0, 256 * 4, "MCQ SQD-0 "},
+		{opr->base, 0x400, 256 * 4, "MCQ SQD-1 "},
+		{opr->base, 0x800, 256 * 4, "MCQ SQD-2 "},
+		{opr->base, 0xc00, 256 * 4, "MCQ SQD-3 "},
+		{opr->base, 0x1000, 256 * 4, "MCQ SQD-4 "},
+		{opr->base, 0x1400, 256 * 4, "MCQ SQD-5 "},
+		{opr->base, 0x1800, 256 * 4, "MCQ SQD-6 "},
+		{opr->base, 0x1c00, 256 * 4, "MCQ SQD-7 "},
+
 	};
 
 	for (int i = 0; i < ARRAY_SIZE(mcq_dumps); i++) {
 		ufs_qcom_dump_regs(hba, mcq_dumps[i].offset, mcq_dumps[i].len,
-				   mcq_dumps[i].prefix, mcq_dumps[i].id);
+				   mcq_dumps[i].prefix, mcq_dumps[i].base);
 		cond_resched();
 	}
 }
