@@ -1165,10 +1165,8 @@ static int unlink_extrefs_not_in_log(struct walk_control *wc,
 
 	while (cur_offset < item_size) {
 		struct btrfs_trans_handle *trans = wc->trans;
-		struct btrfs_root *root = wc->root;
 		struct btrfs_root *log_root = wc->log;
 		struct btrfs_inode_extref *extref;
-		struct btrfs_inode *victim_parent;
 		struct fscrypt_str victim_name;
 		int ret;
 
@@ -1202,20 +1200,10 @@ next:
 			continue;
 		}
 
-		victim_parent = btrfs_iget_logging(btrfs_ino(dir), root);
-		if (IS_ERR(victim_parent)) {
-			kfree(victim_name.name);
-			ret = PTR_ERR(victim_parent);
-			btrfs_abort_transaction(trans, ret);
-			return ret;
-		}
-
 		inc_nlink(&inode->vfs_inode);
 		btrfs_release_path(wc->subvol_path);
 
-		ret = unlink_inode_for_log_replay(wc, victim_parent, inode,
-						  &victim_name);
-		iput(&victim_parent->vfs_inode);
+		ret = unlink_inode_for_log_replay(wc, dir, inode, &victim_name);
 		kfree(victim_name.name);
 		if (ret)
 			return ret;
