@@ -442,7 +442,8 @@ struct ma_state {
 	struct maple_enode *node;	/* The node containing this entry */
 	unsigned long min;		/* The minimum index of this node - implied pivot min */
 	unsigned long max;		/* The maximum index of this node - implied pivot max */
-	struct maple_alloc *alloc;	/* Allocated nodes for this operation */
+	struct slab_sheaf *sheaf;	/* Allocated nodes for this operation */
+	unsigned long node_request;	/* The number of nodes to allocate for this operation */
 	enum maple_status status;	/* The status of the state (active, start, none, etc) */
 	unsigned char depth;		/* depth of tree descent during write */
 	unsigned char offset;
@@ -490,7 +491,8 @@ struct ma_wr_state {
 		.status = ma_start,					\
 		.min = 0,						\
 		.max = ULONG_MAX,					\
-		.alloc = NULL,						\
+		.node_request = 0,					\
+		.sheaf = NULL,						\
 		.mas_flags = 0,						\
 		.store_type = wr_invalid,				\
 	}
