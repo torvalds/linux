@@ -532,7 +532,7 @@ void __init sme_enable(struct boot_params *bp)
 	 * enablement abort the guest.
 	 */
 	if (snp_en ^ !!(msr & MSR_AMD64_SEV_SNP_ENABLED))
-		snp_abort();
+		sev_es_terminate(SEV_TERM_SET_GEN, GHCB_SNP_UNSUPPORTED);
 
 	/* Check if memory encryption is enabled */
 	if (feature_mask == AMD_SME_BIT) {

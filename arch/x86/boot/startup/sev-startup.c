@@ -144,7 +144,7 @@ static struct cc_blob_sev_info *__init find_cc_blob(struct boot_params *bp)
 
 found_cc_info:
 	if (cc_info->magic != CC_BLOB_SEV_HDR_MAGIC)
-		snp_abort();
+		sev_es_terminate(SEV_TERM_SET_GEN, GHCB_SNP_UNSUPPORTED);
 
 	return cc_info;
 }
@@ -217,9 +217,4 @@ bool __init snp_init(struct boot_params *bp)
 	bp->cc_blob_address = (u32)(unsigned long)cc_info;
 
 	return true;
-}
-
-void __init __noreturn snp_abort(void)
-{
-	sev_es_terminate(SEV_TERM_SET_GEN, GHCB_SNP_UNSUPPORTED);
 }
