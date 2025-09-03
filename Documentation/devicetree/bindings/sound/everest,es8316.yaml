@@ -12,6 +12,22 @@ maintainers:
   - Matteo Martelli <matteomartelli3@gmail.com>
   - Binbin Zhou <zhoubinbin@loongson.cn>
 
+description: |
+  Everest ES8311, ES8316 and ES8323 audio CODECs
+
+  Pins on the device (for linking into audio routes):
+
+    Outputs:
+      * LOUT:     Left Analog Output
+      * ROUT:     Right Analog Output
+      * MICBIAS:  Microphone Bias
+
+    Inputs:
+      * MIC1P:    Microphone 1 Positive Analog Input
+      * MIC1N:    Microphone 1 Negative Analog Input
+      * MIC2P:    Microphone 2 Positive Analog Input
+      * MIC2N:    Microphone 2 Negative Analog Input
+
 allOf:
   - $ref: dai-common.yaml#
 
