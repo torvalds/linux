@@ -625,6 +625,12 @@ static const struct ec_board_info board_info_strix_z690_a_gaming_wifi_d4 = {
 	.family = family_intel_600_series,
 };
 
+static const struct ec_board_info board_info_strix_z690_e_gaming_wifi = {
+	.sensors = SENSOR_TEMP_T_SENSOR | SENSOR_TEMP_VRM,
+	.mutex_path = ASUS_HW_ACCESS_MUTEX_RMTW_ASMX,
+	.family = family_intel_600_series,
+};
+
 static const struct ec_board_info board_info_strix_z790_e_gaming_wifi_ii = {
 	.sensors = SENSOR_TEMP_T_SENSOR | SENSOR_TEMP_VRM |
 		SENSOR_FAN_CPU_OPT,
@@ -735,6 +741,8 @@ static const struct dmi_system_id dmi_table[] = {
 					&board_info_strix_z490_f_gaming),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX Z690-A GAMING WIFI D4",
 					&board_info_strix_z690_a_gaming_wifi_d4),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX Z690-E GAMING WIFI",
+					&board_info_strix_z690_e_gaming_wifi),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX Z790-E GAMING WIFI II",
 					&board_info_strix_z790_e_gaming_wifi_ii),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX Z790-I GAMING WIFI",
