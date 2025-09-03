@@ -848,9 +848,10 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 	struct sev_device *sev;
 	unsigned int cmdbuff_hi, cmdbuff_lo;
 	unsigned int phys_lsb, phys_msb;
-	unsigned int reg, ret = 0;
+	unsigned int reg;
 	void *cmd_buf;
 	int buf_len;
+	int ret = 0;
 
 	if (!psp || !psp->sev_data)
 		return -ENODEV;
