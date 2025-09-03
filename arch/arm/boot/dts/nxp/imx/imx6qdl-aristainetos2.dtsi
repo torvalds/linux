@@ -114,6 +114,8 @@
 		reg = <0x58>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <04 0x8>;
+		#interrupt-cells = <2>;
+		interrupt-controller;
 
 		regulators {
 			bcore1 {
