@@ -1,0 +1,7 @@
+config NET_DSA_LANTIQ_GSWIP
+	tristate "Lantiq / Intel GSWIP"
+	depends on HAS_IOMEM
+	select NET_DSA_TAG_GSWIP
+	help
+	  This enables support for the Lantiq / Intel GSWIP 2.1 found in
+	  the xrx200 / VR9 SoC.
