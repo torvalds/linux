@@ -8,7 +8,7 @@
 
 / {
 	gpio_keys: gpio-keys {
-		compatible = "gpio-key";
+		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 		status = "disabled";
