@@ -303,7 +303,7 @@ config GPIO_EN7523
 
 config GPIO_EP93XX
 	def_bool y
-	depends on ARCH_EP93XX
+	depends on ARCH_EP93XX || COMPILE_TEST
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 
