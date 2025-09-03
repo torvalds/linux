@@ -218,7 +218,7 @@ static int ina238_read_field_s20(const struct i2c_client *client, u8 reg, s32 *v
 
 static int ina228_read_voltage(struct ina238_data *data, int channel, long *val)
 {
-	int reg = channel ? INA238_BUS_VOLTAGE : INA238_SHUNT_VOLTAGE;
+	int reg = channel ? INA238_BUS_VOLTAGE : INA238_CURRENT;
 	u32 lsb = data->voltage_lsb[channel];
 	u32 factor = NUNIT_PER_MUNIT;
 	int err, regval;
