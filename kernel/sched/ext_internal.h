@@ -846,6 +846,15 @@ struct scx_event_stats {
 	s64		SCX_EV_BYPASS_ACTIVATE;
 };
 
+struct scx_sched_pcpu {
+	/*
+	 * The event counters are in a per-CPU variable to minimize the
+	 * accounting overhead. A system-wide view on the event counter is
+	 * constructed when requested by scx_bpf_events().
+	 */
+	struct scx_event_stats	event_stats;
+};
+
 struct scx_sched {
 	struct sched_ext_ops	ops;
 	DECLARE_BITMAP(has_op, SCX_OPI_END);
@@ -860,13 +869,7 @@ struct scx_sched {
 	 */
 	struct rhashtable	dsq_hash;
 	struct scx_dispatch_q	**global_dsqs;
-
-	/*
-	 * The event counters are in a per-CPU variable to minimize the
-	 * accounting overhead. A system-wide view on the event counter is
-	 * constructed when requested by scx_bpf_events().
-	 */
-	struct scx_event_stats __percpu *event_stats_cpu;
+	struct scx_sched_pcpu __percpu *pcpu;
 
 	bool			warned_zero_slice;
 

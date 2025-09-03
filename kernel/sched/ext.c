@@ -635,7 +635,7 @@ static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
  * This can be used when preemption is not disabled.
  */
 #define scx_add_event(sch, name, cnt) do {					\
-	this_cpu_add((sch)->event_stats_cpu->name, (cnt));			\
+	this_cpu_add((sch)->pcpu->event_stats.name, (cnt));			\
 	trace_sched_ext_event(#name, (cnt));					\
 } while(0)
 
@@ -648,7 +648,7 @@ static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
  * This should be used only when preemption is disabled.
  */
 #define __scx_add_event(sch, name, cnt) do {					\
-	__this_cpu_add((sch)->event_stats_cpu->name, (cnt));			\
+	__this_cpu_add((sch)->pcpu->event_stats.name, (cnt));			\
 	trace_sched_ext_event(#name, cnt);					\
 } while(0)
 
@@ -3543,7 +3543,7 @@ static void scx_sched_free_rcu_work(struct work_struct *work)
 	int node;
 
 	kthread_stop(sch->helper->task);
-	free_percpu(sch->event_stats_cpu);
+	free_percpu(sch->pcpu);
 
 	for_each_node_state(node, N_POSSIBLE)
 		kfree(sch->global_dsqs[node]);
@@ -4444,13 +4444,13 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
 		sch->global_dsqs[node] = dsq;
 	}
 
-	sch->event_stats_cpu = alloc_percpu(struct scx_event_stats);
-	if (!sch->event_stats_cpu)
+	sch->pcpu = alloc_percpu(struct scx_sched_pcpu);
+	if (!sch->pcpu)
 		goto err_free_gdsqs;
 
 	sch->helper = kthread_run_worker(0, "sched_ext_helper");
 	if (!sch->helper)
-		goto err_free_event_stats;
+		goto err_free_pcpu;
 	sched_set_fifo(sch->helper->task);
 
 	atomic_set(&sch->exit_kind, SCX_EXIT_NONE);
@@ -4468,8 +4468,8 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
 
 err_stop_helper:
 	kthread_stop(sch->helper->task);
-err_free_event_stats:
-	free_percpu(sch->event_stats_cpu);
+err_free_pcpu:
+	free_percpu(sch->pcpu);
 err_free_gdsqs:
 	for_each_node_state(node, N_POSSIBLE)
 		kfree(sch->global_dsqs[node]);
@@ -6493,7 +6493,7 @@ static void scx_read_events(struct scx_sched *sch, struct scx_event_stats *event
 	/* Aggregate per-CPU event counters into @events. */
 	memset(events, 0, sizeof(*events));
 	for_each_possible_cpu(cpu) {
-		e_cpu = per_cpu_ptr(sch->event_stats_cpu, cpu);
+		e_cpu = &per_cpu_ptr(sch->pcpu, cpu)->event_stats;
 		scx_agg_event(events, e_cpu, SCX_EV_SELECT_CPU_FALLBACK);
 		scx_agg_event(events, e_cpu, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
 		scx_agg_event(events, e_cpu, SCX_EV_DISPATCH_KEEP_LAST);
