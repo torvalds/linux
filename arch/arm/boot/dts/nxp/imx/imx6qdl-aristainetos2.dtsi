@@ -290,8 +290,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		ethphy: ethernet-phy {
+		ethphy: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
 			txd0-skew-ps = <0>;
 			txd1-skew-ps = <0>;
 			txd2-skew-ps = <0>;
