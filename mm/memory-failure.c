@@ -2194,7 +2194,7 @@ int memory_failure(unsigned long pfn, int flags)
 			goto unlock_mutex;
 
 		if (pfn_valid(pfn)) {
-			pgmap = get_dev_pagemap(pfn, NULL);
+			pgmap = get_dev_pagemap(pfn);
 			put_ref_page(pfn, flags);
 			if (pgmap) {
 				res = memory_failure_dev_pagemap(pfn, flags,
