@@ -2329,6 +2329,7 @@ quirk_flags
         * bit 24: Set minimum volume control value as mute for devices
           where the lowest playback value represents muted state instead
           of minimum audible volume
+        * bit 25: Be similar to bit 24 but for capture streams
 
 This module supports multiple devices, autoprobe and hotplugging.
 

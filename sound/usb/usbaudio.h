@@ -222,6 +222,8 @@ extern bool snd_usb_skip_validation;
  * QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE
  *  Set minimum volume control value as mute for devices where the lowest
  *  playback value represents muted state instead of minimum audible volume
+ * QUIRK_FLAG_MIXER_CAPTURE_MIN_MUTE
+ *  Similar to QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE, but for capture streams
  */
 
 #define QUIRK_FLAG_GET_SAMPLE_RATE	(1U << 0)
@@ -249,5 +251,6 @@ extern bool snd_usb_skip_validation;
 #define QUIRK_FLAG_MIC_RES_16		(1U << 22)
 #define QUIRK_FLAG_MIC_RES_384		(1U << 23)
 #define QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE	(1U << 24)
+#define QUIRK_FLAG_MIXER_CAPTURE_MIN_MUTE	(1U << 25)
 
 #endif /* __USBAUDIO_H */
