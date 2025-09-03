@@ -174,7 +174,7 @@ int amdgpu_cper_entry_fill_runtime_section(struct amdgpu_device *adev,
 	struct cper_sec_nonstd_err *section;
 	bool poison;
 
-	poison = (sev == CPER_SEV_NON_FATAL_CORRECTED) ? false : true;
+	poison = sev != CPER_SEV_NON_FATAL_CORRECTED;
 	section_desc = (struct cper_sec_desc *)((uint8_t *)hdr + SEC_DESC_OFFSET(idx));
 	section = (struct cper_sec_nonstd_err *)((uint8_t *)hdr +
 		   NONSTD_SEC_OFFSET(hdr->sec_cnt, idx));
