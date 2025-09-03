@@ -1134,16 +1134,50 @@ EXPORT_SYMBOL(flush_dcache_folio);
 #endif
 
 /**
+ * __compat_vma_mmap_prepare() - See description for compat_vma_mmap_prepare()
+ * for details. This is the same operation, only with a specific file operations
+ * struct which may or may not be the same as vma->vm_file->f_op.
+ * @f_op: The file operations whose .mmap_prepare() hook is specified.
+ * @file: The file which backs or will back the mapping.
+ * @vma: The VMA to apply the .mmap_prepare() hook to.
+ * Returns: 0 on success or error.
+ */
+int __compat_vma_mmap_prepare(const struct file_operations *f_op,
+		struct file *file, struct vm_area_struct *vma)
+{
+	struct vm_area_desc desc = {
+		.mm = vma->vm_mm,
+		.file = file,
+		.start = vma->vm_start,
+		.end = vma->vm_end,
+
+		.pgoff = vma->vm_pgoff,
+		.vm_file = vma->vm_file,
+		.vm_flags = vma->vm_flags,
+		.page_prot = vma->vm_page_prot,
+	};
+	int err;
+
+	err = f_op->mmap_prepare(&desc);
+	if (err)
+		return err;
+	set_vma_from_desc(vma, &desc);
+
+	return 0;
+}
+EXPORT_SYMBOL(__compat_vma_mmap_prepare);
+
+/**
  * compat_vma_mmap_prepare() - Apply the file's .mmap_prepare() hook to an
- * existing VMA
- * @file: The file which possesss an f_op->mmap_prepare() hook
+ * existing VMA.
+ * @file: The file which possesss an f_op->mmap_prepare() hook.
  * @vma: The VMA to apply the .mmap_prepare() hook to.
  *
  * Ordinarily, .mmap_prepare() is invoked directly upon mmap(). However, certain
- * 'wrapper' file systems invoke a nested mmap hook of an underlying file.
+ * stacked filesystems invoke a nested mmap hook of an underlying file.
  *
  * Until all filesystems are converted to use .mmap_prepare(), we must be
- * conservative and continue to invoke these 'wrapper' filesystems using the
+ * conservative and continue to invoke these stacked filesystems using the
  * deprecated .mmap() hook.
  *
  * However we have a problem if the underlying file system possesses an
@@ -1161,25 +1195,7 @@ EXPORT_SYMBOL(flush_dcache_folio);
  */
 int compat_vma_mmap_prepare(struct file *file, struct vm_area_struct *vma)
 {
-	struct vm_area_desc desc = {
-		.mm = vma->vm_mm,
-		.file = vma->vm_file,
-		.start = vma->vm_start,
-		.end = vma->vm_end,
-
-		.pgoff = vma->vm_pgoff,
-		.vm_file = vma->vm_file,
-		.vm_flags = vma->vm_flags,
-		.page_prot = vma->vm_page_prot,
-	};
-	int err;
-
-	err = file->f_op->mmap_prepare(&desc);
-	if (err)
-		return err;
-	set_vma_from_desc(vma, &desc);
-
-	return 0;
+	return __compat_vma_mmap_prepare(file->f_op, file, vma);
 }
 EXPORT_SYMBOL(compat_vma_mmap_prepare);
 
