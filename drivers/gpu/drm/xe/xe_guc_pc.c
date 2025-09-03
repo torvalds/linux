@@ -79,6 +79,11 @@
  * Xe driver enables SLPC with all of its defaults features and frequency
  * selection, which varies per platform.
  *
+ * Power profiles add another level of control to SLPC. When power saving
+ * profile is chosen, SLPC will use conservative thresholds to ramp frequency,
+ * thus saving power. Base profile is default and ensures balanced performance
+ * for any workload.
+ *
  * Render-C States:
  * ================
  *
@@ -1171,6 +1176,61 @@ static int pc_action_set_strategy(struct xe_guc_pc *pc, u32 val)
 	return ret;
 }
 
+static const char *power_profile_to_string(struct xe_guc_pc *pc)
+{
+	switch (pc->power_profile) {
+	case SLPC_POWER_PROFILE_BASE:
+		return "base";
+	case SLPC_POWER_PROFILE_POWER_SAVING:
+		return "power_saving";
+	default:
+		return "invalid";
+	}
+}
+
+void xe_guc_pc_get_power_profile(struct xe_guc_pc *pc, char *profile)
+{
+	switch (pc->power_profile) {
+	case SLPC_POWER_PROFILE_BASE:
+		sprintf(profile, "[%s]    %s\n", "base", "power_saving");
+		break;
+	case SLPC_POWER_PROFILE_POWER_SAVING:
+		sprintf(profile, "%s    [%s]\n", "base", "power_saving");
+		break;
+	default:
+		sprintf(profile, "invalid");
+	}
+}
+
+int xe_guc_pc_set_power_profile(struct xe_guc_pc *pc, const char *buf)
+{
+	int ret = 0;
+	u32 val;
+
+	if (strncmp("base", buf, strlen("base")) == 0)
+		val = SLPC_POWER_PROFILE_BASE;
+	else if (strncmp("power_saving", buf, strlen("power_saving")) == 0)
+		val = SLPC_POWER_PROFILE_POWER_SAVING;
+	else
+		return -EINVAL;
+
+	guard(mutex)(&pc->freq_lock);
+	xe_pm_runtime_get(pc_to_xe(pc));
+
+	ret = pc_action_set_param(pc,
+				  SLPC_PARAM_POWER_PROFILE,
+				  val);
+	if (ret)
+		xe_gt_err_once(pc_to_gt(pc), "Failed to set power profile to %d: %pe\n",
+			       val, ERR_PTR(ret));
+	else
+		pc->power_profile = val;
+
+	xe_pm_runtime_put(pc_to_xe(pc));
+
+	return ret;
+}
+
 /**
  * xe_guc_pc_start - Start GuC's Power Conservation component
  * @pc: Xe_GuC_PC instance
@@ -1249,6 +1309,11 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 	/* Enable SLPC Optimized Strategy for compute */
 	ret = pc_action_set_strategy(pc, SLPC_OPTIMIZED_STRATEGY_COMPUTE);
 
+	/* Set cached value of power_profile */
+	ret = xe_guc_pc_set_power_profile(pc, power_profile_to_string(pc));
+	if (unlikely(ret))
+		xe_gt_err(gt, "Failed to set SLPC power profile: %pe\n", ERR_PTR(ret));
+
 out:
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	return ret;
@@ -1326,6 +1391,8 @@ int xe_guc_pc_init(struct xe_guc_pc *pc)
 		return PTR_ERR(bo);
 
 	pc->bo = bo;
+
+	pc->power_profile = SLPC_POWER_PROFILE_BASE;
 
 	return devm_add_action_or_reset(xe->drm.dev, xe_guc_pc_fini_hw, pc);
 }

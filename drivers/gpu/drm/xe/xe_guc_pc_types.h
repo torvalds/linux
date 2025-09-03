@@ -37,6 +37,8 @@ struct xe_guc_pc {
 	struct mutex freq_lock;
 	/** @freq_ready: Only handle freq changes, if they are really ready */
 	bool freq_ready;
+	/** @power_profile: Base or power_saving profile */
+	u32 power_profile;
 };
 
 #endif	/* _XE_GUC_PC_TYPES_H_ */
