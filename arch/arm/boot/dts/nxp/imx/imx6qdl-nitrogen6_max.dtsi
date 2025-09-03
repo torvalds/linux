@@ -124,7 +124,7 @@
 		};
 	};
 
-	i2c2mux {
+	i2c-mux-2 {
 		compatible = "i2c-mux-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c2mux>;
@@ -148,7 +148,7 @@
 		};
 	};
 
-	i2c3mux {
+	i2c-mux-3 {
 		compatible = "i2c-mux-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c3mux>;
