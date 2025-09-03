@@ -193,16 +193,16 @@ struct drm_gpuvm *msm_kms_init_vm(struct drm_device *dev)
 	 */
 	if (device_iommu_mapped(mdp_dev))
 		iommu_dev = mdp_dev;
-	else
+	else if (device_iommu_mapped(mdss_dev))
 		iommu_dev = mdss_dev;
-	mmu = msm_iommu_disp_new(iommu_dev, 0);
-	if (IS_ERR(mmu))
-		return ERR_CAST(mmu);
-
-	if (!mmu) {
+	else {
 		drm_info(dev, "no IOMMU, bailing out\n");
 		return ERR_PTR(-ENODEV);
 	}
+
+	mmu = msm_iommu_disp_new(iommu_dev, 0);
+	if (IS_ERR(mmu))
+		return ERR_CAST(mmu);
 
 	vm = msm_gem_vm_create(dev, mmu, "mdp_kms",
 			       0x1000, 0x100000000 - 0x1000, true);

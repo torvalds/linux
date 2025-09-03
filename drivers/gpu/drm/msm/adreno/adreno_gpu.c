@@ -202,9 +202,7 @@ adreno_iommu_create_vm(struct msm_gpu *gpu,
 	u64 start, size;
 
 	mmu = msm_iommu_gpu_new(&pdev->dev, gpu, quirks);
-	if (!mmu)
-		return ERR_PTR(-ENODEV);
-	else if (IS_ERR_OR_NULL(mmu))
+	if (IS_ERR(mmu))
 		return ERR_CAST(mmu);
 
 	geometry = msm_iommu_get_geometry(mmu);

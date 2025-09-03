@@ -1318,8 +1318,6 @@ static int a6xx_gmu_memory_probe(struct drm_device *drm, struct a6xx_gmu *gmu)
 	struct msm_mmu *mmu;
 
 	mmu = msm_iommu_new(gmu->dev, 0);
-	if (!mmu)
-		return -ENODEV;
 	if (IS_ERR(mmu))
 		return PTR_ERR(mmu);
 
