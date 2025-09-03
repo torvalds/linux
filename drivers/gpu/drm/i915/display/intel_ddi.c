@@ -26,6 +26,7 @@
  */
 
 #include <linux/iopoll.h>
+#include <linux/seq_buf.h>
 #include <linux/string_helpers.h>
 
 #include <drm/display/drm_dp_helper.h>
@@ -5067,11 +5068,45 @@ static bool port_in_use(struct intel_display *display, enum port port)
 	return false;
 }
 
+static const char *intel_ddi_encoder_name(struct intel_display *display,
+					  enum port port, enum phy phy,
+					  struct seq_buf *s)
+{
+	if (DISPLAY_VER(display) >= 13 && port >= PORT_D_XELPD) {
+		seq_buf_printf(s, "DDI %c/PHY %c",
+			       port_name(port - PORT_D_XELPD + PORT_D),
+			       phy_name(phy));
+	} else if (DISPLAY_VER(display) >= 12) {
+		enum tc_port tc_port = intel_port_to_tc(display, port);
+
+		seq_buf_printf(s, "DDI %s%c/PHY %s%c",
+			       port >= PORT_TC1 ? "TC" : "",
+			       port >= PORT_TC1 ? port_tc_name(port) : port_name(port),
+			       tc_port != TC_PORT_NONE ? "TC" : "",
+			       tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
+	} else if (DISPLAY_VER(display) >= 11) {
+		enum tc_port tc_port = intel_port_to_tc(display, port);
+
+		seq_buf_printf(s, "DDI %c%s/PHY %s%c",
+			       port_name(port),
+			       port >= PORT_C ? " (TC)" : "",
+			       tc_port != TC_PORT_NONE ? "TC" : "",
+			       tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
+	} else {
+		seq_buf_printf(s, "DDI %c/PHY %c", port_name(port),  phy_name(phy));
+	}
+
+	drm_WARN_ON(display->drm, seq_buf_has_overflowed(s));
+
+	return seq_buf_str(s);
+}
+
 void intel_ddi_init(struct intel_display *display,
 		    const struct intel_bios_encoder_data *devdata)
 {
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *encoder;
+	DECLARE_SEQ_BUF(encoder_name, 20);
 	bool init_hdmi, init_dp;
 	enum port port;
 	enum phy phy;
@@ -5156,37 +5191,9 @@ void intel_ddi_init(struct intel_display *display,
 	encoder = &dig_port->base;
 	encoder->devdata = devdata;
 
-	if (DISPLAY_VER(display) >= 13 && port >= PORT_D_XELPD) {
-		drm_encoder_init(display->drm, &encoder->base, &intel_ddi_funcs,
-				 DRM_MODE_ENCODER_TMDS,
-				 "DDI %c/PHY %c",
-				 port_name(port - PORT_D_XELPD + PORT_D),
-				 phy_name(phy));
-	} else if (DISPLAY_VER(display) >= 12) {
-		enum tc_port tc_port = intel_port_to_tc(display, port);
-
-		drm_encoder_init(display->drm, &encoder->base, &intel_ddi_funcs,
-				 DRM_MODE_ENCODER_TMDS,
-				 "DDI %s%c/PHY %s%c",
-				 port >= PORT_TC1 ? "TC" : "",
-				 port >= PORT_TC1 ? port_tc_name(port) : port_name(port),
-				 tc_port != TC_PORT_NONE ? "TC" : "",
-				 tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
-	} else if (DISPLAY_VER(display) >= 11) {
-		enum tc_port tc_port = intel_port_to_tc(display, port);
-
-		drm_encoder_init(display->drm, &encoder->base, &intel_ddi_funcs,
-				 DRM_MODE_ENCODER_TMDS,
-				 "DDI %c%s/PHY %s%c",
-				 port_name(port),
-				 port >= PORT_C ? " (TC)" : "",
-				 tc_port != TC_PORT_NONE ? "TC" : "",
-				 tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
-	} else {
-		drm_encoder_init(display->drm, &encoder->base, &intel_ddi_funcs,
-				 DRM_MODE_ENCODER_TMDS,
-				 "DDI %c/PHY %c", port_name(port), phy_name(phy));
-	}
+	drm_encoder_init(display->drm, &encoder->base, &intel_ddi_funcs,
+			 DRM_MODE_ENCODER_TMDS, "%s",
+			 intel_ddi_encoder_name(display, port, phy, &encoder_name));
 
 	intel_encoder_link_check_init(encoder, intel_ddi_link_check);
 
