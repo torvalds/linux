@@ -189,10 +189,10 @@ static void mspro_block_bd_free_disk(struct gendisk *disk)
 	kfree(msb);
 }
 
-static int mspro_block_bd_getgeo(struct block_device *bdev,
+static int mspro_block_bd_getgeo(struct gendisk *disk,
 				 struct hd_geometry *geo)
 {
-	struct mspro_block_data *msb = bdev->bd_disk->private_data;
+	struct mspro_block_data *msb = disk->private_data;
 
 	geo->heads = msb->heads;
 	geo->sectors = msb->sectors_per_track;

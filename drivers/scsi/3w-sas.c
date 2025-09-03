@@ -1404,7 +1404,7 @@ out:
 } /* End twl_reset_device_extension() */
 
 /* This funciton returns unit geometry in cylinders/heads/sectors */
-static int twl_scsi_biosparam(struct scsi_device *sdev, struct block_device *bdev, sector_t capacity, int geom[])
+static int twl_scsi_biosparam(struct scsi_device *sdev, struct gendisk *unused, sector_t capacity, int geom[])
 {
 	int heads, sectors;
 

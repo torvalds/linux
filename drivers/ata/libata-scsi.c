@@ -351,7 +351,7 @@ EXPORT_SYMBOL_GPL(ata_common_sdev_groups);
 /**
  *	ata_std_bios_param - generic bios head/sector/cylinder calculator used by sd.
  *	@sdev: SCSI device for which BIOS geometry is to be determined
- *	@bdev: block device associated with @sdev
+ *	@unused: gendisk associated with @sdev
  *	@capacity: capacity of SCSI device
  *	@geom: location to which geometry will be output
  *
@@ -366,7 +366,7 @@ EXPORT_SYMBOL_GPL(ata_common_sdev_groups);
  *	RETURNS:
  *	Zero.
  */
-int ata_std_bios_param(struct scsi_device *sdev, struct block_device *bdev,
+int ata_std_bios_param(struct scsi_device *sdev, struct gendisk *unused,
 		       sector_t capacity, int geom[])
 {
 	geom[0] = 255;

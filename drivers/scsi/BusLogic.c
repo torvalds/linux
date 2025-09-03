@@ -3240,7 +3240,7 @@ static int blogic_resetadapter(struct blogic_adapter *adapter, bool hard_reset)
   the BIOS, and a warning may be displayed.
 */
 
-static int blogic_diskparam(struct scsi_device *sdev, struct block_device *dev,
+static int blogic_diskparam(struct scsi_device *sdev, struct gendisk *disk,
 		sector_t capacity, int *params)
 {
 	struct blogic_adapter *adapter =
@@ -3261,7 +3261,7 @@ static int blogic_diskparam(struct scsi_device *sdev, struct block_device *dev,
 		diskparam->sectors = 32;
 	}
 	diskparam->cylinders = (unsigned long) capacity / (diskparam->heads * diskparam->sectors);
-	buf = scsi_bios_ptable(dev);
+	buf = scsi_bios_ptable(disk);
 	if (buf == NULL)
 		return 0;
 	/*

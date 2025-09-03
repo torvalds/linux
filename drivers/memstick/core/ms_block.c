@@ -1953,10 +1953,10 @@ static void msb_data_clear(struct msb_data *msb)
 	msb->card = NULL;
 }
 
-static int msb_bd_getgeo(struct block_device *bdev,
+static int msb_bd_getgeo(struct gendisk *disk,
 				 struct hd_geometry *geo)
 {
-	struct msb_data *msb = bdev->bd_disk->private_data;
+	struct msb_data *msb = disk->private_data;
 	*geo = msb->geometry;
 	return 0;
 }

@@ -119,9 +119,8 @@ static inline u32 vdc_tx_dring_avail(struct vio_dring_state *dr)
 	return vio_dring_avail(dr, VDC_TX_RING_SIZE);
 }
 
-static int vdc_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+static int vdc_getgeo(struct gendisk *disk, struct hd_geometry *geo)
 {
-	struct gendisk *disk = bdev->bd_disk;
 	sector_t nsect = get_capacity(disk);
 	sector_t cylinders = nsect;
 

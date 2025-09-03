@@ -1615,7 +1615,7 @@ static int storvsc_sdev_configure(struct scsi_device *sdevice,
 	return 0;
 }
 
-static int storvsc_get_chs(struct scsi_device *sdev, struct block_device * bdev,
+static int storvsc_get_chs(struct scsi_device *sdev, struct gendisk *unused,
 			   sector_t capacity, int *info)
 {
 	sector_t nsect = capacity;

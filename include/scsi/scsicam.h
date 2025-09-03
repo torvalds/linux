@@ -13,7 +13,8 @@
 
 #ifndef SCSICAM_H
 #define SCSICAM_H
-int scsicam_bios_param(struct block_device *bdev, sector_t capacity, int *ip);
-bool scsi_partsize(struct block_device *bdev, sector_t capacity, int geom[3]);
-unsigned char *scsi_bios_ptable(struct block_device *bdev);
+struct gendisk;
+int scsicam_bios_param(struct gendisk *disk, sector_t capacity, int *ip);
+bool scsi_partsize(struct gendisk *disk, sector_t capacity, int geom[3]);
+unsigned char *scsi_bios_ptable(struct gendisk *disk);
 #endif /* def SCSICAM_H */

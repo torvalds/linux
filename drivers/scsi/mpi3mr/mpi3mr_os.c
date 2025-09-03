@@ -4031,7 +4031,7 @@ out:
 /**
  * mpi3mr_bios_param - BIOS param callback
  * @sdev: SCSI device reference
- * @bdev: Block device reference
+ * @unused: gendisk reference
  * @capacity: Capacity in logical sectors
  * @params: Parameter array
  *
@@ -4040,7 +4040,7 @@ out:
  * Return: 0 always
  */
 static int mpi3mr_bios_param(struct scsi_device *sdev,
-	struct block_device *bdev, sector_t capacity, int params[])
+	struct gendisk *unused, sector_t capacity, int params[])
 {
 	int heads;
 	int sectors;

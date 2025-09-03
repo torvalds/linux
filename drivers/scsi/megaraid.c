@@ -2780,7 +2780,7 @@ static inline void mega_create_proc_entry(int index, struct proc_dir_entry *pare
  * Return the disk geometry for a particular disk
  */
 static int
-megaraid_biosparam(struct scsi_device *sdev, struct block_device *bdev,
+megaraid_biosparam(struct scsi_device *sdev, struct gendisk *disk,
 		    sector_t capacity, int geom[])
 {
 	adapter_t	*adapter;
@@ -2813,7 +2813,7 @@ megaraid_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 			geom[2] = cylinders;
 	}
 	else {
-		if (scsi_partsize(bdev, capacity, geom))
+		if (scsi_partsize(disk, capacity, geom))
 			return 0;
 
 		dev_info(&adapter->dev->dev,

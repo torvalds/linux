@@ -845,7 +845,7 @@ int sas_change_queue_depth(struct scsi_device *sdev, int depth)
 EXPORT_SYMBOL_GPL(sas_change_queue_depth);
 
 int sas_bios_param(struct scsi_device *scsi_dev,
-			  struct block_device *bdev,
+			  struct gendisk *unused,
 			  sector_t capacity, int *hsc)
 {
 	hsc[0] = 255;

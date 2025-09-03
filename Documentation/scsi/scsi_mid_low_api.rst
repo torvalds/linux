@@ -380,7 +380,7 @@ Details::
 
     /**
     * scsi_bios_ptable - return copy of block device's partition table
-    * @dev:        pointer to block device
+    * @dev:        pointer to gendisk
     *
     *      Returns pointer to partition table, or NULL for failure
     *
@@ -390,7 +390,7 @@ Details::
     *
     *      Defined in: drivers/scsi/scsicam.c
     **/
-    unsigned char *scsi_bios_ptable(struct block_device *dev)
+    unsigned char *scsi_bios_ptable(struct gendisk *dev)
 
 
     /**
@@ -623,7 +623,7 @@ Details::
     *      bios_param - fetch head, sector, cylinder info for a disk
     *      @sdev: pointer to scsi device context (defined in
     *             include/scsi/scsi_device.h)
-    *      @bdev: pointer to block device context (defined in fs.h)
+    *      @disk: pointer to gendisk (defined in blkdev.h)
     *      @capacity:  device size (in 512 byte sectors)
     *      @params: three element array to place output:
     *              params[0] number of heads (max 255)
@@ -643,7 +643,7 @@ Details::
     *
     *      Optionally defined in: LLD
     **/
-	int bios_param(struct scsi_device * sdev, struct block_device *bdev,
+	int bios_param(struct scsi_device * sdev, struct gendisk *disk,
 		    sector_t capacity, int params[3])
 
 

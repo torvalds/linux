@@ -112,7 +112,7 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb);
 static int arcmsr_abort(struct scsi_cmnd *);
 static int arcmsr_bus_reset(struct scsi_cmnd *);
 static int arcmsr_bios_param(struct scsi_device *sdev,
-		struct block_device *bdev, sector_t capacity, int *info);
+		struct gendisk *disk, sector_t capacity, int *info);
 static int arcmsr_queue_command(struct Scsi_Host *h, struct scsi_cmnd *cmd);
 static int arcmsr_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id);
@@ -377,11 +377,11 @@ static irqreturn_t arcmsr_do_interrupt(int irq, void *dev_id)
 }
 
 static int arcmsr_bios_param(struct scsi_device *sdev,
-		struct block_device *bdev, sector_t capacity, int *geom)
+		struct gendisk *disk, sector_t capacity, int *geom)
 {
 	int heads, sectors, cylinders, total_capacity;
 
-	if (scsi_partsize(bdev, capacity, geom))
+	if (scsi_partsize(disk, capacity, geom))
 		return 0;
 
 	total_capacity = capacity;

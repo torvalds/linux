@@ -1203,7 +1203,7 @@ extern void ata_qc_complete(struct ata_queued_cmd *qc);
 extern u64 ata_qc_get_active(struct ata_port *ap);
 extern void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd);
 extern int ata_std_bios_param(struct scsi_device *sdev,
-			      struct block_device *bdev,
+			      struct gendisk *unused,
 			      sector_t capacity, int geom[]);
 extern void ata_scsi_unlock_native_capacity(struct scsi_device *sdev);
 extern int ata_scsi_sdev_init(struct scsi_device *sdev);

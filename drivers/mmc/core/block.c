@@ -435,9 +435,9 @@ static void mmc_blk_release(struct gendisk *disk)
 }
 
 static int
-mmc_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+mmc_blk_getgeo(struct gendisk *disk, struct hd_geometry *geo)
 {
-	geo->cylinders = get_capacity(bdev->bd_disk) / (4 * 16);
+	geo->cylinders = get_capacity(disk) / (4 * 16);
 	geo->heads = 4;
 	geo->sectors = 16;
 	return 0;

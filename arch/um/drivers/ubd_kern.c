@@ -108,7 +108,7 @@ static DEFINE_MUTEX(ubd_lock);
 
 static int ubd_ioctl(struct block_device *bdev, blk_mode_t mode,
 		     unsigned int cmd, unsigned long arg);
-static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
+static int ubd_getgeo(struct gendisk *disk, struct hd_geometry *geo);
 
 #define MAX_DEV (16)
 
@@ -1324,9 +1324,9 @@ static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return res;
 }
 
-static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+static int ubd_getgeo(struct gendisk *disk, struct hd_geometry *geo)
 {
-	struct ubd *ubd_dev = bdev->bd_disk->private_data;
+	struct ubd *ubd_dev = disk->private_data;
 
 	geo->heads = 128;
 	geo->sectors = 32;
