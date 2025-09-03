@@ -253,7 +253,7 @@ static int tsc2007_probe_properties(struct device *dev, struct tsc2007 *ts)
 	if (ts->gpiod)
 		ts->get_pendown_state = tsc2007_get_pendown_state_gpio;
 	else
-		dev_warn(dev, "Pen down GPIO is not specified in properties\n");
+		dev_dbg(dev, "Pen down GPIO is not specified in properties\n");
 
 	return 0;
 }
