@@ -25,7 +25,7 @@
 
 #ifndef __DC_LINK_EDP_PANEL_CONTROL_H__
 #define __DC_LINK_EDP_PANEL_CONTROL_H__
-#include "link.h"
+#include "link_service.h"
 
 enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
 void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);

@@ -26,7 +26,7 @@
 #ifndef __DC_LINK_DP_CAPABILITY_H__
 #define __DC_LINK_DP_CAPABILITY_H__
 
-#include "link.h"
+#include "link_service.h"
 
 bool detect_dp_sink_caps(struct dc_link *link);
 

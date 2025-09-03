@@ -25,7 +25,7 @@
 #include "dpcd_defs.h"
 #include "clk_mgr.h"
 #include "dsc.h"
-#include "link.h"
+#include "link_service.h"
 
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dcn10/dcn10_cm_common.h"
