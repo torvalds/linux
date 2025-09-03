@@ -279,10 +279,7 @@ static int stmmac_get_syncdevicetime(ktime_t *device,
 {
 	struct stmmac_priv *priv = (struct stmmac_priv *)ctx;
 
-	if (priv->plat->crosststamp)
-		return priv->plat->crosststamp(device, system, ctx);
-	else
-		return -EOPNOTSUPP;
+	return priv->plat->crosststamp(device, system, ctx);
 }
 
 static int stmmac_getcrosststamp(struct ptp_clock_info *ptp,
@@ -310,7 +307,6 @@ const struct ptp_clock_info stmmac_ptp_clock_ops = {
 	.gettime64 = stmmac_get_time,
 	.settime64 = stmmac_set_time,
 	.enable = stmmac_enable,
-	.getcrosststamp = stmmac_getcrosststamp,
 };
 
 /* structure describing a PTP hardware clock */
@@ -328,7 +324,6 @@ const struct ptp_clock_info dwmac1000_ptp_clock_ops = {
 	.gettime64 = stmmac_get_time,
 	.settime64 = stmmac_set_time,
 	.enable = dwmac1000_ptp_enable,
-	.getcrosststamp = stmmac_getcrosststamp,
 };
 
 /**
@@ -363,6 +358,9 @@ void stmmac_ptp_register(struct stmmac_priv *priv)
 
 	if (priv->plat->ptp_max_adj)
 		priv->ptp_clock_ops.max_adj = priv->plat->ptp_max_adj;
+
+	if (priv->plat->crosststamp)
+		priv->ptp_clock_ops.getcrosststamp = stmmac_getcrosststamp;
 
 	rwlock_init(&priv->ptp_lock);
 	mutex_init(&priv->aux_ts_lock);
