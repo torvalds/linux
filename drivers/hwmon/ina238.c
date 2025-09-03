@@ -51,7 +51,7 @@
 
 #define INA238_REGISTERS		0x20
 
-#define INA238_RSHUNT_DEFAULT		10000 /* uOhm */
+#define INA238_RSHUNT_DEFAULT		2500	/* uOhm */
 
 /* Default configuration of device on reset. */
 #define INA238_CONFIG_DEFAULT		0
@@ -67,39 +67,26 @@
  * relative to the shunt resistor value within the driver. This is similar to
  * how the ina2xx driver handles current/power scaling.
  *
- * The end result of this is that increasing shunt values (from a fixed 20 mOhm
- * shunt) increase the effective current/power accuracy whilst limiting the
- * range and decreasing shunt values decrease the effective accuracy but
- * increase the range.
+ * To achieve the best possible dynamic range, the value of the shunt voltage
+ * register should match the value of the current register. With that, the shunt
+ * voltage of 0x7fff = 32,767 uV = 163,785 uV matches the maximum current,
+ * and no accuracy is lost. Experiments with a real chip show that this is
+ * achieved by setting the SHUNT_CAL register to a value of 0x1000 = 4,096.
+ * Per datasheet,
+ *  SHUNT_CAL = 819.2 x 10^6 x CURRENT_LSB x Rshunt
+ *            = 819,200,000 x CURRENT_LSB x Rshunt
+ * With SHUNT_CAL set to 4,096, we get
+ *  CURRENT_LSB = 4,096 / (819,200,000 x Rshunt)
+ * Assuming an Rshunt value of 5 mOhm, we get
+ *  CURRENT_LSB = 4,096 / (819,200,000 x 0.005) = 1mA
+ * and thus a dynamic range of 1mA ... 32,767mA, which is sufficient for most
+ * applications. The actual dynamic range is of course determined by the actual
+ * shunt resistor value.
  *
- * The value of the Current register is calculated given the following:
- *   Current (A) = (shunt voltage register * 5) * calibration / 81920
- *
- * The maximum shunt voltage is 163.835 mV (0x7fff, ADC_RANGE = 0, gain = 4).
- * With the maximum current value of 0x7fff and a fixed shunt value results in
- * a calibration value of 16384 (0x4000).
- *
- *   0x7fff = (0x7fff * 5) * calibration / 81920
- *   calibration = 0x4000
- *
- * Equivalent calibration is applied for the Power register (maximum value for
- * bus voltage is 102396.875 mV, 0x7fff), where the maximum power that can
- * occur is ~16776192 uW (register value 0x147a8):
- *
- * This scaling means the resulting values for Current and Power registers need
- * to be scaled by the difference between the fixed shunt resistor and the
- * actual shunt resistor:
- *
- *  shunt = 0x4000 / (819.2 * 10^6) / 0.001 = 20000 uOhms (with 1mA/lsb)
- *
- *  Current (mA) = register value * 20000 / rshunt / 4 * gain
- *  Power (mW) = 0.2 * register value * 20000 / rshunt / 4 * gain
- *  (Specific for SQ52206)
- *  Power (mW) = 0.24 * register value * 20000 / rshunt / 4 * gain
- *  Energy (uJ) = 16 * 0.24 * register value * 20000 / rshunt / 4 * gain * 1000
+ * Power and energy values are scaled accordingly.
  */
-#define INA238_CALIBRATION_VALUE	16384
-#define INA238_FIXED_SHUNT		20000
+#define INA238_CALIBRATION_VALUE	4096
+#define INA238_FIXED_SHUNT		5000
 
 #define INA238_SHUNT_VOLTAGE_LSB	5000	/* 5 uV/lsb, in nV */
 #define INA238_BUS_VOLTAGE_LSB		3125000	/* 3.125 mV/lsb, in nV */
