@@ -2327,10 +2327,10 @@ static int ufs_mtk_system_resume(struct device *dev)
 	if (pm_runtime_suspended(hba->dev))
 		goto out;
 
-	ufs_mtk_dev_vreg_set_lpm(hba, false);
-
 	if (ufs_mtk_is_rtff_mtcmos(hba))
 		ufs_mtk_mtcmos_ctrl(true, res);
+
+	ufs_mtk_dev_vreg_set_lpm(hba, false);
 
 out:
 	ret = ufshcd_system_resume(dev);
