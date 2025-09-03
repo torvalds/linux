@@ -899,6 +899,7 @@ static int mes_v12_0_inv_tlbs_pasid(struct amdgpu_mes *mes,
 				    struct mes_inv_tlbs_pasid_input *input)
 {
 	union MESAPI__INV_TLBS mes_inv_tlbs;
+	int ret;
 
 	memset(&mes_inv_tlbs, 0, sizeof(mes_inv_tlbs));
 
@@ -911,9 +912,10 @@ static int mes_v12_0_inv_tlbs_pasid(struct amdgpu_mes *mes,
 	mes_inv_tlbs.invalidate_tlbs.inv_sel_id = input->pasid;
 
 	/*convert amdgpu_mes_hub_id to mes expected hub_id */
-	mes_inv_tlbs.invalidate_tlbs.hub_id = mes_v12_inv_tlb_convert_hub_id(input->hub_id);
-	if (mes_inv_tlbs.invalidate_tlbs.hub_id < 0)
+	ret = mes_v12_inv_tlb_convert_hub_id(input->hub_id);
+	if (ret < 0)
 		return -EINVAL;
+	mes_inv_tlbs.invalidate_tlbs.hub_id = ret;
 	return mes_v12_0_submit_pkt_and_poll_completion(mes, AMDGPU_MES_KIQ_PIPE,
 			&mes_inv_tlbs, sizeof(mes_inv_tlbs),
 			offsetof(union MESAPI__INV_TLBS, api_status));
