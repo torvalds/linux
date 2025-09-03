@@ -88,6 +88,9 @@
 #define MDIO_AN_TX_VEND_INT_MASK2		0xd401
 #define MDIO_AN_TX_VEND_INT_MASK2_LINK		BIT(0)
 
+#define PMAPMD_FW_MISC_ID			0xc41d
+#define PMAPMD_FW_MISC_VER			0xc41e
+
 #define PMAPMD_RSVD_VEND_PROV			0xe400
 #define PMAPMD_RSVD_VEND_PROV_MDI_CONF		GENMASK(1, 0)
 #define PMAPMD_RSVD_VEND_PROV_MDI_REVERSE	BIT(0)
@@ -677,27 +680,46 @@ int aqr_wait_reset_complete(struct phy_device *phydev)
 	return ret;
 }
 
-static void aqr107_chip_info(struct phy_device *phydev)
+static int aqr_build_fingerprint(struct phy_device *phydev)
 {
 	u8 fw_major, fw_minor, build_id, prov_id;
+	struct aqr107_priv *priv = phydev->priv;
+	u16 misc_id, misc_ver;
 	int val;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_FW_ID);
 	if (val < 0)
-		return;
+		return val;
 
 	fw_major = FIELD_GET(VEND1_GLOBAL_FW_ID_MAJOR, val);
 	fw_minor = FIELD_GET(VEND1_GLOBAL_FW_ID_MINOR, val);
 
 	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_RSVD_STAT1);
 	if (val < 0)
-		return;
+		return val;
 
 	build_id = FIELD_GET(VEND1_GLOBAL_RSVD_STAT1_FW_BUILD_ID, val);
 	prov_id = FIELD_GET(VEND1_GLOBAL_RSVD_STAT1_PROV_ID, val);
 
-	phydev_dbg(phydev, "FW %u.%u, Build %u, Provisioning %u\n",
-		   fw_major, fw_minor, build_id, prov_id);
+	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, PMAPMD_FW_MISC_ID);
+	if (val < 0)
+		return val;
+
+	misc_id = val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, PMAPMD_FW_MISC_VER);
+	if (val < 0)
+		return val;
+
+	misc_ver = val;
+
+	priv->fingerprint = AQR_FW_FINGERPRINT(fw_major, fw_minor, build_id,
+					       prov_id, misc_id, misc_ver);
+
+	phydev_dbg(phydev, "FW %u.%u, Build %u, Provisioning %u, Misc ID %u, Version %u\n",
+		   fw_major, fw_minor, build_id, prov_id, misc_id, misc_ver);
+
+	return 0;
 }
 
 static int aqr107_config_mdi(struct phy_device *phydev)
@@ -745,8 +767,14 @@ static int aqr_gen1_config_init(struct phy_device *phydev)
 	     "Your devicetree is out of date, please update it. The AQR107 family doesn't support XGMII, maybe you mean USXGMII.\n");
 
 	ret = aqr_wait_reset_complete(phydev);
-	if (!ret)
-		aqr107_chip_info(phydev);
+	if (!ret) {
+		/* The PHY might work without a firmware image, so only build a
+		 * fingerprint if the firmware was initialized.
+		 */
+		ret = aqr_build_fingerprint(phydev);
+		if (ret)
+			return ret;
+	}
 
 	ret = aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
 	if (ret)

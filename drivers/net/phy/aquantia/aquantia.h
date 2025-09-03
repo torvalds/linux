@@ -153,6 +153,24 @@
 
 #define AQR_MAX_LEDS				3
 
+/* Custom driver definitions for constructing a single variable out of
+ * aggregate firmware build information. These do not represent hardware
+ * fields.
+ */
+#define AQR_FW_FINGERPRINT_MAJOR		GENMASK_ULL(63, 56)
+#define AQR_FW_FINGERPRINT_MINOR		GENMASK_ULL(55, 48)
+#define AQR_FW_FINGERPRINT_BUILD_ID		GENMASK_ULL(47, 40)
+#define AQR_FW_FINGERPRINT_PROV_ID		GENMASK_ULL(39, 32)
+#define AQR_FW_FINGERPRINT_MISC_ID		GENMASK_ULL(31, 16)
+#define AQR_FW_FINGERPRINT_MISC_VER		GENMASK_ULL(15, 0)
+#define AQR_FW_FINGERPRINT(major, minor, build_id, prov_id, misc_id, misc_ver) \
+	(FIELD_PREP(AQR_FW_FINGERPRINT_MAJOR, major) | \
+	 FIELD_PREP(AQR_FW_FINGERPRINT_MINOR, minor) | \
+	 FIELD_PREP(AQR_FW_FINGERPRINT_BUILD_ID, build_id) | \
+	 FIELD_PREP(AQR_FW_FINGERPRINT_PROV_ID, prov_id) | \
+	 FIELD_PREP(AQR_FW_FINGERPRINT_MISC_ID, misc_id) | \
+	 FIELD_PREP(AQR_FW_FINGERPRINT_MISC_VER, misc_ver))
+
 struct aqr107_hw_stat {
 	const char *name;
 	int reg;
@@ -203,6 +221,7 @@ struct aqr_global_syscfg {
 
 struct aqr107_priv {
 	u64 sgmii_stats[AQR107_SGMII_STAT_SZ];
+	u64 fingerprint;
 	unsigned long leds_active_low;
 	unsigned long leds_active_high;
 	bool wait_on_global_cfg;
@@ -216,6 +235,7 @@ static inline int aqr_hwmon_probe(struct phy_device *phydev) { return 0; }
 #endif
 
 int aqr_firmware_load(struct phy_device *phydev);
+int aqr_firmware_read_fingerprint(struct phy_device *phydev);
 
 int aqr_phy_led_blink_set(struct phy_device *phydev, u8 index,
 			  unsigned long *delay_on,
