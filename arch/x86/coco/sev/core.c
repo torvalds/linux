@@ -1129,7 +1129,7 @@ u64 savic_ghcb_msr_read(u32 reg)
 	if (res != ES_OK) {
 		pr_err("Secure AVIC MSR (0x%llx) read returned error (%d)\n", msr, res);
 		/* MSR read failures are treated as fatal errors */
-		snp_abort();
+		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_SAVIC_FAIL);
 	}
 
 	__sev_put_ghcb(&state);
@@ -1159,7 +1159,7 @@ void savic_ghcb_msr_write(u32 reg, u64 value)
 	if (res != ES_OK) {
 		pr_err("Secure AVIC MSR (0x%llx) write returned error (%d)\n", msr, res);
 		/* MSR writes should never fail. Any failure is fatal error for SNP guest */
-		snp_abort();
+		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_SAVIC_FAIL);
 	}
 
 	__sev_put_ghcb(&state);

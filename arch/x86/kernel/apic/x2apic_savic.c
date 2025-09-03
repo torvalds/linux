@@ -363,7 +363,7 @@ static void savic_setup(void)
 	 */
 	res = savic_register_gpa(gpa);
 	if (res != ES_OK)
-		snp_abort();
+		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_SAVIC_FAIL);
 
 	native_wrmsrq(MSR_AMD64_SAVIC_CONTROL,
 		      gpa | MSR_AMD64_SAVIC_EN | MSR_AMD64_SAVIC_ALLOWEDNMI);
@@ -376,13 +376,13 @@ static int savic_probe(void)
 
 	if (!x2apic_mode) {
 		pr_err("Secure AVIC enabled in non x2APIC mode\n");
-		snp_abort();
+		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_SAVIC_FAIL);
 		/* unreachable */
 	}
 
 	savic_page = alloc_percpu(struct secure_avic_page);
 	if (!savic_page)
-		snp_abort();
+		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_SAVIC_FAIL);
 
 	return 1;
 }
