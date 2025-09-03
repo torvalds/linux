@@ -10388,7 +10388,7 @@ S:	Maintained
 F:	drivers/input/touchscreen/goodix*
 
 GOOGLE ETHERNET DRIVERS
-M:	Jeroen de Borst <jeroendb@google.com>
+M:	Joshua Washington <joshwash@google.com>
 M:	Harshitha Ramamurthy <hramamurthy@google.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
