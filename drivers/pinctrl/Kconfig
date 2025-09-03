@@ -211,6 +211,8 @@ config PINCTRL_EIC7700
 	depends on ARCH_ESWIN || COMPILE_TEST
 	select PINMUX
 	select GENERIC_PINCONF
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
 	help
 	  This driver support for the pin controller in ESWIN's EIC7700 SoC,
 	  which supports pin multiplexing, pin configuration,and rgmii voltage
