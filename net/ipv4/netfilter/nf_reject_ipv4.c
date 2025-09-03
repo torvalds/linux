@@ -12,6 +12,15 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_bridge.h>
 
+static struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
+					 const struct sk_buff *oldskb,
+					 __u8 protocol, int ttl);
+static void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
+				    const struct tcphdr *oth);
+static const struct tcphdr *
+nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
+			struct tcphdr *_oth, int hook);
+
 static int nf_reject_iphdr_validate(struct sk_buff *skb)
 {
 	struct iphdr *iph;
@@ -136,8 +145,9 @@ struct sk_buff *nf_reject_skb_v4_unreach(struct net *net,
 }
 EXPORT_SYMBOL_GPL(nf_reject_skb_v4_unreach);
 
-const struct tcphdr *nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
-					     struct tcphdr *_oth, int hook)
+static const struct tcphdr *
+nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
+			struct tcphdr *_oth, int hook)
 {
 	const struct tcphdr *oth;
 
@@ -163,11 +173,10 @@ const struct tcphdr *nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
 
 	return oth;
 }
-EXPORT_SYMBOL_GPL(nf_reject_ip_tcphdr_get);
 
-struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
-				  const struct sk_buff *oldskb,
-				  __u8 protocol, int ttl)
+static struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
+					 const struct sk_buff *oldskb,
+					 __u8 protocol, int ttl)
 {
 	struct iphdr *niph, *oiph = ip_hdr(oldskb);
 
@@ -188,10 +197,9 @@ struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
 
 	return niph;
 }
-EXPORT_SYMBOL_GPL(nf_reject_iphdr_put);
 
-void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
-			  const struct tcphdr *oth)
+static void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
+				    const struct tcphdr *oth)
 {
 	struct iphdr *niph = ip_hdr(nskb);
 	struct tcphdr *tcph;
@@ -218,7 +226,6 @@ void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
 	nskb->csum_start = (unsigned char *)tcph - nskb->head;
 	nskb->csum_offset = offsetof(struct tcphdr, check);
 }
-EXPORT_SYMBOL_GPL(nf_reject_ip_tcphdr_put);
 
 static int nf_reject_fill_skb_dst(struct sk_buff *skb_in)
 {

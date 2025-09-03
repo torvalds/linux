@@ -556,6 +556,7 @@ struct nft_set_elem_expr {
  * 	@size: maximum set size
  *	@field_len: length of each field in concatenation, bytes
  *	@field_count: number of concatenated fields in element
+ *	@in_update_walk: true during ->walk() in transaction phase
  *	@use: number of rules references to this set
  * 	@nelems: number of elements
  * 	@ndeact: number of deactivated elements queued for removal
@@ -590,6 +591,7 @@ struct nft_set {
 	u32				size;
 	u8				field_len[NFT_REG32_COUNT];
 	u8				field_count;
+	bool				in_update_walk;
 	u32				use;
 	atomic_t			nelems;
 	u32				ndeact;
