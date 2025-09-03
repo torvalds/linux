@@ -99,3 +99,13 @@ struct net_device *ionic_lif_netdev(struct ionic_lif *lif)
 	dev_hold(netdev);
 	return netdev;
 }
+
+void ionic_lif_fw_version(struct ionic_lif *lif, char *str, size_t len)
+{
+	strscpy(str, lif->ionic->idev.dev_info.fw_version, len);
+}
+
+u8 ionic_lif_asic_rev(struct ionic_lif *lif)
+{
+	return lif->ionic->idev.dev_info.asic_rev;
+}
