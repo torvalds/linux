@@ -512,8 +512,31 @@ static int aqr_gen1_read_rate(struct phy_device *phydev)
 	return 0;
 }
 
+/* Quad port PHYs like AQR412(C) have 4 system interfaces, but they can also be
+ * used with a single system interface over which all 4 ports are multiplexed
+ * (10G-QXGMII). To the MDIO registers, this mode is indistinguishable from
+ * USXGMII (which implies a single 10G port).
+ *
+ * To not rely solely on the device tree, we allow the regular system interface
+ * detection to work as usual, but we replace USXGMII with 10G-QXGMII based on
+ * the specific fingerprint of firmware images that are known to be for MUSX.
+ */
+static phy_interface_t aqr_translate_interface(struct phy_device *phydev,
+					       phy_interface_t interface)
+{
+	struct aqr107_priv *priv = phydev->priv;
+
+	if (phy_id_compare(phydev->drv->phy_id, PHY_ID_AQR412C, phydev->drv->phy_id_mask) &&
+	    priv->fingerprint == AQR_G3_V4_3_C_AQR_NXP_SPF_30841_MUSX_ID40019_VER1198 &&
+	    interface == PHY_INTERFACE_MODE_USXGMII)
+		return PHY_INTERFACE_MODE_10G_QXGMII;
+
+	return interface;
+}
+
 static int aqr_gen1_read_status(struct phy_device *phydev)
 {
+	phy_interface_t interface;
 	int ret;
 	int val;
 
@@ -539,35 +562,37 @@ static int aqr_gen1_read_status(struct phy_device *phydev)
 
 	switch (FIELD_GET(MDIO_PHYXS_VEND_IF_STATUS_TYPE_MASK, val)) {
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_KR:
-		phydev->interface = PHY_INTERFACE_MODE_10GKR;
+		interface = PHY_INTERFACE_MODE_10GKR;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_KX:
-		phydev->interface = PHY_INTERFACE_MODE_1000BASEKX;
+		interface = PHY_INTERFACE_MODE_1000BASEKX;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_XFI:
-		phydev->interface = PHY_INTERFACE_MODE_10GBASER;
+		interface = PHY_INTERFACE_MODE_10GBASER;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_USXGMII:
-		phydev->interface = PHY_INTERFACE_MODE_USXGMII;
+		interface = PHY_INTERFACE_MODE_USXGMII;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_XAUI:
-		phydev->interface = PHY_INTERFACE_MODE_XAUI;
+		interface = PHY_INTERFACE_MODE_XAUI;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_SGMII:
-		phydev->interface = PHY_INTERFACE_MODE_SGMII;
+		interface = PHY_INTERFACE_MODE_SGMII;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_RXAUI:
-		phydev->interface = PHY_INTERFACE_MODE_RXAUI;
+		interface = PHY_INTERFACE_MODE_RXAUI;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_OCSGMII:
-		phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
+		interface = PHY_INTERFACE_MODE_2500BASEX;
 		break;
 	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_OFF:
 	default:
 		phydev->link = false;
-		phydev->interface = PHY_INTERFACE_MODE_NA;
+		interface = PHY_INTERFACE_MODE_NA;
 		break;
 	}
+
+	phydev->interface = aqr_translate_interface(phydev, interface);
 
 	/* Read rate from vendor register */
 	return aqr_gen1_read_rate(phydev);
@@ -757,6 +782,7 @@ static int aqr_gen1_config_init(struct phy_device *phydev)
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
 	    phydev->interface != PHY_INTERFACE_MODE_XGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_USXGMII &&
+	    phydev->interface != PHY_INTERFACE_MODE_10G_QXGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_10GKR &&
 	    phydev->interface != PHY_INTERFACE_MODE_10GBASER &&
 	    phydev->interface != PHY_INTERFACE_MODE_XAUI &&
@@ -851,7 +877,7 @@ static int aqr_gen2_read_global_syscfg(struct phy_device *phydev)
 			break;
 		}
 
-		syscfg->interface = interface;
+		syscfg->interface = aqr_translate_interface(phydev, interface);
 
 		switch (rate_adapt) {
 		case VEND1_GLOBAL_CFG_RATE_ADAPT_NONE:
@@ -1091,7 +1117,8 @@ static unsigned int aqr_gen2_inband_caps(struct phy_device *phydev,
 					 phy_interface_t interface)
 {
 	if (interface == PHY_INTERFACE_MODE_SGMII ||
-	    interface == PHY_INTERFACE_MODE_USXGMII)
+	    interface == PHY_INTERFACE_MODE_USXGMII ||
+	    interface == PHY_INTERFACE_MODE_10G_QXGMII)
 		return LINK_INBAND_ENABLE | LINK_INBAND_DISABLE;
 
 	return 0;
@@ -1101,7 +1128,8 @@ static int aqr_gen2_config_inband(struct phy_device *phydev, unsigned int modes)
 {
 	struct aqr107_priv *priv = phydev->priv;
 
-	if (phydev->interface == PHY_INTERFACE_MODE_USXGMII) {
+	if (phydev->interface == PHY_INTERFACE_MODE_USXGMII ||
+	    phydev->interface == PHY_INTERFACE_MODE_10G_QXGMII) {
 		u16 set = 0;
 
 		if (modes == LINK_INBAND_ENABLE)

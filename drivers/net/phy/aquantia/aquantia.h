@@ -171,6 +171,10 @@
 	 FIELD_PREP(AQR_FW_FINGERPRINT_MISC_ID, misc_id) | \
 	 FIELD_PREP(AQR_FW_FINGERPRINT_MISC_VER, misc_ver))
 
+/* 10G-QXGMII firmware for NXP SPF-30841 riser board (AQR412C) */
+#define AQR_G3_V4_3_C_AQR_NXP_SPF_30841_MUSX_ID40019_VER1198 \
+	AQR_FW_FINGERPRINT(4, 3, 0xc, 1, 40019, 1198)
+
 struct aqr107_hw_stat {
 	const char *name;
 	int reg;
