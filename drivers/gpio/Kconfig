@@ -408,8 +408,7 @@ config GPIO_IMX_SCU
 
 config GPIO_IXP4XX
 	bool "Intel IXP4xx GPIO"
-	depends on ARCH_IXP4XX
-	depends on OF
+	depends on (ARCH_IXP4XX && OF) || COMPILE_TEST
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
