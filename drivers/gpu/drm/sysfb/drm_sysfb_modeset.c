@@ -238,8 +238,7 @@ void drm_sysfb_plane_helper_atomic_update(struct drm_plane *plane, struct drm_at
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	unsigned int dst_pitch = sysfb->fb_pitch;
-	struct drm_crtc_state *crtc_state = crtc_state =
-		drm_atomic_get_new_crtc_state(state, plane_state->crtc);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, plane_state->crtc);
 	struct drm_sysfb_crtc_state *sysfb_crtc_state = to_drm_sysfb_crtc_state(crtc_state);
 	const struct drm_format_info *dst_format = sysfb_crtc_state->format;
 	struct drm_atomic_helper_damage_iter iter;
