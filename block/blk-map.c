@@ -253,10 +253,11 @@ static void blk_mq_map_bio_put(struct bio *bio)
 static struct bio *blk_rq_map_bio_alloc(struct request *rq,
 		unsigned int nr_vecs, gfp_t gfp_mask)
 {
+	struct block_device *bdev = rq->q->disk ? rq->q->disk->part0 : NULL;
 	struct bio *bio;
 
 	if (rq->cmd_flags & REQ_ALLOC_CACHE && (nr_vecs <= BIO_INLINE_VECS)) {
-		bio = bio_alloc_bioset(NULL, nr_vecs, rq->cmd_flags, gfp_mask,
+		bio = bio_alloc_bioset(bdev, nr_vecs, rq->cmd_flags, gfp_mask,
 					&fs_bio_set);
 		if (!bio)
 			return NULL;
@@ -264,7 +265,7 @@ static struct bio *blk_rq_map_bio_alloc(struct request *rq,
 		bio = bio_kmalloc(nr_vecs, gfp_mask);
 		if (!bio)
 			return NULL;
-		bio_init_inline(bio, NULL, nr_vecs, req_op(rq));
+		bio_init_inline(bio, bdev, nr_vecs, req_op(rq));
 	}
 	return bio;
 }

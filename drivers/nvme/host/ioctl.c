@@ -142,13 +142,8 @@ static int nvme_map_user_request(struct request *req, u64 ubuffer,
 		ret = blk_rq_map_user_io(req, NULL, nvme_to_user_ptr(ubuffer),
 				bufflen, GFP_KERNEL, flags & NVME_IOCTL_VEC, 0,
 				0, rq_data_dir(req));
-
 	if (ret)
 		return ret;
-
-	bio = req->bio;
-	if (bdev)
-		bio_set_dev(bio, bdev);
 
 	if (has_metadata) {
 		ret = blk_rq_integrity_map_user(req, meta_buffer, meta_len);
