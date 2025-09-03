@@ -17850,6 +17850,7 @@ F:	net/ipv6/tcp*.c
 NETWORKING [TLS]
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Jakub Kicinski <kuba@kernel.org>
+M:	Sabrina Dubroca <sd@queasysnail.net>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	include/net/tls.h
