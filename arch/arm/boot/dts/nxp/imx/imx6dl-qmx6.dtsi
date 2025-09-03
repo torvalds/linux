@@ -157,7 +157,7 @@
 	sda-gpios = <&gpio1 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
-	rtc: m41t62@68 {
+	rtc: rtc@68 {
 		compatible = "st,m41t62";
 		reg = <0x68>;
 
