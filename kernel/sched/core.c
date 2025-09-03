@@ -9362,8 +9362,6 @@ static void cpu_cgroup_attach(struct cgroup_taskset *tset)
 
 	cgroup_taskset_for_each(task, css, tset)
 		sched_move_task(task, false);
-
-	scx_cgroup_finish_attach();
 }
 
 static void cpu_cgroup_cancel_attach(struct cgroup_taskset *tset)

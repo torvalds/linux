@@ -3055,7 +3055,7 @@ bool scx_can_stop_tick(struct rq *rq)
 
 #ifdef CONFIG_EXT_GROUP_SCHED
 
-DEFINE_STATIC_PERCPU_RWSEM(scx_cgroup_rwsem);
+DEFINE_STATIC_PERCPU_RWSEM(scx_cgroup_ops_rwsem);
 static bool scx_cgroup_enabled;
 
 void scx_tg_init(struct task_group *tg)
@@ -3071,8 +3071,6 @@ int scx_tg_online(struct task_group *tg)
 	int ret = 0;
 
 	WARN_ON_ONCE(tg->scx.flags & (SCX_TG_ONLINE | SCX_TG_INITED));
-
-	percpu_down_read(&scx_cgroup_rwsem);
 
 	if (scx_cgroup_enabled) {
 		if (SCX_HAS_OP(sch, cgroup_init)) {
@@ -3093,7 +3091,6 @@ int scx_tg_online(struct task_group *tg)
 		tg->scx.flags |= SCX_TG_ONLINE;
 	}
 
-	percpu_up_read(&scx_cgroup_rwsem);
 	return ret;
 }
 
@@ -3103,15 +3100,11 @@ void scx_tg_offline(struct task_group *tg)
 
 	WARN_ON_ONCE(!(tg->scx.flags & SCX_TG_ONLINE));
 
-	percpu_down_read(&scx_cgroup_rwsem);
-
 	if (scx_cgroup_enabled && SCX_HAS_OP(sch, cgroup_exit) &&
 	    (tg->scx.flags & SCX_TG_INITED))
 		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cgroup_exit, NULL,
 			    tg->css.cgroup);
 	tg->scx.flags &= ~(SCX_TG_ONLINE | SCX_TG_INITED);
-
-	percpu_up_read(&scx_cgroup_rwsem);
 }
 
 int scx_cgroup_can_attach(struct cgroup_taskset *tset)
@@ -3120,9 +3113,6 @@ int scx_cgroup_can_attach(struct cgroup_taskset *tset)
 	struct cgroup_subsys_state *css;
 	struct task_struct *p;
 	int ret;
-
-	/* released in scx_finish/cancel_attach() */
-	percpu_down_read(&scx_cgroup_rwsem);
 
 	if (!scx_cgroup_enabled)
 		return 0;
@@ -3163,7 +3153,6 @@ err:
 		p->scx.cgrp_moving_from = NULL;
 	}
 
-	percpu_up_read(&scx_cgroup_rwsem);
 	return ops_sanitize_err(sch, "cgroup_prep_move", ret);
 }
 
@@ -3186,11 +3175,6 @@ void scx_cgroup_move_task(struct task_struct *p)
 	p->scx.cgrp_moving_from = NULL;
 }
 
-void scx_cgroup_finish_attach(void)
-{
-	percpu_up_read(&scx_cgroup_rwsem);
-}
-
 void scx_cgroup_cancel_attach(struct cgroup_taskset *tset)
 {
 	struct scx_sched *sch = scx_root;
@@ -3198,7 +3182,7 @@ void scx_cgroup_cancel_attach(struct cgroup_taskset *tset)
 	struct task_struct *p;
 
 	if (!scx_cgroup_enabled)
-		goto out_unlock;
+		return;
 
 	cgroup_taskset_for_each(p, css, tset) {
 		if (SCX_HAS_OP(sch, cgroup_cancel_move) &&
@@ -3207,15 +3191,13 @@ void scx_cgroup_cancel_attach(struct cgroup_taskset *tset)
 				    p, p->scx.cgrp_moving_from, css->cgroup);
 		p->scx.cgrp_moving_from = NULL;
 	}
-out_unlock:
-	percpu_up_read(&scx_cgroup_rwsem);
 }
 
 void scx_group_set_weight(struct task_group *tg, unsigned long weight)
 {
 	struct scx_sched *sch = scx_root;
 
-	percpu_down_read(&scx_cgroup_rwsem);
+	percpu_down_read(&scx_cgroup_ops_rwsem);
 
 	if (scx_cgroup_enabled && SCX_HAS_OP(sch, cgroup_set_weight) &&
 	    tg->scx.weight != weight)
@@ -3224,7 +3206,7 @@ void scx_group_set_weight(struct task_group *tg, unsigned long weight)
 
 	tg->scx.weight = weight;
 
-	percpu_up_read(&scx_cgroup_rwsem);
+	percpu_up_read(&scx_cgroup_ops_rwsem);
 }
 
 void scx_group_set_idle(struct task_group *tg, bool idle)
@@ -3237,7 +3219,7 @@ void scx_group_set_bandwidth(struct task_group *tg,
 {
 	struct scx_sched *sch = scx_root;
 
-	percpu_down_read(&scx_cgroup_rwsem);
+	percpu_down_read(&scx_cgroup_ops_rwsem);
 
 	if (scx_cgroup_enabled && SCX_HAS_OP(sch, cgroup_set_bandwidth) &&
 	    (tg->scx.bw_period_us != period_us ||
@@ -3250,23 +3232,25 @@ void scx_group_set_bandwidth(struct task_group *tg,
 	tg->scx.bw_quota_us = quota_us;
 	tg->scx.bw_burst_us = burst_us;
 
-	percpu_up_read(&scx_cgroup_rwsem);
+	percpu_up_read(&scx_cgroup_ops_rwsem);
 }
 
 static void scx_cgroup_lock(void)
 {
-	percpu_down_write(&scx_cgroup_rwsem);
+	percpu_down_write(&scx_cgroup_ops_rwsem);
+	cgroup_lock();
 }
 
 static void scx_cgroup_unlock(void)
 {
-	percpu_up_write(&scx_cgroup_rwsem);
+	cgroup_unlock();
+	percpu_up_write(&scx_cgroup_ops_rwsem);
 }
 
 #else	/* CONFIG_EXT_GROUP_SCHED */
 
-static inline void scx_cgroup_lock(void) {}
-static inline void scx_cgroup_unlock(void) {}
+static void scx_cgroup_lock(void) {}
+static void scx_cgroup_unlock(void) {}
 
 #endif	/* CONFIG_EXT_GROUP_SCHED */
 
@@ -3382,15 +3366,12 @@ static void scx_cgroup_exit(struct scx_sched *sch)
 {
 	struct cgroup_subsys_state *css;
 
-	percpu_rwsem_assert_held(&scx_cgroup_rwsem);
-
 	scx_cgroup_enabled = false;
 
 	/*
-	 * scx_tg_on/offline() are excluded through scx_cgroup_rwsem. If we walk
+	 * scx_tg_on/offline() are excluded through cgroup_lock(). If we walk
 	 * cgroups and exit all the inited ones, all online cgroups are exited.
 	 */
-	rcu_read_lock();
 	css_for_each_descendant_post(css, &root_task_group.css) {
 		struct task_group *tg = css_tg(css);
 
@@ -3401,17 +3382,9 @@ static void scx_cgroup_exit(struct scx_sched *sch)
 		if (!sch->ops.cgroup_exit)
 			continue;
 
-		if (WARN_ON_ONCE(!css_tryget(css)))
-			continue;
-		rcu_read_unlock();
-
 		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cgroup_exit, NULL,
 			    css->cgroup);
-
-		rcu_read_lock();
-		css_put(css);
 	}
-	rcu_read_unlock();
 }
 
 static int scx_cgroup_init(struct scx_sched *sch)
@@ -3419,13 +3392,10 @@ static int scx_cgroup_init(struct scx_sched *sch)
 	struct cgroup_subsys_state *css;
 	int ret;
 
-	percpu_rwsem_assert_held(&scx_cgroup_rwsem);
-
 	/*
-	 * scx_tg_on/offline() are excluded through scx_cgroup_rwsem. If we walk
+	 * scx_tg_on/offline() are excluded through cgroup_lock(). If we walk
 	 * cgroups and init, all online cgroups are initialized.
 	 */
-	rcu_read_lock();
 	css_for_each_descendant_pre(css, &root_task_group.css) {
 		struct task_group *tg = css_tg(css);
 		struct scx_cgroup_init_args args = {
@@ -3444,10 +3414,6 @@ static int scx_cgroup_init(struct scx_sched *sch)
 			continue;
 		}
 
-		if (WARN_ON_ONCE(!css_tryget(css)))
-			continue;
-		rcu_read_unlock();
-
 		ret = SCX_CALL_OP_RET(sch, SCX_KF_UNLOCKED, cgroup_init, NULL,
 				      css->cgroup, &args);
 		if (ret) {
@@ -3456,11 +3422,7 @@ static int scx_cgroup_init(struct scx_sched *sch)
 			return ret;
 		}
 		tg->scx.flags |= SCX_TG_INITED;
-
-		rcu_read_lock();
-		css_put(css);
 	}
-	rcu_read_unlock();
 
 	WARN_ON_ONCE(scx_cgroup_enabled);
 	scx_cgroup_enabled = true;
