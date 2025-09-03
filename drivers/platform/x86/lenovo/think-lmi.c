@@ -177,6 +177,16 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
 #define TLMI_CERT_SVC BIT(7) /* Admin Certificate Based */
 #define TLMI_CERT_SMC BIT(8) /* System Certificate Based */
 
+static const struct tlmi_cert_guids thinkpad_cert_guid = {
+	.thumbprint = LENOVO_CERT_THUMBPRINT_GUID,
+	.set_bios_setting = LENOVO_SET_BIOS_SETTING_CERT_GUID,
+	.save_bios_setting = LENOVO_SAVE_BIOS_SETTING_CERT_GUID,
+	.cert_to_password = LENOVO_CERT_TO_PASSWORD_GUID,
+	.clear_bios_cert = LENOVO_CLEAR_BIOS_CERT_GUID,
+	.update_bios_cert = LENOVO_UPDATE_BIOS_CERT_GUID,
+	.set_bios_cert = LENOVO_SET_BIOS_CERT_GUID,
+};
+
 static const struct tlmi_err_codes tlmi_errs[] = {
 	{"Success", 0},
 	{"Not Supported", -EOPNOTSUPP},
@@ -668,7 +678,7 @@ static ssize_t cert_thumbprint(char *buf, const char *arg, int count)
 	const union acpi_object *obj;
 	acpi_status status;
 
-	status = wmi_evaluate_method(LENOVO_CERT_THUMBPRINT_GUID, 0, 0, &input, &output);
+	status = wmi_evaluate_method(tlmi_priv.cert_guid->thumbprint, 0, 0, &input, &output);
 	if (ACPI_FAILURE(status)) {
 		kfree(output.pointer);
 		return -EIO;
@@ -751,7 +761,7 @@ static ssize_t cert_to_password_store(struct kobject *kobj,
 		kfree_sensitive(passwd);
 		return -ENOMEM;
 	}
-	ret = tlmi_simple_call(LENOVO_CERT_TO_PASSWORD_GUID, auth_str);
+	ret = tlmi_simple_call(tlmi_priv.cert_guid->cert_to_password, auth_str);
 	kfree(auth_str);
 	kfree_sensitive(passwd);
 
@@ -774,7 +784,7 @@ static ssize_t certificate_store(struct kobject *kobj,
 	char *auth_str, *new_cert;
 	const char *serial;
 	char *signature;
-	char *guid;
+	const char *guid;
 	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -797,7 +807,7 @@ static ssize_t certificate_store(struct kobject *kobj,
 		if (!auth_str)
 			return -ENOMEM;
 
-		ret = tlmi_simple_call(LENOVO_CLEAR_BIOS_CERT_GUID, auth_str);
+		ret = tlmi_simple_call(tlmi_priv.cert_guid->clear_bios_cert, auth_str);
 		kfree(auth_str);
 
 		return ret ?: count;
@@ -834,7 +844,7 @@ static ssize_t certificate_store(struct kobject *kobj,
 			kfree(new_cert);
 			return -EACCES;
 		}
-		guid = LENOVO_UPDATE_BIOS_CERT_GUID;
+		guid = tlmi_priv.cert_guid->update_bios_cert;
 		/* Format: 'Certificate,Signature' */
 		auth_str = cert_command(setting, new_cert, signature);
 	} else {
@@ -845,7 +855,7 @@ static ssize_t certificate_store(struct kobject *kobj,
 			kfree(new_cert);
 			return -EACCES;
 		}
-		guid = LENOVO_SET_BIOS_CERT_GUID;
+		guid = tlmi_priv.cert_guid->set_bios_cert;
 		/* Format: 'Certificate, password' */
 		auth_str = cert_command(setting, new_cert, setting->password);
 	}
@@ -1071,13 +1081,13 @@ static ssize_t current_value_store(struct kobject *kobj,
 			goto out;
 		}
 
-		ret = tlmi_simple_call(LENOVO_SET_BIOS_SETTING_CERT_GUID, set_str);
+		ret = tlmi_simple_call(tlmi_priv.cert_guid->set_bios_setting, set_str);
 		if (ret)
 			goto out;
 		if (tlmi_priv.save_mode == TLMI_SAVE_BULK)
 			tlmi_priv.save_required = true;
 		else
-			ret = tlmi_simple_call(LENOVO_SAVE_BIOS_SETTING_CERT_GUID,
+			ret = tlmi_simple_call(tlmi_priv.cert_guid->save_bios_setting,
 					       tlmi_priv.pwd_admin->save_signature);
 	} else if (tlmi_priv.opcode_support) {
 		/*
@@ -1282,7 +1292,7 @@ static ssize_t save_settings_store(struct kobject *kobj, struct kobj_attribute *
 				ret = -EINVAL;
 				goto out;
 			}
-			ret = tlmi_simple_call(LENOVO_SAVE_BIOS_SETTING_CERT_GUID,
+			ret = tlmi_simple_call(tlmi_priv.cert_guid->save_bios_setting,
 					       tlmi_priv.pwd_admin->save_signature);
 			if (ret)
 				goto out;
@@ -1728,6 +1738,7 @@ static int tlmi_analyze(struct wmi_device *wdev)
 	}
 
 	if (tlmi_priv.certificate_support) {
+		tlmi_priv.cert_guid = &thinkpad_cert_guid;
 		tlmi_priv.pwd_admin->cert_installed =
 			tlmi_priv.pwdcfg.core.password_state & TLMI_CERT_SVC;
 		tlmi_priv.pwd_system->cert_installed =
