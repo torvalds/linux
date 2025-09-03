@@ -1281,7 +1281,9 @@ again:
 	/* look for a conflicting name */
 	di = btrfs_lookup_dir_item(trans, root, wc->subvol_path, btrfs_ino(dir), name, 0);
 	if (IS_ERR(di)) {
-		return PTR_ERR(di);
+		ret = PTR_ERR(di);
+		btrfs_abort_transaction(trans, ret);
+		return ret;
 	} else if (di) {
 		ret = drop_one_dir_item(wc, dir, di);
 		if (ret)
