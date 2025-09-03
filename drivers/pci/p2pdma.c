@@ -738,7 +738,7 @@ EXPORT_SYMBOL_GPL(pci_p2pdma_distance_many);
  * pci_has_p2pmem - check if a given PCI device has published any p2pmem
  * @pdev: PCI device to check
  */
-bool pci_has_p2pmem(struct pci_dev *pdev)
+static bool pci_has_p2pmem(struct pci_dev *pdev)
 {
 	struct pci_p2pdma *p2pdma;
 	bool res;
@@ -750,7 +750,6 @@ bool pci_has_p2pmem(struct pci_dev *pdev)
 
 	return res;
 }
-EXPORT_SYMBOL_GPL(pci_has_p2pmem);
 
 /**
  * pci_p2pmem_find_many - find a peer-to-peer DMA memory device compatible with
