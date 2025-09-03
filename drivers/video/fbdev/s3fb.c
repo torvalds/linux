@@ -1510,7 +1510,7 @@ static int __maybe_unused s3_pci_suspend(struct device *dev)
 
 	fb_set_suspend(info, 1);
 	svga_wseq_mask(par->state.vgabase, 0x18, 0x20, 0x20);
-	svga_wseq_mask(par->state.vgabase, 0x14, 0x03, 0x03);
+	svga_wseq_mask(par->state.vgabase, 0x14, 0x01, 0x01);
 
 	mutex_unlock(&(par->open_lock));
 	console_unlock();
@@ -1539,7 +1539,7 @@ static int __maybe_unused s3_pci_resume(struct device *dev)
 
 	vga_wseq(par->state.vgabase, 0x08, 0x06);
 	svga_wseq_mask(par->state.vgabase, 0x18, 0x00, 0x20);
-	svga_wseq_mask(par->state.vgabase, 0x14, 0x00, 0x03);
+	svga_wseq_mask(par->state.vgabase, 0x14, 0x00, 0x01);
 	s3fb_set_par(info);
 	fb_set_suspend(info, 0);
 
