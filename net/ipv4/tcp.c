@@ -3118,14 +3118,14 @@ void __tcp_close(struct sock *sk, long timeout)
 	 *  descriptor close, not protocol-sourced closes, because the
 	 *  reader process may not have drained the data yet!
 	 */
-	while ((skb = __skb_dequeue(&sk->sk_receive_queue)) != NULL) {
+	while ((skb = skb_peek(&sk->sk_receive_queue)) != NULL) {
 		u32 end_seq = TCP_SKB_CB(skb)->end_seq;
 
 		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
 			end_seq--;
 		if (after(end_seq, tcp_sk(sk)->copied_seq))
 			data_was_unread = true;
-		__kfree_skb(skb);
+		tcp_eat_recv_skb(sk, skb);
 	}
 
 	/* If socket has been already reset (e.g. in tcp_reset()) - kill it. */
