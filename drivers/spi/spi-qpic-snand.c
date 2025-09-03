@@ -1615,11 +1615,13 @@ static int qcom_spi_probe(struct platform_device *pdev)
 	ret = spi_register_controller(ctlr);
 	if (ret) {
 		dev_err(&pdev->dev, "spi_register_controller failed.\n");
-		goto err_spi_init;
+		goto err_register_controller;
 	}
 
 	return 0;
 
+err_register_controller:
+	nand_ecc_unregister_on_host_hw_engine(&snandc->qspi->ecc_eng);
 err_spi_init:
 	qcom_nandc_unalloc(snandc);
 err_snand_alloc:
@@ -1641,7 +1643,7 @@ static void qcom_spi_remove(struct platform_device *pdev)
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	spi_unregister_controller(ctlr);
-
+	nand_ecc_unregister_on_host_hw_engine(&snandc->qspi->ecc_eng);
 	qcom_nandc_unalloc(snandc);
 
 	clk_disable_unprepare(snandc->aon_clk);
