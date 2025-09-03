@@ -43,7 +43,7 @@ static inline bool blk_rq_dma_map_coalesce(struct dma_iova_state *state)
 }
 
 /**
- * blk_rq_dma_unmap - try to DMA unmap a request
+ * blk_dma_unmap - try to DMA unmap a request
  * @req:	request to unmap
  * @dma_dev:	device to unmap from
  * @state:	DMA IOVA state
@@ -53,7 +53,7 @@ static inline bool blk_rq_dma_map_coalesce(struct dma_iova_state *state)
  * Returns %false if the callers need to manually unmap every DMA segment
  * mapped using @iter or %true if no work is left to be done.
  */
-static inline bool blk_rq_dma_unmap(struct request *req, struct device *dma_dev,
+static inline bool blk_dma_unmap(struct request *req, struct device *dma_dev,
 		struct dma_iova_state *state, size_t mapped_len, bool is_p2p)
 {
 	if (is_p2p)
@@ -66,6 +66,13 @@ static inline bool blk_rq_dma_unmap(struct request *req, struct device *dma_dev,
 	}
 
 	return !dma_need_unmap(dma_dev);
+}
+
+static inline bool blk_rq_dma_unmap(struct request *req, struct device *dma_dev,
+		struct dma_iova_state *state, size_t mapped_len)
+{
+	return blk_dma_unmap(req, dma_dev, state, mapped_len,
+				req->cmd_flags & REQ_P2PDMA);
 }
 
 #endif /* BLK_MQ_DMA_H */
