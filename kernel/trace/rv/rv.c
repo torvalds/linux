@@ -805,7 +805,7 @@ int rv_register_monitor(struct rv_monitor *monitor, struct rv_monitor *parent)
 
 	retval = create_monitor_dir(monitor, parent);
 	if (retval)
-		return retval;
+		goto out_unlock;
 
 	/* keep children close to the parent for easier visualisation */
 	if (parent)
