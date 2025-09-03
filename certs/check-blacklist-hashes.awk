@@ -5,10 +5,10 @@
 #
 # Author: Mickaël Salaün <mic@linux.microsoft.com>
 #
-# Check that a CONFIG_SYSTEM_BLACKLIST_HASH_LIST file contains a valid array of
-# hash strings.  Such string must start with a prefix ("tbs" or "bin"), then a
-# colon (":"), and finally an even number of hexadecimal lowercase characters
-# (up to 128).
+# This script checks the validity of the CONFIG_SYSTEM_BLACKLIST_HASH_LIST file,
+# ensuring that it contains valid hash strings. Such strings must start with a
+# prefix ("tbs" or "bin"), then a colon (":"), and finally an even number of
+# hexadecimal lowercase characters (up to 128).
 
 BEGIN {
 	RS = ","
