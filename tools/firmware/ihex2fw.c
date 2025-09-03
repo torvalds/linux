@@ -20,16 +20,15 @@
 #define _GNU_SOURCE
 #include <getopt.h>
 
-
-#define __ALIGN_KERNEL_MASK(x, mask)	(((x) + (mask)) & ~(mask))
-#define __ALIGN_KERNEL(x, a)		__ALIGN_KERNEL_MASK(x, (typeof(x))(a) - 1)
-#define ALIGN(x, a)			__ALIGN_KERNEL((x), (a))
+#define __ALIGN_KERNEL_MASK(x, mask)    (((x) + (mask)) & ~(mask))
+#define __ALIGN_KERNEL(x, a)        __ALIGN_KERNEL_MASK(x, (typeof(x))(a) - 1)
+#define ALIGN(x, a)            __ALIGN_KERNEL((x), (a))
 
 struct ihex_binrec {
-	struct ihex_binrec *next; /* not part of the real data structure */
-        uint32_t addr;
-        uint16_t len;
-        uint8_t data[];
+    struct ihex_binrec *next; /* not part of the real data structure */
+    uint32_t addr;
+    uint16_t len;
+    uint8_t data[];
 };
 
 /**
@@ -37,22 +36,23 @@ struct ihex_binrec {
  **/
 static uint8_t nybble(const uint8_t n)
 {
-	if      (n >= '0' && n <= '9') return n - '0';
-	else if (n >= 'A' && n <= 'F') return n - ('A' - 10);
-	else if (n >= 'a' && n <= 'f') return n - ('a' - 10);
-	return 0;
+    if      (n >= '0' && n <= '9') return n - '0';
+    else if (n >= 'A' && n <= 'F') return n - ('A' - 10);
+    else if (n >= 'a' && n <= 'f') return n - ('a' - 10);
+    return 0;
 }
 
 static uint8_t hex(const uint8_t *data, uint8_t *crc)
 {
-	uint8_t val = (nybble(data[0]) << 4) | nybble(data[1]);
-	*crc += val;
-	return val;
+    uint8_t val = (nybble(data[0]) << 4) | nybble(data[1]);
+    *crc += val;
+    return val;
 }
 
 static int process_ihex(uint8_t *data, ssize_t size);
 static void file_record(struct ihex_binrec *record);
 static int output_records(int outfd);
+static void free_records(void);
 
 static int sort_records = 0;
 static int wide_records = 0;
@@ -60,230 +60,275 @@ static int include_jump = 0;
 
 static int usage(void)
 {
-	fprintf(stderr, "ihex2fw: Convert ihex files into binary "
-		"representation for use by Linux kernel\n");
-	fprintf(stderr, "usage: ihex2fw [<options>] <src.HEX> <dst.fw>\n");
-	fprintf(stderr, "       -w: wide records (16-bit length)\n");
-	fprintf(stderr, "       -s: sort records by address\n");
-	fprintf(stderr, "       -j: include records for CS:IP/EIP address\n");
-	return 1;
+    fprintf(stderr, "ihex2fw: Convert ihex files into binary "
+        "representation for use by Linux kernel\n");
+    fprintf(stderr, "usage: ihex2fw [<options>] <src.HEX> <dst.fw>\n");
+    fprintf(stderr, "       -w: wide records (16-bit length)\n");
+    fprintf(stderr, "       -s: sort records by address\n");
+    fprintf(stderr, "       -j: include records for CS:IP/EIP address\n");
+    return 1;
 }
 
 int main(int argc, char **argv)
 {
-	int infd, outfd;
-	struct stat st;
-	uint8_t *data;
-	int opt;
+    int infd, outfd;
+    struct stat st;
+    uint8_t *data;
+    int opt;
 
-	while ((opt = getopt(argc, argv, "wsj")) != -1) {
-		switch (opt) {
-		case 'w':
-			wide_records = 1;
-			break;
-		case 's':
-			sort_records = 1;
-			break;
-		case 'j':
-			include_jump = 1;
-			break;
-		default:
-			return usage();
-		}
-	}
+    while ((opt = getopt(argc, argv, "wsj")) != -1) {
+        switch (opt) {
+        case 'w':
+            wide_records = 1;
+            break;
+        case 's':
+            sort_records = 1;
+            break;
+        case 'j':
+            include_jump = 1;
+            break;
+        default:
+            return usage();
+        }
+    }
 
-	if (optind + 2 != argc)
-		return usage();
+    if (optind + 2 != argc)
+        return usage();
 
-	if (!strcmp(argv[optind], "-"))
-		infd = 0;
-	else
-		infd = open(argv[optind], O_RDONLY);
-	if (infd == -1) {
-		fprintf(stderr, "Failed to open source file: %s",
-			strerror(errno));
-		return usage();
-	}
-	if (fstat(infd, &st)) {
-		perror("stat");
-		return 1;
-	}
-	data = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, infd, 0);
-	if (data == MAP_FAILED) {
-		perror("mmap");
-		return 1;
-	}
+    if (!strcmp(argv[optind], "-"))
+        infd = 0;
+    else
+        infd = open(argv[optind], O_RDONLY);
+    if (infd == -1) {
+        fprintf(stderr, "Failed to open source file: %s\n", strerror(errno));
+        return usage();
+    }
+    if (fstat(infd, &st)) {
+        perror("stat");
+        close(infd);
+        return 1;
+    }
+    data = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, infd, 0);
+    if (data == MAP_FAILED) {
+        perror("mmap");
+        close(infd);
+        return 1;
+    }
+    close(infd);
 
-	if (!strcmp(argv[optind+1], "-"))
-		outfd = 1;
-	else
-		outfd = open(argv[optind+1], O_TRUNC|O_CREAT|O_WRONLY, 0644);
-	if (outfd == -1) {
-		fprintf(stderr, "Failed to open destination file: %s",
-			strerror(errno));
-		return usage();
-	}
-	if (process_ihex(data, st.st_size))
-		return 1;
+    if (!strcmp(argv[optind+1], "-"))
+        outfd = 1;
+    else
+        outfd = open(argv[optind+1], O_TRUNC|O_CREAT|O_WRONLY, 0644);
+    if (outfd == -1) {
+        fprintf(stderr, "Failed to open destination file: %s\n", strerror(errno));
+        munmap(data, st.st_size);
+        return usage();
+    }
+    if (process_ihex(data, st.st_size)) {
+        munmap(data, st.st_size);
+        close(outfd);
+        free_records();
+        return 1;
+    }
+    munmap(data, st.st_size);
 
-	return output_records(outfd);
+    int ret = output_records(outfd);
+    close(outfd);
+    free_records();
+    return ret;
 }
 
 static int process_ihex(uint8_t *data, ssize_t size)
 {
-	struct ihex_binrec *record;
-	size_t record_size;
-	uint32_t offset = 0;
-	uint32_t data32;
-	uint8_t type, crc = 0, crcbyte = 0;
-	int i, j;
-	int line = 1;
-	int len;
+    struct ihex_binrec *record;
+    size_t record_size;
+    uint32_t offset = 0;
+    uint32_t data32;
+    uint8_t type, crc = 0, crcbyte = 0;
+    int i, j;
+    int line = 1;
+    int len;
 
-	i = 0;
+    i = 0;
 next_record:
-	/* search for the start of record character */
-	while (i < size) {
-		if (data[i] == '\n') line++;
-		if (data[i++] == ':') break;
-	}
+    /* search for the start of record character */
+    while (i < size) {
+        if (data[i] == '\n') line++;
+        if (data[i++] == ':') break;
+    }
 
-	/* Minimum record length would be about 10 characters */
-	if (i + 10 > size) {
-		fprintf(stderr, "Can't find valid record at line %d\n", line);
-		return -EINVAL;
-	}
+    /* Minimum record length would be about 10 characters */
+    if (i + 10 > size) {
+        fprintf(stderr, "Can't find valid record at line %d\n", line);
+        return -EINVAL;
+    }
 
-	len = hex(data + i, &crc); i += 2;
-	if (wide_records) {
-		len <<= 8;
-		len += hex(data + i, &crc); i += 2;
-	}
-	record_size = ALIGN(sizeof(*record) + len, 4);
-	record = malloc(record_size);
-	if (!record) {
-		fprintf(stderr, "out of memory for records\n");
-		return -ENOMEM;
-	}
-	memset(record, 0, record_size);
-	record->len = len;
+    len = hex(data + i, &crc); i += 2;
+    if (wide_records) {
+        len <<= 8;
+        len += hex(data + i, &crc); i += 2;
+    }
+    record_size = ALIGN(sizeof(*record) + len, 4);
+    record = malloc(record_size);
+    if (!record) {
+        fprintf(stderr, "Out of memory for records\n");
+        return -ENOMEM;
+    }
+    memset(record, 0, record_size);
+    record->len = len;
 
-	/* now check if we have enough data to read everything */
-	if (i + 8 + (record->len * 2) > size) {
-		fprintf(stderr, "Not enough data to read complete record at line %d\n",
-			line);
-		return -EINVAL;
-	}
+    /* now check if we have enough data to read everything */
+    if (i + 8 + (record->len * 2) > size) {
+        fprintf(stderr, "Not enough data to read complete record at line %d\n",
+            line);
+        free(record);
+        return -EINVAL;
+    }
 
-	record->addr  = hex(data + i, &crc) << 8; i += 2;
-	record->addr |= hex(data + i, &crc); i += 2;
-	type = hex(data + i, &crc); i += 2;
+    record->addr  = hex(data + i, &crc) << 8; i += 2;
+    record->addr |= hex(data + i, &crc); i += 2;
+    type = hex(data + i, &crc); i += 2;
 
-	for (j = 0; j < record->len; j++, i += 2)
-		record->data[j] = hex(data + i, &crc);
+    for (j = 0; j < record->len; j++, i += 2)
+        record->data[j] = hex(data + i, &crc);
 
-	/* check CRC */
-	crcbyte = hex(data + i, &crc); i += 2;
-	if (crc != 0) {
-		fprintf(stderr, "CRC failure at line %d: got 0x%X, expected 0x%X\n",
-			line, crcbyte, (unsigned char)(crcbyte-crc));
-		return -EINVAL;
-	}
+    /* check CRC */
+    crcbyte = hex(data + i, &crc); i += 2;
+    if (crc != 0) {
+        fprintf(stderr, "CRC failure at line %d: got 0x%X, expected 0x%X\n",
+            line, crcbyte, (unsigned char)(crcbyte - crc));
+        free(record);
+        return -EINVAL;
+    }
 
-	/* Done reading the record */
-	switch (type) {
-	case 0:
-		/* old style EOF record? */
-		if (!record->len)
-			break;
+    /* Done reading the record */
+    switch (type) {
+    case 0:
+        /* old style EOF record? */
+        if (!record->len) {
+            free(record);
+            break;
+        }
 
-		record->addr += offset;
-		file_record(record);
-		goto next_record;
+        record->addr += offset;
+        file_record(record);
+        goto next_record;
 
-	case 1: /* End-Of-File Record */
-		if (record->addr || record->len) {
-			fprintf(stderr, "Bad EOF record (type 01) format at line %d",
-				line);
-			return -EINVAL;
-		}
-		break;
+    case 1: /* End-Of-File Record */
+        if (record->addr || record->len) {
+            fprintf(stderr, "Bad EOF record (type 01) format at line %d\n",
+                line);
+            free(record);
+            return -EINVAL;
+        }
+        free(record);
+        break;
 
-	case 2: /* Extended Segment Address Record (HEX86) */
-	case 4: /* Extended Linear Address Record (HEX386) */
-		if (record->addr || record->len != 2) {
-			fprintf(stderr, "Bad HEX86/HEX386 record (type %02X) at line %d\n",
-				type, line);
-			return -EINVAL;
-		}
+    case 2: /* Extended Segment Address Record (HEX86) */
+    case 4: /* Extended Linear Address Record (HEX386) */
+        if (record->addr || record->len != 2) {
+            fprintf(stderr, "Bad HEX86/HEX386 record (type %02X) at line %d\n",
+                type, line);
+            free(record);
+            return -EINVAL;
+        }
 
-		/* We shouldn't really be using the offset for HEX86 because
-		 * the wraparound case is specified quite differently. */
-		offset = record->data[0] << 8 | record->data[1];
-		offset <<= (type == 2 ? 4 : 16);
-		goto next_record;
+        /* We shouldn't really be using the offset for HEX86 because
+         * the wraparound case is specified quite differently. */
+        offset = record->data[0] << 8 | record->data[1];
+        offset <<= (type == 2 ? 4 : 16);
+        free(record);
+        goto next_record;
 
-	case 3: /* Start Segment Address Record */
-	case 5: /* Start Linear Address Record */
-		if (record->addr || record->len != 4) {
-			fprintf(stderr, "Bad Start Address record (type %02X) at line %d\n",
-				type, line);
-			return -EINVAL;
-		}
+    case 3: /* Start Segment Address Record */
+    case 5: /* Start Linear Address Record */
+        if (record->addr || record->len != 4) {
+            fprintf(stderr, "Bad Start Address record (type %02X) at line %d\n",
+                type, line);
+            free(record);
+            return -EINVAL;
+        }
 
-		memcpy(&data32, &record->data[0], sizeof(data32));
-		data32 = htonl(data32);
-		memcpy(&record->data[0], &data32, sizeof(data32));
+        memcpy(&data32, &record->data[0], sizeof(data32));
+        data32 = htonl(data32);
+        memcpy(&record->data[0], &data32, sizeof(data32));
 
-		/* These records contain the CS/IP or EIP where execution
-		 * starts. If requested output this as a record. */
-		if (include_jump)
-			file_record(record);
-		goto next_record;
+        /* These records contain the CS/IP or EIP where execution
+         * starts. If requested output this as a record. */
+        if (include_jump)
+            file_record(record);
+        else
+            free(record);
+        goto next_record;
 
-	default:
-		fprintf(stderr, "Unknown record (type %02X)\n", type);
-		return -EINVAL;
-	}
+    default:
+        fprintf(stderr, "Unknown record (type %02X) at line %d\n", type, line);
+        free(record);
+        return -EINVAL;
+    }
 
-	return 0;
+    return 0;
 }
 
-static struct ihex_binrec *records;
+static struct ihex_binrec *records = NULL;
 
 static void file_record(struct ihex_binrec *record)
 {
-	struct ihex_binrec **p = &records;
+    struct ihex_binrec **p = &records;
 
-	while ((*p) && (!sort_records || (*p)->addr < record->addr))
-		p = &((*p)->next);
+    while ((*p) && (!sort_records || (*p)->addr < record->addr))
+        p = &((*p)->next);
 
-	record->next = *p;
-	*p = record;
+    record->next = *p;
+    *p = record;
 }
 
 static uint16_t ihex_binrec_size(struct ihex_binrec *p)
 {
-	return p->len + sizeof(p->addr) + sizeof(p->len);
+    return p->len + sizeof(p->addr) + sizeof(p->len);
 }
 
 static int output_records(int outfd)
 {
-	unsigned char zeroes[6] = {0, 0, 0, 0, 0, 0};
-	struct ihex_binrec *p = records;
+    unsigned char zeroes[6] = {0, 0, 0, 0, 0, 0};
+    struct ihex_binrec *p = records;
 
-	while (p) {
-		uint16_t writelen = ALIGN(ihex_binrec_size(p), 4);
+    while (p) {
+        uint16_t writelen = ALIGN(ihex_binrec_size(p), 4);
 
-		p->addr = htonl(p->addr);
-		p->len = htons(p->len);
-		if (write(outfd, &p->addr, writelen) != writelen)
-			return 1;
-		p = p->next;
-	}
-	/* EOF record is zero length, since we don't bother to represent
-	   the type field in the binary version */
-	if (write(outfd, zeroes, 6) != 6)
-		return 1;
-	return 0;
+        uint32_t addr_net = htonl(p->addr);
+        uint16_t len_net = htons(p->len);
+
+        // Write addr and len in network byte order
+        ssize_t written = write(outfd, &addr_net, sizeof(addr_net));
+        if (written != sizeof(addr_net))
+            return 1;
+        written = write(outfd, &len_net, sizeof(len_net));
+        if (written != sizeof(len_net))
+            return 1;
+
+        // Write data with padding if any
+        ssize_t data_len = writelen - (sizeof(addr_net) + sizeof(len_net));
+        if (write(outfd, p->data, data_len) != data_len)
+            return 1;
+
+        p = p->next;
+    }
+    /* EOF record is zero length, since we don't bother to represent
+       the type field in the binary version */
+    if (write(outfd, zeroes, sizeof(zeroes)) != sizeof(zeroes))
+        return 1;
+    return 0;
+}
+
+static void free_records(void)
+{
+    struct ihex_binrec *p = records;
+    while (p) {
+        struct ihex_binrec *next = p->next;
+        free(p);
+        p = next;
+    }
+    records = NULL;
 }
