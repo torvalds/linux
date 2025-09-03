@@ -2165,8 +2165,6 @@ void intel_power_domains_resume(struct intel_display *display)
 		power_domains->init_wakeref =
 			intel_display_power_get(display, POWER_DOMAIN_INIT);
 	}
-
-	intel_power_domains_verify_state(display);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
