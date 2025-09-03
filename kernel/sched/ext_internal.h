@@ -872,6 +872,7 @@ struct scx_sched {
 	struct scx_sched_pcpu __percpu *pcpu;
 
 	bool			warned_zero_slice;
+	bool			warned_deprecated_rq;
 
 	atomic_t		exit_kind;
 	struct scx_exit_info	*exit_info;
