@@ -45,6 +45,7 @@ struct cs42l43_codec {
 	struct cs42l43 *core;
 	struct snd_soc_component *component;
 	struct irq_domain *dom;
+	unsigned int shutter_irqs[4];
 
 	struct clk *mclk;
 
