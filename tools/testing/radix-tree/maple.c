@@ -35085,10 +35085,15 @@ static unsigned char get_vacant_height(struct ma_wr_state *wr_mas, void *entry)
 
 static int mas_allocated(struct ma_state *mas)
 {
-	if (mas->sheaf)
-		return kmem_cache_sheaf_size(mas->sheaf);
+	int total = 0;
 
-	return 0;
+	if (mas->alloc)
+		total++;
+
+	if (mas->sheaf)
+		total += kmem_cache_sheaf_size(mas->sheaf);
+
+	return total;
 }
 /* Preallocation testing */
 static noinline void __init check_prealloc(struct maple_tree *mt)
