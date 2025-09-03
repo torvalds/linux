@@ -1591,7 +1591,7 @@ static int vcn_v4_0_5_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = ip_block->adev;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	bool enable = state == AMD_CG_STATE_GATE;
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
