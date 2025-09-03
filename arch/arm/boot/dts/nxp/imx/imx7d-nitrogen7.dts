@@ -270,7 +270,7 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	touch@48 {
+	touchscreen@48 {
 		compatible = "ti,tsc2004";
 		reg = <0x48>;
 		pinctrl-names = "default";
