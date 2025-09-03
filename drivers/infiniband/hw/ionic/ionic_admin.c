@@ -627,6 +627,44 @@ err_cmd:
 	return ERR_PTR(rc);
 }
 
+static void ionic_flush_qs(struct ionic_ibdev *dev)
+{
+	struct ionic_qp *qp, *qp_tmp;
+	struct ionic_cq *cq, *cq_tmp;
+	LIST_HEAD(flush_list);
+	unsigned long index;
+
+	WARN_ON(!irqs_disabled());
+
+	/* Flush qp send and recv */
+	xa_lock(&dev->qp_tbl);
+	xa_for_each(&dev->qp_tbl, index, qp) {
+		kref_get(&qp->qp_kref);
+		list_add_tail(&qp->ibkill_flush_ent, &flush_list);
+	}
+	xa_unlock(&dev->qp_tbl);
+
+	list_for_each_entry_safe(qp, qp_tmp, &flush_list, ibkill_flush_ent) {
+		ionic_flush_qp(dev, qp);
+		kref_put(&qp->qp_kref, ionic_qp_complete);
+		list_del(&qp->ibkill_flush_ent);
+	}
+
+	/* Notify completions */
+	xa_lock(&dev->cq_tbl);
+	xa_for_each(&dev->cq_tbl, index, cq) {
+		kref_get(&cq->cq_kref);
+		list_add_tail(&cq->ibkill_flush_ent, &flush_list);
+	}
+	xa_unlock(&dev->cq_tbl);
+
+	list_for_each_entry_safe(cq, cq_tmp, &flush_list, ibkill_flush_ent) {
+		ionic_notify_flush_cq(cq);
+		kref_put(&cq->cq_kref, ionic_cq_complete);
+		list_del(&cq->ibkill_flush_ent);
+	}
+}
+
 static void ionic_kill_ibdev(struct ionic_ibdev *dev, bool fatal_path)
 {
 	unsigned long irqflags;
@@ -649,6 +687,9 @@ static void ionic_kill_ibdev(struct ionic_ibdev *dev, bool fatal_path)
 		}
 		spin_unlock(&aq->lock);
 	}
+
+	if (do_flush)
+		ionic_flush_qs(dev);
 
 	local_irq_restore(irqflags);
 
@@ -789,6 +830,65 @@ static void ionic_cq_event(struct ionic_ibdev *dev, u32 cqid, u8 code)
 	kref_put(&cq->cq_kref, ionic_cq_complete);
 }
 
+static void ionic_qp_event(struct ionic_ibdev *dev, u32 qpid, u8 code)
+{
+	unsigned long irqflags;
+	struct ib_event ibev;
+	struct ionic_qp *qp;
+
+	xa_lock_irqsave(&dev->qp_tbl, irqflags);
+	qp = xa_load(&dev->qp_tbl, qpid);
+	if (qp)
+		kref_get(&qp->qp_kref);
+	xa_unlock_irqrestore(&dev->qp_tbl, irqflags);
+
+	if (!qp) {
+		ibdev_dbg(&dev->ibdev,
+			  "missing qpid %#x code %u\n", qpid, code);
+		return;
+	}
+
+	ibev.device = &dev->ibdev;
+	ibev.element.qp = &qp->ibqp;
+
+	switch (code) {
+	case IONIC_V1_EQE_SQ_DRAIN:
+		ibev.event = IB_EVENT_SQ_DRAINED;
+		break;
+
+	case IONIC_V1_EQE_QP_COMM_EST:
+		ibev.event = IB_EVENT_COMM_EST;
+		break;
+
+	case IONIC_V1_EQE_QP_LAST_WQE:
+		ibev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		break;
+
+	case IONIC_V1_EQE_QP_ERR:
+		ibev.event = IB_EVENT_QP_FATAL;
+		break;
+
+	case IONIC_V1_EQE_QP_ERR_REQUEST:
+		ibev.event = IB_EVENT_QP_REQ_ERR;
+		break;
+
+	case IONIC_V1_EQE_QP_ERR_ACCESS:
+		ibev.event = IB_EVENT_QP_ACCESS_ERR;
+		break;
+
+	default:
+		ibdev_dbg(&dev->ibdev,
+			  "unrecognized qpid %#x code %u\n", qpid, code);
+		goto out;
+	}
+
+	if (qp->ibqp.event_handler)
+		qp->ibqp.event_handler(&ibev, qp->ibqp.qp_context);
+
+out:
+	kref_put(&qp->qp_kref, ionic_qp_complete);
+}
+
 static u16 ionic_poll_eq(struct ionic_eq *eq, u16 budget)
 {
 	struct ionic_ibdev *dev = eq->dev;
@@ -816,6 +916,10 @@ static u16 ionic_poll_eq(struct ionic_eq *eq, u16 budget)
 		switch (type) {
 		case IONIC_V1_EQE_TYPE_CQ:
 			ionic_cq_event(dev, qid, code);
+			break;
+
+		case IONIC_V1_EQE_TYPE_QP:
+			ionic_qp_event(dev, qid, code);
 			break;
 
 		default:

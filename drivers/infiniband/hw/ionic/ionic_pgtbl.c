@@ -7,6 +7,25 @@
 #include "ionic_fw.h"
 #include "ionic_ibdev.h"
 
+__le64 ionic_pgtbl_dma(struct ionic_tbl_buf *buf, u64 va)
+{
+	u64 pg_mask = BIT_ULL(buf->page_size_log2) - 1;
+	u64 dma;
+
+	if (!buf->tbl_pages)
+		return cpu_to_le64(0);
+
+	if (buf->tbl_pages > 1)
+		return cpu_to_le64(buf->tbl_dma);
+
+	if (buf->tbl_buf)
+		dma = le64_to_cpu(buf->tbl_buf[0]);
+	else
+		dma = buf->tbl_dma;
+
+	return cpu_to_le64(dma + (va & pg_mask));
+}
+
 int ionic_pgtbl_page(struct ionic_tbl_buf *buf, u64 dma)
 {
 	if (unlikely(buf->tbl_pages == buf->tbl_limit))
