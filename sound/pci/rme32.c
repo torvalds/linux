@@ -936,7 +936,7 @@ snd_rme32_capture_adat_open(struct snd_pcm_substream *substream)
         
 	scoped_guard(spinlock_irq, &rme32->lock) {
 		if (rme32->capture_substream != NULL)
-			spin_unlock_irq(&rme32->lock);
+			return -EBUSY;
 		rme32->capture_substream = substream;
 	}
 
