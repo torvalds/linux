@@ -35,19 +35,19 @@
 
 		user-led1 {
 			gpios = <&gpio7 1 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "gpio";
+			linux,default-trigger = "none";
 			default-state = "on";
 		};
 
 		user-led2 {
 			gpios = <&gpio7 0 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "gpio";
+			linux,default-trigger = "none";
 			default-state = "on";
 		};
 
 		user-led3 {
 			gpios = <&gpio5 29 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "gpio";
+			linux,default-trigger = "none";
 			default-state = "on";
 		};
 	};

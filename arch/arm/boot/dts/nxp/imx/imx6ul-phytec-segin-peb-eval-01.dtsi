@@ -29,13 +29,13 @@
 
 		user-led1 {
 			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "gpio";
+			linux,default-trigger = "none";
 			default-state = "on";
 		};
 
 		user-led2 {
 			gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "gpio";
+			linux,default-trigger = "none";
 			default-state = "on";
 		};
 	};
