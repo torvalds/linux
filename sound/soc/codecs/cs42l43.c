@@ -2422,6 +2422,8 @@ static int cs42l43_codec_suspend(struct device *dev)
 	cancel_delayed_work_sync(&priv->tip_sense_work);
 	cancel_delayed_work_sync(&priv->hp_ilimit_clear_work);
 
+	cs42l43_clear_jack(priv);
+
 	return pm_runtime_force_suspend(dev);
 }
 
