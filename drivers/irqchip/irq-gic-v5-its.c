@@ -768,8 +768,6 @@ static struct gicv5_its_dev *gicv5_its_alloc_device(struct gicv5_its_chip_data *
 		goto out_dev_free;
 	}
 
-	gicv5_its_device_cache_inv(its, its_dev);
-
 	its_dev->its_node = its;
 
 	its_dev->event_map = (unsigned long *)bitmap_zalloc(its_dev->num_events, GFP_KERNEL);
