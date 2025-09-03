@@ -60,6 +60,8 @@ static char *mutex_path_override;
 
 #define ASUS_HW_ACCESS_MUTEX_SB_PCI0_SBRG_SIO1_MUT0 "\\_SB_.PCI0.SBRG.SIO1.MUT0"
 
+#define ASUS_HW_ACCESS_MUTEX_SB_PCI0_LPCB_SIO1_MUT0 "\\_SB_.PCI0.LPCB.SIO1.MUT0"
+
 #define MAX_IDENTICAL_BOARD_VARIATIONS	3
 
 /* Moniker for the ACPI global lock (':' is not allowed in ASL identifiers) */
@@ -181,6 +183,7 @@ enum board_family {
 	family_amd_600_series,
 	family_amd_800_series,
 	family_amd_wrx_90,
+	family_intel_200_series,
 	family_intel_300_series,
 	family_intel_400_series,
 	family_intel_600_series,
@@ -304,6 +307,18 @@ static const struct ec_sensor_info sensors_family_amd_wrx_90[] = {
 	[ec_sensor_fan_m2] = EC_SENSOR("M.2", hwmon_fan, 2, 0x00, 0xbe),
 	[ec_sensor_temp_t_sensor] =
 		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x01, 0x04),
+};
+
+static const struct ec_sensor_info sensors_family_intel_200[] = {
+	[ec_sensor_temp_chipset] =
+		EC_SENSOR("Chipset", hwmon_temp, 1, 0x00, 0x3a),
+	[ec_sensor_temp_cpu] = EC_SENSOR("CPU", hwmon_temp, 1, 0x00, 0x3b),
+	[ec_sensor_temp_mb] =
+		EC_SENSOR("Motherboard", hwmon_temp, 1, 0x00, 0x3c),
+	[ec_sensor_temp_t_sensor] =
+		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x00, 0x3d),
+	[ec_sensor_fan_cpu_opt] =
+		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xbc),
 };
 
 static const struct ec_sensor_info sensors_family_intel_300[] = {
@@ -477,6 +492,13 @@ static const struct ec_board_info board_info_prime_x670e_pro_wifi = {
 		SENSOR_TEMP_T_SENSOR | SENSOR_FAN_CPU_OPT,
 	.mutex_path = ACPI_GLOBAL_LOCK_PSEUDO_PATH,
 	.family = family_amd_600_series,
+};
+
+static const struct ec_board_info board_info_prime_z270_a = {
+	.sensors = SENSOR_SET_TEMP_CHIPSET_CPU_MB |
+		SENSOR_TEMP_T_SENSOR | SENSOR_FAN_CPU_OPT,
+	.mutex_path = ASUS_HW_ACCESS_MUTEX_SB_PCI0_LPCB_SIO1_MUT0,
+	.family = family_intel_200_series,
 };
 
 static const struct ec_board_info board_info_pro_art_b550_creator = {
@@ -685,6 +707,8 @@ static const struct dmi_system_id dmi_table[] = {
 					&board_info_prime_x570_pro),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("PRIME X670E-PRO WIFI",
 					&board_info_prime_x670e_pro_wifi),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("PRIME Z270-A",
+					&board_info_prime_z270_a),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ProArt B550-CREATOR",
 					&board_info_pro_art_b550_creator),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ProArt X570-CREATOR WIFI",
@@ -1222,6 +1246,9 @@ static int asus_ec_probe(struct platform_device *pdev)
 		break;
 	case family_amd_wrx_90:
 		ec_data->sensors_info = sensors_family_amd_wrx_90;
+		break;
+	case family_intel_200_series:
+		ec_data->sensors_info = sensors_family_intel_200;
 		break;
 	case family_intel_300_series:
 		ec_data->sensors_info = sensors_family_intel_300;
