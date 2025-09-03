@@ -12,6 +12,8 @@
 #include <sound/soc.h>
 #include <linux/of_graph.h>
 
+#include <drm/display/drm_hdmi_state_helper.h>
+
 #include "adv7511.h"
 
 static void adv7511_calc_cts_n(unsigned int f_tmds, unsigned int fs,
@@ -155,17 +157,8 @@ int adv7511_hdmi_audio_prepare(struct drm_bridge *bridge,
 	regmap_update_bits(adv7511->regmap, ADV7511_REG_I2C_FREQ_ID_CFG,
 			   ADV7511_I2C_FREQ_ID_CFG_RATE_MASK, rate << 4);
 
-	/* send current Audio infoframe values while updating */
-	regmap_update_bits(adv7511->regmap, ADV7511_REG_INFOFRAME_UPDATE,
-			   BIT(5), BIT(5));
-
-	regmap_write(adv7511->regmap, ADV7511_REG_AUDIO_INFOFRAME(0), 0x1);
-
-	/* use Audio infoframe updated info */
-	regmap_update_bits(adv7511->regmap, ADV7511_REG_INFOFRAME_UPDATE,
-			   BIT(5), 0);
-
-	return 0;
+	return drm_atomic_helper_connector_hdmi_update_audio_infoframe(connector,
+								       &hparms->cea);
 }
 
 int adv7511_hdmi_audio_startup(struct drm_bridge *bridge,
@@ -188,15 +181,9 @@ int adv7511_hdmi_audio_startup(struct drm_bridge *bridge,
 	/* not copyrighted */
 	regmap_update_bits(adv7511->regmap, ADV7511_REG_AUDIO_CFG1,
 				BIT(5), BIT(5));
-	/* enable audio infoframes */
-	regmap_update_bits(adv7511->regmap, ADV7511_REG_PACKET_ENABLE1,
-				BIT(3), BIT(3));
 	/* AV mute disable */
 	regmap_update_bits(adv7511->regmap, ADV7511_REG_GC(0),
 				BIT(7) | BIT(6), BIT(7));
-	/* use Audio infoframe updated info */
-	regmap_update_bits(adv7511->regmap, ADV7511_REG_INFOFRAME_UPDATE,
-				BIT(5), 0);
 
 	/* enable SPDIF receiver */
 	if (adv7511->audio_source == ADV7511_AUDIO_SOURCE_SPDIF)
@@ -214,4 +201,6 @@ void adv7511_hdmi_audio_shutdown(struct drm_bridge *bridge,
 	if (adv7511->audio_source == ADV7511_AUDIO_SOURCE_SPDIF)
 		regmap_update_bits(adv7511->regmap, ADV7511_REG_AUDIO_CONFIG,
 				   BIT(7), 0);
+
+	drm_atomic_helper_connector_hdmi_clear_audio_infoframe(connector);
 }
