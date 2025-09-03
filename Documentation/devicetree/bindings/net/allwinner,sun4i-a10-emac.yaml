@@ -33,6 +33,15 @@ properties:
       - items:
           - description: phandle to SRAM
           - description: register value for device
+  dmas:
+    items:
+      - description: RX DMA Channel
+      - description: TX DMA Channel
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
 
 required:
   - compatible
