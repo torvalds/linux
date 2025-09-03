@@ -837,6 +837,14 @@ static int aqr_gen2_read_global_syscfg(struct phy_device *phydev)
 				    rate_adapt);
 			break;
 		}
+
+		phydev_dbg(phydev,
+			   "Media speed %d uses host interface %s with %s\n",
+			   syscfg->speed, phy_modes(syscfg->interface),
+			   syscfg->rate_adapt == AQR_RATE_ADAPT_NONE ? "no rate adaptation" :
+			   syscfg->rate_adapt == AQR_RATE_ADAPT_PAUSE ? "rate adaptation through flow control" :
+			   syscfg->rate_adapt == AQR_RATE_ADAPT_USX ? "rate adaptation through symbol replication" :
+			   "unrecognized rate adaptation type");
 	}
 
 	return 0;
