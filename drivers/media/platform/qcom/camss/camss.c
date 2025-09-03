@@ -3636,9 +3636,6 @@ static int camss_of_parse_ports(struct camss *camss)
 	for_each_endpoint_of_node(dev->of_node, node) {
 		struct camss_async_subdev *csd;
 
-		if (!of_device_is_available(node))
-			continue;
-
 		remote = of_graph_get_remote_port_parent(node);
 		if (!remote) {
 			dev_err(dev, "Cannot get remote parent\n");
