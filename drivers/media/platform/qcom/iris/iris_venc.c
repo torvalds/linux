@@ -61,6 +61,9 @@ int iris_venc_inst_init(struct iris_inst *inst)
 	inst->crop.width = f->fmt.pix_mp.width;
 	inst->crop.height = f->fmt.pix_mp.height;
 
+	inst->operating_rate = DEFAULT_FPS;
+	inst->frame_rate = DEFAULT_FPS;
+
 	return 0;
 }
 
@@ -325,4 +328,95 @@ int iris_venc_s_selection(struct iris_inst *inst, struct v4l2_selection *s)
 	default:
 		return -EINVAL;
 	}
+}
+
+int iris_venc_s_param(struct iris_inst *inst, struct v4l2_streamparm *s_parm)
+{
+	struct platform_inst_caps *caps = inst->core->iris_platform_data->inst_caps;
+	struct vb2_queue *src_q = v4l2_m2m_get_src_vq(inst->m2m_ctx);
+	struct vb2_queue *dst_q = v4l2_m2m_get_dst_vq(inst->m2m_ctx);
+	struct v4l2_fract *timeperframe = NULL;
+	u32 default_rate = DEFAULT_FPS;
+	bool is_frame_rate = false;
+	u64 us_per_frame, fps;
+	u32 max_rate;
+
+	int ret = 0;
+
+	if (s_parm->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		timeperframe = &s_parm->parm.output.timeperframe;
+		max_rate = caps->max_operating_rate;
+		s_parm->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
+	} else {
+		timeperframe = &s_parm->parm.capture.timeperframe;
+		is_frame_rate = true;
+		max_rate = caps->max_frame_rate;
+		s_parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	}
+
+	if (!timeperframe->denominator || !timeperframe->numerator) {
+		if (!timeperframe->numerator)
+			timeperframe->numerator = 1;
+		if (!timeperframe->denominator)
+			timeperframe->denominator = default_rate;
+	}
+
+	us_per_frame = timeperframe->numerator * (u64)USEC_PER_SEC;
+	do_div(us_per_frame, timeperframe->denominator);
+
+	if (!us_per_frame)
+		return -EINVAL;
+
+	fps = (u64)USEC_PER_SEC;
+	do_div(fps, us_per_frame);
+	if (fps > max_rate) {
+		ret = -ENOMEM;
+		goto reset_rate;
+	}
+
+	if (is_frame_rate)
+		inst->frame_rate = (u32)fps;
+	else
+		inst->operating_rate = (u32)fps;
+
+	if ((s_parm->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE && vb2_is_streaming(src_q)) ||
+	    (s_parm->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE && vb2_is_streaming(dst_q))) {
+		ret = iris_check_core_mbpf(inst);
+		if (ret)
+			goto reset_rate;
+		ret = iris_check_core_mbps(inst);
+		if (ret)
+			goto reset_rate;
+	}
+
+	return 0;
+
+reset_rate:
+	if (ret) {
+		if (is_frame_rate)
+			inst->frame_rate = default_rate;
+		else
+			inst->operating_rate = default_rate;
+	}
+
+	return ret;
+}
+
+int iris_venc_g_param(struct iris_inst *inst, struct v4l2_streamparm *s_parm)
+{
+	struct v4l2_fract *timeperframe = NULL;
+
+	if (s_parm->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		timeperframe = &s_parm->parm.output.timeperframe;
+		timeperframe->numerator = 1;
+		timeperframe->denominator = inst->operating_rate;
+		s_parm->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
+	} else {
+		timeperframe = &s_parm->parm.capture.timeperframe;
+		timeperframe->numerator = 1;
+		timeperframe->denominator = inst->frame_rate;
+		s_parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	}
+
+	return 0;
 }

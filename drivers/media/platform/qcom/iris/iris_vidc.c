@@ -530,6 +530,34 @@ static int iris_subscribe_event(struct v4l2_fh *fh, const struct v4l2_event_subs
 	return -EINVAL;
 }
 
+static int iris_s_parm(struct file *filp, void *fh, struct v4l2_streamparm *a)
+{
+	struct iris_inst *inst = iris_get_inst(filp);
+
+	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
+	    a->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		return -EINVAL;
+
+	if (inst->domain == ENCODER)
+		return iris_venc_s_param(inst, a);
+	else
+		return -EINVAL;
+}
+
+static int iris_g_parm(struct file *filp, void *fh, struct v4l2_streamparm *a)
+{
+	struct iris_inst *inst = iris_get_inst(filp);
+
+	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
+	    a->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		return -EINVAL;
+
+	if (inst->domain == ENCODER)
+		return iris_venc_g_param(inst, a);
+	else
+		return -EINVAL;
+}
+
 static int iris_dec_cmd(struct file *filp, void *fh,
 			struct v4l2_decoder_cmd *dec)
 {
@@ -626,6 +654,8 @@ static const struct v4l2_ioctl_ops iris_v4l2_ioctl_ops_enc = {
 	.vidioc_unsubscribe_event       = v4l2_event_unsubscribe,
 	.vidioc_g_selection             = iris_g_selection,
 	.vidioc_s_selection             = iris_s_selection,
+	.vidioc_s_parm                  = iris_s_parm,
+	.vidioc_g_parm                  = iris_g_parm,
 };
 
 void iris_init_ops(struct iris_core *core)

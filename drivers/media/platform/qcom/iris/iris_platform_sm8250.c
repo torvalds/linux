@@ -40,6 +40,8 @@ static struct platform_inst_caps platform_inst_cap_sm8250 = {
 	.max_mbpf = 138240,
 	.mb_cycles_vsp = 25,
 	.mb_cycles_vpp = 200,
+	.max_frame_rate = MAXIMUM_FPS,
+	.max_operating_rate = MAXIMUM_FPS,
 };
 
 static void iris_set_sm8250_preset_registers(struct iris_core *core)

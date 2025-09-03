@@ -12,23 +12,6 @@
 #include "iris_vdec.h"
 #include "iris_power.h"
 
-static int iris_check_core_mbpf(struct iris_inst *inst)
-{
-	struct iris_core *core = inst->core;
-	struct iris_inst *instance;
-	u32 total_mbpf = 0;
-
-	mutex_lock(&core->lock);
-	list_for_each_entry(instance, &core->instances, list)
-		total_mbpf += iris_get_mbpf(instance);
-	mutex_unlock(&core->lock);
-
-	if (total_mbpf > core->iris_platform_data->max_core_mbpf)
-		return -ENOMEM;
-
-	return 0;
-}
-
 static int iris_check_inst_mbpf(struct iris_inst *inst)
 {
 	struct platform_inst_caps *caps;
