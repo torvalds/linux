@@ -547,7 +547,7 @@ int ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 		 * first page of the bio.  Otherwise it can deadlock.
 		 */
 		if (io->io_bio)
-			gfp_flags = GFP_NOWAIT | __GFP_NOWARN;
+			gfp_flags = GFP_NOWAIT;
 	retry_encrypt:
 		bounce_page = fscrypt_encrypt_pagecache_blocks(folio,
 					enc_bytes, 0, gfp_flags);

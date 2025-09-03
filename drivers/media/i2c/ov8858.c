@@ -1391,7 +1391,6 @@ static int ov8858_s_stream(struct v4l2_subdev *sd, int on)
 		}
 	} else {
 		ov8858_stop_stream(ov8858);
-		pm_runtime_mark_last_busy(&client->dev);
 		pm_runtime_put_autosuspend(&client->dev);
 	}
 
@@ -1945,7 +1944,6 @@ static int ov8858_probe(struct i2c_client *client)
 		goto err_power_off;
 	}
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;

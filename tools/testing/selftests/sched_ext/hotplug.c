@@ -6,7 +6,6 @@
 #include <bpf/bpf.h>
 #include <sched.h>
 #include <scx/common.h>
-#include <sched.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
