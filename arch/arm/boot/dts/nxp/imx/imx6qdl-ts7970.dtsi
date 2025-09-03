@@ -218,7 +218,7 @@
 	};
 
 	isl12022: rtc@6f {
-		compatible = "isl,isl12022";
+		compatible = "isil,isl12022";
 		reg = <0x6f>;
 	};
 
