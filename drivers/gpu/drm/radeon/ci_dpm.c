@@ -3238,7 +3238,8 @@ static int ci_populate_all_graphic_levels(struct radeon_device *rdev)
 	u32 level_array_size = sizeof(SMU7_Discrete_GraphicsLevel) *
 		SMU7_MAX_LEVELS_GRAPHICS;
 	SMU7_Discrete_GraphicsLevel *levels = pi->smc_state_table.GraphicsLevel;
-	u32 i, ret;
+	int ret;
+	u32 i;
 
 	memset(levels, 0, level_array_size);
 
@@ -3285,7 +3286,8 @@ static int ci_populate_all_memory_levels(struct radeon_device *rdev)
 	u32 level_array_size = sizeof(SMU7_Discrete_MemoryLevel) *
 		SMU7_MAX_LEVELS_MEMORY;
 	SMU7_Discrete_MemoryLevel *levels = pi->smc_state_table.MemoryLevel;
-	u32 i, ret;
+	int ret;
+	u32 i;
 
 	memset(levels, 0, level_array_size);
 
