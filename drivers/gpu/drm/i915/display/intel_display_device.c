@@ -1944,6 +1944,11 @@ void intel_display_device_info_print(const struct intel_display_device_info *inf
 	drm_printf(p, "rawclk rate: %u kHz\n", runtime->rawclk_freq);
 }
 
+bool intel_display_device_present(struct intel_display *display)
+{
+	return display && HAS_DISPLAY(display);
+}
+
 /*
  * Assuming the device has display hardware, should it be enabled?
  *

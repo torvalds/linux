@@ -5,7 +5,7 @@
 
 #include "i915_selftest.h"
 
-#include "display/intel_display_core.h"
+#include "display/intel_display_device.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_engine_user.h"
@@ -122,7 +122,7 @@ static bool fastblit_supports_x_tiling(const struct drm_i915_private *i915)
 	if (GRAPHICS_VER_FULL(i915) < IP_VER(12, 55))
 		return false;
 
-	return HAS_DISPLAY(display);
+	return intel_display_device_present(display);
 }
 
 static bool fast_blit_ok(const struct blit_buffer *buf)
