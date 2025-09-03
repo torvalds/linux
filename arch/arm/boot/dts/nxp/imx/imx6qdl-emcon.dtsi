@@ -33,7 +33,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_emcon_wake>;
 
-		wake {
+		key-wake {
 			label = "Wake";
 			linux,code = <KEY_WAKEUP>;
 			gpios = <&gpio3 2 GPIO_ACTIVE_LOW>;

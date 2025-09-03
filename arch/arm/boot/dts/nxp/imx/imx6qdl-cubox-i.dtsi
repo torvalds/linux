@@ -118,7 +118,7 @@
 		pinctrl-0 = <&pinctrl_gpio_key>;
 		pinctrl-names = "default";
 
-		button_0 {
+		button-0 {
 			label = "Button 0";
 			gpios = <&gpio3 8 GPIO_ACTIVE_LOW>;
 			linux,code = <BTN_0>;

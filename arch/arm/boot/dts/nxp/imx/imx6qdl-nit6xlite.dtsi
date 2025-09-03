@@ -57,13 +57,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 
-		home {
+		key-home {
 			label = "Home";
 			gpios = <&gpio7 13 IRQ_TYPE_LEVEL_LOW>;
 			linux,code = <102>;
 		};
 
-		back {
+		key-back {
 			label = "Back";
 			gpios = <&gpio4 5 IRQ_TYPE_LEVEL_LOW>;
 			linux,code = <158>;

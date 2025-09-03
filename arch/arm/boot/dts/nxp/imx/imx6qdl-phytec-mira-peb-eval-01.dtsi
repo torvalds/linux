@@ -13,14 +13,14 @@
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 		status = "disabled";
 
-		power {
+		key-power {
 			label = "Power Button";
 			gpios = <&gpio5 28 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WAKEUP>;
 			wakeup-source;
 		};
 
-		sleep {
+		key-sleep {
 			label = "Sleep Button";
 			gpios = <&gpio6 18 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_SLEEP>;
