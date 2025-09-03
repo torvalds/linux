@@ -400,8 +400,9 @@ static int tegra_sha_do_update(struct ahash_request *req)
 	struct tegra_sha_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(req));
 	struct tegra_sha_reqctx *rctx = ahash_request_ctx(req);
 	struct tegra_se *se = ctx->se;
-	unsigned int nblks, nresidue, size, ret;
+	unsigned int nblks, nresidue, size;
 	u32 *cpuvaddr = se->cmdbuf->addr;
+	int ret;
 
 	nresidue = (req->nbytes + rctx->residue.size) % rctx->blk_size;
 	nblks = (req->nbytes + rctx->residue.size) / rctx->blk_size;
