@@ -195,6 +195,7 @@
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
 		adc {
