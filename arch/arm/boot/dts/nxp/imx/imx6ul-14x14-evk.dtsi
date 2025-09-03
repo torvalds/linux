@@ -421,8 +421,6 @@
 };
 
 &iomuxc {
-	pinctrl-names = "default";
-
 	pinctrl_camera_clock: cameraclockgrp {
 		fsl,pins = <
 			MX6UL_PAD_CSI_MCLK__CSI_MCLK		0x1b088
