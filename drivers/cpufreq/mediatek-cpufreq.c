@@ -123,7 +123,7 @@ static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 						      soc_data->sram_max_volt);
 				return ret;
 			}
-		} else if (pre_vproc > new_vproc) {
+		} else {
 			vproc = max(new_vproc,
 				    pre_vsram - soc_data->max_volt_shift);
 			ret = regulator_set_voltage(proc_reg, vproc,
