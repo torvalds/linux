@@ -1845,7 +1845,6 @@ static unsigned int cpufreq_verify_current_freq(struct cpufreq_policy *policy, b
  */
 unsigned int cpufreq_quick_get(unsigned int cpu)
 {
-	struct cpufreq_policy *policy __free(put_cpufreq_policy) = NULL;
 	unsigned long flags;
 
 	read_lock_irqsave(&cpufreq_driver_lock, flags);
@@ -1860,7 +1859,7 @@ unsigned int cpufreq_quick_get(unsigned int cpu)
 
 	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
-	policy = cpufreq_cpu_get(cpu);
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	if (policy)
 		return policy->cur;
 
@@ -1876,9 +1875,7 @@ EXPORT_SYMBOL(cpufreq_quick_get);
  */
 unsigned int cpufreq_quick_get_max(unsigned int cpu)
 {
-	struct cpufreq_policy *policy __free(put_cpufreq_policy);
-
-	policy = cpufreq_cpu_get(cpu);
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	if (policy)
 		return policy->max;
 
@@ -1894,9 +1891,7 @@ EXPORT_SYMBOL(cpufreq_quick_get_max);
  */
 __weak unsigned int cpufreq_get_hw_max_freq(unsigned int cpu)
 {
-	struct cpufreq_policy *policy __free(put_cpufreq_policy);
-
-	policy = cpufreq_cpu_get(cpu);
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	if (policy)
 		return policy->cpuinfo.max_freq;
 
@@ -1920,9 +1915,7 @@ static unsigned int __cpufreq_get(struct cpufreq_policy *policy)
  */
 unsigned int cpufreq_get(unsigned int cpu)
 {
-	struct cpufreq_policy *policy __free(put_cpufreq_policy);
-
-	policy = cpufreq_cpu_get(cpu);
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	if (!policy)
 		return 0;
 
@@ -2751,9 +2744,7 @@ static void cpufreq_policy_refresh(struct cpufreq_policy *policy)
  */
 void cpufreq_update_policy(unsigned int cpu)
 {
-	struct cpufreq_policy *policy __free(put_cpufreq_policy);
-
-	policy = cpufreq_cpu_get(cpu);
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	if (!policy)
 		return;
 
@@ -2770,9 +2761,7 @@ EXPORT_SYMBOL(cpufreq_update_policy);
  */
 void cpufreq_update_limits(unsigned int cpu)
 {
-	struct cpufreq_policy *policy __free(put_cpufreq_policy);
-
-	policy = cpufreq_cpu_get(cpu);
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	if (!policy)
 		return;
 
@@ -3054,9 +3043,7 @@ static int __init cpufreq_core_init(void)
 
 static bool cpufreq_policy_is_good_for_eas(unsigned int cpu)
 {
-	struct cpufreq_policy *policy __free(put_cpufreq_policy);
-
-	policy = cpufreq_cpu_get(cpu);
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	if (!policy) {
 		pr_debug("cpufreq policy not set for CPU: %d\n", cpu);
 		return false;
