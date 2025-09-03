@@ -72,7 +72,7 @@
 		default-brightness-level = <50>;
 	};
 
-	i2c_gpio: i2c-gpio {
+	i2c_gpio: i2c {
 		compatible = "i2c-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;
