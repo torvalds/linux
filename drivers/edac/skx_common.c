@@ -14,6 +14,7 @@
  * Copyright (c) 2018, Intel Corporation.
  */
 
+#include <linux/topology.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/adxl.h>
@@ -278,7 +279,7 @@ static int skx_get_pkg_id(struct skx_dev *d, u8 *id)
 			struct cpuinfo_x86 *c = &cpu_data(cpu);
 
 			if (c->initialized && cpu_to_node(cpu) == node) {
-				*id = c->topo.pkg_id;
+				*id = topology_physical_package_id(cpu);
 				return 0;
 			}
 		}
