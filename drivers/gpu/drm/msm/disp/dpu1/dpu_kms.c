@@ -1110,7 +1110,7 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 {
 	struct drm_gpuvm *vm;
 
-	vm = msm_kms_init_vm(dpu_kms->dev);
+	vm = msm_kms_init_vm(dpu_kms->dev, dpu_kms->dev->dev->parent);
 	if (IS_ERR(vm))
 		return PTR_ERR(vm);
 
