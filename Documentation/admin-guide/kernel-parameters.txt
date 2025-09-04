@@ -624,6 +624,7 @@
 			bhi:	  Enable register poisoning to stop speculation
 				  across FineIBT. (Disabled by default.)
 			warn:	  Do not enforce CFI checking: warn only.
+			debug:    Report CFI initialization details.
 
 	cgroup_disable=	[KNL] Disable a particular controller or optional feature
 			Format: {name of the controller(s) or feature(s) to disable}
