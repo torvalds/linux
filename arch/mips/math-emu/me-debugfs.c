@@ -37,11 +37,11 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_fpuemu_stat, fpuemu_stat_get, NULL, "%llu\n");
  * used in debugfs item names to be clearly associated to corresponding
  * MIPS FPU instructions.
  */
-static void adjust_instruction_counter_name(char *out_name, char *in_name)
+static void adjust_instruction_counter_name(char *out_name, char *in_name, size_t len)
 {
 	int i = 0;
 
-	strcpy(out_name, in_name);
+	strscpy(out_name, in_name, len);
 	while (in_name[i] != '\0') {
 		if (out_name[i] == '_')
 			out_name[i] = '.';
@@ -226,7 +226,7 @@ do {									\
 
 #define FPU_STAT_CREATE_EX(m)						\
 do {									\
-	adjust_instruction_counter_name(name, #m);			\
+	adjust_instruction_counter_name(name, #m, sizeof(name));			\
 									\
 	debugfs_create_file(name, 0444, fpuemu_debugfs_inst_dir,	\
 				(void *)FPU_EMU_STAT_OFFSET(m),		\
