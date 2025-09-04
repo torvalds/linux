@@ -27,7 +27,7 @@ static bool decode_cfi_insn(struct pt_regs *regs, unsigned long *target,
 	 * for indirect call checks:
 	 *
 	 *   movl    -<id>, %r10d       ; 6 bytes
-	 *   addl    -4(%reg), %r10d    ; 4 bytes
+	 *   addl    -<pos>(%reg), %r10d; 4 bytes
 	 *   je      .Ltmp1             ; 2 bytes
 	 *   ud2                        ; <- regs->ip
 	 *   .Ltmp1:
