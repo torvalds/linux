@@ -41,6 +41,8 @@
  *
  *	# echo 1 > /sys/kernel/config/xe/0000:03:00.0/survivability_mode
  *
+ * It is the responsibility of the user to clear the mode once firmware flash is complete.
+ *
  * Refer :ref:`xe_configfs` for more details on how to use configfs
  *
  * Survivability mode is indicated by the below admin-only readable sysfs which provides additional
@@ -147,7 +149,6 @@ static void xe_survivability_mode_fini(void *arg)
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	struct device *dev = &pdev->dev;
 
-	xe_configfs_clear_survivability_mode(pdev);
 	sysfs_remove_file(&dev->kobj, &dev_attr_survivability_mode.attr);
 }
 
