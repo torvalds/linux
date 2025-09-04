@@ -581,9 +581,8 @@ static struct elf_seg *find_vma_seg(struct elf_seg *segs, size_t seg_cnt, long o
 	return NULL;
 }
 
-static int parse_usdt_note(Elf *elf, const char *path, GElf_Nhdr *nhdr,
-			   const char *data, size_t name_off, size_t desc_off,
-			   struct usdt_note *usdt_note);
+static int parse_usdt_note(GElf_Nhdr *nhdr, const char *data, size_t name_off,
+			   size_t desc_off, struct usdt_note *usdt_note);
 
 static int parse_usdt_spec(struct usdt_spec *spec, const struct usdt_note *note, __u64 usdt_cookie);
 
@@ -637,7 +636,7 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 		struct elf_seg *seg = NULL;
 		void *tmp;
 
-		err = parse_usdt_note(elf, path, &nhdr, data->d_buf, name_off, desc_off, &note);
+		err = parse_usdt_note(&nhdr, data->d_buf, name_off, desc_off, &note);
 		if (err)
 			goto err_out;
 
@@ -1143,8 +1142,7 @@ err_out:
 /* Parse out USDT ELF note from '.note.stapsdt' section.
  * Logic inspired by perf's code.
  */
-static int parse_usdt_note(Elf *elf, const char *path, GElf_Nhdr *nhdr,
-			   const char *data, size_t name_off, size_t desc_off,
+static int parse_usdt_note(GElf_Nhdr *nhdr, const char *data, size_t name_off, size_t desc_off,
 			   struct usdt_note *note)
 {
 	const char *provider, *name, *args;
