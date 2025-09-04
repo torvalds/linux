@@ -401,7 +401,7 @@ failed:
 int smu7_check_fw_load_finish(struct pp_hwmgr *hwmgr, uint32_t fw_type)
 {
 	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
-	uint32_t ret;
+	int ret;
 
 	ret = phm_wait_on_indirect_register(hwmgr, mmSMC_IND_INDEX_11,
 					smu_data->soft_regs_start + smum_get_offsetof(hwmgr,
