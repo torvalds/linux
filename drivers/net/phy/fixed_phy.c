@@ -17,7 +17,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/gpio/consumer.h>
 #include <linux/idr.h>
 #include <linux/netdevice.h>
 #include <linux/linkmode.h>
@@ -36,7 +35,6 @@ struct fixed_phy {
 	bool no_carrier;
 	int (*link_update)(struct net_device *, struct fixed_phy_status *);
 	struct list_head node;
-	struct gpio_desc *link_gpiod;
 };
 
 static struct fixed_mdio_bus platform_fmb = {
@@ -62,12 +60,6 @@ int fixed_phy_change_carrier(struct net_device *dev, bool new_carrier)
 }
 EXPORT_SYMBOL_GPL(fixed_phy_change_carrier);
 
-static void fixed_phy_update(struct fixed_phy *fp)
-{
-	if (!fp->no_carrier && fp->link_gpiod)
-		fp->status.link = !!gpiod_get_value_cansleep(fp->link_gpiod);
-}
-
 static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 {
 	struct fixed_mdio_bus *fmb = bus->priv;
@@ -81,9 +73,6 @@ static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 			if (fp->link_update)
 				fp->link_update(fp->phydev->attached_dev,
 						&fp->status);
-
-			/* Check the GPIO for change in status */
-			fixed_phy_update(fp);
 
 			return swphy_read_reg(reg_num, &fp->status);
 		}
@@ -125,9 +114,8 @@ int fixed_phy_set_link_update(struct phy_device *phydev,
 }
 EXPORT_SYMBOL_GPL(fixed_phy_set_link_update);
 
-static int fixed_phy_add_gpiod(unsigned int irq, int phy_addr,
-			       const struct fixed_phy_status *status,
-			       struct gpio_desc *gpiod)
+static int __fixed_phy_add(unsigned int irq, int phy_addr,
+			   const struct fixed_phy_status *status)
 {
 	int ret;
 	struct fixed_mdio_bus *fmb = &platform_fmb;
@@ -146,9 +134,6 @@ static int fixed_phy_add_gpiod(unsigned int irq, int phy_addr,
 
 	fp->addr = phy_addr;
 	fp->status = *status;
-	fp->link_gpiod = gpiod;
-
-	fixed_phy_update(fp);
 
 	list_add_tail(&fp->node, &fmb->phys);
 
@@ -157,7 +142,7 @@ static int fixed_phy_add_gpiod(unsigned int irq, int phy_addr,
 
 void fixed_phy_add(const struct fixed_phy_status *status)
 {
-	fixed_phy_add_gpiod(PHY_POLL, 0, status, NULL);
+	__fixed_phy_add(PHY_POLL, 0, status);
 }
 EXPORT_SYMBOL_GPL(fixed_phy_add);
 
@@ -171,8 +156,6 @@ static void fixed_phy_del(int phy_addr)
 	list_for_each_entry_safe(fp, tmp, &fmb->phys, node) {
 		if (fp->addr == phy_addr) {
 			list_del(&fp->node);
-			if (fp->link_gpiod)
-				gpiod_put(fp->link_gpiod);
 			kfree(fp);
 			ida_free(&phy_fixed_ida, phy_addr);
 			return;
@@ -180,48 +163,10 @@ static void fixed_phy_del(int phy_addr)
 	}
 }
 
-#ifdef CONFIG_OF_GPIO
-static struct gpio_desc *fixed_phy_get_gpiod(struct device_node *np)
-{
-	struct device_node *fixed_link_node;
-	struct gpio_desc *gpiod;
-
-	if (!np)
-		return NULL;
-
-	fixed_link_node = of_get_child_by_name(np, "fixed-link");
-	if (!fixed_link_node)
-		return NULL;
-
-	/*
-	 * As the fixed link is just a device tree node without any
-	 * Linux device associated with it, we simply have obtain
-	 * the GPIO descriptor from the device tree like this.
-	 */
-	gpiod = fwnode_gpiod_get_index(of_fwnode_handle(fixed_link_node),
-				       "link", 0, GPIOD_IN, "mdio");
-	if (IS_ERR(gpiod) && PTR_ERR(gpiod) != -EPROBE_DEFER) {
-		if (PTR_ERR(gpiod) != -ENOENT)
-			pr_err("error getting GPIO for fixed link %pOF, proceed without\n",
-			       fixed_link_node);
-		gpiod = NULL;
-	}
-	of_node_put(fixed_link_node);
-
-	return gpiod;
-}
-#else
-static struct gpio_desc *fixed_phy_get_gpiod(struct device_node *np)
-{
-	return NULL;
-}
-#endif
-
 struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 				      struct device_node *np)
 {
 	struct fixed_mdio_bus *fmb = &platform_fmb;
-	struct gpio_desc *gpiod;
 	struct phy_device *phy;
 	int phy_addr;
 	int ret;
@@ -229,17 +174,12 @@ struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 	if (!fmb->mii_bus || fmb->mii_bus->state != MDIOBUS_REGISTERED)
 		return ERR_PTR(-EPROBE_DEFER);
 
-	/* Check if we have a GPIO associated with this fixed phy */
-	gpiod = fixed_phy_get_gpiod(np);
-	if (IS_ERR(gpiod))
-		return ERR_CAST(gpiod);
-
 	/* Get the next available PHY address, up to PHY_MAX_ADDR */
 	phy_addr = ida_alloc_max(&phy_fixed_ida, PHY_MAX_ADDR - 1, GFP_KERNEL);
 	if (phy_addr < 0)
 		return ERR_PTR(phy_addr);
 
-	ret = fixed_phy_add_gpiod(PHY_POLL, phy_addr, status, gpiod);
+	ret = __fixed_phy_add(PHY_POLL, phy_addr, status);
 	if (ret < 0) {
 		ida_free(&phy_fixed_ida, phy_addr);
 		return ERR_PTR(ret);
