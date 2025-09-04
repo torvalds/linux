@@ -1579,12 +1579,7 @@ static int sh_mmcif_suspend(struct device *dev)
 	return 0;
 }
 
-static int sh_mmcif_resume(struct device *dev)
-{
-	return 0;
-}
-
-static DEFINE_SIMPLE_DEV_PM_OPS(sh_mmcif_dev_pm_ops, sh_mmcif_suspend, sh_mmcif_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(sh_mmcif_dev_pm_ops, sh_mmcif_suspend, NULL);
 
 static struct platform_driver sh_mmcif_driver = {
 	.probe		= sh_mmcif_probe,
