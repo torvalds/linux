@@ -2138,6 +2138,8 @@ static int __init init_ipmi_si(void)
 
 	ipmi_si_pci_init();
 
+	ipmi_si_ls2k_init();
+
 	ipmi_si_parisc_init();
 
 	mutex_lock(&smi_infos_lock);
@@ -2348,6 +2350,8 @@ static void cleanup_ipmi_si(void)
 		return;
 
 	ipmi_si_pci_shutdown();
+
+	ipmi_si_ls2k_shutdown();
 
 	ipmi_si_parisc_shutdown();
 
