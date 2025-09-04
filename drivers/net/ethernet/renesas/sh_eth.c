@@ -2233,7 +2233,7 @@ static void sh_eth_get_regs(struct net_device *ndev, struct ethtool_regs *regs,
 
 	pm_runtime_get_sync(&mdp->pdev->dev);
 	__sh_eth_get_regs(ndev, buf);
-	pm_runtime_put_sync(&mdp->pdev->dev);
+	pm_runtime_put(&mdp->pdev->dev);
 }
 
 static u32 sh_eth_get_msglevel(struct net_device *ndev)
@@ -2447,7 +2447,7 @@ out_free_irq:
 	free_irq(ndev->irq, ndev);
 out_napi_off:
 	napi_disable(&mdp->napi);
-	pm_runtime_put_sync(&mdp->pdev->dev);
+	pm_runtime_put(&mdp->pdev->dev);
 	return ret;
 }
 
