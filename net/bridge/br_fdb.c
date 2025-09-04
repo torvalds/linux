@@ -459,6 +459,9 @@ void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr)
 	struct net_bridge_fdb_entry *f;
 	struct net_bridge *br = p->br;
 	struct net_bridge_vlan *v;
+	bool local_vlan_0;
+
+	local_vlan_0 = br_opt_get(br, BROPT_FDB_LOCAL_VLAN_0);
 
 	spin_lock_bh(&br->hash_lock);
 	vg = nbp_vlan_group(p);
@@ -468,11 +471,11 @@ void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr)
 			/* delete old one */
 			fdb_delete_local(br, p, f);
 
-			/* if this port has no vlan information
-			 * configured, we can safely be done at
-			 * this point.
+			/* if this port has no vlan information configured, or
+			 * local entries are only kept on VLAN 0, we can safely
+			 * be done at this point.
 			 */
-			if (!vg || !vg->num_vlans)
+			if (!vg || !vg->num_vlans || local_vlan_0)
 				goto insert;
 		}
 	}
@@ -481,7 +484,7 @@ insert:
 	/* insert new address,  may fail if invalid address or dup. */
 	fdb_add_local(br, p, newaddr, 0);
 
-	if (!vg || !vg->num_vlans)
+	if (!vg || !vg->num_vlans || local_vlan_0)
 		goto done;
 
 	/* Now add entries for every VLAN configured on the port.
