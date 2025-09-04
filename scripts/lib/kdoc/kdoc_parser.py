@@ -90,6 +90,7 @@ struct_prefixes = [
     (KernRe(r'\s*CRYPTO_MINALIGN_ATTR', re.S), ' '),
     (KernRe(r'\s*____cacheline_aligned_in_smp', re.S), ' '),
     (KernRe(r'\s*____cacheline_aligned', re.S), ' '),
+    (KernRe(r'\s*__cacheline_group_(begin|end)\([^\)]+\);'), ''),
     #
     # Unwrap struct_group macros based on this definition:
     # __struct_group(TAG, NAME, ATTRS, MEMBERS...)
@@ -446,12 +447,6 @@ class KernelDoc:
             param = "{unnamed_" + param + "}"
             self.entry.parameterdescs[param] = "anonymous\n"
             self.entry.anon_struct_union = True
-
-        # Handle cache group enforcing variables: they do not need
-        # to be described in header files
-        elif "__cacheline_group" in param:
-            # Ignore __cacheline_group_begin and __cacheline_group_end
-            return
 
         # Warn if parameter has no description
         # (but ignore ones starting with # as these are not parameters
