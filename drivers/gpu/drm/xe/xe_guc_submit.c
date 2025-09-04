@@ -2029,7 +2029,7 @@ g2h_exec_queue_lookup(struct xe_guc *guc, u32 guc_id)
 
 	q = xa_load(&guc->submission_state.exec_queue_lookup, guc_id);
 	if (unlikely(!q)) {
-		xe_gt_err(gt, "Not engine present for guc_id %u\n", guc_id);
+		xe_gt_err(gt, "No exec queue found for guc_id %u\n", guc_id);
 		return NULL;
 	}
 
