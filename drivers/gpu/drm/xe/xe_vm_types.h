@@ -293,6 +293,11 @@ struct xe_vm {
 		 * BOs
 		 */
 		struct work_struct rebind_work;
+		/**
+		 * @preempt.pm_activate_link: Link to list of rebind workers to be
+		 * kicked on resume.
+		 */
+		struct list_head pm_activate_link;
 	} preempt;
 
 	/** @um: unified memory state */
