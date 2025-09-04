@@ -620,24 +620,9 @@ static int min_perf_pct_min(void)
 		(cpu->pstate.min_pstate * 100 / turbo_pstate) : 0;
 }
 
-static s16 intel_pstate_get_epb(struct cpudata *cpu_data)
-{
-	u64 epb;
-	int ret;
-
-	if (!boot_cpu_has(X86_FEATURE_EPB))
-		return -ENXIO;
-
-	ret = rdmsrq_on_cpu(cpu_data->cpu, MSR_IA32_ENERGY_PERF_BIAS, &epb);
-	if (ret)
-		return (s16)ret;
-
-	return (s16)(epb & 0x0f);
-}
-
 static s16 intel_pstate_get_epp(struct cpudata *cpu_data, u64 hwp_req_data)
 {
-	s16 epp;
+	s16 epp = -EOPNOTSUPP;
 
 	if (boot_cpu_has(X86_FEATURE_HWP_EPP)) {
 		/*
@@ -651,34 +636,13 @@ static s16 intel_pstate_get_epp(struct cpudata *cpu_data, u64 hwp_req_data)
 				return epp;
 		}
 		epp = (hwp_req_data >> 24) & 0xff;
-	} else {
-		/* When there is no EPP present, HWP uses EPB settings */
-		epp = intel_pstate_get_epb(cpu_data);
 	}
 
 	return epp;
 }
 
-static int intel_pstate_set_epb(int cpu, s16 pref)
-{
-	u64 epb;
-	int ret;
-
-	if (!boot_cpu_has(X86_FEATURE_EPB))
-		return -ENXIO;
-
-	ret = rdmsrq_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS, &epb);
-	if (ret)
-		return ret;
-
-	epb = (epb & ~0x0f) | pref;
-	wrmsrq_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS, epb);
-
-	return 0;
-}
-
 /*
- * EPP/EPB display strings corresponding to EPP index in the
+ * EPP display strings corresponding to EPP index in the
  * energy_perf_strings[]
  *	index		String
  *-------------------------------------
@@ -782,7 +746,7 @@ static int intel_pstate_set_energy_pref_index(struct cpudata *cpu_data,
 					      u32 raw_epp)
 {
 	int epp = -EINVAL;
-	int ret;
+	int ret = -EOPNOTSUPP;
 
 	if (!pref_index)
 		epp = cpu_data->epp_default;
@@ -802,10 +766,6 @@ static int intel_pstate_set_energy_pref_index(struct cpudata *cpu_data,
 			return -EBUSY;
 
 		ret = intel_pstate_set_epp(cpu_data, epp);
-	} else {
-		if (epp == -EINVAL)
-			epp = (pref_index - 1) << 2;
-		ret = intel_pstate_set_epb(cpu_data->cpu, epp);
 	}
 
 	return ret;
@@ -1337,9 +1297,8 @@ static void intel_pstate_hwp_set(unsigned int cpu)
 	if (boot_cpu_has(X86_FEATURE_HWP_EPP)) {
 		value &= ~GENMASK_ULL(31, 24);
 		value |= (u64)epp << 24;
-	} else {
-		intel_pstate_set_epb(cpu, epp);
 	}
+
 skip_epp:
 	WRITE_ONCE(cpu_data->hwp_req_cached, value);
 	wrmsrq_on_cpu(cpu, MSR_HWP_REQUEST, value);
