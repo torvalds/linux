@@ -39,7 +39,7 @@ __defer__run()
 	local defer_ix=$1; shift
 	local defer_key=$(__defer__defer_key $track $defer_ix)
 
-	${__DEFER__JOBS[$defer_key]}
+	eval ${__DEFER__JOBS[$defer_key]}
 	unset __DEFER__JOBS[$defer_key]
 }
 
@@ -49,7 +49,7 @@ __defer__schedule()
 	local ndefers=$(__defer__ndefers $track)
 	local ndefers_key=$(__defer__ndefer_key $track)
 	local defer_key=$(__defer__defer_key $track $ndefers)
-	local defer="$@"
+	local defer="${@@Q}"
 
 	__DEFER__JOBS[$defer_key]="$defer"
 	__DEFER__NJOBS[$ndefers_key]=$((ndefers + 1))
