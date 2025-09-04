@@ -25,7 +25,9 @@ struct xe_vm;
 /* TODO: To be selected with VM_MADVISE */
 #define	XE_BO_PRIORITY_NORMAL	1
 
-/** @xe_bo: XE buffer object */
+/**
+ * struct xe_bo - Xe buffer object
+ */
 struct xe_bo {
 	/** @ttm: TTM base buffer object */
 	struct ttm_buffer_object ttm;
@@ -47,7 +49,7 @@ struct xe_bo {
 	struct xe_ggtt_node *ggtt_node[XE_MAX_TILES_PER_DEVICE];
 	/** @vmap: iosys map of this buffer */
 	struct iosys_map vmap;
-	/** @ttm_kmap: TTM bo kmap object for internal use only. Keep off. */
+	/** @kmap: TTM bo kmap object for internal use only. Keep off. */
 	struct ttm_bo_kmap_obj kmap;
 	/** @pinned_link: link to present / evicted list of pinned BO */
 	struct list_head pinned_link;
@@ -82,10 +84,10 @@ struct xe_bo {
 	/** @created: Whether the bo has passed initial creation */
 	bool created;
 
-	/** @ccs_cleared */
+	/** @ccs_cleared: true means that CCS region of BO is already cleared */
 	bool ccs_cleared;
 
-	/** @bb_ccs_rw: BB instructions of CCS read/write. Valid only for VF */
+	/** @bb_ccs: BB instructions of CCS read/write. Valid only for VF */
 	struct xe_bb *bb_ccs[XE_SRIOV_VF_CCS_CTX_COUNT];
 
 	/**
@@ -99,9 +101,10 @@ struct xe_bo {
 	struct drm_pagemap_devmem devmem_allocation;
 
 	/** @vram_userfault_link: Link into @mem_access.vram_userfault.list */
-		struct list_head vram_userfault_link;
+	struct list_head vram_userfault_link;
 
-	/** @min_align: minimum alignment needed for this BO if different
+	/**
+	 * @min_align: minimum alignment needed for this BO if different
 	 * from default
 	 */
 	u64 min_align;
