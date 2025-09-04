@@ -256,6 +256,7 @@ u64 stable_page_flags(const struct page *page)
 
 	return u;
 }
+EXPORT_SYMBOL_GPL(stable_page_flags);
 
 /* /proc/kpageflags - an array exposing page flags
  *

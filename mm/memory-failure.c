@@ -212,106 +212,34 @@ static bool page_handle_poison(struct page *page, bool hugepage_or_freepage, boo
 	return true;
 }
 
-#if IS_ENABLED(CONFIG_HWPOISON_INJECT)
+static hwpoison_filter_func_t __rcu *hwpoison_filter_func __read_mostly;
 
-u32 hwpoison_filter_enable = 0;
-u32 hwpoison_filter_dev_major = ~0U;
-u32 hwpoison_filter_dev_minor = ~0U;
-u64 hwpoison_filter_flags_mask;
-u64 hwpoison_filter_flags_value;
-EXPORT_SYMBOL_GPL(hwpoison_filter_enable);
-EXPORT_SYMBOL_GPL(hwpoison_filter_dev_major);
-EXPORT_SYMBOL_GPL(hwpoison_filter_dev_minor);
-EXPORT_SYMBOL_GPL(hwpoison_filter_flags_mask);
-EXPORT_SYMBOL_GPL(hwpoison_filter_flags_value);
-
-static int hwpoison_filter_dev(struct page *p)
+void hwpoison_filter_register(hwpoison_filter_func_t *filter)
 {
-	struct folio *folio = page_folio(p);
-	struct address_space *mapping;
-	dev_t dev;
-
-	if (hwpoison_filter_dev_major == ~0U &&
-	    hwpoison_filter_dev_minor == ~0U)
-		return 0;
-
-	mapping = folio_mapping(folio);
-	if (mapping == NULL || mapping->host == NULL)
-		return -EINVAL;
-
-	dev = mapping->host->i_sb->s_dev;
-	if (hwpoison_filter_dev_major != ~0U &&
-	    hwpoison_filter_dev_major != MAJOR(dev))
-		return -EINVAL;
-	if (hwpoison_filter_dev_minor != ~0U &&
-	    hwpoison_filter_dev_minor != MINOR(dev))
-		return -EINVAL;
-
-	return 0;
+	rcu_assign_pointer(hwpoison_filter_func, filter);
 }
+EXPORT_SYMBOL_GPL(hwpoison_filter_register);
 
-static int hwpoison_filter_flags(struct page *p)
+void hwpoison_filter_unregister(void)
 {
-	if (!hwpoison_filter_flags_mask)
-		return 0;
-
-	if ((stable_page_flags(p) & hwpoison_filter_flags_mask) ==
-				    hwpoison_filter_flags_value)
-		return 0;
-	else
-		return -EINVAL;
+	RCU_INIT_POINTER(hwpoison_filter_func, NULL);
+	synchronize_rcu();
 }
+EXPORT_SYMBOL_GPL(hwpoison_filter_unregister);
 
-/*
- * This allows stress tests to limit test scope to a collection of tasks
- * by putting them under some memcg. This prevents killing unrelated/important
- * processes such as /sbin/init. Note that the target task may share clean
- * pages with init (eg. libc text), which is harmless. If the target task
- * share _dirty_ pages with another task B, the test scheme must make sure B
- * is also included in the memcg. At last, due to race conditions this filter
- * can only guarantee that the page either belongs to the memcg tasks, or is
- * a freed page.
- */
-#ifdef CONFIG_MEMCG
-u64 hwpoison_filter_memcg;
-EXPORT_SYMBOL_GPL(hwpoison_filter_memcg);
-static int hwpoison_filter_task(struct page *p)
+static int hwpoison_filter(struct page *p)
 {
-	if (!hwpoison_filter_memcg)
-		return 0;
+	int ret = 0;
+	hwpoison_filter_func_t *filter;
 
-	if (page_cgroup_ino(p) != hwpoison_filter_memcg)
-		return -EINVAL;
+	rcu_read_lock();
+	filter = rcu_dereference(hwpoison_filter_func);
+	if (filter)
+		ret = filter(p);
+	rcu_read_unlock();
 
-	return 0;
+	return ret;
 }
-#else
-static int hwpoison_filter_task(struct page *p) { return 0; }
-#endif
-
-int hwpoison_filter(struct page *p)
-{
-	if (!hwpoison_filter_enable)
-		return 0;
-
-	if (hwpoison_filter_dev(p))
-		return -EINVAL;
-
-	if (hwpoison_filter_flags(p))
-		return -EINVAL;
-
-	if (hwpoison_filter_task(p))
-		return -EINVAL;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(hwpoison_filter);
-#else
-int hwpoison_filter(struct page *p)
-{
-	return 0;
-}
-#endif
 
 /*
  * Kill all processes that have a poisoned page mapped and then isolate
