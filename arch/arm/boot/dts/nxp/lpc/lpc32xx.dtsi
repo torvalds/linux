@@ -225,7 +225,7 @@
 			};
 
 			sd: mmc@20098000 {
-				compatible = "arm,pl18x", "arm,primecell";
+				compatible = "arm,pl180", "arm,primecell";
 				reg = <0x20098000 0x1000>;
 				interrupts = <15 IRQ_TYPE_LEVEL_HIGH>,
 					     <13 IRQ_TYPE_LEVEL_HIGH>;
