@@ -16,10 +16,10 @@ use core::marker::PhantomPinned;
 use core::ops::Deref;
 
 mod traits;
-pub use traits::Writer;
+pub use traits::{Reader, Writer};
 
 mod file_ops;
-use file_ops::{FileOps, ReadFile};
+use file_ops::{FileOps, ReadFile, ReadWriteFile, WriteFile};
 #[cfg(CONFIG_DEBUG_FS)]
 mod entry;
 #[cfg(CONFIG_DEBUG_FS)]
@@ -141,6 +141,39 @@ impl Dir {
     {
         let file_ops = &<T as ReadFile<_>>::FILE_OPS;
         self.create_file(name, data, file_ops)
+    }
+
+    /// Creates a read-write file in this directory.
+    ///
+    /// Reading the file uses the [`Writer`] implementation.
+    /// Writing to the file uses the [`Reader`] implementation.
+    pub fn read_write_file<'a, T, E: 'a>(
+        &'a self,
+        name: &'a CStr,
+        data: impl PinInit<T, E> + 'a,
+    ) -> impl PinInit<File<T>, E> + 'a
+    where
+        T: Writer + Reader + Send + Sync + 'static,
+    {
+        let file_ops = &<T as ReadWriteFile<_>>::FILE_OPS;
+        self.create_file(name, data, file_ops)
+    }
+
+    /// Creates a write-only file in this directory.
+    ///
+    /// The file owns its backing data. Writing to the file uses the [`Reader`]
+    /// implementation.
+    ///
+    /// The file is removed when the returned [`File`] is dropped.
+    pub fn write_only_file<'a, T, E: 'a>(
+        &'a self,
+        name: &'a CStr,
+        data: impl PinInit<T, E> + 'a,
+    ) -> impl PinInit<File<T>, E> + 'a
+    where
+        T: Reader + Send + Sync + 'static,
+    {
+        self.create_file(name, data, &T::FILE_OPS)
     }
 }
 

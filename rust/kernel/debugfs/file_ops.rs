@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2025 Google LLC.
 
-use super::Writer;
+use super::{Reader, Writer};
 use crate::prelude::*;
 use crate::seq_file::SeqFile;
 use crate::seq_print;
+use crate::uaccess::UserSlice;
 use core::fmt::{Display, Formatter, Result};
 use core::marker::PhantomData;
 
@@ -124,5 +125,115 @@ impl<T: Writer + Sync> ReadFile<T> for T {
         // inode's data pointer must point to a `T` that will outlive it, which matches the
         // `FileOps` requirements.
         unsafe { FileOps::new(operations, 0o400) }
+    };
+}
+
+fn read<T: Reader + Sync>(data: &T, buf: *const c_char, count: usize) -> isize {
+    let mut reader = UserSlice::new(UserPtr::from_ptr(buf as *mut c_void), count).reader();
+
+    if let Err(e) = data.read_from_slice(&mut reader) {
+        return e.to_errno() as isize;
+    }
+
+    count as isize
+}
+
+/// # Safety
+///
+/// `file` must be a valid pointer to a `file` struct.
+/// The `private_data` of the file must contain a valid pointer to a `seq_file` whose
+/// `private` data in turn points to a `T` that implements `Reader`.
+/// `buf` must be a valid user-space buffer.
+pub(crate) unsafe extern "C" fn write<T: Reader + Sync>(
+    file: *mut bindings::file,
+    buf: *const c_char,
+    count: usize,
+    _ppos: *mut bindings::loff_t,
+) -> isize {
+    // SAFETY: The file was opened with `single_open`, which sets `private_data` to a `seq_file`.
+    let seq = unsafe { &mut *((*file).private_data.cast::<bindings::seq_file>()) };
+    // SAFETY: By caller precondition, this pointer is live and points to a value of type `T`.
+    let data = unsafe { &*(seq.private as *const T) };
+    read(data, buf, count)
+}
+
+// A trait to get the file operations for a type.
+pub(crate) trait ReadWriteFile<T> {
+    const FILE_OPS: FileOps<T>;
+}
+
+impl<T: Writer + Reader + Sync> ReadWriteFile<T> for T {
+    const FILE_OPS: FileOps<T> = {
+        let operations = bindings::file_operations {
+            open: Some(writer_open::<T>),
+            read: Some(bindings::seq_read),
+            write: Some(write::<T>),
+            llseek: Some(bindings::seq_lseek),
+            release: Some(bindings::single_release),
+            // SAFETY: `file_operations` supports zeroes in all fields.
+            ..unsafe { core::mem::zeroed() }
+        };
+        // SAFETY: `operations` is all stock `seq_file` implementations except for `writer_open`
+        // and `write`.
+        // `writer_open`'s only requirement beyond what is provided to all open functions is that
+        // the inode's data pointer must point to a `T` that will outlive it, which matches the
+        // `FileOps` requirements.
+        // `write` only requires that the file's private data pointer points to `seq_file`
+        // which points to a `T` that will outlive it, which matches what `writer_open`
+        // provides.
+        unsafe { FileOps::new(operations, 0o600) }
+    };
+}
+
+/// # Safety
+///
+/// `inode` must be a valid pointer to an `inode` struct.
+/// `file` must be a valid pointer to a `file` struct.
+unsafe extern "C" fn write_only_open(
+    inode: *mut bindings::inode,
+    file: *mut bindings::file,
+) -> c_int {
+    // SAFETY: The caller ensures that `inode` and `file` are valid pointers.
+    unsafe { (*file).private_data = (*inode).i_private };
+    0
+}
+
+/// # Safety
+///
+/// * `file` must be a valid pointer to a `file` struct.
+/// * The `private_data` of the file must contain a valid pointer to a `T` that implements
+///   `Reader`.
+/// * `buf` must be a valid user-space buffer.
+pub(crate) unsafe extern "C" fn write_only_write<T: Reader + Sync>(
+    file: *mut bindings::file,
+    buf: *const c_char,
+    count: usize,
+    _ppos: *mut bindings::loff_t,
+) -> isize {
+    // SAFETY: The caller ensures that `file` is a valid pointer and that `private_data` holds a
+    // valid pointer to `T`.
+    let data = unsafe { &*((*file).private_data as *const T) };
+    read(data, buf, count)
+}
+
+pub(crate) trait WriteFile<T> {
+    const FILE_OPS: FileOps<T>;
+}
+
+impl<T: Reader + Sync> WriteFile<T> for T {
+    const FILE_OPS: FileOps<T> = {
+        let operations = bindings::file_operations {
+            open: Some(write_only_open),
+            write: Some(write_only_write::<T>),
+            llseek: Some(bindings::noop_llseek),
+            // SAFETY: `file_operations` supports zeroes in all fields.
+            ..unsafe { core::mem::zeroed() }
+        };
+        // SAFETY:
+        // * `write_only_open` populates the file private data with the inode private data
+        // * `write_only_write`'s only requirement is that the private data of the file point to
+        //   a `T` and be legal to convert to a shared reference, which `write_only_open`
+        //   satisfies.
+        unsafe { FileOps::new(operations, 0o200) }
     };
 }
