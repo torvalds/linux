@@ -28,6 +28,7 @@ description: |
 
 allOf:
   - $ref: /schemas/display/lvds-dual-ports.yaml#
+  - $ref: /schemas/sound/dai-common.yaml#
 
 properties:
   compatible:
