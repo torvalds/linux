@@ -2457,7 +2457,7 @@ static void ci_register_patching_mc_arb(struct radeon_device *rdev,
 	u32 tmp, tmp2;
 
 	tmp = RREG32(MC_SEQ_MISC0);
-	patch = ((tmp & 0x0000f00) == 0x300) ? true : false;
+	patch = (tmp & 0x0000f00) == 0x300;
 
 	if (patch &&
 	    ((rdev->pdev->device == 0x67B0) ||
@@ -3438,7 +3438,7 @@ static int ci_setup_default_dpm_tables(struct radeon_device *rdev)
 			pi->dpm_table.sclk_table.dpm_levels[pi->dpm_table.sclk_table.count].value =
 				allowed_sclk_vddc_table->entries[i].clk;
 			pi->dpm_table.sclk_table.dpm_levels[pi->dpm_table.sclk_table.count].enabled =
-				(i == 0) ? true : false;
+				i == 0;
 			pi->dpm_table.sclk_table.count++;
 		}
 	}
@@ -3451,7 +3451,7 @@ static int ci_setup_default_dpm_tables(struct radeon_device *rdev)
 			pi->dpm_table.mclk_table.dpm_levels[pi->dpm_table.mclk_table.count].value =
 				allowed_mclk_table->entries[i].clk;
 			pi->dpm_table.mclk_table.dpm_levels[pi->dpm_table.mclk_table.count].enabled =
-				(i == 0) ? true : false;
+				i == 0;
 			pi->dpm_table.mclk_table.count++;
 		}
 	}
@@ -4489,7 +4489,7 @@ static int ci_register_patching_mc_seq(struct radeon_device *rdev,
 	bool patch;
 
 	tmp = RREG32(MC_SEQ_MISC0);
-	patch = ((tmp & 0x0000f00) == 0x300) ? true : false;
+	patch = (tmp & 0x0000f00) == 0x300;
 
 	if (patch &&
 	    ((rdev->pdev->device == 0x67B0) ||
