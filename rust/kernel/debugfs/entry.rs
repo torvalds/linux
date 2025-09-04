@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2025 Google LLC.
 
+use crate::debugfs::file_ops::FileOps;
+use crate::ffi::c_void;
 use crate::str::CStr;
 use crate::sync::Arc;
 
@@ -37,6 +39,46 @@ impl Entry {
         Entry {
             entry,
             _parent: parent,
+        }
+    }
+
+    /// # Safety
+    ///
+    /// * `data` must outlive the returned `Entry`.
+    pub(crate) unsafe fn dynamic_file<T>(
+        name: &CStr,
+        parent: Arc<Self>,
+        data: &T,
+        file_ops: &'static FileOps<T>,
+    ) -> Self {
+        // SAFETY: The invariants of this function's arguments ensure the safety of this call.
+        // * `name` is a valid C string by the invariants of `&CStr`.
+        // * `parent.as_ptr()` is a pointer to a valid `dentry` by invariant.
+        // * The caller guarantees that `data` will outlive the returned `Entry`.
+        // * The guarantees on `FileOps` assert the vtable will be compatible with the data we have
+        //   provided.
+        let entry = unsafe {
+            bindings::debugfs_create_file_full(
+                name.as_char_ptr(),
+                file_ops.mode(),
+                parent.as_ptr(),
+                core::ptr::from_ref(data) as *mut c_void,
+                core::ptr::null(),
+                &**file_ops,
+            )
+        };
+
+        Entry {
+            entry,
+            _parent: Some(parent),
+        }
+    }
+
+    /// Constructs a placeholder DebugFS [`Entry`].
+    pub(crate) fn empty() -> Self {
+        Self {
+            entry: core::ptr::null_mut(),
+            _parent: None,
         }
     }
 
