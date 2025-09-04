@@ -1729,11 +1729,6 @@ static struct dma_chan *rcar_dmac_of_xlate(struct of_phandle_args *dma_spec,
  */
 
 #ifdef CONFIG_PM
-static int rcar_dmac_runtime_suspend(struct device *dev)
-{
-	return 0;
-}
-
 static int rcar_dmac_runtime_resume(struct device *dev)
 {
 	struct rcar_dmac *dmac = dev_get_drvdata(dev);
@@ -1750,8 +1745,7 @@ static const struct dev_pm_ops rcar_dmac_pm = {
 	 */
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				      pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(rcar_dmac_runtime_suspend, rcar_dmac_runtime_resume,
-			   NULL)
+	SET_RUNTIME_PM_OPS(NULL, rcar_dmac_runtime_resume, NULL)
 };
 
 /* -----------------------------------------------------------------------------
