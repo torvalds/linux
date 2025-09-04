@@ -529,6 +529,7 @@ enum smu_fw_status {
 #define SMU_WBRF_EVENT_HANDLING_PACE	10
 
 enum smu_feature_cap_id {
+	SMU_FEATURE_CAP_ID__LINK_RESET = 0,
 	SMU_FEATURE_CAP_ID__COUNT,
 };
 
@@ -1280,11 +1281,6 @@ struct pptable_funcs {
 	 * @mode1_reset_is_support: Check if GPU supports mode1 reset.
 	 */
 	bool (*mode1_reset_is_support)(struct smu_context *smu);
-
-	/**
-	 * @link_reset_is_support: Check if GPU supports link reset.
-	 */
-	bool (*link_reset_is_support)(struct smu_context *smu);
 
 	/**
 	 * @mode1_reset: Perform mode1 reset.

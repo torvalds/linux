@@ -3536,15 +3536,10 @@ bool smu_mode1_reset_is_support(struct smu_context *smu)
 
 bool smu_link_reset_is_support(struct smu_context *smu)
 {
-	bool ret = false;
-
 	if (!smu->pm_enabled)
 		return false;
 
-	if (smu->ppt_funcs && smu->ppt_funcs->link_reset_is_support)
-		ret = smu->ppt_funcs->link_reset_is_support(smu);
-
-	return ret;
+	return smu_feature_cap_test(smu, SMU_FEATURE_CAP_ID__LINK_RESET);
 }
 
 int smu_mode1_reset(struct smu_context *smu)
