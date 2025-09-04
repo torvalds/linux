@@ -478,6 +478,7 @@ void stmmac_pcs_clean(struct net_device *ndev)
  * @priv: driver private structure
  * Description: this is to dynamically set the MDC clock according to the csr
  * clock input.
+ * Return: MII register CR field value
  * Note:
  *	If a specific clk_csr value is passed from the platform
  *	this means that the CSR Clock Range selection cannot be
@@ -485,9 +486,10 @@ void stmmac_pcs_clean(struct net_device *ndev)
  *	documentation). Viceversa the driver will try to set the MDC
  *	clock dynamically according to the actual clock input.
  */
-static void stmmac_clk_csr_set(struct stmmac_priv *priv)
+static u32 stmmac_clk_csr_set(struct stmmac_priv *priv)
 {
 	unsigned long clk_rate;
+	u32 value = ~0;
 
 	clk_rate = clk_get_rate(priv->plat->stmmac_clk);
 
@@ -498,50 +500,50 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 	 * the frequency of clk_csr_i. So we do not change the default
 	 * divider.
 	 */
-	if (!(priv->clk_csr & MAC_CSR_H_FRQ_MASK)) {
-		if (clk_rate < CSR_F_35M)
-			priv->clk_csr = STMMAC_CSR_20_35M;
-		else if ((clk_rate >= CSR_F_35M) && (clk_rate < CSR_F_60M))
-			priv->clk_csr = STMMAC_CSR_35_60M;
-		else if ((clk_rate >= CSR_F_60M) && (clk_rate < CSR_F_100M))
-			priv->clk_csr = STMMAC_CSR_60_100M;
-		else if ((clk_rate >= CSR_F_100M) && (clk_rate < CSR_F_150M))
-			priv->clk_csr = STMMAC_CSR_100_150M;
-		else if ((clk_rate >= CSR_F_150M) && (clk_rate < CSR_F_250M))
-			priv->clk_csr = STMMAC_CSR_150_250M;
-		else if ((clk_rate >= CSR_F_250M) && (clk_rate <= CSR_F_300M))
-			priv->clk_csr = STMMAC_CSR_250_300M;
-		else if ((clk_rate >= CSR_F_300M) && (clk_rate < CSR_F_500M))
-			priv->clk_csr = STMMAC_CSR_300_500M;
-		else if ((clk_rate >= CSR_F_500M) && (clk_rate < CSR_F_800M))
-			priv->clk_csr = STMMAC_CSR_500_800M;
-	}
+	if (clk_rate < CSR_F_35M)
+		value = STMMAC_CSR_20_35M;
+	else if ((clk_rate >= CSR_F_35M) && (clk_rate < CSR_F_60M))
+		value = STMMAC_CSR_35_60M;
+	else if ((clk_rate >= CSR_F_60M) && (clk_rate < CSR_F_100M))
+		value = STMMAC_CSR_60_100M;
+	else if ((clk_rate >= CSR_F_100M) && (clk_rate < CSR_F_150M))
+		value = STMMAC_CSR_100_150M;
+	else if ((clk_rate >= CSR_F_150M) && (clk_rate < CSR_F_250M))
+		value = STMMAC_CSR_150_250M;
+	else if ((clk_rate >= CSR_F_250M) && (clk_rate <= CSR_F_300M))
+		value = STMMAC_CSR_250_300M;
+	else if ((clk_rate >= CSR_F_300M) && (clk_rate < CSR_F_500M))
+		value = STMMAC_CSR_300_500M;
+	else if ((clk_rate >= CSR_F_500M) && (clk_rate < CSR_F_800M))
+		value = STMMAC_CSR_500_800M;
 
 	if (priv->plat->flags & STMMAC_FLAG_HAS_SUN8I) {
 		if (clk_rate > 160000000)
-			priv->clk_csr = 0x03;
+			value = 0x03;
 		else if (clk_rate > 80000000)
-			priv->clk_csr = 0x02;
+			value = 0x02;
 		else if (clk_rate > 40000000)
-			priv->clk_csr = 0x01;
+			value = 0x01;
 		else
-			priv->clk_csr = 0;
+			value = 0;
 	}
 
 	if (priv->plat->has_xgmac) {
 		if (clk_rate > 400000000)
-			priv->clk_csr = 0x5;
+			value = 0x5;
 		else if (clk_rate > 350000000)
-			priv->clk_csr = 0x4;
+			value = 0x4;
 		else if (clk_rate > 300000000)
-			priv->clk_csr = 0x3;
+			value = 0x3;
 		else if (clk_rate > 250000000)
-			priv->clk_csr = 0x2;
+			value = 0x2;
 		else if (clk_rate > 150000000)
-			priv->clk_csr = 0x1;
+			value = 0x1;
 		else
-			priv->clk_csr = 0x0;
+			value = 0x0;
 	}
+
+	return value;
 }
 
 static void stmmac_mdio_bus_config(struct stmmac_priv *priv)
@@ -552,12 +554,10 @@ static void stmmac_mdio_bus_config(struct stmmac_priv *priv)
 	 * that the CSR Clock Range value should not be computed from the CSR
 	 * clock.
 	 */
-	if (priv->plat->clk_csr >= 0) {
+	if (priv->plat->clk_csr >= 0)
 		value = priv->plat->clk_csr;
-	} else {
-		stmmac_clk_csr_set(priv);
-		value = priv->clk_csr;
-	}
+	else
+		value = stmmac_clk_csr_set(priv);
 
 	value <<= priv->hw->mii.clk_csr_shift;
 
