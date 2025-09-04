@@ -2180,7 +2180,7 @@ end:
 		dapm_seq_insert(w, down_list, false);
 }
 
-static bool dapm_get_idle_bias(struct snd_soc_dapm_context *dapm)
+bool snd_soc_dapm_get_idle_bias(struct snd_soc_dapm_context *dapm)
 {
 	if (dapm->idle_bias) {
 		struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
@@ -2193,6 +2193,7 @@ static bool dapm_get_idle_bias(struct snd_soc_dapm_context *dapm)
 
 	return dapm->idle_bias;
 }
+EXPORT_SYMBOL_GPL(snd_soc_dapm_get_idle_bias);
 
 /*
  * Scan each dapm widget for complete audio path.
@@ -2219,7 +2220,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event,
 	trace_snd_soc_dapm_start(card, event);
 
 	for_each_card_dapms(card, d) {
-		if (dapm_get_idle_bias(d))
+		if (snd_soc_dapm_get_idle_bias(d))
 			d->target_bias_level = SND_SOC_BIAS_STANDBY;
 		else
 			d->target_bias_level = SND_SOC_BIAS_OFF;
@@ -2286,7 +2287,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event,
 		if (d->target_bias_level > bias)
 			bias = d->target_bias_level;
 	for_each_card_dapms(card, d)
-		if (dapm_get_idle_bias(d))
+		if (snd_soc_dapm_get_idle_bias(d))
 			d->target_bias_level = bias;
 
 	trace_snd_soc_dapm_walk_done(card);
