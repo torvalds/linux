@@ -12,12 +12,16 @@ use crate::prelude::*;
 use crate::str::CStr;
 #[cfg(CONFIG_DEBUG_FS)]
 use crate::sync::Arc;
+use crate::uaccess::UserSliceReader;
+use core::fmt;
 use core::marker::PhantomPinned;
 use core::ops::Deref;
 
 mod traits;
 pub use traits::{Reader, Writer};
 
+mod callback_adapters;
+use callback_adapters::{FormatAdapter, NoWriter, WritableAdapter};
 mod file_ops;
 use file_ops::{FileOps, ReadFile, ReadWriteFile, WriteFile};
 #[cfg(CONFIG_DEBUG_FS)]
@@ -143,6 +147,46 @@ impl Dir {
         self.create_file(name, data, file_ops)
     }
 
+    /// Creates a read-only file in this directory, with contents from a callback.
+    ///
+    /// `f` must be a function item or a non-capturing closure.
+    /// This is statically asserted and not a safety requirement.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use core::sync::atomic::{AtomicU32, Ordering};
+    /// # use kernel::c_str;
+    /// # use kernel::debugfs::Dir;
+    /// # use kernel::prelude::*;
+    /// # let dir = Dir::new(c_str!("foo"));
+    /// let file = KBox::pin_init(
+    ///     dir.read_callback_file(c_str!("bar"),
+    ///     AtomicU32::new(3),
+    ///     &|val, f| {
+    ///       let out = val.load(Ordering::Relaxed);
+    ///       writeln!(f, "{out:#010x}")
+    ///     }),
+    ///     GFP_KERNEL)?;
+    /// // Reading "foo/bar" will show "0x00000003".
+    /// file.store(10, Ordering::Relaxed);
+    /// // Reading "foo/bar" will now show "0x0000000a".
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn read_callback_file<'a, T, E: 'a, F>(
+        &'a self,
+        name: &'a CStr,
+        data: impl PinInit<T, E> + 'a,
+        _f: &'static F,
+    ) -> impl PinInit<File<T>, E> + 'a
+    where
+        T: Send + Sync + 'static,
+        F: Fn(&T, &mut fmt::Formatter<'_>) -> fmt::Result + Send + Sync,
+    {
+        let file_ops = <FormatAdapter<T, F>>::FILE_OPS.adapt();
+        self.create_file(name, data, file_ops)
+    }
+
     /// Creates a read-write file in this directory.
     ///
     /// Reading the file uses the [`Writer`] implementation.
@@ -156,6 +200,31 @@ impl Dir {
         T: Writer + Reader + Send + Sync + 'static,
     {
         let file_ops = &<T as ReadWriteFile<_>>::FILE_OPS;
+        self.create_file(name, data, file_ops)
+    }
+
+    /// Creates a read-write file in this directory, with logic from callbacks.
+    ///
+    /// Reading from the file is handled by `f`. Writing to the file is handled by `w`.
+    ///
+    /// `f` and `w` must be function items or non-capturing closures.
+    /// This is statically asserted and not a safety requirement.
+    pub fn read_write_callback_file<'a, T, E: 'a, F, W>(
+        &'a self,
+        name: &'a CStr,
+        data: impl PinInit<T, E> + 'a,
+        _f: &'static F,
+        _w: &'static W,
+    ) -> impl PinInit<File<T>, E> + 'a
+    where
+        T: Send + Sync + 'static,
+        F: Fn(&T, &mut fmt::Formatter<'_>) -> fmt::Result + Send + Sync,
+        W: Fn(&T, &mut UserSliceReader) -> Result + Send + Sync,
+    {
+        let file_ops =
+            <WritableAdapter<FormatAdapter<T, F>, W> as file_ops::ReadWriteFile<_>>::FILE_OPS
+                .adapt()
+                .adapt();
         self.create_file(name, data, file_ops)
     }
 
@@ -174,6 +243,26 @@ impl Dir {
         T: Reader + Send + Sync + 'static,
     {
         self.create_file(name, data, &T::FILE_OPS)
+    }
+
+    /// Creates a write-only file in this directory, with write logic from a callback.
+    ///
+    /// `w` must be a function item or a non-capturing closure.
+    /// This is statically asserted and not a safety requirement.
+    pub fn write_callback_file<'a, T, E: 'a, W>(
+        &'a self,
+        name: &'a CStr,
+        data: impl PinInit<T, E> + 'a,
+        _w: &'static W,
+    ) -> impl PinInit<File<T>, E> + 'a
+    where
+        T: Send + Sync + 'static,
+        W: Fn(&T, &mut UserSliceReader) -> Result + Send + Sync,
+    {
+        let file_ops = <WritableAdapter<NoWriter<T>, W> as WriteFile<_>>::FILE_OPS
+            .adapt()
+            .adapt();
+        self.create_file(name, data, file_ops)
     }
 }
 

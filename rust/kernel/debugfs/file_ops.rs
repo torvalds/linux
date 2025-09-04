@@ -2,6 +2,7 @@
 // Copyright (C) 2025 Google LLC.
 
 use super::{Reader, Writer};
+use crate::debugfs::callback_adapters::Adapter;
 use crate::prelude::*;
 use crate::seq_file::SeqFile;
 use crate::seq_print;
@@ -43,6 +44,13 @@ impl<T> FileOps<T> {
     #[cfg(CONFIG_DEBUG_FS)]
     pub(crate) const fn mode(&self) -> u16 {
         self.mode
+    }
+}
+
+impl<T: Adapter> FileOps<T> {
+    pub(super) const fn adapt(&self) -> &FileOps<T::Inner> {
+        // SAFETY: `Adapter` asserts that `T` can be legally cast to `T::Inner`.
+        unsafe { core::mem::transmute(self) }
     }
 }
 
