@@ -436,6 +436,7 @@ config GPIO_LOONGSON_64BIT
 	depends on LOONGARCH || COMPILE_TEST
 	depends on OF_GPIO
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support the GPIO functionality of a number of
 	  Loongson series of chips. The Loongson GPIO controller supports
