@@ -2210,13 +2210,12 @@ static const struct cs42l43_irq cs42l43_irqs[] = {
 };
 
 static int cs42l43_request_irq(struct cs42l43_codec *priv,
-			       struct irq_domain *dom, const char * const name,
-			       unsigned int irq, irq_handler_t handler,
-			       unsigned long flags)
+			       const char * const name, unsigned int irq,
+			       irq_handler_t handler, unsigned long flags)
 {
 	int ret;
 
-	ret = irq_create_mapping(dom, irq);
+	ret = irq_create_mapping(priv->dom, irq);
 	if (ret < 0)
 		return dev_err_probe(priv->dev, ret, "Failed to map IRQ %s\n", name);
 
@@ -2230,13 +2229,29 @@ static int cs42l43_request_irq(struct cs42l43_codec *priv,
 	return 0;
 }
 
-static int cs42l43_shutter_irq(struct cs42l43_codec *priv,
-			       struct irq_domain *dom, unsigned int shutter,
-			       const char * const open_name,
-			       const char * const close_name,
+static void cs42l43_disable_irq(struct cs42l43_codec *priv, unsigned int irq)
+{
+	int ret;
+
+	ret = irq_find_mapping(priv->dom, irq);
+	if (ret > 0)
+		disable_irq(ret);
+}
+
+static void cs42l43_enable_irq(struct cs42l43_codec *priv, unsigned int irq)
+{
+	int ret;
+
+	ret = irq_find_mapping(priv->dom, irq);
+	if (ret > 0)
+		enable_irq(ret);
+}
+
+static int cs42l43_shutter_irq(struct cs42l43_codec *priv, unsigned int shutter,
+			       const char * const open_name, unsigned int *open_irq,
+			       const char * const close_name, unsigned int *close_irq,
 			       irq_handler_t handler)
 {
-	unsigned int open_irq, close_irq;
 	int ret;
 
 	switch (shutter) {
@@ -2244,39 +2259,34 @@ static int cs42l43_shutter_irq(struct cs42l43_codec *priv,
 		dev_warn(priv->dev, "Manual shutters, notifications not available\n");
 		return 0;
 	case 0x2:
-		open_irq = CS42L43_GPIO1_RISE;
-		close_irq = CS42L43_GPIO1_FALL;
+		*open_irq = CS42L43_GPIO1_RISE;
+		*close_irq = CS42L43_GPIO1_FALL;
 		break;
 	case 0x4:
-		open_irq = CS42L43_GPIO2_RISE;
-		close_irq = CS42L43_GPIO2_FALL;
+		*open_irq = CS42L43_GPIO2_RISE;
+		*close_irq = CS42L43_GPIO2_FALL;
 		break;
 	case 0x8:
-		open_irq = CS42L43_GPIO3_RISE;
-		close_irq = CS42L43_GPIO3_FALL;
+		*open_irq = CS42L43_GPIO3_RISE;
+		*close_irq = CS42L43_GPIO3_FALL;
 		break;
 	default:
 		return 0;
 	}
 
-	ret = cs42l43_request_irq(priv, dom, close_name, close_irq, handler, IRQF_SHARED);
+	ret = cs42l43_request_irq(priv, close_name, *close_irq, handler, IRQF_SHARED);
 	if (ret)
 		return ret;
 
-	return cs42l43_request_irq(priv, dom, open_name, open_irq, handler, IRQF_SHARED);
+	return cs42l43_request_irq(priv, open_name, *open_irq, handler, IRQF_SHARED);
 }
 
 static int cs42l43_codec_probe(struct platform_device *pdev)
 {
 	struct cs42l43 *cs42l43 = dev_get_drvdata(pdev->dev.parent);
 	struct cs42l43_codec *priv;
-	struct irq_domain *dom;
 	unsigned int val;
 	int i, ret;
-
-	dom = irq_find_matching_fwnode(dev_fwnode(cs42l43->dev), DOMAIN_BUS_ANY);
-	if (!dom)
-		return -EPROBE_DEFER;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -2284,6 +2294,10 @@ static int cs42l43_codec_probe(struct platform_device *pdev)
 
 	priv->dev = &pdev->dev;
 	priv->core = cs42l43;
+
+	priv->dom = irq_find_matching_fwnode(dev_fwnode(cs42l43->dev), DOMAIN_BUS_ANY);
+	if (!priv->dom)
+		return -EPROBE_DEFER;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -2314,7 +2328,7 @@ static int cs42l43_codec_probe(struct platform_device *pdev)
 		goto err_pm;
 
 	for (i = 0; i < ARRAY_SIZE(cs42l43_irqs); i++) {
-		ret = cs42l43_request_irq(priv, dom, cs42l43_irqs[i].name,
+		ret = cs42l43_request_irq(priv, cs42l43_irqs[i].name,
 					  cs42l43_irqs[i].irq,
 					  cs42l43_irqs[i].handler, 0);
 		if (ret)
@@ -2327,15 +2341,17 @@ static int cs42l43_codec_probe(struct platform_device *pdev)
 		goto err_pm;
 	}
 
-	ret = cs42l43_shutter_irq(priv, dom, val & CS42L43_MIC_SHUTTER_CFG_MASK,
-				  "mic shutter open", "mic shutter close",
+	ret = cs42l43_shutter_irq(priv, val & CS42L43_MIC_SHUTTER_CFG_MASK,
+				  "mic shutter open", &priv->shutter_irqs[0],
+				  "mic shutter close", &priv->shutter_irqs[1],
 				  cs42l43_mic_shutter);
 	if (ret)
 		goto err_pm;
 
-	ret = cs42l43_shutter_irq(priv, dom, (val & CS42L43_SPK_SHUTTER_CFG_MASK) >>
+	ret = cs42l43_shutter_irq(priv, (val & CS42L43_SPK_SHUTTER_CFG_MASK) >>
 				  CS42L43_SPK_SHUTTER_CFG_SHIFT,
-				  "spk shutter open", "spk shutter close",
+				  "spk shutter open", &priv->shutter_irqs[2],
+				  "spk shutter close", &priv->shutter_irqs[3],
 				  cs42l43_spk_shutter);
 	if (ret)
 		goto err_pm;
@@ -2386,22 +2402,53 @@ static int cs42l43_codec_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int cs42l43_codec_runtime_force_suspend(struct device *dev)
+static int cs42l43_codec_suspend(struct device *dev)
 {
 	struct cs42l43_codec *priv = dev_get_drvdata(dev);
+	int i;
 
-	dev_dbg(priv->dev, "Runtime suspend\n");
+	dev_dbg(priv->dev, "System suspend\n");
 
 	priv->suspend_jack_debounce = true;
 
-	pm_runtime_force_suspend(dev);
+	for (i = 0; i < ARRAY_SIZE(cs42l43_irqs); i++)
+		cs42l43_disable_irq(priv, cs42l43_irqs[i].irq);
+
+	for (i = 0; i < ARRAY_SIZE(priv->shutter_irqs); i++)
+		if (priv->shutter_irqs[i])
+			cs42l43_disable_irq(priv, priv->shutter_irqs[i]);
+
+	cancel_delayed_work_sync(&priv->bias_sense_timeout);
+	cancel_delayed_work_sync(&priv->tip_sense_work);
+	cancel_delayed_work_sync(&priv->hp_ilimit_clear_work);
+
+	cs42l43_clear_jack(priv);
+
+	return pm_runtime_force_suspend(dev);
+}
+
+static int cs42l43_codec_resume(struct device *dev)
+{
+	struct cs42l43_codec *priv = dev_get_drvdata(dev);
+	int ret, i;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(cs42l43_irqs); i++)
+		cs42l43_enable_irq(priv, cs42l43_irqs[i].irq);
+
+	for (i = 0; i < ARRAY_SIZE(priv->shutter_irqs); i++)
+		if (priv->shutter_irqs[i])
+			cs42l43_enable_irq(priv, priv->shutter_irqs[i]);
 
 	return 0;
 }
 
 static const struct dev_pm_ops cs42l43_codec_pm_ops = {
 	RUNTIME_PM_OPS(NULL, cs42l43_codec_runtime_resume, NULL)
-	SYSTEM_SLEEP_PM_OPS(cs42l43_codec_runtime_force_suspend, pm_runtime_force_resume)
+	SYSTEM_SLEEP_PM_OPS(cs42l43_codec_suspend, cs42l43_codec_resume)
 };
 
 static const struct platform_device_id cs42l43_codec_id_table[] = {
