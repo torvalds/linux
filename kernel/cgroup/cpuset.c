@@ -40,6 +40,7 @@
 #include <linux/sched/isolation.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/task_work.h>
 
 DEFINE_STATIC_KEY_FALSE(cpusets_pre_enable_key);
 DEFINE_STATIC_KEY_FALSE(cpusets_enabled_key);
@@ -2619,9 +2620,24 @@ static void cpuset_migrate_mm(struct mm_struct *mm, const nodemask_t *from,
 	}
 }
 
-static void cpuset_post_attach(void)
+static void flush_migrate_mm_task_workfn(struct callback_head *head)
 {
 	flush_workqueue(cpuset_migrate_mm_wq);
+	kfree(head);
+}
+
+static void schedule_flush_migrate_mm(void)
+{
+	struct callback_head *flush_cb;
+
+	flush_cb = kzalloc(sizeof(struct callback_head), GFP_KERNEL);
+	if (!flush_cb)
+		return;
+
+	init_task_work(flush_cb, flush_migrate_mm_task_workfn);
+
+	if (task_work_add(current, flush_cb, TWA_RESUME))
+		kfree(flush_cb);
 }
 
 /*
@@ -3178,6 +3194,7 @@ static void cpuset_attach(struct cgroup_taskset *tset)
 	struct cpuset *cs;
 	struct cpuset *oldcs = cpuset_attach_old_cs;
 	bool cpus_updated, mems_updated;
+	bool queue_task_work = false;
 
 	cgroup_taskset_first(tset, &css);
 	cs = css_cs(css);
@@ -3228,15 +3245,18 @@ static void cpuset_attach(struct cgroup_taskset *tset)
 			 * @old_mems_allowed is the right nodesets that we
 			 * migrate mm from.
 			 */
-			if (is_memory_migrate(cs))
+			if (is_memory_migrate(cs)) {
 				cpuset_migrate_mm(mm, &oldcs->old_mems_allowed,
 						  &cpuset_attach_nodemask_to);
-			else
+				queue_task_work = true;
+			} else
 				mmput(mm);
 		}
 	}
 
 out:
+	if (queue_task_work)
+		schedule_flush_migrate_mm();
 	cs->old_mems_allowed = cpuset_attach_nodemask_to;
 
 	if (cs->nr_migrate_dl_tasks) {
@@ -3292,7 +3312,7 @@ ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 out_unlock:
 	cpuset_full_unlock();
 	if (of_cft(of)->private == FILE_MEMLIST)
-		flush_workqueue(cpuset_migrate_mm_wq);
+		schedule_flush_migrate_mm();
 	return retval ?: nbytes;
 }
 
@@ -3739,7 +3759,6 @@ struct cgroup_subsys cpuset_cgrp_subsys = {
 	.can_attach	= cpuset_can_attach,
 	.cancel_attach	= cpuset_cancel_attach,
 	.attach		= cpuset_attach,
-	.post_attach	= cpuset_post_attach,
 	.bind		= cpuset_bind,
 	.can_fork	= cpuset_can_fork,
 	.cancel_fork	= cpuset_cancel_fork,
