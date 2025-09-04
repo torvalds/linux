@@ -585,7 +585,6 @@ struct snd_soc_dapm_context {
 
 	/* bit field */
 	unsigned int idle_bias_off:1;		/* Use BIAS_OFF instead of STANDBY */
-	unsigned int suspend_bias_off:1;	/* Use BIAS_OFF in suspend if the DAPM is idle */
 
 	struct device *dev;			/* from parent - for debug */ /* REMOVE ME */
 	struct snd_soc_component *component;	/* parent component */

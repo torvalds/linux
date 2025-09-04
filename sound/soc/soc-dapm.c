@@ -2182,13 +2182,16 @@ end:
 
 static bool dapm_idle_bias_off(struct snd_soc_dapm_context *dapm)
 {
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	if (dapm->idle_bias_off)
 		return true;
 
 	switch (snd_power_get_state(dapm->card->snd_card)) {
 	case SNDRV_CTL_POWER_D3hot:
 	case SNDRV_CTL_POWER_D3cold:
-		return dapm->suspend_bias_off;
+		if (component)
+			return component->driver->suspend_bias_off;
+		fallthrough;
 	default:
 		break;
 	}
@@ -4823,7 +4826,6 @@ void snd_soc_dapm_init(struct snd_soc_dapm_context *dapm,
 	if (component) {
 		dapm->dev		= component->dev;
 		dapm->idle_bias_off	= !component->driver->idle_bias_on;
-		dapm->suspend_bias_off	= component->driver->suspend_bias_off;
 	} else {
 		dapm->dev		= card->dev;
 	}
