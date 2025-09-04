@@ -397,7 +397,7 @@ static bool enc35_is_fifo_enabled(struct stream_encoder *enc)
 	uint32_t reset_val;
 
 	REG_GET(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, &reset_val);
-	return (reset_val == 0) ? false : true;
+	return reset_val != 0;
 }
 void enc35_disable_fifo(struct stream_encoder *enc)
 {
