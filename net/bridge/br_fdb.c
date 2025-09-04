@@ -582,6 +582,102 @@ void br_fdb_cleanup(struct work_struct *work)
 	mod_delayed_work(system_long_wq, &br->gc_work, work_delay);
 }
 
+static void br_fdb_delete_locals_per_vlan_port(struct net_bridge *br,
+					       struct net_bridge_port *p)
+{
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *v;
+	struct net_device *dev;
+
+	if (p) {
+		vg = nbp_vlan_group(p);
+		dev = p->dev;
+	} else {
+		vg = br_vlan_group(br);
+		dev = br->dev;
+	}
+
+	list_for_each_entry(v, &vg->vlan_list, vlist)
+		br_fdb_find_delete_local(br, p, dev->dev_addr, v->vid);
+}
+
+static void br_fdb_delete_locals_per_vlan(struct net_bridge *br)
+{
+	struct net_bridge_port *p;
+
+	ASSERT_RTNL();
+
+	list_for_each_entry(p, &br->port_list, list)
+		br_fdb_delete_locals_per_vlan_port(br, p);
+
+	br_fdb_delete_locals_per_vlan_port(br, NULL);
+}
+
+static int br_fdb_insert_locals_per_vlan_port(struct net_bridge *br,
+					      struct net_bridge_port *p,
+					      struct netlink_ext_ack *extack)
+{
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *v;
+	struct net_device *dev;
+	int err;
+
+	if (p) {
+		vg = nbp_vlan_group(p);
+		dev = p->dev;
+	} else {
+		vg = br_vlan_group(br);
+		dev = br->dev;
+	}
+
+	list_for_each_entry(v, &vg->vlan_list, vlist) {
+		if (!br_vlan_should_use(v))
+			continue;
+
+		err = br_fdb_add_local(br, p, dev->dev_addr, v->vid);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int br_fdb_insert_locals_per_vlan(struct net_bridge *br,
+					 struct netlink_ext_ack *extack)
+{
+	struct net_bridge_port *p;
+	int err;
+
+	ASSERT_RTNL();
+
+	list_for_each_entry(p, &br->port_list, list) {
+		err = br_fdb_insert_locals_per_vlan_port(br, p, extack);
+		if (err)
+			goto rollback;
+	}
+
+	err = br_fdb_insert_locals_per_vlan_port(br, NULL, extack);
+	if (err)
+		goto rollback;
+
+	return 0;
+
+rollback:
+	NL_SET_ERR_MSG_MOD(extack, "fdb_local_vlan_0 toggle: FDB entry insertion failed");
+	br_fdb_delete_locals_per_vlan(br);
+	return err;
+}
+
+int br_fdb_toggle_local_vlan_0(struct net_bridge *br, bool on,
+			       struct netlink_ext_ack *extack)
+{
+	if (!on)
+		return br_fdb_insert_locals_per_vlan(br, extack);
+
+	br_fdb_delete_locals_per_vlan(br);
+	return 0;
+}
+
 static bool __fdb_flush_matches(const struct net_bridge *br,
 				const struct net_bridge_fdb_entry *f,
 				const struct net_bridge_fdb_flush_desc *desc)

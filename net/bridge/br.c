@@ -259,6 +259,23 @@ static struct notifier_block br_switchdev_blocking_notifier = {
 	.notifier_call = br_switchdev_blocking_event,
 };
 
+static int
+br_toggle_fdb_local_vlan_0(struct net_bridge *br, bool on,
+			   struct netlink_ext_ack *extack)
+{
+	int err;
+
+	if (br_opt_get(br, BROPT_FDB_LOCAL_VLAN_0) == on)
+		return 0;
+
+	err = br_fdb_toggle_local_vlan_0(br, on, extack);
+	if (err)
+		return err;
+
+	br_opt_toggle(br, BROPT_FDB_LOCAL_VLAN_0, on);
+	return 0;
+}
+
 /* br_boolopt_toggle - change user-controlled boolean option
  *
  * @br: bridge device
@@ -287,6 +304,9 @@ int br_boolopt_toggle(struct net_bridge *br, enum br_boolopt_id opt, bool on,
 	case BR_BOOLOPT_MDB_OFFLOAD_FAIL_NOTIFICATION:
 		br_opt_toggle(br, BROPT_MDB_OFFLOAD_FAIL_NOTIFICATION, on);
 		break;
+	case BR_BOOLOPT_FDB_LOCAL_VLAN_0:
+		err = br_toggle_fdb_local_vlan_0(br, on, extack);
+		break;
 	default:
 		/* shouldn't be called with unsupported options */
 		WARN_ON(1);
@@ -307,6 +327,8 @@ int br_boolopt_get(const struct net_bridge *br, enum br_boolopt_id opt)
 		return br_opt_get(br, BROPT_MST_ENABLED);
 	case BR_BOOLOPT_MDB_OFFLOAD_FAIL_NOTIFICATION:
 		return br_opt_get(br, BROPT_MDB_OFFLOAD_FAIL_NOTIFICATION);
+	case BR_BOOLOPT_FDB_LOCAL_VLAN_0:
+		return br_opt_get(br, BROPT_FDB_LOCAL_VLAN_0);
 	default:
 		/* shouldn't be called with unsupported options */
 		WARN_ON(1);
