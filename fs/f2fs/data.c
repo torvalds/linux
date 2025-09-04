@@ -733,9 +733,11 @@ static bool page_is_mergeable(struct f2fs_sb_info *sbi, struct bio *bio,
 static bool io_type_is_mergeable(struct f2fs_bio_info *io,
 						struct f2fs_io_info *fio)
 {
+	blk_opf_t mask = ~(REQ_PREFLUSH | REQ_FUA);
+
 	if (io->fio.op != fio->op)
 		return false;
-	return io->fio.op_flags == fio->op_flags;
+	return (io->fio.op_flags & mask) == (fio->op_flags & mask);
 }
 
 static bool io_is_mergeable(struct f2fs_sb_info *sbi, struct bio *bio,
