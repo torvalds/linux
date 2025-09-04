@@ -4129,12 +4129,7 @@ int smu_send_rma_reason(struct smu_context *smu)
  */
 bool smu_reset_sdma_is_supported(struct smu_context *smu)
 {
-	bool ret = false;
-
-	if (smu->ppt_funcs && smu->ppt_funcs->reset_sdma_is_supported)
-		ret = smu->ppt_funcs->reset_sdma_is_supported(smu);
-
-	return ret;
+	return smu_feature_cap_test(smu, SMU_FEATURE_CAP_ID__SDMA_RESET);
 }
 
 int smu_reset_sdma(struct smu_context *smu, uint32_t inst_mask)
