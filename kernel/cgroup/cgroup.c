@@ -3026,9 +3026,6 @@ out_unlock_rcu:
 
 void cgroup_procs_write_finish(struct task_struct *task, bool threadgroup_locked)
 {
-	struct cgroup_subsys *ss;
-	int ssid;
-
 	/* release reference from cgroup_procs_write_start() */
 	put_task_struct(task);
 
