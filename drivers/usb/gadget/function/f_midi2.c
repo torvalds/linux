@@ -1599,6 +1599,7 @@ static int f_midi2_create_card(struct f_midi2 *midi2)
 			strscpy(fb->info.name, ump_fb_name(b),
 				sizeof(fb->info.name));
 		}
+		snd_ump_update_group_attrs(ump);
 	}
 
 	for (i = 0; i < midi2->num_eps; i++) {
