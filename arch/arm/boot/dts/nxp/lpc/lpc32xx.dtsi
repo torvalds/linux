@@ -77,7 +77,7 @@
 			status = "disabled";
 		};
 
-		dma: dma@31000000 {
+		dma: dma-controller@31000000 {
 			compatible = "arm,pl080", "arm,primecell";
 			reg = <0x31000000 0x1000>;
 			interrupts = <28 IRQ_TYPE_LEVEL_HIGH>;
