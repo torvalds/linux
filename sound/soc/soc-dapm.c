@@ -180,6 +180,12 @@ struct snd_soc_card *snd_soc_dapm_to_card(struct snd_soc_dapm_context *dapm)
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_to_card);
 
+struct snd_soc_component *snd_soc_dapm_to_component(struct snd_soc_dapm_context *dapm)
+{
+	return dapm->component;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_to_component);
+
 static bool dapm_dirty_widget(struct snd_soc_dapm_widget *w)
 {
 	return !list_empty(&w->dirty);
