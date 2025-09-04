@@ -63,6 +63,7 @@
 #include "kgd_pp_interface.h"
 
 #include "amd_shared.h"
+#include "amdgpu_utils.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_ih.h"
 #include "amdgpu_irq.h"
