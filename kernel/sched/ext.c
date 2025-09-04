@@ -6351,17 +6351,20 @@ __bpf_kfunc s32 scx_bpf_task_cpu(const struct task_struct *p)
  */
 __bpf_kfunc struct rq *scx_bpf_cpu_rq(s32 cpu)
 {
-	struct scx_sched *sch = scx_root;
+	struct scx_sched *sch;
 
 	if (!kf_cpu_valid(cpu, NULL))
 		return NULL;
 
-	if (!sch->warned_deprecated_rq) {
+	rcu_read_lock();
+	sch = rcu_dereference(scx_root);
+	if (likely(sch) && !sch->warned_deprecated_rq) {
 		printk_deferred(KERN_WARNING "sched_ext: %s() is deprecated; "
 				"use scx_bpf_locked_rq() when holding rq lock "
 				"or scx_bpf_cpu_curr() to read remote curr safely.\n", __func__);
 		sch->warned_deprecated_rq = true;
 	}
+	rcu_read_unlock();
 
 	return cpu_rq(cpu);
 }
