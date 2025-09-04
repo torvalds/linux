@@ -53,37 +53,90 @@ static inline struct v12_sdma_mqd *get_sdma_mqd(void *mqd)
 	return (struct v12_sdma_mqd *)mqd;
 }
 
+static void mqd_symmetrically_map_cu_mask_v12_1(struct mqd_manager *mm,
+		const uint32_t *cu_mask, uint32_t cu_mask_count,
+		uint32_t *se_mask, uint32_t inst)
+{
+	struct amdgpu_cu_info *cu_info = &mm->dev->adev->gfx.cu_info;
+	struct amdgpu_gfx_config *gfx_info = &mm->dev->adev->gfx.config;
+	uint32_t cu_per_sh[2][2] = {0};
+	uint32_t en_mask = 0x3;
+	int i, se, sh, cu, cu_inc = 0;
+	uint32_t cu_active_per_node;
+	int inc = NUM_XCC(mm->dev->xcc_mask);
+	int xcc_inst = inst + ffs(mm->dev->xcc_mask) - 1;
+
+	cu_active_per_node = cu_info->number / mm->dev->kfd->num_nodes;
+	if (cu_mask_count > cu_active_per_node)
+		cu_mask_count = cu_active_per_node;
+
+	/*
+	 * Count active CUs per SE/SH.
+	 */
+	for (se = 0; se < gfx_info->max_shader_engines; se++)
+		for (sh = 0; sh < gfx_info->max_sh_per_se; sh++)
+			cu_per_sh[se][sh] = hweight32(
+				cu_info->bitmap[xcc_inst][se][sh]);
+
+	/* Symmetrically map cu_mask to all SEs & SHs:
+	 * For GFX 12.1.0, the following code only looks at a
+	 * subset of the cu_mask corresponding to the inst parameter.
+	 * If we have n XCCs under one GPU node
+	 * cu_mask[0] bit0 -> XCC0 se_mask[0] bit0 (XCC0,SE0,SH0,CU0)
+	 * cu_mask[0] bit1 -> XCC1 se_mask[0] bit0 (XCC1,SE0,SH0,CU0)
+	 * ..
+	 * cu_mask[0] bitn -> XCCn se_mask[0] bit0 (XCCn,SE0,SH0,CU0)
+	 * cu_mask[0] bit n+1 -> XCC0 se_mask[1] bit0 (XCC0,SE1,SH0,CU0)
+	 *
+	 * For example, if there are 6 XCCs under 1 KFD node, this code
+	 * running for each inst, will look at the bits as:
+	 * inst, inst + 6, inst + 12...
+	 *
+	 * First ensure all CUs are disabled, then enable user specified CUs.
+	 */
+	for (i = 0; i < gfx_info->max_shader_engines; i++)
+		se_mask[i] = 0;
+
+	i = inst;
+	for (cu = 0; cu < 16; cu++) {
+		for (sh = 0; sh < gfx_info->max_sh_per_se; sh++) {
+			for (se = 0; se < gfx_info->max_shader_engines; se++) {
+				if (cu_per_sh[se][sh] > cu) {
+					if (cu_mask[i / 32] & (1U << (i % 32))) {
+						if (cu == 8 && sh == 0)
+							se_mask[se] |= en_mask << 30;
+						else
+							se_mask[se] |= en_mask << (cu_inc + sh * 16);
+					}
+					i += inc;
+					if (i >= cu_mask_count)
+						return;
+				}
+			}
+		}
+		cu_inc += 2;
+	}
+}
+
 static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 			   struct mqd_update_info *minfo, uint32_t inst)
 {
 	struct v12_1_compute_mqd *m;
-	uint32_t se_mask[KFD_MAX_NUM_SE] = {0};
+	uint32_t se_mask[2] = {0};
 
 	if (!minfo || !minfo->cu_mask.ptr)
 		return;
 
-	mqd_symmetrically_map_cu_mask(mm,
+	mqd_symmetrically_map_cu_mask_v12_1(mm,
 		minfo->cu_mask.ptr, minfo->cu_mask.count, se_mask, inst);
 
 	m = get_mqd(mqd);
 	m->compute_static_thread_mgmt_se0 = se_mask[0];
 	m->compute_static_thread_mgmt_se1 = se_mask[1];
-	m->compute_static_thread_mgmt_se2 = se_mask[2];
-	m->compute_static_thread_mgmt_se3 = se_mask[3];
-	m->compute_static_thread_mgmt_se4 = se_mask[4];
-	m->compute_static_thread_mgmt_se5 = se_mask[5];
-	m->compute_static_thread_mgmt_se6 = se_mask[6];
-	m->compute_static_thread_mgmt_se7 = se_mask[7];
 
-	pr_debug("update cu mask to %#x %#x %#x %#x %#x %#x %#x %#x\n",
+	pr_debug("update cu mask to %#x %#x\n",
 		m->compute_static_thread_mgmt_se0,
-		m->compute_static_thread_mgmt_se1,
-		m->compute_static_thread_mgmt_se2,
-		m->compute_static_thread_mgmt_se3,
-		m->compute_static_thread_mgmt_se4,
-		m->compute_static_thread_mgmt_se5,
-		m->compute_static_thread_mgmt_se6,
-		m->compute_static_thread_mgmt_se7);
+		m->compute_static_thread_mgmt_se1);
 }
 
 static void set_priority(struct v12_1_compute_mqd *m, struct queue_properties *q)
