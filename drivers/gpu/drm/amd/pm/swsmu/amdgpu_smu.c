@@ -1315,6 +1315,33 @@ static void smu_init_power_profile(struct smu_context *smu)
 	smu_power_profile_mode_get(smu, smu->power_profile_mode);
 }
 
+void smu_feature_cap_set(struct smu_context *smu, enum smu_feature_cap_id fea_id)
+{
+	struct smu_feature_cap *fea_cap = &smu->fea_cap;
+
+	if (fea_id >= SMU_FEATURE_CAP_ID__COUNT)
+		return;
+
+	set_bit(fea_id, fea_cap->cap_map);
+}
+
+bool smu_feature_cap_test(struct smu_context *smu, enum smu_feature_cap_id fea_id)
+{
+	struct smu_feature_cap *fea_cap = &smu->fea_cap;
+
+	if (fea_id >= SMU_FEATURE_CAP_ID__COUNT)
+		return false;
+
+	return test_bit(fea_id, fea_cap->cap_map);
+}
+
+static void smu_feature_cap_init(struct smu_context *smu)
+{
+	struct smu_feature_cap *fea_cap = &smu->fea_cap;
+
+	bitmap_zero(fea_cap->cap_map, SMU_FEATURE_CAP_ID__COUNT);
+}
+
 static int smu_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -1346,6 +1373,8 @@ static int smu_sw_init(struct amdgpu_ip_block *ip_block)
 
 	INIT_DELAYED_WORK(&smu->swctf_delayed_work,
 			  smu_swctf_delayed_work_handler);
+
+	smu_feature_cap_init(smu);
 
 	ret = smu_smc_table_sw_init(smu);
 	if (ret) {
