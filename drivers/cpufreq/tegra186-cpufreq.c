@@ -103,13 +103,12 @@ static int tegra186_cpufreq_set_target(struct cpufreq_policy *policy,
 
 static unsigned int tegra186_cpufreq_get(unsigned int cpu)
 {
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	struct tegra186_cpufreq_data *data = cpufreq_get_driver_data();
 	struct tegra186_cpufreq_cluster *cluster;
-	struct cpufreq_policy *policy;
 	unsigned int edvd_offset, cluster_id;
 	u32 ndiv;
 
-	policy = cpufreq_cpu_get(cpu);
 	if (!policy)
 		return 0;
 
@@ -117,7 +116,6 @@ static unsigned int tegra186_cpufreq_get(unsigned int cpu)
 	ndiv = readl(data->regs + edvd_offset) & EDVD_CORE_VOLT_FREQ_F_MASK;
 	cluster_id = data->cpus[policy->cpu].bpmp_cluster_id;
 	cluster = &data->clusters[cluster_id];
-	cpufreq_cpu_put(policy);
 
 	return (cluster->ref_clk_khz * ndiv) / cluster->div;
 }
