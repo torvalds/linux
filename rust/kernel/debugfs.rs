@@ -14,7 +14,10 @@ use crate::str::CStr;
 use crate::sync::Arc;
 use crate::uaccess::UserSliceReader;
 use core::fmt;
+use core::marker::PhantomData;
 use core::marker::PhantomPinned;
+#[cfg(CONFIG_DEBUG_FS)]
+use core::mem::ManuallyDrop;
 use core::ops::Deref;
 
 mod traits;
@@ -40,7 +43,7 @@ use entry::Entry;
 // able to refer to us. In this case, we need to silently fail. All future child directories/files
 // will silently fail as well.
 #[derive(Clone)]
-pub struct Dir(#[cfg(CONFIG_DEBUG_FS)] Option<Arc<Entry>>);
+pub struct Dir(#[cfg(CONFIG_DEBUG_FS)] Option<Arc<Entry<'static>>>);
 
 impl Dir {
     /// Create a new directory in DebugFS. If `parent` is [`None`], it will be created at the root.
@@ -264,17 +267,67 @@ impl Dir {
             .adapt();
         self.create_file(name, data, file_ops)
     }
+
+    // While this function is safe, it is intentionally not public because it's a bit of a
+    // footgun.
+    //
+    // Unless you also extract the `entry` later and schedule it for `Drop` at the appropriate
+    // time, a `ScopedDir` with a `Dir` parent will never be deleted.
+    fn scoped_dir<'data>(&self, name: &CStr) -> ScopedDir<'data, 'static> {
+        #[cfg(CONFIG_DEBUG_FS)]
+        {
+            let parent_entry = match &self.0 {
+                None => return ScopedDir::empty(),
+                Some(entry) => entry.clone(),
+            };
+            ScopedDir {
+                entry: ManuallyDrop::new(Entry::dynamic_dir(name, Some(parent_entry))),
+                _phantom: PhantomData,
+            }
+        }
+        #[cfg(not(CONFIG_DEBUG_FS))]
+        ScopedDir::empty()
+    }
+
+    /// Creates a new scope, which is a directory associated with some data `T`.
+    ///
+    /// The created directory will be a subdirectory of `self`. The `init` closure is called to
+    /// populate the directory with files and subdirectories. These files can reference the data
+    /// stored in the scope.
+    ///
+    /// The entire directory tree created within the scope will be removed when the returned
+    /// `Scope` handle is dropped.
+    pub fn scope<'a, T: 'a, E: 'a, F>(
+        &'a self,
+        data: impl PinInit<T, E> + 'a,
+        name: &'a CStr,
+        init: F,
+    ) -> impl PinInit<Scope<T>, E> + 'a
+    where
+        F: for<'data, 'dir> FnOnce(&'data T, &'dir ScopedDir<'data, 'dir>) + 'a,
+    {
+        Scope::new(data, |data| {
+            let scoped = self.scoped_dir(name);
+            init(data, &scoped);
+            scoped.into_entry()
+        })
+    }
 }
 
 #[pin_data]
-/// Handle to a DebugFS scope, which ensures that attached `data` will outlive the provided
-/// [`Entry`] without moving.
-/// Currently, this is used to back [`File`] so that its `read` and/or `write` implementations
-/// can assume that their backing data is still alive.
-struct Scope<T> {
+/// Handle to a DebugFS scope, which ensures that attached `data` will outlive the DebugFS entry
+/// without moving.
+///
+/// This is internally used to back [`File`], and used in the API to represent the attachment
+/// of a directory lifetime to a data structure which may be jointly accessed by a number of
+/// different files.
+///
+/// When dropped, a `Scope` will remove all directories and files in the filesystem backed by the
+/// attached data structure prior to releasing the attached data.
+pub struct Scope<T> {
     // This order is load-bearing for drops - `_entry` must be dropped before `data`.
     #[cfg(CONFIG_DEBUG_FS)]
-    _entry: Entry,
+    _entry: Entry<'static>,
     #[pin]
     data: T,
     // Even if `T` is `Unpin`, we still can't allow it to be moved.
@@ -312,14 +365,14 @@ impl<'b, T: 'b> Scope<T> {
 
 #[cfg(CONFIG_DEBUG_FS)]
 impl<'b, T: 'b> Scope<T> {
-    fn entry_mut(self: Pin<&mut Self>) -> &mut Entry {
+    fn entry_mut(self: Pin<&mut Self>) -> &mut Entry<'static> {
         // SAFETY: _entry is not structurally pinned.
         unsafe { &mut Pin::into_inner_unchecked(self)._entry }
     }
 
     fn new<E: 'b, F>(data: impl PinInit<T, E> + 'b, init: F) -> impl PinInit<Self, E> + 'b
     where
-        F: for<'a> FnOnce(&'a T) -> Entry + 'b,
+        F: for<'a> FnOnce(&'a T) -> Entry<'static> + 'b,
     {
         try_pin_init! {
             Self {
@@ -335,6 +388,31 @@ impl<'b, T: 'b> Scope<T> {
     }
 }
 
+impl<'a, T: 'a> Scope<T> {
+    /// Creates a new scope, which is a directory at the root of the debugfs filesystem,
+    /// associated with some data `T`.
+    ///
+    /// The `init` closure is called to populate the directory with files and subdirectories. These
+    /// files can reference the data stored in the scope.
+    ///
+    /// The entire directory tree created within the scope will be removed when the returned
+    /// `Scope` handle is dropped.
+    pub fn dir<E: 'a, F>(
+        data: impl PinInit<T, E> + 'a,
+        name: &'a CStr,
+        init: F,
+    ) -> impl PinInit<Self, E> + 'a
+    where
+        F: for<'data, 'dir> FnOnce(&'data T, &'dir ScopedDir<'data, 'dir>) + 'a,
+    {
+        Scope::new(data, |data| {
+            let scoped = ScopedDir::new(name);
+            init(data, &scoped);
+            scoped.into_entry()
+        })
+    }
+}
+
 impl<T> Deref for Scope<T> {
     type Target = T;
     fn deref(&self) -> &T {
@@ -346,5 +424,171 @@ impl<T> Deref for File<T> {
     type Target = T;
     fn deref(&self) -> &T {
         &self.scope
+    }
+}
+
+/// A handle to a directory which will live at most `'dir`, accessing data that will live for at
+/// least `'data`.
+///
+/// Dropping a ScopedDir will not delete or clean it up, this is expected to occur through dropping
+/// the `Scope` that created it.
+pub struct ScopedDir<'data, 'dir> {
+    #[cfg(CONFIG_DEBUG_FS)]
+    entry: ManuallyDrop<Entry<'dir>>,
+    _phantom: PhantomData<fn(&'data ()) -> &'dir ()>,
+}
+
+impl<'data, 'dir> ScopedDir<'data, 'dir> {
+    /// Creates a subdirectory inside this `ScopedDir`.
+    ///
+    /// The returned directory handle cannot outlive this one.
+    pub fn dir<'dir2>(&'dir2 self, name: &CStr) -> ScopedDir<'data, 'dir2> {
+        #[cfg(not(CONFIG_DEBUG_FS))]
+        let _ = name;
+        ScopedDir {
+            #[cfg(CONFIG_DEBUG_FS)]
+            entry: ManuallyDrop::new(Entry::dir(name, Some(&*self.entry))),
+            _phantom: PhantomData,
+        }
+    }
+
+    fn create_file<T: Sync>(&self, name: &CStr, data: &'data T, vtable: &'static FileOps<T>) {
+        #[cfg(CONFIG_DEBUG_FS)]
+        core::mem::forget(Entry::file(name, &self.entry, data, vtable));
+    }
+
+    /// Creates a read-only file in this directory.
+    ///
+    /// The file's contents are produced by invoking [`Writer::write`].
+    ///
+    /// This function does not produce an owning handle to the file. The created
+    /// file is removed when the [`Scope`] that this directory belongs
+    /// to is dropped.
+    pub fn read_only_file<T: Writer + Send + Sync + 'static>(&self, name: &CStr, data: &'data T) {
+        self.create_file(name, data, &T::FILE_OPS)
+    }
+
+    /// Creates a read-only file in this directory, with contents from a callback.
+    ///
+    /// The file contents are generated by calling `f` with `data`.
+    ///
+    ///
+    /// `f` must be a function item or a non-capturing closure.
+    /// This is statically asserted and not a safety requirement.
+    ///
+    /// This function does not produce an owning handle to the file. The created
+    /// file is removed when the [`Scope`] that this directory belongs
+    /// to is dropped.
+    pub fn read_callback_file<T, F>(&self, name: &CStr, data: &'data T, _f: &'static F)
+    where
+        T: Send + Sync + 'static,
+        F: Fn(&T, &mut fmt::Formatter<'_>) -> fmt::Result + Send + Sync,
+    {
+        let vtable = <FormatAdapter<T, F> as ReadFile<_>>::FILE_OPS.adapt();
+        self.create_file(name, data, vtable)
+    }
+
+    /// Creates a read-write file in this directory.
+    ///
+    /// Reading the file uses the [`Writer`] implementation on `data`. Writing to the file uses
+    /// the [`Reader`] implementation on `data`.
+    ///
+    /// This function does not produce an owning handle to the file. The created
+    /// file is removed when the [`Scope`] that this directory belongs
+    /// to is dropped.
+    pub fn read_write_file<T: Writer + Reader + Send + Sync + 'static>(
+        &self,
+        name: &CStr,
+        data: &'data T,
+    ) {
+        let vtable = &<T as ReadWriteFile<_>>::FILE_OPS;
+        self.create_file(name, data, vtable)
+    }
+
+    /// Creates a read-write file in this directory, with logic from callbacks.
+    ///
+    /// Reading from the file is handled by `f`. Writing to the file is handled by `w`.
+    ///
+    /// `f` and `w` must be function items or non-capturing closures.
+    /// This is statically asserted and not a safety requirement.
+    ///
+    /// This function does not produce an owning handle to the file. The created
+    /// file is removed when the [`Scope`] that this directory belongs
+    /// to is dropped.
+    pub fn read_write_callback_file<T, F, W>(
+        &self,
+        name: &CStr,
+        data: &'data T,
+        _f: &'static F,
+        _w: &'static W,
+    ) where
+        T: Send + Sync + 'static,
+        F: Fn(&T, &mut fmt::Formatter<'_>) -> fmt::Result + Send + Sync,
+        W: Fn(&T, &mut UserSliceReader) -> Result + Send + Sync,
+    {
+        let vtable = <WritableAdapter<FormatAdapter<T, F>, W> as ReadWriteFile<_>>::FILE_OPS
+            .adapt()
+            .adapt();
+        self.create_file(name, data, vtable)
+    }
+
+    /// Creates a write-only file in this directory.
+    ///
+    /// Writing to the file uses the [`Reader`] implementation on `data`.
+    ///
+    /// This function does not produce an owning handle to the file. The created
+    /// file is removed when the [`Scope`] that this directory belongs
+    /// to is dropped.
+    pub fn write_only_file<T: Reader + Send + Sync + 'static>(&self, name: &CStr, data: &'data T) {
+        let vtable = &<T as WriteFile<_>>::FILE_OPS;
+        self.create_file(name, data, vtable)
+    }
+
+    /// Creates a write-only file in this directory, with write logic from a callback.
+    ///
+    /// Writing to the file is handled by `w`.
+    ///
+    /// `w` must be a function item or a non-capturing closure.
+    /// This is statically asserted and not a safety requirement.
+    ///
+    /// This function does not produce an owning handle to the file. The created
+    /// file is removed when the [`Scope`] that this directory belongs
+    /// to is dropped.
+    pub fn write_only_callback_file<T, W>(&self, name: &CStr, data: &'data T, _w: &'static W)
+    where
+        T: Send + Sync + 'static,
+        W: Fn(&T, &mut UserSliceReader) -> Result + Send + Sync,
+    {
+        let vtable = &<WritableAdapter<NoWriter<T>, W> as WriteFile<_>>::FILE_OPS
+            .adapt()
+            .adapt();
+        self.create_file(name, data, vtable)
+    }
+
+    fn empty() -> Self {
+        ScopedDir {
+            #[cfg(CONFIG_DEBUG_FS)]
+            entry: ManuallyDrop::new(Entry::empty()),
+            _phantom: PhantomData,
+        }
+    }
+    #[cfg(CONFIG_DEBUG_FS)]
+    fn into_entry(self) -> Entry<'dir> {
+        ManuallyDrop::into_inner(self.entry)
+    }
+    #[cfg(not(CONFIG_DEBUG_FS))]
+    fn into_entry(self) {}
+}
+
+impl<'data> ScopedDir<'data, 'static> {
+    // This is safe, but intentionally not exported due to footgun status. A ScopedDir with no
+    // parent will never be released by default, and needs to have its entry extracted and used
+    // somewhere.
+    fn new(name: &CStr) -> ScopedDir<'data, 'static> {
+        ScopedDir {
+            #[cfg(CONFIG_DEBUG_FS)]
+            entry: ManuallyDrop::new(Entry::dir(name, None)),
+            _phantom: PhantomData,
+        }
     }
 }
