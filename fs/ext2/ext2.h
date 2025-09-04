@@ -82,7 +82,7 @@ struct ext2_sb_info {
 	struct buffer_head * s_sbh;	/* Buffer containing the super block */
 	struct ext2_super_block * s_es;	/* Pointer to the super block in the buffer */
 	struct buffer_head ** s_group_desc;
-	unsigned long  s_mount_opt;
+	unsigned long s_mount_opt;
 	unsigned long s_sb_block;
 	kuid_t s_resuid;
 	kgid_t s_resgid;
@@ -448,7 +448,7 @@ struct ext2_super_block {
 	 * things it doesn't understand...
 	 */
 	__le32	s_first_ino; 		/* First non-reserved inode */
-	__le16   s_inode_size; 		/* size of inode structure */
+	__le16  s_inode_size; 		/* size of inode structure */
 	__le16	s_block_group_nr; 	/* block group # of this superblock */
 	__le32	s_feature_compat; 	/* compatible feature set */
 	__le32	s_feature_incompat; 	/* incompatible feature set */
