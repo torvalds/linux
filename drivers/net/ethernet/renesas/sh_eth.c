@@ -3443,8 +3443,6 @@ static void sh_eth_drv_remove(struct platform_device *pdev)
 	free_netdev(ndev);
 }
 
-#ifdef CONFIG_PM
-#ifdef CONFIG_PM_SLEEP
 static int sh_eth_wol_setup(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -3527,15 +3525,8 @@ static int sh_eth_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
-static const struct dev_pm_ops sh_eth_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(sh_eth_suspend, sh_eth_resume)
-};
-#define SH_ETH_PM_OPS (&sh_eth_dev_pm_ops)
-#else
-#define SH_ETH_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(sh_eth_dev_pm_ops, sh_eth_suspend, sh_eth_resume);
 
 static const struct platform_device_id sh_eth_id_table[] = {
 	{ "sh7619-ether", (kernel_ulong_t)&sh7619_data },
@@ -3555,7 +3546,7 @@ static struct platform_driver sh_eth_driver = {
 	.id_table = sh_eth_id_table,
 	.driver = {
 		   .name = CARDNAME,
-		   .pm = SH_ETH_PM_OPS,
+		   .pm = pm_sleep_ptr(&sh_eth_dev_pm_ops),
 		   .of_match_table = of_match_ptr(sh_eth_match_table),
 	},
 };
