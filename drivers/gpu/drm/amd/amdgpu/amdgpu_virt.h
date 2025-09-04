@@ -256,6 +256,10 @@ struct amdgpu_virt_ras {
 	uint64_t cper_rptr;
 };
 
+#define AMDGPU_VIRT_CAPS_LIST(X) X(AMDGPU_VIRT_CAP_POWER_LIMIT)
+
+DECLARE_ATTR_CAP_CLASS(amdgpu_virt, AMDGPU_VIRT_CAPS_LIST);
+
 /* GPU virtualization */
 struct amdgpu_virt {
 	uint32_t			caps;
@@ -274,6 +278,7 @@ struct amdgpu_virt {
 	const struct amdgpu_virt_ops	*ops;
 	struct amdgpu_vf_error_buffer	vf_errors;
 	struct amdgpu_virt_fw_reserve	fw_reserve;
+	struct amdgpu_virt_caps virt_caps;
 	uint32_t gim_feature;
 	uint32_t reg_access_mode;
 	int req_init_data_ver;
