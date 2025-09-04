@@ -842,11 +842,15 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 		batch_size += pte_update_size(m, pte_flags, src, &src_it, &src_L0,
 					      &src_L0_ofs, &src_L0_pt, 0, 0,
 					      avail_pts);
-
-		pte_flags = dst_is_vram ? PTE_UPDATE_FLAG_IS_VRAM : 0;
-		batch_size += pte_update_size(m, pte_flags, dst, &dst_it, &src_L0,
-					      &dst_L0_ofs, &dst_L0_pt, 0,
-					      avail_pts, avail_pts);
+		if (copy_only_ccs) {
+			dst_L0_ofs = src_L0_ofs;
+		} else {
+			pte_flags = dst_is_vram ? PTE_UPDATE_FLAG_IS_VRAM : 0;
+			batch_size += pte_update_size(m, pte_flags, dst,
+						      &dst_it, &src_L0,
+						      &dst_L0_ofs, &dst_L0_pt,
+						      0, avail_pts, avail_pts);
+		}
 
 		if (copy_system_ccs) {
 			xe_assert(xe, type_device);
@@ -876,7 +880,7 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 
 		if (dst_is_vram && xe_migrate_allow_identity(src_L0, &dst_it))
 			xe_res_next(&dst_it, src_L0);
-		else
+		else if (!copy_only_ccs)
 			emit_pte(m, bb, dst_L0_pt, dst_is_vram, copy_system_ccs,
 				 &dst_it, src_L0, dst);
 
