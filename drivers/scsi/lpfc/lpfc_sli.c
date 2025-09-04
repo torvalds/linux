@@ -21373,7 +21373,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 	struct lpfc_sglq *sglq;
 	struct lpfc_sli_ring *pring;
 	unsigned long iflags;
-	uint32_t ret = 0;
+	int ret = 0;
 
 	/* NVME_LS and NVME_LS ABTS requests. */
 	if (pwqe->cmd_flag & LPFC_IO_NVME_LS) {
