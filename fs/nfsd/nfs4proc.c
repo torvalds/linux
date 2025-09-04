@@ -2526,6 +2526,7 @@ static __be32
 nfsd4_layoutcommit(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *cstate, union nfsd4_op_u *u)
 {
+	struct net *net = SVC_NET(rqstp);
 	struct nfsd4_layoutcommit *lcp = &u->layoutcommit;
 	const struct nfsd4_layout_seg *seg = &lcp->lc_seg;
 	struct svc_fh *current_fh = &cstate->current_fh;
@@ -2561,23 +2562,34 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 		}
 	}
 
-	nfserr = nfsd4_preprocess_layout_stateid(rqstp, cstate, &lcp->lc_sid,
-						false, lcp->lc_layout_type,
-						&ls);
-	if (nfserr) {
-		trace_nfsd_layout_commit_lookup_fail(&lcp->lc_sid);
-		/* fixup error code as per RFC5661 */
-		if (nfserr == nfserr_bad_stateid)
-			nfserr = nfserr_badlayout;
+	nfserr = nfserr_grace;
+	if (locks_in_grace(net) && !lcp->lc_reclaim)
 		goto out;
+	nfserr = nfserr_no_grace;
+	if (!locks_in_grace(net) && lcp->lc_reclaim)
+		goto out;
+
+	if (!lcp->lc_reclaim) {
+		nfserr = nfsd4_preprocess_layout_stateid(rqstp, cstate,
+				&lcp->lc_sid, false, lcp->lc_layout_type, &ls);
+		if (nfserr) {
+			trace_nfsd_layout_commit_lookup_fail(&lcp->lc_sid);
+			/* fixup error code as per RFC5661 */
+			if (nfserr == nfserr_bad_stateid)
+				nfserr = nfserr_badlayout;
+			goto out;
+		}
+
+		/* LAYOUTCOMMIT does not require any serialization */
+		mutex_unlock(&ls->ls_mutex);
 	}
 
-	/* LAYOUTCOMMIT does not require any serialization */
-	mutex_unlock(&ls->ls_mutex);
-
 	nfserr = ops->proc_layoutcommit(inode, rqstp, lcp);
-	nfsd4_file_mark_deleg_written(ls->ls_stid.sc_file);
-	nfs4_put_stid(&ls->ls_stid);
+
+	if (!lcp->lc_reclaim) {
+		nfsd4_file_mark_deleg_written(ls->ls_stid.sc_file);
+		nfs4_put_stid(&ls->ls_stid);
+	}
 out:
 	return nfserr;
 }
