@@ -204,6 +204,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 
 	/* Make sure that the stack is quadword aligned. */
 	cgctx.stack_size = round_up(fp->aux->stack_depth, 16);
+	cgctx.arena_vm_start = bpf_arena_get_kern_vm_start(fp->aux->arena);
 
 	/* Scouting faux-generate pass 0 */
 	if (bpf_jit_build_body(fp, NULL, NULL, &cgctx, addrs, 0, false)) {
@@ -326,7 +327,7 @@ out:
  */
 int bpf_add_extable_entry(struct bpf_prog *fp, u32 *image, u32 *fimage, int pass,
 			  struct codegen_context *ctx, int insn_idx, int jmp_off,
-			  int dst_reg)
+			  int dst_reg, u32 code)
 {
 	off_t offset;
 	unsigned long pc;
@@ -355,6 +356,9 @@ int bpf_add_extable_entry(struct bpf_prog *fp, u32 *image, u32 *fimage, int pass
 		(ctx->exentry_idx * BPF_FIXUP_LEN * 4);
 
 	fixup[0] = PPC_RAW_LI(dst_reg, 0);
+	if (BPF_CLASS(code) == BPF_ST || BPF_CLASS(code) == BPF_STX)
+		fixup[0] = PPC_RAW_NOP();
+
 	if (IS_ENABLED(CONFIG_PPC32))
 		fixup[1] = PPC_RAW_LI(dst_reg - 1, 0); /* clear higher 32-bit register too */
 
@@ -579,7 +583,7 @@ static void bpf_trampoline_setup_tail_call_cnt(u32 *image, struct codegen_contex
 {
 	if (IS_ENABLED(CONFIG_PPC64)) {
 		/* See bpf_jit_stack_tailcallcnt() */
-		int tailcallcnt_offset = 6 * 8;
+		int tailcallcnt_offset = 7 * 8;
 
 		EMIT(PPC_RAW_LL(_R3, _R1, func_frame_offset - tailcallcnt_offset));
 		EMIT(PPC_RAW_STL(_R3, _R1, -tailcallcnt_offset));
@@ -594,7 +598,7 @@ static void bpf_trampoline_restore_tail_call_cnt(u32 *image, struct codegen_cont
 {
 	if (IS_ENABLED(CONFIG_PPC64)) {
 		/* See bpf_jit_stack_tailcallcnt() */
-		int tailcallcnt_offset = 6 * 8;
+		int tailcallcnt_offset = 7 * 8;
 
 		EMIT(PPC_RAW_LL(_R3, _R1, -tailcallcnt_offset));
 		EMIT(PPC_RAW_STL(_R3, _R1, func_frame_offset - tailcallcnt_offset));
