@@ -444,39 +444,50 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
 	struct amdgpu_ras_eeprom_table_ras_info *rai = &control->tbl_rai;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	u32 erase_res = 0;
 	u8 csum;
 	int res;
 
 	mutex_lock(&control->ras_tbl_mutex);
 
-	hdr->header = RAS_TABLE_HDR_VAL;
-	amdgpu_ras_set_eeprom_table_version(control);
+	if (!amdgpu_ras_smu_eeprom_supported(adev)) {
+		hdr->header = RAS_TABLE_HDR_VAL;
+		amdgpu_ras_set_eeprom_table_version(control);
 
-	if (hdr->version >= RAS_TABLE_VER_V2_1) {
-		hdr->first_rec_offset = RAS_RECORD_START_V2_1;
-		hdr->tbl_size = RAS_TABLE_HEADER_SIZE +
-				RAS_TABLE_V2_1_INFO_SIZE;
-		rai->rma_status = GPU_HEALTH_USABLE;
-		/**
-		 * GPU health represented as a percentage.
-		 * 0 means worst health, 100 means fully health.
-		 */
-		rai->health_percent = 100;
-		/* ecc_page_threshold = 0 means disable bad page retirement */
-		rai->ecc_page_threshold = con->bad_page_cnt_threshold;
+		if (hdr->version >= RAS_TABLE_VER_V2_1) {
+			hdr->first_rec_offset = RAS_RECORD_START_V2_1;
+			hdr->tbl_size = RAS_TABLE_HEADER_SIZE +
+					RAS_TABLE_V2_1_INFO_SIZE;
+			rai->rma_status = GPU_HEALTH_USABLE;
+			/**
+			 * GPU health represented as a percentage.
+			 * 0 means worst health, 100 means fully health.
+			 */
+			rai->health_percent = 100;
+			/* ecc_page_threshold = 0 means disable bad page retirement */
+			rai->ecc_page_threshold = con->bad_page_cnt_threshold;
+		} else {
+			hdr->first_rec_offset = RAS_RECORD_START;
+			hdr->tbl_size = RAS_TABLE_HEADER_SIZE;
+		}
+
+		csum = __calc_hdr_byte_sum(control);
+		if (hdr->version >= RAS_TABLE_VER_V2_1)
+			csum += __calc_ras_info_byte_sum(control);
+		csum = -csum;
+		hdr->checksum = csum;
+		res = __write_table_header(control);
+		if (!res && hdr->version > RAS_TABLE_VER_V1)
+			res = __write_table_ras_info(control);
 	} else {
-		hdr->first_rec_offset = RAS_RECORD_START;
-		hdr->tbl_size = RAS_TABLE_HEADER_SIZE;
+		res = amdgpu_ras_smu_erase_ras_table(adev, &erase_res);
+		if (res || erase_res) {
+			dev_warn(adev->dev, "RAS EEPROM reset failed, res:%d result:%d",
+										res, erase_res);
+			if (!res)
+				res = -EIO;
+		}
 	}
-
-	csum = __calc_hdr_byte_sum(control);
-	if (hdr->version >= RAS_TABLE_VER_V2_1)
-		csum += __calc_ras_info_byte_sum(control);
-	csum = -csum;
-	hdr->checksum = csum;
-	res = __write_table_header(control);
-	if (!res && hdr->version > RAS_TABLE_VER_V1)
-		res = __write_table_ras_info(control);
 
 	control->ras_num_recs = 0;
 	control->ras_num_bad_pages = 0;
