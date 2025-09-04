@@ -137,6 +137,7 @@ int nfs42_proc_allocate(struct file *filep, loff_t offset, loff_t len)
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_ALLOCATE],
 	};
 	struct inode *inode = file_inode(filep);
+	loff_t oldsize = i_size_read(inode);
 	int err;
 
 	if (!nfs_server_capable(inode, NFS_CAP_ALLOCATE))
@@ -145,7 +146,11 @@ int nfs42_proc_allocate(struct file *filep, loff_t offset, loff_t len)
 	inode_lock(inode);
 
 	err = nfs42_proc_fallocate(&msg, filep, offset, len);
-	if (err == -EOPNOTSUPP)
+
+	if (err == 0)
+		nfs_truncate_last_folio(inode->i_mapping, oldsize,
+					offset + len);
+	else if (err == -EOPNOTSUPP)
 		NFS_SERVER(inode)->caps &= ~(NFS_CAP_ALLOCATE |
 					     NFS_CAP_ZERO_RANGE);
 
@@ -183,6 +188,7 @@ int nfs42_proc_zero_range(struct file *filep, loff_t offset, loff_t len)
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_ZERO_RANGE],
 	};
 	struct inode *inode = file_inode(filep);
+	loff_t oldsize = i_size_read(inode);
 	int err;
 
 	if (!nfs_server_capable(inode, NFS_CAP_ZERO_RANGE))
@@ -191,9 +197,11 @@ int nfs42_proc_zero_range(struct file *filep, loff_t offset, loff_t len)
 	inode_lock(inode);
 
 	err = nfs42_proc_fallocate(&msg, filep, offset, len);
-	if (err == 0)
+	if (err == 0) {
+		nfs_truncate_last_folio(inode->i_mapping, oldsize,
+					offset + len);
 		truncate_pagecache_range(inode, offset, (offset + len) -1);
-	if (err == -EOPNOTSUPP)
+	} else if (err == -EOPNOTSUPP)
 		NFS_SERVER(inode)->caps &= ~NFS_CAP_ZERO_RANGE;
 
 	inode_unlock(inode);

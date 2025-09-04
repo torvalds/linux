@@ -437,6 +437,8 @@ int nfs_file_release(struct inode *, struct file *);
 int nfs_lock(struct file *, int, struct file_lock *);
 int nfs_flock(struct file *, int, struct file_lock *);
 int nfs_check_flags(int);
+void nfs_truncate_last_folio(struct address_space *mapping, loff_t from,
+			     loff_t to);
 
 /* inode.c */
 extern struct workqueue_struct *nfsiod_workqueue;
