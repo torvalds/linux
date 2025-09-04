@@ -76,13 +76,11 @@ doc_begin_func = KernRe(str(doc_com) +			# initial " * '
 # Here begins a long set of transformations to turn structure member prefixes
 # and macro invocations into something we can parse and generate kdoc for.
 #
-struct_attribute = KernRe(r"__attribute__\s*\(\([a-z0-9,_\*\s\(\)]*\)\)",
-                          flags=re.I | re.S, cache=False)
 struct_args_pattern = r'([^,)]+)'
 
 struct_prefixes = [
     # Strip attributes
-    (struct_attribute, ' '),
+    (KernRe(r"__attribute__\s*\(\([a-z0-9,_\*\s\(\)]*\)\)", flags=re.I | re.S, cache=False), ' '),
     (KernRe(r'\s*__aligned\s*\([^;]*\)', re.S), ' '),
     (KernRe(r'\s*__counted_by\s*\([^;]*\)', re.S), ' '),
     (KernRe(r'\s*__counted_by_(le|be)\s*\([^;]*\)', re.S), ' '),
