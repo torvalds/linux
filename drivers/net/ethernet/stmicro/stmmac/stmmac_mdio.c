@@ -248,9 +248,13 @@ static int stmmac_mdio_access(struct stmmac_priv *priv, unsigned int pa,
 	u32 addr;
 	int ret;
 
+	ret = pm_runtime_resume_and_get(priv->device);
+	if (ret < 0)
+		return ret;
+
 	ret = stmmac_mdio_wait(mii_address, MII_BUSY);
 	if (ret)
-		return ret;
+		goto out;
 
 	addr = stmmac_mdio_format_addr(priv, pa, gr) | cmd;
 
@@ -259,10 +263,15 @@ static int stmmac_mdio_access(struct stmmac_priv *priv, unsigned int pa,
 
 	ret = stmmac_mdio_wait(mii_address, MII_BUSY);
 	if (ret)
-		return ret;
+		goto out;
 
 	/* Read the data from the MII data register if in read mode */
-	return read ? readl(mii_data) & MII_DATA_MASK : 0;
+	ret = read ? readl(mii_data) & MII_DATA_MASK : 0;
+
+out:
+	pm_runtime_put(priv->device);
+
+	return ret;
 }
 
 static int stmmac_mdio_read(struct stmmac_priv *priv, unsigned int pa,
@@ -290,23 +299,14 @@ static int stmmac_mdio_write(struct stmmac_priv *priv, unsigned int pa,
 static int stmmac_mdio_read_c22(struct mii_bus *bus, int phyaddr, int phyreg)
 {
 	struct stmmac_priv *priv = netdev_priv(bus->priv);
-	int data = 0;
 	u32 cmd;
-
-	data = pm_runtime_resume_and_get(priv->device);
-	if (data < 0)
-		return data;
 
 	if (priv->plat->has_gmac4)
 		cmd = MII_GMAC4_READ;
 	else
 		cmd = 0;
 
-	data = stmmac_mdio_read(priv, phyaddr, phyreg, cmd, data);
-
-	pm_runtime_put(priv->device);
-
-	return data;
+	return stmmac_mdio_read(priv, phyaddr, phyreg, cmd, 0);
 }
 
 /**
@@ -324,22 +324,10 @@ static int stmmac_mdio_read_c45(struct mii_bus *bus, int phyaddr, int devad,
 				int phyreg)
 {
 	struct stmmac_priv *priv = netdev_priv(bus->priv);
-	int data = 0;
-	u32 cmd;
+	int data = phyreg << MII_GMAC4_REG_ADDR_SHIFT;
+	u32 cmd = MII_GMAC4_READ | MII_GMAC4_C45E;
 
-	data = pm_runtime_resume_and_get(priv->device);
-	if (data < 0)
-		return data;
-
-	cmd = MII_GMAC4_READ | MII_GMAC4_C45E;
-
-	data |= phyreg << MII_GMAC4_REG_ADDR_SHIFT;
-
-	data = stmmac_mdio_read(priv, phyaddr, devad, cmd, data);
-
-	pm_runtime_put(priv->device);
-
-	return data;
+	return stmmac_mdio_read(priv, phyaddr, devad, cmd, data);
 }
 
 /**
@@ -354,23 +342,14 @@ static int stmmac_mdio_write_c22(struct mii_bus *bus, int phyaddr, int phyreg,
 				 u16 phydata)
 {
 	struct stmmac_priv *priv = netdev_priv(bus->priv);
-	int ret, data = phydata;
 	u32 cmd;
-
-	ret = pm_runtime_resume_and_get(priv->device);
-	if (ret < 0)
-		return ret;
 
 	if (priv->plat->has_gmac4)
 		cmd = MII_GMAC4_WRITE;
 	else
 		cmd = MII_WRITE;
 
-	ret = stmmac_mdio_write(priv, phyaddr, phyreg, cmd, data);
-
-	pm_runtime_put(priv->device);
-
-	return ret;
+	return stmmac_mdio_write(priv, phyaddr, phyreg, cmd, phydata);
 }
 
 /**
@@ -386,22 +365,12 @@ static int stmmac_mdio_write_c45(struct mii_bus *bus, int phyaddr,
 				 int devad, int phyreg, u16 phydata)
 {
 	struct stmmac_priv *priv = netdev_priv(bus->priv);
-	int ret, data = phydata;
-	u32 cmd;
-
-	ret = pm_runtime_resume_and_get(priv->device);
-	if (ret < 0)
-		return ret;
-
-	cmd = MII_GMAC4_WRITE | MII_GMAC4_C45E;
+	u32 cmd = MII_GMAC4_WRITE | MII_GMAC4_C45E;
+	int data = phydata;
 
 	data |= phyreg << MII_GMAC4_REG_ADDR_SHIFT;
 
-	ret = stmmac_mdio_write(priv, phyaddr, devad, cmd, data);
-
-	pm_runtime_put(priv->device);
-
-	return ret;
+	return stmmac_mdio_write(priv, phyaddr, devad, cmd, data);
 }
 
 /**
