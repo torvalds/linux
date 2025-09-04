@@ -1386,6 +1386,42 @@ Out:
 	return res == RAS_TABLE_V2_1_INFO_SIZE ? 0 : res;
 }
 
+static int amdgpu_ras_smu_eeprom_init(struct amdgpu_ras_eeprom_control *control)
+{
+	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+	uint64_t local_time;
+	int res;
+
+	ras->is_rma = false;
+
+	if (!__is_ras_eeprom_supported(adev))
+		return 0;
+	mutex_init(&control->ras_tbl_mutex);
+
+	res = amdgpu_ras_smu_get_table_version(adev, &(hdr->version));
+	if (res)
+		return res;
+
+	res = amdgpu_ras_smu_get_badpage_count(adev,
+								&(control->ras_num_recs), 100);
+	if (res)
+		return res;
+
+	local_time = (uint64_t)ktime_get_real_seconds();
+	res = amdgpu_ras_smu_set_timestamp(adev, local_time);
+	if (res)
+		return res;
+
+	control->ras_max_record_count = 4000;
+
+	control->ras_num_mca_recs = 0;
+	control->ras_num_pa_recs = 0;
+
+	return 0;
+}
+
 int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
@@ -1393,6 +1429,9 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 	int res;
+
+	if (amdgpu_ras_smu_eeprom_supported(adev))
+		return amdgpu_ras_smu_eeprom_init(control);
 
 	ras->is_rma = false;
 
