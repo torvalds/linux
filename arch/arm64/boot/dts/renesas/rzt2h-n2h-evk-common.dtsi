@@ -65,8 +65,18 @@
 #endif
 };
 
+&ehci {
+	dr_mode = "otg";
+	status = "okay";
+};
+
 &extal_clk {
 	clock-frequency = <25000000>;
+};
+
+&hsusb {
+	dr_mode = "otg";
+	status = "okay";
 };
 
 &i2c0 {
@@ -75,6 +85,11 @@
 		reg = <0x50>;
 		pagesize = <16>;
 	};
+};
+
+&ohci {
+	dr_mode = "otg";
+	status = "okay";
 };
 
 &pinctrl {
@@ -217,6 +232,13 @@
 	status = "okay";
 };
 #endif
+
+&usb2_phy {
+	pinctrl-0 = <&usb_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
 
 &wdt2 {
 	status = "okay";

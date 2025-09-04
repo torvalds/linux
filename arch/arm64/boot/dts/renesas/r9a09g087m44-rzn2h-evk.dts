@@ -33,6 +33,33 @@
  */
 #define SD1_MICRO_SD	1
 
+/*
+ * USB Pin Configuration:
+ *
+ * This board is equipped with three USB connectors: Type-A (CN7), Mini-B
+ * (CN8), and Micro-AB (CN9). The RZ/N2H SoC has a single USB channel, so
+ * either the USB host interface or the USB function interface can be used,
+ * but not both simultaneously when using the CN7 and CN8 connectors.
+ *
+ * By default, the Type-A (CN7) and Mini-B (CN8) connectors are enabled.
+ * Configure the switches as follows:
+ *   - P02_2 - P02_3 (control signals for USB power supply): DSW2[6] = OFF;
+ *     - P02_2 (used for VBUSEN): DSW14[5] = OFF; DSW14[6] = ON
+ *     - P02_3 (used for USB_OVRCUR): DSW14[1] = OFF; DSW14[2] = ON
+ *   - USB_VBUSIN (used for VBUS of CN8): DSW16[1] = OFF; DSW16[2] = ON
+ *   - USB_VBUSEN (used for USB_HF_VBUSEN): DSW16[3] = OFF; DSW16[4] = ON
+ *
+ * To enable the Micro-AB (CN9) USB OTG connector, set the following macro
+ * to 1 and configure the switches as follows:
+ *   - P02_2 - P02_3 (control signals for USB power supply): DSW2[6] = OFF;
+ *     - P02_2 (used for VBUSEN): DSW14[5] = OFF; DSW14[6] = ON
+ *     - P02_3 (used for USB_OVRCUR): DSW14[1] = OFF; DSW14[2] = ON
+ *   - USB_VBUSIN (used for VBUS for OTG): DSW16[1] = ON; DSW16[2] = OFF
+ *   - USB_VBUSEN (used for USB_OTG_VBUSEN): DSW16[3] = ON; DSW16[4] = OFF
+ *   - USB_EXICEN (used for USB OTG EXICEN): DSW14[3] = OFF; DSW14[4] = ON
+ */
+#define USB_OTG		0
+
 #include "rzt2h-n2h-evk-common.dtsi"
 
 /*
@@ -184,5 +211,19 @@
 	i2c1_pins: i2c1-pins {
 		pinmux = <RZT2H_PORT_PINMUX(3, 3, 0x17)>,
 			 <RZT2H_PORT_PINMUX(3, 4, 0x17)>;
+	};
+
+#if USB_OTG
+	usb-exicen-hog {
+		gpio-hog;
+		gpios = <RZT2H_GPIO(2, 4) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "usb_exicen_a";
+	};
+#endif
+
+	usb_pins: usb-pins {
+		pinmux = <RZT2H_PORT_PINMUX(2, 2, 0x13)>, /* VBUSEN */
+			 <RZT2H_PORT_PINMUX(2, 3, 0x13)>; /* OVRCUR */
 	};
 };

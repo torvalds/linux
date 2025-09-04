@@ -29,6 +29,28 @@
  */
 #define SD1_MICRO_SD	1
 
+/*
+ * USB Pin Configuration:
+ *
+ * This board is equipped with three USB connectors: Type-A (CN80), Mini-B
+ * (CN79), and Micro-AB (CN33). The RZ/T2H SoC has a single USB channel, so
+ * either the USB host interface or the USB function interface can be used,
+ * but not both simultaneously when using the CN79 and CN80 connectors.
+ *
+ * By default, the Type-A (CN80) and Mini-B (CN79) connectors are enabled.
+ * Configure the switches as follows:
+ *   - P00_0 - P00_2 (control signals for USB power supply): SW1[5] = ON
+ *   - USB_VBUSIN (used for USB function): SW7[7] = OFF; SW7[8] = ON
+ *   - USB_VBUSEN (used for USB_HF_VBUSEN): SW7[9] = OFF; SW7[10] = ON
+ *
+ * To enable the Micro-AB (CN33) USB OTG connector, set the following macro
+ * to 1 and configure the switches as follows:
+ *   - P00_0 - P00_2 (control signals for USB power supply): SW1[5] = ON
+ *   - USB_VBUSIN (used for USB OTG): SW7[7] = ON; SW7[8] = OFF
+ *   - USB_VBUSEN (used for USB_OTG_VBUSEN): SW7[9] = ON; SW7[10] = OFF
+ */
+#define USB_OTG		0
+
 #include "rzt2h-n2h-evk-common.dtsi"
 
 / {
@@ -144,5 +166,19 @@
 	i2c1_pins: i2c1-pins {
 		pinmux = <RZT2H_PORT_PINMUX(5, 0, 0x17)>, /* SDA */
 			 <RZT2H_PORT_PINMUX(4, 7, 0x17)>; /* SCL */
+	};
+
+#if USB_OTG
+	usb-exicen-hog {
+		gpio-hog;
+		gpios = <RZT2H_GPIO(0, 2) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "usb_exicen_a";
+	};
+#endif
+
+	usb_pins: usb-pins {
+		pinmux = <RZT2H_PORT_PINMUX(0, 0, 0x13)>, /* VBUSEN */
+			 <RZT2H_PORT_PINMUX(0, 1, 0x13)>; /* OVRCUR */
 	};
 };
