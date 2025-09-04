@@ -2195,6 +2195,12 @@ bool snd_soc_dapm_get_idle_bias(struct snd_soc_dapm_context *dapm)
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_get_idle_bias);
 
+void snd_soc_dapm_set_idle_bias(struct snd_soc_dapm_context *dapm, bool on)
+{
+	dapm->idle_bias = on;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_set_idle_bias);
+
 /*
  * Scan each dapm widget for complete audio path.
  * A complete path is a route that has valid endpoints i.e.:-

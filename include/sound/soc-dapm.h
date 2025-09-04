@@ -663,6 +663,7 @@ struct snd_soc_card *snd_soc_dapm_to_card(struct snd_soc_dapm_context *dapm);
 struct snd_soc_component *snd_soc_dapm_to_component(struct snd_soc_dapm_context *dapm);
 
 bool snd_soc_dapm_get_idle_bias(struct snd_soc_dapm_context *dapm);
+void snd_soc_dapm_set_idle_bias(struct snd_soc_dapm_context *dapm, bool on);
 
 /* dapm path setup */
 int snd_soc_dapm_new_widgets(struct snd_soc_card *card);
