@@ -78,7 +78,7 @@ doc_begin_func = KernRe(str(doc_com) +			# initial " * '
 #
 struct_args_pattern = r'([^,)]+)'
 
-struct_prefixes = [
+struct_xforms = [
     # Strip attributes
     (KernRe(r"__attribute__\s*\(\([a-z0-9,_\*\s\(\)]*\)\)", flags=re.I | re.S, cache=False), ' '),
     (KernRe(r'\s*__aligned\s*\([^;]*\)', re.S), ' '),
@@ -165,33 +165,39 @@ struct_nested_prefixes = [
 # Transforms for function prototypes
 #
 function_xforms  = [
-    (r"^static +", "", 0),
-    (r"^extern +", "", 0),
-    (r"^asmlinkage +", "", 0),
-    (r"^inline +", "", 0),
-    (r"^__inline__ +", "", 0),
-    (r"^__inline +", "", 0),
-    (r"^__always_inline +", "", 0),
-    (r"^noinline +", "", 0),
-    (r"^__FORTIFY_INLINE +", "", 0),
-    (r"__init +", "", 0),
-    (r"__init_or_module +", "", 0),
-    (r"__deprecated +", "", 0),
-    (r"__flatten +", "", 0),
-    (r"__meminit +", "", 0),
-    (r"__must_check +", "", 0),
-    (r"__weak +", "", 0),
-    (r"__sched +", "", 0),
-    (r"_noprof", "", 0),
-    (r"__printf\s*\(\s*\d*\s*,\s*\d*\s*\) +", "", 0),
-    (r"__(?:re)?alloc_size\s*\(\s*\d+\s*(?:,\s*\d+\s*)?\) +", "", 0),
-    (r"__diagnose_as\s*\(\s*\S+\s*(?:,\s*\d+\s*)*\) +", "", 0),
-    (r"DECL_BUCKET_PARAMS\s*\(\s*(\S+)\s*,\s*(\S+)\s*\)", r"\1, \2", 0),
-    (r"__attribute_const__ +", "", 0),
-    (r"__attribute__\s*\(\((?:[\w\s]+(?:\([^)]*\))?\s*,?)+\)\)\s+", "", 0),
+    (KernRe(r"^static +"), ""),
+    (KernRe(r"^extern +"), ""),
+    (KernRe(r"^asmlinkage +"), ""),
+    (KernRe(r"^inline +"), ""),
+    (KernRe(r"^__inline__ +"), ""),
+    (KernRe(r"^__inline +"), ""),
+    (KernRe(r"^__always_inline +"), ""),
+    (KernRe(r"^noinline +"), ""),
+    (KernRe(r"^__FORTIFY_INLINE +"), ""),
+    (KernRe(r"__init +"), ""),
+    (KernRe(r"__init_or_module +"), ""),
+    (KernRe(r"__deprecated +"), ""),
+    (KernRe(r"__flatten +"), ""),
+    (KernRe(r"__meminit +"), ""),
+    (KernRe(r"__must_check +"), ""),
+    (KernRe(r"__weak +"), ""),
+    (KernRe(r"__sched +"), ""),
+    (KernRe(r"_noprof"), ""),
+    (KernRe(r"__printf\s*\(\s*\d*\s*,\s*\d*\s*\) +"), ""),
+    (KernRe(r"__(?:re)?alloc_size\s*\(\s*\d+\s*(?:,\s*\d+\s*)?\) +"), ""),
+    (KernRe(r"__diagnose_as\s*\(\s*\S+\s*(?:,\s*\d+\s*)*\) +"), ""),
+    (KernRe(r"DECL_BUCKET_PARAMS\s*\(\s*(\S+)\s*,\s*(\S+)\s*\)"), r"\1, \2"),
+    (KernRe(r"__attribute_const__ +"), ""),
+    (KernRe(r"__attribute__\s*\(\((?:[\w\s]+(?:\([^)]*\))?\s*,?)+\)\)\s+"), ""),
 ]
 
-
+#
+# Apply a set of transforms to a block of text.
+#
+def apply_transforms(xforms, text):
+    for search, subst in xforms:
+        text = search.sub(subst, text)
+    return text
 
 #
 # A little helper to get rid of excess white space
@@ -807,8 +813,7 @@ class KernelDoc:
         # Go through the list of members applying all of our transformations.
         #
         members = trim_private_members(members)
-        for search, sub in struct_prefixes:
-            members = search.sub(sub, members)
+        members = apply_transforms(struct_xforms, members)
 
         nested = NestedMatch()
         for search, sub in struct_nested_prefixes:
@@ -924,12 +929,10 @@ class KernelDoc:
         func_macro = False
         return_type = ''
         decl_type = 'function'
-
         #
         # Apply the initial transformations.
         #
-        for search, sub, flags in function_xforms:
-            prototype = KernRe(search, flags).sub(sub, prototype)
+        prototype = apply_transforms(function_xforms, prototype)
 
         # Macros are a special case, as they change the prototype format
         new_proto = KernRe(r"^#\s*define\s+").sub("", prototype)
