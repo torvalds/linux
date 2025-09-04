@@ -202,6 +202,14 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 		break;
 	case BR_PKT_UNICAST:
 		dst = br_fdb_find_rcu(br, eth_hdr(skb)->h_dest, vid);
+		if (unlikely(!dst && vid &&
+			     br_opt_get(br, BROPT_FDB_LOCAL_VLAN_0))) {
+			dst = br_fdb_find_rcu(br, eth_hdr(skb)->h_dest, 0);
+			if (dst &&
+			    (!test_bit(BR_FDB_LOCAL, &dst->flags) ||
+			     test_bit(BR_FDB_ADDED_BY_USER, &dst->flags)))
+				dst = NULL;
+		}
 		break;
 	default:
 		break;
