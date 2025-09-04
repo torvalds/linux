@@ -3033,10 +3033,6 @@ void cgroup_procs_write_finish(struct task_struct *task, bool threadgroup_locked
 	put_task_struct(task);
 
 	cgroup_attach_unlock(threadgroup_locked);
-
-	for_each_subsys(ss, ssid)
-		if (ss->post_attach)
-			ss->post_attach();
 }
 
 static void cgroup_print_ss_mask(struct seq_file *seq, u16 ss_mask)
