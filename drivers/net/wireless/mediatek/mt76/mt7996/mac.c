@@ -1253,6 +1253,9 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
 		info = le32_to_cpu(*cur_info);
 		if (info & MT_TXFREE_INFO_PAIR) {
 			struct ieee80211_sta *sta;
+			unsigned long valid_links;
+			struct mt7996_sta *msta;
+			unsigned int id;
 			u16 idx;
 
 			idx = FIELD_GET(MT_TXFREE_INFO_WLAN_ID, info);
@@ -1267,7 +1270,21 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
 			if (!link_sta)
 				goto next;
 
-			mt76_wcid_add_poll(&dev->mt76, wcid);
+			msta = (struct mt7996_sta *)sta->drv_priv;
+			valid_links = sta->valid_links ?: BIT(0);
+
+			/* For MLD STA, add all link's wcid to sta_poll_list */
+			for_each_set_bit(id, &valid_links,
+					 IEEE80211_MLD_MAX_NUM_LINKS) {
+				struct mt7996_sta_link *msta_link;
+
+				msta_link = rcu_dereference(msta->link[id]);
+				if (!msta_link)
+					continue;
+
+				mt76_wcid_add_poll(&dev->mt76,
+						   &msta_link->wcid);
+			}
 next:
 			/* ver 7 has a new DW with pair = 1, skip it */
 			if (ver == 7 && ((void *)(cur_info + 1) < end) &&
