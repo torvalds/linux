@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+/// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 /* af_can.c - Protocol family CAN core module
  *            (used by different CAN protocol modules)
  *
