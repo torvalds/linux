@@ -2182,21 +2182,16 @@ end:
 
 static bool dapm_get_idle_bias(struct snd_soc_dapm_context *dapm)
 {
-	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
-	if (!dapm->idle_bias)
-		return false;
+	if (dapm->idle_bias) {
+		struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
+		unsigned int state = snd_power_get_state(dapm->card->snd_card);
 
-	switch (snd_power_get_state(dapm->card->snd_card)) {
-	case SNDRV_CTL_POWER_D3hot:
-	case SNDRV_CTL_POWER_D3cold:
-		if (component)
+		if ((state == SNDRV_CTL_POWER_D3hot || (state == SNDRV_CTL_POWER_D3cold)) &&
+		    component)
 			return !component->driver->suspend_bias_off;
-		fallthrough;
-	default:
-		break;
 	}
 
-	return true;
+	return dapm->idle_bias;
 }
 
 /*
