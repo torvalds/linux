@@ -3526,7 +3526,7 @@ F:	Documentation/devicetree/bindings/arm/ti/nspire.yaml
 F:	arch/arm/boot/dts/nspire/
 
 ARM/TOSHIBA VISCONTI ARCHITECTURE
-M:	Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+M:	Nobuhiro Iwamatsu <nobuhiro.iwamatsu.x90@mail.toshiba>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwamatsu/linux-visconti.git
@@ -3667,6 +3667,7 @@ F:	drivers/virt/coco/arm-cca-guest/
 F:	drivers/virt/coco/pkvm-guest/
 F:	tools/testing/selftests/arm64/
 X:	arch/arm64/boot/dts/
+X:	arch/arm64/configs/defconfig
 
 ARROW SPEEDCHIPS XRS7000 SERIES ETHERNET SWITCH DRIVER
 M:	George McCollister <george.mccollister@gmail.com>
