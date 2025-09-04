@@ -549,6 +549,7 @@ static const char * const trace_blacklist[] = {
 	"preempt_count_sub",
 	"__rcu_read_lock",
 	"__rcu_read_unlock",
+	"bpf_get_numa_node_id",
 };
 
 static bool skip_entry(char *name)
