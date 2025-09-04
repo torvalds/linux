@@ -423,30 +423,26 @@ class KernelDoc:
 
         param = KernRe(r'[\[\)].*').sub('', param, count=1)
 
-        if dtype == "" and param.endswith("..."):
-            if KernRe(r'\w\.\.\.$').search(param):
-                # For named variable parameters of the form `x...`,
-                # remove the dots
-                param = param[:-3]
-            else:
-                # Handles unnamed variable parameters
-                param = "..."
+        #
+        # Look at various "anonymous type" cases.
+        #
+        if dtype == '':
+            if param.endswith("..."):
+                if len(param) > 3: # there is a name provided, use that
+                    param = param[:-3]
+                if not self.entry.parameterdescs.get(param):
+                    self.entry.parameterdescs[param] = "variable arguments"
 
-            if param not in self.entry.parameterdescs or \
-                not self.entry.parameterdescs[param]:
+            elif (not param) or param == "void":
+                param = "void"
+                self.entry.parameterdescs[param] = "no arguments"
 
-                self.entry.parameterdescs[param] = "variable arguments"
-
-        elif dtype == "" and (not param or param == "void"):
-            param = "void"
-            self.entry.parameterdescs[param] = "no arguments"
-
-        elif dtype == "" and param in ["struct", "union"]:
-            # Handle unnamed (anonymous) union or struct
-            dtype = param
-            param = "{unnamed_" + param + "}"
-            self.entry.parameterdescs[param] = "anonymous\n"
-            self.entry.anon_struct_union = True
+            elif param in ["struct", "union"]:
+                # Handle unnamed (anonymous) union or struct
+                dtype = param
+                param = "{unnamed_" + param + "}"
+                self.entry.parameterdescs[param] = "anonymous\n"
+                self.entry.anon_struct_union = True
 
         # Warn if parameter has no description
         # (but ignore ones starting with # as these are not parameters
