@@ -1499,12 +1499,56 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 	return 0;
 }
 
+static int amdgpu_ras_smu_eeprom_check(struct amdgpu_ras_eeprom_control *control)
+{
+	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	if (!__is_ras_eeprom_supported(adev))
+		return 0;
+
+	control->ras_num_bad_pages = ras->bad_page_num;
+
+	if ((ras->bad_page_cnt_threshold < control->ras_num_bad_pages) &&
+	    amdgpu_bad_page_threshold != 0) {
+		dev_warn(adev->dev,
+			"RAS records:%d exceed threshold:%d\n",
+			control->ras_num_bad_pages, ras->bad_page_cnt_threshold);
+		if ((amdgpu_bad_page_threshold == -1) ||
+			(amdgpu_bad_page_threshold == -2)) {
+			dev_warn(adev->dev,
+				 "Please consult AMD Service Action Guide (SAG) for appropriate service procedures\n");
+		} else {
+			ras->is_rma = true;
+			dev_warn(adev->dev,
+				 "User defined threshold is set, runtime service will be halt when threshold is reached\n");
+		}
+
+		return 0;
+	}
+
+	dev_dbg(adev->dev,
+		"Found existing EEPROM table with %d records",
+		control->ras_num_bad_pages);
+
+	/* Warn if we are at 90% of the threshold or above
+	 */
+	if (10 * control->ras_num_bad_pages >= 9 * ras->bad_page_cnt_threshold)
+		dev_warn(adev->dev, "RAS records:%u exceeds 90%% of threshold:%d",
+				control->ras_num_bad_pages,
+				ras->bad_page_cnt_threshold);
+	return 0;
+}
+
 int amdgpu_ras_eeprom_check(struct amdgpu_ras_eeprom_control *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 	int res = 0;
+
+	if (amdgpu_ras_smu_eeprom_supported(adev))
+		return amdgpu_ras_smu_eeprom_check(control);
 
 	if (!__is_ras_eeprom_supported(adev))
 		return 0;
