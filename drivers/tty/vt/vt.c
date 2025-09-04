@@ -4885,8 +4885,6 @@ static int con_font_set(struct vc_data *vc, const struct console_font_op *op)
 	int size;
 	unsigned int vpitch = op->op == KD_FONT_OP_SET_TALL ? op->height : 32;
 
-	if (vc->vc_mode != KD_TEXT)
-		return -EINVAL;
 	if (!op->data)
 		return -EINVAL;
 	if (op->charcount > max_font_glyphs)
