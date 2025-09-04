@@ -1643,10 +1643,8 @@ static int keembay_build_functions(struct keembay_pinctrl *kpc)
 	new_funcs = devm_krealloc_array(kpc->dev, keembay_funcs,
 					kpc->nfuncs, sizeof(*new_funcs),
 					GFP_KERNEL);
-	if (!new_funcs) {
-		kfree(keembay_funcs);
+	if (!new_funcs)
 		return -ENOMEM;
-	}
 
 	return keembay_add_functions(kpc, new_funcs);
 }
