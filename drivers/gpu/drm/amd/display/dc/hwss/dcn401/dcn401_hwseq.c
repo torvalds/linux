@@ -810,9 +810,12 @@ enum dc_status dcn401_enable_stream_timing(
 	if (dc->hwseq->funcs.PLAT_58856_wa && (!dc_is_dp_signal(stream->signal)))
 		dc->hwseq->funcs.PLAT_58856_wa(context, pipe_ctx);
 
-	/* if we are borrowing from hblank, h_addressable needs to be adjusted */
-	if (dc->debug.enable_hblank_borrow)
-		patched_crtc_timing.h_addressable = patched_crtc_timing.h_addressable + pipe_ctx->hblank_borrow;
+	/* if we are padding, h_addressable needs to be adjusted */
+	if (dc->debug.enable_hblank_borrow) {
+		patched_crtc_timing.h_addressable = patched_crtc_timing.h_addressable + pipe_ctx->dsc_padding_params.dsc_hactive_padding;
+		patched_crtc_timing.h_total = patched_crtc_timing.h_total + pipe_ctx->dsc_padding_params.dsc_htotal_padding;
+		patched_crtc_timing.pix_clk_100hz = pipe_ctx->dsc_padding_params.dsc_pix_clk_100hz;
+	}
 
 	pipe_ctx->stream_res.tg->funcs->program_timing(
 		pipe_ctx->stream_res.tg,

@@ -437,6 +437,13 @@ enum p_state_switch_method {
 	P_STATE_V_BLANK_SUB_VP,
 };
 
+struct dsc_padding_params {
+	/* pixels borrowed from hblank to hactive */
+	uint8_t dsc_hactive_padding;
+	uint32_t dsc_htotal_padding;
+	uint32_t dsc_pix_clk_100hz;
+};
+
 struct pipe_ctx {
 	struct dc_plane_state *plane_state;
 	struct dc_stream_state *stream;
@@ -494,8 +501,7 @@ struct pipe_ctx {
 	/* subvp_index: only valid if the pipe is a SUBVP_MAIN*/
 	uint8_t subvp_index;
 	struct pixel_rate_divider pixel_rate_divider;
-	/* pixels borrowed from hblank to hactive */
-	uint8_t hblank_borrow;
+	struct dsc_padding_params dsc_padding_params;
 	/* next vupdate */
 	uint32_t next_vupdate;
 	uint32_t wait_frame_count;

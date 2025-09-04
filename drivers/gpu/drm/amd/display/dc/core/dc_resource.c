@@ -95,7 +95,6 @@
 #define DC_LOGGER \
 	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
-
 #include "dml2/dml2_wrapper.h"
 
 #define UNABLE_TO_SPLIT -1
@@ -2149,7 +2148,7 @@ int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
 	h_active = timing->h_addressable +
 			timing->h_border_left +
 			timing->h_border_right +
-			otg_master->hblank_borrow;
+			otg_master->dsc_padding_params.dsc_hactive_padding;
 	width = h_active / count;
 
 	if (otg_master->stream_res.tg)
@@ -4267,39 +4266,33 @@ fail:
 	return res;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
+#endif /* CONFIG_DRM_AMD_DC_FP */
+
 /**
- * decide_hblank_borrow - Decides the horizontal blanking borrow value for a given pipe context.
+ * calculate_timing_params_for_dsc_with_padding - Calculates timing parameters for DSC with padding.
  * @pipe_ctx: Pointer to the pipe context structure.
  *
- * This function calculates the horizontal blanking borrow value for a given pipe context based on the
+ * This function calculates the timing parameters for a given pipe context based on the
  * display stream compression (DSC) configuration. If the horizontal active pixels (hactive) are less
- * than the total width of the DSC slices, it sets the hblank_borrow value to the difference. If the
- * total horizontal timing minus the hblank_borrow value is less than 32, it resets the hblank_borrow
+ * than the total width of the DSC slices, it sets the dsc_hactive_padding value to the difference. If the
+ * total horizontal timing minus the dsc_hactive_padding value is less than 32, it resets the dsc_hactive_padding
  * value to 0.
  */
-static void decide_hblank_borrow(struct pipe_ctx *pipe_ctx)
+static void calculate_timing_params_for_dsc_with_padding(struct pipe_ctx *pipe_ctx)
 {
-	uint32_t hactive;
-	uint32_t ceil_slice_width;
 	struct dc_stream_state *stream = NULL;
 
 	if (!pipe_ctx)
 		return;
 
 	stream = pipe_ctx->stream;
+	pipe_ctx->dsc_padding_params.dsc_hactive_padding = 0;
+	pipe_ctx->dsc_padding_params.dsc_htotal_padding = 0;
 
-	if (stream->timing.flags.DSC) {
-		hactive = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+	if (stream)
+		pipe_ctx->dsc_padding_params.dsc_pix_clk_100hz = stream->timing.pix_clk_100hz;
 
-		/* Assume if determined slices does not divide Hactive evenly, Hborrow is needed for padding*/
-		if (hactive % stream->timing.dsc_cfg.num_slices_h != 0) {
-			ceil_slice_width = (hactive / stream->timing.dsc_cfg.num_slices_h) + 1;
-			pipe_ctx->hblank_borrow = ceil_slice_width * stream->timing.dsc_cfg.num_slices_h - hactive;
-
-			if (stream->timing.h_total - hactive - pipe_ctx->hblank_borrow < 32)
-				pipe_ctx->hblank_borrow = 0;
-		}
-	}
 }
 
 /**
@@ -4342,7 +4335,7 @@ enum dc_status dc_validate_global_state(
 
 			/* Decide whether hblank borrow is needed and save it in pipe_ctx */
 			if (dc->debug.enable_hblank_borrow)
-				decide_hblank_borrow(pipe_ctx);
+				calculate_timing_params_for_dsc_with_padding(pipe_ctx);
 
 			if (dc->res_pool->funcs->patch_unknown_plane_state &&
 					pipe_ctx->plane_state &&
