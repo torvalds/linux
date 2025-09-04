@@ -174,6 +174,12 @@ struct device *snd_soc_dapm_to_dev(struct snd_soc_dapm_context *dapm)
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_to_dev);
 
+struct snd_soc_card *snd_soc_dapm_to_card(struct snd_soc_dapm_context *dapm)
+{
+	return dapm->card;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_to_card);
+
 static bool dapm_dirty_widget(struct snd_soc_dapm_widget *w)
 {
 	return !list_empty(&w->dirty);

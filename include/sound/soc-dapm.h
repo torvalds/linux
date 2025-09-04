@@ -661,6 +661,7 @@ int snd_soc_dapm_update_dai(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params, struct snd_soc_dai *dai);
 int snd_soc_dapm_widget_name_cmp(struct snd_soc_dapm_widget *widget, const char *s);
 struct device *snd_soc_dapm_to_dev(struct snd_soc_dapm_context *dapm);
+struct snd_soc_card *snd_soc_dapm_to_card(struct snd_soc_dapm_context *dapm);
 
 /* dapm path setup */
 int snd_soc_dapm_new_widgets(struct snd_soc_card *card);
