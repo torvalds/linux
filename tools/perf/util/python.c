@@ -2187,7 +2187,7 @@ static PyMethodDef perf__methods[] = {
 		.ml_meth  = (PyCFunction) pyrf__parse_metrics,
 		.ml_flags = METH_VARARGS,
 		.ml_doc	  = PyDoc_STR(
-			"Parse a string of metics or metric groups and return an evlist.")
+			"Parse a string of metrics or metric groups and return an evlist.")
 	},
 	{
 		.ml_name  = "pmus",
