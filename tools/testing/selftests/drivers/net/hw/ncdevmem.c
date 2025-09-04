@@ -945,6 +945,10 @@ static int do_server(struct memory_buffer *mem)
 			continue;
 		if (ret < 0) {
 			perror("recvmsg");
+			if (errno == EFAULT) {
+				pr_err("received EFAULT, won't recover");
+				goto err_close_client;
+			}
 			continue;
 		}
 		if (ret == 0) {
