@@ -1425,12 +1425,6 @@ void iwl_mvm_mac_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
-	/* Stop internal MLO scan, if running */
-	mutex_lock(&mvm->mutex);
-	iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_INT_MLO, false);
-	mutex_unlock(&mvm->mutex);
-
-	wiphy_work_cancel(mvm->hw->wiphy, &mvm->trig_link_selection_wk);
 	wiphy_work_flush(mvm->hw->wiphy, &mvm->async_handlers_wiphy_wk);
 	flush_work(&mvm->async_handlers_wk);
 	flush_work(&mvm->add_stream_wk);
@@ -1715,57 +1709,6 @@ static int iwl_mvm_alloc_bcast_mcast_sta(struct iwl_mvm *mvm,
 					IWL_STA_MULTICAST);
 }
 
-static void iwl_mvm_prevent_esr_done_wk(struct wiphy *wiphy,
-					struct wiphy_work *wk)
-{
-	struct iwl_mvm_vif *mvmvif =
-		container_of(wk, struct iwl_mvm_vif, prevent_esr_done_wk.work);
-	struct iwl_mvm *mvm = mvmvif->mvm;
-	struct ieee80211_vif *vif =
-		container_of((void *)mvmvif, struct ieee80211_vif, drv_priv);
-
-	guard(mvm)(mvm);
-	iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_PREVENTION);
-}
-
-static void iwl_mvm_mlo_int_scan_wk(struct wiphy *wiphy, struct wiphy_work *wk)
-{
-	struct iwl_mvm_vif *mvmvif = container_of(wk, struct iwl_mvm_vif,
-						  mlo_int_scan_wk.work);
-	struct ieee80211_vif *vif =
-		container_of((void *)mvmvif, struct ieee80211_vif, drv_priv);
-
-	guard(mvm)(mvmvif->mvm);
-	iwl_mvm_int_mlo_scan(mvmvif->mvm, vif);
-}
-
-static void iwl_mvm_unblock_esr_tpt(struct wiphy *wiphy, struct wiphy_work *wk)
-{
-	struct iwl_mvm_vif *mvmvif =
-		container_of(wk, struct iwl_mvm_vif, unblock_esr_tpt_wk);
-	struct iwl_mvm *mvm = mvmvif->mvm;
-	struct ieee80211_vif *vif =
-		container_of((void *)mvmvif, struct ieee80211_vif, drv_priv);
-
-	guard(mvm)(mvm);
-	iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_TPT);
-}
-
-static void iwl_mvm_unblock_esr_tmp_non_bss(struct wiphy *wiphy,
-					    struct wiphy_work *wk)
-{
-	struct iwl_mvm_vif *mvmvif =
-		container_of(wk, struct iwl_mvm_vif,
-			     unblock_esr_tmp_non_bss_wk.work);
-	struct iwl_mvm *mvm = mvmvif->mvm;
-	struct ieee80211_vif *vif =
-		container_of((void *)mvmvif, struct ieee80211_vif, drv_priv);
-
-	mutex_lock(&mvm->mutex);
-	iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_TMP_NON_BSS);
-	mutex_unlock(&mvm->mutex);
-}
-
 void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 {
 	lockdep_assert_held(&mvm->mutex);
@@ -1777,18 +1720,6 @@ void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 
 	INIT_DELAYED_WORK(&mvmvif->csa_work,
 			  iwl_mvm_channel_switch_disconnect_wk);
-
-	wiphy_delayed_work_init(&mvmvif->prevent_esr_done_wk,
-				iwl_mvm_prevent_esr_done_wk);
-
-	wiphy_delayed_work_init(&mvmvif->mlo_int_scan_wk,
-				iwl_mvm_mlo_int_scan_wk);
-
-	wiphy_work_init(&mvmvif->unblock_esr_tpt_wk,
-			iwl_mvm_unblock_esr_tpt);
-
-	wiphy_delayed_work_init(&mvmvif->unblock_esr_tmp_non_bss_wk,
-				iwl_mvm_unblock_esr_tmp_non_bss);
 }
 
 static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
@@ -1925,16 +1856,6 @@ void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 */
 		flush_work(&mvm->roc_done_wk);
 	}
-
-	wiphy_delayed_work_cancel(mvm->hw->wiphy,
-				  &mvmvif->prevent_esr_done_wk);
-
-	wiphy_delayed_work_cancel(mvm->hw->wiphy,
-				  &mvmvif->mlo_int_scan_wk);
-
-	wiphy_work_cancel(mvm->hw->wiphy, &mvmvif->unblock_esr_tpt_wk);
-	wiphy_delayed_work_cancel(mvm->hw->wiphy,
-				  &mvmvif->unblock_esr_tmp_non_bss_wk);
 
 	cancel_delayed_work_sync(&mvmvif->csa_work);
 }
@@ -4008,21 +3929,6 @@ iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 
 		callbacks->mac_ctxt_changed(mvm, vif, false);
 		iwl_mvm_mei_host_associated(mvm, vif, mvm_sta);
-
-		memset(&mvmvif->last_esr_exit, 0,
-		       sizeof(mvmvif->last_esr_exit));
-
-		iwl_mvm_block_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_TPT, 0);
-
-		/* Block until FW notif will arrive */
-		iwl_mvm_block_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_FW, 0);
-
-		/* when client is authorized (AP station marked as such),
-		 * try to enable the best link(s).
-		 */
-		if (vif->type == NL80211_IFTYPE_STATION &&
-		    !test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
-			iwl_mvm_select_links(mvm, vif);
 	}
 
 	mvm_sta->authorized = true;
@@ -4070,16 +3976,6 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 
 		/* disable beacon filtering */
 		iwl_mvm_disable_beacon_filter(mvm, vif);
-
-		wiphy_delayed_work_cancel(mvm->hw->wiphy,
-					  &mvmvif->prevent_esr_done_wk);
-
-		wiphy_delayed_work_cancel(mvm->hw->wiphy,
-					  &mvmvif->mlo_int_scan_wk);
-
-		wiphy_work_cancel(mvm->hw->wiphy, &mvmvif->unblock_esr_tpt_wk);
-		wiphy_delayed_work_cancel(mvm->hw->wiphy,
-					  &mvmvif->unblock_esr_tmp_non_bss_wk);
 	}
 
 	return 0;
@@ -4920,7 +4816,6 @@ int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       const struct iwl_mvm_roc_ops *ops)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct ieee80211_vif *bss_vif = iwl_mvm_get_bss_vif(mvm);
 	u32 lmac_id;
 	int ret;
 
@@ -4932,13 +4827,6 @@ int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	 * the work it does can complete and we can accept new frames.
 	 */
 	flush_work(&mvm->roc_done_wk);
-
-	if (!IS_ERR_OR_NULL(bss_vif)) {
-		ret = iwl_mvm_block_esr_sync(mvm, bss_vif,
-					     IWL_MVM_ESR_BLOCKED_ROC);
-		if (ret)
-			return ret;
-	}
 
 	guard(mvm)(mvm);
 
@@ -5604,9 +5492,9 @@ static void iwl_mvm_csa_block_txqs(void *data, struct ieee80211_sta *sta)
 }
 
 #define IWL_MAX_CSA_BLOCK_TX 1500
-int iwl_mvm_pre_channel_switch(struct iwl_mvm *mvm,
-			       struct ieee80211_vif *vif,
-			       struct ieee80211_channel_switch *chsw)
+static int iwl_mvm_pre_channel_switch(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_channel_switch *chsw)
 {
 	struct ieee80211_vif *csa_vif;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -5724,9 +5612,9 @@ int iwl_mvm_pre_channel_switch(struct iwl_mvm *mvm,
 	return ret;
 }
 
-static int iwl_mvm_mac_pre_channel_switch(struct ieee80211_hw *hw,
-					  struct ieee80211_vif *vif,
-					  struct ieee80211_channel_switch *chsw)
+int iwl_mvm_mac_pre_channel_switch(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_channel_switch *chsw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 

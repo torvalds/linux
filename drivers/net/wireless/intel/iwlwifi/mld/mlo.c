@@ -735,12 +735,6 @@ iwl_mld_set_link_sel_data(struct iwl_mld *mld,
 	u16 max_grade = 0;
 	unsigned long link_id;
 
-	/*
-	 * TODO: don't select links that weren't discovered in the last scan
-	 * This requires mac80211 (or cfg80211) changes to forward/track when
-	 * a BSS was last updated. cfg80211 already tracks this information but
-	 * it is not exposed within the kernel.
-	 */
 	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
 		struct ieee80211_bss_conf *link_conf =
 			link_conf_dereference_protected(vif, link_id);

@@ -36,4 +36,11 @@ iwl_mld_cleanup_keys_iter(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	key->hw_key_idx = STA_KEY_IDX_INVALID;
 }
 
+void iwl_mld_track_bigtk(struct iwl_mld *mld,
+			 struct ieee80211_vif *vif,
+			 struct ieee80211_key_conf *key, bool add);
+
+bool iwl_mld_beacon_protection_enabled(struct iwl_mld *mld,
+				       struct ieee80211_bss_conf *link);
+
 #endif /* __iwl_mld_key_h__ */

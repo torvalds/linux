@@ -24,6 +24,8 @@
  *					    for BPSK (MCS 0) with 2 spatial
  *					    streams
  * @IWL_TLC_MNG_CFG_FLAGS_EHT_EXTRA_LTF_MSK: enable support for EHT extra LTF
+ * @IWL_TLC_MNG_CFG_FLAGS_UHR_ELR_1_5_MBPS_MSK: support ELR 1.5 Mbps
+ * @IWL_TLC_MNG_CFG_FLAGS_UHR_ELR_3_MBPS_MSK: support ELR 3 Mbps
  */
 enum iwl_tlc_mng_cfg_flags {
 	IWL_TLC_MNG_CFG_FLAGS_STBC_MSK			= BIT(0),
@@ -32,6 +34,8 @@ enum iwl_tlc_mng_cfg_flags {
 	IWL_TLC_MNG_CFG_FLAGS_HE_DCM_NSS_1_MSK		= BIT(3),
 	IWL_TLC_MNG_CFG_FLAGS_HE_DCM_NSS_2_MSK		= BIT(4),
 	IWL_TLC_MNG_CFG_FLAGS_EHT_EXTRA_LTF_MSK		= BIT(6),
+	IWL_TLC_MNG_CFG_FLAGS_UHR_ELR_1_5_MBPS_MSK	= BIT(7),
+	IWL_TLC_MNG_CFG_FLAGS_UHR_ELR_3_MBPS_MSK	= BIT(8),
 };
 
 /**
@@ -199,6 +203,37 @@ struct iwl_tlc_config_cmd_v4 {
 	__le16 max_mpdu_len;
 	__le16 max_tx_op;
 } __packed; /* TLC_MNG_CONFIG_CMD_API_S_VER_4 */
+
+/**
+ * struct iwl_tlc_config_cmd - TLC configuration
+ * @sta_id: station id
+ * @reserved1: reserved
+ * @max_ch_width: max supported channel width from &enum iwl_tlc_mng_cfg_cw
+ * @mode: &enum iwl_tlc_mng_cfg_mode
+ * @chains: bitmask of &enum iwl_tlc_mng_cfg_chains
+ * @sgi_ch_width_supp: bitmap of SGI support per channel width
+ *		       use BIT(&enum iwl_tlc_mng_cfg_cw)
+ * @flags: bitmask of &enum iwl_tlc_mng_cfg_flags
+ * @non_ht_rates: bitmap of supported legacy rates
+ * @ht_rates: bitmap of &enum iwl_tlc_mng_ht_rates, per <nss, channel-width>
+ *	      pair (0 - 80mhz width and below, 1 - 160mhz, 2 - 320mhz).
+ * @max_mpdu_len: max MPDU length, in bytes
+ * @max_tx_op: max TXOP in uSecs for all AC (BK, BE, VO, VI),
+ *	       set zero for no limit.
+ */
+struct iwl_tlc_config_cmd {
+	u8 sta_id;
+	u8 reserved1[3];
+	u8 max_ch_width;
+	u8 mode;
+	u8 chains;
+	u8 sgi_ch_width_supp;
+	__le16 flags;
+	__le16 non_ht_rates;
+	__le32 ht_rates[IWL_TLC_NSS_MAX][IWL_TLC_MCS_PER_BW_NUM_V4];
+	__le16 max_mpdu_len;
+	__le16 max_tx_op;
+} __packed; /* TLC_MNG_CONFIG_CMD_API_S_VER_5 */
 
 /**
  * enum iwl_tlc_update_flags - updated fields

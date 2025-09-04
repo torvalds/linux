@@ -8,20 +8,17 @@
 #include "iwl-prph.h"
 #include "fw/api/txq.h"
 
-/* Highest firmware API version supported */
-#define IWL_DR_UCODE_API_MAX	102
+/* Highest firmware core release supported */
+#define IWL_DR_UCODE_CORE_MAX	99
 
 /* Lowest firmware API version supported */
-#define IWL_DR_UCODE_API_MIN	98
+#define IWL_DR_UCODE_API_MIN	100
 
 /* Memory offsets and lengths */
 #define IWL_DR_SMEM_OFFSET		0x400000
 #define IWL_DR_SMEM_LEN			0xD0000
 
 #define IWL_DR_A_PE_A_FW_PRE		"iwlwifi-dr-a0-pe-a0"
-
-#define IWL_DR_A_PE_A_FW_MODULE_FIRMWARE(api) \
-	IWL_DR_A_PE_A_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_family_base_params iwl_dr_base = {
 	.num_of_queues = 512,
@@ -73,7 +70,7 @@ static const struct iwl_family_base_params iwl_dr_base = {
 		},
 	},
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
-	.ucode_api_max = IWL_DR_UCODE_API_MAX,
+	.ucode_api_max = ENCODE_CORE_AS_API(IWL_DR_UCODE_CORE_MAX),
 	.ucode_api_min = IWL_DR_UCODE_API_MIN,
 };
 
@@ -89,5 +86,5 @@ const struct iwl_mac_cfg iwl_dr_mac_cfg = {
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
 
-MODULE_FIRMWARE(IWL_DR_A_PE_A_FW_MODULE_FIRMWARE(IWL_DR_UCODE_API_MAX));
+IWL_CORE_FW(IWL_DR_A_PE_A_FW_PRE, IWL_DR_UCODE_CORE_MAX);
 
