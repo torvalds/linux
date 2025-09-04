@@ -191,7 +191,7 @@ static void __init remap_idmap_for_lpa2(void)
 	memset(init_pg_dir, 0, (char *)init_pg_end - (char *)init_pg_dir);
 }
 
-static void __init map_fdt(u64 fdt)
+static void *__init map_fdt(u64 fdt)
 {
 	static u8 ptes[INIT_IDMAP_FDT_SIZE] __initdata __aligned(PAGE_SIZE);
 	u64 efdt = fdt + MAX_FDT_SIZE;
@@ -205,6 +205,8 @@ static void __init map_fdt(u64 fdt)
 		  fdt, PAGE_KERNEL, IDMAP_ROOT_LEVEL,
 		  (pte_t *)init_idmap_pg_dir, false, 0);
 	dsb(ishst);
+
+	return (void *)fdt;
 }
 
 /*
@@ -238,15 +240,14 @@ asmlinkage void __init early_map_kernel(u64 boot_status, void *fdt)
 	int root_level = 4 - CONFIG_PGTABLE_LEVELS;
 	int va_bits = VA_BITS;
 	int chosen;
-
-	map_fdt((u64)fdt);
+	void *fdt_mapped = map_fdt((u64)fdt);
 
 	/* Clear BSS and the initial page tables */
 	memset(__bss_start, 0, (char *)init_pg_end - (char *)__bss_start);
 
 	/* Parse the command line for CPU feature overrides */
-	chosen = fdt_path_offset(fdt, chosen_str);
-	init_feature_override(boot_status, fdt, chosen);
+	chosen = fdt_path_offset(fdt_mapped, chosen_str);
+	init_feature_override(boot_status, fdt_mapped, chosen);
 
 	if (IS_ENABLED(CONFIG_ARM64_64K_PAGES) && !cpu_has_lva()) {
 		va_bits = VA_BITS_MIN;
@@ -266,7 +267,7 @@ asmlinkage void __init early_map_kernel(u64 boot_status, void *fdt)
 	 * fill in the high bits from the seed.
 	 */
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
-		u64 kaslr_seed = kaslr_early_init(fdt, chosen);
+		u64 kaslr_seed = kaslr_early_init(fdt_mapped, chosen);
 
 		if (kaslr_seed && kaslr_requires_kpti())
 			arm64_use_ng_mappings = ng_mappings_allowed();
