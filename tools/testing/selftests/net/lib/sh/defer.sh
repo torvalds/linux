@@ -1,6 +1,10 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+# Whether to pause and allow debugging when an executed deferred command has a
+# non-zero exit code.
+: "${DEFER_PAUSE_ON_FAIL:=no}"
+
 # map[(scope_id,track,cleanup_id) -> cleanup_command]
 # track={d=default | p=priority}
 declare -A __DEFER__JOBS
@@ -38,8 +42,20 @@ __defer__run()
 	local track=$1; shift
 	local defer_ix=$1; shift
 	local defer_key=$(__defer__defer_key $track $defer_ix)
+	local ret
 
 	eval ${__DEFER__JOBS[$defer_key]}
+	ret=$?
+
+	if [[ "$DEFER_PAUSE_ON_FAIL" == yes && "$ret" -ne 0 ]]; then
+		echo "Deferred command (track $track index $defer_ix):"
+		echo "	${__DEFER__JOBS[$defer_key]}"
+		echo "... ended with an exit status of $ret"
+		echo "Hit enter to continue, 'q' to quit"
+		read a
+		[[ "$a" == q ]] && exit 1
+	fi
+
 	unset __DEFER__JOBS[$defer_key]
 }
 
