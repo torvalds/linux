@@ -583,8 +583,7 @@ struct snd_soc_dapm_update {
 struct snd_soc_dapm_context {
 	enum snd_soc_bias_level bias_level;
 
-	/* bit field */
-	unsigned int idle_bias_off:1;		/* Use BIAS_OFF instead of STANDBY */
+	bool idle_bias;				/* Use BIAS_OFF instead of STANDBY when false */
 
 	struct device *dev;			/* from parent - for debug */ /* REMOVE ME */
 	struct snd_soc_component *component;	/* parent component */

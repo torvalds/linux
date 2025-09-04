@@ -525,7 +525,7 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	card->dai_link = links;
 
 	/* set idle_bias_off to prevent the core from resuming the card->dev */
-	card->dapm.idle_bias_off = true;
+	card->dapm.idle_bias = false;
 
 	snd_soc_card_set_drvdata(card, cdev);
 

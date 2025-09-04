@@ -2180,23 +2180,23 @@ end:
 		dapm_seq_insert(w, down_list, false);
 }
 
-static bool dapm_idle_bias_off(struct snd_soc_dapm_context *dapm)
+static bool dapm_get_idle_bias(struct snd_soc_dapm_context *dapm)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
-	if (dapm->idle_bias_off)
-		return true;
+	if (!dapm->idle_bias)
+		return false;
 
 	switch (snd_power_get_state(dapm->card->snd_card)) {
 	case SNDRV_CTL_POWER_D3hot:
 	case SNDRV_CTL_POWER_D3cold:
 		if (component)
-			return component->driver->suspend_bias_off;
+			return !component->driver->suspend_bias_off;
 		fallthrough;
 	default:
 		break;
 	}
 
-	return false;
+	return true;
 }
 
 /*
@@ -2224,10 +2224,10 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event,
 	trace_snd_soc_dapm_start(card, event);
 
 	for_each_card_dapms(card, d) {
-		if (dapm_idle_bias_off(d))
-			d->target_bias_level = SND_SOC_BIAS_OFF;
-		else
+		if (dapm_get_idle_bias(d))
 			d->target_bias_level = SND_SOC_BIAS_STANDBY;
+		else
+			d->target_bias_level = SND_SOC_BIAS_OFF;
 	}
 
 	dapm_reset(card);
@@ -2291,7 +2291,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event,
 		if (d->target_bias_level > bias)
 			bias = d->target_bias_level;
 	for_each_card_dapms(card, d)
-		if (!dapm_idle_bias_off(d))
+		if (dapm_get_idle_bias(d))
 			d->target_bias_level = bias;
 
 	trace_snd_soc_dapm_walk_done(card);
@@ -4825,7 +4825,7 @@ void snd_soc_dapm_init(struct snd_soc_dapm_context *dapm,
 
 	if (component) {
 		dapm->dev		= component->dev;
-		dapm->idle_bias_off	= !component->driver->idle_bias_on;
+		dapm->idle_bias		= component->driver->idle_bias_on;
 	} else {
 		dapm->dev		= card->dev;
 	}
