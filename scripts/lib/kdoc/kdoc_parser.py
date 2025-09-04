@@ -161,6 +161,37 @@ struct_nested_prefixes = [
     (re.compile(r'\bSTRUCT_GROUP\('), r'\1'),
 ]
 
+#
+# Transforms for function prototypes
+#
+function_xforms  = [
+    (r"^static +", "", 0),
+    (r"^extern +", "", 0),
+    (r"^asmlinkage +", "", 0),
+    (r"^inline +", "", 0),
+    (r"^__inline__ +", "", 0),
+    (r"^__inline +", "", 0),
+    (r"^__always_inline +", "", 0),
+    (r"^noinline +", "", 0),
+    (r"^__FORTIFY_INLINE +", "", 0),
+    (r"__init +", "", 0),
+    (r"__init_or_module +", "", 0),
+    (r"__deprecated +", "", 0),
+    (r"__flatten +", "", 0),
+    (r"__meminit +", "", 0),
+    (r"__must_check +", "", 0),
+    (r"__weak +", "", 0),
+    (r"__sched +", "", 0),
+    (r"_noprof", "", 0),
+    (r"__printf\s*\(\s*\d*\s*,\s*\d*\s*\) +", "", 0),
+    (r"__(?:re)?alloc_size\s*\(\s*\d+\s*(?:,\s*\d+\s*)?\) +", "", 0),
+    (r"__diagnose_as\s*\(\s*\S+\s*(?:,\s*\d+\s*)*\) +", "", 0),
+    (r"DECL_BUCKET_PARAMS\s*\(\s*(\S+)\s*,\s*(\S+)\s*\)", r"\1, \2", 0),
+    (r"__attribute_const__ +", "", 0),
+    (r"__attribute__\s*\(\((?:[\w\s]+(?:\([^)]*\))?\s*,?)+\)\)\s+", "", 0),
+]
+
+
 
 #
 # A little helper to get rid of excess white space
@@ -894,49 +925,10 @@ class KernelDoc:
         return_type = ''
         decl_type = 'function'
 
-        # Prefixes that would be removed
-        sub_prefixes = [
-            (r"^static +", "", 0),
-            (r"^extern +", "", 0),
-            (r"^asmlinkage +", "", 0),
-            (r"^inline +", "", 0),
-            (r"^__inline__ +", "", 0),
-            (r"^__inline +", "", 0),
-            (r"^__always_inline +", "", 0),
-            (r"^noinline +", "", 0),
-            (r"^__FORTIFY_INLINE +", "", 0),
-            (r"__init +", "", 0),
-            (r"__init_or_module +", "", 0),
-            (r"__deprecated +", "", 0),
-            (r"__flatten +", "", 0),
-            (r"__meminit +", "", 0),
-            (r"__must_check +", "", 0),
-            (r"__weak +", "", 0),
-            (r"__sched +", "", 0),
-            (r"_noprof", "", 0),
-            (r"__printf\s*\(\s*\d*\s*,\s*\d*\s*\) +", "", 0),
-            (r"__(?:re)?alloc_size\s*\(\s*\d+\s*(?:,\s*\d+\s*)?\) +", "", 0),
-            (r"__diagnose_as\s*\(\s*\S+\s*(?:,\s*\d+\s*)*\) +", "", 0),
-            (r"DECL_BUCKET_PARAMS\s*\(\s*(\S+)\s*,\s*(\S+)\s*\)", r"\1, \2", 0),
-            (r"__attribute_const__ +", "", 0),
-
-            # It seems that Python support for re.X is broken:
-            # At least for me (Python 3.13), this didn't work
-#            (r"""
-#              __attribute__\s*\(\(
-#                (?:
-#                    [\w\s]+          # attribute name
-#                    (?:\([^)]*\))?   # attribute arguments
-#                    \s*,?            # optional comma at the end
-#                )+
-#              \)\)\s+
-#             """, "", re.X),
-
-            # So, remove whitespaces and comments from it
-            (r"__attribute__\s*\(\((?:[\w\s]+(?:\([^)]*\))?\s*,?)+\)\)\s+", "", 0),
-        ]
-
-        for search, sub, flags in sub_prefixes:
+        #
+        # Apply the initial transformations.
+        #
+        for search, sub, flags in function_xforms:
             prototype = KernRe(search, flags).sub(sub, prototype)
 
         # Macros are a special case, as they change the prototype format
