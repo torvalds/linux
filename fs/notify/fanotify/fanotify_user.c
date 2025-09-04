@@ -1999,7 +1999,10 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		user_ns = path.mnt->mnt_sb->s_user_ns;
 		obj = path.mnt->mnt_sb;
 	} else if (obj_type == FSNOTIFY_OBJ_TYPE_MNTNS) {
+		ret = -EINVAL;
 		mntns = mnt_ns_from_dentry(path.dentry);
+		if (!mntns)
+			goto path_put_and_out;
 		user_ns = mntns->user_ns;
 		obj = mntns;
 	}
