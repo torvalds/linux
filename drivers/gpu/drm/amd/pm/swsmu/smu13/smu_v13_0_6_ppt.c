@@ -3235,6 +3235,9 @@ static int smu_v13_0_6_post_init(struct smu_context *smu)
 	if (smu_v13_0_6_reset_sdma_is_supported(smu))
 		smu_feature_cap_set(smu, SMU_FEATURE_CAP_ID__SDMA_RESET);
 
+	if (smu_v13_0_6_reset_vcn_is_supported(smu))
+		smu_feature_cap_set(smu, SMU_FEATURE_CAP_ID__VCN_RESET);
+
 	return 0;
 }
 
@@ -3917,7 +3920,6 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.send_rma_reason = smu_v13_0_6_send_rma_reason,
 	.reset_sdma = smu_v13_0_6_reset_sdma,
 	.dpm_reset_vcn = smu_v13_0_6_reset_vcn,
-	.reset_vcn_is_supported = smu_v13_0_6_reset_vcn_is_supported,
 	.post_init = smu_v13_0_6_post_init,
 };
 

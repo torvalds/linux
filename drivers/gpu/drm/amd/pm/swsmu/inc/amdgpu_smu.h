@@ -531,6 +531,7 @@ enum smu_fw_status {
 enum smu_feature_cap_id {
 	SMU_FEATURE_CAP_ID__LINK_RESET = 0,
 	SMU_FEATURE_CAP_ID__SDMA_RESET,
+	SMU_FEATURE_CAP_ID__VCN_RESET,
 	SMU_FEATURE_CAP_ID__COUNT,
 };
 
@@ -1438,10 +1439,6 @@ struct pptable_funcs {
 	 * @reset_vcn: message SMU to soft reset vcn instance.
 	 */
 	int (*dpm_reset_vcn)(struct smu_context *smu, uint32_t inst_mask);
-	/**
-	 * @reset_vcn_is_supported: Check if support resets vcn.
-	 */
-	bool (*reset_vcn_is_supported)(struct smu_context *smu);
 
 	/**
 	 * @get_ecc_table:  message SMU to get ECC INFO table.
