@@ -4828,6 +4828,16 @@ static void convert_custom_brightness(const struct amdgpu_dm_backlight_caps *cap
 	if (!caps->data_points)
 		return;
 
+	/*
+	 * Handle the case where brightness is below the first data point
+	 * Interpolate between (0,0) and (first_signal, first_lum)
+	 */
+	if (brightness < caps->luminance_data[0].input_signal) {
+		lum = DIV_ROUND_CLOSEST(caps->luminance_data[0].luminance * brightness,
+					caps->luminance_data[0].input_signal);
+		goto scale;
+	}
+
 	left = 0;
 	right = caps->data_points - 1;
 	while (left <= right) {
