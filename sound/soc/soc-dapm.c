@@ -165,6 +165,15 @@ static void pop_dbg(struct device *dev, u32 pop_time, const char *fmt, ...)
 	kfree(buf);
 }
 
+struct device *snd_soc_dapm_to_dev(struct snd_soc_dapm_context *dapm)
+{
+	if (dapm->component)
+		return dapm->component->dev;
+
+	return dapm->card->dev;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_to_dev);
+
 static bool dapm_dirty_widget(struct snd_soc_dapm_widget *w)
 {
 	return !list_empty(&w->dirty);
