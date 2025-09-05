@@ -23,6 +23,7 @@ declare -a FILES=(
   "include/linux/const.h"
   "include/vdso/const.h"
   "include/vdso/unaligned.h"
+  "include/linux/gfp_types.h"
   "include/linux/hash.h"
   "include/linux/list-sort.h"
   "include/uapi/linux/hw_breakpoint.h"
