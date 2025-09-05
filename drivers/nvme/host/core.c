@@ -3163,6 +3163,11 @@ static inline bool nvme_admin_ctrl(struct nvme_ctrl *ctrl)
 	return ctrl->cntrltype == NVME_CTRL_ADMIN;
 }
 
+static inline bool nvme_is_io_ctrl(struct nvme_ctrl *ctrl)
+{
+	return !nvme_discovery_ctrl(ctrl) && !nvme_admin_ctrl(ctrl);
+}
+
 static bool nvme_validate_cntlid(struct nvme_subsystem *subsys,
 		struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 {
