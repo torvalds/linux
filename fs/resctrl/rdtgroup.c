@@ -1938,6 +1938,12 @@ static struct rftype res_common_files[] = {
 		.write		= event_filter_write,
 	},
 	{
+		.name		= "mbm_L3_assignments",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= mbm_L3_assignments_show,
+	},
+	{
 		.name		= "mbm_assign_mode",
 		.mode		= 0444,
 		.kf_ops		= &rdtgroup_kf_single_ops,
