@@ -2765,7 +2765,7 @@ static int airoha_pinconf_set(struct pinctrl_dev *pctrl_dev,
 			break;
 		case PIN_CONFIG_OUTPUT_ENABLE:
 		case PIN_CONFIG_INPUT_ENABLE:
-		case PIN_CONFIG_OUTPUT: {
+		case PIN_CONFIG_LEVEL: {
 			bool input = param == PIN_CONFIG_INPUT_ENABLE;
 			int err;
 
@@ -2774,7 +2774,7 @@ static int airoha_pinconf_set(struct pinctrl_dev *pctrl_dev,
 			if (err)
 				return err;
 
-			if (param == PIN_CONFIG_OUTPUT) {
+			if (param == PIN_CONFIG_LEVEL) {
 				err = airoha_pinconf_set_pin_value(pctrl_dev,
 								   pin, !!arg);
 				if (err)

@@ -1700,13 +1700,13 @@ static int npcm7xx_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		else if (param == PIN_CONFIG_BIAS_PULL_DOWN)
 			rc = (!pu && pd);
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 	case PIN_CONFIG_INPUT_ENABLE:
 		ie = ioread32(bank->base + NPCM7XX_GP_N_IEM) & pinmask;
 		oe = ioread32(bank->base + NPCM7XX_GP_N_OE) & pinmask;
 		if (param == PIN_CONFIG_INPUT_ENABLE)
 			rc = (ie && !oe);
-		else if (param == PIN_CONFIG_OUTPUT)
+		else if (param == PIN_CONFIG_LEVEL)
 			rc = (!ie && oe);
 		break;
 	case PIN_CONFIG_DRIVE_PUSH_PULL:
@@ -1765,7 +1765,7 @@ static int npcm7xx_config_set_one(struct npcm7xx_pinctrl *npcm,
 		iowrite32(gpio, bank->base + NPCM7XX_GP_N_OEC);
 		bank->direction_input(&bank->chip.gc, pin % bank->chip.gc.ngpio);
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		bank->direction_output(&bank->chip.gc, pin % bank->chip.gc.ngpio, arg);
 		iowrite32(gpio, bank->base + NPCM7XX_GP_N_OES);
 		break;

@@ -1440,7 +1440,7 @@ static int rp1_pinconf_set(struct pinctrl_dev *pctldev, unsigned int offset,
 			rp1_output_enable(pin, arg);
 			break;
 
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			rp1_set_value(pin, arg);
 			rp1_set_dir(pin, RP1_DIR_OUTPUT);
 			rp1_set_fsel(pin, RP1_FSEL_GPIO);
