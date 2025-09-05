@@ -396,6 +396,8 @@ int resctrl_num_mbm_cntrs_show(struct kernfs_open_file *of, struct seq_file *s, 
 int resctrl_available_mbm_cntrs_show(struct kernfs_open_file *of, struct seq_file *s,
 				     void *v);
 
+void rdtgroup_assign_cntrs(struct rdtgroup *rdtgrp);
+
 #ifdef CONFIG_RESCTRL_FS_PSEUDO_LOCK
 int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp);
 
