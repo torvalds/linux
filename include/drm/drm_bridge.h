@@ -866,13 +866,61 @@ struct drm_bridge_funcs {
 				      struct drm_connector *connector,
 				      bool enable, int direction);
 
+	/**
+	 * @hdmi_cec_init:
+	 *
+	 * Initialize CEC part of the bridge.
+	 *
+	 * This callback is optional, it can be implemented by bridges that
+	 * set the @DRM_BRIDGE_OP_HDMI_CEC_ADAPTER flag in their
+	 * &drm_bridge->ops.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
 	int (*hdmi_cec_init)(struct drm_bridge *bridge,
 			     struct drm_connector *connector);
 
+	/**
+	 * @hdmi_cec_enable:
+	 *
+	 * Enable or disable the CEC adapter inside the bridge.
+	 *
+	 * This callback is optional, it can be implemented by bridges that
+	 * set the @DRM_BRIDGE_OP_HDMI_CEC_ADAPTER flag in their
+	 * &drm_bridge->ops.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
 	int (*hdmi_cec_enable)(struct drm_bridge *bridge, bool enable);
 
+	/**
+	 * @hdmi_cec_log_addr:
+	 *
+	 * Set the logical address of the CEC adapter inside the bridge.
+	 *
+	 * This callback is optional, it can be implemented by bridges that
+	 * set the @DRM_BRIDGE_OP_HDMI_CEC_ADAPTER flag in their
+	 * &drm_bridge->ops.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
 	int (*hdmi_cec_log_addr)(struct drm_bridge *bridge, u8 logical_addr);
 
+	/**
+	 * @hdmi_cec_transmit:
+	 *
+	 * Transmit the message using the CEC adapter inside the bridge.
+	 *
+	 * This callback is optional, it can be implemented by bridges that
+	 * set the @DRM_BRIDGE_OP_HDMI_CEC_ADAPTER flag in their
+	 * &drm_bridge->ops.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
 	int (*hdmi_cec_transmit)(struct drm_bridge *bridge, u8 attempts,
 				 u32 signal_free_time, struct cec_msg *msg);
 

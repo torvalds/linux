@@ -46,6 +46,7 @@ alloc_mid(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 	temp = mempool_alloc(cifs_mid_poolp, GFP_NOFS);
 	memset(temp, 0, sizeof(struct mid_q_entry));
 	kref_init(&temp->refcount);
+	spin_lock_init(&temp->mid_lock);
 	temp->mid = get_mid(smb_buffer);
 	temp->pid = current->pid;
 	temp->command = cpu_to_le16(smb_buffer->Command);
@@ -345,16 +346,15 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	rc = wait_for_response(server, midQ);
 	if (rc != 0) {
 		send_cancel(server, &rqst, midQ);
-		spin_lock(&server->mid_queue_lock);
-		if (midQ->mid_state == MID_REQUEST_SUBMITTED ||
-		    midQ->mid_state == MID_RESPONSE_RECEIVED) {
+		spin_lock(&midQ->mid_lock);
+		if (midQ->callback) {
 			/* no longer considered to be "in-flight" */
 			midQ->callback = release_mid;
-			spin_unlock(&server->mid_queue_lock);
+			spin_unlock(&midQ->mid_lock);
 			add_credits(server, &credits, 0);
 			return rc;
 		}
-		spin_unlock(&server->mid_queue_lock);
+		spin_unlock(&midQ->mid_lock);
 	}
 
 	rc = cifs_sync_mid_result(midQ, server);
@@ -527,15 +527,14 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 		rc = wait_for_response(server, midQ);
 		if (rc) {
 			send_cancel(server, &rqst, midQ);
-			spin_lock(&server->mid_queue_lock);
-			if (midQ->mid_state == MID_REQUEST_SUBMITTED ||
-			    midQ->mid_state == MID_RESPONSE_RECEIVED) {
+			spin_lock(&midQ->mid_lock);
+			if (midQ->callback) {
 				/* no longer considered to be "in-flight" */
 				midQ->callback = release_mid;
-				spin_unlock(&server->mid_queue_lock);
+				spin_unlock(&midQ->mid_lock);
 				return rc;
 			}
-			spin_unlock(&server->mid_queue_lock);
+			spin_unlock(&midQ->mid_lock);
 		}
 
 		/* We got the response - restart system call. */

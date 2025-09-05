@@ -873,6 +873,7 @@ static const struct ad7380_chip_info adaq4381_4_chip_info = {
 	.has_hardware_gain = true,
 	.available_scan_masks = ad7380_4_channel_scan_masks,
 	.timing_specs = &ad7380_4_timing,
+	.max_conversion_rate_hz = 4 * MEGA,
 };
 
 static const struct spi_offload_config ad7380_offload_config = {

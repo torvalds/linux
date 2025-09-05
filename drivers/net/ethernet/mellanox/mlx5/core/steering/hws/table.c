@@ -9,6 +9,7 @@ u32 mlx5hws_table_get_id(struct mlx5hws_table *tbl)
 }
 
 static void hws_table_init_next_ft_attr(struct mlx5hws_table *tbl,
+					u16 uid,
 					struct mlx5hws_cmd_ft_create_attr *ft_attr)
 {
 	ft_attr->type = tbl->fw_ft_type;
@@ -16,7 +17,9 @@ static void hws_table_init_next_ft_attr(struct mlx5hws_table *tbl,
 		ft_attr->level = tbl->ctx->caps->fdb_ft.max_level - 1;
 	else
 		ft_attr->level = tbl->ctx->caps->nic_ft.max_level - 1;
+
 	ft_attr->rtc_valid = true;
+	ft_attr->uid = uid;
 }
 
 static void hws_table_set_cap_attr(struct mlx5hws_table *tbl,
@@ -119,12 +122,12 @@ static int hws_table_connect_to_default_miss_tbl(struct mlx5hws_table *tbl, u32 
 
 int mlx5hws_table_create_default_ft(struct mlx5_core_dev *mdev,
 				    struct mlx5hws_table *tbl,
-				    u32 *ft_id)
+				    u16 uid, u32 *ft_id)
 {
 	struct mlx5hws_cmd_ft_create_attr ft_attr = {0};
 	int ret;
 
-	hws_table_init_next_ft_attr(tbl, &ft_attr);
+	hws_table_init_next_ft_attr(tbl, uid, &ft_attr);
 	hws_table_set_cap_attr(tbl, &ft_attr);
 
 	ret = mlx5hws_cmd_flow_table_create(mdev, &ft_attr, ft_id);
@@ -189,7 +192,10 @@ static int hws_table_init(struct mlx5hws_table *tbl)
 	}
 
 	mutex_lock(&ctx->ctrl_lock);
-	ret = mlx5hws_table_create_default_ft(tbl->ctx->mdev, tbl, &tbl->ft_id);
+	ret = mlx5hws_table_create_default_ft(tbl->ctx->mdev,
+					      tbl,
+					      tbl->uid,
+					      &tbl->ft_id);
 	if (ret) {
 		mlx5hws_err(tbl->ctx, "Failed to create flow table object\n");
 		mutex_unlock(&ctx->ctrl_lock);
@@ -239,6 +245,7 @@ struct mlx5hws_table *mlx5hws_table_create(struct mlx5hws_context *ctx,
 	tbl->ctx = ctx;
 	tbl->type = attr->type;
 	tbl->level = attr->level;
+	tbl->uid = attr->uid;
 
 	ret = hws_table_init(tbl);
 	if (ret) {

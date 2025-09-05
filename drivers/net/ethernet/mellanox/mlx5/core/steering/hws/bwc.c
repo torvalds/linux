@@ -74,9 +74,9 @@ static void hws_bwc_matcher_init_attr(struct mlx5hws_bwc_matcher *bwc_matcher,
 static int
 hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
 {
-	bool move_error = false, poll_error = false, drain_error = false;
 	struct mlx5hws_context *ctx = bwc_matcher->matcher->tbl->ctx;
 	struct mlx5hws_matcher *matcher = bwc_matcher->matcher;
+	int drain_error = 0, move_error = 0, poll_error = 0;
 	u16 bwc_queues = mlx5hws_bwc_queues(ctx);
 	struct mlx5hws_rule_attr rule_attr;
 	struct mlx5hws_bwc_rule *bwc_rule;
@@ -84,6 +84,7 @@ hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
 	struct list_head *rules_list;
 	u32 pending_rules;
 	int i, ret = 0;
+	bool drain;
 
 	mlx5hws_bwc_rule_fill_attr(bwc_matcher, 0, 0, &rule_attr);
 
@@ -99,23 +100,37 @@ hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
 			ret = mlx5hws_matcher_resize_rule_move(matcher,
 							       bwc_rule->rule,
 							       &rule_attr);
-			if (unlikely(ret && !move_error)) {
-				mlx5hws_err(ctx,
-					    "Moving BWC rule: move failed (%d), attempting to move rest of the rules\n",
-					    ret);
-				move_error = true;
+			if (unlikely(ret)) {
+				if (!move_error) {
+					mlx5hws_err(ctx,
+						    "Moving BWC rule: move failed (%d), attempting to move rest of the rules\n",
+						    ret);
+					move_error = ret;
+				}
+				/* Rule wasn't queued, no need to poll */
+				continue;
 			}
 
 			pending_rules++;
+			drain = pending_rules >=
+				hws_bwc_get_burst_th(ctx, rule_attr.queue_id);
 			ret = mlx5hws_bwc_queue_poll(ctx,
 						     rule_attr.queue_id,
 						     &pending_rules,
-						     false);
-			if (unlikely(ret && !poll_error)) {
-				mlx5hws_err(ctx,
-					    "Moving BWC rule: poll failed (%d), attempting to move rest of the rules\n",
-					    ret);
-				poll_error = true;
+						     drain);
+			if (unlikely(ret)) {
+				if (ret == -ETIMEDOUT) {
+					mlx5hws_err(ctx,
+						    "Moving BWC rule: timeout polling for completions (%d), aborting rehash\n",
+						    ret);
+					return ret;
+				}
+				if (!poll_error) {
+					mlx5hws_err(ctx,
+						    "Moving BWC rule: polling for completions failed (%d), attempting to move rest of the rules\n",
+						    ret);
+					poll_error = ret;
+				}
 			}
 		}
 
@@ -126,17 +141,30 @@ hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
 						     rule_attr.queue_id,
 						     &pending_rules,
 						     true);
-			if (unlikely(ret && !drain_error)) {
-				mlx5hws_err(ctx,
-					    "Moving BWC rule: drain failed (%d), attempting to move rest of the rules\n",
-					    ret);
-				drain_error = true;
+			if (unlikely(ret)) {
+				if (ret == -ETIMEDOUT) {
+					mlx5hws_err(ctx,
+						    "Moving bwc rule: timeout draining completions (%d), aborting rehash\n",
+						    ret);
+					return ret;
+				}
+				if (!drain_error) {
+					mlx5hws_err(ctx,
+						    "Moving bwc rule: drain failed (%d), attempting to move rest of the rules\n",
+						    ret);
+					drain_error = ret;
+				}
 			}
 		}
 	}
 
-	if (move_error || poll_error || drain_error)
-		ret = -EINVAL;
+	/* Return the first error that happened */
+	if (unlikely(move_error))
+		return move_error;
+	if (unlikely(poll_error))
+		return poll_error;
+	if (unlikely(drain_error))
+		return drain_error;
 
 	return ret;
 }
@@ -1033,6 +1061,21 @@ int mlx5hws_bwc_rule_create_simple(struct mlx5hws_bwc_rule *bwc_rule,
 		hws_bwc_rule_list_add(bwc_rule, bwc_queue_idx);
 		mutex_unlock(queue_lock);
 		return 0; /* rule inserted successfully */
+	}
+
+	/* Rule insertion could fail due to queue being full, timeout, or
+	 * matcher in resize. In such cases, no point in trying to rehash.
+	 */
+	if (ret == -EBUSY || ret == -ETIMEDOUT || ret == -EAGAIN) {
+		mutex_unlock(queue_lock);
+		mlx5hws_err(ctx,
+			    "BWC rule insertion failed - %s (%d)\n",
+			    ret == -EBUSY ? "queue is full" :
+			    ret == -ETIMEDOUT ? "timeout" :
+			    ret == -EAGAIN ? "matcher in resize" : "N/A",
+			    ret);
+		hws_bwc_rule_cnt_dec(bwc_rule);
+		return ret;
 	}
 
 	/* At this point the rule wasn't added.

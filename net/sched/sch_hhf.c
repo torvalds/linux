@@ -508,9 +508,9 @@ static const struct nla_policy hhf_policy[TCA_HHF_MAX + 1] = {
 static int hhf_change(struct Qdisc *sch, struct nlattr *opt,
 		      struct netlink_ext_ack *extack)
 {
+	unsigned int dropped_pkts = 0, dropped_bytes = 0;
 	struct hhf_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_HHF_MAX + 1];
-	unsigned int qlen, prev_backlog;
 	int err;
 	u64 non_hh_quantum;
 	u32 new_quantum = q->quantum;
@@ -561,15 +561,17 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt,
 			   usecs_to_jiffies(us));
 	}
 
-	qlen = sch->q.qlen;
-	prev_backlog = sch->qstats.backlog;
 	while (sch->q.qlen > sch->limit) {
 		struct sk_buff *skb = qdisc_dequeue_internal(sch, false);
 
+		if (!skb)
+			break;
+
+		dropped_pkts++;
+		dropped_bytes += qdisc_pkt_len(skb);
 		rtnl_kfree_skbs(skb, skb);
 	}
-	qdisc_tree_reduce_backlog(sch, qlen - sch->q.qlen,
-				  prev_backlog - sch->qstats.backlog);
+	qdisc_tree_reduce_backlog(sch, dropped_pkts, dropped_bytes);
 
 	sch_tree_unlock(sch);
 	return 0;
