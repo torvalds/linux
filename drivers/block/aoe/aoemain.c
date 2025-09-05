@@ -44,7 +44,7 @@ aoe_init(void)
 {
 	int ret;
 
-	aoe_wq = alloc_workqueue("aoe_wq", 0, 0);
+	aoe_wq = alloc_workqueue("aoe_wq", WQ_PERCPU, 0);
 	if (!aoe_wq)
 		return -ENOMEM;
 
