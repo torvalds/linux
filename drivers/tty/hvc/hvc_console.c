@@ -184,7 +184,7 @@ static void hvc_console_print(struct console *co, const char *b,
 					hvc_console_flush(cons_ops[index],
 						      vtermnos[index]);
 				}
-			} else if (r > 0) {
+			} else {
 				i -= r;
 				if (i > 0)
 					memmove(c, c+r, i);
