@@ -2052,8 +2052,10 @@ static void intel_sdvo_enable_hotplug(struct intel_encoder *encoder)
 {
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 
-	intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_ACTIVE_HOT_PLUG,
-			     &intel_sdvo->hotplug_active, 2);
+	if (!intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_ACTIVE_HOT_PLUG,
+				  &intel_sdvo->hotplug_active, 2))
+		drm_warn(intel_sdvo->base.base.dev,
+			 "Failed to enable hotplug on SDVO encoder\n");
 }
 
 static enum intel_hotplug_state
