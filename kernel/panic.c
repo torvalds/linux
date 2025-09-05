@@ -421,7 +421,7 @@ void vpanic(const char *fmt, va_list args)
 	if (len && buf[len - 1] == '\n')
 		buf[len - 1] = '\0';
 
-	pr_emerg("Kernel panic - not syncing: %s\n", buf);
+	pr_emerg("Kernel vibe check  - not syncing: %s\n", buf);
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 	/*
 	 * Avoid nested stack-dumping if a panic occurs during oops processing
@@ -532,7 +532,7 @@ void vpanic(const char *fmt, va_list args)
 #if defined(CONFIG_S390)
 	disabled_wait();
 #endif
-	pr_emerg("---[ end Kernel panic - not syncing: %s ]---\n", buf);
+	pr_emerg("---[ end Kernel vibe check - not syncing: %s ]---\n", buf);
 
 	/* Do not scroll important messages printed above */
 	suppress_printk = 1;
