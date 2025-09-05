@@ -1,0 +1,54 @@
+From 14733cc5a0896de29d8f4f25d80bb74793659bb1 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Fri, 27 Sep 2024 15:05:32 +0200
+Subject: [PATCH bpf-next 2/2] selftests: bpf: Add missing per-arch include
+ path
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+To: Andrii Nakryiko <andrii@kernel.org>,
+    Eduard Zingerman <eddyz87@gmail.com>,
+    Mykola Lysenko <mykolal@fb.com>,
+    bpf@vger.kernel.org,
+    netdev@vger.kernel.org
+Cc: linux-kselftest@vger.kernel.org,
+    linux-kernel@vger.kernel.org,
+    linux-riscv@lists.infradead.org,
+    Charlie Jenkins <charlie@rivosinc.com>
+
+The prog_tests programs do not include the per-arch tools include
+path, e.g. tools/arch/riscv/include. Some architectures depend those
+files to build properly.
+
+Include tools/arch/$(SUBARCH)/include in the selftests bpf build.
+
+Fixes: 6d74d178fe6e ("tools: Add riscv barrier implementation")
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/bpf/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tools/testing/selftests/bpf/Makefile b/tools/testing/selftests/bpf/Makefile
+index 365740f24d2e..d6a53afa449f 100644
+--- a/tools/testing/selftests/bpf/Makefile
++++ b/tools/testing/selftests/bpf/Makefile
+@@ -10,6 +10,7 @@ TOOLSDIR := $(abspath ../../..)
+ LIBDIR := $(TOOLSDIR)/lib
+ BPFDIR := $(LIBDIR)/bpf
+ TOOLSINCDIR := $(TOOLSDIR)/include
++TOOLSARCHINCDIR := $(TOOLSDIR)/arch/$(SRCARCH)/include
+ BPFTOOLDIR := $(TOOLSDIR)/bpf/bpftool
+ APIDIR := $(TOOLSINCDIR)/uapi
+ ifneq ($(O),)
+@@ -44,7 +45,7 @@ CFLAGS += -g $(OPT_FLAGS) -rdynamic					\
+ 	  -Wall -Werror -fno-omit-frame-pointer				\
+ 	  $(GENFLAGS) $(SAN_CFLAGS) $(LIBELF_CFLAGS)			\
+ 	  -I$(CURDIR) -I$(INCLUDE_DIR) -I$(GENDIR) -I$(LIBDIR)		\
+-	  -I$(TOOLSINCDIR) -I$(APIDIR) -I$(OUTPUT)
++	  -I$(TOOLSINCDIR) -I$(TOOLSARCHINCDIR) -I$(APIDIR) -I$(OUTPUT)
+ LDFLAGS += $(SAN_LDFLAGS)
+ LDLIBS += $(LIBELF_LIBS) -lz -lrt -lpthread
+ 
+-- 
+2.43.0
+

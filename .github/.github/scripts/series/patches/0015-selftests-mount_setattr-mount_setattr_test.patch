@@ -1,0 +1,47 @@
+From 9db1ec73a41c555846a72d463b9d675c191f37e1 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Tue, 6 May 2025 07:16:55 +0000
+Subject: [PATCH 3/7] selftests: mount_setattr/mount_setattr_test
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Fix build error: Some syscalls wrappers are already included via
+"filesystems" kselftests.
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ .../mount_setattr/mount_setattr_test.c          | 17 -----------------
+ 1 file changed, 17 deletions(-)
+
+diff --git a/tools/testing/selftests/mount_setattr/mount_setattr_test.c b/tools/testing/selftests/mount_setattr/mount_setattr_test.c
+index 48a000cabc97..7b624cbf3c55 100644
+--- a/tools/testing/selftests/mount_setattr/mount_setattr_test.c
++++ b/tools/testing/selftests/mount_setattr/mount_setattr_test.c
+@@ -161,23 +161,6 @@ static inline int sys_mount_setattr(int dfd, const char *path, unsigned int flag
+ 	return syscall(__NR_mount_setattr, dfd, path, flags, attr, size);
+ }
+ 
+-#ifndef OPEN_TREE_CLONE
+-#define OPEN_TREE_CLONE 1
+-#endif
+-
+-#ifndef OPEN_TREE_CLOEXEC
+-#define OPEN_TREE_CLOEXEC O_CLOEXEC
+-#endif
+-
+-#ifndef AT_RECURSIVE
+-#define AT_RECURSIVE 0x8000 /* Apply to the entire subtree */
+-#endif
+-
+-static inline int sys_open_tree(int dfd, const char *filename, unsigned int flags)
+-{
+-	return syscall(__NR_open_tree, dfd, filename, flags);
+-}
+-
+ static ssize_t write_nointr(int fd, const void *buf, size_t count)
+ {
+ 	ssize_t ret;
+-- 
+2.48.1
+

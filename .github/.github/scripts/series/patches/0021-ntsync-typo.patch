@@ -1,0 +1,25 @@
+From 7a2aa1a0420d6b6fae31b6a3cb59965ebca7bb6f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Wed, 14 May 2025 12:27:17 +0000
+Subject: [PATCH] ntsync: typo
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/drivers/ntsync/config | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/testing/selftests/drivers/ntsync/config b/tools/testing/selftests/drivers/ntsync/config
+index 60539c826d06..0aa68de147af 100644
+--- a/tools/testing/selftests/drivers/ntsync/config
++++ b/tools/testing/selftests/drivers/ntsync/config
+@@ -1 +1 @@
+-CONFIG_WINESYNC=y
++CONFIG_NTSYNC=y
+
+base-commit: 9f35e33144ae5377d6a8de86dd3bd4d995c6ac65
+-- 
+2.48.1
+

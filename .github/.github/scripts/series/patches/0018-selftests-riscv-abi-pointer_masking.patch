@@ -1,0 +1,39 @@
+From 427d10dede741757a985e8e5a8128040cba0c328 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Tue, 6 May 2025 07:20:17 +0000
+Subject: [PATCH 6/7] selftests: riscv/abi/pointer_masking
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Fix warning.
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/riscv/abi/pointer_masking.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/tools/testing/selftests/riscv/abi/pointer_masking.c b/tools/testing/selftests/riscv/abi/pointer_masking.c
+index 059d2e87eb1f..4627bb7e6c01 100644
+--- a/tools/testing/selftests/riscv/abi/pointer_masking.c
++++ b/tools/testing/selftests/riscv/abi/pointer_masking.c
+@@ -213,14 +213,14 @@ static void test_tagged_addr_abi_sysctl(void)
+ 
+ 	value = '1';
+ 	if (!pwrite_wrapper(fd, &value, 1, "write '1'"))
+-		ksft_test_result_fail(err_pwrite_msg);
++		ksft_test_result_fail("%s", err_pwrite_msg);
+ 	else
+ 		ksft_test_result(set_tagged_addr_ctrl(min_pmlen, true) == -EINVAL,
+ 				 "sysctl disabled\n");
+ 
+ 	value = '0';
+ 	if (!pwrite_wrapper(fd, &value, 1, "write '0'"))
+-		ksft_test_result_fail(err_pwrite_msg);
++		ksft_test_result_fail("%s", err_pwrite_msg);
+ 	else
+ 		ksft_test_result(set_tagged_addr_ctrl(min_pmlen, true) == 0,
+ 				 "sysctl enabled\n");
+-- 
+2.48.1
+

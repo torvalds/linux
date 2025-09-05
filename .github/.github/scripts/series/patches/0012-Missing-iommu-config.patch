@@ -1,0 +1,29 @@
+From cf68142d04abb6d1c848930bf4b19097497cd924 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Mon, 30 Sep 2024 09:47:56 +0200
+Subject: [PATCH] Missing iommu config
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/iommu/config.riscv64 | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tools/testing/selftests/iommu/config.riscv64 b/tools/testing/selftests/iommu/config.riscv64
+index d218811ccadf..efd7fe60553f 100644
+--- a/tools/testing/selftests/iommu/config.riscv64
++++ b/tools/testing/selftests/iommu/config.riscv64
+@@ -1,4 +1,5 @@
+ # IOMMUFD
++CONFIG_RUNTIME_TESTING_MENU=y
+ CONFIG_IOMMUFD=y
+ CONFIG_VFIO=y
+ CONFIG_VFIO_CONTAINER=n
+
+base-commit: e32cde8d2bd7d251a8f9b434143977ddf13dcec6
+prerequisite-patch-id: 0b6c42032915388333abd2e1fa71082780e474d1
+-- 
+2.43.0
+

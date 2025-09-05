@@ -1,0 +1,31 @@
+From 566f501224c76e10d4b88dbd88720458add6bf3d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Tue, 13 May 2025 10:23:18 +0000
+Subject: [PATCH] Add missing utility script to install target
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/ublk/Makefile | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/tools/testing/selftests/ublk/Makefile b/tools/testing/selftests/ublk/Makefile
+index f34ac0bac696..127ab3f17658 100644
+--- a/tools/testing/selftests/ublk/Makefile
++++ b/tools/testing/selftests/ublk/Makefile
+@@ -29,6 +29,8 @@ TEST_PROGS += test_stress_03.sh
+ TEST_PROGS += test_stress_04.sh
+ TEST_PROGS += test_stress_05.sh
+ 
++TEST_FILES := test_common.sh
++
+ TEST_GEN_PROGS_EXTENDED = kublk
+ 
+ include ../lib.mk
+
+base-commit: e9565e23cd89d4d5cd4388f8742130be1d6f182d
+-- 
+2.48.1
+
