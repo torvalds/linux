@@ -55,16 +55,29 @@ static int __init parse_acpi(char *arg)
 
 	/* "acpi=off" disables both ACPI table parsing and interpreter */
 	if (strcmp(arg, "off") == 0)
+	{
 		param_acpi_off = true;
+	}
 	else if (strcmp(arg, "on") == 0) /* prefer ACPI over DT */
+	{
 		param_acpi_on = true;
+	}
 	else if (strcmp(arg, "force") == 0) /* force ACPI to be enabled */
+	{
 		param_acpi_force = true;
+	}
 	else if (strcmp(arg, "nospcr") == 0) /* disable SPCR as default console */
+	{
 		param_acpi_nospcr = true;
+	}
 	else
+	{
+		char str_buffer[50];
+		snprintf(str_buffer, sizeof(str_buffer), "%s", -EINVAL);
+		pr_err("ACPI ERROR: %s\n", str_buffer);
 		return -EINVAL;	/* Core will print when we return error */
-
+	}
+	// else, return no errors
 	return 0;
 }
 early_param("acpi", parse_acpi);
