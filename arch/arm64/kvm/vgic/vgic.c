@@ -28,7 +28,7 @@ struct vgic_global kvm_vgic_global_state __ro_after_init = {
  *     kvm->arch.config_lock (mutex)
  *       its->cmd_lock (mutex)
  *         its->its_lock (mutex)
- *           vgic_dist->lpi_xa.xa_lock		must be taken with IRQs disabled
+ *           vgic_dist->lpi_xa.xa_lock
  *             vgic_cpu->ap_list_lock		must be taken with IRQs disabled
  *               vgic_irq->irq_lock		must be taken with IRQs disabled
  *
@@ -141,30 +141,29 @@ static __must_check bool vgic_put_irq_norelease(struct kvm *kvm, struct vgic_irq
 void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
-	unsigned long flags;
 
 	if (!__vgic_put_irq(kvm, irq))
 		return;
 
-	xa_lock_irqsave(&dist->lpi_xa, flags);
+	xa_lock(&dist->lpi_xa);
 	vgic_release_lpi_locked(dist, irq);
-	xa_unlock_irqrestore(&dist->lpi_xa, flags);
+	xa_unlock(&dist->lpi_xa);
 }
 
 static void vgic_release_deleted_lpis(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
-	unsigned long flags, intid;
+	unsigned long intid;
 	struct vgic_irq *irq;
 
-	xa_lock_irqsave(&dist->lpi_xa, flags);
+	xa_lock(&dist->lpi_xa);
 
 	xa_for_each(&dist->lpi_xa, intid, irq) {
 		if (irq->pending_release)
 			vgic_release_lpi_locked(dist, irq);
 	}
 
-	xa_unlock_irqrestore(&dist->lpi_xa, flags);
+	xa_unlock(&dist->lpi_xa);
 }
 
 void vgic_flush_pending_lpis(struct kvm_vcpu *vcpu)
