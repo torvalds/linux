@@ -142,6 +142,9 @@ void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 
+	if (irq->intid >= VGIC_MIN_LPI)
+		might_lock(&dist->lpi_xa.xa_lock);
+
 	if (!__vgic_put_irq(kvm, irq))
 		return;
 
