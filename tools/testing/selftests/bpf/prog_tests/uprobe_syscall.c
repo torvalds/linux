@@ -757,34 +757,12 @@ cleanup:
 #define __NR_uprobe 336
 #endif
 
-static void test_uprobe_sigill(void)
+static void test_uprobe_error(void)
 {
-	int status, err, pid;
+	long err = syscall(__NR_uprobe);
 
-	pid = fork();
-	if (!ASSERT_GE(pid, 0, "fork"))
-		return;
-	/* child */
-	if (pid == 0) {
-		asm volatile (
-			"pushq %rax\n"
-			"pushq %rcx\n"
-			"pushq %r11\n"
-			"movq $" __stringify(__NR_uprobe) ", %rax\n"
-			"syscall\n"
-			"popq %r11\n"
-			"popq %rcx\n"
-			"retq\n"
-		);
-		exit(0);
-	}
-
-	err = waitpid(pid, &status, 0);
-	ASSERT_EQ(err, pid, "waitpid");
-
-	/* verify the child got killed with SIGILL */
-	ASSERT_EQ(WIFSIGNALED(status), 1, "WIFSIGNALED");
-	ASSERT_EQ(WTERMSIG(status), SIGILL, "WTERMSIG");
+	ASSERT_EQ(err, -1, "error");
+	ASSERT_EQ(errno, ENXIO, "errno");
 }
 
 static void __test_uprobe_syscall(void)
@@ -805,8 +783,8 @@ static void __test_uprobe_syscall(void)
 		test_uprobe_usdt();
 	if (test__start_subtest("uprobe_race"))
 		test_uprobe_race();
-	if (test__start_subtest("uprobe_sigill"))
-		test_uprobe_sigill();
+	if (test__start_subtest("uprobe_error"))
+		test_uprobe_error();
 	if (test__start_subtest("uprobe_regs_equal"))
 		test_uprobe_regs_equal(false);
 	if (test__start_subtest("regs_change"))
