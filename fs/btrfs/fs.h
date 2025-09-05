@@ -104,6 +104,8 @@ enum {
 	BTRFS_FS_STATE_RO,
 	/* Track if a transaction abort has been reported on this filesystem */
 	BTRFS_FS_STATE_TRANS_ABORTED,
+	/* Track if log replay has failed. */
+	BTRFS_FS_STATE_LOG_REPLAY_ABORTED,
 	/*
 	 * Bio operations should be blocked on this filesystem because a source
 	 * or target device is being destroyed as part of a device replace
