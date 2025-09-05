@@ -47,13 +47,9 @@ static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 		nr_args = IORING_OP_LAST;
 
 	size = struct_size(p, ops, nr_args);
-	p = kzalloc(size, GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
-
-	ret = -EFAULT;
-	if (copy_from_user(p, arg, size))
-		goto out;
+	p = memdup_user(arg, size);
+	if (IS_ERR(p))
+		return PTR_ERR(p);
 	ret = -EINVAL;
 	if (memchr_inv(p, 0, size))
 		goto out;
