@@ -99,26 +99,6 @@ static const struct snmp_mib snmp6_icmp6_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-/* RFC 4293 v6 ICMPMsgStatsTable; named items for RFC 2466 compatibility */
-static const char *const icmp6type2name[256] = {
-	[ICMPV6_DEST_UNREACH] = "DestUnreachs",
-	[ICMPV6_PKT_TOOBIG] = "PktTooBigs",
-	[ICMPV6_TIME_EXCEED] = "TimeExcds",
-	[ICMPV6_PARAMPROB] = "ParmProblems",
-	[ICMPV6_ECHO_REQUEST] = "Echos",
-	[ICMPV6_ECHO_REPLY] = "EchoReplies",
-	[ICMPV6_MGM_QUERY] = "GroupMembQueries",
-	[ICMPV6_MGM_REPORT] = "GroupMembResponses",
-	[ICMPV6_MGM_REDUCTION] = "GroupMembReductions",
-	[ICMPV6_MLD2_REPORT] = "MLDv2Reports",
-	[NDISC_ROUTER_ADVERTISEMENT] = "RouterAdvertisements",
-	[NDISC_ROUTER_SOLICITATION] = "RouterSolicits",
-	[NDISC_NEIGHBOUR_ADVERTISEMENT] = "NeighborAdvertisements",
-	[NDISC_NEIGHBOUR_SOLICITATION] = "NeighborSolicits",
-	[NDISC_REDIRECT] = "Redirects",
-};
-
-
 static const struct snmp_mib snmp6_udp6_list[] = {
 	SNMP_MIB_ITEM("Udp6InDatagrams", UDP_MIB_INDATAGRAMS),
 	SNMP_MIB_ITEM("Udp6NoPorts", UDP_MIB_NOPORTS),
@@ -151,11 +131,31 @@ static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, atomic_long_t *smib)
 
 	/* print by name -- deprecated items */
 	for (i = 0; i < ICMP6MSG_MIB_MAX; i++) {
+		const char *p = NULL;
 		int icmptype;
-		const char *p;
+
+#define CASE(TYP, STR) case TYP: p = STR; break;
 
 		icmptype = i & 0xff;
-		p = icmp6type2name[icmptype];
+		switch (icmptype) {
+/* RFC 4293 v6 ICMPMsgStatsTable; named items for RFC 2466 compatibility */
+		CASE(ICMPV6_DEST_UNREACH,	"DestUnreachs")
+		CASE(ICMPV6_PKT_TOOBIG,		"PktTooBigs")
+		CASE(ICMPV6_TIME_EXCEED,	"TimeExcds")
+		CASE(ICMPV6_PARAMPROB,		"ParmProblems")
+		CASE(ICMPV6_ECHO_REQUEST,	"Echos")
+		CASE(ICMPV6_ECHO_REPLY,		"EchoReplies")
+		CASE(ICMPV6_MGM_QUERY,		"GroupMembQueries")
+		CASE(ICMPV6_MGM_REPORT,		"GroupMembResponses")
+		CASE(ICMPV6_MGM_REDUCTION,	"GroupMembReductions")
+		CASE(ICMPV6_MLD2_REPORT,	"MLDv2Reports")
+		CASE(NDISC_ROUTER_ADVERTISEMENT, "RouterAdvertisements")
+		CASE(NDISC_ROUTER_SOLICITATION, "RouterSolicits")
+		CASE(NDISC_NEIGHBOUR_ADVERTISEMENT, "NeighborAdvertisements")
+		CASE(NDISC_NEIGHBOUR_SOLICITATION, "NeighborSolicits")
+		CASE(NDISC_REDIRECT,		"Redirects")
+		}
+#undef CASE
 		if (!p)	/* don't print un-named types here */
 			continue;
 		snprintf(name, sizeof(name), "Icmp6%s%s",
