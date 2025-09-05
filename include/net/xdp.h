@@ -76,6 +76,11 @@ enum xdp_buff_flags {
 	XDP_FLAGS_FRAGS_PF_MEMALLOC	= BIT(1), /* xdp paged memory is under
 						   * pressure
 						   */
+	/* frags have unreadable mem, this can't be true for real XDP packets,
+	 * but drivers may use XDP helpers to construct Rx pkt state even when
+	 * XDP program is not attached.
+	 */
+	XDP_FLAGS_FRAGS_UNREADABLE	= BIT(2),
 };
 
 struct xdp_buff {
@@ -119,6 +124,11 @@ static __always_inline void xdp_buff_clear_frags_flag(struct xdp_buff *xdp)
 static __always_inline void xdp_buff_set_frag_pfmemalloc(struct xdp_buff *xdp)
 {
 	xdp->flags |= XDP_FLAGS_FRAGS_PF_MEMALLOC;
+}
+
+static __always_inline void xdp_buff_set_frag_unreadable(struct xdp_buff *xdp)
+{
+	xdp->flags |= XDP_FLAGS_FRAGS_UNREADABLE;
 }
 
 static __always_inline u32 xdp_buff_get_skb_flags(const struct xdp_buff *xdp)
@@ -270,6 +280,8 @@ static inline bool xdp_buff_add_frag(struct xdp_buff *xdp, netmem_ref netmem,
 
 	if (unlikely(netmem_is_pfmemalloc(netmem)))
 		xdp_buff_set_frag_pfmemalloc(xdp);
+	if (unlikely(netmem_is_net_iov(netmem)))
+		xdp_buff_set_frag_unreadable(xdp);
 
 	return true;
 }
@@ -350,6 +362,7 @@ xdp_update_skb_frags_info(struct sk_buff *skb, u8 nr_frags,
 	skb->data_len += size;
 	skb->truesize += truesize;
 	skb->pfmemalloc |= !!(xdp_flags & XDP_FLAGS_FRAGS_PF_MEMALLOC);
+	skb->unreadable |= !!(xdp_flags & XDP_FLAGS_FRAGS_UNREADABLE);
 }
 
 /* Avoids inlining WARN macro in fast-path */
