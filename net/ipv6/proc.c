@@ -94,6 +94,7 @@ static const struct snmp_mib snmp6_icmp6_list[] = {
 	SNMP_MIB_ITEM("Icmp6OutMsgs", ICMP6_MIB_OUTMSGS),
 	SNMP_MIB_ITEM("Icmp6OutErrors", ICMP6_MIB_OUTERRORS),
 	SNMP_MIB_ITEM("Icmp6InCsumErrors", ICMP6_MIB_CSUMERRORS),
+/* ICMP6_MIB_RATELIMITHOST needs to be last, see snmp6_dev_seq_show(). */
 	SNMP_MIB_ITEM("Icmp6OutRateLimitHost", ICMP6_MIB_RATELIMITHOST),
 };
 
@@ -242,8 +243,11 @@ static int snmp6_dev_seq_show(struct seq_file *seq, void *v)
 			      snmp6_ipstats_list,
 			      ARRAY_SIZE(snmp6_ipstats_list),
 			      offsetof(struct ipstats_mib, syncp));
+
+	/* Per idev icmp stats do not have ICMP6_MIB_RATELIMITHOST */
 	snmp6_seq_show_item(seq, NULL, idev->stats.icmpv6dev->mibs,
-			    snmp6_icmp6_list, ARRAY_SIZE(snmp6_icmp6_list));
+			    snmp6_icmp6_list, ARRAY_SIZE(snmp6_icmp6_list) - 1);
+
 	snmp6_seq_show_icmpv6msg(seq, idev->stats.icmpv6msgdev->mibs);
 	return 0;
 }
