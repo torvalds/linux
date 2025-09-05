@@ -987,20 +987,14 @@ static int iso_sock_bind_bc(struct socket *sock, struct sockaddr_unsized *addr,
 	return 0;
 }
 
-static int iso_sock_bind_pa_sk(struct sock *sk, struct sockaddr_iso *sa,
+/* Must be called on the locked socket. */
+static int iso_sock_rebind_bis(struct sock *sk, struct sockaddr_iso *sa,
 			       int addr_len)
 {
 	int err = 0;
 
-	if (sk->sk_type != SOCK_SEQPACKET) {
-		err = -EINVAL;
-		goto done;
-	}
-
-	if (addr_len != sizeof(*sa) + sizeof(*sa->iso_bc)) {
-		err = -EINVAL;
-		goto done;
-	}
+	if (!test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags))
+		return -EBADFD;
 
 	if (sa->iso_bc->bc_num_bis > ISO_MAX_NUM_BIS) {
 		err = -EINVAL;
@@ -1023,6 +1017,77 @@ done:
 	return err;
 }
 
+static struct hci_dev *iso_conn_get_hdev(struct iso_conn *conn)
+{
+	struct hci_dev *hdev = NULL;
+
+	iso_conn_lock(conn);
+	if (conn->hcon)
+		hdev = hci_dev_hold(conn->hcon->hdev);
+	iso_conn_unlock(conn);
+
+	return hdev;
+}
+
+/* Must be called on the locked socket. */
+static int iso_sock_rebind_bc(struct sock *sk, struct sockaddr_iso *sa,
+			      int addr_len)
+{
+	struct hci_dev *hdev;
+	struct hci_conn *bis;
+	int err;
+
+	if (sk->sk_type != SOCK_SEQPACKET || !iso_pi(sk)->conn)
+		return -EINVAL;
+
+	/* Check if it is really a Broadcast address being requested */
+	if (addr_len != sizeof(*sa) + sizeof(*sa->iso_bc))
+		return -EINVAL;
+
+	/* Check if the address hasn't changed then perhaps only the number of
+	 * bis has changed.
+	 */
+	if (!bacmp(&iso_pi(sk)->dst, &sa->iso_bc->bc_bdaddr) ||
+	    !bacmp(&sa->iso_bc->bc_bdaddr, BDADDR_ANY))
+		return iso_sock_rebind_bis(sk, sa, addr_len);
+
+	/* Check if the address type is of LE type */
+	if (!bdaddr_type_is_le(sa->iso_bc->bc_bdaddr_type))
+		return -EINVAL;
+
+	hdev = iso_conn_get_hdev(iso_pi(sk)->conn);
+	if (!hdev)
+		return -EINVAL;
+
+	bis = iso_pi(sk)->conn->hcon;
+
+	/* Release the socket before lookups since that requires hci_dev_lock
+	 * which shall not be acquired while holding sock_lock for proper
+	 * ordering.
+	 */
+	release_sock(sk);
+	hci_dev_lock(bis->hdev);
+	lock_sock(sk);
+
+	if (!iso_pi(sk)->conn || iso_pi(sk)->conn->hcon != bis) {
+		/* raced with iso_conn_del() or iso_disconn_sock() */
+		err = -ENOTCONN;
+		goto unlock;
+	}
+
+	BT_DBG("sk %p %pMR type %u", sk, &sa->iso_bc->bc_bdaddr,
+	       sa->iso_bc->bc_bdaddr_type);
+
+	err = hci_past_bis(bis, &sa->iso_bc->bc_bdaddr,
+			   le_addr_type(sa->iso_bc->bc_bdaddr_type));
+
+unlock:
+	hci_dev_unlock(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 static int iso_sock_bind(struct socket *sock, struct sockaddr_unsized *addr,
 			 int addr_len)
 {
@@ -1038,13 +1103,12 @@ static int iso_sock_bind(struct socket *sock, struct sockaddr_unsized *addr,
 
 	lock_sock(sk);
 
-	/* Allow the user to bind a PA sync socket to a number
-	 * of BISes to sync to.
-	 */
-	if ((sk->sk_state == BT_CONNECT2 ||
-	     sk->sk_state == BT_CONNECTED) &&
-	    test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags)) {
-		err = iso_sock_bind_pa_sk(sk, sa, addr_len);
+	if ((sk->sk_state == BT_CONNECT2 || sk->sk_state == BT_CONNECTED) &&
+	    addr_len > sizeof(*sa)) {
+		/* Allow the user to rebind to a different address using
+		 * PAST procedures.
+		 */
+		err = iso_sock_rebind_bc(sk, sa, addr_len);
 		goto done;
 	}
 
