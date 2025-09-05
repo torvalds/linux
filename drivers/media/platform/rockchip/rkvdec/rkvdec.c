@@ -902,6 +902,18 @@ void rkvdec_run_postamble(struct rkvdec_ctx *ctx, struct rkvdec_run *run)
 		v4l2_ctrl_request_complete(src_req, &ctx->ctrl_hdl);
 }
 
+void rkvdec_quirks_disable_qos(struct rkvdec_ctx *ctx)
+{
+	struct rkvdec_dev *rkvdec = ctx->dev;
+	u32 reg;
+
+	/* Set undocumented swreg_block_gating_e field */
+	reg = readl(rkvdec->regs + RKVDEC_REG_QOS_CTRL);
+	reg &= GENMASK(31, 16);
+	reg |= 0xEFFF;
+	writel(reg, rkvdec->regs + RKVDEC_REG_QOS_CTRL);
+}
+
 static void rkvdec_device_run(void *priv)
 {
 	struct rkvdec_ctx *ctx = priv;
@@ -1225,6 +1237,14 @@ static const struct rkvdec_variant rk3288_rkvdec_variant = {
 	.capabilities = RKVDEC_CAPABILITY_HEVC,
 };
 
+static const struct rkvdec_variant rk3328_rkvdec_variant = {
+	.num_regs = 109,
+	.capabilities = RKVDEC_CAPABILITY_HEVC |
+			RKVDEC_CAPABILITY_H264 |
+			RKVDEC_CAPABILITY_VP9,
+	.quirks = RKVDEC_QUIRK_DISABLE_QOS,
+};
+
 static const struct rkvdec_variant rk3399_rkvdec_variant = {
 	.num_regs = 78,
 	.capabilities = RKVDEC_CAPABILITY_HEVC |
@@ -1236,6 +1256,10 @@ static const struct of_device_id of_rkvdec_match[] = {
 	{
 		.compatible = "rockchip,rk3288-vdec",
 		.data = &rk3288_rkvdec_variant,
+	},
+	{
+		.compatible = "rockchip,rk3328-vdec",
+		.data = &rk3328_rkvdec_variant,
 	},
 	{
 		.compatible = "rockchip,rk3399-vdec",
