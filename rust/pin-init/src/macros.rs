@@ -831,6 +831,17 @@ macro_rules! __pin_data {
             $($fields)*
         }
 
+        $crate::__pin_data!(make_pin_projections:
+            @vis($vis),
+            @name($name),
+            @impl_generics($($impl_generics)*),
+            @ty_generics($($ty_generics)*),
+            @decl_generics($($decl_generics)*),
+            @where($($whr)*),
+            @pinned($($pinned)*),
+            @not_pinned($($not_pinned)*),
+        );
+
         // We put the rest into this const item, because it then will not be accessible to anything
         // outside.
         const _: () = {
@@ -979,6 +990,56 @@ macro_rules! __pin_data {
             "Wrong parameters to `#[pin_data]`, expected nothing or `PinnedDrop`, got '{}'.",
             stringify!($($rest)*),
         );
+    };
+    (make_pin_projections:
+        @vis($vis:vis),
+        @name($name:ident),
+        @impl_generics($($impl_generics:tt)*),
+        @ty_generics($($ty_generics:tt)*),
+        @decl_generics($($decl_generics:tt)*),
+        @where($($whr:tt)*),
+        @pinned($($(#[$($p_attr:tt)*])* $pvis:vis $p_field:ident : $p_type:ty),* $(,)?),
+        @not_pinned($($(#[$($attr:tt)*])* $fvis:vis $field:ident : $type:ty),* $(,)?),
+    ) => {
+        $crate::macros::paste! {
+            #[doc(hidden)]
+            $vis struct [< $name Projection >] <'__pin, $($decl_generics)*> {
+                $($(#[$($p_attr)*])* $pvis $p_field : ::core::pin::Pin<&'__pin mut $p_type>,)*
+                $($(#[$($attr)*])* $fvis $field : &'__pin mut $type,)*
+                ___pin_phantom_data: ::core::marker::PhantomData<&'__pin mut ()>,
+            }
+
+            impl<$($impl_generics)*> $name<$($ty_generics)*>
+            where $($whr)*
+            {
+                /// Pin-projects all fields of `Self`.
+                ///
+                /// These fields are structurally pinned:
+                $(#[doc = ::core::concat!(" - `", ::core::stringify!($p_field), "`")])*
+                ///
+                /// These fields are **not** structurally pinned:
+                $(#[doc = ::core::concat!(" - `", ::core::stringify!($field), "`")])*
+                #[inline]
+                $vis fn project<'__pin>(
+                    self: ::core::pin::Pin<&'__pin mut Self>,
+                ) -> [< $name Projection >] <'__pin, $($ty_generics)*> {
+                    // SAFETY: we only give access to `&mut` for fields not structurally pinned.
+                    let this = unsafe { ::core::pin::Pin::get_unchecked_mut(self) };
+                    [< $name Projection >] {
+                        $(
+                            // SAFETY: `$p_field` is structurally pinned.
+                            $(#[$($p_attr)*])*
+                            $p_field : unsafe { ::core::pin::Pin::new_unchecked(&mut this.$p_field) },
+                        )*
+                        $(
+                            $(#[$($attr)*])*
+                            $field : &mut this.$field,
+                        )*
+                        ___pin_phantom_data: ::core::marker::PhantomData,
+                    }
+                }
+            }
+        }
     };
     (make_pin_data:
         @pin_data($pin_data:ident),
