@@ -1796,10 +1796,9 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5e_wqe_frag_info *wi
 
 	if (xdp_buff_has_frags(&mxbuf->xdp)) {
 		/* sinfo->nr_frags is reset by build_skb, calculate again. */
-		xdp_update_skb_shared_info(skb, wi - head_wi - 1,
-					   sinfo->xdp_frags_size, truesize,
-					   xdp_buff_is_frag_pfmemalloc(
-						&mxbuf->xdp));
+		xdp_update_skb_frags_info(skb, wi - head_wi - 1,
+					  sinfo->xdp_frags_size, truesize,
+					  xdp_buff_get_skb_flags(&mxbuf->xdp));
 
 		for (struct mlx5e_wqe_frag_info *pwi = head_wi + 1; pwi < wi; pwi++)
 			pwi->frag_page->frags++;
@@ -2105,10 +2104,10 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 			struct mlx5e_frag_page *pagep;
 
 			/* sinfo->nr_frags is reset by build_skb, calculate again. */
-			xdp_update_skb_shared_info(skb, frag_page - head_page,
-						   sinfo->xdp_frags_size, truesize,
-						   xdp_buff_is_frag_pfmemalloc(
-							&mxbuf->xdp));
+			xdp_update_skb_frags_info(skb, frag_page - head_page,
+						  sinfo->xdp_frags_size,
+						  truesize,
+						  xdp_buff_get_skb_flags(&mxbuf->xdp));
 
 			pagep = head_page;
 			do
@@ -2122,10 +2121,10 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 		if (xdp_buff_has_frags(&mxbuf->xdp)) {
 			struct mlx5e_frag_page *pagep;
 
-			xdp_update_skb_shared_info(skb, sinfo->nr_frags,
-						   sinfo->xdp_frags_size, truesize,
-						   xdp_buff_is_frag_pfmemalloc(
-							&mxbuf->xdp));
+			xdp_update_skb_frags_info(skb, sinfo->nr_frags,
+						  sinfo->xdp_frags_size,
+						  truesize,
+						  xdp_buff_get_skb_flags(&mxbuf->xdp));
 
 			pagep = frag_page - sinfo->nr_frags;
 			do
