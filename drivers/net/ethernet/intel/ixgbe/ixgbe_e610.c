@@ -774,7 +774,7 @@ static void ixgbe_parse_vf_func_caps(struct ixgbe_hw *hw,
  * from parsing capabilities and use this to calculate the number of resources
  * per PF based on the max value passed in.
  *
- * Return: the number of resources per PF or 0, if no PH are available.
+ * Return: the number of resources per PF or 0, if no PFs are available.
  */
 static u32 ixgbe_get_num_per_func(struct ixgbe_hw *hw, u32 max)
 {
