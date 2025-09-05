@@ -286,12 +286,13 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
  * move and different for a BO to BO copy.
  *
  */
-int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
-			       const struct amdgpu_copy_mem *src,
-			       const struct amdgpu_copy_mem *dst,
-			       uint64_t size, bool tmz,
-			       struct dma_resv *resv,
-			       struct dma_fence **f)
+__attribute__((nonnull))
+static int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
+				      const struct amdgpu_copy_mem *src,
+				      const struct amdgpu_copy_mem *dst,
+				      uint64_t size, bool tmz,
+				      struct dma_resv *resv,
+				      struct dma_fence **f)
 {
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 	struct amdgpu_res_cursor src_mm, dst_mm;
@@ -365,9 +366,7 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 	}
 error:
 	mutex_unlock(&adev->mman.gtt_window_lock);
-	if (f)
-		*f = dma_fence_get(fence);
-	dma_fence_put(fence);
+	*f = fence;
 	return r;
 }
 
