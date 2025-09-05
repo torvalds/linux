@@ -173,7 +173,7 @@ Parentheses may be used to override precedence.
 
 The "exists" assertion on line 20 is satisfied if the consumer sees the
 flag ("y") set but the buffer ("x") as not yet filled in, that is, if P1()
-loaded a value from "x" that was equal to 1 but loaded a value from "y"
+loaded a value from "y" that was equal to 1 but loaded a value from "x"
 that was still equal to zero.
 
 This example can be checked by running the following command, which
