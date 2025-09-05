@@ -208,7 +208,7 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 		raw_spin_lock_init(&irq->irq_lock);
 		irq->vcpu = NULL;
 		irq->target_vcpu = vcpu0;
-		kref_init(&irq->refcount);
+		refcount_set(&irq->refcount, 0);
 		switch (dist->vgic_model) {
 		case KVM_DEV_TYPE_ARM_VGIC_V2:
 			irq->targets = 0;
@@ -277,7 +277,7 @@ static int vgic_allocate_private_irqs_locked(struct kvm_vcpu *vcpu, u32 type)
 		irq->intid = i;
 		irq->vcpu = NULL;
 		irq->target_vcpu = vcpu;
-		kref_init(&irq->refcount);
+		refcount_set(&irq->refcount, 0);
 		if (vgic_irq_is_sgi(i)) {
 			/* SGIs */
 			irq->enabled = 1;

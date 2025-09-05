@@ -518,7 +518,7 @@ static struct vgic_irq *__vgic_host_irq_get_vlpi(struct kvm *kvm, int host_irq)
 		if (!irq->hw || irq->host_irq != host_irq)
 			continue;
 
-		if (!vgic_try_get_irq_kref(irq))
+		if (!vgic_try_get_irq_ref(irq))
 			return NULL;
 
 		return irq;

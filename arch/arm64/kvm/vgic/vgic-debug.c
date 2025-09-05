@@ -69,7 +69,7 @@ static int iter_mark_lpis(struct kvm *kvm)
 	int nr_lpis = 0;
 
 	xa_for_each(&dist->lpi_xa, intid, irq) {
-		if (!vgic_try_get_irq_kref(irq))
+		if (!vgic_try_get_irq_ref(irq))
 			continue;
 
 		xa_set_mark(&dist->lpi_xa, intid, LPI_XA_MARK_DEBUG_ITER);

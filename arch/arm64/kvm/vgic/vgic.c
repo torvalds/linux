@@ -71,7 +71,7 @@ static struct vgic_irq *vgic_get_lpi(struct kvm *kvm, u32 intid)
 	rcu_read_lock();
 
 	irq = xa_load(&dist->lpi_xa, intid);
-	if (!vgic_try_get_irq_kref(irq))
+	if (!vgic_try_get_irq_ref(irq))
 		irq = NULL;
 
 	rcu_read_unlock();
@@ -114,15 +114,6 @@ struct vgic_irq *vgic_get_vcpu_irq(struct kvm_vcpu *vcpu, u32 intid)
 	return vgic_get_irq(vcpu->kvm, intid);
 }
 
-/*
- * We can't do anything in here, because we lack the kvm pointer to
- * lock and remove the item from the lpi_list. So we keep this function
- * empty and use the return value of kref_put() to trigger the freeing.
- */
-static void vgic_irq_release(struct kref *ref)
-{
-}
-
 void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
@@ -131,7 +122,7 @@ void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 	if (irq->intid < VGIC_MIN_LPI)
 		return;
 
-	if (!kref_put(&irq->refcount, vgic_irq_release))
+	if (!refcount_dec_and_test(&irq->refcount))
 		return;
 
 	xa_lock_irqsave(&dist->lpi_xa, flags);
@@ -399,7 +390,7 @@ retry:
 	 * now in the ap_list. This is safe as the caller must already hold a
 	 * reference on the irq.
 	 */
-	vgic_get_irq_kref(irq);
+	vgic_get_irq_ref(irq);
 	list_add_tail(&irq->ap_list, &vcpu->arch.vgic_cpu.ap_list_head);
 	irq->vcpu = vcpu;
 
@@ -657,7 +648,7 @@ retry:
 
 			/*
 			 * This vgic_put_irq call matches the
-			 * vgic_get_irq_kref in vgic_queue_irq_unlock,
+			 * vgic_get_irq_ref in vgic_queue_irq_unlock,
 			 * where we added the LPI to the ap_list. As
 			 * we remove the irq from the list, we drop
 			 * also drop the refcount.
