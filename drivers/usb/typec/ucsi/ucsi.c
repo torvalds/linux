@@ -1293,7 +1293,8 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 	if (change & UCSI_CONSTAT_BC_CHANGE)
 		ucsi_port_psy_changed(con);
 
-	if (UCSI_CONSTAT(con, PWR_READING_READY_V2_1)) {
+	if (con->ucsi->version >= UCSI_VERSION_2_1 &&
+	    UCSI_CONSTAT(con, PWR_READING_READY_V2_1)) {
 		curr_scale = UCSI_CONSTAT(con, CURRENT_SCALE_V2_1);
 		volt_scale = UCSI_CONSTAT(con, VOLTAGE_SCALE_V2_1);
 
