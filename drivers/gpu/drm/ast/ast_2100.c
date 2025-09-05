@@ -336,7 +336,7 @@ static void ast_post_chip_2100(struct ast_device *ast)
 				default:
 					data = dram_reg_info->data;
 					break;
-				};
+				}
 
 				temp = ast_read32(ast, 0x12070);
 				temp &= 0xc;
