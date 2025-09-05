@@ -1621,7 +1621,8 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 
 	/* Tie napi to netdev */
 	fbn->napi[fbnic_napi_idx(nv)] = nv;
-	netif_napi_add_locked(fbn->netdev, &nv->napi, fbnic_poll);
+	netif_napi_add_config_locked(fbn->netdev, &nv->napi, fbnic_poll,
+				     fbnic_napi_idx(nv));
 
 	/* Record IRQ to NAPI struct */
 	netif_napi_set_irq_locked(&nv->napi,
