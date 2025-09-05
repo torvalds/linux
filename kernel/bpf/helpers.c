@@ -1594,7 +1594,7 @@ void bpf_timer_cancel_and_free(void *val)
 	 * timer callback.
 	 */
 	if (this_cpu_read(hrtimer_running)) {
-		queue_work(system_unbound_wq, &t->cb.delete_work);
+		queue_work(system_dfl_wq, &t->cb.delete_work);
 		return;
 	}
 
@@ -1607,7 +1607,7 @@ void bpf_timer_cancel_and_free(void *val)
 		if (hrtimer_try_to_cancel(&t->timer) >= 0)
 			kfree_rcu(t, cb.rcu);
 		else
-			queue_work(system_unbound_wq, &t->cb.delete_work);
+			queue_work(system_dfl_wq, &t->cb.delete_work);
 	} else {
 		bpf_timer_delete_work(&t->cb.delete_work);
 	}
