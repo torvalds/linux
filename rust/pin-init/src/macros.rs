@@ -1263,6 +1263,21 @@ macro_rules! __init_internal {
         // have been initialized. Therefore we can now dismiss the guards by forgetting them.
         $(::core::mem::forget($guards);)*
     };
+    (init_slot($($use_data:ident)?):
+        @data($data:ident),
+        @slot($slot:ident),
+        @guards($($guards:ident,)*),
+        // arbitrary code block
+        @munch_fields(_: { $($code:tt)* }, $($rest:tt)*),
+    ) => {
+        { $($code)* }
+        $crate::__init_internal!(init_slot($($use_data)?):
+            @data($data),
+            @slot($slot),
+            @guards($($guards,)*),
+            @munch_fields($($rest)*),
+        );
+    };
     (init_slot($use_data:ident): // `use_data` is present, so we use the `data` to init fields.
         @data($data:ident),
         @slot($slot:ident),
@@ -1357,6 +1372,20 @@ macro_rules! __init_internal {
                 @munch_fields($($rest)*),
             );
         }
+    };
+    (make_initializer:
+        @slot($slot:ident),
+        @type_name($t:path),
+        @munch_fields(_: { $($code:tt)* }, $($rest:tt)*),
+        @acc($($acc:tt)*),
+    ) => {
+        // code blocks are ignored for the initializer check
+        $crate::__init_internal!(make_initializer:
+            @slot($slot),
+            @type_name($t),
+            @munch_fields($($rest)*),
+            @acc($($acc)*),
+        );
     };
     (make_initializer:
         @slot($slot:ident),
