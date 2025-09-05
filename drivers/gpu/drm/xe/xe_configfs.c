@@ -598,7 +598,7 @@ bool xe_configfs_get_psmi_enabled(struct pci_dev *pdev)
 		return false;
 
 	ret = dev->config.enable_psmi;
-	config_item_put(&dev->group.cg_item);
+	config_group_put(&dev->group);
 
 	return ret;
 }
