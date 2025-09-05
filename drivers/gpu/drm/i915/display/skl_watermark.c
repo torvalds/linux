@@ -1388,7 +1388,7 @@ skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
 {
 	u16 size, extra = 0;
 
-	if (data_rate) {
+	if (data_rate && iter->data_rate) {
 		extra = min_t(u16, iter->size,
 			      DIV64_U64_ROUND_UP(iter->size * data_rate,
 						 iter->data_rate));
