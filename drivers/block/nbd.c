@@ -311,7 +311,7 @@ static void nbd_mark_nsock_dead(struct nbd_device *nbd, struct nbd_sock *nsock,
 		if (args) {
 			INIT_WORK(&args->work, nbd_dead_link_work);
 			args->index = nbd->index;
-			queue_work(system_wq, &args->work);
+			queue_work(system_percpu_wq, &args->work);
 		}
 	}
 	if (!nsock->dead) {
