@@ -849,6 +849,7 @@ properties:
 
       - items:
           - enum:
+              - qcom,monaco-evk
               - qcom,qcs8300-ride
           - const: qcom,qcs8300
 
