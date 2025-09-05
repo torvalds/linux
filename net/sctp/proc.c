@@ -52,21 +52,21 @@ static const struct snmp_mib sctp_snmp_list[] = {
 	SNMP_MIB_ITEM("SctpInPktBacklog", SCTP_MIB_IN_PKT_BACKLOG),
 	SNMP_MIB_ITEM("SctpInPktDiscards", SCTP_MIB_IN_PKT_DISCARDS),
 	SNMP_MIB_ITEM("SctpInDataChunkDiscards", SCTP_MIB_IN_DATA_CHUNK_DISCARDS),
-	SNMP_MIB_SENTINEL
 };
 
 /* Display sctp snmp mib statistics(/proc/net/sctp/snmp). */
 static int sctp_snmp_seq_show(struct seq_file *seq, void *v)
 {
-	unsigned long buff[SCTP_MIB_MAX];
+	unsigned long buff[ARRAY_SIZE(sctp_snmp_list)];
+	const int cnt = ARRAY_SIZE(sctp_snmp_list);
 	struct net *net = seq->private;
 	int i;
 
-	memset(buff, 0, sizeof(unsigned long) * SCTP_MIB_MAX);
+	memset(buff, 0, sizeof(buff));
 
-	snmp_get_cpu_field_batch(buff, sctp_snmp_list,
-				 net->sctp.sctp_statistics);
-	for (i = 0; sctp_snmp_list[i].name; i++)
+	snmp_get_cpu_field_batch_cnt(buff, sctp_snmp_list, cnt,
+				     net->sctp.sctp_statistics);
+	for (i = 0; i < cnt; i++)
 		seq_printf(seq, "%-32s\t%ld\n", sctp_snmp_list[i].name,
 						buff[i]);
 
