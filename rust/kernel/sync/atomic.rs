@@ -18,5 +18,7 @@
 
 #[allow(dead_code, unreachable_pub)]
 mod internal;
+pub mod ordering;
 
 pub use internal::AtomicImpl;
+pub use ordering::{Acquire, Full, Relaxed, Release};
