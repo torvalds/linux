@@ -334,8 +334,6 @@ static int intel_hdcp_poll_ksv_fifo(struct intel_digital_port *dig_port,
 		return ret;
 	if (read_ret)
 		return read_ret;
-	if (!ksv_ready)
-		return -ETIMEDOUT;
 
 	return 0;
 }
