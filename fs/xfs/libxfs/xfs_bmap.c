@@ -997,8 +997,7 @@ xfs_bmap_add_attrfork_local(
 static int
 xfs_bmap_set_attrforkoff(
 	struct xfs_inode	*ip,
-	int			size,
-	int			*version)
+	int			size)
 {
 	int			default_size = xfs_default_attroffset(ip) >> 3;
 
@@ -1012,8 +1011,6 @@ xfs_bmap_set_attrforkoff(
 		ip->i_forkoff = xfs_attr_shortform_bytesfit(ip, size);
 		if (!ip->i_forkoff)
 			ip->i_forkoff = default_size;
-		else if (xfs_has_attr2(ip->i_mount) && version)
-			*version = 2;
 		break;
 	default:
 		ASSERT(0);
@@ -1035,7 +1032,6 @@ xfs_bmap_add_attrfork(
 	int			rsvd)		/* xact may use reserved blks */
 {
 	struct xfs_mount	*mp = tp->t_mountp;
-	int			version = 1;	/* superblock attr version */
 	int			logflags;	/* logging flags */
 	int			error;		/* error return value */
 
@@ -1045,7 +1041,7 @@ xfs_bmap_add_attrfork(
 	ASSERT(!xfs_inode_has_attr_fork(ip));
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	error = xfs_bmap_set_attrforkoff(ip, size, &version);
+	error = xfs_bmap_set_attrforkoff(ip, size);
 	if (error)
 		return error;
 
@@ -1069,16 +1065,12 @@ xfs_bmap_add_attrfork(
 		xfs_trans_log_inode(tp, ip, logflags);
 	if (error)
 		return error;
-	if (!xfs_has_attr(mp) ||
-	   (!xfs_has_attr2(mp) && version == 2)) {
+	if (!xfs_has_attr(mp)) {
 		bool log_sb = false;
 
 		spin_lock(&mp->m_sb_lock);
 		if (!xfs_has_attr(mp)) {
 			xfs_add_attr(mp);
-			log_sb = true;
-		}
-		if (!xfs_has_attr2(mp) && version == 2) {
 			xfs_add_attr2(mp);
 			log_sb = true;
 		}
