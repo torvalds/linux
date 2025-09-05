@@ -256,7 +256,7 @@ static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 	skb_reserve(skb, hlen);
 
-	/* set type as fist byte in payload */
+	/* set type as first byte in payload */
 	*(u8 *)skb_put(skb, 1) = addr->smctp_type;
 
 	rc = memcpy_from_msg((void *)skb_put(skb, len), msg, len);
