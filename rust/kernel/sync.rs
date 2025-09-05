@@ -12,6 +12,7 @@ use pin_init;
 mod arc;
 pub mod aref;
 pub mod atomic;
+pub mod barrier;
 pub mod completion;
 mod condvar;
 pub mod lock;
