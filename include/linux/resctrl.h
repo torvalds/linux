@@ -613,6 +613,44 @@ void resctrl_arch_config_cntr(struct rdt_resource *r, struct rdt_mon_domain *d,
 			      enum resctrl_event_id evtid, u32 rmid, u32 closid,
 			      u32 cntr_id, bool assign);
 
+/**
+ * resctrl_arch_cntr_read() - Read the event data corresponding to the counter ID
+ *			      assigned to the RMID, event pair for this resource
+ *			      and domain.
+ * @r:		Resource that the counter should be read from.
+ * @d:		Domain that the counter should be read from.
+ * @closid:	CLOSID that matches the RMID.
+ * @rmid:	The RMID to which @cntr_id is assigned.
+ * @cntr_id:	The counter to read.
+ * @eventid:	The MBM event to which @cntr_id is assigned.
+ * @val:	Result of the counter read in bytes.
+ *
+ * Called on a CPU that belongs to domain @d when "mbm_event" mode is enabled.
+ * Called from a non-migrateable process context via smp_call_on_cpu() unless all
+ * CPUs are nohz_full, in which case it is called via IPI (smp_call_function_any()).
+ *
+ * Return:
+ * 0 on success, or -EIO, -EINVAL etc on error.
+ */
+int resctrl_arch_cntr_read(struct rdt_resource *r, struct rdt_mon_domain *d,
+			   u32 closid, u32 rmid, int cntr_id,
+			   enum resctrl_event_id eventid, u64 *val);
+
+/**
+ * resctrl_arch_reset_cntr() - Reset any private state associated with counter ID.
+ * @r:		The domain's resource.
+ * @d:		The counter ID's domain.
+ * @closid:	CLOSID that matches the RMID.
+ * @rmid:	The RMID to which @cntr_id is assigned.
+ * @cntr_id:	The counter to reset.
+ * @eventid:	The MBM event to which @cntr_id is assigned.
+ *
+ * This can be called from any CPU.
+ */
+void resctrl_arch_reset_cntr(struct rdt_resource *r, struct rdt_mon_domain *d,
+			     u32 closid, u32 rmid, int cntr_id,
+			     enum resctrl_event_id eventid);
+
 extern unsigned int resctrl_rmid_realloc_threshold;
 extern unsigned int resctrl_rmid_realloc_limit;
 
