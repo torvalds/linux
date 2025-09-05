@@ -445,12 +445,6 @@ static inline int acpi_processor_hotplug(struct acpi_processor *pr)
 {
 	return -ENODEV;
 }
-static inline void acpi_processor_register_idle_driver(void)
-{
-}
-static inline void acpi_processor_unregister_idle_driver(void)
-{
-}
 #endif /* CONFIG_ACPI_PROCESSOR_IDLE */
 
 /* in processor_thermal.c */
