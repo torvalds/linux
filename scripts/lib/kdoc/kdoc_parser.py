@@ -958,7 +958,7 @@ class KernelDoc:
         # - atomic_set (macro)
         # - pci_match_device, __copy_to_user (long return type)
 
-        name = r'[a-zA-Z0-9_~:]+'
+        name = r'\w+'
         prototype_end1 = r'[^\(]*'
         prototype_end2 = r'[^\{]*'
         prototype_end = fr'\(({prototype_end1}|{prototype_end2})\)'
