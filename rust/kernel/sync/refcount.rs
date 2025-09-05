@@ -5,6 +5,7 @@
 //! C header: [`include/linux/refcount.h`](srctree/include/linux/refcount.h)
 
 use crate::build_assert;
+use crate::sync::atomic::Atomic;
 use crate::types::Opaque;
 
 /// Atomic reference counter.
@@ -32,6 +33,20 @@ impl Refcount {
     #[inline]
     fn as_ptr(&self) -> *mut bindings::refcount_t {
         self.0.get()
+    }
+
+    /// Get the underlying atomic counter that backs the refcount.
+    ///
+    /// NOTE: Usage of this function is discouraged as it can circumvent the protections offered by
+    /// `refcount.h`. If there is no way to achieve the result using APIs in `refcount.h`, then
+    /// this function can be used. Otherwise consider adding a binding for the required API.
+    #[inline]
+    pub fn as_atomic(&self) -> &Atomic<i32> {
+        let ptr = self.0.get().cast();
+        // SAFETY: `refcount_t` is a transparent wrapper of `atomic_t`, which is an atomic 32-bit
+        // integer that is layout-wise compatible with `Atomic<i32>`. All values are valid for
+        // `refcount_t`, despite some of the values being considered saturated and "bad".
+        unsafe { &*ptr }
     }
 
     /// Set a refcount's value.
