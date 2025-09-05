@@ -550,7 +550,7 @@ static void __cpu_map_entry_replace(struct bpf_cpu_map *cmap,
 	old_rcpu = unrcu_pointer(xchg(&cmap->cpu_map[key_cpu], RCU_INITIALIZER(rcpu)));
 	if (old_rcpu) {
 		INIT_RCU_WORK(&old_rcpu->free_work, __cpu_map_entry_free);
-		queue_rcu_work(system_wq, &old_rcpu->free_work);
+		queue_rcu_work(system_percpu_wq, &old_rcpu->free_work);
 	}
 }
 
