@@ -4804,6 +4804,43 @@
 			#interrupt-cells = <2>;
 			wakeup-parent = <&pdc>;
 
+			hs0_mi2s_active: hs0-mi2s-active-state {
+				pins = "gpio106", "gpio107", "gpio108", "gpio109";
+				function = "hs0_mi2s";
+				drive-strength = <8>;
+				bias-disable;
+			};
+
+			mi2s1_active: mi2s1-active-state {
+				data0-pins {
+					pins = "gpio100";
+					function = "mi2s1_data0";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				data1-pins {
+					pins = "gpio101";
+					function = "mi2s1_data1";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				sclk-pins {
+					pins = "gpio98";
+					function = "mi2s1_sck";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				ws-pins {
+					pins = "gpio99";
+					function = "mi2s1_ws";
+					drive-strength = <8>;
+					bias-disable;
+				};
+			};
+
 			qup_i2c0_data_clk: qup-i2c0-data-clk-state {
 				pins = "gpio17", "gpio18";
 				function = "qup0_se0";
