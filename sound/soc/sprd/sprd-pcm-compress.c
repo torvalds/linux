@@ -85,9 +85,9 @@ struct sprd_compr_stream {
 	int info_size;
 
 	/* Data size copied to IRAM buffer */
-	int copied_total;
+	u64 copied_total;
 	/* Total received data size from userspace */
-	int received_total;
+	u64 received_total;
 	/* Stage 0 IRAM buffer received data size */
 	int received_stage0;
 	/* Stage 1 DDR buffer received data size */
@@ -513,7 +513,7 @@ static int sprd_platform_compr_trigger(struct snd_soc_component *component,
 
 static int sprd_platform_compr_pointer(struct snd_soc_component *component,
 				       struct snd_compr_stream *cstream,
-				       struct snd_compr_tstamp *tstamp)
+				       struct snd_compr_tstamp64 *tstamp)
 {
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct sprd_compr_stream *stream = runtime->private_data;
