@@ -243,11 +243,16 @@ static void tidss_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	dispc_vp_prepare(tidss->dispc, tcrtc->hw_videoport, crtc->state);
 
-	dispc_vp_enable(tidss->dispc, tcrtc->hw_videoport);
-
 	spin_lock_irqsave(&ddev->event_lock, flags);
 
+	dispc_vp_enable(tidss->dispc, tcrtc->hw_videoport);
+
 	if (crtc->state->event) {
+		unsigned int pipe = drm_crtc_index(crtc);
+		struct drm_vblank_crtc *vblank = &ddev->vblank[pipe];
+
+		vblank->time = ktime_get();
+
 		drm_crtc_send_vblank_event(crtc, crtc->state->event);
 		crtc->state->event = NULL;
 	}
