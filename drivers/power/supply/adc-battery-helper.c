@@ -181,7 +181,7 @@ static void adc_battery_helper_work(struct work_struct *work)
 	help->intern_res_avg_mohm /= win_size;
 
 out:
-	queue_delayed_work(system_wq, &help->work,
+	queue_delayed_work(system_percpu_wq, &help->work,
 			   (help->poll_count <= INIT_POLL_COUNT) ?
 					INIT_POLL_TIME : POLL_TIME);
 
@@ -251,7 +251,7 @@ void adc_battery_helper_external_power_changed(struct power_supply *psy)
 	struct adc_battery_helper *help = power_supply_get_drvdata(psy);
 
 	dev_dbg(help->psy->dev.parent, "external power changed\n");
-	mod_delayed_work(system_wq, &help->work, SETTLE_TIME);
+	mod_delayed_work(system_percpu_wq, &help->work, SETTLE_TIME);
 }
 EXPORT_SYMBOL_GPL(adc_battery_helper_external_power_changed);
 
@@ -260,7 +260,7 @@ static void adc_battery_helper_start_work(struct adc_battery_helper *help)
 	help->poll_count = 0;
 	help->ocv_avg_index = 0;
 
-	queue_delayed_work(system_wq, &help->work, 0);
+	queue_delayed_work(system_percpu_wq, &help->work, 0);
 	flush_delayed_work(&help->work);
 }
 
