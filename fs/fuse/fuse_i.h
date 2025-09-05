@@ -239,6 +239,11 @@ enum {
 	FUSE_I_BTIME,
 	/* Wants or already has page cache IO */
 	FUSE_I_CACHE_IO_MODE,
+	/*
+	 * Client has exclusive access to the inode, either because fs is local
+	 * or the fuse server has an exclusive "lease" on distributed fs
+	 */
+	FUSE_I_EXCLUSIVE,
 };
 
 struct fuse_conn;
@@ -1055,7 +1060,7 @@ static inline struct fuse_conn *get_fuse_conn(struct inode *inode)
 	return get_fuse_mount_super(inode->i_sb)->fc;
 }
 
-static inline struct fuse_inode *get_fuse_inode(struct inode *inode)
+static inline struct fuse_inode *get_fuse_inode(const struct inode *inode)
 {
 	return container_of(inode, struct fuse_inode, inode);
 }
@@ -1095,6 +1100,13 @@ static inline void fuse_make_bad(struct inode *inode)
 static inline bool fuse_is_bad(struct inode *inode)
 {
 	return unlikely(test_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state));
+}
+
+static inline bool fuse_inode_is_exclusive(const struct inode *inode)
+{
+	const struct fuse_inode *fi = get_fuse_inode(inode);
+
+	return test_bit(FUSE_I_EXCLUSIVE, &fi->state);
 }
 
 static inline struct folio **fuse_folios_alloc(unsigned int nfolios, gfp_t flags,
