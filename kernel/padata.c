@@ -490,9 +490,9 @@ void __init padata_do_multithreaded(struct padata_mt_job *job)
 			do {
 				nid = next_node_in(old_node, node_states[N_CPU]);
 			} while (!atomic_try_cmpxchg(&last_used_nid, &old_node, nid));
-			queue_work_node(nid, system_unbound_wq, &pw->pw_work);
+			queue_work_node(nid, system_dfl_wq, &pw->pw_work);
 		} else {
-			queue_work(system_unbound_wq, &pw->pw_work);
+			queue_work(system_dfl_wq, &pw->pw_work);
 		}
 
 	/* Use the current thread, which saves starting a workqueue worker. */
