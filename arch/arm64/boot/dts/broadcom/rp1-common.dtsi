@@ -55,4 +55,32 @@ pci_ep_bus: pci-ep-bus@1 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
+
+	rp1_usb0: usb@40200000 {
+		compatible = "snps,dwc3";
+		reg = <0x00 0x40200000  0x0 0x100000>;
+		interrupts = <31 IRQ_TYPE_EDGE_RISING>;
+		dr_mode = "host";
+		usb3-lpm-capable;
+		snps,dis_rxdet_inp3_quirk;
+		snps,parkmode-disable-hs-quirk;
+		snps,parkmode-disable-ss-quirk;
+		snps,tx-max-burst = /bits/ 8 <8>;
+		snps,tx-thr-num-pkt = /bits/ 8 <2>;
+		status = "disabled";
+	};
+
+	rp1_usb1: usb@40300000 {
+		compatible = "snps,dwc3";
+		reg = <0x00 0x40300000  0x0 0x100000>;
+		interrupts = <36 IRQ_TYPE_EDGE_RISING>;
+		dr_mode = "host";
+		usb3-lpm-capable;
+		snps,dis_rxdet_inp3_quirk;
+		snps,parkmode-disable-hs-quirk;
+		snps,parkmode-disable-ss-quirk;
+		snps,tx-max-burst = /bits/ 8 <8>;
+		snps,tx-thr-num-pkt = /bits/ 8 <2>;
+		status = "disabled";
+	};
 };
