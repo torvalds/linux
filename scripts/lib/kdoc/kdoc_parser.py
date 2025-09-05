@@ -972,11 +972,11 @@ class KernelDoc:
         found = False
 
         if is_define_proto:
-            r = KernRe(r'^()(' + name + r')\s+')
+            r = KernRe(r'^(' + name + r')\s+')
 
             if r.search(prototype):
                 return_type = ''
-                declaration_name = r.group(2)
+                declaration_name = r.group(1)
                 func_macro = True
 
                 found = True
