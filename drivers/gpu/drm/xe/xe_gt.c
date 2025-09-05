@@ -98,7 +98,7 @@ void xe_gt_sanitize(struct xe_gt *gt)
 	 * FIXME: if xe_uc_sanitize is called here, on TGL driver will not
 	 * reload
 	 */
-	gt->uc.guc.submission_state.enabled = false;
+	xe_guc_submit_disable(&gt->uc.guc);
 }
 
 static void xe_gt_enable_host_l2_vram(struct xe_gt *gt)
