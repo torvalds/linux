@@ -134,11 +134,9 @@ impl<T: Send> Devres<T> {
         T: 'a,
         Error: From<E>,
     {
-        let callback = Self::devres_callback;
-
         try_pin_init!(&this in Self {
             dev: dev.into(),
-            callback,
+            callback: Self::devres_callback,
             // INVARIANT: `inner` is properly initialized.
             inner <- {
                 // SAFETY: `this` is a valid pointer to uninitialized memory.
@@ -151,7 +149,7 @@ impl<T: Send> Devres<T> {
                 //    properly initialized, because we require `dev` (i.e. the *bound* device) to
                 //    live at least as long as the returned `impl PinInit<Self, Error>`.
                 to_result(unsafe {
-                    bindings::devm_add_action(dev.as_raw(), Some(callback), inner.cast())
+                    bindings::devm_add_action(dev.as_raw(), Some(*callback), inner.cast())
                 })?;
 
                 Opaque::pin_init(try_pin_init!(Inner {

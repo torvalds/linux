@@ -78,8 +78,8 @@ impl pci::Driver for SampleDriver {
 
         let drvdata = KBox::pin_init(
             try_pin_init!(Self {
-                pdev: pdev.into(),
                 bar <- pdev.iomap_region_sized::<{ Regs::END }>(0, c_str!("rust_driver_pci")),
+                pdev: pdev.into(),
                 index: *info,
             }),
             GFP_KERNEL,
