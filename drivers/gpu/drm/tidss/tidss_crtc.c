@@ -243,7 +243,7 @@ static void tidss_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	dispc_vp_prepare(tidss->dispc, tcrtc->hw_videoport, crtc->state);
 
-	dispc_vp_enable(tidss->dispc, tcrtc->hw_videoport, crtc->state);
+	dispc_vp_enable(tidss->dispc, tcrtc->hw_videoport);
 
 	spin_lock_irqsave(&ddev->event_lock, flags);
 
