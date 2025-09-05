@@ -1652,43 +1652,42 @@ unlock_driver:
 	return count;
 }
 
-static void update_qos_request(enum freq_qos_req_type type)
+static void update_cpu_qos_request(int cpu, enum freq_qos_req_type type)
 {
+	struct cpudata *cpudata = all_cpu_data[cpu];
 	struct freq_qos_request *req;
-	struct cpufreq_policy *policy;
+	unsigned int freq, perf_pct;
+
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
+	if (!policy)
+		return;
+
+	req = policy->driver_data;
+	if (!req)
+		return;
+
+	if (hwp_active)
+		intel_pstate_get_hwp_cap(cpudata);
+
+	if (type == FREQ_QOS_MIN) {
+		perf_pct = global.min_perf_pct;
+	} else {
+		req++;
+		perf_pct = global.max_perf_pct;
+	}
+
+	freq = DIV_ROUND_UP(cpudata->pstate.turbo_freq * perf_pct, 100);
+
+	if (freq_qos_update_request(req, freq) < 0)
+		pr_warn("Failed to update freq constraint: CPU%d\n", cpu);
+}
+
+static void update_qos_requests(enum freq_qos_req_type type)
+{
 	int i;
 
-	for_each_possible_cpu(i) {
-		struct cpudata *cpu = all_cpu_data[i];
-		unsigned int freq, perf_pct;
-
-		policy = cpufreq_cpu_get(i);
-		if (!policy)
-			continue;
-
-		req = policy->driver_data;
-		if (!req) {
-			cpufreq_cpu_put(policy);
-			continue;
-		}
-
-		if (hwp_active)
-			intel_pstate_get_hwp_cap(cpu);
-
-		if (type == FREQ_QOS_MIN) {
-			perf_pct = global.min_perf_pct;
-		} else {
-			req++;
-			perf_pct = global.max_perf_pct;
-		}
-
-		freq = DIV_ROUND_UP(cpu->pstate.turbo_freq * perf_pct, 100);
-
-		if (freq_qos_update_request(req, freq) < 0)
-			pr_warn("Failed to update freq constraint: CPU%d\n", i);
-
-		cpufreq_cpu_put(policy);
-	}
+	for_each_possible_cpu(i)
+		update_cpu_qos_request(i, type);
 }
 
 static ssize_t store_max_perf_pct(struct kobject *a, struct kobj_attribute *b,
@@ -1717,7 +1716,7 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct kobj_attribute *b,
 	if (intel_pstate_driver == &intel_pstate)
 		intel_pstate_update_policies();
 	else
-		update_qos_request(FREQ_QOS_MAX);
+		update_qos_requests(FREQ_QOS_MAX);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
@@ -1751,7 +1750,7 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct kobj_attribute *b,
 	if (intel_pstate_driver == &intel_pstate)
 		intel_pstate_update_policies();
 	else
-		update_qos_request(FREQ_QOS_MIN);
+		update_qos_requests(FREQ_QOS_MIN);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
