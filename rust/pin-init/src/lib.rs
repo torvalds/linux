@@ -994,7 +994,7 @@ macro_rules! try_init {
 /// }
 ///
 /// impl<T> Foo<T> {
-///     fn project(self: Pin<&mut Self>) -> Pin<&mut T> {
+///     fn project_this(self: Pin<&mut Self>) -> Pin<&mut T> {
 ///         assert_pinned!(Foo<T>, elem, T, inline);
 ///
 ///         // SAFETY: The field is structurally pinned.
