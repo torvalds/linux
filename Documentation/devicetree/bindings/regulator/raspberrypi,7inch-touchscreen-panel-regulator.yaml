@@ -12,17 +12,14 @@ maintainers:
 description: |
   The RaspberryPi 7" display has an ATTINY88-based regulator/backlight
   controller on the PCB, which is used to turn the display unit on/off
-  and control the backlight. The V2 supports 5" and 7" panels and also
-  offers PWM backlight control.
+  and control the backlight.
 
 allOf:
   - $ref: regulator.yaml#
 
 properties:
   compatible:
-    enum:
-      - raspberrypi,7inch-touchscreen-panel-regulator
-      - raspberrypi,touchscreen-panel-regulator-v2
+    const: raspberrypi,7inch-touchscreen-panel-regulator
 
   reg:
     maxItems: 1
