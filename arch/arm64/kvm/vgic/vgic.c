@@ -114,22 +114,32 @@ struct vgic_irq *vgic_get_vcpu_irq(struct kvm_vcpu *vcpu, u32 intid)
 	return vgic_get_irq(vcpu->kvm, intid);
 }
 
+static void vgic_release_lpi_locked(struct vgic_dist *dist, struct vgic_irq *irq)
+{
+	lockdep_assert_held(&dist->lpi_xa.xa_lock);
+	__xa_erase(&dist->lpi_xa, irq->intid);
+	kfree_rcu(irq, rcu);
+}
+
+static __must_check bool __vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
+{
+	if (irq->intid < VGIC_MIN_LPI)
+		return false;
+
+	return refcount_dec_and_test(&irq->refcount);
+}
+
 void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	unsigned long flags;
 
-	if (irq->intid < VGIC_MIN_LPI)
-		return;
-
-	if (!refcount_dec_and_test(&irq->refcount))
+	if (!__vgic_put_irq(kvm, irq))
 		return;
 
 	xa_lock_irqsave(&dist->lpi_xa, flags);
-	__xa_erase(&dist->lpi_xa, irq->intid);
+	vgic_release_lpi_locked(dist, irq);
 	xa_unlock_irqrestore(&dist->lpi_xa, flags);
-
-	kfree_rcu(irq, rcu);
 }
 
 void vgic_flush_pending_lpis(struct kvm_vcpu *vcpu)
