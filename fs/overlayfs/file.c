@@ -120,7 +120,7 @@ static bool ovl_is_real_file(const struct file *realfile,
 }
 
 static struct file *ovl_real_file_path(const struct file *file,
-				       struct path *realpath)
+				       const struct path *realpath)
 {
 	struct ovl_file *of = file->private_data;
 	struct file *realfile = of->realfile;
