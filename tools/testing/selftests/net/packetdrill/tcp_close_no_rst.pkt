@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0
+
+--mss=1000
+
+`./defaults.sh`
+
+// Initialize connection
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK>
+  +.1 < . 1:1(0) ack 1 win 32792
+
+
+   +0 accept(3, ..., ...) = 4
+   +0 < . 1:1001(1000) ack 1 win 32792
+   +0 > . 1:1(0) ack 1001
+   +0 read(4, ..., 1000) = 1000
+
+// resend the payload + a FIN
+   +0 < F. 1:1001(1000) ack 1 win 32792
+// Why do we have a delay and no dsack ?
+   +0~+.04 > . 1:1(0) ack 1002
+
+   +0 close(4) = 0
+
+// According to RFC 2525, section 2.17
+// we should _not_ send an RST here, because there was no data to consume.
+   +0 > F. 1:1(0) ack 1002
