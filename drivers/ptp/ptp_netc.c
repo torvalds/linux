@@ -21,6 +21,7 @@
 #define  TMR_ETEP(i)			BIT(8 + (i))
 #define  TMR_COMP_MODE			BIT(15)
 #define  TMR_CTRL_TCLK_PERIOD		GENMASK(25, 16)
+#define  TMR_CTRL_PPL(i)		BIT(27 - (i))
 #define  TMR_CTRL_FS			BIT(28)
 
 #define NETC_TMR_TEVENT			0x0084
@@ -609,6 +610,28 @@ static int netc_timer_enable(struct ptp_clock_info *ptp,
 	}
 }
 
+static int netc_timer_perout_loopback(struct ptp_clock_info *ptp,
+				      unsigned int index, int on)
+{
+	struct netc_timer *priv = ptp_to_netc_timer(ptp);
+	unsigned long flags;
+	u32 tmr_ctrl;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	tmr_ctrl = netc_timer_rd(priv, NETC_TMR_CTRL);
+	if (on)
+		tmr_ctrl |= TMR_CTRL_PPL(index);
+	else
+		tmr_ctrl &= ~TMR_CTRL_PPL(index);
+
+	netc_timer_wr(priv, NETC_TMR_CTRL, tmr_ctrl);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
 static void netc_timer_adjust_period(struct netc_timer *priv, u64 period)
 {
 	u32 fractional_period = lower_32_bits(period);
@@ -717,6 +740,7 @@ static const struct ptp_clock_info netc_timer_ptp_caps = {
 	.pps		= 1,
 	.n_per_out	= 3,
 	.n_ext_ts	= 2,
+	.n_per_lp	= 2,
 	.supported_extts_flags = PTP_RISING_EDGE | PTP_FALLING_EDGE |
 				 PTP_STRICT_FLAGS,
 	.adjfine	= netc_timer_adjfine,
@@ -724,6 +748,7 @@ static const struct ptp_clock_info netc_timer_ptp_caps = {
 	.gettimex64	= netc_timer_gettimex64,
 	.settime64	= netc_timer_settime64,
 	.enable		= netc_timer_enable,
+	.perout_loopback = netc_timer_perout_loopback,
 };
 
 static void netc_timer_init(struct netc_timer *priv)
