@@ -1823,6 +1823,12 @@ static struct rftype res_common_files[] = {
 		.fflags		= RFTYPE_MON_INFO,
 	},
 	{
+		.name		= "available_mbm_cntrs",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= resctrl_available_mbm_cntrs_show,
+	},
+	{
 		.name		= "num_rmids",
 		.mode		= 0444,
 		.kf_ops		= &rdtgroup_kf_single_ops,
