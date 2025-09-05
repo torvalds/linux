@@ -364,6 +364,7 @@ EXPORT_SYMBOL_GPL(exynos_get_pmu_regmap_by_phandle);
  * disabled and cpupm_lock held.
  */
 static int __gs101_cpu_pmu_online(unsigned int cpu)
+	__must_hold(&pmu_context->cpupm_lock)
 {
 	unsigned int cpuhint = smp_processor_id();
 	u32 reg, mask;
@@ -424,6 +425,7 @@ static int gs101_cpuhp_pmu_online(unsigned int cpu)
 
 /* Common function shared by both CPU hot plug and CPUIdle */
 static int __gs101_cpu_pmu_offline(unsigned int cpu)
+	__must_hold(&pmu_context->cpupm_lock)
 {
 	unsigned int cpuhint = smp_processor_id();
 	u32 reg, mask;
