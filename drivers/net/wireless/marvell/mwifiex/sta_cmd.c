@@ -1521,10 +1521,8 @@ int mwifiex_send_rgpower_table(struct mwifiex_private *priv, const u8 *data,
 		return -ENOMEM;
 
 	_data = kmemdup(data, size, GFP_KERNEL);
-	if (!_data) {
-		kfree(hostcmd);
+	if (!_data)
 		return -ENOMEM;
-	}
 
 	pos = _data;
 	ptr = hostcmd->cmd;
