@@ -54,7 +54,7 @@ struct backing_file {
 
 #define backing_file(f) container_of(f, struct backing_file, file)
 
-struct path *backing_file_user_path(const struct file *f)
+const struct path *backing_file_user_path(const struct file *f)
 {
 	return &backing_file(f)->user_path;
 }
