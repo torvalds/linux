@@ -1816,7 +1816,7 @@ static inline void bpf_xdp_copy_buf(struct xdp_buff *xdp, unsigned long off, voi
 
 static inline void *bpf_skb_meta_pointer(struct sk_buff *skb, u32 offset)
 {
-	return NULL;
+	return ERR_PTR(-EOPNOTSUPP);
 }
 #endif /* CONFIG_NET */
 
