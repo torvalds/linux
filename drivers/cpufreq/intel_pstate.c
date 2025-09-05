@@ -1655,8 +1655,8 @@ unlock_driver:
 static void update_cpu_qos_request(int cpu, enum freq_qos_req_type type)
 {
 	struct cpudata *cpudata = all_cpu_data[cpu];
+	unsigned int freq = cpudata->pstate.turbo_freq;
 	struct freq_qos_request *req;
-	unsigned int freq, perf_pct;
 
 	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	if (!policy)
@@ -1670,13 +1670,11 @@ static void update_cpu_qos_request(int cpu, enum freq_qos_req_type type)
 		intel_pstate_get_hwp_cap(cpudata);
 
 	if (type == FREQ_QOS_MIN) {
-		perf_pct = global.min_perf_pct;
+		freq = DIV_ROUND_UP(freq * global.min_perf_pct, 100);
 	} else {
 		req++;
-		perf_pct = global.max_perf_pct;
+		freq = (freq * global.max_perf_pct) / 100;
 	}
-
-	freq = DIV_ROUND_UP(cpudata->pstate.turbo_freq * perf_pct, 100);
 
 	if (freq_qos_update_request(req, freq) < 0)
 		pr_warn("Failed to update freq constraint: CPU%d\n", cpu);
