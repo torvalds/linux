@@ -21,6 +21,7 @@
 #include "xe_gt_idle.h"
 #include "xe_i2c.h"
 #include "xe_irq.h"
+#include "xe_late_bind_fw.h"
 #include "xe_pcode.h"
 #include "xe_pxp.h"
 #include "xe_sriov_vf_ccs.h"
@@ -600,6 +601,9 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 
 	if (IS_VF_CCS_READY(xe))
 		xe_sriov_vf_ccs_register_context(xe);
+
+	if (xe->d3cold.allowed)
+		xe_late_bind_fw_load(&xe->late_bind);
 
 out:
 	xe_rpm_lockmap_release(xe);
