@@ -7161,7 +7161,7 @@ static void amdgpu_device_cache_switch_state(struct amdgpu_device *adev)
 	struct pci_dev *parent = pci_upstream_bridge(adev->pdev);
 	int r;
 
-	if (parent->vendor != PCI_VENDOR_ID_ATI)
+	if (!parent || parent->vendor != PCI_VENDOR_ID_ATI)
 		return;
 
 	/* If already saved, return */
