@@ -197,9 +197,19 @@ enum drm_gpuvm_flags {
 	DRM_GPUVM_RESV_PROTECTED = BIT(0),
 
 	/**
+	 * @DRM_GPUVM_IMMEDIATE_MODE: use the locking scheme for GEMs designed
+	 * for modifying the GPUVM during the fence signalling path
+	 *
+	 * When set, gpuva.lock is used to protect gpuva.list in all GEM
+	 * objects associated with this GPUVM. Otherwise, the GEMs dma-resv is
+	 * used.
+	 */
+	DRM_GPUVM_IMMEDIATE_MODE = BIT(1),
+
+	/**
 	 * @DRM_GPUVM_USERBITS: user defined bits
 	 */
-	DRM_GPUVM_USERBITS = BIT(1),
+	DRM_GPUVM_USERBITS = BIT(2),
 };
 
 /**
@@ -367,6 +377,19 @@ static inline bool
 drm_gpuvm_resv_protected(struct drm_gpuvm *gpuvm)
 {
 	return gpuvm->flags & DRM_GPUVM_RESV_PROTECTED;
+}
+
+/**
+ * drm_gpuvm_immediate_mode() - indicates whether &DRM_GPUVM_IMMEDIATE_MODE is
+ * set
+ * @gpuvm: the &drm_gpuvm
+ *
+ * Returns: true if &DRM_GPUVM_IMMEDIATE_MODE is set, false otherwise.
+ */
+static inline bool
+drm_gpuvm_immediate_mode(struct drm_gpuvm *gpuvm)
+{
+	return gpuvm->flags & DRM_GPUVM_IMMEDIATE_MODE;
 }
 
 /**
@@ -742,9 +765,10 @@ drm_gpuvm_bo_gem_evict(struct drm_gem_object *obj, bool evict)
 {
 	struct drm_gpuvm_bo *vm_bo;
 
-	drm_gem_gpuva_assert_lock_held(obj);
-	drm_gem_for_each_gpuvm_bo(vm_bo, obj)
+	drm_gem_for_each_gpuvm_bo(vm_bo, obj) {
+		drm_gem_gpuva_assert_lock_held(vm_bo->vm, obj);
 		drm_gpuvm_bo_evict(vm_bo, evict);
+	}
 }
 
 void drm_gpuvm_bo_extobj_add(struct drm_gpuvm_bo *vm_bo);

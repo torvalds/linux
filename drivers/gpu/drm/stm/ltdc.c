@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
@@ -51,6 +52,7 @@
 #define HWVER_10300 0x010300
 #define HWVER_20101 0x020101
 #define HWVER_40100 0x040100
+#define HWVER_40101 0x040101
 
 /*
  * The address of some registers depends on the HW version: such registers have
@@ -835,6 +837,12 @@ ltdc_crtc_mode_valid(struct drm_crtc *crtc,
 	int target_min = target - CLK_TOLERANCE_HZ;
 	int target_max = target + CLK_TOLERANCE_HZ;
 	int result;
+
+	if (ldev->lvds_clk) {
+		result = clk_round_rate(ldev->lvds_clk, target);
+		drm_dbg_driver(crtc->dev, "lvds pixclk rate target %d, available %d\n",
+			       target, result);
+	}
 
 	result = clk_round_rate(ldev->pixel_clk, target);
 
@@ -1780,6 +1788,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 {
 	struct ltdc_device *ldev = ddev->dev_private;
 	u32 bus_width_log2, lcr, gc2r;
+	const struct ltdc_plat_data *pdata = of_device_get_match_data(ddev->dev);
 
 	/*
 	 * at least 1 layer must be managed & the number of layers
@@ -1794,6 +1803,8 @@ static int ltdc_get_caps(struct drm_device *ddev)
 	bus_width_log2 = (gc2r & GC2R_BW) >> 4;
 	ldev->caps.bus_width = 8 << bus_width_log2;
 	regmap_read(ldev->regmap, LTDC_IDR, &ldev->caps.hw_version);
+
+	ldev->caps.pad_max_freq_hz = pdata->pad_max_freq_hz;
 
 	switch (ldev->caps.hw_version) {
 	case HWVER_10200:
@@ -1812,7 +1823,6 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		 * does not work on 2nd layer.
 		 */
 		ldev->caps.non_alpha_only_l1 = true;
-		ldev->caps.pad_max_freq_hz = 90000000;
 		if (ldev->caps.hw_version == HWVER_10200)
 			ldev->caps.pad_max_freq_hz = 65000000;
 		ldev->caps.nb_irq = 2;
@@ -1843,6 +1853,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.fifo_threshold = false;
 		break;
 	case HWVER_40100:
+	case HWVER_40101:
 		ldev->caps.layer_ofs = LAY_OFS_1;
 		ldev->caps.layer_regs = ltdc_layer_regs_a2;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a2;
@@ -1850,7 +1861,6 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.pix_fmt_nb = ARRAY_SIZE(ltdc_drm_fmt_a2);
 		ldev->caps.pix_fmt_flex = true;
 		ldev->caps.non_alpha_only_l1 = false;
-		ldev->caps.pad_max_freq_hz = 90000000;
 		ldev->caps.nb_irq = 2;
 		ldev->caps.ycbcr_input = true;
 		ldev->caps.ycbcr_output = true;
@@ -1873,6 +1883,10 @@ void ltdc_suspend(struct drm_device *ddev)
 
 	drm_dbg_driver(ddev, "\n");
 	clk_disable_unprepare(ldev->pixel_clk);
+	if (ldev->bus_clk)
+		clk_disable_unprepare(ldev->bus_clk);
+	if (ldev->lvds_clk)
+		clk_disable_unprepare(ldev->lvds_clk);
 }
 
 int ltdc_resume(struct drm_device *ddev)
@@ -1888,7 +1902,21 @@ int ltdc_resume(struct drm_device *ddev)
 		return ret;
 	}
 
-	return 0;
+	if (ldev->bus_clk) {
+		ret = clk_prepare_enable(ldev->bus_clk);
+		if (ret) {
+			drm_err(ddev, "failed to enable bus clock (%d)\n", ret);
+			return ret;
+		}
+	}
+
+	if (ldev->lvds_clk) {
+		ret = clk_prepare_enable(ldev->lvds_clk);
+		if (ret)
+			drm_err(ddev, "failed to prepare lvds clock\n");
+	}
+
+	return ret;
 }
 
 int ltdc_load(struct drm_device *ddev)
@@ -1923,6 +1951,20 @@ int ltdc_load(struct drm_device *ddev)
 		return -ENODEV;
 	}
 
+	if (of_device_is_compatible(np, "st,stm32mp251-ltdc") ||
+	    of_device_is_compatible(np, "st,stm32mp255-ltdc")) {
+		ldev->bus_clk = devm_clk_get(dev, "bus");
+		if (IS_ERR(ldev->bus_clk))
+			return dev_err_probe(dev, PTR_ERR(ldev->bus_clk),
+					     "Unable to get bus clock\n");
+
+		ret = clk_prepare_enable(ldev->bus_clk);
+		if (ret) {
+			drm_err(ddev, "Unable to prepare bus clock\n");
+			return ret;
+		}
+	}
+
 	/* Get endpoints if any */
 	for (i = 0; i < nb_endpoints; i++) {
 		ret = drm_of_find_panel_or_bridge(np, 0, i, &panel, &bridge);
@@ -1955,6 +1997,10 @@ int ltdc_load(struct drm_device *ddev)
 			}
 		}
 	}
+
+	ldev->lvds_clk = devm_clk_get(dev, "lvds");
+	if (IS_ERR(ldev->lvds_clk))
+		ldev->lvds_clk = NULL;
 
 	rstc = devm_reset_control_get_exclusive(dev, NULL);
 
@@ -2035,6 +2081,9 @@ int ltdc_load(struct drm_device *ddev)
 
 	clk_disable_unprepare(ldev->pixel_clk);
 
+	if (ldev->bus_clk)
+		clk_disable_unprepare(ldev->bus_clk);
+
 	pinctrl_pm_select_sleep_state(ddev->dev);
 
 	pm_runtime_enable(ddev->dev);
@@ -2042,6 +2091,9 @@ int ltdc_load(struct drm_device *ddev)
 	return 0;
 err:
 	clk_disable_unprepare(ldev->pixel_clk);
+
+	if (ldev->bus_clk)
+		clk_disable_unprepare(ldev->bus_clk);
 
 	return ret;
 }

@@ -33,7 +33,6 @@
 
 #define PLL_CDYN_DEFAULT               0x80
 #define PLL_EPP_DEFAULT                0x80
-#define PLL_CONFIG_DEFAULT             0x0
 #define PLL_REF_CLK_FREQ               50000000ull
 #define PLL_RATIO_TO_FREQ(x)           ((x) * PLL_REF_CLK_FREQ)
 
@@ -303,7 +302,7 @@ static void prepare_wp_request(struct ivpu_device *vdev, struct wp_request *wp, 
 		wp->epp = 0;
 	} else {
 		wp->target = hw->pll.pn_ratio;
-		wp->cfg = enable ? PLL_CONFIG_DEFAULT : 0;
+		wp->cfg = 0;
 		wp->cdyn = enable ? PLL_CDYN_DEFAULT : 0;
 		wp->epp = enable ? PLL_EPP_DEFAULT : 0;
 	}

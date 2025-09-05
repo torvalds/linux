@@ -3656,18 +3656,20 @@ static struct drm_mode_config_helper_funcs amdgpu_dm_mode_config_helperfuncs = {
 
 static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 {
+	const struct drm_panel_backlight_quirk *panel_backlight_quirk;
 	struct amdgpu_dm_backlight_caps *caps;
 	struct drm_connector *conn_base;
 	struct amdgpu_device *adev;
 	struct drm_luminance_range_info *luminance_range;
-	int min_input_signal_override;
+	struct drm_device *drm;
 
 	if (aconnector->bl_idx == -1 ||
 	    aconnector->dc_link->connector_signal != SIGNAL_TYPE_EDP)
 		return;
 
 	conn_base = &aconnector->base;
-	adev = drm_to_adev(conn_base->dev);
+	drm = conn_base->dev;
+	adev = drm_to_adev(drm);
 
 	caps = &adev->dm.backlight_caps[aconnector->bl_idx];
 	caps->ext_caps = &aconnector->dc_link->dpcd_sink_ext_caps;
@@ -3700,9 +3702,24 @@ static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 	else
 		caps->aux_min_input_signal = 1;
 
-	min_input_signal_override = drm_get_panel_min_brightness_quirk(aconnector->drm_edid);
-	if (min_input_signal_override >= 0)
-		caps->min_input_signal = min_input_signal_override;
+	panel_backlight_quirk =
+		drm_get_panel_backlight_quirk(aconnector->drm_edid);
+	if (!IS_ERR_OR_NULL(panel_backlight_quirk)) {
+		if (panel_backlight_quirk->min_brightness) {
+			caps->min_input_signal =
+				panel_backlight_quirk->min_brightness - 1;
+			drm_info(drm,
+				 "Applying panel backlight quirk, min_brightness: %d\n",
+				 caps->min_input_signal);
+		}
+		if (panel_backlight_quirk->brightness_mask) {
+			drm_info(drm,
+				 "Applying panel backlight quirk, brightness_mask: 0x%X\n",
+				 panel_backlight_quirk->brightness_mask);
+			caps->brightness_mask =
+				panel_backlight_quirk->brightness_mask;
+		}
+	}
 }
 
 DEFINE_FREE(sink_release, struct dc_sink *, if (_T) dc_sink_release(_T))
@@ -4913,6 +4930,10 @@ static void amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 		amdgpu_atombios_scratch_regs_set_backlight_level(dm->adev, dm->brightness[bl_idx]);
 	brightness = convert_brightness_from_user(caps, dm->brightness[bl_idx]);
 	link = (struct dc_link *)dm->backlight_link[bl_idx];
+
+	/* Apply brightness quirk */
+	if (caps->brightness_mask)
+		brightness |= caps->brightness_mask;
 
 	/* Change brightness based on AUX property */
 	mutex_lock(&dm->dc_lock);

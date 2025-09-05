@@ -157,11 +157,23 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 static void
 v3d_postclose(struct drm_device *dev, struct drm_file *file)
 {
+	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct v3d_file_priv *v3d_priv = file->driver_priv;
+	unsigned long irqflags;
 	enum v3d_queue q;
 
-	for (q = 0; q < V3D_MAX_QUEUES; q++)
+	for (q = 0; q < V3D_MAX_QUEUES; q++) {
+		struct v3d_queue_state *queue = &v3d->queue[q];
+		struct v3d_job *job = queue->active_job;
+
 		drm_sched_entity_destroy(&v3d_priv->sched_entity[q]);
+
+		if (job && job->base.entity == &v3d_priv->sched_entity[q]) {
+			spin_lock_irqsave(&queue->queue_lock, irqflags);
+			job->file_priv = NULL;
+			spin_unlock_irqrestore(&queue->queue_lock, irqflags);
+		}
+	}
 
 	v3d_perfmon_close_file(v3d_priv);
 	kfree(v3d_priv);

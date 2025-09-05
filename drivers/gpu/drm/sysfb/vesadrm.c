@@ -289,7 +289,7 @@ static int vesadrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 			break;
 		}
 		break;
-	};
+	}
 
 	return 0;
 }
