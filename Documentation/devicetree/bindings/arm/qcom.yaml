@@ -984,6 +984,7 @@ properties:
               - qcom,sm8250-hdk
               - qcom,sm8250-mtp
               - samsung,r8q
+              - samsung,x1q
               - sony,pdx203-generic
               - sony,pdx206-generic
               - xiaomi,elish
