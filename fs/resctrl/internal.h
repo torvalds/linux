@@ -111,6 +111,8 @@ struct mon_data {
  * @evtid: Which monitor event to read.
  * @first: Initialize MBM counter when true.
  * @ci:    Cacheinfo for L3. Only set when @d is NULL. Used when summing domains.
+ * @is_mbm_cntr: true if "mbm_event" counter assignment mode is enabled and it
+ *	   is an MBM event.
  * @err:   Error encountered when reading counter.
  * @val:   Returned value of event counter. If @rgrp is a parent resource group,
  *	   @val includes the sum of event counts from its child resource groups.
@@ -125,6 +127,7 @@ struct rmid_read {
 	enum resctrl_event_id	evtid;
 	bool			first;
 	struct cacheinfo	*ci;
+	bool			is_mbm_cntr;
 	int			err;
 	u64			val;
 	void			*arch_mon_ctx;
