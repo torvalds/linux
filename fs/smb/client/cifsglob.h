@@ -346,13 +346,14 @@ struct smb_version_operations {
 	/* map smb to linux error */
 	int (*map_error)(char *, bool);
 	/* find mid corresponding to the response message */
-	struct mid_q_entry * (*find_mid)(struct TCP_Server_Info *, char *);
-	void (*dump_detail)(void *buf, struct TCP_Server_Info *ptcp_info);
+	struct mid_q_entry *(*find_mid)(struct TCP_Server_Info *server, char *buf);
+	void (*dump_detail)(void *buf, size_t buf_len, struct TCP_Server_Info *ptcp_info);
 	void (*clear_stats)(struct cifs_tcon *);
 	void (*print_stats)(struct seq_file *m, struct cifs_tcon *);
 	void (*dump_share_caps)(struct seq_file *, struct cifs_tcon *);
 	/* verify the message */
-	int (*check_message)(char *, unsigned int, struct TCP_Server_Info *);
+	int (*check_message)(char *buf, unsigned int pdu_len, unsigned int len,
+			     struct TCP_Server_Info *server);
 	bool (*is_oplock_break)(char *, struct TCP_Server_Info *);
 	int (*handle_cancelled_mid)(struct mid_q_entry *, struct TCP_Server_Info *);
 	void (*downgrade_oplock)(struct TCP_Server_Info *server,
@@ -636,8 +637,7 @@ struct smb_version_operations {
 
 #define HEADER_SIZE(server) (server->vals->header_size)
 #define MAX_HEADER_SIZE(server) (server->vals->max_header_size)
-#define HEADER_PREAMBLE_SIZE(server) (server->vals->header_preamble_size)
-#define MID_HEADER_SIZE(server) (HEADER_SIZE(server) - 1 - HEADER_PREAMBLE_SIZE(server))
+#define MID_HEADER_SIZE(server) (HEADER_SIZE(server) - 1)
 
 /**
  * CIFS superblock mount flags (mnt_cifs_flags) to consider when
@@ -832,9 +832,9 @@ struct TCP_Server_Info {
 	char dns_dom[CIFS_MAX_DOMAINNAME_LEN + 1];
 };
 
-static inline bool is_smb1(struct TCP_Server_Info *server)
+static inline bool is_smb1(const struct TCP_Server_Info *server)
 {
-	return HEADER_PREAMBLE_SIZE(server) != 0;
+	return server->vals->protocol_id == SMB10_PROT_ID;
 }
 
 static inline void cifs_server_lock(struct TCP_Server_Info *server)
@@ -973,16 +973,16 @@ compare_mid(__u16 mid, const struct smb_hdr *smb)
  * of kvecs to handle the receive, though that should only need to be done
  * once.
  */
-#define CIFS_MAX_WSIZE ((1<<24) - 1 - sizeof(WRITE_REQ) + 4)
-#define CIFS_MAX_RSIZE ((1<<24) - sizeof(READ_RSP) + 4)
+#define CIFS_MAX_WSIZE ((1<<24) - 1 - sizeof(WRITE_REQ))
+#define CIFS_MAX_RSIZE ((1<<24) - sizeof(READ_RSP))
 
 /*
  * When the server doesn't allow large posix writes, only allow a rsize/wsize
  * of 2^17-1 minus the size of the call header. That allows for a read or
  * write up to the maximum size described by RFC1002.
  */
-#define CIFS_MAX_RFC1002_WSIZE ((1<<17) - 1 - sizeof(WRITE_REQ) + 4)
-#define CIFS_MAX_RFC1002_RSIZE ((1<<17) - 1 - sizeof(READ_RSP) + 4)
+#define CIFS_MAX_RFC1002_WSIZE ((1<<17) - 1 - sizeof(WRITE_REQ))
+#define CIFS_MAX_RFC1002_RSIZE ((1<<17) - 1 - sizeof(READ_RSP))
 
 /*
  * Windows only supports a max of 60kb reads and 65535 byte writes. Default to
@@ -1701,6 +1701,7 @@ struct mid_q_entry {
 	struct task_struct *creator;
 	void *resp_buf;		/* pointer to received SMB header */
 	unsigned int resp_buf_size;
+	u32 response_pdu_len;
 	int mid_state;	/* wish this were enum but can not pass to wait_event */
 	int mid_rc;		/* rc for MID_RC */
 	__le16 command;		/* smb command code */

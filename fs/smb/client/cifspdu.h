@@ -90,7 +90,7 @@
 
 /* future chained NTCreateXReadX bigger, but for time being NTCreateX biggest */
 /* among the requests (NTCreateX response is bigger with wct of 34) */
-#define MAX_CIFS_HDR_SIZE 0x58 /* 4 len + 32 hdr + (2*24 wct) + 2 bct + 2 pad */
+#define MAX_CIFS_HDR_SIZE 0x54 /* 32 hdr + (2*24 wct) + 2 bct + 2 pad */
 #define CIFS_SMALL_PATH 120 /* allows for (448-88)/3 */
 
 /* internal cifs vfs structures */

@@ -2016,9 +2016,6 @@ struct smb2_lease_ack {
  *     MS-SMB 2.2.3.1
  */
 struct smb_hdr {
-	__be32 smb_buf_length;	/* BB length is only two (rarely three) bytes,
-		with one or two byte "type" preceding it that will be
-		zero - we could mask the type byte off */
 	__u8 Protocol[4];
 	__u8 Command;
 	union {

@@ -35,15 +35,15 @@ send_nt_cancel(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 {
 	int rc = 0;
 	struct smb_hdr *in_buf = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
+	unsigned int in_len = rqst->rq_iov[0].iov_len;
 
-	/* -4 for RFC1001 length and +2 for BCC field */
-	in_buf->smb_buf_length = cpu_to_be32(sizeof(struct smb_hdr) - 4  + 2);
+	/* +2 for BCC field */
 	in_buf->Command = SMB_COM_NT_CANCEL;
 	in_buf->WordCount = 0;
 	put_bcc(0, in_buf);
 
 	cifs_server_lock(server);
-	rc = cifs_sign_smb(in_buf, server, &mid->sequence_number);
+	rc = cifs_sign_smb(in_buf, in_len, server, &mid->sequence_number);
 	if (rc) {
 		cifs_server_unlock(server);
 		return rc;
@@ -55,7 +55,7 @@ send_nt_cancel(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 	 * after signing here.
 	 */
 	--server->sequence_number;
-	rc = smb_send(server, in_buf, be32_to_cpu(in_buf->smb_buf_length));
+	rc = smb_send(server, in_buf, in_len);
 	if (rc < 0)
 		server->sequence_number--;
 
@@ -289,7 +289,7 @@ check2ndT2(char *buf)
 }
 
 static int
-coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
+coalesce_t2(char *second_buf, struct smb_hdr *target_hdr, unsigned int *pdu_len)
 {
 	struct smb_t2_rsp *pSMBs = (struct smb_t2_rsp *)second_buf;
 	struct smb_t2_rsp *pSMBt  = (struct smb_t2_rsp *)target_hdr;
@@ -355,15 +355,15 @@ coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
 	}
 	put_bcc(byte_count, target_hdr);
 
-	byte_count = be32_to_cpu(target_hdr->smb_buf_length);
+	byte_count = *pdu_len;
 	byte_count += total_in_src;
 	/* don't allow buffer to overflow */
-	if (byte_count > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
+	if (byte_count > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
 		cifs_dbg(FYI, "coalesced BCC exceeds buffer size (%u)\n",
 			 byte_count);
 		return -ENOBUFS;
 	}
-	target_hdr->smb_buf_length = cpu_to_be32(byte_count);
+	*pdu_len = byte_count;
 
 	/* copy second buffer into end of first buffer */
 	memcpy(data_area_of_tgt, data_area_of_src, total_in_src);
@@ -398,7 +398,7 @@ cifs_check_trans2(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 	mid->multiRsp = true;
 	if (mid->resp_buf) {
 		/* merge response - fix up 1st*/
-		malformed = coalesce_t2(buf, mid->resp_buf);
+		malformed = coalesce_t2(buf, mid->resp_buf, &mid->response_pdu_len);
 		if (malformed > 0)
 			return true;
 		/* All parts received or packet is malformed. */
@@ -461,7 +461,7 @@ smb1_negotiate_wsize(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 	if (!(server->capabilities & CAP_LARGE_WRITE_X) ||
 	    (!(server->capabilities & CAP_UNIX) && server->sign))
 		wsize = min_t(unsigned int, wsize,
-				server->maxBuf - sizeof(WRITE_REQ) + 4);
+				server->maxBuf - sizeof(WRITE_REQ));
 
 	/* hard limit of CIFS_MAX_WSIZE */
 	wsize = min_t(unsigned int, wsize, CIFS_MAX_WSIZE);
@@ -1487,7 +1487,6 @@ struct smb_version_values smb1_values = {
 	.exclusive_lock_type = 0,
 	.shared_lock_type = LOCKING_ANDX_SHARED_LOCK,
 	.unlock_lock_type = 0,
-	.header_preamble_size = 4,
 	.header_size = sizeof(struct smb_hdr),
 	.max_header_size = MAX_CIFS_HDR_SIZE,
 	.read_rsp_size = sizeof(READ_RSP),

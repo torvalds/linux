@@ -91,18 +91,7 @@ int __cifs_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 	struct kvec *iov = rqst->rq_iov;
 	int n_vec = rqst->rq_nvec;
 
-	/* iov[0] is actual data and not the rfc1002 length for SMB2+ */
-	if (!is_smb1(server)) {
-		if (iov[0].iov_len <= 4)
-			return -EIO;
-		i = 0;
-	} else {
-		if (n_vec < 2 || iov[0].iov_len != 4)
-			return -EIO;
-		i = 1; /* skip rfc1002 length */
-	}
-
-	for (; i < n_vec; i++) {
+	for (i = 0; i < n_vec; i++) {
 		if (iov[i].iov_len == 0)
 			continue;
 		if (iov[i].iov_base == NULL) {
@@ -165,10 +154,6 @@ int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 	char smb_signature[20];
 	struct smb_hdr *cifs_pdu = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
 
-	if (rqst->rq_iov[0].iov_len != 4 ||
-	    rqst->rq_iov[0].iov_base + 4 != rqst->rq_iov[1].iov_base)
-		return -EIO;
-
 	if ((cifs_pdu == NULL) || (server == NULL))
 		return -EINVAL;
 
@@ -211,17 +196,16 @@ int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 }
 
 /* must be called with server->srv_mutex held */
-int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
+int cifs_sign_smb(struct smb_hdr *cifs_pdu, unsigned int pdu_len,
+		  struct TCP_Server_Info *server,
 		  __u32 *pexpected_response_sequence_number)
 {
-	struct kvec iov[2];
+	struct kvec iov[1] = {
+		[0].iov_base = (char *)cifs_pdu,
+		[0].iov_len = pdu_len,
+	};
 
-	iov[0].iov_base = cifs_pdu;
-	iov[0].iov_len = 4;
-	iov[1].iov_base = (char *)cifs_pdu + 4;
-	iov[1].iov_len = be32_to_cpu(cifs_pdu->smb_buf_length);
-
-	return cifs_sign_smbv(iov, 2, server,
+	return cifs_sign_smbv(iov, ARRAY_SIZE(iov), server,
 			      pexpected_response_sequence_number);
 }
 
@@ -233,10 +217,6 @@ int cifs_verify_signature(struct smb_rqst *rqst,
 	char server_response_sig[8];
 	char what_we_think_sig_should_be[20];
 	struct smb_hdr *cifs_pdu = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
-
-	if (rqst->rq_iov[0].iov_len != 4 ||
-	    rqst->rq_iov[0].iov_base + 4 != rqst->rq_iov[1].iov_base)
-		return -EIO;
 
 	if (cifs_pdu == NULL || server == NULL)
 		return -EINVAL;

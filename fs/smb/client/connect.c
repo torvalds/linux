@@ -1155,15 +1155,14 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	unsigned int pdu_length = server->pdu_size;
 
 	/* make sure this will fit in a large buffer */
-	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server) -
-	    HEADER_PREAMBLE_SIZE(server)) {
+	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server)) {
 		cifs_server_dbg(VFS, "SMB response too long (%u bytes)\n", pdu_length);
 		cifs_reconnect(server, true);
 		return -ECONNABORTED;
 	}
 
 	/* switch to large buffer if too big for a small one */
-	if (pdu_length > MAX_CIFS_SMALL_BUFFER_SIZE - 4) {
+	if (pdu_length > MAX_CIFS_SMALL_BUFFER_SIZE) {
 		server->large_buf = true;
 		memcpy(server->bigbuf, buf, server->total_read);
 		buf = server->bigbuf;
@@ -1196,7 +1195,8 @@ cifs_handle_standard(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	 * 48 bytes is enough to display the header and a little bit
 	 * into the payload for debugging purposes.
 	 */
-	rc = server->ops->check_message(buf, server->total_read, server);
+	rc = server->ops->check_message(buf, server->pdu_size,
+					server->total_read, server);
 	if (rc)
 		cifs_dump_mem("Bad SMB: ", buf,
 			min_t(unsigned int, server->total_read, 48));
@@ -1286,16 +1286,13 @@ cifs_demultiplex_thread(void *p)
 		if (length < 0)
 			continue;
 
-		if (is_smb1(server))
-			server->total_read = length;
-		else
-			server->total_read = 0;
+		server->total_read = 0;
 
 		/*
 		 * The right amount was read from socket - 4 bytes,
 		 * so we can now interpret the length field.
 		 */
-		pdu_length = get_rfc1002_len(buf);
+		pdu_length = be32_to_cpup(((__be32 *)buf)) & 0xffffff;
 
 		cifs_dbg(FYI, "RFC1002 header 0x%x\n", pdu_length);
 		if (!is_smb_response(server, buf[0]))
@@ -1314,9 +1311,8 @@ next_pdu:
 		}
 
 		/* read down to the MID */
-		length = cifs_read_from_socket(server,
-			     buf + HEADER_PREAMBLE_SIZE(server),
-			     MID_HEADER_SIZE(server));
+		length = cifs_read_from_socket(server, buf,
+					       MID_HEADER_SIZE(server));
 		if (length < 0)
 			continue;
 		server->total_read += length;
@@ -1348,6 +1344,8 @@ next_pdu:
 			bufs[0] = buf;
 			num_mids = 1;
 
+			if (mids[0])
+				mids[0]->response_pdu_len = pdu_length;
 			if (!mids[0] || !mids[0]->receive)
 				length = standard_receive3(server, mids[0]);
 			else
@@ -1406,7 +1404,7 @@ next_pdu:
 				smb2_add_credits_from_hdr(bufs[i], server);
 #ifdef CONFIG_CIFS_DEBUG2
 				if (server->ops->dump_detail)
-					server->ops->dump_detail(bufs[i],
+					server->ops->dump_detail(bufs[i], pdu_length,
 								 server);
 				cifs_dump_mids(server);
 #endif /* CIFS_DEBUG2 */
@@ -3999,7 +3997,7 @@ CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 	TCONX_RSP *pSMBr;
 	unsigned char *bcc_ptr;
 	int rc = 0;
-	int length;
+	int length, in_len;
 	__u16 bytes_left, count;
 
 	if (ses == NULL)
@@ -4011,8 +4009,8 @@ CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 
 	smb_buffer_response = smb_buffer;
 
-	header_assemble(smb_buffer, SMB_COM_TREE_CONNECT_ANDX,
-			NULL /*no tid */, 4 /*wct */);
+	in_len = header_assemble(smb_buffer, SMB_COM_TREE_CONNECT_ANDX,
+				 NULL /*no tid */, 4 /*wct */);
 
 	smb_buffer->Mid = get_next_mid(ses->server);
 	smb_buffer->Uid = ses->Suid;
@@ -4053,11 +4051,11 @@ CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 	bcc_ptr += strlen("?????");
 	bcc_ptr += 1;
 	count = bcc_ptr - &pSMB->Password[0];
-	be32_add_cpu(&pSMB->hdr.smb_buf_length, count);
+	in_len += count;
 	pSMB->ByteCount = cpu_to_le16(count);
 
-	rc = SendReceive(xid, ses, smb_buffer, smb_buffer_response, &length,
-			 0);
+	rc = SendReceive(xid, ses, smb_buffer, in_len, smb_buffer_response,
+			 &length, 0);
 
 	/* above now done in SendReceive */
 	if (rc == 0) {

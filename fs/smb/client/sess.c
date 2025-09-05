@@ -1313,6 +1313,7 @@ struct sess_data {
 	struct nls_table *nls_cp;
 	void (*func)(struct sess_data *);
 	int result;
+	unsigned int in_len;
 
 	/* we will send the SMB in three pieces:
 	 * a fixed length beginning part, an optional
@@ -1336,11 +1337,12 @@ sess_alloc_buffer(struct sess_data *sess_data, int wct)
 	rc = small_smb_init_no_tc(SMB_COM_SESSION_SETUP_ANDX, wct, ses,
 				  (void **)&smb_buf);
 
-	if (rc)
+	if (rc < 0)
 		return rc;
 
+	sess_data->in_len = rc;
 	sess_data->iov[0].iov_base = (char *)smb_buf;
-	sess_data->iov[0].iov_len = be32_to_cpu(smb_buf->smb_buf_length) + 4;
+	sess_data->iov[0].iov_len = sess_data->in_len;
 	/*
 	 * This variable will be used to clear the buffer
 	 * allocated above in case of any error in the calling function.
@@ -1418,7 +1420,7 @@ sess_sendreceive(struct sess_data *sess_data)
 	struct kvec rsp_iov = { NULL, 0 };
 
 	count = sess_data->iov[1].iov_len + sess_data->iov[2].iov_len;
-	be32_add_cpu(&smb_buf->smb_buf_length, count);
+	sess_data->in_len += count;
 	put_bcc(count, smb_buf);
 
 	rc = SendReceive2(sess_data->xid, sess_data->ses,

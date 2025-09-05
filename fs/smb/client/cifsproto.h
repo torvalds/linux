@@ -111,18 +111,16 @@ extern int compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 			      const int flags, const int num_rqst,
 			      struct smb_rqst *rqst, int *resp_buf_type,
 			      struct kvec *resp_iov);
-extern int SendReceive(const unsigned int /* xid */ , struct cifs_ses *,
-			struct smb_hdr * /* input */ ,
-			struct smb_hdr * /* out */ ,
-			int * /* bytes returned */ , const int);
-extern int SendReceiveNoRsp(const unsigned int xid, struct cifs_ses *ses,
-			    char *in_buf, int flags);
+int SendReceive(const unsigned int xid, struct cifs_ses *ses,
+		struct smb_hdr *in_buf, unsigned int in_len,
+		struct smb_hdr *out_buf, int *pbytes_returned, const int flags);
+int SendReceiveNoRsp(const unsigned int xid, struct cifs_ses *ses,
+		     char *in_buf, unsigned int in_len, int flags);
 int cifs_sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server);
-extern struct mid_q_entry *cifs_setup_request(struct cifs_ses *,
-				struct TCP_Server_Info *,
-				struct smb_rqst *);
-extern struct mid_q_entry *cifs_setup_async_request(struct TCP_Server_Info *,
-						struct smb_rqst *);
+struct mid_q_entry *cifs_setup_request(struct cifs_ses *ses, struct TCP_Server_Info *ignored,
+				       struct smb_rqst *rqst);
+struct mid_q_entry *cifs_setup_async_request(struct TCP_Server_Info *server,
+					     struct smb_rqst *rqst);
 int __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 		    struct smb_rqst *rqst);
 extern int cifs_check_receive(struct mid_q_entry *mid,
@@ -146,11 +144,9 @@ extern int SendReceive2(const unsigned int /* xid */ , struct cifs_ses *,
 			struct kvec *, int /* nvec to send */,
 			int * /* type of buf returned */, const int flags,
 			struct kvec * /* resp vec */);
-extern int SendReceiveBlockingLock(const unsigned int xid,
-			struct cifs_tcon *ptcon,
-			struct smb_hdr *in_buf,
-			struct smb_hdr *out_buf,
-			int *bytes_returned);
+int SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
+			    struct smb_hdr *in_buf, unsigned int in_len,
+			    struct smb_hdr *out_buf, int *pbytes_returned);
 
 void smb2_query_server_interfaces(struct work_struct *work);
 void
@@ -161,7 +157,8 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 				      bool mark_smb_session);
 extern int cifs_reconnect(struct TCP_Server_Info *server,
 			  bool mark_smb_session);
-extern int checkSMB(char *buf, unsigned int len, struct TCP_Server_Info *srvr);
+int checkSMB(char *buf, unsigned int pdu_len, unsigned int len,
+	     struct TCP_Server_Info *srvr);
 extern bool is_valid_oplock_break(char *, struct TCP_Server_Info *);
 extern bool backup_cred(struct cifs_sb_info *);
 extern bool is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 eof,
@@ -188,9 +185,9 @@ extern int cifs_convert_address(struct sockaddr *dst, const char *src, int len);
 extern void cifs_set_port(struct sockaddr *addr, const unsigned short int port);
 extern int map_smb_to_linux_error(char *buf, bool logErr);
 extern int map_and_check_smb_error(struct mid_q_entry *mid, bool logErr);
-extern void header_assemble(struct smb_hdr *, char /* command */ ,
-			    const struct cifs_tcon *, int /* length of
-			    fixed section (word count) in two byte units */);
+unsigned int header_assemble(struct smb_hdr *buffer, char smb_command,
+			     const struct cifs_tcon *treeCon, int word_count
+			     /* length of fixed section word count in two byte units  */);
 extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
 				struct cifs_ses *ses,
 				void **request_buf);
@@ -565,12 +562,14 @@ extern void tconInfoFree(struct cifs_tcon *tcon, enum smb3_tcon_ref_trace trace)
 
 extern int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 		   __u32 *pexpected_response_sequence_number);
-extern int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
-			  __u32 *);
-extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *, __u32 *);
-extern int cifs_verify_signature(struct smb_rqst *rqst,
-				 struct TCP_Server_Info *server,
-				__u32 expected_sequence_number);
+int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
+		   __u32 *pexpected_response_sequence);
+int cifs_sign_smb(struct smb_hdr *cifs_pdu, unsigned int pdu_len,
+		  struct TCP_Server_Info *server,
+		  __u32 *pexpected_response_sequence_number);
+int cifs_verify_signature(struct smb_rqst *rqst,
+			  struct TCP_Server_Info *server,
+			  __u32 expected_sequence_number);
 extern int setup_ntlmv2_rsp(struct cifs_ses *, const struct nls_table *);
 extern void cifs_crypto_secmech_release(struct TCP_Server_Info *server);
 extern int calc_seckey(struct cifs_ses *);
