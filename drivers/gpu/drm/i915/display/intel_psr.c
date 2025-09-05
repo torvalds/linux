@@ -42,6 +42,7 @@
 #include "intel_dmc.h"
 #include "intel_dp.h"
 #include "intel_dp_aux.h"
+#include "intel_dsb.h"
 #include "intel_frontbuffer.h"
 #include "intel_hdmi.h"
 #include "intel_psr.h"
@@ -3006,7 +3007,8 @@ void intel_psr_post_plane_update(struct intel_atomic_state *state,
 #define PSR_IDLE_TIMEOUT_MS 50
 
 static int
-_psr2_ready_for_pipe_update_locked(const struct intel_crtc_state *new_crtc_state)
+_psr2_ready_for_pipe_update_locked(const struct intel_crtc_state *new_crtc_state,
+				   struct intel_dsb *dsb)
 {
 	struct intel_display *display = to_intel_display(new_crtc_state);
 	enum transcoder cpu_transcoder = new_crtc_state->cpu_transcoder;
@@ -3016,6 +3018,13 @@ _psr2_ready_for_pipe_update_locked(const struct intel_crtc_state *new_crtc_state
 	 * As all higher states has bit 4 of PSR2 state set we can just wait for
 	 * EDP_PSR2_STATUS_STATE_DEEP_SLEEP to be cleared.
 	 */
+	if (dsb) {
+		intel_dsb_poll(dsb, EDP_PSR2_STATUS(display, cpu_transcoder),
+			       EDP_PSR2_STATUS_STATE_DEEP_SLEEP, 0, 200,
+			       PSR_IDLE_TIMEOUT_MS * 1000 / 200);
+		return true;
+	}
+
 	return intel_de_wait_for_clear(display,
 				       EDP_PSR2_STATUS(display, cpu_transcoder),
 				       EDP_PSR2_STATUS_STATE_DEEP_SLEEP,
@@ -3023,10 +3032,18 @@ _psr2_ready_for_pipe_update_locked(const struct intel_crtc_state *new_crtc_state
 }
 
 static int
-_psr1_ready_for_pipe_update_locked(const struct intel_crtc_state *new_crtc_state)
+_psr1_ready_for_pipe_update_locked(const struct intel_crtc_state *new_crtc_state,
+				   struct intel_dsb *dsb)
 {
 	struct intel_display *display = to_intel_display(new_crtc_state);
 	enum transcoder cpu_transcoder = new_crtc_state->cpu_transcoder;
+
+	if (dsb) {
+		intel_dsb_poll(dsb, psr_status_reg(display, cpu_transcoder),
+			       EDP_PSR_STATUS_STATE_MASK, 0, 200,
+			       PSR_IDLE_TIMEOUT_MS * 1000 / 200);
+		return true;
+	}
 
 	return intel_de_wait_for_clear(display,
 				       psr_status_reg(display, cpu_transcoder),
@@ -3060,14 +3077,28 @@ void intel_psr_wait_for_idle_locked(const struct intel_crtc_state *new_crtc_stat
 			continue;
 
 		if (intel_dp->psr.sel_update_enabled)
-			ret = _psr2_ready_for_pipe_update_locked(new_crtc_state);
+			ret = _psr2_ready_for_pipe_update_locked(new_crtc_state,
+								 NULL);
 		else
-			ret = _psr1_ready_for_pipe_update_locked(new_crtc_state);
+			ret = _psr1_ready_for_pipe_update_locked(new_crtc_state,
+								 NULL);
 
 		if (ret)
 			drm_err(display->drm,
 				"PSR wait timed out, atomic update may fail\n");
 	}
+}
+
+void intel_psr_wait_for_idle_dsb(struct intel_dsb *dsb,
+				 const struct intel_crtc_state *new_crtc_state)
+{
+	if (!new_crtc_state->has_psr || new_crtc_state->has_panel_replay)
+		return;
+
+	if (new_crtc_state->has_sel_update)
+		_psr2_ready_for_pipe_update_locked(new_crtc_state, dsb);
+	else
+		_psr1_ready_for_pipe_update_locked(new_crtc_state, dsb);
 }
 
 static bool __psr_wait_for_idle_locked(struct intel_dp *intel_dp)
