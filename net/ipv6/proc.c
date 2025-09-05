@@ -85,7 +85,6 @@ static const struct snmp_mib snmp6_ipstats_list[] = {
 	SNMP_MIB_ITEM("Ip6InECT0Pkts", IPSTATS_MIB_ECT0PKTS),
 	SNMP_MIB_ITEM("Ip6InCEPkts", IPSTATS_MIB_CEPKTS),
 	SNMP_MIB_ITEM("Ip6OutTransmits", IPSTATS_MIB_OUTPKTS),
-	SNMP_MIB_SENTINEL
 };
 
 static const struct snmp_mib snmp6_icmp6_list[] = {
@@ -96,7 +95,6 @@ static const struct snmp_mib snmp6_icmp6_list[] = {
 	SNMP_MIB_ITEM("Icmp6OutErrors", ICMP6_MIB_OUTERRORS),
 	SNMP_MIB_ITEM("Icmp6InCsumErrors", ICMP6_MIB_CSUMERRORS),
 	SNMP_MIB_ITEM("Icmp6OutRateLimitHost", ICMP6_MIB_RATELIMITHOST),
-	SNMP_MIB_SENTINEL
 };
 
 static const struct snmp_mib snmp6_udp6_list[] = {
@@ -109,7 +107,6 @@ static const struct snmp_mib snmp6_udp6_list[] = {
 	SNMP_MIB_ITEM("Udp6InCsumErrors", UDP_MIB_CSUMERRORS),
 	SNMP_MIB_ITEM("Udp6IgnoredMulti", UDP_MIB_IGNOREDMULTI),
 	SNMP_MIB_ITEM("Udp6MemErrors", UDP_MIB_MEMERRORS),
-	SNMP_MIB_SENTINEL
 };
 
 static const struct snmp_mib snmp6_udplite6_list[] = {
@@ -121,7 +118,6 @@ static const struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_ITEM("UdpLite6SndbufErrors", UDP_MIB_SNDBUFERRORS),
 	SNMP_MIB_ITEM("UdpLite6InCsumErrors", UDP_MIB_CSUMERRORS),
 	SNMP_MIB_ITEM("UdpLite6MemErrors", UDP_MIB_MEMERRORS),
-	SNMP_MIB_SENTINEL
 };
 
 static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, atomic_long_t *smib)
@@ -182,35 +178,37 @@ static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, atomic_long_t *smib)
  */
 static void snmp6_seq_show_item(struct seq_file *seq, void __percpu *pcpumib,
 				atomic_long_t *smib,
-				const struct snmp_mib *itemlist)
+				const struct snmp_mib *itemlist,
+				int cnt)
 {
 	unsigned long buff[SNMP_MIB_MAX];
 	int i;
 
 	if (pcpumib) {
-		memset(buff, 0, sizeof(unsigned long) * SNMP_MIB_MAX);
+		memset(buff, 0, sizeof(unsigned long) * cnt);
 
-		snmp_get_cpu_field_batch(buff, itemlist, pcpumib);
-		for (i = 0; itemlist[i].name; i++)
+		snmp_get_cpu_field_batch_cnt(buff, itemlist, cnt, pcpumib);
+		for (i = 0; i < cnt; i++)
 			seq_printf(seq, "%-32s\t%lu\n",
 				   itemlist[i].name, buff[i]);
 	} else {
-		for (i = 0; itemlist[i].name; i++)
+		for (i = 0; i < cnt; i++)
 			seq_printf(seq, "%-32s\t%lu\n", itemlist[i].name,
 				   atomic_long_read(smib + itemlist[i].entry));
 	}
 }
 
 static void snmp6_seq_show_item64(struct seq_file *seq, void __percpu *mib,
-				  const struct snmp_mib *itemlist, size_t syncpoff)
+				  const struct snmp_mib *itemlist,
+				  int cnt, size_t syncpoff)
 {
 	u64 buff64[SNMP_MIB_MAX];
 	int i;
 
-	memset(buff64, 0, sizeof(u64) * SNMP_MIB_MAX);
+	memset(buff64, 0, sizeof(u64) * cnt);
 
-	snmp_get_cpu_field64_batch(buff64, itemlist, mib, syncpoff);
-	for (i = 0; itemlist[i].name; i++)
+	snmp_get_cpu_field64_batch_cnt(buff64, itemlist, cnt, mib, syncpoff);
+	for (i = 0; i < cnt; i++)
 		seq_printf(seq, "%-32s\t%llu\n", itemlist[i].name, buff64[i]);
 }
 
@@ -219,14 +217,19 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
 	struct net *net = (struct net *)seq->private;
 
 	snmp6_seq_show_item64(seq, net->mib.ipv6_statistics,
-			    snmp6_ipstats_list, offsetof(struct ipstats_mib, syncp));
+			      snmp6_ipstats_list,
+			      ARRAY_SIZE(snmp6_ipstats_list),
+			      offsetof(struct ipstats_mib, syncp));
 	snmp6_seq_show_item(seq, net->mib.icmpv6_statistics,
-			    NULL, snmp6_icmp6_list);
+			    NULL, snmp6_icmp6_list,
+			    ARRAY_SIZE(snmp6_icmp6_list));
 	snmp6_seq_show_icmpv6msg(seq, net->mib.icmpv6msg_statistics->mibs);
 	snmp6_seq_show_item(seq, net->mib.udp_stats_in6,
-			    NULL, snmp6_udp6_list);
+			    NULL, snmp6_udp6_list,
+			    ARRAY_SIZE(snmp6_udp6_list));
 	snmp6_seq_show_item(seq, net->mib.udplite_stats_in6,
-			    NULL, snmp6_udplite6_list);
+			    NULL, snmp6_udplite6_list,
+			    ARRAY_SIZE(snmp6_udplite6_list));
 	return 0;
 }
 
@@ -236,9 +239,11 @@ static int snmp6_dev_seq_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq, "%-32s\t%u\n", "ifIndex", idev->dev->ifindex);
 	snmp6_seq_show_item64(seq, idev->stats.ipv6,
-			    snmp6_ipstats_list, offsetof(struct ipstats_mib, syncp));
+			      snmp6_ipstats_list,
+			      ARRAY_SIZE(snmp6_ipstats_list),
+			      offsetof(struct ipstats_mib, syncp));
 	snmp6_seq_show_item(seq, NULL, idev->stats.icmpv6dev->mibs,
-			    snmp6_icmp6_list);
+			    snmp6_icmp6_list, ARRAY_SIZE(snmp6_icmp6_list));
 	snmp6_seq_show_icmpv6msg(seq, idev->stats.icmpv6msgdev->mibs);
 	return 0;
 }
