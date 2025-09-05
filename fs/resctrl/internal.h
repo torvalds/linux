@@ -241,6 +241,8 @@ struct rdtgroup {
 
 #define RFTYPE_DEBUG			BIT(10)
 
+#define RFTYPE_ASSIGN_CONFIG		BIT(11)
+
 #define RFTYPE_CTRL_INFO		(RFTYPE_INFO | RFTYPE_CTRL)
 
 #define RFTYPE_MON_INFO			(RFTYPE_INFO | RFTYPE_MON)
@@ -402,6 +404,8 @@ int resctrl_available_mbm_cntrs_show(struct kernfs_open_file *of, struct seq_fil
 void rdtgroup_assign_cntrs(struct rdtgroup *rdtgrp);
 
 void rdtgroup_unassign_cntrs(struct rdtgroup *rdtgrp);
+
+int event_filter_show(struct kernfs_open_file *of, struct seq_file *seq, void *v);
 
 #ifdef CONFIG_RESCTRL_FS_PSEUDO_LOCK
 int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp);
