@@ -9,6 +9,7 @@
 #include <linux/iosys-map.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 #define XE_LB_MAX_PAYLOAD_SIZE SZ_4K
 
@@ -36,6 +37,8 @@ struct xe_late_bind_fw {
 	const u8  *payload;
 	/** @payload_size: late binding blob payload_size */
 	size_t payload_size;
+	/** @work: worker to upload latebind blob */
+	struct work_struct work;
 };
 
 /**
@@ -47,7 +50,7 @@ struct xe_late_bind_fw {
  */
 struct xe_late_bind_component {
 	struct device *mei_dev;
-	const struct late_bind_component_ops *ops;
+	const struct intel_lb_component_ops *ops;
 };
 
 /**
@@ -58,6 +61,10 @@ struct xe_late_bind {
 	struct xe_late_bind_component component;
 	/** @late_bind_fw: late binding firmware array */
 	struct xe_late_bind_fw late_bind_fw[XE_LB_FW_MAX_ID];
+	/** @wq: workqueue to submit request to download late bind blob */
+	struct workqueue_struct *wq;
+	/** @component_added: whether the component has been added */
+	bool component_added;
 };
 
 #endif
