@@ -140,6 +140,9 @@ struct vgic_irq {
 					 * the pending state for both level
 					 * and edge triggered IRQs. */
 	bool active;
+	bool pending_release;		/* Used for LPIs only, unreferenced IRQ
+					 * pending a release */
+
 	bool enabled;
 	bool hw;			/* Tied to HW IRQ */
 	refcount_t refcount;		/* Used for LPIs */
