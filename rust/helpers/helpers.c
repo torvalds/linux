@@ -7,6 +7,7 @@
  * Sorted alphabetically.
  */
 
+#include "atomic.c"
 #include "auxiliary.c"
 #include "blk.c"
 #include "bug.c"
