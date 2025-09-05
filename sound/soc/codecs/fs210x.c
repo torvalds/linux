@@ -1458,6 +1458,9 @@ static int fs210x_register_snd_component(struct fs210x_priv *fs210x)
 	dai_drv->name = devm_kasprintf(fs210x->dev,
 				       GFP_KERNEL, "%s-%d",
 				       dai_drv->name, instance_id);
+	if (!dai_drv->name)
+		return -ENOMEM;
+
 	instance_id++;
 
 	if (fs210x->devid == FS2105S_DEVICE_ID) {
