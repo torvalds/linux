@@ -17,6 +17,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/pci.h>
 #include <linux/dma/amd_xdma.h>
+#include <linux/types.h>
 #include "mgb4_core.h"
 #include "mgb4_trigger.h"
 
@@ -90,7 +91,7 @@ static irqreturn_t trigger_handler(int irq, void *p)
 	struct trigger_data *st = iio_priv(indio_dev);
 	struct {
 		u32 data;
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan = { };
 
 	scan.data = mgb4_read_reg(&st->mgbdev->video, 0xA0);
