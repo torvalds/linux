@@ -1552,7 +1552,8 @@ void ovl_copyattr(struct inode *inode)
 int ovl_parent_lock(struct dentry *parent, struct dentry *child)
 {
 	inode_lock_nested(parent->d_inode, I_MUTEX_PARENT);
-	if (!child || child->d_parent == parent)
+	if (!child ||
+	    (!d_unhashed(child) && child->d_parent == parent))
 		return 0;
 
 	inode_unlock(parent->d_inode);

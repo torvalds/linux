@@ -902,7 +902,7 @@ out_close:
 
 #else // HAVE_LIBBFD_BUILDID_SUPPORT
 
-static int read_build_id(const char *filename, struct build_id *bid)
+static int read_build_id(const char *filename, struct build_id *bid, bool block)
 {
 	size_t size = sizeof(bid->data);
 	int fd, err = -1;
@@ -911,7 +911,7 @@ static int read_build_id(const char *filename, struct build_id *bid)
 	if (size < BUILD_ID_SIZE)
 		goto out;
 
-	fd = open(filename, O_RDONLY);
+	fd = open(filename, block ? O_RDONLY : (O_RDONLY | O_NONBLOCK));
 	if (fd < 0)
 		goto out;
 
@@ -934,7 +934,7 @@ out:
 
 #endif // HAVE_LIBBFD_BUILDID_SUPPORT
 
-int filename__read_build_id(const char *filename, struct build_id *bid)
+int filename__read_build_id(const char *filename, struct build_id *bid, bool block)
 {
 	struct kmod_path m = { .name = NULL, };
 	char path[PATH_MAX];
@@ -958,9 +958,10 @@ int filename__read_build_id(const char *filename, struct build_id *bid)
 		}
 		close(fd);
 		filename = path;
+		block = true;
 	}
 
-	err = read_build_id(filename, bid);
+	err = read_build_id(filename, bid, block);
 
 	if (m.comp)
 		unlink(filename);
