@@ -84,6 +84,7 @@ xe-y += xe_bb.o \
 	xe_hw_error.o \
 	xe_hw_fence.o \
 	xe_irq.o \
+	xe_late_bind_fw.o \
 	xe_lrc.o \
 	xe_migrate.o \
 	xe_mmio.o \
