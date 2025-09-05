@@ -1807,8 +1807,8 @@ static ssize_t mbm_local_bytes_config_write(struct kernfs_open_file *of,
  * Don't treat kernfs_find_and_get failure as an error, since this function may
  * be called regardless of whether BMEC is supported or the event is enabled.
  */
-static void resctrl_bmec_files_show(struct rdt_resource *r, struct kernfs_node *l3_mon_kn,
-				    bool show)
+void resctrl_bmec_files_show(struct rdt_resource *r, struct kernfs_node *l3_mon_kn,
+			     bool show)
 {
 	struct kernfs_node *kn_config, *mon_kn = NULL;
 	char name[32];
@@ -1985,9 +1985,10 @@ static struct rftype res_common_files[] = {
 	},
 	{
 		.name		= "mbm_assign_mode",
-		.mode		= 0444,
+		.mode		= 0644,
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.seq_show	= resctrl_mbm_assign_mode_show,
+		.write		= resctrl_mbm_assign_mode_write,
 		.fflags		= RFTYPE_MON_INFO | RFTYPE_RES_CACHE,
 	},
 	{
