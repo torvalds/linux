@@ -1089,10 +1089,11 @@ cleanup() {
 
 	cleanup_all_ns
 
-	ip link del veth_A-C		2>/dev/null
-	ip link del veth_A-R1		2>/dev/null
-	cleanup_del_ovs_internal
-	cleanup_del_ovs_vswitchd
+	[ -e "/sys/class/net/veth_A-C"  ] && ip link del veth_A-C
+	[ -e "/sys/class/net/veth_A-R1" ] && ip link del veth_A-R1
+	[ -e "/sys/class/net/ovs_br0"   ] && cleanup_del_ovs_internal
+	[ -e "/sys/class/net/ovs_br0"   ] && cleanup_del_ovs_vswitchd
+
 	rm -f "$tmpoutfile"
 }
 
