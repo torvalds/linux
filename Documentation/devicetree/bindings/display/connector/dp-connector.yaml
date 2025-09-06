@@ -31,10 +31,32 @@ properties:
     $ref: /schemas/graph.yaml#/properties/port
     description: Connection to controller providing DP signals
 
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description: OF graph representation of signales routed to DP connector
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Connection to controller providing DP signals
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Connection to controller providing AUX signals
+
+    required:
+      - port@0
+      - port@1
+
 required:
   - compatible
   - type
-  - port
+
+oneOf:
+  - required:
+      - port
+  - required:
+      - ports
 
 additionalProperties: false
 
@@ -52,4 +74,32 @@ examples:
         };
     };
 
+  - |
+    /* DP connecttor being driven by the USB+DP combo PHY */
+    connector {
+        compatible = "dp-connector";
+        label = "dp0";
+        type = "full-size";
+
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@0 {
+                reg = <0>;
+
+                endpoint {
+                    remote-endpoint = <&phy_ss_out>;
+                };
+            };
+
+            port@1 {
+                reg = <1>;
+
+                endpoint {
+                    remote-endpoint = <&phy_sbu_out>;
+                };
+            };
+        };
+    };
 ...
