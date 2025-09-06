@@ -20,7 +20,11 @@ static unsigned int __initdata arc_base_baud;
 
 unsigned int __init arc_early_base_baud(void)
 {
-	return arc_base_baud/16;
+	#define BASE_BAUD_DIVISOR 16
+
+unsigned int __init arc_early_base_baud(void)
+{
+	return arc_base_baud / BASE_BAUD_DIVISOR;
 }
 
 static void __init arc_set_early_base_baud(unsigned long dt_root)
@@ -34,7 +38,7 @@ static void __init arc_set_early_base_baud(unsigned long dt_root)
 		arc_base_baud = 50000000;	/* Fixed default 50MHz */
 }
 #else
-#define arc_set_early_base_baud(dt_root)
+#define arc_set_early_base_baud(dt_root) do {} while (0)
 #endif
 
 static const void * __init arch_get_next_mach(const char *const **match)
