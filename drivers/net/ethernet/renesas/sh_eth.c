@@ -2233,7 +2233,7 @@ static void sh_eth_get_regs(struct net_device *ndev, struct ethtool_regs *regs,
 
 	pm_runtime_get_sync(&mdp->pdev->dev);
 	__sh_eth_get_regs(ndev, buf);
-	pm_runtime_put_sync(&mdp->pdev->dev);
+	pm_runtime_put(&mdp->pdev->dev);
 }
 
 static u32 sh_eth_get_msglevel(struct net_device *ndev)
@@ -2447,7 +2447,7 @@ out_free_irq:
 	free_irq(ndev->irq, ndev);
 out_napi_off:
 	napi_disable(&mdp->napi);
-	pm_runtime_put_sync(&mdp->pdev->dev);
+	pm_runtime_put(&mdp->pdev->dev);
 	return ret;
 }
 
@@ -3443,8 +3443,6 @@ static void sh_eth_drv_remove(struct platform_device *pdev)
 	free_netdev(ndev);
 }
 
-#ifdef CONFIG_PM
-#ifdef CONFIG_PM_SLEEP
 static int sh_eth_wol_setup(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -3527,28 +3525,8 @@ static int sh_eth_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
-static int sh_eth_runtime_nop(struct device *dev)
-{
-	/* Runtime PM callback shared between ->runtime_suspend()
-	 * and ->runtime_resume(). Simply returns success.
-	 *
-	 * This driver re-initializes all registers after
-	 * pm_runtime_get_sync() anyway so there is no need
-	 * to save and restore registers here.
-	 */
-	return 0;
-}
-
-static const struct dev_pm_ops sh_eth_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(sh_eth_suspend, sh_eth_resume)
-	SET_RUNTIME_PM_OPS(sh_eth_runtime_nop, sh_eth_runtime_nop, NULL)
-};
-#define SH_ETH_PM_OPS (&sh_eth_dev_pm_ops)
-#else
-#define SH_ETH_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(sh_eth_dev_pm_ops, sh_eth_suspend, sh_eth_resume);
 
 static const struct platform_device_id sh_eth_id_table[] = {
 	{ "sh7619-ether", (kernel_ulong_t)&sh7619_data },
@@ -3568,7 +3546,7 @@ static struct platform_driver sh_eth_driver = {
 	.id_table = sh_eth_id_table,
 	.driver = {
 		   .name = CARDNAME,
-		   .pm = SH_ETH_PM_OPS,
+		   .pm = pm_sleep_ptr(&sh_eth_dev_pm_ops),
 		   .of_match_table = of_match_ptr(sh_eth_match_table),
 	},
 };
