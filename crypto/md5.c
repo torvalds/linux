@@ -46,6 +46,18 @@ static int __crypto_md5_import(struct md5_ctx *ctx, const void *in)
 	return 0;
 }
 
+static int __crypto_md5_export_core(const struct md5_ctx *ctx, void *out)
+{
+	memcpy(out, ctx, offsetof(struct md5_ctx, buf));
+	return 0;
+}
+
+static int __crypto_md5_import_core(struct md5_ctx *ctx, const void *in)
+{
+	memcpy(ctx, in, offsetof(struct md5_ctx, buf));
+	return 0;
+}
+
 const u8 md5_zero_message_hash[MD5_DIGEST_SIZE] = {
 	0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
 	0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e,
@@ -88,6 +100,16 @@ static int crypto_md5_export(struct shash_desc *desc, void *out)
 static int crypto_md5_import(struct shash_desc *desc, const void *in)
 {
 	return __crypto_md5_import(MD5_CTX(desc), in);
+}
+
+static int crypto_md5_export_core(struct shash_desc *desc, void *out)
+{
+	return __crypto_md5_export_core(MD5_CTX(desc), out);
+}
+
+static int crypto_md5_import_core(struct shash_desc *desc, const void *in)
+{
+	return __crypto_md5_import_core(MD5_CTX(desc), in);
 }
 
 #define HMAC_MD5_KEY(tfm) ((struct hmac_md5_key *)crypto_shash_ctx(tfm))
@@ -139,6 +161,19 @@ static int crypto_hmac_md5_import(struct shash_desc *desc, const void *in)
 	return __crypto_md5_import(&ctx->hash_ctx, in);
 }
 
+static int crypto_hmac_md5_export_core(struct shash_desc *desc, void *out)
+{
+	return __crypto_md5_export_core(&HMAC_MD5_CTX(desc)->hash_ctx, out);
+}
+
+static int crypto_hmac_md5_import_core(struct shash_desc *desc, const void *in)
+{
+	struct hmac_md5_ctx *ctx = HMAC_MD5_CTX(desc);
+
+	ctx->ostate = HMAC_MD5_KEY(desc->tfm)->ostate;
+	return __crypto_md5_import_core(&ctx->hash_ctx, in);
+}
+
 static struct shash_alg algs[] = {
 	{
 		.base.cra_name		= "md5",
@@ -153,6 +188,8 @@ static struct shash_alg algs[] = {
 		.digest			= crypto_md5_digest,
 		.export			= crypto_md5_export,
 		.import			= crypto_md5_import,
+		.export_core		= crypto_md5_export_core,
+		.import_core		= crypto_md5_import_core,
 		.descsize		= sizeof(struct md5_ctx),
 		.statesize		= MD5_SHASH_STATE_SIZE,
 	},
@@ -171,6 +208,8 @@ static struct shash_alg algs[] = {
 		.digest			= crypto_hmac_md5_digest,
 		.export			= crypto_hmac_md5_export,
 		.import			= crypto_hmac_md5_import,
+		.export_core		= crypto_hmac_md5_export_core,
+		.import_core		= crypto_hmac_md5_import_core,
 		.descsize		= sizeof(struct hmac_md5_ctx),
 		.statesize		= MD5_SHASH_STATE_SIZE,
 	},
