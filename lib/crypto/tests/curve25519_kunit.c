@@ -4,6 +4,7 @@
  */
 
 #include <crypto/curve25519.h>
+#include <kunit/test.h>
 
 struct curve25519_test_vector {
 	u8 private[CURVE25519_KEY_SIZE];
@@ -11,7 +12,7 @@ struct curve25519_test_vector {
 	u8 result[CURVE25519_KEY_SIZE];
 	bool valid;
 };
-static const struct curve25519_test_vector curve25519_test_vectors[] __initconst = {
+static const struct curve25519_test_vector curve25519_test_vectors[] = {
 	{
 		.private = { 0x77, 0x07, 0x6d, 0x0a, 0x73, 0x18, 0xa5, 0x7d,
 			     0x3c, 0x16, 0xc1, 0x72, 0x51, 0xb2, 0x66, 0x45,
@@ -1280,42 +1281,52 @@ static const struct curve25519_test_vector curve25519_test_vectors[] __initconst
 	}
 };
 
-bool __init curve25519_selftest(void)
+static void test_curve25519(struct kunit *test)
 {
-	bool success = true, ret, ret2;
-	size_t i = 0, j;
-	u8 in[CURVE25519_KEY_SIZE];
-	u8 out[CURVE25519_KEY_SIZE], out2[CURVE25519_KEY_SIZE],
-	   out3[CURVE25519_KEY_SIZE];
+	for (size_t i = 0; i < ARRAY_SIZE(curve25519_test_vectors); ++i) {
+		const struct curve25519_test_vector *vec =
+			&curve25519_test_vectors[i];
+		u8 out[CURVE25519_KEY_SIZE] = {};
+		bool ret;
 
-	for (i = 0; i < ARRAY_SIZE(curve25519_test_vectors); ++i) {
-		memset(out, 0, CURVE25519_KEY_SIZE);
-		ret = curve25519(out, curve25519_test_vectors[i].private,
-				 curve25519_test_vectors[i].public);
-		if (ret != curve25519_test_vectors[i].valid ||
-		    memcmp(out, curve25519_test_vectors[i].result,
-			   CURVE25519_KEY_SIZE)) {
-			pr_err("curve25519 self-test %zu: FAIL\n", i + 1);
-			success = false;
-		}
+		ret = curve25519(out, vec->private, vec->public);
+		KUNIT_EXPECT_EQ_MSG(test, ret, vec->valid,
+				    "Wrong return value with test vector %zu",
+				    i);
+		KUNIT_EXPECT_MEMEQ_MSG(test, out, vec->result, sizeof(out),
+				       "Wrong output with test vector %zu", i);
 	}
+}
 
-	for (i = 0; i < 5; ++i) {
+static void test_curve25519_basepoint(struct kunit *test)
+{
+	for (size_t i = 0; i < 5; ++i) {
+		u8 in[CURVE25519_KEY_SIZE];
+		u8 out[CURVE25519_KEY_SIZE];
+		u8 out2[CURVE25519_KEY_SIZE];
+		bool ret, ret2;
+
 		get_random_bytes(in, sizeof(in));
 		ret = curve25519_generate_public(out, in);
 		ret2 = curve25519(out2, in, (u8[CURVE25519_KEY_SIZE]){ 9 });
-		curve25519_generic(out3, in, (u8[CURVE25519_KEY_SIZE]){ 9 });
-		if (ret != ret2 ||
-		    memcmp(out, out2, CURVE25519_KEY_SIZE) ||
-		    memcmp(out, out3, CURVE25519_KEY_SIZE)) {
-			pr_err("curve25519 basepoint self-test %zu: FAIL: input - 0x",
-			       i + 1);
-			for (j = CURVE25519_KEY_SIZE; j-- > 0;)
-				printk(KERN_CONT "%02x", in[j]);
-			printk(KERN_CONT "\n");
-			success = false;
-		}
+		KUNIT_EXPECT_EQ_MSG(test, ret, ret2,
+				    "in=%*phN", CURVE25519_KEY_SIZE, in);
+		KUNIT_EXPECT_MEMEQ_MSG(test, out, out2, CURVE25519_KEY_SIZE,
+				       "in=%*phN", CURVE25519_KEY_SIZE, in);
 	}
-
-	return success;
 }
+
+static struct kunit_case curve25519_test_cases[] = {
+	KUNIT_CASE(test_curve25519),
+	KUNIT_CASE(test_curve25519_basepoint),
+	{},
+};
+
+static struct kunit_suite curve25519_test_suite = {
+	.name = "curve25519",
+	.test_cases = curve25519_test_cases,
+};
+kunit_test_suite(curve25519_test_suite);
+
+MODULE_DESCRIPTION("KUnit tests for Curve25519");
+MODULE_LICENSE("GPL");

@@ -15,9 +15,6 @@
 
 static int __init curve25519_init(void)
 {
-	if (IS_ENABLED(CONFIG_CRYPTO_SELFTESTS) &&
-	    WARN_ON(!curve25519_selftest()))
-		return -ENODEV;
 	return 0;
 }
 
