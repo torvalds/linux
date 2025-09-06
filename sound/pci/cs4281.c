@@ -1752,6 +1752,7 @@ static irqreturn_t snd_cs4281_interrupt(int irq, void *dev_id)
 					chip->spurious_dtc_irq++;
 					continue;
 				}
+				period_elapsed = true;
 			}
 			if (period_elapsed)
 				snd_pcm_period_elapsed(cdma->substream);
