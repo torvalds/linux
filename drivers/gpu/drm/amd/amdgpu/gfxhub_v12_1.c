@@ -322,18 +322,10 @@ static void gfxhub_v12_1_xcc_init_cache_regs(struct amdgpu_device *adev,
 		WREG32_SOC15_RLC(GC, GET_INST(GC, i), regGCVM_L2_CNTL3, tmp);
 
 		tmp = regGCVM_L2_CNTL4_DEFAULT;
-		/* For AMD APP APUs setup WC memory */
-		if (adev->gmc.xgmi.connected_to_cpu || adev->gmc.is_app_apu) {
-			tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL4,
-					    VMC_TAP_PDE_REQUEST_PHYSICAL, 1);
-			tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL4,
-					    VMC_TAP_PTE_REQUEST_PHYSICAL, 1);
-		} else {
-			tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL4,
-					    VMC_TAP_PDE_REQUEST_PHYSICAL, 0);
-			tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL4,
-					    VMC_TAP_PTE_REQUEST_PHYSICAL, 0);
-		}
+		tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL4,
+				    VMC_TAP_PDE_REQUEST_PHYSICAL, 1);
+		tmp = REG_SET_FIELD(tmp, GCVM_L2_CNTL4,
+				    VMC_TAP_PTE_REQUEST_PHYSICAL, 1);
 		WREG32_SOC15_RLC(GC, GET_INST(GC, i), regGCVM_L2_CNTL4, tmp);
 
 		tmp = regGCVM_L2_CNTL5_DEFAULT;
