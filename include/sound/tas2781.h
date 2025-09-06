@@ -49,9 +49,9 @@
 #define TASDEVICE_REG(book, page, reg)	(((book * 256 * 128) + \
 					(page * 128)) + reg)
 
-/* Software Reset */
+/* Software Reset, compatble with new device (TAS5825). */
 #define TASDEVICE_REG_SWRESET		TASDEVICE_REG(0x0, 0x0, 0x01)
-#define TASDEVICE_REG_SWRESET_RESET	BIT(0)
+#define TASDEVICE_REG_SWRESET_RESET	(BIT(0) | BIT(4))
 
 /* Checksum */
 #define TASDEVICE_CHECKSUM_REG		TASDEVICE_REG(0x0, 0x0, 0x7e)

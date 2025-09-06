@@ -73,7 +73,7 @@ static void aaci_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	if (ac97->num >= 4)
 		return;
 
-	mutex_lock(&aaci->ac97_sem);
+	guard(mutex)(&aaci->ac97_sem);
 
 	aaci_ac97_select_codec(aaci, ac97);
 
@@ -97,8 +97,6 @@ static void aaci_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	if (v & (SLFR_1TXB|SLFR_2TXB))
 		dev_err(&aaci->dev->dev,
 			"timeout waiting for write to complete\n");
-
-	mutex_unlock(&aaci->ac97_sem);
 }
 
 /*
@@ -113,7 +111,7 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 	if (ac97->num >= 4)
 		return ~0;
 
-	mutex_lock(&aaci->ac97_sem);
+	guard(mutex)(&aaci->ac97_sem);
 
 	aaci_ac97_select_codec(aaci, ac97);
 
@@ -134,8 +132,7 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 
 	if (v & SLFR_1TXB) {
 		dev_err(&aaci->dev->dev, "timeout on slot 1 TX busy\n");
-		v = ~0;
-		goto out;
+		return ~0;
 	}
 
 	/* Now wait for the response frame */
@@ -151,8 +148,7 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 
 	if (v != (SLFR_1RXV|SLFR_2RXV)) {
 		dev_err(&aaci->dev->dev, "timeout on RX valid\n");
-		v = ~0;
-		goto out;
+		return ~0;
 	}
 
 	do {
@@ -171,8 +167,6 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 			v = ~0;
 		}
 	} while (retries);
- out:
-	mutex_unlock(&aaci->ac97_sem);
 	return v;
 }
 
@@ -437,14 +431,13 @@ static int aaci_pcm_open(struct snd_pcm_substream *substream)
 	 */
 	runtime->hw.fifo_size = aaci->fifo_depth * 2;
 
-	mutex_lock(&aaci->irq_lock);
+	guard(mutex)(&aaci->irq_lock);
 	if (!aaci->users++) {
 		ret = request_irq(aaci->dev->irq[0], aaci_irq,
 			   IRQF_SHARED, DRIVER_NAME, aaci);
 		if (ret != 0)
 			aaci->users--;
 	}
-	mutex_unlock(&aaci->irq_lock);
 
 	return ret;
 }
@@ -462,10 +455,9 @@ static int aaci_pcm_close(struct snd_pcm_substream *substream)
 
 	aacirun->substream = NULL;
 
-	mutex_lock(&aaci->irq_lock);
+	guard(mutex)(&aaci->irq_lock);
 	if (!--aaci->users)
 		free_irq(aaci->dev->irq[0], aaci);
-	mutex_unlock(&aaci->irq_lock);
 
 	return 0;
 }

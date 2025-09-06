@@ -47,10 +47,9 @@ EXPORT_SYMBOL(snd_opl4_read);
 
 void snd_opl4_read_memory(struct snd_opl4 *opl4, char *buf, int offset, int size)
 {
-	unsigned long flags;
 	u8 memcfg;
 
-	spin_lock_irqsave(&opl4->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl4->reg_lock);
 
 	memcfg = snd_opl4_read(opl4, OPL4_REG_MEMORY_CONFIGURATION);
 	snd_opl4_write(opl4, OPL4_REG_MEMORY_CONFIGURATION, memcfg | OPL4_MODE_BIT);
@@ -65,18 +64,15 @@ void snd_opl4_read_memory(struct snd_opl4 *opl4, char *buf, int offset, int size
 	insb(opl4->pcm_port + 1, buf, size);
 
 	snd_opl4_write(opl4, OPL4_REG_MEMORY_CONFIGURATION, memcfg);
-
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
 }
 
 EXPORT_SYMBOL(snd_opl4_read_memory);
 
 void snd_opl4_write_memory(struct snd_opl4 *opl4, const char *buf, int offset, int size)
 {
-	unsigned long flags;
 	u8 memcfg;
 
-	spin_lock_irqsave(&opl4->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl4->reg_lock);
 
 	memcfg = snd_opl4_read(opl4, OPL4_REG_MEMORY_CONFIGURATION);
 	snd_opl4_write(opl4, OPL4_REG_MEMORY_CONFIGURATION, memcfg | OPL4_MODE_BIT);
@@ -91,8 +87,6 @@ void snd_opl4_write_memory(struct snd_opl4 *opl4, const char *buf, int offset, i
 	outsb(opl4->pcm_port + 1, buf, size);
 
 	snd_opl4_write(opl4, OPL4_REG_MEMORY_CONFIGURATION, memcfg);
-
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
 }
 
 EXPORT_SYMBOL(snd_opl4_write_memory);

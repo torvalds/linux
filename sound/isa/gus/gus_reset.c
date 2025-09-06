@@ -83,26 +83,20 @@ void snd_gf1_set_default_handlers(struct snd_gus_card * gus, unsigned int what)
 
 static void snd_gf1_clear_regs(struct snd_gus_card * gus)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	inb(GUSP(gus, IRQSTAT));
 	snd_gf1_write8(gus, 0x41, 0);	/* DRAM DMA Control Register */
 	snd_gf1_write8(gus, 0x45, 0);	/* Timer Control */
 	snd_gf1_write8(gus, 0x49, 0);	/* Sampling Control Register */
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 static void snd_gf1_look_regs(struct snd_gus_card * gus)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	snd_gf1_look8(gus, 0x41);	/* DRAM DMA Control Register */
 	snd_gf1_look8(gus, 0x49);	/* Sampling Control Register */
 	inb(GUSP(gus, IRQSTAT));
 	snd_gf1_read8(gus, 0x0f);	/* IRQ Source Register */
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 /*
@@ -111,9 +105,7 @@ static void snd_gf1_look_regs(struct snd_gus_card * gus)
 
 void snd_gf1_smart_stop_voice(struct snd_gus_card * gus, unsigned short voice)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	snd_gf1_select_voice(gus, voice);
 #if 0
 	dev_dbg(gus->card->dev,
@@ -122,14 +114,11 @@ void snd_gf1_smart_stop_voice(struct snd_gus_card * gus, unsigned short voice)
 #endif
 	snd_gf1_ctrl_stop(gus, SNDRV_GF1_VB_ADDRESS_CONTROL);
 	snd_gf1_ctrl_stop(gus, SNDRV_GF1_VB_VOLUME_CONTROL);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 void snd_gf1_stop_voice(struct snd_gus_card * gus, unsigned short voice)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	snd_gf1_select_voice(gus, voice);
 #if 0
 	dev_dbg(gus->card->dev,
@@ -140,13 +129,11 @@ void snd_gf1_stop_voice(struct snd_gus_card * gus, unsigned short voice)
 	snd_gf1_ctrl_stop(gus, SNDRV_GF1_VB_VOLUME_CONTROL);
 	if (gus->gf1.enh_mode)
 		snd_gf1_write8(gus, SNDRV_GF1_VB_ACCUMULATOR, 0);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
 static void snd_gf1_clear_voices(struct snd_gus_card * gus, unsigned short v_min,
 				 unsigned short v_max)
 {
-	unsigned long flags;
 	unsigned int daddr;
 	unsigned short i, w_16;
 
@@ -156,7 +143,7 @@ static void snd_gf1_clear_voices(struct snd_gus_card * gus, unsigned short v_min
 		if (gus->gf1.syn_voices)
 			gus->gf1.syn_voices[i].flags = ~VFLG_DYNAMIC;
 #endif
-		spin_lock_irqsave(&gus->reg_lock, flags);
+		guard(spinlock_irqsave)(&gus->reg_lock);
 		snd_gf1_select_voice(gus, i);
 		snd_gf1_ctrl_stop(gus, SNDRV_GF1_VB_ADDRESS_CONTROL);	/* Voice Control Register = voice stop */
 		snd_gf1_ctrl_stop(gus, SNDRV_GF1_VB_VOLUME_CONTROL);	/* Volume Ramp Control Register = ramp off */
@@ -177,19 +164,17 @@ static void snd_gf1_clear_voices(struct snd_gus_card * gus, unsigned short v_min
 			snd_gf1_write16(gus, SNDRV_GF1_VW_EFFECT_VOLUME, 0);
 			snd_gf1_write16(gus, SNDRV_GF1_VW_EFFECT_VOLUME_FINAL, 0);
 		}
-		spin_unlock_irqrestore(&gus->reg_lock, flags);
 	}
 }
 
 void snd_gf1_stop_voices(struct snd_gus_card * gus, unsigned short v_min, unsigned short v_max)
 {
-	unsigned long flags;
 	short i, ramp_ok;
 	unsigned short ramp_end;
 
 	if (!in_interrupt()) {	/* this can't be done in interrupt */
 		for (i = v_min, ramp_ok = 0; i <= v_max; i++) {
-			spin_lock_irqsave(&gus->reg_lock, flags);
+			guard(spinlock_irqsave)(&gus->reg_lock);
 			snd_gf1_select_voice(gus, i);
 			ramp_end = snd_gf1_read16(gus, 9) >> 8;
 			if (ramp_end > SNDRV_GF1_MIN_OFFSET) {
@@ -203,7 +188,6 @@ void snd_gf1_stop_voices(struct snd_gus_card * gus, unsigned short v_min, unsign
 					snd_gf1_write8(gus, SNDRV_GF1_VB_VOLUME_CONTROL, 0x40);
 				}
 			}
-			spin_unlock_irqrestore(&gus->reg_lock, flags);
 		}
 		msleep_interruptible(50);
 	}
@@ -236,21 +220,17 @@ static void snd_gf1_alloc_voice_use(struct snd_gus_card * gus,
 struct snd_gus_voice *snd_gf1_alloc_voice(struct snd_gus_card * gus, int type, int client, int port)
 {
 	struct snd_gus_voice *pvoice;
-	unsigned long flags;
 	int idx;
 
-	spin_lock_irqsave(&gus->voice_alloc, flags);
+	guard(spinlock_irqsave)(&gus->voice_alloc);
 	if (type == SNDRV_GF1_VOICE_TYPE_PCM) {
-		if (gus->gf1.pcm_alloc_voices >= gus->gf1.pcm_channels) {
-			spin_unlock_irqrestore(&gus->voice_alloc, flags);
+		if (gus->gf1.pcm_alloc_voices >= gus->gf1.pcm_channels)
 			return NULL;
-		}
 	}
 	for (idx = 0; idx < 32; idx++) {
 		pvoice = &gus->gf1.voices[idx];
 		if (!pvoice->use) {
 			snd_gf1_alloc_voice_use(gus, pvoice, type, client, port);
-			spin_unlock_irqrestore(&gus->voice_alloc, flags);
 			return pvoice;
 		}
 	} 
@@ -259,32 +239,29 @@ struct snd_gus_voice *snd_gf1_alloc_voice(struct snd_gus_card * gus, int type, i
 		if (pvoice->midi && !pvoice->client) {
 			snd_gf1_clear_voices(gus, pvoice->number, pvoice->number);
 			snd_gf1_alloc_voice_use(gus, pvoice, type, client, port);
-			spin_unlock_irqrestore(&gus->voice_alloc, flags);
 			return pvoice;
 		}
 	} 
-	spin_unlock_irqrestore(&gus->voice_alloc, flags);
 	return NULL;
 }
 
 void snd_gf1_free_voice(struct snd_gus_card * gus, struct snd_gus_voice *voice)
 {
-	unsigned long flags;
 	void (*private_free)(struct snd_gus_voice *voice);
 
 	if (voice == NULL || !voice->use)
 		return;
 	snd_gf1_set_default_handlers(gus, SNDRV_GF1_HANDLER_VOICE | voice->number);
 	snd_gf1_clear_voices(gus, voice->number, voice->number);
-	spin_lock_irqsave(&gus->voice_alloc, flags);
-	private_free = voice->private_free;
-	voice->private_free = NULL;
-	voice->private_data = NULL;
-	if (voice->pcm)
-		gus->gf1.pcm_alloc_voices--;
-	voice->use = voice->pcm = 0;
-	voice->sample_ops = NULL;
-	spin_unlock_irqrestore(&gus->voice_alloc, flags);
+	scoped_guard(spinlock_irqsave, &gus->voice_alloc) {
+		private_free = voice->private_free;
+		voice->private_free = NULL;
+		voice->private_data = NULL;
+		if (voice->pcm)
+			gus->gf1.pcm_alloc_voices--;
+		voice->use = voice->pcm = 0;
+		voice->sample_ops = NULL;
+	}
 	if (private_free)
 		private_free(voice);
 }
@@ -295,7 +272,6 @@ void snd_gf1_free_voice(struct snd_gus_card * gus, struct snd_gus_voice *voice)
 
 int snd_gf1_start(struct snd_gus_card * gus)
 {
-	unsigned long flags;
 	unsigned int i;
 
 	snd_gf1_i_write8(gus, SNDRV_GF1_GB_RESET, 0);	/* reset GF1 */
@@ -344,10 +320,10 @@ int snd_gf1_start(struct snd_gus_card * gus)
 	}
 	while ((snd_gf1_i_read8(gus, SNDRV_GF1_GB_VOICES_IRQ) & 0xc0) != 0xc0);
 
-	spin_lock_irqsave(&gus->reg_lock, flags);
-	outb(gus->gf1.active_voice = 0, GUSP(gus, GF1PAGE));
-	outb(gus->mix_cntrl_reg, GUSP(gus, MIXCNTRLREG));
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &gus->reg_lock) {
+		outb(gus->gf1.active_voice = 0, GUSP(gus, GF1PAGE));
+		outb(gus->mix_cntrl_reg, GUSP(gus, MIXCNTRLREG));
+	}
 
 	snd_gf1_timers_init(gus);
 	snd_gf1_look_regs(gus);

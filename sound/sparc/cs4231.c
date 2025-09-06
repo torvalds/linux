@@ -608,7 +608,7 @@ static void snd_cs4231_playback_format(struct snd_cs4231 *chip,
 {
 	unsigned long flags;
 
-	mutex_lock(&chip->mce_mutex);
+	guard(mutex)(&chip->mce_mutex);
 	snd_cs4231_calibrate_mute(chip, 1);
 
 	snd_cs4231_mce_up(chip);
@@ -623,7 +623,6 @@ static void snd_cs4231_playback_format(struct snd_cs4231 *chip,
 	snd_cs4231_mce_down(chip);
 
 	snd_cs4231_calibrate_mute(chip, 0);
-	mutex_unlock(&chip->mce_mutex);
 }
 
 static void snd_cs4231_capture_format(struct snd_cs4231 *chip,
@@ -632,7 +631,7 @@ static void snd_cs4231_capture_format(struct snd_cs4231 *chip,
 {
 	unsigned long flags;
 
-	mutex_lock(&chip->mce_mutex);
+	guard(mutex)(&chip->mce_mutex);
 	snd_cs4231_calibrate_mute(chip, 1);
 
 	snd_cs4231_mce_up(chip);
@@ -653,7 +652,6 @@ static void snd_cs4231_capture_format(struct snd_cs4231 *chip,
 	snd_cs4231_mce_down(chip);
 
 	snd_cs4231_calibrate_mute(chip, 0);
-	mutex_unlock(&chip->mce_mutex);
 }
 
 /*
@@ -775,14 +773,11 @@ static int snd_cs4231_open(struct snd_cs4231 *chip, unsigned int mode)
 {
 	unsigned long flags;
 
-	mutex_lock(&chip->open_mutex);
-	if ((chip->mode & mode)) {
-		mutex_unlock(&chip->open_mutex);
+	guard(mutex)(&chip->open_mutex);
+	if ((chip->mode & mode))
 		return -EAGAIN;
-	}
 	if (chip->mode & CS4231_MODE_OPEN) {
 		chip->mode |= mode;
-		mutex_unlock(&chip->open_mutex);
 		return 0;
 	}
 	/* ok. now enable and ack CODEC IRQ */
@@ -802,7 +797,6 @@ static int snd_cs4231_open(struct snd_cs4231 *chip, unsigned int mode)
 	spin_unlock_irqrestore(&chip->lock, flags);
 
 	chip->mode = mode;
-	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
 
@@ -810,12 +804,10 @@ static void snd_cs4231_close(struct snd_cs4231 *chip, unsigned int mode)
 {
 	unsigned long flags;
 
-	mutex_lock(&chip->open_mutex);
+	guard(mutex)(&chip->open_mutex);
 	chip->mode &= ~mode;
-	if (chip->mode & CS4231_MODE_OPEN) {
-		mutex_unlock(&chip->open_mutex);
+	if (chip->mode & CS4231_MODE_OPEN)
 		return;
-	}
 	snd_cs4231_calibrate_mute(chip, 1);
 
 	/* disable IRQ */
@@ -851,7 +843,6 @@ static void snd_cs4231_close(struct snd_cs4231 *chip, unsigned int mode)
 	snd_cs4231_calibrate_mute(chip, 0);
 
 	chip->mode = 0;
-	mutex_unlock(&chip->open_mutex);
 }
 
 /*

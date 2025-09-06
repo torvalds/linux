@@ -707,7 +707,6 @@ static void snd_cs46xx_proc_stop(struct snd_cs46xx *chip)
 
 static void snd_cs46xx_set_play_sample_rate(struct snd_cs46xx *chip, unsigned int rate)
 {
-	unsigned long flags;
 	unsigned int tmp1, tmp2;
 	unsigned int phiIncr;
 	unsigned int correctionPerGOF, correctionPerSec;
@@ -744,16 +743,14 @@ static void snd_cs46xx_set_play_sample_rate(struct snd_cs46xx *chip, unsigned in
 	/*
 	 *  Fill in the SampleRateConverter control block.
 	 */
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	snd_cs46xx_poke(chip, BA1_PSRC,
 	  ((correctionPerSec << 16) & 0xFFFF0000) | (correctionPerGOF & 0xFFFF));
 	snd_cs46xx_poke(chip, BA1_PPI, phiIncr);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
 static void snd_cs46xx_set_capture_sample_rate(struct snd_cs46xx *chip, unsigned int rate)
 {
-	unsigned long flags;
 	unsigned int phiIncr, coeffIncr, tmp1, tmp2;
 	unsigned int correctionPerGOF, correctionPerSec, initialDelay;
 	unsigned int frameGroupLength, cnt;
@@ -818,14 +815,14 @@ static void snd_cs46xx_set_capture_sample_rate(struct snd_cs46xx *chip, unsigned
 	/*
 	 *  Fill in the VariDecimate control block.
 	 */
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	snd_cs46xx_poke(chip, BA1_CSRC,
-		((correctionPerSec << 16) & 0xFFFF0000) | (correctionPerGOF & 0xFFFF));
-	snd_cs46xx_poke(chip, BA1_CCI, coeffIncr);
-	snd_cs46xx_poke(chip, BA1_CD,
-		(((BA1_VARIDEC_BUF_1 + (initialDelay << 2)) << 16) & 0xFFFF0000) | 0x80);
-	snd_cs46xx_poke(chip, BA1_CPI, phiIncr);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->reg_lock) {
+		snd_cs46xx_poke(chip, BA1_CSRC,
+			((correctionPerSec << 16) & 0xFFFF0000) | (correctionPerGOF & 0xFFFF));
+		snd_cs46xx_poke(chip, BA1_CCI, coeffIncr);
+		snd_cs46xx_poke(chip, BA1_CD,
+			(((BA1_VARIDEC_BUF_1 + (initialDelay << 2)) << 16) & 0xFFFF0000) | 0x80);
+		snd_cs46xx_poke(chip, BA1_CPI, phiIncr);
+	}
 
 	/*
 	 *  Figure out the frame group length for the write back task.  Basically,
@@ -848,13 +845,12 @@ static void snd_cs46xx_set_capture_sample_rate(struct snd_cs46xx *chip, unsigned
 	/*
 	 * Fill in the WriteBack control block.
 	 */
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	snd_cs46xx_poke(chip, BA1_CFG1, frameGroupLength);
 	snd_cs46xx_poke(chip, BA1_CFG2, (0x00800000 | frameGroupLength));
 	snd_cs46xx_poke(chip, BA1_CCST, 0x0000FFFF);
 	snd_cs46xx_poke(chip, BA1_CSPB, ((65536 * rate) / 24000));
 	snd_cs46xx_poke(chip, (BA1_CSPB + 4), 0x0000FFFF);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
 /*
@@ -969,15 +965,14 @@ static int snd_cs46xx_playback_trigger(struct snd_pcm_substream *substream,
 		if (substream->runtime->periods != CS46XX_FRAGS)
 			snd_cs46xx_playback_transfer(substream);
 #else
-		spin_lock(&chip->reg_lock);
-		if (substream->runtime->periods != CS46XX_FRAGS)
-			snd_cs46xx_playback_transfer(substream);
-		{ unsigned int tmp;
-		tmp = snd_cs46xx_peek(chip, BA1_PCTL);
-		tmp &= 0x0000ffff;
-		snd_cs46xx_poke(chip, BA1_PCTL, chip->play_ctl | tmp);
+		scoped_guard(spinlock, &chip->reg_lock) {
+			unsigned int tmp;
+			if (substream->runtime->periods != CS46XX_FRAGS)
+				snd_cs46xx_playback_transfer(substream);
+			tmp = snd_cs46xx_peek(chip, BA1_PCTL);
+			tmp &= 0x0000ffff;
+			snd_cs46xx_poke(chip, BA1_PCTL, chip->play_ctl | tmp);
 		}
-		spin_unlock(&chip->reg_lock);
 #endif
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -990,13 +985,12 @@ static int snd_cs46xx_playback_trigger(struct snd_pcm_substream *substream,
 		if (!cpcm->pcm_channel->unlinked)
 			cs46xx_dsp_pcm_unlink(chip,cpcm->pcm_channel);
 #else
-		spin_lock(&chip->reg_lock);
-		{ unsigned int tmp;
-		tmp = snd_cs46xx_peek(chip, BA1_PCTL);
-		tmp &= 0x0000ffff;
-		snd_cs46xx_poke(chip, BA1_PCTL, tmp);
+		scoped_guard(spinlock, &chip->reg_lock) {
+			unsigned int tmp;
+			tmp = snd_cs46xx_peek(chip, BA1_PCTL);
+			tmp &= 0x0000ffff;
+			snd_cs46xx_poke(chip, BA1_PCTL, tmp);
 		}
-		spin_unlock(&chip->reg_lock);
 #endif
 		break;
 	default:
@@ -1012,9 +1006,8 @@ static int snd_cs46xx_capture_trigger(struct snd_pcm_substream *substream,
 {
 	struct snd_cs46xx *chip = snd_pcm_substream_chip(substream);
 	unsigned int tmp;
-	int result = 0;
 
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -1029,12 +1022,9 @@ static int snd_cs46xx_capture_trigger(struct snd_pcm_substream *substream,
 		snd_cs46xx_poke(chip, BA1_CCTL, tmp);
 		break;
 	default:
-		result = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	spin_unlock(&chip->reg_lock);
-
-	return result;
+	return 0;
 }
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
@@ -1093,24 +1083,17 @@ static int snd_cs46xx_playback_hw_params(struct snd_pcm_substream *substream,
 	if (snd_BUG_ON(!sample_rate))
 		return -ENXIO;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 
-	if (_cs46xx_adjust_sample_rate (chip,cpcm,sample_rate)) {
-		mutex_unlock(&chip->spos_mutex);
+	if (_cs46xx_adjust_sample_rate(chip, cpcm, sample_rate))
 		return -ENXIO;
-	}
 
 	snd_BUG_ON(!cpcm->pcm_channel);
-	if (!cpcm->pcm_channel) {
-		mutex_unlock(&chip->spos_mutex);
+	if (!cpcm->pcm_channel)
 		return -ENXIO;
-	}
 
-
-	if (cs46xx_dsp_pcm_channel_set_period (chip,cpcm->pcm_channel,period_size)) {
-		 mutex_unlock(&chip->spos_mutex);
+	if (cs46xx_dsp_pcm_channel_set_period(chip, cpcm->pcm_channel, period_size))
 		 return -EINVAL;
-	 }
 
 	dev_dbg(chip->card->dev,
 		"period_size (%d), periods (%d) buffer_size(%d)\n",
@@ -1144,12 +1127,8 @@ static int snd_cs46xx_playback_hw_params(struct snd_pcm_substream *substream,
 		if (runtime->dma_area == cpcm->hw_buf.area)
 			snd_pcm_set_runtime_buffer(substream, NULL);
 		err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-		if (err < 0) {
-#ifdef CONFIG_SND_CS46XX_NEW_DSP
-			mutex_unlock(&chip->spos_mutex);
-#endif
+		if (err < 0)
 			return err;
-		}
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 		if (cpcm->pcm_channel_id == DSP_PCM_MAIN_CHANNEL) {
@@ -1168,10 +1147,6 @@ static int snd_cs46xx_playback_hw_params(struct snd_pcm_substream *substream,
 #endif
 
 	}
-
-#ifdef CONFIG_SND_CS46XX_NEW_DSP
-	mutex_unlock(&chip->spos_mutex);
-#endif
 
 	return 0;
 }
@@ -1386,7 +1361,7 @@ static irqreturn_t snd_cs46xx_interrupt(int irq, void *dev_id)
 	if ((status1 & HISR_MIDI) && chip->rmidi) {
 		unsigned char c;
 		
-		spin_lock(&chip->reg_lock);
+		guard(spinlock)(&chip->reg_lock);
 		while ((snd_cs46xx_peekBA0(chip, BA0_MIDSR) & MIDSR_RBE) == 0) {
 			c = snd_cs46xx_peekBA0(chip, BA0_MIDRP);
 			if ((chip->midcr & MIDCR_RIE) == 0)
@@ -1403,7 +1378,6 @@ static irqreturn_t snd_cs46xx_interrupt(int irq, void *dev_id)
 			}
 			snd_cs46xx_pokeBA0(chip, BA0_MIDWP, c);
 		}
-		spin_unlock(&chip->reg_lock);
 	}
 	/*
 	 *  EOI to the PCI part....reenables interrupts
@@ -1495,16 +1469,14 @@ static int _cs46xx_playback_open_channel (struct snd_pcm_substream *substream,in
 
 	cpcm->substream = substream;
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-	mutex_lock(&chip->spos_mutex);
-	cpcm->pcm_channel = NULL; 
-	cpcm->pcm_channel_id = pcm_channel_id;
-
+	scoped_guard(mutex, &chip->spos_mutex) {
+		cpcm->pcm_channel = NULL;
+		cpcm->pcm_channel_id = pcm_channel_id;
+	}
 
 	snd_pcm_hw_constraint_list(runtime, 0,
 				   SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 
 				   &hw_constraints_period_sizes);
-
-	mutex_unlock(&chip->spos_mutex);
 #else
 	chip->playback_pcm = cpcm; /* HACK */
 #endif
@@ -1541,9 +1513,9 @@ static int snd_cs46xx_playback_open_iec958(struct snd_pcm_substream *substream)
 
 	dev_dbg(chip->card->dev, "open raw iec958 channel\n");
 
-	mutex_lock(&chip->spos_mutex);
-	cs46xx_iec958_pre_open (chip);
-	mutex_unlock(&chip->spos_mutex);
+	scoped_guard(mutex, &chip->spos_mutex) {
+		cs46xx_iec958_pre_open(chip);
+	}
 
 	return _cs46xx_playback_open_channel(substream,DSP_IEC958_CHANNEL);
 }
@@ -1559,9 +1531,9 @@ static int snd_cs46xx_playback_close_iec958(struct snd_pcm_substream *substream)
 
 	err = snd_cs46xx_playback_close(substream);
 
-	mutex_lock(&chip->spos_mutex);
-	cs46xx_iec958_post_close (chip);
-	mutex_unlock(&chip->spos_mutex);
+	scoped_guard(mutex, &chip->spos_mutex) {
+		cs46xx_iec958_post_close(chip);
+	}
 
 	return err;
 }
@@ -1602,12 +1574,12 @@ static int snd_cs46xx_playback_close(struct snd_pcm_substream *substream)
 	if (!cpcm) return -ENXIO;
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-	mutex_lock(&chip->spos_mutex);
-	if (cpcm->pcm_channel) {
-		cs46xx_dsp_destroy_pcm_channel(chip,cpcm->pcm_channel);
-		cpcm->pcm_channel = NULL;
+	scoped_guard(mutex, &chip->spos_mutex) {
+		if (cpcm->pcm_channel) {
+			cs46xx_dsp_destroy_pcm_channel(chip, cpcm->pcm_channel);
+			cpcm->pcm_channel = NULL;
+		}
 	}
-	mutex_unlock(&chip->spos_mutex);
 #else
 	chip->playback_pcm = NULL;
 #endif
@@ -1982,15 +1954,15 @@ static int snd_cs46xx_iec958_put(struct snd_kcontrol *kcontrol,
 
 	switch (kcontrol->private_value) {
 	case CS46XX_MIXER_SPDIF_OUTPUT_ELEMENT:
-		mutex_lock(&chip->spos_mutex);
-		change = (chip->dsp_spos_instance->spdif_status_out & DSP_SPDIF_STATUS_OUTPUT_ENABLED);
-		if (ucontrol->value.integer.value[0] && !change) 
-			cs46xx_dsp_enable_spdif_out(chip);
-		else if (change && !ucontrol->value.integer.value[0])
-			cs46xx_dsp_disable_spdif_out(chip);
+		scoped_guard(mutex, &chip->spos_mutex) {
+			change = (chip->dsp_spos_instance->spdif_status_out & DSP_SPDIF_STATUS_OUTPUT_ENABLED);
+			if (ucontrol->value.integer.value[0] && !change)
+				cs46xx_dsp_enable_spdif_out(chip);
+			else if (change && !ucontrol->value.integer.value[0])
+				cs46xx_dsp_disable_spdif_out(chip);
 
-		res = (change != (chip->dsp_spos_instance->spdif_status_out & DSP_SPDIF_STATUS_OUTPUT_ENABLED));
-		mutex_unlock(&chip->spos_mutex);
+			res = (change != (chip->dsp_spos_instance->spdif_status_out & DSP_SPDIF_STATUS_OUTPUT_ENABLED));
+		}
 		break;
 	case CS46XX_MIXER_SPDIF_INPUT_ELEMENT:
 		change = chip->dsp_spos_instance->spdif_status_in;
@@ -2131,12 +2103,11 @@ static int snd_cs46xx_spdif_default_get(struct snd_kcontrol *kcontrol,
 	struct snd_cs46xx *chip = snd_kcontrol_chip(kcontrol);
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	ucontrol->value.iec958.status[0] = _wrap_all_bits((ins->spdif_csuv_default >> 24) & 0xff);
 	ucontrol->value.iec958.status[1] = _wrap_all_bits((ins->spdif_csuv_default >> 16) & 0xff);
 	ucontrol->value.iec958.status[2] = 0;
 	ucontrol->value.iec958.status[3] = _wrap_all_bits((ins->spdif_csuv_default) & 0xff);
-	mutex_unlock(&chip->spos_mutex);
 
 	return 0;
 }
@@ -2149,7 +2120,7 @@ static int snd_cs46xx_spdif_default_put(struct snd_kcontrol *kcontrol,
 	unsigned int val;
 	int change;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	val = ((unsigned int)_wrap_all_bits(ucontrol->value.iec958.status[0]) << 24) |
 		((unsigned int)_wrap_all_bits(ucontrol->value.iec958.status[2]) << 16) |
 		((unsigned int)_wrap_all_bits(ucontrol->value.iec958.status[3]))  |
@@ -2162,8 +2133,6 @@ static int snd_cs46xx_spdif_default_put(struct snd_kcontrol *kcontrol,
 
 	if ( !(ins->spdif_status_out & DSP_SPDIF_STATUS_PLAYBACK_OPEN) )
 		cs46xx_poke_via_dsp (chip,SP_SPDOUT_CSUV,val);
-
-	mutex_unlock(&chip->spos_mutex);
 
 	return change;
 }
@@ -2184,12 +2153,11 @@ static int snd_cs46xx_spdif_stream_get(struct snd_kcontrol *kcontrol,
 	struct snd_cs46xx *chip = snd_kcontrol_chip(kcontrol);
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	ucontrol->value.iec958.status[0] = _wrap_all_bits((ins->spdif_csuv_stream >> 24) & 0xff);
 	ucontrol->value.iec958.status[1] = _wrap_all_bits((ins->spdif_csuv_stream >> 16) & 0xff);
 	ucontrol->value.iec958.status[2] = 0;
 	ucontrol->value.iec958.status[3] = _wrap_all_bits((ins->spdif_csuv_stream) & 0xff);
-	mutex_unlock(&chip->spos_mutex);
 
 	return 0;
 }
@@ -2202,7 +2170,7 @@ static int snd_cs46xx_spdif_stream_put(struct snd_kcontrol *kcontrol,
 	unsigned int val;
 	int change;
 
-	mutex_lock(&chip->spos_mutex);
+	guard(mutex)(&chip->spos_mutex);
 	val = ((unsigned int)_wrap_all_bits(ucontrol->value.iec958.status[0]) << 24) |
 		((unsigned int)_wrap_all_bits(ucontrol->value.iec958.status[1]) << 16) |
 		((unsigned int)_wrap_all_bits(ucontrol->value.iec958.status[3])) |
@@ -2215,8 +2183,6 @@ static int snd_cs46xx_spdif_stream_put(struct snd_kcontrol *kcontrol,
 
 	if ( ins->spdif_status_out & DSP_SPDIF_STATUS_PLAYBACK_OPEN )
 		cs46xx_poke_via_dsp (chip,SP_SPDOUT_CSUV,val);
-
-	mutex_unlock(&chip->spos_mutex);
 
 	return change;
 }
@@ -2532,7 +2498,7 @@ static int snd_cs46xx_midi_input_open(struct snd_rawmidi_substream *substream)
 	struct snd_cs46xx *chip = substream->rmidi->private_data;
 
 	chip->active_ctrl(chip, 1);
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	chip->uartm |= CS46XX_MODE_INPUT;
 	chip->midcr |= MIDCR_RXE;
 	chip->midi_input = substream;
@@ -2541,7 +2507,6 @@ static int snd_cs46xx_midi_input_open(struct snd_rawmidi_substream *substream)
 	} else {
 		snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
 	}
-	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
@@ -2549,16 +2514,16 @@ static int snd_cs46xx_midi_input_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_cs46xx *chip = substream->rmidi->private_data;
 
-	spin_lock_irq(&chip->reg_lock);
-	chip->midcr &= ~(MIDCR_RXE | MIDCR_RIE);
-	chip->midi_input = NULL;
-	if (!(chip->uartm & CS46XX_MODE_OUTPUT)) {
-		snd_cs46xx_midi_reset(chip);
-	} else {
-		snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
+	scoped_guard(spinlock_irq, &chip->reg_lock) {
+		chip->midcr &= ~(MIDCR_RXE | MIDCR_RIE);
+		chip->midi_input = NULL;
+		if (!(chip->uartm & CS46XX_MODE_OUTPUT)) {
+			snd_cs46xx_midi_reset(chip);
+		} else {
+			snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
+		}
+		chip->uartm &= ~CS46XX_MODE_INPUT;
 	}
-	chip->uartm &= ~CS46XX_MODE_INPUT;
-	spin_unlock_irq(&chip->reg_lock);
 	chip->active_ctrl(chip, -1);
 	return 0;
 }
@@ -2569,7 +2534,7 @@ static int snd_cs46xx_midi_output_open(struct snd_rawmidi_substream *substream)
 
 	chip->active_ctrl(chip, 1);
 
-	spin_lock_irq(&chip->reg_lock);
+	guard(spinlock_irq)(&chip->reg_lock);
 	chip->uartm |= CS46XX_MODE_OUTPUT;
 	chip->midcr |= MIDCR_TXE;
 	chip->midi_output = substream;
@@ -2578,7 +2543,6 @@ static int snd_cs46xx_midi_output_open(struct snd_rawmidi_substream *substream)
 	} else {
 		snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
 	}
-	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
@@ -2586,26 +2550,25 @@ static int snd_cs46xx_midi_output_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_cs46xx *chip = substream->rmidi->private_data;
 
-	spin_lock_irq(&chip->reg_lock);
-	chip->midcr &= ~(MIDCR_TXE | MIDCR_TIE);
-	chip->midi_output = NULL;
-	if (!(chip->uartm & CS46XX_MODE_INPUT)) {
-		snd_cs46xx_midi_reset(chip);
-	} else {
-		snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
+	scoped_guard(spinlock_irq, &chip->reg_lock) {
+		chip->midcr &= ~(MIDCR_TXE | MIDCR_TIE);
+		chip->midi_output = NULL;
+		if (!(chip->uartm & CS46XX_MODE_INPUT)) {
+			snd_cs46xx_midi_reset(chip);
+		} else {
+			snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
+		}
+		chip->uartm &= ~CS46XX_MODE_OUTPUT;
 	}
-	chip->uartm &= ~CS46XX_MODE_OUTPUT;
-	spin_unlock_irq(&chip->reg_lock);
 	chip->active_ctrl(chip, -1);
 	return 0;
 }
 
 static void snd_cs46xx_midi_input_trigger(struct snd_rawmidi_substream *substream, int up)
 {
-	unsigned long flags;
 	struct snd_cs46xx *chip = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	if (up) {
 		if ((chip->midcr & MIDCR_RIE) == 0) {
 			chip->midcr |= MIDCR_RIE;
@@ -2617,16 +2580,14 @@ static void snd_cs46xx_midi_input_trigger(struct snd_rawmidi_substream *substrea
 			snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
 		}
 	}
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
 static void snd_cs46xx_midi_output_trigger(struct snd_rawmidi_substream *substream, int up)
 {
-	unsigned long flags;
 	struct snd_cs46xx *chip = substream->rmidi->private_data;
 	unsigned char byte;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	if (up) {
 		if ((chip->midcr & MIDCR_TIE) == 0) {
 			chip->midcr |= MIDCR_TIE;
@@ -2647,7 +2608,6 @@ static void snd_cs46xx_midi_output_trigger(struct snd_rawmidi_substream *substre
 			snd_cs46xx_pokeBA0(chip, BA0_MIDCR, chip->midcr);
 		}
 	}
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
 static const struct snd_rawmidi_ops snd_cs46xx_midi_output =

@@ -440,13 +440,13 @@ void snd_seq_info_timer_read(struct snd_info_entry *entry,
 			     struct snd_info_buffer *buffer)
 {
 	int idx;
-	struct snd_seq_queue *q;
 	struct snd_seq_timer *tmr;
 	struct snd_timer_instance *ti;
 	unsigned long resolution;
 	
 	for (idx = 0; idx < SNDRV_SEQ_MAX_QUEUES; idx++) {
-		q = queueptr(idx);
+		struct snd_seq_queue *q __free(snd_seq_queue) = queueptr(idx);
+
 		if (q == NULL)
 			continue;
 		scoped_guard(mutex, &q->timer_mutex) {
@@ -461,7 +461,6 @@ void snd_seq_info_timer_read(struct snd_info_entry *entry,
 			snd_iprintf(buffer, "  Period time : %lu.%09lu\n", resolution / 1000000000, resolution % 1000000000);
 			snd_iprintf(buffer, "  Skew : %u / %u\n", tmr->skew, tmr->skew_base);
 		}
-		queuefree(q);
  	}
 }
 #endif /* CONFIG_SND_PROC_FS */

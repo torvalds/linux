@@ -193,7 +193,7 @@ static void proc_dump_substream_status(struct snd_usb_audio *chip,
 				       struct snd_usb_substream *subs,
 				       struct snd_info_buffer *buffer)
 {
-	mutex_lock(&chip->mutex);
+	guard(mutex)(&chip->mutex);
 	if (subs->running) {
 		snd_iprintf(buffer, "  Status: Running\n");
 		if (subs->cur_audiofmt) {
@@ -204,7 +204,6 @@ static void proc_dump_substream_status(struct snd_usb_audio *chip,
 	} else {
 		snd_iprintf(buffer, "  Status: Stop\n");
 	}
-	mutex_unlock(&chip->mutex);
 }
 
 static void proc_pcm_format_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)

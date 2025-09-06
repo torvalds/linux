@@ -344,12 +344,8 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
  */
 int vx_send_msg(struct vx_core *chip, struct vx_rmh *rmh)
 {
-	int err;
-
-	mutex_lock(&chip->lock);
-	err = vx_send_msg_nolock(chip, rmh);
-	mutex_unlock(&chip->lock);
-	return err;
+	guard(mutex)(&chip->lock);
+	return vx_send_msg_nolock(chip, rmh);
 }
 
 
@@ -404,12 +400,8 @@ int vx_send_rih_nolock(struct vx_core *chip, int cmd)
  */
 int vx_send_rih(struct vx_core *chip, int cmd)
 {
-	int err;
-
-	mutex_lock(&chip->lock);
-	err = vx_send_rih_nolock(chip, cmd);
-	mutex_unlock(&chip->lock);
-	return err;
+	guard(mutex)(&chip->lock);
+	return vx_send_rih_nolock(chip, cmd);
 }
 
 #define END_OF_RESET_WAIT_TIME		500	/* us */
@@ -481,13 +473,12 @@ static int vx_test_irq_src(struct vx_core *chip, unsigned int *ret)
 	int err;
 
 	vx_init_rmh(&chip->irq_rmh, CMD_TEST_IT);
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
 	err = vx_send_msg_nolock(chip, &chip->irq_rmh);
 	if (err < 0)
 		*ret = 0;
 	else
 		*ret = chip->irq_rmh.Stat[0];
-	mutex_unlock(&chip->lock);
 	return err;
 }
 
