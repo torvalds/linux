@@ -371,9 +371,6 @@ static int intel_crosststamp(ktime_t *device,
 	u32 acr_value;
 	int i;
 
-	if (!boot_cpu_has(X86_FEATURE_ART))
-		return -EOPNOTSUPP;
-
 	intel_priv = priv->plat->bsp_priv;
 
 	/* Both internal crosstimestamping and external triggered event
@@ -755,7 +752,9 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 
 	plat->int_snapshot_num = AUX_SNAPSHOT1;
 
-	plat->crosststamp = intel_crosststamp;
+	if (boot_cpu_has(X86_FEATURE_ART))
+		plat->crosststamp = intel_crosststamp;
+
 	plat->flags &= ~STMMAC_FLAG_INT_SNAPSHOT_EN;
 
 	/* Setup MSI vector offset specific to Intel mGbE controller */
