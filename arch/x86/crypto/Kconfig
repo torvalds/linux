@@ -5,7 +5,6 @@ menu "Accelerated Cryptographic Algorithms for CPU (x86)"
 config CRYPTO_CURVE25519_X86
 	tristate
 	depends on 64BIT
-	select CRYPTO_KPP
 	select CRYPTO_LIB_CURVE25519_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_CURVE25519
 	default CRYPTO_LIB_CURVE25519_INTERNAL
