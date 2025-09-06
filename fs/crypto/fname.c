@@ -11,7 +11,6 @@
  * This has not yet undergone a rigorous security audit.
  */
 
-#include <crypto/hash.h>
 #include <crypto/sha2.h>
 #include <crypto/skcipher.h>
 #include <linux/export.h>

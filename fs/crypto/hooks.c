@@ -205,7 +205,7 @@ int fscrypt_prepare_setflags(struct inode *inode,
 		mk = ci->ci_master_key;
 		down_read(&mk->mk_sem);
 		if (mk->mk_present)
-			err = fscrypt_derive_dirhash_key(ci, mk);
+			fscrypt_derive_dirhash_key(ci, mk);
 		else
 			err = -ENOKEY;
 		up_read(&mk->mk_sem);

@@ -826,10 +826,8 @@ int fscrypt_parse_test_dummy_encryption(const struct fs_parameter *param,
 		policy->version = FSCRYPT_POLICY_V2;
 		policy->v2.contents_encryption_mode = FSCRYPT_MODE_AES_256_XTS;
 		policy->v2.filenames_encryption_mode = FSCRYPT_MODE_AES_256_CTS;
-		err = fscrypt_get_test_dummy_key_identifier(
+		fscrypt_get_test_dummy_key_identifier(
 				policy->v2.master_key_identifier);
-		if (err)
-			goto out;
 	} else {
 		err = -EINVAL;
 		goto out;
