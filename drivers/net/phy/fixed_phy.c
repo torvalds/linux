@@ -23,11 +23,6 @@
 
 #include "swphy.h"
 
-struct fixed_mdio_bus {
-	struct mii_bus *mii_bus;
-	struct list_head phys;
-};
-
 struct fixed_phy {
 	int addr;
 	struct phy_device *phydev;
@@ -36,16 +31,14 @@ struct fixed_phy {
 	struct list_head node;
 };
 
-static struct fixed_mdio_bus platform_fmb = {
-	.phys = LIST_HEAD_INIT(platform_fmb.phys),
-};
+static struct mii_bus *fmb_mii_bus;
+static LIST_HEAD(fmb_phys);
 
 static struct fixed_phy *fixed_phy_find(int addr)
 {
-	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct fixed_phy *fp;
 
-	list_for_each_entry(fp, &fmb->phys, node) {
+	list_for_each_entry(fp, &fmb_phys, node) {
 		if (fp->addr == addr)
 			return fp;
 	}
@@ -119,9 +112,8 @@ EXPORT_SYMBOL_GPL(fixed_phy_set_link_update);
 static int __fixed_phy_add(int phy_addr,
 			   const struct fixed_phy_status *status)
 {
-	int ret;
-	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct fixed_phy *fp;
+	int ret;
 
 	ret = swphy_validate_state(status);
 	if (ret < 0)
@@ -134,7 +126,7 @@ static int __fixed_phy_add(int phy_addr,
 	fp->addr = phy_addr;
 	fp->status = *status;
 
-	list_add_tail(&fp->node, &fmb->phys);
+	list_add_tail(&fp->node, &fmb_phys);
 
 	return 0;
 }
@@ -163,12 +155,11 @@ static void fixed_phy_del(int phy_addr)
 struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 				      struct device_node *np)
 {
-	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct phy_device *phy;
 	int phy_addr;
 	int ret;
 
-	if (!fmb->mii_bus || fmb->mii_bus->state != MDIOBUS_REGISTERED)
+	if (!fmb_mii_bus || fmb_mii_bus->state != MDIOBUS_REGISTERED)
 		return ERR_PTR(-EPROBE_DEFER);
 
 	/* Get the next available PHY address, up to PHY_MAX_ADDR */
@@ -182,7 +173,7 @@ struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 		return ERR_PTR(ret);
 	}
 
-	phy = get_phy_device(fmb->mii_bus, phy_addr, false);
+	phy = get_phy_device(fmb_mii_bus, phy_addr, false);
 	if (IS_ERR(phy)) {
 		fixed_phy_del(phy_addr);
 		return ERR_PTR(-EINVAL);
@@ -247,41 +238,38 @@ EXPORT_SYMBOL_GPL(fixed_phy_unregister);
 
 static int __init fixed_mdio_bus_init(void)
 {
-	struct fixed_mdio_bus *fmb = &platform_fmb;
 	int ret;
 
-	fmb->mii_bus = mdiobus_alloc();
-	if (!fmb->mii_bus)
+	fmb_mii_bus = mdiobus_alloc();
+	if (!fmb_mii_bus)
 		return -ENOMEM;
 
-	snprintf(fmb->mii_bus->id, MII_BUS_ID_SIZE, "fixed-0");
-	fmb->mii_bus->name = "Fixed MDIO Bus";
-	fmb->mii_bus->priv = fmb;
-	fmb->mii_bus->read = &fixed_mdio_read;
-	fmb->mii_bus->write = &fixed_mdio_write;
-	fmb->mii_bus->phy_mask = ~0;
+	snprintf(fmb_mii_bus->id, MII_BUS_ID_SIZE, "fixed-0");
+	fmb_mii_bus->name = "Fixed MDIO Bus";
+	fmb_mii_bus->read = &fixed_mdio_read;
+	fmb_mii_bus->write = &fixed_mdio_write;
+	fmb_mii_bus->phy_mask = ~0;
 
-	ret = mdiobus_register(fmb->mii_bus);
+	ret = mdiobus_register(fmb_mii_bus);
 	if (ret)
 		goto err_mdiobus_alloc;
 
 	return 0;
 
 err_mdiobus_alloc:
-	mdiobus_free(fmb->mii_bus);
+	mdiobus_free(fmb_mii_bus);
 	return ret;
 }
 module_init(fixed_mdio_bus_init);
 
 static void __exit fixed_mdio_bus_exit(void)
 {
-	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct fixed_phy *fp, *tmp;
 
-	mdiobus_unregister(fmb->mii_bus);
-	mdiobus_free(fmb->mii_bus);
+	mdiobus_unregister(fmb_mii_bus);
+	mdiobus_free(fmb_mii_bus);
 
-	list_for_each_entry_safe(fp, tmp, &fmb->phys, node) {
+	list_for_each_entry_safe(fp, tmp, &fmb_phys, node) {
 		list_del(&fp->node);
 		kfree(fp);
 	}
