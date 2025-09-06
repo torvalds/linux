@@ -2039,6 +2039,12 @@ static inline u16 usb_maxpacket(struct usb_device *udev, int pipe)
 	return usb_endpoint_maxp(&ep->desc);
 }
 
+u32 usb_endpoint_max_periodic_payload(struct usb_device *udev,
+				      const struct usb_host_endpoint *ep);
+
+bool usb_endpoint_is_hs_isoc_double(struct usb_device *udev,
+				    const struct usb_host_endpoint *ep);
+
 /* translate USB error codes to codes user space understands */
 static inline int usb_translate_errors(int error_code)
 {
