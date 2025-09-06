@@ -42,6 +42,7 @@
 #include <linux/genetlink.h>
 #include <linux/taskstats.h>
 #include <linux/cgroupstats.h>
+#include <stddef.h>
 
 #define PSI_CPU_SOME "/proc/pressure/cpu"
 #define PSI_CPU_FULL	"/proc/pressure/cpu"
@@ -61,6 +62,7 @@
 #define TASK_COMM_LEN	16
 #define MAX_MSG_SIZE	1024
 #define MAX_TASKS		1000
+#define MAX_BUF_LEN		256
 #define SET_TASK_STAT(task_count, field) tasks[task_count].field = stats.field
 #define BOOL_FPRINT(stream, fmt, ...) \
 ({ \
@@ -68,17 +70,11 @@
 	ret >= 0; \
 })
 #define PSI_LINE_FORMAT "%-12s %6.1f%%/%6.1f%%/%6.1f%%/%8llu(ms)\n"
-
-/* Program settings structure */
-struct config {
-	int delay;				/* Update interval in seconds */
-	int iterations;			/* Number of iterations, 0 == infinite */
-	int max_processes;		/* Maximum number of processes to show */
-	char sort_field;		/* Field to sort by */
-	int output_one_time;	/* Output once and exit */
-	int monitor_pid;		/* Monitor specific PID */
-	char *container_path;	/* Path to container cgroup */
-};
+#define SORT_FIELD(name) \
+	{#name, \
+	offsetof(struct task_info, name##_delay_total), \
+	offsetof(struct task_info, name##_count)}
+#define END_FIELD {NULL, 0, 0}
 
 /* PSI statistics structure */
 struct psi_stats {
@@ -130,6 +126,24 @@ struct container_stats {
 	int nr_io_wait;			/* Number of processes in IO wait */
 };
 
+/* Delay field structure */
+struct field_desc {
+	const char *name;	/* Field name for cmdline argument */
+	unsigned long total_offset; /* Offset of total delay in task_info */
+	unsigned long count_offset; /* Offset of count in task_info */
+};
+
+/* Program settings structure */
+struct config {
+	int delay;				/* Update interval in seconds */
+	int iterations;			/* Number of iterations, 0 == infinite */
+	int max_processes;		/* Maximum number of processes to show */
+	int output_one_time;	/* Output once and exit */
+	int monitor_pid;		/* Monitor specific PID */
+	char *container_path;	/* Path to container cgroup */
+	const struct field_desc *sort_field;	/* Current sort field */
+};
+
 /* Global variables */
 static struct config cfg;
 static struct psi_stats psi;
@@ -137,6 +151,17 @@ static struct task_info tasks[MAX_TASKS];
 static int task_count;
 static int running = 1;
 static struct container_stats container_stats;
+static const struct field_desc sort_fields[] = {
+	SORT_FIELD(cpu),
+	SORT_FIELD(blkio),
+	SORT_FIELD(irq),
+	SORT_FIELD(swapin),
+	SORT_FIELD(freepages),
+	SORT_FIELD(thrashing),
+	SORT_FIELD(compact),
+	SORT_FIELD(wpcopy),
+	END_FIELD
+};
 
 /* Netlink socket variables */
 static int nl_sd = -1;
@@ -158,18 +183,59 @@ static void disable_raw_mode(void)
 	tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
 }
 
+/* Find field descriptor by name with string comparison */
+static const struct field_desc *get_field_by_name(const char *name)
+{
+	const struct field_desc *field;
+	size_t field_len;
+
+	for (field = sort_fields; field->name != NULL; field++) {
+		field_len = strlen(field->name);
+		if (field_len != strlen(name))
+			continue;
+		if (strncmp(field->name, name, field_len) == 0)
+			return field;
+	}
+
+	return NULL;
+}
+
+/* Find display name for a field descriptor */
+static const char *get_name_by_field(const struct field_desc *field)
+{
+	return field ? field->name : "UNKNOWN";
+}
+
+/* Generate string of available field names */
+static void display_available_fields(void)
+{
+	const struct field_desc *field;
+	char buf[MAX_BUF_LEN];
+
+	buf[0] = '\0';
+
+	for (field = sort_fields; field->name != NULL; field++) {
+		strncat(buf, "|", MAX_BUF_LEN - strlen(buf) - 1);
+		strncat(buf, field->name, MAX_BUF_LEN - strlen(buf) - 1);
+		buf[MAX_BUF_LEN - 1] = '\0';
+	}
+
+	fprintf(stderr, "Available fields: %s\n", buf);
+}
+
 /* Display usage information and command line options */
 static void usage(void)
 {
 	printf("Usage: delaytop [Options]\n"
 	"Options:\n"
-	"  -h, --help				Show this help message and exit\n"
-	"  -d, --delay=SECONDS	  Set refresh interval (default: 2 seconds, min: 1)\n"
-	"  -n, --iterations=COUNT	Set number of updates (default: 0 = infinite)\n"
-	"  -P, --processes=NUMBER	Set maximum number of processes to show (default: 20, max: 1000)\n"
-	"  -o, --once				Display once and exit\n"
-	"  -p, --pid=PID			Monitor only the specified PID\n"
-	"  -C, --container=PATH	 Monitor the container at specified cgroup path\n");
+	"  -h, --help               Show this help message and exit\n"
+	"  -d, --delay=SECONDS      Set refresh interval (default: 2 seconds, min: 1)\n"
+	"  -n, --iterations=COUNT   Set number of updates (default: 0 = infinite)\n"
+	"  -P, --processes=NUMBER   Set maximum number of processes to show (default: 20, max: 1000)\n"
+	"  -o, --once               Display once and exit\n"
+	"  -p, --pid=PID            Monitor only the specified PID\n"
+	"  -C, --container=PATH     Monitor the container at specified cgroup path\n"
+	"  -s, --sort=FIELD         Sort by delay field (default: cpu)\n");
 	exit(0);
 }
 
@@ -177,6 +243,7 @@ static void usage(void)
 static void parse_args(int argc, char **argv)
 {
 	int c;
+	const struct field_desc *field;
 	struct option long_options[] = {
 		{"help", no_argument, 0, 'h'},
 		{"delay", required_argument, 0, 'd'},
@@ -184,6 +251,7 @@ static void parse_args(int argc, char **argv)
 		{"pid", required_argument, 0, 'p'},
 		{"once", no_argument, 0, 'o'},
 		{"processes", required_argument, 0, 'P'},
+		{"sort", required_argument, 0, 's'},
 		{"container", required_argument, 0, 'C'},
 		{0, 0, 0, 0}
 	};
@@ -192,7 +260,7 @@ static void parse_args(int argc, char **argv)
 	cfg.delay = 2;
 	cfg.iterations = 0;
 	cfg.max_processes = 20;
-	cfg.sort_field = 'c';	/* Default sort by CPU delay */
+	cfg.sort_field = &sort_fields[0];	/* Default sorted by CPU delay */
 	cfg.output_one_time = 0;
 	cfg.monitor_pid = 0;	/* 0 means monitor all PIDs */
 	cfg.container_path = NULL;
@@ -200,7 +268,7 @@ static void parse_args(int argc, char **argv)
 	while (1) {
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "hd:n:p:oP:C:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hd:n:p:oP:C:s:", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -246,6 +314,22 @@ static void parse_args(int argc, char **argv)
 			break;
 		case 'C':
 			cfg.container_path = strdup(optarg);
+			break;
+		case 's':
+			if (strlen(optarg) == 0) {
+				fprintf(stderr, "Error: empty sort field\n");
+				exit(1);
+			}
+
+			field = get_field_by_name(optarg);
+			/* Show available fields if invalid option provided */
+			if (!field) {
+				fprintf(stderr, "Error: invalid sort field '%s'\n", optarg);
+				display_available_fields();
+				exit(1);
+			}
+
+			cfg.sort_field = field;
 			break;
 		default:
 			fprintf(stderr, "Try 'delaytop --help' for more information.\n");
@@ -587,19 +671,23 @@ static int compare_tasks(const void *a, const void *b)
 {
 	const struct task_info *t1 = (const struct task_info *)a;
 	const struct task_info *t2 = (const struct task_info *)b;
+	unsigned long long total1;
+	unsigned long long total2;
+	unsigned long count1;
+	unsigned long count2;
 	double avg1, avg2;
 
-	switch (cfg.sort_field) {
-	case 'c': /* CPU */
-		avg1 = average_ms(t1->cpu_delay_total, t1->cpu_count);
-		avg2 = average_ms(t2->cpu_delay_total, t2->cpu_count);
-		if (avg1 != avg2)
-			return avg2 > avg1 ? 1 : -1;
-		return t2->cpu_delay_total > t1->cpu_delay_total ? 1 : -1;
+	total1 = *(unsigned long long *)((char *)t1 + cfg.sort_field->total_offset);
+	total2 = *(unsigned long long *)((char *)t2 + cfg.sort_field->total_offset);
+	count1 = *(unsigned long *)((char *)t1 + cfg.sort_field->count_offset);
+	count2 = *(unsigned long *)((char *)t2 + cfg.sort_field->count_offset);
 
-	default:
-		return t2->cpu_delay_total > t1->cpu_delay_total ? 1 : -1;
-	}
+	avg1 = average_ms(total1, count1);
+	avg2 = average_ms(total2, count2);
+	if (avg1 != avg2)
+		return avg2 > avg1 ? 1 : -1;
+
+	return 0;
 }
 
 /* Sort tasks by selected field */
@@ -738,8 +826,9 @@ static void display_results(void)
 			container_stats.nr_stopped, container_stats.nr_uninterruptible,
 			container_stats.nr_io_wait);
 	}
-	suc &= BOOL_FPRINT(out, "Top %d processes (sorted by CPU delay):\n",
-			cfg.max_processes);
+	/* Task delay output */
+	suc &= BOOL_FPRINT(out, "Top %d processes (sorted by %s delay):\n",
+			cfg.max_processes, get_name_by_field(cfg.sort_field));
 	suc &= BOOL_FPRINT(out, "%5s  %5s  %-17s", "PID", "TGID", "COMMAND");
 	suc &= BOOL_FPRINT(out, "%7s %7s %7s %7s %7s %7s %7s %7s\n",
 		"CPU(ms)", "IO(ms)", "SWAP(ms)", "RCL(ms)",
