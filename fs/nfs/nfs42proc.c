@@ -362,22 +362,27 @@ out:
 
 /**
  * nfs42_copy_dest_done - perform inode cache updates after clone/copy offload
- * @inode: pointer to destination inode
+ * @file: pointer to destination file
  * @pos: destination offset
  * @len: copy length
+ * @oldsize: length of the file prior to clone/copy
  *
  * Punch a hole in the inode page cache, so that the NFS client will
  * know to retrieve new data.
  * Update the file size if necessary, and then mark the inode as having
  * invalid cached values for change attribute, ctime, mtime and space used.
  */
-static void nfs42_copy_dest_done(struct inode *inode, loff_t pos, loff_t len)
+static void nfs42_copy_dest_done(struct file *file, loff_t pos, loff_t len,
+				 loff_t oldsize)
 {
+	struct inode *inode = file_inode(file);
+	struct address_space *mapping = file->f_mapping;
 	loff_t newsize = pos + len;
 	loff_t end = newsize - 1;
 
-	WARN_ON_ONCE(invalidate_inode_pages2_range(inode->i_mapping,
-				pos >> PAGE_SHIFT, end >> PAGE_SHIFT));
+	nfs_truncate_last_folio(mapping, oldsize, pos);
+	WARN_ON_ONCE(invalidate_inode_pages2_range(mapping, pos >> PAGE_SHIFT,
+						   end >> PAGE_SHIFT));
 
 	spin_lock(&inode->i_lock);
 	if (newsize > i_size_read(inode))
@@ -410,6 +415,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 	struct nfs_server *src_server = NFS_SERVER(src_inode);
 	loff_t pos_src = args->src_pos;
 	loff_t pos_dst = args->dst_pos;
+	loff_t oldsize_dst = i_size_read(dst_inode);
 	size_t count = args->count;
 	ssize_t status;
 
@@ -483,7 +489,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 			goto out;
 	}
 
-	nfs42_copy_dest_done(dst_inode, pos_dst, res->write_res.count);
+	nfs42_copy_dest_done(dst, pos_dst, res->write_res.count, oldsize_dst);
 	nfs_invalidate_atime(src_inode);
 	status = res->write_res.count;
 out:
@@ -1250,6 +1256,7 @@ static int _nfs42_proc_clone(struct rpc_message *msg, struct file *src_f,
 	struct nfs42_clone_res res = {
 		.server	= server,
 	};
+	loff_t oldsize_dst = i_size_read(dst_inode);
 	int status;
 
 	msg->rpc_argp = &args;
@@ -1284,7 +1291,7 @@ static int _nfs42_proc_clone(struct rpc_message *msg, struct file *src_f,
 		/* a zero-length count means clone to EOF in src */
 		if (count == 0 && res.dst_fattr->valid & NFS_ATTR_FATTR_SIZE)
 			count = nfs_size_to_loff_t(res.dst_fattr->size) - dst_offset;
-		nfs42_copy_dest_done(dst_inode, dst_offset, count);
+		nfs42_copy_dest_done(dst_f, dst_offset, count, oldsize_dst);
 		status = nfs_post_op_update_inode(dst_inode, res.dst_fattr);
 	}
 
