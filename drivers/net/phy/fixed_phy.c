@@ -114,7 +114,7 @@ int fixed_phy_set_link_update(struct phy_device *phydev,
 }
 EXPORT_SYMBOL_GPL(fixed_phy_set_link_update);
 
-static int __fixed_phy_add(unsigned int irq, int phy_addr,
+static int __fixed_phy_add(int phy_addr,
 			   const struct fixed_phy_status *status)
 {
 	int ret;
@@ -129,9 +129,6 @@ static int __fixed_phy_add(unsigned int irq, int phy_addr,
 	if (!fp)
 		return -ENOMEM;
 
-	if (irq != PHY_POLL)
-		fmb->mii_bus->irq[phy_addr] = irq;
-
 	fp->addr = phy_addr;
 	fp->status = *status;
 
@@ -142,7 +139,7 @@ static int __fixed_phy_add(unsigned int irq, int phy_addr,
 
 void fixed_phy_add(const struct fixed_phy_status *status)
 {
-	__fixed_phy_add(PHY_POLL, 0, status);
+	__fixed_phy_add(0, status);
 }
 EXPORT_SYMBOL_GPL(fixed_phy_add);
 
@@ -179,7 +176,7 @@ struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 	if (phy_addr < 0)
 		return ERR_PTR(phy_addr);
 
-	ret = __fixed_phy_add(PHY_POLL, phy_addr, status);
+	ret = __fixed_phy_add(phy_addr, status);
 	if (ret < 0) {
 		ida_free(&phy_fixed_ida, phy_addr);
 		return ERR_PTR(ret);
