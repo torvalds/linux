@@ -5,6 +5,7 @@
 
 #include <crypto/curve25519.h>
 #include <kunit/test.h>
+#include <linux/timekeeping.h>
 
 struct curve25519_test_vector {
 	u8 private[CURVE25519_KEY_SIZE];
@@ -1316,9 +1317,39 @@ static void test_curve25519_basepoint(struct kunit *test)
 	}
 }
 
+static void benchmark_curve25519(struct kunit *test)
+{
+	const u8 *private = curve25519_test_vectors[0].private;
+	const u8 *public = curve25519_test_vectors[0].public;
+	const size_t warmup_niter = 5000;
+	const size_t benchmark_niter = 1024;
+	u8 out[CURVE25519_KEY_SIZE];
+	bool ok = true;
+	u64 t;
+
+	if (!IS_ENABLED(CONFIG_CRYPTO_LIB_BENCHMARK))
+		kunit_skip(test, "not enabled");
+
+	/* Warm-up */
+	for (size_t i = 0; i < warmup_niter; i++)
+		ok &= curve25519(out, private, public);
+
+	/* Benchmark */
+	preempt_disable();
+	t = ktime_get_ns();
+	for (size_t i = 0; i < benchmark_niter; i++)
+		ok &= curve25519(out, private, public);
+	t = ktime_get_ns() - t;
+	preempt_enable();
+	KUNIT_EXPECT_TRUE(test, ok);
+	kunit_info(test, "%llu ops/s",
+		   div64_u64((u64)benchmark_niter * NSEC_PER_SEC, t ?: 1));
+}
+
 static struct kunit_case curve25519_test_cases[] = {
 	KUNIT_CASE(test_curve25519),
 	KUNIT_CASE(test_curve25519_basepoint),
+	KUNIT_CASE(benchmark_curve25519),
 	{},
 };
 
@@ -1328,5 +1359,5 @@ static struct kunit_suite curve25519_test_suite = {
 };
 kunit_test_suite(curve25519_test_suite);
 
-MODULE_DESCRIPTION("KUnit tests for Curve25519");
+MODULE_DESCRIPTION("KUnit tests and benchmark for Curve25519");
 MODULE_LICENSE("GPL");
