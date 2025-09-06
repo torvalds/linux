@@ -73,6 +73,8 @@ properties:
       - const: in1
       - const: in2
 
+  clock-output-names: true
+
   interrupts:
     maxItems: 1
     description: Interrupt for INTRb pin
@@ -129,6 +131,10 @@ patternProperties:
       reg:
         description: Number of clock output
         maximum: 9
+
+      always-on:
+        description: Set to keep the clock output always running
+        type: boolean
 
       silabs,format:
         description: Output format
