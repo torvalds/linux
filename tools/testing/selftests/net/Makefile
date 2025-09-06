@@ -121,8 +121,10 @@ TEST_PROGS += ipv6_force_forwarding.sh
 TEST_PROGS += route_hint.sh
 
 # YNL files, must be before "include ..lib.mk"
-YNL_GEN_FILES := busy_poller netlink-dumps
+YNL_GEN_FILES := busy_poller
+YNL_GEN_PROGS := netlink-dumps
 TEST_GEN_FILES += $(YNL_GEN_FILES)
+TEST_GEN_PROGS += $(YNL_GEN_PROGS)
 
 TEST_FILES := settings
 TEST_FILES += in_netns.sh lib.sh setup_loopback.sh setup_veth.sh
