@@ -32,7 +32,6 @@ struct fixed_phy {
 	int addr;
 	struct phy_device *phydev;
 	struct fixed_phy_status status;
-	bool no_carrier;
 	int (*link_update)(struct net_device *, struct fixed_phy_status *);
 	struct list_head node;
 };
@@ -52,7 +51,7 @@ int fixed_phy_change_carrier(struct net_device *dev, bool new_carrier)
 
 	list_for_each_entry(fp, &fmb->phys, node) {
 		if (fp->addr == phydev->mdio.addr) {
-			fp->no_carrier = !new_carrier;
+			fp->status.link = new_carrier;
 			return 0;
 		}
 	}
@@ -67,8 +66,6 @@ static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 
 	list_for_each_entry(fp, &fmb->phys, node) {
 		if (fp->addr == phy_addr) {
-			fp->status.link = !fp->no_carrier;
-
 			/* Issue callback if user registered it. */
 			if (fp->link_update)
 				fp->link_update(fp->phydev->attached_dev,
