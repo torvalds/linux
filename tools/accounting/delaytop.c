@@ -69,12 +69,21 @@
 	int ret = fprintf(stream, fmt, ##__VA_ARGS__); \
 	ret >= 0; \
 })
+#define TASK_AVG(task, field) average_ms((task).field##_delay_total, (task).field##_count)
 #define PSI_LINE_FORMAT "%-12s %6.1f%%/%6.1f%%/%6.1f%%/%8llu(ms)\n"
-#define SORT_FIELD(name) \
+#define DELAY_FMT_DEFAULT "%8.2f %8.2f %8.2f %8.2f\n"
+#define DELAY_FMT_MEMVERBOSE "%8.2f %8.2f %8.2f %8.2f %8.2f %8.2f\n"
+#define SORT_FIELD(name, modes) \
 	{#name, \
 	offsetof(struct task_info, name##_delay_total), \
-	offsetof(struct task_info, name##_count)}
+	offsetof(struct task_info, name##_count), \
+	modes}
 #define END_FIELD {NULL, 0, 0}
+
+/* Display mode types */
+#define MODE_TYPE_ALL	(0xFFFFFFFF)
+#define MODE_DEFAULT	(1 << 0)
+#define MODE_MEMVERBOSE	(1 << 1)
 
 /* PSI statistics structure */
 struct psi_stats {
@@ -115,6 +124,8 @@ struct task_info {
 	unsigned long long wpcopy_delay_total;
 	unsigned long long irq_count;
 	unsigned long long irq_delay_total;
+	unsigned long long mem_count;
+	unsigned long long mem_delay_total;
 };
 
 /* Container statistics structure */
@@ -131,6 +142,7 @@ struct field_desc {
 	const char *name;	/* Field name for cmdline argument */
 	unsigned long total_offset; /* Offset of total delay in task_info */
 	unsigned long count_offset; /* Offset of count in task_info */
+	size_t supported_modes; /* Supported display modes */
 };
 
 /* Program settings structure */
@@ -142,6 +154,7 @@ struct config {
 	int monitor_pid;		/* Monitor specific PID */
 	char *container_path;	/* Path to container cgroup */
 	const struct field_desc *sort_field;	/* Current sort field */
+	size_t display_mode;	/* Current display mode */
 };
 
 /* Global variables */
@@ -152,14 +165,15 @@ static int task_count;
 static int running = 1;
 static struct container_stats container_stats;
 static const struct field_desc sort_fields[] = {
-	SORT_FIELD(cpu),
-	SORT_FIELD(blkio),
-	SORT_FIELD(irq),
-	SORT_FIELD(swapin),
-	SORT_FIELD(freepages),
-	SORT_FIELD(thrashing),
-	SORT_FIELD(compact),
-	SORT_FIELD(wpcopy),
+	SORT_FIELD(cpu,		MODE_DEFAULT),
+	SORT_FIELD(blkio,	MODE_DEFAULT),
+	SORT_FIELD(irq,		MODE_DEFAULT),
+	SORT_FIELD(mem,		MODE_DEFAULT | MODE_MEMVERBOSE),
+	SORT_FIELD(swapin,	MODE_MEMVERBOSE),
+	SORT_FIELD(freepages,	MODE_MEMVERBOSE),
+	SORT_FIELD(thrashing,	MODE_MEMVERBOSE),
+	SORT_FIELD(compact,	MODE_MEMVERBOSE),
+	SORT_FIELD(wpcopy,	MODE_MEMVERBOSE),
 	END_FIELD
 };
 
@@ -207,7 +221,7 @@ static const char *get_name_by_field(const struct field_desc *field)
 }
 
 /* Generate string of available field names */
-static void display_available_fields(void)
+static void display_available_fields(size_t mode)
 {
 	const struct field_desc *field;
 	char buf[MAX_BUF_LEN];
@@ -215,6 +229,8 @@ static void display_available_fields(void)
 	buf[0] = '\0';
 
 	for (field = sort_fields; field->name != NULL; field++) {
+		if (!(field->supported_modes & mode))
+			continue;
 		strncat(buf, "|", MAX_BUF_LEN - strlen(buf) - 1);
 		strncat(buf, field->name, MAX_BUF_LEN - strlen(buf) - 1);
 		buf[MAX_BUF_LEN - 1] = '\0';
@@ -235,7 +251,8 @@ static void usage(void)
 	"  -o, --once               Display once and exit\n"
 	"  -p, --pid=PID            Monitor only the specified PID\n"
 	"  -C, --container=PATH     Monitor the container at specified cgroup path\n"
-	"  -s, --sort=FIELD         Sort by delay field (default: cpu)\n");
+	"  -s, --sort=FIELD         Sort by delay field (default: cpu)\n"
+	"  -M, --memverbose         Display memory detailed information\n");
 	exit(0);
 }
 
@@ -253,6 +270,7 @@ static void parse_args(int argc, char **argv)
 		{"processes", required_argument, 0, 'P'},
 		{"sort", required_argument, 0, 's'},
 		{"container", required_argument, 0, 'C'},
+		{"memverbose", no_argument, 0, 'M'},
 		{0, 0, 0, 0}
 	};
 
@@ -264,11 +282,12 @@ static void parse_args(int argc, char **argv)
 	cfg.output_one_time = 0;
 	cfg.monitor_pid = 0;	/* 0 means monitor all PIDs */
 	cfg.container_path = NULL;
+	cfg.display_mode = MODE_DEFAULT;
 
 	while (1) {
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "hd:n:p:oP:C:s:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hd:n:p:oP:C:s:M", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -325,17 +344,40 @@ static void parse_args(int argc, char **argv)
 			/* Show available fields if invalid option provided */
 			if (!field) {
 				fprintf(stderr, "Error: invalid sort field '%s'\n", optarg);
-				display_available_fields();
+				display_available_fields(MODE_TYPE_ALL);
 				exit(1);
 			}
 
 			cfg.sort_field = field;
+			break;
+		case 'M':
+			cfg.display_mode = MODE_MEMVERBOSE;
+			cfg.sort_field = get_field_by_name("mem");
 			break;
 		default:
 			fprintf(stderr, "Try 'delaytop --help' for more information.\n");
 			exit(1);
 		}
 	}
+}
+
+/* Calculate average delay in milliseconds for overall memory */
+static void set_mem_delay_total(struct task_info *t)
+{
+	t->mem_delay_total = t->swapin_delay_total +
+		t->freepages_delay_total +
+		t->thrashing_delay_total +
+		t->compact_delay_total +
+		t->wpcopy_delay_total;
+}
+
+static void set_mem_count(struct task_info *t)
+{
+	t->mem_count = t->swapin_count +
+		t->freepages_count +
+		t->thrashing_count +
+		t->compact_count +
+		t->wpcopy_count;
 }
 
 /* Create a raw netlink socket and bind */
@@ -611,6 +653,8 @@ static void fetch_and_fill_task_info(int pid, const char *comm)
 						SET_TASK_STAT(task_count, wpcopy_delay_total);
 						SET_TASK_STAT(task_count, irq_count);
 						SET_TASK_STAT(task_count, irq_delay_total);
+						set_mem_count(&tasks[task_count]);
+						set_mem_delay_total(&tasks[task_count]);
 						task_count++;
 					}
 					break;
@@ -829,27 +873,44 @@ static void display_results(void)
 	/* Task delay output */
 	suc &= BOOL_FPRINT(out, "Top %d processes (sorted by %s delay):\n",
 			cfg.max_processes, get_name_by_field(cfg.sort_field));
-	suc &= BOOL_FPRINT(out, "%5s  %5s  %-17s", "PID", "TGID", "COMMAND");
-	suc &= BOOL_FPRINT(out, "%7s %7s %7s %7s %7s %7s %7s %7s\n",
-		"CPU(ms)", "IO(ms)", "SWAP(ms)", "RCL(ms)",
-		"THR(ms)", "CMP(ms)", "WP(ms)", "IRQ(ms)");
 
-	suc &= BOOL_FPRINT(out, "-----------------------------------------------");
-	suc &= BOOL_FPRINT(out, "----------------------------------------------\n");
+	suc &= BOOL_FPRINT(out, "%8s  %8s  %-17s", "PID", "TGID", "COMMAND");
+	if (cfg.display_mode == MODE_MEMVERBOSE) {
+		suc &= BOOL_FPRINT(out, "%8s %8s %8s %8s %8s %8s\n",
+			"MEM(ms)", "SWAP(ms)", "RCL(ms)",
+			"THR(ms)", "CMP(ms)", "WP(ms)");
+		suc &= BOOL_FPRINT(out, "-----------------------");
+		suc &= BOOL_FPRINT(out, "-----------------------");
+		suc &= BOOL_FPRINT(out, "-----------------------");
+		suc &= BOOL_FPRINT(out, "---------------------\n");
+	} else {
+		suc &= BOOL_FPRINT(out, "%8s %8s %8s %8s\n",
+			"CPU(ms)", "IO(ms)", "IRQ(ms)", "MEM(ms)");
+		suc &= BOOL_FPRINT(out, "-----------------------");
+		suc &= BOOL_FPRINT(out, "-----------------------");
+		suc &= BOOL_FPRINT(out, "--------------------------\n");
+	}
+
 	count = task_count < cfg.max_processes ? task_count : cfg.max_processes;
 
 	for (i = 0; i < count; i++) {
-		suc &= BOOL_FPRINT(out, "%5d  %5d  %-15s",
+		suc &= BOOL_FPRINT(out, "%8d  %8d  %-15s",
 			tasks[i].pid, tasks[i].tgid, tasks[i].command);
-		suc &= BOOL_FPRINT(out, "%7.2f %7.2f %7.2f %7.2f %7.2f %7.2f %7.2f %7.2f\n",
-			average_ms(tasks[i].cpu_delay_total, tasks[i].cpu_count),
-			average_ms(tasks[i].blkio_delay_total, tasks[i].blkio_count),
-			average_ms(tasks[i].swapin_delay_total, tasks[i].swapin_count),
-			average_ms(tasks[i].freepages_delay_total, tasks[i].freepages_count),
-			average_ms(tasks[i].thrashing_delay_total, tasks[i].thrashing_count),
-			average_ms(tasks[i].compact_delay_total, tasks[i].compact_count),
-			average_ms(tasks[i].wpcopy_delay_total, tasks[i].wpcopy_count),
-			average_ms(tasks[i].irq_delay_total, tasks[i].irq_count));
+		if (cfg.display_mode == MODE_MEMVERBOSE) {
+			suc &= BOOL_FPRINT(out, DELAY_FMT_MEMVERBOSE,
+				TASK_AVG(tasks[i], mem),
+				TASK_AVG(tasks[i], swapin),
+				TASK_AVG(tasks[i], freepages),
+				TASK_AVG(tasks[i], thrashing),
+				TASK_AVG(tasks[i], compact),
+				TASK_AVG(tasks[i], wpcopy));
+		} else {
+			suc &= BOOL_FPRINT(out, DELAY_FMT_DEFAULT,
+				TASK_AVG(tasks[i], cpu),
+				TASK_AVG(tasks[i], blkio),
+				TASK_AVG(tasks[i], irq),
+				TASK_AVG(tasks[i], mem));
+		}
 	}
 
 	suc &= BOOL_FPRINT(out, "\n");
@@ -891,6 +952,13 @@ int main(int argc, char **argv)
 
 	/* Main loop */
 	while (running) {
+		/* Exit when sort field do not match display mode */
+		if (!(cfg.sort_field->supported_modes & cfg.display_mode)) {
+			fprintf(stderr, "Sort field not supported in this mode\n");
+			display_available_fields(cfg.display_mode);
+			break;
+		}
+
 		/* Read PSI statistics */
 		read_psi_stats();
 
