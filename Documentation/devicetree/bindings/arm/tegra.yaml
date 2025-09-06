@@ -36,8 +36,12 @@ properties:
               - toradex,colibri_t20-iris
           - const: toradex,colibri_t20
           - const: nvidia,tegra20
-      - items:
-          - const: asus,tf101
+      - description: ASUS Transformers T20 Device family
+        items:
+          - enum:
+              - asus,sl101
+              - asus,tf101
+              - asus,tf101g
           - const: nvidia,tegra20
       - items:
           - const: acer,picasso
