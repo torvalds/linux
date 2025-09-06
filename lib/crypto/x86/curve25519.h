@@ -4,13 +4,9 @@
  * Copyright (c) 2016-2020 INRIA, CMU and Microsoft Corporation
  */
 
-#include <crypto/curve25519.h>
-
-#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
@@ -1590,41 +1586,28 @@ static void curve25519_ever64_base(u8 *out, const u8 *priv)
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(curve25519_use_bmi2_adx);
 
-void curve25519_arch(u8 mypublic[CURVE25519_KEY_SIZE],
-		     const u8 secret[CURVE25519_KEY_SIZE],
-		     const u8 basepoint[CURVE25519_KEY_SIZE])
+static void curve25519_arch(u8 mypublic[CURVE25519_KEY_SIZE],
+			    const u8 secret[CURVE25519_KEY_SIZE],
+			    const u8 basepoint[CURVE25519_KEY_SIZE])
 {
 	if (static_branch_likely(&curve25519_use_bmi2_adx))
 		curve25519_ever64(mypublic, secret, basepoint);
 	else
 		curve25519_generic(mypublic, secret, basepoint);
 }
-EXPORT_SYMBOL(curve25519_arch);
 
-void curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
-			  const u8 secret[CURVE25519_KEY_SIZE])
+static void curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
+				 const u8 secret[CURVE25519_KEY_SIZE])
 {
 	if (static_branch_likely(&curve25519_use_bmi2_adx))
 		curve25519_ever64_base(pub, secret);
 	else
 		curve25519_generic(pub, secret, curve25519_base_point);
 }
-EXPORT_SYMBOL(curve25519_base_arch);
 
-static int __init curve25519_mod_init(void)
+#define curve25519_mod_init_arch curve25519_mod_init_arch
+static void curve25519_mod_init_arch(void)
 {
 	if (boot_cpu_has(X86_FEATURE_BMI2) && boot_cpu_has(X86_FEATURE_ADX))
 		static_branch_enable(&curve25519_use_bmi2_adx);
-	return 0;
 }
-
-static void __exit curve25519_mod_exit(void)
-{
-}
-
-module_init(curve25519_mod_init);
-module_exit(curve25519_mod_exit);
-
-MODULE_DESCRIPTION("Curve25519 algorithm, ADX optimized");
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");

@@ -13,19 +13,9 @@ enum curve25519_lengths {
 	CURVE25519_KEY_SIZE = 32
 };
 
-extern const u8 curve25519_null_point[];
-extern const u8 curve25519_base_point[];
-
 void curve25519_generic(u8 out[CURVE25519_KEY_SIZE],
 			const u8 scalar[CURVE25519_KEY_SIZE],
 			const u8 point[CURVE25519_KEY_SIZE]);
-
-void curve25519_arch(u8 out[CURVE25519_KEY_SIZE],
-		     const u8 scalar[CURVE25519_KEY_SIZE],
-		     const u8 point[CURVE25519_KEY_SIZE]);
-
-void curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
-			  const u8 secret[CURVE25519_KEY_SIZE]);
 
 bool __must_check curve25519(u8 mypublic[CURVE25519_KEY_SIZE],
 			     const u8 secret[CURVE25519_KEY_SIZE],

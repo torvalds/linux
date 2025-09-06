@@ -7,12 +7,9 @@
  *     - Algorithm 1 Scalar multiplication of a variable point
  */
 
-#include <crypto/curve25519.h>
-
 #include <linux/types.h>
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 
 #include <linux/cpufeature.h>
 #include <linux/processor.h>
@@ -175,21 +172,15 @@ static void curve25519_fe51(uint8_t out[32], const uint8_t scalar[32],
 	fe51_tobytes(out, x2);
 }
 
-void curve25519_arch(u8 mypublic[CURVE25519_KEY_SIZE],
-		     const u8 secret[CURVE25519_KEY_SIZE],
-		     const u8 basepoint[CURVE25519_KEY_SIZE])
+static void curve25519_arch(u8 mypublic[CURVE25519_KEY_SIZE],
+			    const u8 secret[CURVE25519_KEY_SIZE],
+			    const u8 basepoint[CURVE25519_KEY_SIZE])
 {
 	curve25519_fe51(mypublic, secret, basepoint);
 }
-EXPORT_SYMBOL(curve25519_arch);
 
-void curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
-			  const u8 secret[CURVE25519_KEY_SIZE])
+static void curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
+				 const u8 secret[CURVE25519_KEY_SIZE])
 {
 	curve25519_fe51(pub, secret, curve25519_base_point);
 }
-EXPORT_SYMBOL(curve25519_base_arch);
-
-MODULE_DESCRIPTION("PPC64le Curve25519 scalar multiplication with 51 bits limbs");
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Danny Tsen <dtsen@us.ibm.com>");

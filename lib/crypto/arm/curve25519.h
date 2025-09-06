@@ -12,10 +12,7 @@
 #include <asm/simd.h>
 #include <crypto/internal/simd.h>
 #include <linux/types.h>
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/jump_label.h>
-#include <crypto/curve25519.h>
 
 asmlinkage void curve25519_neon(u8 mypublic[CURVE25519_KEY_SIZE],
 				const u8 secret[CURVE25519_KEY_SIZE],
@@ -23,9 +20,9 @@ asmlinkage void curve25519_neon(u8 mypublic[CURVE25519_KEY_SIZE],
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_neon);
 
-void curve25519_arch(u8 out[CURVE25519_KEY_SIZE],
-		     const u8 scalar[CURVE25519_KEY_SIZE],
-		     const u8 point[CURVE25519_KEY_SIZE])
+static void curve25519_arch(u8 out[CURVE25519_KEY_SIZE],
+			    const u8 scalar[CURVE25519_KEY_SIZE],
+			    const u8 point[CURVE25519_KEY_SIZE])
 {
 	if (static_branch_likely(&have_neon) && crypto_simd_usable()) {
 		kernel_neon_begin();
@@ -35,28 +32,16 @@ void curve25519_arch(u8 out[CURVE25519_KEY_SIZE],
 		curve25519_generic(out, scalar, point);
 	}
 }
-EXPORT_SYMBOL(curve25519_arch);
 
-void curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
-			  const u8 secret[CURVE25519_KEY_SIZE])
+static void curve25519_base_arch(u8 pub[CURVE25519_KEY_SIZE],
+				 const u8 secret[CURVE25519_KEY_SIZE])
 {
-	return curve25519_arch(pub, secret, curve25519_base_point);
+	curve25519_arch(pub, secret, curve25519_base_point);
 }
-EXPORT_SYMBOL(curve25519_base_arch);
 
-static int __init arm_curve25519_init(void)
+#define curve25519_mod_init_arch curve25519_mod_init_arch
+static void curve25519_mod_init_arch(void)
 {
 	if (elf_hwcap & HWCAP_NEON)
 		static_branch_enable(&have_neon);
-	return 0;
 }
-
-static void __exit arm_curve25519_exit(void)
-{
-}
-
-module_init(arm_curve25519_init);
-module_exit(arm_curve25519_exit);
-
-MODULE_DESCRIPTION("Public key crypto: Curve25519 (NEON-accelerated)");
-MODULE_LICENSE("GPL v2");

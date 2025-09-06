@@ -76,17 +76,31 @@ obj-$(CONFIG_CRYPTO_LIB_CHACHA20POLY1305)	+= libchacha20poly1305.o
 libchacha20poly1305-y				+= chacha20poly1305.o
 libchacha20poly1305-$(CONFIG_CRYPTO_SELFTESTS)	+= chacha20poly1305-selftest.o
 
-obj-$(CONFIG_CRYPTO_LIB_CURVE25519_GENERIC)	+= libcurve25519-generic.o
-libcurve25519-generic-y				:= curve25519-fiat32.o
-libcurve25519-generic-$(CONFIG_ARCH_SUPPORTS_INT128)	:= curve25519-hacl64.o
-libcurve25519-generic-y				+= curve25519-generic.o
+################################################################################
+
+obj-$(CONFIG_CRYPTO_LIB_CURVE25519) += libcurve25519.o
+libcurve25519-y := curve25519.o
+
+# Disable GCOV in odd or sensitive code
+GCOV_PROFILE_curve25519.o := n
+
+ifeq ($(CONFIG_ARCH_SUPPORTS_INT128),y)
+libcurve25519-$(CONFIG_CRYPTO_LIB_CURVE25519_GENERIC) += curve25519-hacl64.o
+else
+libcurve25519-$(CONFIG_CRYPTO_LIB_CURVE25519_GENERIC) += curve25519-fiat32.o
+endif
 # clang versions prior to 18 may blow out the stack with KASAN
 ifeq ($(call clang-min-version, 180000),)
 KASAN_SANITIZE_curve25519-hacl64.o := n
 endif
 
-obj-$(CONFIG_CRYPTO_LIB_CURVE25519)		+= libcurve25519.o
-libcurve25519-y					+= curve25519.o
+ifeq ($(CONFIG_CRYPTO_LIB_CURVE25519_ARCH),y)
+CFLAGS_curve25519.o += -I$(src)/$(SRCARCH)
+libcurve25519-$(CONFIG_ARM) += arm/curve25519-core.o
+libcurve25519-$(CONFIG_PPC) += powerpc/curve25519-ppc64le_asm.o
+endif
+
+################################################################################
 
 obj-$(CONFIG_CRYPTO_LIB_DES)			+= libdes.o
 libdes-y					:= des.o
