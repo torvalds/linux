@@ -40,42 +40,49 @@ static struct fixed_mdio_bus platform_fmb = {
 	.phys = LIST_HEAD_INIT(platform_fmb.phys),
 };
 
-int fixed_phy_change_carrier(struct net_device *dev, bool new_carrier)
+static struct fixed_phy *fixed_phy_find(int addr)
 {
 	struct fixed_mdio_bus *fmb = &platform_fmb;
+	struct fixed_phy *fp;
+
+	list_for_each_entry(fp, &fmb->phys, node) {
+		if (fp->addr == addr)
+			return fp;
+	}
+
+	return NULL;
+}
+
+int fixed_phy_change_carrier(struct net_device *dev, bool new_carrier)
+{
 	struct phy_device *phydev = dev->phydev;
 	struct fixed_phy *fp;
 
 	if (!phydev || !phydev->mdio.bus)
 		return -EINVAL;
 
-	list_for_each_entry(fp, &fmb->phys, node) {
-		if (fp->addr == phydev->mdio.addr) {
-			fp->status.link = new_carrier;
-			return 0;
-		}
-	}
-	return -EINVAL;
+	fp = fixed_phy_find(phydev->mdio.addr);
+	if (!fp)
+		return -EINVAL;
+
+	fp->status.link = new_carrier;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(fixed_phy_change_carrier);
 
 static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 {
-	struct fixed_mdio_bus *fmb = bus->priv;
 	struct fixed_phy *fp;
 
-	list_for_each_entry(fp, &fmb->phys, node) {
-		if (fp->addr == phy_addr) {
-			/* Issue callback if user registered it. */
-			if (fp->link_update)
-				fp->link_update(fp->phydev->attached_dev,
-						&fp->status);
+	fp = fixed_phy_find(phy_addr);
+	if (!fp)
+		return 0xffff;
 
-			return swphy_read_reg(reg_num, &fp->status);
-		}
-	}
+	if (fp->link_update)
+		fp->link_update(fp->phydev->attached_dev, &fp->status);
 
-	return 0xFFFF;
+	return swphy_read_reg(reg_num, &fp->status);
 }
 
 static int fixed_mdio_write(struct mii_bus *bus, int phy_addr, int reg_num,
@@ -93,21 +100,19 @@ int fixed_phy_set_link_update(struct phy_device *phydev,
 			      int (*link_update)(struct net_device *,
 						 struct fixed_phy_status *))
 {
-	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct fixed_phy *fp;
 
 	if (!phydev || !phydev->mdio.bus)
 		return -EINVAL;
 
-	list_for_each_entry(fp, &fmb->phys, node) {
-		if (fp->addr == phydev->mdio.addr) {
-			fp->link_update = link_update;
-			fp->phydev = phydev;
-			return 0;
-		}
-	}
+	fp = fixed_phy_find(phydev->mdio.addr);
+	if (!fp)
+		return -ENOENT;
 
-	return -ENOENT;
+	fp->link_update = link_update;
+	fp->phydev = phydev;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(fixed_phy_set_link_update);
 
@@ -144,17 +149,15 @@ static DEFINE_IDA(phy_fixed_ida);
 
 static void fixed_phy_del(int phy_addr)
 {
-	struct fixed_mdio_bus *fmb = &platform_fmb;
-	struct fixed_phy *fp, *tmp;
+	struct fixed_phy *fp;
 
-	list_for_each_entry_safe(fp, tmp, &fmb->phys, node) {
-		if (fp->addr == phy_addr) {
-			list_del(&fp->node);
-			kfree(fp);
-			ida_free(&phy_fixed_ida, phy_addr);
-			return;
-		}
-	}
+	fp = fixed_phy_find(phy_addr);
+	if (!fp)
+		return;
+
+	list_del(&fp->node);
+	kfree(fp);
+	ida_free(&phy_fixed_ida, phy_addr);
 }
 
 struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
