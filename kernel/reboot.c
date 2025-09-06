@@ -1108,6 +1108,7 @@ static int __init reboot_setup(char *str)
 
 		if (!strncmp(str, "panic_", 6)) {
 			mode = &panic_reboot_mode;
+			kernel_can_power_off = true;
 			str += 6;
 		} else {
 			mode = &reboot_mode;
