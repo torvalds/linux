@@ -296,7 +296,7 @@ static void nfs_folio_end_writeback(struct folio *folio)
 {
 	struct nfs_server *nfss = NFS_SERVER(folio->mapping->host);
 
-	folio_end_writeback(folio);
+	folio_end_writeback_no_dropbehind(folio);
 	if (atomic_long_dec_return(&nfss->writeback) <
 	    NFS_CONGESTION_OFF_THRESH) {
 		nfss->write_congested = 0;
@@ -748,6 +748,8 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 			clear_bit(PG_MAPPED, &req->wb_head->wb_flags);
 		}
 		spin_unlock(&mapping->i_private_lock);
+
+		folio_end_dropbehind(folio);
 	}
 	nfs_page_group_unlock(req);
 

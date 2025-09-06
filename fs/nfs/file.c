@@ -363,6 +363,8 @@ static bool nfs_want_read_modify_write(struct file *file, struct folio *folio,
 
 	if (pnfs_ld_read_whole_page(file_inode(file)))
 		return true;
+	if (folio_test_dropbehind(folio))
+		return false;
 	/* Open for reading too? */
 	if (file->f_mode & FMODE_READ)
 		return true;
@@ -382,7 +384,6 @@ static int nfs_write_begin(const struct kiocb *iocb,
 			   loff_t pos, unsigned len, struct folio **foliop,
 			   void **fsdata)
 {
-	fgf_t fgp = FGP_WRITEBEGIN;
 	struct folio *folio;
 	struct file *file = iocb->ki_filp;
 	int once_thru = 0;
@@ -394,10 +395,8 @@ static int nfs_write_begin(const struct kiocb *iocb,
 		file, mapping->host->i_ino, len, (long long) pos);
 	nfs_truncate_last_folio(mapping, i_size_read(mapping->host), pos);
 
-	fgp |= fgf_set_order(len);
 start:
-	folio = __filemap_get_folio(mapping, pos >> PAGE_SHIFT, fgp,
-				    mapping_gfp_mask(mapping));
+	folio = write_begin_get_folio(iocb, mapping, pos >> PAGE_SHIFT, len);
 	if (IS_ERR(folio)) {
 		ret = PTR_ERR(folio);
 		goto out;
@@ -411,6 +410,7 @@ start:
 	} else if (!once_thru &&
 		   nfs_want_read_modify_write(file, folio, pos, len)) {
 		once_thru = 1;
+		folio_clear_dropbehind(folio);
 		ret = nfs_read_folio(file, folio);
 		folio_put(folio);
 		if (!ret)
@@ -963,5 +963,6 @@ const struct file_operations nfs_file_operations = {
 	.splice_write	= iter_file_splice_write,
 	.check_flags	= nfs_check_flags,
 	.setlease	= simple_nosetlease,
+	.fop_flags	= FOP_DONTCACHE,
 };
 EXPORT_SYMBOL_GPL(nfs_file_operations);
