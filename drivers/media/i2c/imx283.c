@@ -1143,7 +1143,6 @@ static int imx283_enable_streams(struct v4l2_subdev *sd,
 	return 0;
 
 err_rpm_put:
-	pm_runtime_mark_last_busy(imx283->dev);
 	pm_runtime_put_autosuspend(imx283->dev);
 
 	return ret;
@@ -1163,7 +1162,6 @@ static int imx283_disable_streams(struct v4l2_subdev *sd,
 	if (ret)
 		dev_err(imx283->dev, "Failed to stop stream\n");
 
-	pm_runtime_mark_last_busy(imx283->dev);
 	pm_runtime_put_autosuspend(imx283->dev);
 
 	return ret;
@@ -1558,7 +1556,6 @@ static int imx283_probe(struct i2c_client *client)
 	 * Decrease the PM usage count. The device will get suspended after the
 	 * autosuspend delay, turning the power off.
 	 */
-	pm_runtime_mark_last_busy(imx283->dev);
 	pm_runtime_put_autosuspend(imx283->dev);
 
 	return 0;

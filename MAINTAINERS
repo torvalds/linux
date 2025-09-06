@@ -931,13 +931,13 @@ F:	Documentation/devicetree/bindings/dma/altr,msgdma.yaml
 F:	drivers/dma/altera-msgdma.c
 
 ALTERA PIO DRIVER
-M:	Mun Yew Tham <mun.yew.tham@intel.com>
+M:	Adrian Ng <adrianhoyin.ng@altera.com>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-altera.c
 
 ALTERA TRIPLE SPEED ETHERNET DRIVER
-M:	Joyce Ooi <joyce.ooi@intel.com>
+M:	Boon Khai Ng <boon.khai.ng@altera.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/altera/
@@ -4205,7 +4205,7 @@ W:	http://www.baycom.org/~tom/ham/ham.html
 F:	drivers/net/hamradio/baycom*
 
 BCACHE (BLOCK LAYER CACHE)
-M:	Coly Li <colyli@kernel.org>
+M:	Coly Li <colyli@fnnas.com>
 M:	Kent Overstreet <kent.overstreet@linux.dev>
 L:	linux-bcache@vger.kernel.org
 S:	Maintained
@@ -4216,7 +4216,7 @@ F:	drivers/md/bcache/
 BCACHEFS
 M:	Kent Overstreet <kent.overstreet@linux.dev>
 L:	linux-bcachefs@vger.kernel.org
-S:	Supported
+S:	Externally maintained
 C:	irc://irc.oftc.net/bcache
 P:      Documentation/filesystems/bcachefs/SubmittingPatches.rst
 T:	git https://evilpiepirate.org/git/bcachefs.git
@@ -17848,7 +17848,6 @@ F:	net/ipv6/syncookies.c
 F:	net/ipv6/tcp*.c
 
 NETWORKING [TLS]
-M:	Boris Pismenny <borisp@nvidia.com>
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Jakub Kicinski <kuba@kernel.org>
 L:	netdev@vger.kernel.org
@@ -20878,8 +20877,8 @@ S:	Maintained
 F:	drivers/firmware/qcom/qcom_qseecom_uefisecapp.c
 
 QUALCOMM RMNET DRIVER
-M:	Subash Abhinov Kasiviswanathan <quic_subashab@quicinc.com>
-M:	Sean Tranchetti <quic_stranche@quicinc.com>
+M:	Subash Abhinov Kasiviswanathan <subash.a.kasiviswanathan@oss.qualcomm.com>
+M:	Sean Tranchetti <sean.tranchetti@oss.qualcomm.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/device_drivers/cellular/qualcomm/rmnet.rst

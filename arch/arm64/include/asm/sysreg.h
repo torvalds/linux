@@ -1142,9 +1142,6 @@
 
 #define ARM64_FEATURE_FIELD_BITS	4
 
-/* Defined for compatibility only, do not add new users. */
-#define ARM64_FEATURE_MASK(x)	(x##_MASK)
-
 #ifdef __ASSEMBLY__
 
 	.macro	mrs_s, rt, sreg

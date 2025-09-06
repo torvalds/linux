@@ -215,7 +215,7 @@ Spectre_v2            X                           X
 Spectre_v2_user                      X                           X            *       (Note 1)
 SRBDS                 X              X            X              X
 SRSO                  X              X            X              X
-SSB                                                                                   (Note 4)
+SSB                                  X
 TAA                   X              X            X              X            *       (Note 2)
 TSA                   X              X            X              X
 =============== ============== ============ ============= ============== ============ ========
@@ -228,9 +228,6 @@ Notes:
 
    3 --  Disables SMT if cross-thread mitigations are fully enabled, the CPU is
    vulnerable, and STIBP is not supported
-
-   4 --  Speculative store bypass is always enabled by default (no kernel
-   mitigation applied) unless overridden with spec_store_bypass_disable option
 
 When an attack-vector is disabled, all mitigations for the vulnerabilities
 listed in the above table are disabled, unless mitigation is required for a
