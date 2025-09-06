@@ -344,14 +344,6 @@ config CRYPTO_ECRDSA
 	  One of the Russian cryptographic standard algorithms (called GOST
 	  algorithms). Only signature verification is implemented.
 
-config CRYPTO_CURVE25519
-	tristate "Curve25519"
-	select CRYPTO_KPP
-	select CRYPTO_LIB_CURVE25519_GENERIC
-	select CRYPTO_LIB_CURVE25519_INTERNAL
-	help
-	  Curve25519 elliptic curve (RFC7748)
-
 endmenu
 
 menu "Block ciphers"
