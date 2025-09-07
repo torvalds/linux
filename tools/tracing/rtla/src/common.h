@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #pragma once
 
+#include "actions.h"
+#include "timerlat_u.h"
 #include "trace.h"
 #include "utils.h"
 
@@ -51,16 +53,8 @@ struct osnoise_context {
 	int			opt_workload;
 };
 
-/*
- * osnoise_tool -  osnoise based tool definition.
- */
-struct osnoise_tool {
-	struct trace_instance		trace;
-	struct osnoise_context		*context;
-	void				*data;
-	void				*params;
-	time_t				start_time;
-};
+extern struct trace_instance *trace_inst;
+extern int stop_tracing;
 
 struct hist_params {
 	char			no_irq;
@@ -103,7 +97,46 @@ struct common_params {
 	int			output_divisor;
 	int			pretty_output;
 	int			quiet;
+	int			user_workload;
 	int			kernel_workload;
+	int			user_data;
+	int			aa_only;
+
+	struct actions		threshold_actions;
+	struct actions		end_actions;
+	struct timerlat_u_params user;
+};
+
+struct tool_ops;
+
+/*
+ * osnoise_tool -  osnoise based tool definition.
+ *
+ * Only the "trace" and "context" fields are used for
+ * the additional trace instances (record and aa).
+ */
+struct osnoise_tool {
+	struct tool_ops			*ops;
+	struct trace_instance		trace;
+	struct osnoise_context		*context;
+	void				*data;
+	struct common_params		*params;
+	time_t				start_time;
+	struct osnoise_tool		*record;
+	struct osnoise_tool		*aa;
+};
+
+struct tool_ops {
+	const char *tracer;
+	const char *comm_prefix;
+	struct common_params *(*parse_args)(int argc, char *argv[]);
+	struct osnoise_tool *(*init_tool)(struct common_params *params);
+	int (*apply_config)(struct osnoise_tool *tool);
+	int (*enable)(struct osnoise_tool *tool);
+	int (*main)(struct osnoise_tool *tool);
+	void (*print_stats)(struct osnoise_tool *tool);
+	void (*analyze)(struct osnoise_tool *tool, bool stopped);
+	void (*free)(struct osnoise_tool *tool);
 };
 
 int osnoise_set_cpus(struct osnoise_context *context, char *cpus);
@@ -111,4 +144,11 @@ void osnoise_restore_cpus(struct osnoise_context *context);
 
 int osnoise_set_workload(struct osnoise_context *context, bool onoff);
 
+void osnoise_destroy_tool(struct osnoise_tool *top);
+struct osnoise_tool *osnoise_init_tool(char *tool_name);
+struct osnoise_tool *osnoise_init_trace_tool(const char *tracer);
+bool osnoise_trace_is_off(struct osnoise_tool *tool, struct osnoise_tool *record);
+
 int common_apply_config(struct osnoise_tool *tool, struct common_params *params);
+int top_main_loop(struct osnoise_tool *tool);
+int hist_main_loop(struct osnoise_tool *tool);

@@ -25,7 +25,7 @@ int timerlat_bpf_init(struct timerlat_params *params)
 	bpf->rodata->entries = params->common.hist.entries;
 	bpf->rodata->irq_threshold = params->common.stop_us;
 	bpf->rodata->thread_threshold = params->common.stop_total_us;
-	bpf->rodata->aa_only = params->aa_only;
+	bpf->rodata->aa_only = params->common.aa_only;
 
 	if (params->common.hist.entries != 0) {
 		/* Pass histogram options */
@@ -42,7 +42,7 @@ int timerlat_bpf_init(struct timerlat_params *params)
 		bpf_map__set_autocreate(bpf->maps.hist_user, false);
 	}
 
-	if (params->aa_only) {
+	if (params->common.aa_only) {
 		/* Auto-analysis only, disable summary */
 		bpf_map__set_autocreate(bpf->maps.summary_irq, false);
 		bpf_map__set_autocreate(bpf->maps.summary_thread, false);

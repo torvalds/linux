@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "actions.h"
 #include "osnoise.h"
 
 /*
@@ -26,18 +25,15 @@ struct timerlat_params {
 	int			dma_latency;
 	int			no_aa;
 	int			dump_tasks;
-	int			user_workload;
-	int			user_data;
 	int			deepest_idle_state;
-	int			aa_only;
 	enum timerlat_tracing_mode mode;
-
-	struct actions threshold_actions;
-	struct actions end_actions;
 };
 
-int timerlat_apply_config(struct osnoise_tool *tool, struct timerlat_params *params);
+#define to_timerlat_params(ptr) container_of(ptr, struct timerlat_params, common)
 
-int timerlat_hist_main(int argc, char *argv[]);
-int timerlat_top_main(int argc, char *argv[]);
+int timerlat_apply_config(struct osnoise_tool *tool, struct timerlat_params *params);
 int timerlat_main(int argc, char *argv[]);
+int timerlat_enable(struct osnoise_tool *tool);
+void timerlat_analyze(struct osnoise_tool *tool, bool stopped);
+void timerlat_free(struct osnoise_tool *tool);
+

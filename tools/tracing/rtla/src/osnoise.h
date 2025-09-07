@@ -10,12 +10,13 @@ enum osnoise_mode {
 
 struct osnoise_params {
 	struct common_params	common;
-	char			*trace_output;
 	unsigned long long	runtime;
 	unsigned long long	period;
 	long long		threshold;
 	enum osnoise_mode	mode;
 };
+
+#define to_osnoise_params(ptr) container_of(ptr, struct osnoise_params, common)
 
 /*
  * *_INIT_VALs are also invalid values, they are used to
@@ -54,14 +55,17 @@ int osnoise_set_print_stack(struct osnoise_context *context,
 			    long long print_stack);
 
 int osnoise_set_irq_disable(struct osnoise_context *context, bool onoff);
-void osnoise_destroy_tool(struct osnoise_tool *top);
-struct osnoise_tool *osnoise_init_tool(char *tool_name);
-struct osnoise_tool *osnoise_init_trace_tool(char *tracer);
 void osnoise_report_missed_events(struct osnoise_tool *tool);
-bool osnoise_trace_is_off(struct osnoise_tool *tool, struct osnoise_tool *record);
 int osnoise_apply_config(struct osnoise_tool *tool, struct osnoise_params *params);
 
 int osnoise_hist_main(int argc, char *argv[]);
 int osnoise_top_main(int argc, char **argv);
+int osnoise_enable(struct osnoise_tool *tool);
 int osnoise_main(int argc, char **argv);
 int hwnoise_main(int argc, char **argv);
+
+extern struct tool_ops timerlat_top_ops, timerlat_hist_ops;
+extern struct tool_ops osnoise_top_ops, osnoise_hist_ops;
+
+int run_tool(struct tool_ops *ops, int argc, char *argv[]);
+int hist_main_loop(struct osnoise_tool *tool);
