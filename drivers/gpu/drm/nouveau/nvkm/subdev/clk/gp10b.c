@@ -5,6 +5,7 @@
 #include <core/tegra.h>
 
 #include "priv.h"
+#include "gk20a_devfreq.h"
 #include "gk20a.h"
 #include "gp10b.h"
 
@@ -22,6 +23,10 @@ gp10b_clk_init(struct nvkm_clk *base)
 		nvkm_error(subdev, "cannot initialize clock\n");
 		return ret;
 	}
+
+	ret = gk20a_devfreq_init(base, &clk->devfreq);
+	if (ret)
+		return ret;
 
 	return 0;
 }

@@ -5,6 +5,7 @@
 struct gp10b_clk {
 	/* currently applied parameters */
 	struct nvkm_clk base;
+	struct gk20a_devfreq *devfreq;
 	struct clk *clk;
 	u32 rate;
 
