@@ -156,7 +156,6 @@ struct ina2xx_data {
 	long rshunt;
 	long current_lsb_uA;
 	long power_lsb_uW;
-	struct mutex config_lock;
 	struct regmap *regmap;
 	struct i2c_client *client;
 };
@@ -390,22 +389,19 @@ static int ina226_alert_limit_read(struct ina2xx_data *data, u32 mask, int reg, 
 	int regval;
 	int ret;
 
-	mutex_lock(&data->config_lock);
 	ret = regmap_read(regmap, INA226_MASK_ENABLE, &regval);
 	if (ret)
-		goto abort;
+		return ret;
 
 	if (regval & mask) {
 		ret = regmap_read(regmap, INA226_ALERT_LIMIT, &regval);
 		if (ret)
-			goto abort;
+			return ret;
 		*val = ina2xx_get_value(data, reg, regval);
 	} else {
 		*val = 0;
 	}
-abort:
-	mutex_unlock(&data->config_lock);
-	return ret;
+	return 0;
 }
 
 static int ina226_alert_limit_write(struct ina2xx_data *data, u32 mask, int reg, long val)
@@ -421,23 +417,20 @@ static int ina226_alert_limit_write(struct ina2xx_data *data, u32 mask, int reg,
 	 * due to register write sequence. Then, only enable the alert
 	 * if the value is non-zero.
 	 */
-	mutex_lock(&data->config_lock);
 	ret = regmap_update_bits(regmap, INA226_MASK_ENABLE,
 				 INA226_ALERT_CONFIG_MASK, 0);
 	if (ret < 0)
-		goto abort;
+		return ret;
 
 	ret = regmap_write(regmap, INA226_ALERT_LIMIT,
 			   ina226_alert_to_reg(data, reg, val));
 	if (ret < 0)
-		goto abort;
+		return ret;
 
 	if (val)
-		ret = regmap_update_bits(regmap, INA226_MASK_ENABLE,
-					 INA226_ALERT_CONFIG_MASK, mask);
-abort:
-	mutex_unlock(&data->config_lock);
-	return ret;
+		return regmap_update_bits(regmap, INA226_MASK_ENABLE,
+					  INA226_ALERT_CONFIG_MASK, mask);
+	return 0;
 }
 
 static int ina2xx_chip_read(struct device *dev, u32 attr, long *val)
@@ -859,9 +852,9 @@ static ssize_t shunt_resistor_store(struct device *dev,
 	if (status < 0)
 		return status;
 
-	mutex_lock(&data->config_lock);
+	hwmon_lock(dev);
 	status = ina2xx_set_shunt(data, val);
-	mutex_unlock(&data->config_lock);
+	hwmon_unlock(dev);
 	if (status < 0)
 		return status;
 	return count;
@@ -951,7 +944,6 @@ static int ina2xx_probe(struct i2c_client *client)
 	data->client = client;
 	data->config = &ina2xx_config[chip];
 	data->chip = chip;
-	mutex_init(&data->config_lock);
 
 	data->regmap = devm_regmap_init_i2c(client, &ina2xx_regmap_config);
 	if (IS_ERR(data->regmap)) {
