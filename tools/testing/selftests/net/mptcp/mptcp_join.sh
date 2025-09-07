@@ -358,6 +358,7 @@ reset_with_add_addr_timeout()
 		tables="${ip6tables}"
 	fi
 
+	# set a maximum, to avoid too long timeout with exponential backoff
 	ip netns exec $ns1 sysctl -q net.mptcp.add_addr_timeout=1
 
 	if ! ip netns exec $ns2 $tables -A OUTPUT -p tcp \
@@ -1669,7 +1670,6 @@ chk_add_nr()
 	local tx=""
 	local rx=""
 	local count
-	local timeout
 
 	if [[ $ns_invert = "invert" ]]; then
 		ns_tx=$ns2
@@ -1678,15 +1678,13 @@ chk_add_nr()
 		rx=" server"
 	fi
 
-	timeout=$(ip netns exec ${ns_tx} sysctl -n net.mptcp.add_addr_timeout)
-
 	print_check "add addr rx${rx}"
 	count=$(mptcp_lib_get_counter ${ns_rx} "MPTcpExtAddAddr")
 	if [ -z "$count" ]; then
 		print_skip
-	# if the test configured a short timeout tolerate greater then expected
-	# add addrs options, due to retransmissions
-	elif [ "$count" != "$add_nr" ] && { [ "$timeout" -gt 1 ] || [ "$count" -lt "$add_nr" ]; }; then
+	# Tolerate more ADD_ADDR then expected (if any), due to retransmissions
+	elif [ "$count" != "$add_nr" ] &&
+	     { [ "$add_nr" -eq 0 ] || [ "$count" -lt "$add_nr" ]; }; then
 		fail_test "got $count ADD_ADDR[s] expected $add_nr"
 	else
 		print_ok
@@ -1774,18 +1772,15 @@ chk_add_tx_nr()
 {
 	local add_tx_nr=$1
 	local echo_tx_nr=$2
-	local timeout
 	local count
-
-	timeout=$(ip netns exec $ns1 sysctl -n net.mptcp.add_addr_timeout)
 
 	print_check "add addr tx"
 	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtAddAddrTx")
 	if [ -z "$count" ]; then
 		print_skip
-	# if the test configured a short timeout tolerate greater then expected
-	# add addrs options, due to retransmissions
-	elif [ "$count" != "$add_tx_nr" ] && { [ "$timeout" -gt 1 ] || [ "$count" -lt "$add_tx_nr" ]; }; then
+	# Tolerate more ADD_ADDR then expected (if any), due to retransmissions
+	elif [ "$count" != "$add_tx_nr" ] &&
+	     { [ "$add_tx_nr" -eq 0 ] || [ "$count" -lt "$add_tx_nr" ]; }; then
 		fail_test "got $count ADD_ADDR[s] TX, expected $add_tx_nr"
 	else
 		print_ok
