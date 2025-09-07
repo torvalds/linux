@@ -171,7 +171,7 @@ static int rcar_gen3_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 	const struct equation_set_coef *coef;
 	int adj, decicelsius, reg, thcode;
 
-	/* Read register and convert to mili Celsius */
+	/* Read register and convert to millidegree Celsius */
 	reg = rcar_gen3_thermal_read(tsc, REG_GEN3_TEMP) & CTEMP_MASK;
 
 	if (reg < tsc->thcode[1]) {
