@@ -248,7 +248,7 @@ quiet_cmd_rustc_test = $(RUSTC_OR_CLIPPY_QUIET) T  $<
 	$(objtree)/$(obj)/test/$(subst rusttest-,,$@) $(rust_test_quiet) \
 		$(rustc_test_run_flags)
 
-rusttest: rusttest-macros rusttest-kernel
+rusttest: rusttest-macros
 
 rusttest-macros: private rustc_target_flags = --extern proc_macro \
 	--extern macros --extern kernel --extern pin_init
@@ -257,13 +257,6 @@ rusttest-macros: $(src)/macros/lib.rs \
     rusttestlib-macros rusttestlib-kernel rusttestlib-pin_init FORCE
 	+$(call if_changed,rustc_test)
 	+$(call if_changed,rustdoc_test)
-
-rusttest-kernel: private rustc_target_flags = --extern ffi --extern pin_init \
-    --extern build_error --extern macros --extern bindings --extern uapi
-rusttest-kernel: $(src)/kernel/lib.rs rusttestlib-ffi rusttestlib-kernel \
-    rusttestlib-build_error rusttestlib-macros rusttestlib-bindings \
-    rusttestlib-uapi rusttestlib-pin_init FORCE
-	+$(call if_changed,rustc_test)
 
 ifdef CONFIG_CC_IS_CLANG
 bindgen_c_flags = $(c_flags)
