@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/hwmon.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/bitfield.h>
 
@@ -52,7 +51,6 @@
 /* Each client has this additional data */
 struct sbtsi_data {
 	struct i2c_client *client;
-	struct mutex lock;
 	bool ext_range_mode;
 	bool read_order;
 };
@@ -94,7 +92,6 @@ static int sbtsi_read(struct device *dev, enum hwmon_sensor_types type,
 
 	switch (attr) {
 	case hwmon_temp_input:
-		mutex_lock(&data->lock);
 		if (data->read_order) {
 			temp_dec = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_DEC);
 			temp_int = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_INT);
@@ -102,19 +99,14 @@ static int sbtsi_read(struct device *dev, enum hwmon_sensor_types type,
 			temp_int = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_INT);
 			temp_dec = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_DEC);
 		}
-		mutex_unlock(&data->lock);
 		break;
 	case hwmon_temp_max:
-		mutex_lock(&data->lock);
 		temp_int = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_HIGH_INT);
 		temp_dec = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_HIGH_DEC);
-		mutex_unlock(&data->lock);
 		break;
 	case hwmon_temp_min:
-		mutex_lock(&data->lock);
 		temp_int = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_LOW_INT);
 		temp_dec = i2c_smbus_read_byte_data(data->client, SBTSI_REG_TEMP_LOW_DEC);
-		mutex_unlock(&data->lock);
 		break;
 	default:
 		return -EINVAL;
@@ -158,15 +150,11 @@ static int sbtsi_write(struct device *dev, enum hwmon_sensor_types type,
 	val = clamp_val(val, SBTSI_TEMP_MIN, SBTSI_TEMP_MAX);
 	sbtsi_mc_to_reg(val, &temp_int, &temp_dec);
 
-	mutex_lock(&data->lock);
 	err = i2c_smbus_write_byte_data(data->client, reg_int, temp_int);
 	if (err)
-		goto exit;
+		return err;
 
-	err = i2c_smbus_write_byte_data(data->client, reg_dec, temp_dec);
-exit:
-	mutex_unlock(&data->lock);
-	return err;
+	return i2c_smbus_write_byte_data(data->client, reg_dec, temp_dec);
 }
 
 static umode_t sbtsi_is_visible(const void *data,
@@ -219,7 +207,6 @@ static int sbtsi_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	data->client = client;
-	mutex_init(&data->lock);
 
 	err = i2c_smbus_read_byte_data(data->client, SBTSI_REG_CONFIG);
 	if (err < 0)
