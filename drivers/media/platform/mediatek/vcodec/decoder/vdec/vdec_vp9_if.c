@@ -548,10 +548,9 @@ static bool vp9_wait_dec_end(struct vdec_vp9_inst *inst)
 static struct vdec_vp9_inst *vp9_alloc_inst(struct mtk_vcodec_dec_ctx *ctx)
 {
 	int result;
-	struct mtk_vcodec_mem mem;
+	struct mtk_vcodec_mem mem = { };
 	struct vdec_vp9_inst *inst;
 
-	memset(&mem, 0, sizeof(mem));
 	mem.size = sizeof(struct vdec_vp9_inst);
 	result = mtk_vcodec_mem_alloc(ctx, &mem);
 	if (result)
