@@ -14,7 +14,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/util_macros.h>
 
@@ -54,7 +53,6 @@ static const unsigned short normal_i2c[] = {
 /* Client data (each client gets its own) */
 struct lm95234_data {
 	struct regmap *regmap;
-	struct mutex update_lock;
 	enum chips type;
 };
 
@@ -107,19 +105,14 @@ static ssize_t lm95234_hyst_set(struct lm95234_data *data, long val)
 	u32 tcrit;
 	int ret;
 
-	mutex_lock(&data->update_lock);
-
 	ret = regmap_read(data->regmap, LM95234_REG_TCRIT1(0), &tcrit);
 	if (ret)
-		goto unlock;
+		return ret;
 
 	val = DIV_ROUND_CLOSEST(clamp_val(val, -255000, 255000), 1000);
 	val = clamp_val((int)tcrit - val, 0, 31);
 
-	ret = regmap_write(data->regmap, LM95234_REG_TCRIT_HYST, val);
-unlock:
-	mutex_unlock(&data->update_lock);
-	return ret;
+	return regmap_write(data->regmap, LM95234_REG_TCRIT_HYST, val);
 }
 
 static int lm95234_crit_reg(int channel)
@@ -526,7 +519,6 @@ static int lm95234_probe(struct i2c_client *client)
 		return PTR_ERR(regmap);
 
 	data->regmap = regmap;
-	mutex_init(&data->update_lock);
 
 	/* Initialize the LM95234 chip */
 	err = lm95234_init_client(dev, regmap);
