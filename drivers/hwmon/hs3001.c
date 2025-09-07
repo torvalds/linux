@@ -42,7 +42,6 @@
 
 struct hs3001_data {
 	struct i2c_client *client;
-	struct mutex i2c_lock; /* lock for sending i2c commands */
 	u32 wait_time;		/* in us */
 	int temperature;	/* in milli degree */
 	u32 humidity;		/* in milli % */
@@ -112,12 +111,9 @@ static int hs3001_read(struct device *dev, enum hwmon_sensor_types type,
 	struct i2c_client *client = data->client;
 	int ret;
 
-	mutex_lock(&data->i2c_lock);
 	ret = i2c_master_send(client, NULL, 0);
-	if (ret < 0) {
-		mutex_unlock(&data->i2c_lock);
+	if (ret < 0)
 		return ret;
-	}
 
 	/*
 	 * Sensor needs some time to process measurement depending on
@@ -126,8 +122,6 @@ static int hs3001_read(struct device *dev, enum hwmon_sensor_types type,
 	fsleep(data->wait_time);
 
 	ret = hs3001_data_fetch_command(client, data);
-	mutex_unlock(&data->i2c_lock);
-
 	if (ret < 0)
 		return ret;
 
@@ -210,8 +204,6 @@ static int hs3001_probe(struct i2c_client *client)
 	 */
 	data->wait_time = (HS3001_WAKEUP_TIME + HS3001_14BIT_RESOLUTION +
 			   HS3001_14BIT_RESOLUTION);
-
-	mutex_init(&data->i2c_lock);
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev,
 							 client->name,
