@@ -941,7 +941,7 @@ static struct timerlat_params
 			params->common.stop_us = get_llong_from_str(optarg);
 			break;
 		case 'k':
-			params->kernel_workload = 1;
+			params->common.kernel_workload = 1;
 			break;
 		case 'n':
 			params->common.output_divisor = 1;
@@ -1081,7 +1081,7 @@ static struct timerlat_params
 	if (!params->common.stop_us && !params->common.stop_total_us)
 		params->no_aa = 1;
 
-	if (params->kernel_workload && params->user_workload)
+	if (params->common.kernel_workload && params->user_workload)
 		timerlat_hist_usage("--kernel-threads and --user-threads are mutually exclusive!");
 
 	/*

@@ -27,7 +27,6 @@ struct timerlat_params {
 	int			no_aa;
 	int			dump_tasks;
 	int			user_workload;
-	int			kernel_workload;
 	int			user_data;
 	int			deepest_idle_state;
 	int			aa_only;

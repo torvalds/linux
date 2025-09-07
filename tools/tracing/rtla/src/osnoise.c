@@ -1120,21 +1120,14 @@ osnoise_report_missed_events(struct osnoise_tool *tool)
 }
 
 /*
- * osnoise_apply_config - apply common configs to the initialized tool
+ * osnoise_apply_config - apply osnoise configs to the initialized tool
  */
 int
 osnoise_apply_config(struct osnoise_tool *tool, struct osnoise_params *params)
 {
 	int retval;
 
-	if (!params->common.sleep_time)
-		params->common.sleep_time = 1;
-
-	retval = osnoise_set_cpus(tool->context, params->common.cpus ? params->common.cpus : "all");
-	if (retval) {
-		err_msg("Failed to apply CPUs config\n");
-		goto out_err;
-	}
+	params->common.kernel_workload = true;
 
 	if (params->runtime || params->period) {
 		retval = osnoise_set_runtime_period(tool->context,
@@ -1169,31 +1162,7 @@ osnoise_apply_config(struct osnoise_tool *tool, struct osnoise_params *params)
 		goto out_err;
 	}
 
-	if (params->common.hk_cpus) {
-		retval = sched_setaffinity(getpid(), sizeof(params->common.hk_cpu_set),
-					   &params->common.hk_cpu_set);
-		if (retval == -1) {
-			err_msg("Failed to set rtla to the house keeping CPUs\n");
-			goto out_err;
-		}
-	} else if (params->common.cpus) {
-		/*
-		 * Even if the user do not set a house-keeping CPU, try to
-		 * move rtla to a CPU set different to the one where the user
-		 * set the workload to run.
-		 *
-		 * No need to check results as this is an automatic attempt.
-		 */
-		auto_house_keeping(&params->common.monitored_cpus);
-	}
-
-	retval = osnoise_set_workload(tool->context, true);
-	if (retval < -1) {
-		err_msg("Failed to set OSNOISE_WORKLOAD option\n");
-		goto out_err;
-	}
-
-	return 0;
+	return common_apply_config(tool, &params->common);
 
 out_err:
 	return -1;
