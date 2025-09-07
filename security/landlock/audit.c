@@ -180,10 +180,11 @@ static void test_get_hierarchy(struct kunit *const test)
 
 #endif /* CONFIG_SECURITY_LANDLOCK_KUNIT_TEST */
 
-static size_t get_denied_layer(const struct landlock_ruleset *const domain,
+static ssize_t get_denied_layer(const struct landlock_ruleset *const domain,
 			       access_mask_t *const access_request,
 			       const layer_mask_t (*const layer_masks)[],
-			       const size_t layer_masks_size)
+			       const size_t layer_masks_size,
+			       const layer_mask_t ignored_layers)
 {
 	const unsigned long access_req = *access_request;
 	unsigned long access_bit;
@@ -191,7 +192,7 @@ static size_t get_denied_layer(const struct landlock_ruleset *const domain,
 	long youngest_layer = -1;
 
 	for_each_set_bit(access_bit, &access_req, layer_masks_size) {
-		const access_mask_t mask = (*layer_masks)[access_bit];
+		const layer_mask_t mask = (*layer_masks)[access_bit] & ~ignored_layers;
 		long layer;
 
 		if (!mask)
@@ -208,9 +209,6 @@ static size_t get_denied_layer(const struct landlock_ruleset *const domain,
 	}
 
 	*access_request = missing;
-	if (youngest_layer == -1)
-		return domain->num_layers - 1;
-
 	return youngest_layer;
 }
 
@@ -388,7 +386,8 @@ static bool is_valid_request(const struct landlock_request *const request)
  * @request: Detail of the user space request.
  */
 void landlock_log_denial(const struct landlock_cred_security *const subject,
-			 const struct landlock_request *const request)
+			 const struct landlock_request *const request,
+			 const struct rule_flags_masks *const rule_flags_masks)
 {
 	struct audit_buffer *ab;
 	struct landlock_hierarchy *youngest_denied;
@@ -408,8 +407,14 @@ void landlock_log_denial(const struct landlock_cred_security *const subject,
 		if (request->layer_masks) {
 			youngest_layer = get_denied_layer(
 				subject->domain, &missing, request->layer_masks,
-				request->layer_masks_size);
+				request->layer_masks_size,
+				rule_flags_masks->quiet_masks);
 		} else {
+			/*
+			 * TODO: don't log denial if quiet (need to expand the
+			 * deny_masks to distinguish between layer 0 denying and all
+			 * layers quiet).
+			 */
 			youngest_layer = get_layer_from_deny_masks(
 				&missing, request->all_existing_optional_access,
 				request->deny_masks);
@@ -420,6 +425,10 @@ void landlock_log_denial(const struct landlock_cred_security *const subject,
 		youngest_layer = request->layer_plus_one - 1;
 		youngest_denied =
 			get_hierarchy(subject->domain, youngest_layer);
+	}
+
+	if (rule_flags_masks->quiet_masks) {
+		return;
 	}
 
 	if (READ_ONCE(youngest_denied->log_status) == LANDLOCK_LOG_DISABLED)

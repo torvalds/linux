@@ -29,12 +29,33 @@ struct landlock_layer {
 	/**
 	 * @level: Position of this layer in the layer stack.
 	 */
-	u16 level;
+	u8 level;
+	/**
+	 * @flags: Bitfield for special flags attached to this rule.
+	 */
+	struct {
+		/**
+		 * @quiet: Suppresses denial audit logs for this rule.  For fs
+		 * rules, this inherits down the file hierarchy.
+		 */
+		bool quiet:1;
+	} flags;
 	/**
 	 * @access: Bitfield of allowed actions on the kernel object.  They are
 	 * relative to the object type (e.g. %LANDLOCK_ACTION_FS_READ).
 	 */
 	access_mask_t access;
+};
+
+
+/**
+ * struct rule_flags_masks - Hold accumulated flags for each layer
+ */
+struct rule_flags_masks {
+	/**
+	 * @quiet_masks: Layers for which the quiet flag is effective.
+	 */
+	layer_mask_t quiet_masks;
 };
 
 /**
@@ -304,7 +325,8 @@ landlock_get_scope_mask(const struct landlock_ruleset *const ruleset,
 bool landlock_unmask_layers(const struct landlock_rule *const rule,
 			    const access_mask_t access_request,
 			    layer_mask_t (*const layer_masks)[],
-			    const size_t masks_array_size);
+			    const size_t masks_array_size,
+			    struct rule_flags_masks *const rule_flags_masks);
 
 access_mask_t
 landlock_init_layer_masks(const struct landlock_ruleset *const domain,

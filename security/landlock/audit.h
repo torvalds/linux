@@ -56,7 +56,8 @@ struct landlock_request {
 void landlock_log_drop_domain(const struct landlock_hierarchy *const hierarchy);
 
 void landlock_log_denial(const struct landlock_cred_security *const subject,
-			 const struct landlock_request *const request);
+			 const struct landlock_request *const request,
+			 const struct rule_flags_masks *const rule_flags_masks);
 
 #else /* CONFIG_AUDIT */
 

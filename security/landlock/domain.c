@@ -183,7 +183,8 @@ deny_masks_t
 landlock_get_deny_masks(const access_mask_t all_existing_optional_access,
 			const access_mask_t optional_access,
 			const layer_mask_t (*const layer_masks)[],
-			const size_t layer_masks_size)
+			const size_t layer_masks_size,
+			struct rule_flags_masks *const rule_flags_masks)
 {
 	const unsigned long access_opt = optional_access;
 	unsigned long access_bit;
@@ -200,7 +201,8 @@ landlock_get_deny_masks(const access_mask_t all_existing_optional_access,
 		return 0;
 
 	for_each_set_bit(access_bit, &access_opt, layer_masks_size) {
-		const layer_mask_t mask = (*layer_masks)[access_bit];
+		const layer_mask_t mask = (*layer_masks)[access_bit] &
+					  ~rule_flags_masks->quiet_masks;
 
 		if (!mask)
 			continue;
