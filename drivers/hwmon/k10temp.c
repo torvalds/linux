@@ -31,9 +31,6 @@ static bool force;
 module_param(force, bool, 0444);
 MODULE_PARM_DESC(force, "force loading on processors with erratum 319");
 
-/* Provide lock for writing to NB_SMU_IND_ADDR */
-static DEFINE_MUTEX(nb_smu_ind_mutex);
-
 #ifndef PCI_DEVICE_ID_AMD_15H_M70H_NB_F3
 #define PCI_DEVICE_ID_AMD_15H_M70H_NB_F3	0x15b3
 #endif
@@ -137,12 +134,10 @@ static void read_tempreg_pci(struct pci_dev *pdev, u32 *regval)
 static void amd_nb_index_read(struct pci_dev *pdev, unsigned int devfn,
 			      unsigned int base, int offset, u32 *val)
 {
-	mutex_lock(&nb_smu_ind_mutex);
 	pci_bus_write_config_dword(pdev->bus, devfn,
 				   base, offset);
 	pci_bus_read_config_dword(pdev->bus, devfn,
 				  base + 4, val);
-	mutex_unlock(&nb_smu_ind_mutex);
 }
 
 static void read_htcreg_nb_f15(struct pci_dev *pdev, u32 *regval)
