@@ -350,6 +350,10 @@ properties:
     deprecated: true
     description: Use 'cpu-supply' instead
 
+  pu-supply:
+    deprecated: true
+    description: Only for i.MX6Q/DL/SL SoCs.
+
   soc-supply:
     deprecated: true
     description: Only for i.MX6/7 Soc.
