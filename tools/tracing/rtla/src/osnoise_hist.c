@@ -462,6 +462,8 @@ static void osnoise_hist_usage(char *usage)
 		"						       in nanoseconds",
 		"	     --warm-up: let the workload run for s seconds before collecting data",
 		"	     --trace-buffer-size kB: set the per-cpu trace buffer size in kB",
+		"	     --on-threshold <action>: define action to be executed at stop-total threshold, multiple are allowed",
+		"	     --on-end <action>: define action to be executed at measurement end, multiple are allowed",
 		NULL,
 	};
 
@@ -531,6 +533,8 @@ static struct common_params
 			{"filter",		required_argument,	0, '5'},
 			{"warm-up",		required_argument,	0, '6'},
 			{"trace-buffer-size",	required_argument,	0, '7'},
+			{"on-threshold",	required_argument,	0, '8'},
+			{"on-end",		required_argument,	0, '9'},
 			{0, 0, 0, 0}
 		};
 
@@ -691,6 +695,22 @@ static struct common_params
 			break;
 		case '7':
 			params->common.buffer_size = get_llong_from_str(optarg);
+			break;
+		case '8':
+			retval = actions_parse(&params->common.threshold_actions, optarg,
+					       "osnoise_trace.txt");
+			if (retval) {
+				err_msg("Invalid action %s\n", optarg);
+				exit(EXIT_FAILURE);
+			}
+			break;
+		case '9':
+			retval = actions_parse(&params->common.end_actions, optarg,
+					       "osnoise_trace.txt");
+			if (retval) {
+				err_msg("Invalid action %s\n", optarg);
+				exit(EXIT_FAILURE);
+			}
 			break;
 		default:
 			osnoise_hist_usage("Invalid option");

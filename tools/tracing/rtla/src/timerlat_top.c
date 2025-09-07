@@ -783,14 +783,16 @@ static struct common_params
 			params->deepest_idle_state = get_llong_from_str(optarg);
 			break;
 		case '9':
-			retval = actions_parse(&params->common.threshold_actions, optarg);
+			retval = actions_parse(&params->common.threshold_actions, optarg,
+					       "timerlat_trace.txt");
 			if (retval) {
 				err_msg("Invalid action %s\n", optarg);
 				exit(EXIT_FAILURE);
 			}
 			break;
 		case '\1':
-			retval = actions_parse(&params->common.end_actions, optarg);
+			retval = actions_parse(&params->common.end_actions, optarg,
+					       "timerlat_trace.txt");
 			if (retval) {
 				err_msg("Invalid action %s\n", optarg);
 				exit(EXIT_FAILURE);
