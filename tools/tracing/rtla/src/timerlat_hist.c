@@ -141,8 +141,8 @@ timerlat_hist_update(struct osnoise_tool *tool, int cpu,
 	int bucket;
 	int *hist;
 
-	if (params->output_divisor)
-		latency = latency / params->output_divisor;
+	if (params->common.output_divisor)
+		latency = latency / params->common.output_divisor;
 
 	bucket = latency / data->bucket_size;
 
@@ -288,18 +288,18 @@ static void timerlat_hist_header(struct osnoise_tool *tool)
 	char duration[26];
 	int cpu;
 
-	if (params->no_header)
+	if (params->common.hist.no_header)
 		return;
 
 	get_duration(tool->start_time, duration, sizeof(duration));
 	trace_seq_printf(s, "# RTLA timerlat histogram\n");
 	trace_seq_printf(s, "# Time unit is %s (%s)\n",
-			params->output_divisor == 1 ? "nanoseconds" : "microseconds",
-			params->output_divisor == 1 ? "ns" : "us");
+			params->common.output_divisor == 1 ? "nanoseconds" : "microseconds",
+			params->common.output_divisor == 1 ? "ns" : "us");
 
 	trace_seq_printf(s, "# Duration: %s\n", duration);
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(s, "Index");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -309,10 +309,10 @@ static void timerlat_hist_header(struct osnoise_tool *tool)
 		if (!data->hist[cpu].irq_count && !data->hist[cpu].thread_count)
 			continue;
 
-		if (!params->no_irq)
+		if (!params->common.hist.no_irq)
 			trace_seq_printf(s, "   IRQ-%03d", cpu);
 
-		if (!params->no_thread)
+		if (!params->common.hist.no_thread)
 			trace_seq_printf(s, "   Thr-%03d", cpu);
 
 		if (params->user_data)
@@ -350,10 +350,10 @@ timerlat_print_summary(struct timerlat_params *params,
 {
 	int cpu;
 
-	if (params->no_summary)
+	if (params->common.hist.no_summary)
 		return;
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "count:");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -363,11 +363,11 @@ timerlat_print_summary(struct timerlat_params *params,
 		if (!data->hist[cpu].irq_count && !data->hist[cpu].thread_count)
 			continue;
 
-		if (!params->no_irq)
+		if (!params->common.hist.no_irq)
 			trace_seq_printf(trace->seq, "%9llu ",
 					data->hist[cpu].irq_count);
 
-		if (!params->no_thread)
+		if (!params->common.hist.no_thread)
 			trace_seq_printf(trace->seq, "%9llu ",
 					data->hist[cpu].thread_count);
 
@@ -377,7 +377,7 @@ timerlat_print_summary(struct timerlat_params *params,
 	}
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "min:  ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -387,13 +387,13 @@ timerlat_print_summary(struct timerlat_params *params,
 		if (!data->hist[cpu].irq_count && !data->hist[cpu].thread_count)
 			continue;
 
-		if (!params->no_irq)
+		if (!params->common.hist.no_irq)
 			format_summary_value(trace->seq,
 					     data->hist[cpu].irq_count,
 					     data->hist[cpu].min_irq,
 					     false);
 
-		if (!params->no_thread)
+		if (!params->common.hist.no_thread)
 			format_summary_value(trace->seq,
 					     data->hist[cpu].thread_count,
 					     data->hist[cpu].min_thread,
@@ -407,7 +407,7 @@ timerlat_print_summary(struct timerlat_params *params,
 	}
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "avg:  ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -417,13 +417,13 @@ timerlat_print_summary(struct timerlat_params *params,
 		if (!data->hist[cpu].irq_count && !data->hist[cpu].thread_count)
 			continue;
 
-		if (!params->no_irq)
+		if (!params->common.hist.no_irq)
 			format_summary_value(trace->seq,
 					     data->hist[cpu].irq_count,
 					     data->hist[cpu].sum_irq,
 					     true);
 
-		if (!params->no_thread)
+		if (!params->common.hist.no_thread)
 			format_summary_value(trace->seq,
 					     data->hist[cpu].thread_count,
 					     data->hist[cpu].sum_thread,
@@ -437,7 +437,7 @@ timerlat_print_summary(struct timerlat_params *params,
 	}
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "max:  ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -447,13 +447,13 @@ timerlat_print_summary(struct timerlat_params *params,
 		if (!data->hist[cpu].irq_count && !data->hist[cpu].thread_count)
 			continue;
 
-		if (!params->no_irq)
+		if (!params->common.hist.no_irq)
 			format_summary_value(trace->seq,
 					     data->hist[cpu].irq_count,
 					     data->hist[cpu].max_irq,
 					     false);
 
-		if (!params->no_thread)
+		if (!params->common.hist.no_thread)
 			format_summary_value(trace->seq,
 					     data->hist[cpu].thread_count,
 					     data->hist[cpu].max_thread,
@@ -479,7 +479,7 @@ timerlat_print_stats_all(struct timerlat_params *params,
 	struct timerlat_hist_cpu sum;
 	int cpu;
 
-	if (params->no_summary)
+	if (params->common.hist.no_summary)
 		return;
 
 	memset(&sum, 0, sizeof(sum));
@@ -512,13 +512,13 @@ timerlat_print_stats_all(struct timerlat_params *params,
 		update_max(&sum.max_user, &cpu_data->max_user);
 	}
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "ALL:  ");
 
-	if (!params->no_irq)
+	if (!params->common.hist.no_irq)
 		trace_seq_printf(trace->seq, "      IRQ");
 
-	if (!params->no_thread)
+	if (!params->common.hist.no_thread)
 		trace_seq_printf(trace->seq, "       Thr");
 
 	if (params->user_data)
@@ -526,14 +526,14 @@ timerlat_print_stats_all(struct timerlat_params *params,
 
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "count:");
 
-	if (!params->no_irq)
+	if (!params->common.hist.no_irq)
 		trace_seq_printf(trace->seq, "%9llu ",
 				 sum.irq_count);
 
-	if (!params->no_thread)
+	if (!params->common.hist.no_thread)
 		trace_seq_printf(trace->seq, "%9llu ",
 				 sum.thread_count);
 
@@ -543,16 +543,16 @@ timerlat_print_stats_all(struct timerlat_params *params,
 
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "min:  ");
 
-	if (!params->no_irq)
+	if (!params->common.hist.no_irq)
 		format_summary_value(trace->seq,
 				     sum.irq_count,
 				     sum.min_irq,
 				     false);
 
-	if (!params->no_thread)
+	if (!params->common.hist.no_thread)
 		format_summary_value(trace->seq,
 				     sum.thread_count,
 				     sum.min_thread,
@@ -566,16 +566,16 @@ timerlat_print_stats_all(struct timerlat_params *params,
 
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "avg:  ");
 
-	if (!params->no_irq)
+	if (!params->common.hist.no_irq)
 		format_summary_value(trace->seq,
 				     sum.irq_count,
 				     sum.sum_irq,
 				     true);
 
-	if (!params->no_thread)
+	if (!params->common.hist.no_thread)
 		format_summary_value(trace->seq,
 				     sum.thread_count,
 				     sum.sum_thread,
@@ -589,16 +589,16 @@ timerlat_print_stats_all(struct timerlat_params *params,
 
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "max:  ");
 
-	if (!params->no_irq)
+	if (!params->common.hist.no_irq)
 		format_summary_value(trace->seq,
 				     sum.irq_count,
 				     sum.max_irq,
 				     false);
 
-	if (!params->no_thread)
+	if (!params->common.hist.no_thread)
 		format_summary_value(trace->seq,
 				     sum.thread_count,
 				     sum.max_thread,
@@ -631,7 +631,7 @@ timerlat_print_stats(struct timerlat_params *params, struct osnoise_tool *tool)
 	for (bucket = 0; bucket < data->entries; bucket++) {
 		total = 0;
 
-		if (!params->no_index)
+		if (!params->common.hist.no_index)
 			trace_seq_printf(trace->seq, "%-6d",
 					 bucket * data->bucket_size);
 
@@ -642,13 +642,13 @@ timerlat_print_stats(struct timerlat_params *params, struct osnoise_tool *tool)
 			if (!data->hist[cpu].irq_count && !data->hist[cpu].thread_count)
 				continue;
 
-			if (!params->no_irq) {
+			if (!params->common.hist.no_irq) {
 				total += data->hist[cpu].irq[bucket];
 				trace_seq_printf(trace->seq, "%9d ",
 						data->hist[cpu].irq[bucket]);
 			}
 
-			if (!params->no_thread) {
+			if (!params->common.hist.no_thread) {
 				total += data->hist[cpu].thread[bucket];
 				trace_seq_printf(trace->seq, "%9d ",
 						data->hist[cpu].thread[bucket]);
@@ -662,7 +662,7 @@ timerlat_print_stats(struct timerlat_params *params, struct osnoise_tool *tool)
 
 		}
 
-		if (total == 0 && !params->with_zeros) {
+		if (total == 0 && !params->common.hist.with_zeros) {
 			trace_seq_reset(trace->seq);
 			continue;
 		}
@@ -672,7 +672,7 @@ timerlat_print_stats(struct timerlat_params *params, struct osnoise_tool *tool)
 		trace_seq_reset(trace->seq);
 	}
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "over: ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -682,11 +682,11 @@ timerlat_print_stats(struct timerlat_params *params, struct osnoise_tool *tool)
 		if (!data->hist[cpu].irq_count && !data->hist[cpu].thread_count)
 			continue;
 
-		if (!params->no_irq)
+		if (!params->common.hist.no_irq)
 			trace_seq_printf(trace->seq, "%9d ",
 					 data->hist[cpu].irq[data->entries]);
 
-		if (!params->no_thread)
+		if (!params->common.hist.no_thread)
 			trace_seq_printf(trace->seq, "%9d ",
 					 data->hist[cpu].thread[data->entries]);
 
@@ -804,9 +804,9 @@ static struct timerlat_params
 	params->deepest_idle_state = -2;
 
 	/* display data in microseconds */
-	params->output_divisor = 1000;
-	params->bucket_size = 1;
-	params->entries = 256;
+	params->common.output_divisor = 1000;
+	params->common.hist.bucket_size = 1;
+	params->common.hist.entries = 256;
 
 	/* default to BPF mode */
 	params->mode = TRACING_MODE_BPF;
@@ -894,8 +894,9 @@ static struct timerlat_params
 			}
 			break;
 		case 'b':
-			params->bucket_size = get_llong_from_str(optarg);
-			if ((params->bucket_size == 0) || (params->bucket_size >= 1000000))
+			params->common.hist.bucket_size = get_llong_from_str(optarg);
+			if (params->common.hist.bucket_size == 0 ||
+			    params->common.hist.bucket_size >= 1000000)
 				timerlat_hist_usage("Bucket size needs to be > 0 and <= 1000000\n");
 			break;
 		case 'D':
@@ -919,9 +920,10 @@ static struct timerlat_params
 			params->common.events = tevent;
 			break;
 		case 'E':
-			params->entries = get_llong_from_str(optarg);
-			if ((params->entries < 10) || (params->entries > 9999999))
-					timerlat_hist_usage("Entries must be > 10 and < 9999999\n");
+			params->common.hist.entries = get_llong_from_str(optarg);
+			if (params->common.hist.entries < 10 ||
+			    params->common.hist.entries > 9999999)
+				timerlat_hist_usage("Entries must be > 10 and < 9999999\n");
 			break;
 		case 'h':
 		case '?':
@@ -942,7 +944,7 @@ static struct timerlat_params
 			params->kernel_workload = 1;
 			break;
 		case 'n':
-			params->output_divisor = 1;
+			params->common.output_divisor = 1;
 			break;
 		case 'p':
 			params->timerlat_period_us = get_llong_from_str(optarg);
@@ -979,22 +981,22 @@ static struct timerlat_params
 			params->user_data = 1;
 			break;
 		case '0': /* no irq */
-			params->no_irq = 1;
+			params->common.hist.no_irq = 1;
 			break;
 		case '1': /* no thread */
-			params->no_thread = 1;
+			params->common.hist.no_thread = 1;
 			break;
 		case '2': /* no header */
-			params->no_header = 1;
+			params->common.hist.no_header = 1;
 			break;
 		case '3': /* no summary */
-			params->no_summary = 1;
+			params->common.hist.no_summary = 1;
 			break;
 		case '4': /* no index */
-			params->no_index = 1;
+			params->common.hist.no_index = 1;
 			break;
 		case '5': /* with zeros */
-			params->with_zeros = 1;
+			params->common.hist.with_zeros = 1;
 			break;
 		case '6': /* trigger */
 			if (params->common.events) {
@@ -1067,10 +1069,10 @@ static struct timerlat_params
 		exit(EXIT_FAILURE);
 	}
 
-	if (params->no_irq && params->no_thread)
+	if (params->common.hist.no_irq && params->common.hist.no_thread)
 		timerlat_hist_usage("no-irq and no-thread set, there is nothing to do here");
 
-	if (params->no_index && !params->with_zeros)
+	if (params->common.hist.no_index && !params->common.hist.with_zeros)
 		timerlat_hist_usage("no-index set with with-zeros is not set - it does not make sense");
 
 	/*
@@ -1127,7 +1129,8 @@ static struct osnoise_tool
 	if (!tool)
 		return NULL;
 
-	tool->data = timerlat_alloc_histogram(nr_cpus, params->entries, params->bucket_size);
+	tool->data = timerlat_alloc_histogram(nr_cpus, params->common.hist.entries,
+					      params->common.hist.bucket_size);
 	if (!tool->data)
 		goto out_err;
 

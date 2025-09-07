@@ -15,24 +15,7 @@ struct osnoise_params {
 	unsigned long long	runtime;
 	unsigned long long	period;
 	long long		threshold;
-	union {
-		struct {
-			/* top only */
-			int			quiet;
-			int			pretty_output;
-			enum osnoise_mode	mode;
-		};
-		struct {
-			/* hist only */
-			int			output_divisor;
-			char			no_header;
-			char			no_summary;
-			char			no_index;
-			char			with_zeros;
-			int			bucket_size;
-			int			entries;
-		};
-	};
+	enum osnoise_mode	mode;
 };
 
 /*

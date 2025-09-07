@@ -102,8 +102,8 @@ static void osnoise_hist_update_multiple(struct osnoise_tool *tool, int cpu,
 	int bucket;
 	int *hist;
 
-	if (params->output_divisor)
-		duration = duration / params->output_divisor;
+	if (params->common.output_divisor)
+		duration = duration / params->common.output_divisor;
 
 	bucket = duration / data->bucket_size;
 
@@ -146,7 +146,7 @@ static int osnoise_init_trace_hist(struct osnoise_tool *tool)
 	/*
 	 * Set the size of the bucket.
 	 */
-	bucket_size = params->output_divisor * params->bucket_size;
+	bucket_size = params->common.output_divisor * params->common.hist.bucket_size;
 	snprintf(buff, sizeof(buff), "duration.buckets=%d", bucket_size);
 
 	data->trace_hist = tracefs_hist_alloc(tool->trace.tep, "osnoise", "sample_threshold",
@@ -228,18 +228,18 @@ static void osnoise_hist_header(struct osnoise_tool *tool)
 	char duration[26];
 	int cpu;
 
-	if (params->no_header)
+	if (params->common.hist.no_header)
 		return;
 
 	get_duration(tool->start_time, duration, sizeof(duration));
 	trace_seq_printf(s, "# RTLA osnoise histogram\n");
 	trace_seq_printf(s, "# Time unit is %s (%s)\n",
-			params->output_divisor == 1 ? "nanoseconds" : "microseconds",
-			params->output_divisor == 1 ? "ns" : "us");
+			params->common.output_divisor == 1 ? "nanoseconds" : "microseconds",
+			params->common.output_divisor == 1 ? "ns" : "us");
 
 	trace_seq_printf(s, "# Duration: %s\n", duration);
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(s, "Index");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -267,10 +267,10 @@ osnoise_print_summary(struct osnoise_params *params,
 {
 	int cpu;
 
-	if (params->no_summary)
+	if (params->common.hist.no_summary)
 		return;
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "count:");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -284,7 +284,7 @@ osnoise_print_summary(struct osnoise_params *params,
 	}
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "min:  ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -299,7 +299,7 @@ osnoise_print_summary(struct osnoise_params *params,
 	}
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "avg:  ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -317,7 +317,7 @@ osnoise_print_summary(struct osnoise_params *params,
 	}
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "max:  ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -352,7 +352,7 @@ osnoise_print_stats(struct osnoise_params *params, struct osnoise_tool *tool)
 	for (bucket = 0; bucket < data->entries; bucket++) {
 		total = 0;
 
-		if (!params->no_index)
+		if (!params->common.hist.no_index)
 			trace_seq_printf(trace->seq, "%-6d",
 					 bucket * data->bucket_size);
 
@@ -367,7 +367,7 @@ osnoise_print_stats(struct osnoise_params *params, struct osnoise_tool *tool)
 			trace_seq_printf(trace->seq, "%9d ", data->hist[cpu].samples[bucket]);
 		}
 
-		if (total == 0 && !params->with_zeros) {
+		if (total == 0 && !params->common.hist.with_zeros) {
 			trace_seq_reset(trace->seq);
 			continue;
 		}
@@ -391,7 +391,7 @@ osnoise_print_stats(struct osnoise_params *params, struct osnoise_tool *tool)
 		return;
 	}
 
-	if (!params->no_index)
+	if (!params->common.hist.no_index)
 		trace_seq_printf(trace->seq, "over: ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -490,9 +490,9 @@ static struct osnoise_params
 		exit(1);
 
 	/* display data in microseconds */
-	params->output_divisor = 1000;
-	params->bucket_size = 1;
-	params->entries = 256;
+	params->common.output_divisor = 1000;
+	params->common.hist.bucket_size = 1;
+	params->common.hist.entries = 256;
 
 	while (1) {
 		static struct option long_options[] = {
@@ -547,8 +547,9 @@ static struct osnoise_params
 
 			break;
 		case 'b':
-			params->bucket_size = get_llong_from_str(optarg);
-			if ((params->bucket_size == 0) || (params->bucket_size >= 1000000))
+			params->common.hist.bucket_size = get_llong_from_str(optarg);
+			if (params->common.hist.bucket_size == 0 ||
+			    params->common.hist.bucket_size >= 1000000)
 				osnoise_hist_usage("Bucket size needs to be > 0 and <= 1000000\n");
 			break;
 		case 'c':
@@ -588,8 +589,9 @@ static struct osnoise_params
 			params->common.events = tevent;
 			break;
 		case 'E':
-			params->entries = get_llong_from_str(optarg);
-			if ((params->entries < 10) || (params->entries > 9999999))
+			params->common.hist.entries = get_llong_from_str(optarg);
+			if (params->common.hist.entries < 10 ||
+			    params->common.hist.entries > 9999999)
 				osnoise_hist_usage("Entries must be > 10 and < 9999999\n");
 			break;
 		case 'h':
@@ -641,16 +643,16 @@ static struct osnoise_params
 				params->trace_output = "osnoise_trace.txt";
 			break;
 		case '0': /* no header */
-			params->no_header = 1;
+			params->common.hist.no_header = 1;
 			break;
 		case '1': /* no summary */
-			params->no_summary = 1;
+			params->common.hist.no_summary = 1;
 			break;
 		case '2': /* no index */
-			params->no_index = 1;
+			params->common.hist.no_index = 1;
 			break;
 		case '3': /* with zeros */
-			params->with_zeros = 1;
+			params->common.hist.with_zeros = 1;
 			break;
 		case '4': /* trigger */
 			if (params->common.events) {
@@ -690,7 +692,7 @@ static struct osnoise_params
 		exit(EXIT_FAILURE);
 	}
 
-	if (params->no_index && !params->with_zeros)
+	if (params->common.hist.no_index && !params->common.hist.with_zeros)
 		osnoise_hist_usage("no-index set and with-zeros not set - it does not make sense");
 
 	return params;
@@ -729,7 +731,8 @@ static struct osnoise_tool
 	if (!tool)
 		return NULL;
 
-	tool->data = osnoise_alloc_histogram(nr_cpus, params->entries, params->bucket_size);
+	tool->data = osnoise_alloc_histogram(nr_cpus, params->common.hist.entries,
+					     params->common.hist.bucket_size);
 	if (!tool->data)
 		goto out_err;
 

@@ -132,8 +132,8 @@ timerlat_top_update(struct osnoise_tool *tool, int cpu,
 	struct timerlat_top_data *data = tool->data;
 	struct timerlat_top_cpu *cpu_data = &data->cpu_data[cpu];
 
-	if (params->output_divisor)
-		latency = latency / params->output_divisor;
+	if (params->common.output_divisor)
+		latency = latency / params->common.output_divisor;
 
 	if (!thread) {
 		cpu_data->irq_count++;
@@ -258,39 +258,40 @@ static int timerlat_top_bpf_pull_data(struct osnoise_tool *tool)
 static void timerlat_top_header(struct timerlat_params *params, struct osnoise_tool *top)
 {
 	struct trace_seq *s = top->trace.seq;
+	bool pretty = params->common.pretty_output;
 	char duration[26];
 
 	get_duration(top->start_time, duration, sizeof(duration));
 
-	if (params->pretty_output)
+	if (pretty)
 		trace_seq_printf(s, "\033[2;37;40m");
 
 	trace_seq_printf(s, "                                     Timer Latency                                              ");
 	if (params->user_data)
 		trace_seq_printf(s, "                                         ");
 
-	if (params->pretty_output)
+	if (pretty)
 		trace_seq_printf(s, "\033[0;0;0m");
 	trace_seq_printf(s, "\n");
 
 	trace_seq_printf(s, "%-6s   |          IRQ Timer Latency (%s)        |         Thread Timer Latency (%s)", duration,
-			params->output_divisor == 1 ? "ns" : "us",
-			params->output_divisor == 1 ? "ns" : "us");
+			params->common.output_divisor == 1 ? "ns" : "us",
+			params->common.output_divisor == 1 ? "ns" : "us");
 
 	if (params->user_data) {
 		trace_seq_printf(s, "      |    Ret user Timer Latency (%s)",
-				params->output_divisor == 1 ? "ns" : "us");
+				params->common.output_divisor == 1 ? "ns" : "us");
 	}
 
 	trace_seq_printf(s, "\n");
-	if (params->pretty_output)
+	if (pretty)
 		trace_seq_printf(s, "\033[2;30;47m");
 
 	trace_seq_printf(s, "CPU COUNT      |      cur       min       avg       max |      cur       min       avg       max");
 	if (params->user_data)
 		trace_seq_printf(s, " |      cur       min       avg       max");
 
-	if (params->pretty_output)
+	if (pretty)
 		trace_seq_printf(s, "\033[0;0;0m");
 	trace_seq_printf(s, "\n");
 }
@@ -449,7 +450,7 @@ timerlat_print_stats(struct timerlat_params *params, struct osnoise_tool *top)
 	if (nr_cpus == -1)
 		nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
-	if (!params->quiet)
+	if (!params->common.quiet)
 		clear_terminal(trace->seq);
 
 	timerlat_top_reset_sum(&summary);
@@ -563,7 +564,7 @@ static struct timerlat_params
 	params->deepest_idle_state = -2;
 
 	/* display data in microseconds */
-	params->output_divisor = 1000;
+	params->common.output_divisor = 1000;
 
 	/* default to BPF mode */
 	params->mode = TRACING_MODE_BPF;
@@ -696,7 +697,7 @@ static struct timerlat_params
 			params->kernel_workload = true;
 			break;
 		case 'n':
-			params->output_divisor = 1;
+			params->common.output_divisor = 1;
 			break;
 		case 'p':
 			params->timerlat_period_us = get_llong_from_str(optarg);
@@ -710,7 +711,7 @@ static struct timerlat_params
 			params->common.set_sched = 1;
 			break;
 		case 'q':
-			params->quiet = 1;
+			params->common.quiet = 1;
 			break;
 		case 's':
 			params->print_stack = get_llong_from_str(optarg);
@@ -842,8 +843,8 @@ timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_params *para
 	if (retval)
 		goto out_err;
 
-	if (isatty(STDOUT_FILENO) && !params->quiet)
-		params->pretty_output = 1;
+	if (isatty(STDOUT_FILENO) && !params->common.quiet)
+		params->common.pretty_output = 1;
 
 	return 0;
 
@@ -942,7 +943,7 @@ timerlat_top_main_loop(struct osnoise_tool *top,
 			return retval;
 		}
 
-		if (!params->quiet)
+		if (!params->common.quiet)
 			timerlat_print_stats(params, top);
 
 		if (osnoise_trace_is_off(top, record)) {
@@ -992,7 +993,8 @@ timerlat_top_bpf_main_loop(struct osnoise_tool *top,
 
 	/* Pull and display data in a loop */
 	while (!stop_tracing) {
-		wait_retval = timerlat_bpf_wait(params->quiet ? -1 : params->common.sleep_time);
+		wait_retval = timerlat_bpf_wait(params->common.quiet ? -1 :
+						params->common.sleep_time);
 
 		retval = timerlat_top_bpf_pull_data(top);
 		if (retval) {
@@ -1000,7 +1002,7 @@ timerlat_top_bpf_main_loop(struct osnoise_tool *top,
 			return retval;
 		}
 
-		if (!params->quiet)
+		if (!params->common.quiet)
 			timerlat_print_stats(params, top);
 
 		if (wait_retval == 1) {

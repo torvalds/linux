@@ -23,7 +23,6 @@ struct timerlat_params {
 	struct common_params	common;
 	long long		timerlat_period_us;
 	long long		print_stack;
-	int			output_divisor;
 	int			dma_latency;
 	int			no_aa;
 	int			dump_tasks;
@@ -31,30 +30,11 @@ struct timerlat_params {
 	int			kernel_workload;
 	int			user_data;
 	int			deepest_idle_state;
+	int			aa_only;
 	enum timerlat_tracing_mode mode;
 
 	struct actions threshold_actions;
 	struct actions end_actions;
-
-	union {
-		struct {
-			/* top only */
-			int			quiet;
-			int			aa_only;
-			int			pretty_output;
-		};
-		struct {
-			/* hist only */
-			char			no_irq;
-			char			no_thread;
-			char			no_header;
-			char			no_summary;
-			char			no_index;
-			char			with_zeros;
-			int			bucket_size;
-			int			entries;
-		};
-	};
 };
 
 int timerlat_apply_config(struct osnoise_tool *tool, struct timerlat_params *params);
