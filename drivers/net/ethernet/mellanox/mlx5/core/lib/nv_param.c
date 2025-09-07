@@ -1,0 +1,245 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+/* Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved. */
+
+#include "nv_param.h"
+#include "mlx5_core.h"
+
+enum {
+	MLX5_CLASS_0_CTRL_ID_NV_SW_OFFLOAD_CONFIG             = 0x10a,
+};
+
+struct mlx5_ifc_configuration_item_type_class_global_bits {
+	u8         type_class[0x8];
+	u8         parameter_index[0x18];
+};
+
+union mlx5_ifc_config_item_type_auto_bits {
+	struct mlx5_ifc_configuration_item_type_class_global_bits
+				configuration_item_type_class_global;
+	u8 reserved_at_0[0x20];
+};
+
+struct mlx5_ifc_config_item_bits {
+	u8         valid[0x2];
+	u8         priority[0x2];
+	u8         header_type[0x2];
+	u8         ovr_en[0x1];
+	u8         rd_en[0x1];
+	u8         access_mode[0x2];
+	u8         reserved_at_a[0x1];
+	u8         writer_id[0x5];
+	u8         version[0x4];
+	u8         reserved_at_14[0x2];
+	u8         host_id_valid[0x1];
+	u8         length[0x9];
+
+	union mlx5_ifc_config_item_type_auto_bits type;
+
+	u8         reserved_at_40[0x10];
+	u8         crc16[0x10];
+};
+
+struct mlx5_ifc_mnvda_reg_bits {
+	struct mlx5_ifc_config_item_bits configuration_item_header;
+
+	u8         configuration_item_data[64][0x20];
+};
+
+struct mlx5_ifc_nv_sw_offload_conf_bits {
+	u8         ip_over_vxlan_port[0x10];
+	u8         tunnel_ecn_copy_offload_disable[0x1];
+	u8         pci_atomic_mode[0x3];
+	u8         sr_enable[0x1];
+	u8         ptp_cyc2realtime[0x1];
+	u8         vector_calc_disable[0x1];
+	u8         uctx_en[0x1];
+	u8         prio_tag_required_en[0x1];
+	u8         esw_fdb_ipv4_ttl_modify_enable[0x1];
+	u8         mkey_by_name[0x1];
+	u8         ip_over_vxlan_en[0x1];
+	u8         one_qp_per_recovery[0x1];
+	u8         cqe_compression[0x3];
+	u8         tunnel_udp_entropy_proto_disable[0x1];
+	u8         reserved_at_21[0x1];
+	u8         ar_enable[0x1];
+	u8         log_max_outstanding_wqe[0x5];
+	u8         vf_migration[0x2];
+	u8         log_tx_psn_win[0x6];
+	u8         lro_log_timeout3[0x4];
+	u8         lro_log_timeout2[0x4];
+	u8         lro_log_timeout1[0x4];
+	u8         lro_log_timeout0[0x4];
+};
+
+#define MNVDA_HDR_SZ \
+	(MLX5_ST_SZ_BYTES(mnvda_reg) - \
+	 MLX5_BYTE_OFF(mnvda_reg, configuration_item_data))
+
+#define MLX5_SET_CFG_ITEM_TYPE(_cls_name, _mnvda_ptr, _field, _val) \
+	MLX5_SET(mnvda_reg, _mnvda_ptr, \
+		 configuration_item_header.type.configuration_item_type_class_##_cls_name._field, \
+		 _val)
+
+#define MLX5_SET_CFG_HDR_LEN(_mnvda_ptr, _cls_name) \
+	MLX5_SET(mnvda_reg, _mnvda_ptr, configuration_item_header.length, \
+		 MLX5_ST_SZ_BYTES(_cls_name))
+
+#define MLX5_GET_CFG_HDR_LEN(_mnvda_ptr) \
+	MLX5_GET(mnvda_reg, _mnvda_ptr, configuration_item_header.length)
+
+static int mlx5_nv_param_read(struct mlx5_core_dev *dev, void *mnvda,
+			      size_t len)
+{
+	u32 param_idx, type_class;
+	u32 header_len;
+	void *cls_ptr;
+	int err;
+
+	if (WARN_ON(len > MLX5_ST_SZ_BYTES(mnvda_reg)) || len < MNVDA_HDR_SZ)
+		return -EINVAL; /* A caller bug */
+
+	err = mlx5_core_access_reg(dev, mnvda, len, mnvda, len, MLX5_REG_MNVDA,
+				   0, 0);
+	if (!err)
+		return 0;
+
+	cls_ptr = MLX5_ADDR_OF(mnvda_reg, mnvda,
+			       configuration_item_header.type.configuration_item_type_class_global);
+
+	type_class = MLX5_GET(configuration_item_type_class_global, cls_ptr,
+			      type_class);
+	param_idx = MLX5_GET(configuration_item_type_class_global, cls_ptr,
+			     parameter_index);
+	header_len = MLX5_GET_CFG_HDR_LEN(mnvda);
+
+	mlx5_core_warn(dev, "Failed to read mnvda reg: type_class 0x%x, param_idx 0x%x, header_len %u, err %d\n",
+		       type_class, param_idx, header_len, err);
+
+	return -EOPNOTSUPP;
+}
+
+static int mlx5_nv_param_write(struct mlx5_core_dev *dev, void *mnvda,
+			       size_t len)
+{
+	if (WARN_ON(len > MLX5_ST_SZ_BYTES(mnvda_reg)) || len < MNVDA_HDR_SZ)
+		return -EINVAL;
+
+	if (WARN_ON(MLX5_GET_CFG_HDR_LEN(mnvda) == 0))
+		return -EINVAL;
+
+	return mlx5_core_access_reg(dev, mnvda, len, mnvda, len, MLX5_REG_MNVDA,
+				    0, 1);
+}
+
+static int
+mlx5_nv_param_read_sw_offload_conf(struct mlx5_core_dev *dev, void *mnvda,
+				   size_t len)
+{
+	MLX5_SET_CFG_ITEM_TYPE(global, mnvda, type_class, 0);
+	MLX5_SET_CFG_ITEM_TYPE(global, mnvda, parameter_index,
+			       MLX5_CLASS_0_CTRL_ID_NV_SW_OFFLOAD_CONFIG);
+	MLX5_SET_CFG_HDR_LEN(mnvda, nv_sw_offload_conf);
+
+	return mlx5_nv_param_read(dev, mnvda, len);
+}
+
+static const char *const
+	cqe_compress_str[] = { "balanced", "aggressive" };
+
+static int
+mlx5_nv_param_devlink_cqe_compress_get(struct devlink *devlink, u32 id,
+				       struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	u32 mnvda[MLX5_ST_SZ_DW(mnvda_reg)] = {};
+	u8 value = U8_MAX;
+	void *data;
+	int err;
+
+	err = mlx5_nv_param_read_sw_offload_conf(dev, mnvda, sizeof(mnvda));
+	if (err)
+		return err;
+
+	data = MLX5_ADDR_OF(mnvda_reg, mnvda, configuration_item_data);
+	value = MLX5_GET(nv_sw_offload_conf, data, cqe_compression);
+
+	if (value >= ARRAY_SIZE(cqe_compress_str))
+		return -EOPNOTSUPP;
+
+	strscpy(ctx->val.vstr, cqe_compress_str[value], sizeof(ctx->val.vstr));
+	return 0;
+}
+
+static int
+mlx5_nv_param_devlink_cqe_compress_validate(struct devlink *devlink, u32 id,
+					    union devlink_param_value val,
+					    struct netlink_ext_ack *extack)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cqe_compress_str); i++) {
+		if (!strcmp(val.vstr, cqe_compress_str[i]))
+			return 0;
+	}
+
+	NL_SET_ERR_MSG_MOD(extack,
+			   "Invalid value, supported values are balanced/aggressive");
+	return -EOPNOTSUPP;
+}
+
+static int
+mlx5_nv_param_devlink_cqe_compress_set(struct devlink *devlink, u32 id,
+				       struct devlink_param_gset_ctx *ctx,
+				       struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	u32 mnvda[MLX5_ST_SZ_DW(mnvda_reg)] = {};
+	int err = 0;
+	void *data;
+	u8 value;
+
+	if (!strcmp(ctx->val.vstr, "aggressive"))
+		value = 1;
+	else /* balanced: can't be anything else already validated above */
+		value = 0;
+
+	err = mlx5_nv_param_read_sw_offload_conf(dev, mnvda, sizeof(mnvda));
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Failed to read sw_offload_conf mnvda reg");
+		return err;
+	}
+
+	data = MLX5_ADDR_OF(mnvda_reg, mnvda, configuration_item_data);
+	MLX5_SET(nv_sw_offload_conf, data, cqe_compression, value);
+
+	return mlx5_nv_param_write(dev, mnvda, sizeof(mnvda));
+}
+
+static const struct devlink_param mlx5_nv_param_devlink_params[] = {
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_CQE_COMPRESSION_TYPE,
+			     "cqe_compress_type", DEVLINK_PARAM_TYPE_STRING,
+			     BIT(DEVLINK_PARAM_CMODE_PERMANENT),
+			     mlx5_nv_param_devlink_cqe_compress_get,
+			     mlx5_nv_param_devlink_cqe_compress_set,
+			     mlx5_nv_param_devlink_cqe_compress_validate),
+};
+
+int mlx5_nv_param_register_dl_params(struct devlink *devlink)
+{
+	if (!mlx5_core_is_pf(devlink_priv(devlink)))
+		return 0;
+
+	return devl_params_register(devlink, mlx5_nv_param_devlink_params,
+				    ARRAY_SIZE(mlx5_nv_param_devlink_params));
+}
+
+void mlx5_nv_param_unregister_dl_params(struct devlink *devlink)
+{
+	if (!mlx5_core_is_pf(devlink_priv(devlink)))
+		return;
+
+	devl_params_unregister(devlink, mlx5_nv_param_devlink_params,
+			       ARRAY_SIZE(mlx5_nv_param_devlink_params));
+}
+
