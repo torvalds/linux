@@ -856,8 +856,8 @@ struct kernel_ethtool_ts_info {
 	enum hwtstamp_provider_qualifier phc_qualifier;
 	enum hwtstamp_source phc_source;
 	int phc_phyindex;
-	enum hwtstamp_tx_types tx_types;
-	enum hwtstamp_rx_filters rx_filters;
+	u32 tx_types;
+	u32 rx_filters;
 };
 
 /**
