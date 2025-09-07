@@ -284,8 +284,7 @@ static inline int enqcmds(void __iomem *dst, const void *src)
 	 * See movdir64b()'s comment on operand specification.
 	 */
 	asm volatile(".byte 0xf3, 0x0f, 0x38, 0xf8, 0x02, 0x66, 0x90"
-		     CC_SET(z)
-		     : CC_OUT(z) (zf), "+m" (*__dst)
+		     : "=@ccz" (zf), "+m" (*__dst)
 		     : "m" (*__src), "a" (__dst), "d" (__src));
 
 	/* Submission failure is indicated via EFLAGS.ZF=1 */

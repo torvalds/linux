@@ -99,8 +99,7 @@ static __always_inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
 {
 	bool negative;
 	asm_inline volatile(LOCK_PREFIX "xorb %2,%1"
-		CC_SET(s)
-		: CC_OUT(s) (negative), WBYTE_ADDR(addr)
+		: "=@ccs" (negative), WBYTE_ADDR(addr)
 		: "iq" ((char)mask) : "memory");
 	return negative;
 }
@@ -149,8 +148,7 @@ arch___test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
 	bool oldbit;
 
 	asm(__ASM_SIZE(bts) " %2,%1"
-	    CC_SET(c)
-	    : CC_OUT(c) (oldbit)
+	    : "=@ccc" (oldbit)
 	    : ADDR, "Ir" (nr) : "memory");
 	return oldbit;
 }
@@ -175,8 +173,7 @@ arch___test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
 	bool oldbit;
 
 	asm volatile(__ASM_SIZE(btr) " %2,%1"
-		     CC_SET(c)
-		     : CC_OUT(c) (oldbit)
+		     : "=@ccc" (oldbit)
 		     : ADDR, "Ir" (nr) : "memory");
 	return oldbit;
 }
@@ -187,8 +184,7 @@ arch___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 	bool oldbit;
 
 	asm volatile(__ASM_SIZE(btc) " %2,%1"
-		     CC_SET(c)
-		     : CC_OUT(c) (oldbit)
+		     : "=@ccc" (oldbit)
 		     : ADDR, "Ir" (nr) : "memory");
 
 	return oldbit;
@@ -211,8 +207,7 @@ static __always_inline bool constant_test_bit_acquire(long nr, const volatile un
 	bool oldbit;
 
 	asm volatile("testb %2,%1"
-		     CC_SET(nz)
-		     : CC_OUT(nz) (oldbit)
+		     : "=@ccnz" (oldbit)
 		     : "m" (((unsigned char *)addr)[nr >> 3]),
 		       "i" (1 << (nr & 7))
 		     :"memory");
@@ -225,8 +220,7 @@ static __always_inline bool variable_test_bit(long nr, volatile const unsigned l
 	bool oldbit;
 
 	asm volatile(__ASM_SIZE(bt) " %2,%1"
-		     CC_SET(c)
-		     : CC_OUT(c) (oldbit)
+		     : "=@ccc" (oldbit)
 		     : "m" (*(unsigned long *)addr), "Ir" (nr) : "memory");
 
 	return oldbit;
