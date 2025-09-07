@@ -24,6 +24,7 @@ struct mlx5e_pcie_cong_stats {
 	u32 pci_bw_inbound_low;
 	u32 pci_bw_outbound_high;
 	u32 pci_bw_outbound_low;
+	u32 pci_bw_stale_event;
 };
 
 struct mlx5e_pcie_cong_event {
@@ -52,6 +53,8 @@ static const struct counter_desc mlx5e_pcie_cong_stats_desc[] = {
 			     pci_bw_outbound_high) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_pcie_cong_stats,
 			     pci_bw_outbound_low) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_pcie_cong_stats,
+			     pci_bw_stale_event) },
 };
 
 #define NUM_PCIE_CONG_COUNTERS ARRAY_SIZE(mlx5e_pcie_cong_stats_desc)
@@ -212,8 +215,10 @@ static void mlx5e_pcie_cong_event_work(struct work_struct *work)
 	}
 
 	changes = cong_event->state ^ new_cong_state;
-	if (!changes)
+	if (!changes) {
+		cong_event->stats.pci_bw_stale_event++;
 		return;
+	}
 
 	cong_event->state = new_cong_state;
 
