@@ -287,8 +287,7 @@ static bool phy_uses_state_machine(struct phy_device *phydev)
 	if (phydev->phy_link_change == phy_link_change)
 		return phydev->attached_dev && phydev->adjust_link;
 
-	/* phydev->phy_link_change is implicitly phylink_phy_change() */
-	return true;
+	return !!phydev->phy_link_change;
 }
 
 static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
@@ -1864,6 +1863,8 @@ void phy_detach(struct phy_device *phydev)
 		phydev->attached_dev = NULL;
 		phy_link_topo_del_phy(dev, phydev);
 	}
+
+	phydev->phy_link_change = NULL;
 	phydev->phylink = NULL;
 
 	if (!phydev->is_on_sfp_module)
