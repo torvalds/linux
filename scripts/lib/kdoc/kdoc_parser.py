@@ -926,21 +926,31 @@ class KernelDoc:
         Stores a function of function macro inside self.entries array.
         """
 
-        func_macro = False
+        found = func_macro = False
         return_type = ''
         decl_type = 'function'
         #
         # Apply the initial transformations.
         #
         prototype = apply_transforms(function_xforms, prototype)
-
-        # Macros are a special case, as they change the prototype format
+        #
+        # If we have a macro, remove the "#define" at the front.
+        #
         new_proto = KernRe(r"^#\s*define\s+").sub("", prototype)
         if new_proto != prototype:
-            is_define_proto = True
             prototype = new_proto
-        else:
-            is_define_proto = False
+            #
+            # Dispense with the simple "#define A B" case here; the key
+            # is the space after the name of the symbol being defined.
+            # NOTE that the seemingly misnamed "func_macro" indicates a
+            # macro *without* arguments.
+            #
+            r = KernRe(r'^(\w+)\s+')
+            if r.search(prototype):
+                return_type = ''
+                declaration_name = r.group(1)
+                func_macro = True
+                found = True
 
         # Yes, this truly is vile.  We are looking for:
         # 1. Return type (may be nothing if we're looking at a macro)
@@ -968,19 +978,10 @@ class KernelDoc:
         # parenthesis.
         #
         proto_args = r'\(([^\(]*|.*)\)'
-
-        found = False
-
-        if is_define_proto:
-            r = KernRe(r'^(' + name + r')\s+')
-
-            if r.search(prototype):
-                return_type = ''
-                declaration_name = r.group(1)
-                func_macro = True
-
-                found = True
-
+        #
+        # (Except for the simple macro case) attempt to split up the prototype
+        # in the various ways we understand.
+        #
         if not found:
             patterns = [
                 rf'^()({name})\s*{proto_args}',
@@ -990,16 +991,12 @@ class KernelDoc:
 
             for p in patterns:
                 r = KernRe(p)
-
                 if r.match(prototype):
-
                     return_type = r.group(1)
                     declaration_name = r.group(2)
                     args = r.group(3)
-
                     self.create_parameter_list(ln, decl_type, args, ',',
                                                declaration_name)
-
                     found = True
                     break
         if not found:
