@@ -4,7 +4,7 @@
 #define __SOF_CLIENT_PROBES_H
 
 struct snd_compr_stream;
-struct snd_compr_tstamp;
+struct snd_compr_tstamp64;
 struct snd_compr_params;
 struct sof_client_dev;
 struct snd_soc_dai;
@@ -24,7 +24,7 @@ struct sof_probes_host_ops {
 	int (*trigger)(struct sof_client_dev *cdev, struct snd_compr_stream *cstream,
 		       int cmd, struct snd_soc_dai *dai);
 	int (*pointer)(struct sof_client_dev *cdev, struct snd_compr_stream *cstream,
-		       struct snd_compr_tstamp *tstamp,
+		       struct snd_compr_tstamp64 *tstamp,
 		       struct snd_soc_dai *dai);
 };
 

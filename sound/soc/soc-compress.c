@@ -457,7 +457,7 @@ err:
 }
 
 static int soc_compr_pointer(struct snd_compr_stream *cstream,
-			     struct snd_compr_tstamp *tstamp)
+			     struct snd_compr_tstamp64 *tstamp)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	int ret;

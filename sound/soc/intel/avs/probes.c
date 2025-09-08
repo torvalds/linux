@@ -213,7 +213,7 @@ static int avs_probe_compr_trigger(struct snd_compr_stream *cstream, int cmd,
 }
 
 static int avs_probe_compr_pointer(struct snd_compr_stream *cstream,
-				   struct snd_compr_tstamp *tstamp, struct snd_soc_dai *dai)
+				   struct snd_compr_tstamp64 *tstamp, struct snd_soc_dai *dai)
 {
 	struct hdac_ext_stream *host_stream = avs_compr_get_host_stream(cstream);
 	struct snd_soc_pcm_stream *pstream;
