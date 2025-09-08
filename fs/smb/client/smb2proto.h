@@ -317,5 +317,8 @@ int posix_info_sid_size(const void *beg, const void *end);
 int smb2_make_nfs_node(unsigned int xid, struct inode *inode,
 		       struct dentry *dentry, struct cifs_tcon *tcon,
 		       const char *full_path, umode_t mode, dev_t dev);
+int smb2_rename_pending_delete(const char *full_path,
+			       struct dentry *dentry,
+			       const unsigned int xid);
 
 #endif			/* _SMB2PROTO_H */
