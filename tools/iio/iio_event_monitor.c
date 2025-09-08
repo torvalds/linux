@@ -64,6 +64,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_COLORTEMP] = "colortemp",
 	[IIO_CHROMATICITY] = "chromaticity",
 	[IIO_ATTENTION] = "attention",
+	[IIO_ALTCURRENT] = "altcurrent",
 };
 
 static const char * const iio_ev_type_text[] = {
@@ -187,6 +188,7 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_COLORTEMP:
 	case IIO_CHROMATICITY:
 	case IIO_ATTENTION:
+	case IIO_ALTCURRENT:
 		break;
 	default:
 		return false;
