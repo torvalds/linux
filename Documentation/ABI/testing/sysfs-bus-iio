@@ -2319,6 +2319,7 @@ Description:
 		  time.
 		* "sinc4" - Sinc 4. Excellent noise performance. Long
 		  1st conversion time.
+		* "sinc4+lp" - Sinc4 + Low Pass Filter.
 		* "sinc4+sinc1" - Sinc4 + averaging by 8. Low 1st conversion
 		  time.
 		* "sinc5" - The digital sinc5 filter. Excellent noise
