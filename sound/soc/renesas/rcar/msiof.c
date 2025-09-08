@@ -372,10 +372,9 @@ static int msiof_trigger(struct snd_soc_component *component,
 {
 	struct device *dev = component->dev;
 	struct msiof_priv *priv = dev_get_drvdata(dev);
-	unsigned long flags;
 	int ret = -EINVAL;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	guard(spinlock_irqsave)(&priv->lock);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -392,8 +391,6 @@ static int msiof_trigger(struct snd_soc_component *component,
 		break;
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	return ret;
 }
 
@@ -404,23 +401,18 @@ static int msiof_hw_params(struct snd_soc_component *component,
 	struct msiof_priv *priv = dev_get_drvdata(component->dev);
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
 	struct dma_slave_config cfg = {};
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	guard(spinlock_irqsave)(&priv->lock);
 
 	ret = snd_hwparams_to_dma_slave_config(substream, params, &cfg);
 	if (ret < 0)
-		goto hw_params_out;
+		return ret;
 
 	cfg.dst_addr = priv->phy_addr + SITFDR;
 	cfg.src_addr = priv->phy_addr + SIRFDR;
 
-	ret = dmaengine_slave_config(chan, &cfg);
-hw_params_out:
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return ret;
+	return dmaengine_slave_config(chan, &cfg);
 }
 
 static const struct snd_soc_component_driver msiof_component_driver = {
@@ -439,12 +431,10 @@ static irqreturn_t msiof_interrupt(int irq, void *data)
 	struct snd_pcm_substream *substream;
 	u32 sistr;
 
-	spin_lock(&priv->lock);
-
-	sistr = msiof_read(priv, SISTR);
-	msiof_write(priv, SISTR, SISTR_ERR_TX | SISTR_ERR_RX);
-
-	spin_unlock(&priv->lock);
+	scoped_guard(spinlock, &priv->lock) {
+		sistr = msiof_read(priv, SISTR);
+		msiof_write(priv, SISTR, SISTR_ERR_TX | SISTR_ERR_RX);
+	}
 
 	/* overflow/underflow error */
 	substream = priv->substream[SNDRV_PCM_STREAM_PLAYBACK];
