@@ -625,11 +625,11 @@ int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 		 */
 		list_for_each_entry(d, &r->mon_domains, hdr.list) {
 			if (d->ci_id == domid) {
-				rr.ci_id = d->ci_id;
 				cpu = cpumask_any(&d->hdr.cpu_mask);
 				ci = get_cpu_cacheinfo_level(cpu, RESCTRL_L3_CACHE);
 				if (!ci)
 					continue;
+				rr.ci = ci;
 				mon_event_read(&rr, r, NULL, rdtgrp,
 					       &ci->shared_cpu_map, evtid, false);
 				goto checkresult;
