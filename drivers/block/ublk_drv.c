@@ -201,7 +201,6 @@ struct ublk_queue {
 	bool force_abort;
 	bool canceling;
 	bool fail_io; /* copy of dev->state == UBLK_S_DEV_FAIL_IO */
-	unsigned short nr_io_ready;	/* how many ios setup */
 	spinlock_t		cancel_lock;
 	struct ublk_device *dev;
 	struct ublk_io ios[];
@@ -234,7 +233,7 @@ struct ublk_device {
 	struct ublk_params	params;
 
 	struct completion	completion;
-	unsigned int		nr_queues_ready;
+	u32			nr_io_ready;
 	bool 			unprivileged_daemons;
 	struct mutex cancel_mutex;
 	bool canceling;
@@ -1499,9 +1498,6 @@ static void ublk_queue_reinit(struct ublk_device *ub, struct ublk_queue *ubq)
 {
 	int i;
 
-	/* All old ioucmds have to be completed */
-	ubq->nr_io_ready = 0;
-
 	for (i = 0; i < ubq->q_depth; i++) {
 		struct ublk_io *io = &ubq->ios[i];
 
@@ -1550,7 +1546,7 @@ static void ublk_reset_ch_dev(struct ublk_device *ub)
 
 	/* set to NULL, otherwise new tasks cannot mmap io_cmd_buf */
 	ub->mm = NULL;
-	ub->nr_queues_ready = 0;
+	ub->nr_io_ready = 0;
 	ub->unprivileged_daemons = false;
 	ub->ublksrv_tgid = -1;
 }
@@ -1848,9 +1844,11 @@ static void ublk_uring_cmd_cancel_fn(struct io_uring_cmd *cmd,
 	ublk_cancel_cmd(ubq, pdu->tag, issue_flags);
 }
 
-static inline bool ublk_queue_ready(struct ublk_queue *ubq)
+static inline bool ublk_dev_ready(const struct ublk_device *ub)
 {
-	return ubq->nr_io_ready == ubq->q_depth;
+	u32 total = (u32)ub->dev_info.nr_hw_queues * ub->dev_info.queue_depth;
+
+	return ub->nr_io_ready == total;
 }
 
 static void ublk_cancel_queue(struct ublk_queue *ubq)
@@ -1974,16 +1972,14 @@ static void ublk_reset_io_flags(struct ublk_device *ub)
 }
 
 /* device can only be started after all IOs are ready */
-static void ublk_mark_io_ready(struct ublk_device *ub, struct ublk_queue *ubq)
+static void ublk_mark_io_ready(struct ublk_device *ub)
 	__must_hold(&ub->mutex)
 {
-	ubq->nr_io_ready++;
-	if (ublk_queue_ready(ubq))
-		ub->nr_queues_ready++;
 	if (!ub->unprivileged_daemons && !capable(CAP_SYS_ADMIN))
 		ub->unprivileged_daemons = true;
 
-	if (ub->nr_queues_ready == ub->dev_info.nr_hw_queues) {
+	ub->nr_io_ready++;
+	if (ublk_dev_ready(ub)) {
 		/* now we are ready for handling ublk io request */
 		ublk_reset_io_flags(ub);
 		complete_all(&ub->completion);
@@ -2189,8 +2185,8 @@ static int ublk_fetch(struct io_uring_cmd *cmd, struct ublk_queue *ubq,
 	 * FETCH, so it is fine even for IO_URING_F_NONBLOCK.
 	 */
 	mutex_lock(&ub->mutex);
-	/* UBLK_IO_FETCH_REQ is only allowed before queue is setup */
-	if (ublk_queue_ready(ubq)) {
+	/* UBLK_IO_FETCH_REQ is only allowed before dev is setup */
+	if (ublk_dev_ready(ub)) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -2209,7 +2205,7 @@ static int ublk_fetch(struct io_uring_cmd *cmd, struct ublk_queue *ubq,
 		goto out;
 
 	WRITE_ONCE(io->task, get_task_struct(current));
-	ublk_mark_io_ready(ub, ubq);
+	ublk_mark_io_ready(ub);
 out:
 	mutex_unlock(&ub->mutex);
 	return ret;
