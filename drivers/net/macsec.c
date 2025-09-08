@@ -4286,6 +4286,7 @@ static int macsec_newlink(struct net_device *dev,
 	if (err < 0)
 		goto del_dev;
 
+	netdev_update_features(dev);
 	netif_stacked_transfer_operstate(real_dev, dev);
 	linkwatch_fire_event(dev);
 
