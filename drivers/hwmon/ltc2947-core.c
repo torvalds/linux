@@ -120,12 +120,6 @@
 struct ltc2947_data {
 	struct regmap *map;
 	struct device *dev;
-	/*
-	 * The mutex is needed because the device has 2 memory pages. When
-	 * reading/writing the correct page needs to be set so that, the
-	 * complete sequence select_page->read/write needs to be protected.
-	 */
-	struct mutex lock;
 	u32 lsb_energy;
 	bool gpio_out;
 };
@@ -181,13 +175,9 @@ static int ltc2947_val_read(struct ltc2947_data *st, const u8 reg,
 	int ret;
 	u64 __val = 0;
 
-	mutex_lock(&st->lock);
-
 	ret = regmap_write(st->map, LTC2947_REG_PAGE_CTRL, page);
-	if (ret) {
-		mutex_unlock(&st->lock);
+	if (ret)
 		return ret;
-	}
 
 	dev_dbg(st->dev, "Read val, reg:%02X, p:%d sz:%zu\n", reg, page,
 		size);
@@ -206,8 +196,6 @@ static int ltc2947_val_read(struct ltc2947_data *st, const u8 reg,
 		ret = -EINVAL;
 		break;
 	}
-
-	mutex_unlock(&st->lock);
 
 	if (ret)
 		return ret;
@@ -242,13 +230,10 @@ static int ltc2947_val_write(struct ltc2947_data *st, const u8 reg,
 {
 	int ret;
 
-	mutex_lock(&st->lock);
 	/* set device on correct page */
 	ret = regmap_write(st->map, LTC2947_REG_PAGE_CTRL, page);
-	if (ret) {
-		mutex_unlock(&st->lock);
+	if (ret)
 		return ret;
-	}
 
 	dev_dbg(st->dev, "Write val, r:%02X, p:%d, sz:%zu, val:%016llX\n",
 		reg, page, size, val);
@@ -264,8 +249,6 @@ static int ltc2947_val_write(struct ltc2947_data *st, const u8 reg,
 		ret = -EINVAL;
 		break;
 	}
-
-	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -295,11 +278,9 @@ static int ltc2947_alarm_read(struct ltc2947_data *st, const u8 reg,
 
 	memset(alarms, 0, sizeof(alarms));
 
-	mutex_lock(&st->lock);
-
 	ret = regmap_write(st->map, LTC2947_REG_PAGE_CTRL, LTC2947_PAGE0);
 	if (ret)
-		goto unlock;
+		return ret;
 
 	dev_dbg(st->dev, "Read alarm, reg:%02X, mask:%02X\n", reg, mask);
 	/*
@@ -310,13 +291,11 @@ static int ltc2947_alarm_read(struct ltc2947_data *st, const u8 reg,
 	ret = regmap_bulk_read(st->map, LTC2947_REG_STATUS, alarms,
 			       sizeof(alarms));
 	if (ret)
-		goto unlock;
+		return ret;
 
 	/* get the alarm */
 	*val = !!(alarms[offset] & mask);
-unlock:
-	mutex_unlock(&st->lock);
-	return ret;
+	return 0;
 }
 
 static int ltc2947_read_temp(struct device *dev, const u32 attr, long *val,
@@ -1100,7 +1079,6 @@ int ltc2947_core_probe(struct regmap *map, const char *name)
 	st->map = map;
 	st->dev = dev;
 	dev_set_drvdata(dev, st);
-	mutex_init(&st->lock);
 
 	ret = ltc2947_setup(st);
 	if (ret)
