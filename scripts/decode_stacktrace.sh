@@ -242,8 +242,10 @@ debuginfod_get_vmlinux() {
 
 decode_code() {
 	local scripts=`dirname "${BASH_SOURCE[0]}"`
+	local lim="Code: "
 
-	echo "$1" | $scripts/decodecode
+	echo -n "${1%%${lim}*}"
+	echo "${lim}${1##*${lim}}" | $scripts/decodecode
 }
 
 handle_line() {
