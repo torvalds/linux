@@ -239,7 +239,6 @@ static inline int aqr_hwmon_probe(struct phy_device *phydev) { return 0; }
 #endif
 
 int aqr_firmware_load(struct phy_device *phydev);
-int aqr_firmware_read_fingerprint(struct phy_device *phydev);
 
 int aqr_phy_led_blink_set(struct phy_device *phydev, u8 index,
 			  unsigned long *delay_on,
