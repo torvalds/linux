@@ -1927,81 +1927,6 @@ static void bnxt_re_dev_stop(struct bnxt_re_dev *rdev)
 	mutex_unlock(&rdev->qp_lock);
 }
 
-static int bnxt_re_update_gid(struct bnxt_re_dev *rdev)
-{
-	struct bnxt_qplib_sgid_tbl *sgid_tbl = &rdev->qplib_res.sgid_tbl;
-	struct bnxt_qplib_gid gid;
-	u16 gid_idx, index;
-	int rc = 0;
-
-	if (!ib_device_try_get(&rdev->ibdev))
-		return 0;
-
-	for (index = 0; index < sgid_tbl->active; index++) {
-		gid_idx = sgid_tbl->hw_id[index];
-
-		if (!memcmp(&sgid_tbl->tbl[index], &bnxt_qplib_gid_zero,
-			    sizeof(bnxt_qplib_gid_zero)))
-			continue;
-		/* need to modify the VLAN enable setting of non VLAN GID only
-		 * as setting is done for VLAN GID while adding GID
-		 */
-		if (sgid_tbl->vlan[index])
-			continue;
-
-		memcpy(&gid, &sgid_tbl->tbl[index], sizeof(gid));
-
-		rc = bnxt_qplib_update_sgid(sgid_tbl, &gid, gid_idx,
-					    rdev->qplib_res.netdev->dev_addr);
-	}
-
-	ib_device_put(&rdev->ibdev);
-	return rc;
-}
-
-static u32 bnxt_re_get_priority_mask(struct bnxt_re_dev *rdev)
-{
-	u32 prio_map = 0, tmp_map = 0;
-	struct net_device *netdev;
-	struct dcb_app app = {};
-
-	netdev = rdev->netdev;
-
-	app.selector = IEEE_8021QAZ_APP_SEL_ETHERTYPE;
-	app.protocol = ETH_P_IBOE;
-	tmp_map = dcb_ieee_getapp_mask(netdev, &app);
-	prio_map = tmp_map;
-
-	app.selector = IEEE_8021QAZ_APP_SEL_DGRAM;
-	app.protocol = ROCE_V2_UDP_DPORT;
-	tmp_map = dcb_ieee_getapp_mask(netdev, &app);
-	prio_map |= tmp_map;
-
-	return prio_map;
-}
-
-static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
-{
-	u8 prio_map = 0;
-
-	/* Get priority for roce */
-	prio_map = bnxt_re_get_priority_mask(rdev);
-
-	if (prio_map == rdev->cur_prio_map)
-		return 0;
-	rdev->cur_prio_map = prio_map;
-	/* Actual priorities are not programmed as they are already
-	 * done by L2 driver; just enable or disable priority vlan tagging
-	 */
-	if ((prio_map == 0 && rdev->qplib_res.prio) ||
-	    (prio_map != 0 && !rdev->qplib_res.prio)) {
-		rdev->qplib_res.prio = prio_map;
-		bnxt_re_update_gid(rdev);
-	}
-
-	return 0;
-}
-
 static void bnxt_re_net_unregister_async_event(struct bnxt_re_dev *rdev)
 {
 	if (rdev->is_virtfn)
@@ -2197,9 +2122,6 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type)
 	bnxt_re_net_unregister_async_event(rdev);
 	bnxt_re_uninit_dcb_wq(rdev);
 
-	if (test_and_clear_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags))
-		cancel_delayed_work_sync(&rdev->worker);
-
 	bnxt_re_put_stats3_ctx(rdev);
 
 	if (test_and_clear_bit(BNXT_RE_FLAG_RESOURCES_INITIALIZED,
@@ -2232,16 +2154,6 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type)
 		if (test_and_clear_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags))
 			bnxt_unregister_dev(rdev->en_dev);
 	}
-}
-
-/* worker thread for polling periodic events. Now used for QoS programming*/
-static void bnxt_re_worker(struct work_struct *work)
-{
-	struct bnxt_re_dev *rdev = container_of(work, struct bnxt_re_dev,
-						worker.work);
-
-	bnxt_re_setup_qos(rdev);
-	schedule_delayed_work(&rdev->worker, msecs_to_jiffies(30000));
 }
 
 static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
@@ -2398,15 +2310,6 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 		rc = bnxt_qplib_query_cc_param(&rdev->qplib_res, &rdev->cc_param);
 		if (rc)
 			ibdev_warn(&rdev->ibdev, "Failed to query CC defaults\n");
-
-		rc = bnxt_re_setup_qos(rdev);
-		if (rc)
-			ibdev_info(&rdev->ibdev,
-				   "RoCE priority not yet configured\n");
-
-		INIT_DELAYED_WORK(&rdev->worker, bnxt_re_worker);
-		set_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags);
-		schedule_delayed_work(&rdev->worker, msecs_to_jiffies(30000));
 
 		if (!(rdev->qplib_res.en_dev->flags & BNXT_EN_FLAG_ROCE_VF_RES_MGMT))
 			bnxt_re_vf_res_config(rdev);

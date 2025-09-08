@@ -175,7 +175,6 @@ struct bnxt_re_dev {
 #define BNXT_RE_FLAG_STATS_CTX3_ALLOC		1
 #define BNXT_RE_FLAG_HAVE_L2_REF		3
 #define BNXT_RE_FLAG_RCFW_CHANNEL_EN		4
-#define BNXT_RE_FLAG_QOS_WORK_REG		5
 #define BNXT_RE_FLAG_RESOURCES_ALLOCATED	7
 #define BNXT_RE_FLAG_RESOURCES_INITIALIZED	8
 #define BNXT_RE_FLAG_ERR_DEVICE_DETACHED       17
@@ -187,9 +186,6 @@ struct bnxt_re_dev {
 	struct bnxt_en_dev		*en_dev;
 
 	int				id;
-
-	struct delayed_work		worker;
-	u8				cur_prio_map;
 
 	/* RCFW Channel */
 	struct bnxt_qplib_rcfw		rcfw;

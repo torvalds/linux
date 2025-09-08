@@ -400,46 +400,6 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	return 0;
 }
 
-int bnxt_qplib_update_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
-			   struct bnxt_qplib_gid *gid, u16 gid_idx,
-			   const u8 *smac)
-{
-	struct bnxt_qplib_res *res = to_bnxt_qplib(sgid_tbl,
-						   struct bnxt_qplib_res,
-						   sgid_tbl);
-	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
-	struct creq_modify_gid_resp resp = {};
-	struct bnxt_qplib_cmdqmsg msg = {};
-	struct cmdq_modify_gid req = {};
-	int rc;
-
-	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
-				 CMDQ_BASE_OPCODE_MODIFY_GID,
-				 sizeof(req));
-
-	req.gid[0] = cpu_to_be32(((u32 *)gid->data)[3]);
-	req.gid[1] = cpu_to_be32(((u32 *)gid->data)[2]);
-	req.gid[2] = cpu_to_be32(((u32 *)gid->data)[1]);
-	req.gid[3] = cpu_to_be32(((u32 *)gid->data)[0]);
-	if (res->prio) {
-		req.vlan |= cpu_to_le16
-			(CMDQ_ADD_GID_VLAN_TPID_TPID_8100 |
-			 CMDQ_ADD_GID_VLAN_VLAN_EN);
-	}
-
-	/* MAC in network format */
-	req.src_mac[0] = cpu_to_be16(((u16 *)smac)[0]);
-	req.src_mac[1] = cpu_to_be16(((u16 *)smac)[1]);
-	req.src_mac[2] = cpu_to_be16(((u16 *)smac)[2]);
-
-	req.gid_index = cpu_to_le16(gid_idx);
-
-	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req),
-				sizeof(resp), 0);
-	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
-	return rc;
-}
-
 /* AH */
 int bnxt_qplib_create_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
 			 bool block)
