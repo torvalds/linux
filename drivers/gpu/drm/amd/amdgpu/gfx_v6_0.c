@@ -86,7 +86,7 @@ MODULE_FIRMWARE("amdgpu/hainan_ce.bin");
 MODULE_FIRMWARE("amdgpu/hainan_rlc.bin");
 
 static u32 gfx_v6_0_get_csb_size(struct amdgpu_device *adev);
-static void gfx_v6_0_get_csb_buffer(struct amdgpu_device *adev, volatile u32 *buffer);
+static void gfx_v6_0_get_csb_buffer(struct amdgpu_device *adev, u32 *buffer);
 //static void gfx_v6_0_init_cp_pg_table(struct amdgpu_device *adev);
 static void gfx_v6_0_init_pg(struct amdgpu_device *adev);
 
@@ -2354,7 +2354,7 @@ static void gfx_v6_0_ring_emit_wreg(struct amdgpu_ring *ring,
 static int gfx_v6_0_rlc_init(struct amdgpu_device *adev)
 {
 	const u32 *src_ptr;
-	volatile u32 *dst_ptr;
+	u32 *dst_ptr;
 	u32 dws;
 	u64 reg_list_mc_addr;
 	const struct cs_section_def *cs_data;
@@ -2855,8 +2855,7 @@ static u32 gfx_v6_0_get_csb_size(struct amdgpu_device *adev)
 	return count;
 }
 
-static void gfx_v6_0_get_csb_buffer(struct amdgpu_device *adev,
-				    volatile u32 *buffer)
+static void gfx_v6_0_get_csb_buffer(struct amdgpu_device *adev, u32 *buffer)
 {
 	u32 count = 0;
 

@@ -685,8 +685,7 @@ static u32 gfx_v12_0_get_csb_size(struct amdgpu_device *adev)
 	return count;
 }
 
-static void gfx_v12_0_get_csb_buffer(struct amdgpu_device *adev,
-				     volatile u32 *buffer)
+static void gfx_v12_0_get_csb_buffer(struct amdgpu_device *adev, u32 *buffer)
 {
 	u32 count = 0, clustercount = 0, i;
 	const struct cs_section_def *sect = NULL;
