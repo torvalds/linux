@@ -766,20 +766,21 @@ bool annotate_browser__continue_search_reverse(struct annotate_browser *browser,
 	return __annotate_browser__search_reverse(browser);
 }
 
-static int annotate_browser__show(struct ui_browser *browser, char *title, const char *help)
+static int annotate_browser__show(struct annotate_browser *browser, char *title, const char *help)
 {
-	struct map_symbol *ms = browser->priv;
+	struct ui_browser *b = &browser->b;
+	struct map_symbol *ms = b->priv;
 	struct symbol *sym = ms->sym;
 	char symbol_dso[SYM_TITLE_MAX_SIZE];
 
-	if (ui_browser__show(browser, title, help) < 0)
+	if (ui_browser__show(b, title, help) < 0)
 		return -1;
 
 	sym_title(sym, ms->map, symbol_dso, sizeof(symbol_dso), annotate_opts.percent_type);
 
-	ui_browser__gotorc_title(browser, 0, 0);
-	ui_browser__set_color(browser, HE_COLORSET_ROOT);
-	ui_browser__write_nstring(browser, symbol_dso, browser->width + 1);
+	ui_browser__gotorc_title(b, 0, 0);
+	ui_browser__set_color(b, HE_COLORSET_ROOT);
+	ui_browser__write_nstring(b, symbol_dso, b->width + 1);
 	return 0;
 }
 
@@ -858,7 +859,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 	int key;
 
 	annotate__scnprintf_title(hists, title, sizeof(title));
-	if (annotate_browser__show(&browser->b, title, help) < 0)
+	if (annotate_browser__show(browser, title, help) < 0)
 		return -1;
 
 	annotate_browser__calc_percent(browser, evsel);
@@ -896,7 +897,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 			if (delay_secs != 0) {
 				symbol__annotate_decay_histogram(sym, evsel);
 				annotate__scnprintf_title(hists, title, sizeof(title));
-				annotate_browser__show(&browser->b, title, help);
+				annotate_browser__show(browser, title, help);
 			}
 			continue;
 		case K_TAB:
@@ -947,7 +948,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 			continue;
 		case 'r':
 			script_browse(NULL, NULL);
-			annotate_browser__show(&browser->b, title, help);
+			annotate_browser__show(browser, title, help);
 			continue;
 		case 'k':
 			annotate_opts.show_linenr = !annotate_opts.show_linenr;
@@ -962,7 +963,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 			if (annotate_browser__toggle_source(browser, evsel))
 				ui_helpline__puts(help);
 			annotate__scnprintf_title(hists, title, sizeof(title));
-			annotate_browser__show(&browser->b, title, help);
+			annotate_browser__show(browser, title, help);
 			continue;
 		case 'o':
 			annotate_opts.use_offset = !annotate_opts.use_offset;
@@ -1050,7 +1051,7 @@ show_sup_ins:
 		case 'b':
 			switch_percent_type(&annotate_opts, key == 'b');
 			annotate__scnprintf_title(hists, title, sizeof(title));
-			annotate_browser__show(&browser->b, title, help);
+			annotate_browser__show(browser, title, help);
 			continue;
 		case 'B':
 			if (br_cntr_text)
@@ -1071,7 +1072,7 @@ show_sup_ins:
 				browser->type_hash = hashmap__new(type_hash, type_equal,
 								  /*ctx=*/NULL);
 			}
-			annotate_browser__show(&browser->b, title, help);
+			annotate_browser__show(browser, title, help);
 			annotate_browser__debuginfo_warning(browser);
 			continue;
 		case K_LEFT:
