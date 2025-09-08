@@ -3090,16 +3090,13 @@ static int raw_cmd_copyin(int cmd, void __user *param,
 	*rcmd = NULL;
 
 loop:
-	ptr = kmalloc(sizeof(struct floppy_raw_cmd), GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
+	ptr = memdup_user(param, sizeof(*ptr));
+	if (IS_ERR(ptr))
+		return PTR_ERR(ptr);
 	*rcmd = ptr;
-	ret = copy_from_user(ptr, param, sizeof(*ptr));
 	ptr->next = NULL;
 	ptr->buffer_length = 0;
 	ptr->kernel_data = NULL;
-	if (ret)
-		return -EFAULT;
 	param += sizeof(struct floppy_raw_cmd);
 	if (ptr->cmd_count > FD_RAW_CMD_FULLSIZE)
 		return -EINVAL;
