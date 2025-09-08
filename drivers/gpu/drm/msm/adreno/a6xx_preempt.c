@@ -111,9 +111,9 @@ static void preempt_prepare_postamble(struct a6xx_gpu *a6xx_gpu)
 
 	postamble[count++] = PKT7(CP_WAIT_REG_MEM, 6);
 	postamble[count++] = CP_WAIT_REG_MEM_0_FUNCTION(WRITE_EQ);
-	postamble[count++] = CP_WAIT_REG_MEM_1_POLL_ADDR_LO(
+	postamble[count++] = CP_WAIT_REG_MEM_POLL_ADDR_LO(
 				REG_A6XX_RBBM_PERFCTR_SRAM_INIT_STATUS);
-	postamble[count++] = CP_WAIT_REG_MEM_2_POLL_ADDR_HI(0);
+	postamble[count++] = CP_WAIT_REG_MEM_POLL_ADDR_HI(0);
 	postamble[count++] = CP_WAIT_REG_MEM_3_REF(0x1);
 	postamble[count++] = CP_WAIT_REG_MEM_4_MASK(0x1);
 	postamble[count++] = CP_WAIT_REG_MEM_5_DELAY_LOOP_CYCLES(0);

@@ -320,14 +320,14 @@ to upconvert to 32b float internally?
 16b float:   3
  -->
 <enum name="a6xx_2d_ifmt">
-	<value value="0x10" name="R2D_UNORM8"/>
 	<value value="0x7"  name="R2D_INT32"/>
 	<value value="0x6"  name="R2D_INT16"/>
 	<value value="0x5"  name="R2D_INT8"/>
 	<value value="0x4"  name="R2D_FLOAT32"/>
 	<value value="0x3"  name="R2D_FLOAT16"/>
+	<value value="0x2"  name="R2D_SNORM8"/>
 	<value value="0x1"  name="R2D_UNORM8_SRGB"/>
-	<value value="0x0"  name="R2D_RAW"/>
+	<value value="0x0"  name="R2D_UNORM8"/>
 </enum>
 
 <enum name="a6xx_tex_type">
@@ -378,6 +378,52 @@ to upconvert to 32b float internally?
 	<value value="0x1" name="TESS_LINES"/>
 	<value value="0x2" name="TESS_CW_TRIS"/>
 	<value value="0x3" name="TESS_CCW_TRIS"/>
+</enum>
+
+<enum name="a6xx_tex_filter"> <!-- same as a4xx? -->
+	<value name="A6XX_TEX_NEAREST" value="0"/>
+	<value name="A6XX_TEX_LINEAR" value="1"/>
+	<value name="A6XX_TEX_ANISO" value="2"/>
+	<value name="A6XX_TEX_CUBIC" value="3"/> <!-- a650 only -->
+</enum>
+
+<enum name="a6xx_tex_clamp"> <!-- same as a4xx? -->
+	<value name="A6XX_TEX_REPEAT" value="0"/>
+	<value name="A6XX_TEX_CLAMP_TO_EDGE" value="1"/>
+	<value name="A6XX_TEX_MIRROR_REPEAT" value="2"/>
+	<value name="A6XX_TEX_CLAMP_TO_BORDER" value="3"/>
+	<value name="A6XX_TEX_MIRROR_CLAMP" value="4"/>
+</enum>
+
+<enum name="a6xx_tex_aniso"> <!-- same as a4xx? -->
+	<value name="A6XX_TEX_ANISO_1" value="0"/>
+	<value name="A6XX_TEX_ANISO_2" value="1"/>
+	<value name="A6XX_TEX_ANISO_4" value="2"/>
+	<value name="A6XX_TEX_ANISO_8" value="3"/>
+	<value name="A6XX_TEX_ANISO_16" value="4"/>
+</enum>
+
+<enum name="a6xx_reduction_mode">
+	<value name="A6XX_REDUCTION_MODE_AVERAGE" value="0"/>
+	<value name="A6XX_REDUCTION_MODE_MIN" value="1"/>
+	<value name="A6XX_REDUCTION_MODE_MAX" value="2"/>
+</enum>
+
+<enum name="a6xx_fast_border_color">
+	<!--                           R B G A -->
+	<value name="A6XX_BORDER_COLOR_0_0_0_0" value="0"/>
+	<value name="A6XX_BORDER_COLOR_0_0_0_1" value="1"/>
+	<value name="A6XX_BORDER_COLOR_1_1_1_0" value="2"/>
+	<value name="A6XX_BORDER_COLOR_1_1_1_1" value="3"/>
+</enum>
+
+<enum name="a6xx_tex_swiz"> <!-- same as a4xx? -->
+	<value name="A6XX_TEX_X" value="0"/>
+	<value name="A6XX_TEX_Y" value="1"/>
+	<value name="A6XX_TEX_Z" value="2"/>
+	<value name="A6XX_TEX_W" value="3"/>
+	<value name="A6XX_TEX_ZERO" value="4"/>
+	<value name="A6XX_TEX_ONE" value="5"/>
 </enum>
 
 </database>

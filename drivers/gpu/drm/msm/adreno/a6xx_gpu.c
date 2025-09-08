@@ -264,8 +264,8 @@ static void a6xx_set_pagetable(struct a6xx_gpu *a6xx_gpu,
 	 * Needed for preemption
 	 */
 	OUT_PKT7(ring, CP_MEM_WRITE, 5);
-	OUT_RING(ring, CP_MEM_WRITE_0_ADDR_LO(lower_32_bits(memptr)));
-	OUT_RING(ring, CP_MEM_WRITE_1_ADDR_HI(upper_32_bits(memptr)));
+	OUT_RING(ring, A5XX_CP_MEM_WRITE_ADDR_LO(lower_32_bits(memptr)));
+	OUT_RING(ring, A5XX_CP_MEM_WRITE_ADDR_HI(upper_32_bits(memptr)));
 	OUT_RING(ring, lower_32_bits(ttbr));
 	OUT_RING(ring, upper_32_bits(ttbr));
 	OUT_RING(ring, ctx->seqno);
@@ -295,9 +295,9 @@ static void a6xx_set_pagetable(struct a6xx_gpu *a6xx_gpu,
 		 */
 		OUT_PKT7(ring, CP_WAIT_REG_MEM, 6);
 		OUT_RING(ring, CP_WAIT_REG_MEM_0_FUNCTION(WRITE_EQ));
-		OUT_RING(ring, CP_WAIT_REG_MEM_1_POLL_ADDR_LO(
+		OUT_RING(ring, CP_WAIT_REG_MEM_POLL_ADDR_LO(
 				REG_A6XX_RBBM_PERFCTR_SRAM_INIT_STATUS));
-		OUT_RING(ring, CP_WAIT_REG_MEM_2_POLL_ADDR_HI(0));
+		OUT_RING(ring, CP_WAIT_REG_MEM_POLL_ADDR_HI(0));
 		OUT_RING(ring, CP_WAIT_REG_MEM_3_REF(0x1));
 		OUT_RING(ring, CP_WAIT_REG_MEM_4_MASK(0x1));
 		OUT_RING(ring, CP_WAIT_REG_MEM_5_DELAY_LOOP_CYCLES(0));
