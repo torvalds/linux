@@ -1848,7 +1848,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 	seq_printf(m,
 		   "\n  node_unreclaimable:  %u"
 		   "\n  start_pfn:           %lu",
-		   pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES,
+		   atomic_read(&pgdat->kswapd_failures) >= MAX_RECLAIM_RETRIES,
 		   zone->zone_start_pfn);
 	seq_putc(m, '\n');
 }
