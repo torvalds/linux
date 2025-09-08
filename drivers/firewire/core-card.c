@@ -289,12 +289,10 @@ static void bm_work(struct work_struct *work)
 		63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
 	};
 	struct fw_card *card __free(card_unref) = from_work(card, work, bm_work.work);
-	struct fw_device *root_device;
 	struct fw_node *root_node __free(node_unref) = NULL;
 	int root_id, new_root_id, irm_id, local_id;
 	int expected_gap_count, generation, grace;
 	bool do_reset = false;
-	bool root_device_is_cmc;
 
 	lockdep_assert_held(&card->lock);
 
@@ -308,8 +306,6 @@ static void bm_work(struct work_struct *work)
 	generation = card->generation;
 
 	root_node = fw_node_get(card->root_node);
-	root_device = fw_node_get_device(root_node);
-	root_device_is_cmc = root_device && root_device->cmc;
 
 	root_id  = root_node->node_id;
 	irm_id   = card->irm_node->node_id;
@@ -519,9 +515,11 @@ static void bm_work(struct work_struct *work)
 		reset_bus(card, card_gap_count != 0);
 		/* Will allocate broadcast channel after the reset. */
 	} else {
+		struct fw_device *root_device = fw_node_get_device(root_node);
+
 		spin_unlock_irq(&card->lock);
 
-		if (root_device_is_cmc) {
+		if (root_device && root_device->cmc) {
 			// Make sure that the cycle master sends cycle start packets.
 			__be32 data = cpu_to_be32(CSR_STATE_BIT_CMSTR);
 			int rcode = fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
