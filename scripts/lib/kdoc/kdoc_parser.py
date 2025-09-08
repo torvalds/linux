@@ -959,15 +959,15 @@ class KernelDoc:
         # - pci_match_device, __copy_to_user (long return type)
 
         name = r'\w+'
-        prototype_end1 = r'[^\(]*'
-        prototype_end2 = r'[^\{]*'
-        prototype_end = fr'\(({prototype_end1}|{prototype_end2})\)'
-
-        # Besides compiling, Perl qr{[\w\s]+} works as a non-capturing group.
-        # So, this needs to be mapped in Python with (?:...)? or (?:...)+
-
         type1 = r'(?:[\w\s]+)?'
         type2 = r'(?:[\w\s]+\*+)+'
+        #
+        # Attempt to match first on (args) with no internal parentheses; this
+        # lets us easily filter out __acquires() and other post-args stuff.  If
+        # that fails, just grab the rest of the line to the last closing
+        # parenthesis.
+        #
+        proto_args = r'\(([^\(]*|.*)\)'
 
         found = False
 
@@ -983,9 +983,9 @@ class KernelDoc:
 
         if not found:
             patterns = [
-                rf'^()({name})\s*{prototype_end}',
-                rf'^({type1})\s+({name})\s*{prototype_end}',
-                rf'^({type2})\s*({name})\s*{prototype_end}',
+                rf'^()({name})\s*{proto_args}',
+                rf'^({type1})\s+({name})\s*{proto_args}',
+                rf'^({type2})\s*({name})\s*{proto_args}',
             ]
 
             for p in patterns:
