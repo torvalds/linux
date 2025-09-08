@@ -16,6 +16,29 @@ enum smbdirect_socket_status {
 	SMBDIRECT_SOCKET_DESTROYED
 };
 
+static __always_inline
+const char *smbdirect_socket_status_string(enum smbdirect_socket_status status)
+{
+	switch (status) {
+	case SMBDIRECT_SOCKET_CREATED:
+		return "CREATED";
+	case SMBDIRECT_SOCKET_CONNECTING:
+		return "CONNECTING";
+	case SMBDIRECT_SOCKET_CONNECTED:
+		return "CONNECTED";
+	case SMBDIRECT_SOCKET_NEGOTIATE_FAILED:
+		return "NEGOTIATE_FAILED";
+	case SMBDIRECT_SOCKET_DISCONNECTING:
+		return "DISCONNECTING";
+	case SMBDIRECT_SOCKET_DISCONNECTED:
+		return "DISCONNECTED";
+	case SMBDIRECT_SOCKET_DESTROYED:
+		return "DESTROYED";
+	}
+
+	return "<unknown>";
+}
+
 struct smbdirect_socket {
 	enum smbdirect_socket_status status;
 
