@@ -1034,9 +1034,6 @@ class KernelDoc:
         typedef1 = KernRe(r'typedef' + typedef_type + r'\(' + typedef_ident + r'\)' + typedef_args)
         typedef2 = KernRe(r'typedef' + typedef_type + typedef_ident + typedef_args)
 
-        # Strip comments
-        proto = KernRe(r'/\*.*?\*/', flags=re.S).sub('', proto)
-
         # Parse function typedef prototypes
         for r in [typedef1, typedef2]:
             if not r.match(proto):
