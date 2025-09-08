@@ -7838,4 +7838,10 @@ int ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw,
 					 int n_vifs,
 					 enum ieee80211_chanctx_switch_mode mode);
 
+/**
+ * ieee80211_vif_nan_started - Return whether a NAN vif is started
+ * @vif: the vif
+ * Return: %true iff the vif is a NAN interface and NAN is started
+ */
+bool ieee80211_vif_nan_started(struct ieee80211_vif *vif);
 #endif /* MAC80211_H */

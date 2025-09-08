@@ -4512,3 +4512,11 @@ void ieee80211_clear_tpe(struct ieee80211_parsed_tpe *tpe)
 		       sizeof(tpe->psd_reg_client[i].power));
 	}
 }
+
+bool ieee80211_vif_nan_started(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	return vif->type == NL80211_IFTYPE_NAN && sdata->u.nan.started;
+}
+EXPORT_SYMBOL_GPL(ieee80211_vif_nan_started);
