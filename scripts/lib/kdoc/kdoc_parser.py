@@ -999,32 +999,28 @@ class KernelDoc:
                                                declaration_name)
                     found = True
                     break
+        #
+        # Parsing done; make sure that things are as we expect.
+        #
         if not found:
             self.emit_msg(ln,
                           f"cannot understand function prototype: '{prototype}'")
             return
-
         if self.entry.identifier != declaration_name:
-            self.emit_msg(ln,
-                          f"expecting prototype for {self.entry.identifier}(). Prototype was for {declaration_name}() instead")
+            self.emit_msg(ln, f"expecting prototype for {self.entry.identifier}(). "
+                          f"Prototype was for {declaration_name}() instead")
             return
-
         self.check_sections(ln, declaration_name, "function")
-
         self.check_return_section(ln, declaration_name, return_type)
+        #
+        # Store the result.
+        #
+        self.output_declaration(decl_type, declaration_name,
+                                typedef=('typedef' in return_type),
+                                functiontype=return_type,
+                                purpose=self.entry.declaration_purpose,
+                                func_macro=func_macro)
 
-        if 'typedef' in return_type:
-            self.output_declaration(decl_type, declaration_name,
-                                    typedef=True,
-                                    functiontype=return_type,
-                                    purpose=self.entry.declaration_purpose,
-                                    func_macro=func_macro)
-        else:
-            self.output_declaration(decl_type, declaration_name,
-                                    typedef=False,
-                                    functiontype=return_type,
-                                    purpose=self.entry.declaration_purpose,
-                                    func_macro=func_macro)
 
     def dump_typedef(self, ln, proto):
         """
