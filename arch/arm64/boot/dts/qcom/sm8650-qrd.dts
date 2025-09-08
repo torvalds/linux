@@ -1002,10 +1002,6 @@
 	vdd3-supply = <&vreg_l5b_3p1>;
 };
 
-&pmk8550_rtc {
-	status = "okay";
-};
-
 &qup_i2c3_data_clk {
 	/* Use internal I2C pull-up */
 	bias-pull-up = <2200>;
