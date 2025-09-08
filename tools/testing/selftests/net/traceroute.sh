@@ -194,6 +194,110 @@ run_traceroute6()
 }
 
 ################################################################################
+# traceroute6 with VRF test
+#
+# Verify that in this scenario
+#
+#        ------------------------ N2
+#         |                    |
+#       ------              ------  N3  ----
+#       | R1 |              | R2 |------|H2|
+#       ------              ------      ----
+#         |                    |
+#        ------------------------ N1
+#                  |
+#                 ----
+#                 |H1|
+#                 ----
+#
+# Where H1's default route goes through R1 and R1's default route goes through
+# R2 over N2, traceroute6 from H1 to H2 reports R2's address on N2 and not N1.
+# The interfaces connecting R2 to the different subnets are membmer in a VRF
+# and the intention is to check that traceroute6 does not report the VRF's
+# address.
+#
+# Addresses are assigned as follows:
+#
+# N1: 2000:101::/64
+# N2: 2000:102::/64
+# N3: 2000:103::/64
+#
+# R1's host part of address: 1
+# R2's host part of address: 2
+# H1's host part of address: 3
+# H2's host part of address: 4
+#
+# For example:
+# the IPv6 address of R1's interface on N2 is 2000:102::1/64
+
+cleanup_traceroute6_vrf()
+{
+	cleanup_all_ns
+}
+
+setup_traceroute6_vrf()
+{
+	# Start clean
+	cleanup_traceroute6_vrf
+
+	setup_ns h1 h2 r1 r2
+	create_ns "$h1"
+	create_ns "$h2"
+	create_ns "$r1"
+	create_ns "$r2"
+
+	ip -n "$r2" link add name vrf100 up type vrf table 100
+	ip -n "$r2" addr add 2001:db8:100::1/64 dev vrf100
+
+	# Setup N3
+	connect_ns "$r2" eth3 - 2000:103::2/64 "$h2" eth3 - 2000:103::4/64
+
+	ip -n "$r2" link set dev eth3 master vrf100
+
+	ip -n "$h2" route add default via 2000:103::2
+
+	# Setup N2
+	connect_ns "$r1" eth2 - 2000:102::1/64 "$r2" eth2 - 2000:102::2/64
+
+	ip -n "$r1" route add default via 2000:102::2
+
+	ip -n "$r2" link set dev eth2 master vrf100
+
+	# Setup N1. host-1 and router-2 connect to a bridge in router-1.
+	ip -n "$r1" link add name br100 up type bridge
+	ip -n "$r1" addr add 2000:101::1/64 dev br100
+
+	connect_ns "$h1" eth0 - 2000:101::3/64 "$r1" eth0 - -
+
+	ip -n "$h1" route add default via 2000:101::1
+
+	ip -n "$r1" link set dev eth0 master br100
+
+	connect_ns "$r2" eth1 - 2000:101::2/64 "$r1" eth1 - -
+
+	ip -n "$r2" link set dev eth1 master vrf100
+
+	ip -n "$r1" link set dev eth1 master br100
+
+	# Prime the network
+	ip netns exec "$h1" ping6 -c5 2000:103::4 >/dev/null 2>&1
+}
+
+run_traceroute6_vrf()
+{
+	setup_traceroute6_vrf
+
+	RET=0
+
+	# traceroute6 host-2 from host-1 (expects 2000:102::2)
+	run_cmd "$h1" "traceroute6 2000:103::4 | grep 2000:102::2"
+	check_err $? "traceroute6 did not return 2000:102::2"
+	log_test "IPv6 traceroute with VRF"
+
+	cleanup_traceroute6_vrf
+}
+
+################################################################################
 # traceroute test
 #
 # Verify that traceroute from H1 to H2 shows 1.0.3.1 and 1.0.1.1 when
@@ -262,12 +366,86 @@ run_traceroute()
 }
 
 ################################################################################
+# traceroute with VRF test
+#
+# Verify that traceroute from H1 to H2 shows 1.0.3.1 and 1.0.1.1 when
+# traceroute uses 1.0.3.3 and 1.0.1.3 as the source IP, respectively. The
+# intention is to check that the kernel does not choose an IP assigned to the
+# VRF device, but rather an address from the VRF port (eth1) that received the
+# packet that generates the ICMP error message.
+#
+#                          1.0.4.1/24 (vrf100)
+#      1.0.3.3/24    1.0.3.1/24
+# ---- 1.0.1.3/24    1.0.1.1/24 ---- 1.0.2.1/24    1.0.2.4/24 ----
+# |H1|--------------------------|R1|--------------------------|H2|
+# ----            N1            ----            N2            ----
+
+cleanup_traceroute_vrf()
+{
+	cleanup_all_ns
+}
+
+setup_traceroute_vrf()
+{
+	# Start clean
+	cleanup_traceroute_vrf
+
+	setup_ns h1 h2 router
+	create_ns "$h1"
+	create_ns "$h2"
+	create_ns "$router"
+
+	ip -n "$router" link add name vrf100 up type vrf table 100
+	ip -n "$router" addr add 1.0.4.1/24 dev vrf100
+
+	connect_ns "$h1" eth0 1.0.1.3/24 - \
+	           "$router" eth1 1.0.1.1/24 -
+
+	ip -n "$h1" addr add 1.0.3.3/24 dev eth0
+	ip -n "$h1" route add default via 1.0.1.1
+
+	ip -n "$router" link set dev eth1 master vrf100
+	ip -n "$router" addr add 1.0.3.1/24 dev eth1
+	ip netns exec "$router" sysctl -qw \
+		net.ipv4.icmp_errors_use_inbound_ifaddr=1
+
+	connect_ns "$h2" eth0 1.0.2.4/24 - \
+	           "$router" eth2 1.0.2.1/24 -
+
+	ip -n "$h2" route add default via 1.0.2.1
+
+	ip -n "$router" link set dev eth2 master vrf100
+
+	# Prime the network
+	ip netns exec "$h1" ping -c5 1.0.2.4 >/dev/null 2>&1
+}
+
+run_traceroute_vrf()
+{
+	setup_traceroute_vrf
+
+	RET=0
+
+	# traceroute host-2 from host-1. Expect a source IP that is on the same
+	# subnet as destination IP of the ICMP error message.
+	run_cmd "$h1" "traceroute -s 1.0.1.3 1.0.2.4 | grep 1.0.1.1"
+	check_err $? "traceroute did not return 1.0.1.1"
+	run_cmd "$h1" "traceroute -s 1.0.3.3 1.0.2.4 | grep 1.0.3.1"
+	check_err $? "traceroute did not return 1.0.3.1"
+	log_test "IPv4 traceroute with VRF"
+
+	cleanup_traceroute_vrf
+}
+
+################################################################################
 # Run tests
 
 run_tests()
 {
 	run_traceroute6
+	run_traceroute6_vrf
 	run_traceroute
+	run_traceroute_vrf
 }
 
 ################################################################################
