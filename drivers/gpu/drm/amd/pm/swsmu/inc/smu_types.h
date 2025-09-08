@@ -279,7 +279,14 @@
 	__SMU_DUMMY_MAP(ResetSDMA), \
 	__SMU_DUMMY_MAP(ResetVCN), \
 	__SMU_DUMMY_MAP(GetStaticMetricsTable), \
-	__SMU_DUMMY_MAP(GetSystemMetricsTable),
+	__SMU_DUMMY_MAP(GetSystemMetricsTable), \
+	__SMU_DUMMY_MAP(GetRASTableVersion), \
+	__SMU_DUMMY_MAP(GetBadPageCount), \
+	__SMU_DUMMY_MAP(GetBadPageMcaAddr), \
+	__SMU_DUMMY_MAP(SetTimestamp), \
+	__SMU_DUMMY_MAP(GetTimestamp), \
+	__SMU_DUMMY_MAP(GetBadPageIpid), \
+	__SMU_DUMMY_MAP(EraseRasTable),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
