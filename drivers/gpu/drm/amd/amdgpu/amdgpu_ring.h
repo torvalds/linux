@@ -114,7 +114,7 @@ struct amdgpu_sched {
  */
 struct amdgpu_fence_driver {
 	uint64_t			gpu_addr;
-	volatile uint32_t		*cpu_addr;
+	uint32_t			*cpu_addr;
 	/* sync_seq is protected by ring emission lock */
 	uint32_t			sync_seq;
 	atomic_t			last_seq;
@@ -298,7 +298,7 @@ struct amdgpu_ring {
 	unsigned int		ring_backup_entries_to_copy;
 	unsigned		rptr_offs;
 	u64			rptr_gpu_addr;
-	volatile u32		*rptr_cpu_addr;
+	u32			*rptr_cpu_addr;
 
 	/**
 	 * @wptr:
@@ -378,19 +378,19 @@ struct amdgpu_ring {
 	 * This is the CPU address pointer in the writeback slot. This is used
 	 * to commit changes to the GPU.
 	 */
-	volatile u32		*wptr_cpu_addr;
+	u32			*wptr_cpu_addr;
 	unsigned		fence_offs;
 	u64			fence_gpu_addr;
-	volatile u32		*fence_cpu_addr;
+	u32			*fence_cpu_addr;
 	uint64_t		current_ctx;
 	char			name[16];
 	u32                     trail_seq;
 	unsigned		trail_fence_offs;
 	u64			trail_fence_gpu_addr;
-	volatile u32		*trail_fence_cpu_addr;
+	u32			*trail_fence_cpu_addr;
 	unsigned		cond_exe_offs;
 	u64			cond_exe_gpu_addr;
-	volatile u32		*cond_exe_cpu_addr;
+	u32			*cond_exe_cpu_addr;
 	unsigned int		set_q_mode_offs;
 	u32			*set_q_mode_ptr;
 	u64			set_q_mode_token;

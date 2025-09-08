@@ -545,7 +545,7 @@ struct amdgpu_wb {
 	 * this value can be accessed directly by using the offset as an index.
 	 * For the GPU address, it is necessary to use gpu_addr and the offset.
 	 */
-	volatile uint32_t	*wb;
+	uint32_t		*wb;
 
 	/**
 	 * @gpu_addr:
