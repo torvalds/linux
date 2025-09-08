@@ -570,9 +570,13 @@ void fw_card_initialize(struct fw_card *card,
 }
 EXPORT_SYMBOL(fw_card_initialize);
 
+DEFINE_FREE(workqueue_destroy, struct workqueue_struct *, if (_T) destroy_workqueue(_T))
+
 int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
 		unsigned int supported_isoc_contexts)
 {
+	struct workqueue_struct *isoc_wq __free(workqueue_destroy) = NULL;
+	struct workqueue_struct *async_wq __free(workqueue_destroy) = NULL;
 	int ret;
 
 	// This workqueue should be:
@@ -587,10 +591,10 @@ int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
 	//  * == WQ_SYSFS		Parameters are available via sysfs.
 	//  * max_active == n_it + n_ir	A hardIRQ could notify events for multiple isochronous
 	//				contexts if they are scheduled to the same cycle.
-	card->isoc_wq = alloc_workqueue("firewire-isoc-card%u",
-					WQ_UNBOUND | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
-					supported_isoc_contexts, card->index);
-	if (!card->isoc_wq)
+	isoc_wq = alloc_workqueue("firewire-isoc-card%u",
+				  WQ_UNBOUND | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
+				  supported_isoc_contexts, card->index);
+	if (!isoc_wq)
 		return -ENOMEM;
 
 	// This workqueue should be:
@@ -602,14 +606,14 @@ int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
 	//  * == WQ_SYSFS		Parameters are available via sysfs.
 	//  * max_active == 4		A hardIRQ could notify events for a pair of requests and
 	//				response AR/AT contexts.
-	card->async_wq = alloc_workqueue("firewire-async-card%u",
-					 WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
-					 4, card->index);
-	if (!card->async_wq) {
-		ret = -ENOMEM;
-		goto err_isoc;
-	}
+	async_wq = alloc_workqueue("firewire-async-card%u",
+				   WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
+				   4, card->index);
+	if (!async_wq)
+		return -ENOMEM;
 
+	card->isoc_wq = isoc_wq;
+	card->async_wq = async_wq;
 	card->max_receive = max_receive;
 	card->link_speed = link_speed;
 	card->guid = guid;
@@ -617,18 +621,18 @@ int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
 	scoped_guard(mutex, &card_mutex) {
 		generate_config_rom(card, tmp_config_rom);
 		ret = card->driver->enable(card, tmp_config_rom, config_rom_length);
-		if (ret < 0)
-			goto err_async;
+		if (ret < 0) {
+			card->isoc_wq = NULL;
+			card->async_wq = NULL;
+			return ret;
+		}
+		retain_and_null_ptr(isoc_wq);
+		retain_and_null_ptr(async_wq);
 
 		list_add_tail(&card->link, &card_list);
 	}
 
 	return 0;
-err_async:
-	destroy_workqueue(card->async_wq);
-err_isoc:
-	destroy_workqueue(card->isoc_wq);
-	return ret;
 }
 EXPORT_SYMBOL(fw_card_add);
 
