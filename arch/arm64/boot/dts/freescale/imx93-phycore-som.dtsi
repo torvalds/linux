@@ -67,7 +67,6 @@
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
 	phy-handle = <&ethphy1>;
-	fsl,magic-packet;
 	assigned-clocks = <&clk IMX93_CLK_ENET_TIMER1>,
 			  <&clk IMX93_CLK_ENET_REF>,
 			  <&clk IMX93_CLK_ENET_REF_PHY>;
