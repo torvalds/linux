@@ -12,19 +12,18 @@
 #include <linux/slab.h>
 
 #include "rcar_gen4_ptp.h"
-#define ptp_to_priv(ptp)	container_of(ptp, struct rcar_gen4_ptp_private, info)
 
-static const struct rcar_gen4_ptp_reg_offset gen4_offs = {
-	.enable = PTPTMEC,
-	.disable = PTPTMDC,
-	.increment = PTPTIVC0,
-	.config_t0 = PTPTOVC00,
-	.config_t1 = PTPTOVC10,
-	.config_t2 = PTPTOVC20,
-	.monitor_t0 = PTPGPTPTM00,
-	.monitor_t1 = PTPGPTPTM10,
-	.monitor_t2 = PTPGPTPTM20,
-};
+#define PTPTMEC_REG		0x0010
+#define PTPTMDC_REG		0x0014
+#define PTPTIVC0_REG		0x0020
+#define PTPTOVC00_REG		0x0030
+#define PTPTOVC10_REG		0x0034
+#define PTPTOVC20_REG		0x0038
+#define PTPGPTPTM00_REG		0x0050
+#define PTPGPTPTM10_REG		0x0054
+#define PTPGPTPTM20_REG		0x0058
+
+#define ptp_to_priv(ptp)	container_of(ptp, struct rcar_gen4_ptp_private, info)
 
 static int rcar_gen4_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
@@ -38,7 +37,7 @@ static int rcar_gen4_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	diff = div_s64(addend * scaled_ppm_to_ppb(scaled_ppm), NSEC_PER_SEC);
 	addend = neg_adj ? addend - diff : addend + diff;
 
-	iowrite32(addend, ptp_priv->addr + ptp_priv->offs->increment);
+	iowrite32(addend, ptp_priv->addr + PTPTIVC0_REG);
 
 	return 0;
 }
@@ -49,9 +48,9 @@ static void _rcar_gen4_ptp_gettime(struct ptp_clock_info *ptp,
 {
 	struct rcar_gen4_ptp_private *ptp_priv = ptp_to_priv(ptp);
 
-	ts->tv_nsec = ioread32(ptp_priv->addr + ptp_priv->offs->monitor_t0);
-	ts->tv_sec = ioread32(ptp_priv->addr + ptp_priv->offs->monitor_t1) |
-		     ((s64)ioread32(ptp_priv->addr + ptp_priv->offs->monitor_t2) << 32);
+	ts->tv_nsec = ioread32(ptp_priv->addr + PTPGPTPTM00_REG);
+	ts->tv_sec = ioread32(ptp_priv->addr + PTPGPTPTM10_REG) |
+		     ((s64)ioread32(ptp_priv->addr + PTPGPTPTM20_REG) << 32);
 }
 
 static int rcar_gen4_ptp_gettime(struct ptp_clock_info *ptp,
@@ -73,14 +72,14 @@ static void _rcar_gen4_ptp_settime(struct ptp_clock_info *ptp,
 {
 	struct rcar_gen4_ptp_private *ptp_priv = ptp_to_priv(ptp);
 
-	iowrite32(1, ptp_priv->addr + ptp_priv->offs->disable);
-	iowrite32(0, ptp_priv->addr + ptp_priv->offs->config_t2);
-	iowrite32(0, ptp_priv->addr + ptp_priv->offs->config_t1);
-	iowrite32(0, ptp_priv->addr + ptp_priv->offs->config_t0);
-	iowrite32(1, ptp_priv->addr + ptp_priv->offs->enable);
-	iowrite32(ts->tv_sec >> 32, ptp_priv->addr + ptp_priv->offs->config_t2);
-	iowrite32(ts->tv_sec, ptp_priv->addr + ptp_priv->offs->config_t1);
-	iowrite32(ts->tv_nsec, ptp_priv->addr + ptp_priv->offs->config_t0);
+	iowrite32(1, ptp_priv->addr + PTPTMDC_REG);
+	iowrite32(0, ptp_priv->addr + PTPTOVC20_REG);
+	iowrite32(0, ptp_priv->addr + PTPTOVC10_REG);
+	iowrite32(0, ptp_priv->addr + PTPTOVC00_REG);
+	iowrite32(1, ptp_priv->addr + PTPTMEC_REG);
+	iowrite32(ts->tv_sec >> 32, ptp_priv->addr + PTPTOVC20_REG);
+	iowrite32(ts->tv_sec, ptp_priv->addr + PTPTOVC10_REG);
+	iowrite32(ts->tv_nsec, ptp_priv->addr + PTPTOVC00_REG);
 }
 
 static int rcar_gen4_ptp_settime(struct ptp_clock_info *ptp,
@@ -130,13 +129,6 @@ static struct ptp_clock_info rcar_gen4_ptp_info = {
 	.enable = rcar_gen4_ptp_enable,
 };
 
-static int rcar_gen4_ptp_set_offs(struct rcar_gen4_ptp_private *ptp_priv)
-{
-	ptp_priv->offs = &gen4_offs;
-
-	return 0;
-}
-
 static s64 rcar_gen4_ptp_rate_to_increment(u32 rate)
 {
 	/* Timer increment in ns.
@@ -149,24 +141,18 @@ static s64 rcar_gen4_ptp_rate_to_increment(u32 rate)
 
 int rcar_gen4_ptp_register(struct rcar_gen4_ptp_private *ptp_priv, u32 rate)
 {
-	int ret;
-
 	if (ptp_priv->initialized)
 		return 0;
 
 	spin_lock_init(&ptp_priv->lock);
 
-	ret = rcar_gen4_ptp_set_offs(ptp_priv);
-	if (ret)
-		return ret;
-
 	ptp_priv->default_addend = rcar_gen4_ptp_rate_to_increment(rate);
-	iowrite32(ptp_priv->default_addend, ptp_priv->addr + ptp_priv->offs->increment);
+	iowrite32(ptp_priv->default_addend, ptp_priv->addr + PTPTIVC0_REG);
 	ptp_priv->clock = ptp_clock_register(&ptp_priv->info, NULL);
 	if (IS_ERR(ptp_priv->clock))
 		return PTR_ERR(ptp_priv->clock);
 
-	iowrite32(0x01, ptp_priv->addr + ptp_priv->offs->enable);
+	iowrite32(0x01, ptp_priv->addr + PTPTMEC_REG);
 	ptp_priv->initialized = true;
 
 	return 0;
@@ -175,7 +161,7 @@ EXPORT_SYMBOL_GPL(rcar_gen4_ptp_register);
 
 int rcar_gen4_ptp_unregister(struct rcar_gen4_ptp_private *ptp_priv)
 {
-	iowrite32(1, ptp_priv->addr + ptp_priv->offs->disable);
+	iowrite32(1, ptp_priv->addr + PTPTMDC_REG);
 
 	return ptp_clock_unregister(ptp_priv->clock);
 }
