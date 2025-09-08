@@ -203,10 +203,10 @@ run_traceroute6()
 # |H1|--------------------------|R1|--------------------------|H2|
 # ----            N1            ----            N2            ----
 #
-# where net.ipv4.icmp_errors_use_inbound_ifaddr is set on R1 and
-# 1.0.3.1/24 and 1.0.1.1/24 are respectively R1's primary and secondary
-# address on N1.
-#
+# where net.ipv4.icmp_errors_use_inbound_ifaddr is set on R1 and 1.0.3.1/24 and
+# 1.0.1.1/24 are R1's primary addresses on N1. The kernel is expected to prefer
+# a source address that is on the same subnet as the destination IP of the ICMP
+# error message.
 
 cleanup_traceroute()
 {
