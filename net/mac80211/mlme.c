@@ -2183,11 +2183,7 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			2 + /* ext capa & op */
 			2; /* EML capa */
 
-		/*
-		 * The capability elements were already considered above;
-		 * note this over-estimates a bit because there's no
-		 * STA profile for the assoc link.
-		 */
+		/* The capability elements were already considered above */
 		size += (n_links - 1) *
 			(1 + 1 + /* subelement ID/length */
 			 2 + /* STA control */
