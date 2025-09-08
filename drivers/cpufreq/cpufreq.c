@@ -2911,6 +2911,7 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 		return -EPROBE_DEFER;
 
 	if (!driver_data || !driver_data->verify || !driver_data->init ||
+	     (driver_data->target_index && driver_data->target) ||
 	     (!!driver_data->setpolicy == (driver_data->target_index || driver_data->target)) ||
 	     (!driver_data->get_intermediate != !driver_data->target_intermediate) ||
 	     (!driver_data->online != !driver_data->offline) ||
