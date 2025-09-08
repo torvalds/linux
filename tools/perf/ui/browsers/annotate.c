@@ -585,7 +585,6 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	struct map_symbol *ms = browser->b.priv, target_ms;
 	struct disasm_line *dl = disasm_line(browser->selection);
 	struct annotation *notes;
-	char title[SYM_TITLE_MAX_SIZE];
 
 	if (!dl->ops.target.sym) {
 		ui_helpline__puts("The called function was not found.");
@@ -607,8 +606,13 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	target_ms.sym = dl->ops.target.sym;
 	annotation__unlock(notes);
 	__hist_entry__tui_annotate(browser->he, &target_ms, evsel, hbt);
-	sym_title(ms->sym, ms->map, title, sizeof(title), annotate_opts.percent_type);
-	ui_browser__show_title(&browser->b, title);
+
+	/*
+	 * The annotate_browser above changed the title with the target function
+	 * and now it's back to the original function.  Refresh the header line
+	 * for the original function again.
+	 */
+	annotate_browser__show_function_title(browser);
 	return true;
 }
 
