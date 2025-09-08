@@ -50,6 +50,9 @@ struct a6xx_bcm {
 /* The GMU does not do any idle state management */
 #define GMU_IDLE_STATE_ACTIVE 0
 
+/* Unknown power state. Not exposed by the firmware. For documentation purpose only */
+#define GMU_IDLE_STATE_RESERVED 1
+
 /* The GMU manages SPTP power collapse */
 #define GMU_IDLE_STATE_SPTP 2
 
