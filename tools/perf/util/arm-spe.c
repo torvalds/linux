@@ -1871,10 +1871,14 @@ int arm_spe_process_auxtrace_info(union perf_event *event,
 	if (dump_trace)
 		return 0;
 
-	if (session->itrace_synth_opts && session->itrace_synth_opts->set)
+	if (session->itrace_synth_opts && session->itrace_synth_opts->set) {
 		spe->synth_opts = *session->itrace_synth_opts;
-	else
+	} else {
 		itrace_synth_opts__set_default(&spe->synth_opts, false);
+		/* Default nanoseconds period not supported */
+		spe->synth_opts.period_type = PERF_ITRACE_PERIOD_INSTRUCTIONS;
+		spe->synth_opts.period = 1;
+	}
 
 	err = arm_spe_synth_events(spe, session);
 	if (err)
