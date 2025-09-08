@@ -76,7 +76,7 @@ static int __init numa_alloc_distance(void)
 		for (j = 0; j < cnt; j++)
 			numa_distance[i * cnt + j] = i == j ?
 				LOCAL_DISTANCE : REMOTE_DISTANCE;
-	printk(KERN_DEBUG "NUMA: Initialized distance table, cnt=%d\n", cnt);
+	pr_debug("NUMA: Initialized distance table, cnt=%d\n", cnt);
 
 	return 0;
 }
@@ -427,9 +427,9 @@ static int __init numa_register_meminfo(struct numa_meminfo *mi)
 		unsigned long pfn_align = node_map_pfn_alignment();
 
 		if (pfn_align && pfn_align < PAGES_PER_SECTION) {
-			unsigned long node_align_mb = PFN_PHYS(pfn_align) >> 20;
+			unsigned long node_align_mb = PFN_PHYS(pfn_align) / SZ_1M;
 
-			unsigned long sect_align_mb = PFN_PHYS(PAGES_PER_SECTION) >> 20;
+			unsigned long sect_align_mb = PFN_PHYS(PAGES_PER_SECTION) / SZ_1M;
 
 			pr_warn("Node alignment %luMB < min %luMB, rejecting NUMA config\n",
 				node_align_mb, sect_align_mb);

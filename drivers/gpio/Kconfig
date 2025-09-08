@@ -3,6 +3,9 @@
 # GPIO infrastructure and drivers
 #
 
+config GPIOLIB_LEGACY
+	def_bool y
+
 menuconfig GPIOLIB
 	bool "GPIO Support"
 	help
@@ -11,9 +14,6 @@ menuconfig GPIOLIB
 	  one or more of the GPIO drivers below.
 
 	  If unsure, say N.
-
-config GPIOLIB_LEGACY
-	def_bool y
 
 if GPIOLIB
 

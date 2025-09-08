@@ -374,7 +374,6 @@ static int dw9768_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 static int dw9768_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	pm_runtime_mark_last_busy(sd->dev);
 	pm_runtime_put_autosuspend(sd->dev);
 
 	return 0;

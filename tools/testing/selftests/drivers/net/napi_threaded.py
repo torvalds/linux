@@ -35,6 +35,8 @@ def _setup_deferred_cleanup(cfg) -> None:
     threaded = cmd(f"cat /sys/class/net/{cfg.ifname}/threaded").stdout
     defer(_set_threaded_state, cfg, threaded)
 
+    return combined
+
 
 def enable_dev_threaded_disable_napi_threaded(cfg, nl) -> None:
     """
@@ -49,7 +51,7 @@ def enable_dev_threaded_disable_napi_threaded(cfg, nl) -> None:
     napi0_id = napis[0]['id']
     napi1_id = napis[1]['id']
 
-    _setup_deferred_cleanup(cfg)
+    qcnt = _setup_deferred_cleanup(cfg)
 
     # set threaded
     _set_threaded_state(cfg, 1)
@@ -62,7 +64,7 @@ def enable_dev_threaded_disable_napi_threaded(cfg, nl) -> None:
     nl.napi_set({'id': napi1_id, 'threaded': 'disabled'})
 
     cmd(f"ethtool -L {cfg.ifname} combined 1")
-    cmd(f"ethtool -L {cfg.ifname} combined 2")
+    cmd(f"ethtool -L {cfg.ifname} combined {qcnt}")
     _assert_napi_threaded_enabled(nl, napi0_id)
     _assert_napi_threaded_disabled(nl, napi1_id)
 
@@ -80,7 +82,7 @@ def change_num_queues(cfg, nl) -> None:
     napi0_id = napis[0]['id']
     napi1_id = napis[1]['id']
 
-    _setup_deferred_cleanup(cfg)
+    qcnt = _setup_deferred_cleanup(cfg)
 
     # set threaded
     _set_threaded_state(cfg, 1)
@@ -90,7 +92,7 @@ def change_num_queues(cfg, nl) -> None:
     _assert_napi_threaded_enabled(nl, napi1_id)
 
     cmd(f"ethtool -L {cfg.ifname} combined 1")
-    cmd(f"ethtool -L {cfg.ifname} combined 2")
+    cmd(f"ethtool -L {cfg.ifname} combined {qcnt}")
 
     # check napi threaded is set for both napis
     _assert_napi_threaded_enabled(nl, napi0_id)

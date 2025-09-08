@@ -5088,16 +5088,22 @@ static int asus_wmi_probe(struct platform_device *pdev)
 
 	asus_s2idle_check_register();
 
-	return asus_wmi_add(pdev);
+	ret = asus_wmi_add(pdev);
+	if (ret)
+		asus_s2idle_check_unregister();
+
+	return ret;
 }
 
 static bool used;
+static DEFINE_MUTEX(register_mutex);
 
 int __init_or_module asus_wmi_register_driver(struct asus_wmi_driver *driver)
 {
 	struct platform_driver *platform_driver;
 	struct platform_device *platform_device;
 
+	guard(mutex)(&register_mutex);
 	if (used)
 		return -EBUSY;
 
@@ -5120,6 +5126,7 @@ EXPORT_SYMBOL_GPL(asus_wmi_register_driver);
 
 void asus_wmi_unregister_driver(struct asus_wmi_driver *driver)
 {
+	guard(mutex)(&register_mutex);
 	asus_s2idle_check_unregister();
 
 	platform_device_unregister(driver->platform_device);

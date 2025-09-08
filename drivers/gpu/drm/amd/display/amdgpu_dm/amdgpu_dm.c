@@ -7792,6 +7792,9 @@ amdgpu_dm_connector_atomic_check(struct drm_connector *conn,
 	struct amdgpu_dm_connector *aconn = to_amdgpu_dm_connector(conn);
 	int ret;
 
+	if (WARN_ON(unlikely(!old_con_state || !new_con_state)))
+		return -EINVAL;
+
 	trace_amdgpu_dm_connector_atomic_check(new_con_state);
 
 	if (conn->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
@@ -8378,8 +8381,7 @@ static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 				drm_add_modes_noedid(connector, 1920, 1080);
 	} else {
 		amdgpu_dm_connector_ddc_get_modes(connector, drm_edid);
-		if (encoder && (connector->connector_type != DRM_MODE_CONNECTOR_eDP) &&
-		    (connector->connector_type != DRM_MODE_CONNECTOR_LVDS))
+		if (encoder)
 			amdgpu_dm_connector_add_common_modes(encoder, connector);
 		amdgpu_dm_connector_add_freesync_modes(connector, drm_edid);
 	}

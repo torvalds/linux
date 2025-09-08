@@ -41,10 +41,10 @@ static const struct wilc_cfg_word g_cfg_word[] = {
 };
 
 static const struct wilc_cfg_str g_cfg_str[] = {
-	{WID_FIRMWARE_VERSION, NULL},
-	{WID_MAC_ADDR, NULL},
-	{WID_ASSOC_RES_INFO, NULL},
-	{WID_NIL, NULL}
+	{WID_FIRMWARE_VERSION, 0, NULL},
+	{WID_MAC_ADDR, 0, NULL},
+	{WID_ASSOC_RES_INFO, 0, NULL},
+	{WID_NIL, 0, NULL}
 };
 
 #define WILC_RESP_MSG_TYPE_CONFIG_REPLY		'R'
@@ -147,44 +147,58 @@ static void wilc_wlan_parse_response_frame(struct wilc *wl, u8 *info, int size)
 
 		switch (FIELD_GET(WILC_WID_TYPE, wid)) {
 		case WID_CHAR:
+			len = 3;
+			if (len + 2  > size)
+				return;
+
 			while (cfg->b[i].id != WID_NIL && cfg->b[i].id != wid)
 				i++;
 
 			if (cfg->b[i].id == wid)
 				cfg->b[i].val = info[4];
 
-			len = 3;
 			break;
 
 		case WID_SHORT:
+			len = 4;
+			if (len + 2  > size)
+				return;
+
 			while (cfg->hw[i].id != WID_NIL && cfg->hw[i].id != wid)
 				i++;
 
 			if (cfg->hw[i].id == wid)
 				cfg->hw[i].val = get_unaligned_le16(&info[4]);
 
-			len = 4;
 			break;
 
 		case WID_INT:
+			len = 6;
+			if (len + 2  > size)
+				return;
+
 			while (cfg->w[i].id != WID_NIL && cfg->w[i].id != wid)
 				i++;
 
 			if (cfg->w[i].id == wid)
 				cfg->w[i].val = get_unaligned_le32(&info[4]);
 
-			len = 6;
 			break;
 
 		case WID_STR:
+			len = 2 + get_unaligned_le16(&info[2]);
+
 			while (cfg->s[i].id != WID_NIL && cfg->s[i].id != wid)
 				i++;
 
-			if (cfg->s[i].id == wid)
-				memcpy(cfg->s[i].str, &info[2],
-				       get_unaligned_le16(&info[2]) + 2);
+			if (cfg->s[i].id == wid) {
+				if (len > cfg->s[i].len || (len + 2  > size))
+					return;
 
-			len = 2 + get_unaligned_le16(&info[2]);
+				memcpy(cfg->s[i].str, &info[2],
+				       len);
+			}
+
 			break;
 
 		default:
@@ -384,12 +398,15 @@ int wilc_wlan_cfg_init(struct wilc *wl)
 	/* store the string cfg parameters */
 	wl->cfg.s[i].id = WID_FIRMWARE_VERSION;
 	wl->cfg.s[i].str = str_vals->firmware_version;
+	wl->cfg.s[i].len = sizeof(str_vals->firmware_version);
 	i++;
 	wl->cfg.s[i].id = WID_MAC_ADDR;
 	wl->cfg.s[i].str = str_vals->mac_address;
+	wl->cfg.s[i].len = sizeof(str_vals->mac_address);
 	i++;
 	wl->cfg.s[i].id = WID_ASSOC_RES_INFO;
 	wl->cfg.s[i].str = str_vals->assoc_rsp;
+	wl->cfg.s[i].len = sizeof(str_vals->assoc_rsp);
 	i++;
 	wl->cfg.s[i].id = WID_NIL;
 	wl->cfg.s[i].str = NULL;

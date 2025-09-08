@@ -373,11 +373,6 @@ struct mlx5_eswitch {
 		refcount_t refcnt;
 		u32 root_tsar_ix;
 		struct mlx5_qos_domain *domain;
-		/* Contains all vports with QoS enabled but no explicit node.
-		 * Cannot be NULL if QoS is enabled, but may be a fake node
-		 * referencing the root TSAR if the esw doesn't support nodes.
-		 */
-		struct mlx5_esw_sched_node *node0;
 	} qos;
 
 	struct mlx5_esw_bridge_offloads *br_offloads;

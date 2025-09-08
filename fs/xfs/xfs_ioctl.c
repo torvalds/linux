@@ -219,7 +219,7 @@ xfs_bulk_ireq_setup(
 		else if (XFS_INO_TO_AGNO(mp, breq->startino) < hdr->agno)
 			return -EINVAL;
 
-		breq->flags |= XFS_IBULK_SAME_AG;
+		breq->iwalk_flags |= XFS_IWALK_SAME_AG;
 
 		/* Asking for an inode past the end of the AG?  We're done! */
 		if (XFS_INO_TO_AGNO(mp, breq->startino) > hdr->agno)

@@ -654,11 +654,10 @@ int amdgpu_vm_validate(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  * Check if all VM PDs/PTs are ready for updates
  *
  * Returns:
- * True if VM is not evicting.
+ * True if VM is not evicting and all VM entities are not stopped
  */
 bool amdgpu_vm_ready(struct amdgpu_vm *vm)
 {
-	bool empty;
 	bool ret;
 
 	amdgpu_vm_eviction_lock(vm);
@@ -666,10 +665,18 @@ bool amdgpu_vm_ready(struct amdgpu_vm *vm)
 	amdgpu_vm_eviction_unlock(vm);
 
 	spin_lock(&vm->status_lock);
-	empty = list_empty(&vm->evicted);
+	ret &= list_empty(&vm->evicted);
 	spin_unlock(&vm->status_lock);
 
-	return ret && empty;
+	spin_lock(&vm->immediate.lock);
+	ret &= !vm->immediate.stopped;
+	spin_unlock(&vm->immediate.lock);
+
+	spin_lock(&vm->delayed.lock);
+	ret &= !vm->delayed.stopped;
+	spin_unlock(&vm->delayed.lock);
+
+	return ret;
 }
 
 /**
@@ -1276,7 +1283,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 		struct drm_gem_object *obj = &bo->tbo.base;
 
 		if (drm_gem_is_imported(obj) && bo_va->is_xgmi) {
-			struct dma_buf *dma_buf = obj->dma_buf;
+			struct dma_buf *dma_buf = obj->import_attach->dmabuf;
 			struct drm_gem_object *gobj = dma_buf->priv;
 			struct amdgpu_bo *abo = gem_to_amdgpu_bo(gobj);
 
