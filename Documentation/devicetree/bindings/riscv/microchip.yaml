@@ -34,6 +34,11 @@ properties:
           - const: microchip,mpfs
 
       - items:
+          - const: microchip,mpfs-disco-kit-reference-rtl-v2507
+          - const: microchip,mpfs-disco-kit
+          - const: microchip,mpfs
+
+      - items:
           - enum:
               - aldec,tysom-m-mpfs250t-rev2
               - aries,m100pfsevp
