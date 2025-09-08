@@ -275,7 +275,7 @@ struct amdgpu_rlc {
 	/* for power gating */
 	struct amdgpu_bo        *save_restore_obj;
 	uint64_t                save_restore_gpu_addr;
-	volatile uint32_t       *sr_ptr;
+	uint32_t		*sr_ptr;
 	const u32               *reg_list;
 	u32                     reg_list_size;
 	/* for clear state */
@@ -287,7 +287,7 @@ struct amdgpu_rlc {
 	/* for cp tables */
 	struct amdgpu_bo        *cp_table_obj;
 	uint64_t                cp_table_gpu_addr;
-	volatile uint32_t       *cp_table_ptr;
+	uint32_t		*cp_table_ptr;
 	u32                     cp_table_size;
 
 	/* safe mode for updating CG/PG state */
