@@ -63,6 +63,7 @@
 
 #define SAMA7G5_QSPI0_MAX_SPEED_HZ	200000000
 #define SAMA7G5_QSPI1_SDR_MAX_SPEED_HZ	133000000
+#define SAM9X7_QSPI_MAX_SPEED_HZ	100000000
 
 /* Bitfields in QSPI_CR (Control Register) */
 #define QSPI_CR_QSPIEN                  BIT(0)
@@ -1627,6 +1628,16 @@ static const struct atmel_qspi_caps atmel_sam9x60_qspi_caps = {
 	.has_ricr = true,
 };
 
+static const struct atmel_qspi_caps atmel_sam9x7_ospi_caps = {
+	.max_speed_hz = SAM9X7_QSPI_MAX_SPEED_HZ,
+	.has_gclk = true,
+	.octal = true,
+	.has_dma = true,
+	.has_2xgclk = true,
+	.has_padcalib = false,
+	.has_dllon = false,
+};
+
 static const struct atmel_qspi_caps atmel_sama7g5_ospi_caps = {
 	.max_speed_hz = SAMA7G5_QSPI0_MAX_SPEED_HZ,
 	.has_gclk = true,
@@ -1659,6 +1670,10 @@ static const struct of_device_id atmel_qspi_dt_ids[] = {
 	{
 		.compatible = "microchip,sama7g5-qspi",
 		.data = &atmel_sama7g5_qspi_caps,
+	},
+	{
+		.compatible = "microchip,sam9x7-ospi",
+		.data = &atmel_sam9x7_ospi_caps,
 	},
 
 	{ /* sentinel */ }
