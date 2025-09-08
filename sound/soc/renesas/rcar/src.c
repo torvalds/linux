@@ -558,19 +558,16 @@ static void __rsnd_src_interrupt(struct rsnd_mod *mod,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	bool stop = false;
 
-	spin_lock(&priv->lock);
+	scoped_guard(spinlock, &priv->lock) {
+		/* ignore all cases if not working */
+		if (!rsnd_io_is_working(io))
+			break;
 
-	/* ignore all cases if not working */
-	if (!rsnd_io_is_working(io))
-		goto rsnd_src_interrupt_out;
+		if (rsnd_src_error_occurred(mod))
+			stop = true;
 
-	if (rsnd_src_error_occurred(mod))
-		stop = true;
-
-	rsnd_src_status_clear(mod);
-rsnd_src_interrupt_out:
-
-	spin_unlock(&priv->lock);
+		rsnd_src_status_clear(mod);
+	}
 
 	if (stop)
 		snd_pcm_stop_xrun(io->substream);
