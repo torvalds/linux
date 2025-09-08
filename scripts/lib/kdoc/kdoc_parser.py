@@ -1060,11 +1060,6 @@ class KernelDoc:
                                     purpose=self.entry.declaration_purpose)
             return
 
-        # Handle nested parentheses or brackets
-        r = KernRe(r'(\(*.\)\s*|\[*.\]\s*);$')
-        while r.search(proto):
-            proto = r.sub('', proto)
-
         # Parse simple typedefs
         r = KernRe(r'typedef.*\s+(\w+)\s*;')
         if r.match(proto):
