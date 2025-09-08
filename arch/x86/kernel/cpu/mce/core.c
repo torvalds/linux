@@ -1807,8 +1807,9 @@ static void __mcheck_cpu_mce_banks_init(void)
 		struct mce_bank *b = &mce_banks[i];
 
 		/*
-		 * Init them all, __mcheck_cpu_apply_quirks() is going to apply
-		 * the required vendor quirks before
+		 * Init them all by default.
+		 *
+		 * The required vendor quirks will be applied before
 		 * __mcheck_cpu_init_prepare_banks() does the final bank setup.
 		 */
 		b->ctl = -1ULL;
@@ -1880,20 +1881,8 @@ static void __mcheck_cpu_init_prepare_banks(void)
 	}
 }
 
-static void apply_quirks_amd(struct cpuinfo_x86 *c)
+static void amd_apply_global_quirks(struct cpuinfo_x86 *c)
 {
-	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
-
-	/* This should be disabled by the BIOS, but isn't always */
-	if (c->x86 == 15 && this_cpu_read(mce_num_banks) > 4) {
-		/*
-		 * disable GART TBL walk error reporting, which
-		 * trips off incorrectly with the IOMMU & 3ware
-		 * & Cerberus:
-		 */
-		clear_bit(10, (unsigned long *)&mce_banks[4].ctl);
-	}
-
 	if (c->x86 < 0x11 && mca_cfg.bootlog < 0) {
 		/*
 		 * Lots of broken BIOS around that don't clear them
@@ -1901,13 +1890,6 @@ static void apply_quirks_amd(struct cpuinfo_x86 *c)
 		 */
 		mca_cfg.bootlog = 0;
 	}
-
-	/*
-	 * Various K7s with broken bank 0 around. Always disable
-	 * by default.
-	 */
-	if (c->x86 == 6 && this_cpu_read(mce_num_banks))
-		mce_banks[0].ctl = 0;
 
 	/*
 	 * overflow_recov is supported for F15h Models 00h-0fh
@@ -1920,24 +1902,11 @@ static void apply_quirks_amd(struct cpuinfo_x86 *c)
 		mce_flags.zen_ifu_quirk = 1;
 }
 
-static void apply_quirks_intel(struct cpuinfo_x86 *c)
+static void intel_apply_global_quirks(struct cpuinfo_x86 *c)
 {
-	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
-
 	/* Older CPUs (prior to family 6) don't need quirks. */
 	if (c->x86_vfm < INTEL_PENTIUM_PRO)
 		return;
-
-	/*
-	 * SDM documents that on family 6 bank 0 should not be written
-	 * because it aliases to another special BIOS controlled
-	 * register.
-	 * But it's not aliased anymore on model 0x1a+
-	 * Don't ignore bank 0 completely because there could be a
-	 * valid event later, merely don't write CTL0.
-	 */
-	if (c->x86_vfm < INTEL_NEHALEM_EP && this_cpu_read(mce_num_banks))
-		mce_banks[0].init = false;
 
 	/*
 	 * All newer Intel systems support MCE broadcasting. Enable
@@ -1964,7 +1933,7 @@ static void apply_quirks_intel(struct cpuinfo_x86 *c)
 		mce_flags.skx_repmov_quirk = 1;
 }
 
-static void apply_quirks_zhaoxin(struct cpuinfo_x86 *c)
+static void zhaoxin_apply_global_quirks(struct cpuinfo_x86 *c)
 {
 	/*
 	 * All newer Zhaoxin CPUs support MCE broadcasting. Enable
@@ -1974,29 +1943,6 @@ static void apply_quirks_zhaoxin(struct cpuinfo_x86 *c)
 		if (mca_cfg.monarch_timeout < 0)
 			mca_cfg.monarch_timeout = USEC_PER_SEC;
 	}
-}
-
-/* Add per CPU specific workarounds here */
-static void __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
-{
-	struct mca_config *cfg = &mca_cfg;
-
-	switch (c->x86_vendor) {
-	case X86_VENDOR_AMD:
-		apply_quirks_amd(c);
-		break;
-	case X86_VENDOR_INTEL:
-		apply_quirks_intel(c);
-		break;
-	case X86_VENDOR_ZHAOXIN:
-		apply_quirks_zhaoxin(c);
-		break;
-	}
-
-	if (cfg->monarch_timeout < 0)
-		cfg->monarch_timeout = 0;
-	if (cfg->bootlog != 0)
-		cfg->panic_timeout = 30;
 }
 
 static bool __mcheck_cpu_ancient_init(struct cpuinfo_x86 *c)
@@ -2256,6 +2202,23 @@ void mca_bsp_init(struct cpuinfo_x86 *c)
 
 	if (cap & MCG_SER_P)
 		mca_cfg.ser = 1;
+
+	switch (c->x86_vendor) {
+	case X86_VENDOR_AMD:
+		amd_apply_global_quirks(c);
+		break;
+	case X86_VENDOR_INTEL:
+		intel_apply_global_quirks(c);
+		break;
+	case X86_VENDOR_ZHAOXIN:
+		zhaoxin_apply_global_quirks(c);
+		break;
+	}
+
+	if (mca_cfg.monarch_timeout < 0)
+		mca_cfg.monarch_timeout = 0;
+	if (mca_cfg.bootlog != 0)
+		mca_cfg.panic_timeout = 30;
 }
 
 /*
@@ -2274,8 +2237,6 @@ void mcheck_cpu_init(struct cpuinfo_x86 *c)
 		return;
 
 	__mcheck_cpu_cap_init();
-
-	__mcheck_cpu_apply_quirks(c);
 
 	if (!mce_gen_pool_init()) {
 		mca_cfg.disabled = 1;
