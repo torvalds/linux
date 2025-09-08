@@ -291,7 +291,7 @@ static void bm_work(struct work_struct *work)
 	struct fw_card *card __free(card_unref) = from_work(card, work, bm_work.work);
 	struct fw_device *root_device, *irm_device;
 	struct fw_node *root_node __free(node_unref) = NULL;
-	int root_id, new_root_id, irm_id, bm_id, local_id;
+	int root_id, new_root_id, irm_id, local_id;
 	int gap_count, generation, grace;
 	bool do_reset = false;
 	bool root_device_is_running;
@@ -376,19 +376,22 @@ static void bm_work(struct work_struct *work)
 		if (rcode == RCODE_GENERATION)
 			return;
 
-		bm_id = be32_to_cpu(data[0]);
+		spin_lock_irq(&card->lock);
 
-		scoped_guard(spinlock_irq, &card->lock) {
-			if (rcode == RCODE_COMPLETE && generation == card->generation)
-				card->bm_node_id =
-				    bm_id == 0x3f ? local_id : 0xffc0 | bm_id;
-		}
+		if (rcode == RCODE_COMPLETE) {
+			int bm_id = be32_to_cpu(data[0]);
 
-		if (rcode == RCODE_COMPLETE && bm_id != 0x3f) {
-			/* Somebody else is BM.  Only act as IRM. */
-			if (local_id == irm_id)
-				allocate_broadcast_channel(card, generation);
-			return;
+			if (generation == card->generation)
+				card->bm_node_id = bm_id == 0x3f ? local_id : 0xffc0 | bm_id;
+
+			if (bm_id != 0x3f) {
+				spin_unlock_irq(&card->lock);
+
+				// Somebody else is BM.  Only act as IRM.
+				if (local_id == irm_id)
+					allocate_broadcast_channel(card, generation);
+				return;
+			}
 		}
 
 		if (rcode == RCODE_SEND_ERROR) {
@@ -397,11 +400,10 @@ static void bm_work(struct work_struct *work)
 			 * some local problem.  Let's try again later and hope
 			 * that the problem has gone away by then.
 			 */
+			spin_unlock_irq(&card->lock);
 			fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 8));
 			return;
 		}
-
-		spin_lock_irq(&card->lock);
 
 		if (rcode != RCODE_COMPLETE && !keep_this_irm) {
 			/*
