@@ -5,7 +5,6 @@
 
 #include <linux/module.h>
 
-#include "mcdi.h"
 #include "mcdi_functions.h"
 
 int cdx_mcdi_get_num_buses(struct cdx_mcdi *cdx)
