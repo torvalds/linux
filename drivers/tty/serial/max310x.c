@@ -823,17 +823,28 @@ static irqreturn_t max310x_ist(int irq, void *dev_id)
 	bool handled = false;
 
 	if (s->devtype->nr > 1) {
+		bool done;
+
 		do {
 			unsigned int val = ~0;
+			unsigned long irq;
+			unsigned int port;
+
+			done = true;
 
 			WARN_ON_ONCE(regmap_read(s->regmap,
 						 MAX310X_GLOBALIRQ_REG, &val));
-			val = ((1 << s->devtype->nr) - 1) & ~val;
-			if (!val)
-				break;
-			if (max310x_port_irq(s, fls(val) - 1) == IRQ_HANDLED)
-				handled = true;
-		} while (1);
+
+			irq = val;
+
+			for_each_clear_bit(port, &irq, s->devtype->nr) {
+				done = false;
+
+				if (max310x_port_irq(s, port) == IRQ_HANDLED)
+					handled = true;
+			}
+
+		} while (!done);
 	} else {
 		if (max310x_port_irq(s, 0) == IRQ_HANDLED)
 			handled = true;
