@@ -93,6 +93,14 @@ properties:
     minimum: 400000
     maximum: 384000000
 
+  max-sd-hs-hz:
+    description: |
+      Maximum frequency (in Hz) to be used for SD cards operating in
+      High-Speed (HS) mode.
+    minimum: 400000
+    maximum: 50000000
+    default: 50000000
+
   disable-wp:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
