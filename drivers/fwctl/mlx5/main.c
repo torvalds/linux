@@ -188,6 +188,7 @@ static bool mlx5ctl_validate_rpc(const void *in, enum fwctl_rpc_scope scope)
 	 * filter commands manually for now.
 	 */
 	switch (opcode) {
+	case MLX5_CMD_OP_MODIFY_CONG_STATUS:
 	case MLX5_CMD_OP_POSTPONE_CONNECTED_QP_TIMEOUT:
 	case MLX5_CMD_OP_QUERY_ADAPTER:
 	case MLX5_CMD_OP_QUERY_ESW_FUNCTIONS:
