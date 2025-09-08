@@ -834,6 +834,9 @@ static inline void __lru_add_drain_all(bool force_all_cpus)
 	 */
 	this_gen = smp_load_acquire(&lru_drain_gen);
 
+	/* It helps everyone if we do our own local drain immediately. */
+	lru_add_drain();
+
 	mutex_lock(&lock);
 
 	/*
