@@ -31,6 +31,7 @@
 #include "xe_reg_whitelist.h"
 #include "xe_sa.h"
 #include "xe_sriov.h"
+#include "xe_sriov_vf_ccs.h"
 #include "xe_tuning.h"
 #include "xe_uc_debugfs.h"
 #include "xe_wa.h"

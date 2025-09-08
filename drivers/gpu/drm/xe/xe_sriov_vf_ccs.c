@@ -220,8 +220,7 @@ int xe_sriov_vf_ccs_register_context(struct xe_device *xe)
 	struct xe_tile_vf_ccs *ctx;
 	int err;
 
-	if (!IS_VF_CCS_READY(xe))
-		return 0;
+	xe_assert(xe, IS_VF_CCS_READY(xe));
 
 	for_each_ccs_rw_ctx(ctx_id) {
 		ctx = &tile->sriov.vf.ccs[ctx_id];
@@ -331,8 +330,7 @@ int xe_sriov_vf_ccs_attach_bo(struct xe_bo *bo)
 	struct xe_bb *bb;
 	int err = 0;
 
-	if (!IS_VF_CCS_READY(xe))
-		return 0;
+	xe_assert(xe, IS_VF_CCS_READY(xe));
 
 	tile = xe_device_get_root_tile(xe);
 
@@ -363,7 +361,9 @@ int xe_sriov_vf_ccs_detach_bo(struct xe_bo *bo)
 	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
 	struct xe_bb *bb;
 
-	if (!IS_VF_CCS_READY(xe))
+	xe_assert(xe, IS_VF_CCS_READY(xe));
+
+	if (!IS_VF_CCS_BB_VALID(xe, bo))
 		return 0;
 
 	for_each_ccs_rw_ctx(ctx_id) {

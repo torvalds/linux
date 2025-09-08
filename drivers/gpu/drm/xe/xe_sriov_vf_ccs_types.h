@@ -9,12 +9,6 @@
 #define for_each_ccs_rw_ctx(id__) \
 	for ((id__) = 0; (id__) < XE_SRIOV_VF_CCS_CTX_COUNT; (id__)++)
 
-#define IS_VF_CCS_READY(xe) ({ \
-		struct xe_device *___xe = (xe); \
-		xe_assert(___xe, IS_SRIOV_VF(___xe)); \
-		___xe->sriov.vf.ccs.initialized; \
-		})
-
 enum xe_sriov_vf_ccs_rw_ctxs {
 	XE_SRIOV_VF_CCS_READ_CTX,
 	XE_SRIOV_VF_CCS_WRITE_CTX,
