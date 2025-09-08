@@ -2528,7 +2528,7 @@ static void guc_exec_queue_print(struct xe_exec_queue *q, struct drm_printer *p)
 }
 
 /**
- * xe_guc_register_exec_queue - Register exec queue for a given context type.
+ * xe_guc_register_vf_exec_queue - Register exec queue for a given context type.
  * @q: Execution queue
  * @ctx_type: Type of the context
  *
@@ -2539,15 +2539,17 @@ static void guc_exec_queue_print(struct xe_exec_queue *q, struct drm_printer *p)
  *
  * Returns - None.
  */
-void xe_guc_register_exec_queue(struct xe_exec_queue *q, int ctx_type)
+void xe_guc_register_vf_exec_queue(struct xe_exec_queue *q, int ctx_type)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
+	struct xe_gt *gt = guc_to_gt(guc);
 
-	xe_assert(xe, IS_SRIOV_VF(xe));
-	xe_assert(xe, !IS_DGFX(xe));
-	xe_assert(xe, (ctx_type > GUC_CONTEXT_NORMAL &&
-		       ctx_type < GUC_CONTEXT_COUNT));
+	xe_gt_assert(gt, IS_SRIOV_VF(xe));
+	xe_gt_assert(gt, !IS_DGFX(xe));
+	xe_gt_assert(gt, ctx_type == GUC_CONTEXT_COMPRESSION_SAVE ||
+		     ctx_type == GUC_CONTEXT_COMPRESSION_RESTORE);
+	xe_gt_assert(gt, GUC_SUBMIT_VER(guc) >= MAKE_GUC_VER(1, 23, 0));
 
 	register_exec_queue(q, ctx_type);
 	enable_scheduling(q);

@@ -186,7 +186,6 @@ static void ccs_rw_update_ring(struct xe_tile_vf_ccs *ctx)
 
 static int register_save_restore_context(struct xe_tile_vf_ccs *ctx)
 {
-	int err = -EINVAL;
 	int ctx_type;
 
 	switch (ctx->ctx_id) {
@@ -197,10 +196,10 @@ static int register_save_restore_context(struct xe_tile_vf_ccs *ctx)
 		ctx_type = GUC_CONTEXT_COMPRESSION_RESTORE;
 		break;
 	default:
-		return err;
+		return -EINVAL;
 	}
 
-	xe_guc_register_exec_queue(ctx->mig_q, ctx_type);
+	xe_guc_register_vf_exec_queue(ctx->mig_q, ctx_type);
 	return 0;
 }
 
