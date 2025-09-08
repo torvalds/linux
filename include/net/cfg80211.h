@@ -3913,6 +3913,38 @@ struct cfg80211_qos_map {
 };
 
 /**
+ * struct cfg80211_nan_band_config - NAN band specific configuration
+ *
+ * @chan: Pointer to the IEEE 802.11 channel structure. The channel to be used
+ *	for NAN operations on this band. For 2.4 GHz band, this is always
+ *	channel 6. For 5 GHz band, the channel is either 44 or 149, according
+ *	to the regulatory constraints. If chan pointer is NULL the entire band
+ *	configuration entry is considered invalid and should not be used.
+ * @rssi_close: RSSI close threshold used for NAN state transition algorithm
+ *	as described in chapters 3.3.6 and 3.3.7 "NAN Device Role and State
+ *	Transition" of Wi-Fi Aware Specification v4.0. If not
+ *	specified (set to 0), default device value is used. The value should
+ *	be greater than -60 dBm.
+ * @rssi_middle: RSSI middle threshold used for NAN state transition algorithm.
+ *	as described in chapters 3.3.6 and 3.3.7 "NAN Device Role and State
+ *	Transition" of Wi-Fi Aware Specification v4.0. If not
+ *	specified (set to 0), default device value is used. The value should be
+ *	greater than -75 dBm and less than rssi_close.
+ * @awake_dw_interval: Committed DW interval. Valid values range: 0-5. 0
+ *	indicates no wakeup for DW and can't be used on 2.4GHz band, otherwise
+ *	2^(n-1).
+ * @disable_scan: If true, the device will not scan this band for cluster
+ *	 merge. Disabling scan on 2.4 GHz band is not allowed.
+ */
+struct cfg80211_nan_band_config {
+	struct ieee80211_channel *chan;
+	s8 rssi_close;
+	s8 rssi_middle;
+	u8 awake_dw_interval;
+	bool disable_scan;
+};
+
+/**
  * struct cfg80211_nan_conf - NAN configuration
  *
  * This struct defines NAN configuration parameters
@@ -3921,10 +3953,31 @@ struct cfg80211_qos_map {
  * @bands: operating bands, a bitmap of &enum nl80211_band values.
  *	For instance, for NL80211_BAND_2GHZ, bit 0 would be set
  *	(i.e. BIT(NL80211_BAND_2GHZ)).
+ * @cluster_id: cluster ID used for NAN synchronization. This is a MAC address
+ *	that can take a value from 50-6F-9A-01-00-00 to 50-6F-9A-01-FF-FF.
+ *	If NULL, the device will pick a random Cluster ID.
+ * @scan_period: period (in seconds) between NAN scans.
+ * @scan_dwell_time: dwell time (in milliseconds) for NAN scans.
+ * @discovery_beacon_interval: interval (in TUs) for discovery beacons.
+ * @band_cfgs: array of band specific configurations, indexed by
+ *	&enum nl80211_band values.
+ * @extra_nan_attrs: pointer to additional NAN attributes.
+ * @extra_nan_attrs_len: length of the additional NAN attributes.
+ * @vendor_elems: pointer to vendor-specific elements.
+ * @vendor_elems_len: length of the vendor-specific elements.
  */
 struct cfg80211_nan_conf {
 	u8 master_pref;
 	u8 bands;
+	const u8 *cluster_id;
+	u16 scan_period;
+	u16 scan_dwell_time;
+	u8 discovery_beacon_interval;
+	struct cfg80211_nan_band_config band_cfgs[NUM_NL80211_BANDS];
+	const u8 *extra_nan_attrs;
+	u16 extra_nan_attrs_len;
+	const u8 *vendor_elems;
+	u16 vendor_elems_len;
 };
 
 /**
@@ -3933,10 +3986,17 @@ struct cfg80211_nan_conf {
  *
  * @CFG80211_NAN_CONF_CHANGED_PREF: master preference
  * @CFG80211_NAN_CONF_CHANGED_BANDS: operating bands
+ * @CFG80211_NAN_CONF_CHANGED_CONFIG: changed additional configuration.
+ *	When this flag is set, it indicates that some additional attribute(s)
+ *	(other then master_pref and bands) have been changed. In this case,
+ *	all the unchanged attributes will be properly configured to their
+ *	previous values. The driver doesn't need to store any
+ *	previous configuration besides master_pref and bands.
  */
 enum cfg80211_nan_conf_changes {
 	CFG80211_NAN_CONF_CHANGED_PREF = BIT(0),
 	CFG80211_NAN_CONF_CHANGED_BANDS = BIT(1),
+	CFG80211_NAN_CONF_CHANGED_CONFIG = BIT(2),
 };
 
 /**

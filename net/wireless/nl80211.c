@@ -312,6 +312,26 @@ static int validate_supported_selectors(const struct nlattr *attr,
 	return 0;
 }
 
+static int validate_nan_cluster_id(const struct nlattr *attr,
+				   struct netlink_ext_ack *extack)
+{
+	const u8 *data = nla_data(attr);
+	unsigned int len = nla_len(attr);
+	static const u8 cluster_id_prefix[4] = {0x50, 0x6f, 0x9a, 0x1};
+
+	if (len != ETH_ALEN) {
+		NL_SET_ERR_MSG_ATTR(extack, attr, "bad cluster id length");
+		return -EINVAL;
+	}
+
+	if (memcmp(data, cluster_id_prefix, sizeof(cluster_id_prefix))) {
+		NL_SET_ERR_MSG_ATTR(extack, attr, "invalid cluster id prefix");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* policy for the attributes */
 static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR];
 
@@ -498,6 +518,35 @@ nl80211_s1g_short_beacon[NL80211_S1G_SHORT_BEACON_ATTR_MAX + 1] = {
 	[NL80211_S1G_SHORT_BEACON_ATTR_TAIL] =
 		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_ie_attr,
 				       IEEE80211_MAX_DATA_LEN),
+};
+
+static const struct nla_policy
+nl80211_nan_band_conf_policy[NL80211_NAN_BAND_CONF_ATTR_MAX + 1] = {
+	[NL80211_NAN_BAND_CONF_BAND] = NLA_POLICY_MAX(NLA_U8,
+						      NUM_NL80211_BANDS - 1),
+	[NL80211_NAN_BAND_CONF_FREQ] = { .type = NLA_U16 },
+	[NL80211_NAN_BAND_CONF_RSSI_CLOSE] = NLA_POLICY_MIN(NLA_S8, -59),
+	[NL80211_NAN_BAND_CONF_RSSI_MIDDLE] = NLA_POLICY_MIN(NLA_S8, -74),
+	[NL80211_NAN_BAND_CONF_WAKE_DW] = NLA_POLICY_MAX(NLA_U8, 5),
+	[NL80211_NAN_BAND_CONF_DISABLE_SCAN] = { .type = NLA_FLAG },
+};
+
+static const struct nla_policy
+nl80211_nan_conf_policy[NL80211_NAN_CONF_ATTR_MAX + 1] = {
+	[NL80211_NAN_CONF_CLUSTER_ID] =
+		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_nan_cluster_id,
+				       ETH_ALEN),
+	[NL80211_NAN_CONF_EXTRA_ATTRS] = { .type = NLA_BINARY,
+					   .len = IEEE80211_MAX_DATA_LEN},
+	[NL80211_NAN_CONF_VENDOR_ELEMS] =
+		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_ie_attr,
+				       IEEE80211_MAX_DATA_LEN),
+	[NL80211_NAN_CONF_BAND_CONFIGS] =
+		NLA_POLICY_NESTED_ARRAY(nl80211_nan_band_conf_policy),
+	[NL80211_NAN_CONF_SCAN_PERIOD] = { .type = NLA_U16 },
+	[NL80211_NAN_CONF_SCAN_DWELL_TIME] = NLA_POLICY_RANGE(NLA_U16, 50, 512),
+	[NL80211_NAN_CONF_DISCOVERY_BEACON_INTERVAL] =
+		NLA_POLICY_RANGE(NLA_U8, 50, 200),
 };
 
 static const struct netlink_range_validation nl80211_punct_bitmap_range = {
@@ -769,6 +818,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_MU_MIMO_FOLLOW_MAC_ADDR] = NLA_POLICY_EXACT_LEN_WARN(ETH_ALEN),
 	[NL80211_ATTR_NAN_MASTER_PREF] = NLA_POLICY_MIN(NLA_U8, 1),
 	[NL80211_ATTR_BANDS] = { .type = NLA_U32 },
+	[NL80211_ATTR_NAN_CONFIG] = NLA_POLICY_NESTED(nl80211_nan_conf_policy),
 	[NL80211_ATTR_NAN_FUNC] = { .type = NLA_NESTED },
 	[NL80211_ATTR_FILS_KEK] = { .type = NLA_BINARY,
 				    .len = FILS_MAX_KEK_LEN },
@@ -15398,6 +15448,211 @@ static int nl80211_stop_p2p_device(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
+static struct ieee80211_channel *nl80211_get_nan_channel(struct wiphy *wiphy,
+							 int freq)
+{
+	struct ieee80211_channel *chan;
+	struct cfg80211_chan_def def;
+
+	/* Check if the frequency is valid for NAN */
+	if (freq != 5220 && freq != 5745 && freq != 2437)
+		return NULL;
+
+	chan = ieee80211_get_channel(wiphy, freq);
+	if (!chan)
+		return NULL;
+
+	cfg80211_chandef_create(&def, chan, NL80211_CHAN_NO_HT);
+
+	/* Check if the channel is allowed */
+	if (cfg80211_reg_can_beacon(wiphy, &def, NL80211_IFTYPE_NAN))
+		return chan;
+
+	return NULL;
+}
+
+static int nl80211_parse_nan_band_config(struct wiphy *wiphy,
+					 struct nlattr **tb,
+					 struct cfg80211_nan_band_config *cfg,
+					 enum nl80211_band band)
+{
+	if (BIT(band) & ~(u32)wiphy->nan_supported_bands)
+		return -EINVAL;
+
+	if (tb[NL80211_NAN_BAND_CONF_FREQ]) {
+		u16 freq = nla_get_u16(tb[NL80211_NAN_BAND_CONF_FREQ]);
+
+		if (band != NL80211_BAND_5GHZ)
+			return -EINVAL;
+
+		cfg->chan = nl80211_get_nan_channel(wiphy, freq);
+		if (!cfg->chan)
+			return -EINVAL;
+	}
+
+	if (tb[NL80211_NAN_BAND_CONF_RSSI_CLOSE]) {
+		cfg->rssi_close =
+			nla_get_s8(tb[NL80211_NAN_BAND_CONF_RSSI_CLOSE]);
+		if (!tb[NL80211_NAN_BAND_CONF_RSSI_MIDDLE])
+			return -EINVAL;
+	}
+
+	if (tb[NL80211_NAN_BAND_CONF_RSSI_MIDDLE]) {
+		cfg->rssi_middle =
+			nla_get_s8(tb[NL80211_NAN_BAND_CONF_RSSI_MIDDLE]);
+		if (!cfg->rssi_close || cfg->rssi_middle >= cfg->rssi_close)
+			return -EINVAL;
+	}
+
+	if (tb[NL80211_NAN_BAND_CONF_WAKE_DW]) {
+		cfg->awake_dw_interval =
+			nla_get_u8(tb[NL80211_NAN_BAND_CONF_WAKE_DW]);
+
+		if (band == NL80211_BAND_2GHZ && cfg->awake_dw_interval == 0)
+			return -EINVAL;
+	}
+
+	cfg->disable_scan =
+		nla_get_flag(tb[NL80211_NAN_BAND_CONF_DISABLE_SCAN]);
+	return 0;
+}
+
+static int nl80211_parse_nan_conf(struct wiphy *wiphy,
+				  struct genl_info *info,
+				  struct cfg80211_nan_conf *conf,
+				  u32 *changed_flags)
+{
+	struct nlattr *attrs[NL80211_NAN_CONF_ATTR_MAX + 1];
+	int err, rem;
+	u32 changed = 0;
+	struct nlattr *band_config;
+
+	if (info->attrs[NL80211_ATTR_NAN_MASTER_PREF]) {
+		conf->master_pref =
+			nla_get_u8(info->attrs[NL80211_ATTR_NAN_MASTER_PREF]);
+
+		changed |= CFG80211_NAN_CONF_CHANGED_PREF;
+	}
+
+	if (info->attrs[NL80211_ATTR_BANDS]) {
+		u32 bands = nla_get_u32(info->attrs[NL80211_ATTR_BANDS]);
+
+		if (bands & ~(u32)wiphy->nan_supported_bands)
+			return -EOPNOTSUPP;
+
+		if (bands && !(bands & BIT(NL80211_BAND_2GHZ)))
+			return -EINVAL;
+
+		conf->bands = bands;
+		changed |= CFG80211_NAN_CONF_CHANGED_BANDS;
+	}
+
+	conf->band_cfgs[NL80211_BAND_2GHZ].awake_dw_interval = 1;
+	if (conf->bands & BIT(NL80211_BAND_5GHZ) || !conf->bands)
+		conf->band_cfgs[NL80211_BAND_5GHZ].awake_dw_interval = 1;
+
+	/* On 2.4 GHz band use channel 6 */
+	conf->band_cfgs[NL80211_BAND_2GHZ].chan =
+		nl80211_get_nan_channel(wiphy, 2437);
+	if (!conf->band_cfgs[NL80211_BAND_2GHZ].chan)
+		return -EINVAL;
+
+	if (!info->attrs[NL80211_ATTR_NAN_CONFIG])
+		goto out;
+
+	err = nla_parse_nested(attrs, NL80211_NAN_CONF_ATTR_MAX,
+			       info->attrs[NL80211_ATTR_NAN_CONFIG], NULL,
+			       info->extack);
+	if (err)
+		return err;
+
+	changed |= CFG80211_NAN_CONF_CHANGED_CONFIG;
+	if (attrs[NL80211_NAN_CONF_CLUSTER_ID])
+		conf->cluster_id =
+			nla_data(attrs[NL80211_NAN_CONF_CLUSTER_ID]);
+
+	if (attrs[NL80211_NAN_CONF_EXTRA_ATTRS]) {
+		conf->extra_nan_attrs =
+			nla_data(attrs[NL80211_NAN_CONF_EXTRA_ATTRS]);
+		conf->extra_nan_attrs_len =
+			nla_len(attrs[NL80211_NAN_CONF_EXTRA_ATTRS]);
+	}
+
+	if (attrs[NL80211_NAN_CONF_VENDOR_ELEMS]) {
+		conf->vendor_elems =
+			nla_data(attrs[NL80211_NAN_CONF_VENDOR_ELEMS]);
+		conf->vendor_elems_len =
+			nla_len(attrs[NL80211_NAN_CONF_VENDOR_ELEMS]);
+	}
+
+	if (attrs[NL80211_NAN_CONF_BAND_CONFIGS]) {
+		nla_for_each_nested(band_config,
+				    attrs[NL80211_NAN_CONF_BAND_CONFIGS],
+				    rem) {
+			enum nl80211_band band;
+			struct cfg80211_nan_band_config *cfg;
+			struct nlattr *tb[NL80211_NAN_BAND_CONF_ATTR_MAX + 1];
+
+			err = nla_parse_nested(tb,
+					       NL80211_NAN_BAND_CONF_ATTR_MAX,
+					       band_config, NULL,
+					       info->extack);
+			if (err)
+				return err;
+
+			if (!tb[NL80211_NAN_BAND_CONF_BAND])
+				return -EINVAL;
+
+			band = nla_get_u8(tb[NL80211_NAN_BAND_CONF_BAND]);
+			if (conf->bands && !(conf->bands & BIT(band)))
+				return -EINVAL;
+
+			cfg = &conf->band_cfgs[band];
+
+			err = nl80211_parse_nan_band_config(wiphy, tb, cfg,
+							    band);
+			if (err)
+				return err;
+		}
+	}
+
+	if (attrs[NL80211_NAN_CONF_SCAN_PERIOD])
+		conf->scan_period =
+			nla_get_u16(attrs[NL80211_NAN_CONF_SCAN_PERIOD]);
+
+	if (attrs[NL80211_NAN_CONF_SCAN_DWELL_TIME])
+		conf->scan_dwell_time =
+			nla_get_u16(attrs[NL80211_NAN_CONF_SCAN_DWELL_TIME]);
+
+	if (attrs[NL80211_NAN_CONF_DISCOVERY_BEACON_INTERVAL])
+		conf->discovery_beacon_interval =
+			nla_get_u8(attrs[NL80211_NAN_CONF_DISCOVERY_BEACON_INTERVAL]);
+out:
+	if (!conf->band_cfgs[NL80211_BAND_5GHZ].chan &&
+	    (!conf->bands || conf->bands & BIT(NL80211_BAND_5GHZ))) {
+		/* If no 5GHz channel is specified use default, if possible */
+		conf->band_cfgs[NL80211_BAND_5GHZ].chan =
+				nl80211_get_nan_channel(wiphy, 5745);
+		if (!conf->band_cfgs[NL80211_BAND_5GHZ].chan)
+			conf->band_cfgs[NL80211_BAND_5GHZ].chan =
+					nl80211_get_nan_channel(wiphy, 5220);
+
+		/* Return error if user space asked explicitly for 5 GHz */
+		if (!conf->band_cfgs[NL80211_BAND_5GHZ].chan &&
+		    conf->bands & BIT(NL80211_BAND_5GHZ)) {
+			NL_SET_ERR_MSG_ATTR(info->extack,
+					    info->attrs[NL80211_ATTR_BANDS],
+					    "5 GHz band operation is not allowed");
+			return -EINVAL;
+		}
+	}
+
+	if (changed_flags)
+		*changed_flags = changed;
+
+	return 0;
+}
+
 static int nl80211_start_nan(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
@@ -15414,23 +15669,13 @@ static int nl80211_start_nan(struct sk_buff *skb, struct genl_info *info)
 	if (rfkill_blocked(rdev->wiphy.rfkill))
 		return -ERFKILL;
 
+	/* Master preference is mandatory for START_NAN */
 	if (!info->attrs[NL80211_ATTR_NAN_MASTER_PREF])
 		return -EINVAL;
 
-	conf.master_pref =
-		nla_get_u8(info->attrs[NL80211_ATTR_NAN_MASTER_PREF]);
-
-	if (info->attrs[NL80211_ATTR_BANDS]) {
-		u32 bands = nla_get_u32(info->attrs[NL80211_ATTR_BANDS]);
-
-		if (bands & ~(u32)wdev->wiphy->nan_supported_bands)
-			return -EOPNOTSUPP;
-
-		if (bands && !(bands & BIT(NL80211_BAND_2GHZ)))
-			return -EINVAL;
-
-		conf.bands = bands;
-	}
+	err = nl80211_parse_nan_conf(&rdev->wiphy, info, &conf, NULL);
+	if (err)
+		return err;
 
 	err = rdev_start_nan(rdev, wdev, &conf);
 	if (err)
@@ -15786,6 +16031,7 @@ static int nl80211_nan_change_config(struct sk_buff *skb,
 	struct wireless_dev *wdev = info->user_ptr[1];
 	struct cfg80211_nan_conf conf = {};
 	u32 changed = 0;
+	int err;
 
 	if (wdev->iftype != NL80211_IFTYPE_NAN)
 		return -EOPNOTSUPP;
@@ -15793,27 +16039,9 @@ static int nl80211_nan_change_config(struct sk_buff *skb,
 	if (!wdev_running(wdev))
 		return -ENOTCONN;
 
-	if (info->attrs[NL80211_ATTR_NAN_MASTER_PREF]) {
-		conf.master_pref =
-			nla_get_u8(info->attrs[NL80211_ATTR_NAN_MASTER_PREF]);
-		if (conf.master_pref <= 1 || conf.master_pref == 255)
-			return -EINVAL;
-
-		changed |= CFG80211_NAN_CONF_CHANGED_PREF;
-	}
-
-	if (info->attrs[NL80211_ATTR_BANDS]) {
-		u32 bands = nla_get_u32(info->attrs[NL80211_ATTR_BANDS]);
-
-		if (bands & ~(u32)wdev->wiphy->nan_supported_bands)
-			return -EOPNOTSUPP;
-
-		if (bands && !(bands & BIT(NL80211_BAND_2GHZ)))
-			return -EINVAL;
-
-		conf.bands = bands;
-		changed |= CFG80211_NAN_CONF_CHANGED_BANDS;
-	}
+	err = nl80211_parse_nan_conf(&rdev->wiphy, info, &conf, &changed);
+	if (err)
+		return err;
 
 	if (!changed)
 		return -EINVAL;
