@@ -905,7 +905,7 @@ static void bpf_map_free_in_work(struct bpf_map *map)
 	/* Avoid spawning kworkers, since they all might contend
 	 * for the same mutex like slab_mutex.
 	 */
-	queue_work(system_unbound_wq, &map->work);
+	queue_work(system_dfl_wq, &map->work);
 }
 
 static void bpf_map_free_rcu_gp(struct rcu_head *rcu)
