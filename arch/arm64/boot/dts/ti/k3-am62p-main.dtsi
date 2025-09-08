@@ -77,6 +77,6 @@
 
 &sdhci0 {
 	mmc-hs400-1_8v;
-	ti,strobe-sel = <0x77>;
+	ti,strobe-sel = <0x66>;
 	ti,otap-del-sel-hs400 = <0x5>;
 };
