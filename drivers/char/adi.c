@@ -80,8 +80,8 @@ static ssize_t adi_read(struct file *file, char __user *buf,
 			bytes_read += ver_buf_sz;
 			ver_buf_idx = 0;
 
-			ver_buf_sz = min(count - bytes_read,
-					 (size_t)MAX_BUF_SZ);
+			ver_buf_sz = min_t(size_t, count - bytes_read,
+					   MAX_BUF_SZ);
 		}
 	}
 
@@ -157,7 +157,7 @@ static ssize_t adi_write(struct file *file, const char __user *buf,
 		}
 
 		bytes_written += ver_buf_sz;
-		ver_buf_sz = min(count - bytes_written, (size_t)MAX_BUF_SZ);
+		ver_buf_sz = min_t(size_t, count - bytes_written, MAX_BUF_SZ);
 	} while (bytes_written < count);
 
 	(*offp) += bytes_written;
