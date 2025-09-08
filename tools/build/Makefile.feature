@@ -80,7 +80,6 @@ FEATURE_TESTS_BASIC :=                  \
         libelf-zstd                     \
         libnuma                         \
         numa_num_possible_cpus          \
-        libperl                         \
         libpython                       \
         libslang                        \
         libtraceevent                   \
@@ -121,6 +120,7 @@ FEATURE_TESTS_EXTRA :=                  \
          libbfd-liberty                 \
          libbfd-liberty-z               \
          libopencsd                     \
+         libperl                        \
          cxx                            \
          llvm                           \
          clang                          \
@@ -144,7 +144,6 @@ FEATURE_DISPLAY ?=              \
          libelf                 \
          libnuma                \
          numa_num_possible_cpus \
-         libperl                \
          libpython              \
          libcapstone            \
          llvm-perf              \

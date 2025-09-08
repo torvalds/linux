@@ -7,15 +7,11 @@
  */
 
 /*
- * Quirk: Python and Perl headers cannot be in arbitrary places, so keep
- * these 3 testcases at the top:
+ * Quirk: Python headers cannot be in arbitrary places, so keep this testcase at
+ * the top:
  */
 #define main main_test_libpython
 # include "test-libpython.c"
-#undef main
-
-#define main main_test_libperl
-# include "test-libperl.c"
 #undef main
 
 #define main main_test_hello
@@ -161,7 +157,6 @@
 int main(int argc, char *argv[])
 {
 	main_test_libpython();
-	main_test_libperl();
 	main_test_hello();
 	main_test_libelf();
 	main_test_get_current_dir_name();
