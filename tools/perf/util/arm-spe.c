@@ -62,7 +62,6 @@ struct arm_spe {
 	u8				sample_remote_access;
 	u8				sample_memory;
 	u8				sample_instructions;
-	u64				instructions_sample_period;
 
 	u64				l1d_miss_id;
 	u64				l1d_access_id;
@@ -101,7 +100,7 @@ struct arm_spe_queue {
 	u64				time;
 	u64				timestamp;
 	struct thread			*thread;
-	u64				period_instructions;
+	u64				sample_count;
 	u32				flags;
 	struct branch_stack		*last_branch;
 };
@@ -228,7 +227,6 @@ static struct arm_spe_queue *arm_spe__alloc_queue(struct arm_spe *spe,
 	speq->pid = -1;
 	speq->tid = -1;
 	speq->cpu = -1;
-	speq->period_instructions = 0;
 
 	/* params set */
 	params.get_trace = arm_spe_get_trace;
@@ -352,7 +350,7 @@ static void arm_spe_prep_sample(struct arm_spe *spe,
 	sample->cpumode = arm_spe_cpumode(spe, sample->ip);
 	sample->pid = speq->pid;
 	sample->tid = speq->tid;
-	sample->period = 1;
+	sample->period = spe->synth_opts.period;
 	sample->cpu = speq->cpu;
 	sample->simd_flags = arm_spe__synth_simd_flags(record);
 
@@ -527,14 +525,6 @@ static int arm_spe__synth_instruction_sample(struct arm_spe_queue *speq,
 	struct perf_sample sample;
 	int ret;
 
-	/*
-	 * Handles perf instruction sampling period.
-	 */
-	speq->period_instructions++;
-	if (speq->period_instructions < spe->instructions_sample_period)
-		return 0;
-	speq->period_instructions = 0;
-
 	perf_sample__init(&sample, /*all=*/true);
 	arm_spe_prep_sample(spe, speq, event, &sample);
 
@@ -543,7 +533,6 @@ static int arm_spe__synth_instruction_sample(struct arm_spe_queue *speq,
 	sample.addr = record->to_ip;
 	sample.phys_addr = record->phys_addr;
 	sample.data_src = data_src;
-	sample.period = spe->instructions_sample_period;
 	sample.weight = record->latency;
 	sample.flags = speq->flags;
 	sample.branch_stack = speq->last_branch;
@@ -928,6 +917,14 @@ static int arm_spe_sample(struct arm_spe_queue *speq)
 	struct arm_spe *spe = speq->spe;
 	u64 data_src;
 	int err;
+
+	/*
+	 * Discard all samples until period is reached
+	 */
+	speq->sample_count++;
+	if (speq->sample_count < spe->synth_opts.period)
+		return 0;
+	speq->sample_count = 0;
 
 	arm_spe__sample_flags(speq);
 	data_src = arm_spe__synth_data_source(speq, record);
@@ -1628,6 +1625,7 @@ arm_spe_synth_events(struct arm_spe *spe, struct perf_session *session)
 	attr.exclude_guest = evsel->core.attr.exclude_guest;
 	attr.sample_id_all = evsel->core.attr.sample_id_all;
 	attr.read_format = evsel->core.attr.read_format;
+	attr.sample_period = spe->synth_opts.period;
 
 	/* create new id val to be a fixed offset from evsel id */
 	id = evsel->core.id[0] + 1000000000;
@@ -1754,8 +1752,7 @@ arm_spe_synth_events(struct arm_spe *spe, struct perf_session *session)
 
 		spe->sample_instructions = true;
 		attr.config = PERF_COUNT_HW_INSTRUCTIONS;
-		attr.sample_period = spe->synth_opts.period;
-		spe->instructions_sample_period = attr.sample_period;
+
 		err = perf_session__deliver_synth_attr_event(session, &attr, id);
 		if (err)
 			return err;
