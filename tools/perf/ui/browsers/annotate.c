@@ -555,6 +555,20 @@ static int sym_title(struct symbol *sym, struct map *map, char *title,
 			annotate_opts.code_with_type ? "[Type]" : "");
 }
 
+static void annotate_browser__show_function_title(struct annotate_browser *browser)
+{
+	struct ui_browser *b = &browser->b;
+	struct map_symbol *ms = b->priv;
+	struct symbol *sym = ms->sym;
+	char title[SYM_TITLE_MAX_SIZE];
+
+	sym_title(sym, ms->map, title, sizeof(title), annotate_opts.percent_type);
+
+	ui_browser__gotorc_title(b, 0, 0);
+	ui_browser__set_color(b, HE_COLORSET_ROOT);
+	ui_browser__write_nstring(b, title, b->width + 1);
+}
+
 /*
  * This can be called from external jumps, i.e. jumps from one function
  * to another, like from the kernel's entry_SYSCALL_64 function to the
@@ -768,19 +782,10 @@ bool annotate_browser__continue_search_reverse(struct annotate_browser *browser,
 
 static int annotate_browser__show(struct annotate_browser *browser, char *title, const char *help)
 {
-	struct ui_browser *b = &browser->b;
-	struct map_symbol *ms = b->priv;
-	struct symbol *sym = ms->sym;
-	char symbol_dso[SYM_TITLE_MAX_SIZE];
-
-	if (ui_browser__show(b, title, help) < 0)
+	if (ui_browser__show(&browser->b, title, help) < 0)
 		return -1;
 
-	sym_title(sym, ms->map, symbol_dso, sizeof(symbol_dso), annotate_opts.percent_type);
-
-	ui_browser__gotorc_title(b, 0, 0);
-	ui_browser__set_color(b, HE_COLORSET_ROOT);
-	ui_browser__write_nstring(b, symbol_dso, b->width + 1);
+	annotate_browser__show_function_title(browser);
 	return 0;
 }
 
