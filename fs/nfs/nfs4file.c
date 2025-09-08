@@ -253,7 +253,6 @@ static loff_t nfs42_remap_file_range(struct file *src_file, loff_t src_off,
 	struct nfs_server *server = NFS_SERVER(dst_inode);
 	struct inode *src_inode = file_inode(src_file);
 	unsigned int bs = server->clone_blksize;
-	bool same_inode = false;
 	int ret;
 
 	/* NFS does not support deduplication. */
@@ -275,20 +274,8 @@ static loff_t nfs42_remap_file_range(struct file *src_file, loff_t src_off,
 			goto out;
 	}
 
-	if (src_inode == dst_inode)
-		same_inode = true;
-
 	/* XXX: do we lock at all? what if server needs CB_RECALL_LAYOUT? */
-	if (same_inode) {
-		inode_lock(src_inode);
-	} else if (dst_inode < src_inode) {
-		inode_lock_nested(dst_inode, I_MUTEX_PARENT);
-		inode_lock_nested(src_inode, I_MUTEX_CHILD);
-	} else {
-		inode_lock_nested(src_inode, I_MUTEX_PARENT);
-		inode_lock_nested(dst_inode, I_MUTEX_CHILD);
-	}
-
+	lock_two_nondirectories(src_inode, dst_inode);
 	/* flush all pending writes on both src and dst so that server
 	 * has the latest data */
 	ret = nfs_sync_inode(src_inode);
@@ -306,15 +293,7 @@ static loff_t nfs42_remap_file_range(struct file *src_file, loff_t src_off,
 		truncate_inode_pages_range(&dst_inode->i_data, dst_off, dst_off + count - 1);
 
 out_unlock:
-	if (same_inode) {
-		inode_unlock(src_inode);
-	} else if (dst_inode < src_inode) {
-		inode_unlock(src_inode);
-		inode_unlock(dst_inode);
-	} else {
-		inode_unlock(dst_inode);
-		inode_unlock(src_inode);
-	}
+	unlock_two_nondirectories(src_inode, dst_inode);
 out:
 	return ret < 0 ? ret : count;
 }

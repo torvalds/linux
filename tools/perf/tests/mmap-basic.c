@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <perf/cpumap.h>
 
+#include "cpumap.h"
 #include "debug.h"
 #include "event.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
 #include "tests.h"
+#include "util/affinity.h"
 #include "util/mmap.h"
 #include "util/sample.h"
 #include <linux/err.h>
@@ -46,7 +49,7 @@ static int test__basic_mmap(struct test_suite *test __maybe_unused, int subtest 
 	char sbuf[STRERR_BUFSIZE];
 	struct mmap *md;
 
-	threads = thread_map__new(-1, getpid(), UINT_MAX);
+	threads = thread_map__new_by_tid(getpid());
 	if (threads == NULL) {
 		pr_debug("thread_map__new\n");
 		return -1;
@@ -172,99 +175,199 @@ out_free_threads:
 	return err;
 }
 
-static int test_stat_user_read(int event)
+enum user_read_state {
+	USER_READ_ENABLED,
+	USER_READ_DISABLED,
+	USER_READ_UNKNOWN,
+};
+
+static enum user_read_state set_user_read(struct perf_pmu *pmu, enum user_read_state enabled)
 {
-	struct perf_counts_values counts = { .val = 0 };
-	struct perf_thread_map *threads;
-	struct perf_evsel *evsel;
-	struct perf_event_mmap_page *pc;
-	struct perf_event_attr attr = {
-		.type	= PERF_TYPE_HARDWARE,
-		.config	= event,
-#ifdef __aarch64__
-		.config1 = 0x2,		/* Request user access */
-#endif
-	};
-	int err, i, ret = TEST_FAIL;
-	bool opened = false, mapped = false;
+	char buf[2] = {0, '\n'};
+	ssize_t len;
+	int events_fd, rdpmc_fd;
+	enum user_read_state old_user_read = USER_READ_UNKNOWN;
 
-	threads = perf_thread_map__new_dummy();
-	TEST_ASSERT_VAL("failed to create threads", threads);
+	if (enabled == USER_READ_UNKNOWN)
+		return USER_READ_UNKNOWN;
 
+	events_fd = perf_pmu__event_source_devices_fd();
+	if (events_fd < 0)
+		return USER_READ_UNKNOWN;
+
+	rdpmc_fd = perf_pmu__pathname_fd(events_fd, pmu->name, "rdpmc", O_RDWR);
+	if (rdpmc_fd < 0) {
+		close(events_fd);
+		return USER_READ_UNKNOWN;
+	}
+
+	len = read(rdpmc_fd, buf, sizeof(buf));
+	if (len != sizeof(buf))
+		pr_debug("%s read failed\n", __func__);
+
+	// Note, on Intel hybrid disabling on 1 PMU will implicitly disable on
+	// all the core PMUs.
+	old_user_read = (buf[0] == '1') ? USER_READ_ENABLED : USER_READ_DISABLED;
+
+	if (enabled != old_user_read) {
+		buf[0] = (enabled == USER_READ_ENABLED) ? '1' : '0';
+		len = write(rdpmc_fd, buf, sizeof(buf));
+		if (len != sizeof(buf))
+			pr_debug("%s write failed\n", __func__);
+	}
+	close(rdpmc_fd);
+	close(events_fd);
+	return old_user_read;
+}
+
+static int test_stat_user_read(u64 event, enum user_read_state enabled)
+{
+	struct perf_pmu *pmu = NULL;
+	struct perf_thread_map *threads = perf_thread_map__new_dummy();
+	int ret = TEST_OK;
+
+	pr_err("User space counter reading %" PRIu64 "\n", event);
+	if (!threads) {
+		pr_err("User space counter reading [Failed to create threads]\n");
+		return TEST_FAIL;
+	}
 	perf_thread_map__set_pid(threads, 0, 0);
 
-	evsel = perf_evsel__new(&attr);
-	TEST_ASSERT_VAL("failed to create evsel", evsel);
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+		enum user_read_state saved_user_read_state = set_user_read(pmu, enabled);
+		struct perf_event_attr attr = {
+			.type	= PERF_TYPE_HARDWARE,
+			.config	= perf_pmus__supports_extended_type()
+			? event | ((u64)pmu->type << PERF_PMU_TYPE_SHIFT)
+				: event,
+#ifdef __aarch64__
+			.config1 = 0x2,		/* Request user access */
+#endif
+		};
+		struct perf_evsel *evsel = NULL;
+		int err;
+		struct perf_event_mmap_page *pc;
+		bool mapped = false, opened = false, rdpmc_supported;
+		struct perf_counts_values counts = { .val = 0 };
 
-	err = perf_evsel__open(evsel, NULL, threads);
-	if (err) {
-		pr_err("failed to open evsel: %s\n", strerror(-err));
-		ret = TEST_SKIP;
-		goto out;
-	}
-	opened = true;
 
-	err = perf_evsel__mmap(evsel, 0);
-	if (err) {
-		pr_err("failed to mmap evsel: %s\n", strerror(-err));
-		goto out;
-	}
-	mapped = true;
+		pr_debug("User space counter reading for PMU %s\n", pmu->name);
+		/*
+		 * Restrict scheduling to only use the rdpmc on the CPUs the
+		 * event can be on. If the test doesn't run on the CPU of the
+		 * event then the event will be disabled and the pc->index test
+		 * will fail.
+		 */
+		if (pmu->cpus != NULL)
+			cpu_map__set_affinity(pmu->cpus);
 
-	pc = perf_evsel__mmap_base(evsel, 0, 0);
-	if (!pc) {
-		pr_err("failed to get mmapped address\n");
-		goto out;
-	}
-
-	if (!pc->cap_user_rdpmc || !pc->index) {
-		pr_err("userspace counter access not %s\n",
-			!pc->cap_user_rdpmc ? "supported" : "enabled");
-		ret = TEST_SKIP;
-		goto out;
-	}
-	if (pc->pmc_width < 32) {
-		pr_err("userspace counter width not set (%d)\n", pc->pmc_width);
-		goto out;
-	}
-
-	perf_evsel__read(evsel, 0, 0, &counts);
-	if (counts.val == 0) {
-		pr_err("failed to read value for evsel\n");
-		goto out;
-	}
-
-	for (i = 0; i < 5; i++) {
-		volatile int count = 0x10000 << i;
-		__u64 start, end, last = 0;
-
-		pr_debug("\tloop = %u, ", count);
-
-		perf_evsel__read(evsel, 0, 0, &counts);
-		start = counts.val;
-
-		while (count--) ;
-
-		perf_evsel__read(evsel, 0, 0, &counts);
-		end = counts.val;
-
-		if ((end - start) < last) {
-			pr_err("invalid counter data: end=%llu start=%llu last= %llu\n",
-				end, start, last);
-			goto out;
+		/* Make the evsel. */
+		evsel = perf_evsel__new(&attr);
+		if (!evsel) {
+			pr_err("User space counter reading for PMU %s [Failed to allocate evsel]\n",
+				pmu->name);
+			ret = TEST_FAIL;
+			goto cleanup;
 		}
-		last = end - start;
-		pr_debug("count = %llu\n", end - start);
+
+		err = perf_evsel__open(evsel, NULL, threads);
+		if (err) {
+			pr_err("User space counter reading for PMU %s [Failed to open evsel]\n",
+				pmu->name);
+			ret = TEST_SKIP;
+			goto cleanup;
+		}
+		opened = true;
+		err = perf_evsel__mmap(evsel, 0);
+		if (err) {
+			pr_err("User space counter reading for PMU %s [Failed to mmap evsel]\n",
+				pmu->name);
+			ret = TEST_FAIL;
+			goto cleanup;
+		}
+		mapped = true;
+
+		pc = perf_evsel__mmap_base(evsel, 0, 0);
+		if (!pc) {
+			pr_err("User space counter reading for PMU %s [Failed to get mmaped address]\n",
+				pmu->name);
+			ret = TEST_FAIL;
+			goto cleanup;
+		}
+
+		if (saved_user_read_state == USER_READ_UNKNOWN)
+			rdpmc_supported = pc->cap_user_rdpmc && pc->index;
+		else
+			rdpmc_supported = (enabled == USER_READ_ENABLED);
+
+		if (rdpmc_supported && (!pc->cap_user_rdpmc || !pc->index)) {
+			pr_err("User space counter reading for PMU %s [Failed unexpected supported counter access %d %d]\n",
+				pmu->name, pc->cap_user_rdpmc, pc->index);
+			ret = TEST_FAIL;
+			goto cleanup;
+		}
+
+		if (!rdpmc_supported && pc->cap_user_rdpmc) {
+			pr_err("User space counter reading for PMU %s [Failed unexpected unsupported counter access %d]\n",
+				pmu->name, pc->cap_user_rdpmc);
+			ret = TEST_FAIL;
+			goto cleanup;
+		}
+
+		if (rdpmc_supported && pc->pmc_width < 32) {
+			pr_err("User space counter reading for PMU %s [Failed width not set %d]\n",
+				pmu->name, pc->pmc_width);
+			ret = TEST_FAIL;
+			goto cleanup;
+		}
+
+		perf_evsel__read(evsel, 0, 0, &counts);
+		if (counts.val == 0) {
+			pr_err("User space counter reading for PMU %s [Failed read]\n", pmu->name);
+			ret = TEST_FAIL;
+			goto cleanup;
+		}
+
+		for (int i = 0; i < 5; i++) {
+			volatile int count = 0x10000 << i;
+			__u64 start, end, last = 0;
+
+			pr_debug("\tloop = %u, ", count);
+
+			perf_evsel__read(evsel, 0, 0, &counts);
+			start = counts.val;
+
+			while (count--) ;
+
+			perf_evsel__read(evsel, 0, 0, &counts);
+			end = counts.val;
+
+			if ((end - start) < last) {
+				pr_err("User space counter reading for PMU %s [Failed invalid counter data: end=%llu start=%llu last= %llu]\n",
+					pmu->name, end, start, last);
+				ret = TEST_FAIL;
+				goto cleanup;
+			}
+			last = end - start;
+			pr_debug("count = %llu\n", last);
+		}
+		pr_debug("User space counter reading for PMU %s [Success]\n", pmu->name);
+cleanup:
+		if (mapped)
+			perf_evsel__munmap(evsel);
+		if (opened)
+			perf_evsel__close(evsel);
+		perf_evsel__delete(evsel);
+
+		/* If the affinity was changed, then put it back to all CPUs. */
+		if (pmu->cpus != NULL) {
+			struct perf_cpu_map *cpus = cpu_map__online();
+
+			cpu_map__set_affinity(cpus);
+			perf_cpu_map__put(cpus);
+		}
+		set_user_read(pmu, saved_user_read_state);
 	}
-	ret = TEST_OK;
-
-out:
-	if (mapped)
-		perf_evsel__munmap(evsel);
-	if (opened)
-		perf_evsel__close(evsel);
-	perf_evsel__delete(evsel);
-
 	perf_thread_map__put(threads);
 	return ret;
 }
@@ -272,20 +375,32 @@ out:
 static int test__mmap_user_read_instr(struct test_suite *test __maybe_unused,
 				      int subtest __maybe_unused)
 {
-	return test_stat_user_read(PERF_COUNT_HW_INSTRUCTIONS);
+	return test_stat_user_read(PERF_COUNT_HW_INSTRUCTIONS, USER_READ_ENABLED);
 }
 
 static int test__mmap_user_read_cycles(struct test_suite *test __maybe_unused,
 				       int subtest __maybe_unused)
 {
-	return test_stat_user_read(PERF_COUNT_HW_CPU_CYCLES);
+	return test_stat_user_read(PERF_COUNT_HW_CPU_CYCLES, USER_READ_ENABLED);
+}
+
+static int test__mmap_user_read_instr_disabled(struct test_suite *test __maybe_unused,
+					       int subtest __maybe_unused)
+{
+	return test_stat_user_read(PERF_COUNT_HW_INSTRUCTIONS, USER_READ_DISABLED);
+}
+
+static int test__mmap_user_read_cycles_disabled(struct test_suite *test __maybe_unused,
+						int subtest __maybe_unused)
+{
+	return test_stat_user_read(PERF_COUNT_HW_CPU_CYCLES, USER_READ_DISABLED);
 }
 
 static struct test_case tests__basic_mmap[] = {
 	TEST_CASE_REASON("Read samples using the mmap interface",
 			 basic_mmap,
 			 "permissions"),
-	TEST_CASE_REASON("User space counter reading of instructions",
+	TEST_CASE_REASON_EXCLUSIVE("User space counter reading of instructions",
 			 mmap_user_read_instr,
 #if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__) || \
 			 (defined(__riscv) && __riscv_xlen == 64)
@@ -294,8 +409,26 @@ static struct test_case tests__basic_mmap[] = {
 			 "unsupported"
 #endif
 		),
-	TEST_CASE_REASON("User space counter reading of cycles",
+	TEST_CASE_REASON_EXCLUSIVE("User space counter reading of cycles",
 			 mmap_user_read_cycles,
+#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__) || \
+			 (defined(__riscv) && __riscv_xlen == 64)
+			 "permissions"
+#else
+			 "unsupported"
+#endif
+		),
+	TEST_CASE_REASON_EXCLUSIVE("User space counter disabling instructions",
+			 mmap_user_read_instr_disabled,
+#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__) || \
+			 (defined(__riscv) && __riscv_xlen == 64)
+			 "permissions"
+#else
+			 "unsupported"
+#endif
+		),
+	TEST_CASE_REASON_EXCLUSIVE("User space counter disabling cycles",
+			 mmap_user_read_cycles_disabled,
 #if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__) || \
 			 (defined(__riscv) && __riscv_xlen == 64)
 			 "permissions"

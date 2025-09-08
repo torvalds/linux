@@ -48,6 +48,10 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
+		interrupt-parent = <&intc>;
+		interrupts = <23>, <24>;
+		interrupt-names = "switch", "nic";
+
 		reboot@c {
 			compatible = "syscon-reboot";
 			reg = <0x0c 0x4>;
@@ -136,6 +140,33 @@
 			interrupt-parent = <&intc>;
 			interrupts = <7>, <8>, <9>, <10>, <11>;
 			clocks = <&lx_clk>;
+		};
+
+		watchdog0: watchdog@3260 {
+			compatible = "realtek,rtl9300-wdt";
+			reg = <0x3260 0xc>;
+
+			realtek,reset-mode = "soc";
+
+			clocks = <&lx_clk>;
+			timeout-sec = <30>;
+
+			interrupt-parent = <&intc>;
+			interrupt-names = "phase1", "phase2";
+			interrupts = <5>, <6>;
+		};
+
+		gpio0: gpio@3300 {
+			compatible = "realtek,rtl9300-gpio", "realtek,otto-gpio";
+			reg = <0x3300 0x1c>, <0x3338 0x8>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <24>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupt-parent = <&intc>;
+			interrupts = <13>;
 		};
 
 		snand: spi@1a400 {

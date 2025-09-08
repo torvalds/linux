@@ -18,7 +18,12 @@ allOf:
 
 properties:
   compatible:
-    const: nxp,lpc1788-rtc
+    oneOf:
+      - items:
+          - enum:
+              - nxp,lpc1850-rtc
+          - const: nxp,lpc1788-rtc
+      - const: nxp,lpc1788-rtc
 
   reg:
     maxItems: 1

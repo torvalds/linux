@@ -1807,7 +1807,7 @@ static int ad4170_gpio_init(struct iio_dev *indio_dev)
 	st->gpiochip.direction_input = ad4170_gpio_direction_input;
 	st->gpiochip.direction_output = ad4170_gpio_direction_output;
 	st->gpiochip.get = ad4170_gpio_get;
-	st->gpiochip.set_rv = ad4170_gpio_set;
+	st->gpiochip.set = ad4170_gpio_set;
 	st->gpiochip.owner = THIS_MODULE;
 
 	return devm_gpiochip_add_data(&st->spi->dev, &st->gpiochip, indio_dev);

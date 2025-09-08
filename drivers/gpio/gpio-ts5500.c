@@ -340,7 +340,7 @@ static int ts5500_dio_probe(struct platform_device *pdev)
 	priv->gpio_chip.direction_input = ts5500_gpio_input;
 	priv->gpio_chip.direction_output = ts5500_gpio_output;
 	priv->gpio_chip.get = ts5500_gpio_get;
-	priv->gpio_chip.set_rv = ts5500_gpio_set;
+	priv->gpio_chip.set = ts5500_gpio_set;
 	priv->gpio_chip.to_irq = ts5500_gpio_to_irq;
 	priv->gpio_chip.base = -1;
 

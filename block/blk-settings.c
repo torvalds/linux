@@ -62,16 +62,24 @@ EXPORT_SYMBOL(blk_set_stacking_limits);
 void blk_apply_bdi_limits(struct backing_dev_info *bdi,
 		struct queue_limits *lim)
 {
+	u64 io_opt = lim->io_opt;
+
 	/*
 	 * For read-ahead of large files to be effective, we need to read ahead
-	 * at least twice the optimal I/O size.
+	 * at least twice the optimal I/O size. For rotational devices that do
+	 * not report an optimal I/O size (e.g. ATA HDDs), use the maximum I/O
+	 * size to avoid falling back to the (rather inefficient) small default
+	 * read-ahead size.
 	 *
 	 * There is no hardware limitation for the read-ahead size and the user
 	 * might have increased the read-ahead size through sysfs, so don't ever
 	 * decrease it.
 	 */
+	if (!io_opt && (lim->features & BLK_FEAT_ROTATIONAL))
+		io_opt = (u64)lim->max_sectors << SECTOR_SHIFT;
+
 	bdi->ra_pages = max3(bdi->ra_pages,
-				lim->io_opt * 2 / PAGE_SIZE,
+				io_opt * 2 >> PAGE_SHIFT,
 				VM_READAHEAD_PAGES);
 	bdi->io_pages = lim->max_sectors >> PAGE_SECTORS_SHIFT;
 }
@@ -149,16 +157,14 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
 	switch (bi->csum_type) {
 	case BLK_INTEGRITY_CSUM_NONE:
 		if (bi->pi_tuple_size) {
-			pr_warn("pi_tuple_size must be 0 when checksum type \
-				 is none\n");
+			pr_warn("pi_tuple_size must be 0 when checksum type is none\n");
 			return -EINVAL;
 		}
 		break;
 	case BLK_INTEGRITY_CSUM_CRC:
 	case BLK_INTEGRITY_CSUM_IP:
 		if (bi->pi_tuple_size != sizeof(struct t10_pi_tuple)) {
-			pr_warn("pi_tuple_size mismatch for T10 PI: expected \
-				 %zu, got %u\n",
+			pr_warn("pi_tuple_size mismatch for T10 PI: expected %zu, got %u\n",
 				 sizeof(struct t10_pi_tuple),
 				 bi->pi_tuple_size);
 			return -EINVAL;
@@ -166,8 +172,7 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
 		break;
 	case BLK_INTEGRITY_CSUM_CRC64:
 		if (bi->pi_tuple_size != sizeof(struct crc64_pi_tuple)) {
-			pr_warn("pi_tuple_size mismatch for CRC64 PI: \
-				 expected %zu, got %u\n",
+			pr_warn("pi_tuple_size mismatch for CRC64 PI: expected %zu, got %u\n",
 				 sizeof(struct crc64_pi_tuple),
 				 bi->pi_tuple_size);
 			return -EINVAL;
@@ -312,8 +317,12 @@ int blk_validate_limits(struct queue_limits *lim)
 		pr_warn("Invalid logical block size (%d)\n", lim->logical_block_size);
 		return -EINVAL;
 	}
-	if (lim->physical_block_size < lim->logical_block_size)
+	if (lim->physical_block_size < lim->logical_block_size) {
 		lim->physical_block_size = lim->logical_block_size;
+	} else if (!is_power_of_2(lim->physical_block_size)) {
+		pr_warn("Invalid physical block size (%d)\n", lim->physical_block_size);
+		return -EINVAL;
+	}
 
 	/*
 	 * The minimum I/O size defaults to the physical block size unless
@@ -388,11 +397,18 @@ int blk_validate_limits(struct queue_limits *lim)
 	lim->max_discard_sectors =
 		min(lim->max_hw_discard_sectors, lim->max_user_discard_sectors);
 
+	/*
+	 * When discard is not supported, discard_granularity should be reported
+	 * as 0 to userspace.
+	 */
+	if (lim->max_discard_sectors)
+		lim->discard_granularity =
+			max(lim->discard_granularity, lim->physical_block_size);
+	else
+		lim->discard_granularity = 0;
+
 	if (!lim->max_discard_segments)
 		lim->max_discard_segments = 1;
-
-	if (lim->discard_granularity < lim->physical_block_size)
-		lim->discard_granularity = lim->physical_block_size;
 
 	/*
 	 * By default there is no limit on the segment boundary alignment,
@@ -849,7 +865,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	}
 
 	/* chunk_sectors a multiple of the physical block size? */
-	if ((t->chunk_sectors << 9) & (t->physical_block_size - 1)) {
+	if (t->chunk_sectors % (t->physical_block_size >> SECTOR_SHIFT)) {
 		t->chunk_sectors = 0;
 		t->flags |= BLK_FLAG_MISALIGNED;
 		ret = -1;
@@ -953,6 +969,8 @@ bool queue_limits_stack_integrity(struct queue_limits *t,
 			goto incompatible;
 		if (ti->csum_type != bi->csum_type)
 			goto incompatible;
+		if (ti->pi_tuple_size != bi->pi_tuple_size)
+			goto incompatible;
 		if ((ti->flags & BLK_INTEGRITY_REF_TAG) !=
 		    (bi->flags & BLK_INTEGRITY_REF_TAG))
 			goto incompatible;
@@ -961,6 +979,7 @@ bool queue_limits_stack_integrity(struct queue_limits *t,
 		ti->flags |= (bi->flags & BLK_INTEGRITY_DEVICE_CAPABLE) |
 			     (bi->flags & BLK_INTEGRITY_REF_TAG);
 		ti->csum_type = bi->csum_type;
+		ti->pi_tuple_size = bi->pi_tuple_size;
 		ti->metadata_size = bi->metadata_size;
 		ti->pi_offset = bi->pi_offset;
 		ti->interval_exp = bi->interval_exp;

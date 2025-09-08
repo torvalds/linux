@@ -178,7 +178,7 @@ static int iris_hfi_gen2_set_crop_offsets(struct iris_inst *inst)
 						  sizeof(u64));
 }
 
-static int iris_hfi_gen2_set_bit_dpeth(struct iris_inst *inst)
+static int iris_hfi_gen2_set_bit_depth(struct iris_inst *inst)
 {
 	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
 	u32 port = iris_hfi_gen2_get_port(V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
@@ -295,7 +295,19 @@ static int iris_hfi_gen2_set_profile(struct iris_inst *inst)
 {
 	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
 	u32 port = iris_hfi_gen2_get_port(V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-	u32 profile = inst->fw_caps[PROFILE].value;
+	u32 profile = 0;
+
+	switch (inst->codec) {
+	case V4L2_PIX_FMT_HEVC:
+		profile = inst->fw_caps[PROFILE_HEVC].value;
+		break;
+	case V4L2_PIX_FMT_VP9:
+		profile = inst->fw_caps[PROFILE_VP9].value;
+		break;
+	case V4L2_PIX_FMT_H264:
+		profile = inst->fw_caps[PROFILE_H264].value;
+		break;
+	}
 
 	inst_hfi_gen2->src_subcr_params.profile = profile;
 
@@ -312,7 +324,19 @@ static int iris_hfi_gen2_set_level(struct iris_inst *inst)
 {
 	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
 	u32 port = iris_hfi_gen2_get_port(V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-	u32 level = inst->fw_caps[LEVEL].value;
+	u32 level = 0;
+
+	switch (inst->codec) {
+	case V4L2_PIX_FMT_HEVC:
+		level = inst->fw_caps[LEVEL_HEVC].value;
+		break;
+	case V4L2_PIX_FMT_VP9:
+		level = inst->fw_caps[LEVEL_VP9].value;
+		break;
+	case V4L2_PIX_FMT_H264:
+		level = inst->fw_caps[LEVEL_H264].value;
+		break;
+	}
 
 	inst_hfi_gen2->src_subcr_params.level = level;
 
@@ -367,18 +391,35 @@ static int iris_hfi_gen2_set_linear_stride_scanline(struct iris_inst *inst)
 						  sizeof(u64));
 }
 
+static int iris_hfi_gen2_set_tier(struct iris_inst *inst)
+{
+	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
+	u32 port = iris_hfi_gen2_get_port(V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+	u32 tier = inst->fw_caps[TIER].value;
+
+	inst_hfi_gen2->src_subcr_params.tier = tier;
+
+	return iris_hfi_gen2_session_set_property(inst,
+						  HFI_PROP_TIER,
+						  HFI_HOST_FLAGS_NONE,
+						  port,
+						  HFI_PAYLOAD_U32_ENUM,
+						  &tier,
+						  sizeof(u32));
+}
+
 static int iris_hfi_gen2_session_set_config_params(struct iris_inst *inst, u32 plane)
 {
 	struct iris_core *core = inst->core;
-	u32 config_params_size, i, j;
-	const u32 *config_params;
+	u32 config_params_size = 0, i, j;
+	const u32 *config_params = NULL;
 	int ret;
 
 	static const struct iris_hfi_prop_type_handle prop_type_handle_arr[] = {
 		{HFI_PROP_BITSTREAM_RESOLUTION,       iris_hfi_gen2_set_bitstream_resolution   },
 		{HFI_PROP_CROP_OFFSETS,               iris_hfi_gen2_set_crop_offsets           },
 		{HFI_PROP_CODED_FRAMES,               iris_hfi_gen2_set_coded_frames           },
-		{HFI_PROP_LUMA_CHROMA_BIT_DEPTH,      iris_hfi_gen2_set_bit_dpeth              },
+		{HFI_PROP_LUMA_CHROMA_BIT_DEPTH,      iris_hfi_gen2_set_bit_depth              },
 		{HFI_PROP_BUFFER_FW_MIN_OUTPUT_COUNT, iris_hfi_gen2_set_min_output_count       },
 		{HFI_PROP_PIC_ORDER_CNT_TYPE,         iris_hfi_gen2_set_picture_order_count    },
 		{HFI_PROP_SIGNAL_COLOR_INFO,          iris_hfi_gen2_set_colorspace             },
@@ -386,11 +427,27 @@ static int iris_hfi_gen2_session_set_config_params(struct iris_inst *inst, u32 p
 		{HFI_PROP_LEVEL,                      iris_hfi_gen2_set_level                  },
 		{HFI_PROP_COLOR_FORMAT,               iris_hfi_gen2_set_colorformat            },
 		{HFI_PROP_LINEAR_STRIDE_SCANLINE,     iris_hfi_gen2_set_linear_stride_scanline },
+		{HFI_PROP_TIER,                       iris_hfi_gen2_set_tier                   },
 	};
 
 	if (V4L2_TYPE_IS_OUTPUT(plane)) {
-		config_params = core->iris_platform_data->input_config_params;
-		config_params_size = core->iris_platform_data->input_config_params_size;
+		switch (inst->codec) {
+		case V4L2_PIX_FMT_H264:
+			config_params = core->iris_platform_data->input_config_params_default;
+			config_params_size =
+				core->iris_platform_data->input_config_params_default_size;
+			break;
+		case V4L2_PIX_FMT_HEVC:
+			config_params = core->iris_platform_data->input_config_params_hevc;
+			config_params_size =
+				core->iris_platform_data->input_config_params_hevc_size;
+			break;
+		case V4L2_PIX_FMT_VP9:
+			config_params = core->iris_platform_data->input_config_params_vp9;
+			config_params_size =
+				core->iris_platform_data->input_config_params_vp9_size;
+			break;
+		}
 	} else {
 		config_params = core->iris_platform_data->output_config_params;
 		config_params_size = core->iris_platform_data->output_config_params_size;
@@ -416,7 +473,19 @@ static int iris_hfi_gen2_session_set_config_params(struct iris_inst *inst, u32 p
 static int iris_hfi_gen2_session_set_codec(struct iris_inst *inst)
 {
 	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
-	u32 codec = HFI_CODEC_DECODE_AVC;
+	u32 codec = 0;
+
+	switch (inst->codec) {
+	case V4L2_PIX_FMT_H264:
+		codec = HFI_CODEC_DECODE_AVC;
+		break;
+	case V4L2_PIX_FMT_HEVC:
+		codec = HFI_CODEC_DECODE_HEVC;
+		break;
+	case V4L2_PIX_FMT_VP9:
+		codec = HFI_CODEC_DECODE_VP9;
+		break;
+	}
 
 	iris_hfi_gen2_packet_session_property(inst,
 					      HFI_PROP_CODEC,
@@ -548,8 +617,8 @@ static int iris_hfi_gen2_subscribe_change_param(struct iris_inst *inst, u32 plan
 	struct hfi_subscription_params subsc_params;
 	u32 prop_type, payload_size, payload_type;
 	struct iris_core *core = inst->core;
-	const u32 *change_param;
-	u32 change_param_size;
+	const u32 *change_param = NULL;
+	u32 change_param_size = 0;
 	u32 payload[32] = {0};
 	u32 hfi_port = 0, i;
 	int ret;
@@ -560,8 +629,23 @@ static int iris_hfi_gen2_subscribe_change_param(struct iris_inst *inst, u32 plan
 		return 0;
 	}
 
-	change_param = core->iris_platform_data->input_config_params;
-	change_param_size = core->iris_platform_data->input_config_params_size;
+	switch (inst->codec) {
+	case V4L2_PIX_FMT_H264:
+		change_param = core->iris_platform_data->input_config_params_default;
+		change_param_size =
+			core->iris_platform_data->input_config_params_default_size;
+		break;
+	case V4L2_PIX_FMT_HEVC:
+		change_param = core->iris_platform_data->input_config_params_hevc;
+		change_param_size =
+			core->iris_platform_data->input_config_params_hevc_size;
+		break;
+	case V4L2_PIX_FMT_VP9:
+		change_param = core->iris_platform_data->input_config_params_vp9;
+		change_param_size =
+			core->iris_platform_data->input_config_params_vp9_size;
+		break;
+	}
 
 	payload[0] = HFI_MODE_PORT_SETTINGS_CHANGE;
 
@@ -608,6 +692,11 @@ static int iris_hfi_gen2_subscribe_change_param(struct iris_inst *inst, u32 plan
 				payload_size = sizeof(u32);
 				payload_type = HFI_PAYLOAD_U32;
 				break;
+			case HFI_PROP_LUMA_CHROMA_BIT_DEPTH:
+				payload[0] = subsc_params.bit_depth;
+				payload_size = sizeof(u32);
+				payload_type = HFI_PAYLOAD_U32;
+				break;
 			case HFI_PROP_BUFFER_FW_MIN_OUTPUT_COUNT:
 				payload[0] = subsc_params.fw_min_count;
 				payload_size = sizeof(u32);
@@ -630,6 +719,11 @@ static int iris_hfi_gen2_subscribe_change_param(struct iris_inst *inst, u32 plan
 				break;
 			case HFI_PROP_LEVEL:
 				payload[0] = subsc_params.level;
+				payload_size = sizeof(u32);
+				payload_type = HFI_PAYLOAD_U32;
+				break;
+			case HFI_PROP_TIER:
+				payload[0] = subsc_params.tier;
 				payload_size = sizeof(u32);
 				payload_type = HFI_PAYLOAD_U32;
 				break;
@@ -659,8 +753,8 @@ static int iris_hfi_gen2_subscribe_change_param(struct iris_inst *inst, u32 plan
 static int iris_hfi_gen2_subscribe_property(struct iris_inst *inst, u32 plane)
 {
 	struct iris_core *core = inst->core;
-	u32 subscribe_prop_size, i;
-	const u32 *subcribe_prop;
+	u32 subscribe_prop_size = 0, i;
+	const u32 *subcribe_prop = NULL;
 	u32 payload[32] = {0};
 
 	payload[0] = HFI_MODE_PROPERTY;
@@ -669,8 +763,23 @@ static int iris_hfi_gen2_subscribe_property(struct iris_inst *inst, u32 plane)
 		subscribe_prop_size = core->iris_platform_data->dec_input_prop_size;
 		subcribe_prop = core->iris_platform_data->dec_input_prop;
 	} else {
-		subscribe_prop_size = core->iris_platform_data->dec_output_prop_size;
-		subcribe_prop = core->iris_platform_data->dec_output_prop;
+		switch (inst->codec) {
+		case V4L2_PIX_FMT_H264:
+			subcribe_prop = core->iris_platform_data->dec_output_prop_avc;
+			subscribe_prop_size =
+				core->iris_platform_data->dec_output_prop_avc_size;
+			break;
+		case V4L2_PIX_FMT_HEVC:
+			subcribe_prop = core->iris_platform_data->dec_output_prop_hevc;
+			subscribe_prop_size =
+				core->iris_platform_data->dec_output_prop_hevc_size;
+			break;
+		case V4L2_PIX_FMT_VP9:
+			subcribe_prop = core->iris_platform_data->dec_output_prop_vp9;
+			subscribe_prop_size =
+				core->iris_platform_data->dec_output_prop_vp9_size;
+			break;
+		}
 	}
 
 	for (i = 0; i < subscribe_prop_size; i++)

@@ -88,10 +88,10 @@ static inline int
 gpio_generic_chip_set(struct gpio_generic_chip *chip, unsigned int offset,
 		      int value)
 {
-	if (WARN_ON(!chip->gc.set_rv))
+	if (WARN_ON(!chip->gc.set))
 		return -EOPNOTSUPP;
 
-	return chip->gc.set_rv(&chip->gc, offset, value);
+	return chip->gc.set(&chip->gc, offset, value);
 }
 
 #define gpio_generic_chip_lock(gen_gc) \

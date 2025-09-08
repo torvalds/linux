@@ -297,7 +297,7 @@ static int sch311x_gpio_probe(struct platform_device *pdev)
 		block->chip.get_direction = sch311x_gpio_get_direction;
 		block->chip.set_config = sch311x_gpio_set_config;
 		block->chip.get = sch311x_gpio_get;
-		block->chip.set_rv = sch311x_gpio_set;
+		block->chip.set = sch311x_gpio_set;
 		block->chip.ngpio = 8;
 		block->chip.parent = &pdev->dev;
 		block->chip.base = sch311x_gpio_blocks[i].base;

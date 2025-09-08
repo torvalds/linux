@@ -79,7 +79,8 @@ int qedr_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
 struct ib_mr *qedr_get_dma_mr(struct ib_pd *, int acc);
 
 struct ib_mr *qedr_reg_user_mr(struct ib_pd *, u64 start, u64 length,
-			       u64 virt, int acc, struct ib_udata *);
+			       u64 virt, int acc, struct ib_dmah *dmah,
+			       struct ib_udata *);
 
 int qedr_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 		   int sg_nents, unsigned int *sg_offset);

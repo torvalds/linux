@@ -30,7 +30,7 @@ static LIST_HEAD(autoidle_clks);
 
 /*
  * we have some non-atomic read/write
- * operations behind it, so lets
+ * operations behind it, so let's
  * take one lock for handling autoidle
  * of all clocks
  */

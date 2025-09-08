@@ -247,10 +247,10 @@ static void idpf_unplug_aux_dev(struct auxiliary_device *adev)
 	if (!adev)
 		return;
 
+	ida_free(&idpf_idc_ida, adev->id);
+
 	auxiliary_device_delete(adev);
 	auxiliary_device_uninit(adev);
-
-	ida_free(&idpf_idc_ida, adev->id);
 }
 
 /**

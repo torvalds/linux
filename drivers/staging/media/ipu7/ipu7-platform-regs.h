@@ -1,0 +1,82 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (C) 2018 - 2025 Intel Corporation
+ */
+
+#ifndef IPU7_PLATFORM_REGS_H
+#define IPU7_PLATFORM_REGS_H
+
+#define IS_BASE					0x230000
+#define IS_UC_CTRL_BASE				(IS_BASE + 0x0)
+
+#define PS_BASE					0x130000
+#define PS_UC_CTRL_BASE				(PS_BASE + 0x0)
+
+/*
+ * bit 0: IRQ from FW,
+ * bit 1, 2 and 3: IRQ from HW
+ */
+#define TO_SW_IRQ_MASK				0xf
+#define TO_SW_IRQ_FW				BIT(0)
+
+#define FW_CODE_BASE				0x0
+#define FW_DATA_BASE				0x4
+#define PRINTF_EN_THROUGH_TRACE			0x3004
+#define PRINTF_EN_DIRECTLY_TO_DDR		0x3008
+#define PRINTF_DDR_BASE_ADDR			0x300c
+#define PRINTF_DDR_SIZE				0x3010
+#define PRINTF_DDR_NEXT_ADDR			0x3014
+#define PRINTF_STATUS				0x3018
+#define PRINTF_AXI_CNTL				0x301c
+#define PRINTF_MSG_LENGTH			0x3020
+#define TO_SW_IRQ_CNTL_EDGE			0x4000
+#define TO_SW_IRQ_CNTL_MASK_N			0x4004
+#define TO_SW_IRQ_CNTL_STATUS			0x4008
+#define TO_SW_IRQ_CNTL_CLEAR			0x400c
+#define TO_SW_IRQ_CNTL_ENABLE			0x4010
+#define TO_SW_IRQ_CNTL_LEVEL_NOT_PULSE		0x4014
+#define ERR_IRQ_CNTL_EDGE			0x4018
+#define ERR_IRQ_CNTL_MASK_N			0x401c
+#define ERR_IRQ_CNTL_STATUS			0x4020
+#define ERR_IRQ_CNTL_CLEAR			0x4024
+#define ERR_IRQ_CNTL_ENABLE			0x4028
+#define ERR_IRQ_CNTL_LEVEL_NOT_PULSE		0x402c
+#define LOCAL_DMEM_BASE_ADDR			0x1300000
+
+/*
+ * IS_UC_TO_SW irqs
+ * bit 0: IRQ from local FW
+ * bit 1~3: IRQ from HW
+ */
+#define IS_UC_TO_SW_IRQ_MASK			0xf
+
+#define IPU_ISYS_SPC_OFFSET			0x210000
+#define IPU7_PSYS_SPC_OFFSET			0x118000
+#define IPU_ISYS_DMEM_OFFSET			0x200000
+#define IPU_PSYS_DMEM_OFFSET			0x100000
+
+#define IPU7_ISYS_CSI_PORT_NUM			4
+
+/* IRQ-related registers in PSYS */
+#define IPU_REG_PSYS_TO_SW_IRQ_CNTL_EDGE		0x134000
+#define IPU_REG_PSYS_TO_SW_IRQ_CNTL_MASK		0x134004
+#define IPU_REG_PSYS_TO_SW_IRQ_CNTL_STATUS		0x134008
+#define IPU_REG_PSYS_TO_SW_IRQ_CNTL_CLEAR		0x13400c
+#define IPU_REG_PSYS_TO_SW_IRQ_CNTL_ENABLE		0x134010
+#define IPU_REG_PSYS_TO_SW_IRQ_CNTL_LEVEL_NOT_PULSE	0x134014
+#define IRQ_FROM_LOCAL_FW				BIT(0)
+
+/*
+ * psys subdomains power request regs
+ */
+enum ipu7_device_buttress_psys_domain_pos {
+	IPU_PSYS_SUBDOMAIN_LB		= 0,
+	IPU_PSYS_SUBDOMAIN_BB		= 1,
+};
+
+#define IPU7_PSYS_DOMAIN_POWER_MASK		(BIT(IPU_PSYS_SUBDOMAIN_LB) | \
+						 BIT(IPU_PSYS_SUBDOMAIN_BB))
+#define IPU8_PSYS_DOMAIN_POWER_MASK		BIT(IPU_PSYS_SUBDOMAIN_LB)
+#define IPU_PSYS_DOMAIN_POWER_IN_PROGRESS	BIT(31)
+
+#endif /* IPU7_PLATFORM_REGS_H */

@@ -459,7 +459,6 @@ DECLARE_EVENT_CLASS(wbc_class,
 		__field(int, sync_mode)
 		__field(int, for_kupdate)
 		__field(int, for_background)
-		__field(int, for_reclaim)
 		__field(int, range_cyclic)
 		__field(long, range_start)
 		__field(long, range_end)
@@ -473,23 +472,20 @@ DECLARE_EVENT_CLASS(wbc_class,
 		__entry->sync_mode	= wbc->sync_mode;
 		__entry->for_kupdate	= wbc->for_kupdate;
 		__entry->for_background	= wbc->for_background;
-		__entry->for_reclaim	= wbc->for_reclaim;
 		__entry->range_cyclic	= wbc->range_cyclic;
 		__entry->range_start	= (long)wbc->range_start;
 		__entry->range_end	= (long)wbc->range_end;
 		__entry->cgroup_ino	= __trace_wbc_assign_cgroup(wbc);
 	),
 
-	TP_printk("bdi %s: towrt=%ld skip=%ld mode=%d kupd=%d "
-		"bgrd=%d reclm=%d cyclic=%d "
-		"start=0x%lx end=0x%lx cgroup_ino=%lu",
+	TP_printk("bdi %s: towrt=%ld skip=%ld mode=%d kupd=%d bgrd=%d "
+		"cyclic=%d start=0x%lx end=0x%lx cgroup_ino=%lu",
 		__entry->name,
 		__entry->nr_to_write,
 		__entry->pages_skipped,
 		__entry->sync_mode,
 		__entry->for_kupdate,
 		__entry->for_background,
-		__entry->for_reclaim,
 		__entry->range_cyclic,
 		__entry->range_start,
 		__entry->range_end,

@@ -939,10 +939,10 @@ static int cy8c95x0_setup_gpiochip(struct cy8c95x0_pinctrl *chip)
 	gc->direction_input  = cy8c95x0_gpio_direction_input;
 	gc->direction_output = cy8c95x0_gpio_direction_output;
 	gc->get = cy8c95x0_gpio_get_value;
-	gc->set_rv = cy8c95x0_gpio_set_value;
+	gc->set = cy8c95x0_gpio_set_value;
 	gc->get_direction = cy8c95x0_gpio_get_direction;
 	gc->get_multiple = cy8c95x0_gpio_get_multiple;
-	gc->set_multiple_rv = cy8c95x0_gpio_set_multiple;
+	gc->set_multiple = cy8c95x0_gpio_set_multiple;
 	gc->set_config = gpiochip_generic_config;
 	gc->can_sleep = true;
 	gc->add_pin_ranges = cy8c95x0_add_pin_ranges;

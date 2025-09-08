@@ -98,7 +98,7 @@ static int tps6586x_gpio_probe(struct platform_device *pdev)
 
 	/* FIXME: add handling of GPIOs as dedicated inputs */
 	tps6586x_gpio->gpio_chip.direction_output = tps6586x_gpio_output;
-	tps6586x_gpio->gpio_chip.set_rv	= tps6586x_gpio_set;
+	tps6586x_gpio->gpio_chip.set	= tps6586x_gpio_set;
 	tps6586x_gpio->gpio_chip.get	= tps6586x_gpio_get;
 	tps6586x_gpio->gpio_chip.to_irq	= tps6586x_gpio_to_irq;
 

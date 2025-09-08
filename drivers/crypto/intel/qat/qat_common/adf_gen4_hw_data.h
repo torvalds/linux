@@ -84,9 +84,6 @@
 #define ADF_WQM_CSR_RPRESETSTS(bank)	(ADF_WQM_CSR_RPRESETCTL(bank) + 4)
 
 /* Ring interrupt */
-#define ADF_RP_INT_SRC_SEL_F_RISE_MASK	GENMASK(1, 0)
-#define ADF_RP_INT_SRC_SEL_F_FALL_MASK	GENMASK(2, 0)
-#define ADF_RP_INT_SRC_SEL_RANGE_WIDTH	4
 #define ADF_COALESCED_POLL_TIMEOUT_US	(1 * USEC_PER_SEC)
 #define ADF_COALESCED_POLL_DELAY_US	1000
 #define ADF_WQM_CSR_RPINTSOU(bank)	(0x200000 + ((bank) << 12))
@@ -176,11 +173,10 @@ int adf_gen4_bank_drain_start(struct adf_accel_dev *accel_dev,
 			      u32 bank_number, int timeout_us);
 void adf_gen4_bank_drain_finish(struct adf_accel_dev *accel_dev,
 				u32 bank_number);
-int adf_gen4_bank_state_save(struct adf_accel_dev *accel_dev, u32 bank_number,
-			     struct bank_state *state);
-int adf_gen4_bank_state_restore(struct adf_accel_dev *accel_dev,
-				u32 bank_number, struct bank_state *state);
 bool adf_gen4_services_supported(unsigned long service_mask);
 void adf_gen4_init_dc_ops(struct adf_dc_ops *dc_ops);
+void adf_gen4_init_num_svc_aes(struct adf_rl_hw_data *device_data);
+u32 adf_gen4_get_svc_slice_cnt(struct adf_accel_dev *accel_dev,
+			       enum adf_base_services svc);
 
 #endif

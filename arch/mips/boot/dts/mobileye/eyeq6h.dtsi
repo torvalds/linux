@@ -109,6 +109,28 @@
 			clock-names = "ref";
 		};
 
+		emmc: mmc@d8010000 {
+			compatible = "mobileye,eyeq-sd4hc", "cdns,sd4hc";
+			reg = <0 0xd8010000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 91 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&olb_south EQ6HC_SOUTH_DIV_EMMC>;
+			bus-width = <8>;
+			max-frequency = <200000000>;
+			mmc-ddr-1_8v;
+			sd-uhs-ddr50;
+			mmc-hs200-1_8v;
+			mmc-hs400-1_8v;
+			mmc-hs400-enhanced-strobe;
+
+			cdns,phy-input-delay-legacy = <4>;
+			cdns,phy-input-delay-mmc-highspeed = <2>;
+			cdns,phy-input-delay-mmc-ddr = <3>;
+			cdns,phy-dll-delay-sdclk = <32>;
+			cdns,phy-dll-delay-sdclk-hsmmc = <32>;
+			cdns,phy-dll-delay-strobe = <32>;
+		};
+
 		olb_south: system-controller@d8013000 {
 			compatible = "mobileye,eyeq6h-south-olb", "syscon";
 			reg = <0x0 0xd8013000 0x0 0x1000>;

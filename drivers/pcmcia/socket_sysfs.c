@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/major.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
@@ -98,7 +99,7 @@ static ssize_t pccard_show_card_pm_state(struct device *dev,
 					 char *buf)
 {
 	struct pcmcia_socket *s = to_socket(dev);
-	return sysfs_emit(buf, "%s\n", s->state & SOCKET_SUSPEND ? "off" : "on");
+	return sysfs_emit(buf, "%s\n", str_off_on(s->state & SOCKET_SUSPEND));
 }
 
 static ssize_t pccard_store_card_pm_state(struct device *dev,
@@ -177,7 +178,7 @@ static ssize_t pccard_show_resource(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	struct pcmcia_socket *s = to_socket(dev);
-	return sysfs_emit(buf, "%s\n", s->resource_setup_done ? "yes" : "no");
+	return sysfs_emit(buf, "%s\n", str_yes_no(s->resource_setup_done));
 }
 
 static ssize_t pccard_store_resource(struct device *dev,

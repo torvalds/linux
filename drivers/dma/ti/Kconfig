@@ -17,7 +17,7 @@ config TI_EDMA
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	select TI_DMA_CROSSBAR if (ARCH_OMAP || COMPILE_TEST)
-	default y
+	default ARCH_DAVINCI || ARCH_OMAP || ARCH_KEYSTONE
 	help
 	  Enable support for the TI EDMA (Enhanced DMA) controller. This DMA
 	  engine is found on TI DaVinci, AM33xx, AM43xx, DRA7xx and Keystone 2
@@ -29,7 +29,7 @@ config DMA_OMAP
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	select TI_DMA_CROSSBAR if (SOC_DRA7XX || COMPILE_TEST)
-	default y
+	default ARCH_OMAP
 	help
 	  Enable support for the TI sDMA (System DMA or DMA4) controller. This
 	  DMA engine is found on OMAP and DRA7xx parts.

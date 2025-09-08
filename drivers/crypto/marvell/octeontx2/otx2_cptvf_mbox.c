@@ -75,6 +75,7 @@ static void process_pfvf_mbox_mbox_msg(struct otx2_cptvf_dev *cptvf,
 	struct otx2_cpt_caps_rsp *eng_caps;
 	struct cpt_rd_wr_reg_msg *rsp_reg;
 	struct msix_offset_rsp *rsp_msix;
+	u8 grp_num;
 	int i;
 
 	if (msg->id >= MBOX_MSG_MAX) {
@@ -122,7 +123,11 @@ static void process_pfvf_mbox_mbox_msg(struct otx2_cptvf_dev *cptvf,
 		break;
 	case MBOX_MSG_GET_ENG_GRP_NUM:
 		rsp_grp = (struct otx2_cpt_egrp_num_rsp *) msg;
-		cptvf->lfs.kcrypto_eng_grp_num = rsp_grp->eng_grp_num;
+		grp_num = rsp_grp->eng_grp_num;
+		if (rsp_grp->eng_type == OTX2_CPT_SE_TYPES)
+			cptvf->lfs.kcrypto_se_eng_grp_num = grp_num;
+		else if (rsp_grp->eng_type == OTX2_CPT_AE_TYPES)
+			cptvf->lfs.kcrypto_ae_eng_grp_num = grp_num;
 		break;
 	case MBOX_MSG_GET_KVF_LIMITS:
 		rsp_limits = (struct otx2_cpt_kvf_limits_rsp *) msg;

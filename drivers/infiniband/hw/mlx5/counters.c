@@ -16,6 +16,18 @@ struct mlx5_ib_counter {
 	u32 type;
 };
 
+struct mlx5_rdma_counter {
+	struct rdma_counter rdma_counter;
+
+	struct mlx5_fc *fc[MLX5_IB_OPCOUNTER_MAX];
+	struct xarray qpn_opfc_xa;
+};
+
+static struct mlx5_rdma_counter *to_mcounter(struct rdma_counter *counter)
+{
+	return container_of(counter, struct mlx5_rdma_counter, rdma_counter);
+}
+
 #define INIT_Q_COUNTER(_name)		\
 	{ .name = #_name, .offset = MLX5_BYTE_OFF(query_q_counter_out, _name)}
 
@@ -602,7 +614,7 @@ static int mlx5_ib_counter_dealloc(struct rdma_counter *counter)
 		return 0;
 
 	WARN_ON(!xa_empty(&mcounter->qpn_opfc_xa));
-	mlx5r_fs_destroy_fcs(dev, counter);
+	mlx5r_fs_destroy_fcs(dev, mcounter->fc);
 	MLX5_SET(dealloc_q_counter_in, in, opcode,
 		 MLX5_CMD_OP_DEALLOC_Q_COUNTER);
 	MLX5_SET(dealloc_q_counter_in, in, counter_set_id, counter->id);
@@ -612,6 +624,7 @@ static int mlx5_ib_counter_dealloc(struct rdma_counter *counter)
 static int mlx5_ib_counter_bind_qp(struct rdma_counter *counter,
 				   struct ib_qp *qp, u32 port)
 {
+	struct mlx5_rdma_counter *mcounter = to_mcounter(counter);
 	struct mlx5_ib_dev *dev = to_mdev(qp->device);
 	bool new = false;
 	int err;
@@ -635,7 +648,11 @@ static int mlx5_ib_counter_bind_qp(struct rdma_counter *counter,
 	if (err)
 		goto fail_set_counter;
 
-	err = mlx5r_fs_bind_op_fc(qp, counter, port);
+	if (!counter->mode.bind_opcnt)
+		return 0;
+
+	err = mlx5r_fs_bind_op_fc(qp, mcounter->fc, &mcounter->qpn_opfc_xa,
+				  port);
 	if (err)
 		goto fail_bind_op_fc;
 
@@ -655,9 +672,12 @@ fail_set_counter:
 static int mlx5_ib_counter_unbind_qp(struct ib_qp *qp, u32 port)
 {
 	struct rdma_counter *counter = qp->counter;
+	struct mlx5_rdma_counter *mcounter;
 	int err;
 
-	mlx5r_fs_unbind_op_fc(qp, counter);
+	mcounter = to_mcounter(counter);
+
+	mlx5r_fs_unbind_op_fc(qp, &mcounter->qpn_opfc_xa);
 
 	err = mlx5_ib_qp_set_counter(qp, NULL);
 	if (err)
@@ -666,7 +686,9 @@ static int mlx5_ib_counter_unbind_qp(struct ib_qp *qp, u32 port)
 	return 0;
 
 fail_set_counter:
-	mlx5r_fs_bind_op_fc(qp, counter, port);
+	if (counter->mode.bind_opcnt)
+		mlx5r_fs_bind_op_fc(qp, mcounter->fc,
+				    &mcounter->qpn_opfc_xa, port);
 	return err;
 }
 

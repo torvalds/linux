@@ -2665,6 +2665,9 @@ static void perf_log_itrace_start(struct perf_event *event);
 
 static void perf_event_unthrottle(struct perf_event *event, bool start)
 {
+	if (event->state != PERF_EVENT_STATE_ACTIVE)
+		return;
+
 	event->hw.interrupts = 0;
 	if (start)
 		event->pmu->start(event, 0);
@@ -2674,6 +2677,9 @@ static void perf_event_unthrottle(struct perf_event *event, bool start)
 
 static void perf_event_throttle(struct perf_event *event)
 {
+	if (event->state != PERF_EVENT_STATE_ACTIVE)
+		return;
+
 	event->hw.interrupts = MAX_INTERRUPTS;
 	event->pmu->stop(event, 0);
 	if (event == event->group_leader)
@@ -6842,10 +6848,20 @@ static vm_fault_t perf_mmap_pfn_mkwrite(struct vm_fault *vmf)
 	return vmf->pgoff == 0 ? 0 : VM_FAULT_SIGBUS;
 }
 
+static int perf_mmap_may_split(struct vm_area_struct *vma, unsigned long addr)
+{
+	/*
+	 * Forbid splitting perf mappings to prevent refcount leaks due to
+	 * the resulting non-matching offsets and sizes. See open()/close().
+	 */
+	return -EINVAL;
+}
+
 static const struct vm_operations_struct perf_mmap_vmops = {
 	.open		= perf_mmap_open,
 	.close		= perf_mmap_close, /* non mergeable */
 	.pfn_mkwrite	= perf_mmap_pfn_mkwrite,
+	.may_split	= perf_mmap_may_split,
 };
 
 static int map_range(struct perf_buffer *rb, struct vm_area_struct *vma)
@@ -7051,8 +7067,6 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 			ret = 0;
 			goto unlock;
 		}
-
-		atomic_set(&rb->aux_mmap_count, 1);
 	}
 
 	user_lock_limit = sysctl_perf_event_mlock >> (PAGE_SHIFT - 10);
@@ -7115,14 +7129,15 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		perf_event_update_time(event);
 		perf_event_init_userpage(event);
 		perf_event_update_userpage(event);
+		ret = 0;
 	} else {
 		ret = rb_alloc_aux(rb, event, vma->vm_pgoff, nr_pages,
 				   event->attr.aux_watermark, flags);
-		if (!ret)
+		if (!ret) {
+			atomic_set(&rb->aux_mmap_count, 1);
 			rb->aux_mmap_locked = extra;
+		}
 	}
-
-	ret = 0;
 
 unlock:
 	if (!ret) {
@@ -7131,12 +7146,16 @@ unlock:
 
 		atomic_inc(&event->mmap_count);
 	} else if (rb) {
+		/* AUX allocation failed */
 		atomic_dec(&rb->mmap_count);
 	}
 aux_unlock:
 	if (aux_mutex)
 		mutex_unlock(aux_mutex);
 	mutex_unlock(&event->mmap_mutex);
+
+	if (ret)
+		return ret;
 
 	/*
 	 * Since pinned accounting is per vm we cannot allow fork() to copy our
@@ -7145,12 +7164,19 @@ aux_unlock:
 	vm_flags_set(vma, VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_ops = &perf_mmap_vmops;
 
-	if (!ret)
-		ret = map_range(rb, vma);
-
 	mapped = get_mapped(event, event_mapped);
 	if (mapped)
 		mapped(event, vma->vm_mm);
+
+	/*
+	 * Try to map it into the page table. On fail, invoke
+	 * perf_mmap_close() to undo the above, as the callsite expects
+	 * full cleanup in this case and therefore does not invoke
+	 * vmops::close().
+	 */
+	ret = map_range(rb, vma);
+	if (ret)
+		perf_mmap_close(vma);
 
 	return ret;
 }
@@ -10304,6 +10330,7 @@ static int __perf_event_overflow(struct perf_event *event,
 		ret = 1;
 		event->pending_kill = POLL_HUP;
 		perf_event_disable_inatomic(event);
+		event->pmu->stop(event, 0);
 	}
 
 	if (event->attr.sigtrap) {

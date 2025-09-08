@@ -455,7 +455,7 @@ static int scmi_clocks_probe(struct scmi_device *sdev)
 
 		/*
 		 * Note that the scmi_clk_ops_db is on the stack, not global,
-		 * because it cannot be shared between mulitple probe-sequences
+		 * because it cannot be shared between multiple probe-sequences
 		 * to avoid sharing the devm_ allocated clk_ops between multiple
 		 * SCMI clk driver instances.
 		 */

@@ -44,6 +44,7 @@
 #include "mlx5_ib.h"
 #include "umr.h"
 #include "data_direct.h"
+#include "dmah.h"
 
 enum {
 	MAX_PENDING_REG_MR = 8,
@@ -57,7 +58,7 @@ create_mkey_callback(int status, struct mlx5_async_work *context);
 static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, struct ib_umem *umem,
 				     u64 iova, int access_flags,
 				     unsigned long page_size, bool populate,
-				     int access_mode);
+				     int access_mode, u16 st_index, u8 ph);
 static int __mlx5_ib_dereg_mr(struct ib_mr *ibmr);
 
 static void set_mkc_access_pd_addr_fields(void *mkc, int acc, u64 start_addr,
@@ -256,6 +257,14 @@ static void set_cache_mkc(struct mlx5_cache_ent *ent, void *mkc)
 		 get_mkc_octo_size(ent->rb_key.access_mode,
 				   ent->rb_key.ndescs));
 	MLX5_SET(mkc, mkc, log_page_size, PAGE_SHIFT);
+
+	if (ent->rb_key.ph != MLX5_IB_NO_PH) {
+		MLX5_SET(mkc, mkc, pcie_tph_en, 1);
+		MLX5_SET(mkc, mkc, pcie_tph_ph, ent->rb_key.ph);
+		if (ent->rb_key.st_index != MLX5_MKC_PCIE_TPH_NO_STEERING_TAG_INDEX)
+			MLX5_SET(mkc, mkc, pcie_tph_steering_tag_index,
+				 ent->rb_key.st_index);
+	}
 }
 
 /* Asynchronously schedule new MRs to be populated in the cache. */
@@ -641,6 +650,14 @@ static int cache_ent_key_cmp(struct mlx5r_cache_rb_key key1,
 	if (res)
 		return res;
 
+	res = key1.st_index - key2.st_index;
+	if (res)
+		return res;
+
+	res = key1.ph - key2.ph;
+	if (res)
+		return res;
+
 	/*
 	 * keep ndescs the last in the compare table since the find function
 	 * searches for an exact match on all properties and only closest
@@ -712,6 +729,8 @@ mkey_cache_ent_from_rb_key(struct mlx5_ib_dev *dev,
 		smallest->rb_key.access_mode == rb_key.access_mode &&
 		smallest->rb_key.access_flags == rb_key.access_flags &&
 		smallest->rb_key.ats == rb_key.ats &&
+		smallest->rb_key.st_index == rb_key.st_index &&
+		smallest->rb_key.ph == rb_key.ph &&
 		smallest->rb_key.ndescs <= ndescs_limit) ?
 		       smallest :
 		       NULL;
@@ -786,7 +805,8 @@ struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 	struct mlx5r_cache_rb_key rb_key = {
 		.ndescs = ndescs,
 		.access_mode = access_mode,
-		.access_flags = get_unchangeable_access_flags(dev, access_flags)
+		.access_flags = get_unchangeable_access_flags(dev, access_flags),
+		.ph = MLX5_IB_NO_PH,
 	};
 	struct mlx5_cache_ent *ent = mkey_cache_ent_from_rb_key(dev, rb_key);
 
@@ -943,6 +963,7 @@ int mlx5_mkey_cache_init(struct mlx5_ib_dev *dev)
 	struct rb_root *root = &dev->cache.rb_root;
 	struct mlx5r_cache_rb_key rb_key = {
 		.access_mode = MLX5_MKC_ACCESS_MODE_MTT,
+		.ph = MLX5_IB_NO_PH,
 	};
 	struct mlx5_cache_ent *ent;
 	struct rb_node *node;
@@ -1119,7 +1140,8 @@ static unsigned int mlx5_umem_dmabuf_default_pgsz(struct ib_umem *umem,
 
 static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 					     struct ib_umem *umem, u64 iova,
-					     int access_flags, int access_mode)
+					     int access_flags, int access_mode,
+					     u16 st_index, u8 ph)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5r_cache_rb_key rb_key = {};
@@ -1130,7 +1152,8 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 	if (umem->is_dmabuf)
 		page_size = mlx5_umem_dmabuf_default_pgsz(umem, iova);
 	else
-		page_size = mlx5_umem_mkc_find_best_pgsz(dev, umem, iova);
+		page_size = mlx5_umem_mkc_find_best_pgsz(dev, umem, iova,
+							 access_mode);
 	if (WARN_ON(!page_size))
 		return ERR_PTR(-EINVAL);
 
@@ -1138,6 +1161,8 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 	rb_key.ndescs = ib_umem_num_dma_blocks(umem, page_size);
 	rb_key.ats = mlx5_umem_needs_ats(dev, umem, access_flags);
 	rb_key.access_flags = get_unchangeable_access_flags(dev, access_flags);
+	rb_key.st_index = st_index;
+	rb_key.ph = ph;
 	ent = mkey_cache_ent_from_rb_key(dev, rb_key);
 	/*
 	 * If the MR can't come from the cache then synchronously create an uncached
@@ -1145,7 +1170,8 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 	 */
 	if (!ent) {
 		mutex_lock(&dev->slow_path_mutex);
-		mr = reg_create(pd, umem, iova, access_flags, page_size, false, access_mode);
+		mr = reg_create(pd, umem, iova, access_flags, page_size, false, access_mode,
+				st_index, ph);
 		mutex_unlock(&dev->slow_path_mutex);
 		if (IS_ERR(mr))
 			return mr;
@@ -1230,7 +1256,7 @@ err_1:
 static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, struct ib_umem *umem,
 				     u64 iova, int access_flags,
 				     unsigned long page_size, bool populate,
-				     int access_mode)
+				     int access_mode, u16 st_index, u8 ph)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_mr *mr;
@@ -1240,7 +1266,8 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, struct ib_umem *umem,
 	u32 *in;
 	int err;
 	bool pg_cap = !!(MLX5_CAP_GEN(dev->mdev, pg)) &&
-		(access_mode == MLX5_MKC_ACCESS_MODE_MTT);
+		(access_mode == MLX5_MKC_ACCESS_MODE_MTT) &&
+		(ph == MLX5_IB_NO_PH);
 	bool ksm_mode = (access_mode == MLX5_MKC_ACCESS_MODE_KSM);
 
 	if (!page_size)
@@ -1302,6 +1329,13 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, struct ib_umem *umem,
 	if (populate) {
 		MLX5_SET(create_mkey_in, in, translations_octword_actual_size,
 			 get_octo_len(iova, umem->length, mr->page_shift));
+	}
+
+	if (ph != MLX5_IB_NO_PH) {
+		MLX5_SET(mkc, mkc, pcie_tph_en, 1);
+		MLX5_SET(mkc, mkc, pcie_tph_ph, ph);
+		if (st_index != MLX5_MKC_PCIE_TPH_NO_STEERING_TAG_INDEX)
+			MLX5_SET(mkc, mkc, pcie_tph_steering_tag_index, st_index);
 	}
 
 	err = mlx5_ib_create_mkey(dev, &mr->mmkey, in, inlen);
@@ -1423,24 +1457,37 @@ struct ib_mr *mlx5_ib_reg_dm_mr(struct ib_pd *pd, struct ib_dm *dm,
 }
 
 static struct ib_mr *create_real_mr(struct ib_pd *pd, struct ib_umem *umem,
-				    u64 iova, int access_flags)
+				    u64 iova, int access_flags,
+				    struct ib_dmah *dmah)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_mr *mr = NULL;
 	bool xlt_with_umr;
+	u16 st_index = MLX5_MKC_PCIE_TPH_NO_STEERING_TAG_INDEX;
+	u8 ph = MLX5_IB_NO_PH;
 	int err;
+
+	if (dmah) {
+		struct mlx5_ib_dmah *mdmah = to_mdmah(dmah);
+
+		ph = dmah->ph;
+		if (dmah->valid_fields & BIT(IB_DMAH_CPU_ID_EXISTS))
+			st_index = mdmah->st_index;
+	}
 
 	xlt_with_umr = mlx5r_umr_can_load_pas(dev, umem->length);
 	if (xlt_with_umr) {
 		mr = alloc_cacheable_mr(pd, umem, iova, access_flags,
-					MLX5_MKC_ACCESS_MODE_MTT);
+					MLX5_MKC_ACCESS_MODE_MTT,
+					st_index, ph);
 	} else {
-		unsigned long page_size =
-			mlx5_umem_mkc_find_best_pgsz(dev, umem, iova);
+		unsigned long page_size = mlx5_umem_mkc_find_best_pgsz(
+				dev, umem, iova, MLX5_MKC_ACCESS_MODE_MTT);
 
 		mutex_lock(&dev->slow_path_mutex);
 		mr = reg_create(pd, umem, iova, access_flags, page_size,
-				true, MLX5_MKC_ACCESS_MODE_MTT);
+				true, MLX5_MKC_ACCESS_MODE_MTT,
+				st_index, ph);
 		mutex_unlock(&dev->slow_path_mutex);
 	}
 	if (IS_ERR(mr)) {
@@ -1504,7 +1551,9 @@ static struct ib_mr *create_user_odp_mr(struct ib_pd *pd, u64 start, u64 length,
 		return ERR_CAST(odp);
 
 	mr = alloc_cacheable_mr(pd, &odp->umem, iova, access_flags,
-				MLX5_MKC_ACCESS_MODE_MTT);
+				MLX5_MKC_ACCESS_MODE_MTT,
+				MLX5_MKC_PCIE_TPH_NO_STEERING_TAG_INDEX,
+				MLX5_IB_NO_PH);
 	if (IS_ERR(mr)) {
 		ib_umem_release(&odp->umem);
 		return ERR_CAST(mr);
@@ -1528,13 +1577,15 @@ err_dereg_mr:
 
 struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 iova, int access_flags,
+				  struct ib_dmah *dmah,
 				  struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct ib_umem *umem;
 	int err;
 
-	if (!IS_ENABLED(CONFIG_INFINIBAND_USER_MEM))
+	if (!IS_ENABLED(CONFIG_INFINIBAND_USER_MEM) ||
+	    ((access_flags & IB_ACCESS_ON_DEMAND) && dmah))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	mlx5_ib_dbg(dev, "start 0x%llx, iova 0x%llx, length 0x%llx, access_flags 0x%x\n",
@@ -1550,7 +1601,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	umem = ib_umem_get(&dev->ib_dev, start, length, access_flags);
 	if (IS_ERR(umem))
 		return ERR_CAST(umem);
-	return create_real_mr(pd, umem, iova, access_flags);
+	return create_real_mr(pd, umem, iova, access_flags, dmah);
 }
 
 static void mlx5_ib_dmabuf_invalidate_cb(struct dma_buf_attachment *attach)
@@ -1575,12 +1626,15 @@ static struct dma_buf_attach_ops mlx5_ib_dmabuf_attach_ops = {
 static struct ib_mr *
 reg_user_mr_dmabuf(struct ib_pd *pd, struct device *dma_device,
 		   u64 offset, u64 length, u64 virt_addr,
-		   int fd, int access_flags, int access_mode)
+		   int fd, int access_flags, int access_mode,
+		   struct ib_dmah *dmah)
 {
 	bool pinned_mode = (access_mode == MLX5_MKC_ACCESS_MODE_KSM);
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_mr *mr = NULL;
 	struct ib_umem_dmabuf *umem_dmabuf;
+	u16 st_index = MLX5_MKC_PCIE_TPH_NO_STEERING_TAG_INDEX;
+	u8 ph = MLX5_IB_NO_PH;
 	int err;
 
 	err = mlx5r_umr_resource_init(dev);
@@ -1603,8 +1657,17 @@ reg_user_mr_dmabuf(struct ib_pd *pd, struct device *dma_device,
 		return ERR_CAST(umem_dmabuf);
 	}
 
+	if (dmah) {
+		struct mlx5_ib_dmah *mdmah = to_mdmah(dmah);
+
+		ph = dmah->ph;
+		if (dmah->valid_fields & BIT(IB_DMAH_CPU_ID_EXISTS))
+			st_index = mdmah->st_index;
+	}
+
 	mr = alloc_cacheable_mr(pd, &umem_dmabuf->umem, virt_addr,
-				access_flags, access_mode);
+				access_flags, access_mode,
+				st_index, ph);
 	if (IS_ERR(mr)) {
 		ib_umem_release(&umem_dmabuf->umem);
 		return ERR_CAST(mr);
@@ -1661,7 +1724,8 @@ reg_user_mr_dmabuf_by_data_direct(struct ib_pd *pd, u64 offset,
 	access_flags &= ~IB_ACCESS_RELAXED_ORDERING;
 	crossed_mr = reg_user_mr_dmabuf(pd, &data_direct_dev->pdev->dev,
 					offset, length, virt_addr, fd,
-					access_flags, MLX5_MKC_ACCESS_MODE_KSM);
+					access_flags, MLX5_MKC_ACCESS_MODE_KSM,
+					NULL);
 	if (IS_ERR(crossed_mr)) {
 		ret = PTR_ERR(crossed_mr);
 		goto end;
@@ -1688,6 +1752,7 @@ end:
 struct ib_mr *mlx5_ib_reg_user_mr_dmabuf(struct ib_pd *pd, u64 offset,
 					 u64 length, u64 virt_addr,
 					 int fd, int access_flags,
+					 struct ib_dmah *dmah,
 					 struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
@@ -1720,7 +1785,8 @@ struct ib_mr *mlx5_ib_reg_user_mr_dmabuf(struct ib_pd *pd, u64 offset,
 
 	return reg_user_mr_dmabuf(pd, pd->device->dma_device,
 				  offset, length, virt_addr,
-				  fd, access_flags, MLX5_MKC_ACCESS_MODE_MTT);
+				  fd, access_flags, MLX5_MKC_ACCESS_MODE_MTT,
+				  dmah);
 }
 
 /*
@@ -1754,7 +1820,8 @@ static bool can_use_umr_rereg_pas(struct mlx5_ib_mr *mr,
 	if (!mlx5r_umr_can_load_pas(dev, new_umem->length))
 		return false;
 
-	*page_size = mlx5_umem_mkc_find_best_pgsz(dev, new_umem, iova);
+	*page_size = mlx5_umem_mkc_find_best_pgsz(
+		dev, new_umem, iova, mr->mmkey.cache_ent->rb_key.access_mode);
 	if (WARN_ON(!*page_size))
 		return false;
 	return (mr->mmkey.cache_ent->rb_key.ndescs) >=
@@ -1817,7 +1884,8 @@ struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 	struct mlx5_ib_mr *mr = to_mmr(ib_mr);
 	int err;
 
-	if (!IS_ENABLED(CONFIG_INFINIBAND_USER_MEM) || mr->data_direct)
+	if (!IS_ENABLED(CONFIG_INFINIBAND_USER_MEM) || mr->data_direct ||
+	    mr->mmkey.rb_key.ph != MLX5_IB_NO_PH)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	mlx5_ib_dbg(
@@ -1861,7 +1929,7 @@ struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 		atomic_sub(ib_umem_num_pages(umem), &dev->mdev->priv.reg_pages);
 
 		return create_real_mr(new_pd, umem, mr->ibmr.iova,
-				      new_access_flags);
+				      new_access_flags, NULL);
 	}
 
 	/*
@@ -1892,7 +1960,7 @@ struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 			}
 			return NULL;
 		}
-		return create_real_mr(new_pd, new_umem, iova, new_access_flags);
+		return create_real_mr(new_pd, new_umem, iova, new_access_flags, NULL);
 	}
 
 	/*
@@ -1901,7 +1969,7 @@ struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 	 */
 recreate:
 	return mlx5_ib_reg_user_mr(new_pd, start, length, iova,
-				   new_access_flags, udata);
+				   new_access_flags, NULL, udata);
 }
 
 static int

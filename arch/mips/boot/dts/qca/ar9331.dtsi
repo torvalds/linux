@@ -285,6 +285,15 @@
 
 			status = "disabled";
 		};
+
+		wifi: wifi@18100000 {
+			compatible = "qca,ar9330-wifi";
+			reg = <0x18100000 0x20000>;
+
+			interrupts = <2>;
+
+			status = "disabled";
+		};
 	};
 
 	usb_phy: usb-phy {

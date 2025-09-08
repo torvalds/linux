@@ -412,25 +412,25 @@ snd_azf3328_ctrl_outl(const struct snd_azf3328 *chip, unsigned reg, u32 value)
 	outl(value, chip->ctrl_io + reg);
 }
 
-static inline void
+static inline void __maybe_unused
 snd_azf3328_game_outb(const struct snd_azf3328 *chip, unsigned reg, u8 value)
 {
 	outb(value, chip->game_io + reg);
 }
 
-static inline void
+static inline void __maybe_unused
 snd_azf3328_game_outw(const struct snd_azf3328 *chip, unsigned reg, u16 value)
 {
 	outw(value, chip->game_io + reg);
 }
 
-static inline u8
+static inline u8 __maybe_unused
 snd_azf3328_game_inb(const struct snd_azf3328 *chip, unsigned reg)
 {
 	return inb(chip->game_io + reg);
 }
 
-static inline u16
+static inline u16 __maybe_unused
 snd_azf3328_game_inw(const struct snd_azf3328 *chip, unsigned reg)
 {
 	return inw(chip->game_io + reg);

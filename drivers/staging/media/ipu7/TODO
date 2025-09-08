@@ -1,0 +1,28 @@
+This is a list of things that need to be done to get this driver out of the
+staging directory.
+
+- ABI headers cleanup
+  Cleanup the firmware ABI headers
+
+- Add metadata capture support
+  The IPU7 hardware should support metadata capture, but it is not
+  fully verified with IPU7 firmware ABI so far, need to add the metadata
+  capture support.
+
+- Refine CSI2 PHY code
+  Refine the ipu7-isys-csi2-phy.c, move the hardware specific variant
+  into structure, clarify and explain the PHY registers to make it more
+  readable.
+
+- Work with the common IPU module
+  Sakari commented much of the driver code is the same than the IPU6 driver.
+  IPU7 driver is expected to work with the common IPU module in future.
+
+- Register definition cleanup
+  Cleanup the register definitions - remove some unnecessary definitions
+  remove 'U' suffix for hexadecimal and decimal values and add IPU7 prefix
+  for IPU7 specific registers.
+  Some ISYS IO sub-blocks register definitions are offset values from
+  specific sub-block base, but it is not clear and well suited for driver
+  to use, need to update the register definitions to make it more clear
+  and readable.

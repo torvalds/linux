@@ -157,39 +157,7 @@ struct admin_info {
 	u32 mailbox_offset;
 };
 
-struct ring_config {
-	u64 base;
-	u32 config;
-	u32 head;
-	u32 tail;
-	u32 reserved0;
-};
-
-struct bank_state {
-	u32 ringstat0;
-	u32 ringstat1;
-	u32 ringuostat;
-	u32 ringestat;
-	u32 ringnestat;
-	u32 ringnfstat;
-	u32 ringfstat;
-	u32 ringcstat0;
-	u32 ringcstat1;
-	u32 ringcstat2;
-	u32 ringcstat3;
-	u32 iaintflagen;
-	u32 iaintflagreg;
-	u32 iaintflagsrcsel0;
-	u32 iaintflagsrcsel1;
-	u32 iaintcolen;
-	u32 iaintcolctl;
-	u32 iaintflagandcolen;
-	u32 ringexpstat;
-	u32 ringexpintenable;
-	u32 ringsrvarben;
-	u32 reserved0;
-	struct ring_config rings[ADF_ETR_MAX_RINGS_PER_BANK];
-};
+struct adf_bank_state;
 
 struct adf_hw_csr_ops {
 	u64 (*build_csr_ring_base_addr)(dma_addr_t addr, u32 size);
@@ -338,9 +306,9 @@ struct adf_hw_device_data {
 	void (*set_ssm_wdtimer)(struct adf_accel_dev *accel_dev);
 	int (*ring_pair_reset)(struct adf_accel_dev *accel_dev, u32 bank_nr);
 	int (*bank_state_save)(struct adf_accel_dev *accel_dev, u32 bank_number,
-			       struct bank_state *state);
+			       struct adf_bank_state *state);
 	int (*bank_state_restore)(struct adf_accel_dev *accel_dev,
-				  u32 bank_number, struct bank_state *state);
+				  u32 bank_number, struct adf_bank_state *state);
 	void (*reset_device)(struct adf_accel_dev *accel_dev);
 	void (*set_msix_rttable)(struct adf_accel_dev *accel_dev);
 	const char *(*uof_get_name)(struct adf_accel_dev *accel_dev, u32 obj_num);
@@ -351,6 +319,8 @@ struct adf_hw_device_data {
 	u32 (*get_ena_thd_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	int (*dev_config)(struct adf_accel_dev *accel_dev);
 	bool (*services_supported)(unsigned long mask);
+	u32 (*get_svc_slice_cnt)(struct adf_accel_dev *accel_dev,
+				 enum adf_base_services svc);
 	struct adf_pfvf_ops pfvf_ops;
 	struct adf_hw_csr_ops csr_ops;
 	struct adf_dc_ops dc_ops;

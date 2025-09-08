@@ -18,6 +18,8 @@
 
 #include "tas2781_hda.h"
 
+#define CALIBRATION_DATA_AREA_NUM 2
+
 const efi_guid_t tasdev_fct_efi_guid[] = {
 	/* DELL */
 	EFI_GUID(0xcc92382d, 0x6337, 0x41cb, 0xa8, 0x8b, 0x8e, 0xce, 0x74,
@@ -160,36 +162,51 @@ int tas2781_save_calibration(struct tas2781_hda *hda)
 	 * manufactory.
 	 */
 	efi_guid_t efi_guid = tasdev_fct_efi_guid[LENOVO];
-	static efi_char16_t efi_name[] = TASDEVICE_CALIBRATION_DATA_NAME;
+	/*
+	 * Some devices save the calibrated data into L"CALI_DATA",
+	 * and others into L"SmartAmpCalibrationData".
+	 */
+	static efi_char16_t *efi_name[CALIBRATION_DATA_AREA_NUM] = {
+		L"CALI_DATA",
+		L"SmartAmpCalibrationData",
+	};
 	struct tasdevice_priv *p = hda->priv;
 	struct calidata *cali_data = &p->cali_data;
 	unsigned long total_sz = 0;
 	unsigned int attr, size;
 	unsigned char *data;
 	efi_status_t status;
+	int i;
 
 	if (hda->catlog_id < LENOVO)
 		efi_guid = tasdev_fct_efi_guid[hda->catlog_id];
 
 	cali_data->cali_dat_sz_per_dev = 20;
 	size = p->ndev * (cali_data->cali_dat_sz_per_dev + 1);
-	/* Get real size of UEFI variable */
-	status = efi.get_variable(efi_name, &efi_guid, &attr, &total_sz, NULL);
-	cali_data->total_sz = total_sz > size ? total_sz : size;
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		/* Allocate data buffer of data_size bytes */
-		data = p->cali_data.data = devm_kzalloc(p->dev,
-			p->cali_data.total_sz, GFP_KERNEL);
-		if (!data) {
-			p->cali_data.total_sz = 0;
-			return -ENOMEM;
+	for (i = 0; i < CALIBRATION_DATA_AREA_NUM; i++) {
+		/* Get real size of UEFI variable */
+		status = efi.get_variable(efi_name[i], &efi_guid, &attr,
+			&total_sz, NULL);
+		cali_data->total_sz = total_sz > size ? total_sz : size;
+		if (status == EFI_BUFFER_TOO_SMALL) {
+			/* Allocate data buffer of data_size bytes */
+			data = cali_data->data = devm_kzalloc(p->dev,
+				cali_data->total_sz, GFP_KERNEL);
+			if (!data) {
+				status = -ENOMEM;
+				continue;
+			}
+			/* Get variable contents into buffer */
+			status = efi.get_variable(efi_name[i], &efi_guid,
+				&attr, &cali_data->total_sz, data);
 		}
-		/* Get variable contents into buffer */
-		status = efi.get_variable(efi_name, &efi_guid, &attr,
-			&p->cali_data.total_sz, data);
+		/* Check whether get the calibrated data */
+		if (status == EFI_SUCCESS)
+			break;
 	}
+
 	if (status != EFI_SUCCESS) {
-		p->cali_data.total_sz = 0;
+		cali_data->total_sz = 0;
 		return status;
 	}
 

@@ -24,9 +24,118 @@
 #include "vid-pll-div.h"
 #include "vclk.h"
 #include "meson-eeclk.h"
-#include "g12a.h"
 
 #include <dt-bindings/clock/g12a-clkc.h>
+
+#define HHI_MIPI_CNTL0			0x000
+#define HHI_MIPI_CNTL1			0x004
+#define HHI_MIPI_CNTL2			0x008
+#define HHI_MIPI_STS			0x00c
+#define HHI_GP0_PLL_CNTL0		0x040
+#define HHI_GP0_PLL_CNTL1		0x044
+#define HHI_GP0_PLL_CNTL2		0x048
+#define HHI_GP0_PLL_CNTL3		0x04c
+#define HHI_GP0_PLL_CNTL4		0x050
+#define HHI_GP0_PLL_CNTL5		0x054
+#define HHI_GP0_PLL_CNTL6		0x058
+#define HHI_GP0_PLL_STS			0x05c
+#define HHI_GP1_PLL_CNTL0		0x060
+#define HHI_GP1_PLL_CNTL1		0x064
+#define HHI_GP1_PLL_CNTL2		0x068
+#define HHI_GP1_PLL_CNTL3		0x06c
+#define HHI_GP1_PLL_CNTL4		0x070
+#define HHI_GP1_PLL_CNTL5		0x074
+#define HHI_GP1_PLL_CNTL6		0x078
+#define HHI_GP1_PLL_STS			0x07c
+#define HHI_PCIE_PLL_CNTL0		0x098
+#define HHI_PCIE_PLL_CNTL1		0x09c
+#define HHI_PCIE_PLL_CNTL2		0x0a0
+#define HHI_PCIE_PLL_CNTL3		0x0a4
+#define HHI_PCIE_PLL_CNTL4		0x0a8
+#define HHI_PCIE_PLL_CNTL5		0x0ac
+#define HHI_PCIE_PLL_STS		0x0b8
+#define HHI_HIFI_PLL_CNTL0		0x0d8
+#define HHI_HIFI_PLL_CNTL1		0x0dc
+#define HHI_HIFI_PLL_CNTL2		0x0e0
+#define HHI_HIFI_PLL_CNTL3		0x0e4
+#define HHI_HIFI_PLL_CNTL4		0x0e8
+#define HHI_HIFI_PLL_CNTL5		0x0ec
+#define HHI_HIFI_PLL_CNTL6		0x0f0
+#define HHI_VIID_CLK_DIV		0x128
+#define HHI_VIID_CLK_CNTL		0x12c
+#define HHI_GCLK_MPEG0			0x140
+#define HHI_GCLK_MPEG1			0x144
+#define HHI_GCLK_MPEG2			0x148
+#define HHI_GCLK_OTHER			0x150
+#define HHI_GCLK_OTHER2			0x154
+#define HHI_SYS_CPU_CLK_CNTL1		0x15c
+#define HHI_VID_CLK_DIV			0x164
+#define HHI_MPEG_CLK_CNTL		0x174
+#define HHI_AUD_CLK_CNTL		0x178
+#define HHI_VID_CLK_CNTL		0x17c
+#define HHI_TS_CLK_CNTL			0x190
+#define HHI_VID_CLK_CNTL2		0x194
+#define HHI_SYS_CPU_CLK_CNTL0		0x19c
+#define HHI_VID_PLL_CLK_DIV		0x1a0
+#define HHI_MALI_CLK_CNTL		0x1b0
+#define HHI_VPU_CLKC_CNTL		0x1b4
+#define HHI_VPU_CLK_CNTL		0x1bc
+#define HHI_ISP_CLK_CNTL		0x1c0
+#define HHI_NNA_CLK_CNTL		0x1c8
+#define HHI_HDMI_CLK_CNTL		0x1cc
+#define HHI_VDEC_CLK_CNTL		0x1e0
+#define HHI_VDEC2_CLK_CNTL		0x1e4
+#define HHI_VDEC3_CLK_CNTL		0x1e8
+#define HHI_VDEC4_CLK_CNTL		0x1ec
+#define HHI_HDCP22_CLK_CNTL		0x1f0
+#define HHI_VAPBCLK_CNTL		0x1f4
+#define HHI_SYS_CPUB_CLK_CNTL1		0x200
+#define HHI_SYS_CPUB_CLK_CNTL		0x208
+#define HHI_VPU_CLKB_CNTL		0x20c
+#define HHI_SYS_CPU_CLK_CNTL2		0x210
+#define HHI_SYS_CPU_CLK_CNTL3		0x214
+#define HHI_SYS_CPU_CLK_CNTL4		0x218
+#define HHI_SYS_CPU_CLK_CNTL5		0x21c
+#define HHI_SYS_CPU_CLK_CNTL6		0x220
+#define HHI_GEN_CLK_CNTL		0x228
+#define HHI_VDIN_MEAS_CLK_CNTL		0x250
+#define HHI_MIPIDSI_PHY_CLK_CNTL	0x254
+#define HHI_NAND_CLK_CNTL		0x25c
+#define HHI_SD_EMMC_CLK_CNTL		0x264
+#define HHI_MPLL_CNTL0			0x278
+#define HHI_MPLL_CNTL1			0x27c
+#define HHI_MPLL_CNTL2			0x280
+#define HHI_MPLL_CNTL3			0x284
+#define HHI_MPLL_CNTL4			0x288
+#define HHI_MPLL_CNTL5			0x28c
+#define HHI_MPLL_CNTL6			0x290
+#define HHI_MPLL_CNTL7			0x294
+#define HHI_MPLL_CNTL8			0x298
+#define HHI_FIX_PLL_CNTL0		0x2a0
+#define HHI_FIX_PLL_CNTL1		0x2a4
+#define HHI_FIX_PLL_CNTL3		0x2ac
+#define HHI_SYS_PLL_CNTL0		0x2f4
+#define HHI_SYS_PLL_CNTL1		0x2f8
+#define HHI_SYS_PLL_CNTL2		0x2fc
+#define HHI_SYS_PLL_CNTL3		0x300
+#define HHI_SYS_PLL_CNTL4		0x304
+#define HHI_SYS_PLL_CNTL5		0x308
+#define HHI_SYS_PLL_CNTL6		0x30c
+#define HHI_HDMI_PLL_CNTL0		0x320
+#define HHI_HDMI_PLL_CNTL1		0x324
+#define HHI_HDMI_PLL_CNTL2		0x328
+#define HHI_HDMI_PLL_CNTL3		0x32c
+#define HHI_HDMI_PLL_CNTL4		0x330
+#define HHI_HDMI_PLL_CNTL5		0x334
+#define HHI_HDMI_PLL_CNTL6		0x338
+#define HHI_SPICC_CLK_CNTL		0x3dc
+#define HHI_SYS1_PLL_CNTL0		0x380
+#define HHI_SYS1_PLL_CNTL1		0x384
+#define HHI_SYS1_PLL_CNTL2		0x388
+#define HHI_SYS1_PLL_CNTL3		0x38c
+#define HHI_SYS1_PLL_CNTL4		0x390
+#define HHI_SYS1_PLL_CNTL5		0x394
+#define HHI_SYS1_PLL_CNTL6		0x398
 
 static struct clk_regmap g12a_fixed_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
@@ -2489,7 +2598,7 @@ static const struct clk_parent_data g12a_sd_emmc_clk0_parent_data[] = {
 	/*
 	 * Following these parent clocks, we should also have had mpll2, mpll3
 	 * and gp0_pll but these clocks are too precious to be used here. All
-	 * the necessary rates for MMC and NAND operation can be acheived using
+	 * the necessary rates for MMC and NAND operation can be achieved using
 	 * g12a_ee_core or fclk_div clocks
 	 */
 };
@@ -3753,8 +3862,8 @@ static struct clk_regmap g12a_mipi_dsi_pxclk_sel = {
 };
 
 /*
- * FIXME: Force as bypass by forcing a single /1 table entry, and doensn't on boot value
- * when setting a clock whith this node in the clock path, but doesn't garantee the divider
+ * FIXME: Force as bypass by forcing a single /1 table entry, and doesn't on boot value
+ * when setting a clock with this node in the clock path, but doesn't guarantee the divider
  * is at /1 at boot until a rate is set.
  */
 static const struct clk_div_table g12a_mipi_dsi_pxclk_div_table[] = {
@@ -5126,261 +5235,6 @@ static struct clk_hw *sm1_hw_clks[] = {
 	[CLKID_MIPI_DSI_PXCLK]		= &g12a_mipi_dsi_pxclk.hw,
 };
 
-/* Convenience table to populate regmap in .probe */
-static struct clk_regmap *const g12a_clk_regmaps[] = {
-	&g12a_clk81,
-	&g12a_dos,
-	&g12a_ddr,
-	&g12a_audio_locker,
-	&g12a_mipi_dsi_host,
-	&g12a_eth_phy,
-	&g12a_isa,
-	&g12a_pl301,
-	&g12a_periphs,
-	&g12a_spicc_0,
-	&g12a_i2c,
-	&g12a_sana,
-	&g12a_sd,
-	&g12a_rng0,
-	&g12a_uart0,
-	&g12a_spicc_1,
-	&g12a_hiu_reg,
-	&g12a_mipi_dsi_phy,
-	&g12a_assist_misc,
-	&g12a_emmc_a,
-	&g12a_emmc_b,
-	&g12a_emmc_c,
-	&g12a_audio_codec,
-	&g12a_audio,
-	&g12a_eth_core,
-	&g12a_demux,
-	&g12a_audio_ififo,
-	&g12a_adc,
-	&g12a_uart1,
-	&g12a_g2d,
-	&g12a_reset,
-	&g12a_pcie_comb,
-	&g12a_parser,
-	&g12a_usb_general,
-	&g12a_pcie_phy,
-	&g12a_ahb_arb0,
-	&g12a_ahb_data_bus,
-	&g12a_ahb_ctrl_bus,
-	&g12a_htx_hdcp22,
-	&g12a_htx_pclk,
-	&g12a_bt656,
-	&g12a_usb1_to_ddr,
-	&g12a_mmc_pclk,
-	&g12a_uart2,
-	&g12a_vpu_intr,
-	&g12a_gic,
-	&g12a_sd_emmc_a_clk0,
-	&g12a_sd_emmc_b_clk0,
-	&g12a_sd_emmc_c_clk0,
-	&g12a_mpeg_clk_div,
-	&g12a_sd_emmc_a_clk0_div,
-	&g12a_sd_emmc_b_clk0_div,
-	&g12a_sd_emmc_c_clk0_div,
-	&g12a_mpeg_clk_sel,
-	&g12a_sd_emmc_a_clk0_sel,
-	&g12a_sd_emmc_b_clk0_sel,
-	&g12a_sd_emmc_c_clk0_sel,
-	&g12a_mpll0,
-	&g12a_mpll1,
-	&g12a_mpll2,
-	&g12a_mpll3,
-	&g12a_mpll0_div,
-	&g12a_mpll1_div,
-	&g12a_mpll2_div,
-	&g12a_mpll3_div,
-	&g12a_fixed_pll,
-	&g12a_sys_pll,
-	&g12a_gp0_pll,
-	&g12a_hifi_pll,
-	&g12a_vclk2_venci0,
-	&g12a_vclk2_venci1,
-	&g12a_vclk2_vencp0,
-	&g12a_vclk2_vencp1,
-	&g12a_vclk2_venct0,
-	&g12a_vclk2_venct1,
-	&g12a_vclk2_other,
-	&g12a_vclk2_enci,
-	&g12a_vclk2_encp,
-	&g12a_dac_clk,
-	&g12a_aoclk_gate,
-	&g12a_iec958_gate,
-	&g12a_enc480p,
-	&g12a_rng1,
-	&g12a_vclk2_enct,
-	&g12a_vclk2_encl,
-	&g12a_vclk2_venclmmc,
-	&g12a_vclk2_vencl,
-	&g12a_vclk2_other1,
-	&g12a_fixed_pll_dco,
-	&g12a_sys_pll_dco,
-	&g12a_gp0_pll_dco,
-	&g12a_hifi_pll_dco,
-	&g12a_fclk_div2,
-	&g12a_fclk_div3,
-	&g12a_fclk_div4,
-	&g12a_fclk_div5,
-	&g12a_fclk_div7,
-	&g12a_fclk_div2p5,
-	&g12a_dma,
-	&g12a_efuse,
-	&g12a_rom_boot,
-	&g12a_reset_sec,
-	&g12a_sec_ahb_apb3,
-	&g12a_vpu_0_sel,
-	&g12a_vpu_0_div,
-	&g12a_vpu_0,
-	&g12a_vpu_1_sel,
-	&g12a_vpu_1_div,
-	&g12a_vpu_1,
-	&g12a_vpu,
-	&g12a_vapb_0_sel,
-	&g12a_vapb_0_div,
-	&g12a_vapb_0,
-	&g12a_vapb_1_sel,
-	&g12a_vapb_1_div,
-	&g12a_vapb_1,
-	&g12a_vapb_sel,
-	&g12a_vapb,
-	&g12a_hdmi_pll_dco,
-	&g12a_hdmi_pll_od,
-	&g12a_hdmi_pll_od2,
-	&g12a_hdmi_pll,
-	&g12a_vid_pll_div,
-	&g12a_vid_pll_sel,
-	&g12a_vid_pll,
-	&g12a_vclk_sel,
-	&g12a_vclk2_sel,
-	&g12a_vclk_input,
-	&g12a_vclk2_input,
-	&g12a_vclk_div,
-	&g12a_vclk2_div,
-	&g12a_vclk,
-	&g12a_vclk2,
-	&g12a_vclk_div1,
-	&g12a_vclk_div2_en,
-	&g12a_vclk_div4_en,
-	&g12a_vclk_div6_en,
-	&g12a_vclk_div12_en,
-	&g12a_vclk2_div1,
-	&g12a_vclk2_div2_en,
-	&g12a_vclk2_div4_en,
-	&g12a_vclk2_div6_en,
-	&g12a_vclk2_div12_en,
-	&g12a_cts_enci_sel,
-	&g12a_cts_encp_sel,
-	&g12a_cts_encl_sel,
-	&g12a_cts_vdac_sel,
-	&g12a_hdmi_tx_sel,
-	&g12a_cts_enci,
-	&g12a_cts_encp,
-	&g12a_cts_encl,
-	&g12a_cts_vdac,
-	&g12a_hdmi_tx,
-	&g12a_hdmi_sel,
-	&g12a_hdmi_div,
-	&g12a_hdmi,
-	&g12a_mali_0_sel,
-	&g12a_mali_0_div,
-	&g12a_mali_0,
-	&g12a_mali_1_sel,
-	&g12a_mali_1_div,
-	&g12a_mali_1,
-	&g12a_mali,
-	&g12a_mpll_50m,
-	&g12a_sys_pll_div16_en,
-	&g12a_cpu_clk_premux0,
-	&g12a_cpu_clk_mux0_div,
-	&g12a_cpu_clk_postmux0,
-	&g12a_cpu_clk_premux1,
-	&g12a_cpu_clk_mux1_div,
-	&g12a_cpu_clk_postmux1,
-	&g12a_cpu_clk_dyn,
-	&g12a_cpu_clk,
-	&g12a_cpu_clk_div16_en,
-	&g12a_cpu_clk_apb_div,
-	&g12a_cpu_clk_apb,
-	&g12a_cpu_clk_atb_div,
-	&g12a_cpu_clk_atb,
-	&g12a_cpu_clk_axi_div,
-	&g12a_cpu_clk_axi,
-	&g12a_cpu_clk_trace_div,
-	&g12a_cpu_clk_trace,
-	&g12a_pcie_pll_od,
-	&g12a_pcie_pll_dco,
-	&g12a_vdec_1_sel,
-	&g12a_vdec_1_div,
-	&g12a_vdec_1,
-	&g12a_vdec_hevc_sel,
-	&g12a_vdec_hevc_div,
-	&g12a_vdec_hevc,
-	&g12a_vdec_hevcf_sel,
-	&g12a_vdec_hevcf_div,
-	&g12a_vdec_hevcf,
-	&g12a_ts_div,
-	&g12a_ts,
-	&g12b_cpu_clk,
-	&g12b_sys1_pll_dco,
-	&g12b_sys1_pll,
-	&g12b_sys1_pll_div16_en,
-	&g12b_cpub_clk_premux0,
-	&g12b_cpub_clk_mux0_div,
-	&g12b_cpub_clk_postmux0,
-	&g12b_cpub_clk_premux1,
-	&g12b_cpub_clk_mux1_div,
-	&g12b_cpub_clk_postmux1,
-	&g12b_cpub_clk_dyn,
-	&g12b_cpub_clk,
-	&g12b_cpub_clk_div16_en,
-	&g12b_cpub_clk_apb_sel,
-	&g12b_cpub_clk_apb,
-	&g12b_cpub_clk_atb_sel,
-	&g12b_cpub_clk_atb,
-	&g12b_cpub_clk_axi_sel,
-	&g12b_cpub_clk_axi,
-	&g12b_cpub_clk_trace_sel,
-	&g12b_cpub_clk_trace,
-	&sm1_gp1_pll_dco,
-	&sm1_gp1_pll,
-	&sm1_dsu_clk_premux0,
-	&sm1_dsu_clk_premux1,
-	&sm1_dsu_clk_mux0_div,
-	&sm1_dsu_clk_postmux0,
-	&sm1_dsu_clk_mux1_div,
-	&sm1_dsu_clk_postmux1,
-	&sm1_dsu_clk_dyn,
-	&sm1_dsu_final_clk,
-	&sm1_dsu_clk,
-	&sm1_cpu1_clk,
-	&sm1_cpu2_clk,
-	&sm1_cpu3_clk,
-	&g12a_spicc0_sclk_sel,
-	&g12a_spicc0_sclk_div,
-	&g12a_spicc0_sclk,
-	&g12a_spicc1_sclk_sel,
-	&g12a_spicc1_sclk_div,
-	&g12a_spicc1_sclk,
-	&sm1_nna_axi_clk_sel,
-	&sm1_nna_axi_clk_div,
-	&sm1_nna_axi_clk,
-	&sm1_nna_core_clk_sel,
-	&sm1_nna_core_clk_div,
-	&sm1_nna_core_clk,
-	&g12a_mipi_dsi_pxclk_sel,
-	&g12a_mipi_dsi_pxclk_div,
-	&g12a_mipi_dsi_pxclk,
-	&g12b_mipi_isp_sel,
-	&g12b_mipi_isp_div,
-	&g12b_mipi_isp,
-	&g12b_mipi_isp_gate,
-	&g12b_csi_phy1,
-	&g12b_csi_phy0,
-};
-
 static const struct reg_sequence g12a_init_regs[] = {
 	{ .reg = HHI_MPLL_CNTL0,	.def = 0x00000543 },
 };
@@ -5559,8 +5413,6 @@ static int meson_g12a_probe(struct platform_device *pdev)
 
 static const struct meson_g12a_data g12a_clkc_data = {
 	.eeclkc_data = {
-		.regmap_clks = g12a_clk_regmaps,
-		.regmap_clk_num = ARRAY_SIZE(g12a_clk_regmaps),
 		.hw_clks = {
 			.hws = g12a_hw_clks,
 			.num = ARRAY_SIZE(g12a_hw_clks),
@@ -5573,8 +5425,6 @@ static const struct meson_g12a_data g12a_clkc_data = {
 
 static const struct meson_g12a_data g12b_clkc_data = {
 	.eeclkc_data = {
-		.regmap_clks = g12a_clk_regmaps,
-		.regmap_clk_num = ARRAY_SIZE(g12a_clk_regmaps),
 		.hw_clks = {
 			.hws = g12b_hw_clks,
 			.num = ARRAY_SIZE(g12b_hw_clks),
@@ -5585,8 +5435,6 @@ static const struct meson_g12a_data g12b_clkc_data = {
 
 static const struct meson_g12a_data sm1_clkc_data = {
 	.eeclkc_data = {
-		.regmap_clks = g12a_clk_regmaps,
-		.regmap_clk_num = ARRAY_SIZE(g12a_clk_regmaps),
 		.hw_clks = {
 			.hws = sm1_hw_clks,
 			.num = ARRAY_SIZE(sm1_hw_clks),

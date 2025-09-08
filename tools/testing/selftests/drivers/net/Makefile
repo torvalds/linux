@@ -11,6 +11,7 @@ TEST_GEN_FILES := \
 
 TEST_PROGS := \
 	napi_id.py \
+	napi_threaded.py \
 	netcons_basic.sh \
 	netcons_cmdline.sh \
 	netcons_fragmented_msg.sh \

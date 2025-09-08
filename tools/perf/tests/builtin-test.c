@@ -4,8 +4,12 @@
  *
  * Builtin regression testing command: ever growing number of sanity tests
  */
+#include <ctype.h>
 #include <fcntl.h>
 #include <errno.h>
+#ifdef HAVE_BACKTRACE_SUPPORT
+#include <execinfo.h>
+#endif
 #include <poll.h>
 #include <unistd.h>
 #include <setjmp.h>
@@ -136,6 +140,7 @@ static struct test_suite *generic_tests[] = {
 	&suite__event_groups,
 	&suite__symbols,
 	&suite__util,
+	&suite__subcmd_help,
 	NULL,
 };
 
@@ -154,6 +159,71 @@ static struct test_workload *workloads[] = {
 
 #define test_suite__for_each_test_case(suite, idx)			\
 	for (idx = 0; (suite)->test_cases && (suite)->test_cases[idx].name != NULL; idx++)
+
+static void close_parent_fds(void)
+{
+	DIR *dir = opendir("/proc/self/fd");
+	struct dirent *ent;
+
+	while ((ent = readdir(dir))) {
+		char *end;
+		long fd;
+
+		if (ent->d_type != DT_LNK)
+			continue;
+
+		if (!isdigit(ent->d_name[0]))
+			continue;
+
+		fd = strtol(ent->d_name, &end, 10);
+		if (*end)
+			continue;
+
+		if (fd <= 3 || fd == dirfd(dir))
+			continue;
+
+		close(fd);
+	}
+	closedir(dir);
+}
+
+static void check_leaks(void)
+{
+	DIR *dir = opendir("/proc/self/fd");
+	struct dirent *ent;
+	int leaks = 0;
+
+	while ((ent = readdir(dir))) {
+		char path[PATH_MAX];
+		char *end;
+		long fd;
+		ssize_t len;
+
+		if (ent->d_type != DT_LNK)
+			continue;
+
+		if (!isdigit(ent->d_name[0]))
+			continue;
+
+		fd = strtol(ent->d_name, &end, 10);
+		if (*end)
+			continue;
+
+		if (fd <= 3 || fd == dirfd(dir))
+			continue;
+
+		leaks++;
+		len = readlinkat(dirfd(dir), ent->d_name, path, sizeof(path));
+		if (len > 0 && (size_t)len < sizeof(path))
+			path[len] = '\0';
+		else
+			strncpy(path, ent->d_name, sizeof(path));
+		pr_err("Leak of file descriptor %s that opened: '%s'\n", ent->d_name, path);
+	}
+	closedir(dir);
+	if (leaks)
+		abort();
+}
 
 static int test_suite__num_test_cases(const struct test_suite *t)
 {
@@ -231,6 +301,16 @@ static jmp_buf run_test_jmp_buf;
 
 static void child_test_sig_handler(int sig)
 {
+#ifdef HAVE_BACKTRACE_SUPPORT
+	void *stackdump[32];
+	size_t stackdump_size;
+#endif
+
+	fprintf(stderr, "\n---- unexpected signal (%d) ----\n", sig);
+#ifdef HAVE_BACKTRACE_SUPPORT
+	stackdump_size = backtrace(stackdump, ARRAY_SIZE(stackdump));
+	__dump_stack(stderr, stackdump, stackdump_size);
+#endif
 	siglongjmp(run_test_jmp_buf, sig);
 }
 
@@ -242,9 +322,11 @@ static int run_test_child(struct child_process *process)
 	struct child_test *child = container_of(process, struct child_test, process);
 	int err;
 
+	close_parent_fds();
+
 	err = sigsetjmp(run_test_jmp_buf, 1);
 	if (err) {
-		fprintf(stderr, "\n---- unexpected signal (%d) ----\n", err);
+		/* Received signal. */
 		err = err > 0 ? -err : -1;
 		goto err_out;
 	}
@@ -257,6 +339,7 @@ static int run_test_child(struct child_process *process)
 	err = test_function(child->test, child->test_case_num)(child->test, child->test_case_num);
 	pr_debug("---- end(%d) ----\n", err);
 
+	check_leaks();
 err_out:
 	fflush(NULL);
 	for (size_t i = 0; i < ARRAY_SIZE(signals); i++)
@@ -526,6 +609,7 @@ static int __cmd_test(struct test_suite **suites, int argc, const char *argv[],
 
 		for (struct test_suite **t = suites; *t; t++, curr_suite++) {
 			int curr_test_case;
+			bool suite_matched = false;
 
 			if (!perf_test__matches(test_description(*t, -1), curr_suite, argc, argv)) {
 				/*
@@ -543,6 +627,8 @@ static int __cmd_test(struct test_suite **suites, int argc, const char *argv[],
 				}
 				if (skip)
 					continue;
+			} else {
+				suite_matched = true;
 			}
 
 			if (intlist__find(skiplist, curr_suite + 1)) {
@@ -554,10 +640,10 @@ static int __cmd_test(struct test_suite **suites, int argc, const char *argv[],
 
 			for (unsigned int run = 0; run < runs_per_test; run++) {
 				test_suite__for_each_test_case(*t, curr_test_case) {
-					if (!perf_test__matches(test_description(*t, curr_test_case),
+					if (!suite_matched &&
+					    !perf_test__matches(test_description(*t, curr_test_case),
 								curr_suite, argc, argv))
 						continue;
-
 					err = start_test(*t, curr_suite, curr_test_case,
 							 &child_tests[child_test_num++],
 							 width, pass);

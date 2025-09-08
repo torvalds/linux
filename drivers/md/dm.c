@@ -1024,10 +1024,8 @@ static void dm_wq_requeue_work(struct work_struct *work)
  *
  * 2) io->orig_bio points to new cloned bio which matches the requeued dm_io.
  */
-static void dm_io_complete(struct dm_io *io)
+static inline void dm_io_complete(struct dm_io *io)
 {
-	bool first_requeue;
-
 	/*
 	 * Only dm_io that has been split needs two stage requeue, otherwise
 	 * we may run into long bio clone chain during suspend and OOM could
@@ -1036,12 +1034,7 @@ static void dm_io_complete(struct dm_io *io)
 	 * Also flush data dm_io won't be marked as DM_IO_WAS_SPLIT, so they
 	 * also aren't handled via the first stage requeue.
 	 */
-	if (dm_io_flagged(io, DM_IO_WAS_SPLIT))
-		first_requeue = true;
-	else
-		first_requeue = false;
-
-	__dm_io_complete(io, first_requeue);
+	__dm_io_complete(io, dm_io_flagged(io, DM_IO_WAS_SPLIT));
 }
 
 /*
@@ -1218,7 +1211,7 @@ static struct dm_target *dm_dax_get_live_target(struct mapped_device *md,
 
 static long dm_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 		long nr_pages, enum dax_access_mode mode, void **kaddr,
-		pfn_t *pfn)
+		unsigned long *pfn)
 {
 	struct mapped_device *md = dax_get_private(dax_dev);
 	sector_t sector = pgoff * PAGE_SECTORS;

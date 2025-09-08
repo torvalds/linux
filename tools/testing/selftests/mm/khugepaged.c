@@ -561,8 +561,6 @@ static bool wait_for_scan(const char *msg, char *p, int nr_hpages,
 		usleep(TICK);
 	}
 
-	madvise(p, nr_hpages * hpage_pmd_size, MADV_NOHUGEPAGE);
-
 	return timeout == -1;
 }
 
@@ -1189,6 +1187,11 @@ int main(int argc, char **argv)
 		 */
 		.read_ahead_kb = 0,
 	};
+
+	if (!thp_is_enabled()) {
+		printf("Transparent Hugepages not available\n");
+		return KSFT_SKIP;
+	}
 
 	parse_test_type(argc, argv);
 

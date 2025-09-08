@@ -225,7 +225,7 @@ static int ssb_gpio_chipco_init(struct ssb_bus *bus)
 	chip->request		= ssb_gpio_chipco_request;
 	chip->free		= ssb_gpio_chipco_free;
 	chip->get		= ssb_gpio_chipco_get_value;
-	chip->set_rv		= ssb_gpio_chipco_set_value;
+	chip->set		= ssb_gpio_chipco_set_value;
 	chip->direction_input	= ssb_gpio_chipco_direction_input;
 	chip->direction_output	= ssb_gpio_chipco_direction_output;
 #if IS_ENABLED(CONFIG_SSB_EMBEDDED)
@@ -422,7 +422,7 @@ static int ssb_gpio_extif_init(struct ssb_bus *bus)
 	chip->label		= "ssb_extif_gpio";
 	chip->owner		= THIS_MODULE;
 	chip->get		= ssb_gpio_extif_get_value;
-	chip->set_rv		= ssb_gpio_extif_set_value;
+	chip->set		= ssb_gpio_extif_set_value;
 	chip->direction_input	= ssb_gpio_extif_direction_input;
 	chip->direction_output	= ssb_gpio_extif_direction_output;
 #if IS_ENABLED(CONFIG_SSB_EMBEDDED)

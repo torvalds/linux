@@ -176,6 +176,8 @@ impl MiscDevice for RustMiscDevice {
     fn ioctl(me: Pin<&RustMiscDevice>, _file: &File, cmd: u32, arg: usize) -> Result<isize> {
         dev_info!(me.dev, "IOCTLing Rust Misc Device Sample\n");
 
+        // Treat the ioctl argument as a user pointer.
+        let arg = UserPtr::from_addr(arg);
         let size = _IOC_SIZE(cmd);
 
         match cmd {

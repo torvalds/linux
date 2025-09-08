@@ -802,7 +802,6 @@ void __kunit_test_suites_exit(struct kunit_suite **suites, int num_suites)
 }
 EXPORT_SYMBOL_GPL(__kunit_test_suites_exit);
 
-#ifdef CONFIG_MODULES
 static void kunit_module_init(struct module *mod)
 {
 	struct kunit_suite_set suite_set, filtered_set;
@@ -890,7 +889,6 @@ static struct notifier_block kunit_mod_nb = {
 	.notifier_call = kunit_module_notify,
 	.priority = 0,
 };
-#endif
 
 KUNIT_DEFINE_ACTION_WRAPPER(kfree_action_wrapper, kfree, const void *)
 
@@ -981,20 +979,14 @@ static int __init kunit_init(void)
 	kunit_debugfs_init();
 
 	kunit_bus_init();
-#ifdef CONFIG_MODULES
 	return register_module_notifier(&kunit_mod_nb);
-#else
-	return 0;
-#endif
 }
 late_initcall(kunit_init);
 
 static void __exit kunit_exit(void)
 {
 	memset(&kunit_hooks, 0, sizeof(kunit_hooks));
-#ifdef CONFIG_MODULES
 	unregister_module_notifier(&kunit_mod_nb);
-#endif
 
 	kunit_bus_shutdown();
 

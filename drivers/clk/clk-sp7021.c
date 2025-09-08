@@ -14,7 +14,7 @@
 
 #include <dt-bindings/clock/sunplus,sp7021-clkc.h>
 
-/* speical div_width values for PLLTV/PLLA */
+/* special div_width values for PLLTV/PLLA */
 #define DIV_TV		33
 #define DIV_A		34
 

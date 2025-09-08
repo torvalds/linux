@@ -130,10 +130,7 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 __be32 *xdr_encode_opaque_fixed(__be32 *p, const void *ptr, unsigned int len);
 __be32 *xdr_encode_opaque(__be32 *p, const void *ptr, unsigned int len);
 __be32 *xdr_encode_string(__be32 *p, const char *s);
-__be32 *xdr_decode_string_inplace(__be32 *p, char **sp, unsigned int *lenp,
-			unsigned int maxlen);
 __be32 *xdr_encode_netobj(__be32 *p, const struct xdr_netobj *);
-__be32 *xdr_decode_netobj(__be32 *p, struct xdr_netobj *);
 
 void	xdr_inline_pages(struct xdr_buf *, unsigned int,
 			 struct page **, unsigned int, unsigned int);
@@ -342,12 +339,6 @@ xdr_stream_remaining(const struct xdr_stream *xdr)
 	return xdr->nwords << 2;
 }
 
-ssize_t xdr_stream_decode_opaque(struct xdr_stream *xdr, void *ptr,
-		size_t size);
-ssize_t xdr_stream_decode_opaque_dup(struct xdr_stream *xdr, void **ptr,
-		size_t maxlen, gfp_t gfp_flags);
-ssize_t xdr_stream_decode_string(struct xdr_stream *xdr, char *str,
-		size_t size);
 ssize_t xdr_stream_decode_string_dup(struct xdr_stream *xdr, char **str,
 		size_t maxlen, gfp_t gfp_flags);
 ssize_t xdr_stream_decode_opaque_auth(struct xdr_stream *xdr, u32 *flavor,

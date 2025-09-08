@@ -674,7 +674,7 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 	req.log2_pbl_pg_size = cpu_to_le16(((ilog2(PAGE_SIZE) <<
 				 CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_SFT) &
 				CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_MASK));
-	req.access = (mr->access_flags & 0xFFFF);
+	req.access = (mr->access_flags & BNXT_QPLIB_MR_ACCESS_MASK);
 	req.va = cpu_to_le64(mr->va);
 	req.key = cpu_to_le32(mr->lkey);
 	if (_is_alloc_mr_unified(res->dattr->dev_cap_flags))

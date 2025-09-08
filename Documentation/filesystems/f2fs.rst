@@ -218,7 +218,7 @@ mode=%s			 Control block allocation mode which supports "adaptive"
 			 fragmentation/after-GC situation itself. The developers use these
 			 modes to understand filesystem fragmentation/after-GC condition well,
 			 and eventually get some insights to handle them better.
-			 In "fragment:segment", f2fs allocates a new segment in ramdom
+			 In "fragment:segment", f2fs allocates a new segment in random
 			 position. With this, we can simulate the after-GC condition.
 			 In "fragment:block", we can scatter block allocation with
 			 "max_fragment_chunk" and "max_fragment_hole" sysfs nodes.
@@ -238,9 +238,9 @@ usrjquota=<file>	 Appoint specified file and type during mount, so that quota
 grpjquota=<file>	 information can be properly updated during recovery flow,
 prjjquota=<file>	 <quota file>: must be in root directory;
 jqfmt=<quota type>	 <quota type>: [vfsold,vfsv0,vfsv1].
-offusrjquota		 Turn off user journalled quota.
-offgrpjquota		 Turn off group journalled quota.
-offprjjquota		 Turn off project journalled quota.
+usrjquota=		 Turn off user journalled quota.
+grpjquota=		 Turn off group journalled quota.
+prjjquota=		 Turn off project journalled quota.
 quota			 Enable plain user disk quota accounting.
 noquota			 Disable all plain disk quota option.
 alloc_mode=%s		 Adjust block allocation policy, which supports "reuse"
@@ -261,7 +261,7 @@ test_dummy_encryption=%s
 			 The argument may be either "v1" or "v2", in order to
 			 select the corresponding fscrypt policy version.
 checkpoint=%s[:%u[%]]	 Set to "disable" to turn off checkpointing. Set to "enable"
-			 to reenable checkpointing. Is enabled by default. While
+			 to re-enable checkpointing. Is enabled by default. While
 			 disabled, any unmounting or unexpected shutdowns will cause
 			 the filesystem contents to appear as they did when the
 			 filesystem was mounted with that option.

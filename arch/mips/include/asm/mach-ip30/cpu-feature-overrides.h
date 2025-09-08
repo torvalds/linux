@@ -5,7 +5,7 @@
  * Copyright (C) 2003 Ralf Baechle <ralf@linux-mips.org>
  *		 2004-2007 Stanislaw Skowronek <skylark@unaligned.org>
  *		 2009 Johannes Dickgreber <tanzy@gmx.de>
- *		 2015 Joshua Kinard <kumba@gentoo.org>
+ *		 2015 Joshua Kinard <linux@kumba.dev>
  *
  */
 #ifndef __ASM_MACH_IP30_CPU_FEATURE_OVERRIDES_H

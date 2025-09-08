@@ -168,7 +168,7 @@ static u32 get_st_table_loc(struct pci_dev *pdev)
  * Return the size of ST table. If ST table is not in TPH Requester Extended
  * Capability space, return 0. Otherwise return the ST Table Size + 1.
  */
-static u16 get_st_table_size(struct pci_dev *pdev)
+u16 pcie_tph_get_st_table_size(struct pci_dev *pdev)
 {
 	u32 reg;
 	u32 loc;
@@ -185,6 +185,7 @@ static u16 get_st_table_size(struct pci_dev *pdev)
 
 	return FIELD_GET(PCI_TPH_CAP_ST_MASK, reg) + 1;
 }
+EXPORT_SYMBOL(pcie_tph_get_st_table_size);
 
 /* Return device's Root Port completer capability */
 static u8 get_rp_completer_type(struct pci_dev *pdev)
@@ -211,7 +212,7 @@ static int write_tag_to_st_table(struct pci_dev *pdev, int index, u16 tag)
 	int offset;
 
 	/* Check if index is out of bound */
-	st_table_size = get_st_table_size(pdev);
+	st_table_size = pcie_tph_get_st_table_size(pdev);
 	if (index >= st_table_size)
 		return -ENXIO;
 
@@ -443,7 +444,7 @@ void pci_restore_tph_state(struct pci_dev *pdev)
 	pci_write_config_dword(pdev, pdev->tph_cap + PCI_TPH_CTRL, *cap++);
 	st_entry = (u16 *)cap;
 	offset = PCI_TPH_BASE_SIZEOF;
-	num_entries = get_st_table_size(pdev);
+	num_entries = pcie_tph_get_st_table_size(pdev);
 	for (i = 0; i < num_entries; i++) {
 		pci_write_config_word(pdev, pdev->tph_cap + offset,
 				      *st_entry++);
@@ -475,7 +476,7 @@ void pci_save_tph_state(struct pci_dev *pdev)
 	/* Save all ST entries in extended capability structure */
 	st_entry = (u16 *)cap;
 	offset = PCI_TPH_BASE_SIZEOF;
-	num_entries = get_st_table_size(pdev);
+	num_entries = pcie_tph_get_st_table_size(pdev);
 	for (i = 0; i < num_entries; i++) {
 		pci_read_config_word(pdev, pdev->tph_cap + offset,
 				     st_entry++);
@@ -499,7 +500,7 @@ void pci_tph_init(struct pci_dev *pdev)
 	if (!pdev->tph_cap)
 		return;
 
-	num_entries = get_st_table_size(pdev);
+	num_entries = pcie_tph_get_st_table_size(pdev);
 	save_size = sizeof(u32) + num_entries * sizeof(u16);
 	pci_add_ext_cap_save_buffer(pdev, PCI_EXT_CAP_ID_TPH, save_size);
 }

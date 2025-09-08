@@ -267,7 +267,7 @@ static const struct gpio_chip it87_template_chip = {
 	.request		= it87_gpio_request,
 	.get			= it87_gpio_get,
 	.direction_input	= it87_gpio_direction_in,
-	.set_rv			= it87_gpio_set,
+	.set			= it87_gpio_set,
 	.direction_output	= it87_gpio_direction_out,
 	.base			= -1
 };

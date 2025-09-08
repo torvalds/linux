@@ -419,7 +419,7 @@ static const struct gpio_chip template_chip = {
 	.direction_output	= twl_direction_out,
 	.get_direction		= twl_get_direction,
 	.get			= twl_get,
-	.set_rv			= twl_set,
+	.set			= twl_set,
 	.to_irq			= twl_to_irq,
 	.can_sleep		= true,
 };

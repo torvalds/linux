@@ -7,6 +7,7 @@
 #include <crypto/curve25519.h>
 #include <crypto/internal/kpp.h>
 
+#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/jump_label.h>
 #include <linux/kernel.h>

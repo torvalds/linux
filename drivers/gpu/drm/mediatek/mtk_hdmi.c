@@ -182,8 +182,8 @@ static inline struct mtk_hdmi *hdmi_ctx_from_bridge(struct drm_bridge *b)
 
 static void mtk_hdmi_hw_vid_black(struct mtk_hdmi *hdmi, bool black)
 {
-	regmap_update_bits(hdmi->regs, VIDEO_SOURCE_SEL,
-			   VIDEO_CFG_4, black ? GEN_RGB : NORMAL_PATH);
+	regmap_update_bits(hdmi->regs, VIDEO_CFG_4,
+			   VIDEO_SOURCE_SEL, black ? GEN_RGB : NORMAL_PATH);
 }
 
 static void mtk_hdmi_hw_make_reg_writable(struct mtk_hdmi *hdmi, bool enable)
@@ -310,8 +310,8 @@ static void mtk_hdmi_hw_send_info_frame(struct mtk_hdmi *hdmi, u8 *buffer,
 
 static void mtk_hdmi_hw_send_aud_packet(struct mtk_hdmi *hdmi, bool enable)
 {
-	regmap_update_bits(hdmi->regs, AUDIO_PACKET_OFF,
-			   GRL_SHIFT_R2, enable ? 0 : AUDIO_PACKET_OFF);
+	regmap_update_bits(hdmi->regs, GRL_SHIFT_R2,
+			   AUDIO_PACKET_OFF, enable ? 0 : AUDIO_PACKET_OFF);
 }
 
 static void mtk_hdmi_hw_config_sys(struct mtk_hdmi *hdmi)

@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/st,spear1340-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ST SPEAr1340 PCIe controller
+
+maintainers:
+  - Pratyush Anand <pratyush.anand@gmail.com>
+
+description:
+  SPEAr13XX uses the Synopsys DesignWare PCIe controller and ST MiPHY as PHY
+  controller.
+
+select:
+  properties:
+    compatible:
+      contains:
+        const: st,spear1340-pcie
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - const: st,spear1340-pcie
+      - const: snps,dw-pcie
+
+  phys:
+    maxItems: 1
+
+  st,pcie-is-gen1:
+    type: boolean
+    description: Indicates forced gen1 initialization is needed.
+
+required:
+  - compatible
+  - phys
+  - phy-names
+
+allOf:
+  - $ref: snps,dw-pcie.yaml#
+
+unevaluatedProperties: false

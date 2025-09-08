@@ -563,7 +563,9 @@ Specify vmlinux path which has debuginfo.
 Record build-id of all DSOs regardless whether it's actually hit or not.
 
 --buildid-mmap::
-Record build ids in mmap2 events, disables build id cache (implies --no-buildid).
+Legacy record build-id in map events option which is now the
+default. Behaves indentically to --no-buildid. Disable with
+--no-buildid-mmap.
 
 --aio[=n]::
 Use <n> control blocks in asynchronous (Posix AIO) trace writing mode (default: 1, max: 4).

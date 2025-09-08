@@ -550,6 +550,23 @@ const struct fw_address_region fw_unit_space_region =
 	{ .start = 0xfffff0000900ULL, .end = 0x1000000000000ULL, };
 #endif  /*  0  */
 
+static void complete_address_handler(struct kref *kref)
+{
+	struct fw_address_handler *handler = container_of(kref, struct fw_address_handler, kref);
+
+	complete(&handler->done);
+}
+
+static void get_address_handler(struct fw_address_handler *handler)
+{
+	kref_get(&handler->kref);
+}
+
+static int put_address_handler(struct fw_address_handler *handler)
+{
+	return kref_put(&handler->kref, complete_address_handler);
+}
+
 /**
  * fw_core_add_address_handler() - register for incoming requests
  * @handler:	callback
@@ -557,9 +574,10 @@ const struct fw_address_region fw_unit_space_region =
  *
  * region->start, ->end, and handler->length have to be quadlet-aligned.
  *
- * When a request is received that falls within the specified address range,
- * the specified callback is invoked.  The parameters passed to the callback
- * give the details of the particular request.
+ * When a request is received that falls within the specified address range, the specified callback
+ * is invoked.  The parameters passed to the callback give the details of the particular request.
+ * The callback is invoked in the workqueue context in most cases. However, if the request is
+ * initiated by the local node, the callback is invoked in the initiator's context.
  *
  * To be called in process context.
  * Return value:  0 on success, non-zero otherwise.
@@ -595,6 +613,8 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 		if (other != NULL) {
 			handler->offset += other->length;
 		} else {
+			init_completion(&handler->done);
+			kref_init(&handler->kref);
 			list_add_tail_rcu(&handler->link, &address_handler_list);
 			ret = 0;
 			break;
@@ -620,6 +640,9 @@ void fw_core_remove_address_handler(struct fw_address_handler *handler)
 		list_del_rcu(&handler->link);
 
 	synchronize_rcu();
+
+	if (!put_address_handler(handler))
+		wait_for_completion(&handler->done);
 }
 EXPORT_SYMBOL(fw_core_remove_address_handler);
 
@@ -913,22 +936,31 @@ static void handle_exclusive_region_request(struct fw_card *card,
 		handler = lookup_enclosing_address_handler(&address_handler_list, offset,
 							   request->length);
 		if (handler)
-			handler->address_callback(card, request, tcode, destination, source,
-						  p->generation, offset, request->data,
-						  request->length, handler->callback_data);
+			get_address_handler(handler);
 	}
 
-	if (!handler)
+	if (!handler) {
 		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
+		return;
+	}
+
+	// Outside the RCU read-side critical section. Without spinlock. With reference count.
+	handler->address_callback(card, request, tcode, destination, source, p->generation, offset,
+				  request->data, request->length, handler->callback_data);
+	put_address_handler(handler);
 }
+
+// To use kmalloc allocator efficiently, this should be power of two.
+#define BUFFER_ON_KERNEL_STACK_SIZE	4
 
 static void handle_fcp_region_request(struct fw_card *card,
 				      struct fw_packet *p,
 				      struct fw_request *request,
 				      unsigned long long offset)
 {
-	struct fw_address_handler *handler;
-	int tcode, destination, source;
+	struct fw_address_handler *buffer_on_kernel_stack[BUFFER_ON_KERNEL_STACK_SIZE];
+	struct fw_address_handler *handler, **handlers;
+	int tcode, destination, source, i, count, buffer_size;
 
 	if ((offset != (CSR_REGISTER_BASE | CSR_FCP_COMMAND) &&
 	     offset != (CSR_REGISTER_BASE | CSR_FCP_RESPONSE)) ||
@@ -949,14 +981,54 @@ static void handle_fcp_region_request(struct fw_card *card,
 		return;
 	}
 
+	count = 0;
+	handlers = buffer_on_kernel_stack;
+	buffer_size = ARRAY_SIZE(buffer_on_kernel_stack);
 	scoped_guard(rcu) {
 		list_for_each_entry_rcu(handler, &address_handler_list, link) {
-			if (is_enclosing_handler(handler, offset, request->length))
-				handler->address_callback(card, request, tcode, destination, source,
-							  p->generation, offset, request->data,
-							  request->length, handler->callback_data);
+			if (is_enclosing_handler(handler, offset, request->length)) {
+				if (count >= buffer_size) {
+					int next_size = buffer_size * 2;
+					struct fw_address_handler **buffer_on_kernel_heap;
+
+					if (handlers == buffer_on_kernel_stack)
+						buffer_on_kernel_heap = NULL;
+					else
+						buffer_on_kernel_heap = handlers;
+
+					buffer_on_kernel_heap =
+						krealloc_array(buffer_on_kernel_heap, next_size,
+							sizeof(*buffer_on_kernel_heap), GFP_ATOMIC);
+					// FCP is used for purposes unrelated to significant system
+					// resources (e.g. storage or networking), so allocation
+					// failures are not considered so critical.
+					if (!buffer_on_kernel_heap)
+						break;
+
+					if (handlers == buffer_on_kernel_stack) {
+						memcpy(buffer_on_kernel_heap, buffer_on_kernel_stack,
+						       sizeof(buffer_on_kernel_stack));
+					}
+
+					handlers = buffer_on_kernel_heap;
+					buffer_size = next_size;
+				}
+				get_address_handler(handler);
+				handlers[count++] = handler;
+			}
 		}
 	}
+
+	for (i = 0; i < count; ++i) {
+		handler = handlers[i];
+		handler->address_callback(card, request, tcode, destination, source,
+					  p->generation, offset, request->data,
+					  request->length, handler->callback_data);
+		put_address_handler(handler);
+	}
+
+	if (handlers != buffer_on_kernel_stack)
+		kfree(handlers);
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 }

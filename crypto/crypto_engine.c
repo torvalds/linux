@@ -74,7 +74,6 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 	struct crypto_engine_alg *alg;
 	struct crypto_engine_op *op;
 	unsigned long flags;
-	bool was_busy = false;
 	int ret;
 
 	spin_lock_irqsave(&engine->queue_lock, flags);
@@ -82,12 +81,6 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 	/* Make sure we are not already running a request */
 	if (!engine->retry_support && engine->cur_req)
 		goto out;
-
-	/* If another context is idling then defer */
-	if (engine->idling) {
-		kthread_queue_work(engine->kworker, &engine->pump_requests);
-		goto out;
-	}
 
 	/* Check if the engine queue is idle */
 	if (!crypto_queue_len(&engine->queue) || !engine->running) {
@@ -102,15 +95,6 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 		}
 
 		engine->busy = false;
-		engine->idling = true;
-		spin_unlock_irqrestore(&engine->queue_lock, flags);
-
-		if (engine->unprepare_crypt_hardware &&
-		    engine->unprepare_crypt_hardware(engine))
-			dev_err(engine->dev, "failed to unprepare crypt hardware\n");
-
-		spin_lock_irqsave(&engine->queue_lock, flags);
-		engine->idling = false;
 		goto out;
 	}
 
@@ -129,21 +113,10 @@ start_request:
 	if (!engine->retry_support)
 		engine->cur_req = async_req;
 
-	if (engine->busy)
-		was_busy = true;
-	else
+	if (!engine->busy)
 		engine->busy = true;
 
 	spin_unlock_irqrestore(&engine->queue_lock, flags);
-
-	/* Until here we get the request need to be encrypted successfully */
-	if (!was_busy && engine->prepare_crypt_hardware) {
-		ret = engine->prepare_crypt_hardware(engine);
-		if (ret) {
-			dev_err(engine->dev, "failed to prepare crypt hardware\n");
-			goto req_err_1;
-		}
-	}
 
 	alg = container_of(async_req->tfm->__crt_alg,
 			   struct crypto_engine_alg, base);
@@ -194,17 +167,6 @@ retry:
 
 out:
 	spin_unlock_irqrestore(&engine->queue_lock, flags);
-
-	/*
-	 * Batch requests is possible only if
-	 * hardware can enqueue multiple requests
-	 */
-	if (engine->do_batch_requests) {
-		ret = engine->do_batch_requests(engine);
-		if (ret)
-			dev_err(engine->dev, "failed to do batch requests: %d\n",
-				ret);
-	}
 
 	return;
 }
@@ -462,12 +424,6 @@ EXPORT_SYMBOL_GPL(crypto_engine_stop);
  * crypto-engine queue.
  * @dev: the device attached with one hardware engine
  * @retry_support: whether hardware has support for retry mechanism
- * @cbk_do_batch: pointer to a callback function to be invoked when executing
- *                a batch of requests.
- *                This has the form:
- *                callback(struct crypto_engine *engine)
- *                where:
- *                engine: the crypto engine structure.
  * @rt: whether this queue is set to run as a realtime task
  * @qlen: maximum size of the crypto-engine queue
  *
@@ -476,7 +432,6 @@ EXPORT_SYMBOL_GPL(crypto_engine_stop);
  */
 struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
 						       bool retry_support,
-						       int (*cbk_do_batch)(struct crypto_engine *engine),
 						       bool rt, int qlen)
 {
 	struct crypto_engine *engine;
@@ -492,14 +447,8 @@ struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
 	engine->rt = rt;
 	engine->running = false;
 	engine->busy = false;
-	engine->idling = false;
 	engine->retry_support = retry_support;
 	engine->priv_data = dev;
-	/*
-	 * Batch requests is possible only if
-	 * hardware has support for retry mechanism.
-	 */
-	engine->do_batch_requests = retry_support ? cbk_do_batch : NULL;
 
 	snprintf(engine->name, sizeof(engine->name),
 		 "%s-engine", dev_name(dev));
@@ -534,7 +483,7 @@ EXPORT_SYMBOL_GPL(crypto_engine_alloc_init_and_set);
  */
 struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt)
 {
-	return crypto_engine_alloc_init_and_set(dev, false, NULL, rt,
+	return crypto_engine_alloc_init_and_set(dev, false, rt,
 						CRYPTO_ENGINE_MAX_QLEN);
 }
 EXPORT_SYMBOL_GPL(crypto_engine_alloc_init);

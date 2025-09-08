@@ -115,7 +115,7 @@ static int syscon_gpio_dir_out(struct gpio_chip *chip, unsigned offset, int val)
 				   BIT(offs % SYSCON_REG_BITS));
 	}
 
-	return chip->set_rv(chip, offset, val);
+	return chip->set(chip, offset, val);
 }
 
 static const struct syscon_gpio_data clps711x_mctrl_gpio = {
@@ -251,7 +251,7 @@ static int syscon_gpio_probe(struct platform_device *pdev)
 	if (priv->data->flags & GPIO_SYSCON_FEAT_IN)
 		priv->chip.direction_input = syscon_gpio_dir_in;
 	if (priv->data->flags & GPIO_SYSCON_FEAT_OUT) {
-		priv->chip.set_rv = priv->data->set ? : syscon_gpio_set;
+		priv->chip.set = priv->data->set ? : syscon_gpio_set;
 		priv->chip.direction_output = syscon_gpio_dir_out;
 	}
 

@@ -21,9 +21,9 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/of_clk.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/parser.h>
 #include <linux/pm_domain.h>
 #include <linux/regulator/consumer.h>
@@ -134,7 +134,7 @@ struct simplefb_params {
 static int simplefb_parse_dt(struct platform_device *pdev,
 			   struct simplefb_params *params)
 {
-	struct device_node *np = pdev->dev.of_node, *mem;
+	struct device_node *np = pdev->dev.of_node;
 	int ret;
 	const char *format;
 	int i;
@@ -174,19 +174,10 @@ static int simplefb_parse_dt(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	mem = of_parse_phandle(np, "memory-region", 0);
-	if (mem) {
-		ret = of_address_to_resource(mem, 0, &params->memory);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to parse memory-region\n");
-			of_node_put(mem);
-			return ret;
-		}
-
+	ret = of_reserved_mem_region_to_resource(np, 0, &params->memory);
+	if (!ret) {
 		if (of_property_present(np, "reg"))
 			dev_warn(&pdev->dev, "preferring \"memory-region\" over \"reg\" property\n");
-
-		of_node_put(mem);
 	} else {
 		memset(&params->memory, 0, sizeof(params->memory));
 	}

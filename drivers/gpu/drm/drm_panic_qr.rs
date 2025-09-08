@@ -381,6 +381,26 @@ struct DecFifo {
     len: usize,
 }
 
+// On arm32 architecture, dividing an `u64` by a constant will generate a call
+// to `__aeabi_uldivmod` which is not present in the kernel.
+// So use the multiply by inverse method for this architecture.
+fn div10(val: u64) -> u64 {
+    if cfg!(target_arch = "arm") {
+        let val_h = val >> 32;
+        let val_l = val & 0xFFFFFFFF;
+        let b_h: u64 = 0x66666666;
+        let b_l: u64 = 0x66666667;
+
+        let tmp1 = val_h * b_l + ((val_l * b_l) >> 32);
+        let tmp2 = val_l * b_h + (tmp1 & 0xffffffff);
+        let tmp3 = val_h * b_h + (tmp1 >> 32) + (tmp2 >> 32);
+
+        tmp3 >> 2
+    } else {
+        val / 10
+    }
+}
+
 impl DecFifo {
     fn push(&mut self, data: u64, len: usize) {
         let mut chunk = data;
@@ -389,7 +409,7 @@ impl DecFifo {
         }
         for i in 0..len {
             self.decimals[i] = (chunk % 10) as u8;
-            chunk /= 10;
+            chunk = div10(chunk);
         }
         self.len += len;
     }
@@ -404,7 +424,7 @@ impl DecFifo {
             let mut out = 0;
             let mut exp = 1;
             for i in 0..poplen {
-                out += self.decimals[self.len + i] as u16 * exp;
+                out += u16::from(self.decimals[self.len + i]) * exp;
                 exp *= 10;
             }
             Some((out, NUM_CHARS_BITS[poplen]))
@@ -425,7 +445,7 @@ impl Iterator for SegmentIterator<'_> {
         match self.segment {
             Segment::Binary(data) => {
                 if self.offset < data.len() {
-                    let byte = data[self.offset] as u16;
+                    let byte = u16::from(data[self.offset]);
                     self.offset += 1;
                     Some((byte, 8))
                 } else {

@@ -8,16 +8,21 @@ title: Qualcomm Camera Clock & Reset Controller on SM6350
 
 maintainers:
   - Konrad Dybcio <konradybcio@kernel.org>
+  - Taniya Das <quic_tdas@quicinc.com>
 
 description: |
   Qualcomm camera clock control module provides the clocks, resets and  power
-  domains on SM6350.
+  domains on SM6350 and QCS615 SoC.
 
-  See also:: include/dt-bindings/clock/qcom,sm6350-camcc.h
+  See also:
+    include/dt-bindings/clock/qcom,qcs615-camcc.h
+    include/dt-bindings/clock/qcom,sm6350-camcc.h
 
 properties:
   compatible:
-    const: qcom,sm6350-camcc
+    enum:
+      - qcom,qcs615-camcc
+      - qcom,sm6350-camcc
 
   clocks:
     items:

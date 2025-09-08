@@ -34,7 +34,9 @@
 MODULE_FIRMWARE("amdgpu/psp_14_0_2_sos.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_2_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_3_sos.bin");
+MODULE_FIRMWARE("amdgpu/psp_14_0_3_sos_kicker.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_3_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_14_0_3_ta_kicker.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_5_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_5_ta.bin");
 

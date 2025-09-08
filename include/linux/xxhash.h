@@ -178,32 +178,6 @@ struct xxh64_state {
 void xxh32_reset(struct xxh32_state *state, uint32_t seed);
 
 /**
- * xxh32_update() - hash the data given and update the xxh32 state
- *
- * @state:  The xxh32 state to update.
- * @input:  The data to hash.
- * @length: The length of the data to hash.
- *
- * After calling xxh32_reset() call xxh32_update() as many times as necessary.
- *
- * Return:  Zero on success, otherwise an error code.
- */
-int xxh32_update(struct xxh32_state *state, const void *input, size_t length);
-
-/**
- * xxh32_digest() - produce the current xxh32 hash
- *
- * @state: Produce the current xxh32 hash of this state.
- *
- * A hash value can be produced at any time. It is still possible to continue
- * inserting input into the hash state after a call to xxh32_digest(), and
- * generate new hashes later on, by calling xxh32_digest() again.
- *
- * Return: The xxh32 hash stored in the state.
- */
-uint32_t xxh32_digest(const struct xxh32_state *state);
-
-/**
  * xxh64_reset() - reset the xxh64 state to start a new hashing operation
  *
  * @state: The xxh64 state to reset.

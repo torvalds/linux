@@ -199,8 +199,8 @@ static bool fsnotify_event_needs_parent(struct inode *inode, __u32 mnt_mask,
 }
 
 /* Are there any inode/mount/sb objects that watch for these events? */
-static inline bool fsnotify_object_watched(struct inode *inode, __u32 mnt_mask,
-					   __u32 mask)
+static inline __u32 fsnotify_object_watched(struct inode *inode, __u32 mnt_mask,
+					    __u32 mask)
 {
 	__u32 marks_mask = READ_ONCE(inode->i_fsnotify_mask) | mnt_mask |
 			   READ_ONCE(inode->i_sb->s_fsnotify_mask);
@@ -656,20 +656,20 @@ EXPORT_SYMBOL_GPL(fsnotify);
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 /*
- * At open time we check fsnotify_sb_has_priority_watchers() and set the
- * FMODE_NONOTIFY_ mode bits accordignly.
+ * At open time we check fsnotify_sb_has_priority_watchers(), call the open perm
+ * hook and set the FMODE_NONOTIFY_ mode bits accordignly.
  * Later, fsnotify permission hooks do not check if there are permission event
  * watches, but that there were permission event watches at open time.
  */
-void file_set_fsnotify_mode_from_watchers(struct file *file)
+int fsnotify_open_perm_and_set_mode(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry, *parent;
 	struct super_block *sb = dentry->d_sb;
-	__u32 mnt_mask, p_mask;
+	__u32 mnt_mask, p_mask = 0;
 
 	/* Is it a file opened by fanotify? */
 	if (FMODE_FSNOTIFY_NONE(file->f_mode))
-		return;
+		return 0;
 
 	/*
 	 * Permission events is a super set of pre-content events, so if there
@@ -679,45 +679,64 @@ void file_set_fsnotify_mode_from_watchers(struct file *file)
 	if (likely(!fsnotify_sb_has_priority_watchers(sb,
 						FSNOTIFY_PRIO_CONTENT))) {
 		file_set_fsnotify_mode(file, FMODE_NONOTIFY_PERM);
-		return;
+		return 0;
 	}
 
 	/*
-	 * If there are permission event watchers but no pre-content event
-	 * watchers, set FMODE_NONOTIFY | FMODE_NONOTIFY_PERM to indicate that.
-	 */
-	if ((!d_is_dir(dentry) && !d_is_reg(dentry)) ||
-	    likely(!fsnotify_sb_has_priority_watchers(sb,
-						FSNOTIFY_PRIO_PRE_CONTENT))) {
-		file_set_fsnotify_mode(file, FMODE_NONOTIFY | FMODE_NONOTIFY_PERM);
-		return;
-	}
-
-	/*
-	 * OK, there are some pre-content watchers. Check if anybody is
-	 * watching for pre-content events on *this* file.
+	 * OK, there are some permission event watchers. Check if anybody is
+	 * watching for permission events on *this* file.
 	 */
 	mnt_mask = READ_ONCE(real_mount(file->f_path.mnt)->mnt_fsnotify_mask);
-	if (unlikely(fsnotify_object_watched(d_inode(dentry), mnt_mask,
-				     FSNOTIFY_PRE_CONTENT_EVENTS))) {
-		/* Enable pre-content events */
-		file_set_fsnotify_mode(file, 0);
-		return;
-	}
-
-	/* Is parent watching for pre-content events on this file? */
+	p_mask = fsnotify_object_watched(d_inode(dentry), mnt_mask,
+					 ALL_FSNOTIFY_PERM_EVENTS);
 	if (dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED) {
 		parent = dget_parent(dentry);
-		p_mask = fsnotify_inode_watches_children(d_inode(parent));
+		p_mask |= fsnotify_inode_watches_children(d_inode(parent));
 		dput(parent);
-		if (p_mask & FSNOTIFY_PRE_CONTENT_EVENTS) {
-			/* Enable pre-content events */
-			file_set_fsnotify_mode(file, 0);
-			return;
-		}
 	}
-	/* Nobody watching for pre-content events from this file */
-	file_set_fsnotify_mode(file, FMODE_NONOTIFY | FMODE_NONOTIFY_PERM);
+
+	/*
+	 * Legacy FAN_ACCESS_PERM events have very high performance overhead,
+	 * so unlikely to be used in the wild. If they are used there will be
+	 * no optimizations at all.
+	 */
+	if (unlikely(p_mask & FS_ACCESS_PERM)) {
+		/* Enable all permission and pre-content events */
+		file_set_fsnotify_mode(file, 0);
+		goto open_perm;
+	}
+
+	/*
+	 * Pre-content events are only supported on regular files.
+	 * If there are pre-content event watchers and no permission access
+	 * watchers, set FMODE_NONOTIFY | FMODE_NONOTIFY_PERM to indicate that.
+	 * That is the common case with HSM service.
+	 */
+	if (d_is_reg(dentry) && (p_mask & FSNOTIFY_PRE_CONTENT_EVENTS)) {
+		file_set_fsnotify_mode(file, FMODE_NONOTIFY |
+					     FMODE_NONOTIFY_PERM);
+		goto open_perm;
+	}
+
+	/* Nobody watching permission and pre-content events on this file */
+	file_set_fsnotify_mode(file, FMODE_NONOTIFY_PERM);
+
+open_perm:
+	/*
+	 * Send open perm events depending on object masks and regardless of
+	 * FMODE_NONOTIFY_PERM.
+	 */
+	if (file->f_flags & __FMODE_EXEC && p_mask & FS_OPEN_EXEC_PERM) {
+		int ret = fsnotify_path(&file->f_path, FS_OPEN_EXEC_PERM);
+
+		if (ret)
+			return ret;
+	}
+
+	if (p_mask & FS_OPEN_PERM)
+		return fsnotify_path(&file->f_path, FS_OPEN_PERM);
+
+	return 0;
 }
 #endif
 

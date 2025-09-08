@@ -294,7 +294,6 @@ void led_remove_lookup(struct led_lookup_data *led_lookup);
 struct led_classdev *__must_check led_get(struct device *dev, char *con_id);
 struct led_classdev *__must_check devm_led_get(struct device *dev, char *con_id);
 
-extern struct led_classdev *of_led_get(struct device_node *np, int index);
 extern void led_put(struct led_classdev *led_cdev);
 struct led_classdev *__must_check devm_of_led_get(struct device *dev,
 						  int index);

@@ -326,7 +326,7 @@ static void roclk_calc_div_trim(unsigned long rate,
 	 * i.e. fout = fin / 2 * DIV
 	 *      whereas DIV = rodiv + (rotrim / 512)
 	 *
-	 * Since kernel does not perform floating-point arithmatic so
+	 * Since kernel does not perform floating-point arithmetic so
 	 * (rotrim/512) will be zero. And DIV & rodiv will result same.
 	 *
 	 * ie. fout = (fin * 256) / [(512 * rodiv) + rotrim]  ... from (1)

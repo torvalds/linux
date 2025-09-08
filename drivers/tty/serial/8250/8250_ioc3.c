@@ -5,7 +5,7 @@
  * Copyright (C) 2019 Thomas Bogendoerfer <tbogendoerfer@suse.de>
  *
  * based on code Copyright (C) 2005 Stanislaw Skowronek <skylark@unaligned.org>
- *               Copyright (C) 2014 Joshua Kinard <kumba@gentoo.org>
+ *               Copyright (C) 2014 Joshua Kinard <linux@kumba.dev>
  */
 
 #include <linux/module.h>

@@ -250,9 +250,9 @@
 &i2s0 {
 	/delete-property/ pinctrl-0;
 	rockchip,trcm-sync-rx-only;
-	pinctrl-0 =  <&i2s0m0_sclk_rx>,
-		     <&i2s0m0_lrck_rx>,
-		     <&i2s0m0_sdi0>;
+	pinctrl-0 = <&i2s0m0_sclk_rx>,
+		    <&i2s0m0_lrck_rx>,
+		    <&i2s0m0_sdi0>;
 	pinctrl-names = "default";
 	status = "okay";
 };

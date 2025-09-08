@@ -131,3 +131,59 @@ Get IO accounting for pid 1, it works only with -p::
 	linuxrc: read=65536, write=0, cancelled_write=0
 
 The above command can be used with -v to get more debug information.
+
+After the system starts, use `delaytop` to get the system-wide delay information,
+which includes system-wide PSI information and Top-N high-latency tasks.
+
+`delaytop` supports sorting by CPU latency in descending order by default,
+displays the top 20 high-latency tasks by default, and refreshes the latency
+data every 2 seconds by default.
+
+Get PSI information and Top-N tasks delay, since system boot::
+
+	bash# ./delaytop
+	System Pressure Information: (avg10/avg60/avg300/total)
+	CPU some:       0.0%/   0.0%/   0.0%/     345(ms)
+	CPU full:       0.0%/   0.0%/   0.0%/       0(ms)
+	Memory full:    0.0%/   0.0%/   0.0%/       0(ms)
+	Memory some:    0.0%/   0.0%/   0.0%/       0(ms)
+	IO full:        0.0%/   0.0%/   0.0%/      65(ms)
+	IO some:        0.0%/   0.0%/   0.0%/      79(ms)
+	IRQ full:       0.0%/   0.0%/   0.0%/       0(ms)
+	Top 20 processes (sorted by CPU delay):
+	  PID   TGID  COMMAND          CPU(ms)  IO(ms) SWAP(ms) RCL(ms) THR(ms) CMP(ms)  WP(ms) IRQ(ms)
+	----------------------------------------------------------------------------------------------
+	  161    161  zombie_memcg_re   1.40    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	  130    130  blkcg_punt_bio    1.37    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	  444    444  scsi_tmf_0        0.73    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	 1280   1280  rsyslogd          0.53    0.04    0.00    0.00    0.00    0.00    0.00    0.00
+	   12     12  ksoftirqd/0       0.47    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	 1277   1277  nbd-server        0.44    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	  308    308  kworker/2:2-sys   0.41    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	   55     55  netns             0.36    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	 1187   1187  acpid             0.31    0.03    0.00    0.00    0.00    0.00    0.00    0.00
+	 6184   6184  kworker/1:2-sys   0.24    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	  186    186  kaluad            0.24    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	   18     18  ksoftirqd/1       0.24    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	  185    185  kmpath_rdacd      0.23    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	  190    190  kstrp             0.23    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	 2759   2759  agetty            0.20    0.03    0.00    0.00    0.00    0.00    0.00    0.00
+	 1190   1190  kworker/0:3-sys   0.19    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	 1272   1272  sshd              0.15    0.04    0.00    0.00    0.00    0.00    0.00    0.00
+	 1156   1156  license           0.15    0.11    0.00    0.00    0.00    0.00    0.00    0.00
+	  134    134  md                0.13    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+	 6142   6142  kworker/3:2-xfs   0.13    0.00    0.00    0.00    0.00    0.00    0.00    0.00
+
+Dynamic interactive interface of delaytop::
+
+	# ./delaytop -p pid
+	Print delayacct stats
+
+	# ./delaytop -P num
+	Display the top N tasks
+
+	# ./delaytop -n num
+	Set delaytop refresh frequency (num times)
+
+	# ./delaytop -d secs
+	Specify refresh interval as secs

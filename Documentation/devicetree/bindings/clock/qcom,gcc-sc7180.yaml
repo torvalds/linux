@@ -14,7 +14,7 @@ description: |
   Qualcomm global clock control module provides the clocks, resets and power
   domains on SC7180.
 
-  See also:: include/dt-bindings/clock/qcom,gcc-sc7180.h
+  See also: include/dt-bindings/clock/qcom,gcc-sc7180.h
 
 properties:
   compatible:

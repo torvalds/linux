@@ -125,7 +125,7 @@ static const struct gpio_chip snd_soc_ac97_gpio_chip = {
 	.direction_input	= snd_soc_ac97_gpio_direction_in,
 	.get			= snd_soc_ac97_gpio_get,
 	.direction_output	= snd_soc_ac97_gpio_direction_out,
-	.set_rv			= snd_soc_ac97_gpio_set,
+	.set			= snd_soc_ac97_gpio_set,
 	.can_sleep		= 1,
 };
 

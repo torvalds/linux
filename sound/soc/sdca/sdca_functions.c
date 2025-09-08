@@ -814,6 +814,43 @@ static int find_sdca_control_range(struct device *dev,
 	return 0;
 }
 
+static int find_sdca_control_value(struct device *dev, struct sdca_entity *entity,
+				   struct fwnode_handle *control_node,
+				   struct sdca_control *control,
+				   const char * const label)
+{
+	char property[SDCA_PROPERTY_LENGTH];
+	bool global = true;
+	int ret, cn, i;
+	u32 tmp;
+
+	snprintf(property, sizeof(property), "mipi-sdca-control-%s", label);
+
+	ret = fwnode_property_read_u32(control_node, property, &tmp);
+	if (ret == -EINVAL)
+		global = false;
+	else if (ret)
+		return ret;
+
+	i = 0;
+	for_each_set_bit(cn, (unsigned long *)&control->cn_list,
+			 BITS_PER_TYPE(control->cn_list)) {
+		if (!global) {
+			snprintf(property, sizeof(property),
+				 "mipi-sdca-control-cn-%d-%s", cn, label);
+
+			ret = fwnode_property_read_u32(control_node, property, &tmp);
+			if (ret)
+				return ret;
+		}
+
+		control->values[i] = tmp;
+		i++;
+	}
+
+	return 0;
+}
+
 /*
  * TODO: Add support for -cn- properties, allowing different channels to have
  * different defaults etc.
@@ -843,44 +880,44 @@ static int find_sdca_entity_control(struct device *dev, struct sdca_entity *enti
 
 	control->layers = tmp;
 
+	ret = fwnode_property_read_u64(control_node, "mipi-sdca-control-cn-list",
+				       &control->cn_list);
+	if (ret == -EINVAL) {
+		/* Spec allows not specifying cn-list if only the first number is used */
+		control->cn_list = 0x1;
+	} else if (ret || !control->cn_list) {
+		dev_err(dev, "%s: control %#x: cn list missing: %d\n",
+			entity->label, control->sel, ret);
+		return ret;
+	}
+
+	control->values = devm_kzalloc(dev, hweight64(control->cn_list), GFP_KERNEL);
+	if (!control->values)
+		return -ENOMEM;
+
 	switch (control->mode) {
 	case SDCA_ACCESS_MODE_DC:
-		ret = fwnode_property_read_u32(control_node,
-					       "mipi-sdca-control-dc-value",
-					       &tmp);
+		ret = find_sdca_control_value(dev, entity, control_node, control,
+					      "dc-value");
 		if (ret) {
 			dev_err(dev, "%s: control %#x: dc value missing: %d\n",
 				entity->label, control->sel, ret);
 			return ret;
 		}
 
-		control->value = tmp;
 		control->has_fixed = true;
 		break;
 	case SDCA_ACCESS_MODE_RW:
 	case SDCA_ACCESS_MODE_DUAL:
-		ret = fwnode_property_read_u32(control_node,
-					       "mipi-sdca-control-default-value",
-					       &tmp);
-		if (!ret) {
-			control->value = tmp;
+		ret = find_sdca_control_value(dev, entity, control_node, control,
+					      "default-value");
+		if (!ret)
 			control->has_default = true;
-		}
 
-		ret = fwnode_property_read_u32(control_node,
-					       "mipi-sdca-control-fixed-value",
-					       &tmp);
-		if (!ret) {
-			if (control->has_default && control->value != tmp) {
-				dev_err(dev,
-					"%s: control %#x: default and fixed value don't match\n",
-					entity->label, control->sel);
-				return -EINVAL;
-			}
-
-			control->value = tmp;
+		ret = find_sdca_control_value(dev, entity, control_node, control,
+					      "fixed-value");
+		if (!ret)
 			control->has_fixed = true;
-		}
 		fallthrough;
 	case SDCA_ACCESS_MODE_RO:
 		control->deferrable = fwnode_property_read_bool(control_node,
@@ -893,17 +930,6 @@ static int find_sdca_entity_control(struct device *dev, struct sdca_entity *enti
 	ret = find_sdca_control_range(dev, control_node, &control->range);
 	if (ret) {
 		dev_err(dev, "%s: control %#x: range missing: %d\n",
-			entity->label, control->sel, ret);
-		return ret;
-	}
-
-	ret = fwnode_property_read_u64(control_node, "mipi-sdca-control-cn-list",
-				       &control->cn_list);
-	if (ret == -EINVAL) {
-		/* Spec allows not specifying cn-list if only the first number is used */
-		control->cn_list = 0x1;
-	} else if (ret || !control->cn_list) {
-		dev_err(dev, "%s: control %#x: cn list missing: %d\n",
 			entity->label, control->sel, ret);
 		return ret;
 	}
@@ -923,11 +949,10 @@ static int find_sdca_entity_control(struct device *dev, struct sdca_entity *enti
 	control->type = find_sdca_control_datatype(entity, control);
 	control->nbits = find_sdca_control_bits(entity, control);
 
-	dev_info(dev, "%s: %s: control %#x mode %#x layers %#x cn %#llx int %d value %#x %s\n",
+	dev_info(dev, "%s: %s: control %#x mode %#x layers %#x cn %#llx int %d %s\n",
 		 entity->label, control->label, control->sel,
 		 control->mode, control->layers, control->cn_list,
-		 control->interrupt_position, control->value,
-		 control->deferrable ? "deferrable" : "");
+		 control->interrupt_position, control->deferrable ? "deferrable" : "");
 
 	return 0;
 }

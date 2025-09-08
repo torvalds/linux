@@ -1101,9 +1101,6 @@ xfs_file_write_iter(
 	if (xfs_is_shutdown(ip->i_mount))
 		return -EIO;
 
-	if (IS_DAX(inode))
-		return xfs_file_dax_write(iocb, from);
-
 	if (iocb->ki_flags & IOCB_ATOMIC) {
 		if (ocount < xfs_get_atomic_write_min(ip))
 			return -EINVAL;
@@ -1115,6 +1112,9 @@ xfs_file_write_iter(
 		if (ret)
 			return ret;
 	}
+
+	if (IS_DAX(inode))
+		return xfs_file_dax_write(iocb, from);
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		/*
@@ -1732,7 +1732,7 @@ xfs_dax_fault_locked(
 	bool			write_fault)
 {
 	vm_fault_t		ret;
-	pfn_t			pfn;
+	unsigned long		pfn;
 
 	if (!IS_ENABLED(CONFIG_FS_DAX)) {
 		ASSERT(0);

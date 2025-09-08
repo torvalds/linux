@@ -10,7 +10,6 @@
 #define MFD_TPS65219_H
 
 #include <linux/bitops.h>
-#include <linux/notifier.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 
@@ -438,17 +437,13 @@ enum tps65219_irqs {
  *
  * @dev: MFD device
  * @regmap: Regmap for accessing the device registers
- * @chip_id: Chip ID
  * @irq_data: Regmap irq data used for the irq chip
- * @nb: notifier block for the restart handler
  */
 struct tps65219 {
 	struct device *dev;
 	struct regmap *regmap;
 
-	unsigned int chip_id;
 	struct regmap_irq_chip_data *irq_data;
-	struct notifier_block nb;
 };
 
 #endif /* MFD_TPS65219_H */

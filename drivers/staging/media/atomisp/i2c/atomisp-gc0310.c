@@ -3,7 +3,7 @@
  * Support for GalaxyCore GC0310 VGA camera sensor.
  *
  * Copyright (c) 2013 Intel Corporation. All Rights Reserved.
- * Copyright (c) 2023 Hans de Goede <hdegoede@redhat.com>
+ * Copyright (c) 2023-2025 Hans de Goede <hansg@kernel.org>
  */
 
 #include <linux/delay.h>
@@ -13,77 +13,92 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/string.h>
 #include <linux/types.h>
 
+#include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fwnode.h>
 
 #define GC0310_NATIVE_WIDTH			656
 #define GC0310_NATIVE_HEIGHT			496
 
+/*
+ * The actual PLL output rate is unknown, the datasheet
+ * says that the formula for the frame-time in pixels is:
+ * rowtime = win-width + hblank + sh-delay + 4
+ * frametime = rowtime * (win-height + vblank)
+ * Filling this in and multiplying by 30 fps gives:
+ * pixelrate = (660 + 178 + 42 + 4) * (498 + 27) * 30 = 13923000
+ */
+#define GC0310_PIXELRATE			13923000
+/* single lane, bus-format is 8 bpp, CSI-2 is double data rate */
+#define GC0310_LINK_FREQ			(GC0310_PIXELRATE * 8 / 2)
+#define GC0310_MCLK_FREQ			19200000
 #define GC0310_FPS				30
 #define GC0310_SKIP_FRAMES			3
 
-#define GC0310_FOCAL_LENGTH_NUM			278 /* 2.78mm */
-
 #define GC0310_ID				0xa310
 
-#define GC0310_RESET_RELATED			0xFE
+#define GC0310_RESET_RELATED_REG		CCI_REG8(0xfe)
 #define GC0310_REGISTER_PAGE_0			0x0
 #define GC0310_REGISTER_PAGE_3			0x3
 
 /*
  * GC0310 System control registers
  */
-#define GC0310_SW_STREAM			0x10
-
-#define GC0310_SC_CMMN_CHIP_ID_H		0xf0
-#define GC0310_SC_CMMN_CHIP_ID_L		0xf1
-
-#define GC0310_AEC_PK_EXPO_H			0x03
-#define GC0310_AEC_PK_EXPO_L			0x04
-#define GC0310_AGC_ADJ				0x48
-#define GC0310_DGC_ADJ				0x71
-#define GC0310_GROUP_ACCESS			0x3208
-
-#define GC0310_H_CROP_START_H			0x09
-#define GC0310_H_CROP_START_L			0x0A
-#define GC0310_V_CROP_START_H			0x0B
-#define GC0310_V_CROP_START_L			0x0C
-#define GC0310_H_OUTSIZE_H			0x0F
-#define GC0310_H_OUTSIZE_L			0x10
-#define GC0310_V_OUTSIZE_H			0x0D
-#define GC0310_V_OUTSIZE_L			0x0E
-#define GC0310_H_BLANKING_H			0x05
-#define GC0310_H_BLANKING_L			0x06
-#define GC0310_V_BLANKING_H			0x07
-#define GC0310_V_BLANKING_L			0x08
-#define GC0310_SH_DELAY				0x11
+#define GC0310_SW_STREAM_REG			CCI_REG8(0x10)
 
 #define GC0310_START_STREAMING			0x94 /* 8-bit enable */
 #define GC0310_STOP_STREAMING			0x0 /* 8-bit disable */
+
+#define GC0310_SC_CMMN_CHIP_ID_REG		CCI_REG16(0xf0)
+
+#define GC0310_AEC_PK_EXPO_REG			CCI_REG16(0x03)
+#define GC0310_AGC_ADJ_REG			CCI_REG8(0x48)
+#define GC0310_DGC_ADJ_REG			CCI_REG8(0x71)
+
+#define GC0310_H_CROP_START_REG			CCI_REG16(0x09)
+#define GC0310_V_CROP_START_REG			CCI_REG16(0x0b)
+#define GC0310_H_OUTSIZE_REG			CCI_REG16(0x0f)
+#define GC0310_V_OUTSIZE_REG			CCI_REG16(0x0d)
+
+#define GC0310_H_BLANKING_REG			CCI_REG16(0x05)
+/* Hblank-register + sh-delay + H-crop + 4 (from hw) */
+#define GC0310_H_BLANK_DEFAULT			(178 + 42 + 4 + 4)
+
+#define GC0310_V_BLANKING_REG			CCI_REG16(0x07)
+/* Vblank needs an offset compensate for the small V-crop done */
+#define GC0310_V_BLANK_OFFSET			2
+/* Vsync start time + 1 row vsync + vsync end time + offset */
+#define GC0310_V_BLANK_MIN			(9 + 1 + 4 + GC0310_V_BLANK_OFFSET)
+#define GC0310_V_BLANK_DEFAULT			(27 + GC0310_V_BLANK_OFFSET)
+#define GC0310_V_BLANK_MAX			(4095 - GC0310_NATIVE_HEIGHT)
+
+#define GC0310_SH_DELAY_REG			CCI_REG8(0x11)
+#define GC0310_VS_START_TIME_REG		CCI_REG8(0x12)
+#define GC0310_VS_END_TIME_REG			CCI_REG8(0x13)
 
 #define to_gc0310_sensor(x) container_of(x, struct gc0310_device, sd)
 
 struct gc0310_device {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	/* Protect against concurrent changes to controls */
-	struct mutex input_lock;
-	bool is_streaming;
 
+	struct regmap *regmap;
 	struct gpio_desc *reset;
 	struct gpio_desc *powerdown;
-
-	struct gc0310_mode {
-		struct v4l2_mbus_framefmt fmt;
-	} mode;
 
 	struct gc0310_ctrls {
 		struct v4l2_ctrl_handler handler;
 		struct v4l2_ctrl *exposure;
 		struct v4l2_ctrl *gain;
+		struct v4l2_ctrl *link_freq;
+		struct v4l2_ctrl *pixel_rate;
+		struct v4l2_ctrl *vblank;
+		struct v4l2_ctrl *hblank;
 	} ctrls;
 };
 
@@ -92,7 +107,7 @@ struct gc0310_reg {
 	u8 val;
 };
 
-static const struct gc0310_reg gc0310_reset_register[] = {
+static const struct reg_sequence gc0310_reset_register[] = {
 	/* System registers */
 	{ 0xfe, 0xf0 },
 	{ 0xfe, 0xf0 },
@@ -142,8 +157,7 @@ static const struct gc0310_reg gc0310_reset_register[] = {
 	{ 0x04, 0xc0 }, /* 0xe8 //58 */
 	{ 0x05, 0x00 },
 	{ 0x06, 0xb2 }, /* 0x0a //HB */
-	{ 0x07, 0x00 },
-	{ 0x08, 0x0c }, /* 0x89 //VB */
+	/* Vblank (reg 0x07 + 0x08) gets set by the vblank ctrl */
 	{ 0x09, 0x00 }, /* row start */
 	{ 0x0a, 0x00 },
 	{ 0x0b, 0x00 }, /* col start */
@@ -235,7 +249,7 @@ static const struct gc0310_reg gc0310_reset_register[] = {
 	{ 0xfe, 0x00 },
 };
 
-static const struct gc0310_reg gc0310_VGA_30fps[] = {
+static const struct reg_sequence gc0310_VGA_30fps[] = {
 	{ 0xfe, 0x00 },
 	{ 0x0d, 0x01 }, /* height */
 	{ 0x0e, 0xf2 }, /* 0xf7 //height */
@@ -259,41 +273,14 @@ static const struct gc0310_reg gc0310_VGA_30fps[] = {
 	{ 0xfe, 0x00 },
 };
 
-/*
- * gc0310_write_reg_array - Initializes a list of GC0310 registers
- * @client: i2c driver client structure
- * @reglist: list of registers to be written
- * @count: number of register, value pairs in the list
- */
-static int gc0310_write_reg_array(struct i2c_client *client,
-				  const struct gc0310_reg *reglist, int count)
+static const s64 link_freq_menu_items[] = {
+	GC0310_LINK_FREQ,
+};
+
+static int gc0310_gain_set(struct gc0310_device *sensor, u32 gain)
 {
-	int i, err;
-
-	for (i = 0; i < count; i++) {
-		err = i2c_smbus_write_byte_data(client, reglist[i].reg, reglist[i].val);
-		if (err) {
-			dev_err(&client->dev, "write error: wrote 0x%x to offset 0x%x error %d",
-				reglist[i].val, reglist[i].reg, err);
-			return err;
-		}
-	}
-
-	return 0;
-}
-
-static int gc0310_exposure_set(struct gc0310_device *dev, u32 exp)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&dev->sd);
-
-	return i2c_smbus_write_word_swapped(client, GC0310_AEC_PK_EXPO_H, exp);
-}
-
-static int gc0310_gain_set(struct gc0310_device *dev, u32 gain)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&dev->sd);
 	u8 again, dgain;
-	int ret;
+	int ret = 0;
 
 	/* Taken from original driver, this never sets dgain lower then 32? */
 
@@ -308,53 +295,61 @@ static int gc0310_gain_set(struct gc0310_device *dev, u32 gain)
 		dgain = gain / 2;
 	}
 
-	ret = i2c_smbus_write_byte_data(client, GC0310_AGC_ADJ, again);
-	if (ret)
-		return ret;
+	cci_write(sensor->regmap, GC0310_AGC_ADJ_REG, again, &ret);
+	cci_write(sensor->regmap, GC0310_DGC_ADJ_REG, dgain, &ret);
+	return ret;
+}
 
-	return i2c_smbus_write_byte_data(client, GC0310_DGC_ADJ, dgain);
+static int gc0310_exposure_update_range(struct gc0310_device *sensor)
+{
+	int exp_max = GC0310_NATIVE_HEIGHT + sensor->ctrls.vblank->val;
+
+	return __v4l2_ctrl_modify_range(sensor->ctrls.exposure, 0, exp_max,
+					1, exp_max);
 }
 
 static int gc0310_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct gc0310_device *dev =
+	struct gc0310_device *sensor =
 		container_of(ctrl->handler, struct gc0310_device, ctrls.handler);
 	int ret;
 
+	/* Update exposure range on vblank changes */
+	if (ctrl->id == V4L2_CID_VBLANK) {
+		ret = gc0310_exposure_update_range(sensor);
+		if (ret)
+			return ret;
+	}
+
 	/* Only apply changes to the controls if the device is powered up */
-	if (!pm_runtime_get_if_in_use(dev->sd.dev))
+	if (!pm_runtime_get_if_in_use(sensor->sd.dev))
 		return 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
-		ret = gc0310_exposure_set(dev, ctrl->val);
+		ret = cci_write(sensor->regmap, GC0310_AEC_PK_EXPO_REG,
+				ctrl->val, NULL);
 		break;
-	case V4L2_CID_GAIN:
-		ret = gc0310_gain_set(dev, ctrl->val);
+	case V4L2_CID_ANALOGUE_GAIN:
+		ret = gc0310_gain_set(sensor, ctrl->val);
+		break;
+	case V4L2_CID_VBLANK:
+		ret = cci_write(sensor->regmap, GC0310_V_BLANKING_REG,
+				ctrl->val - GC0310_V_BLANK_OFFSET,
+				NULL);
 		break;
 	default:
 		ret = -EINVAL;
 		break;
 	}
 
-	pm_runtime_put(dev->sd.dev);
+	pm_runtime_put(sensor->sd.dev);
 	return ret;
 }
 
 static const struct v4l2_ctrl_ops ctrl_ops = {
 	.s_ctrl = gc0310_s_ctrl,
 };
-
-static struct v4l2_mbus_framefmt *
-gc0310_get_pad_format(struct gc0310_device *dev,
-		      struct v4l2_subdev_state *state,
-		      unsigned int pad, enum v4l2_subdev_format_whence which)
-{
-	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_state_get_format(state, pad);
-
-	return &dev->mode.fmt;
-}
 
 /* The GC0310 currently only supports 1 fixed fmt */
 static void gc0310_fill_format(struct v4l2_mbus_framefmt *fmt)
@@ -366,54 +361,72 @@ static void gc0310_fill_format(struct v4l2_mbus_framefmt *fmt)
 	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 }
 
-static int gc0310_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_state *sd_state,
-			  struct v4l2_subdev_format *format)
+static int gc0310_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *state,
+				struct v4l2_subdev_selection *sel)
 {
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-	struct v4l2_mbus_framefmt *fmt;
+	/* Only the single fixed 656x496 mode is supported, without croping */
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_NATIVE_SIZE:
+		sel->r.top = 0;
+		sel->r.left = 0;
+		sel->r.width = GC0310_NATIVE_WIDTH;
+		sel->r.height = GC0310_NATIVE_HEIGHT;
+		break;
+	default:
+		return -EINVAL;
+	}
 
-	fmt = gc0310_get_pad_format(dev, sd_state, format->pad, format->which);
-	gc0310_fill_format(fmt);
-
-	format->format = *fmt;
 	return 0;
 }
 
-static int gc0310_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_state *sd_state,
-			  struct v4l2_subdev_format *format)
+static int gc0310_power_off(struct device *dev)
 {
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-	struct v4l2_mbus_framefmt *fmt;
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct gc0310_device *sensor = to_gc0310_sensor(sd);
 
-	fmt = gc0310_get_pad_format(dev, sd_state, format->pad, format->which);
-	format->format = *fmt;
+	gpiod_set_value_cansleep(sensor->powerdown, 1);
+	gpiod_set_value_cansleep(sensor->reset, 1);
 	return 0;
 }
 
-static int gc0310_detect(struct i2c_client *client)
+static int gc0310_power_on(struct device *dev)
 {
-	struct i2c_adapter *adapter = client->adapter;
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct gc0310_device *sensor = to_gc0310_sensor(sd);
+
+	fsleep(10 * USEC_PER_MSEC);
+	gpiod_set_value_cansleep(sensor->reset, 0);
+	fsleep(10 * USEC_PER_MSEC);
+	gpiod_set_value_cansleep(sensor->powerdown, 0);
+	fsleep(10 * USEC_PER_MSEC);
+
+	return 0;
+}
+
+static int gc0310_detect(struct gc0310_device *sensor)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->sd);
+	u64 val;
 	int ret;
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	ret = pm_runtime_get_sync(&client->dev);
-	if (ret >= 0)
-		ret = i2c_smbus_read_word_swapped(client, GC0310_SC_CMMN_CHIP_ID_H);
-	pm_runtime_put(&client->dev);
+	ret = cci_read(sensor->regmap, GC0310_SC_CMMN_CHIP_ID_REG, &val, NULL);
 	if (ret < 0) {
 		dev_err(&client->dev, "read sensor_id failed: %d\n", ret);
 		return -ENODEV;
 	}
 
-	dev_dbg(&client->dev, "sensor ID = 0x%x\n", ret);
+	dev_dbg(&client->dev, "sensor ID = 0x%llx\n", val);
 
-	if (ret != GC0310_ID) {
-		dev_err(&client->dev, "sensor ID error, read id = 0x%x, target id = 0x%x\n",
-			ret, GC0310_ID);
+	if (val != GC0310_ID) {
+		dev_err(&client->dev, "sensor ID error, read id = 0x%llx, target id = 0x%x\n",
+			val, GC0310_ID);
 		return -ENODEV;
 	}
 
@@ -422,85 +435,67 @@ static int gc0310_detect(struct i2c_client *client)
 	return 0;
 }
 
-static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
+static int gc0310_enable_streams(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state,
+				 u32 pad, u64 streams_mask)
 {
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
+	struct gc0310_device *sensor = to_gc0310_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
+	int ret;
 
-	dev_dbg(&client->dev, "%s S enable=%d\n", __func__, enable);
-	mutex_lock(&dev->input_lock);
+	ret = pm_runtime_resume_and_get(&client->dev);
+	if (ret)
+		return ret;
 
-	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0)
-			goto error_power_down;
-
-		msleep(100);
-
-		ret = gc0310_write_reg_array(client, gc0310_reset_register,
-					     ARRAY_SIZE(gc0310_reset_register));
-		if (ret)
-			goto error_power_down;
-
-		ret = gc0310_write_reg_array(client, gc0310_VGA_30fps,
-					     ARRAY_SIZE(gc0310_VGA_30fps));
-		if (ret)
-			goto error_power_down;
-
-		/* restore value of all ctrls */
-		ret = __v4l2_ctrl_handler_setup(&dev->ctrls.handler);
-		if (ret)
-			goto error_power_down;
-
-		/* enable per frame MIPI and sensor ctrl reset  */
-		ret = i2c_smbus_write_byte_data(client, 0xFE, 0x30);
-		if (ret)
-			goto error_power_down;
-	}
-
-	ret = i2c_smbus_write_byte_data(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_3);
+	ret = regmap_multi_reg_write(sensor->regmap,
+				     gc0310_reset_register,
+				     ARRAY_SIZE(gc0310_reset_register));
 	if (ret)
 		goto error_power_down;
 
-	ret = i2c_smbus_write_byte_data(client, GC0310_SW_STREAM,
-					enable ? GC0310_START_STREAMING : GC0310_STOP_STREAMING);
+	ret = regmap_multi_reg_write(sensor->regmap,
+				     gc0310_VGA_30fps,
+				     ARRAY_SIZE(gc0310_VGA_30fps));
 	if (ret)
 		goto error_power_down;
 
-	ret = i2c_smbus_write_byte_data(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_0);
-	if (ret)
-		goto error_power_down;
+	/* restore value of all ctrls */
+	ret = __v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
 
-	if (!enable)
-		pm_runtime_put(&client->dev);
+	/* enable per frame MIPI and sensor ctrl reset  */
+	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG, 0x30, &ret);
 
-	dev->is_streaming = enable;
-	mutex_unlock(&dev->input_lock);
-	return 0;
+	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG,
+		  GC0310_REGISTER_PAGE_3, &ret);
+	cci_write(sensor->regmap, GC0310_SW_STREAM_REG,
+		  GC0310_START_STREAMING, &ret);
+	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG,
+		  GC0310_REGISTER_PAGE_0, &ret);
 
 error_power_down:
-	pm_runtime_put(&client->dev);
-	dev->is_streaming = false;
-	mutex_unlock(&dev->input_lock);
+	if (ret)
+		pm_runtime_put(&client->dev);
+
 	return ret;
 }
 
-static int gc0310_get_frame_interval(struct v4l2_subdev *sd,
-				     struct v4l2_subdev_state *sd_state,
-				     struct v4l2_subdev_frame_interval *interval)
+static int gc0310_disable_streams(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state,
+				  u32 pad, u64 streams_mask)
 {
-	/*
-	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
-	 * subdev active state API.
-	 */
-	if (interval->which != V4L2_SUBDEV_FORMAT_ACTIVE)
-		return -EINVAL;
+	struct gc0310_device *sensor = to_gc0310_sensor(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret = 0;
 
-	interval->interval.numerator = 1;
-	interval->interval.denominator = GC0310_FPS;
+	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG,
+		  GC0310_REGISTER_PAGE_3, &ret);
+	cci_write(sensor->regmap, GC0310_SW_STREAM_REG,
+		  GC0310_STOP_STREAMING, &ret);
+	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG,
+		  GC0310_REGISTER_PAGE_0, &ret);
 
-	return 0;
+	pm_runtime_put(&client->dev);
+	return ret;
 }
 
 static int gc0310_enum_mbus_code(struct v4l2_subdev *sd,
@@ -531,164 +526,239 @@ static int gc0310_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int gc0310_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
-{
-	*frames = GC0310_SKIP_FRAMES;
-	return 0;
-}
-
-static const struct v4l2_subdev_sensor_ops gc0310_sensor_ops = {
-	.g_skip_frames	= gc0310_g_skip_frames,
-};
-
 static const struct v4l2_subdev_video_ops gc0310_video_ops = {
-	.s_stream = gc0310_s_stream,
+	.s_stream = v4l2_subdev_s_stream_helper,
 };
 
 static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
 	.enum_mbus_code = gc0310_enum_mbus_code,
 	.enum_frame_size = gc0310_enum_frame_size,
-	.get_fmt = gc0310_get_fmt,
-	.set_fmt = gc0310_set_fmt,
-	.get_frame_interval = gc0310_get_frame_interval,
+	.get_fmt = v4l2_subdev_get_fmt,
+	.set_fmt = v4l2_subdev_get_fmt, /* Only 1 fixed mode supported */
+	.get_selection = gc0310_get_selection,
+	.set_selection = gc0310_get_selection,
+	.enable_streams = gc0310_enable_streams,
+	.disable_streams = gc0310_disable_streams,
 };
 
 static const struct v4l2_subdev_ops gc0310_ops = {
 	.video = &gc0310_video_ops,
 	.pad = &gc0310_pad_ops,
-	.sensor = &gc0310_sensor_ops,
 };
 
-static int gc0310_init_controls(struct gc0310_device *dev)
+static int gc0310_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *sd_state)
 {
-	struct v4l2_ctrl_handler *hdl = &dev->ctrls.handler;
+	gc0310_fill_format(v4l2_subdev_state_get_format(sd_state, 0));
+	return 0;
+}
 
-	v4l2_ctrl_handler_init(hdl, 2);
+static const struct v4l2_subdev_internal_ops gc0310_internal_ops = {
+	.init_state = gc0310_init_state,
+};
+
+static int gc0310_init_controls(struct gc0310_device *sensor)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->sd);
+	struct v4l2_ctrl_handler *hdl = &sensor->ctrls.handler;
+	struct v4l2_fwnode_device_properties props;
+	int exp_max, ret;
+
+	v4l2_ctrl_handler_init(hdl, 8);
 
 	/* Use the same lock for controls as for everything else */
-	hdl->lock = &dev->input_lock;
-	dev->sd.ctrl_handler = hdl;
+	sensor->sd.ctrl_handler = hdl;
 
-	dev->ctrls.exposure =
-		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_EXPOSURE, 0, 4095, 1, 1023);
+	exp_max = GC0310_NATIVE_HEIGHT + GC0310_V_BLANK_DEFAULT;
+	sensor->ctrls.exposure =
+		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_EXPOSURE, 0,
+				  exp_max, 1, exp_max);
 
 	/* 32 steps at base gain 1 + 64 half steps at base gain 2 */
-	dev->ctrls.gain =
-		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_GAIN, 0, 95, 1, 31);
+	sensor->ctrls.gain =
+		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_ANALOGUE_GAIN, 0, 95, 1, 31);
 
-	return hdl->error;
+	sensor->ctrls.link_freq =
+		v4l2_ctrl_new_int_menu(hdl, NULL, V4L2_CID_LINK_FREQ,
+				       0, 0, link_freq_menu_items);
+	sensor->ctrls.pixel_rate =
+		v4l2_ctrl_new_std(hdl, NULL, V4L2_CID_PIXEL_RATE, 0,
+				  GC0310_PIXELRATE, 1, GC0310_PIXELRATE);
+
+	sensor->ctrls.vblank =
+		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_VBLANK,
+				  GC0310_V_BLANK_MIN,
+				  GC0310_V_BLANK_MAX, 1,
+				  GC0310_V_BLANK_DEFAULT);
+
+	sensor->ctrls.hblank =
+		v4l2_ctrl_new_std(hdl, NULL, V4L2_CID_HBLANK,
+				  GC0310_H_BLANK_DEFAULT,
+				  GC0310_H_BLANK_DEFAULT, 1,
+				  GC0310_H_BLANK_DEFAULT);
+
+	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	if (ret)
+		return ret;
+
+	v4l2_ctrl_new_fwnode_properties(hdl, &ctrl_ops, &props);
+
+	if (hdl->error)
+		return hdl->error;
+
+	sensor->ctrls.pixel_rate->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	sensor->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	sensor->ctrls.hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	return 0;
 }
 
 static void gc0310_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct gc0310_device *dev = to_gc0310_sensor(sd);
-
-	dev_dbg(&client->dev, "gc0310_remove...\n");
+	struct gc0310_device *sensor = to_gc0310_sensor(sd);
 
 	v4l2_async_unregister_subdev(sd);
-	media_entity_cleanup(&dev->sd.entity);
-	v4l2_ctrl_handler_free(&dev->ctrls.handler);
-	mutex_destroy(&dev->input_lock);
+	v4l2_subdev_cleanup(sd);
+	media_entity_cleanup(&sensor->sd.entity);
+	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev)) {
+		gc0310_power_off(&client->dev);
+		pm_runtime_set_suspended(&client->dev);
+	}
 }
 
-static int gc0310_probe(struct i2c_client *client)
+static int gc0310_check_hwcfg(struct device *dev)
 {
+	struct v4l2_fwnode_endpoint bus_cfg = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY,
+	};
 	struct fwnode_handle *ep_fwnode;
-	struct gc0310_device *dev;
+	unsigned long link_freq_bitmap;
+	u32 mclk;
 	int ret;
 
 	/*
 	 * Sometimes the fwnode graph is initialized by the bridge driver.
 	 * Bridge drivers doing this may also add GPIO mappings, wait for this.
 	 */
-	ep_fwnode = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
+	ep_fwnode = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0, 0);
 	if (!ep_fwnode)
-		return dev_err_probe(&client->dev, -EPROBE_DEFER, "waiting for fwnode graph endpoint\n");
+		return dev_err_probe(dev, -EPROBE_DEFER,
+				     "waiting for fwnode graph endpoint\n");
 
+	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+				       &mclk);
+	if (ret) {
+		fwnode_handle_put(ep_fwnode);
+		return dev_err_probe(dev, ret,
+				     "reading clock-frequency property\n");
+	}
+
+	if (mclk != GC0310_MCLK_FREQ) {
+		fwnode_handle_put(ep_fwnode);
+		return dev_err_probe(dev, -EINVAL,
+				     "external clock %u is not supported\n",
+				     mclk);
+	}
+
+	ret = v4l2_fwnode_endpoint_alloc_parse(ep_fwnode, &bus_cfg);
 	fwnode_handle_put(ep_fwnode);
+	if (ret)
+		return dev_err_probe(dev, ret, "parsing endpoint failed\n");
 
-	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
-	if (!dev)
+	ret = v4l2_link_freq_to_bitmap(dev, bus_cfg.link_frequencies,
+				       bus_cfg.nr_of_link_frequencies,
+				       link_freq_menu_items,
+				       ARRAY_SIZE(link_freq_menu_items),
+				       &link_freq_bitmap);
+
+	if (ret == 0 && bus_cfg.bus.mipi_csi2.num_data_lanes != 1)
+		ret = dev_err_probe(dev, -EINVAL,
+				    "number of CSI2 data lanes %u is not supported\n",
+				    bus_cfg.bus.mipi_csi2.num_data_lanes);
+
+	v4l2_fwnode_endpoint_free(&bus_cfg);
+	return ret;
+}
+
+static int gc0310_probe(struct i2c_client *client)
+{
+	struct gc0310_device *sensor;
+	int ret;
+
+	ret = gc0310_check_hwcfg(&client->dev);
+	if (ret)
+		return ret;
+
+	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
+	if (!sensor)
 		return -ENOMEM;
 
-	dev->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(dev->reset)) {
-		return dev_err_probe(&client->dev, PTR_ERR(dev->reset),
+	sensor->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(sensor->reset)) {
+		return dev_err_probe(&client->dev, PTR_ERR(sensor->reset),
 				     "getting reset GPIO\n");
 	}
 
-	dev->powerdown = devm_gpiod_get(&client->dev, "powerdown", GPIOD_OUT_HIGH);
-	if (IS_ERR(dev->powerdown)) {
-		return dev_err_probe(&client->dev, PTR_ERR(dev->powerdown),
+	sensor->powerdown = devm_gpiod_get(&client->dev, "powerdown", GPIOD_OUT_HIGH);
+	if (IS_ERR(sensor->powerdown)) {
+		return dev_err_probe(&client->dev, PTR_ERR(sensor->powerdown),
 				     "getting powerdown GPIO\n");
 	}
 
-	mutex_init(&dev->input_lock);
-	v4l2_i2c_subdev_init(&dev->sd, client, &gc0310_ops);
-	gc0310_fill_format(&dev->mode.fmt);
+	v4l2_i2c_subdev_init(&sensor->sd, client, &gc0310_ops);
 
-	pm_runtime_set_suspended(&client->dev);
+	sensor->regmap = devm_cci_regmap_init_i2c(client, 8);
+	if (IS_ERR(sensor->regmap))
+		return PTR_ERR(sensor->regmap);
+
+	gc0310_power_on(&client->dev);
+
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_get_noresume(&client->dev);
 	pm_runtime_enable(&client->dev);
+
+	ret = gc0310_detect(sensor);
+	if (ret)
+		goto err_power_down;
+
+	sensor->sd.internal_ops = &gc0310_internal_ops;
+	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
+	sensor->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
+
+	ret = gc0310_init_controls(sensor);
+	if (ret)
+		goto err_power_down;
+
+	ret = media_entity_pads_init(&sensor->sd.entity, 1, &sensor->pad);
+	if (ret)
+		goto err_power_down;
+
+	sensor->sd.state_lock = sensor->ctrls.handler.lock;
+	ret = v4l2_subdev_init_finalize(&sensor->sd);
+	if (ret)
+		goto err_power_down;
+
+	ret = v4l2_async_register_subdev_sensor(&sensor->sd);
+	if (ret)
+		goto err_power_down;
+
 	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
 	pm_runtime_use_autosuspend(&client->dev);
-
-	ret = gc0310_detect(client);
-	if (ret) {
-		gc0310_remove(client);
-		return ret;
-	}
-
-	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
-	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
-
-	ret = gc0310_init_controls(dev);
-	if (ret) {
-		gc0310_remove(client);
-		return ret;
-	}
-
-	ret = media_entity_pads_init(&dev->sd.entity, 1, &dev->pad);
-	if (ret) {
-		gc0310_remove(client);
-		return ret;
-	}
-
-	ret = v4l2_async_register_subdev_sensor(&dev->sd);
-	if (ret) {
-		gc0310_remove(client);
-		return ret;
-	}
+	pm_runtime_put_autosuspend(&client->dev);
 
 	return 0;
+
+err_power_down:
+	pm_runtime_put_noidle(&client->dev);
+	gc0310_remove(client);
+	return ret;
 }
 
-static int gc0310_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct gc0310_device *gc0310_dev = to_gc0310_sensor(sd);
-
-	gpiod_set_value_cansleep(gc0310_dev->powerdown, 1);
-	gpiod_set_value_cansleep(gc0310_dev->reset, 1);
-	return 0;
-}
-
-static int gc0310_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct gc0310_device *gc0310_dev = to_gc0310_sensor(sd);
-
-	usleep_range(10000, 15000);
-	gpiod_set_value_cansleep(gc0310_dev->reset, 0);
-	usleep_range(10000, 15000);
-	gpiod_set_value_cansleep(gc0310_dev->powerdown, 0);
-
-	return 0;
-}
-
-static DEFINE_RUNTIME_DEV_PM_OPS(gc0310_pm_ops, gc0310_suspend, gc0310_resume, NULL);
+static DEFINE_RUNTIME_DEV_PM_OPS(gc0310_pm_ops,
+				 gc0310_power_off, gc0310_power_on, NULL);
 
 static const struct acpi_device_id gc0310_acpi_match[] = {
 	{"INT0310"},
@@ -708,5 +778,6 @@ static struct i2c_driver gc0310_driver = {
 module_i2c_driver(gc0310_driver);
 
 MODULE_AUTHOR("Lai, Angie <angie.lai@intel.com>");
+MODULE_AUTHOR("Hans de Goede <hansg@kernel.org>");
 MODULE_DESCRIPTION("A low-level driver for GalaxyCore GC0310 sensors");
 MODULE_LICENSE("GPL");

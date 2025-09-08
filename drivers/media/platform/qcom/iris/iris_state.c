@@ -245,7 +245,7 @@ int iris_inst_sub_state_change_pause(struct iris_inst *inst, u32 plane)
 	return iris_inst_change_sub_state(inst, 0, set_sub_state);
 }
 
-static inline bool iris_drc_pending(struct iris_inst *inst)
+bool iris_drc_pending(struct iris_inst *inst)
 {
 	return inst->sub_state & IRIS_INST_SUB_DRC &&
 		inst->sub_state & IRIS_INST_SUB_DRC_LAST;

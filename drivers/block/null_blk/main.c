@@ -1179,7 +1179,7 @@ static int copy_from_nullb(struct nullb *nullb, struct page *dest,
 			memcpy_page(dest, off + count, t_page->page, offset,
 				    temp);
 		else
-			zero_user(dest, off + count, temp);
+			memzero_page(dest, off + count, temp);
 
 		count += temp;
 		sector += temp >> SECTOR_SHIFT;

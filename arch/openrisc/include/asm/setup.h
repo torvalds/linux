@@ -8,7 +8,7 @@
 #include <linux/init.h>
 #include <asm-generic/setup.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 void __init or1k_early_setup(void *fdt);
 #endif
 

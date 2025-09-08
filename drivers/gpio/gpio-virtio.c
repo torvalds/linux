@@ -567,7 +567,7 @@ static int virtio_gpio_probe(struct virtio_device *vdev)
 	vgpio->gc.direction_input	= virtio_gpio_direction_input;
 	vgpio->gc.direction_output	= virtio_gpio_direction_output;
 	vgpio->gc.get			= virtio_gpio_get;
-	vgpio->gc.set_rv		= virtio_gpio_set;
+	vgpio->gc.set			= virtio_gpio_set;
 	vgpio->gc.ngpio			= ngpio;
 	vgpio->gc.base			= -1; /* Allocate base dynamically */
 	vgpio->gc.label			= dev_name(dev);

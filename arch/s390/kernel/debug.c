@@ -1677,7 +1677,7 @@ EXPORT_SYMBOL(debug_dflt_header_fn);
 
 /*
  * prints debug data sprintf-formatted:
- * debug_sprinf_event/exception calls must be used together with this view
+ * debug_sprintf_event/exception calls must be used together with this view
  */
 
 #define DEBUG_SPRINTF_MAX_ARGS 10

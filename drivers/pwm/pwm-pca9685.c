@@ -323,7 +323,7 @@ static int pca9685_pwm_gpio_probe(struct pwm_chip *chip)
 	pca->gpio.direction_input = pca9685_pwm_gpio_direction_input;
 	pca->gpio.direction_output = pca9685_pwm_gpio_direction_output;
 	pca->gpio.get = pca9685_pwm_gpio_get;
-	pca->gpio.set_rv = pca9685_pwm_gpio_set;
+	pca->gpio.set = pca9685_pwm_gpio_set;
 	pca->gpio.base = -1;
 	pca->gpio.ngpio = PCA9685_MAXCHAN;
 	pca->gpio.can_sleep = true;

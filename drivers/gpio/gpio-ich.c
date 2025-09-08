@@ -273,7 +273,7 @@ static void ichx_gpiolib_setup(struct gpio_chip *chip)
 	chip->get = ichx_priv.desc->get ?
 		ichx_priv.desc->get : ichx_gpio_get;
 
-	chip->set_rv = ichx_gpio_set;
+	chip->set = ichx_gpio_set;
 	chip->get_direction = ichx_gpio_get_direction;
 	chip->direction_input = ichx_gpio_direction_input;
 	chip->direction_output = ichx_gpio_direction_output;

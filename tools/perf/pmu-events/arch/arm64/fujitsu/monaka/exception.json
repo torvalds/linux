@@ -33,7 +33,7 @@
     },
     {
         "ArchStdEvent": "EXC_SMC",
-        "BriefDescription": "This event counts only Secure Monitor Call exceptions. The counter does not increment on SMC instructions trapped as a Hyp Trap exception."
+        "BriefDescription": "This event counts only Secure Monitor Call exceptions. This event does not increment on SMC instructions trapped as a Hyp Trap exception."
     },
     {
         "ArchStdEvent": "EXC_HVC",

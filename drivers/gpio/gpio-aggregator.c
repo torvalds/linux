@@ -534,8 +534,8 @@ static struct gpiochip_fwd *gpiochip_fwd_create(struct device *dev,
 	chip->direction_output = gpio_fwd_direction_output;
 	chip->get = gpio_fwd_get;
 	chip->get_multiple = gpio_fwd_get_multiple_locked;
-	chip->set_rv = gpio_fwd_set;
-	chip->set_multiple_rv = gpio_fwd_set_multiple_locked;
+	chip->set = gpio_fwd_set;
+	chip->set_multiple = gpio_fwd_set_multiple_locked;
 	chip->to_irq = gpio_fwd_to_irq;
 	chip->base = -1;
 	chip->ngpio = ngpios;

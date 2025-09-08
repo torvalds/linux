@@ -274,7 +274,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	gc->ngpio = 70;
 	gc->direction_output = xlp_gpio_dir_output;
 	gc->direction_input = xlp_gpio_dir_input;
-	gc->set_rv = xlp_gpio_set;
+	gc->set = xlp_gpio_set;
 	gc->get = xlp_gpio_get;
 
 	spin_lock_init(&priv->lock);

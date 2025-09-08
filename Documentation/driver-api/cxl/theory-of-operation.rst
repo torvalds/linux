@@ -29,8 +29,8 @@ Platform firmware enumerates a menu of interleave options at the "CXL root port"
 (Linux term for the top of the CXL decode topology). From there, PCIe topology
 dictates which endpoints can participate in which Host Bridge decode regimes.
 Each PCIe Switch in the path between the root and an endpoint introduces a point
-at which the interleave can be split. For example platform firmware may say at a
-given range only decodes to 1 one Host Bridge, but that Host Bridge may in turn
+at which the interleave can be split. For example, platform firmware may say a
+given range only decodes to one Host Bridge, but that Host Bridge may in turn
 interleave cycles across multiple Root Ports. An intervening Switch between a
 port and an endpoint may interleave cycles across multiple Downstream Switch
 Ports, etc.
@@ -187,7 +187,7 @@ decodes them to "ports", "ports" decode to "endpoints", and "endpoints"
 represent the decode from SPA (System Physical Address) to DPA (Device Physical
 Address).
 
-Continuing the RAID analogy, disks have both topology metadata and on device
+Continuing the RAID analogy, disks have both topology metadata and on-device
 metadata that determine RAID set assembly. CXL Port topology and CXL Port link
 status is metadata for CXL.mem set assembly. The CXL Port topology is enumerated
 by the arrival of a CXL.mem device. I.e. unless and until the PCIe core attaches
@@ -197,7 +197,7 @@ the Linux PCI core to tear down switch-level CXL resources because the endpoint
 ->remove() event cleans up the port data that was established to support that
 Memory Expander.
 
-The port metadata and potential decode schemes that a give memory device may
+The port metadata and potential decode schemes that a given memory device may
 participate can be determined via a command like::
 
     # cxl list -BDMu -d root -m mem3
@@ -249,8 +249,8 @@ participate can be determined via a command like::
 ...which queries the CXL topology to ask "given CXL Memory Expander with a kernel
 device name of 'mem3' which platform level decode ranges may this device
 participate". A given expander can participate in multiple CXL.mem interleave
-sets simultaneously depending on how many decoder resource it has. In this
-example mem3 can participate in one or more of a PMEM interleave that spans to
+sets simultaneously depending on how many decoder resources it has. In this
+example mem3 can participate in one or more of a PMEM interleave that spans two
 Host Bridges, a PMEM interleave that targets a single Host Bridge, a Volatile
 memory interleave that spans 2 Host Bridges, and a Volatile memory interleave
 that only targets a single Host Bridge.

@@ -393,6 +393,17 @@ static int __maybe_unused ti_sn65dsi86_resume(struct device *dev)
 	gpiod_set_value_cansleep(pdata->enable_gpio, 1);
 
 	/*
+	 * After EN is deasserted and an external clock is detected, the bridge
+	 * will sample GPIO3:1 to determine its frequency. The driver will
+	 * overwrite this setting in ti_sn_bridge_set_refclk_freq(). But this is
+	 * racy. Thus we have to wait a couple of us. According to the datasheet
+	 * the GPIO lines has to be stable at least 5 us (td5) but it seems that
+	 * is not enough and the refclk frequency value is still lost or
+	 * overwritten by the bridge itself. Waiting for 20us seems to work.
+	 */
+	usleep_range(20, 30);
+
+	/*
 	 * If we have a reference clock we can enable communication w/ the
 	 * panel (including the aux channel) w/out any need for an input clock
 	 * so we can do it in resume which lets us read the EDID before
@@ -1836,7 +1847,7 @@ static int ti_sn_gpio_probe(struct auxiliary_device *adev,
 	pdata->gchip.direction_input = ti_sn_bridge_gpio_direction_input;
 	pdata->gchip.direction_output = ti_sn_bridge_gpio_direction_output;
 	pdata->gchip.get = ti_sn_bridge_gpio_get;
-	pdata->gchip.set_rv = ti_sn_bridge_gpio_set;
+	pdata->gchip.set = ti_sn_bridge_gpio_set;
 	pdata->gchip.can_sleep = true;
 	pdata->gchip.names = ti_sn_bridge_gpio_names;
 	pdata->gchip.ngpio = SN_NUM_GPIOS;

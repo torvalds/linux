@@ -80,7 +80,7 @@ void ASSABET_BCR_frob(unsigned int mask, unsigned int val)
 {
 	unsigned long m = mask, v = val;
 
-	assabet_bcr_gc->set_multiple_rv(assabet_bcr_gc, &m, &v);
+	assabet_bcr_gc->set_multiple(assabet_bcr_gc, &m, &v);
 }
 EXPORT_SYMBOL(ASSABET_BCR_frob);
 

@@ -2,18 +2,18 @@
 /*
  * Driver for Renesas R-Car VIN
  *
+ * Copyright (C) 2025 Niklas Söderlund <niklas.soderlund@ragnatech.se>
  * Copyright (C) 2016 Renesas Electronics Corp.
  * Copyright (C) 2011-2013 Renesas Solutions Corp.
  * Copyright (C) 2013 Cogent Embedded, Inc., <source@cogentembedded.com>
  * Copyright (C) 2008 Magnus Damm
- *
- * Based on the soc-camera rcar_vin driver
  */
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 
+#include <media/v4l2-event.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "rcar-vin.h"
@@ -115,11 +115,16 @@
 #define VNFC_S_FRAME		(1 << 0)
 
 /* Video n Interrupt Enable Register bits */
-#define VNIE_FIE		(1 << 4)
-#define VNIE_EFE		(1 << 1)
+#define VNIE_VFE		BIT(17)
+#define VNIE_VRE		BIT(16)
+#define VNIE_FIE		BIT(4)
+#define VNIE_EFE		BIT(1)
 
 /* Video n Interrupt Status Register bits */
-#define VNINTS_FIS		(1 << 4)
+#define VNINTS_VFS		BIT(17)
+#define VNINTS_VRS		BIT(16)
+#define VNINTS_FIS		BIT(4)
+#define VNINTS_EFS		BIT(1)
 
 /* Video n Data Mode Register bits */
 #define VNDMR_A8BIT(n)		(((n) & 0xff) << 24)
@@ -555,17 +560,12 @@ static void rvin_set_coeff(struct rvin_dev *vin, unsigned short xs)
 
 void rvin_scaler_gen2(struct rvin_dev *vin)
 {
-	unsigned int crop_height;
 	u32 xs, ys;
 
 	/* Set scaling coefficient */
-	crop_height = vin->crop.height;
-	if (V4L2_FIELD_HAS_BOTH(vin->format.field))
-		crop_height *= 2;
-
 	ys = 0;
-	if (crop_height != vin->compose.height)
-		ys = (4096 * crop_height) / vin->compose.height;
+	if (vin->crop.height != vin->compose.height)
+		ys = (4096 * vin->crop.height) / vin->compose.height;
 	rvin_write(vin, ys, VNYS_REG);
 
 	xs = 0;
@@ -700,9 +700,6 @@ static int rvin_setup(struct rvin_dev *vin)
 	case V4L2_FIELD_INTERLACED:
 		/* Default to TB */
 		vnmc = VNMC_IM_FULL;
-		/* Use BT if video standard can be read and is 60 Hz format */
-		if (!vin->info->use_mc && vin->std & V4L2_STD_525_60)
-			vnmc = VNMC_IM_FULL | VNMC_FOC;
 		break;
 	case V4L2_FIELD_INTERLACED_TB:
 		vnmc = VNMC_IM_FULL;
@@ -897,6 +894,8 @@ static int rvin_setup(struct rvin_dev *vin)
 
 	/* Progressive or interlaced mode */
 	interrupts = progressive ? VNIE_FIE : VNIE_EFE;
+	/* Enable VSYNC Rising Edge Detection. */
+	interrupts |= VNIE_VRE;
 
 	/* Ack interrupts */
 	rvin_write(vin, interrupts, VNINTS_REG);
@@ -910,21 +909,6 @@ static int rvin_setup(struct rvin_dev *vin)
 	rvin_write(vin, vnmc | VNMC_ME, VNMC_REG);
 
 	return 0;
-}
-
-static void rvin_disable_interrupts(struct rvin_dev *vin)
-{
-	rvin_write(vin, 0, VNIE_REG);
-}
-
-static u32 rvin_get_interrupt_status(struct rvin_dev *vin)
-{
-	return rvin_read(vin, VNINTS_REG);
-}
-
-static void rvin_ack_interrupt(struct rvin_dev *vin)
-{
-	rvin_write(vin, rvin_read(vin, VNINTS_REG), VNINTS_REG);
 }
 
 static bool rvin_capture_active(struct rvin_dev *vin)
@@ -1049,22 +1033,35 @@ static void rvin_capture_stop(struct rvin_dev *vin)
 static irqreturn_t rvin_irq(int irq, void *data)
 {
 	struct rvin_dev *vin = data;
-	u32 int_status, vnms;
+	u32 capture, status, vnms;
 	int slot;
 	unsigned int handled = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vin->qlock, flags);
 
-	int_status = rvin_get_interrupt_status(vin);
-	if (!int_status)
+	status = rvin_read(vin, VNINTS_REG);
+	if (!status)
 		goto done;
 
-	rvin_ack_interrupt(vin);
+	rvin_write(vin, status, VNINTS_REG);
 	handled = 1;
 
+	/* Signal Start of Frame. */
+	if (status & VNINTS_VRS) {
+		struct v4l2_event event = {
+			.type = V4L2_EVENT_FRAME_SYNC,
+			.u.frame_sync.frame_sequence = vin->sequence,
+		};
+
+		v4l2_event_queue(&vin->vdev, &event);
+	}
+
 	/* Nothing to do if nothing was captured. */
-	if (!(int_status & VNINTS_FIS))
+	capture = vin->format.field == V4L2_FIELD_NONE ||
+		vin->format.field == V4L2_FIELD_ALTERNATE ?
+		VNINTS_FIS : VNINTS_EFS;
+	if (!(status & capture))
 		goto done;
 
 	/* Nothing to do if not running. */
@@ -1297,14 +1294,6 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 	struct media_pad *pad;
 	int ret;
 
-	/* No media controller used, simply pass operation to subdevice. */
-	if (!vin->info->use_mc) {
-		ret = v4l2_subdev_call(vin->parallel.subdev, video, s_stream,
-				       on);
-
-		return ret == -ENOIOCTLCMD ? 0 : ret;
-	}
-
 	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
@@ -1417,7 +1406,7 @@ void rvin_stop_streaming(struct rvin_dev *vin)
 	rvin_set_stream(vin, 0);
 
 	/* disable interrupts */
-	rvin_disable_interrupts(vin);
+	rvin_write(vin, 0, VNIE_REG);
 
 	/* Return unprocessed buffers from hardware. */
 	for (unsigned int i = 0; i < HW_BUFFER_NUM; i++) {

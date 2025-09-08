@@ -180,7 +180,7 @@ pub struct Attrs(u32);
 impl Attrs {
     /// Get the raw representation of this attribute.
     pub(crate) fn as_raw(self) -> crate::ffi::c_ulong {
-        self.0 as _
+        self.0 as crate::ffi::c_ulong
     }
 
     /// Check whether `flags` is contained in `self`.
@@ -333,7 +333,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
             dev: dev.into(),
             dma_handle,
             count,
-            cpu_addr: ret as *mut T,
+            cpu_addr: ret.cast::<T>(),
             dma_attrs,
         })
     }
@@ -436,7 +436,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     ///   slice is live.
     /// * Callers must ensure that this call does not race with a read or write to the same region
     ///   while the returned slice is live.
-    pub unsafe fn as_slice_mut(&self, offset: usize, count: usize) -> Result<&mut [T]> {
+    pub unsafe fn as_slice_mut(&mut self, offset: usize, count: usize) -> Result<&mut [T]> {
         self.validate_range(offset, count)?;
         // SAFETY:
         // - The pointer is valid due to type invariant on `CoherentAllocation`,
@@ -468,7 +468,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     /// unsafe { alloc.write(buf, 0)?; }
     /// # Ok::<(), Error>(()) }
     /// ```
-    pub unsafe fn write(&self, src: &[T], offset: usize) -> Result {
+    pub unsafe fn write(&mut self, src: &[T], offset: usize) -> Result {
         self.validate_range(offset, src.len())?;
         // SAFETY:
         // - The pointer is valid due to type invariant on `CoherentAllocation`
@@ -556,7 +556,7 @@ impl<T: AsBytes + FromBytes> Drop for CoherentAllocation<T> {
             bindings::dma_free_attrs(
                 self.dev.as_raw(),
                 size,
-                self.cpu_addr as _,
+                self.cpu_addr.cast(),
                 self.dma_handle,
                 self.dma_attrs.as_raw(),
             )

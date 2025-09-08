@@ -132,7 +132,7 @@ static struct gpio_chip expstate_chip = {
 	.ngpio		= 32,
 	.get_direction	= xtensa_expstate_get_direction,
 	.get		= xtensa_expstate_get_value,
-	.set_rv		= xtensa_expstate_set_value,
+	.set		= xtensa_expstate_set_value,
 };
 
 static int xtensa_gpio_probe(struct platform_device *pdev)

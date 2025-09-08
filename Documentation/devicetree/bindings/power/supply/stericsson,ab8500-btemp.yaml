@@ -17,9 +17,7 @@ properties:
   compatible:
     const: stericsson,ab8500-btemp
 
-  monitored-battery:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description: phandle to battery node
+  monitored-battery: true
 
   battery:
     $ref: /schemas/types.yaml#/definitions/phandle

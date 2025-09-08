@@ -1,4 +1,5 @@
 # coding=utf-8
+# SPDX-License-Identifier: MIT
 #
 # Copyright © 2016 Intel Corporation
 #
@@ -23,8 +24,6 @@
 #
 # Authors:
 #    Jani Nikula <jani.nikula@intel.com>
-#
-# Please make sure this works on both python2 and python3.
 #
 
 import codecs

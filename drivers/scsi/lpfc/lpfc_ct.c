@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -264,9 +264,9 @@ ct_free_mpvirt:
 ct_free_mp:
 	kfree(mp);
 ct_exit:
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-			 "6440 Unsol CT: Rsp err %d Data: x%lx\n",
-			 rc, vport->fc_flag);
+	lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
+		      "6440 Unsol CT: Rsp err %d Data: x%lx\n",
+		      rc, vport->fc_flag);
 }
 
 /**
@@ -313,7 +313,7 @@ lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
 
 	mi_cmd = be16_to_cpu(ct_req->CommandResponse.bits.CmdRsp);
 	lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
-		      "6442 MI Cmd : x%x Not Supported\n", mi_cmd);
+		      "6442 MI Cmd: x%x Not Supported\n", mi_cmd);
 	lpfc_ct_reject_event(ndlp, ct_req,
 			     bf_get(wqe_ctxt_tag,
 				    &ctiocbq->wqe.xmit_els_rsp.wqe_com),
@@ -2229,21 +2229,6 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		/* Look for a retryable error */
 		if (ulp_status == IOSTAT_LOCAL_REJECT) {
 			switch ((ulp_word4 & IOERR_PARAM_MASK)) {
-			case IOERR_SLI_ABORTED:
-			case IOERR_SLI_DOWN:
-				/* Driver aborted this IO.  No retry as error
-				 * is likely Offline->Online or some adapter
-				 * error.  Recovery will try again, but if port
-				 * is not active there's no point to continue
-				 * issuing follow up FDMI commands.
-				 */
-				if (!(phba->sli.sli_flag & LPFC_SLI_ACTIVE)) {
-					free_ndlp = cmdiocb->ndlp;
-					lpfc_ct_free_iocb(phba, cmdiocb);
-					lpfc_nlp_put(free_ndlp);
-					return;
-				}
-				break;
 			case IOERR_ABORT_IN_PROGRESS:
 			case IOERR_SEQUENCE_TIMEOUT:
 			case IOERR_ILLEGAL_FRAME:
@@ -2268,6 +2253,9 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	free_ndlp = cmdiocb->ndlp;
 	lpfc_ct_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(free_ndlp);
+
+	if (ulp_status != IOSTAT_SUCCESS)
+		return;
 
 	ndlp = lpfc_findnode_did(vport, FDMI_DID);
 	if (!ndlp)

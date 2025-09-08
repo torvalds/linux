@@ -18,10 +18,95 @@
 #include "clk-regmap.h"
 #include "clk-pll.h"
 #include "clk-mpll.h"
-#include "axg.h"
 #include "meson-eeclk.h"
 
 #include <dt-bindings/clock/axg-clkc.h>
+
+#define HHI_GP0_PLL_CNTL		0x40
+#define HHI_GP0_PLL_CNTL2		0x44
+#define HHI_GP0_PLL_CNTL3		0x48
+#define HHI_GP0_PLL_CNTL4		0x4c
+#define HHI_GP0_PLL_CNTL5		0x50
+#define HHI_GP0_PLL_STS			0x54
+#define HHI_GP0_PLL_CNTL1		0x58
+#define HHI_HIFI_PLL_CNTL		0x80
+#define HHI_HIFI_PLL_CNTL2		0x84
+#define HHI_HIFI_PLL_CNTL3		0x88
+#define HHI_HIFI_PLL_CNTL4		0x8C
+#define HHI_HIFI_PLL_CNTL5		0x90
+#define HHI_HIFI_PLL_STS		0x94
+#define HHI_HIFI_PLL_CNTL1		0x98
+
+#define HHI_XTAL_DIVN_CNTL		0xbc
+#define HHI_GCLK2_MPEG0			0xc0
+#define HHI_GCLK2_MPEG1			0xc4
+#define HHI_GCLK2_MPEG2			0xc8
+#define HHI_GCLK2_OTHER			0xd0
+#define HHI_GCLK2_AO			0xd4
+#define HHI_PCIE_PLL_CNTL		0xd8
+#define HHI_PCIE_PLL_CNTL1		0xdC
+#define HHI_PCIE_PLL_CNTL2		0xe0
+#define HHI_PCIE_PLL_CNTL3		0xe4
+#define HHI_PCIE_PLL_CNTL4		0xe8
+#define HHI_PCIE_PLL_CNTL5		0xec
+#define HHI_PCIE_PLL_CNTL6		0xf0
+#define HHI_PCIE_PLL_STS		0xf4
+
+#define HHI_MEM_PD_REG0			0x100
+#define HHI_VPU_MEM_PD_REG0		0x104
+#define HHI_VIID_CLK_DIV		0x128
+#define HHI_VIID_CLK_CNTL		0x12c
+
+#define HHI_GCLK_MPEG0			0x140
+#define HHI_GCLK_MPEG1			0x144
+#define HHI_GCLK_MPEG2			0x148
+#define HHI_GCLK_OTHER			0x150
+#define HHI_GCLK_AO			0x154
+#define HHI_SYS_CPU_CLK_CNTL1		0x15c
+#define HHI_SYS_CPU_RESET_CNTL		0x160
+#define HHI_VID_CLK_DIV			0x164
+#define HHI_SPICC_HCLK_CNTL		0x168
+
+#define HHI_MPEG_CLK_CNTL		0x174
+#define HHI_VID_CLK_CNTL		0x17c
+#define HHI_TS_CLK_CNTL			0x190
+#define HHI_VID_CLK_CNTL2		0x194
+#define HHI_SYS_CPU_CLK_CNTL0		0x19c
+#define HHI_VID_PLL_CLK_DIV		0x1a0
+#define HHI_VPU_CLK_CNTL		0x1bC
+
+#define HHI_VAPBCLK_CNTL		0x1F4
+
+#define HHI_GEN_CLK_CNTL		0x228
+
+#define HHI_VDIN_MEAS_CLK_CNTL		0x250
+#define HHI_NAND_CLK_CNTL		0x25C
+#define HHI_SD_EMMC_CLK_CNTL		0x264
+
+#define HHI_MPLL_CNTL			0x280
+#define HHI_MPLL_CNTL2			0x284
+#define HHI_MPLL_CNTL3			0x288
+#define HHI_MPLL_CNTL4			0x28C
+#define HHI_MPLL_CNTL5			0x290
+#define HHI_MPLL_CNTL6			0x294
+#define HHI_MPLL_CNTL7			0x298
+#define HHI_MPLL_CNTL8			0x29C
+#define HHI_MPLL_CNTL9			0x2A0
+#define HHI_MPLL_CNTL10			0x2A4
+
+#define HHI_MPLL3_CNTL0			0x2E0
+#define HHI_MPLL3_CNTL1			0x2E4
+#define HHI_PLL_TOP_MISC		0x2E8
+
+#define HHI_SYS_PLL_CNTL1		0x2FC
+#define HHI_SYS_PLL_CNTL		0x300
+#define HHI_SYS_PLL_CNTL2		0x304
+#define HHI_SYS_PLL_CNTL3		0x308
+#define HHI_SYS_PLL_CNTL4		0x30c
+#define HHI_SYS_PLL_CNTL5		0x310
+#define HHI_SYS_PLL_STS			0x314
+#define HHI_DPLL_TOP_I			0x318
+#define HHI_DPLL_TOP2_I			0x31C
 
 static struct clk_regmap axg_fixed_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
@@ -918,7 +1003,7 @@ static const struct clk_parent_data axg_sd_emmc_clk0_parent_data[] = {
 	/*
 	 * Following these parent clocks, we should also have had mpll2, mpll3
 	 * and gp0_pll but these clocks are too precious to be used here. All
-	 * the necessary rates for MMC and NAND operation can be acheived using
+	 * the necessary rates for MMC and NAND operation can be achieved using
 	 * xtal or fclk_div clocks
 	 */
 };
@@ -2025,138 +2110,7 @@ static struct clk_hw *axg_hw_clks[] = {
 	[CLKID_VDIN_MEAS]		= &axg_vdin_meas.hw,
 };
 
-/* Convenience table to populate regmap in .probe */
-static struct clk_regmap *const axg_clk_regmaps[] = {
-	&axg_clk81,
-	&axg_ddr,
-	&axg_audio_locker,
-	&axg_mipi_dsi_host,
-	&axg_isa,
-	&axg_pl301,
-	&axg_periphs,
-	&axg_spicc_0,
-	&axg_i2c,
-	&axg_rng0,
-	&axg_uart0,
-	&axg_mipi_dsi_phy,
-	&axg_spicc_1,
-	&axg_pcie_a,
-	&axg_pcie_b,
-	&axg_hiu_reg,
-	&axg_assist_misc,
-	&axg_emmc_b,
-	&axg_emmc_c,
-	&axg_dma,
-	&axg_spi,
-	&axg_audio,
-	&axg_eth_core,
-	&axg_uart1,
-	&axg_g2d,
-	&axg_usb0,
-	&axg_usb1,
-	&axg_reset,
-	&axg_usb_general,
-	&axg_ahb_arb0,
-	&axg_efuse,
-	&axg_boot_rom,
-	&axg_ahb_data_bus,
-	&axg_ahb_ctrl_bus,
-	&axg_usb1_to_ddr,
-	&axg_usb0_to_ddr,
-	&axg_mmc_pclk,
-	&axg_vpu_intr,
-	&axg_sec_ahb_ahb3_bridge,
-	&axg_gic,
-	&axg_ao_media_cpu,
-	&axg_ao_ahb_sram,
-	&axg_ao_ahb_bus,
-	&axg_ao_iface,
-	&axg_ao_i2c,
-	&axg_sd_emmc_b_clk0,
-	&axg_sd_emmc_c_clk0,
-	&axg_mpeg_clk_div,
-	&axg_sd_emmc_b_clk0_div,
-	&axg_sd_emmc_c_clk0_div,
-	&axg_mpeg_clk_sel,
-	&axg_sd_emmc_b_clk0_sel,
-	&axg_sd_emmc_c_clk0_sel,
-	&axg_mpll0,
-	&axg_mpll1,
-	&axg_mpll2,
-	&axg_mpll3,
-	&axg_mpll0_div,
-	&axg_mpll1_div,
-	&axg_mpll2_div,
-	&axg_mpll3_div,
-	&axg_fixed_pll,
-	&axg_sys_pll,
-	&axg_gp0_pll,
-	&axg_hifi_pll,
-	&axg_mpll_prediv,
-	&axg_fclk_div2,
-	&axg_fclk_div3,
-	&axg_fclk_div4,
-	&axg_fclk_div5,
-	&axg_fclk_div7,
-	&axg_pcie_pll_dco,
-	&axg_pcie_pll_od,
-	&axg_pcie_pll,
-	&axg_pcie_mux,
-	&axg_pcie_ref,
-	&axg_pcie_cml_en0,
-	&axg_pcie_cml_en1,
-	&axg_gen_clk_sel,
-	&axg_gen_clk_div,
-	&axg_gen_clk,
-	&axg_fixed_pll_dco,
-	&axg_sys_pll_dco,
-	&axg_gp0_pll_dco,
-	&axg_hifi_pll_dco,
-	&axg_pcie_pll_dco,
-	&axg_pcie_pll_od,
-	&axg_vpu_0_div,
-	&axg_vpu_0_sel,
-	&axg_vpu_0,
-	&axg_vpu_1_div,
-	&axg_vpu_1_sel,
-	&axg_vpu_1,
-	&axg_vpu,
-	&axg_vapb_0_div,
-	&axg_vapb_0_sel,
-	&axg_vapb_0,
-	&axg_vapb_1_div,
-	&axg_vapb_1_sel,
-	&axg_vapb_1,
-	&axg_vapb_sel,
-	&axg_vapb,
-	&axg_vclk,
-	&axg_vclk2,
-	&axg_vclk_sel,
-	&axg_vclk2_sel,
-	&axg_vclk_input,
-	&axg_vclk2_input,
-	&axg_vclk_div,
-	&axg_vclk_div1,
-	&axg_vclk2_div,
-	&axg_vclk2_div1,
-	&axg_vclk_div2_en,
-	&axg_vclk_div4_en,
-	&axg_vclk_div6_en,
-	&axg_vclk_div12_en,
-	&axg_vclk2_div2_en,
-	&axg_vclk2_div4_en,
-	&axg_vclk2_div6_en,
-	&axg_vclk2_div12_en,
-	&axg_cts_encl_sel,
-	&axg_cts_encl,
-	&axg_vdin_meas_sel,
-	&axg_vdin_meas_div,
-	&axg_vdin_meas,
-};
-
 static const struct meson_eeclkc_data axg_clkc_data = {
-	.regmap_clks = axg_clk_regmaps,
-	.regmap_clk_num = ARRAY_SIZE(axg_clk_regmaps),
 	.hw_clks = {
 		.hws = axg_hw_clks,
 		.num = ARRAY_SIZE(axg_hw_clks),

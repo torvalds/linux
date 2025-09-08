@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # perf record offcpu profiling tests (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 

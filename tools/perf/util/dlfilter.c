@@ -513,6 +513,7 @@ int dlfilter__do_filter_event(struct dlfilter *d,
 	d->d_addr_al   = &d_addr_al;
 
 	d_sample.size  = sizeof(d_sample);
+	d_sample.p_stage_cyc = sample->weight3;
 	d_ip_al.size   = 0; /* To indicate d_ip_al is not initialized */
 	d_addr_al.size = 0; /* To indicate d_addr_al is not initialized */
 
@@ -526,7 +527,6 @@ int dlfilter__do_filter_event(struct dlfilter *d,
 	ASSIGN(period);
 	ASSIGN(weight);
 	ASSIGN(ins_lat);
-	ASSIGN(p_stage_cyc);
 	ASSIGN(transaction);
 	ASSIGN(insn_cnt);
 	ASSIGN(cyc_cnt);

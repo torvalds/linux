@@ -6,6 +6,7 @@
 #include <linux/vmalloc.h>
 
 #include "blocklayout.h"
+#include "../nfs4trace.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
 
@@ -520,10 +521,71 @@ static __be32 *encode_scsi_range(struct pnfs_block_extent *be, __be32 *p)
 	return xdr_encode_hyper(p, be->be_length << SECTOR_SHIFT);
 }
 
-static int ext_tree_encode_commit(struct pnfs_block_layout *bl, __be32 *p,
+/**
+ * ext_tree_try_encode_commit - try to encode all extents into the buffer
+ * @bl: pointer to the layout
+ * @p: pointer to the output buffer
+ * @buffer_size: size of the output buffer
+ * @count: output pointer to the number of encoded extents
+ * @lastbyte: output pointer to the last written byte
+ *
+ * Return values:
+ *   %0: Success, all required extents encoded, outputs are valid
+ *   %-ENOSPC: Buffer too small, nothing encoded, outputs are invalid
+ */
+static int
+ext_tree_try_encode_commit(struct pnfs_block_layout *bl, __be32 *p,
 		size_t buffer_size, size_t *count, __u64 *lastbyte)
 {
 	struct pnfs_block_extent *be;
+
+	spin_lock(&bl->bl_ext_lock);
+	for (be = ext_tree_first(&bl->bl_ext_rw); be; be = ext_tree_next(be)) {
+		if (be->be_state != PNFS_BLOCK_INVALID_DATA ||
+		    be->be_tag != EXTENT_WRITTEN)
+			continue;
+
+		(*count)++;
+		if (ext_tree_layoutupdate_size(bl, *count) > buffer_size) {
+			spin_unlock(&bl->bl_ext_lock);
+			return -ENOSPC;
+		}
+	}
+	for (be = ext_tree_first(&bl->bl_ext_rw); be; be = ext_tree_next(be)) {
+		if (be->be_state != PNFS_BLOCK_INVALID_DATA ||
+		    be->be_tag != EXTENT_WRITTEN)
+			continue;
+
+		if (bl->bl_scsi_layout)
+			p = encode_scsi_range(be, p);
+		else
+			p = encode_block_extent(be, p);
+		be->be_tag = EXTENT_COMMITTING;
+	}
+	*lastbyte = (bl->bl_lwb != 0) ? bl->bl_lwb - 1 : U64_MAX;
+	bl->bl_lwb = 0;
+	spin_unlock(&bl->bl_ext_lock);
+
+	return 0;
+}
+
+/**
+ * ext_tree_encode_commit - encode as much as possible extents into the buffer
+ * @bl: pointer to the layout
+ * @p: pointer to the output buffer
+ * @buffer_size: size of the output buffer
+ * @count: output pointer to the number of encoded extents
+ * @lastbyte: output pointer to the last written byte
+ *
+ * Return values:
+ *   %0: Success, all required extents encoded, outputs are valid
+ *   %-ENOSPC: Buffer too small, some extents are encoded, outputs are valid
+ */
+static int
+ext_tree_encode_commit(struct pnfs_block_layout *bl, __be32 *p,
+		size_t buffer_size, size_t *count, __u64 *lastbyte)
+{
+	struct pnfs_block_extent *be, *be_prev;
 	int ret = 0;
 
 	spin_lock(&bl->bl_ext_lock);
@@ -534,9 +596,9 @@ static int ext_tree_encode_commit(struct pnfs_block_layout *bl, __be32 *p,
 
 		(*count)++;
 		if (ext_tree_layoutupdate_size(bl, *count) > buffer_size) {
-			/* keep counting.. */
+			(*count)--;
 			ret = -ENOSPC;
-			continue;
+			break;
 		}
 
 		if (bl->bl_scsi_layout)
@@ -544,14 +606,30 @@ static int ext_tree_encode_commit(struct pnfs_block_layout *bl, __be32 *p,
 		else
 			p = encode_block_extent(be, p);
 		be->be_tag = EXTENT_COMMITTING;
+		be_prev = be;
 	}
-	*lastbyte = bl->bl_lwb - 1;
-	bl->bl_lwb = 0;
+	if (!ret) {
+		*lastbyte = (bl->bl_lwb != 0) ? bl->bl_lwb - 1 : U64_MAX;
+		bl->bl_lwb = 0;
+	} else {
+		*lastbyte = be_prev->be_f_offset + be_prev->be_length;
+		*lastbyte <<= SECTOR_SHIFT;
+		*lastbyte -= 1;
+	}
 	spin_unlock(&bl->bl_ext_lock);
 
 	return ret;
 }
 
+/**
+ * ext_tree_prepare_commit - encode extents that need to be committed
+ * @arg: layout commit data
+ *
+ * Return values:
+ *   %0: Success, all required extents are encoded
+ *   %-ENOSPC: Some extents are encoded, but not all, due to RPC size limit
+ *   %-ENOMEM: Out of memory, extents not encoded
+ */
 int
 ext_tree_prepare_commit(struct nfs4_layoutcommit_args *arg)
 {
@@ -560,20 +638,18 @@ ext_tree_prepare_commit(struct nfs4_layoutcommit_args *arg)
 	__be32 *start_p;
 	int ret;
 
-	dprintk("%s enter\n", __func__);
-
 	arg->layoutupdate_page = alloc_page(GFP_NOFS);
 	if (!arg->layoutupdate_page)
 		return -ENOMEM;
 	start_p = page_address(arg->layoutupdate_page);
 	arg->layoutupdate_pages = &arg->layoutupdate_page;
 
-retry:
-	ret = ext_tree_encode_commit(bl, start_p + 1, buffer_size, &count, &arg->lastbytewritten);
+	ret = ext_tree_try_encode_commit(bl, start_p + 1, buffer_size,
+			&count, &arg->lastbytewritten);
 	if (unlikely(ret)) {
 		ext_tree_free_commitdata(arg, buffer_size);
 
-		buffer_size = ext_tree_layoutupdate_size(bl, count);
+		buffer_size = NFS_SERVER(arg->inode)->wsize;
 		count = 0;
 
 		arg->layoutupdate_pages =
@@ -588,7 +664,8 @@ retry:
 			return -ENOMEM;
 		}
 
-		goto retry;
+		ret = ext_tree_encode_commit(bl, start_p + 1, buffer_size,
+				&count, &arg->lastbytewritten);
 	}
 
 	*start_p = cpu_to_be32(count);
@@ -607,8 +684,9 @@ retry:
 		}
 	}
 
-	dprintk("%s found %zu ranges\n", __func__, count);
-	return 0;
+	trace_bl_ext_tree_prepare_commit(ret, count,
+			arg->lastbytewritten, !!ret);
+	return ret;
 }
 
 void

@@ -29,7 +29,6 @@
 #include "atomisp_internal.h"
 #include "atomisp-regs.h"
 #include "atomisp_dfs_tables.h"
-#include "atomisp_drvfs.h"
 #include "hmm/hmm.h"
 #include "atomisp_trace_event.h"
 
@@ -1497,9 +1496,6 @@ static const struct pci_device_id atomisp_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, atomisp_pci_tbl);
 
 static struct pci_driver atomisp_pci_driver = {
-	.driver = {
-		.dev_groups = dbg_attr_groups,
-	},
 	.name = "atomisp-isp2",
 	.id_table = atomisp_pci_tbl,
 	.probe = atomisp_pci_probe,
@@ -1513,3 +1509,4 @@ MODULE_AUTHOR("Xiaolin Zhang <xiaolin.zhang@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Intel ATOM Platform ISP Driver");
 MODULE_IMPORT_NS("INTEL_IPU_BRIDGE");
+MODULE_IMPORT_NS("INTEL_INT3472_DISCRETE");

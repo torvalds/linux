@@ -20,7 +20,7 @@ The CXL driver is split into a number of drivers.
 * cxl_port  - initializes root and provides port enumeration interface.
 * cxl_acpi  - initializes root decoders and interacts with ACPI data.
 * cxl_p/mem - initializes memory devices
-* cxl_pci   - uses cxl_port to enumates the actual fabric hierarchy.
+* cxl_pci   - uses cxl_port to enumerate the actual fabric hierarchy.
 
 Driver Devices
 ==============

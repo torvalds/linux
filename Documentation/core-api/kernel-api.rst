@@ -3,12 +3,6 @@ The Linux Kernel API
 ====================
 
 
-List Management Functions
-=========================
-
-.. kernel-doc:: include/linux/list.h
-   :internal:
-
 Basic C Library Functions
 =========================
 

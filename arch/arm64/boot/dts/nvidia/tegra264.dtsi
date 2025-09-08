@@ -11,7 +11,6 @@
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
-	numa-node-id = <0>;
 
 	reserved-memory {
 		#address-cells = <2>;
@@ -341,7 +340,6 @@
 			status = "okay";
 
 			enable-method = "psci";
-			numa-node-id = <0>;
 
 			i-cache-size = <65536>;
 			i-cache-line-size = <64>;
@@ -358,7 +356,6 @@
 			status = "okay";
 
 			enable-method = "psci";
-			numa-node-id = <0>;
 
 			i-cache-size = <65536>;
 			i-cache-line-size = <64>;

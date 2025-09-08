@@ -1447,6 +1447,7 @@ static const struct regmap_range ksz8873_valid_regs[] = {
 	regmap_reg_range(0x3f, 0x3f),
 
 	/* advanced control registers */
+	regmap_reg_range(0x43, 0x43),
 	regmap_reg_range(0x60, 0x6f),
 	regmap_reg_range(0x70, 0x75),
 	regmap_reg_range(0x76, 0x78),
@@ -2456,6 +2457,12 @@ static void ksz_update_port_member(struct ksz_device *dev, int port)
 		dev->dev_ops->cfg_port_member(dev, i, val | cpu_port);
 	}
 
+	/* HSR ports are setup once so need to use the assigned membership
+	 * when the port is enabled.
+	 */
+	if (!port_member && p->stp_state == BR_STATE_FORWARDING &&
+	    (dev->hsr_ports & BIT(port)))
+		port_member = dev->hsr_ports;
 	dev->dev_ops->cfg_port_member(dev, port, port_member | cpu_port);
 }
 

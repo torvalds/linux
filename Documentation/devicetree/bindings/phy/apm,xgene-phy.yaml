@@ -1,0 +1,169 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/apm,xgene-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: APM X-Gene 15Gbps Multi-purpose PHY
+
+maintainers:
+  - Khuong Dinh <khuong@os.amperecomputing.com>
+
+description:
+  PHY nodes are defined to describe on-chip 15Gbps Multi-purpose PHY. Each
+  PHY (pair of lanes) has its own node.
+
+properties:
+  compatible:
+    items:
+      - const: apm,xgene-phy
+
+  reg:
+    maxItems: 1
+
+  '#phy-cells':
+    description:
+      Possible values are 0 (SATA), 1 (SGMII), 2 (PCIe), 3 (USB), and 4 (XFI).
+    const: 1
+
+  clocks:
+    maxItems: 1
+
+  apm,tx-eye-tuning:
+    description:
+      Manual control to fine tune the capture of the serial bit lines from the
+      automatic calibrated position. Two set of 3-tuple setting for each
+      supported link speed on the host. Range from 0 to 127 in unit of one bit
+      period.
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 2
+    maxItems: 2
+    items:
+      minItems: 3
+      maxItems: 3
+      items:
+        minimum: 0
+        maximum: 127
+        default: 10
+
+  apm,tx-eye-direction:
+    description:
+      Eye tuning manual control direction. 0 means sample data earlier than the
+      nominal sampling point. 1 means sample data later than the nominal
+      sampling point. Two set of 3-tuple setting for each supported link speed
+      on the host.
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 2
+    maxItems: 2
+    items:
+      minItems: 3
+      maxItems: 3
+      items:
+        enum: [0, 1]
+        default: 0
+
+  apm,tx-boost-gain:
+    description:
+      Frequency boost AC (LSB 3-bit) and DC (2-bit) gain control. Two set of
+      3-tuple setting for each supported link speed on the host. Range is
+      between 0 to 31 in unit of dB. Default is 3.
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 2
+    maxItems: 2
+    items:
+      minItems: 3
+      maxItems: 3
+      items:
+        minimum: 0
+        maximum: 31
+
+  apm,tx-amplitude:
+    description:
+      Amplitude control. Two set of 3-tuple setting for each supported link
+      speed on the host. Range is between 0 to 199500 in unit of uV.
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 2
+    maxItems: 2
+    items:
+      minItems: 3
+      maxItems: 3
+      items:
+        minimum: 0
+        maximum: 199500
+        default: 199500
+
+  apm,tx-pre-cursor1:
+    description:
+      1st pre-cursor emphasis taps control. Two set of 3-tuple setting for
+      each supported link speed on the host. Range is 0 to 273000 in unit of
+      uV.
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 2
+    maxItems: 2
+    items:
+      minItems: 3
+      maxItems: 3
+      items:
+        minimum: 0
+        maximum: 273000
+        default: 0
+
+  apm,tx-pre-cursor2:
+    description:
+      2nd pre-cursor emphasis taps control. Two set of 3-tuple setting for
+      each supported link speed on the host. Range is 0 to 127400 in unit uV.
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 2
+    maxItems: 2
+    items:
+      minItems: 3
+      maxItems: 3
+      items:
+        minimum: 0
+        maximum: 127400
+        default: 0
+
+  apm,tx-post-cursor:
+    description: |
+      Post-cursor emphasis taps control. Two set of 3-tuple setting for Gen1,
+      Gen2, and Gen3 link speeds. Range is between 0 to 31 in unit of 18.2mV.
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 2
+    maxItems: 2
+    items:
+      minItems: 3
+      maxItems: 3
+      items:
+        minimum: 0
+        maximum: 31
+        default: 0xf
+
+  apm,tx-speed:
+    description: >
+      Tx operating speed. One set of 3-tuple for each supported link speed on
+      the host:
+
+        0 = 1-2Gbps
+        1 = 2-4Gbps (1st tuple default)
+        2 = 4-8Gbps
+        3 = 8-15Gbps (2nd tuple default)
+        4 = 2.5-4Gbps
+        5 = 4-5Gbps
+        6 = 5-6Gbps
+        7 = 6-16Gbps (3rd tuple default).
+
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 3
+    maxItems: 3
+    items:
+      maximum: 7
+
+additionalProperties: false
+
+examples:
+  - |
+    phy@1f21a000 {
+        compatible = "apm,xgene-phy";
+        reg = <0x1f21a000 0x100>;
+        #phy-cells = <1>;
+    };

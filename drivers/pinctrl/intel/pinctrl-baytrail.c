@@ -1045,7 +1045,7 @@ static int byt_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(val & BYT_LEVEL);
 }
 
-static void byt_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int byt_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct intel_pinctrl *vg = gpiochip_get_data(chip);
 	void __iomem *reg;
@@ -1053,7 +1053,7 @@ static void byt_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 
 	reg = byt_gpio_reg(vg, offset, BYT_VAL_REG);
 	if (!reg)
-		return;
+		return -EINVAL;
 
 	guard(raw_spinlock_irqsave)(&byt_lock);
 
@@ -1062,6 +1062,8 @@ static void byt_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 		writel(old_val | BYT_LEVEL, reg);
 	else
 		writel(old_val & ~BYT_LEVEL, reg);
+
+	return 0;
 }
 
 static int byt_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)

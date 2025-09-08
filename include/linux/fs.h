@@ -149,7 +149,8 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 /* Expect random access pattern */
 #define FMODE_RANDOM		((__force fmode_t)(1 << 12))
 
-/* FMODE_* bit 13 */
+/* Supports IOCB_HAS_METADATA */
+#define FMODE_HAS_METADATA	((__force fmode_t)(1 << 13))
 
 /* File is opened with O_PATH; almost nothing can be done with it */
 #define FMODE_PATH		((__force fmode_t)(1 << 14))
@@ -200,12 +201,12 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 
 /*
  * The two FMODE_NONOTIFY* define which fsnotify events should not be generated
- * for a file. These are the possible values of (f->f_mode &
- * FMODE_FSNOTIFY_MASK) and their meaning:
+ * for an open file. These are the possible values of
+ * (f->f_mode & FMODE_FSNOTIFY_MASK) and their meaning:
  *
  * FMODE_NONOTIFY - suppress all (incl. non-permission) events.
  * FMODE_NONOTIFY_PERM - suppress permission (incl. pre-content) events.
- * FMODE_NONOTIFY | FMODE_NONOTIFY_PERM - suppress only pre-content events.
+ * FMODE_NONOTIFY | FMODE_NONOTIFY_PERM - suppress only FAN_ACCESS_PERM.
  */
 #define FMODE_FSNOTIFY_MASK \
 	(FMODE_NONOTIFY | FMODE_NONOTIFY_PERM)
@@ -213,13 +214,13 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 #define FMODE_FSNOTIFY_NONE(mode) \
 	((mode & FMODE_FSNOTIFY_MASK) == FMODE_NONOTIFY)
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-#define FMODE_FSNOTIFY_PERM(mode) \
+#define FMODE_FSNOTIFY_HSM(mode) \
 	((mode & FMODE_FSNOTIFY_MASK) == 0 || \
 	 (mode & FMODE_FSNOTIFY_MASK) == (FMODE_NONOTIFY | FMODE_NONOTIFY_PERM))
-#define FMODE_FSNOTIFY_HSM(mode) \
+#define FMODE_FSNOTIFY_ACCESS_PERM(mode) \
 	((mode & FMODE_FSNOTIFY_MASK) == 0)
 #else
-#define FMODE_FSNOTIFY_PERM(mode)	0
+#define FMODE_FSNOTIFY_ACCESS_PERM(mode) 0
 #define FMODE_FSNOTIFY_HSM(mode)	0
 #endif
 
@@ -526,7 +527,7 @@ struct address_space {
 	/*
 	 * On most architectures that alignment is already the case; but
 	 * must be enforced here for CRIS, to let the least significant bit
-	 * of struct page's "mapping" pointer be used for PAGE_MAPPING_ANON.
+	 * of struct folio's "mapping" pointer be used for FOLIO_MAPPING_ANON.
 	 */
 
 /* XArray tags, for tagging dirty and writeback pages in the pagecache. */
@@ -1043,6 +1044,7 @@ struct fown_struct {
  *      and so were/are genuinely "ahead".  Start next readahead when
  *      the first of these pages is accessed.
  * @ra_pages: Maximum size of a readahead request, copied from the bdi.
+ * @order: Preferred folio order used for most recent readahead.
  * @mmap_miss: How many mmap accesses missed in the page cache.
  * @prev_pos: The last byte in the most recent read request.
  *
@@ -1054,7 +1056,8 @@ struct file_ra_state {
 	unsigned int size;
 	unsigned int async_size;
 	unsigned int ra_pages;
-	unsigned int mmap_miss;
+	unsigned short order;
+	unsigned short mmap_miss;
 	loff_t prev_pos;
 };
 
@@ -3756,9 +3759,14 @@ void setattr_copy(struct mnt_idmap *, struct inode *inode,
 
 extern int file_update_time(struct file *file);
 
+static inline bool file_is_dax(const struct file *file)
+{
+	return file && IS_DAX(file->f_mapping->host);
+}
+
 static inline bool vma_is_dax(const struct vm_area_struct *vma)
 {
-	return vma->vm_file && IS_DAX(vma->vm_file->f_mapping->host);
+	return file_is_dax(vma->vm_file);
 }
 
 static inline bool vma_is_fsdax(struct vm_area_struct *vma)

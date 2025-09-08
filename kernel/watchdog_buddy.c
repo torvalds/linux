@@ -12,10 +12,7 @@ static unsigned int watchdog_next_cpu(unsigned int cpu)
 {
 	unsigned int next_cpu;
 
-	next_cpu = cpumask_next(cpu, &watchdog_cpus);
-	if (next_cpu >= nr_cpu_ids)
-		next_cpu = cpumask_first(&watchdog_cpus);
-
+	next_cpu = cpumask_next_wrap(cpu, &watchdog_cpus);
 	if (next_cpu == cpu)
 		return nr_cpu_ids;
 

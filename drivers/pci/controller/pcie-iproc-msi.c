@@ -5,6 +5,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
 #include <linux/of_irq.h>
@@ -81,7 +82,6 @@ struct iproc_msi_grp {
  * @bitmap_lock: lock to protect access to the MSI bitmap
  * @nr_msi_vecs: total number of MSI vectors
  * @inner_domain: inner IRQ domain
- * @msi_domain: MSI IRQ domain
  * @nr_eq_region: required number of 4K aligned memory region for MSI event
  * queues
  * @nr_msi_region: required number of 4K aligned address region for MSI posted
@@ -101,7 +101,6 @@ struct iproc_msi {
 	struct mutex bitmap_lock;
 	unsigned int nr_msi_vecs;
 	struct irq_domain *inner_domain;
-	struct irq_domain *msi_domain;
 	unsigned int nr_eq_region;
 	unsigned int nr_msi_region;
 	void *eq_cpu;
@@ -165,16 +164,18 @@ static inline unsigned int iproc_msi_eq_offset(struct iproc_msi *msi, u32 eq)
 		return eq * EQ_LEN * sizeof(u32);
 }
 
-static struct irq_chip iproc_msi_irq_chip = {
-	.name = "iProc-MSI",
-};
+#define IPROC_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS	| \
+				  MSI_FLAG_USE_DEF_CHIP_OPS)
+#define IPROC_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK	| \
+				   MSI_FLAG_PCI_MSIX)
 
-static struct msi_domain_info iproc_msi_domain_info = {
-	.flags = MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		MSI_FLAG_PCI_MSIX,
-	.chip = &iproc_msi_irq_chip,
+static struct msi_parent_ops iproc_msi_parent_ops = {
+	.required_flags		= IPROC_MSI_FLAGS_REQUIRED,
+	.supported_flags	= IPROC_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.prefix			= "iProc-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
 };
-
 /*
  * In iProc PCIe core, each MSI group is serviced by a GIC interrupt and a
  * dedicated event queue.  Each MSI group can support up to 64 MSI vectors.
@@ -446,27 +447,22 @@ static void iproc_msi_disable(struct iproc_msi *msi)
 static int iproc_msi_alloc_domains(struct device_node *node,
 				   struct iproc_msi *msi)
 {
-	msi->inner_domain = irq_domain_create_linear(NULL, msi->nr_msi_vecs,
-						     &msi_domain_ops, msi);
+	struct irq_domain_info info = {
+		.fwnode		= of_fwnode_handle(node),
+		.ops		= &msi_domain_ops,
+		.host_data	= msi,
+		.size		= msi->nr_msi_vecs,
+	};
+
+	msi->inner_domain = msi_create_parent_irq_domain(&info, &iproc_msi_parent_ops);
 	if (!msi->inner_domain)
 		return -ENOMEM;
-
-	msi->msi_domain = pci_msi_create_irq_domain(of_fwnode_handle(node),
-						    &iproc_msi_domain_info,
-						    msi->inner_domain);
-	if (!msi->msi_domain) {
-		irq_domain_remove(msi->inner_domain);
-		return -ENOMEM;
-	}
 
 	return 0;
 }
 
 static void iproc_msi_free_domains(struct iproc_msi *msi)
 {
-	if (msi->msi_domain)
-		irq_domain_remove(msi->msi_domain);
-
 	if (msi->inner_domain)
 		irq_domain_remove(msi->inner_domain);
 }
@@ -542,7 +538,7 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 	msi->nr_cpus = num_possible_cpus();
 
 	if (msi->nr_cpus == 1)
-		iproc_msi_domain_info.flags |=  MSI_FLAG_MULTI_PCI_MSI;
+		iproc_msi_parent_ops.supported_flags |= MSI_FLAG_MULTI_PCI_MSI;
 
 	msi->nr_irqs = of_irq_count(node);
 	if (!msi->nr_irqs) {

@@ -32,6 +32,7 @@
 
 static const struct kicker_device kicker_device_list[] = {
 	{0x744B, 0x00},
+	{0x7551, 0xC8}
 };
 
 static void amdgpu_ucode_print_common_hdr(const struct common_firmware_header *hdr)

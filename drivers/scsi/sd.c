@@ -3464,19 +3464,14 @@ static void sd_read_write_same(struct scsi_disk *sdkp, unsigned char *buffer)
 	}
 
 	if (scsi_report_opcode(sdev, buffer, SD_BUF_SIZE, INQUIRY, 0) < 0) {
-		struct scsi_vpd *vpd;
-
 		sdev->no_report_opcodes = 1;
 
-		/* Disable WRITE SAME if REPORT SUPPORTED OPERATION
-		 * CODES is unsupported and the device has an ATA
-		 * Information VPD page (SAT).
+		/*
+		 * Disable WRITE SAME if REPORT SUPPORTED OPERATION CODES is
+		 * unsupported and this is an ATA device.
 		 */
-		rcu_read_lock();
-		vpd = rcu_dereference(sdev->vpd_pg89);
-		if (vpd)
+		if (sdev->is_ata)
 			sdev->no_write_same = 1;
-		rcu_read_unlock();
 	}
 
 	if (scsi_report_opcode(sdev, buffer, SD_BUF_SIZE, WRITE_SAME_16, 0) == 1)
@@ -4178,7 +4173,9 @@ static void sd_shutdown(struct device *dev)
 	if ((system_state != SYSTEM_RESTART &&
 	     sdkp->device->manage_system_start_stop) ||
 	    (system_state == SYSTEM_POWER_OFF &&
-	     sdkp->device->manage_shutdown)) {
+	     sdkp->device->manage_shutdown) ||
+	    (system_state == SYSTEM_RUNNING &&
+	     sdkp->device->manage_runtime_start_stop)) {
 		sd_printk(KERN_NOTICE, sdkp, "Stopping disk\n");
 		sd_start_stop_device(sdkp, 0);
 	}

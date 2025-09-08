@@ -124,55 +124,44 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo,
 	dp = description;
 	/* start with version and hostname portion of UNC string */
 	spnego_key = ERR_PTR(-EINVAL);
-	sprintf(dp, "ver=0x%x;host=%s;", CIFS_SPNEGO_UPCALL_VERSION,
-		hostname);
-	dp = description + strlen(description);
+	dp += sprintf(dp, "ver=0x%x;host=%s;", CIFS_SPNEGO_UPCALL_VERSION,
+		      hostname);
 
 	/* add the server address */
 	if (server->dstaddr.ss_family == AF_INET)
-		sprintf(dp, "ip4=%pI4", &sa->sin_addr);
+		dp += sprintf(dp, "ip4=%pI4", &sa->sin_addr);
 	else if (server->dstaddr.ss_family == AF_INET6)
-		sprintf(dp, "ip6=%pI6", &sa6->sin6_addr);
+		dp += sprintf(dp, "ip6=%pI6", &sa6->sin6_addr);
 	else
 		goto out;
 
-	dp = description + strlen(description);
-
 	/* for now, only sec=krb5 and sec=mskrb5 and iakerb are valid */
 	if (server->sec_kerberos)
-		sprintf(dp, ";sec=krb5");
+		dp += sprintf(dp, ";sec=krb5");
 	else if (server->sec_mskerberos)
-		sprintf(dp, ";sec=mskrb5");
+		dp += sprintf(dp, ";sec=mskrb5");
 	else if (server->sec_iakerb)
-		sprintf(dp, ";sec=iakerb");
+		dp += sprintf(dp, ";sec=iakerb");
 	else {
 		cifs_dbg(VFS, "unknown or missing server auth type, use krb5\n");
-		sprintf(dp, ";sec=krb5");
+		dp += sprintf(dp, ";sec=krb5");
 	}
 
-	dp = description + strlen(description);
-	sprintf(dp, ";uid=0x%x",
-		from_kuid_munged(&init_user_ns, sesInfo->linux_uid));
+	dp += sprintf(dp, ";uid=0x%x",
+		      from_kuid_munged(&init_user_ns, sesInfo->linux_uid));
 
-	dp = description + strlen(description);
-	sprintf(dp, ";creduid=0x%x",
+	dp += sprintf(dp, ";creduid=0x%x",
 		from_kuid_munged(&init_user_ns, sesInfo->cred_uid));
 
-	if (sesInfo->user_name) {
-		dp = description + strlen(description);
-		sprintf(dp, ";user=%s", sesInfo->user_name);
-	}
+	if (sesInfo->user_name)
+		dp += sprintf(dp, ";user=%s", sesInfo->user_name);
 
-	dp = description + strlen(description);
-	sprintf(dp, ";pid=0x%x", current->pid);
+	dp += sprintf(dp, ";pid=0x%x", current->pid);
 
-	if (sesInfo->upcall_target == UPTARGET_MOUNT) {
-		dp = description + strlen(description);
-		sprintf(dp, ";upcall_target=mount");
-	} else {
-		dp = description + strlen(description);
-		sprintf(dp, ";upcall_target=app");
-	}
+	if (sesInfo->upcall_target == UPTARGET_MOUNT)
+		dp += sprintf(dp, ";upcall_target=mount");
+	else
+		dp += sprintf(dp, ";upcall_target=app");
 
 	cifs_dbg(FYI, "key description = %s\n", description);
 	saved_cred = override_creds(spnego_cred);

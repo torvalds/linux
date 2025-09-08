@@ -2577,6 +2577,8 @@ static struct net_device *ipoib_add_port(const char *format,
 
 	ndev->rtnl_link_ops = ipoib_get_link_ops();
 
+	dev_net_set(ndev, rdma_dev_net(hca));
+
 	result = register_netdev(ndev);
 	if (result) {
 		pr_warn("%s: couldn't register ipoib port %d; error %d\n",

@@ -551,7 +551,7 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 	gpio->direction_input = gb_gpio_direction_input;
 	gpio->direction_output = gb_gpio_direction_output;
 	gpio->get = gb_gpio_get;
-	gpio->set_rv = gb_gpio_set;
+	gpio->set = gb_gpio_set;
 	gpio->set_config = gb_gpio_set_config;
 	gpio->base = -1;		/* Allocate base dynamically */
 	gpio->ngpio = ggc->line_max + 1;

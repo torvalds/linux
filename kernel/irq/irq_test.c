@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-2.1+
 
+#include <linux/cleanup.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
@@ -134,7 +135,8 @@ static void irq_shutdown_depth_test(struct kunit *test)
 	disable_irq(virq);
 	KUNIT_EXPECT_EQ(test, desc->depth, 1);
 
-	irq_shutdown_and_deactivate(desc);
+	scoped_guard(raw_spinlock_irqsave, &desc->lock)
+		irq_shutdown_and_deactivate(desc);
 
 	KUNIT_EXPECT_FALSE(test, irqd_is_activated(data));
 	KUNIT_EXPECT_FALSE(test, irqd_is_started(data));

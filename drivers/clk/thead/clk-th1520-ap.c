@@ -42,8 +42,9 @@ struct ccu_common {
 };
 
 struct ccu_mux {
-	struct ccu_internal	mux;
-	struct ccu_common	common;
+	int			clkid;
+	u32			reg;
+	struct clk_mux		mux;
 };
 
 struct ccu_gate {
@@ -75,6 +76,17 @@ struct ccu_pll {
 		.flags	= _flags,					\
 	}
 
+#define TH_CCU_MUX(_name, _parents, _shift, _width)			\
+	{								\
+		.mask		= GENMASK(_width - 1, 0),		\
+		.shift		= _shift,				\
+		.hw.init	= CLK_HW_INIT_PARENTS_DATA(		\
+					_name,				\
+					_parents,			\
+					&clk_mux_ops,			\
+					0),				\
+	}
+
 #define CCU_GATE(_clkid, _struct, _name, _parent, _reg, _gate, _flags)	\
 	struct ccu_gate _struct = {					\
 		.enable	= _gate,					\
@@ -92,13 +104,6 @@ struct ccu_pll {
 static inline struct ccu_common *hw_to_ccu_common(struct clk_hw *hw)
 {
 	return container_of(hw, struct ccu_common, hw);
-}
-
-static inline struct ccu_mux *hw_to_ccu_mux(struct clk_hw *hw)
-{
-	struct ccu_common *common = hw_to_ccu_common(hw);
-
-	return container_of(common, struct ccu_mux, common);
 }
 
 static inline struct ccu_pll *hw_to_ccu_pll(struct clk_hw *hw)
@@ -415,32 +420,20 @@ static const struct clk_parent_data c910_i0_parents[] = {
 };
 
 static struct ccu_mux c910_i0_clk = {
-	.mux	= TH_CCU_ARG(1, 1),
-	.common	= {
-		.clkid		= CLK_C910_I0,
-		.cfg0		= 0x100,
-		.hw.init	= CLK_HW_INIT_PARENTS_DATA("c910-i0",
-					      c910_i0_parents,
-					      &clk_mux_ops,
-					      0),
-	}
+	.clkid	= CLK_C910_I0,
+	.reg	= 0x100,
+	.mux	= TH_CCU_MUX("c910-i0", c910_i0_parents, 1, 1),
 };
 
 static const struct clk_parent_data c910_parents[] = {
-	{ .hw = &c910_i0_clk.common.hw },
+	{ .hw = &c910_i0_clk.mux.hw },
 	{ .hw = &cpu_pll1_clk.common.hw }
 };
 
 static struct ccu_mux c910_clk = {
-	.mux	= TH_CCU_ARG(0, 1),
-	.common	= {
-		.clkid		= CLK_C910,
-		.cfg0		= 0x100,
-		.hw.init	= CLK_HW_INIT_PARENTS_DATA("c910",
-					      c910_parents,
-					      &clk_mux_ops,
-					      0),
-	}
+	.clkid	= CLK_C910,
+	.reg	= 0x100,
+	.mux	= TH_CCU_MUX("c910", c910_parents, 0, 1),
 };
 
 static const struct clk_parent_data ahb2_cpusys_parents[] = {
@@ -582,7 +575,14 @@ static const struct clk_parent_data peri2sys_apb_pclk_pd[] = {
 	{ .hw = &peri2sys_apb_pclk.common.hw }
 };
 
-static CLK_FIXED_FACTOR_FW_NAME(osc12m_clk, "osc_12m", "osc_24m", 2, 1, 0);
+static struct clk_fixed_factor osc12m_clk = {
+	.div		= 2,
+	.mult		= 1,
+	.hw.init	= CLK_HW_INIT_PARENTS_DATA("osc_12m",
+						   osc_24m_clk,
+						   &clk_fixed_factor_ops,
+						   0),
+};
 
 static const char * const out_parents[] = { "osc_24m", "osc_12m" };
 
@@ -792,11 +792,12 @@ static CCU_GATE(CLK_AON2CPU_A2X, aon2cpu_a2x_clk, "aon2cpu-a2x", axi4_cpusys2_ac
 		0x134, BIT(8), 0);
 static CCU_GATE(CLK_X2X_CPUSYS, x2x_cpusys_clk, "x2x-cpusys", axi4_cpusys2_aclk_pd,
 		0x134, BIT(7), 0);
-static CCU_GATE(CLK_CPU2AON_X2H, cpu2aon_x2h_clk, "cpu2aon-x2h", axi_aclk_pd, 0x138, BIT(8), 0);
+static CCU_GATE(CLK_CPU2AON_X2H, cpu2aon_x2h_clk, "cpu2aon-x2h", axi_aclk_pd,
+		0x138, BIT(8), CLK_IGNORE_UNUSED);
 static CCU_GATE(CLK_CPU2PERI_X2H, cpu2peri_x2h_clk, "cpu2peri-x2h", axi4_cpusys2_aclk_pd,
 		0x140, BIT(9), CLK_IGNORE_UNUSED);
 static CCU_GATE(CLK_PERISYS_APB1_HCLK, perisys_apb1_hclk, "perisys-apb1-hclk", perisys_ahb_hclk_pd,
-		0x150, BIT(9), 0);
+		0x150, BIT(9), CLK_IGNORE_UNUSED);
 static CCU_GATE(CLK_PERISYS_APB2_HCLK, perisys_apb2_hclk, "perisys-apb2-hclk", perisys_ahb_hclk_pd,
 		0x150, BIT(10), CLK_IGNORE_UNUSED);
 static CCU_GATE(CLK_PERISYS_APB3_HCLK, perisys_apb3_hclk, "perisys-apb3-hclk", perisys_ahb_hclk_pd,
@@ -917,15 +918,9 @@ static const struct clk_parent_data uart_sclk_parents[] = {
 };
 
 static struct ccu_mux uart_sclk = {
-	.mux	= TH_CCU_ARG(0, 1),
-	.common	= {
-		.clkid          = CLK_UART_SCLK,
-		.cfg0		= 0x210,
-		.hw.init	= CLK_HW_INIT_PARENTS_DATA("uart-sclk",
-					      uart_sclk_parents,
-					      &clk_mux_ops,
-					      0),
-	}
+	.clkid	= CLK_UART_SCLK,
+	.reg	= 0x210,
+	.mux	= TH_CCU_MUX("uart-sclk", uart_sclk_parents, 0, 1),
 };
 
 static struct ccu_common *th1520_pll_clks[] = {
@@ -962,10 +957,10 @@ static struct ccu_common *th1520_div_clks[] = {
 	&dpu1_clk.common,
 };
 
-static struct ccu_common *th1520_mux_clks[] = {
-	&c910_i0_clk.common,
-	&c910_clk.common,
-	&uart_sclk.common,
+static struct ccu_mux *th1520_mux_clks[] = {
+	&c910_i0_clk,
+	&c910_clk,
+	&uart_sclk,
 };
 
 static struct ccu_common *th1520_gate_clks[] = {
@@ -1067,7 +1062,7 @@ static const struct regmap_config th1520_clk_regmap_config = {
 struct th1520_plat_data {
 	struct ccu_common **th1520_pll_clks;
 	struct ccu_common **th1520_div_clks;
-	struct ccu_common **th1520_mux_clks;
+	struct ccu_mux	  **th1520_mux_clks;
 	struct ccu_common **th1520_gate_clks;
 
 	int nr_clks;
@@ -1154,23 +1149,15 @@ static int th1520_clk_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < plat_data->nr_mux_clks; i++) {
-		struct ccu_mux *cm = hw_to_ccu_mux(&plat_data->th1520_mux_clks[i]->hw);
-		const struct clk_init_data *init = cm->common.hw.init;
+		struct ccu_mux *cm = plat_data->th1520_mux_clks[i];
 
-		plat_data->th1520_mux_clks[i]->map = map;
-		hw = devm_clk_hw_register_mux_parent_data_table(dev,
-								init->name,
-								init->parent_data,
-								init->num_parents,
-								0,
-								base + cm->common.cfg0,
-								cm->mux.shift,
-								cm->mux.width,
-								0, NULL, NULL);
-		if (IS_ERR(hw))
-			return PTR_ERR(hw);
+		cm->mux.reg = base + cm->reg;
 
-		priv->hws[cm->common.clkid] = hw;
+		ret = devm_clk_hw_register(dev, &cm->mux.hw);
+		if (ret)
+			return ret;
+
+		priv->hws[cm->clkid] = &cm->mux.hw;
 	}
 
 	for (i = 0; i < plat_data->nr_gate_clks; i++) {

@@ -199,7 +199,7 @@ static int init_file(struct file *f, int flags, const struct cred *cred)
 	file_ref_init(&f->f_ref, 1);
 	/*
 	 * Disable permission and pre-content events for all files by default.
-	 * They may be enabled later by file_set_fsnotify_mode_from_watchers().
+	 * They may be enabled later by fsnotify_open_perm_and_set_mode().
 	 */
 	file_set_fsnotify_mode(f, FMODE_NONOTIFY_PERM);
 	return 0;

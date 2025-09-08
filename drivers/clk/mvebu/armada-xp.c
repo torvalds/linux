@@ -7,7 +7,6 @@
  * Gregory CLEMENT <gregory.clement@free-electrons.com>
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
  * Andrew Lunn <andrew@lunn.ch>
- *
  */
 
 #include <linux/kernel.h>
@@ -19,8 +18,8 @@
 /*
  * Core Clocks
  *
- * Armada XP Sample At Reset is a 64 bit bitfiled split in two
- * register of 32 bits
+ * Armada XP Sample At Reset is a 64 bit bitfield split in two
+ * registers of 32 bits
  */
 
 #define SARL				0	/* Low part [0:31] */

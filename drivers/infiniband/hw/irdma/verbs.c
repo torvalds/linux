@@ -3013,10 +3013,12 @@ static int irdma_reg_user_mr_type_cq(struct irdma_mem_reg_req req,
  * @len: length of mr
  * @virt: virtual address
  * @access: access of mr
+ * @dmah: dma handle
  * @udata: user data
  */
 static struct ib_mr *irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 				       u64 virt, int access,
+				       struct ib_dmah *dmah,
 				       struct ib_udata *udata)
 {
 #define IRDMA_MEM_REG_MIN_REQ_LEN offsetofend(struct irdma_mem_reg_req, sq_pages)
@@ -3025,6 +3027,9 @@ static struct ib_mr *irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 	struct ib_umem *region = NULL;
 	struct irdma_mr *iwmr = NULL;
 	int err;
+
+	if (dmah)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (len > iwdev->rf->sc_dev.hw_attrs.max_mr_size)
 		return ERR_PTR(-EINVAL);
@@ -3085,12 +3090,16 @@ error:
 static struct ib_mr *irdma_reg_user_mr_dmabuf(struct ib_pd *pd, u64 start,
 					      u64 len, u64 virt,
 					      int fd, int access,
+					      struct ib_dmah *dmah,
 					      struct uverbs_attr_bundle *attrs)
 {
 	struct irdma_device *iwdev = to_iwdev(pd->device);
 	struct ib_umem_dmabuf *umem_dmabuf;
 	struct irdma_mr *iwmr;
 	int err;
+
+	if (dmah)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (len > iwdev->rf->sc_dev.hw_attrs.max_mr_size)
 		return ERR_PTR(-EINVAL);

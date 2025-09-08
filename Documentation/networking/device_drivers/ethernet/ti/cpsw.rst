@@ -268,14 +268,14 @@ Example 1: One port tx AVB configuration scheme for target board
 
 	// Run your appropriate tools with socket option "SO_PRIORITY"
 	// to 3 for class A and/or to 2 for class B
-	// (I took at https://www.spinics.net/lists/netdev/msg460869.html)
+	// (I took at https://lore.kernel.org/r/20171017010128.22141-1-vinicius.gomes@intel.com/)
 	./tsn_talker -d 18:03:73:66:87:42 -i eth0.100 -p3 -s 1500&
 	./tsn_talker -d 18:03:73:66:87:42 -i eth0.100 -p2 -s 1500&
 
 13) ::
 
 	// run your listener on workstation (should be in same vlan)
-	// (I took at https://www.spinics.net/lists/netdev/msg460869.html)
+	// (I took at https://lore.kernel.org/r/20171017010128.22141-1-vinicius.gomes@intel.com/)
 	./tsn_listener -d 18:03:73:66:87:42 -i enp5s0 -s 1500
 	Receiving data rate: 39012 kbps
 	Receiving data rate: 39012 kbps
@@ -555,7 +555,7 @@ Example 2: Two port tx AVB configuration scheme for target board
 20) ::
 
 	// run your listener on workstation (should be in same vlan)
-	// (I took at https://www.spinics.net/lists/netdev/msg460869.html)
+	// (I took at https://lore.kernel.org/r/20171017010128.22141-1-vinicius.gomes@intel.com/)
 	./tsn_listener -d 18:03:73:66:87:42 -i enp5s0 -s 1500
 	Receiving data rate: 39012 kbps
 	Receiving data rate: 39012 kbps

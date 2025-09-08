@@ -2344,14 +2344,14 @@ operations:
         request:
           attributes:
             - header
-        reply:
-          attributes:
-            - header
             - offset
             - length
             - page
             - bank
             - i2c-address
+        reply:
+          attributes:
+            - header
             - data
       dump: *module-eeprom-get-op
     -

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_ADMIN_CMDS_H_
@@ -68,6 +68,7 @@ enum efa_admin_get_stats_type {
 	EFA_ADMIN_GET_STATS_TYPE_MESSAGES           = 1,
 	EFA_ADMIN_GET_STATS_TYPE_RDMA_READ          = 2,
 	EFA_ADMIN_GET_STATS_TYPE_RDMA_WRITE         = 3,
+	EFA_ADMIN_GET_STATS_TYPE_NETWORK            = 4,
 };
 
 enum efa_admin_get_stats_scope {
@@ -651,6 +652,18 @@ struct efa_admin_rdma_write_stats {
 	u64 write_recv_bytes;
 };
 
+struct efa_admin_network_stats {
+	u64 retrans_bytes;
+
+	u64 retrans_pkts;
+
+	u64 retrans_timeout_events;
+
+	u64 unresponsive_remote_events;
+
+	u64 impaired_remote_conn_events;
+};
+
 struct efa_admin_acq_get_stats_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
 
@@ -662,6 +675,8 @@ struct efa_admin_acq_get_stats_resp {
 		struct efa_admin_rdma_read_stats rdma_read_stats;
 
 		struct efa_admin_rdma_write_stats rdma_write_stats;
+
+		struct efa_admin_network_stats network_stats;
 	} u;
 };
 

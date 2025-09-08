@@ -24,6 +24,7 @@ commit 42fb9cfd5b18 ("Documentation: dev-tools: Add link to RV docs")
 """
 
 import os
+import re
 import time
 import logging
 from argparse import ArgumentParser, ArgumentTypeError, BooleanOptionalAction
@@ -69,6 +70,38 @@ def get_origin_from_trans(origin_path, t_from_head):
     return o_from_t
 
 
+def get_origin_from_trans_smartly(origin_path, t_from_head):
+    """Get the latest origin commit from the formatted translation commit:
+    (1) update to commit HASH (TITLE)
+    (2) Update the translation through commit HASH (TITLE)
+    """
+    # catch flag for 12-bit commit hash
+    HASH = r'([0-9a-f]{12})'
+    # pattern 1: contains "update to commit HASH"
+    pat_update_to = re.compile(rf'update to commit {HASH}')
+    # pattern 2: contains "Update the translation through commit HASH"
+    pat_update_translation = re.compile(rf'Update the translation through commit {HASH}')
+
+    origin_commit_hash = None
+    for line in t_from_head["message"]:
+        # check if the line matches the first pattern
+        match = pat_update_to.search(line)
+        if match:
+            origin_commit_hash = match.group(1)
+            break
+        # check if the line matches the second pattern
+        match = pat_update_translation.search(line)
+        if match:
+            origin_commit_hash = match.group(1)
+            break
+    if origin_commit_hash is None:
+        return None
+    o_from_t = get_latest_commit_from(origin_path, origin_commit_hash)
+    if o_from_t is not None:
+        logging.debug("tracked origin commit id: %s", o_from_t["hash"])
+    return o_from_t
+
+
 def get_commits_count_between(opath, commit1, commit2):
     """Get the commits count between two commits for the specified file"""
     command = f"git log --pretty=format:%H {commit1}...{commit2} -- {opath}"
@@ -108,7 +141,10 @@ def check_per_file(file_path):
         logging.error("Cannot find the latest commit for %s", file_path)
         return
 
-    o_from_t = get_origin_from_trans(opath, t_from_head)
+    o_from_t = get_origin_from_trans_smartly(opath, t_from_head)
+    # notice, o_from_t from get_*_smartly() is always more accurate than from get_*()
+    if o_from_t is None:
+        o_from_t = get_origin_from_trans(opath, t_from_head)
 
     if o_from_t is None:
         logging.error("Error: Cannot find the latest origin commit for %s", file_path)

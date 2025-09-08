@@ -235,6 +235,7 @@ class JsonEvent:
           'NO_GROUP_EVENTS_NMI': '2',
           'NO_NMI_WATCHDOG': '2',
           'NO_GROUP_EVENTS_SMT': '3',
+          'NO_THRESHOLD_AND_NMI': '4',
       }
       return metric_constraint_to_enum[metric_constraint]
 
@@ -295,6 +296,7 @@ class JsonEvent:
           'cpu_atom': 'cpu_atom',
           'ali_drw': 'ali_drw',
           'arm_cmn': 'arm_cmn',
+          'software': 'software',
           'tool': 'tool',
       }
       return table[unit] if unit in table else f'uncore_{unit.lower()}'
@@ -397,6 +399,9 @@ class JsonEvent:
       self.desc += extra_desc
     if self.long_desc and extra_desc:
       self.long_desc += extra_desc
+    if self.desc and self.long_desc and self.desc == self.long_desc:
+        # Avoid duplicated descriptions.
+        self.long_desc = None
     if arch_std:
       if arch_std.lower() in _arch_std_events:
         event = _arch_std_events[arch_std.lower()].event
@@ -1155,8 +1160,20 @@ static const struct pmu_events_map *map_for_pmu(struct perf_pmu *pmu)
 {
         struct perf_cpu cpu = {-1};
 
-        if (pmu)
+        if (pmu) {
+                for (size_t i = 0; i < ARRAY_SIZE(pmu_events__common); i++) {
+                        const char *pmu_name = &big_c_string[pmu_events__common[i].pmu_name.offset];
+
+                        if (!strcmp(pmu_name, pmu->name)) {
+                                const struct pmu_events_map *map = &pmu_events_map[0];
+
+                                while (strcmp("common", map->arch))
+                                        map++;
+                                return map;
+                        }
+                }
                 cpu = perf_cpu_map__min(pmu->cpus);
+        }
         return map_for_cpu(cpu);
 }
 

@@ -347,12 +347,13 @@ static SUNXI_CCU_GATE(dram_ohci_clk,	"dram-ohci",	"dram",
 
 static const char * const de_parents[] = { "pll-video", "pll-periph0" };
 static SUNXI_CCU_M_WITH_MUX_GATE(de_clk, "de", de_parents,
-				 0x104, 0, 4, 24, 2, BIT(31),
-				 CLK_SET_RATE_PARENT);
+				 0x104, 0, 4, 24, 3, BIT(31),
+				 CLK_SET_RATE_NO_REPARENT);
 
 static const char * const tcon_parents[] = { "pll-video", "pll-periph0" };
 static SUNXI_CCU_M_WITH_MUX_GATE(tcon_clk, "tcon", tcon_parents,
-				 0x118, 0, 4, 24, 3, BIT(31), 0);
+				 0x118, 0, 4, 24, 3, BIT(31),
+				 CLK_SET_RATE_NO_REPARENT);
 
 static SUNXI_CCU_GATE(csi_misc_clk,	"csi-misc",	"osc24M",
 		      0x130, BIT(31), 0);
@@ -753,6 +754,21 @@ static int sun8i_v3s_ccu_probe(struct platform_device *pdev)
 	val = readl(reg + SUN8I_V3S_PLL_AUDIO_REG);
 	val &= ~GENMASK(19, 16);
 	writel(val, reg + SUN8I_V3S_PLL_AUDIO_REG);
+
+	/*
+	 * Assign the DE and TCON clock to the video PLL. Both clocks need to
+	 * have the same parent for the units to work together.
+	 */
+
+	val = readl(reg + de_clk.common.reg);
+	val &= ~GENMASK(de_clk.mux.shift + de_clk.mux.width - 1,
+			de_clk.mux.shift);
+	writel(val, reg + de_clk.common.reg);
+
+	val = readl(reg + tcon_clk.common.reg);
+	val &= ~GENMASK(tcon_clk.mux.shift + tcon_clk.mux.width - 1,
+			tcon_clk.mux.shift);
+	writel(val, reg + tcon_clk.common.reg);
 
 	return devm_sunxi_ccu_probe(&pdev->dev, reg, desc);
 }

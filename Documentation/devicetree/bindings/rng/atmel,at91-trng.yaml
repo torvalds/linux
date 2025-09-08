@@ -24,6 +24,7 @@ properties:
       - items:
           - enum:
               - microchip,sam9x7-trng
+              - microchip,sama7d65-trng
           - const: microchip,sam9x60-trng
 
   clocks:

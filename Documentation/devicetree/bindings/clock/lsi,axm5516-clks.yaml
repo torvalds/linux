@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright 2025 LSI
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/lsi,axm5516-clks.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: LSI AXM5516 Clock Controller
+
+maintainers:
+  - Anders Berg <anders.berg@lsi.com>
+
+description:
+  See <dt-bindings/clock/lsi,axxia-clock.h> for the list of supported clock IDs.
+
+properties:
+  compatible:
+    const: lsi,axm5516-clks
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    bus {
+        #address-cells = <2>;
+        #size-cells = <1>;
+        clock-controller@2010020000 {
+            compatible = "lsi,axm5516-clks";
+            #clock-cells = <1>;
+            reg = <0x20 0x10020000 0x20000>;
+        };
+    };

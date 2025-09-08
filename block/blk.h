@@ -12,6 +12,7 @@
 #include "blk-crypto-internal.h"
 
 struct elevator_type;
+struct elevator_tags;
 
 /*
  * Default upper limit for the software max_sectors limit used for regular I/Os.
@@ -28,6 +29,7 @@ struct elevator_type;
 /* Max future timer expiry for timeouts */
 #define BLK_MAX_TIMEOUT		(5 * HZ)
 
+extern const struct kobj_type blk_queue_ktype;
 extern struct dentry *blk_debugfs_root;
 
 struct blk_flush_queue {
@@ -330,7 +332,8 @@ bool blk_bio_list_merge(struct request_queue *q, struct list_head *list,
 
 bool blk_insert_flush(struct request *rq);
 
-void elv_update_nr_hw_queues(struct request_queue *q, struct elevator_type *e);
+void elv_update_nr_hw_queues(struct request_queue *q, struct elevator_type *e,
+		struct elevator_tags *t);
 void elevator_set_default(struct request_queue *q);
 void elevator_set_none(struct request_queue *q);
 

@@ -653,32 +653,6 @@ static struct clk_hw *c3_pll_hw_clks[] = {
 	[CLKID_MCLK1]		= &mclk1.hw
 };
 
-/* Convenience table to populate regmap in .probe */
-static struct clk_regmap *const c3_pll_clk_regmaps[] = {
-	&fclk_50m_en,
-	&fclk_div2,
-	&fclk_div2p5,
-	&fclk_div3,
-	&fclk_div4,
-	&fclk_div5,
-	&fclk_div7,
-	&gp0_pll_dco,
-	&gp0_pll,
-	&hifi_pll_dco,
-	&hifi_pll,
-	&mclk_pll_dco,
-	&mclk_pll_od,
-	&mclk_pll,
-	&mclk0_sel,
-	&mclk0_div_en,
-	&mclk0_div,
-	&mclk0,
-	&mclk1_sel,
-	&mclk1_div_en,
-	&mclk1_div,
-	&mclk1,
-};
-
 static const struct regmap_config clkc_regmap_config = {
 	.reg_bits       = 32,
 	.val_bits       = 32,
@@ -696,7 +670,7 @@ static int c3_pll_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct regmap *regmap;
 	void __iomem *base;
-	int clkid, ret, i;
+	int clkid, ret;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -705,10 +679,6 @@ static int c3_pll_probe(struct platform_device *pdev)
 	regmap = devm_regmap_init_mmio(dev, base, &clkc_regmap_config);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
-
-	/* Populate regmap for the regmap backed clocks */
-	for (i = 0; i < ARRAY_SIZE(c3_pll_clk_regmaps); i++)
-		c3_pll_clk_regmaps[i]->map = regmap;
 
 	for (clkid = 0; clkid < c3_pll_clks.num; clkid++) {
 		/* array might be sparse */

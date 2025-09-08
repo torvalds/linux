@@ -19,6 +19,7 @@ orders. See also `the Wikipedia article on Bayer filter
 .. toctree::
     :maxdepth: 1
 
+    pixfmt-rawnn-cru
     pixfmt-srggb8
     pixfmt-srggb8-pisp-comp
     pixfmt-srggb10

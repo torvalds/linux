@@ -124,7 +124,8 @@ struct otx2_cptlfs_info {
 	struct cpt_hw_ops *ops;
 	u8 are_lfs_attached;	/* Whether CPT LFs are attached */
 	u8 lfs_num;		/* Number of CPT LFs */
-	u8 kcrypto_eng_grp_num;	/* Kernel crypto engine group number */
+	u8 kcrypto_se_eng_grp_num; /* Crypto symmetric engine group number */
+	u8 kcrypto_ae_eng_grp_num; /* Crypto asymmetric engine group number */
 	u8 kvf_limits;          /* Kernel crypto limits */
 	atomic_t state;         /* LF's state. started/reset */
 	int blkaddr;            /* CPT blkaddr: BLKADDR_CPT0/BLKADDR_CPT1 */

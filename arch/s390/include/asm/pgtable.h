@@ -963,6 +963,12 @@ static inline pmd_t pmd_clear_soft_dirty(pmd_t pmd)
 	return clear_pmd_bit(pmd, __pgprot(_SEGMENT_ENTRY_SOFT_DIRTY));
 }
 
+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+#define pmd_swp_soft_dirty(pmd)		pmd_soft_dirty(pmd)
+#define pmd_swp_mksoft_dirty(pmd)	pmd_mksoft_dirty(pmd)
+#define pmd_swp_clear_soft_dirty(pmd)	pmd_clear_soft_dirty(pmd)
+#endif
+
 /*
  * query functions pte_write/pte_dirty/pte_young only work if
  * pte_present() is true. Undefined behaviour if not..
@@ -1978,6 +1984,45 @@ static inline unsigned long __swp_offset_rste(swp_entry_t entry)
 }
 
 #define __rste_to_swp_entry(rste)	((swp_entry_t) { rste })
+
+/*
+ * s390 has different layout for PTE and region / segment table entries (RSTE).
+ * This is also true for swap entries, and their swap type and offset encoding.
+ * For hugetlbfs PTE_MARKER support, s390 has internal __swp_type_rste() and
+ * __swp_offset_rste() helpers to correctly handle RSTE swap entries.
+ *
+ * But common swap code does not know about this difference, and only uses
+ * __swp_type(), __swp_offset() and __swp_entry() helpers for conversion between
+ * arch-dependent and arch-independent representation of swp_entry_t for all
+ * pagetable levels. On s390, those helpers only work for PTE swap entries.
+ *
+ * Therefore, implement __pmd_to_swp_entry() to build a fake PTE swap entry
+ * and return the arch-dependent representation of that. Correspondingly,
+ * implement __swp_entry_to_pmd() to convert that into a proper PMD swap
+ * entry again. With this, the arch-dependent swp_entry_t representation will
+ * always look like a PTE swap entry in common code.
+ *
+ * This is somewhat similar to fake PTEs in hugetlbfs code for s390, but only
+ * requires conversion of the swap type and offset, and not all the possible
+ * PTE bits.
+ */
+static inline swp_entry_t __pmd_to_swp_entry(pmd_t pmd)
+{
+	swp_entry_t arch_entry;
+	pte_t pte;
+
+	arch_entry = __rste_to_swp_entry(pmd_val(pmd));
+	pte = mk_swap_pte(__swp_type_rste(arch_entry), __swp_offset_rste(arch_entry));
+	return __pte_to_swp_entry(pte);
+}
+
+static inline pmd_t __swp_entry_to_pmd(swp_entry_t arch_entry)
+{
+	pmd_t pmd;
+
+	pmd = __pmd(mk_swap_rste(__swp_type(arch_entry), __swp_offset(arch_entry)));
+	return pmd;
+}
 
 extern int vmem_add_mapping(unsigned long start, unsigned long size);
 extern void vmem_remove_mapping(unsigned long start, unsigned long size);

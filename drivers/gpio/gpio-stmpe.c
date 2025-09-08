@@ -136,7 +136,7 @@ static const struct gpio_chip template_chip = {
 	.direction_input	= stmpe_gpio_direction_input,
 	.get			= stmpe_gpio_get,
 	.direction_output	= stmpe_gpio_direction_output,
-	.set_rv			= stmpe_gpio_set,
+	.set			= stmpe_gpio_set,
 	.request		= stmpe_gpio_request,
 	.can_sleep		= true,
 };

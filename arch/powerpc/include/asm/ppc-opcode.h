@@ -425,6 +425,7 @@
 #define PPC_RAW_SC()			(0x44000002)
 #define PPC_RAW_SYNC()			(0x7c0004ac)
 #define PPC_RAW_ISYNC()			(0x4c00012c)
+#define PPC_RAW_LWSYNC()		(0x7c2004ac)
 
 /*
  * Define what the VSX XX1 form instructions will look like, then add

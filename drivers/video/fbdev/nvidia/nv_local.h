@@ -80,7 +80,7 @@
      (par)->dmaFree -= ((size) + 1);          \
 }
 
-#if defined(__i386__)
+#if defined(__i386__) && !defined(CONFIG_UML)
 #define _NV_FENCE() outb(0, 0x3D0);
 #else
 #define _NV_FENCE() mb();

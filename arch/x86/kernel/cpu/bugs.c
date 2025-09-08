@@ -386,7 +386,6 @@ static bool __init should_mitigate_vuln(unsigned int bug)
 
 	case X86_BUG_SPECTRE_V2:
 	case X86_BUG_RETBLEED:
-	case X86_BUG_SRSO:
 	case X86_BUG_L1TF:
 	case X86_BUG_ITS:
 		return cpu_attack_vector_mitigated(CPU_MITIGATE_USER_KERNEL) ||
@@ -417,6 +416,10 @@ static bool __init should_mitigate_vuln(unsigned int bug)
 		       cpu_attack_vector_mitigated(CPU_MITIGATE_USER_USER) ||
 		       cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_GUEST) ||
 		       (smt_mitigations != SMT_MITIGATIONS_OFF);
+
+	case X86_BUG_SPEC_STORE_BYPASS:
+		return cpu_attack_vector_mitigated(CPU_MITIGATE_USER_USER);
+
 	default:
 		WARN(1, "Unknown bug %x\n", bug);
 		return false;
@@ -1069,10 +1072,8 @@ static void __init gds_select_mitigation(void)
 	if (gds_mitigation == GDS_MITIGATION_AUTO) {
 		if (should_mitigate_vuln(X86_BUG_GDS))
 			gds_mitigation = GDS_MITIGATION_FULL;
-		else {
+		else
 			gds_mitigation = GDS_MITIGATION_OFF;
-			return;
-		}
 	}
 
 	/* No microcode */
@@ -2713,6 +2714,11 @@ static void __init ssb_select_mitigation(void)
 		ssb_mode = SPEC_STORE_BYPASS_DISABLE;
 		break;
 	case SPEC_STORE_BYPASS_CMD_AUTO:
+		if (should_mitigate_vuln(X86_BUG_SPEC_STORE_BYPASS))
+			ssb_mode = SPEC_STORE_BYPASS_PRCTL;
+		else
+			ssb_mode = SPEC_STORE_BYPASS_NONE;
+		break;
 	case SPEC_STORE_BYPASS_CMD_PRCTL:
 		ssb_mode = SPEC_STORE_BYPASS_PRCTL;
 		break;
@@ -3184,8 +3190,18 @@ static void __init srso_select_mitigation(void)
 	}
 
 	if (srso_mitigation == SRSO_MITIGATION_AUTO) {
-		if (should_mitigate_vuln(X86_BUG_SRSO)) {
+		/*
+		 * Use safe-RET if user->kernel or guest->host protection is
+		 * required.  Otherwise the 'microcode' mitigation is sufficient
+		 * to protect the user->user and guest->guest vectors.
+		 */
+		if (cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_HOST) ||
+		    (cpu_attack_vector_mitigated(CPU_MITIGATE_USER_KERNEL) &&
+		     !boot_cpu_has(X86_FEATURE_SRSO_USER_KERNEL_NO))) {
 			srso_mitigation = SRSO_MITIGATION_SAFE_RET;
+		} else if (cpu_attack_vector_mitigated(CPU_MITIGATE_USER_USER) ||
+			   cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_GUEST)) {
+			srso_mitigation = SRSO_MITIGATION_MICROCODE;
 		} else {
 			srso_mitigation = SRSO_MITIGATION_NONE;
 			return;

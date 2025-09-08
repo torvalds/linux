@@ -52,9 +52,9 @@ class DamosAccessPattern:
         if self.size is None:
             self.size = [0, 2**64 - 1]
         if self.nr_accesses is None:
-            self.nr_accesses = [0, 2**64 - 1]
+            self.nr_accesses = [0, 2**32 - 1]
         if self.age is None:
-            self.age = [0, 2**64 - 1]
+            self.age = [0, 2**32 - 1]
 
     def sysfs_dir(self):
         return os.path.join(self.scheme.sysfs_dir(), 'access_pattern')
@@ -93,14 +93,16 @@ class DamosQuotaGoal:
     metric = None
     target_value = None
     current_value = None
+    nid = None
     effective_bytes = None
     quota = None            # owner quota
     idx = None
 
-    def __init__(self, metric, target_value=10000, current_value=0):
+    def __init__(self, metric, target_value=10000, current_value=0, nid=0):
         self.metric = metric
         self.target_value = target_value
         self.current_value = current_value
+        self.nid = nid
 
     def sysfs_dir(self):
         return os.path.join(self.quota.sysfs_dir(), 'goals', '%d' % self.idx)
@@ -118,6 +120,10 @@ class DamosQuotaGoal:
                          self.current_value)
         if err is not None:
             return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'nid'), self.nid)
+        if err is not None:
+            return err
+
         return None
 
 class DamosQuota:
@@ -125,12 +131,20 @@ class DamosQuota:
     ms = None                   # time quota
     goals = None                # quota goals
     reset_interval_ms = None    # quota reset interval
+    weight_sz_permil = None
+    weight_nr_accesses_permil = None
+    weight_age_permil = None
     scheme = None               # owner scheme
 
-    def __init__(self, sz=0, ms=0, goals=None, reset_interval_ms=0):
+    def __init__(self, sz=0, ms=0, goals=None, reset_interval_ms=0,
+                 weight_sz_permil=0, weight_nr_accesses_permil=0,
+                 weight_age_permil=0):
         self.sz = sz
         self.ms = ms
         self.reset_interval_ms = reset_interval_ms
+        self.weight_sz_permil = weight_sz_permil
+        self.weight_nr_accesses_permil = weight_nr_accesses_permil
+        self.weight_age_permil = weight_age_permil
         self.goals = goals if goals is not None else []
         for idx, goal in enumerate(self.goals):
             goal.idx = idx
@@ -151,6 +165,20 @@ class DamosQuota:
         if err is not None:
             return err
 
+        err = write_file(os.path.join(
+            self.sysfs_dir(), 'weights', 'sz_permil'), self.weight_sz_permil)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(
+            self.sysfs_dir(), 'weights', 'nr_accesses_permil'),
+                         self.weight_nr_accesses_permil)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(
+            self.sysfs_dir(), 'weights', 'age_permil'), self.weight_age_permil)
+        if err is not None:
+            return err
+
         nr_goals_file = os.path.join(self.sysfs_dir(), 'goals', 'nr_goals')
         content, err = read_file(nr_goals_file)
         if err is not None:
@@ -161,6 +189,178 @@ class DamosQuota:
                 return err
         for goal in self.goals:
             err = goal.stage()
+            if err is not None:
+                return err
+        return None
+
+class DamosWatermarks:
+    metric = None
+    interval = None
+    high = None
+    mid = None
+    low = None
+    scheme = None   # owner scheme
+
+    def __init__(self, metric='none', interval=0, high=0, mid=0, low=0):
+        self.metric = metric
+        self.interval = interval
+        self.high = high
+        self.mid = mid
+        self.low = low
+
+    def sysfs_dir(self):
+        return os.path.join(self.scheme.sysfs_dir(), 'watermarks')
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'metric'), self.metric)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'interval_us'),
+                         self.interval)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'high'), self.high)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'mid'), self.mid)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'low'), self.low)
+        if err is not None:
+            return err
+
+class DamosFilter:
+    type_ = None
+    matching = None
+    allow = None
+    memcg_path = None
+    addr_start = None
+    addr_end = None
+    target_idx = None
+    min_ = None
+    max_ = None
+    idx = None
+    filters = None  # owner filters
+
+    def __init__(self, type_='anon', matching=False, allow=False,
+                 memcg_path='', addr_start=0, addr_end=0, target_idx=0, min_=0,
+                 max_=0):
+        self.type_ = type_
+        self.matching = matching
+        self.allow = allow
+        self.memcg_path = memcg_path,
+        self.addr_start = addr_start
+        self.addr_end = addr_end
+        self.target_idx = target_idx
+        self.min_ = min_
+        self.max_ = max_
+
+    def sysfs_dir(self):
+        return os.path.join(self.filters.sysfs_dir(), '%d' % self.idx)
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'type'), self.type_)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'matching'),
+                         self.matching)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'allow'), self.allow)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'memcg_path'),
+                         self.memcg_path)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'addr_start'),
+                         self.addr_start)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'addr_end'),
+                         self.addr_end)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'damon_target_idx'),
+                         self.target_idx)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'min'), self.min_)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'max'), self.max_)
+        if err is not None:
+            return err
+        return None
+
+class DamosFilters:
+    name = None
+    filters = None
+    scheme = None   # owner scheme
+
+    def __init__(self, name, filters=[]):
+        self.name = name
+        self.filters = filters
+        for idx, filter_ in enumerate(self.filters):
+            filter_.idx = idx
+            filter_.filters = self
+
+    def sysfs_dir(self):
+        return os.path.join(self.scheme.sysfs_dir(), self.name)
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'nr_filters'),
+                         len(self.filters))
+        if err is not None:
+            return err
+        for filter_ in self.filters:
+            err = filter_.stage()
+            if err is not None:
+                return err
+        return None
+
+class DamosDest:
+    id = None
+    weight = None
+    idx = None
+    dests = None    # owner dests
+
+    def __init__(self, id=0, weight=0):
+        self.id = id
+        self.weight = weight
+
+    def sysfs_dir(self):
+        return os.path.join(self.dests.sysfs_dir(), '%d' % self.idx)
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'id'), self.id)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'weight'), self.weight)
+        if err is not None:
+            return err
+        return None
+
+class DamosDests:
+    dests = None
+    scheme = None   # owner scheme
+
+    def __init__(self, dests=[]):
+        self.dests = dests
+        for idx, dest in enumerate(self.dests):
+            dest.idx = idx
+            dest.dests = self
+
+    def sysfs_dir(self):
+        return os.path.join(self.scheme.sysfs_dir(), 'dests')
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'nr_dests'),
+                         len(self.dests))
+        if err is not None:
+            return err
+        for dest in self.dests:
+            err = dest.stage()
             if err is not None:
                 return err
         return None
@@ -190,8 +390,13 @@ class Damos:
     action = None
     access_pattern = None
     quota = None
+    watermarks = None
+    core_filters = None
+    ops_filters = None
+    filters = None
     apply_interval_us = None
-    # todo: Support watermarks, stats
+    target_nid = None
+    dests = None
     idx = None
     context = None
     tried_bytes = None
@@ -199,12 +404,30 @@ class Damos:
     tried_regions = None
 
     def __init__(self, action='stat', access_pattern=DamosAccessPattern(),
-                 quota=DamosQuota(), apply_interval_us=0):
+                 quota=DamosQuota(), watermarks=DamosWatermarks(),
+                 core_filters=[], ops_filters=[], filters=[], target_nid=0,
+                 dests=DamosDests(), apply_interval_us=0):
         self.action = action
         self.access_pattern = access_pattern
         self.access_pattern.scheme = self
         self.quota = quota
         self.quota.scheme = self
+        self.watermarks = watermarks
+        self.watermarks.scheme = self
+
+        self.core_filters = DamosFilters(name='core_filters',
+                                         filters=core_filters)
+        self.core_filters.scheme = self
+        self.ops_filters = DamosFilters(name='ops_filters',
+                                         filters=ops_filters)
+        self.ops_filters.scheme = self
+        self.filters = DamosFilters(name='filters', filters=filters)
+        self.filters.scheme = self
+
+        self.target_nid = target_nid
+        self.dests = dests
+        self.dests.scheme = self
+
         self.apply_interval_us = apply_interval_us
 
     def sysfs_dir(self):
@@ -227,15 +450,26 @@ class Damos:
         if err is not None:
             return err
 
-        # disable watermarks
-        err = write_file(
-                os.path.join(self.sysfs_dir(), 'watermarks', 'metric'), 'none')
+        err = self.watermarks.stage()
         if err is not None:
             return err
 
-        # disable filters
-        err = write_file(
-                os.path.join(self.sysfs_dir(), 'filters', 'nr_filters'), '0')
+        err = self.core_filters.stage()
+        if err is not None:
+            return err
+        err = self.ops_filters.stage()
+        if err is not None:
+            return err
+        err = self.filters.stage()
+        if err is not None:
+            return err
+
+        err = write_file(os.path.join(self.sysfs_dir(), 'target_nid'), '%d' %
+                         self.target_nid)
+        if err is not None:
+            return err
+
+        err = self.dests.stage()
         if err is not None:
             return err
 
@@ -260,18 +494,56 @@ class DamonTarget:
         return write_file(
                 os.path.join(self.sysfs_dir(), 'pid_target'), self.pid)
 
+class IntervalsGoal:
+    access_bp = None
+    aggrs = None
+    min_sample_us = None
+    max_sample_us = None
+    attrs = None    # owner DamonAttrs
+
+    def __init__(self, access_bp=0, aggrs=0, min_sample_us=0, max_sample_us=0):
+        self.access_bp = access_bp
+        self.aggrs = aggrs
+        self.min_sample_us = min_sample_us
+        self.max_sample_us = max_sample_us
+
+    def sysfs_dir(self):
+        return os.path.join(self.attrs.interval_sysfs_dir(), 'intervals_goal')
+
+    def stage(self):
+        err = write_file(
+                os.path.join(self.sysfs_dir(), 'access_bp'), self.access_bp)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'aggrs'), self.aggrs)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'min_sample_us'),
+                         self.min_sample_us)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'max_sample_us'),
+                         self.max_sample_us)
+        if err is not None:
+            return err
+        return None
+
 class DamonAttrs:
     sample_us = None
     aggr_us = None
+    intervals_goal = None
     update_us = None
     min_nr_regions = None
     max_nr_regions = None
     context = None
 
-    def __init__(self, sample_us=5000, aggr_us=100000, update_us=1000000,
+    def __init__(self, sample_us=5000, aggr_us=100000,
+                 intervals_goal=IntervalsGoal(), update_us=1000000,
             min_nr_regions=10, max_nr_regions=1000):
         self.sample_us = sample_us
         self.aggr_us = aggr_us
+        self.intervals_goal = intervals_goal
+        self.intervals_goal.attrs = self
         self.update_us = update_us
         self.min_nr_regions = min_nr_regions
         self.max_nr_regions = max_nr_regions
@@ -291,6 +563,9 @@ class DamonAttrs:
             return err
         err = write_file(os.path.join(self.interval_sysfs_dir(), 'aggr_us'),
                 self.aggr_us)
+        if err is not None:
+            return err
+        err = self.intervals_goal.stage()
         if err is not None:
             return err
         err = write_file(os.path.join(self.interval_sysfs_dir(), 'update_us'),
@@ -408,6 +683,9 @@ class Kdamond:
             if err is not None:
                 return err
         err = write_file(os.path.join(self.sysfs_dir(), 'state'), 'on')
+        if err is not None:
+            return err
+        self.pid, err = read_file(os.path.join(self.sysfs_dir(), 'pid'))
         return err
 
     def stop(self):

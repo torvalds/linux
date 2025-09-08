@@ -2751,7 +2751,7 @@ int cifs_query_reparse_point(const unsigned int xid,
 	if (cap_unix(tcon->ses))
 		return -EOPNOTSUPP;
 
-	if (!(le32_to_cpu(tcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS))
+	if (!CIFS_REPARSE_SUPPORT(tcon))
 		return -EOPNOTSUPP;
 
 	oparms = (struct cifs_open_parms) {
@@ -2849,6 +2849,134 @@ error:
 	cifs_buf_release(io_req);
 	CIFSSMBClose(xid, tcon, fid.netfid);
 	return rc;
+}
+
+struct inode *cifs_create_reparse_inode(struct cifs_open_info_data *data,
+					struct super_block *sb,
+					const unsigned int xid,
+					struct cifs_tcon *tcon,
+					const char *full_path,
+					bool directory,
+					struct kvec *reparse_iov,
+					struct kvec *xattr_iov)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct cifs_open_parms oparms;
+	TRANSACT_IOCTL_REQ *io_req;
+	struct inode *new = NULL;
+	struct kvec in_iov[2];
+	struct kvec out_iov;
+	struct cifs_fid fid;
+	int io_req_len;
+	int oplock = 0;
+	int buf_type = 0;
+	int rc;
+
+	cifs_tcon_dbg(FYI, "%s: path=%s\n", __func__, full_path);
+
+	/*
+	 * If server filesystem does not support reparse points then do not
+	 * attempt to create reparse point. This will prevent creating unusable
+	 * empty object on the server.
+	 */
+	if (!CIFS_REPARSE_SUPPORT(tcon))
+		return ERR_PTR(-EOPNOTSUPP);
+
+#ifndef CONFIG_CIFS_XATTR
+	if (xattr_iov)
+		return ERR_PTR(-EOPNOTSUPP);
+#endif
+
+	oparms = CIFS_OPARMS(cifs_sb, tcon, full_path,
+			     FILE_READ_ATTRIBUTES | FILE_WRITE_DATA | FILE_WRITE_EA,
+			     FILE_CREATE,
+			     (directory ? CREATE_NOT_FILE : CREATE_NOT_DIR) | OPEN_REPARSE_POINT,
+			     ACL_NO_MODE);
+	oparms.fid = &fid;
+
+	rc = CIFS_open(xid, &oparms, &oplock, NULL);
+	if (rc)
+		return ERR_PTR(rc);
+
+#ifdef CONFIG_CIFS_XATTR
+	if (xattr_iov) {
+		struct smb2_file_full_ea_info *ea;
+
+		ea = &((struct smb2_create_ea_ctx *)xattr_iov->iov_base)->ea;
+		while (1) {
+			rc = CIFSSMBSetEA(xid,
+					  tcon,
+					  full_path,
+					  &ea->ea_data[0],
+					  &ea->ea_data[ea->ea_name_length+1],
+					  le16_to_cpu(ea->ea_value_length),
+					  cifs_sb->local_nls,
+					  cifs_sb);
+			if (rc)
+				goto out_close;
+			if (le32_to_cpu(ea->next_entry_offset) == 0)
+				break;
+			ea = (struct smb2_file_full_ea_info *)((u8 *)ea +
+				le32_to_cpu(ea->next_entry_offset));
+		}
+	}
+#endif
+
+	rc = smb_init(SMB_COM_NT_TRANSACT, 23, tcon, (void **)&io_req, NULL);
+	if (rc)
+		goto out_close;
+
+	inc_rfc1001_len(io_req, sizeof(io_req->Pad));
+
+	io_req_len = be32_to_cpu(io_req->hdr.smb_buf_length) + sizeof(io_req->hdr.smb_buf_length);
+
+	/* NT IOCTL response contains one-word long output setup buffer with size of output data. */
+	io_req->MaxSetupCount = 1;
+	/* NT IOCTL response does not contain output parameters. */
+	io_req->MaxParameterCount = cpu_to_le32(0);
+	/* FSCTL_SET_REPARSE_POINT response contains empty output data. */
+	io_req->MaxDataCount = cpu_to_le32(0);
+
+	io_req->TotalParameterCount = cpu_to_le32(0);
+	io_req->TotalDataCount = cpu_to_le32(reparse_iov->iov_len);
+	io_req->ParameterCount = io_req->TotalParameterCount;
+	io_req->ParameterOffset = cpu_to_le32(0);
+	io_req->DataCount = io_req->TotalDataCount;
+	io_req->DataOffset = cpu_to_le32(offsetof(typeof(*io_req), Data) -
+					 sizeof(io_req->hdr.smb_buf_length));
+	io_req->SetupCount = 4;
+	io_req->SubCommand = cpu_to_le16(NT_TRANSACT_IOCTL);
+	io_req->FunctionCode = cpu_to_le32(FSCTL_SET_REPARSE_POINT);
+	io_req->Fid = fid.netfid;
+	io_req->IsFsctl = 1;
+	io_req->IsRootFlag = 0;
+	io_req->ByteCount = cpu_to_le16(le32_to_cpu(io_req->DataCount) + sizeof(io_req->Pad));
+
+	inc_rfc1001_len(io_req, reparse_iov->iov_len);
+
+	in_iov[0].iov_base = (char *)io_req;
+	in_iov[0].iov_len = io_req_len;
+	in_iov[1] = *reparse_iov;
+	rc = SendReceive2(xid, tcon->ses, in_iov, ARRAY_SIZE(in_iov), &buf_type,
+			  CIFS_NO_RSP_BUF, &out_iov);
+
+	cifs_buf_release(io_req);
+
+	if (!rc)
+		rc = cifs_get_inode_info(&new, full_path, data, sb, xid, NULL);
+
+out_close:
+	CIFSSMBClose(xid, tcon, fid.netfid);
+
+	/*
+	 * If CREATE was successful but FSCTL_SET_REPARSE_POINT failed then
+	 * remove the intermediate object created by CREATE. Otherwise
+	 * empty object stay on the server when reparse call failed.
+	 */
+	if (rc)
+		CIFSSMBDelFile(xid, tcon, full_path, cifs_sb, NULL);
+
+	return rc ? ERR_PTR(rc) : new;
 }
 
 int
@@ -4020,6 +4148,12 @@ findFirstRetry:
 			pSMB->FileName[name_len] = 0;
 			pSMB->FileName[name_len+1] = 0;
 			name_len += 2;
+		} else if (!searchName[0]) {
+			pSMB->FileName[0] = CIFS_DIR_SEP(cifs_sb);
+			pSMB->FileName[1] = 0;
+			pSMB->FileName[2] = 0;
+			pSMB->FileName[3] = 0;
+			name_len = 4;
 		}
 	} else {
 		name_len = copy_path_name(pSMB->FileName, searchName);
@@ -4031,6 +4165,10 @@ findFirstRetry:
 			pSMB->FileName[name_len] = '*';
 			pSMB->FileName[name_len+1] = 0;
 			name_len += 2;
+		} else if (!searchName[0]) {
+			pSMB->FileName[0] = CIFS_DIR_SEP(cifs_sb);
+			pSMB->FileName[1] = 0;
+			name_len = 2;
 		}
 	}
 
@@ -4057,7 +4195,7 @@ findFirstRetry:
 	pSMB->SearchAttributes =
 	    cpu_to_le16(ATTR_READONLY | ATTR_HIDDEN | ATTR_SYSTEM |
 			ATTR_DIRECTORY);
-	pSMB->SearchCount = cpu_to_le16(CIFSMaxBufSize/sizeof(FILE_UNIX_INFO));
+	pSMB->SearchCount = cpu_to_le16(msearch ? CIFSMaxBufSize/sizeof(FILE_UNIX_INFO) : 1);
 	pSMB->SearchFlags = cpu_to_le16(search_flags);
 	pSMB->InformationLevel = cpu_to_le16(psrch_inf->info_level);
 

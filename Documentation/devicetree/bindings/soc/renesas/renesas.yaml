@@ -609,6 +609,16 @@ properties:
               - renesas,r9a09g077m44 # RZ/T2H with Quad Cortex-A55 + Dual Cortex-R52 - no security
           - const: renesas,r9a09g077
 
+      - description: RZ/N2H (R9A09G087)
+        items:
+          - enum:
+              - renesas,rzn2h-evk # RZ/N2H Evaluation Board (RTK9RZN2H0S00000BJ)
+          - enum:
+              - renesas,r9a09g087m04 # RZ/N2H with Single Cortex-A55 + Dual Cortex-R52 - no security
+              - renesas,r9a09g087m24 # RZ/N2H with Dual Cortex-A55 + Dual Cortex-R52 - no security
+              - renesas,r9a09g087m44 # RZ/N2H with Quad Cortex-A55 + Dual Cortex-R52 - no security
+          - const: renesas,r9a09g087
+
 additionalProperties: true
 
 ...

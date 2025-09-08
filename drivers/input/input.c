@@ -971,7 +971,7 @@ static const struct input_device_id *input_match_device(struct input_handler *ha
 {
 	const struct input_device_id *id;
 
-	for (id = handler->id_table; id->flags || id->driver_info; id++) {
+	for (id = handler->id_table; id->flags; id++) {
 		if (input_match_device_id(dev, id) &&
 		    (!handler->match || handler->match(handler, dev))) {
 			return id;

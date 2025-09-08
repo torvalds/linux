@@ -15,17 +15,26 @@ description:
 
 properties:
   compatible:
-    enum:
-      - qcom,sc8180x-adsp-pas
-      - qcom,sc8180x-cdsp-pas
-      - qcom,sc8180x-slpi-pas
-      - qcom,sm8150-adsp-pas
-      - qcom,sm8150-cdsp-pas
-      - qcom,sm8150-mpss-pas
-      - qcom,sm8150-slpi-pas
-      - qcom,sm8250-adsp-pas
-      - qcom,sm8250-cdsp-pas
-      - qcom,sm8250-slpi-pas
+    oneOf:
+      - items:
+          - enum:
+              - qcom,qcs615-adsp-pas
+          - const: qcom,sm8150-adsp-pas
+      - items:
+          - enum:
+              - qcom,qcs615-cdsp-pas
+          - const: qcom,sm8150-cdsp-pas
+      - enum:
+          - qcom,sc8180x-adsp-pas
+          - qcom,sc8180x-cdsp-pas
+          - qcom,sc8180x-slpi-pas
+          - qcom,sm8150-adsp-pas
+          - qcom,sm8150-cdsp-pas
+          - qcom,sm8150-mpss-pas
+          - qcom,sm8150-slpi-pas
+          - qcom,sm8250-adsp-pas
+          - qcom,sm8250-cdsp-pas
+          - qcom,sm8250-slpi-pas
 
   reg:
     maxItems: 1
@@ -62,16 +71,17 @@ allOf:
   - if:
       properties:
         compatible:
-          enum:
-            - qcom,sc8180x-adsp-pas
-            - qcom,sc8180x-cdsp-pas
-            - qcom,sc8180x-slpi-pas
-            - qcom,sm8150-adsp-pas
-            - qcom,sm8150-cdsp-pas
-            - qcom,sm8150-slpi-pas
-            - qcom,sm8250-adsp-pas
-            - qcom,sm8250-cdsp-pas
-            - qcom,sm8250-slpi-pas
+          contains:
+            enum:
+              - qcom,sc8180x-adsp-pas
+              - qcom,sc8180x-cdsp-pas
+              - qcom,sc8180x-slpi-pas
+              - qcom,sm8150-adsp-pas
+              - qcom,sm8150-cdsp-pas
+              - qcom,sm8150-slpi-pas
+              - qcom,sm8250-adsp-pas
+              - qcom,sm8250-cdsp-pas
+              - qcom,sm8250-slpi-pas
     then:
       properties:
         interrupts:
@@ -88,12 +98,13 @@ allOf:
   - if:
       properties:
         compatible:
-          enum:
-            - qcom,sc8180x-adsp-pas
-            - qcom,sc8180x-cdsp-pas
-            - qcom,sm8150-adsp-pas
-            - qcom,sm8150-cdsp-pas
-            - qcom,sm8250-cdsp-pas
+          contains:
+            enum:
+              - qcom,sc8180x-adsp-pas
+              - qcom,sc8180x-cdsp-pas
+              - qcom,sm8150-adsp-pas
+              - qcom,sm8150-cdsp-pas
+              - qcom,sm8250-cdsp-pas
     then:
       properties:
         power-domains:

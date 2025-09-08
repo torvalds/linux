@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # perf record sample filtering (by BPF) tests
 # SPDX-License-Identifier: GPL-2.0
 

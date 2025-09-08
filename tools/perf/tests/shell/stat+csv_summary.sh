@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # perf stat csv summary test
 # SPDX-License-Identifier: GPL-2.0
 

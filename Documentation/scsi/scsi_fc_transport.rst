@@ -30,7 +30,40 @@ This file is found at Documentation/scsi/scsi_fc_transport.rst
 
 FC Remote Ports (rports)
 ========================
-<< To Be Supplied >>
+
+  In the Fibre Channel (FC) subsystem, a remote port (rport) refers to a
+  remote Fibre Channel node that the local port can communicate with.
+  These are typically storage targets (e.g., arrays, tapes) that respond
+  to SCSI commands over FC transport.
+
+  In Linux, rports are managed by the FC transport class and are
+  represented in sysfs under:
+
+    /sys/class/fc_remote_ports/
+
+  Each rport directory contains attributes describing the remote port,
+  such as port ID, node name, port state, and link speed.
+
+  rports are typically created by the FC transport when a new device is
+  discovered during a fabric login or scan, and they persist until the
+  device is removed or the link is lost.
+
+  Common attributes:
+  - node_name: World Wide Node Name (WWNN).
+  - port_name: World Wide Port Name (WWPN).
+  - port_id: FC address of the remote port.
+  - roles: Indicates if the port is an initiator, target, or both.
+  - port_state: Shows the current operational state.
+
+  After discovering a remote port, the driver typically populates a
+  fc_rport_identifiers structure and invokes fc_remote_port_add() to
+  create and register the remote port with the SCSI subsystem via the
+  Fibre Channel (FC) transport class.
+
+  rports are also visible via sysfs as children of the FC host adapter.
+
+  For developers: use fc_remote_port_add() and fc_remote_port_delete() when
+  implementing a driver that interacts with the FC transport class.
 
 
 FC Virtual Ports (vports)

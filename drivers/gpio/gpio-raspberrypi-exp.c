@@ -232,7 +232,7 @@ static int rpi_exp_gpio_probe(struct platform_device *pdev)
 	rpi_gpio->gc.direction_output = rpi_exp_gpio_dir_out;
 	rpi_gpio->gc.get_direction = rpi_exp_gpio_get_direction;
 	rpi_gpio->gc.get = rpi_exp_gpio_get;
-	rpi_gpio->gc.set_rv = rpi_exp_gpio_set;
+	rpi_gpio->gc.set = rpi_exp_gpio_set;
 	rpi_gpio->gc.can_sleep = true;
 
 	return devm_gpiochip_add_data(dev, &rpi_gpio->gc, rpi_gpio);

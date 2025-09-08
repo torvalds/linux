@@ -3,7 +3,7 @@
  * ip30-xtalk.c - Very basic Crosstalk (XIO) detection support.
  *   Copyright (C) 2004-2007 Stanislaw Skowronek <skylark@unaligned.org>
  *   Copyright (C) 2009 Johannes Dickgreber <tanzy@gmx.de>
- *   Copyright (C) 2007, 2014-2016 Joshua Kinard <kumba@gentoo.org>
+ *   Copyright (C) 2007, 2014-2016 Joshua Kinard <linux@kumba.dev>
  */
 
 #include <linux/init.h>

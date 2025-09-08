@@ -700,6 +700,8 @@ static void zloop_free_disk(struct gendisk *disk)
 	struct zloop_device *zlo = disk->private_data;
 	unsigned int i;
 
+	blk_mq_free_tag_set(&zlo->tag_set);
+
 	for (i = 0; i < zlo->nr_zones; i++) {
 		struct zloop_zone *zone = &zlo->zones[i];
 
@@ -1080,7 +1082,6 @@ static int zloop_ctl_remove(struct zloop_options *opts)
 
 	del_gendisk(zlo->disk);
 	put_disk(zlo->disk);
-	blk_mq_free_tag_set(&zlo->tag_set);
 
 	pr_info("Removed device %d\n", opts->id);
 

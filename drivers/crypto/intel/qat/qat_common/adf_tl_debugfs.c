@@ -538,6 +538,9 @@ static void tl_print_rp_srv(struct adf_accel_dev *accel_dev, struct seq_file *s,
 	case ASYM:
 		seq_printf(s, "%*s\n", TL_VALUE_MIN_PADDING, ADF_CFG_ASYM);
 		break;
+	case DECOMP:
+		seq_printf(s, "%*s\n", TL_VALUE_MIN_PADDING, ADF_CFG_DECOMP);
+		break;
 	default:
 		seq_printf(s, "%*s\n", TL_VALUE_MIN_PADDING, TL_RP_SRV_UNKNOWN);
 		break;

@@ -213,6 +213,55 @@ static const struct mipi_phy_device_desc exynos5433_mipi_phy = {
 	},
 };
 
+static const struct mipi_phy_device_desc exynos7870_mipi_phy = {
+	.num_regmaps = 3,
+	.regmap_names = {
+		"samsung,pmu-syscon",
+		"samsung,disp-sysreg",
+		"samsung,cam0-sysreg"
+	},
+	.num_phys = 4,
+	.phys = {
+		{
+			/* EXYNOS_MIPI_PHY_ID_CSIS0 */
+			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_DSIM0,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS7870_MIPI_PHY_CONTROL0,
+			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
+			.resetn_val = BIT(0),
+			.resetn_reg = 0,
+			.resetn_map = EXYNOS_MIPI_REGMAP_CAM0,
+		}, {
+			/* EXYNOS_MIPI_PHY_ID_DSIM0 */
+			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_CSIS0,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS7870_MIPI_PHY_CONTROL0,
+			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
+			.resetn_val = BIT(0),
+			.resetn_reg = 0,
+			.resetn_map = EXYNOS_MIPI_REGMAP_DISP,
+		}, {
+			/* EXYNOS_MIPI_PHY_ID_CSIS1 */
+			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_NONE,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS7870_MIPI_PHY_CONTROL1,
+			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
+			.resetn_val = BIT(1),
+			.resetn_reg = 0,
+			.resetn_map = EXYNOS_MIPI_REGMAP_CAM0,
+		}, {
+			/* EXYNOS_MIPI_PHY_ID_CSIS2 */
+			.coupled_phy_id = EXYNOS_MIPI_PHY_ID_NONE,
+			.enable_val = EXYNOS4_PHY_ENABLE,
+			.enable_reg = EXYNOS7870_MIPI_PHY_CONTROL2,
+			.enable_map = EXYNOS_MIPI_REGMAP_PMU,
+			.resetn_val = BIT(2),
+			.resetn_reg = 0,
+			.resetn_map = EXYNOS_MIPI_REGMAP_CAM0,
+		},
+	},
+};
+
 struct exynos_mipi_video_phy {
 	struct regmap *regmaps[EXYNOS_MIPI_REGMAPS_NUM];
 	int num_phys;
@@ -351,6 +400,9 @@ static const struct of_device_id exynos_mipi_video_phy_of_match[] = {
 	}, {
 		.compatible = "samsung,exynos5433-mipi-video-phy",
 		.data = &exynos5433_mipi_phy,
+	}, {
+		.compatible = "samsung,exynos7870-mipi-video-phy",
+		.data = &exynos7870_mipi_phy,
 	},
 	{ /* sentinel */ },
 };

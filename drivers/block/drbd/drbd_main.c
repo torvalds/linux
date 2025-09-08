@@ -114,19 +114,9 @@ struct kmem_cache *drbd_al_ext_cache;	/* activity log extents */
 mempool_t drbd_request_mempool;
 mempool_t drbd_ee_mempool;
 mempool_t drbd_md_io_page_pool;
+mempool_t drbd_buffer_page_pool;
 struct bio_set drbd_md_io_bio_set;
 struct bio_set drbd_io_bio_set;
-
-/* I do not use a standard mempool, because:
-   1) I want to hand out the pre-allocated objects first.
-   2) I want to be able to interrupt sleeping allocation with a signal.
-   Note: This is a single linked list, the next pointer is the private
-	 member of struct page.
- */
-struct page *drbd_pp_pool;
-DEFINE_SPINLOCK(drbd_pp_lock);
-int          drbd_pp_vacant;
-wait_queue_head_t drbd_pp_wait;
 
 DEFINE_RATELIMIT_STATE(drbd_ratelimit_state, 5 * HZ, 5);
 
@@ -1611,6 +1601,7 @@ static int _drbd_send_zc_bio(struct drbd_peer_device *peer_device, struct bio *b
 static int _drbd_send_zc_ee(struct drbd_peer_device *peer_device,
 			    struct drbd_peer_request *peer_req)
 {
+	bool use_sendpage = !(peer_req->flags & EE_RELEASE_TO_MEMPOOL);
 	struct page *page = peer_req->pages;
 	unsigned len = peer_req->i.size;
 	int err;
@@ -1619,8 +1610,13 @@ static int _drbd_send_zc_ee(struct drbd_peer_device *peer_device,
 	page_chain_for_each(page) {
 		unsigned l = min_t(unsigned, len, PAGE_SIZE);
 
-		err = _drbd_send_page(peer_device, page, 0, l,
-				      page_chain_next(page) ? MSG_MORE : 0);
+		if (likely(use_sendpage))
+			err = _drbd_send_page(peer_device, page, 0, l,
+					      page_chain_next(page) ? MSG_MORE : 0);
+		else
+			err = _drbd_no_send_page(peer_device, page, 0, l,
+						 page_chain_next(page) ? MSG_MORE : 0);
+
 		if (err)
 			return err;
 		len -= l;
@@ -1962,7 +1958,6 @@ void drbd_init_set_defaults(struct drbd_device *device)
 	INIT_LIST_HEAD(&device->sync_ee);
 	INIT_LIST_HEAD(&device->done_ee);
 	INIT_LIST_HEAD(&device->read_ee);
-	INIT_LIST_HEAD(&device->net_ee);
 	INIT_LIST_HEAD(&device->resync_reads);
 	INIT_LIST_HEAD(&device->resync_work.list);
 	INIT_LIST_HEAD(&device->unplug_work.list);
@@ -2043,7 +2038,6 @@ void drbd_device_cleanup(struct drbd_device *device)
 	D_ASSERT(device, list_empty(&device->sync_ee));
 	D_ASSERT(device, list_empty(&device->done_ee));
 	D_ASSERT(device, list_empty(&device->read_ee));
-	D_ASSERT(device, list_empty(&device->net_ee));
 	D_ASSERT(device, list_empty(&device->resync_reads));
 	D_ASSERT(device, list_empty(&first_peer_device(device)->connection->sender_work.q));
 	D_ASSERT(device, list_empty(&device->resync_work.list));
@@ -2055,19 +2049,11 @@ void drbd_device_cleanup(struct drbd_device *device)
 
 static void drbd_destroy_mempools(void)
 {
-	struct page *page;
-
-	while (drbd_pp_pool) {
-		page = drbd_pp_pool;
-		drbd_pp_pool = (struct page *)page_private(page);
-		__free_page(page);
-		drbd_pp_vacant--;
-	}
-
 	/* D_ASSERT(device, atomic_read(&drbd_pp_vacant)==0); */
 
 	bioset_exit(&drbd_io_bio_set);
 	bioset_exit(&drbd_md_io_bio_set);
+	mempool_exit(&drbd_buffer_page_pool);
 	mempool_exit(&drbd_md_io_page_pool);
 	mempool_exit(&drbd_ee_mempool);
 	mempool_exit(&drbd_request_mempool);
@@ -2086,9 +2072,8 @@ static void drbd_destroy_mempools(void)
 
 static int drbd_create_mempools(void)
 {
-	struct page *page;
 	const int number = (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * drbd_minor_count;
-	int i, ret;
+	int ret;
 
 	/* caches */
 	drbd_request_cache = kmem_cache_create(
@@ -2125,6 +2110,10 @@ static int drbd_create_mempools(void)
 	if (ret)
 		goto Enomem;
 
+	ret = mempool_init_page_pool(&drbd_buffer_page_pool, number, 0);
+	if (ret)
+		goto Enomem;
+
 	ret = mempool_init_slab_pool(&drbd_request_mempool, number,
 				     drbd_request_cache);
 	if (ret)
@@ -2133,15 +2122,6 @@ static int drbd_create_mempools(void)
 	ret = mempool_init_slab_pool(&drbd_ee_mempool, number, drbd_ee_cache);
 	if (ret)
 		goto Enomem;
-
-	for (i = 0; i < number; i++) {
-		page = alloc_page(GFP_HIGHUSER);
-		if (!page)
-			goto Enomem;
-		set_page_private(page, (unsigned long)drbd_pp_pool);
-		drbd_pp_pool = page;
-	}
-	drbd_pp_vacant = number;
 
 	return 0;
 
@@ -2169,10 +2149,6 @@ static void drbd_release_all_peer_reqs(struct drbd_device *device)
 	rr = drbd_free_peer_reqs(device, &device->done_ee);
 	if (rr)
 		drbd_err(device, "%d EEs in done list found!\n", rr);
-
-	rr = drbd_free_peer_reqs(device, &device->net_ee);
-	if (rr)
-		drbd_err(device, "%d EEs in net list found!\n", rr);
 }
 
 /* caution. no locking. */
@@ -2862,11 +2838,6 @@ static int __init drbd_init(void)
 		       DRBD_MAJOR);
 		return err;
 	}
-
-	/*
-	 * allocate all necessary structs
-	 */
-	init_waitqueue_head(&drbd_pp_wait);
 
 	drbd_proc = NULL; /* play safe for drbd_cleanup */
 	idr_init(&drbd_devices);

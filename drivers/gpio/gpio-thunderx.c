@@ -533,8 +533,8 @@ static int thunderx_gpio_probe(struct pci_dev *pdev,
 	chip->direction_input = thunderx_gpio_dir_in;
 	chip->get = thunderx_gpio_get;
 	chip->direction_output = thunderx_gpio_dir_out;
-	chip->set_rv = thunderx_gpio_set;
-	chip->set_multiple_rv = thunderx_gpio_set_multiple;
+	chip->set = thunderx_gpio_set;
+	chip->set_multiple = thunderx_gpio_set_multiple;
 	chip->set_config = thunderx_gpio_set_config;
 	girq = &chip->irq;
 	gpio_irq_chip_set_chip(girq, &thunderx_gpio_irq_chip);

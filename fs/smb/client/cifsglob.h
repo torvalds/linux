@@ -627,12 +627,14 @@ struct smb_version_operations {
 	bool (*is_network_name_deleted)(char *buf, struct TCP_Server_Info *srv);
 	struct reparse_data_buffer * (*get_reparse_point_buffer)(const struct kvec *rsp_iov,
 								 u32 *plen);
-	int (*create_reparse_symlink)(const unsigned int xid,
-				      struct inode *inode,
-				      struct dentry *dentry,
-				      struct cifs_tcon *tcon,
-				      const char *full_path,
-				      const char *symname);
+	struct inode * (*create_reparse_inode)(struct cifs_open_info_data *data,
+					       struct super_block *sb,
+					       const unsigned int xid,
+					       struct cifs_tcon *tcon,
+					       const char *full_path,
+					       bool directory,
+					       struct kvec *reparse_iov,
+					       struct kvec *xattr_iov);
 };
 
 struct smb_version_values {
@@ -730,7 +732,8 @@ struct TCP_Server_Info {
 #endif
 	wait_queue_head_t response_q;
 	wait_queue_head_t request_q; /* if more than maxmpx to srvr must block*/
-	spinlock_t mid_lock;  /* protect mid queue and it's entries */
+	spinlock_t mid_queue_lock;  /* protect mid queue */
+	spinlock_t mid_counter_lock;
 	struct list_head pending_mid_q;
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
@@ -768,7 +771,7 @@ struct TCP_Server_Info {
 	/* SMB_COM_WRITE_RAW or SMB_COM_READ_RAW. */
 	unsigned int capabilities; /* selective disabling of caps by smb sess */
 	int timeAdj;  /* Adjust for difference in server time zone in sec */
-	__u64 CurrentMid;         /* multiplex id - rotating counter, protected by GlobalMid_Lock */
+	__u64 current_mid;	/* multiplex id - rotating counter, protected by mid_counter_lock */
 	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlm, ntlmv2 etc */
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
@@ -1727,9 +1730,11 @@ struct mid_q_entry {
 	unsigned int resp_buf_size;
 	int mid_state;	/* wish this were enum but can not pass to wait_event */
 	int mid_rc;		/* rc for MID_RC */
-	unsigned int mid_flags;
 	__le16 command;		/* smb command code */
 	unsigned int optype;	/* operation type */
+	spinlock_t mid_lock;
+	bool wait_cancelled:1;  /* Cancelled while waiting for response */
+	bool deleted_from_q:1;  /* Whether Mid has been dequeued frem pending_mid_q */
 	bool large_buf:1;	/* if valid response, is pointer to large buf */
 	bool multiRsp:1;	/* multiple trans2 responses for one request  */
 	bool multiEnd:1;	/* both received */
@@ -1891,10 +1896,6 @@ static inline bool is_replayable_error(int error)
 #define   MID_RESPONSE_READY 0x40 /* ready for other process handle the rsp */
 #define   MID_RC             0x80 /* mid_rc contains custom rc */
 
-/* Flags */
-#define   MID_WAIT_CANCELLED	 1 /* Cancelled while waiting for response */
-#define   MID_DELETED            2 /* Mid has been dequeued/deleted */
-
 /* Types of response buffer returned from SendReceive2 */
 #define   CIFS_NO_BUFFER        0    /* Response buffer not returned */
 #define   CIFS_SMALL_BUFFER     1
@@ -2005,9 +2006,9 @@ require use of the stronger protocol */
  *				GlobalCurrentXid
  *				GlobalTotalActiveXid
  * TCP_Server_Info->srv_lock	(anything in struct not protected by another lock and can change)
- * TCP_Server_Info->mid_lock	TCP_Server_Info->pending_mid_q	cifs_get_tcp_session
- *				->CurrentMid
- *				(any changes in mid_q_entry fields)
+ * TCP_Server_Info->mid_queue_lock	TCP_Server_Info->pending_mid_q	cifs_get_tcp_session
+ *				mid_q_entry->deleted_from_q
+ * TCP_Server_Info->mid_counter_lock    TCP_Server_Info->current_mid    cifs_get_tcp_session
  * TCP_Server_Info->req_lock	TCP_Server_Info->in_flight	cifs_get_tcp_session
  *				->credits
  *				->echo_credits
@@ -2036,6 +2037,9 @@ require use of the stronger protocol */
  * cifsFileInfo->file_info_lock	cifsFileInfo->count		cifs_new_fileinfo
  *				->invalidHandle			initiate_cifs_search
  *				->oplock_break_cancelled
+ * mid_q_entry->mid_lock	mid_q_entry->callback           alloc_mid
+ *								smb2_mid_entry_alloc
+ *				(Any fields of mid_q_entry that will need protection)
  ****************************************************************************/
 
 #ifdef DECLARE_GLOBALS_HERE
@@ -2374,5 +2378,27 @@ static inline bool cifs_netbios_name(const char *name, size_t namelen)
 	}
 	return ret;
 }
+
+/*
+ * Execute mid callback atomically - ensures callback runs exactly once
+ * and prevents sleeping in atomic context.
+ */
+static inline void mid_execute_callback(struct mid_q_entry *mid)
+{
+	void (*callback)(struct mid_q_entry *mid);
+
+	spin_lock(&mid->mid_lock);
+	callback = mid->callback;
+	mid->callback = NULL;  /* Mark as executed, */
+	spin_unlock(&mid->mid_lock);
+
+	if (callback)
+		callback(mid);
+}
+
+#define CIFS_REPARSE_SUPPORT(tcon) \
+	((tcon)->posix_extensions || \
+	 (le32_to_cpu((tcon)->fsAttrInfo.Attributes) & \
+	  FILE_SUPPORTS_REPARSE_POINTS))
 
 #endif	/* _CIFS_GLOB_H */

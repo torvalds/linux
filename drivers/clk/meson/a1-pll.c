@@ -10,9 +10,19 @@
 #include <linux/clk-provider.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
-#include "a1-pll.h"
+#include "clk-pll.h"
 #include "clk-regmap.h"
 #include "meson-clkc-utils.h"
+
+#define ANACTRL_FIXPLL_CTRL0	0x0
+#define ANACTRL_FIXPLL_CTRL1	0x4
+#define ANACTRL_FIXPLL_STS	0x14
+#define ANACTRL_HIFIPLL_CTRL0	0xc0
+#define ANACTRL_HIFIPLL_CTRL1	0xc4
+#define ANACTRL_HIFIPLL_CTRL2	0xc8
+#define ANACTRL_HIFIPLL_CTRL3	0xcc
+#define ANACTRL_HIFIPLL_CTRL4	0xd0
+#define ANACTRL_HIFIPLL_STS	0xd4
 
 #include <dt-bindings/clock/amlogic,a1-pll-clkc.h>
 
@@ -285,16 +295,6 @@ static struct clk_hw *a1_pll_hw_clks[] = {
 	[CLKID_HIFI_PLL]	= &hifi_pll.hw,
 };
 
-static struct clk_regmap *const a1_pll_regmaps[] = {
-	&fixed_pll_dco,
-	&fixed_pll,
-	&fclk_div2,
-	&fclk_div3,
-	&fclk_div5,
-	&fclk_div7,
-	&hifi_pll,
-};
-
 static const struct regmap_config a1_pll_regmap_cfg = {
 	.reg_bits   = 32,
 	.val_bits   = 32,
@@ -312,7 +312,7 @@ static int meson_a1_pll_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	void __iomem *base;
 	struct regmap *map;
-	int clkid, i, err;
+	int clkid, err;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -323,10 +323,6 @@ static int meson_a1_pll_probe(struct platform_device *pdev)
 	if (IS_ERR(map))
 		return dev_err_probe(dev, PTR_ERR(map),
 				     "can't init regmap mmio region\n");
-
-	/* Populate regmap for the regmap backed clocks */
-	for (i = 0; i < ARRAY_SIZE(a1_pll_regmaps); i++)
-		a1_pll_regmaps[i]->map = map;
 
 	/* Register clocks */
 	for (clkid = 0; clkid < a1_pll_clks.num; clkid++) {

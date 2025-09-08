@@ -673,7 +673,7 @@ static int ad7768_gpio_init(struct iio_dev *indio_dev)
 		.direction_input = ad7768_gpio_direction_input,
 		.direction_output = ad7768_gpio_direction_output,
 		.get = ad7768_gpio_get,
-		.set_rv = ad7768_gpio_set,
+		.set = ad7768_gpio_set,
 		.owner = THIS_MODULE,
 	};
 

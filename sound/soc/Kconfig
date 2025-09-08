@@ -111,7 +111,6 @@ source "sound/soc/bcm/Kconfig"
 source "sound/soc/cirrus/Kconfig"
 source "sound/soc/dwc/Kconfig"
 source "sound/soc/fsl/Kconfig"
-source "sound/soc/generic/Kconfig"
 source "sound/soc/google/Kconfig"
 source "sound/soc/hisilicon/Kconfig"
 source "sound/soc/jz4740/Kconfig"
@@ -148,6 +147,9 @@ source "sound/soc/sof/Kconfig"
 source "sound/soc/codecs/Kconfig"
 
 source "sound/soc/sdw_utils/Kconfig"
+
+# generic frame-work
+source "sound/soc/generic/Kconfig"
 
 endif	# SND_SOC
 

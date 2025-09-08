@@ -7,6 +7,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/swab.h>
@@ -1473,8 +1474,7 @@ int ocs_create_linked_list_from_sg(const struct ocs_aes_dev *aes_dev,
 	ll = dll_desc->vaddr;
 	for (i = 0; i < dma_nents; i++, sg = sg_next(sg)) {
 		ll[i].src_addr = sg_dma_address(sg) + data_offset;
-		ll[i].src_len = (sg_dma_len(sg) - data_offset) < data_size ?
-				(sg_dma_len(sg) - data_offset) : data_size;
+		ll[i].src_len = min(sg_dma_len(sg) - data_offset, data_size);
 		data_offset = 0;
 		data_size -= ll[i].src_len;
 		/* Current element points to the DMA address of the next one. */

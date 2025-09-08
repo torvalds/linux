@@ -687,7 +687,6 @@ DECLARE_EVENT_CLASS(btrfs__writepage,
 		__field(	loff_t, range_start		)
 		__field(	loff_t, range_end		)
 		__field(	char,   for_kupdate		)
-		__field(	char,   for_reclaim		)
 		__field(	char,   range_cyclic		)
 		__field(	unsigned long,  writeback_index	)
 		__field(	u64,    root_objectid		)
@@ -701,7 +700,6 @@ DECLARE_EVENT_CLASS(btrfs__writepage,
 		__entry->range_start	= wbc->range_start;
 		__entry->range_end	= wbc->range_end;
 		__entry->for_kupdate	= wbc->for_kupdate;
-		__entry->for_reclaim	= wbc->for_reclaim;
 		__entry->range_cyclic	= wbc->range_cyclic;
 		__entry->writeback_index = inode->i_mapping->writeback_index;
 		__entry->root_objectid	= btrfs_root_id(BTRFS_I(inode)->root);
@@ -710,13 +708,12 @@ DECLARE_EVENT_CLASS(btrfs__writepage,
 	TP_printk_btrfs("root=%llu(%s) ino=%llu page_index=%lu "
 		  "nr_to_write=%ld pages_skipped=%ld range_start=%llu "
 		  "range_end=%llu for_kupdate=%d "
-		  "for_reclaim=%d range_cyclic=%d writeback_index=%lu",
+		  "range_cyclic=%d writeback_index=%lu",
 		  show_root_type(__entry->root_objectid),
 		  __entry->ino, __entry->index,
 		  __entry->nr_to_write, __entry->pages_skipped,
 		  __entry->range_start, __entry->range_end,
-		  __entry->for_kupdate,
-		  __entry->for_reclaim, __entry->range_cyclic,
+		  __entry->for_kupdate, __entry->range_cyclic,
 		  __entry->writeback_index)
 );
 

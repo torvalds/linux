@@ -130,7 +130,7 @@ static int modepin_gpio_probe(struct platform_device *pdev)
 	chip->owner = THIS_MODULE;
 	chip->parent = &pdev->dev;
 	chip->get = modepin_gpio_get_value;
-	chip->set_rv = modepin_gpio_set_value;
+	chip->set = modepin_gpio_set_value;
 	chip->direction_input = modepin_gpio_dir_in;
 	chip->direction_output = modepin_gpio_dir_out;
 	chip->label = dev_name(&pdev->dev);

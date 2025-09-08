@@ -131,6 +131,29 @@ It supports two optional parameters:
 ``--no-virtualenv``
 	Use OS packaging for Sphinx instead of Python virtual environment.
 
+Installing Sphinx Minimal Version
+---------------------------------
+
+When changing Sphinx build system, it is important to ensure that
+the minimal version will still be supported. Nowadays, it is
+becoming harder to do that on modern distributions, as it is not
+possible to install with Python 3.13 and above.
+
+Testing with the lowest supported Python version as defined at
+Documentation/process/changes.rst can be done by creating
+a venv with it with, and install minimal requirements with::
+
+	/usr/bin/python3.9 -m venv sphinx_min
+	. sphinx_min/bin/activate
+	pip install -r Documentation/sphinx/min_requirements.txt
+
+A more comprehensive test can be done by using:
+
+	scripts/test_doc_build.py
+
+Such script create one Python venv per supported version,
+optionally building documentation for a range of Sphinx versions.
+
 
 Sphinx Build
 ============

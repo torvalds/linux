@@ -33,11 +33,13 @@
 #include "vsp1_lif.h"
 #include "vsp1_lut.h"
 #include "vsp1_pipe.h"
+#include "vsp1_regs.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_sru.h"
 #include "vsp1_uds.h"
 #include "vsp1_uif.h"
 #include "vsp1_video.h"
+#include "vsp1_vspx.h"
 
 /* -----------------------------------------------------------------------------
  * Interrupt Handling
@@ -490,7 +492,10 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 		ret = media_device_register(mdev);
 	} else {
-		ret = vsp1_drm_init(vsp1);
+		if (vsp1->info->version == VI6_IP_VERSION_MODEL_VSPX_GEN4)
+			ret = vsp1_vspx_init(vsp1);
+		else
+			ret = vsp1_drm_init(vsp1);
 	}
 
 done:
@@ -502,7 +507,9 @@ done:
 
 int vsp1_reset_wpf(struct vsp1_device *vsp1, unsigned int index)
 {
+	u32 version = vsp1->version & VI6_IP_VERSION_MODEL_MASK;
 	unsigned int timeout;
+	int ret = 0;
 	u32 status;
 
 	status = vsp1_read(vsp1, VI6_STATUS);
@@ -523,7 +530,11 @@ int vsp1_reset_wpf(struct vsp1_device *vsp1, unsigned int index)
 		return -ETIMEDOUT;
 	}
 
-	return 0;
+	if (version == VI6_IP_VERSION_MODEL_VSPD_GEN3 ||
+	    version == VI6_IP_VERSION_MODEL_VSPD_GEN4)
+		ret = rcar_fcp_soft_reset(vsp1->fcp);
+
+	return ret;
 }
 
 static int vsp1_device_init(struct vsp1_device *vsp1)
@@ -851,6 +862,13 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uif_count = 2,
 		.wpf_count = 1,
 		.num_bru_inputs = 5,
+	}, {
+		.version = VI6_IP_VERSION_MODEL_VSPX_GEN4,
+		.model = "VSP2-X",
+		.gen = 4,
+		.features = VSP1_HAS_IIF,
+		.rpf_count = 2,
+		.wpf_count = 1,
 	},
 };
 

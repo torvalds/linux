@@ -48,6 +48,19 @@
 	};
 };
 
+&apbdma1 {
+	status = "okay";
+};
+
+&mmc {
+	status = "okay";
+
+	pinctrl-0 = <&sdio_pins_default>;
+	pinctrl-names = "default";
+	bus-width = <4>;
+	cd-gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
+};
+
 &gmac0 {
 	status = "okay";
 

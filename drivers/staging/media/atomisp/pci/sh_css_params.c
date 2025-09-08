@@ -4,6 +4,8 @@
  * Copyright (c) 2015, Intel Corporation.
  */
 
+#include <linux/math.h>
+
 #include "gdc_device.h"		/* gdc_lut_store(), ... */
 #include "isp.h"			/* ISP_VEC_ELEMBITS */
 #include "vamem.h"
@@ -21,8 +23,6 @@
 
 #include "platform_support.h"
 #include "assert_support.h"
-#include "misc_support.h"	/* NOT_USED */
-#include "math_support.h"	/* max(), min()  EVEN_FLOOR()*/
 
 #include "ia_css_stream.h"
 #include "sh_css_params_internal.h"
@@ -4042,10 +4042,10 @@ sh_css_update_uds_and_crop_info(
 		}
 
 		/* Must enforce that the crop position is even */
-		crop_x = EVEN_FLOOR(crop_x);
-		crop_y = EVEN_FLOOR(crop_y);
-		uds_xc = EVEN_FLOOR(uds_xc);
-		uds_yc = EVEN_FLOOR(uds_yc);
+		crop_x = round_down(crop_x, 2);
+		crop_y = round_down(crop_y, 2);
+		uds_xc = round_down(uds_xc, 2);
+		uds_yc = round_down(uds_yc, 2);
 
 		uds->xc = (uint16_t)uds_xc;
 		uds->yc = (uint16_t)uds_yc;

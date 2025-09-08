@@ -80,11 +80,11 @@ less sharing than average you'll need a larger-than-average metadata device.
 
 As a guide, we suggest you calculate the number of bytes to use in the
 metadata device as 48 * $data_dev_size / $data_block_size but round it up
-to 2MB if the answer is smaller.  If you're creating large numbers of
+to 2MiB if the answer is smaller.  If you're creating large numbers of
 snapshots which are recording large amounts of change, you may find you
 need to increase this.
 
-The largest size supported is 16GB: If the device is larger,
+The largest size supported is 16GiB: If the device is larger,
 a warning will be issued and the excess space will not be used.
 
 Reloading a pool table
@@ -107,13 +107,13 @@ Using an existing pool device
 
 $data_block_size gives the smallest unit of disk space that can be
 allocated at a time expressed in units of 512-byte sectors.
-$data_block_size must be between 128 (64KB) and 2097152 (1GB) and a
-multiple of 128 (64KB).  $data_block_size cannot be changed after the
+$data_block_size must be between 128 (64KiB) and 2097152 (1GiB) and a
+multiple of 128 (64KiB).  $data_block_size cannot be changed after the
 thin-pool is created.  People primarily interested in thin provisioning
-may want to use a value such as 1024 (512KB).  People doing lots of
-snapshotting may want a smaller value such as 128 (64KB).  If you are
+may want to use a value such as 1024 (512KiB).  People doing lots of
+snapshotting may want a smaller value such as 128 (64KiB).  If you are
 not zeroing newly-allocated data, a larger $data_block_size in the
-region of 256000 (128MB) is suggested.
+region of 262144 (128MiB) is suggested.
 
 $low_water_mark is expressed in blocks of size $data_block_size.  If
 free space on the data device drops below this level then a dm event
@@ -291,7 +291,7 @@ i) Constructor
       error_if_no_space:
 	Error IOs, instead of queueing, if no space.
 
-    Data block size must be between 64KB (128 sectors) and 1GB
+    Data block size must be between 64KiB (128 sectors) and 1GiB
     (2097152 sectors) inclusive.
 
 

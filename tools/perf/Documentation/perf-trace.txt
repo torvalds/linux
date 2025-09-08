@@ -238,14 +238,6 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	the same beautifiers used in the strace-like enter+exit lines to augment the
 	tracepoint arguments.
 
---map-dump::
-	Dump BPF maps setup by events passed via -e, for instance the augmented_raw_syscalls
-	living in tools/perf/examples/bpf/augmented_raw_syscalls.c. For now this
-	dumps just boolean map values and integer keys, in time this will print in hex
-	by default and use BTF when available, as well as use functions to do pretty
-	printing using the existing 'perf trace' syscall arg beautifiers to map integer
-	arguments to strings (pid to comm, syscall id to syscall name, etc).
-
 --force-btf::
 	Use btf_dump to pretty print syscall argument data, instead of using hand-crafted pretty
 	printers. This option is intended for testing BTF integration in perf trace. btf_dump-based

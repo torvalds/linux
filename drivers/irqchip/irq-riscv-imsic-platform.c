@@ -308,7 +308,6 @@ static const struct msi_parent_ops imsic_msi_parent_ops = {
 int imsic_irqdomain_init(void)
 {
 	struct irq_domain_info info = {
-		.fwnode		= imsic->fwnode,
 		.ops		= &imsic_base_domain_ops,
 		.host_data	= imsic,
 	};
@@ -325,6 +324,7 @@ int imsic_irqdomain_init(void)
 	}
 
 	/* Create Base IRQ domain */
+	info.fwnode = imsic->fwnode,
 	imsic->base_domain = msi_create_parent_irq_domain(&info, &imsic_msi_parent_ops);
 	if (!imsic->base_domain) {
 		pr_err("%pfwP: failed to create IMSIC base domain\n", imsic->fwnode);

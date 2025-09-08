@@ -448,7 +448,7 @@ static int psp_sw_init(struct amdgpu_ip_block *ip_block)
 	psp->cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!psp->cmd) {
 		dev_err(adev->dev, "Failed to allocate memory to command buffer!\n");
-		ret = -ENOMEM;
+		return -ENOMEM;
 	}
 
 	adev->psp.xgmi_context.supports_extended_data =
@@ -1039,15 +1039,28 @@ int psp_update_fw_reservation(struct psp_context *psp)
 {
 	int ret;
 	uint64_t reserv_addr, reserv_addr_ext;
-	uint32_t reserv_size, reserv_size_ext;
+	uint32_t reserv_size, reserv_size_ext, mp0_ip_ver;
 	struct amdgpu_device *adev = psp->adev;
+
+	mp0_ip_ver = amdgpu_ip_version(adev, MP0_HWIP, 0);
 
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	if ((amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(14, 0, 2)) &&
-	    (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(14, 0, 3)))
+	switch (mp0_ip_ver) {
+	case IP_VERSION(14, 0, 2):
+		if (adev->psp.sos.fw_version < 0x3b0e0d)
+			return 0;
+		break;
+
+	case IP_VERSION(14, 0, 3):
+		if (adev->psp.sos.fw_version < 0x3a0e14)
+			return 0;
+		break;
+
+	default:
 		return 0;
+	}
 
 	ret = psp_get_fw_reservation_info(psp, GFX_CMD_ID_FB_FW_RESERV_ADDR, &reserv_addr, &reserv_size);
 	if (ret)

@@ -108,7 +108,7 @@ properties:
             - description: See native 'dbi' CSR region for details.
               enum: [ ctrl ]
             - description: See native 'elbi/app' CSR region for details.
-              enum: [ apb, mgmt, link, ulreg, appl ]
+              enum: [ apb, mgmt, link, ulreg, appl, controller ]
             - description: See native 'atu' CSR region for details.
               enum: [ atu_dma ]
             - description: Syscon-related CSR regions.

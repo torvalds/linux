@@ -29,15 +29,15 @@
 //!
 //! ## General Examples
 //!
-//! ```rust,ignore
-//! # #![allow(clippy::disallowed_names)]
+//! ```rust
+//! # #![expect(clippy::disallowed_names, clippy::undocumented_unsafe_blocks)]
 //! use kernel::types::Opaque;
 //! use pin_init::pin_init_from_closure;
 //!
 //! // assume we have some `raw_foo` type in C:
 //! #[repr(C)]
 //! struct RawFoo([u8; 16]);
-//! extern {
+//! extern "C" {
 //!     fn init_foo(_: *mut RawFoo);
 //! }
 //!
@@ -66,25 +66,17 @@
 //! });
 //! ```
 //!
-//! ```rust,ignore
-//! # #![allow(unreachable_pub, clippy::disallowed_names)]
+//! ```rust
+//! # #![expect(unreachable_pub, clippy::disallowed_names)]
 //! use kernel::{prelude::*, types::Opaque};
 //! use core::{ptr::addr_of_mut, marker::PhantomPinned, pin::Pin};
 //! # mod bindings {
-//! #     #![allow(non_camel_case_types)]
+//! #     #![expect(non_camel_case_types, clippy::missing_safety_doc)]
 //! #     pub struct foo;
 //! #     pub unsafe fn init_foo(_ptr: *mut foo) {}
 //! #     pub unsafe fn destroy_foo(_ptr: *mut foo) {}
 //! #     pub unsafe fn enable_foo(_ptr: *mut foo, _flags: u32) -> i32 { 0 }
 //! # }
-//! # // `Error::from_errno` is `pub(crate)` in the `kernel` crate, thus provide a workaround.
-//! # trait FromErrno {
-//! #     fn from_errno(errno: core::ffi::c_int) -> Error {
-//! #         // Dummy error that can be constructed outside the `kernel` crate.
-//! #         Error::from(core::fmt::Error)
-//! #     }
-//! # }
-//! # impl FromErrno for Error {}
 //! /// # Invariants
 //! ///
 //! /// `foo` is always initialized
@@ -108,13 +100,13 @@
 //!                 let foo = addr_of_mut!((*slot).foo);
 //!
 //!                 // Initialize the `foo`
-//!                 bindings::init_foo(Opaque::raw_get(foo));
+//!                 bindings::init_foo(Opaque::cast_into(foo));
 //!
 //!                 // Try to enable it.
-//!                 let err = bindings::enable_foo(Opaque::raw_get(foo), flags);
+//!                 let err = bindings::enable_foo(Opaque::cast_into(foo), flags);
 //!                 if err != 0 {
 //!                     // Enabling has failed, first clean up the foo and then return the error.
-//!                     bindings::destroy_foo(Opaque::raw_get(foo));
+//!                     bindings::destroy_foo(Opaque::cast_into(foo));
 //!                     return Err(Error::from_errno(err));
 //!                 }
 //!
@@ -206,7 +198,7 @@ pub trait InPlaceInit<T>: Sized {
 ///
 /// ```rust
 /// use kernel::error::Error;
-/// use pin_init::zeroed;
+/// use pin_init::init_zeroed;
 /// struct BigBuf {
 ///     big: KBox<[u8; 1024 * 1024 * 1024]>,
 ///     small: [u8; 1024 * 1024],
@@ -215,7 +207,7 @@ pub trait InPlaceInit<T>: Sized {
 /// impl BigBuf {
 ///     fn new() -> impl Init<Self, Error> {
 ///         try_init!(Self {
-///             big: KBox::init(zeroed(), GFP_KERNEL)?,
+///             big: KBox::init(init_zeroed(), GFP_KERNEL)?,
 ///             small: [0; 1024 * 1024],
 ///         }? Error)
 ///     }
@@ -264,7 +256,7 @@ macro_rules! try_init {
 /// ```rust
 /// # #![feature(new_uninit)]
 /// use kernel::error::Error;
-/// use pin_init::zeroed;
+/// use pin_init::init_zeroed;
 /// #[pin_data]
 /// struct BigBuf {
 ///     big: KBox<[u8; 1024 * 1024 * 1024]>,
@@ -275,7 +267,7 @@ macro_rules! try_init {
 /// impl BigBuf {
 ///     fn new() -> impl PinInit<Self, Error> {
 ///         try_pin_init!(Self {
-///             big: KBox::init(zeroed(), GFP_KERNEL)?,
+///             big: KBox::init(init_zeroed(), GFP_KERNEL)?,
 ///             small: [0; 1024 * 1024],
 ///             ptr: core::ptr::null_mut(),
 ///         }? Error)

@@ -656,7 +656,7 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 	gc->direction_input = nsp_gpio_direction_input;
 	gc->direction_output = nsp_gpio_direction_output;
 	gc->get_direction = nsp_gpio_get_direction;
-	gc->set_rv = nsp_gpio_set;
+	gc->set = nsp_gpio_set;
 	gc->get = nsp_gpio_get;
 
 	/* optional GPIO interrupt support */

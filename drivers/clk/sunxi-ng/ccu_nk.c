@@ -92,26 +92,26 @@ static unsigned long ccu_nk_recalc_rate(struct clk_hw *hw,
 	return rate;
 }
 
-static long ccu_nk_round_rate(struct clk_hw *hw, unsigned long rate,
-			      unsigned long *parent_rate)
+static int ccu_nk_determine_rate(struct clk_hw *hw,
+				 struct clk_rate_request *req)
 {
 	struct ccu_nk *nk = hw_to_ccu_nk(hw);
 	struct _ccu_nk _nk;
 
 	if (nk->common.features & CCU_FEATURE_FIXED_POSTDIV)
-		rate *= nk->fixed_post_div;
+		req->rate *= nk->fixed_post_div;
 
 	_nk.min_n = nk->n.min ?: 1;
 	_nk.max_n = nk->n.max ?: 1 << nk->n.width;
 	_nk.min_k = nk->k.min ?: 1;
 	_nk.max_k = nk->k.max ?: 1 << nk->k.width;
 
-	rate = ccu_nk_find_best(*parent_rate, rate, &_nk);
+	req->rate = ccu_nk_find_best(req->best_parent_rate, req->rate, &_nk);
 
 	if (nk->common.features & CCU_FEATURE_FIXED_POSTDIV)
-		rate = rate / nk->fixed_post_div;
+		req->rate = req->rate / nk->fixed_post_div;
 
-	return rate;
+	return 0;
 }
 
 static int ccu_nk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -155,7 +155,7 @@ const struct clk_ops ccu_nk_ops = {
 	.is_enabled	= ccu_nk_is_enabled,
 
 	.recalc_rate	= ccu_nk_recalc_rate,
-	.round_rate	= ccu_nk_round_rate,
+	.determine_rate = ccu_nk_determine_rate,
 	.set_rate	= ccu_nk_set_rate,
 };
 EXPORT_SYMBOL_NS_GPL(ccu_nk_ops, "SUNXI_CCU");

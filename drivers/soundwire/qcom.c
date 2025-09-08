@@ -1622,9 +1622,9 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_master_add;
 
-	dev_info(dev, "Qualcomm Soundwire controller v%x.%x.%x Registered\n",
-		 (ctrl->version >> 24) & 0xff, (ctrl->version >> 16) & 0xff,
-		 ctrl->version & 0xffff);
+	dev_dbg(dev, "Qualcomm Soundwire controller v%x.%x.%x registered\n",
+		(ctrl->version >> 24) & 0xff, (ctrl->version >> 16) & 0xff,
+		ctrl->version & 0xffff);
 
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);

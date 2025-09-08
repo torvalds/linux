@@ -4,7 +4,7 @@
 //!
 //! This module provides bindings for working with faux devices in kernel modules.
 //!
-//! C header: [`include/linux/device/faux.h`]
+//! C header: [`include/linux/device/faux.h`](srctree/include/linux/device/faux.h)
 
 use crate::{bindings, device, error::code::*, prelude::*};
 use core::ptr::{addr_of_mut, null, null_mut, NonNull};
