@@ -12061,10 +12061,8 @@ static void ixgbe_remove(struct pci_dev *pdev)
 	set_bit(__IXGBE_REMOVING, &adapter->state);
 	cancel_work_sync(&adapter->service_task);
 
-	if (adapter->hw.mac.type == ixgbe_mac_e610) {
+	if (adapter->hw.mac.type == ixgbe_mac_e610)
 		ixgbe_disable_link_status_events(adapter);
-		mutex_destroy(&adapter->hw.aci.lock);
-	}
 
 	if (adapter->mii_bus)
 		mdiobus_unregister(adapter->mii_bus);
@@ -12123,6 +12121,9 @@ static void ixgbe_remove(struct pci_dev *pdev)
 	bitmap_free(adapter->af_xdp_zc_qps);
 	disable_dev = !test_and_set_bit(__IXGBE_DISABLED, &adapter->state);
 	free_netdev(netdev);
+
+	if (adapter->hw.mac.type == ixgbe_mac_e610)
+		mutex_destroy(&adapter->hw.aci.lock);
 
 	if (disable_dev)
 		pci_disable_device(pdev);
