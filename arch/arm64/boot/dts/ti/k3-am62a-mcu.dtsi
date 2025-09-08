@@ -197,6 +197,7 @@
 			ti,sci = <&dmsc>;
 			ti,sci-dev-id = <9>;
 			ti,sci-proc-ids = <0x03 0xff>;
+			status = "disabled";
 		};
 	};
 };
