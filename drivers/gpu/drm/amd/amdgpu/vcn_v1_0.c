@@ -193,7 +193,7 @@ static int vcn_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 	adev->vcn.inst[0].pause_dpg_mode = vcn_v1_0_pause_dpg_mode;
 
 	if (amdgpu_vcnfw_log) {
-		volatile struct amdgpu_fw_shared *fw_shared = adev->vcn.inst->fw_shared.cpu_addr;
+		struct amdgpu_fw_shared *fw_shared = adev->vcn.inst->fw_shared.cpu_addr;
 
 		fw_shared->present_flag_0 = 0;
 		amdgpu_vcn_fwlog_init(adev->vcn.inst);

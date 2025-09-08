@@ -1157,7 +1157,7 @@ static ssize_t amdgpu_debugfs_vcn_fwlog_read(struct file *f, char __user *buf,
 {
 	struct amdgpu_vcn_inst *vcn;
 	void *log_buf;
-	volatile struct amdgpu_vcn_fwlog *plog;
+	struct amdgpu_vcn_fwlog *plog;
 	unsigned int read_pos, write_pos, available, i, read_bytes = 0;
 	unsigned int read_num[2] = {0};
 
@@ -1170,7 +1170,7 @@ static ssize_t amdgpu_debugfs_vcn_fwlog_read(struct file *f, char __user *buf,
 
 	log_buf = vcn->fw_shared.cpu_addr + vcn->fw_shared.mem_size;
 
-	plog = (volatile struct amdgpu_vcn_fwlog *)log_buf;
+	plog = (struct amdgpu_vcn_fwlog *)log_buf;
 	read_pos = plog->rptr;
 	write_pos = plog->wptr;
 
@@ -1237,11 +1237,11 @@ void amdgpu_debugfs_vcn_fwlog_init(struct amdgpu_device *adev, uint8_t i,
 void amdgpu_vcn_fwlog_init(struct amdgpu_vcn_inst *vcn)
 {
 #if defined(CONFIG_DEBUG_FS)
-	volatile uint32_t *flag = vcn->fw_shared.cpu_addr;
+	uint32_t *flag = vcn->fw_shared.cpu_addr;
 	void *fw_log_cpu_addr = vcn->fw_shared.cpu_addr + vcn->fw_shared.mem_size;
 	uint64_t fw_log_gpu_addr = vcn->fw_shared.gpu_addr + vcn->fw_shared.mem_size;
-	volatile struct amdgpu_vcn_fwlog *log_buf = fw_log_cpu_addr;
-	volatile struct amdgpu_fw_shared_fw_logging *fw_log = vcn->fw_shared.cpu_addr
+	struct amdgpu_vcn_fwlog *log_buf = fw_log_cpu_addr;
+	struct amdgpu_fw_shared_fw_logging *fw_log = vcn->fw_shared.cpu_addr
 							 + vcn->fw_shared.log_offset;
 	*flag |= cpu_to_le32(AMDGPU_VCN_FW_LOGGING_FLAG);
 	fw_log->is_enabled = 1;
