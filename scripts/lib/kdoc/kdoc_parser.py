@@ -1026,13 +1026,15 @@ class KernelDoc:
         """
         Stores a typedef inside self.entries array.
         """
-
-        typedef_type = r'((?:\s+[\w*]+\b){0,7}\s+(?:\w+\b|\*+))\s*'
+        #
+        # We start by looking for function typedefs.
+        #
+        typedef_type = r'typedef((?:\s+[\w*]+\b){0,7}\s+(?:\w+\b|\*+))\s*'
         typedef_ident = r'\*?\s*(\w\S+)\s*'
         typedef_args = r'\s*\((.*)\);'
 
-        typedef1 = KernRe(r'typedef' + typedef_type + r'\(' + typedef_ident + r'\)' + typedef_args)
-        typedef2 = KernRe(r'typedef' + typedef_type + typedef_ident + typedef_args)
+        typedef1 = KernRe(typedef_type + r'\(' + typedef_ident + r'\)' + typedef_args)
+        typedef2 = KernRe(typedef_type + typedef_ident + typedef_args)
 
         # Parse function typedef prototypes
         for r in [typedef1, typedef2]:
@@ -1048,16 +1050,16 @@ class KernelDoc:
                               f"expecting prototype for typedef {self.entry.identifier}. Prototype was for typedef {declaration_name} instead\n")
                 return
 
-            decl_type = 'function'
-            self.create_parameter_list(ln, decl_type, args, ',', declaration_name)
+            self.create_parameter_list(ln, 'function', args, ',', declaration_name)
 
-            self.output_declaration(decl_type, declaration_name,
+            self.output_declaration('function', declaration_name,
                                     typedef=True,
                                     functiontype=return_type,
                                     purpose=self.entry.declaration_purpose)
             return
-
-        # Parse simple typedefs
+        #
+        # Not a function, try to parse a simple typedef.
+        #
         r = KernRe(r'typedef.*\s+(\w+)\s*;')
         if r.match(proto):
             declaration_name = r.group(1)
