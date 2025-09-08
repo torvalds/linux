@@ -24,12 +24,6 @@ struct tpacket_kbdq_core {
 	unsigned short	kactive_blk_num;
 	unsigned short	blk_sizeof_priv;
 
-	/* last_kactive_blk_num:
-	 * trick to see if user-space has caught up
-	 * in order to avoid refreshing timer when every single pkt arrives.
-	 */
-	unsigned short	last_kactive_blk_num;
-
 	char		*pkblk_start;
 	char		*pkblk_end;
 	int		kblk_size;
