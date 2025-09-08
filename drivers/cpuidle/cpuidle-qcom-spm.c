@@ -86,9 +86,9 @@ static const struct of_device_id qcom_idle_state_match[] = {
 
 static int spm_cpuidle_register(struct device *cpuidle_dev, int cpu)
 {
-	struct platform_device *pdev = NULL;
+	struct platform_device *pdev;
 	struct device_node *cpu_node, *saw_node;
-	struct cpuidle_qcom_spm_data *data = NULL;
+	struct cpuidle_qcom_spm_data *data;
 	int ret;
 
 	cpu_node = of_cpu_device_node_get(cpu);
