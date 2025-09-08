@@ -15,6 +15,7 @@
 #include "xe_migrate.h"
 #include "xe_sa.h"
 #include "xe_sriov_printk.h"
+#include "xe_sriov_vf.h"
 #include "xe_sriov_vf_ccs.h"
 #include "xe_sriov_vf_ccs_types.h"
 
@@ -263,7 +264,10 @@ int xe_sriov_vf_ccs_init(struct xe_device *xe)
 	u32 flags;
 	int err;
 
-	if (!IS_VF_CCS_INIT_NEEDED(xe))
+	xe_assert(xe, IS_SRIOV_VF(xe));
+	xe_assert(xe, xe_sriov_vf_migration_supported(xe));
+
+	if (IS_DGFX(xe) || !xe_device_has_flat_ccs(xe))
 		return 0;
 
 	for_each_ccs_rw_ctx(ctx_id) {

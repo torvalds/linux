@@ -15,12 +15,6 @@
 		___xe->sriov.vf.ccs.initialized; \
 		})
 
-#define IS_VF_CCS_INIT_NEEDED(xe) ({\
-		struct xe_device *___xe = (xe); \
-		IS_SRIOV_VF(___xe) && !IS_DGFX(___xe) && \
-		xe_device_has_flat_ccs(___xe) && GRAPHICS_VER(___xe) >= 20; \
-		})
-
 enum xe_sriov_vf_ccs_rw_ctxs {
 	XE_SRIOV_VF_CCS_READ_CTX,
 	XE_SRIOV_VF_CCS_WRITE_CTX,
