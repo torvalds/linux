@@ -363,7 +363,7 @@ int xe_sriov_vf_ccs_detach_bo(struct xe_bo *bo)
 
 	xe_assert(xe, IS_VF_CCS_READY(xe));
 
-	if (!IS_VF_CCS_BB_VALID(xe, bo))
+	if (!xe_bo_has_valid_ccs_bb(bo))
 		return 0;
 
 	for_each_ccs_rw_ctx(ctx_id) {
