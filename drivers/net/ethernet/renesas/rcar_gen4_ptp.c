@@ -42,11 +42,12 @@ static int rcar_gen4_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	return 0;
 }
 
-/* Caller must hold the lock */
 static void _rcar_gen4_ptp_gettime(struct ptp_clock_info *ptp,
 				   struct timespec64 *ts)
 {
 	struct rcar_gen4_ptp_private *ptp_priv = ptp_to_priv(ptp);
+
+	lockdep_assert_held(&ptp_priv->lock);
 
 	ts->tv_nsec = ioread32(ptp_priv->addr + PTPGPTPTM00_REG);
 	ts->tv_sec = ioread32(ptp_priv->addr + PTPGPTPTM10_REG) |
