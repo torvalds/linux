@@ -2934,6 +2934,7 @@ static int op_lock_and_prep(struct drm_exec *exec, struct xe_vm *vm,
 		if (!err && !xe_vma_has_no_bo(vma))
 			err = xe_bo_migrate(xe_vma_bo(vma),
 					    region_to_mem_type[region],
+					    NULL,
 					    exec);
 		break;
 	}

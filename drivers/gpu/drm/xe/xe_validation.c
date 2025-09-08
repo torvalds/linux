@@ -241,7 +241,8 @@ retry:
  */
 void xe_validation_ctx_fini(struct xe_validation_ctx *ctx)
 {
-	drm_exec_fini(ctx->exec);
+	if (ctx->exec)
+		drm_exec_fini(ctx->exec);
 	xe_validation_unlock(ctx);
 }
 

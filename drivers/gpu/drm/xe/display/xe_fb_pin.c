@@ -314,7 +314,7 @@ static struct i915_vma *__xe_pin_fb_vma(const struct intel_framebuffer *fb,
 		goto err;
 
 	if (IS_DGFX(xe))
-		ret = xe_bo_migrate(bo, XE_PL_VRAM0, exec);
+		ret = xe_bo_migrate(bo, XE_PL_VRAM0, NULL, exec);
 	else
 		ret = xe_bo_validate(bo, NULL, true, exec);
 	if (!ret)

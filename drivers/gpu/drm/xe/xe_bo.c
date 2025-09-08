@@ -1716,67 +1716,233 @@ static bool should_migrate_to_smem(struct xe_bo *bo)
 	       bo->attr.atomic_access == DRM_XE_ATOMIC_CPU;
 }
 
-static vm_fault_t xe_gem_fault(struct vm_fault *vmf)
+/* Populate the bo if swapped out, or migrate if the access mode requires that. */
+static int xe_bo_fault_migrate(struct xe_bo *bo, struct ttm_operation_ctx *ctx,
+			       struct drm_exec *exec)
+{
+	struct ttm_buffer_object *tbo = &bo->ttm;
+	int err = 0;
+
+	if (ttm_manager_type(tbo->bdev, tbo->resource->mem_type)->use_tt) {
+		xe_assert(xe_bo_device(bo),
+			  dma_resv_test_signaled(tbo->base.resv, DMA_RESV_USAGE_KERNEL) ||
+			  (tbo->ttm && ttm_tt_is_populated(tbo->ttm)));
+		err = ttm_bo_populate(&bo->ttm, ctx);
+	} else if (should_migrate_to_smem(bo)) {
+		xe_assert(xe_bo_device(bo), bo->flags & XE_BO_FLAG_SYSTEM);
+		err = xe_bo_migrate(bo, XE_PL_TT, ctx, exec);
+	}
+
+	return err;
+}
+
+/* Call into TTM to populate PTEs, and register bo for PTE removal on runtime suspend. */
+static vm_fault_t __xe_bo_cpu_fault(struct vm_fault *vmf, struct xe_device *xe, struct xe_bo *bo)
+{
+	vm_fault_t ret;
+
+	trace_xe_bo_cpu_fault(bo);
+
+	ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
+				       TTM_BO_VM_NUM_PREFAULT);
+	/*
+	 * When TTM is actually called to insert PTEs, ensure no blocking conditions
+	 * remain, in which case TTM may drop locks and return VM_FAULT_RETRY.
+	 */
+	xe_assert(xe, ret != VM_FAULT_RETRY);
+
+	if (ret == VM_FAULT_NOPAGE &&
+	    mem_type_is_vram(bo->ttm.resource->mem_type)) {
+		mutex_lock(&xe->mem_access.vram_userfault.lock);
+		if (list_empty(&bo->vram_userfault_link))
+			list_add(&bo->vram_userfault_link,
+				 &xe->mem_access.vram_userfault.list);
+		mutex_unlock(&xe->mem_access.vram_userfault.lock);
+	}
+
+	return ret;
+}
+
+static vm_fault_t xe_err_to_fault_t(int err)
+{
+	switch (err) {
+	case 0:
+	case -EINTR:
+	case -ERESTARTSYS:
+	case -EAGAIN:
+		return VM_FAULT_NOPAGE;
+	case -ENOMEM:
+	case -ENOSPC:
+		return VM_FAULT_OOM;
+	default:
+		break;
+	}
+	return VM_FAULT_SIGBUS;
+}
+
+static bool xe_ttm_bo_is_imported(struct ttm_buffer_object *tbo)
+{
+	dma_resv_assert_held(tbo->base.resv);
+
+	return tbo->ttm &&
+		(tbo->ttm->page_flags & (TTM_TT_FLAG_EXTERNAL | TTM_TT_FLAG_EXTERNAL_MAPPABLE)) ==
+		TTM_TT_FLAG_EXTERNAL;
+}
+
+static vm_fault_t xe_bo_cpu_fault_fastpath(struct vm_fault *vmf, struct xe_device *xe,
+					   struct xe_bo *bo, bool needs_rpm)
+{
+	struct ttm_buffer_object *tbo = &bo->ttm;
+	vm_fault_t ret = VM_FAULT_RETRY;
+	struct xe_validation_ctx ctx;
+	struct ttm_operation_ctx tctx = {
+		.interruptible = true,
+		.no_wait_gpu = true,
+		.gfp_retry_mayfail = true,
+
+	};
+	int err;
+
+	if (needs_rpm && !xe_pm_runtime_get_if_active(xe))
+		return VM_FAULT_RETRY;
+
+	err = xe_validation_ctx_init(&ctx, &xe->val, NULL,
+				     (struct xe_val_flags) {
+					     .interruptible = true,
+					     .no_block = true
+				     });
+	if (err)
+		goto out_pm;
+
+	if (!dma_resv_trylock(tbo->base.resv))
+		goto out_validation;
+
+	if (xe_ttm_bo_is_imported(tbo)) {
+		ret = VM_FAULT_SIGBUS;
+		drm_dbg(&xe->drm, "CPU trying to access an imported buffer object.\n");
+		goto out_unlock;
+	}
+
+	err = xe_bo_fault_migrate(bo, &tctx, NULL);
+	if (err) {
+		/* Return VM_FAULT_RETRY on these errors. */
+		if (err != -ENOMEM && err != -ENOSPC && err != -EBUSY)
+			ret = xe_err_to_fault_t(err);
+		goto out_unlock;
+	}
+
+	if (dma_resv_test_signaled(bo->ttm.base.resv, DMA_RESV_USAGE_KERNEL))
+		ret = __xe_bo_cpu_fault(vmf, xe, bo);
+
+out_unlock:
+	dma_resv_unlock(tbo->base.resv);
+out_validation:
+	xe_validation_ctx_fini(&ctx);
+out_pm:
+	if (needs_rpm)
+		xe_pm_runtime_put(xe);
+
+	return ret;
+}
+
+static vm_fault_t xe_bo_cpu_fault(struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *tbo = vmf->vma->vm_private_data;
 	struct drm_device *ddev = tbo->base.dev;
 	struct xe_device *xe = to_xe_device(ddev);
 	struct xe_bo *bo = ttm_to_xe_bo(tbo);
 	bool needs_rpm = bo->flags & XE_BO_FLAG_VRAM_MASK;
-	struct drm_exec *exec;
+	bool retry_after_wait = false;
+	struct xe_validation_ctx ctx;
+	struct drm_exec exec;
 	vm_fault_t ret;
-	int idx, r = 0;
+	int err = 0;
+	int idx;
+
+	if (!drm_dev_enter(&xe->drm, &idx))
+		return ttm_bo_vm_dummy_page(vmf, vmf->vma->vm_page_prot);
+
+	ret = xe_bo_cpu_fault_fastpath(vmf, xe, bo, needs_rpm);
+	if (ret != VM_FAULT_RETRY)
+		goto out;
+
+	if (fault_flag_allow_retry_first(vmf->flags)) {
+		if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
+			goto out;
+		retry_after_wait = true;
+		xe_bo_get(bo);
+		mmap_read_unlock(vmf->vma->vm_mm);
+	} else {
+		ret = VM_FAULT_NOPAGE;
+	}
+
+	/*
+	 * The fastpath failed and we were not required to return and retry immediately.
+	 * We're now running in one of two modes:
+	 *
+	 * 1) retry_after_wait == true: The mmap_read_lock() is dropped, and we're trying
+	 * to resolve blocking waits. But we can't resolve the fault since the
+	 * mmap_read_lock() is dropped. After retrying the fault, the aim is that the fastpath
+	 * should succeed. But it may fail since we drop the bo lock.
+	 *
+	 * 2) retry_after_wait == false: The fastpath failed, typically even after
+	 * a retry. Do whatever's necessary to resolve the fault.
+	 *
+	 * This construct is recommended to avoid excessive waits under the mmap_lock.
+	 */
 
 	if (needs_rpm)
 		xe_pm_runtime_get(xe);
 
-	exec = XE_VALIDATION_UNIMPLEMENTED;
-	ret = ttm_bo_vm_reserve(tbo, vmf);
-	if (ret)
-		goto out;
+	xe_validation_guard(&ctx, &xe->val, &exec, (struct xe_val_flags) {.interruptible = true},
+			    err) {
+		struct ttm_operation_ctx tctx = {
+			.interruptible = true,
+			.no_wait_gpu = false,
+			.gfp_retry_mayfail = retry_after_wait,
+		};
+		long lerr;
 
-	if (drm_dev_enter(ddev, &idx)) {
-		trace_xe_bo_cpu_fault(bo);
+		err = drm_exec_lock_obj(&exec, &tbo->base);
+		drm_exec_retry_on_contention(&exec);
+		if (err)
+			break;
 
-		xe_validation_assert_exec(xe, exec, &tbo->base);
-		if (should_migrate_to_smem(bo)) {
-			xe_assert(xe, bo->flags & XE_BO_FLAG_SYSTEM);
-
-			r = xe_bo_migrate(bo, XE_PL_TT, exec);
-			if (r == -EBUSY || r == -ERESTARTSYS || r == -EINTR)
-				ret = VM_FAULT_NOPAGE;
-			else if (r)
-				ret = VM_FAULT_SIGBUS;
+		if (xe_ttm_bo_is_imported(tbo)) {
+			err = -EFAULT;
+			drm_dbg(&xe->drm, "CPU trying to access an imported buffer object.\n");
+			break;
 		}
-		if (!ret)
-			ret = ttm_bo_vm_fault_reserved(vmf,
-						       vmf->vma->vm_page_prot,
-						       TTM_BO_VM_NUM_PREFAULT);
-		drm_dev_exit(idx);
 
-		if (ret == VM_FAULT_RETRY &&
-		    !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
-			goto out;
-
-		/*
-		 * ttm_bo_vm_reserve() already has dma_resv_lock.
-		 */
-		if (ret == VM_FAULT_NOPAGE &&
-		    mem_type_is_vram(tbo->resource->mem_type)) {
-			mutex_lock(&xe->mem_access.vram_userfault.lock);
-			if (list_empty(&bo->vram_userfault_link))
-				list_add(&bo->vram_userfault_link,
-					 &xe->mem_access.vram_userfault.list);
-			mutex_unlock(&xe->mem_access.vram_userfault.lock);
+		err = xe_bo_fault_migrate(bo, &tctx, &exec);
+		if (err) {
+			drm_exec_retry_on_contention(&exec);
+			xe_validation_retry_on_oom(&ctx, &err);
+			break;
 		}
-	} else {
-		ret = ttm_bo_vm_dummy_page(vmf, vmf->vma->vm_page_prot);
+
+		lerr = dma_resv_wait_timeout(tbo->base.resv,
+					     DMA_RESV_USAGE_KERNEL, true,
+					     MAX_SCHEDULE_TIMEOUT);
+		if (lerr < 0) {
+			err = lerr;
+			break;
+		}
+
+		if (!retry_after_wait)
+			ret = __xe_bo_cpu_fault(vmf, xe, bo);
 	}
+	/* if retry_after_wait == true, we *must* return VM_FAULT_RETRY. */
+	if (err && !retry_after_wait)
+		ret = xe_err_to_fault_t(err);
 
-	dma_resv_unlock(tbo->base.resv);
-out:
 	if (needs_rpm)
 		xe_pm_runtime_put(xe);
+
+	if (retry_after_wait)
+		xe_bo_put(bo);
+out:
+	drm_dev_exit(idx);
 
 	return ret;
 }
@@ -1821,7 +1987,7 @@ int xe_bo_read(struct xe_bo *bo, u64 offset, void *dst, int size)
 }
 
 static const struct vm_operations_struct xe_gem_vm_ops = {
-	.fault = xe_gem_fault,
+	.fault = xe_bo_cpu_fault,
 	.open = ttm_bo_vm_open,
 	.close = ttm_bo_vm_close,
 	.access = xe_bo_vm_access,
@@ -3057,6 +3223,8 @@ static void xe_place_from_ttm_type(u32 mem_type, struct ttm_place *place)
  * xe_bo_migrate - Migrate an object to the desired region id
  * @bo: The buffer object to migrate.
  * @mem_type: The TTM region type to migrate to.
+ * @tctx: A pointer to a struct ttm_operation_ctx or NULL if
+ * a default interruptibe ctx is to be used.
  * @exec: The drm_exec transaction to use for exhaustive eviction.
  *
  * Attempt to migrate the buffer object to the desired memory region. The
@@ -3069,7 +3237,8 @@ static void xe_place_from_ttm_type(u32 mem_type, struct ttm_place *place)
  * Return: 0 on success. Negative error code on failure. In particular may
  * return -EINTR or -ERESTARTSYS if signal pending.
  */
-int xe_bo_migrate(struct xe_bo *bo, u32 mem_type, struct drm_exec *exec)
+int xe_bo_migrate(struct xe_bo *bo, u32 mem_type, struct ttm_operation_ctx *tctx,
+		  struct drm_exec *exec)
 {
 	struct xe_device *xe = ttm_to_xe_device(bo->ttm.bdev);
 	struct ttm_operation_ctx ctx = {
@@ -3081,6 +3250,7 @@ int xe_bo_migrate(struct xe_bo *bo, u32 mem_type, struct drm_exec *exec)
 	struct ttm_place requested;
 
 	xe_bo_assert_held(bo);
+	tctx = tctx ? tctx : &ctx;
 
 	if (bo->ttm.resource->mem_type == mem_type)
 		return 0;
@@ -3107,8 +3277,9 @@ int xe_bo_migrate(struct xe_bo *bo, u32 mem_type, struct drm_exec *exec)
 		add_vram(xe, bo, &requested, bo->flags, mem_type, &c);
 	}
 
-	xe_validation_assert_exec(xe_bo_device(bo), exec, &bo->ttm.base);
-	return ttm_bo_validate(&bo->ttm, &placement, &ctx);
+	if (!tctx->no_wait_gpu)
+		xe_validation_assert_exec(xe_bo_device(bo), exec, &bo->ttm.base);
+	return ttm_bo_validate(&bo->ttm, &placement, tctx);
 }
 
 /**
