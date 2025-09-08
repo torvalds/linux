@@ -300,12 +300,11 @@ int xe_guc_ct_init_post_hwconfig(struct xe_guc_ct *ct)
 
 	xe_assert(xe, !xe_guc_ct_enabled(ct));
 
-	if (!IS_DGFX(xe))
-		return 0;
-
-	ret = xe_managed_bo_reinit_in_vram(xe, tile, &ct->bo);
-	if (ret)
-		return ret;
+	if (IS_DGFX(xe)) {
+		ret = xe_managed_bo_reinit_in_vram(xe, tile, &ct->bo);
+		if (ret)
+			return ret;
+	}
 
 	devm_release_action(xe->drm.dev, guc_action_disable_ct, ct);
 	return devm_add_action_or_reset(xe->drm.dev, guc_action_disable_ct, ct);
