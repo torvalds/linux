@@ -854,6 +854,8 @@ static void compress_file_range(struct btrfs_work *work)
 	struct btrfs_inode *inode = async_chunk->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct address_space *mapping = inode->vfs_inode.i_mapping;
+	const u32 min_folio_shift = PAGE_SHIFT + fs_info->block_min_order;
+	const u32 min_folio_size = btrfs_min_folio_size(fs_info);
 	u64 blocksize = fs_info->sectorsize;
 	u64 start = async_chunk->start;
 	u64 end = async_chunk->end;
@@ -864,7 +866,7 @@ static void compress_file_range(struct btrfs_work *work)
 	unsigned long nr_folios;
 	unsigned long total_compressed = 0;
 	unsigned long total_in = 0;
-	unsigned int poff;
+	unsigned int loff;
 	int i;
 	int compress_type = fs_info->compress_type;
 	int compress_level = fs_info->compress_level;
@@ -902,8 +904,8 @@ static void compress_file_range(struct btrfs_work *work)
 	actual_end = min_t(u64, i_size, end + 1);
 again:
 	folios = NULL;
-	nr_folios = (end >> PAGE_SHIFT) - (start >> PAGE_SHIFT) + 1;
-	nr_folios = min_t(unsigned long, nr_folios, BTRFS_MAX_COMPRESSED_PAGES);
+	nr_folios = (end >> min_folio_shift) - (start >> min_folio_shift) + 1;
+	nr_folios = min_t(unsigned long, nr_folios, BTRFS_MAX_COMPRESSED >> min_folio_shift);
 
 	/*
 	 * we don't want to send crud past the end of i_size through
@@ -965,12 +967,12 @@ again:
 		goto mark_incompressible;
 
 	/*
-	 * Zero the tail end of the last page, as we might be sending it down
+	 * Zero the tail end of the last folio, as we might be sending it down
 	 * to disk.
 	 */
-	poff = offset_in_page(total_compressed);
-	if (poff)
-		folio_zero_range(folios[nr_folios - 1], poff, PAGE_SIZE - poff);
+	loff = (total_compressed & (min_folio_size - 1));
+	if (loff)
+		folio_zero_range(folios[nr_folios - 1], loff, min_folio_size - loff);
 
 	/*
 	 * Try to create an inline extent.

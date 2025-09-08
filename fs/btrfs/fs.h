@@ -923,6 +923,12 @@ static inline gfp_t btrfs_alloc_write_mask(struct address_space *mapping)
 	return mapping_gfp_constraint(mapping, ~__GFP_FS);
 }
 
+/* Return the minimal folio size of the fs. */
+static inline unsigned int btrfs_min_folio_size(struct btrfs_fs_info *fs_info)
+{
+	return 1U << (PAGE_SHIFT + fs_info->block_min_order);
+}
+
 static inline u64 btrfs_get_fs_generation(const struct btrfs_fs_info *fs_info)
 {
 	return READ_ONCE(fs_info->generation);

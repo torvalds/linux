@@ -223,9 +223,13 @@ static unsigned long btrfs_compr_pool_scan(struct shrinker *sh, struct shrink_co
 /*
  * Common wrappers for page allocation from compression wrappers
  */
-struct folio *btrfs_alloc_compr_folio(void)
+struct folio *btrfs_alloc_compr_folio(struct btrfs_fs_info *fs_info)
 {
 	struct folio *folio = NULL;
+
+	/* For bs > ps cases, no cached folio pool for now. */
+	if (fs_info->block_min_order)
+		goto alloc;
 
 	spin_lock(&compr_pool.lock);
 	if (compr_pool.count > 0) {
@@ -238,12 +242,17 @@ struct folio *btrfs_alloc_compr_folio(void)
 	if (folio)
 		return folio;
 
-	return folio_alloc(GFP_NOFS, 0);
+alloc:
+	return folio_alloc(GFP_NOFS, fs_info->block_min_order);
 }
 
 void btrfs_free_compr_folio(struct folio *folio)
 {
 	bool do_free = false;
+
+	/* The folio is from bs > ps fs, no cached pool for now. */
+	if (folio_order(folio))
+		goto free;
 
 	spin_lock(&compr_pool.lock);
 	if (compr_pool.count > compr_pool.thresh) {
@@ -257,6 +266,7 @@ void btrfs_free_compr_folio(struct folio *folio)
 	if (!do_free)
 		return;
 
+free:
 	ASSERT(folio_ref_count(folio) == 1);
 	folio_put(folio);
 }
@@ -344,16 +354,19 @@ static void end_bbio_compressed_write(struct btrfs_bio *bbio)
 
 static void btrfs_add_compressed_bio_folios(struct compressed_bio *cb)
 {
+	struct btrfs_fs_info *fs_info = cb->bbio.fs_info;
 	struct bio *bio = &cb->bbio.bio;
 	u32 offset = 0;
 
 	while (offset < cb->compressed_len) {
+		struct folio *folio;
 		int ret;
-		u32 len = min_t(u32, cb->compressed_len - offset, PAGE_SIZE);
+		u32 len = min_t(u32, cb->compressed_len - offset,
+				btrfs_min_folio_size(fs_info));
 
+		folio = cb->compressed_folios[offset >> (PAGE_SHIFT + fs_info->block_min_order)];
 		/* Maximum compressed extent is smaller than bio size limit. */
-		ret = bio_add_folio(bio, cb->compressed_folios[offset >> PAGE_SHIFT],
-				    len, 0);
+		ret = bio_add_folio(bio, folio, len, 0);
 		ASSERT(ret);
 		offset += len;
 	}
@@ -441,6 +454,10 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 	 * subpage for now, until full compressed write is supported.
 	 */
 	if (fs_info->sectorsize < PAGE_SIZE)
+		return 0;
+
+	/* For bs > ps cases, we don't support readahead for compressed folios for now. */
+	if (fs_info->block_min_order)
 		return 0;
 
 	end_index = (i_size_read(inode) - 1) >> PAGE_SHIFT;
@@ -606,14 +623,15 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 
 	btrfs_free_extent_map(em);
 
-	cb->nr_folios = DIV_ROUND_UP(compressed_len, PAGE_SIZE);
+	cb->nr_folios = DIV_ROUND_UP(compressed_len, btrfs_min_folio_size(fs_info));
 	cb->compressed_folios = kcalloc(cb->nr_folios, sizeof(struct folio *), GFP_NOFS);
 	if (!cb->compressed_folios) {
 		status = BLK_STS_RESOURCE;
 		goto out_free_bio;
 	}
 
-	ret = btrfs_alloc_folio_array(cb->nr_folios, cb->compressed_folios);
+	ret = btrfs_alloc_folio_array(cb->nr_folios, fs_info->block_min_order,
+				      cb->compressed_folios);
 	if (ret) {
 		status = BLK_STS_RESOURCE;
 		goto out_free_compressed_pages;
@@ -1033,12 +1051,12 @@ int btrfs_compress_filemap_get_folio(struct address_space *mapping, u64 start,
  * - compression algo are 0-3
  * - the level are bits 4-7
  *
- * @out_pages is an in/out parameter, holds maximum number of pages to allocate
- * and returns number of actually allocated pages
+ * @out_folios is an in/out parameter, holds maximum number of folios to allocate
+ * and returns number of actually allocated folios
  *
  * @total_in is used to return the number of bytes actually read.  It
  * may be smaller than the input length if we had to exit early because we
- * ran out of room in the pages array or because we cross the
+ * ran out of room in the folios array or because we cross the
  * max_out threshold.
  *
  * @total_out is an in/out parameter, must be set to the input length and will
@@ -1093,11 +1111,11 @@ int btrfs_decompress(int type, const u8 *data_in, struct folio *dest_folio,
 	int ret;
 
 	/*
-	 * The full destination page range should not exceed the page size.
+	 * The full destination folio range should not exceed the folio size.
 	 * And the @destlen should not exceed sectorsize, as this is only called for
 	 * inline file extents, which should not exceed sectorsize.
 	 */
-	ASSERT(dest_pgoff + destlen <= PAGE_SIZE && destlen <= sectorsize);
+	ASSERT(dest_pgoff + destlen <= folio_size(dest_folio) && destlen <= sectorsize);
 
 	workspace = get_workspace(fs_info, type, 0);
 	ret = compression_decompress(type, workspace, data_in, dest_folio,

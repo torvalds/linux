@@ -626,6 +626,7 @@ static void end_bbio_data_read(struct btrfs_bio *bbio)
  * Populate every free slot in a provided array with folios using GFP_NOFS.
  *
  * @nr_folios:   number of folios to allocate
+ * @order:	 the order of the folios to be allocated
  * @folio_array: the array to fill with folios; any existing non-NULL entries in
  *		 the array will be skipped
  *
@@ -633,12 +634,13 @@ static void end_bbio_data_read(struct btrfs_bio *bbio)
  *         -ENOMEM  otherwise, the partially allocated folios would be freed and
  *                  the array slots zeroed
  */
-int btrfs_alloc_folio_array(unsigned int nr_folios, struct folio **folio_array)
+int btrfs_alloc_folio_array(unsigned int nr_folios, unsigned int order,
+			    struct folio **folio_array)
 {
 	for (int i = 0; i < nr_folios; i++) {
 		if (folio_array[i])
 			continue;
-		folio_array[i] = folio_alloc(GFP_NOFS, 0);
+		folio_array[i] = folio_alloc(GFP_NOFS, order);
 		if (!folio_array[i])
 			goto error;
 	}
@@ -647,6 +649,7 @@ error:
 	for (int i = 0; i < nr_folios; i++) {
 		if (folio_array[i])
 			folio_put(folio_array[i]);
+		folio_array[i] = NULL;
 	}
 	return -ENOMEM;
 }
