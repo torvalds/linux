@@ -871,6 +871,18 @@ Out:
 	return res;
 }
 
+int amdgpu_ras_eeprom_update_record_num(struct amdgpu_ras_eeprom_control *control)
+{
+	struct amdgpu_device *adev = to_amdgpu_device(control);
+
+	if (!amdgpu_ras_smu_eeprom_supported(adev))
+		return 0;
+
+	control->ras_num_recs_old = control->ras_num_recs;
+	return amdgpu_ras_smu_get_badpage_count(adev,
+			&(control->ras_num_recs), 12);
+}
+
 /**
  * amdgpu_ras_eeprom_append -- append records to the EEPROM RAS table
  * @control: pointer to control structure
@@ -889,11 +901,17 @@ int amdgpu_ras_eeprom_append(struct amdgpu_ras_eeprom_control *control,
 			     const u32 num)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	int res, i;
 	uint64_t nps = AMDGPU_NPS1_PARTITION_MODE;
 
-	if (!__is_ras_eeprom_supported(adev))
+	if (!__is_ras_eeprom_supported(adev) || !con)
 		return 0;
+
+	if (amdgpu_ras_smu_eeprom_supported(adev)) {
+		control->ras_num_bad_pages = con->bad_page_num;
+		return 0;
+	}
 
 	if (num == 0) {
 		dev_err(adev->dev, "will not append 0 records\n");
