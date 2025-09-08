@@ -4272,6 +4272,7 @@ EOF
 TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp ipv4_bind ipv4_runtime ipv4_netfilter"
 TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp ipv6_bind ipv6_runtime ipv6_netfilter"
 TESTS_OTHER="use_cases"
+# note: each TEST_ group needs a dedicated runner, e.g. fcnal-ipv4.sh
 
 PAUSE_ON_FAIL=no
 PAUSE=no
@@ -4302,6 +4303,8 @@ elif [ "$TESTS" = "ipv4" ]; then
 	TESTS="$TESTS_IPV4"
 elif [ "$TESTS" = "ipv6" ]; then
 	TESTS="$TESTS_IPV6"
+elif [ "$TESTS" = "other" ]; then
+	TESTS="$TESTS_OTHER"
 fi
 
 check_gen_prog "nettest"
