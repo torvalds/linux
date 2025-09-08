@@ -3,6 +3,7 @@
  * Copyright © 2023-2024 Intel Corporation
  */
 
+#include <drm/drm_debugfs.h>
 #include <drm/drm_managed.h>
 
 #include "xe_assert.h"
@@ -444,4 +445,31 @@ int xe_sriov_vf_init_late(struct xe_device *xe)
 		err = xe_sriov_vf_ccs_init(xe);
 
 	return err;
+}
+
+static int sa_info_vf_ccs(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct xe_device *xe = to_xe_device(node->minor->dev);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	xe_sriov_vf_ccs_print(xe, &p);
+	return 0;
+}
+
+static const struct drm_info_list debugfs_list[] = {
+	{ .name = "sa_info_vf_ccs", .show = sa_info_vf_ccs },
+};
+
+/**
+ * xe_sriov_vf_debugfs_register - Register VF debugfs attributes.
+ * @xe: the &xe_device
+ * @root: the root &dentry
+ *
+ * Prepare debugfs attributes exposed by the VF.
+ */
+void xe_sriov_vf_debugfs_register(struct xe_device *xe, struct dentry *root)
+{
+	drm_debugfs_create_files(debugfs_list, ARRAY_SIZE(debugfs_list),
+				 root, xe->drm.primary);
 }

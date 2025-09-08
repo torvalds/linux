@@ -13,6 +13,7 @@
 #include "xe_guc_submit.h"
 #include "xe_lrc.h"
 #include "xe_migrate.h"
+#include "xe_pm.h"
 #include "xe_sa.h"
 #include "xe_sriov_printk.h"
 #include "xe_sriov_vf.h"
@@ -375,4 +376,35 @@ int xe_sriov_vf_ccs_detach_bo(struct xe_bo *bo)
 		bo->bb_ccs[ctx_id] = NULL;
 	}
 	return 0;
+}
+
+/**
+ * xe_sriov_vf_ccs_print - Print VF CCS details.
+ * @xe: the &xe_device
+ * @p: the &drm_printer
+ *
+ * This function is for VF use only.
+ */
+void xe_sriov_vf_ccs_print(struct xe_device *xe, struct drm_printer *p)
+{
+	struct xe_sa_manager *bb_pool;
+	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
+
+	if (!IS_VF_CCS_READY(xe))
+		return;
+
+	xe_pm_runtime_get(xe);
+
+	for_each_ccs_rw_ctx(ctx_id) {
+		bb_pool = xe->sriov.vf.ccs.contexts[ctx_id].mem.ccs_bb_pool;
+		if (!bb_pool)
+			break;
+
+		drm_printf(p, "ccs %s bb suballoc info\n", ctx_id ? "write" : "read");
+		drm_printf(p, "-------------------------\n");
+		drm_suballoc_dump_debug_info(&bb_pool->base, p, xe_sa_manager_gpu_addr(bb_pool));
+		drm_puts(p, "\n");
+	}
+
+	xe_pm_runtime_put(xe);
 }

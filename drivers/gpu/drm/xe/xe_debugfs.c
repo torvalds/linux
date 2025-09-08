@@ -24,6 +24,7 @@
 #include "xe_pxp_debugfs.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
+#include "xe_sriov_vf.h"
 #include "xe_step.h"
 #include "xe_tile_debugfs.h"
 #include "xe_wa.h"
@@ -395,4 +396,6 @@ void xe_debugfs_register(struct xe_device *xe)
 
 	if (IS_SRIOV_PF(xe))
 		xe_sriov_pf_debugfs_register(xe, root);
+	else if (IS_SRIOV_VF(xe))
+		xe_sriov_vf_debugfs_register(xe, root);
 }
