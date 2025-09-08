@@ -210,6 +210,12 @@ struct fuse_inode {
 	/** Reference to backing file in passthrough mode */
 	struct fuse_backing *fb;
 #endif
+
+	/*
+	 * The underlying inode->i_blkbits value will not be modified,
+	 * so preserve the blocksize specified by the server.
+	 */
+	u8 cached_i_blkbits;
 };
 
 /** FUSE inode state bits */
@@ -969,6 +975,14 @@ struct fuse_conn {
 		/* Request timeout (in jiffies). 0 = no timeout */
 		unsigned int req_timeout;
 	} timeout;
+
+	/*
+	 * This is a workaround until fuse uses iomap for reads.
+	 * For fuseblk servers, this represents the blocksize passed in at
+	 * mount time and for regular fuse servers, this is equivalent to
+	 * inode->i_blkbits.
+	 */
+	u8 blkbits;
 };
 
 /*

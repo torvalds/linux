@@ -118,14 +118,12 @@ static void fbnic_service_task_start(struct fbnic_net *fbn)
 	struct fbnic_dev *fbd = fbn->fbd;
 
 	schedule_delayed_work(&fbd->service_task, HZ);
-	phylink_resume(fbn->phylink);
 }
 
 static void fbnic_service_task_stop(struct fbnic_net *fbn)
 {
 	struct fbnic_dev *fbd = fbn->fbd;
 
-	phylink_suspend(fbn->phylink, fbnic_bmc_present(fbd));
 	cancel_delayed_work(&fbd->service_task);
 }
 
@@ -443,10 +441,9 @@ static int __fbnic_pm_resume(struct device *dev)
 
 	/* Re-enable mailbox */
 	err = fbnic_fw_request_mbx(fbd);
+	devl_unlock(priv_to_devlink(fbd));
 	if (err)
 		goto err_free_irqs;
-
-	devl_unlock(priv_to_devlink(fbd));
 
 	/* Only send log history if log buffer is empty to prevent duplicate
 	 * log entries.
@@ -464,20 +461,20 @@ static int __fbnic_pm_resume(struct device *dev)
 
 	rtnl_lock();
 
-	if (netif_running(netdev)) {
+	if (netif_running(netdev))
 		err = __fbnic_open(fbn);
-		if (err)
-			goto err_free_mbx;
-	}
 
 	rtnl_unlock();
+	if (err)
+		goto err_free_mbx;
 
 	return 0;
 err_free_mbx:
 	fbnic_fw_log_disable(fbd);
 
-	rtnl_unlock();
+	devl_lock(priv_to_devlink(fbd));
 	fbnic_fw_free_mbx(fbd);
+	devl_unlock(priv_to_devlink(fbd));
 err_free_irqs:
 	fbnic_free_irqs(fbd);
 err_invalidate_uc_addr:

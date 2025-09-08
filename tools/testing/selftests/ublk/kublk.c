@@ -432,7 +432,7 @@ static void ublk_thread_deinit(struct ublk_thread *t)
 	}
 }
 
-static int ublk_queue_init(struct ublk_queue *q, unsigned extra_flags)
+static int ublk_queue_init(struct ublk_queue *q, unsigned long long extra_flags)
 {
 	struct ublk_dev *dev = q->dev;
 	int depth = dev->dev_info.queue_depth;
@@ -445,6 +445,9 @@ static int ublk_queue_init(struct ublk_queue *q, unsigned extra_flags)
 	q->q_depth = depth;
 	q->flags = dev->dev_info.flags;
 	q->flags |= extra_flags;
+
+	/* Cache fd in queue for fast path access */
+	q->ublk_fd = dev->fds[0];
 
 	cmd_buf_size = ublk_queue_cmd_buf_sz(q);
 	off = UBLKSRV_CMD_BUF_OFFSET + q->q_id * ublk_queue_max_cmd_buf_sz();
@@ -481,9 +484,10 @@ static int ublk_queue_init(struct ublk_queue *q, unsigned extra_flags)
 	return -ENOMEM;
 }
 
-static int ublk_thread_init(struct ublk_thread *t)
+static int ublk_thread_init(struct ublk_thread *t, unsigned long long extra_flags)
 {
 	struct ublk_dev *dev = t->dev;
+	unsigned long long flags = dev->dev_info.flags | extra_flags;
 	int ring_depth = dev->tgt.sq_depth, cq_depth = dev->tgt.cq_depth;
 	int ret;
 
@@ -512,7 +516,17 @@ static int ublk_thread_init(struct ublk_thread *t)
 
 	io_uring_register_ring_fd(&t->ring);
 
-	ret = io_uring_register_files(&t->ring, dev->fds, dev->nr_fds);
+	if (flags & UBLKS_Q_NO_UBLK_FIXED_FD) {
+		/* Register only backing files starting from index 1, exclude ublk control device */
+		if (dev->nr_fds > 1) {
+			ret = io_uring_register_files(&t->ring, &dev->fds[1], dev->nr_fds - 1);
+		} else {
+			/* No backing files to register, skip file registration */
+			ret = 0;
+		}
+	} else {
+		ret = io_uring_register_files(&t->ring, dev->fds, dev->nr_fds);
+	}
 	if (ret) {
 		ublk_err("ublk dev %d thread %d register files failed %d\n",
 				t->dev->dev_info.dev_id, t->idx, ret);
@@ -626,9 +640,12 @@ int ublk_queue_io_cmd(struct ublk_thread *t, struct ublk_io *io)
 
 	/* These fields should be written once, never change */
 	ublk_set_sqe_cmd_op(sqe[0], cmd_op);
-	sqe[0]->fd		= 0;	/* dev->fds[0] */
+	sqe[0]->fd	= ublk_get_registered_fd(q, 0);	/* dev->fds[0] */
 	sqe[0]->opcode	= IORING_OP_URING_CMD;
-	sqe[0]->flags	= IOSQE_FIXED_FILE;
+	if (q->flags & UBLKS_Q_NO_UBLK_FIXED_FD)
+		sqe[0]->flags	= 0;  /* Use raw FD, not fixed file */
+	else
+		sqe[0]->flags	= IOSQE_FIXED_FILE;
 	sqe[0]->rw_flags	= 0;
 	cmd->tag	= io->tag;
 	cmd->q_id	= q->q_id;
@@ -832,6 +849,7 @@ struct ublk_thread_info {
 	unsigned		idx;
 	sem_t 			*ready;
 	cpu_set_t 		*affinity;
+	unsigned long long	extra_flags;
 };
 
 static void *ublk_io_handler_fn(void *data)
@@ -844,7 +862,7 @@ static void *ublk_io_handler_fn(void *data)
 	t->dev = info->dev;
 	t->idx = info->idx;
 
-	ret = ublk_thread_init(t);
+	ret = ublk_thread_init(t, info->extra_flags);
 	if (ret) {
 		ublk_err("ublk dev %d thread %u init failed\n",
 				dev_id, t->idx);
@@ -934,6 +952,8 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 
 	if (ctx->auto_zc_fallback)
 		extra_flags = UBLKS_Q_AUTO_BUF_REG_FALLBACK;
+	if (ctx->no_ublk_fixed_fd)
+		extra_flags |= UBLKS_Q_NO_UBLK_FIXED_FD;
 
 	for (i = 0; i < dinfo->nr_hw_queues; i++) {
 		dev->q[i].dev = dev;
@@ -951,6 +971,7 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 		tinfo[i].dev = dev;
 		tinfo[i].idx = i;
 		tinfo[i].ready = &ready;
+		tinfo[i].extra_flags = extra_flags;
 
 		/*
 		 * If threads are not tied 1:1 to queues, setting thread
@@ -1471,7 +1492,7 @@ static void __cmd_create_help(char *exe, bool recovery)
 	printf("%s %s -t [null|loop|stripe|fault_inject] [-q nr_queues] [-d depth] [-n dev_id]\n",
 			exe, recovery ? "recover" : "add");
 	printf("\t[--foreground] [--quiet] [-z] [--auto_zc] [--auto_zc_fallback] [--debug_mask mask] [-r 0|1 ] [-g]\n");
-	printf("\t[-e 0|1 ] [-i 0|1]\n");
+	printf("\t[-e 0|1 ] [-i 0|1] [--no_ublk_fixed_fd]\n");
 	printf("\t[--nthreads threads] [--per_io_tasks]\n");
 	printf("\t[target options] [backfile1] [backfile2] ...\n");
 	printf("\tdefault: nr_queues=2(max 32), depth=128(max 1024), dev_id=-1(auto allocation)\n");
@@ -1534,6 +1555,7 @@ int main(int argc, char *argv[])
 		{ "size",		1,	NULL, 's'},
 		{ "nthreads",		1,	NULL,  0 },
 		{ "per_io_tasks",	0,	NULL,  0 },
+		{ "no_ublk_fixed_fd",	0,	NULL,  0 },
 		{ 0, 0, 0, 0 }
 	};
 	const struct ublk_tgt_ops *ops = NULL;
@@ -1613,6 +1635,8 @@ int main(int argc, char *argv[])
 				ctx.nthreads = strtol(optarg, NULL, 10);
 			if (!strcmp(longopts[option_idx].name, "per_io_tasks"))
 				ctx.per_io_tasks = 1;
+			if (!strcmp(longopts[option_idx].name, "no_ublk_fixed_fd"))
+				ctx.no_ublk_fixed_fd = 1;
 			break;
 		case '?':
 			/*

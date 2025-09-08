@@ -76,6 +76,7 @@ struct tk_read_base {
  * @cs_was_changed_seq:		The sequence number of clocksource change events
  * @clock_valid:		Indicator for valid clock
  * @monotonic_to_boot:		CLOCK_MONOTONIC to CLOCK_BOOTTIME offset
+ * @monotonic_to_aux:		CLOCK_MONOTONIC to CLOCK_AUX offset
  * @cycle_interval:		Number of clock cycles in one NTP interval
  * @xtime_interval:		Number of clock shifted nano seconds in one NTP
  *				interval.
@@ -116,6 +117,9 @@ struct tk_read_base {
  *
  * @offs_aux is used by the auxiliary timekeepers which do not utilize any
  * of the regular timekeeper offset fields.
+ *
+ * @monotonic_to_aux is a timespec64 representation of @offs_aux to
+ * accelerate the VDSO update for CLOCK_AUX.
  *
  * The cacheline ordering of the structure is optimized for in kernel usage of
  * the ktime_get() and ktime_get_ts64() family of time accessors. Struct
@@ -159,7 +163,10 @@ struct timekeeper {
 	u8			cs_was_changed_seq;
 	u8			clock_valid;
 
-	struct timespec64	monotonic_to_boot;
+	union {
+		struct timespec64	monotonic_to_boot;
+		struct timespec64	monotonic_to_aux;
+	};
 
 	u64			cycle_interval;
 	u64			xtime_interval;

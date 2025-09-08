@@ -2780,28 +2780,6 @@ void sock_pfree(struct sk_buff *skb)
 EXPORT_SYMBOL(sock_pfree);
 #endif /* CONFIG_INET */
 
-unsigned long __sock_i_ino(struct sock *sk)
-{
-	unsigned long ino;
-
-	read_lock(&sk->sk_callback_lock);
-	ino = sk->sk_socket ? SOCK_INODE(sk->sk_socket)->i_ino : 0;
-	read_unlock(&sk->sk_callback_lock);
-	return ino;
-}
-EXPORT_SYMBOL(__sock_i_ino);
-
-unsigned long sock_i_ino(struct sock *sk)
-{
-	unsigned long ino;
-
-	local_bh_disable();
-	ino = __sock_i_ino(sk);
-	local_bh_enable();
-	return ino;
-}
-EXPORT_SYMBOL(sock_i_ino);
-
 /*
  * Allocate a skb from the socket's send buffer.
  */

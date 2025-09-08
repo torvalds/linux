@@ -302,8 +302,7 @@
 		     &eth1m0_tx_bus2
 		     &eth1m0_rx_bus2
 		     &eth1m0_rgmii_clk
-		     &eth1m0_rgmii_bus
-		     &ethm0_clk1_25m_out>;
+		     &eth1m0_rgmii_bus>;
 	status = "okay";
 };
 
@@ -784,7 +783,6 @@
 	rgmii_phy0: phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x1>;
-		clocks = <&cru REFCLKO25M_GMAC0_OUT>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&gmac0_rst>;
 		reset-assert-us = <20000>;
@@ -797,7 +795,6 @@
 	rgmii_phy1: phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x1>;
-		clocks = <&cru REFCLKO25M_GMAC1_OUT>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&gmac1_rst>;
 		reset-assert-us = <20000>;

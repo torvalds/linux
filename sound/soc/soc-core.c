@@ -369,20 +369,25 @@ struct snd_soc_component
 *snd_soc_lookup_component_nolocked(struct device *dev, const char *driver_name)
 {
 	struct snd_soc_component *component;
-	struct snd_soc_component *found_component;
 
-	found_component = NULL;
 	for_each_component(component) {
-		if ((dev == component->dev) &&
-		    (!driver_name ||
-		     (driver_name == component->driver->name) ||
-		     (strcmp(component->driver->name, driver_name) == 0))) {
-			found_component = component;
-			break;
-		}
+		if (dev != component->dev)
+			continue;
+
+		if (!driver_name)
+			return component;
+
+		if (!component->driver->name)
+			continue;
+
+		if (component->driver->name == driver_name)
+			return component;
+
+		if (strcmp(component->driver->name, driver_name) == 0)
+			return component;
 	}
 
-	return found_component;
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(snd_soc_lookup_component_nolocked);
 

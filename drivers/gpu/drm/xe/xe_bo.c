@@ -812,14 +812,14 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	}
 
 	if (ttm_bo->type == ttm_bo_type_sg) {
-		ret = xe_bo_move_notify(bo, ctx);
+		if (new_mem->mem_type == XE_PL_SYSTEM)
+			ret = xe_bo_move_notify(bo, ctx);
 		if (!ret)
 			ret = xe_bo_move_dmabuf(ttm_bo, new_mem);
 		return ret;
 	}
 
-	tt_has_data = ttm && (ttm_tt_is_populated(ttm) ||
-			      (ttm->page_flags & TTM_TT_FLAG_SWAPPED));
+	tt_has_data = ttm && (ttm_tt_is_populated(ttm) || ttm_tt_is_swapped(ttm));
 
 	move_lacks_source = !old_mem || (handle_system_ccs ? (!bo->ccs_cleared) :
 					 (!mem_type_is_vram(old_mem_type) && !tt_has_data));
@@ -2438,7 +2438,6 @@ int xe_bo_validate(struct xe_bo *bo, struct xe_vm *vm, bool allow_res_evict)
 		.no_wait_gpu = false,
 		.gfp_retry_mayfail = true,
 	};
-	struct pin_cookie cookie;
 	int ret;
 
 	if (vm) {
@@ -2449,10 +2448,10 @@ int xe_bo_validate(struct xe_bo *bo, struct xe_vm *vm, bool allow_res_evict)
 		ctx.resv = xe_vm_resv(vm);
 	}
 
-	cookie = xe_vm_set_validating(vm, allow_res_evict);
+	xe_vm_set_validating(vm, allow_res_evict);
 	trace_xe_bo_validate(bo);
 	ret = ttm_bo_validate(&bo->ttm, &bo->placement, &ctx);
-	xe_vm_clear_validating(vm, allow_res_evict, cookie);
+	xe_vm_clear_validating(vm, allow_res_evict);
 
 	return ret;
 }
