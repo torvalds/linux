@@ -1676,8 +1676,6 @@ struct ieee80211_local {
 	struct idr ack_status_frames;
 	spinlock_t ack_status_lock;
 
-	struct ieee80211_sub_if_data __rcu *p2p_sdata;
-
 	/* virtual monitor interface */
 	struct ieee80211_sub_if_data __rcu *monitor_sdata;
 	struct ieee80211_chan_req monitor_chanreq;

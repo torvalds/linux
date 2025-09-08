@@ -620,10 +620,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 
 		spin_unlock_bh(&sdata->u.nan.func_lock);
 		break;
-	case NL80211_IFTYPE_P2P_DEVICE:
-		/* relies on synchronize_rcu() below */
-		RCU_INIT_POINTER(local->p2p_sdata, NULL);
-		fallthrough;
 	default:
 		wiphy_work_cancel(sdata->local->hw.wiphy, &sdata->work);
 		/*
@@ -1414,6 +1410,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		ieee80211_recalc_idle(local);
 
 		netif_carrier_on(dev);
+		list_add_tail_rcu(&sdata->u.mntr.list, &local->mon_list);
 		break;
 	default:
 		if (coming_up) {
@@ -1475,17 +1472,6 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		 */
 		ieee80211_set_wmm_default(&sdata->deflink, true,
 			sdata->vif.type != NL80211_IFTYPE_STATION);
-	}
-
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_P2P_DEVICE:
-		rcu_assign_pointer(local->p2p_sdata, sdata);
-		break;
-	case NL80211_IFTYPE_MONITOR:
-		list_add_tail_rcu(&sdata->u.mntr.list, &local->mon_list);
-		break;
-	default:
-		break;
 	}
 
 	/*

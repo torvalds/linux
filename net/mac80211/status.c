@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2008-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2021-2024  Intel Corporation
+ * Copyright 2021-2025  Intel Corporation
  */
 
 #include <linux/export.h>
@@ -572,6 +572,7 @@ static struct ieee80211_sub_if_data *
 ieee80211_sdata_from_skb(struct ieee80211_local *local, struct sk_buff *skb)
 {
 	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_hdr *hdr = (void *)skb->data;
 
 	if (skb->dev) {
 		list_for_each_entry_rcu(sdata, &local->interfaces, list) {
@@ -585,7 +586,23 @@ ieee80211_sdata_from_skb(struct ieee80211_local *local, struct sk_buff *skb)
 		return NULL;
 	}
 
-	return rcu_dereference(local->p2p_sdata);
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		switch (sdata->vif.type) {
+		case NL80211_IFTYPE_P2P_DEVICE:
+			break;
+		case NL80211_IFTYPE_NAN:
+			if (sdata->u.nan.started)
+				break;
+			fallthrough;
+		default:
+			continue;
+		}
+
+		if (ether_addr_equal(sdata->vif.addr, hdr->addr2))
+			return sdata;
+	}
+
+	return NULL;
 }
 
 static void ieee80211_report_ack_skb(struct ieee80211_local *local,
