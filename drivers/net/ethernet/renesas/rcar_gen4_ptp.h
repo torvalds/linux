@@ -11,10 +11,6 @@
 
 #define RCAR_GEN4_GPTP_OFFSET_S4	0x00018000
 
-enum rcar_gen4_ptp_reg_layout {
-	RCAR_GEN4_PTP_REG_LAYOUT
-};
-
 /* driver's definitions */
 #define RCAR_GEN4_RXTSTAMP_ENABLED		BIT(0)
 #define RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT	BIT(1)
@@ -61,8 +57,7 @@ struct rcar_gen4_ptp_private {
 	bool initialized;
 };
 
-int rcar_gen4_ptp_register(struct rcar_gen4_ptp_private *ptp_priv,
-			   enum rcar_gen4_ptp_reg_layout layout, u32 rate);
+int rcar_gen4_ptp_register(struct rcar_gen4_ptp_private *ptp_priv, u32 rate);
 int rcar_gen4_ptp_unregister(struct rcar_gen4_ptp_private *ptp_priv);
 struct rcar_gen4_ptp_private *rcar_gen4_ptp_alloc(struct platform_device *pdev);
 
