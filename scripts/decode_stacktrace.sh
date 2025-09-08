@@ -323,12 +323,7 @@ handle_line() {
 	parse_symbol # modifies $symbol
 
 	# Add up the line number to the symbol
-	if [[ -z ${module} ]]
-	then
-		echo "${words[@]}" "$symbol ${info_str}"
-	else
-		echo "${words[@]}" "$symbol $module ${info_str}"
-	fi
+	echo "${words[@]}" "${symbol}${module:+ ${module}}${info_str:+ ${info_str}}"
 }
 
 while read line; do
