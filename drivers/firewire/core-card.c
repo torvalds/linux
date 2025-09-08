@@ -292,7 +292,7 @@ static void bm_work(struct work_struct *work)
 	struct fw_device *root_device, *irm_device;
 	struct fw_node *root_node __free(node_unref) = NULL;
 	int root_id, new_root_id, irm_id, local_id;
-	int gap_count, generation, grace;
+	int expected_gap_count, generation, grace;
 	bool do_reset = false;
 	bool root_device_is_running;
 	bool root_device_is_cmc;
@@ -485,9 +485,9 @@ static void bm_work(struct work_struct *work)
 	 */
 	if (!card->beta_repeaters_present &&
 	    root_node->max_hops < ARRAY_SIZE(gap_count_table))
-		gap_count = gap_count_table[root_node->max_hops];
+		expected_gap_count = gap_count_table[root_node->max_hops];
 	else
-		gap_count = 63;
+		expected_gap_count = 63;
 
 	/*
 	 * Finally, figure out if we should do a reset or not.  If we have
@@ -495,16 +495,17 @@ static void bm_work(struct work_struct *work)
 	 * have either a new root or a new gap count setting, let's do it.
 	 */
 
-	if (card->bm_retries++ < 5 &&
-	    (card->gap_count != gap_count || new_root_id != root_id))
+	if (card->bm_retries++ < 5 && (card->gap_count != expected_gap_count || new_root_id != root_id))
 		do_reset = true;
 
-	spin_unlock_irq(&card->lock);
-
 	if (do_reset) {
+		int card_gap_count = card->gap_count;
+
+		spin_unlock_irq(&card->lock);
+
 		fw_notice(card, "phy config: new root=%x, gap_count=%d\n",
-			  new_root_id, gap_count);
-		fw_send_phy_config(card, new_root_id, generation, gap_count);
+			  new_root_id, expected_gap_count);
+		fw_send_phy_config(card, new_root_id, generation, expected_gap_count);
 		/*
 		 * Where possible, use a short bus reset to minimize
 		 * disruption to isochronous transfers. But in the event
@@ -517,26 +518,25 @@ static void bm_work(struct work_struct *work)
 		 * may treat it as two, causing a gap count inconsistency
 		 * again. Using a long bus reset prevents this.
 		 */
-		reset_bus(card, card->gap_count != 0);
+		reset_bus(card, card_gap_count != 0);
 		/* Will allocate broadcast channel after the reset. */
-		return;
-	}
+	} else {
+		spin_unlock_irq(&card->lock);
 
-	if (root_device_is_cmc) {
-		/*
-		 * Make sure that the cycle master sends cycle start packets.
-		 */
-		__be32 data = cpu_to_be32(CSR_STATE_BIT_CMSTR);
-		int rcode = fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
-				root_id, generation, SCODE_100,
-				CSR_REGISTER_BASE + CSR_STATE_SET,
-				&data, sizeof(data));
-		if (rcode == RCODE_GENERATION)
-			return;
-	}
+		if (root_device_is_cmc) {
+			// Make sure that the cycle master sends cycle start packets.
+			__be32 data = cpu_to_be32(CSR_STATE_BIT_CMSTR);
+			int rcode = fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
+					root_id, generation, SCODE_100,
+					CSR_REGISTER_BASE + CSR_STATE_SET,
+					&data, sizeof(data));
+			if (rcode == RCODE_GENERATION)
+				return;
+		}
 
-	if (local_id == irm_id)
-		allocate_broadcast_channel(card, generation);
+		if (local_id == irm_id)
+			allocate_broadcast_channel(card, generation);
+	}
 }
 
 void fw_card_initialize(struct fw_card *card,
