@@ -1370,6 +1370,7 @@ static void vm_destroy_work_func(struct work_struct *w);
  * @xe: xe device.
  * @tile: tile to set up for.
  * @vm: vm to set up for.
+ * @exec: The struct drm_exec object used to lock the vm resv.
  *
  * Sets up a pagetable tree with one page-table per level and a single
  * leaf PTE. All pagetable entries point to the single page-table or,
@@ -1379,20 +1380,19 @@ static void vm_destroy_work_func(struct work_struct *w);
  * Return: 0 on success, negative error code on error.
  */
 static int xe_vm_create_scratch(struct xe_device *xe, struct xe_tile *tile,
-				struct xe_vm *vm)
+				struct xe_vm *vm, struct drm_exec *exec)
 {
 	u8 id = tile->id;
 	int i;
 
 	for (i = MAX_HUGEPTE_LEVEL; i < vm->pt_root[id]->level; i++) {
-		vm->scratch_pt[id][i] = xe_pt_create(vm, tile, i);
+		vm->scratch_pt[id][i] = xe_pt_create(vm, tile, i, exec);
 		if (IS_ERR(vm->scratch_pt[id][i])) {
 			int err = PTR_ERR(vm->scratch_pt[id][i]);
 
 			vm->scratch_pt[id][i] = NULL;
 			return err;
 		}
-
 		xe_pt_populate_empty(tile, vm, vm->scratch_pt[id][i]);
 	}
 
@@ -1420,9 +1420,26 @@ static void xe_vm_free_scratch(struct xe_vm *vm)
 	}
 }
 
+static void xe_vm_pt_destroy(struct xe_vm *vm)
+{
+	struct xe_tile *tile;
+	u8 id;
+
+	xe_vm_assert_held(vm);
+
+	for_each_tile(tile, vm->xe, id) {
+		if (vm->pt_root[id]) {
+			xe_pt_destroy(vm->pt_root[id], vm->flags, NULL);
+			vm->pt_root[id] = NULL;
+		}
+	}
+}
+
 struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags, struct xe_file *xef)
 {
 	struct drm_gem_object *vm_resv_obj;
+	struct xe_validation_ctx ctx;
+	struct drm_exec exec;
 	struct xe_vm *vm;
 	int err, number_tiles = 0;
 	struct xe_tile *tile;
@@ -1507,49 +1524,68 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags, struct xe_file *xef)
 
 	drm_gem_object_put(vm_resv_obj);
 
-	err = xe_vm_lock(vm, true);
-	if (err)
-		goto err_close;
+	err = 0;
+	xe_validation_guard(&ctx, &xe->val, &exec, (struct xe_val_flags) {.interruptible = true},
+			    err) {
+		err = xe_vm_drm_exec_lock(vm, &exec);
+		drm_exec_retry_on_contention(&exec);
 
-	if (IS_DGFX(xe) && xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K)
-		vm->flags |= XE_VM_FLAG_64K;
+		if (IS_DGFX(xe) && xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K)
+			vm->flags |= XE_VM_FLAG_64K;
 
-	for_each_tile(tile, xe, id) {
-		if (flags & XE_VM_FLAG_MIGRATION &&
-		    tile->id != XE_VM_FLAG_TILE_ID(flags))
-			continue;
+		for_each_tile(tile, xe, id) {
+			if (flags & XE_VM_FLAG_MIGRATION &&
+			    tile->id != XE_VM_FLAG_TILE_ID(flags))
+				continue;
 
-		vm->pt_root[id] = xe_pt_create(vm, tile, xe->info.vm_max_level);
-		if (IS_ERR(vm->pt_root[id])) {
-			err = PTR_ERR(vm->pt_root[id]);
-			vm->pt_root[id] = NULL;
-			goto err_unlock_close;
+			vm->pt_root[id] = xe_pt_create(vm, tile, xe->info.vm_max_level,
+						       &exec);
+			if (IS_ERR(vm->pt_root[id])) {
+				err = PTR_ERR(vm->pt_root[id]);
+				vm->pt_root[id] = NULL;
+				xe_vm_pt_destroy(vm);
+				drm_exec_retry_on_contention(&exec);
+				xe_validation_retry_on_oom(&ctx, &err);
+				break;
+			}
 		}
-	}
+		if (err)
+			break;
 
-	if (xe_vm_has_scratch(vm)) {
+		if (xe_vm_has_scratch(vm)) {
+			for_each_tile(tile, xe, id) {
+				if (!vm->pt_root[id])
+					continue;
+
+				err = xe_vm_create_scratch(xe, tile, vm, &exec);
+				if (err) {
+					xe_vm_free_scratch(vm);
+					xe_vm_pt_destroy(vm);
+					drm_exec_retry_on_contention(&exec);
+					xe_validation_retry_on_oom(&ctx, &err);
+					break;
+				}
+			}
+			if (err)
+				break;
+			vm->batch_invalidate_tlb = true;
+		}
+
+		if (vm->flags & XE_VM_FLAG_LR_MODE) {
+			INIT_WORK(&vm->preempt.rebind_work, preempt_rebind_work_func);
+			vm->batch_invalidate_tlb = false;
+		}
+
+		/* Fill pt_root after allocating scratch tables */
 		for_each_tile(tile, xe, id) {
 			if (!vm->pt_root[id])
 				continue;
 
-			err = xe_vm_create_scratch(xe, tile, vm);
-			if (err)
-				goto err_unlock_close;
+			xe_pt_populate_empty(tile, vm, vm->pt_root[id]);
 		}
-		vm->batch_invalidate_tlb = true;
 	}
-
-	if (vm->flags & XE_VM_FLAG_LR_MODE)
-		vm->batch_invalidate_tlb = false;
-
-	/* Fill pt_root after allocating scratch tables */
-	for_each_tile(tile, xe, id) {
-		if (!vm->pt_root[id])
-			continue;
-
-		xe_pt_populate_empty(tile, vm, vm->pt_root[id]);
-	}
-	xe_vm_unlock(vm);
+	if (err)
+		goto err_close;
 
 	/* Kernel migration VM shouldn't have a circular loop.. */
 	if (!(flags & XE_VM_FLAG_MIGRATION)) {
@@ -1582,7 +1618,7 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags, struct xe_file *xef)
 				      &xe->usm.next_asid, GFP_KERNEL);
 		up_write(&xe->usm.lock);
 		if (err < 0)
-			goto err_unlock_close;
+			goto err_close;
 
 		vm->usm.asid = asid;
 	}
@@ -1591,8 +1627,6 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags, struct xe_file *xef)
 
 	return vm;
 
-err_unlock_close:
-	xe_vm_unlock(vm);
 err_close:
 	xe_vm_close_and_put(vm);
 	return ERR_PTR(err);
@@ -1725,13 +1759,7 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 	 * destroy the pagetables immediately.
 	 */
 	xe_vm_free_scratch(vm);
-
-	for_each_tile(tile, xe, id) {
-		if (vm->pt_root[id]) {
-			xe_pt_destroy(vm->pt_root[id], vm->flags, NULL);
-			vm->pt_root[id] = NULL;
-		}
-	}
+	xe_vm_pt_destroy(vm);
 	xe_vm_unlock(vm);
 
 	/*
@@ -3781,16 +3809,12 @@ release_vm_lock:
  */
 int xe_vm_lock(struct xe_vm *vm, bool intr)
 {
-	struct drm_exec *exec = XE_VALIDATION_UNIMPLEMENTED;
 	int ret;
 
 	if (intr)
 		ret = dma_resv_lock_interruptible(xe_vm_resv(vm), NULL);
 	else
 		ret = dma_resv_lock(xe_vm_resv(vm), NULL);
-
-	if (!ret)
-		xe_vm_set_validation_exec(vm, exec);
 
 	return ret;
 }
@@ -3803,7 +3827,6 @@ int xe_vm_lock(struct xe_vm *vm, bool intr)
  */
 void xe_vm_unlock(struct xe_vm *vm)
 {
-	xe_vm_set_validation_exec(vm, NULL);
 	dma_resv_unlock(xe_vm_resv(vm));
 }
 

@@ -2513,14 +2513,57 @@ xe_bo_create_pin_map_at_novm(struct xe_device *xe, struct xe_tile *tile,
 	return ret ? ERR_PTR(ret) : bo;
 }
 
+/**
+ * xe_bo_create_pin_map() - Create pinned and mapped bo
+ * @xe: The xe device.
+ * @tile: The tile to select for migration of this bo, and the tile used for
+ * @vm: The vm to associate the buffer object with. The vm's resv must be locked
+ * with the transaction represented by @exec.
+ * GGTT binding if any. Only to be non-NULL for ttm_bo_type_kernel bos.
+ * @size: The storage size to use for the bo.
+ * @type: The TTM buffer object type.
+ * @flags: XE_BO_FLAG_ flags.
+ * @exec: The drm_exec transaction to use for exhaustive eviction, and
+ * previously used for locking @vm's resv.
+ *
+ * Create a pinned and mapped bo. The bo will be external and not associated
+ * with a VM.
+ *
+ * Return: The buffer object on success. Negative error pointer on failure.
+ * In particular, the function may return ERR_PTR(%-EINTR) if @exec was
+ * configured for interruptible locking.
+ */
 struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_tile *tile,
 				   struct xe_vm *vm, size_t size,
-				   enum ttm_bo_type type, u32 flags)
+				   enum ttm_bo_type type, u32 flags,
+				   struct drm_exec *exec)
 {
-	struct drm_exec *exec = vm ? xe_vm_validation_exec(vm) : XE_VALIDATION_UNIMPLEMENTED;
-
 	return xe_bo_create_pin_map_at_aligned(xe, tile, vm, size, ~0ull, type, flags,
 					       0, exec);
+}
+
+/**
+ * xe_bo_create_pin_map_novm() - Create pinned and mapped bo
+ * @xe: The xe device.
+ * @tile: The tile to select for migration of this bo, and the tile used for
+ * GGTT binding if any. Only to be non-NULL for ttm_bo_type_kernel bos.
+ * @size: The storage size to use for the bo.
+ * @type: The TTM buffer object type.
+ * @flags: XE_BO_FLAG_ flags.
+ * @intr: Whether to execut any waits for backing store interruptible.
+ *
+ * Create a pinned and mapped bo. The bo will be external and not associated
+ * with a VM.
+ *
+ * Return: The buffer object on success. Negative error pointer on failure.
+ * In particular, the function may return ERR_PTR(%-EINTR) if @intr was set
+ * to true on entry.
+ */
+struct xe_bo *xe_bo_create_pin_map_novm(struct xe_device *xe, struct xe_tile *tile,
+					size_t size, enum ttm_bo_type type, u32 flags,
+					bool intr)
+{
+	return xe_bo_create_pin_map_at_novm(xe, tile, size, ~0ull, type, flags, 0, intr);
 }
 
 static void __xe_bo_unpin_map_no_vm(void *arg)
@@ -2535,8 +2578,7 @@ struct xe_bo *xe_managed_bo_create_pin_map(struct xe_device *xe, struct xe_tile 
 	int ret;
 
 	KUNIT_STATIC_STUB_REDIRECT(xe_managed_bo_create_pin_map, xe, tile, size, flags);
-
-	bo = xe_bo_create_pin_map(xe, tile, NULL, size, ttm_bo_type_kernel, flags);
+	bo = xe_bo_create_pin_map_novm(xe, tile, size, ttm_bo_type_kernel, flags, true);
 	if (IS_ERR(bo))
 		return bo;
 
