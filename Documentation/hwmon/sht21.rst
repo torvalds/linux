@@ -3,6 +3,16 @@ Kernel driver sht21
 
 Supported chips:
 
+  * Sensirion SHT20
+
+    Prefix: 'sht20'
+
+    Addresses scanned: none
+
+    Datasheet: Publicly available at the Sensirion website
+
+    https://www.sensirion.com/file/datasheet_sht20
+
   * Sensirion SHT21
 
     Prefix: 'sht21'
