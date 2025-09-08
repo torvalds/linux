@@ -289,15 +289,13 @@ static void bm_work(struct work_struct *work)
 		63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
 	};
 	struct fw_card *card __free(card_unref) = from_work(card, work, bm_work.work);
-	struct fw_device *root_device, *irm_device;
+	struct fw_device *root_device;
 	struct fw_node *root_node __free(node_unref) = NULL;
 	int root_id, new_root_id, irm_id, local_id;
 	int expected_gap_count, generation, grace;
 	bool do_reset = false;
 	bool root_device_is_running;
 	bool root_device_is_cmc;
-	bool irm_is_1394_1995_only;
-	bool keep_this_irm;
 
 	lockdep_assert_held(&card->lock);
 
@@ -315,14 +313,6 @@ static void bm_work(struct work_struct *work)
 	root_device_is_running = root_device &&
 			atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
 	root_device_is_cmc = root_device && root_device->cmc;
-
-	irm_device = fw_node_get_device(card->irm_node);
-	irm_is_1394_1995_only = irm_device && irm_device->config_rom &&
-			(irm_device->config_rom[2] & 0x000000f0) == 0;
-
-	/* Canon MV5i works unreliably if it is not root node. */
-	keep_this_irm = irm_device && irm_device->config_rom &&
-			irm_device->config_rom[3] >> 8 == CANON_OUI;
 
 	root_id  = root_node->node_id;
 	irm_id   = card->irm_node->node_id;
@@ -349,6 +339,9 @@ static void bm_work(struct work_struct *work)
 			cpu_to_be32(0x3f),
 			cpu_to_be32(local_id),
 		};
+		struct fw_device *irm_device = fw_node_get_device(card->irm_node);
+		bool irm_is_1394_1995_only = false;
+		bool keep_this_irm = false;
 		int rcode;
 
 		if (!card->irm_node->link_on) {
@@ -356,6 +349,13 @@ static void bm_work(struct work_struct *work)
 			fw_notice(card, "%s, making local node (%02x) root\n",
 				  "IRM has link off", new_root_id);
 			goto pick_me;
+		}
+
+		if (irm_device && irm_device->config_rom) {
+			irm_is_1394_1995_only = (irm_device->config_rom[2] & 0x000000f0) == 0;
+
+			// Canon MV5i works unreliably if it is not root node.
+			keep_this_irm = irm_device->config_rom[3] >> 8 == CANON_OUI;
 		}
 
 		if (irm_is_1394_1995_only && !keep_this_irm) {
