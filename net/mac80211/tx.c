@@ -59,6 +59,9 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	if (WARN_ON_ONCE(tx->rate.idx < 0))
 		return 0;
 
+	if (info->band >= NUM_NL80211_BANDS)
+		return 0;
+
 	sband = local->hw.wiphy->bands[info->band];
 	txrate = &sband->bitrates[tx->rate.idx];
 
@@ -683,7 +686,10 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 
 	memset(&txrc, 0, sizeof(txrc));
 
-	sband = tx->local->hw.wiphy->bands[info->band];
+	if (info->band < NUM_NL80211_BANDS)
+		sband = tx->local->hw.wiphy->bands[info->band];
+	else
+		return TX_CONTINUE;
 
 	len = min_t(u32, tx->skb->len + FCS_LEN,
 			 tx->local->hw.wiphy->frag_threshold);
@@ -6288,7 +6294,9 @@ void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
 	enum nl80211_band band;
 
 	rcu_read_lock();
-	if (!ieee80211_vif_is_mld(&sdata->vif)) {
+	if (sdata->vif.type == NL80211_IFTYPE_NAN) {
+		band = NUM_NL80211_BANDS;
+	} else if (!ieee80211_vif_is_mld(&sdata->vif)) {
 		WARN_ON(link_id >= 0);
 		chanctx_conf =
 			rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
