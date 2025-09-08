@@ -280,14 +280,17 @@ void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 		fw_card_put(card);
 }
 
+DEFINE_FREE(node_unref, struct fw_node *, if (_T) fw_node_put(_T))
+DEFINE_FREE(card_unref, struct fw_card *, if (_T) fw_card_put(_T))
+
 static void bm_work(struct work_struct *work)
 {
 	static const char gap_count_table[] = {
 		63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
 	};
-	struct fw_card *card = from_work(card, work, bm_work.work);
+	struct fw_card *card __free(card_unref) = from_work(card, work, bm_work.work);
 	struct fw_device *root_device, *irm_device;
-	struct fw_node *root_node;
+	struct fw_node *root_node __free(node_unref) = NULL;
 	int root_id, new_root_id, irm_id, bm_id, local_id;
 	int gap_count, generation, grace, rcode;
 	bool do_reset = false;
@@ -297,11 +300,13 @@ static void bm_work(struct work_struct *work)
 	bool keep_this_irm;
 	__be32 transaction_data[2];
 
+	lockdep_assert_held(&card->lock);
+
 	spin_lock_irq(&card->lock);
 
 	if (card->local_node == NULL) {
 		spin_unlock_irq(&card->lock);
-		goto out_put_card;
+		return;
 	}
 
 	generation = card->generation;
@@ -366,9 +371,9 @@ static void bm_work(struct work_struct *work)
 				CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
 				transaction_data, 8);
 
+		// Another bus reset, BM work has been rescheduled.
 		if (rcode == RCODE_GENERATION)
-			/* Another bus reset, BM work has been rescheduled. */
-			goto out;
+			return;
 
 		bm_id = be32_to_cpu(transaction_data[0]);
 
@@ -382,8 +387,7 @@ static void bm_work(struct work_struct *work)
 			/* Somebody else is BM.  Only act as IRM. */
 			if (local_id == irm_id)
 				allocate_broadcast_channel(card, generation);
-
-			goto out;
+			return;
 		}
 
 		if (rcode == RCODE_SEND_ERROR) {
@@ -393,7 +397,7 @@ static void bm_work(struct work_struct *work)
 			 * that the problem has gone away by then.
 			 */
 			fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 8));
-			goto out;
+			return;
 		}
 
 		spin_lock_irq(&card->lock);
@@ -417,7 +421,7 @@ static void bm_work(struct work_struct *work)
 		 */
 		spin_unlock_irq(&card->lock);
 		fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 8));
-		goto out;
+		return;
 	}
 
 	/*
@@ -455,7 +459,7 @@ static void bm_work(struct work_struct *work)
 		 * and let's try again once that's done.
 		 */
 		spin_unlock_irq(&card->lock);
-		goto out;
+		return;
 	} else if (root_device_is_cmc) {
 		/*
 		 * We will send out a force root packet for this
@@ -512,7 +516,7 @@ static void bm_work(struct work_struct *work)
 		 */
 		reset_bus(card, card->gap_count != 0);
 		/* Will allocate broadcast channel after the reset. */
-		goto out;
+		return;
 	}
 
 	if (root_device_is_cmc) {
@@ -525,16 +529,11 @@ static void bm_work(struct work_struct *work)
 				CSR_REGISTER_BASE + CSR_STATE_SET,
 				transaction_data, 4);
 		if (rcode == RCODE_GENERATION)
-			goto out;
+			return;
 	}
 
 	if (local_id == irm_id)
 		allocate_broadcast_channel(card, generation);
-
- out:
-	fw_node_put(root_node);
- out_put_card:
-	fw_card_put(card);
 }
 
 void fw_card_initialize(struct fw_card *card,
