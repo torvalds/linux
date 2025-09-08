@@ -1031,7 +1031,7 @@ static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 	struct bnxt_re_dev *rdev =
 		rdma_device_to_drv_device(device, struct bnxt_re_dev, ibdev);
 
-	return sysfs_emit(buf, "0x%x\n", rdev->en_dev->pdev->vendor);
+	return sysfs_emit(buf, "0x%x\n", rdev->en_dev->pdev->revision);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
@@ -1041,13 +1041,31 @@ static ssize_t hca_type_show(struct device *device,
 	struct bnxt_re_dev *rdev =
 		rdma_device_to_drv_device(device, struct bnxt_re_dev, ibdev);
 
-	return sysfs_emit(buf, "%s\n", rdev->ibdev.node_desc);
+	return sysfs_emit(buf, "0x%x\n", rdev->en_dev->pdev->device);
 }
 static DEVICE_ATTR_RO(hca_type);
+
+static ssize_t board_id_show(struct device *device, struct device_attribute *attr,
+			     char *buf)
+{
+	struct bnxt_re_dev *rdev = rdma_device_to_drv_device(device,
+							     struct bnxt_re_dev, ibdev);
+	char buffer[BNXT_VPD_FLD_LEN] = {};
+
+	if (!rdev->is_virtfn)
+		memcpy(buffer, rdev->board_partno, BNXT_VPD_FLD_LEN - 1);
+	else
+		scnprintf(buffer, BNXT_VPD_FLD_LEN, "0x%x-VF",
+			  rdev->en_dev->pdev->device);
+
+	return sysfs_emit(buf, "%s\n", buffer);
+}
+static DEVICE_ATTR_RO(board_id);
 
 static struct attribute *bnxt_re_attributes[] = {
 	&dev_attr_hw_rev.attr,
 	&dev_attr_hca_type.attr,
+	&dev_attr_board_id.attr,
 	NULL
 };
 
@@ -2004,6 +2022,31 @@ static void bnxt_re_net_register_async_event(struct bnxt_re_dev *rdev)
 				   ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE);
 }
 
+static void bnxt_re_read_vpd_info(struct bnxt_re_dev *rdev)
+{
+	struct pci_dev *pdev = rdev->en_dev->pdev;
+	unsigned int vpd_size, kw_len;
+	int pos, size;
+	u8 *vpd_data;
+
+	vpd_data = pci_vpd_alloc(pdev, &vpd_size);
+	if (IS_ERR(vpd_data)) {
+		pci_warn(pdev, "Unable to read VPD, err=%ld\n",
+			 PTR_ERR(vpd_data));
+		return;
+	}
+
+	pos = pci_vpd_find_ro_info_keyword(vpd_data, vpd_size,
+					   PCI_VPD_RO_KEYWORD_PARTNO, &kw_len);
+	if (pos < 0)
+		goto free;
+
+	size = min_t(int, kw_len, BNXT_VPD_FLD_LEN - 1);
+	memcpy(rdev->board_partno, &vpd_data[pos], size);
+free:
+	kfree(vpd_data);
+}
+
 static int bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_en_dev *en_dev = rdev->en_dev;
@@ -2376,6 +2419,9 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 
 	bnxt_re_init_dcb_wq(rdev);
 	bnxt_re_net_register_async_event(rdev);
+
+	if (!rdev->is_virtfn)
+		bnxt_re_read_vpd_info(rdev);
 
 	rc = bnxt_re_get_stats3_ctx(rdev);
 	if (rc)

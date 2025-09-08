@@ -228,6 +228,8 @@ struct bnxt_re_dev {
 	struct workqueue_struct		*dcb_wq;
 	struct dentry                   *cc_config;
 	struct bnxt_re_dbg_cc_config_params *cc_config_params;
+#define BNXT_VPD_FLD_LEN		32
+	char board_partno[BNXT_VPD_FLD_LEN];
 	/* RoCE mirror */
 	u16 mirror_vnic_id;
 	union ib_gid ugid;
