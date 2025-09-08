@@ -126,7 +126,7 @@ static int powergate_info(struct xe_gt *gt, struct drm_printer *p)
 
 static int sa_info_vf_ccs(struct xe_gt *gt, struct drm_printer *p)
 {
-	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_sa_manager *bb_pool;
 	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
 
@@ -136,7 +136,7 @@ static int sa_info_vf_ccs(struct xe_gt *gt, struct drm_printer *p)
 	xe_pm_runtime_get(gt_to_xe(gt));
 
 	for_each_ccs_rw_ctx(ctx_id) {
-		bb_pool = tile->sriov.vf.ccs[ctx_id].mem.ccs_bb_pool;
+		bb_pool = xe->sriov.vf.ccs.contexts[ctx_id].mem.ccs_bb_pool;
 		if (!bb_pool)
 			break;
 

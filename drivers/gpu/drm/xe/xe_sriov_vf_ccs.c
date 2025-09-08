@@ -136,7 +136,7 @@ static u64 get_ccs_bb_pool_size(struct xe_device *xe)
 	return round_up(bb_pool_size * 2, SZ_1M);
 }
 
-static int alloc_bb_pool(struct xe_tile *tile, struct xe_tile_vf_ccs *ctx)
+static int alloc_bb_pool(struct xe_tile *tile, struct xe_sriov_vf_ccs_ctx *ctx)
 {
 	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_sa_manager *sa_manager;
@@ -168,7 +168,7 @@ static int alloc_bb_pool(struct xe_tile *tile, struct xe_tile_vf_ccs *ctx)
 	return 0;
 }
 
-static void ccs_rw_update_ring(struct xe_tile_vf_ccs *ctx)
+static void ccs_rw_update_ring(struct xe_sriov_vf_ccs_ctx *ctx)
 {
 	u64 addr = xe_sa_manager_gpu_addr(ctx->mem.ccs_bb_pool);
 	struct xe_lrc *lrc = xe_exec_queue_lrc(ctx->mig_q);
@@ -185,7 +185,7 @@ static void ccs_rw_update_ring(struct xe_tile_vf_ccs *ctx)
 	xe_lrc_set_ring_tail(lrc, lrc->ring.tail);
 }
 
-static int register_save_restore_context(struct xe_tile_vf_ccs *ctx)
+static int register_save_restore_context(struct xe_sriov_vf_ccs_ctx *ctx)
 {
 	int ctx_type;
 
@@ -215,15 +215,14 @@ static int register_save_restore_context(struct xe_tile_vf_ccs *ctx)
  */
 int xe_sriov_vf_ccs_register_context(struct xe_device *xe)
 {
-	struct xe_tile *tile = xe_device_get_root_tile(xe);
 	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
-	struct xe_tile_vf_ccs *ctx;
+	struct xe_sriov_vf_ccs_ctx *ctx;
 	int err;
 
 	xe_assert(xe, IS_VF_CCS_READY(xe));
 
 	for_each_ccs_rw_ctx(ctx_id) {
-		ctx = &tile->sriov.vf.ccs[ctx_id];
+		ctx = &xe->sriov.vf.ccs.contexts[ctx_id];
 		err = register_save_restore_context(ctx);
 		if (err)
 			return err;
@@ -234,7 +233,7 @@ int xe_sriov_vf_ccs_register_context(struct xe_device *xe)
 
 static void xe_sriov_vf_ccs_fini(void *arg)
 {
-	struct xe_tile_vf_ccs *ctx = arg;
+	struct xe_sriov_vf_ccs_ctx *ctx = arg;
 	struct xe_lrc *lrc = xe_exec_queue_lrc(ctx->mig_q);
 
 	/*
@@ -258,7 +257,7 @@ int xe_sriov_vf_ccs_init(struct xe_device *xe)
 {
 	struct xe_tile *tile = xe_device_get_root_tile(xe);
 	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
-	struct xe_tile_vf_ccs *ctx;
+	struct xe_sriov_vf_ccs_ctx *ctx;
 	struct xe_exec_queue *q;
 	u32 flags;
 	int err;
@@ -270,7 +269,7 @@ int xe_sriov_vf_ccs_init(struct xe_device *xe)
 		return 0;
 
 	for_each_ccs_rw_ctx(ctx_id) {
-		ctx = &tile->sriov.vf.ccs[ctx_id];
+		ctx = &xe->sriov.vf.ccs.contexts[ctx_id];
 		ctx->ctx_id = ctx_id;
 
 		flags = EXEC_QUEUE_FLAG_KERNEL |
@@ -325,7 +324,7 @@ int xe_sriov_vf_ccs_attach_bo(struct xe_bo *bo)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
-	struct xe_tile_vf_ccs *ctx;
+	struct xe_sriov_vf_ccs_ctx *ctx;
 	struct xe_tile *tile;
 	struct xe_bb *bb;
 	int err = 0;
@@ -339,7 +338,7 @@ int xe_sriov_vf_ccs_attach_bo(struct xe_bo *bo)
 		/* bb should be NULL here. Assert if not NULL */
 		xe_assert(xe, !bb);
 
-		ctx = &tile->sriov.vf.ccs[ctx_id];
+		ctx = &xe->sriov.vf.ccs.contexts[ctx_id];
 		err = xe_migrate_ccs_rw_copy(tile, ctx->mig_q, bo, ctx_id);
 	}
 	return err;

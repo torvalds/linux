@@ -9,6 +9,8 @@
 #include <linux/types.h>
 #include <linux/workqueue_types.h>
 
+#include "xe_sriov_vf_ccs_types.h"
+
 /**
  * struct xe_sriov_vf_relay_version - PF ABI version details.
  */
@@ -43,10 +45,7 @@ struct xe_device_vf {
 	} migration;
 
 	/** @ccs: VF CCS state data */
-	struct {
-		/** @ccs.initialized: Initilalization of VF CCS is completed or not */
-		bool initialized;
-	} ccs;
+	struct xe_sriov_vf_ccs ccs;
 };
 
 #endif
