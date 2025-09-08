@@ -1742,14 +1742,6 @@ arm_spe_synth_events(struct arm_spe *spe, struct perf_session *session)
 	}
 
 	if (spe->synth_opts.instructions) {
-		if (spe->synth_opts.period_type != PERF_ITRACE_PERIOD_INSTRUCTIONS) {
-			pr_warning("Only instruction-based sampling period is currently supported by Arm SPE.\n");
-			goto synth_instructions_out;
-		}
-		if (spe->synth_opts.period > 1)
-			pr_warning("Arm SPE has a hardware-based sample period.\n"
-				   "Additional instruction events will be discarded by --itrace\n");
-
 		spe->sample_instructions = true;
 		attr.config = PERF_COUNT_HW_INSTRUCTIONS;
 
@@ -1759,7 +1751,6 @@ arm_spe_synth_events(struct arm_spe *spe, struct perf_session *session)
 		spe->instructions_id = id;
 		arm_spe_set_event_name(evlist, id, "instructions");
 	}
-synth_instructions_out:
 
 	return 0;
 }
@@ -1876,6 +1867,15 @@ int arm_spe_process_auxtrace_info(union perf_event *event,
 		spe->synth_opts.period_type = PERF_ITRACE_PERIOD_INSTRUCTIONS;
 		spe->synth_opts.period = 1;
 	}
+
+	if (spe->synth_opts.period_type != PERF_ITRACE_PERIOD_INSTRUCTIONS) {
+		ui__error("You must only use i (instructions) --itrace period with Arm SPE. e.g --itrace=i1i\n");
+		err = -EINVAL;
+		goto err_free_queues;
+	}
+	if (spe->synth_opts.period > 1)
+		ui__warning("Arm SPE has a hardware-based sampling period.\n\n"
+			    "--itrace periods > 1i downsample by an interval of n SPE samples rather than n instructions.\n");
 
 	err = arm_spe_synth_events(spe, session);
 	if (err)
