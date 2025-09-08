@@ -306,7 +306,7 @@ int xe_guc_ct_init_post_hwconfig(struct xe_guc_ct *ct)
 			return ret;
 	}
 
-	devm_release_action(xe->drm.dev, guc_action_disable_ct, ct);
+	devm_remove_action(xe->drm.dev, guc_action_disable_ct, ct);
 	return devm_add_action_or_reset(xe->drm.dev, guc_action_disable_ct, ct);
 }
 
