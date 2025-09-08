@@ -5711,6 +5711,42 @@ struct wiphy_radio {
 	u32 antenna_mask;
 };
 
+/**
+ * enum wiphy_nan_flags - NAN capabilities
+ *
+ * @WIPHY_NAN_FLAGS_CONFIGURABLE_SYNC: Device supports NAN configurable
+ *     synchronization.
+ * @WIPHY_NAN_FLAGS_USERSPACE_DE: Device doesn't support DE offload.
+ */
+enum wiphy_nan_flags {
+	WIPHY_NAN_FLAGS_CONFIGURABLE_SYNC = BIT(0),
+	WIPHY_NAN_FLAGS_USERSPACE_DE   = BIT(1),
+};
+
+/**
+ * struct wiphy_nan_capa - NAN capabilities
+ *
+ * This structure describes the NAN capabilities of a wiphy.
+ *
+ * @flags: NAN capabilities flags, see &enum wiphy_nan_flags
+ * @op_mode: NAN operation mode, as defined in Wi-Fi Aware (TM) specification
+ *     Table 81.
+ * @n_antennas: number of antennas supported by the device for Tx/Rx. Lower
+ *     nibble indicates the number of TX antennas and upper nibble indicates the
+ *     number of RX antennas. Value 0 indicates the information is not
+ *     available.
+ * @max_channel_switch_time: maximum channel switch time in milliseconds.
+ * @dev_capabilities: NAN device capabilities as defined in Wi-Fi Aware (TM)
+ *     specification Table 79 (Capabilities field).
+ */
+struct wiphy_nan_capa {
+	u32 flags;
+	u8 op_mode;
+	u8 n_antennas;
+	u16 max_channel_switch_time;
+	u8 dev_capabilities;
+};
+
 #define CFG80211_HW_TIMESTAMP_ALL_PEERS	0xffff
 
 /**
@@ -5884,6 +5920,7 @@ struct wiphy_radio {
  *	bitmap of &enum nl80211_band values.  For instance, for
  *	NL80211_BAND_2GHZ, bit 0 would be set
  *	(i.e. BIT(NL80211_BAND_2GHZ)).
+ * @nan_capa: NAN capabilities
  *
  * @txq_limit: configuration of internal TX queue frame limit
  * @txq_memory_limit: configuration internal TX queue memory limit
@@ -6065,6 +6102,7 @@ struct wiphy {
 	u32 bss_select_support;
 
 	u8 nan_supported_bands;
+	struct wiphy_nan_capa nan_capa;
 
 	u32 txq_limit;
 	u32 txq_memory_limit;

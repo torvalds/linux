@@ -6065,4 +6065,21 @@ static inline u32 ieee80211_eml_trans_timeout_in_us(u16 eml_cap)
 				 _data + ieee80211_mle_common_size(_data),\
 				 _len - ieee80211_mle_common_size(_data))
 
+/* NAN operation mode, as defined in Wi-Fi Aware (TM) specification Table 81 */
+#define NAN_OP_MODE_PHY_MODE_VHT	0x01
+#define NAN_OP_MODE_PHY_MODE_HE		0x10
+#define NAN_OP_MODE_PHY_MODE_MASK	0x11
+#define NAN_OP_MODE_80P80MHZ		0x02
+#define NAN_OP_MODE_160MHZ		0x04
+#define NAN_OP_MODE_PNDL_SUPPRTED	0x08
+
+/* NAN Device capabilities, as defined in Wi-Fi Aware (TM) specification
+ * Table 79
+ */
+#define NAN_DEV_CAPA_DFS_OWNER			0x01
+#define NAN_DEV_CAPA_EXT_KEY_ID_SUPPORTED	0x02
+#define NAN_DEV_CAPA_SIM_NDP_RX_SUPPORTED	0x04
+#define NAN_DEV_CAPA_NDPE_SUPPORTED		0x08
+#define NAN_DEV_CAPA_S3_SUPPORTED		0x10
+
 #endif /* LINUX_IEEE80211_H */

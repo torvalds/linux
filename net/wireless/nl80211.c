@@ -2605,6 +2605,41 @@ fail:
 	return -ENOBUFS;
 }
 
+static int nl80211_put_nan_capa(struct wiphy *wiphy, struct sk_buff *msg)
+{
+	struct nlattr *nan_caps;
+
+	nan_caps = nla_nest_start(msg, NL80211_ATTR_NAN_CAPABILITIES);
+	if (!nan_caps)
+		return -ENOBUFS;
+
+	if (wiphy->nan_capa.flags & WIPHY_NAN_FLAGS_CONFIGURABLE_SYNC &&
+	    nla_put_flag(msg, NL80211_NAN_CAPA_CONFIGURABLE_SYNC))
+		goto fail;
+
+	if ((wiphy->nan_capa.flags & WIPHY_NAN_FLAGS_USERSPACE_DE) &&
+	    nla_put_flag(msg, NL80211_NAN_CAPA_USERSPACE_DE))
+		goto fail;
+
+	if (nla_put_u8(msg, NL80211_NAN_CAPA_OP_MODE,
+		       wiphy->nan_capa.op_mode) ||
+	    nla_put_u8(msg, NL80211_NAN_CAPA_NUM_ANTENNAS,
+		       wiphy->nan_capa.n_antennas) ||
+	    nla_put_u16(msg, NL80211_NAN_CAPA_MAX_CHANNEL_SWITCH_TIME,
+			wiphy->nan_capa.max_channel_switch_time) ||
+	    nla_put_u8(msg, NL80211_NAN_CAPA_CAPABILITIES,
+		       wiphy->nan_capa.dev_capabilities))
+		goto fail;
+
+	nla_nest_end(msg, nan_caps);
+
+	return 0;
+
+fail:
+	nla_nest_cancel(msg, nan_caps);
+	return -ENOBUFS;
+}
+
 struct nl80211_dump_wiphy_state {
 	s64 filter_wiphy;
 	long start;
@@ -3255,6 +3290,12 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 		break;
 	case 17:
 		if (nl80211_put_radios(&rdev->wiphy, msg))
+			goto nla_put_failure;
+
+		state->split_start++;
+		break;
+	case 18:
+		if (nl80211_put_nan_capa(&rdev->wiphy, msg))
 			goto nla_put_failure;
 
 		/* done */
