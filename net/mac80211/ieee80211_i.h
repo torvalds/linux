@@ -985,11 +985,13 @@ struct ieee80211_if_mntr {
  * struct ieee80211_if_nan - NAN state
  *
  * @conf: current NAN configuration
+ * @started: true iff NAN is started
  * @func_lock: lock for @func_inst_ids
  * @function_inst_ids: a bitmap of available instance_id's
  */
 struct ieee80211_if_nan {
 	struct cfg80211_nan_conf conf;
+	bool started;
 
 	/* protects function_inst_ids */
 	spinlock_t func_lock;
