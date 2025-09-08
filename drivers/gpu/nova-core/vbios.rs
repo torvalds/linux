@@ -10,6 +10,7 @@ use kernel::device;
 use kernel::error::Result;
 use kernel::pci;
 use kernel::prelude::*;
+use kernel::ptr::{Alignable, Alignment};
 
 /// The offset of the VBIOS ROM in the BAR0 space.
 const ROM_OFFSET: usize = 0x300000;
@@ -177,8 +178,7 @@ impl<'a> Iterator for VbiosIterator<'a> {
 
         // Advance to next image (aligned to 512 bytes).
         self.current_offset += image_size;
-        // TODO[NUMM]: replace with `align_up` once it lands.
-        self.current_offset = self.current_offset.next_multiple_of(512);
+        self.current_offset = self.current_offset.align_up(Alignment::new::<512>())?;
 
         Some(Ok(full_image))
     }
