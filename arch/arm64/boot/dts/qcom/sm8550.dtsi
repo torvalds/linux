@@ -3224,6 +3224,7 @@
 					 &config_noc SLAVE_SDCC_2 QCOM_ICC_TAG_ACTIVE_ONLY>;
 			interconnect-names = "sdhc-ddr", "cpu-sdhc";
 			bus-width = <4>;
+			max-sd-hs-hz = <37500000>;
 			dma-coherent;
 
 			/* Forbid SDR104/SDR50 - broken hw! */
