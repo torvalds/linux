@@ -87,10 +87,8 @@ static int xe_pf_begin(struct drm_exec *exec, struct xe_vma *vma,
 	if (!bo)
 		return 0;
 
-	err = need_vram_move ? xe_bo_migrate(bo, vram->placement) :
-			       xe_bo_validate(bo, vm, true);
-
-	return err;
+	return need_vram_move ? xe_bo_migrate(bo, vram->placement, exec) :
+		xe_bo_validate(bo, vm, true, exec);
 }
 
 static int handle_vma_pagefault(struct xe_gt *gt, struct xe_vma *vma,
@@ -140,7 +138,9 @@ retry_userptr:
 
 		/* Bind VMA only to the GT that has faulted */
 		trace_xe_vma_pf_bind(vma);
+		xe_vm_set_validation_exec(vm, &exec);
 		fence = xe_vma_rebind(vm, vma, BIT(tile->id));
+		xe_vm_set_validation_exec(vm, NULL);
 		if (IS_ERR(fence)) {
 			err = PTR_ERR(fence);
 			if (xe_vm_validate_should_retry(&exec, err, &end))

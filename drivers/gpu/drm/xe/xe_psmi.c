@@ -68,6 +68,7 @@ static void psmi_cleanup(struct xe_device *xe)
 static struct xe_bo *psmi_alloc_object(struct xe_device *xe,
 				       unsigned int id, size_t bo_size)
 {
+	struct drm_exec *exec = XE_VALIDATION_UNIMPLEMENTED;
 	struct xe_bo *bo = NULL;
 	struct xe_tile *tile;
 	int err;
@@ -83,11 +84,12 @@ static struct xe_bo *psmi_alloc_object(struct xe_device *xe,
 				 XE_BO_FLAG_VRAM_IF_DGFX(tile) |
 				 XE_BO_FLAG_PINNED |
 				 XE_BO_FLAG_PINNED_LATE_RESTORE |
-				 XE_BO_FLAG_NEEDS_CPU_ACCESS);
+				 XE_BO_FLAG_NEEDS_CPU_ACCESS,
+				 exec);
 
 	if (!IS_ERR(bo)) {
 		/* Buffer written by HW, ensure stays resident */
-		err = xe_bo_pin(bo);
+		err = xe_bo_pin(bo, exec);
 		if (err)
 			bo = ERR_PTR(err);
 		xe_bo_unlock(bo);

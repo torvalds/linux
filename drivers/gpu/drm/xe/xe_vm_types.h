@@ -307,18 +307,34 @@ struct xe_vm {
 	} error_capture;
 
 	/**
+	 * @validation: Validation data only valid with the vm resv held.
+	 * Note: This is really task state of the task holding the vm resv,
+	 * and moving forward we should
+	 * come up with a better way of passing this down the call-
+	 * chain.
+	 */
+	struct {
+		/**
+		 * @validation.validating: The task that is currently making bos resident.
+		 * for this vm.
+		 * Protected by the VM's resv for writing. Opportunistic reading can be done
+		 * using READ_ONCE. Note: This is a workaround for the
+		 * TTM eviction_valuable() callback not being passed a struct
+		 * ttm_operation_context(). Future work might want to address this.
+		 */
+		struct task_struct *validating;
+		/**
+		 *  @validation.exec The drm_exec context used when locking the vm resv.
+		 *  Protected by the vm's resv.
+		 */
+		struct drm_exec *_exec;
+	} validation;
+
+	/**
 	 * @tlb_flush_seqno: Required TLB flush seqno for the next exec.
 	 * protected by the vm resv.
 	 */
 	u64 tlb_flush_seqno;
-	/**
-	 * @validating: The task that is currently making bos resident for this vm.
-	 * Protected by the VM's resv for writing. Opportunistic reading can be done
-	 * using READ_ONCE. Note: This is a workaround for the
-	 * TTM eviction_valuable() callback not being passed a struct
-	 * ttm_operation_context(). Future work might want to address this.
-	 */
-	struct task_struct *validating;
 	/** @batch_invalidate_tlb: Always invalidate TLB before batch start */
 	bool batch_invalidate_tlb;
 	/** @xef: XE file handle for tracking this VM's drm client */

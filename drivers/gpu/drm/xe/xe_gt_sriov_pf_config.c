@@ -1452,6 +1452,7 @@ static bool pf_release_vf_config_lmem(struct xe_gt *gt, struct xe_gt_sriov_confi
 static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 {
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+	struct drm_exec *exec = XE_VALIDATION_UNIMPLEMENTED;
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_bo *bo;
@@ -1484,11 +1485,12 @@ static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 				 XE_BO_FLAG_VRAM_IF_DGFX(tile) |
 				 XE_BO_FLAG_NEEDS_2M |
 				 XE_BO_FLAG_PINNED |
-				 XE_BO_FLAG_PINNED_LATE_RESTORE);
+				 XE_BO_FLAG_PINNED_LATE_RESTORE,
+				 exec);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
-	err = xe_bo_pin(bo);
+	err = xe_bo_pin(bo, exec);
 	xe_bo_unlock(bo);
 	if (unlikely(err)) {
 		xe_bo_put(bo);

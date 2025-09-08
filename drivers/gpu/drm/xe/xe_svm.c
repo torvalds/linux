@@ -869,6 +869,7 @@ static int xe_drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
 	struct device *dev = xe->drm.dev;
 	struct drm_buddy_block *block;
 	struct list_head *blocks;
+	struct drm_exec *exec;
 	struct xe_bo *bo;
 	ktime_t time_end = 0;
 	int err, idx;
@@ -877,12 +878,13 @@ static int xe_drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
 		return -ENODEV;
 
 	xe_pm_runtime_get(xe);
+	exec = XE_VALIDATION_UNIMPLEMENTED;
 
  retry:
 	bo = xe_bo_create_locked(vr->xe, NULL, NULL, end - start,
 				 ttm_bo_type_device,
 				 (IS_DGFX(xe) ? XE_BO_FLAG_VRAM(vr) : XE_BO_FLAG_SYSTEM) |
-				 XE_BO_FLAG_CPU_ADDR_MIRROR);
+				 XE_BO_FLAG_CPU_ADDR_MIRROR, exec);
 	if (IS_ERR(bo)) {
 		err = PTR_ERR(bo);
 		if (xe_vm_validate_should_retry(NULL, err, &time_end))

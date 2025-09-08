@@ -321,7 +321,7 @@ static inline void xe_vm_set_validating(struct xe_vm *vm, bool allow_res_evict)
 	if (vm && !allow_res_evict) {
 		xe_vm_assert_held(vm);
 		/* Pairs with READ_ONCE in xe_vm_is_validating() */
-		WRITE_ONCE(vm->validating, current);
+		WRITE_ONCE(vm->validation.validating, current);
 	}
 }
 
@@ -339,7 +339,7 @@ static inline void xe_vm_clear_validating(struct xe_vm *vm, bool allow_res_evict
 {
 	if (vm && !allow_res_evict) {
 		/* Pairs with READ_ONCE in xe_vm_is_validating() */
-		WRITE_ONCE(vm->validating, NULL);
+		WRITE_ONCE(vm->validation.validating, NULL);
 	}
 }
 
@@ -357,11 +357,39 @@ static inline void xe_vm_clear_validating(struct xe_vm *vm, bool allow_res_evict
 static inline bool xe_vm_is_validating(struct xe_vm *vm)
 {
 	/* Pairs with WRITE_ONCE in xe_vm_is_validating() */
-	if (READ_ONCE(vm->validating) == current) {
+	if (READ_ONCE(vm->validation.validating) == current) {
 		xe_vm_assert_held(vm);
 		return true;
 	}
 	return false;
+}
+
+/**
+ * xe_vm_set_validation_exec() - Accessor to set the drm_exec object
+ * @vm: The vm we want to register a drm_exec object with.
+ * @exec: The exec object we want to register.
+ *
+ * Set the drm_exec object used to lock the vm's resv.
+ */
+static inline void xe_vm_set_validation_exec(struct xe_vm *vm, struct drm_exec *exec)
+{
+	xe_vm_assert_held(vm);
+	xe_assert(vm->xe, !!exec ^ !!vm->validation._exec);
+	vm->validation._exec = exec;
+}
+
+/**
+ * xe_vm_set_validation_exec() - Accessor to read the drm_exec object
+ * @vm: The vm we want to register a drm_exec object with.
+ *
+ * Return: The drm_exec object used to lock the vm's resv. The value
+ * is a valid pointer, %NULL, or one of the special values defined in
+ * xe_validation.h.
+ */
+static inline struct drm_exec *xe_vm_validation_exec(struct xe_vm *vm)
+{
+	xe_vm_assert_held(vm);
+	return vm->validation._exec;
 }
 
 /**

@@ -1141,6 +1141,7 @@ out_unref:
 int xe_bo_notifier_prepare_pinned(struct xe_bo *bo)
 {
 	struct xe_device *xe = ttm_to_xe_device(bo->ttm.bdev);
+	struct drm_exec *exec = XE_VALIDATION_UNIMPLEMENTED;
 	struct xe_bo *backup;
 	int ret = 0;
 
@@ -1165,7 +1166,7 @@ int xe_bo_notifier_prepare_pinned(struct xe_bo *bo)
 	backup = ___xe_bo_create_locked(xe, NULL, NULL, bo->ttm.base.resv, NULL, xe_bo_size(bo),
 					DRM_XE_GEM_CPU_CACHING_WB, ttm_bo_type_kernel,
 					XE_BO_FLAG_SYSTEM | XE_BO_FLAG_NEEDS_CPU_ACCESS |
-					XE_BO_FLAG_PINNED);
+					XE_BO_FLAG_PINNED, exec);
 	if (IS_ERR(backup)) {
 		ret = PTR_ERR(backup);
 		goto out_unlock_bo;
@@ -1216,6 +1217,7 @@ int xe_bo_notifier_unprepare_pinned(struct xe_bo *bo)
 int xe_bo_evict_pinned(struct xe_bo *bo)
 {
 	struct xe_device *xe = ttm_to_xe_device(bo->ttm.bdev);
+	struct drm_exec *exec = XE_VALIDATION_UNIMPLEMENTED;
 	struct xe_bo *backup = bo->backup_obj;
 	bool backup_created = false;
 	bool unmap = false;
@@ -1244,7 +1246,7 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 						NULL, xe_bo_size(bo),
 						DRM_XE_GEM_CPU_CACHING_WB, ttm_bo_type_kernel,
 						XE_BO_FLAG_SYSTEM | XE_BO_FLAG_NEEDS_CPU_ACCESS |
-						XE_BO_FLAG_PINNED);
+						XE_BO_FLAG_PINNED, exec);
 		if (IS_ERR(backup)) {
 			ret = PTR_ERR(backup);
 			goto out_unlock_bo;
@@ -1721,12 +1723,14 @@ static vm_fault_t xe_gem_fault(struct vm_fault *vmf)
 	struct xe_device *xe = to_xe_device(ddev);
 	struct xe_bo *bo = ttm_to_xe_bo(tbo);
 	bool needs_rpm = bo->flags & XE_BO_FLAG_VRAM_MASK;
+	struct drm_exec *exec;
 	vm_fault_t ret;
 	int idx, r = 0;
 
 	if (needs_rpm)
 		xe_pm_runtime_get(xe);
 
+	exec = XE_VALIDATION_UNIMPLEMENTED;
 	ret = ttm_bo_vm_reserve(tbo, vmf);
 	if (ret)
 		goto out;
@@ -1734,10 +1738,11 @@ static vm_fault_t xe_gem_fault(struct vm_fault *vmf)
 	if (drm_dev_enter(ddev, &idx)) {
 		trace_xe_bo_cpu_fault(bo);
 
+		xe_validation_assert_exec(xe, exec, &tbo->base);
 		if (should_migrate_to_smem(bo)) {
 			xe_assert(xe, bo->flags & XE_BO_FLAG_SYSTEM);
 
-			r = xe_bo_migrate(bo, XE_PL_TT);
+			r = xe_bo_migrate(bo, XE_PL_TT, exec);
 			if (r == -EBUSY || r == -ERESTARTSYS || r == -EINTR)
 				ret = VM_FAULT_NOPAGE;
 			else if (r)
@@ -1864,11 +1869,32 @@ void xe_bo_free(struct xe_bo *bo)
 	kfree(bo);
 }
 
+/**
+ * ___xe_bo_create_locked() - Initialize or create an xe_bo.
+ * @xe: The xe device.
+ * @bo: An already allocated buffer object or NULL
+ * if the function should allocate a new one.
+ * @tile: The tile to select for migration of this bo, and the tile used for
+ * GGTT binding if any. Only to be non-NULL for ttm_bo_type_kernel bos.
+ * @resv: Pointer to a locked shared reservation object to use fo this bo,
+ * or NULL for the xe_bo to use its own.
+ * @bulk: The bulk move to use for LRU bumping, or NULL for external bos.
+ * @size: The storage size to use for the bo.
+ * @cpu_caching: The cpu caching used for system memory backing store.
+ * @type: The TTM buffer object type.
+ * @flags: XE_BO_FLAG_ flags.
+ * @exec: The drm_exec transaction to use for exhaustive eviction.
+ *
+ * Initialize or create an xe buffer object. On failure, any allocated buffer
+ * object passed in @bo will have been unreferenced.
+ *
+ * Return: The buffer object on success. Negative error pointer on failure.
+ */
 struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 				     struct xe_tile *tile, struct dma_resv *resv,
 				     struct ttm_lru_bulk_move *bulk, size_t size,
 				     u16 cpu_caching, enum ttm_bo_type type,
-				     u32 flags)
+				     u32 flags, struct drm_exec *exec)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
@@ -1937,6 +1963,7 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 		ctx.resv = resv;
 	}
 
+	xe_validation_assert_exec(xe, exec, &bo->ttm.base);
 	if (!(flags & XE_BO_FLAG_FIXED_PLACEMENT)) {
 		err = __xe_bo_placement_for_flags(xe, bo, bo->flags);
 		if (WARN_ON(err)) {
@@ -2038,7 +2065,7 @@ __xe_bo_create_locked(struct xe_device *xe,
 		      struct xe_tile *tile, struct xe_vm *vm,
 		      size_t size, u64 start, u64 end,
 		      u16 cpu_caching, enum ttm_bo_type type, u32 flags,
-		      u64 alignment)
+		      u64 alignment, struct drm_exec *exec)
 {
 	struct xe_bo *bo = NULL;
 	int err;
@@ -2063,7 +2090,7 @@ __xe_bo_create_locked(struct xe_device *xe,
 				    vm && !xe_vm_in_fault_mode(vm) &&
 				    flags & XE_BO_FLAG_USER ?
 				    &vm->lru_bulk_move : NULL, size,
-				    cpu_caching, type, flags);
+				    cpu_caching, type, flags, exec);
 	if (IS_ERR(bo))
 		return bo;
 
@@ -2097,9 +2124,10 @@ __xe_bo_create_locked(struct xe_device *xe,
 
 			if (flags & XE_BO_FLAG_FIXED_PLACEMENT) {
 				err = xe_ggtt_insert_bo_at(t->mem.ggtt, bo,
-							   start + xe_bo_size(bo), U64_MAX);
+							   start + xe_bo_size(bo), U64_MAX,
+							   exec);
 			} else {
-				err = xe_ggtt_insert_bo(t->mem.ggtt, bo);
+				err = xe_ggtt_insert_bo(t->mem.ggtt, bo, exec);
 			}
 			if (err)
 				goto err_unlock_put_bo;
@@ -2116,22 +2144,59 @@ err_unlock_put_bo:
 	return ERR_PTR(err);
 }
 
+/**
+ * xe_bo_create_locked_range() - Create a BO with range- and alignment options
+ * @xe: The xe device.
+ * @tile: The tile to select for migration of this bo, and the tile used for
+ * GGTT binding if any. Only to be non-NULL for ttm_bo_type_kernel bos.
+ * @vm: The local vm or NULL for external objects.
+ * @size: The storage size to use for the bo.
+ * @start: Start of fixed VRAM range or 0.
+ * @end: End of fixed VRAM range or ~0ULL.
+ * @type: The TTM buffer object type.
+ * @flags: XE_BO_FLAG_ flags.
+ * @alignment: For GGTT buffer objects, the minimum GGTT alignment.
+ * @exec: The drm_exec transaction to use for exhaustive eviction.
+ *
+ * Create an Xe BO with range- and alignment options. If @start and @end indicate
+ * a fixed VRAM range, this must be a ttm_bo_type_kernel bo with VRAM placement
+ * only. The @alignment parameter can be used for GGTT alignment.
+ *
+ * Return: The buffer object on success. Negative error pointer on failure.
+ */
 struct xe_bo *
 xe_bo_create_locked_range(struct xe_device *xe,
 			  struct xe_tile *tile, struct xe_vm *vm,
 			  size_t size, u64 start, u64 end,
-			  enum ttm_bo_type type, u32 flags, u64 alignment)
+			  enum ttm_bo_type type, u32 flags, u64 alignment,
+			  struct drm_exec *exec)
 {
 	return __xe_bo_create_locked(xe, tile, vm, size, start, end, 0, type,
-				     flags, alignment);
+				     flags, alignment, exec);
 }
 
+/**
+ * xe_bo_create_locked() - Create a BO
+ * @xe: The xe device.
+ * @tile: The tile to select for migration of this bo, and the tile used for
+ * GGTT binding if any. Only to be non-NULL for ttm_bo_type_kernel bos.
+ * @vm: The local vm or NULL for external objects.
+ * @size: The storage size to use for the bo.
+ * @type: The TTM buffer object type.
+ * @flags: XE_BO_FLAG_ flags.
+ * @exec: The drm_exec transaction to use for exhaustive eviction.
+ *
+ * Create a locked xe BO with no range- nor alignment restrictions.
+ *
+ * Return: The buffer object on success. Negative error pointer on failure.
+ */
 struct xe_bo *xe_bo_create_locked(struct xe_device *xe, struct xe_tile *tile,
 				  struct xe_vm *vm, size_t size,
-				  enum ttm_bo_type type, u32 flags)
+				  enum ttm_bo_type type, u32 flags,
+				  struct drm_exec *exec)
 {
 	return __xe_bo_create_locked(xe, tile, vm, size, 0, ~0ULL, 0, type,
-				     flags, 0);
+				     flags, 0, exec);
 }
 
 struct xe_bo *xe_bo_create_user(struct xe_device *xe, struct xe_tile *tile,
@@ -2139,9 +2204,10 @@ struct xe_bo *xe_bo_create_user(struct xe_device *xe, struct xe_tile *tile,
 				u16 cpu_caching,
 				u32 flags)
 {
+	struct drm_exec *exec = vm ? xe_vm_validation_exec(vm) : XE_VALIDATION_UNIMPLEMENTED;
 	struct xe_bo *bo = __xe_bo_create_locked(xe, tile, vm, size, 0, ~0ULL,
 						 cpu_caching, ttm_bo_type_device,
-						 flags | XE_BO_FLAG_USER, 0);
+						 flags | XE_BO_FLAG_USER, 0, exec);
 	if (!IS_ERR(bo))
 		xe_bo_unlock_vm_held(bo);
 
@@ -2152,7 +2218,8 @@ struct xe_bo *xe_bo_create(struct xe_device *xe, struct xe_tile *tile,
 			   struct xe_vm *vm, size_t size,
 			   enum ttm_bo_type type, u32 flags)
 {
-	struct xe_bo *bo = xe_bo_create_locked(xe, tile, vm, size, type, flags);
+	struct drm_exec *exec = vm ? xe_vm_validation_exec(vm) : XE_VALIDATION_UNIMPLEMENTED;
+	struct xe_bo *bo = xe_bo_create_locked(xe, tile, vm, size, type, flags, exec);
 
 	if (!IS_ERR(bo))
 		xe_bo_unlock_vm_held(bo);
@@ -2180,6 +2247,7 @@ struct xe_bo *xe_bo_create_pin_map_at_aligned(struct xe_device *xe,
 	int err;
 	u64 start = offset == ~0ull ? 0 : offset;
 	u64 end = offset == ~0ull ? offset : start + size;
+	struct drm_exec *exec = vm ? xe_vm_validation_exec(vm) : XE_VALIDATION_UNIMPLEMENTED;
 
 	if (flags & XE_BO_FLAG_STOLEN &&
 	    xe_ttm_stolen_cpu_access_needs_ggtt(xe))
@@ -2187,11 +2255,11 @@ struct xe_bo *xe_bo_create_pin_map_at_aligned(struct xe_device *xe,
 
 	bo = xe_bo_create_locked_range(xe, tile, vm, size, start, end, type,
 				       flags | XE_BO_FLAG_NEEDS_CPU_ACCESS | XE_BO_FLAG_PINNED,
-				       alignment);
+				       alignment, exec);
 	if (IS_ERR(bo))
 		return bo;
 
-	err = xe_bo_pin(bo);
+	err = xe_bo_pin(bo, exec);
 	if (err)
 		goto err_put;
 
@@ -2314,6 +2382,7 @@ uint64_t vram_region_gpu_offset(struct ttm_resource *res)
  * xe_bo_pin_external - pin an external BO
  * @bo: buffer object to be pinned
  * @in_place: Pin in current placement, don't attempt to migrate.
+ * @exec: The drm_exec transaction to use for exhaustive eviction.
  *
  * Pin an external (not tied to a VM, can be exported via dma-buf / prime FD)
  * BO. Unique call compared to xe_bo_pin as this function has it own set of
@@ -2321,7 +2390,7 @@ uint64_t vram_region_gpu_offset(struct ttm_resource *res)
  *
  * Returns 0 for success, negative error code otherwise.
  */
-int xe_bo_pin_external(struct xe_bo *bo, bool in_place)
+int xe_bo_pin_external(struct xe_bo *bo, bool in_place, struct drm_exec *exec)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	int err;
@@ -2331,7 +2400,7 @@ int xe_bo_pin_external(struct xe_bo *bo, bool in_place)
 
 	if (!xe_bo_is_pinned(bo)) {
 		if (!in_place) {
-			err = xe_bo_validate(bo, NULL, false);
+			err = xe_bo_validate(bo, NULL, false, exec);
 			if (err)
 				return err;
 		}
@@ -2354,7 +2423,17 @@ int xe_bo_pin_external(struct xe_bo *bo, bool in_place)
 	return 0;
 }
 
-int xe_bo_pin(struct xe_bo *bo)
+/**
+ * xe_bo_pin() - Pin a kernel bo after potentially migrating it
+ * @bo: The kernel bo to pin.
+ * @exec: The drm_exec transaction to use for exhaustive eviction.
+ *
+ * Attempts to migrate a bo to @bo->placement. If that succeeds,
+ * pins the bo.
+ *
+ * Return: %0 on success, negative error code on migration failure.
+ */
+int xe_bo_pin(struct xe_bo *bo, struct drm_exec *exec)
 {
 	struct ttm_place *place = &bo->placements[0];
 	struct xe_device *xe = xe_bo_device(bo);
@@ -2376,7 +2455,7 @@ int xe_bo_pin(struct xe_bo *bo)
 	/* We only expect at most 1 pin */
 	xe_assert(xe, !xe_bo_is_pinned(bo));
 
-	err = xe_bo_validate(bo, NULL, false);
+	err = xe_bo_validate(bo, NULL, false, exec);
 	if (err)
 		return err;
 
@@ -2469,6 +2548,7 @@ void xe_bo_unpin(struct xe_bo *bo)
  *      NULL. Used together with @allow_res_evict.
  * @allow_res_evict: Whether it's allowed to evict bos sharing @vm's
  *                   reservation object.
+ * @exec: The drm_exec transaction to use for exhaustive eviction.
  *
  * Make sure the bo is in allowed placement, migrating it if necessary. If
  * needed, other bos will be evicted. If bos selected for eviction shares
@@ -2478,7 +2558,8 @@ void xe_bo_unpin(struct xe_bo *bo)
  * Return: 0 on success, negative error code on failure. May return
  * -EINTR or -ERESTARTSYS if internal waits are interrupted by a signal.
  */
-int xe_bo_validate(struct xe_bo *bo, struct xe_vm *vm, bool allow_res_evict)
+int xe_bo_validate(struct xe_bo *bo, struct xe_vm *vm, bool allow_res_evict,
+		   struct drm_exec *exec)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
@@ -2500,6 +2581,7 @@ int xe_bo_validate(struct xe_bo *bo, struct xe_vm *vm, bool allow_res_evict)
 
 	xe_vm_set_validating(vm, allow_res_evict);
 	trace_xe_bo_validate(bo);
+	xe_validation_assert_exec(xe_bo_device(bo), exec, &bo->ttm.base);
 	ret = ttm_bo_validate(&bo->ttm, &bo->placement, &ctx);
 	xe_vm_clear_validating(vm, allow_res_evict);
 
@@ -2937,6 +3019,7 @@ static void xe_place_from_ttm_type(u32 mem_type, struct ttm_place *place)
  * xe_bo_migrate - Migrate an object to the desired region id
  * @bo: The buffer object to migrate.
  * @mem_type: The TTM region type to migrate to.
+ * @exec: The drm_exec transaction to use for exhaustive eviction.
  *
  * Attempt to migrate the buffer object to the desired memory region. The
  * buffer object may not be pinned, and must be locked.
@@ -2948,7 +3031,7 @@ static void xe_place_from_ttm_type(u32 mem_type, struct ttm_place *place)
  * Return: 0 on success. Negative error code on failure. In particular may
  * return -EINTR or -ERESTARTSYS if signal pending.
  */
-int xe_bo_migrate(struct xe_bo *bo, u32 mem_type)
+int xe_bo_migrate(struct xe_bo *bo, u32 mem_type, struct drm_exec *exec)
 {
 	struct xe_device *xe = ttm_to_xe_device(bo->ttm.bdev);
 	struct ttm_operation_ctx ctx = {
@@ -2986,19 +3069,21 @@ int xe_bo_migrate(struct xe_bo *bo, u32 mem_type)
 		add_vram(xe, bo, &requested, bo->flags, mem_type, &c);
 	}
 
+	xe_validation_assert_exec(xe_bo_device(bo), exec, &bo->ttm.base);
 	return ttm_bo_validate(&bo->ttm, &placement, &ctx);
 }
 
 /**
  * xe_bo_evict - Evict an object to evict placement
  * @bo: The buffer object to migrate.
+ * @exec: The drm_exec transaction to use for exhaustive eviction.
  *
  * On successful completion, the object memory will be moved to evict
  * placement. This function blocks until the object has been fully moved.
  *
  * Return: 0 on success. Negative error code on failure.
  */
-int xe_bo_evict(struct xe_bo *bo)
+int xe_bo_evict(struct xe_bo *bo, struct drm_exec *exec)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,

@@ -98,9 +98,13 @@
 static int xe_exec_fn(struct drm_gpuvm_exec *vm_exec)
 {
 	struct xe_vm *vm = container_of(vm_exec->vm, struct xe_vm, gpuvm);
+	int ret;
 
 	/* The fence slot added here is intended for the exec sched job. */
-	return xe_vm_validate_rebind(vm, &vm_exec->exec, 1);
+	xe_vm_set_validation_exec(vm, &vm_exec->exec);
+	ret = xe_vm_validate_rebind(vm, &vm_exec->exec, 1);
+	xe_vm_set_validation_exec(vm, NULL);
+	return ret;
 }
 
 int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
