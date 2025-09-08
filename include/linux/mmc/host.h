@@ -576,6 +576,7 @@ struct mmc_host {
 	int			hsq_depth;
 
 	u32			err_stats[MMC_ERR_MAX];
+	u32			max_sd_hs_hz;
 	unsigned long		private[] ____cacheline_aligned;
 };
 
