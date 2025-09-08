@@ -772,12 +772,24 @@ static void pci_epf_test_disable_doorbell(struct pci_epf_test *epf_test,
 	u32 status = le32_to_cpu(reg->status);
 	struct pci_epf *epf = epf_test->epf;
 	struct pci_epc *epc = epf->epc;
+	int ret;
 
 	if (bar < BAR_0)
 		goto set_status_err;
 
 	pci_epf_test_doorbell_cleanup(epf_test);
-	pci_epc_clear_bar(epc, epf->func_no, epf->vfunc_no, &epf_test->db_bar);
+
+	/*
+	 * The doorbell feature temporarily overrides the inbound translation
+	 * to point to the address stored in epf_test->db_bar.phys_addr, i.e.,
+	 * it calls set_bar() twice without ever calling clear_bar(), as
+	 * calling clear_bar() would clear the BAR's PCI address assigned by
+	 * the host. Thus, when disabling the doorbell, restore the inbound
+	 * translation to point to the memory allocated for the BAR.
+	 */
+	ret = pci_epc_set_bar(epc, epf->func_no, epf->vfunc_no, &epf->bar[bar]);
+	if (ret)
+		goto set_status_err;
 
 	status |= STATUS_DOORBELL_DISABLE_SUCCESS;
 	reg->status = cpu_to_le32(status);
