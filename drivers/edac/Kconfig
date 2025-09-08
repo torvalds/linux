@@ -584,4 +584,12 @@ config EDAC_CORTEX_A72
 	  The detected and reported errors are from reading CPU/L2 memory error
 	  syndrome registers.
 
+config EDAC_VERSALNET
+	tristate "AMD VersalNET DDR Controller"
+	depends on CDX_CONTROLLER && ARCH_ZYNQMP
+	help
+	  Support for single bit error correction, double bit error detection
+	  and other system errors from various IP subsystems like RPU, NOCs,
+	  HNICX, PL on the AMD Versal NET DDR memory controller.
+
 endif # EDAC
