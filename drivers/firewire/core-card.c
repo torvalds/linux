@@ -306,8 +306,7 @@ static void bm_work(struct work_struct *work)
 
 	generation = card->generation;
 
-	root_node = card->root_node;
-	fw_node_get(root_node);
+	root_node = fw_node_get(card->root_node);
 	root_device = root_node->data;
 	root_device_is_running = root_device &&
 			atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
