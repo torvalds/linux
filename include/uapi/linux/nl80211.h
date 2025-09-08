@@ -2964,6 +2964,10 @@ enum nl80211_commands {
  * @NL80211_ATTR_NAN_NEW_CLUSTER: Flag attribute indicating that a new
  *	NAN cluster has been created. This is used with
  *	%NL80211_CMD_NAN_CLUSTER_JOINED
+ * @NL80211_ATTR_NAN_CAPABILITIES: Nested attribute for NAN capabilities.
+ *	This is used with %NL80211_CMD_GET_WIPHY to indicate the NAN
+ *	capabilities supported by the driver. See &enum nl80211_nan_capabilities
+ *	for details.
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -3529,6 +3533,7 @@ enum nl80211_attrs {
 	NL80211_ATTR_BSS_PARAM,
 	NL80211_ATTR_NAN_CONFIG,
 	NL80211_ATTR_NAN_NEW_CLUSTER,
+	NL80211_ATTR_NAN_CAPABILITIES,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -8360,6 +8365,56 @@ enum nl80211_s1g_short_beacon_attrs {
 	__NL80211_S1G_SHORT_BEACON_ATTR_LAST,
 	NL80211_S1G_SHORT_BEACON_ATTR_MAX =
 		__NL80211_S1G_SHORT_BEACON_ATTR_LAST - 1
+};
+
+/**
+ * enum nl80211_nan_capabilities - NAN (Neighbor Aware Networking)
+ *	capabilities.
+ *
+ * @__NL80211_NAN_CAPABILITIES_INVALID: Invalid.
+ * @NL80211_NAN_CAPA_CONFIGURABLE_SYNC: Flag attribute indicating that
+ *	the device supports configurable synchronization. If set, the device
+ *	should be able to handle %NL80211_ATTR_NAN_CONFIG
+ *	attribute in the %NL80211_CMD_START_NAN (and change) command.
+ * @NL80211_NAN_CAPA_USERSPACE_DE: Flag attribute indicating that
+ *	NAN Discovery Engine (DE) is not offloaded and the driver assumes
+ *	user space DE implementation. When set, %NL80211_CMD_ADD_NAN_FUNCTION,
+ *	%NL80211_CMD_DEL_NAN_FUNCTION and %NL80211_CMD_NAN_MATCH commands
+ *	should not be used. In addition, the device/driver should support
+ *	sending discovery window (DW) notifications using
+ *	%NL80211_CMD_NAN_NEXT_DW_NOTIFICATION and handling transmission and
+ *	reception of NAN SDF frames on NAN device interface during DW windows.
+ *	(%NL80211_CMD_FRAME is used to transmit SDFs)
+ * @NL80211_NAN_CAPA_OP_MODE: u8 attribute indicating the supported operation
+ *	modes as defined in Wi-Fi Aware (TM) specification Table 81 (Operation
+ *	Mode field format).
+ * @NL80211_NAN_CAPA_NUM_ANTENNAS: u8 attribute indicating the number of
+ *	TX and RX antennas supported by the device. Lower nibble indicates
+ *	the number of TX antennas and upper nibble indicates the number of RX
+ *	antennas. Value 0 indicates the information is not available.
+ *	See table 79 of Wi-Fi Aware (TM) specification (Number of
+ *	Antennas field).
+ * @NL80211_NAN_CAPA_MAX_CHANNEL_SWITCH_TIME: u16 attribute indicating the
+ *	maximum time in microseconds that the device requires to switch
+ *	channels.
+ * @NL80211_NAN_CAPA_CAPABILITIES: u8 attribute containing the
+ *	capabilities of the device as defined in Wi-Fi Aware (TM)
+ *	specification Table 79 (Capabilities field).
+ * @__NL80211_NAN_CAPABILITIES_LAST: Internal
+ * @NL80211_NAN_CAPABILITIES_MAX: Highest NAN capability attribute.
+ */
+enum nl80211_nan_capabilities {
+	__NL80211_NAN_CAPABILITIES_INVALID,
+
+	NL80211_NAN_CAPA_CONFIGURABLE_SYNC,
+	NL80211_NAN_CAPA_USERSPACE_DE,
+	NL80211_NAN_CAPA_OP_MODE,
+	NL80211_NAN_CAPA_NUM_ANTENNAS,
+	NL80211_NAN_CAPA_MAX_CHANNEL_SWITCH_TIME,
+	NL80211_NAN_CAPA_CAPABILITIES,
+	/* keep last */
+	__NL80211_NAN_CAPABILITIES_LAST,
+	NL80211_NAN_CAPABILITIES_MAX = __NL80211_NAN_CAPABILITIES_LAST - 1,
 };
 
 #endif /* __LINUX_NL80211_H */
