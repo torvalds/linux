@@ -68,10 +68,7 @@ static void psmi_cleanup(struct xe_device *xe)
 static struct xe_bo *psmi_alloc_object(struct xe_device *xe,
 				       unsigned int id, size_t bo_size)
 {
-	struct drm_exec *exec = XE_VALIDATION_UNIMPLEMENTED;
-	struct xe_bo *bo = NULL;
 	struct xe_tile *tile;
-	int err;
 
 	if (!id || !bo_size)
 		return NULL;
@@ -79,23 +76,12 @@ static struct xe_bo *psmi_alloc_object(struct xe_device *xe,
 	tile = &xe->tiles[id - 1];
 
 	/* VRAM: Allocate GEM object for the capture buffer */
-	bo = xe_bo_create_locked(xe, tile, NULL, bo_size,
-				 ttm_bo_type_kernel,
-				 XE_BO_FLAG_VRAM_IF_DGFX(tile) |
-				 XE_BO_FLAG_PINNED |
-				 XE_BO_FLAG_PINNED_LATE_RESTORE |
-				 XE_BO_FLAG_NEEDS_CPU_ACCESS,
-				 exec);
-
-	if (!IS_ERR(bo)) {
-		/* Buffer written by HW, ensure stays resident */
-		err = xe_bo_pin(bo, exec);
-		if (err)
-			bo = ERR_PTR(err);
-		xe_bo_unlock(bo);
-	}
-
-	return bo;
+	return xe_bo_create_pin_range_novm(xe, tile, bo_size, 0, ~0ull,
+					   ttm_bo_type_kernel,
+					   XE_BO_FLAG_VRAM_IF_DGFX(tile) |
+					   XE_BO_FLAG_PINNED |
+					   XE_BO_FLAG_PINNED_LATE_RESTORE |
+					   XE_BO_FLAG_NEEDS_CPU_ACCESS);
 }
 
 /*
