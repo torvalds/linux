@@ -181,11 +181,6 @@ setup_traceroute6()
 
 run_traceroute6()
 {
-	if [ ! -x "$(command -v traceroute6)" ]; then
-		echo "SKIP: Could not run IPV6 test without traceroute6"
-		return
-	fi
-
 	setup_traceroute6
 
 	RET=0
@@ -249,11 +244,6 @@ setup_traceroute()
 
 run_traceroute()
 {
-	if [ ! -x "$(command -v traceroute)" ]; then
-		echo "SKIP: Could not run IPV4 test without traceroute"
-		return
-	fi
-
 	setup_traceroute
 
 	RET=0
@@ -286,6 +276,9 @@ do
 		*) exit 1;;
 	esac
 done
+
+require_command traceroute6
+require_command traceroute
 
 run_tests
 
