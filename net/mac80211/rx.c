@@ -4502,8 +4502,16 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 		       (ieee80211_is_auth(hdr->frame_control) &&
 			ether_addr_equal(sdata->vif.addr, hdr->addr1));
 	case NL80211_IFTYPE_NAN:
-		/* Currently no frames on NAN interface are allowed */
-		return false;
+		/* Accept only frames that are addressed to the NAN cluster
+		 * (based on the Cluster ID). From these frames, accept only
+		 * action frames or authentication frames that are addressed to
+		 * the local NAN interface.
+		 */
+		return memcmp(sdata->wdev.u.nan.cluster_id,
+			      hdr->addr3, ETH_ALEN) == 0 &&
+			(ieee80211_is_public_action(hdr, skb->len) ||
+			 (ieee80211_is_auth(hdr->frame_control) &&
+			  ether_addr_equal(sdata->vif.addr, hdr->addr1)));
 	default:
 		break;
 	}
