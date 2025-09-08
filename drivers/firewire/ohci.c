@@ -3482,7 +3482,6 @@ static int pci_probe(struct pci_dev *dev,
 	u32 bus_options, max_receive, link_speed, version;
 	u64 guid;
 	int i, flags, irq, err;
-	size_t size;
 
 	if (dev->vendor == PCI_VENDOR_ID_PINNACLE_SYSTEMS) {
 		dev_err(&dev->dev, "Pinnacle MovieBoard is not yet supported\n");
@@ -3576,8 +3575,7 @@ static int pci_probe(struct pci_dev *dev,
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, ~0);
 	ohci->ir_context_mask = ohci->ir_context_support;
 	ohci->n_ir = hweight32(ohci->ir_context_mask);
-	size = sizeof(struct iso_context) * ohci->n_ir;
-	ohci->ir_context_list = devm_kzalloc(&dev->dev, size, GFP_KERNEL);
+	ohci->ir_context_list = devm_kcalloc(&dev->dev, ohci->n_ir, sizeof(struct iso_context), GFP_KERNEL);
 	if (!ohci->ir_context_list)
 		return -ENOMEM;
 
@@ -3591,8 +3589,7 @@ static int pci_probe(struct pci_dev *dev,
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, ~0);
 	ohci->it_context_mask = ohci->it_context_support;
 	ohci->n_it = hweight32(ohci->it_context_mask);
-	size = sizeof(struct iso_context) * ohci->n_it;
-	ohci->it_context_list = devm_kzalloc(&dev->dev, size, GFP_KERNEL);
+	ohci->it_context_list = devm_kcalloc(&dev->dev, ohci->n_it, sizeof(struct iso_context), GFP_KERNEL);
 	if (!ohci->it_context_list)
 		return -ENOMEM;
 
