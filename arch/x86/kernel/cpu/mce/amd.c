@@ -955,6 +955,11 @@ static void amd_threshold_interrupt(void)
 	}
 }
 
+void amd_clear_bank(struct mce *m)
+{
+	mce_wrmsrq(mca_msr_reg(m->bank, MCA_STATUS), 0);
+}
+
 /*
  * Sysfs Interface
  */
