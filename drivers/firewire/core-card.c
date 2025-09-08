@@ -294,7 +294,6 @@ static void bm_work(struct work_struct *work)
 	int root_id, new_root_id, irm_id, local_id;
 	int expected_gap_count, generation, grace;
 	bool do_reset = false;
-	bool root_device_is_running;
 	bool root_device_is_cmc;
 
 	lockdep_assert_held(&card->lock);
@@ -310,8 +309,6 @@ static void bm_work(struct work_struct *work)
 
 	root_node = fw_node_get(card->root_node);
 	root_device = fw_node_get_device(root_node);
-	root_device_is_running = root_device &&
-			atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
 	root_device_is_cmc = root_device && root_device->cmc;
 
 	root_id  = root_node->node_id;
@@ -450,34 +447,35 @@ static void bm_work(struct work_struct *work)
 		 * is inconsistent, so bypass the 5-reset limit.
 		 */
 		card->bm_retries = 0;
-	} else if (root_device == NULL) {
-		/*
-		 * Either link_on is false, or we failed to read the
-		 * config rom.  In either case, pick another root.
-		 */
-		new_root_id = local_id;
-	} else if (!root_device_is_running) {
-		/*
-		 * If we haven't probed this device yet, bail out now
-		 * and let's try again once that's done.
-		 */
-		spin_unlock_irq(&card->lock);
-		return;
-	} else if (root_device_is_cmc) {
-		/*
-		 * We will send out a force root packet for this
-		 * node as part of the gap count optimization.
-		 */
-		new_root_id = root_id;
 	} else {
-		/*
-		 * Current root has an active link layer and we
-		 * successfully read the config rom, but it's not
-		 * cycle master capable.
-		 */
-		new_root_id = local_id;
-	}
+		// Now investigate root node.
+		struct fw_device *root_device = fw_node_get_device(root_node);
 
+		if (root_device == NULL) {
+			// Either link_on is false, or we failed to read the
+			// config rom.  In either case, pick another root.
+			new_root_id = local_id;
+		} else {
+			bool root_device_is_running =
+				atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
+
+			if (!root_device_is_running) {
+				// If we haven't probed this device yet, bail out now
+				// and let's try again once that's done.
+				spin_unlock_irq(&card->lock);
+				return;
+			} else if (root_device->cmc) {
+				// We will send out a force root packet for this
+				// node as part of the gap count optimization.
+				new_root_id = root_id;
+			} else {
+				// Current root has an active link layer and we
+				// successfully read the config rom, but it's not
+				// cycle master capable.
+				new_root_id = local_id;
+			}
+		}
+	}
  pick_me:
 	/*
 	 * Pick a gap count from 1394a table E-1.  The table doesn't cover
