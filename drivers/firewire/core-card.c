@@ -292,13 +292,12 @@ static void bm_work(struct work_struct *work)
 	struct fw_device *root_device, *irm_device;
 	struct fw_node *root_node __free(node_unref) = NULL;
 	int root_id, new_root_id, irm_id, bm_id, local_id;
-	int gap_count, generation, grace, rcode;
+	int gap_count, generation, grace;
 	bool do_reset = false;
 	bool root_device_is_running;
 	bool root_device_is_cmc;
 	bool irm_is_1394_1995_only;
 	bool keep_this_irm;
-	__be32 transaction_data[2];
 
 	lockdep_assert_held(&card->lock);
 
@@ -346,6 +345,11 @@ static void bm_work(struct work_struct *work)
 		 * gap count.  That could well save a reset in the
 		 * next generation.
 		 */
+		__be32 data[2] = {
+			cpu_to_be32(0x3f),
+			cpu_to_be32(local_id),
+		};
+		int rcode;
 
 		if (!card->irm_node->link_on) {
 			new_root_id = local_id;
@@ -361,21 +365,18 @@ static void bm_work(struct work_struct *work)
 			goto pick_me;
 		}
 
-		transaction_data[0] = cpu_to_be32(0x3f);
-		transaction_data[1] = cpu_to_be32(local_id);
-
 		spin_unlock_irq(&card->lock);
 
 		rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
 				irm_id, generation, SCODE_100,
 				CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
-				transaction_data, 8);
+				data, sizeof(data));
 
 		// Another bus reset, BM work has been rescheduled.
 		if (rcode == RCODE_GENERATION)
 			return;
 
-		bm_id = be32_to_cpu(transaction_data[0]);
+		bm_id = be32_to_cpu(data[0]);
 
 		scoped_guard(spinlock_irq, &card->lock) {
 			if (rcode == RCODE_COMPLETE && generation == card->generation)
@@ -523,11 +524,11 @@ static void bm_work(struct work_struct *work)
 		/*
 		 * Make sure that the cycle master sends cycle start packets.
 		 */
-		transaction_data[0] = cpu_to_be32(CSR_STATE_BIT_CMSTR);
-		rcode = fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
+		__be32 data = cpu_to_be32(CSR_STATE_BIT_CMSTR);
+		int rcode = fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
 				root_id, generation, SCODE_100,
 				CSR_REGISTER_BASE + CSR_STATE_SET,
-				transaction_data, 4);
+				&data, sizeof(data));
 		if (rcode == RCODE_GENERATION)
 			return;
 	}
