@@ -65,6 +65,7 @@ struct guc_ctxt_registration_info {
 	u32 hwlrca_hi;
 };
 #define CONTEXT_REGISTRATION_FLAG_KMD	BIT(0)
+#define CONTEXT_REGISTRATION_FLAG_TYPE	GENMASK(2, 1)
 
 /* 32-bit KLV structure as used by policy updates and others */
 struct guc_klv_generic_dw_t {
