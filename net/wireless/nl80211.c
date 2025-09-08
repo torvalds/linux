@@ -21865,6 +21865,8 @@ void cfg80211_nan_cluster_joined(struct wireless_dev *wdev,
 
 	trace_cfg80211_nan_cluster_joined(wdev, cluster_id, new_cluster);
 
+	memcpy(wdev->u.nan.cluster_id, cluster_id, ETH_ALEN);
+
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
 		return;
