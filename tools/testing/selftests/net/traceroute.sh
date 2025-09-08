@@ -196,9 +196,10 @@ run_traceroute6()
 ################################################################################
 # traceroute test
 #
-# Verify that traceroute from H1 to H2 shows 1.0.1.1 in this scenario
+# Verify that traceroute from H1 to H2 shows 1.0.3.1 and 1.0.1.1 when
+# traceroute uses 1.0.3.3 and 1.0.1.3 as the source IP, respectively.
 #
-#                    1.0.3.1/24
+#      1.0.3.3/24    1.0.3.1/24
 # ---- 1.0.1.3/24    1.0.1.1/24 ---- 1.0.2.1/24    1.0.2.4/24 ----
 # |H1|--------------------------|R1|--------------------------|H2|
 # ----            N1            ----            N2            ----
@@ -226,6 +227,7 @@ setup_traceroute()
 
 	connect_ns $h1 eth0 1.0.1.3/24 - \
 	           $router eth1 1.0.3.1/24 -
+	ip -n "$h1" addr add 1.0.3.3/24 dev eth0
 	ip netns exec $h1 ip route add default via 1.0.1.1
 
 	ip netns exec $router ip addr add 1.0.1.1/24 dev eth1
@@ -248,9 +250,12 @@ run_traceroute()
 
 	RET=0
 
-	# traceroute host-2 from host-1 (expects 1.0.1.1). Takes a while.
-	run_cmd $h1 "traceroute 1.0.2.4 | grep -q 1.0.1.1"
+	# traceroute host-2 from host-1. Expect a source IP that is on the same
+	# subnet as destination IP of the ICMP error message.
+	run_cmd "$h1" "traceroute -s 1.0.1.3 1.0.2.4 | grep -q 1.0.1.1"
 	check_err $? "traceroute did not return 1.0.1.1"
+	run_cmd "$h1" "traceroute -s 1.0.3.3 1.0.2.4 | grep -q 1.0.3.1"
+	check_err $? "traceroute did not return 1.0.3.1"
 	log_test "IPv4 traceroute"
 
 	cleanup_traceroute
