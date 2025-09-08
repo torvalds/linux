@@ -169,6 +169,13 @@ struct cdx_mcdi_data {
 	u32 fn_flags;
 };
 
+void cdx_mcdi_finish(struct cdx_mcdi *cdx);
+int cdx_mcdi_init(struct cdx_mcdi *cdx);
+void cdx_mcdi_process_cmd(struct cdx_mcdi *cdx, struct cdx_dword *outbuf, int len);
+int cdx_mcdi_rpc(struct cdx_mcdi *cdx, unsigned int cmd,
+		 const struct cdx_dword *inbuf, size_t inlen,
+		 struct cdx_dword *outbuf, size_t outlen, size_t *outlen_actual);
+
 /*
  * We expect that 16- and 32-bit fields in MCDI requests and responses
  * are appropriately aligned, but 64-bit fields are only
