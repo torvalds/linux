@@ -167,8 +167,7 @@ static struct bio *blk_crypto_fallback_clone_bio(struct bio *bio_src)
 	bio = bio_kmalloc(nr_segs, GFP_NOIO);
 	if (!bio)
 		return NULL;
-	bio_init(bio, bio_src->bi_bdev, bio->bi_inline_vecs, nr_segs,
-		 bio_src->bi_opf);
+	bio_init_inline(bio, bio_src->bi_bdev, nr_segs, bio_src->bi_opf);
 	if (bio_flagged(bio_src, BIO_REMAPPED))
 		bio_set_flag(bio, BIO_REMAPPED);
 	bio->bi_ioprio		= bio_src->bi_ioprio;

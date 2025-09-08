@@ -1634,7 +1634,7 @@ int bch2_dev_journal_init(struct bch_dev *ca, struct bch_sb *sb)
 
 		ja->bio[i]->ca = ca;
 		ja->bio[i]->buf_idx = i;
-		bio_init(&ja->bio[i]->bio, NULL, ja->bio[i]->bio.bi_inline_vecs, nr_bvecs, 0);
+		bio_init_inline(&ja->bio[i]->bio, NULL, nr_bvecs, 0);
 	}
 
 	ja->buckets = kcalloc(ja->nr, sizeof(u64), GFP_KERNEL);

@@ -2236,7 +2236,7 @@ static int cache_alloc(struct cache *ca)
 	__module_get(THIS_MODULE);
 	kobject_init(&ca->kobj, &bch_cache_ktype);
 
-	bio_init(&ca->journal.bio, NULL, ca->journal.bio.bi_inline_vecs, 8, 0);
+	bio_init_inline(&ca->journal.bio, NULL, 8, 0);
 
 	/*
 	 * When the cache disk is first registered, ca->sb.njournal_buckets

@@ -157,7 +157,7 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 	bio = bio_kmalloc(nr_pages, gfp_mask);
 	if (!bio)
 		goto out_bmd;
-	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, req_op(rq));
+	bio_init_inline(bio, NULL, nr_pages, req_op(rq));
 
 	if (map_data) {
 		nr_pages = 1U << map_data->page_order;
@@ -264,7 +264,7 @@ static struct bio *blk_rq_map_bio_alloc(struct request *rq,
 		bio = bio_kmalloc(nr_vecs, gfp_mask);
 		if (!bio)
 			return NULL;
-		bio_init(bio, NULL, bio->bi_inline_vecs, nr_vecs, req_op(rq));
+		bio_init_inline(bio, NULL, nr_vecs, req_op(rq));
 	}
 	return bio;
 }
@@ -326,7 +326,7 @@ static struct bio *bio_map_kern(void *data, unsigned int len, enum req_op op,
 	bio = bio_kmalloc(nr_vecs, gfp_mask);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
-	bio_init(bio, NULL, bio->bi_inline_vecs, nr_vecs, op);
+	bio_init_inline(bio, NULL, nr_vecs, op);
 	if (is_vmalloc_addr(data)) {
 		bio->bi_private = data;
 		if (!bio_add_vmalloc(bio, data, len)) {
@@ -392,7 +392,7 @@ static struct bio *bio_copy_kern(void *data, unsigned int len, enum req_op op,
 	bio = bio_kmalloc(nr_pages, gfp_mask);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
-	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, op);
+	bio_init_inline(bio, NULL, nr_pages, op);
 
 	while (len) {
 		struct page *page;

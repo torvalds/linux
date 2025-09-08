@@ -2084,7 +2084,7 @@ int bch2_btree_node_scrub(struct btree_trans *trans,
 
 	INIT_WORK(&scrub->work, btree_node_scrub_work);
 
-	bio_init(&scrub->bio, ca->disk_sb.bdev, scrub->bio.bi_inline_vecs, vecs, REQ_OP_READ);
+	bio_init_inline(&scrub->bio, ca->disk_sb.bdev, vecs, REQ_OP_READ);
 	bch2_bio_map(&scrub->bio, scrub->buf, c->opts.btree_node_size);
 	scrub->bio.bi_iter.bi_sector	= pick.ptr.offset;
 	scrub->bio.bi_end_io		= btree_node_scrub_endio;

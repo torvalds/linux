@@ -462,7 +462,10 @@ static struct bio *bio_alloc_percpu_cache(struct block_device *bdev,
 	cache->nr--;
 	put_cpu();
 
-	bio_init(bio, bdev, nr_vecs ? bio->bi_inline_vecs : NULL, nr_vecs, opf);
+	if (nr_vecs)
+		bio_init_inline(bio, bdev, nr_vecs, opf);
+	else
+		bio_init(bio, bdev, NULL, nr_vecs, opf);
 	bio->bi_pool = bs;
 	return bio;
 }
@@ -578,7 +581,7 @@ struct bio *bio_alloc_bioset(struct block_device *bdev, unsigned short nr_vecs,
 
 		bio_init(bio, bdev, bvl, nr_vecs, opf);
 	} else if (nr_vecs) {
-		bio_init(bio, bdev, bio->bi_inline_vecs, BIO_INLINE_VECS, opf);
+		bio_init_inline(bio, bdev, BIO_INLINE_VECS, opf);
 	} else {
 		bio_init(bio, bdev, NULL, 0, opf);
 	}

@@ -232,7 +232,7 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 		if (!bio)
 			return -BCH_ERR_ENOMEM_sb_bio_realloc;
 
-		bio_init(bio, NULL, bio->bi_inline_vecs, nr_bvecs, 0);
+		bio_init_inline(bio, NULL, nr_bvecs, 0);
 
 		kfree(sb->bio);
 		sb->bio = bio;
