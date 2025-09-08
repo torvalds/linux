@@ -617,7 +617,8 @@ struct bio *bio_kmalloc(unsigned short nr_vecs, gfp_t gfp_mask)
 
 	if (nr_vecs > BIO_MAX_INLINE_VECS)
 		return NULL;
-	return kmalloc(struct_size(bio, bi_inline_vecs, nr_vecs), gfp_mask);
+	return kmalloc(sizeof(*bio) + nr_vecs * sizeof(struct bio_vec),
+			gfp_mask);
 }
 EXPORT_SYMBOL(bio_kmalloc);
 

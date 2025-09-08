@@ -408,7 +408,7 @@ void bio_init(struct bio *bio, struct block_device *bdev, struct bio_vec *table,
 static inline void bio_init_inline(struct bio *bio, struct block_device *bdev,
 	      unsigned short max_vecs, blk_opf_t opf)
 {
-	bio_init(bio, bdev, bio->bi_inline_vecs, max_vecs, opf);
+	bio_init(bio, bdev, bio_inline_vecs(bio), max_vecs, opf);
 }
 extern void bio_uninit(struct bio *);
 void bio_reset(struct bio *bio, struct block_device *bdev, blk_opf_t opf);

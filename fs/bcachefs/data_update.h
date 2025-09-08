@@ -62,7 +62,6 @@ struct promote_op {
 
 	struct work_struct	work;
 	struct data_update	write;
-	struct bio_vec		bi_inline_vecs[]; /* must be last */
 };
 
 void bch2_data_update_to_text(struct printbuf *, struct data_update *);

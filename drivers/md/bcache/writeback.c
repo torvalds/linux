@@ -536,9 +536,9 @@ static void read_dirty(struct cached_dev *dc)
 		for (i = 0; i < nk; i++) {
 			w = keys[i];
 
-			io = kzalloc(struct_size(io, bio.bi_inline_vecs,
-						DIV_ROUND_UP(KEY_SIZE(&w->key), PAGE_SECTORS)),
-				     GFP_KERNEL);
+			io = kzalloc(sizeof(*io) + sizeof(struct bio_vec) *
+				DIV_ROUND_UP(KEY_SIZE(&w->key), PAGE_SECTORS),
+				GFP_KERNEL);
 			if (!io)
 				goto err;
 
