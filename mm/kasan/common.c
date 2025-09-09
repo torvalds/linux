@@ -252,7 +252,7 @@ bool __kasan_slab_pre_free(struct kmem_cache *cache, void *object,
 }
 
 bool __kasan_slab_free(struct kmem_cache *cache, void *object, bool init,
-		       bool still_accessible)
+		       bool still_accessible, bool no_quarantine)
 {
 	if (!kasan_arch_is_ready() || is_kfence_address(object))
 		return false;
@@ -273,6 +273,9 @@ bool __kasan_slab_free(struct kmem_cache *cache, void *object, bool init,
 		return false;
 
 	poison_slab_object(cache, object, init);
+
+	if (no_quarantine)
+		return false;
 
 	/*
 	 * If the object is put into quarantine, do not let slab put the object
