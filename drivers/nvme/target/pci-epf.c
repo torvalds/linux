@@ -2325,6 +2325,8 @@ static int nvmet_pci_epf_epc_init(struct pci_epf *epf)
 		return ret;
 	}
 
+	nvmet_pci_epf_init_dma(nvme_epf);
+
 	/* Set device ID, class, etc. */
 	epf->header->vendorid = ctrl->tctrl->subsys->vendor_id;
 	epf->header->subsys_vendor_id = ctrl->tctrl->subsys->subsys_vendor_id;
@@ -2421,8 +2423,6 @@ static int nvmet_pci_epf_bind(struct pci_epf *epf)
 	ret = nvmet_pci_epf_configure_bar(nvme_epf);
 	if (ret)
 		return ret;
-
-	nvmet_pci_epf_init_dma(nvme_epf);
 
 	return 0;
 }
