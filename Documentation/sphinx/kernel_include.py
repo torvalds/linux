@@ -89,7 +89,6 @@ import sys
 
 from docutils import io, nodes, statemachine
 from docutils.statemachine import ViewList
-from docutils.utils.error_reporting import SafeString, ErrorString
 from docutils.parsers.rst import Directive, directives
 from docutils.parsers.rst.directives.body import CodeBlock, NumberLines
 
@@ -105,6 +104,9 @@ logger = logging.getLogger(__name__)
 
 RE_DOMAIN_REF = re.compile(r'\\ :(ref|c:type|c:func):`([^<`]+)(?:<([^>]+)>)?`\\')
 RE_SIMPLE_REF = re.compile(r'`([^`]+)`')
+
+def ErrorString(exc):  # Shamelessly stolen from docutils
+    return f'{exc.__class__.__name}: {exc}'
 
 
 # ==============================================================================
@@ -156,7 +158,7 @@ class KernelInclude(Directive):
             except UnicodeEncodeError:
                 raise self.severe('Problems with directive path:\n'
                                 'Cannot encode input file path "%s" '
-                                '(wrong locale?).' % SafeString(path))
+                                '(wrong locale?).' % path)
             except IOError as error:
                 raise self.severe('Problems with directive path:\n%s.' % ErrorString(error))
 
