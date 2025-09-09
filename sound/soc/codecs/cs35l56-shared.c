@@ -1054,7 +1054,17 @@ int cs35l56_get_speaker_id(struct cs35l56_base *cs35l56_base)
 	u32 speaker_id;
 	int i, ret;
 
-	/* Attempt to read the speaker type from a device property first */
+	/* Check for vendor-specific speaker ID method */
+	ret = cs_amp_get_vendor_spkid(cs35l56_base->dev);
+	if (ret >= 0) {
+		dev_dbg(cs35l56_base->dev, "Vendor Speaker ID = %d\n", ret);
+		return ret;
+	} else if (ret != -ENOENT) {
+		dev_err(cs35l56_base->dev, "Error getting vendor Speaker ID: %d\n", ret);
+		return ret;
+	}
+
+	/* Attempt to read the speaker type from a device property */
 	ret = device_property_read_u32(cs35l56_base->dev, "cirrus,speaker-id", &speaker_id);
 	if (!ret) {
 		dev_dbg(cs35l56_base->dev, "Speaker ID = %d\n", speaker_id);
