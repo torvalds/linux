@@ -217,10 +217,10 @@ void iwl_pcie_apm_config(struct iwl_trans *trans)
 	trans_pcie->pm_support = !(lctl & PCI_EXP_LNKCTL_ASPM_L0S);
 
 	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_DEVCTL2, &cap);
-	trans->ltr_enabled = cap & PCI_EXP_DEVCTL2_LTR_EN;
+	trans_pcie->ltr_enabled = cap & PCI_EXP_DEVCTL2_LTR_EN;
 	IWL_DEBUG_POWER(trans, "L1 %sabled - LTR %sabled\n",
 			(lctl & PCI_EXP_LNKCTL_ASPM_L1) ? "En" : "Dis",
-			trans->ltr_enabled ? "En" : "Dis");
+			trans_pcie->ltr_enabled ? "En" : "Dis");
 }
 
 /*

@@ -844,7 +844,6 @@ struct iwl_trans_info {
  * @dev: pointer to struct device * that represents the device
  * @info: device information for use by other layers
  * @pnvm_loaded: indicates PNVM was loaded
- * @ltr_enabled: set to true if the LTR is enabled
  * @suppress_cmd_error_once: suppress "FW error in SYNC CMD" once,
  *	e.g. for testing
  * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
@@ -883,7 +882,6 @@ struct iwl_trans {
 	bool step_urm;
 	bool suppress_cmd_error_once;
 
-	bool ltr_enabled;
 	u8 pnvm_loaded:1;
 	u8 fail_to_parse_pnvm_image:1;
 	u8 reduce_power_loaded:1;
@@ -1261,5 +1259,7 @@ static inline u16 iwl_trans_get_device_id(struct iwl_trans *trans)
 }
 
 bool iwl_trans_is_pm_supported(struct iwl_trans *trans);
+
+bool iwl_trans_is_ltr_enabled(struct iwl_trans *trans);
 
 #endif /* __iwl_trans_h__ */

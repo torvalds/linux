@@ -404,6 +404,7 @@ struct iwl_pcie_txqs {
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
  * @dev_cmd_pool_name: name for the TX command allocation pool
  * @pm_support: set to true in start_hw if link pm is supported
+ * @ltr_enabled: set to true if the LTR is enabled
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
@@ -515,6 +516,7 @@ struct iwl_trans_pcie {
 	char dev_cmd_pool_name[50];
 
 	bool pm_support;
+	bool ltr_enabled;
 };
 
 static inline struct iwl_trans_pcie *
@@ -1161,4 +1163,10 @@ static inline bool iwl_pcie_gen1_is_pm_supported(struct iwl_trans *trans)
 	return trans_pcie->pm_support;
 }
 
+static inline bool iwl_pcie_gen1_2_is_ltr_enabled(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	return trans_pcie->ltr_enabled;
+}
 #endif /* __iwl_trans_int_pcie_h__ */
