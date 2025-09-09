@@ -138,6 +138,15 @@ zl3073x_devlink_reload_up(struct devlink *devlink,
 	return 0;
 }
 
+void zl3073x_devlink_flash_notify(struct zl3073x_dev *zldev, const char *msg,
+				  const char *component, u32 done, u32 total)
+{
+	struct devlink *devlink = priv_to_devlink(zldev);
+
+	devlink_flash_update_status_notify(devlink, msg, component, done,
+					   total);
+}
+
 static const struct devlink_ops zl3073x_devlink_ops = {
 	.info_get = zl3073x_devlink_info_get,
 	.reload_actions = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT),
