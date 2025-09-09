@@ -8,13 +8,10 @@
 #include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/jiffies.h>
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
-#include <linux/mutex.h>
 
 /* Register definitions from datasheet */
 #define REG_TSTHRCATA	0xE2
