@@ -92,6 +92,42 @@
 			ex_flags, insn, shift, (uint64_t)input, flags);			\
 })
 
+#define guest_execute_fastop_div(__KVM_ASM_SAFE, insn, __a, __d, __rm, __flags)		\
+({											\
+	uint64_t ign_error_code;							\
+	uint8_t vector;									\
+											\
+	__asm__ __volatile__(fastop(__KVM_ASM_SAFE(insn " %[denom]"))			\
+			     : "+a"(__a), "+d"(__d), flags_constraint(__flags),		\
+			       KVM_ASM_SAFE_OUTPUTS(vector, ign_error_code)		\
+			     : [denom]"rm"(__rm), bt_constraint(__rm)			\
+			     : "cc", "memory", KVM_ASM_SAFE_CLOBBERS);			\
+	vector;										\
+})
+
+#define guest_test_fastop_div(insn, type_t, __val1, __val2)				\
+({											\
+	type_t _a = __val1, _d = __val1, rm = __val2;					\
+	type_t a = _a, d = _d, ex_a = _a, ex_d = _d;					\
+	uint64_t flags, ex_flags;							\
+	uint8_t v, ex_v;								\
+											\
+	ex_v = guest_execute_fastop_div(KVM_ASM_SAFE, insn, ex_a, ex_d, rm, ex_flags);	\
+	v = guest_execute_fastop_div(KVM_ASM_SAFE_FEP, insn, a, d, rm, flags);		\
+											\
+	GUEST_ASSERT_EQ(v, ex_v);							\
+	__GUEST_ASSERT(v == ex_v,							\
+		       "Wanted vector 0x%x for '%s 0x%lx:0x%lx/0x%lx', got 0x%x",	\
+		       ex_v, insn, (uint64_t)_a, (uint64_t)_d, (uint64_t)rm, v);	\
+	__GUEST_ASSERT(a == ex_a && d == ex_d,						\
+		       "Wanted 0x%lx:0x%lx for '%s 0x%lx:0x%lx/0x%lx', got 0x%lx:0x%lx",\
+		       (uint64_t)ex_a, (uint64_t)ex_d, insn, (uint64_t)_a,		\
+		       (uint64_t)_d, (uint64_t)rm, (uint64_t)a, (uint64_t)d);		\
+	__GUEST_ASSERT(v || ex_v || (flags == ex_flags),				\
+			"Wanted flags 0x%lx for '%s  0x%lx:0x%lx/0x%lx', got 0x%lx",	\
+			ex_flags, insn, (uint64_t)_a, (uint64_t)_d, (uint64_t)rm, flags);\
+})
+
 static const uint64_t vals[] = {
 	0,
 	1,
@@ -141,6 +177,8 @@ if (sizeof(type_t) != 1) {							\
 			guest_test_fastop_cl("sar" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_cl("shl" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_cl("shr" suffix, type_t, vals[i], vals[j]);	\
+											\
+			guest_test_fastop_div("div" suffix, type_t, vals[i], vals[j]);	\
 		}									\
 	}										\
 } while (0)
