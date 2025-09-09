@@ -8,4 +8,4 @@ from .doc_generator import YnlDocGenerator
 
 __all__ = ["SpecAttr", "SpecAttrSet", "SpecEnumEntry", "SpecEnumSet",
            "SpecFamily", "SpecOperation", "SpecSubMessage", "SpecSubMessageFormat",
-           "YnlFamily", "Netlink", "NlError"]
+           "YnlFamily", "Netlink", "NlError", "YnlDocGenerator"]

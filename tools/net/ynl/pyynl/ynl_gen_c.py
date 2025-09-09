@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 
 import argparse
-import collections
 import filecmp
 import pathlib
 import os
@@ -14,7 +13,7 @@ import yaml
 
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
 from lib import SpecFamily, SpecAttrSet, SpecAttr, SpecOperation, SpecEnumSet, SpecEnumEntry
-from lib import SpecSubMessage, SpecSubMessageFormat
+from lib import SpecSubMessage
 
 
 def c_upper(name):

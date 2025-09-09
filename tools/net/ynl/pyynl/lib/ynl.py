@@ -9,7 +9,6 @@ import socket
 import struct
 from struct import Struct
 import sys
-import yaml
 import ipaddress
 import uuid
 import queue

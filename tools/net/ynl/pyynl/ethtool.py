@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 import argparse
-import json
 import pathlib
 import pprint
 import sys
