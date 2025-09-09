@@ -397,7 +397,7 @@ class TypeScalar(Type):
         if 'enum' in self.attr:
             enum = self.family.consts[self.attr['enum']]
             low, high = enum.value_range()
-            if low == None and high == None:
+            if low is None and high is None:
                 self.checks['sparse'] = True
             else:
                 if 'min' not in self.checks:
