@@ -1209,6 +1209,20 @@ static inline bool iwl_trans_is_dead(struct iwl_trans *trans)
 	return test_bit(STATUS_TRANS_DEAD, &trans->status);
 }
 
+static inline bool iwl_trans_is_fw_error(struct iwl_trans *trans)
+{
+	return test_bit(STATUS_FW_ERROR, &trans->status);
+}
+
+/*
+ * This function notifies the transport layer of firmware error, the recovery
+ * will be handled by the op mode
+ */
+static inline void iwl_trans_notify_fw_error(struct iwl_trans *trans)
+{
+	trans->state = IWL_TRANS_NO_FW;
+	set_bit(STATUS_FW_ERROR, &trans->status);
+}
 /*****************************************************
  * PCIe handling
  *****************************************************/

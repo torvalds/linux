@@ -3102,7 +3102,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm)
 
 	rt_status = iwl_mvm_check_rt_status(mvm, vif);
 	if (rt_status != FW_ALIVE) {
-		set_bit(STATUS_FW_ERROR, &mvm->trans->status);
+		iwl_trans_notify_fw_error(mvm->trans);
 		if (rt_status == FW_ERROR) {
 			IWL_ERR(mvm, "FW Error occurred during suspend. Restarting.\n");
 			iwl_mvm_dump_nic_error_log(mvm);
@@ -3272,7 +3272,7 @@ int iwl_mvm_fast_resume(struct iwl_mvm *mvm)
 
 	rt_status = iwl_mvm_check_rt_status(mvm, NULL);
 	if (rt_status != FW_ALIVE) {
-		set_bit(STATUS_FW_ERROR, &mvm->trans->status);
+		iwl_trans_notify_fw_error(mvm->trans);
 		if (rt_status == FW_ERROR) {
 			IWL_ERR(mvm,
 				"iwl_mvm_check_rt_status failed, device is gone during suspend\n");
@@ -3284,7 +3284,6 @@ int iwl_mvm_fast_resume(struct iwl_mvm *mvm)
 						&iwl_dump_desc_assert,
 						false, 0);
 		}
-		mvm->trans->state = IWL_TRANS_NO_FW;
 		ret = -ENODEV;
 
 		goto out;

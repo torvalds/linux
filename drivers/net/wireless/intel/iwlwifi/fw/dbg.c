@@ -830,7 +830,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 	}
 
 	/* reading RXF/TXF sizes */
-	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status)) {
+	if (iwl_trans_is_fw_error(fwrt->trans)) {
 		fifo_len = iwl_fw_rxf_len(fwrt, mem_cfg);
 		fifo_len += iwl_fw_txf_len(fwrt, mem_cfg);
 
@@ -3116,7 +3116,7 @@ static void iwl_send_dbg_dump_complete_cmd(struct iwl_fw_runtime *fwrt,
 		.len[0] = sizeof(hcmd_data),
 	};
 
-	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status))
+	if (iwl_trans_is_fw_error(fwrt->trans))
 		return;
 
 	if (fw_has_capa(&fwrt->fw->ucode_capa,

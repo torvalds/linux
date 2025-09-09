@@ -1213,8 +1213,7 @@ static int iwl_mld_wait_d3_notif(struct iwl_mld *mld,
 	ret = iwl_trans_d3_resume(mld->trans, false);
 	if (ret) {
 		/* Avoid sending commands if the FW is dead */
-		mld->trans->state = IWL_TRANS_NO_FW;
-		set_bit(STATUS_FW_ERROR, &mld->trans->status);
+		iwl_trans_notify_fw_error(mld->trans);
 		iwl_remove_notification(&mld->notif_wait, &wait_d3_notif);
 		return ret;
 	}
@@ -1267,8 +1266,7 @@ int iwl_mld_no_wowlan_suspend(struct iwl_mld *mld)
 	if (ret) {
 		IWL_ERR(mld, "d3 suspend: trans_d3_suspend failed %d\n", ret);
 		/* We are going to stop the FW. Avoid sending commands in that flow */
-		mld->trans->state = IWL_TRANS_NO_FW;
-		set_bit(STATUS_FW_ERROR, &mld->trans->status);
+		iwl_trans_notify_fw_error(mld->trans);
 	} else {
 		/* Async notification might send hcmds, which is not allowed in suspend */
 		iwl_mld_cancel_async_notifications(mld);
