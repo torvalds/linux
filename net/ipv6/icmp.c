@@ -230,8 +230,7 @@ static bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
 	}
 	rcu_read_unlock();
 	if (!res)
-		__ICMP6_INC_STATS(net, ip6_dst_idev(dst),
-				  ICMP6_MIB_RATELIMITHOST);
+		__ICMP6_INC_STATS(net, NULL, ICMP6_MIB_RATELIMITHOST);
 	else
 		icmp_global_consume(net);
 	dst_release(dst);

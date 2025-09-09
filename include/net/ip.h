@@ -326,11 +326,12 @@ static inline u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_o
 }
 #endif
 
-#define snmp_get_cpu_field64_batch(buff64, stats_list, mib_statistic, offset) \
+#define snmp_get_cpu_field64_batch_cnt(buff64, stats_list, cnt,	\
+				       mib_statistic, offset)	\
 { \
 	int i, c; \
 	for_each_possible_cpu(c) { \
-		for (i = 0; stats_list[i].name; i++) \
+		for (i = 0; i < cnt; i++) \
 			buff64[i] += snmp_get_cpu_field64( \
 					mib_statistic, \
 					c, stats_list[i].entry, \
@@ -338,11 +339,11 @@ static inline u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_o
 	} \
 }
 
-#define snmp_get_cpu_field_batch(buff, stats_list, mib_statistic) \
+#define snmp_get_cpu_field_batch_cnt(buff, stats_list, cnt, mib_statistic) \
 { \
 	int i, c; \
 	for_each_possible_cpu(c) { \
-		for (i = 0; stats_list[i].name; i++) \
+		for (i = 0; i < cnt; i++) \
 			buff[i] += snmp_get_cpu_field( \
 						mib_statistic, \
 						c, stats_list[i].entry); \
