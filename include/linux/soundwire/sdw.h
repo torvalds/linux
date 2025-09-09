@@ -1089,6 +1089,8 @@ int sdw_stream_remove_slave(struct sdw_slave *slave,
 
 struct device *of_sdw_find_device_by_node(struct device_node *np);
 
+int sdw_slave_get_current_bank(struct sdw_slave *sdev);
+
 int sdw_slave_get_scale_index(struct sdw_slave *slave, u8 *base);
 
 /* messaging and data APIs */
@@ -1126,6 +1128,12 @@ static inline struct device *of_sdw_find_device_by_node(struct device_node *np)
 {
 	WARN_ONCE(1, "SoundWire API is disabled");
 	return NULL;
+}
+
+static inline int sdw_slave_get_current_bank(struct sdw_slave *sdev)
+{
+	WARN_ONCE(1, "SoundWire API is disabled");
+	return -EINVAL;
 }
 
 /* messaging and data APIs */
