@@ -403,6 +403,7 @@ struct iwl_pcie_txqs {
  * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
  * @dev_cmd_pool_name: name for the TX command allocation pool
+ * @pm_support: set to true in start_hw if link pm is supported
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
@@ -512,6 +513,8 @@ struct iwl_trans_pcie {
 
 	struct kmem_cache *dev_cmd_pool;
 	char dev_cmd_pool_name[50];
+
+	bool pm_support;
 };
 
 static inline struct iwl_trans_pcie *
@@ -1150,5 +1153,12 @@ int iwl_trans_pcie_copy_imr(struct iwl_trans *trans,
 			    u32 dst_addr, u64 src_addr, u32 byte_cnt);
 int iwl_trans_pcie_rxq_dma_data(struct iwl_trans *trans, int queue,
 				struct iwl_trans_rxq_dma_data *data);
+
+static inline bool iwl_pcie_gen1_is_pm_supported(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	return trans_pcie->pm_support;
+}
 
 #endif /* __iwl_trans_int_pcie_h__ */

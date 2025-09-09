@@ -807,3 +807,12 @@ void iwl_trans_set_reduce_power(struct iwl_trans *trans,
 {
 	iwl_trans_pcie_ctx_info_v2_set_reduce_power(trans, capa);
 }
+
+bool iwl_trans_is_pm_supported(struct iwl_trans *trans)
+{
+	if (WARN_ON(trans->mac_cfg->gen2))
+		return false;
+
+	return iwl_pcie_gen1_is_pm_supported(trans);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_is_pm_supported);
