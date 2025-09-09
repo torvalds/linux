@@ -425,4 +425,5 @@ void fbcon_rotate_ud(struct fbcon_par *par)
 	par->clear_margins = ud_clear_margins;
 	par->cursor = ud_cursor;
 	par->update_start = ud_update_start;
+	par->rotate_font = fbcon_rotate_font;
 }

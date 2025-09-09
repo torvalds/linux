@@ -18,7 +18,7 @@
 #include "fbcon.h"
 #include "fbcon_rotate.h"
 
-static int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc)
+int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc)
 {
 	struct fbcon_par *par = info->fbcon_par;
 	int len, err = 0;
@@ -95,8 +95,6 @@ finished:
 
 void fbcon_set_rotate(struct fbcon_par *par)
 {
-	par->rotate_font = fbcon_rotate_font;
-
 	switch (par->rotate) {
 	case FB_ROTATE_CW:
 		fbcon_rotate_cw(par);

@@ -90,7 +90,10 @@ static inline void rotate_ccw(const char *in, char *out, u32 width, u32 height)
 	}
 }
 
+int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc);
+
 extern void fbcon_rotate_cw(struct fbcon_par *par);
 extern void fbcon_rotate_ud(struct fbcon_par *par);
 extern void fbcon_rotate_ccw(struct fbcon_par *par);
+
 #endif
