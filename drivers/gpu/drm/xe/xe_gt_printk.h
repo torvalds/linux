@@ -41,10 +41,10 @@
 	drm_WARN_ONCE(&gt_to_xe(_gt)->drm, _condition, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
 
 #define xe_gt_WARN_ON(_gt, _condition) \
-	xe_gt_WARN((_gt), _condition, "%s(%s)", "gt_WARN_ON", __stringify(_condition))
+	xe_gt_WARN((_gt), _condition, "%s(%s)", "WARN_ON", __stringify(_condition))
 
 #define xe_gt_WARN_ON_ONCE(_gt, _condition) \
-	xe_gt_WARN_ONCE((_gt), _condition, "%s(%s)", "gt_WARN_ON_ONCE", __stringify(_condition))
+	xe_gt_WARN_ONCE((_gt), _condition, "%s(%s)", "WARN_ON_ONCE", __stringify(_condition))
 
 static inline void __xe_gt_printfn_err(struct drm_printer *p, struct va_format *vaf)
 {
