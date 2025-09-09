@@ -280,6 +280,9 @@ struct mt7996_hif {
 	struct device *dev;
 	void __iomem *regs;
 	int irq;
+
+	enum pci_bus_speed speed;
+	enum pcie_link_width width;
 };
 
 struct mt7996_wed_rro_addr {

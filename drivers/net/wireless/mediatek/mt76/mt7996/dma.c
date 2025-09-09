@@ -17,7 +17,7 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx, int n_desc,
 		ring_base += MT_TXQ_ID(0) * MT_RING_SIZE;
 		idx -= MT_TXQ_ID(0);
 
-		if (phy->mt76->band_idx == MT_BAND2)
+		if (wed == &dev->mt76.mmio.wed_hif2)
 			flags = MT_WED_Q_TX(0);
 		else
 			flags = MT_WED_Q_TX(idx);
@@ -428,6 +428,30 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
 		/* AXI read outstanding number */
 		mt76_rmw(dev, MT_WFDMA_AXI_R2A_CTRL,
 			 MT_WFDMA_AXI_R2A_CTRL_OUTSTAND_MASK, 0x14);
+
+		if (dev->hif2->speed < PCIE_SPEED_5_0GT ||
+		    (dev->hif2->speed == PCIE_SPEED_5_0GT &&
+		     dev->hif2->width < PCIE_LNK_X2)) {
+			mt76_rmw(dev, WF_WFDMA0_GLO_CFG_EXT0 + hif1_ofs,
+				 WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
+				 FIELD_PREP(WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
+					    0x1));
+			mt76_rmw(dev, MT_WFDMA_AXI_R2A_CTRL2,
+				 MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
+				 FIELD_PREP(MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
+					    0x1));
+		} else if (dev->hif2->speed < PCIE_SPEED_8_0GT ||
+			   (dev->hif2->speed == PCIE_SPEED_8_0GT &&
+			    dev->hif2->width < PCIE_LNK_X2)) {
+			mt76_rmw(dev, WF_WFDMA0_GLO_CFG_EXT0 + hif1_ofs,
+				 WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
+				 FIELD_PREP(WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
+					    0x2));
+			mt76_rmw(dev, MT_WFDMA_AXI_R2A_CTRL2,
+				 MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
+				 FIELD_PREP(MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
+					    0x2));
+		}
 
 		/* WFDMA rx threshold */
 		mt76_wr(dev, MT_WFDMA0_PAUSE_RX_Q_45_TH + hif1_ofs, 0xc000c);

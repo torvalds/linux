@@ -87,6 +87,7 @@ static int mt7996_pci_hif2_probe(struct pci_dev *pdev)
 	hif->dev = &pdev->dev;
 	hif->regs = pcim_iomap_table(pdev)[0];
 	hif->irq = pdev->irq;
+	pcie_bandwidth_available(pdev, NULL, &hif->speed, &hif->width);
 	spin_lock_bh(&hif_lock);
 	list_add(&hif->list, &hif_list);
 	spin_unlock_bh(&hif_lock);

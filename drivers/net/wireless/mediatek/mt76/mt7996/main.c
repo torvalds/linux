@@ -2158,9 +2158,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
 	struct mt7996_sta_link *msta_link;
-	struct mt7996_vif_link *link;
 	struct mt76_vif_link *mlink;
-	struct mt7996_phy *phy;
 
 	mlink = rcu_dereference(mvif->mt76.link[msta->deflink_id]);
 	if (!mlink)
@@ -2173,12 +2171,9 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
 	if (!msta_link->wcid.sta || msta_link->wcid.idx > MT7996_WTBL_STA)
 		return -EIO;
 
-	link = (struct mt7996_vif_link *)mlink;
-	phy = mt7996_vif_link_phy(link);
-	if (!phy)
-		return -ENODEV;
-
-	if (phy != &dev->phy && phy->mt76->band_idx == MT_BAND2)
+	if (dev->hif2 &&
+	    ((is_mt7996(&dev->mt76) && msta_link->wcid.phy_idx == MT_BAND2) ||
+	     (is_mt7992(&dev->mt76) && msta_link->wcid.phy_idx == MT_BAND1)))
 		wed = &dev->mt76.mmio.wed_hif2;
 
 	if (!mtk_wed_device_active(wed))
@@ -2191,7 +2186,11 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
 	path->mtk_wdma.queue = 0;
 	path->mtk_wdma.wcid = msta_link->wcid.idx;
 
-	path->mtk_wdma.amsdu = mtk_wed_is_amsdu_supported(wed);
+	if (ieee80211_hw_check(hw, SUPPORTS_AMSDU_IN_AMPDU) &&
+	    mtk_wed_is_amsdu_supported(wed))
+		path->mtk_wdma.amsdu = msta_link->wcid.amsdu;
+	else
+		path->mtk_wdma.amsdu = 0;
 	ctx->dev = NULL;
 
 	return 0;
