@@ -177,7 +177,7 @@ static dart_iopte *dart_get_last(struct dart_io_pgtable *data, unsigned long iov
 	int level = data->levels;
 	int tbl = dart_get_index(data, iova, level);
 
-	if (tbl > (1 << data->tbl_bits))
+	if (tbl >= (1 << data->tbl_bits))
 		return NULL;
 
 	ptep = data->pgd[tbl];
@@ -246,7 +246,7 @@ static int dart_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 
 	tbl = dart_get_index(data, iova, level);
 
-	if (tbl > (1 << data->tbl_bits))
+	if (tbl >= (1 << data->tbl_bits))
 		return -ENOMEM;
 
 	ptep = data->pgd[tbl];
