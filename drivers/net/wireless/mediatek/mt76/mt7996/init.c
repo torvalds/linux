@@ -774,6 +774,10 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
 	if (!dev->has_rro)
 		return;
 
+	INIT_LIST_HEAD(&dev->wed_rro.page_cache);
+	for (i = 0; i < ARRAY_SIZE(dev->wed_rro.page_map); i++)
+		INIT_LIST_HEAD(&dev->wed_rro.page_map[i]);
+
 	if (is_mt7992(&dev->mt76)) {
 		/* Set emul 3.0 function */
 		mt76_wr(dev, MT_RRO_3_0_EMU_CONF,
@@ -1658,6 +1662,8 @@ void mt7996_unregister_device(struct mt7996_dev *dev)
 	mt7996_mcu_exit(dev);
 	mt7996_tx_token_put(dev);
 	mt7996_dma_cleanup(dev);
+	if (dev->has_rro && !mtk_wed_device_active(&dev->mt76.mmio.wed))
+		mt7996_rro_msdu_page_map_free(dev);
 	tasklet_disable(&dev->mt76.irq_tasklet);
 
 	mt76_free_device(&dev->mt76);

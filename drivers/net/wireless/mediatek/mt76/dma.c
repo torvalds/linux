@@ -256,6 +256,8 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
 
 		buf1 |= FIELD_PREP(MT_DMA_CTL_TOKEN, rx_token);
 		ctrl |= MT_DMA_CTL_TO_HOST;
+
+		txwi->qid = q - dev->q_rx;
 	}
 
 	WRITE_ONCE(desc->buf0, cpu_to_le32(buf->addr));

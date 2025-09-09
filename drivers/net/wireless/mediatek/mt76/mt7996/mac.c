@@ -1638,6 +1638,358 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	}
 }
 
+static struct mt7996_msdu_page *
+mt7996_msdu_page_get_from_cache(struct mt7996_dev *dev)
+{
+	struct mt7996_msdu_page *p = NULL;
+
+	spin_lock(&dev->wed_rro.lock);
+
+	if (!list_empty(&dev->wed_rro.page_cache)) {
+		p = list_first_entry(&dev->wed_rro.page_cache,
+				     struct mt7996_msdu_page, list);
+		if (p)
+			list_del(&p->list);
+	}
+
+	spin_unlock(&dev->wed_rro.lock);
+
+	return p;
+}
+
+static struct mt7996_msdu_page *mt7996_msdu_page_get(struct mt7996_dev *dev)
+{
+	struct mt7996_msdu_page *p;
+
+	p = mt7996_msdu_page_get_from_cache(dev);
+	if (!p) {
+		p = kzalloc(L1_CACHE_ALIGN(sizeof(*p)), GFP_ATOMIC);
+		if (p)
+			INIT_LIST_HEAD(&p->list);
+	}
+
+	return p;
+}
+
+static void mt7996_msdu_page_put_to_cache(struct mt7996_dev *dev,
+					  struct mt7996_msdu_page *p)
+{
+	if (p->buf) {
+		mt76_put_page_pool_buf(p->buf, false);
+		p->buf = NULL;
+	}
+
+	spin_lock(&dev->wed_rro.lock);
+	list_add(&p->list, &dev->wed_rro.page_cache);
+	spin_unlock(&dev->wed_rro.lock);
+}
+
+static void mt7996_msdu_page_free_cache(struct mt7996_dev *dev)
+{
+	while (true) {
+		struct mt7996_msdu_page *p;
+
+		p = mt7996_msdu_page_get_from_cache(dev);
+		if (!p)
+			break;
+
+		if (p->buf)
+			mt76_put_page_pool_buf(p->buf, false);
+
+		kfree(p);
+	}
+}
+
+static u32 mt7996_msdu_page_hash_from_addr(dma_addr_t dma_addr)
+{
+	u32 val = 0;
+	int i = 0;
+
+	while (dma_addr) {
+		val += (u32)((dma_addr & 0xff) + i) % MT7996_RRO_MSDU_PG_HASH_SIZE;
+		dma_addr >>= 8;
+		i += 13;
+	}
+
+	return val % MT7996_RRO_MSDU_PG_HASH_SIZE;
+}
+
+static struct mt7996_msdu_page *
+mt7996_rro_msdu_page_get(struct mt7996_dev *dev, dma_addr_t dma_addr)
+{
+	u32 hash = mt7996_msdu_page_hash_from_addr(dma_addr);
+	struct mt7996_msdu_page *p, *tmp, *addr = NULL;
+
+	spin_lock(&dev->wed_rro.lock);
+
+	list_for_each_entry_safe(p, tmp, &dev->wed_rro.page_map[hash],
+				 list) {
+		if (p->dma_addr == dma_addr) {
+			list_del(&p->list);
+			addr = p;
+			break;
+		}
+	}
+
+	spin_unlock(&dev->wed_rro.lock);
+
+	return addr;
+}
+
+static void mt7996_rx_token_put(struct mt7996_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < dev->mt76.rx_token_size; i++) {
+		struct mt76_txwi_cache *t;
+
+		t = mt76_rx_token_release(&dev->mt76, i);
+		if (!t || !t->ptr)
+			continue;
+
+		mt76_put_page_pool_buf(t->ptr, false);
+		t->dma_addr = 0;
+		t->ptr = NULL;
+
+		mt76_put_rxwi(&dev->mt76, t);
+	}
+}
+
+void mt7996_rro_msdu_page_map_free(struct mt7996_dev *dev)
+{
+	struct mt7996_msdu_page *p, *tmp;
+	int i;
+
+	local_bh_disable();
+
+	for (i = 0; i < ARRAY_SIZE(dev->wed_rro.page_map); i++) {
+		list_for_each_entry_safe(p, tmp, &dev->wed_rro.page_map[i],
+					 list) {
+			list_del_init(&p->list);
+			if (p->buf)
+				mt76_put_page_pool_buf(p->buf, false);
+			kfree(p);
+		}
+	}
+	mt7996_msdu_page_free_cache(dev);
+
+	local_bh_enable();
+
+	mt7996_rx_token_put(dev);
+}
+
+int mt7996_rro_msdu_page_add(struct mt76_dev *mdev, struct mt76_queue *q,
+			     dma_addr_t dma_addr, void *data)
+{
+	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
+	struct mt7996_msdu_page_info *pinfo = data;
+	struct mt7996_msdu_page *p;
+	u32 hash;
+
+	pinfo->data |= cpu_to_le32(FIELD_PREP(MSDU_PAGE_INFO_OWNER_MASK, 1));
+	p = mt7996_msdu_page_get(dev);
+	if (!p)
+		return -ENOMEM;
+
+	p->buf = data;
+	p->dma_addr = dma_addr;
+	p->q = q;
+
+	hash = mt7996_msdu_page_hash_from_addr(dma_addr);
+
+	spin_lock(&dev->wed_rro.lock);
+	list_add_tail(&p->list, &dev->wed_rro.page_map[hash]);
+	spin_unlock(&dev->wed_rro.lock);
+
+	return 0;
+}
+
+static struct mt7996_wed_rro_addr *
+mt7996_rro_addr_elem_get(struct mt7996_dev *dev, u16 session_id, u16 seq_num)
+{
+	u32 idx = 0;
+	void *addr;
+
+	if (session_id == MT7996_RRO_MAX_SESSION) {
+		addr = dev->wed_rro.session.ptr;
+	} else {
+		idx = session_id / MT7996_RRO_BA_BITMAP_SESSION_SIZE;
+		addr = dev->wed_rro.addr_elem[idx].ptr;
+
+		idx = session_id % MT7996_RRO_BA_BITMAP_SESSION_SIZE;
+		idx = idx * MT7996_RRO_WINDOW_MAX_LEN;
+	}
+	idx += seq_num % MT7996_RRO_WINDOW_MAX_LEN;
+
+	return addr + idx * sizeof(struct mt7996_wed_rro_addr);
+}
+
+#define MT996_RRO_SN_MASK	GENMASK(11, 0)
+
+void mt7996_rro_rx_process(struct mt76_dev *mdev, void *data)
+{
+	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
+	struct mt76_wed_rro_ind *cmd = (struct mt76_wed_rro_ind *)data;
+	struct mt7996_msdu_page_info *pinfo = NULL;
+	struct mt7996_msdu_page *p = NULL;
+	int i, seq_num = 0;
+
+	for (i = 0; i < cmd->ind_cnt; i++) {
+		struct mt7996_wed_rro_addr *e;
+		struct mt76_rx_status *status;
+		struct mt7996_rro_hif *rxd;
+		int j, len, qid, data_len;
+		struct mt76_txwi_cache *t;
+		dma_addr_t dma_addr = 0;
+		u16 rx_token_id, count;
+		struct mt76_queue *q;
+		struct sk_buff *skb;
+		u32 info = 0, data;
+		u8 signature;
+		void *buf;
+		bool ls;
+
+		seq_num = FIELD_GET(MT996_RRO_SN_MASK, cmd->start_sn + i);
+		e = mt7996_rro_addr_elem_get(dev, cmd->se_id, seq_num);
+		data = le32_to_cpu(e->data);
+		signature = FIELD_GET(WED_RRO_ADDR_SIGNATURE_MASK, data);
+		if (signature != (seq_num / MT7996_RRO_WINDOW_MAX_LEN)) {
+			u32 val = FIELD_PREP(WED_RRO_ADDR_SIGNATURE_MASK,
+					     0xff);
+
+			e->data |= cpu_to_le32(val);
+			goto update_ack_seq_num;
+		}
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+		dma_addr = FIELD_GET(WED_RRO_ADDR_HEAD_HIGH_MASK, data);
+		dma_addr <<= 32;
+#endif
+		dma_addr |= le32_to_cpu(e->head_low);
+
+		count = FIELD_GET(WED_RRO_ADDR_COUNT_MASK, data);
+		for (j = 0; j < count; j++) {
+			if (!p) {
+				p = mt7996_rro_msdu_page_get(dev, dma_addr);
+				if (!p)
+					continue;
+
+				dma_sync_single_for_cpu(mdev->dma_dev, p->dma_addr,
+							SKB_WITH_OVERHEAD(p->q->buf_size),
+							page_pool_get_dma_dir(p->q->page_pool));
+				pinfo = (struct mt7996_msdu_page_info *)p->buf;
+			}
+
+			rxd = &pinfo->rxd[j % MT7996_MAX_HIF_RXD_IN_PG];
+			len = FIELD_GET(RRO_HIF_DATA1_SDL_MASK,
+					le32_to_cpu(rxd->data1));
+
+			rx_token_id = FIELD_GET(RRO_HIF_DATA4_RX_TOKEN_ID_MASK,
+						le32_to_cpu(rxd->data4));
+			t = mt76_rx_token_release(mdev, rx_token_id);
+			if (!t)
+				goto next_page;
+
+			qid = t->qid;
+			buf = t->ptr;
+			q = &mdev->q_rx[qid];
+			dma_sync_single_for_cpu(mdev->dma_dev, t->dma_addr,
+						SKB_WITH_OVERHEAD(q->buf_size),
+						page_pool_get_dma_dir(q->page_pool));
+
+			t->dma_addr = 0;
+			t->ptr = NULL;
+			mt76_put_rxwi(mdev, t);
+			if (!buf)
+				goto next_page;
+
+			if (q->rx_head)
+				data_len = q->buf_size;
+			else
+				data_len = SKB_WITH_OVERHEAD(q->buf_size);
+
+			if (data_len < len + q->buf_offset) {
+				dev_kfree_skb(q->rx_head);
+				mt76_put_page_pool_buf(buf, false);
+				q->rx_head = NULL;
+				goto next_page;
+			}
+
+			ls = FIELD_GET(RRO_HIF_DATA1_LS_MASK,
+				       le32_to_cpu(rxd->data1));
+			if (q->rx_head) {
+				/* TODO: Take into account non-linear skb. */
+				mt76_put_page_pool_buf(buf, false);
+				if (ls) {
+					dev_kfree_skb(q->rx_head);
+					q->rx_head = NULL;
+				}
+				goto next_page;
+			}
+
+			if (ls && !mt7996_rx_check(mdev, buf, len))
+				goto next_page;
+
+			skb = build_skb(buf, q->buf_size);
+			if (!skb)
+				goto next_page;
+
+			skb_reserve(skb, q->buf_offset);
+			skb_mark_for_recycle(skb);
+			__skb_put(skb, len);
+
+			if (cmd->ind_reason == 1 || cmd->ind_reason == 2) {
+				dev_kfree_skb(skb);
+				goto next_page;
+			}
+
+			if (!ls) {
+				q->rx_head = skb;
+				goto next_page;
+			}
+
+			status = (struct mt76_rx_status *)skb->cb;
+			if (cmd->se_id != MT7996_RRO_MAX_SESSION)
+				status->aggr = true;
+
+			mt7996_queue_rx_skb(mdev, qid, skb, &info);
+next_page:
+			if ((j + 1) % MT7996_MAX_HIF_RXD_IN_PG == 0) {
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+				dma_addr =
+					FIELD_GET(MSDU_PAGE_INFO_PG_HIGH_MASK,
+						  le32_to_cpu(pinfo->data));
+				dma_addr <<= 32;
+				dma_addr |= le32_to_cpu(pinfo->pg_low);
+#else
+				dma_addr = le32_to_cpu(pinfo->pg_low);
+#endif
+				mt7996_msdu_page_put_to_cache(dev, p);
+				p = NULL;
+			}
+		}
+
+update_ack_seq_num:
+		if ((i + 1) % 4 == 0)
+			mt76_wr(dev, MT_RRO_ACK_SN_CTRL,
+				FIELD_PREP(MT_RRO_ACK_SN_CTRL_SESSION_MASK,
+					   cmd->se_id) |
+				FIELD_PREP(MT_RRO_ACK_SN_CTRL_SN_MASK,
+					   seq_num));
+		if (p) {
+			mt7996_msdu_page_put_to_cache(dev, p);
+			p = NULL;
+		}
+	}
+
+	/* Update ack_seq_num for remaining addr_elem */
+	if (i % 4)
+		mt76_wr(dev, MT_RRO_ACK_SN_CTRL,
+			FIELD_PREP(MT_RRO_ACK_SN_CTRL_SESSION_MASK,
+				   cmd->se_id) |
+			FIELD_PREP(MT_RRO_ACK_SN_CTRL_SN_MASK, seq_num));
+}
+
 void mt7996_mac_cca_stats_reset(struct mt7996_phy *phy)
 {
 	struct mt7996_dev *dev = phy->dev;

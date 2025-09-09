@@ -854,6 +854,9 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
 
 	mt76_tx_status_check(&dev->mt76, true);
 
+	if (dev->has_rro && !mtk_wed_device_active(&dev->mt76.mmio.wed))
+		mt7996_rro_msdu_page_map_free(dev);
+
 	/* reset wfsys */
 	if (force)
 		mt7996_wfsys_reset(dev);

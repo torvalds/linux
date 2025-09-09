@@ -112,6 +112,7 @@
 #define MT7996_CRIT_TEMP		110
 #define MT7996_MAX_TEMP			120
 
+#define MT7996_MAX_HIF_RXD_IN_PG	5
 #define MT7996_RRO_MSDU_PG_HASH_SIZE	127
 #define MT7996_RRO_MAX_SESSION		1024
 #define MT7996_RRO_WINDOW_MAX_LEN	1024
@@ -298,6 +299,36 @@ struct mt7996_wed_rro_session_id {
 	u16 id;
 };
 
+struct mt7996_msdu_page {
+	struct list_head list;
+
+	struct mt76_queue *q;
+	dma_addr_t dma_addr;
+	void *buf;
+};
+
+/* data1 */
+#define RRO_HIF_DATA1_LS_MASK		BIT(30)
+#define RRO_HIF_DATA1_SDL_MASK		GENMASK(29, 16)
+/* data4 */
+#define RRO_HIF_DATA4_RX_TOKEN_ID_MASK	GENMASK(15, 0)
+struct mt7996_rro_hif {
+	__le32 data0;
+	__le32 data1;
+	__le32 data2;
+	__le32 data3;
+	__le32 data4;
+	__le32 data5;
+};
+
+#define MSDU_PAGE_INFO_OWNER_MASK	BIT(31)
+#define MSDU_PAGE_INFO_PG_HIGH_MASK	GENMASK(3, 0)
+struct mt7996_msdu_page_info {
+	struct mt7996_rro_hif rxd[MT7996_MAX_HIF_RXD_IN_PG];
+	__le32 pg_low;
+	__le32 data;
+};
+
 struct mt7996_phy {
 	struct mt76_phy *mt76;
 	struct mt7996_dev *dev;
@@ -415,6 +446,9 @@ struct mt7996_dev {
 		struct work_struct work;
 		struct list_head poll_list;
 		spinlock_t lock;
+
+		struct list_head page_cache;
+		struct list_head page_map[MT7996_RRO_MSDU_PG_HASH_SIZE];
 	} wed_rro;
 
 	bool ibf;
@@ -772,6 +806,10 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 void mt7996_tx_token_put(struct mt7996_dev *dev);
 void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb, u32 *info);
+void mt7996_rro_msdu_page_map_free(struct mt7996_dev *dev);
+int mt7996_rro_msdu_page_add(struct mt76_dev *mdev, struct mt76_queue *q,
+			     dma_addr_t dma_addr, void *data);
+void mt7996_rro_rx_process(struct mt76_dev *mdev, void *data);
 bool mt7996_rx_check(struct mt76_dev *mdev, void *data, int len);
 void mt7996_stats_work(struct work_struct *work);
 int mt76_dfs_start_rdd(struct mt7996_dev *dev, bool force);

@@ -418,6 +418,8 @@ struct mt76_txwi_cache {
 		struct sk_buff *skb;
 		void *ptr;
 	};
+
+	u8 qid;
 };
 
 struct mt76_rx_tid {
@@ -533,6 +535,10 @@ struct mt76_driver_ops {
 		       struct sk_buff *skb, u32 *info);
 
 	void (*rx_poll_complete)(struct mt76_dev *dev, enum mt76_rxq_id q);
+
+	void (*rx_rro_ind_process)(struct mt76_dev *dev, void *data);
+	int (*rx_rro_add_msdu_page)(struct mt76_dev *dev, struct mt76_queue *q,
+				    dma_addr_t p, void *data);
 
 	void (*sta_ps)(struct mt76_dev *dev, struct ieee80211_sta *sta,
 		       bool ps);
