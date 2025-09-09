@@ -746,7 +746,7 @@ class YnlFamily(SpecFamily):
                 subdict = self._decode(NlAttrs(attr.raw, offset), msg_format.attr_set)
                 decoded.update(subdict)
             else:
-                raise Exception(f"Unknown attribute-set '{attr_space}' when decoding '{attr_spec.name}'")
+                raise Exception(f"Unknown attribute-set '{msg_format.attr_set}' when decoding '{attr_spec.name}'")
         return decoded
 
     def _decode(self, attrs, space, outer_attrs = None):
