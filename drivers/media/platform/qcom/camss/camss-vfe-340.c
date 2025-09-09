@@ -6,6 +6,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/bitfield.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
