@@ -127,10 +127,10 @@ const char *gpiod_get_label(struct gpio_desc *desc)
 	label = srcu_dereference_check(desc->label, &desc->gdev->desc_srcu,
 				srcu_read_lock_held(&desc->gdev->desc_srcu));
 
-	if (test_bit(FLAG_USED_AS_IRQ, &flags))
+	if (test_bit(GPIOD_FLAG_USED_AS_IRQ, &flags))
 		return label ? label->str : "interrupt";
 
-	if (!test_bit(FLAG_REQUESTED, &flags))
+	if (!test_bit(GPIOD_FLAG_REQUESTED, &flags))
 		return NULL;
 
 	return label ? label->str : NULL;
@@ -450,8 +450,8 @@ int gpiod_get_direction(struct gpio_desc *desc)
 	 * Open drain emulation using input mode may incorrectly report
 	 * input here, fix that up.
 	 */
-	if (test_bit(FLAG_OPEN_DRAIN, &flags) &&
-	    test_bit(FLAG_IS_OUT, &flags))
+	if (test_bit(GPIOD_FLAG_OPEN_DRAIN, &flags) &&
+	    test_bit(GPIOD_FLAG_IS_OUT, &flags))
 		return 0;
 
 	if (!guard.gc->get_direction)
@@ -468,7 +468,7 @@ int gpiod_get_direction(struct gpio_desc *desc)
 	if (ret > 0)
 		ret = 1;
 
-	assign_bit(FLAG_IS_OUT, &flags, !ret);
+	assign_bit(GPIOD_FLAG_IS_OUT, &flags, !ret);
 	WRITE_ONCE(desc->flags, flags);
 
 	return ret;
@@ -846,7 +846,7 @@ static void gpiochip_free_remaining_irqs(struct gpio_chip *gc)
 {
 	struct gpio_desc *desc;
 
-	for_each_gpio_desc_with_flag(gc, desc, FLAG_USED_AS_IRQ)
+	for_each_gpio_desc_with_flag(gc, desc, GPIOD_FLAG_USED_AS_IRQ)
 		gpiod_free_irqs(desc);
 }
 
@@ -1169,10 +1169,10 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 		 * lock here.
 		 */
 		if (gc->get_direction && gpiochip_line_is_valid(gc, desc_index))
-			assign_bit(FLAG_IS_OUT, &desc->flags,
+			assign_bit(GPIOD_FLAG_IS_OUT, &desc->flags,
 				   !gc->get_direction(gc, desc_index));
 		else
-			assign_bit(FLAG_IS_OUT,
+			assign_bit(GPIOD_FLAG_IS_OUT,
 				   &desc->flags, !gc->direction_input);
 	}
 
@@ -2449,7 +2449,7 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 	if (!guard.gc)
 		return -ENODEV;
 
-	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags))
+	if (test_and_set_bit(GPIOD_FLAG_REQUESTED, &desc->flags))
 		return -EBUSY;
 
 	offset = gpio_chip_hwgpio(desc);
@@ -2478,7 +2478,7 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 	return 0;
 
 out_clear_bit:
-	clear_bit(FLAG_REQUESTED, &desc->flags);
+	clear_bit(GPIOD_FLAG_REQUESTED, &desc->flags);
 	return ret;
 }
 
@@ -2512,20 +2512,20 @@ static void gpiod_free_commit(struct gpio_desc *desc)
 
 	flags = READ_ONCE(desc->flags);
 
-	if (guard.gc && test_bit(FLAG_REQUESTED, &flags)) {
+	if (guard.gc && test_bit(GPIOD_FLAG_REQUESTED, &flags)) {
 		if (guard.gc->free)
 			guard.gc->free(guard.gc, gpio_chip_hwgpio(desc));
 
-		clear_bit(FLAG_ACTIVE_LOW, &flags);
-		clear_bit(FLAG_REQUESTED, &flags);
-		clear_bit(FLAG_OPEN_DRAIN, &flags);
-		clear_bit(FLAG_OPEN_SOURCE, &flags);
-		clear_bit(FLAG_PULL_UP, &flags);
-		clear_bit(FLAG_PULL_DOWN, &flags);
-		clear_bit(FLAG_BIAS_DISABLE, &flags);
-		clear_bit(FLAG_EDGE_RISING, &flags);
-		clear_bit(FLAG_EDGE_FALLING, &flags);
-		clear_bit(FLAG_IS_HOGGED, &flags);
+		clear_bit(GPIOD_FLAG_ACTIVE_LOW, &flags);
+		clear_bit(GPIOD_FLAG_REQUESTED, &flags);
+		clear_bit(GPIOD_FLAG_OPEN_DRAIN, &flags);
+		clear_bit(GPIOD_FLAG_OPEN_SOURCE, &flags);
+		clear_bit(GPIOD_FLAG_PULL_UP, &flags);
+		clear_bit(GPIOD_FLAG_PULL_DOWN, &flags);
+		clear_bit(GPIOD_FLAG_BIAS_DISABLE, &flags);
+		clear_bit(GPIOD_FLAG_EDGE_RISING, &flags);
+		clear_bit(GPIOD_FLAG_EDGE_FALLING, &flags);
+		clear_bit(GPIOD_FLAG_IS_HOGGED, &flags);
 #ifdef CONFIG_OF_DYNAMIC
 		WRITE_ONCE(desc->hog, NULL);
 #endif
@@ -2568,7 +2568,7 @@ char *gpiochip_dup_line_label(struct gpio_chip *gc, unsigned int offset)
 	if (IS_ERR(desc))
 		return NULL;
 
-	if (!test_bit(FLAG_REQUESTED, &desc->flags))
+	if (!test_bit(GPIOD_FLAG_REQUESTED, &desc->flags))
 		return NULL;
 
 	guard(srcu)(&desc->gdev->desc_srcu);
@@ -2736,11 +2736,11 @@ static int gpio_set_bias(struct gpio_desc *desc)
 
 	flags = READ_ONCE(desc->flags);
 
-	if (test_bit(FLAG_BIAS_DISABLE, &flags))
+	if (test_bit(GPIOD_FLAG_BIAS_DISABLE, &flags))
 		bias = PIN_CONFIG_BIAS_DISABLE;
-	else if (test_bit(FLAG_PULL_UP, &flags))
+	else if (test_bit(GPIOD_FLAG_PULL_UP, &flags))
 		bias = PIN_CONFIG_BIAS_PULL_UP;
-	else if (test_bit(FLAG_PULL_DOWN, &flags))
+	else if (test_bit(GPIOD_FLAG_PULL_DOWN, &flags))
 		bias = PIN_CONFIG_BIAS_PULL_DOWN;
 	else
 		return 0;
@@ -2882,7 +2882,7 @@ int gpiod_direction_input_nonotify(struct gpio_desc *desc)
 		}
 	}
 	if (ret == 0) {
-		clear_bit(FLAG_IS_OUT, &desc->flags);
+		clear_bit(GPIOD_FLAG_IS_OUT, &desc->flags);
 		ret = gpio_set_bias(desc);
 	}
 
@@ -2955,7 +2955,7 @@ static int gpiod_direction_output_raw_commit(struct gpio_desc *desc, int value)
 	}
 
 	if (!ret)
-		set_bit(FLAG_IS_OUT, &desc->flags);
+		set_bit(GPIOD_FLAG_IS_OUT, &desc->flags);
 	trace_gpio_value(desc_to_gpio(desc), 0, val);
 	trace_gpio_direction(desc_to_gpio(desc), 0, ret);
 	return ret;
@@ -3021,21 +3021,21 @@ int gpiod_direction_output_nonotify(struct gpio_desc *desc, int value)
 
 	flags = READ_ONCE(desc->flags);
 
-	if (test_bit(FLAG_ACTIVE_LOW, &flags))
+	if (test_bit(GPIOD_FLAG_ACTIVE_LOW, &flags))
 		value = !value;
 	else
 		value = !!value;
 
 	/* GPIOs used for enabled IRQs shall not be set as output */
-	if (test_bit(FLAG_USED_AS_IRQ, &flags) &&
-	    test_bit(FLAG_IRQ_IS_ENABLED, &flags)) {
+	if (test_bit(GPIOD_FLAG_USED_AS_IRQ, &flags) &&
+	    test_bit(GPIOD_FLAG_IRQ_IS_ENABLED, &flags)) {
 		gpiod_err(desc,
 			  "%s: tried to set a GPIO tied to an IRQ as output\n",
 			  __func__);
 		return -EIO;
 	}
 
-	if (test_bit(FLAG_OPEN_DRAIN, &flags)) {
+	if (test_bit(GPIOD_FLAG_OPEN_DRAIN, &flags)) {
 		/* First see if we can enable open drain in hardware */
 		ret = gpio_set_config(desc, PIN_CONFIG_DRIVE_OPEN_DRAIN);
 		if (!ret)
@@ -3043,7 +3043,7 @@ int gpiod_direction_output_nonotify(struct gpio_desc *desc, int value)
 		/* Emulate open drain by not actively driving the line high */
 		if (value)
 			goto set_output_flag;
-	} else if (test_bit(FLAG_OPEN_SOURCE, &flags)) {
+	} else if (test_bit(GPIOD_FLAG_OPEN_SOURCE, &flags)) {
 		ret = gpio_set_config(desc, PIN_CONFIG_DRIVE_OPEN_SOURCE);
 		if (!ret)
 			goto set_output_value;
@@ -3070,7 +3070,7 @@ set_output_flag:
 	 * set the IS_OUT flag or otherwise we won't be able to set the line
 	 * value anymore.
 	 */
-	set_bit(FLAG_IS_OUT, &desc->flags);
+	set_bit(GPIOD_FLAG_IS_OUT, &desc->flags);
 	return 0;
 }
 
@@ -3210,10 +3210,10 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
 {
 	VALIDATE_DESC(desc);
 	/*
-	 * Handle FLAG_TRANSITORY first, enabling queries to gpiolib for
+	 * Handle GPIOD_FLAG_TRANSITORY first, enabling queries to gpiolib for
 	 * persistence state.
 	 */
-	assign_bit(FLAG_TRANSITORY, &desc->flags, transitory);
+	assign_bit(GPIOD_FLAG_TRANSITORY, &desc->flags, transitory);
 
 	/* If the driver supports it, set the persistence state now */
 	return gpio_set_config_with_argument_optional(desc,
@@ -3231,7 +3231,7 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
 int gpiod_is_active_low(const struct gpio_desc *desc)
 {
 	VALIDATE_DESC(desc);
-	return test_bit(FLAG_ACTIVE_LOW, &desc->flags);
+	return test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags);
 }
 EXPORT_SYMBOL_GPL(gpiod_is_active_low);
 
@@ -3242,7 +3242,7 @@ EXPORT_SYMBOL_GPL(gpiod_is_active_low);
 void gpiod_toggle_active_low(struct gpio_desc *desc)
 {
 	VALIDATE_DESC_VOID(desc);
-	change_bit(FLAG_ACTIVE_LOW, &desc->flags);
+	change_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags);
 	gpiod_line_state_notify(desc, GPIO_V2_LINE_CHANGED_CONFIG);
 }
 EXPORT_SYMBOL_GPL(gpiod_toggle_active_low);
@@ -3448,7 +3448,7 @@ int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 			int hwgpio = gpio_chip_hwgpio(desc);
 			int value = test_bit(hwgpio, bits);
 
-			if (!raw && test_bit(FLAG_ACTIVE_LOW, &desc->flags))
+			if (!raw && test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags))
 				value = !value;
 			__assign_bit(j, value_bitmap, value);
 			trace_gpio_value(desc_to_gpio(desc), 1, value);
@@ -3510,7 +3510,7 @@ int gpiod_get_value(const struct gpio_desc *desc)
 	if (value < 0)
 		return value;
 
-	if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
+	if (test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags))
 		value = !value;
 
 	return value;
@@ -3593,7 +3593,7 @@ static int gpio_set_open_drain_value_commit(struct gpio_desc *desc, bool value)
 	} else {
 		ret = gpiochip_direction_output(guard.gc, offset, 0);
 		if (!ret)
-			set_bit(FLAG_IS_OUT, &desc->flags);
+			set_bit(GPIOD_FLAG_IS_OUT, &desc->flags);
 	}
 	trace_gpio_direction(desc_to_gpio(desc), value, ret);
 	if (ret < 0)
@@ -3620,7 +3620,7 @@ static int gpio_set_open_source_value_commit(struct gpio_desc *desc, bool value)
 	if (value) {
 		ret = gpiochip_direction_output(guard.gc, offset, 1);
 		if (!ret)
-			set_bit(FLAG_IS_OUT, &desc->flags);
+			set_bit(GPIOD_FLAG_IS_OUT, &desc->flags);
 	} else {
 		ret = gpiochip_direction_input(guard.gc, offset);
 	}
@@ -3635,7 +3635,7 @@ static int gpio_set_open_source_value_commit(struct gpio_desc *desc, bool value)
 
 static int gpiod_set_raw_value_commit(struct gpio_desc *desc, bool value)
 {
-	if (unlikely(!test_bit(FLAG_IS_OUT, &desc->flags)))
+	if (unlikely(!test_bit(GPIOD_FLAG_IS_OUT, &desc->flags)))
 		return -EPERM;
 
 	CLASS(gpio_chip_guard, guard)(desc);
@@ -3705,7 +3705,7 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 			WARN_ON(array_info->gdev->can_sleep);
 
 		for (i = 0; i < array_size; i++) {
-			if (unlikely(!test_bit(FLAG_IS_OUT,
+			if (unlikely(!test_bit(GPIOD_FLAG_IS_OUT,
 					       &desc_array[i]->flags)))
 				return -EPERM;
 		}
@@ -3769,7 +3769,7 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 			int hwgpio = gpio_chip_hwgpio(desc);
 			int value = test_bit(i, value_bitmap);
 
-			if (unlikely(!test_bit(FLAG_IS_OUT, &desc->flags)))
+			if (unlikely(!test_bit(GPIOD_FLAG_IS_OUT, &desc->flags)))
 				return -EPERM;
 
 			/*
@@ -3779,16 +3779,16 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 			 */
 			if (!raw && !(array_info &&
 			    test_bit(i, array_info->invert_mask)) &&
-			    test_bit(FLAG_ACTIVE_LOW, &desc->flags))
+			    test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags))
 				value = !value;
 			trace_gpio_value(desc_to_gpio(desc), 0, value);
 			/*
 			 * collect all normal outputs belonging to the same chip
 			 * open drain and open source outputs are set individually
 			 */
-			if (test_bit(FLAG_OPEN_DRAIN, &desc->flags) && !raw) {
+			if (test_bit(GPIOD_FLAG_OPEN_DRAIN, &desc->flags) && !raw) {
 				gpio_set_open_drain_value_commit(desc, value);
-			} else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags) && !raw) {
+			} else if (test_bit(GPIOD_FLAG_OPEN_SOURCE, &desc->flags) && !raw) {
 				gpio_set_open_source_value_commit(desc, value);
 			} else {
 				__set_bit(hwgpio, mask);
@@ -3854,12 +3854,12 @@ EXPORT_SYMBOL_GPL(gpiod_set_raw_value);
  */
 static int gpiod_set_value_nocheck(struct gpio_desc *desc, int value)
 {
-	if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
+	if (test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags))
 		value = !value;
 
-	if (test_bit(FLAG_OPEN_DRAIN, &desc->flags))
+	if (test_bit(GPIOD_FLAG_OPEN_DRAIN, &desc->flags))
 		return gpio_set_open_drain_value_commit(desc, value);
-	else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags))
+	else if (test_bit(GPIOD_FLAG_OPEN_SOURCE, &desc->flags))
 		return gpio_set_open_source_value_commit(desc, value);
 
 	return gpiod_set_raw_value_commit(desc, value);
@@ -4063,16 +4063,16 @@ int gpiochip_lock_as_irq(struct gpio_chip *gc, unsigned int offset)
 	}
 
 	/* To be valid for IRQ the line needs to be input or open drain */
-	if (test_bit(FLAG_IS_OUT, &desc->flags) &&
-	    !test_bit(FLAG_OPEN_DRAIN, &desc->flags)) {
+	if (test_bit(GPIOD_FLAG_IS_OUT, &desc->flags) &&
+	    !test_bit(GPIOD_FLAG_OPEN_DRAIN, &desc->flags)) {
 		chip_err(gc,
 			 "%s: tried to flag a GPIO set as output for IRQ\n",
 			 __func__);
 		return -EIO;
 	}
 
-	set_bit(FLAG_USED_AS_IRQ, &desc->flags);
-	set_bit(FLAG_IRQ_IS_ENABLED, &desc->flags);
+	set_bit(GPIOD_FLAG_USED_AS_IRQ, &desc->flags);
+	set_bit(GPIOD_FLAG_IRQ_IS_ENABLED, &desc->flags);
 
 	return 0;
 }
@@ -4094,8 +4094,8 @@ void gpiochip_unlock_as_irq(struct gpio_chip *gc, unsigned int offset)
 	if (IS_ERR(desc))
 		return;
 
-	clear_bit(FLAG_USED_AS_IRQ, &desc->flags);
-	clear_bit(FLAG_IRQ_IS_ENABLED, &desc->flags);
+	clear_bit(GPIOD_FLAG_USED_AS_IRQ, &desc->flags);
+	clear_bit(GPIOD_FLAG_IRQ_IS_ENABLED, &desc->flags);
 }
 EXPORT_SYMBOL_GPL(gpiochip_unlock_as_irq);
 
@@ -4104,8 +4104,8 @@ void gpiochip_disable_irq(struct gpio_chip *gc, unsigned int offset)
 	struct gpio_desc *desc = gpiochip_get_desc(gc, offset);
 
 	if (!IS_ERR(desc) &&
-	    !WARN_ON(!test_bit(FLAG_USED_AS_IRQ, &desc->flags)))
-		clear_bit(FLAG_IRQ_IS_ENABLED, &desc->flags);
+	    !WARN_ON(!test_bit(GPIOD_FLAG_USED_AS_IRQ, &desc->flags)))
+		clear_bit(GPIOD_FLAG_IRQ_IS_ENABLED, &desc->flags);
 }
 EXPORT_SYMBOL_GPL(gpiochip_disable_irq);
 
@@ -4114,14 +4114,14 @@ void gpiochip_enable_irq(struct gpio_chip *gc, unsigned int offset)
 	struct gpio_desc *desc = gpiochip_get_desc(gc, offset);
 
 	if (!IS_ERR(desc) &&
-	    !WARN_ON(!test_bit(FLAG_USED_AS_IRQ, &desc->flags))) {
+	    !WARN_ON(!test_bit(GPIOD_FLAG_USED_AS_IRQ, &desc->flags))) {
 		/*
 		 * We must not be output when using IRQ UNLESS we are
 		 * open drain.
 		 */
-		WARN_ON(test_bit(FLAG_IS_OUT, &desc->flags) &&
-			!test_bit(FLAG_OPEN_DRAIN, &desc->flags));
-		set_bit(FLAG_IRQ_IS_ENABLED, &desc->flags);
+		WARN_ON(test_bit(GPIOD_FLAG_IS_OUT, &desc->flags) &&
+			!test_bit(GPIOD_FLAG_OPEN_DRAIN, &desc->flags));
+		set_bit(GPIOD_FLAG_IRQ_IS_ENABLED, &desc->flags);
 	}
 }
 EXPORT_SYMBOL_GPL(gpiochip_enable_irq);
@@ -4131,7 +4131,7 @@ bool gpiochip_line_is_irq(struct gpio_chip *gc, unsigned int offset)
 	if (offset >= gc->ngpio)
 		return false;
 
-	return test_bit(FLAG_USED_AS_IRQ, &gc->gpiodev->descs[offset].flags);
+	return test_bit(GPIOD_FLAG_USED_AS_IRQ, &gc->gpiodev->descs[offset].flags);
 }
 EXPORT_SYMBOL_GPL(gpiochip_line_is_irq);
 
@@ -4164,7 +4164,7 @@ bool gpiochip_line_is_open_drain(struct gpio_chip *gc, unsigned int offset)
 	if (offset >= gc->ngpio)
 		return false;
 
-	return test_bit(FLAG_OPEN_DRAIN, &gc->gpiodev->descs[offset].flags);
+	return test_bit(GPIOD_FLAG_OPEN_DRAIN, &gc->gpiodev->descs[offset].flags);
 }
 EXPORT_SYMBOL_GPL(gpiochip_line_is_open_drain);
 
@@ -4173,7 +4173,7 @@ bool gpiochip_line_is_open_source(struct gpio_chip *gc, unsigned int offset)
 	if (offset >= gc->ngpio)
 		return false;
 
-	return test_bit(FLAG_OPEN_SOURCE, &gc->gpiodev->descs[offset].flags);
+	return test_bit(GPIOD_FLAG_OPEN_SOURCE, &gc->gpiodev->descs[offset].flags);
 }
 EXPORT_SYMBOL_GPL(gpiochip_line_is_open_source);
 
@@ -4182,7 +4182,7 @@ bool gpiochip_line_is_persistent(struct gpio_chip *gc, unsigned int offset)
 	if (offset >= gc->ngpio)
 		return false;
 
-	return !test_bit(FLAG_TRANSITORY, &gc->gpiodev->descs[offset].flags);
+	return !test_bit(GPIOD_FLAG_TRANSITORY, &gc->gpiodev->descs[offset].flags);
 }
 EXPORT_SYMBOL_GPL(gpiochip_line_is_persistent);
 
@@ -4224,7 +4224,7 @@ int gpiod_get_value_cansleep(const struct gpio_desc *desc)
 	if (value < 0)
 		return value;
 
-	if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
+	if (test_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags))
 		value = !value;
 
 	return value;
@@ -4806,10 +4806,10 @@ int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
 	int ret;
 
 	if (lflags & GPIO_ACTIVE_LOW)
-		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
+		set_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags);
 
 	if (lflags & GPIO_OPEN_DRAIN)
-		set_bit(FLAG_OPEN_DRAIN, &desc->flags);
+		set_bit(GPIOD_FLAG_OPEN_DRAIN, &desc->flags);
 	else if (dflags & GPIOD_FLAGS_BIT_OPEN_DRAIN) {
 		/*
 		 * This enforces open drain mode from the consumer side.
@@ -4817,13 +4817,13 @@ int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
 		 * should *REALLY* have specified them as open drain in the
 		 * first place, so print a little warning here.
 		 */
-		set_bit(FLAG_OPEN_DRAIN, &desc->flags);
+		set_bit(GPIOD_FLAG_OPEN_DRAIN, &desc->flags);
 		gpiod_warn(desc,
 			   "enforced open drain please flag it properly in DT/ACPI DSDT/board file\n");
 	}
 
 	if (lflags & GPIO_OPEN_SOURCE)
-		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
+		set_bit(GPIOD_FLAG_OPEN_SOURCE, &desc->flags);
 
 	if (((lflags & GPIO_PULL_UP) && (lflags & GPIO_PULL_DOWN)) ||
 	    ((lflags & GPIO_PULL_UP) && (lflags & GPIO_PULL_DISABLE)) ||
@@ -4834,11 +4834,11 @@ int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
 	}
 
 	if (lflags & GPIO_PULL_UP)
-		set_bit(FLAG_PULL_UP, &desc->flags);
+		set_bit(GPIOD_FLAG_PULL_UP, &desc->flags);
 	else if (lflags & GPIO_PULL_DOWN)
-		set_bit(FLAG_PULL_DOWN, &desc->flags);
+		set_bit(GPIOD_FLAG_PULL_DOWN, &desc->flags);
 	else if (lflags & GPIO_PULL_DISABLE)
-		set_bit(FLAG_BIAS_DISABLE, &desc->flags);
+		set_bit(GPIOD_FLAG_BIAS_DISABLE, &desc->flags);
 
 	ret = gpiod_set_transitory(desc, (lflags & GPIO_TRANSITORY));
 	if (ret < 0)
@@ -4943,7 +4943,7 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 	if (!guard.gc)
 		return -ENODEV;
 
-	if (test_and_set_bit(FLAG_IS_HOGGED, &desc->flags))
+	if (test_and_set_bit(GPIOD_FLAG_IS_HOGGED, &desc->flags))
 		return 0;
 
 	hwnum = gpio_chip_hwgpio(desc);
@@ -4951,7 +4951,7 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 	local_desc = gpiochip_request_own_desc(guard.gc, hwnum, name,
 					       lflags, dflags);
 	if (IS_ERR(local_desc)) {
-		clear_bit(FLAG_IS_HOGGED, &desc->flags);
+		clear_bit(GPIOD_FLAG_IS_HOGGED, &desc->flags);
 		ret = PTR_ERR(local_desc);
 		pr_err("requesting hog GPIO %s (chip %s, offset %d) failed, %d\n",
 		       name, gdev->label, hwnum, ret);
@@ -4974,7 +4974,7 @@ static void gpiochip_free_hogs(struct gpio_chip *gc)
 {
 	struct gpio_desc *desc;
 
-	for_each_gpio_desc_with_flag(gc, desc, FLAG_IS_HOGGED)
+	for_each_gpio_desc_with_flag(gc, desc, GPIOD_FLAG_IS_HOGGED)
 		gpiochip_free_own_desc(desc);
 }
 
@@ -5089,8 +5089,8 @@ struct gpio_descs *__must_check gpiod_get_array(struct device *dev,
 		} else {
 			dflags = READ_ONCE(desc->flags);
 			/* Exclude open drain or open source from fast output */
-			if (test_bit(FLAG_OPEN_DRAIN, &dflags) ||
-			    test_bit(FLAG_OPEN_SOURCE, &dflags))
+			if (test_bit(GPIOD_FLAG_OPEN_DRAIN, &dflags) ||
+			    test_bit(GPIOD_FLAG_OPEN_SOURCE, &dflags))
 				__clear_bit(descs->ndescs,
 					    array_info->set_mask);
 			/* Identify 'fast' pins which require invertion */
@@ -5248,12 +5248,12 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 	for_each_gpio_desc(gc, desc) {
 		guard(srcu)(&desc->gdev->desc_srcu);
 		flags = READ_ONCE(desc->flags);
-		is_irq = test_bit(FLAG_USED_AS_IRQ, &flags);
-		if (is_irq || test_bit(FLAG_REQUESTED, &flags)) {
+		is_irq = test_bit(GPIOD_FLAG_USED_AS_IRQ, &flags);
+		if (is_irq || test_bit(GPIOD_FLAG_REQUESTED, &flags)) {
 			gpiod_get_direction(desc);
-			is_out = test_bit(FLAG_IS_OUT, &flags);
+			is_out = test_bit(GPIOD_FLAG_IS_OUT, &flags);
 			value = gpio_chip_get_value(gc, desc);
-			active_low = test_bit(FLAG_ACTIVE_LOW, &flags);
+			active_low = test_bit(GPIOD_FLAG_ACTIVE_LOW, &flags);
 			seq_printf(s, " gpio-%-3u (%-20.20s|%-20.20s) %s %s %s%s\n",
 				   gpio, desc->name ?: "", gpiod_get_label(desc),
 				   is_out ? "out" : "in ",
