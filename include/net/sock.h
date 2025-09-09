@@ -102,11 +102,6 @@ struct net;
 typedef __u32 __bitwise __portpair;
 typedef __u64 __bitwise __addrpair;
 
-struct socket_drop_counters {
-	atomic_t	drops0 ____cacheline_aligned_in_smp;
-	atomic_t	drops1 ____cacheline_aligned_in_smp;
-};
-
 /**
  *	struct sock_common - minimal network layer representation of sockets
  *	@skc_daddr: Foreign IPv4 addr
@@ -287,7 +282,7 @@ struct sk_filter;
   *	@sk_err_soft: errors that don't cause failure but are the cause of a
   *		      persistent failure not just 'timed out'
   *	@sk_drops: raw/udp drops counter
-  *	@sk_drop_counters: optional pointer to socket_drop_counters
+  *	@sk_drop_counters: optional pointer to numa_drop_counters
   *	@sk_ack_backlog: current listen backlog
   *	@sk_max_ack_backlog: listen backlog set in listen()
   *	@sk_uid: user id of owner
@@ -456,7 +451,7 @@ struct sock {
 #ifdef CONFIG_XFRM
 	struct xfrm_policy __rcu *sk_policy[2];
 #endif
-	struct socket_drop_counters *sk_drop_counters;
+	struct numa_drop_counters *sk_drop_counters;
 	__cacheline_group_end(sock_read_rxtx);
 
 	__cacheline_group_begin(sock_write_rxtx);
@@ -2698,18 +2693,12 @@ struct sock_skb_cb {
 
 static inline void sk_drops_add(struct sock *sk, int segs)
 {
-	struct socket_drop_counters *sdc = sk->sk_drop_counters;
+	struct numa_drop_counters *ndc = sk->sk_drop_counters;
 
-	if (sdc) {
-		int n = numa_node_id() % 2;
-
-		if (n)
-			atomic_add(segs, &sdc->drops1);
-		else
-			atomic_add(segs, &sdc->drops0);
-	} else {
+	if (ndc)
+		numa_drop_add(ndc, segs);
+	else
 		atomic_add(segs, &sk->sk_drops);
-	}
 }
 
 static inline void sk_drops_inc(struct sock *sk)
@@ -2719,23 +2708,21 @@ static inline void sk_drops_inc(struct sock *sk)
 
 static inline int sk_drops_read(const struct sock *sk)
 {
-	const struct socket_drop_counters *sdc = sk->sk_drop_counters;
+	const struct numa_drop_counters *ndc = sk->sk_drop_counters;
 
-	if (sdc) {
+	if (ndc) {
 		DEBUG_NET_WARN_ON_ONCE(atomic_read(&sk->sk_drops));
-		return atomic_read(&sdc->drops0) + atomic_read(&sdc->drops1);
+		return numa_drop_read(ndc);
 	}
 	return atomic_read(&sk->sk_drops);
 }
 
 static inline void sk_drops_reset(struct sock *sk)
 {
-	struct socket_drop_counters *sdc = sk->sk_drop_counters;
+	struct numa_drop_counters *ndc = sk->sk_drop_counters;
 
-	if (sdc) {
-		atomic_set(&sdc->drops0, 0);
-		atomic_set(&sdc->drops1, 0);
-	}
+	if (ndc)
+		numa_drop_reset(ndc);
 	atomic_set(&sk->sk_drops, 0);
 }
 
