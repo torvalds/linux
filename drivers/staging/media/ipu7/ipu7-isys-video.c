@@ -917,6 +917,7 @@ void ipu7_isys_fw_close(struct ipu7_isys *isys)
 		ipu7_fw_isys_close(isys);
 
 	mutex_unlock(&isys->mutex);
+	pm_runtime_put(&isys->adev->auxdev.dev);
 }
 
 int ipu7_isys_setup_video(struct ipu7_isys_video *av,
