@@ -211,7 +211,18 @@ struct amdgpu_ring_funcs {
 	bool			support_64bit_ptrs;
 	bool			no_user_fence;
 	bool			secure_submission_supported;
-	unsigned		extra_dw;
+
+	/**
+	 * @extra_bytes:
+	 *
+	 * Optional extra space in bytes that is added to the ring size
+	 * when allocating the BO that holds the contents of the ring.
+	 * This space isn't used for command submission to the ring,
+	 * but is just there to satisfy some hardware requirements or
+	 * implement workarounds. It's up to the implementation of each
+	 * specific ring to initialize this space.
+	 */
+	unsigned		extra_bytes;
 
 	/* ring read/write ptr handling */
 	u64 (*get_rptr)(struct amdgpu_ring *ring);
