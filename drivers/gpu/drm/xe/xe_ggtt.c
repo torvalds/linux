@@ -28,6 +28,7 @@
 #include "xe_pm.h"
 #include "xe_res_cursor.h"
 #include "xe_sriov.h"
+#include "xe_tile_printk.h"
 #include "xe_tile_sriov_vf.h"
 #include "xe_tlb_inval.h"
 #include "xe_wa.h"
@@ -269,7 +270,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 		gsm_size = probe_gsm_size(pdev);
 
 	if (gsm_size == 0) {
-		drm_err(&xe->drm, "Hardware reported no preallocated GSM\n");
+		xe_tile_err(ggtt->tile, "Hardware reported no preallocated GSM\n");
 		return -ENOMEM;
 	}
 
@@ -466,8 +467,8 @@ static void xe_ggtt_dump_node(struct xe_ggtt *ggtt,
 
 	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG)) {
 		string_get_size(node->size, 1, STRING_UNITS_2, buf, sizeof(buf));
-		xe_gt_dbg(ggtt->tile->primary_gt, "GGTT %#llx-%#llx (%s) %s\n",
-			  node->start, node->start + node->size, buf, description);
+		xe_tile_dbg(ggtt->tile, "GGTT %#llx-%#llx (%s) %s\n",
+			    node->start, node->start + node->size, buf, description);
 	}
 }
 
@@ -499,9 +500,8 @@ int xe_ggtt_node_insert_balloon_locked(struct xe_ggtt_node *node, u64 start, u64
 
 	err = drm_mm_reserve_node(&ggtt->mm, &node->base);
 
-	if (xe_gt_WARN(ggtt->tile->primary_gt, err,
-		       "Failed to balloon GGTT %#llx-%#llx (%pe)\n",
-		       node->base.start, node->base.start + node->base.size, ERR_PTR(err)))
+	if (xe_tile_WARN(ggtt->tile, err, "Failed to balloon GGTT %#llx-%#llx (%pe)\n",
+			 node->base.start, node->base.start + node->base.size, ERR_PTR(err)))
 		return err;
 
 	xe_ggtt_dump_node(ggtt, &node->base, "balloon");
