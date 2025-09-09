@@ -2616,8 +2616,10 @@ static void __audit_log_end(struct sk_buff *skb)
 
 		/* queue the netlink packet */
 		skb_queue_tail(&audit_queue, skb);
-	} else
+	} else {
 		audit_log_lost("rate limit exceeded");
+		kfree_skb(skb);
+	}
 }
 
 /**
