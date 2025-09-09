@@ -355,15 +355,15 @@ None currently.
 Removed Sysctls
 ===============
 
-=============================	=======
-  Name				Removed
-=============================	=======
-  fs.xfs.xfsbufd_centisec	v4.0
-  fs.xfs.age_buffer_centisecs	v4.0
-  fs.xfs.irix_symlink_mode      v6.18
-  fs.xfs.irix_sgid_inherit      v6.18
-  fs.xfs.speculative_cow_prealloc_lifetime      v6.18
-=============================	=======
+==========================================   =======
+  Name                                       Removed
+==========================================   =======
+  fs.xfs.xfsbufd_centisec                    v4.0
+  fs.xfs.age_buffer_centisecs                v4.0
+  fs.xfs.irix_symlink_mode                   v6.18
+  fs.xfs.irix_sgid_inherit                   v6.18
+  fs.xfs.speculative_cow_prealloc_lifetime   v6.18
+==========================================   =======
 
 Error handling
 ==============
