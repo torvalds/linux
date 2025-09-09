@@ -50,9 +50,9 @@ struct init_status {
 
 struct lynx_accel {
 	/* base virtual address of DPR registers */
-	unsigned char __iomem *dprBase;
+	unsigned char __iomem *dpr_base;
 	/* base virtual address of de data port */
-	unsigned char __iomem *dpPortBase;
+	unsigned char __iomem *dp_port_base;
 
 	/* function pointers */
 	void (*de_init)(struct lynx_accel *accel);
