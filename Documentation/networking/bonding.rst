@@ -193,6 +193,15 @@ ad_actor_sys_prio
 	This parameter has effect only in 802.3ad mode and is available through
 	SysFs interface.
 
+actor_port_prio
+
+	In an AD system, this specifies the port priority. The allowed range
+	is 1 - 65535. If the value is not specified, it takes 255 as the
+	default value.
+
+	This parameter has effect only in 802.3ad mode and is available through
+	netlink interface.
+
 ad_actor_system
 
 	In an AD system, this specifies the mac-address for the actor in
@@ -241,10 +250,18 @@ ad_select
 		ports (slaves).  Reselection occurs as described under the
 		"bandwidth" setting, above.
 
-	The bandwidth and count selection policies permit failover of
-	802.3ad aggregations when partial failure of the active aggregator
-	occurs.  This keeps the aggregator with the highest availability
-	(either in bandwidth or in number of ports) active at all times.
+	actor_port_prio or 3
+
+		The active aggregator is chosen by the highest total sum of
+		actor port priorities across its active ports. Note this
+		priority is actor_port_prio, not per port prio, which is
+		used for primary reselect.
+
+	The bandwidth, count and actor_port_prio selection policies permit
+	failover of 802.3ad aggregations when partial failure of the active
+	aggregator occurs. This keeps the aggregator with the highest
+	availability (either in bandwidth, number of ports, or total value
+	of port priorities) active at all times.
 
 	This option was added in bonding version 3.4.0.
 

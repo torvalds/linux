@@ -436,6 +436,7 @@ static void __ad_actor_update_port(struct port *port)
 
 	port->actor_system = BOND_AD_INFO(bond).system.sys_mac_addr;
 	port->actor_system_priority = BOND_AD_INFO(bond).system.sys_priority;
+	port->actor_port_priority = SLAVE_AD_INFO(port->slave)->port_priority;
 }
 
 /* Conversions */
@@ -744,6 +745,18 @@ static int __agg_active_ports(struct aggregator *agg)
 	}
 
 	return active;
+}
+
+static unsigned int __agg_ports_priority(const struct aggregator *agg)
+{
+	struct port *port = agg->lag_ports;
+	unsigned int prio = 0;
+
+	for (; port; port = port->next_port_in_aggregator)
+		if (port->is_enabled)
+			prio += port->actor_port_priority;
+
+	return prio;
 }
 
 /**
@@ -1707,6 +1720,9 @@ static struct aggregator *ad_agg_selection_test(struct aggregator *best,
 	 * 4.  Therefore, current and best both have partner replies or
 	 *     both do not, so perform selection policy:
 	 *
+	 * BOND_AD_PRIO: Select by total priority of ports. If priority
+	 *     is equal, select by count.
+	 *
 	 * BOND_AD_COUNT: Select by count of ports.  If count is equal,
 	 *     select by bandwidth.
 	 *
@@ -1728,6 +1744,14 @@ static struct aggregator *ad_agg_selection_test(struct aggregator *best,
 		return best;
 
 	switch (__get_agg_selection_mode(curr->lag_ports)) {
+	case BOND_AD_PRIO:
+		if (__agg_ports_priority(curr) > __agg_ports_priority(best))
+			return curr;
+
+		if (__agg_ports_priority(curr) < __agg_ports_priority(best))
+			return best;
+
+		fallthrough;
 	case BOND_AD_COUNT:
 		if (__agg_active_ports(curr) > __agg_active_ports(best))
 			return curr;
@@ -1790,6 +1814,10 @@ static int agg_device_up(const struct aggregator *agg)
  * set of slaves in the bond changes.
  *
  * BOND_AD_COUNT: select the aggregator with largest number of ports
+ * (slaves), and reselect whenever a link state change takes place or the
+ * set of slaves in the bond changes.
+ *
+ * BOND_AD_PRIO: select the aggregator with highest total priority of ports
  * (slaves), and reselect whenever a link state change takes place or the
  * set of slaves in the bond changes.
  *
@@ -2208,6 +2236,9 @@ void bond_3ad_bind_slave(struct slave *slave)
 		port = &(SLAVE_AD_INFO(slave)->port);
 
 		ad_initialize_port(port, &bond->params);
+
+		/* Port priority is initialized. Update it to slave's ad info */
+		SLAVE_AD_INFO(slave)->port_priority = port->actor_port_priority;
 
 		port->slave = slave;
 		port->actor_port_number = SLAVE_AD_INFO(slave)->id;
