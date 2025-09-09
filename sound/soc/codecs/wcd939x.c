@@ -28,6 +28,7 @@
 #include <linux/usb/typec_altmode.h>
 
 #include "wcd-clsh-v2.h"
+#include "wcd-common.h"
 #include "wcd-mbhc-v2.h"
 #include "wcd939x.h"
 
@@ -191,6 +192,7 @@ struct wcd939x_priv {
 	struct wcd_mbhc_config mbhc_cfg;
 	struct wcd_mbhc_intr intr_ids;
 	struct wcd_clsh_ctrl *clsh_info;
+	struct wcd_common common;
 	struct irq_domain *virq;
 	struct regmap_irq_chip_data *irq_chip;
 	struct snd_soc_jack *jack;
@@ -201,10 +203,6 @@ struct wcd939x_priv {
 	u32 tx_mode[TX_ADC_MAX];
 	int variant;
 	struct gpio_desc *reset_gpio;
-	u32 micb1_mv;
-	u32 micb2_mv;
-	u32 micb3_mv;
-	u32 micb4_mv;
 	int hphr_pdm_wd_int;
 	int hphl_pdm_wd_int;
 	int ear_pdm_wd_int;
@@ -1919,17 +1917,6 @@ static void wcd939x_mbhc_micb_ramp_control(struct snd_soc_component *component,
 	}
 }
 
-static int wcd939x_get_micb_vout_ctl_val(u32 micb_mv)
-{
-	/* min micbias voltage is 1V and maximum is 2.85V */
-	if (micb_mv < 1000 || micb_mv > 2850) {
-		pr_err("%s: unsupported micbias voltage\n", __func__);
-		return -EINVAL;
-	}
-
-	return (micb_mv - 1000) / 50;
-}
-
 static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 					    int req_volt, int micb_num)
 {
@@ -1969,7 +1956,7 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 	cur_vout_ctl = snd_soc_component_read_field(component, micb_reg,
 						    WCD939X_MICB_VOUT_CTL);
 
-	req_vout_ctl = wcd939x_get_micb_vout_ctl_val(req_volt);
+	req_vout_ctl = wcd_get_micb_vout_ctl_val(component->dev, req_volt);
 	if (req_vout_ctl < 0) {
 		ret = req_vout_ctl;
 		goto exit;
@@ -2021,10 +2008,10 @@ static int wcd939x_mbhc_micb_ctrl_threshold_mic(struct snd_soc_component *compon
 	 * voltage needed to detect threshold microphone, then do
 	 * not change the micbias, just return.
 	 */
-	if (wcd939x->micb2_mv >= WCD_MBHC_THR_HS_MICB_MV)
+	if (wcd939x->common.micb_mv[1] >= WCD_MBHC_THR_HS_MICB_MV)
 		return 0;
 
-	micb_mv = req_en ? WCD_MBHC_THR_HS_MICB_MV : wcd939x->micb2_mv;
+	micb_mv = req_en ? WCD_MBHC_THR_HS_MICB_MV : wcd939x->common.micb_mv[1];
 
 	return wcd939x_mbhc_micb_adjust_voltage(component, micb_mv, MIC_BIAS_2);
 }
@@ -2895,28 +2882,16 @@ static const struct snd_soc_dapm_route wcd939x_audio_map[] = {
 	{"EAR", NULL, "EAR PGA"},
 };
 
-static int wcd939x_set_micbias_data(struct wcd939x_priv *wcd939x)
+static void wcd939x_set_micbias_data(struct device *dev, struct wcd939x_priv *wcd939x)
 {
-	int vout_ctl_1, vout_ctl_2, vout_ctl_3, vout_ctl_4;
-
-	/* set micbias voltage */
-	vout_ctl_1 = wcd939x_get_micb_vout_ctl_val(wcd939x->micb1_mv);
-	vout_ctl_2 = wcd939x_get_micb_vout_ctl_val(wcd939x->micb2_mv);
-	vout_ctl_3 = wcd939x_get_micb_vout_ctl_val(wcd939x->micb3_mv);
-	vout_ctl_4 = wcd939x_get_micb_vout_ctl_val(wcd939x->micb4_mv);
-	if (vout_ctl_1 < 0 || vout_ctl_2 < 0 || vout_ctl_3 < 0 || vout_ctl_4 < 0)
-		return -EINVAL;
-
 	regmap_update_bits(wcd939x->regmap, WCD939X_ANA_MICB1,
-			   WCD939X_MICB_VOUT_CTL, vout_ctl_1);
+			   WCD939X_MICB_VOUT_CTL, wcd939x->common.micb_vout[0]);
 	regmap_update_bits(wcd939x->regmap, WCD939X_ANA_MICB2,
-			   WCD939X_MICB_VOUT_CTL, vout_ctl_2);
+			   WCD939X_MICB_VOUT_CTL, wcd939x->common.micb_vout[1]);
 	regmap_update_bits(wcd939x->regmap, WCD939X_ANA_MICB3,
-			   WCD939X_MICB_VOUT_CTL, vout_ctl_3);
+			   WCD939X_MICB_VOUT_CTL, wcd939x->common.micb_vout[2]);
 	regmap_update_bits(wcd939x->regmap, WCD939X_ANA_MICB4,
-			   WCD939X_MICB_VOUT_CTL, vout_ctl_4);
-
-	return 0;
+			   WCD939X_MICB_VOUT_CTL, wcd939x->common.micb_vout[3]);
 }
 
 static irqreturn_t wcd939x_wd_handle_irq(int irq, void *data)
@@ -3186,37 +3161,6 @@ static int wcd939x_typec_mux_set(struct typec_mux_dev *mux,
 }
 #endif /* CONFIG_TYPEC */
 
-static void wcd939x_dt_parse_micbias_info(struct device *dev, struct wcd939x_priv *wcd)
-{
-	struct device_node *np = dev->of_node;
-	u32 prop_val = 0;
-	int rc = 0;
-
-	rc = of_property_read_u32(np, "qcom,micbias1-microvolt",  &prop_val);
-	if (!rc)
-		wcd->micb1_mv = prop_val / 1000;
-	else
-		dev_info(dev, "%s: Micbias1 DT property not found\n", __func__);
-
-	rc = of_property_read_u32(np, "qcom,micbias2-microvolt",  &prop_val);
-	if (!rc)
-		wcd->micb2_mv = prop_val / 1000;
-	else
-		dev_info(dev, "%s: Micbias2 DT property not found\n", __func__);
-
-	rc = of_property_read_u32(np, "qcom,micbias3-microvolt", &prop_val);
-	if (!rc)
-		wcd->micb3_mv = prop_val / 1000;
-	else
-		dev_info(dev, "%s: Micbias3 DT property not found\n", __func__);
-
-	rc = of_property_read_u32(np, "qcom,micbias4-microvolt",  &prop_val);
-	if (!rc)
-		wcd->micb4_mv = prop_val / 1000;
-	else
-		dev_info(dev, "%s: Micbias4 DT property not found\n", __func__);
-}
-
 #if IS_ENABLED(CONFIG_TYPEC)
 static bool wcd939x_swap_gnd_mic(struct snd_soc_component *component)
 {
@@ -3252,13 +3196,15 @@ static int wcd939x_populate_dt_data(struct wcd939x_priv *wcd939x, struct device 
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to get and enable supplies\n");
 
-	wcd939x_dt_parse_micbias_info(dev, wcd939x);
+	ret = wcd_dt_parse_micbias_info(&wcd939x->common);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get micbias\n");
 
 	cfg->mbhc_micbias = MIC_BIAS_2;
 	cfg->anc_micbias = MIC_BIAS_2;
 	cfg->v_hs_max = WCD_MBHC_HS_V_MAX;
 	cfg->num_btn = WCD939X_MBHC_MAX_BUTTONS;
-	cfg->micb_mv = wcd939x->micb2_mv;
+	cfg->micb_mv = wcd939x->common.micb_mv[1];
 	cfg->linein_th = 5000;
 	cfg->hs_thr = 1700;
 	cfg->hph_thr = 50;
@@ -3444,11 +3390,7 @@ static int wcd939x_bind(struct device *dev)
 	wcd939x->sdw_priv[AIF1_PB]->slave_irq = wcd939x->virq;
 	wcd939x->sdw_priv[AIF1_CAP]->slave_irq = wcd939x->virq;
 
-	ret = wcd939x_set_micbias_data(wcd939x);
-	if (ret < 0) {
-		dev_err(dev, "%s: bad micbias pdata\n", __func__);
-		goto err_remove_rx_link;
-	}
+	wcd939x_set_micbias_data(dev, wcd939x);
 
 	/* Check WCD9395 version */
 	regmap_read(wcd939x->regmap, WCD939X_DIGITAL_CHIP_ID1, &id1);
@@ -3613,6 +3555,8 @@ static int wcd939x_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, wcd939x);
 	mutex_init(&wcd939x->micb_lock);
+	wcd939x->common.dev = dev;
+	wcd939x->common.max_bias = 4;
 
 	ret = wcd939x_populate_dt_data(wcd939x, dev);
 	if (ret) {
