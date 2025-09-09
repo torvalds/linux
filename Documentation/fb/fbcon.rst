@@ -74,6 +74,7 @@ Possible scenarios:
 	 over the console.
 
 C. Boot options
+===============
 
 	 The framebuffer console has several, largely unknown, boot options
 	 that can change its behavior.
@@ -172,7 +173,8 @@ C. Boot options
 	The value 'n' overrides the number of bootup logos. 0 disables the
 	logo, and -1 gives the default which is the number of online CPUs.
 
-C. Attaching, Detaching and Unloading
+D. Attaching, Detaching and Unloading
+=====================================
 
 Before going on to how to attach, detach and unload the framebuffer console, an
 illustration of the dependencies may help.
