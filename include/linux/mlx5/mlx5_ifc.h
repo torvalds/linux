@@ -4901,6 +4901,11 @@ union mlx5_ifc_field_select_802_1_r_roce_auto_bits {
 	u8         reserved_at_0[0x20];
 };
 
+struct mlx5_ifc_rs_histogram_cntrs_bits {
+	u8         hist[16][0x40];
+	u8         reserved_at_400[0x2c0];
+};
+
 union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits {
 	struct mlx5_ifc_eth_802_3_cntrs_grp_data_layout_bits eth_802_3_cntrs_grp_data_layout;
 	struct mlx5_ifc_eth_2863_cntrs_grp_data_layout_bits eth_2863_cntrs_grp_data_layout;
@@ -4915,6 +4920,7 @@ union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits {
 	struct mlx5_ifc_phys_layer_cntrs_bits phys_layer_cntrs;
 	struct mlx5_ifc_phys_layer_statistical_cntrs_bits phys_layer_statistical_cntrs;
 	struct mlx5_ifc_phys_layer_recovery_cntrs_bits phys_layer_recovery_cntrs;
+	struct mlx5_ifc_rs_histogram_cntrs_bits rs_histogram_cntrs;
 	u8         reserved_at_0[0x7c0];
 };
 
@@ -11738,6 +11744,28 @@ struct mlx5_ifc_mtctr_reg_bits {
 	u8         second_clock_timestamp[0x40];
 };
 
+struct mlx5_ifc_bin_range_layout_bits {
+	u8         reserved_at_0[0xa];
+	u8         high_val[0x6];
+	u8         reserved_at_10[0xa];
+	u8         low_val[0x6];
+};
+
+struct mlx5_ifc_pphcr_reg_bits {
+	u8         active_hist_type[0x4];
+	u8         reserved_at_4[0x4];
+	u8         local_port[0x8];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x8];
+	u8         num_of_bins[0x8];
+	u8         reserved_at_30[0x10];
+
+	u8         reserved_at_40[0x40];
+
+	struct mlx5_ifc_bin_range_layout_bits bin_range[16];
+};
+
 union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_bufferx_reg_bits bufferx_reg;
 	struct mlx5_ifc_eth_2819_cntrs_grp_data_layout_bits eth_2819_cntrs_grp_data_layout;
@@ -11804,6 +11832,7 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_mtmp_reg_bits mtmp_reg;
 	struct mlx5_ifc_mtptm_reg_bits mtptm_reg;
 	struct mlx5_ifc_mtctr_reg_bits mtctr_reg;
+	struct mlx5_ifc_pphcr_reg_bits pphcr_reg;
 	u8         reserved_at_0[0x60e0];
 };
 
