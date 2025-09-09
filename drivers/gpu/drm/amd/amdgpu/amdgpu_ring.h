@@ -481,10 +481,7 @@ static inline void amdgpu_ring_set_preempt_cond_exec(struct amdgpu_ring *ring,
 
 static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
 {
-	int i = 0;
-	while (i <= ring->buf_mask)
-		ring->ring[i++] = ring->funcs->nop;
-
+	memset32(ring->ring, ring->funcs->nop, ring->buf_mask + 1);
 }
 
 static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
