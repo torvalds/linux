@@ -2265,7 +2265,8 @@ mt7996_mac_restart(struct mt7996_dev *dev)
 	if (ret)
 		goto out;
 
-	if (mtk_wed_device_active(&dev->mt76.mmio.wed) && dev->has_rro) {
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
+	    mt7996_has_hwrro(dev)) {
 		u32 wed_irq_mask = dev->mt76.mmio.irqmask |
 				   MT_INT_TX_DONE_BAND2;
 
@@ -2493,7 +2494,7 @@ void mt7996_mac_reset_work(struct work_struct *work)
 	/* enable DMA Tx/Tx and interrupt */
 	mt7996_dma_start(dev, false, false);
 
-	if (!is_mt7996(&dev->mt76) && dev->has_rro)
+	if (!is_mt7996(&dev->mt76) && dev->mt76.hwrro_mode == MT76_HWRRO_V3)
 		mt76_wr(dev, MT_RRO_3_0_EMU_CONF, MT_RRO_3_0_EMU_CONF_EN_MASK);
 
 	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {

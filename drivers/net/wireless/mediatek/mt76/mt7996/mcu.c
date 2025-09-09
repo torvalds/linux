@@ -660,7 +660,7 @@ mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)
 {
 	struct mt7996_mcu_wed_rro_event *event = (void *)skb->data;
 
-	if (!dev->has_rro)
+	if (!mt7996_has_hwrro(dev))
 		return;
 
 	skb_pull(skb, sizeof(struct mt7996_mcu_rxd) + 4);
@@ -1183,7 +1183,7 @@ mt7996_mcu_sta_ba(struct mt7996_dev *dev, struct mt76_vif_link *mvif,
 	ba->ba_en = enable << params->tid;
 	ba->amsdu = params->amsdu;
 	ba->tid = params->tid;
-	ba->ba_rdd_rro = !tx && enable && dev->has_rro;
+	ba->ba_rdd_rro = !tx && enable && mt7996_has_hwrro(dev);
 
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);

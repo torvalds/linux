@@ -33,6 +33,7 @@
 #define MT_QFLAG_WED		BIT(5)
 #define MT_QFLAG_WED_RRO	BIT(6)
 #define MT_QFLAG_WED_RRO_EN	BIT(7)
+#define MT_QFLAG_EMI_EN		BIT(8)
 
 #define __MT_WED_Q(_type, _n)	(MT_QFLAG_WED | \
 				 FIELD_PREP(MT_QFLAG_WED_TYPE, _type) | \
@@ -73,6 +74,12 @@ enum mt76_wed_type {
 	MT76_WED_RRO_Q_MSDU_PG,
 	MT76_WED_RRO_Q_IND,
 	MT76_WED_RRO_Q_RXDMAD_C,
+};
+
+enum mt76_hwrro_mode {
+	MT76_HWRRO_OFF,
+	MT76_HWRRO_V3,
+	MT76_HWRRO_V3_1,
 };
 
 struct mt76_bus_ops {
@@ -131,6 +138,7 @@ enum mt76_rxq_id {
 	MT_RXQ_TXFREE_BAND1,
 	MT_RXQ_TXFREE_BAND2,
 	MT_RXQ_RRO_IND,
+	MT_RXQ_RRO_RXDMAD_C,
 	__MT_RXQ_MAX
 };
 
@@ -235,6 +243,8 @@ struct mt76_queue {
 	u8 buf_offset;
 	u16 flags;
 	u8 magic_cnt;
+
+	__le16 *emi_cpu_idx;
 
 	struct mtk_wed_device *wed;
 	u32 wed_regs;
@@ -923,6 +933,7 @@ struct mt76_dev {
 	struct mt76_queue q_rx[__MT_RXQ_MAX];
 	const struct mt76_queue_ops *queue_ops;
 	int tx_dma_idx[4];
+	enum mt76_hwrro_mode hwrro_mode;
 
 	struct mt76_worker tx_worker;
 	struct napi_struct tx_napi;
@@ -1819,6 +1830,11 @@ static inline bool mt76_queue_is_wed_rx(struct mt76_queue *q)
 {
 	return (q->flags & MT_QFLAG_WED) &&
 	       FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_RX;
+}
+
+static inline bool mt76_queue_is_emi(struct mt76_queue *q)
+{
+	return q->flags & MT_QFLAG_EMI_EN;
 }
 
 struct mt76_txwi_cache *

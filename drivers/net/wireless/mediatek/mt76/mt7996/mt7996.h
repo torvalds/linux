@@ -193,6 +193,7 @@ enum mt7996_rxq_id {
 	MT7996_RXQ_TXFREE1 = 9,
 	MT7996_RXQ_TXFREE2 = 7,
 	MT7996_RXQ_RRO_IND = 0,
+	MT7996_RXQ_RRO_RXDMAD_C = 0,
 	MT7990_RXQ_TXFREE0 = 6,
 	MT7990_RXQ_TXFREE1 = 7,
 };
@@ -329,6 +330,14 @@ struct mt7996_msdu_page_info {
 	__le32 data;
 };
 
+#define MT7996_MAX_RRO_RRS_RING 4
+struct mt7996_rro_queue_regs_emi {
+	struct {
+		__le16 idx;
+		__le16 rsv;
+	} ring[MT7996_MAX_RRO_RRS_RING];
+};
+
 struct mt7996_phy {
 	struct mt76_phy *mt76;
 	struct mt7996_dev *dev;
@@ -423,7 +432,6 @@ struct mt7996_dev {
 
 	bool flash_mode:1;
 	bool has_eht:1;
-	bool has_rro:1;
 
 	struct {
 		struct {
@@ -442,6 +450,14 @@ struct mt7996_dev {
 			void *ptr;
 			dma_addr_t phy_addr;
 		} msdu_pg[MT7996_RRO_MSDU_PG_CR_CNT];
+		struct {
+			struct mt7996_rro_queue_regs_emi *ptr;
+			dma_addr_t phy_addr;
+		} emi_rings_cpu;
+		struct {
+			struct mt7996_rro_queue_regs_emi *ptr;
+			dma_addr_t phy_addr;
+		} emi_rings_dma;
 
 		struct work_struct work;
 		struct list_head poll_list;
@@ -721,6 +737,11 @@ void mt7996_mcu_exit(struct mt7996_dev *dev);
 int mt7996_mcu_get_all_sta_info(struct mt7996_phy *phy, u16 tag);
 int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id);
 int mt7996_mcu_set_sniffer_mode(struct mt7996_phy *phy, bool enabled);
+
+static inline bool mt7996_has_hwrro(struct mt7996_dev *dev)
+{
+	return dev->mt76.hwrro_mode != MT76_HWRRO_OFF;
+}
 
 static inline u8 mt7996_max_interface_num(struct mt7996_dev *dev)
 {

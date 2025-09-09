@@ -83,12 +83,14 @@ static void mt7996_dma_config(struct mt7996_dev *dev)
 		break;
 	}
 
-	if (dev->has_rro) {
+	if (mt7996_has_hwrro(dev)) {
 		/* band0 */
 		RXQ_CONFIG(MT_RXQ_RRO_BAND0, WFDMA0, MT_INT_RX_DONE_RRO_BAND0,
 			   MT7996_RXQ_RRO_BAND0);
-		RXQ_CONFIG(MT_RXQ_MSDU_PAGE_BAND0, WFDMA0, MT_INT_RX_DONE_MSDU_PG_BAND0,
-			   MT7996_RXQ_MSDU_PG_BAND0);
+		if (dev->mt76.hwrro_mode == MT76_HWRRO_V3)
+			RXQ_CONFIG(MT_RXQ_MSDU_PAGE_BAND0, WFDMA0,
+				   MT_INT_RX_DONE_MSDU_PG_BAND0,
+				   MT7996_RXQ_MSDU_PG_BAND0);
 		if (is_mt7996(&dev->mt76)) {
 			RXQ_CONFIG(MT_RXQ_TXFREE_BAND0, WFDMA0,
 				   MT_INT_RX_TXFREE_MAIN, MT7996_RXQ_TXFREE0);
@@ -111,8 +113,14 @@ static void mt7996_dma_config(struct mt7996_dev *dev)
 				   MT7996_RXQ_RRO_BAND1);
 		}
 
-		RXQ_CONFIG(MT_RXQ_RRO_IND, WFDMA0, MT_INT_RX_DONE_RRO_IND,
-			   MT7996_RXQ_RRO_IND);
+		if (dev->mt76.hwrro_mode == MT76_HWRRO_V3)
+			RXQ_CONFIG(MT_RXQ_RRO_IND, WFDMA0,
+				   MT_INT_RX_DONE_RRO_IND,
+				   MT7996_RXQ_RRO_IND);
+		else
+			RXQ_CONFIG(MT_RXQ_RRO_RXDMAD_C, WFDMA0,
+				   MT_INT_RX_DONE_RRO_RXDMAD_C,
+				   MT7996_RXQ_RRO_RXDMAD_C);
 	}
 
 	/* data tx queue */
@@ -196,11 +204,12 @@ static void __mt7996_dma_prefetch(struct mt7996_dev *dev, u32 ofs)
 
 	/* Rx TxFreeDone From MAC Rings */
 	val = is_mt7996(&dev->mt76) ? 4 : 8;
-	if (is_mt7990(&dev->mt76) || (is_mt7996(&dev->mt76) && dev->has_rro))
+	if ((is_mt7996(&dev->mt76) && mt7996_has_hwrro(dev)) ||
+	    is_mt7990(&dev->mt76))
 		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND0) + ofs, PREFETCH(val));
 	if (is_mt7990(&dev->mt76) && dev->hif2)
 		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND1) + ofs, PREFETCH(val));
-	else if (is_mt7996(&dev->mt76) && dev->has_rro)
+	else if (is_mt7996(&dev->mt76) && mt7996_has_hwrro(dev))
 		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND2) + ofs, PREFETCH(val));
 
 	/* Rx Data Rings */
@@ -209,7 +218,7 @@ static void __mt7996_dma_prefetch(struct mt7996_dev *dev, u32 ofs)
 	mt76_wr(dev, MT_RXQ_EXT_CTRL(queue) + ofs, PREFETCH(0x10));
 
 	/* Rx RRO Rings */
-	if (dev->has_rro) {
+	if (mt7996_has_hwrro(dev)) {
 		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_RRO_BAND0) + ofs, PREFETCH(0x10));
 		queue = is_mt7996(&dev->mt76) ? MT_RXQ_RRO_BAND2 : MT_RXQ_RRO_BAND1;
 		mt76_wr(dev, MT_RXQ_EXT_CTRL(queue) + ofs, PREFETCH(0x10));
@@ -465,7 +474,7 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
 		 * so, redirect pcie0 rx ring3 interrupt to pcie1
 		 */
 		if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
-		    dev->has_rro) {
+		    mt7996_has_hwrro(dev)) {
 			u32 intr = is_mt7996(&dev->mt76) ?
 				   MT_WFDMA0_RX_INT_SEL_RING6 :
 				   MT_WFDMA0_RX_INT_SEL_RING9 |
@@ -487,6 +496,30 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 	struct mt76_dev *mdev = &dev->mt76;
 	u32 irq_mask;
 	int ret;
+
+	if (dev->mt76.hwrro_mode == MT76_HWRRO_V3_1) {
+		/* rxdmad_c */
+		mdev->q_rx[MT_RXQ_RRO_RXDMAD_C].flags = MT_WED_RRO_Q_RXDMAD_C;
+		if (mtk_wed_device_active(&mdev->mmio.wed))
+			mdev->q_rx[MT_RXQ_RRO_RXDMAD_C].wed = &mdev->mmio.wed;
+		else
+			mdev->q_rx[MT_RXQ_RRO_RXDMAD_C].flags |= MT_QFLAG_EMI_EN;
+		ret = mt76_queue_alloc(dev, &mdev->q_rx[MT_RXQ_RRO_RXDMAD_C],
+				       MT_RXQ_ID(MT_RXQ_RRO_RXDMAD_C),
+				       MT7996_RX_RING_SIZE,
+				       MT7996_RX_BUF_SIZE,
+				       MT_RXQ_RRO_AP_RING_BASE);
+		if (ret)
+			return ret;
+
+		/* We need to set cpu idx pointer before resetting the EMI
+		 * queues.
+		 */
+		mdev->q_rx[MT_RXQ_RRO_RXDMAD_C].emi_cpu_idx =
+			&dev->wed_rro.emi_rings_cpu.ptr->ring[0].idx;
+		mt76_queue_reset(dev, &mdev->q_rx[MT_RXQ_RRO_RXDMAD_C], true);
+		goto start_hw_rro;
+	}
 
 	/* ind cmd */
 	mdev->q_rx[MT_RXQ_RRO_IND].flags = MT_WED_RRO_Q_IND;
@@ -546,6 +579,7 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 			return ret;
 	}
 
+start_hw_rro:
 	if (mtk_wed_device_active(&mdev->mmio.wed)) {
 		irq_mask = mdev->mmio.irqmask |
 			   MT_INT_TX_DONE_BAND2;
@@ -567,9 +601,15 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 		}
 
 		mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND0, mt76_dma_rx_poll);
-		mt76_queue_rx_init(dev, MT_RXQ_RRO_IND, mt76_dma_rx_poll);
-		mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND0,
-				   mt76_dma_rx_poll);
+		if (dev->mt76.hwrro_mode == MT76_HWRRO_V3_1) {
+			mt76_queue_rx_init(dev, MT_RXQ_RRO_RXDMAD_C,
+					   mt76_dma_rx_poll);
+		} else {
+			mt76_queue_rx_init(dev, MT_RXQ_RRO_IND,
+					   mt76_dma_rx_poll);
+			mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND0,
+					   mt76_dma_rx_poll);
+		}
 		mt7996_irq_enable(dev, MT_INT_RRO_RX_DONE);
 	}
 
@@ -662,7 +702,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 
 	/* tx free notify event from WA for band0 */
 	if (mtk_wed_device_active(wed) &&
-	    ((is_mt7996(&dev->mt76) && !dev->has_rro) ||
+	    ((is_mt7996(&dev->mt76) && !mt7996_has_hwrro(dev)) ||
 	     (is_mt7992(&dev->mt76)))) {
 		dev->mt76.q_rx[MT_RXQ_MAIN_WA].flags = MT_WED_Q_TXFREE;
 		dev->mt76.q_rx[MT_RXQ_MAIN_WA].wed = wed;
@@ -718,7 +758,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 		/* tx free notify event from WA for mt7996 band2
 		 * use pcie0's rx ring3, but, redirect pcie0 rx ring3 interrupt to pcie1
 		 */
-		if (mtk_wed_device_active(wed_hif2) && !dev->has_rro) {
+		if (mtk_wed_device_active(wed_hif2) && !mt7996_has_hwrro(dev)) {
 			dev->mt76.q_rx[MT_RXQ_BAND2_WA].flags = MT_WED_Q_TXFREE;
 			dev->mt76.q_rx[MT_RXQ_BAND2_WA].wed = wed_hif2;
 		}
@@ -765,7 +805,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 		}
 	}
 
-	if (dev->has_rro) {
+	if (mt7996_has_hwrro(dev)) {
 		/* rx rro data queue for band0 */
 		dev->mt76.q_rx[MT_RXQ_RRO_BAND0].flags =
 			MT_WED_RRO_Q_DATA(0) | MT_QFLAG_WED_RRO_EN;
@@ -887,7 +927,8 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
 
 	mt76_tx_status_check(&dev->mt76, true);
 
-	if (dev->has_rro && !mtk_wed_device_active(&dev->mt76.mmio.wed))
+	if (mt7996_has_hwrro(dev) &&
+	    !mtk_wed_device_active(&dev->mt76.mmio.wed))
 		mt7996_rro_msdu_page_map_free(dev);
 
 	/* reset wfsys */
