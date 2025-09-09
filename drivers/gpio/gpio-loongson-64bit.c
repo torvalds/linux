@@ -267,10 +267,13 @@ static int loongson_gpio_init_irqchip(struct platform_device *pdev,
 		return -ENOMEM;
 
 	for (i = 0; i < data->intr_num; i++) {
-		chip->irq.parents[i] = platform_get_irq(pdev, i);
-		if (chip->irq.parents[i] < 0)
-			return dev_err_probe(&pdev->dev, chip->irq.parents[i],
+		int ret;
+
+		ret = platform_get_irq(pdev, i);
+		if (ret < 0)
+			return dev_err_probe(&pdev->dev, ret,
 					     "failed to get IRQ %d\n", i);
+		chip->irq.parents[i] = ret;
 	}
 
 	for (i = 0; i < data->intr_num; i++) {
