@@ -638,7 +638,7 @@ class TypeBitfield32(Type):
         return '.type = YNL_PT_BITFIELD32, '
 
     def _attr_policy(self, policy):
-        if not 'enum' in self.attr:
+        if 'enum' not in self.attr:
             raise Exception('Enum required for bitfield32 attr')
         enum = self.family.consts[self.attr['enum']]
         mask = enum.get_mask(as_flags=True)
