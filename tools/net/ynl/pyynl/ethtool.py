@@ -254,14 +254,14 @@ def main():
         reply = dumpit(ynl, args, 'channels-get')
         print(f'Channel parameters for {args.device}:')
 
-        print(f'Pre-set maximums:')
+        print('Pre-set maximums:')
         print_field(reply,
             ('rx-max', 'RX'),
             ('tx-max', 'TX'),
             ('other-max', 'Other'),
             ('combined-max', 'Combined'))
 
-        print(f'Current hardware settings:')
+        print('Current hardware settings:')
         print_field(reply,
             ('rx-count', 'RX'),
             ('tx-count', 'TX'),
@@ -275,14 +275,14 @@ def main():
 
         print(f'Ring parameters for {args.device}:')
 
-        print(f'Pre-set maximums:')
+        print('Pre-set maximums:')
         print_field(reply,
             ('rx-max', 'RX'),
             ('rx-mini-max', 'RX Mini'),
             ('rx-jumbo-max', 'RX Jumbo'),
             ('tx-max', 'TX'))
 
-        print(f'Current hardware settings:')
+        print('Current hardware settings:')
         print_field(reply,
             ('rx', 'RX'),
             ('rx-mini', 'RX Mini'),
@@ -297,7 +297,7 @@ def main():
         return
 
     if args.statistics:
-        print(f'NIC statistics:')
+        print('NIC statistics:')
 
         # TODO: pass id?
         strset = dumpit(ynl, args, 'strset-get')

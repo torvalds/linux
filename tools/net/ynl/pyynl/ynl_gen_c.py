@@ -485,7 +485,7 @@ class TypeString(Type):
         ri.cw.p(f"char *{self.c_name};")
 
     def _attr_typol(self):
-        typol = f'.type = YNL_PT_NUL_STR, '
+        typol = '.type = YNL_PT_NUL_STR, '
         if self.is_selector:
             typol += '.is_selector = 1, '
         return typol
@@ -539,7 +539,7 @@ class TypeBinary(Type):
         ri.cw.p(f"void *{self.c_name};")
 
     def _attr_typol(self):
-        return f'.type = YNL_PT_BINARY,'
+        return '.type = YNL_PT_BINARY,'
 
     def _attr_policy(self, policy):
         if len(self.checks) == 0:
@@ -636,7 +636,7 @@ class TypeBitfield32(Type):
         return "struct nla_bitfield32"
 
     def _attr_typol(self):
-        return f'.type = YNL_PT_BITFIELD32, '
+        return '.type = YNL_PT_BITFIELD32, '
 
     def _attr_policy(self, policy):
         if not 'enum' in self.attr:
@@ -909,7 +909,7 @@ class TypeSubMessage(TypeNest):
         else:
             sel_var = f"{var}->{sel}"
         get_lines = [f'if (!{sel_var})',
-                     f'return ynl_submsg_failed(yarg, "%s", "%s");' %
+                     'return ynl_submsg_failed(yarg, "%s", "%s");' %
                         (self.name, self['selector']),
                     f"if ({self.nested_render_name}_parse(&parg, {sel_var}, attr))",
                      "return YNL_PARSE_CB_ERROR;"]
@@ -1563,7 +1563,7 @@ class RenderInfo:
                 if family.is_classic():
                     self.fixed_hdr_len = f"sizeof(struct {c_lower(fixed_hdr)})"
                 else:
-                    raise Exception(f"Per-op fixed header not supported, yet")
+                    raise Exception("Per-op fixed header not supported, yet")
 
 
         # 'do' and 'dump' response parsing is identical
@@ -2099,7 +2099,7 @@ def _multi_parse(ri, struct, init_lines, local_vars):
             if ri.family.is_classic():
                 iter_line = f"ynl_attr_for_each(attr, nlh, sizeof({struct.fixed_header}))"
             else:
-                raise Exception(f"Per-op fixed header not supported, yet")
+                raise Exception("Per-op fixed header not supported, yet")
 
     array_nests = set()
     multi_attrs = set()
@@ -2502,7 +2502,7 @@ def print_free_prototype(ri, direction, suffix=';'):
 
 def print_nlflags_set(ri, direction):
     name = op_prefix(ri, direction)
-    ri.cw.write_func_prot(f'static inline void', f"{name}_set_nlflags",
+    ri.cw.write_func_prot('static inline void', f"{name}_set_nlflags",
                           [f"struct {name} *req", "__u16 nl_flags"])
     ri.cw.block_start()
     ri.cw.p('req->_nlmsg_flags = nl_flags;')
@@ -2533,7 +2533,7 @@ def _print_type(ri, direction, struct):
             line = attr.presence_member(ri.ku_space, type_filter)
             if line:
                 if not meta_started:
-                    ri.cw.block_start(line=f"struct")
+                    ri.cw.block_start(line="struct")
                     meta_started = True
                 ri.cw.p(line)
         if meta_started:
@@ -2697,7 +2697,7 @@ def print_dump_type_free(ri):
     ri.cw.nl()
 
     _free_type_members(ri, 'rsp', ri.struct['reply'], ref='obj.')
-    ri.cw.p(f'free(rsp);')
+    ri.cw.p('free(rsp);')
     ri.cw.block_end()
     ri.cw.block_end()
     ri.cw.nl()
@@ -2708,7 +2708,7 @@ def print_ntf_type_free(ri):
     ri.cw.block_start()
     _free_type_members_iter(ri, ri.struct['reply'])
     _free_type_members(ri, 'rsp', ri.struct['reply'], ref='obj.')
-    ri.cw.p(f'free(rsp);')
+    ri.cw.p('free(rsp);')
     ri.cw.block_end()
     ri.cw.nl()
 
@@ -3322,7 +3322,7 @@ def render_user_family(family, cw, prototype):
     cw.block_start(f'{symbol} = ')
     cw.p(f'.name\t\t= "{family.c_name}",')
     if family.is_classic():
-        cw.p(f'.is_classic\t= true,')
+        cw.p('.is_classic\t= true,')
         cw.p(f'.classic_id\t= {family.get("protonum")},')
     if family.is_classic():
         if family.fixed_header:
