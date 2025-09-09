@@ -785,7 +785,7 @@ exit:
  *	 be written.
  * @bytes_write: Size of ebuf.
  * @size_write_flag: A flag on Command Register which says whether the link size
- * information will be writen or not.
+ * information will be written or not.
  *
  * return: Number of bytes written, or < 0 on error.
  */
