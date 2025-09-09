@@ -156,7 +156,6 @@ def main():
     global args
     args = parser.parse_args()
 
-    script_abs_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
     spec = os.path.join(spec_dir(), 'ethtool.yaml')
     schema = os.path.join(schema_dir(), 'genetlink-legacy.yaml')
 

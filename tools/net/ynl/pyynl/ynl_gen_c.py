@@ -2803,8 +2803,6 @@ def print_kernel_policy_sparse_enum_validates(family, cw):
                 cw.p('/* Sparse enums validation callbacks */')
                 first = False
 
-            sign = '' if attr.type[0] == 'u' else '_signed'
-            suffix = 'ULL' if attr.type[0] == 'u' else 'LL'
             cw.write_func_prot('static int', f'{c_lower(attr.enum_name)}_validate',
                                ['const struct nlattr *attr', 'struct netlink_ext_ack *extack'])
             cw.block_start()
