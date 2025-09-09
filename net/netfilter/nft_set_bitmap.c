@@ -226,7 +226,8 @@ static void nft_bitmap_walk(const struct nft_ctx *ctx,
 	const struct nft_bitmap *priv = nft_set_priv(set);
 	struct nft_bitmap_elem *be;
 
-	list_for_each_entry_rcu(be, &priv->list, head) {
+	list_for_each_entry_rcu(be, &priv->list, head,
+				lockdep_is_held(&nft_pernet(ctx->net)->commit_mutex)) {
 		if (iter->count < iter->skip)
 			goto cont;
 
