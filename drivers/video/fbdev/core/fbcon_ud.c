@@ -427,7 +427,7 @@ static const struct fbcon_bitops ud_fbcon_bitops = {
 	.rotate_font = fbcon_rotate_font,
 };
 
-void fbcon_rotate_ud(struct fbcon_par *par)
+void fbcon_set_bitops_ud(struct fbcon_par *par)
 {
 	par->bitops = &ud_fbcon_bitops;
 }

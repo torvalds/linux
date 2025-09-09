@@ -393,10 +393,7 @@ static const struct fbcon_bitops bit_fbcon_bitops = {
 	.update_start = bit_update_start,
 };
 
-void fbcon_set_bitops(struct fbcon_par *par)
+void fbcon_set_bitops_ur(struct fbcon_par *par)
 {
 	par->bitops = &bit_fbcon_bitops;
-
-	if (par->rotate)
-		fbcon_set_rotate(par);
 }

@@ -92,18 +92,3 @@ int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc)
 finished:
 	return err;
 }
-
-void fbcon_set_rotate(struct fbcon_par *par)
-{
-	switch (par->rotate) {
-	case FB_ROTATE_CW:
-		fbcon_rotate_cw(par);
-		break;
-	case FB_ROTATE_UD:
-		fbcon_rotate_ud(par);
-		break;
-	case FB_ROTATE_CCW:
-		fbcon_rotate_ccw(par);
-		break;
-	}
-}
