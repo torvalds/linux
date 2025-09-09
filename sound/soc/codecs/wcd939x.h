@@ -930,7 +930,6 @@ int wcd939x_sdw_hw_params(struct wcd939x_sdw_priv *wcd,
 			  struct snd_pcm_hw_params *params,
 			  struct snd_soc_dai *dai);
 
-struct device *wcd939x_sdw_device_get(struct device_node *np);
 unsigned int wcd939x_swr_get_current_bank(struct sdw_slave *sdev);
 
 struct regmap *wcd939x_swr_get_regmap(struct wcd939x_sdw_priv *wcd);
@@ -956,11 +955,6 @@ static inline int wcd939x_sdw_hw_params(struct wcd939x_sdw_priv *wcd,
 					struct snd_soc_dai *dai)
 {
 	return -EOPNOTSUPP;
-}
-
-static inline struct device *wcd939x_sdw_device_get(struct device_node *np)
-{
-	return NULL;
 }
 
 static inline unsigned int wcd939x_swr_get_current_bank(struct sdw_slave *sdev)
