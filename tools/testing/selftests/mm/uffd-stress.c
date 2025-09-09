@@ -448,12 +448,6 @@ int main(int argc, char **argv)
 	parse_test_type_arg(argv[1]);
 	bytes = atol(argv[2]) * 1024 * 1024;
 
-	if (test_type == TEST_HUGETLB &&
-	   get_free_hugepages() < bytes / page_size) {
-		printf("skip: Skipping userfaultfd... not enough hugepages\n");
-		return KSFT_SKIP;
-	}
-
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	if (nr_cpus > 32) {
 		/* Don't let calculation below go to zero. */
@@ -462,6 +456,17 @@ int main(int argc, char **argv)
 		nr_parallel = 32;
 	} else {
 		nr_parallel = nr_cpus;
+	}
+
+	/*
+	 * src and dst each require bytes / page_size number of hugepages.
+	 * Ensure nr_parallel - 1 hugepages on top of that to account
+	 * for racy extra reservation of hugepages.
+	 */
+	if (test_type == TEST_HUGETLB &&
+	   get_free_hugepages() < 2 * (bytes / page_size) + nr_parallel - 1) {
+		printf("skip: Skipping userfaultfd... not enough hugepages\n");
+		return KSFT_SKIP;
 	}
 
 	nr_pages_per_cpu = bytes / page_size / nr_parallel;
