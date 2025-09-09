@@ -66,7 +66,7 @@ same rules are applied for all the connections (see: ``ip mptcp``) ; and the
 userspace one (type ``1``), controlled by a userspace daemon (i.e. `mptcpd
 <https://mptcpd.mptcp.dev/>`_) where different rules can be applied for each
 connection. The path managers can be controlled via a Netlink API; see
-netlink_spec/mptcp_pm.rst.
+../netlink/specs/mptcp_pm.rst.
 
 To be able to use multiple IP addresses on a host to create multiple *subflows*
 (paths), the default in-kernel MPTCP path-manager needs to know which IP
