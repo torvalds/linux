@@ -19,6 +19,14 @@
 #include <linux/random.h>
 #include <sound/cs-amp-lib.h>
 
+#define LENOVO_SPEAKER_ID_EFI_NAME L"SdwSpeaker"
+#define LENOVO_SPEAKER_ID_EFI_GUID \
+	EFI_GUID(0x48df970e, 0xe27f, 0x460a, 0xb5, 0x86, 0x77, 0x19, 0x80, 0x1d, 0x92, 0x82)
+
+#define HP_SPEAKER_ID_EFI_NAME L"HPSpeakerID"
+#define HP_SPEAKER_ID_EFI_GUID \
+	EFI_GUID(0xc49593a4, 0xd099, 0x419b, 0xa2, 0xc3, 0x67, 0xe9, 0x80, 0xe6, 0x1d, 0x1e)
+
 KUNIT_DEFINE_ACTION_WRAPPER(faux_device_destroy_wrapper, faux_device_destroy,
 			    struct faux_device *)
 
@@ -642,6 +650,185 @@ static void cs_amp_lib_test_write_cal_data_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, entry->value, data.calStatus);
 }
 
+static void cs_amp_lib_test_spkid_lenovo_not_present(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct device *dev = &priv->amp_dev->dev;
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_efi_variable_none);
+
+	KUNIT_EXPECT_EQ(test, -ENOENT, cs_amp_get_vendor_spkid(dev));
+}
+
+static efi_status_t cs_amp_lib_test_get_efi_variable_lenovo_d0(efi_char16_t *name,
+							       efi_guid_t *guid,
+							       unsigned long *size,
+							       void *buf)
+{
+	struct kunit *test = kunit_get_current_test();
+
+	if (efi_guidcmp(*guid, LENOVO_SPEAKER_ID_EFI_GUID) ||
+	    memcmp(name, LENOVO_SPEAKER_ID_EFI_NAME, sizeof(LENOVO_SPEAKER_ID_EFI_NAME)))
+		return EFI_NOT_FOUND;
+
+	KUNIT_ASSERT_EQ(test, *size, 1);
+	*size = 1;
+	*(u8 *)buf = 0xd0;
+
+	return EFI_SUCCESS;
+}
+
+static efi_status_t cs_amp_lib_test_get_efi_variable_lenovo_d1(efi_char16_t *name,
+							       efi_guid_t *guid,
+							       unsigned long *size,
+							       void *buf)
+{
+	struct kunit *test = kunit_get_current_test();
+
+	if (efi_guidcmp(*guid, LENOVO_SPEAKER_ID_EFI_GUID) ||
+	    memcmp(name, LENOVO_SPEAKER_ID_EFI_NAME, sizeof(LENOVO_SPEAKER_ID_EFI_NAME)))
+		return EFI_NOT_FOUND;
+
+	KUNIT_ASSERT_EQ(test, *size, 1);
+	*size = 1;
+	*(u8 *)buf = 0xd1;
+
+	return EFI_SUCCESS;
+}
+
+static efi_status_t cs_amp_lib_test_get_efi_variable_lenovo_00(efi_char16_t *name,
+							       efi_guid_t *guid,
+							       unsigned long *size,
+							       void *buf)
+{
+	struct kunit *test = kunit_get_current_test();
+
+	KUNIT_ASSERT_EQ(test, 0, efi_guidcmp(*guid, LENOVO_SPEAKER_ID_EFI_GUID));
+	KUNIT_ASSERT_EQ(test, *size, 1);
+	*size = 1;
+	*(u8 *)buf = 0;
+
+	return EFI_SUCCESS;
+}
+
+static void cs_amp_lib_test_spkid_lenovo_d0(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct device *dev = &priv->amp_dev->dev;
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_efi_variable_lenovo_d0);
+
+	KUNIT_EXPECT_EQ(test, 0, cs_amp_get_vendor_spkid(dev));
+}
+
+static void cs_amp_lib_test_spkid_lenovo_d1(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct device *dev = &priv->amp_dev->dev;
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_efi_variable_lenovo_d1);
+
+	KUNIT_EXPECT_EQ(test, 1, cs_amp_get_vendor_spkid(dev));
+}
+
+static void cs_amp_lib_test_spkid_lenovo_illegal(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct device *dev = &priv->amp_dev->dev;
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_efi_variable_lenovo_00);
+
+	KUNIT_EXPECT_LT(test, cs_amp_get_vendor_spkid(dev), 0);
+}
+
+static efi_status_t cs_amp_lib_test_get_efi_variable_buf_too_small(efi_char16_t *name,
+								   efi_guid_t *guid,
+								   unsigned long *size,
+								   void *buf)
+{
+	return EFI_BUFFER_TOO_SMALL;
+}
+
+static void cs_amp_lib_test_spkid_lenovo_oversize(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct device *dev = &priv->amp_dev->dev;
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_efi_variable_buf_too_small);
+
+	KUNIT_EXPECT_LT(test, cs_amp_get_vendor_spkid(dev), 0);
+}
+
+static efi_status_t cs_amp_lib_test_get_efi_variable_hp_30(efi_char16_t *name,
+							   efi_guid_t *guid,
+							   unsigned long *size,
+							   void *buf)
+{
+	struct kunit *test = kunit_get_current_test();
+
+	if (efi_guidcmp(*guid, HP_SPEAKER_ID_EFI_GUID) ||
+	    memcmp(name, HP_SPEAKER_ID_EFI_NAME, sizeof(HP_SPEAKER_ID_EFI_NAME)))
+		return EFI_NOT_FOUND;
+
+	KUNIT_ASSERT_EQ(test, *size, 1);
+	*size = 1;
+	*(u8 *)buf = 0x30;
+
+	return EFI_SUCCESS;
+}
+
+static efi_status_t cs_amp_lib_test_get_efi_variable_hp_31(efi_char16_t *name,
+							   efi_guid_t *guid,
+							   unsigned long *size,
+							   void *buf)
+{
+	struct kunit *test = kunit_get_current_test();
+
+	if (efi_guidcmp(*guid, HP_SPEAKER_ID_EFI_GUID) ||
+	    memcmp(name, HP_SPEAKER_ID_EFI_NAME, sizeof(HP_SPEAKER_ID_EFI_NAME)))
+		return EFI_NOT_FOUND;
+
+	KUNIT_ASSERT_EQ(test, *size, 1);
+	*size = 1;
+	*(u8 *)buf = 0x31;
+
+	return EFI_SUCCESS;
+}
+
+static void cs_amp_lib_test_spkid_hp_30(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct device *dev = &priv->amp_dev->dev;
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_efi_variable_hp_30);
+
+	KUNIT_EXPECT_EQ(test, 0, cs_amp_get_vendor_spkid(dev));
+}
+
+static void cs_amp_lib_test_spkid_hp_31(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct device *dev = &priv->amp_dev->dev;
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_efi_variable_hp_31);
+
+	KUNIT_EXPECT_EQ(test, 1, cs_amp_get_vendor_spkid(dev));
+}
+
 static int cs_amp_lib_test_case_init(struct kunit *test)
 {
 	struct cs_amp_lib_test_priv *priv;
@@ -736,6 +923,15 @@ static struct kunit_case cs_amp_lib_test_cases[] = {
 
 	/* Tests for writing calibration data */
 	KUNIT_CASE(cs_amp_lib_test_write_cal_data_test),
+
+	/* Test cases for speaker ID */
+	KUNIT_CASE(cs_amp_lib_test_spkid_lenovo_not_present),
+	KUNIT_CASE(cs_amp_lib_test_spkid_lenovo_d0),
+	KUNIT_CASE(cs_amp_lib_test_spkid_lenovo_d1),
+	KUNIT_CASE(cs_amp_lib_test_spkid_lenovo_illegal),
+	KUNIT_CASE(cs_amp_lib_test_spkid_lenovo_oversize),
+	KUNIT_CASE(cs_amp_lib_test_spkid_hp_30),
+	KUNIT_CASE(cs_amp_lib_test_spkid_hp_31),
 
 	{ } /* terminator */
 };
