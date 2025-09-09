@@ -51,7 +51,7 @@ struct fbcon_display {
     const struct fb_videomode *mode;
 };
 
-struct fbcon_par {
+struct fbcon_bitops {
 	void (*bmove)(struct vc_data *vc, struct fb_info *info, int sy,
 		      int sx, int dy, int dx, int height, int width);
 	void (*clear)(struct vc_data *vc, struct fb_info *info, int sy,
@@ -65,6 +65,9 @@ struct fbcon_par {
 		       bool enable, int fg, int bg);
 	int  (*update_start)(struct fb_info *info);
 	int  (*rotate_font)(struct fb_info *info, struct vc_data *vc);
+};
+
+struct fbcon_par {
 	struct fb_var_screeninfo var;  /* copy of the current fb_var_screeninfo */
 	struct delayed_work cursor_work; /* Cursor timer */
 	struct fb_cursor cursor_state;
@@ -86,6 +89,8 @@ struct fbcon_par {
 	u8    *cursor_src;
 	u32    cursor_size;
 	u32    fd_size;
+
+	const struct fbcon_bitops *bitops;
 };
 
     /*

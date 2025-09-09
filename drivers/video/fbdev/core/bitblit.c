@@ -384,15 +384,18 @@ static int bit_update_start(struct fb_info *info)
 	return err;
 }
 
+static const struct fbcon_bitops bit_fbcon_bitops = {
+	.bmove = bit_bmove,
+	.clear = bit_clear,
+	.putcs = bit_putcs,
+	.clear_margins = bit_clear_margins,
+	.cursor = bit_cursor,
+	.update_start = bit_update_start,
+};
+
 void fbcon_set_bitops(struct fbcon_par *par)
 {
-	par->bmove = bit_bmove;
-	par->clear = bit_clear;
-	par->putcs = bit_putcs;
-	par->clear_margins = bit_clear_margins;
-	par->cursor = bit_cursor;
-	par->update_start = bit_update_start;
-	par->rotate_font = NULL;
+	par->bitops = &bit_fbcon_bitops;
 
 	if (par->rotate)
 		fbcon_set_rotate(par);

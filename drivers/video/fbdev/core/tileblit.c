@@ -161,17 +161,21 @@ static int tile_update_start(struct fb_info *info)
 	return err;
 }
 
+static const struct fbcon_bitops tile_fbcon_bitops = {
+	.bmove = tile_bmove,
+	.clear = tile_clear,
+	.putcs = tile_putcs,
+	.clear_margins = tile_clear_margins,
+	.cursor = tile_cursor,
+	.update_start = tile_update_start,
+};
+
 void fbcon_set_tileops(struct vc_data *vc, struct fb_info *info)
 {
 	struct fb_tilemap map;
 	struct fbcon_par *par = info->fbcon_par;
 
-	par->bmove = tile_bmove;
-	par->clear = tile_clear;
-	par->putcs = tile_putcs;
-	par->clear_margins = tile_clear_margins;
-	par->cursor = tile_cursor;
-	par->update_start = tile_update_start;
+	par->bitops = &tile_fbcon_bitops;
 
 	if (par->p) {
 		map.width = vc->vc_font.width;

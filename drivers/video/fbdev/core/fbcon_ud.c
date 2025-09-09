@@ -417,13 +417,17 @@ static int ud_update_start(struct fb_info *info)
 	return err;
 }
 
+static const struct fbcon_bitops ud_fbcon_bitops = {
+	.bmove = ud_bmove,
+	.clear = ud_clear,
+	.putcs = ud_putcs,
+	.clear_margins = ud_clear_margins,
+	.cursor = ud_cursor,
+	.update_start = ud_update_start,
+	.rotate_font = fbcon_rotate_font,
+};
+
 void fbcon_rotate_ud(struct fbcon_par *par)
 {
-	par->bmove = ud_bmove;
-	par->clear = ud_clear;
-	par->putcs = ud_putcs;
-	par->clear_margins = ud_clear_margins;
-	par->cursor = ud_cursor;
-	par->update_start = ud_update_start;
-	par->rotate_font = fbcon_rotate_font;
+	par->bitops = &ud_fbcon_bitops;
 }

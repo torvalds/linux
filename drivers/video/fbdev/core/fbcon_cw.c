@@ -373,13 +373,17 @@ static int cw_update_start(struct fb_info *info)
 	return err;
 }
 
+static const struct fbcon_bitops cw_fbcon_bitops = {
+	.bmove = cw_bmove,
+	.clear = cw_clear,
+	.putcs = cw_putcs,
+	.clear_margins = cw_clear_margins,
+	.cursor = cw_cursor,
+	.update_start = cw_update_start,
+	.rotate_font = fbcon_rotate_font,
+};
+
 void fbcon_rotate_cw(struct fbcon_par *par)
 {
-	par->bmove = cw_bmove;
-	par->clear = cw_clear;
-	par->putcs = cw_putcs;
-	par->clear_margins = cw_clear_margins;
-	par->cursor = cw_cursor;
-	par->update_start = cw_update_start;
-	par->rotate_font = fbcon_rotate_font;
+	par->bitops = &cw_fbcon_bitops;
 }
