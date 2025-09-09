@@ -325,7 +325,7 @@ void mt7996_dma_start(struct mt7996_dev *dev, bool reset, bool wed_reset)
 	}
 
 	if (mt7996_band_valid(dev, MT_BAND2))
-		irq_mask |= MT_INT_BAND2_RX_DONE;
+		irq_mask |= MT_INT_BAND2_RX_DONE | MT_INT_TX_RX_DONE_EXT;
 
 	if (mtk_wed_device_active(wed) && wed_reset) {
 		u32 wed_irq_mask = irq_mask;
@@ -482,7 +482,6 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
 	mt7996_dma_start(dev, reset, true);
 }
 
-#ifdef CONFIG_NET_MEDIATEK_SOC_WED
 int mt7996_dma_rro_init(struct mt7996_dev *dev)
 {
 	struct mt76_dev *mdev = &dev->mt76;
@@ -491,7 +490,9 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 
 	/* ind cmd */
 	mdev->q_rx[MT_RXQ_RRO_IND].flags = MT_WED_RRO_Q_IND;
-	mdev->q_rx[MT_RXQ_RRO_IND].wed = &mdev->mmio.wed;
+	if (mtk_wed_device_active(&mdev->mmio.wed) &&
+	    mtk_wed_get_rx_capa(&mdev->mmio.wed))
+		mdev->q_rx[MT_RXQ_RRO_IND].wed = &mdev->mmio.wed;
 	ret = mt76_queue_alloc(dev, &mdev->q_rx[MT_RXQ_RRO_IND],
 			       MT_RXQ_ID(MT_RXQ_RRO_IND),
 			       MT7996_RX_RING_SIZE,
@@ -502,7 +503,9 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 	/* rx msdu page queue for band0 */
 	mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND0].flags =
 		MT_WED_RRO_Q_MSDU_PG(0) | MT_QFLAG_WED_RRO_EN;
-	mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND0].wed = &mdev->mmio.wed;
+	if (mtk_wed_device_active(&mdev->mmio.wed) &&
+	    mtk_wed_get_rx_capa(&mdev->mmio.wed))
+		mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND0].wed = &mdev->mmio.wed;
 	ret = mt76_queue_alloc(dev, &mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND0],
 			       MT_RXQ_ID(MT_RXQ_MSDU_PAGE_BAND0),
 			       MT7996_RX_RING_SIZE,
@@ -515,7 +518,9 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 		/* rx msdu page queue for band1 */
 		mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND1].flags =
 			MT_WED_RRO_Q_MSDU_PG(1) | MT_QFLAG_WED_RRO_EN;
-		mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND1].wed = &mdev->mmio.wed;
+		if (mtk_wed_device_active(&mdev->mmio.wed) &&
+		    mtk_wed_get_rx_capa(&mdev->mmio.wed))
+			mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND1].wed = &mdev->mmio.wed;
 		ret = mt76_queue_alloc(dev, &mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND1],
 				       MT_RXQ_ID(MT_RXQ_MSDU_PAGE_BAND1),
 				       MT7996_RX_RING_SIZE,
@@ -529,7 +534,9 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 		/* rx msdu page queue for band2 */
 		mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND2].flags =
 			MT_WED_RRO_Q_MSDU_PG(2) | MT_QFLAG_WED_RRO_EN;
-		mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND2].wed = &mdev->mmio.wed;
+		if (mtk_wed_device_active(&mdev->mmio.wed) &&
+		    mtk_wed_get_rx_capa(&mdev->mmio.wed))
+			mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND2].wed = &mdev->mmio.wed;
 		ret = mt76_queue_alloc(dev, &mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND2],
 				       MT_RXQ_ID(MT_RXQ_MSDU_PAGE_BAND2),
 				       MT7996_RX_RING_SIZE,
@@ -539,15 +546,35 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 			return ret;
 	}
 
-	irq_mask = mdev->mmio.irqmask | MT_INT_RRO_RX_DONE |
-		   MT_INT_TX_DONE_BAND2;
-	mt76_wr(dev, MT_INT_MASK_CSR, irq_mask);
-	mtk_wed_device_start_hw_rro(&mdev->mmio.wed, irq_mask, false);
-	mt7996_irq_enable(dev, irq_mask);
+	if (mtk_wed_device_active(&mdev->mmio.wed)) {
+		irq_mask = mdev->mmio.irqmask |
+			   MT_INT_TX_DONE_BAND2;
+
+		mt76_wr(dev, MT_INT_MASK_CSR, irq_mask);
+		mtk_wed_device_start_hw_rro(&mdev->mmio.wed, irq_mask, false);
+		mt7996_irq_enable(dev, irq_mask);
+	} else {
+		if (is_mt7996(&dev->mt76)) {
+			mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND1,
+					   mt76_dma_rx_poll);
+			mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND2,
+					   mt76_dma_rx_poll);
+			mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND2,
+					   mt76_dma_rx_poll);
+		} else {
+			mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND1,
+					   mt76_dma_rx_poll);
+		}
+
+		mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND0, mt76_dma_rx_poll);
+		mt76_queue_rx_init(dev, MT_RXQ_RRO_IND, mt76_dma_rx_poll);
+		mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND0,
+				   mt76_dma_rx_poll);
+		mt7996_irq_enable(dev, MT_INT_RRO_RX_DONE);
+	}
 
 	return 0;
 }
-#endif /* CONFIG_NET_MEDIATEK_SOC_WED */
 
 int mt7996_dma_init(struct mt7996_dev *dev)
 {
@@ -738,12 +765,12 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 		}
 	}
 
-	if (mtk_wed_device_active(wed) && mtk_wed_get_rx_capa(wed) &&
-	    dev->has_rro) {
+	if (dev->has_rro) {
 		/* rx rro data queue for band0 */
 		dev->mt76.q_rx[MT_RXQ_RRO_BAND0].flags =
 			MT_WED_RRO_Q_DATA(0) | MT_QFLAG_WED_RRO_EN;
-		dev->mt76.q_rx[MT_RXQ_RRO_BAND0].wed = wed;
+		if (mtk_wed_device_active(wed) && mtk_wed_get_rx_capa(wed))
+			dev->mt76.q_rx[MT_RXQ_RRO_BAND0].wed = wed;
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_RRO_BAND0],
 				       MT_RXQ_ID(MT_RXQ_RRO_BAND0),
 				       MT7996_RX_RING_SIZE,
@@ -755,7 +782,9 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 		if (is_mt7992(&dev->mt76)) {
 			dev->mt76.q_rx[MT_RXQ_RRO_BAND1].flags =
 				MT_WED_RRO_Q_DATA(1) | MT_QFLAG_WED_RRO_EN;
-			dev->mt76.q_rx[MT_RXQ_RRO_BAND1].wed = wed;
+			if (mtk_wed_device_active(wed) &&
+			    mtk_wed_get_rx_capa(wed))
+				dev->mt76.q_rx[MT_RXQ_RRO_BAND1].wed = wed;
 			ret = mt76_queue_alloc(dev,
 					       &dev->mt76.q_rx[MT_RXQ_RRO_BAND1],
 					       MT_RXQ_ID(MT_RXQ_RRO_BAND1),
@@ -765,9 +794,11 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 			if (ret)
 				return ret;
 		} else {
-			/* tx free notify event from WA for band0 */
-			dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].flags = MT_WED_Q_TXFREE;
-			dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].wed = wed;
+			if (mtk_wed_device_active(wed)) {
+				/* tx free notify event from WA for band0 */
+				dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].flags = MT_WED_Q_TXFREE;
+				dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].wed = wed;
+			}
 
 			ret = mt76_queue_alloc(dev,
 					       &dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0],
@@ -783,7 +814,9 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 			/* rx rro data queue for band2 */
 			dev->mt76.q_rx[MT_RXQ_RRO_BAND2].flags =
 				MT_WED_RRO_Q_DATA(1) | MT_QFLAG_WED_RRO_EN;
-			dev->mt76.q_rx[MT_RXQ_RRO_BAND2].wed = wed;
+			if (mtk_wed_device_active(wed) &&
+			    mtk_wed_get_rx_capa(wed))
+				dev->mt76.q_rx[MT_RXQ_RRO_BAND2].wed = wed;
 			ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_RRO_BAND2],
 					       MT_RXQ_ID(MT_RXQ_RRO_BAND2),
 					       MT7996_RX_RING_SIZE,
