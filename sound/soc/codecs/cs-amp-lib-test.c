@@ -220,6 +220,56 @@ static efi_status_t cs_amp_lib_test_get_efi_variable(efi_char16_t *name,
 	return EFI_SUCCESS;
 }
 
+static efi_status_t cs_amp_lib_test_get_hp_cal_efi_variable(efi_char16_t *name,
+							    efi_guid_t *guid,
+							    unsigned long *size,
+							    void *buf)
+{
+	static const efi_char16_t expected_name[] = L"SmartAmpCalibrationData";
+	static const efi_guid_t expected_guid =
+		EFI_GUID(0x53559579, 0x8753, 0x4f5c, 0x91, 0x30, 0xe8, 0x2a, 0xcf, 0xb8, 0xd8, 0x93);
+	struct kunit *test = kunit_get_current_test();
+	struct cs_amp_lib_test_priv *priv = test->priv;
+
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, name);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, guid);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, size);
+
+	if (memcmp(name, expected_name, sizeof(expected_name)) ||
+	    efi_guidcmp(*guid, expected_guid))
+		return -EFI_NOT_FOUND;
+
+	if (!buf) {
+		*size = priv->cal_blob->size;
+		return EFI_BUFFER_TOO_SMALL;
+	}
+
+	KUNIT_ASSERT_GE_MSG(test, ksize(buf), priv->cal_blob->size, "Buffer to small");
+
+	memcpy(buf, priv->cal_blob, priv->cal_blob->size);
+
+	return EFI_SUCCESS;
+}
+
+/* Get cal data block from HP variable. */
+static void cs_amp_lib_test_get_hp_efi_cal(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct cirrus_amp_cal_data result_data;
+	int ret;
+
+	cs_amp_lib_test_init_dummy_cal_blob(test, 2);
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_hp_cal_efi_variable);
+
+	ret = cs_amp_get_efi_calibration_data(&priv->amp_dev->dev, 0, 0, &result_data);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+
+	KUNIT_EXPECT_MEMEQ(test, &result_data, &priv->cal_blob->data[0], sizeof(result_data));
+}
+
 /* Get cal data block for a given amp, matched by target UID. */
 static void cs_amp_lib_test_get_efi_cal_by_uid_test(struct kunit *test)
 {
@@ -910,6 +960,7 @@ static struct kunit_case cs_amp_lib_test_cases[] = {
 	KUNIT_CASE(cs_amp_lib_test_get_efi_cal_no_uid_index_not_found_test),
 	KUNIT_CASE(cs_amp_lib_test_get_efi_cal_no_uid_no_index_test),
 	KUNIT_CASE(cs_amp_lib_test_get_efi_cal_zero_not_matched_test),
+	KUNIT_CASE(cs_amp_lib_test_get_hp_efi_cal),
 	KUNIT_CASE_PARAM(cs_amp_lib_test_get_efi_cal_by_uid_test,
 			 cs_amp_lib_test_get_cal_gen_params),
 	KUNIT_CASE_PARAM(cs_amp_lib_test_get_efi_cal_by_index_unchecked_test,
