@@ -20,32 +20,32 @@
 
 static int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc)
 {
-	struct fbcon_ops *ops = info->fbcon_par;
+	struct fbcon_par *par = info->fbcon_par;
 	int len, err = 0;
 	int s_cellsize, d_cellsize, i;
 	const u8 *src;
 	u8 *dst;
 
-	if (vc->vc_font.data == ops->fontdata &&
-	    ops->p->con_rotate == ops->cur_rotate)
+	if (vc->vc_font.data == par->fontdata &&
+	    par->p->con_rotate == par->cur_rotate)
 		goto finished;
 
-	src = ops->fontdata = vc->vc_font.data;
-	ops->cur_rotate = ops->p->con_rotate;
+	src = par->fontdata = vc->vc_font.data;
+	par->cur_rotate = par->p->con_rotate;
 	len = vc->vc_font.charcount;
 	s_cellsize = ((vc->vc_font.width + 7)/8) *
 		vc->vc_font.height;
 	d_cellsize = s_cellsize;
 
-	if (ops->rotate == FB_ROTATE_CW ||
-	    ops->rotate == FB_ROTATE_CCW)
+	if (par->rotate == FB_ROTATE_CW ||
+	    par->rotate == FB_ROTATE_CCW)
 		d_cellsize = ((vc->vc_font.height + 7)/8) *
 			vc->vc_font.width;
 
 	if (info->fbops->fb_sync)
 		info->fbops->fb_sync(info);
 
-	if (ops->fd_size < d_cellsize * len) {
+	if (par->fd_size < d_cellsize * len) {
 		dst = kmalloc_array(len, d_cellsize, GFP_KERNEL);
 
 		if (dst == NULL) {
@@ -53,15 +53,15 @@ static int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc)
 			goto finished;
 		}
 
-		ops->fd_size = d_cellsize * len;
-		kfree(ops->fontbuffer);
-		ops->fontbuffer = dst;
+		par->fd_size = d_cellsize * len;
+		kfree(par->fontbuffer);
+		par->fontbuffer = dst;
 	}
 
-	dst = ops->fontbuffer;
-	memset(dst, 0, ops->fd_size);
+	dst = par->fontbuffer;
+	memset(dst, 0, par->fd_size);
 
-	switch (ops->rotate) {
+	switch (par->rotate) {
 	case FB_ROTATE_UD:
 		for (i = len; i--; ) {
 			rotate_ud(src, dst, vc->vc_font.width,
@@ -93,19 +93,19 @@ finished:
 	return err;
 }
 
-void fbcon_set_rotate(struct fbcon_ops *ops)
+void fbcon_set_rotate(struct fbcon_par *par)
 {
-	ops->rotate_font = fbcon_rotate_font;
+	par->rotate_font = fbcon_rotate_font;
 
-	switch(ops->rotate) {
+	switch (par->rotate) {
 	case FB_ROTATE_CW:
-		fbcon_rotate_cw(ops);
+		fbcon_rotate_cw(par);
 		break;
 	case FB_ROTATE_UD:
-		fbcon_rotate_ud(ops);
+		fbcon_rotate_ud(par);
 		break;
 	case FB_ROTATE_CCW:
-		fbcon_rotate_ccw(ops);
+		fbcon_rotate_ccw(par);
 		break;
 	}
 }
