@@ -944,9 +944,6 @@ static int amdgpu_dpm_change_power_state_locked(struct amdgpu_device *adev)
 
 	amdgpu_dpm_post_set_power_state(adev);
 
-	adev->pm.dpm.current_active_crtcs = adev->pm.dpm.new_active_crtcs;
-	adev->pm.dpm.current_active_crtc_count = adev->pm.dpm.new_active_crtc_count;
-
 	if (pp_funcs->force_performance_level) {
 		if (adev->pm.dpm.thermal_active) {
 			enum amd_dpm_forced_level level = adev->pm.dpm.forced_level;
