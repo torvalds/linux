@@ -20,7 +20,6 @@
 #include <linux/jiffies.h>
 #include <linux/ktime.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/seq_file.h>
 #include <linux/unaligned.h>
 
@@ -551,7 +550,6 @@ struct aqc_data {
 	struct hid_device *hdev;
 	struct device *hwmon_dev;
 	struct dentry *debugfs;
-	struct mutex mutex;	/* Used for locking access when reading and writing PWM values */
 	enum kinds kind;
 	const char *name;
 
@@ -662,7 +660,6 @@ static void aqc_delay_ctrl_report(struct aqc_data *priv)
 	}
 }
 
-/* Expects the mutex to be locked */
 static int aqc_get_ctrl_data(struct aqc_data *priv)
 {
 	int ret;
@@ -680,7 +677,6 @@ static int aqc_get_ctrl_data(struct aqc_data *priv)
 	return ret;
 }
 
-/* Expects the mutex to be locked */
 static int aqc_send_ctrl_data(struct aqc_data *priv)
 {
 	int ret;
@@ -721,11 +717,9 @@ static int aqc_get_ctrl_val(struct aqc_data *priv, int offset, long *val, int ty
 {
 	int ret;
 
-	mutex_lock(&priv->mutex);
-
 	ret = aqc_get_ctrl_data(priv);
 	if (ret < 0)
-		goto unlock_and_return;
+		return ret;
 
 	switch (type) {
 	case AQC_BE16:
@@ -737,9 +731,6 @@ static int aqc_get_ctrl_val(struct aqc_data *priv, int offset, long *val, int ty
 	default:
 		ret = -EINVAL;
 	}
-
-unlock_and_return:
-	mutex_unlock(&priv->mutex);
 	return ret;
 }
 
@@ -747,11 +738,9 @@ static int aqc_set_ctrl_vals(struct aqc_data *priv, int *offsets, long *vals, in
 {
 	int ret, i;
 
-	mutex_lock(&priv->mutex);
-
 	ret = aqc_get_ctrl_data(priv);
 	if (ret < 0)
-		goto unlock_and_return;
+		return ret;
 
 	for (i = 0; i < len; i++) {
 		switch (types[i]) {
@@ -762,18 +751,11 @@ static int aqc_set_ctrl_vals(struct aqc_data *priv, int *offsets, long *vals, in
 			priv->buffer[offsets[i]] = (u8)vals[i];
 			break;
 		default:
-			ret = -EINVAL;
+			return -EINVAL;
 		}
 	}
 
-	if (ret < 0)
-		goto unlock_and_return;
-
-	ret = aqc_send_ctrl_data(priv);
-
-unlock_and_return:
-	mutex_unlock(&priv->mutex);
-	return ret;
+	return aqc_send_ctrl_data(priv);
 }
 
 static int aqc_set_ctrl_val(struct aqc_data *priv, int offset, long val, int type)
@@ -953,13 +935,11 @@ static int aqc_legacy_read(struct aqc_data *priv)
 {
 	int ret, i, sensor_value;
 
-	mutex_lock(&priv->mutex);
-
 	memset(priv->buffer, 0x00, priv->buffer_size);
 	ret = hid_hw_raw_request(priv->hdev, priv->status_report_id, priv->buffer,
 				 priv->buffer_size, HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 	if (ret < 0)
-		goto unlock_and_return;
+		return ret;
 
 	/* Temperature sensor readings */
 	for (i = 0; i < priv->num_temp_sensors; i++) {
@@ -1020,10 +1000,7 @@ static int aqc_legacy_read(struct aqc_data *priv)
 	}
 
 	priv->updated = jiffies;
-
-unlock_and_return:
-	mutex_unlock(&priv->mutex);
-	return ret;
+	return 0;
 }
 
 static int aqc_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
@@ -1869,8 +1846,6 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		ret = -ENOMEM;
 		goto fail_and_close;
 	}
-
-	mutex_init(&priv->mutex);
 
 	priv->hwmon_dev = hwmon_device_register_with_info(&hdev->dev, priv->name, priv,
 							  &aqc_chip_info, NULL);
