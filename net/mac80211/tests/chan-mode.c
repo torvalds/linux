@@ -2,7 +2,7 @@
 /*
  * KUnit tests for channel mode functions
  *
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  */
 #include <net/cfg80211.h>
 #include <kunit/test.h>
@@ -28,6 +28,10 @@ static const struct determine_chan_mode_case {
 	u8 vht_basic_mcs_1_4, vht_basic_mcs_5_8;
 	u8 he_basic_mcs_1_4, he_basic_mcs_5_8;
 	u8 eht_mcs7_min_nss;
+	u16 eht_disabled_subchannels;
+	u8 eht_bw;
+	enum ieee80211_conn_bw_limit conn_bw_limit;
+	enum ieee80211_conn_bw_limit expected_bw_limit;
 	int error;
 } determine_chan_mode_cases[] = {
 	{
@@ -128,6 +132,14 @@ static const struct determine_chan_mode_case {
 		.conn_mode = IEEE80211_CONN_MODE_EHT,
 		.eht_mcs7_min_nss = 0x15,
 		.error = EINVAL,
+	}, {
+		.desc = "80 MHz EHT is downgraded to 40 MHz HE due to puncturing",
+		.conn_mode = IEEE80211_CONN_MODE_EHT,
+		.expected_mode = IEEE80211_CONN_MODE_HE,
+		.conn_bw_limit = IEEE80211_CONN_BW_LIMIT_80,
+		.expected_bw_limit = IEEE80211_CONN_BW_LIMIT_40,
+		.eht_disabled_subchannels = 0x08,
+		.eht_bw = IEEE80211_EHT_OPER_CHAN_WIDTH_80MHZ,
 	}
 };
 KUNIT_ARRAY_PARAM_DESC(determine_chan_mode, determine_chan_mode_cases, desc)
@@ -138,7 +150,7 @@ static void test_determine_chan_mode(struct kunit *test)
 	struct t_sdata *t_sdata = T_SDATA(test);
 	struct ieee80211_conn_settings conn = {
 		.mode = params->conn_mode,
-		.bw_limit = IEEE80211_CONN_BW_LIMIT_20,
+		.bw_limit = params->conn_bw_limit,
 	};
 	struct cfg80211_bss cbss = {
 		.channel = &t_sdata->band_5ghz.channels[0],
@@ -191,13 +203,20 @@ static void test_determine_chan_mode(struct kunit *test)
 		0x7f, 0x01, 0x00, 0x88, 0x88, 0x88, 0x00, 0x00,
 		0x00,
 		/* EHT Operation */
-		WLAN_EID_EXTENSION, 0x09, WLAN_EID_EXT_EHT_OPERATION,
-		0x01, params->eht_mcs7_min_nss ? params->eht_mcs7_min_nss : 0x11,
-		0x00, 0x00, 0x00, 0x00, 0x24, 0x00,
+		WLAN_EID_EXTENSION, 0x0b, WLAN_EID_EXT_EHT_OPERATION,
+		0x03, params->eht_mcs7_min_nss ? params->eht_mcs7_min_nss : 0x11,
+		0x00, 0x00, 0x00, params->eht_bw,
+		params->eht_bw == IEEE80211_EHT_OPER_CHAN_WIDTH_80MHZ ? 42 : 36,
+		0x00,
+		u16_get_bits(params->eht_disabled_subchannels, 0xff),
+		u16_get_bits(params->eht_disabled_subchannels, 0xff00),
 	};
 	struct ieee80211_chan_req chanreq = {};
 	struct cfg80211_chan_def ap_chandef = {};
 	struct ieee802_11_elems *elems;
+
+	/* To force EHT downgrade to HE on punctured 80 MHz downgraded to 40 MHz */
+	set_bit(IEEE80211_HW_DISALLOW_PUNCTURING, t_sdata->local.hw.flags);
 
 	if (params->strict)
 		set_bit(IEEE80211_HW_STRICT, t_sdata->local.hw.flags);
@@ -237,6 +256,7 @@ static void test_determine_chan_mode(struct kunit *test)
 	} else {
 		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, elems);
 		KUNIT_ASSERT_EQ(test, conn.mode, params->expected_mode);
+		KUNIT_ASSERT_EQ(test, conn.bw_limit, params->expected_bw_limit);
 	}
 }
 

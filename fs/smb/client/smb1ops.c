@@ -1005,7 +1005,7 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 			rc = -EOPNOTSUPP;
 	}
 
-	/* Fallback to SMB_COM_SETATTR command when absolutelty needed. */
+	/* Fallback to SMB_COM_SETATTR command when absolutely needed. */
 	if (rc == -EOPNOTSUPP) {
 		cifs_dbg(FYI, "calling SetInformation since SetPathInfo for attrs/times not supported by this server\n");
 		rc = SMBSetInformation(xid, tcon, full_path,
@@ -1039,7 +1039,7 @@ set_via_filehandle:
 		cifsFileInfo_put(open_file);
 
 	/*
-	 * Setting the read-only bit is not honered on non-NT servers when done
+	* Setting the read-only bit is not honored on non-NT servers when done
 	 * via open-semantics. So for setting it, use SMB_COM_SETATTR command.
 	 * This command works only after the file is closed, so use it only when
 	 * operation was called without the filehandle.
