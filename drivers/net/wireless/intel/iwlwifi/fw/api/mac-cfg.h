@@ -420,6 +420,8 @@ struct iwl_mac_config_cmd {
  *	eht_support set to true. No longer used since _VER_3 of this command.
  * @LINK_CONTEXT_MODIFY_BANDWIDTH: Covers iwl_link_ctx_cfg_cmd::modify_bandwidth.
  *	Request RX OMI to the AP to modify bandwidth of this link.
+ * @LINK_CONTEXT_MODIFY_UHR_PARAMS: covers iwl_link_ctx_cfg_cmd::npca_params and
+ *	iwl_link_ctx_cfg_cmd::prio_edca_params. Since _VER_7.
  * @LINK_CONTEXT_MODIFY_ALL: set all above flags
  */
 enum iwl_link_ctx_modify_flags {
@@ -432,6 +434,7 @@ enum iwl_link_ctx_modify_flags {
 	LINK_CONTEXT_MODIFY_BSS_COLOR_DISABLE	= BIT(6),
 	LINK_CONTEXT_MODIFY_EHT_PARAMS		= BIT(7),
 	LINK_CONTEXT_MODIFY_BANDWIDTH		= BIT(8),
+	LINK_CONTEXT_MODIFY_UHR_PARAMS		= BIT(9),
 	LINK_CONTEXT_MODIFY_ALL			= 0xff,
 }; /* LINK_CONTEXT_MODIFY_MASK_E_VER_1 */
 
