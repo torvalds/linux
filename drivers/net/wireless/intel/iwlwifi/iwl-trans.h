@@ -284,8 +284,6 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
  * @STATUS_RFKILL_OPMODE: RF-kill state reported to opmode
  * @STATUS_FW_ERROR: the fw is in error state
  * @STATUS_TRANS_DEAD: trans is dead - avoid any read/write operation
- * @STATUS_SUPPRESS_CMD_ERROR_ONCE: suppress "FW error in SYNC CMD" once,
- *	e.g. for testing
  * @STATUS_IN_SW_RESET: device is undergoing reset, cleared by opmode
  *	via iwl_trans_finish_sw_reset()
  * @STATUS_RESET_PENDING: reset worker was scheduled, but didn't dump
@@ -302,7 +300,6 @@ enum iwl_trans_status {
 	STATUS_RFKILL_OPMODE,
 	STATUS_FW_ERROR,
 	STATUS_TRANS_DEAD,
-	STATUS_SUPPRESS_CMD_ERROR_ONCE,
 	STATUS_IN_SW_RESET,
 	STATUS_RESET_PENDING,
 	STATUS_TRANS_RESET_IN_PROGRESS,
@@ -849,6 +846,8 @@ struct iwl_trans_info {
  * @pnvm_loaded: indicates PNVM was loaded
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
+ * @suppress_cmd_error_once: suppress "FW error in SYNC CMD" once,
+ *	e.g. for testing
  * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
  * @reduce_power_loaded: indicates reduced power section was loaded
  * @failed_to_load_reduce_power_image: set to true if pnvm loading failed
@@ -883,6 +882,7 @@ struct iwl_trans {
 	const struct iwl_trans_info info;
 	bool reduced_cap_sku;
 	bool step_urm;
+	bool suppress_cmd_error_once;
 
 	bool pm_support;
 	bool ltr_enabled;
@@ -1192,11 +1192,6 @@ static inline u16 iwl_trans_get_num_rbds(struct iwl_trans *trans)
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		return 2 * result;
 	return result;
-}
-
-static inline void iwl_trans_suppress_cmd_error_once(struct iwl_trans *trans)
-{
-	set_bit(STATUS_SUPPRESS_CMD_ERROR_ONCE, &trans->status);
 }
 
 static inline bool iwl_trans_device_enabled(struct iwl_trans *trans)

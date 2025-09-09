@@ -86,7 +86,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mld *mld, char *buf,
 
 	if (count == 6 && !strcmp(buf, "nolog\n")) {
 		mld->fw_status.do_not_dump_once = true;
-		iwl_trans_suppress_cmd_error_once(mld->trans);
+		mld->trans->suppress_cmd_error_once = true;
 	}
 
 	/* take the return value to make compiler happy - it will
