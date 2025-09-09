@@ -194,6 +194,8 @@ mt76_dma_queue_magic_cnt_init(struct mt76_dev *dev, struct mt76_queue *q)
 	q->magic_cnt = 0;
 	if (mt76_queue_is_wed_rro_ind(q)) {
 		struct mt76_wed_rro_desc *rro_desc;
+		u32 data1 = FIELD_PREP(RRO_IND_DATA1_MAGIC_CNT_MASK,
+				       MT_DMA_WED_IND_CMD_CNT - 1);
 		int i;
 
 		rro_desc = (struct mt76_wed_rro_desc *)q->desc;
@@ -201,7 +203,7 @@ mt76_dma_queue_magic_cnt_init(struct mt76_dev *dev, struct mt76_queue *q)
 			struct mt76_wed_rro_ind *cmd;
 
 			cmd = (struct mt76_wed_rro_ind *)&rro_desc[i];
-			cmd->magic_cnt = MT_DMA_WED_IND_CMD_CNT - 1;
+			cmd->data1 = cpu_to_le32(data1);
 		}
 	} else if (mt76_queue_is_wed_rro_rxdmad_c(q)) {
 		struct mt76_rro_rxdmad_c *dmad = (void *)q->desc;
@@ -582,12 +584,15 @@ mt76_dma_dequeue(struct mt76_dev *dev, struct mt76_queue *q, bool flush,
 
 	if (mt76_queue_is_wed_rro_ind(q)) {
 		struct mt76_wed_rro_ind *cmd;
+		u8 magic_cnt;
 
 		if (flush)
 			goto done;
 
 		cmd = q->entry[idx].buf;
-		if (cmd->magic_cnt != q->magic_cnt)
+		magic_cnt = FIELD_GET(RRO_IND_DATA1_MAGIC_CNT_MASK,
+				      le32_to_cpu(cmd->data1));
+		if (magic_cnt != q->magic_cnt)
 			return NULL;
 
 		if (q->tail == q->ndesc - 1)

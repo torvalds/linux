@@ -415,15 +415,16 @@ struct mt76_txq {
 	bool aggr;
 };
 
+/* data0 */
+#define RRO_IND_DATA0_IND_REASON_MASK	GENMASK(31, 28)
+#define RRO_IND_DATA0_START_SEQ_MASK	GENMASK(27, 16)
+#define RRO_IND_DATA0_SEQ_ID_MASK	GENMASK(11, 0)
+/* data1 */
+#define RRO_IND_DATA1_MAGIC_CNT_MASK	GENMASK(31, 29)
+#define RRO_IND_DATA1_IND_COUNT_MASK	GENMASK(12, 0)
 struct mt76_wed_rro_ind {
-	u32 se_id	: 12;
-	u32 rsv		: 4;
-	u32 start_sn	: 12;
-	u32 ind_reason	: 4;
-	u32 ind_cnt	: 13;
-	u32 win_sz	: 3;
-	u32 rsv2	: 13;
-	u32 magic_cnt	: 3;
+	__le32 data0;
+	__le32 data1;
 };
 
 struct mt76_txwi_cache {

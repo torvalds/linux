@@ -1830,11 +1830,17 @@ void mt7996_rro_rx_process(struct mt76_dev *mdev, void *data)
 {
 	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
 	struct mt76_wed_rro_ind *cmd = (struct mt76_wed_rro_ind *)data;
+	u32 cmd_data0 = le32_to_cpu(cmd->data0);
+	u32 cmd_data1 = le32_to_cpu(cmd->data1);
+	u8 ind_reason = FIELD_GET(RRO_IND_DATA0_IND_REASON_MASK, cmd_data0);
+	u16 start_seq = FIELD_GET(RRO_IND_DATA0_START_SEQ_MASK, cmd_data0);
+	u16 seq_id = FIELD_GET(RRO_IND_DATA0_SEQ_ID_MASK, cmd_data0);
+	u16 ind_count = FIELD_GET(RRO_IND_DATA1_IND_COUNT_MASK, cmd_data1);
 	struct mt7996_msdu_page_info *pinfo = NULL;
 	struct mt7996_msdu_page *p = NULL;
 	int i, seq_num = 0;
 
-	for (i = 0; i < cmd->ind_cnt; i++) {
+	for (i = 0; i < ind_count; i++) {
 		struct mt7996_wed_rro_addr *e;
 		struct mt76_rx_status *status;
 		struct mt7996_rro_hif *rxd;
@@ -1849,8 +1855,8 @@ void mt7996_rro_rx_process(struct mt76_dev *mdev, void *data)
 		void *buf;
 		bool ls;
 
-		seq_num = FIELD_GET(MT996_RRO_SN_MASK, cmd->start_sn + i);
-		e = mt7996_rro_addr_elem_get(dev, cmd->se_id, seq_num);
+		seq_num = FIELD_GET(MT996_RRO_SN_MASK, start_seq + i);
+		e = mt7996_rro_addr_elem_get(dev, seq_id, seq_num);
 		data = le32_to_cpu(e->data);
 		signature = FIELD_GET(WED_RRO_ADDR_SIGNATURE_MASK, data);
 		if (signature != (seq_num / MT7996_RRO_WINDOW_MAX_LEN)) {
@@ -1938,7 +1944,7 @@ void mt7996_rro_rx_process(struct mt76_dev *mdev, void *data)
 			skb_mark_for_recycle(skb);
 			__skb_put(skb, len);
 
-			if (cmd->ind_reason == 1 || cmd->ind_reason == 2) {
+			if (ind_reason == 1 || ind_reason == 2) {
 				dev_kfree_skb(skb);
 				goto next_page;
 			}
@@ -1949,7 +1955,7 @@ void mt7996_rro_rx_process(struct mt76_dev *mdev, void *data)
 			}
 
 			status = (struct mt76_rx_status *)skb->cb;
-			if (cmd->se_id != MT7996_RRO_MAX_SESSION)
+			if (seq_id != MT7996_RRO_MAX_SESSION)
 				status->aggr = true;
 
 			mt7996_queue_rx_skb(mdev, qid, skb, &info);
@@ -1973,7 +1979,7 @@ update_ack_seq_num:
 		if ((i + 1) % 4 == 0)
 			mt76_wr(dev, MT_RRO_ACK_SN_CTRL,
 				FIELD_PREP(MT_RRO_ACK_SN_CTRL_SESSION_MASK,
-					   cmd->se_id) |
+					   seq_id) |
 				FIELD_PREP(MT_RRO_ACK_SN_CTRL_SN_MASK,
 					   seq_num));
 		if (p) {
@@ -1985,8 +1991,7 @@ update_ack_seq_num:
 	/* Update ack_seq_num for remaining addr_elem */
 	if (i % 4)
 		mt76_wr(dev, MT_RRO_ACK_SN_CTRL,
-			FIELD_PREP(MT_RRO_ACK_SN_CTRL_SESSION_MASK,
-				   cmd->se_id) |
+			FIELD_PREP(MT_RRO_ACK_SN_CTRL_SESSION_MASK, seq_id) |
 			FIELD_PREP(MT_RRO_ACK_SN_CTRL_SN_MASK, seq_num));
 }
 
