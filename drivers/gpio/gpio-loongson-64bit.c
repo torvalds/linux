@@ -205,7 +205,7 @@ static int loongson_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 
 		default:
 			return -EINVAL;
-		};
+		}
 	}
 
 	writeb(pol, lgpio->reg_base + lgpio->chip_data->intpol_offset + hwirq);
