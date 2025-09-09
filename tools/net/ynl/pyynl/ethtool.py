@@ -51,7 +51,7 @@ def print_field(reply, *desc):
     for spec in desc:
         try:
             field, name, tp = spec
-        except:
+        except ValueError:
             field, name = spec
             tp = 'int'
 
