@@ -39,11 +39,13 @@ Also, you will need to select at least one compiled-in font, but if
 you don't do anything, the kernel configuration tool will select one for you,
 usually an 8x16 font.
 
-GOTCHA: A common bug report is enabling the framebuffer without enabling the
-framebuffer console.  Depending on the driver, you may get a blanked or
-garbled display, but the system still boots to completion.  If you are
-fortunate to have a driver that does not alter the graphics chip, then you
-will still get a VGA console.
+.. admonition:: GOTCHA
+
+   A common bug report is enabling the framebuffer without enabling the
+   framebuffer console.  Depending on the driver, you may get a blanked or
+   garbled display, but the system still boots to completion.  If you are
+   fortunate to have a driver that does not alter the graphics chip, then you
+   will still get a VGA console.
 
 B. Loading
 ==========
@@ -117,9 +119,10 @@ C. Boot options
 	outside the given range will still be controlled by the standard
 	console driver.
 
-	NOTE: For x86 machines, the standard console is the VGA console which
-	is typically located on the same video card.  Thus, the consoles that
-	are controlled by the VGA console will be garbled.
+	.. note::
+	   For x86 machines, the standard console is the VGA console which
+	   is typically located on the same video card.  Thus, the consoles that
+	   are controlled by the VGA console will be garbled.
 
 4. fbcon=rotate:<n>
 
@@ -141,10 +144,11 @@ C. Boot options
 	Console rotation will only become available if Framebuffer Console
 	Rotation support is compiled in your kernel.
 
-	NOTE: This is purely console rotation.  Any other applications that
-	use the framebuffer will remain at their 'normal' orientation.
-	Actually, the underlying fb driver is totally ignorant of console
-	rotation.
+	.. note::
+	   This is purely console rotation.  Any other applications that
+	   use the framebuffer will remain at their 'normal' orientation.
+	   Actually, the underlying fb driver is totally ignorant of console
+	   rotation.
 
 5. fbcon=margin:<color>
 
