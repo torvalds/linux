@@ -1945,7 +1945,7 @@ static struct qcom_cc_driver_data disp_cc_glymur_driver_data = {
 	.num_clk_cbcrs = ARRAY_SIZE(disp_cc_glymur_critical_cbcrs),
 };
 
-static struct qcom_cc_desc disp_cc_glymur_desc = {
+static const struct qcom_cc_desc disp_cc_glymur_desc = {
 	.config = &disp_cc_glymur_regmap_config,
 	.clks = disp_cc_glymur_clocks,
 	.num_clks = ARRAY_SIZE(disp_cc_glymur_clocks),
