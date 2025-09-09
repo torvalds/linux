@@ -178,7 +178,7 @@ static void iwl_fwrt_dump_lmac_error_log(struct iwl_fw_runtime *fwrt, u8 lmac_nu
 		if (err)
 			return;
 
-		err = iwl_finish_nic_init(trans);
+		err = iwl_trans_activate_nic(trans);
 		if (err)
 			return;
 	}

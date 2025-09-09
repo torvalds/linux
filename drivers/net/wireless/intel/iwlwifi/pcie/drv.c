@@ -1243,7 +1243,7 @@ static int _iwl_pci_resume(struct device *device, bool restore)
 		 * won't really know how to recover.
 		 */
 		iwl_pcie_prepare_card_hw(trans);
-		iwl_finish_nic_init(trans);
+		iwl_trans_activate_nic(trans);
 		iwl_op_mode_device_powered_off(trans->op_mode);
 	}
 
