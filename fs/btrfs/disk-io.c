@@ -3242,16 +3242,22 @@ int btrfs_check_features(struct btrfs_fs_info *fs_info, bool is_rw_mount)
 	}
 
 	/*
-	 * Subpage runtime limitation on v1 cache.
+	 * Subpage/bs > ps runtime limitation on v1 cache.
 	 *
 	 * V1 space cache still has some hard coded PAGE_SIZE usage, while
 	 * we're already defaulting to v2 cache, no need to bother v1 as it's
 	 * going to be deprecated anyway.
 	 */
-	if (fs_info->sectorsize < PAGE_SIZE && btrfs_test_opt(fs_info, SPACE_CACHE)) {
+	if (fs_info->sectorsize != PAGE_SIZE && btrfs_test_opt(fs_info, SPACE_CACHE)) {
 		btrfs_warn(fs_info,
 	"v1 space cache is not supported for page size %lu with sectorsize %u",
 			   PAGE_SIZE, fs_info->sectorsize);
+		return -EINVAL;
+	}
+	if (fs_info->sectorsize > PAGE_SIZE && btrfs_fs_incompat(fs_info, RAID56)) {
+		btrfs_err(fs_info,
+		"RAID56 is not supported for page size %lu with sectorsize %u",
+			  PAGE_SIZE, fs_info->sectorsize);
 		return -EINVAL;
 	}
 
@@ -3388,6 +3394,10 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	fs_info->stripesize = stripesize;
 	fs_info->fs_devices->fs_info = fs_info;
 
+	if (fs_info->sectorsize > PAGE_SIZE)
+		btrfs_warn(fs_info,
+			   "support for block size %u with page size %zu is experimental, some features may be missing",
+			   fs_info->sectorsize, PAGE_SIZE);
 	/*
 	 * Handle the space caching options appropriately now that we have the
 	 * super block loaded and validated.
