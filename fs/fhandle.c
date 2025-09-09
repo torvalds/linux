@@ -208,6 +208,14 @@ static int vfs_dentry_acceptable(void *context, struct dentry *dentry)
 		return 1;
 
 	/*
+	 * Verify that the decoded dentry itself has a valid id mapping.
+	 * In case the decoded dentry is the mountfd root itself, this
+	 * verifies that the mountfd inode itself has a valid id mapping.
+	 */
+	if (!privileged_wrt_inode_uidgid(user_ns, idmap, d_inode(dentry)))
+		return 0;
+
+	/*
 	 * It's racy as we're not taking rename_lock but we're able to ignore
 	 * permissions and we just need an approximation whether we were able
 	 * to follow a path to the file.

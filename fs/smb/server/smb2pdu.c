@@ -2951,18 +2951,19 @@ int smb2_open(struct ksmbd_work *work)
 		}
 
 		ksmbd_debug(SMB, "converted name = %s\n", name);
-		if (strchr(name, ':')) {
-			if (!test_share_config_flag(work->tcon->share_conf,
-						    KSMBD_SHARE_FLAG_STREAMS)) {
-				rc = -EBADF;
-				goto err_out2;
-			}
-			rc = parse_stream_name(name, &stream_name, &s_type);
-			if (rc < 0)
-				goto err_out2;
-		}
 
 		if (posix_ctxt == false) {
+			if (strchr(name, ':')) {
+				if (!test_share_config_flag(work->tcon->share_conf,
+							KSMBD_SHARE_FLAG_STREAMS)) {
+					rc = -EBADF;
+					goto err_out2;
+				}
+				rc = parse_stream_name(name, &stream_name, &s_type);
+				if (rc < 0)
+					goto err_out2;
+			}
+
 			rc = ksmbd_validate_filename(name);
 			if (rc < 0)
 				goto err_out2;
@@ -3442,6 +3443,8 @@ int smb2_open(struct ksmbd_work *work)
 
 	fp->attrib_only = !(req->DesiredAccess & ~(FILE_READ_ATTRIBUTES_LE |
 			FILE_WRITE_ATTRIBUTES_LE | FILE_SYNCHRONIZE_LE));
+
+	fp->is_posix_ctxt = posix_ctxt;
 
 	/* fp should be searchable through ksmbd_inode.m_fp_list
 	 * after daccess, saccess, attrib_only, and stream are
@@ -5988,7 +5991,7 @@ static int smb2_rename(struct ksmbd_work *work,
 	if (IS_ERR(new_name))
 		return PTR_ERR(new_name);
 
-	if (strchr(new_name, ':')) {
+	if (fp->is_posix_ctxt == false && strchr(new_name, ':')) {
 		int s_type;
 		char *xattr_stream_name, *stream_name = NULL;
 		size_t xattr_stream_size;

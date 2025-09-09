@@ -6192,11 +6192,11 @@ SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
 	please_key_high = (__u64 *)(lease_key+8);
 	if (rc) {
 		cifs_stats_fail_inc(tcon, SMB2_OPLOCK_BREAK_HE);
-		trace_smb3_lease_err(le32_to_cpu(lease_state), tcon->tid,
+		trace_smb3_lease_ack_err(le32_to_cpu(lease_state), tcon->tid,
 			ses->Suid, *please_key_low, *please_key_high, rc);
 		cifs_dbg(FYI, "Send error in Lease Break = %d\n", rc);
 	} else
-		trace_smb3_lease_done(le32_to_cpu(lease_state), tcon->tid,
+		trace_smb3_lease_ack_done(le32_to_cpu(lease_state), tcon->tid,
 			ses->Suid, *please_key_low, *please_key_high);
 
 	return rc;

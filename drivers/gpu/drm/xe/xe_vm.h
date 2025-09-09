@@ -315,22 +315,14 @@ void xe_vm_snapshot_free(struct xe_vm_snapshot *snap);
  * Register this task as currently making bos resident for the vm. Intended
  * to avoid eviction by the same task of shared bos bound to the vm.
  * Call with the vm's resv lock held.
- *
- * Return: A pin cookie that should be used for xe_vm_clear_validating().
  */
-static inline struct pin_cookie xe_vm_set_validating(struct xe_vm *vm,
-						     bool allow_res_evict)
+static inline void xe_vm_set_validating(struct xe_vm *vm, bool allow_res_evict)
 {
-	struct pin_cookie cookie = {};
-
 	if (vm && !allow_res_evict) {
 		xe_vm_assert_held(vm);
-		cookie = lockdep_pin_lock(&xe_vm_resv(vm)->lock.base);
 		/* Pairs with READ_ONCE in xe_vm_is_validating() */
 		WRITE_ONCE(vm->validating, current);
 	}
-
-	return cookie;
 }
 
 /**
@@ -338,17 +330,14 @@ static inline struct pin_cookie xe_vm_set_validating(struct xe_vm *vm,
  * @vm: Pointer to the vm or NULL
  * @allow_res_evict: Eviction from @vm was allowed. Must be set to the same
  * value as for xe_vm_set_validation().
- * @cookie: Cookie obtained from xe_vm_set_validating().
  *
  * Register this task as currently making bos resident for the vm. Intended
  * to avoid eviction by the same task of shared bos bound to the vm.
  * Call with the vm's resv lock held.
  */
-static inline void xe_vm_clear_validating(struct xe_vm *vm, bool allow_res_evict,
-					  struct pin_cookie cookie)
+static inline void xe_vm_clear_validating(struct xe_vm *vm, bool allow_res_evict)
 {
 	if (vm && !allow_res_evict) {
-		lockdep_unpin_lock(&xe_vm_resv(vm)->lock.base, cookie);
 		/* Pairs with READ_ONCE in xe_vm_is_validating() */
 		WRITE_ONCE(vm->validating, NULL);
 	}
