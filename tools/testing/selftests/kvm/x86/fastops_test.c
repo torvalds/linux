@@ -8,14 +8,20 @@
  * to set RFLAGS.CF based on whether or not the input is even or odd, so that
  * instructions like ADC and SBB are deterministic.
  */
+#define fastop(__insn)									\
+	"bt $0, %[bt_val]\n\t"								\
+	__insn "\n\t"									\
+	"pushfq\n\t"									\
+	"pop %[flags]\n\t"
+
+#define flags_constraint(flags_val) [flags]"=r"(flags_val)
+#define bt_constraint(__bt_val) [bt_val]"rm"((uint32_t)__bt_val)
+
 #define guest_execute_fastop_1(FEP, insn, __val, __flags)				\
 ({											\
-	__asm__ __volatile__("bt $0, %[ro_val]\n\t"					\
-			     FEP insn " %[val]\n\t"					\
-			     "pushfq\n\t"						\
-			     "pop %[flags]\n\t"						\
-			     : [val]"+r"(__val), [flags]"=r"(__flags)			\
-			     : [ro_val]"rm"((uint32_t)__val)				\
+	__asm__ __volatile__(fastop(FEP insn " %[val]")					\
+			     : [val]"+r"(__val), flags_constraint(__flags)		\
+			     : bt_constraint(__val)					\
 			     : "cc", "memory");						\
 })
 
@@ -37,12 +43,9 @@
 
 #define guest_execute_fastop_2(FEP, insn, __input, __output, __flags)			\
 ({											\
-	__asm__ __volatile__("bt $0, %[ro_val]\n\t"					\
-			     FEP insn " %[input], %[output]\n\t"			\
-			     "pushfq\n\t"						\
-			     "pop %[flags]\n\t"						\
-			     : [output]"+r"(__output), [flags]"=r"(__flags)		\
-			     : [input]"r"(__input), [ro_val]"rm"((uint32_t)__output)	\
+	__asm__ __volatile__(fastop(FEP insn " %[input], %[output]")			\
+			     : [output]"+r"(__output), flags_constraint(__flags)	\
+			     : [input]"r"(__input), bt_constraint(__output)		\
 			     : "cc", "memory");						\
 })
 
@@ -65,12 +68,9 @@
 
 #define guest_execute_fastop_cl(FEP, insn, __shift, __output, __flags)			\
 ({											\
-	__asm__ __volatile__("bt $0, %[ro_val]\n\t"					\
-			     FEP insn " %%cl, %[output]\n\t"				\
-			     "pushfq\n\t"						\
-			     "pop %[flags]\n\t"						\
-			     : [output]"+r"(__output), [flags]"=r"(__flags)		\
-			     : "c"(__shift), [ro_val]"rm"((uint32_t)__output)		\
+	__asm__ __volatile__(fastop(FEP insn " %%cl, %[output]")			\
+			     : [output]"+r"(__output), flags_constraint(__flags)	\
+			     : "c"(__shift), bt_constraint(__output)			\
 			     : "cc", "memory");						\
 })
 
