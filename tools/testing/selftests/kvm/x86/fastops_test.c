@@ -10,12 +10,13 @@
  */
 #define guest_execute_fastop_1(FEP, insn, __val, __flags)				\
 ({											\
-	__asm__ __volatile__("bt $0, %[val]\n\t"					\
+	__asm__ __volatile__("bt $0, %[ro_val]\n\t"					\
 			     FEP insn " %[val]\n\t"					\
 			     "pushfq\n\t"						\
 			     "pop %[flags]\n\t"						\
 			     : [val]"+r"(__val), [flags]"=r"(__flags)			\
-			     : : "cc", "memory");					\
+			     : [ro_val]"rm"((uint32_t)__val)				\
+			     : "cc", "memory");						\
 })
 
 #define guest_test_fastop_1(insn, type_t, __val)					\
@@ -36,12 +37,13 @@
 
 #define guest_execute_fastop_2(FEP, insn, __input, __output, __flags)			\
 ({											\
-	__asm__ __volatile__("bt $0, %[output]\n\t"					\
+	__asm__ __volatile__("bt $0, %[ro_val]\n\t"					\
 			     FEP insn " %[input], %[output]\n\t"			\
 			     "pushfq\n\t"						\
 			     "pop %[flags]\n\t"						\
 			     : [output]"+r"(__output), [flags]"=r"(__flags)		\
-			     : [input]"r"(__input) : "cc", "memory");			\
+			     : [input]"r"(__input), [ro_val]"rm"((uint32_t)__output)	\
+			     : "cc", "memory");						\
 })
 
 #define guest_test_fastop_2(insn, type_t, __val1, __val2)				\
@@ -63,12 +65,13 @@
 
 #define guest_execute_fastop_cl(FEP, insn, __shift, __output, __flags)			\
 ({											\
-	__asm__ __volatile__("bt $0, %[output]\n\t"					\
+	__asm__ __volatile__("bt $0, %[ro_val]\n\t"					\
 			     FEP insn " %%cl, %[output]\n\t"				\
 			     "pushfq\n\t"						\
 			     "pop %[flags]\n\t"						\
 			     : [output]"+r"(__output), [flags]"=r"(__flags)		\
-			     : "c"(__shift) : "cc", "memory");				\
+			     : "c"(__shift), [ro_val]"rm"((uint32_t)__output)		\
+			     : "cc", "memory");						\
 })
 
 #define guest_test_fastop_cl(insn, type_t, __val1, __val2)				\
@@ -115,14 +118,16 @@ do {											\
 			guest_test_fastop_2("add" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_2("adc" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_2("and" suffix, type_t, vals[i], vals[j]);	\
+if (sizeof(type_t) != 1) {							\
 			guest_test_fastop_2("bsf" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_2("bsr" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_2("bt" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_2("btc" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_2("btr" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_2("bts" suffix, type_t, vals[i], vals[j]);	\
-			guest_test_fastop_2("cmp" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_2("imul" suffix, type_t, vals[i], vals[j]);	\
+}											\
+			guest_test_fastop_2("cmp" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_2("or" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_2("sbb" suffix, type_t, vals[i], vals[j]);	\
 			guest_test_fastop_2("sub" suffix, type_t, vals[i], vals[j]);	\
@@ -142,6 +147,7 @@ do {											\
 
 static void guest_code(void)
 {
+	guest_test_fastops(uint8_t, "b");
 	guest_test_fastops(uint16_t, "w");
 	guest_test_fastops(uint32_t, "l");
 	guest_test_fastops(uint64_t, "q");
