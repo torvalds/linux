@@ -115,20 +115,12 @@ static bool iwl_mld_is_nic_ack_enabled(struct iwl_mld *mld,
 
 static void iwl_mld_set_he_support(struct iwl_mld *mld,
 				   struct ieee80211_vif *vif,
-				   struct iwl_mac_config_cmd *cmd,
-				   int cmd_ver)
+				   struct iwl_mac_config_cmd *cmd)
 {
-	if (vif->type == NL80211_IFTYPE_AP) {
-		if (cmd_ver == 2)
-			cmd->wifi_gen_v2.he_ap_support = cpu_to_le16(1);
-		else
-			cmd->wifi_gen.he_ap_support = 1;
-	} else {
-		if (cmd_ver == 2)
-			cmd->wifi_gen_v2.he_support = cpu_to_le16(1);
-		else
-			cmd->wifi_gen.he_support = 1;
-	}
+	if (vif->type == NL80211_IFTYPE_AP)
+		cmd->wifi_gen.he_ap_support = 1;
+	else
+		cmd->wifi_gen.he_support = 1;
 }
 
 /* fill the common part for all interface types */
@@ -140,9 +132,6 @@ static void iwl_mld_mac_cmd_fill_common(struct iwl_mld *mld,
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
 	struct ieee80211_bss_conf *link_conf;
 	unsigned int link_id;
-	int cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw,
-					    WIDE_ID(MAC_CONF_GROUP,
-						    MAC_CONFIG_CMD), 0);
 
 	lockdep_assert_wiphy(mld->wiphy);
 
@@ -169,11 +158,8 @@ static void iwl_mld_mac_cmd_fill_common(struct iwl_mld *mld,
 	 * and enable both when we have MLO.
 	 */
 	if (ieee80211_vif_is_mld(vif)) {
-		iwl_mld_set_he_support(mld, vif, cmd, cmd_ver);
-		if (cmd_ver == 2)
-			cmd->wifi_gen_v2.eht_support = cpu_to_le32(1);
-		else
-			cmd->wifi_gen.eht_support = 1;
+		iwl_mld_set_he_support(mld, vif, cmd);
+		cmd->wifi_gen.eht_support = 1;
 		return;
 	}
 
@@ -181,7 +167,7 @@ static void iwl_mld_mac_cmd_fill_common(struct iwl_mld *mld,
 		if (!link_conf->he_support)
 			continue;
 
-		iwl_mld_set_he_support(mld, vif, cmd, cmd_ver);
+		iwl_mld_set_he_support(mld, vif, cmd);
 
 		/* EHT, if supported, was already set above */
 		break;
