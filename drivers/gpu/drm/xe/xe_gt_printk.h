@@ -13,11 +13,14 @@
 #define xe_gt_printk(_gt, _level, _fmt, ...) \
 	drm_##_level(&gt_to_xe(_gt)->drm, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
 
+#define xe_gt_err(_gt, _fmt, ...) \
+	xe_gt_printk((_gt), err, _fmt, ##__VA_ARGS__)
+
 #define xe_gt_err_once(_gt, _fmt, ...) \
 	xe_gt_printk((_gt), err_once, _fmt, ##__VA_ARGS__)
 
-#define xe_gt_err(_gt, _fmt, ...) \
-	xe_gt_printk((_gt), err, _fmt, ##__VA_ARGS__)
+#define xe_gt_err_ratelimited(_gt, _fmt, ...) \
+	xe_gt_printk((_gt), err_ratelimited, _fmt, ##__VA_ARGS__)
 
 #define xe_gt_warn(_gt, _fmt, ...) \
 	xe_gt_printk((_gt), warn, _fmt, ##__VA_ARGS__)
@@ -30,9 +33,6 @@
 
 #define xe_gt_dbg(_gt, _fmt, ...) \
 	xe_gt_printk((_gt), dbg, _fmt, ##__VA_ARGS__)
-
-#define xe_gt_err_ratelimited(_gt, _fmt, ...) \
-	xe_gt_printk((_gt), err_ratelimited, _fmt, ##__VA_ARGS__)
 
 #define xe_gt_WARN(_gt, _condition, _fmt, ...) \
 	drm_WARN(&gt_to_xe(_gt)->drm, _condition, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
