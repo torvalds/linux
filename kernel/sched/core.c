@@ -2664,28 +2664,12 @@ void set_cpus_allowed_common(struct task_struct *p, struct affinity_context *ctx
 static void
 do_set_cpus_allowed(struct task_struct *p, struct affinity_context *ctx)
 {
-	struct rq *rq = task_rq(p);
-	bool queued, running;
+	u32 flags = DEQUEUE_SAVE | DEQUEUE_NOCLOCK;
 
-	lockdep_assert_held(&p->pi_lock);
-	lockdep_assert_rq_held(rq);
-
-	queued = task_on_rq_queued(p);
-	running = task_current_donor(rq, p);
-
-	if (queued)
-		dequeue_task(rq, p, DEQUEUE_SAVE | DEQUEUE_NOCLOCK);
-
-	if (running)
-		put_prev_task(rq, p);
-
-	p->sched_class->set_cpus_allowed(p, ctx);
-	mm_set_cpus_allowed(p->mm, ctx->new_mask);
-
-	if (queued)
-		enqueue_task(rq, p, ENQUEUE_RESTORE | ENQUEUE_NOCLOCK);
-	if (running)
-		set_next_task(rq, p);
+	scoped_guard (sched_change, p, flags) {
+		p->sched_class->set_cpus_allowed(p, ctx);
+		mm_set_cpus_allowed(p->mm, ctx->new_mask);
+	}
 }
 
 /*
