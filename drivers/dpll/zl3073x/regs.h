@@ -260,4 +260,16 @@
 #define ZL_REG_OUTPUT_ESYNC_WIDTH		ZL_REG(14, 0x18, 4)
 #define ZL_REG_OUTPUT_PHASE_COMP		ZL_REG(14, 0x20, 4)
 
+/*
+ * Register Page 255 - HW registers access
+ */
+#define ZL_REG_HWREG_OP				ZL_REG(0xff, 0x00, 1)
+#define ZL_HWREG_OP_WRITE			0x28
+#define ZL_HWREG_OP_READ			0x29
+#define ZL_HWREG_OP_PENDING			BIT(1)
+
+#define ZL_REG_HWREG_ADDR			ZL_REG(0xff, 0x04, 4)
+#define ZL_REG_HWREG_WRITE_DATA			ZL_REG(0xff, 0x08, 4)
+#define ZL_REG_HWREG_READ_DATA			ZL_REG(0xff, 0x0c, 4)
+
 #endif /* _ZL3073X_REGS_H */
