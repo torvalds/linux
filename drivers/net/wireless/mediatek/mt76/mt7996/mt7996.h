@@ -112,6 +112,7 @@
 #define MT7996_CRIT_TEMP		110
 #define MT7996_MAX_TEMP			120
 
+#define MT7996_RRO_MSDU_PG_HASH_SIZE	127
 #define MT7996_RRO_MAX_SESSION		1024
 #define MT7996_RRO_WINDOW_MAX_LEN	1024
 #define MT7996_RRO_ADDR_ELEM_LEN	128
@@ -127,6 +128,10 @@
 					 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 #define MT7996_RX_MSDU_PAGE_SIZE	(128 + \
 					 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+
+/* RRO 3.1 */
+#define MT7996_RRO_MSDU_PG_CR_CNT	8
+#define MT7996_RRO_MSDU_PG_SIZE_PER_CR	0x10000
 
 struct mt7996_vif;
 struct mt7996_sta;
@@ -400,6 +405,10 @@ struct mt7996_dev {
 			void *ptr;
 			dma_addr_t phy_addr;
 		} session;
+		struct {
+			void *ptr;
+			dma_addr_t phy_addr;
+		} msdu_pg[MT7996_RRO_MSDU_PG_CR_CNT];
 
 		struct work_struct work;
 		struct list_head poll_list;
