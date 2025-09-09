@@ -713,6 +713,24 @@ do {									      \
 				(c) || rcu_read_lock_sched_held(), \
 				__rcu)
 
+/**
+ * rcu_dereference_all_check() - rcu_dereference_all with debug checking
+ * @p: The pointer to read, prior to dereferencing
+ * @c: The conditions under which the dereference will take place
+ *
+ * This is similar to rcu_dereference_check(), but allows protection
+ * by all forms of vanilla RCU readers, including preemption disabled,
+ * bh-disabled, and interrupt-disabled regions of code.  Note that "vanilla
+ * RCU" excludes SRCU and the various Tasks RCU flavors.  Please note
+ * that this macro should not be backported to any Linux-kernel version
+ * preceding v5.0 due to changes in synchronize_rcu() semantics prior
+ * to that version.
+ */
+#define rcu_dereference_all_check(p, c) \
+	__rcu_dereference_check((p), __UNIQUE_ID(rcu), \
+				(c) || rcu_read_lock_any_held(), \
+				__rcu)
+
 /*
  * The tracing infrastructure traces RCU (we want that), but unfortunately
  * some of the RCU checks causes tracing to lock up the system.
@@ -766,6 +784,14 @@ do {									      \
  * Makes rcu_dereference_check() do the dirty work.
  */
 #define rcu_dereference_sched(p) rcu_dereference_sched_check(p, 0)
+
+/**
+ * rcu_dereference_all() - fetch RCU-all-protected pointer for dereferencing
+ * @p: The pointer to read, prior to dereferencing
+ *
+ * Makes rcu_dereference_check() do the dirty work.
+ */
+#define rcu_dereference_all(p) rcu_dereference_all_check(p, 0)
 
 /**
  * rcu_pointer_handoff() - Hand off a pointer from RCU to other mechanism
