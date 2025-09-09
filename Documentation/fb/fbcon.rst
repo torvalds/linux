@@ -251,11 +251,11 @@ restored properly. The following is one of the several methods that you can do:
        echo 1 > /sys/class/vtconsole/vtcon1/bind
 
 8. Once fbcon is unbound, all drivers registered to the system will also
-become unbound.  This means that fbcon and individual framebuffer drivers
-can be unloaded or reloaded at will. Reloading the drivers or fbcon will
-automatically bind the console, fbcon and the drivers together. Unloading
-all the drivers without unloading fbcon will make it impossible for the
-console to bind fbcon.
+   become unbound.  This means that fbcon and individual framebuffer drivers
+   can be unloaded or reloaded at will. Reloading the drivers or fbcon will
+   automatically bind the console, fbcon and the drivers together. Unloading
+   all the drivers without unloading fbcon will make it impossible for the
+   console to bind fbcon.
 
 Notes for vesafb users:
 =======================
