@@ -956,93 +956,9 @@ zl3073x_dev_periodic_work(struct kthread_work *work)
 				   msecs_to_jiffies(500));
 }
 
-static void zl3073x_dev_dpll_fini(void *ptr)
-{
-	struct zl3073x_dpll *zldpll, *next;
-	struct zl3073x_dev *zldev = ptr;
-
-	/* Stop monitoring thread */
-	if (zldev->kworker) {
-		kthread_cancel_delayed_work_sync(&zldev->work);
-		kthread_destroy_worker(zldev->kworker);
-		zldev->kworker = NULL;
-	}
-
-	/* Release DPLLs */
-	list_for_each_entry_safe(zldpll, next, &zldev->dplls, list) {
-		zl3073x_dpll_unregister(zldpll);
-		list_del(&zldpll->list);
-		zl3073x_dpll_free(zldpll);
-	}
-}
-
-static int
-zl3073x_devm_dpll_init(struct zl3073x_dev *zldev, u8 num_dplls)
-{
-	struct kthread_worker *kworker;
-	struct zl3073x_dpll *zldpll;
-	unsigned int i;
-	int rc;
-
-	INIT_LIST_HEAD(&zldev->dplls);
-
-	/* Initialize all DPLLs */
-	for (i = 0; i < num_dplls; i++) {
-		zldpll = zl3073x_dpll_alloc(zldev, i);
-		if (IS_ERR(zldpll)) {
-			dev_err_probe(zldev->dev, PTR_ERR(zldpll),
-				      "Failed to alloc DPLL%u\n", i);
-			rc = PTR_ERR(zldpll);
-			goto error;
-		}
-
-		rc = zl3073x_dpll_register(zldpll);
-		if (rc) {
-			dev_err_probe(zldev->dev, rc,
-				      "Failed to register DPLL%u\n", i);
-			zl3073x_dpll_free(zldpll);
-			goto error;
-		}
-
-		list_add_tail(&zldpll->list, &zldev->dplls);
-	}
-
-	/* Perform initial firmware fine phase correction */
-	rc = zl3073x_dpll_init_fine_phase_adjust(zldev);
-	if (rc) {
-		dev_err_probe(zldev->dev, rc,
-			      "Failed to init fine phase correction\n");
-		goto error;
-	}
-
-	/* Initialize monitoring thread */
-	kthread_init_delayed_work(&zldev->work, zl3073x_dev_periodic_work);
-	kworker = kthread_run_worker(0, "zl3073x-%s", dev_name(zldev->dev));
-	if (IS_ERR(kworker)) {
-		rc = PTR_ERR(kworker);
-		goto error;
-	}
-
-	zldev->kworker = kworker;
-	kthread_queue_delayed_work(zldev->kworker, &zldev->work, 0);
-
-	/* Add devres action to release DPLL related resources */
-	rc = devm_add_action_or_reset(zldev->dev, zl3073x_dev_dpll_fini, zldev);
-	if (rc)
-		goto error;
-
-	return 0;
-
-error:
-	zl3073x_dev_dpll_fini(zldev);
-
-	return rc;
-}
-
 /**
  * zl3073x_dev_phase_meas_setup - setup phase offset measurement
  * @zldev: pointer to zl3073x_dev structure
- * @num_channels: number of DPLL channels
  *
  * Enable phase offset measurement block, set measurement averaging factor
  * and enable DPLL-to-its-ref phase measurement for all DPLLs.
@@ -1050,10 +966,11 @@ error:
  * Returns: 0 on success, <0 on error
  */
 static int
-zl3073x_dev_phase_meas_setup(struct zl3073x_dev *zldev, int num_channels)
+zl3073x_dev_phase_meas_setup(struct zl3073x_dev *zldev)
 {
-	u8 dpll_meas_ctrl, mask;
-	int i, rc;
+	struct zl3073x_dpll *zldpll;
+	u8 dpll_meas_ctrl, mask = 0;
+	int rc;
 
 	/* Read DPLL phase measurement control register */
 	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_MEAS_CTRL, &dpll_meas_ctrl);
@@ -1073,10 +990,163 @@ zl3073x_dev_phase_meas_setup(struct zl3073x_dev *zldev, int num_channels)
 		return rc;
 
 	/* Enable DPLL-to-connected-ref measurement for each channel */
-	for (i = 0, mask = 0; i < num_channels; i++)
-		mask |= BIT(i);
+	list_for_each_entry(zldpll, &zldev->dplls, list)
+		mask |= BIT(zldpll->id);
 
 	return zl3073x_write_u8(zldev, ZL_REG_DPLL_PHASE_ERR_READ_MASK, mask);
+}
+
+/**
+ * zl3073x_dev_start - Start normal operation
+ * @zldev: zl3073x device pointer
+ * @full: perform full initialization
+ *
+ * The function starts normal operation, which means registering all DPLLs and
+ * their pins, and starting monitoring. If full initialization is requested,
+ * the function additionally initializes the phase offset measurement block and
+ * fetches hardware-invariant parameters.
+ *
+ * Return: 0 on success, <0 on error
+ */
+int zl3073x_dev_start(struct zl3073x_dev *zldev, bool full)
+{
+	struct zl3073x_dpll *zldpll;
+	int rc;
+
+	if (full) {
+		/* Fetch device state */
+		rc = zl3073x_dev_state_fetch(zldev);
+		if (rc)
+			return rc;
+
+		/* Setup phase offset measurement block */
+		rc = zl3073x_dev_phase_meas_setup(zldev);
+		if (rc) {
+			dev_err(zldev->dev,
+				"Failed to setup phase measurement\n");
+			return rc;
+		}
+	}
+
+	/* Register all DPLLs */
+	list_for_each_entry(zldpll, &zldev->dplls, list) {
+		rc = zl3073x_dpll_register(zldpll);
+		if (rc) {
+			dev_err_probe(zldev->dev, rc,
+				      "Failed to register DPLL%u\n",
+				      zldpll->id);
+			return rc;
+		}
+	}
+
+	/* Perform initial firmware fine phase correction */
+	rc = zl3073x_dpll_init_fine_phase_adjust(zldev);
+	if (rc) {
+		dev_err_probe(zldev->dev, rc,
+			      "Failed to init fine phase correction\n");
+		return rc;
+	}
+
+	/* Start monitoring */
+	kthread_queue_delayed_work(zldev->kworker, &zldev->work, 0);
+
+	return 0;
+}
+
+/**
+ * zl3073x_dev_stop - Stop normal operation
+ * @zldev: zl3073x device pointer
+ *
+ * The function stops the normal operation that mean deregistration of all
+ * DPLLs and their pins and stop monitoring.
+ *
+ * Return: 0 on success, <0 on error
+ */
+void zl3073x_dev_stop(struct zl3073x_dev *zldev)
+{
+	struct zl3073x_dpll *zldpll;
+
+	/* Stop monitoring */
+	kthread_cancel_delayed_work_sync(&zldev->work);
+
+	/* Unregister all DPLLs */
+	list_for_each_entry(zldpll, &zldev->dplls, list) {
+		if (zldpll->dpll_dev)
+			zl3073x_dpll_unregister(zldpll);
+	}
+}
+
+static void zl3073x_dev_dpll_fini(void *ptr)
+{
+	struct zl3073x_dpll *zldpll, *next;
+	struct zl3073x_dev *zldev = ptr;
+
+	/* Stop monitoring and unregister DPLLs */
+	zl3073x_dev_stop(zldev);
+
+	/* Destroy monitoring thread */
+	if (zldev->kworker) {
+		kthread_destroy_worker(zldev->kworker);
+		zldev->kworker = NULL;
+	}
+
+	/* Free all DPLLs */
+	list_for_each_entry_safe(zldpll, next, &zldev->dplls, list) {
+		list_del(&zldpll->list);
+		zl3073x_dpll_free(zldpll);
+	}
+}
+
+static int
+zl3073x_devm_dpll_init(struct zl3073x_dev *zldev, u8 num_dplls)
+{
+	struct kthread_worker *kworker;
+	struct zl3073x_dpll *zldpll;
+	unsigned int i;
+	int rc;
+
+	INIT_LIST_HEAD(&zldev->dplls);
+
+	/* Allocate all DPLLs */
+	for (i = 0; i < num_dplls; i++) {
+		zldpll = zl3073x_dpll_alloc(zldev, i);
+		if (IS_ERR(zldpll)) {
+			dev_err_probe(zldev->dev, PTR_ERR(zldpll),
+				      "Failed to alloc DPLL%u\n", i);
+			rc = PTR_ERR(zldpll);
+			goto error;
+		}
+
+		list_add_tail(&zldpll->list, &zldev->dplls);
+	}
+
+	/* Initialize monitoring thread */
+	kthread_init_delayed_work(&zldev->work, zl3073x_dev_periodic_work);
+	kworker = kthread_run_worker(0, "zl3073x-%s", dev_name(zldev->dev));
+	if (IS_ERR(kworker)) {
+		rc = PTR_ERR(kworker);
+		goto error;
+	}
+	zldev->kworker = kworker;
+
+	/* Start normal operation */
+	rc = zl3073x_dev_start(zldev, true);
+	if (rc) {
+		dev_err_probe(zldev->dev, rc, "Failed to start device\n");
+		goto error;
+	}
+
+	/* Add devres action to release DPLL related resources */
+	rc = devm_add_action_or_reset(zldev->dev, zl3073x_dev_dpll_fini, zldev);
+	if (rc)
+		goto error;
+
+	return 0;
+
+error:
+	zl3073x_dev_dpll_fini(zldev);
+
+	return rc;
 }
 
 /**
@@ -1145,17 +1215,6 @@ int zl3073x_dev_probe(struct zl3073x_dev *zldev,
 	if (rc)
 		return dev_err_probe(zldev->dev, rc,
 				     "Failed to initialize mutex\n");
-
-	/* Fetch device state */
-	rc = zl3073x_dev_state_fetch(zldev);
-	if (rc)
-		return rc;
-
-	/* Setup phase offset measurement block */
-	rc = zl3073x_dev_phase_meas_setup(zldev, chip_info->num_channels);
-	if (rc)
-		return dev_err_probe(zldev->dev, rc,
-				     "Failed to setup phase measurement\n");
 
 	/* Register DPLL channels */
 	rc = zl3073x_devm_dpll_init(zldev, chip_info->num_channels);
