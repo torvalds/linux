@@ -204,8 +204,9 @@ static efi_status_t cs_amp_lib_test_get_efi_variable(efi_char16_t *name,
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, guid);
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, size);
 
-	KUNIT_EXPECT_MEMEQ(test, name, expected_name, sizeof(expected_name));
-	KUNIT_EXPECT_MEMEQ(test, guid, &expected_guid, sizeof(expected_guid));
+	if (memcmp(name, expected_name, sizeof(expected_name)) ||
+	    efi_guidcmp(*guid, expected_guid))
+		return -EFI_NOT_FOUND;
 
 	if (!buf) {
 		*size = priv->cal_blob->size;

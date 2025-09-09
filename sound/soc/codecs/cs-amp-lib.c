@@ -28,6 +28,24 @@
 #define HP_SPEAKER_ID_EFI_GUID \
 	EFI_GUID(0xc49593a4, 0xd099, 0x419b, 0xa2, 0xc3, 0x67, 0xe9, 0x80, 0xe6, 0x1d, 0x1e)
 
+#define HP_CALIBRATION_EFI_NAME L"SmartAmpCalibrationData"
+#define HP_CALIBRATION_EFI_GUID \
+	EFI_GUID(0x53559579, 0x8753, 0x4f5c, 0x91, 0x30, 0xe8, 0x2a, 0xcf, 0xb8, 0xd8, 0x93)
+
+static const struct cs_amp_lib_cal_efivar {
+	efi_char16_t *name;
+	efi_guid_t *guid;
+} cs_amp_lib_cal_efivars[] = {
+	{
+		.name = HP_CALIBRATION_EFI_NAME,
+		.guid = &HP_CALIBRATION_EFI_GUID,
+	},
+	{
+		.name = CIRRUS_LOGIC_CALIBRATION_EFI_NAME,
+		.guid = &CIRRUS_LOGIC_CALIBRATION_EFI_GUID,
+	},
+};
+
 static int cs_amp_write_cal_coeff(struct cs_dsp *dsp,
 				  const struct cirrus_amp_cal_controls *controls,
 				  const char *ctl_name, u32 val)
@@ -146,12 +164,17 @@ static struct cirrus_amp_efi_data *cs_amp_get_cal_efi_buffer(struct device *dev)
 	unsigned long data_size = 0;
 	u8 *data;
 	efi_status_t status;
-	int ret;
+	int i, ret;
 
-	/* Get real size of UEFI variable */
-	status = cs_amp_get_efi_variable(CIRRUS_LOGIC_CALIBRATION_EFI_NAME,
-					 &CIRRUS_LOGIC_CALIBRATION_EFI_GUID,
-					 &data_size, NULL);
+	/* Find EFI variable and get size */
+	for (i = 0; i < ARRAY_SIZE(cs_amp_lib_cal_efivars); i++) {
+		status = cs_amp_get_efi_variable(cs_amp_lib_cal_efivars[i].name,
+						 cs_amp_lib_cal_efivars[i].guid,
+						 &data_size, NULL);
+		if (status == EFI_BUFFER_TOO_SMALL)
+			break;
+	}
+
 	if (status != EFI_BUFFER_TOO_SMALL)
 		return ERR_PTR(-ENOENT);
 
@@ -165,8 +188,8 @@ static struct cirrus_amp_efi_data *cs_amp_get_cal_efi_buffer(struct device *dev)
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
-	status = cs_amp_get_efi_variable(CIRRUS_LOGIC_CALIBRATION_EFI_NAME,
-					 &CIRRUS_LOGIC_CALIBRATION_EFI_GUID,
+	status = cs_amp_get_efi_variable(cs_amp_lib_cal_efivars[i].name,
+					 cs_amp_lib_cal_efivars[i].guid,
 					 &data_size, data);
 	if (status != EFI_SUCCESS) {
 		ret = -EINVAL;
