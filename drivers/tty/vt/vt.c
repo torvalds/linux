@@ -1341,10 +1341,10 @@ struct vc_data *vc_deallocate(unsigned int currcons)
 		vc_uniscr_set(vc, NULL);
 		kfree(vc->vc_screenbuf);
 		vc_cons[currcons].d = NULL;
-	}
-	if (vc->vc_saved_screen != NULL) {
-		kfree(vc->vc_saved_screen);
-		vc->vc_saved_screen = NULL;
+		if (vc->vc_saved_screen != NULL) {
+			kfree(vc->vc_saved_screen);
+			vc->vc_saved_screen = NULL;
+		}
 	}
 	return vc;
 }
