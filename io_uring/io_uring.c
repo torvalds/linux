@@ -756,7 +756,7 @@ static struct io_overflow_cqe *io_alloc_ocqe(struct io_ring_ctx *ctx,
 
 	if (cqe->flags & IORING_CQE_F_32 || ctx->flags & IORING_SETUP_CQE32) {
 		is_cqe32 = true;
-		ocq_size <<= 1;
+		ocq_size += sizeof(struct io_uring_cqe);
 	}
 
 	ocqe = kzalloc(ocq_size, gfp | __GFP_ACCOUNT);
