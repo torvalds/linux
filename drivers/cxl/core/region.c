@@ -32,6 +32,12 @@
  * 3. Decoder targets
  */
 
+/*
+ * nodemask that sets per node when the access_coordinates for the node has
+ * been updated by the CXL memory hotplug notifier.
+ */
+static nodemask_t nodemask_region_seen = NODE_MASK_NONE;
+
 static struct cxl_region *to_cxl_region(struct device *dev);
 
 #define __ACCESS_ATTR_RO(_level, _name) {				\
@@ -2442,14 +2448,8 @@ static bool cxl_region_update_coordinates(struct cxl_region *cxlr, int nid)
 
 	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++) {
 		if (cxlr->coord[i].read_bandwidth) {
-			rc = 0;
-			if (cxl_need_node_perf_attrs_update(nid))
-				node_set_perf_attrs(nid, &cxlr->coord[i], i);
-			else
-				rc = cxl_update_hmat_access_coordinates(nid, cxlr, i);
-
-			if (rc == 0)
-				cset++;
+			node_update_perf_attrs(nid, &cxlr->coord[i], i);
+			cset++;
 		}
 	}
 
@@ -2485,6 +2485,10 @@ static int cxl_region_perf_attrs_callback(struct notifier_block *nb,
 	 */
 	region_nid = phys_to_target_node(cxlr->params.res->start);
 	if (nid != region_nid)
+		return NOTIFY_DONE;
+
+	/* No action needed if node bit already set */
+	if (node_test_and_set(nid, nodemask_region_seen))
 		return NOTIFY_DONE;
 
 	if (!cxl_region_update_coordinates(cxlr, nid))
