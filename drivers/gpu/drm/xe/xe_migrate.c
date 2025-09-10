@@ -434,7 +434,7 @@ int xe_migrate_init(struct xe_migrate *m)
 
 	err = xe_migrate_lock_prepare_vm(tile, m, vm);
 	if (err)
-		return err;
+		goto err_out;
 
 	if (xe->info.has_usm) {
 		struct xe_hw_engine *hwe = xe_gt_hw_engine(primary_gt,
