@@ -1135,7 +1135,6 @@ ref_scale_cleanup(void)
 	kfree(reader_tasks);
 
 	torture_stop_kthread("main_task", main_task);
-	kfree(main_task);
 
 	// Do scale-type-specific cleanup operations.
 	if (cur_ops->cleanup != NULL)
