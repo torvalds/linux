@@ -221,7 +221,6 @@ static int snd_ps3_program_dma(struct snd_ps3_card_info *card,
 	int fill_stages, dma_ch, stage;
 	enum snd_ps3_ch ch;
 	uint32_t ch0_kick_event = 0; /* initialize to mute gcc */
-	unsigned long irqsave;
 	int silent = 0;
 
 	switch (filltype) {
@@ -242,7 +241,7 @@ static int snd_ps3_program_dma(struct snd_ps3_card_info *card,
 
 	snd_ps3_verify_dma_stop(card, 700, 0);
 	fill_stages = 4;
-	spin_lock_irqsave(&card->dma_lock, irqsave);
+	guard(spinlock_irqsave)(&card->dma_lock);
 	for (ch = 0; ch < 2; ch++) {
 		for (stage = 0; stage < fill_stages; stage++) {
 			dma_ch = stage * 2 + ch;
@@ -289,7 +288,6 @@ static int snd_ps3_program_dma(struct snd_ps3_card_info *card,
 	}
 	/* ensure the hardware sees the change */
 	wmb();
-	spin_unlock_irqrestore(&card->dma_lock, irqsave);
 
 	return 0;
 }
@@ -561,7 +559,6 @@ static int snd_ps3_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_ps3_card_info *card = snd_pcm_substream_chip(substream);
-	unsigned long irqsave;
 
 	if (!snd_ps3_set_avsetting(substream)) {
 		/* some parameter changed */
@@ -578,8 +575,7 @@ static int snd_ps3_pcm_prepare(struct snd_pcm_substream *substream)
 	}
 
 	/* restart ring buffer pointer */
-	spin_lock_irqsave(&card->dma_lock, irqsave);
-	{
+	scoped_guard(spinlock_irqsave, &card->dma_lock) {
 		card->dma_buffer_size = runtime->dma_bytes;
 
 		card->dma_last_transfer_vaddr[SND_PS3_CH_L] =
@@ -600,7 +596,6 @@ static int snd_ps3_pcm_prepare(struct snd_pcm_substream *substream)
 			 card->dma_start_bus_addr[SND_PS3_CH_L]);
 
 	}
-	spin_unlock_irqrestore(&card->dma_lock, irqsave);
 
 	/* ensure the hardware sees the change */
 	mb();
@@ -618,11 +613,9 @@ static int snd_ps3_pcm_trigger(struct snd_pcm_substream *substream,
 		/* clear outstanding interrupts  */
 		update_reg(PS3_AUDIO_AX_IS, 0);
 
-		spin_lock(&card->dma_lock);
-		{
+		scoped_guard(spinlock, &card->dma_lock) {
 			card->running = 1;
 		}
-		spin_unlock(&card->dma_lock);
 
 		snd_ps3_program_dma(card,
 				    SND_PS3_DMA_FILLTYPE_SILENT_FIRSTFILL);
@@ -636,11 +629,9 @@ static int snd_ps3_pcm_trigger(struct snd_pcm_substream *substream,
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
-		spin_lock(&card->dma_lock);
-		{
+		scoped_guard(spinlock, &card->dma_lock) {
 			card->running = 0;
 		}
-		spin_unlock(&card->dma_lock);
 		snd_ps3_wait_for_dma_stop(card);
 		break;
 	default:
@@ -661,12 +652,10 @@ static snd_pcm_uframes_t snd_ps3_pcm_pointer(
 	size_t bytes;
 	snd_pcm_uframes_t ret;
 
-	spin_lock(&card->dma_lock);
-	{
+	scoped_guard(spinlock, &card->dma_lock) {
 		bytes = (size_t)(card->dma_last_transfer_vaddr[SND_PS3_CH_L] -
 				 card->dma_start_vaddr[SND_PS3_CH_L]);
 	}
-	spin_unlock(&card->dma_lock);
 
 	ret = bytes_to_frames(substream->runtime, bytes * 2);
 
