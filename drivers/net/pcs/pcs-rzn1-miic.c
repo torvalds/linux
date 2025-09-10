@@ -10,6 +10,7 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/device/devres.h>
 #include <linux/mdio.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -17,6 +18,7 @@
 #include <linux/phylink.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <dt-bindings/net/pcs-rzn1-miic.h>
 
@@ -51,6 +53,8 @@
 
 #define MIIC_MODCTRL_CONF_CONV_MAX	6
 #define MIIC_MODCTRL_CONF_NONE		-1
+
+#define MIIC_MAX_NUM_RSTS		2
 
 /**
  * struct modctrl_match - Matching table entry for  convctrl configuration
@@ -126,12 +130,14 @@ static const char * const index_to_string[] = {
  * @base: base address of the MII converter
  * @dev: Device associated to the MII converter
  * @lock: Lock used for read-modify-write access
+ * @rsts: Reset controls for the MII converter
  * @of_data: Pointer to OF data
  */
 struct miic {
 	void __iomem *base;
 	struct device *dev;
 	spinlock_t lock;
+	struct reset_control_bulk_data rsts[MIIC_MAX_NUM_RSTS];
 	const struct miic_of_data *of_data;
 };
 
@@ -147,6 +153,8 @@ struct miic {
  * @miic_port_start: MIIC port start number
  * @miic_port_max: Maximum MIIC supported
  * @sw_mode_mask: Switch mode mask
+ * @reset_ids: Reset names array
+ * @reset_count: Number of entries in the reset_ids array
  */
 struct miic_of_data {
 	struct modctrl_match *match_table;
@@ -159,6 +167,8 @@ struct miic_of_data {
 	u8 miic_port_start;
 	u8 miic_port_max;
 	u8 sw_mode_mask;
+	const char * const *reset_ids;
+	u8 reset_count;
 };
 
 /**
@@ -523,6 +533,48 @@ static int miic_parse_dt(struct miic *miic, u32 *mode_cfg)
 	return ret;
 }
 
+static void miic_reset_control_bulk_assert(void *data)
+{
+	struct miic *miic = data;
+	int ret;
+
+	ret = reset_control_bulk_assert(miic->of_data->reset_count, miic->rsts);
+	if (ret)
+		dev_err(miic->dev, "failed to assert reset lines\n");
+}
+
+static int miic_reset_control_init(struct miic *miic)
+{
+	const struct miic_of_data *of_data = miic->of_data;
+	struct device *dev = miic->dev;
+	int ret;
+	u8 i;
+
+	if (!of_data->reset_count)
+		return 0;
+
+	for (i = 0; i < of_data->reset_count; i++)
+		miic->rsts[i].id = of_data->reset_ids[i];
+
+	ret = devm_reset_control_bulk_get_exclusive(dev, of_data->reset_count,
+						    miic->rsts);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to get bulk reset lines\n");
+
+	ret = reset_control_bulk_deassert(of_data->reset_count, miic->rsts);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to deassert reset lines\n");
+
+	ret = devm_add_action_or_reset(dev, miic_reset_control_bulk_assert,
+				       miic);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to add reset action\n");
+
+	return 0;
+}
+
 static int miic_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -545,6 +597,10 @@ static int miic_probe(struct platform_device *pdev)
 	miic->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(miic->base))
 		return PTR_ERR(miic->base);
+
+	ret = miic_reset_control_init(miic);
+	if (ret)
+		return ret;
 
 	ret = devm_pm_runtime_enable(dev);
 	if (ret < 0)
