@@ -376,6 +376,11 @@ static int imx_rproc_start(struct rproc *rproc)
 	if (ret)
 		return ret;
 
+	if (dcfg->ops && dcfg->ops->start) {
+		ret = dcfg->ops->start(rproc);
+		goto start_ret;
+	}
+
 	switch (dcfg->method) {
 	case IMX_RPROC_MMIO:
 		if (priv->gpr) {
@@ -398,6 +403,7 @@ static int imx_rproc_start(struct rproc *rproc)
 		return -EOPNOTSUPP;
 	}
 
+start_ret:
 	if (ret)
 		dev_err(dev, "Failed to enable remote core!\n");
 
@@ -411,6 +417,11 @@ static int imx_rproc_stop(struct rproc *rproc)
 	struct device *dev = priv->dev;
 	struct arm_smccc_res res;
 	int ret;
+
+	if (dcfg->ops && dcfg->ops->stop) {
+		ret = dcfg->ops->stop(rproc);
+		goto stop_ret;
+	}
 
 	switch (dcfg->method) {
 	case IMX_RPROC_MMIO:
@@ -440,6 +451,7 @@ static int imx_rproc_stop(struct rproc *rproc)
 		return -EOPNOTSUPP;
 	}
 
+stop_ret:
 	if (ret)
 		dev_err(dev, "Failed to stop remote core\n");
 	else
@@ -932,6 +944,9 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 	int ret;
 	u32 val;
 	u8 pt;
+
+	if (dcfg->ops && dcfg->ops->detect_mode)
+		return dcfg->ops->detect_mode(priv->rproc);
 
 	switch (dcfg->method) {
 	case IMX_RPROC_NONE:
