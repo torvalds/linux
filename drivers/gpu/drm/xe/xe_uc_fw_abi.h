@@ -44,6 +44,39 @@
  *    in fw. So driver will load a truncated firmware in this case.
  */
 
+struct uc_css_rsa_info {
+	u32 key_size_dw;
+	u32 modulus_size_dw;
+	u32 exponent_size_dw;
+} __packed;
+
+struct uc_css_guc_info {
+	u32 time;
+#define CSS_TIME_HOUR				(0xFF << 0)
+#define CSS_TIME_MIN				(0xFF << 8)
+#define CSS_TIME_SEC				(0xFFFF << 16)
+	u32 reserved0[5];
+	u32 sw_version;
+#define CSS_SW_VERSION_UC_MAJOR			(0xFF << 16)
+#define CSS_SW_VERSION_UC_MINOR			(0xFF << 8)
+#define CSS_SW_VERSION_UC_PATCH			(0xFF << 0)
+	u32 submission_version;
+	u32 reserved1[11];
+	u32 header_info;
+#define CSS_HEADER_INFO_SVN			(0xFF)
+#define CSS_HEADER_INFO_COPY_VALID		(0x1 << 31)
+	u32 private_data_size;
+	u32 ukernel_info;
+#define CSS_UKERNEL_INFO_DEVICEID		(0xFFFF << 16)
+#define CSS_UKERNEL_INFO_PRODKEY		(0xFF << 8)
+#define CSS_UKERNEL_INFO_BUILDTYPE		(0x3 << 2)
+#define CSS_UKERNEL_INFO_BUILDTYPE_PROD		0
+#define CSS_UKERNEL_INFO_BUILDTYPE_PREPROD	1
+#define CSS_UKERNEL_INFO_BUILDTYPE_DEBUG	2
+#define CSS_UKERNEL_INFO_ENCSTATUS		(0x1 << 1)
+#define CSS_UKERNEL_INFO_COPY_VALID		(0x1 << 0)
+} __packed;
+
 struct uc_css_header {
 	u32 module_type;
 	/*
@@ -52,36 +85,21 @@ struct uc_css_header {
 	 */
 	u32 header_size_dw;
 	u32 header_version;
-	u32 module_id;
+	u32 reserved0;
 	u32 module_vendor;
 	u32 date;
-#define CSS_DATE_DAY			(0xFF << 0)
-#define CSS_DATE_MONTH			(0xFF << 8)
-#define CSS_DATE_YEAR			(0xFFFF << 16)
+#define CSS_DATE_DAY				(0xFF << 0)
+#define CSS_DATE_MONTH				(0xFF << 8)
+#define CSS_DATE_YEAR				(0xFFFF << 16)
 	u32 size_dw; /* uCode plus header_size_dw */
-	u32 key_size_dw;
-	u32 modulus_size_dw;
-	u32 exponent_size_dw;
-	u32 time;
-#define CSS_TIME_HOUR			(0xFF << 0)
-#define CSS_DATE_MIN			(0xFF << 8)
-#define CSS_DATE_SEC			(0xFFFF << 16)
-	char username[8];
-	char buildnumber[12];
-	u32 sw_version;
-#define CSS_SW_VERSION_UC_MAJOR		(0xFF << 16)
-#define CSS_SW_VERSION_UC_MINOR		(0xFF << 8)
-#define CSS_SW_VERSION_UC_PATCH		(0xFF << 0)
 	union {
-		u32 submission_version; /* only applies to GuC */
-		u32 reserved2;
+		u32 reserved1[3];
+		struct uc_css_rsa_info rsa_info;
 	};
-	u32 reserved0[12];
 	union {
-		u32 private_data_size; /* only applies to GuC */
-		u32 reserved1;
+		u32 reserved2[22];
+		struct uc_css_guc_info guc_info;
 	};
-	u32 header_info;
 } __packed;
 static_assert(sizeof(struct uc_css_header) == 128);
 
