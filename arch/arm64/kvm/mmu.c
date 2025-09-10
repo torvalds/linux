@@ -904,14 +904,6 @@ static int kvm_init_ipa_range(struct kvm_s2_mmu *mmu, unsigned long type)
 	return 0;
 }
 
-static void kvm_stage2_destroy(struct kvm_pgtable *pgt)
-{
-	unsigned int ia_bits = VTCR_EL2_IPA(pgt->mmu->vtcr);
-
-	KVM_PGT_FN(kvm_pgtable_stage2_destroy_range)(pgt, 0, BIT(ia_bits));
-	KVM_PGT_FN(kvm_pgtable_stage2_destroy_pgd)(pgt);
-}
-
 /**
  * kvm_init_stage2_mmu - Initialise a S2 MMU structure
  * @kvm:	The pointer to the KVM structure
@@ -988,7 +980,7 @@ int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu, unsigned long t
 	return 0;
 
 out_destroy_pgtable:
-	kvm_stage2_destroy(pgt);
+	KVM_PGT_FN(kvm_pgtable_stage2_destroy)(pgt);
 out_free_pgtable:
 	kfree(pgt);
 	return err;
@@ -1089,7 +1081,7 @@ void kvm_free_stage2_pgd(struct kvm_s2_mmu *mmu)
 	write_unlock(&kvm->mmu_lock);
 
 	if (pgt) {
-		kvm_stage2_destroy(pgt);
+		KVM_PGT_FN(kvm_pgtable_stage2_destroy)(pgt);
 		kfree(pgt);
 	}
 }
