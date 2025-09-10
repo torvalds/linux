@@ -237,59 +237,17 @@ static void nfs_mapping_set_error(struct folio *folio, int error)
 }
 
 /*
- * nfs_page_group_search_locked
- * @head - head request of page group
- * @page_offset - offset into page
+ * nfs_page_covers_folio
+ * @req: struct nfs_page
  *
- * Search page group with head @head to find a request that contains the
- * page offset @page_offset.
- *
- * Returns a pointer to the first matching nfs request, or NULL if no
- * match is found.
- *
- * Must be called with the page group lock held
- */
-static struct nfs_page *
-nfs_page_group_search_locked(struct nfs_page *head, unsigned int page_offset)
-{
-	struct nfs_page *req;
-
-	req = head;
-	do {
-		if (page_offset >= req->wb_pgbase &&
-		    page_offset < (req->wb_pgbase + req->wb_bytes))
-			return req;
-
-		req = req->wb_this_page;
-	} while (req != head);
-
-	return NULL;
-}
-
-/*
- * nfs_page_group_covers_page
- * @head - head request of page group
- *
- * Return true if the page group with head @head covers the whole page,
- * returns false otherwise
+ * Return true if the request covers the whole folio.
+ * Note that the caller should ensure all subrequests have been joined
  */
 static bool nfs_page_group_covers_page(struct nfs_page *req)
 {
 	unsigned int len = nfs_folio_length(nfs_page_to_folio(req));
-	struct nfs_page *tmp;
-	unsigned int pos = 0;
 
-	nfs_page_group_lock(req);
-
-	for (;;) {
-		tmp = nfs_page_group_search_locked(req->wb_head, pos);
-		if (!tmp)
-			break;
-		pos = tmp->wb_pgbase + tmp->wb_bytes;
-	}
-
-	nfs_page_group_unlock(req);
-	return pos >= len;
+	return req->wb_pgbase == 0 && req->wb_bytes == len;
 }
 
 /* We can set the PG_uptodate flag if we see that a write request
@@ -2045,6 +2003,7 @@ int nfs_wb_folio_cancel(struct inode *inode, struct folio *folio)
 		 * release it */
 		nfs_inode_remove_request(req);
 		nfs_unlock_and_release_request(req);
+		folio_cancel_dirty(folio);
 	}
 
 	return ret;
