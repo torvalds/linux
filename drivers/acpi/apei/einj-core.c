@@ -656,6 +656,43 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	return rc;
 }
 
+/* Allow almost all types of address except MMIO. */
+static bool is_allowed_range(u64 base_addr, u64 size)
+{
+	int i;
+	/*
+	 * MMIO region is usually claimed with IORESOURCE_MEM + IORES_DESC_NONE.
+	 * However, IORES_DESC_NONE is treated like a wildcard when we check if
+	 * region intersects with known resource. So do an allow list check for
+	 * IORES_DESCs that definitely or most likely not MMIO.
+	 */
+	int non_mmio_desc[] = {
+		IORES_DESC_CRASH_KERNEL,
+		IORES_DESC_ACPI_TABLES,
+		IORES_DESC_ACPI_NV_STORAGE,
+		IORES_DESC_PERSISTENT_MEMORY,
+		IORES_DESC_PERSISTENT_MEMORY_LEGACY,
+		/* Treat IORES_DESC_DEVICE_PRIVATE_MEMORY as MMIO. */
+		IORES_DESC_RESERVED,
+		IORES_DESC_SOFT_RESERVED,
+	};
+
+	if (region_intersects(base_addr, size, IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE)
+			      == REGION_INTERSECTS)
+		return true;
+
+	for (i = 0; i < ARRAY_SIZE(non_mmio_desc); ++i) {
+		if (region_intersects(base_addr, size, IORESOURCE_MEM, non_mmio_desc[i])
+				      == REGION_INTERSECTS)
+			return true;
+	}
+
+	if (arch_is_platform_page(base_addr))
+		return true;
+
+	return false;
+}
+
 /* Inject the specified hardware error */
 int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2, u64 param3,
 		      u64 param4)
@@ -702,19 +739,15 @@ int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2, u64 param3,
 	 * Disallow crazy address masks that give BIOS leeway to pick
 	 * injection address almost anywhere. Insist on page or
 	 * better granularity and that target address is normal RAM or
-	 * NVDIMM.
+	 * as long as is not MMIO.
 	 */
 	base_addr = param1 & param2;
 	size = ~param2 + 1;
 
-	if (((param2 & PAGE_MASK) != PAGE_MASK) ||
-	    ((region_intersects(base_addr, size, IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE)
-				!= REGION_INTERSECTS) &&
-	     (region_intersects(base_addr, size, IORESOURCE_MEM, IORES_DESC_PERSISTENT_MEMORY)
-				!= REGION_INTERSECTS) &&
-	     (region_intersects(base_addr, size, IORESOURCE_MEM, IORES_DESC_SOFT_RESERVED)
-				!= REGION_INTERSECTS) &&
-	     !arch_is_platform_page(base_addr)))
+	if ((param2 & PAGE_MASK) != PAGE_MASK)
+		return -EINVAL;
+
+	if (!is_allowed_range(base_addr, size))
 		return -EINVAL;
 
 	if (is_zero_pfn(base_addr >> PAGE_SHIFT))
