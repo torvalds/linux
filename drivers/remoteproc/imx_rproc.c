@@ -285,6 +285,15 @@ static const struct imx_rproc_att imx_rproc_att_imx6sx[] = {
 	{ 0x80000000, 0x80000000, 0x60000000, 0 },
 };
 
+static int imx_rproc_arm_smc_start(struct rproc *rproc)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_START, 0, 0, 0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+
 static int imx_rproc_mmio_start(struct rproc *rproc)
 {
 	struct imx_rproc *priv = rproc->priv;
@@ -308,7 +317,6 @@ static int imx_rproc_start(struct rproc *rproc)
 	struct imx_rproc *priv = rproc->priv;
 	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
 	struct device *dev = priv->dev;
-	struct arm_smccc_res res;
 	int ret;
 
 	ret = imx_rproc_xtr_mbox_init(rproc, true);
@@ -320,20 +328,25 @@ static int imx_rproc_start(struct rproc *rproc)
 		goto start_ret;
 	}
 
-	switch (dcfg->method) {
-	case IMX_RPROC_SMC:
-		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_START, 0, 0, 0, 0, 0, 0, &res);
-		ret = res.a0;
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
+	return -EOPNOTSUPP;
 
 start_ret:
 	if (ret)
 		dev_err(dev, "Failed to enable remote core!\n");
 
 	return ret;
+}
+
+static int imx_rproc_arm_smc_stop(struct rproc *rproc)
+{
+	struct imx_rproc *priv = rproc->priv;
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STOP, 0, 0, 0, 0, 0, 0, &res);
+	if (res.a1)
+		dev_info(priv->dev, "Not in wfi, force stopped\n");
+
+	return res.a0;
 }
 
 static int imx_rproc_mmio_stop(struct rproc *rproc)
@@ -365,7 +378,6 @@ static int imx_rproc_stop(struct rproc *rproc)
 	struct imx_rproc *priv = rproc->priv;
 	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
 	struct device *dev = priv->dev;
-	struct arm_smccc_res res;
 	int ret;
 
 	if (dcfg->ops && dcfg->ops->stop) {
@@ -373,16 +385,7 @@ static int imx_rproc_stop(struct rproc *rproc)
 		goto stop_ret;
 	}
 
-	switch (dcfg->method) {
-	case IMX_RPROC_SMC:
-		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STOP, 0, 0, 0, 0, 0, 0, &res);
-		ret = res.a0;
-		if (res.a1)
-			dev_info(dev, "Not in wfi, force stopped\n");
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
+	return -EOPNOTSUPP;
 
 stop_ret:
 	if (ret)
@@ -867,6 +870,18 @@ static int imx_rproc_attach_pd(struct imx_rproc *priv)
 	return 0;
 }
 
+static int imx_rproc_arm_smc_detect_mode(struct rproc *rproc)
+{
+	struct imx_rproc *priv = rproc->priv;
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STARTED, 0, 0, 0, 0, 0, 0, &res);
+	if (res.a0)
+		priv->rproc->state = RPROC_DETACHED;
+
+	return 0;
+}
+
 static int imx_rproc_mmio_detect_mode(struct rproc *rproc)
 {
 	const struct regmap_config config = { .name = "imx-rproc" };
@@ -981,7 +996,6 @@ static int imx_rproc_scu_api_detect_mode(struct rproc *rproc)
 static int imx_rproc_detect_mode(struct imx_rproc *priv)
 {
 	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
-	struct arm_smccc_res res;
 
 	if (dcfg->ops && dcfg->ops->detect_mode)
 		return dcfg->ops->detect_mode(priv->rproc);
@@ -989,11 +1003,6 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 	switch (dcfg->method) {
 	case IMX_RPROC_NONE:
 		priv->rproc->state = RPROC_DETACHED;
-		return 0;
-	case IMX_RPROC_SMC:
-		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STARTED, 0, 0, 0, 0, 0, 0, &res);
-		if (res.a0)
-			priv->rproc->state = RPROC_DETACHED;
 		return 0;
 	default:
 		break;
@@ -1170,6 +1179,12 @@ static void imx_rproc_remove(struct platform_device *pdev)
 	destroy_workqueue(priv->workqueue);
 }
 
+static const struct imx_rproc_plat_ops imx_rproc_ops_arm_smc = {
+	.start		= imx_rproc_arm_smc_start,
+	.stop		= imx_rproc_arm_smc_stop,
+	.detect_mode	= imx_rproc_arm_smc_detect_mode,
+};
+
 static const struct imx_rproc_plat_ops imx_rproc_ops_mmio = {
 	.start		= imx_rproc_mmio_start,
 	.stop		= imx_rproc_mmio_stop,
@@ -1199,6 +1214,7 @@ static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mn = {
 	.att		= imx_rproc_att_imx8mn,
 	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8mn),
 	.method		= IMX_RPROC_SMC,
+	.ops		= &imx_rproc_ops_arm_smc,
 };
 
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mq = {
@@ -1265,6 +1281,7 @@ static const struct imx_rproc_dcfg imx_rproc_cfg_imx93 = {
 	.att		= imx_rproc_att_imx93,
 	.att_size	= ARRAY_SIZE(imx_rproc_att_imx93),
 	.method		= IMX_RPROC_SMC,
+	.ops		= &imx_rproc_ops_arm_smc,
 };
 
 static const struct of_device_id imx_rproc_of_match[] = {
