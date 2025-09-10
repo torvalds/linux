@@ -2082,7 +2082,7 @@ static void iwl_mvm_convert_gtk_v3(struct iwl_wowlan_status_data *status,
 }
 
 static void iwl_mvm_convert_igtk(struct iwl_wowlan_status_data *status,
-				 struct iwl_wowlan_igtk_status *data)
+				 struct iwl_wowlan_igtk_status_v1 *data)
 {
 	int i;
 
@@ -2106,7 +2106,7 @@ static void iwl_mvm_convert_igtk(struct iwl_wowlan_status_data *status,
 }
 
 static void iwl_mvm_convert_bigtk(struct iwl_wowlan_status_data *status,
-				  const struct iwl_wowlan_igtk_status *data)
+				  const struct iwl_wowlan_igtk_status_v1 *data)
 {
 	int data_idx, status_idx = 0;
 
@@ -2137,7 +2137,7 @@ static void iwl_mvm_convert_bigtk(struct iwl_wowlan_status_data *status,
 }
 
 static void iwl_mvm_parse_wowlan_info_notif(struct iwl_mvm *mvm,
-					    struct iwl_wowlan_info_notif *data,
+					    struct iwl_wowlan_info_notif_v5 *data,
 					    struct iwl_wowlan_status_data *status,
 					    u32 len)
 {
@@ -2907,7 +2907,7 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 			iwl_mvm_parse_wowlan_info_notif_v3(mvm, notif,
 							   d3_data->status, len);
 		} else if (wowlan_info_ver == 5) {
-			struct iwl_wowlan_info_notif *notif =
+			struct iwl_wowlan_info_notif_v5 *notif =
 				(void *)pkt->data;
 
 			iwl_mvm_parse_wowlan_info_notif(mvm, notif,
@@ -3102,7 +3102,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm)
 
 	rt_status = iwl_mvm_check_rt_status(mvm, vif);
 	if (rt_status != FW_ALIVE) {
-		set_bit(STATUS_FW_ERROR, &mvm->trans->status);
+		iwl_trans_notify_fw_error(mvm->trans);
 		if (rt_status == FW_ERROR) {
 			IWL_ERR(mvm, "FW Error occurred during suspend. Restarting.\n");
 			iwl_mvm_dump_nic_error_log(mvm);
@@ -3272,7 +3272,7 @@ int iwl_mvm_fast_resume(struct iwl_mvm *mvm)
 
 	rt_status = iwl_mvm_check_rt_status(mvm, NULL);
 	if (rt_status != FW_ALIVE) {
-		set_bit(STATUS_FW_ERROR, &mvm->trans->status);
+		iwl_trans_notify_fw_error(mvm->trans);
 		if (rt_status == FW_ERROR) {
 			IWL_ERR(mvm,
 				"iwl_mvm_check_rt_status failed, device is gone during suspend\n");
@@ -3284,7 +3284,6 @@ int iwl_mvm_fast_resume(struct iwl_mvm *mvm)
 						&iwl_dump_desc_assert,
 						false, 0);
 		}
-		mvm->trans->state = IWL_TRANS_NO_FW;
 		ret = -ENODEV;
 
 		goto out;

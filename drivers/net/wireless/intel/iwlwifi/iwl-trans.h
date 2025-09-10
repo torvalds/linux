@@ -284,8 +284,6 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
  * @STATUS_RFKILL_OPMODE: RF-kill state reported to opmode
  * @STATUS_FW_ERROR: the fw is in error state
  * @STATUS_TRANS_DEAD: trans is dead - avoid any read/write operation
- * @STATUS_SUPPRESS_CMD_ERROR_ONCE: suppress "FW error in SYNC CMD" once,
- *	e.g. for testing
  * @STATUS_IN_SW_RESET: device is undergoing reset, cleared by opmode
  *	via iwl_trans_finish_sw_reset()
  * @STATUS_RESET_PENDING: reset worker was scheduled, but didn't dump
@@ -302,7 +300,6 @@ enum iwl_trans_status {
 	STATUS_RFKILL_OPMODE,
 	STATUS_FW_ERROR,
 	STATUS_TRANS_DEAD,
-	STATUS_SUPPRESS_CMD_ERROR_ONCE,
 	STATUS_IN_SW_RESET,
 	STATUS_RESET_PENDING,
 	STATUS_TRANS_RESET_IN_PROGRESS,
@@ -847,8 +844,8 @@ struct iwl_trans_info {
  * @dev: pointer to struct device * that represents the device
  * @info: device information for use by other layers
  * @pnvm_loaded: indicates PNVM was loaded
- * @pm_support: set to true in start_hw if link pm is supported
- * @ltr_enabled: set to true if the LTR is enabled
+ * @suppress_cmd_error_once: suppress "FW error in SYNC CMD" once,
+ *	e.g. for testing
  * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
  * @reduce_power_loaded: indicates reduced power section was loaded
  * @failed_to_load_reduce_power_image: set to true if pnvm loading failed
@@ -883,9 +880,8 @@ struct iwl_trans {
 	const struct iwl_trans_info info;
 	bool reduced_cap_sku;
 	bool step_urm;
+	bool suppress_cmd_error_once;
 
-	bool pm_support;
-	bool ltr_enabled;
 	u8 pnvm_loaded:1;
 	u8 fail_to_parse_pnvm_image:1;
 	u8 reduce_power_loaded:1;
@@ -1194,11 +1190,6 @@ static inline u16 iwl_trans_get_num_rbds(struct iwl_trans *trans)
 	return result;
 }
 
-static inline void iwl_trans_suppress_cmd_error_once(struct iwl_trans *trans)
-{
-	set_bit(STATUS_SUPPRESS_CMD_ERROR_ONCE, &trans->status);
-}
-
 static inline bool iwl_trans_device_enabled(struct iwl_trans *trans)
 {
 	return test_bit(STATUS_DEVICE_ENABLED, &trans->status);
@@ -1209,6 +1200,20 @@ static inline bool iwl_trans_is_dead(struct iwl_trans *trans)
 	return test_bit(STATUS_TRANS_DEAD, &trans->status);
 }
 
+static inline bool iwl_trans_is_fw_error(struct iwl_trans *trans)
+{
+	return test_bit(STATUS_FW_ERROR, &trans->status);
+}
+
+/*
+ * This function notifies the transport layer of firmware error, the recovery
+ * will be handled by the op mode
+ */
+static inline void iwl_trans_notify_fw_error(struct iwl_trans *trans)
+{
+	trans->state = IWL_TRANS_NO_FW;
+	set_bit(STATUS_FW_ERROR, &trans->status);
+}
 /*****************************************************
  * PCIe handling
  *****************************************************/
@@ -1252,5 +1257,9 @@ static inline u16 iwl_trans_get_device_id(struct iwl_trans *trans)
 {
 	return u32_get_bits(trans->info.hw_id, GENMASK(31, 16));
 }
+
+bool iwl_trans_is_pm_supported(struct iwl_trans *trans);
+
+bool iwl_trans_is_ltr_enabled(struct iwl_trans *trans);
 
 #endif /* __iwl_trans_h__ */

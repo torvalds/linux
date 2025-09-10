@@ -1134,7 +1134,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 
 	if (count == 6 && !strcmp(buf, "nolog\n")) {
 		set_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE, &mvm->status);
-		iwl_trans_suppress_cmd_error_once(mvm->trans);
+		mvm->trans->suppress_cmd_error_once = true;
 	}
 
 	/* take the return value to make compiler happy - it will fail anyway */
