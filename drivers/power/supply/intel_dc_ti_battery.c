@@ -345,11 +345,6 @@ static int dc_ti_battery_probe(struct platform_device *pdev)
 	chip->dev = dev;
 	chip->regmap = pmic->regmap;
 
-	/*
-	 * Note cannot use devm_iio_channel_get because ACPI systems lack
-	 * the device<->channel maps which iio_channel_get will uses when passed
-	 * a non NULL device pointer.
-	 */
 	chip->vbat_channel = devm_iio_channel_get(dev, "VBAT");
 	if (IS_ERR(chip->vbat_channel)) {
 		dev_dbg(dev, "devm_iio_channel_get() ret %ld\n", PTR_ERR(chip->vbat_channel));
