@@ -5,6 +5,8 @@
  * Clément Léger <clement.leger@bootlin.com>
  */
 
+#include <linux/array_size.h>
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/mdio.h>
