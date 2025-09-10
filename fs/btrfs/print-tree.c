@@ -227,6 +227,36 @@ static void print_eb_refs_lock(const struct extent_buffer *eb)
 #endif
 }
 
+static void print_timespec(const struct extent_buffer *eb,
+			   struct btrfs_timespec *timespec,
+			   const char *prefix, const char *suffix)
+{
+	const u64 secs = btrfs_timespec_sec(eb, timespec);
+	const u32 nsecs = btrfs_timespec_nsec(eb, timespec);
+
+	pr_info("%s%llu.%u%s", prefix, secs, nsecs, suffix);
+}
+
+static void print_inode_item(const struct extent_buffer *eb, int i)
+{
+	struct btrfs_inode_item *ii = btrfs_item_ptr(eb, i, struct btrfs_inode_item);
+
+	pr_info("\t\tinode generation %llu transid %llu size %llu nbytes %llu\n",
+		btrfs_inode_generation(eb, ii), btrfs_inode_transid(eb, ii),
+		btrfs_inode_size(eb, ii), btrfs_inode_nbytes(eb, ii));
+	pr_info("\t\tblock group %llu mode %o links %u uid %u gid %u\n",
+		btrfs_inode_block_group(eb, ii), btrfs_inode_mode(eb, ii),
+		btrfs_inode_nlink(eb, ii), btrfs_inode_uid(eb, ii),
+		btrfs_inode_gid(eb, ii));
+	pr_info("\t\trdev %llu sequence %llu flags 0x%llx\n",
+		btrfs_inode_rdev(eb, ii), btrfs_inode_sequence(eb, ii),
+		btrfs_inode_flags(eb, ii));
+	print_timespec(eb, &ii->atime, "\t\tatime ", "\n");
+	print_timespec(eb, &ii->ctime, "\t\tctime ", "\n");
+	print_timespec(eb, &ii->mtime, "\t\tmtime ", "\n");
+	print_timespec(eb, &ii->otime, "\t\totime ", "\n");
+}
+
 void btrfs_print_leaf(const struct extent_buffer *l)
 {
 	struct btrfs_fs_info *fs_info;
@@ -234,7 +264,6 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 	u32 type, nr;
 	struct btrfs_root_item *ri;
 	struct btrfs_dir_item *di;
-	struct btrfs_inode_item *ii;
 	struct btrfs_block_group_item *bi;
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_extent_data_ref *dref;
@@ -262,11 +291,7 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 			btrfs_item_offset(l, i), btrfs_item_size(l, i));
 		switch (type) {
 		case BTRFS_INODE_ITEM_KEY:
-			ii = btrfs_item_ptr(l, i, struct btrfs_inode_item);
-			pr_info("\t\tinode generation %llu size %llu mode %o\n",
-			       btrfs_inode_generation(l, ii),
-			       btrfs_inode_size(l, ii),
-			       btrfs_inode_mode(l, ii));
+			print_inode_item(l, i);
 			break;
 		case BTRFS_DIR_ITEM_KEY:
 			di = btrfs_item_ptr(l, i, struct btrfs_dir_item);
