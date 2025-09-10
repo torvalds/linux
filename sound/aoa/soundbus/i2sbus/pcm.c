@@ -637,8 +637,8 @@ static inline void handle_interrupt(struct i2sbus_dev *i2sdev, int in)
 				if (!(status & ACTIVE) && (!in || (status & 0x80)))
 					break;
 				if (--timeout <= 0) {
-					printk(KERN_ERR "i2sbus: timed out "
-					       "waiting for DMA to stop!\n");
+					printk(KERN_ERR
+					       "i2sbus: timed out waiting for DMA to stop!\n");
 					break;
 				}
 				udelay(1);
