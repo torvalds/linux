@@ -16,6 +16,7 @@
 #include <linux/phylink.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/slab.h>
 #include <dt-bindings/net/pcs-rzn1-miic.h>
 
 #define MIIC_PRCMD			0x0
@@ -50,7 +51,7 @@
 
 #define MIIC_MAX_NR_PORTS		5
 
-#define MIIC_MODCTRL_CONF_CONV_NUM	6
+#define MIIC_MODCTRL_CONF_CONV_MAX	6
 #define MIIC_MODCTRL_CONF_NONE		-1
 
 /**
@@ -58,11 +59,13 @@
  *			  See section 8.2.1 of manual.
  * @mode_cfg: Configuration value for convctrl
  * @conv: Configuration of ethernet port muxes. First index is SWITCH_PORTIN,
- *	  then index 1 - 5 are CONV1 - CONV5.
+ *	  then index 1 - 5 are CONV1 - CONV5 for RZ/N1 SoCs. In case
+ *	  of RZ/T2H and RZ/N2H SoCs, the first index is SWITCH_PORTIN then
+ *	  index 0 - 3 are CONV0 - CONV3.
  */
 struct modctrl_match {
 	u32 mode_cfg;
-	u8 conv[MIIC_MODCTRL_CONF_CONV_NUM];
+	u8 conv[MIIC_MODCTRL_CONF_CONV_MAX];
 };
 
 static struct modctrl_match modctrl_match_table[] = {
@@ -111,7 +114,7 @@ static const char * const conf_to_string[] = {
 	[MIIC_HSR_PORTB]	= "HSR_PORTB",
 };
 
-static const char *index_to_string[MIIC_MODCTRL_CONF_CONV_NUM] = {
+static const char * const index_to_string[] = {
 	"SWITCH_PORTIN",
 	"CONV1",
 	"CONV2",
@@ -125,11 +128,33 @@ static const char *index_to_string[MIIC_MODCTRL_CONF_CONV_NUM] = {
  * @base: base address of the MII converter
  * @dev: Device associated to the MII converter
  * @lock: Lock used for read-modify-write access
+ * @of_data: Pointer to OF data
  */
 struct miic {
 	void __iomem *base;
 	struct device *dev;
 	spinlock_t lock;
+	const struct miic_of_data *of_data;
+};
+
+/**
+ * struct miic_of_data - OF data for MII converter
+ * @match_table: Matching table for convctrl configuration
+ * @match_table_count: Number of entries in the matching table
+ * @conf_conv_count: Number of entries in the conf_conv array
+ * @conf_to_string: String representations of the configuration values
+ * @conf_to_string_count: Number of entries in the conf_to_string array
+ * @index_to_string: String representations of the index values
+ * @index_to_string_count: Number of entries in the index_to_string array
+ */
+struct miic_of_data {
+	struct modctrl_match *match_table;
+	u8 match_table_count;
+	u8 conf_conv_count;
+	const char * const *conf_to_string;
+	u8 conf_to_string_count;
+	const char * const *index_to_string;
+	u8 index_to_string_count;
 };
 
 /**
@@ -398,12 +423,11 @@ static int miic_init_hw(struct miic *miic, u32 cfg_mode)
 	return 0;
 }
 
-static bool miic_modctrl_match(s8 table_val[MIIC_MODCTRL_CONF_CONV_NUM],
-			       s8 dt_val[MIIC_MODCTRL_CONF_CONV_NUM])
+static bool miic_modctrl_match(s8 *table_val, s8 *dt_val, u8 count)
 {
 	int i;
 
-	for (i = 0; i < MIIC_MODCTRL_CONF_CONV_NUM; i++) {
+	for (i = 0; i < count; i++) {
 		if (dt_val[i] == MIIC_MODCTRL_CONF_NONE)
 			continue;
 
@@ -414,53 +438,59 @@ static bool miic_modctrl_match(s8 table_val[MIIC_MODCTRL_CONF_CONV_NUM],
 	return true;
 }
 
-static void miic_dump_conf(struct device *dev,
-			   s8 conf[MIIC_MODCTRL_CONF_CONV_NUM])
+static void miic_dump_conf(struct miic *miic, s8 *conf)
 {
+	const struct miic_of_data *of_data = miic->of_data;
 	const char *conf_name;
 	int i;
 
-	for (i = 0; i < MIIC_MODCTRL_CONF_CONV_NUM; i++) {
+	for (i = 0; i < of_data->conf_conv_count; i++) {
 		if (conf[i] != MIIC_MODCTRL_CONF_NONE)
-			conf_name = conf_to_string[conf[i]];
+			conf_name = of_data->conf_to_string[conf[i]];
 		else
 			conf_name = "NONE";
 
-		dev_err(dev, "%s: %s\n", index_to_string[i], conf_name);
+		dev_err(miic->dev, "%s: %s\n",
+			of_data->index_to_string[i], conf_name);
 	}
 }
 
-static int miic_match_dt_conf(struct device *dev,
-			      s8 dt_val[MIIC_MODCTRL_CONF_CONV_NUM],
-			      u32 *mode_cfg)
+static int miic_match_dt_conf(struct miic *miic, s8 *dt_val, u32 *mode_cfg)
 {
+	const struct miic_of_data *of_data = miic->of_data;
 	struct modctrl_match *table_entry;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(modctrl_match_table); i++) {
-		table_entry = &modctrl_match_table[i];
+	for (i = 0; i < of_data->match_table_count; i++) {
+		table_entry = &of_data->match_table[i];
 
-		if (miic_modctrl_match(table_entry->conv, dt_val)) {
+		if (miic_modctrl_match(table_entry->conv, dt_val,
+				       miic->of_data->conf_conv_count)) {
 			*mode_cfg = table_entry->mode_cfg;
 			return 0;
 		}
 	}
 
-	dev_err(dev, "Failed to apply requested configuration\n");
-	miic_dump_conf(dev, dt_val);
+	dev_err(miic->dev, "Failed to apply requested configuration\n");
+	miic_dump_conf(miic, dt_val);
 
 	return -EINVAL;
 }
 
-static int miic_parse_dt(struct device *dev, u32 *mode_cfg)
+static int miic_parse_dt(struct miic *miic, u32 *mode_cfg)
 {
-	s8 dt_val[MIIC_MODCTRL_CONF_CONV_NUM];
-	struct device_node *np = dev->of_node;
+	struct device_node *np = miic->dev->of_node;
 	struct device_node *conv;
+	int port, ret;
+	s8 *dt_val;
 	u32 conf;
-	int port;
 
-	memset(dt_val, MIIC_MODCTRL_CONF_NONE, sizeof(dt_val));
+	dt_val = kmalloc_array(miic->of_data->conf_conv_count,
+			       sizeof(*dt_val), GFP_KERNEL);
+	if (!dt_val)
+		return -ENOMEM;
+
+	memset(dt_val, MIIC_MODCTRL_CONF_NONE, sizeof(*dt_val));
 
 	if (of_property_read_u32(np, "renesas,miic-switch-portin", &conf) == 0)
 		dt_val[0] = conf;
@@ -473,7 +503,10 @@ static int miic_parse_dt(struct device *dev, u32 *mode_cfg)
 			dt_val[port] = conf;
 	}
 
-	return miic_match_dt_conf(dev, dt_val, mode_cfg);
+	ret = miic_match_dt_conf(miic, dt_val, mode_cfg);
+	kfree(dt_val);
+
+	return ret;
 }
 
 static int miic_probe(struct platform_device *pdev)
@@ -483,16 +516,18 @@ static int miic_probe(struct platform_device *pdev)
 	u32 mode_cfg;
 	int ret;
 
-	ret = miic_parse_dt(dev, &mode_cfg);
-	if (ret < 0)
-		return ret;
-
 	miic = devm_kzalloc(dev, sizeof(*miic), GFP_KERNEL);
 	if (!miic)
 		return -ENOMEM;
 
-	spin_lock_init(&miic->lock);
+	miic->of_data = of_device_get_match_data(dev);
 	miic->dev = dev;
+
+	ret = miic_parse_dt(miic, &mode_cfg);
+	if (ret < 0)
+		return ret;
+
+	spin_lock_init(&miic->lock);
 	miic->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(miic->base))
 		return PTR_ERR(miic->base);
@@ -529,8 +564,18 @@ static void miic_remove(struct platform_device *pdev)
 	pm_runtime_put(&pdev->dev);
 }
 
+static struct miic_of_data rzn1_miic_of_data = {
+	.match_table = modctrl_match_table,
+	.match_table_count = ARRAY_SIZE(modctrl_match_table),
+	.conf_conv_count = MIIC_MODCTRL_CONF_CONV_MAX,
+	.conf_to_string = conf_to_string,
+	.conf_to_string_count = ARRAY_SIZE(conf_to_string),
+	.index_to_string = index_to_string,
+	.index_to_string_count = ARRAY_SIZE(index_to_string),
+};
+
 static const struct of_device_id miic_of_mtable[] = {
-	{ .compatible = "renesas,rzn1-miic" },
+	{ .compatible = "renesas,rzn1-miic", .data = &rzn1_miic_of_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, miic_of_mtable);
