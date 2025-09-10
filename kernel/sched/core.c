@@ -2668,18 +2668,14 @@ __do_set_cpus_allowed(struct task_struct *p, struct affinity_context *ctx)
 	bool queued, running;
 
 	lockdep_assert_held(&p->pi_lock);
+	lockdep_assert_rq_held(rq);
 
 	queued = task_on_rq_queued(p);
 	running = task_current_donor(rq, p);
 
-	if (queued) {
-		/*
-		 * Because __kthread_bind() calls this on blocked tasks without
-		 * holding rq->lock.
-		 */
-		lockdep_assert_rq_held(rq);
+	if (queued)
 		dequeue_task(rq, p, DEQUEUE_SAVE | DEQUEUE_NOCLOCK);
-	}
+
 	if (running)
 		put_prev_task(rq, p);
 
@@ -2708,7 +2704,10 @@ void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask)
 		struct rcu_head rcu;
 	};
 
-	__do_set_cpus_allowed(p, &ac);
+	scoped_guard (__task_rq_lock, p) {
+		update_rq_clock(scope.rq);
+		__do_set_cpus_allowed(p, &ac);
+	}
 
 	/*
 	 * Because this is called with p->pi_lock held, it is not possible
@@ -3483,12 +3482,6 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 			}
 			fallthrough;
 		case possible:
-			/*
-			 * XXX When called from select_task_rq() we only
-			 * hold p->pi_lock and again violate locking order.
-			 *
-			 * More yuck to audit.
-			 */
 			do_set_cpus_allowed(p, task_cpu_fallback_mask(p));
 			state = fail;
 			break;
