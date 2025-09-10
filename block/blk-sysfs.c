@@ -64,11 +64,12 @@ static ssize_t queue_requests_show(struct gendisk *disk, char *page)
 static ssize_t
 queue_requests_store(struct gendisk *disk, const char *page, size_t count)
 {
-	unsigned long nr;
-	int ret, err;
-	unsigned int memflags;
 	struct request_queue *q = disk->queue;
 	struct blk_mq_tag_set *set = q->tag_set;
+	struct elevator_tags *et = NULL;
+	unsigned int memflags;
+	unsigned long nr;
+	int ret;
 
 	ret = queue_var_store(&nr, page, count);
 	if (ret < 0)
@@ -99,15 +100,27 @@ queue_requests_store(struct gendisk *disk, const char *page, size_t count)
 		goto unlock;
 	}
 
+	if (!blk_mq_is_shared_tags(set->flags) && q->elevator &&
+	    nr > q->elevator->et->nr_requests) {
+		/*
+		 * Tags will grow, allocate memory before freezing queue to
+		 * prevent deadlock.
+		 */
+		et = blk_mq_alloc_sched_tags(set, q->nr_hw_queues, nr);
+		if (!et) {
+			ret = -ENOMEM;
+			goto unlock;
+		}
+	}
+
 	memflags = blk_mq_freeze_queue(q);
 	mutex_lock(&q->elevator_lock);
-
-	err = blk_mq_update_nr_requests(disk->queue, nr);
-	if (err)
-		ret = err;
-
+	et = blk_mq_update_nr_requests(q, et, nr);
 	mutex_unlock(&q->elevator_lock);
 	blk_mq_unfreeze_queue(q, memflags);
+
+	if (et)
+		blk_mq_free_sched_tags(et, set);
 
 unlock:
 	up_write(&set->update_nr_hwq_lock);

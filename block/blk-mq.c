@@ -4926,11 +4926,13 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 }
 EXPORT_SYMBOL(blk_mq_free_tag_set);
 
-int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
+struct elevator_tags *blk_mq_update_nr_requests(struct request_queue *q,
+						struct elevator_tags *et,
+						unsigned int nr)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
+	struct elevator_tags *old_et = NULL;
 	struct blk_mq_hw_ctx *hctx;
-	int ret = 0;
 	unsigned long i;
 
 	blk_mq_quiesce_queue(q);
@@ -4965,24 +4967,18 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 		}
 	} else {
 		/* Non-shared sched tags, and tags grow */
-		queue_for_each_hw_ctx(q, hctx, i) {
-			if (!hctx->sched_tags)
-				continue;
-			ret = blk_mq_tag_update_depth(hctx, &hctx->sched_tags,
-						      nr);
-			if (ret)
-				goto out;
-		}
+		queue_for_each_hw_ctx(q, hctx, i)
+			hctx->sched_tags = et->tags[i];
+		old_et =  q->elevator->et;
+		q->elevator->et = et;
 	}
 
 	q->nr_requests = nr;
 	if (q->elevator && q->elevator->type->ops.depth_updated)
 		q->elevator->type->ops.depth_updated(q);
 
-out:
 	blk_mq_unquiesce_queue(q);
-
-	return ret;
+	return old_et;
 }
 
 /*
