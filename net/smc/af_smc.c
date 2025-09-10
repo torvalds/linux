@@ -1097,8 +1097,7 @@ static int smc_find_ism_v2_device_clnt(struct smc_sock *smc,
 }
 
 /* Check for VLAN ID and register it on ISM device just for CLC handshake */
-static int smc_connect_ism_vlan_setup(struct smc_sock *smc,
-				      struct smc_init_info *ini)
+static int smc_connect_ism_vlan_setup(struct smc_init_info *ini)
 {
 	if (ini->vlan_id && smc_ism_get_vlan(ini->ism_dev[0], ini->vlan_id))
 		return SMC_CLC_DECL_ISMVLANERR;
@@ -1113,7 +1112,7 @@ static int smc_find_proposal_devices(struct smc_sock *smc,
 	/* check if there is an ism device available */
 	if (!(ini->smcd_version & SMC_V1) ||
 	    smc_find_ism_device(smc, ini) ||
-	    smc_connect_ism_vlan_setup(smc, ini))
+	    smc_connect_ism_vlan_setup(ini))
 		ini->smcd_version &= ~SMC_V1;
 	/* else ISM V1 is supported for this connection */
 
@@ -1158,8 +1157,7 @@ static int smc_find_proposal_devices(struct smc_sock *smc,
 /* cleanup temporary VLAN ID registration used for CLC handshake. If ISM is
  * used, the VLAN ID will be registered again during the connection setup.
  */
-static int smc_connect_ism_vlan_cleanup(struct smc_sock *smc,
-					struct smc_init_info *ini)
+static int smc_connect_ism_vlan_cleanup(struct smc_init_info *ini)
 {
 	if (!smcd_indicated(ini->smc_type_v1))
 		return 0;
@@ -1582,13 +1580,13 @@ static int __smc_connect(struct smc_sock *smc)
 		goto vlan_cleanup;
 
 	SMC_STAT_CLNT_SUCC_INC(sock_net(smc->clcsock->sk), aclc);
-	smc_connect_ism_vlan_cleanup(smc, ini);
+	smc_connect_ism_vlan_cleanup(ini);
 	kfree(buf);
 	kfree(ini);
 	return 0;
 
 vlan_cleanup:
-	smc_connect_ism_vlan_cleanup(smc, ini);
+	smc_connect_ism_vlan_cleanup(ini);
 	kfree(buf);
 fallback:
 	kfree(ini);
