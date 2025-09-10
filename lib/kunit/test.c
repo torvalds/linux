@@ -70,6 +70,13 @@ module_param_named(enable, enable_param, bool, 0);
 MODULE_PARM_DESC(enable, "Enable KUnit tests");
 
 /*
+ * Configure the base timeout.
+ */
+static unsigned long kunit_base_timeout = CONFIG_KUNIT_DEFAULT_TIMEOUT;
+module_param_named(timeout, kunit_base_timeout, ulong, 0644);
+MODULE_PARM_DESC(timeout, "Set the base timeout for Kunit test cases");
+
+/*
  * KUnit statistic mode:
  * 0 - disabled
  * 1 - only when there is more than one subtest
@@ -373,6 +380,40 @@ static void kunit_run_case_check_speed(struct kunit *test,
 		   duration.tv_sec, duration.tv_nsec);
 }
 
+/* Returns timeout multiplier based on speed.
+ * DEFAULT:		    1
+ * KUNIT_SPEED_SLOW:        3
+ * KUNIT_SPEED_VERY_SLOW:   12
+ */
+static int kunit_timeout_mult(enum kunit_speed speed)
+{
+	switch (speed) {
+	case KUNIT_SPEED_SLOW:
+		return 3;
+	case KUNIT_SPEED_VERY_SLOW:
+		return 12;
+	default:
+		return 1;
+	}
+}
+
+static unsigned long kunit_test_timeout(struct kunit_suite *suite, struct kunit_case *test_case)
+{
+	int mult = 1;
+
+	/*
+	 * The default test timeout is 300 seconds and will be adjusted by mult
+	 * based on the test speed. The test speed will be overridden by the
+	 * innermost test component.
+	 */
+	if (suite->attr.speed != KUNIT_SPEED_UNSET)
+		mult = kunit_timeout_mult(suite->attr.speed);
+	if (test_case->attr.speed != KUNIT_SPEED_UNSET)
+		mult = kunit_timeout_mult(test_case->attr.speed);
+	return mult * kunit_base_timeout * msecs_to_jiffies(MSEC_PER_SEC);
+}
+
+
 /*
  * Initializes and runs test case. Does not clean up or do post validations.
  */
@@ -527,7 +568,8 @@ static void kunit_run_case_catch_errors(struct kunit_suite *suite,
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_try_run_case,
-			     kunit_catch_run_case);
+			     kunit_catch_run_case,
+			     kunit_test_timeout(suite, test_case));
 	context.test = test;
 	context.suite = suite;
 	context.test_case = test_case;
@@ -537,7 +579,8 @@ static void kunit_run_case_catch_errors(struct kunit_suite *suite,
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_try_run_case_cleanup,
-			     kunit_catch_run_case_cleanup);
+			     kunit_catch_run_case_cleanup,
+			     kunit_test_timeout(suite, test_case));
 	kunit_try_catch_run(try_catch, &context);
 
 	/* Propagate the parameter result to the test case. */
@@ -759,7 +802,6 @@ void __kunit_test_suites_exit(struct kunit_suite **suites, int num_suites)
 }
 EXPORT_SYMBOL_GPL(__kunit_test_suites_exit);
 
-#ifdef CONFIG_MODULES
 static void kunit_module_init(struct module *mod)
 {
 	struct kunit_suite_set suite_set, filtered_set;
@@ -847,7 +889,6 @@ static struct notifier_block kunit_mod_nb = {
 	.notifier_call = kunit_module_notify,
 	.priority = 0,
 };
-#endif
 
 KUNIT_DEFINE_ACTION_WRAPPER(kfree_action_wrapper, kfree, const void *)
 
@@ -938,20 +979,14 @@ static int __init kunit_init(void)
 	kunit_debugfs_init();
 
 	kunit_bus_init();
-#ifdef CONFIG_MODULES
 	return register_module_notifier(&kunit_mod_nb);
-#else
-	return 0;
-#endif
 }
 late_initcall(kunit_init);
 
 static void __exit kunit_exit(void)
 {
 	memset(&kunit_hooks, 0, sizeof(kunit_hooks));
-#ifdef CONFIG_MODULES
 	unregister_module_notifier(&kunit_mod_nb);
-#endif
 
 	kunit_bus_shutdown();
 

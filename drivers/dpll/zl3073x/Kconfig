@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config ZL3073X
+	tristate "Microchip Azurite DPLL/PTP/SyncE devices" if COMPILE_TEST
+	depends on NET
+	select DPLL
+	select NET_DEVLINK
+	select REGMAP
+	help
+	  This driver supports Microchip Azurite family DPLL/PTP/SyncE
+	  devices that support up to 5 independent DPLL channels,
+	  10 input pins and up to 20 output pins.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called zl3073x.
+
+config ZL3073X_I2C
+	tristate "I2C bus implementation for Microchip Azurite devices"
+	depends on I2C && NET
+	select REGMAP_I2C
+	select ZL3073X
+	help
+	  This is I2C bus implementation for Microchip Azurite DPLL/PTP/SyncE
+	  devices.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called zl3073x_i2c.
+
+config ZL3073X_SPI
+	tristate "SPI bus implementation for Microchip Azurite devices"
+	depends on NET && SPI
+	select REGMAP_SPI
+	select ZL3073X
+	help
+	  This is SPI bus implementation for Microchip Azurite DPLL/PTP/SyncE
+	  devices.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called zl3073x_spi.

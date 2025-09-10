@@ -397,7 +397,7 @@ static int adfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (asb->s_ftsuffix)
 		asb->s_namelen += 4;
 
-	sb->s_d_op = &adfs_dentry_operations;
+	set_default_d_op(sb, &adfs_dentry_operations);
 	root = adfs_iget(sb, &root_obj);
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {

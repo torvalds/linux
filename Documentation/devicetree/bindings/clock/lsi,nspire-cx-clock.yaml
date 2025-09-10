@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/lsi,nspire-cx-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI-NSPIRE Clocks
+
+maintainers:
+  - Daniel Tang <dt.tangr@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - lsi,nspire-cx-ahb-divider
+      - lsi,nspire-classic-ahb-divider
+      - lsi,nspire-cx-clock
+      - lsi,nspire-classic-clock
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 0
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg

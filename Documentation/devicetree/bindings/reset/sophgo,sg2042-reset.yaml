@@ -16,7 +16,9 @@ properties:
           - enum:
               - sophgo,sg2044-reset
           - const: sophgo,sg2042-reset
-      - const: sophgo,sg2042-reset
+      - enum:
+          - sophgo,cv1800b-reset
+          - sophgo,sg2042-reset
 
   reg:
     maxItems: 1

@@ -964,8 +964,10 @@ void iterate_supers_type(struct file_system_type *type,
 		spin_unlock(&sb_lock);
 
 		locked = super_lock_shared(sb);
-		if (locked)
+		if (locked) {
 			f(sb, arg);
+			super_unlock_shared(sb);
+		}
 
 		spin_lock(&sb_lock);
 		if (p)
@@ -1456,6 +1458,17 @@ static void fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
 	sb = bdev_super_lock(bdev, false);
 	if (!sb)
 		return;
+
+	if (sb->s_op->remove_bdev) {
+		int ret;
+
+		ret = sb->s_op->remove_bdev(sb, bdev);
+		if (!ret) {
+			super_unlock_shared(sb);
+			return;
+		}
+		/* Fallback to shutdown. */
+	}
 
 	if (!surprise)
 		sync_filesystem(sb);

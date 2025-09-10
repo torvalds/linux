@@ -617,8 +617,8 @@ static int ethtool_set_link_ksettings(struct net_device *dev,
 
 	err = dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
 	if (err >= 0) {
-		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
-		ethtool_notify(dev, ETHTOOL_MSG_LINKMODES_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF);
+		ethtool_notify(dev, ETHTOOL_MSG_LINKMODES_NTF);
 	}
 	return err;
 }
@@ -708,8 +708,8 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 		__ETHTOOL_LINK_MODE_MASK_NU32;
 	ret = dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
 	if (ret >= 0) {
-		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
-		ethtool_notify(dev, ETHTOOL_MSG_LINKMODES_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF);
+		ethtool_notify(dev, ETHTOOL_MSG_LINKMODES_NTF);
 	}
 	return ret;
 }
@@ -981,6 +981,7 @@ static int ethtool_rxnfc_copy_to_user(void __user *useraddr,
 static bool flow_type_hashable(u32 flow_type)
 {
 	switch (flow_type) {
+	case ETHER_FLOW:
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 	case SCTP_V4_FLOW:
@@ -1026,9 +1027,7 @@ static int ethtool_check_xfrm_rxfh(u32 input_xfrm, u64 rxfh)
 	 */
 	if ((input_xfrm != RXH_XFRM_NO_CHANGE &&
 	     input_xfrm & (RXH_XFRM_SYM_XOR | RXH_XFRM_SYM_OR_XOR)) &&
-	    ((rxfh & ~(RXH_IP_SRC | RXH_IP_DST | RXH_L4_B_0_1 | RXH_L4_B_2_3)) ||
-	     (!!(rxfh & RXH_IP_SRC) ^ !!(rxfh & RXH_IP_DST)) ||
-	     (!!(rxfh & RXH_L4_B_0_1) ^ !!(rxfh & RXH_L4_B_2_3))))
+	    !ethtool_rxfh_config_is_sym(rxfh))
 		return -EINVAL;
 
 	return 0;
@@ -1037,27 +1036,112 @@ static int ethtool_check_xfrm_rxfh(u32 input_xfrm, u64 rxfh)
 static int ethtool_check_flow_types(struct net_device *dev, u32 input_xfrm)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
-	struct ethtool_rxnfc info = {
-		.cmd = ETHTOOL_GRXFH,
-	};
 	int err;
 	u32 i;
 
+	if (!input_xfrm || input_xfrm == RXH_XFRM_NO_CHANGE)
+		return 0;
+
 	for (i = 0; i < __FLOW_TYPE_COUNT; i++) {
+		struct ethtool_rxfh_fields fields = {
+			.flow_type	= i,
+		};
+
 		if (!flow_type_hashable(i))
 			continue;
 
-		info.flow_type = i;
-		err = ops->get_rxnfc(dev, &info, NULL);
-		if (err)
+		if (ops->get_rxfh_fields(dev, &fields))
 			continue;
 
-		err = ethtool_check_xfrm_rxfh(input_xfrm, info.data);
+		err = ethtool_check_xfrm_rxfh(input_xfrm, fields.data);
 		if (err)
 			return err;
 	}
 
 	return 0;
+}
+
+static noinline_for_stack int
+ethtool_set_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_rxfh_fields fields = {};
+	struct ethtool_rxnfc info;
+	size_t info_size = sizeof(info);
+	int rc;
+
+	if (!ops->set_rxfh_fields)
+		return -EOPNOTSUPP;
+
+	rc = ethtool_rxnfc_copy_struct(cmd, &info, &info_size, useraddr);
+	if (rc)
+		return rc;
+
+	if (info.flow_type & FLOW_RSS && info.rss_context &&
+	    !ops->rxfh_per_ctx_fields)
+		return -EINVAL;
+
+	mutex_lock(&dev->ethtool->rss_lock);
+	if (ops->get_rxfh) {
+		struct ethtool_rxfh_param rxfh = {};
+
+		rc = ops->get_rxfh(dev, &rxfh);
+		if (rc)
+			goto exit_unlock;
+
+		rc = ethtool_check_xfrm_rxfh(rxfh.input_xfrm, info.data);
+		if (rc)
+			goto exit_unlock;
+	}
+
+	fields.data = info.data;
+	fields.flow_type = info.flow_type & ~FLOW_RSS;
+	if (info.flow_type & FLOW_RSS)
+		fields.rss_context = info.rss_context;
+
+	rc = ops->set_rxfh_fields(dev, &fields, NULL);
+exit_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
+	if (rc)
+		return rc;
+
+	ethtool_rss_notify(dev, ETHTOOL_MSG_RSS_NTF, fields.rss_context);
+	return 0;
+}
+
+static noinline_for_stack int
+ethtool_get_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
+{
+	struct ethtool_rxnfc info;
+	size_t info_size = sizeof(info);
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_rxfh_fields fields = {};
+	int ret;
+
+	if (!ops->get_rxfh_fields)
+		return -EOPNOTSUPP;
+
+	ret = ethtool_rxnfc_copy_struct(cmd, &info, &info_size, useraddr);
+	if (ret)
+		return ret;
+
+	if (info.flow_type & FLOW_RSS && info.rss_context &&
+	    !ops->rxfh_per_ctx_fields)
+		return -EINVAL;
+
+	fields.flow_type = info.flow_type & ~FLOW_RSS;
+	if (info.flow_type & FLOW_RSS)
+		fields.rss_context = info.rss_context;
+
+	mutex_lock(&dev->ethtool->rss_lock);
+	ret = ops->get_rxfh_fields(dev, &fields);
+	mutex_unlock(&dev->ethtool->rss_lock);
+	if (ret < 0)
+		return ret;
+
+	info.data = fields.data;
+
+	return ethtool_rxnfc_copy_to_user(useraddr, &info, info_size, NULL);
 }
 
 static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
@@ -1086,18 +1170,6 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 		if (info.rss_context &&
 		    !xa_load(&dev->ethtool->rss_ctx, info.rss_context))
 			return -EINVAL;
-	}
-
-	if (cmd == ETHTOOL_SRXFH && ops->get_rxfh) {
-		struct ethtool_rxfh_param rxfh = {};
-
-		rc = ops->get_rxfh(dev, &rxfh);
-		if (rc)
-			return rc;
-
-		rc = ethtool_check_xfrm_rxfh(rxfh.input_xfrm, info.data);
-		if (rc)
-			return rc;
 	}
 
 	rc = ops->set_rxnfc(dev, &info);
@@ -1209,7 +1281,9 @@ static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 	if (!rxfh.indir)
 		return -ENOMEM;
 
+	mutex_lock(&dev->ethtool->rss_lock);
 	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh);
+	mutex_unlock(&dev->ethtool->rss_lock);
 	if (ret)
 		goto out;
 	if (copy_to_user(useraddr +
@@ -1274,9 +1348,11 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 	}
 
 	rxfh_dev.hfunc = ETH_RSS_HASH_NO_CHANGE;
+
+	mutex_lock(&dev->ethtool->rss_lock);
 	ret = ops->set_rxfh(dev, &rxfh_dev, extack);
 	if (ret)
-		goto out;
+		goto out_unlock;
 
 	/* indicate whether rxfh was set to default */
 	if (user_size == 0)
@@ -1284,6 +1360,8 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 	else
 		dev->priv_flags |= IFF_RXFH_CONFIGURED;
 
+out_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
 out:
 	kfree(rxfh_dev.indir);
 	return ret;
@@ -1319,8 +1397,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
-	if (rxfh.rss_context && !(ops->cap_rss_ctx_supported ||
-				  ops->create_rxfh_context))
+	if (rxfh.rss_context && !ops->create_rxfh_context)
 		return -EOPNOTSUPP;
 
 	rxfh.indir_size = rxfh_dev.indir_size;
@@ -1344,6 +1421,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	if (user_key_size)
 		rxfh_dev.key = rss_config + indir_bytes;
 
+	mutex_lock(&dev->ethtool->rss_lock);
 	if (rxfh.rss_context) {
 		ctx = xa_load(&dev->ethtool->rss_ctx, rxfh.rss_context);
 		if (!ctx) {
@@ -1389,43 +1467,10 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 		ret = -EFAULT;
 	}
 out:
+	mutex_unlock(&dev->ethtool->rss_lock);
 	kfree(rss_config);
 
 	return ret;
-}
-
-static struct ethtool_rxfh_context *
-ethtool_rxfh_ctx_alloc(const struct ethtool_ops *ops,
-		       u32 indir_size, u32 key_size)
-{
-	size_t indir_bytes, flex_len, key_off, size;
-	struct ethtool_rxfh_context *ctx;
-	u32 priv_bytes, indir_max;
-	u16 key_max;
-
-	key_max = max(key_size, ops->rxfh_key_space);
-	indir_max = max(indir_size, ops->rxfh_indir_space);
-
-	priv_bytes = ALIGN(ops->rxfh_priv_size, sizeof(u32));
-	indir_bytes = array_size(indir_max, sizeof(u32));
-
-	key_off = size_add(priv_bytes, indir_bytes);
-	flex_len = size_add(key_off, key_max);
-	size = struct_size_t(struct ethtool_rxfh_context, data, flex_len);
-
-	ctx = kzalloc(size, GFP_KERNEL_ACCOUNT);
-	if (!ctx)
-		return NULL;
-
-	ctx->indir_size = indir_size;
-	ctx->key_size = key_size;
-	ctx->key_off = key_off;
-	ctx->priv_size = ops->rxfh_priv_size;
-
-	ctx->hfunc = ETH_RSS_HASH_NO_CHANGE;
-	ctx->input_xfrm = RXH_XFRM_NO_CHANGE;
-
-	return ctx;
 }
 
 static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
@@ -1440,9 +1485,9 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	struct netlink_ext_ack *extack = NULL;
 	struct ethtool_rxnfc rx_rings;
 	struct ethtool_rxfh rxfh;
-	bool locked = false; /* dev->ethtool->rss_lock taken */
 	bool create = false;
 	u8 *rss_config;
+	int ntf = 0;
 	int ret;
 
 	if (!ops->get_rxnfc || !ops->set_rxfh)
@@ -1460,8 +1505,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
-	if (rxfh.rss_context && !(ops->cap_rss_ctx_supported ||
-				  ops->create_rxfh_context))
+	if (rxfh.rss_context && !ops->create_rxfh_context)
 		return -EOPNOTSUPP;
 	/* Check input data transformation capabilities */
 	if (rxfh.input_xfrm && rxfh.input_xfrm != RXH_XFRM_SYM_XOR &&
@@ -1489,10 +1533,6 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	     rxfh.input_xfrm == RXH_XFRM_NO_CHANGE))
 		return -EINVAL;
 
-	ret = ethtool_check_flow_types(dev, rxfh.input_xfrm);
-	if (ret)
-		return ret;
-
 	indir_bytes = dev_indir_size * sizeof(rxfh_dev.indir[0]);
 
 	/* Check settings which may be global rather than per RSS-context */
@@ -1509,7 +1549,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	rx_rings.cmd = ETHTOOL_GRXRINGS;
 	ret = ops->get_rxnfc(dev, &rx_rings, NULL);
 	if (ret)
-		goto out;
+		goto out_free;
 
 	/* rxfh.indir_size == 0 means reset the indir table to default (master
 	 * context) or delete the context (other RSS contexts).
@@ -1525,7 +1565,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 						  &rx_rings,
 						  rxfh.indir_size);
 		if (ret)
-			goto out;
+			goto out_free;
 	} else if (rxfh.indir_size == 0) {
 		if (rxfh.rss_context == 0) {
 			u32 *indir;
@@ -1547,86 +1587,81 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 				   useraddr + rss_cfg_offset + user_indir_len,
 				   rxfh.key_size)) {
 			ret = -EFAULT;
-			goto out;
+			goto out_free;
 		}
 	}
 
-	if (rxfh.rss_context) {
-		mutex_lock(&dev->ethtool->rss_lock);
-		locked = true;
-	}
+	mutex_lock(&dev->ethtool->rss_lock);
+
+	ret = ethtool_check_flow_types(dev, rxfh.input_xfrm);
+	if (ret)
+		goto out_unlock;
 
 	if (rxfh.rss_context && rxfh_dev.rss_delete) {
 		ret = ethtool_check_rss_ctx_busy(dev, rxfh.rss_context);
 		if (ret)
-			goto out;
+			goto out_unlock;
 	}
 
 	if (create) {
+		u32 limit, ctx_id;
+
 		if (rxfh_dev.rss_delete) {
 			ret = -EINVAL;
-			goto out;
+			goto out_unlock;
 		}
 		ctx = ethtool_rxfh_ctx_alloc(ops, dev_indir_size, dev_key_size);
 		if (!ctx) {
 			ret = -ENOMEM;
-			goto out;
+			goto out_unlock;
 		}
 
-		if (ops->create_rxfh_context) {
-			u32 limit = ops->rxfh_max_num_contexts ?: U32_MAX;
-			u32 ctx_id;
-
-			/* driver uses new API, core allocates ID */
-			ret = xa_alloc(&dev->ethtool->rss_ctx, &ctx_id, ctx,
-				       XA_LIMIT(1, limit - 1),
-				       GFP_KERNEL_ACCOUNT);
-			if (ret < 0) {
-				kfree(ctx);
-				goto out;
-			}
-			WARN_ON(!ctx_id); /* can't happen */
-			rxfh.rss_context = ctx_id;
+		limit = ops->rxfh_max_num_contexts ?: U32_MAX;
+		ret = xa_alloc(&dev->ethtool->rss_ctx, &ctx_id, ctx,
+			       XA_LIMIT(1, limit - 1), GFP_KERNEL_ACCOUNT);
+		if (ret < 0) {
+			kfree(ctx);
+			goto out_unlock;
 		}
+		WARN_ON(!ctx_id); /* can't happen */
+		rxfh.rss_context = ctx_id;
 	} else if (rxfh.rss_context) {
 		ctx = xa_load(&dev->ethtool->rss_ctx, rxfh.rss_context);
 		if (!ctx) {
 			ret = -ENOENT;
-			goto out;
+			goto out_unlock;
 		}
 	}
 	rxfh_dev.hfunc = rxfh.hfunc;
 	rxfh_dev.rss_context = rxfh.rss_context;
 	rxfh_dev.input_xfrm = rxfh.input_xfrm;
 
-	if (rxfh.rss_context && ops->create_rxfh_context) {
-		if (create) {
-			ret = ops->create_rxfh_context(dev, ctx, &rxfh_dev,
-						       extack);
-			/* Make sure driver populates defaults */
-			WARN_ON_ONCE(!ret && !rxfh_dev.key &&
-				     ops->rxfh_per_ctx_key &&
-				     !memchr_inv(ethtool_rxfh_context_key(ctx),
-						 0, ctx->key_size));
-		} else if (rxfh_dev.rss_delete) {
-			ret = ops->remove_rxfh_context(dev, ctx,
-						       rxfh.rss_context,
-						       extack);
-		} else {
-			ret = ops->modify_rxfh_context(dev, ctx, &rxfh_dev,
-						       extack);
-		}
-	} else {
+	if (!rxfh.rss_context) {
+		ntf = ETHTOOL_MSG_RSS_NTF;
 		ret = ops->set_rxfh(dev, &rxfh_dev, extack);
+	} else if (create) {
+		ntf = ETHTOOL_MSG_RSS_CREATE_NTF;
+		ret = ops->create_rxfh_context(dev, ctx, &rxfh_dev, extack);
+		/* Make sure driver populates defaults */
+		WARN_ON_ONCE(!ret && !rxfh_dev.key && ops->rxfh_per_ctx_key &&
+			     !memchr_inv(ethtool_rxfh_context_key(ctx), 0,
+					 ctx->key_size));
+	} else if (rxfh_dev.rss_delete) {
+		ntf = ETHTOOL_MSG_RSS_DELETE_NTF;
+		ret = ops->remove_rxfh_context(dev, ctx, rxfh.rss_context,
+					       extack);
+	} else {
+		ntf = ETHTOOL_MSG_RSS_NTF;
+		ret = ops->modify_rxfh_context(dev, ctx, &rxfh_dev, extack);
 	}
 	if (ret) {
+		ntf = 0;
 		if (create) {
 			/* failed to create, free our new tracking entry */
-			if (ops->create_rxfh_context)
-				xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context);
+			xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context);
 			kfree(ctx);
 		}
-		goto out;
+		goto out_unlock;
 	}
 
 	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh, rss_context),
@@ -1641,36 +1676,6 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 			dev->priv_flags |= IFF_RXFH_CONFIGURED;
 	}
 	/* Update rss_ctx tracking */
-	if (create && !ops->create_rxfh_context) {
-		/* driver uses old API, it chose context ID */
-		if (WARN_ON(xa_load(&dev->ethtool->rss_ctx, rxfh_dev.rss_context))) {
-			/* context ID reused, our tracking is screwed */
-			kfree(ctx);
-			goto out;
-		}
-		/* Allocate the exact ID the driver gave us */
-		if (xa_is_err(xa_store(&dev->ethtool->rss_ctx, rxfh_dev.rss_context,
-				       ctx, GFP_KERNEL))) {
-			kfree(ctx);
-			goto out;
-		}
-
-		/* Fetch the defaults for the old API, in the new API drivers
-		 * should write defaults into ctx themselves.
-		 */
-		rxfh_dev.indir = (u32 *)rss_config;
-		rxfh_dev.indir_size = dev_indir_size;
-
-		rxfh_dev.key = rss_config + indir_bytes;
-		rxfh_dev.key_size = dev_key_size;
-
-		ret = ops->get_rxfh(dev, &rxfh_dev);
-		if (WARN_ON(ret)) {
-			xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context);
-			kfree(ctx);
-			goto out;
-		}
-	}
 	if (rxfh_dev.rss_delete) {
 		WARN_ON(xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context) != ctx);
 		kfree(ctx);
@@ -1693,10 +1698,12 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 			ctx->input_xfrm = rxfh_dev.input_xfrm;
 	}
 
-out:
-	if (locked)
-		mutex_unlock(&dev->ethtool->rss_lock);
+out_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
+out_free:
 	kfree(rss_config);
+	if (ntf)
+		ethtool_rss_notify(dev, ntf, rxfh.rss_context);
 	return ret;
 }
 
@@ -1808,7 +1815,7 @@ static int ethtool_set_wol(struct net_device *dev, char __user *useraddr)
 		return ret;
 
 	dev->ethtool->wol_enabled = !!wol.wolopts;
-	ethtool_notify(dev, ETHTOOL_MSG_WOL_NTF, NULL);
+	ethtool_notify(dev, ETHTOOL_MSG_WOL_NTF);
 
 	return 0;
 }
@@ -1884,7 +1891,7 @@ static int ethtool_set_eee(struct net_device *dev, char __user *useraddr)
 	eee_to_keee(&keee, &eee);
 	ret = dev->ethtool_ops->set_eee(dev, &keee);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_EEE_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_EEE_NTF);
 	return ret;
 }
 
@@ -2124,7 +2131,7 @@ static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 	ret = dev->ethtool_ops->set_coalesce(dev, &coalesce, &kernel_coalesce,
 					     NULL);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_COALESCE_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_COALESCE_NTF);
 	return ret;
 }
 
@@ -2168,7 +2175,7 @@ static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam,
 					      &kernel_ringparam, NULL);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_RINGS_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_RINGS_NTF);
 	return ret;
 }
 
@@ -2235,7 +2242,7 @@ static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 
 	ret = dev->ethtool_ops->set_channels(dev, &channels);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_CHANNELS_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_CHANNELS_NTF);
 	return ret;
 }
 
@@ -2266,7 +2273,7 @@ static int ethtool_set_pauseparam(struct net_device *dev, void __user *useraddr)
 
 	ret = dev->ethtool_ops->set_pauseparam(dev, &pauseparam);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_PAUSE_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_PAUSE_NTF);
 	return ret;
 }
 
@@ -3268,7 +3275,7 @@ __dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr,
 		rc = ethtool_set_value_void(dev, useraddr,
 				       dev->ethtool_ops->set_msglevel);
 		if (!rc)
-			ethtool_notify(dev, ETHTOOL_MSG_DEBUG_NTF, NULL);
+			ethtool_notify(dev, ETHTOOL_MSG_DEBUG_NTF);
 		break;
 	case ETHTOOL_GEEE:
 		rc = ethtool_get_eee(dev, useraddr);
@@ -3332,20 +3339,24 @@ __dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr,
 		rc = ethtool_get_value(dev, useraddr, ethcmd,
 				       dev->ethtool_ops->get_priv_flags);
 		if (!rc)
-			ethtool_notify(dev, ETHTOOL_MSG_PRIVFLAGS_NTF, NULL);
+			ethtool_notify(dev, ETHTOOL_MSG_PRIVFLAGS_NTF);
 		break;
 	case ETHTOOL_SPFLAGS:
 		rc = ethtool_set_value(dev, useraddr,
 				       dev->ethtool_ops->set_priv_flags);
 		break;
 	case ETHTOOL_GRXFH:
+		rc = ethtool_get_rxfh_fields(dev, ethcmd, useraddr);
+		break;
+	case ETHTOOL_SRXFH:
+		rc = ethtool_set_rxfh_fields(dev, ethcmd, useraddr);
+		break;
 	case ETHTOOL_GRXRINGS:
 	case ETHTOOL_GRXCLSRLCNT:
 	case ETHTOOL_GRXCLSRULE:
 	case ETHTOOL_GRXCLSRLALL:
 		rc = ethtool_get_rxnfc(dev, ethcmd, useraddr);
 		break;
-	case ETHTOOL_SRXFH:
 	case ETHTOOL_SRXCLSRLDEL:
 	case ETHTOOL_SRXCLSRLINS:
 		rc = ethtool_set_rxnfc(dev, ethcmd, useraddr);

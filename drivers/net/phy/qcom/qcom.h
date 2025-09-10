@@ -172,6 +172,9 @@
 #define AT803X_LOC_MAC_ADDR_16_31_OFFSET	0x804B
 #define AT803X_LOC_MAC_ADDR_32_47_OFFSET	0x804A
 
+#define AT803X_PHY_MMD3_WOL_CTRL		0x8012
+#define AT803X_WOL_EN				BIT(5)
+
 #define AT803X_DEBUG_ADDR			0x1D
 #define AT803X_DEBUG_DATA			0x1E
 
@@ -192,6 +195,17 @@
 #define AT803X_MIN_DOWNSHIFT			2
 #define AT803X_MAX_DOWNSHIFT			9
 
+#define QCA808X_MMD7_CNT_CTRL			0x8029
+#define QCA808X_MMD7_CNT_CTRL_READ_CLEAR_EN	BIT(1)
+#define QCA808X_MMD7_CNT_CTRL_CRC_CHECK_EN	BIT(0)
+
+#define QCA808X_MMD7_CNT_RX_PKT_31_16		0x802a
+#define QCA808X_MMD7_CNT_RX_PKT_15_0		0x802b
+#define QCA808X_MMD7_CNT_RX_ERR_PKT		0x802c
+#define QCA808X_MMD7_CNT_TX_PKT_31_16		0x802d
+#define QCA808X_MMD7_CNT_TX_PKT_15_0		0x802e
+#define QCA808X_MMD7_CNT_TX_ERR_PKT		0x802f
+
 enum stat_access_type {
 	PHY,
 	MMD
@@ -209,11 +223,20 @@ struct at803x_ss_mask {
 	u8 speed_shift;
 };
 
+struct qcom_phy_hw_stats {
+	u64 rx_pkts;
+	u64 rx_err_pkts;
+	u64 tx_pkts;
+	u64 tx_err_pkts;
+};
+
 int at803x_debug_reg_read(struct phy_device *phydev, u16 reg);
 int at803x_debug_reg_mask(struct phy_device *phydev, u16 reg,
 			  u16 clear, u16 set);
 int at803x_debug_reg_write(struct phy_device *phydev, u16 reg, u16 data);
 int at803x_set_wol(struct phy_device *phydev,
+		   struct ethtool_wolinfo *wol);
+int at8031_set_wol(struct phy_device *phydev,
 		   struct ethtool_wolinfo *wol);
 void at803x_get_wol(struct phy_device *phydev,
 		    struct ethtool_wolinfo *wol);
@@ -241,3 +264,8 @@ int qca808x_led_reg_brightness_set(struct phy_device *phydev,
 int qca808x_led_reg_blink_set(struct phy_device *phydev, u16 reg,
 			      unsigned long *delay_on,
 			      unsigned long *delay_off);
+int qcom_phy_counter_config(struct phy_device *phydev);
+int qcom_phy_update_stats(struct phy_device *phydev,
+			  struct qcom_phy_hw_stats *hw_stats);
+void qcom_phy_get_stats(struct ethtool_phy_stats *stats,
+			struct qcom_phy_hw_stats hw_stats);

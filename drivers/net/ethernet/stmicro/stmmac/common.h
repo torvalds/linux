@@ -396,17 +396,6 @@ enum request_irq_err {
 
 #define CORE_IRQ_MTL_RX_OVERFLOW	BIT(8)
 
-/* Physical Coding Sublayer */
-struct rgmii_adv {
-	unsigned int pause;
-	unsigned int duplex;
-	unsigned int lp_pause;
-	unsigned int lp_duplex;
-};
-
-#define STMMAC_PCS_PAUSE	1
-#define STMMAC_PCS_ASYM_PAUSE	2
-
 /* DMA HW capabilities */
 struct dma_features {
 	unsigned int mbps_10_100;

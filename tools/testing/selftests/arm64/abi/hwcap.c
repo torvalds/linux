@@ -21,6 +21,10 @@
 
 #define TESTS_PER_HWCAP 3
 
+#ifndef AT_HWCAP3
+#define AT_HWCAP3 29
+#endif
+
 /*
  * Function expected to generate exception when the feature is not
  * supported and return when it is supported. If the specific exception
@@ -1097,6 +1101,18 @@ static const struct hwcap_data {
 		.cpuinfo = "hbc",
 		.sigill_fn = hbc_sigill,
 		.sigill_reliable = true,
+	},
+	{
+		.name = "MTE_FAR",
+		.at_hwcap = AT_HWCAP3,
+		.hwcap_bit = HWCAP3_MTE_FAR,
+		.cpuinfo = "mtefar",
+	},
+	{
+		.name = "MTE_STOREONLY",
+		.at_hwcap = AT_HWCAP3,
+		.hwcap_bit = HWCAP3_MTE_STORE_ONLY,
+		.cpuinfo = "mtestoreonly",
 	},
 };
 

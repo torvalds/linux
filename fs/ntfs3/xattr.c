@@ -313,7 +313,7 @@ out:
 static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 				size_t name_len, const void *value,
 				size_t val_size, int flags, bool locked,
-				__le16 *ea_size)
+				__le32 *ea_size)
 {
 	struct ntfs_inode *ni = ntfs_i(inode);
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
@@ -522,7 +522,7 @@ update_ea:
 	if (ea_info.size_pack != size_pack)
 		ni->ni_flags |= NI_FLAG_UPDATE_PARENT;
 	if (ea_size)
-		*ea_size = ea_info.size_pack;
+		*ea_size = ea_info.size;
 	mark_inode_dirty(&ni->vfs_inode);
 
 out:
@@ -551,6 +551,10 @@ struct posix_acl *ntfs_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	size_t req;
 	int err;
 	void *buf;
+
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ni)))
+		return ERR_PTR(-EINVAL);
 
 	/* Allocate PATH_MAX bytes. */
 	buf = __getname();
@@ -599,6 +603,10 @@ static noinline int ntfs_set_acl_ex(struct mnt_idmap *idmap,
 	int err;
 	int flags;
 	umode_t mode;
+
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ntfs_i(inode))))
+		return -EINVAL;
 
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
@@ -730,6 +738,10 @@ ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct ntfs_inode *ni = ntfs_i(inode);
 	ssize_t ret;
 
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ni)))
+		return -EINVAL;
+
 	if (!(ni->ni_flags & NI_FLAG_EA)) {
 		/* no xattr in file */
 		return 0;
@@ -750,6 +762,10 @@ static int ntfs_getxattr(const struct xattr_handler *handler, struct dentry *de,
 {
 	int err;
 	struct ntfs_inode *ni = ntfs_i(inode);
+
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ni)))
+		return -EINVAL;
 
 	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
 		return -EIO;
@@ -950,7 +966,7 @@ out:
  *
  * save uid/gid/mode in xattr
  */
-int ntfs_save_wsl_perm(struct inode *inode, __le16 *ea_size)
+int ntfs_save_wsl_perm(struct inode *inode, __le32 *ea_size)
 {
 	int err;
 	__le32 value;

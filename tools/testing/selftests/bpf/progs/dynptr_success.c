@@ -9,6 +9,8 @@
 #include "bpf_misc.h"
 #include "errno.h"
 
+#define PAGE_SIZE_64K 65536
+
 char _license[] SEC("license") = "GPL";
 
 int pid, err, val;
@@ -611,11 +613,12 @@ int test_dynptr_copy_xdp(struct xdp_md *xdp)
 	struct bpf_dynptr ptr_buf, ptr_xdp;
 	char data[] = "qwertyuiopasdfghjkl";
 	char buf[32] = {'\0'};
-	__u32 len = sizeof(data);
+	__u32 len = sizeof(data), xdp_data_size;
 	int i, chunks = 200;
 
 	/* ptr_xdp is backed by non-contiguous memory */
 	bpf_dynptr_from_xdp(xdp, 0, &ptr_xdp);
+	xdp_data_size = bpf_dynptr_size(&ptr_xdp);
 	bpf_ringbuf_reserve_dynptr(&ringbuf, len * chunks, 0, &ptr_buf);
 
 	/* Destination dynptr is backed by non-contiguous memory */
@@ -673,11 +676,178 @@ int test_dynptr_copy_xdp(struct xdp_md *xdp)
 			goto out;
 	}
 
-	if (bpf_dynptr_copy(&ptr_xdp, 2000, &ptr_xdp, 0, len * chunks) != -E2BIG)
+	if (bpf_dynptr_copy(&ptr_xdp, xdp_data_size - 3000, &ptr_xdp, 0, len * chunks) != -E2BIG)
 		err = 1;
 
 out:
 	bpf_ringbuf_discard_dynptr(&ptr_buf, 0);
+	return XDP_DROP;
+}
+
+char memset_zero_data[] = "data to be zeroed";
+
+SEC("?tp/syscalls/sys_enter_nanosleep")
+int test_dynptr_memset_zero(void *ctx)
+{
+	__u32 data_sz = sizeof(memset_zero_data);
+	char zeroes[32] = {'\0'};
+	struct bpf_dynptr ptr;
+
+	err = bpf_dynptr_from_mem(memset_zero_data, data_sz, 0, &ptr);
+	err = err ?: bpf_dynptr_memset(&ptr, 0, data_sz, 0);
+	err = err ?: bpf_memcmp(zeroes, memset_zero_data, data_sz);
+
+	return 0;
+}
+
+#define DYNPTR_MEMSET_VAL 42
+
+char memset_notzero_data[] = "data to be overwritten";
+
+SEC("?tp/syscalls/sys_enter_nanosleep")
+int test_dynptr_memset_notzero(void *ctx)
+{
+	u32 data_sz = sizeof(memset_notzero_data);
+	struct bpf_dynptr ptr;
+	char expected[32];
+
+	__builtin_memset(expected, DYNPTR_MEMSET_VAL, data_sz);
+
+	err = bpf_dynptr_from_mem(memset_notzero_data, data_sz, 0, &ptr);
+	err = err ?: bpf_dynptr_memset(&ptr, 0, data_sz, DYNPTR_MEMSET_VAL);
+	err = err ?: bpf_memcmp(expected, memset_notzero_data, data_sz);
+
+	return 0;
+}
+
+char memset_zero_offset_data[] = "data to be zeroed partially";
+
+SEC("?tp/syscalls/sys_enter_nanosleep")
+int test_dynptr_memset_zero_offset(void *ctx)
+{
+	char expected[] = "data to \0\0\0\0eroed partially";
+	__u32 data_sz = sizeof(memset_zero_offset_data);
+	struct bpf_dynptr ptr;
+
+	err = bpf_dynptr_from_mem(memset_zero_offset_data, data_sz, 0, &ptr);
+	err = err ?: bpf_dynptr_memset(&ptr, 8, 4, 0);
+	err = err ?: bpf_memcmp(expected, memset_zero_offset_data, data_sz);
+
+	return 0;
+}
+
+char memset_zero_adjusted_data[] = "data to be zeroed partially";
+
+SEC("?tp/syscalls/sys_enter_nanosleep")
+int test_dynptr_memset_zero_adjusted(void *ctx)
+{
+	char expected[] = "data\0\0\0\0be zeroed partially";
+	__u32 data_sz = sizeof(memset_zero_adjusted_data);
+	struct bpf_dynptr ptr;
+
+	err = bpf_dynptr_from_mem(memset_zero_adjusted_data, data_sz, 0, &ptr);
+	err = err ?: bpf_dynptr_adjust(&ptr, 4, 8);
+	err = err ?: bpf_dynptr_memset(&ptr, 0, bpf_dynptr_size(&ptr), 0);
+	err = err ?: bpf_memcmp(expected, memset_zero_adjusted_data, data_sz);
+
+	return 0;
+}
+
+char memset_overflow_data[] = "memset overflow data";
+
+SEC("?tp/syscalls/sys_enter_nanosleep")
+int test_dynptr_memset_overflow(void *ctx)
+{
+	__u32 data_sz = sizeof(memset_overflow_data);
+	struct bpf_dynptr ptr;
+	int ret;
+
+	err = bpf_dynptr_from_mem(memset_overflow_data, data_sz, 0, &ptr);
+	ret = bpf_dynptr_memset(&ptr, 0, data_sz + 1, 0);
+	if (ret != -E2BIG)
+		err = 1;
+
+	return 0;
+}
+
+SEC("?tp/syscalls/sys_enter_nanosleep")
+int test_dynptr_memset_overflow_offset(void *ctx)
+{
+	__u32 data_sz = sizeof(memset_overflow_data);
+	struct bpf_dynptr ptr;
+	int ret;
+
+	err = bpf_dynptr_from_mem(memset_overflow_data, data_sz, 0, &ptr);
+	ret = bpf_dynptr_memset(&ptr, 1, data_sz, 0);
+	if (ret != -E2BIG)
+		err = 1;
+
+	return 0;
+}
+
+SEC("?cgroup_skb/egress")
+int test_dynptr_memset_readonly(struct __sk_buff *skb)
+{
+	struct bpf_dynptr ptr;
+	int ret;
+
+	err = bpf_dynptr_from_skb(skb, 0, &ptr);
+
+	/* cgroup skbs are read only, memset should fail */
+	ret = bpf_dynptr_memset(&ptr, 0, bpf_dynptr_size(&ptr), 0);
+	if (ret != -EINVAL)
+		err = 1;
+
+	return 0;
+}
+
+#define min_t(type, x, y) ({		\
+	type __x = (x);			\
+	type __y = (y);			\
+	__x < __y ? __x : __y; })
+
+SEC("xdp")
+int test_dynptr_memset_xdp_chunks(struct xdp_md *xdp)
+{
+	u32 data_sz, chunk_sz, offset = 0;
+	const int max_chunks = 200;
+	struct bpf_dynptr ptr_xdp;
+	char expected_buf[32];
+	char buf[32];
+	int i;
+
+	__builtin_memset(expected_buf, DYNPTR_MEMSET_VAL, sizeof(expected_buf));
+
+	/* ptr_xdp is backed by non-contiguous memory */
+	bpf_dynptr_from_xdp(xdp, 0, &ptr_xdp);
+	data_sz = bpf_dynptr_size(&ptr_xdp);
+
+	err = bpf_dynptr_memset(&ptr_xdp, 0, data_sz, DYNPTR_MEMSET_VAL);
+	if (err) {
+		/* bpf_dynptr_memset() eventually called bpf_xdp_pointer()
+		 * where if data_sz is greater than 0xffff, -EFAULT will be
+		 * returned. For 64K page size, data_sz is greater than
+		 * 64K, so error is expected and let us zero out error and
+		 * return success.
+		 */
+		if (data_sz >= PAGE_SIZE_64K)
+			err = 0;
+		goto out;
+	}
+
+	bpf_for(i, 0, max_chunks) {
+		offset = i * sizeof(buf);
+		if (offset >= data_sz)
+			goto out;
+		chunk_sz = min_t(u32, sizeof(buf), data_sz - offset);
+		err = bpf_dynptr_read(&buf, chunk_sz, &ptr_xdp, offset, 0);
+		if (err)
+			goto out;
+		err = bpf_memcmp(buf, expected_buf, sizeof(buf));
+		if (err)
+			goto out;
+	}
+out:
 	return XDP_DROP;
 }
 

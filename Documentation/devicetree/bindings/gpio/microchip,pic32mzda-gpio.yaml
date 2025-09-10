@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/microchip,pic32mzda-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip PIC32 GPIO controller
+
+maintainers:
+  - Joshua Henderson <joshua.henderson@microchip.com>
+  - Purna Chandra Mandal <purna.mandal@microchip.com>
+
+properties:
+  compatible:
+    const: microchip,pic32mzda-gpio
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  gpio-ranges: true
+
+  "#gpio-cells":
+    const: 2
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 2
+
+  clocks:
+    maxItems: 1
+
+  microchip,gpio-bank:
+    description: Bank index owned by the controller
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - gpio-ranges
+  - "#gpio-cells"
+  - interrupts
+  - interrupt-controller
+  - "#interrupt-cells"
+  - clocks
+  - microchip,gpio-bank
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    gpio@1f860000 {
+        compatible = "microchip,pic32mzda-gpio";
+        reg = <0x1f860000 0x100>;
+        interrupts = <118 IRQ_TYPE_LEVEL_HIGH>;
+        #gpio-cells = <2>;
+        gpio-controller;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        clocks = <&rootclk 11>;
+        microchip,gpio-bank = <0>;
+        gpio-ranges = <&pic32_pinctrl 0 0 16>;
+    };

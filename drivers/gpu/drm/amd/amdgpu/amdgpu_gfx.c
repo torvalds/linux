@@ -149,7 +149,7 @@ static bool amdgpu_gfx_is_graphics_multipipe_capable(struct amdgpu_device *adev)
 static bool amdgpu_gfx_is_compute_multipipe_capable(struct amdgpu_device *adev)
 {
 	if (amdgpu_compute_multipipe != -1) {
-		DRM_INFO("amdgpu: forcing compute pipe policy %d\n",
+		dev_info(adev->dev, "amdgpu: forcing compute pipe policy %d\n",
 			 amdgpu_compute_multipipe);
 		return amdgpu_compute_multipipe == 1;
 	}
@@ -674,7 +674,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 		 * generation exposes more than 64 queues. If so, the
 		 * definition of queue_mask needs updating */
 		if (WARN_ON(i > (sizeof(queue_mask)*8))) {
-			DRM_ERROR("Invalid KCQ enabled: %d\n", i);
+			dev_err(adev->dev, "Invalid KCQ enabled: %d\n", i);
 			break;
 		}
 
@@ -683,15 +683,15 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 
 	amdgpu_device_flush_hdp(adev, NULL);
 
-	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
-		 kiq_ring->queue);
+	dev_info(adev->dev, "kiq ring mec %d pipe %d q %d\n", kiq_ring->me,
+		 kiq_ring->pipe, kiq_ring->queue);
 
 	spin_lock(&kiq->ring_lock);
 	r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
 					adev->gfx.num_compute_rings +
 					kiq->pmf->set_resources_size);
 	if (r) {
-		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
+		dev_err(adev->dev, "Failed to lock KIQ (%d).\n", r);
 		spin_unlock(&kiq->ring_lock);
 		return r;
 	}
@@ -712,7 +712,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 	r = amdgpu_ring_test_helper(kiq_ring);
 	spin_unlock(&kiq->ring_lock);
 	if (r)
-		DRM_ERROR("KCQ enable failed\n");
+		dev_err(adev->dev, "KCQ enable failed\n");
 
 	return r;
 }
@@ -734,7 +734,7 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 			r = amdgpu_mes_map_legacy_queue(adev,
 							&adev->gfx.gfx_ring[j]);
 			if (r) {
-				DRM_ERROR("failed to map gfx queue\n");
+				dev_err(adev->dev, "failed to map gfx queue\n");
 				return r;
 			}
 		}
@@ -748,7 +748,7 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 		r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
 						adev->gfx.num_gfx_rings);
 		if (r) {
-			DRM_ERROR("Failed to lock KIQ (%d).\n", r);
+			dev_err(adev->dev, "Failed to lock KIQ (%d).\n", r);
 			spin_unlock(&kiq->ring_lock);
 			return r;
 		}
@@ -769,7 +769,7 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 	r = amdgpu_ring_test_helper(kiq_ring);
 	spin_unlock(&kiq->ring_lock);
 	if (r)
-		DRM_ERROR("KGQ enable failed\n");
+		dev_err(adev->dev, "KGQ enable failed\n");
 
 	return r;
 }
@@ -1030,7 +1030,7 @@ int amdgpu_gfx_cp_ecc_error_irq(struct amdgpu_device *adev,
 
 	ih_data.head = *ras_if;
 
-	DRM_ERROR("CP ECC ERROR IRQ\n");
+	dev_err(adev->dev, "CP ECC ERROR IRQ\n");
 	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
 	return 0;
 }

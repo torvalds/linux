@@ -13,12 +13,13 @@ static enum io_uring_op ublk_to_uring_op(const struct ublksrv_io_desc *iod, int 
 	assert(0);
 }
 
-static int loop_queue_flush_io(struct ublk_queue *q, const struct ublksrv_io_desc *iod, int tag)
+static int loop_queue_flush_io(struct ublk_thread *t, struct ublk_queue *q,
+			       const struct ublksrv_io_desc *iod, int tag)
 {
 	unsigned ublk_op = ublksrv_get_op(iod);
 	struct io_uring_sqe *sqe[1];
 
-	ublk_io_alloc_sqes(ublk_get_io(q, tag), sqe, 1);
+	ublk_io_alloc_sqes(t, sqe, 1);
 	io_uring_prep_fsync(sqe[0], 1 /*fds[1]*/, IORING_FSYNC_DATASYNC);
 	io_uring_sqe_set_flags(sqe[0], IOSQE_FIXED_FILE);
 	/* bit63 marks us as tgt io */
@@ -26,7 +27,8 @@ static int loop_queue_flush_io(struct ublk_queue *q, const struct ublksrv_io_des
 	return 1;
 }
 
-static int loop_queue_tgt_rw_io(struct ublk_queue *q, const struct ublksrv_io_desc *iod, int tag)
+static int loop_queue_tgt_rw_io(struct ublk_thread *t, struct ublk_queue *q,
+				const struct ublksrv_io_desc *iod, int tag)
 {
 	unsigned ublk_op = ublksrv_get_op(iod);
 	unsigned zc = ublk_queue_use_zc(q);
@@ -36,7 +38,7 @@ static int loop_queue_tgt_rw_io(struct ublk_queue *q, const struct ublksrv_io_de
 	void *addr = (zc | auto_zc) ? NULL : (void *)iod->addr;
 
 	if (!zc || auto_zc) {
-		ublk_io_alloc_sqes(ublk_get_io(q, tag), sqe, 1);
+		ublk_io_alloc_sqes(t, sqe, 1);
 		if (!sqe[0])
 			return -ENOMEM;
 
@@ -52,7 +54,7 @@ static int loop_queue_tgt_rw_io(struct ublk_queue *q, const struct ublksrv_io_de
 		return 1;
 	}
 
-	ublk_io_alloc_sqes(ublk_get_io(q, tag), sqe, 3);
+	ublk_io_alloc_sqes(t, sqe, 3);
 
 	io_uring_prep_buf_register(sqe[0], 0, tag, q->q_id, ublk_get_io(q, tag)->buf_index);
 	sqe[0]->flags |= IOSQE_CQE_SKIP_SUCCESS | IOSQE_IO_HARDLINK;
@@ -72,7 +74,7 @@ static int loop_queue_tgt_rw_io(struct ublk_queue *q, const struct ublksrv_io_de
 	return 2;
 }
 
-static int loop_queue_tgt_io(struct ublk_queue *q, int tag)
+static int loop_queue_tgt_io(struct ublk_thread *t, struct ublk_queue *q, int tag)
 {
 	const struct ublksrv_io_desc *iod = ublk_get_iod(q, tag);
 	unsigned ublk_op = ublksrv_get_op(iod);
@@ -80,7 +82,7 @@ static int loop_queue_tgt_io(struct ublk_queue *q, int tag)
 
 	switch (ublk_op) {
 	case UBLK_IO_OP_FLUSH:
-		ret = loop_queue_flush_io(q, iod, tag);
+		ret = loop_queue_flush_io(t, q, iod, tag);
 		break;
 	case UBLK_IO_OP_WRITE_ZEROES:
 	case UBLK_IO_OP_DISCARD:
@@ -88,7 +90,7 @@ static int loop_queue_tgt_io(struct ublk_queue *q, int tag)
 		break;
 	case UBLK_IO_OP_READ:
 	case UBLK_IO_OP_WRITE:
-		ret = loop_queue_tgt_rw_io(q, iod, tag);
+		ret = loop_queue_tgt_rw_io(t, q, iod, tag);
 		break;
 	default:
 		ret = -EINVAL;
@@ -100,17 +102,19 @@ static int loop_queue_tgt_io(struct ublk_queue *q, int tag)
 	return ret;
 }
 
-static int ublk_loop_queue_io(struct ublk_queue *q, int tag)
+static int ublk_loop_queue_io(struct ublk_thread *t, struct ublk_queue *q,
+			      int tag)
 {
-	int queued = loop_queue_tgt_io(q, tag);
+	int queued = loop_queue_tgt_io(t, q, tag);
 
-	ublk_queued_tgt_io(q, tag, queued);
+	ublk_queued_tgt_io(t, q, tag, queued);
 	return 0;
 }
 
-static void ublk_loop_io_done(struct ublk_queue *q, int tag,
+static void ublk_loop_io_done(struct ublk_thread *t, struct ublk_queue *q,
 		const struct io_uring_cqe *cqe)
 {
+	unsigned tag = user_data_to_tag(cqe->user_data);
 	unsigned op = user_data_to_op(cqe->user_data);
 	struct ublk_io *io = ublk_get_io(q, tag);
 
@@ -126,8 +130,8 @@ static void ublk_loop_io_done(struct ublk_queue *q, int tag,
 	if (op == ublk_cmd_op_nr(UBLK_U_IO_REGISTER_IO_BUF))
 		io->tgt_ios += 1;
 
-	if (ublk_completed_tgt_io(q, tag))
-		ublk_complete_io(q, tag, io->result);
+	if (ublk_completed_tgt_io(t, q, tag))
+		ublk_complete_io(t, q, tag, io->result);
 }
 
 static int ublk_loop_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)

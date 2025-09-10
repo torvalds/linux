@@ -448,7 +448,5 @@ bool dpaa2_xsk_tx(struct dpaa2_eth_priv *priv,
 		percpu_stats->tx_errors++;
 	}
 
-	xsk_tx_release(ch->xsk_pool);
-
 	return total_enqueued == budget;
 }

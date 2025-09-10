@@ -194,7 +194,7 @@ static int vco_set(struct clk_icst *icst, struct icst_vco vco)
 			pr_err("ICST error: tried to use RDW != 22\n");
 		break;
 	default:
-		/* Regular auxilary oscillator */
+		/* Regular auxiliary oscillator */
 		mask = VERSATILE_AUX_OSC_BITS;
 		val = vco.v | (vco.r << 9) | (vco.s << 16);
 		break;

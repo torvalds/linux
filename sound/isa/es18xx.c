@@ -1771,7 +1771,7 @@ static int snd_es18xx_mixer(struct snd_card *card)
 	int err;
 	unsigned int idx;
 
-	strcpy(card->mixername, chip->pcm->name);
+	strscpy(card->mixername, chip->pcm->name);
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_es18xx_base_controls); idx++) {
 		struct snd_kcontrol *kctl;

@@ -46,8 +46,6 @@
  * MCR registers are not available on Virtual Function (VF).
  */
 
-#define STEER_SEMAPHORE		XE_REG(0xFD0)
-
 static inline struct xe_reg to_xe_reg(struct xe_reg_mcr reg_mcr)
 {
 	return reg_mcr.__reg;
@@ -420,12 +418,6 @@ static void init_steering_sqidi_psmi(struct xe_gt *gt)
 	gt->steering[SQIDI_PSMI].instance_target = select & 0x1;
 }
 
-static void init_steering_inst0(struct xe_gt *gt)
-{
-	gt->steering[INSTANCE0].group_target = 0;	/* unused */
-	gt->steering[INSTANCE0].instance_target = 0;	/* unused */
-}
-
 static const struct {
 	const char *name;
 	void (*init)(struct xe_gt *gt);
@@ -436,7 +428,7 @@ static const struct {
 	[DSS] =		{ "DSS",	init_steering_dss },
 	[OADDRM] =	{ "OADDRM / GPMXMT", init_steering_oaddrm },
 	[SQIDI_PSMI] =  { "SQIDI_PSMI", init_steering_sqidi_psmi },
-	[INSTANCE0] =	{ "INSTANCE 0",	init_steering_inst0 },
+	[INSTANCE0] =	{ "INSTANCE 0",	NULL },
 	[IMPLICIT_STEERING] = { "IMPLICIT", NULL },
 };
 
@@ -446,25 +438,17 @@ static const struct {
  *
  * Perform early software only initialization of the MCR lock to allow
  * the synchronization on accessing the STEER_SEMAPHORE register and
- * use the xe_gt_mcr_multicast_write() function.
+ * use the xe_gt_mcr_multicast_write() function, plus the minimum
+ * safe MCR registers required for VRAM/CCS probing.
  */
 void xe_gt_mcr_init_early(struct xe_gt *gt)
 {
+	struct xe_device *xe = gt_to_xe(gt);
+
 	BUILD_BUG_ON(IMPLICIT_STEERING + 1 != NUM_STEERING_TYPES);
 	BUILD_BUG_ON(ARRAY_SIZE(xe_steering_types) != NUM_STEERING_TYPES);
 
 	spin_lock_init(&gt->mcr_lock);
-}
-
-/**
- * xe_gt_mcr_init - Normal initialization of the MCR support
- * @gt: GT structure
- *
- * Perform normal initialization of the MCR for all usages.
- */
-void xe_gt_mcr_init(struct xe_gt *gt)
-{
-	struct xe_device *xe = gt_to_xe(gt);
 
 	if (IS_SRIOV_VF(xe))
 		return;
@@ -505,10 +489,27 @@ void xe_gt_mcr_init(struct xe_gt *gt)
 		}
 	}
 
+	/* Mark instance 0 as initialized, we need this early for VRAM and CCS probe. */
+	gt->steering[INSTANCE0].initialized = true;
+}
+
+/**
+ * xe_gt_mcr_init - Normal initialization of the MCR support
+ * @gt: GT structure
+ *
+ * Perform normal initialization of the MCR for all usages.
+ */
+void xe_gt_mcr_init(struct xe_gt *gt)
+{
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
+
 	/* Select non-terminated steering target for each type */
-	for (int i = 0; i < NUM_STEERING_TYPES; i++)
+	for (int i = 0; i < NUM_STEERING_TYPES; i++) {
+		gt->steering[i].initialized = true;
 		if (gt->steering[i].ranges && xe_steering_types[i].init)
 			xe_steering_types[i].init(gt);
+	}
 }
 
 /**
@@ -530,7 +531,7 @@ void xe_gt_mcr_set_implicit_defaults(struct xe_gt *gt)
 		u32 steer_val = REG_FIELD_PREP(MCR_SLICE_MASK, 0) |
 			REG_FIELD_PREP(MCR_SUBSLICE_MASK, 2);
 
-		xe_mmio_write32(&gt->mmio, MCFG_MCR_SELECTOR, steer_val);
+		xe_mmio_write32(&gt->mmio, STEER_SEMAPHORE, steer_val);
 		xe_mmio_write32(&gt->mmio, SF_MCR_SELECTOR, steer_val);
 		/*
 		 * For GAM registers, all reads should be directed to instance 1
@@ -570,6 +571,10 @@ bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
 
 		for (int i = 0; gt->steering[type].ranges[i].end > 0; i++) {
 			if (xe_mmio_in_range(&gt->mmio, &gt->steering[type].ranges[i], reg)) {
+				drm_WARN(&gt_to_xe(gt)->drm, !gt->steering[type].initialized,
+					 "Uninitialized usage of MCR register %s/%#x\n",
+					 xe_steering_types[type].name, reg.addr);
+
 				*group = gt->steering[type].group_target;
 				*instance = gt->steering[type].instance_target;
 				return true;

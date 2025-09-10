@@ -826,6 +826,13 @@ static void amd_pstate_init_prefcore(struct amd_cpudata *cpudata)
 	if (!amd_pstate_prefcore)
 		return;
 
+	/* should use amd-hfi instead */
+	if (cpu_feature_enabled(X86_FEATURE_AMD_WORKLOAD_CLASS) &&
+	    IS_ENABLED(CONFIG_AMD_HFI)) {
+		amd_pstate_prefcore = false;
+		return;
+	}
+
 	cpudata->hw_prefcore = true;
 
 	/* Priorities must be initialized before ITMT support can be toggled on. */

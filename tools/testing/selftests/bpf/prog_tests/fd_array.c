@@ -312,7 +312,7 @@ static void check_fd_array_cnt__referenced_btfs(void)
 
 	/* btf should still exist when original file descriptor is closed */
 	err = get_btf_id_by_fd(extra_fds[0], &btf_id);
-	if (!ASSERT_GE(err, 0, "get_btf_id_by_fd"))
+	if (!ASSERT_EQ(err, 0, "get_btf_id_by_fd"))
 		goto cleanup;
 
 	Close(extra_fds[0]);

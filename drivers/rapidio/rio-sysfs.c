@@ -247,8 +247,8 @@ static const struct bin_attribute rio_config_attr = {
 		 .mode = S_IRUGO | S_IWUSR,
 		 },
 	.size = RIO_MAINT_SPACE_SZ,
-	.read_new = rio_read_config,
-	.write_new = rio_write_config,
+	.read = rio_read_config,
+	.write = rio_write_config,
 };
 
 static const struct bin_attribute *const rio_dev_bin_attrs[] = {
@@ -278,7 +278,7 @@ static umode_t rio_dev_is_attr_visible(struct kobject *kobj,
 static const struct attribute_group rio_dev_group = {
 	.attrs		= rio_dev_attrs,
 	.is_visible	= rio_dev_is_attr_visible,
-	.bin_attrs_new	= rio_dev_bin_attrs,
+	.bin_attrs	= rio_dev_bin_attrs,
 };
 
 const struct attribute_group *rio_dev_groups[] = {

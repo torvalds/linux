@@ -5,6 +5,7 @@
 
 #define pr_fmt(fmt)	"[drm-dp] %s: " fmt, __func__
 
+#include <drm/drm_device.h>
 #include <drm/drm_print.h>
 
 #include "dp_reg.h"

@@ -194,7 +194,9 @@ enum iwl_rx_mpdu_amsdu_info {
 };
 
 enum iwl_rx_mpdu_mac_phy_band {
+	/* whether or not this is MAC or LINK depends on the API */
 	IWL_RX_MPDU_MAC_PHY_BAND_MAC_MASK	= 0x0f,
+	IWL_RX_MPDU_MAC_PHY_BAND_LINK_MASK	= 0x0f,
 	IWL_RX_MPDU_MAC_PHY_BAND_PHY_MASK	= 0x30,
 	IWL_RX_MPDU_MAC_PHY_BAND_BAND_MASK	= 0xc0,
 };
@@ -671,7 +673,7 @@ struct iwl_rx_mpdu_desc {
 	 */
 	__le16 phy_info;
 	/**
-	 * @mac_phy_band: MAC ID, PHY ID, band;
+	 * @mac_phy_band: MAC/link ID, PHY ID, band;
 	 *	see &enum iwl_rx_mpdu_mac_phy_band
 	 */
 	u8 mac_phy_band;
@@ -1018,5 +1020,25 @@ struct iwl_rfh_queue_config {
 	u8 reserved[3];
 	struct iwl_rfh_queue_data data[];
 } __packed; /* RFH_QUEUE_CONFIG_API_S_VER_1 */
+
+/**
+ * struct iwl_beacon_filter_notif_v1 - beacon filter notification
+ * @average_energy: average energy for the received beacon
+ * @mac_id: MAC ID the beacon was received for
+ */
+struct iwl_beacon_filter_notif_v1 {
+	__le32 average_energy;
+	__le32 mac_id;
+} __packed; /* BEACON_FILTER_IN_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_beacon_filter_notif - beacon filter notification
+ * @average_energy: average energy for the received beacon
+ * @link_id: link ID the beacon was received for
+ */
+struct iwl_beacon_filter_notif {
+	__le32 average_energy;
+	__le32 link_id;
+} __packed; /* BEACON_FILTER_IN_NTFY_API_S_VER_2 */
 
 #endif /* __iwl_fw_api_rx_h__ */

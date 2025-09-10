@@ -102,6 +102,11 @@ struct aw_profctrl_desc {
 	unsigned int cur_mode;
 };
 
+enum {
+	CALI_RESULT_NORMAL,
+	CALI_RESULT_ERROR,
+};
+
 struct aw_volume_desc {
 	unsigned int init_volume;
 	unsigned int mute_volume;
@@ -124,9 +129,25 @@ struct aw_cali_delay_desc {
 	unsigned int delay;
 };
 
+#define AW_CALI_CFG_NUM (4)
+struct cali_cfg {
+	uint32_t data[AW_CALI_CFG_NUM];
+};
+
+struct aw_cali_backup_desc {
+	unsigned int dsp_ng_cfg;
+	unsigned int dsp_lp_cfg;
+};
+
 struct aw_cali_desc {
 	u32 cali_re;
 	u32 ra;
+	bool cali_switch;
+	bool cali_running;
+	uint16_t cali_result;
+	uint16_t store_vol;
+	struct cali_cfg cali_cfg;
+	struct aw_cali_backup_desc backup_info;
 };
 
 struct aw_container {

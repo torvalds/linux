@@ -53,6 +53,11 @@ enum ena_regs_reset_reason_types {
 #define ENA_REGS_MMIO_RESP_HI_OFF                           0x64
 #define ENA_REGS_RSS_IND_ENTRY_UPDATE_OFF                   0x68
 
+/* phc_registers offsets */
+
+/* 100 base */
+#define ENA_REGS_PHC_DB_OFF                                 0x100
+
 /* version register */
 #define ENA_REGS_VERSION_MINOR_VERSION_MASK                 0xff
 #define ENA_REGS_VERSION_MAJOR_VERSION_SHIFT                8
@@ -128,5 +133,8 @@ enum ena_regs_reset_reason_types {
 #define ENA_REGS_RSS_IND_ENTRY_UPDATE_INDEX_MASK            0xffff
 #define ENA_REGS_RSS_IND_ENTRY_UPDATE_CQ_IDX_SHIFT          16
 #define ENA_REGS_RSS_IND_ENTRY_UPDATE_CQ_IDX_MASK           0xffff0000
+
+/* phc_db_req_id register */
+#define ENA_REGS_PHC_DB_REQ_ID_MASK                         0xffff
 
 #endif /* _ENA_REGS_H_ */

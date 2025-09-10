@@ -14,32 +14,41 @@ use core::mem::MaybeUninit;
 ///
 /// # Safety
 ///
-/// Implementers must ensure that:
-///   - `Self` is layout-compatible with [`RawDeviceId::RawType`]; i.e. it's safe to transmute to
-///     `RawDeviceId`.
+/// Implementers must ensure that `Self` is layout-compatible with [`RawDeviceId::RawType`];
+/// i.e. it's safe to transmute to `RawDeviceId`.
 ///
-///     This requirement is needed so `IdArray::new` can convert `Self` to `RawType` when building
-///     the ID table.
+/// This requirement is needed so `IdArray::new` can convert `Self` to `RawType` when building
+/// the ID table.
 ///
-///     Ideally, this should be achieved using a const function that does conversion instead of
-///     transmute; however, const trait functions relies on `const_trait_impl` unstable feature,
-///     which is broken/gone in Rust 1.73.
-///
-///   - `DRIVER_DATA_OFFSET` is the offset of context/data field of the device ID (usually named
-///     `driver_data`) of the device ID, the field is suitable sized to write a `usize` value.
-///
-///     Similar to the previous requirement, the data should ideally be added during `Self` to
-///     `RawType` conversion, but there's currently no way to do it when using traits in const.
+/// Ideally, this should be achieved using a const function that does conversion instead of
+/// transmute; however, const trait functions relies on `const_trait_impl` unstable feature,
+/// which is broken/gone in Rust 1.73.
 pub unsafe trait RawDeviceId {
     /// The raw type that holds the device id.
     ///
     /// Id tables created from [`Self`] are going to hold this type in its zero-terminated array.
     type RawType: Copy;
+}
 
-    /// The offset to the context/data field.
+/// Extension trait for [`RawDeviceId`] for devices that embed an index or context value.
+///
+/// This is typically used when the device ID struct includes a field like `driver_data`
+/// that is used to store a pointer-sized value (e.g., an index or context pointer).
+///
+/// # Safety
+///
+/// Implementers must ensure that `DRIVER_DATA_OFFSET` is the correct offset (in bytes) to
+/// the context/data field (e.g., the `driver_data` field) within the raw device ID structure.
+/// This field must be correctly sized to hold a `usize`.
+///
+/// Ideally, the data should be added during `Self` to `RawType` conversion,
+/// but there's currently no way to do it when using traits in const.
+pub unsafe trait RawDeviceIdIndex: RawDeviceId {
+    /// The offset (in bytes) to the context/data field in the raw device ID.
     const DRIVER_DATA_OFFSET: usize;
 
-    /// The index stored at `DRIVER_DATA_OFFSET` of the implementor of the [`RawDeviceId`] trait.
+    /// The index stored at `DRIVER_DATA_OFFSET` of the implementor of the [`RawDeviceIdIndex`]
+    /// trait.
     fn index(&self) -> usize;
 }
 
@@ -68,7 +77,15 @@ impl<T: RawDeviceId, U, const N: usize> IdArray<T, U, N> {
     /// Creates a new instance of the array.
     ///
     /// The contents are derived from the given identifiers and context information.
-    pub const fn new(ids: [(T, U); N]) -> Self {
+    ///
+    /// # Safety
+    ///
+    /// `data_offset` as `None` is always safe.
+    /// If `data_offset` is `Some(data_offset)`, then:
+    /// - `data_offset` must be the correct offset (in bytes) to the context/data field
+    ///   (e.g., the `driver_data` field) within the raw device ID structure.
+    /// - The field at `data_offset` must be correctly sized to hold a `usize`.
+    const unsafe fn build(ids: [(T, U); N], data_offset: Option<usize>) -> Self {
         let mut raw_ids = [const { MaybeUninit::<T::RawType>::uninit() }; N];
         let mut infos = [const { MaybeUninit::uninit() }; N];
 
@@ -77,14 +94,16 @@ impl<T: RawDeviceId, U, const N: usize> IdArray<T, U, N> {
             // SAFETY: by the safety requirement of `RawDeviceId`, we're guaranteed that `T` is
             // layout-wise compatible with `RawType`.
             raw_ids[i] = unsafe { core::mem::transmute_copy(&ids[i].0) };
-            // SAFETY: by the safety requirement of `RawDeviceId`, this would be effectively
-            // `raw_ids[i].driver_data = i;`.
-            unsafe {
-                raw_ids[i]
-                    .as_mut_ptr()
-                    .byte_offset(T::DRIVER_DATA_OFFSET as _)
-                    .cast::<usize>()
-                    .write(i);
+            if let Some(data_offset) = data_offset {
+                // SAFETY: by the safety requirement of this function, this would be effectively
+                // `raw_ids[i].driver_data = i;`.
+                unsafe {
+                    raw_ids[i]
+                        .as_mut_ptr()
+                        .byte_add(data_offset)
+                        .cast::<usize>()
+                        .write(i);
+                }
             }
 
             // SAFETY: this is effectively a move: `infos[i] = ids[i].1`. We make a copy here but
@@ -109,9 +128,31 @@ impl<T: RawDeviceId, U, const N: usize> IdArray<T, U, N> {
         }
     }
 
+    /// Creates a new instance of the array without writing index values.
+    ///
+    /// The contents are derived from the given identifiers and context information.
+    /// If the device implements [`RawDeviceIdIndex`], consider using [`IdArray::new`] instead.
+    pub const fn new_without_index(ids: [(T, U); N]) -> Self {
+        // SAFETY: Calling `Self::build` with `offset = None` is always safe,
+        // because no raw memory writes are performed in this case.
+        unsafe { Self::build(ids, None) }
+    }
+
     /// Reference to the contained [`RawIdArray`].
     pub const fn raw_ids(&self) -> &RawIdArray<T, N> {
         &self.raw_ids
+    }
+}
+
+impl<T: RawDeviceId + RawDeviceIdIndex, U, const N: usize> IdArray<T, U, N> {
+    /// Creates a new instance of the array.
+    ///
+    /// The contents are derived from the given identifiers and context information.
+    pub const fn new(ids: [(T, U); N]) -> Self {
+        // SAFETY: by the safety requirement of `RawDeviceIdIndex`,
+        // `T::DRIVER_DATA_OFFSET` is guaranteed to be the correct offset (in bytes) to
+        // a field within `T::RawType`.
+        unsafe { Self::build(ids, Some(T::DRIVER_DATA_OFFSET)) }
     }
 }
 
@@ -136,7 +177,7 @@ impl<T: RawDeviceId, U, const N: usize> IdTable<T, U> for IdArray<T, U, N> {
     fn as_ptr(&self) -> *const T::RawType {
         // This cannot be `self.ids.as_ptr()`, as the return pointer must have correct provenance
         // to access the sentinel.
-        (self as *const Self).cast()
+        core::ptr::from_ref(self).cast()
     }
 
     fn id(&self, index: usize) -> &T::RawType {

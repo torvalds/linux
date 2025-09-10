@@ -131,6 +131,11 @@ Work items:
   helpers (x86 inb()/outb()) and convert port-mapped I/O drivers to use
   this with dry-coding and sending to maintainers to test
 
+- Move the MMIO GPIO specific fields out of struct gpio_chip into a
+  dedicated structure. Currently every GPIO chip has them if gpio-mmio is
+  enabled in Kconfig even if it itself doesn't register with the helper
+  library.
+
 -------------------------------------------------------------------------------
 
 Generic regmap GPIO
@@ -183,16 +188,12 @@ remove the old ones and finally rename the new ones back to the old names.
 
 -------------------------------------------------------------------------------
 
-Extend the sysfs ABI to allow exporting lines by their HW offsets
+Remove legacy sysfs features
 
-The need to support the sysfs GPIO class is one of the main obstacles to
-removing the global GPIO numberspace from the kernel. In order to wean users
-off using global numbers from user-space, extend the existing interface with
-new per-gpiochip export/unexport attributes that allow to refer to GPIOs using
-their hardware offsets within the chip.
-
-Encourage users to switch to using them and eventually remove the existing
-global export/unexport attribues.
+We have two parallel per-chip class devices and per-exported-line attribute
+groups in sysfs. One is using the obsolete global GPIO numberspace and the
+second relies on hardware offsets of pins within the chip. Remove the former
+once user-space has switched to using the latter.
 
 -------------------------------------------------------------------------------
 

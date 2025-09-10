@@ -5,7 +5,6 @@ perf-util-y += mem-events.o
 perf-util-y += pmu.o
 perf-util-y += sym-handling.o
 perf-util-y += evsel.o
-perf-util-y += event.o
 
 perf-util-$(CONFIG_LIBDW) += skip-callchain-idx.o
 

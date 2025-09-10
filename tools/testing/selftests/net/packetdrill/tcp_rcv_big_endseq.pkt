@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0
+
+--mss=1000
+
+`./defaults.sh`
+
+    0 `nstat -n`
+
+// Establish a connection.
+   +0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 setsockopt(3, SOL_SOCKET, SO_RCVBUF, [10000], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,wscale 0>
+  +.1 < . 1:1(0) ack 1 win 257
+
+  +0 accept(3, ..., ...) = 4
+
+  +0 < P. 1:4001(4000) ack 1 win 257
+  +0 > .  1:1(0) ack 4001 win 5000
+
+// packet in sequence : SKB_DROP_REASON_TCP_INVALID_END_SEQUENCE / LINUX_MIB_BEYOND_WINDOW
+  +0 < P. 4001:54001(50000) ack 1 win 257
+  +0 > .  1:1(0) ack 4001 win 5000
+
+// ooo packet. : SKB_DROP_REASON_TCP_INVALID_END_SEQUENCE / LINUX_MIB_BEYOND_WINDOW
+  +1 < P. 5001:55001(50000) ack 1 win 257
+  +0 > .  1:1(0) ack 4001 win 5000
+
+// SKB_DROP_REASON_TCP_INVALID_SEQUENCE / LINUX_MIB_BEYOND_WINDOW
+  +0 < P. 70001:80001(10000) ack 1 win 257
+  +0 > .  1:1(0) ack 4001 win 5000
+
+  +0 read(4, ..., 100000) = 4000
+
+// If queue is empty, accept a packet even if its end_seq is above wup + rcv_wnd
+  +0 < P. 4001:54001(50000) ack 1 win 257
+  +0 > .  1:1(0) ack 54001 win 0
+
+// Check LINUX_MIB_BEYOND_WINDOW has been incremented 3 times.
++0 `nstat | grep TcpExtBeyondWindow | grep -q " 3 "`

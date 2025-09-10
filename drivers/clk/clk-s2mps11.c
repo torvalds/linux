@@ -235,7 +235,7 @@ MODULE_DEVICE_TABLE(platform, s2mps11_clk_id);
  * through platform_device_id.
  *
  * However if device's DT node contains proper clock compatible and driver is
- * built as a module, then the *module* matching will be done trough DT aliases.
+ * built as a module, then the *module* matching will be done through DT aliases.
  * This requires of_device_id table.  In the same time this will not change the
  * actual *device* matching so do not add .of_match_table.
  */

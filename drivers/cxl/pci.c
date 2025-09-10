@@ -379,7 +379,7 @@ static int cxl_pci_mbox_send(struct cxl_mailbox *cxl_mbox,
 {
 	int rc;
 
-	mutex_lock_io(&cxl_mbox->mbox_mutex);
+	mutex_lock(&cxl_mbox->mbox_mutex);
 	rc = __cxl_pci_mbox_send_cmd(cxl_mbox, cmd);
 	mutex_unlock(&cxl_mbox->mbox_mutex);
 

@@ -186,7 +186,7 @@ int arch_switch_tls(struct task_struct *to)
 	/*
 	 * We have no need whatsoever to switch TLS for kernel threads; beyond
 	 * that, that would also result in us calling os_set_thread_area with
-	 * userspace_pid[cpu] == 0, which gives an error.
+	 * task->mm == NULL, which would cause a crash.
 	 */
 	if (likely(to->mm))
 		return load_TLS(O_FORCE, to);

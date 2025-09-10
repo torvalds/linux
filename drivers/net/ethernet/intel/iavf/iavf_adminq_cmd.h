@@ -4,6 +4,8 @@
 #ifndef _IAVF_ADMINQ_CMD_H_
 #define _IAVF_ADMINQ_CMD_H_
 
+#include <linux/net/intel/libie/adminq.h>
+
 /* This header file defines the iavf Admin Queue commands and is shared between
  * iavf Firmware and Software.
  *
@@ -20,87 +22,6 @@
 
 /* API version 1.7 implements additional link and PHY-specific APIs  */
 #define IAVF_MINOR_VER_GET_LINK_INFO_XL710 0x0007
-
-struct iavf_aq_desc {
-	__le16 flags;
-	__le16 opcode;
-	__le16 datalen;
-	__le16 retval;
-	__le32 cookie_high;
-	__le32 cookie_low;
-	union {
-		struct {
-			__le32 param0;
-			__le32 param1;
-			__le32 param2;
-			__le32 param3;
-		} internal;
-		struct {
-			__le32 param0;
-			__le32 param1;
-			__le32 addr_high;
-			__le32 addr_low;
-		} external;
-		u8 raw[16];
-	} params;
-};
-
-/* Flags sub-structure
- * |0  |1  |2  |3  |4  |5  |6  |7  |8  |9  |10 |11 |12 |13 |14 |15 |
- * |DD |CMP|ERR|VFE| * *  RESERVED * * |LB |RD |VFC|BUF|SI |EI |FE |
- */
-
-/* command flags and offsets*/
-#define IAVF_AQ_FLAG_DD_SHIFT	0
-#define IAVF_AQ_FLAG_CMP_SHIFT	1
-#define IAVF_AQ_FLAG_ERR_SHIFT	2
-#define IAVF_AQ_FLAG_VFE_SHIFT	3
-#define IAVF_AQ_FLAG_LB_SHIFT	9
-#define IAVF_AQ_FLAG_RD_SHIFT	10
-#define IAVF_AQ_FLAG_VFC_SHIFT	11
-#define IAVF_AQ_FLAG_BUF_SHIFT	12
-#define IAVF_AQ_FLAG_SI_SHIFT	13
-#define IAVF_AQ_FLAG_EI_SHIFT	14
-#define IAVF_AQ_FLAG_FE_SHIFT	15
-
-#define IAVF_AQ_FLAG_DD		BIT(IAVF_AQ_FLAG_DD_SHIFT)  /* 0x1    */
-#define IAVF_AQ_FLAG_CMP	BIT(IAVF_AQ_FLAG_CMP_SHIFT) /* 0x2    */
-#define IAVF_AQ_FLAG_ERR	BIT(IAVF_AQ_FLAG_ERR_SHIFT) /* 0x4    */
-#define IAVF_AQ_FLAG_VFE	BIT(IAVF_AQ_FLAG_VFE_SHIFT) /* 0x8    */
-#define IAVF_AQ_FLAG_LB		BIT(IAVF_AQ_FLAG_LB_SHIFT)  /* 0x200  */
-#define IAVF_AQ_FLAG_RD		BIT(IAVF_AQ_FLAG_RD_SHIFT)  /* 0x400  */
-#define IAVF_AQ_FLAG_VFC	BIT(IAVF_AQ_FLAG_VFC_SHIFT) /* 0x800  */
-#define IAVF_AQ_FLAG_BUF	BIT(IAVF_AQ_FLAG_BUF_SHIFT) /* 0x1000 */
-#define IAVF_AQ_FLAG_SI		BIT(IAVF_AQ_FLAG_SI_SHIFT)  /* 0x2000 */
-#define IAVF_AQ_FLAG_EI		BIT(IAVF_AQ_FLAG_EI_SHIFT)  /* 0x4000 */
-#define IAVF_AQ_FLAG_FE		BIT(IAVF_AQ_FLAG_FE_SHIFT)  /* 0x8000 */
-
-/* error codes */
-enum iavf_admin_queue_err {
-	IAVF_AQ_RC_OK		= 0,  /* success */
-	IAVF_AQ_RC_EPERM	= 1,  /* Operation not permitted */
-	IAVF_AQ_RC_ENOENT	= 2,  /* No such element */
-	IAVF_AQ_RC_ESRCH	= 3,  /* Bad opcode */
-	IAVF_AQ_RC_EINTR	= 4,  /* operation interrupted */
-	IAVF_AQ_RC_EIO		= 5,  /* I/O error */
-	IAVF_AQ_RC_ENXIO	= 6,  /* No such resource */
-	IAVF_AQ_RC_E2BIG	= 7,  /* Arg too long */
-	IAVF_AQ_RC_EAGAIN	= 8,  /* Try again */
-	IAVF_AQ_RC_ENOMEM	= 9,  /* Out of memory */
-	IAVF_AQ_RC_EACCES	= 10, /* Permission denied */
-	IAVF_AQ_RC_EFAULT	= 11, /* Bad address */
-	IAVF_AQ_RC_EBUSY	= 12, /* Device or resource busy */
-	IAVF_AQ_RC_EEXIST	= 13, /* object already exists */
-	IAVF_AQ_RC_EINVAL	= 14, /* Invalid argument */
-	IAVF_AQ_RC_ENOTTY	= 15, /* Not a typewriter */
-	IAVF_AQ_RC_ENOSPC	= 16, /* No space left or alloc failure */
-	IAVF_AQ_RC_ENOSYS	= 17, /* Function not implemented */
-	IAVF_AQ_RC_ERANGE	= 18, /* Parameter out of range */
-	IAVF_AQ_RC_EFLUSHED	= 19, /* Cmd flushed due to prev cmd error */
-	IAVF_AQ_RC_BAD_ADDR	= 20, /* Descriptor contains a bad pointer */
-	IAVF_AQ_RC_EMODE	= 21, /* Op not allowed in current dev mode */
-	IAVF_AQ_RC_EFBIG	= 22, /* File too large */
-};
 
 /* Admin Queue command opcodes */
 enum iavf_admin_queue_opc {

@@ -67,12 +67,12 @@ Environment variables for ``*config``:
     with its value when saving the configuration, instead of using the
     default, ``CONFIG_``.
 
-Environment variables for ``{allyes/allmod/allno/rand}config``:
+Environment variables for ``{allyes/allmod/allno/alldef/rand}config``:
 
 ``KCONFIG_ALLCONFIG``
-    The allyesconfig/allmodconfig/allnoconfig/randconfig variants can also
-    use the environment variable KCONFIG_ALLCONFIG as a flag or a filename
-    that contains config symbols that the user requires to be set to a
+    The allyesconfig/allmodconfig/alldefconfig/allnoconfig/randconfig variants
+    can also use the environment variable KCONFIG_ALLCONFIG as a flag or a
+    filename that contains config symbols that the user requires to be set to a
     specific value.  If KCONFIG_ALLCONFIG is used without a filename where
     KCONFIG_ALLCONFIG == "" or KCONFIG_ALLCONFIG == "1", ``make *config``
     checks for a file named "all{yes/mod/no/def/random}.config"

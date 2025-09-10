@@ -99,6 +99,7 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 		goto put_chain;
 	}
 	params_new->update_flags = parm->update_flags;
+	params_new->action = parm->action;
 
 	spin_lock_bh(&p->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
@@ -580,7 +581,7 @@ TC_INDIRECT_SCOPE int tcf_csum_act(struct sk_buff *skb,
 	tcf_lastuse_update(&p->tcf_tm);
 	tcf_action_update_bstats(&p->common, skb);
 
-	action = READ_ONCE(p->tcf_action);
+	action = params->action;
 	if (unlikely(action == TC_ACT_SHOT))
 		goto drop;
 
@@ -631,9 +632,9 @@ drop:
 static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 			 int ref)
 {
+	const struct tcf_csum *p = to_tcf_csum(a);
 	unsigned char *b = skb_tail_pointer(skb);
-	struct tcf_csum *p = to_tcf_csum(a);
-	struct tcf_csum_params *params;
+	const struct tcf_csum_params *params;
 	struct tc_csum opt = {
 		.index   = p->tcf_index,
 		.refcnt  = refcount_read(&p->tcf_refcnt) - ref,
@@ -641,10 +642,9 @@ static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	};
 	struct tcf_t t;
 
-	spin_lock_bh(&p->tcf_lock);
-	params = rcu_dereference_protected(p->params,
-					   lockdep_is_held(&p->tcf_lock));
-	opt.action = p->tcf_action;
+	rcu_read_lock();
+	params = rcu_dereference(p->params);
+	opt.action = params->action;
 	opt.update_flags = params->update_flags;
 
 	if (nla_put(skb, TCA_CSUM_PARMS, sizeof(opt), &opt))
@@ -653,12 +653,12 @@ static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	tcf_tm_dump(&t, &p->tcf_tm);
 	if (nla_put_64bit(skb, TCA_CSUM_TM, sizeof(t), &t, TCA_CSUM_PAD))
 		goto nla_put_failure;
-	spin_unlock_bh(&p->tcf_lock);
+	rcu_read_unlock();
 
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock_bh(&p->tcf_lock);
+	rcu_read_unlock();
 	nlmsg_trim(skb, b);
 	return -1;
 }

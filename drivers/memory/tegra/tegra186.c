@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2017-2021 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (C) 2017-2025 NVIDIA CORPORATION.  All rights reserved.
  */
 
 #include <linux/io.h>
@@ -26,11 +26,24 @@
 static int tegra186_mc_probe(struct tegra_mc *mc)
 {
 	struct platform_device *pdev = to_platform_device(mc->dev);
+	struct resource *res;
 	unsigned int i;
 	char name[8];
 	int err;
 
-	mc->bcast_ch_regs = devm_platform_ioremap_resource_byname(pdev, "broadcast");
+	/*
+	 * From Tegra264, the SID region is not present in MC node and BROADCAST is first.
+	 * The common function 'tegra_mc_probe()' already maps first region entry from DT.
+	 * Check if the SID region is present in DT then map BROADCAST. Otherwise, consider
+	 * the first entry mapped in mc probe as the BROADCAST region. This is done to avoid
+	 * mapping the region twice when SID is not present and keep backward compatibility.
+	 */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sid");
+	if (res)
+		mc->bcast_ch_regs = devm_platform_ioremap_resource_byname(pdev, "broadcast");
+	else
+		mc->bcast_ch_regs = mc->regs;
+
 	if (IS_ERR(mc->bcast_ch_regs)) {
 		if (PTR_ERR(mc->bcast_ch_regs) == -EINVAL) {
 			dev_warn(&pdev->dev,

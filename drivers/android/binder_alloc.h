@@ -15,7 +15,6 @@
 #include <linux/list_lru.h>
 #include <uapi/linux/android/binder.h>
 
-extern struct list_lru binder_freelist;
 struct binder_transaction;
 
 /**
@@ -91,6 +90,7 @@ static inline struct list_head *page_to_lru(struct page *p)
  * @free_async_space:   VA space available for async buffers. This is
  *                      initialized at mmap time to 1/2 the full VA space
  * @pages:              array of struct page *
+ * @freelist:           lru list to use for free pages (invariant after init)
  * @buffer_size:        size of address space specified via mmap
  * @pid:                pid for associated binder_proc (invariant after init)
  * @pages_high:         high watermark of offset in @pages
@@ -113,6 +113,7 @@ struct binder_alloc {
 	struct rb_root allocated_buffers;
 	size_t free_async_space;
 	struct page **pages;
+	struct list_lru *freelist;
 	size_t buffer_size;
 	int pid;
 	size_t pages_high;
@@ -120,11 +121,6 @@ struct binder_alloc {
 	bool oneway_spam_detected;
 };
 
-#ifdef CONFIG_ANDROID_BINDER_IPC_SELFTEST
-void binder_selftest_alloc(struct binder_alloc *alloc);
-#else
-static inline void binder_selftest_alloc(struct binder_alloc *alloc) {}
-#endif
 enum lru_status binder_alloc_free_page(struct list_head *item,
 				       struct list_lru_one *lru,
 				       void *cb_arg);
@@ -160,12 +156,8 @@ void binder_alloc_print_pages(struct seq_file *m,
 static inline size_t
 binder_alloc_get_free_async_space(struct binder_alloc *alloc)
 {
-	size_t free_async_space;
-
-	mutex_lock(&alloc->mutex);
-	free_async_space = alloc->free_async_space;
-	mutex_unlock(&alloc->mutex);
-	return free_async_space;
+	guard(mutex)(&alloc->mutex);
+	return alloc->free_async_space;
 }
 
 unsigned long
@@ -186,6 +178,12 @@ int binder_alloc_copy_from_buffer(struct binder_alloc *alloc,
 				  struct binder_buffer *buffer,
 				  binder_size_t buffer_offset,
 				  size_t bytes);
+
+#if IS_ENABLED(CONFIG_KUNIT)
+void __binder_alloc_init(struct binder_alloc *alloc, struct list_lru *freelist);
+size_t binder_alloc_buffer_size(struct binder_alloc *alloc,
+				struct binder_buffer *buffer);
+#endif
 
 #endif /* _LINUX_BINDER_ALLOC_H */
 

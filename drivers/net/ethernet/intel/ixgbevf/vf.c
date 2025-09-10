@@ -255,7 +255,7 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 
 	memset(msgbuf, 0, sizeof(msgbuf));
 	/* If index is one then this is the start of a new list and needs
-	 * indication to the PF so it can do it's own list management.
+	 * indication to the PF so it can do its own list management.
 	 * If it is zero then that tells the PF to just clear all of
 	 * this VF's macvlans and there is no new list.
 	 */

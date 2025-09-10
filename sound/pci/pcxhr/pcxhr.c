@@ -1149,7 +1149,7 @@ int pcxhr_create_pcm(struct snd_pcxhr *chip)
 
 	pcm->info_flags = 0;
 	pcm->nonatomic = true;
-	strcpy(pcm->name, name);
+	strscpy(pcm->name, name);
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
 				       &chip->mgr->pci->dev,
@@ -1605,7 +1605,7 @@ static int pcxhr_probe(struct pci_dev *pci,
 			return err;
 		}
 
-		strcpy(card->driver, DRIVER_NAME);
+		strscpy(card->driver, DRIVER_NAME);
 		snprintf(card->shortname, sizeof(card->shortname),
 			 "Digigram [PCM #%d]", i);
 		snprintf(card->longname, sizeof(card->longname),

@@ -47,6 +47,26 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+
+	sfp1: sfp1 {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp1_i2c>;
+		mod-def0-gpios = <&gpioexp2 2 GPIO_ACTIVE_LOW>;
+		los-gpios = <&gpioexp2 3 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&gpioexp2 0 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&gpioexp2 1 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
+
+	sfp2: sfp2 {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp2_i2c>;
+		mod-def0-gpios = <&gpioexp2 10 GPIO_ACTIVE_LOW>;
+		los-gpios = <&gpioexp2 11 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&gpioexp2 8 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&gpioexp2 9 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
 };
 
 &duart0 {
@@ -69,6 +89,7 @@
 		reg = <0x70>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		vdd-supply = <&reg_3v3>;
 
 		i2c@0 {
 			reg = <0x0>;

@@ -3,7 +3,11 @@
  * Copyright (C) 2025 Inochi Amaoto <inochiama@gmail.com>
  */
 
+#include <dt-bindings/clock/sophgo,sg2044-pll.h>
+#include <dt-bindings/clock/sophgo,sg2044-clk.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/pinctrl-sg2044.h>
 
 #include "sg2044-cpus.dtsi"
 #include "sg2044-reset.h"
@@ -28,10 +32,243 @@
 		#size-cells = <2>;
 		ranges;
 
+		pcie0: pcie@6c00000000 {
+			compatible = "sophgo,sg2044-pcie";
+			reg = <0x6c 0x00000000 0x0 0x00001000>,
+			      <0x6c 0x00300000 0x0 0x00004000>,
+			      <0x48 0x00000000 0x0 0x00001000>,
+			      <0x6c 0x000c0000 0x0 0x00001000>;
+			reg-names = "dbi", "atu", "config", "app";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+			clocks = <&clk CLK_GATE_PCIE_1G>;
+			clock-names = "core";
+			device_type = "pci";
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie_intc0 0>,
+					<0 0 0 2 &pcie_intc0 1>,
+					<0 0 0 3 &pcie_intc0 2>,
+					<0 0 0 4 &pcie_intc0 3>;
+			msi-parent = <&msi>;
+			ranges = <0x01000000 0x0  0x00000000  0x48 0x10000000  0x0 0x00200000>,
+				 <0x42000000 0x0  0x10000000  0x0  0x10000000  0x0 0x04000000>,
+				 <0x02000000 0x0  0x14000000  0x0  0x14000000  0x0 0x04000000>,
+				 <0x43000000 0x4a 0x00000000  0x4a 0x00000000  0x2 0x00000000>,
+				 <0x03000000 0x49 0x00000000  0x49 0x00000000  0x1 0x00000000>;
+			status = "disabled";
+
+			pcie_intc0: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&intc>;
+				interrupts = <65 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+			};
+		};
+
+		pcie1: pcie@6c00400000 {
+			compatible = "sophgo,sg2044-pcie";
+			reg = <0x6c 0x00400000 0x0 0x00001000>,
+			      <0x6c 0x00700000 0x0 0x00004000>,
+			      <0x40 0x00000000 0x0 0x00001000>,
+			      <0x6c 0x00780000 0x0 0x00001000>;
+			reg-names = "dbi", "atu", "config", "app";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+			clocks = <&clk CLK_GATE_PCIE_1G>;
+			clock-names = "core";
+			device_type = "pci";
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie_intc1 0>,
+					<0 0 0 2 &pcie_intc1 1>,
+					<0 0 0 3 &pcie_intc1 2>,
+					<0 0 0 4 &pcie_intc1 3>;
+			msi-parent = <&msi>;
+			ranges = <0x01000000 0x0  0x00000000  0x40 0x10000000  0x0 0x00200000>,
+				 <0x42000000 0x0  0x00000000  0x0  0x00000000  0x0 0x04000000>,
+				 <0x02000000 0x0  0x04000000  0x0  0x04000000  0x0 0x04000000>,
+				 <0x43000000 0x42 0x00000000  0x42 0x00000000  0x2 0x00000000>,
+				 <0x03000000 0x41 0x00000000  0x41 0x00000000  0x1 0x00000000>;
+			status = "disabled";
+
+			pcie_intc1: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&intc>;
+				interrupts = <64 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+			};
+		};
+
+		pcie2: pcie@6c04000000 {
+			compatible = "sophgo,sg2044-pcie";
+			reg = <0x6c 0x04000000 0x0 0x00001000>,
+			      <0x6c 0x04300000 0x0 0x00004000>,
+			      <0x58 0x00000000 0x0 0x00001000>,
+			      <0x6c 0x040c0000 0x0 0x00001000>;
+			reg-names = "dbi", "atu", "config", "app";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+			clocks = <&clk CLK_GATE_PCIE_1G>;
+			clock-names = "core";
+			device_type = "pci";
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie_intc2 0>,
+					<0 0 0 2 &pcie_intc2 1>,
+					<0 0 0 3 &pcie_intc2 2>,
+					<0 0 0 4 &pcie_intc2 3>;
+			msi-parent = <&msi>;
+			ranges = <0x01000000 0x0  0x00000000  0x58 0x10000000  0x0 0x00200000>,
+				 <0x42000000 0x0  0x30000000  0x0  0x30000000  0x0 0x04000000>,
+				 <0x02000000 0x0  0x34000000  0x0  0x34000000  0x0 0x04000000>,
+				 <0x43000000 0x5a 0x00000000  0x5a 0x00000000  0x2 0x00000000>,
+				 <0x03000000 0x59 0x00000000  0x59 0x00000000  0x1 0x00000000>;
+			status = "disabled";
+
+			pcie_intc2: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&intc>;
+				interrupts = <74 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+			};
+		};
+
+		pcie3: pcie@6c04400000 {
+			compatible = "sophgo,sg2044-pcie";
+			reg = <0x6c 0x04400000 0x0 0x00001000>,
+			      <0x6c 0x04700000 0x0 0x00004000>,
+			      <0x50 0x00000000 0x0 0x00001000>,
+			      <0x6c 0x04780000 0x0 0x00001000>;
+			reg-names = "dbi", "atu", "config", "app";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+			clocks = <&clk CLK_GATE_PCIE_1G>;
+			clock-names = "core";
+			device_type = "pci";
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie_intc3 0>,
+					<0 0 0 2 &pcie_intc3 1>,
+					<0 0 0 3 &pcie_intc3 2>,
+					<0 0 0 4 &pcie_intc3 3>;
+			msi-parent = <&msi>;
+			ranges = <0x01000000 0x0  0x00000000  0x50 0x10000000  0x0 0x00200000>,
+				 <0x42000000 0x0  0x20000000  0x0  0x20000000  0x0 0x04000000>,
+				 <0x02000000 0x0  0x24000000  0x0  0x24000000  0x0 0x04000000>,
+				 <0x43000000 0x52 0x00000000  0x52 0x00000000  0x2 0x00000000>,
+				 <0x03000000 0x51 0x00000000  0x51 0x00000000  0x1 0x00000000>;
+			status = "disabled";
+
+			pcie_intc3: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&intc>;
+				interrupts = <73 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+			};
+		};
+
+		pcie4: pcie@6c08400000 {
+			compatible = "sophgo,sg2044-pcie";
+			reg = <0x6c 0x08400000 0x0 0x00001000>,
+			      <0x6c 0x08700000 0x0 0x00004000>,
+			      <0x60 0x00000000 0x0 0x00001000>,
+			      <0x6c 0x08780000 0x0 0x00001000>;
+			reg-names = "dbi", "atu", "config", "app";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+			clocks = <&clk CLK_GATE_PCIE_1G>;
+			clock-names = "core";
+			device_type = "pci";
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie_intc4 0>,
+					<0 0 0 2 &pcie_intc4 1>,
+					<0 0 0 3 &pcie_intc4 2>,
+					<0 0 0 4 &pcie_intc4 3>;
+			msi-parent = <&msi>;
+			ranges = <0x01000000 0x0  0x00000000  0x60 0x10000000  0x0 0x00200000>,
+				 <0x42000000 0x0  0x40000000  0x0  0x40000000  0x0 0x04000000>,
+				 <0x02000000 0x0  0x44000000  0x0  0x44000000  0x0 0x04000000>,
+				 <0x43000000 0x62 0x00000000  0x62 0x00000000  0x2 0x00000000>,
+				 <0x03000000 0x61 0x00000000  0x61 0x00000000  0x1 0x00000000>;
+			status = "disabled";
+
+			pcie_intc4: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&intc>;
+				interrupts = <125 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+			};
+		};
+
+		msi: msi-controller@6d50000000 {
+			compatible = "sophgo,sg2044-msi";
+			reg = <0x6d 0x50000000 0x0 0x800>,
+			      <0x0 0x7ee00000 0x0 0x40>;
+			reg-names = "clr", "doorbell";
+			#msi-cells = <0>;
+			msi-controller;
+			msi-ranges = <&intc 352 IRQ_TYPE_LEVEL_HIGH 512>;
+			status = "disabled";
+		};
+
+		spifmc0: spi@7001000000 {
+			compatible = "sophgo,sg2044-spifmc-nor";
+			reg = <0x70 0x01000000 0x0 0x4000000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk CLK_GATE_AHB_SPIFMC>;
+			interrupt-parent = <&intc>;
+			interrupts = <37 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&rst RST_SPIFMC0>;
+			status = "disabled";
+		};
+
+		spifmc1: spi@7005000000 {
+			compatible = "sophgo,sg2044-spifmc-nor";
+			reg = <0x70 0x05000000 0x0 0x4000000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk CLK_GATE_AHB_SPIFMC>;
+			interrupt-parent = <&intc>;
+			interrupts = <38 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&rst RST_SPIFMC1>;
+			status = "disabled";
+		};
+
+		dmac0: dma-controller@7020000000 {
+			compatible = "snps,axi-dma-1.01a";
+			reg = <0x70 0x20000000 0x0 0x10000>;
+			#dma-cells = <1>;
+			clock-names = "core-clk", "cfgr-clk";
+			clocks = <&clk CLK_GATE_SYSDMA_AXI>,
+				 <&clk CLK_GATE_SYSDMA_AXI>;
+			dma-noncoherent;
+			interrupt-parent = <&intc>;
+			interrupts = <36 IRQ_TYPE_LEVEL_HIGH>;
+			dma-channels = <8>;
+			snps,priority = <0 1 2 3 4 5 6 7>;
+			snps,block-size = <4096 4096 4096 4096
+					   4096 4096 4096 4096>;
+			snps,dma-masters = <2>;
+			snps,data-width = <2>;
+			snps,axi-max-burst-len = <4>;
+			status = "disabled";
+		};
+
 		uart0: serial@7030000000 {
 			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
 			reg = <0x70 0x30000000 0x0 0x1000>;
 			clock-frequency = <500000000>;
+			clocks = <&clk CLK_GATE_UART_500M>,
+				 <&clk CLK_GATE_APB_UART>;
+			clock-names = "baudclk", "apb_pclk";
 			interrupt-parent = <&intc>;
 			interrupts = <41 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
@@ -44,6 +281,9 @@
 			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
 			reg = <0x70 0x30001000 0x0 0x1000>;
 			clock-frequency = <500000000>;
+			clocks = <&clk CLK_GATE_UART_500M>,
+				 <&clk CLK_GATE_APB_UART>;
+			clock-names = "baudclk", "apb_pclk";
 			interrupt-parent = <&intc>;
 			interrupts = <42 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
@@ -56,6 +296,9 @@
 			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
 			reg = <0x70 0x30002000 0x0 0x1000>;
 			clock-frequency = <500000000>;
+			clocks = <&clk CLK_GATE_UART_500M>,
+				 <&clk CLK_GATE_APB_UART>;
+			clock-names = "baudclk", "apb_pclk";
 			interrupt-parent = <&intc>;
 			interrupts = <43 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
@@ -68,12 +311,268 @@
 			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
 			reg = <0x70 0x30003000 0x0 0x1000>;
 			clock-frequency = <500000000>;
+			clocks = <&clk CLK_GATE_UART_500M>,
+				 <&clk CLK_GATE_APB_UART>;
+			clock-names = "baudclk", "apb_pclk";
 			interrupt-parent = <&intc>;
 			interrupts = <44 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			resets = <&rst RST_UART3>;
 			status = "disabled";
+		};
+
+		gmac0: ethernet@7030006000 {
+			compatible = "sophgo,sg2044-dwmac", "snps,dwmac-5.30a";
+			reg = <0x70 0x30006000 0x0 0x4000>;
+			clocks = <&clk CLK_GATE_AXI_ETH0>,
+				 <&clk CLK_GATE_PTP_REF_I_ETH0>,
+				 <&clk CLK_GATE_TX_ETH0>;
+			clock-names = "stmmaceth", "ptp_ref", "tx";
+			dma-noncoherent;
+			interrupt-parent = <&intc>;
+			interrupts = <296 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq";
+			resets = <&rst RST_ETH0>;
+			reset-names = "stmmaceth";
+			snps,multicast-filter-bins = <0>;
+			snps,perfect-filter-entries = <1>;
+			snps,aal;
+			snps,tso;
+			snps,txpbl = <32>;
+			snps,rxpbl = <32>;
+			snps,mtl-rx-config = <&gmac0_mtl_rx_setup>;
+			snps,mtl-tx-config = <&gmac0_mtl_tx_setup>;
+			snps,axi-config = <&gmac0_stmmac_axi_setup>;
+			status = "disabled";
+
+			mdio {
+				compatible = "snps,dwmac-mdio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			gmac0_mtl_rx_setup: rx-queues-config {
+				snps,rx-queues-to-use = <8>;
+				snps,rx-sched-wsp;
+				queue0 {};
+				queue1 {};
+				queue2 {};
+				queue3 {};
+				queue4 {};
+				queue5 {};
+				queue6 {};
+				queue7 {};
+			};
+
+			gmac0_mtl_tx_setup: tx-queues-config {
+				snps,tx-queues-to-use = <8>;
+				queue0 {};
+				queue1 {};
+				queue2 {};
+				queue3 {};
+				queue4 {};
+				queue5 {};
+				queue6 {};
+				queue7 {};
+			};
+
+			gmac0_stmmac_axi_setup: stmmac-axi-config {
+				snps,blen = <16 8 4 0 0 0 0>;
+				snps,wr_osr_lmt = <1>;
+				snps,rd_osr_lmt = <2>;
+			};
+		};
+
+		emmc: mmc@703000a000 {
+			compatible = "sophgo,sg2044-dwcmshc", "sophgo,sg2042-dwcmshc";
+			reg = <0x70 0x3000a000 0x0 0x1000>;
+			clocks = <&clk CLK_GATE_EMMC>,
+				 <&clk CLK_GATE_AXI_EMMC>,
+				 <&clk CLK_GATE_EMMC_100K>;
+			clock-names = "core", "bus", "timer";
+			interrupt-parent = <&intc>;
+			interrupts = <298 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		sd: mmc@703000b000 {
+			compatible = "sophgo,sg2044-dwcmshc", "sophgo,sg2042-dwcmshc";
+			reg = <0x70 0x3000b000 0x0 0x1000>;
+			clocks = <&clk CLK_GATE_SD>,
+				 <&clk CLK_GATE_AXI_SD>,
+				 <&clk CLK_GATE_SD_100K>;
+			clock-names = "core", "bus", "timer";
+			interrupt-parent = <&intc>;
+			interrupts = <300 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@7040005000 {
+			compatible = "sophgo,sg2044-i2c", "snps,designware-i2c";
+			reg = <0x70 0x40005000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			clocks = <&clk CLK_GATE_APB_I2C>;
+			clock-names = "ref";
+			interrupt-parent = <&intc>;
+			interrupts = <31 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&rst RST_I2C0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@7040006000 {
+			compatible = "sophgo,sg2044-i2c", "snps,designware-i2c";
+			reg = <0x70 0x40006000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			clocks = <&clk CLK_GATE_APB_I2C>;
+			clock-names = "ref";
+			interrupt-parent = <&intc>;
+			interrupts = <32 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&rst RST_I2C1>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@7040007000 {
+			compatible = "sophgo,sg2044-i2c", "snps,designware-i2c";
+			reg = <0x70 0x40007000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			clocks = <&clk CLK_GATE_APB_I2C>;
+			clock-names = "ref";
+			interrupt-parent = <&intc>;
+			interrupts = <33 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&rst RST_I2C2>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@7040008000 {
+			compatible = "sophgo,sg2044-i2c", "snps,designware-i2c";
+			reg = <0x70 0x40008000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			clocks = <&clk CLK_GATE_APB_I2C>;
+			clock-names = "ref";
+			interrupt-parent = <&intc>;
+			interrupts = <34 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&rst RST_I2C3>;
+			status = "disabled";
+		};
+
+		gpio0: gpio@7040009000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x70 0x40009000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk CLK_GATE_APB_GPIO>,
+				 <&clk CLK_GATE_GPIO_DB>;
+			clock-names = "bus", "db";
+			resets = <&rst RST_GPIO0>;
+
+			porta: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				reg = <0>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				ngpios = <32>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&intc>;
+				interrupts = <26 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		gpio1: gpio@704000a000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x70 0x4000a000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk CLK_GATE_APB_GPIO>,
+				 <&clk CLK_GATE_GPIO_DB>;
+			clock-names = "bus", "db";
+			resets = <&rst RST_GPIO1>;
+
+			portb: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				reg = <0>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				ngpios = <32>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&intc>;
+				interrupts = <27 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		gpio2: gpio@704000b000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x70 0x4000b000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk CLK_GATE_APB_GPIO>,
+				 <&clk CLK_GATE_GPIO_DB>;
+			clock-names = "bus", "db";
+			resets = <&rst RST_GPIO2>;
+
+			portc: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				reg = <0>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				ngpios = <32>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&intc>;
+				interrupts = <28 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		pwm: pwm@704000c000 {
+			compatible = "sophgo,sg2044-pwm";
+			reg = <0x70 0x4000c000 0x0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&clk CLK_GATE_APB_PWM>;
+			clock-names = "apb";
+			resets = <&rst RST_PWM>;
+			status = "disabled";
+		};
+
+		syscon: syscon@7050000000 {
+			compatible = "sophgo,sg2044-top-syscon", "syscon";
+			reg = <0x70 0x50000000 0x0 0x1000>;
+			#clock-cells = <1>;
+			clocks = <&osc>;
+		};
+
+		pinctrl: pinctrl@7050001000 {
+			compatible = "sophgo,sg2044-pinctrl";
+			reg = <0x70 0x50001000 0x0 0x1000>;
+		};
+
+		clk: clock-controller@7050002000 {
+			compatible = "sophgo,sg2044-clk";
+			reg = <0x70 0x50002000 0x0 0x1000>;
+			#clock-cells = <1>;
+			clocks = <&syscon CLK_FPLL0>, <&syscon CLK_FPLL1>,
+				 <&syscon CLK_FPLL2>, <&syscon CLK_DPLL0>,
+				 <&syscon CLK_DPLL1>, <&syscon CLK_DPLL2>,
+				 <&syscon CLK_DPLL3>, <&syscon CLK_DPLL4>,
+				 <&syscon CLK_DPLL5>, <&syscon CLK_DPLL6>,
+				 <&syscon CLK_DPLL7>, <&syscon CLK_MPLL0>,
+				 <&syscon CLK_MPLL1>, <&syscon CLK_MPLL2>,
+				 <&syscon CLK_MPLL3>, <&syscon CLK_MPLL4>,
+				 <&syscon CLK_MPLL5>;
+			clock-names = "fpll0", "fpll1", "fpll2", "dpll0",
+				      "dpll1", "dpll2", "dpll3", "dpll4",
+				      "dpll5", "dpll6", "dpll7", "mpll0",
+				      "mpll1", "mpll2", "mpll3", "mpll4",
+				      "mpll5";
 		};
 
 		rst: reset-controller@7050003000 {

@@ -1846,7 +1846,7 @@ snd_m3_pcm(struct snd_m3 * chip, int device)
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, chip->card->driver);
+	strscpy(pcm->name, chip->card->driver);
 	chip->pcm = pcm;
 	
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -2648,14 +2648,14 @@ __snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	switch (pci->device) {
 	case PCI_DEVICE_ID_ESS_ALLEGRO:
 	case PCI_DEVICE_ID_ESS_ALLEGRO_1:
-		strcpy(card->driver, "Allegro");
+		strscpy(card->driver, "Allegro");
 		break;
 	case PCI_DEVICE_ID_ESS_CANYON3D_2LE:
 	case PCI_DEVICE_ID_ESS_CANYON3D_2:
-		strcpy(card->driver, "Canyon3D-2");
+		strscpy(card->driver, "Canyon3D-2");
 		break;
 	default:
-		strcpy(card->driver, "Maestro3");
+		strscpy(card->driver, "Maestro3");
 		break;
 	}
 

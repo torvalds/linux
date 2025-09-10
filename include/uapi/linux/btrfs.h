@@ -616,8 +616,11 @@ struct btrfs_ioctl_clone_range_args {
 #define BTRFS_DEFRAG_RANGE_COMPRESS 1
 #define BTRFS_DEFRAG_RANGE_START_IO 2
 #define BTRFS_DEFRAG_RANGE_COMPRESS_LEVEL 4
+/* Request no compression on the range (uncompress if necessary). */
+#define BTRFS_DEFRAG_RANGE_NOCOMPRESS	8
 #define BTRFS_DEFRAG_RANGE_FLAGS_SUPP	(BTRFS_DEFRAG_RANGE_COMPRESS |		\
 					 BTRFS_DEFRAG_RANGE_COMPRESS_LEVEL |	\
+					 BTRFS_DEFRAG_RANGE_NOCOMPRESS |	\
 					 BTRFS_DEFRAG_RANGE_START_IO)
 
 struct btrfs_ioctl_defrag_range_args {

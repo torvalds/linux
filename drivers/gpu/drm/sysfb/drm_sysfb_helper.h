@@ -132,7 +132,7 @@ int drm_sysfb_plane_helper_get_scanout_buffer(struct drm_plane *plane,
 struct drm_sysfb_crtc_state {
 	struct drm_crtc_state base;
 
-	/* Primary-plane format; required for color mgmt. */
+	/* CRTC input color format; required for color mgmt. */
 	const struct drm_format_info *format;
 };
 

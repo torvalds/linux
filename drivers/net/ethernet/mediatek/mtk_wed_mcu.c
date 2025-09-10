@@ -234,27 +234,23 @@ int mtk_wed_mcu_msg_update(struct mtk_wed_device *dev, int id, void *data,
 }
 
 static int
-mtk_wed_get_memory_region(struct mtk_wed_hw *hw, int index,
+mtk_wed_get_memory_region(struct mtk_wed_hw *hw, const char *name,
 			  struct mtk_wed_wo_memory_region *region)
 {
-	struct reserved_mem *rmem;
-	struct device_node *np;
+	struct resource res;
+	int ret;
 
-	np = of_parse_phandle(hw->node, "memory-region", index);
-	if (!np)
-		return -ENODEV;
+	ret = of_reserved_mem_region_to_resource_byname(hw->node, name, &res);
+	if (ret)
+		return 0;
 
-	rmem = of_reserved_mem_lookup(np);
-	of_node_put(np);
+	region->phy_addr = res.start;
+	region->size = resource_size(&res);
+	region->addr = devm_ioremap_resource(hw->dev, &res);
+	if (IS_ERR(region->addr))
+		return PTR_ERR(region->addr);
 
-	if (!rmem)
-		return -ENODEV;
-
-	region->phy_addr = rmem->base;
-	region->size = rmem->size;
-	region->addr = devm_ioremap(hw->dev, region->phy_addr, region->size);
-
-	return !region->addr ? -EINVAL : 0;
+	return 0;
 }
 
 static int
@@ -319,13 +315,7 @@ mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 
 	/* load firmware region metadata */
 	for (i = 0; i < ARRAY_SIZE(mem_region); i++) {
-		int index = of_property_match_string(wo->hw->node,
-						     "memory-region-names",
-						     mem_region[i].name);
-		if (index < 0)
-			continue;
-
-		ret = mtk_wed_get_memory_region(wo->hw, index, &mem_region[i]);
+		ret = mtk_wed_get_memory_region(wo->hw, mem_region[i].name, &mem_region[i]);
 		if (ret)
 			return ret;
 	}

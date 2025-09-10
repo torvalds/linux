@@ -379,7 +379,7 @@ struct bnx2x_vlan_mac_obj {
 	/**
 	*  Delete all configured elements having the given
 	*  vlan_mac_flags specification. Assumes no pending for
-	*  execution commands. Will schedule all all currently
+	*  execution commands. Will schedule all currently
 	*  configured MACs/VLANs/VLAN-MACs matching the vlan_mac_flags
 	*  specification for deletion and will use the given
 	*  ramrod_flags for the last DEL operation.

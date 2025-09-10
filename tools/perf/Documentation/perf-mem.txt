@@ -119,6 +119,22 @@ REPORT OPTIONS
 	And the default sort keys are changed to local_weight, mem, sym, dso,
 	symbol_daddr, dso_daddr, snoop, tlb, locked, blocked, local_ins_lat.
 
+-F::
+--fields=::
+	Specify output field - multiple keys can be specified in CSV format.
+	Please see linkperf:perf-report[1] for details.
+
+	In addition to the default fields, 'perf mem report' will provide the
+	following fields to break down sample periods.
+
+	- op: operation in the sample instruction (load, store, prefetch, ...)
+	- cache: location in CPU cache (L1, L2, ...) where the sample hit
+	- mem: location in memory or other places the sample hit
+	- dtlb: location in Data TLB (L1, L2) where the sample hit
+	- snoop: snoop result for the sampled data access
+
+	Please take a look at the OUTPUT FIELD SELECTION section for caveats.
+
 -T::
 --type-profile::
 	Show data-type profile result instead of code symbols.  This requires
@@ -155,6 +171,40 @@ but one sample with weight 180 and the other with weight 20:
   $ perf mem report -F overhead,symbol
   90%   [k] memcpy
   10%   [.] strcmp
+
+OUTPUT FIELD SELECTION
+----------------------
+"perf mem report" adds a number of new output fields specific to data source
+information in the sample.  Some of them have the same name with the existing
+sort keys ("mem" and "snoop").  So unlike other fields and sort keys, they'll
+behave differently when it's used by -F/--fields or -s/--sort.
+
+Using those two as output fields will aggregate samples altogether and show
+breakdown.
+
+  $ perf mem report -F mem,snoop
+  ...
+  # ------ Memory -------  --- Snoop ----
+  #     RAM Uncach  Other     HitM  Other
+  # .....................  ..............
+  #
+       3.5%   0.0%  96.5%    25.1%  74.9%
+
+But using the same name for sort keys will aggregate samples for each type
+separately.
+
+  $ perf mem report -s mem,snoop
+  # Overhead       Samples  Memory access                            Snoop
+  # ........  ............  .......................................  ............
+  #
+      47.99%          1509  L2 hit                                   N/A
+      25.08%           338  core, same node Any cache hit            HitM
+      10.24%         54374  N/A                                      N/A
+       6.77%         35938  L1 hit                                   N/A
+       6.39%           101  core, same node Any cache hit            N/A
+       3.50%            69  RAM hit                                  N/A
+       0.03%           158  LFB/MAB hit                              N/A
+       0.00%             2  Uncached hit                             N/A
 
 SEE ALSO
 --------

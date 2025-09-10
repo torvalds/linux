@@ -619,7 +619,7 @@ void dccg401_set_dp_dto(
 		dto_integer = div_u64(params->pixclk_hz, dto_modulo_hz);
 		dto_phase_hz = params->pixclk_hz - dto_integer * dto_modulo_hz;
 
-		if (dto_phase_hz <= 0) {
+		if (dto_phase_hz <= 0 && dto_integer <= 0) {
 			/* negative pixel rate should never happen */
 			BREAK_TO_DEBUGGER();
 			return;
@@ -727,7 +727,7 @@ void dccg401_init(struct dccg *dccg)
 	}
 }
 
-void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst)
+void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst, uint32_t num_slices_h)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 

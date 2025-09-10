@@ -1550,7 +1550,7 @@ static struct sprd_clk_desc ums512_aon_gate_desc = {
 
 /* audcp apb gates */
 /* Audcp apb clocks configure CLK_IGNORE_UNUSED because these clocks may be
- * controlled by audcp sys at the same time. It may be cause an execption if
+ * controlled by audcp sys at the same time. It may cause an exception if
  * kernel gates these clock.
  */
 static SPRD_SC_GATE_CLK_HW(audcp_wdg_eb, "audcp-wdg-eb",
@@ -1592,7 +1592,7 @@ static const struct sprd_clk_desc ums512_audcpapb_gate_desc = {
 
 /* audcp ahb gates */
 /* Audcp aphb clocks configure CLK_IGNORE_UNUSED because these clocks may be
- * controlled by audcp sys at the same time. It may be cause an execption if
+ * controlled by audcp sys at the same time. It may cause an exception if
  * kernel gates these clock.
  */
 static SPRD_SC_GATE_CLK_HW(audcp_iis0_eb, "audcp-iis0-eb",

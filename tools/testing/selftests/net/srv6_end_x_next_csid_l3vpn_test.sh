@@ -72,6 +72,9 @@
 # Every fcf0:0:x:y::/64 network interconnects the SRv6 routers rt-x with rt-y in
 # the selftest network.
 #
+# In addition, every router interface connecting rt-x to rt-y is assigned an
+# IPv6 link-local address fe80::x:y/64.
+#
 # Local SID/C-SID table
 # =====================
 #
@@ -521,6 +524,9 @@ setup_rt_networking()
 		ip -netns "${nsname}" addr \
 			add "${net_prefix}::${rt}/64" dev "${devname}" nodad
 
+		ip -netns "${nsname}" addr \
+			add "fe80::${rt}:${neigh}/64" dev "${devname}" nodad
+
 		ip -netns "${nsname}" link set "${devname}" up
 	done
 
@@ -609,6 +615,27 @@ set_end_x_nextcsid()
 		nflen "${LCNODEFUNC_BLEN}" dev "${DUMMY_DEVNAME}"
 }
 
+set_end_x_ll_nextcsid()
+{
+	local rt="$1"
+	local adj="$2"
+
+	eval nsname=\${$(get_rtname "${rt}")}
+	lcnode_func_prefix="$(build_lcnode_func_prefix "${rt}")"
+	nh6_ll_addr="fe80::${adj}:${rt}"
+	oifname="veth-rt-${rt}-${adj}"
+
+	# enabled NEXT-C-SID SRv6 End.X behavior via an IPv6 link-local nexthop
+	# address (note that "dev" is the dummy dum0 device chosen for the sake
+	# of simplicity).
+	ip -netns "${nsname}" -6 route \
+		replace "${lcnode_func_prefix}" \
+		table "${LOCALSID_TABLE_ID}" \
+		encap seg6local action End.X nh6 "${nh6_ll_addr}" \
+		oif "${oifname}" flavors next-csid lblen "${LCBLOCK_BLEN}" \
+		nflen "${LCNODEFUNC_BLEN}" dev "${DUMMY_DEVNAME}"
+}
+
 set_underlay_sids_reachability()
 {
 	local rt="$1"
@@ -654,7 +681,7 @@ setup_rt_local_sids()
         set_underlay_sids_reachability "${rt}" "${rt_neighs}"
 
 	# all SIDs for VPNs start with a common locator. Routes and SRv6
-	# Endpoint behavior instaces are grouped together in the 'localsid'
+	# Endpoint behavior instances are grouped together in the 'localsid'
 	# table.
 	ip -netns "${nsname}" -6 rule \
 		add to "${VPN_LOCATOR_SERVICE}::/16" \
@@ -1016,6 +1043,27 @@ host_vpn_tests()
 
 	check_and_log_hs_ipv4_connectivity 1 2
 	check_and_log_hs_ipv4_connectivity 2 1
+
+	# Setup the adjacencies in the SRv6 aware routers using IPv6 link-local
+	# addresses.
+	# - rt-3 SRv6 End.X adjacency with rt-4
+	# - rt-4 SRv6 End.X adjacency with rt-1
+	set_end_x_ll_nextcsid 3 4
+	set_end_x_ll_nextcsid 4 1
+
+	log_section "SRv6 VPN connectivity test hosts (h1 <-> h2, IPv6), link-local"
+
+	check_and_log_hs_ipv6_connectivity 1 2
+	check_and_log_hs_ipv6_connectivity 2 1
+
+	log_section "SRv6 VPN connectivity test hosts (h1 <-> h2, IPv4), link-local"
+
+	check_and_log_hs_ipv4_connectivity 1 2
+	check_and_log_hs_ipv4_connectivity 2 1
+
+	# Restore the previous adjacencies.
+	set_end_x_nextcsid 3 4
+	set_end_x_nextcsid 4 1
 }
 
 __nextcsid_end_x_behavior_test()

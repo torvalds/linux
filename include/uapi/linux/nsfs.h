@@ -42,4 +42,15 @@ struct mnt_ns_info {
 /* Get previous namespace. */
 #define NS_MNT_GET_PREV		_IOR(NSIO, 12, struct mnt_ns_info)
 
+enum init_ns_ino {
+	IPC_NS_INIT_INO		= 0xEFFFFFFFU,
+	UTS_NS_INIT_INO		= 0xEFFFFFFEU,
+	USER_NS_INIT_INO	= 0xEFFFFFFDU,
+	PID_NS_INIT_INO		= 0xEFFFFFFCU,
+	CGROUP_NS_INIT_INO	= 0xEFFFFFFBU,
+	TIME_NS_INIT_INO	= 0xEFFFFFFAU,
+	NET_NS_INIT_INO		= 0xEFFFFFF9U,
+	MNT_NS_INIT_INO		= 0xEFFFFFF8U,
+};
+
 #endif /* __LINUX_NSFS_H */

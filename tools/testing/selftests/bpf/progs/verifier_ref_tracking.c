@@ -27,7 +27,7 @@ struct bpf_key {} __attribute__((preserve_access_index));
 
 extern void bpf_key_put(struct bpf_key *key) __ksym;
 extern struct bpf_key *bpf_lookup_system_key(__u64 id) __ksym;
-extern struct bpf_key *bpf_lookup_user_key(__u32 serial, __u64 flags) __ksym;
+extern struct bpf_key *bpf_lookup_user_key(__s32 serial, __u64 flags) __ksym;
 
 /* BTF FUNC records are not generated for kfuncs referenced
  * from inline assembly. These records are necessary for

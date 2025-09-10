@@ -7,3 +7,5 @@ obj-$(CONFIG_DPLL)      += dpll.o
 dpll-y                  += dpll_core.o
 dpll-y                  += dpll_netlink.o
 dpll-y                  += dpll_nl.o
+
+obj-$(CONFIG_ZL3073X)	+= zl3073x/

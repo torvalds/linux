@@ -211,7 +211,7 @@ static int evergreen_surface_check_linear_aligned(struct radeon_cs_parser *p,
 	surf->base_align = track->group_size;
 	surf->palign = palign;
 	surf->halign = 1;
-	if (surf->nbx & (palign - 1)) {
+	if ((surf->nbx & (palign - 1)) && !(palign == 64 && surf->nbx == 32)) {
 		if (prefix) {
 			dev_warn(p->dev, "%s:%d %s pitch %d invalid must be aligned with %d\n",
 				 __func__, __LINE__, prefix, surf->nbx, palign);
@@ -2661,6 +2661,95 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 		}
 		break;
 	}
+	case PACKET3_COND_EXEC:
+	{
+		u64 offset;
+
+		if (pkt->count != 2) {
+			DRM_ERROR("bad COND_EXEC (invalid count)\n");
+			return -EINVAL;
+		}
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
+		if (r) {
+			DRM_ERROR("bad COND_EXEC (missing reloc)\n");
+			return -EINVAL;
+		}
+		offset = radeon_get_ib_value(p, idx + 0);
+		offset += ((u64)(radeon_get_ib_value(p, idx + 1) & 0xff)) << 32UL;
+		if (offset & 0x7) {
+			DRM_ERROR("bad COND_EXEC (address not qwords aligned)\n");
+			return -EINVAL;
+		}
+		if ((offset + 8) > radeon_bo_size(reloc->robj)) {
+			DRM_ERROR("bad COND_EXEC bo too small: 0x%llx, 0x%lx\n",
+				  offset + 8, radeon_bo_size(reloc->robj));
+			return -EINVAL;
+		}
+		offset += reloc->gpu_offset;
+		ib[idx + 0] = offset;
+		ib[idx + 1] = upper_32_bits(offset) & 0xff;
+		break;
+	}
+	case PACKET3_COND_WRITE:
+		if (pkt->count != 7) {
+			DRM_ERROR("bad COND_WRITE (invalid count)\n");
+			return -EINVAL;
+		}
+		if (idx_value & 0x10) {
+			u64 offset;
+			/* POLL is memory. */
+			r = radeon_cs_packet_next_reloc(p, &reloc, 0);
+			if (r) {
+				DRM_ERROR("bad COND_WRITE (missing src reloc)\n");
+				return -EINVAL;
+			}
+			offset = radeon_get_ib_value(p, idx + 1);
+			offset += ((u64)(radeon_get_ib_value(p, idx + 2) & 0xff)) << 32;
+			if ((offset + 8) > radeon_bo_size(reloc->robj)) {
+				DRM_ERROR("bad COND_WRITE src bo too small: 0x%llx, 0x%lx\n",
+					  offset + 8, radeon_bo_size(reloc->robj));
+				return -EINVAL;
+			}
+			offset += reloc->gpu_offset;
+			ib[idx + 1] = offset;
+			ib[idx + 2] = upper_32_bits(offset) & 0xff;
+		} else {
+			/* POLL is a reg. */
+			reg = radeon_get_ib_value(p, idx + 1) << 2;
+			if (!evergreen_is_safe_reg(p, reg)) {
+				dev_warn(p->dev, "forbidden register 0x%08x at %d\n",
+					 reg, idx + 1);
+				return -EINVAL;
+			}
+		}
+		if (idx_value & 0x100) {
+			u64 offset;
+			/* WRITE is memory. */
+			r = radeon_cs_packet_next_reloc(p, &reloc, 0);
+			if (r) {
+				DRM_ERROR("bad COND_WRITE (missing dst reloc)\n");
+				return -EINVAL;
+			}
+			offset = radeon_get_ib_value(p, idx + 5);
+			offset += ((u64)(radeon_get_ib_value(p, idx + 6) & 0xff)) << 32;
+			if ((offset + 8) > radeon_bo_size(reloc->robj)) {
+				DRM_ERROR("bad COND_WRITE dst bo too small: 0x%llx, 0x%lx\n",
+					  offset + 8, radeon_bo_size(reloc->robj));
+				return -EINVAL;
+			}
+			offset += reloc->gpu_offset;
+			ib[idx + 5] = offset;
+			ib[idx + 6] = upper_32_bits(offset) & 0xff;
+		} else {
+			/* WRITE is a reg. */
+			reg = radeon_get_ib_value(p, idx + 5) << 2;
+			if (!evergreen_is_safe_reg(p, reg)) {
+				dev_warn(p->dev, "forbidden register 0x%08x at %d\n",
+					 reg, idx + 5);
+				return -EINVAL;
+			}
+		}
+		break;
 	case PACKET3_NOP:
 		break;
 	default:
@@ -3406,7 +3495,12 @@ static int evergreen_vm_packet3_check(struct radeon_device *rdev,
 	case CAYMAN_PACKET3_DEALLOC_STATE:
 		break;
 	case PACKET3_COND_WRITE:
-		if (idx_value & 0x100) {
+		if (!(idx_value & 0x10)) {
+			reg = ib[idx + 1] * 4;
+			if (!evergreen_vm_reg_valid(reg))
+				return -EINVAL;
+		}
+		if (!(idx_value & 0x100)) {
 			reg = ib[idx + 5] * 4;
 			if (!evergreen_vm_reg_valid(reg))
 				return -EINVAL;

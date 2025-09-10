@@ -319,7 +319,7 @@ int snd_efw_create_hwdep_device(struct snd_efw *efw)
 	err = snd_hwdep_new(efw->card, "Fireworks", 0, &hwdep);
 	if (err < 0)
 		goto end;
-	strcpy(hwdep->name, "Fireworks");
+	strscpy(hwdep->name, "Fireworks");
 	hwdep->iface = SNDRV_HWDEP_IFACE_FW_FIREWORKS;
 	hwdep->ops = ops;
 	hwdep->private_data = efw;

@@ -1985,7 +1985,7 @@ xfs_btree_lookup(
 	int			*stat)	/* success/failure */
 {
 	struct xfs_btree_block	*block;	/* current btree block */
-	int64_t			diff;	/* difference for the current key */
+	int			cmp_r;	/* current key comparison result */
 	int			error;	/* error return value */
 	int			keyno;	/* current key number */
 	int			level;	/* level in the btree */
@@ -2013,13 +2013,13 @@ xfs_btree_lookup(
 	 * on the lookup record, then follow the corresponding block
 	 * pointer down to the next level.
 	 */
-	for (level = cur->bc_nlevels - 1, diff = 1; level >= 0; level--) {
+	for (level = cur->bc_nlevels - 1, cmp_r = 1; level >= 0; level--) {
 		/* Get the block we need to do the lookup on. */
 		error = xfs_btree_lookup_get_block(cur, level, pp, &block);
 		if (error)
 			goto error0;
 
-		if (diff == 0) {
+		if (cmp_r == 0) {
 			/*
 			 * If we already had a key match at a higher level, we
 			 * know we need to use the first entry in this block.
@@ -2065,15 +2065,16 @@ xfs_btree_lookup(
 						keyno, block, &key);
 
 				/*
-				 * Compute difference to get next direction:
+				 * Compute comparison result to get next
+				 * direction:
 				 *  - less than, move right
 				 *  - greater than, move left
 				 *  - equal, we're done
 				 */
-				diff = cur->bc_ops->key_diff(cur, kp);
-				if (diff < 0)
+				cmp_r = cur->bc_ops->cmp_key_with_cur(cur, kp);
+				if (cmp_r < 0)
 					low = keyno + 1;
-				else if (diff > 0)
+				else if (cmp_r > 0)
 					high = keyno - 1;
 				else
 					break;
@@ -2089,7 +2090,7 @@ xfs_btree_lookup(
 			 * If we moved left, need the previous key number,
 			 * unless there isn't one.
 			 */
-			if (diff > 0 && --keyno < 1)
+			if (cmp_r > 0 && --keyno < 1)
 				keyno = 1;
 			pp = xfs_btree_ptr_addr(cur, keyno, block);
 
@@ -2102,7 +2103,7 @@ xfs_btree_lookup(
 	}
 
 	/* Done with the search. See if we need to adjust the results. */
-	if (dir != XFS_LOOKUP_LE && diff < 0) {
+	if (dir != XFS_LOOKUP_LE && cmp_r < 0) {
 		keyno++;
 		/*
 		 * If ge search and we went off the end of the block, but it's
@@ -2125,14 +2126,14 @@ xfs_btree_lookup(
 			*stat = 1;
 			return 0;
 		}
-	} else if (dir == XFS_LOOKUP_LE && diff > 0)
+	} else if (dir == XFS_LOOKUP_LE && cmp_r > 0)
 		keyno--;
 	cur->bc_levels[0].ptr = keyno;
 
 	/* Return if we succeeded or not. */
 	if (keyno == 0 || keyno > xfs_btree_get_numrecs(block))
 		*stat = 0;
-	else if (dir != XFS_LOOKUP_EQ || diff == 0)
+	else if (dir != XFS_LOOKUP_EQ || cmp_r == 0)
 		*stat = 1;
 	else
 		*stat = 0;
@@ -5058,7 +5059,7 @@ xfs_btree_simple_query_range(
 	int				error;
 
 	ASSERT(cur->bc_ops->init_high_key_from_rec);
-	ASSERT(cur->bc_ops->diff_two_keys);
+	ASSERT(cur->bc_ops->cmp_two_keys);
 
 	/*
 	 * Find the leftmost record.  The btree cursor must be set
@@ -5352,15 +5353,15 @@ xfs_btree_count_blocks(
 }
 
 /* Compare two btree pointers. */
-int64_t
-xfs_btree_diff_two_ptrs(
+int
+xfs_btree_cmp_two_ptrs(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_ptr	*a,
 	const union xfs_btree_ptr	*b)
 {
 	if (cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN)
-		return (int64_t)be64_to_cpu(a->l) - be64_to_cpu(b->l);
-	return (int64_t)be32_to_cpu(a->s) - be32_to_cpu(b->s);
+		return cmp_int(be64_to_cpu(a->l), be64_to_cpu(b->l));
+	return cmp_int(be32_to_cpu(a->s), be32_to_cpu(b->s));
 }
 
 struct xfs_btree_has_records {

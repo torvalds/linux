@@ -117,6 +117,7 @@ properties:
 required:
   - reg
   - compatible
+  - clocks
   - gpio-controller
   - "#gpio-cells"
 

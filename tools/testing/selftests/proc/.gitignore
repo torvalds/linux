@@ -5,6 +5,7 @@
 /proc-2-is-kthread
 /proc-fsconfig-hidepid
 /proc-loadavg-001
+/proc-maps-race
 /proc-multiple-procfs
 /proc-empty-vm
 /proc-pid-vm

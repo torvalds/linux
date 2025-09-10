@@ -1295,11 +1295,11 @@ static int hccs_get_all_spec_port_idle_sta(struct hccs_dev *hdev, u8 port_type,
 				if (ret) {
 					dev_err(hdev->dev,
 						"hccs%u on chip%u/die%u get idle status failed, ret = %d.\n",
-						k, i, j, ret);
+						port->port_id, chip->chip_id, die->die_id, ret);
 					return ret;
 				} else if (idle == 0) {
 					dev_info(hdev->dev, "hccs%u on chip%u/die%u is busy.\n",
-						k, i, j);
+						 port->port_id, chip->chip_id, die->die_id);
 					return 0;
 				}
 			}

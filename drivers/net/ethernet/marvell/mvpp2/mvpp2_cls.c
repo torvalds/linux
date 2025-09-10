@@ -1618,7 +1618,8 @@ int mvpp22_port_rss_ctx_indir_get(struct mvpp2_port *port, u32 port_ctx,
 	return 0;
 }
 
-int mvpp2_ethtool_rxfh_set(struct mvpp2_port *port, struct ethtool_rxnfc *info)
+int mvpp2_ethtool_rxfh_set(struct mvpp2_port *port,
+			   const struct ethtool_rxfh_fields *info)
 {
 	u16 hash_opts = 0;
 	u32 flow_type;
@@ -1656,7 +1657,8 @@ int mvpp2_ethtool_rxfh_set(struct mvpp2_port *port, struct ethtool_rxnfc *info)
 	return mvpp2_port_rss_hash_opts_set(port, flow_type, hash_opts);
 }
 
-int mvpp2_ethtool_rxfh_get(struct mvpp2_port *port, struct ethtool_rxnfc *info)
+int mvpp2_ethtool_rxfh_get(struct mvpp2_port *port,
+			   struct ethtool_rxfh_fields *info)
 {
 	unsigned long hash_opts;
 	u32 flow_type;

@@ -470,7 +470,7 @@ static struct attribute *chp_attrs[] = {
 };
 static const struct attribute_group chp_attr_group = {
 	.attrs = chp_attrs,
-	.bin_attrs_new = chp_bin_attrs,
+	.bin_attrs = chp_bin_attrs,
 };
 static const struct attribute_group *chp_attr_groups[] = {
 	&chp_attr_group,

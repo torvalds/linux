@@ -93,7 +93,7 @@ static int rvu_switch_install_rules(struct rvu *rvu)
 		if (!is_pf_cgxmapped(rvu, pf))
 			continue;
 
-		pcifunc = pf << 10;
+		pcifunc = rvu_make_pcifunc(rvu->pdev, pf, 0);
 		/* rvu_get_nix_blkaddr sets up the corresponding NIX block
 		 * address and NIX RX and TX interfaces for a pcifunc.
 		 * Generally it is called during attach call of a pcifunc but it
@@ -126,7 +126,7 @@ static int rvu_switch_install_rules(struct rvu *rvu)
 
 		rvu_get_pf_numvfs(rvu, pf, &numvfs, NULL);
 		for (vf = 0; vf < numvfs; vf++) {
-			pcifunc = pf << 10 | ((vf + 1) & 0x3FF);
+			pcifunc = rvu_make_pcifunc(rvu->pdev, pf, (vf + 1));
 			rvu_get_nix_blkaddr(rvu, pcifunc);
 
 			err = rvu_switch_install_rx_rule(rvu, pcifunc, 0x0);
@@ -236,7 +236,7 @@ void rvu_switch_disable(struct rvu *rvu)
 		if (!is_pf_cgxmapped(rvu, pf))
 			continue;
 
-		pcifunc = pf << 10;
+		pcifunc = rvu_make_pcifunc(rvu->pdev, pf, 0);
 		err = rvu_switch_install_rx_rule(rvu, pcifunc, 0xFFF);
 		if (err)
 			dev_err(rvu->dev,
@@ -248,7 +248,7 @@ void rvu_switch_disable(struct rvu *rvu)
 
 		rvu_get_pf_numvfs(rvu, pf, &numvfs, NULL);
 		for (vf = 0; vf < numvfs; vf++) {
-			pcifunc = pf << 10 | ((vf + 1) & 0x3FF);
+			pcifunc = rvu_make_pcifunc(rvu->pdev, pf, (vf + 1));
 			err = rvu_switch_install_rx_rule(rvu, pcifunc, 0xFFF);
 			if (err)
 				dev_err(rvu->dev,

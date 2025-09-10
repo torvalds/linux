@@ -726,7 +726,7 @@ static int snd_fm801_pcm(struct fm801 *chip, int device)
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "FM801");
+	strscpy(pcm->name, "FM801");
 	chip->pcm = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, &pdev->dev,
@@ -1291,8 +1291,8 @@ static int __snd_card_fm801_probe(struct pci_dev *pci,
 	if (err < 0)
 		return err;
 
-	strcpy(card->driver, "FM801");
-	strcpy(card->shortname, "ForteMedia FM801-");
+	strscpy(card->driver, "FM801");
+	strscpy(card->shortname, "ForteMedia FM801-");
 	strcat(card->shortname, chip->multichannel ? "AU" : "AS");
 	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname, chip->port, chip->irq);

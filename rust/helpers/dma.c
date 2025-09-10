@@ -14,3 +14,8 @@ void rust_helper_dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 {
 	dma_free_attrs(dev, size, cpu_addr, dma_handle, attrs);
 }
+
+int rust_helper_dma_set_mask_and_coherent(struct device *dev, u64 mask)
+{
+	return dma_set_mask_and_coherent(dev, mask);
+}

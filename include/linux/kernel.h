@@ -373,9 +373,9 @@ ftrace_vprintk(const char *fmt, va_list ap)
 static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 #endif /* CONFIG_TRACING */
 
-/* Rebuild everything on CONFIG_FTRACE_MCOUNT_RECORD */
-#ifdef CONFIG_FTRACE_MCOUNT_RECORD
-# define REBUILD_DUE_TO_FTRACE_MCOUNT_RECORD
+/* Rebuild everything on CONFIG_DYNAMIC_FTRACE */
+#ifdef CONFIG_DYNAMIC_FTRACE
+# define REBUILD_DUE_TO_DYNAMIC_FTRACE
 #endif
 
 /* Permissions on a sysfs file: you didn't miss the 0 prefix did you? */

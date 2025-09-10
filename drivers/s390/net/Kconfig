@@ -17,18 +17,6 @@ config CTCM
 	  To compile into the kernel, choose Y.
 	  If you do not need any channel-to-channel connection, choose N.
 
-config NETIUCV
-	def_tristate m
-	prompt "IUCV network device support (VM only)"
-	depends on IUCV && NETDEVICES
-	help
-	  Select this option if you want to use inter-user communication
-	  vehicle networking under VM or VIF. It enables a fast communication
-	  link between VM guests. Using ifconfig a point-to-point connection
-	  can be established to the Linux on IBM System z
-	  running on the other VM guest. To compile as a module, choose M.
-	  The module name is netiucv. If unsure, choose Y.
-
 config SMSGIUCV
 	def_tristate m
 	prompt "IUCV special message support (VM only)"

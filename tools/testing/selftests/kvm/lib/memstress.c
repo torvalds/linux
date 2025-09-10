@@ -265,7 +265,7 @@ static void *vcpu_thread_main(void *data)
 	int vcpu_idx = vcpu->vcpu_idx;
 
 	if (memstress_args.pin_vcpus)
-		kvm_pin_this_task_to_pcpu(memstress_args.vcpu_to_pcpu[vcpu_idx]);
+		pin_self_to_cpu(memstress_args.vcpu_to_pcpu[vcpu_idx]);
 
 	WRITE_ONCE(vcpu->running, true);
 

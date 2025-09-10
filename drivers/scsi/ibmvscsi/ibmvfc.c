@@ -3670,7 +3670,7 @@ static const struct bin_attribute ibmvfc_trace_attr = {
 		.mode = S_IRUGO,
 	},
 	.size = 0,
-	.read_new = ibmvfc_read_trace,
+	.read = ibmvfc_read_trace,
 };
 #endif
 

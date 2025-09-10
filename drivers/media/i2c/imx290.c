@@ -1294,7 +1294,6 @@ static int imx290_subdev_init(struct imx290 *imx290)
 	 * will already be prevented even before the delay.
 	 */
 	v4l2_i2c_subdev_init(&imx290->sd, client, &imx290_subdev_ops);
-	imx290->sd.dev = imx290->dev;
 	pm_runtime_mark_last_busy(imx290->dev);
 	pm_runtime_put_autosuspend(imx290->dev);
 

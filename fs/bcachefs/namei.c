@@ -625,13 +625,25 @@ static int __bch2_inum_to_path(struct btree_trans *trans,
 {
 	unsigned orig_pos = path->pos;
 	int ret = 0;
+	DARRAY(subvol_inum) inums = {};
+
+	if (!snapshot) {
+		ret = bch2_subvolume_get_snapshot(trans, subvol, &snapshot);
+		if (ret)
+			goto disconnected;
+	}
 
 	while (true) {
-		if (!snapshot) {
-			ret = bch2_subvolume_get_snapshot(trans, subvol, &snapshot);
-			if (ret)
-				goto disconnected;
+		subvol_inum n = (subvol_inum) { subvol ?: snapshot, inum };
+
+		if (darray_find_p(inums, i, i->subvol == n.subvol && i->inum == n.inum)) {
+			prt_str_reversed(path, "(loop)");
+			break;
 		}
+
+		ret = darray_push(&inums, n);
+		if (ret)
+			goto err;
 
 		struct bch_inode_unpacked inode;
 		ret = bch2_inode_find_by_inum_snapshot(trans, inum, snapshot, &inode, 0);
@@ -650,7 +662,9 @@ static int __bch2_inum_to_path(struct btree_trans *trans,
 		inum = inode.bi_dir;
 		if (inode.bi_parent_subvol) {
 			subvol = inode.bi_parent_subvol;
-			snapshot = 0;
+			ret = bch2_subvolume_get_snapshot(trans, inode.bi_parent_subvol, &snapshot);
+			if (ret)
+				goto disconnected;
 		}
 
 		struct btree_iter d_iter;
@@ -662,6 +676,7 @@ static int __bch2_inum_to_path(struct btree_trans *trans,
 			goto disconnected;
 
 		struct qstr dirent_name = bch2_dirent_get_name(d);
+
 		prt_bytes_reversed(path, dirent_name.name, dirent_name.len);
 
 		prt_char(path, '/');
@@ -677,8 +692,10 @@ out:
 		goto err;
 
 	reverse_bytes(path->buf + orig_pos, path->pos - orig_pos);
+	darray_exit(&inums);
 	return 0;
 err:
+	darray_exit(&inums);
 	return ret;
 disconnected:
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -717,8 +734,7 @@ static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
 	if (inode_points_to_dirent(target, d))
 		return 0;
 
-	if (!target->bi_dir &&
-	    !target->bi_dir_offset) {
+	if (!bch2_inode_has_backpointer(target)) {
 		fsck_err_on(S_ISDIR(target->bi_mode),
 			    trans, inode_dir_missing_backpointer,
 			    "directory with missing backpointer\n%s",

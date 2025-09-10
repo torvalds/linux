@@ -394,7 +394,7 @@ static const struct scsi_host_template amd_sht = {
 
 static const struct ata_port_operations amd_base_port_ops = {
 	.inherits	= &ata_bmdma32_port_ops,
-	.prereset	= amd_pre_reset,
+	.reset.prereset	= amd_pre_reset,
 };
 
 static struct ata_port_operations amd33_port_ops = {
@@ -429,7 +429,7 @@ static const struct ata_port_operations nv_base_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 	.cable_detect	= ata_cable_ignore,
 	.mode_filter	= nv_mode_filter,
-	.prereset	= nv_pre_reset,
+	.reset.prereset	= nv_pre_reset,
 	.host_stop	= nv_host_stop,
 };
 

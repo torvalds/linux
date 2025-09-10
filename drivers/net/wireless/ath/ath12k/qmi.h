@@ -37,7 +37,6 @@
 
 #define QMI_WLANFW_MAX_DATA_SIZE_V01		6144
 #define ATH12K_FIRMWARE_MODE_OFF		4
-#define ATH12K_QMI_TARGET_MEM_MODE_DEFAULT	0
 
 #define ATH12K_BOARD_ID_DEFAULT	0xFF
 
@@ -600,6 +599,11 @@ struct qmi_wlanfw_wlan_ini_req_msg_v01 {
 
 struct qmi_wlanfw_wlan_ini_resp_msg_v01 {
 	struct qmi_response_type_v01 resp;
+};
+
+enum ath12k_qmi_mem_mode {
+	ATH12K_QMI_MEMORY_MODE_DEFAULT = 0,
+	ATH12K_QMI_MEMORY_MODE_LOW_512_M,
 };
 
 static inline void ath12k_qmi_set_event_block(struct ath12k_qmi *qmi, bool block)

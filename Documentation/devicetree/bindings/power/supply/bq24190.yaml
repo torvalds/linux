@@ -48,7 +48,6 @@ properties:
       battery device.
 
   monitored-battery:
-    $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       phandle to a "simple-battery" compatible node.
 

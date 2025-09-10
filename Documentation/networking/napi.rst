@@ -444,7 +444,14 @@ dependent). The NAPI instance IDs will be assigned in the opposite
 order than the process IDs of the kernel threads.
 
 Threaded NAPI is controlled by writing 0/1 to the ``threaded`` file in
-netdev's sysfs directory.
+netdev's sysfs directory. It can also be enabled for a specific NAPI using
+netlink interface.
+
+For example, using the script:
+
+.. code-block:: bash
+
+  $ ynl --family netdev --do napi-set --json='{"id": 66, "threaded": 1}'
 
 .. rubric:: Footnotes
 

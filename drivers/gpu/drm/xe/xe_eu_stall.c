@@ -258,11 +258,13 @@ static int set_prop_eu_stall_wait_num_reports(struct xe_device *xe, u64 value,
 static int set_prop_eu_stall_gt_id(struct xe_device *xe, u64 value,
 				   struct eu_stall_open_properties *props)
 {
-	if (value >= xe->info.gt_count) {
+	struct xe_gt *gt = xe_device_get_gt(xe, value);
+
+	if (!gt) {
 		drm_dbg(&xe->drm, "Invalid GT ID %llu for EU stall sampling\n", value);
 		return -EINVAL;
 	}
-	props->gt = xe_device_get_gt(xe, value);
+	props->gt = gt;
 	return 0;
 }
 
@@ -647,7 +649,7 @@ static int xe_eu_stall_stream_enable(struct xe_eu_stall_data_stream *stream)
 		return -ETIMEDOUT;
 	}
 
-	if (XE_WA(gt, 22016596838))
+	if (XE_GT_WA(gt, 22016596838))
 		xe_gt_mcr_multicast_write(gt, ROW_CHICKEN2,
 					  _MASKED_BIT_ENABLE(DISABLE_DOP_GATING));
 
@@ -803,7 +805,7 @@ static int xe_eu_stall_disable_locked(struct xe_eu_stall_data_stream *stream)
 
 	cancel_delayed_work_sync(&stream->buf_poll_work);
 
-	if (XE_WA(gt, 22016596838))
+	if (XE_GT_WA(gt, 22016596838))
 		xe_gt_mcr_multicast_write(gt, ROW_CHICKEN2,
 					  _MASKED_BIT_DISABLE(DISABLE_DOP_GATING));
 

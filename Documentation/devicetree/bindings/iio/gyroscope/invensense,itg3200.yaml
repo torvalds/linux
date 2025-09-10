@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/gyroscope/invensense,itg3200.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Invensense ITG-3200 Gyroscope
+
+maintainers:
+  - Jonathan Cameron <jic23@kernel.org>
+
+description: |
+  Triple-axis, digital output gyroscope with a three 16-bit analog-to-digital
+  converters (ADCs) for digitizing the gyro outputs, a user-selectable internal
+  low-pass filter bandwidth, and a Fast-Mode I2C.
+
+properties:
+  compatible:
+    const: invensense,itg3200
+
+  reg:
+    maxItems: 1
+
+  vdd-supply: true
+
+  vlogic-supply: true
+
+  interrupts:
+    maxItems: 1
+
+  mount-matrix:
+    description: an optional 3x3 mounting rotation matrix.
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: ext_clock
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        gyroscope@68 {
+            compatible = "invensense,itg3200";
+            reg = <0x68>;
+            interrupt-parent = <&gpio2>;
+            interrupts = <24 IRQ_TYPE_EDGE_FALLING>;
+        };
+    };

@@ -140,8 +140,8 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 static const struct bin_attribute dpf_attrs = {
 	.attr = {.name = "l3_parity", .mode = (S_IRUSR | S_IWUSR)},
 	.size = GEN7_L3LOG_SIZE,
-	.read_new = i915_l3_read,
-	.write_new = i915_l3_write,
+	.read = i915_l3_read,
+	.write = i915_l3_write,
 	.mmap = NULL,
 	.private = (void *)0
 };
@@ -149,8 +149,8 @@ static const struct bin_attribute dpf_attrs = {
 static const struct bin_attribute dpf_attrs_1 = {
 	.attr = {.name = "l3_parity_slice_1", .mode = (S_IRUSR | S_IWUSR)},
 	.size = GEN7_L3LOG_SIZE,
-	.read_new = i915_l3_read,
-	.write_new = i915_l3_write,
+	.read = i915_l3_read,
+	.write = i915_l3_write,
 	.mmap = NULL,
 	.private = (void *)1
 };

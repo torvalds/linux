@@ -83,7 +83,7 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 static ssize_t sysfs_kf_bin_read(struct kernfs_open_file *of, char *buf,
 				 size_t count, loff_t pos)
 {
-	struct bin_attribute *battr = of->kn->priv;
+	const struct bin_attribute *battr = of->kn->priv;
 	struct kobject *kobj = sysfs_file_kobj(of->kn);
 	loff_t size = file_inode(of->file)->i_size;
 
@@ -149,7 +149,7 @@ static ssize_t sysfs_kf_write(struct kernfs_open_file *of, char *buf,
 static ssize_t sysfs_kf_bin_write(struct kernfs_open_file *of, char *buf,
 				  size_t count, loff_t pos)
 {
-	struct bin_attribute *battr = of->kn->priv;
+	const struct bin_attribute *battr = of->kn->priv;
 	struct kobject *kobj = sysfs_file_kobj(of->kn);
 	loff_t size = file_inode(of->file)->i_size;
 
@@ -173,7 +173,7 @@ static ssize_t sysfs_kf_bin_write(struct kernfs_open_file *of, char *buf,
 static int sysfs_kf_bin_mmap(struct kernfs_open_file *of,
 			     struct vm_area_struct *vma)
 {
-	struct bin_attribute *battr = of->kn->priv;
+	const struct bin_attribute *battr = of->kn->priv;
 	struct kobject *kobj = sysfs_file_kobj(of->kn);
 
 	return battr->mmap(of->file, kobj, battr, vma);
@@ -182,7 +182,7 @@ static int sysfs_kf_bin_mmap(struct kernfs_open_file *of,
 static loff_t sysfs_kf_bin_llseek(struct kernfs_open_file *of, loff_t offset,
 				  int whence)
 {
-	struct bin_attribute *battr = of->kn->priv;
+	const struct bin_attribute *battr = of->kn->priv;
 	struct kobject *kobj = sysfs_file_kobj(of->kn);
 
 	if (battr->llseek)
@@ -193,7 +193,7 @@ static loff_t sysfs_kf_bin_llseek(struct kernfs_open_file *of, loff_t offset,
 
 static int sysfs_kf_bin_open(struct kernfs_open_file *of)
 {
-	struct bin_attribute *battr = of->kn->priv;
+	const struct bin_attribute *battr = of->kn->priv;
 
 	if (battr->f_mapping)
 		of->file->f_mapping = battr->f_mapping();

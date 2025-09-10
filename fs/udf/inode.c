@@ -181,19 +181,23 @@ static void udf_write_failed(struct address_space *mapping, loff_t to)
 	}
 }
 
-static int udf_adinicb_writepage(struct folio *folio,
-				 struct writeback_control *wbc, void *data)
+static int udf_adinicb_writepages(struct address_space *mapping,
+		      struct writeback_control *wbc)
 {
-	struct inode *inode = folio->mapping->host;
+	struct inode *inode = mapping->host;
 	struct udf_inode_info *iinfo = UDF_I(inode);
+	struct folio *folio = NULL;
+	int error = 0;
 
-	BUG_ON(!folio_test_locked(folio));
-	BUG_ON(folio->index != 0);
-	memcpy_from_file_folio(iinfo->i_data + iinfo->i_lenEAttr, folio, 0,
-		       i_size_read(inode));
-	folio_unlock(folio);
+	while ((folio = writeback_iter(mapping, wbc, folio, &error))) {
+		BUG_ON(!folio_test_locked(folio));
+		BUG_ON(folio->index != 0);
+		memcpy_from_file_folio(iinfo->i_data + iinfo->i_lenEAttr, folio,
+				0, i_size_read(inode));
+		folio_unlock(folio);
+	}
+
 	mark_inode_dirty(inode);
-
 	return 0;
 }
 
@@ -203,9 +207,9 @@ static int udf_writepages(struct address_space *mapping,
 	struct inode *inode = mapping->host;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB)
-		return mpage_writepages(mapping, wbc, udf_get_block_wb);
-	return write_cache_pages(mapping, wbc, udf_adinicb_writepage, NULL);
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
+		return udf_adinicb_writepages(mapping, wbc);
+	return mpage_writepages(mapping, wbc, udf_get_block_wb);
 }
 
 static void udf_adinicb_read_folio(struct folio *folio)
@@ -244,10 +248,12 @@ static void udf_readahead(struct readahead_control *rac)
 	mpage_readahead(rac, udf_get_block);
 }
 
-static int udf_write_begin(struct file *file, struct address_space *mapping,
+static int udf_write_begin(const struct kiocb *iocb,
+			   struct address_space *mapping,
 			   loff_t pos, unsigned len,
 			   struct folio **foliop, void **fsdata)
 {
+	struct file *file = iocb->ki_filp;
 	struct udf_inode_info *iinfo = UDF_I(file_inode(file));
 	struct folio *folio;
 	int ret;
@@ -271,15 +277,16 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 	return 0;
 }
 
-static int udf_write_end(struct file *file, struct address_space *mapping,
+static int udf_write_end(const struct kiocb *iocb,
+			 struct address_space *mapping,
 			 loff_t pos, unsigned len, unsigned copied,
 			 struct folio *folio, void *fsdata)
 {
-	struct inode *inode = file_inode(file);
+	struct inode *inode = file_inode(iocb->ki_filp);
 	loff_t last_pos;
 
 	if (UDF_I(inode)->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB)
-		return generic_write_end(file, mapping, pos, len, copied, folio,
+		return generic_write_end(iocb, mapping, pos, len, copied, folio,
 					 fsdata);
 	last_pos = pos + copied;
 	if (last_pos > inode->i_size)

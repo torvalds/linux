@@ -1073,9 +1073,18 @@ static void be_set_msg_level(struct net_device *netdev, u32 level)
 	adapter->msg_enable = level;
 }
 
-static u64 be_get_rss_hash_opts(struct be_adapter *adapter, u64 flow_type)
+static int be_get_rxfh_fields(struct net_device *netdev,
+			      struct ethtool_rxfh_fields *cmd)
 {
+	struct be_adapter *adapter = netdev_priv(netdev);
+	u64 flow_type = cmd->flow_type;
 	u64 data = 0;
+
+	if (!be_multi_rxq(adapter)) {
+		dev_info(&adapter->pdev->dev,
+			 "ethtool::get_rxfh: RX flow hashing is disabled\n");
+		return -EINVAL;
+	}
 
 	switch (flow_type) {
 	case TCP_V4_FLOW:
@@ -1104,7 +1113,8 @@ static u64 be_get_rss_hash_opts(struct be_adapter *adapter, u64 flow_type)
 		break;
 	}
 
-	return data;
+	cmd->data = data;
+	return 0;
 }
 
 static int be_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
@@ -1119,9 +1129,6 @@ static int be_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 	}
 
 	switch (cmd->cmd) {
-	case ETHTOOL_GRXFH:
-		cmd->data = be_get_rss_hash_opts(adapter, cmd->flow_type);
-		break;
 	case ETHTOOL_GRXRINGS:
 		cmd->data = adapter->num_rx_qs;
 		break;
@@ -1132,11 +1139,19 @@ static int be_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 	return 0;
 }
 
-static int be_set_rss_hash_opts(struct be_adapter *adapter,
-				struct ethtool_rxnfc *cmd)
+static int be_set_rxfh_fields(struct net_device *netdev,
+			      const struct ethtool_rxfh_fields *cmd,
+			      struct netlink_ext_ack *extack)
 {
-	int status;
+	struct be_adapter *adapter = netdev_priv(netdev);
 	u32 rss_flags = adapter->rss_info.rss_flags;
+	int status;
+
+	if (!be_multi_rxq(adapter)) {
+		dev_err(&adapter->pdev->dev,
+			"ethtool::set_rxfh: RX flow hashing is disabled\n");
+		return -EINVAL;
+	}
 
 	if (cmd->data != L3_RSS_FLAGS &&
 	    cmd->data != (L3_RSS_FLAGS | L4_RSS_FLAGS))
@@ -1193,28 +1208,6 @@ static int be_set_rss_hash_opts(struct be_adapter *adapter,
 		adapter->rss_info.rss_flags = rss_flags;
 
 	return be_cmd_status(status);
-}
-
-static int be_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
-{
-	struct be_adapter *adapter = netdev_priv(netdev);
-	int status = 0;
-
-	if (!be_multi_rxq(adapter)) {
-		dev_err(&adapter->pdev->dev,
-			"ethtool::set_rxnfc: RX flow hashing is disabled\n");
-		return -EINVAL;
-	}
-
-	switch (cmd->cmd) {
-	case ETHTOOL_SRXFH:
-		status = be_set_rss_hash_opts(adapter, cmd);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return status;
 }
 
 static void be_get_channels(struct net_device *netdev,
@@ -1449,7 +1442,8 @@ const struct ethtool_ops be_ethtool_ops = {
 	.flash_device = be_do_flash,
 	.self_test = be_self_test,
 	.get_rxnfc = be_get_rxnfc,
-	.set_rxnfc = be_set_rxnfc,
+	.get_rxfh_fields = be_get_rxfh_fields,
+	.set_rxfh_fields = be_set_rxfh_fields,
 	.get_rxfh_indir_size = be_get_rxfh_indir_size,
 	.get_rxfh_key_size = be_get_rxfh_key_size,
 	.get_rxfh = be_get_rxfh,

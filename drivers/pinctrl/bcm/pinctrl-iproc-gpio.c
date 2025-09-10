@@ -865,7 +865,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	gc->direction_input = iproc_gpio_direction_input;
 	gc->direction_output = iproc_gpio_direction_output;
 	gc->get_direction = iproc_gpio_get_direction;
-	gc->set_rv = iproc_gpio_set;
+	gc->set = iproc_gpio_set;
 	gc->get = iproc_gpio_get;
 
 	chip->pinmux_is_supported = of_property_read_bool(dev->of_node,

@@ -216,7 +216,7 @@ static int mt7603_set_sar_specs(struct ieee80211_hw *hw,
 }
 
 static int
-mt7603_config(struct ieee80211_hw *hw, u32 changed)
+mt7603_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct mt7603_dev *dev = hw->priv;
 	int ret = 0;
@@ -657,7 +657,8 @@ mt7603_sta_rate_tbl_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 static void
-mt7603_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
+mt7603_set_coverage_class(struct ieee80211_hw *hw, int radio_idx,
+			  s16 coverage_class)
 {
 	struct mt7603_dev *dev = hw->priv;
 

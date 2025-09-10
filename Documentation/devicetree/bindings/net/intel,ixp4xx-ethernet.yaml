@@ -47,6 +47,8 @@ properties:
 
   phy-handle: true
 
+  fixed-link: true
+
   intel,npe-handle:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:

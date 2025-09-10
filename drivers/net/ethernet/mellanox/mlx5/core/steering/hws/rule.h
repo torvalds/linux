@@ -69,6 +69,9 @@ struct mlx5hws_rule {
 			   */
 };
 
+void mlx5hws_rule_skip(struct mlx5hws_matcher *matcher, u32 flow_source,
+		       bool *skip_rx, bool *skip_tx);
+
 void mlx5hws_rule_free_action_ste(struct mlx5hws_action_ste_chunk *action_ste);
 
 int mlx5hws_rule_move_hws_remove(struct mlx5hws_rule *rule,

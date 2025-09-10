@@ -91,7 +91,7 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 	if (adev->rmmio == NULL)
 		return;
 
-	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DRV_UNLOAD))
+	if (amdgpu_acpi_smart_shift_update(adev, AMDGPU_SS_DRV_UNLOAD))
 		DRM_WARN("smart shift update failed\n");
 
 	amdgpu_acpi_fini(adev);
@@ -161,7 +161,7 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 	if (acpi_status)
 		dev_dbg(dev->dev, "Error during ACPI methods call\n");
 
-	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DRV_LOAD))
+	if (amdgpu_acpi_smart_shift_update(adev, AMDGPU_SS_DRV_LOAD))
 		DRM_WARN("smart shift update failed\n");
 
 out:
@@ -399,6 +399,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 	uint32_t ib_size_alignment = 0;
 	enum amd_ip_block_type type;
 	unsigned int num_rings = 0;
+	uint32_t num_slots = 0;
 	unsigned int i, j;
 
 	if (info->query_hw_ip.ip_instance >= AMDGPU_HW_IP_INSTANCE_MAX_COUNT)
@@ -411,6 +412,12 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 			if (adev->gfx.gfx_ring[i].sched.ready &&
 			    !adev->gfx.gfx_ring[i].no_user_submission)
 				++num_rings;
+
+		if (!adev->gfx.disable_uq) {
+			for (i = 0; i < AMDGPU_MES_MAX_GFX_PIPES; i++)
+				num_slots += hweight32(adev->mes.gfx_hqd_mask[i]);
+		}
+
 		ib_start_alignment = 32;
 		ib_size_alignment = 32;
 		break;
@@ -420,6 +427,12 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 			if (adev->gfx.compute_ring[i].sched.ready &&
 			    !adev->gfx.compute_ring[i].no_user_submission)
 				++num_rings;
+
+		if (!adev->sdma.disable_uq) {
+			for (i = 0; i < AMDGPU_MES_MAX_COMPUTE_PIPES; i++)
+				num_slots += hweight32(adev->mes.compute_hqd_mask[i]);
+		}
+
 		ib_start_alignment = 32;
 		ib_size_alignment = 32;
 		break;
@@ -429,6 +442,12 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 			if (adev->sdma.instance[i].ring.sched.ready &&
 			    !adev->sdma.instance[i].ring.no_user_submission)
 				++num_rings;
+
+		if (!adev->gfx.disable_uq) {
+			for (i = 0; i < AMDGPU_MES_MAX_SDMA_PIPES; i++)
+				num_slots += hweight32(adev->mes.sdma_hqd_mask[i]);
+		}
+
 		ib_start_alignment = 256;
 		ib_size_alignment = 4;
 		break;
@@ -570,6 +589,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 	}
 	result->capabilities_flags = 0;
 	result->available_rings = (1 << num_rings) - 1;
+	result->userq_num_slots = num_slots;
 	result->ib_start_alignment = ib_start_alignment;
 	result->ib_size_alignment = ib_size_alignment;
 	return 0;
@@ -1394,6 +1414,8 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	r = amdgpu_xcp_open_device(adev, fpriv, file_priv);
 	if (r)
 		goto error_pasid;
+
+	amdgpu_debugfs_vm_init(file_priv);
 
 	r = amdgpu_vm_init(adev, &fpriv->vm, fpriv->xcp_id);
 	if (r)

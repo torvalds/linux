@@ -42,7 +42,7 @@ struct virtio_pcidev_device {
 	void *extra_ptrs[VIRTIO_PCIDEV_WRITE_BUFS + 1];
 	DECLARE_BITMAP(used_bufs, VIRTIO_PCIDEV_WRITE_BUFS);
 
-#define UM_PCI_STAT_WAITING	0
+#define VIRTIO_PCIDEV_STAT_WAITING	0
 	unsigned long status;
 
 	bool platform;
@@ -172,7 +172,7 @@ static int virtio_pcidev_send_cmd(struct virtio_pcidev_device *dev,
 	}
 
 	/* kick and poll for getting a response on the queue */
-	set_bit(UM_PCI_STAT_WAITING, &dev->status);
+	set_bit(VIRTIO_PCIDEV_STAT_WAITING, &dev->status);
 	virtqueue_kick(dev->cmd_vq);
 	ret = 0;
 
@@ -193,7 +193,7 @@ static int virtio_pcidev_send_cmd(struct virtio_pcidev_device *dev,
 		}
 		udelay(1);
 	}
-	clear_bit(UM_PCI_STAT_WAITING, &dev->status);
+	clear_bit(VIRTIO_PCIDEV_STAT_WAITING, &dev->status);
 
 	if (bounce_out)
 		memcpy(out, buf->data, out_size);
@@ -439,7 +439,7 @@ static void virtio_pcidev_cmd_vq_cb(struct virtqueue *vq)
 	void *cmd;
 	int len;
 
-	if (test_bit(UM_PCI_STAT_WAITING, &dev->status))
+	if (test_bit(VIRTIO_PCIDEV_STAT_WAITING, &dev->status))
 		return;
 
 	while ((cmd = virtqueue_get_buf(vq, &len)))

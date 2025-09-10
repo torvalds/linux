@@ -4,9 +4,9 @@
  * Copyright (c) 2010 - 2015, Intel Corporation.
  */
 
-#include "system_global.h"
-#include <linux/kernel.h>
+#include <linux/math.h>
 
+#include "system_global.h"
 
 #include "ia_css_ifmtr.h"
 #include <math_support.h>
@@ -149,10 +149,9 @@ int ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 		left_padding = 2 * ISP_VEC_NELEMS - config->left_padding;
 
 	if (left_padding) {
-		num_vectors = CEIL_DIV(cropped_width + left_padding,
-				       ISP_VEC_NELEMS);
+		num_vectors = DIV_ROUND_UP(cropped_width + left_padding, ISP_VEC_NELEMS);
 	} else {
-		num_vectors = CEIL_DIV(cropped_width, ISP_VEC_NELEMS);
+		num_vectors = DIV_ROUND_UP(cropped_width, ISP_VEC_NELEMS);
 		num_vectors *= buffer_height;
 		/* todo: in case of left padding,
 		   num_vectors is vectors per line,
@@ -305,7 +304,7 @@ int ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 		if ((!binary) || config->continuous)
 			/* !binary -> sp raw copy pipe */
 			buffer_height *= 2;
-		vectors_per_line = CEIL_DIV(cropped_width, ISP_VEC_NELEMS);
+		vectors_per_line = DIV_ROUND_UP(cropped_width, ISP_VEC_NELEMS);
 		vectors_per_line = CEIL_MUL(vectors_per_line, deinterleaving);
 		break;
 	case ATOMISP_INPUT_FORMAT_RAW_14:

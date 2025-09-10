@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 // Test TCP_INQ and TCP_CM_INQ on the server side.
+
+--mss=1000
+
 `./defaults.sh
 `
 

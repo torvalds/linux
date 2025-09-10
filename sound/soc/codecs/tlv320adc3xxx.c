@@ -1052,7 +1052,7 @@ static const struct gpio_chip adc3xxx_gpio_chip = {
 	.owner			= THIS_MODULE,
 	.request		= adc3xxx_gpio_request,
 	.direction_output	= adc3xxx_gpio_direction_out,
-	.set_rv			= adc3xxx_gpio_set,
+	.set			= adc3xxx_gpio_set,
 	.get			= adc3xxx_gpio_get,
 	.can_sleep		= 1,
 };

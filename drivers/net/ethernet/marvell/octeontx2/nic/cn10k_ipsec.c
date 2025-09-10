@@ -481,7 +481,7 @@ static int cn10k_outb_write_sa(struct otx2_nic *pf, struct qmem *sa_info)
 		goto set_available;
 
 	/* Trigger CTX flush to write dirty data back to DRAM */
-	reg_val = FIELD_PREP(CPT_LF_CTX_FLUSH, sa_iova >> 7);
+	reg_val = FIELD_PREP(CPT_LF_CTX_FLUSH_CPTR, sa_iova >> 7);
 	otx2_write64(pf, CN10K_CPT_LF_CTX_FLUSH, reg_val);
 
 set_available:

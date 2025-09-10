@@ -814,7 +814,7 @@ static int lx_pcm_create(struct lx6464es *chip)
 
 	pcm->info_flags = 0;
 	pcm->nonatomic = true;
-	strcpy(pcm->name, card_name);
+	strscpy(pcm->name, card_name);
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
 				       &chip->pci->dev, size, size);
@@ -1022,7 +1022,7 @@ static int snd_lx6464es_probe(struct pci_dev *pci,
 		goto error;
 	}
 
-	strcpy(card->driver, "LX6464ES");
+	strscpy(card->driver, "LX6464ES");
 	sprintf(card->id, "LX6464ES_%02X%02X%02X",
 		chip->mac_address[3], chip->mac_address[4], chip->mac_address[5]);
 

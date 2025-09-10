@@ -37,6 +37,7 @@ config EEPROM_AT25
 	depends on SPI && SYSFS
 	select NVMEM
 	select NVMEM_SYSFS
+	select SPI_MEM
 	help
 	  Enable this driver to get read/write support to most SPI EEPROMs
 	  and Cypress FRAMs,

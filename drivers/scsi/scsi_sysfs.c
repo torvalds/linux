@@ -265,7 +265,7 @@ show_shost_supported_mode(struct device *dev, struct device_attribute *attr,
 	return show_shost_mode(supported_mode, buf);
 }
 
-static DEVICE_ATTR(supported_mode, S_IRUGO | S_IWUSR, show_shost_supported_mode, NULL);
+static DEVICE_ATTR(supported_mode, S_IRUGO, show_shost_supported_mode, NULL);
 
 static ssize_t
 show_shost_active_mode(struct device *dev,
@@ -279,7 +279,7 @@ show_shost_active_mode(struct device *dev,
 		return show_shost_mode(shost->active_mode, buf);
 }
 
-static DEVICE_ATTR(active_mode, S_IRUGO | S_IWUSR, show_shost_active_mode, NULL);
+static DEVICE_ATTR(active_mode, S_IRUGO, show_shost_active_mode, NULL);
 
 static int check_reset_type(const char *str)
 {
@@ -917,7 +917,7 @@ show_vpd_##_page(struct file *filp, struct kobject *kobj,	\
 static const struct bin_attribute dev_attr_vpd_##_page = {		\
 	.attr =	{.name = __stringify(vpd_##_page), .mode = S_IRUGO },	\
 	.size = 0,							\
-	.read_new = show_vpd_##_page,					\
+	.read = show_vpd_##_page,					\
 };
 
 sdev_vpd_pg_attr(pg83);
@@ -949,7 +949,7 @@ static const struct bin_attribute dev_attr_inquiry = {
 		.mode = S_IRUGO,
 	},
 	.size = 0,
-	.read_new = show_inquiry,
+	.read = show_inquiry,
 };
 
 static ssize_t
@@ -1362,7 +1362,7 @@ static const struct bin_attribute *const scsi_sdev_bin_attrs[] = {
 };
 static struct attribute_group scsi_sdev_attr_group = {
 	.attrs =	scsi_sdev_attrs,
-	.bin_attrs_new = scsi_sdev_bin_attrs,
+	.bin_attrs = scsi_sdev_bin_attrs,
 	.is_visible =	scsi_sdev_attr_is_visible,
 	.is_bin_visible = scsi_sdev_bin_attr_is_visible,
 };

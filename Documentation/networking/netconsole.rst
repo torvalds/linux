@@ -340,6 +340,38 @@ In this example, the message was sent by CPU 42.
       cpu=42    # kernel-populated value
 
 
+Message ID auto population in userdata
+--------------------------------------
+
+Within the netconsole configfs hierarchy, there is a file named `msgid_enabled`
+located in the `userdata` directory. This file controls the message ID
+auto-population feature, which assigns a numeric id to each message sent to a
+given target and appends the ID to userdata dictionary in every message sent.
+
+The message ID is generated using a per-target 32 bit counter that is
+incremented for every message sent to the target. Note that this counter will
+eventually wrap around after reaching uint32_t max value, so the message ID is
+not globally unique over time. However, it can still be used by the target to
+detect if messages were dropped before reaching the target by identifying gaps
+in the sequence of IDs.
+
+It is important to distinguish message IDs from the message <sequnum> field.
+Some kernel messages may never reach netconsole (for example, due to printk
+rate limiting). Thus, a gap in <sequnum> cannot be solely relied upon to
+indicate that a message was dropped during transmission, as it may never have
+been sent via netconsole. The message ID, on the other hand, is only assigned
+to messages that are actually transmitted via netconsole.
+
+Example::
+
+  echo "This is message #1" > /dev/kmsg
+  echo "This is message #2" > /dev/kmsg
+  13,434,54928466,-;This is message #1
+   msgid=1
+  13,435,54934019,-;This is message #2
+   msgid=2
+
+
 Extended console:
 =================
 

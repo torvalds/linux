@@ -608,8 +608,7 @@ static int jh7110_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	return !!(readl_relaxed(reg) & BIT(gpio % 32));
 }
 
-static void jh7110_gpio_set(struct gpio_chip *gc,
-			    unsigned int gpio, int value)
+static int jh7110_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 {
 	struct jh7110_pinctrl *sfp = container_of(gc,
 			struct jh7110_pinctrl, gc);
@@ -625,6 +624,8 @@ static void jh7110_gpio_set(struct gpio_chip *gc,
 	dout |= readl_relaxed(reg_dout) & ~mask;
 	writel_relaxed(dout, reg_dout);
 	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+
+	return 0;
 }
 
 static int jh7110_gpio_set_config(struct gpio_chip *gc,

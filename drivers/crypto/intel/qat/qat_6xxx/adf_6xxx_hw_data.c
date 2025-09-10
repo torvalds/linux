@@ -10,6 +10,7 @@
 
 #include <adf_accel_devices.h>
 #include <adf_admin.h>
+#include <adf_bank_state.h>
 #include <adf_cfg.h>
 #include <adf_cfg_services.h>
 #include <adf_clock.h>
@@ -18,6 +19,7 @@
 #include <adf_gen6_pm.h>
 #include <adf_gen6_ras.h>
 #include <adf_gen6_shared.h>
+#include <adf_gen6_tl.h>
 #include <adf_timer.h>
 #include "adf_6xxx_hw_data.h"
 #include "icp_qat_fw_comp.h"
@@ -76,6 +78,10 @@ static const unsigned long thrd_mask_dcc[ADF_6XXX_MAX_ACCELENGINES] = {
 	0x00, 0x00, 0x00, 0x00, 0x07, 0x07, 0x03, 0x03, 0x00
 };
 
+static const unsigned long thrd_mask_dcpr[ADF_6XXX_MAX_ACCELENGINES] = {
+	0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x00
+};
+
 static const char *const adf_6xxx_fw_objs[] = {
 	[ADF_FW_CY_OBJ] = ADF_6XXX_CY_OBJ,
 	[ADF_FW_DC_OBJ] = ADF_6XXX_DC_OBJ,
@@ -97,7 +103,7 @@ static bool services_supported(unsigned long mask)
 {
 	int num_svc;
 
-	if (mask >= BIT(SVC_BASE_COUNT))
+	if (mask >= BIT(SVC_COUNT))
 		return false;
 
 	num_svc = hweight_long(mask);
@@ -126,10 +132,13 @@ static int get_service(unsigned long *mask)
 	if (test_and_clear_bit(SVC_DCC, mask))
 		return SVC_DCC;
 
+	if (test_and_clear_bit(SVC_DECOMP, mask))
+		return SVC_DECOMP;
+
 	return -EINVAL;
 }
 
-static enum adf_cfg_service_type get_ring_type(enum adf_services service)
+static enum adf_cfg_service_type get_ring_type(unsigned int service)
 {
 	switch (service) {
 	case SVC_SYM:
@@ -139,12 +148,14 @@ static enum adf_cfg_service_type get_ring_type(enum adf_services service)
 	case SVC_DC:
 	case SVC_DCC:
 		return COMP;
+	case SVC_DECOMP:
+		return DECOMP;
 	default:
 		return UNUSED;
 	}
 }
 
-static const unsigned long *get_thrd_mask(enum adf_services service)
+static const unsigned long *get_thrd_mask(unsigned int service)
 {
 	switch (service) {
 	case SVC_SYM:
@@ -155,6 +166,8 @@ static const unsigned long *get_thrd_mask(enum adf_services service)
 		return thrd_mask_cpr;
 	case SVC_DCC:
 		return thrd_mask_dcc;
+	case SVC_DECOMP:
+		return thrd_mask_dcpr;
 	default:
 		return NULL;
 	}
@@ -511,6 +524,55 @@ static int adf_gen6_init_thd2arb_map(struct adf_accel_dev *accel_dev)
 	return 0;
 }
 
+static void init_num_svc_aes(struct adf_rl_hw_data *device_data)
+{
+	enum adf_fw_objs obj_type, obj_iter;
+	unsigned int svc, i, num_grp;
+	u32 ae_mask;
+
+	for (svc = 0; svc < SVC_BASE_COUNT; svc++) {
+		switch (svc) {
+		case SVC_SYM:
+		case SVC_ASYM:
+			obj_type = ADF_FW_CY_OBJ;
+			break;
+		case SVC_DC:
+		case SVC_DECOMP:
+			obj_type = ADF_FW_DC_OBJ;
+			break;
+		}
+
+		num_grp = ARRAY_SIZE(adf_default_fw_config);
+		for (i = 0; i < num_grp; i++) {
+			obj_iter = adf_default_fw_config[i].obj;
+			if (obj_iter == obj_type) {
+				ae_mask = adf_default_fw_config[i].ae_mask;
+				device_data->svc_ae_mask[svc] = hweight32(ae_mask);
+				break;
+			}
+		}
+	}
+}
+
+static u32 adf_gen6_get_svc_slice_cnt(struct adf_accel_dev *accel_dev,
+				      enum adf_base_services svc)
+{
+	struct adf_rl_hw_data *device_data = &accel_dev->hw_device->rl_data;
+
+	switch (svc) {
+	case SVC_SYM:
+		return device_data->slices.cph_cnt;
+	case SVC_ASYM:
+		return device_data->slices.pke_cnt;
+	case SVC_DC:
+		return device_data->slices.cpr_cnt + device_data->slices.dcpr_cnt;
+	case SVC_DECOMP:
+		return device_data->slices.dcpr_cnt;
+	default:
+		return 0;
+	}
+}
+
 static void set_vc_csr_for_bank(void __iomem *csr, u32 bank_number)
 {
 	u32 value;
@@ -520,8 +582,8 @@ static void set_vc_csr_for_bank(void __iomem *csr, u32 bank_number)
 	 * driver must program the ringmodectl CSRs.
 	 */
 	value = ADF_CSR_RD(csr, ADF_GEN6_CSR_RINGMODECTL(bank_number));
-	value |= FIELD_PREP(ADF_GEN6_RINGMODECTL_TC_MASK, ADF_GEN6_RINGMODECTL_TC_DEFAULT);
-	value |= FIELD_PREP(ADF_GEN6_RINGMODECTL_TC_EN_MASK, ADF_GEN6_RINGMODECTL_TC_EN_OP1);
+	FIELD_MODIFY(ADF_GEN6_RINGMODECTL_TC_MASK, &value, ADF_GEN6_RINGMODECTL_TC_DEFAULT);
+	FIELD_MODIFY(ADF_GEN6_RINGMODECTL_TC_EN_MASK, &value, ADF_GEN6_RINGMODECTL_TC_EN_OP1);
 	ADF_CSR_WR(csr, ADF_GEN6_CSR_RINGMODECTL(bank_number), value);
 }
 
@@ -537,7 +599,7 @@ static int set_vc_config(struct adf_accel_dev *accel_dev)
 	 * Read PVC0CTL then write the masked values.
 	 */
 	pci_read_config_dword(pdev, ADF_GEN6_PVC0CTL_OFFSET, &value);
-	value |= FIELD_PREP(ADF_GEN6_PVC0CTL_TCVCMAP_MASK, ADF_GEN6_PVC0CTL_TCVCMAP_DEFAULT);
+	FIELD_MODIFY(ADF_GEN6_PVC0CTL_TCVCMAP_MASK, &value, ADF_GEN6_PVC0CTL_TCVCMAP_DEFAULT);
 	err = pci_write_config_dword(pdev, ADF_GEN6_PVC0CTL_OFFSET, value);
 	if (err) {
 		dev_err(&GET_DEV(accel_dev), "pci write to PVC0CTL failed\n");
@@ -546,8 +608,8 @@ static int set_vc_config(struct adf_accel_dev *accel_dev)
 
 	/* Read PVC1CTL then write masked values */
 	pci_read_config_dword(pdev, ADF_GEN6_PVC1CTL_OFFSET, &value);
-	value |= FIELD_PREP(ADF_GEN6_PVC1CTL_TCVCMAP_MASK, ADF_GEN6_PVC1CTL_TCVCMAP_DEFAULT);
-	value |= FIELD_PREP(ADF_GEN6_PVC1CTL_VCEN_MASK, ADF_GEN6_PVC1CTL_VCEN_ON);
+	FIELD_MODIFY(ADF_GEN6_PVC1CTL_TCVCMAP_MASK, &value, ADF_GEN6_PVC1CTL_TCVCMAP_DEFAULT);
+	FIELD_MODIFY(ADF_GEN6_PVC1CTL_VCEN_MASK, &value, ADF_GEN6_PVC1CTL_VCEN_ON);
 	err = pci_write_config_dword(pdev, ADF_GEN6_PVC1CTL_OFFSET, value);
 	if (err)
 		dev_err(&GET_DEV(accel_dev), "pci write to PVC1CTL failed\n");
@@ -618,7 +680,6 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CHACHA_POLY;
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_AESGCM_SPC;
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_AES_V2;
-		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
 	if (fusectl1 & ICP_ACCEL_GEN6_MASK_AUTH_SLICE) {
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
@@ -627,7 +688,15 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
 
-	capabilities_asym = 0;
+	capabilities_asym = ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
+			    ICP_ACCEL_CAPABILITIES_SM2 |
+			    ICP_ACCEL_CAPABILITIES_ECEDMONT;
+
+	if (fusectl1 & ICP_ACCEL_GEN6_MASK_PKE_SLICE) {
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_SM2;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
+	}
 
 	capabilities_dc = ICP_ACCEL_CAPABILITIES_COMPRESSION |
 			  ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION |
@@ -648,7 +717,7 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		caps |= capabilities_asym;
 	if (test_bit(SVC_SYM, &mask))
 		caps |= capabilities_sym;
-	if (test_bit(SVC_DC, &mask))
+	if (test_bit(SVC_DC, &mask) || test_bit(SVC_DECOMP, &mask))
 		caps |= capabilities_dc;
 	if (test_bit(SVC_DCC, &mask)) {
 		/*
@@ -744,7 +813,16 @@ static int adf_init_device(struct adf_accel_dev *accel_dev)
 
 static int enable_pm(struct adf_accel_dev *accel_dev)
 {
-	return adf_init_admin_pm(accel_dev, ADF_GEN6_PM_DEFAULT_IDLE_FILTER);
+	int ret;
+
+	ret = adf_init_admin_pm(accel_dev, ADF_GEN6_PM_DEFAULT_IDLE_FILTER);
+	if (ret)
+		return ret;
+
+	/* Initialize PM internal data */
+	adf_gen6_init_dev_pm_data(accel_dev);
+
+	return 0;
 }
 
 static int dev_config(struct adf_accel_dev *accel_dev)
@@ -774,6 +852,25 @@ static int dev_config(struct adf_accel_dev *accel_dev)
 	__set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
 
 	return ret;
+}
+
+static void adf_gen6_init_rl_data(struct adf_rl_hw_data *rl_data)
+{
+	rl_data->pciout_tb_offset = ADF_GEN6_RL_TOKEN_PCIEOUT_BUCKET_OFFSET;
+	rl_data->pciin_tb_offset = ADF_GEN6_RL_TOKEN_PCIEIN_BUCKET_OFFSET;
+	rl_data->r2l_offset = ADF_GEN6_RL_R2L_OFFSET;
+	rl_data->l2c_offset = ADF_GEN6_RL_L2C_OFFSET;
+	rl_data->c2s_offset = ADF_GEN6_RL_C2S_OFFSET;
+	rl_data->pcie_scale_div = ADF_6XXX_RL_PCIE_SCALE_FACTOR_DIV;
+	rl_data->pcie_scale_mul = ADF_6XXX_RL_PCIE_SCALE_FACTOR_MUL;
+	rl_data->max_tp[SVC_ASYM] = ADF_6XXX_RL_MAX_TP_ASYM;
+	rl_data->max_tp[SVC_SYM] = ADF_6XXX_RL_MAX_TP_SYM;
+	rl_data->max_tp[SVC_DC] = ADF_6XXX_RL_MAX_TP_DC;
+	rl_data->max_tp[SVC_DECOMP] = ADF_6XXX_RL_MAX_TP_DECOMP;
+	rl_data->scan_interval = ADF_6XXX_RL_SCANS_PER_SEC;
+	rl_data->scale_ref = ADF_6XXX_RL_SLICE_REF;
+
+	init_num_svc_aes(rl_data);
 }
 
 void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
@@ -824,6 +921,8 @@ void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->ring_pair_reset = ring_pair_reset;
 	hw_data->dev_config = dev_config;
+	hw_data->bank_state_save = adf_bank_state_save;
+	hw_data->bank_state_restore = adf_bank_state_restore;
 	hw_data->get_hb_clock = get_heartbeat_clock;
 	hw_data->num_hb_ctrs = ADF_NUM_HB_CNT_PER_AE;
 	hw_data->start_timer = adf_timer_start;
@@ -831,11 +930,17 @@ void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
 	hw_data->init_device = adf_init_device;
 	hw_data->enable_pm = enable_pm;
 	hw_data->services_supported = services_supported;
+	hw_data->num_rps = ADF_GEN6_ETR_MAX_BANKS;
+	hw_data->clock_frequency = ADF_6XXX_AE_FREQ;
+	hw_data->get_svc_slice_cnt = adf_gen6_get_svc_slice_cnt;
 
 	adf_gen6_init_hw_csr_ops(&hw_data->csr_ops);
 	adf_gen6_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen6_init_dc_ops(&hw_data->dc_ops);
+	adf_gen6_init_vf_mig_ops(&hw_data->vfmig_ops);
 	adf_gen6_init_ras_ops(&hw_data->ras_ops);
+	adf_gen6_init_tl_data(&hw_data->tl_data);
+	adf_gen6_init_rl_data(&hw_data->rl_data);
 }
 
 void adf_clean_hw_data_6xxx(struct adf_hw_device_data *hw_data)

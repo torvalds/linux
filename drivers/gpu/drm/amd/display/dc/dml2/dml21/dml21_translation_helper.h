@@ -17,9 +17,7 @@ struct dml2_context;
 struct dml2_configuration_options;
 struct dml2_initialize_instance_in_out;
 
-void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_init, const struct dml2_configuration_options *config, const struct dc *in_dc);
-void dml21_initialize_soc_bb_params(struct dml2_initialize_instance_in_out *dml_init, const struct dml2_configuration_options *config, const struct dc *in_dc);
-void dml21_initialize_ip_params(struct dml2_initialize_instance_in_out *dml_init, const struct dml2_configuration_options *config, const struct dc *in_dc);
+void dml21_populate_dml_init_params(struct dml2_initialize_instance_in_out *dml_init, const struct dml2_configuration_options *config, const struct dc *in_dc);
 bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml_ctx);
 void dml21_copy_clocks_to_dc_state(struct dml2_context *in_ctx, struct dc_state *context);
 void dml21_extract_watermark_sets(const struct dc *in_dc, union dcn_watermark_set *watermarks, struct dml2_context *in_ctx);

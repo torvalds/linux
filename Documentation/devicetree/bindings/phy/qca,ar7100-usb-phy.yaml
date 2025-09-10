@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/qca,ar7100-usb-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atheros AR71XX/9XXX USB PHY
+
+maintainers:
+  - Alban Bedel <albeu@free.fr>
+
+properties:
+  compatible:
+    items:
+      - const: qca,ar7100-usb-phy
+
+  reset-names:
+    description: Names of reset lines in order.
+    minItems: 1
+    items:
+      - const: phy
+      - const: suspend-override
+
+  resets:
+    description: References to the reset controllers.
+    minItems: 1
+    items:
+      - description: Reset controller for phy
+      - description: Reset controller for suspend-override
+
+  '#phy-cells':
+    const: 0
+
+required:
+  - compatible
+  - reset-names
+  - resets
+  - '#phy-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    usb-phy {
+        compatible = "qca,ar7100-usb-phy";
+        reset-names = "phy", "suspend-override";
+        resets = <&rst 4>, <&rst 3>;
+        #phy-cells = <0>;
+    };

@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menuconfig SND_HDA_CODEC_CIRRUS
+	tristate "Cirrus Logic HD-audio codec support"
+	help
+	  Say Y or M here to include Cirrus Logic HD-audio codec support.
+
+	  This will enable both CS420x and CS421x HD-audio codec drivers
+	  as default, but you can enable/disable each codec driver
+	  individually, too (only when CONFIG_EXPERT is set).
+
+if SND_HDA_CODEC_CIRRUS
+
+config SND_HDA_CODEC_CS420X
+	tristate "Build Cirrus Logic CS420x codec support" if EXPERT
+	select SND_HDA_GENERIC
+	default y
+	help
+	  Say Y or M here to include Cirrus Logic CS420x codec support
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_CS420X=m
+
+config SND_HDA_CODEC_CS421X
+	tristate "Build Cirrus Logic CS421x codec support" if EXPERT
+	select SND_HDA_GENERIC
+	default y
+	help
+	  Say Y or M here to include Cirrus Logic CS421x codec support
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_CS421X=m
+
+config SND_HDA_CODEC_CS8409
+	tristate "Build Cirrus Logic HDA bridge support"
+	select SND_HDA_GENERIC
+	help
+	  Say Y or M here to include Cirrus Logic HDA bridge support
+	  such as CS8409.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_CS8409=m
+
+endif

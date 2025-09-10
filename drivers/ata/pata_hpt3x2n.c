@@ -356,7 +356,7 @@ static struct ata_port_operations hpt3xxn_port_ops = {
 	.cable_detect	= hpt3x2n_cable_detect,
 	.set_piomode	= hpt3x2n_set_piomode,
 	.set_dmamode	= hpt3x2n_set_dmamode,
-	.prereset	= hpt3x2n_pre_reset,
+	.reset.prereset	= hpt3x2n_pre_reset,
 };
 
 /*

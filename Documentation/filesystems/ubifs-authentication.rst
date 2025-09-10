@@ -443,6 +443,6 @@ References
 
 [DM-VERITY]          https://www.kernel.org/doc/Documentation/device-mapper/verity.rst
 
-[FSCRYPT-POLICY2]    https://www.spinics.net/lists/linux-ext4/msg58710.html
+[FSCRYPT-POLICY2]    https://lore.kernel.org/r/20171023214058.128121-1-ebiggers3@gmail.com/
 
 [UBIFS-WP]           http://www.linux-mtd.infradead.org/doc/ubifs_whitepaper.pdf

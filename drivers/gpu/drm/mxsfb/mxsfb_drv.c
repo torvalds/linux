@@ -91,20 +91,15 @@ void mxsfb_disable_axi_clk(struct mxsfb_drm_private *mxsfb)
 
 static struct drm_framebuffer *
 mxsfb_fb_create(struct drm_device *dev, struct drm_file *file_priv,
+		const struct drm_format_info *info,
 		const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	const struct drm_format_info *info;
-
-	info = drm_get_format_info(dev, mode_cmd);
-	if (!info)
-		return ERR_PTR(-EINVAL);
-
 	if (mode_cmd->width * info->cpp[0] != mode_cmd->pitches[0]) {
 		dev_dbg(dev->dev, "Invalid pitch: fb width must match pitch\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	return drm_gem_fb_create(dev, file_priv, mode_cmd);
+	return drm_gem_fb_create(dev, file_priv, info, mode_cmd);
 }
 
 static const struct drm_mode_config_funcs mxsfb_mode_config_funcs = {

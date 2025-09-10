@@ -27,5 +27,8 @@ void rtw8852bt_wifi_scan_notify(struct rtw89_dev *rtwdev, bool scan_start,
 void rtw8852bt_set_channel_rf(struct rtw89_dev *rtwdev,
 			      const struct rtw89_chan *chan,
 			      enum rtw89_phy_idx phy_idx);
+void rtw8852bt_mcc_get_ch_info(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
+void rtw8852bt_rfk_chanctx_cb(struct rtw89_dev *rtwdev,
+			      enum rtw89_chanctx_state state);
 
 #endif

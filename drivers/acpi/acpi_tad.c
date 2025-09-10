@@ -233,7 +233,7 @@ static ssize_t time_show(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%u:%u:%u:%u:%u:%u:%d:%u\n",
+	return sysfs_emit(buf, "%u:%u:%u:%u:%u:%u:%d:%u\n",
 		       rt.year, rt.month, rt.day, rt.hour, rt.minute, rt.second,
 		       rt.tz, rt.daylight);
 }
@@ -428,7 +428,7 @@ static ssize_t caps_show(struct device *dev, struct device_attribute *attr,
 {
 	struct acpi_tad_driver_data *dd = dev_get_drvdata(dev);
 
-	return sprintf(buf, "0x%02X\n", dd->capabilities);
+	return sysfs_emit(buf, "0x%02X\n", dd->capabilities);
 }
 
 static DEVICE_ATTR_RO(caps);

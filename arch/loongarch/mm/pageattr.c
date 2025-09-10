@@ -118,7 +118,7 @@ static int __set_memory(unsigned long addr, int numpages, pgprot_t set_mask, pgp
 		return 0;
 
 	mmap_write_lock(&init_mm);
-	ret = walk_page_range_novma(&init_mm, start, end, &pageattr_ops, NULL, &masks);
+	ret = walk_kernel_page_table_range(start, end, &pageattr_ops, NULL, &masks);
 	mmap_write_unlock(&init_mm);
 
 	flush_tlb_kernel_range(start, end);

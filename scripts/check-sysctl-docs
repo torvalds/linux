@@ -1,4 +1,4 @@
-#!/usr/bin/gawk -f
+#!/usr/bin/env -S gawk -f
 # SPDX-License-Identifier: GPL-2.0
 
 # Script to check sysctl documentation against source files
@@ -13,10 +13,22 @@
 # Specify -vdebug=1 to see debugging information
 
 BEGIN {
-    if (!table) {
+	if (!table) {
 	print "Please specify the table to look for using the table variable" > "/dev/stderr"
 	exit 1
-    }
+	}
+
+	# Documentation title skiplist
+	skiplist[0] = "^Documentation for"
+	skiplist[1] = "Network core options$"
+	skiplist[2] = "POSIX message queues filesystem$"
+	skiplist[3] = "Configuration options"
+	skiplist[4] = ". /proc/sys/fs"
+	skiplist[5] = "^Introduction$"
+	skiplist[6] = "^seccomp$"
+	skiplist[7] = "^pty$"
+	skiplist[8] = "^firmware_config$"
+	skiplist[9] = "^random$"
 }
 
 # The following globals are used:
@@ -31,124 +43,132 @@ BEGIN {
 
 # Remove punctuation from the given value
 function trimpunct(value) {
-    while (value ~ /^["&]/) {
-	value = substr(value, 2)
-    }
-    while (value ~ /[]["&,}]$/) {
-	value = substr(value, 1, length(value) - 1)
-    }
-    return value
+	while (value ~ /^["&]/) {
+		value = substr(value, 2)
+	}
+	while (value ~ /[]["&,}]$/) {
+		value = substr(value, 1, length(value) - 1)
+	}
+	return value
 }
 
 # Print the information for the given entry
 function printentry(entry) {
-    seen[entry]++
-    printf "* %s from %s", entry, file[entry]
-    if (documented[entry]) {
-	printf " (documented)"
-    }
-    print ""
+	seen[entry]++
+	printf "* %s from %s", entry, file[entry]
+	if (documented[entry]) {
+		printf " (documented)"
+	}
+	print ""
 }
 
 
 # Stage 1: build the list of documented entries
 FNR == NR && /^=+$/ {
-    if (prevline ~ /Documentation for/) {
-	# This is the main title
-	next
-    }
+	for (i in skiplist) {
+		if (prevline ~ skiplist[i]) {
+			next
+		}
+	}
 
-    # The previous line is a section title, parse it
-    $0 = prevline
-    if (debug) print "Parsing " $0
-    inbrackets = 0
-    for (i = 1; i <= NF; i++) {
-	if (length($i) == 0) {
-	    continue
+	# The previous line is a section title, parse it
+	$0 = prevline
+	if (debug) print "Parsing " $0
+	inbrackets = 0
+	for (i = 1; i <= NF; i++) {
+		if (length($i) == 0) {
+			continue
+		}
+		if (!inbrackets && substr($i, 1, 1) == "(") {
+			inbrackets = 1
+		}
+		if (!inbrackets) {
+			token = trimpunct($i)
+			if (length(token) > 0 && token != "and") {
+				if (debug) print trimpunct($i)
+					documented[trimpunct($i)]++
+			}
+		}
+		if (inbrackets && substr($i, length($i), 1) == ")") {
+			inbrackets = 0
+		}
 	}
-	if (!inbrackets && substr($i, 1, 1) == "(") {
-	    inbrackets = 1
-	}
-	if (!inbrackets) {
-	    token = trimpunct($i)
-	    if (length(token) > 0 && token != "and") {
-		if (debug) print trimpunct($i)
-		documented[trimpunct($i)]++
-	    }
-	}
-	if (inbrackets && substr($i, length($i), 1) == ")") {
-	    inbrackets = 0
-	}
-    }
 }
 
 FNR == NR {
-    prevline = $0
-    next
+	prevline = $0
+	next
 }
 
 
 # Stage 2: process each file and find all sysctl tables
 BEGINFILE {
-    delete entries
-    curtable = ""
-    curentry = ""
-    delete vars
-    if (debug) print "Processing file " FILENAME
+	delete entries
+	curtable = ""
+	curentry = ""
+	delete vars
+	if (debug) print "Processing file " FILENAME
 }
 
 /^static( const)? struct ctl_table/ {
-    match($0, /static( const)? struct ctl_table ([^][]+)/, tables)
-    curtable = tables[2]
-    if (debug) print "Processing table " curtable
+	match($0, /static( const)? struct ctl_table ([^][]+)/, tables)
+	curtable = tables[2]
+	if (debug) print "Processing table " curtable
 }
 
 /^};$/ {
-    curtable = ""
-    curentry = ""
-    delete vars
+	curtable = ""
+	curentry = ""
+	delete vars
 }
 
 curtable && /\.procname[\t ]*=[\t ]*".+"/ {
-    match($0, /.procname[\t ]*=[\t ]*"([^"]+)"/, names)
-    curentry = names[1]
-    if (debug) print "Adding entry " curentry " to table " curtable
-    entries[curtable][curentry]++
-    file[curentry] = FILENAME
+	match($0, /.procname[\t ]*=[\t ]*"([^"]+)"/, names)
+	curentry = names[1]
+	if (debug) print "Adding entry " curentry " to table " curtable
+	entries[curtable][curentry]++
+	file[curentry] = FILENAME
+}
+
+curtable && /UCOUNT_ENTRY.*/ {
+	match($0, /UCOUNT_ENTRY\("([^"]+)"\)/, names)
+	curentry = names[1]
+	if (debug) print "Adding entry " curentry " to table " curtable
+	entries[curtable][curentry]++
+	file[curentry] = FILENAME
 }
 
 /register_sysctl.*/ {
-    match($0, /register_sysctl(|_init|_sz)\("([^"]+)" *, *([^,)]+)/, tables)
-    if (debug) print "Registering table " tables[3] " at " tables[2]
-    if (tables[2] == table) {
-        for (entry in entries[tables[3]]) {
-            printentry(entry)
-        }
-    }
+	match($0, /register_sysctl(|_init|_sz)\("([^"]+)" *, *([^,)]+)/, tables)
+	if (debug) print "Registering table " tables[3] " at " tables[2]
+	if (tables[2] == table) {
+		for (entry in entries[tables[3]]) {
+			printentry(entry)
+		}
+	}
 }
 
 /kmemdup.*/ {
-    match($0, /([^ \t]+) *= *kmemdup\(([^,]+) *,/, names)
-    if (debug) print "Found variable " names[1] " for table " names[2]
-    if (names[2] in entries) {
-        vars[names[1]] = names[2]
-    }
+	match($0, /([^ \t]+) *= *kmemdup\(([^,]+) *,/, names)
+	if (debug) print "Found variable " names[1] " for table " names[2]
+	if (names[2] in entries) {
+		vars[names[1]] = names[2]
+	}
 }
 
 /__register_sysctl_table.*/ {
-    match($0, /__register_sysctl_table\([^,]+, *"([^"]+)" *, *([^,]+)/, tables)
-    if (debug) print "Registering variable table " tables[2] " at " tables[1]
-    if (tables[1] == table && tables[2] in vars) {
-        for (entry in entries[vars[tables[2]]]) {
-            printentry(entry)
-        }
-    }
+	match($0, /__register_sysctl_table\([^,]+, *"([^"]+)" *, *([^,]+)/, tables)
+	if (debug) print "Registering variable table " tables[2] " at " tables[1]
+	if (tables[1] == table && tables[2] in vars) {
+		for (entry in entries[vars[tables[2]]]) {
+			printentry(entry)
+		}
+	}
 }
 
 END {
-    for (entry in documented) {
-	if (!seen[entry]) {
-	    print "No implementation for " entry
+	for (entry in documented) {
+		if (!seen[entry])
+			print "No implementation for " entry
 	}
-    }
 }

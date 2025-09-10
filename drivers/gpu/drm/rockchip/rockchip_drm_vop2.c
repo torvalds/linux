@@ -146,25 +146,6 @@ static void vop2_unlock(struct vop2 *vop2)
 	mutex_unlock(&vop2->vop2_lock);
 }
 
-/*
- * Note:
- * The write mask function is documented but missing on rk3566/8, writes
- * to these bits have no effect. For newer soc(rk3588 and following) the
- * write mask is needed for register writes.
- *
- * GLB_CFG_DONE_EN has no write mask bit.
- *
- */
-static void vop2_cfg_done(struct vop2_video_port *vp)
-{
-	struct vop2 *vop2 = vp->vop2;
-	u32 val = RK3568_REG_CFG_DONE__GLB_CFG_DONE_EN;
-
-	val |= BIT(vp->id) | (BIT(vp->id) << 16);
-
-	regmap_set_bits(vop2->map, RK3568_REG_CFG_DONE, val);
-}
-
 static void vop2_win_disable(struct vop2_win *win)
 {
 	vop2_win_write(win, VOP2_WIN_ENABLE, 0);
@@ -853,6 +834,11 @@ static void vop2_enable(struct vop2 *vop2)
 
 	if (vop2->version == VOP_VERSION_RK3588)
 		rk3588_vop2_power_domain_enable_all(vop2);
+
+	if (vop2->version <= VOP_VERSION_RK3588) {
+		vop2->old_layer_sel = vop2_readl(vop2, RK3568_OVL_LAYER_SEL);
+		vop2->old_port_sel = vop2_readl(vop2, RK3568_OVL_PORT_SEL);
+	}
 
 	vop2_writel(vop2, RK3568_REG_CFG_DONE, RK3568_REG_CFG_DONE__GLB_CFG_DONE_EN);
 
@@ -2422,6 +2408,10 @@ static int vop2_create_crtcs(struct vop2 *vop2)
 				break;
 			}
 		}
+
+		if (!vp->primary_plane)
+			return dev_err_probe(drm->dev, -ENOENT,
+					     "no primary plane for vp %d\n", i);
 	}
 
 	/* Register all unused window as overlay plane */
@@ -2724,6 +2714,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		return dev_err_probe(drm->dev, vop2->irq, "cannot find irq for vop2\n");
 
 	mutex_init(&vop2->vop2_lock);
+	mutex_init(&vop2->ovl_lock);
 
 	ret = devm_request_irq(dev, vop2->irq, vop2_isr, IRQF_SHARED, dev_name(dev), vop2);
 	if (ret)

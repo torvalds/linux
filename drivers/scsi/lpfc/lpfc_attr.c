@@ -6420,8 +6420,8 @@ static const struct bin_attribute sysfs_ctlreg_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 256,
-	.read_new = sysfs_ctlreg_read,
-	.write_new = sysfs_ctlreg_write,
+	.read = sysfs_ctlreg_read,
+	.write = sysfs_ctlreg_write,
 };
 
 /**
@@ -6478,8 +6478,8 @@ static const struct bin_attribute sysfs_mbox_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = MAILBOX_SYSFS_MAX,
-	.read_new = sysfs_mbox_read,
-	.write_new = sysfs_mbox_write,
+	.read = sysfs_mbox_read,
+	.write = sysfs_mbox_write,
 };
 
 /**

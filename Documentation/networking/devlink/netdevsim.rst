@@ -62,7 +62,7 @@ Rate objects
 
 The ``netdevsim`` driver supports rate objects management, which includes:
 
-- registerging/unregistering leaf rate objects per VF devlink port;
+- registering/unregistering leaf rate objects per VF devlink port;
 - creation/deletion node rate objects;
 - setting tx_share and tx_max rate values for any rate object type;
 - setting parent node for any rate object type.

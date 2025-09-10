@@ -1,4 +1,7 @@
 #!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab@kernel.org>.
+
 use strict;
 use Text::Tabs;
 use Getopt::Long;
@@ -391,7 +394,7 @@ Report bugs to Mauro Carvalho Chehab <mchehab@kernel.org>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab+samsung@kernel.org>.
+Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab@kernel.org>.
 
 License GPLv2: GNU GPL version 2 <https://gnu.org/licenses/gpl.html>.
 

@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/qca,ar7100-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Atheros AR7xxx/AR9xxx GPIO controller
+
+maintainers:
+  - Alban Bedel <albeu@free.fr>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: qca,ar9132-gpio
+          - const: qca,ar7100-gpio
+      - enum:
+          - qca,ar7100-gpio
+          - qca,ar9340-gpio
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  ngpios: true
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+  - ngpios
+
+additionalProperties: false
+
+examples:
+  - |
+    gpio@18040000 {
+        compatible = "qca,ar9132-gpio", "qca,ar7100-gpio";
+        reg = <0x18040000 0x30>;
+        interrupts = <2>;
+        ngpios = <22>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+    };

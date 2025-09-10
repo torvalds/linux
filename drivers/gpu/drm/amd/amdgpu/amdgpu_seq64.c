@@ -67,9 +67,9 @@ static inline u64 amdgpu_seq64_get_va_base(struct amdgpu_device *adev)
 int amdgpu_seq64_map(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		     struct amdgpu_bo_va **bo_va)
 {
-	u64 seq64_addr, va_flags;
 	struct amdgpu_bo *bo;
 	struct drm_exec exec;
+	u64 seq64_addr;
 	int r;
 
 	bo = adev->seq64.sbo;
@@ -94,9 +94,9 @@ int amdgpu_seq64_map(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	seq64_addr = amdgpu_seq64_get_va_base(adev) & AMDGPU_GMC_HOLE_MASK;
 
-	va_flags = amdgpu_gem_va_map_flags(adev, AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_MTYPE_UC);
-	r = amdgpu_vm_bo_map(adev, *bo_va, seq64_addr, 0, AMDGPU_VA_RESERVED_SEQ64_SIZE,
-			     va_flags);
+	r = amdgpu_vm_bo_map(adev, *bo_va, seq64_addr, 0,
+			     AMDGPU_VA_RESERVED_SEQ64_SIZE,
+			     AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_MTYPE_UC);
 	if (r) {
 		DRM_ERROR("failed to do bo_map on userq sem, err=%d\n", r);
 		amdgpu_vm_bo_del(adev, *bo_va);

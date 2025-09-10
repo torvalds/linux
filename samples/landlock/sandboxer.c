@@ -13,7 +13,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/landlock.h>
-#include <linux/prctl.h>
 #include <linux/socket.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -24,6 +23,10 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <stdbool.h>
+
+#if defined(__GLIBC__)
+#include <linux/prctl.h>
+#endif
 
 #ifndef landlock_create_ruleset
 static inline int

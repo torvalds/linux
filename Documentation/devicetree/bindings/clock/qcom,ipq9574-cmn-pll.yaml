@@ -24,6 +24,8 @@ description:
 properties:
   compatible:
     enum:
+      - qcom,ipq5018-cmn-pll
+      - qcom,ipq5424-cmn-pll
       - qcom,ipq9574-cmn-pll
 
   reg:

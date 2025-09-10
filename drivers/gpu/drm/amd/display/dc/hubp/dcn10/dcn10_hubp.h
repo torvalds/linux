@@ -104,7 +104,8 @@
 	SRI(DCN_SURF1_TTU_CNTL1, HUBPREQ, id),\
 	SRI(DCN_CUR0_TTU_CNTL0, HUBPREQ, id),\
 	SRI(DCN_CUR0_TTU_CNTL1, HUBPREQ, id),\
-	SRI(HUBP_CLK_CNTL, HUBP, id)
+	SRI(HUBP_CLK_CNTL, HUBP, id),\
+	SRI(HUBPRET_READ_LINE_VALUE, HUBPRET, id)
 
 /* Register address initialization macro for ASICs with VM */
 #define HUBP_REG_LIST_DCN_VM(id)\
@@ -249,7 +250,8 @@
 	uint32_t CURSOR_POSITION; \
 	uint32_t CURSOR_HOT_SPOT; \
 	uint32_t CURSOR_DST_OFFSET; \
-	uint32_t HUBP_CLK_CNTL
+	uint32_t HUBP_CLK_CNTL; \
+	uint32_t HUBPRET_READ_LINE_VALUE
 
 #define HUBP_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
@@ -622,6 +624,8 @@
 	type DCN_VM_SYSTEM_APERTURE_DEFAULT_SYSTEM;\
 	type DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB;\
 	type DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB;\
+	type PIPE_READ_LINE;\
+	type HUBP_SEG_ALLOC_ERR_STATUS;\
 	/* todo:  get these from GVM instead of reading registers ourselves */\
 	type PAGE_DIRECTORY_ENTRY_HI32;\
 	type PAGE_DIRECTORY_ENTRY_LO32;\
@@ -666,10 +670,30 @@ struct dcn_mi_mask {
 	DCN_HUBP_REG_FIELD_LIST(uint32_t);
 };
 
+struct dcn_fl_regs_st {
+	uint32_t lut_enable;
+	uint32_t lut_done;
+	uint32_t lut_addr_mode;
+	uint32_t lut_width;
+	uint32_t lut_mpc_width;
+	uint32_t lut_tmz;
+	uint32_t lut_crossbar_sel_r;
+	uint32_t lut_crossbar_sel_g;
+	uint32_t lut_crossbar_sel_b;
+	uint32_t lut_addr_hi;
+	uint32_t lut_addr_lo;
+	uint32_t refcyc_3dlut_group;
+	uint32_t lut_fl_bias;
+	uint32_t lut_fl_scale;
+	uint32_t lut_fl_mode;
+	uint32_t lut_fl_format;
+};
+
 struct dcn_hubp_state {
 	struct _vcs_dpi_display_dlg_regs_st dlg_attr;
 	struct _vcs_dpi_display_ttu_regs_st ttu_attr;
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
+	struct dcn_fl_regs_st fl_regs;
 	uint32_t pixel_format;
 	uint32_t inuse_addr_hi;
 	uint32_t inuse_addr_lo;

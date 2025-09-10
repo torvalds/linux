@@ -40,7 +40,7 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
 	 is_single_threaded.o plist.o decompress.o kobject_uevent.o \
 	 earlycpio.o seq_buf.o siphash.o dec_and_lock.o \
 	 nmi_backtrace.o win_minmax.o memcat_p.o \
-	 buildid.o objpool.o iomem_copy.o
+	 buildid.o objpool.o iomem_copy.o sys_info.o
 
 lib-$(CONFIG_UNION_FIND) += union_find.o
 lib-$(CONFIG_PRINTK) += dump_stack.o
@@ -102,6 +102,7 @@ obj-$(CONFIG_TEST_HMM) += test_hmm.o
 obj-$(CONFIG_TEST_FREE_PAGES) += test_free_pages.o
 obj-$(CONFIG_TEST_REF_TRACKER) += test_ref_tracker.o
 obj-$(CONFIG_TEST_OBJPOOL) += test_objpool.o
+obj-$(CONFIG_TEST_KEXEC_HANDOVER) += test_kho.o
 
 obj-$(CONFIG_TEST_FPU) += test_fpu.o
 test_fpu-y := test_fpu_glue.o test_fpu_impl.o
@@ -122,7 +123,7 @@ endif
 obj-$(CONFIG_DEBUG_INFO_REDUCED) += debug_info.o
 CFLAGS_debug_info.o += $(call cc-option, -femit-struct-debug-detailed=any)
 
-obj-y += math/ crypto/ tests/ vdso/
+obj-y += math/ crc/ crypto/ tests/ vdso/
 
 obj-$(CONFIG_GENERIC_IOMAP) += iomap.o
 obj-$(CONFIG_HAS_IOMEM) += iomap_copy.o devres.o
@@ -148,15 +149,6 @@ obj-$(CONFIG_BITREVERSE) += bitrev.o
 obj-$(CONFIG_LINEAR_RANGES) += linear_ranges.o
 obj-$(CONFIG_PACKING)	+= packing.o
 obj-$(CONFIG_PACKING_KUNIT_TEST) += packing_test.o
-obj-$(CONFIG_CRC_CCITT)	+= crc-ccitt.o
-obj-$(CONFIG_CRC16)	+= crc16.o
-obj-$(CONFIG_CRC_T10DIF)+= crc-t10dif.o
-obj-$(CONFIG_CRC_ITU_T)	+= crc-itu-t.o
-obj-$(CONFIG_CRC32)	+= crc32.o
-obj-$(CONFIG_CRC64)     += crc64.o
-obj-$(CONFIG_CRC4)	+= crc4.o
-obj-$(CONFIG_CRC7)	+= crc7.o
-obj-$(CONFIG_CRC8)	+= crc8.o
 obj-$(CONFIG_XXHASH)	+= xxhash.o
 obj-$(CONFIG_GENERIC_ALLOCATOR) += genalloc.o
 
@@ -294,27 +286,6 @@ obj-$(CONFIG_ASN1_ENCODER) += asn1_encoder.o
 
 obj-$(CONFIG_FONT_SUPPORT) += fonts/
 
-hostprogs	:= gen_crc32table
-hostprogs	+= gen_crc64table
-clean-files	:= crc32table.h
-clean-files	+= crc64table.h
-
-$(obj)/crc32.o: $(obj)/crc32table.h
-
-quiet_cmd_crc32 = GEN     $@
-      cmd_crc32 = $< > $@
-
-$(obj)/crc32table.h: $(obj)/gen_crc32table
-	$(call cmd,crc32)
-
-$(obj)/crc64.o: $(obj)/crc64table.h
-
-quiet_cmd_crc64 = GEN     $@
-      cmd_crc64 = $< > $@
-
-$(obj)/crc64table.h: $(obj)/gen_crc64table
-	$(call cmd,crc64)
-
 #
 # Build a fast OID lookip registry from include/linux/oid_registry.h
 #
@@ -337,7 +308,7 @@ obj-$(CONFIG_UBSAN) += ubsan.o
 UBSAN_SANITIZE_ubsan.o := n
 KASAN_SANITIZE_ubsan.o := n
 KCSAN_SANITIZE_ubsan.o := n
-CFLAGS_ubsan.o := -fno-stack-protector $(DISABLE_STACKLEAK_PLUGIN)
+CFLAGS_ubsan.o := -fno-stack-protector $(DISABLE_KSTACK_ERASE)
 
 obj-$(CONFIG_SBITMAP) += sbitmap.o
 

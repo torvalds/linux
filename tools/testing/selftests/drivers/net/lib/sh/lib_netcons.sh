@@ -11,9 +11,11 @@ set -euo pipefail
 LIBDIR=$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")
 
 SRCIF="" # to be populated later
-SRCIP=192.0.2.1
+SRCIP4="192.0.2.1"
+SRCIP6="fc00::1"
 DSTIF="" # to be populated later
-DSTIP=192.0.2.2
+DSTIP4="192.0.2.2"
+DSTIP6="fc00::2"
 
 PORT="6666"
 MSG="netconsole selftest"
@@ -80,7 +82,23 @@ function configure_ip() {
 	ip link set "${SRCIF}" up
 }
 
+function select_ipv4_or_ipv6()
+{
+	local VERSION=${1}
+
+	if [[ "$VERSION" == "ipv6" ]]
+	then
+		DSTIP="${DSTIP6}"
+		SRCIP="${SRCIP6}"
+	else
+		DSTIP="${DSTIP4}"
+		SRCIP="${SRCIP4}"
+	fi
+}
+
 function set_network() {
+	local IP_VERSION=${1:-"ipv4"}
+
 	# setup_ns function is coming from lib.sh
 	setup_ns NAMESPACE
 
@@ -91,10 +109,13 @@ function set_network() {
 	# Link both interfaces back to back
 	link_ifaces
 
+	select_ipv4_or_ipv6 "${IP_VERSION}"
 	configure_ip
 }
 
 function create_dynamic_target() {
+	local FORMAT=${1:-"extended"}
+
 	DSTMAC=$(ip netns exec "${NAMESPACE}" \
 		 ip link show "${DSTIF}" | awk '/ether/ {print $2}')
 
@@ -106,7 +127,33 @@ function create_dynamic_target() {
 	echo "${DSTMAC}" > "${NETCONS_PATH}"/remote_mac
 	echo "${SRCIF}" > "${NETCONS_PATH}"/dev_name
 
+	if [ "${FORMAT}" == "basic" ]
+	then
+		# Basic target does not support release
+		echo 0 > "${NETCONS_PATH}"/release
+		echo 0 > "${NETCONS_PATH}"/extended
+	elif [ "${FORMAT}" == "extended" ]
+	then
+		echo 1 > "${NETCONS_PATH}"/extended
+	fi
+
 	echo 1 > "${NETCONS_PATH}"/enabled
+
+	# This will make sure that the kernel was able to
+	# load the netconsole driver configuration. The console message
+	# gets more organized/sequential as well.
+	sleep 1
+}
+
+# Generate the command line argument for netconsole following:
+#  netconsole=[+][src-port]@[src-ip]/[<dev>],[tgt-port]@<tgt-ip>/[tgt-macaddr]
+function create_cmdline_str() {
+	DSTMAC=$(ip netns exec "${NAMESPACE}" \
+		 ip link show "${DSTIF}" | awk '/ether/ {print $2}')
+	SRCPORT="1514"
+	TGTPORT="6666"
+
+	echo "netconsole=\"+${SRCPORT}@${SRCIP}/${SRCIF},${TGTPORT}@${DSTIP}/${DSTMAC}\""
 }
 
 # Do not append the release to the header of the message
@@ -116,15 +163,8 @@ function disable_release_append() {
 	echo 1 > "${NETCONS_PATH}"/enabled
 }
 
-function cleanup() {
+function do_cleanup() {
 	local NSIM_DEV_SYS_DEL="/sys/bus/netdevsim/del_device"
-
-	# delete netconsole dynamic reconfiguration
-	echo 0 > "${NETCONS_PATH}"/enabled
-	# Remove all the keys that got created during the selftest
-	find "${NETCONS_PATH}/userdata/" -mindepth 1 -type d -delete
-	# Remove the configfs entry
-	rmdir "${NETCONS_PATH}"
 
 	# Delete netdevsim devices
 	echo "$NSIM_DEV_2_ID" > "$NSIM_DEV_SYS_DEL"
@@ -135,6 +175,17 @@ function cleanup() {
 
 	# Restoring printk configurations
 	echo "${DEFAULT_PRINTK_VALUES}" > /proc/sys/kernel/printk
+}
+
+function cleanup() {
+	# delete netconsole dynamic reconfiguration
+	echo 0 > "${NETCONS_PATH}"/enabled
+	# Remove all the keys that got created during the selftest
+	find "${NETCONS_PATH}/userdata/" -mindepth 1 -type d -delete
+	# Remove the configfs entry
+	rmdir "${NETCONS_PATH}"
+
+	do_cleanup
 }
 
 function set_user_data() {
@@ -152,17 +203,23 @@ function set_user_data() {
 
 function listen_port_and_save_to() {
 	local OUTPUT=${1}
+	local IPVERSION=${2:-"ipv4"}
+
+	if [ "${IPVERSION}" == "ipv4" ]
+	then
+		SOCAT_MODE="UDP-LISTEN"
+	else
+		SOCAT_MODE="UDP6-LISTEN"
+	fi
+
 	# Just wait for 2 seconds
 	timeout 2 ip netns exec "${NAMESPACE}" \
-		socat UDP-LISTEN:"${PORT}",fork "${OUTPUT}"
+		socat "${SOCAT_MODE}":"${PORT}",fork "${OUTPUT}"
 }
 
-function validate_result() {
+# Only validate that the message arrived properly
+function validate_msg() {
 	local TMPFILENAME="$1"
-
-	# TMPFILENAME will contain something like:
-	# 6.11.1-0_fbk0_rc13_509_g30d75cea12f7,13,1822,115075213798,-;netconsole selftest: netcons_gtJHM
-	#  key=value
 
 	# Check if the file exists
 	if [ ! -f "$TMPFILENAME" ]; then
@@ -175,17 +232,32 @@ function validate_result() {
 		cat "${TMPFILENAME}" >&2
 		exit "${ksft_fail}"
 	fi
+}
 
-	if ! grep -q "${USERDATA_KEY}=${USERDATA_VALUE}" "${TMPFILENAME}"; then
-		echo "FAIL: ${USERDATA_KEY}=${USERDATA_VALUE} not found in ${TMPFILENAME}" >&2
-		cat "${TMPFILENAME}" >&2
-		exit "${ksft_fail}"
+# Validate the message and userdata
+function validate_result() {
+	local TMPFILENAME="$1"
+
+	# TMPFILENAME will contain something like:
+	# 6.11.1-0_fbk0_rc13_509_g30d75cea12f7,13,1822,115075213798,-;netconsole selftest: netcons_gtJHM
+	#  key=value
+
+	validate_msg "${TMPFILENAME}"
+
+	# userdata is not supported on basic format target,
+	# thus, do not validate it.
+	if [ "${FORMAT}" != "basic" ];
+	then
+		if ! grep -q "${USERDATA_KEY}=${USERDATA_VALUE}" "${TMPFILENAME}"; then
+			echo "FAIL: ${USERDATA_KEY}=${USERDATA_VALUE} not found in ${TMPFILENAME}" >&2
+			cat "${TMPFILENAME}" >&2
+			exit "${ksft_fail}"
+		fi
 	fi
 
 	# Delete the file once it is validated, otherwise keep it
 	# for debugging purposes
 	rm "${TMPFILENAME}"
-	exit "${ksft_pass}"
 }
 
 function check_for_dependencies() {
@@ -209,6 +281,11 @@ function check_for_dependencies() {
 		exit "${ksft_skip}"
 	fi
 
+	if [ ! -f /proc/net/if_inet6 ]; then
+		echo "SKIP: IPv6 not configured. Check if CONFIG_IPV6 is enabled" >&2
+		exit "${ksft_skip}"
+	fi
+
 	if [ ! -f "${NSIM_DEV_SYS_NEW}" ]; then
 		echo "SKIP: file ${NSIM_DEV_SYS_NEW} does not exist. Check if CONFIG_NETDEVSIM is enabled" >&2
 		exit "${ksft_skip}"
@@ -224,8 +301,15 @@ function check_for_dependencies() {
 		exit "${ksft_skip}"
 	fi
 
-	if ip addr list | grep -E "inet.*(${SRCIP}|${DSTIP})" 2> /dev/null; then
-		echo "SKIP: IPs already in use. Skipping it" >&2
+	REGEXP4="inet.*(${SRCIP4}|${DSTIP4})"
+	REGEXP6="inet.*(${SRCIP6}|${DSTIP6})"
+	if ip addr list | grep -E "${REGEXP4}" 2> /dev/null; then
+		echo "SKIP: IPv4s already in use. Skipping it" >&2
+		exit "${ksft_skip}"
+	fi
+
+	if ip addr list | grep -E "${REGEXP6}" 2> /dev/null; then
+		echo "SKIP: IPv6s already in use. Skipping it" >&2
 		exit "${ksft_skip}"
 	fi
 }
@@ -239,10 +323,41 @@ function check_for_taskset() {
 
 # This is necessary if running multiple tests in a row
 function pkill_socat() {
-	PROCESS_NAME="socat UDP-LISTEN:6666,fork ${OUTPUT_FILE}"
+	PROCESS_NAME4="socat UDP-LISTEN:6666,fork ${OUTPUT_FILE}"
+	PROCESS_NAME6="socat UDP6-LISTEN:6666,fork ${OUTPUT_FILE}"
 	# socat runs under timeout(1), kill it if it is still alive
 	# do not fail if socat doesn't exist anymore
 	set +e
-	pkill -f "${PROCESS_NAME}"
+	pkill -f "${PROCESS_NAME4}"
+	pkill -f "${PROCESS_NAME6}"
 	set -e
+}
+
+# Check if netconsole was compiled as a module, otherwise exit
+function check_netconsole_module() {
+	if modinfo netconsole | grep filename: | grep -q builtin
+	then
+		echo "SKIP: netconsole should be compiled as a module" >&2
+		exit "${ksft_skip}"
+	fi
+}
+
+# A wrapper to translate protocol version to udp version
+function wait_for_port() {
+	local NAMESPACE=${1}
+	local PORT=${2}
+	IP_VERSION=${3}
+
+	if [ "${IP_VERSION}" == "ipv6" ]
+	then
+		PROTOCOL="udp6"
+	else
+		PROTOCOL="udp"
+	fi
+
+	wait_local_port_listen "${NAMESPACE}" "${PORT}" "${PROTOCOL}"
+	# even after the port is open, let's wait 1 second before writing
+	# otherwise the packet could be missed, and the test will fail. Happens
+	# more frequently on IPv6
+	sleep 1
 }

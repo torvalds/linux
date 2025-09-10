@@ -77,8 +77,11 @@ static void validate_addr(char *ptr, int high_addr)
 {
 	unsigned long addr = (unsigned long) ptr;
 
-	if (high_addr && addr < HIGH_ADDR_MARK)
-		ksft_exit_fail_msg("Bad address %lx\n", addr);
+	if (high_addr) {
+		if (addr < HIGH_ADDR_MARK)
+			ksft_exit_fail_msg("Bad address %lx\n", addr);
+		return;
+	}
 
 	if (addr > HIGH_ADDR_MARK)
 		ksft_exit_fail_msg("Bad address %lx\n", addr);

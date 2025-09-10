@@ -720,7 +720,7 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
 
 	if (!(mntflags & NFS_MOUNT_WRITE_EAGER) || wbc->for_kupdate ||
-	    wbc->for_background || wbc->for_sync || wbc->for_reclaim) {
+	    wbc->for_background || wbc->for_sync) {
 		ioc = nfs_io_completion_alloc(GFP_KERNEL);
 		if (ioc)
 			nfs_io_completion_init(ioc, nfs_io_completion_commit,
@@ -2113,8 +2113,12 @@ int nfs_migrate_folio(struct address_space *mapping, struct folio *dst,
 	 *        that we can safely release the inode reference while holding
 	 *        the folio lock.
 	 */
-	if (folio_test_private(src))
-		return -EBUSY;
+	if (folio_test_private(src)) {
+		if (mode == MIGRATE_SYNC)
+			nfs_wb_folio(src->mapping->host, src);
+		if (folio_test_private(src))
+			return -EBUSY;
+	}
 
 	if (folio_test_private_2(src)) { /* [DEPRECATED] */
 		if (mode == MIGRATE_ASYNC)

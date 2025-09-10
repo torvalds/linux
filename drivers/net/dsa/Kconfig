@@ -92,7 +92,7 @@ source "drivers/net/dsa/realtek/Kconfig"
 
 config NET_DSA_RZN1_A5PSW
 	tristate "Renesas RZ/N1 A5PSW Ethernet switch support"
-	depends on OF && ARCH_RZN1
+	depends on OF && (ARCH_RZN1 || COMPILE_TEST)
 	select NET_DSA_TAG_RZN1_A5PSW
 	select PCS_RZN1_MIIC
 	help

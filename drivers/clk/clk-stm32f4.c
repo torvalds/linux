@@ -19,7 +19,7 @@
 #include <linux/mfd/syscon.h>
 
 /*
- * Include list of clocks wich are not derived from system clock (SYSCLOCK)
+ * Include list of clocks which are not derived from system clock (SYSCLOCK)
  * The index of these clocks is the secondary index of DT bindings
  *
  */

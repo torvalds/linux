@@ -310,7 +310,7 @@ static int create_ump_endpoint_port(struct seq_ump_client *client)
 		SNDRV_SEQ_PORT_TYPE_HARDWARE |
 		SNDRV_SEQ_PORT_TYPE_PORT;
 	port->midi_channels = 16;
-	strcpy(port->name, "MIDI 2.0");
+	strscpy(port->name, "MIDI 2.0");
 	memset(&pcallbacks, 0, sizeof(pcallbacks));
 	pcallbacks.owner = THIS_MODULE;
 	pcallbacks.private_data = client;

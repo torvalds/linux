@@ -1115,7 +1115,6 @@ void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct device_node *node;
-	struct device_node *np;
 	int i;
 
 	node = rsnd_ssi_of_node(priv);
@@ -1123,14 +1122,12 @@ void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 		return;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_node_scoped(node, np) {
 		struct rsnd_mod *mod;
 
 		i = rsnd_node_fixed_index(dev, np, SSI_NAME, i);
-		if (i < 0) {
-			of_node_put(np);
+		if (i < 0)
 			break;
-		}
 
 		mod = rsnd_ssi_mod_get(priv, i);
 
@@ -1163,7 +1160,6 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 int rsnd_ssi_probe(struct rsnd_priv *priv)
 {
 	struct device_node *node;
-	struct device_node *np;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mod_ops *ops;
 	struct clk *clk;
@@ -1191,14 +1187,13 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 	priv->ssi_nr	= nr;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_node_scoped(node, np) {
 		if (!of_device_is_available(np))
 			goto skip;
 
 		i = rsnd_node_fixed_index(dev, np, SSI_NAME, i);
 		if (i < 0) {
 			ret = -EINVAL;
-			of_node_put(np);
 			goto rsnd_ssi_probe_done;
 		}
 
@@ -1210,7 +1205,6 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
-			of_node_put(np);
 			goto rsnd_ssi_probe_done;
 		}
 
@@ -1223,7 +1217,6 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 		ssi->irq = irq_of_parse_and_map(np, 0);
 		if (!ssi->irq) {
 			ret = -EINVAL;
-			of_node_put(np);
 			goto rsnd_ssi_probe_done;
 		}
 
@@ -1234,10 +1227,9 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ssi), ops, clk,
 				    RSND_MOD_SSI, i);
-		if (ret) {
-			of_node_put(np);
+		if (ret)
 			goto rsnd_ssi_probe_done;
-		}
+
 skip:
 		i++;
 	}

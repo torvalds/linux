@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <linux/hyperv.h>
+#include <linux/export.h>
 #include <asm/mshyperv.h>
 #include <linux/sched/isolation.h>
 

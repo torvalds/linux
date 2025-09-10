@@ -18,10 +18,25 @@
 	aliases {
 		mmc0 = &sdmmc0;
 		mmc1 = &sdhci;
+		rtc0 = &hym8563;
 	};
 
 	chosen: chosen {
 		stdout-path = "serial2:1500000n8";
+	};
+
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 0>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+
+		button-maskrom {
+			label = "MASKROM";
+			linux,code = <KEY_SETUP>;
+			press-threshold-microvolt = <0>;
+		};
 	};
 
 	hdmi-con {

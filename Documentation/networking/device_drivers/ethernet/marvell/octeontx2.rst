@@ -66,7 +66,7 @@ Admin Function driver
 As mentioned above RVU PF0 is called the admin function (AF), this driver
 supports resource provisioning and configuration of functional blocks.
 Doesn't handle any I/O. It sets up few basic stuff but most of the
-funcionality is achieved via configuration requests from PFs and VFs.
+functionality is achieved via configuration requests from PFs and VFs.
 
 PF/VFs communicates with AF via a shared memory region (mailbox). Upon
 receiving requests AF does resource provisioning and other HW configuration.

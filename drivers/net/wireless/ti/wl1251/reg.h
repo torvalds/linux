@@ -205,7 +205,7 @@ enum wl12xx_acx_int_reg {
  the burst read starts at EEPROM address 0.
  Otherwise, it starts at the address
  following the address of the previous access.
- TheWlan hardware hardware clears this bit automatically.
+ TheWlan hardware clears this bit automatically.
 
  Default: 0x00000000
 *================================================*/
@@ -353,13 +353,13 @@ enum wl12xx_acx_int_reg {
  loads a single byte of data into the EE_DATA
  register from the EEPROM location specified in
  the EE_ADDR register.
- The Wlan hardware hardware clears this bit automatically.
+ The Wlan hardware clears this bit automatically.
  EE_DATA is valid when this bit is cleared.
 
  0 EE_WRITE  - EEPROM Write Request  - Setting this bit
  writes a single byte of data from the EE_DATA register into the
  EEPROM location specified in the EE_ADDR register.
- The Wlan hardware hardware clears this bit automatically.
+ The Wlan hardware clears this bit automatically.
 *===============================================*/
 #define EE_CTL                              (REGISTERS_BASE + 0x2000)
 #define ACX_EE_CTL_REG                      EE_CTL

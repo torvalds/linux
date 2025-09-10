@@ -37,5 +37,6 @@ int imx_usbmisc_hsic_set_connect(struct imx_usbmisc_data *data);
 int imx_usbmisc_charger_detection(struct imx_usbmisc_data *data, bool connect);
 int imx_usbmisc_suspend(struct imx_usbmisc_data *data, bool wakeup);
 int imx_usbmisc_resume(struct imx_usbmisc_data *data, bool wakeup);
+int imx_usbmisc_pullup(struct imx_usbmisc_data *data, bool on);
 
 #endif /* __DRIVER_USB_CHIPIDEA_CI_HDRC_IMX_H */

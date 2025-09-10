@@ -185,8 +185,7 @@ FS_IOC_ENABLE_VERITY can fail with the following errors:
 - ``ENOKEY``: the ".fs-verity" keyring doesn't contain the certificate
   needed to verify the builtin signature
 - ``ENOPKG``: fs-verity recognizes the hash algorithm, but it's not
-  available in the kernel's crypto API as currently configured (e.g.
-  for SHA-512, missing CONFIG_CRYPTO_SHA512).
+  available in the kernel as currently configured
 - ``ENOTTY``: this type of filesystem does not implement fs-verity
 - ``EOPNOTSUPP``: the kernel was not configured with fs-verity
   support; or the filesystem superblock has not had the 'verity'

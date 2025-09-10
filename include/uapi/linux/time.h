@@ -64,6 +64,17 @@ struct timezone {
 #define CLOCK_TAI			11
 
 #define MAX_CLOCKS			16
+
+/*
+ * AUX clock support. AUXiliary clocks are dynamically configured by
+ * enabling a clock ID. These clock can be steered independently of the
+ * core timekeeper. The kernel can support up to 8 auxiliary clocks, but
+ * the actual limit depends on eventual architecture constraints vs. VDSO.
+ */
+#define CLOCK_AUX			MAX_CLOCKS
+#define MAX_AUX_CLOCKS			8
+#define CLOCK_AUX_LAST			(CLOCK_AUX + MAX_AUX_CLOCKS - 1)
+
 #define CLOCKS_MASK			(CLOCK_REALTIME | CLOCK_MONOTONIC)
 #define CLOCKS_MONO			CLOCK_MONOTONIC
 

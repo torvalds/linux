@@ -327,9 +327,18 @@
 	};
 };
 
+&can0 {
+	pinctrl-0 = <&can0_pins>;
+	pinctrl-names = "default";
+
+	/* Please only enable canfd or can0 */
+	/* status = "okay"; */
+};
+
 &canfd {
 	pinctrl-0 = <&canfd0_pins>;
 	pinctrl-names = "default";
+	/* Please only enable canfd or can0 */
 	status = "okay";
 
 	channel0 {
@@ -503,6 +512,7 @@
 };
 
 &i2c_dvfs {
+	bootph-all;
 	status = "okay";
 
 	clock-frequency = <400000>;
@@ -526,6 +536,7 @@
 		compatible = "rohm,br24t01", "atmel,24c01";
 		reg = <0x50>;
 		pagesize = <8>;
+		bootph-all;
 	};
 };
 
@@ -577,6 +588,11 @@
 	avb_pins: avb {
 		groups = "avb_link", "avb_mii";
 		function = "avb";
+	};
+
+	can0_pins: can0 {
+		groups = "can0_data";
+		function = "can0";
 	};
 
 	canfd0_pins: canfd0 {

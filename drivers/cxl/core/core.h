@@ -5,12 +5,18 @@
 #define __CXL_CORE_H__
 
 #include <cxl/mailbox.h>
+#include <linux/rwsem.h>
 
 extern const struct device_type cxl_nvdimm_bridge_type;
 extern const struct device_type cxl_nvdimm_type;
 extern const struct device_type cxl_pmu_type;
 
 extern struct attribute_group cxl_base_attribute_group;
+
+enum cxl_detach_mode {
+	DETACH_ONLY,
+	DETACH_INVALIDATE,
+};
 
 #ifdef CONFIG_CXL_REGION
 extern struct device_attribute dev_attr_create_pmem_region;
@@ -20,7 +26,11 @@ extern struct device_attribute dev_attr_region;
 extern const struct device_type cxl_pmem_region_type;
 extern const struct device_type cxl_dax_region_type;
 extern const struct device_type cxl_region_type;
-void cxl_decoder_kill_region(struct cxl_endpoint_decoder *cxled);
+
+int cxl_decoder_detach(struct cxl_region *cxlr,
+		       struct cxl_endpoint_decoder *cxled, int pos,
+		       enum cxl_detach_mode mode);
+
 #define CXL_REGION_ATTR(x) (&dev_attr_##x.attr)
 #define CXL_REGION_TYPE(x) (&cxl_region_type)
 #define SET_CXL_REGION_ATTR(x) (&dev_attr_##x.attr),
@@ -48,8 +58,11 @@ static inline int cxl_get_poison_by_endpoint(struct cxl_port *port)
 {
 	return 0;
 }
-static inline void cxl_decoder_kill_region(struct cxl_endpoint_decoder *cxled)
+static inline int cxl_decoder_detach(struct cxl_region *cxlr,
+				     struct cxl_endpoint_decoder *cxled,
+				     int pos, enum cxl_detach_mode mode)
 {
+	return 0;
 }
 static inline int cxl_region_init(void)
 {
@@ -80,6 +93,7 @@ int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, u64 size);
 int cxl_dpa_free(struct cxl_endpoint_decoder *cxled);
 resource_size_t cxl_dpa_size(struct cxl_endpoint_decoder *cxled);
 resource_size_t cxl_dpa_resource_start(struct cxl_endpoint_decoder *cxled);
+bool cxl_resource_contains_addr(const struct resource *res, const resource_size_t addr);
 
 enum cxl_rcrb {
 	CXL_RCRB_DOWNSTREAM,
@@ -96,8 +110,20 @@ u16 cxl_rcrb_to_aer(struct device *dev, resource_size_t rcrb);
 #define PCI_RCRB_CAP_HDR_NEXT_MASK	GENMASK(15, 8)
 #define PCI_CAP_EXP_SIZEOF		0x3c
 
-extern struct rw_semaphore cxl_dpa_rwsem;
-extern struct rw_semaphore cxl_region_rwsem;
+struct cxl_rwsem {
+	/*
+	 * All changes to HPA (interleave configuration) occur with this
+	 * lock held for write.
+	 */
+	struct rw_semaphore region;
+	/*
+	 * All changes to a device DPA space occur with this lock held
+	 * for write.
+	 */
+	struct rw_semaphore dpa;
+};
+
+extern struct cxl_rwsem cxl_rwsem;
 
 int cxl_memdev_init(void);
 void cxl_memdev_exit(void);
@@ -120,8 +146,6 @@ int cxl_port_get_switch_dport_bandwidth(struct cxl_port *port,
 int cxl_ras_init(void);
 void cxl_ras_exit(void);
 int cxl_gpf_port_setup(struct cxl_dport *dport);
-int cxl_acpi_get_extended_linear_cache_size(struct resource *backing_res,
-					    int nid, resource_size_t *size);
 
 #ifdef CONFIG_CXL_FEATURES
 struct cxl_feat_entry *

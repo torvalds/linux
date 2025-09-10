@@ -60,9 +60,6 @@ properties:
 required:
   - compatible
   - reg
-  - interrupts
-  - interrupt-controller
-  - "#interrupt-cells"
   - clocks
   - "#gpio-cells"
   - gpio-controller

@@ -171,20 +171,23 @@ struct xfs_btree_ops {
 	void	(*init_high_key_from_rec)(union xfs_btree_key *key,
 					  const union xfs_btree_rec *rec);
 
-	/* difference between key value and cursor value */
-	int64_t (*key_diff)(struct xfs_btree_cur *cur,
-			    const union xfs_btree_key *key);
+	/*
+	 * Compare key value and cursor value -- positive if key > cur,
+	 * negative if key < cur, and zero if equal.
+	 */
+	int	(*cmp_key_with_cur)(struct xfs_btree_cur *cur,
+				    const union xfs_btree_key *key);
 
 	/*
-	 * Difference between key2 and key1 -- positive if key1 > key2,
-	 * negative if key1 < key2, and zero if equal.  If the @mask parameter
-	 * is non NULL, each key field to be used in the comparison must
-	 * contain a nonzero value.
+	 * Compare key1 and key2 -- positive if key1 > key2, negative if
+	 * key1 < key2, and zero if equal.  If the @mask parameter is non NULL,
+	 * each key field to be used in the comparison must contain a nonzero
+	 * value.
 	 */
-	int64_t (*diff_two_keys)(struct xfs_btree_cur *cur,
-				 const union xfs_btree_key *key1,
-				 const union xfs_btree_key *key2,
-				 const union xfs_btree_key *mask);
+	int	(*cmp_two_keys)(struct xfs_btree_cur *cur,
+				const union xfs_btree_key *key1,
+				const union xfs_btree_key *key2,
+				const union xfs_btree_key *mask);
 
 	const struct xfs_buf_ops	*buf_ops;
 
@@ -516,9 +519,9 @@ struct xfs_btree_block *xfs_btree_get_block(struct xfs_btree_cur *cur,
 		int level, struct xfs_buf **bpp);
 bool xfs_btree_ptr_is_null(struct xfs_btree_cur *cur,
 		const union xfs_btree_ptr *ptr);
-int64_t xfs_btree_diff_two_ptrs(struct xfs_btree_cur *cur,
-				const union xfs_btree_ptr *a,
-				const union xfs_btree_ptr *b);
+int xfs_btree_cmp_two_ptrs(struct xfs_btree_cur *cur,
+			   const union xfs_btree_ptr *a,
+			   const union xfs_btree_ptr *b);
 void xfs_btree_get_sibling(struct xfs_btree_cur *cur,
 			   struct xfs_btree_block *block,
 			   union xfs_btree_ptr *ptr, int lr);
@@ -546,7 +549,7 @@ xfs_btree_keycmp_lt(
 	const union xfs_btree_key	*key1,
 	const union xfs_btree_key	*key2)
 {
-	return cur->bc_ops->diff_two_keys(cur, key1, key2, NULL) < 0;
+	return cur->bc_ops->cmp_two_keys(cur, key1, key2, NULL) < 0;
 }
 
 static inline bool
@@ -555,7 +558,7 @@ xfs_btree_keycmp_gt(
 	const union xfs_btree_key	*key1,
 	const union xfs_btree_key	*key2)
 {
-	return cur->bc_ops->diff_two_keys(cur, key1, key2, NULL) > 0;
+	return cur->bc_ops->cmp_two_keys(cur, key1, key2, NULL) > 0;
 }
 
 static inline bool
@@ -564,7 +567,7 @@ xfs_btree_keycmp_eq(
 	const union xfs_btree_key	*key1,
 	const union xfs_btree_key	*key2)
 {
-	return cur->bc_ops->diff_two_keys(cur, key1, key2, NULL) == 0;
+	return cur->bc_ops->cmp_two_keys(cur, key1, key2, NULL) == 0;
 }
 
 static inline bool
@@ -602,7 +605,7 @@ xfs_btree_masked_keycmp_lt(
 	const union xfs_btree_key	*key2,
 	const union xfs_btree_key	*mask)
 {
-	return cur->bc_ops->diff_two_keys(cur, key1, key2, mask) < 0;
+	return cur->bc_ops->cmp_two_keys(cur, key1, key2, mask) < 0;
 }
 
 static inline bool
@@ -612,7 +615,7 @@ xfs_btree_masked_keycmp_gt(
 	const union xfs_btree_key	*key2,
 	const union xfs_btree_key	*mask)
 {
-	return cur->bc_ops->diff_two_keys(cur, key1, key2, mask) > 0;
+	return cur->bc_ops->cmp_two_keys(cur, key1, key2, mask) > 0;
 }
 
 static inline bool

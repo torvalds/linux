@@ -216,8 +216,6 @@ static const struct pci_device_id rtl8169_pci_tbl[] = {
 	{ PCI_VDEVICE(REALTEK,	0x8168) },
 	{ PCI_VDEVICE(NCUBE,	0x8168) },
 	{ PCI_VDEVICE(REALTEK,	0x8169) },
-	{ PCI_VENDOR_ID_DLINK,	0x4300,
-		PCI_VENDOR_ID_DLINK, 0x4b10, 0, 0 },
 	{ PCI_VDEVICE(DLINK,	0x4300) },
 	{ PCI_VDEVICE(DLINK,	0x4302) },
 	{ PCI_VDEVICE(AT,	0xc107) },
@@ -5262,7 +5260,6 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 	if (tp->mac_version == RTL_GIGA_MAC_VER_61)
 		phy_disable_eee_mode(tp->phydev,
 				     ETHTOOL_LINK_MODE_2500baseT_Full_BIT);
-	phy_disable_eee_mode(tp->phydev, ETHTOOL_LINK_MODE_5000baseT_Full_BIT);
 
 	/* PHY will be woken up in rtl_open() */
 	phy_suspend(tp->phydev);

@@ -12,6 +12,7 @@
 #include <perf/evlist.h>
 #include "events_stats.h"
 #include "evsel.h"
+#include "rblist.h"
 #include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
@@ -70,7 +71,7 @@ struct evlist {
 	struct mmap *overwrite_mmap;
 	struct evsel *selected;
 	struct events_stats stats;
-	struct perf_env	*env;
+	struct perf_session *session;
 	void (*trace_event_sample_raw)(struct evlist *evlist,
 				       union perf_event *event,
 				       struct perf_sample *sample);
@@ -86,6 +87,11 @@ struct evlist {
 		int	pos;	/* index at evlist core object to check signals */
 	} ctl_fd;
 	struct event_enable_timer *eet;
+	/**
+	 * @metric_events: A list of struct metric_event which each have a list
+	 * of struct metric_expr.
+	 */
+	struct rblist	metric_events;
 };
 
 struct evsel_str_handler {
@@ -105,6 +111,7 @@ void evlist__add(struct evlist *evlist, struct evsel *entry);
 void evlist__remove(struct evlist *evlist, struct evsel *evsel);
 
 int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs);
+int arch_evlist__add_required_events(struct list_head *list);
 
 int evlist__add_dummy(struct evlist *evlist);
 struct evsel *evlist__add_aux_dummy(struct evlist *evlist, bool system_wide);

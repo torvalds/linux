@@ -12,7 +12,7 @@
 SYM_CODE_START(__kretprobe_trampoline)
 	/*
 	 * Trigger a breakpoint exception. The PC will be adjusted by
-	 * kretprobe_breakpoint_handler(), and no subsequent instructions will
+	 * kretprobe_brk_handler(), and no subsequent instructions will
 	 * be executed from the trampoline.
 	 */
 	brk #KRETPROBES_BRK_IMM

@@ -46,7 +46,9 @@ Every file in these directories will contain the following information:
 
 What:		Short description of the interface
 Date:		Date created
-KernelVersion:	Kernel version this feature first showed up in.
+KernelVersion:	(Optional) Kernel version this feature first showed up in.
+		Note: git history often provides more accurate version
+		info, so this field may be omitted.
 Contact:	Primary contact for this interface (may be a mailing list)
 Description:	Long description of the interface and how to use it.
 Users:		All users of this interface who wish to be notified when

@@ -52,6 +52,7 @@
 #include <internal/xyarray.h>
 #include <perf/threadmap.h>
 
+#include "util/cap.h"
 #include "util/debug.h"
 #include "util/evsel.h"
 #include "util/target.h"
@@ -449,7 +450,9 @@ int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target)
 	struct bpf_program *prog;
 	struct bpf_link *link;
 	struct perf_bpf_filter_entry *entry;
-	bool needs_idx_hash = !target__has_cpu(target) && !target->uid_str;
+	bool needs_idx_hash = !target__has_cpu(target);
+	DECLARE_LIBBPF_OPTS(bpf_perf_event_opts, pe_opts,
+			    .dont_enable = true);
 
 	entry = calloc(MAX_FILTERS, sizeof(*entry));
 	if (entry == NULL)
@@ -521,7 +524,8 @@ int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target)
 	prog = skel->progs.perf_sample_filter;
 	for (x = 0; x < xyarray__max_x(evsel->core.fd); x++) {
 		for (y = 0; y < xyarray__max_y(evsel->core.fd); y++) {
-			link = bpf_program__attach_perf_event(prog, FD(evsel, x, y));
+			link = bpf_program__attach_perf_event_opts(prog, FD(evsel, x, y),
+								   &pe_opts);
 			if (IS_ERR(link)) {
 				pr_err("Failed to attach perf sample-filter program\n");
 				ret = PTR_ERR(link);
@@ -618,10 +622,37 @@ struct perf_bpf_filter_expr *perf_bpf_filter_expr__new(enum perf_bpf_filter_term
 	return expr;
 }
 
+static bool check_bpf_filter_capable(void)
+{
+	bool used_root;
+
+	if (perf_cap__capable(CAP_BPF, &used_root))
+		return true;
+
+	if (!used_root) {
+		/* Check if root already pinned the filter programs and maps */
+		int fd = get_pinned_fd("filters");
+
+		if (fd >= 0) {
+			close(fd);
+			return true;
+		}
+	}
+
+	pr_err("Error: BPF filter only works for %s!\n"
+	       "\tPlease run 'perf record --setup-filter pin' as root first.\n",
+	       used_root ? "root" : "users with the CAP_BPF capability");
+
+	return false;
+}
+
 int perf_bpf_filter__parse(struct list_head *expr_head, const char *str)
 {
 	YY_BUFFER_STATE buffer;
 	int ret;
+
+	if (!check_bpf_filter_capable())
+		return -EPERM;
 
 	buffer = perf_bpf_filter__scan_string(str);
 

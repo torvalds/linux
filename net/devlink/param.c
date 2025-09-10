@@ -92,6 +92,16 @@ static const struct devlink_param devlink_param_generic[] = {
 		.name = DEVLINK_PARAM_GENERIC_EVENT_EQ_SIZE_NAME,
 		.type = DEVLINK_PARAM_GENERIC_EVENT_EQ_SIZE_TYPE,
 	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_ENABLE_PHC,
+		.name = DEVLINK_PARAM_GENERIC_ENABLE_PHC_NAME,
+		.type = DEVLINK_PARAM_GENERIC_ENABLE_PHC_TYPE,
+	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_CLOCK_ID,
+		.name = DEVLINK_PARAM_GENERIC_CLOCK_ID_NAME,
+		.type = DEVLINK_PARAM_GENERIC_CLOCK_ID_TYPE,
+	},
 };
 
 static int devlink_param_generic_verify(const struct devlink_param *param)
@@ -193,6 +203,11 @@ devlink_nl_param_value_fill_one(struct sk_buff *msg,
 		break;
 	case DEVLINK_PARAM_TYPE_U32:
 		if (nla_put_u32(msg, DEVLINK_ATTR_PARAM_VALUE_DATA, val.vu32))
+			goto value_nest_cancel;
+		break;
+	case DEVLINK_PARAM_TYPE_U64:
+		if (devlink_nl_put_u64(msg, DEVLINK_ATTR_PARAM_VALUE_DATA,
+				       val.vu64))
 			goto value_nest_cancel;
 		break;
 	case DEVLINK_PARAM_TYPE_STRING:
@@ -428,6 +443,11 @@ devlink_param_value_get_from_info(const struct devlink_param *param,
 		if (nla_len(param_data) != sizeof(u32))
 			return -EINVAL;
 		value->vu32 = nla_get_u32(param_data);
+		break;
+	case DEVLINK_PARAM_TYPE_U64:
+		if (nla_len(param_data) != sizeof(u64))
+			return -EINVAL;
+		value->vu64 = nla_get_u64(param_data);
 		break;
 	case DEVLINK_PARAM_TYPE_STRING:
 		len = strnlen(nla_data(param_data), nla_len(param_data));

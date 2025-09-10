@@ -113,13 +113,16 @@
 #define ETHTOOL_PRIO_NUM_LEVELS 1
 #define ETHTOOL_NUM_PRIOS 11
 #define ETHTOOL_MIN_LEVEL (KERNEL_MIN_LEVEL + ETHTOOL_NUM_PRIOS)
-/* Promiscuous, Vlan, mac, ttc, inner ttc, {UDP/ANY/aRFS/accel/{esp, esp_err}}, IPsec policy,
+/* Vlan, mac, ttc, inner ttc, {UDP/ANY/aRFS/accel/{esp, esp_err}}, IPsec policy,
  * {IPsec RoCE MPV,Alias table},IPsec RoCE policy
  */
-#define KERNEL_NIC_PRIO_NUM_LEVELS 11
+#define KERNEL_NIC_PRIO_NUM_LEVELS 10
 #define KERNEL_NIC_NUM_PRIOS 1
-/* One more level for tc */
-#define KERNEL_MIN_LEVEL (KERNEL_NIC_PRIO_NUM_LEVELS + 1)
+/* One more level for tc, and one more for promisc */
+#define KERNEL_MIN_LEVEL (KERNEL_NIC_PRIO_NUM_LEVELS + 2)
+
+#define KERNEL_NIC_PROMISC_NUM_PRIOS 1
+#define KERNEL_NIC_PROMISC_NUM_LEVELS 1
 
 #define KERNEL_NIC_TC_NUM_PRIOS  1
 #define KERNEL_NIC_TC_NUM_LEVELS 3
@@ -187,6 +190,8 @@ static struct init_tree_node {
 			   ADD_NS(MLX5_FLOW_TABLE_MISS_ACTION_DEF,
 				  ADD_MULTIPLE_PRIO(KERNEL_NIC_TC_NUM_PRIOS,
 						    KERNEL_NIC_TC_NUM_LEVELS),
+				  ADD_MULTIPLE_PRIO(KERNEL_NIC_PROMISC_NUM_PRIOS,
+						    KERNEL_NIC_PROMISC_NUM_LEVELS),
 				  ADD_MULTIPLE_PRIO(KERNEL_NIC_NUM_PRIOS,
 						    KERNEL_NIC_PRIO_NUM_LEVELS))),
 		  ADD_PRIO(0, BY_PASS_MIN_LEVEL, 0, FS_CHAINING_CAPS,
@@ -3245,34 +3250,62 @@ static int
 init_rdma_transport_rx_root_ns_one(struct mlx5_flow_steering *steering,
 				   int vport_idx)
 {
+	struct mlx5_flow_root_namespace *root_ns;
 	struct fs_prio *prio;
+	int ret;
+	int i;
 
 	steering->rdma_transport_rx_root_ns[vport_idx] =
 		create_root_ns(steering, FS_FT_RDMA_TRANSPORT_RX);
 	if (!steering->rdma_transport_rx_root_ns[vport_idx])
 		return -ENOMEM;
 
-	/* create 1 prio*/
-	prio = fs_create_prio(&steering->rdma_transport_rx_root_ns[vport_idx]->ns,
-			      MLX5_RDMA_TRANSPORT_BYPASS_PRIO, 1);
-	return PTR_ERR_OR_ZERO(prio);
+	root_ns = steering->rdma_transport_rx_root_ns[vport_idx];
+
+	for (i = 0; i < MLX5_RDMA_TRANSPORT_BYPASS_PRIO; i++) {
+		prio = fs_create_prio(&root_ns->ns, i, 1);
+		if (IS_ERR(prio)) {
+			ret = PTR_ERR(prio);
+			goto err;
+		}
+	}
+	set_prio_attrs(root_ns);
+	return 0;
+
+err:
+	cleanup_root_ns(root_ns);
+	return ret;
 }
 
 static int
 init_rdma_transport_tx_root_ns_one(struct mlx5_flow_steering *steering,
 				   int vport_idx)
 {
+	struct mlx5_flow_root_namespace *root_ns;
 	struct fs_prio *prio;
+	int ret;
+	int i;
 
 	steering->rdma_transport_tx_root_ns[vport_idx] =
 		create_root_ns(steering, FS_FT_RDMA_TRANSPORT_TX);
 	if (!steering->rdma_transport_tx_root_ns[vport_idx])
 		return -ENOMEM;
 
-	/* create 1 prio*/
-	prio = fs_create_prio(&steering->rdma_transport_tx_root_ns[vport_idx]->ns,
-			      MLX5_RDMA_TRANSPORT_BYPASS_PRIO, 1);
-	return PTR_ERR_OR_ZERO(prio);
+	root_ns = steering->rdma_transport_tx_root_ns[vport_idx];
+
+	for (i = 0; i < MLX5_RDMA_TRANSPORT_BYPASS_PRIO; i++) {
+		prio = fs_create_prio(&root_ns->ns, i, 1);
+		if (IS_ERR(prio)) {
+			ret = PTR_ERR(prio);
+			goto err;
+		}
+	}
+	set_prio_attrs(root_ns);
+	return 0;
+
+err:
+	cleanup_root_ns(root_ns);
+	return ret;
 }
 
 static int init_rdma_transport_rx_root_ns(struct mlx5_flow_steering *steering)
@@ -3919,6 +3952,8 @@ int mlx5_fs_core_alloc(struct mlx5_core_dev *dev)
 
 	if (mlx5_fs_dr_is_supported(dev))
 		steering->mode = MLX5_FLOW_STEERING_MODE_SMFS;
+	else if (mlx5_fs_hws_is_supported(dev))
+		steering->mode = MLX5_FLOW_STEERING_MODE_HMFS;
 	else
 		steering->mode = MLX5_FLOW_STEERING_MODE_DMFS;
 

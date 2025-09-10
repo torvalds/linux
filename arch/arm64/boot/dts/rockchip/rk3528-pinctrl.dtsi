@@ -98,42 +98,42 @@
 
 	fephy {
 		/omit-if-no-ref/
-		fephym0_led_dpx: fephym0-led_dpx {
+		fephym0_led_dpx: fephym0-led-dpx {
 			rockchip,pins =
 				/* fephy_led_dpx_m0 */
 				<4 RK_PB5 2 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		fephym0_led_link: fephym0-led_link {
+		fephym0_led_link: fephym0-led-link {
 			rockchip,pins =
 				/* fephy_led_link_m0 */
 				<4 RK_PC0 2 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		fephym0_led_spd: fephym0-led_spd {
+		fephym0_led_spd: fephym0-led-spd {
 			rockchip,pins =
 				/* fephy_led_spd_m0 */
 				<4 RK_PB7 2 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		fephym1_led_dpx: fephym1-led_dpx {
+		fephym1_led_dpx: fephym1-led-dpx {
 			rockchip,pins =
 				/* fephy_led_dpx_m1 */
 				<2 RK_PA4 5 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		fephym1_led_link: fephym1-led_link {
+		fephym1_led_link: fephym1-led-link {
 			rockchip,pins =
 				/* fephy_led_link_m1 */
 				<2 RK_PA6 5 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
-		fephym1_led_spd: fephym1-led_spd {
+		fephym1_led_spd: fephym1-led-spd {
 			rockchip,pins =
 				/* fephy_led_spd_m1 */
 				<2 RK_PA5 5 &pcfg_pull_none>;
@@ -779,7 +779,7 @@
 		};
 
 		/omit-if-no-ref/
-		rgmii_rx_bus2: rgmii-rx_bus2 {
+		rgmii_rx_bus2: rgmii-rx-bus2 {
 			rockchip,pins =
 				/* rgmii_rxd0 */
 				<3 RK_PA3 2 &pcfg_pull_none>,
@@ -790,7 +790,7 @@
 		};
 
 		/omit-if-no-ref/
-		rgmii_tx_bus2: rgmii-tx_bus2 {
+		rgmii_tx_bus2: rgmii-tx-bus2 {
 			rockchip,pins =
 				/* rgmii_txd0 */
 				<3 RK_PA1 2 &pcfg_pull_none_drv_level_2>,
@@ -801,7 +801,7 @@
 		};
 
 		/omit-if-no-ref/
-		rgmii_rgmii_clk: rgmii-rgmii_clk {
+		rgmii_rgmii_clk: rgmii-rgmii-clk {
 			rockchip,pins =
 				/* rgmii_rxclk */
 				<3 RK_PA5 2 &pcfg_pull_none>,
@@ -810,7 +810,7 @@
 		};
 
 		/omit-if-no-ref/
-		rgmii_rgmii_bus: rgmii-rgmii_bus {
+		rgmii_rgmii_bus: rgmii-rgmii-bus {
 			rockchip,pins =
 				/* rgmii_rxd2 */
 				<3 RK_PA7 2 &pcfg_pull_none>,

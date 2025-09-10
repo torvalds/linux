@@ -63,13 +63,13 @@ A Type-2 CXL Device:
 
 * Supports cxl.io, cxl.cache, and cxl.mem protocols
 * Optionally implements coherent cache and Host-Managed Device Memory
-* Is typically an accelerator device w/ high bandwidth memory.
+* Is typically an accelerator device with high bandwidth memory.
 
 The primary difference between a type-1 and type-2 device is the presence
 of host-managed device memory, which allows the device to operate on a
-local memory bank - while the CPU sill has coherent DMA to the same memory.
+local memory bank - while the CPU still has coherent DMA to the same memory.
 
-The allows things like GPUs to expose their memory via DAX devices or file
+This allows things like GPUs to expose their memory via DAX devices or file
 descriptors, allows drivers and programs direct access to device memory
 rather than use block-transfer semantics.
 
@@ -89,7 +89,7 @@ basic coherent DMA.
 Switch
 ------
 
-A CXL switch is a device capacity of routing any CXL (and by extension, PCIe)
+A CXL switch is a device capable of routing any CXL (and by extension, PCIe)
 protocol between an upstream, downstream, or peer devices.  Many devices, such
 as Multi-Logical Devices, imply the presence of switching in some manner.
 
@@ -103,7 +103,7 @@ A Single-Logical Device (SLD) is a device which presents a single device to
 one or more heads.
 
 A Multi-Logical Device (MLD) is a device which may present multiple devices
-to one or more devices.
+to one or more upstream devices.
 
 A Single-Headed Device exposes only a single physical connection.
 

@@ -9,6 +9,7 @@
 
 #include <linux/delay.h>
 #include <linux/list.h>
+#include <linux/lockdep.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 
@@ -472,6 +473,8 @@ void __vsp1_pipeline_dump(struct _ddebug *dbg, struct vsp1_pipeline *pipe,
 void vsp1_pipeline_run(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
+
+	lockdep_assert_held(&pipe->irqlock);
 
 	if (pipe->state == VSP1_PIPELINE_STOPPED) {
 		vsp1_write(vsp1, VI6_CMD(pipe->output->entity.index),

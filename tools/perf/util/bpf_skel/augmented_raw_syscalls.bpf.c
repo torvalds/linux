@@ -7,7 +7,6 @@
  */
 
 #include "vmlinux.h"
-#include "../trace_augment.h"
 
 #include <bpf/bpf_helpers.h>
 #include <linux/limits.h>
@@ -26,6 +25,8 @@
 #define is_power_of_2(n) (n != 0 && ((n & (n - 1)) == 0))
 
 #define MAX_CPUS  4096
+
+#define TRACE_AUG_MAX_BUF 32 /* for buffer augmentation in perf trace */
 
 /* bpf-output associated map */
 struct __augmented_syscalls__ {

@@ -860,10 +860,6 @@ container_of(str_item, struct gadget_string, item)
 int usb_descriptor_fillbuf(void *, unsigned,
 		const struct usb_descriptor_header **);
 
-/* build config descriptor from single descriptor vector */
-int usb_gadget_config_buf(const struct usb_config_descriptor *config,
-	void *buf, unsigned buflen, const struct usb_descriptor_header **desc);
-
 /* copy a NULL-terminated vector of descriptors */
 struct usb_descriptor_header **usb_copy_descriptors(
 		struct usb_descriptor_header **);

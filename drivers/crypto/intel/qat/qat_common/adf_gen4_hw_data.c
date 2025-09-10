@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2020 Intel Corporation */
+
+#define pr_fmt(fmt)	"QAT: " fmt
+
 #include <linux/bitops.h>
 #include <linux/iopoll.h>
 #include <asm/div64.h>
@@ -259,7 +262,10 @@ bool adf_gen4_services_supported(unsigned long mask)
 {
 	unsigned long num_svc = hweight_long(mask);
 
-	if (mask >= BIT(SVC_BASE_COUNT))
+	if (mask >= BIT(SVC_COUNT))
+		return false;
+
+	if (test_bit(SVC_DECOMP, &mask))
 		return false;
 
 	switch (num_svc) {
@@ -485,187 +491,6 @@ int adf_gen4_bank_drain_start(struct adf_accel_dev *accel_dev,
 	return ret;
 }
 
-static void bank_state_save(struct adf_hw_csr_ops *ops, void __iomem *base,
-			    u32 bank, struct bank_state *state, u32 num_rings)
-{
-	u32 i;
-
-	state->ringstat0 = ops->read_csr_stat(base, bank);
-	state->ringuostat = ops->read_csr_uo_stat(base, bank);
-	state->ringestat = ops->read_csr_e_stat(base, bank);
-	state->ringnestat = ops->read_csr_ne_stat(base, bank);
-	state->ringnfstat = ops->read_csr_nf_stat(base, bank);
-	state->ringfstat = ops->read_csr_f_stat(base, bank);
-	state->ringcstat0 = ops->read_csr_c_stat(base, bank);
-	state->iaintflagen = ops->read_csr_int_en(base, bank);
-	state->iaintflagreg = ops->read_csr_int_flag(base, bank);
-	state->iaintflagsrcsel0 = ops->read_csr_int_srcsel(base, bank);
-	state->iaintcolen = ops->read_csr_int_col_en(base, bank);
-	state->iaintcolctl = ops->read_csr_int_col_ctl(base, bank);
-	state->iaintflagandcolen = ops->read_csr_int_flag_and_col(base, bank);
-	state->ringexpstat = ops->read_csr_exp_stat(base, bank);
-	state->ringexpintenable = ops->read_csr_exp_int_en(base, bank);
-	state->ringsrvarben = ops->read_csr_ring_srv_arb_en(base, bank);
-
-	for (i = 0; i < num_rings; i++) {
-		state->rings[i].head = ops->read_csr_ring_head(base, bank, i);
-		state->rings[i].tail = ops->read_csr_ring_tail(base, bank, i);
-		state->rings[i].config = ops->read_csr_ring_config(base, bank, i);
-		state->rings[i].base = ops->read_csr_ring_base(base, bank, i);
-	}
-}
-
-#define CHECK_STAT(op, expect_val, name, args...) \
-({ \
-	u32 __expect_val = (expect_val); \
-	u32 actual_val = op(args); \
-	(__expect_val == actual_val) ? 0 : \
-		(pr_err("QAT: Fail to restore %s register. Expected 0x%x, actual 0x%x\n", \
-			name, __expect_val, actual_val), -EINVAL); \
-})
-
-static int bank_state_restore(struct adf_hw_csr_ops *ops, void __iomem *base,
-			      u32 bank, struct bank_state *state, u32 num_rings,
-			      int tx_rx_gap)
-{
-	u32 val, tmp_val, i;
-	int ret;
-
-	for (i = 0; i < num_rings; i++)
-		ops->write_csr_ring_base(base, bank, i, state->rings[i].base);
-
-	for (i = 0; i < num_rings; i++)
-		ops->write_csr_ring_config(base, bank, i, state->rings[i].config);
-
-	for (i = 0; i < num_rings / 2; i++) {
-		int tx = i * (tx_rx_gap + 1);
-		int rx = tx + tx_rx_gap;
-
-		ops->write_csr_ring_head(base, bank, tx, state->rings[tx].head);
-		ops->write_csr_ring_tail(base, bank, tx, state->rings[tx].tail);
-
-		/*
-		 * The TX ring head needs to be updated again to make sure that
-		 * the HW will not consider the ring as full when it is empty
-		 * and the correct state flags are set to match the recovered state.
-		 */
-		if (state->ringestat & BIT(tx)) {
-			val = ops->read_csr_int_srcsel(base, bank);
-			val |= ADF_RP_INT_SRC_SEL_F_RISE_MASK;
-			ops->write_csr_int_srcsel_w_val(base, bank, val);
-			ops->write_csr_ring_head(base, bank, tx, state->rings[tx].head);
-		}
-
-		ops->write_csr_ring_tail(base, bank, rx, state->rings[rx].tail);
-		val = ops->read_csr_int_srcsel(base, bank);
-		val |= ADF_RP_INT_SRC_SEL_F_RISE_MASK << ADF_RP_INT_SRC_SEL_RANGE_WIDTH;
-		ops->write_csr_int_srcsel_w_val(base, bank, val);
-
-		ops->write_csr_ring_head(base, bank, rx, state->rings[rx].head);
-		val = ops->read_csr_int_srcsel(base, bank);
-		val |= ADF_RP_INT_SRC_SEL_F_FALL_MASK << ADF_RP_INT_SRC_SEL_RANGE_WIDTH;
-		ops->write_csr_int_srcsel_w_val(base, bank, val);
-
-		/*
-		 * The RX ring tail needs to be updated again to make sure that
-		 * the HW will not consider the ring as empty when it is full
-		 * and the correct state flags are set to match the recovered state.
-		 */
-		if (state->ringfstat & BIT(rx))
-			ops->write_csr_ring_tail(base, bank, rx, state->rings[rx].tail);
-	}
-
-	ops->write_csr_int_flag_and_col(base, bank, state->iaintflagandcolen);
-	ops->write_csr_int_en(base, bank, state->iaintflagen);
-	ops->write_csr_int_col_en(base, bank, state->iaintcolen);
-	ops->write_csr_int_srcsel_w_val(base, bank, state->iaintflagsrcsel0);
-	ops->write_csr_exp_int_en(base, bank, state->ringexpintenable);
-	ops->write_csr_int_col_ctl(base, bank, state->iaintcolctl);
-	ops->write_csr_ring_srv_arb_en(base, bank, state->ringsrvarben);
-
-	/* Check that all ring statuses match the saved state. */
-	ret = CHECK_STAT(ops->read_csr_stat, state->ringstat0, "ringstat",
-			 base, bank);
-	if (ret)
-		return ret;
-
-	ret = CHECK_STAT(ops->read_csr_e_stat, state->ringestat, "ringestat",
-			 base, bank);
-	if (ret)
-		return ret;
-
-	ret = CHECK_STAT(ops->read_csr_ne_stat, state->ringnestat, "ringnestat",
-			 base, bank);
-	if (ret)
-		return ret;
-
-	ret = CHECK_STAT(ops->read_csr_nf_stat, state->ringnfstat, "ringnfstat",
-			 base, bank);
-	if (ret)
-		return ret;
-
-	ret = CHECK_STAT(ops->read_csr_f_stat, state->ringfstat, "ringfstat",
-			 base, bank);
-	if (ret)
-		return ret;
-
-	ret = CHECK_STAT(ops->read_csr_c_stat, state->ringcstat0, "ringcstat",
-			 base, bank);
-	if (ret)
-		return ret;
-
-	tmp_val = ops->read_csr_exp_stat(base, bank);
-	val = state->ringexpstat;
-	if (tmp_val && !val) {
-		pr_err("QAT: Bank was restored with exception: 0x%x\n", val);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int adf_gen4_bank_state_save(struct adf_accel_dev *accel_dev, u32 bank_number,
-			     struct bank_state *state)
-{
-	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
-	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
-	void __iomem *csr_base = adf_get_etr_base(accel_dev);
-
-	if (bank_number >= hw_data->num_banks || !state)
-		return -EINVAL;
-
-	dev_dbg(&GET_DEV(accel_dev), "Saving state of bank %d\n", bank_number);
-
-	bank_state_save(csr_ops, csr_base, bank_number, state,
-			hw_data->num_rings_per_bank);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(adf_gen4_bank_state_save);
-
-int adf_gen4_bank_state_restore(struct adf_accel_dev *accel_dev, u32 bank_number,
-				struct bank_state *state)
-{
-	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
-	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
-	void __iomem *csr_base = adf_get_etr_base(accel_dev);
-	int ret;
-
-	if (bank_number >= hw_data->num_banks  || !state)
-		return -EINVAL;
-
-	dev_dbg(&GET_DEV(accel_dev), "Restoring state of bank %d\n", bank_number);
-
-	ret = bank_state_restore(csr_ops, csr_base, bank_number, state,
-				 hw_data->num_rings_per_bank, hw_data->tx_rx_gap);
-	if (ret)
-		dev_err(&GET_DEV(accel_dev),
-			"Unable to restore state of bank %d\n", bank_number);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(adf_gen4_bank_state_restore);
-
 static int adf_gen4_build_comp_block(void *ctx, enum adf_dc_algo algo)
 {
 	struct icp_qat_fw_comp_req *req_tmpl = ctx;
@@ -733,3 +558,43 @@ void adf_gen4_init_dc_ops(struct adf_dc_ops *dc_ops)
 	dc_ops->build_decomp_block = adf_gen4_build_decomp_block;
 }
 EXPORT_SYMBOL_GPL(adf_gen4_init_dc_ops);
+
+void adf_gen4_init_num_svc_aes(struct adf_rl_hw_data *device_data)
+{
+	struct adf_hw_device_data *hw_data;
+	unsigned int i;
+	u32 ae_cnt;
+
+	hw_data = container_of(device_data, struct adf_hw_device_data, rl_data);
+	ae_cnt = hweight32(hw_data->get_ae_mask(hw_data));
+	if (!ae_cnt)
+		return;
+
+	for (i = 0; i < SVC_BASE_COUNT; i++)
+		device_data->svc_ae_mask[i] = ae_cnt - 1;
+
+	/*
+	 * The decompression service is not supported on QAT GEN4 devices.
+	 * Therefore, set svc_ae_mask to 0.
+	 */
+	device_data->svc_ae_mask[SVC_DECOMP] = 0;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_init_num_svc_aes);
+
+u32 adf_gen4_get_svc_slice_cnt(struct adf_accel_dev *accel_dev,
+			       enum adf_base_services svc)
+{
+	struct adf_rl_hw_data *device_data = &accel_dev->hw_device->rl_data;
+
+	switch (svc) {
+	case SVC_SYM:
+		return device_data->slices.cph_cnt;
+	case SVC_ASYM:
+		return device_data->slices.pke_cnt;
+	case SVC_DC:
+		return device_data->slices.dcpr_cnt;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_svc_slice_cnt);

@@ -371,7 +371,7 @@ static size_t cx18_copy_mdl_to_user(struct cx18_stream *s,
 		mdl->curr_buf = list_first_entry(&mdl->buf_list,
 						 struct cx18_buffer, list);
 
-	if (list_entry_is_past_end(mdl->curr_buf, &mdl->buf_list, list)) {
+	if (list_entry_is_head(mdl->curr_buf, &mdl->buf_list, list)) {
 		/*
 		 * For some reason we've exhausted the buffers, but the MDL
 		 * object still said some data was unread.

@@ -207,7 +207,7 @@
 				 * Unknown, always 0x0000.
 				 */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 extern volatile __u8 *psc;
 
@@ -249,4 +249,4 @@ static inline u32 psc_read_long(int offset)
 	return *((volatile __u32 *)(psc + offset));
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */

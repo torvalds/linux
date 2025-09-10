@@ -366,7 +366,7 @@ static const struct rzg2l_cru_info rzg3e_cru_info = {
 	.irq_handler = rzg3e_cru_irq,
 	.enable_interrupts = rzg3e_cru_enable_interrupts,
 	.disable_interrupts = rzg3e_cru_disable_interrupts,
-	.fifo_empty = rz3e_fifo_empty,
+	.fifo_empty = rzg3e_fifo_empty,
 	.csi_setup = rzg3e_cru_csi2_setup,
 };
 
@@ -403,7 +403,7 @@ static const u16 rzg2l_cru_regs[] = {
 	[ICnDMR] = 0x26c,
 };
 
-static const struct rzg2l_cru_info rzgl2_cru_info = {
+static const struct rzg2l_cru_info rzg2l_cru_info = {
 	.max_width = 2800,
 	.max_height = 4095,
 	.image_conv = ICnMC,
@@ -422,7 +422,7 @@ static const struct of_device_id rzg2l_cru_of_id_table[] = {
 	},
 	{
 		.compatible = "renesas,rzg2l-cru",
-		.data = &rzgl2_cru_info,
+		.data = &rzg2l_cru_info,
 	},
 	{ /* sentinel */ }
 };

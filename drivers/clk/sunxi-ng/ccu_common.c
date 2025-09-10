@@ -66,7 +66,7 @@ EXPORT_SYMBOL_NS_GPL(ccu_is_better_rate, "SUNXI_CCU");
  * changed. In common PLL designs, changes to the dividers take effect
  * almost immediately, while changes to the multipliers (implemented
  * as dividers in the feedback loop) take a few cycles to work into
- * the feedback loop for the PLL to stablize.
+ * the feedback loop for the PLL to stabilize.
  *
  * Sometimes when the PLL clock rate is changed, the decrease in the
  * divider is too much for the decrease in the multiplier to catch up.

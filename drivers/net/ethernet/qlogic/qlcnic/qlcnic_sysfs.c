@@ -1195,63 +1195,63 @@ static const struct device_attribute dev_attr_beacon = {
 static const struct bin_attribute bin_attr_crb = {
 	.attr = { .name = "crb", .mode = 0644 },
 	.size = 0,
-	.read_new = qlcnic_sysfs_read_crb,
-	.write_new = qlcnic_sysfs_write_crb,
+	.read = qlcnic_sysfs_read_crb,
+	.write = qlcnic_sysfs_write_crb,
 };
 
 static const struct bin_attribute bin_attr_mem = {
 	.attr = { .name = "mem", .mode = 0644 },
 	.size = 0,
-	.read_new = qlcnic_sysfs_read_mem,
-	.write_new = qlcnic_sysfs_write_mem,
+	.read = qlcnic_sysfs_read_mem,
+	.write = qlcnic_sysfs_write_mem,
 };
 
 static const struct bin_attribute bin_attr_npar_config = {
 	.attr = { .name = "npar_config", .mode = 0644 },
 	.size = 0,
-	.read_new = qlcnic_sysfs_read_npar_config,
-	.write_new = qlcnic_sysfs_write_npar_config,
+	.read = qlcnic_sysfs_read_npar_config,
+	.write = qlcnic_sysfs_write_npar_config,
 };
 
 static const struct bin_attribute bin_attr_pci_config = {
 	.attr = { .name = "pci_config", .mode = 0644 },
 	.size = 0,
-	.read_new = qlcnic_sysfs_read_pci_config,
+	.read = qlcnic_sysfs_read_pci_config,
 };
 
 static const struct bin_attribute bin_attr_port_stats = {
 	.attr = { .name = "port_stats", .mode = 0644 },
 	.size = 0,
-	.read_new = qlcnic_sysfs_get_port_stats,
-	.write_new = qlcnic_sysfs_clear_port_stats,
+	.read = qlcnic_sysfs_get_port_stats,
+	.write = qlcnic_sysfs_clear_port_stats,
 };
 
 static const struct bin_attribute bin_attr_esw_stats = {
 	.attr = { .name = "esw_stats", .mode = 0644 },
 	.size = 0,
-	.read_new = qlcnic_sysfs_get_esw_stats,
-	.write_new = qlcnic_sysfs_clear_esw_stats,
+	.read = qlcnic_sysfs_get_esw_stats,
+	.write = qlcnic_sysfs_clear_esw_stats,
 };
 
 static const struct bin_attribute bin_attr_esw_config = {
 	.attr = { .name = "esw_config", .mode = 0644 },
 	.size = 0,
-	.read_new = qlcnic_sysfs_read_esw_config,
-	.write_new = qlcnic_sysfs_write_esw_config,
+	.read = qlcnic_sysfs_read_esw_config,
+	.write = qlcnic_sysfs_write_esw_config,
 };
 
 static const struct bin_attribute bin_attr_pm_config = {
 	.attr = { .name = "pm_config", .mode = 0644 },
 	.size = 0,
-	.read_new = qlcnic_sysfs_read_pm_config,
-	.write_new = qlcnic_sysfs_write_pm_config,
+	.read = qlcnic_sysfs_read_pm_config,
+	.write = qlcnic_sysfs_write_pm_config,
 };
 
 static const struct bin_attribute bin_attr_flash = {
 	.attr = { .name = "flash", .mode = 0644 },
 	.size = 0,
-	.read_new = qlcnic_83xx_sysfs_flash_read_handler,
-	.write_new = qlcnic_83xx_sysfs_flash_write_handler,
+	.read = qlcnic_83xx_sysfs_flash_read_handler,
+	.write = qlcnic_83xx_sysfs_flash_write_handler,
 };
 
 #ifdef CONFIG_QLCNIC_HWMON

@@ -21,6 +21,7 @@ extern const char * const bq25890_psy[];
 
 extern const struct software_node fg_bq24190_supply_node;
 extern const struct software_node fg_bq25890_supply_node;
+extern const struct software_node generic_lipo_4v2_battery_node;
 extern const struct software_node generic_lipo_hv_4v35_battery_node;
 
 extern struct bq24190_platform_data bq24190_pdata;

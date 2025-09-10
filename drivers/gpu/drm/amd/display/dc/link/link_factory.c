@@ -100,7 +100,7 @@ static void construct_link_service_validation(struct link_service *link_srv)
 {
 	link_srv->validate_mode_timing = link_validate_mode_timing;
 	link_srv->dp_link_bandwidth_kbps = dp_link_bandwidth_kbps;
-	link_srv->validate_dpia_bandwidth = link_validate_dpia_bandwidth;
+	link_srv->validate_dp_tunnel_bandwidth = link_validate_dp_tunnel_bandwidth;
 	link_srv->dp_required_hblank_size_bytes = dp_required_hblank_size_bytes;
 }
 
@@ -165,6 +165,8 @@ static void construct_link_service_dp_capability(struct link_service *link_srv)
 	link_srv->dp_overwrite_extended_receiver_cap =
 			dp_overwrite_extended_receiver_cap;
 	link_srv->dp_decide_lttpr_mode = dp_decide_lttpr_mode;
+	link_srv->dp_get_lttpr_count = dp_get_lttpr_count;
+	link_srv->edp_get_alpm_support = edp_get_alpm_support;
 }
 
 /* link dp phy/dpia implements basic dp phy/dpia functionality such as
@@ -539,10 +541,16 @@ static bool construct_phy(struct dc_link *link,
 
 		break;
 	case CONNECTOR_ID_EDP:
+		// If smartmux is supported, only create the link on the primary eDP.
+		// Dual eDP is not supported with smartmux.
+		if (!(!link->dc->config.smart_mux_version || dc_ctx->dc_edp_id_count == 0))
+			goto create_fail;
+
 		link->connector_signal = SIGNAL_TYPE_EDP;
 
 		if (link->hpd_gpio) {
-			if (!link->dc->config.allow_edp_hotplug_detection)
+			if (!link->dc->config.allow_edp_hotplug_detection
+				&& !is_smartmux_suported(link))
 				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 
 			switch (link->dc->config.allow_edp_hotplug_detection) {

@@ -85,7 +85,6 @@ nf_conntrack_log_invalid - INTEGER
 	- 1   - log ICMP packets
 	- 6   - log TCP packets
 	- 17  - log UDP packets
-	- 33  - log DCCP packets
 	- 41  - log ICMPv6 packets
 	- 136 - log UDPLITE packets
 	- 255 - log packets of any protocol

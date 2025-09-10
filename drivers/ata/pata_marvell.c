@@ -99,7 +99,7 @@ static const struct scsi_host_template marvell_sht = {
 static struct ata_port_operations marvell_ops = {
 	.inherits		= &ata_bmdma_port_ops,
 	.cable_detect		= marvell_cable_detect,
-	.prereset		= marvell_pre_reset,
+	.reset.prereset		= marvell_pre_reset,
 };
 
 

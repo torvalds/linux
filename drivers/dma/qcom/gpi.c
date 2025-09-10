@@ -569,17 +569,6 @@ static inline void gpi_write_reg(struct gpii *gpii, void __iomem *addr, u32 val)
 	writel_relaxed(val, addr);
 }
 
-/* gpi_write_reg_field - write to specific bit field */
-static inline void gpi_write_reg_field(struct gpii *gpii, void __iomem *addr,
-				       u32 mask, u32 shift, u32 val)
-{
-	u32 tmp = gpi_read_reg(gpii, addr);
-
-	tmp &= ~mask;
-	val = tmp | ((val << shift) & mask);
-	gpi_write_reg(gpii, addr, val);
-}
-
 static __always_inline void
 gpi_update_reg(struct gpii *gpii, u32 offset, u32 mask, u32 val)
 {

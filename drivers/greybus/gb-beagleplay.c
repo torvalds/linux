@@ -1039,9 +1039,12 @@ static const struct fw_upload_ops cc1352_bootloader_ops = {
 	.cleanup = cc1352_cleanup
 };
 
+/*
+ * Must only be called from probe() as the devres resources allocated here
+ * will only be released on driver detach.
+ */
 static int gb_fw_init(struct gb_beagleplay *bg)
 {
-	int ret;
 	struct fw_upload *fwl;
 	struct gpio_desc *desc;
 
@@ -1060,29 +1063,17 @@ static int gb_fw_init(struct gb_beagleplay *bg)
 	bg->bootloader_backdoor_gpio = desc;
 
 	desc = devm_gpiod_get(&bg->sd->dev, "reset", GPIOD_IN);
-	if (IS_ERR(desc)) {
-		ret = PTR_ERR(desc);
-		goto free_boot;
-	}
+	if (IS_ERR(desc))
+		return PTR_ERR(desc);
 	bg->rst_gpio = desc;
 
 	fwl = firmware_upload_register(THIS_MODULE, &bg->sd->dev, "cc1352p7",
 				       &cc1352_bootloader_ops, bg);
-	if (IS_ERR(fwl)) {
-		ret = PTR_ERR(fwl);
-		goto free_reset;
-	}
+	if (IS_ERR(fwl))
+		return PTR_ERR(fwl);
 	bg->fwl = fwl;
 
 	return 0;
-
-free_reset:
-	devm_gpiod_put(&bg->sd->dev, bg->rst_gpio);
-	bg->rst_gpio = NULL;
-free_boot:
-	devm_gpiod_put(&bg->sd->dev, bg->bootloader_backdoor_gpio);
-	bg->bootloader_backdoor_gpio = NULL;
-	return ret;
 }
 
 static void gb_fw_deinit(struct gb_beagleplay *bg)

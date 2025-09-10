@@ -1511,11 +1511,11 @@ ice_aq_get_sw_cfg(struct ice_hw *hw, struct ice_aqc_get_sw_cfg_resp_elem *buf,
 		  struct ice_sq_cd *cd)
 {
 	struct ice_aqc_get_sw_cfg *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_sw_cfg);
-	cmd = &desc.params.get_sw_conf;
+	cmd = libie_aq_raw(&desc);
 	cmd->element = cpu_to_le16(*req_desc);
 
 	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
@@ -1541,11 +1541,11 @@ ice_aq_add_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 {
 	struct ice_aqc_add_update_free_vsi_resp *res;
 	struct ice_aqc_add_get_update_free_vsi *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
-	cmd = &desc.params.vsi_cmd;
-	res = &desc.params.add_update_free_vsi_res;
+	cmd = libie_aq_raw(&desc);
+	res = libie_aq_raw(&desc);
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_add_vsi);
 
@@ -1556,7 +1556,7 @@ ice_aq_add_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 
 	cmd->vsi_flags = cpu_to_le16(vsi_ctx->flags);
 
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	status = ice_aq_send_cmd(hw, &desc, &vsi_ctx->info,
 				 sizeof(vsi_ctx->info), cd);
@@ -1585,11 +1585,11 @@ ice_aq_free_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 {
 	struct ice_aqc_add_update_free_vsi_resp *resp;
 	struct ice_aqc_add_get_update_free_vsi *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
-	cmd = &desc.params.vsi_cmd;
-	resp = &desc.params.add_update_free_vsi_res;
+	cmd = libie_aq_raw(&desc);
+	resp = libie_aq_raw(&desc);
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_free_vsi);
 
@@ -1620,17 +1620,17 @@ ice_aq_update_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 {
 	struct ice_aqc_add_update_free_vsi_resp *resp;
 	struct ice_aqc_add_get_update_free_vsi *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
-	cmd = &desc.params.vsi_cmd;
-	resp = &desc.params.add_update_free_vsi_res;
+	cmd = libie_aq_raw(&desc);
+	resp = libie_aq_raw(&desc);
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_update_vsi);
 
 	cmd->vsi_num = cpu_to_le16(vsi_ctx->vsi_num | ICE_AQ_VSI_IS_VALID);
 
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	status = ice_aq_send_cmd(hw, &desc, &vsi_ctx->info,
 				 sizeof(vsi_ctx->info), cd);
@@ -1944,7 +1944,8 @@ int
 ice_aq_sw_rules(struct ice_hw *hw, void *rule_list, u16 rule_list_sz,
 		u8 num_rules, enum ice_adminq_opc opc, struct ice_sq_cd *cd)
 {
-	struct ice_aq_desc desc;
+	struct ice_aqc_sw_rules *cmd;
+	struct libie_aq_desc desc;
 	int status;
 
 	if (opc != ice_aqc_opc_add_sw_rules &&
@@ -1953,13 +1954,13 @@ ice_aq_sw_rules(struct ice_hw *hw, void *rule_list, u16 rule_list_sz,
 		return -EINVAL;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, opc);
+	cmd = libie_aq_raw(&desc);
 
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
-	desc.params.sw_rules.num_rules_fltr_entry_index =
-		cpu_to_le16(num_rules);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
+	cmd->num_rules_fltr_entry_index = cpu_to_le16(num_rules);
 	status = ice_aq_send_cmd(hw, &desc, rule_list, rule_list_sz, cd);
 	if (opc != ice_aqc_opc_add_sw_rules &&
-	    hw->adminq.sq_last_status == ICE_AQ_RC_ENOENT)
+	    hw->adminq.sq_last_status == LIBIE_AQ_RC_ENOENT)
 		status = -ENOENT;
 
 	if (!status) {
@@ -1989,14 +1990,14 @@ ice_aq_add_recipe(struct ice_hw *hw,
 		  u16 num_recipes, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_add_get_recipe *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	u16 buf_size;
 
-	cmd = &desc.params.add_get_recipe;
+	cmd = libie_aq_raw(&desc);
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_add_recipe);
 
 	cmd->num_sub_recipes = cpu_to_le16(num_recipes);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	buf_size = num_recipes * sizeof(*s_recipe_list);
 
@@ -2026,14 +2027,14 @@ ice_aq_get_recipe(struct ice_hw *hw,
 		  u16 *num_recipes, u16 recipe_root, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_add_get_recipe *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	u16 buf_size;
 	int status;
 
 	if (*num_recipes != ICE_MAX_NUM_RECIPES)
 		return -EINVAL;
 
-	cmd = &desc.params.add_get_recipe;
+	cmd = libie_aq_raw(&desc);
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_recipe);
 
 	cmd->return_index = cpu_to_le16(recipe_root);
@@ -2118,9 +2119,9 @@ ice_aq_map_recipe_to_profile(struct ice_hw *hw, u32 profile_id, u64 r_assoc,
 			     struct ice_sq_cd *cd)
 {
 	struct ice_aqc_recipe_to_profile *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.recipe_to_profile;
+	cmd = libie_aq_raw(&desc);
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_recipe_to_profile);
 	cmd->profile_id = cpu_to_le16(profile_id);
 	/* Set the recipe ID bit in the bitmask to let the device know which
@@ -2144,10 +2145,10 @@ ice_aq_get_recipe_to_profile(struct ice_hw *hw, u32 profile_id, u64 *r_assoc,
 			     struct ice_sq_cd *cd)
 {
 	struct ice_aqc_recipe_to_profile *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
-	cmd = &desc.params.recipe_to_profile;
+	cmd = libie_aq_raw(&desc);
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_recipe_to_profile);
 	cmd->profile_id = cpu_to_le16(profile_id);
 

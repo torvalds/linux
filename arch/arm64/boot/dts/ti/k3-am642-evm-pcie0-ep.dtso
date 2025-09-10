@@ -46,6 +46,7 @@
 		max-functions = /bits/ 8 <1>;
 		phys = <&serdes0_pcie_link>;
 		phy-names = "pcie-phy";
+		bootph-all;
 		ti,syscon-pcie-ctrl = <&pcie0_ctrl 0x0>;
 	};
 };

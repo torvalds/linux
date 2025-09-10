@@ -358,11 +358,11 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char 
 				n -= w;
 				while (width-- > w) {
 					if (cb(state, " ", 1) != 0)
-						break;
+						return -1;
 					written += 1;
 				}
 				if (cb(state, outstr, w) != 0)
-					break;
+					return -1;
 			}
 
 			written += len;

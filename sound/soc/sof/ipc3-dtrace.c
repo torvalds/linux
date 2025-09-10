@@ -172,7 +172,6 @@ static int ipc3_trace_update_filter(struct snd_sof_dev *sdev, int num_elems,
 		goto error;
 	}
 	ret = sof_ipc_tx_message_no_reply(sdev->ipc, msg, msg->hdr.size);
-	pm_runtime_mark_last_busy(sdev->dev);
 	pm_runtime_put_autosuspend(sdev->dev);
 
 error:

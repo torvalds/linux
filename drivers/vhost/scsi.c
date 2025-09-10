@@ -71,7 +71,7 @@ static int vhost_scsi_set_inline_sg_cnt(const char *buf,
 	if (ret)
 		return ret;
 
-	if (ret > VHOST_SCSI_PREALLOC_SGLS) {
+	if (cnt > VHOST_SCSI_PREALLOC_SGLS) {
 		pr_err("Max inline_sg_cnt is %u\n", VHOST_SCSI_PREALLOC_SGLS);
 		return -EINVAL;
 	}
@@ -152,7 +152,7 @@ struct vhost_scsi_nexus {
 struct vhost_scsi_tpg {
 	/* Vhost port target portal group tag for TCM */
 	u16 tport_tpgt;
-	/* Used to track number of TPG Port/Lun Links wrt to explict I_T Nexus shutdown */
+	/* Used to track number of TPG Port/Lun Links wrt to explicit I_T Nexus shutdown */
 	int tv_tpg_port_count;
 	/* Used for vhost_scsi device reference to tpg_nexus, protected by tv_tpg_mutex */
 	int tv_tpg_vhost_count;
@@ -311,12 +311,12 @@ static void vhost_scsi_init_inflight(struct vhost_scsi *vs,
 
 		mutex_lock(&vq->mutex);
 
-		/* store old infight */
+		/* store old inflight */
 		idx = vs->vqs[i].inflight_idx;
 		if (old_inflight)
 			old_inflight[i] = &vs->vqs[i].inflights[idx];
 
-		/* setup new infight */
+		/* setup new inflight */
 		vs->vqs[i].inflight_idx = idx ^ 1;
 		new_inflight = &vs->vqs[i].inflights[idx ^ 1];
 		kref_init(&new_inflight->kref);
@@ -1226,10 +1226,8 @@ vhost_scsi_get_req(struct vhost_virtqueue *vq, struct vhost_scsi_ctx *vc,
 			/* validated at handler entry */
 			vs_tpg = vhost_vq_get_backend(vq);
 			tpg = READ_ONCE(vs_tpg[*vc->target]);
-			if (unlikely(!tpg)) {
-				vq_err(vq, "Target 0x%x does not exist\n", *vc->target);
+			if (unlikely(!tpg))
 				goto out;
-			}
 		}
 
 		if (tpgp)
@@ -1249,7 +1247,7 @@ vhost_scsi_setup_resp_iovs(struct vhost_scsi_cmd *cmd, struct iovec *in_iovs,
 	if (!in_iovs_cnt)
 		return 0;
 	/*
-	 * Initiator's normally just put the virtio_scsi_cmd_resp in the first
+	 * Initiators normally just put the virtio_scsi_cmd_resp in the first
 	 * iov, but just in case they wedged in some data with it we check for
 	 * greater than or equal to the response struct.
 	 */
@@ -1457,7 +1455,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 		cmd = vhost_scsi_get_cmd(vq, tag);
 		if (IS_ERR(cmd)) {
 			ret = PTR_ERR(cmd);
-			vq_err(vq, "vhost_scsi_get_tag failed %dd\n", ret);
+			vq_err(vq, "vhost_scsi_get_tag failed %d\n", ret);
 			goto err;
 		}
 		cmd->tvc_vq = vq;
@@ -2609,7 +2607,7 @@ static int vhost_scsi_make_nexus(struct vhost_scsi_tpg *tpg,
 		return -ENOMEM;
 	}
 	/*
-	 * Since we are running in 'demo mode' this call with generate a
+	 * Since we are running in 'demo mode' this call will generate a
 	 * struct se_node_acl for the vhost_scsi struct se_portal_group with
 	 * the SCSI Initiator port name of the passed configfs group 'name'.
 	 */
@@ -2915,7 +2913,7 @@ static ssize_t
 vhost_scsi_wwn_version_show(struct config_item *item, char *page)
 {
 	return sysfs_emit(page, "TCM_VHOST fabric module %s on %s/%s"
-		"on "UTS_RELEASE"\n", VHOST_SCSI_VERSION, utsname()->sysname,
+		" on "UTS_RELEASE"\n", VHOST_SCSI_VERSION, utsname()->sysname,
 		utsname()->machine);
 }
 
@@ -2983,13 +2981,13 @@ out_vhost_scsi_deregister:
 	vhost_scsi_deregister();
 out:
 	return ret;
-};
+}
 
 static void vhost_scsi_exit(void)
 {
 	target_unregister_template(&vhost_scsi_ops);
 	vhost_scsi_deregister();
-};
+}
 
 MODULE_DESCRIPTION("VHOST_SCSI series fabric driver");
 MODULE_ALIAS("tcm_vhost");

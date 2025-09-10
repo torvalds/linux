@@ -51,7 +51,6 @@
 #include "sp.h"
 #include "isp.h"
 #include "type_support.h"
-#include "math_support.h" /* CEIL_DIV */
 #include "input_system.h"	/* input_formatter_reg_load */
 #include "ia_css_tagger_common.h"
 

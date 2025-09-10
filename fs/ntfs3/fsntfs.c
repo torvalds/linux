@@ -905,9 +905,13 @@ void ntfs_update_mftmirr(struct ntfs_sb_info *sbi, int wait)
 void ntfs_bad_inode(struct inode *inode, const char *hint)
 {
 	struct ntfs_sb_info *sbi = inode->i_sb->s_fs_info;
+	struct ntfs_inode *ni = ntfs_i(inode);
 
 	ntfs_inode_err(inode, "%s", hint);
-	make_bad_inode(inode);
+
+	/* Do not call make_bad_inode()! */
+	ni->ni_bad = true;
+
 	/* Avoid recursion if bad inode is $Volume. */
 	if (inode->i_ino != MFT_REC_VOL &&
 	    !(sbi->flags & NTFS_FLAGS_LOG_REPLAYING)) {

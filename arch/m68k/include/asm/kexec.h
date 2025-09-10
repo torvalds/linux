@@ -15,7 +15,7 @@
 
 #define KEXEC_ARCH KEXEC_ARCH_68K
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 static inline void crash_setup_regs(struct pt_regs *newregs,
 				    struct pt_regs *oldregs)
@@ -23,7 +23,7 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 	/* Dummy implementation for now */
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* CONFIG_KEXEC_CORE */
 

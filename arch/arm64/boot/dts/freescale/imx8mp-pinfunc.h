@@ -6,6 +6,39 @@
 #ifndef __DTS_IMX8MP_PINFUNC_H
 #define __DTS_IMX8MP_PINFUNC_H
 
+/* Drive Strength */
+#define MX8MP_DSE_X1		0x0
+#define MX8MP_DSE_X2		0x4
+#define MX8MP_DSE_X4		0x2
+#define MX8MP_DSE_X6		0x6
+
+/* Slew Rate */
+#define MX8MP_FSEL_FAST		0x10
+#define MX8MP_FSEL_SLOW		0x0
+
+/* Open Drain */
+#define MX8MP_ODE_ENABLE	0x20
+#define MX8MP_ODE_DISABLE	0x0
+
+#define MX8MP_PULL_DOWN		0x0
+#define MX8MP_PULL_UP		0x40
+
+/* Hysteresis */
+#define MX8MP_HYS_CMOS		0x0
+#define MX8MP_HYS_SCHMITT	0x80
+
+#define MX8MP_PULL_ENABLE	0x100
+#define MX8MP_PULL_DISABLE	0x0
+
+/* SION force input mode */
+#define MX8MP_SION		0x40000000
+
+/* long defaults */
+#define MX8MP_USDHC_DATA_DEFAULT (MX8MP_FSEL_FAST | MX8MP_PULL_UP | \
+				  MX8MP_HYS_SCHMITT | MX8MP_PULL_ENABLE)
+#define MX8MP_I2C_DEFAULT (MX8MP_DSE_X6 | MX8MP_PULL_UP | MX8MP_HYS_SCHMITT | \
+			   MX8MP_PULL_ENABLE | MX8MP_SION)
+
 /*
  * The pin function ID is a tuple of
  * <mux_reg conf_reg input_reg mux_mode input_val>

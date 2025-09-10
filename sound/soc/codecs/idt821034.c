@@ -1117,7 +1117,7 @@ static int idt821034_gpio_init(struct idt821034 *idt821034)
 	idt821034->gpio_chip.direction_input = idt821034_chip_direction_input;
 	idt821034->gpio_chip.direction_output = idt821034_chip_direction_output;
 	idt821034->gpio_chip.get = idt821034_chip_gpio_get;
-	idt821034->gpio_chip.set_rv = idt821034_chip_gpio_set;
+	idt821034->gpio_chip.set = idt821034_chip_gpio_set;
 	idt821034->gpio_chip.can_sleep = true;
 
 	return devm_gpiochip_add_data(&idt821034->spi->dev, &idt821034->gpio_chip,

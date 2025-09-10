@@ -152,13 +152,14 @@ int ip6_tnl_get_iflink(const struct net_device *dev);
 int ip6_tnl_change_mtu(struct net_device *dev, int new_mtu);
 
 static inline void ip6tunnel_xmit(struct sock *sk, struct sk_buff *skb,
-				  struct net_device *dev)
+				  struct net_device *dev, u16 ip6cb_flags)
 {
 	int pkt_len, err;
 
 	memset(skb->cb, 0, sizeof(struct inet6_skb_parm));
+	IP6CB(skb)->flags = ip6cb_flags;
 	pkt_len = skb->len - skb_inner_network_offset(skb);
-	err = ip6_local_out(dev_net(skb_dst(skb)->dev), sk, skb);
+	err = ip6_local_out(skb_dst_dev_net(skb), sk, skb);
 
 	if (dev) {
 		if (unlikely(net_xmit_eval(err)))

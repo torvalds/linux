@@ -18,7 +18,6 @@ properties:
     const: richtek,rt5033-charger
 
   monitored-battery:
-    $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       Phandle to the monitored battery according to battery.yaml. The battery
       node needs to contain five parameters.
@@ -53,6 +52,9 @@ properties:
 
 required:
   - monitored-battery
+
+allOf:
+  - $ref: power-supply.yaml#
 
 additionalProperties: false
 

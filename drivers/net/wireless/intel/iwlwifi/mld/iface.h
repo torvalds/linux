@@ -87,6 +87,8 @@ enum iwl_mld_emlsr_exit {
  * @last_exit_reason: Reason for the last EMLSR exit
  * @last_exit_ts: Time of the last EMLSR exit (if @last_exit_reason is non-zero)
  * @exit_repeat_count: Number of times EMLSR was exited for the same reason
+ * @last_entry_ts: the time of the last EMLSR entry (if iwl_mld_emlsr_active()
+ *	is true)
  * @unblock_tpt_wk: Unblock EMLSR because the throughput limit was reached
  * @check_tpt_wk: a worker to check if IWL_MLD_EMLSR_BLOCKED_TPT should be
  *	added, for example if there is no longer enough traffic.
@@ -105,6 +107,7 @@ struct iwl_mld_emlsr {
 		enum iwl_mld_emlsr_exit last_exit_reason;
 		unsigned long last_exit_ts;
 		u8 exit_repeat_count;
+		unsigned long last_entry_ts;
 	);
 
 	struct wiphy_work unblock_tpt_wk;
@@ -133,6 +136,8 @@ struct iwl_mld_emlsr {
  * @low_latency_causes: bit flags, indicating the causes for low-latency,
  *	see @iwl_mld_low_latency_cause.
  * @ps_disabled: indicates that PS is disabled for this interface
+ * @last_link_activation_time: last time a link was activated, for
+ *	deferring MLO scans (to make them more reliable)
  * @mld: pointer to the mld structure.
  * @deflink: default link data, for use in non-MLO,
  * @link: reference to link data for each valid link, for use in MLO.
@@ -144,6 +149,7 @@ struct iwl_mld_emlsr {
  * @roc_activity: the id of the roc_activity running. Relevant for STA and
  *	p2p device only. Set to %ROC_NUM_ACTIVITIES when not in use.
  * @aux_sta: station used for remain on channel. Used in P2P device.
+ * @mlo_scan_start_wk: worker to start a deferred MLO scan
  */
 struct iwl_mld_vif {
 	/* Add here fields that need clean up on restart */
@@ -161,6 +167,7 @@ struct iwl_mld_vif {
 #endif
 		u8 low_latency_causes;
 		bool ps_disabled;
+		time64_t last_link_activation_time;
 	);
 	/* And here fields that survive a fw restart */
 	struct iwl_mld *mld;
@@ -179,12 +186,20 @@ struct iwl_mld_vif {
 #endif
 	enum iwl_roc_activity roc_activity;
 	struct iwl_mld_int_sta aux_sta;
+
+	struct wiphy_delayed_work mlo_scan_start_wk;
 };
 
 static inline struct iwl_mld_vif *
 iwl_mld_vif_from_mac80211(struct ieee80211_vif *vif)
 {
 	return (void *)vif->drv_priv;
+}
+
+static inline struct ieee80211_vif *
+iwl_mld_vif_to_mac80211(struct iwl_mld_vif *mld_vif)
+{
+	return container_of((void *)mld_vif, struct ieee80211_vif, drv_priv);
 }
 
 #define iwl_mld_link_dereference_check(mld_vif, link_id)		\

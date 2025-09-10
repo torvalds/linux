@@ -168,6 +168,7 @@ const struct nla_policy ethnl_pause_set_policy[] = {
 	[ETHTOOL_A_PAUSE_AUTONEG]		= { .type = NLA_U8 },
 	[ETHTOOL_A_PAUSE_RX]			= { .type = NLA_U8 },
 	[ETHTOOL_A_PAUSE_TX]			= { .type = NLA_U8 },
+	[ETHTOOL_A_PAUSE_STATS_SRC]		= { .type = NLA_REJECT },
 };
 
 static int

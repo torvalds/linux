@@ -34,6 +34,7 @@
 #include "dm_helpers.h"
 #include "dc_dmub_srv.h"
 #include "dce/dmub_hw_lock_mgr.h"
+#include "clk_mgr.h"
 
 #define DC_LOGGER \
 	link->ctx->logger
@@ -67,10 +68,19 @@ static void dp_retrain_link_dp_test(struct dc_link *link,
 {
 	struct pipe_ctx *pipes[MAX_PIPES];
 	struct dc_state *state = link->dc->current_state;
+	struct dc_stream_update stream_update = { 0 };
+	bool dpms_off = false;
+	bool needs_divider_update = false;
 	bool was_hpo_acquired = resource_is_hpo_acquired(link->dc->current_state);
 	bool is_hpo_acquired;
 	uint8_t count;
 	int i;
+
+	struct dc_stream_state *streams_on_link[MAX_PIPES];
+	int num_streams_on_link = 0;
+
+	needs_divider_update = (link->dc->link_srv->dp_get_encoding_format(link_setting) !=
+	link->dc->link_srv->dp_get_encoding_format((const struct dc_link_settings *) &link->cur_link_settings));
 
 	udelay(100);
 
@@ -83,16 +93,67 @@ static void dp_retrain_link_dp_test(struct dc_link *link,
 				link->dc,
 				state,
 				pipes[i]);
+
+		// Disable OTG and re-enable after updating clocks
+		pipes[i]->stream_res.tg->funcs->disable_crtc(pipes[i]->stream_res.tg);
 	}
 
-	if (link->dc->hwss.setup_hpo_hw_control) {
-		is_hpo_acquired = resource_is_hpo_acquired(state);
-		if (was_hpo_acquired != is_hpo_acquired)
-			link->dc->hwss.setup_hpo_hw_control(link->dc->hwseq, is_hpo_acquired);
+	if (needs_divider_update && link->dc->res_pool->funcs->update_dc_state_for_encoder_switch) {
+		link->dc->res_pool->funcs->update_dc_state_for_encoder_switch(link,
+				link_setting, count,
+				*pipes);
+		for (i = 0; i < count; i++) {
+			pipes[i]->clock_source->funcs->program_pix_clk(
+					pipes[i]->clock_source,
+					&pipes[i]->stream_res.pix_clk_params,
+					link->dc->link_srv->dp_get_encoding_format(&pipes[i]->link_config.dp_link_settings),
+					&pipes[i]->pll_settings);
+
+			if (pipes[i]->stream_res.audio != NULL) {
+				const struct link_hwss *link_hwss = get_link_hwss(
+					link, &pipes[i]->link_res);
+
+				link_hwss->setup_audio_output(pipes[i],
+							      &pipes[i]->stream_res.audio_output,
+							      pipes[i]->stream_res.audio->inst);
+
+				pipes[i]->stream_res.audio->funcs->az_configure(
+						pipes[i]->stream_res.audio,
+						pipes[i]->stream->signal,
+						&pipes[i]->stream_res.audio_output.crtc_info,
+						&pipes[i]->stream->audio_info,
+						&pipes[i]->stream_res.audio_output.dp_link_info);
+
+				if (link->dc->config.disable_hbr_audio_dp2 &&
+						pipes[i]->stream_res.audio->funcs->az_disable_hbr_audio &&
+						link->dc->link_srv->dp_is_128b_132b_signal(pipes[i]))
+					pipes[i]->stream_res.audio->funcs->az_disable_hbr_audio(pipes[i]->stream_res.audio);
+			}
+		}
 	}
 
-	for (i = count-1; i >= 0; i--)
-		link_set_dpms_on(state, pipes[i]);
+	// Toggle on HPO I/O if necessary
+	is_hpo_acquired = resource_is_hpo_acquired(state);
+	if (was_hpo_acquired != is_hpo_acquired && link->dc->hwss.setup_hpo_hw_control)
+		link->dc->hwss.setup_hpo_hw_control(link->dc->hwseq, is_hpo_acquired);
+
+	for (i = 0; i < count; i++)
+		pipes[i]->stream_res.tg->funcs->enable_crtc(pipes[i]->stream_res.tg);
+
+	// Set DPMS on with stream update
+	// Cache all streams on current link since dc_update_planes_and_stream might kill current_state
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (state->streams[i] && state->streams[i]->link && state->streams[i]->link == link)
+			streams_on_link[num_streams_on_link++] = state->streams[i];
+	}
+
+	for (i = 0; i < num_streams_on_link; i++) {
+		if (streams_on_link[i] && streams_on_link[i]->link && streams_on_link[i]->link == link) {
+			stream_update.stream = streams_on_link[i];
+			stream_update.dpms_off = &dpms_off;
+			dc_update_planes_and_stream(state->clk_mgr->ctx->dc, NULL, 0, streams_on_link[i], &stream_update);
+		}
+	}
 }
 
 static void dp_test_send_link_training(struct dc_link *link)

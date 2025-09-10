@@ -1,0 +1,11 @@
+config RV_MON_RTAPP
+	depends on RV
+	depends on RV_PER_TASK_MONITORS >= 2
+	bool "rtapp monitor"
+	help
+	  Collection of monitors to check for common problems with real-time
+	  application that may cause unexpected latency.
+
+	  If you are developing a real-time system and not entirely sure whether
+	  the applications are designed correctly for real-time, you want to say
+	  Y here.

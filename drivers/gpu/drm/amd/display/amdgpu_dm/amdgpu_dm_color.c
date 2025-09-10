@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2018 Advanced Micro Devices, Inc.
  *
@@ -27,7 +28,6 @@
 #include "amdgpu_dm.h"
 #include "dc.h"
 #include "modules/color/color_gamma.h"
-#include "basics/conversion.h"
 
 /**
  * DOC: overview

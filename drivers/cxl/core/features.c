@@ -544,7 +544,7 @@ static bool cxlctl_validate_set_features(struct cxl_features_state *cxlfs,
 	u32 flags;
 
 	if (rpc_in->op_size < sizeof(uuid_t))
-		return ERR_PTR(-EINVAL);
+		return false;
 
 	feat = cxl_feature_info(cxlfs, &rpc_in->set_feat_in.uuid);
 	if (IS_ERR(feat))

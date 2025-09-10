@@ -123,7 +123,7 @@ struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt)
 		if (fifo)
 			chan = usbhsf_dma_chan_get(fifo, pkt);
 		if (chan) {
-			dmaengine_terminate_all(chan);
+			dmaengine_terminate_sync(chan);
 			usbhsf_dma_unmap(pkt);
 		} else {
 			if (usbhs_pipe_is_dir_in(pipe))

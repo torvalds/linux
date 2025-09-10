@@ -129,7 +129,9 @@ enum dmub_window_id {
 	DMUB_WINDOW_5_TRACEBUFF,
 	DMUB_WINDOW_6_FW_STATE,
 	DMUB_WINDOW_7_SCRATCH_MEM,
+	DMUB_WINDOW_IB_MEM,
 	DMUB_WINDOW_SHARED_STATE,
+	DMUB_WINDOW_LSDMA_BUFFER,
 	DMUB_WINDOW_TOTAL,
 };
 
@@ -314,6 +316,7 @@ struct dmub_srv_hw_params {
 	bool disable_sldo_opt;
 	bool enable_non_transparent_setconfig;
 	bool lower_hbr3_phy_ssc;
+	bool override_hbr3_pll_vco;
 };
 
 /**
@@ -355,6 +358,7 @@ struct dmub_diagnostic_data {
 	uint8_t is_traceport_en : 1;
 	uint8_t is_cw0_enabled : 1;
 	uint8_t is_cw6_enabled : 1;
+	uint8_t is_pwait : 1;
 };
 
 struct dmub_srv_inbox {
@@ -539,6 +543,7 @@ struct dmub_srv {
 	uint32_t fw_version;
 	bool is_virtual;
 	struct dmub_fb scratch_mem_fb;
+	struct dmub_fb ib_mem_gart;
 	volatile struct dmub_shared_state_feature_block *shared_state;
 	volatile const struct dmub_fw_state *fw_state;
 
@@ -563,6 +568,7 @@ struct dmub_srv {
 
 	bool sw_init;
 	bool hw_init;
+	bool dpia_supported;
 
 	uint64_t fb_base;
 	uint64_t fb_offset;
@@ -576,6 +582,7 @@ struct dmub_srv {
 
 	enum dmub_srv_power_state_type power_state;
 	struct dmub_diagnostic_data debug;
+	struct dmub_fb lsdma_rb_fb;
 };
 
 /**
@@ -592,6 +599,8 @@ struct dmub_notification {
 	enum dmub_notification_type type;
 	uint8_t link_index;
 	uint8_t result;
+	/* notify instance from DMUB */
+	uint8_t instance;
 	bool pending_notification;
 	union {
 		struct aux_reply_data aux_reply;
@@ -600,14 +609,6 @@ struct dmub_notification {
 		struct dmub_rb_cmd_hpd_sense_notify_data hpd_sense_notify;
 		struct dmub_cmd_fused_request fused_request;
 	};
-};
-
-/* enum dmub_ips_mode - IPS mode identifier */
-enum dmub_ips_mode {
-	DMUB_IPS_MODE_IPS1_MAX		= 0,
-	DMUB_IPS_MODE_IPS2,
-	DMUB_IPS_MODE_IPS1_RCG,
-	DMUB_IPS_MODE_IPS1_ONO2_ON
 };
 
 /**

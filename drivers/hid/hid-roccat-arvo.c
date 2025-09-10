@@ -258,7 +258,7 @@ static const struct bin_attribute *const arvo_bin_attributes[] = {
 
 static const struct attribute_group arvo_group = {
 	.attrs = arvo_attrs,
-	.bin_attrs_new = arvo_bin_attributes,
+	.bin_attrs = arvo_bin_attributes,
 };
 
 static const struct attribute_group *arvo_groups[] = {

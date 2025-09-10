@@ -15,13 +15,11 @@
 #include <asm/kvm_nested.h>
 #include <asm/esr.h>
 
-static void pend_sync_exception(struct kvm_vcpu *vcpu)
+static unsigned int exception_target_el(struct kvm_vcpu *vcpu)
 {
 	/* If not nesting, EL1 is the only possible exception target */
-	if (likely(!vcpu_has_nv(vcpu))) {
-		kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SYNC);
-		return;
-	}
+	if (likely(!vcpu_has_nv(vcpu)))
+		return PSR_MODE_EL1h;
 
 	/*
 	 * With NV, we need to pick between EL1 and EL2. Note that we
@@ -32,26 +30,76 @@ static void pend_sync_exception(struct kvm_vcpu *vcpu)
 	switch(*vcpu_cpsr(vcpu) & PSR_MODE_MASK) {
 	case PSR_MODE_EL2h:
 	case PSR_MODE_EL2t:
-		kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_SYNC);
-		break;
+		return PSR_MODE_EL2h;
 	case PSR_MODE_EL1h:
 	case PSR_MODE_EL1t:
-		kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SYNC);
-		break;
+		return PSR_MODE_EL1h;
 	case PSR_MODE_EL0t:
-		if (vcpu_el2_tge_is_set(vcpu))
-			kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_SYNC);
-		else
-			kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SYNC);
-		break;
+		return vcpu_el2_tge_is_set(vcpu) ? PSR_MODE_EL2h : PSR_MODE_EL1h;
 	default:
 		BUG();
 	}
 }
 
-static bool match_target_el(struct kvm_vcpu *vcpu, unsigned long target)
+static enum vcpu_sysreg exception_esr_elx(struct kvm_vcpu *vcpu)
 {
-	return (vcpu_get_flag(vcpu, EXCEPT_MASK) == target);
+	if (exception_target_el(vcpu) == PSR_MODE_EL2h)
+		return ESR_EL2;
+
+	return ESR_EL1;
+}
+
+static enum vcpu_sysreg exception_far_elx(struct kvm_vcpu *vcpu)
+{
+	if (exception_target_el(vcpu) == PSR_MODE_EL2h)
+		return FAR_EL2;
+
+	return FAR_EL1;
+}
+
+static void pend_sync_exception(struct kvm_vcpu *vcpu)
+{
+	if (exception_target_el(vcpu) == PSR_MODE_EL1h)
+		kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SYNC);
+	else
+		kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_SYNC);
+}
+
+static void pend_serror_exception(struct kvm_vcpu *vcpu)
+{
+	if (exception_target_el(vcpu) == PSR_MODE_EL1h)
+		kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SERR);
+	else
+		kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_SERR);
+}
+
+static bool __effective_sctlr2_bit(struct kvm_vcpu *vcpu, unsigned int idx)
+{
+	u64 sctlr2;
+
+	if (!kvm_has_sctlr2(vcpu->kvm))
+		return false;
+
+	if (is_nested_ctxt(vcpu) &&
+	    !(__vcpu_sys_reg(vcpu, HCRX_EL2) & HCRX_EL2_SCTLR2En))
+		return false;
+
+	if (exception_target_el(vcpu) == PSR_MODE_EL1h)
+		sctlr2 = vcpu_read_sys_reg(vcpu, SCTLR2_EL1);
+	else
+		sctlr2 = vcpu_read_sys_reg(vcpu, SCTLR2_EL2);
+
+	return sctlr2 & BIT(idx);
+}
+
+static bool effective_sctlr2_ease(struct kvm_vcpu *vcpu)
+{
+	return __effective_sctlr2_bit(vcpu, SCTLR2_EL1_EASE_SHIFT);
+}
+
+static bool effective_sctlr2_nmea(struct kvm_vcpu *vcpu)
+{
+	return __effective_sctlr2_bit(vcpu, SCTLR2_EL1_NMEA_SHIFT);
 }
 
 static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr)
@@ -60,7 +108,11 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 	bool is_aarch32 = vcpu_mode_is_32bit(vcpu);
 	u64 esr = 0;
 
-	pend_sync_exception(vcpu);
+	/* This delight is brought to you by FEAT_DoubleFault2. */
+	if (effective_sctlr2_ease(vcpu))
+		pend_serror_exception(vcpu);
+	else
+		pend_sync_exception(vcpu);
 
 	/*
 	 * Build an {i,d}abort, depending on the level and the
@@ -83,13 +135,8 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 
 	esr |= ESR_ELx_FSC_EXTABT;
 
-	if (match_target_el(vcpu, unpack_vcpu_flag(EXCEPT_AA64_EL1_SYNC))) {
-		vcpu_write_sys_reg(vcpu, addr, FAR_EL1);
-		vcpu_write_sys_reg(vcpu, esr, ESR_EL1);
-	} else {
-		vcpu_write_sys_reg(vcpu, addr, FAR_EL2);
-		vcpu_write_sys_reg(vcpu, esr, ESR_EL2);
-	}
+	vcpu_write_sys_reg(vcpu, addr, exception_far_elx(vcpu));
+	vcpu_write_sys_reg(vcpu, esr, exception_esr_elx(vcpu));
 }
 
 static void inject_undef64(struct kvm_vcpu *vcpu)
@@ -105,10 +152,7 @@ static void inject_undef64(struct kvm_vcpu *vcpu)
 	if (kvm_vcpu_trap_il_is32bit(vcpu))
 		esr |= ESR_ELx_IL;
 
-	if (match_target_el(vcpu, unpack_vcpu_flag(EXCEPT_AA64_EL1_SYNC)))
-		vcpu_write_sys_reg(vcpu, esr, ESR_EL1);
-	else
-		vcpu_write_sys_reg(vcpu, esr, ESR_EL2);
+	vcpu_write_sys_reg(vcpu, esr, exception_esr_elx(vcpu));
 }
 
 #define DFSR_FSC_EXTABT_LPAE	0x10
@@ -155,36 +199,35 @@ static void inject_abt32(struct kvm_vcpu *vcpu, bool is_pabt, u32 addr)
 	vcpu_write_sys_reg(vcpu, far, FAR_EL1);
 }
 
-/**
- * kvm_inject_dabt - inject a data abort into the guest
- * @vcpu: The VCPU to receive the data abort
- * @addr: The address to report in the DFAR
- *
- * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
- */
-void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr)
+static void __kvm_inject_sea(struct kvm_vcpu *vcpu, bool iabt, u64 addr)
 {
 	if (vcpu_el1_is_32bit(vcpu))
-		inject_abt32(vcpu, false, addr);
+		inject_abt32(vcpu, iabt, addr);
 	else
-		inject_abt64(vcpu, false, addr);
+		inject_abt64(vcpu, iabt, addr);
 }
 
-/**
- * kvm_inject_pabt - inject a prefetch abort into the guest
- * @vcpu: The VCPU to receive the prefetch abort
- * @addr: The address to report in the DFAR
- *
- * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
- */
-void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr)
+static bool kvm_sea_target_is_el2(struct kvm_vcpu *vcpu)
 {
-	if (vcpu_el1_is_32bit(vcpu))
-		inject_abt32(vcpu, true, addr);
-	else
-		inject_abt64(vcpu, true, addr);
+	if (__vcpu_sys_reg(vcpu, HCR_EL2) & (HCR_TGE | HCR_TEA))
+		return true;
+
+	if (!vcpu_mode_priv(vcpu))
+		return false;
+
+	return (*vcpu_cpsr(vcpu) & PSR_A_BIT) &&
+	       (__vcpu_sys_reg(vcpu, HCRX_EL2) & HCRX_EL2_TMEA);
+}
+
+int kvm_inject_sea(struct kvm_vcpu *vcpu, bool iabt, u64 addr)
+{
+	lockdep_assert_held(&vcpu->mutex);
+
+	if (is_nested_ctxt(vcpu) && kvm_sea_target_is_el2(vcpu))
+		return kvm_inject_nested_sea(vcpu, iabt, addr);
+
+	__kvm_inject_sea(vcpu, iabt, addr);
+	return 1;
 }
 
 void kvm_inject_size_fault(struct kvm_vcpu *vcpu)
@@ -194,10 +237,7 @@ void kvm_inject_size_fault(struct kvm_vcpu *vcpu)
 	addr  = kvm_vcpu_get_fault_ipa(vcpu);
 	addr |= kvm_vcpu_get_hfar(vcpu) & GENMASK(11, 0);
 
-	if (kvm_vcpu_trap_is_iabt(vcpu))
-		kvm_inject_pabt(vcpu, addr);
-	else
-		kvm_inject_dabt(vcpu, addr);
+	__kvm_inject_sea(vcpu, kvm_vcpu_trap_is_iabt(vcpu), addr);
 
 	/*
 	 * If AArch64 or LPAE, set FSC to 0 to indicate an Address
@@ -210,9 +250,9 @@ void kvm_inject_size_fault(struct kvm_vcpu *vcpu)
 	    !(vcpu_read_sys_reg(vcpu, TCR_EL1) & TTBCR_EAE))
 		return;
 
-	esr = vcpu_read_sys_reg(vcpu, ESR_EL1);
+	esr = vcpu_read_sys_reg(vcpu, exception_esr_elx(vcpu));
 	esr &= ~GENMASK_ULL(5, 0);
-	vcpu_write_sys_reg(vcpu, esr, ESR_EL1);
+	vcpu_write_sys_reg(vcpu, esr, exception_esr_elx(vcpu));
 }
 
 /**
@@ -230,25 +270,70 @@ void kvm_inject_undefined(struct kvm_vcpu *vcpu)
 		inject_undef64(vcpu);
 }
 
-void kvm_set_sei_esr(struct kvm_vcpu *vcpu, u64 esr)
+static bool serror_is_masked(struct kvm_vcpu *vcpu)
 {
-	vcpu_set_vsesr(vcpu, esr & ESR_ELx_ISS_MASK);
-	*vcpu_hcr(vcpu) |= HCR_VSE;
+	return (*vcpu_cpsr(vcpu) & PSR_A_BIT) && !effective_sctlr2_nmea(vcpu);
 }
 
-/**
- * kvm_inject_vabt - inject an async abort / SError into the guest
- * @vcpu: The VCPU to receive the exception
- *
- * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
- *
- * Systems with the RAS Extensions specify an imp-def ESR (ISV/IDS = 1) with
- * the remaining ISS all-zeros so that this error is not interpreted as an
- * uncategorized RAS error. Without the RAS Extensions we can't specify an ESR
- * value, so the CPU generates an imp-def value.
- */
-void kvm_inject_vabt(struct kvm_vcpu *vcpu)
+static bool kvm_serror_target_is_el2(struct kvm_vcpu *vcpu)
 {
-	kvm_set_sei_esr(vcpu, ESR_ELx_ISV);
+	if (is_hyp_ctxt(vcpu) || vcpu_el2_amo_is_set(vcpu))
+		return true;
+
+	if (!(__vcpu_sys_reg(vcpu, HCRX_EL2) & HCRX_EL2_TMEA))
+		return false;
+
+	/*
+	 * In another example where FEAT_DoubleFault2 is entirely backwards,
+	 * "masked" as it relates to the routing effects of HCRX_EL2.TMEA
+	 * doesn't consider SCTLR2_EL1.NMEA. That is to say, even if EL1 asked
+	 * for non-maskable SErrors, the EL2 bit takes priority if A is set.
+	 */
+	if (vcpu_mode_priv(vcpu))
+		return *vcpu_cpsr(vcpu) & PSR_A_BIT;
+
+	/*
+	 * Otherwise SErrors are considered unmasked when taken from EL0 and
+	 * NMEA is set.
+	 */
+	return serror_is_masked(vcpu);
+}
+
+static bool kvm_serror_undeliverable_at_el2(struct kvm_vcpu *vcpu)
+{
+	return !(vcpu_el2_tge_is_set(vcpu) || vcpu_el2_amo_is_set(vcpu));
+}
+
+int kvm_inject_serror_esr(struct kvm_vcpu *vcpu, u64 esr)
+{
+	lockdep_assert_held(&vcpu->mutex);
+
+	if (is_nested_ctxt(vcpu) && kvm_serror_target_is_el2(vcpu))
+		return kvm_inject_nested_serror(vcpu, esr);
+
+	if (vcpu_is_el2(vcpu) && kvm_serror_undeliverable_at_el2(vcpu)) {
+		vcpu_set_vsesr(vcpu, esr);
+		vcpu_set_flag(vcpu, NESTED_SERROR_PENDING);
+		return 1;
+	}
+
+	/*
+	 * Emulate the exception entry if SErrors are unmasked. This is useful if
+	 * the vCPU is in a nested context w/ vSErrors enabled then we've already
+	 * delegated he hardware vSError context (i.e. HCR_EL2.VSE, VSESR_EL2,
+	 * VDISR_EL2) to the guest hypervisor.
+	 *
+	 * As we're emulating the SError injection we need to explicitly populate
+	 * ESR_ELx.EC because hardware will not do it on our behalf.
+	 */
+	if (!serror_is_masked(vcpu)) {
+		pend_serror_exception(vcpu);
+		esr |= FIELD_PREP(ESR_ELx_EC_MASK, ESR_ELx_EC_SERROR);
+		vcpu_write_sys_reg(vcpu, esr, exception_esr_elx(vcpu));
+		return 1;
+	}
+
+	vcpu_set_vsesr(vcpu, esr & ESR_ELx_ISS_MASK);
+	*vcpu_hcr(vcpu) |= HCR_VSE;
+	return 1;
 }

@@ -4,6 +4,8 @@
 #ifndef _I40E_ADMINQ_CMD_H_
 #define _I40E_ADMINQ_CMD_H_
 
+#include <linux/net/intel/libie/adminq.h>
+
 #include <linux/bits.h>
 #include <linux/types.h>
 
@@ -29,75 +31,6 @@
 #define I40E_MINOR_VER_FW_LLDP_STOPPABLE_X722 0x0006
 /* API version 1.10 for X722 devices adds ability to request FEC encoding */
 #define I40E_MINOR_VER_FW_REQUEST_FEC_X722 0x000A
-
-struct i40e_aq_desc {
-	__le16 flags;
-	__le16 opcode;
-	__le16 datalen;
-	__le16 retval;
-	__le32 cookie_high;
-	__le32 cookie_low;
-	union {
-		struct {
-			__le32 param0;
-			__le32 param1;
-			__le32 param2;
-			__le32 param3;
-		} internal;
-		struct {
-			__le32 param0;
-			__le32 param1;
-			__le32 addr_high;
-			__le32 addr_low;
-		} external;
-		u8 raw[16];
-	} params;
-};
-
-/* Flags sub-structure
- * |0  |1  |2  |3  |4  |5  |6  |7  |8  |9  |10 |11 |12 |13 |14 |15 |
- * |DD |CMP|ERR|VFE| * *  RESERVED * * |LB |RD |VFC|BUF|SI |EI |FE |
- */
-
-/* command flags and offsets*/
-#define I40E_AQ_FLAG_ERR_SHIFT	2
-#define I40E_AQ_FLAG_LB_SHIFT	9
-#define I40E_AQ_FLAG_RD_SHIFT	10
-#define I40E_AQ_FLAG_BUF_SHIFT	12
-#define I40E_AQ_FLAG_SI_SHIFT	13
-
-#define I40E_AQ_FLAG_ERR	BIT(I40E_AQ_FLAG_ERR_SHIFT) /* 0x4    */
-#define I40E_AQ_FLAG_LB		BIT(I40E_AQ_FLAG_LB_SHIFT)  /* 0x200  */
-#define I40E_AQ_FLAG_RD		BIT(I40E_AQ_FLAG_RD_SHIFT)  /* 0x400  */
-#define I40E_AQ_FLAG_BUF	BIT(I40E_AQ_FLAG_BUF_SHIFT) /* 0x1000 */
-#define I40E_AQ_FLAG_SI		BIT(I40E_AQ_FLAG_SI_SHIFT)  /* 0x2000 */
-
-/* error codes */
-enum i40e_admin_queue_err {
-	I40E_AQ_RC_OK		= 0,  /* success */
-	I40E_AQ_RC_EPERM	= 1,  /* Operation not permitted */
-	I40E_AQ_RC_ENOENT	= 2,  /* No such element */
-	I40E_AQ_RC_ESRCH	= 3,  /* Bad opcode */
-	I40E_AQ_RC_EINTR	= 4,  /* operation interrupted */
-	I40E_AQ_RC_EIO		= 5,  /* I/O error */
-	I40E_AQ_RC_ENXIO	= 6,  /* No such resource */
-	I40E_AQ_RC_E2BIG	= 7,  /* Arg too long */
-	I40E_AQ_RC_EAGAIN	= 8,  /* Try again */
-	I40E_AQ_RC_ENOMEM	= 9,  /* Out of memory */
-	I40E_AQ_RC_EACCES	= 10, /* Permission denied */
-	I40E_AQ_RC_EFAULT	= 11, /* Bad address */
-	I40E_AQ_RC_EBUSY	= 12, /* Device or resource busy */
-	I40E_AQ_RC_EEXIST	= 13, /* object already exists */
-	I40E_AQ_RC_EINVAL	= 14, /* Invalid argument */
-	I40E_AQ_RC_ENOTTY	= 15, /* Not a typewriter */
-	I40E_AQ_RC_ENOSPC	= 16, /* No space left or alloc failure */
-	I40E_AQ_RC_ENOSYS	= 17, /* Function not implemented */
-	I40E_AQ_RC_ERANGE	= 18, /* Parameter out of range */
-	I40E_AQ_RC_EFLUSHED	= 19, /* Cmd flushed due to prev cmd error */
-	I40E_AQ_RC_BAD_ADDR	= 20, /* Descriptor contains a bad pointer */
-	I40E_AQ_RC_EMODE	= 21, /* Op not allowed in current dev mode */
-	I40E_AQ_RC_EFBIG	= 22, /* File too large */
-};
 
 /* Admin Queue command opcodes */
 enum i40e_admin_queue_opc {
@@ -320,21 +253,6 @@ struct i40e_aqc_get_version {
 	__le16 api_minor;
 };
 
-I40E_CHECK_CMD_LENGTH(i40e_aqc_get_version);
-
-/* Send driver version (indirect 0x0002) */
-struct i40e_aqc_driver_version {
-	u8	driver_major_ver;
-	u8	driver_minor_ver;
-	u8	driver_build_ver;
-	u8	driver_subbuild_ver;
-	u8	reserved[4];
-	__le32	address_high;
-	__le32	address_low;
-};
-
-I40E_CHECK_CMD_LENGTH(i40e_aqc_driver_version);
-
 /* Queue Shutdown (direct 0x0003) */
 struct i40e_aqc_queue_shutdown {
 	__le32	driver_unloading;
@@ -351,75 +269,6 @@ struct i40e_aqc_set_pf_context {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_set_pf_context);
-
-/* Request resource ownership (direct 0x0008)
- * Release resource ownership (direct 0x0009)
- */
-struct i40e_aqc_request_resource {
-	__le16	resource_id;
-	__le16	access_type;
-	__le32	timeout;
-	__le32	resource_number;
-	u8	reserved[4];
-};
-
-I40E_CHECK_CMD_LENGTH(i40e_aqc_request_resource);
-
-/* Get function capabilities (indirect 0x000A)
- * Get device capabilities (indirect 0x000B)
- */
-struct i40e_aqc_list_capabilites {
-	u8 command_flags;
-	u8 pf_index;
-	u8 reserved[2];
-	__le32 count;
-	__le32 addr_high;
-	__le32 addr_low;
-};
-
-I40E_CHECK_CMD_LENGTH(i40e_aqc_list_capabilites);
-
-struct i40e_aqc_list_capabilities_element_resp {
-	__le16	id;
-	u8	major_rev;
-	u8	minor_rev;
-	__le32	number;
-	__le32	logical_id;
-	__le32	phys_id;
-	u8	reserved[16];
-};
-
-/* list of caps */
-
-#define I40E_AQ_CAP_ID_SWITCH_MODE	0x0001
-#define I40E_AQ_CAP_ID_MNG_MODE		0x0002
-#define I40E_AQ_CAP_ID_NPAR_ACTIVE	0x0003
-#define I40E_AQ_CAP_ID_OS2BMC_CAP	0x0004
-#define I40E_AQ_CAP_ID_FUNCTIONS_VALID	0x0005
-#define I40E_AQ_CAP_ID_SRIOV		0x0012
-#define I40E_AQ_CAP_ID_VF		0x0013
-#define I40E_AQ_CAP_ID_VMDQ		0x0014
-#define I40E_AQ_CAP_ID_8021QBG		0x0015
-#define I40E_AQ_CAP_ID_8021QBR		0x0016
-#define I40E_AQ_CAP_ID_VSI		0x0017
-#define I40E_AQ_CAP_ID_DCB		0x0018
-#define I40E_AQ_CAP_ID_FCOE		0x0021
-#define I40E_AQ_CAP_ID_ISCSI		0x0022
-#define I40E_AQ_CAP_ID_RSS		0x0040
-#define I40E_AQ_CAP_ID_RXQ		0x0041
-#define I40E_AQ_CAP_ID_TXQ		0x0042
-#define I40E_AQ_CAP_ID_MSIX		0x0043
-#define I40E_AQ_CAP_ID_VF_MSIX		0x0044
-#define I40E_AQ_CAP_ID_FLOW_DIRECTOR	0x0045
-#define I40E_AQ_CAP_ID_1588		0x0046
-#define I40E_AQ_CAP_ID_IWARP		0x0051
-#define I40E_AQ_CAP_ID_LED		0x0061
-#define I40E_AQ_CAP_ID_SDP		0x0062
-#define I40E_AQ_CAP_ID_MDIO		0x0063
-#define I40E_AQ_CAP_ID_WSR_PROT		0x0064
-#define I40E_AQ_CAP_ID_NVM_MGMT		0x0080
-#define I40E_AQ_CAP_ID_FLEX10		0x00F1
-#define I40E_AQ_CAP_ID_CEM		0x00F2
 
 /* Set CPPM Configuration (direct 0x0103) */
 struct i40e_aqc_cppm_configuration {

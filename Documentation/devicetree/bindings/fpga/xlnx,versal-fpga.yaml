@@ -27,7 +27,7 @@ additionalProperties: false
 examples:
   - |
     versal_fpga: versal-fpga {
-         compatible = "xlnx,versal-fpga";
+        compatible = "xlnx,versal-fpga";
     };
 
 ...

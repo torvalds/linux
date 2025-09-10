@@ -159,7 +159,7 @@ STATIC enum xlog_recover_reorder
 xlog_recover_buf_reorder(
 	struct xlog_recover_item	*item)
 {
-	struct xfs_buf_log_format	*buf_f = item->ri_buf[0].i_addr;
+	struct xfs_buf_log_format	*buf_f = item->ri_buf[0].iov_base;
 
 	if (buf_f->blf_flags & XFS_BLF_CANCEL)
 		return XLOG_REORDER_CANCEL_LIST;
@@ -173,7 +173,7 @@ xlog_recover_buf_ra_pass2(
 	struct xlog                     *log,
 	struct xlog_recover_item        *item)
 {
-	struct xfs_buf_log_format	*buf_f = item->ri_buf[0].i_addr;
+	struct xfs_buf_log_format	*buf_f = item->ri_buf[0].iov_base;
 
 	xlog_buf_readahead(log, buf_f->blf_blkno, buf_f->blf_len, NULL);
 }
@@ -187,11 +187,11 @@ xlog_recover_buf_commit_pass1(
 	struct xlog			*log,
 	struct xlog_recover_item	*item)
 {
-	struct xfs_buf_log_format	*bf = item->ri_buf[0].i_addr;
+	struct xfs_buf_log_format	*bf = item->ri_buf[0].iov_base;
 
 	if (!xfs_buf_log_check_iovec(&item->ri_buf[0])) {
-		xfs_err(log->l_mp, "bad buffer log item size (%d)",
-				item->ri_buf[0].i_len);
+		xfs_err(log->l_mp, "bad buffer log item size (%zd)",
+				item->ri_buf[0].iov_len);
 		return -EFSCORRUPTED;
 	}
 
@@ -487,8 +487,8 @@ xlog_recover_do_reg_buffer(
 		nbits = xfs_contig_bits(buf_f->blf_data_map,
 					buf_f->blf_map_size, bit);
 		ASSERT(nbits > 0);
-		ASSERT(item->ri_buf[i].i_addr != NULL);
-		ASSERT(item->ri_buf[i].i_len % XFS_BLF_CHUNK == 0);
+		ASSERT(item->ri_buf[i].iov_base != NULL);
+		ASSERT(item->ri_buf[i].iov_len % XFS_BLF_CHUNK == 0);
 		ASSERT(BBTOB(bp->b_length) >=
 		       ((uint)bit << XFS_BLF_SHIFT) + (nbits << XFS_BLF_SHIFT));
 
@@ -500,8 +500,8 @@ xlog_recover_do_reg_buffer(
 		 * the log. Hence we need to trim nbits back to the length of
 		 * the current region being copied out of the log.
 		 */
-		if (item->ri_buf[i].i_len < (nbits << XFS_BLF_SHIFT))
-			nbits = item->ri_buf[i].i_len >> XFS_BLF_SHIFT;
+		if (item->ri_buf[i].iov_len < (nbits << XFS_BLF_SHIFT))
+			nbits = item->ri_buf[i].iov_len >> XFS_BLF_SHIFT;
 
 		/*
 		 * Do a sanity check if this is a dquot buffer. Just checking
@@ -511,18 +511,18 @@ xlog_recover_do_reg_buffer(
 		fa = NULL;
 		if (buf_f->blf_flags &
 		   (XFS_BLF_UDQUOT_BUF|XFS_BLF_PDQUOT_BUF|XFS_BLF_GDQUOT_BUF)) {
-			if (item->ri_buf[i].i_addr == NULL) {
+			if (item->ri_buf[i].iov_base == NULL) {
 				xfs_alert(mp,
 					"XFS: NULL dquot in %s.", __func__);
 				goto next;
 			}
-			if (item->ri_buf[i].i_len < size_disk_dquot) {
+			if (item->ri_buf[i].iov_len < size_disk_dquot) {
 				xfs_alert(mp,
-					"XFS: dquot too small (%d) in %s.",
-					item->ri_buf[i].i_len, __func__);
+					"XFS: dquot too small (%zd) in %s.",
+					item->ri_buf[i].iov_len, __func__);
 				goto next;
 			}
-			fa = xfs_dquot_verify(mp, item->ri_buf[i].i_addr, -1);
+			fa = xfs_dquot_verify(mp, item->ri_buf[i].iov_base, -1);
 			if (fa) {
 				xfs_alert(mp,
 	"dquot corrupt at %pS trying to replay into block 0x%llx",
@@ -533,7 +533,7 @@ xlog_recover_do_reg_buffer(
 
 		memcpy(xfs_buf_offset(bp,
 			(uint)bit << XFS_BLF_SHIFT),	/* dest */
-			item->ri_buf[i].i_addr,		/* source */
+			item->ri_buf[i].iov_base,		/* source */
 			nbits<<XFS_BLF_SHIFT);		/* length */
  next:
 		i++;
@@ -669,8 +669,8 @@ xlog_recover_do_inode_buffer(
 		if (next_unlinked_offset < reg_buf_offset)
 			continue;
 
-		ASSERT(item->ri_buf[item_index].i_addr != NULL);
-		ASSERT((item->ri_buf[item_index].i_len % XFS_BLF_CHUNK) == 0);
+		ASSERT(item->ri_buf[item_index].iov_base != NULL);
+		ASSERT((item->ri_buf[item_index].iov_len % XFS_BLF_CHUNK) == 0);
 		ASSERT((reg_buf_offset + reg_buf_bytes) <= BBTOB(bp->b_length));
 
 		/*
@@ -678,7 +678,7 @@ xlog_recover_do_inode_buffer(
 		 * current di_next_unlinked field.  Extract its value
 		 * and copy it to the buffer copy.
 		 */
-		logged_nextp = item->ri_buf[item_index].i_addr +
+		logged_nextp = item->ri_buf[item_index].iov_base +
 				next_unlinked_offset - reg_buf_offset;
 		if (XFS_IS_CORRUPT(mp, *logged_nextp == 0)) {
 			xfs_alert(mp,
@@ -1002,7 +1002,7 @@ xlog_recover_buf_commit_pass2(
 	struct xlog_recover_item	*item,
 	xfs_lsn_t			current_lsn)
 {
-	struct xfs_buf_log_format	*buf_f = item->ri_buf[0].i_addr;
+	struct xfs_buf_log_format	*buf_f = item->ri_buf[0].iov_base;
 	struct xfs_mount		*mp = log->l_mp;
 	struct xfs_buf			*bp;
 	int				error;

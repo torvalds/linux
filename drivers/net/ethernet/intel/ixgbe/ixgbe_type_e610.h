@@ -4,6 +4,8 @@
 #ifndef _IXGBE_TYPE_E610_H_
 #define _IXGBE_TYPE_E610_H_
 
+#include <linux/net/intel/libie/adminq.h>
+
 #define BYTES_PER_DWORD	4
 
 /* General E610 defines */
@@ -135,60 +137,6 @@
 /* [ms] timeout of waiting for resource release */
 #define IXGBE_ACI_RELEASE_RES_TIMEOUT		10000
 
-/* FW defined boundary for a large buffer, 4k >= Large buffer > 512 bytes */
-#define IXGBE_ACI_LG_BUF		512
-
-/* Flags sub-structure
- * |0  |1  |2  |3  |4  |5  |6  |7  |8  |9  |10 |11 |12 |13 |14 |15 |
- * |DD |CMP|ERR|VFE| * *  RESERVED * * |LB |RD |VFC|BUF|SI |EI |FE |
- */
-
-#define IXGBE_ACI_FLAG_DD	BIT(0) /* 0x1 */
-#define IXGBE_ACI_FLAG_CMP	BIT(1) /* 0x2 */
-#define IXGBE_ACI_FLAG_ERR	BIT(2) /* 0x4 */
-#define IXGBE_ACI_FLAG_VFE	BIT(3) /* 0x8 */
-#define IXGBE_ACI_FLAG_LB	BIT(9) /* 0x200 */
-#define IXGBE_ACI_FLAG_RD	BIT(10) /* 0x400 */
-#define IXGBE_ACI_FLAG_VFC	BIT(11) /* 0x800 */
-#define IXGBE_ACI_FLAG_BUF	BIT(12) /* 0x1000 */
-#define IXGBE_ACI_FLAG_SI	BIT(13) /* 0x2000 */
-#define IXGBE_ACI_FLAG_EI	BIT(14) /* 0x4000 */
-#define IXGBE_ACI_FLAG_FE	BIT(15) /* 0x8000 */
-
-/* Admin Command Interface (ACI) error codes */
-enum ixgbe_aci_err {
-	IXGBE_ACI_RC_OK		= 0,  /* Success */
-	IXGBE_ACI_RC_EPERM	= 1,  /* Operation not permitted */
-	IXGBE_ACI_RC_ENOENT	= 2,  /* No such element */
-	IXGBE_ACI_RC_ESRCH	= 3,  /* Bad opcode */
-	IXGBE_ACI_RC_EINTR	= 4,  /* Operation interrupted */
-	IXGBE_ACI_RC_EIO	= 5,  /* I/O error */
-	IXGBE_ACI_RC_ENXIO	= 6,  /* No such resource */
-	IXGBE_ACI_RC_E2BIG	= 7,  /* Arg too long */
-	IXGBE_ACI_RC_EAGAIN	= 8,  /* Try again */
-	IXGBE_ACI_RC_ENOMEM	= 9,  /* Out of memory */
-	IXGBE_ACI_RC_EACCES	= 10, /* Permission denied */
-	IXGBE_ACI_RC_EFAULT	= 11, /* Bad address */
-	IXGBE_ACI_RC_EBUSY	= 12, /* Device or resource busy */
-	IXGBE_ACI_RC_EEXIST	= 13, /* Object already exists */
-	IXGBE_ACI_RC_EINVAL	= 14, /* Invalid argument */
-	IXGBE_ACI_RC_ENOTTY	= 15, /* Not a typewriter */
-	IXGBE_ACI_RC_ENOSPC	= 16, /* No space left or alloc failure */
-	IXGBE_ACI_RC_ENOSYS	= 17, /* Function not implemented */
-	IXGBE_ACI_RC_ERANGE	= 18, /* Parameter out of range */
-	IXGBE_ACI_RC_EFLUSHED	= 19, /* Cmd flushed due to prev cmd error */
-	IXGBE_ACI_RC_BAD_ADDR	= 20, /* Descriptor contains a bad pointer */
-	IXGBE_ACI_RC_EMODE	= 21, /* Op not allowed in current dev mode */
-	IXGBE_ACI_RC_EFBIG	= 22, /* File too big */
-	IXGBE_ACI_RC_ESBCOMP	= 23, /* SB-IOSF completion unsuccessful */
-	IXGBE_ACI_RC_ENOSEC	= 24, /* Missing security manifest */
-	IXGBE_ACI_RC_EBADSIG	= 25, /* Bad RSA signature */
-	IXGBE_ACI_RC_ESVN	= 26, /* SVN number prohibits this package */
-	IXGBE_ACI_RC_EBADMAN	= 27, /* Manifest hash mismatch */
-	IXGBE_ACI_RC_EBADBUF	= 28, /* Buffer hash mismatches manifest */
-	IXGBE_ACI_RC_EACCES_BMCU	= 29, /* BMC Update in progress */
-};
-
 /* Admin Command Interface (ACI) opcodes */
 enum ixgbe_aci_opc {
 	ixgbe_aci_opc_get_ver				= 0x0001,
@@ -265,32 +213,7 @@ enum ixgbe_aci_opc {
 	ixgbe_aci_opc_clear_health_status		= 0xFF23,
 };
 
-/* Get version (direct 0x0001) */
-struct ixgbe_aci_cmd_get_ver {
-	__le32 rom_ver;
-	__le32 fw_build;
-	u8 fw_branch;
-	u8 fw_major;
-	u8 fw_minor;
-	u8 fw_patch;
-	u8 api_branch;
-	u8 api_major;
-	u8 api_minor;
-	u8 api_patch;
-};
-
 #define IXGBE_DRV_VER_STR_LEN_E610	32
-
-/* Send driver version (indirect 0x0002) */
-struct ixgbe_aci_cmd_driver_ver {
-	u8 major_ver;
-	u8 minor_ver;
-	u8 build_ver;
-	u8 subbuild_ver;
-	u8 reserved[4];
-	__le32 addr_high;
-	__le32 addr_low;
-};
 
 /* Get Expanded Error Code (0x0005, direct) */
 struct ixgbe_aci_cmd_get_exp_err {
@@ -302,98 +225,6 @@ struct ixgbe_aci_cmd_get_exp_err {
 
 /* FW update timeout definitions are in milliseconds */
 #define IXGBE_NVM_TIMEOUT		180000
-
-enum ixgbe_aci_res_access_type {
-	IXGBE_RES_READ = 1,
-	IXGBE_RES_WRITE
-};
-
-enum ixgbe_aci_res_ids {
-	IXGBE_NVM_RES_ID = 1,
-	IXGBE_SPD_RES_ID,
-	IXGBE_CHANGE_LOCK_RES_ID,
-	IXGBE_GLOBAL_CFG_LOCK_RES_ID
-};
-
-/* Request resource ownership (direct 0x0008)
- * Release resource ownership (direct 0x0009)
- */
-struct ixgbe_aci_cmd_req_res {
-	__le16 res_id;
-	__le16 access_type;
-
-	/* Upon successful completion, FW writes this value and driver is
-	 * expected to release resource before timeout. This value is provided
-	 * in milliseconds.
-	 */
-	__le32 timeout;
-#define IXGBE_ACI_RES_NVM_READ_DFLT_TIMEOUT_MS	3000
-#define IXGBE_ACI_RES_NVM_WRITE_DFLT_TIMEOUT_MS	180000
-#define IXGBE_ACI_RES_CHNG_LOCK_DFLT_TIMEOUT_MS	1000
-#define IXGBE_ACI_RES_GLBL_LOCK_DFLT_TIMEOUT_MS	3000
-	/* For SDP: pin ID of the SDP */
-	__le32 res_number;
-	__le16 status;
-#define IXGBE_ACI_RES_GLBL_SUCCESS		0
-#define IXGBE_ACI_RES_GLBL_IN_PROG		1
-#define IXGBE_ACI_RES_GLBL_DONE			2
-	u8 reserved[2];
-};
-
-/* Get function capabilities (indirect 0x000A)
- * Get device capabilities (indirect 0x000B)
- */
-struct ixgbe_aci_cmd_list_caps {
-	u8 cmd_flags;
-	u8 pf_index;
-	u8 reserved[2];
-	__le32 count;
-	__le32 addr_high;
-	__le32 addr_low;
-};
-
-/* Device/Function buffer entry, repeated per reported capability */
-struct ixgbe_aci_cmd_list_caps_elem {
-	__le16 cap;
-#define IXGBE_ACI_CAPS_VALID_FUNCTIONS			0x0005
-#define IXGBE_ACI_MAX_VALID_FUNCTIONS			0x8
-#define IXGBE_ACI_CAPS_SRIOV				0x0012
-#define IXGBE_ACI_CAPS_VF				0x0013
-#define IXGBE_ACI_CAPS_VMDQ				0x0014
-#define IXGBE_ACI_CAPS_VSI				0x0017
-#define IXGBE_ACI_CAPS_DCB				0x0018
-#define IXGBE_ACI_CAPS_RSS				0x0040
-#define IXGBE_ACI_CAPS_RXQS				0x0041
-#define IXGBE_ACI_CAPS_TXQS				0x0042
-#define IXGBE_ACI_CAPS_MSIX				0x0043
-#define IXGBE_ACI_CAPS_FD				0x0045
-#define IXGBE_ACI_CAPS_1588				0x0046
-#define IXGBE_ACI_CAPS_MAX_MTU				0x0047
-#define IXGBE_ACI_CAPS_NVM_VER				0x0048
-#define IXGBE_ACI_CAPS_PENDING_NVM_VER			0x0049
-#define IXGBE_ACI_CAPS_OROM_VER				0x004A
-#define IXGBE_ACI_CAPS_PENDING_OROM_VER			0x004B
-#define IXGBE_ACI_CAPS_PENDING_NET_VER			0x004D
-#define IXGBE_ACI_CAPS_INLINE_IPSEC			0x0070
-#define IXGBE_ACI_CAPS_NUM_ENABLED_PORTS		0x0072
-#define IXGBE_ACI_CAPS_PCIE_RESET_AVOIDANCE		0x0076
-#define IXGBE_ACI_CAPS_POST_UPDATE_RESET_RESTRICT	0x0077
-#define IXGBE_ACI_CAPS_NVM_MGMT				0x0080
-#define IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG0		0x0081
-#define IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG1		0x0082
-#define IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG2		0x0083
-#define IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG3		0x0084
-	u8 major_ver;
-	u8 minor_ver;
-	/* Number of resources described by this capability */
-	__le32 number;
-	/* Only meaningful for some types of resources */
-	__le32 logical_id;
-	/* Only meaningful for some types of resources */
-	__le32 phys_id;
-	__le64 rsvd1;
-	__le64 rsvd2;
-};
 
 /* Disable RXEN (direct 0x000C) */
 struct ixgbe_aci_cmd_disable_rxen {
@@ -960,55 +791,6 @@ struct ixgbe_aci_cmd_nvm_comp_tbl {
 	u8 cvs[]; /* Component Version String */
 } __packed;
 
-/**
- * struct ixgbe_aci_desc - Admin Command (AC) descriptor
- * @flags: IXGBE_ACI_FLAG_* flags
- * @opcode: Admin command opcode
- * @datalen: length in bytes of indirect/external data buffer
- * @retval: return value from firmware
- * @cookie_high: opaque data high-half
- * @cookie_low: opaque data low-half
- * @params: command-specific parameters
- *
- * Descriptor format for commands the driver posts via the
- * Admin Command Interface (ACI).
- * The firmware writes back onto the command descriptor and returns
- * the result of the command. Asynchronous events that are not an immediate
- * result of the command are written to the Admin Command Interface (ACI) using
- * the same descriptor format. Descriptors are in little-endian notation with
- * 32-bit words.
- */
-struct ixgbe_aci_desc {
-	__le16 flags;
-	__le16 opcode;
-	__le16 datalen;
-	__le16 retval;
-	__le32 cookie_high;
-	__le32 cookie_low;
-	union {
-		u8 raw[16];
-		struct ixgbe_aci_cmd_get_ver get_ver;
-		struct ixgbe_aci_cmd_driver_ver driver_ver;
-		struct ixgbe_aci_cmd_get_exp_err exp_err;
-		struct ixgbe_aci_cmd_req_res res_owner;
-		struct ixgbe_aci_cmd_list_caps get_cap;
-		struct ixgbe_aci_cmd_disable_rxen disable_rxen;
-		struct ixgbe_aci_cmd_get_phy_caps get_phy;
-		struct ixgbe_aci_cmd_set_phy_cfg set_phy;
-		struct ixgbe_aci_cmd_restart_an restart_an;
-		struct ixgbe_aci_cmd_get_link_status get_link_status;
-		struct ixgbe_aci_cmd_set_event_mask set_event_mask;
-		struct ixgbe_aci_cmd_set_port_id_led set_port_id_led;
-		struct ixgbe_aci_cmd_get_link_topo get_link_topo;
-		struct ixgbe_aci_cmd_get_link_topo_pin get_link_topo_pin;
-		struct ixgbe_aci_cmd_sff_eeprom read_write_sff_param;
-		struct ixgbe_aci_cmd_nvm nvm;
-		struct ixgbe_aci_cmd_nvm_checksum nvm_checksum;
-		struct ixgbe_aci_cmd_nvm_pkg_data pkg_data;
-		struct ixgbe_aci_cmd_nvm_pass_comp_tbl pass_comp_tbl;
-	} params;
-};
-
 /* E610-specific adapter context structures */
 
 struct ixgbe_link_status {
@@ -1172,7 +954,7 @@ struct ixgbe_hw_dev_caps {
 
 /* ACI event information */
 struct ixgbe_aci_event {
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 	u8 *msg_buf;
 	u16 msg_len;
 	u16 buf_len;
@@ -1180,7 +962,7 @@ struct ixgbe_aci_event {
 
 struct ixgbe_aci_info {
 	struct mutex lock;		/* admin command interface lock */
-	enum ixgbe_aci_err last_status;	/* last status of sent admin command */
+	enum libie_aq_err last_status;	/* last status of sent admin command */
 };
 
 enum ixgbe_bank_select {

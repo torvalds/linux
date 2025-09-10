@@ -92,7 +92,7 @@ fn to_c_str_array(names: &[CString]) -> Result<KVec<*const u8>> {
     let mut list = KVec::with_capacity(names.len() + 1, GFP_KERNEL)?;
 
     for name in names.iter() {
-        list.push(name.as_ptr() as _, GFP_KERNEL)?;
+        list.push(name.as_ptr().cast(), GFP_KERNEL)?;
     }
 
     list.push(ptr::null(), GFP_KERNEL)?;
@@ -103,7 +103,7 @@ fn to_c_str_array(names: &[CString]) -> Result<KVec<*const u8>> {
 ///
 /// Represents voltage in microvolts, wrapping a [`c_ulong`] value.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// ```
 /// use kernel::opp::MicroVolt;
@@ -128,7 +128,7 @@ impl From<MicroVolt> for c_ulong {
 ///
 /// Represents power in microwatts, wrapping a [`c_ulong`] value.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// ```
 /// use kernel::opp::MicroWatt;
@@ -153,7 +153,7 @@ impl From<MicroWatt> for c_ulong {
 ///
 /// The associated [`OPP`] is automatically removed when the [`Token`] is dropped.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// The following example demonstrates how to create an [`OPP`] dynamically.
 ///
@@ -202,7 +202,7 @@ impl Drop for Token {
 /// Rust abstraction for the C `struct dev_pm_opp_data`, used to define operating performance
 /// points (OPPs) dynamically.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// The following example demonstrates how to create an [`OPP`] with [`Data`].
 ///
@@ -254,7 +254,7 @@ impl Data {
 
 /// [`OPP`] search options.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// Defines how to search for an [`OPP`] in a [`Table`] relative to a frequency.
 ///
@@ -326,7 +326,7 @@ impl Drop for ConfigToken {
 ///
 /// Rust abstraction for the C `struct dev_pm_opp_config`.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// The following example demonstrates how to set OPP property-name configuration for a [`Device`].
 ///
@@ -345,7 +345,7 @@ impl Drop for ConfigToken {
 /// impl ConfigOps for Driver {}
 ///
 /// fn configure(dev: &ARef<Device>) -> Result<ConfigToken> {
-///     let name = CString::try_from_fmt(fmt!("{}", "slow"))?;
+///     let name = CString::try_from_fmt(fmt!("slow"))?;
 ///
 ///     // The OPP configuration is cleared once the [`ConfigToken`] goes out of scope.
 ///     Config::<Driver>::new()
@@ -514,9 +514,9 @@ impl<T: ConfigOps + Default> Config<T> {
         dev: *mut bindings::device,
         opp_table: *mut bindings::opp_table,
         opp: *mut bindings::dev_pm_opp,
-        _data: *mut kernel::ffi::c_void,
+        _data: *mut c_void,
         scaling_down: bool,
-    ) -> kernel::ffi::c_int {
+    ) -> c_int {
         from_result(|| {
             // SAFETY: 'dev' is guaranteed by the C code to be valid.
             let dev = unsafe { Device::get_device(dev) };
@@ -540,8 +540,8 @@ impl<T: ConfigOps + Default> Config<T> {
         old_opp: *mut bindings::dev_pm_opp,
         new_opp: *mut bindings::dev_pm_opp,
         regulators: *mut *mut bindings::regulator,
-        count: kernel::ffi::c_uint,
-    ) -> kernel::ffi::c_int {
+        count: c_uint,
+    ) -> c_int {
         from_result(|| {
             // SAFETY: 'dev' is guaranteed by the C code to be valid.
             let dev = unsafe { Device::get_device(dev) };
@@ -569,7 +569,7 @@ impl<T: ConfigOps + Default> Config<T> {
 ///
 /// Instances of this type are reference-counted.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// The following example demonstrates how to get OPP [`Table`] for a [`Cpumask`] and set its
 /// frequency.
@@ -1011,7 +1011,7 @@ impl Drop for Table {
 ///
 /// A reference to the [`OPP`], &[`OPP`], isn't refcounted by the Rust code.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// The following example demonstrates how to get [`OPP`] corresponding to a frequency value and
 /// configure the device with it.

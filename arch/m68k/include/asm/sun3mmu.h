@@ -67,7 +67,7 @@
 #define SUN3_BUSERR_PROTERR	(0x40)
 #define SUN3_BUSERR_INVALID	(0x80)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /* Read bus error status register (implicitly clearing it). */
 static inline unsigned char sun3_get_buserr(void)
@@ -167,6 +167,6 @@ extern void __iomem *sun3_ioremap(unsigned long phys, unsigned long size,
 
 extern int sun3_map_test(unsigned long addr, char *val);
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 #endif	/* !__SUN3_MMU_H__ */

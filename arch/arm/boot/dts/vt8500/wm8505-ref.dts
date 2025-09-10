@@ -10,6 +10,11 @@
 
 / {
 	model = "Wondermedia WM8505 Netbook";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x8000000>;
+	};
 };
 
 &fb {

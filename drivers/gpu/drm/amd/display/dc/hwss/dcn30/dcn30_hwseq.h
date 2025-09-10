@@ -29,6 +29,7 @@
 #include "hw_sequencer_private.h"
 
 struct dc;
+struct dc_underflow_debug_data;
 
 void dcn30_init_hw(struct dc *dc);
 void dcn30_program_all_writeback_pipes_in_tree(
@@ -97,5 +98,9 @@ void dcn30_prepare_bandwidth(struct dc *dc,
 	struct dc_state *context);
 
 void dcn30_wait_for_all_pending_updates(const struct pipe_ctx *pipe_ctx);
+
+void dcn30_get_underflow_debug_data(const struct dc *dc,
+	struct timing_generator *tg,
+	struct dc_underflow_debug_data *out_data);
 
 #endif /* __DC_HWSS_DCN30_H__ */

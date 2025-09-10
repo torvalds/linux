@@ -427,7 +427,7 @@ int btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 			memset(csum_dst, 0, csum_size);
 			count = 1;
 
-			if (btrfs_root_id(inode->root) == BTRFS_DATA_RELOC_TREE_OBJECTID) {
+			if (btrfs_is_data_reloc_root(inode->root)) {
 				u64 file_offset = bbio->file_offset + bio_offset;
 
 				btrfs_set_extent_bit(&inode->io_tree, file_offset,

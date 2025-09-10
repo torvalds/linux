@@ -413,7 +413,7 @@ static int iso_connect_bis(struct sock *sk)
 		sk->sk_state = BT_CONNECT;
 	} else {
 		sk->sk_state = BT_CONNECT;
-		iso_sock_set_timer(sk, sk->sk_sndtimeo);
+		iso_sock_set_timer(sk, READ_ONCE(sk->sk_sndtimeo));
 	}
 
 	release_sock(sk);
@@ -503,7 +503,7 @@ static int iso_connect_cis(struct sock *sk)
 		sk->sk_state = BT_CONNECT;
 	} else {
 		sk->sk_state = BT_CONNECT;
-		iso_sock_set_timer(sk, sk->sk_sndtimeo);
+		iso_sock_set_timer(sk, READ_ONCE(sk->sk_sndtimeo));
 	}
 
 	release_sock(sk);
@@ -1687,6 +1687,17 @@ static int iso_sock_setsockopt(struct socket *sock, int level, int optname,
 			clear_bit(BT_SK_PKT_STATUS, &bt_sk(sk)->flags);
 		break;
 
+	case BT_PKT_SEQNUM:
+		err = copy_safe_from_sockptr(&opt, sizeof(opt), optval, optlen);
+		if (err)
+			break;
+
+		if (opt)
+			set_bit(BT_SK_PKT_SEQNUM, &bt_sk(sk)->flags);
+		else
+			clear_bit(BT_SK_PKT_SEQNUM, &bt_sk(sk)->flags);
+		break;
+
 	case BT_ISO_QOS:
 		if (sk->sk_state != BT_OPEN && sk->sk_state != BT_BOUND &&
 		    sk->sk_state != BT_CONNECT2 &&
@@ -1891,7 +1902,7 @@ static void iso_sock_ready(struct sock *sk)
 
 static bool iso_match_big(struct sock *sk, void *data)
 {
-	struct hci_evt_le_big_sync_estabilished *ev = data;
+	struct hci_evt_le_big_sync_established *ev = data;
 
 	return ev->handle == iso_pi(sk)->qos.bcast.big;
 }
@@ -1912,7 +1923,7 @@ static void iso_conn_ready(struct iso_conn *conn)
 {
 	struct sock *parent = NULL;
 	struct sock *sk = conn->sk;
-	struct hci_ev_le_big_sync_estabilished *ev = NULL;
+	struct hci_ev_le_big_sync_established *ev = NULL;
 	struct hci_ev_le_pa_sync_established *ev2 = NULL;
 	struct hci_ev_le_per_adv_report *ev3 = NULL;
 	struct hci_conn *hcon;
@@ -2023,7 +2034,7 @@ static void iso_conn_ready(struct iso_conn *conn)
 		hci_conn_hold(hcon);
 		iso_chan_add(conn, sk, parent);
 
-		if ((ev && ((struct hci_evt_le_big_sync_estabilished *)ev)->status) ||
+		if ((ev && ((struct hci_evt_le_big_sync_established *)ev)->status) ||
 		    (ev2 && ev2->status)) {
 			/* Trigger error signal on child socket */
 			sk->sk_err = ECONNREFUSED;
@@ -2082,7 +2093,7 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 	 * proceed to establishing a BIG sync:
 	 *
 	 * 1. HCI_EV_LE_PA_SYNC_ESTABLISHED: The socket may specify a specific
-	 * SID to listen to and once sync is estabilished its handle needs to
+	 * SID to listen to and once sync is established its handle needs to
 	 * be stored in iso_pi(sk)->sync_handle so it can be matched once
 	 * receiving the BIG Info.
 	 * 2. HCI_EVT_LE_BIG_INFO_ADV_REPORT: When connect_ind is triggered by a
@@ -2226,7 +2237,8 @@ done:
 
 static void iso_connect_cfm(struct hci_conn *hcon, __u8 status)
 {
-	if (hcon->type != CIS_LINK && hcon->type != BIS_LINK) {
+	if (hcon->type != CIS_LINK && hcon->type != BIS_LINK &&
+	    hcon->type != PA_LINK) {
 		if (hcon->type != LE_LINK)
 			return;
 
@@ -2267,7 +2279,8 @@ static void iso_connect_cfm(struct hci_conn *hcon, __u8 status)
 
 static void iso_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 {
-	if (hcon->type != CIS_LINK && hcon->type != BIS_LINK)
+	if (hcon->type != CIS_LINK && hcon->type !=  BIS_LINK &&
+	    hcon->type != PA_LINK)
 		return;
 
 	BT_DBG("hcon %p reason %d", hcon, reason);
@@ -2278,7 +2291,8 @@ static void iso_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 void iso_recv(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 {
 	struct iso_conn *conn = hcon->iso_data;
-	__u16 pb, ts, len;
+	struct skb_shared_hwtstamps *hwts;
+	__u16 pb, ts, len, sn;
 
 	if (!conn)
 		goto drop;
@@ -2301,13 +2315,17 @@ void iso_recv(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 		if (ts) {
 			struct hci_iso_ts_data_hdr *hdr;
 
-			/* TODO: add timestamp to the packet? */
 			hdr = skb_pull_data(skb, HCI_ISO_TS_DATA_HDR_SIZE);
 			if (!hdr) {
 				BT_ERR("Frame is too short (len %d)", skb->len);
 				goto drop;
 			}
 
+			/*  Record the timestamp to skb */
+			hwts = skb_hwtstamps(skb);
+			hwts->hwtstamp = us_to_ktime(le32_to_cpu(hdr->ts));
+
+			sn = __le16_to_cpu(hdr->sn);
 			len = __le16_to_cpu(hdr->slen);
 		} else {
 			struct hci_iso_data_hdr *hdr;
@@ -2318,18 +2336,20 @@ void iso_recv(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 				goto drop;
 			}
 
+			sn = __le16_to_cpu(hdr->sn);
 			len = __le16_to_cpu(hdr->slen);
 		}
 
 		flags  = hci_iso_data_flags(len);
 		len    = hci_iso_data_len(len);
 
-		BT_DBG("Start: total len %d, frag len %d flags 0x%4.4x", len,
-		       skb->len, flags);
+		BT_DBG("Start: total len %d, frag len %d flags 0x%4.4x sn %d",
+		       len, skb->len, flags, sn);
 
 		if (len == skb->len) {
 			/* Complete frame received */
 			hci_skb_pkt_status(skb) = flags & 0x03;
+			hci_skb_pkt_seqnum(skb) = sn;
 			iso_recv_frame(conn, skb);
 			return;
 		}
@@ -2352,9 +2372,17 @@ void iso_recv(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 			goto drop;
 
 		hci_skb_pkt_status(conn->rx_skb) = flags & 0x03;
+		hci_skb_pkt_seqnum(conn->rx_skb) = sn;
 		skb_copy_from_linear_data(skb, skb_put(conn->rx_skb, skb->len),
 					  skb->len);
 		conn->rx_len = len - skb->len;
+
+		/* Copy hw timestamp from skb to rx_skb if present */
+		if (ts) {
+			hwts = skb_hwtstamps(conn->rx_skb);
+			hwts->hwtstamp = skb_hwtstamps(skb)->hwtstamp;
+		}
+
 		break;
 
 	case ISO_CONT:

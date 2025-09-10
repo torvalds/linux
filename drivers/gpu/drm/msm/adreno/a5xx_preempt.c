@@ -255,7 +255,7 @@ static int preempt_init_ring(struct a5xx_gpu *a5xx_gpu,
 
 	ptr = msm_gem_kernel_new(gpu->dev,
 		A5XX_PREEMPT_RECORD_SIZE + A5XX_PREEMPT_COUNTER_SIZE,
-		MSM_BO_WC | MSM_BO_MAP_PRIV, gpu->aspace, &bo, &iova);
+		MSM_BO_WC | MSM_BO_MAP_PRIV, gpu->vm, &bo, &iova);
 
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
@@ -263,9 +263,9 @@ static int preempt_init_ring(struct a5xx_gpu *a5xx_gpu,
 	/* The buffer to store counters needs to be unprivileged */
 	counters = msm_gem_kernel_new(gpu->dev,
 		A5XX_PREEMPT_COUNTER_SIZE,
-		MSM_BO_WC, gpu->aspace, &counters_bo, &counters_iova);
+		MSM_BO_WC, gpu->vm, &counters_bo, &counters_iova);
 	if (IS_ERR(counters)) {
-		msm_gem_kernel_put(bo, gpu->aspace);
+		msm_gem_kernel_put(bo, gpu->vm);
 		return PTR_ERR(counters);
 	}
 
@@ -296,8 +296,8 @@ void a5xx_preempt_fini(struct msm_gpu *gpu)
 	int i;
 
 	for (i = 0; i < gpu->nr_rings; i++) {
-		msm_gem_kernel_put(a5xx_gpu->preempt_bo[i], gpu->aspace);
-		msm_gem_kernel_put(a5xx_gpu->preempt_counters_bo[i], gpu->aspace);
+		msm_gem_kernel_put(a5xx_gpu->preempt_bo[i], gpu->vm);
+		msm_gem_kernel_put(a5xx_gpu->preempt_counters_bo[i], gpu->vm);
 	}
 }
 

@@ -68,4 +68,12 @@ static inline void xfs_extent_busy_sort(struct list_head *list)
 	list_sort(NULL, list, xfs_extent_busy_ag_cmp);
 }
 
+/*
+ * Zoned RTGs don't need to track busy extents, as the actual block freeing only
+ * happens by a zone reset, which forces out all transactions that touched the
+ * to be reset zone first.
+ */
+#define xfs_group_has_extent_busy(mp, type) \
+	((type) == XG_TYPE_AG || !xfs_has_zoned((mp)))
+
 #endif /* __XFS_EXTENT_BUSY_H__ */

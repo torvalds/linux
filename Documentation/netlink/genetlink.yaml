@@ -6,6 +6,9 @@ $schema: https://json-schema.org/draft-07/schema
 
 # Common defines
 $defs:
+  name:
+    type: string
+    pattern: ^[0-9a-z-]+$
   uint:
     type: integer
     minimum: 0
@@ -29,7 +32,7 @@ additionalProperties: False
 properties:
   name:
     description: Name of the genetlink family.
-    type: string
+    $ref: '#/$defs/name'
   doc:
     type: string
   protocol:
@@ -48,7 +51,7 @@ properties:
       additionalProperties: False
       properties:
         name:
-          type: string
+          $ref: '#/$defs/name'
         header:
           description: For C-compatible languages, header which already defines this value.
           type: string
@@ -75,7 +78,7 @@ properties:
                 additionalProperties: False
                 properties:
                   name:
-                    type: string
+                    $ref: '#/$defs/name'
                   value:
                     type: integer
                   doc:
@@ -96,7 +99,7 @@ properties:
         name:
           description: |
             Name used when referring to this space in other definitions, not used outside of the spec.
-          type: string
+          $ref: '#/$defs/name'
         name-prefix:
           description: |
             Prefix for the C enum name of the attributes. Default family[name]-set[name]-a-
@@ -121,7 +124,7 @@ properties:
             additionalProperties: False
             properties:
               name:
-                type: string
+                $ref: '#/$defs/name'
               type: &attr-type
                 enum: [ unused, pad, flag, binary,
                         uint, sint, u8, u16, u32, u64, s8, s16, s32, s64,
@@ -243,7 +246,7 @@ properties:
           properties:
             name:
               description: Name of the operation, also defining its C enum value in uAPI.
-              type: string
+              $ref: '#/$defs/name'
             doc:
               description: Documentation for the command.
               type: string
@@ -327,7 +330,7 @@ properties:
             name:
               description: |
                 The name for the group, used to form the define and the value of the define.
-              type: string
+              $ref: '#/$defs/name'
             flags: *cmd_flags
 
   kernel-family:

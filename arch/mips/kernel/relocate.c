@@ -138,7 +138,7 @@ static int __init reloc_handler(u32 type, u32 *loc_orig, u32 *loc_new,
 		apply_r_mips_hi16_rel(loc_orig, loc_new, offset);
 		break;
 	default:
-		pr_err("Unhandled relocation type %d at 0x%pK\n", type,
+		pr_err("Unhandled relocation type %d at 0x%p\n", type,
 		       loc_orig);
 		return -ENOEXEC;
 	}
@@ -439,10 +439,10 @@ static void show_kernel_relocation(const char *level)
 {
 	if (__kaslr_offset > 0) {
 		printk(level);
-		pr_cont("Kernel relocated by 0x%pK\n", (void *)__kaslr_offset);
-		pr_cont(" .text @ 0x%pK\n", _text);
-		pr_cont(" .data @ 0x%pK\n", _sdata);
-		pr_cont(" .bss  @ 0x%pK\n", __bss_start);
+		pr_cont("Kernel relocated by 0x%p\n", (void *)__kaslr_offset);
+		pr_cont(" .text @ 0x%p\n", _text);
+		pr_cont(" .data @ 0x%p\n", _sdata);
+		pr_cont(" .bss  @ 0x%p\n", __bss_start);
 	}
 }
 

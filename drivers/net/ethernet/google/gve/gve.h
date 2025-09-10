@@ -11,7 +11,9 @@
 #include <linux/dmapool.h>
 #include <linux/ethtool_netlink.h>
 #include <linux/netdevice.h>
+#include <linux/net_tstamp.h>
 #include <linux/pci.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/u64_stats_sync.h>
 #include <net/page_pool/helpers.h>
 #include <net/xdp.h>
@@ -188,6 +190,9 @@ struct gve_rx_buf_state_dqo {
 	/* The page posted to HW. */
 	struct gve_rx_slot_page_info page_info;
 
+	/* XSK buffer */
+	struct xdp_buff *xsk_buff;
+
 	/* The DMA address corresponding to `page_info`. */
 	dma_addr_t addr;
 
@@ -329,7 +334,6 @@ struct gve_rx_ring {
 
 	/* XDP stuff */
 	struct xdp_rxq_info xdp_rxq;
-	struct xdp_rxq_info xsk_rxq;
 	struct xsk_buff_pool *xsk_pool;
 	struct page_frag_cache page_cache; /* Page cache to allocate XDP frames */
 };
@@ -398,10 +402,24 @@ enum gve_packet_state {
 	GVE_PACKET_STATE_PENDING_REINJECT_COMPL,
 	/* No valid completion received within the specified timeout. */
 	GVE_PACKET_STATE_TIMED_OUT_COMPL,
+	/* XSK pending packet has received a packet/reinjection completion, or
+	 * has timed out. At this point, the pending packet can be counted by
+	 * xsk_tx_complete and freed.
+	 */
+	GVE_PACKET_STATE_XSK_COMPLETE,
+};
+
+enum gve_tx_pending_packet_dqo_type {
+	GVE_TX_PENDING_PACKET_DQO_SKB,
+	GVE_TX_PENDING_PACKET_DQO_XDP_FRAME,
+	GVE_TX_PENDING_PACKET_DQO_XSK,
 };
 
 struct gve_tx_pending_packet_dqo {
-	struct sk_buff *skb; /* skb for this packet */
+	union {
+		struct sk_buff *skb;
+		struct xdp_frame *xdpf;
+	};
 
 	/* 0th element corresponds to the linear portion of `skb`, should be
 	 * unmapped with `dma_unmap_single`.
@@ -431,7 +449,10 @@ struct gve_tx_pending_packet_dqo {
 	/* Identifies the current state of the packet as defined in
 	 * `enum gve_packet_state`.
 	 */
-	u8 state;
+	u8 state : 3;
+
+	/* gve_tx_pending_packet_dqo_type */
+	u8 type : 2;
 
 	/* If packet is an outstanding miss completion, then the packet is
 	 * freed if the corresponding re-injection completion is not received
@@ -453,6 +474,9 @@ struct gve_tx_ring {
 
 		/* DQO fields. */
 		struct {
+			/* Spinlock for XDP tx traffic */
+			spinlock_t xdp_lock;
+
 			/* Linked list of gve_tx_pending_packet_dqo. Index into
 			 * pending_packets, or -1 if empty.
 			 *
@@ -497,6 +521,8 @@ struct gve_tx_ring {
 				/* Cached value of `dqo_compl.free_tx_qpl_buf_cnt` */
 				u32 free_tx_qpl_buf_cnt;
 			};
+
+			atomic_t xsk_reorder_queue_tail;
 		} dqo_tx;
 	};
 
@@ -529,6 +555,9 @@ struct gve_tx_ring {
 
 			/* Last TX ring index fetched by HW */
 			atomic_t hw_tx_head;
+
+			u16 xsk_reorder_queue_head;
+			u16 xsk_reorder_queue_tail;
 
 			/* List to track pending packets which received a miss
 			 * completion but not a corresponding reinjection.
@@ -582,6 +611,8 @@ struct gve_tx_ring {
 
 			struct gve_tx_pending_packet_dqo *pending_packets;
 			s16 num_pending_packets;
+
+			u16 *xsk_reorder_queue;
 
 			u32 complq_mask; /* complq size is complq_mask + 1 */
 
@@ -750,6 +781,12 @@ struct gve_rss_config {
 	u32 *hash_lut;
 };
 
+struct gve_ptp {
+	struct ptp_clock_info info;
+	struct ptp_clock *clock;
+	struct gve_priv *priv;
+};
+
 struct gve_priv {
 	struct net_device *dev;
 	struct gve_tx_ring *tx; /* array of tx_cfg.num_queues */
@@ -781,7 +818,9 @@ struct gve_priv {
 
 	struct gve_tx_queue_config tx_cfg;
 	struct gve_rx_queue_config rx_cfg;
-	u32 num_ntfy_blks; /* spilt between TX and RX so must be even */
+	unsigned long *xsk_pools; /* bitmap of RX queues with XSK pools */
+	u32 num_ntfy_blks; /* split between TX and RX so must be even */
+	int numa_node;
 
 	struct gve_registers __iomem *reg_bar0; /* see gve_register.h */
 	__be32 __iomem *db_bar2; /* "array" of doorbells */
@@ -813,6 +852,7 @@ struct gve_priv {
 	u32 adminq_set_driver_parameter_cnt;
 	u32 adminq_report_stats_cnt;
 	u32 adminq_report_link_speed_cnt;
+	u32 adminq_report_nic_timestamp_cnt;
 	u32 adminq_get_ptype_map_cnt;
 	u32 adminq_verify_driver_compatibility_cnt;
 	u32 adminq_query_flow_rules_cnt;
@@ -870,6 +910,14 @@ struct gve_priv {
 	u16 rss_lut_size;
 	bool cache_rss_config;
 	struct gve_rss_config rss_config;
+
+	/* True if the device supports reading the nic clock */
+	bool nic_timestamp_supported;
+	struct gve_ptp *ptp;
+	struct kernel_hwtstamp_config ts_config;
+	struct gve_nic_ts_report *nic_ts_report;
+	dma_addr_t nic_ts_report_bus;
+	u64 last_sync_nic_counter; /* Clock counter from last NIC TS report */
 };
 
 enum gve_service_task_flags_bit {
@@ -1138,6 +1186,7 @@ static inline bool gve_supports_xdp_xmit(struct gve_priv *priv)
 {
 	switch (priv->queue_format) {
 	case GVE_GQI_QPL_FORMAT:
+	case GVE_DQO_RDA_FORMAT:
 		return true;
 	default:
 		return false;
@@ -1161,11 +1210,15 @@ void gve_free_queue_page_list(struct gve_priv *priv,
 			      u32 id);
 /* tx handling */
 netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev);
-int gve_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
-		 u32 flags);
+int gve_xdp_xmit_gqi(struct net_device *dev, int n, struct xdp_frame **frames,
+		     u32 flags);
+int gve_xdp_xmit_dqo(struct net_device *dev, int n, struct xdp_frame **frames,
+		     u32 flags);
 int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
 		     void *data, int len, void *frame_p);
 void gve_xdp_tx_flush(struct gve_priv *priv, u32 xdp_qid);
+int gve_xdp_xmit_one_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
+			 struct xdp_frame *xdpf);
 bool gve_tx_poll(struct gve_notify_block *block, int budget);
 bool gve_xdp_poll(struct gve_notify_block *block, int budget);
 int gve_xsk_tx_poll(struct gve_notify_block *block, int budget);
@@ -1249,6 +1302,24 @@ int gve_del_flow_rule(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
 int gve_flow_rules_reset(struct gve_priv *priv);
 /* RSS config */
 int gve_init_rss_config(struct gve_priv *priv, u16 num_queues);
+/* PTP and timestamping */
+#if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
+int gve_clock_nic_ts_read(struct gve_priv *priv);
+int gve_init_clock(struct gve_priv *priv);
+void gve_teardown_clock(struct gve_priv *priv);
+#else /* CONFIG_PTP_1588_CLOCK */
+static inline int gve_clock_nic_ts_read(struct gve_priv *priv)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int gve_init_clock(struct gve_priv *priv)
+{
+	return 0;
+}
+
+static inline void gve_teardown_clock(struct gve_priv *priv) { }
+#endif /* CONFIG_PTP_1588_CLOCK */
 /* report stats handling */
 void gve_handle_report_stats(struct gve_priv *priv);
 /* exported by ethtool.c */

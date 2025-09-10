@@ -62,47 +62,6 @@ config CRYPTO_BLAKE2B_NEON
 	  much faster than the SHA-2 family and slightly faster than
 	  SHA-1.
 
-config CRYPTO_SHA1_ARM
-	tristate "Hash functions: SHA-1"
-	select CRYPTO_SHA1
-	select CRYPTO_HASH
-	help
-	  SHA-1 secure hash algorithm (FIPS 180)
-
-	  Architecture: arm
-
-config CRYPTO_SHA1_ARM_NEON
-	tristate "Hash functions: SHA-1 (NEON)"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_SHA1_ARM
-	select CRYPTO_SHA1
-	select CRYPTO_HASH
-	help
-	  SHA-1 secure hash algorithm (FIPS 180)
-
-	  Architecture: arm using
-	  - NEON (Advanced SIMD) extensions
-
-config CRYPTO_SHA1_ARM_CE
-	tristate "Hash functions: SHA-1 (ARMv8 Crypto Extensions)"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_SHA1_ARM
-	select CRYPTO_HASH
-	help
-	  SHA-1 secure hash algorithm (FIPS 180)
-
-	  Architecture: arm using ARMv8 Crypto Extensions
-
-config CRYPTO_SHA512_ARM
-	tristate "Hash functions: SHA-384 and SHA-512 (NEON)"
-	select CRYPTO_HASH
-	depends on !CPU_V7M
-	help
-	  SHA-384 and SHA-512 secure hash algorithms (FIPS 180)
-
-	  Architecture: arm using
-	  - NEON (Advanced SIMD) extensions
-
 config CRYPTO_AES_ARM
 	tristate "Ciphers: AES"
 	select CRYPTO_ALGAPI

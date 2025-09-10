@@ -29,6 +29,7 @@
 #include "xe_pm.h"
 #include "xe_reg_sr.h"
 #include "xe_reg_whitelist.h"
+#include "xe_sa.h"
 #include "xe_sriov.h"
 #include "xe_tuning.h"
 #include "xe_uc_debugfs.h"
@@ -128,7 +129,34 @@ static int sa_info(struct xe_gt *gt, struct drm_printer *p)
 
 	xe_pm_runtime_get(gt_to_xe(gt));
 	drm_suballoc_dump_debug_info(&tile->mem.kernel_bb_pool->base, p,
-				     tile->mem.kernel_bb_pool->gpu_addr);
+				     xe_sa_manager_gpu_addr(tile->mem.kernel_bb_pool));
+	xe_pm_runtime_put(gt_to_xe(gt));
+
+	return 0;
+}
+
+static int sa_info_vf_ccs(struct xe_gt *gt, struct drm_printer *p)
+{
+	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_sa_manager *bb_pool;
+	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
+
+	if (!IS_VF_CCS_READY(gt_to_xe(gt)))
+		return 0;
+
+	xe_pm_runtime_get(gt_to_xe(gt));
+
+	for_each_ccs_rw_ctx(ctx_id) {
+		bb_pool = tile->sriov.vf.ccs[ctx_id].mem.ccs_bb_pool;
+		if (!bb_pool)
+			break;
+
+		drm_printf(p, "ccs %s bb suballoc info\n", ctx_id ? "write" : "read");
+		drm_printf(p, "-------------------------\n");
+		drm_suballoc_dump_debug_info(&bb_pool->base, p, xe_sa_manager_gpu_addr(bb_pool));
+		drm_puts(p, "\n");
+	}
+
 	xe_pm_runtime_put(gt_to_xe(gt));
 
 	return 0;
@@ -303,6 +331,13 @@ static const struct drm_info_list vf_safe_debugfs_list[] = {
 	{"hwconfig", .show = xe_gt_debugfs_simple_show, .data = hwconfig},
 };
 
+/*
+ * only for GT debugfs files which are valid on VF. Not valid on PF.
+ */
+static const struct drm_info_list vf_only_debugfs_list[] = {
+	{"sa_info_vf_ccs", .show = xe_gt_debugfs_simple_show, .data = sa_info_vf_ccs},
+};
+
 /* everything else should be added here */
 static const struct drm_info_list pf_only_debugfs_list[] = {
 	{"hw_engines", .show = xe_gt_debugfs_simple_show, .data = hw_engines},
@@ -388,13 +423,18 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct drm_minor *minor = gt_to_xe(gt)->drm.primary;
+	struct dentry *parent = gt->tile->debugfs;
 	struct dentry *root;
+	char symlink[16];
 	char name[8];
 
 	xe_gt_assert(gt, minor->debugfs_root);
 
+	if (IS_ERR(parent))
+		return;
+
 	snprintf(name, sizeof(name), "gt%d", gt->info.id);
-	root = debugfs_create_dir(name, minor->debugfs_root);
+	root = debugfs_create_dir(name, parent);
 	if (IS_ERR(root)) {
 		drm_warn(&xe->drm, "Create GT directory failed");
 		return;
@@ -419,6 +459,11 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 		drm_debugfs_create_files(pf_only_debugfs_list,
 					 ARRAY_SIZE(pf_only_debugfs_list),
 					 root, minor);
+	else
+		drm_debugfs_create_files(vf_only_debugfs_list,
+					 ARRAY_SIZE(vf_only_debugfs_list),
+					 root, minor);
+
 
 	xe_uc_debugfs_register(&gt->uc, root);
 
@@ -426,4 +471,11 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 		xe_gt_sriov_pf_debugfs_register(gt, root);
 	else if (IS_SRIOV_VF(xe))
 		xe_gt_sriov_vf_debugfs_register(gt, root);
+
+	/*
+	 * Backwards compatibility only: create a link for the legacy clients
+	 * who may expect gt/ directory at the root level, not the tile level.
+	 */
+	snprintf(symlink, sizeof(symlink), "tile%u/%s", gt->tile->id, name);
+	debugfs_create_symlink(name, minor->debugfs_root, symlink);
 }

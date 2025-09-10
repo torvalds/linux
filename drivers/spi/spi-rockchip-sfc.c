@@ -565,7 +565,6 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 
 	ret = rockchip_sfc_xfer_done(sfc, 100000);
 out:
-	pm_runtime_mark_last_busy(sfc->dev);
 	pm_runtime_put_autosuspend(sfc->dev);
 
 	return ret;
@@ -712,7 +711,6 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_register;
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
@@ -799,7 +797,6 @@ static int rockchip_sfc_resume(struct device *dev)
 
 	rockchip_sfc_init(sfc);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;

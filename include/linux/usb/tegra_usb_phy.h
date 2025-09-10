@@ -80,13 +80,4 @@ struct tegra_usb_phy {
 	bool powered_on;
 };
 
-void tegra_usb_phy_preresume(struct usb_phy *phy);
-
-void tegra_usb_phy_postresume(struct usb_phy *phy);
-
-void tegra_ehci_phy_restore_start(struct usb_phy *phy,
-				 enum tegra_usb_phy_port_speed port_speed);
-
-void tegra_ehci_phy_restore_end(struct usb_phy *phy);
-
 #endif /* __TEGRA_USB_PHY_H */

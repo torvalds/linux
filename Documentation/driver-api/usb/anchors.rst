@@ -45,17 +45,6 @@ This function kills all URBs associated with an anchor. The URBs
 are called in the reverse temporal order they were submitted.
 This way no data can be reordered.
 
-:c:func:`usb_unlink_anchored_urbs`
-----------------------------------
-
-
-This function unlinks all URBs associated with an anchor. The URBs
-are processed in the reverse temporal order they were submitted.
-This is similar to :c:func:`usb_kill_anchored_urbs`, but it will not sleep.
-Therefore no guarantee is made that the URBs have been unlinked when
-the call returns. They may be unlinked later but will be unlinked in
-finite time.
-
 :c:func:`usb_scuttle_anchored_urbs`
 -----------------------------------
 

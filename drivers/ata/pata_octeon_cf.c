@@ -941,7 +941,7 @@ static int octeon_cf_probe(struct platform_device *pdev)
 		/* 16 bit but not True IDE */
 		base = cs0 + 0x800;
 		octeon_cf_ops.sff_data_xfer	= octeon_cf_data_xfer16;
-		octeon_cf_ops.softreset		= octeon_cf_softreset16;
+		octeon_cf_ops.reset.softreset	= octeon_cf_softreset16;
 		octeon_cf_ops.sff_check_status	= octeon_cf_check_status16;
 		octeon_cf_ops.sff_tf_read	= octeon_cf_tf_read16;
 		octeon_cf_ops.sff_tf_load	= octeon_cf_tf_load16;

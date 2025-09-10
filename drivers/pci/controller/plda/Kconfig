@@ -5,6 +5,7 @@ menu "PLDA-based PCIe controllers"
 
 config PCIE_PLDA_HOST
 	bool
+	select IRQ_MSI_LIB
 
 config PCIE_MICROCHIP_HOST
 	tristate "Microchip AXI PCIe controller"

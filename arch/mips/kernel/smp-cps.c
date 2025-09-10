@@ -281,9 +281,20 @@ static void __init cps_smp_setup(void)
 #endif /* CONFIG_MIPS_MT_FPAFF */
 }
 
+unsigned long calibrate_delay_is_known(void)
+{
+	int first_cpu_cluster = 0;
+
+	/* The calibration has to be done on the primary CPU of the cluster */
+	if (mips_cps_first_online_in_cluster(&first_cpu_cluster))
+		return 0;
+
+	return cpu_data[first_cpu_cluster].udelay_val;
+}
+
 static void __init cps_prepare_cpus(unsigned int max_cpus)
 {
-	unsigned int nclusters, ncores, core_vpes, c, cl, cca;
+	unsigned int nclusters, ncores, core_vpes, nvpe = 0, c, cl, cca;
 	bool cca_unsuitable, cores_limited;
 	struct cluster_boot_config *cluster_bootcfg;
 	struct core_boot_config *core_bootcfg;
@@ -356,10 +367,13 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 
 		/* Allocate VPE boot configuration structs */
 		for (c = 0; c < ncores; c++) {
+			int v;
 			core_vpes = core_vpe_count(cl, c);
 			core_bootcfg[c].vpe_config = kcalloc(core_vpes,
 					sizeof(*core_bootcfg[c].vpe_config),
 					GFP_KERNEL);
+			for (v = 0; v < core_vpes; v++)
+				cpumask_set_cpu(nvpe++, &mips_cps_cluster_bootcfg[cl].cpumask);
 			if (!core_bootcfg[c].vpe_config)
 				goto err_out;
 		}

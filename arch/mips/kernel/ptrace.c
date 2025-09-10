@@ -935,7 +935,7 @@ int regs_query_register_offset(const char *name)
 
 static const struct user_regset mips_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type	= NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n		= ELF_NGREG,
 		.size		= sizeof(unsigned int),
 		.align		= sizeof(unsigned int),
@@ -943,7 +943,7 @@ static const struct user_regset mips_regsets[] = {
 		.set		= gpr32_set,
 	},
 	[REGSET_DSP] = {
-		.core_note_type	= NT_MIPS_DSP,
+		USER_REGSET_NOTE_TYPE(MIPS_DSP),
 		.n		= NUM_DSP_REGS + 1,
 		.size		= sizeof(u32),
 		.align		= sizeof(u32),
@@ -953,7 +953,7 @@ static const struct user_regset mips_regsets[] = {
 	},
 #ifdef CONFIG_MIPS_FP_SUPPORT
 	[REGSET_FPR] = {
-		.core_note_type	= NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n		= ELF_NFPREG,
 		.size		= sizeof(elf_fpreg_t),
 		.align		= sizeof(elf_fpreg_t),
@@ -961,7 +961,7 @@ static const struct user_regset mips_regsets[] = {
 		.set		= fpr_set,
 	},
 	[REGSET_FP_MODE] = {
-		.core_note_type	= NT_MIPS_FP_MODE,
+		USER_REGSET_NOTE_TYPE(MIPS_FP_MODE),
 		.n		= 1,
 		.size		= sizeof(int),
 		.align		= sizeof(int),
@@ -971,7 +971,7 @@ static const struct user_regset mips_regsets[] = {
 #endif
 #ifdef CONFIG_CPU_HAS_MSA
 	[REGSET_MSA] = {
-		.core_note_type	= NT_MIPS_MSA,
+		USER_REGSET_NOTE_TYPE(MIPS_MSA),
 		.n		= NUM_FPU_REGS + 1,
 		.size		= 16,
 		.align		= 16,
@@ -995,7 +995,7 @@ static const struct user_regset_view user_mips_view = {
 
 static const struct user_regset mips64_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type	= NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n		= ELF_NGREG,
 		.size		= sizeof(unsigned long),
 		.align		= sizeof(unsigned long),
@@ -1003,7 +1003,7 @@ static const struct user_regset mips64_regsets[] = {
 		.set		= gpr64_set,
 	},
 	[REGSET_DSP] = {
-		.core_note_type	= NT_MIPS_DSP,
+		USER_REGSET_NOTE_TYPE(MIPS_DSP),
 		.n		= NUM_DSP_REGS + 1,
 		.size		= sizeof(u64),
 		.align		= sizeof(u64),
@@ -1013,7 +1013,7 @@ static const struct user_regset mips64_regsets[] = {
 	},
 #ifdef CONFIG_MIPS_FP_SUPPORT
 	[REGSET_FP_MODE] = {
-		.core_note_type	= NT_MIPS_FP_MODE,
+		USER_REGSET_NOTE_TYPE(MIPS_FP_MODE),
 		.n		= 1,
 		.size		= sizeof(int),
 		.align		= sizeof(int),
@@ -1021,7 +1021,7 @@ static const struct user_regset mips64_regsets[] = {
 		.set		= fp_mode_set,
 	},
 	[REGSET_FPR] = {
-		.core_note_type	= NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n		= ELF_NFPREG,
 		.size		= sizeof(elf_fpreg_t),
 		.align		= sizeof(elf_fpreg_t),
@@ -1031,7 +1031,7 @@ static const struct user_regset mips64_regsets[] = {
 #endif
 #ifdef CONFIG_CPU_HAS_MSA
 	[REGSET_MSA] = {
-		.core_note_type	= NT_MIPS_MSA,
+		USER_REGSET_NOTE_TYPE(MIPS_MSA),
 		.n		= NUM_FPU_REGS + 1,
 		.size		= 16,
 		.align		= 16,

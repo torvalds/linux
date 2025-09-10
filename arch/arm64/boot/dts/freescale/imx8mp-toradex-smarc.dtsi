@@ -320,6 +320,8 @@
 };
 
 &gpio3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lvds_dsi_sel>;
 	gpio-line-names = "ETH_0_INT#", /* 0 */
 			  "SLEEP#",
 			  "",
@@ -349,14 +351,6 @@
 			  "",
 			  "",
 			  "SMARC_I2C_PM_CK";
-
-	lvds_dsi_mux_hog: lvds-dsi-mux-hog {
-		gpio-hog;
-		gpios = <7 GPIO_ACTIVE_HIGH>;
-		line-name = "LVDS_DSI_SEL";
-		/* LVDS_DSI_SEL as DSI */
-		output-low;
-	};
 };
 
 &gpio4 {

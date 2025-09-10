@@ -558,41 +558,33 @@ static int moxart_probe(struct platform_device *pdev)
 	int irq, ret;
 	u32 i;
 
-	mmc = mmc_alloc_host(sizeof(struct moxart_host), dev);
+	mmc = devm_mmc_alloc_host(dev, sizeof(*host));
 	if (!mmc) {
-		dev_err(dev, "mmc_alloc_host failed\n");
-		ret = -ENOMEM;
-		goto out_mmc;
+		dev_err(dev, "devm_mmc_alloc_host failed\n");
+		return -ENOMEM;
 	}
 
 	ret = of_address_to_resource(node, 0, &res_mmc);
-	if (ret) {
-		dev_err(dev, "of_address_to_resource failed\n");
-		goto out_mmc;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "of_address_to_resource failed\n");
 
 	irq = irq_of_parse_and_map(node, 0);
-	if (irq <= 0) {
-		dev_err(dev, "irq_of_parse_and_map failed\n");
-		ret = -EINVAL;
-		goto out_mmc;
-	}
+	if (irq <= 0)
+		return dev_err_probe(dev, -EINVAL,
+				     "irq_of_parse_and_map failed\n");
 
 	clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		goto out_mmc;
-	}
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
 	reg_mmc = devm_ioremap_resource(dev, &res_mmc);
-	if (IS_ERR(reg_mmc)) {
-		ret = PTR_ERR(reg_mmc);
-		goto out_mmc;
-	}
+	if (IS_ERR(reg_mmc))
+		return PTR_ERR(reg_mmc);
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
-		goto out_mmc;
+		return ret;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
@@ -686,9 +678,6 @@ out:
 		dma_release_channel(host->dma_chan_tx);
 	if (!IS_ERR_OR_NULL(host->dma_chan_rx))
 		dma_release_channel(host->dma_chan_rx);
-out_mmc:
-	if (mmc)
-		mmc_free_host(mmc);
 	return ret;
 }
 
@@ -707,7 +696,6 @@ static void moxart_remove(struct platform_device *pdev)
 	writel(0, host->base + REG_POWER_CONTROL);
 	writel(readl(host->base + REG_CLOCK_CONTROL) | CLK_OFF,
 	       host->base + REG_CLOCK_CONTROL);
-	mmc_free_host(mmc);
 }
 
 static const struct of_device_id moxart_mmc_match[] = {

@@ -120,7 +120,7 @@ static u8 cached_leden;
  * external pullup is needed.  We could also expose the integrated PWM
  * as a LED brightness control; we initialize it as "always on".
  */
-static void twl4030_led_set_value(int led, int value)
+static int twl4030_led_set_value(int led, int value)
 {
 	u8 mask = LEDEN_LEDAON | LEDEN_LEDAPWM;
 
@@ -132,8 +132,8 @@ static void twl4030_led_set_value(int led, int value)
 	else
 		cached_leden |= mask;
 
-	WARN_ON_ONCE(twl_i2c_write_u8(TWL4030_MODULE_LED, cached_leden,
-				      TWL4030_LED_LEDEN_REG));
+	return twl_i2c_write_u8(TWL4030_MODULE_LED, cached_leden,
+				TWL4030_LED_LEDEN_REG);
 }
 
 static int twl4030_set_gpio_direction(int gpio, int is_input)
@@ -278,7 +278,7 @@ static void twl_free(struct gpio_chip *chip, unsigned offset)
 
 	mutex_lock(&priv->mutex);
 	if (offset >= TWL4030_GPIO_MAX) {
-		twl4030_led_set_value(offset - TWL4030_GPIO_MAX, 1);
+		WARN_ON_ONCE(twl4030_led_set_value(offset - TWL4030_GPIO_MAX, 1));
 		goto out;
 	}
 
@@ -334,15 +334,16 @@ out:
 	return ret;
 }
 
-static void twl_set(struct gpio_chip *chip, unsigned offset, int value)
+static int twl_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct gpio_twl4030_priv *priv = gpiochip_get_data(chip);
+	int ret;
 
 	mutex_lock(&priv->mutex);
 	if (offset < TWL4030_GPIO_MAX)
-		twl4030_set_gpio_dataout(offset, value);
+		ret = twl4030_set_gpio_dataout(offset, value);
 	else
-		twl4030_led_set_value(offset - TWL4030_GPIO_MAX, value);
+		ret = twl4030_led_set_value(offset - TWL4030_GPIO_MAX, value);
 
 	if (value)
 		priv->out_state |= BIT(offset);
@@ -350,6 +351,8 @@ static void twl_set(struct gpio_chip *chip, unsigned offset, int value)
 		priv->out_state &= ~BIT(offset);
 
 	mutex_unlock(&priv->mutex);
+
+	return ret;
 }
 
 static int twl_direction_out(struct gpio_chip *chip, unsigned offset, int value)
@@ -373,9 +376,7 @@ static int twl_direction_out(struct gpio_chip *chip, unsigned offset, int value)
 	priv->direction |= BIT(offset);
 	mutex_unlock(&priv->mutex);
 
-	twl_set(chip, offset, value);
-
-	return ret;
+	return twl_set(chip, offset, value);
 }
 
 static int twl_get_direction(struct gpio_chip *chip, unsigned offset)
@@ -523,7 +524,7 @@ static int gpio_twl4030_probe(struct platform_device *pdev)
 		return irq_base;
 	}
 
-	irq_domain_create_legacy(of_fwnode_handle(pdev->dev.of_node), TWL4030_GPIO_MAX, irq_base, 0,
+	irq_domain_create_legacy(dev_fwnode(&pdev->dev), TWL4030_GPIO_MAX, irq_base, 0,
 				 &irq_domain_simple_ops, NULL);
 
 	ret = twl4030_sih_setup(&pdev->dev, TWL4030_MODULE_GPIO, irq_base);

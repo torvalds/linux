@@ -103,10 +103,10 @@ static int cxl_scrub_get_attrbs(struct cxl_patrol_scrub_context *cxl_ps_ctx,
 				u8 *cap, u16 *cycle, u8 *flags, u8 *min_cycle)
 {
 	struct cxl_mailbox *cxl_mbox;
-	u8 min_scrub_cycle = U8_MAX;
 	struct cxl_region_params *p;
 	struct cxl_memdev *cxlmd;
 	struct cxl_region *cxlr;
+	u8 min_scrub_cycle = 0;
 	int i, ret;
 
 	if (!cxl_ps_ctx->cxlr) {
@@ -115,10 +115,9 @@ static int cxl_scrub_get_attrbs(struct cxl_patrol_scrub_context *cxl_ps_ctx,
 						flags, min_cycle);
 	}
 
-	struct rw_semaphore *region_lock __free(rwsem_read_release) =
-		rwsem_read_intr_acquire(&cxl_region_rwsem);
-	if (!region_lock)
-		return -EINTR;
+	ACQUIRE(rwsem_read_intr, rwsem)(&cxl_rwsem.region);
+	if ((ret = ACQUIRE_ERR(rwsem_read_intr, &rwsem)))
+		return ret;
 
 	cxlr = cxl_ps_ctx->cxlr;
 	p = &cxlr->params;
@@ -133,8 +132,12 @@ static int cxl_scrub_get_attrbs(struct cxl_patrol_scrub_context *cxl_ps_ctx,
 		if (ret)
 			return ret;
 
+		/*
+		 * The min_scrub_cycle of a region is the max of minimum scrub
+		 * cycles supported by memdevs that back the region.
+		 */
 		if (min_cycle)
-			min_scrub_cycle = min(*min_cycle, min_scrub_cycle);
+			min_scrub_cycle = max(*min_cycle, min_scrub_cycle);
 	}
 
 	if (min_cycle)
@@ -154,10 +157,9 @@ static int cxl_scrub_set_attrbs_region(struct device *dev,
 	struct cxl_region *cxlr;
 	int ret, i;
 
-	struct rw_semaphore *region_lock __free(rwsem_read_release) =
-		rwsem_read_intr_acquire(&cxl_region_rwsem);
-	if (!region_lock)
-		return -EINTR;
+	ACQUIRE(rwsem_read_intr, rwsem)(&cxl_rwsem.region);
+	if ((ret = ACQUIRE_ERR(rwsem_read_intr, &rwsem)))
+		return ret;
 
 	cxlr = cxl_ps_ctx->cxlr;
 	p = &cxlr->params;
@@ -693,7 +695,7 @@ static int cxl_set_ecs_threshold(struct device *dev, u8 *log_cap, u16 *config,
 				      ECS_THRESHOLD_IDX_4096);
 		break;
 	default:
-		dev_dbg(dev, "Invalid CXL ECS threshold count(%d) to set\n",
+		dev_dbg(dev, "Invalid CXL ECS threshold count(%u) to set\n",
 			val);
 		dev_dbg(dev, "Supported ECS threshold counts: %u, %u, %u\n",
 			ECS_THRESHOLD_256, ECS_THRESHOLD_1024,
@@ -1099,8 +1101,10 @@ int cxl_store_rec_gen_media(struct cxl_memdev *cxlmd, union cxl_event *evt)
 	old_rec = xa_store(&array_rec->rec_gen_media,
 			   le64_to_cpu(rec->media_hdr.phys_addr), rec,
 			   GFP_KERNEL);
-	if (xa_is_err(old_rec))
+	if (xa_is_err(old_rec)) {
+		kfree(rec);
 		return xa_err(old_rec);
+	}
 
 	kfree(old_rec);
 
@@ -1127,8 +1131,10 @@ int cxl_store_rec_dram(struct cxl_memdev *cxlmd, union cxl_event *evt)
 	old_rec = xa_store(&array_rec->rec_dram,
 			   le64_to_cpu(rec->media_hdr.phys_addr), rec,
 			   GFP_KERNEL);
-	if (xa_is_err(old_rec))
+	if (xa_is_err(old_rec)) {
+		kfree(rec);
 		return xa_err(old_rec);
+	}
 
 	kfree(old_rec);
 
@@ -1315,7 +1321,7 @@ cxl_mem_get_rec_dram(struct cxl_memdev *cxlmd,
 		attrbs.bank = ctx->bank;
 	break;
 	case EDAC_REPAIR_RANK_SPARING:
-		attrbs.repair_type = CXL_BANK_SPARING;
+		attrbs.repair_type = CXL_RANK_SPARING;
 		break;
 	default:
 		return NULL;
@@ -1332,16 +1338,15 @@ cxl_mem_perform_sparing(struct device *dev,
 	struct cxl_memdev_sparing_in_payload sparing_pi;
 	struct cxl_event_dram *rec = NULL;
 	u16 validity_flags = 0;
+	int ret;
 
-	struct rw_semaphore *region_lock __free(rwsem_read_release) =
-		rwsem_read_intr_acquire(&cxl_region_rwsem);
-	if (!region_lock)
-		return -EINTR;
+	ACQUIRE(rwsem_read_intr, region_rwsem)(&cxl_rwsem.region);
+	if ((ret = ACQUIRE_ERR(rwsem_read_intr, &region_rwsem)))
+		return ret;
 
-	struct rw_semaphore *dpa_lock __free(rwsem_read_release) =
-		rwsem_read_intr_acquire(&cxl_dpa_rwsem);
-	if (!dpa_lock)
-		return -EINTR;
+	ACQUIRE(rwsem_read_intr, dpa_rwsem)(&cxl_rwsem.dpa);
+	if ((ret = ACQUIRE_ERR(rwsem_read_intr, &dpa_rwsem)))
+		return ret;
 
 	if (!cxl_sparing_ctx->cap_safe_when_in_use) {
 		/* Memory to repair must be offline */
@@ -1515,7 +1520,7 @@ static int cxl_mem_sparing_set_dpa(struct device *dev, void *drv_data, u64 dpa)
 	struct cxl_memdev *cxlmd = ctx->cxlmd;
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 
-	if (dpa < cxlds->dpa_res.start || dpa > cxlds->dpa_res.end)
+	if (!cxl_resource_contains_addr(&cxlds->dpa_res, dpa))
 		return -EINVAL;
 
 	ctx->dpa = dpa;
@@ -1779,16 +1784,15 @@ static int cxl_mem_perform_ppr(struct cxl_ppr_context *cxl_ppr_ctx)
 	struct cxl_memdev_ppr_maintenance_attrbs maintenance_attrbs;
 	struct cxl_memdev *cxlmd = cxl_ppr_ctx->cxlmd;
 	struct cxl_mem_repair_attrbs attrbs = { 0 };
+	int ret;
 
-	struct rw_semaphore *region_lock __free(rwsem_read_release) =
-		rwsem_read_intr_acquire(&cxl_region_rwsem);
-	if (!region_lock)
-		return -EINTR;
+	ACQUIRE(rwsem_read_intr, region_rwsem)(&cxl_rwsem.region);
+	if ((ret = ACQUIRE_ERR(rwsem_read_intr, &region_rwsem)))
+		return ret;
 
-	struct rw_semaphore *dpa_lock __free(rwsem_read_release) =
-		rwsem_read_intr_acquire(&cxl_dpa_rwsem);
-	if (!dpa_lock)
-		return -EINTR;
+	ACQUIRE(rwsem_read_intr, dpa_rwsem)(&cxl_rwsem.dpa);
+	if ((ret = ACQUIRE_ERR(rwsem_read_intr, &dpa_rwsem)))
+		return ret;
 
 	if (!cxl_ppr_ctx->media_accessible || !cxl_ppr_ctx->data_retained) {
 		/* Memory to repair must be offline */
@@ -1884,7 +1888,7 @@ static int cxl_ppr_set_dpa(struct device *dev, void *drv_data, u64 dpa)
 	struct cxl_memdev *cxlmd = cxl_ppr_ctx->cxlmd;
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 
-	if (dpa < cxlds->dpa_res.start || dpa > cxlds->dpa_res.end)
+	if (!cxl_resource_contains_addr(&cxlds->dpa_res, dpa))
 		return -EINVAL;
 
 	cxl_ppr_ctx->dpa = dpa;
@@ -1915,8 +1919,11 @@ static int cxl_ppr_set_nibble_mask(struct device *dev, void *drv_data,
 static int cxl_do_ppr(struct device *dev, void *drv_data, u32 val)
 {
 	struct cxl_ppr_context *cxl_ppr_ctx = drv_data;
+	struct cxl_memdev *cxlmd = cxl_ppr_ctx->cxlmd;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 
-	if (!cxl_ppr_ctx->dpa || val != EDAC_DO_MEM_REPAIR)
+	if (val != EDAC_DO_MEM_REPAIR ||
+	    !cxl_resource_contains_addr(&cxlds->dpa_res, cxl_ppr_ctx->dpa))
 		return -EINVAL;
 
 	return cxl_mem_perform_ppr(cxl_ppr_ctx);

@@ -4,6 +4,7 @@
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/xattr.h>
 #include <linux/limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -316,6 +317,26 @@ int join_parent_cgroup(const char *relative_path)
 
 	format_parent_cgroup_path(cgroup_path, relative_path);
 	return join_cgroup_from_top(cgroup_path);
+}
+
+/**
+ * set_cgroup_xattr() - Set xattr on a cgroup dir
+ * @relative_path: The cgroup path, relative to the workdir, to set xattr
+ * @name: xattr name
+ * @value: xattr value
+ *
+ * This function set xattr on cgroup dir.
+ *
+ * On success, it returns 0, otherwise on failure it returns -1.
+ */
+int set_cgroup_xattr(const char *relative_path,
+		     const char *name,
+		     const char *value)
+{
+	char cgroup_path[PATH_MAX + 1];
+
+	format_cgroup_path(cgroup_path, relative_path);
+	return setxattr(cgroup_path, name, value, strlen(value) + 1, 0);
 }
 
 /**

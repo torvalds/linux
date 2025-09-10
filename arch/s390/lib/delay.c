@@ -7,6 +7,7 @@
  */
 
 #include <linux/processor.h>
+#include <linux/export.h>
 #include <linux/delay.h>
 #include <asm/div64.h>
 #include <asm/timex.h>

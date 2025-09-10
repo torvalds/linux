@@ -898,7 +898,7 @@ static const struct pinconf_ops starfive_pinconf_ops = {
 	.is_generic = true,
 };
 
-static struct pinctrl_desc starfive_desc = {
+static const struct pinctrl_desc starfive_desc = {
 	.name = DRIVER_NAME,
 	.pins = starfive_pins,
 	.npins = ARRAY_SIZE(starfive_pins),
@@ -969,8 +969,8 @@ static int starfive_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	return !!(readl_relaxed(din) & BIT(gpio % 32));
 }
 
-static void starfive_gpio_set(struct gpio_chip *gc, unsigned int gpio,
-			      int value)
+static int starfive_gpio_set(struct gpio_chip *gc, unsigned int gpio,
+			     int value)
 {
 	struct starfive_pinctrl *sfp = container_of(gc, struct starfive_pinctrl, gc);
 	void __iomem *dout = sfp->base + GPON_DOUT_CFG + 8 * gpio;
@@ -979,6 +979,8 @@ static void starfive_gpio_set(struct gpio_chip *gc, unsigned int gpio,
 	raw_spin_lock_irqsave(&sfp->lock, flags);
 	writel_relaxed(value, dout);
 	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+
+	return 0;
 }
 
 static int starfive_gpio_set_config(struct gpio_chip *gc, unsigned int gpio,

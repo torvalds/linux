@@ -71,6 +71,13 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	__end_ro_after_init = .;
 
+	. = ALIGN(8);
+	.skey_region_table : {
+		__skey_region_start = .;
+		KEEP(*(.skey_region))
+		__skey_region_end = .;
+	}
+
 	.data.rel.ro : {
 		*(.data.rel.ro .data.rel.ro.*)
 	}

@@ -141,10 +141,10 @@ convert_coords_to_ispparams(
 
 			/* similar to topleft_y calculation, but round up if ymax
 			 * has any fraction bits */
-			bottom_y = CEIL_DIV(ymax, 1 << DVS_COORD_FRAC_BITS);
+			bottom_y = DIV_ROUND_UP(ymax, BIT(DVS_COORD_FRAC_BITS));
 			s.in_block_height = bottom_y - topleft_y + dvs_interp_envelope;
 
-			bottom_x = CEIL_DIV(xmax, 1 << DVS_COORD_FRAC_BITS);
+			bottom_x = DIV_ROUND_UP(xmax, BIT(DVS_COORD_FRAC_BITS));
 			s.in_block_width = bottom_x - topleft_x + dvs_interp_envelope;
 
 			topleft_x_frac = topleft_x << (DVS_COORD_FRAC_BITS);

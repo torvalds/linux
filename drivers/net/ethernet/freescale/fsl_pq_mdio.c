@@ -491,8 +491,8 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 
 	err = of_mdiobus_register(new_bus, np);
 	if (err) {
-		dev_err(&pdev->dev, "cannot register %s as MDIO bus\n",
-			new_bus->name);
+		dev_err_probe(&pdev->dev, err, "cannot register %s as MDIO bus\n",
+			      new_bus->name);
 		goto error;
 	}
 

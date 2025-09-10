@@ -418,6 +418,14 @@ API allows to configure following rate object's parameters:
   to all node children limits. ``tx_max`` is an upper limit for children.
   ``tx_share`` is a total bandwidth distributed among children.
 
+``tc_bw``
+  Allow users to set the bandwidth allocation per traffic class on rate
+  objects. This enables fine-grained QoS configurations by assigning a relative
+  share value to each traffic class. The bandwidth is distributed in proportion
+  to the share value for each class, relative to the sum of all shares.
+  When applied to a non-leaf node, tc_bw determines how bandwidth is shared
+  among its child elements.
+
 ``tx_priority`` and ``tx_weight`` can be used simultaneously. In that case
 nodes with the same priority form a WFQ subgroup in the sibling group
 and arbitration among them is based on assigned weights.

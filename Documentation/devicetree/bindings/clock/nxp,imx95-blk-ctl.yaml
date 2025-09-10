@@ -13,6 +13,8 @@ properties:
   compatible:
     items:
       - enum:
+          - nxp,imx94-display-csr
+          - nxp,imx94-lvds-csr
           - nxp,imx95-camera-csr
           - nxp,imx95-display-csr
           - nxp,imx95-hsio-blk-ctl

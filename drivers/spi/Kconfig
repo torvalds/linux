@@ -99,6 +99,15 @@ config SPI_AMLOGIC_SPIFC_A1
 	  This enables master mode support for the SPIFC (SPI flash
 	  controller) available in Amlogic A1 (A113L SoC).
 
+config SPI_AMLOGIC_SPISG
+	tristate "Amlogic SPISG controller"
+	depends on COMMON_CLK
+	depends on ARCH_MESON || COMPILE_TEST
+	help
+	  This enables master mode support for the SPISG (SPI scatter-gather
+	  communication controller), which is available on platforms such as
+	  Amlogic A4 SoCs.
+
 config SPI_APPLE
 	tristate "Apple SoC SPI Controller platform driver"
 	depends on ARCH_APPLE || COMPILE_TEST
@@ -647,10 +656,10 @@ config SPI_FSL_SPI
 config SPI_FSL_DSPI
 	tristate "Freescale DSPI controller"
 	select REGMAP_MMIO
-	depends on SOC_VF610 || SOC_LS1021A || ARCH_LAYERSCAPE || M5441x || COMPILE_TEST
+	depends on ARCH_MXC || ARCH_NXP || M5441x || COMPILE_TEST
 	help
 	  This enables support for the Freescale DSPI controller in master
-	  mode. VF610, LS1021A and ColdFire platforms uses the controller.
+	  mode. S32, VF610, LS1021A and ColdFire platforms uses the controller.
 
 config SPI_FSL_ESPI
 	tristate "Freescale eSPI controller"
@@ -922,6 +931,14 @@ config SPI_RSPI
 	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	help
 	  SPI driver for Renesas RSPI and QSPI blocks.
+
+config SPI_RZV2H_RSPI
+	tristate "Renesas RZ/V2H RSPI controller"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	  RSPI driver for the Renesas RZ/V2H Serial Peripheral Interface (RSPI).
+	  RSPI supports both SPI host and SPI target roles. This option only
+	  enables the SPI host role.
 
 config SPI_RZV2M_CSI
 	tristate "Renesas RZ/V2M CSI controller"
@@ -1354,6 +1371,11 @@ config SPI_DYNAMIC
 if SPI_OFFLOAD
 
 comment "SPI Offload triggers"
+
+config SPI_OFFLOAD_TRIGGER_ADI_UTIL_SD
+	tristate "SPI offload trigger using ADI sigma-delta utility"
+	help
+	  SPI offload trigger from ADI sigma-delta utility FPGA IP block.
 
 config SPI_OFFLOAD_TRIGGER_PWM
 	tristate "SPI offload trigger using PWM"

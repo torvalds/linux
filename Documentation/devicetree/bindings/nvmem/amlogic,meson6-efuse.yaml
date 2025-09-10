@@ -53,6 +53,6 @@ examples:
         };
 
         temperature_calib: calib@1f4 {
-             reg = <0x1f4 0x4>;
+            reg = <0x1f4 0x4>;
         };
     };

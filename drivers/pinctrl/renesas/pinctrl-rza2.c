@@ -172,8 +172,7 @@ static int rza2_chip_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(readb(priv->base + RZA2_PIDR(port)) & BIT(pin));
 }
 
-static void rza2_chip_set(struct gpio_chip *chip, unsigned int offset,
-			  int value)
+static int rza2_chip_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct rza2_pinctrl_priv *priv = gpiochip_get_data(chip);
 	u8 port = RZA2_PIN_ID_TO_PORT(offset);
@@ -188,6 +187,8 @@ static void rza2_chip_set(struct gpio_chip *chip, unsigned int offset,
 		new_value &= ~BIT(pin);
 
 	writeb(new_value, priv->base + RZA2_PODR(port));
+
+	return 0;
 }
 
 static int rza2_chip_direction_output(struct gpio_chip *chip,

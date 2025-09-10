@@ -3495,7 +3495,7 @@ struct wmi_aoa_meas_event {
 	u8 channel;
 	/* enum wmi_aoa_meas_type */
 	u8 aoa_meas_type;
-	/* Measurments are from RFs, defined by the mask */
+	/* Measurements are from RFs, defined by the mask */
 	__le32 meas_rf_mask;
 	/* enum wmi_aoa_meas_status */
 	u8 meas_status;
@@ -3634,7 +3634,7 @@ struct wmi_tof_ftm_per_dest_res_event {
 	__le32 tsf_sync;
 	/* actual received ftm per burst */
 	u8 actual_ftm_per_burst;
-	/* Measurments are from RFs, defined by the mask */
+	/* Measurements are from RFs, defined by the mask */
 	__le32 meas_rf_mask;
 	u8 reserved0[3];
 	struct wmi_responder_ftm_res responder_ftm_res[];

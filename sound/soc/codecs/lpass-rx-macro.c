@@ -619,7 +619,6 @@ static struct interp_sample_rate sr_val_tbl[] = {
 };
 
 enum {
-	RX_MACRO_AIF_INVALID = 0,
 	RX_MACRO_AIF1_PB,
 	RX_MACRO_AIF2_PB,
 	RX_MACRO_AIF3_PB,

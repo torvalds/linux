@@ -16,8 +16,8 @@ struct xfs_log_vec {
 	struct xfs_log_item	*lv_item;	/* owner */
 	char			*lv_buf;	/* formatted buffer */
 	int			lv_bytes;	/* accounted space in buffer */
-	int			lv_buf_len;	/* aligned size of buffer */
-	int			lv_size;	/* size of allocated lv */
+	int			lv_buf_used;	/* buffer space used so far */
+	int			lv_alloc_size;	/* size of allocated lv */
 };
 
 #define XFS_LOG_VEC_ORDERED	(-1)
@@ -64,12 +64,13 @@ xlog_finish_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec *vec,
 	oph->oh_len = cpu_to_be32(len);
 
 	len += sizeof(struct xlog_op_header);
-	lv->lv_buf_len += len;
+	lv->lv_buf_used += len;
 	lv->lv_bytes += len;
 	vec->i_len = len;
 
 	/* Catch buffer overruns */
-	ASSERT((void *)lv->lv_buf + lv->lv_bytes <= (void *)lv + lv->lv_size);
+	ASSERT((void *)lv->lv_buf + lv->lv_bytes <=
+		(void *)lv + lv->lv_alloc_size);
 }
 
 /*
@@ -85,13 +86,6 @@ xlog_copy_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec **vecp,
 	memcpy(buf, data, len);
 	xlog_finish_iovec(lv, *vecp, len);
 	return buf;
-}
-
-static inline void *
-xlog_copy_from_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec **vecp,
-		const struct xfs_log_iovec *src)
-{
-	return xlog_copy_iovec(lv, vecp, src->i_type, src->i_addr, src->i_len);
 }
 
 /*

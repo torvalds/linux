@@ -441,17 +441,10 @@ static int ublk_queue_init(struct ublk_queue *q, unsigned extra_flags)
 	unsigned long off;
 
 	q->tgt_ops = dev->tgt.ops;
-	q->state = 0;
+	q->flags = 0;
 	q->q_depth = depth;
-
-	if (dev->dev_info.flags & (UBLK_F_SUPPORT_ZERO_COPY | UBLK_F_AUTO_BUF_REG)) {
-		q->state |= UBLKSRV_NO_BUF;
-		if (dev->dev_info.flags & UBLK_F_SUPPORT_ZERO_COPY)
-			q->state |= UBLKSRV_ZC;
-		if (dev->dev_info.flags & UBLK_F_AUTO_BUF_REG)
-			q->state |= UBLKSRV_AUTO_BUF_REG;
-	}
-	q->state |= extra_flags;
+	q->flags = dev->dev_info.flags;
+	q->flags |= extra_flags;
 
 	cmd_buf_size = ublk_queue_cmd_buf_sz(q);
 	off = UBLKSRV_CMD_BUF_OFFSET + q->q_id * ublk_queue_max_cmd_buf_sz();
@@ -466,10 +459,10 @@ static int ublk_queue_init(struct ublk_queue *q, unsigned extra_flags)
 	io_buf_size = dev->dev_info.max_io_buf_bytes;
 	for (i = 0; i < q->q_depth; i++) {
 		q->ios[i].buf_addr = NULL;
-		q->ios[i].flags = UBLKSRV_NEED_FETCH_RQ | UBLKSRV_IO_FREE;
+		q->ios[i].flags = UBLKS_IO_NEED_FETCH_RQ | UBLKS_IO_FREE;
 		q->ios[i].tag = i;
 
-		if (q->state & UBLKSRV_NO_BUF)
+		if (ublk_queue_no_buf(q))
 			continue;
 
 		if (posix_memalign((void **)&q->ios[i].buf_addr,
@@ -583,15 +576,14 @@ static void ublk_set_auto_buf_reg(const struct ublk_queue *q,
 	else
 		buf.index = q->ios[tag].buf_index;
 
-	if (q->state & UBLKSRV_AUTO_BUF_REG_FALLBACK)
+	if (ublk_queue_auto_zc_fallback(q))
 		buf.flags = UBLK_AUTO_BUF_REG_FALLBACK;
 
 	sqe->addr = ublk_auto_buf_reg_to_sqe_addr(&buf);
 }
 
-int ublk_queue_io_cmd(struct ublk_io *io)
+int ublk_queue_io_cmd(struct ublk_thread *t, struct ublk_io *io)
 {
-	struct ublk_thread *t = io->t;
 	struct ublk_queue *q = ublk_io_to_queue(io);
 	struct ublksrv_io_cmd *cmd;
 	struct io_uring_sqe *sqe[1];
@@ -599,7 +591,7 @@ int ublk_queue_io_cmd(struct ublk_io *io)
 	__u64 user_data;
 
 	/* only freed io can be issued */
-	if (!(io->flags & UBLKSRV_IO_FREE))
+	if (!(io->flags & UBLKS_IO_FREE))
 		return 0;
 
 	/*
@@ -607,20 +599,20 @@ int ublk_queue_io_cmd(struct ublk_io *io)
 	 * getting data
 	 */
 	if (!(io->flags &
-		(UBLKSRV_NEED_FETCH_RQ | UBLKSRV_NEED_COMMIT_RQ_COMP | UBLKSRV_NEED_GET_DATA)))
+		(UBLKS_IO_NEED_FETCH_RQ | UBLKS_IO_NEED_COMMIT_RQ_COMP | UBLKS_IO_NEED_GET_DATA)))
 		return 0;
 
-	if (io->flags & UBLKSRV_NEED_GET_DATA)
+	if (io->flags & UBLKS_IO_NEED_GET_DATA)
 		cmd_op = UBLK_U_IO_NEED_GET_DATA;
-	else if (io->flags & UBLKSRV_NEED_COMMIT_RQ_COMP)
+	else if (io->flags & UBLKS_IO_NEED_COMMIT_RQ_COMP)
 		cmd_op = UBLK_U_IO_COMMIT_AND_FETCH_REQ;
-	else if (io->flags & UBLKSRV_NEED_FETCH_RQ)
+	else if (io->flags & UBLKS_IO_NEED_FETCH_RQ)
 		cmd_op = UBLK_U_IO_FETCH_REQ;
 
 	if (io_uring_sq_space_left(&t->ring) < 1)
 		io_uring_submit(&t->ring);
 
-	ublk_io_alloc_sqes(io, sqe, 1);
+	ublk_io_alloc_sqes(t, sqe, 1);
 	if (!sqe[0]) {
 		ublk_err("%s: run out of sqe. thread %u, tag %d\n",
 				__func__, t->idx, io->tag);
@@ -640,12 +632,12 @@ int ublk_queue_io_cmd(struct ublk_io *io)
 	sqe[0]->rw_flags	= 0;
 	cmd->tag	= io->tag;
 	cmd->q_id	= q->q_id;
-	if (!(q->state & UBLKSRV_NO_BUF))
+	if (!ublk_queue_no_buf(q))
 		cmd->addr	= (__u64) (uintptr_t) io->buf_addr;
 	else
 		cmd->addr	= 0;
 
-	if (q->state & UBLKSRV_AUTO_BUF_REG)
+	if (ublk_queue_use_auto_zc(q))
 		ublk_set_auto_buf_reg(q, sqe[0], io->tag);
 
 	user_data = build_user_data(io->tag, _IOC_NR(cmd_op), 0, q->q_id, 0);
@@ -657,7 +649,7 @@ int ublk_queue_io_cmd(struct ublk_io *io)
 
 	ublk_dbg(UBLK_DBG_IO_CMD, "%s: (thread %u qid %d tag %u cmd_op %u) iof %x stopping %d\n",
 			__func__, t->idx, q->q_id, io->tag, cmd_op,
-			io->flags, !!(t->state & UBLKSRV_THREAD_STOPPING));
+			io->flags, !!(t->state & UBLKS_T_STOPPING));
 	return 1;
 }
 
@@ -685,9 +677,8 @@ static void ublk_submit_fetch_commands(struct ublk_thread *t)
 			int tag = i % dinfo->queue_depth;
 			q = &t->dev->q[q_id];
 			io = &q->ios[tag];
-			io->t = t;
 			io->buf_index = j++;
-			ublk_queue_io_cmd(io);
+			ublk_queue_io_cmd(t, io);
 		}
 	} else {
 		/*
@@ -697,9 +688,8 @@ static void ublk_submit_fetch_commands(struct ublk_thread *t)
 		struct ublk_queue *q = &t->dev->q[t->idx];
 		for (i = 0; i < q->q_depth; i++) {
 			io = &q->ios[i];
-			io->t = t;
 			io->buf_index = i;
-			ublk_queue_io_cmd(io);
+			ublk_queue_io_cmd(t, io);
 		}
 	}
 }
@@ -711,14 +701,13 @@ static int ublk_thread_is_idle(struct ublk_thread *t)
 
 static int ublk_thread_is_done(struct ublk_thread *t)
 {
-	return (t->state & UBLKSRV_THREAD_STOPPING) && ublk_thread_is_idle(t);
+	return (t->state & UBLKS_T_STOPPING) && ublk_thread_is_idle(t);
 }
 
-static inline void ublksrv_handle_tgt_cqe(struct ublk_queue *q,
-		struct io_uring_cqe *cqe)
+static inline void ublksrv_handle_tgt_cqe(struct ublk_thread *t,
+					  struct ublk_queue *q,
+					  struct io_uring_cqe *cqe)
 {
-	unsigned tag = user_data_to_tag(cqe->user_data);
-
 	if (cqe->res < 0 && cqe->res != -EAGAIN)
 		ublk_err("%s: failed tgt io: res %d qid %u tag %u, cmd_op %u\n",
 			__func__, cqe->res, q->q_id,
@@ -726,7 +715,41 @@ static inline void ublksrv_handle_tgt_cqe(struct ublk_queue *q,
 			user_data_to_op(cqe->user_data));
 
 	if (q->tgt_ops->tgt_io_done)
-		q->tgt_ops->tgt_io_done(q, tag, cqe);
+		q->tgt_ops->tgt_io_done(t, q, cqe);
+}
+
+static void ublk_handle_uring_cmd(struct ublk_thread *t,
+				  struct ublk_queue *q,
+				  const struct io_uring_cqe *cqe)
+{
+	int fetch = (cqe->res != UBLK_IO_RES_ABORT) &&
+		!(t->state & UBLKS_T_STOPPING);
+	unsigned tag = user_data_to_tag(cqe->user_data);
+	struct ublk_io *io = &q->ios[tag];
+
+	if (!fetch) {
+		t->state |= UBLKS_T_STOPPING;
+		io->flags &= ~UBLKS_IO_NEED_FETCH_RQ;
+	}
+
+	if (cqe->res == UBLK_IO_RES_OK) {
+		assert(tag < q->q_depth);
+		if (q->tgt_ops->queue_io)
+			q->tgt_ops->queue_io(t, q, tag);
+	} else if (cqe->res == UBLK_IO_RES_NEED_GET_DATA) {
+		io->flags |= UBLKS_IO_NEED_GET_DATA | UBLKS_IO_FREE;
+		ublk_queue_io_cmd(t, io);
+	} else {
+		/*
+		 * COMMIT_REQ will be completed immediately since no fetching
+		 * piggyback is required.
+		 *
+		 * Marking IO_FREE only, then this io won't be issued since
+		 * we only issue io with (UBLKS_IO_FREE | UBLKSRV_NEED_*)
+		 *
+		 * */
+		io->flags = UBLKS_IO_FREE;
+	}
 }
 
 static void ublk_handle_cqe(struct ublk_thread *t,
@@ -735,54 +758,27 @@ static void ublk_handle_cqe(struct ublk_thread *t,
 	struct ublk_dev *dev = t->dev;
 	unsigned q_id = user_data_to_q_id(cqe->user_data);
 	struct ublk_queue *q = &dev->q[q_id];
-	unsigned tag = user_data_to_tag(cqe->user_data);
 	unsigned cmd_op = user_data_to_op(cqe->user_data);
-	int fetch = (cqe->res != UBLK_IO_RES_ABORT) &&
-		!(t->state & UBLKSRV_THREAD_STOPPING);
-	struct ublk_io *io;
 
 	if (cqe->res < 0 && cqe->res != -ENODEV)
 		ublk_err("%s: res %d userdata %llx queue state %x\n", __func__,
-				cqe->res, cqe->user_data, q->state);
+				cqe->res, cqe->user_data, q->flags);
 
 	ublk_dbg(UBLK_DBG_IO_CMD, "%s: res %d (qid %d tag %u cmd_op %u target %d/%d) stopping %d\n",
-			__func__, cqe->res, q->q_id, tag, cmd_op,
-			is_target_io(cqe->user_data),
+			__func__, cqe->res, q->q_id, user_data_to_tag(cqe->user_data),
+			cmd_op, is_target_io(cqe->user_data),
 			user_data_to_tgt_data(cqe->user_data),
-			(t->state & UBLKSRV_THREAD_STOPPING));
+			(t->state & UBLKS_T_STOPPING));
 
 	/* Don't retrieve io in case of target io */
 	if (is_target_io(cqe->user_data)) {
-		ublksrv_handle_tgt_cqe(q, cqe);
+		ublksrv_handle_tgt_cqe(t, q, cqe);
 		return;
 	}
 
-	io = &q->ios[tag];
 	t->cmd_inflight--;
 
-	if (!fetch) {
-		t->state |= UBLKSRV_THREAD_STOPPING;
-		io->flags &= ~UBLKSRV_NEED_FETCH_RQ;
-	}
-
-	if (cqe->res == UBLK_IO_RES_OK) {
-		assert(tag < q->q_depth);
-		if (q->tgt_ops->queue_io)
-			q->tgt_ops->queue_io(q, tag);
-	} else if (cqe->res == UBLK_IO_RES_NEED_GET_DATA) {
-		io->flags |= UBLKSRV_NEED_GET_DATA | UBLKSRV_IO_FREE;
-		ublk_queue_io_cmd(io);
-	} else {
-		/*
-		 * COMMIT_REQ will be completed immediately since no fetching
-		 * piggyback is required.
-		 *
-		 * Marking IO_FREE only, then this io won't be issued since
-		 * we only issue io with (UBLKSRV_IO_FREE | UBLKSRV_NEED_*)
-		 *
-		 * */
-		io->flags = UBLKSRV_IO_FREE;
-	}
+	ublk_handle_uring_cmd(t, q, cqe);
 }
 
 static int ublk_reap_events_uring(struct ublk_thread *t)
@@ -808,7 +804,7 @@ static int ublk_process_io(struct ublk_thread *t)
 				t->dev->dev_info.dev_id,
 				t->idx, io_uring_sq_ready(&t->ring),
 				t->cmd_inflight,
-				(t->state & UBLKSRV_THREAD_STOPPING));
+				(t->state & UBLKS_T_STOPPING));
 
 	if (ublk_thread_is_done(t))
 		return -ENODEV;
@@ -817,8 +813,8 @@ static int ublk_process_io(struct ublk_thread *t)
 	reapped = ublk_reap_events_uring(t);
 
 	ublk_dbg(UBLK_DBG_THREAD, "submit result %d, reapped %d stop %d idle %d\n",
-			ret, reapped, (t->state & UBLKSRV_THREAD_STOPPING),
-			(t->state & UBLKSRV_THREAD_IDLE));
+			ret, reapped, (t->state & UBLKS_T_STOPPING),
+			(t->state & UBLKS_T_IDLE));
 
 	return reapped;
 }
@@ -915,7 +911,7 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 {
 	const struct ublksrv_ctrl_dev_info *dinfo = &dev->dev_info;
 	struct ublk_thread_info *tinfo;
-	unsigned extra_flags = 0;
+	unsigned long long extra_flags = 0;
 	cpu_set_t *affinity_buf;
 	void *thread_ret;
 	sem_t ready;
@@ -937,7 +933,7 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 		return ret;
 
 	if (ctx->auto_zc_fallback)
-		extra_flags = UBLKSRV_AUTO_BUF_REG_FALLBACK;
+		extra_flags = UBLKS_Q_AUTO_BUF_REG_FALLBACK;
 
 	for (i = 0; i < dinfo->nr_hw_queues; i++) {
 		dev->q[i].dev = dev;

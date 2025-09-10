@@ -129,6 +129,12 @@ static int iwl_mld_add_key_to_fw(struct iwl_mld *mld, u32 sta_mask,
 	bool tkip = key->cipher == WLAN_CIPHER_SUITE_TKIP;
 	int max_key_len = sizeof(cmd.u.add.key);
 
+#ifdef CONFIG_PM_SLEEP
+	/* If there was a rekey in wowlan, FW already has the key */
+	if (mld->fw_status.resuming)
+		return 0;
+#endif
+
 	if (WARN_ON(!sta_mask))
 		return -EINVAL;
 
@@ -159,6 +165,12 @@ static void iwl_mld_remove_key_from_fw(struct iwl_mld *mld, u32 sta_mask,
 		.u.remove.key_id = cpu_to_le32(keyidx),
 		.u.remove.key_flags = cpu_to_le32(key_flags),
 	};
+
+#ifdef CONFIG_PM_SLEEP
+	/* If there was a rekey in wowlan, FW already removed the key */
+	if (mld->fw_status.resuming)
+		return;
+#endif
 
 	if (WARN_ON(!sta_mask))
 		return;

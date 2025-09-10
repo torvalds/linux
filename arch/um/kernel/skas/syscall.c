@@ -9,8 +9,8 @@
 #include <kern_util.h>
 #include <sysdep/ptrace.h>
 #include <sysdep/ptrace_user.h>
-#include <sysdep/syscalls.h>
 #include <linux/time-internal.h>
+#include <asm/syscall.h>
 #include <asm/unistd.h>
 #include <asm/delay.h>
 
@@ -43,7 +43,14 @@ void handle_syscall(struct uml_pt_regs *r)
 		tt_extra_sched_jiffies += 1;
 
 	if (syscall >= 0 && syscall < __NR_syscalls) {
-		unsigned long ret = EXECUTE_SYSCALL(syscall, regs);
+		unsigned long ret;
+
+		ret = (*sys_call_table[syscall])(UPT_SYSCALL_ARG1(&regs->regs),
+						 UPT_SYSCALL_ARG2(&regs->regs),
+						 UPT_SYSCALL_ARG3(&regs->regs),
+						 UPT_SYSCALL_ARG4(&regs->regs),
+						 UPT_SYSCALL_ARG5(&regs->regs),
+						 UPT_SYSCALL_ARG6(&regs->regs));
 
 		PT_REGS_SET_SYSCALL_RETURN(regs, ret);
 

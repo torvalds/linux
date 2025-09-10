@@ -264,7 +264,7 @@ static struct platform_driver rt288x_pci_driver = {
 	},
 };
 
-int __init pcibios_init(void)
+static int __init pcibios_init(void)
 {
 	int ret = platform_driver_register(&rt288x_pci_driver);
 

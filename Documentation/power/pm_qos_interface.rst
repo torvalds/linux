@@ -52,13 +52,6 @@ int cpu_latency_qos_request_active(handle):
   Returns if the request is still active, i.e. it has not been removed from the
   CPU latency QoS list.
 
-int cpu_latency_qos_add_notifier(notifier):
-  Adds a notification callback function to the CPU latency QoS. The callback is
-  called when the aggregated value for the CPU latency QoS is changed.
-
-int cpu_latency_qos_remove_notifier(notifier):
-  Removes the notification callback function from the CPU latency QoS.
-
 
 From user space:
 

@@ -22,17 +22,12 @@
 
 #define MAX_SUPP_MAC 64
 
-struct ufs_host {
-	void (*late_init)(struct ufs_hba *hba);
-};
-
 enum intel_ufs_dsm_func_id {
 	INTEL_DSM_FNS		=  0,
 	INTEL_DSM_RESET		=  1,
 };
 
 struct intel_host {
-	struct ufs_host ufs_host;
 	u32		dsm_fns;
 	u32		active_ltr;
 	u32		idle_ltr;
@@ -408,8 +403,14 @@ static int ufs_intel_ehl_init(struct ufs_hba *hba)
 	return ufs_intel_common_init(hba);
 }
 
-static void ufs_intel_lkf_late_init(struct ufs_hba *hba)
+static int ufs_intel_lkf_init(struct ufs_hba *hba)
 {
+	int err;
+
+	hba->nop_out_timeout = 200;
+	hba->quirks |= UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8;
+	hba->caps |= UFSHCD_CAP_CRYPTO;
+	err = ufs_intel_common_init(hba);
 	/* LKF always needs a full reset, so set PM accordingly */
 	if (hba->caps & UFSHCD_CAP_DEEPSLEEP) {
 		hba->spm_lvl = UFS_PM_LVL_6;
@@ -418,19 +419,6 @@ static void ufs_intel_lkf_late_init(struct ufs_hba *hba)
 		hba->spm_lvl = UFS_PM_LVL_5;
 		hba->rpm_lvl = UFS_PM_LVL_5;
 	}
-}
-
-static int ufs_intel_lkf_init(struct ufs_hba *hba)
-{
-	struct ufs_host *ufs_host;
-	int err;
-
-	hba->nop_out_timeout = 200;
-	hba->quirks |= UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8;
-	hba->caps |= UFSHCD_CAP_CRYPTO;
-	err = ufs_intel_common_init(hba);
-	ufs_host = ufshcd_get_variant(hba);
-	ufs_host->late_init = ufs_intel_lkf_late_init;
 	return err;
 }
 
@@ -444,6 +432,8 @@ static int ufs_intel_adl_init(struct ufs_hba *hba)
 
 static int ufs_intel_mtl_init(struct ufs_hba *hba)
 {
+	hba->rpm_lvl = UFS_PM_LVL_2;
+	hba->spm_lvl = UFS_PM_LVL_2;
 	hba->caps |= UFSHCD_CAP_CRYPTO | UFSHCD_CAP_WB_EN;
 	return ufs_intel_common_init(hba);
 }
@@ -574,7 +564,6 @@ static void ufshcd_pci_remove(struct pci_dev *pdev)
 static int
 ufshcd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct ufs_host *ufs_host;
 	struct ufs_hba *hba;
 	void __iomem *mmio_base;
 	int err;
@@ -606,10 +595,6 @@ ufshcd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_err(&pdev->dev, "Initialization failed\n");
 		return err;
 	}
-
-	ufs_host = ufshcd_get_variant(hba);
-	if (ufs_host && ufs_host->late_init)
-		ufs_host->late_init(hba);
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);

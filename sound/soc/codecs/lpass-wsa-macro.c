@@ -369,7 +369,6 @@ static struct interp_sample_rate int_mix_sample_rate_val[] = {
 };
 
 enum {
-	WSA_MACRO_AIF_INVALID = 0,
 	WSA_MACRO_AIF1_PB,
 	WSA_MACRO_AIF_MIX1_PB,
 	WSA_MACRO_AIF_VI,

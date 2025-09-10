@@ -1663,7 +1663,6 @@ static int mmc_regs_show(struct seq_file *s, void *data)
 	seq_printf(s, "CAPA:\t\t0x%08x\n",
 			OMAP_HSMMC_READ(host->base, CAPA));
 
-	pm_runtime_mark_last_busy(host->dev);
 	pm_runtime_put_autosuspend(host->dev);
 
 	return 0;
@@ -1798,15 +1797,13 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	mmc = mmc_alloc_host(sizeof(struct omap_hsmmc_host), &pdev->dev);
-	if (!mmc) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(*host));
+	if (!mmc)
+		return -ENOMEM;
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
-		goto err1;
+		return ret;
 
 	host		= mmc_priv(mmc);
 	host->mmc	= mmc;
@@ -1842,7 +1839,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	if (IS_ERR(host->fclk)) {
 		ret = PTR_ERR(host->fclk);
 		host->fclk = NULL;
-		goto err1;
+		return ret;
 	}
 
 	if (host->pdata->controller_flags & OMAP_HSMMC_BROKEN_MULTIBLOCK_READ) {
@@ -1956,7 +1953,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	}
 
 	omap_hsmmc_debugfs(mmc);
-	pm_runtime_mark_last_busy(host->dev);
 	pm_runtime_put_autosuspend(host->dev);
 
 	return 0;
@@ -1973,9 +1969,6 @@ err_irq:
 	pm_runtime_put_sync(host->dev);
 	pm_runtime_disable(host->dev);
 	clk_disable_unprepare(host->dbclk);
-err1:
-	mmc_free_host(mmc);
-err:
 	return ret;
 }
 
@@ -1995,8 +1988,6 @@ static void omap_hsmmc_remove(struct platform_device *pdev)
 	pm_runtime_disable(host->dev);
 	device_init_wakeup(&pdev->dev, false);
 	clk_disable_unprepare(host->dbclk);
-
-	mmc_free_host(host->mmc);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2038,7 +2029,6 @@ static int omap_hsmmc_resume(struct device *dev)
 	if (!(host->mmc->pm_flags & MMC_PM_KEEP_POWER))
 		omap_hsmmc_conf_bus_power(host);
 
-	pm_runtime_mark_last_busy(host->dev);
 	pm_runtime_put_autosuspend(host->dev);
 	return 0;
 }

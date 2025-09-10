@@ -10,6 +10,7 @@
 #include <linux/list.h>
 #include <linux/mhi.h>
 #include <linux/module.h>
+#include <linux/string_choices.h>
 #include "internal.h"
 
 static int mhi_debugfs_states_show(struct seq_file *m, void *d)
@@ -22,7 +23,7 @@ static int mhi_debugfs_states_show(struct seq_file *m, void *d)
 		   mhi_is_active(mhi_cntrl) ? "Active" : "Inactive",
 		   mhi_state_str(mhi_cntrl->dev_state),
 		   TO_MHI_EXEC_STR(mhi_cntrl->ee),
-		   mhi_cntrl->wake_set ? "true" : "false");
+		   str_true_false(mhi_cntrl->wake_set));
 
 	/* counters */
 	seq_printf(m, "M0: %u M2: %u M3: %u", mhi_cntrl->M0, mhi_cntrl->M2,

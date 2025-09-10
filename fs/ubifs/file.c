@@ -404,7 +404,8 @@ static int allocate_budget(struct ubifs_info *c, struct folio *folio,
  * there is a plenty of flash space and the budget will be acquired quickly,
  * without forcing write-back. The slow path does not make this assumption.
  */
-static int ubifs_write_begin(struct file *file, struct address_space *mapping,
+static int ubifs_write_begin(const struct kiocb *iocb,
+			     struct address_space *mapping,
 			     loff_t pos, unsigned len,
 			     struct folio **foliop, void **fsdata)
 {
@@ -514,8 +515,9 @@ static void cancel_budget(struct ubifs_info *c, struct folio *folio,
 	}
 }
 
-static int ubifs_write_end(struct file *file, struct address_space *mapping,
-			   loff_t pos, unsigned len, unsigned copied,
+static int ubifs_write_end(const struct kiocb *iocb,
+			   struct address_space *mapping, loff_t pos,
+			   unsigned len, unsigned copied,
 			   struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
@@ -977,8 +979,7 @@ static int do_writepage(struct folio *folio, size_t len)
  * on the page lock and it would not write the truncated inode node to the
  * journal before we have finished.
  */
-static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc,
-		void *data)
+static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc)
 {
 	struct inode *inode = folio->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -1050,7 +1051,12 @@ out_unlock:
 static int ubifs_writepages(struct address_space *mapping,
 		struct writeback_control *wbc)
 {
-	return write_cache_pages(mapping, wbc, ubifs_writepage, NULL);
+	struct folio *folio = NULL;
+	int error;
+
+	while ((folio = writeback_iter(mapping, wbc, folio, &error)))
+		error = ubifs_writepage(folio, wbc);
+	return error;
 }
 
 /**
@@ -1579,17 +1585,17 @@ static const struct vm_operations_struct ubifs_file_vm_ops = {
 	.page_mkwrite = ubifs_vm_page_mkwrite,
 };
 
-static int ubifs_file_mmap(struct file *file, struct vm_area_struct *vma)
+static int ubifs_file_mmap_prepare(struct vm_area_desc *desc)
 {
 	int err;
 
-	err = generic_file_mmap(file, vma);
+	err = generic_file_mmap_prepare(desc);
 	if (err)
 		return err;
-	vma->vm_ops = &ubifs_file_vm_ops;
+	desc->vm_ops = &ubifs_file_vm_ops;
 
 	if (IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT))
-		file_accessed(file);
+		file_accessed(desc->file);
 
 	return 0;
 }
@@ -1652,7 +1658,7 @@ const struct file_operations ubifs_file_operations = {
 	.llseek         = generic_file_llseek,
 	.read_iter      = generic_file_read_iter,
 	.write_iter     = ubifs_write_iter,
-	.mmap           = ubifs_file_mmap,
+	.mmap_prepare   = ubifs_file_mmap_prepare,
 	.fsync          = ubifs_fsync,
 	.unlocked_ioctl = ubifs_ioctl,
 	.splice_read	= filemap_splice_read,

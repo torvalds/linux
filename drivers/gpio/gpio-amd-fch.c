@@ -165,7 +165,7 @@ static int amd_fch_gpio_probe(struct platform_device *pdev)
 	priv->gc.direction_output	= amd_fch_gpio_direction_output;
 	priv->gc.get_direction		= amd_fch_gpio_get_direction;
 	priv->gc.get			= amd_fch_gpio_get;
-	priv->gc.set_rv			= amd_fch_gpio_set;
+	priv->gc.set			= amd_fch_gpio_set;
 
 	spin_lock_init(&priv->lock);
 

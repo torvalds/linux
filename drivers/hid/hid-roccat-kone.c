@@ -385,8 +385,8 @@ static ssize_t kone_sysfs_write_profilex(struct file *fp,
 static const struct bin_attribute bin_attr_profile##number = {	\
 	.attr = { .name = "profile" #number, .mode = 0660 },	\
 	.size = sizeof(struct kone_profile),			\
-	.read_new = kone_sysfs_read_profilex,			\
-	.write_new = kone_sysfs_write_profilex,			\
+	.read = kone_sysfs_read_profilex,			\
+	.write = kone_sysfs_write_profilex,			\
 	.private = &profile_numbers[number-1],			\
 }
 PROFILE_ATTR(1);
@@ -646,7 +646,7 @@ static const struct bin_attribute *const kone_bin_attributes[] = {
 
 static const struct attribute_group kone_group = {
 	.attrs = kone_attrs,
-	.bin_attrs_new = kone_bin_attributes,
+	.bin_attrs = kone_bin_attributes,
 };
 
 static const struct attribute_group *kone_groups[] = {

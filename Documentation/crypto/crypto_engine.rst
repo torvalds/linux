@@ -36,12 +36,6 @@ engine using ``crypto_engine_stop()`` and destroy the engine with
 Before transferring any request, you have to fill the context enginectx by
 providing functions for the following:
 
-* ``prepare_crypt_hardware``: Called once before any prepare functions are
-  called.
-
-* ``unprepare_crypt_hardware``: Called once after all unprepare functions have
-  been called.
-
 * ``prepare_cipher_request``/``prepare_hash_request``: Called before each
   corresponding request is performed. If some processing or other preparatory
   work is required, do it here.

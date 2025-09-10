@@ -402,9 +402,6 @@ static int jdi_panel_add(struct jdi_panel *jdi)
 		return dev_err_probe(dev, PTR_ERR(jdi->backlight),
 				     "failed to register backlight %d\n", ret);
 
-	drm_panel_init(&jdi->base, &jdi->dsi->dev, &jdi_panel_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
-
 	drm_panel_add(&jdi->base);
 
 	return 0;
@@ -426,9 +423,11 @@ static int jdi_panel_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags =  MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO |
 			   MIPI_DSI_CLOCK_NON_CONTINUOUS;
 
-	jdi = devm_kzalloc(&dsi->dev, sizeof(*jdi), GFP_KERNEL);
-	if (!jdi)
-		return -ENOMEM;
+	jdi = devm_drm_panel_alloc(&dsi->dev, __typeof(*jdi), base,
+				   &jdi_panel_funcs, DRM_MODE_CONNECTOR_DSI);
+
+	if (IS_ERR(jdi))
+		return PTR_ERR(jdi);
 
 	mipi_dsi_set_drvdata(dsi, jdi);
 

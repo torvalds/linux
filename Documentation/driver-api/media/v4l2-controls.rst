@@ -110,6 +110,7 @@ For sub-device drivers:
 
 	v4l2_ctrl_handler_free(&foo->ctrl_handler);
 
+:c:func:`v4l2_ctrl_handler_free` does not touch the handler's ``error`` field.
 
 2) Add controls:
 
@@ -191,12 +192,8 @@ These functions are typically called right after the
 			V4L2_CID_TEST_PATTERN, ARRAY_SIZE(test_pattern) - 1, 0,
 			0, test_pattern);
 	...
-	if (foo->ctrl_handler.error) {
-		int err = foo->ctrl_handler.error;
-
-		v4l2_ctrl_handler_free(&foo->ctrl_handler);
-		return err;
-	}
+	if (foo->ctrl_handler.error)
+		return v4l2_ctrl_handler_free(&foo->ctrl_handler);
 
 The :c:func:`v4l2_ctrl_new_std` function returns the v4l2_ctrl pointer to
 the new control, but if you do not need to access the pointer outside the

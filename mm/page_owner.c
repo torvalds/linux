@@ -333,9 +333,9 @@ noinline void __set_page_owner(struct page *page, unsigned short order,
 	inc_stack_record_count(handle, gfp_mask, 1 << order);
 }
 
-void __set_page_owner_migrate_reason(struct page *page, int reason)
+void __folio_set_owner_migrate_reason(struct folio *folio, int reason)
 {
-	struct page_ext *page_ext = page_ext_get(page);
+	struct page_ext *page_ext = page_ext_get(&folio->page);
 	struct page_owner *page_owner;
 
 	if (unlikely(!page_ext))

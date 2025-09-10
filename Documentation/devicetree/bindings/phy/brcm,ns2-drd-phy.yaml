@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/brcm,ns2-drd-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom Northstar2 USB2 Dual Role Device PHY
+
+maintainers:
+  - Florian Fainelli <florian.fainelli@broadcom.com>
+  - Hauke Mehrtens <hauke@hauke-m.de>
+  - Rafał Miłecki <zajec5@gmail.com>
+
+properties:
+  compatible:
+    const: brcm,ns2-drd-phy
+
+  reg:
+    items:
+      - description: DRD ICFG configurations
+      - description: DRD IDM reset
+      - description: CRMU core vdd, PHY and PHY PLL reset
+      - description: Port over current polarity reversal
+
+  reg-names:
+    items:
+      - const: icfg
+      - const: rst-ctrl
+      - const: crmu-ctrl
+      - const: usb2-strap
+
+  '#phy-cells':
+    const: 0
+
+  id-gpios:
+    maxItems: 1
+    description: ID GPIO line
+
+  vbus-gpios:
+    maxItems: 1
+    description: VBUS GPIO line
+
+required:
+  - '#phy-cells'
+  - compatible
+  - reg
+  - reg-names
+  - id-gpios
+  - vbus-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    phy@66000960 {
+        #phy-cells = <0>;
+        compatible = "brcm,ns2-drd-phy";
+        reg = <0x66000960 0x24>, <0x67012800 0x4>, <0x6501d148 0x4>, <0x664d0700 0x4>;
+        reg-names = "icfg", "rst-ctrl", "crmu-ctrl", "usb2-strap";
+        id-gpios = <&gpio_g 30 0>;
+        vbus-gpios = <&gpio_g 31 0>;
+    };

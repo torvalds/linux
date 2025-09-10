@@ -242,7 +242,7 @@ static int qed_mfw_get_tlv_group(u8 tlv_type, u8 *tlv_group)
 }
 
 /* Returns size of the data buffer or, -1 in case TLV data is not available. */
-static int
+static noinline_for_stack int
 qed_mfw_get_gen_tlv_value(struct qed_drv_tlv_hdr *p_tlv,
 			  struct qed_mfw_tlv_generic *p_drv_buf,
 			  struct qed_tlv_parsed_buf *p_buf)
@@ -304,7 +304,7 @@ qed_mfw_get_gen_tlv_value(struct qed_drv_tlv_hdr *p_tlv,
 	return -1;
 }
 
-static int
+static noinline_for_stack int
 qed_mfw_get_eth_tlv_value(struct qed_drv_tlv_hdr *p_tlv,
 			  struct qed_mfw_tlv_eth *p_drv_buf,
 			  struct qed_tlv_parsed_buf *p_buf)
@@ -438,7 +438,7 @@ qed_mfw_get_tlv_time_value(struct qed_mfw_tlv_time *p_time,
 	return QED_MFW_TLV_TIME_SIZE;
 }
 
-static int
+static noinline_for_stack int
 qed_mfw_get_fcoe_tlv_value(struct qed_drv_tlv_hdr *p_tlv,
 			   struct qed_mfw_tlv_fcoe *p_drv_buf,
 			   struct qed_tlv_parsed_buf *p_buf)
@@ -1073,7 +1073,7 @@ qed_mfw_get_fcoe_tlv_value(struct qed_drv_tlv_hdr *p_tlv,
 	return -1;
 }
 
-static int
+static noinline_for_stack int
 qed_mfw_get_iscsi_tlv_value(struct qed_drv_tlv_hdr *p_tlv,
 			    struct qed_mfw_tlv_iscsi *p_drv_buf,
 			    struct qed_tlv_parsed_buf *p_buf)

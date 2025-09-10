@@ -77,6 +77,7 @@ TARGETS += net/ovpn
 TARGETS += net/packetdrill
 TARGETS += net/rds
 TARGETS += net/tcp_ao
+TARGETS += nolibc
 TARGETS += nsfs
 TARGETS += pci_endpoint
 TARGETS += pcie_bwctrl
@@ -293,6 +294,14 @@ ifdef INSTALL_PATH
 		$(MAKE) -s --no-print-directory OUTPUT=$$BUILD_TARGET COLLECTION=$$TARGET \
 			-C $$TARGET emit_tests >> $(TEST_LIST); \
 	done;
+	@VERSION=$$(git describe HEAD 2>/dev/null); \
+	if [ -n "$$VERSION" ]; then \
+		echo "$$VERSION" > $(INSTALL_PATH)/VERSION; \
+		printf "Version saved to $(INSTALL_PATH)/VERSION\n"; \
+	else \
+		printf "Unable to get version from git describe\n"; \
+	fi
+	@echo "**Kselftest Installation is complete: $(INSTALL_PATH)**"
 else
 	$(error Error: set INSTALL_PATH to use install)
 endif

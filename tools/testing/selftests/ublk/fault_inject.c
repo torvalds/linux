@@ -38,7 +38,8 @@ static int ublk_fault_inject_tgt_init(const struct dev_ctx *ctx,
 	return 0;
 }
 
-static int ublk_fault_inject_queue_io(struct ublk_queue *q, int tag)
+static int ublk_fault_inject_queue_io(struct ublk_thread *t,
+				      struct ublk_queue *q, int tag)
 {
 	const struct ublksrv_io_desc *iod = ublk_get_iod(q, tag);
 	struct io_uring_sqe *sqe;
@@ -46,25 +47,27 @@ static int ublk_fault_inject_queue_io(struct ublk_queue *q, int tag)
 		.tv_nsec = (long long)q->dev->private_data,
 	};
 
-	ublk_io_alloc_sqes(ublk_get_io(q, tag), &sqe, 1);
+	ublk_io_alloc_sqes(t, &sqe, 1);
 	io_uring_prep_timeout(sqe, &ts, 1, 0);
 	sqe->user_data = build_user_data(tag, ublksrv_get_op(iod), 0, q->q_id, 1);
 
-	ublk_queued_tgt_io(q, tag, 1);
+	ublk_queued_tgt_io(t, q, tag, 1);
 
 	return 0;
 }
 
-static void ublk_fault_inject_tgt_io_done(struct ublk_queue *q, int tag,
+static void ublk_fault_inject_tgt_io_done(struct ublk_thread *t,
+					  struct ublk_queue *q,
 					  const struct io_uring_cqe *cqe)
 {
+	unsigned tag = user_data_to_tag(cqe->user_data);
 	const struct ublksrv_io_desc *iod = ublk_get_iod(q, tag);
 
 	if (cqe->res != -ETIME)
 		ublk_err("%s: unexpected cqe res %d\n", __func__, cqe->res);
 
-	if (ublk_completed_tgt_io(q, tag))
-		ublk_complete_io(q, tag, iod->nr_sectors << 9);
+	if (ublk_completed_tgt_io(t, q, tag))
+		ublk_complete_io(t, q, tag, iod->nr_sectors << 9);
 	else
 		ublk_err("%s: io not complete after 1 cqe\n", __func__);
 }

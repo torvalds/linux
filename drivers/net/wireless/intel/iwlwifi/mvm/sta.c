@@ -2461,7 +2461,7 @@ void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
 	mvmvif->deflink.bcast_sta.tfd_queue_msk &= ~BIT(queue);
 }
 
-/* Send the FW a request to remove the station from it's internal data
+/* Send the FW a request to remove the station from its internal data
  * structures, but DO NOT remove the entry from the local data structures. */
 int iwl_mvm_send_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
@@ -2524,7 +2524,7 @@ void iwl_mvm_dealloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 }
 
 /*
- * Send the FW a request to remove the station from it's internal data
+ * Send the FW a request to remove the station from its internal data
  * structures, and in addition remove it from the local data structure.
  */
 int iwl_mvm_rm_p2p_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
@@ -2677,7 +2677,7 @@ static int __iwl_mvm_remove_sta_key(struct iwl_mvm *mvm, u8 sta_id,
 }
 
 /*
- * Send the FW a request to remove the station from it's internal data
+ * Send the FW a request to remove the station from its internal data
  * structures, and in addition remove it from the local data structure.
  */
 int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)

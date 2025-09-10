@@ -505,6 +505,30 @@ void hubp3_init(struct hubp *hubp)
 	hubp_reset(hubp);
 }
 
+uint32_t hubp3_get_current_read_line(struct hubp *hubp)
+{
+	uint32_t read_line = 0;
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	REG_GET(HUBPRET_READ_LINE_VALUE,
+		PIPE_READ_LINE,
+		&read_line);
+
+	return read_line;
+}
+
+unsigned int hubp3_get_underflow_status(struct hubp *hubp)
+{
+	uint32_t hubp_underflow = 0;
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	REG_GET(DCHUBP_CNTL,
+		HUBP_UNDERFLOW_STATUS,
+		&hubp_underflow);
+
+	return hubp_underflow;
+}
+
 static struct hubp_funcs dcn30_hubp_funcs = {
 	.hubp_enable_tripleBuffer = hubp2_enable_triplebuffer,
 	.hubp_is_triplebuffer_enabled = hubp2_is_triplebuffer_enabled,
@@ -534,6 +558,8 @@ static struct hubp_funcs dcn30_hubp_funcs = {
 	.hubp_soft_reset = hubp1_soft_reset,
 	.hubp_set_flip_int = hubp1_set_flip_int,
 	.hubp_clear_tiling = hubp3_clear_tiling,
+	.hubp_get_underflow_status = hubp3_get_underflow_status,
+	.hubp_get_current_read_line = hubp3_get_current_read_line,
 };
 
 bool hubp3_construct(

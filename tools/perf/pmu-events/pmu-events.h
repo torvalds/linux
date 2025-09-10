@@ -25,15 +25,21 @@ enum metric_event_groups {
 	 */
 	MetricNoGroupEvents = 1,
 	/**
-	 * @MetricNoGroupEventsNmi: Don't group events for the metric if the NMI
-	 *                          watchdog is enabled.
+	 * @MetricNoGroupEventsNmi:
+	 * Don't group events for the metric if the NMI watchdog is enabled.
 	 */
 	MetricNoGroupEventsNmi = 2,
 	/**
-	 * @MetricNoGroupEventsSmt: Don't group events for the metric if SMT is
-	 *                          enabled.
+	 * @MetricNoGroupEventsSmt:
+	 * Don't group events for the metric if SMT is enabled.
 	 */
 	MetricNoGroupEventsSmt = 3,
+	/**
+	 * @MetricNoGroupEventsThresholdAndNmi:
+	 * Don't group events for the metric thresholds and if the NMI watchdog
+	 * is enabled.
+	 */
+	MetricNoGroupEventsThresholdAndNmi = 4,
 };
 /*
  * Describe each PMU event. Each CPU has a table of PMU events.

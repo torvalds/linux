@@ -34,11 +34,10 @@ u32 mt76_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
 	struct mtk_wed_bm_desc *desc = wed->rx_buf_ring.desc;
 	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
-	int i, len = SKB_WITH_OVERHEAD(q->buf_size);
 	struct mt76_txwi_cache *t = NULL;
+	int i;
 
 	for (i = 0; i < size; i++) {
-		enum dma_data_direction dir;
 		dma_addr_t addr;
 		u32 offset;
 		int token;
@@ -53,9 +52,6 @@ u32 mt76_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 			goto unmap;
 
 		addr = page_pool_get_dma_addr(virt_to_head_page(buf)) + offset;
-		dir = page_pool_get_dma_dir(q->page_pool);
-		dma_sync_single_for_device(dev->dma_dev, addr, len, dir);
-
 		desc->buf0 = cpu_to_le32(addr);
 		token = mt76_rx_token_consume(dev, buf, t, addr);
 		if (token < 0) {

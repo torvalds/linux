@@ -426,28 +426,22 @@ static int sdhci_esdhc_mcf_probe(struct platform_device *pdev)
 	host->flags |= SDHCI_AUTO_CMD12;
 
 	mcf_data->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
-	if (IS_ERR(mcf_data->clk_ipg)) {
-		err = PTR_ERR(mcf_data->clk_ipg);
-		goto err_exit;
-	}
+	if (IS_ERR(mcf_data->clk_ipg))
+		return PTR_ERR(mcf_data->clk_ipg);
 
 	mcf_data->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
-	if (IS_ERR(mcf_data->clk_ahb)) {
-		err = PTR_ERR(mcf_data->clk_ahb);
-		goto err_exit;
-	}
+	if (IS_ERR(mcf_data->clk_ahb))
+		return PTR_ERR(mcf_data->clk_ahb);
 
 	mcf_data->clk_per = devm_clk_get(&pdev->dev, "per");
-	if (IS_ERR(mcf_data->clk_per)) {
-		err = PTR_ERR(mcf_data->clk_per);
-		goto err_exit;
-	}
+	if (IS_ERR(mcf_data->clk_per))
+		return PTR_ERR(mcf_data->clk_per);
 
 	pltfm_host->clk = mcf_data->clk_per;
 	pltfm_host->clock = clk_get_rate(pltfm_host->clk);
 	err = clk_prepare_enable(mcf_data->clk_per);
 	if (err)
-		goto err_exit;
+		return err;
 
 	err = clk_prepare_enable(mcf_data->clk_ipg);
 	if (err)
@@ -485,9 +479,6 @@ unprep_ipg:
 	clk_disable_unprepare(mcf_data->clk_ipg);
 unprep_per:
 	clk_disable_unprepare(mcf_data->clk_per);
-err_exit:
-	sdhci_pltfm_free(pdev);
-
 	return err;
 }
 
@@ -502,8 +493,6 @@ static void sdhci_esdhc_mcf_remove(struct platform_device *pdev)
 	clk_disable_unprepare(mcf_data->clk_ipg);
 	clk_disable_unprepare(mcf_data->clk_ahb);
 	clk_disable_unprepare(mcf_data->clk_per);
-
-	sdhci_pltfm_free(pdev);
 }
 
 static struct platform_driver sdhci_esdhc_mcf_driver = {

@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# AMD Hardware Feedback Interface Driver
+#
+
+config AMD_HFI
+	bool "AMD Hetero Core Hardware Feedback Driver"
+	depends on ACPI
+	depends on CPU_SUP_AMD
+	depends on SCHED_MC_PRIO
+	help
+	  Select this option to enable the AMD Heterogeneous Core Hardware
+	  Feedback Interface. If selected, hardware provides runtime thread
+	  classification guidance to the operating system on the performance and
+	  energy efficiency capabilities of each heterogeneous CPU core. These
+	  capabilities may vary due to the inherent differences in the core types
+	  and can also change as a result of variations in the operating
+	  conditions of the system such as power and thermal limits.

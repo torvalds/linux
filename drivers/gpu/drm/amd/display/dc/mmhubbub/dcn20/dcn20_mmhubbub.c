@@ -284,7 +284,7 @@ void mcifwb2_dump_frame(struct mcif_wb *mcif_wb,
 
 	REG_UPDATE(MCIF_WB_BUFMGR_SW_CONTROL, MCIF_WB_BUFMGR_SW_LOCK, 0xf);
 
-	memcpy(dest_luma_buffer,   luma_buffer,   mcif_params->luma_pitch * dest_height);
+	memcpy(dest_luma_buffer,   luma_buffer,   (size_t)mcif_params->luma_pitch * dest_height);
 	memcpy(dest_chroma_buffer, chroma_buffer, mcif_params->chroma_pitch * dest_height / 2);
 
 	REG_UPDATE(MCIF_WB_BUFMGR_SW_CONTROL, MCIF_WB_BUFMGR_SW_LOCK, 0x0);

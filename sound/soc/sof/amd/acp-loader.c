@@ -65,7 +65,7 @@ int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_t
 			dma_size = page_count * ACP_PAGE_SIZE;
 			adata->bin_buf = dma_alloc_coherent(&pci->dev, dma_size,
 							    &adata->sha_dma_addr,
-							    GFP_ATOMIC);
+							    GFP_KERNEL);
 			if (!adata->bin_buf)
 				return -ENOMEM;
 		}
@@ -77,7 +77,7 @@ int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_t
 			adata->data_buf = dma_alloc_coherent(&pci->dev,
 							     ACP_DEFAULT_DRAM_LENGTH,
 							     &adata->dma_addr,
-							     GFP_ATOMIC);
+							     GFP_KERNEL);
 			if (!adata->data_buf)
 				return -ENOMEM;
 		}
@@ -90,7 +90,7 @@ int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_t
 			adata->sram_data_buf = dma_alloc_coherent(&pci->dev,
 								  ACP_DEFAULT_SRAM_LENGTH,
 								  &adata->sram_dma_addr,
-								  GFP_ATOMIC);
+								  GFP_KERNEL);
 			if (!adata->sram_data_buf)
 				return -ENOMEM;
 		}

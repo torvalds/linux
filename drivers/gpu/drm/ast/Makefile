@@ -4,6 +4,11 @@
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
 ast-y := \
+	ast_2000.o \
+	ast_2100.o \
+	ast_2300.o \
+	ast_2500.o \
+	ast_2600.o \
 	ast_cursor.o \
 	ast_ddc.o \
 	ast_dp501.o \

@@ -95,6 +95,7 @@ struct xsk_socket_info {
 	u32 batch_size;
 	u8 dst_mac[ETH_ALEN];
 	u8 src_mac[ETH_ALEN];
+	bool check_consumer;
 };
 
 struct pkt {

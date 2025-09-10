@@ -285,9 +285,10 @@ static int orangefs_read_folio(struct file *file, struct folio *folio)
 	return ret;
 }
 
-static int orangefs_write_begin(struct file *file,
-		struct address_space *mapping, loff_t pos, unsigned len,
-		struct folio **foliop, void **fsdata)
+static int orangefs_write_begin(const struct kiocb *iocb,
+				struct address_space *mapping, loff_t pos,
+				unsigned len, struct folio **foliop,
+				void **fsdata)
 {
 	struct orangefs_write_range *wr;
 	struct folio *folio;
@@ -340,9 +341,10 @@ okay:
 	return 0;
 }
 
-static int orangefs_write_end(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, unsigned copied, struct folio *folio,
-		void *fsdata)
+static int orangefs_write_end(const struct kiocb *iocb,
+			      struct address_space *mapping,
+			      loff_t pos, unsigned len, unsigned copied,
+			      struct folio *folio, void *fsdata)
 {
 	struct inode *inode = folio->mapping->host;
 	loff_t last_pos = pos + copied;
@@ -372,7 +374,7 @@ static int orangefs_write_end(struct file *file, struct address_space *mapping,
 	folio_unlock(folio);
 	folio_put(folio);
 
-	mark_inode_dirty_sync(file_inode(file));
+	mark_inode_dirty_sync(file_inode(iocb->ki_filp));
 	return copied;
 }
 
@@ -887,7 +889,7 @@ int orangefs_update_time(struct inode *inode, int flags)
 	return __orangefs_setattr(inode, &iattr);
 }
 
-static int orangefs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+static int orangefs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	u64 val = 0;
 	int ret;
@@ -908,7 +910,7 @@ static int orangefs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 }
 
 static int orangefs_fileattr_set(struct mnt_idmap *idmap,
-				 struct dentry *dentry, struct fileattr *fa)
+				 struct dentry *dentry, struct file_kattr *fa)
 {
 	u64 val = 0;
 

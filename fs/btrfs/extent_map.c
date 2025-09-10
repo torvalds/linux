@@ -84,7 +84,7 @@ static void remove_em(struct btrfs_inode *inode, struct extent_map *em)
 	rb_erase(&em->rb_node, &inode->extent_tree.root);
 	RB_CLEAR_NODE(&em->rb_node);
 
-	if (!btrfs_is_testing(fs_info) && is_fstree(btrfs_root_id(inode->root)))
+	if (!btrfs_is_testing(fs_info) && btrfs_is_fstree(btrfs_root_id(inode->root)))
 		percpu_counter_dec(&fs_info->evictable_extent_maps);
 }
 
@@ -502,7 +502,7 @@ static int add_extent_mapping(struct btrfs_inode *inode,
 
 	setup_extent_mapping(inode, em, modified);
 
-	if (!btrfs_is_testing(fs_info) && is_fstree(btrfs_root_id(root)))
+	if (!btrfs_is_testing(fs_info) && btrfs_is_fstree(btrfs_root_id(root)))
 		percpu_counter_inc(&fs_info->evictable_extent_maps);
 
 	return 0;
@@ -1337,7 +1337,7 @@ static void btrfs_extent_map_shrinker_worker(struct work_struct *work)
 		if (!root)
 			continue;
 
-		if (is_fstree(btrfs_root_id(root)))
+		if (btrfs_is_fstree(btrfs_root_id(root)))
 			nr_dropped += btrfs_scan_root(root, &ctx);
 
 		btrfs_put_root(root);

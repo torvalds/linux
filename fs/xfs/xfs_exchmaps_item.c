@@ -558,12 +558,12 @@ xlog_recover_xmi_commit_pass2(
 	size_t				len;
 
 	len = sizeof(struct xfs_xmi_log_format);
-	if (item->ri_buf[0].i_len != len) {
+	if (item->ri_buf[0].iov_len != len) {
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, log->l_mp);
 		return -EFSCORRUPTED;
 	}
 
-	xmi_formatp = item->ri_buf[0].i_addr;
+	xmi_formatp = item->ri_buf[0].iov_base;
 	if (xmi_formatp->__pad != 0) {
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, log->l_mp);
 		return -EFSCORRUPTED;
@@ -598,8 +598,8 @@ xlog_recover_xmd_commit_pass2(
 {
 	struct xfs_xmd_log_format	*xmd_formatp;
 
-	xmd_formatp = item->ri_buf[0].i_addr;
-	if (item->ri_buf[0].i_len != sizeof(struct xfs_xmd_log_format)) {
+	xmd_formatp = item->ri_buf[0].iov_base;
+	if (item->ri_buf[0].iov_len != sizeof(struct xfs_xmd_log_format)) {
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, log->l_mp);
 		return -EFSCORRUPTED;
 	}

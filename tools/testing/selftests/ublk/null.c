@@ -55,12 +55,13 @@ static void __setup_nop_io(int tag, const struct ublksrv_io_desc *iod,
 	sqe->user_data = build_user_data(tag, ublk_op, 0, q_id, 1);
 }
 
-static int null_queue_zc_io(struct ublk_queue *q, int tag)
+static int null_queue_zc_io(struct ublk_thread *t, struct ublk_queue *q,
+			    int tag)
 {
 	const struct ublksrv_io_desc *iod = ublk_get_iod(q, tag);
 	struct io_uring_sqe *sqe[3];
 
-	ublk_io_alloc_sqes(ublk_get_io(q, tag), sqe, 3);
+	ublk_io_alloc_sqes(t, sqe, 3);
 
 	io_uring_prep_buf_register(sqe[0], 0, tag, q->q_id, ublk_get_io(q, tag)->buf_index);
 	sqe[0]->user_data = build_user_data(tag,
@@ -77,19 +78,21 @@ static int null_queue_zc_io(struct ublk_queue *q, int tag)
 	return 2;
 }
 
-static int null_queue_auto_zc_io(struct ublk_queue *q, int tag)
+static int null_queue_auto_zc_io(struct ublk_thread *t, struct ublk_queue *q,
+				 int tag)
 {
 	const struct ublksrv_io_desc *iod = ublk_get_iod(q, tag);
 	struct io_uring_sqe *sqe[1];
 
-	ublk_io_alloc_sqes(ublk_get_io(q, tag), sqe, 1);
+	ublk_io_alloc_sqes(t, sqe, 1);
 	__setup_nop_io(tag, iod, sqe[0], q->q_id);
 	return 1;
 }
 
-static void ublk_null_io_done(struct ublk_queue *q, int tag,
-		const struct io_uring_cqe *cqe)
+static void ublk_null_io_done(struct ublk_thread *t, struct ublk_queue *q,
+			      const struct io_uring_cqe *cqe)
 {
+	unsigned tag = user_data_to_tag(cqe->user_data);
 	unsigned op = user_data_to_op(cqe->user_data);
 	struct ublk_io *io = ublk_get_io(q, tag);
 
@@ -105,11 +108,12 @@ static void ublk_null_io_done(struct ublk_queue *q, int tag,
 	if (op == ublk_cmd_op_nr(UBLK_U_IO_REGISTER_IO_BUF))
 		io->tgt_ios += 1;
 
-	if (ublk_completed_tgt_io(q, tag))
-		ublk_complete_io(q, tag, io->result);
+	if (ublk_completed_tgt_io(t, q, tag))
+		ublk_complete_io(t, q, tag, io->result);
 }
 
-static int ublk_null_queue_io(struct ublk_queue *q, int tag)
+static int ublk_null_queue_io(struct ublk_thread *t, struct ublk_queue *q,
+			      int tag)
 {
 	const struct ublksrv_io_desc *iod = ublk_get_iod(q, tag);
 	unsigned auto_zc = ublk_queue_use_auto_zc(q);
@@ -117,14 +121,14 @@ static int ublk_null_queue_io(struct ublk_queue *q, int tag)
 	int queued;
 
 	if (auto_zc && !ublk_io_auto_zc_fallback(iod))
-		queued = null_queue_auto_zc_io(q, tag);
+		queued = null_queue_auto_zc_io(t, q, tag);
 	else if (zc)
-		queued = null_queue_zc_io(q, tag);
+		queued = null_queue_zc_io(t, q, tag);
 	else {
-		ublk_complete_io(q, tag, iod->nr_sectors << 9);
+		ublk_complete_io(t, q, tag, iod->nr_sectors << 9);
 		return 0;
 	}
-	ublk_queued_tgt_io(q, tag, queued);
+	ublk_queued_tgt_io(t, q, tag, queued);
 	return 0;
 }
 
@@ -134,7 +138,7 @@ static int ublk_null_queue_io(struct ublk_queue *q, int tag)
  */
 static unsigned short ublk_null_buf_index(const struct ublk_queue *q, int tag)
 {
-	if (q->state & UBLKSRV_AUTO_BUF_REG_FALLBACK)
+	if (ublk_queue_auto_zc_fallback(q))
 		return (unsigned short)-1;
 	return q->ios[tag].buf_index;
 }

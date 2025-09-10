@@ -52,7 +52,7 @@ ath12k_write_simulate_fw_crash(struct file *file,
 	struct ath12k_base *ab = file->private_data;
 	struct ath12k_pdev *pdev;
 	struct ath12k *ar = NULL;
-	char buf[32] = {0};
+	char buf[32] = {};
 	int i, ret;
 	ssize_t rc;
 
@@ -816,7 +816,7 @@ static ssize_t ath12k_write_extd_rx_stats(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct ath12k *ar = file->private_data;
-	struct htt_rx_ring_tlv_filter tlv_filter = {0};
+	struct htt_rx_ring_tlv_filter tlv_filter = {};
 	u32 ring_id, rx_filter = 0;
 	bool enable;
 	int ret, i;
@@ -1217,7 +1217,7 @@ void ath12k_debugfs_pdev_create(struct ath12k_base *ab)
 void ath12k_debugfs_soc_create(struct ath12k_base *ab)
 {
 	bool dput_needed;
-	char soc_name[64] = { 0 };
+	char soc_name[64] = {};
 	struct dentry *debugfs_ath12k;
 
 	debugfs_ath12k = debugfs_lookup("ath12k", NULL);
@@ -1249,64 +1249,6 @@ void ath12k_debugfs_soc_destroy(struct ath12k_base *ab)
 	 * a minor cosmetic issue to leave an empty ath12k directory to
 	 * debugfs.
 	 */
-}
-
-void
-ath12k_debugfs_fw_stats_process(struct ath12k *ar,
-				struct ath12k_fw_stats *stats)
-{
-	struct ath12k_base *ab = ar->ab;
-	struct ath12k_pdev *pdev;
-	bool is_end;
-	static unsigned int num_vdev, num_bcn;
-	size_t total_vdevs_started = 0;
-	int i;
-
-	if (stats->stats_id == WMI_REQUEST_VDEV_STAT) {
-		if (list_empty(&stats->vdevs)) {
-			ath12k_warn(ab, "empty vdev stats");
-			return;
-		}
-		/* FW sends all the active VDEV stats irrespective of PDEV,
-		 * hence limit until the count of all VDEVs started
-		 */
-		rcu_read_lock();
-		for (i = 0; i < ab->num_radios; i++) {
-			pdev = rcu_dereference(ab->pdevs_active[i]);
-			if (pdev && pdev->ar)
-				total_vdevs_started += pdev->ar->num_started_vdevs;
-		}
-		rcu_read_unlock();
-
-		is_end = ((++num_vdev) == total_vdevs_started);
-
-		list_splice_tail_init(&stats->vdevs,
-				      &ar->fw_stats.vdevs);
-
-		if (is_end) {
-			ar->fw_stats.fw_stats_done = true;
-			num_vdev = 0;
-		}
-		return;
-	}
-	if (stats->stats_id == WMI_REQUEST_BCN_STAT) {
-		if (list_empty(&stats->bcn)) {
-			ath12k_warn(ab, "empty beacon stats");
-			return;
-		}
-		/* Mark end until we reached the count of all started VDEVs
-		 * within the PDEV
-		 */
-		is_end = ((++num_bcn) == ar->num_started_vdevs);
-
-		list_splice_tail_init(&stats->bcn,
-				      &ar->fw_stats.bcn);
-
-		if (is_end) {
-			ar->fw_stats.fw_stats_done = true;
-			num_bcn = 0;
-		}
-	}
 }
 
 static int ath12k_open_vdev_stats(struct inode *inode, struct file *file)
@@ -1528,7 +1470,7 @@ void ath12k_debugfs_register(struct ath12k *ar)
 	struct ath12k_base *ab = ar->ab;
 	struct ieee80211_hw *hw = ar->ah->hw;
 	char pdev_name[5];
-	char buf[100] = {0};
+	char buf[100] = {};
 
 	scnprintf(pdev_name, sizeof(pdev_name), "%s%d", "mac", ar->pdev_idx);
 

@@ -24,8 +24,6 @@
  *
  */
 
-#include <linux/vmalloc.h>
-
 #include "display_mode_core.h"
 #include "dml2_internal_types.h"
 #include "dml2_utils.h"
@@ -95,12 +93,17 @@ static void map_hw_resources(struct dml2_context *dml2,
 
 static unsigned int pack_and_call_dml_mode_support_ex(struct dml2_context *dml2,
 	const struct dml_display_cfg_st *display_cfg,
-	struct dml_mode_support_info_st *evaluation_info)
+	struct dml_mode_support_info_st *evaluation_info,
+	enum dc_validate_mode validate_mode)
 {
 	struct dml2_wrapper_scratch *s = &dml2->v20.scratch;
 
 	s->mode_support_params.mode_lib = &dml2->v20.dml_core_ctx;
 	s->mode_support_params.in_display_cfg = display_cfg;
+	if (validate_mode == DC_VALIDATE_MODE_ONLY)
+		s->mode_support_params.in_start_state_idx = dml2->v20.dml_core_ctx.states.num_states - 1;
+	else
+		s->mode_support_params.in_start_state_idx = 0;
 	s->mode_support_params.out_evaluation_info = evaluation_info;
 
 	memset(evaluation_info, 0, sizeof(struct dml_mode_support_info_st));
@@ -112,10 +115,8 @@ static unsigned int pack_and_call_dml_mode_support_ex(struct dml2_context *dml2,
 static bool optimize_configuration(struct dml2_context *dml2, struct dml2_wrapper_optimize_configuration_params *p)
 {
 	int unused_dpps = p->ip_params->max_num_dpp;
-	int i, j;
-	int odms_needed, refresh_rate_hz, dpps_needed, subvp_height, pstate_width_fw_delay_lines, surface_count;
-	int subvp_timing_to_add, new_timing_index, subvp_surface_to_add, new_surface_index;
-	float frame_time_sec, max_frame_time_sec;
+	int i;
+	int odms_needed;
 	int largest_blend_and_timing = 0;
 	bool optimization_done = false;
 
@@ -130,79 +131,6 @@ static bool optimize_configuration(struct dml2_context *dml2, struct dml2_wrappe
 	if (p->new_display_config != p->cur_display_config)
 		*p->new_display_config = *p->cur_display_config;
 
-	// Optimize P-State Support
-	if (dml2->config.use_native_pstate_optimization) {
-		if (p->cur_mode_support_info->DRAMClockChangeSupport[0] == dml_dram_clock_change_unsupported) {
-			// Find a display with < 120Hz refresh rate with maximal refresh rate that's not already subvp
-			subvp_timing_to_add = -1;
-			subvp_surface_to_add = -1;
-			max_frame_time_sec = 0;
-			surface_count = 0;
-			for (i = 0; i < (int) p->cur_display_config->num_timings; i++) {
-				refresh_rate_hz = (int)div_u64((unsigned long long) p->cur_display_config->timing.PixelClock[i] * 1000 * 1000,
-					(p->cur_display_config->timing.HTotal[i] * p->cur_display_config->timing.VTotal[i]));
-				if (refresh_rate_hz < 120) {
-					// Check its upstream surfaces to see if this one could be converted to subvp.
-					dpps_needed = 0;
-				for (j = 0; j < (int) p->cur_display_config->num_surfaces; j++) {
-					if (p->cur_display_config->plane.BlendingAndTiming[j] == i &&
-						p->cur_display_config->plane.UseMALLForPStateChange[j] == dml_use_mall_pstate_change_disable) {
-						dpps_needed += p->cur_mode_support_info->DPPPerSurface[j];
-						subvp_surface_to_add = j;
-						surface_count++;
-					}
-				}
-
-				if (surface_count == 1 && dpps_needed > 0 && dpps_needed <= unused_dpps) {
-					frame_time_sec = (float)1 / refresh_rate_hz;
-					if (frame_time_sec > max_frame_time_sec) {
-						max_frame_time_sec = frame_time_sec;
-						subvp_timing_to_add = i;
-						}
-					}
-				}
-			}
-			if (subvp_timing_to_add >= 0) {
-				new_timing_index = p->new_display_config->num_timings++;
-				new_surface_index = p->new_display_config->num_surfaces++;
-				// Add a phantom pipe reflecting the main pipe's timing
-				dml2_util_copy_dml_timing(&p->new_display_config->timing, new_timing_index, subvp_timing_to_add);
-
-				pstate_width_fw_delay_lines = (int)(((double)(p->config->svp_pstate.subvp_fw_processing_delay_us +
-					p->config->svp_pstate.subvp_pstate_allow_width_us) / 1000000) *
-				(p->new_display_config->timing.PixelClock[subvp_timing_to_add] * 1000 * 1000) /
-				(double)p->new_display_config->timing.HTotal[subvp_timing_to_add]);
-
-				subvp_height = p->cur_mode_support_info->SubViewportLinesNeededInMALL[subvp_timing_to_add] + pstate_width_fw_delay_lines;
-
-				p->new_display_config->timing.VActive[new_timing_index] = subvp_height;
-				p->new_display_config->timing.VTotal[new_timing_index] = subvp_height +
-				p->new_display_config->timing.VTotal[subvp_timing_to_add] - p->new_display_config->timing.VActive[subvp_timing_to_add];
-
-				p->new_display_config->output.OutputDisabled[new_timing_index] = true;
-
-				p->new_display_config->plane.UseMALLForPStateChange[subvp_surface_to_add] = dml_use_mall_pstate_change_sub_viewport;
-
-				dml2_util_copy_dml_plane(&p->new_display_config->plane, new_surface_index, subvp_surface_to_add);
-				dml2_util_copy_dml_surface(&p->new_display_config->surface, new_surface_index, subvp_surface_to_add);
-
-				p->new_display_config->plane.ViewportHeight[new_surface_index] = subvp_height;
-				p->new_display_config->plane.ViewportHeightChroma[new_surface_index] = subvp_height;
-				p->new_display_config->plane.ViewportStationary[new_surface_index] = false;
-
-				p->new_display_config->plane.UseMALLForStaticScreen[new_surface_index] = dml_use_mall_static_screen_disable;
-				p->new_display_config->plane.UseMALLForPStateChange[new_surface_index] = dml_use_mall_pstate_change_phantom_pipe;
-
-				p->new_display_config->plane.NumberOfCursors[new_surface_index] = 0;
-
-				p->new_policy->ImmediateFlipRequirement[new_surface_index] = dml_immediate_flip_not_required;
-
-				p->new_display_config->plane.BlendingAndTiming[new_surface_index] = new_timing_index;
-
-				optimization_done = true;
-			}
-		}
-	}
 
 	// Optimize Clocks
 	if (!optimization_done) {
@@ -226,7 +154,8 @@ static bool optimize_configuration(struct dml2_context *dml2, struct dml2_wrappe
 	return optimization_done;
 }
 
-static int calculate_lowest_supported_state_for_temp_read(struct dml2_context *dml2, struct dc_state *display_state)
+static int calculate_lowest_supported_state_for_temp_read(struct dml2_context *dml2, struct dc_state *display_state,
+		enum dc_validate_mode validate_mode)
 {
 	struct dml2_calculate_lowest_supported_state_for_temp_read_scratch *s = &dml2->v20.scratch.dml2_calculate_lowest_supported_state_for_temp_read_scratch;
 	struct dml2_wrapper_scratch *s_global = &dml2->v20.scratch;
@@ -268,7 +197,8 @@ static int calculate_lowest_supported_state_for_temp_read(struct dml2_context *d
 			dml2->v20.dml_core_ctx.states.state_array[j].dram_clock_change_latency_us = s_global->dummy_pstate_table[i].dummy_pstate_latency_us;
 		}
 
-		dml_result = pack_and_call_dml_mode_support_ex(dml2, &s->cur_display_config, &s->evaluation_info);
+		dml_result = pack_and_call_dml_mode_support_ex(dml2, &s->cur_display_config, &s->evaluation_info,
+						validate_mode);
 
 		if (dml_result && s->evaluation_info.DRAMClockChangeSupport[0] == dml_dram_clock_change_vactive) {
 			map_hw_resources(dml2, &s->cur_display_config, &s->evaluation_info);
@@ -333,7 +263,8 @@ static bool does_configuration_meet_sw_policies(struct dml2_context *ctx, const 
 }
 
 static bool dml_mode_support_wrapper(struct dml2_context *dml2,
-		struct dc_state *display_state)
+		struct dc_state *display_state,
+		enum dc_validate_mode validate_mode)
 {
 	struct dml2_wrapper_scratch *s = &dml2->v20.scratch;
 	unsigned int result = 0, i;
@@ -369,7 +300,8 @@ static bool dml_mode_support_wrapper(struct dml2_context *dml2,
 
 	result = pack_and_call_dml_mode_support_ex(dml2,
 		&s->cur_display_config,
-		&s->mode_support_info);
+		&s->mode_support_info,
+		validate_mode);
 
 	if (result)
 		result = does_configuration_meet_sw_policies(dml2, &s->cur_display_config, &s->mode_support_info);
@@ -390,7 +322,8 @@ static bool dml_mode_support_wrapper(struct dml2_context *dml2,
 			dml2->v20.dml_core_ctx.policy = s->new_policy;
 			optimized_result = pack_and_call_dml_mode_support_ex(dml2,
 				&s->new_display_config,
-				&s->mode_support_info);
+				&s->mode_support_info,
+				validate_mode);
 
 			if (optimized_result)
 				optimized_result = does_configuration_meet_sw_policies(dml2, &s->new_display_config, &s->mode_support_info);
@@ -409,7 +342,8 @@ static bool dml_mode_support_wrapper(struct dml2_context *dml2,
 		if (!optimized_result) {
 			result = pack_and_call_dml_mode_support_ex(dml2,
 				&s->cur_display_config,
-				&s->mode_support_info);
+				&s->mode_support_info,
+				validate_mode);
 		}
 	}
 
@@ -419,118 +353,7 @@ static bool dml_mode_support_wrapper(struct dml2_context *dml2,
 	return result;
 }
 
-static int find_drr_eligible_stream(struct dc_state *display_state)
-{
-	int i;
-
-	for (i = 0; i < display_state->stream_count; i++) {
-		if (dc_state_get_stream_subvp_type(display_state, display_state->streams[i]) == SUBVP_NONE
-			&& display_state->streams[i]->ignore_msa_timing_param) {
-			// Use ignore_msa_timing_param flag to identify as DRR
-			return i;
-		}
-	}
-
-	return -1;
-}
-
-static bool optimize_pstate_with_svp_and_drr(struct dml2_context *dml2, struct dc_state *display_state)
-{
-	struct dml2_wrapper_scratch *s = &dml2->v20.scratch;
-	bool pstate_optimization_done = false;
-	bool pstate_optimization_success = false;
-	bool result = false;
-	int drr_display_index = 0, non_svp_streams = 0;
-	bool force_svp = dml2->config.svp_pstate.force_enable_subvp;
-
-	display_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
-	display_state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index_valid = false;
-
-	result = dml_mode_support_wrapper(dml2, display_state);
-
-	if (!result) {
-		pstate_optimization_done = true;
-	} else if (s->mode_support_info.DRAMClockChangeSupport[0] != dml_dram_clock_change_unsupported && !force_svp) {
-		pstate_optimization_success = true;
-		pstate_optimization_done = true;
-	}
-
-	if (display_state->stream_count == 1 && dml2->config.callbacks.can_support_mclk_switch_using_fw_based_vblank_stretch(dml2->config.callbacks.dc, display_state)) {
-			display_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = true;
-
-			result = dml_mode_support_wrapper(dml2, display_state);
-	} else {
-		non_svp_streams = display_state->stream_count;
-
-		while (!pstate_optimization_done) {
-			result = dml_mode_programming(&dml2->v20.dml_core_ctx, s->mode_support_params.out_lowest_state_idx, &s->cur_display_config, true);
-
-			// Always try adding SVP first
-			if (result)
-				result = dml2_svp_add_phantom_pipe_to_dc_state(dml2, display_state, &s->mode_support_info);
-			else
-				pstate_optimization_done = true;
-
-
-			if (result) {
-				result = dml_mode_support_wrapper(dml2, display_state);
-			} else {
-				pstate_optimization_done = true;
-			}
-
-			if (result) {
-				non_svp_streams--;
-
-				if (s->mode_support_info.DRAMClockChangeSupport[0] != dml_dram_clock_change_unsupported) {
-					if (dml2_svp_validate_static_schedulability(dml2, display_state, s->mode_support_info.DRAMClockChangeSupport[0])) {
-						pstate_optimization_success = true;
-						pstate_optimization_done = true;
-					} else {
-						pstate_optimization_success = false;
-						pstate_optimization_done = false;
-					}
-				} else {
-					drr_display_index = find_drr_eligible_stream(display_state);
-
-					// If there is only 1 remaining non SubVP pipe that is DRR, check static
-					// schedulability for SubVP + DRR.
-					if (non_svp_streams == 1 && drr_display_index >= 0) {
-						if (dml2_svp_drr_schedulable(dml2, display_state, &display_state->streams[drr_display_index]->timing)) {
-							display_state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index_valid = true;
-							display_state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index = drr_display_index;
-							result = dml_mode_support_wrapper(dml2, display_state);
-						}
-
-						if (result && s->mode_support_info.DRAMClockChangeSupport[0] != dml_dram_clock_change_unsupported) {
-							pstate_optimization_success = true;
-							pstate_optimization_done = true;
-						} else {
-							pstate_optimization_success = false;
-							pstate_optimization_done = false;
-						}
-					}
-
-					if (pstate_optimization_success) {
-						pstate_optimization_done = true;
-					} else {
-						pstate_optimization_done = false;
-					}
-				}
-			}
-		}
-	}
-
-	if (!pstate_optimization_success) {
-		dml2_svp_remove_all_phantom_pipes(dml2, display_state);
-		display_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
-		display_state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index_valid = false;
-		result = dml_mode_support_wrapper(dml2, display_state);
-	}
-
-	return result;
-}
-
-static bool call_dml_mode_support_and_programming(struct dc_state *context)
+static bool call_dml_mode_support_and_programming(struct dc_state *context, enum dc_validate_mode validate_mode)
 {
 	unsigned int result = 0;
 	unsigned int min_state = 0;
@@ -544,16 +367,13 @@ static bool call_dml_mode_support_and_programming(struct dc_state *context)
 	struct dml2_wrapper_scratch *s = &dml2->v20.scratch;
 
 	if (!context->streams[0]->sink->link->dc->caps.is_apu) {
-		min_state_for_g6_temp_read = calculate_lowest_supported_state_for_temp_read(dml2, context);
+		min_state_for_g6_temp_read = calculate_lowest_supported_state_for_temp_read(dml2, context,
+										validate_mode);
 
 		ASSERT(min_state_for_g6_temp_read >= 0);
 	}
 
-	if (!dml2->config.use_native_pstate_optimization) {
-		result = optimize_pstate_with_svp_and_drr(dml2, context);
-	} else {
-		result = dml_mode_support_wrapper(dml2, context);
-	}
+	result = dml_mode_support_wrapper(dml2, context, validate_mode);
 
 	/* Upon trying to sett certain frequencies in FRL, min_state_for_g6_temp_read is reported as -1. This leads to an invalid value of min_state causing crashes later on.
 	 * Use the default logic for min_state only when min_state_for_g6_temp_read is a valid value. In other cases, use the value calculated by the DML directly.
@@ -575,7 +395,8 @@ static bool call_dml_mode_support_and_programming(struct dc_state *context)
 	return result;
 }
 
-static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_state *context)
+static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_state *context,
+		enum dc_validate_mode validate_mode)
 {
 	struct dml2_context *dml2 = context->bw_ctx.dml2;
 	struct dml2_wrapper_scratch *s = &dml2->v20.scratch;
@@ -611,7 +432,7 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 
 	copy_dummy_pstate_table(s->dummy_pstate_table, in_dc->clk_mgr->bw_params->dummy_pstate_table, 4);
 
-	result = call_dml_mode_support_and_programming(context);
+	result = call_dml_mode_support_and_programming(context, validate_mode);
 	/* Call map dc pipes to map the pipes based on the DML output. For correctly determining if recalculation
 	 * is required or not, the resource context needs to correctly reflect the number of active pipes. We would
 	 * only know the correct number if active pipes after dml2_map_dc_pipes is called.
@@ -628,7 +449,7 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 		need_recalculation = dml2_verify_det_buffer_configuration(dml2, context, &dml2->det_helper_scratch);
 		if (need_recalculation) {
 			/* Engage the DML again if recalculation is required. */
-			call_dml_mode_support_and_programming(context);
+			call_dml_mode_support_and_programming(context, validate_mode);
 			if (!dml2->config.skip_hw_state_mapping) {
 				dml2_map_dc_pipes(dml2, context, &s->cur_display_config, &s->dml_to_dc_pipe_mapping, in_dc->current_state);
 			}
@@ -684,7 +505,7 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 	return result;
 }
 
-static bool dml2_validate_only(struct dc_state *context)
+static bool dml2_validate_only(struct dc_state *context, enum dc_validate_mode validate_mode)
 {
 	struct dml2_context *dml2;
 	unsigned int result = 0;
@@ -708,7 +529,8 @@ static bool dml2_validate_only(struct dc_state *context)
 
 	result = pack_and_call_dml_mode_support_ex(dml2,
 		&dml2->v20.scratch.cur_display_config,
-		&dml2->v20.scratch.mode_support_info);
+		&dml2->v20.scratch.mode_support_info,
+		validate_mode);
 
 	if (result)
 		result = does_configuration_meet_sw_policies(dml2, &dml2->v20.scratch.cur_display_config, &dml2->v20.scratch.mode_support_info);
@@ -723,7 +545,8 @@ static void dml2_apply_debug_options(const struct dc *dc, struct dml2_context *d
 	}
 }
 
-bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml2, bool fast_validate)
+bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml2,
+	enum dc_validate_mode validate_mode)
 {
 	bool out = false;
 
@@ -733,17 +556,17 @@ bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2
 
 	/* DML2.1 validation path */
 	if (dml2->architecture == dml2_architecture_21) {
-		out = dml21_validate(in_dc, context, dml2, fast_validate);
+		out = dml21_validate(in_dc, context, dml2, validate_mode);
 		return out;
 	}
 
 	DC_FP_START();
 
-	/* Use dml_validate_only for fast_validate path */
-	if (fast_validate)
-		out = dml2_validate_only(context);
+	/* Use dml_validate_only for DC_VALIDATE_MODE_ONLY and DC_VALIDATE_MODE_AND_STATE_INDEX path */
+	if (validate_mode != DC_VALIDATE_MODE_AND_PROGRAMMING)
+		out = dml2_validate_only(context, validate_mode);
 	else
-		out = dml2_validate_and_build_resource(in_dc, context);
+		out = dml2_validate_and_build_resource(in_dc, context, validate_mode);
 
 	DC_FP_END();
 
@@ -757,8 +580,8 @@ static inline struct dml2_context *dml2_allocate_memory(void)
 
 static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
 {
-	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01)) {
-		dml21_reinit(in_dc, dml2, config);
+	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version >= DCN_VERSION_4_01)) {
+		dml21_reinit(in_dc, *dml2, config);
 		return;
 	}
 
@@ -803,9 +626,7 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
 bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
 {
 	// TODO : Temporarily add DCN_VERSION_3_2 for N-1 validation. Remove DCN_VERSION_3_2 after N-1 validation phase is complete.
-	if ((in_dc->debug.using_dml21)
-			&& (in_dc->ctx->dce_version == DCN_VERSION_4_01
-		))
+	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version >= DCN_VERSION_4_01))
 		return dml21_create(in_dc, dml2, config);
 
 	// Allocate Mode Lib Ctx
@@ -874,8 +695,8 @@ void dml2_reinit(const struct dc *in_dc,
 				 const struct dml2_configuration_options *config,
 				 struct dml2_context **dml2)
 {
-	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01)) {
-		dml21_reinit(in_dc, dml2, config);
+	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version >= DCN_VERSION_4_01)) {
+		dml21_reinit(in_dc, *dml2, config);
 		return;
 	}
 

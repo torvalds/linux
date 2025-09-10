@@ -240,6 +240,10 @@ static void otx2vf_disable_mbox_intr(struct otx2_nic *vf)
 
 	/* Disable VF => PF mailbox IRQ */
 	otx2_write64(vf, RVU_VF_INT_ENA_W1C, BIT_ULL(0));
+
+	if (is_cn20k(vf->pdev))
+		otx2_write64(vf, RVU_VF_INT_ENA_W1C, BIT_ULL(0) | BIT_ULL(1));
+
 	free_irq(vector, vf);
 }
 
@@ -252,9 +256,18 @@ static int otx2vf_register_mbox_intr(struct otx2_nic *vf, bool probe_pf)
 
 	/* Register mailbox interrupt handler */
 	irq_name = &hw->irq_name[RVU_VF_INT_VEC_MBOX * NAME_SIZE];
-	snprintf(irq_name, NAME_SIZE, "RVUVFAF Mbox");
-	err = request_irq(pci_irq_vector(vf->pdev, RVU_VF_INT_VEC_MBOX),
-			  otx2vf_vfaf_mbox_intr_handler, 0, irq_name, vf);
+	snprintf(irq_name, NAME_SIZE, "RVUVF%d AFVF Mbox", ((vf->pcifunc &
+		 RVU_PFVF_FUNC_MASK) - 1));
+
+	if (!is_cn20k(vf->pdev)) {
+		err = request_irq(pci_irq_vector(vf->pdev, RVU_VF_INT_VEC_MBOX),
+				  otx2vf_vfaf_mbox_intr_handler, 0, irq_name, vf);
+	} else {
+		err = request_irq(pci_irq_vector(vf->pdev, RVU_VF_INT_VEC_MBOX),
+				  vf->hw_ops->vfaf_mbox_intr_handler, 0, irq_name,
+				  vf);
+	}
+
 	if (err) {
 		dev_err(vf->dev,
 			"RVUPF: IRQ registration failed for VFAF mbox irq\n");
@@ -264,8 +277,15 @@ static int otx2vf_register_mbox_intr(struct otx2_nic *vf, bool probe_pf)
 	/* Enable mailbox interrupt for msgs coming from PF.
 	 * First clear to avoid spurious interrupts, if any.
 	 */
-	otx2_write64(vf, RVU_VF_INT, BIT_ULL(0));
-	otx2_write64(vf, RVU_VF_INT_ENA_W1S, BIT_ULL(0));
+	if (!is_cn20k(vf->pdev)) {
+		otx2_write64(vf, RVU_VF_INT, BIT_ULL(0));
+		otx2_write64(vf, RVU_VF_INT_ENA_W1S, BIT_ULL(0));
+	} else {
+		otx2_write64(vf, RVU_VF_INT, BIT_ULL(0) | BIT_ULL(1) |
+			     BIT_ULL(2) | BIT_ULL(3));
+		otx2_write64(vf, RVU_VF_INT_ENA_W1S, BIT_ULL(0) |
+			     BIT_ULL(1) | BIT_ULL(2) | BIT_ULL(3));
+	}
 
 	if (!probe_pf)
 		return 0;
@@ -315,7 +335,13 @@ static int otx2vf_vfaf_mbox_init(struct otx2_nic *vf)
 	if (!vf->mbox_wq)
 		return -ENOMEM;
 
-	if (test_bit(CN10K_MBOX, &vf->hw.cap_flag)) {
+	/* For cn20k platform, VF mailbox region is in dram aliased from AF
+	 * VF MBOX ADDR, MBOX is a separate RVU block.
+	 */
+	if (is_cn20k(vf->pdev)) {
+		hwbase = vf->reg_base + RVU_VF_MBOX_REGION + ((u64)BLKADDR_MBOX <<
+			RVU_FUNC_BLKADDR_SHIFT);
+	} else if (test_bit(CN10K_MBOX, &vf->hw.cap_flag)) {
 		/* For cn10k platform, VF mailbox region is in its BAR2
 		 * register space
 		 */
@@ -616,6 +642,12 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	otx2_setup_dev_hw_settings(vf);
+
+	if (is_cn20k(vf->pdev))
+		cn20k_init(vf);
+	else
+		otx2_init_hw_ops(vf);
+
 	/* Init VF <=> PF mailbox stuff */
 	err = otx2vf_vfaf_mbox_init(vf);
 	if (err)

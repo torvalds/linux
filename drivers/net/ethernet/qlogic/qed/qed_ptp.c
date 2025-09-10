@@ -307,7 +307,7 @@ static int qed_ptp_hw_adjfreq(struct qed_dev *cdev, s32 ppb)
 	} else if (ppb == 1) {
 		/* This is a special case as its the only value which wouldn't
 		 * fit in a s64 variable. In order to prevent castings simple
-		 * handle it seperately.
+		 * handle it separately.
 		 */
 		best_val = 4;
 		best_period = 0xee6b27f;

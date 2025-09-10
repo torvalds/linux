@@ -2,7 +2,7 @@
 #ifndef _ASM_ALTERNATIVE_ASM_H
 #define _ASM_ALTERNATIVE_ASM_H
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #include <asm/asm.h>
 
@@ -77,6 +77,6 @@
 	.previous
 .endm
 
-#endif  /*  __ASSEMBLY__  */
+#endif  /*  __ASSEMBLER__  */
 
 #endif /* _ASM_ALTERNATIVE_ASM_H */

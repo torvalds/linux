@@ -78,6 +78,8 @@ Groups:
     -ENXIO   The group or attribute is unknown/unsupported for this device
              or hardware support is missing.
     -EFAULT  Invalid user pointer for attr->addr.
+    -EBUSY   Attempt to write a register that is read-only after
+             initialization
     =======  =============================================================
 
 
@@ -120,12 +122,24 @@ Groups:
     Note that distributor fields are not banked, but return the same value
     regardless of the mpidr used to access the register.
 
+    Userspace is allowed to write the following register fields prior to
+    initialization of the VGIC:
+
+      * GICD_IIDR.Revision
+      * GICD_TYPER2.nASSGIcap
+
     GICD_IIDR.Revision is updated when the KVM implementation is changed in a
     way directly observable by the guest or userspace.  Userspace should read
     GICD_IIDR from KVM and write back the read value to confirm its expected
     behavior is aligned with the KVM implementation.  Userspace should set
     GICD_IIDR before setting any other registers to ensure the expected
     behavior.
+
+
+    GICD_TYPER2.nASSGIcap allows userspace to control the support of SGIs
+    without an active state. At VGIC creation the field resets to the
+    maximum capability of the system. Userspace is expected to read the field
+    to determine the supported value(s) before writing to the field.
 
 
     The GICD_STATUSR and GICR_STATUSR registers are architecturally defined such
@@ -202,16 +216,69 @@ Groups:
     KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS accesses the CPU interface registers for the
     CPU specified by the mpidr field.
 
-    CPU interface registers access is not implemented for AArch32 mode.
-    Error -ENXIO is returned when accessed in AArch32 mode.
+    The available registers are:
+
+    ===============  ====================================================
+    ICC_PMR_EL1
+    ICC_BPR0_EL1
+    ICC_AP0R0_EL1
+    ICC_AP0R1_EL1    when the host implements at least 6 bits of priority
+    ICC_AP0R2_EL1    when the host implements 7 bits of priority
+    ICC_AP0R3_EL1    when the host implements 7 bits of priority
+    ICC_AP1R0_EL1
+    ICC_AP1R1_EL1    when the host implements at least 6 bits of priority
+    ICC_AP1R2_EL1    when the host implements 7 bits of priority
+    ICC_AP1R3_EL1    when the host implements 7 bits of priority
+    ICC_BPR1_EL1
+    ICC_CTLR_EL1
+    ICC_SRE_EL1
+    ICC_IGRPEN0_EL1
+    ICC_IGRPEN1_EL1
+    ===============  ====================================================
+
+    When EL2 is available for the guest, these registers are also available:
+
+    =============  ====================================================
+    ICH_AP0R0_EL2
+    ICH_AP0R1_EL2  when the host implements at least 6 bits of priority
+    ICH_AP0R2_EL2  when the host implements 7 bits of priority
+    ICH_AP0R3_EL2  when the host implements 7 bits of priority
+    ICH_AP1R0_EL2
+    ICH_AP1R1_EL2  when the host implements at least 6 bits of priority
+    ICH_AP1R2_EL2  when the host implements 7 bits of priority
+    ICH_AP1R3_EL2  when the host implements 7 bits of priority
+    ICH_HCR_EL2
+    ICC_SRE_EL2
+    ICH_VTR_EL2
+    ICH_VMCR_EL2
+    ICH_LR0_EL2
+    ICH_LR1_EL2
+    ICH_LR2_EL2
+    ICH_LR3_EL2
+    ICH_LR4_EL2
+    ICH_LR5_EL2
+    ICH_LR6_EL2
+    ICH_LR7_EL2
+    ICH_LR8_EL2
+    ICH_LR9_EL2
+    ICH_LR10_EL2
+    ICH_LR11_EL2
+    ICH_LR12_EL2
+    ICH_LR13_EL2
+    ICH_LR14_EL2
+    ICH_LR15_EL2
+    =============  ====================================================
+
+    CPU interface registers are only described using the AArch64
+    encoding.
 
   Errors:
 
-    =======  =====================================================
-    -ENXIO   Getting or setting this register is not yet supported
+    =======  =================================================
+    -ENXIO   Getting or setting this register is not supported
     -EBUSY   VCPU is running
     -EINVAL  Invalid mpidr or register value supplied
-    =======  =====================================================
+    =======  =================================================
 
 
   KVM_DEV_ARM_VGIC_GRP_NR_IRQS

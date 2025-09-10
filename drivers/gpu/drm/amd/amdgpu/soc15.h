@@ -118,7 +118,6 @@ int vega10_reg_base_init(struct amdgpu_device *adev);
 int vega20_reg_base_init(struct amdgpu_device *adev);
 int arct_reg_base_init(struct amdgpu_device *adev);
 int aldebaran_reg_base_init(struct amdgpu_device *adev);
-void aqua_vanjaram_ip_map_init(struct amdgpu_device *adev);
 u64 aqua_vanjaram_encode_ext_smn_addressing(int ext_id);
 int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev);
 ssize_t aqua_vanjaram_get_reg_state(struct amdgpu_device *adev,

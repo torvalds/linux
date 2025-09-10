@@ -424,9 +424,9 @@ do_check_time:
 	if (fw_hb_ready != idev->fw_hb_ready) {
 		idev->fw_hb_ready = fw_hb_ready;
 		if (!fw_hb_ready)
-			dev_info(ionic->dev, "FW heartbeat stalled at %d\n", fw_hb);
+			dev_info(ionic->dev, "FW heartbeat stalled at %u\n", fw_hb);
 		else
-			dev_info(ionic->dev, "FW heartbeat restored at %d\n", fw_hb);
+			dev_info(ionic->dev, "FW heartbeat restored at %u\n", fw_hb);
 	}
 
 	if (!fw_hb_ready)

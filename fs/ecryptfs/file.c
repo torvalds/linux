@@ -193,7 +193,7 @@ static int ecryptfs_mmap(struct file *file, struct vm_area_struct *vma)
 	 * natively.  If FILESYSTEM_MAX_STACK_DEPTH > 2 or ecryptfs
 	 * allows recursive mounting, this will need to be extended.
 	 */
-	if (!lower_file->f_op->mmap)
+	if (!can_mmap_file(lower_file))
 		return -ENODEV;
 	return generic_file_mmap(file, vma);
 }

@@ -616,9 +616,10 @@ static void usb_audio_make_shortname(struct usb_device *dev,
 	    usb_string(dev, dev->descriptor.iProduct,
 		       card->shortname, sizeof(card->shortname)) <= 0) {
 		/* no name available from anywhere, so use ID */
-		sprintf(card->shortname, "USB Device %#04x:%#04x",
-			USB_ID_VENDOR(chip->usb_id),
-			USB_ID_PRODUCT(chip->usb_id));
+		scnprintf(card->shortname, sizeof(card->shortname),
+			  "USB Device %#04x:%#04x",
+			  USB_ID_VENDOR(chip->usb_id),
+			  USB_ID_PRODUCT(chip->usb_id));
 	}
 
 	strim(card->shortname);
@@ -756,9 +757,9 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 
 	card->private_free = snd_usb_audio_free;
 
-	strcpy(card->driver, "USB-Audio");
-	sprintf(component, "USB%04x:%04x",
-		USB_ID_VENDOR(chip->usb_id), USB_ID_PRODUCT(chip->usb_id));
+	strscpy(card->driver, "USB-Audio");
+	scnprintf(component, sizeof(component), "USB%04x:%04x",
+		  USB_ID_VENDOR(chip->usb_id), USB_ID_PRODUCT(chip->usb_id));
 	snd_component_add(card, component);
 
 	usb_audio_make_shortname(dev, chip, quirk);

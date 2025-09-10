@@ -29,6 +29,13 @@ properties:
               - fsl,ls1088a-gpio
               - fsl,ls2080a-gpio
           - const: fsl,qoriq-gpio
+      - items:
+          - enum:
+              - fsl,mpc8308-gpio
+              - fsl,mpc8377-gpio
+              - fsl,mpc8378-gpio
+              - fsl,mpc8379-gpio
+          - const: fsl,mpc8349-gpio
 
   reg:
     maxItems: 1

@@ -171,23 +171,48 @@ Below is a simple example of the perf mem tool.
 	# perf mem report
 
 A normal perf mem report output will provide detailed memory access profile.
-However, it can also be aggregated based on output fields. For example:
+New output fields will show related access info together.  For example:
 
-	# perf mem report -F mem,sample,snoop
-	Samples: 3M of event 'ibs_op//', Event count (approx.): 23524876
-	Memory access                                 Samples  Snoop
-	N/A                                           1903343  N/A
-	L1 hit                                        1056754  N/A
-	L2 hit                                          75231  N/A
-	L3 hit                                           9496  HitM
-	L3 hit                                           2270  N/A
-	RAM hit                                          8710  N/A
-	Remote node, same socket RAM hit                 3241  N/A
-	Remote core, same node Any cache hit             1572  HitM
-	Remote core, same node Any cache hit              514  N/A
-	Remote node, same socket Any cache hit           1216  HitM
-	Remote node, same socket Any cache hit            350  N/A
-	Uncached hit                                       18  N/A
+	# perf mem report -F overhead,cache,snoop,comm
+	...
+	# Samples: 92K of event 'ibs_op//'
+	# Total weight : 531104
+	#
+	#           ---------- Cache -----------  --- Snoop ----
+	# Overhead       L1     L2 L1-buf  Other     HitM  Other  Command
+	# ........  ............................  ..............  ..........
+	#
+	    76.07%     5.8%  35.7%   0.0%  34.6%    23.3%  52.8%  cc1
+	     5.79%     0.2%   0.0%   0.0%   5.6%     0.1%   5.7%  make
+	     5.78%     0.1%   4.4%   0.0%   1.2%     0.5%   5.3%  gcc
+	     5.33%     0.3%   3.9%   0.0%   1.1%     0.2%   5.2%  as
+	     5.00%     0.1%   3.8%   0.0%   1.0%     0.3%   4.7%  sh
+	     1.56%     0.1%   0.1%   0.0%   1.4%     0.6%   0.9%  ld
+	     0.28%     0.1%   0.0%   0.0%   0.2%     0.1%   0.2%  pkg-config
+	     0.09%     0.0%   0.0%   0.0%   0.1%     0.0%   0.1%  git
+	     0.03%     0.0%   0.0%   0.0%   0.0%     0.0%   0.0%  rm
+	     ...
+
+Also, it can be aggregated based on various memory access info using the
+sort keys.  For example:
+
+	# perf mem report -s mem,snoop
+	...
+	# Samples: 92K of event 'ibs_op//'
+	# Total weight : 531104
+	# Sort order   : mem,snoop
+	#
+	# Overhead       Samples  Memory access                            Snoop
+	# ........  ............  .......................................  ............
+	#
+	    47.99%          1509  L2 hit                                   N/A
+	    25.08%           338  core, same node Any cache hit            HitM
+	    10.24%         54374  N/A                                      N/A
+	     6.77%         35938  L1 hit                                   N/A
+	     6.39%           101  core, same node Any cache hit            N/A
+	     3.50%            69  RAM hit                                  N/A
+	     0.03%           158  LFB/MAB hit                              N/A
+	     0.00%             2  Uncached hit                             N/A
 
 Please refer to their man page for more detail.
 

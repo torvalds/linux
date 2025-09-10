@@ -413,15 +413,8 @@ static int igt_mock_splintered_region(void *arg)
 
 	close_objects(mem, &objects);
 
-	/*
-	 * While we should be able allocate everything without any flag
-	 * restrictions, if we consider I915_BO_ALLOC_CONTIGUOUS then we are
-	 * actually limited to the largest power-of-two for the region size i.e
-	 * max_order, due to the inner workings of the buddy allocator. So make
-	 * sure that does indeed hold true.
-	 */
-
-	obj = igt_object_create(mem, &objects, size, I915_BO_ALLOC_CONTIGUOUS);
+	obj = igt_object_create(mem, &objects, roundup_pow_of_two(size),
+				I915_BO_ALLOC_CONTIGUOUS);
 	if (!IS_ERR(obj)) {
 		pr_err("%s too large contiguous allocation was not rejected\n",
 		       __func__);
@@ -429,8 +422,7 @@ static int igt_mock_splintered_region(void *arg)
 		goto out_close;
 	}
 
-	obj = igt_object_create(mem, &objects, rounddown_pow_of_two(size),
-				I915_BO_ALLOC_CONTIGUOUS);
+	obj = igt_object_create(mem, &objects, size, I915_BO_ALLOC_CONTIGUOUS);
 	if (IS_ERR(obj)) {
 		pr_err("%s largest possible contiguous allocation failed\n",
 		       __func__);

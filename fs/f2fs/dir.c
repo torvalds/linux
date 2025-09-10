@@ -454,7 +454,7 @@ static void init_dent_inode(struct inode *dir, struct inode *inode,
 	f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 
 	/* copy name info. to this inode folio */
-	ri = F2FS_INODE(&ifolio->page);
+	ri = F2FS_INODE(ifolio);
 	ri->i_namelen = cpu_to_le32(fname->disk_name.len);
 	memcpy(ri->i_name, fname->disk_name.name, fname->disk_name.len);
 	if (IS_ENCRYPTED(dir)) {
@@ -897,7 +897,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct folio *folio,
 		f2fs_clear_page_cache_dirty_tag(folio);
 		folio_clear_dirty_for_io(folio);
 		folio_clear_uptodate(folio);
-		clear_page_private_all(&folio->page);
+		folio_detach_private(folio);
 
 		inode_dec_dirty_pages(dir);
 		f2fs_remove_dirty_inode(dir);

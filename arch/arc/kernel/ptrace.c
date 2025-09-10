@@ -284,7 +284,7 @@ enum arc_getset {
 
 static const struct user_regset arc_regsets[] = {
 	[REGSET_CMN] = {
-	       .core_note_type = NT_PRSTATUS,
+	       USER_REGSET_NOTE_TYPE(PRSTATUS),
 	       .n = ELF_NGREG,
 	       .size = sizeof(unsigned long),
 	       .align = sizeof(unsigned long),
@@ -293,7 +293,7 @@ static const struct user_regset arc_regsets[] = {
 	},
 #ifdef CONFIG_ISA_ARCV2
 	[REGSET_ARCV2] = {
-	       .core_note_type = NT_ARC_V2,
+	       USER_REGSET_NOTE_TYPE(ARC_V2),
 	       .n = ELF_ARCV2REG,
 	       .size = sizeof(unsigned long),
 	       .align = sizeof(unsigned long),

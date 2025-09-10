@@ -59,7 +59,7 @@ static int sdhci_probe(struct platform_device *pdev)
 	if (IS_ERR(host->ioaddr)) {
 		ret = PTR_ERR(host->ioaddr);
 		dev_dbg(&pdev->dev, "unable to map iomem: %d\n", ret);
-		goto err_host;
+		goto err;
 	}
 
 	host->hw_name = "sdhci";
@@ -67,7 +67,7 @@ static int sdhci_probe(struct platform_device *pdev)
 	host->irq = platform_get_irq(pdev, 0);
 	if (host->irq < 0) {
 		ret = host->irq;
-		goto err_host;
+		goto err;
 	}
 	host->quirks = SDHCI_QUIRK_BROKEN_ADMA;
 
@@ -78,13 +78,13 @@ static int sdhci_probe(struct platform_device *pdev)
 	if (IS_ERR(sdhci->clk)) {
 		ret = PTR_ERR(sdhci->clk);
 		dev_dbg(&pdev->dev, "Error getting clock\n");
-		goto err_host;
+		goto err;
 	}
 
 	ret = clk_prepare_enable(sdhci->clk);
 	if (ret) {
 		dev_dbg(&pdev->dev, "Error enabling clock\n");
-		goto err_host;
+		goto err;
 	}
 
 	ret = clk_set_rate(sdhci->clk, 50000000);
@@ -110,8 +110,6 @@ static int sdhci_probe(struct platform_device *pdev)
 
 disable_clk:
 	clk_disable_unprepare(sdhci->clk);
-err_host:
-	sdhci_free_host(host);
 err:
 	dev_err(&pdev->dev, "spear-sdhci probe failed: %d\n", ret);
 	return ret;
@@ -130,7 +128,6 @@ static void sdhci_remove(struct platform_device *pdev)
 
 	sdhci_remove_host(host, dead);
 	clk_disable_unprepare(sdhci->clk);
-	sdhci_free_host(host);
 }
 
 #ifdef CONFIG_PM_SLEEP

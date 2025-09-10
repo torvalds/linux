@@ -71,12 +71,23 @@ properties:
     $ref: /schemas/graph.yaml#/properties/port
     description: The LCDIF output port
 
+  display:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to display panel
+    deprecated: true
+
+  display0:
+    $ref: panel/panel-common.yaml#
+    deprecated: true
+
+  lcd-supply:
+    deprecated: true
+
 required:
   - compatible
   - reg
   - clocks
   - interrupts
-  - port
 
 additionalProperties: false
 
@@ -175,6 +186,12 @@ allOf:
       properties:
         dmas: false
         dma-names: false
+        display: false
+        display0: false
+        lcd-supply: false
+
+      required:
+        - port
 
 examples:
   - |

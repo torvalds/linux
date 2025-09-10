@@ -2,7 +2,7 @@
 #ifndef _ASM_ALTERNATIVE_H
 #define _ASM_ALTERNATIVE_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 #include <linux/stddef.h>
@@ -106,6 +106,6 @@ extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 #define alternative_2(oldinstr, newinstr1, feature1, newinstr2, feature2) \
 	(asm volatile(ALTERNATIVE_2(oldinstr, newinstr1, feature1, newinstr2, feature2) ::: "memory"))
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_ALTERNATIVE_H */

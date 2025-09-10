@@ -21,6 +21,7 @@ ALL_TESTS="
 	kci_test_vrf
 	kci_test_encap
 	kci_test_macsec
+	kci_test_macsec_vlan
 	kci_test_ipsec
 	kci_test_ipsec_offload
 	kci_test_fdb_get
@@ -30,6 +31,7 @@ ALL_TESTS="
 	kci_test_address_proto
 	kci_test_enslave_bonding
 	kci_test_mngtmpaddr
+	kci_test_operstate
 "
 
 devdummy="test-dummy0"
@@ -291,6 +293,17 @@ kci_test_route_get()
 	end_test "PASS: route get"
 }
 
+check_addr_not_exist()
+{
+	dev=$1
+	addr=$2
+	if ip addr show dev $dev | grep -q $addr; then
+		return 1
+	else
+		return 0
+	fi
+}
+
 kci_test_addrlft()
 {
 	for i in $(seq 10 100) ;do
@@ -298,9 +311,8 @@ kci_test_addrlft()
 		run_cmd ip addr add 10.23.11.$i/32 dev "$devdummy" preferred_lft $lft valid_lft $((lft+1))
 	done
 
-	sleep 5
-	run_cmd_grep_fail "10.23.11." ip addr show dev "$devdummy"
-	if [ $? -eq 0 ]; then
+	slowwait 5 check_addr_not_exist "$devdummy" "10.23.11."
+	if [ $? -eq 1 ]; then
 		check_err 1
 		end_test "FAIL: preferred_lft addresses remaining"
 		return
@@ -561,6 +573,41 @@ kci_test_macsec()
 	end_test "PASS: macsec"
 }
 
+# Test __dev_set_rx_mode call from dev_uc_add under addr_list_lock spinlock.
+# Make sure __dev_set_promiscuity is not grabbing (sleeping) netdev instance
+# lock.
+# https://lore.kernel.org/netdev/2aff4342b0f5b1539c02ffd8df4c7e58dd9746e7.camel@nvidia.com/
+kci_test_macsec_vlan()
+{
+	msname="test_macsec1"
+	vlanname="test_vlan1"
+	local ret=0
+	run_cmd_grep "^Usage: ip macsec" ip macsec help
+	if [ $? -ne 0 ]; then
+		end_test "SKIP: macsec: iproute2 too old"
+		return $ksft_skip
+	fi
+	run_cmd ip link add link "$devdummy" "$msname" type macsec port 42 encrypt on
+	if [ $ret -ne 0 ];then
+		end_test "FAIL: can't add macsec interface, skipping test"
+		return 1
+	fi
+
+	run_cmd ip link set dev "$msname" up
+	ip link add link "$msname" name "$vlanname" type vlan id 1
+	ip link set dev "$vlanname" address 00:11:22:33:44:88
+	ip link set dev "$vlanname" up
+	run_cmd ip link del dev "$vlanname"
+	run_cmd ip link del dev "$msname"
+
+	if [ $ret -ne 0 ];then
+		end_test "FAIL: macsec_vlan"
+		return 1
+	fi
+
+	end_test "PASS: macsec_vlan"
+}
+
 #-------------------------------------------------------------------
 # Example commands
 #   ip x s add proto esp src 14.0.0.52 dst 14.0.0.70 \
@@ -673,6 +720,11 @@ kci_test_ipsec_offload()
 	sysfsf=$sysfsd/ipsec
 	sysfsnet=/sys/bus/netdevsim/devices/netdevsim0/net/
 	probed=false
+	esp4_offload_probed_default=false
+
+	if lsmod | grep -q esp4_offload; then
+		esp4_offload_probed_default=true
+	fi
 
 	if ! mount | grep -q debugfs; then
 		mount -t debugfs none /sys/kernel/debug/ &> /dev/null
@@ -766,6 +818,7 @@ EOF
 	fi
 
 	# clean up any leftovers
+	! "$esp4_offload_probed_default" && lsmod | grep -q esp4_offload && rmmod esp4_offload
 	echo 0 > /sys/bus/netdevsim/del_device
 	$probed && rmmod netdevsim
 
@@ -1332,6 +1385,39 @@ kci_test_mngtmpaddr()
 
 	ip netns del "$testns"
 	return $ret
+}
+
+kci_test_operstate()
+{
+	local ret=0
+
+	# Check that it is possible to set operational state during device
+	# creation and that it is preserved when the administrative state of
+	# the device is toggled.
+	run_cmd ip link add name vx0 up state up type vxlan id 10010 dstport 4789
+	run_cmd_grep "state UP" ip link show dev vx0
+	run_cmd ip link set dev vx0 down
+	run_cmd_grep "state DOWN" ip link show dev vx0
+	run_cmd ip link set dev vx0 up
+	run_cmd_grep "state UP" ip link show dev vx0
+
+	run_cmd ip link del dev vx0
+
+	# Check that it is possible to set the operational state of the device
+	# after creation.
+	run_cmd ip link add name vx0 up type vxlan id 10010 dstport 4789
+	run_cmd_grep "state UNKNOWN" ip link show dev vx0
+	run_cmd ip link set dev vx0 state up
+	run_cmd_grep "state UP" ip link show dev vx0
+
+	run_cmd ip link del dev vx0
+
+	if [ "$ret" -ne 0 ]; then
+		end_test "FAIL: operstate"
+		return 1
+	fi
+
+	end_test "PASS: operstate"
 }
 
 kci_test_rtnl()

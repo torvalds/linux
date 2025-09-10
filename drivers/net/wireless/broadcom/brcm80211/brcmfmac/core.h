@@ -67,7 +67,7 @@ struct brcmf_ampdu_rx_reorder {
 /* Forward decls for struct brcmf_pub (see below) */
 struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_fws_info;	/* firmware signalling info */
-struct brcmf_mp_device;	/* module paramateres, device specific */
+struct brcmf_mp_device;	/* module parameters, device specific */
 
 /*
  * struct brcmf_rev_info

@@ -85,8 +85,14 @@ l0_%=:	r0 = r0;					\
 
 SEC("socket")
 __description("check known subreg with unknown reg")
-__success __failure_unpriv __msg_unpriv("R1 !read_ok")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("if w0 < 0x1 goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R1 !read_ok'` */
+__xlated_unpriv("goto pc-1") /* `r1 = *(u32*)(r1 + 512)`, sanitized dead code */
+__xlated_unpriv("r0 = 0")
+#endif
 __naked void known_subreg_with_unknown_reg(void)
 {
 	asm volatile ("					\

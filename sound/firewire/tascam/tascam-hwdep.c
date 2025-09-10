@@ -265,7 +265,7 @@ int snd_tscm_create_hwdep_device(struct snd_tscm *tscm)
 	if (err < 0)
 		return err;
 
-	strcpy(hwdep->name, "Tascam");
+	strscpy(hwdep->name, "Tascam");
 	hwdep->iface = SNDRV_HWDEP_IFACE_FW_TASCAM;
 	hwdep->ops = ops;
 	hwdep->private_data = tscm;

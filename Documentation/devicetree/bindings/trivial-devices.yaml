@@ -30,6 +30,8 @@ properties:
     items:
       # Entries are sorted alphanumerically by the compatible
       - enum:
+            # ABB register based spi sensors
+          - abb,spi-sensor
             # Acbel fsg032 power supply
           - acbel,fsg032
             # SMBus/I2C Digital Temperature Sensor in 6-Pin SOT with SMBus Alert and Over Temperature Pin
@@ -39,8 +41,14 @@ properties:
           - ad,adm9240
             # AD5110 - Nonvolatile Digital Potentiometer
           - adi,ad5110
-            # Analog Devices ADP5589 Keypad Decoder and I/O Expansion
-          - adi,adp5589
+            # Temperature sensor with integrated fan control
+          - adi,adm1027
+            # Analog Devices ADT7411 Temperature Sensor and 8-channel ADC
+          - adi,adt7411
+            # Temperature sensor with integrated fan control
+          - adi,adt7463
+            # Temperature sensor with integrated fan control
+          - adi,adt7468
             # Analog Devices LT7182S Dual Channel 6A, 20V PolyPhase Step-Down Silent Switcher
           - adi,lt7182s
             # AMS iAQ-Core VOC Sensor
@@ -291,6 +299,8 @@ properties:
           - mps,mp2891
             # Monolithic Power Systems Inc. multi-phase controller mp2993
           - mps,mp2993
+            # Monolithic Power Systems Inc. hot-swap protection device
+          - mps,mp5023
             # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5920
           - mps,mp5920
             # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5990
@@ -299,16 +309,30 @@ properties:
           - mps,mp9941
             # Temperature sensor with integrated fan control
           - national,lm63
+            # Temperature sensor with integrated fan control
+          - national,lm64
+            # Temperature sensor
+          - national,lm95235
+            # Temperature sensor
+          - national,lm95245
+            # Temperature sensor with integrated fan control
+          - national,lm96163
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
           - national,lm80
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
           - national,lm81
             # Temperature sensor with integrated fan control
           - national,lm85
+            # Temperature sensor with integrated fan control
+          - national,lm85b
+            # Temperature sensor with integrated fan control
+          - national,lm85c
             # I2C ±0.33°C Accurate, 12-Bit + Sign Temperature Sensor and Thermal Window Comparator
           - national,lm92
             # Nuvoton Temperature Sensor
           - nuvoton,w83773g
+            # NXP ISP1301 USB transceiver
+          - nxp,isp1301
             # OKI ML86V7667 video decoder
           - oki,ml86v7667
             # ON Semiconductor ADT7462 Temperature, Voltage Monitor and Fan Controller
@@ -357,12 +381,38 @@ properties:
           - silabs,si7020
             # Skyworks SKY81452: Six-Channel White LED Driver with Touch Panel Bias Supply
           - skyworks,sky81452
+            # Temperature sensor with integrated fan control
+          - smsc,emc6d100
+            # Temperature sensor with integrated fan control
+          - smsc,emc6d101
+            # Temperature sensor with integrated fan control
+          - smsc,emc6d102
+            # Temperature sensor with integrated fan control
+          - smsc,emc6d103
+            # Temperature sensor with integrated fan control
+          - smsc,emc6d103s
             # SparkFun Qwiic Joystick (COM-15168) with i2c interface
           - sparkfun,qwiic-joystick
             # Sierra Wireless mangOH Green SPI IoT interface
           - swir,mangoh-iotport-spi
             # Ambient Light Sensor with SMBUS/Two Wire Serial Interface
           - taos,tsl2550
+            # Digital PWM System Controller PMBus
+          - ti,cd9200
+            # Digital PWM System Controller PMBus
+          - ti,cd9220
+            # Digital PWM System Controller PMBus
+          - ti,cd9222
+            # Digital PWM System Controller PMBus
+          - ti,cd9224
+            # Digital PWM System Controller PMBus
+          - ti,cd9240
+            # Digital PWM System Controller PMBus
+          - ti,cd9244
+            # Digital PWM System Controller PMBus
+          - ti,cd9246
+            # Digital PWM System Controller PMBus
+          - ti,cd9248
             # Temperature and humidity sensor with i2c interface
           - ti,hdc1000
             # Temperature and humidity sensor with i2c interface
@@ -390,12 +440,18 @@ properties:
           - ti,tmp125
             # TI DC-DC converter on PMBus
           - ti,tps40400
+            # TI DCAP+ multiphase controller
+          - ti,tps53647
+            # TI DCAP+ multiphase controller
+          - ti,tps53667
             # TI Dual channel DCAP+ multiphase controller TPS53676 with AVSBus
           - ti,tps53676
             # TI Dual channel DCAP+ multiphase controller TPS53679
           - ti,tps53679
             # TI Dual channel DCAP+ multiphase controller TPS53681
           - ti,tps53681
+            # TI Dual channel DCAP+ multiphase controller TPS53685 with AMD-SVI3
+          - ti,tps53685
             # TI Dual channel DCAP+ multiphase controller TPS53688
           - ti,tps53688
             # TI DC-DC converters on PMBus

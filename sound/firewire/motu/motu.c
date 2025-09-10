@@ -41,9 +41,9 @@ static void name_card(struct snd_motu *motu)
 		}
 	}
 
-	strcpy(motu->card->driver, "FW-MOTU");
-	strcpy(motu->card->shortname, motu->spec->name);
-	strcpy(motu->card->mixername, motu->spec->name);
+	strscpy(motu->card->driver, "FW-MOTU");
+	strscpy(motu->card->shortname, motu->spec->name);
+	strscpy(motu->card->mixername, motu->spec->name);
 	snprintf(motu->card->longname, sizeof(motu->card->longname),
 		 "MOTU %s (version:%06x), GUID %08x%08x at %s, S%d",
 		 motu->spec->name, version,

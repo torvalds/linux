@@ -1762,17 +1762,17 @@ static int usdhi6_probe(struct platform_device *pdev)
 	if (irq_sdio < 0)
 		return irq_sdio;
 
-	mmc = mmc_alloc_host(sizeof(struct usdhi6_host), dev);
+	mmc = devm_mmc_alloc_host(dev, sizeof(*host));
 	if (!mmc)
 		return -ENOMEM;
 
 	ret = mmc_regulator_get_supply(mmc);
 	if (ret)
-		goto e_free_mmc;
+		return ret;
 
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
-		goto e_free_mmc;
+		return ret;
 
 	host		= mmc_priv(mmc);
 	host->mmc	= mmc;
@@ -1785,30 +1785,24 @@ static int usdhi6_probe(struct platform_device *pdev)
 	mmc->max_busy_timeout = USDHI6_REQ_TIMEOUT_MS;
 
 	host->pinctrl = devm_pinctrl_get(&pdev->dev);
-	if (IS_ERR(host->pinctrl)) {
-		ret = PTR_ERR(host->pinctrl);
-		goto e_free_mmc;
-	}
+	if (IS_ERR(host->pinctrl))
+		return PTR_ERR(host->pinctrl);
 
 	host->pins_uhs = pinctrl_lookup_state(host->pinctrl, "state_uhs");
 
 	host->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
-	if (IS_ERR(host->base)) {
-		ret = PTR_ERR(host->base);
-		goto e_free_mmc;
-	}
+	if (IS_ERR(host->base))
+		return PTR_ERR(host->base);
 
 	host->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(host->clk)) {
-		ret = PTR_ERR(host->clk);
-		goto e_free_mmc;
-	}
+	if (IS_ERR(host->clk))
+		return PTR_ERR(host->clk);
 
 	host->imclk = clk_get_rate(host->clk);
 
 	ret = clk_prepare_enable(host->clk);
 	if (ret < 0)
-		goto e_free_mmc;
+		return ret;
 
 	version = usdhi6_read(host, USDHI6_VERSION);
 	if ((version & 0xfff) != 0xa0d) {
@@ -1878,9 +1872,6 @@ e_release_dma:
 	usdhi6_dma_release(host);
 e_clk_off:
 	clk_disable_unprepare(host->clk);
-e_free_mmc:
-	mmc_free_host(mmc);
-
 	return ret;
 }
 
@@ -1894,7 +1885,6 @@ static void usdhi6_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&host->timeout_work);
 	usdhi6_dma_release(host);
 	clk_disable_unprepare(host->clk);
-	mmc_free_host(host->mmc);
 }
 
 static struct platform_driver usdhi6_driver = {

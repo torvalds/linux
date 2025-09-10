@@ -435,6 +435,15 @@ both cgroups.
 Controlling Controllers
 -----------------------
 
+Availablity
+~~~~~~~~~~~
+
+A controller is available in a cgroup when it is supported by the kernel (i.e.,
+compiled in, not disabled and not attached to a v1 hierarchy) and listed in the
+"cgroup.controllers" file. Availability means the controller's interface files
+are exposed in the cgroup’s directory, allowing the distribution of the target
+resource to be observed or controlled within that cgroup.
+
 Enabling and Disabling
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1731,12 +1740,6 @@ The following nested keys are defined.
 
 	  numa_hint_faults (npn)
 		Number of NUMA hinting faults.
-
-	  numa_task_migrated (npn)
-		Number of task migration by NUMA balancing.
-
-	  numa_task_swapped (npn)
-		Number of task swap by NUMA balancing.
 
 	  pgdemote_kswapd
 		Number of pages demoted by kswapd.

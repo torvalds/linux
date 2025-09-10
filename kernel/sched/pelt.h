@@ -1,4 +1,8 @@
-#ifdef CONFIG_SMP
+// SPDX-License-Identifier: GPL-2.0
+#ifndef _KERNEL_SCHED_PELT_H
+#define _KERNEL_SCHED_PELT_H
+#include "sched.h"
+
 #include "sched-pelt.h"
 
 int __update_load_avg_blocked_se(u64 now, struct sched_entity *se);
@@ -15,7 +19,7 @@ static inline u64 hw_load_avg(struct rq *rq)
 {
 	return READ_ONCE(rq->avg_hw.load_avg);
 }
-#else
+#else /* !CONFIG_SCHED_HW_PRESSURE: */
 static inline int
 update_hw_load_avg(u64 now, struct rq *rq, u64 capacity)
 {
@@ -26,7 +30,7 @@ static inline u64 hw_load_avg(struct rq *rq)
 {
 	return 0;
 }
-#endif
+#endif /* !CONFIG_SCHED_HW_PRESSURE */
 
 #ifdef CONFIG_HAVE_SCHED_AVG_IRQ
 int update_irq_load_avg(struct rq *rq, u64 running);
@@ -174,63 +178,12 @@ static inline u64 cfs_rq_clock_pelt(struct cfs_rq *cfs_rq)
 
 	return rq_clock_pelt(rq_of(cfs_rq)) - cfs_rq->throttled_clock_pelt_time;
 }
-#else
+#else /* !CONFIG_CFS_BANDWIDTH: */
 static inline void update_idle_cfs_rq_clock_pelt(struct cfs_rq *cfs_rq) { }
 static inline u64 cfs_rq_clock_pelt(struct cfs_rq *cfs_rq)
 {
 	return rq_clock_pelt(rq_of(cfs_rq));
 }
-#endif
+#endif /* !CONFIG_CFS_BANDWIDTH */
 
-#else
-
-static inline int
-update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
-{
-	return 0;
-}
-
-static inline int
-update_rt_rq_load_avg(u64 now, struct rq *rq, int running)
-{
-	return 0;
-}
-
-static inline int
-update_dl_rq_load_avg(u64 now, struct rq *rq, int running)
-{
-	return 0;
-}
-
-static inline int
-update_hw_load_avg(u64 now, struct rq *rq, u64 capacity)
-{
-	return 0;
-}
-
-static inline u64 hw_load_avg(struct rq *rq)
-{
-	return 0;
-}
-
-static inline int
-update_irq_load_avg(struct rq *rq, u64 running)
-{
-	return 0;
-}
-
-static inline u64 rq_clock_pelt(struct rq *rq)
-{
-	return rq_clock_task(rq);
-}
-
-static inline void
-update_rq_clock_pelt(struct rq *rq, s64 delta) { }
-
-static inline void
-update_idle_rq_clock_pelt(struct rq *rq) { }
-
-static inline void update_idle_cfs_rq_clock_pelt(struct cfs_rq *cfs_rq) { }
-#endif
-
-
+#endif /* _KERNEL_SCHED_PELT_H */

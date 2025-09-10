@@ -69,8 +69,6 @@
 #define RPR0521_DEFAULT_MEAS_TIME	0x06 /* ALS - 100ms, PXS - 100ms */
 
 #define RPR0521_DRV_NAME		"RPR0521"
-#define RPR0521_IRQ_NAME		"rpr0521_event"
-#define RPR0521_REGMAP_NAME		"rpr0521_regmap"
 
 #define RPR0521_SLEEP_DELAY_MS	2000
 
@@ -914,7 +912,7 @@ static bool rpr0521_is_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config rpr0521_regmap_config = {
-	.name		= RPR0521_REGMAP_NAME,
+	.name		= "rpr0521_regmap",
 
 	.reg_bits	= 8,
 	.val_bits	= 8,
@@ -991,7 +989,7 @@ static int rpr0521_probe(struct i2c_client *client)
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 			rpr0521_drdy_irq_handler, rpr0521_drdy_irq_thread,
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-			RPR0521_IRQ_NAME, indio_dev);
+			"rpr0521_event", indio_dev);
 		if (ret < 0) {
 			dev_err(&client->dev, "request irq %d for trigger0 failed\n",
 				client->irq);

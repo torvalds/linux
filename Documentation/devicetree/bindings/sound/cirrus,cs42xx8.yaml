@@ -41,6 +41,10 @@ properties:
     description: This pin is connected to the chip's RESET pin.
     maxItems: 1
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
 required:
   - compatible
   - reg

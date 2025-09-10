@@ -706,7 +706,7 @@ int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip, int device)
 
 	pcm->private_data = chip;
 	pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;
-	strcpy(pcm->name, snd_es1688_chip_id(chip));
+	strscpy(pcm->name, snd_es1688_chip_id(chip));
 	chip->pcm = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, card->dev,
@@ -971,7 +971,7 @@ int snd_es1688_mixer(struct snd_card *card, struct snd_es1688 *chip)
 	if (snd_BUG_ON(!chip || !card))
 		return -EINVAL;
 
-	strcpy(card->mixername, snd_es1688_chip_id(chip));
+	strscpy(card->mixername, snd_es1688_chip_id(chip));
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_es1688_controls); idx++) {
 		err = snd_ctl_add(card, snd_ctl_new1(&snd_es1688_controls[idx], chip));

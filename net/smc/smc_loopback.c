@@ -251,11 +251,6 @@ static int smc_lo_move_data(struct smcd_dev *smcd, u64 dmb_tok,
 	return 0;
 }
 
-static int smc_lo_supports_v2(void)
-{
-	return SMC_LO_V2_CAPABLE;
-}
-
 static void smc_lo_get_local_gid(struct smcd_dev *smcd,
 				 struct smcd_gid *smcd_gid)
 {
@@ -288,7 +283,6 @@ static const struct smcd_ops lo_ops = {
 	.reset_vlan_required	= NULL,
 	.signal_event		= NULL,
 	.move_data = smc_lo_move_data,
-	.supports_v2 = smc_lo_supports_v2,
 	.get_local_gid = smc_lo_get_local_gid,
 	.get_chid = smc_lo_get_chid,
 	.get_dev = smc_lo_get_dev,

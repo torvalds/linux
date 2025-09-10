@@ -133,4 +133,10 @@ void hubbub3_force_pstate_change_control(struct hubbub *hubbub,
 
 void hubbub3_init_watermarks(struct hubbub *hubbub);
 
+void hubbub3_get_det_sizes(struct hubbub *hubbub,
+	uint32_t *curr_det_sizes,
+	uint32_t *target_det_sizes);
+
+uint32_t hubbub3_compbuf_config_error(struct hubbub *hubbub);
+
 #endif

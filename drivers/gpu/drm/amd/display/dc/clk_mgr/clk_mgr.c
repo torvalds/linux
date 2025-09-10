@@ -67,7 +67,7 @@ int clk_mgr_helper_get_active_display_cnt(
 		if (dc_state_get_stream_subvp_type(context, stream) == SUBVP_PHANTOM)
 			continue;
 
-		if (!stream->dpms_off || (stream_status && stream_status->plane_count))
+		if (!stream->dpms_off || dc->is_switch_in_progress_dest || (stream_status && stream_status->plane_count))
 			display_count++;
 	}
 
@@ -158,7 +158,6 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			return NULL;
 		}
 		dce60_clk_mgr_construct(ctx, clk_mgr);
-		dce_clk_mgr_construct(ctx, clk_mgr);
 		return &clk_mgr->base;
 	}
 #endif

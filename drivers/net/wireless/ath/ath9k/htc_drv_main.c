@@ -1172,7 +1172,7 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	mutex_unlock(&priv->mutex);
 }
 
-static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
+static int ath9k_htc_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
@@ -1737,12 +1737,14 @@ static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw,
 	mutex_unlock(&priv->mutex);
 }
 
-static int ath9k_htc_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+static int ath9k_htc_set_rts_threshold(struct ieee80211_hw *hw,
+				       int radio_idx, u32 value)
 {
 	return 0;
 }
 
 static void ath9k_htc_set_coverage_class(struct ieee80211_hw *hw,
+					 int radio_idx,
 					 s16 coverage_class)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
@@ -1841,8 +1843,8 @@ struct base_eep_header *ath9k_htc_get_eeprom_base(struct ath9k_htc_priv *priv)
 }
 
 
-static int ath9k_htc_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant,
-				 u32 *rx_ant)
+static int ath9k_htc_get_antenna(struct ieee80211_hw *hw, int radio_idx,
+				 u32 *tx_ant, u32 *rx_ant)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct base_eep_header *pBase = ath9k_htc_get_eeprom_base(priv);

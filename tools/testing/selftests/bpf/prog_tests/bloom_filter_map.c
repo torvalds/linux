@@ -13,7 +13,7 @@
 static void test_fail_cases(void)
 {
 	LIBBPF_OPTS(bpf_map_create_opts, opts);
-	__u32 value;
+	__u32 value = 0;
 	int fd, err;
 
 	/* Invalid key size */

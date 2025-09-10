@@ -85,6 +85,8 @@ parameters, info versions, and other features it supports.
    ionic
    ice
    ixgbe
+   kvaser_pciefd
+   kvaser_usb
    mlx4
    mlx5
    mlxsw
@@ -98,3 +100,4 @@ parameters, info versions, and other features it supports.
    iosm
    octeontx2
    sfc
+   zl3073x

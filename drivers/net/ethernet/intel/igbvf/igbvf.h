@@ -154,7 +154,6 @@ struct igbvf_ring {
 /* board specific private data structure */
 struct igbvf_adapter {
 	struct timer_list watchdog_timer;
-	struct timer_list blink_timer;
 
 	struct work_struct reset_task;
 	struct work_struct watchdog_task;
@@ -162,10 +161,7 @@ struct igbvf_adapter {
 	const struct igbvf_info *ei;
 
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
-	u32 bd_number;
 	u32 rx_buffer_len;
-	u32 polling_interval;
-	u16 mng_vlan_id;
 	u16 link_speed;
 	u16 link_duplex;
 
@@ -183,9 +179,6 @@ struct igbvf_adapter {
 	unsigned int restart_queue;
 	u32 txd_cmd;
 
-	u32 tx_int_delay;
-	u32 tx_abs_int_delay;
-
 	unsigned int total_tx_bytes;
 	unsigned int total_tx_packets;
 	unsigned int total_rx_bytes;
@@ -193,23 +186,15 @@ struct igbvf_adapter {
 
 	/* Tx stats */
 	u32 tx_timeout_count;
-	u32 tx_fifo_head;
-	u32 tx_head_addr;
-	u32 tx_fifo_size;
-	u32 tx_dma_failed;
 
 	/* Rx */
 	struct igbvf_ring *rx_ring;
-
-	u32 rx_int_delay;
-	u32 rx_abs_int_delay;
 
 	/* Rx stats */
 	u64 hw_csum_err;
 	u64 hw_csum_good;
 	u64 rx_hdr_split;
 	u32 alloc_rx_buff_failed;
-	u32 rx_dma_failed;
 
 	unsigned int rx_ps_hdr_size;
 	u32 max_frame_size;
@@ -229,25 +214,13 @@ struct igbvf_adapter {
 	struct e1000_vf_stats stats;
 	u64 zero_base;
 
-	struct igbvf_ring test_tx_ring;
-	struct igbvf_ring test_rx_ring;
-	u32 test_icr;
-
 	u32 msg_enable;
 	struct msix_entry *msix_entries;
-	int int_mode;
 	u32 eims_enable_mask;
 	u32 eims_other;
-	u32 int_counter0;
-	u32 int_counter1;
 
-	u32 eeprom_wol;
 	u32 wol;
 	u32 pba;
-
-	bool fc_autoneg;
-
-	unsigned long led_status;
 
 	unsigned int flags;
 	unsigned long last_reset;

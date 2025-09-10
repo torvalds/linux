@@ -17,6 +17,7 @@
 	panel: panel {
 		compatible = "edt,et057090dhu";
 		backlight = <&bl>;
+		power-supply = <&reg_3v3>;
 
 		port {
 			panel_in: endpoint {
@@ -142,11 +143,9 @@
 };
 
 &iomuxc {
-	vf610-colibri {
-		pinctrl_can_int: can_int {
-			fsl,pins = <
-				VF610_PAD_PTB21__GPIO_43	0x22ed
-			>;
-		};
+	pinctrl_can_int: can_intgrp {
+		fsl,pins = <
+			VF610_PAD_PTB21__GPIO_43	0x22ed
+		>;
 	};
 };

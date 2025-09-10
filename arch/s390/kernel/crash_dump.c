@@ -7,6 +7,7 @@
  */
 
 #include <linux/crash_dump.h>
+#include <linux/export.h>
 #include <asm/lowcore.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

@@ -85,6 +85,12 @@ struct xe_guc {
 		struct xarray exec_queue_lookup;
 		/** @submission_state.stopped: submissions are stopped */
 		atomic_t stopped;
+		/**
+		 * @submission_state.reset_blocked: reset attempts are blocked;
+		 * blocking reset in order to delay it may be required if running
+		 * an operation which is sensitive to resets.
+		 */
+		atomic_t reset_blocked;
 		/** @submission_state.lock: protects submission state */
 		struct mutex lock;
 		/** @submission_state.enabled: submission is enabled */

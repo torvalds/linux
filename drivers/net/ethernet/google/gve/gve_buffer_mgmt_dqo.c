@@ -4,6 +4,7 @@
  * Copyright (C) 2015-2024 Google, Inc.
  */
 
+#include <net/xdp_sock_drv.h>
 #include "gve.h"
 #include "gve_utils.h"
 
@@ -28,6 +29,10 @@ struct gve_rx_buf_state_dqo *gve_alloc_buf_state(struct gve_rx_ring *rx)
 
 	/* Point buf_state to itself to mark it as allocated */
 	buf_state->next = buffer_id;
+
+	/* Clear the buffer pointers */
+	buf_state->page_info.page = NULL;
+	buf_state->xsk_buff = NULL;
 
 	return buf_state;
 }
@@ -246,6 +251,7 @@ struct page_pool *gve_rx_create_page_pool(struct gve_priv *priv,
 		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
 		.order = 0,
 		.pool_size = GVE_PAGE_POOL_SIZE_MULTIPLIER * priv->rx_desc_cnt,
+		.nid = priv->numa_node,
 		.dev = &priv->pdev->dev,
 		.netdev = priv->dev,
 		.napi = &priv->ntfy_blocks[ntfy_id].napi,
@@ -285,7 +291,24 @@ int gve_alloc_buffer(struct gve_rx_ring *rx, struct gve_rx_desc_dqo *desc)
 {
 	struct gve_rx_buf_state_dqo *buf_state;
 
-	if (rx->dqo.page_pool) {
+	if (rx->xsk_pool) {
+		buf_state = gve_alloc_buf_state(rx);
+		if (unlikely(!buf_state))
+			return -ENOMEM;
+
+		buf_state->xsk_buff = xsk_buff_alloc(rx->xsk_pool);
+		if (unlikely(!buf_state->xsk_buff)) {
+			xsk_set_rx_need_wakeup(rx->xsk_pool);
+			gve_free_buf_state(rx, buf_state);
+			return -ENOMEM;
+		}
+		/* Allocated xsk buffer. Clear wakeup in case it was set. */
+		xsk_clear_rx_need_wakeup(rx->xsk_pool);
+		desc->buf_id = cpu_to_le16(buf_state - rx->dqo.buf_states);
+		desc->buf_addr =
+			cpu_to_le64(xsk_buff_xdp_get_dma(buf_state->xsk_buff));
+		return 0;
+	} else if (rx->dqo.page_pool) {
 		buf_state = gve_alloc_buf_state(rx);
 		if (WARN_ON_ONCE(!buf_state))
 			return -ENOMEM;

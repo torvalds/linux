@@ -49,6 +49,8 @@
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
 
+#include <rdma/ib_verbs.h>
+
 #include "mlx4.h"
 #include "fw.h"
 #include "icm.h"
@@ -1246,14 +1248,6 @@ err_out:
 	return err ? err : count;
 }
 
-enum ibta_mtu {
-	IB_MTU_256  = 1,
-	IB_MTU_512  = 2,
-	IB_MTU_1024 = 3,
-	IB_MTU_2048 = 4,
-	IB_MTU_4096 = 5
-};
-
 static inline int int_to_ibta_mtu(int mtu)
 {
 	switch (mtu) {
@@ -1266,7 +1260,7 @@ static inline int int_to_ibta_mtu(int mtu)
 	}
 }
 
-static inline int ibta_mtu_to_int(enum ibta_mtu mtu)
+static inline int ibta_mtu_to_int(enum ib_mtu mtu)
 {
 	switch (mtu) {
 	case IB_MTU_256:  return  256;

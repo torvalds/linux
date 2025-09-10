@@ -210,7 +210,6 @@ static int bch2_dev_alloc(struct bch_fs *, unsigned);
 static int bch2_dev_sysfs_online(struct bch_fs *, struct bch_dev *);
 static void bch2_dev_io_ref_stop(struct bch_dev *, int);
 static void __bch2_dev_read_only(struct bch_fs *, struct bch_dev *);
-static int bch2_fs_init_rw(struct bch_fs *);
 
 struct bch_fs *bch2_dev_to_fs(dev_t dev)
 {
@@ -794,7 +793,7 @@ err:
 	return ret;
 }
 
-static int bch2_fs_init_rw(struct bch_fs *c)
+int bch2_fs_init_rw(struct bch_fs *c)
 {
 	if (test_bit(BCH_FS_rw_init_done, &c->flags))
 		return 0;
@@ -1015,16 +1014,28 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts *opts,
 	if (ret)
 		goto err;
 
+	if (go_rw_in_recovery(c)) {
+		/*
+		 * start workqueues/kworkers early - kthread creation checks for
+		 * pending signals, which is _very_ annoying
+		 */
+		ret = bch2_fs_init_rw(c);
+		if (ret)
+			goto err;
+	}
+
 #ifdef CONFIG_UNICODE
-	/* Default encoding until we can potentially have more as an option. */
-	c->cf_encoding = utf8_load(BCH_FS_DEFAULT_UTF8_ENCODING);
-	if (IS_ERR(c->cf_encoding)) {
-		printk(KERN_ERR "Cannot load UTF-8 encoding for filesystem. Version: %u.%u.%u",
-			unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
-			unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
-			unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
-		ret = -EINVAL;
-		goto err;
+	if (bch2_fs_casefold_enabled(c)) {
+		/* Default encoding until we can potentially have more as an option. */
+		c->cf_encoding = utf8_load(BCH_FS_DEFAULT_UTF8_ENCODING);
+		if (IS_ERR(c->cf_encoding)) {
+			printk(KERN_ERR "Cannot load UTF-8 encoding for filesystem. Version: %u.%u.%u",
+			       unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
+			       unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
+			       unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
+			ret = -EINVAL;
+			goto err;
+		}
 	}
 #else
 	if (c->sb.features & BIT_ULL(BCH_FEATURE_casefolding)) {
@@ -1151,12 +1162,11 @@ int bch2_fs_start(struct bch_fs *c)
 
 	print_mount_opts(c);
 
-#ifdef CONFIG_UNICODE
-	bch_info(c, "Using encoding defined by superblock: utf8-%u.%u.%u",
-		 unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
-		 unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
-		 unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
-#endif
+	if (c->cf_encoding)
+		bch_info(c, "Using encoding defined by superblock: utf8-%u.%u.%u",
+			 unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
+			 unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
+			 unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
 
 	if (!bch2_fs_may_start(c))
 		return bch_err_throw(c, insufficient_devices_to_start);

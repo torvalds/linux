@@ -33,7 +33,7 @@ static const u8 au_io_out_map[5] = {
 	[UART_MCR]	= 6,
 };
 
-static unsigned int au_serial_in(struct uart_port *p, int offset)
+static u32 au_serial_in(struct uart_port *p, unsigned int offset)
 {
 	if (offset >= ARRAY_SIZE(au_io_in_map))
 		return UINT_MAX;
@@ -42,7 +42,7 @@ static unsigned int au_serial_in(struct uart_port *p, int offset)
 	return __raw_readl(p->membase + (offset << p->regshift));
 }
 
-static void au_serial_out(struct uart_port *p, int offset, int value)
+static void au_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	if (offset >= ARRAY_SIZE(au_io_out_map))
 		return;

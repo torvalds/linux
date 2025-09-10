@@ -89,8 +89,8 @@ struct xilinx_spi {
 	u8 bytes_per_word;
 	int buffer_size;	/* buffer size in words */
 	u32 cs_inactive;	/* Level of the CS pins when inactive*/
-	unsigned int (*read_fn)(void __iomem *);
-	void (*write_fn)(u32, void __iomem *);
+	unsigned int (*read_fn)(void __iomem *addr);
+	void (*write_fn)(u32 val, void __iomem *addr);
 };
 
 static void xspi_write32(u32 val, void __iomem *addr)
@@ -251,6 +251,7 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 	if (xspi->irq >= 0 &&
 	    (xspi->force_irq || remaining_words > xspi->buffer_size)) {
 		u32 isr;
+
 		use_irq = true;
 		/* Inhibit irq to avoid spurious irqs on tx_empty*/
 		cr = xspi->read_fn(xspi->regs + XSPI_CR_OFFSET);

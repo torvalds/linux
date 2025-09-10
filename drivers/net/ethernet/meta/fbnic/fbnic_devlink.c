@@ -182,7 +182,7 @@ fbnic_flash_start(struct fbnic_dev *fbd, struct pldmfw_component *component)
 	else
 		err = -ETIMEDOUT;
 
-	fbnic_fw_clear_cmpl(fbd, cmpl);
+	fbnic_mbx_clear_cmpl(fbd, cmpl);
 cmpl_free:
 	fbnic_fw_put_cmpl(cmpl);
 
@@ -300,7 +300,7 @@ err_no_msg:
 						   component_name, 0, 0);
 	}
 
-	fbnic_fw_clear_cmpl(fbd, cmpl);
+	fbnic_mbx_clear_cmpl(fbd, cmpl);
 cmpl_free:
 	fbnic_fw_put_cmpl(cmpl);
 

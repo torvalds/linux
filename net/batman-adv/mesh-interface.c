@@ -1101,9 +1101,9 @@ static void batadv_meshif_destroy_netlink(struct net_device *mesh_iface,
 	struct batadv_hard_iface *hard_iface;
 	struct batadv_meshif_vlan *vlan;
 
-	list_for_each_entry(hard_iface, &batadv_hardif_list, list) {
-		if (hard_iface->mesh_iface == mesh_iface)
-			batadv_hardif_disable_interface(hard_iface);
+	while (!list_empty(&mesh_iface->adj_list.lower)) {
+		hard_iface = netdev_adjacent_get_private(mesh_iface->adj_list.lower.next);
+		batadv_hardif_disable_interface(hard_iface);
 	}
 
 	/* destroy the "untagged" VLAN */

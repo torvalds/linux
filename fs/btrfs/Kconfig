@@ -114,6 +114,8 @@ config BTRFS_EXPERIMENTAL
 
 	  - extent tree v2 - complex rework of extent tracking
 
+	  - large folio support
+
 	  If unsure, say N.
 
 config BTRFS_FS_REF_VERIFY

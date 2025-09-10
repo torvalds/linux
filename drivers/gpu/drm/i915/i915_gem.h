@@ -134,4 +134,6 @@ int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file);
 
 #define I915_GEM_IDLE_TIMEOUT (HZ / 5)
 
+#define GEM_QUIRK_PIN_SWIZZLED_PAGES   BIT(0)
+
 #endif /* __I915_GEM_H__ */

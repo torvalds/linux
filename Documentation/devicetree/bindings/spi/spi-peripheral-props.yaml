@@ -115,6 +115,7 @@ properties:
     maxItems: 4
 
   st,spi-midi-ns:
+    deprecated: true
     description: |
       Only for STM32H7, (Master Inter-Data Idleness) minimum time
       delay in nanoseconds inserted between two consecutive data frames.

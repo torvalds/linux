@@ -231,4 +231,74 @@ __naked void bpf_cond_op_not_r10(void)
 	::: __clobber_all);
 }
 
+SEC("lsm.s/socket_connect")
+__success __log_level(2)
+__msg("0: (b7) r0 = 1                        ; R0_w=1")
+__msg("1: (84) w0 = -w0                      ; R0_w=0xffffffff")
+__msg("mark_precise: frame0: last_idx 2 first_idx 0 subseq_idx -1")
+__msg("mark_precise: frame0: regs=r0 stack= before 1: (84) w0 = -w0")
+__msg("mark_precise: frame0: regs=r0 stack= before 0: (b7) r0 = 1")
+__naked int bpf_neg_2(void)
+{
+	/*
+	 * lsm.s/socket_connect requires a return value within [-4095, 0].
+	 * Returning -1 is allowed
+	 */
+	asm volatile (
+	"r0 = 1;"
+	"w0 = -w0;"
+	"exit;"
+	::: __clobber_all);
+}
+
+SEC("lsm.s/socket_connect")
+__failure __msg("At program exit the register R0 has")
+__naked int bpf_neg_3(void)
+{
+	/*
+	 * lsm.s/socket_connect requires a return value within [-4095, 0].
+	 * Returning -10000 is not allowed.
+	 */
+	asm volatile (
+	"r0 = 10000;"
+	"w0 = -w0;"
+	"exit;"
+	::: __clobber_all);
+}
+
+SEC("lsm.s/socket_connect")
+__success __log_level(2)
+__msg("0: (b7) r0 = 1                        ; R0_w=1")
+__msg("1: (87) r0 = -r0                      ; R0_w=-1")
+__msg("mark_precise: frame0: last_idx 2 first_idx 0 subseq_idx -1")
+__msg("mark_precise: frame0: regs=r0 stack= before 1: (87) r0 = -r0")
+__msg("mark_precise: frame0: regs=r0 stack= before 0: (b7) r0 = 1")
+__naked int bpf_neg_4(void)
+{
+	/*
+	 * lsm.s/socket_connect requires a return value within [-4095, 0].
+	 * Returning -1 is allowed
+	 */
+	asm volatile (
+	"r0 = 1;"
+	"r0 = -r0;"
+	"exit;"
+	::: __clobber_all);
+}
+
+SEC("lsm.s/socket_connect")
+__failure __msg("At program exit the register R0 has")
+__naked int bpf_neg_5(void)
+{
+	/*
+	 * lsm.s/socket_connect requires a return value within [-4095, 0].
+	 * Returning -10000 is not allowed.
+	 */
+	asm volatile (
+	"r0 = 10000;"
+	"r0 = -r0;"
+	"exit;"
+	::: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

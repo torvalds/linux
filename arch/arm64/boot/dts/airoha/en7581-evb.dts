@@ -98,3 +98,11 @@
 &i2c0 {
 	status = "okay";
 };
+
+&eth {
+	status = "okay";
+};
+
+&gdm1 {
+	status = "okay";
+};

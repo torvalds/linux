@@ -401,8 +401,8 @@ static const struct bin_attribute ks8995_registers_attr = {
 		.mode   = 0600,
 	},
 	.size   = KS8995_REGS_SIZE,
-	.read_new   = ks8995_registers_read,
-	.write_new  = ks8995_registers_write,
+	.read   = ks8995_registers_read,
+	.write  = ks8995_registers_write,
 };
 
 /* ------------------------------------------------------------------------ */

@@ -10,7 +10,7 @@
 #include "compiler.h"
 #include "crt.h"
 
-#if !defined(_ABIO32)
+#if !defined(_ABIO32) && !defined(_ABIN32) && !defined(_ABI64)
 #error Unsupported MIPS ABI
 #endif
 
@@ -32,11 +32,32 @@
  *   - the arguments are cast to long and assigned into the target registers
  *     which are then simply passed as registers to the asm code, so that we
  *     don't have to experience issues with register constraints.
+ *
+ * Syscalls for MIPS ABI N32, same as ABI O32 with the following differences :
+ *   - arguments are in a0, a1, a2, a3, t0, t1, t2, t3.
+ *     t0..t3 are also known as a4..a7.
+ *   - stack is 16-byte aligned
  */
+
+#if defined(_ABIO32)
 
 #define _NOLIBC_SYSCALL_CLOBBERLIST \
 	"memory", "cc", "at", "v1", "hi", "lo", \
 	"t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"
+#define _NOLIBC_SYSCALL_STACK_RESERVE "addiu $sp, $sp, -32\n"
+#define _NOLIBC_SYSCALL_STACK_UNRESERVE "addiu $sp, $sp, 32\n"
+
+#else /* _ABIN32 || _ABI64 */
+
+/* binutils, GCC and clang disagree about register aliases, use numbers instead. */
+#define _NOLIBC_SYSCALL_CLOBBERLIST \
+	"memory", "cc", "at", "v1", \
+	"10", "11", "12", "13", "14", "15", "24", "25"
+
+#define _NOLIBC_SYSCALL_STACK_RESERVE
+#define _NOLIBC_SYSCALL_STACK_UNRESERVE
+
+#endif /* _ABIO32 */
 
 #define my_syscall0(num)                                                      \
 ({                                                                            \
@@ -44,9 +65,9 @@
 	register long _arg4 __asm__ ("a3");                                   \
 									      \
 	__asm__ volatile (                                                    \
-		"addiu $sp, $sp, -32\n"                                       \
+		_NOLIBC_SYSCALL_STACK_RESERVE                                 \
 		"syscall\n"                                                   \
-		"addiu $sp, $sp, 32\n"                                        \
+		_NOLIBC_SYSCALL_STACK_UNRESERVE                               \
 		: "=r"(_num), "=r"(_arg4)                                     \
 		: "r"(_num)                                                   \
 		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
@@ -61,9 +82,9 @@
 	register long _arg4 __asm__ ("a3");                                   \
 									      \
 	__asm__ volatile (                                                    \
-		"addiu $sp, $sp, -32\n"                                       \
+		_NOLIBC_SYSCALL_STACK_RESERVE                                 \
 		"syscall\n"                                                   \
-		"addiu $sp, $sp, 32\n"                                        \
+		_NOLIBC_SYSCALL_STACK_UNRESERVE                               \
 		: "=r"(_num), "=r"(_arg4)                                     \
 		: "0"(_num),                                                  \
 		  "r"(_arg1)                                                  \
@@ -80,9 +101,9 @@
 	register long _arg4 __asm__ ("a3");                                   \
 									      \
 	__asm__ volatile (                                                    \
-		"addiu $sp, $sp, -32\n"                                       \
+		_NOLIBC_SYSCALL_STACK_RESERVE                                 \
 		"syscall\n"                                                   \
-		"addiu $sp, $sp, 32\n"                                        \
+		_NOLIBC_SYSCALL_STACK_UNRESERVE                               \
 		: "=r"(_num), "=r"(_arg4)                                     \
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2)                                      \
@@ -100,9 +121,9 @@
 	register long _arg4 __asm__ ("a3");                                   \
 									      \
 	__asm__ volatile (                                                    \
-		"addiu $sp, $sp, -32\n"                                       \
+		_NOLIBC_SYSCALL_STACK_RESERVE                                 \
 		"syscall\n"                                                   \
-		"addiu $sp, $sp, 32\n"                                        \
+		_NOLIBC_SYSCALL_STACK_UNRESERVE                               \
 		: "=r"(_num), "=r"(_arg4)                                     \
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3)                          \
@@ -120,9 +141,9 @@
 	register long _arg4 __asm__ ("a3") = (long)(arg4);                    \
 									      \
 	__asm__ volatile (                                                    \
-		"addiu $sp, $sp, -32\n"                                       \
+		_NOLIBC_SYSCALL_STACK_RESERVE                                 \
 		"syscall\n"                                                   \
-		"addiu $sp, $sp, 32\n"                                        \
+		_NOLIBC_SYSCALL_STACK_UNRESERVE                               \
 		: "=r" (_num), "=r"(_arg4)                                    \
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4)              \
@@ -130,6 +151,8 @@
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
+
+#if defined(_ABIO32)
 
 #define my_syscall5(num, arg1, arg2, arg3, arg4, arg5)                        \
 ({                                                                            \
@@ -141,10 +164,10 @@
 	register long _arg5 = (long)(arg5);                                   \
 									      \
 	__asm__ volatile (                                                    \
-		"addiu $sp, $sp, -32\n"                                       \
+		_NOLIBC_SYSCALL_STACK_RESERVE                                 \
 		"sw %7, 16($sp)\n"                                            \
 		"syscall\n"                                                   \
-		"addiu $sp, $sp, 32\n"                                        \
+		_NOLIBC_SYSCALL_STACK_UNRESERVE                               \
 		: "=r" (_num), "=r"(_arg4)                                    \
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5)  \
@@ -164,11 +187,11 @@
 	register long _arg6 = (long)(arg6);                                   \
 									      \
 	__asm__ volatile (                                                    \
-		"addiu $sp, $sp, -32\n"                                       \
+		_NOLIBC_SYSCALL_STACK_RESERVE                                 \
 		"sw %7, 16($sp)\n"                                            \
 		"sw %8, 20($sp)\n"                                            \
 		"syscall\n"                                                   \
-		"addiu $sp, $sp, 32\n"                                        \
+		_NOLIBC_SYSCALL_STACK_UNRESERVE                               \
 		: "=r" (_num), "=r"(_arg4)                                    \
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5), \
@@ -178,28 +201,68 @@
 	_arg4 ? -_num : _num;                                                 \
 })
 
+#else /* _ABIN32 || _ABI64 */
+
+#define my_syscall5(num, arg1, arg2, arg3, arg4, arg5)                        \
+({                                                                            \
+	register long _num __asm__ ("v0") = (num);                            \
+	register long _arg1 __asm__ ("$4") = (long)(arg1);                    \
+	register long _arg2 __asm__ ("$5") = (long)(arg2);                    \
+	register long _arg3 __asm__ ("$6") = (long)(arg3);                    \
+	register long _arg4 __asm__ ("$7") = (long)(arg4);                    \
+	register long _arg5 __asm__ ("$8") = (long)(arg5);                    \
+									      \
+	__asm__ volatile (                                                    \
+		"syscall\n"                                                   \
+		: "=r" (_num), "=r"(_arg4)                                    \
+		: "0"(_num),                                                  \
+		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5)  \
+		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+	);                                                                    \
+	_arg4 ? -_num : _num;                                                 \
+})
+
+#define my_syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6)                  \
+({                                                                            \
+	register long _num __asm__ ("v0")  = (num);                           \
+	register long _arg1 __asm__ ("$4") = (long)(arg1);                    \
+	register long _arg2 __asm__ ("$5") = (long)(arg2);                    \
+	register long _arg3 __asm__ ("$6") = (long)(arg3);                    \
+	register long _arg4 __asm__ ("$7") = (long)(arg4);                    \
+	register long _arg5 __asm__ ("$8") = (long)(arg5);                    \
+	register long _arg6 __asm__ ("$9") = (long)(arg6);                    \
+									      \
+	__asm__ volatile (                                                    \
+		"syscall\n"                                                   \
+		: "=r" (_num), "=r"(_arg4)                                    \
+		: "0"(_num),                                                  \
+		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5), \
+		  "r"(_arg6)                                                  \
+		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+	);                                                                    \
+	_arg4 ? -_num : _num;                                                 \
+})
+
+#endif /* _ABIO32 */
+
 /* startup code, note that it's called __start on MIPS */
 void __start(void);
 void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector __start(void)
 {
 	__asm__ volatile (
-		".set push\n"
-		".set noreorder\n"
-		"bal 1f\n"               /* prime $ra for .cpload                            */
-		"nop\n"
-		"1:\n"
-		".cpload $ra\n"
 		"move  $a0, $sp\n"       /* save stack pointer to $a0, as arg1 of _start_c */
-		"addiu $sp, $sp, -4\n"   /* space for .cprestore to store $gp              */
-		".cprestore 0\n"
-		"li    $t0, -8\n"
-		"and   $sp, $sp, $t0\n"  /* $sp must be 8-byte aligned                     */
+#if defined(_ABIO32)
 		"addiu $sp, $sp, -16\n"  /* the callee expects to save a0..a3 there        */
+#endif /* _ABIO32 */
 		"lui $t9, %hi(_start_c)\n" /* ABI requires current function address in $t9 */
 		"ori $t9, %lo(_start_c)\n"
+#if defined(_ABI64)
+		"lui  $t0, %highest(_start_c)\n"
+		"ori  $t0, %higher(_start_c)\n"
+		"dsll $t0, 0x20\n"
+		"or   $t9, $t0\n"
+#endif /* _ABI64 */
 		"jalr $t9\n"             /* transfer to c runtime                          */
-		" nop\n"                 /* delayed slot                                   */
-		".set pop\n"
 	);
 	__nolibc_entrypoint_epilogue();
 }

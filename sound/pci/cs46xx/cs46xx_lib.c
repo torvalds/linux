@@ -1760,7 +1760,7 @@ int snd_cs46xx_pcm(struct snd_cs46xx *chip, int device)
 
 	/* global setup */
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "CS46xx");
+	strscpy(pcm->name, "CS46xx");
 	chip->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1787,7 +1787,7 @@ int snd_cs46xx_pcm_rear(struct snd_cs46xx *chip, int device)
 
 	/* global setup */
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "CS46xx - Rear");
+	strscpy(pcm->name, "CS46xx - Rear");
 	chip->pcm_rear = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1812,7 +1812,7 @@ int snd_cs46xx_pcm_center_lfe(struct snd_cs46xx *chip, int device)
 
 	/* global setup */
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "CS46xx - Center LFE");
+	strscpy(pcm->name, "CS46xx - Center LFE");
 	chip->pcm_center_lfe = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1837,7 +1837,7 @@ int snd_cs46xx_pcm_iec958(struct snd_cs46xx *chip, int device)
 
 	/* global setup */
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "CS46xx - IEC958");
+	strscpy(pcm->name, "CS46xx - IEC958");
 	chip->pcm_iec958 = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -2672,7 +2672,7 @@ int snd_cs46xx_midi(struct snd_cs46xx *chip, int device)
 	err = snd_rawmidi_new(chip->card, "CS46XX", device, 1, 1, &rmidi);
 	if (err < 0)
 		return err;
-	strcpy(rmidi->name, "CS46XX");
+	strscpy(rmidi->name, "CS46XX");
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT, &snd_cs46xx_midi_output);
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT, &snd_cs46xx_midi_input);
 	rmidi->info_flags |= SNDRV_RAWMIDI_INFO_OUTPUT | SNDRV_RAWMIDI_INFO_INPUT | SNDRV_RAWMIDI_INFO_DUPLEX;
@@ -3853,27 +3853,27 @@ int snd_cs46xx_create(struct snd_card *card,
 	}
 
 	region = &chip->region.name.ba0;
-	strcpy(region->name, "CS46xx_BA0");
+	strscpy(region->name, "CS46xx_BA0");
 	region->base = chip->ba0_addr;
 	region->size = CS46XX_BA0_SIZE;
 
 	region = &chip->region.name.data0;
-	strcpy(region->name, "CS46xx_BA1_data0");
+	strscpy(region->name, "CS46xx_BA1_data0");
 	region->base = chip->ba1_addr + BA1_SP_DMEM0;
 	region->size = CS46XX_BA1_DATA0_SIZE;
 
 	region = &chip->region.name.data1;
-	strcpy(region->name, "CS46xx_BA1_data1");
+	strscpy(region->name, "CS46xx_BA1_data1");
 	region->base = chip->ba1_addr + BA1_SP_DMEM1;
 	region->size = CS46XX_BA1_DATA1_SIZE;
 
 	region = &chip->region.name.pmem;
-	strcpy(region->name, "CS46xx_BA1_pmem");
+	strscpy(region->name, "CS46xx_BA1_pmem");
 	region->base = chip->ba1_addr + BA1_SP_PMEM;
 	region->size = CS46XX_BA1_PRG_SIZE;
 
 	region = &chip->region.name.reg;
-	strcpy(region->name, "CS46xx_BA1_reg");
+	strscpy(region->name, "CS46xx_BA1_reg");
 	region->base = chip->ba1_addr + BA1_SP_REG;
 	region->size = CS46XX_BA1_REG_SIZE;
 

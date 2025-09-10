@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION. All rights reserved
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION. All rights reserved
  *
  * The driver handles Error's from Control Backbone(CBB) generated due to
  * illegal accesses. When an error is reported from a NOC within CBB,
@@ -138,7 +138,7 @@ struct tegra194_cbb_userbits {
 struct tegra194_cbb_noc_data {
 	const char *name;
 	bool erd_mask_inband_err;
-	const char * const *master_id;
+	const char * const *initiator_id;
 	unsigned int max_aperture;
 	const struct tegra194_cbb_aperture *noc_aperture;
 	const char * const *routeid_initflow;
@@ -216,7 +216,7 @@ static const char * const tegra194_axi2apb_error[] = {
 	"CH2RFIFOF - Ch2 Request FIFO Full interrupt"
 };
 
-static const char * const tegra194_master_id[] = {
+static const char * const tegra194_initiator_id[] = {
 	[0x0] = "CCPLEX",
 	[0x1] = "CCPLEX_DPMU",
 	[0x2] = "BPMP",
@@ -238,7 +238,7 @@ static const struct tegra_cbb_error tegra194_cbb_errors[] = {
 	{
 		.code = "SLV",
 		.source = "Target",
-		.desc = "Target error detected by CBB slave"
+		.desc = "Target error detected by CBB target"
 	}, {
 		.code = "DEC",
 		.source = "Initiator NIU",
@@ -1774,8 +1774,8 @@ static void print_errlog5(struct seq_file *file, struct tegra194_cbb *cbb)
 		tegra_cbb_print_err(file, "\t  AXI ID\t\t: %#x\n", userbits.axi_id);
 	}
 
-	tegra_cbb_print_err(file, "\t  Master ID\t\t: %s\n",
-			    cbb->noc->master_id[userbits.mstr_id]);
+	tegra_cbb_print_err(file, "\t  Initiator ID\t\t: %s\n",
+			    cbb->noc->initiator_id[userbits.mstr_id]);
 	tegra_cbb_print_err(file, "\t  Security Group(GRPSEC): %#x\n", userbits.grpsec);
 	tegra_cbb_print_cache(file, userbits.axcache);
 	tegra_cbb_print_prot(file, userbits.axprot);
@@ -1837,14 +1837,14 @@ print_errlog1_2(struct seq_file *file, struct tegra194_cbb *cbb,
 
 /*
  * Print transcation type, error code and description from ErrLog0 for all
- * errors. For NOC slave errors, all relevant error info is printed using
+ * errors. For NOC target errors, all relevant error info is printed using
  * ErrLog0 only. But additional information is printed for errors from
- * APB slaves because for them:
- *  - All errors are logged as SLV(slave) errors due to APB having only single
+ * APB targets because for them:
+ *  - All errors are logged as SLV(target) errors due to APB having only single
  *    bit pslverr to report all errors.
  *  - Exact cause is printed by reading DMAAPB_X_RAW_INTERRUPT_STATUS register.
  *  - The driver prints information showing AXI2APB bridge and exact error
- *    only if there is error in any AXI2APB slave.
+ *    only if there is error in any AXI2APB target.
  *  - There is still no way to disambiguate a DEC error from SLV error type.
  */
 static bool print_errlog0(struct seq_file *file, struct tegra194_cbb *cbb)
@@ -1884,8 +1884,8 @@ static bool print_errlog0(struct seq_file *file, struct tegra194_cbb *cbb)
 		/* For all SLV errors, read DMAAPB_X_RAW_INTERRUPT_STATUS
 		 * register to get error status for all AXI2APB bridges.
 		 * Print bridge details if a bit is set in a bridge's
-		 * status register due to error in a APB slave connected
-		 * to that bridge. For other NOC slaves, none of the status
+		 * status register due to error in a APB target connected
+		 * to that bridge. For other NOC targets, none of the status
 		 * register will be set.
 		 */
 
@@ -2118,7 +2118,7 @@ static const struct tegra_cbb_ops tegra194_cbb_ops = {
 static struct tegra194_cbb_noc_data tegra194_cbb_central_noc_data = {
 	.name = "cbb-noc",
 	.erd_mask_inband_err = true,
-	.master_id = tegra194_master_id,
+	.initiator_id = tegra194_initiator_id,
 	.noc_aperture = tegra194_cbbcentralnoc_apert_lookup,
 	.max_aperture = ARRAY_SIZE(tegra194_cbbcentralnoc_apert_lookup),
 	.routeid_initflow = tegra194_cbbcentralnoc_routeid_initflow,
@@ -2130,7 +2130,7 @@ static struct tegra194_cbb_noc_data tegra194_cbb_central_noc_data = {
 static struct tegra194_cbb_noc_data tegra194_aon_noc_data = {
 	.name = "aon-noc",
 	.erd_mask_inband_err = false,
-	.master_id = tegra194_master_id,
+	.initiator_id = tegra194_initiator_id,
 	.noc_aperture = tegra194_aonnoc_aperture_lookup,
 	.max_aperture = ARRAY_SIZE(tegra194_aonnoc_aperture_lookup),
 	.routeid_initflow = tegra194_aonnoc_routeid_initflow,
@@ -2142,7 +2142,7 @@ static struct tegra194_cbb_noc_data tegra194_aon_noc_data = {
 static struct tegra194_cbb_noc_data tegra194_bpmp_noc_data = {
 	.name = "bpmp-noc",
 	.erd_mask_inband_err = false,
-	.master_id = tegra194_master_id,
+	.initiator_id = tegra194_initiator_id,
 	.noc_aperture = tegra194_bpmpnoc_apert_lookup,
 	.max_aperture = ARRAY_SIZE(tegra194_bpmpnoc_apert_lookup),
 	.routeid_initflow = tegra194_bpmpnoc_routeid_initflow,
@@ -2154,7 +2154,7 @@ static struct tegra194_cbb_noc_data tegra194_bpmp_noc_data = {
 static struct tegra194_cbb_noc_data tegra194_rce_noc_data = {
 	.name = "rce-noc",
 	.erd_mask_inband_err = false,
-	.master_id = tegra194_master_id,
+	.initiator_id = tegra194_initiator_id,
 	.noc_aperture = tegra194_scenoc_apert_lookup,
 	.max_aperture = ARRAY_SIZE(tegra194_scenoc_apert_lookup),
 	.routeid_initflow = tegra194_scenoc_routeid_initflow,
@@ -2166,7 +2166,7 @@ static struct tegra194_cbb_noc_data tegra194_rce_noc_data = {
 static struct tegra194_cbb_noc_data tegra194_sce_noc_data = {
 	.name = "sce-noc",
 	.erd_mask_inband_err = false,
-	.master_id = tegra194_master_id,
+	.initiator_id = tegra194_initiator_id,
 	.noc_aperture = tegra194_scenoc_apert_lookup,
 	.max_aperture = ARRAY_SIZE(tegra194_scenoc_apert_lookup),
 	.routeid_initflow = tegra194_scenoc_routeid_initflow,

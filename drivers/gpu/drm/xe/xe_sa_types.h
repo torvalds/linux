@@ -12,7 +12,6 @@ struct xe_bo;
 struct xe_sa_manager {
 	struct drm_suballoc_manager base;
 	struct xe_bo *bo;
-	u64 gpu_addr;
 	void *cpu_ptr;
 	bool is_iomem;
 };

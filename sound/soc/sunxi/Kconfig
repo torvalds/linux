@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-menu "Allwinner SoC Audio support"
+menu "Allwinner"
 	depends on ARCH_SUNXI || COMPILE_TEST
 
 config SND_SUN4I_CODEC

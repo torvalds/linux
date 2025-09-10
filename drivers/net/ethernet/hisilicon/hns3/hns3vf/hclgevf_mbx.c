@@ -159,7 +159,7 @@ static bool hclgevf_cmd_crq_empty(struct hclgevf_hw *hw)
 {
 	u32 tail = hclgevf_read_dev(hw, HCLGE_COMM_NIC_CRQ_TAIL_REG);
 
-	return tail == hw->hw.cmq.crq.next_to_use;
+	return tail == (u32)hw->hw.cmq.crq.next_to_use;
 }
 
 static void hclgevf_handle_mbx_response(struct hclgevf_dev *hdev,

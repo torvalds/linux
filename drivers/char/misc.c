@@ -289,15 +289,15 @@ EXPORT_SYMBOL(misc_deregister);
 static int __init misc_init(void)
 {
 	int err;
-	struct proc_dir_entry *ret;
+	struct proc_dir_entry *misc_proc_file;
 
-	ret = proc_create_seq("misc", 0, NULL, &misc_seq_ops);
+	misc_proc_file = proc_create_seq("misc", 0, NULL, &misc_seq_ops);
 	err = class_register(&misc_class);
 	if (err)
 		goto fail_remove;
 
-	err = -EIO;
-	if (__register_chrdev(MISC_MAJOR, 0, MINORMASK + 1, "misc", &misc_fops))
+	err = __register_chrdev(MISC_MAJOR, 0, MINORMASK + 1, "misc", &misc_fops);
+	if (err < 0)
 		goto fail_printk;
 	return 0;
 
@@ -305,7 +305,7 @@ fail_printk:
 	pr_err("unable to get major %d for misc devices\n", MISC_MAJOR);
 	class_unregister(&misc_class);
 fail_remove:
-	if (ret)
+	if (misc_proc_file)
 		remove_proc_entry("misc", NULL);
 	return err;
 }

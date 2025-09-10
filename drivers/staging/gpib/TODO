@@ -1,6 +1,9 @@
 TODO:
 - checkpatch.pl fixes
-- fix device drivers that are broken ("depends on BROKEN" in Kconfig)
+  These checks should be ignored:
+    CHECK:ALLOC_SIZEOF_STRUCT: Prefer kmalloc(sizeof(*board->private_data)...) over kmalloc(sizeof(struct xxx_priv)...)
+    ./gpio/gpib_bitbang.c:50: ERROR:COMPLEX_MACRO: Macros with complex values should be enclosed in parenthese
+  This warning will be addressed later:  WARNING:UNDOCUMENTED_DT_STRING: DT compatible string
 - tidy-up comments:
   - there are some "//comments" and "// comments" scattered around
   - sometimes they are misaligned

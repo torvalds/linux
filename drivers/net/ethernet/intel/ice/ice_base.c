@@ -250,7 +250,7 @@ static u16 ice_calc_txq_handle(struct ice_vsi *vsi, struct ice_tx_ring *ring, u8
 		return ring->q_index - ring->ch->base_q;
 
 	/* Idea here for calculation is that we subtract the number of queue
-	 * count from TC that ring belongs to from it's absolute queue index
+	 * count from TC that ring belongs to from its absolute queue index
 	 * and as a result we get the queue's index within TC.
 	 */
 	return ring->q_index - vsi->tc_cfg.tc_info[tc].qoffset;
@@ -623,7 +623,10 @@ static int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 		return 0;
 	}
 
-	ice_alloc_rx_bufs(ring, num_bufs);
+	if (ring->vsi->type == ICE_VSI_CTRL)
+		ice_init_ctrl_rx_descs(ring, num_bufs);
+	else
+		ice_alloc_rx_bufs(ring, num_bufs);
 
 	return 0;
 }

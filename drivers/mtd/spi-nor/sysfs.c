@@ -104,7 +104,7 @@ static const struct attribute_group spi_nor_sysfs_group = {
 	.is_visible	= spi_nor_sysfs_is_visible,
 	.is_bin_visible	= spi_nor_sysfs_is_bin_visible,
 	.attrs		= spi_nor_sysfs_entries,
-	.bin_attrs_new	= spi_nor_sysfs_bin_entries,
+	.bin_attrs	= spi_nor_sysfs_bin_entries,
 };
 
 const struct attribute_group *spi_nor_sysfs_groups[] = {

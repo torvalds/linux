@@ -528,8 +528,10 @@ static int enic_grxclsrule(struct enic *enic, struct ethtool_rxnfc *cmd)
 	return 0;
 }
 
-static int enic_get_rx_flow_hash(struct enic *enic, struct ethtool_rxnfc *cmd)
+static int enic_get_rx_flow_hash(struct net_device *dev,
+				 struct ethtool_rxfh_fields *cmd)
 {
+	struct enic *enic = netdev_priv(dev);
 	u8 rss_hash_type = 0;
 	cmd->data = 0;
 
@@ -596,9 +598,6 @@ static int enic_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		spin_lock_bh(&enic->rfs_h.lock);
 		ret = enic_grxclsrule(enic, cmd);
 		spin_unlock_bh(&enic->rfs_h.lock);
-		break;
-	case ETHTOOL_GRXFH:
-		ret = enic_get_rx_flow_hash(enic, cmd);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -693,6 +692,7 @@ static const struct ethtool_ops enic_ethtool_ops = {
 	.get_rxfh_key_size = enic_get_rxfh_key_size,
 	.get_rxfh = enic_get_rxfh,
 	.set_rxfh = enic_set_rxfh,
+	.get_rxfh_fields = enic_get_rx_flow_hash,
 	.get_link_ksettings = enic_get_ksettings,
 	.get_ts_info = enic_get_ts_info,
 	.get_channels = enic_get_channels,

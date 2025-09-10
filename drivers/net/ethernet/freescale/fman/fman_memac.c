@@ -1225,7 +1225,7 @@ int memac_initialization(struct mac_device *mac_dev,
 	 * be careful and not enable this if we are using MII or RGMII, since
 	 * those configurations modes don't use in-band autonegotiation.
 	 */
-	if (!of_property_read_bool(mac_node, "managed") &&
+	if (!of_property_present(mac_node, "managed") &&
 	    mac_dev->phy_if != PHY_INTERFACE_MODE_MII &&
 	    !phy_interface_mode_is_rgmii(mac_dev->phy_if))
 		mac_dev->phylink_config.default_an_inband = true;

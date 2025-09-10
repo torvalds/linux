@@ -1323,7 +1323,7 @@ int ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
  *	@hw: pointer to hardware structure
  *
  *	Restart autonegotiation and PHY and waits for completion.
- *      This function always returns success, this is nessary since
+ *	This function always returns success, this is necessary since
  *	it is called via a function pointer that could call other
  *	functions that could return an error.
  **/

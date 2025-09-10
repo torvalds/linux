@@ -52,6 +52,10 @@ properties:
               - nvidia,cardhu-a04
           - const: nvidia,cardhu
           - const: nvidia,tegra30
+      - description: ASUS Portable AiO P1801-T
+        items:
+          - const: asus,p1801-t
+          - const: nvidia,tegra30
       - description: ASUS Transformers Device family
         items:
           - enum:
@@ -60,6 +64,10 @@ properties:
               - asus,tf300tg
               - asus,tf300tl
               - asus,tf700t
+          - const: nvidia,tegra30
+      - description: Asus VivoTab RT
+        items:
+          - const: asus,tf600t
           - const: nvidia,tegra30
       - description: LG Optimus 4X P880
         items:
@@ -242,5 +250,10 @@ properties:
           - const: nvidia,p3768-0000+p3767-0005
           - const: nvidia,p3767-0005
           - const: nvidia,tegra234
+      - description: NVIDIA P3971-0089+P3834-0008 Engineering Reference Platform
+        items:
+          - const: nvidia,p3971-0089+p3834-0008
+          - const: nvidia,p3834-0008
+          - const: nvidia,tegra264
 
 additionalProperties: true

@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menu "Mediatek"
+
 config SND_SOC_MEDIATEK
 	tristate
 	select REGMAP_MMIO
@@ -319,3 +321,5 @@ config SND_SOC_MT8365_MT6357
 	  boards with the MT6357 PMIC codec.
 	  Select Y if you have such device.
 	  If unsure select "N".
+
+endmenu

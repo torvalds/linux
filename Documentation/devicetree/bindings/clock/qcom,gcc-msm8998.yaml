@@ -14,7 +14,7 @@ description: |
   Qualcomm global clock control module provides the clocks, resets and power
   domains on MSM8998.
 
-  See also:: include/dt-bindings/clock/qcom,gcc-msm8998.h
+  See also: include/dt-bindings/clock/qcom,gcc-msm8998.h
 
 properties:
   compatible:

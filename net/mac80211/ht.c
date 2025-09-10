@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright(c) 2020-2024 Intel Corporation
+ * Copyright(c) 2020-2025 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -603,3 +603,41 @@ out:
 }
 /* this might change ... don't want non-open drivers using it */
 EXPORT_SYMBOL_GPL(ieee80211_request_smps);
+
+void ieee80211_ht_handle_chanwidth_notif(struct ieee80211_local *local,
+					 struct ieee80211_sub_if_data *sdata,
+					 struct sta_info *sta,
+					 struct link_sta_info *link_sta,
+					 u8 chanwidth, enum nl80211_band band)
+{
+	enum ieee80211_sta_rx_bandwidth max_bw, new_bw;
+	struct ieee80211_supported_band *sband;
+	struct sta_opmode_info sta_opmode = {};
+
+	lockdep_assert_wiphy(local->hw.wiphy);
+
+	if (chanwidth == IEEE80211_HT_CHANWIDTH_20MHZ)
+		max_bw = IEEE80211_STA_RX_BW_20;
+	else
+		max_bw = ieee80211_sta_cap_rx_bw(link_sta);
+
+	/* set cur_max_bandwidth and recalc sta bw */
+	link_sta->cur_max_bandwidth = max_bw;
+	new_bw = ieee80211_sta_cur_vht_bw(link_sta);
+
+	if (link_sta->pub->bandwidth == new_bw)
+		return;
+
+	link_sta->pub->bandwidth = new_bw;
+	sband = local->hw.wiphy->bands[band];
+	sta_opmode.bw =
+		ieee80211_sta_rx_bw_to_chan_width(link_sta);
+	sta_opmode.changed = STA_OPMODE_MAX_BW_CHANGED;
+
+	rate_control_rate_update(local, sband, link_sta,
+				 IEEE80211_RC_BW_CHANGED);
+	cfg80211_sta_opmode_change_notify(sdata->dev,
+					  sta->addr,
+					  &sta_opmode,
+					  GFP_KERNEL);
+}

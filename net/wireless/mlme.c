@@ -352,8 +352,25 @@ cfg80211_mlme_check_mlo_compat(const struct ieee80211_multi_link_elem *mle_a,
 		return -EINVAL;
 	}
 
-	if (ieee80211_mle_get_ext_mld_capa_op((const u8 *)mle_a) !=
-	    ieee80211_mle_get_ext_mld_capa_op((const u8 *)mle_b)) {
+	/*
+	 * Only verify the values in Extended MLD Capabilities that are
+	 * not reserved when transmitted by an AP (and expected to remain the
+	 * same over time).
+	 * The Recommended Max Simultaneous Links subfield in particular is
+	 * reserved when included in a unicast Probe Response frame and may
+	 * also change when the AP adds/removes links. The BTM MLD
+	 * Recommendation For Multiple APs Support subfield is reserved when
+	 * transmitted by an AP. All other bits are currently reserved.
+	 * See IEEE P802.11be/D7.0, Table 9-417o.
+	 */
+	if ((ieee80211_mle_get_ext_mld_capa_op((const u8 *)mle_a) &
+	     (IEEE80211_EHT_ML_EXT_MLD_CAPA_OP_PARAM_UPDATE |
+	      IEEE80211_EHT_ML_EXT_MLD_CAPA_NSTR_UPDATE |
+	      IEEE80211_EHT_ML_EXT_MLD_CAPA_EMLSR_ENA_ON_ONE_LINK)) !=
+	    (ieee80211_mle_get_ext_mld_capa_op((const u8 *)mle_b) &
+	     (IEEE80211_EHT_ML_EXT_MLD_CAPA_OP_PARAM_UPDATE |
+	      IEEE80211_EHT_ML_EXT_MLD_CAPA_NSTR_UPDATE |
+	      IEEE80211_EHT_ML_EXT_MLD_CAPA_EMLSR_ENA_ON_ONE_LINK))) {
 		NL_SET_ERR_MSG(extack,
 			       "extended link MLD capabilities/ops mismatch");
 		return -EINVAL;
@@ -850,7 +867,8 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 
 	mgmt = (const struct ieee80211_mgmt *)params->buf;
 
-	if (!ieee80211_is_mgmt(mgmt->frame_control))
+	if (!ieee80211_is_mgmt(mgmt->frame_control) ||
+	    ieee80211_has_order(mgmt->frame_control))
 		return -EINVAL;
 
 	stype = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_STYPE;
@@ -1331,7 +1349,8 @@ void cfg80211_mlo_reconf_add_done(struct net_device *dev,
 	lockdep_assert_wiphy(wiphy);
 
 	trace_cfg80211_mlo_reconf_add_done(dev, data->added_links,
-					   data->buf, data->len);
+					   data->buf, data->len,
+					   data->driver_initiated);
 
 	if (WARN_ON(!wdev->valid_links))
 		return;
@@ -1361,11 +1380,16 @@ void cfg80211_mlo_reconf_add_done(struct net_device *dev,
 			wdev->links[link_id].client.current_bss =
 				bss_from_pub(bss);
 
+			if (data->driver_initiated)
+				cfg80211_hold_bss(bss_from_pub(bss));
+
 			memcpy(wdev->links[link_id].addr,
 			       data->links[link_id].addr,
 			       ETH_ALEN);
 		} else {
-			cfg80211_unhold_bss(bss_from_pub(bss));
+			if (!data->driver_initiated)
+				cfg80211_unhold_bss(bss_from_pub(bss));
+
 			cfg80211_put_bss(wiphy, bss);
 		}
 	}

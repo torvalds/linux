@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/microchip,pic32mzda-clk.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip PIC32MZDA Clock Controller
+
+maintainers:
+  - Purna Chandra Mandal <purna.mandal@microchip.com>
+
+description:
+  Microchip clock controller consists of a few oscillators, PLL, multiplexer
+  and divider modules.
+
+properties:
+  compatible:
+    const: microchip,pic32mzda-clk
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  microchip,pic32mzda-sosc:
+    description: Presence of secondary oscillator.
+    type: boolean
+
+required:
+  - compatible
+  - reg
+  - "#clock-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@1f801200 {
+        compatible = "microchip,pic32mzda-clk";
+        reg = <0x1f801200 0x200>;
+        #clock-cells = <1>;
+        /* optional */
+        microchip,pic32mzda-sosc;
+    };

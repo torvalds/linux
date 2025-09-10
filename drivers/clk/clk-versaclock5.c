@@ -136,7 +136,7 @@
 #define VC5_MAX_FOD_NUM	4
 
 /* flags to describe chip features */
-/* chip has built-in oscilator */
+/* chip has built-in oscillator */
 #define VC5_HAS_INTERNAL_XTAL	BIT(0)
 /* chip has PFD requency doubler */
 #define VC5_HAS_PFD_FREQ_DBL	BIT(1)

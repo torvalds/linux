@@ -35,7 +35,7 @@ s32 tcp_rack_skb_timeout(struct tcp_sock *tp, struct sk_buff *skb, u32 reo_wnd)
 	       tcp_stamp_us_delta(tp->tcp_mstamp, tcp_skb_timestamp_us(skb));
 }
 
-/* RACK loss detection (IETF draft draft-ietf-tcpm-rack-01):
+/* RACK loss detection (IETF RFC8985):
  *
  * Marks a packet lost, if some packet sent later has been (s)acked.
  * The underlying idea is similar to the traditional dupthresh and FACK

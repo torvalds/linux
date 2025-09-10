@@ -44,6 +44,7 @@ extern void ktime_get_ts64(struct timespec64 *ts);
 extern void ktime_get_real_ts64(struct timespec64 *tv);
 extern void ktime_get_coarse_ts64(struct timespec64 *ts);
 extern void ktime_get_coarse_real_ts64(struct timespec64 *ts);
+extern void ktime_get_clock_ts64(clockid_t id, struct timespec64 *ts);
 
 /* Multigrain timestamp interfaces */
 extern void ktime_get_coarse_real_ts64_mg(struct timespec64 *ts);
@@ -262,6 +263,17 @@ extern bool timekeeping_rtc_skipsuspend(void);
 extern bool timekeeping_rtc_skipresume(void);
 
 extern void timekeeping_inject_sleeptime64(const struct timespec64 *delta);
+
+/*
+ * Auxiliary clock interfaces
+ */
+#ifdef CONFIG_POSIX_AUX_CLOCKS
+extern bool ktime_get_aux(clockid_t id, ktime_t *kt);
+extern bool ktime_get_aux_ts64(clockid_t id, struct timespec64 *kt);
+#else
+static inline bool ktime_get_aux(clockid_t id, ktime_t *kt) { return false; }
+static inline bool ktime_get_aux_ts64(clockid_t id, struct timespec64 *kt) { return false; }
+#endif
 
 /**
  * struct system_time_snapshot - simultaneous raw/real time capture with

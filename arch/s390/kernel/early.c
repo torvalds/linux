@@ -105,6 +105,8 @@ static inline void strim_all(char *str)
 	}
 }
 
+char arch_hw_string[128];
+
 static noinline __init void setup_arch_string(void)
 {
 	struct sysinfo_1_1_1 *mach = (struct sysinfo_1_1_1 *)&sysinfo_page;
@@ -131,6 +133,7 @@ static noinline __init void setup_arch_string(void)
 			machine_is_vm() ? "z/VM" :
 			machine_is_kvm() ? "KVM" : "unknown");
 	}
+	sprintf(arch_hw_string, "HW: %s (%s)", mstr, hvstr);
 	dump_stack_set_arch_desc("%s (%s)", mstr, hvstr);
 }
 
@@ -154,6 +157,7 @@ void __init __do_early_pgm_check(struct pt_regs *regs)
 
 	regs->int_code = lc->pgm_int_code;
 	regs->int_parm_long = lc->trans_exc_code;
+	regs->last_break = lc->pgm_last_break;
 	ip = __rewind_psw(regs->psw, regs->int_code >> 16);
 
 	/* Monitor Event? Might be a warning */

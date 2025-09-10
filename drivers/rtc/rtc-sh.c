@@ -455,7 +455,7 @@ static void __exit sh_rtc_remove(struct platform_device *pdev)
 	clk_disable(rtc->clk);
 }
 
-static int __maybe_unused sh_rtc_suspend(struct device *dev)
+static int sh_rtc_suspend(struct device *dev)
 {
 	struct sh_rtc *rtc = dev_get_drvdata(dev);
 
@@ -465,7 +465,7 @@ static int __maybe_unused sh_rtc_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused sh_rtc_resume(struct device *dev)
+static int sh_rtc_resume(struct device *dev)
 {
 	struct sh_rtc *rtc = dev_get_drvdata(dev);
 
@@ -475,7 +475,7 @@ static int __maybe_unused sh_rtc_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(sh_rtc_pm_ops, sh_rtc_suspend, sh_rtc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(sh_rtc_pm_ops, sh_rtc_suspend, sh_rtc_resume);
 
 static const struct of_device_id sh_rtc_of_match[] = {
 	{ .compatible = "renesas,sh-rtc", },
@@ -492,7 +492,7 @@ MODULE_DEVICE_TABLE(of, sh_rtc_of_match);
 static struct platform_driver sh_rtc_platform_driver __refdata = {
 	.driver		= {
 		.name	= DRV_NAME,
-		.pm	= &sh_rtc_pm_ops,
+		.pm	= pm_sleep_ptr(&sh_rtc_pm_ops),
 		.of_match_table = sh_rtc_of_match,
 	},
 	.remove		= __exit_p(sh_rtc_remove),

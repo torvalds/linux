@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/proximity/nicera,d3323aa.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Nicera D3-323-AA PIR sensor
+
+maintainers:
+  - Waqar Hameed <waqar.hameed@axis.com>
+
+description: |
+  PIR sensor for human detection.
+  Datasheet: https://www.endrich.com/Datenbl%C3%A4tter/Sensoren/D3-323-AA_e.pdf
+
+properties:
+  compatible:
+    const: nicera,d3323aa
+
+  vdd-supply:
+    description:
+      Supply voltage (1.8 to 5.5 V).
+
+  vout-clk-gpios:
+    maxItems: 1
+    description:
+      GPIO for clock and detection.
+      After reset, the device signals with two falling edges on this pin that it
+      is ready for configuration (within 1.2 s).
+      During configuration, it is used as clock for data reading and writing (on
+      data-gpios).
+      After all this, when device is in operational mode, it signals on this pin
+      for any detections.
+
+  data-gpios:
+    maxItems: 1
+    description:
+      GPIO for data reading and writing. This is denoted "DO (SI)" in datasheet.
+      During configuration, this pin is used for writing and reading
+      configuration data (together with vout-clk-gpios as clock).
+      After this, during operational mode, the device will output serial data on
+      this GPIO.
+
+required:
+  - compatible
+  - vdd-supply
+  - vout-clk-gpios
+  - data-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    proximity {
+        compatible = "nicera,d3323aa";
+        vdd-supply = <&regulator_3v3>;
+        vout-clk-gpios = <&gpio 78 GPIO_ACTIVE_HIGH>;
+        data-gpios = <&gpio 76 GPIO_ACTIVE_HIGH>;
+    };
+...

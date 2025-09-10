@@ -442,8 +442,7 @@ static int pca954x_irq_setup(struct i2c_mux_core *muxc)
 
 	raw_spin_lock_init(&data->lock);
 
-	data->irq = irq_domain_create_linear(of_fwnode_handle(client->dev.of_node),
-					     data->chip->nchans,
+	data->irq = irq_domain_create_linear(dev_fwnode(&client->dev), data->chip->nchans,
 					     &irq_domain_simple_ops, data);
 	if (!data->irq)
 		return -ENODEV;

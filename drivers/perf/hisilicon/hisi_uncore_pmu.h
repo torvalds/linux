@@ -72,6 +72,8 @@ struct hisi_uncore_ops {
 struct hisi_pmu_dev_info {
 	const char *name;
 	const struct attribute_group **attr_groups;
+	u32 counter_bits;
+	u32 check_event;
 	void *private;
 };
 

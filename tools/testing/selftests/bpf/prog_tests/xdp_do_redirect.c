@@ -66,16 +66,25 @@ static int attach_tc_prog(struct bpf_tc_hook *hook, int fd)
 #else
 #define MAX_PKT_SIZE 3408
 #endif
+
+#define PAGE_SIZE_4K  4096
+#define PAGE_SIZE_64K 65536
+
 static void test_max_pkt_size(int fd)
 {
-	char data[MAX_PKT_SIZE + 1] = {};
+	char data[PAGE_SIZE_64K + 1] = {};
 	int err;
 	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, opts,
 			    .data_in = &data,
-			    .data_size_in = MAX_PKT_SIZE,
 			    .flags = BPF_F_TEST_XDP_LIVE_FRAMES,
 			    .repeat = 1,
 		);
+
+	if (getpagesize() == PAGE_SIZE_64K)
+		opts.data_size_in = MAX_PKT_SIZE + PAGE_SIZE_64K - PAGE_SIZE_4K;
+	else
+		opts.data_size_in = MAX_PKT_SIZE;
+
 	err = bpf_prog_test_run_opts(fd, &opts);
 	ASSERT_OK(err, "prog_run_max_size");
 

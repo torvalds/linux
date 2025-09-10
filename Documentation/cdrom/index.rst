@@ -8,7 +8,6 @@ CD-ROM
     :maxdepth: 1
 
     cdrom-standard
-    packet-writing
 
 .. only::  subproject and html
 

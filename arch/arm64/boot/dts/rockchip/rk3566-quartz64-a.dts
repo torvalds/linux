@@ -30,6 +30,7 @@
 
 	fan: gpio_fan {
 		compatible = "gpio-fan";
+		fan-supply = <&vcc12v_dcin>;
 		gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
 		gpio-fan,speed-map =
 				<   0 0>,

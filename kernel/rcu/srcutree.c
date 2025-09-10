@@ -502,6 +502,8 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *ssp, int idx)
 	 */
 	if (!did_gp)
 		smp_mb(); /* A */
+	else if (srcu_gp_is_expedited(ssp))
+		synchronize_rcu_expedited(); /* X */
 	else
 		synchronize_rcu(); /* X */
 

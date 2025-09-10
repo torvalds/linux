@@ -1007,7 +1007,7 @@ static int k3_r5_core_of_get_sram_memories(struct platform_device *pdev,
 			return -ENOMEM;
 		}
 
-		dev_dbg(dev, "memory sram%d: bus addr %pa size 0x%zx va %pK da 0x%x\n",
+		dev_dbg(dev, "memory sram%d: bus addr %pa size 0x%zx va %p da 0x%x\n",
 			i, &core->sram[i].bus_addr,
 			core->sram[i].size, core->sram[i].cpu_addr,
 			core->sram[i].dev_addr);

@@ -5,7 +5,7 @@
 #include <linux/compiler.h>
 #include <linux/threads.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct task_struct;
 extern struct task_struct *cpu_tasks[NR_CPUS];
@@ -18,6 +18,6 @@ static __always_inline struct task_struct *get_current(void)
 
 #define current get_current()
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __ASM_CURRENT_H */

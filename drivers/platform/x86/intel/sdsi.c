@@ -576,7 +576,7 @@ static struct attribute *sdsi_attrs[] = {
 
 static const struct attribute_group sdsi_group = {
 	.attrs = sdsi_attrs,
-	.bin_attrs_new = sdsi_bin_attrs,
+	.bin_attrs = sdsi_bin_attrs,
 	.is_bin_visible = sdsi_battr_is_visible,
 };
 __ATTRIBUTE_GROUPS(sdsi);

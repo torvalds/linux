@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/cpu.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
@@ -156,7 +157,6 @@
  * @parent_irq:		parent IRQ if MPIC is not top-level interrupt controller
  * @domain:		MPIC main interrupt domain
  * @ipi_domain:		IPI domain
- * @msi_domain:		MSI domain
  * @msi_inner_domain:	MSI inner domain
  * @msi_used:		bitmap of used MSI numbers
  * @msi_lock:		mutex serializing access to @msi_used
@@ -176,7 +176,6 @@ struct mpic {
 	struct irq_domain *ipi_domain;
 #endif
 #ifdef CONFIG_PCI_MSI
-	struct irq_domain *msi_domain;
 	struct irq_domain *msi_inner_domain;
 	DECLARE_BITMAP(msi_used, PCI_MSI_FULL_DOORBELL_NR);
 	struct mutex msi_lock;
@@ -233,18 +232,6 @@ static void mpic_irq_unmask(struct irq_data *d)
 }
 
 #ifdef CONFIG_PCI_MSI
-
-static struct irq_chip mpic_msi_irq_chip = {
-	.name		= "MPIC MSI",
-	.irq_mask	= pci_msi_mask_irq,
-	.irq_unmask	= pci_msi_unmask_irq,
-};
-
-static struct msi_domain_info mpic_msi_domain_info = {
-	.flags	= (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		   MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX),
-	.chip	= &mpic_msi_irq_chip,
-};
 
 static void mpic_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 {
@@ -314,6 +301,7 @@ static void mpic_msi_free(struct irq_domain *domain, unsigned int virq, unsigned
 }
 
 static const struct irq_domain_ops mpic_msi_domain_ops = {
+	.select	= msi_lib_irq_domain_select,
 	.alloc	= mpic_msi_alloc,
 	.free	= mpic_msi_free,
 };
@@ -330,6 +318,21 @@ static void mpic_msi_reenable_percpu(struct mpic *mpic)
 	/* Unmask local doorbell interrupt */
 	writel(1, mpic->per_cpu + MPIC_INT_CLEAR_MASK);
 }
+
+#define MPIC_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS | \
+				 MSI_FLAG_USE_DEF_CHIP_OPS)
+#define MPIC_MSI_FLAGS_SUPPORTED (MSI_FLAG_MULTI_PCI_MSI  | \
+				  MSI_FLAG_PCI_MSIX       | \
+				  MSI_GENERIC_FLAGS_MASK)
+
+static const struct msi_parent_ops mpic_msi_parent_ops = {
+	.required_flags		= MPIC_MSI_FLAGS_REQUIRED,
+	.supported_flags	= MPIC_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_NEXUS,
+	.bus_select_mask	= MATCH_PCI_MSI,
+	.prefix			= "MPIC-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
+};
 
 static int __init mpic_msi_init(struct mpic *mpic, struct device_node *node,
 				phys_addr_t main_int_phys_base)
@@ -348,17 +351,16 @@ static int __init mpic_msi_init(struct mpic *mpic, struct device_node *node,
 		mpic->msi_doorbell_mask = PCI_MSI_FULL_DOORBELL_MASK;
 	}
 
-	mpic->msi_inner_domain = irq_domain_create_linear(NULL, mpic->msi_doorbell_size,
-						       &mpic_msi_domain_ops, mpic);
+	struct irq_domain_info info = {
+		.fwnode		= of_fwnode_handle(node),
+		.ops		= &mpic_msi_domain_ops,
+		.host_data	= mpic,
+		.size		= mpic->msi_doorbell_size,
+	};
+
+	mpic->msi_inner_domain = msi_create_parent_irq_domain(&info, &mpic_msi_parent_ops);
 	if (!mpic->msi_inner_domain)
 		return -ENOMEM;
-
-	mpic->msi_domain = pci_msi_create_irq_domain(of_fwnode_handle(node), &mpic_msi_domain_info,
-						     mpic->msi_inner_domain);
-	if (!mpic->msi_domain) {
-		irq_domain_remove(mpic->msi_inner_domain);
-		return -ENOMEM;
-	}
 
 	mpic_msi_reenable_percpu(mpic);
 

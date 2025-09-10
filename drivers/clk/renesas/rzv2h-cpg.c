@@ -77,6 +77,7 @@
  * @resets: Array of resets
  * @num_resets: Number of Module Resets in info->resets[]
  * @last_dt_core_clk: ID of the last Core Clock exported to DT
+ * @ff_mod_status_ops: Fixed Factor Module Status Clock operations
  * @mstop_count: Array of mstop values
  * @rcdev: Reset controller entity
  */
@@ -92,6 +93,8 @@ struct rzv2h_cpg_priv {
 	unsigned int num_resets;
 	unsigned int last_dt_core_clk;
 
+	struct clk_ops *ff_mod_status_ops;
+
 	atomic_t *mstop_count;
 
 	struct reset_controller_dev rcdev;
@@ -101,7 +104,6 @@ struct rzv2h_cpg_priv {
 
 struct pll_clk {
 	struct rzv2h_cpg_priv *priv;
-	void __iomem *base;
 	struct clk_hw hw;
 	struct pll pll;
 };
@@ -119,6 +121,7 @@ struct pll_clk {
  * @on_bit: ON/MON bit
  * @mon_index: monitor register offset
  * @mon_bit: monitor bit
+ * @ext_clk_mux_index: mux index for external clock source, or -1 if internal
  */
 struct mod_clock {
 	struct rzv2h_cpg_priv *priv;
@@ -129,6 +132,7 @@ struct mod_clock {
 	u8 on_bit;
 	s8 mon_index;
 	u8 mon_bit;
+	s8 ext_clk_mux_index;
 };
 
 #define to_mod_clock(_hw) container_of(_hw, struct mod_clock, hw)
@@ -147,6 +151,22 @@ struct ddiv_clk {
 };
 
 #define to_ddiv_clock(_div) container_of(_div, struct ddiv_clk, div)
+
+/**
+ * struct rzv2h_ff_mod_status_clk - Fixed Factor Module Status Clock
+ *
+ * @priv: CPG private data
+ * @conf: fixed mod configuration
+ * @fix: fixed factor clock
+ */
+struct rzv2h_ff_mod_status_clk {
+	struct rzv2h_cpg_priv *priv;
+	struct fixed_mod_conf conf;
+	struct clk_fixed_factor fix;
+};
+
+#define to_rzv2h_ff_mod_status_clk(_hw) \
+	container_of(_hw, struct rzv2h_ff_mod_status_clk, fix.hw)
 
 static int rzv2h_cpg_pll_clk_is_enabled(struct clk_hw *hw)
 {
@@ -228,7 +248,6 @@ rzv2h_cpg_pll_clk_register(const struct cpg_core_clk *core,
 			   struct rzv2h_cpg_priv *priv,
 			   const struct clk_ops *ops)
 {
-	void __iomem *base = priv->base;
 	struct device *dev = priv->dev;
 	struct clk_init_data init;
 	const struct clk *parent;
@@ -253,7 +272,6 @@ rzv2h_cpg_pll_clk_register(const struct cpg_core_clk *core,
 
 	pll_clk->hw.init = &init;
 	pll_clk->pll = core->cfg.pll;
-	pll_clk->base = base;
 	pll_clk->priv = priv;
 
 	ret = devm_clk_hw_register(dev, &pll_clk->hw);
@@ -381,6 +399,7 @@ rzv2h_cpg_ddiv_clk_register(const struct cpg_core_clk *core,
 		init.ops = &rzv2h_ddiv_clk_divider_ops;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
+	init.flags = CLK_SET_RATE_PARENT;
 
 	ddiv->priv = priv;
 	ddiv->mon = cfg_ddiv.monbit;
@@ -416,6 +435,65 @@ rzv2h_cpg_mux_clk_register(const struct cpg_core_clk *core,
 		return ERR_CAST(clk_hw);
 
 	return clk_hw->clk;
+}
+
+static int
+rzv2h_clk_ff_mod_status_is_enabled(struct clk_hw *hw)
+{
+	struct rzv2h_ff_mod_status_clk *fix = to_rzv2h_ff_mod_status_clk(hw);
+	struct rzv2h_cpg_priv *priv = fix->priv;
+	u32 offset = GET_CLK_MON_OFFSET(fix->conf.mon_index);
+	u32 bitmask = BIT(fix->conf.mon_bit);
+	u32 val;
+
+	val = readl(priv->base + offset);
+	return !!(val & bitmask);
+}
+
+static struct clk * __init
+rzv2h_cpg_fixed_mod_status_clk_register(const struct cpg_core_clk *core,
+					struct rzv2h_cpg_priv *priv)
+{
+	struct rzv2h_ff_mod_status_clk *clk_hw_data;
+	struct clk_init_data init = { };
+	struct clk_fixed_factor *fix;
+	const struct clk *parent;
+	const char *parent_name;
+	int ret;
+
+	WARN_DEBUG(core->parent >= priv->num_core_clks);
+	parent = priv->clks[core->parent];
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	parent_name = __clk_get_name(parent);
+	parent = priv->clks[core->parent];
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	clk_hw_data = devm_kzalloc(priv->dev, sizeof(*clk_hw_data), GFP_KERNEL);
+	if (!clk_hw_data)
+		return ERR_PTR(-ENOMEM);
+
+	clk_hw_data->priv = priv;
+	clk_hw_data->conf = core->cfg.fixed_mod;
+
+	init.name = core->name;
+	init.ops = priv->ff_mod_status_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	fix = &clk_hw_data->fix;
+	fix->hw.init = &init;
+	fix->mult = core->mult;
+	fix->div = core->div;
+
+	ret = devm_clk_hw_register(priv->dev, &clk_hw_data->fix.hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return clk_hw_data->fix.hw.clk;
 }
 
 static struct clk
@@ -496,6 +574,20 @@ rzv2h_cpg_register_core_clk(const struct cpg_core_clk *core,
 		else
 			clk = clk_hw->clk;
 		break;
+	case CLK_TYPE_FF_MOD_STATUS:
+		if (!priv->ff_mod_status_ops) {
+			priv->ff_mod_status_ops =
+				devm_kzalloc(dev, sizeof(*priv->ff_mod_status_ops), GFP_KERNEL);
+			if (!priv->ff_mod_status_ops) {
+				clk = ERR_PTR(-ENOMEM);
+				goto fail;
+			}
+			memcpy(priv->ff_mod_status_ops, &clk_fixed_factor_ops,
+			       sizeof(const struct clk_ops));
+			priv->ff_mod_status_ops->is_enabled = rzv2h_clk_ff_mod_status_is_enabled;
+		}
+		clk = rzv2h_cpg_fixed_mod_status_clk_register(core, priv);
+		break;
 	case CLK_TYPE_PLL:
 		clk = rzv2h_cpg_pll_clk_register(core, priv, &rzv2h_cpg_pll_ops);
 		break;
@@ -563,15 +655,38 @@ static void rzv2h_mod_clock_mstop_disable(struct rzv2h_cpg_priv *priv,
 	spin_unlock_irqrestore(&priv->rmw_lock, flags);
 }
 
+static int rzv2h_parent_clk_mux_to_index(struct clk_hw *hw)
+{
+	struct clk_hw *parent_hw;
+	struct clk *parent_clk;
+	struct clk_mux *mux;
+	u32 val;
+
+	/* This will always succeed, so no need to check for IS_ERR() */
+	parent_clk = clk_get_parent(hw->clk);
+
+	parent_hw = __clk_get_hw(parent_clk);
+	mux = to_clk_mux(parent_hw);
+
+	val = readl(mux->reg) >> mux->shift;
+	val &= mux->mask;
+	return clk_mux_val_to_index(parent_hw, mux->table, 0, val);
+}
+
 static int rzv2h_mod_clock_is_enabled(struct clk_hw *hw)
 {
 	struct mod_clock *clock = to_mod_clock(hw);
 	struct rzv2h_cpg_priv *priv = clock->priv;
+	int mon_index = clock->mon_index;
 	u32 bitmask;
 	u32 offset;
 
-	if (clock->mon_index >= 0) {
-		offset = GET_CLK_MON_OFFSET(clock->mon_index);
+	if (clock->ext_clk_mux_index >= 0 &&
+	    rzv2h_parent_clk_mux_to_index(hw) == clock->ext_clk_mux_index)
+		mon_index = -1;
+
+	if (mon_index >= 0) {
+		offset = GET_CLK_MON_OFFSET(mon_index);
 		bitmask = BIT(clock->mon_bit);
 
 		if (!(readl(priv->base + offset) & bitmask))
@@ -687,6 +802,7 @@ rzv2h_cpg_register_mod_clk(const struct rzv2h_mod_clk *mod,
 	clock->mon_index = mod->mon_index;
 	clock->mon_bit = mod->mon_bit;
 	clock->no_pm = mod->no_pm;
+	clock->ext_clk_mux_index = mod->ext_clk_mux_index;
 	clock->priv = priv;
 	clock->hw.init = &init;
 	clock->mstop_data = mod->mstop_data;
@@ -1004,8 +1120,8 @@ static int __init rzv2h_cpg_probe(struct platform_device *pdev)
 	/* Adjust for CPG_BUS_m_MSTOP starting from m = 1 */
 	priv->mstop_count -= 16;
 
-	priv->resets = devm_kmemdup(dev, info->resets, sizeof(*info->resets) *
-				    info->num_resets, GFP_KERNEL);
+	priv->resets = devm_kmemdup_array(dev, info->resets, info->num_resets,
+					  sizeof(*info->resets), GFP_KERNEL);
 	if (!priv->resets)
 		return -ENOMEM;
 

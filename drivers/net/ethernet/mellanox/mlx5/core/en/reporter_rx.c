@@ -170,15 +170,22 @@ static int mlx5e_rx_reporter_err_rq_cqe_recover(void *ctx)
 static int mlx5e_rx_reporter_timeout_recover(void *ctx)
 {
 	struct mlx5_eq_comp *eq;
+	struct mlx5e_priv *priv;
 	struct mlx5e_rq *rq;
 	int err;
 
 	rq = ctx;
+	priv = rq->priv;
+
+	mutex_lock(&priv->state_lock);
+
 	eq = rq->cq.mcq.eq;
 
 	err = mlx5e_health_channel_eq_recover(rq->netdev, eq, rq->cq.ch_stats);
 	if (err && rq->icosq)
 		clear_bit(MLX5E_SQ_STATE_ENABLED, &rq->icosq->state);
+
+	mutex_unlock(&priv->state_lock);
 
 	return err;
 }

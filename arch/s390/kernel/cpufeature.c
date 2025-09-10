@@ -4,6 +4,7 @@
  */
 
 #include <linux/cpufeature.h>
+#include <linux/export.h>
 #include <linux/bug.h>
 #include <asm/machine.h>
 #include <asm/elf.h>

@@ -442,7 +442,7 @@ static void efx_tc_update_encap(struct efx_nic *efx,
 			rule = container_of(acts, struct efx_tc_flow_rule, acts);
 			if (rule->fallback)
 				fallback = rule->fallback;
-			else /* fallback fallback: deliver to PF */
+			else /* fallback of the fallback: deliver to PF */
 				fallback = &efx->tc->facts.pf;
 			rc = efx_mae_update_rule(efx, fallback->fw_id,
 						 rule->fw_id);

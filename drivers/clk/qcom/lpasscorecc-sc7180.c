@@ -412,7 +412,6 @@ static int lpass_core_cc_sc7180_probe(struct platform_device *pdev)
 
 	ret = qcom_cc_really_probe(&pdev->dev, &lpass_core_cc_sc7180_desc, regmap);
 
-	pm_runtime_mark_last_busy(&pdev->dev);
 exit:
 	pm_runtime_put_autosuspend(&pdev->dev);
 
@@ -433,7 +432,6 @@ static int lpass_hm_core_probe(struct platform_device *pdev)
 
 	ret = qcom_cc_probe_by_index(pdev, 0, desc);
 
-	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
 
 	return ret;

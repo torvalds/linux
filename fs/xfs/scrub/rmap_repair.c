@@ -951,9 +951,7 @@ end_agscan:
 	sa->agf_bp = NULL;
 	sa->agi_bp = NULL;
 	xchk_trans_cancel(sc);
-	error = xchk_trans_alloc_empty(sc);
-	if (error)
-		return error;
+	xchk_trans_alloc_empty(sc);
 
 	/* Iterate all AGs for inodes rmaps. */
 	while ((error = xchk_iscan_iter(&rr->iscan, &ip)) == 1) {
@@ -1612,7 +1610,6 @@ xrep_rmapbt_live_update(
 	struct xfs_mount		*mp;
 	struct xfs_btree_cur		*mcur;
 	struct xfs_trans		*tp;
-	void				*txcookie;
 	int				error;
 
 	rr = container_of(nb, struct xrep_rmap, rhook.rmap_hook.nb);
@@ -1623,9 +1620,7 @@ xrep_rmapbt_live_update(
 
 	trace_xrep_rmap_live_update(pag_group(rr->sc->sa.pag), action, p);
 
-	error = xrep_trans_alloc_hook_dummy(mp, &txcookie, &tp);
-	if (error)
-		goto out_abort;
+	tp = xfs_trans_alloc_empty(mp);
 
 	mutex_lock(&rr->lock);
 	mcur = xfs_rmapbt_mem_cursor(rr->sc->sa.pag, tp, &rr->rmap_btree);
@@ -1639,14 +1634,13 @@ xrep_rmapbt_live_update(
 	if (error)
 		goto out_cancel;
 
-	xrep_trans_cancel_hook_dummy(&txcookie, tp);
+	xfs_trans_cancel(tp);
 	mutex_unlock(&rr->lock);
 	return NOTIFY_DONE;
 
 out_cancel:
 	xfbtree_trans_cancel(&rr->rmap_btree, tp);
-	xrep_trans_cancel_hook_dummy(&txcookie, tp);
-out_abort:
+	xfs_trans_cancel(tp);
 	mutex_unlock(&rr->lock);
 	xchk_iscan_abort(&rr->iscan);
 out_unlock:

@@ -146,6 +146,8 @@ static const char *get_sensor_name(int idx)
 		return "gyroscope";
 	case mag_idx:
 		return "magnetometer";
+	case op_idx:
+		return "operating-mode";
 	case als_idx:
 	case ACS_IDX: /* ambient color sensor */
 		return "ALS";
@@ -243,6 +245,20 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 			rc = -ENOMEM;
 			goto cleanup;
 		}
+
+		if (cl_data->sensor_idx[i] == op_idx) {
+			info.period = AMD_SFH_IDLE_LOOP;
+			info.sensor_idx = cl_data->sensor_idx[i];
+			info.dma_address = cl_data->sensor_dma_addr[i];
+			mp2_ops->start(privdata, info);
+			cl_data->sensor_sts[i] = amd_sfh_wait_for_response(privdata,
+									   cl_data->sensor_idx[i],
+									   SENSOR_ENABLED);
+			if (cl_data->sensor_sts[i] == SENSOR_ENABLED)
+				cl_data->is_any_sensor_enabled = true;
+			continue;
+		}
+
 		cl_data->sensor_sts[i] = SENSOR_DISABLED;
 		cl_data->sensor_requested_cnt[i] = 0;
 		cl_data->cur_hid_dev = i;
@@ -303,6 +319,13 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 
 	for (i = 0; i < cl_data->num_hid_devices; i++) {
 		cl_data->cur_hid_dev = i;
+		if (cl_data->sensor_idx[i] == op_idx) {
+			dev_dbg(dev, "sid 0x%x (%s) status 0x%x\n",
+				cl_data->sensor_idx[i], get_sensor_name(cl_data->sensor_idx[i]),
+				cl_data->sensor_sts[i]);
+			continue;
+		}
+
 		if (cl_data->sensor_sts[i] == SENSOR_ENABLED) {
 			rc = amdtp_hid_probe(i, cl_data);
 			if (rc)

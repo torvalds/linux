@@ -542,7 +542,7 @@ static int jfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_magic = JFS_SUPER_MAGIC;
 
 	if (sbi->mntflag & JFS_OS2)
-		sb->s_d_op = &jfs_ci_dentry_operations;
+		set_default_d_op(sb, &jfs_ci_dentry_operations);
 
 	inode = jfs_iget(sb, ROOT_I);
 	if (IS_ERR(inode)) {

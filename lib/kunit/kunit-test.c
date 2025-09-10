@@ -8,6 +8,7 @@
 #include "linux/gfp_types.h"
 #include <kunit/test.h>
 #include <kunit/test-bug.h>
+#include <kunit/static_stub.h>
 
 #include <linux/device.h>
 #include <kunit/device.h>
@@ -43,7 +44,8 @@ static void kunit_test_try_catch_successful_try_no_catch(struct kunit *test)
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_test_successful_try,
-			     kunit_test_no_catch);
+			     kunit_test_no_catch,
+			     300 * msecs_to_jiffies(MSEC_PER_SEC));
 	kunit_try_catch_run(try_catch, test);
 
 	KUNIT_EXPECT_TRUE(test, ctx->function_called);
@@ -75,7 +77,8 @@ static void kunit_test_try_catch_unsuccessful_try_does_catch(struct kunit *test)
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_test_unsuccessful_try,
-			     kunit_test_catch);
+			     kunit_test_catch,
+			     300 * msecs_to_jiffies(MSEC_PER_SEC));
 	kunit_try_catch_run(try_catch, test);
 
 	KUNIT_EXPECT_TRUE(test, ctx->function_called);
@@ -129,7 +132,8 @@ static void kunit_test_fault_null_dereference(struct kunit *test)
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_test_null_dereference,
-			     kunit_test_catch);
+			     kunit_test_catch,
+			     300 * msecs_to_jiffies(MSEC_PER_SEC));
 	kunit_try_catch_run(try_catch, test);
 
 	KUNIT_EXPECT_EQ(test, try_catch->try_result, -EINTR);
@@ -868,10 +872,53 @@ static struct kunit_suite kunit_current_test_suite = {
 	.test_cases = kunit_current_test_cases,
 };
 
+static void kunit_stub_test(struct kunit *test)
+{
+	struct kunit fake_test;
+	const unsigned long fake_real_fn_addr = 0x1234;
+	const unsigned long fake_replacement_addr = 0x5678;
+	struct kunit_resource *res;
+	struct {
+		void *real_fn_addr;
+		void *replacement_addr;
+	} *stub_ctx;
+
+	kunit_init_test(&fake_test, "kunit_stub_fake_test", NULL);
+	KUNIT_ASSERT_EQ(test, fake_test.status, KUNIT_SUCCESS);
+	KUNIT_ASSERT_EQ(test, list_count_nodes(&fake_test.resources), 0);
+
+	__kunit_activate_static_stub(&fake_test, (void *)fake_real_fn_addr,
+				     (void *)fake_replacement_addr);
+	KUNIT_ASSERT_EQ(test, fake_test.status, KUNIT_SUCCESS);
+	KUNIT_ASSERT_EQ(test, list_count_nodes(&fake_test.resources), 1);
+
+	res = list_first_entry(&fake_test.resources, struct kunit_resource, node);
+	KUNIT_EXPECT_NOT_NULL(test, res);
+
+	stub_ctx = res->data;
+	KUNIT_EXPECT_NOT_NULL(test, stub_ctx);
+	KUNIT_EXPECT_EQ(test, (unsigned long)stub_ctx->real_fn_addr, fake_real_fn_addr);
+	KUNIT_EXPECT_EQ(test, (unsigned long)stub_ctx->replacement_addr, fake_replacement_addr);
+
+	__kunit_activate_static_stub(&fake_test, (void *)fake_real_fn_addr, NULL);
+	KUNIT_ASSERT_EQ(test, fake_test.status, KUNIT_SUCCESS);
+	KUNIT_ASSERT_EQ(test, list_count_nodes(&fake_test.resources), 0);
+}
+
+static struct kunit_case kunit_stub_test_cases[] = {
+	KUNIT_CASE(kunit_stub_test),
+	{}
+};
+
+static struct kunit_suite kunit_stub_test_suite = {
+	.name = "kunit_stub",
+	.test_cases = kunit_stub_test_cases,
+};
+
 kunit_test_suites(&kunit_try_catch_test_suite, &kunit_resource_test_suite,
 		  &kunit_log_test_suite, &kunit_status_test_suite,
 		  &kunit_current_test_suite, &kunit_device_test_suite,
-		  &kunit_fault_test_suite);
+		  &kunit_fault_test_suite, &kunit_stub_test_suite);
 
 MODULE_DESCRIPTION("KUnit test for core test infrastructure");
 MODULE_LICENSE("GPL v2");

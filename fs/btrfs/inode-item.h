@@ -101,13 +101,10 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct btrfs_path *path,
 		       struct btrfs_key *location, int mod);
 
-struct btrfs_inode_extref *btrfs_lookup_inode_extref(
-			  struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root,
-			  struct btrfs_path *path,
-			  const struct fscrypt_str *name,
-			  u64 inode_objectid, u64 ref_objectid, int ins_len,
-			  int cow);
+struct btrfs_inode_extref *btrfs_lookup_inode_extref(struct btrfs_root *root,
+						     struct btrfs_path *path,
+						     const struct fscrypt_str *name,
+						     u64 inode_objectid, u64 ref_objectid);
 
 struct btrfs_inode_ref *btrfs_find_name_in_backref(const struct extent_buffer *leaf,
 						   int slot,

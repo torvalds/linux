@@ -288,6 +288,7 @@ struct rtase_ring {
 	u32 cur_idx;
 	u32 dirty_idx;
 	u16 index;
+	u8 type;
 
 	struct sk_buff *skbuff[RTASE_NUM_DESC];
 	void *data_buf[RTASE_NUM_DESC];

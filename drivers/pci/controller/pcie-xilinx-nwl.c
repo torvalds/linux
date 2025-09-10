@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -145,7 +146,6 @@
 #define LINK_WAIT_USLEEP_MAX           100000
 
 struct nwl_msi {			/* MSI information */
-	struct irq_domain *msi_domain;
 	DECLARE_BITMAP(bitmap, INT_PCI_MSI_NR);
 	struct irq_domain *dev_domain;
 	struct mutex lock;		/* protect bitmap variable */
@@ -418,19 +418,22 @@ static const struct irq_domain_ops intx_domain_ops = {
 };
 
 #ifdef CONFIG_PCI_MSI
-static struct irq_chip nwl_msi_irq_chip = {
-	.name = "nwl_pcie:msi",
-	.irq_enable = pci_msi_unmask_irq,
-	.irq_disable = pci_msi_mask_irq,
-	.irq_mask = pci_msi_mask_irq,
-	.irq_unmask = pci_msi_unmask_irq,
+
+#define NWL_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS	| \
+				MSI_FLAG_USE_DEF_CHIP_OPS	| \
+				MSI_FLAG_NO_AFFINITY)
+
+#define NWL_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK		| \
+				 MSI_FLAG_MULTI_PCI_MSI)
+
+static const struct msi_parent_ops nwl_msi_parent_ops = {
+	.required_flags		= NWL_MSI_FLAGS_REQUIRED,
+	.supported_flags	= NWL_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.prefix			= "nwl-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
 };
 
-static struct msi_domain_info nwl_msi_domain_info = {
-	.flags = MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		 MSI_FLAG_NO_AFFINITY | MSI_FLAG_MULTI_PCI_MSI,
-	.chip = &nwl_msi_irq_chip,
-};
 #endif
 
 static void nwl_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
@@ -495,20 +498,17 @@ static int nwl_pcie_init_msi_irq_domain(struct nwl_pcie *pcie)
 {
 #ifdef CONFIG_PCI_MSI
 	struct device *dev = pcie->dev;
-	struct fwnode_handle *fwnode = of_fwnode_handle(dev->of_node);
 	struct nwl_msi *msi = &pcie->msi;
+	struct irq_domain_info info = {
+		.fwnode		= dev_fwnode(dev),
+		.ops		= &dev_msi_domain_ops,
+		.host_data	= pcie,
+		.size		= INT_PCI_MSI_NR,
+	};
 
-	msi->dev_domain = irq_domain_create_linear(NULL, INT_PCI_MSI_NR, &dev_msi_domain_ops, pcie);
+	msi->dev_domain  = msi_create_parent_irq_domain(&info, &nwl_msi_parent_ops);
 	if (!msi->dev_domain) {
 		dev_err(dev, "failed to create dev IRQ domain\n");
-		return -ENOMEM;
-	}
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
-						    &nwl_msi_domain_info,
-						    msi->dev_domain);
-	if (!msi->msi_domain) {
-		dev_err(dev, "failed to create msi IRQ domain\n");
-		irq_domain_remove(msi->dev_domain);
 		return -ENOMEM;
 	}
 #endif

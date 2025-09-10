@@ -419,7 +419,7 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 		goto error_put_device;
 	}
 
-	/* v2 SGMII has a per-lane digital digital, so parse it if it exists */
+	/* v2 SGMII has a per-lane digital, so parse it if it exists */
 	res = platform_get_resource(sgmii_pdev, IORESOURCE_MEM, 1);
 	if (res) {
 		phy->digital = ioremap(res->start, resource_size(res));

@@ -16,6 +16,13 @@ while [ $# -gt 0 ] ; do
 	elif [ $1 == "--unpack" ]; then
 		UNPACK=1
 		shift
+	elif [ $1 == "--exclude-buildids" ]; then
+		EXCLUDE_BUILDIDS="$2"
+		if [ ! -e "$EXCLUDE_BUILDIDS" ]; then
+			echo "Provided exclude-buildids file $EXCLUDE_BUILDIDS does not exist"
+			exit 1
+		fi
+		shift 2
 	else
 		PERF_DATA=$1
 		UNPACK_TAR=$1
@@ -86,11 +93,29 @@ fi
 
 BUILDIDS=$(mktemp /tmp/perf-archive-buildids.XXXXXX)
 
-perf buildid-list -i $PERF_DATA --with-hits | grep -v "^ " > $BUILDIDS
-if [ ! -s $BUILDIDS ] ; then
-	echo "perf archive: no build-ids found"
-	rm $BUILDIDS || true
-	exit 1
+#
+# EXCLUDE_BUILDIDS is an optional file that contains build-ids to be excluded from the
+# archive. It is a list of build-ids, one per line, without any leading or trailing spaces.
+# If the file is empty, all build-ids will be included in the archive. To create a exclude-
+# buildids file, you can use the following command:
+# 	perf buildid-list -i perf.data --with-hits | grep -v "^ " > exclude_buildids.txt
+# You can edit the file to remove the lines that you want to keep in the archive, then:
+# 	perf archive --exclude-buildids exclude_buildids.txt
+#
+if [ -s "$EXCLUDE_BUILDIDS" ]; then
+	perf buildid-list -i $PERF_DATA --with-hits | grep -v "^ " | grep -Fv -f $EXCLUDE_BUILDIDS > $BUILDIDS
+	if [ ! -s "$BUILDIDS" ] ; then
+		echo "perf archive: no build-ids found after applying exclude-buildids file"
+		rm $BUILDIDS || true
+		exit 1
+	fi
+else
+	perf buildid-list -i $PERF_DATA --with-hits | grep -v "^ " > $BUILDIDS
+	if [ ! -s "$BUILDIDS" ] ; then
+		echo "perf archive: no build-ids found"
+		rm $BUILDIDS || true
+		exit 1
+	fi
 fi
 
 MANIFEST=$(mktemp /tmp/perf-archive-manifest.XXXXXX)

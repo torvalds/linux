@@ -1023,7 +1023,7 @@ int snd_cs4236_mixer(struct snd_wss *chip)
 	if (snd_BUG_ON(!chip || !chip->card))
 		return -EINVAL;
 	card = chip->card;
-	strcpy(card->mixername, snd_wss_chip_id(chip));
+	strscpy(card->mixername, snd_wss_chip_id(chip));
 
 	if (chip->hardware == WSS_HW_CS4235 ||
 	    chip->hardware == WSS_HW_CS4239) {

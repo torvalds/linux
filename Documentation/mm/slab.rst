@@ -3,3 +3,10 @@
 ===============
 Slab Allocation
 ===============
+
+Functions and structures
+========================
+
+.. kernel-doc:: mm/slab.h
+.. kernel-doc:: mm/slub.c
+   :internal:

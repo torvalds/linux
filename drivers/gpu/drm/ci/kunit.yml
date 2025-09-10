@@ -1,0 +1,37 @@
+.kunit-packages: &kunit-packages
+  - apt-get update -qq
+  # Minimum supported version of LLVM for building x86 kernels is 15.0.0.
+  # In mesa-ci containers, LLVM_VERSION is defined as a container-level property and is currently set to 19.
+  - apt-get install -y --no-install-recommends clang-${LLVM_VERSION} lld-${LLVM_VERSION} llvm-${LLVM_VERSION}
+
+.kunit-base:
+  stage: kunit
+  timeout: "30m"
+  variables:
+    GIT_DEPTH: 1
+  script:
+    - drivers/gpu/drm/ci/kunit.sh
+
+kunit:arm32:
+  extends:
+    - .build:arm32
+    - .kunit-base
+  before_script:
+    - *kunit-packages
+    - apt-get install -y --no-install-recommends qemu-system-arm
+
+kunit:arm64:
+  extends:
+    - .build:arm64
+    - .kunit-base
+  before_script:
+    - *kunit-packages
+    - apt-get install -y --no-install-recommends qemu-system-aarch64
+
+kunit:x86_64:
+  extends:
+    - .build:x86_64
+    - .kunit-base
+  before_script:
+    - *kunit-packages
+    - apt-get install -y --no-install-recommends qemu-system-x86

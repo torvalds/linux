@@ -45,7 +45,7 @@ struct pfcphdr_session {
 		reserved:4;
 #elif defined(__BIG_ENDIAN_BITFIELD)
 	u8	reserved:4,
-		message_priprity:4;
+		message_priority:4;
 #else
 #error "Please fix <asm/byteorder>"
 #endif

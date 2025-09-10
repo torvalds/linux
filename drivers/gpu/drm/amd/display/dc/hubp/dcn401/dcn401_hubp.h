@@ -252,7 +252,9 @@
 	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_MALL_PREF_1H_P0, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_MALL_PREF_2H_P0, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_MALL_PREF_1H_P1, mask_sh),\
-	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_MALL_PREF_2H_P1, mask_sh)
+	HUBP_SF(HUBP0_DCHUBP_MCACHEID_CONFIG, MCACHEID_MALL_PREF_2H_P1, mask_sh),\
+	HUBP_SF(HUBPRET0_HUBPRET_READ_LINE_VALUE, PIPE_READ_LINE, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_SEG_ALLOC_ERR_STATUS, mask_sh)
 
 void hubp401_update_mall_sel(struct hubp *hubp, uint32_t mall_sel, bool c_cursor);
 
@@ -333,7 +335,7 @@ void hubp401_program_3dlut_fl_crossbar(struct hubp *hubp,
 	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cb_b,
 	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cr_r);
 
-void hubp401_program_3dlut_fl_tmz_protected(struct hubp *hubp, bool protection_enabled);
+void hubp401_program_3dlut_fl_tmz_protected(struct hubp *hubp, uint8_t protection_bits);
 
 void hubp401_program_3dlut_fl_width(struct hubp *hubp, enum hubp_3dlut_fl_width width);
 
@@ -348,6 +350,10 @@ void hubp401_program_3dlut_fl_addr(struct hubp *hubp, const struct dc_plane_addr
 void hubp401_program_3dlut_fl_format(struct hubp *hubp, enum hubp_3dlut_fl_format format);
 
 void hubp401_program_3dlut_fl_mode(struct hubp *hubp, enum hubp_3dlut_fl_mode mode);
+
+void hubp401_program_3dlut_fl_config(
+	struct hubp *hubp,
+	struct hubp_fl_3dlut_config *cfg);
 
 void hubp401_clear_tiling(struct hubp *hubp);
 

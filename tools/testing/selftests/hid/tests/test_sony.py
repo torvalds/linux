@@ -7,6 +7,7 @@
 #
 
 from .base import application_matches
+from .base import KernelModule
 from .test_gamepad import BaseTest
 from hidtools.device.sony_gamepad import (
     PS3Controller,
@@ -24,9 +25,9 @@ import pytest
 
 logger = logging.getLogger("hidtools.test.sony")
 
-PS3_MODULE = ("sony", "hid_sony")
-PS4_MODULE = ("playstation", "hid_playstation")
-PS5_MODULE = ("playstation", "hid_playstation")
+PS3_MODULE = KernelModule("sony", "hid_sony")
+PS4_MODULE = KernelModule("playstation", "hid_playstation")
+PS5_MODULE = KernelModule("playstation", "hid_playstation")
 
 
 class SonyBaseTest:

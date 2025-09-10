@@ -67,8 +67,7 @@ static void ab_active_port_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
 	struct team_port *active_port;
 
-	active_port = rcu_dereference_protected(ab_priv(team)->active_port,
-						lockdep_is_held(&team->lock));
+	active_port = rtnl_dereference(ab_priv(team)->active_port);
 	if (active_port)
 		ctx->data.u32_val = active_port->dev->ifindex;
 	else

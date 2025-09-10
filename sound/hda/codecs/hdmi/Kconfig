@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menuconfig SND_HDA_CODEC_HDMI
+	tristate "HD-audio HDMI codec support"
+	help
+	  Say Y or M here to include HD-audio HDMI/DislayPort codec support.
+
+	  This will enable all HDMI/DP codec drivers as default, but you can
+	  enable/disable each codec driver individually, too (only when
+	  CONFIG_EXPERT is set).
+
+if SND_HDA_CODEC_HDMI
+
+config SND_HDA_CODEC_HDMI_GENERIC
+	tristate "Generic HDMI/DisplayPort HD-audio codec support" if EXPERT
+	select SND_DYNAMIC_MINORS
+	select SND_PCM_ELD
+	default y
+	help
+	  Say Y or M here to include Generic HDMI and DisplayPort HD-audio
+	  codec support.
+
+	  Note that this option mandatorily enables CONFIG_SND_DYNAMIC_MINORS
+	  to assure the multiple streams for DP-MST support.
+
+config SND_HDA_CODEC_HDMI_SIMPLE
+	tristate "Simple HDMI/DisplayPort HD-audio codec support" if EXPERT
+	default y
+	help
+	  Say Y or M here to include Simple HDMI and DisplayPort HD-audio
+	  codec support for VIA and other codecs.
+
+config SND_HDA_CODEC_HDMI_INTEL
+	tristate "Intel HDMI/DisplayPort HD-audio codec support" if EXPERT
+	select SND_HDA_CODEC_HDMI_GENERIC
+	default y
+	help
+	  Say Y or M here to include Intel graphics HDMI and DisplayPort
+	  HD-audio codec support.
+
+config SND_HDA_INTEL_HDMI_SILENT_STREAM
+	bool "Enable Silent Stream always for HDMI"
+	depends on SND_HDA_CODEC_HDMI_INTEL
+	help
+	  Say Y to enable HD-Audio Keep Alive (KAE) aka Silent Stream
+	  for HDMI on hardware that supports the feature.
+
+	  When enabled, the HDMI/DisplayPort codec will continue to provide
+	  a continuous clock and a valid but silent data stream to
+	  any connected external receiver. This allows to avoid gaps
+	  at start of playback. Many receivers require multiple seconds
+	  to start playing audio after the clock has been stopped.
+	  This feature can impact power consumption as resources
+	  are kept reserved both at transmitter and receiver.
+
+config SND_HDA_CODEC_HDMI_ATI
+	tristate "AMD/ATI HDMI/DisplayPort HD-audio codec support" if EXPERT
+	select SND_HDA_CODEC_HDMI_GENERIC
+	default y
+	help
+	  Say Y or M here to include AMD/ATI graphics HDMI and DisplayPort
+	  HD-audio codec support.
+
+config SND_HDA_CODEC_HDMI_NVIDIA
+	tristate "Nvidia HDMI/DisplayPort HD-audio codec support" if EXPERT
+	select SND_HDA_CODEC_HDMI_GENERIC
+	default y
+	help
+	  Say Y or M here to include HDMI and DisplayPort HD-audio codec
+	  support for the recent Nvidia graphics cards.
+
+config SND_HDA_CODEC_HDMI_NVIDIA_MCP
+	tristate "Legacy Nvidia HDMI/DisplayPort HD-audio codec support" if EXPERT
+	select SND_HDA_CODEC_HDMI_SIMPLE
+	default y
+	help
+	  Say Y or M here to include HDMI and DisplayPort HD-audio codec
+	  support for the legacy Nvidia graphics like MCP73, MCP67, MCP77/78.
+
+config SND_HDA_CODEC_HDMI_TEGRA
+	tristate "Nvidia Tegra HDMI/DisplayPort HD-audio codec support" if EXPERT
+	select SND_HDA_CODEC_HDMI_GENERIC
+	default y
+	help
+	  Say Y or M here to include HDMI and DisplayPort HD-audio codec
+	  support for Nvidia Tegra.
+
+endif

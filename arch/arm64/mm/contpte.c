@@ -68,7 +68,144 @@ static void contpte_convert(struct mm_struct *mm, unsigned long addr,
 			pte = pte_mkyoung(pte);
 	}
 
-	__flush_tlb_range(&vma, start_addr, addr, PAGE_SIZE, true, 3);
+	/*
+	 * On eliding the __tlb_flush_range() under BBML2+noabort:
+	 *
+	 * NOTE: Instead of using N=16 as the contiguous block length, we use
+	 *       N=4 for clarity.
+	 *
+	 * NOTE: 'n' and 'c' are used to denote the "contiguous bit" being
+	 *       unset and set, respectively.
+	 *
+	 * We worry about two cases where contiguous bit is used:
+	 *  - When folding N smaller non-contiguous ptes as 1 contiguous block.
+	 *  - When unfolding a contiguous block into N smaller non-contiguous ptes.
+	 *
+	 * Currently, the BBML0 folding case looks as follows:
+	 *
+	 *  0) Initial page-table layout:
+	 *
+	 *   +----+----+----+----+
+	 *   |RO,n|RO,n|RO,n|RW,n| <--- last page being set as RO
+	 *   +----+----+----+----+
+	 *
+	 *  1) Aggregate AF + dirty flags using __ptep_get_and_clear():
+	 *
+	 *   +----+----+----+----+
+	 *   |  0 |  0 |  0 |  0 |
+	 *   +----+----+----+----+
+	 *
+	 *  2) __flush_tlb_range():
+	 *
+	 *   |____ tlbi + dsb ____|
+	 *
+	 *  3) __set_ptes() to repaint contiguous block:
+	 *
+	 *   +----+----+----+----+
+	 *   |RO,c|RO,c|RO,c|RO,c|
+	 *   +----+----+----+----+
+	 *
+	 *  4) The kernel will eventually __flush_tlb() for changed page:
+	 *
+	 *                  |____| <--- tlbi + dsb
+	 *
+	 * As expected, the intermediate tlbi+dsb ensures that other PEs
+	 * only ever see an invalid (0) entry, or the new contiguous TLB entry.
+	 * The final tlbi+dsb will always throw away the newly installed
+	 * contiguous TLB entry, which is a micro-optimisation opportunity,
+	 * but does not affect correctness.
+	 *
+	 * In the BBML2 case, the change is avoiding the intermediate tlbi+dsb.
+	 * This means a few things, but notably other PEs will still "see" any
+	 * stale cached TLB entries. This could lead to a "contiguous bit
+	 * misprogramming" issue until the final tlbi+dsb of the changed page,
+	 * which would clear out both the stale (RW,n) entry and the new (RO,c)
+	 * contiguous entry installed in its place.
+	 *
+	 * What this is saying, is the following:
+	 *
+	 *  +----+----+----+----+
+	 *  |RO,n|RO,n|RO,n|RW,n| <--- old page tables, all non-contiguous
+	 *  +----+----+----+----+
+	 *
+	 *  +----+----+----+----+
+	 *  |RO,c|RO,c|RO,c|RO,c| <--- new page tables, all contiguous
+	 *  +----+----+----+----+
+	 *   /\
+	 *   ||
+	 *
+	 *  If both the old single (RW,n) and new contiguous (RO,c) TLB entries
+	 *  are present, and a write is made to this address, do we fault or
+	 *  is the write permitted (via amalgamation)?
+	 *
+	 * The relevant Arm ARM DDI 0487L.a requirements are RNGLXZ and RJQQTC,
+	 * and together state that when BBML1 or BBML2 are implemented, either
+	 * a TLB conflict abort is raised (which we expressly forbid), or will
+	 * "produce an OA, access permissions, and memory attributes that are
+	 * consistent with any of the programmed translation table values".
+	 *
+	 * That is to say, will either raise a TLB conflict, or produce one of
+	 * the cached TLB entries, but never amalgamate.
+	 *
+	 * Thus, as the page tables are only considered "consistent" after
+	 * the final tlbi+dsb (which evicts both the single stale (RW,n) TLB
+	 * entry as well as the new contiguous (RO,c) TLB entry), omitting the
+	 * initial tlbi+dsb is correct.
+	 *
+	 * It is also important to note that at the end of the BBML2 folding
+	 * case, we are still left with potentially all N TLB entries still
+	 * cached (the N-1 non-contiguous ptes, and the single contiguous
+	 * block). However, over time, natural TLB pressure will cause the
+	 * non-contiguous pte TLB entries to be flushed, leaving only the
+	 * contiguous block TLB entry. This means that omitting the tlbi+dsb is
+	 * not only correct, but also keeps our eventual performance benefits.
+	 *
+	 * For the unfolding case, BBML0 looks as follows:
+	 *
+	 *  0) Initial page-table layout:
+	 *
+	 *   +----+----+----+----+
+	 *   |RW,c|RW,c|RW,c|RW,c| <--- last page being set as RO
+	 *   +----+----+----+----+
+	 *
+	 *  1) Aggregate AF + dirty flags using __ptep_get_and_clear():
+	 *
+	 *   +----+----+----+----+
+	 *   |  0 |  0 |  0 |  0 |
+	 *   +----+----+----+----+
+	 *
+	 *  2) __flush_tlb_range():
+	 *
+	 *   |____ tlbi + dsb ____|
+	 *
+	 *  3) __set_ptes() to repaint as non-contiguous:
+	 *
+	 *   +----+----+----+----+
+	 *   |RW,n|RW,n|RW,n|RW,n|
+	 *   +----+----+----+----+
+	 *
+	 *  4) Update changed page permissions:
+	 *
+	 *   +----+----+----+----+
+	 *   |RW,n|RW,n|RW,n|RO,n| <--- last page permissions set
+	 *   +----+----+----+----+
+	 *
+	 *  5) The kernel will eventually __flush_tlb() for changed page:
+	 *
+	 *                  |____| <--- tlbi + dsb
+	 *
+	 * For BBML2, we again remove the intermediate tlbi+dsb. Here, there
+	 * are no issues, as the final tlbi+dsb covering the changed page is
+	 * guaranteed to remove the original large contiguous (RW,c) TLB entry,
+	 * as well as the intermediate (RW,n) TLB entry; the next access will
+	 * install the new (RO,n) TLB entry and the page tables are only
+	 * considered "consistent" after the final tlbi+dsb, so software must
+	 * be prepared for this inconsistency prior to finishing the mm dance
+	 * regardless.
+	 */
+
+	if (!system_supports_bbml2_noabort())
+		__flush_tlb_range(&vma, start_addr, addr, PAGE_SIZE, true, 3);
 
 	__set_ptes(mm, start_addr, start_ptep, pte, CONT_PTES);
 }
@@ -169,16 +306,45 @@ pte_t contpte_ptep_get(pte_t *ptep, pte_t orig_pte)
 	for (i = 0; i < CONT_PTES; i++, ptep++) {
 		pte = __ptep_get(ptep);
 
-		if (pte_dirty(pte))
+		if (pte_dirty(pte)) {
 			orig_pte = pte_mkdirty(orig_pte);
+			for (; i < CONT_PTES; i++, ptep++) {
+				pte = __ptep_get(ptep);
+				if (pte_young(pte)) {
+					orig_pte = pte_mkyoung(orig_pte);
+					break;
+				}
+			}
+			break;
+		}
 
-		if (pte_young(pte))
+		if (pte_young(pte)) {
 			orig_pte = pte_mkyoung(orig_pte);
+			i++;
+			ptep++;
+			for (; i < CONT_PTES; i++, ptep++) {
+				pte = __ptep_get(ptep);
+				if (pte_dirty(pte)) {
+					orig_pte = pte_mkdirty(orig_pte);
+					break;
+				}
+			}
+			break;
+		}
 	}
 
 	return orig_pte;
 }
 EXPORT_SYMBOL_GPL(contpte_ptep_get);
+
+static inline bool contpte_is_consistent(pte_t pte, unsigned long pfn,
+					pgprot_t orig_prot)
+{
+	pgprot_t prot = pte_pgprot(pte_mkold(pte_mkclean(pte)));
+
+	return pte_valid_cont(pte) && pte_pfn(pte) == pfn &&
+			pgprot_val(prot) == pgprot_val(orig_prot);
+}
 
 pte_t contpte_ptep_get_lockless(pte_t *orig_ptep)
 {
@@ -202,7 +368,6 @@ pte_t contpte_ptep_get_lockless(pte_t *orig_ptep)
 	pgprot_t orig_prot;
 	unsigned long pfn;
 	pte_t orig_pte;
-	pgprot_t prot;
 	pte_t *ptep;
 	pte_t pte;
 	int i;
@@ -219,18 +384,44 @@ retry:
 
 	for (i = 0; i < CONT_PTES; i++, ptep++, pfn++) {
 		pte = __ptep_get(ptep);
-		prot = pte_pgprot(pte_mkold(pte_mkclean(pte)));
 
-		if (!pte_valid_cont(pte) ||
-		   pte_pfn(pte) != pfn ||
-		   pgprot_val(prot) != pgprot_val(orig_prot))
+		if (!contpte_is_consistent(pte, pfn, orig_prot))
 			goto retry;
 
-		if (pte_dirty(pte))
+		if (pte_dirty(pte)) {
 			orig_pte = pte_mkdirty(orig_pte);
+			for (; i < CONT_PTES; i++, ptep++, pfn++) {
+				pte = __ptep_get(ptep);
 
-		if (pte_young(pte))
+				if (!contpte_is_consistent(pte, pfn, orig_prot))
+					goto retry;
+
+				if (pte_young(pte)) {
+					orig_pte = pte_mkyoung(orig_pte);
+					break;
+				}
+			}
+			break;
+		}
+
+		if (pte_young(pte)) {
 			orig_pte = pte_mkyoung(orig_pte);
+			i++;
+			ptep++;
+			pfn++;
+			for (; i < CONT_PTES; i++, ptep++, pfn++) {
+				pte = __ptep_get(ptep);
+
+				if (!contpte_is_consistent(pte, pfn, orig_prot))
+					goto retry;
+
+				if (pte_dirty(pte)) {
+					orig_pte = pte_mkdirty(orig_pte);
+					break;
+				}
+			}
+			break;
+		}
 	}
 
 	return orig_pte;

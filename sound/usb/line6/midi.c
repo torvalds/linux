@@ -228,8 +228,8 @@ static int snd_line6_new_midi(struct usb_line6 *line6,
 		return err;
 
 	rmidi = *rmidi_ret;
-	strcpy(rmidi->id, line6->properties->id);
-	strcpy(rmidi->name, line6->properties->name);
+	strscpy(rmidi->id, line6->properties->id);
+	strscpy(rmidi->name, line6->properties->name);
 
 	rmidi->info_flags =
 	    SNDRV_RAWMIDI_INFO_OUTPUT |

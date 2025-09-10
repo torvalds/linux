@@ -424,26 +424,16 @@ static void nfs_idmap_pipe_destroy(struct dentry *dir,
 		struct rpc_pipe_dir_object *pdo)
 {
 	struct idmap *idmap = pdo->pdo_data;
-	struct rpc_pipe *pipe = idmap->idmap_pipe;
 
-	if (pipe->dentry) {
-		rpc_unlink(pipe->dentry);
-		pipe->dentry = NULL;
-	}
+	rpc_unlink(idmap->idmap_pipe);
 }
 
 static int nfs_idmap_pipe_create(struct dentry *dir,
 		struct rpc_pipe_dir_object *pdo)
 {
 	struct idmap *idmap = pdo->pdo_data;
-	struct rpc_pipe *pipe = idmap->idmap_pipe;
-	struct dentry *dentry;
 
-	dentry = rpc_mkpipe_dentry(dir, "idmap", idmap, pipe);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
-	pipe->dentry = dentry;
-	return 0;
+	return rpc_mkpipe_dentry(dir, "idmap", idmap, idmap->idmap_pipe);
 }
 
 static const struct rpc_pipe_dir_object_ops nfs_idmap_pipe_dir_object_ops = {

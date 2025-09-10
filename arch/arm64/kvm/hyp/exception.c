@@ -26,7 +26,8 @@ static inline u64 __vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg)
 
 	if (unlikely(vcpu_has_nv(vcpu)))
 		return vcpu_read_sys_reg(vcpu, reg);
-	else if (__vcpu_read_sys_reg_from_cpu(reg, &val))
+	else if (vcpu_get_flag(vcpu, SYSREGS_ON_CPU) &&
+		 __vcpu_read_sys_reg_from_cpu(reg, &val))
 		return val;
 
 	return __vcpu_sys_reg(vcpu, reg);
@@ -36,7 +37,8 @@ static inline void __vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg)
 {
 	if (unlikely(vcpu_has_nv(vcpu)))
 		vcpu_write_sys_reg(vcpu, val, reg);
-	else if (!__vcpu_write_sys_reg_to_cpu(val, reg))
+	else if (!vcpu_get_flag(vcpu, SYSREGS_ON_CPU) ||
+		 !__vcpu_write_sys_reg_to_cpu(val, reg))
 		__vcpu_assign_sys_reg(vcpu, reg, val);
 }
 
@@ -339,6 +341,10 @@ static void kvm_inject_exception(struct kvm_vcpu *vcpu)
 			enter_exception64(vcpu, PSR_MODE_EL1h, except_type_sync);
 			break;
 
+		case unpack_vcpu_flag(EXCEPT_AA64_EL1_SERR):
+			enter_exception64(vcpu, PSR_MODE_EL1h, except_type_serror);
+			break;
+
 		case unpack_vcpu_flag(EXCEPT_AA64_EL2_SYNC):
 			enter_exception64(vcpu, PSR_MODE_EL2h, except_type_sync);
 			break;
@@ -347,9 +353,13 @@ static void kvm_inject_exception(struct kvm_vcpu *vcpu)
 			enter_exception64(vcpu, PSR_MODE_EL2h, except_type_irq);
 			break;
 
+		case unpack_vcpu_flag(EXCEPT_AA64_EL2_SERR):
+			enter_exception64(vcpu, PSR_MODE_EL2h, except_type_serror);
+			break;
+
 		default:
 			/*
-			 * Only EL1_SYNC and EL2_{SYNC,IRQ} makes
+			 * Only EL1_{SYNC,SERR} and EL2_{SYNC,IRQ,SERR} makes
 			 * sense so far. Everything else gets silently
 			 * ignored.
 			 */

@@ -27,6 +27,13 @@ config ACPI_MDIO
 	help
 	  ACPI MDIO bus (Ethernet PHY) accessors
 
+config MDIO_AIROHA
+	tristate "Airoha AN7583 MDIO bus controller"
+	depends on ARCH_AIROHA || COMPILE_TEST
+	help
+	  This module provides a driver for the MDIO busses found in the
+	  Airoha AN7583 SoC's.
+
 config MDIO_SUN4I
 	tristate "Allwinner sun4i MDIO interface support"
 	depends on ARCH_SUNXI || COMPILE_TEST

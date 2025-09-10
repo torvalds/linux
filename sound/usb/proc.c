@@ -231,7 +231,7 @@ void snd_usb_proc_pcm_format_add(struct snd_usb_stream *stream)
 	char name[32];
 	struct snd_card *card = stream->chip->card;
 
-	sprintf(name, "stream%d", stream->pcm_index);
+	scnprintf(name, sizeof(name), "stream%d", stream->pcm_index);
 	snd_card_ro_proc_new(card, name, stream, proc_pcm_format_read);
 }
 

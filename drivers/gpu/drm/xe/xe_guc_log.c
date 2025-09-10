@@ -79,7 +79,7 @@ static struct xe_guc_log_snapshot *xe_guc_log_snapshot_alloc(struct xe_guc_log *
 	 * Also, can't use vmalloc as might be called from atomic context. So need
 	 * to break the buffer up into smaller chunks that can be allocated.
 	 */
-	snapshot->size = log->bo->size;
+	snapshot->size = xe_bo_size(log->bo);
 	snapshot->num_chunks = DIV_ROUND_UP(snapshot->size, GUC_LOG_CHUNK_SIZE);
 
 	snapshot->copy = kcalloc(snapshot->num_chunks, sizeof(*snapshot->copy),

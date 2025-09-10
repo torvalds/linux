@@ -16,7 +16,7 @@ GNU LIBRARY GENERAL PUBLIC LICENSE
 Version 2, June 1991
 
 Copyright (C) 1991 Free Software Foundation, Inc.
-51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+<https://fsf.org/>
 
 Everyone is permitted to copy and distribute verbatim copies of this
 license document, but changing it is not allowed.
@@ -468,8 +468,7 @@ FITNESS FOR A PARTICULAR PURPOSE. See the GNU Library General Public
 License for more details.
 
 You should have received a copy of the GNU Library General Public License
-along with this library; if not, write to the Free Software Foundation,
-Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
+along with this library; if not, see <https://www.gnu.org/licenses/>.
 
 Also add information on how to contact you by electronic and paper mail.
 

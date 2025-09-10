@@ -279,9 +279,6 @@ static int sharp_panel_add(struct sharp_panel *sharp)
 	if (IS_ERR(sharp->supply))
 		return PTR_ERR(sharp->supply);
 
-	drm_panel_init(&sharp->base, &sharp->link1->dev, &sharp_panel_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
-
 	ret = drm_panel_of_backlight(&sharp->base);
 	if (ret)
 		return ret;
@@ -323,10 +320,12 @@ static int sharp_panel_probe(struct mipi_dsi_device *dsi)
 
 	/* register a panel for only the DSI-LINK1 interface */
 	if (secondary) {
-		sharp = devm_kzalloc(&dsi->dev, sizeof(*sharp), GFP_KERNEL);
-		if (!sharp) {
+		sharp = devm_drm_panel_alloc(&dsi->dev, __typeof(*sharp), base,
+					     &sharp_panel_funcs,
+					     DRM_MODE_CONNECTOR_DSI);
+		if (IS_ERR(sharp)) {
 			put_device(&secondary->dev);
-			return -ENOMEM;
+			return PTR_ERR(sharp);
 		}
 
 		mipi_dsi_set_drvdata(dsi, sharp);

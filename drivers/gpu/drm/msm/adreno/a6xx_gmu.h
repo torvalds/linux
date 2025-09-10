@@ -62,7 +62,7 @@ struct a6xx_gmu {
 	/* For serializing communication with the GMU: */
 	struct mutex lock;
 
-	struct msm_gem_address_space *aspace;
+	struct drm_gpuvm *vm;
 
 	void __iomem *mmio;
 	void __iomem *rscc;

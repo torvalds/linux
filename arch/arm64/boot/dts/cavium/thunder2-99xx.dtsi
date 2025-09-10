@@ -136,8 +136,8 @@
 			reg = <0x04 0x02020000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk125mhz>;
-			clock-names = "apb_pclk";
+			clocks = <&clk125mhz>, <&clk125mhz>;
+			clock-names = "uartclk", "apb_pclk";
 		};
 	};
 

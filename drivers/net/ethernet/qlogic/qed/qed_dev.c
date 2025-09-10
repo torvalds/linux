@@ -2216,7 +2216,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		}
 
 		/* CID map / ILT shadow table / T2
-		 * The talbes sizes are determined by the computations above
+		 * The table sizes are determined by the computations above
 		 */
 		rc = qed_cxt_tables_alloc(p_hwfn);
 		if (rc)

@@ -9,6 +9,7 @@
 #include <linux/fs.h>
 #include <linux/fsnotify.h>
 #include <linux/file.h>
+#include <linux/kernfs.h>
 #include <linux/mm.h>
 #include <linux/xattr.h>
 
@@ -321,6 +322,39 @@ __bpf_kfunc int bpf_remove_dentry_xattr(struct dentry *dentry, const char *name_
 	inode_unlock(inode);
 	return ret;
 }
+
+#ifdef CONFIG_CGROUPS
+/**
+ * bpf_cgroup_read_xattr - read xattr of a cgroup's node in cgroupfs
+ * @cgroup: cgroup to get xattr from
+ * @name__str: name of the xattr
+ * @value_p: output buffer of the xattr value
+ *
+ * Get xattr *name__str* of *cgroup* and store the output in *value_ptr*.
+ *
+ * For security reasons, only *name__str* with prefix "user." is allowed.
+ *
+ * Return: length of the xattr value on success, a negative value on error.
+ */
+__bpf_kfunc int bpf_cgroup_read_xattr(struct cgroup *cgroup, const char *name__str,
+					struct bpf_dynptr *value_p)
+{
+	struct bpf_dynptr_kern *value_ptr = (struct bpf_dynptr_kern *)value_p;
+	u32 value_len;
+	void *value;
+
+	/* Only allow reading "user.*" xattrs */
+	if (strncmp(name__str, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN))
+		return -EPERM;
+
+	value_len = __bpf_dynptr_size(value_ptr);
+	value = __bpf_dynptr_data_rw(value_ptr, value_len);
+	if (!value)
+		return -EINVAL;
+
+	return kernfs_xattr_get(cgroup->kn, name__str, value, value_len);
+}
+#endif /* CONFIG_CGROUPS */
 
 __bpf_kfunc_end_defs();
 

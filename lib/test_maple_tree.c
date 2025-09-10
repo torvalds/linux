@@ -3177,6 +3177,7 @@ static noinline void __init check_state_handling(struct maple_tree *mt)
 	void *entry, *ptr = (void *) 0x1234500;
 	void *ptr2 = &ptr;
 	void *ptr3 = &ptr2;
+	unsigned long index;
 
 	/* Check MAS_ROOT First */
 	mtree_store_range(mt, 0, 0, ptr, GFP_KERNEL);
@@ -3705,6 +3706,37 @@ static noinline void __init check_state_handling(struct maple_tree *mt)
 	MT_BUG_ON(mt, mas.index != 0x1501);
 	MT_BUG_ON(mt, mas.last != 0x1fff);
 	MT_BUG_ON(mt, !mas_is_active(&mas));
+
+	mas_unlock(&mas);
+	mtree_destroy(mt);
+
+	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
+	mas_lock(&mas);
+	for (int count = 0; count < 30; count++) {
+		mas_set(&mas, count);
+		mas_store_gfp(&mas, xa_mk_value(count), GFP_KERNEL);
+	}
+
+	/* Ensure mas_find works with MA_UNDERFLOW */
+	mas_set(&mas, 0);
+	entry = mas_walk(&mas);
+	mas_set(&mas, 0);
+	mas_prev(&mas, 0);
+	MT_BUG_ON(mt, mas.status != ma_underflow);
+	MT_BUG_ON(mt, mas_find(&mas, ULONG_MAX) != entry);
+
+	/* Restore active on mas_next */
+	entry = mas_next(&mas, ULONG_MAX);
+	index = mas.index;
+	mas_prev(&mas, index);
+	MT_BUG_ON(mt, mas.status != ma_underflow);
+	MT_BUG_ON(mt, mas_next(&mas, ULONG_MAX) != entry);
+
+	/* Ensure overflow -> active works */
+	mas_prev(&mas, 0);
+	mas_next(&mas, index - 1);
+	MT_BUG_ON(mt, mas.status != ma_overflow);
+	MT_BUG_ON(mt, mas_next(&mas, ULONG_MAX) != entry);
 
 	mas_unlock(&mas);
 }

@@ -55,8 +55,8 @@ static int adv7511_update_cts_n(struct adv7511 *adv7511)
 	return 0;
 }
 
-int adv7511_hdmi_audio_prepare(struct drm_connector *connector,
-			       struct drm_bridge *bridge,
+int adv7511_hdmi_audio_prepare(struct drm_bridge *bridge,
+			       struct drm_connector *connector,
 			       struct hdmi_codec_daifmt *fmt,
 			       struct hdmi_codec_params *hparms)
 {
@@ -168,8 +168,8 @@ int adv7511_hdmi_audio_prepare(struct drm_connector *connector,
 	return 0;
 }
 
-int adv7511_hdmi_audio_startup(struct drm_connector *connector,
-			       struct drm_bridge *bridge)
+int adv7511_hdmi_audio_startup(struct drm_bridge *bridge,
+			       struct drm_connector *connector)
 {
 	struct adv7511 *adv7511 = bridge_to_adv7511(bridge);
 
@@ -206,8 +206,8 @@ int adv7511_hdmi_audio_startup(struct drm_connector *connector,
 	return 0;
 }
 
-void adv7511_hdmi_audio_shutdown(struct drm_connector *connector,
-				 struct drm_bridge *bridge)
+void adv7511_hdmi_audio_shutdown(struct drm_bridge *bridge,
+				 struct drm_connector *connector)
 {
 	struct adv7511 *adv7511 = bridge_to_adv7511(bridge);
 

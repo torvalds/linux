@@ -1231,12 +1231,12 @@ static int cdns_unreg_slave(struct i2c_client *slave)
 #endif
 
 static const struct i2c_algorithm cdns_i2c_algo = {
-	.master_xfer	= cdns_i2c_master_xfer,
-	.master_xfer_atomic = cdns_i2c_master_xfer_atomic,
-	.functionality	= cdns_i2c_func,
+	.xfer = cdns_i2c_master_xfer,
+	.xfer_atomic = cdns_i2c_master_xfer_atomic,
+	.functionality = cdns_i2c_func,
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
-	.reg_slave	= cdns_reg_slave,
-	.unreg_slave	= cdns_unreg_slave,
+	.reg_slave = cdns_reg_slave,
+	.unreg_slave = cdns_unreg_slave,
 #endif
 };
 

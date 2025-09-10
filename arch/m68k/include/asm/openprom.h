@@ -21,7 +21,7 @@
 #define	LINUX_OPPROM_MAGIC      0x10010407
 #endif
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /* V0 prom device operations. */
 struct linux_dev_v0_funcs {
 	int (*v0_devopen)(char *device_str);
@@ -308,6 +308,6 @@ struct linux_prom_ranges {
 	unsigned int or_size;
 };
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 #endif /* !(__SPARC_OPENPROM_H) */

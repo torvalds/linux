@@ -1287,10 +1287,7 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 
 		offset += 8;
 		while (((int)size) && (offset < buffer_size)) {
-			if (size <= blksz)
-				size2 = size;
-			else
-				size2 = blksz;
+			size2 = min(size, blksz);
 
 			memcpy(dma_buffer, &buffer[offset], size2);
 			ret = wilc->hif_func->hif_block_tx(wilc, addr,

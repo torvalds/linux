@@ -130,6 +130,13 @@
 		};
 	};
 
+	/* Page 26 / PCIe.0/1 CLK */
+	pcie_refclk: clk-x8 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
 	reg_1p2v: regulator-1p2v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.2V";
@@ -404,6 +411,14 @@
 			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			/* Page 26 / PCIe.0/1 CLK */
+			pcie_clk: clk@68 {
+				compatible = "renesas,9fgv0441";
+				reg = <0x68>;
+				clocks = <&pcie_refclk>;
+				#clock-cells = <1>;
+			};
 		};
 
 		i2c0_mux3: i2c@3 {
@@ -487,24 +502,36 @@
 
 /* Page 26 / 2230 Key M M.2 */
 &pcie0_clkref {
-	clock-frequency = <100000000>;
+	status = "disabled";
 };
 
 &pciec0 {
+	clocks = <&cpg CPG_MOD 624>, <&pcie_clk 0>;
 	reset-gpios = <&gpio2 2 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
+&pciec0_rp {
+	clocks = <&pcie_clk 1>;
+	vpcie3v3-supply = <&reg_3p3v>;
+};
+
 /* Page 25 / PCIe to USB */
 &pcie1_clkref {
-	clock-frequency = <100000000>;
+	status = "disabled";
 };
 
 &pciec1 {
+	clocks = <&cpg CPG_MOD 625>, <&pcie_clk 2>;
 	/* uPD720201 is PCIe Gen2 x1 device */
 	num-lanes = <1>;
 	reset-gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
 	status = "okay";
+};
+
+&pciec1_rp {
+	clocks = <&pcie_clk 3>;
+	vpcie3v3-supply = <&reg_3p3v>;
 };
 
 &pfc {
@@ -679,19 +706,6 @@
 	};
 };
 
-/* Page 30 / Audio_Codec */
-&rcar_sound {
-	pinctrl-0 = <&sound_clk_pins>;
-	pinctrl-names = "default";
-
-	/* It is used for ADG output as DA7212_MCLK */
-
-	/* audio_clkout */
-	clock-frequency = <12288000>; /* 48 kHz groups */
-
-	status = "okay";
-};
-
 /* Page 31 / FAN */
 &pwm0 {
 	pinctrl-0 = <&pwm0_pins>;
@@ -717,6 +731,19 @@
 &pwm7 {
 	pinctrl-0 = <&pwm7_pins>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+
+/* Page 30 / Audio_Codec */
+&rcar_sound {
+	pinctrl-0 = <&sound_clk_pins>;
+	pinctrl-names = "default";
+
+	/* It is used for ADG output as DA7212_MCLK */
+
+	/* audio_clkout */
+	clock-frequency = <12288000>; /* 48 kHz groups */
+
 	status = "okay";
 };
 

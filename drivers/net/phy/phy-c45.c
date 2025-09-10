@@ -1573,10 +1573,3 @@ int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 	return ret;
 }
 EXPORT_SYMBOL(genphy_c45_ethtool_set_eee);
-
-struct phy_driver genphy_c45_driver = {
-	.phy_id         = 0xffffffff,
-	.phy_id_mask    = 0xffffffff,
-	.name           = "Generic Clause 45 PHY",
-	.read_status    = genphy_c45_read_status,
-};

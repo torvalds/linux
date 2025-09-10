@@ -289,9 +289,11 @@ static int kvm_trap_handle_gspr(struct kvm_vcpu *vcpu)
 	er = EMULATE_FAIL;
 	switch (((inst.word >> 24) & 0xff)) {
 	case 0x0: /* CPUCFG GSPR */
+		trace_kvm_exit_cpucfg(vcpu, KVM_TRACE_EXIT_CPUCFG);
 		er = kvm_emu_cpucfg(vcpu, inst);
 		break;
 	case 0x4: /* CSR{RD,WR,XCHG} GSPR */
+		trace_kvm_exit_csr(vcpu, KVM_TRACE_EXIT_CSR);
 		er = kvm_handle_csr(vcpu, inst);
 		break;
 	case 0x6: /* Cache, Idle and IOCSR GSPR */
@@ -821,32 +823,25 @@ static int kvm_handle_lbt_disabled(struct kvm_vcpu *vcpu, int ecode)
 	return RESUME_GUEST;
 }
 
-static int kvm_send_pv_ipi(struct kvm_vcpu *vcpu)
+static void kvm_send_pv_ipi(struct kvm_vcpu *vcpu)
 {
-	unsigned int min, cpu, i;
-	unsigned long ipi_bitmap;
+	unsigned int min, cpu;
 	struct kvm_vcpu *dest;
+	DECLARE_BITMAP(ipi_bitmap, BITS_PER_LONG * 2) = {
+		kvm_read_reg(vcpu, LOONGARCH_GPR_A1),
+		kvm_read_reg(vcpu, LOONGARCH_GPR_A2)
+	};
 
 	min = kvm_read_reg(vcpu, LOONGARCH_GPR_A3);
-	for (i = 0; i < 2; i++, min += BITS_PER_LONG) {
-		ipi_bitmap = kvm_read_reg(vcpu, LOONGARCH_GPR_A1 + i);
-		if (!ipi_bitmap)
+	for_each_set_bit(cpu, ipi_bitmap, BITS_PER_LONG * 2) {
+		dest = kvm_get_vcpu_by_cpuid(vcpu->kvm, cpu + min);
+		if (!dest)
 			continue;
 
-		cpu = find_first_bit((void *)&ipi_bitmap, BITS_PER_LONG);
-		while (cpu < BITS_PER_LONG) {
-			dest = kvm_get_vcpu_by_cpuid(vcpu->kvm, cpu + min);
-			cpu = find_next_bit((void *)&ipi_bitmap, BITS_PER_LONG, cpu + 1);
-			if (!dest)
-				continue;
-
-			/* Send SWI0 to dest vcpu to emulate IPI interrupt */
-			kvm_queue_irq(dest, INT_SWI0);
-			kvm_vcpu_kick(dest);
-		}
+		/* Send SWI0 to dest vcpu to emulate IPI interrupt */
+		kvm_queue_irq(dest, INT_SWI0);
+		kvm_vcpu_kick(dest);
 	}
-
-	return 0;
 }
 
 /*

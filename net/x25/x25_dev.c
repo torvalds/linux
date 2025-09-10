@@ -170,28 +170,6 @@ void x25_establish_link(struct x25_neigh *nb)
 	dev_queue_xmit(skb);
 }
 
-void x25_terminate_link(struct x25_neigh *nb)
-{
-	struct sk_buff *skb;
-	unsigned char *ptr;
-
-	if (nb->dev->type != ARPHRD_X25)
-		return;
-
-	skb = alloc_skb(1, GFP_ATOMIC);
-	if (!skb) {
-		pr_err("x25_dev: out of memory\n");
-		return;
-	}
-
-	ptr  = skb_put(skb, 1);
-	*ptr = X25_IFACE_DISCONNECT;
-
-	skb->protocol = htons(ETH_P_X25);
-	skb->dev      = nb->dev;
-	dev_queue_xmit(skb);
-}
-
 void x25_send_frame(struct sk_buff *skb, struct x25_neigh *nb)
 {
 	unsigned char *dptr;

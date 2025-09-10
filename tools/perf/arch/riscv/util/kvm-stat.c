@@ -9,10 +9,10 @@
 #include <memory.h>
 #include "../../../util/evsel.h"
 #include "../../../util/kvm-stat.h"
-#include "riscv_exception_types.h"
+#include "riscv_trap_types.h"
 #include "debug.h"
 
-define_exit_reasons_table(riscv_exit_reasons, kvm_riscv_exception_class);
+define_exit_reasons_table(riscv_exit_reasons, kvm_riscv_trap_class);
 
 const char *vcpu_id_str = "id";
 const char *kvm_exit_reason = "scause";
@@ -30,7 +30,7 @@ static void event_get_key(struct evsel *evsel,
 			  struct event_key *key)
 {
 	key->info = 0;
-	key->key = evsel__intval(evsel, sample, kvm_exit_reason);
+	key->key = evsel__intval(evsel, sample, kvm_exit_reason) & ~CAUSE_IRQ_FLAG;
 	key->exit_reasons = riscv_exit_reasons;
 }
 

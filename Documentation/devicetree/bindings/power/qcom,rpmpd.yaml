@@ -17,7 +17,9 @@ properties:
   compatible:
     oneOf:
       - enum:
+          - qcom,glymur-rpmhpd
           - qcom,mdm9607-rpmpd
+          - qcom,milos-rpmhpd
           - qcom,msm8226-rpmpd
           - qcom,msm8909-rpmpd
           - qcom,msm8916-rpmpd

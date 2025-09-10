@@ -147,17 +147,17 @@
     {
         "EventCode": "0x02B0",
         "EventName": "L1_PIPE_COMP_GATHER_2FLOW",
-        "BriefDescription": "This event counts the number of times where 2 elements of the gather instructions became 2 flows because 2 elements could not be combined."
+        "BriefDescription": "This event counts the number of times where 2 elements of the gather instructions became 2-flows because 2 elements could not be combined."
     },
     {
         "EventCode": "0x02B1",
         "EventName": "L1_PIPE_COMP_GATHER_1FLOW",
-        "BriefDescription": "This event counts the number of times where 2 elements of the gather instructions became 1 flow because 2 elements could be combined."
+        "BriefDescription": "This event counts the number of times where 2 elements of the gather instructions became 1-flow because 2 elements could be combined."
     },
     {
         "EventCode": "0x02B2",
         "EventName": "L1_PIPE_COMP_GATHER_0FLOW",
-        "BriefDescription": "This event counts the number of times where 2 elements of the gather instructions became 0 flow because both predicate values are 0."
+        "BriefDescription": "This event counts the number of times where 2 elements of the gather instructions became 0-flow because both predicate values are 0."
     },
     {
         "EventCode": "0x02B3",

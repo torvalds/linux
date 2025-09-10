@@ -65,7 +65,6 @@ static ssize_t sof_kernel_msg_inject_dfs_write(struct file *file, const char __u
 
 	sof_client_ipc_rx_message(cdev, hdr, priv->kernel_buffer);
 
-	pm_runtime_mark_last_busy(dev);
 	ret = pm_runtime_put_autosuspend(dev);
 	if (ret < 0)
 		dev_err_ratelimited(dev, "debugfs write failed to idle %d\n", ret);

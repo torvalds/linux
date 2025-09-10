@@ -16,12 +16,10 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/seq_file.h>
-#include <linux/tty.h>
 #include <linux/clocksource.h>
 #include <linux/console.h>
 #include <linux/rtc.h>
 #include <linux/init.h>
-#include <linux/vt_kern.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/zorro.h>

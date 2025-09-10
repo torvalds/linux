@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/bpf.h>
+#include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
-#include <linux/if_ether.h>
-#include <linux/in.h>
-#include <linux/ip.h>
-#include <linux/udp.h>
-#include <linux/pkt_cls.h>
+
+#ifndef PAGE_SIZE
+#define PAGE_SIZE __PAGE_SIZE
+#endif
+#define BPF_SKB_MAX_LEN (PAGE_SIZE << 2)
 
 long change_tail_ret = 1;
 
@@ -94,7 +94,7 @@ int change_tail(struct __sk_buff *skb)
 			bpf_skb_change_tail(skb, len, 0);
 		return TCX_PASS;
 	} else if (payload[0] == 'E') { /* Error */
-		change_tail_ret = bpf_skb_change_tail(skb, 65535, 0);
+		change_tail_ret = bpf_skb_change_tail(skb, BPF_SKB_MAX_LEN, 0);
 		return TCX_PASS;
 	} else if (payload[0] == 'Z') { /* Zero */
 		change_tail_ret = bpf_skb_change_tail(skb, 0, 0);

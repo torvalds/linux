@@ -10,7 +10,7 @@
 #include <trace/events/cgroup.h>
 
 static DEFINE_SPINLOCK(rstat_base_lock);
-static DEFINE_PER_CPU(raw_spinlock_t, rstat_base_cpu_lock);
+static DEFINE_PER_CPU(struct llist_head, rstat_backlog_list);
 
 static void cgroup_base_stat_flush(struct cgroup *cgrp, int cpu);
 
@@ -45,84 +45,11 @@ static spinlock_t *ss_rstat_lock(struct cgroup_subsys *ss)
 	return &rstat_base_lock;
 }
 
-static raw_spinlock_t *ss_rstat_cpu_lock(struct cgroup_subsys *ss, int cpu)
+static inline struct llist_head *ss_lhead_cpu(struct cgroup_subsys *ss, int cpu)
 {
-	if (ss) {
-		/*
-		 * Depending on config, the subsystem per-cpu lock type may be an
-		 * empty struct. In enviromnents where this is the case, allocation
-		 * of this field is not performed in ss_rstat_init(). Avoid a
-		 * cpu-based offset relative to NULL by returning early. When the
-		 * lock type is zero in size, the corresponding lock functions are
-		 * no-ops so passing them NULL is acceptable.
-		 */
-		if (sizeof(*ss->rstat_ss_cpu_lock) == 0)
-			return NULL;
-
-		return per_cpu_ptr(ss->rstat_ss_cpu_lock, cpu);
-	}
-
-	return per_cpu_ptr(&rstat_base_cpu_lock, cpu);
-}
-
-/*
- * Helper functions for rstat per CPU locks.
- *
- * This makes it easier to diagnose locking issues and contention in
- * production environments. The parameter @fast_path determine the
- * tracepoints being added, allowing us to diagnose "flush" related
- * operations without handling high-frequency fast-path "update" events.
- */
-static __always_inline
-unsigned long _css_rstat_cpu_lock(struct cgroup_subsys_state *css, int cpu,
-		const bool fast_path)
-{
-	struct cgroup *cgrp = css->cgroup;
-	raw_spinlock_t *cpu_lock;
-	unsigned long flags;
-	bool contended;
-
-	/*
-	 * The _irqsave() is needed because the locks used for flushing are
-	 * spinlock_t which is a sleeping lock on PREEMPT_RT. Acquiring this lock
-	 * with the _irq() suffix only disables interrupts on a non-PREEMPT_RT
-	 * kernel. The raw_spinlock_t below disables interrupts on both
-	 * configurations. The _irqsave() ensures that interrupts are always
-	 * disabled and later restored.
-	 */
-	cpu_lock = ss_rstat_cpu_lock(css->ss, cpu);
-	contended = !raw_spin_trylock_irqsave(cpu_lock, flags);
-	if (contended) {
-		if (fast_path)
-			trace_cgroup_rstat_cpu_lock_contended_fastpath(cgrp, cpu, contended);
-		else
-			trace_cgroup_rstat_cpu_lock_contended(cgrp, cpu, contended);
-
-		raw_spin_lock_irqsave(cpu_lock, flags);
-	}
-
-	if (fast_path)
-		trace_cgroup_rstat_cpu_locked_fastpath(cgrp, cpu, contended);
-	else
-		trace_cgroup_rstat_cpu_locked(cgrp, cpu, contended);
-
-	return flags;
-}
-
-static __always_inline
-void _css_rstat_cpu_unlock(struct cgroup_subsys_state *css, int cpu,
-		unsigned long flags, const bool fast_path)
-{
-	struct cgroup *cgrp = css->cgroup;
-	raw_spinlock_t *cpu_lock;
-
-	if (fast_path)
-		trace_cgroup_rstat_cpu_unlock_fastpath(cgrp, cpu, false);
-	else
-		trace_cgroup_rstat_cpu_unlock(cgrp, cpu, false);
-
-	cpu_lock = ss_rstat_cpu_lock(css->ss, cpu);
-	raw_spin_unlock_irqrestore(cpu_lock, flags);
+	if (ss)
+		return per_cpu_ptr(ss->lhead, cpu);
+	return per_cpu_ptr(&rstat_backlog_list, cpu);
 }
 
 /**
@@ -130,13 +57,22 @@ void _css_rstat_cpu_unlock(struct cgroup_subsys_state *css, int cpu,
  * @css: target cgroup subsystem state
  * @cpu: cpu on which rstat_cpu was updated
  *
- * @css's rstat_cpu on @cpu was updated. Put it on the parent's matching
- * rstat_cpu->updated_children list. See the comment on top of
- * css_rstat_cpu definition for details.
+ * Atomically inserts the css in the ss's llist for the given cpu. This is
+ * reentrant safe i.e. safe against softirq, hardirq and nmi. The ss's llist
+ * will be processed at the flush time to create the update tree.
+ *
+ * NOTE: if the user needs the guarantee that the updater either add itself in
+ * the lockless list or the concurrent flusher flushes its updated stats, a
+ * memory barrier is needed before the call to css_rstat_updated() i.e. a
+ * barrier after updating the per-cpu stats and before calling
+ * css_rstat_updated().
  */
 __bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
 {
-	unsigned long flags;
+	struct llist_head *lhead;
+	struct css_rstat_cpu *rstatc;
+	struct css_rstat_cpu __percpu *rstatc_pcpu;
+	struct llist_node *self;
 
 	/*
 	 * Since bpf programs can call this function, prevent access to
@@ -145,19 +81,49 @@ __bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
 	if (!css_uses_rstat(css))
 		return;
 
+	lockdep_assert_preemption_disabled();
+
 	/*
-	 * Speculative already-on-list test. This may race leading to
-	 * temporary inaccuracies, which is fine.
-	 *
-	 * Because @parent's updated_children is terminated with @parent
-	 * instead of NULL, we can tell whether @css is on the list by
-	 * testing the next pointer for NULL.
+	 * For archs withnot nmi safe cmpxchg or percpu ops support, ignore
+	 * the requests from nmi context.
 	 */
-	if (data_race(css_rstat_cpu(css, cpu)->updated_next))
+	if ((!IS_ENABLED(CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG) ||
+	     !IS_ENABLED(CONFIG_ARCH_HAS_NMI_SAFE_THIS_CPU_OPS)) && in_nmi())
 		return;
 
-	flags = _css_rstat_cpu_lock(css, cpu, true);
+	rstatc = css_rstat_cpu(css, cpu);
+	/*
+	 * If already on list return. This check is racy and smp_mb() is needed
+	 * to pair it with the smp_mb() in css_process_update_tree() if the
+	 * guarantee that the updated stats are visible to concurrent flusher is
+	 * needed.
+	 */
+	if (llist_on_list(&rstatc->lnode))
+		return;
 
+	/*
+	 * This function can be renentered by irqs and nmis for the same cgroup
+	 * and may try to insert the same per-cpu lnode into the llist. Note
+	 * that llist_add() does not protect against such scenarios.
+	 *
+	 * To protect against such stacked contexts of irqs/nmis, we use the
+	 * fact that lnode points to itself when not on a list and then use
+	 * this_cpu_cmpxchg() to atomically set to NULL to select the winner
+	 * which will call llist_add(). The losers can assume the insertion is
+	 * successful and the winner will eventually add the per-cpu lnode to
+	 * the llist.
+	 */
+	self = &rstatc->lnode;
+	rstatc_pcpu = css->rstat_cpu;
+	if (this_cpu_cmpxchg(rstatc_pcpu->lnode.next, self, NULL) != self)
+		return;
+
+	lhead = ss_lhead_cpu(css->ss, cpu);
+	llist_add(&rstatc->lnode, lhead);
+}
+
+static void __css_process_update_tree(struct cgroup_subsys_state *css, int cpu)
+{
 	/* put @css and all ancestors on the corresponding updated lists */
 	while (true) {
 		struct css_rstat_cpu *rstatc = css_rstat_cpu(css, cpu);
@@ -183,8 +149,34 @@ __bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
 
 		css = parent;
 	}
+}
 
-	_css_rstat_cpu_unlock(css, cpu, flags, true);
+static void css_process_update_tree(struct cgroup_subsys *ss, int cpu)
+{
+	struct llist_head *lhead = ss_lhead_cpu(ss, cpu);
+	struct llist_node *lnode;
+
+	while ((lnode = llist_del_first_init(lhead))) {
+		struct css_rstat_cpu *rstatc;
+
+		/*
+		 * smp_mb() is needed here (more specifically in between
+		 * init_llist_node() and per-cpu stats flushing) if the
+		 * guarantee is required by a rstat user where etiher the
+		 * updater should add itself on the lockless list or the
+		 * flusher flush the stats updated by the updater who have
+		 * observed that they are already on the list. The
+		 * corresponding barrier pair for this one should be before
+		 * css_rstat_updated() by the user.
+		 *
+		 * For now, there aren't any such user, so not adding the
+		 * barrier here but if such a use-case arise, please add
+		 * smp_mb() here.
+		 */
+
+		rstatc = container_of(lnode, struct css_rstat_cpu, lnode);
+		__css_process_update_tree(rstatc->owner, cpu);
+	}
 }
 
 /**
@@ -288,13 +280,12 @@ static struct cgroup_subsys_state *css_rstat_updated_list(
 {
 	struct css_rstat_cpu *rstatc = css_rstat_cpu(root, cpu);
 	struct cgroup_subsys_state *head = NULL, *parent, *child;
-	unsigned long flags;
 
-	flags = _css_rstat_cpu_lock(root, cpu, false);
+	css_process_update_tree(root->ss, cpu);
 
 	/* Return NULL if this subtree is not on-list */
 	if (!rstatc->updated_next)
-		goto unlock_ret;
+		return NULL;
 
 	/*
 	 * Unlink @root from its parent. As the updated_children list is
@@ -326,8 +317,7 @@ static struct cgroup_subsys_state *css_rstat_updated_list(
 	rstatc->updated_children = root;
 	if (child != root)
 		head = css_rstat_push_children(head, child, cpu);
-unlock_ret:
-	_css_rstat_cpu_unlock(root, cpu, flags, false);
+
 	return head;
 }
 
@@ -468,7 +458,8 @@ int css_rstat_init(struct cgroup_subsys_state *css)
 	for_each_possible_cpu(cpu) {
 		struct css_rstat_cpu *rstatc = css_rstat_cpu(css, cpu);
 
-		rstatc->updated_children = css;
+		rstatc->owner = rstatc->updated_children = css;
+		init_llist_node(&rstatc->lnode);
 
 		if (is_self) {
 			struct cgroup_rstat_base_cpu *rstatbc;
@@ -522,19 +513,15 @@ int __init ss_rstat_init(struct cgroup_subsys *ss)
 {
 	int cpu;
 
-	/*
-	 * Depending on config, the subsystem per-cpu lock type may be an empty
-	 * struct. Avoid allocating a size of zero in this case.
-	 */
-	if (ss && sizeof(*ss->rstat_ss_cpu_lock)) {
-		ss->rstat_ss_cpu_lock = alloc_percpu(raw_spinlock_t);
-		if (!ss->rstat_ss_cpu_lock)
+	if (ss) {
+		ss->lhead = alloc_percpu(struct llist_head);
+		if (!ss->lhead)
 			return -ENOMEM;
 	}
 
 	spin_lock_init(ss_rstat_lock(ss));
 	for_each_possible_cpu(cpu)
-		raw_spin_lock_init(ss_rstat_cpu_lock(ss, cpu));
+		init_llist_head(ss_lhead_cpu(ss, cpu));
 
 	return 0;
 }

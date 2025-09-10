@@ -14,6 +14,7 @@
 #include <linux/iommu.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
@@ -47,7 +48,6 @@ struct ls_scfg_msi {
 	spinlock_t		lock;
 	struct platform_device	*pdev;
 	struct irq_domain	*parent;
-	struct irq_domain	*msi_domain;
 	void __iomem		*regs;
 	phys_addr_t		msiir_addr;
 	struct ls_scfg_msi_cfg	*cfg;
@@ -57,17 +57,18 @@ struct ls_scfg_msi {
 	unsigned long		*used;
 };
 
-static struct irq_chip ls_scfg_msi_irq_chip = {
-	.name = "MSI",
-	.irq_mask	= pci_msi_mask_irq,
-	.irq_unmask	= pci_msi_unmask_irq,
-};
+#define MPIC_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS | \
+				 MSI_FLAG_USE_DEF_CHIP_OPS)
+#define MPIC_MSI_FLAGS_SUPPORTED (MSI_FLAG_PCI_MSIX       | \
+				  MSI_GENERIC_FLAGS_MASK)
 
-static struct msi_domain_info ls_scfg_msi_domain_info = {
-	.flags	= (MSI_FLAG_USE_DEF_DOM_OPS |
-		   MSI_FLAG_USE_DEF_CHIP_OPS |
-		   MSI_FLAG_PCI_MSIX),
-	.chip	= &ls_scfg_msi_irq_chip,
+static const struct msi_parent_ops ls_scfg_msi_parent_ops = {
+	.required_flags		= MPIC_MSI_FLAGS_REQUIRED,
+	.supported_flags	= MPIC_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_NEXUS,
+	.bus_select_mask	= MATCH_PCI_MSI,
+	.prefix			= "MSI-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
 };
 
 static int msi_affinity_flag = 1;
@@ -185,6 +186,7 @@ static void ls_scfg_msi_domain_irq_free(struct irq_domain *domain,
 }
 
 static const struct irq_domain_ops ls_scfg_msi_domain_ops = {
+	.select	= msi_lib_irq_domain_select,
 	.alloc	= ls_scfg_msi_domain_irq_alloc,
 	.free	= ls_scfg_msi_domain_irq_free,
 };
@@ -214,23 +216,16 @@ static void ls_scfg_msi_irq_handler(struct irq_desc *desc)
 
 static int ls_scfg_msi_domains_init(struct ls_scfg_msi *msi_data)
 {
-	/* Initialize MSI domain parent */
-	msi_data->parent = irq_domain_create_linear(NULL,
-						    msi_data->irqs_num,
-						    &ls_scfg_msi_domain_ops,
-						    msi_data);
-	if (!msi_data->parent) {
-		dev_err(&msi_data->pdev->dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
-	}
+	struct irq_domain_info info = {
+		.fwnode		= of_fwnode_handle(msi_data->pdev->dev.of_node),
+		.ops		= &ls_scfg_msi_domain_ops,
+		.host_data	= msi_data,
+		.size		= msi_data->irqs_num,
+	};
 
-	msi_data->msi_domain = pci_msi_create_irq_domain(
-				of_fwnode_handle(msi_data->pdev->dev.of_node),
-				&ls_scfg_msi_domain_info,
-				msi_data->parent);
-	if (!msi_data->msi_domain) {
+	msi_data->parent = msi_create_parent_irq_domain(&info, &ls_scfg_msi_parent_ops);
+	if (!msi_data->parent) {
 		dev_err(&msi_data->pdev->dev, "failed to create MSI domain\n");
-		irq_domain_remove(msi_data->parent);
 		return -ENOMEM;
 	}
 
@@ -405,7 +400,6 @@ static void ls_scfg_msi_remove(struct platform_device *pdev)
 	for (i = 0; i < msi_data->msir_num; i++)
 		ls_scfg_msi_teardown_hwirq(&msi_data->msir[i]);
 
-	irq_domain_remove(msi_data->msi_domain);
 	irq_domain_remove(msi_data->parent);
 
 	platform_set_drvdata(pdev, NULL);

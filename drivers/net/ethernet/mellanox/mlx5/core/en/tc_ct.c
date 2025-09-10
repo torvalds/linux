@@ -1195,6 +1195,7 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 	struct flow_action_entry *meta_action;
 	unsigned long cookie = flow->cookie;
 	struct mlx5_ct_entry *entry;
+	bool has_nat;
 	int err;
 
 	meta_action = mlx5_tc_ct_get_ct_metadata_action(flow_rule);
@@ -1236,6 +1237,8 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 	err = mlx5_tc_ct_rule_to_tuple_nat(&entry->tuple_nat, flow_rule);
 	if (err)
 		goto err_set;
+	has_nat = memcmp(&entry->tuple, &entry->tuple_nat,
+			 sizeof(entry->tuple));
 
 	spin_lock_bh(&ct_priv->ht_lock);
 
@@ -1244,7 +1247,7 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 	if (err)
 		goto err_entries;
 
-	if (memcmp(&entry->tuple, &entry->tuple_nat, sizeof(entry->tuple))) {
+	if (has_nat) {
 		err = rhashtable_lookup_insert_fast(&ct_priv->ct_tuples_nat_ht,
 						    &entry->tuple_nat_node,
 						    tuples_nat_ht_params);

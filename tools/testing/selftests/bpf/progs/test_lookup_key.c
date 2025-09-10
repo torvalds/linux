@@ -14,11 +14,11 @@
 char _license[] SEC("license") = "GPL";
 
 __u32 monitored_pid;
-__u32 key_serial;
+__s32 key_serial;
 __u32 key_id;
 __u64 flags;
 
-extern struct bpf_key *bpf_lookup_user_key(__u32 serial, __u64 flags) __ksym;
+extern struct bpf_key *bpf_lookup_user_key(__s32 serial, __u64 flags) __ksym;
 extern struct bpf_key *bpf_lookup_system_key(__u64 id) __ksym;
 extern void bpf_key_put(struct bpf_key *key) __ksym;
 

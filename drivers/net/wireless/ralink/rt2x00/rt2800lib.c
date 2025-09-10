@@ -639,7 +639,7 @@ static bool rt2800_check_firmware_crc(const u8 *data, const size_t len)
 	/*
 	 * Use the crc ccitt algorithm.
 	 * This will return the same value as the legacy driver which
-	 * used bit ordering reversion on the both the firmware bytes
+	 * used bit ordering reversion on both the firmware bytes
 	 * before input input as well as on the final output.
 	 * Obviously using crc ccitt directly is much more efficient.
 	 */
@@ -12100,7 +12100,7 @@ void rt2800_get_key_seq(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(rt2800_get_key_seq);
 
-int rt2800_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+int rt2800_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx, u32 value)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	u32 reg;

@@ -44,7 +44,7 @@ struct mp2629_adc {
 	struct device *dev;
 };
 
-static struct iio_chan_spec mp2629_channels[] = {
+static const struct iio_chan_spec mp2629_channels[] = {
 	MP2629_ADC_CHAN(BATT_VOLT, IIO_VOLTAGE),
 	MP2629_ADC_CHAN(SYSTEM_VOLT, IIO_VOLTAGE),
 	MP2629_ADC_CHAN(INPUT_VOLT, IIO_VOLTAGE),

@@ -513,8 +513,8 @@ bool amdgpu_dmabuf_is_xgmi_accessible(struct amdgpu_device *adev,
 	if (!adev)
 		return false;
 
-	if (obj->import_attach) {
-		struct dma_buf *dma_buf = obj->import_attach->dmabuf;
+	if (drm_gem_is_imported(obj)) {
+		struct dma_buf *dma_buf = obj->dma_buf;
 
 		if (dma_buf->ops != &amdgpu_dmabuf_ops)
 			/* No XGMI with non AMD GPUs */

@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config RV_MON_OPID
+	depends on RV
+	depends on TRACE_IRQFLAGS
+	depends on TRACE_PREEMPT_TOGGLE
+	depends on RV_MON_SCHED
+	default y if PREEMPT_RT
+	select DA_MON_EVENTS_IMPLICIT
+	bool "opid monitor"
+	help
+	  Monitor to ensure operations like wakeup and need resched occur with
+	  interrupts and preemption disabled or during IRQs, where preemption
+	  may not be disabled explicitly.
+
+	  This monitor is unstable on !PREEMPT_RT, say N unless you are testing it.
+
+	  For further information, see:
+	    Documentation/trace/rv/monitor_sched.rst

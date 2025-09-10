@@ -136,6 +136,7 @@ struct fw_card {
 	__be32 maint_utility_register;
 
 	struct workqueue_struct *isoc_wq;
+	struct workqueue_struct *async_wq;
 };
 
 static inline struct fw_card *fw_card_get(struct fw_card *card)
@@ -307,8 +308,7 @@ struct fw_packet {
 	 * For successful transmission, the status code is the ack received
 	 * from the destination.  Otherwise it is one of the juju-specific
 	 * rcodes:  RCODE_SEND_ERROR, _CANCELLED, _BUSY, _GENERATION, _NO_ACK.
-	 * The callback can be called from tasklet context and thus
-	 * must never block.
+	 * The callback can be called from workqueue and thus must never block.
 	 */
 	fw_packet_callback_t callback;
 	int ack;
@@ -341,7 +341,11 @@ struct fw_address_handler {
 	u64 length;
 	fw_address_callback_t address_callback;
 	void *callback_data;
+
+	// Only for core functions.
 	struct list_head link;
+	struct kref kref;
+	struct completion done;
 };
 
 struct fw_address_region {
@@ -381,6 +385,10 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
  *
  * A variation of __fw_send_request() to generate callback for response subaction without time
  * stamp.
+ *
+ * The callback is invoked in the workqueue context in most cases. However, if an error is detected
+ * before queueing or the destination address refers to the local node, it is invoked in the
+ * current context instead.
  */
 static inline void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 				   int destination_id, int generation, int speed,
@@ -410,6 +418,10 @@ static inline void fw_send_request(struct fw_card *card, struct fw_transaction *
  * @callback_data:	data to be passed to the transaction completion callback
  *
  * A variation of __fw_send_request() to generate callback for response subaction with time stamp.
+ *
+ * The callback is invoked in the workqueue context in most cases. However, if an error is detected
+ * before queueing or the destination address refers to the local node, it is invoked in the current
+ * context instead.
  */
 static inline void fw_send_request_with_tstamp(struct fw_card *card, struct fw_transaction *t,
 	int tcode, int destination_id, int generation, int speed, unsigned long long offset,

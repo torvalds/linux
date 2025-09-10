@@ -59,7 +59,7 @@
  *
  * STAP_PROBE3(my_usdt_provider, my_usdt_probe_name, 123, x, &y);
  *
- * USDT is identified by it's <provider-name>:<probe-name> pair of names. Each
+ * USDT is identified by its <provider-name>:<probe-name> pair of names. Each
  * individual USDT has a fixed number of arguments (3 in the above example)
  * and specifies values of each argument as if it was a function call.
  *
@@ -81,7 +81,7 @@
  * NOP instruction that kernel can replace with an interrupt instruction to
  * trigger instrumentation code (BPF program for all that we care about).
  *
- * Semaphore above is and optional feature. It records an address of a 2-byte
+ * Semaphore above is an optional feature. It records an address of a 2-byte
  * refcount variable (normally in '.probes' ELF section) used for signaling if
  * there is anything that is attached to USDT. This is useful for user
  * applications if, for example, they need to prepare some arguments that are
@@ -121,7 +121,7 @@
  * a uprobe BPF program (which for kernel, at least currently, is just a kprobe
  * program, so BPF_PROG_TYPE_KPROBE program type). With the only difference
  * that uprobe is usually attached at the function entry, while USDT will
- * normally will be somewhere inside the function. But it should always be
+ * normally be somewhere inside the function. But it should always be
  * pointing to NOP instruction, which makes such uprobes the fastest uprobe
  * kind.
  *
@@ -151,7 +151,7 @@
  * libbpf sets to spec ID during attach time, or, if kernel is too old to
  * support BPF cookie, through IP-to-spec-ID map that libbpf maintains in such
  * case. The latter means that some modes of operation can't be supported
- * without BPF cookie. Such mode is attaching to shared library "generically",
+ * without BPF cookie. Such a mode is attaching to shared library "generically",
  * without specifying target process. In such case, it's impossible to
  * calculate absolute IP addresses for IP-to-spec-ID map, and thus such mode
  * is not supported without BPF cookie support.
@@ -185,7 +185,7 @@
  * as even if USDT spec string is the same, USDT cookie value can be
  * different. It was deemed excessive to try to deduplicate across independent
  * USDT attachments by taking into account USDT spec string *and* USDT cookie
- * value, which would complicated spec ID accounting significantly for little
+ * value, which would complicate spec ID accounting significantly for little
  * gain.
  */
 

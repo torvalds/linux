@@ -258,23 +258,6 @@ static int dbell_unlink(struct vmci_handle handle)
 }
 
 /*
- * Notify another guest or the host.  We send a datagram down to the
- * host via the hypervisor with the notification info.
- */
-static int dbell_notify_as_guest(struct vmci_handle handle, u32 priv_flags)
-{
-	struct vmci_doorbell_notify_msg notify_msg;
-
-	notify_msg.hdr.dst = vmci_make_handle(VMCI_HYPERVISOR_CONTEXT_ID,
-					      VMCI_DOORBELL_NOTIFY);
-	notify_msg.hdr.src = VMCI_ANON_SRC_HANDLE;
-	notify_msg.hdr.payload_size = sizeof(notify_msg) - VMCI_DG_HEADERSIZE;
-	notify_msg.handle = handle;
-
-	return vmci_send_datagram(&notify_msg.hdr);
-}
-
-/*
  * Calls the specified callback in a delayed context.
  */
 static void dbell_delayed_dispatch(struct work_struct *work)
@@ -566,39 +549,3 @@ int vmci_doorbell_destroy(struct vmci_handle handle)
 	return VMCI_SUCCESS;
 }
 EXPORT_SYMBOL_GPL(vmci_doorbell_destroy);
-
-/*
- * vmci_doorbell_notify() - Ring the doorbell (and hide in the bushes).
- * @dst:        The handlle identifying the doorbell resource
- * @priv_flags: Priviledge flags.
- *
- * Generates a notification on the doorbell identified by the
- * handle. For host side generation of notifications, the caller
- * can specify what the privilege of the calling side is.
- */
-int vmci_doorbell_notify(struct vmci_handle dst, u32 priv_flags)
-{
-	int retval;
-	enum vmci_route route;
-	struct vmci_handle src;
-
-	if (vmci_handle_is_invalid(dst) ||
-	    (priv_flags & ~VMCI_PRIVILEGE_ALL_FLAGS))
-		return VMCI_ERROR_INVALID_ARGS;
-
-	src = VMCI_INVALID_HANDLE;
-	retval = vmci_route(&src, &dst, false, &route);
-	if (retval < VMCI_SUCCESS)
-		return retval;
-
-	if (VMCI_ROUTE_AS_HOST == route)
-		return vmci_ctx_notify_dbell(VMCI_HOST_CONTEXT_ID,
-					     dst, priv_flags);
-
-	if (VMCI_ROUTE_AS_GUEST == route)
-		return dbell_notify_as_guest(dst, priv_flags);
-
-	pr_warn("Unknown route (%d) for doorbell\n", route);
-	return VMCI_ERROR_DST_UNREACHABLE;
-}
-EXPORT_SYMBOL_GPL(vmci_doorbell_notify);

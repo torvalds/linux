@@ -832,41 +832,6 @@ int wl1251_acx_statistics(struct wl1251 *wl, struct acx_statistics *stats)
 	return 0;
 }
 
-int wl1251_acx_rate_policies(struct wl1251 *wl)
-{
-	struct acx_rate_policy *acx;
-	int ret = 0;
-
-	wl1251_debug(DEBUG_ACX, "acx rate policies");
-
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
-	if (!acx)
-		return -ENOMEM;
-
-	/* configure one default (one-size-fits-all) rate class */
-	acx->rate_class_cnt = 2;
-	acx->rate_class[0].enabled_rates = ACX_RATE_MASK_UNSPECIFIED;
-	acx->rate_class[0].short_retry_limit = ACX_RATE_RETRY_LIMIT;
-	acx->rate_class[0].long_retry_limit = ACX_RATE_RETRY_LIMIT;
-	acx->rate_class[0].aflags = 0;
-
-	/* no-retry rate class */
-	acx->rate_class[1].enabled_rates = ACX_RATE_MASK_UNSPECIFIED;
-	acx->rate_class[1].short_retry_limit = 0;
-	acx->rate_class[1].long_retry_limit = 0;
-	acx->rate_class[1].aflags = 0;
-
-	ret = wl1251_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
-	if (ret < 0) {
-		wl1251_warning("Setting of rate policies failed: %d", ret);
-		goto out;
-	}
-
-out:
-	kfree(acx);
-	return ret;
-}
-
 int wl1251_acx_mem_cfg(struct wl1251 *wl)
 {
 	struct wl1251_acx_config_memory *mem_conf;

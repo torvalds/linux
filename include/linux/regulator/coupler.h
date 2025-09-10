@@ -8,7 +8,8 @@
 #ifndef __LINUX_REGULATOR_COUPLER_H_
 #define __LINUX_REGULATOR_COUPLER_H_
 
-#include <linux/kernel.h>
+#include <linux/errno.h>
+#include <linux/types.h>
 #include <linux/suspend.h>
 
 struct regulator_coupler;

@@ -10,6 +10,11 @@
 
 / {
 	model = "Wondermedia WM8650-MID Tablet";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x10000000>;
+	};
 };
 
 &fb {

@@ -44,18 +44,6 @@
 #include "ptrace_64.h"
 #endif
 
-struct syscall_args {
-	unsigned long args[6];
-};
-
-#define SYSCALL_ARGS(r) ((struct syscall_args) \
-			 { .args = { UPT_SYSCALL_ARG1(r),	 \
-				     UPT_SYSCALL_ARG2(r),	 \
-				     UPT_SYSCALL_ARG3(r),	 \
-				     UPT_SYSCALL_ARG4(r),	 \
-				     UPT_SYSCALL_ARG5(r),	 \
-				     UPT_SYSCALL_ARG6(r) } } )
-
 extern unsigned long host_fp_size;
 
 struct uml_pt_regs {

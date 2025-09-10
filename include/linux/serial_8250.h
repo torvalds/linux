@@ -46,8 +46,8 @@ struct plat_serial8250_port {
 	unsigned int	type;		/* If UPF_FIXED_TYPE */
 	upf_t		flags;		/* UPF_* flags */
 	u16		bugs;		/* port bugs */
-	unsigned int	(*serial_in)(struct uart_port *, int);
-	void		(*serial_out)(struct uart_port *, int, int);
+	u32		(*serial_in)(struct uart_port *, unsigned int offset);
+	void		(*serial_out)(struct uart_port *, unsigned int offset, u32 val);
 	u32		(*dl_read)(struct uart_8250_port *up);
 	void		(*dl_write)(struct uart_8250_port *up, u32 value);
 	void		(*set_termios)(struct uart_port *,

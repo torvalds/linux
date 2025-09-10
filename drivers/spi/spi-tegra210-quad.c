@@ -407,9 +407,6 @@ tegra_qspi_read_rx_fifo_to_client_rxbuf(struct tegra_qspi *tqspi, struct spi_tra
 static void
 tegra_qspi_copy_client_txbuf_to_qspi_txbuf(struct tegra_qspi *tqspi, struct spi_transfer *t)
 {
-	dma_sync_single_for_cpu(tqspi->dev, tqspi->tx_dma_phys,
-				tqspi->dma_buf_size, DMA_TO_DEVICE);
-
 	/*
 	 * In packed mode, each word in FIFO may contain multiple packets
 	 * based on bits per word. So all bytes in each FIFO word are valid.
@@ -442,17 +439,11 @@ tegra_qspi_copy_client_txbuf_to_qspi_txbuf(struct tegra_qspi *tqspi, struct spi_
 
 		tqspi->cur_tx_pos += write_bytes;
 	}
-
-	dma_sync_single_for_device(tqspi->dev, tqspi->tx_dma_phys,
-				   tqspi->dma_buf_size, DMA_TO_DEVICE);
 }
 
 static void
 tegra_qspi_copy_qspi_rxbuf_to_client_rxbuf(struct tegra_qspi *tqspi, struct spi_transfer *t)
 {
-	dma_sync_single_for_cpu(tqspi->dev, tqspi->rx_dma_phys,
-				tqspi->dma_buf_size, DMA_FROM_DEVICE);
-
 	if (tqspi->is_packed) {
 		tqspi->cur_rx_pos += tqspi->curr_dma_words * tqspi->bytes_per_word;
 	} else {
@@ -478,9 +469,6 @@ tegra_qspi_copy_qspi_rxbuf_to_client_rxbuf(struct tegra_qspi *tqspi, struct spi_
 
 		tqspi->cur_rx_pos += read_bytes;
 	}
-
-	dma_sync_single_for_device(tqspi->dev, tqspi->rx_dma_phys,
-				   tqspi->dma_buf_size, DMA_FROM_DEVICE);
 }
 
 static void tegra_qspi_dma_complete(void *args)
@@ -701,8 +689,6 @@ static int tegra_qspi_start_dma_based_transfer(struct tegra_qspi *tqspi, struct 
 				return ret;
 			}
 
-			dma_sync_single_for_device(tqspi->dev, tqspi->rx_dma_phys,
-						   tqspi->dma_buf_size, DMA_FROM_DEVICE);
 			ret = tegra_qspi_start_rx_dma(tqspi, t, len);
 			if (ret < 0) {
 				dev_err(tqspi->dev, "failed to start RX DMA: %d\n", ret);

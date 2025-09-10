@@ -231,6 +231,7 @@ config I40E
 	depends on PCI
 	select AUXILIARY_BUS
 	select LIBIE
+	select LIBIE_ADMINQ
 	select NET_DEVLINK
 	help
 	  This driver supports Intel(R) Ethernet Controller XL710 Family of
@@ -260,6 +261,7 @@ config I40E_DCB
 config IAVF
 	tristate
 	select LIBIE
+	select LIBIE_ADMINQ
 	select NET_SHAPER
 
 config I40EVF
@@ -294,6 +296,7 @@ config ICE
 	select AUXILIARY_BUS
 	select DIMLIB
 	select LIBIE
+	select LIBIE_ADMINQ
 	select NET_DEVLINK
 	select PACKING
 	select PLDMFW

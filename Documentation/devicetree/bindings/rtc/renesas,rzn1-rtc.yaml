@@ -61,14 +61,14 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/clock/r9a06g032-sysctrl.h>
     rtc@40006000 {
-       compatible = "renesas,r9a06g032-rtc", "renesas,rzn1-rtc";
-       reg = <0x40006000 0x1000>;
-       interrupts = <GIC_SPI 66 IRQ_TYPE_EDGE_RISING>,
-                    <GIC_SPI 67 IRQ_TYPE_EDGE_RISING>,
-                    <GIC_SPI 68 IRQ_TYPE_EDGE_RISING>;
-       interrupt-names = "alarm", "timer", "pps";
-       clocks = <&sysctrl R9A06G032_HCLK_RTC>;
-       clock-names = "hclk";
-       power-domains = <&sysctrl>;
-       start-year = <2000>;
-     };
+        compatible = "renesas,r9a06g032-rtc", "renesas,rzn1-rtc";
+        reg = <0x40006000 0x1000>;
+        interrupts = <GIC_SPI 66 IRQ_TYPE_EDGE_RISING>,
+                     <GIC_SPI 67 IRQ_TYPE_EDGE_RISING>,
+                     <GIC_SPI 68 IRQ_TYPE_EDGE_RISING>;
+        interrupt-names = "alarm", "timer", "pps";
+        clocks = <&sysctrl R9A06G032_HCLK_RTC>;
+        clock-names = "hclk";
+        power-domains = <&sysctrl>;
+        start-year = <2000>;
+    };

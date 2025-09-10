@@ -111,3 +111,7 @@
 &pwm_ab {
 	pinctrl-0 = <&pwm_a_e_pins>, <&pwm_b_x7_pins>;
 };
+
+&npu {
+	status = "okay";
+};

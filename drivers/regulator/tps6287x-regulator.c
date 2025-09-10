@@ -27,10 +27,17 @@
 #define TPS6287X_CTRL3		0x03
 #define TPS6287X_STATUS		0x04
 
+static bool tps6287x_volatile_reg(struct device *dev, unsigned int reg)
+{
+	return reg == TPS6287X_STATUS;
+}
+
 static const struct regmap_config tps6287x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = TPS6287X_STATUS,
+	.cache_type = REGCACHE_MAPLE,
+	.volatile_reg = tps6287x_volatile_reg,
 };
 
 static const struct linear_range tps6287x_voltage_ranges[] = {

@@ -30,6 +30,10 @@ properties:
           - samsung,exynos8895-uart
       - items:
           - enum:
+              - samsung,exynos2200-uart
+          - const: google,gs101-uart
+      - items:
+          - enum:
               - samsung,exynos7-uart
               - tesla,fsd-uart
           - const: samsung,exynos4210-uart

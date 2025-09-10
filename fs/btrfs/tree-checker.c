@@ -191,7 +191,7 @@ static bool check_prev_ino(struct extent_buffer *leaf,
 	 * Only subvolume trees along with their reloc trees need this check.
 	 * Things like log tree doesn't follow this ino requirement.
 	 */
-	if (!is_fstree(btrfs_header_owner(leaf)))
+	if (!btrfs_is_fstree(btrfs_header_owner(leaf)))
 		return true;
 
 	if (key->objectid == prev_key->objectid)
@@ -475,7 +475,7 @@ static int check_root_key(struct extent_buffer *leaf, struct btrfs_key *key,
 	 * to be COWed to be relocated.
 	 */
 	if (unlikely(is_root_item && key->objectid == BTRFS_TREE_RELOC_OBJECTID &&
-		     !is_fstree(key->offset))) {
+		     !btrfs_is_fstree(key->offset))) {
 		generic_err(leaf, slot,
 		"invalid reloc tree for root %lld, root id is not a subvolume tree",
 			    key->offset);
@@ -493,7 +493,7 @@ static int check_root_key(struct extent_buffer *leaf, struct btrfs_key *key,
 	}
 
 	/* DIR_ITEM/INDEX/INODE_REF is not allowed to point to non-fs trees */
-	if (unlikely(!is_fstree(key->objectid) && !is_root_item)) {
+	if (unlikely(!btrfs_is_fstree(key->objectid) && !is_root_item)) {
 		dir_item_err(leaf, slot,
 		"invalid location key objectid, have %llu expect [%llu, %llu]",
 				key->objectid, BTRFS_FIRST_FREE_OBJECTID,
@@ -1311,7 +1311,7 @@ static bool is_valid_dref_root(u64 rootid)
 	 * - tree root
 	 *   For v1 space cache
 	 */
-	return is_fstree(rootid) || rootid == BTRFS_DATA_RELOC_TREE_OBJECTID ||
+	return btrfs_is_fstree(rootid) || rootid == BTRFS_DATA_RELOC_TREE_OBJECTID ||
 	       rootid == BTRFS_ROOT_TREE_OBJECTID;
 }
 
@@ -2167,7 +2167,7 @@ ALLOW_ERROR_INJECTION(btrfs_check_node, ERRNO);
 
 int btrfs_check_eb_owner(const struct extent_buffer *eb, u64 root_owner)
 {
-	const bool is_subvol = is_fstree(root_owner);
+	const bool is_subvol = btrfs_is_fstree(root_owner);
 	const u64 eb_owner = btrfs_header_owner(eb);
 
 	/*
@@ -2209,7 +2209,7 @@ int btrfs_check_eb_owner(const struct extent_buffer *eb, u64 root_owner)
 	 * For subvolume trees, owners can mismatch, but they should all belong
 	 * to subvolume trees.
 	 */
-	if (unlikely(is_subvol != is_fstree(eb_owner))) {
+	if (unlikely(is_subvol != btrfs_is_fstree(eb_owner))) {
 		btrfs_crit(eb->fs_info,
 "corrupted %s, root=%llu block=%llu owner mismatch, have %llu expect [%llu, %llu]",
 			btrfs_header_level(eb) == 0 ? "leaf" : "node",

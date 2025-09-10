@@ -1027,6 +1027,9 @@ static void uffd_poison_handle_fault(
 		do_uffdio_poison(uffd, offset);
 }
 
+/* Make sure to cover odd/even, and minimum duplications */
+#define  UFFD_POISON_TEST_NPAGES  4
+
 static void uffd_poison_test(uffd_test_args_t *targs)
 {
 	pthread_t uffd_mon;
@@ -1034,12 +1037,17 @@ static void uffd_poison_test(uffd_test_args_t *targs)
 	struct uffd_args args = { 0 };
 	struct sigaction act = { 0 };
 	unsigned long nr_sigbus = 0;
-	unsigned long nr;
+	unsigned long nr, poison_pages = UFFD_POISON_TEST_NPAGES;
+
+	if (nr_pages < poison_pages) {
+		uffd_test_skip("Too few pages for POISON test");
+		return;
+	}
 
 	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
 
-	uffd_register_poison(uffd, area_dst, nr_pages * page_size);
-	memset(area_src, 0, nr_pages * page_size);
+	uffd_register_poison(uffd, area_dst, poison_pages * page_size);
+	memset(area_src, 0, poison_pages * page_size);
 
 	args.handle_fault = uffd_poison_handle_fault;
 	if (pthread_create(&uffd_mon, NULL, uffd_poll_thread, &args))
@@ -1051,7 +1059,7 @@ static void uffd_poison_test(uffd_test_args_t *targs)
 	if (sigaction(SIGBUS, &act, 0))
 		err("sigaction");
 
-	for (nr = 0; nr < nr_pages; ++nr) {
+	for (nr = 0; nr < poison_pages; ++nr) {
 		unsigned long offset = nr * page_size;
 		const char *bytes = (const char *) area_dst + offset;
 		const char *i;
@@ -1078,9 +1086,9 @@ static void uffd_poison_test(uffd_test_args_t *targs)
 	if (pthread_join(uffd_mon, NULL))
 		err("pthread_join()");
 
-	if (nr_sigbus != nr_pages / 2)
+	if (nr_sigbus != poison_pages / 2)
 		err("expected to receive %lu SIGBUS, actually received %lu",
-		    nr_pages / 2, nr_sigbus);
+		    poison_pages / 2, nr_sigbus);
 
 	uffd_test_pass();
 }

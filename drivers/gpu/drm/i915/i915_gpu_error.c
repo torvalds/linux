@@ -2506,8 +2506,8 @@ static const struct bin_attribute error_state_attr = {
 	.attr.name = "error",
 	.attr.mode = S_IRUSR | S_IWUSR,
 	.size = 0,
-	.read_new = error_state_read,
-	.write_new = error_state_write,
+	.read = error_state_read,
+	.write = error_state_write,
 };
 
 void i915_gpu_error_sysfs_setup(struct drm_i915_private *i915)

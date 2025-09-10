@@ -1094,10 +1094,6 @@ static void _ReadPROMContent(struct adapter *padapter)
 	_ReadEfuseInfo8723BS(padapter);
 }
 
-static void _InitOtherVariable(struct adapter *Adapter)
-{
-}
-
 /*  */
 /* 	Description: */
 /* 		Read HW adapter information by E-Fuse or EEPROM according CR9346 reported. */
@@ -1122,7 +1118,6 @@ static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 	_EfuseCellSel(padapter);
 	_ReadRFType(padapter);
 	_ReadPROMContent(padapter);
-	_InitOtherVariable(padapter);
 
 	if (!padapter->hw_init_completed) {
 		rtw_write8(padapter, 0x67, 0x00); /*  for BT, Switch Ant control to BT */
@@ -1250,12 +1245,4 @@ u8 GetHalDefVar8723BSDIO(
 u8 SetHalDefVar8723BSDIO(struct adapter *Adapter, enum hal_def_variable eVariable, void *pValue)
 {
 	return SetHalDefVar8723B(Adapter, eVariable, pValue);
-}
-
-void rtl8723bs_set_hal_ops(struct adapter *padapter)
-{
-	struct hal_ops *pHalFunc = &padapter->HalFunc;
-
-	rtl8723b_set_hal_ops(pHalFunc);
-
 }

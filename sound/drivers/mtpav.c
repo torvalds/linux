@@ -46,6 +46,7 @@
 #include <sound/initval.h>
 #include <sound/rawmidi.h>
 #include <linux/delay.h>
+#include <linux/string.h>
 
 /*
  *      globals
@@ -605,11 +606,11 @@ static void snd_mtpav_set_name(struct mtpav *chip,
 	else if (substream->number >= 8 && substream->number < chip->num_ports * 2)
 		sprintf(substream->name, "MTP remote %d", (substream->number % chip->num_ports) + 1);
 	else if (substream->number == chip->num_ports * 2)
-		strcpy(substream->name, "MTP computer");
+		strscpy(substream->name, "MTP computer");
 	else if (substream->number == chip->num_ports * 2 + 1)
-		strcpy(substream->name, "MTP ADAT");
+		strscpy(substream->name, "MTP ADAT");
 	else
-		strcpy(substream->name, "MTP broadcast");
+		strscpy(substream->name, "MTP broadcast");
 }
 
 static int snd_mtpav_get_RAWMIDI(struct mtpav *mcard)
@@ -697,8 +698,8 @@ static int snd_mtpav_probe(struct platform_device *dev)
 	if (err < 0)
 		return err;
 
-	strcpy(card->driver, "MTPAV");
-	strcpy(card->shortname, "MTPAV on parallel port");
+	strscpy(card->driver, "MTPAV");
+	strscpy(card->shortname, "MTPAV on parallel port");
 	snprintf(card->longname, sizeof(card->longname),
 		 "MTPAV on parallel port at 0x%lx", port);
 

@@ -61,8 +61,6 @@ static int ns2_pci_phy_probe(struct mdio_device *mdiodev)
 		return PTR_ERR(provider);
 	}
 
-	dev_info(dev, "%s PHY registered\n", dev_name(dev));
-
 	return 0;
 }
 

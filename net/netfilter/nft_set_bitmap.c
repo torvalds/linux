@@ -75,16 +75,21 @@ nft_bitmap_active(const u8 *bitmap, u32 idx, u32 off, u8 genmask)
 }
 
 INDIRECT_CALLABLE_SCOPE
-bool nft_bitmap_lookup(const struct net *net, const struct nft_set *set,
-		       const u32 *key, const struct nft_set_ext **ext)
+const struct nft_set_ext *
+nft_bitmap_lookup(const struct net *net, const struct nft_set *set,
+		  const u32 *key)
 {
 	const struct nft_bitmap *priv = nft_set_priv(set);
+	static const struct nft_set_ext found;
 	u8 genmask = nft_genmask_cur(net);
 	u32 idx, off;
 
 	nft_bitmap_location(set, key, &idx, &off);
 
-	return nft_bitmap_active(priv->bitmap, idx, off, genmask);
+	if (nft_bitmap_active(priv->bitmap, idx, off, genmask))
+		return &found;
+
+	return NULL;
 }
 
 static struct nft_bitmap_elem *

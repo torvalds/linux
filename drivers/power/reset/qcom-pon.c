@@ -19,7 +19,7 @@
 
 #define NO_REASON_SHIFT			0
 
-struct pm8916_pon {
+struct qcom_pon {
 	struct device *dev;
 	struct regmap *regmap;
 	u32 baseaddr;
@@ -27,11 +27,11 @@ struct pm8916_pon {
 	long reason_shift;
 };
 
-static int pm8916_reboot_mode_write(struct reboot_mode_driver *reboot,
+static int qcom_pon_reboot_mode_write(struct reboot_mode_driver *reboot,
 				    unsigned int magic)
 {
-	struct pm8916_pon *pon = container_of
-			(reboot, struct pm8916_pon, reboot_mode);
+	struct qcom_pon *pon = container_of
+			(reboot, struct qcom_pon, reboot_mode);
 	int ret;
 
 	ret = regmap_update_bits(pon->regmap,
@@ -44,9 +44,9 @@ static int pm8916_reboot_mode_write(struct reboot_mode_driver *reboot,
 	return ret;
 }
 
-static int pm8916_pon_probe(struct platform_device *pdev)
+static int qcom_pon_probe(struct platform_device *pdev)
 {
-	struct pm8916_pon *pon;
+	struct qcom_pon *pon;
 	long reason_shift;
 	int error;
 
@@ -72,7 +72,7 @@ static int pm8916_pon_probe(struct platform_device *pdev)
 	if (reason_shift != NO_REASON_SHIFT) {
 		pon->reboot_mode.dev = &pdev->dev;
 		pon->reason_shift = reason_shift;
-		pon->reboot_mode.write = pm8916_reboot_mode_write;
+		pon->reboot_mode.write = qcom_pon_reboot_mode_write;
 		error = devm_reboot_mode_register(&pdev->dev, &pon->reboot_mode);
 		if (error) {
 			dev_err(&pdev->dev, "can't register reboot mode\n");
@@ -85,7 +85,7 @@ static int pm8916_pon_probe(struct platform_device *pdev)
 	return devm_of_platform_populate(&pdev->dev);
 }
 
-static const struct of_device_id pm8916_pon_id_table[] = {
+static const struct of_device_id qcom_pon_id_table[] = {
 	{ .compatible = "qcom,pm8916-pon", .data = (void *)GEN1_REASON_SHIFT },
 	{ .compatible = "qcom,pm8941-pon", .data = (void *)NO_REASON_SHIFT },
 	{ .compatible = "qcom,pms405-pon", .data = (void *)GEN1_REASON_SHIFT },
@@ -93,16 +93,16 @@ static const struct of_device_id pm8916_pon_id_table[] = {
 	{ .compatible = "qcom,pmk8350-pon", .data = (void *)GEN2_REASON_SHIFT },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, pm8916_pon_id_table);
+MODULE_DEVICE_TABLE(of, qcom_pon_id_table);
 
-static struct platform_driver pm8916_pon_driver = {
-	.probe = pm8916_pon_probe,
+static struct platform_driver qcom_pon_driver = {
+	.probe = qcom_pon_probe,
 	.driver = {
-		.name = "pm8916-pon",
-		.of_match_table = pm8916_pon_id_table,
+		.name = "qcom-pon",
+		.of_match_table = qcom_pon_id_table,
 	},
 };
-module_platform_driver(pm8916_pon_driver);
+module_platform_driver(qcom_pon_driver);
 
-MODULE_DESCRIPTION("pm8916 Power On driver");
+MODULE_DESCRIPTION("Qualcomm Power On driver");
 MODULE_LICENSE("GPL v2");

@@ -91,8 +91,7 @@ configure_kernel(
 	unsigned int vf_log_ds = 0;
 
 	/* First compute value */
-	if (vf_info)
-	{
+	if (vf_info) {
 		err = sh_css_vf_downscale_log2(out_info, vf_info, &vf_log_ds);
 		if (err)
 			return err;

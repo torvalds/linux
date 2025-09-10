@@ -64,3 +64,13 @@ config MIPI_I3C_HCI_PCI
 
 	  This driver can also be built as a module. If so, the module will be
 	  called mipi-i3c-hci-pci.
+
+config RENESAS_I3C
+	tristate "Renesas I3C controller driver"
+	depends on HAS_IOMEM
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	  Support the Renesas I3C controller as found in some RZ variants.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called renesas-i3c.

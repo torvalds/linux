@@ -320,7 +320,7 @@ static int fiemap_next_leaf_item(struct btrfs_inode *inode, struct btrfs_path *p
 	 * the cost of allocating a new one.
 	 */
 	ASSERT(test_bit(EXTENT_BUFFER_UNMAPPED, &clone->bflags));
-	atomic_inc(&clone->refs);
+	refcount_inc(&clone->refs);
 
 	ret = btrfs_next_leaf(inode->root, path);
 	if (ret != 0)

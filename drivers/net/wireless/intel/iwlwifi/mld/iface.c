@@ -55,6 +55,8 @@ void iwl_mld_cleanup_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
 
 	ieee80211_iter_keys(mld->hw, vif, iwl_mld_cleanup_keys_iter, NULL);
 
+	wiphy_delayed_work_cancel(mld->wiphy, &mld_vif->mlo_scan_start_wk);
+
 	CLEANUP_STRUCT(mld_vif);
 }
 
@@ -385,6 +387,17 @@ int iwl_mld_mac_fw_action(struct iwl_mld *mld, struct ieee80211_vif *vif,
 	return iwl_mld_send_mac_cmd(mld, &cmd);
 }
 
+static void iwl_mld_mlo_scan_start_wk(struct wiphy *wiphy,
+				      struct wiphy_work *wk)
+{
+	struct iwl_mld_vif *mld_vif = container_of(wk, struct iwl_mld_vif,
+						   mlo_scan_start_wk.work);
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
+
+	iwl_mld_int_mlo_scan(mld, iwl_mld_vif_to_mac80211(mld_vif));
+}
+
 IWL_MLD_ALLOC_FN(vif, vif)
 
 /* Constructor function for struct iwl_mld_vif */
@@ -412,6 +425,8 @@ iwl_mld_init_vif(struct iwl_mld *mld, struct ieee80211_vif *vif)
 					iwl_mld_emlsr_prevent_done_wk);
 		wiphy_delayed_work_init(&mld_vif->emlsr.tmp_non_bss_done_wk,
 					iwl_mld_emlsr_tmp_non_bss_done_wk);
+		wiphy_delayed_work_init(&mld_vif->mlo_scan_start_wk,
+					iwl_mld_mlo_scan_start_wk);
 	}
 	iwl_mld_init_internal_sta(&mld_vif->aux_sta);
 

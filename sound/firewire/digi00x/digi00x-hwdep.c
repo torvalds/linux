@@ -188,7 +188,7 @@ int snd_dg00x_create_hwdep_device(struct snd_dg00x *dg00x)
 	if (err < 0)
 		return err;
 
-	strcpy(hwdep->name, "Digi00x");
+	strscpy(hwdep->name, "Digi00x");
 	hwdep->iface = SNDRV_HWDEP_IFACE_FW_DIGI00X;
 	hwdep->ops = ops;
 	hwdep->private_data = dg00x;

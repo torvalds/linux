@@ -224,6 +224,13 @@ enum btc_wl_mode {
 	BTC_WL_MODE_NUM,
 };
 
+enum btc_mlo_rf_combin {
+	BTC_MLO_RF_2_PLUS_0 = 0,
+	BTC_MLO_RF_0_PLUS_2 = 1,
+	BTC_MLO_RF_1_PLUS_1 = 2,
+	BTC_MLO_RF_2_PLUS_2 = 3,
+};
+
 enum btc_wl_gpio_debug {
 	BTC_DBG_GNT_BT = 0,
 	BTC_DBG_GNT_WL = 1,

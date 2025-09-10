@@ -36,7 +36,7 @@
 #define GLOB_PSIZE_6144       0x10       /* 6k packet size           */
 #define GLOB_PSIZE_8192       0x11       /* 8k packet size           */
 
-/* In MACE mode, there are four qe channels.  Each channel has it's own
+/* In MACE mode, there are four qe channels.  Each channel has its own
  * status bits in the QEC status register.  This macro picks out the
  * ones you want.
  */

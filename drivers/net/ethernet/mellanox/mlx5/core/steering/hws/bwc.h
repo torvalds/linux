@@ -19,6 +19,13 @@
 #define MLX5HWS_BWC_POLLING_TIMEOUT 60
 
 struct mlx5hws_bwc_matcher_complex_data;
+
+struct mlx5hws_bwc_matcher_size {
+	u8 size_log;
+	atomic_t num_of_rules;
+	atomic_t rehash_required;
+};
+
 struct mlx5hws_bwc_matcher {
 	struct mlx5hws_matcher *matcher;
 	struct mlx5hws_match_template *mt;
@@ -27,10 +34,9 @@ struct mlx5hws_bwc_matcher {
 	struct mlx5hws_bwc_matcher *complex_first_bwc_matcher;
 	u8 num_of_at;
 	u8 size_of_at_array;
-	u8 size_log;
 	u32 priority;
-	atomic_t num_of_rules;
-	atomic_t rehash_required;
+	struct mlx5hws_bwc_matcher_size rx_size;
+	struct mlx5hws_bwc_matcher_size tx_size;
 	struct list_head *rules;
 };
 
@@ -39,7 +45,10 @@ struct mlx5hws_bwc_rule {
 	struct mlx5hws_rule *rule;
 	struct mlx5hws_bwc_rule *isolated_bwc_rule;
 	struct mlx5hws_bwc_complex_rule_hash_node *complex_hash_node;
+	u32 flow_source;
 	u16 bwc_queue_idx;
+	bool skip_rx;
+	bool skip_tx;
 	struct list_head list_node;
 };
 

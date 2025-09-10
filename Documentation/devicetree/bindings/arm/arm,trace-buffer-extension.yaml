@@ -41,10 +41,10 @@ additionalProperties: false
 examples:
 
   - |
-   #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-   trbe {
-     compatible = "arm,trace-buffer-extension";
-     interrupts = <GIC_PPI 15 IRQ_TYPE_LEVEL_HIGH>;
-   };
+    trbe {
+        compatible = "arm,trace-buffer-extension";
+        interrupts = <GIC_PPI 15 IRQ_TYPE_LEVEL_HIGH>;
+    };
 ...

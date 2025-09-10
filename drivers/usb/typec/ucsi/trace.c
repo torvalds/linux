@@ -33,23 +33,6 @@ const char *ucsi_cmd_str(u64 raw_cmd)
 	return ucsi_cmd_strs[(cmd >= ARRAY_SIZE(ucsi_cmd_strs)) ? 0 : cmd];
 }
 
-const char *ucsi_cci_str(u32 cci)
-{
-	if (UCSI_CCI_CONNECTOR(cci)) {
-		if (cci & UCSI_CCI_ACK_COMPLETE)
-			return "Event pending (ACK completed)";
-		if (cci & UCSI_CCI_COMMAND_COMPLETE)
-			return "Event pending (command completed)";
-		return "Connector Change";
-	}
-	if (cci & UCSI_CCI_ACK_COMPLETE)
-		return "ACK completed";
-	if (cci & UCSI_CCI_COMMAND_COMPLETE)
-		return "Command completed";
-
-	return "";
-}
-
 static const char * const ucsi_recipient_strs[] = {
 	[UCSI_RECIPIENT_CON]		= "port",
 	[UCSI_RECIPIENT_SOP]		= "partner",

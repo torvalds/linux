@@ -26,7 +26,7 @@
 #include <linux/timecounter.h>
 #include <net/netdev_queues.h>
 #include <net/netlink.h>
-#include "bnxt_hsi.h"
+#include <linux/bnxt/hsi.h>
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
 #include "bnxt_ulp.h"
@@ -1587,8 +1587,11 @@ static u64 get_ethtool_ipv6_rss(struct bnxt *bp)
 	return 0;
 }
 
-static int bnxt_grxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
+static int bnxt_get_rxfh_fields(struct net_device *dev,
+				struct ethtool_rxfh_fields *cmd)
 {
+	struct bnxt *bp = netdev_priv(dev);
+
 	cmd->data = 0;
 	switch (cmd->flow_type) {
 	case TCP_V4_FLOW:
@@ -1647,10 +1650,15 @@ static int bnxt_grxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 #define RXH_4TUPLE (RXH_IP_SRC | RXH_IP_DST | RXH_L4_B_0_1 | RXH_L4_B_2_3)
 #define RXH_2TUPLE (RXH_IP_SRC | RXH_IP_DST)
 
-static int bnxt_srxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
+static int bnxt_set_rxfh_fields(struct net_device *dev,
+				const struct ethtool_rxfh_fields *cmd,
+				struct netlink_ext_ack *extack)
 {
-	u32 rss_hash_cfg = bp->rss_hash_cfg;
+	struct bnxt *bp = netdev_priv(dev);
 	int tuple, rc = 0;
+	u32 rss_hash_cfg;
+
+	rss_hash_cfg = bp->rss_hash_cfg;
 
 	if (cmd->data == RXH_4TUPLE)
 		tuple = 4;
@@ -1768,10 +1776,6 @@ static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		rc = bnxt_grxclsrule(bp, cmd);
 		break;
 
-	case ETHTOOL_GRXFH:
-		rc = bnxt_grxfh(bp, cmd);
-		break;
-
 	default:
 		rc = -EOPNOTSUPP;
 		break;
@@ -1786,10 +1790,6 @@ static int bnxt_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	int rc;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_SRXFH:
-		rc = bnxt_srxfh(bp, cmd);
-		break;
-
 	case ETHTOOL_SRXCLSRLINS:
 		rc = bnxt_srxclsrlins(bp, cmd);
 		break;
@@ -5521,6 +5521,8 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_rxfh_key_size      = bnxt_get_rxfh_key_size,
 	.get_rxfh               = bnxt_get_rxfh,
 	.set_rxfh		= bnxt_set_rxfh,
+	.get_rxfh_fields        = bnxt_get_rxfh_fields,
+	.set_rxfh_fields        = bnxt_set_rxfh_fields,
 	.create_rxfh_context	= bnxt_create_rxfh_context,
 	.modify_rxfh_context	= bnxt_modify_rxfh_context,
 	.remove_rxfh_context	= bnxt_remove_rxfh_context,

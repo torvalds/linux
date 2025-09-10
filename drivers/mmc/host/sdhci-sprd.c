@@ -764,7 +764,7 @@ static int sdhci_sprd_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
-		goto pltfm_free;
+		return ret;
 
 	if (!mmc_card_is_removable(host->mmc))
 		host->mmc_host_ops.request_atomic = sdhci_sprd_request_atomic;
@@ -778,34 +778,26 @@ static int sdhci_sprd_probe(struct platform_device *pdev)
 	if (!IS_ERR(sprd_host->pinctrl)) {
 		sprd_host->pins_uhs =
 			pinctrl_lookup_state(sprd_host->pinctrl, "state_uhs");
-		if (IS_ERR(sprd_host->pins_uhs)) {
-			ret = PTR_ERR(sprd_host->pins_uhs);
-			goto pltfm_free;
-		}
+		if (IS_ERR(sprd_host->pins_uhs))
+			return PTR_ERR(sprd_host->pins_uhs);
 
 		sprd_host->pins_default =
 			pinctrl_lookup_state(sprd_host->pinctrl, "default");
-		if (IS_ERR(sprd_host->pins_default)) {
-			ret = PTR_ERR(sprd_host->pins_default);
-			goto pltfm_free;
-		}
+		if (IS_ERR(sprd_host->pins_default))
+			return PTR_ERR(sprd_host->pins_default);
 	}
 
 	clk = devm_clk_get(&pdev->dev, "sdio");
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		goto pltfm_free;
-	}
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 	sprd_host->clk_sdio = clk;
 	sprd_host->base_rate = clk_get_rate(sprd_host->clk_sdio);
 	if (!sprd_host->base_rate)
 		sprd_host->base_rate = SDHCI_SPRD_CLK_DEF_RATE;
 
 	clk = devm_clk_get(&pdev->dev, "enable");
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		goto pltfm_free;
-	}
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 	sprd_host->clk_enable = clk;
 
 	clk = devm_clk_get(&pdev->dev, "2x_enable");
@@ -814,7 +806,7 @@ static int sdhci_sprd_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(sprd_host->clk_sdio);
 	if (ret)
-		goto pltfm_free;
+		return ret;
 
 	ret = clk_prepare_enable(sprd_host->clk_enable);
 	if (ret)
@@ -871,7 +863,6 @@ static int sdhci_sprd_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_cleanup_host;
 
-	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
 
 	return 0;
@@ -891,9 +882,6 @@ clk_disable2:
 
 clk_disable:
 	clk_disable_unprepare(sprd_host->clk_sdio);
-
-pltfm_free:
-	sdhci_pltfm_free(pdev);
 	return ret;
 }
 
@@ -907,8 +895,6 @@ static void sdhci_sprd_remove(struct platform_device *pdev)
 	clk_disable_unprepare(sprd_host->clk_sdio);
 	clk_disable_unprepare(sprd_host->clk_enable);
 	clk_disable_unprepare(sprd_host->clk_2x_enable);
-
-	sdhci_pltfm_free(pdev);
 }
 
 static const struct of_device_id sdhci_sprd_of_match[] = {

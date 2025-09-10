@@ -6,7 +6,7 @@
 
 #define IPL_START	0x200
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/printk.h>
 #include <asm/physmem_info.h>
@@ -74,6 +74,7 @@ void print_stacktrace(unsigned long sp);
 void error(char *m);
 int get_random(unsigned long limit, unsigned long *value);
 void boot_rb_dump(void);
+void __noreturn jump_to_kernel(psw_t *psw);
 
 #ifndef boot_fmt
 #define boot_fmt(fmt)	fmt
@@ -121,5 +122,5 @@ static inline bool intersects(unsigned long addr0, unsigned long size0,
 {
 	return addr0 + size0 > addr1 && addr1 + size1 > addr0;
 }
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* BOOT_BOOT_H */

@@ -567,7 +567,7 @@ static int owl_mmc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	mmc = mmc_alloc_host(sizeof(struct owl_mmc_host), &pdev->dev);
+	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(*owl_host));
 	if (!mmc) {
 		dev_err(&pdev->dev, "mmc alloc host failed\n");
 		return -ENOMEM;
@@ -580,24 +580,18 @@ static int owl_mmc_probe(struct platform_device *pdev)
 	spin_lock_init(&owl_host->lock);
 
 	owl_host->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
-	if (IS_ERR(owl_host->base)) {
-		ret = PTR_ERR(owl_host->base);
-		goto err_free_host;
-	}
+	if (IS_ERR(owl_host->base))
+		return PTR_ERR(owl_host->base);
 
 	owl_host->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(owl_host->clk)) {
-		dev_err(&pdev->dev, "No clock defined\n");
-		ret = PTR_ERR(owl_host->clk);
-		goto err_free_host;
-	}
+	if (IS_ERR(owl_host->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(owl_host->clk),
+				     "No clock defined\n");
 
 	owl_host->reset = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(owl_host->reset)) {
-		dev_err(&pdev->dev, "Could not get reset control\n");
-		ret = PTR_ERR(owl_host->reset);
-		goto err_free_host;
-	}
+	if (IS_ERR(owl_host->reset))
+		return dev_err_probe(&pdev->dev, PTR_ERR(owl_host->reset),
+				     "Could not get reset control\n");
 
 	mmc->ops		= &owl_mmc_ops;
 	mmc->max_blk_count	= 512;
@@ -616,16 +610,14 @@ static int owl_mmc_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
-		goto err_free_host;
+		return ret;
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 	owl_host->dma = dma_request_chan(&pdev->dev, "mmc");
-	if (IS_ERR(owl_host->dma)) {
-		dev_err(owl_host->dev, "Failed to get external DMA channel.\n");
-		ret = PTR_ERR(owl_host->dma);
-		goto err_free_host;
-	}
+	if (IS_ERR(owl_host->dma))
+		return dev_err_probe(&pdev->dev, PTR_ERR(owl_host->dma),
+				     "Failed to get external DMA channel.\n");
 
 	dev_info(&pdev->dev, "Using %s for DMA transfers\n",
 		 dma_chan_name(owl_host->dma));
@@ -662,8 +654,6 @@ static int owl_mmc_probe(struct platform_device *pdev)
 
 err_release_channel:
 	dma_release_channel(owl_host->dma);
-err_free_host:
-	mmc_free_host(mmc);
 
 	return ret;
 }
@@ -676,7 +666,6 @@ static void owl_mmc_remove(struct platform_device *pdev)
 	mmc_remove_host(mmc);
 	disable_irq(owl_host->irq);
 	dma_release_channel(owl_host->dma);
-	mmc_free_host(mmc);
 }
 
 static const struct of_device_id owl_mmc_of_match[] = {

@@ -59,8 +59,7 @@ config SECURITY_APPARMOR_INTROSPECT_POLICY
 config SECURITY_APPARMOR_HASH
 	bool "Enable introspection of sha256 hashes for loaded profiles"
 	depends on SECURITY_APPARMOR_INTROSPECT_POLICY
-	select CRYPTO
-	select CRYPTO_SHA256
+	select CRYPTO_LIB_SHA256
 	default y
 	help
 	  This option selects whether introspection of loaded policy

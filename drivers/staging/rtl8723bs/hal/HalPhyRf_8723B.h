@@ -18,13 +18,6 @@
 
 void ConfigureTxpowerTrack_8723B(struct txpwrtrack_cfg *pConfig);
 
-void DoIQK_8723B(
-	struct dm_odm_t *pDM_Odm,
-	u8 DeltaThermalIndex,
-	u8 ThermalValue,
-	u8 Threshold
-);
-
 void ODM_TxPwrTrackSetPwr_8723B(
 	struct dm_odm_t *pDM_Odm,
 	enum pwrtrack_method Method,

@@ -245,10 +245,10 @@ struct svc_rqst {
 						 * initialisation success.
 						 */
 
-	unsigned long	bc_to_initval;
-	unsigned int	bc_to_retries;
-	void **			rq_lease_breaker; /* The v4 client breaking a lease */
+	unsigned long		bc_to_initval;
+	unsigned int		bc_to_retries;
 	unsigned int		rq_status_counter; /* RPC processing counter */
+	void			**rq_lease_breaker; /* The v4 client breaking a lease */
 };
 
 /* bits for rq_flags */

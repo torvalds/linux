@@ -35,20 +35,7 @@ failfunc=ktap_test_fail
 
 if [[ -n "${KSFT_MACHINE_SLOW}" ]]; then
 	optargs+=('--tolerance_usecs=14000')
-
-	# xfail tests that are known flaky with dbg config, not fixable.
-	# still run them for coverage (and expect 100% pass without dbg).
-	declare -ar xfail_list=(
-		"tcp_eor_no-coalesce-retrans.pkt"
-		"tcp_fast_recovery_prr-ss.*.pkt"
-		"tcp_slow_start_slow-start-after-win-update.pkt"
-		"tcp_timestamping.*.pkt"
-		"tcp_user_timeout_user-timeout-probe.pkt"
-		"tcp_zerocopy_epoll_.*.pkt"
-		"tcp_tcp_info_tcp-info-.*-limited.pkt"
-	)
-	readonly xfail_regex="^($(printf '%s|' "${xfail_list[@]}"))$"
-	[[ "$script" =~ ${xfail_regex} ]] && failfunc=ktap_test_xfail
+	failfunc=ktap_test_xfail
 fi
 
 ktap_print_header

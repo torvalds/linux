@@ -616,7 +616,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	    !pubsta->deflink.ht_cap.ht_supported &&
 	    !pubsta->deflink.vht_cap.vht_supported &&
 	    !pubsta->deflink.he_cap.has_he &&
-	    !pubsta->deflink.eht_cap.has_eht)
+	    !pubsta->deflink.eht_cap.has_eht &&
+	    !pubsta->deflink.s1g_cap.s1g)
 		return -EINVAL;
 
 	if (WARN_ON_ONCE(!local->ops->ampdu_action))

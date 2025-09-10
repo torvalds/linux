@@ -23,8 +23,7 @@ else
 Q=@
 endif
 
-nolibc_arch := $(patsubst arm64,aarch64,$(ARCH))
-arch_file := arch-$(nolibc_arch).h
+arch_file := arch-$(ARCH).h
 all_files := \
 		compiler.h \
 		crt.h \
@@ -91,18 +90,12 @@ help:
 	@echo "  OUTPUT  = $(OUTPUT)"
 	@echo ""
 
-# Note: when ARCH is "x86" we concatenate both x86_64 and i386
 headers:
 	$(Q)mkdir -p $(OUTPUT)sysroot
 	$(Q)mkdir -p $(OUTPUT)sysroot/include
 	$(Q)cp --parents $(all_files) $(OUTPUT)sysroot/include/
-	$(Q)if [ "$(ARCH)" = "x86" ]; then      \
-		sed -e                          \
-		  's,^#ifndef _NOLIBC_ARCH_X86_64_H,#if !defined(_NOLIBC_ARCH_X86_64_H) \&\& defined(__x86_64__),' \
-		  arch-x86_64.h;                \
-		sed -e                          \
-		  's,^#ifndef _NOLIBC_ARCH_I386_H,#if !defined(_NOLIBC_ARCH_I386_H) \&\& !defined(__x86_64__),' \
-		  arch-i386.h;                  \
+	$(Q)if [ "$(ARCH)" = "i386" -o "$(ARCH)" = "x86_64" ]; then \
+		cat arch-x86.h;                 \
 	elif [ -e "$(arch_file)" ]; then        \
 		cat $(arch_file);               \
 	else                                    \
@@ -114,11 +107,8 @@ headers_standalone: headers
 	$(Q)$(MAKE) -C $(srctree) headers
 	$(Q)$(MAKE) -C $(srctree) headers_install INSTALL_HDR_PATH=$(OUTPUT)sysroot
 
-# GCC uses "s390", clang "systemz"
-CLANG_CROSS_FLAGS := $(subst --target=s390-linux,--target=systemz-linux,$(CLANG_CROSS_FLAGS))
-
 headers_check: headers_standalone
-	for header in $(filter-out crt.h std.h,$(all_files)); do \
+	$(Q)for header in $(filter-out crt.h std.h,$(all_files)); do \
 		$(CC) $(CLANG_CROSS_FLAGS) -Wall -Werror -nostdinc -fsyntax-only -x c /dev/null \
 			-I$(or $(objtree),$(srctree))/usr/include -include $$header -include $$header || exit 1; \
 	done

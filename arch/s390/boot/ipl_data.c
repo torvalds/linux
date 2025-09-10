@@ -16,7 +16,9 @@ struct ipl_lowcore {
 	struct ccw0	ccwpgm[2];			/* 0x0008 */
 	u8		fill[56];			/* 0x0018 */
 	struct ccw0	ccwpgmcc[20];			/* 0x0050 */
-	u8		pad_0xf0[0x01a0-0x00f0];	/* 0x00f0 */
+	u8		pad_0xf0[0x0140-0x00f0];	/* 0x00f0 */
+	psw_t		svc_old_psw;			/* 0x0140 */
+	u8		pad_0x150[0x01a0-0x0150];	/* 0x0150 */
 	psw_t		restart_psw;			/* 0x01a0 */
 	psw_t		external_new_psw;		/* 0x01b0 */
 	psw_t		svc_new_psw;			/* 0x01c0 */
@@ -75,6 +77,11 @@ static struct ipl_lowcore ipl_lowcore __used __section(".ipldata") = {
 		[18] = CCW0(CCW_CMD_READ_IPL, 0x690, 0x50, CCW_FLAG_SLI | CCW_FLAG_CC),
 		[19] = CCW0(CCW_CMD_READ_IPL, 0x6e0, 0x50, CCW_FLAG_SLI),
 	},
+	/*
+	 * Let the GDB's lx-symbols command find the jump_to_kernel symbol
+	 * without having to load decompressor symbols.
+	 */
+	.svc_old_psw	  = { .mask = 0, .addr = (unsigned long)jump_to_kernel },
 	.restart_psw	  = { .mask = 0, .addr = IPL_START, },
 	.external_new_psw = { .mask = PSW_MASK_DISABLED, .addr = __LC_EXT_NEW_PSW, },
 	.svc_new_psw	  = { .mask = PSW_MASK_DISABLED, .addr = __LC_SVC_NEW_PSW, },

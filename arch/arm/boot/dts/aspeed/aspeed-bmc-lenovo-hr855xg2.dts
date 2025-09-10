@@ -425,238 +425,238 @@
 
 &gpio {
 
-	pin_gpio_a1 {
+	pin-gpio-a1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(A, 1) GPIO_ACTIVE_LOW>;
 		output-high;
 		line-name = "BMC_EMMC_RST_N";
 	};
 
-	pin_gpio_a3 {
+	pin-gpio-a3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(A, 3) GPIO_ACTIVE_LOW>;
 		output-high;
 		line-name = "PCH_PWROK_BMC_FPGA";
 	};
 
-	pin_gpio_b5 {
+	pin-gpio-b5-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(B, 5) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "IRQ_BMC_PCH_SMI_LPC_N";
 	};
 
-	pin_gpio_b7 {
+	pin-gpio-b7-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(B, 7) GPIO_ACTIVE_LOW>;
 		output-low;
 		line-name = "CPU_SM_WP";
 	};
 
-	pin_gpio_e0 {
+	pin-gpio-e0-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(E, 0) GPIO_ACTIVE_HIGH>;
 		input;
 		line-name = "PDB_PSU_SEL";
 	};
 
-	pin_gpio_e2 {
+	pin-gpio-e2-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(E, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "LOCATOR_LED_N";
 	};
 
-	pin_gpio_e5 {
+	pin-gpio-e5-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(E, 5) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "FM_BMC_DBP_PRESENT_R1_N";
 	};
 
-	pin_gpio_e6 {
+	pin-gpio-e6-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(E, 6) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "BMC_ME_SECURITY_OVERRIDE_N";
 	};
 
-	pin_gpio_f0 {
+	pin-gpio-f0-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 0) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "IRQ_BMC_PCH_NMI_R";
 	};
 
-	pin_gpio_f1 {
+	pin-gpio-f1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 1) GPIO_ACTIVE_HIGH>;
 		input;
 		line-name = "CPU2_PROCDIS_BMC_N";
 	};
 
-	pin_gpio_f2 {
+	pin-gpio-f2-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "RM_THROTTLE_EN_N";
 	};
 
-	pin_gpio_f3 {
+	pin-gpio-f3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 3) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "FM_PMBUS_ALERT_B_EN";
 	};
 
-	pin_gpio_f4 {
+	pin-gpio-f4-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 4) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "BMC_FORCE_NM_THROTTLE_N";
 	};
 
-	pin_gpio_f6 {
+	pin-gpio-f6-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 6) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "FM_BMC_CPU_PWR_DEBUG_N";
 	};
 
-	pin_gpio_g7 {
+	pin-gpio-g7-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(G, 7) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "BMC_PCIE_I2C_MUX_RST_N";
 	};
 
-	pin_gpio_h6 {
+	pin-gpio-h6-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(H, 6) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "FM_BMC_DBP_PRESENT_R2_N";
 	};
 
-	pin_gpio_i3 {
+	pin-gpio-i3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(I, 3) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "SPI_BMC_BIOS_WP_N";
 	};
 
-	pin_gpio_j1 {
+	pin-gpio-j1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(J, 1) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "BMC_USB_SEL";
 	};
 
-	pin_gpio_j2 {
+	pin-gpio-j2-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(J, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "PDB_SMB_RST_N";
 	};
 
-	pin_gpio_j3 {
+	pin-gpio-j3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(J, 3) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "SPI_BMC_BIOS_HOLD_N";
 	};
 
-	pin_gpio_l0 {
+	pin-gpio-l0-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(L, 0) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "PDB_FAN_TACH_SEL";
 	};
 
-	pin_gpio_l1 {
+	pin-gpio-l1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(L, 1) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "SYS_RESET_BMC_FPGA_N";
 	};
 
-	pin_gpio_l4 {
+	pin-gpio-l4-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(L, 4) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "FM_EFUSE_FAN_G1_EN";
 	};
 
-	pin_gpio_l5 {
+	pin-gpio-l5-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(L, 5) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "FM_EFUSE_FAN_G2_EN";
 	};
 
-	pin_gpio_r6 {
+	pin-gpio-r6-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(R, 6) GPIO_ACTIVE_HIGH>;
 		input;
 		line-name = "CPU3_PROCDIS_BMC_N";
 	};
 
-	pin_gpio_r7 {
+	pin-gpio-r7-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(R, 7) GPIO_ACTIVE_HIGH>;
 		input;
 		line-name = "CPU4_PROCDIS_BMC_N";
 	};
 
-	pin_gpio_s1 {
+	pin-gpio-s1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(S, 1) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "DBP_SYSPWROK_BMC";
 	};
 
-	pin_gpio_s2 {
+	pin-gpio-s2-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(S, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "PCH_RST_RSMRST_N";
 	};
 
-	pin_gpio_s6 {
+	pin-gpio-s6-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(S, 6) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "BMC_HW_STRAP_5";
 	};
 
-	pin_gpio_z3 {
+	pin-gpio-z3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(Z, 3) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "FM_BMC_PCH_SCI_LPC_N";
 	};
 
-	pin_gpio_aa0 {
+	pin-gpio-aa0-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(AA, 0) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "FW_PSU_ALERT_EN_N";
 	};
 
-	pin_gpio_aa4 {
+	pin-gpio-aa4-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(AA, 4) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "DBP_CPU_PREQ_N";
 	};
 
-	pin_gpio_ab3 {
+	pin-gpio-ab3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(AB, 3) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "BMC_WDTRST";
 	};
 
-	pin_gpio_ac6 {
+	pin-gpio-ac6-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(AC, 6) GPIO_ACTIVE_HIGH>;
 		output-high;

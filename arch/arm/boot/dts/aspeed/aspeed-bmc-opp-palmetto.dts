@@ -209,140 +209,140 @@
 };
 
 &gpio {
-	pin_func_mode0 {
+	pin-func-mode0-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(C, 4) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "func_mode0";
 	};
 
-	pin_func_mode1 {
+	pin-func-mode1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(C, 5)  GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "func_mode1";
 	};
 
-	pin_func_mode2 {
+	pin-func-mode2-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(C, 6) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "func_mode2";
 	};
 
-	pin_gpio_a0 {
+	pin-gpio-a0-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(A, 0) GPIO_ACTIVE_HIGH>;
 		input;
 		line-name = "BMC_FAN_RESERVED_N";
 	};
 
-	pin_gpio_a1 {
+	pin-gpio-a1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(A, 1) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "APSS_WDT_N";
 	};
 
-	pin_gpio_b1 {
+	pin-gpio-b1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(B, 1) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "APSS_BOOT_MODE";
 	};
 
-	pin_gpio_b2 {
+	pin-gpio-b2-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(B, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "APSS_RESET_N";
 	};
 
-	pin_gpio_b7 {
+	pin-gpio-b7-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(B, 7) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "SPIVID_STBY_RESET_N";
 	};
 
-	pin_gpio_d1 {
+	pin-gpio-d1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(D, 1) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "BMC_POWER_UP";
 	};
 
-	pin_gpio_f1 {
+	pin-gpio-f1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 1) GPIO_ACTIVE_HIGH>;
 		input;
 		line-name = "BMC_BATTERY_TEST";
 	};
 
-	pin_gpio_f4 {
+	pin-gpio-f4-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 4) GPIO_ACTIVE_HIGH>;
 		input;
 		line-name = "AST_HW_FAULT_N";
 	};
 
-	pin_gpio_f5 {
+	pin-gpio-f5-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 5) GPIO_ACTIVE_HIGH>;
 		input;
 		line-name = "AST_SYS_FAULT_N";
 	};
 
-	pin_gpio_f7 {
+	pin-gpio-f7-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(F, 7) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "BMC_FULL_SPEED_N";
 	};
 
-	pin_gpio_g3 {
+	pin-gpio-g3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(G, 3) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "BMC_FAN_ERROR_N";
 	};
 
-	pin_gpio_g4 {
+	pin-gpio-g4-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(G, 4) GPIO_ACTIVE_HIGH>;
 		input;
 		line-name = "BMC_WDT_RST1_P";
 	};
 
-	pin_gpio_g5 {
+	pin-gpio-g5-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(G, 5) GPIO_ACTIVE_HIGH>;
 		input;
 		line-name = "BMC_WDT_RST2_P";
 	};
 
-	pin_gpio_h0 {
+	pin-gpio-h0-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(H, 0) GPIO_ACTIVE_HIGH>;
 		input;
 		line-name = "PE_SLOT_TEST_EN_N";
 	};
 
-	pin_gpio_h1 {
+	pin-gpio-h1-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(H, 1) GPIO_ACTIVE_HIGH>;
 		input;
 		line-name = "BMC_RTCRST_N";
 	};
 
-	pin_gpio_h2 {
+	pin-gpio-h2-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "SYS_PWROK_BMC";
 	};
 
-	pin_gpio_h7 {
+	pin-gpio-h7-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(H, 7) GPIO_ACTIVE_HIGH>;
 		output-high;

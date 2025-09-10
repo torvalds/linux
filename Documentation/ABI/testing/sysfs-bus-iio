@@ -141,8 +141,6 @@ Description:
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_i_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_raw
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -417,18 +415,14 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_accel_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltage_q_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltage_i_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_i_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_offset
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_q_offset
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_i_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_current_offset
-What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_i_offset
-What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_q_offset
-What:		/sys/bus/iio/devices/iio:deviceX/in_current_q_offset
-What:		/sys/bus/iio/devices/iio:deviceX/in_current_i_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_tempY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_offset
@@ -456,21 +450,15 @@ Description:
 		to the _raw output.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_scale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_i_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_scale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_i_scale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_q_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltage-voltage_scale
 What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_supply_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_current_scale
-What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_i_scale
-What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_q_scale
-What:		/sys/bus/iio/devices/iio:deviceX/in_current_i_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_current_q_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_peak_scale
@@ -559,6 +547,30 @@ Description:
 		- a small discrete set of values like "0 2 4 6 8"
 		- a range specified as "[min step max]"
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_convdelay
+KernelVersion:	6.17
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Delay of start of conversion from common reference point shared
+		by all channels. Can be writable when used to compensate for
+		delay variation introduced by external filters feeding a
+		simultaneous sampling ADC.
+
+		E.g., for the ad7606 ADC series, this value is intended as a
+		configurable time delay in seconds, to correct delay introduced
+		by an optional external filtering circuit.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_convdelay_available
+KernelVersion:	6.16
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Available values of convdelay. Maybe expressed as:
+
+		- a range specified as "[min step max]"
+
+		If shared across all channels, <type>_convdelay_available
+		is used.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_calibscale
@@ -579,11 +591,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_i_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_q_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_i_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/out_currentY_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_calibscale
@@ -805,7 +813,11 @@ Description:
 		all the other channels, since it involves changing the VCO
 		fundamental output frequency.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltageY_i_phase
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltageY_q_phase
 What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_phase
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_i_phase
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_q_phase
 KernelVersion:	3.4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1434,10 +1446,6 @@ What:		/sys/.../iio:deviceX/bufferY/in_timestamp_en
 What:		/sys/.../iio:deviceX/bufferY/in_voltageY_supply_en
 What:		/sys/.../iio:deviceX/bufferY/in_voltageY_en
 What:		/sys/.../iio:deviceX/bufferY/in_voltageY-voltageZ_en
-What:		/sys/.../iio:deviceX/bufferY/in_voltageY_i_en
-What:		/sys/.../iio:deviceX/bufferY/in_voltageY_q_en
-What:		/sys/.../iio:deviceX/bufferY/in_voltage_i_en
-What:		/sys/.../iio:deviceX/bufferY/in_voltage_q_en
 What:		/sys/.../iio:deviceX/bufferY/in_incli_x_en
 What:		/sys/.../iio:deviceX/bufferY/in_incli_y_en
 What:		/sys/.../iio:deviceX/bufferY/in_pressureY_en
@@ -1458,10 +1466,6 @@ What:		/sys/.../iio:deviceX/bufferY/in_incli_type
 What:		/sys/.../iio:deviceX/bufferY/in_voltageY_type
 What:		/sys/.../iio:deviceX/bufferY/in_voltage_type
 What:		/sys/.../iio:deviceX/bufferY/in_voltageY_supply_type
-What:		/sys/.../iio:deviceX/bufferY/in_voltageY_i_type
-What:		/sys/.../iio:deviceX/bufferY/in_voltageY_q_type
-What:		/sys/.../iio:deviceX/bufferY/in_voltage_i_type
-What:		/sys/.../iio:deviceX/bufferY/in_voltage_q_type
 What:		/sys/.../iio:deviceX/bufferY/in_timestamp_type
 What:		/sys/.../iio:deviceX/bufferY/in_pressureY_type
 What:		/sys/.../iio:deviceX/bufferY/in_pressure_type
@@ -1499,10 +1503,6 @@ Description:
 
 What:		/sys/.../iio:deviceX/bufferY/in_voltageY_index
 What:		/sys/.../iio:deviceX/bufferY/in_voltageY_supply_index
-What:		/sys/.../iio:deviceX/bufferY/in_voltageY_i_index
-What:		/sys/.../iio:deviceX/bufferY/in_voltageY_q_index
-What:		/sys/.../iio:deviceX/bufferY/in_voltage_i_index
-What:		/sys/.../iio:deviceX/bufferY/in_voltage_q_index
 What:		/sys/.../iio:deviceX/bufferY/in_accel_x_index
 What:		/sys/.../iio:deviceX/bufferY/in_accel_y_index
 What:		/sys/.../iio:deviceX/bufferY/in_accel_z_index
@@ -1692,8 +1692,6 @@ Description:
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_supply_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_i_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_q_raw
 KernelVersion:	3.17
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -2278,6 +2276,9 @@ Description:
 		Reading returns a list with the possible filter modes. Options
 		for the attribute:
 
+		* "none" - Filter is disabled/bypassed.
+		* "sinc1" - The digital sinc1 filter. Fast 1st
+		  conversion time. Poor noise performance.
 		* "sinc3" - The digital sinc3 filter. Moderate 1st
 		  conversion time. Good noise performance.
 		* "sinc4" - Sinc 4. Excellent noise performance. Long
@@ -2293,6 +2294,8 @@ Description:
 		* "sinc3+pf2" - Sinc3 + device specific Post Filter 2.
 		* "sinc3+pf3" - Sinc3 + device specific Post Filter 3.
 		* "sinc3+pf4" - Sinc3 + device specific Post Filter 4.
+		* "sinc5+pf1" - Sinc5 + device specific Post Filter 1.
+		* "sinc5+avg" - Sinc5 + averaging by 4.
 		* "wideband" - filter with wideband low ripple passband
 		  and sharp transition band.
 

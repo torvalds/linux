@@ -32,6 +32,7 @@ properties:
           - nvidia,tegra186-mc
           - nvidia,tegra194-mc
           - nvidia,tegra234-mc
+          - nvidia,tegra264-mc
 
   reg:
     minItems: 6
@@ -42,8 +43,12 @@ properties:
     maxItems: 18
 
   interrupts:
-    items:
-      - description: MC general interrupt
+    minItems: 1
+    maxItems: 8
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 8
 
   "#address-cells":
     const: 2
@@ -74,6 +79,7 @@ patternProperties:
               - nvidia,tegra186-emc
               - nvidia,tegra194-emc
               - nvidia,tegra234-emc
+              - nvidia,tegra264-emc
 
       reg:
         minItems: 1
@@ -127,6 +133,15 @@ patternProperties:
             reg:
               minItems: 2
 
+      - if:
+          properties:
+            compatible:
+              const: nvidia,tegra264-emc
+        then:
+          properties:
+            reg:
+              minItems: 2
+
     additionalProperties: false
 
     required:
@@ -157,6 +172,12 @@ allOf:
             - const: ch1
             - const: ch2
             - const: ch3
+
+        interrupts:
+          items:
+            - description: MC general interrupt
+
+        interrupt-names: false
 
   - if:
       properties:
@@ -189,6 +210,12 @@ allOf:
             - const: ch14
             - const: ch15
 
+        interrupts:
+          items:
+            - description: MC general interrupt
+
+        interrupt-names: false
+
   - if:
       properties:
         compatible:
@@ -219,6 +246,59 @@ allOf:
             - const: ch13
             - const: ch14
             - const: ch15
+
+        interrupts:
+          items:
+            - description: MC general interrupt
+
+        interrupt-names: false
+
+  - if:
+      properties:
+        compatible:
+          const: nvidia,tegra264-mc
+    then:
+      properties:
+        reg:
+          minItems: 17
+          maxItems: 17
+          description: 17 memory controller channels
+
+        reg-names:
+          items:
+            - const: broadcast
+            - const: ch0
+            - const: ch1
+            - const: ch2
+            - const: ch3
+            - const: ch4
+            - const: ch5
+            - const: ch6
+            - const: ch7
+            - const: ch8
+            - const: ch9
+            - const: ch10
+            - const: ch11
+            - const: ch12
+            - const: ch13
+            - const: ch14
+            - const: ch15
+
+        interrupts:
+          minItems: 8
+          maxItems: 8
+          description: One interrupt line for each MC component
+
+        interrupt-names:
+          items:
+            - const: mcf
+            - const: hub1
+            - const: hub2
+            - const: hub3
+            - const: hub4
+            - const: hub5
+            - const: sbs
+            - const: channel
 
 additionalProperties: false
 

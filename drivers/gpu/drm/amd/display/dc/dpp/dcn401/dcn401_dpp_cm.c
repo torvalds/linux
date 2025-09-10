@@ -88,30 +88,6 @@ enum dscl_mode_sel {
 	DSCL_MODE_DSCL_BYPASS = 6
 };
 
-void dpp401_full_bypass(struct dpp *dpp_base)
-{
-	struct dcn401_dpp *dpp = TO_DCN401_DPP(dpp_base);
-
-	/* Input pixel format: ARGB8888 */
-	REG_SET(CNVC_SURFACE_PIXEL_FORMAT, 0,
-			CNVC_SURFACE_PIXEL_FORMAT, 0x8);
-
-	/* Zero expansion */
-	REG_SET_3(FORMAT_CONTROL, 0,
-			CNVC_BYPASS, 0,
-			FORMAT_CONTROL__ALPHA_EN, 0,
-			FORMAT_EXPANSION_MODE, 0);
-
-	/* COLOR_KEYER_CONTROL.COLOR_KEYER_EN = 0 this should be default */
-	if (dpp->tf_mask->CM_BYPASS_EN)
-		REG_SET(CM_CONTROL, 0, CM_BYPASS_EN, 1);
-	else
-		REG_SET(CM_CONTROL, 0, CM_BYPASS, 1);
-
-	/* Setting degamma bypass for now */
-	REG_SET(CM_DGAM_CONTROL, 0, CM_DGAM_LUT_MODE, 0);
-}
-
 void dpp401_set_cursor_attributes(
 	struct dpp *dpp_base,
 	struct dc_cursor_attributes *cursor_attributes)

@@ -620,7 +620,7 @@ static int tps65010_probe(struct i2c_client *client)
 		tps->chip.parent = &client->dev;
 		tps->chip.owner = THIS_MODULE;
 
-		tps->chip.set_rv = tps65010_gpio_set;
+		tps->chip.set = tps65010_gpio_set;
 		tps->chip.direction_output = tps65010_output;
 
 		/* NOTE:  only partial support for inputs; nyet IRQs */

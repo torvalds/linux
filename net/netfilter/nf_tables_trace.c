@@ -127,6 +127,9 @@ static int nf_trace_fill_ct_info(struct sk_buff *nlskb,
 		if (nla_put_be32(nlskb, NFTA_TRACE_CT_ID, (__force __be32)id))
 			return -1;
 
+		/* Kernel implementation detail, withhold this from userspace for now */
+		status &= ~IPS_NAT_CLASH;
+
 		if (status && nla_put_be32(nlskb, NFTA_TRACE_CT_STATUS, htonl(status)))
 			return -1;
 	}

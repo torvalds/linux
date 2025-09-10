@@ -8,7 +8,7 @@
 
 #include "rockchip_canfd.h"
 
-static u64 rkcanfd_timestamp_read(const struct cyclecounter *cc)
+static u64 rkcanfd_timestamp_read(struct cyclecounter *cc)
 {
 	const struct rkcanfd_priv *priv = container_of(cc, struct rkcanfd_priv, cc);
 

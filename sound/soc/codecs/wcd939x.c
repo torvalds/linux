@@ -32,10 +32,17 @@
 #include "wcd939x.h"
 
 #define WCD939X_MAX_MICBIAS		(4)
-#define WCD939X_MAX_SUPPLY		(4)
 #define WCD939X_MBHC_MAX_BUTTONS	(8)
 #define TX_ADC_MAX			(4)
 #define WCD_MBHC_HS_V_MAX		1600
+
+#define CHIPID_WCD9390			0x0
+#define CHIPID_WCD9395			0x5
+
+/* Version major: 1.x */
+#define CHIPID_WCD939X_VER_MAJOR_1	0x0
+/* Version minor: x.1 */
+#define CHIPID_WCD939X_VER_MINOR_1	0x3
 
 enum {
 	WCD939X_VERSION_1_0 = 0,
@@ -85,11 +92,6 @@ enum {
 
 /* Z value compared in milliOhm */
 #define WCD939X_ANA_MBHC_ZDET_CONST	(1018 * 1024)
-
-enum {
-	WCD9390 = 0,
-	WCD9395 = 5,
-};
 
 enum {
 	/* INTR_CTRL_INT_MASK_0 */
@@ -190,9 +192,7 @@ struct wcd939x_priv {
 	struct wcd_mbhc_intr intr_ids;
 	struct wcd_clsh_ctrl *clsh_info;
 	struct irq_domain *virq;
-	struct regmap_irq_chip *wcd_regmap_irq_chip;
 	struct regmap_irq_chip_data *irq_chip;
-	struct regulator_bulk_data supplies[WCD939X_MAX_SUPPLY];
 	struct snd_soc_jack *jack;
 	unsigned long status_mask;
 	s32 micb_ref[WCD939X_MAX_MICBIAS];
@@ -211,6 +211,10 @@ struct wcd939x_priv {
 	bool comp1_enable;
 	bool comp2_enable;
 	bool ldoh;
+};
+
+static const char * const wcd939x_supplies[] = {
+	"vdd-rxtx", "vdd-io", "vdd-buck", "vdd-mic-bias", "vdd-px",
 };
 
 static const SNDRV_CTL_TLVD_DECLARE_DB_MINMAX(ear_pa_gain, 600, -1800);
@@ -1482,7 +1486,7 @@ static int wcd939x_rx_hph_mode_put(struct snd_kcontrol *kcontrol,
 	if (mode_val == wcd939x->hph_mode)
 		return 0;
 
-	if (wcd939x->variant == WCD9390) {
+	if (wcd939x->variant == CHIPID_WCD9390) {
 		switch (mode_val) {
 		case CLS_H_NORMAL:
 		case CLS_H_LP:
@@ -3064,7 +3068,7 @@ static int wcd939x_soc_codec_probe(struct snd_soc_component *component)
 	disable_irq_nosync(wcd939x->ear_pdm_wd_int);
 
 	switch (wcd939x->variant) {
-	case WCD9390:
+	case CHIPID_WCD9390:
 		ret = snd_soc_add_component_controls(component, wcd9390_snd_controls,
 						     ARRAY_SIZE(wcd9390_snd_controls));
 		if (ret < 0) {
@@ -3074,7 +3078,7 @@ static int wcd939x_soc_codec_probe(struct snd_soc_component *component)
 			goto err_free_ear_pdm_wd_int;
 		}
 		break;
-	case WCD9395:
+	case CHIPID_WCD9395:
 		ret = snd_soc_add_component_controls(component, wcd9395_snd_controls,
 						     ARRAY_SIZE(wcd9395_snd_controls));
 		if (ret < 0) {
@@ -3239,25 +3243,14 @@ static int wcd939x_populate_dt_data(struct wcd939x_priv *wcd939x, struct device 
 	int ret;
 
 	wcd939x->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(wcd939x->reset_gpio)) {
-		ret = PTR_ERR(wcd939x->reset_gpio);
-		return dev_err_probe(dev, ret, "Failed to get reset gpio\n");
-	}
+	if (IS_ERR(wcd939x->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(wcd939x->reset_gpio),
+				     "Failed to get reset gpio\n");
 
-	wcd939x->supplies[0].supply = "vdd-rxtx";
-	wcd939x->supplies[1].supply = "vdd-io";
-	wcd939x->supplies[2].supply = "vdd-buck";
-	wcd939x->supplies[3].supply = "vdd-mic-bias";
-
-	ret = regulator_bulk_get(dev, WCD939X_MAX_SUPPLY, wcd939x->supplies);
+	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(wcd939x_supplies),
+					     wcd939x_supplies);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to get supplies\n");
-
-	ret = regulator_bulk_enable(WCD939X_MAX_SUPPLY, wcd939x->supplies);
-	if (ret) {
-		regulator_bulk_free(WCD939X_MAX_SUPPLY, wcd939x->supplies);
-		return dev_err_probe(dev, ret, "Failed to enable supplies\n");
-	}
+		return dev_err_probe(dev, ret, "Failed to get and enable supplies\n");
 
 	wcd939x_dt_parse_micbias_info(dev, wcd939x);
 
@@ -3461,8 +3454,8 @@ static int wcd939x_bind(struct device *dev)
 	regmap_read(wcd939x->regmap, WCD939X_DIGITAL_CHIP_ID1, &id1);
 	regmap_read(wcd939x->regmap, WCD939X_EAR_STATUS_REG_1, &status1);
 
-	if (id1 == 0)
-		version = ((status1 & 0x3) ? WCD939X_VERSION_1_1 : WCD939X_VERSION_1_0);
+	if (id1 == CHIPID_WCD939X_VER_MAJOR_1)
+		version = ((status1 & CHIPID_WCD939X_VER_MINOR_1) ? WCD939X_VERSION_1_1 : WCD939X_VERSION_1_0);
 	else
 		version = WCD939X_VERSION_2_0;
 
@@ -3629,17 +3622,17 @@ static int wcd939x_probe(struct platform_device *pdev)
 
 	ret = wcd939x_add_typec(wcd939x, dev);
 	if (ret)
-		goto err_disable_regulators;
+		return ret;
 
 	ret = wcd939x_add_slave_components(wcd939x, dev, &match);
 	if (ret)
-		goto err_disable_regulators;
+		return ret;
 
 	wcd939x_reset(wcd939x);
 
 	ret = component_master_add_with_match(dev, &wcd939x_comp_ops, match);
 	if (ret)
-		goto err_disable_regulators;
+		return ret;
 
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
@@ -3649,27 +3642,17 @@ static int wcd939x_probe(struct platform_device *pdev)
 	pm_runtime_idle(dev);
 
 	return 0;
-
-err_disable_regulators:
-	regulator_bulk_disable(WCD939X_MAX_SUPPLY, wcd939x->supplies);
-	regulator_bulk_free(WCD939X_MAX_SUPPLY, wcd939x->supplies);
-
-	return ret;
 }
 
 static void wcd939x_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct wcd939x_priv *wcd939x = dev_get_drvdata(dev);
 
 	component_master_del(dev, &wcd939x_comp_ops);
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
 	pm_runtime_dont_use_autosuspend(dev);
-
-	regulator_bulk_disable(WCD939X_MAX_SUPPLY, wcd939x->supplies);
-	regulator_bulk_free(WCD939X_MAX_SUPPLY, wcd939x->supplies);
 }
 
 #if defined(CONFIG_OF)

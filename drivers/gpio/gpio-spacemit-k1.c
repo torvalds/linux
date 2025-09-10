@@ -278,6 +278,7 @@ static const struct of_device_id spacemit_gpio_dt_ids[] = {
 	{ .compatible = "spacemit,k1-gpio" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, spacemit_gpio_dt_ids);
 
 static struct platform_driver spacemit_gpio_driver = {
 	.probe		= spacemit_gpio_probe,

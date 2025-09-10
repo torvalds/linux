@@ -74,7 +74,7 @@ static int ixgbe_devlink_nvm_snapshot(struct devlink *devlink,
 		 * total period of reading whole NVM is longer than the maximum
 		 * period the lock can be taken defined by the IXGBE_NVM_TIMEOUT.
 		 */
-		err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+		err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Failed to acquire NVM semaphore");
@@ -184,7 +184,7 @@ static int ixgbe_devlink_nvm_read(struct devlink *devlink,
 		return -ERANGE;
 	}
 
-	err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire NVM semaphore");
 		return -EBUSY;

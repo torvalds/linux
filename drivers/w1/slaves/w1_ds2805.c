@@ -267,8 +267,8 @@ static const struct bin_attribute w1_f0d_bin_attr = {
 		.mode = 0644,
 	},
 	.size = W1_F0D_EEPROM_SIZE,
-	.read_new = w1_f0d_read_bin,
-	.write_new = w1_f0d_write_bin,
+	.read = w1_f0d_read_bin,
+	.write = w1_f0d_write_bin,
 };
 
 static int w1_f0d_add_slave(struct w1_slave *sl)

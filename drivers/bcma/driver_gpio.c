@@ -186,7 +186,7 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->request		= bcma_gpio_request;
 	chip->free		= bcma_gpio_free;
 	chip->get		= bcma_gpio_get_value;
-	chip->set_rv		= bcma_gpio_set_value;
+	chip->set		= bcma_gpio_set_value;
 	chip->direction_input	= bcma_gpio_direction_input;
 	chip->direction_output	= bcma_gpio_direction_output;
 	chip->parent		= bus->dev;

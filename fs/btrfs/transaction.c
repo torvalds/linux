@@ -1211,15 +1211,15 @@ static int btrfs_wait_extents(struct btrfs_fs_info *fs_info,
 		       struct extent_io_tree *dirty_pages)
 {
 	bool errors = false;
-	int err;
+	int ret;
 
-	err = __btrfs_wait_marked_extents(fs_info, dirty_pages);
+	ret = __btrfs_wait_marked_extents(fs_info, dirty_pages);
 	if (test_and_clear_bit(BTRFS_FS_BTREE_ERR, &fs_info->flags))
 		errors = true;
 
-	if (errors && !err)
-		err = -EIO;
-	return err;
+	if (errors && !ret)
+		ret = -EIO;
+	return ret;
 }
 
 int btrfs_wait_tree_log_extents(struct btrfs_root *log_root, int mark)
@@ -1227,22 +1227,22 @@ int btrfs_wait_tree_log_extents(struct btrfs_root *log_root, int mark)
 	struct btrfs_fs_info *fs_info = log_root->fs_info;
 	struct extent_io_tree *dirty_pages = &log_root->dirty_log_pages;
 	bool errors = false;
-	int err;
+	int ret;
 
 	ASSERT(btrfs_root_id(log_root) == BTRFS_TREE_LOG_OBJECTID);
 
-	err = __btrfs_wait_marked_extents(fs_info, dirty_pages);
-	if ((mark & EXTENT_DIRTY) &&
+	ret = __btrfs_wait_marked_extents(fs_info, dirty_pages);
+	if ((mark & EXTENT_DIRTY_LOG1) &&
 	    test_and_clear_bit(BTRFS_FS_LOG1_ERR, &fs_info->flags))
 		errors = true;
 
-	if ((mark & EXTENT_NEW) &&
+	if ((mark & EXTENT_DIRTY_LOG2) &&
 	    test_and_clear_bit(BTRFS_FS_LOG2_ERR, &fs_info->flags))
 		errors = true;
 
-	if (errors && !err)
-		err = -EIO;
-	return err;
+	if (errors && !ret)
+		ret = -EIO;
+	return ret;
 }
 
 /*
@@ -1735,8 +1735,10 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_create_qgroup(trans, objectid);
 	if (ret && ret != -EEXIST) {
-		btrfs_abort_transaction(trans, ret);
-		goto fail;
+		if (ret != -ENOTCONN || btrfs_qgroup_enabled(fs_info)) {
+			btrfs_abort_transaction(trans, ret);
+			goto fail;
+		}
 	}
 
 	/*
@@ -2163,13 +2165,19 @@ static void add_pending_snapshot(struct btrfs_trans_handle *trans)
 	list_add(&trans->pending_snapshot->list, &cur_trans->pending_snapshots);
 }
 
-static void update_commit_stats(struct btrfs_fs_info *fs_info, ktime_t interval)
+static void update_commit_stats(struct btrfs_fs_info *fs_info)
 {
+	ktime_t now = ktime_get_ns();
+	ktime_t interval = now - fs_info->commit_stats.critical_section_start_time;
+
+	ASSERT(fs_info->commit_stats.critical_section_start_time);
+
 	fs_info->commit_stats.commit_count++;
 	fs_info->commit_stats.last_commit_dur = interval;
 	fs_info->commit_stats.max_commit_dur =
 			max_t(u64, fs_info->commit_stats.max_commit_dur, interval);
 	fs_info->commit_stats.total_commit_dur += interval;
+	fs_info->commit_stats.critical_section_start_time = 0;
 }
 
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
@@ -2178,8 +2186,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_transaction *prev_trans = NULL;
 	int ret;
-	ktime_t start_time;
-	ktime_t interval;
 
 	ASSERT(refcount_read(&trans->use_count) == 1);
 	btrfs_trans_state_lockdep_acquire(fs_info, BTRFS_LOCKDEP_TRANS_COMMIT_PREP);
@@ -2312,8 +2318,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 * Get the time spent on the work done by the commit thread and not
 	 * the time spent waiting on a previous commit
 	 */
-	start_time = ktime_get_ns();
-
+	fs_info->commit_stats.critical_section_start_time = ktime_get_ns();
 	extwriter_counter_dec(cur_trans, trans->type);
 
 	ret = btrfs_start_delalloc_flush(fs_info);
@@ -2545,6 +2550,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	if (ret)
 		goto scrub_continue;
 
+	update_commit_stats(fs_info);
 	/*
 	 * We needn't acquire the lock here because there is no other task
 	 * which can change it.
@@ -2581,16 +2587,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	trace_btrfs_transaction_commit(fs_info);
 
-	interval = ktime_get_ns() - start_time;
-
 	btrfs_scrub_continue(fs_info);
 
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
-
-	update_commit_stats(fs_info, interval);
 
 	return ret;
 

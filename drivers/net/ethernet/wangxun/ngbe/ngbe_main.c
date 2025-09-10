@@ -161,7 +161,7 @@ static void ngbe_irq_enable(struct wx *wx, bool queues)
 	if (queues)
 		wx_intr_enable(wx, NGBE_INTR_ALL);
 	else
-		wx_intr_enable(wx, NGBE_INTR_MISC);
+		wx_intr_enable(wx, NGBE_INTR_MISC(wx));
 }
 
 /**
@@ -286,7 +286,7 @@ static int ngbe_request_msix_irqs(struct wx *wx)
 	 * for queue. But when num_vfs == 7, vector[1] is assigned to vf6.
 	 * Misc and queue should reuse interrupt vector[0].
 	 */
-	if (wx->num_vfs == 7)
+	if (test_bit(WX_FLAG_IRQ_VECTOR_SHARED, wx->flags))
 		err = request_irq(wx->msix_entry->vector,
 				  ngbe_misc_and_queue, 0, netdev->name, wx);
 	else

@@ -596,11 +596,8 @@ int main(int argc, char *argv[])
 		if (ret)
 			return ret;
 	} else {
-		page_idle_fd = open("/sys/kernel/mm/page_idle/bitmap", O_RDWR);
-		__TEST_REQUIRE(page_idle_fd >= 0,
-			       "Couldn't open /sys/kernel/mm/page_idle/bitmap. "
-			       "Is CONFIG_IDLE_PAGE_TRACKING enabled?");
-
+		page_idle_fd = __open_path_or_exit("/sys/kernel/mm/page_idle/bitmap", O_RDWR,
+						   "Is CONFIG_IDLE_PAGE_TRACKING enabled?");
 		close(page_idle_fd);
 
 		puts("Using page_idle for aging");

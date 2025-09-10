@@ -24,7 +24,7 @@
 
 #define LEGACY_COMMAND_LINE_SIZE	896
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/lowcore.h>
 #include <asm/types.h>
@@ -40,6 +40,8 @@ struct parmarea {
 	char pad1[0x10480-0x10438];			/* 0x10438 - 0x10480 */
 	char command_line[COMMAND_LINE_SIZE];		/* 0x10480 */
 };
+
+extern char arch_hw_string[128];
 
 extern struct parmarea parmarea;
 
@@ -100,5 +102,5 @@ static __always_inline u32 gen_lpswe(unsigned long addr)
 	BUILD_BUG_ON(addr > 0xfff);
 	return 0xb2b20000 | addr;
 }
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _ASM_S390_SETUP_H */

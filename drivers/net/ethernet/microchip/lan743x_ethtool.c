@@ -913,23 +913,29 @@ static int lan743x_ethtool_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
+static int lan743x_ethtool_get_rxfh_fields(struct net_device *netdev,
+					   struct ethtool_rxfh_fields *fields)
+{
+	fields->data = 0;
+
+	switch (fields->flow_type) {
+	case TCP_V4_FLOW:case UDP_V4_FLOW:
+	case TCP_V6_FLOW:case UDP_V6_FLOW:
+		fields->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		fallthrough;
+	case IPV4_FLOW: case IPV6_FLOW:
+		fields->data |= RXH_IP_SRC | RXH_IP_DST;
+		return 0;
+	}
+
+	return 0;
+}
+
 static int lan743x_ethtool_get_rxnfc(struct net_device *netdev,
 				     struct ethtool_rxnfc *rxnfc,
 				     u32 *rule_locs)
 {
 	switch (rxnfc->cmd) {
-	case ETHTOOL_GRXFH:
-		rxnfc->data = 0;
-		switch (rxnfc->flow_type) {
-		case TCP_V4_FLOW:case UDP_V4_FLOW:
-		case TCP_V6_FLOW:case UDP_V6_FLOW:
-			rxnfc->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			fallthrough;
-		case IPV4_FLOW: case IPV6_FLOW:
-			rxnfc->data |= RXH_IP_SRC | RXH_IP_DST;
-			return 0;
-		}
-		break;
 	case ETHTOOL_GRXRINGS:
 		rxnfc->data = LAN743X_USED_RX_CHANNELS;
 		return 0;
@@ -1368,6 +1374,7 @@ const struct ethtool_ops lan743x_ethtool_ops = {
 	.get_rxfh_indir_size = lan743x_ethtool_get_rxfh_indir_size,
 	.get_rxfh = lan743x_ethtool_get_rxfh,
 	.set_rxfh = lan743x_ethtool_set_rxfh,
+	.get_rxfh_fields = lan743x_ethtool_get_rxfh_fields,
 	.get_ts_info = lan743x_ethtool_get_ts_info,
 	.get_eee = lan743x_ethtool_get_eee,
 	.set_eee = lan743x_ethtool_set_eee,

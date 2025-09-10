@@ -644,15 +644,39 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 	return NULL;
 }
 
-bool ieee80211_is_radar_required(struct ieee80211_local *local)
+bool ieee80211_is_radar_required(struct ieee80211_local *local,
+				 struct cfg80211_scan_request *req)
 {
+	struct wiphy *wiphy = local->hw.wiphy;
 	struct ieee80211_link_data *link;
+	struct ieee80211_channel *chan;
+	int radio_idx;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
+	if (!req)
+		return false;
+
 	for_each_sdata_link(local, link) {
-		if (link->radar_required)
-			return true;
+		if (link->radar_required) {
+			if (wiphy->n_radio < 2)
+				return true;
+
+			chan = link->conf->chanreq.oper.chan;
+			radio_idx = cfg80211_get_radio_idx_by_chan(wiphy, chan);
+			/*
+			 * The radio index (radio_idx) is expected to be valid,
+			 * as it's derived from a channel tied to a link. If
+			 * it's invalid (i.e., negative), return true to avoid
+			 * potential issues with radar-sensitive operations.
+			 */
+			if (radio_idx < 0)
+				return true;
+
+			if (ieee80211_is_radio_idx_in_scan_req(wiphy, req,
+							       radio_idx))
+				return true;
+		}
 	}
 
 	return false;
@@ -720,7 +744,7 @@ static int ieee80211_add_chanctx(struct ieee80211_local *local,
 	/* turn idle off *before* setting channel -- some drivers need that */
 	changed = ieee80211_idle_off(local);
 	if (changed)
-		ieee80211_hw_config(local, changed);
+		ieee80211_hw_config(local, -1, changed);
 
 	err = drv_add_chanctx(local, ctx);
 	if (err) {
@@ -886,7 +910,7 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 	conf = rcu_dereference_protected(link->conf->chanctx_conf,
 					 lockdep_is_held(&local->hw.wiphy->mtx));
 
-	if (conf) {
+	if (conf && !local->in_reconfig) {
 		curr_ctx = container_of(conf, struct ieee80211_chanctx, conf);
 
 		drv_unassign_vif_chanctx(local, sdata, link->conf, curr_ctx);
@@ -906,8 +930,9 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 
 			/* succeeded, so commit it to the data structures */
 			conf = &new_ctx->conf;
-			list_add(&link->assigned_chanctx_list,
-				 &new_ctx->assigned_links);
+			if (!local->in_reconfig)
+				list_add(&link->assigned_chanctx_list,
+					 &new_ctx->assigned_links);
 		}
 	} else {
 		ret = 0;
@@ -1084,7 +1109,7 @@ void ieee80211_link_copy_chanctx_to_vlans(struct ieee80211_link_data *link,
 	__ieee80211_link_copy_chanctx_to_vlans(link, clear);
 }
 
-int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
+void ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_chanctx *ctx = link->reserved_chanctx;
@@ -1092,7 +1117,7 @@ int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	if (WARN_ON(!ctx))
-		return -EINVAL;
+		return;
 
 	list_del(&link->reserved_chanctx_list);
 	link->reserved_chanctx = NULL;
@@ -1100,7 +1125,7 @@ int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
 	if (ieee80211_chanctx_refcount(sdata->local, ctx) == 0) {
 		if (ctx->replace_state == IEEE80211_CHANCTX_REPLACES_OTHER) {
 			if (WARN_ON(!ctx->replace_ctx))
-				return -EINVAL;
+				return;
 
 			WARN_ON(ctx->replace_ctx->replace_state !=
 			        IEEE80211_CHANCTX_WILL_BE_REPLACED);
@@ -1116,8 +1141,6 @@ int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
 			ieee80211_free_chanctx(sdata->local, ctx, false);
 		}
 	}
-
-	return 0;
 }
 
 static struct ieee80211_chanctx *
@@ -1381,6 +1404,7 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 		goto out;
 	}
 
+	link->radar_required = link->reserved_radar_required;
 	list_move(&link->assigned_chanctx_list, &new_ctx->assigned_links);
 	rcu_assign_pointer(link_conf->chanctx_conf, &new_ctx->conf);
 
@@ -1909,7 +1933,8 @@ int _ieee80211_link_use_channel(struct ieee80211_link_data *link,
 	if (ret < 0)
 		goto out;
 
-	__ieee80211_link_release_channel(link, false);
+	if (!local->in_reconfig)
+		__ieee80211_link_release_channel(link, false);
 
 	ctx = ieee80211_find_chanctx(local, link, chanreq, mode);
 	/* Note: context is now reserved */

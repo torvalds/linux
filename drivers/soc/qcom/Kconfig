@@ -296,3 +296,11 @@ config QCOM_PBS
 	  PBS trigger event to the PBS RAM.
 
 endmenu
+
+config QCOM_UBWC_CONFIG
+	tristate
+	help
+	  Most Qualcomm SoCs feature a number of Universal Bandwidth Compression
+	  (UBWC) engines across various IP blocks, which need to be initialized
+	  with coherent configuration data. This module functions as a single
+	  source of truth for that information.

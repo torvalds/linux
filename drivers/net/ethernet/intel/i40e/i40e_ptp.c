@@ -550,7 +550,7 @@ static int i40e_ptp_enable_pin(struct i40e_pf *pf, unsigned int chan,
 	pins.gpio_4 = pf->ptp_pins->gpio_4;
 
 	/* To turn on the pin - find the corresponding one based on
-	 * the given index. To to turn the function off - find
+	 * the given index. To turn the function off - find
 	 * which pin had it assigned. Don't use ptp_find_pin here
 	 * because it tries to lock the pincfg_mux which is locked by
 	 * ptp_pin_store() that calls here.
@@ -912,23 +912,26 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 }
 
 /**
- * i40e_ptp_get_ts_config - ioctl interface to read the HW timestamping
- * @pf: Board private structure
- * @ifr: ioctl data
+ * i40e_ptp_hwtstamp_get - interface to read the HW timestamping
+ * @netdev: Network device structure
+ * @config: Timestamping configuration structure
  *
  * Obtain the current hardware timestamping settigs as requested. To do this,
  * keep a shadow copy of the timestamp settings rather than attempting to
  * deconstruct it from the registers.
  **/
-int i40e_ptp_get_ts_config(struct i40e_pf *pf, struct ifreq *ifr)
+int i40e_ptp_hwtstamp_get(struct net_device *netdev,
+			  struct kernel_hwtstamp_config *config)
 {
-	struct hwtstamp_config *config = &pf->tstamp_config;
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
 
 	if (!test_bit(I40E_FLAG_PTP_ENA, pf->flags))
 		return -EOPNOTSUPP;
 
-	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
-		-EFAULT : 0;
+	*config = pf->tstamp_config;
+
+	return 0;
 }
 
 /**
@@ -1167,7 +1170,7 @@ int i40e_ptp_alloc_pins(struct i40e_pf *pf)
  * more broad if the specific filter is not directly supported.
  **/
 static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
-				       struct hwtstamp_config *config)
+				       struct kernel_hwtstamp_config *config)
 {
 	struct i40e_hw *hw = &pf->hw;
 	u32 tsyntype, regval;
@@ -1290,9 +1293,10 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 }
 
 /**
- * i40e_ptp_set_ts_config - ioctl interface to control the HW timestamping
- * @pf: Board private structure
- * @ifr: ioctl data
+ * i40e_ptp_hwtstamp_set - interface to control the HW timestamping
+ * @netdev: Network device structure
+ * @config: Timestamping configuration structure
+ * @extack: Netlink extended ack structure for error reporting
  *
  * Respond to the user filter requests and make the appropriate hardware
  * changes here. The XL710 cannot support splitting of the Tx/Rx timestamping
@@ -1303,26 +1307,25 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
  * as the user receives the timestamps they care about and the user is notified
  * the filter has been broadened.
  **/
-int i40e_ptp_set_ts_config(struct i40e_pf *pf, struct ifreq *ifr)
+int i40e_ptp_hwtstamp_set(struct net_device *netdev,
+			  struct kernel_hwtstamp_config *config,
+			  struct netlink_ext_ack *extack)
 {
-	struct hwtstamp_config config;
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
 	int err;
 
 	if (!test_bit(I40E_FLAG_PTP_ENA, pf->flags))
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	err = i40e_ptp_set_timestamp_mode(pf, &config);
+	err = i40e_ptp_set_timestamp_mode(pf, config);
 	if (err)
 		return err;
 
 	/* save these settings for future reference */
-	pf->tstamp_config = config;
+	pf->tstamp_config = *config;
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
-		-EFAULT : 0;
+	return 0;
 }
 
 /**

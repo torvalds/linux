@@ -275,9 +275,8 @@ class Type(SpecAttr):
     def _setter_lines(self, ri, member, presence):
         raise Exception(f"Setter not implemented for class type {self.type}")
 
-    def setter(self, ri, space, direction, deref=False, ref=None):
+    def setter(self, ri, space, direction, deref=False, ref=None, var="req"):
         ref = (ref if ref else []) + [self.c_name]
-        var = "req"
         member = f"{var}->{'.'.join(ref)}"
 
         local_vars = []
@@ -332,7 +331,7 @@ class TypeUnused(Type):
     def attr_get(self, ri, var, first):
         pass
 
-    def setter(self, ri, space, direction, deref=False, ref=None):
+    def setter(self, ri, space, direction, deref=False, ref=None, var=None):
         pass
 
 
@@ -355,7 +354,7 @@ class TypePad(Type):
     def attr_policy(self, cw):
         pass
 
-    def setter(self, ri, space, direction, deref=False, ref=None):
+    def setter(self, ri, space, direction, deref=False, ref=None, var=None):
         pass
 
 
@@ -695,13 +694,14 @@ class TypeNest(Type):
                       f"parg.data = &{var}->{self.c_name};"]
         return get_lines, init_lines, None
 
-    def setter(self, ri, space, direction, deref=False, ref=None):
+    def setter(self, ri, space, direction, deref=False, ref=None, var="req"):
         ref = (ref if ref else []) + [self.c_name]
 
         for _, attr in ri.family.pure_nested_structs[self.nested_attrs].member_list():
             if attr.is_recursive():
                 continue
-            attr.setter(ri, self.nested_attrs, direction, deref=deref, ref=ref)
+            attr.setter(ri, self.nested_attrs, direction, deref=deref, ref=ref,
+                        var=var)
 
 
 class TypeMultiAttr(Type):
@@ -1879,7 +1879,9 @@ def rdir(direction):
 def op_prefix(ri, direction, deref=False):
     suffix = f"_{ri.type_name}"
 
-    if not ri.op_mode or ri.op_mode == 'do':
+    if not ri.op_mode:
+        pass
+    elif ri.op_mode == 'do':
         suffix += f"{direction_to_suffix[direction]}"
     else:
         if direction == 'request':
@@ -2470,11 +2472,22 @@ def free_arg_name(direction):
     return 'obj'
 
 
-def print_alloc_wrapper(ri, direction):
+def print_alloc_wrapper(ri, direction, struct=None):
     name = op_prefix(ri, direction)
-    ri.cw.write_func_prot(f'static inline struct {name} *', f"{name}_alloc", [f"void"])
+    struct_name = name
+    if ri.type_name_conflict:
+        struct_name += '_'
+
+    args = ["void"]
+    cnt = "1"
+    if struct and struct.in_multi_val:
+        args = ["unsigned int n"]
+        cnt = "n"
+
+    ri.cw.write_func_prot(f'static inline struct {struct_name} *',
+                          f"{name}_alloc", args)
     ri.cw.block_start()
-    ri.cw.p(f'return calloc(1, sizeof(struct {name}));')
+    ri.cw.p(f'return calloc({cnt}, sizeof(struct {struct_name}));')
     ri.cw.block_end()
 
 
@@ -2543,6 +2556,19 @@ def print_type(ri, direction):
 
 def print_type_full(ri, struct):
     _print_type(ri, "", struct)
+
+    if struct.request and struct.in_multi_val:
+        print_alloc_wrapper(ri, "", struct)
+        ri.cw.nl()
+        free_rsp_nested_prototype(ri)
+        ri.cw.nl()
+
+        # Name conflicts are too hard to deal with with the current code base,
+        # they are very rare so don't bother printing setters in that case.
+        if ri.ku_space == 'user' and not ri.type_name_conflict:
+            for _, attr in struct.member_list():
+                attr.setter(ri, ri.attr_set, "", var="obj")
+        ri.cw.nl()
 
 
 def print_type_helpers(ri, direction, deref=False):
@@ -3515,9 +3541,6 @@ def main():
             for attr_set, struct in parsed.pure_nested_structs.items():
                 ri = RenderInfo(cw, parsed, args.mode, "", "", attr_set)
                 print_type_full(ri, struct)
-                if struct.request and struct.in_multi_val:
-                    free_rsp_nested_prototype(ri)
-                    cw.nl()
 
             for op_name, op in parsed.ops.items():
                 cw.p(f"/* ============== {op.enum_name} ============== */")

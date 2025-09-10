@@ -17,6 +17,7 @@ description:
 properties:
   compatible:
     enum:
+      - arm,armv7m-nvic # deprecated
       - arm,v6m-nvic
       - arm,v7m-nvic
       - arm,v8m-nvic
@@ -30,7 +31,7 @@ properties:
   interrupt-controller: true
 
   '#interrupt-cells':
-    const: 2
+    enum: [1, 2]
     description: |
       Number of cells to encode an interrupt source:
       first = interrupt number, second = priority.

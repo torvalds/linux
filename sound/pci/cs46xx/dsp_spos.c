@@ -203,7 +203,7 @@ add_symbol (struct snd_cs46xx * chip, char * symbol_name, u32 address, int type)
 
 	index = find_free_symbol_index (ins);
 
-	strcpy (ins->symbol_table.symbols[index].symbol_name, symbol_name);
+	strscpy (ins->symbol_table.symbols[index].symbol_name, symbol_name);
 	ins->symbol_table.symbols[index].address = address;
 	ins->symbol_table.symbols[index].symbol_type = type;
 	ins->symbol_table.symbols[index].module = NULL;
@@ -923,7 +923,7 @@ static struct dsp_scb_descriptor * _map_scb (struct snd_cs46xx *chip, char * nam
 	index = find_free_scb_index (ins);
 
 	memset(&ins->scbs[index], 0, sizeof(ins->scbs[index]));
-	strcpy(ins->scbs[index].scb_name, name);
+	strscpy(ins->scbs[index].scb_name, name);
 	ins->scbs[index].address = dest;
 	ins->scbs[index].index = index;
 	ins->scbs[index].ref_count = 1;
@@ -953,9 +953,9 @@ _map_task_tree (struct snd_cs46xx *chip, char * name, u32 dest, u32 size)
 	}
 
 	if (name)
-		strcpy(ins->tasks[ins->ntask].task_name, name);
+		strscpy(ins->tasks[ins->ntask].task_name, name);
 	else
-		strcpy(ins->tasks[ins->ntask].task_name, "(NULL)");
+		strscpy(ins->tasks[ins->ntask].task_name, "(NULL)");
 	ins->tasks[ins->ntask].address = dest;
 	ins->tasks[ins->ntask].size = size;
 

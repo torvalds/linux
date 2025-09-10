@@ -222,6 +222,7 @@ struct dml2_composition_cfg {
 
 	struct {
 		bool enabled;
+		bool upsp_enabled;
 		struct {
 			double h_ratio;
 			double v_ratio;
@@ -426,6 +427,7 @@ struct dml2_stream_parameters {
 
 struct dml2_display_cfg {
 	bool gpuvm_enable;
+	bool ffbm_enable;
 	bool hostvm_enable;
 
 	// Allocate DET proportionally between streams based on pixel rate

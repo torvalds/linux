@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Check Arm SPE trace data recording and synthesized samples (exclusive)
 
 # Uses the 'perf record' to record trace data of Arm SPE events;

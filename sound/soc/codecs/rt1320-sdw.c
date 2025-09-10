@@ -109,6 +109,7 @@ static const struct reg_sequence rt1320_blind_write[] = {
 	{ 0x0000d540, 0x01 },
 	{ 0xd172, 0x2a },
 	{ 0xc5d6, 0x01 },
+	{ 0xd478, 0xff },
 };
 
 static const struct reg_sequence rt1320_vc_blind_write[] = {
@@ -159,7 +160,7 @@ static const struct reg_sequence rt1320_vc_blind_write[] = {
 	{ 0xd471, 0x3a },
 	{ 0xd474, 0x11 },
 	{ 0xd475, 0x32 },
-	{ 0xd478, 0x64 },
+	{ 0xd478, 0xff },
 	{ 0xd479, 0x20 },
 	{ 0xd47a, 0x10 },
 	{ 0xd47c, 0xff },
@@ -763,7 +764,6 @@ static int rt1320_io_init(struct device *dev, struct sdw_slave *slave)
 	rt1320->first_hw_init = true;
 	rt1320->hw_init = true;
 
-	pm_runtime_mark_last_busy(&slave->dev);
 	pm_runtime_put_autosuspend(&slave->dev);
 
 	dev_dbg(&slave->dev, "%s hw_init complete\n", __func__);

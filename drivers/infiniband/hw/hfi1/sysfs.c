@@ -134,7 +134,7 @@ static struct attribute *port_cc_attributes[] = {
 static const struct attribute_group port_cc_group = {
 	.name = "CCMgtA",
 	.attrs = port_cc_attributes,
-	.bin_attrs_new = port_cc_bin_attributes,
+	.bin_attrs = port_cc_bin_attributes,
 };
 
 /* Start sc2vl */

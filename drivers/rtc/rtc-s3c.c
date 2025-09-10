@@ -549,25 +549,25 @@ static void s3c6410_rtc_irq(struct s3c_rtc *info, int mask)
 	writeb(mask, info->base + S3C2410_INTP);
 }
 
-static struct s3c_rtc_data const s3c2410_rtc_data = {
+static const struct s3c_rtc_data s3c2410_rtc_data = {
 	.irq_handler		= s3c24xx_rtc_irq,
 	.enable			= s3c24xx_rtc_enable,
 	.disable		= s3c24xx_rtc_disable,
 };
 
-static struct s3c_rtc_data const s3c2416_rtc_data = {
+static const struct s3c_rtc_data s3c2416_rtc_data = {
 	.irq_handler		= s3c24xx_rtc_irq,
 	.enable			= s3c24xx_rtc_enable,
 	.disable		= s3c24xx_rtc_disable,
 };
 
-static struct s3c_rtc_data const s3c2443_rtc_data = {
+static const struct s3c_rtc_data s3c2443_rtc_data = {
 	.irq_handler		= s3c24xx_rtc_irq,
 	.enable			= s3c24xx_rtc_enable,
 	.disable		= s3c24xx_rtc_disable,
 };
 
-static struct s3c_rtc_data const s3c6410_rtc_data = {
+static const struct s3c_rtc_data s3c6410_rtc_data = {
 	.needs_src_clk		= true,
 	.irq_handler		= s3c6410_rtc_irq,
 	.enable			= s3c24xx_rtc_enable,

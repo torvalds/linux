@@ -2,7 +2,7 @@
 #ifndef _ASM_S390_EXPOLINE_H
 #define _ASM_S390_EXPOLINE_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 #include <asm/facility.h>
@@ -42,6 +42,6 @@ void __s390_indirect_jump_r13(void);
 void __s390_indirect_jump_r14(void);
 void __s390_indirect_jump_r15(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_S390_EXPOLINE_H */

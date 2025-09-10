@@ -790,14 +790,16 @@ static int rzv2m_gpio_direction_input(struct gpio_chip *chip,
 	return 0;
 }
 
-static void rzv2m_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			   int value)
+static int rzv2m_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			  int value)
 {
 	struct rzv2m_pinctrl *pctrl = gpiochip_get_data(chip);
 	u32 port = RZV2M_PIN_ID_TO_PORT(offset);
 	u8 bit = RZV2M_PIN_ID_TO_PIN(offset);
 
 	rzv2m_writel_we(pctrl->base + DO(port), bit, !!value);
+
+	return 0;
 }
 
 static int rzv2m_gpio_direction_output(struct gpio_chip *chip,

@@ -57,14 +57,11 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 ///     }
 /// }
 ///
-/// impl_has_list_links! {
-///     impl HasListLinks<0> for BasicItem { self.links }
-/// }
 /// impl_list_arc_safe! {
 ///     impl ListArcSafe<0> for BasicItem { untracked; }
 /// }
 /// impl_list_item! {
-///     impl ListItem<0> for BasicItem { using ListLinks; }
+///     impl ListItem<0> for BasicItem { using ListLinks { self.links }; }
 /// }
 ///
 /// // Create a new empty list.
@@ -82,9 +79,9 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 /// // [15, 10, 30]
 /// {
 ///     let mut iter = list.iter();
-///     assert_eq!(iter.next().unwrap().value, 15);
-///     assert_eq!(iter.next().unwrap().value, 10);
-///     assert_eq!(iter.next().unwrap().value, 30);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 15);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 10);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 30);
 ///     assert!(iter.next().is_none());
 ///
 ///     // Verify the length of the list.
@@ -93,9 +90,9 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 ///
 /// // Pop the items from the list using `pop_back()` and verify the content.
 /// {
-///     assert_eq!(list.pop_back().unwrap().value, 30);
-///     assert_eq!(list.pop_back().unwrap().value, 10);
-///     assert_eq!(list.pop_back().unwrap().value, 15);
+///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value, 30);
+///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value, 10);
+///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value, 15);
 /// }
 ///
 /// // Insert 3 elements using `push_front()`.
@@ -107,9 +104,9 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 /// // [30, 10, 15]
 /// {
 ///     let mut iter = list.iter();
-///     assert_eq!(iter.next().unwrap().value, 30);
-///     assert_eq!(iter.next().unwrap().value, 10);
-///     assert_eq!(iter.next().unwrap().value, 15);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 30);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 10);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 15);
 ///     assert!(iter.next().is_none());
 ///
 ///     // Verify the length of the list.
@@ -118,8 +115,8 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 ///
 /// // Pop the items from the list using `pop_front()` and verify the content.
 /// {
-///     assert_eq!(list.pop_front().unwrap().value, 30);
-///     assert_eq!(list.pop_front().unwrap().value, 10);
+///     assert_eq!(list.pop_front().ok_or(EINVAL)?.value, 30);
+///     assert_eq!(list.pop_front().ok_or(EINVAL)?.value, 10);
 /// }
 ///
 /// // Push `list2` to `list` through `push_all_back()`.
@@ -135,9 +132,9 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 ///     // list: [15, 25, 35]
 ///     // list2: []
 ///     let mut iter = list.iter();
-///     assert_eq!(iter.next().unwrap().value, 15);
-///     assert_eq!(iter.next().unwrap().value, 25);
-///     assert_eq!(iter.next().unwrap().value, 35);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 15);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 25);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 35);
 ///     assert!(iter.next().is_none());
 ///     assert!(list2.is_empty());
 /// }
@@ -284,7 +281,7 @@ impl<const ID: u64> ListLinks<ID> {
     #[inline]
     unsafe fn fields(me: *mut Self) -> *mut ListLinksFields {
         // SAFETY: The caller promises that the pointer is valid.
-        unsafe { Opaque::raw_get(ptr::addr_of!((*me).inner)) }
+        unsafe { Opaque::cast_into(ptr::addr_of!((*me).inner)) }
     }
 
     /// # Safety
@@ -320,9 +317,6 @@ unsafe impl<T: ?Sized + Send, const ID: u64> Send for ListLinksSelfPtr<T, ID> {}
 unsafe impl<T: ?Sized + Sync, const ID: u64> Sync for ListLinksSelfPtr<T, ID> {}
 
 impl<T: ?Sized, const ID: u64> ListLinksSelfPtr<T, ID> {
-    /// The offset from the [`ListLinks`] to the self pointer field.
-    pub const LIST_LINKS_SELF_PTR_OFFSET: usize = core::mem::offset_of!(Self, self_ptr);
-
     /// Creates a new initializer for this type.
     pub fn new() -> impl PinInit<Self> {
         // INVARIANT: Pin-init initializers can't be used on an existing `Arc`, so this value will
@@ -336,6 +330,16 @@ impl<T: ?Sized, const ID: u64> ListLinksSelfPtr<T, ID> {
             },
             self_ptr: Opaque::uninit(),
         }
+    }
+
+    /// Returns a pointer to the self pointer.
+    ///
+    /// # Safety
+    ///
+    /// The provided pointer must point at a valid struct of type `Self`.
+    pub unsafe fn raw_get_self_ptr(me: *const Self) -> *const Opaque<*const T> {
+        // SAFETY: The caller promises that the pointer is valid.
+        unsafe { ptr::addr_of!((*me).self_ptr) }
     }
 }
 
@@ -711,14 +715,11 @@ impl<'a, T: ?Sized + ListItem<ID>, const ID: u64> Iterator for Iter<'a, T, ID> {
 ///     }
 /// }
 ///
-/// kernel::list::impl_has_list_links! {
-///     impl HasListLinks<0> for ListItem { self.links }
-/// }
 /// kernel::list::impl_list_arc_safe! {
 ///     impl ListArcSafe<0> for ListItem { untracked; }
 /// }
 /// kernel::list::impl_list_item! {
-///     impl ListItem<0> for ListItem { using ListLinks; }
+///     impl ListItem<0> for ListItem { using ListLinks { self.links }; }
 /// }
 ///
 /// // Use a cursor to remove the first element with the given value.
@@ -809,11 +810,11 @@ impl<'a, T: ?Sized + ListItem<ID>, const ID: u64> Iterator for Iter<'a, T, ID> {
 /// merge_sorted(&mut list, list2);
 ///
 /// let mut items = list.into_iter();
-/// assert_eq!(items.next().unwrap().value, 10);
-/// assert_eq!(items.next().unwrap().value, 11);
-/// assert_eq!(items.next().unwrap().value, 12);
-/// assert_eq!(items.next().unwrap().value, 13);
-/// assert_eq!(items.next().unwrap().value, 14);
+/// assert_eq!(items.next().ok_or(EINVAL)?.value, 10);
+/// assert_eq!(items.next().ok_or(EINVAL)?.value, 11);
+/// assert_eq!(items.next().ok_or(EINVAL)?.value, 12);
+/// assert_eq!(items.next().ok_or(EINVAL)?.value, 13);
+/// assert_eq!(items.next().ok_or(EINVAL)?.value, 14);
 /// assert!(items.next().is_none());
 /// # Result::<(), Error>::Ok(())
 /// ```

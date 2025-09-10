@@ -269,6 +269,7 @@ static int acp63_configure_sdw_ringbuffer(void __iomem *acp_base, u32 stream_id,
 		break;
 	case ACP70_PCI_REV:
 	case ACP71_PCI_REV:
+	case ACP72_PCI_REV:
 		switch (manager_instance) {
 		case ACP_SDW0:
 			reg_dma_size = acp70_sdw0_dma_reg[stream_id].reg_dma_size;
@@ -382,6 +383,7 @@ static int acp63_sdw_dma_hw_params(struct snd_soc_component *component,
 		break;
 	case ACP70_PCI_REV:
 	case ACP71_PCI_REV:
+	case ACP72_PCI_REV:
 		switch (stream->instance) {
 		case ACP_SDW0:
 			sdw_data->acp70_sdw0_dma_stream[stream_id] = substream;
@@ -451,6 +453,7 @@ static u64 acp63_sdw_get_byte_count(struct acp_sdw_dma_stream *stream, void __io
 		break;
 	case ACP70_PCI_REV:
 	case ACP71_PCI_REV:
+	case ACP72_PCI_REV:
 		switch (stream->instance) {
 		case ACP_SDW0:
 			pos_low_reg = acp70_sdw0_dma_reg[stream->stream_id].pos_low_reg;
@@ -529,6 +532,7 @@ static int acp63_sdw_dma_close(struct snd_soc_component *component,
 		break;
 	case ACP70_PCI_REV:
 	case ACP71_PCI_REV:
+	case ACP72_PCI_REV:
 		switch (stream->instance) {
 		case ACP_SDW0:
 			sdw_data->acp70_sdw0_dma_stream[stream->stream_id] = NULL;
@@ -574,6 +578,7 @@ static int acp63_sdw_dma_enable(struct snd_pcm_substream *substream,
 		break;
 	case ACP70_PCI_REV:
 	case ACP71_PCI_REV:
+	case ACP72_PCI_REV:
 		switch (stream->instance) {
 		case ACP_SDW0:
 			sdw_dma_en_reg = acp70_sdw0_dma_enable_reg[stream_id];

@@ -23,7 +23,7 @@
 
 #include "max98390.h"
 
-static struct reg_default max98390_reg_defaults[] = {
+static const struct reg_default max98390_reg_defaults[] = {
 	{MAX98390_INT_EN1, 0xf0},
 	{MAX98390_INT_EN2, 0x00},
 	{MAX98390_INT_EN3, 0x00},

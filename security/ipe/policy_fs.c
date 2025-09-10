@@ -438,7 +438,7 @@ static const struct ipefs_file policy_subdir[] = {
  */
 void ipe_del_policyfs_node(struct ipe_policy *p)
 {
-	securityfs_recursive_remove(p->policyfs);
+	securityfs_remove(p->policyfs);
 	p->policyfs = NULL;
 }
 
@@ -485,6 +485,6 @@ int ipe_new_policyfs_node(struct ipe_policy *p)
 
 	return 0;
 err:
-	securityfs_recursive_remove(policyfs);
+	securityfs_remove(policyfs);
 	return rc;
 }

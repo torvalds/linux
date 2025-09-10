@@ -259,7 +259,7 @@ static const struct bin_attribute *const dev_bin_attrs[] = {
 
 static const struct attribute_group vudc_attr_group = {
 	.attrs = dev_attrs,
-	.bin_attrs_new = dev_bin_attrs,
+	.bin_attrs = dev_bin_attrs,
 };
 
 const struct attribute_group *vudc_groups[] = {

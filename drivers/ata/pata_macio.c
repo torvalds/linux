@@ -758,7 +758,7 @@ static void pata_macio_irq_clear(struct ata_port *ap)
 
 static void pata_macio_reset_hw(struct pata_macio_priv *priv, int resume)
 {
-	dev_dbg(priv->dev, "Enabling & resetting... \n");
+	dev_dbg(priv->dev, "Enabling & resetting...\n");
 
 	if (priv->mediabay)
 		return;
@@ -1298,7 +1298,7 @@ static int pata_macio_pci_attach(struct pci_dev *pdev,
 	priv->dev = &pdev->dev;
 
 	/* Get MMIO regions */
-	if (pci_request_regions(pdev, "pata-macio")) {
+	if (pcim_request_all_regions(pdev, "pata-macio")) {
 		dev_err(&pdev->dev,
 			"Cannot obtain PCI resources\n");
 		return -EBUSY;

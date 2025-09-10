@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright 2025 Actia Nordic AB
+ */
+
+&crypto {
+	compatible = "fsl,imx8qxp-caam", "fsl,sec-v4.0";
+};
+
+&sec_jr2 {
+	compatible = "fsl,imx8qxp-job-ring", "fsl,sec-v4.0-job-ring";
+};
+
+&sec_jr3 {
+	compatible = "fsl,imx8qxp-job-ring", "fsl,sec-v4.0-job-ring";
+};

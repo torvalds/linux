@@ -707,7 +707,7 @@ static const struct bin_attribute *const goodix_berlin_bin_attrs[] = {
 };
 
 static const struct attribute_group goodix_berlin_attr_group = {
-	.bin_attrs_new = goodix_berlin_bin_attrs,
+	.bin_attrs = goodix_berlin_bin_attrs,
 };
 
 const struct attribute_group *goodix_berlin_groups[] = {

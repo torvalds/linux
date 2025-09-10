@@ -5,7 +5,7 @@
 
 #define BABOON_BASE (0x50F1A000)	/* same as IDE controller base */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct baboon {
 	char	pad1[208];	/* generic IDE registers, not used here */
@@ -36,4 +36,4 @@ extern void baboon_register_interrupts(void);
 extern void baboon_irq_enable(int);
 extern void baboon_irq_disable(int);
 
-#endif /* __ASSEMBLY **/
+#endif /* __ASSEMBLER__ */

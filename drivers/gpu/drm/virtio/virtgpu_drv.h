@@ -88,7 +88,6 @@ struct virtio_gpu_object_params {
 
 struct virtio_gpu_object {
 	struct drm_gem_shmem_object base;
-	struct dma_buf *dma_buf;
 	struct sg_table *sgt;
 	uint32_t hw_res_handle;
 	bool dumb;

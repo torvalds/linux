@@ -12,7 +12,7 @@
 #include <linux/vmalloc.h>
 #include <net/devlink.h>
 #include <net/netdev_lock.h>
-#include "bnxt_hsi.h"
+#include <linux/bnxt/hsi.h>
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
 #include "bnxt_vfr.h"

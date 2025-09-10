@@ -1077,71 +1077,6 @@ u16 Hal_EfuseGetCurrentSize(
 	return ret;
 }
 
-static u8 Hal_EfuseWordEnableDataWrite(
-	struct adapter *padapter,
-	u16 efuse_addr,
-	u8 word_en,
-	u8 *data,
-	bool bPseudoTest
-)
-{
-	u16 tmpaddr = 0;
-	u16 start_addr = efuse_addr;
-	u8 badworden = 0x0F;
-	u8 tmpdata[PGPKT_DATA_SIZE];
-
-	memset(tmpdata, 0xFF, PGPKT_DATA_SIZE);
-
-	if (!(word_en & BIT(0))) {
-		tmpaddr = start_addr;
-		efuse_OneByteWrite(padapter, start_addr++, data[0], bPseudoTest);
-		efuse_OneByteWrite(padapter, start_addr++, data[1], bPseudoTest);
-
-		efuse_OneByteRead(padapter, tmpaddr, &tmpdata[0], bPseudoTest);
-		efuse_OneByteRead(padapter, tmpaddr+1, &tmpdata[1], bPseudoTest);
-		if ((data[0] != tmpdata[0]) || (data[1] != tmpdata[1])) {
-			badworden &= (~BIT(0));
-		}
-	}
-	if (!(word_en & BIT(1))) {
-		tmpaddr = start_addr;
-		efuse_OneByteWrite(padapter, start_addr++, data[2], bPseudoTest);
-		efuse_OneByteWrite(padapter, start_addr++, data[3], bPseudoTest);
-
-		efuse_OneByteRead(padapter, tmpaddr, &tmpdata[2], bPseudoTest);
-		efuse_OneByteRead(padapter, tmpaddr+1, &tmpdata[3], bPseudoTest);
-		if ((data[2] != tmpdata[2]) || (data[3] != tmpdata[3])) {
-			badworden &= (~BIT(1));
-		}
-	}
-
-	if (!(word_en & BIT(2))) {
-		tmpaddr = start_addr;
-		efuse_OneByteWrite(padapter, start_addr++, data[4], bPseudoTest);
-		efuse_OneByteWrite(padapter, start_addr++, data[5], bPseudoTest);
-
-		efuse_OneByteRead(padapter, tmpaddr, &tmpdata[4], bPseudoTest);
-		efuse_OneByteRead(padapter, tmpaddr+1, &tmpdata[5], bPseudoTest);
-		if ((data[4] != tmpdata[4]) || (data[5] != tmpdata[5])) {
-			badworden &= (~BIT(2));
-		}
-	}
-
-	if (!(word_en & BIT(3))) {
-		tmpaddr = start_addr;
-		efuse_OneByteWrite(padapter, start_addr++, data[6], bPseudoTest);
-		efuse_OneByteWrite(padapter, start_addr++, data[7], bPseudoTest);
-
-		efuse_OneByteRead(padapter, tmpaddr, &tmpdata[6], bPseudoTest);
-		efuse_OneByteRead(padapter, tmpaddr+1, &tmpdata[7], bPseudoTest);
-		if ((data[6] != tmpdata[6]) || (data[7] != tmpdata[7])) {
-			badworden &= (~BIT(3));
-		}
-	}
-
-	return badworden;
-}
-
 static struct hal_version ReadChipVersion8723B(struct adapter *padapter)
 {
 	u32 value32;
@@ -1261,8 +1196,6 @@ static void StopTxBeacon(struct adapter *padapter)
 	rtw_write8(padapter, REG_TBTT_PROHIBIT+1, 0x64);
 	pHalData->RegReg542 &= ~BIT(0);
 	rtw_write8(padapter, REG_TBTT_PROHIBIT+2, pHalData->RegReg542);
-
-	CheckFwRsvdPageContent(padapter);  /*  2010.06.23. Added by tynli. */
 }
 
 static void _BeaconFunctionEnable(struct adapter *padapter, u8 Enable, u8 Linked)
@@ -1332,17 +1265,7 @@ void rtl8723b_SetBeaconRelatedRegisters(struct adapter *padapter)
 	rtw_write8(padapter, bcn_ctrl_reg, val8);
 }
 
-static void rtl8723b_SetHalODMVar(
-	struct adapter *Adapter,
-	enum hal_odm_variable eVariable,
-	void *pValue1,
-	bool bSet
-)
-{
-	SetHalODMVar(Adapter, eVariable, pValue1, bSet);
-}
-
-static void hal_notch_filter_8723b(struct adapter *adapter, bool enable)
+void hal_notch_filter_8723b(struct adapter *adapter, bool enable)
 {
 	if (enable)
 		rtw_write8(adapter, rOFDM0_RxDSP+1, rtw_read8(adapter, rOFDM0_RxDSP+1) | BIT1);
@@ -1385,23 +1308,6 @@ void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 
 	/* set correct initial date rate for each mac_id */
 	pdmpriv->INIDATA_RATE[mac_id] = psta->init_rate;
-}
-
-
-void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
-{
-	/*  Efuse related function */
-	pHalFunc->Efuse_WordEnableDataWrite = &Hal_EfuseWordEnableDataWrite;
-
-	pHalFunc->SetHalODMVarHandler = &rtl8723b_SetHalODMVar;
-
-	pHalFunc->xmit_thread_handler = &hal_xmit_handler;
-	pHalFunc->hal_notch_filter = &hal_notch_filter_8723b;
-
-	pHalFunc->c2h_handler = c2h_handler_8723b;
-	pHalFunc->c2h_id_filter_ccx = c2h_id_filter_ccx_8723b;
-
-	pHalFunc->fill_h2c_cmd = &FillH2CCmd8723B;
 }
 
 void rtl8723b_InitAntenna_Selection(struct adapter *padapter)
@@ -3185,7 +3091,7 @@ void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 		break;
 	case HW_VAR_CHK_HI_QUEUE_EMPTY:
 		val16 = rtw_read16(padapter, REG_TXPKT_EMPTY);
-		*val = (val16 & BIT(10)) ? true:false;
+		*val = (val16 & BIT(10)) ? true : false;
 		break;
 	default:
 		GetHwReg(padapter, variable, val);

@@ -679,6 +679,7 @@ long int v4l2_compat_ioctl32(struct file *file, unsigned int cmd,
 #endif
 
 unsigned int v4l2_compat_translate_cmd(unsigned int cmd);
+unsigned int v4l2_translate_cmd(unsigned int cmd);
 int v4l2_compat_get_user(void __user *arg, void *parg, unsigned int cmd);
 int v4l2_compat_put_user(void __user *arg, void *parg, unsigned int cmd);
 int v4l2_compat_get_array_args(struct file *file, void *mbuf,

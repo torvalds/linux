@@ -46,7 +46,7 @@ static int pcmcia_set_mode(struct ata_link *link, struct ata_device **r_failed_d
 	struct ata_device *slave = &link->device[1];
 
 	if (!ata_dev_enabled(master) || !ata_dev_enabled(slave))
-		return ata_do_set_mode(link, r_failed_dev);
+		return ata_set_mode(link, r_failed_dev);
 
 	if (memcmp(master->id + ATA_ID_FW_REV,  slave->id + ATA_ID_FW_REV,
 			   ATA_ID_FW_REV_LEN + ATA_ID_PROD_LEN) == 0) {
@@ -58,7 +58,7 @@ static int pcmcia_set_mode(struct ata_link *link, struct ata_device **r_failed_d
 			ata_dev_disable(slave);
 		}
 	}
-	return ata_do_set_mode(link, r_failed_dev);
+	return ata_set_mode(link, r_failed_dev);
 }
 
 /**

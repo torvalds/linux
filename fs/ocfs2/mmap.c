@@ -159,8 +159,9 @@ static const struct vm_operations_struct ocfs2_file_vm_ops = {
 	.page_mkwrite	= ocfs2_page_mkwrite,
 };
 
-int ocfs2_mmap(struct file *file, struct vm_area_struct *vma)
+int ocfs2_mmap_prepare(struct vm_area_desc *desc)
 {
+	struct file *file = desc->file;
 	int ret = 0, lock_level = 0;
 
 	ret = ocfs2_inode_lock_atime(file_inode(file),
@@ -171,7 +172,7 @@ int ocfs2_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 	ocfs2_inode_unlock(file_inode(file), lock_level);
 out:
-	vma->vm_ops = &ocfs2_file_vm_ops;
+	desc->vm_ops = &ocfs2_file_vm_ops;
 	return 0;
 }
 

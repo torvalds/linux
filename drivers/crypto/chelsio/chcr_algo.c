@@ -314,30 +314,30 @@ static int chcr_compute_partial_hash(struct shash_desc *desc,
 	if (digest_size == SHA1_DIGEST_SIZE) {
 		error = crypto_shash_init(desc) ?:
 			crypto_shash_update(desc, iopad, SHA1_BLOCK_SIZE) ?:
-			crypto_shash_export(desc, (void *)&sha1_st);
+			crypto_shash_export_core(desc, &sha1_st);
 		memcpy(result_hash, sha1_st.state, SHA1_DIGEST_SIZE);
 	} else if (digest_size == SHA224_DIGEST_SIZE) {
 		error = crypto_shash_init(desc) ?:
 			crypto_shash_update(desc, iopad, SHA256_BLOCK_SIZE) ?:
-			crypto_shash_export(desc, (void *)&sha256_st);
+			crypto_shash_export_core(desc, &sha256_st);
 		memcpy(result_hash, sha256_st.state, SHA256_DIGEST_SIZE);
 
 	} else if (digest_size == SHA256_DIGEST_SIZE) {
 		error = crypto_shash_init(desc) ?:
 			crypto_shash_update(desc, iopad, SHA256_BLOCK_SIZE) ?:
-			crypto_shash_export(desc, (void *)&sha256_st);
+			crypto_shash_export_core(desc, &sha256_st);
 		memcpy(result_hash, sha256_st.state, SHA256_DIGEST_SIZE);
 
 	} else if (digest_size == SHA384_DIGEST_SIZE) {
 		error = crypto_shash_init(desc) ?:
 			crypto_shash_update(desc, iopad, SHA512_BLOCK_SIZE) ?:
-			crypto_shash_export(desc, (void *)&sha512_st);
+			crypto_shash_export_core(desc, &sha512_st);
 		memcpy(result_hash, sha512_st.state, SHA512_DIGEST_SIZE);
 
 	} else if (digest_size == SHA512_DIGEST_SIZE) {
 		error = crypto_shash_init(desc) ?:
 			crypto_shash_update(desc, iopad, SHA512_BLOCK_SIZE) ?:
-			crypto_shash_export(desc, (void *)&sha512_st);
+			crypto_shash_export_core(desc, &sha512_st);
 		memcpy(result_hash, sha512_st.state, SHA512_DIGEST_SIZE);
 	} else {
 		error = -EINVAL;

@@ -23,22 +23,6 @@ config CRYPTO_MD5_PPC
 
 	  Architecture: powerpc
 
-config CRYPTO_SHA1_PPC
-	tristate "Hash functions: SHA-1"
-	help
-	  SHA-1 secure hash algorithm (FIPS 180)
-
-	  Architecture: powerpc
-
-config CRYPTO_SHA1_PPC_SPE
-	tristate "Hash functions: SHA-1 (SPE)"
-	depends on SPE
-	help
-	  SHA-1 secure hash algorithm (FIPS 180)
-
-	  Architecture: powerpc using
-	  - SPE (Signal Processing Engine) extensions
-
 config CRYPTO_AES_PPC_SPE
 	tristate "Ciphers: AES, modes: ECB/CBC/CTR/XTS (SPE)"
 	depends on SPE

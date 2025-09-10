@@ -29,6 +29,12 @@
 #include "amdgpu.h"
 #include "isp_v4_1_1.h"
 
+#define ISP_PERFORMANCE_STATE_LOW 0
+#define ISP_PERFORMANCE_STATE_HIGH 1
+
+#define ISP_HIGH_PERFORMANC_XCLK 788
+#define ISP_HIGH_PERFORMANC_ICLK 788
+
 static const unsigned int isp_4_1_1_int_srcid[MAX_ISP411_INT_SRC] = {
 	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT9,
 	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT10,
@@ -56,17 +62,137 @@ static struct gpiod_lookup_table isp_sensor_gpio_table = {
 	},
 };
 
+static int isp_poweroff(struct generic_pm_domain *genpd)
+{
+	struct amdgpu_isp *isp = container_of(genpd, struct amdgpu_isp, ispgpd);
+	struct amdgpu_device *adev = isp->adev;
+
+	return amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ISP, true, 0);
+}
+
+static int isp_poweron(struct generic_pm_domain *genpd)
+{
+	struct amdgpu_isp *isp = container_of(genpd, struct amdgpu_isp, ispgpd);
+	struct amdgpu_device *adev = isp->adev;
+
+	return amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ISP, false, 0);
+}
+
+static int isp_set_performance_state(struct generic_pm_domain *genpd,
+				     unsigned int state)
+{
+	struct amdgpu_isp *isp = container_of(genpd, struct amdgpu_isp, ispgpd);
+	struct amdgpu_device *adev = isp->adev;
+	u32 iclk, xclk;
+	int ret;
+
+	switch (state) {
+	case ISP_PERFORMANCE_STATE_HIGH:
+		xclk = ISP_HIGH_PERFORMANC_XCLK;
+		iclk = ISP_HIGH_PERFORMANC_ICLK;
+		break;
+	case ISP_PERFORMANCE_STATE_LOW:
+		/* isp runs at default lowest clock-rate on power-on, do nothing */
+		return 0;
+	default:
+		return -EINVAL;
+	}
+
+	ret = amdgpu_dpm_set_soft_freq_range(adev, PP_ISPXCLK, xclk, 0);
+	if (ret) {
+		drm_err(&adev->ddev, "failed to set xclk %u to %u: %d\n",
+			xclk, state, ret);
+		return ret;
+	}
+
+	ret = amdgpu_dpm_set_soft_freq_range(adev, PP_ISPICLK, iclk, 0);
+	if (ret) {
+		drm_err(&adev->ddev, "failed to set iclk %u to %u: %d\n",
+			iclk, state, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int isp_genpd_add_device(struct device *dev, void *data)
+{
+	struct generic_pm_domain *gpd = data;
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct amdgpu_isp *isp = container_of(gpd, struct amdgpu_isp, ispgpd);
+	struct amdgpu_device *adev = isp->adev;
+	int ret;
+
+	if (!pdev)
+		return -EINVAL;
+
+	if (!dev->type->name) {
+		drm_dbg(&adev->ddev, "Invalid device type to add\n");
+		goto exit;
+	}
+
+	if (strcmp(dev->type->name, "mfd_device")) {
+		drm_dbg(&adev->ddev, "Invalid isp mfd device %s to add\n", pdev->mfd_cell->name);
+		goto exit;
+	}
+
+	ret = pm_genpd_add_device(gpd, dev);
+	if (ret) {
+		drm_err(&adev->ddev, "Failed to add dev %s to genpd %d\n",
+			pdev->mfd_cell->name, ret);
+		return -ENODEV;
+	}
+
+exit:
+	/* Continue to add */
+	return 0;
+}
+
+static int isp_genpd_remove_device(struct device *dev, void *data)
+{
+	struct generic_pm_domain *gpd = data;
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct amdgpu_isp *isp = container_of(gpd, struct amdgpu_isp, ispgpd);
+	struct amdgpu_device *adev = isp->adev;
+	int ret;
+
+	if (!pdev)
+		return -EINVAL;
+
+	if (!dev->type->name) {
+		drm_dbg(&adev->ddev, "Invalid device type to remove\n");
+		goto exit;
+	}
+
+	if (strcmp(dev->type->name, "mfd_device")) {
+		drm_dbg(&adev->ddev, "Invalid isp mfd device %s to remove\n",
+			pdev->mfd_cell->name);
+		goto exit;
+	}
+
+	ret = pm_genpd_remove_device(dev);
+	if (ret) {
+		drm_err(&adev->ddev, "Failed to remove dev from genpd %d\n", ret);
+		return -ENODEV;
+	}
+
+exit:
+	/* Continue to remove */
+	return 0;
+}
+
 static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 {
+	const struct software_node *amd_camera_node, *isp4_node;
 	struct amdgpu_device *adev = isp->adev;
+	struct acpi_device *acpi_dev;
 	int idx, int_idx, num_res, r;
-	u8 isp_dev_hid[ACPI_ID_LEN];
 	u64 isp_base;
 
 	if (adev->rmmio_size == 0 || adev->rmmio_size < 0x5289)
 		return -EINVAL;
 
-	r = amdgpu_acpi_get_isp4_dev_hid(&isp_dev_hid);
+	r = amdgpu_acpi_get_isp4_dev(&acpi_dev);
 	if (r) {
 		drm_dbg(&adev->ddev, "Invalid isp platform detected (%d)", r);
 		/* allow GPU init to progress */
@@ -74,18 +200,28 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	}
 
 	/* add GPIO resources required for OMNI5C10 sensor */
-	if (!strcmp("OMNI5C10", isp_dev_hid)) {
+	if (!strcmp("OMNI5C10", acpi_device_hid(acpi_dev))) {
 		gpiod_add_lookup_table(&isp_gpio_table);
 		gpiod_add_lookup_table(&isp_sensor_gpio_table);
 	}
 
 	isp_base = adev->rmmio_base;
 
+	isp->ispgpd.name = "ISP_v_4_1_1";
+	isp->ispgpd.power_off = isp_poweroff;
+	isp->ispgpd.power_on = isp_poweron;
+	isp->ispgpd.set_performance_state = isp_set_performance_state;
+
+	r = pm_genpd_init(&isp->ispgpd, NULL, true);
+	if (r) {
+		drm_err(&adev->ddev, "failed to initialize genpd (%d)\n", r);
+		return -EINVAL;
+	}
+
 	isp->isp_cell = kcalloc(3, sizeof(struct mfd_cell), GFP_KERNEL);
 	if (!isp->isp_cell) {
 		r = -ENOMEM;
-		drm_err(&adev->ddev,
-			"%s: isp mfd cell alloc failed\n", __func__);
+		drm_err(&adev->ddev, "isp mfd cell alloc failed (%d)\n", r);
 		goto failure;
 	}
 
@@ -95,18 +231,19 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 			       GFP_KERNEL);
 	if (!isp->isp_res) {
 		r = -ENOMEM;
-		drm_err(&adev->ddev,
-			"%s: isp mfd res alloc failed\n", __func__);
+		drm_err(&adev->ddev, "isp mfd resource alloc failed (%d)\n", r);
 		goto failure;
 	}
 
 	isp->isp_pdata = kzalloc(sizeof(*isp->isp_pdata), GFP_KERNEL);
 	if (!isp->isp_pdata) {
 		r = -ENOMEM;
-		drm_err(&adev->ddev,
-			"%s: isp platform data alloc failed\n", __func__);
+		drm_err(&adev->ddev, "isp platform data alloc failed (%d)\n", r);
 		goto failure;
 	}
+
+	amd_camera_node = (const struct software_node *)acpi_dev->driver_data;
+	isp4_node = software_node_find_by_name(amd_camera_node, "isp4");
 
 	/* initialize isp platform data */
 	isp->isp_pdata->adev = (void *)adev;
@@ -136,14 +273,14 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	isp->isp_cell[0].num_resources = num_res;
 	isp->isp_cell[0].resources = &isp->isp_res[0];
 	isp->isp_cell[0].platform_data = isp->isp_pdata;
+	isp->isp_cell[0].swnode = isp4_node;
 	isp->isp_cell[0].pdata_size = sizeof(struct isp_platform_data);
 
 	/* initialize isp i2c platform data */
 	isp->isp_i2c_res = kcalloc(1, sizeof(struct resource), GFP_KERNEL);
 	if (!isp->isp_i2c_res) {
 		r = -ENOMEM;
-		drm_err(&adev->ddev,
-			"%s: isp mfd res alloc failed\n", __func__);
+		drm_err(&adev->ddev, "isp mfd res alloc failed (%d)\n", r);
 		goto failure;
 	}
 
@@ -162,8 +299,7 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	isp->isp_gpio_res = kcalloc(1, sizeof(struct resource), GFP_KERNEL);
 	if (!isp->isp_gpio_res) {
 		r = -ENOMEM;
-		drm_err(&adev->ddev,
-			"%s: isp gpio res alloc failed\n", __func__);
+		drm_err(&adev->ddev, "isp gpio resource alloc failed (%d)\n", r);
 		goto failure;
 	}
 
@@ -179,10 +315,23 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	isp->isp_cell[2].platform_data = isp->isp_pdata;
 	isp->isp_cell[2].pdata_size = sizeof(struct isp_platform_data);
 
-	r = mfd_add_hotplug_devices(isp->parent, isp->isp_cell, 3);
+	/* add only amd_isp_capture and amd_isp_i2c_designware to genpd */
+	r = mfd_add_hotplug_devices(isp->parent, isp->isp_cell, 2);
 	if (r) {
-		drm_err(&adev->ddev,
-			"%s: add mfd hotplug device failed\n", __func__);
+		drm_err(&adev->ddev, "add mfd hotplug device failed (%d)\n", r);
+		goto failure;
+	}
+
+	r = device_for_each_child(isp->parent, &isp->ispgpd,
+				  isp_genpd_add_device);
+	if (r) {
+		drm_err(&adev->ddev, "failed to add devices to genpd (%d)\n", r);
+		goto failure;
+	}
+
+	r = mfd_add_hotplug_devices(isp->parent, &isp->isp_cell[2], 1);
+	if (r) {
+		drm_err(&adev->ddev, "add pinctl hotplug device failed (%d)\n", r);
 		goto failure;
 	}
 
@@ -201,6 +350,9 @@ failure:
 
 static int isp_v4_1_1_hw_fini(struct amdgpu_isp *isp)
 {
+	device_for_each_child(isp->parent, NULL,
+			      isp_genpd_remove_device);
+
 	mfd_remove_devices(isp->parent);
 
 	kfree(isp->isp_res);

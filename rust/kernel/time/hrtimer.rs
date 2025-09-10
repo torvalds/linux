@@ -67,26 +67,10 @@
 //! A `restart` operation on a timer in the **stopped** state is equivalent to a
 //! `start` operation.
 
-use super::ClockId;
+use super::{ClockSource, Delta, Instant};
 use crate::{prelude::*, types::Opaque};
 use core::marker::PhantomData;
 use pin_init::PinInit;
-
-/// A Rust wrapper around a `ktime_t`.
-// NOTE: Ktime is going to be removed when hrtimer is converted to Instant/Delta.
-#[repr(transparent)]
-#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
-pub struct Ktime {
-    inner: bindings::ktime_t,
-}
-
-impl Ktime {
-    /// Returns the number of nanoseconds.
-    #[inline]
-    pub fn to_ns(self) -> i64 {
-        self.inner
-    }
-}
 
 /// A timer backed by a C `struct hrtimer`.
 ///
@@ -98,7 +82,6 @@ impl Ktime {
 pub struct HrTimer<T> {
     #[pin]
     timer: Opaque<bindings::hrtimer>,
-    mode: HrTimerMode,
     _t: PhantomData<T>,
 }
 
@@ -112,9 +95,10 @@ unsafe impl<T> Sync for HrTimer<T> {}
 
 impl<T> HrTimer<T> {
     /// Return an initializer for a new timer instance.
-    pub fn new(mode: HrTimerMode, clock: ClockId) -> impl PinInit<Self>
+    pub fn new() -> impl PinInit<Self>
     where
         T: HrTimerCallback,
+        T: HasHrTimer<T>,
     {
         pin_init!(Self {
             // INVARIANT: We initialize `timer` with `hrtimer_setup` below.
@@ -126,12 +110,11 @@ impl<T> HrTimer<T> {
                     bindings::hrtimer_setup(
                         place,
                         Some(T::Pointer::run),
-                        clock.into_c(),
-                        mode.into_c(),
+                        <<T as HasHrTimer<T>>::TimerMode as HrTimerMode>::Clock::ID,
+                        <T as HasHrTimer<T>>::TimerMode::C_MODE,
                     );
                 }
             }),
-            mode: mode,
             _t: PhantomData,
         })
     }
@@ -148,7 +131,7 @@ impl<T> HrTimer<T> {
         // SAFETY: The field projection to `timer` does not go out of bounds,
         // because the caller of this function promises that `this` points to an
         // allocation of at least the size of `Self`.
-        unsafe { Opaque::raw_get(core::ptr::addr_of!((*this).timer)) }
+        unsafe { Opaque::cast_into(core::ptr::addr_of!((*this).timer)) }
     }
 
     /// Cancel an initialized and potentially running timer.
@@ -193,6 +176,11 @@ impl<T> HrTimer<T> {
 /// exist. A timer can be manipulated through any of the handles, and a handle
 /// may represent a cancelled timer.
 pub trait HrTimerPointer: Sync + Sized {
+    /// The operational mode associated with this timer.
+    ///
+    /// This defines how the expiration value is interpreted.
+    type TimerMode: HrTimerMode;
+
     /// A handle representing a started or restarted timer.
     ///
     /// If the timer is running or if the timer callback is executing when the
@@ -205,7 +193,7 @@ pub trait HrTimerPointer: Sync + Sized {
 
     /// Start the timer with expiry after `expires` time units. If the timer was
     /// already running, it is restarted with the new expiry time.
-    fn start(self, expires: Ktime) -> Self::TimerHandle;
+    fn start(self, expires: <Self::TimerMode as HrTimerMode>::Expires) -> Self::TimerHandle;
 }
 
 /// Unsafe version of [`HrTimerPointer`] for situations where leaking the
@@ -220,6 +208,11 @@ pub trait HrTimerPointer: Sync + Sized {
 /// [`UnsafeHrTimerPointer`] outlives any associated [`HrTimerPointer::TimerHandle`]
 /// instances.
 pub unsafe trait UnsafeHrTimerPointer: Sync + Sized {
+    /// The operational mode associated with this timer.
+    ///
+    /// This defines how the expiration value is interpreted.
+    type TimerMode: HrTimerMode;
+
     /// A handle representing a running timer.
     ///
     /// # Safety
@@ -236,7 +229,7 @@ pub unsafe trait UnsafeHrTimerPointer: Sync + Sized {
     ///
     /// Caller promises keep the timer structure alive until the timer is dead.
     /// Caller can ensure this by not leaking the returned [`Self::TimerHandle`].
-    unsafe fn start(self, expires: Ktime) -> Self::TimerHandle;
+    unsafe fn start(self, expires: <Self::TimerMode as HrTimerMode>::Expires) -> Self::TimerHandle;
 }
 
 /// A trait for stack allocated timers.
@@ -246,9 +239,14 @@ pub unsafe trait UnsafeHrTimerPointer: Sync + Sized {
 /// Implementers must ensure that `start_scoped` does not return until the
 /// timer is dead and the timer handler is not running.
 pub unsafe trait ScopedHrTimerPointer {
+    /// The operational mode associated with this timer.
+    ///
+    /// This defines how the expiration value is interpreted.
+    type TimerMode: HrTimerMode;
+
     /// Start the timer to run after `expires` time units and immediately
     /// after call `f`. When `f` returns, the timer is cancelled.
-    fn start_scoped<T, F>(self, expires: Ktime, f: F) -> T
+    fn start_scoped<T, F>(self, expires: <Self::TimerMode as HrTimerMode>::Expires, f: F) -> T
     where
         F: FnOnce() -> T;
 }
@@ -260,7 +258,13 @@ unsafe impl<T> ScopedHrTimerPointer for T
 where
     T: UnsafeHrTimerPointer,
 {
-    fn start_scoped<U, F>(self, expires: Ktime, f: F) -> U
+    type TimerMode = T::TimerMode;
+
+    fn start_scoped<U, F>(
+        self,
+        expires: <<T as UnsafeHrTimerPointer>::TimerMode as HrTimerMode>::Expires,
+        f: F,
+    ) -> U
     where
         F: FnOnce() -> U,
     {
@@ -335,6 +339,11 @@ pub unsafe trait HrTimerHandle {
 /// their documentation. All the methods of this trait must operate on the same
 /// field.
 pub unsafe trait HasHrTimer<T> {
+    /// The operational mode associated with this timer.
+    ///
+    /// This defines how the expiration value is interpreted.
+    type TimerMode: HrTimerMode;
+
     /// Return a pointer to the [`HrTimer`] within `Self`.
     ///
     /// This function is useful to get access to the value without creating
@@ -382,14 +391,14 @@ pub unsafe trait HasHrTimer<T> {
     /// - `this` must point to a valid `Self`.
     /// - Caller must ensure that the pointee of `this` lives until the timer
     ///   fires or is canceled.
-    unsafe fn start(this: *const Self, expires: Ktime) {
+    unsafe fn start(this: *const Self, expires: <Self::TimerMode as HrTimerMode>::Expires) {
         // SAFETY: By function safety requirement, `this` is a valid `Self`.
         unsafe {
             bindings::hrtimer_start_range_ns(
                 Self::c_timer_ptr(this).cast_mut(),
-                expires.to_ns(),
+                expires.as_nanos(),
                 0,
-                (*Self::raw_get_timer(this)).mode.into_c(),
+                <Self::TimerMode as HrTimerMode>::C_MODE,
             );
         }
     }
@@ -411,78 +420,169 @@ impl HrTimerRestart {
     }
 }
 
-/// Operational mode of [`HrTimer`].
-// NOTE: Some of these have the same encoding on the C side, so we keep
-// `repr(Rust)` and convert elsewhere.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum HrTimerMode {
-    /// Timer expires at the given expiration time.
-    Absolute,
-    /// Timer expires after the given expiration time interpreted as a duration from now.
-    Relative,
-    /// Timer does not move between CPU cores.
-    Pinned,
-    /// Timer handler is executed in soft irq context.
-    Soft,
-    /// Timer handler is executed in hard irq context.
-    Hard,
-    /// Timer expires at the given expiration time.
-    /// Timer does not move between CPU cores.
-    AbsolutePinned,
-    /// Timer expires after the given expiration time interpreted as a duration from now.
-    /// Timer does not move between CPU cores.
-    RelativePinned,
-    /// Timer expires at the given expiration time.
-    /// Timer handler is executed in soft irq context.
-    AbsoluteSoft,
-    /// Timer expires after the given expiration time interpreted as a duration from now.
-    /// Timer handler is executed in soft irq context.
-    RelativeSoft,
-    /// Timer expires at the given expiration time.
-    /// Timer does not move between CPU cores.
-    /// Timer handler is executed in soft irq context.
-    AbsolutePinnedSoft,
-    /// Timer expires after the given expiration time interpreted as a duration from now.
-    /// Timer does not move between CPU cores.
-    /// Timer handler is executed in soft irq context.
-    RelativePinnedSoft,
-    /// Timer expires at the given expiration time.
-    /// Timer handler is executed in hard irq context.
-    AbsoluteHard,
-    /// Timer expires after the given expiration time interpreted as a duration from now.
-    /// Timer handler is executed in hard irq context.
-    RelativeHard,
-    /// Timer expires at the given expiration time.
-    /// Timer does not move between CPU cores.
-    /// Timer handler is executed in hard irq context.
-    AbsolutePinnedHard,
-    /// Timer expires after the given expiration time interpreted as a duration from now.
-    /// Timer does not move between CPU cores.
-    /// Timer handler is executed in hard irq context.
-    RelativePinnedHard,
+/// Time representations that can be used as expiration values in [`HrTimer`].
+pub trait HrTimerExpires {
+    /// Converts the expiration time into a nanosecond representation.
+    ///
+    /// This value corresponds to a raw ktime_t value, suitable for passing to kernel
+    /// timer functions. The interpretation (absolute vs relative) depends on the
+    /// associated [HrTimerMode] in use.
+    fn as_nanos(&self) -> i64;
 }
 
-impl HrTimerMode {
-    fn into_c(self) -> bindings::hrtimer_mode {
-        use bindings::*;
-        match self {
-            HrTimerMode::Absolute => hrtimer_mode_HRTIMER_MODE_ABS,
-            HrTimerMode::Relative => hrtimer_mode_HRTIMER_MODE_REL,
-            HrTimerMode::Pinned => hrtimer_mode_HRTIMER_MODE_PINNED,
-            HrTimerMode::Soft => hrtimer_mode_HRTIMER_MODE_SOFT,
-            HrTimerMode::Hard => hrtimer_mode_HRTIMER_MODE_HARD,
-            HrTimerMode::AbsolutePinned => hrtimer_mode_HRTIMER_MODE_ABS_PINNED,
-            HrTimerMode::RelativePinned => hrtimer_mode_HRTIMER_MODE_REL_PINNED,
-            HrTimerMode::AbsoluteSoft => hrtimer_mode_HRTIMER_MODE_ABS_SOFT,
-            HrTimerMode::RelativeSoft => hrtimer_mode_HRTIMER_MODE_REL_SOFT,
-            HrTimerMode::AbsolutePinnedSoft => hrtimer_mode_HRTIMER_MODE_ABS_PINNED_SOFT,
-            HrTimerMode::RelativePinnedSoft => hrtimer_mode_HRTIMER_MODE_REL_PINNED_SOFT,
-            HrTimerMode::AbsoluteHard => hrtimer_mode_HRTIMER_MODE_ABS_HARD,
-            HrTimerMode::RelativeHard => hrtimer_mode_HRTIMER_MODE_REL_HARD,
-            HrTimerMode::AbsolutePinnedHard => hrtimer_mode_HRTIMER_MODE_ABS_PINNED_HARD,
-            HrTimerMode::RelativePinnedHard => hrtimer_mode_HRTIMER_MODE_REL_PINNED_HARD,
-        }
+impl<C: ClockSource> HrTimerExpires for Instant<C> {
+    #[inline]
+    fn as_nanos(&self) -> i64 {
+        Instant::<C>::as_nanos(self)
     }
+}
+
+impl HrTimerExpires for Delta {
+    #[inline]
+    fn as_nanos(&self) -> i64 {
+        Delta::as_nanos(*self)
+    }
+}
+
+mod private {
+    use crate::time::ClockSource;
+
+    pub trait Sealed {}
+
+    impl<C: ClockSource> Sealed for super::AbsoluteMode<C> {}
+    impl<C: ClockSource> Sealed for super::RelativeMode<C> {}
+    impl<C: ClockSource> Sealed for super::AbsolutePinnedMode<C> {}
+    impl<C: ClockSource> Sealed for super::RelativePinnedMode<C> {}
+    impl<C: ClockSource> Sealed for super::AbsoluteSoftMode<C> {}
+    impl<C: ClockSource> Sealed for super::RelativeSoftMode<C> {}
+    impl<C: ClockSource> Sealed for super::AbsolutePinnedSoftMode<C> {}
+    impl<C: ClockSource> Sealed for super::RelativePinnedSoftMode<C> {}
+    impl<C: ClockSource> Sealed for super::AbsoluteHardMode<C> {}
+    impl<C: ClockSource> Sealed for super::RelativeHardMode<C> {}
+    impl<C: ClockSource> Sealed for super::AbsolutePinnedHardMode<C> {}
+    impl<C: ClockSource> Sealed for super::RelativePinnedHardMode<C> {}
+}
+
+/// Operational mode of [`HrTimer`].
+pub trait HrTimerMode: private::Sealed {
+    /// The C representation of hrtimer mode.
+    const C_MODE: bindings::hrtimer_mode;
+
+    /// Type representing the clock source.
+    type Clock: ClockSource;
+
+    /// Type representing the expiration specification (absolute or relative time).
+    type Expires: HrTimerExpires;
+}
+
+/// Timer that expires at a fixed point in time.
+pub struct AbsoluteMode<C: ClockSource>(PhantomData<C>);
+
+impl<C: ClockSource> HrTimerMode for AbsoluteMode<C> {
+    const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_ABS;
+
+    type Clock = C;
+    type Expires = Instant<C>;
+}
+
+/// Timer that expires after a delay from now.
+pub struct RelativeMode<C: ClockSource>(PhantomData<C>);
+
+impl<C: ClockSource> HrTimerMode for RelativeMode<C> {
+    const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_REL;
+
+    type Clock = C;
+    type Expires = Delta;
+}
+
+/// Timer with absolute expiration time, pinned to its current CPU.
+pub struct AbsolutePinnedMode<C: ClockSource>(PhantomData<C>);
+impl<C: ClockSource> HrTimerMode for AbsolutePinnedMode<C> {
+    const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_ABS_PINNED;
+
+    type Clock = C;
+    type Expires = Instant<C>;
+}
+
+/// Timer with relative expiration time, pinned to its current CPU.
+pub struct RelativePinnedMode<C: ClockSource>(PhantomData<C>);
+impl<C: ClockSource> HrTimerMode for RelativePinnedMode<C> {
+    const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_REL_PINNED;
+
+    type Clock = C;
+    type Expires = Delta;
+}
+
+/// Timer with absolute expiration, handled in soft irq context.
+pub struct AbsoluteSoftMode<C: ClockSource>(PhantomData<C>);
+impl<C: ClockSource> HrTimerMode for AbsoluteSoftMode<C> {
+    const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_ABS_SOFT;
+
+    type Clock = C;
+    type Expires = Instant<C>;
+}
+
+/// Timer with relative expiration, handled in soft irq context.
+pub struct RelativeSoftMode<C: ClockSource>(PhantomData<C>);
+impl<C: ClockSource> HrTimerMode for RelativeSoftMode<C> {
+    const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_REL_SOFT;
+
+    type Clock = C;
+    type Expires = Delta;
+}
+
+/// Timer with absolute expiration, pinned to CPU and handled in soft irq context.
+pub struct AbsolutePinnedSoftMode<C: ClockSource>(PhantomData<C>);
+impl<C: ClockSource> HrTimerMode for AbsolutePinnedSoftMode<C> {
+    const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_ABS_PINNED_SOFT;
+
+    type Clock = C;
+    type Expires = Instant<C>;
+}
+
+/// Timer with absolute expiration, pinned to CPU and handled in soft irq context.
+pub struct RelativePinnedSoftMode<C: ClockSource>(PhantomData<C>);
+impl<C: ClockSource> HrTimerMode for RelativePinnedSoftMode<C> {
+    const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_REL_PINNED_SOFT;
+
+    type Clock = C;
+    type Expires = Delta;
+}
+
+/// Timer with absolute expiration, handled in hard irq context.
+pub struct AbsoluteHardMode<C: ClockSource>(PhantomData<C>);
+impl<C: ClockSource> HrTimerMode for AbsoluteHardMode<C> {
+    const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_ABS_HARD;
+
+    type Clock = C;
+    type Expires = Instant<C>;
+}
+
+/// Timer with relative expiration, handled in hard irq context.
+pub struct RelativeHardMode<C: ClockSource>(PhantomData<C>);
+impl<C: ClockSource> HrTimerMode for RelativeHardMode<C> {
+    const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_REL_HARD;
+
+    type Clock = C;
+    type Expires = Delta;
+}
+
+/// Timer with absolute expiration, pinned to CPU and handled in hard irq context.
+pub struct AbsolutePinnedHardMode<C: ClockSource>(PhantomData<C>);
+impl<C: ClockSource> HrTimerMode for AbsolutePinnedHardMode<C> {
+    const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_ABS_PINNED_HARD;
+
+    type Clock = C;
+    type Expires = Instant<C>;
+}
+
+/// Timer with relative expiration, pinned to CPU and handled in hard irq context.
+pub struct RelativePinnedHardMode<C: ClockSource>(PhantomData<C>);
+impl<C: ClockSource> HrTimerMode for RelativePinnedHardMode<C> {
+    const C_MODE: bindings::hrtimer_mode = bindings::hrtimer_mode_HRTIMER_MODE_REL_PINNED_HARD;
+
+    type Clock = C;
+    type Expires = Delta;
 }
 
 /// Use to implement the [`HasHrTimer<T>`] trait.
@@ -496,12 +596,16 @@ macro_rules! impl_has_hr_timer {
         impl$({$($generics:tt)*})?
             HasHrTimer<$timer_type:ty>
             for $self:ty
-        { self.$field:ident }
+        {
+            mode : $mode:ty,
+            field : self.$field:ident $(,)?
+        }
         $($rest:tt)*
     ) => {
         // SAFETY: This implementation of `raw_get_timer` only compiles if the
         // field has the right type.
         unsafe impl$(<$($generics)*>)? $crate::time::hrtimer::HasHrTimer<$timer_type> for $self {
+            type TimerMode = $mode;
 
             #[inline]
             unsafe fn raw_get_timer(

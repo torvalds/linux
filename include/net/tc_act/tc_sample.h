@@ -17,15 +17,6 @@ struct tcf_sample {
 };
 #define to_sample(a) ((struct tcf_sample *)a)
 
-static inline bool is_tcf_sample(const struct tc_action *a)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	return a->ops && a->ops->id == TCA_ID_SAMPLE;
-#else
-	return false;
-#endif
-}
-
 static inline __u32 tcf_sample_rate(const struct tc_action *a)
 {
 	return to_sample(a)->rate;

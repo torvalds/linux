@@ -70,7 +70,7 @@ static const struct bin_attribute *const ryos_bin_attrs[] = {
 };
 
 static const struct attribute_group ryos_group = {
-	.bin_attrs_new = ryos_bin_attrs,
+	.bin_attrs = ryos_bin_attrs,
 };
 
 static const struct attribute_group *ryos_groups[] = {

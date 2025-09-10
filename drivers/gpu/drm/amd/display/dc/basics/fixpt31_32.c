@@ -284,7 +284,7 @@ struct fixed31_32 dc_fixpt_cos(struct fixed31_32 arg)
 				dc_fixpt_mul(
 					square,
 					res),
-				n * (n - 1)));
+				(long long)n * (n - 1)));
 
 		n -= 2;
 	} while (n != 0);

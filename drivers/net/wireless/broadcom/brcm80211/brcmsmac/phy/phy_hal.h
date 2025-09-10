@@ -186,7 +186,6 @@ void wlc_phy_antsel_init(struct brcms_phy_pub *ppi, bool lut_init);
 void wlc_phy_chanspec_set(struct brcms_phy_pub *ppi, u16 chanspec);
 u16 wlc_phy_chanspec_get(struct brcms_phy_pub *ppi);
 void wlc_phy_chanspec_radio_set(struct brcms_phy_pub *ppi, u16 newch);
-u16 wlc_phy_bw_state_get(struct brcms_phy_pub *ppi);
 void wlc_phy_bw_state_set(struct brcms_phy_pub *ppi, u16 bw);
 
 int wlc_phy_rssi_compute(struct brcms_phy_pub *pih, struct d11rxhdr *rxh);
@@ -194,26 +193,16 @@ void wlc_phy_por_inform(struct brcms_phy_pub *ppi);
 void wlc_phy_noise_sample_intr(struct brcms_phy_pub *ppi);
 bool wlc_phy_bist_check_phy(struct brcms_phy_pub *ppi);
 
-void wlc_phy_set_deaf(struct brcms_phy_pub *ppi, bool user_flag);
-
 void wlc_phy_switch_radio(struct brcms_phy_pub *ppi, bool on);
 void wlc_phy_anacore(struct brcms_phy_pub *ppi, bool on);
-
-
-void wlc_phy_BSSinit(struct brcms_phy_pub *ppi, bool bonlyap, int rssi);
 
 void wlc_phy_chanspec_ch14_widefilter_set(struct brcms_phy_pub *ppi,
 					  bool wide_filter);
 void wlc_phy_chanspec_band_validch(struct brcms_phy_pub *ppi, uint band,
 				   struct brcms_chanvec *channels);
-u16 wlc_phy_chanspec_band_firstch(struct brcms_phy_pub *ppi, uint band);
 
 void wlc_phy_txpower_sromlimit(struct brcms_phy_pub *ppi, uint chan, u8 *_min_,
 			       u8 *_max_, int rate);
-void wlc_phy_txpower_sromlimit_max_get(struct brcms_phy_pub *ppi, uint chan,
-				       u8 *_max_, u8 *_min_);
-void wlc_phy_txpower_boardlimit_band(struct brcms_phy_pub *ppi, uint band,
-				     s32 *, s32 *, u32 *);
 void wlc_phy_txpower_limit_set(struct brcms_phy_pub *ppi, struct txpwr_limits *,
 			       u16 chanspec);
 int wlc_phy_txpower_get(struct brcms_phy_pub *ppi, uint *qdbm, bool *override);
@@ -221,25 +210,16 @@ int wlc_phy_txpower_set(struct brcms_phy_pub *ppi, uint qdbm, bool override);
 void wlc_phy_txpower_target_set(struct brcms_phy_pub *ppi,
 				struct txpwr_limits *);
 bool wlc_phy_txpower_hw_ctrl_get(struct brcms_phy_pub *ppi);
-void wlc_phy_txpower_hw_ctrl_set(struct brcms_phy_pub *ppi, bool hwpwrctrl);
-u8 wlc_phy_txpower_get_target_min(struct brcms_phy_pub *ppi);
-u8 wlc_phy_txpower_get_target_max(struct brcms_phy_pub *ppi);
-bool wlc_phy_txpower_ipa_ison(struct brcms_phy_pub *pih);
 
 void wlc_phy_stf_chain_init(struct brcms_phy_pub *pih, u8 txchain, u8 rxchain);
 void wlc_phy_stf_chain_set(struct brcms_phy_pub *pih, u8 txchain, u8 rxchain);
-void wlc_phy_stf_chain_get(struct brcms_phy_pub *pih, u8 *txchain, u8 *rxchain);
 u8 wlc_phy_stf_chain_active_get(struct brcms_phy_pub *pih);
-s8 wlc_phy_stf_ssmode_get(struct brcms_phy_pub *pih, u16 chanspec);
 void wlc_phy_ldpc_override_set(struct brcms_phy_pub *ppi, bool val);
 
 void wlc_phy_cal_perical(struct brcms_phy_pub *ppi, u8 reason);
-void wlc_phy_noise_sample_request_external(struct brcms_phy_pub *ppi);
-void wlc_phy_edcrs_lock(struct brcms_phy_pub *pih, bool lock);
 void wlc_phy_cal_papd_recal(struct brcms_phy_pub *ppi);
 
 void wlc_phy_ant_rxdiv_set(struct brcms_phy_pub *ppi, u8 val);
-void wlc_phy_clear_tssi(struct brcms_phy_pub *ppi);
 void wlc_phy_hold_upd(struct brcms_phy_pub *ppi, u32 id, bool val);
 void wlc_phy_mute_upd(struct brcms_phy_pub *ppi, bool val, u32 flags);
 
@@ -249,16 +229,9 @@ void wlc_phy_txpower_get_current(struct brcms_phy_pub *ppi,
 				 struct tx_power *power, uint channel);
 
 void wlc_phy_initcal_enable(struct brcms_phy_pub *pih, bool initcal);
-bool wlc_phy_test_ison(struct brcms_phy_pub *ppi);
-void wlc_phy_txpwr_percent_set(struct brcms_phy_pub *ppi, u8 txpwr_percent);
 void wlc_phy_ofdm_rateset_war(struct brcms_phy_pub *pih, bool war);
 void wlc_phy_bf_preempt_enable(struct brcms_phy_pub *pih, bool bf_preempt);
 void wlc_phy_machwcap_set(struct brcms_phy_pub *ppi, u32 machwcap);
-
-void wlc_phy_runbist_config(struct brcms_phy_pub *ppi, bool start_end);
-
-void wlc_phy_freqtrack_start(struct brcms_phy_pub *ppi);
-void wlc_phy_freqtrack_end(struct brcms_phy_pub *ppi);
 
 const u8 *wlc_phy_get_ofdm_rate_lookup(void);
 

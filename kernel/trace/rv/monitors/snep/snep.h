@@ -41,8 +41,18 @@ static const struct automaton_snep automaton_snep = {
 		"schedule_exit"
 	},
 	.function = {
-		{ non_scheduling_context_snep, non_scheduling_context_snep, scheduling_contex_snep,               INVALID_STATE },
-		{               INVALID_STATE,               INVALID_STATE,          INVALID_STATE, non_scheduling_context_snep },
+		{
+			non_scheduling_context_snep,
+			non_scheduling_context_snep,
+			scheduling_contex_snep,
+			INVALID_STATE
+		},
+		{
+			INVALID_STATE,
+			INVALID_STATE,
+			INVALID_STATE,
+			non_scheduling_context_snep
+		},
 	},
 	.initial_state = non_scheduling_context_snep,
 	.final_states = { 1, 0 },

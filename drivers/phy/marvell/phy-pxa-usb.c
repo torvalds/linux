@@ -325,7 +325,6 @@ static int pxa_usb_phy_probe(struct platform_device *pdev)
 		phy_create_lookup(pxa_usb_phy->phy, "usb", "mv-otg");
 	}
 
-	dev_info(dev, "Marvell PXA USB PHY");
 	return 0;
 }
 

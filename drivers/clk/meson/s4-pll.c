@@ -13,9 +13,36 @@
 #include "clk-mpll.h"
 #include "clk-pll.h"
 #include "clk-regmap.h"
-#include "s4-pll.h"
 #include "meson-clkc-utils.h"
 #include <dt-bindings/clock/amlogic,s4-pll-clkc.h>
+
+#define ANACTRL_FIXPLL_CTRL0                       0x040
+#define ANACTRL_FIXPLL_CTRL1                       0x044
+#define ANACTRL_FIXPLL_CTRL3                       0x04c
+#define ANACTRL_GP0PLL_CTRL0                       0x080
+#define ANACTRL_GP0PLL_CTRL1                       0x084
+#define ANACTRL_GP0PLL_CTRL2                       0x088
+#define ANACTRL_GP0PLL_CTRL3                       0x08c
+#define ANACTRL_GP0PLL_CTRL4                       0x090
+#define ANACTRL_GP0PLL_CTRL5                       0x094
+#define ANACTRL_GP0PLL_CTRL6                       0x098
+#define ANACTRL_HIFIPLL_CTRL0                      0x100
+#define ANACTRL_HIFIPLL_CTRL1                      0x104
+#define ANACTRL_HIFIPLL_CTRL2                      0x108
+#define ANACTRL_HIFIPLL_CTRL3                      0x10c
+#define ANACTRL_HIFIPLL_CTRL4                      0x110
+#define ANACTRL_HIFIPLL_CTRL5                      0x114
+#define ANACTRL_HIFIPLL_CTRL6                      0x118
+#define ANACTRL_MPLL_CTRL0                         0x180
+#define ANACTRL_MPLL_CTRL1                         0x184
+#define ANACTRL_MPLL_CTRL2                         0x188
+#define ANACTRL_MPLL_CTRL3                         0x18c
+#define ANACTRL_MPLL_CTRL4                         0x190
+#define ANACTRL_MPLL_CTRL5                         0x194
+#define ANACTRL_MPLL_CTRL6                         0x198
+#define ANACTRL_MPLL_CTRL7                         0x19c
+#define ANACTRL_MPLL_CTRL8                         0x1a0
+#define ANACTRL_HDMIPLL_CTRL0                      0x1c0
 
 /*
  * These clock are a fixed value (fixed_pll is 2GHz) that is initialized by ROMcode.
@@ -767,33 +794,6 @@ static struct clk_hw *s4_pll_hw_clks[] = {
 	[CLKID_MPLL3]			= &s4_mpll3.hw,
 };
 
-static struct clk_regmap *const s4_pll_clk_regmaps[] = {
-	&s4_fixed_pll_dco,
-	&s4_fixed_pll,
-	&s4_fclk_div2,
-	&s4_fclk_div3,
-	&s4_fclk_div4,
-	&s4_fclk_div5,
-	&s4_fclk_div7,
-	&s4_fclk_div2p5,
-	&s4_gp0_pll_dco,
-	&s4_gp0_pll,
-	&s4_hifi_pll_dco,
-	&s4_hifi_pll,
-	&s4_hdmi_pll_dco,
-	&s4_hdmi_pll_od,
-	&s4_hdmi_pll,
-	&s4_mpll_50m,
-	&s4_mpll0_div,
-	&s4_mpll0,
-	&s4_mpll1_div,
-	&s4_mpll1,
-	&s4_mpll2_div,
-	&s4_mpll2,
-	&s4_mpll3_div,
-	&s4_mpll3,
-};
-
 static const struct reg_sequence s4_init_regs[] = {
 	{ .reg = ANACTRL_MPLL_CTRL0,	.def = 0x00000543 },
 };
@@ -831,10 +831,6 @@ static int meson_s4_pll_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "Failed to init registers\n");
-
-	/* Populate regmap for the regmap backed clocks */
-	for (i = 0; i < ARRAY_SIZE(s4_pll_clk_regmaps); i++)
-		s4_pll_clk_regmaps[i]->map = regmap;
 
 	/* Register clocks */
 	for (i = 0; i < s4_pll_clks.num; i++) {

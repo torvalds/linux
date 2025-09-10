@@ -7,10 +7,8 @@
 
 #include "fsverity_private.h"
 
-#include <crypto/hash.h>
-
 /* The hash algorithms supported by fs-verity */
-struct fsverity_hash_alg fsverity_hash_algs[] = {
+const struct fsverity_hash_alg fsverity_hash_algs[] = {
 	[FS_VERITY_HASH_ALG_SHA256] = {
 		.name = "sha256",
 		.digest_size = SHA256_DIGEST_SIZE,
@@ -25,106 +23,42 @@ struct fsverity_hash_alg fsverity_hash_algs[] = {
 	},
 };
 
-static DEFINE_MUTEX(fsverity_hash_alg_init_mutex);
-
 /**
- * fsverity_get_hash_alg() - validate and prepare a hash algorithm
+ * fsverity_get_hash_alg() - get a hash algorithm by number
  * @inode: optional inode for logging purposes
  * @num: the hash algorithm number
  *
- * Get the struct fsverity_hash_alg for the given hash algorithm number, and
- * ensure it has a hash transform ready to go.  The hash transforms are
- * allocated on-demand so that we don't waste resources unnecessarily, and
- * because the crypto modules may be initialized later than fs/verity/.
+ * Get the struct fsverity_hash_alg for the given hash algorithm number.
  *
- * Return: pointer to the hash alg on success, else an ERR_PTR()
+ * Return: pointer to the hash alg if it's known, otherwise NULL.
  */
 const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
 						      unsigned int num)
 {
-	struct fsverity_hash_alg *alg;
-	struct crypto_shash *tfm;
-	int err;
-
 	if (num >= ARRAY_SIZE(fsverity_hash_algs) ||
 	    !fsverity_hash_algs[num].name) {
 		fsverity_warn(inode, "Unknown hash algorithm number: %u", num);
-		return ERR_PTR(-EINVAL);
+		return NULL;
 	}
-	alg = &fsverity_hash_algs[num];
-
-	/* pairs with smp_store_release() below */
-	if (likely(smp_load_acquire(&alg->tfm) != NULL))
-		return alg;
-
-	mutex_lock(&fsverity_hash_alg_init_mutex);
-
-	if (alg->tfm != NULL)
-		goto out_unlock;
-
-	tfm = crypto_alloc_shash(alg->name, 0, 0);
-	if (IS_ERR(tfm)) {
-		if (PTR_ERR(tfm) == -ENOENT) {
-			fsverity_warn(inode,
-				      "Missing crypto API support for hash algorithm \"%s\"",
-				      alg->name);
-			alg = ERR_PTR(-ENOPKG);
-			goto out_unlock;
-		}
-		fsverity_err(inode,
-			     "Error allocating hash algorithm \"%s\": %ld",
-			     alg->name, PTR_ERR(tfm));
-		alg = ERR_CAST(tfm);
-		goto out_unlock;
-	}
-
-	err = -EINVAL;
-	if (WARN_ON_ONCE(alg->digest_size != crypto_shash_digestsize(tfm)))
-		goto err_free_tfm;
-	if (WARN_ON_ONCE(alg->block_size != crypto_shash_blocksize(tfm)))
-		goto err_free_tfm;
-
-	pr_info("%s using implementation \"%s\"\n",
-		alg->name, crypto_shash_driver_name(tfm));
-
-	/* pairs with smp_load_acquire() above */
-	smp_store_release(&alg->tfm, tfm);
-	goto out_unlock;
-
-err_free_tfm:
-	crypto_free_shash(tfm);
-	alg = ERR_PTR(err);
-out_unlock:
-	mutex_unlock(&fsverity_hash_alg_init_mutex);
-	return alg;
+	return &fsverity_hash_algs[num];
 }
 
 /**
  * fsverity_prepare_hash_state() - precompute the initial hash state
  * @alg: hash algorithm
  * @salt: a salt which is to be prepended to all data to be hashed
- * @salt_size: salt size in bytes, possibly 0
+ * @salt_size: salt size in bytes
  *
- * Return: NULL if the salt is empty, otherwise the kmalloc()'ed precomputed
- *	   initial hash state on success or an ERR_PTR() on failure.
+ * Return: the kmalloc()'ed initial hash state, or NULL if out of memory.
  */
-const u8 *fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
-				      const u8 *salt, size_t salt_size)
+union fsverity_hash_ctx *
+fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
+			    const u8 *salt, size_t salt_size)
 {
-	u8 *hashstate = NULL;
-	SHASH_DESC_ON_STACK(desc, alg->tfm);
 	u8 *padded_salt = NULL;
 	size_t padded_salt_size;
-	int err;
-
-	desc->tfm = alg->tfm;
-
-	if (salt_size == 0)
-		return NULL;
-
-	hashstate = kmalloc(crypto_shash_statesize(alg->tfm), GFP_KERNEL);
-	if (!hashstate)
-		return ERR_PTR(-ENOMEM);
+	union fsverity_hash_ctx ctx;
+	void *res = NULL;
 
 	/*
 	 * Zero-pad the salt to the next multiple of the input size of the hash
@@ -135,30 +69,26 @@ const u8 *fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
 	 */
 	padded_salt_size = round_up(salt_size, alg->block_size);
 	padded_salt = kzalloc(padded_salt_size, GFP_KERNEL);
-	if (!padded_salt) {
-		err = -ENOMEM;
-		goto err_free;
-	}
+	if (!padded_salt)
+		return NULL;
 	memcpy(padded_salt, salt, salt_size);
-	err = crypto_shash_init(desc);
-	if (err)
-		goto err_free;
 
-	err = crypto_shash_update(desc, padded_salt, padded_salt_size);
-	if (err)
-		goto err_free;
-
-	err = crypto_shash_export(desc, hashstate);
-	if (err)
-		goto err_free;
-out:
+	switch (alg->algo_id) {
+	case HASH_ALGO_SHA256:
+		sha256_init(&ctx.sha256);
+		sha256_update(&ctx.sha256, padded_salt, padded_salt_size);
+		res = kmemdup(&ctx.sha256, sizeof(ctx.sha256), GFP_KERNEL);
+		break;
+	case HASH_ALGO_SHA512:
+		sha512_init(&ctx.sha512);
+		sha512_update(&ctx.sha512, padded_salt, padded_salt_size);
+		res = kmemdup(&ctx.sha512, sizeof(ctx.sha512), GFP_KERNEL);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+	}
 	kfree(padded_salt);
-	return hashstate;
-
-err_free:
-	kfree(hashstate);
-	hashstate = ERR_PTR(err);
-	goto out;
+	return res;
 }
 
 /**
@@ -170,31 +100,32 @@ err_free:
  *
  * Hash a single data or hash block.  The hash is salted if a salt is specified
  * in the Merkle tree parameters.
- *
- * Return: 0 on success, -errno on failure
  */
-int fsverity_hash_block(const struct merkle_tree_params *params,
-			const struct inode *inode, const void *data, u8 *out)
+void fsverity_hash_block(const struct merkle_tree_params *params,
+			 const struct inode *inode, const void *data, u8 *out)
 {
-	SHASH_DESC_ON_STACK(desc, params->hash_alg->tfm);
-	int err;
+	union fsverity_hash_ctx ctx;
 
-	desc->tfm = params->hash_alg->tfm;
-
-	if (params->hashstate) {
-		err = crypto_shash_import(desc, params->hashstate);
-		if (err) {
-			fsverity_err(inode,
-				     "Error %d importing hash state", err);
-			return err;
-		}
-		err = crypto_shash_finup(desc, data, params->block_size, out);
-	} else {
-		err = crypto_shash_digest(desc, data, params->block_size, out);
+	if (!params->hashstate) {
+		fsverity_hash_buffer(params->hash_alg, data, params->block_size,
+				     out);
+		return;
 	}
-	if (err)
-		fsverity_err(inode, "Error %d computing block hash", err);
-	return err;
+
+	switch (params->hash_alg->algo_id) {
+	case HASH_ALGO_SHA256:
+		ctx.sha256 = params->hashstate->sha256;
+		sha256_update(&ctx.sha256, data, params->block_size);
+		sha256_final(&ctx.sha256, out);
+		return;
+	case HASH_ALGO_SHA512:
+		ctx.sha512 = params->hashstate->sha512;
+		sha512_update(&ctx.sha512, data, params->block_size);
+		sha512_final(&ctx.sha512, out);
+		return;
+	default:
+		BUG();
+	}
 }
 
 /**
@@ -203,13 +134,20 @@ int fsverity_hash_block(const struct merkle_tree_params *params,
  * @data: the data to hash
  * @size: size of data to hash, in bytes
  * @out: output digest, size 'alg->digest_size' bytes
- *
- * Return: 0 on success, -errno on failure
  */
-int fsverity_hash_buffer(const struct fsverity_hash_alg *alg,
-			 const void *data, size_t size, u8 *out)
+void fsverity_hash_buffer(const struct fsverity_hash_alg *alg,
+			  const void *data, size_t size, u8 *out)
 {
-	return crypto_shash_tfm_digest(alg->tfm, data, size, out);
+	switch (alg->algo_id) {
+	case HASH_ALGO_SHA256:
+		sha256(data, size, out);
+		return;
+	case HASH_ALGO_SHA512:
+		sha512(data, size, out);
+		return;
+	default:
+		BUG();
+	}
 }
 
 void __init fsverity_check_hash_algs(void)

@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/prefetch.h>
 #include <linux/io.h>
+#include <linux/export.h>
 #include <asm/mshyperv.h>
 
 #include "hyperv_vmbus.h"

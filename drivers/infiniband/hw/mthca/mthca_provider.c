@@ -825,7 +825,8 @@ static struct ib_mr *mthca_get_dma_mr(struct ib_pd *pd, int acc)
 }
 
 static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
-				       u64 virt, int acc, struct ib_udata *udata)
+				       u64 virt, int acc, struct ib_dmah *dmah,
+				       struct ib_udata *udata)
 {
 	struct mthca_dev *dev = to_mdev(pd->device);
 	struct ib_block_iter biter;
@@ -837,6 +838,9 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	int n, i;
 	int err = 0;
 	int write_mtt_size;
+
+	if (dmah)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (udata->inlen < sizeof ucmd) {
 		if (!context->reg_mr_warned) {

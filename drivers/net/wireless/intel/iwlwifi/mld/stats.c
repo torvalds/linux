@@ -508,8 +508,6 @@ void iwl_mld_handle_stats_oper_notif(struct iwl_mld *mld,
 	iwl_mld_process_per_link_stats(mld, stats->per_link, curr_ts_usec);
 	iwl_mld_process_per_sta_stats(mld, stats->per_sta);
 	iwl_mld_process_per_phy_stats(mld, stats->per_phy);
-
-	iwl_mld_check_omi_bw_reduction(mld);
 }
 
 void iwl_mld_handle_stats_oper_part1_notif(struct iwl_mld *mld,

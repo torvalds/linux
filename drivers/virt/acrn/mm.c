@@ -68,7 +68,7 @@ int acrn_mm_region_add(struct acrn_vm *vm, u64 user_gpa, u64 service_gpa,
 	ret = modify_region(vm, region);
 
 	dev_dbg(acrn_dev.this_device,
-		"%s: user-GPA[%pK] service-GPA[%pK] size[0x%llx].\n",
+		"%s: user-GPA[%p] service-GPA[%p] size[0x%llx].\n",
 		__func__, (void *)user_gpa, (void *)service_gpa, size);
 	kfree(region);
 	return ret;
@@ -99,7 +99,7 @@ int acrn_mm_region_del(struct acrn_vm *vm, u64 user_gpa, u64 size)
 
 	ret = modify_region(vm, region);
 
-	dev_dbg(acrn_dev.this_device, "%s: user-GPA[%pK] size[0x%llx].\n",
+	dev_dbg(acrn_dev.this_device, "%s: user-GPA[%p] size[0x%llx].\n",
 		__func__, (void *)user_gpa, size);
 	kfree(region);
 	return ret;
@@ -224,7 +224,7 @@ int acrn_vm_ram_map(struct acrn_vm *vm, struct acrn_vm_memmap *memmap)
 
 		if (ret) {
 			dev_dbg(acrn_dev.this_device,
-				"Failed to lookup PFN at VMA:%pK.\n", (void *)memmap->vma_base);
+				"Failed to lookup PFN at VMA:%p.\n", (void *)memmap->vma_base);
 			return ret;
 		}
 
@@ -326,7 +326,7 @@ int acrn_vm_ram_map(struct acrn_vm *vm, struct acrn_vm_memmap *memmap)
 	kfree(regions_info);
 
 	dev_dbg(acrn_dev.this_device,
-		"%s: VM[%u] service-GVA[%pK] user-GPA[%pK] size[0x%llx]\n",
+		"%s: VM[%u] service-GVA[%p] user-GPA[%p] size[0x%llx]\n",
 		__func__, vm->vmid,
 		remap_vaddr, (void *)memmap->user_vm_pa, memmap->len);
 	return ret;

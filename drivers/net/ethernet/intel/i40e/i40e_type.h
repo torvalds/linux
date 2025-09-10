@@ -24,7 +24,7 @@
 
 /* forward declaration */
 struct i40e_hw;
-typedef void (*I40E_ADMINQ_CALLBACK)(struct i40e_hw *, struct i40e_aq_desc *);
+typedef void (*I40E_ADMINQ_CALLBACK)(struct i40e_hw *, struct libie_aq_desc *);
 
 /* Data type manipulation macros. */
 
@@ -555,8 +555,8 @@ struct i40e_hw {
 
 	/* state of nvm update process */
 	enum i40e_nvmupd_state nvmupd_state;
-	struct i40e_aq_desc nvm_wb_desc;
-	struct i40e_aq_desc nvm_aq_event_desc;
+	struct libie_aq_desc nvm_wb_desc;
+	struct libie_aq_desc nvm_aq_event_desc;
 	struct i40e_virt_mem nvm_buff;
 	bool nvm_release_on_done;
 	u16 nvm_wait_opcode;
@@ -928,38 +928,6 @@ struct i40e_filter_program_desc {
 #define I40E_TXD_FLTR_QW0_PCTYPE_SHIFT	17
 #define I40E_TXD_FLTR_QW0_PCTYPE_MASK	(0x3FUL << \
 					 I40E_TXD_FLTR_QW0_PCTYPE_SHIFT)
-
-/* Packet Classifier Types for filters */
-enum i40e_filter_pctype {
-	/* Note: Values 0-28 are reserved for future use.
-	 * Value 29, 30, 32 are not supported on XL710 and X710.
-	 */
-	I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP	= 29,
-	I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP	= 30,
-	I40E_FILTER_PCTYPE_NONF_IPV4_UDP		= 31,
-	I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN_NO_ACK	= 32,
-	I40E_FILTER_PCTYPE_NONF_IPV4_TCP		= 33,
-	I40E_FILTER_PCTYPE_NONF_IPV4_SCTP		= 34,
-	I40E_FILTER_PCTYPE_NONF_IPV4_OTHER		= 35,
-	I40E_FILTER_PCTYPE_FRAG_IPV4			= 36,
-	/* Note: Values 37-38 are reserved for future use.
-	 * Value 39, 40, 42 are not supported on XL710 and X710.
-	 */
-	I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP	= 39,
-	I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP	= 40,
-	I40E_FILTER_PCTYPE_NONF_IPV6_UDP		= 41,
-	I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN_NO_ACK	= 42,
-	I40E_FILTER_PCTYPE_NONF_IPV6_TCP		= 43,
-	I40E_FILTER_PCTYPE_NONF_IPV6_SCTP		= 44,
-	I40E_FILTER_PCTYPE_NONF_IPV6_OTHER		= 45,
-	I40E_FILTER_PCTYPE_FRAG_IPV6			= 46,
-	/* Note: Value 47 is reserved for future use */
-	I40E_FILTER_PCTYPE_FCOE_OX			= 48,
-	I40E_FILTER_PCTYPE_FCOE_RX			= 49,
-	I40E_FILTER_PCTYPE_FCOE_OTHER			= 50,
-	/* Note: Values 51-62 are reserved for future use */
-	I40E_FILTER_PCTYPE_L2_PAYLOAD			= 63,
-};
 
 enum i40e_filter_program_desc_dest {
 	I40E_FILTER_PROGRAM_DESC_DEST_DROP_PACKET		= 0x0,

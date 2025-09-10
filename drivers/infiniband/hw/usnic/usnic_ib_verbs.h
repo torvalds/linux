@@ -60,6 +60,7 @@ int usnic_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 int usnic_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,
 				u64 virt_addr, int access_flags,
+				struct ib_dmah *dmah,
 				struct ib_udata *udata);
 int usnic_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
 int usnic_ib_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);

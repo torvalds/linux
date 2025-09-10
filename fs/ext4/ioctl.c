@@ -980,7 +980,7 @@ group_add_out:
 	return err;
 }
 
-int ext4_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+int ext4_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	struct ext4_inode_info *ei = EXT4_I(inode);
@@ -997,7 +997,7 @@ int ext4_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 }
 
 int ext4_fileattr_set(struct mnt_idmap *idmap,
-		      struct dentry *dentry, struct fileattr *fa)
+		      struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	u32 flags = fa->flags;

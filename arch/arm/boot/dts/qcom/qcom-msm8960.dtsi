@@ -18,7 +18,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		interrupts = <GIC_PPI 14 0x304>;
+		interrupts = <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
 
 		cpu@0 {
 			compatible = "qcom,krait";
@@ -96,7 +96,7 @@
 
 	cpu-pmu {
 		compatible = "qcom,krait-pmu";
-		interrupts = <GIC_PPI 10 0x304>;
+		interrupts = <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
 		qcom,no-pc-write;
 	};
 
@@ -149,9 +149,9 @@
 		timer@200a000 {
 			compatible = "qcom,kpss-wdt-msm8960", "qcom,kpss-timer",
 				     "qcom,msm-timer";
-			interrupts = <GIC_PPI 1 0x301>,
-				     <GIC_PPI 2 0x301>,
-				     <GIC_PPI 3 0x301>;
+			interrupts = <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+				     <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+				     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
 			reg = <0x0200a000 0x100>;
 			clock-frequency = <27000000>;
 			clocks = <&sleep_clk>;

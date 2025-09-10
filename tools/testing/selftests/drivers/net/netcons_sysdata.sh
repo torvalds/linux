@@ -53,6 +53,17 @@ function set_release() {
 	echo 1 > "${NETCONS_PATH}/userdata/release_enabled"
 }
 
+# Enable the msgid to be appended to sysdata
+function set_msgid() {
+	if [[ ! -f "${NETCONS_PATH}/userdata/msgid_enabled" ]]
+	then
+		echo "Not able to enable msgid sysdata append. Configfs not available in ${NETCONS_PATH}/userdata/msgid_enabled" >&2
+		exit "${ksft_skip}"
+	fi
+
+	echo 1 > "${NETCONS_PATH}/userdata/msgid_enabled"
+}
+
 # Disable the sysdata cpu_nr feature
 function unset_cpu_nr() {
 	echo 0 > "${NETCONS_PATH}/userdata/cpu_nr_enabled"
@@ -67,6 +78,10 @@ function unset_release() {
 	echo 0 > "${NETCONS_PATH}/userdata/release_enabled"
 }
 
+function unset_msgid() {
+	echo 0 > "${NETCONS_PATH}/userdata/msgid_enabled"
+}
+
 # Test if MSG contains sysdata
 function validate_sysdata() {
 	# OUTPUT_FILE will contain something like:
@@ -74,6 +89,7 @@ function validate_sysdata() {
 	#  userdatakey=userdatavalue
 	#  cpu=X
 	#  taskname=<taskname>
+	#  msgid=<id>
 
 	# Echo is what this test uses to create the message. See runtest()
 	# function
@@ -100,6 +116,12 @@ function validate_sysdata() {
 
 	if ! grep -q "taskname=${SENDER}" "${OUTPUT_FILE}"; then
 		echo "FAIL: 'taskname=echo' not found in ${OUTPUT_FILE}" >&2
+		cat "${OUTPUT_FILE}" >&2
+		exit "${ksft_fail}"
+	fi
+
+	if ! grep -q "msgid=[0-9]\+$" "${OUTPUT_FILE}"; then
+		echo "FAIL: 'msgid=<id>' not found in ${OUTPUT_FILE}" >&2
 		cat "${OUTPUT_FILE}" >&2
 		exit "${ksft_fail}"
 	fi
@@ -155,6 +177,12 @@ function validate_no_sysdata() {
 		exit "${ksft_fail}"
 	fi
 
+	if grep -q "msgid=" "${OUTPUT_FILE}"; then
+		echo "FAIL: 'msgid=  found in ${OUTPUT_FILE}" >&2
+		cat "${OUTPUT_FILE}" >&2
+		exit "${ksft_fail}"
+	fi
+
 	rm "${OUTPUT_FILE}"
 }
 
@@ -206,6 +234,7 @@ set_cpu_nr
 # Enable taskname to be appended to sysdata
 set_taskname
 set_release
+set_msgid
 runtest
 # Make sure the message was received in the dst part
 # and exit
@@ -235,6 +264,7 @@ MSG="Test #3 from CPU${CPU}"
 unset_cpu_nr
 unset_taskname
 unset_release
+unset_msgid
 runtest
 # At this time, cpu= shouldn't be present in the msg
 validate_no_sysdata

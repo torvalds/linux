@@ -94,11 +94,6 @@
 
 /* AD7124 input sources */
 
-enum ad7124_ids {
-	ID_AD7124_4,
-	ID_AD7124_8,
-};
-
 enum ad7124_ref_sel {
 	AD7124_REFIN1,
 	AD7124_REFIN2,
@@ -193,17 +188,16 @@ struct ad7124_state {
 	DECLARE_KFIFO(live_cfgs_fifo, struct ad7124_channel_config *, AD7124_MAX_CONFIGS);
 };
 
-static struct ad7124_chip_info ad7124_chip_info_tbl[] = {
-	[ID_AD7124_4] = {
-		.name = "ad7124-4",
-		.chip_id = AD7124_ID_DEVICE_ID_AD7124_4,
-		.num_inputs = 8,
-	},
-	[ID_AD7124_8] = {
-		.name = "ad7124-8",
-		.chip_id = AD7124_ID_DEVICE_ID_AD7124_8,
-		.num_inputs = 16,
-	},
+static const struct ad7124_chip_info ad7124_4_chip_info = {
+	.name = "ad7124-4",
+	.chip_id = AD7124_ID_DEVICE_ID_AD7124_4,
+	.num_inputs = 8,
+};
+
+static const struct ad7124_chip_info ad7124_8_chip_info = {
+	.name = "ad7124-8",
+	.chip_id = AD7124_ID_DEVICE_ID_AD7124_8,
+	.num_inputs = 16,
 };
 
 static int ad7124_find_closest_match(const int *array,
@@ -1341,17 +1335,15 @@ static int ad7124_probe(struct spi_device *spi)
 }
 
 static const struct of_device_id ad7124_of_match[] = {
-	{ .compatible = "adi,ad7124-4",
-		.data = &ad7124_chip_info_tbl[ID_AD7124_4], },
-	{ .compatible = "adi,ad7124-8",
-		.data = &ad7124_chip_info_tbl[ID_AD7124_8], },
+	{ .compatible = "adi,ad7124-4", .data = &ad7124_4_chip_info },
+	{ .compatible = "adi,ad7124-8", .data = &ad7124_8_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7124_of_match);
 
 static const struct spi_device_id ad71124_ids[] = {
-	{ "ad7124-4", (kernel_ulong_t)&ad7124_chip_info_tbl[ID_AD7124_4] },
-	{ "ad7124-8", (kernel_ulong_t)&ad7124_chip_info_tbl[ID_AD7124_8] },
+	{ "ad7124-4", (kernel_ulong_t)&ad7124_4_chip_info },
+	{ "ad7124-8", (kernel_ulong_t)&ad7124_8_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad71124_ids);

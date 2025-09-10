@@ -35,16 +35,6 @@
 		i2c2 = &i2c9;
 	};
 
-	clocks {
-		slow_xtal {
-			clock-frequency = <32768>;
-		};
-
-		main_xtal {
-			clock-frequency = <24000000>;
-		};
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -556,6 +546,10 @@
 	pinctrl-0 = <&pinctrl_i2s0_default>;
 };
 
+&main_xtal {
+	clock-frequency = <24000000>;
+};
+
 &pdmc0 {
 	#sound-dai-cells = <0>;
 	microchip,mic-pos = <MCHP_PDMC_DS0 MCHP_PDMC_CLK_NEGATIVE>, /* MIC 1 */
@@ -883,6 +877,10 @@
 	input@0 {
 		reg = <0>;
 	};
+};
+
+&slow_xtal {
+	clock-frequency = <32768>;
 };
 
 &spdifrx {

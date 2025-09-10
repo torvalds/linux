@@ -2,6 +2,7 @@
 /* Converted from tools/testing/selftests/bpf/verifier/bounds.c */
 
 #include <linux/bpf.h>
+#include <../../../include/linux/filter.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
@@ -620,8 +621,14 @@ l1_%=:	exit;						\
 
 SEC("socket")
 __description("bounds check mixed 32bit and 64bit arithmetic. test1")
-__success __failure_unpriv __msg_unpriv("R0 invalid mem access 'scalar'")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 invalid mem access 'scalar'` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("exit")
+#endif
 __naked void _32bit_and_64bit_arithmetic_test1(void)
 {
 	asm volatile ("					\
@@ -643,8 +650,14 @@ l1_%=:	exit;						\
 
 SEC("socket")
 __description("bounds check mixed 32bit and 64bit arithmetic. test2")
-__success __failure_unpriv __msg_unpriv("R0 invalid mem access 'scalar'")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 invalid mem access 'scalar'` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("exit")
+#endif
 __naked void _32bit_and_64bit_arithmetic_test2(void)
 {
 	asm volatile ("					\
@@ -691,9 +704,14 @@ l0_%=:	r0 = 0;						\
 
 SEC("socket")
 __description("bounds check for reg = 0, reg xor 1")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("if r1 != 0x0 goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 min value is outside of the allowed memory range` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("r0 = 0")
+#endif
 __naked void reg_0_reg_xor_1(void)
 {
 	asm volatile ("					\
@@ -719,9 +737,14 @@ l1_%=:	r0 = 0;						\
 
 SEC("socket")
 __description("bounds check for reg32 = 0, reg32 xor 1")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("if w1 != 0x0 goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 min value is outside of the allowed memory range` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("r0 = 0")
+#endif
 __naked void reg32_0_reg32_xor_1(void)
 {
 	asm volatile ("					\
@@ -747,9 +770,14 @@ l1_%=:	r0 = 0;						\
 
 SEC("socket")
 __description("bounds check for reg = 2, reg xor 3")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("if r1 > 0x0 goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 min value is outside of the allowed memory range` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("r0 = 0")
+#endif
 __naked void reg_2_reg_xor_3(void)
 {
 	asm volatile ("					\
@@ -829,9 +857,14 @@ l1_%=:	r0 = 0;						\
 
 SEC("socket")
 __description("bounds check for reg > 0, reg xor 3")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("if r1 >= 0x0 goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 min value is outside of the allowed memory range` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("r0 = 0")
+#endif
 __naked void reg_0_reg_xor_3(void)
 {
 	asm volatile ("					\
@@ -858,9 +891,14 @@ l1_%=:	r0 = 0;						\
 
 SEC("socket")
 __description("bounds check for reg32 > 0, reg32 xor 3")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("if w1 >= 0x0 goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 min value is outside of the allowed memory range` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("r0 = 0")
+#endif
 __naked void reg32_0_reg32_xor_3(void)
 {
 	asm volatile ("					\
@@ -1028,7 +1066,7 @@ l0_%=:	r0 = 0;						\
 SEC("xdp")
 __description("bound check with JMP_JSLT for crossing 64-bit signed boundary")
 __success __retval(0)
-__flag(!BPF_F_TEST_REG_INVARIANTS) /* known invariants violation */
+__flag(BPF_F_TEST_REG_INVARIANTS)
 __naked void crossing_64_bit_signed_boundary_2(void)
 {
 	asm volatile ("					\
@@ -1334,4 +1372,300 @@ __naked void mult_sign_ovf(void)
 	  __imm(bpf_skb_store_bytes)
 	: __clobber_all);
 }
+
+SEC("socket")
+__description("64-bit addition, all outcomes overflow")
+__success __log_level(2)
+__msg("5: (0f) r3 += r3 {{.*}} R3_w=scalar(umin=0x4000000000000000,umax=0xfffffffffffffffe)")
+__retval(0)
+__naked void add64_full_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r4 = r0;"
+	"r3 = 0xa000000000000000 ll;"
+	"r3 |= r4;"
+	"r3 += r3;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("64-bit addition, partial overflow, result in unbounded reg")
+__success __log_level(2)
+__msg("4: (0f) r3 += r3 {{.*}} R3_w=scalar()")
+__retval(0)
+__naked void add64_partial_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r4 = r0;"
+	"r3 = 2;"
+	"r3 |= r4;"
+	"r3 += r3;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("32-bit addition overflow, all outcomes overflow")
+__success __log_level(2)
+__msg("4: (0c) w3 += w3 {{.*}} R3_w=scalar(smin=umin=umin32=0x40000000,smax=umax=umax32=0xfffffffe,var_off=(0x0; 0xffffffff))")
+__retval(0)
+__naked void add32_full_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"w4 = w0;"
+	"w3 = 0xa0000000;"
+	"w3 |= w4;"
+	"w3 += w3;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("32-bit addition, partial overflow, result in unbounded u32 bounds")
+__success __log_level(2)
+__msg("4: (0c) w3 += w3 {{.*}} R3_w=scalar(smin=0,smax=umax=0xffffffff,var_off=(0x0; 0xffffffff))")
+__retval(0)
+__naked void add32_partial_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"w4 = w0;"
+	"w3 = 2;"
+	"w3 |= w4;"
+	"w3 += w3;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("64-bit subtraction, all outcomes underflow")
+__success __log_level(2)
+__msg("6: (1f) r3 -= r1 {{.*}} R3_w=scalar(umin=1,umax=0x8000000000000000)")
+__retval(0)
+__naked void sub64_full_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r1 = r0;"
+	"r2 = 0x8000000000000000 ll;"
+	"r1 |= r2;"
+	"r3 = 0;"
+	"r3 -= r1;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("64-bit subtraction, partial overflow, result in unbounded reg")
+__success __log_level(2)
+__msg("3: (1f) r3 -= r2 {{.*}} R3_w=scalar()")
+__retval(0)
+__naked void sub64_partial_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r3 = r0;"
+	"r2 = 1;"
+	"r3 -= r2;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("32-bit subtraction overflow, all outcomes underflow")
+__success __log_level(2)
+__msg("5: (1c) w3 -= w1 {{.*}} R3_w=scalar(smin=umin=umin32=1,smax=umax=umax32=0x80000000,var_off=(0x0; 0xffffffff))")
+__retval(0)
+__naked void sub32_full_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"w1 = w0;"
+	"w2 = 0x80000000;"
+	"w1 |= w2;"
+	"w3 = 0;"
+	"w3 -= w1;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("32-bit subtraction, partial overflow, result in unbounded u32 bounds")
+__success __log_level(2)
+__msg("3: (1c) w3 -= w2 {{.*}} R3_w=scalar(smin=0,smax=umax=0xffffffff,var_off=(0x0; 0xffffffff))")
+__retval(0)
+__naked void sub32_partial_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"w3 = w0;"
+	"w2 = 1;"
+	"w3 -= w2;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("dead branch on jset, does not result in invariants violation error")
+__success __log_level(2)
+__retval(0) __flag(BPF_F_TEST_REG_INVARIANTS)
+__naked void jset_range_analysis(void)
+{
+	asm volatile ("			\
+	call %[bpf_get_netns_cookie];	\
+	if r0 == 0 goto l0_%=;		\
+	if r0 & 0xffffffff goto +0; 	\
+l0_%=:	r0 = 0;				\
+	exit;				\
+"	:
+	: __imm(bpf_get_netns_cookie)
+	: __clobber_all);
+}
+
+/* This test covers the bounds deduction on 64bits when the s64 and u64 ranges
+ * overlap on the negative side. At instruction 7, the ranges look as follows:
+ *
+ * 0          umin=0xfffffcf1                 umax=0xff..ff6e  U64_MAX
+ * |                [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]        |
+ * |----------------------------|------------------------------|
+ * |xxxxxxxxxx]                                   [xxxxxxxxxxxx|
+ * 0    smax=0xeffffeee                       smin=-655        -1
+ *
+ * We should therefore deduce the following new bounds:
+ *
+ * 0                             u64=[0xff..ffd71;0xff..ff6e]  U64_MAX
+ * |                                              [xxx]        |
+ * |----------------------------|------------------------------|
+ * |                                              [xxx]        |
+ * 0                                        s64=[-655;-146]    -1
+ *
+ * Without the deduction cross sign boundary, we end up with an invariant
+ * violation error.
+ */
+SEC("socket")
+__description("bounds deduction cross sign boundary, negative overlap")
+__success __log_level(2) __flag(BPF_F_TEST_REG_INVARIANTS)
+__msg("7: (1f) r0 -= r6 {{.*}} R0=scalar(smin=smin32=-655,smax=smax32=-146,umin=0xfffffffffffffd71,umax=0xffffffffffffff6e,umin32=0xfffffd71,umax32=0xffffff6e,var_off=(0xfffffffffffffc00; 0x3ff))")
+__retval(0)
+__naked void bounds_deduct_negative_overlap(void)
+{
+	asm volatile("			\
+	call %[bpf_get_prandom_u32];	\
+	w3 = w0;			\
+	w6 = (s8)w0;			\
+	r0 = (s8)r0;			\
+	if w6 >= 0xf0000000 goto l0_%=;	\
+	r0 += r6;			\
+	r6 += 400;			\
+	r0 -= r6;			\
+	if r3 < r0 goto l0_%=;		\
+l0_%=:	r0 = 0;				\
+	exit;				\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+/* This test covers the bounds deduction on 64bits when the s64 and u64 ranges
+ * overlap on the positive side. At instruction 3, the ranges look as follows:
+ *
+ * 0 umin=0                      umax=0xffffffffffffff00       U64_MAX
+ * [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]            |
+ * |----------------------------|------------------------------|
+ * |xxxxxxxx]                                         [xxxxxxxx|
+ * 0      smax=127                                smin=-128    -1
+ *
+ * We should therefore deduce the following new bounds:
+ *
+ * 0  u64=[0;127]                                              U64_MAX
+ * [xxxxxxxx]                                                  |
+ * |----------------------------|------------------------------|
+ * [xxxxxxxx]                                                  |
+ * 0  s64=[0;127]                                              -1
+ *
+ * Without the deduction cross sign boundary, the program is rejected due to
+ * the frame pointer write.
+ */
+SEC("socket")
+__description("bounds deduction cross sign boundary, positive overlap")
+__success __log_level(2) __flag(BPF_F_TEST_REG_INVARIANTS)
+__msg("3: (2d) if r0 > r1 {{.*}} R0_w=scalar(smin=smin32=0,smax=umax=smax32=umax32=127,var_off=(0x0; 0x7f))")
+__retval(0)
+__naked void bounds_deduct_positive_overlap(void)
+{
+	asm volatile("			\
+	call %[bpf_get_prandom_u32];	\
+	r0 = (s8)r0;			\
+	r1 = 0xffffffffffffff00;	\
+	if r0 > r1 goto l0_%=;		\
+	if r0 < 128 goto l0_%=;		\
+	r10 = 0;			\
+l0_%=:	r0 = 0;				\
+	exit;				\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+/* This test is the same as above, but the s64 and u64 ranges overlap in two
+ * places. At instruction 3, the ranges look as follows:
+ *
+ * 0 umin=0                           umax=0xffffffffffffff80  U64_MAX
+ * [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]        |
+ * |----------------------------|------------------------------|
+ * |xxxxxxxx]                                         [xxxxxxxx|
+ * 0      smax=127                                smin=-128    -1
+ *
+ * 0xffffffffffffff80 = (u64)-128. We therefore can't deduce anything new and
+ * the program should fail due to the frame pointer write.
+ */
+SEC("socket")
+__description("bounds deduction cross sign boundary, two overlaps")
+__failure __flag(BPF_F_TEST_REG_INVARIANTS)
+__msg("3: (2d) if r0 > r1 {{.*}} R0_w=scalar(smin=smin32=-128,smax=smax32=127,umax=0xffffffffffffff80)")
+__msg("frame pointer is read only")
+__naked void bounds_deduct_two_overlaps(void)
+{
+	asm volatile("			\
+	call %[bpf_get_prandom_u32];	\
+	r0 = (s8)r0;			\
+	r1 = 0xffffffffffffff80;	\
+	if r0 > r1 goto l0_%=;		\
+	if r0 < 128 goto l0_%=;		\
+	r10 = 0;			\
+l0_%=:	r0 = 0;				\
+	exit;				\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

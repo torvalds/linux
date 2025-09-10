@@ -641,6 +641,7 @@
 	uint32_t ISHARP_DELTA_DATA; \
 	uint32_t ISHARP_DELTA_INDEX; \
 	uint32_t ISHARP_NLDELTA_SOFT_CLIP
+
 struct dcn401_dpp_registers {
 	DPP_REG_VARIABLE_LIST_DCN401;
 };
@@ -672,6 +673,16 @@ struct dcn401_dpp {
 	struct pwl_params pwl_data;
 };
 
+enum dcn401_dscl_mode_sel {
+	DCN401_DSCL_MODE_SCALING_444_BYPASS = 0,
+	DCN401_DSCL_MODE_SCALING_444_RGB_ENABLE = 1,
+	DCN401_DSCL_MODE_SCALING_444_YCBCR_ENABLE = 2,
+	DCN401_DSCL_MODE_SCALING_420_YCBCR_ENABLE = 3,
+	DCN401_DSCL_MODE_SCALING_420_LUMA_BYPASS = 4,
+	DCN401_DSCL_MODE_SCALING_420_CHROMA_BYPASS = 5,
+	DCN401_DSCL_MODE_DSCL_BYPASS = 6
+};
+
 bool dpp401_construct(struct dcn401_dpp *dpp401,
 	struct dc_context *ctx,
 	uint32_t inst,
@@ -682,8 +693,6 @@ bool dpp401_construct(struct dcn401_dpp *dpp401,
 void dpp401_dscl_set_scaler_manual_scale(
 	struct dpp *dpp_base,
 	const struct scaler_data *scl_data);
-
-void dpp401_full_bypass(struct dpp *dpp_base);
 
 void dpp401_dpp_setup(
 	struct dpp *dpp_base,

@@ -11,8 +11,9 @@ struct journal_key {
 	u32			journal_offset;
 	enum btree_id		btree_id:8;
 	unsigned		level:8;
-	bool			allocated;
-	bool			overwritten;
+	bool			allocated:1;
+	bool			overwritten:1;
+	bool			rewind:1;
 	struct journal_key_range_overwritten __rcu *
 				overwritten_range;
 	struct bkey_i		*k;

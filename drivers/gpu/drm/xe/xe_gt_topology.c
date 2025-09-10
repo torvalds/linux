@@ -138,7 +138,7 @@ load_l3_bank_mask(struct xe_gt *gt, xe_l3_bank_mask_t l3_bank_mask)
 	 * but there's no tracking number assigned yet so we use a custom
 	 * OOB workaround descriptor.
 	 */
-	if (XE_WA(gt, no_media_l3))
+	if (XE_GT_WA(gt, no_media_l3))
 		return;
 
 	if (GRAPHICS_VER(xe) >= 30) {
@@ -288,11 +288,6 @@ unsigned int
 xe_dss_mask_group_ffs(const xe_dss_mask_t mask, int groupsize, int groupnum)
 {
 	return find_next_bit(mask, XE_MAX_DSS_FUSE_BITS, groupnum * groupsize);
-}
-
-bool xe_dss_mask_empty(const xe_dss_mask_t mask)
-{
-	return bitmap_empty(mask, XE_MAX_DSS_FUSE_BITS);
 }
 
 /**

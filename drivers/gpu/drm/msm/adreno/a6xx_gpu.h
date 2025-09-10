@@ -6,6 +6,10 @@
 
 
 #include "adreno_gpu.h"
+#include "a6xx_enums.xml.h"
+#include "a7xx_enums.xml.h"
+#include "a6xx_perfcntrs.xml.h"
+#include "a7xx_perfcntrs.xml.h"
 #include "a6xx.xml.h"
 
 #include "a6xx_gmu.h"

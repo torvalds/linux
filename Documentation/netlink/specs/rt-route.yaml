@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: rt-route
 protocol: netlink-raw
 uapi-header: linux/rtnetlink.h
@@ -117,7 +117,7 @@ attribute-sets:
         name: multipath
         type: binary
       -
-        name: protoinfo # not used
+        name: protoinfo  # not used
         type: binary
       -
         name: flow
@@ -127,10 +127,10 @@ attribute-sets:
         type: binary
         struct: rta-cacheinfo
       -
-        name: session # not used
+        name: session  # not used
         type: binary
       -
-        name: mp-algo # not used
+        name: mp-algo  # not used
         type: binary
       -
         name: table
@@ -155,7 +155,7 @@ attribute-sets:
         type: u16
       -
         name: encap
-        type: binary # tunnel specific nest
+        type: binary  # tunnel specific nest
       -
         name: expires
         type: u32

@@ -36,7 +36,7 @@
 #define SIGP_STATUS_INCORRECT_STATE	0x00000200UL
 #define SIGP_STATUS_NOT_RUNNING		0x00000400UL
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/asm.h>
 
@@ -68,6 +68,6 @@ static inline int __pcpu_sigp(u16 addr, u8 order, unsigned long parm,
 	return cc;
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __S390_ASM_SIGP_H */

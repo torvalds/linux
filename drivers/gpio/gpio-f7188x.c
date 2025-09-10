@@ -173,7 +173,7 @@ static int f7188x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 			.direction_input  = f7188x_gpio_direction_in,	\
 			.get              = f7188x_gpio_get,		\
 			.direction_output = f7188x_gpio_direction_out,	\
-			.set_rv           = f7188x_gpio_set,		\
+			.set              = f7188x_gpio_set,		\
 			.set_config	  = f7188x_gpio_set_config,	\
 			.base             = -1,				\
 			.ngpio            = _ngpio,			\

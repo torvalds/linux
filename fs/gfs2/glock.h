@@ -92,12 +92,22 @@ enum {
  * LM_OUT_ST_MASK
  * Masks the lower two bits of lock state in the returned value.
  *
+ * LM_OUT_TRY_AGAIN
+ * The trylock request failed.
+ *
+ * LM_OUT_DEADLOCK
+ * The lock request failed because it would deadlock.
+ *
  * LM_OUT_CANCELED
  * The lock request was canceled.
  *
+ * LM_OUT_ERROR
+ * The lock request timed out or failed.
  */
 
 #define LM_OUT_ST_MASK		0x00000003
+#define LM_OUT_TRY_AGAIN	0x00000020
+#define LM_OUT_DEADLOCK		0x00000010
 #define LM_OUT_CANCELED		0x00000008
 #define LM_OUT_ERROR		0x00000004
 

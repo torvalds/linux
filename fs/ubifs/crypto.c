@@ -51,7 +51,7 @@ int ubifs_encrypt(const struct inode *inode, struct ubifs_data_node *dn,
 		memset(p + in_len, 0, pad_len - in_len);
 
 	err = fscrypt_encrypt_block_inplace(inode, virt_to_page(p), pad_len,
-					    offset_in_page(p), block, GFP_NOFS);
+					    offset_in_page(p), block);
 	if (err) {
 		ubifs_err(c, "fscrypt_encrypt_block_inplace() failed: %d", err);
 		return err;

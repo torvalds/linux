@@ -605,8 +605,8 @@ static unsigned long kfence_init_pool(void)
 	pages = virt_to_page(__kfence_pool);
 
 	/*
-	 * Set up object pages: they must have PG_slab set, to avoid freeing
-	 * these as real pages.
+	 * Set up object pages: they must have PGTY_slab set to avoid freeing
+	 * them as real pages.
 	 *
 	 * We also want to avoid inserting kfence_free() in the kfree()
 	 * fast-path in SLUB, and therefore need to ensure kfree() correctly

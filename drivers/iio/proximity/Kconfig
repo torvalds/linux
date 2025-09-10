@@ -32,6 +32,15 @@ config CROS_EC_MKBP_PROXIMITY
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_mkbp_proximity.
 
+config D3323AA
+	tristate "Nicera (Nippon Ceramic Co.) D3-323-AA PIR sensor"
+	depends on GPIOLIB
+	help
+	  Say Y here to build a driver for the Nicera D3-323-AA PIR sensor.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called d3323aa.
+
 config HX9023S
 	tristate "TYHX HX9023S SAR sensor"
 	select IIO_BUFFER

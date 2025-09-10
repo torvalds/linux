@@ -175,9 +175,6 @@ int vringh_complete_multi_user(struct vringh *vrh,
 			       const struct vring_used_elem used[],
 			       unsigned num_used);
 
-/* Pretend we've never seen descriptor (for easy error handling). */
-void vringh_abandon_user(struct vringh *vrh, unsigned int num);
-
 /* Do we need to fire the eventfd to notify the other side? */
 int vringh_need_notify_user(struct vringh *vrh);
 
@@ -235,10 +232,6 @@ int vringh_getdesc_kern(struct vringh *vrh,
 			u16 *head,
 			gfp_t gfp);
 
-ssize_t vringh_iov_pull_kern(struct vringh_kiov *riov, void *dst, size_t len);
-ssize_t vringh_iov_push_kern(struct vringh_kiov *wiov,
-			     const void *src, size_t len);
-void vringh_abandon_kern(struct vringh *vrh, unsigned int num);
 int vringh_complete_kern(struct vringh *vrh, u16 head, u32 len);
 
 bool vringh_notify_enable_kern(struct vringh *vrh);
@@ -319,12 +312,7 @@ ssize_t vringh_iov_push_iotlb(struct vringh *vrh,
 			      struct vringh_kiov *wiov,
 			      const void *src, size_t len);
 
-void vringh_abandon_iotlb(struct vringh *vrh, unsigned int num);
-
 int vringh_complete_iotlb(struct vringh *vrh, u16 head, u32 len);
-
-bool vringh_notify_enable_iotlb(struct vringh *vrh);
-void vringh_notify_disable_iotlb(struct vringh *vrh);
 
 int vringh_need_notify_iotlb(struct vringh *vrh);
 

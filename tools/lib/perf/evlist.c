@@ -36,49 +36,88 @@ void perf_evlist__init(struct perf_evlist *evlist)
 static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
 					  struct perf_evsel *evsel)
 {
-	if (evsel->system_wide) {
-		/* System wide: set the cpu map of the evsel to all online CPUs. */
-		perf_cpu_map__put(evsel->cpus);
-		evsel->cpus = perf_cpu_map__new_online_cpus();
-	} else if (evlist->has_user_cpus && evsel->is_pmu_core) {
-		/*
-		 * User requested CPUs on a core PMU, ensure the requested CPUs
-		 * are valid by intersecting with those of the PMU.
-		 */
-		perf_cpu_map__put(evsel->cpus);
-		evsel->cpus = perf_cpu_map__intersect(evlist->user_requested_cpus, evsel->own_cpus);
-
-		/*
-		 * Empty cpu lists would eventually get opened as "any" so remove
-		 * genuinely empty ones before they're opened in the wrong place.
-		 */
-		if (perf_cpu_map__is_empty(evsel->cpus)) {
-			struct perf_evsel *next = perf_evlist__next(evlist, evsel);
-
-			perf_evlist__remove(evlist, evsel);
-			/* Keep idx contiguous */
-			if (next)
-				list_for_each_entry_from(next, &evlist->entries, node)
-					next->idx--;
+	if (perf_cpu_map__is_empty(evsel->cpus)) {
+		if (perf_cpu_map__is_empty(evsel->pmu_cpus)) {
+			/*
+			 * Assume the unset PMU cpus were for a system-wide
+			 * event, like a software or tracepoint.
+			 */
+			evsel->pmu_cpus = perf_cpu_map__new_online_cpus();
 		}
-	} else if (!evsel->own_cpus || evlist->has_user_cpus ||
-		(!evsel->requires_cpu && perf_cpu_map__has_any_cpu(evlist->user_requested_cpus))) {
-		/*
-		 * The PMU didn't specify a default cpu map, this isn't a core
-		 * event and the user requested CPUs or the evlist user
-		 * requested CPUs have the "any CPU" (aka dummy) CPU value. In
-		 * which case use the user requested CPUs rather than the PMU
-		 * ones.
-		 */
+		if (evlist->has_user_cpus && !evsel->system_wide) {
+			/*
+			 * Use the user CPUs unless the evsel is set to be
+			 * system wide, such as the dummy event.
+			 */
+			evsel->cpus = perf_cpu_map__get(evlist->user_requested_cpus);
+		} else {
+			/*
+			 * System wide and other modes, assume the cpu map
+			 * should be set to all PMU CPUs.
+			 */
+			evsel->cpus = perf_cpu_map__get(evsel->pmu_cpus);
+		}
+	}
+	/*
+	 * Avoid "any CPU"(-1) for uncore and PMUs that require a CPU, even if
+	 * requested.
+	 */
+	if (evsel->requires_cpu && perf_cpu_map__has_any_cpu(evsel->cpus)) {
+		perf_cpu_map__put(evsel->cpus);
+		evsel->cpus = perf_cpu_map__get(evsel->pmu_cpus);
+	}
+
+	/*
+	 * Globally requested CPUs replace user requested unless the evsel is
+	 * set to be system wide.
+	 */
+	if (evlist->has_user_cpus && !evsel->system_wide) {
+		assert(!perf_cpu_map__has_any_cpu(evlist->user_requested_cpus));
+		if (!perf_cpu_map__equal(evsel->cpus, evlist->user_requested_cpus)) {
+			perf_cpu_map__put(evsel->cpus);
+			evsel->cpus = perf_cpu_map__get(evlist->user_requested_cpus);
+		}
+	}
+
+	/* Ensure cpus only references valid PMU CPUs. */
+	if (!perf_cpu_map__has_any_cpu(evsel->cpus) &&
+	    !perf_cpu_map__is_subset(evsel->pmu_cpus, evsel->cpus)) {
+		struct perf_cpu_map *tmp = perf_cpu_map__intersect(evsel->pmu_cpus, evsel->cpus);
+
+		perf_cpu_map__put(evsel->cpus);
+		evsel->cpus = tmp;
+	}
+
+	/*
+	 * Was event requested on all the PMU's CPUs but the user requested is
+	 * any CPU (-1)? If so switch to using any CPU (-1) to reduce the number
+	 * of events.
+	 */
+	if (!evsel->system_wide &&
+	    !evsel->requires_cpu &&
+	    perf_cpu_map__equal(evsel->cpus, evsel->pmu_cpus) &&
+	    perf_cpu_map__has_any_cpu(evlist->user_requested_cpus)) {
 		perf_cpu_map__put(evsel->cpus);
 		evsel->cpus = perf_cpu_map__get(evlist->user_requested_cpus);
-	} else if (evsel->cpus != evsel->own_cpus) {
-		/*
-		 * No user requested cpu map but the PMU cpu map doesn't match
-		 * the evsel's. Reset it back to the PMU cpu map.
-		 */
-		perf_cpu_map__put(evsel->cpus);
-		evsel->cpus = perf_cpu_map__get(evsel->own_cpus);
+	}
+
+	/* Sanity check assert before the evsel is potentially removed. */
+	assert(!evsel->requires_cpu || !perf_cpu_map__has_any_cpu(evsel->cpus));
+
+	/*
+	 * Empty cpu lists would eventually get opened as "any" so remove
+	 * genuinely empty ones before they're opened in the wrong place.
+	 */
+	if (perf_cpu_map__is_empty(evsel->cpus)) {
+		struct perf_evsel *next = perf_evlist__next(evlist, evsel);
+
+		perf_evlist__remove(evlist, evsel);
+		/* Keep idx contiguous */
+		if (next)
+			list_for_each_entry_from(next, &evlist->entries, node)
+				next->idx--;
+
+		return;
 	}
 
 	if (evsel->system_wide) {
@@ -97,6 +136,10 @@ static void perf_evlist__propagate_maps(struct perf_evlist *evlist)
 	struct perf_evsel *evsel, *n;
 
 	evlist->needs_map_propagation = true;
+
+	/* Clear the all_cpus set which will be merged into during propagation. */
+	perf_cpu_map__put(evlist->all_cpus);
+	evlist->all_cpus = NULL;
 
 	list_for_each_entry_safe(evsel, n, &evlist->entries, node)
 		__perf_evlist__propagate_maps(evlist, evsel);

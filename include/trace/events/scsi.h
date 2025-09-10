@@ -200,6 +200,14 @@ TRACE_EVENT(scsi_dispatch_cmd_start,
 		  __print_hex(__get_dynamic_array(cmnd), __entry->cmd_len))
 );
 
+#define scsi_rtn_name(result)	{ result, #result }
+#define show_rtn_name(val)					\
+	__print_symbolic(val,					\
+		scsi_rtn_name(SCSI_MLQUEUE_HOST_BUSY),		\
+		scsi_rtn_name(SCSI_MLQUEUE_DEVICE_BUSY),	\
+		scsi_rtn_name(SCSI_MLQUEUE_EH_RETRY),		\
+		scsi_rtn_name(SCSI_MLQUEUE_TARGET_BUSY))
+
 TRACE_EVENT(scsi_dispatch_cmd_error,
 
 	TP_PROTO(struct scsi_cmnd *cmd, int rtn),
@@ -240,14 +248,15 @@ TRACE_EVENT(scsi_dispatch_cmd_error,
 
 	TP_printk("host_no=%u channel=%u id=%u lun=%u data_sgl=%u prot_sgl=%u" \
 		  " prot_op=%s driver_tag=%d scheduler_tag=%d cmnd=(%s %s raw=%s)" \
-		  " rtn=%d",
+		  " rtn=%s",
 		  __entry->host_no, __entry->channel, __entry->id,
 		  __entry->lun, __entry->data_sglen, __entry->prot_sglen,
 		  show_prot_op_name(__entry->prot_op), __entry->driver_tag,
 		  __entry->scheduler_tag, show_opcode_name(__entry->opcode),
 		  __parse_cdb(__get_dynamic_array(cmnd), __entry->cmd_len),
 		  __print_hex(__get_dynamic_array(cmnd), __entry->cmd_len),
-		  __entry->rtn)
+		  show_rtn_name(__entry->rtn)
+	  )
 );
 
 DECLARE_EVENT_CLASS(scsi_cmd_done_timeout_template,

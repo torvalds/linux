@@ -52,7 +52,8 @@ void sd_dif_config_host(struct scsi_disk *sdkp, struct queue_limits *lim)
 	if (type != T10_PI_TYPE3_PROTECTION)
 		bi->flags |= BLK_INTEGRITY_REF_TAG;
 
-	bi->tuple_size = sizeof(struct t10_pi_tuple);
+	bi->metadata_size = sizeof(struct t10_pi_tuple);
+	bi->pi_tuple_size = bi->metadata_size;
 
 	if (dif && type) {
 		bi->flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
