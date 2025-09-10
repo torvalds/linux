@@ -233,6 +233,8 @@ int SendReceive(const unsigned int xid, struct cifs_ses *ses,
 		struct smb_hdr *in_buf, unsigned int in_len,
 		struct smb_hdr *out_buf, int *pbytes_returned,
 		const int flags);
+bool cifs_check_trans2(struct mid_q_entry *mid, struct TCP_Server_Info *server,
+		       char *buf, int malformed);
 
 
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
