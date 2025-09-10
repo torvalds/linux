@@ -1454,12 +1454,6 @@ struct rx_msdu_end_qcn9274_compact {
  *
  */
 
-struct hal_rx_desc_qcn9274 {
-	struct rx_msdu_end_qcn9274 msdu_end;
-	struct rx_mpdu_start_qcn9274 mpdu_start;
-	u8 msdu_payload[];
-} __packed;
-
 struct hal_rx_desc_qcn9274_compact {
 	struct rx_msdu_end_qcn9274_compact msdu_end;
 	struct rx_mpdu_start_qcn9274_compact mpdu_start;
@@ -1489,7 +1483,6 @@ struct hal_rx_desc_wcn7850 {
 
 struct hal_rx_desc {
 	union {
-		struct hal_rx_desc_qcn9274 qcn9274;
 		struct hal_rx_desc_qcn9274_compact qcn9274_compact;
 		struct hal_rx_desc_wcn7850 wcn7850;
 	} u;
