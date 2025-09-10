@@ -458,6 +458,13 @@ void do_vc_no_ghcb(struct pt_regs *regs, unsigned long exit_code)
 	leaf.fn = fn;
 	leaf.subfn = subfn;
 
+	/*
+	 * If SNP is active, then snp_cpuid() uses the CPUID table to obtain the
+	 * CPUID values (with possible HV interaction during post-processing of
+	 * the values). But if SNP is not active (no CPUID table present), then
+	 * snp_cpuid() returns -EOPNOTSUPP so that an SEV-ES guest can call the
+	 * HV to obtain the CPUID information.
+	 */
 	ret = snp_cpuid(snp_cpuid_hv_msr, NULL, &leaf);
 	if (!ret)
 		goto cpuid_done;
@@ -465,6 +472,10 @@ void do_vc_no_ghcb(struct pt_regs *regs, unsigned long exit_code)
 	if (ret != -EOPNOTSUPP)
 		goto fail;
 
+	/*
+	 * This is reached by a SEV-ES guest and needs to invoke the HV for
+	 * the CPUID data.
+	 */
 	if (__sev_cpuid_hv_msr(&leaf))
 		goto fail;
 
