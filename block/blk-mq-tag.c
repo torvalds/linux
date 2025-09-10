@@ -609,38 +609,6 @@ void blk_mq_free_tags(struct blk_mq_tag_set *set, struct blk_mq_tags *tags)
 	call_srcu(&set->tags_srcu, &tags->rcu_head, blk_mq_free_tags_callback);
 }
 
-int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
-			    struct blk_mq_tags **tagsptr, unsigned int tdepth)
-{
-	struct blk_mq_tags *tags = *tagsptr;
-
-	/*
-	 * If we are allowed to grow beyond the original size, allocate
-	 * a new set of tags before freeing the old one.
-	 */
-	if (tdepth > tags->nr_tags) {
-		struct blk_mq_tag_set *set = hctx->queue->tag_set;
-		struct blk_mq_tags *new;
-
-		new = blk_mq_alloc_map_and_rqs(set, hctx->queue_num, tdepth);
-		if (!new)
-			return -ENOMEM;
-
-		blk_mq_free_map_and_rqs(set, *tagsptr, hctx->queue_num);
-		hctx->queue->elevator->et->tags[hctx->queue_num] = new;
-		*tagsptr = new;
-	} else {
-		/*
-		 * Don't need (or can't) update reserved tags here, they
-		 * remain static and should never need resizing.
-		 */
-		sbitmap_queue_resize(&tags->bitmap_tags,
-				tdepth - tags->nr_reserved_tags);
-	}
-
-	return 0;
-}
-
 void blk_mq_tag_resize_shared_tags(struct blk_mq_tag_set *set, unsigned int size)
 {
 	struct blk_mq_tags *tags = set->shared_tags;
