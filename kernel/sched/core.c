@@ -2331,7 +2331,7 @@ unsigned long wait_task_inactive(struct task_struct *p, unsigned int match_state
 }
 
 static void
-__do_set_cpus_allowed(struct task_struct *p, struct affinity_context *ctx);
+do_set_cpus_allowed(struct task_struct *p, struct affinity_context *ctx);
 
 static void migrate_disable_switch(struct rq *rq, struct task_struct *p)
 {
@@ -2348,7 +2348,7 @@ static void migrate_disable_switch(struct rq *rq, struct task_struct *p)
 
 	scoped_guard (task_rq_lock, p) {
 		update_rq_clock(scope.rq);
-		__do_set_cpus_allowed(p, &ac);
+		do_set_cpus_allowed(p, &ac);
 	}
 }
 
@@ -2662,7 +2662,7 @@ void set_cpus_allowed_common(struct task_struct *p, struct affinity_context *ctx
 }
 
 static void
-__do_set_cpus_allowed(struct task_struct *p, struct affinity_context *ctx)
+do_set_cpus_allowed(struct task_struct *p, struct affinity_context *ctx)
 {
 	struct rq *rq = task_rq(p);
 	bool queued, running;
@@ -2692,7 +2692,7 @@ __do_set_cpus_allowed(struct task_struct *p, struct affinity_context *ctx)
  * Used for kthread_bind() and select_fallback_rq(), in both cases the user
  * affinity (if any) should be destroyed too.
  */
-void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask)
+void set_cpus_allowed_force(struct task_struct *p, const struct cpumask *new_mask)
 {
 	struct affinity_context ac = {
 		.new_mask  = new_mask,
@@ -2706,7 +2706,7 @@ void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask)
 
 	scoped_guard (__task_rq_lock, p) {
 		update_rq_clock(scope.rq);
-		__do_set_cpus_allowed(p, &ac);
+		do_set_cpus_allowed(p, &ac);
 	}
 
 	/*
@@ -2745,7 +2745,7 @@ int dup_user_cpus_ptr(struct task_struct *dst, struct task_struct *src,
 	 * Use pi_lock to protect content of user_cpus_ptr
 	 *
 	 * Though unlikely, user_cpus_ptr can be reset to NULL by a concurrent
-	 * do_set_cpus_allowed().
+	 * set_cpus_allowed_force().
 	 */
 	raw_spin_lock_irqsave(&src->pi_lock, flags);
 	if (src->user_cpus_ptr) {
@@ -3073,7 +3073,7 @@ static int __set_cpus_allowed_ptr_locked(struct task_struct *p,
 		goto out;
 	}
 
-	__do_set_cpus_allowed(p, ctx);
+	do_set_cpus_allowed(p, ctx);
 
 	return affine_move_task(rq, p, rf, dest_cpu, ctx->flags);
 
@@ -3482,7 +3482,7 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 			}
 			fallthrough;
 		case possible:
-			do_set_cpus_allowed(p, task_cpu_fallback_mask(p));
+			set_cpus_allowed_force(p, task_cpu_fallback_mask(p));
 			state = fail;
 			break;
 		case fail:

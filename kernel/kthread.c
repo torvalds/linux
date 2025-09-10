@@ -599,7 +599,7 @@ static void __kthread_bind_mask(struct task_struct *p, const struct cpumask *mas
 	}
 
 	scoped_guard (raw_spinlock_irqsave, &p->pi_lock)
-		do_set_cpus_allowed(p, mask);
+		set_cpus_allowed_force(p, mask);
 
 	/* It's safe because the task is inactive. */
 	p->flags |= PF_NO_SETAFFINITY;
@@ -880,7 +880,7 @@ int kthread_affine_preferred(struct task_struct *p, const struct cpumask *mask)
 	kthread_fetch_affinity(kthread, affinity);
 
 	scoped_guard (raw_spinlock_irqsave, &p->pi_lock)
-		do_set_cpus_allowed(p, affinity);
+		set_cpus_allowed_force(p, affinity);
 
 	mutex_unlock(&kthreads_hotplug_lock);
 out:
