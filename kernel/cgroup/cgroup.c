@@ -3017,29 +3017,13 @@ struct task_struct *cgroup_procs_write_start(char *buf, bool threadgroup,
 	if (kstrtoint(strstrip(buf), 0, &pid) || pid < 0)
 		return ERR_PTR(-EINVAL);
 
-	/*
-	 * If we migrate a single thread, we don't care about threadgroup
-	 * stability. If the thread is `current`, it won't exit(2) under our
-	 * hands or change PID through exec(2). We exclude
-	 * cgroup_update_dfl_csses and other cgroup_{proc,thread}s_write
-	 * callers by cgroup_mutex.
-	 * Therefore, we can skip the global lock.
-	 */
-	lockdep_assert_held(&cgroup_mutex);
-
-	if (pid || threadgroup)
-		*lock_mode = CGRP_ATTACH_LOCK_GLOBAL;
-	else
-		*lock_mode = CGRP_ATTACH_LOCK_NONE;
-
-	cgroup_attach_lock(*lock_mode);
-
+retry_find_task:
 	rcu_read_lock();
 	if (pid) {
 		tsk = find_task_by_vpid(pid);
 		if (!tsk) {
 			tsk = ERR_PTR(-ESRCH);
-			goto out_unlock_threadgroup;
+			goto out_unlock_rcu;
 		}
 	} else {
 		tsk = current;
@@ -3056,15 +3040,43 @@ struct task_struct *cgroup_procs_write_start(char *buf, bool threadgroup,
 	 */
 	if (tsk->no_cgroup_migration || (tsk->flags & PF_NO_SETAFFINITY)) {
 		tsk = ERR_PTR(-EINVAL);
-		goto out_unlock_threadgroup;
+		goto out_unlock_rcu;
 	}
 
 	get_task_struct(tsk);
-	goto out_unlock_rcu;
+	rcu_read_unlock();
 
-out_unlock_threadgroup:
-	cgroup_attach_unlock(*lock_mode);
-	*lock_mode = CGRP_ATTACH_LOCK_NONE;
+	/*
+	 * If we migrate a single thread, we don't care about threadgroup
+	 * stability. If the thread is `current`, it won't exit(2) under our
+	 * hands or change PID through exec(2). We exclude
+	 * cgroup_update_dfl_csses and other cgroup_{proc,thread}s_write callers
+	 * by cgroup_mutex. Therefore, we can skip the global lock.
+	 */
+	lockdep_assert_held(&cgroup_mutex);
+
+	if (pid || threadgroup)
+		*lock_mode = CGRP_ATTACH_LOCK_GLOBAL;
+	else
+		*lock_mode = CGRP_ATTACH_LOCK_NONE;
+
+	cgroup_attach_lock(*lock_mode);
+
+	if (threadgroup) {
+		if (!thread_group_leader(tsk)) {
+			/*
+			 * A race with de_thread from another thread's exec()
+			 * may strip us of our leadership. If this happens,
+			 * throw this task away and try again.
+			 */
+			cgroup_attach_unlock(*lock_mode);
+			put_task_struct(tsk);
+			goto retry_find_task;
+		}
+	}
+
+	return tsk;
+
 out_unlock_rcu:
 	rcu_read_unlock();
 	return tsk;
