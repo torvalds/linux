@@ -432,10 +432,6 @@ const struct hal_rx_ops hal_rx_qcn9274_compact_ops = {
 	.rx_desc_get_mpdu_ppdu_id = ath12k_hal_rx_desc_get_mpdu_ppdu_id_qcn9274,
 	.rx_desc_set_msdu_len = ath12k_hal_rx_desc_set_msdu_len_qcn9274,
 	.rx_desc_get_msdu_payload = ath12k_hal_rx_desc_get_msdu_payload_qcn9274,
-	.rx_desc_get_mpdu_start_offset =
-		ath12k_hal_rx_desc_get_mpdu_start_offset_qcn9274,
-	.rx_desc_get_msdu_end_offset =
-		ath12k_hal_rx_desc_get_msdu_end_offset_qcn9274,
 	.rx_desc_mac_addr2_valid = ath12k_hal_rx_desc_mac_addr2_valid_qcn9274,
 	.rx_desc_mpdu_start_addr2 = ath12k_hal_rx_desc_mpdu_start_addr2_qcn9274,
 	.rx_desc_is_da_mcbc = ath12k_hal_rx_desc_is_da_mcbc_qcn9274,
@@ -455,8 +451,6 @@ EXPORT_SYMBOL(hal_rx_qcn9274_compact_ops);
 const struct hal_ops hal_qcn9274_ops = {
 	.create_srng_config = ath12k_hal_srng_create_config_qcn9274,
 	.tcl_to_wbm_rbm_map = ath12k_hal_qcn9274_tcl_to_wbm_rbm_map,
-	.rxdma_ring_wmask_rx_mpdu_start = ath12k_hal_rx_mpdu_start_wmask_get_qcn9274,
-	.rxdma_ring_wmask_rx_msdu_end = ath12k_hal_rx_msdu_end_wmask_get_qcn9274,
 };
 EXPORT_SYMBOL(hal_qcn9274_ops);
 
@@ -609,8 +603,6 @@ const struct hal_rx_ops hal_rx_wcn7850_ops = {
 	.rx_desc_get_mpdu_ppdu_id = ath12k_hal_rx_desc_get_mpdu_ppdu_id_wcn7850,
 	.rx_desc_set_msdu_len = ath12k_hal_rx_desc_set_msdu_len_wcn7850,
 	.rx_desc_get_msdu_payload = ath12k_hal_rx_desc_get_msdu_payload_wcn7850,
-	.rx_desc_get_mpdu_start_offset = ath12k_hal_rx_desc_get_mpdu_start_offset_wcn7850,
-	.rx_desc_get_msdu_end_offset = ath12k_hal_rx_desc_get_msdu_end_offset_wcn7850,
 	.rx_desc_mac_addr2_valid = ath12k_hal_rx_desc_mac_addr2_valid_wcn7850,
 	.rx_desc_mpdu_start_addr2 = ath12k_hal_rx_desc_mpdu_start_addr2_wcn7850,
 	.rx_desc_is_da_mcbc = ath12k_hal_rx_desc_is_da_mcbc_wcn7850,
@@ -629,8 +621,6 @@ EXPORT_SYMBOL(hal_rx_wcn7850_ops);
 const struct hal_ops hal_wcn7850_ops = {
 	.create_srng_config = ath12k_hal_srng_create_config_wcn7850,
 	.tcl_to_wbm_rbm_map = ath12k_hal_wcn7850_tcl_to_wbm_rbm_map,
-	.rxdma_ring_wmask_rx_mpdu_start = NULL,
-	.rxdma_ring_wmask_rx_msdu_end = NULL,
 };
 EXPORT_SYMBOL(hal_wcn7850_ops);
 

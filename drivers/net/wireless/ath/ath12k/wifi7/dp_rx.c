@@ -7,6 +7,8 @@
 #include "dp_rx.h"
 #include "../dp_tx.h"
 #include "../peer.h"
+#include "hal_qcn9274.h"
+#include "hal_wcn7850.h"
 
 void ath12k_peer_rx_tid_qref_setup(struct ath12k_base *ab, u16 peer_id, u16 tid,
 				   dma_addr_t paddr)
@@ -1897,14 +1899,12 @@ int ath12k_dp_rxdma_ring_sel_config_qcn9274(struct ath12k_base *ab)
 	tlv_filter.rx_packet_offset = hal_rx_desc_sz;
 
 	tlv_filter.rx_mpdu_start_offset =
-		ab->hal_rx_ops->rx_desc_get_mpdu_start_offset();
+		ath12k_hal_rx_desc_get_mpdu_start_offset_qcn9274();
 	tlv_filter.rx_msdu_end_offset =
-		ab->hal_rx_ops->rx_desc_get_msdu_end_offset();
+		ath12k_hal_rx_desc_get_msdu_end_offset_qcn9274();
 
-	tlv_filter.rx_mpdu_start_wmask =
-		ab->hw_params->hal_ops->rxdma_ring_wmask_rx_mpdu_start();
-	tlv_filter.rx_msdu_end_wmask =
-		ab->hw_params->hal_ops->rxdma_ring_wmask_rx_msdu_end();
+	tlv_filter.rx_mpdu_start_wmask = ath12k_hal_rx_mpdu_start_wmask_get_qcn9274();
+	tlv_filter.rx_msdu_end_wmask = ath12k_hal_rx_msdu_end_wmask_get_qcn9274();
 	ath12k_dbg(ab, ATH12K_DBG_DATA,
 		   "Configuring compact tlv masks rx_mpdu_start_wmask 0x%x rx_msdu_end_wmask 0x%x\n",
 		   tlv_filter.rx_mpdu_start_wmask, tlv_filter.rx_msdu_end_wmask);
@@ -1940,9 +1940,9 @@ int ath12k_dp_rxdma_ring_sel_config_wcn7850(struct ath12k_base *ab)
 	tlv_filter.rx_header_offset = offsetof(struct hal_rx_desc_wcn7850, pkt_hdr_tlv);
 
 	tlv_filter.rx_mpdu_start_offset =
-		ab->hal_rx_ops->rx_desc_get_mpdu_start_offset();
+		ath12k_hal_rx_desc_get_mpdu_start_offset_wcn7850();
 	tlv_filter.rx_msdu_end_offset =
-		ab->hal_rx_ops->rx_desc_get_msdu_end_offset();
+		ath12k_hal_rx_desc_get_msdu_end_offset_wcn7850();
 
 	/* TODO: Selectively subscribe to required qwords within msdu_end
 	 * and mpdu_start and setup the mask in below msg
