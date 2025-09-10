@@ -71,7 +71,7 @@ static int mpc8572_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 					 mpc8xxx_gc->regs + GPIO_DIR);
 	val = gpio_generic_read_reg(&mpc8xxx_gc->chip,
 				    mpc8xxx_gc->regs + GPIO_DAT) & ~out_mask;
-	out_shadow = gc->bgpio_data & out_mask;
+	out_shadow = mpc8xxx_gc->chip.sdata & out_mask;
 
 	return !!((val | out_shadow) & mpc_pin2mask(gpio));
 }
@@ -399,7 +399,8 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 		gpio_generic_write_reg(&mpc8xxx_gc->chip,
 				       mpc8xxx_gc->regs + GPIO_IBE, 0xffffffff);
 		/* Also, latch state of GPIOs configured as output by bootloader. */
-		gc->bgpio_data = gpio_generic_read_reg(&mpc8xxx_gc->chip,
+		mpc8xxx_gc->chip.sdata =
+				gpio_generic_read_reg(&mpc8xxx_gc->chip,
 						       mpc8xxx_gc->regs + GPIO_DAT) &
 				 gpio_generic_read_reg(&mpc8xxx_gc->chip,
 						       mpc8xxx_gc->regs + GPIO_DIR);

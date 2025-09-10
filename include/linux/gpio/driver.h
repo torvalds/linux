@@ -388,28 +388,6 @@ struct gpio_irq_chip {
  *	implies that if the chip supports IRQs, these IRQs need to be threaded
  *	as the chip access may sleep when e.g. reading out the IRQ status
  *	registers.
- * @read_reg: reader function for generic GPIO
- * @write_reg: writer function for generic GPIO
- * @be_bits: if the generic GPIO has big endian bit order (bit 31 is representing
- *	line 0, bit 30 is line 1 ... bit 0 is line 31) this is set to true by the
- *	generic GPIO core. It is for internal housekeeping only.
- * @reg_dat: data (in) register for generic GPIO
- * @reg_set: output set register (out=high) for generic GPIO
- * @reg_clr: output clear register (out=low) for generic GPIO
- * @reg_dir_out: direction out setting register for generic GPIO
- * @reg_dir_in: direction in setting register for generic GPIO
- * @bgpio_dir_unreadable: indicates that the direction register(s) cannot
- *	be read and we need to rely on out internal state tracking.
- * @bgpio_pinctrl: the generic GPIO uses a pin control backend.
- * @bgpio_bits: number of register bits used for a generic GPIO i.e.
- *	<register width> * 8
- * @bgpio_lock: used to lock chip->bgpio_data. Also, this is needed to keep
- *	shadowed and real data registers writes together.
- * @bgpio_data:	shadowed data register for generic GPIO to clear/set bits
- *	safely.
- * @bgpio_dir: shadowed direction register for generic GPIO to clear/set
- *	direction safely. A "1" in this word means the line is set as
- *	output.
  *
  * A gpio_chip can help platforms abstract various sources of GPIOs so
  * they can all be accessed through a common programming interface.
@@ -474,23 +452,6 @@ struct gpio_chip {
 	u16			offset;
 	const char		*const *names;
 	bool			can_sleep;
-
-#if IS_ENABLED(CONFIG_GPIO_GENERIC)
-	unsigned long (*read_reg)(void __iomem *reg);
-	void (*write_reg)(void __iomem *reg, unsigned long data);
-	bool be_bits;
-	void __iomem *reg_dat;
-	void __iomem *reg_set;
-	void __iomem *reg_clr;
-	void __iomem *reg_dir_out;
-	void __iomem *reg_dir_in;
-	bool bgpio_dir_unreadable;
-	bool bgpio_pinctrl;
-	int bgpio_bits;
-	raw_spinlock_t bgpio_lock;
-	unsigned long bgpio_data;
-	unsigned long bgpio_dir;
-#endif /* CONFIG_GPIO_GENERIC */
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP
 	/*
@@ -722,11 +683,6 @@ int gpiochip_populate_parent_fwspec_fourcell(struct gpio_chip *gc,
 					     unsigned int parent_type);
 
 #endif /* CONFIG_IRQ_DOMAIN_HIERARCHY */
-
-int bgpio_init(struct gpio_chip *gc, struct device *dev,
-	       unsigned long sz, void __iomem *dat, void __iomem *set,
-	       void __iomem *clr, void __iomem *dirout, void __iomem *dirin,
-	       unsigned long flags);
 
 #define BGPIOF_BIG_ENDIAN		BIT(0)
 #define BGPIOF_UNREADABLE_REG_SET	BIT(1) /* reg_set is unreadable */
