@@ -562,27 +562,13 @@ static void gmc_v12_1_get_vm_pte(struct amdgpu_device *adev,
 	default:
 		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_NC);
 		break;
+	case AMDGPU_VM_MTYPE_RW:
+		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_RW);
+		break;
 	case AMDGPU_VM_MTYPE_UC:
 		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_UC);
 		break;
 	}
-
-	if (vm_flags & AMDGPU_VM_PAGE_NOALLOC)
-		*flags |= AMDGPU_PTE_NOALLOC;
-	else
-		*flags &= ~AMDGPU_PTE_NOALLOC;
-
-	if (vm_flags & AMDGPU_VM_PAGE_PRT) {
-		*flags |= AMDGPU_PTE_SNOOPED;
-		*flags |= AMDGPU_PTE_SYSTEM;
-		*flags |= AMDGPU_PTE_IS_PTE;
-		*flags &= ~AMDGPU_PTE_VALID;
-	}
-
-	if (bo && bo->flags & (AMDGPU_GEM_CREATE_COHERENT |
-			       AMDGPU_GEM_CREATE_EXT_COHERENT |
-			       AMDGPU_GEM_CREATE_UNCACHED))
-		*flags = AMDGPU_PTE_MTYPE_NV10(*flags, MTYPE_UC);
 
 	if ((*flags & AMDGPU_PTE_VALID) && bo)
 		gmc_v12_1_get_coherence_flags(adev, bo, flags);
