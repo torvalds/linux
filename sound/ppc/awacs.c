@@ -137,13 +137,11 @@ static int snd_pmac_awacs_get_volume(struct snd_kcontrol *kcontrol,
 	int reg = kcontrol->private_value & 0xff;
 	int lshift = (kcontrol->private_value >> 8) & 0xff;
 	int inverted = (kcontrol->private_value >> 16) & 1;
-	unsigned long flags;
 	int vol[2];
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	vol[0] = (chip->awacs_reg[reg] >> lshift) & 0xf;
 	vol[1] = chip->awacs_reg[reg] & 0xf;
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	if (inverted) {
 		vol[0] = 0x0f - vol[0];
 		vol[1] = 0x0f - vol[1];
@@ -161,7 +159,6 @@ static int snd_pmac_awacs_put_volume(struct snd_kcontrol *kcontrol,
 	int lshift = (kcontrol->private_value >> 8) & 0xff;
 	int inverted = (kcontrol->private_value >> 16) & 1;
 	int val, oldval;
-	unsigned long flags;
 	unsigned int vol[2];
 
 	vol[0] = ucontrol->value.integer.value[0];
@@ -174,14 +171,13 @@ static int snd_pmac_awacs_put_volume(struct snd_kcontrol *kcontrol,
 	}
 	vol[0] &= 0x0f;
 	vol[1] &= 0x0f;
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	oldval = chip->awacs_reg[reg];
 	val = oldval & ~(0xf | (0xf << lshift));
 	val |= vol[0] << lshift;
 	val |= vol[1];
 	if (oldval != val)
 		snd_pmac_awacs_write_reg(chip, reg, val);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return oldval != reg;
 }
 
@@ -204,11 +200,9 @@ static int snd_pmac_awacs_get_switch(struct snd_kcontrol *kcontrol,
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int invert = (kcontrol->private_value >> 16) & 1;
 	int val;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	val = (chip->awacs_reg[reg] >> shift) & 1;
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	if (invert)
 		val = 1 - val;
 	ucontrol->value.integer.value[0] = val;
@@ -224,16 +218,14 @@ static int snd_pmac_awacs_put_switch(struct snd_kcontrol *kcontrol,
 	int invert = (kcontrol->private_value >> 16) & 1;
 	int mask = 1 << shift;
 	int val, changed;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	val = chip->awacs_reg[reg] & ~mask;
 	if (ucontrol->value.integer.value[0] != invert)
 		val |= mask;
 	changed = chip->awacs_reg[reg] != val;
 	if (changed)
 		snd_pmac_awacs_write_reg(chip, reg, val);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return changed;
 }
 
@@ -541,14 +533,12 @@ static int snd_pmac_screamer_mic_boost_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int val = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	if (chip->awacs_reg[6] & MASK_MIC_BOOST)
 		val |= 2;
 	if (chip->awacs_reg[0] & MASK_GAINLINE)
 		val |= 1;
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = val;
 	return 0;
 }
@@ -559,9 +549,8 @@ static int snd_pmac_screamer_mic_boost_put(struct snd_kcontrol *kcontrol,
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int changed = 0;
 	int val0, val6;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	val0 = chip->awacs_reg[0] & ~MASK_GAINLINE;
 	val6 = chip->awacs_reg[6] & ~MASK_MIC_BOOST;
 	if (ucontrol->value.integer.value[0] & 1)
@@ -576,7 +565,6 @@ static int snd_pmac_screamer_mic_boost_put(struct snd_kcontrol *kcontrol,
 		snd_pmac_awacs_write_reg(chip, 6, val6);
 		changed = 1;
 	}
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return changed;
 }
 
