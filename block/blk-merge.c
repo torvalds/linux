@@ -119,7 +119,6 @@ static struct bio *bio_submit_split(struct bio *bio, int split_sectors)
 			goto error;
 		}
 		split->bi_opf |= REQ_NOMERGE;
-		blkcg_bio_issue_init(split);
 		bio_chain(split, bio);
 		trace_block_split(split, bio->bi_iter.bi_sector);
 		WARN_ON_ONCE(bio_zone_write_plugging(bio));

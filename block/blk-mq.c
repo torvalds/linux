@@ -396,6 +396,13 @@ static inline void blk_mq_rq_time_init(struct request *rq, u64 alloc_time_ns)
 #endif
 }
 
+static inline void blk_mq_bio_issue_init(struct bio *bio)
+{
+#ifdef CONFIG_BLK_CGROUP
+	bio->issue_time_ns = blk_time_get_ns();
+#endif
+}
+
 static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 		struct blk_mq_tags *tags, unsigned int tag)
 {
@@ -3168,6 +3175,7 @@ void blk_mq_submit_bio(struct bio *bio)
 	if (!bio_integrity_prep(bio))
 		goto queue_exit;
 
+	blk_mq_bio_issue_init(bio);
 	if (blk_mq_attempt_bio_merge(q, bio, nr_segs))
 		goto queue_exit;
 
