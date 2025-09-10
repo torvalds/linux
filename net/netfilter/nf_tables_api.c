@@ -10973,7 +10973,8 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 	while (++base_seq == 0)
 		;
 
-	WRITE_ONCE(net->nft.base_seq, base_seq);
+	/* pairs with smp_load_acquire in nft_lookup_eval */
+	smp_store_release(&net->nft.base_seq, base_seq);
 
 	gc_seq = nft_gc_seq_begin(nft_net);
 
