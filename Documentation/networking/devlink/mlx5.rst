@@ -146,6 +146,58 @@ parameters.
      - u32
      - driverinit
      - Control the size (in packets) of the hairpin queues.
+   * - ``pcie_cong_inbound_high``
+     - u16
+     - driverinit
+     - High threshold configuration for PCIe congestion events. The firmware
+       will send an event once device side inbound PCIe traffic went
+       above the configured high threshold for a long enough period (at least
+       200ms).
+
+       See pci_bw_inbound_high ethtool stat.
+
+       Units are 0.01 %. Accepted values are in range [0, 10000].
+       pcie_cong_inbound_low < pcie_cong_inbound_high.
+       Default value: 9000 (Corresponds to 90%).
+   * - ``pcie_cong_inbound_low``
+     - u16
+     - driverinit
+     - Low threshold configuration for PCIe congestion events. The firmware
+       will send an event once device side inbound PCIe traffic went
+       below the configured low threshold, only after having been previously in
+       a congested state.
+
+       See pci_bw_inbound_low ethtool stat.
+
+       Units are 0.01 %. Accepted values are in range [0, 10000].
+       pcie_cong_inbound_low < pcie_cong_inbound_high.
+       Default value: 7500.
+   * - ``pcie_cong_outbound_high``
+     - u16
+     - driverinit
+     - High threshold configuration for PCIe congestion events. The firmware
+       will send an event once device side outbound PCIe traffic went
+       above the configured high threshold for a long enough period (at least
+       200ms).
+
+       See pci_bw_outbound_high ethtool stat.
+
+       Units are 0.01 %. Accepted values are in range [0, 10000].
+       pcie_cong_outbound_low < pcie_cong_outbound_high.
+       Default value: 9000 (Corresponds to 90%).
+   * - ``pcie_cong_outbound_low``
+     - u16
+     - driverinit
+     - Low threshold configuration for PCIe congestion events. The firmware
+       will send an event once device side outbound PCIe traffic went
+       below the configured low threshold, only after having been previously in
+       a congested state.
+
+       See pci_bw_outbound_low ethtool stat.
+
+       Units are 0.01 %. Accepted values are in range [0, 10000].
+       pcie_cong_outbound_low < pcie_cong_outbound_high.
+       Default value: 7500.
 
    * - ``cqe_compress_type``
      - string

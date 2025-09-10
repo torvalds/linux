@@ -651,6 +651,105 @@ static void mlx5_devlink_eth_params_unregister(struct devlink *devlink)
 			       ARRAY_SIZE(mlx5_devlink_eth_params));
 }
 
+#define MLX5_PCIE_CONG_THRESH_MAX	10000
+#define MLX5_PCIE_CONG_THRESH_DEF_LOW	7500
+#define MLX5_PCIE_CONG_THRESH_DEF_HIGH	9000
+
+static int
+mlx5_devlink_pcie_cong_thresh_validate(struct devlink *devl, u32 id,
+				       union devlink_param_value val,
+				       struct netlink_ext_ack *extack)
+{
+	if (val.vu16 > MLX5_PCIE_CONG_THRESH_MAX) {
+		NL_SET_ERR_MSG_FMT_MOD(extack, "Value %u > max supported (%u)",
+				       val.vu16, MLX5_PCIE_CONG_THRESH_MAX);
+
+		return -EINVAL;
+	}
+
+	switch (id) {
+	case MLX5_DEVLINK_PARAM_ID_PCIE_CONG_IN_LOW:
+	case MLX5_DEVLINK_PARAM_ID_PCIE_CONG_IN_HIGH:
+	case MLX5_DEVLINK_PARAM_ID_PCIE_CONG_OUT_LOW:
+	case MLX5_DEVLINK_PARAM_ID_PCIE_CONG_OUT_HIGH:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static void mlx5_devlink_pcie_cong_init_values(struct devlink *devlink)
+{
+	union devlink_param_value value;
+	u32 id;
+
+	value.vu16 = MLX5_PCIE_CONG_THRESH_DEF_LOW;
+	id = MLX5_DEVLINK_PARAM_ID_PCIE_CONG_IN_LOW;
+	devl_param_driverinit_value_set(devlink, id, value);
+
+	value.vu16 = MLX5_PCIE_CONG_THRESH_DEF_HIGH;
+	id = MLX5_DEVLINK_PARAM_ID_PCIE_CONG_IN_HIGH;
+	devl_param_driverinit_value_set(devlink, id, value);
+
+	value.vu16 = MLX5_PCIE_CONG_THRESH_DEF_LOW;
+	id = MLX5_DEVLINK_PARAM_ID_PCIE_CONG_OUT_LOW;
+	devl_param_driverinit_value_set(devlink, id, value);
+
+	value.vu16 = MLX5_PCIE_CONG_THRESH_DEF_HIGH;
+	id = MLX5_DEVLINK_PARAM_ID_PCIE_CONG_OUT_HIGH;
+	devl_param_driverinit_value_set(devlink, id, value);
+}
+
+static const struct devlink_param mlx5_devlink_pcie_cong_params[] = {
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_PCIE_CONG_IN_LOW,
+			     "pcie_cong_inbound_low", DEVLINK_PARAM_TYPE_U16,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT), NULL, NULL,
+			     mlx5_devlink_pcie_cong_thresh_validate),
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_PCIE_CONG_IN_HIGH,
+			     "pcie_cong_inbound_high", DEVLINK_PARAM_TYPE_U16,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT), NULL, NULL,
+			     mlx5_devlink_pcie_cong_thresh_validate),
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_PCIE_CONG_OUT_LOW,
+			     "pcie_cong_outbound_low", DEVLINK_PARAM_TYPE_U16,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT), NULL, NULL,
+			     mlx5_devlink_pcie_cong_thresh_validate),
+	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_PCIE_CONG_OUT_HIGH,
+			     "pcie_cong_outbound_high", DEVLINK_PARAM_TYPE_U16,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT), NULL, NULL,
+			     mlx5_devlink_pcie_cong_thresh_validate),
+};
+
+static int mlx5_devlink_pcie_cong_params_register(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	int err;
+
+	if (!mlx5_pcie_cong_event_supported(dev))
+		return 0;
+
+	err = devl_params_register(devlink, mlx5_devlink_pcie_cong_params,
+				   ARRAY_SIZE(mlx5_devlink_pcie_cong_params));
+	if (err)
+		return err;
+
+	mlx5_devlink_pcie_cong_init_values(devlink);
+
+	return 0;
+}
+
+static void mlx5_devlink_pcie_cong_params_unregister(struct devlink *devlink)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	if (!mlx5_pcie_cong_event_supported(dev))
+		return;
+
+	devl_params_unregister(devlink, mlx5_devlink_pcie_cong_params,
+			       ARRAY_SIZE(mlx5_devlink_pcie_cong_params));
+}
+
 static int mlx5_devlink_enable_rdma_validate(struct devlink *devlink, u32 id,
 					     union devlink_param_value val,
 					     struct netlink_ext_ack *extack)
@@ -896,6 +995,10 @@ int mlx5_devlink_params_register(struct devlink *devlink)
 	if (err)
 		goto max_uc_list_err;
 
+	err = mlx5_devlink_pcie_cong_params_register(devlink);
+	if (err)
+		goto pcie_cong_err;
+
 	err = mlx5_nv_param_register_dl_params(devlink);
 	if (err)
 		goto nv_param_err;
@@ -903,6 +1006,8 @@ int mlx5_devlink_params_register(struct devlink *devlink)
 	return 0;
 
 nv_param_err:
+	mlx5_devlink_pcie_cong_params_unregister(devlink);
+pcie_cong_err:
 	mlx5_devlink_max_uc_list_params_unregister(devlink);
 max_uc_list_err:
 	mlx5_devlink_auxdev_params_unregister(devlink);
@@ -915,6 +1020,7 @@ auxdev_reg_err:
 void mlx5_devlink_params_unregister(struct devlink *devlink)
 {
 	mlx5_nv_param_unregister_dl_params(devlink);
+	mlx5_devlink_pcie_cong_params_unregister(devlink);
 	mlx5_devlink_max_uc_list_params_unregister(devlink);
 	mlx5_devlink_auxdev_params_unregister(devlink);
 	devl_params_unregister(devlink, mlx5_devlink_params,
