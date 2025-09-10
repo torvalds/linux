@@ -257,20 +257,41 @@ static void print_inode_item(const struct extent_buffer *eb, int i)
 	print_timespec(eb, &ii->otime, "\t\totime ", "\n");
 }
 
+static void print_dir_item(const struct extent_buffer *eb, int i)
+{
+	const u32 size = btrfs_item_size(eb, i);
+	struct btrfs_dir_item *di = btrfs_item_ptr(eb, i, struct btrfs_dir_item);
+	u32 cur = 0;
+
+	while (cur < size) {
+		const u32 name_len = btrfs_dir_name_len(eb, di);
+		const u32 data_len = btrfs_dir_data_len(eb, di);
+		const u32 len = sizeof(*di) + name_len + data_len;
+		struct btrfs_key location;
+
+		btrfs_dir_item_key_to_cpu(eb, di, &location);
+		pr_info("\t\tlocation key (%llu %u %llu) type %d\n",
+			location.objectid, location.type, location.offset,
+			btrfs_dir_ftype(eb, di));
+		pr_info("\t\ttransid %llu data_len %u name_len %u\n",
+			btrfs_dir_transid(eb, di), data_len, name_len);
+		di = (struct btrfs_dir_item *)((char *)di + len);
+		cur += len;
+	}
+}
+
 void btrfs_print_leaf(const struct extent_buffer *l)
 {
 	struct btrfs_fs_info *fs_info;
 	int i;
 	u32 type, nr;
 	struct btrfs_root_item *ri;
-	struct btrfs_dir_item *di;
 	struct btrfs_block_group_item *bi;
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_extent_data_ref *dref;
 	struct btrfs_shared_data_ref *sref;
 	struct btrfs_dev_extent *dev_extent;
 	struct btrfs_key key;
-	struct btrfs_key found_key;
 
 	if (!l)
 		return;
@@ -294,11 +315,7 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 			print_inode_item(l, i);
 			break;
 		case BTRFS_DIR_ITEM_KEY:
-			di = btrfs_item_ptr(l, i, struct btrfs_dir_item);
-			btrfs_dir_item_key_to_cpu(l, di, &found_key);
-			pr_info("\t\tdir oid %llu flags %u\n",
-				found_key.objectid,
-				btrfs_dir_flags(l, di));
+			print_dir_item(l, i);
 			break;
 		case BTRFS_ROOT_ITEM_KEY:
 			ri = btrfs_item_ptr(l, i, struct btrfs_root_item);
