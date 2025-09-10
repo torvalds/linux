@@ -57,6 +57,8 @@ static bool dcn401_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr, uin
 	/* Wait for response register to be ready */
 	dcn401_smu_wait_for_response(clk_mgr, 10, 200000);
 
+	TRACE_SMU_MSG_ENTER(msg_id, param_in, clk_mgr->base.ctx);
+
 	/* Clear response register */
 	REG_WRITE(DAL_RESP_REG, 0);
 
@@ -71,9 +73,11 @@ static bool dcn401_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr, uin
 		if (param_out)
 			*param_out = REG_READ(DAL_ARG_REG);
 
+		TRACE_SMU_MSG_EXIT(true, param_out ? *param_out : 0, clk_mgr->base.ctx);
 		return true;
 	}
 
+	TRACE_SMU_MSG_EXIT(false, 0, clk_mgr->base.ctx);
 	return false;
 }
 
@@ -102,8 +106,6 @@ static uint32_t dcn401_smu_wait_for_response_delay(struct clk_mgr_internal *clk_
 		*total_delay_us += delay_us;
 	} while (max_retries--);
 
-	TRACE_SMU_DELAY(*total_delay_us, clk_mgr->base.ctx);
-
 	return reg;
 }
 
@@ -115,6 +117,8 @@ static bool dcn401_smu_send_msg_with_param_delay(struct clk_mgr_internal *clk_mg
 	/* Wait for response register to be ready */
 	dcn401_smu_wait_for_response_delay(clk_mgr, 10, 200000, &delay1_us);
 
+	TRACE_SMU_MSG_ENTER(msg_id, param_in, clk_mgr->base.ctx);
+
 	/* Clear response register */
 	REG_WRITE(DAL_RESP_REG, 0);
 
@@ -124,18 +128,18 @@ static bool dcn401_smu_send_msg_with_param_delay(struct clk_mgr_internal *clk_mg
 	/* Trigger the message transaction by writing the message ID */
 	REG_WRITE(DAL_MSG_REG, msg_id);
 
-	TRACE_SMU_MSG(msg_id, param_in, clk_mgr->base.ctx);
-
 	/* Wait for response */
 	if (dcn401_smu_wait_for_response_delay(clk_mgr, 10, 200000, &delay2_us) == DALSMC_Result_OK) {
 		if (param_out)
 			*param_out = REG_READ(DAL_ARG_REG);
 
 		*total_delay_us = delay1_us + delay2_us;
+		TRACE_SMU_MSG_EXIT(true, param_out ? *param_out : 0, clk_mgr->base.ctx);
 		return true;
 	}
 
 	*total_delay_us = delay1_us + 2000000;
+	TRACE_SMU_MSG_EXIT(false, 0, clk_mgr->base.ctx);
 	return false;
 }
 
