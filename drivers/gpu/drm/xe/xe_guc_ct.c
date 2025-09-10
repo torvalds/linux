@@ -1486,6 +1486,11 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 	case XE_GUC_ACTION_NOTIFY_EXCEPTION:
 		ret = guc_crash_process_msg(ct, action);
 		break;
+#if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
+	case XE_GUC_ACTION_TEST_G2G_RECV:
+		ret = xe_guc_g2g_test_notification(guc, payload, adj_len);
+		break;
+#endif
 	default:
 		xe_gt_err(gt, "unexpected G2H action 0x%04x\n", action);
 	}
