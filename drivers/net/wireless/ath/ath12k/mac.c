@@ -8901,7 +8901,7 @@ static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 	if (!vif->valid_links || !is_mcast || is_dvlan ||
 	    (skb_cb->flags & ATH12K_SKB_HW_80211_ENCAP) ||
 	    test_bit(ATH12K_FLAG_RAW_MODE, &ar->ab->dev_flags)) {
-		ret = ath12k_dp_tx(ar, arvif, skb, false, 0, is_mcast);
+		ret = ath12k_wifi7_dp_tx(ar, arvif, skb, false, 0, is_mcast);
 		if (unlikely(ret)) {
 			ath12k_warn(ar->ab, "failed to transmit frame %d\n", ret);
 			ieee80211_free_txskb(ar->ah->hw, skb);
@@ -8962,8 +8962,8 @@ static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 			spin_unlock_bh(&tmp_ar->ab->base_lock);
 
 skip_peer_find:
-			ret = ath12k_dp_tx(tmp_ar, tmp_arvif,
-					   msdu_copied, true, mcbc_gsn, is_mcast);
+			ret = ath12k_wifi7_dp_tx(tmp_ar, tmp_arvif,
+						 msdu_copied, true, mcbc_gsn, is_mcast);
 			if (unlikely(ret)) {
 				if (ret == -ENOMEM) {
 					/* Drops are expected during heavy multicast

@@ -29,9 +29,9 @@ static inline u8 dscp2tid(u8 dscp)
 	return dscp >> 3;
 }
 
-void ath12k_hal_tx_cmd_desc_setup(struct ath12k_base *ab,
-				  struct hal_tcl_data_cmd *tcl_cmd,
-				  struct hal_tx_info *ti)
+void ath12k_wifi7_hal_tx_cmd_desc_setup(struct ath12k_base *ab,
+					struct hal_tcl_data_cmd *tcl_cmd,
+					struct hal_tx_info *ti)
 {
 	tcl_cmd->buf_addr_info.info0 =
 		le32_encode_bits(ti->paddr, BUFFER_ADDR_INFO0_ADDR);
@@ -66,7 +66,7 @@ void ath12k_hal_tx_cmd_desc_setup(struct ath12k_base *ab,
 	tcl_cmd->info5 = 0;
 }
 
-void ath12k_hal_tx_set_dscp_tid_map(struct ath12k_base *ab, int id)
+void ath12k_wifi7_hal_tx_set_dscp_tid_map(struct ath12k_base *ab, int id)
 {
 	u32 ctrl_reg_val;
 	u32 addr;
@@ -137,8 +137,9 @@ void ath12k_hal_tx_set_dscp_tid_map(struct ath12k_base *ab, int id)
 			   ctrl_reg_val);
 }
 
-void ath12k_hal_tx_configure_bank_register(struct ath12k_base *ab, u32 bank_config,
-					   u8 bank_id)
+void ath12k_wifi7_hal_tx_configure_bank_register(struct ath12k_base *ab,
+						 u32 bank_config,
+						 u8 bank_id)
 {
 	ath12k_hif_write32(ab, HAL_TCL_SW_CONFIG_BANK_ADDR + 4 * bank_id,
 			   bank_config);

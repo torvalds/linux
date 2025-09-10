@@ -820,47 +820,47 @@ enum hal_mon_reception_type {
 #define HAL_RU_PER80(ru_per80, num_80mhz, ru_idx_per80mhz) \
 			(HAL_RU(ru_per80, num_80mhz, ru_idx_per80mhz))
 
-void ath12k_hal_reo_status_queue_stats(struct ath12k_base *ab,
-				       struct hal_tlv_64_hdr *tlv,
-				       struct hal_reo_status *status);
-void ath12k_hal_reo_flush_queue_status(struct ath12k_base *ab,
-				       struct hal_tlv_64_hdr *tlv,
-				       struct hal_reo_status *status);
-void ath12k_hal_reo_flush_cache_status(struct ath12k_base *ab,
-				       struct hal_tlv_64_hdr *tlv,
-				       struct hal_reo_status *status);
-void ath12k_hal_reo_unblk_cache_status(struct ath12k_base *ab,
-				       struct hal_tlv_64_hdr *tlv,
-				       struct hal_reo_status *status);
-void ath12k_hal_reo_flush_timeout_list_status(struct ath12k_base *ab,
-					      struct hal_tlv_64_hdr *tlv,
-					      struct hal_reo_status *status);
-void ath12k_hal_reo_desc_thresh_reached_status(struct ath12k_base *ab,
-					       struct hal_tlv_64_hdr *tlv,
-					       struct hal_reo_status *status);
-void ath12k_hal_reo_update_rx_reo_queue_status(struct ath12k_base *ab,
-					       struct hal_tlv_64_hdr *tlv,
-					       struct hal_reo_status *status);
-void ath12k_hal_rx_msdu_link_info_get(struct hal_rx_msdu_link *link, u32 *num_msdus,
-				      u32 *msdu_cookies,
-				      enum hal_rx_buf_return_buf_manager *rbm);
-void ath12k_hal_rx_msdu_link_desc_set(struct ath12k_base *ab,
-				      struct hal_wbm_release_ring *desc,
-				      struct ath12k_buffer_addr *buf_addr_info,
-				      enum hal_wbm_rel_bm_act action);
-void ath12k_hal_rx_buf_addr_info_set(struct ath12k_buffer_addr *binfo,
-				     dma_addr_t paddr, u32 cookie, u8 manager);
-void ath12k_hal_rx_buf_addr_info_get(struct ath12k_buffer_addr *binfo,
-				     dma_addr_t *paddr,
-				     u32 *cookie, u8 *rbm);
-int ath12k_hal_desc_reo_parse_err(struct ath12k_base *ab,
-				  struct hal_reo_dest_ring *desc,
-				  dma_addr_t *paddr, u32 *desc_bank);
-int ath12k_hal_wbm_desc_parse_err(struct ath12k_base *ab, void *desc,
-				  struct hal_rx_wbm_rel_info *rel_info);
-void ath12k_hal_rx_reo_ent_paddr_get(struct ath12k_base *ab,
-				     struct ath12k_buffer_addr *buff_addr,
-				     dma_addr_t *paddr, u32 *cookie);
+void ath12k_wifi7_hal_reo_status_queue_stats(struct ath12k_base *ab,
+					     struct hal_tlv_64_hdr *tlv,
+					     struct hal_reo_status *status);
+void ath12k_wifi7_hal_reo_flush_queue_status(struct ath12k_base *ab,
+					     struct hal_tlv_64_hdr *tlv,
+					     struct hal_reo_status *status);
+void ath12k_wifi7_hal_reo_flush_cache_status(struct ath12k_base *ab,
+					     struct hal_tlv_64_hdr *tlv,
+					     struct hal_reo_status *status);
+void ath12k_wifi7_hal_reo_unblk_cache_status(struct ath12k_base *ab,
+					     struct hal_tlv_64_hdr *tlv,
+					     struct hal_reo_status *status);
+void ath12k_wifi7_hal_reo_flush_timeout_list_status(struct ath12k_base *ab,
+						    struct hal_tlv_64_hdr *tlv,
+						    struct hal_reo_status *status);
+void ath12k_wifi7_hal_reo_desc_thresh_reached_status(struct ath12k_base *ab,
+						     struct hal_tlv_64_hdr *tlv,
+						     struct hal_reo_status *status);
+void ath12k_wifi7_hal_reo_update_rx_reo_queue_status(struct ath12k_base *ab,
+						     struct hal_tlv_64_hdr *tlv,
+						     struct hal_reo_status *status);
+void ath12k_wifi7_hal_rx_msdu_link_info_get(struct hal_rx_msdu_link *link, u32 *num_msdus,
+					    u32 *msdu_cookies,
+					    enum hal_rx_buf_return_buf_manager *rbm);
+void ath12k_wifi7_hal_rx_msdu_link_desc_set(struct ath12k_base *ab,
+					    struct hal_wbm_release_ring *desc,
+					    struct ath12k_buffer_addr *buf_addr_info,
+					    enum hal_wbm_rel_bm_act action);
+void ath12k_wifi7_hal_rx_buf_addr_info_set(struct ath12k_buffer_addr *binfo,
+					   dma_addr_t paddr, u32 cookie, u8 manager);
+void ath12k_wifi7_hal_rx_buf_addr_info_get(struct ath12k_buffer_addr *binfo,
+					   dma_addr_t *paddr,
+					   u32 *cookie, u8 *rbm);
+int ath12k_wifi7_hal_desc_reo_parse_err(struct ath12k_base *ab,
+					struct hal_reo_dest_ring *desc,
+					dma_addr_t *paddr, u32 *desc_bank);
+int ath12k_wifi7_hal_wbm_desc_parse_err(struct ath12k_base *ab, void *desc,
+					struct hal_rx_wbm_rel_info *rel_info);
+void ath12k_wifi7_hal_rx_reo_ent_paddr_get(struct ath12k_base *ab,
+					   struct ath12k_buffer_addr *buff_addr,
+					   dma_addr_t *paddr, u32 *cookie);
 void ath12k_hal_rx_reo_ent_buf_paddr_get(void *rx_desc, dma_addr_t *paddr, u32 *sw_cookie,
 					 struct ath12k_buffer_addr **pp_buf_addr,
 					 u8 *rbm, u32 *msdu_cnt);

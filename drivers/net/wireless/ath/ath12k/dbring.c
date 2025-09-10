@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
@@ -55,7 +54,7 @@ static int ath12k_dbring_bufs_replenish(struct ath12k *ar,
 	cookie = u32_encode_bits(ar->pdev_idx, DP_RXDMA_BUF_COOKIE_PDEV_ID) |
 		 u32_encode_bits(buf_id, DP_RXDMA_BUF_COOKIE_BUF_ID);
 
-	ath12k_hal_rx_buf_addr_info_set(desc, paddr, cookie, 0);
+	ath12k_wifi7_hal_rx_buf_addr_info_set(desc, paddr, cookie, 0);
 
 	ath12k_hal_srng_access_end(ab, srng);
 
@@ -298,7 +297,7 @@ int ath12k_dbring_buffer_release_event(struct ath12k_base *ab,
 
 		num_buff_reaped++;
 
-		ath12k_hal_rx_buf_addr_info_get(&desc, &paddr, &cookie, &rbm);
+		ath12k_wifi7_hal_rx_buf_addr_info_get(&desc, &paddr, &cookie, &rbm);
 
 		buf_id = u32_get_bits(cookie, DP_RXDMA_BUF_COOKIE_BUF_ID);
 

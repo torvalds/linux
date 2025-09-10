@@ -527,7 +527,7 @@ static int ath12k_ahb_ext_grp_napi_poll(struct napi_struct *napi, int budget)
 	struct ath12k_base *ab = irq_grp->ab;
 	int work_done;
 
-	work_done = ath12k_dp_service_srng(ab, irq_grp, budget);
+	work_done = ath12k_wifi7_dp_service_srng(ab, irq_grp, budget);
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
 		ath12k_ahb_ext_grp_enable(irq_grp);

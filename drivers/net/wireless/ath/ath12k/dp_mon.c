@@ -1813,7 +1813,7 @@ ath12k_dp_rx_mon_buf_done(struct ath12k_base *ab, struct hal_srng *srng,
 	if (!status_desc)
 		return DP_MON_STATUS_NO_DMA;
 
-	ath12k_hal_rx_buf_addr_info_get(status_desc, &paddr, &cookie, &rbm);
+	ath12k_wifi7_hal_rx_buf_addr_info_get(status_desc, &paddr, &cookie, &rbm);
 
 	buf_id = u32_get_bits(cookie, DP_RXDMA_BUF_COOKIE_BUF_ID);
 
@@ -1865,7 +1865,7 @@ void ath12k_dp_mon_next_link_desc_get(struct hal_rx_msdu_link *msdu_link,
 
 	buf_addr_info = &msdu_link->buf_addr_info;
 
-	ath12k_hal_rx_buf_addr_info_get(buf_addr_info, paddr, sw_cookie, rbm);
+	ath12k_wifi7_hal_rx_buf_addr_info_get(buf_addr_info, paddr, sw_cookie, rbm);
 
 	*pp_buf_addr_info = buf_addr_info;
 }
@@ -2727,7 +2727,7 @@ int ath12k_dp_mon_status_bufs_replenish(struct ath12k_base *ab,
 
 		num_remain--;
 
-		ath12k_hal_rx_buf_addr_info_set(desc, paddr, cookie, mgr);
+		ath12k_wifi7_hal_rx_buf_addr_info_set(desc, paddr, cookie, mgr);
 	}
 
 	ath12k_hal_srng_access_end(ab, srng);
@@ -3946,8 +3946,8 @@ static int ath12k_dp_rx_reap_mon_status_ring(struct ath12k_base *ab, int mac_id,
 			pmon->buf_state = DP_MON_STATUS_REPLINISH;
 			break;
 		}
-		ath12k_hal_rx_buf_addr_info_get(rx_mon_status_desc, &paddr,
-						&cookie, &rbm);
+		ath12k_wifi7_hal_rx_buf_addr_info_get(rx_mon_status_desc, &paddr,
+						      &cookie, &rbm);
 		if (paddr) {
 			buf_id = u32_get_bits(cookie, DP_RXDMA_BUF_COOKIE_BUF_ID);
 
@@ -4028,12 +4028,12 @@ static int ath12k_dp_rx_reap_mon_status_ring(struct ath12k_base *ab, int mac_id,
 move_next:
 		skb = ath12k_dp_rx_alloc_mon_status_buf(ab, rx_ring,
 							&buf_id);
+		hal_params = ab->hw_params->hal_params;
 
 		if (!skb) {
 			ath12k_warn(ab, "failed to alloc buffer for status ring\n");
-			hal_params = ab->hw_params->hal_params;
-			ath12k_hal_rx_buf_addr_info_set(rx_mon_status_desc, 0, 0,
-							hal_params->rx_buf_rbm);
+			ath12k_wifi7_hal_rx_buf_addr_info_set(rx_mon_status_desc, 0, 0,
+							      hal_params->rx_buf_rbm);
 			num_buffs_reaped++;
 			break;
 		}
@@ -4042,9 +4042,9 @@ move_next:
 		cookie = u32_encode_bits(mac_id, DP_RXDMA_BUF_COOKIE_PDEV_ID) |
 			 u32_encode_bits(buf_id, DP_RXDMA_BUF_COOKIE_BUF_ID);
 
-		ath12k_hal_rx_buf_addr_info_set(rx_mon_status_desc, rxcb->paddr,
-						cookie,
-						ab->hw_params->hal_params->rx_buf_rbm);
+		ath12k_wifi7_hal_rx_buf_addr_info_set(rx_mon_status_desc, rxcb->paddr,
+						      cookie,
+						      hal_params->rx_buf_rbm);
 		ath12k_hal_srng_src_get_next_entry(ab, srng);
 		num_buffs_reaped++;
 	}
@@ -4213,14 +4213,14 @@ next_msdu:
 			list_add_tail(&desc_info->list, used_list);
 		}
 
-		ath12k_hal_rx_buf_addr_info_set(&buf_info, paddr, sw_cookie, rbm);
+		ath12k_wifi7_hal_rx_buf_addr_info_set(&buf_info, paddr, sw_cookie, rbm);
 
 		ath12k_dp_mon_next_link_desc_get(msdu_link_desc, &paddr,
 						 &sw_cookie, &rbm,
 						 &p_buf_addr_info);
 
-		ath12k_dp_rx_link_desc_return(ar->ab, &buf_info,
-					      HAL_WBM_REL_BM_ACT_PUT_IN_IDLE);
+		ath12k_wifi7_dp_rx_link_desc_return(ar->ab, &buf_info,
+						    HAL_WBM_REL_BM_ACT_PUT_IN_IDLE);
 
 		p_last_buf_addr_info = p_buf_addr_info;
 
