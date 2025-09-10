@@ -1181,7 +1181,6 @@ static int __nfsd_symlink(struct inode *dir, struct dentry *dentry,
 	inode->i_size = strlen(content);
 
 	d_add(dentry, inode);
-	inc_nlink(dir);
 	fsnotify_create(dir, dentry);
 	return 0;
 }
