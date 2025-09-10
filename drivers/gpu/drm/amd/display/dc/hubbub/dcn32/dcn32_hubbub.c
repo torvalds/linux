@@ -770,6 +770,7 @@ static bool hubbub32_program_watermarks(
 			(ASICREV_IS_GC_11_0_0(dc->ctx->asic_id.hw_internal_rev) ||
 			ASICREV_IS_GC_11_0_3(dc->ctx->asic_id.hw_internal_rev))) {
 		/* before raising watermarks, SDP control give to DF, stutter must be disabled */
+		wm_pending = true;
 		hubbub32_set_sdp_control(hubbub, false);
 		hubbub1_allow_self_refresh_control(hubbub, false);
 	}
