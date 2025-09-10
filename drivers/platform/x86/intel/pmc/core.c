@@ -851,6 +851,68 @@ static void pmc_core_substate_req_header_show(struct seq_file *s, int pmc_index,
 	}
 }
 
+static int pmc_core_substate_blk_req_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+	unsigned int pmc_idx;
+
+	for (pmc_idx = 0; pmc_idx < ARRAY_SIZE(pmcdev->pmcs); pmc_idx++) {
+		const struct pmc_bit_map **maps;
+		unsigned int arr_size, r_idx;
+		u32 offset, counter;
+		u32 *lpm_req_regs;
+		struct pmc *pmc;
+
+		pmc = pmcdev->pmcs[pmc_idx];
+		if (!pmc || !pmc->lpm_req_regs)
+			continue;
+
+		lpm_req_regs = pmc->lpm_req_regs;
+		maps = pmc->map->s0ix_blocker_maps;
+		offset = pmc->map->s0ix_blocker_offset;
+		arr_size = pmc_core_lpm_get_arr_size(maps);
+
+		/* Display the header */
+		pmc_core_substate_req_header_show(s, pmc_idx, HEADER_VALUE);
+
+		for (r_idx = 0; r_idx < arr_size; r_idx++) {
+			const struct pmc_bit_map *map;
+
+			for (map = maps[r_idx]; map->name; map++) {
+				int mode;
+
+				if (!map->blk)
+					continue;
+
+				counter = pmc_core_reg_read(pmc, offset);
+				seq_printf(s, "pmc%u: %34s |", pmc_idx, map->name);
+				pmc_for_each_mode(mode, pmcdev) {
+					bool required = *lpm_req_regs & BIT(mode);
+
+					seq_printf(s, " %9s |", required ? "Required" : " ");
+				}
+				seq_printf(s, " %9u |\n", counter);
+				offset += map->blk * S0IX_BLK_SIZE;
+				lpm_req_regs++;
+			}
+		}
+	}
+	return 0;
+}
+
+static int pmc_core_substate_blk_req_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pmc_core_substate_blk_req_show, inode->i_private);
+}
+
+const struct file_operations pmc_core_substate_blk_req_fops = {
+	.owner		= THIS_MODULE,
+	.open		= pmc_core_substate_blk_req_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
@@ -941,7 +1003,19 @@ static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 	}
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(pmc_core_substate_req_regs);
+
+static int pmc_core_substate_req_regs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pmc_core_substate_req_regs_show, inode->i_private);
+}
+
+const struct file_operations pmc_core_substate_req_regs_fops = {
+	.owner		= THIS_MODULE,
+	.open		= pmc_core_substate_req_regs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static unsigned int pmc_core_get_crystal_freq(void)
 {
@@ -1274,7 +1348,7 @@ static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 	debugfs_remove_recursive(pmcdev->dbgfs_dir);
 }
 
-static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
+static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
 {
 	struct pmc *primary_pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	struct dentry *dir;
@@ -1341,7 +1415,7 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 	if (primary_pmc->lpm_req_regs) {
 		debugfs_create_file("substate_requirements", 0444,
 				    pmcdev->dbgfs_dir, pmcdev,
-				    &pmc_core_substate_req_regs_fops);
+				    pmc_dev_info->sub_req_show);
 	}
 
 	if (primary_pmc->map->pson_residency_offset && pmc_core_is_pson_residency_enabled(pmcdev)) {
@@ -1409,8 +1483,7 @@ static u32 pmc_core_find_guid(struct pmc_info *list, const struct pmc_reg_map *m
  * +----+---------------------------------------------------------+
  *
  */
-static int pmc_core_pmt_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc,
-				    struct telem_endpoint *ep)
+int pmc_core_pmt_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc, struct telem_endpoint *ep)
 {
 	const u8 *lpm_indices;
 	int num_maps, mode_offset = 0;
@@ -1448,7 +1521,35 @@ static int pmc_core_pmt_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc,
 	return ret;
 }
 
-static int pmc_core_get_telem_info(struct pmc_dev *pmcdev, int func)
+int pmc_core_pmt_get_blk_sub_req(struct pmc_dev *pmcdev, struct pmc *pmc,
+				 struct telem_endpoint *ep)
+{
+	u32 num_blocker, sample_offset;
+	unsigned int index;
+	u32 *req_offset;
+	int ret;
+
+	num_blocker = pmc->map->num_s0ix_blocker;
+	sample_offset = pmc->map->blocker_req_offset;
+
+	pmc->lpm_req_regs = devm_kcalloc(&pmcdev->pdev->dev, num_blocker,
+					 sizeof(u32), GFP_KERNEL);
+	if (!pmc->lpm_req_regs)
+		return -ENOMEM;
+
+	req_offset = pmc->lpm_req_regs;
+	for (index = 0; index < num_blocker; index++, req_offset++) {
+		ret = pmt_telem_read32(ep, index + sample_offset, req_offset, 1);
+		if (ret) {
+			dev_err(&pmcdev->pdev->dev,
+				"couldn't read Low Power Mode requirements: %d\n", ret);
+			return ret;
+		}
+	}
+	return 0;
+}
+
+static int pmc_core_get_telem_info(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
 {
 	struct pci_dev *pcidev __free(pci_dev_put) = NULL;
 	struct telem_endpoint *ep;
@@ -1456,7 +1557,7 @@ static int pmc_core_get_telem_info(struct pmc_dev *pmcdev, int func)
 	u32 guid;
 	int ret;
 
-	pcidev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(20, func));
+	pcidev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(20, pmc_dev_info->pci_func));
 	if (!pcidev)
 		return -ENODEV;
 
@@ -1477,7 +1578,7 @@ static int pmc_core_get_telem_info(struct pmc_dev *pmcdev, int func)
 			return -EPROBE_DEFER;
 		}
 
-		ret = pmc_core_pmt_get_lpm_req(pmcdev, pmc, ep);
+		ret = pmc_dev_info->sub_req(pmcdev, pmc, ep);
 		pmt_telem_unregister_endpoint(ep);
 		if (ret)
 			return ret;
@@ -1592,7 +1693,7 @@ int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
 		pmc_core_punit_pmt_init(pmcdev, pmc_dev_info->dmu_guid);
 
 	if (ssram) {
-		ret = pmc_core_get_telem_info(pmcdev, pmc_dev_info->pci_func);
+		ret = pmc_core_get_telem_info(pmcdev, pmc_dev_info);
 		if (ret)
 			goto unmap_regbase;
 	}
@@ -1767,7 +1868,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit(primary_pmc);
 	pmc_core_do_dmi_quirks(primary_pmc);
 
-	pmc_core_dbgfs_register(pmcdev);
+	pmc_core_dbgfs_register(pmcdev, pmc_dev_info);
 	pm_report_max_hw_sleep(FIELD_MAX(SLP_S0_RES_COUNTER_MASK) *
 			       pmc_core_adjust_slp_s0_step(primary_pmc, 1));
 

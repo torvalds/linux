@@ -725,9 +725,11 @@ struct pmc_dev_info arl_pmc_dev = {
 	.dmu_guid = ARL_PMT_DMU_GUID,
 	.regmap_list = arl_pmc_info_list,
 	.map = &arl_socs_reg_map,
+	.sub_req_show = &pmc_core_substate_req_regs_fops,
 	.suspend = cnl_suspend,
 	.resume = arl_resume,
 	.init = arl_core_init,
+	.sub_req = pmc_core_pmt_get_lpm_req,
 };
 
 struct pmc_dev_info arl_h_pmc_dev = {
@@ -735,7 +737,9 @@ struct pmc_dev_info arl_h_pmc_dev = {
 	.dmu_guid = ARL_PMT_DMU_GUID,
 	.regmap_list = arl_pmc_info_list,
 	.map = &mtl_socm_reg_map,
+	.sub_req_show = &pmc_core_substate_req_regs_fops,
 	.suspend = cnl_suspend,
 	.resume = arl_h_resume,
 	.init = arl_h_core_init,
+	.sub_req = pmc_core_pmt_get_lpm_req,
 };

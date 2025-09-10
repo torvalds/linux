@@ -574,7 +574,9 @@ struct pmc_dev_info lnl_pmc_dev = {
 	.pci_func = 2,
 	.regmap_list = lnl_pmc_info_list,
 	.map = &lnl_socm_reg_map,
+	.sub_req_show = &pmc_core_substate_req_regs_fops,
 	.suspend = cnl_suspend,
 	.resume = lnl_resume,
 	.init = lnl_core_init,
+	.sub_req = pmc_core_pmt_get_lpm_req,
 };

@@ -351,6 +351,8 @@ struct pmc_bit_map {
  * @pm_read_disable_bit: Bit index to read PMC_READ_DISABLE
  * @slps0_dbg_offset:	PWRMBASE offset to SLP_S0_DEBUG_REG*
  * @s0ix_blocker_offset PWRMBASE offset to S0ix blocker counter
+ * @num_s0ix_blocker:	Number of S0ix blockers
+ * @blocker_req_offset:	Telemetry offset to S0ix blocker low power mode substate requirement table
  *
  * Each PCH has unique set of register offsets and bit indexes. This structure
  * captures them to have a common implementation.
@@ -376,6 +378,8 @@ struct pmc_reg_map {
 	const u32 ltr_ignore_max;
 	const u32 pm_vric1_offset;
 	const u32 s0ix_blocker_offset;
+	const u32 num_s0ix_blocker;
+	const u32 blocker_req_offset;
 	/* Low Power Mode registers */
 	const int lpm_num_maps;
 	const int lpm_num_modes;
@@ -481,18 +485,22 @@ enum pmc_index {
  *			SSRAM support.
  * @map:		Pointer to a pmc_reg_map struct that contains platform
  *			specific attributes of the primary PMC
+ * @sub_req_show:	File operations to show substate requirements
  * @suspend:		Function to perform platform specific suspend
  * @resume:		Function to perform platform specific resume
  * @init:		Function to perform platform specific init action
+ * @sub_req:		Function to achieve low power mode substate requirements
  */
 struct pmc_dev_info {
 	u8 pci_func;
 	u32 dmu_guid;
 	struct pmc_info *regmap_list;
 	const struct pmc_reg_map *map;
+	const struct file_operations *sub_req_show;
 	void (*suspend)(struct pmc_dev *pmcdev);
 	int (*resume)(struct pmc_dev *pmcdev);
 	int (*init)(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info);
+	int (*sub_req)(struct pmc_dev *pmcdev, struct pmc *pmc, struct telem_endpoint *ep);
 };
 
 extern const struct pmc_bit_map msr_map[];
@@ -542,6 +550,12 @@ extern struct pmc_dev_info wcl_pmc_dev;
 
 void cnl_suspend(struct pmc_dev *pmcdev);
 int cnl_resume(struct pmc_dev *pmcdev);
+int pmc_core_pmt_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc, struct telem_endpoint *ep);
+int pmc_core_pmt_get_blk_sub_req(struct pmc_dev *pmcdev, struct pmc *pmc,
+				 struct telem_endpoint *ep);
+
+extern const struct file_operations pmc_core_substate_req_regs_fops;
+extern const struct file_operations pmc_core_substate_blk_req_fops;
 
 #define pmc_for_each_mode(mode, pmcdev)						\
 	for (unsigned int __i = 0, __cond;					\
