@@ -620,8 +620,6 @@ static void gud_disconnect(struct usb_interface *interface)
 	struct gud_device *gdrm = usb_get_intfdata(interface);
 	struct drm_device *drm = &gdrm->drm;
 
-	drm_dbg(drm, "%s:\n", __func__);
-
 	drm_kms_helper_poll_fini(drm);
 	drm_dev_unplug(drm);
 	drm_atomic_helper_shutdown(drm);

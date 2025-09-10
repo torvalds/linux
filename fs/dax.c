@@ -1743,6 +1743,9 @@ dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
 	loff_t done = 0;
 	int ret;
 
+	if (WARN_ON_ONCE(iocb->ki_flags & IOCB_ATOMIC))
+		return -EIO;
+
 	if (!iomi.len)
 		return 0;
 
