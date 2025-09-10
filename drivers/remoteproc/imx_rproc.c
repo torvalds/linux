@@ -285,6 +285,17 @@ static const struct imx_rproc_att imx_rproc_att_imx6sx[] = {
 	{ 0x80000000, 0x80000000, 0x60000000, 0 },
 };
 
+static int imx_rproc_mmio_start(struct rproc *rproc)
+{
+	struct imx_rproc *priv = rproc->priv;
+	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
+
+	if (priv->gpr)
+		return regmap_clear_bits(priv->gpr, dcfg->gpr_reg, dcfg->gpr_wait);
+
+	return regmap_update_bits(priv->regmap, dcfg->src_reg, dcfg->src_mask, dcfg->src_start);
+}
+
 static int imx_rproc_start(struct rproc *rproc)
 {
 	struct imx_rproc *priv = rproc->priv;
@@ -303,16 +314,6 @@ static int imx_rproc_start(struct rproc *rproc)
 	}
 
 	switch (dcfg->method) {
-	case IMX_RPROC_MMIO:
-		if (priv->gpr) {
-			ret = regmap_clear_bits(priv->gpr, dcfg->gpr_reg,
-						dcfg->gpr_wait);
-		} else {
-			ret = regmap_update_bits(priv->regmap, dcfg->src_reg,
-						 dcfg->src_mask,
-						 dcfg->src_start);
-		}
-		break;
 	case IMX_RPROC_SMC:
 		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_START, 0, 0, 0, 0, 0, 0, &res);
 		ret = res.a0;
@@ -331,6 +332,23 @@ start_ret:
 	return ret;
 }
 
+static int imx_rproc_mmio_stop(struct rproc *rproc)
+{
+	struct imx_rproc *priv = rproc->priv;
+	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
+	int ret;
+
+	if (priv->gpr) {
+		ret = regmap_set_bits(priv->gpr, dcfg->gpr_reg, dcfg->gpr_wait);
+		if (ret) {
+			dev_err(priv->dev, "Failed to quiescence M4 platform!\n");
+			return ret;
+		}
+	}
+
+	return regmap_update_bits(priv->regmap, dcfg->src_reg, dcfg->src_mask, dcfg->src_stop);
+}
+
 static int imx_rproc_stop(struct rproc *rproc)
 {
 	struct imx_rproc *priv = rproc->priv;
@@ -345,20 +363,6 @@ static int imx_rproc_stop(struct rproc *rproc)
 	}
 
 	switch (dcfg->method) {
-	case IMX_RPROC_MMIO:
-		if (priv->gpr) {
-			ret = regmap_set_bits(priv->gpr, dcfg->gpr_reg,
-					      dcfg->gpr_wait);
-			if (ret) {
-				dev_err(priv->dev,
-					"Failed to quiescence M4 platform!\n");
-				return ret;
-			}
-		}
-
-		ret = regmap_update_bits(priv->regmap, dcfg->src_reg, dcfg->src_mask,
-					 dcfg->src_stop);
-		break;
 	case IMX_RPROC_SMC:
 		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STOP, 0, 0, 0, 0, 0, 0, &res);
 		ret = res.a0;
@@ -855,15 +859,60 @@ static int imx_rproc_attach_pd(struct imx_rproc *priv)
 	return 0;
 }
 
-static int imx_rproc_detect_mode(struct imx_rproc *priv)
+static int imx_rproc_mmio_detect_mode(struct rproc *rproc)
 {
-	struct regmap_config config = { .name = "imx-rproc" };
+	const struct regmap_config config = { .name = "imx-rproc" };
+	struct imx_rproc *priv = rproc->priv;
 	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
 	struct device *dev = priv->dev;
 	struct regmap *regmap;
+	u32 val;
+	int ret;
+
+	priv->gpr = syscon_regmap_lookup_by_phandle(dev->of_node, "fsl,iomuxc-gpr");
+	if (IS_ERR(priv->gpr))
+		priv->gpr = NULL;
+
+	regmap = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
+	if (IS_ERR(regmap)) {
+		dev_err(dev, "failed to find syscon\n");
+		return PTR_ERR(regmap);
+	}
+
+	priv->regmap = regmap;
+	regmap_attach_dev(dev, regmap, &config);
+
+	if (priv->gpr) {
+		ret = regmap_read(priv->gpr, dcfg->gpr_reg, &val);
+		if (val & dcfg->gpr_wait) {
+			/*
+			 * After cold boot, the CM indicates its in wait
+			 * state, but not fully powered off. Power it off
+			 * fully so firmware can be loaded into it.
+			 */
+			imx_rproc_stop(priv->rproc);
+			return 0;
+		}
+	}
+
+	ret = regmap_read(regmap, dcfg->src_reg, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read src\n");
+		return ret;
+	}
+
+	if ((val & dcfg->src_mask) != dcfg->src_stop)
+		priv->rproc->state = RPROC_DETACHED;
+
+	return 0;
+}
+
+static int imx_rproc_detect_mode(struct imx_rproc *priv)
+{
+	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
+	struct device *dev = priv->dev;
 	struct arm_smccc_res res;
 	int ret;
-	u32 val;
 	u8 pt;
 
 	if (dcfg->ops && dcfg->ops->detect_mode)
@@ -936,41 +985,6 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 	default:
 		break;
 	}
-
-	priv->gpr = syscon_regmap_lookup_by_phandle(dev->of_node, "fsl,iomuxc-gpr");
-	if (IS_ERR(priv->gpr))
-		priv->gpr = NULL;
-
-	regmap = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
-	if (IS_ERR(regmap)) {
-		dev_err(dev, "failed to find syscon\n");
-		return PTR_ERR(regmap);
-	}
-
-	priv->regmap = regmap;
-	regmap_attach_dev(dev, regmap, &config);
-
-	if (priv->gpr) {
-		ret = regmap_read(priv->gpr, dcfg->gpr_reg, &val);
-		if (val & dcfg->gpr_wait) {
-			/*
-			 * After cold boot, the CM indicates its in wait
-			 * state, but not fully powered off. Power it off
-			 * fully so firmware can be loaded into it.
-			 */
-			imx_rproc_stop(priv->rproc);
-			return 0;
-		}
-	}
-
-	ret = regmap_read(regmap, dcfg->src_reg, &val);
-	if (ret) {
-		dev_err(dev, "Failed to read src\n");
-		return ret;
-	}
-
-	if ((val & dcfg->src_mask) != dcfg->src_stop)
-		priv->rproc->state = RPROC_DETACHED;
 
 	return 0;
 }
@@ -1143,6 +1157,12 @@ static void imx_rproc_remove(struct platform_device *pdev)
 	destroy_workqueue(priv->workqueue);
 }
 
+static const struct imx_rproc_plat_ops imx_rproc_ops_mmio = {
+	.start		= imx_rproc_mmio_start,
+	.stop		= imx_rproc_mmio_stop,
+	.detect_mode	= imx_rproc_mmio_detect_mode,
+};
+
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mn_mmio = {
 	.src_reg	= IMX7D_SRC_SCR,
 	.src_mask	= IMX7D_M4_RST_MASK,
@@ -1153,6 +1173,7 @@ static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mn_mmio = {
 	.att		= imx_rproc_att_imx8mn,
 	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8mn),
 	.method		= IMX_RPROC_MMIO,
+	.ops		= &imx_rproc_ops_mmio,
 };
 
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mn = {
@@ -1169,6 +1190,7 @@ static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mq = {
 	.att		= imx_rproc_att_imx8mq,
 	.att_size	= ARRAY_SIZE(imx_rproc_att_imx8mq),
 	.method		= IMX_RPROC_MMIO,
+	.ops		= &imx_rproc_ops_mmio,
 };
 
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx8qm = {
@@ -1204,6 +1226,7 @@ static const struct imx_rproc_dcfg imx_rproc_cfg_imx7d = {
 	.att		= imx_rproc_att_imx7d,
 	.att_size	= ARRAY_SIZE(imx_rproc_att_imx7d),
 	.method		= IMX_RPROC_MMIO,
+	.ops		= &imx_rproc_ops_mmio,
 };
 
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx6sx = {
@@ -1214,6 +1237,7 @@ static const struct imx_rproc_dcfg imx_rproc_cfg_imx6sx = {
 	.att		= imx_rproc_att_imx6sx,
 	.att_size	= ARRAY_SIZE(imx_rproc_att_imx6sx),
 	.method		= IMX_RPROC_MMIO,
+	.ops		= &imx_rproc_ops_mmio,
 };
 
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx93 = {
