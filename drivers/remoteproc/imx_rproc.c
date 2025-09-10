@@ -323,14 +323,10 @@ static int imx_rproc_start(struct rproc *rproc)
 	if (ret)
 		return ret;
 
-	if (dcfg->ops && dcfg->ops->start) {
-		ret = dcfg->ops->start(rproc);
-		goto start_ret;
-	}
+	if (!dcfg->ops || !dcfg->ops->start)
+		return -EOPNOTSUPP;
 
-	return -EOPNOTSUPP;
-
-start_ret:
+	ret = dcfg->ops->start(rproc);
 	if (ret)
 		dev_err(dev, "Failed to enable remote core!\n");
 
@@ -380,14 +376,10 @@ static int imx_rproc_stop(struct rproc *rproc)
 	struct device *dev = priv->dev;
 	int ret;
 
-	if (dcfg->ops && dcfg->ops->stop) {
-		ret = dcfg->ops->stop(rproc);
-		goto stop_ret;
-	}
+	if (!dcfg->ops || !dcfg->ops->stop)
+		return -EOPNOTSUPP;
 
-	return -EOPNOTSUPP;
-
-stop_ret:
+	ret = dcfg->ops->stop(rproc);
 	if (ret)
 		dev_err(dev, "Failed to stop remote core\n");
 	else
@@ -997,18 +989,16 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 {
 	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
 
-	if (dcfg->ops && dcfg->ops->detect_mode)
-		return dcfg->ops->detect_mode(priv->rproc);
-
-	switch (dcfg->method) {
-	case IMX_RPROC_NONE:
+	/*
+	 * To i.MX{7,8} ULP, Linux is under control of RTOS, no need
+	 * dcfg->ops or dcfg->ops->detect_mode, it is state RPROC_DETACHED.
+	 */
+	if (!dcfg->ops || !dcfg->ops->detect_mode) {
 		priv->rproc->state = RPROC_DETACHED;
 		return 0;
-	default:
-		break;
 	}
 
-	return 0;
+	return dcfg->ops->detect_mode(priv->rproc);
 }
 
 static int imx_rproc_clk_enable(struct imx_rproc *priv)
