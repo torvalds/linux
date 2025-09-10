@@ -126,7 +126,7 @@ io_uring_cmd_buffer_select(struct io_uring_cmd *ioucmd, unsigned buf_group,
 	return (struct io_br_sel) { .val = -EOPNOTSUPP };
 }
 static inline bool io_uring_mshot_cmd_post_cqe(struct io_uring_cmd *ioucmd,
-				ssize_t ret, unsigned int issue_flags)
+				struct io_br_sel *sel, unsigned int issue_flags)
 {
 	return true;
 }
