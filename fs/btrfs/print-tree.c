@@ -315,6 +315,8 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 			print_inode_item(l, i);
 			break;
 		case BTRFS_DIR_ITEM_KEY:
+		case BTRFS_DIR_INDEX_KEY:
+		case BTRFS_XATTR_ITEM_KEY:
 			print_dir_item(l, i);
 			break;
 		case BTRFS_ROOT_ITEM_KEY:
