@@ -30,7 +30,6 @@ mod private {
 
     impl Sealed for super::Enabled {}
     impl Sealed for super::Disabled {}
-    impl Sealed for super::Dynamic {}
 }
 
 /// A trait representing the different states a [`Regulator`] can be in.
@@ -50,13 +49,6 @@ pub struct Enabled;
 /// own an `enable` reference count, but the regulator may still be on.
 pub struct Disabled;
 
-/// A state that models the C API. The [`Regulator`] can be either enabled or
-/// disabled, and the user is in control of the reference count. This is also
-/// the default state.
-///
-/// Use [`Regulator::is_enabled`] to check the regulator's current state.
-pub struct Dynamic;
-
 impl RegulatorState for Enabled {
     const DISABLE_ON_DROP: bool = true;
 }
@@ -65,14 +57,9 @@ impl RegulatorState for Disabled {
     const DISABLE_ON_DROP: bool = false;
 }
 
-impl RegulatorState for Dynamic {
-    const DISABLE_ON_DROP: bool = false;
-}
-
 /// A trait that abstracts the ability to check if a [`Regulator`] is enabled.
 pub trait IsEnabled: RegulatorState {}
 impl IsEnabled for Disabled {}
-impl IsEnabled for Dynamic {}
 
 /// An error that can occur when trying to convert a [`Regulator`] between states.
 pub struct Error<State: RegulatorState> {
@@ -183,64 +170,13 @@ pub struct Error<State: RegulatorState> {
 /// }
 /// ```
 ///
-/// ## Using [`Regulator<Dynamic>`]
-///
-/// This example mimics the behavior of the C API, where the user is in
-/// control of the enabled reference count. This is useful for drivers that
-/// might call enable and disable to manage the `enable` reference count at
-/// runtime, perhaps as a result of `open()` and `close()` calls or whatever
-/// other driver-specific or subsystem-specific hooks.
-///
-/// ```
-/// # use kernel::prelude::*;
-/// # use kernel::c_str;
-/// # use kernel::device::Device;
-/// # use kernel::regulator::{Regulator, Dynamic};
-/// struct PrivateData {
-///     regulator: Regulator<Dynamic>,
-/// }
-///
-/// // A fictictious probe function that obtains a regulator and sets it up.
-/// fn probe(dev: &Device) -> Result<PrivateData> {
-///     // Obtain a reference to a (fictitious) regulator.
-///     let regulator = Regulator::<Dynamic>::get(dev, c_str!("vcc"))?;
-///
-///     Ok(PrivateData { regulator })
-/// }
-///
-/// // A fictictious function that indicates that the device is going to be used.
-/// fn open(dev: &Device, data: &PrivateData) -> Result {
-///     // Increase the `enabled` reference count.
-///     data.regulator.enable()?;
-///
-///     Ok(())
-/// }
-///
-/// fn close(dev: &Device, data: &PrivateData) -> Result {
-///     // Decrease the `enabled` reference count.
-///     data.regulator.disable()?;
-///
-///     Ok(())
-/// }
-///
-/// fn remove(dev: &Device, data: PrivateData) -> Result {
-///     // `PrivateData` is dropped here, which will drop the
-///     // `Regulator<Dynamic>` in turn.
-///     //
-///     // The reference that was obtained by `regulator_get()` will be
-///     // released, but it is up to the user to make sure that the number of calls
-///     // to `enable()` and `disabled()` are balanced before this point.
-///     Ok(())
-/// }
-/// ```
-///
 /// # Invariants
 ///
 /// - `inner` is a non-null wrapper over a pointer to a `struct
 ///   regulator` obtained from [`regulator_get()`].
 ///
 /// [`regulator_get()`]: https://docs.kernel.org/driver-api/regulator.html#c.regulator_get
-pub struct Regulator<State = Dynamic>
+pub struct Regulator<State>
 where
     State: RegulatorState,
 {
@@ -348,28 +284,6 @@ impl Regulator<Enabled> {
                 error,
                 regulator: ManuallyDrop::into_inner(regulator),
             })
-    }
-}
-
-impl Regulator<Dynamic> {
-    /// Obtains a [`Regulator`] instance from the system. The current state of
-    /// the regulator is unknown and it is up to the user to manage the enabled
-    /// reference count.
-    ///
-    /// This closely mimics the behavior of the C API and can be used to
-    /// dynamically manage the enabled reference count at runtime.
-    pub fn get(dev: &Device, name: &CStr) -> Result<Self> {
-        Regulator::get_internal(dev, name)
-    }
-
-    /// Increases the `enabled` reference count.
-    pub fn enable(&self) -> Result {
-        self.enable_internal()
-    }
-
-    /// Decreases the `enabled` reference count.
-    pub fn disable(&self) -> Result {
-        self.disable_internal()
     }
 }
 
