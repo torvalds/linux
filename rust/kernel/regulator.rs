@@ -18,7 +18,7 @@
 
 use crate::{
     bindings,
-    device::Device,
+    device::{Bound, Device},
     error::{from_err_ptr, to_result, Result},
     prelude::*,
 };
@@ -68,6 +68,41 @@ pub struct Error<State: RegulatorState> {
 
     /// The regulator that caused the error, so that the operation may be retried.
     pub regulator: Regulator<State>,
+}
+/// Obtains and enables a [`devres`]-managed regulator for a device.
+///
+/// This calls [`regulator_disable()`] and [`regulator_put()`] automatically on
+/// driver detach.
+///
+/// This API is identical to `devm_regulator_get_enable()`, and should be
+/// preferred over the [`Regulator<T: RegulatorState>`] API if the caller only
+/// cares about the regulator being enabled.
+///
+/// [`devres`]: https://docs.kernel.org/driver-api/driver-model/devres.html
+/// [`regulator_disable()`]: https://docs.kernel.org/driver-api/regulator.html#c.regulator_disable
+/// [`regulator_put()`]: https://docs.kernel.org/driver-api/regulator.html#c.regulator_put
+pub fn devm_enable(dev: &Device<Bound>, name: &CStr) -> Result {
+    // SAFETY: `dev` is a valid and bound device, while `name` is a valid C
+    // string.
+    to_result(unsafe { bindings::devm_regulator_get_enable(dev.as_raw(), name.as_ptr()) })
+}
+
+/// Same as [`devm_enable`], but calls `devm_regulator_get_enable_optional`
+/// instead.
+///
+/// This obtains and enables a [`devres`]-managed regulator for a device, but
+/// does not print a message nor provides a dummy if the regulator is not found.
+///
+/// This calls [`regulator_disable()`] and [`regulator_put()`] automatically on
+/// driver detach.
+///
+/// [`devres`]: https://docs.kernel.org/driver-api/driver-model/devres.html
+/// [`regulator_disable()`]: https://docs.kernel.org/driver-api/regulator.html#c.regulator_disable
+/// [`regulator_put()`]: https://docs.kernel.org/driver-api/regulator.html#c.regulator_put
+pub fn devm_enable_optional(dev: &Device<Bound>, name: &CStr) -> Result {
+    // SAFETY: `dev` is a valid and bound device, while `name` is a valid C
+    // string.
+    to_result(unsafe { bindings::devm_regulator_get_enable_optional(dev.as_raw(), name.as_ptr()) })
 }
 
 /// A `struct regulator` abstraction.
@@ -142,6 +177,29 @@ pub struct Error<State: RegulatorState> {
 ///
 ///     // ...
 ///
+///     Ok(())
+/// }
+/// ```
+///
+/// If a driver only cares about the regulator being on for as long it is bound
+/// to a device, then it should use [`devm_enable`] or [`devm_enable_optional`].
+/// This should be the default use-case unless more fine-grained control over
+/// the regulator's state is required.
+///
+/// [`devm_enable`]: crate::regulator::devm_enable
+/// [`devm_optional`]: crate::regulator::devm_enable_optional
+///
+/// ```
+/// # use kernel::prelude::*;
+/// # use kernel::c_str;
+/// # use kernel::device::{Bound, Device};
+/// # use kernel::regulator;
+/// fn enable(dev: &Device<Bound>) -> Result {
+///     // Obtain a reference to a (fictitious) regulator and enable it. This
+///     // call only returns whether the operation succeeded.
+///     regulator::devm_enable(dev, c_str!("vcc"))?;
+///
+///     // The regulator will be disabled and put when `dev` is unbound.
 ///     Ok(())
 /// }
 /// ```
