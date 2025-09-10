@@ -2945,7 +2945,7 @@ static int dm_oem_i2c_hw_init(struct amdgpu_device *adev)
 			return -ENOMEM;
 		}
 
-		r = i2c_add_adapter(&oem_i2c->base);
+		r = devm_i2c_add_adapter(adev->dev, &oem_i2c->base);
 		if (r) {
 			drm_info(adev_to_drm(adev), "Failed to register oem i2c\n");
 			kfree(oem_i2c);
@@ -2955,17 +2955,6 @@ static int dm_oem_i2c_hw_init(struct amdgpu_device *adev)
 	}
 
 	return 0;
-}
-
-static void dm_oem_i2c_hw_fini(struct amdgpu_device *adev)
-{
-	struct amdgpu_display_manager *dm = &adev->dm;
-
-	if (dm->oem_i2c) {
-		i2c_del_adapter(&dm->oem_i2c->base);
-		kfree(dm->oem_i2c);
-		dm->oem_i2c = NULL;
-	}
 }
 
 /**
@@ -3017,8 +3006,6 @@ static int dm_hw_init(struct amdgpu_ip_block *ip_block)
 static int dm_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
-
-	dm_oem_i2c_hw_fini(adev);
 
 	amdgpu_dm_hpd_fini(adev);
 
@@ -7373,10 +7360,6 @@ static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 	drm_dp_cec_unregister_connector(&aconnector->dm_dp_aux.aux);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	if (aconnector->i2c) {
-		i2c_del_adapter(&aconnector->i2c->base);
-		kfree(aconnector->i2c);
-	}
 	kfree(aconnector->dm_dp_aux.aux.name);
 
 	kfree(connector);
@@ -8734,7 +8717,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 	}
 
 	aconnector->i2c = i2c;
-	res = i2c_add_adapter(&i2c->base);
+	res = devm_i2c_add_adapter(dm->adev->dev, &i2c->base);
 
 	if (res) {
 		drm_err(adev_to_drm(dm->adev), "Failed to register hw i2c %d\n", link->link_index);
