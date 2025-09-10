@@ -22,7 +22,6 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_0>;
-			#clock-cells = <1>;
 			clocks = <&pmd0clk 0>;
 		};
 		cpu@1 {
@@ -32,7 +31,6 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_0>;
-			#clock-cells = <1>;
 			clocks = <&pmd0clk 0>;
 		};
 		cpu@100 {
@@ -42,7 +40,6 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_1>;
-			#clock-cells = <1>;
 			clocks = <&pmd1clk 0>;
 		};
 		cpu@101 {
@@ -52,7 +49,6 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_1>;
-			#clock-cells = <1>;
 			clocks = <&pmd1clk 0>;
 		};
 		cpu@200 {
@@ -62,7 +58,6 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_2>;
-			#clock-cells = <1>;
 			clocks = <&pmd2clk 0>;
 		};
 		cpu@201 {
@@ -72,7 +67,6 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_2>;
-			#clock-cells = <1>;
 			clocks = <&pmd2clk 0>;
 		};
 		cpu@300 {
@@ -82,7 +76,6 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_3>;
-			#clock-cells = <1>;
 			clocks = <&pmd3clk 0>;
 		};
 		cpu@301 {
@@ -92,7 +85,6 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_3>;
-			#clock-cells = <1>;
 			clocks = <&pmd3clk 0>;
 		};
 		xgene_L2_0: l2-cache-0 {
@@ -211,9 +203,9 @@
 		};
 	};
 
-	refclk: refclk {
+	refclk: clock-100000000 {
 		compatible = "fixed-clock";
-		#clock-cells = <1>;
+		#clock-cells = <0>;
 		clock-frequency = <100000000>;
 		clock-output-names = "refclk";
 	};
@@ -246,7 +238,7 @@
 			pmdpll: pmdpll@170000f0 {
 				compatible = "apm,xgene-pcppll-v2-clock";
 				#clock-cells = <1>;
-				clocks = <&refclk 0>;
+				clocks = <&refclk>;
 				reg = <0x0 0x170000f0 0x0 0x10>;
 				clock-output-names = "pmdpll";
 			};
@@ -286,7 +278,7 @@
 			socpll: socpll@17000120 {
 				compatible = "apm,xgene-socpll-v2-clock";
 				#clock-cells = <1>;
-				clocks = <&refclk 0>;
+				clocks = <&refclk>;
 				reg = <0x0 0x17000120 0x0 0x1000>;
 				clock-output-names = "socpll";
 			};
