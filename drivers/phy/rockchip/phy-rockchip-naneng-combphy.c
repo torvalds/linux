@@ -529,7 +529,7 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 		return -EINVAL;
 	}
 
-	if (device_property_read_bool(priv->dev, "rockchip,ext-refclk")) {
+	if (priv->ext_refclk) {
 		rockchip_combphy_param_write(priv->phy_grf, &cfg->pipe_clk_ext, true);
 
 		if (priv->type == PHY_TYPE_PCIE && rate == REF_CLOCK_100MHz) {
@@ -554,11 +554,9 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 		}
 	}
 
-	if (priv->type == PHY_TYPE_PCIE) {
-		if (device_property_read_bool(priv->dev, "rockchip,enable-ssc"))
-			rockchip_combphy_updatel(priv, RK3528_PHYREG40_SSC_EN,
-						 RK3528_PHYREG40_SSC_EN, RK3528_PHYREG40);
-	}
+	if (priv->type == PHY_TYPE_PCIE && priv->enable_ssc)
+		rockchip_combphy_updatel(priv, RK3528_PHYREG40_SSC_EN,
+					 RK3528_PHYREG40_SSC_EN, RK3528_PHYREG40);
 
 	return 0;
 }
@@ -582,7 +580,7 @@ static const struct rockchip_combphy_grfcfg rk3528_combphy_grfcfgs = {
 	.con2_for_pcie		= { 0x0008, 15, 0, 0x00, 0x101 },
 	.con3_for_pcie		= { 0x000c, 15, 0, 0x00, 0x0200 },
 	/* pipe-grf */
-	.u3otg0_port_en         = { 0x0044, 15, 0, 0x0181, 0x1100 },
+	.u3otg0_port_en		= { 0x0044, 15, 0, 0x0181, 0x1100 },
 };
 
 static const struct rockchip_combphy_cfg rk3528_combphy_cfgs = {
