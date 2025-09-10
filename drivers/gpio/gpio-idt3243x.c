@@ -147,7 +147,7 @@ static int idt_gpio_probe(struct platform_device *pdev)
 
 	ctrl->chip.gc.parent = dev;
 
-	config = (typeof(config)){
+	config = (struct gpio_generic_chip_config) {
 		.dev = &pdev->dev,
 		.sz = 4,
 		.dat = ctrl->gpio + IDT_GPIO_DATA,

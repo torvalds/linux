@@ -525,7 +525,7 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 	set = gpio->regs + GPIO_SWPORTA_DR + pp->idx * GPIO_SWPORT_DR_STRIDE;
 	dirout = gpio->regs + GPIO_SWPORTA_DDR + pp->idx * GPIO_SWPORT_DDR_STRIDE;
 
-	config = (typeof(config)){
+	config = (struct gpio_generic_chip_config) {
 		.dev = gpio->dev,
 		.sz = 4,
 		.dat = dat,

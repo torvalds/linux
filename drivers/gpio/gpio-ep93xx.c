@@ -352,7 +352,7 @@ static int ep93xx_gpio_probe(struct platform_device *pdev)
 
 	gc = &egc->chip.gc;
 
-	config = (typeof(config)){
+	config = (struct gpio_generic_chip_config) {
 		.dev = &pdev->dev,
 		.sz = 1,
 		.dat = data,

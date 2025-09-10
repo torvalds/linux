@@ -292,7 +292,7 @@ static int loongson_gpio_init(struct platform_device *pdev, struct loongson_gpio
 
 	lgpio->reg_base = reg_base;
 	if (lgpio->chip_data->mode == BIT_CTRL_MODE) {
-		config = (typeof(config)){
+		config = (struct gpio_generic_chip_config) {
 			.dev = &pdev->dev,
 			.sz = 8,
 			.dat = lgpio->reg_base + lgpio->chip_data->in_offset,

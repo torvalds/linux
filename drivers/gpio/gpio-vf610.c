@@ -305,7 +305,7 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	if (port->sdata->have_paddr)
 		flags |= BGPIOF_READ_OUTPUT_REG_SET;
 
-	config = (typeof(config)){
+	config = (struct gpio_generic_chip_config) {
 		.dev = dev,
 		.sz = 4,
 		.dat = port->gpio_base + GPIO_PDIR,

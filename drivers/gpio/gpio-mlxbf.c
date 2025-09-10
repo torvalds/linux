@@ -66,7 +66,7 @@ static int mlxbf_gpio_probe(struct platform_device *pdev)
 
 	gc = &gs->chip.gc;
 
-	config = (typeof(config)){
+	config = (struct gpio_generic_chip_config) {
 		.dev = dev,
 		.sz = 8,
 		.dat = gs->base + MLXBF_GPIO_PIN_STATE,

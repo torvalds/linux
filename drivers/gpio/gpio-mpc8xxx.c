@@ -345,7 +345,7 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	gc = &mpc8xxx_gc->chip.gc;
 	gc->parent = dev;
 
-	config = (typeof(config)){
+	config = (struct gpio_generic_chip_config) {
 		.dev = dev,
 		.sz = 4,
 		.dat = mpc8xxx_gc->regs + GPIO_DAT,

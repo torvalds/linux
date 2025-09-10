@@ -292,7 +292,7 @@ static int hisi_gpio_probe(struct platform_device *pdev)
 
 	hisi_gpio->dev = dev;
 
-	config = (typeof(config)){
+	config = (struct gpio_generic_chip_config) {
 		.dev = hisi_gpio->dev,
 		.sz = 4,
 		.dat = hisi_gpio->reg_base + HISI_GPIO_EXT_PORT_WX,

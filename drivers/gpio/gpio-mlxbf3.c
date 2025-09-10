@@ -209,7 +209,7 @@ static int mlxbf3_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(gs->gpio_clr_io);
 	gc = &gs->chip.gc;
 
-	config = (typeof(config)){
+	config = (struct gpio_generic_chip_config) {
 		.dev = dev,
 		.sz = 4,
 		.dat = gs->gpio_io + MLXBF_GPIO_READ_DATA_IN,

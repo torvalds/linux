@@ -377,7 +377,7 @@ mlxbf2_gpio_probe(struct platform_device *pdev)
 
 	gc = &gs->chip.gc;
 
-	config = (typeof(config)){
+	config = (struct gpio_generic_chip_config) {
 		.dev = dev,
 		.sz = 4,
 		.dat = gs->gpio_io + YU_GPIO_DATAIN,
