@@ -534,7 +534,7 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 		goto out;
 	}
 	/*
-	 * After succesful copy out, the timer ID is visible to user space
+	 * After successful copy out, the timer ID is visible to user space
 	 * now but not yet valid because new_timer::signal low order bit is 1.
 	 *
 	 * Complete the initialization with the clock specific create

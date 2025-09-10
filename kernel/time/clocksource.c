@@ -144,7 +144,7 @@ static u64 suspend_start;
  * Default for maximum permissible skew when cs->uncertainty_margin is
  * not specified, and the lower bound even when cs->uncertainty_margin
  * is specified.  This is also the default that is used when registering
- * clocks with unspecifed cs->uncertainty_margin, so this macro is used
+ * clocks with unspecified cs->uncertainty_margin, so this macro is used
  * even in CONFIG_CLOCKSOURCE_WATCHDOG=n kernels.
  */
 #define WATCHDOG_MAX_SKEW (MAX_SKEW_USEC * NSEC_PER_USEC)
