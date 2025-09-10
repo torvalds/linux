@@ -2346,10 +2346,10 @@ static void migrate_disable_switch(struct rq *rq, struct task_struct *p)
 	if (p->cpus_ptr != &p->cpus_mask)
 		return;
 
-	/*
-	 * Violates locking rules! See comment in __do_set_cpus_allowed().
-	 */
-	__do_set_cpus_allowed(p, &ac);
+	scoped_guard (task_rq_lock, p) {
+		update_rq_clock(scope.rq);
+		__do_set_cpus_allowed(p, &ac);
+	}
 }
 
 void ___migrate_enable(void)
@@ -2667,22 +2667,7 @@ __do_set_cpus_allowed(struct task_struct *p, struct affinity_context *ctx)
 	struct rq *rq = task_rq(p);
 	bool queued, running;
 
-	/*
-	 * This here violates the locking rules for affinity, since we're only
-	 * supposed to change these variables while holding both rq->lock and
-	 * p->pi_lock.
-	 *
-	 * HOWEVER, it magically works, because ttwu() is the only code that
-	 * accesses these variables under p->pi_lock and only does so after
-	 * smp_cond_load_acquire(&p->on_cpu, !VAL), and we're in __schedule()
-	 * before finish_task().
-	 *
-	 * XXX do further audits, this smells like something putrid.
-	 */
-	if (ctx->flags & SCA_MIGRATE_DISABLE)
-		WARN_ON_ONCE(!p->on_cpu);
-	else
-		lockdep_assert_held(&p->pi_lock);
+	lockdep_assert_held(&p->pi_lock);
 
 	queued = task_on_rq_queued(p);
 	running = task_current_donor(rq, p);
@@ -6781,6 +6766,7 @@ static void __sched notrace __schedule(int sched_mode)
 
 	local_irq_disable();
 	rcu_note_context_switch(preempt);
+	migrate_disable_switch(rq, prev);
 
 	/*
 	 * Make sure that signal_pending_state()->signal_pending() below
@@ -6887,7 +6873,6 @@ keep_resched:
 		 */
 		++*switch_count;
 
-		migrate_disable_switch(rq, prev);
 		psi_account_irqtime(rq, prev, next);
 		psi_sched_switch(prev, next, !task_on_rq_queued(prev) ||
 					     prev->se.sched_delayed);
