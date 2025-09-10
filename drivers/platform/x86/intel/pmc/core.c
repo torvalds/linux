@@ -11,6 +11,11 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+enum header_type {
+	HEADER_STATUS,
+	HEADER_VALUE,
+};
+
 #include <linux/bitfield.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
@@ -828,17 +833,22 @@ static int pmc_core_substate_l_sts_regs_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_substate_l_sts_regs);
 
-static void pmc_core_substate_req_header_show(struct seq_file *s, int pmc_index)
+static void pmc_core_substate_req_header_show(struct seq_file *s, int pmc_index,
+					      enum header_type type)
 {
 	struct pmc_dev *pmcdev = s->private;
 	int mode;
 
-	seq_printf(s, "%30s |", "Element");
+	seq_printf(s, "%40s |", "Element");
 	pmc_for_each_mode(mode, pmcdev)
 		seq_printf(s, " %9s |", pmc_lpm_modes[mode]);
 
-	seq_printf(s, " %9s |", "Status");
-	seq_printf(s, " %11s |\n", "Live Status");
+	if (type == HEADER_STATUS) {
+		seq_printf(s, " %9s |", "Status");
+		seq_printf(s, " %11s |\n", "Live Status");
+	} else {
+		seq_printf(s, " %9s |\n", "Value");
+	}
 }
 
 static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
@@ -872,7 +882,7 @@ static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 			continue;
 
 		/* Display the header */
-		pmc_core_substate_req_header_show(s, pmc_index);
+		pmc_core_substate_req_header_show(s, pmc_index, HEADER_STATUS);
 
 		/* Loop over maps */
 		for (mp = 0; mp < num_maps; mp++) {
@@ -910,7 +920,7 @@ static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 				}
 
 				/* Display the element name in the first column */
-				seq_printf(s, "pmc%d: %26s |", pmc_index, map[i].name);
+				seq_printf(s, "pmc%d: %34s |", pmc_index, map[i].name);
 
 				/* Loop over the enabled states and display if required */
 				pmc_for_each_mode(mode, pmcdev) {
