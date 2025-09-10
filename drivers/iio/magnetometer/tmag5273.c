@@ -287,7 +287,6 @@ static int tmag5273_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (mask) {
-	case IIO_CHAN_INFO_PROCESSED:
 	case IIO_CHAN_INFO_RAW:
 		ret = pm_runtime_resume_and_get(data->dev);
 		if (ret < 0)
