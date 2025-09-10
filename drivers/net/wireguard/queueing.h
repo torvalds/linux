@@ -106,7 +106,7 @@ static inline int wg_cpumask_choose_online(int *stored_cpu, unsigned int id)
 {
 	unsigned int cpu = *stored_cpu;
 
-	if (unlikely(cpu >= nr_cpu_ids || !cpu_online(cpu)))
+	while (unlikely(cpu >= nr_cpu_ids || !cpu_online(cpu)))
 		cpu = *stored_cpu = cpumask_nth(id % num_online_cpus(), cpu_online_mask);
 
 	return cpu;
