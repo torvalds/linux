@@ -5729,6 +5729,11 @@ static inline int cfs_rq_throttled(struct cfs_rq *cfs_rq)
 	return cfs_bandwidth_used() && cfs_rq->throttled;
 }
 
+static inline bool cfs_rq_pelt_clock_throttled(struct cfs_rq *cfs_rq)
+{
+	return cfs_bandwidth_used() && cfs_rq->pelt_clock_throttled;
+}
+
 /* check whether cfs_rq, or any parent, is throttled */
 static inline int throttled_hierarchy(struct cfs_rq *cfs_rq)
 {
@@ -6719,6 +6724,11 @@ static void record_throttle_clock(struct cfs_rq *cfs_rq) {}
 static inline int cfs_rq_throttled(struct cfs_rq *cfs_rq)
 {
 	return 0;
+}
+
+static inline bool cfs_rq_pelt_clock_throttled(struct cfs_rq *cfs_rq)
+{
+	return false;
 }
 
 static inline int throttled_hierarchy(struct cfs_rq *cfs_rq)
@@ -13151,10 +13161,13 @@ static void propagate_entity_cfs_rq(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 
-	if (cfs_rq_throttled(cfs_rq))
-		return;
-
-	if (!throttled_hierarchy(cfs_rq))
+	/*
+	 * If a task gets attached to this cfs_rq and before being queued,
+	 * it gets migrated to another CPU due to reasons like affinity
+	 * change, make sure this cfs_rq stays on leaf cfs_rq list to have
+	 * that removed load decayed or it can cause faireness problem.
+	 */
+	if (!cfs_rq_pelt_clock_throttled(cfs_rq))
 		list_add_leaf_cfs_rq(cfs_rq);
 
 	/* Start to propagate at parent */
@@ -13165,10 +13178,7 @@ static void propagate_entity_cfs_rq(struct sched_entity *se)
 
 		update_load_avg(cfs_rq, se, UPDATE_TG);
 
-		if (cfs_rq_throttled(cfs_rq))
-			break;
-
-		if (!throttled_hierarchy(cfs_rq))
+		if (!cfs_rq_pelt_clock_throttled(cfs_rq))
 			list_add_leaf_cfs_rq(cfs_rq);
 	}
 }
