@@ -155,7 +155,6 @@ static int als31300_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (mask) {
-	case IIO_CHAN_INFO_PROCESSED:
 	case IIO_CHAN_INFO_RAW:
 		ret = als31300_get_measure(data, &t, &x, &y, &z);
 		if (ret)
