@@ -22,7 +22,7 @@ static inline int i915_gem_stolen_insert_node_in_range(struct xe_device *xe,
 						       u32 start, u32 end)
 {
 	struct xe_bo *bo;
-	int err;
+	int err = 0;
 	u32 flags = XE_BO_FLAG_PINNED | XE_BO_FLAG_STOLEN;
 
 	if (start < SZ_4K)

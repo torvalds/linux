@@ -283,7 +283,7 @@ static struct i915_vma *__xe_pin_fb_vma(const struct intel_framebuffer *fb,
 	struct xe_bo *bo = gem_to_xe_bo(obj);
 	struct xe_validation_ctx ctx;
 	struct drm_exec exec;
-	int ret;
+	int ret = 0;
 
 	if (!vma)
 		return ERR_PTR(-ENODEV);
