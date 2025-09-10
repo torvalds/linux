@@ -116,6 +116,7 @@ xe_bo_create_pin_map_at_novm(struct xe_device *xe, struct xe_tile *tile,
 			     u32 flags, u64 alignment, bool intr);
 struct xe_bo *xe_managed_bo_create_pin_map(struct xe_device *xe, struct xe_tile *tile,
 					   size_t size, u32 flags);
+void xe_managed_bo_unpin_map_no_vm(struct xe_bo *bo);
 struct xe_bo *xe_managed_bo_create_from_data(struct xe_device *xe, struct xe_tile *tile,
 					     const void *data, size_t size, u32 flags);
 int xe_managed_bo_reinit_in_vram(struct xe_device *xe, struct xe_tile *tile, struct xe_bo **src);

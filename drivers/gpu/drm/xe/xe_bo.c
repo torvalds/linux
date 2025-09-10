@@ -2629,6 +2629,11 @@ struct xe_bo *xe_managed_bo_create_pin_map(struct xe_device *xe, struct xe_tile 
 	return bo;
 }
 
+void xe_managed_bo_unpin_map_no_vm(struct xe_bo *bo)
+{
+	devm_release_action(xe_bo_device(bo)->drm.dev, __xe_bo_unpin_map_no_vm, bo);
+}
+
 struct xe_bo *xe_managed_bo_create_from_data(struct xe_device *xe, struct xe_tile *tile,
 					     const void *data, size_t size, u32 flags)
 {
