@@ -781,7 +781,7 @@ static int llbitmap_init(struct llbitmap *llbitmap)
 
 	while (chunks > space) {
 		chunksize = chunksize << 1;
-		chunks = DIV_ROUND_UP(blocks, chunksize);
+		chunks = DIV_ROUND_UP_SECTOR_T(blocks, chunksize);
 	}
 
 	llbitmap->barrier_idle = DEFAULT_BARRIER_IDLE;
@@ -864,8 +864,8 @@ static int llbitmap_read_sb(struct llbitmap *llbitmap)
 		goto out_put_page;
 	}
 
-	if (chunksize < DIV_ROUND_UP(mddev->resync_max_sectors,
-				     mddev->bitmap_info.space << SECTOR_SHIFT)) {
+	if (chunksize < DIV_ROUND_UP_SECTOR_T(mddev->resync_max_sectors,
+					      mddev->bitmap_info.space << SECTOR_SHIFT)) {
 		pr_err("md/llbitmap: %s: chunksize too small %lu < %llu / %lu",
 		       mdname(mddev), chunksize, mddev->resync_max_sectors,
 		       mddev->bitmap_info.space);
@@ -892,7 +892,7 @@ static int llbitmap_read_sb(struct llbitmap *llbitmap)
 
 	llbitmap->barrier_idle = DEFAULT_BARRIER_IDLE;
 	llbitmap->chunksize = chunksize;
-	llbitmap->chunks = DIV_ROUND_UP(mddev->resync_max_sectors, chunksize);
+	llbitmap->chunks = DIV_ROUND_UP_SECTOR_T(mddev->resync_max_sectors, chunksize);
 	llbitmap->chunkshift = ffz(~chunksize);
 	ret = llbitmap_cache_pages(llbitmap);
 
@@ -1014,10 +1014,10 @@ static int llbitmap_resize(struct mddev *mddev, sector_t blocks, int chunksize)
 		chunksize = llbitmap->chunksize;
 
 	/* If there is enough space, leave the chunksize unchanged. */
-	chunks = DIV_ROUND_UP(blocks, chunksize);
+	chunks = DIV_ROUND_UP_SECTOR_T(blocks, chunksize);
 	while (chunks > mddev->bitmap_info.space << SECTOR_SHIFT) {
 		chunksize = chunksize << 1;
-		chunks = DIV_ROUND_UP(blocks, chunksize);
+		chunks = DIV_ROUND_UP_SECTOR_T(blocks, chunksize);
 	}
 
 	llbitmap->chunkshift = ffz(~chunksize);
@@ -1094,7 +1094,7 @@ static void llbitmap_start_discard(struct mddev *mddev, sector_t offset,
 				   unsigned long sectors)
 {
 	struct llbitmap *llbitmap = mddev->bitmap;
-	unsigned long start = DIV_ROUND_UP(offset, llbitmap->chunksize);
+	unsigned long start = DIV_ROUND_UP_SECTOR_T(offset, llbitmap->chunksize);
 	unsigned long end = (offset + sectors - 1) >> llbitmap->chunkshift;
 	int page_start = (start + BITMAP_DATA_OFFSET) >> PAGE_SHIFT;
 	int page_end = (end + BITMAP_DATA_OFFSET) >> PAGE_SHIFT;
@@ -1111,7 +1111,7 @@ static void llbitmap_end_discard(struct mddev *mddev, sector_t offset,
 				 unsigned long sectors)
 {
 	struct llbitmap *llbitmap = mddev->bitmap;
-	unsigned long start = DIV_ROUND_UP(offset, llbitmap->chunksize);
+	unsigned long start = DIV_ROUND_UP_SECTOR_T(offset, llbitmap->chunksize);
 	unsigned long end = (offset + sectors - 1) >> llbitmap->chunkshift;
 	int page_start = (start + BITMAP_DATA_OFFSET) >> PAGE_SHIFT;
 	int page_end = (end + BITMAP_DATA_OFFSET) >> PAGE_SHIFT;
