@@ -4933,9 +4933,6 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 	int ret = 0;
 	unsigned long i;
 
-	if (q->nr_requests == nr)
-		return 0;
-
 	blk_mq_quiesce_queue(q);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
@@ -4947,10 +4944,9 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 		 */
 		if (hctx->sched_tags) {
 			ret = blk_mq_tag_update_depth(hctx, &hctx->sched_tags,
-						      nr, true);
+						      nr);
 		} else {
-			ret = blk_mq_tag_update_depth(hctx, &hctx->tags, nr,
-						      false);
+			ret = blk_mq_tag_update_depth(hctx, &hctx->tags, nr);
 		}
 		if (ret)
 			goto out;
