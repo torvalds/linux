@@ -1149,7 +1149,7 @@ fec_restart(struct net_device *ndev)
 	u32 rcntl = FEC_RCR_MII;
 
 	if (OPT_ARCH_HAS_MAX_FL)
-		rcntl |= fep->max_buf_size << 16;
+		rcntl |= (fep->netdev->mtu + ETH_HLEN + ETH_FCS_LEN) << 16;
 
 	if (fep->bufdesc_ex)
 		fec_ptp_save_state(fep);
