@@ -141,6 +141,9 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 	case ACPI_DBG2_16550_NVIDIA:
 		uart = "uart";
 		break;
+	case ACPI_DBG2_RISCV_SBI_CON:
+		uart = "sbi";
+		break;
 	default:
 		err = -ENOENT;
 		goto done;
