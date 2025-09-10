@@ -66,24 +66,6 @@ struct ath12k_dp_rx_rfc1042_hdr {
 	__be16 snap_type;
 } __packed;
 
-struct ath12k_dp_rx_info {
-	struct ieee80211_rx_status *rx_status;
-	u32 phy_meta_data;
-	u16 peer_id;
-	u8 decap_type;
-	u8 pkt_type;
-	u8 sgi;
-	u8 rate_mcs;
-	u8 bw;
-	u8 nss;
-	u8 addr2[ETH_ALEN];
-	u8 tid;
-	bool ip_csum_fail;
-	bool l4_csum_fail;
-	bool is_mcbc;
-	bool addr2_present;
-};
-
 static inline u32 ath12k_he_gi_to_nl80211_he_gi(u8 sgi)
 {
 	u32 ret = 0;
@@ -106,39 +88,6 @@ static inline u32 ath12k_he_gi_to_nl80211_he_gi(u8 sgi)
 	return ret;
 }
 
-static inline enum hal_encrypt_type ath12k_dp_rx_h_enctype(struct ath12k_base *ab,
-							   struct hal_rx_desc *desc)
-{
-	if (!ab->hal_rx_ops->rx_desc_encrypt_valid(desc))
-		return HAL_ENCRYPT_TYPE_OPEN;
-
-	return ab->hal_rx_ops->rx_desc_get_encrypt_type(desc);
-}
-
-static inline u8 ath12k_dp_rx_h_decap_type(struct ath12k_base *ab,
-					   struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_decap_type(desc);
-}
-
-static inline u8 ath12k_dp_rx_h_mesh_ctl_present(struct ath12k_base *ab,
-						 struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_mesh_ctl(desc);
-}
-
-static inline bool ath12k_dp_rx_h_seq_ctrl_valid(struct ath12k_base *ab,
-						 struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_mpdu_seq_ctl_vld(desc);
-}
-
-static inline bool ath12k_dp_rx_h_fc_valid(struct ath12k_base *ab,
-					   struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_mpdu_fc_valid(desc);
-}
-
 static inline bool ath12k_dp_rx_h_more_frags(struct ath12k_base *ab,
 					     struct sk_buff *skb)
 {
@@ -157,112 +106,10 @@ static inline u16 ath12k_dp_rx_h_frag_no(struct ath12k_base *ab,
 	return le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG;
 }
 
-static inline u16 ath12k_dp_rx_h_seq_no(struct ath12k_base *ab,
-					struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_mpdu_start_seq_no(desc);
-}
-
-static inline bool ath12k_dp_rx_h_msdu_done(struct ath12k_base *ab,
-					    struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->dp_rx_h_msdu_done(desc);
-}
-
-static inline bool ath12k_dp_rx_h_l4_cksum_fail(struct ath12k_base *ab,
-						struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->dp_rx_h_l4_cksum_fail(desc);
-}
-
-static inline bool ath12k_dp_rx_h_ip_cksum_fail(struct ath12k_base *ab,
-						struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->dp_rx_h_ip_cksum_fail(desc);
-}
-
-static inline bool ath12k_dp_rx_h_is_decrypted(struct ath12k_base *ab,
-					       struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->dp_rx_h_is_decrypted(desc);
-}
-
-static inline u32 ath12k_dp_rx_h_mpdu_err(struct ath12k_base *ab,
-					  struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->dp_rx_h_mpdu_err(desc);
-}
-
-static inline u16 ath12k_dp_rx_h_msdu_len(struct ath12k_base *ab,
-					  struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_msdu_len(desc);
-}
-
-static inline u8 ath12k_dp_rx_h_sgi(struct ath12k_base *ab,
-				    struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_msdu_sgi(desc);
-}
-
-static inline u8 ath12k_dp_rx_h_rate_mcs(struct ath12k_base *ab,
-					 struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_msdu_rate_mcs(desc);
-}
-
-static inline u8 ath12k_dp_rx_h_rx_bw(struct ath12k_base *ab,
-				      struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_msdu_rx_bw(desc);
-}
-
-static inline u32 ath12k_dp_rx_h_freq(struct ath12k_base *ab,
-				      struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_msdu_freq(desc);
-}
-
-static inline u8 ath12k_dp_rx_h_pkt_type(struct ath12k_base *ab,
-					 struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_msdu_pkt_type(desc);
-}
-
-static inline u8 ath12k_dp_rx_h_nss(struct ath12k_base *ab,
-				    struct hal_rx_desc *desc)
-{
-	return hweight8(ab->hal_rx_ops->rx_desc_get_msdu_nss(desc));
-}
-
-static inline u8 ath12k_dp_rx_h_tid(struct ath12k_base *ab,
-				    struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_mpdu_tid(desc);
-}
-
-static inline u16 ath12k_dp_rx_h_peer_id(struct ath12k_base *ab,
-					 struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_mpdu_peer_id(desc);
-}
-
 static inline u8 ath12k_dp_rx_h_l3pad(struct ath12k_base *ab,
 				      struct hal_rx_desc *desc)
 {
 	return ab->hal_rx_ops->rx_desc_get_l3_pad_bytes(desc);
-}
-
-static inline bool ath12k_dp_rx_h_first_msdu(struct ath12k_base *ab,
-					     struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_first_msdu(desc);
-}
-
-static inline bool ath12k_dp_rx_h_last_msdu(struct ath12k_base *ab,
-					    struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_get_last_msdu(desc);
 }
 
 static inline void ath12k_dp_rx_desc_end_tlv_copy(struct ath12k_base *ab,
@@ -293,25 +140,6 @@ static inline bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
 	tlv_tag = ab->hal_rx_ops->rx_desc_get_mpdu_start_tag(rx_desc);
 
 	return tlv_tag == HAL_RX_MPDU_START;
-}
-
-static inline bool ath12k_dp_rx_h_is_da_mcbc(struct ath12k_base *ab,
-					     struct hal_rx_desc *desc)
-{
-	return (ath12k_dp_rx_h_first_msdu(ab, desc) &&
-		ab->hal_rx_ops->rx_desc_is_da_mcbc(desc));
-}
-
-static inline bool ath12k_dp_rxdesc_mac_addr2_valid(struct ath12k_base *ab,
-						    struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_mac_addr2_valid(desc);
-}
-
-static inline u8 *ath12k_dp_rxdesc_get_mpdu_start_addr2(struct ath12k_base *ab,
-							struct hal_rx_desc *desc)
-{
-	return ab->hal_rx_ops->rx_desc_mpdu_start_addr2(desc);
 }
 
 static inline void ath12k_dp_rx_desc_get_dot11_hdr(struct ath12k_base *ab,
@@ -346,14 +174,15 @@ static inline void ath12k_dp_clean_up_skb_list(struct sk_buff_head *skb_list)
 void ath12k_dp_rx_h_undecap(struct ath12k *ar, struct sk_buff *msdu,
 			    struct hal_rx_desc *rx_desc,
 			    enum hal_encrypt_type enctype,
-			    struct ieee80211_rx_status *status,
-			    bool decrypted);
+			    bool decrypted,
+			    struct hal_rx_desc_data *rx_info);
 void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *napi,
 			       struct sk_buff *msdu,
-			       struct ath12k_dp_rx_info *rx_info);
+			       struct hal_rx_desc_data *rx_info);
 bool ath12k_dp_rx_check_nwifi_hdr_len_valid(struct ath12k_base *ab,
 					    struct hal_rx_desc *rx_desc,
-					    struct sk_buff *msdu);
+					    struct sk_buff *msdu,
+					    struct hal_rx_desc_data *rx_info);
 u64 ath12k_dp_rx_h_get_pn(struct ath12k *ar, struct sk_buff *skb);
 void ath12k_dp_rx_h_sort_frags(struct ath12k_base *ab,
 			       struct sk_buff_head *frag_list,
@@ -403,14 +232,11 @@ u8 ath12k_dp_rx_h_l3pad(struct ath12k_base *ab,
 			struct hal_rx_desc *desc);
 struct ath12k_peer *
 ath12k_dp_rx_h_find_peer(struct ath12k_base *ab, struct sk_buff *msdu,
-			 struct ath12k_dp_rx_info *rx_info);
+			 struct hal_rx_desc_data *rx_info);
 u8 ath12k_dp_rx_h_decap_type(struct ath12k_base *ab,
 			     struct hal_rx_desc *desc);
 u32 ath12k_dp_rx_h_mpdu_err(struct ath12k_base *ab,
 			    struct hal_rx_desc *desc);
-void ath12k_dp_rx_h_fetch_info(struct ath12k_base *ab,  struct hal_rx_desc *rx_desc,
-			       struct ath12k_dp_rx_info *rx_info);
-
 int ath12k_dp_rx_crypto_mic_len(struct ath12k *ar, enum hal_encrypt_type enctype);
 u32 ath12k_dp_rxdesc_get_ppduid(struct ath12k_base *ab,
 				struct hal_rx_desc *rx_desc);
@@ -418,7 +244,7 @@ bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
 				 struct hal_rx_desc *rx_desc);
 bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
 				 struct hal_rx_desc *rx_desc);
-void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct ath12k_dp_rx_info *rx_info);
+void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct hal_rx_desc_data *rx_info);
 struct sk_buff *ath12k_dp_rx_get_msdu_last_buf(struct sk_buff_head *msdu_list,
 					       struct sk_buff *first);
 void ath12k_dp_reo_cmd_free(struct ath12k_dp *dp, void *ctx,
