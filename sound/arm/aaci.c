@@ -210,45 +210,43 @@ static void aaci_fifo_irq(struct aaci *aaci, int channel, u32 mask)
 			return;
 		}
 
-		spin_lock(&aacirun->lock);
+		scoped_guard(spinlock, &aacirun->lock) {
+			ptr = aacirun->ptr;
+			do {
+				unsigned int len = aacirun->fifo_bytes;
+				u32 val;
 
-		ptr = aacirun->ptr;
-		do {
-			unsigned int len = aacirun->fifo_bytes;
-			u32 val;
+				if (aacirun->bytes <= 0) {
+					aacirun->bytes += aacirun->period;
+					period_elapsed = true;
+				}
+				if (!(aacirun->cr & CR_EN))
+					break;
 
-			if (aacirun->bytes <= 0) {
-				aacirun->bytes += aacirun->period;
-				period_elapsed = true;
-			}
-			if (!(aacirun->cr & CR_EN))
-				break;
+				val = readl(aacirun->base + AACI_SR);
+				if (!(val & SR_RXHF))
+					break;
+				if (!(val & SR_RXFF))
+					len >>= 1;
 
-			val = readl(aacirun->base + AACI_SR);
-			if (!(val & SR_RXHF))
-				break;
-			if (!(val & SR_RXFF))
-				len >>= 1;
+				aacirun->bytes -= len;
 
-			aacirun->bytes -= len;
+				/* reading 16 bytes at a time */
+				for( ; len > 0; len -= 16) {
+					asm(
+					    "ldmia	%1, {r0, r1, r2, r3}\n\t"
+					    "stmia	%0!, {r0, r1, r2, r3}"
+					    : "+r" (ptr)
+					    : "r" (aacirun->fifo)
+					    : "r0", "r1", "r2", "r3", "cc");
 
-			/* reading 16 bytes at a time */
-			for( ; len > 0; len -= 16) {
-				asm(
-					"ldmia	%1, {r0, r1, r2, r3}\n\t"
-					"stmia	%0!, {r0, r1, r2, r3}"
-					: "+r" (ptr)
-					: "r" (aacirun->fifo)
-					: "r0", "r1", "r2", "r3", "cc");
+					if (ptr >= aacirun->end)
+						ptr = aacirun->start;
+				}
+			} while(1);
 
-				if (ptr >= aacirun->end)
-					ptr = aacirun->start;
-			}
-		} while(1);
-
-		aacirun->ptr = ptr;
-
-		spin_unlock(&aacirun->lock);
+			aacirun->ptr = ptr;
+		}
 
 		if (period_elapsed)
 			snd_pcm_period_elapsed(aacirun->substream);
@@ -270,45 +268,43 @@ static void aaci_fifo_irq(struct aaci *aaci, int channel, u32 mask)
 			return;
 		}
 
-		spin_lock(&aacirun->lock);
+		scoped_guard(spinlock, &aacirun->lock) {
+			ptr = aacirun->ptr;
+			do {
+				unsigned int len = aacirun->fifo_bytes;
+				u32 val;
 
-		ptr = aacirun->ptr;
-		do {
-			unsigned int len = aacirun->fifo_bytes;
-			u32 val;
+				if (aacirun->bytes <= 0) {
+					aacirun->bytes += aacirun->period;
+					period_elapsed = true;
+				}
+				if (!(aacirun->cr & CR_EN))
+					break;
 
-			if (aacirun->bytes <= 0) {
-				aacirun->bytes += aacirun->period;
-				period_elapsed = true;
-			}
-			if (!(aacirun->cr & CR_EN))
-				break;
+				val = readl(aacirun->base + AACI_SR);
+				if (!(val & SR_TXHE))
+					break;
+				if (!(val & SR_TXFE))
+					len >>= 1;
 
-			val = readl(aacirun->base + AACI_SR);
-			if (!(val & SR_TXHE))
-				break;
-			if (!(val & SR_TXFE))
-				len >>= 1;
+				aacirun->bytes -= len;
 
-			aacirun->bytes -= len;
+				/* writing 16 bytes at a time */
+				for ( ; len > 0; len -= 16) {
+					asm(
+					    "ldmia	%0!, {r0, r1, r2, r3}\n\t"
+					    "stmia	%1, {r0, r1, r2, r3}"
+					    : "+r" (ptr)
+					    : "r" (aacirun->fifo)
+					    : "r0", "r1", "r2", "r3", "cc");
 
-			/* writing 16 bytes at a time */
-			for ( ; len > 0; len -= 16) {
-				asm(
-					"ldmia	%0!, {r0, r1, r2, r3}\n\t"
-					"stmia	%1, {r0, r1, r2, r3}"
-					: "+r" (ptr)
-					: "r" (aacirun->fifo)
-					: "r0", "r1", "r2", "r3", "cc");
+					if (ptr >= aacirun->end)
+						ptr = aacirun->start;
+				}
+			} while (1);
 
-				if (ptr >= aacirun->end)
-					ptr = aacirun->start;
-			}
-		} while (1);
-
-		aacirun->ptr = ptr;
-
-		spin_unlock(&aacirun->lock);
+			aacirun->ptr = ptr;
+		}
 
 		if (period_elapsed)
 			snd_pcm_period_elapsed(aacirun->substream);
@@ -577,10 +573,8 @@ static void aaci_pcm_playback_start(struct aaci_runtime *aacirun)
 static int aaci_pcm_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
-	unsigned long flags;
-	int ret = 0;
 
-	spin_lock_irqsave(&aacirun->lock, flags);
+	guard(spinlock_irqsave)(&aacirun->lock);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -606,12 +600,10 @@ static int aaci_pcm_playback_trigger(struct snd_pcm_substream *substream, int cm
 		break;
 
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
-	spin_unlock_irqrestore(&aacirun->lock, flags);
-
-	return ret;
+	return 0;
 }
 
 static const struct snd_pcm_ops aaci_playback_ops = {
@@ -661,10 +653,8 @@ static void aaci_pcm_capture_start(struct aaci_runtime *aacirun)
 static int aaci_pcm_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
-	unsigned long flags;
-	int ret = 0;
 
-	spin_lock_irqsave(&aacirun->lock, flags);
+	guard(spinlock_irqsave)(&aacirun->lock);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -690,12 +680,10 @@ static int aaci_pcm_capture_trigger(struct snd_pcm_substream *substream, int cmd
 		break;
 
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
-	spin_unlock_irqrestore(&aacirun->lock, flags);
-
-	return ret;
+	return 0;
 }
 
 static int aaci_pcm_capture_prepare(struct snd_pcm_substream *substream)
