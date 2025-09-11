@@ -1379,9 +1379,8 @@ static int tegra_emc_interconnect_init(struct tegra_emc *emc)
 
 remove_nodes:
 	icc_nodes_remove(&emc->provider);
-	dev_err(emc->dev, "failed to initialize ICC: %d\n", err);
 
-	return err;
+	return dev_err_probe(emc->dev, err, "failed to initialize ICC\n");
 }
 
 static int tegra_emc_opp_table_init(struct tegra_emc *emc)
@@ -1390,18 +1389,18 @@ static int tegra_emc_opp_table_init(struct tegra_emc *emc)
 	int opp_token, err;
 
 	err = dev_pm_opp_set_supported_hw(emc->dev, &hw_version, 1);
-	if (err < 0) {
-		dev_err(emc->dev, "failed to set OPP supported HW: %d\n", err);
-		return err;
-	}
+	if (err < 0)
+		return dev_err_probe(emc->dev, err, "failed to set OPP supported HW\n");
+
 	opp_token = err;
 
 	err = dev_pm_opp_of_add_table(emc->dev);
 	if (err) {
 		if (err == -ENODEV)
-			dev_err(emc->dev, "OPP table not found, please update your device tree\n");
+			dev_err_probe(emc->dev, err,
+				      "OPP table not found, please update your device tree\n");
 		else
-			dev_err(emc->dev, "failed to add OPP table: %d\n", err);
+			dev_err_probe(emc->dev, err, "failed to add OPP table\n");
 
 		goto put_hw_table;
 	}
@@ -1412,7 +1411,7 @@ static int tegra_emc_opp_table_init(struct tegra_emc *emc)
 	/* first dummy rate-set initializes voltage state */
 	err = dev_pm_opp_set_rate(emc->dev, clk_get_rate(emc->clk));
 	if (err) {
-		dev_err(emc->dev, "failed to initialize OPP clock: %d\n", err);
+		dev_err_probe(emc->dev, err, "failed to initialize OPP clock\n");
 		goto remove_table;
 	}
 
@@ -1480,11 +1479,9 @@ static int tegra_emc_probe(struct platform_device *pdev)
 		return err;
 
 	emc->clk = devm_clk_get(&pdev->dev, "emc");
-	if (IS_ERR(emc->clk)) {
-		err = PTR_ERR(emc->clk);
-		dev_err(&pdev->dev, "failed to get EMC clock: %d\n", err);
-		return err;
-	}
+	if (IS_ERR(emc->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(emc->clk),
+				     "failed to get EMC clock\n");
 
 	err = tegra_emc_opp_table_init(emc);
 	if (err)
