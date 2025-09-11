@@ -1436,8 +1436,7 @@ static int bcm54811_read_status(struct phy_device *phydev)
 
 static struct phy_driver broadcom_drivers[] = {
 {
-	.phy_id		= PHY_ID_BCM5411,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM5411),
 	.name		= "Broadcom BCM5411",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1449,8 +1448,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.handle_interrupt = bcm_phy_handle_interrupt,
 	.link_change_notify	= bcm54xx_link_change_notify,
 }, {
-	.phy_id		= PHY_ID_BCM5421,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM5421),
 	.name		= "Broadcom BCM5421",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1462,8 +1460,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.handle_interrupt = bcm_phy_handle_interrupt,
 	.link_change_notify	= bcm54xx_link_change_notify,
 }, {
-	.phy_id		= PHY_ID_BCM54210E,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM54210E),
 	.name		= "Broadcom BCM54210E",
 	/* PHY_GBIT_FEATURES */
 	.flags		= PHY_ALWAYS_CALL_SUSPEND,
@@ -1481,8 +1478,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.set_wol	= bcm54xx_phy_set_wol,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id		= PHY_ID_BCM5461,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM5461),
 	.name		= "Broadcom BCM5461",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1495,8 +1491,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.link_change_notify	= bcm54xx_link_change_notify,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id		= PHY_ID_BCM54612E,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM54612E),
 	.name		= "Broadcom BCM54612E",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1511,8 +1506,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.suspend	= bcm54xx_suspend,
 	.resume		= bcm54xx_resume,
 }, {
-	.phy_id		= PHY_ID_BCM54616S,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM54616S),
 	.name		= "Broadcom BCM54616S",
 	/* PHY_GBIT_FEATURES */
 	.soft_reset     = genphy_soft_reset,
@@ -1525,8 +1519,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.link_change_notify	= bcm54xx_link_change_notify,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id		= PHY_ID_BCM5464,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM5464),
 	.name		= "Broadcom BCM5464",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1541,8 +1534,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.link_change_notify	= bcm54xx_link_change_notify,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id		= PHY_ID_BCM5481,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM5481),
 	.name		= "Broadcom BCM5481",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1556,8 +1548,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.link_change_notify	= bcm54xx_link_change_notify,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id         = PHY_ID_BCM54810,
-	.phy_id_mask    = 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM54810),
 	.name           = "Broadcom BCM54810",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1575,8 +1566,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.link_change_notify	= bcm54xx_link_change_notify,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id         = PHY_ID_BCM54811,
-	.phy_id_mask    = 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM54811),
 	.name           = "Broadcom BCM54811",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1594,8 +1584,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.link_change_notify	= bcm54xx_link_change_notify,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id		= PHY_ID_BCM5482,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM5482),
 	.name		= "Broadcom BCM5482",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1608,8 +1597,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.link_change_notify	= bcm54xx_link_change_notify,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id		= PHY_ID_BCM50610,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM50610),
 	.name		= "Broadcom BCM50610",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1624,8 +1612,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.resume		= bcm54xx_resume,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id		= PHY_ID_BCM50610M,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM50610M),
 	.name		= "Broadcom BCM50610M",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1640,8 +1627,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.resume		= bcm54xx_resume,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id		= PHY_ID_BCM57780,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM57780),
 	.name		= "Broadcom BCM57780",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1654,8 +1640,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.link_change_notify	= bcm54xx_link_change_notify,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id		= PHY_ID_BCMAC131,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCMAC131),
 	.name		= "Broadcom BCMAC131",
 	/* PHY_BASIC_FEATURES */
 	.config_init	= brcm_fet_config_init,
@@ -1664,8 +1649,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.suspend	= brcm_fet_suspend,
 	.resume		= brcm_fet_config_init,
 }, {
-	.phy_id		= PHY_ID_BCM5241,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM5241),
 	.name		= "Broadcom BCM5241",
 	/* PHY_BASIC_FEATURES */
 	.config_init	= brcm_fet_config_init,
@@ -1674,8 +1658,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.suspend	= brcm_fet_suspend,
 	.resume		= brcm_fet_config_init,
 }, {
-	.phy_id		= PHY_ID_BCM5221,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM5221),
 	.name		= "Broadcom BCM5221",
 	/* PHY_BASIC_FEATURES */
 	.config_init	= brcm_fet_config_init,
@@ -1686,8 +1669,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.config_aneg	= bcm5221_config_aneg,
 	.read_status	= bcm5221_read_status,
 }, {
-	.phy_id		= PHY_ID_BCM5395,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM5395),
 	.name		= "Broadcom BCM5395",
 	.flags		= PHY_IS_INTERNAL,
 	/* PHY_GBIT_FEATURES */
@@ -1698,8 +1680,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.link_change_notify	= bcm54xx_link_change_notify,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id		= PHY_ID_BCM53125,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM53125),
 	.name		= "Broadcom BCM53125",
 	.flags		= PHY_IS_INTERNAL,
 	/* PHY_GBIT_FEATURES */
@@ -1713,8 +1694,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.link_change_notify	= bcm54xx_link_change_notify,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id		= PHY_ID_BCM53128,
-	.phy_id_mask	= 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM53128),
 	.name		= "Broadcom BCM53128",
 	.flags		= PHY_IS_INTERNAL,
 	/* PHY_GBIT_FEATURES */
@@ -1728,8 +1708,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.link_change_notify	= bcm54xx_link_change_notify,
 	.led_brightness_set	= bcm_phy_led_brightness_set,
 }, {
-	.phy_id         = PHY_ID_BCM89610,
-	.phy_id_mask    = 0xfffffff0,
+	PHY_ID_MATCH_MODEL(PHY_ID_BCM89610),
 	.name           = "Broadcom BCM89610",
 	/* PHY_GBIT_FEATURES */
 	.get_sset_count	= bcm_phy_get_sset_count,
@@ -1745,27 +1724,27 @@ static struct phy_driver broadcom_drivers[] = {
 module_phy_driver(broadcom_drivers);
 
 static const struct mdio_device_id __maybe_unused broadcom_tbl[] = {
-	{ PHY_ID_BCM5411, 0xfffffff0 },
-	{ PHY_ID_BCM5421, 0xfffffff0 },
-	{ PHY_ID_BCM54210E, 0xfffffff0 },
-	{ PHY_ID_BCM5461, 0xfffffff0 },
-	{ PHY_ID_BCM54612E, 0xfffffff0 },
-	{ PHY_ID_BCM54616S, 0xfffffff0 },
-	{ PHY_ID_BCM5464, 0xfffffff0 },
-	{ PHY_ID_BCM5481, 0xfffffff0 },
-	{ PHY_ID_BCM54810, 0xfffffff0 },
-	{ PHY_ID_BCM54811, 0xfffffff0 },
-	{ PHY_ID_BCM5482, 0xfffffff0 },
-	{ PHY_ID_BCM50610, 0xfffffff0 },
-	{ PHY_ID_BCM50610M, 0xfffffff0 },
-	{ PHY_ID_BCM57780, 0xfffffff0 },
-	{ PHY_ID_BCMAC131, 0xfffffff0 },
-	{ PHY_ID_BCM5221, 0xfffffff0 },
-	{ PHY_ID_BCM5241, 0xfffffff0 },
-	{ PHY_ID_BCM5395, 0xfffffff0 },
-	{ PHY_ID_BCM53125, 0xfffffff0 },
-	{ PHY_ID_BCM53128, 0xfffffff0 },
-	{ PHY_ID_BCM89610, 0xfffffff0 },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM5411) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM5421) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM54210E) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM5461) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM54612E) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM54616S) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM5464) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM5481) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM54810) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM54811) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM5482) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM50610) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM50610M) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM57780) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCMAC131) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM5221) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM5241) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM5395) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM53125) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM53128) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_BCM89610) },
 	{ }
 };
 
