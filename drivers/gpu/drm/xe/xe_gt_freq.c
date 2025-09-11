@@ -246,7 +246,9 @@ static ssize_t power_profile_store(struct kobject *kobj,
 	struct xe_guc_pc *pc = dev_to_pc(dev);
 	int err;
 
+	xe_pm_runtime_get(dev_to_xe(dev));
 	err = xe_guc_pc_set_power_profile(pc, buff);
+	xe_pm_runtime_put(dev_to_xe(dev));
 
 	return err ?: count;
 }
