@@ -2185,10 +2185,9 @@ static struct sk_buff *build_skb_from_xdp_buff(struct net_device *dev,
 		skb_metadata_set(skb, metasize);
 
 	if (unlikely(xdp_buff_has_frags(xdp)))
-		xdp_update_skb_shared_info(skb, nr_frags,
-					   sinfo->xdp_frags_size,
-					   xdp_frags_truesz,
-					   xdp_buff_is_frag_pfmemalloc(xdp));
+		xdp_update_skb_frags_info(skb, nr_frags, sinfo->xdp_frags_size,
+					  xdp_frags_truesz,
+					  xdp_buff_get_skb_flags(xdp));
 
 	return skb;
 }
