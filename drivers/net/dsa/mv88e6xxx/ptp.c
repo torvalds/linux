@@ -413,29 +413,6 @@ const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops = {
 		(1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ),
 };
 
-const struct mv88e6xxx_ptp_ops mv88e6250_ptp_ops = {
-	.clock_read = mv88e6352_ptp_clock_read,
-	.ptp_enable = mv88e6352_ptp_enable,
-	.ptp_verify = mv88e6352_ptp_verify,
-	.event_work = mv88e6352_tai_event_work,
-	.port_enable = mv88e6352_hwtstamp_port_enable,
-	.port_disable = mv88e6352_hwtstamp_port_disable,
-	.n_ext_ts = 1,
-	.arr0_sts_reg = MV88E6XXX_PORT_PTP_ARR0_STS,
-	.arr1_sts_reg = MV88E6XXX_PORT_PTP_ARR1_STS,
-	.dep_sts_reg = MV88E6XXX_PORT_PTP_DEP_STS,
-	.rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ),
-};
-
 const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {
 	.clock_read = mv88e6352_ptp_clock_read,
 	.ptp_enable = mv88e6352_ptp_enable,
