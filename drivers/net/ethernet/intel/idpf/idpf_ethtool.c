@@ -1245,8 +1245,8 @@ static void idpf_get_ethtool_stats(struct net_device *netdev,
  *
  * returns pointer to rx vector
  */
-static struct idpf_q_vector *idpf_find_rxq_vec(const struct idpf_vport *vport,
-					       int q_num)
+struct idpf_q_vector *idpf_find_rxq_vec(const struct idpf_vport *vport,
+					u32 q_num)
 {
 	int q_grp, q_idx;
 
@@ -1266,8 +1266,8 @@ static struct idpf_q_vector *idpf_find_rxq_vec(const struct idpf_vport *vport,
  *
  * returns pointer to tx vector
  */
-static struct idpf_q_vector *idpf_find_txq_vec(const struct idpf_vport *vport,
-					       int q_num)
+struct idpf_q_vector *idpf_find_txq_vec(const struct idpf_vport *vport,
+					u32 q_num)
 {
 	int q_grp;
 

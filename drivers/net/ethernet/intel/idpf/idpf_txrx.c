@@ -922,6 +922,305 @@ err_out:
 	return err;
 }
 
+static int idpf_init_queue_set(const struct idpf_queue_set *qs)
+{
+	const struct idpf_vport *vport = qs->vport;
+	bool splitq;
+	int err;
+
+	splitq = idpf_is_queue_model_split(vport->rxq_model);
+
+	for (u32 i = 0; i < qs->num; i++) {
+		const struct idpf_queue_ptr *q = &qs->qs[i];
+		struct idpf_buf_queue *bufq;
+
+		switch (q->type) {
+		case VIRTCHNL2_QUEUE_TYPE_RX:
+			err = idpf_rx_desc_alloc(vport, q->rxq);
+			if (err)
+				break;
+
+			err = idpf_xdp_rxq_info_init(q->rxq);
+			if (err)
+				break;
+
+			if (!splitq)
+				err = idpf_rx_bufs_init_singleq(q->rxq);
+
+			break;
+		case VIRTCHNL2_QUEUE_TYPE_RX_BUFFER:
+			bufq = q->bufq;
+
+			err = idpf_bufq_desc_alloc(vport, bufq);
+			if (err)
+				break;
+
+			for (u32 j = 0; j < bufq->q_vector->num_bufq; j++) {
+				struct idpf_buf_queue * const *bufqs;
+				enum libeth_fqe_type type;
+				u32 ts;
+
+				bufqs = bufq->q_vector->bufq;
+				if (bufqs[j] != bufq)
+					continue;
+
+				if (j) {
+					type = LIBETH_FQE_SHORT;
+					ts = bufqs[j - 1]->truesize >> 1;
+				} else {
+					type = LIBETH_FQE_MTU;
+					ts = 0;
+				}
+
+				bufq->truesize = ts;
+
+				err = idpf_rx_bufs_init(bufq, type);
+				break;
+			}
+
+			break;
+		case VIRTCHNL2_QUEUE_TYPE_TX:
+			err = idpf_tx_desc_alloc(vport, q->txq);
+			break;
+		case VIRTCHNL2_QUEUE_TYPE_TX_COMPLETION:
+			err = idpf_compl_desc_alloc(vport, q->complq);
+			break;
+		default:
+			continue;
+		}
+
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void idpf_clean_queue_set(const struct idpf_queue_set *qs)
+{
+	const struct idpf_vport *vport = qs->vport;
+	struct device *dev = vport->netdev->dev.parent;
+
+	for (u32 i = 0; i < qs->num; i++) {
+		const struct idpf_queue_ptr *q = &qs->qs[i];
+
+		switch (q->type) {
+		case VIRTCHNL2_QUEUE_TYPE_RX:
+			idpf_xdp_rxq_info_deinit(q->rxq, vport->rxq_model);
+			idpf_rx_desc_rel(q->rxq, dev, vport->rxq_model);
+			break;
+		case VIRTCHNL2_QUEUE_TYPE_RX_BUFFER:
+			idpf_rx_desc_rel_bufq(q->bufq, dev);
+			break;
+		case VIRTCHNL2_QUEUE_TYPE_TX:
+			idpf_tx_desc_rel(q->txq);
+
+			if (idpf_queue_has(XDP, q->txq)) {
+				q->txq->pending = 0;
+				q->txq->xdp_tx = 0;
+			} else {
+				q->txq->txq_grp->num_completions_pending = 0;
+			}
+
+			writel(q->txq->next_to_use, q->txq->tail);
+			break;
+		case VIRTCHNL2_QUEUE_TYPE_TX_COMPLETION:
+			idpf_compl_desc_rel(q->complq);
+			q->complq->num_completions = 0;
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static void idpf_qvec_ena_irq(struct idpf_q_vector *qv)
+{
+	if (qv->num_txq) {
+		u32 itr;
+
+		if (IDPF_ITR_IS_DYNAMIC(qv->tx_intr_mode))
+			itr = qv->vport->tx_itr_profile[qv->tx_dim.profile_ix];
+		else
+			itr = qv->tx_itr_value;
+
+		idpf_vport_intr_write_itr(qv, itr, true);
+	}
+
+	if (qv->num_rxq) {
+		u32 itr;
+
+		if (IDPF_ITR_IS_DYNAMIC(qv->rx_intr_mode))
+			itr = qv->vport->rx_itr_profile[qv->rx_dim.profile_ix];
+		else
+			itr = qv->rx_itr_value;
+
+		idpf_vport_intr_write_itr(qv, itr, false);
+	}
+
+	if (qv->num_txq || qv->num_rxq)
+		idpf_vport_intr_update_itr_ena_irq(qv);
+}
+
+/**
+ * idpf_vector_to_queue_set - create a queue set associated with the given
+ *			      queue vector
+ * @qv: queue vector corresponding to the queue pair
+ *
+ * Returns a pointer to a dynamically allocated array of pointers to all
+ * queues associated with a given queue vector (@qv).
+ * Please note that the caller is responsible to free the memory allocated
+ * by this function using kfree().
+ *
+ * Return: &idpf_queue_set on success, %NULL in case of error.
+ */
+static struct idpf_queue_set *
+idpf_vector_to_queue_set(struct idpf_q_vector *qv)
+{
+	bool xdp = qv->vport->xdp_txq_offset;
+	struct idpf_vport *vport = qv->vport;
+	struct idpf_queue_set *qs;
+	u32 num;
+
+	num = qv->num_rxq + qv->num_bufq + qv->num_txq + qv->num_complq;
+	num += xdp ? qv->num_rxq * 2 : 0;
+	if (!num)
+		return NULL;
+
+	qs = idpf_alloc_queue_set(vport, num);
+	if (!qs)
+		return NULL;
+
+	num = 0;
+
+	for (u32 i = 0; i < qv->num_bufq; i++) {
+		qs->qs[num].type = VIRTCHNL2_QUEUE_TYPE_RX_BUFFER;
+		qs->qs[num++].bufq = qv->bufq[i];
+	}
+
+	for (u32 i = 0; i < qv->num_rxq; i++) {
+		qs->qs[num].type = VIRTCHNL2_QUEUE_TYPE_RX;
+		qs->qs[num++].rxq = qv->rx[i];
+	}
+
+	for (u32 i = 0; i < qv->num_txq; i++) {
+		qs->qs[num].type = VIRTCHNL2_QUEUE_TYPE_TX;
+		qs->qs[num++].txq = qv->tx[i];
+	}
+
+	for (u32 i = 0; i < qv->num_complq; i++) {
+		qs->qs[num].type = VIRTCHNL2_QUEUE_TYPE_TX_COMPLETION;
+		qs->qs[num++].complq = qv->complq[i];
+	}
+
+	if (!vport->xdp_txq_offset)
+		goto finalize;
+
+	if (xdp) {
+		for (u32 i = 0; i < qv->num_rxq; i++) {
+			u32 idx = vport->xdp_txq_offset + qv->rx[i]->idx;
+
+			qs->qs[num].type = VIRTCHNL2_QUEUE_TYPE_TX;
+			qs->qs[num++].txq = vport->txqs[idx];
+
+			qs->qs[num].type = VIRTCHNL2_QUEUE_TYPE_TX_COMPLETION;
+			qs->qs[num++].complq = vport->txqs[idx]->complq;
+		}
+	}
+
+finalize:
+	if (num != qs->num) {
+		kfree(qs);
+		return NULL;
+	}
+
+	return qs;
+}
+
+static int idpf_qp_enable(const struct idpf_queue_set *qs, u32 qid)
+{
+	struct idpf_vport *vport = qs->vport;
+	struct idpf_q_vector *q_vector;
+	int err;
+
+	q_vector = idpf_find_rxq_vec(vport, qid);
+
+	err = idpf_init_queue_set(qs);
+	if (err) {
+		netdev_err(vport->netdev, "Could not initialize queues in pair %u: %pe\n",
+			   qid, ERR_PTR(err));
+		return err;
+	}
+
+	err = idpf_send_config_queue_set_msg(qs);
+	if (err) {
+		netdev_err(vport->netdev, "Could not configure queues in pair %u: %pe\n",
+			   qid, ERR_PTR(err));
+		return err;
+	}
+
+	err = idpf_send_enable_queue_set_msg(qs);
+	if (err) {
+		netdev_err(vport->netdev, "Could not enable queues in pair %u: %pe\n",
+			   qid, ERR_PTR(err));
+		return err;
+	}
+
+	napi_enable(&q_vector->napi);
+	idpf_qvec_ena_irq(q_vector);
+
+	netif_start_subqueue(vport->netdev, qid);
+
+	return 0;
+}
+
+static int idpf_qp_disable(const struct idpf_queue_set *qs, u32 qid)
+{
+	struct idpf_vport *vport = qs->vport;
+	struct idpf_q_vector *q_vector;
+	int err;
+
+	q_vector = idpf_find_rxq_vec(vport, qid);
+	netif_stop_subqueue(vport->netdev, qid);
+
+	writel(0, q_vector->intr_reg.dyn_ctl);
+	napi_disable(&q_vector->napi);
+
+	err = idpf_send_disable_queue_set_msg(qs);
+	if (err) {
+		netdev_err(vport->netdev, "Could not disable queues in pair %u: %pe\n",
+			   qid, ERR_PTR(err));
+		return err;
+	}
+
+	idpf_clean_queue_set(qs);
+
+	return 0;
+}
+
+/**
+ * idpf_qp_switch - enable or disable queues associated with queue pair
+ * @vport: vport to switch the pair for
+ * @qid: index of the queue pair to switch
+ * @en: whether to enable or disable the pair
+ *
+ * Return: 0 on success, -errno on failure.
+ */
+int idpf_qp_switch(struct idpf_vport *vport, u32 qid, bool en)
+{
+	struct idpf_q_vector *q_vector = idpf_find_rxq_vec(vport, qid);
+	struct idpf_queue_set *qs __free(kfree) = NULL;
+
+	if (idpf_find_txq_vec(vport, qid) != q_vector)
+		return -EINVAL;
+
+	qs = idpf_vector_to_queue_set(q_vector);
+	if (!qs)
+		return -ENOMEM;
+
+	return en ? idpf_qp_enable(qs, qid) : idpf_qp_disable(qs, qid);
+}
+
 /**
  * idpf_txq_group_rel - Release all resources for txq groups
  * @vport: vport to release txq groups on

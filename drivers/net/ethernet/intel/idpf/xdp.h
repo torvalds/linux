@@ -8,7 +8,9 @@
 
 #include "idpf_txrx.h"
 
+int idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq);
 int idpf_xdp_rxq_info_init_all(const struct idpf_vport *vport);
+void idpf_xdp_rxq_info_deinit(struct idpf_rx_queue *rxq, u32 model);
 void idpf_xdp_rxq_info_deinit_all(const struct idpf_vport *vport);
 void idpf_xdp_copy_prog_to_rqs(const struct idpf_vport *vport,
 			       struct bpf_prog *xdp_prog);
