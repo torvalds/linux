@@ -7,6 +7,7 @@
 #include "gem/i915_gem_object.h"
 
 #include "i915_drv.h"
+#include "i915_list_util.h"
 #include "intel_engine_pm.h"
 #include "intel_gt_buffer_pool.h"
 

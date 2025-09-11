@@ -112,6 +112,7 @@
 
 #include "gen8_engine_cs.h"
 #include "i915_drv.h"
+#include "i915_list_util.h"
 #include "i915_reg.h"
 #include "i915_timer_util.h"
 #include "i915_trace.h"

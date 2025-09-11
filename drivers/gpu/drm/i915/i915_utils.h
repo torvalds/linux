@@ -25,7 +25,6 @@
 #ifndef __I915_UTILS_H
 #define __I915_UTILS_H
 
-#include <linux/list.h>
 #include <linux/overflow.h>
 #include <linux/sched.h>
 #include <linux/string_helpers.h>
@@ -99,19 +98,6 @@ bool i915_error_injected(void);
 static inline bool is_power_of_2_u64(u64 n)
 {
 	return (n != 0 && ((n & (n - 1)) == 0));
-}
-
-static inline void __list_del_many(struct list_head *head,
-				   struct list_head *first)
-{
-	first->prev = head;
-	WRITE_ONCE(head->next, first);
-}
-
-static inline int list_is_last_rcu(const struct list_head *list,
-				   const struct list_head *head)
-{
-	return READ_ONCE(list->next) == head;
 }
 
 static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
