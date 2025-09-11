@@ -158,8 +158,9 @@ struct smbdirect_socket {
 		 * smbdirect_send_io buffers
 		 */
 		struct {
-			struct kmem_cache	*cache;
-			mempool_t		*pool;
+			struct kmem_cache *cache;
+			mempool_t *pool;
+			gfp_t gfp_mask;
 		} mem;
 
 		/*
@@ -223,8 +224,9 @@ struct smbdirect_socket {
 		 * smbdirect_recv_io buffers
 		 */
 		struct {
-			struct kmem_cache	*cache;
-			mempool_t		*pool;
+			struct kmem_cache *cache;
+			mempool_t *pool;
+			gfp_t gfp_mask;
 		} mem;
 
 		/*
@@ -505,6 +507,8 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	INIT_DELAYED_WORK(&sc->idle.timer_work, __smbdirect_socket_disabled_work);
 	disable_delayed_work_sync(&sc->idle.timer_work);
 
+	sc->send_io.mem.gfp_mask = GFP_KERNEL;
+
 	atomic_set(&sc->send_io.bcredits.count, 0);
 	init_waitqueue_head(&sc->send_io.bcredits.wait_queue);
 
@@ -517,6 +521,8 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	atomic_set(&sc->send_io.pending.count, 0);
 	init_waitqueue_head(&sc->send_io.pending.dec_wait_queue);
 	init_waitqueue_head(&sc->send_io.pending.zero_wait_queue);
+
+	sc->recv_io.mem.gfp_mask = GFP_KERNEL;
 
 	INIT_LIST_HEAD(&sc->recv_io.free.list);
 	spin_lock_init(&sc->recv_io.free.lock);
