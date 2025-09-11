@@ -235,6 +235,8 @@ int SendReceive(const unsigned int xid, struct cifs_ses *ses,
 		const int flags);
 bool cifs_check_trans2(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		       char *buf, int malformed);
+int checkSMB(char *buf, unsigned int pdu_len, unsigned int total_read,
+	     struct TCP_Server_Info *server);
 
 
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */

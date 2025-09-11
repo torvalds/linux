@@ -131,8 +131,6 @@ void cifs_signal_cifsd_for_reconnect(struct TCP_Server_Info *server,
 void cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 					   bool mark_smb_session);
 int cifs_reconnect(struct TCP_Server_Info *server, bool mark_smb_session);
-int checkSMB(char *buf, unsigned int pdu_len, unsigned int total_read,
-	     struct TCP_Server_Info *server);
 bool is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv);
 bool backup_cred(struct cifs_sb_info *cifs_sb);
 bool is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file,
