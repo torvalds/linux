@@ -124,8 +124,6 @@ static void madvise_atomic(struct xe_device *xe, struct xe_vm *vm,
 			vmas[i]->attr.atomic_access = op->atomic.val;
 		}
 
-		vmas[i]->attr.atomic_access = op->atomic.val;
-
 		bo = xe_vma_bo(vmas[i]);
 		if (!bo || bo->attr.atomic_access == op->atomic.val)
 			continue;
@@ -253,7 +251,7 @@ static bool madvise_args_are_sane(struct xe_device *xe, const struct drm_xe_madv
 		if (XE_IOCTL_DBG(xe, args->preferred_mem_loc.pad))
 			return false;
 
-		if (XE_IOCTL_DBG(xe, args->atomic.reserved))
+		if (XE_IOCTL_DBG(xe, args->preferred_mem_loc.reserved))
 			return false;
 		break;
 	}
@@ -407,7 +405,7 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 	}
 
 	if (madvise_range.has_svm_userptr_vmas) {
-		err = down_read_interruptible(&vm->svm.gpusvm.notifier_lock);
+		err = xe_svm_notifier_lock_interruptible(vm);
 		if (err)
 			goto err_fini;
 	}
