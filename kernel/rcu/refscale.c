@@ -1133,6 +1133,7 @@ ref_scale_cleanup(void)
 					     reader_tasks[i].task);
 	}
 	kfree(reader_tasks);
+	reader_tasks = NULL;
 
 	torture_stop_kthread("main_task", main_task);
 
