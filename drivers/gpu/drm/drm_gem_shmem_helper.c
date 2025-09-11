@@ -175,13 +175,13 @@ struct drm_gem_shmem_object *drm_gem_shmem_create_with_mnt(struct drm_device *de
 EXPORT_SYMBOL_GPL(drm_gem_shmem_create_with_mnt);
 
 /**
- * drm_gem_shmem_free - Free resources associated with a shmem GEM object
- * @shmem: shmem GEM object to free
+ * drm_gem_shmem_release - Release resources associated with a shmem GEM object.
+ * @shmem: shmem GEM object
  *
- * This function cleans up the GEM object state and frees the memory used to
- * store the object itself.
+ * This function cleans up the GEM object state, but does not free the memory used to store the
+ * object itself. This function is meant to be a dedicated helper for the Rust GEM bindings.
  */
-void drm_gem_shmem_free(struct drm_gem_shmem_object *shmem)
+void drm_gem_shmem_release(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
 
@@ -208,6 +208,19 @@ void drm_gem_shmem_free(struct drm_gem_shmem_object *shmem)
 	}
 
 	drm_gem_object_release(obj);
+}
+EXPORT_SYMBOL_GPL(drm_gem_shmem_release);
+
+/**
+ * drm_gem_shmem_free - Free resources associated with a shmem GEM object
+ * @shmem: shmem GEM object to free
+ *
+ * This function cleans up the GEM object state and frees the memory used to
+ * store the object itself.
+ */
+void drm_gem_shmem_free(struct drm_gem_shmem_object *shmem)
+{
+	drm_gem_shmem_release(shmem);
 	kfree(shmem);
 }
 EXPORT_SYMBOL_GPL(drm_gem_shmem_free);
