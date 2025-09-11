@@ -167,16 +167,13 @@ static u64 mv88e6165_ptp_clock_read(struct cyclecounter *cc)
 }
 
 /* mv88e6352_config_eventcap - configure TAI event capture
- * @event: PTP_CLOCK_PPS (internal) or PTP_CLOCK_EXTTS (external)
  * @rising: zero for falling-edge trigger, else rising-edge trigger
  *
  * This will also reset the capture sequence counter.
  */
-static int mv88e6352_config_eventcap(struct mv88e6xxx_chip *chip, int event,
-				     int rising)
+static int mv88e6352_config_eventcap(struct mv88e6xxx_chip *chip, int rising)
 {
 	u16 evcap_config;
-	u16 cap_config;
 	int err;
 
 	evcap_config = MV88E6XXX_TAI_CFG_CAP_OVERWRITE |
@@ -188,20 +185,8 @@ static int mv88e6352_config_eventcap(struct mv88e6xxx_chip *chip, int event,
 	if (err)
 		return err;
 
-	if (event == PTP_CLOCK_PPS) {
-		cap_config = MV88E6XXX_TAI_EVENT_STATUS_CAP_TRIG;
-	} else if (event == PTP_CLOCK_EXTTS) {
-		/* if STATUS_CAP_TRIG is unset we capture PTP_EVREQ events */
-		cap_config = 0;
-	} else {
-		return -EINVAL;
-	}
-
 	/* Write the capture config; this also clears the capture counter */
-	err = mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_EVENT_STATUS,
-				  cap_config);
-
-	return err;
+	return mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_EVENT_STATUS, 0);
 }
 
 static void mv88e6352_tai_event_work(struct work_struct *ugly)
@@ -354,7 +339,7 @@ static int mv88e6352_ptp_enable_extts(struct mv88e6xxx_chip *chip,
 		schedule_delayed_work(&chip->tai_event_work,
 				      TAI_EVENT_WORK_INTERVAL);
 
-		err = mv88e6352_config_eventcap(chip, PTP_CLOCK_EXTTS, rising);
+		err = mv88e6352_config_eventcap(chip, rising);
 	} else {
 		func = MV88E6352_G2_SCRATCH_GPIO_PCTL_GPIO;
 
