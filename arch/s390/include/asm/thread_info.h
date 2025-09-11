@@ -74,12 +74,6 @@ void arch_setup_new_exec(void);
 #define TIF_BLOCK_STEP		22	/* This task is block stepped */
 #define TIF_UPROBE_SINGLESTEP	23	/* This task is uprobe single stepped */
 
-/* These could move over to SYSCALL_WORK bits, no? */
-#define TIF_SYSCALL_TRACE	24	/* syscall trace active */
-#define TIF_SYSCALL_AUDIT	25	/* syscall auditing active */
-#define TIF_SECCOMP		26	/* secure computing */
-#define TIF_SYSCALL_TRACEPOINT	27	/* syscall tracepoint instrumentation */
-
 #define _TIF_ASCE_PRIMARY	BIT(TIF_ASCE_PRIMARY)
 #define _TIF_GUARDED_STORAGE	BIT(TIF_GUARDED_STORAGE)
 #define _TIF_ISOLATE_BP_GUEST	BIT(TIF_ISOLATE_BP_GUEST)
@@ -88,9 +82,5 @@ void arch_setup_new_exec(void);
 #define _TIF_SINGLE_STEP	BIT(TIF_SINGLE_STEP)
 #define _TIF_BLOCK_STEP		BIT(TIF_BLOCK_STEP)
 #define _TIF_UPROBE_SINGLESTEP	BIT(TIF_UPROBE_SINGLESTEP)
-#define _TIF_SYSCALL_TRACE	BIT(TIF_SYSCALL_TRACE)
-#define _TIF_SYSCALL_AUDIT	BIT(TIF_SYSCALL_AUDIT)
-#define _TIF_SECCOMP		BIT(TIF_SECCOMP)
-#define _TIF_SYSCALL_TRACEPOINT	BIT(TIF_SYSCALL_TRACEPOINT)
 
 #endif /* _ASM_THREAD_INFO_H */
