@@ -37,6 +37,7 @@ struct dml2_core_ip_params {
 	unsigned int writeback_interface_buffer_size_kbytes;
 	unsigned int max_num_dpp;
 	unsigned int max_num_otg;
+	unsigned int TDLUT_33cube_count;
 	unsigned int max_num_wb;
 	unsigned int max_dchub_pscl_bw_pix_per_clk;
 	unsigned int max_pscl_lb_bw_pix_per_clk;
@@ -46,6 +47,7 @@ struct dml2_core_ip_params {
 	double max_vscl_ratio;
 	unsigned int max_hscl_taps;
 	unsigned int max_vscl_taps;
+	unsigned int odm_combine_support_mask;
 	unsigned int num_dsc;
 	unsigned int maximum_dsc_bits_per_component;
 	unsigned int maximum_pixels_per_line_per_dsc_unit;
@@ -82,7 +84,6 @@ struct dml2_core_ip_params {
 	unsigned int subvp_swath_height_margin_lines;
 	unsigned int subvp_fw_processing_delay_us;
 	unsigned int subvp_pstate_allow_width_us;
-
 	// MRQ
 	bool dcn_mrq_present;
 	unsigned int zero_size_buffer_entries;
@@ -103,6 +104,8 @@ struct dml2_core_internal_DmlPipe {
 	unsigned int DPPPerSurface;
 	bool ScalerEnabled;
 	bool UPSPEnabled;
+	unsigned int UPSPVTaps;
+	enum dml2_sample_positioning UPSPSamplePositioning;
 	enum dml2_rotation_angle RotationAngle;
 	bool mirrored;
 	unsigned int ViewportHeight;
@@ -230,6 +233,7 @@ struct dml2_core_internal_mode_support_info {
 	bool MSOOrODMSplitWithNonDPLink;
 	bool NotEnoughLanesForMSO;
 	bool NumberOfOTGSupport;
+	bool NumberOfTDLUT33cubeSupport;
 	bool NumberOfHDMIFRLSupport;
 	bool NumberOfDP2p0Support;
 	bool WritebackScaleRatioAndTapsSupport;
@@ -1306,7 +1310,7 @@ struct dml2_core_calcs_CalculateVMRowAndSwath_params {
 	unsigned int HostVMMinPageSize;
 	unsigned int DCCMetaBufferSizeBytes;
 	bool mrq_present;
-	enum dml2_pstate_method pstate_switch_modes[DML2_MAX_PLANES];
+	enum dml2_pstate_method *pstate_switch_modes;
 
 	// Output
 	bool *PTEBufferSizeNotExceeded;
@@ -2308,6 +2312,7 @@ struct dml2_core_calcs_mode_support_ex {
 	const struct dml2_display_cfg *in_display_cfg;
 	const struct dml2_mcg_min_clock_table *min_clk_table;
 	int min_clk_index;
+	enum dml2_project_id project_id;
 	//unsigned int in_state_index;
 	struct dml2_core_internal_mode_support_info *out_evaluation_info;
 };
@@ -2320,6 +2325,7 @@ struct dml2_core_calcs_mode_programming_ex {
 	const struct dml2_mcg_min_clock_table *min_clk_table;
 	const struct core_display_cfg_support_info *cfg_support_info;
 	int min_clk_index;
+	enum dml2_project_id project_id;
 	struct dml2_display_cfg_programming *programming;
 };
 

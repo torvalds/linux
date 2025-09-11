@@ -145,6 +145,8 @@ struct dml2_soc_bb {
 	struct dml2_soc_vmin_clock_limits vmin_limit;
 
 	double lower_bound_bandwidth_dchub;
+	double fraction_of_urgent_bandwidth_nominal_target;
+	double fraction_of_urgent_bandwidth_flip_target;
 	unsigned int dprefclk_mhz;
 	unsigned int xtalclk_mhz;
 	unsigned int pcie_refclk_mhz;
@@ -170,6 +172,7 @@ struct dml2_soc_bb {
 struct dml2_ip_capabilities {
 	unsigned int pipe_count;
 	unsigned int otg_count;
+	unsigned int TDLUT_33cube_count;
 	unsigned int num_dsc;
 	unsigned int max_num_dp2p0_streams;
 	unsigned int max_num_hdmi_frl_outputs;
@@ -188,7 +191,9 @@ struct dml2_ip_capabilities {
 	unsigned int subvp_prefetch_end_to_mall_start_us;
 	unsigned int subvp_fw_processing_delay;
 	unsigned int max_vactive_det_fill_delay_us;
-
+	unsigned int ppt_max_allow_delay_ns;
+	unsigned int temp_read_max_allow_delay_us;
+	unsigned int dummy_pstate_max_allow_delay_us;
 	/* FAMS2 delays */
 	struct {
 		unsigned int max_allow_delay_us;

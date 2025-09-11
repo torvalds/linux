@@ -49,6 +49,11 @@ enum dml2_source_format_class {
 	dml2_422_packed_12 = 18
 };
 
+enum dml2_sample_positioning {
+	dml2_interstitial = 0,
+	dml2_cosited = 1
+};
+
 enum dml2_rotation_angle {
 	dml2_rotation_0 = 0,
 	dml2_rotation_90 = 1,
@@ -222,7 +227,11 @@ struct dml2_composition_cfg {
 
 	struct {
 		bool enabled;
+		bool easf_enabled;
+		bool isharp_enabled;
 		bool upsp_enabled;
+		enum dml2_sample_positioning upsp_sample_positioning;
+		unsigned int upsp_vtaps;
 		struct {
 			double h_ratio;
 			double v_ratio;
@@ -385,6 +394,7 @@ struct dml2_plane_parameters {
 		// The actual reserved vblank time used for the corresponding stream in mode_programming would be at least as much as this per-plane override.
 		long reserved_vblank_time_ns;
 		unsigned int max_vactive_det_fill_delay_us; // 0 = no reserved time, +ve = explicit max delay
+		unsigned int vactive_latency_to_hide_for_pstate_admissibility_us;
 		unsigned int gpuvm_min_page_size_kbytes;
 		unsigned int hostvm_min_page_size_kbytes;
 
@@ -456,6 +466,7 @@ struct dml2_display_cfg {
 				bool enable;
 				bool value;
 			} force_nom_det_size_kbytes;
+
 			bool mode_support_check_disable;
 			bool mcache_admissibility_check_disable;
 			bool surface_viewport_size_check_disable;
