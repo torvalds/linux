@@ -406,51 +406,6 @@ static inline void *smbdirect_recv_io_payload(struct smbdirect_recv_io *response
 	return (void *)response->packet;
 }
 
-static struct smbdirect_send_io *smbd_alloc_send_io(struct smbdirect_socket *sc)
-{
-	struct smbdirect_send_io *msg;
-
-	msg = mempool_alloc(sc->send_io.mem.pool, GFP_KERNEL);
-	if (!msg)
-		return ERR_PTR(-ENOMEM);
-	msg->socket = sc;
-	INIT_LIST_HEAD(&msg->sibling_list);
-	msg->num_sge = 0;
-
-	return msg;
-}
-
-static void smbd_free_send_io(struct smbdirect_send_io *msg)
-{
-	struct smbdirect_socket *sc = msg->socket;
-	size_t i;
-
-	/*
-	 * The list needs to be empty!
-	 * The caller should take care of it.
-	 */
-	WARN_ON_ONCE(!list_empty(&msg->sibling_list));
-
-	/*
-	 * Note we call ib_dma_unmap_page(), even if some sges are mapped using
-	 * ib_dma_map_single().
-	 *
-	 * The difference between _single() and _page() only matters for the
-	 * ib_dma_map_*() case.
-	 *
-	 * For the ib_dma_unmap_*() case it does not matter as both take the
-	 * dma_addr_t and dma_unmap_single_attrs() is just an alias to
-	 * dma_unmap_page_attrs().
-	 */
-	for (i = 0; i < msg->num_sge; i++)
-		ib_dma_unmap_page(sc->ib.dev,
-				  msg->sge[i].addr,
-				  msg->sge[i].length,
-				  DMA_TO_DEVICE);
-
-	mempool_free(msg, sc->send_io.mem.pool);
-}
-
 /* Called when a RDMA send is done */
 static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 {
@@ -494,11 +449,11 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 	 */
 	list_for_each_entry_safe(sibling, next, &request->sibling_list, sibling_list) {
 		list_del_init(&sibling->sibling_list);
-		smbd_free_send_io(sibling);
+		smbdirect_connection_free_send_io(sibling);
 		lcredits += 1;
 	}
 	/* Note this frees wc->wr_cqe, but not wc */
-	smbd_free_send_io(request);
+	smbdirect_connection_free_send_io(request);
 	lcredits += 1;
 
 	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_SEND) {
@@ -977,7 +932,7 @@ static int smbd_post_send_negotiate_req(struct smbdirect_socket *sc)
 	struct smbdirect_send_io *request;
 	struct smbdirect_negotiate_req *packet;
 
-	request = smbd_alloc_send_io(sc);
+	request = smbdirect_connection_alloc_send_io(sc);
 	if (IS_ERR(request))
 		return PTR_ERR(request);
 
@@ -1002,6 +957,7 @@ static int smbd_post_send_negotiate_req(struct smbdirect_socket *sc)
 
 	request->sge[0].length = sizeof(*packet);
 	request->sge[0].lkey = sc->ib.pd->local_dma_lkey;
+	request->num_sge = 1;
 
 	rc = smbd_post_send(sc, NULL, request);
 	if (!rc)
@@ -1011,7 +967,7 @@ static int smbd_post_send_negotiate_req(struct smbdirect_socket *sc)
 		rc = -EIO;
 
 dma_mapping_failed:
-	smbd_free_send_io(request);
+	smbdirect_connection_free_send_io(request);
 	return rc;
 }
 
@@ -1202,9 +1158,9 @@ static int smbd_send_batch_flush(struct smbdirect_socket *sc,
 
 		list_for_each_entry_safe(sibling, next, &last->sibling_list, sibling_list) {
 			list_del_init(&sibling->sibling_list);
-			smbd_free_send_io(sibling);
+			smbdirect_connection_free_send_io(sibling);
 		}
-		smbd_free_send_io(last);
+		smbdirect_connection_free_send_io(last);
 	}
 
 release_credit:
@@ -1353,7 +1309,7 @@ static int smbd_post_send_iter(struct smbdirect_socket *sc,
 		new_credits = manage_credits_prior_sending(sc);
 	}
 
-	request = smbd_alloc_send_io(sc);
+	request = smbdirect_connection_alloc_send_io(sc);
 	if (IS_ERR(request)) {
 		rc = PTR_ERR(request);
 		goto err_alloc;
@@ -1447,7 +1403,7 @@ static int smbd_post_send_iter(struct smbdirect_socket *sc,
 	}
 
 err_dma:
-	smbd_free_send_io(request);
+	smbdirect_connection_free_send_io(request);
 
 err_flush:
 err_alloc:
