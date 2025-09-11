@@ -614,6 +614,7 @@ libeth_cacheline_set_assert(struct idpf_rx_queue,
  * @dma: Physical address of ring
  * @q_vector: Backreference to associated vector
  * @buf_pool_size: Total number of idpf_tx_buf
+ * @rel_q_id: relative virtchnl queue index
  */
 struct idpf_tx_queue {
 	__cacheline_group_begin_aligned(read_mostly);
@@ -684,7 +685,9 @@ struct idpf_tx_queue {
 	dma_addr_t dma;
 
 	struct idpf_q_vector *q_vector;
+
 	u32 buf_pool_size;
+	u32 rel_q_id;
 	__cacheline_group_end_aligned(cold);
 };
 libeth_cacheline_set_assert(struct idpf_tx_queue, 64,
