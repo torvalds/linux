@@ -166,7 +166,6 @@ struct ad7124_channel_config {
 		bool buf_negative;
 		unsigned int vref_mv;
 		unsigned int pga_bits;
-		unsigned int odr;
 		unsigned int odr_sel_bits;
 		unsigned int filter_type;
 		unsigned int calibration_offset;
@@ -285,7 +284,17 @@ static u32 ad7124_get_fclk_hz(struct ad7124_state *st)
 	return fclk_hz;
 }
 
-static void ad7124_set_channel_odr(struct ad7124_state *st, unsigned int channel, unsigned int odr)
+static u32 ad7124_get_fadc_divisor(struct ad7124_state *st, unsigned int channel)
+{
+	/*
+	 * The output data rate (f_ADC) is f_CLK / divisor. We are returning
+	 * the divisor.
+	 */
+	return st->channels[channel].cfg.odr_sel_bits * 32 * 4;
+}
+
+static void ad7124_set_channel_odr(struct ad7124_state *st, unsigned int channel,
+				   unsigned int odr, unsigned int odr_micro)
 {
 	unsigned int fclk, factor, odr_sel_bits;
 
@@ -300,29 +309,28 @@ static void ad7124_set_channel_odr(struct ad7124_state *st, unsigned int channel
 	 * FS[10:0] can have a value from 1 to 2047
 	 */
 	factor = 32 * 4; /* N = 4 for default sinc4 filter. */
-	odr_sel_bits = clamp(DIV_ROUND_CLOSEST(fclk, odr * factor), 1, 2047);
+	odr_sel_bits = DIV_ROUND_CLOSEST(fclk, odr * factor +
+					       odr_micro * factor / MICRO);
+	odr_sel_bits = clamp(odr_sel_bits, 1, 2047);
 
 	if (odr_sel_bits != st->channels[channel].cfg.odr_sel_bits)
 		st->channels[channel].cfg.live = false;
 
-	/* fADC = fCLK / (FS[10:0] x 32) */
-	st->channels[channel].cfg.odr = DIV_ROUND_CLOSEST(fclk, odr_sel_bits *
-								factor);
 	st->channels[channel].cfg.odr_sel_bits = odr_sel_bits;
 }
 
-static int ad7124_get_3db_filter_freq(struct ad7124_state *st,
-				      unsigned int channel)
+static int ad7124_get_3db_filter_factor(struct ad7124_state *st,
+					unsigned int channel)
 {
-	unsigned int fadc;
-
-	fadc = st->channels[channel].cfg.odr;
-
+	/*
+	 * 3dB point is the f_CLK rate times some factor. This functions returns
+	 * the factor times 1000.
+	 */
 	switch (st->channels[channel].cfg.filter_type) {
 	case AD7124_FILTER_FILTER_SINC3:
-		return DIV_ROUND_CLOSEST(fadc * 272, 1000);
+		return 272;
 	case AD7124_FILTER_FILTER_SINC4:
-		return DIV_ROUND_CLOSEST(fadc * 230, 1000);
+		return 230;
 	default:
 		return -EINVAL;
 	}
@@ -346,7 +354,6 @@ static struct ad7124_channel_config *ad7124_find_similar_live_cfg(struct ad7124_
 				     bool buf_negative;
 				     unsigned int vref_mv;
 				     unsigned int pga_bits;
-				     unsigned int odr;
 				     unsigned int odr_sel_bits;
 				     unsigned int filter_type;
 				     unsigned int calibration_offset;
@@ -363,7 +370,6 @@ static struct ad7124_channel_config *ad7124_find_similar_live_cfg(struct ad7124_
 		    cfg->buf_negative == cfg_aux->buf_negative &&
 		    cfg->vref_mv == cfg_aux->vref_mv &&
 		    cfg->pga_bits == cfg_aux->pga_bits &&
-		    cfg->odr == cfg_aux->odr &&
 		    cfg->odr_sel_bits == cfg_aux->odr_sel_bits &&
 		    cfg->filter_type == cfg_aux->filter_type &&
 		    cfg->calibration_offset == cfg_aux->calibration_offset &&
@@ -718,16 +724,23 @@ static int ad7124_read_raw(struct iio_dev *indio_dev,
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		mutex_lock(&st->cfgs_lock);
-		*val = st->channels[chan->address].cfg.odr;
+		*val = ad7124_get_fclk_hz(st);
+		*val2 = ad7124_get_fadc_divisor(st, chan->address);
 		mutex_unlock(&st->cfgs_lock);
 
-		return IIO_VAL_INT;
-	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
-		mutex_lock(&st->cfgs_lock);
-		*val = ad7124_get_3db_filter_freq(st, chan->scan_index);
-		mutex_unlock(&st->cfgs_lock);
+		return IIO_VAL_FRACTIONAL;
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY: {
+		guard(mutex)(&st->cfgs_lock);
 
-		return IIO_VAL_INT;
+		ret = ad7124_get_3db_filter_factor(st, chan->address);
+		if (ret < 0)
+			return ret;
+
+		/* 3dB point is the f_CLK rate times a fractional value */
+		*val = ret * ad7124_get_fclk_hz(st);
+		*val2 = MILLI * ad7124_get_fadc_divisor(st, chan->address);
+		return IIO_VAL_FRACTIONAL;
+	}
 	default:
 		return -EINVAL;
 	}
@@ -744,10 +757,10 @@ static int ad7124_write_raw(struct iio_dev *indio_dev,
 
 	switch (info) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (val2 != 0 || val == 0)
+		if (val2 < 0 || val < 0 || (val2 == 0 && val == 0))
 			return -EINVAL;
 
-		ad7124_set_channel_odr(st, chan->address, val);
+		ad7124_set_channel_odr(st, chan->address, val, val2);
 
 		return 0;
 	case IIO_CHAN_INFO_SCALE:
@@ -1296,7 +1309,7 @@ static int ad7124_setup(struct ad7124_state *st)
 		 * regardless of the selected power mode. Round it up to 10 and
 		 * set all channels to this default value.
 		 */
-		ad7124_set_channel_odr(st, i, 10);
+		ad7124_set_channel_odr(st, i, 10, 0);
 	}
 
 	ad7124_disable_all(&st->sd);
