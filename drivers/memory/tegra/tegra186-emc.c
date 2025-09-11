@@ -218,20 +218,20 @@ static int tegra186_emc_get_emc_dvfs_latency(struct tegra186_emc *emc)
 }
 
 /*
- * tegra_emc_icc_set_bw() - Set BW api for EMC provider
+ * tegra186_emc_icc_set_bw() - Set BW api for EMC provider
  * @src: ICC node for External Memory Controller (EMC)
  * @dst: ICC node for External Memory (DRAM)
  *
  * Do nothing here as info to BPMP-FW is now passed in the BW set function
  * of the MC driver. BPMP-FW sets the final Freq based on the passed values.
  */
-static int tegra_emc_icc_set_bw(struct icc_node *src, struct icc_node *dst)
+static int tegra186_emc_icc_set_bw(struct icc_node *src, struct icc_node *dst)
 {
 	return 0;
 }
 
 static struct icc_node *
-tegra_emc_of_icc_xlate(const struct of_phandle_args *spec, void *data)
+tegra186_emc_of_icc_xlate(const struct of_phandle_args *spec, void *data)
 {
 	struct icc_provider *provider = data;
 	struct icc_node *node;
@@ -247,7 +247,7 @@ tegra_emc_of_icc_xlate(const struct of_phandle_args *spec, void *data)
 	return ERR_PTR(-EPROBE_DEFER);
 }
 
-static int tegra_emc_icc_get_init_bw(struct icc_node *node, u32 *avg, u32 *peak)
+static int tegra186_emc_icc_get_init_bw(struct icc_node *node, u32 *avg, u32 *peak)
 {
 	*avg = 0;
 	*peak = 0;
@@ -255,7 +255,7 @@ static int tegra_emc_icc_get_init_bw(struct icc_node *node, u32 *avg, u32 *peak)
 	return 0;
 }
 
-static int tegra_emc_interconnect_init(struct tegra186_emc *emc)
+static int tegra186_emc_interconnect_init(struct tegra186_emc *emc)
 {
 	struct tegra_mc *mc = dev_get_drvdata(emc->dev->parent);
 	const struct tegra_mc_soc *soc = mc->soc;
@@ -263,11 +263,11 @@ static int tegra_emc_interconnect_init(struct tegra186_emc *emc)
 	int err;
 
 	emc->provider.dev = emc->dev;
-	emc->provider.set = tegra_emc_icc_set_bw;
+	emc->provider.set = tegra186_emc_icc_set_bw;
 	emc->provider.data = &emc->provider;
 	emc->provider.aggregate = soc->icc_ops->aggregate;
-	emc->provider.xlate = tegra_emc_of_icc_xlate;
-	emc->provider.get_bw = tegra_emc_icc_get_init_bw;
+	emc->provider.xlate = tegra186_emc_of_icc_xlate;
+	emc->provider.get_bw = tegra186_emc_icc_get_init_bw;
 
 	icc_provider_init(&emc->provider);
 
@@ -354,7 +354,7 @@ static int tegra186_emc_probe(struct platform_device *pdev)
 		 * EINVAL instead of passing the request to BPMP-FW later when the BW
 		 * request is made by client with 'icc_set_bw()' call.
 		 */
-		err = tegra_emc_interconnect_init(emc);
+		err = tegra186_emc_interconnect_init(emc);
 		if (err) {
 			mc->bpmp = NULL;
 			goto put_bpmp;
