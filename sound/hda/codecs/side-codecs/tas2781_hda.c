@@ -193,6 +193,11 @@ int tas2781_save_calibration(struct tas2781_hda *hda)
 	efi_status_t status;
 	int i;
 
+	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE)) {
+		dev_err(p->dev, "%s: NO EFI FOUND!\n", __func__);
+		return -EINVAL;
+	}
+
 	if (hda->catlog_id < LENOVO)
 		efi_guid = tasdev_fct_efi_guid[hda->catlog_id];
 
