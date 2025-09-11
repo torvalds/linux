@@ -120,6 +120,7 @@ struct bpf_prog *bpf_prog_alloc_no_stats(unsigned int size, gfp_t gfp_extra_flag
 
 	fp->pages = size / PAGE_SIZE;
 	fp->aux = aux;
+	fp->aux->main_prog_aux = aux;
 	fp->aux->prog = fp;
 	fp->jit_requested = ebpf_jit_enabled();
 	fp->blinding_requested = bpf_jit_blinding_enabled(fp);
@@ -3297,9 +3298,8 @@ static bool find_from_stack_cb(void *cookie, u64 ip, u64 sp, u64 bp)
 	rcu_read_unlock();
 	if (!prog)
 		return true;
-	if (bpf_is_subprog(prog))
-		return true;
-	ctxp->prog = prog;
+	/* Make sure we return the main prog if we found a subprog */
+	ctxp->prog = prog->aux->main_prog_aux->prog;
 	return false;
 }
 
