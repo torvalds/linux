@@ -54,6 +54,10 @@ int rxgk_yfs_decode_ticket(struct rxrpc_connection *conn, struct sk_buff *skb,
 
 	_enter("");
 
+	if (ticket_len < 10 * sizeof(__be32))
+		return rxrpc_abort_conn(conn, skb, RXGK_INCONSISTENCY, -EPROTO,
+					rxgk_abort_resp_short_yfs_tkt);
+
 	/* Get the session key length */
 	ret = skb_copy_bits(skb, ticket_offset, tmp, sizeof(tmp));
 	if (ret < 0)
@@ -195,22 +199,23 @@ int rxgk_extract_token(struct rxrpc_connection *conn, struct sk_buff *skb,
 		__be32 token_len;
 	} container;
 
+	if (token_len < sizeof(container))
+		goto short_packet;
+
 	/* Decode the RXGK_TokenContainer object.  This tells us which server
 	 * key we should be using.  We can then fetch the key, get the secret
 	 * and set up the crypto to extract the token.
 	 */
 	if (skb_copy_bits(skb, token_offset, &container, sizeof(container)) < 0)
-		return rxrpc_abort_conn(conn, skb, RXGK_PACKETSHORT, -EPROTO,
-					rxgk_abort_resp_tok_short);
+		goto short_packet;
 
 	kvno		= ntohl(container.kvno);
 	enctype		= ntohl(container.enctype);
 	ticket_len	= ntohl(container.token_len);
 	ticket_offset	= token_offset + sizeof(container);
 
-	if (xdr_round_up(ticket_len) > token_len - 3 * 4)
-		return rxrpc_abort_conn(conn, skb, RXGK_PACKETSHORT, -EPROTO,
-					rxgk_abort_resp_tok_short);
+	if (xdr_round_up(ticket_len) > token_len - sizeof(container))
+		goto short_packet;
 
 	_debug("KVNO %u", kvno);
 	_debug("ENC  %u", enctype);
@@ -285,4 +290,8 @@ temporary_error:
 	 * also come out this way if the ticket decryption fails.
 	 */
 	return ret;
+
+short_packet:
+	return rxrpc_abort_conn(conn, skb, RXGK_PACKETSHORT, -EPROTO,
+				rxgk_abort_resp_tok_short);
 }
