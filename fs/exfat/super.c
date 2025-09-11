@@ -243,11 +243,11 @@ static const struct fs_parameter_spec exfat_parameters[] = {
 	fsparam_u32oct("allow_utime",		Opt_allow_utime),
 	fsparam_string("iocharset",		Opt_charset),
 	fsparam_enum("errors",			Opt_errors, exfat_param_enums),
-	fsparam_flag("discard",			Opt_discard),
+	fsparam_flag_no("discard",		Opt_discard),
 	fsparam_flag("keep_last_dots",		Opt_keep_last_dots),
 	fsparam_flag("sys_tz",			Opt_sys_tz),
 	fsparam_s32("time_offset",		Opt_time_offset),
-	fsparam_flag("zero_size_dir",		Opt_zero_size_dir),
+	fsparam_flag_no("zero_size_dir",	Opt_zero_size_dir),
 	__fsparam(NULL, "utf8",			Opt_utf8, fs_param_deprecated,
 		  NULL),
 	__fsparam(NULL, "debug",		Opt_debug, fs_param_deprecated,
@@ -299,7 +299,7 @@ static int exfat_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		opts->errors = result.uint_32;
 		break;
 	case Opt_discard:
-		opts->discard = 1;
+		opts->discard = !result.negated;
 		break;
 	case Opt_keep_last_dots:
 		opts->keep_last_dots = 1;
@@ -317,7 +317,7 @@ static int exfat_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		opts->time_offset = result.int_32;
 		break;
 	case Opt_zero_size_dir:
-		opts->zero_size_dir = true;
+		opts->zero_size_dir = !result.negated;
 		break;
 	case Opt_utf8:
 	case Opt_debug:
@@ -742,12 +742,44 @@ static void exfat_free(struct fs_context *fc)
 static int exfat_reconfigure(struct fs_context *fc)
 {
 	struct super_block *sb = fc->root->d_sb;
+	struct exfat_sb_info *remount_sbi = fc->s_fs_info;
+	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+	struct exfat_mount_options *new_opts = &remount_sbi->options;
+	struct exfat_mount_options *cur_opts = &sbi->options;
+
 	fc->sb_flags |= SB_NODIRATIME;
 
 	sync_filesystem(sb);
-	mutex_lock(&EXFAT_SB(sb)->s_lock);
+	mutex_lock(&sbi->s_lock);
 	exfat_clear_volume_dirty(sb);
-	mutex_unlock(&EXFAT_SB(sb)->s_lock);
+	mutex_unlock(&sbi->s_lock);
+
+	if (new_opts->allow_utime == (unsigned short)-1)
+		new_opts->allow_utime = ~new_opts->fs_dmask & 0022;
+
+	/*
+	 * Since the old settings of these mount options are cached in
+	 * inodes or dentries, they cannot be modified dynamically.
+	 */
+	if (strcmp(new_opts->iocharset, cur_opts->iocharset) ||
+	    new_opts->keep_last_dots != cur_opts->keep_last_dots ||
+	    new_opts->sys_tz != cur_opts->sys_tz ||
+	    new_opts->time_offset != cur_opts->time_offset ||
+	    !uid_eq(new_opts->fs_uid, cur_opts->fs_uid) ||
+	    !gid_eq(new_opts->fs_gid, cur_opts->fs_gid) ||
+	    new_opts->fs_fmask != cur_opts->fs_fmask ||
+	    new_opts->fs_dmask != cur_opts->fs_dmask ||
+	    new_opts->allow_utime != cur_opts->allow_utime)
+		return -EINVAL;
+
+	if (new_opts->discard != cur_opts->discard &&
+	    new_opts->discard &&
+	    !bdev_max_discard_sectors(sb->s_bdev)) {
+		exfat_warn(sb, "remounting with \"discard\" option, but the device does not support discard");
+		return -EINVAL;
+	}
+
+	swap(*cur_opts, *new_opts);
 
 	return 0;
 }
