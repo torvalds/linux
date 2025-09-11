@@ -1424,16 +1424,16 @@ static int idpf_vport_open(struct idpf_vport *vport, bool rtnl)
 		goto queues_rel;
 	}
 
-	err = idpf_rx_bufs_init_all(vport);
+	err = idpf_queue_reg_init(vport);
 	if (err) {
-		dev_err(&adapter->pdev->dev, "Failed to initialize RX buffers for vport %u: %d\n",
+		dev_err(&adapter->pdev->dev, "Failed to initialize queue registers for vport %u: %d\n",
 			vport->vport_id, err);
 		goto queues_rel;
 	}
 
-	err = idpf_queue_reg_init(vport);
+	err = idpf_rx_bufs_init_all(vport);
 	if (err) {
-		dev_err(&adapter->pdev->dev, "Failed to initialize queue registers for vport %u: %d\n",
+		dev_err(&adapter->pdev->dev, "Failed to initialize RX buffers for vport %u: %d\n",
 			vport->vport_id, err);
 		goto queues_rel;
 	}

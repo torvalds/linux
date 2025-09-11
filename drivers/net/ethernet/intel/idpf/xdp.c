@@ -46,7 +46,6 @@ static int __idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq, void *arg)
 {
 	const struct idpf_vport *vport = rxq->q_vector->vport;
 	bool split = idpf_is_queue_model_split(vport->rxq_model);
-	const struct page_pool *pp;
 	int err;
 
 	err = __xdp_rxq_info_reg(&rxq->xdp_rxq, vport->netdev, rxq->idx,
@@ -55,8 +54,18 @@ static int __idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq, void *arg)
 	if (err)
 		return err;
 
-	pp = split ? rxq->bufq_sets[0].bufq.pp : rxq->pp;
-	xdp_rxq_info_attach_page_pool(&rxq->xdp_rxq, pp);
+	if (idpf_queue_has(XSK, rxq)) {
+		err = xdp_rxq_info_reg_mem_model(&rxq->xdp_rxq,
+						 MEM_TYPE_XSK_BUFF_POOL,
+						 rxq->pool);
+		if (err)
+			goto unreg;
+	} else {
+		const struct page_pool *pp;
+
+		pp = split ? rxq->bufq_sets[0].bufq.pp : rxq->pp;
+		xdp_rxq_info_attach_page_pool(&rxq->xdp_rxq, pp);
+	}
 
 	if (!split)
 		return 0;
@@ -65,6 +74,11 @@ static int __idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq, void *arg)
 	rxq->num_xdp_txq = vport->num_xdp_txq;
 
 	return 0;
+
+unreg:
+	xdp_rxq_info_unreg(&rxq->xdp_rxq);
+
+	return err;
 }
 
 int idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq)
@@ -84,7 +98,9 @@ static int __idpf_xdp_rxq_info_deinit(struct idpf_rx_queue *rxq, void *arg)
 		rxq->num_xdp_txq = 0;
 	}
 
-	xdp_rxq_info_detach_mem_model(&rxq->xdp_rxq);
+	if (!idpf_queue_has(XSK, rxq))
+		xdp_rxq_info_detach_mem_model(&rxq->xdp_rxq);
+
 	xdp_rxq_info_unreg(&rxq->xdp_rxq);
 
 	return 0;
