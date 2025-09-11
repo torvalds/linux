@@ -175,17 +175,16 @@ static u64 mv88e6165_ptp_clock_read(struct cyclecounter *cc)
 static int mv88e6352_config_eventcap(struct mv88e6xxx_chip *chip, int event,
 				     int rising)
 {
-	u16 global_config;
+	u16 evcap_config;
 	u16 cap_config;
 	int err;
 
-	chip->evcap_config = MV88E6XXX_TAI_CFG_CAP_OVERWRITE |
-			     MV88E6XXX_TAI_CFG_CAP_CTR_START;
+	evcap_config = MV88E6XXX_TAI_CFG_CAP_OVERWRITE |
+		       MV88E6XXX_TAI_CFG_CAP_CTR_START;
 	if (!rising)
-		chip->evcap_config |= MV88E6XXX_TAI_CFG_EVREQ_FALLING;
+		evcap_config |= MV88E6XXX_TAI_CFG_EVREQ_FALLING;
 
-	global_config = chip->evcap_config;
-	err = mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_CFG, global_config);
+	err = mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_CFG, evcap_config);
 	if (err)
 		return err;
 
