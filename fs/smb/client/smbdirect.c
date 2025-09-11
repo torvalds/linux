@@ -406,74 +406,6 @@ static inline void *smbdirect_recv_io_payload(struct smbdirect_recv_io *response
 	return (void *)response->packet;
 }
 
-/* Called when a RDMA send is done */
-static void send_done(struct ib_cq *cq, struct ib_wc *wc)
-{
-	struct smbdirect_send_io *request =
-		container_of(wc->wr_cqe, struct smbdirect_send_io, cqe);
-	struct smbdirect_socket *sc = request->socket;
-	struct smbdirect_send_io *sibling, *next;
-	int lcredits = 0;
-
-	log_rdma_send(INFO, "smbdirect_send_io 0x%p completed wc->status=%s\n",
-		request, ib_wc_status_msg(wc->status));
-
-	if (unlikely(!(request->wr.send_flags & IB_SEND_SIGNALED))) {
-		/*
-		 * This happens when smbdirect_send_io is a sibling
-		 * before the final message, it is signaled on
-		 * error anyway, so we need to skip
-		 * smbdirect_connection_free_send_io here,
-		 * otherwise is will destroy the memory
-		 * of the siblings too, which will cause
-		 * use after free problems for the others
-		 * triggered from ib_drain_qp().
-		 */
-		if (wc->status != IB_WC_SUCCESS)
-			goto skip_free;
-
-		/*
-		 * This should not happen!
-		 * But we better just close the
-		 * connection...
-		 */
-		log_rdma_send(ERR,
-			"unexpected send completion wc->status=%s (%d) wc->opcode=%d\n",
-			ib_wc_status_msg(wc->status), wc->status, wc->opcode);
-		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
-		return;
-	}
-
-	/*
-	 * Free possible siblings and then the main send_io
-	 */
-	list_for_each_entry_safe(sibling, next, &request->sibling_list, sibling_list) {
-		list_del_init(&sibling->sibling_list);
-		smbdirect_connection_free_send_io(sibling);
-		lcredits += 1;
-	}
-	/* Note this frees wc->wr_cqe, but not wc */
-	smbdirect_connection_free_send_io(request);
-	lcredits += 1;
-
-	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_SEND) {
-skip_free:
-		if (wc->status != IB_WC_WR_FLUSH_ERR)
-			log_rdma_send(ERR, "wc->status=%s wc->opcode=%d\n",
-				ib_wc_status_msg(wc->status), wc->opcode);
-		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
-		return;
-	}
-
-	atomic_add(lcredits, &sc->send_io.lcredits.count);
-	wake_up(&sc->send_io.lcredits.wait_queue);
-
-	if (atomic_dec_and_test(&sc->send_io.pending.count))
-		wake_up(&sc->send_io.pending.zero_wait_queue);
-
-	wake_up(&sc->send_io.pending.dec_wait_queue);
-}
-
 static void dump_smbdirect_negotiate_resp(struct smbdirect_negotiate_resp *resp)
 {
 	log_rdma_event(INFO, "resp message min_version %u max_version %u negotiated_version %u credits_requested %u credits_granted %u status %u max_readwrite_size %u preferred_send_size %u max_receive_size %u max_fragmented_size %u\n",
@@ -1075,7 +1007,7 @@ static int smbd_post_send(struct smbdirect_socket *sc,
 			DMA_TO_DEVICE);
 	}
 
-	request->cqe.done = send_done;
+	request->cqe.done = smbdirect_connection_send_io_done;
 	request->wr.next = NULL;
 	request->wr.sg_list = request->sge;
 	request->wr.num_sge = request->num_sge;
