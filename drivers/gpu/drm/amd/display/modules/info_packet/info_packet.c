@@ -537,7 +537,11 @@ void mod_build_adaptive_sync_infopacket(const struct dc_stream_state *stream,
 		break;
 	case FREESYNC_TYPE_PCON_IN_WHITELIST:
 	case ADAPTIVE_SYNC_TYPE_EDP:
-		mod_build_adaptive_sync_infopacket_v1(info_packet);
+		if (stream && stream->link->replay_settings.config.replay_supported &&
+			stream->link->replay_settings.config.replay_version == DC_VESA_PANEL_REPLAY)
+			mod_build_adaptive_sync_infopacket_v2(stream, param, info_packet);
+		else
+			mod_build_adaptive_sync_infopacket_v1(info_packet);
 		break;
 	case ADAPTIVE_SYNC_TYPE_NONE:
 	case FREESYNC_TYPE_PCON_NOT_IN_WHITELIST:
@@ -567,13 +571,15 @@ void mod_build_adaptive_sync_infopacket_v2(const struct dc_stream_state *stream,
 	info_packet->hb2 = AS_SDP_VER_2;
 	info_packet->hb3 = AS_DP_SDP_LENGTH;
 
-	//Payload
-	info_packet->sb[0] = param->supportMode; //1: AVT; 0: FAVT
-	info_packet->sb[1] = (stream->timing.v_total & 0x00FF);
-	info_packet->sb[2] = (stream->timing.v_total & 0xFF00) >> 8;
-	//info_packet->sb[3] = 0x00; Target RR, not use fot AVT
-	info_packet->sb[4] = (param->increase.support << 6 | param->decrease.support << 7);
-	info_packet->sb[5] = param->increase.frame_duration_hex;
-	info_packet->sb[6] = param->decrease.frame_duration_hex;
+	if (param) {
+		//Payload
+		info_packet->sb[0] = param->supportMode; //1: AVT; 0: FAVT
+		info_packet->sb[1] = (stream->timing.v_total & 0x00FF);
+		info_packet->sb[2] = (stream->timing.v_total & 0xFF00) >> 8;
+		//info_packet->sb[3] = 0x00; Target RR, not use fot AVT
+		info_packet->sb[4] = (param->increase.support << 6 | param->decrease.support << 7);
+		info_packet->sb[5] = param->increase.frame_duration_hex;
+		info_packet->sb[6] = param->decrease.frame_duration_hex;
+	}
 }
 
