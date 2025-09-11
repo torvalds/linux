@@ -10,11 +10,13 @@
 
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_print.h"
+
+#include "i915_drv.h"
+#include "i915_reg.h"
+#include "i915_wait_util.h"
 #include "intel_gsc_proxy.h"
 #include "intel_gsc_uc.h"
 #include "intel_gsc_uc_heci_cmd_submit.h"
-#include "i915_drv.h"
-#include "i915_reg.h"
 
 /*
  * GSC proxy:

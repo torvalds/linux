@@ -13,9 +13,11 @@
 #include "gt/intel_gt_mcr.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_rps.h"
+
+#include "i915_drv.h"
+#include "i915_wait_util.h"
 #include "intel_guc_fw.h"
 #include "intel_guc_print.h"
-#include "i915_drv.h"
 
 static void guc_prepare_xfer(struct intel_gt *gt)
 {

@@ -117,6 +117,7 @@
 #include "i915_timer_util.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
+#include "i915_wait_util.h"
 #include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_engine_heartbeat.h"
