@@ -2219,7 +2219,7 @@ static int mlx5_macsec_fs_add_roce_rule_tx(struct mlx5_macsec_fs *macsec_fs, u32
 		 mlx5_macsec_fs_set_tx_fs_id(fs_id));
 	MLX5_SET(set_action_in, action, offset,
 		 MLX5_ETH_WQE_FT_META_MACSEC_SHIFT);
-	MLX5_SET(set_action_in, action, length, 32);
+	MLX5_SET(set_action_in, action, length, 8);
 
 	modify_hdr = mlx5_modify_header_alloc(mdev, MLX5_FLOW_NAMESPACE_RDMA_TX_MACSEC,
 					      1, action);
