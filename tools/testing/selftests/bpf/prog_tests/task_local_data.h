@@ -158,7 +158,7 @@ static int __tld_init_data_p(int map_fd)
 	void *data_alloc = NULL;
 	int err, tid_fd = -1;
 
-	tid_fd = syscall(SYS_pidfd_open, gettid(), O_EXCL);
+	tid_fd = syscall(SYS_pidfd_open, sys_gettid(), O_EXCL);
 	if (tid_fd < 0) {
 		err = -errno;
 		goto out;

@@ -44,7 +44,7 @@ static void test_read_cgroup_xattr(void)
 	if (!ASSERT_OK_PTR(skel, "read_cgroupfs_xattr__open_and_load"))
 		goto out;
 
-	skel->bss->target_pid = gettid();
+	skel->bss->target_pid = sys_gettid();
 
 	if (!ASSERT_OK(read_cgroupfs_xattr__attach(skel), "read_cgroupfs_xattr__attach"))
 		goto out;

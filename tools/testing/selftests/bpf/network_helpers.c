@@ -457,7 +457,7 @@ int append_tid(char *str, size_t sz)
 	if (end + 8 > sz)
 		return -1;
 
-	sprintf(&str[end], "%07d", gettid());
+	sprintf(&str[end], "%07ld", sys_gettid());
 	str[end + 7] = '\0';
 
 	return 0;

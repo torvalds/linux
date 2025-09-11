@@ -63,7 +63,7 @@ void *test_task_local_data_basic_thread(void *arg)
 	if (!ASSERT_OK_PTR(value2, "tld_get_data"))
 		goto out;
 
-	tid = gettid();
+	tid = sys_gettid();
 
 	*value0 = tid + 0;
 	*value1 = tid + 1;

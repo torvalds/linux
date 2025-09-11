@@ -16,7 +16,7 @@ void test_kernel_flag(void)
 	if (!ASSERT_OK_PTR(lsm_skel, "lsm_skel"))
 		return;
 
-	lsm_skel->bss->monitored_tid = gettid();
+	lsm_skel->bss->monitored_tid = sys_gettid();
 
 	ret = test_kernel_flag__attach(lsm_skel);
 	if (!ASSERT_OK(ret, "test_kernel_flag__attach"))
