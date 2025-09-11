@@ -294,8 +294,6 @@ static void bm_work(struct work_struct *work)
 	int expected_gap_count, generation, grace;
 	bool do_reset = false;
 
-	lockdep_assert_held(&card->lock);
-
 	spin_lock_irq(&card->lock);
 
 	if (card->local_node == NULL) {
