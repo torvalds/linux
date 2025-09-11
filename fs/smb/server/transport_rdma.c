@@ -271,6 +271,7 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	smbdirect_socket_set_logging(sc, NULL,
 				     smb_direct_logging_needed,
 				     smb_direct_logging_vaprintf);
+	sc->send_io.mem.gfp_mask = KSMBD_DEFAULT_GFP;
 	/*
 	 * from here we operate on the copy.
 	 */
@@ -366,43 +367,6 @@ static void free_transport(struct smb_direct_transport *t)
 
 	smb_direct_destroy_pools(sc);
 	ksmbd_conn_free(KSMBD_TRANS(t)->conn);
-}
-
-static struct smbdirect_send_io
-*smb_direct_alloc_sendmsg(struct smbdirect_socket *sc)
-{
-	struct smbdirect_send_io *msg;
-
-	msg = mempool_alloc(sc->send_io.mem.pool, KSMBD_DEFAULT_GFP);
-	if (!msg)
-		return ERR_PTR(-ENOMEM);
-	msg->socket = sc;
-	INIT_LIST_HEAD(&msg->sibling_list);
-	msg->num_sge = 0;
-	return msg;
-}
-
-static void smb_direct_free_sendmsg(struct smbdirect_socket *sc,
-				    struct smbdirect_send_io *msg)
-{
-	int i;
-
-	/*
-	 * The list needs to be empty!
-	 * The caller should take care of it.
-	 */
-	WARN_ON_ONCE(!list_empty(&msg->sibling_list));
-
-	if (msg->num_sge > 0) {
-		ib_dma_unmap_single(sc->ib.dev,
-				    msg->sge[0].addr, msg->sge[0].length,
-				    DMA_TO_DEVICE);
-		for (i = 1; i < msg->num_sge; i++)
-			ib_dma_unmap_page(sc->ib.dev,
-					  msg->sge[i].addr, msg->sge[i].length,
-					  DMA_TO_DEVICE);
-	}
-	mempool_free(msg, sc->send_io.mem.pool);
 }
 
 static int smb_direct_check_recvmsg(struct smbdirect_recv_io *recvmsg)
@@ -942,11 +906,11 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 	 */
 	list_for_each_entry_safe(sibling, next, &sendmsg->sibling_list, sibling_list) {
 		list_del_init(&sibling->sibling_list);
-		smb_direct_free_sendmsg(sc, sibling);
+		smbdirect_connection_free_send_io(sibling);
 		lcredits += 1;
 	}
 	/* Note this frees wc->wr_cqe, but not wc */
-	smb_direct_free_sendmsg(sc, sendmsg);
+	smbdirect_connection_free_send_io(sendmsg);
 	lcredits += 1;
 
 	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_SEND) {
@@ -1089,9 +1053,9 @@ static int smb_direct_flush_send_list(struct smbdirect_socket *sc,
 
 		list_for_each_entry_safe(sibling, next, &last->sibling_list, sibling_list) {
 			list_del_init(&sibling->sibling_list);
-			smb_direct_free_sendmsg(sc, sibling);
+			smbdirect_connection_free_send_io(sibling);
 		}
-		smb_direct_free_sendmsg(sc, last);
+		smbdirect_connection_free_send_io(last);
 	}
 
 release_credit:
@@ -1203,7 +1167,7 @@ static int smb_direct_create_header(struct smbdirect_socket *sc,
 	int header_length;
 	int ret;
 
-	sendmsg = smb_direct_alloc_sendmsg(sc);
+	sendmsg = smbdirect_connection_alloc_send_io(sc);
 	if (IS_ERR(sendmsg))
 		return PTR_ERR(sendmsg);
 
@@ -1246,7 +1210,7 @@ static int smb_direct_create_header(struct smbdirect_socket *sc,
 						 DMA_TO_DEVICE);
 	ret = ib_dma_mapping_error(sc->ib.dev, sendmsg->sge[0].addr);
 	if (ret) {
-		smb_direct_free_sendmsg(sc, sendmsg);
+		smbdirect_connection_free_send_io(sendmsg);
 		return ret;
 	}
 
@@ -1441,7 +1405,7 @@ static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 
 	return 0;
 err:
-	smb_direct_free_sendmsg(sc, msg);
+	smbdirect_connection_free_send_io(msg);
 flush_failed:
 header_failed:
 	atomic_inc(&sc->send_io.credits.count);
@@ -1895,7 +1859,7 @@ static int smb_direct_send_negotiate_response(struct smbdirect_socket *sc,
 	struct smbdirect_negotiate_resp *resp;
 	int ret;
 
-	sendmsg = smb_direct_alloc_sendmsg(sc);
+	sendmsg = smbdirect_connection_alloc_send_io(sc);
 	if (IS_ERR(sendmsg))
 		return -ENOMEM;
 
@@ -1932,7 +1896,7 @@ static int smb_direct_send_negotiate_response(struct smbdirect_socket *sc,
 						 DMA_TO_DEVICE);
 	ret = ib_dma_mapping_error(sc->ib.dev, sendmsg->sge[0].addr);
 	if (ret) {
-		smb_direct_free_sendmsg(sc, sendmsg);
+		smbdirect_connection_free_send_io(sendmsg);
 		return ret;
 	}
 
@@ -1942,7 +1906,7 @@ static int smb_direct_send_negotiate_response(struct smbdirect_socket *sc,
 
 	ret = post_sendmsg(sc, NULL, sendmsg);
 	if (ret) {
-		smb_direct_free_sendmsg(sc, sendmsg);
+		smbdirect_connection_free_send_io(sendmsg);
 		return ret;
 	}
 
