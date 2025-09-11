@@ -9,7 +9,6 @@ import socket
 import struct
 from struct import Struct
 import sys
-import yaml
 import ipaddress
 import uuid
 import queue
@@ -706,7 +705,7 @@ class YnlFamily(SpecFamily):
             return attr.as_bin()
 
     def _rsp_add(self, rsp, name, is_multi, decoded):
-        if is_multi == None:
+        if is_multi is None:
             if name in rsp and type(rsp[name]) is not list:
                 rsp[name] = [rsp[name]]
                 is_multi = True
@@ -739,14 +738,14 @@ class YnlFamily(SpecFamily):
         decoded = {}
         offset = 0
         if msg_format.fixed_header:
-            decoded.update(self._decode_struct(attr.raw, msg_format.fixed_header));
+            decoded.update(self._decode_struct(attr.raw, msg_format.fixed_header))
             offset = self._struct_size(msg_format.fixed_header)
         if msg_format.attr_set:
             if msg_format.attr_set in self.attr_sets:
                 subdict = self._decode(NlAttrs(attr.raw, offset), msg_format.attr_set)
                 decoded.update(subdict)
             else:
-                raise Exception(f"Unknown attribute-set '{attr_space}' when decoding '{attr_spec.name}'")
+                raise Exception(f"Unknown attribute-set '{msg_format.attr_set}' when decoding '{attr_spec.name}'")
         return decoded
 
     def _decode(self, attrs, space, outer_attrs = None):
