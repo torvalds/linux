@@ -1525,4 +1525,6 @@ void dpp1_construct(struct dcn10_dpp *dpp1,
 
 void dpp1_cm_get_gamut_remap(struct dpp *dpp_base,
 			     struct dpp_grph_csc_adjustment *adjust);
+void dpp_force_disable_cursor(struct dpp *dpp_base);
+
 #endif
