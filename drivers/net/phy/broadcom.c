@@ -23,9 +23,6 @@
 #include <linux/irq.h>
 #include <linux/gpio/consumer.h>
 
-#define BRCM_PHY_MODEL(phydev) \
-	((phydev)->drv->phy_id & (phydev)->drv->phy_id_mask)
-
 #define BRCM_PHY_REV(phydev) \
 	((phydev)->drv->phy_id & ~((phydev)->drv->phy_id_mask))
 
@@ -249,8 +246,8 @@ static int bcm54xx_phydsp_config(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610 ||
-	    BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610M) {
+	if (phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM50610) ||
+	    phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM50610M)) {
 		/* Clear bit 9 to fix a phy interop issue. */
 		err = bcm_phy_write_exp(phydev, MII_BCM54XX_EXP_EXP08,
 					MII_BCM54XX_EXP_EXP08_RJCT_2MHZ);
@@ -264,7 +261,7 @@ static int bcm54xx_phydsp_config(struct phy_device *phydev)
 		}
 	}
 
-	if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM57780) {
+	if (phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM57780)) {
 		int val;
 
 		val = bcm_phy_read_exp(phydev, MII_BCM54XX_EXP_EXP75);
@@ -292,12 +289,12 @@ static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
 	bool clk125en = true;
 
 	/* Abort if we are using an untested phy. */
-	if (BRCM_PHY_MODEL(phydev) != PHY_ID_BCM57780 &&
-	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM50610 &&
-	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM50610M &&
-	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM54210E &&
-	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM54810 &&
-	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM54811)
+	if (!(phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM57780) ||
+	      phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM50610) ||
+	      phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM50610M) ||
+	      phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM54210E) ||
+	      phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM54810) ||
+	      phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM54811)))
 		return;
 
 	val = bcm_phy_read_shadow(phydev, BCM54XX_SHD_SCR3);
@@ -306,8 +303,8 @@ static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
 
 	orig = val;
 
-	if ((BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610 ||
-	     BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610M) &&
+	if ((phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM50610) ||
+	     phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM50610M)) &&
 	    BRCM_PHY_REV(phydev) >= 0x3) {
 		/*
 		 * Here, bit 0 _disables_ CLK125 when set.
@@ -316,7 +313,8 @@ static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
 		clk125en = false;
 	} else {
 		if (phydev->dev_flags & PHY_BRCM_RX_REFCLK_UNUSED) {
-			if (BRCM_PHY_MODEL(phydev) != PHY_ID_BCM54811) {
+			if (!phy_id_compare_model(phydev->drv->phy_id,
+						  PHY_ID_BCM54811)) {
 				/* Here, bit 0 _enables_ CLK125 when set */
 				val &= ~BCM54XX_SHD_SCR3_DEF_CLK125;
 			}
@@ -330,9 +328,9 @@ static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
 		val |= BCM54XX_SHD_SCR3_DLLAPD_DIS;
 
 	if (phydev->dev_flags & PHY_BRCM_DIS_TXCRXC_NOENRGY) {
-		if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54210E ||
-		    BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54810 ||
-		    BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54811)
+		if (phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM54210E) ||
+		    phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM54810) ||
+		    phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM54811))
 			val |= BCM54XX_SHD_SCR3_RXCTXC_DIS;
 		else
 			val |= BCM54XX_SHD_SCR3_TRDDAPD;
@@ -461,14 +459,14 @@ static int bcm54xx_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	if ((BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610 ||
-	     BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610M) &&
+	if ((phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM50610) ||
+	     phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM50610M)) &&
 	    (phydev->dev_flags & PHY_BRCM_CLEAR_RGMII_MODE))
 		bcm_phy_write_shadow(phydev, BCM54XX_SHD_RGMII_MODE, 0);
 
 	bcm54xx_adjust_rxrefclk(phydev);
 
-	switch (BRCM_PHY_MODEL(phydev)) {
+	switch (phydev->drv->phy_id & PHY_ID_MATCH_MODEL_MASK) {
 	case PHY_ID_BCM50610:
 	case PHY_ID_BCM50610M:
 		err = bcm54xx_config_clock_delay(phydev);
@@ -693,7 +691,7 @@ static int bcm5481x_read_abilities(struct phy_device *phydev)
 		 * So we must read the bcm54811 as unable to auto-negotiate
 		 * in BroadR-Reach mode.
 		 */
-		if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54811)
+		if (phy_id_compare_model(phydev->drv->phy_id, PHY_ID_BCM54811))
 			aneg = 0;
 		else
 			aneg = val & LRESR_LDSABILITY;
