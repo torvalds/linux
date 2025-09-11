@@ -1152,7 +1152,6 @@ nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
 	struct nft_pipapo *priv = nft_set_priv(set);
 	const struct nft_set_ext *ext = NULL;
 	struct nft_pipapo_scratch *scratch;
-	u8 genmask = nft_genmask_cur(net);
 	const struct nft_pipapo_match *m;
 	const struct nft_pipapo_field *f;
 	const u8 *rp = (const u8 *)key;
@@ -1248,8 +1247,7 @@ next_match:
 		if (last) {
 			const struct nft_set_ext *e = &f->mt[ret].e->ext;
 
-			if (unlikely(nft_set_elem_expired(e) ||
-				     !nft_set_elem_active(e, genmask)))
+			if (unlikely(nft_set_elem_expired(e)))
 				goto next_match;
 
 			ext = e;
