@@ -225,7 +225,7 @@ static int idpf_xdp_parse_cqe(const struct idpf_splitq_4b_tx_compl_desc *desc,
 	return upper_16_bits(val);
 }
 
-static u32 idpf_xdpsq_poll(struct idpf_tx_queue *xdpsq, u32 budget)
+u32 idpf_xdpsq_poll(struct idpf_tx_queue *xdpsq, u32 budget)
 {
 	struct idpf_compl_queue *cq = xdpsq->complq;
 	u32 tx_ntc = xdpsq->next_to_clean;

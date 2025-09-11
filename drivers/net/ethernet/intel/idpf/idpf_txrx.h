@@ -285,6 +285,7 @@ struct idpf_ptype_state {
  *		  queue
  * @__IDPF_Q_NOIRQ: queue is polling-driven and has no interrupt
  * @__IDPF_Q_XDP: this is an XDP queue
+ * @__IDPF_Q_XSK: the queue has an XSk pool installed
  * @__IDPF_Q_FLAGS_NBITS: Must be last
  */
 enum idpf_queue_flags_t {
@@ -297,6 +298,7 @@ enum idpf_queue_flags_t {
 	__IDPF_Q_PTP,
 	__IDPF_Q_NOIRQ,
 	__IDPF_Q_XDP,
+	__IDPF_Q_XSK,
 
 	__IDPF_Q_FLAGS_NBITS,
 };
@@ -363,10 +365,12 @@ struct idpf_intr_reg {
  * @num_txq: Number of TX queues
  * @num_bufq: Number of buffer queues
  * @num_complq: number of completion queues
+ * @num_xsksq: number of XSk send queues
  * @rx: Array of RX queues to service
  * @tx: Array of TX queues to service
  * @bufq: Array of buffer queues to service
  * @complq: array of completion queues
+ * @xsksq: array of XSk send queues
  * @intr_reg: See struct idpf_intr_reg
  * @napi: napi handler
  * @total_events: Number of interrupts processed
@@ -389,10 +393,12 @@ struct idpf_q_vector {
 	u16 num_txq;
 	u16 num_bufq;
 	u16 num_complq;
+	u16 num_xsksq;
 	struct idpf_rx_queue **rx;
 	struct idpf_tx_queue **tx;
 	struct idpf_buf_queue **bufq;
 	struct idpf_compl_queue **complq;
+	struct idpf_tx_queue **xsksq;
 
 	struct idpf_intr_reg intr_reg;
 	__cacheline_group_end_aligned(read_mostly);
@@ -418,7 +424,7 @@ struct idpf_q_vector {
 
 	__cacheline_group_end_aligned(cold);
 };
-libeth_cacheline_set_assert(struct idpf_q_vector, 120,
+libeth_cacheline_set_assert(struct idpf_q_vector, 136,
 			    24 + sizeof(struct napi_struct) +
 			    2 * sizeof(struct dim),
 			    8);
@@ -578,6 +584,7 @@ libeth_cacheline_set_assert(struct idpf_rx_queue,
  * @txq_grp: See struct idpf_txq_group
  * @complq: corresponding completion queue in XDP mode
  * @dev: Device back pointer for DMA mapping
+ * @pool: corresponding XSk pool if installed
  * @tail: Tail offset. Used for both queue models single and split
  * @flags: See enum idpf_queue_flags_t
  * @idx: For TX queue, it is used as index to map between TX queue group and
@@ -631,7 +638,10 @@ struct idpf_tx_queue {
 		struct idpf_txq_group *txq_grp;
 		struct idpf_compl_queue *complq;
 	};
-	struct device *dev;
+	union {
+		struct device *dev;
+		struct xsk_buff_pool *pool;
+	};
 	void __iomem *tail;
 
 	DECLARE_BITMAP(flags, __IDPF_Q_FLAGS_NBITS);

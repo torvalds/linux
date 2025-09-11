@@ -5,6 +5,7 @@
 #include "idpf_ptp.h"
 #include "idpf_virtchnl.h"
 #include "xdp.h"
+#include "xsk.h"
 
 #define idpf_tx_buf_next(buf)		(*(u32 *)&(buf)->priv)
 LIBETH_SQE_CHECK_PRIV(u32);
@@ -53,11 +54,7 @@ void idpf_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 	}
 }
 
-/**
- * idpf_tx_buf_rel_all - Free any empty Tx buffers
- * @txq: queue to be cleaned
- */
-static void idpf_tx_buf_rel_all(struct idpf_tx_queue *txq)
+static void idpf_tx_buf_clean(struct idpf_tx_queue *txq)
 {
 	struct libeth_sq_napi_stats ss = { };
 	struct xdp_frame_bulk bq;
@@ -66,19 +63,30 @@ static void idpf_tx_buf_rel_all(struct idpf_tx_queue *txq)
 		.bq	= &bq,
 		.ss	= &ss,
 	};
-	u32 i;
-
-	/* Buffers already cleared, nothing to do */
-	if (!txq->tx_buf)
-		return;
 
 	xdp_frame_bulk_init(&bq);
 
 	/* Free all the Tx buffer sk_buffs */
-	for (i = 0; i < txq->buf_pool_size; i++)
+	for (u32 i = 0; i < txq->buf_pool_size; i++)
 		libeth_tx_complete_any(&txq->tx_buf[i], &cp);
 
 	xdp_flush_frame_bulk(&bq);
+}
+
+/**
+ * idpf_tx_buf_rel_all - Free any empty Tx buffers
+ * @txq: queue to be cleaned
+ */
+static void idpf_tx_buf_rel_all(struct idpf_tx_queue *txq)
+{
+	/* Buffers already cleared, nothing to do */
+	if (!txq->tx_buf)
+		return;
+
+	if (idpf_queue_has(XSK, txq))
+		idpf_xsksq_clean(txq);
+	else
+		idpf_tx_buf_clean(txq);
 
 	kfree(txq->tx_buf);
 	txq->tx_buf = NULL;
@@ -102,6 +110,8 @@ static void idpf_tx_desc_rel(struct idpf_tx_queue *txq)
 	if (!xdp)
 		netdev_tx_reset_subqueue(txq->netdev, txq->idx);
 
+	idpf_xsk_clear_queue(txq, VIRTCHNL2_QUEUE_TYPE_TX);
+
 	if (!txq->desc_ring)
 		return;
 
@@ -122,6 +132,8 @@ static void idpf_tx_desc_rel(struct idpf_tx_queue *txq)
  */
 static void idpf_compl_desc_rel(struct idpf_compl_queue *complq)
 {
+	idpf_xsk_clear_queue(complq, VIRTCHNL2_QUEUE_TYPE_TX_COMPLETION);
+
 	if (!complq->comp)
 		return;
 
@@ -214,6 +226,8 @@ static int idpf_tx_desc_alloc(const struct idpf_vport *vport,
 	tx_q->next_to_clean = 0;
 	idpf_queue_set(GEN_CHK, tx_q);
 
+	idpf_xsk_setup_queue(vport, tx_q, VIRTCHNL2_QUEUE_TYPE_TX);
+
 	if (!idpf_queue_has(FLOW_SCH_EN, tx_q))
 		return 0;
 
@@ -272,6 +286,9 @@ static int idpf_compl_desc_alloc(const struct idpf_vport *vport,
 	complq->next_to_use = 0;
 	complq->next_to_clean = 0;
 	idpf_queue_set(GEN_CHK, complq);
+
+	idpf_xsk_setup_queue(vport, complq,
+			     VIRTCHNL2_QUEUE_TYPE_TX_COMPLETION);
 
 	return 0;
 }
@@ -1077,13 +1094,13 @@ static void idpf_qvec_ena_irq(struct idpf_q_vector *qv)
 static struct idpf_queue_set *
 idpf_vector_to_queue_set(struct idpf_q_vector *qv)
 {
-	bool xdp = qv->vport->xdp_txq_offset;
+	bool xdp = qv->vport->xdp_txq_offset && !qv->num_xsksq;
 	struct idpf_vport *vport = qv->vport;
 	struct idpf_queue_set *qs;
 	u32 num;
 
 	num = qv->num_rxq + qv->num_bufq + qv->num_txq + qv->num_complq;
-	num += xdp ? qv->num_rxq * 2 : 0;
+	num += xdp ? qv->num_rxq * 2 : qv->num_xsksq * 2;
 	if (!num)
 		return NULL;
 
@@ -1126,6 +1143,14 @@ idpf_vector_to_queue_set(struct idpf_q_vector *qv)
 			qs->qs[num].type = VIRTCHNL2_QUEUE_TYPE_TX_COMPLETION;
 			qs->qs[num++].complq = vport->txqs[idx]->complq;
 		}
+	} else {
+		for (u32 i = 0; i < qv->num_xsksq; i++) {
+			qs->qs[num].type = VIRTCHNL2_QUEUE_TYPE_TX;
+			qs->qs[num++].txq = qv->xsksq[i];
+
+			qs->qs[num].type = VIRTCHNL2_QUEUE_TYPE_TX_COMPLETION;
+			qs->qs[num++].complq = qv->xsksq[i]->complq;
+		}
 	}
 
 finalize:
@@ -1152,6 +1177,29 @@ static int idpf_qp_enable(const struct idpf_queue_set *qs, u32 qid)
 		return err;
 	}
 
+	if (!vport->xdp_txq_offset)
+		goto config;
+
+	q_vector->xsksq = kcalloc(DIV_ROUND_UP(vport->num_rxq_grp,
+					       vport->num_q_vectors),
+				  sizeof(*q_vector->xsksq), GFP_KERNEL);
+	if (!q_vector->xsksq)
+		return -ENOMEM;
+
+	for (u32 i = 0; i < qs->num; i++) {
+		const struct idpf_queue_ptr *q = &qs->qs[i];
+
+		if (q->type != VIRTCHNL2_QUEUE_TYPE_TX)
+			continue;
+
+		if (!idpf_queue_has(XSK, q->txq))
+			continue;
+
+		q->txq->q_vector = q_vector;
+		q_vector->xsksq[q_vector->num_xsksq++] = q->txq;
+	}
+
+config:
 	err = idpf_send_config_queue_set_msg(qs);
 	if (err) {
 		netdev_err(vport->netdev, "Could not configure queues in pair %u: %pe\n",
@@ -1194,6 +1242,9 @@ static int idpf_qp_disable(const struct idpf_queue_set *qs, u32 qid)
 	}
 
 	idpf_clean_queue_set(qs);
+
+	kfree(q_vector->xsksq);
+	q_vector->num_xsksq = 0;
 
 	return 0;
 }
@@ -3690,7 +3741,7 @@ static irqreturn_t idpf_vport_intr_clean_queues(int __always_unused irq,
 	struct idpf_q_vector *q_vector = (struct idpf_q_vector *)data;
 
 	q_vector->total_events++;
-	napi_schedule(&q_vector->napi);
+	napi_schedule_irqoff(&q_vector->napi);
 
 	return IRQ_HANDLED;
 }
@@ -3731,6 +3782,8 @@ void idpf_vport_intr_rel(struct idpf_vport *vport)
 	for (u32 v_idx = 0; v_idx < vport->num_q_vectors; v_idx++) {
 		struct idpf_q_vector *q_vector = &vport->q_vectors[v_idx];
 
+		kfree(q_vector->xsksq);
+		q_vector->xsksq = NULL;
 		kfree(q_vector->complq);
 		q_vector->complq = NULL;
 		kfree(q_vector->bufq);
@@ -4214,7 +4267,7 @@ static int idpf_vport_splitq_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct idpf_q_vector *q_vector =
 				container_of(napi, struct idpf_q_vector, napi);
-	bool clean_complete;
+	bool clean_complete = true;
 	int work_done = 0;
 
 	/* Handle case where we are called by netpoll with a budget of 0 */
@@ -4224,8 +4277,13 @@ static int idpf_vport_splitq_napi_poll(struct napi_struct *napi, int budget)
 		return 0;
 	}
 
-	clean_complete = idpf_rx_splitq_clean_all(q_vector, budget, &work_done);
-	clean_complete &= idpf_tx_splitq_clean_all(q_vector, budget, &work_done);
+	for (u32 i = 0; i < q_vector->num_xsksq; i++)
+		clean_complete &= idpf_xsk_xmit(q_vector->xsksq[i]);
+
+	clean_complete &= idpf_tx_splitq_clean_all(q_vector, budget,
+						   &work_done);
+	clean_complete &= idpf_rx_splitq_clean_all(q_vector, budget,
+						   &work_done);
 
 	/* If work not completed, return budget and polling will return */
 	if (!clean_complete) {
@@ -4238,7 +4296,7 @@ static int idpf_vport_splitq_napi_poll(struct napi_struct *napi, int budget)
 	/* Exit the polling mode, but don't re-enable interrupts if stack might
 	 * poll us due to busy-polling
 	 */
-	if (likely(napi_complete_done(napi, work_done)))
+	if (napi_complete_done(napi, work_done))
 		idpf_vport_intr_update_itr_ena_irq(q_vector);
 	else
 		idpf_vport_intr_set_wb_on_itr(q_vector);
@@ -4330,6 +4388,20 @@ static void idpf_vport_intr_map_vector_to_qs(struct idpf_vport *vport)
 		}
 
 		qv_idx++;
+	}
+
+	for (i = 0; i < vport->num_xdp_txq; i++) {
+		struct idpf_tx_queue *xdpsq;
+		struct idpf_q_vector *qv;
+
+		xdpsq = vport->txqs[vport->xdp_txq_offset + i];
+		if (!idpf_queue_has(XSK, xdpsq))
+			continue;
+
+		qv = idpf_find_rxq_vec(vport, i);
+
+		xdpsq->q_vector = qv;
+		qv->xsksq[qv->num_xsksq++] = xdpsq;
 	}
 }
 
@@ -4467,6 +4539,15 @@ int idpf_vport_intr_alloc(struct idpf_vport *vport)
 					   sizeof(*q_vector->complq),
 					   GFP_KERNEL);
 		if (!q_vector->complq)
+			goto error;
+
+		if (!vport->xdp_txq_offset)
+			continue;
+
+		q_vector->xsksq = kcalloc(rxqs_per_vector,
+					  sizeof(*q_vector->xsksq),
+					  GFP_KERNEL);
+		if (!q_vector->xsksq)
 			goto error;
 	}
 
