@@ -191,9 +191,7 @@ int __init rd_load_image(char *from)
 	char *buf = NULL;
 	unsigned short rotate = 0;
 	decompress_fn decompressor = NULL;
-#if !defined(CONFIG_S390)
 	char rotator[4] = { '|' , '/' , '-' , '\\' };
-#endif
 
 	out_file = filp_open("/dev/ram", O_RDWR, 0);
 	if (IS_ERR(out_file))
@@ -255,12 +253,10 @@ int __init rd_load_image(char *from)
 		}
 		kernel_read(in_file, buf, BLOCK_SIZE, &in_pos);
 		kernel_write(out_file, buf, BLOCK_SIZE, &out_pos);
-#if !defined(CONFIG_S390)
-		if (!(i % 16)) {
+		if (!IS_ENABLED(CONFIG_S390) && !(i % 16)) {
 			pr_cont("%c\b", rotator[rotate & 0x3]);
 			rotate++;
 		}
-#endif
 	}
 	pr_cont("done.\n");
 
