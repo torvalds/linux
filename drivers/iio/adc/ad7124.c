@@ -739,24 +739,20 @@ static int ad7124_write_raw(struct iio_dev *indio_dev,
 {
 	struct ad7124_state *st = iio_priv(indio_dev);
 	unsigned int res, gain, full_scale, vref;
-	int ret = 0;
 
-	mutex_lock(&st->cfgs_lock);
+	guard(mutex)(&st->cfgs_lock);
 
 	switch (info) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (val2 != 0 || val == 0) {
-			ret = -EINVAL;
-			break;
-		}
+		if (val2 != 0 || val == 0)
+			return -EINVAL;
 
 		ad7124_set_channel_odr(st, chan->address, val);
-		break;
+
+		return 0;
 	case IIO_CHAN_INFO_SCALE:
-		if (val != 0) {
-			ret = -EINVAL;
-			break;
-		}
+		if (val != 0)
+			return -EINVAL;
 
 		if (st->channels[chan->address].cfg.bipolar)
 			full_scale = 1 << (chan->scan_type.realbits - 1);
@@ -772,13 +768,10 @@ static int ad7124_write_raw(struct iio_dev *indio_dev,
 			st->channels[chan->address].cfg.live = false;
 
 		st->channels[chan->address].cfg.pga_bits = res;
-		break;
+		return 0;
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
-
-	mutex_unlock(&st->cfgs_lock);
-	return ret;
 }
 
 static int ad7124_reg_access(struct iio_dev *indio_dev,
@@ -810,7 +803,8 @@ static int ad7124_update_scan_mode(struct iio_dev *indio_dev,
 	int ret;
 	int i;
 
-	mutex_lock(&st->cfgs_lock);
+	guard(mutex)(&st->cfgs_lock);
+
 	for (i = 0; i < st->num_channels; i++) {
 		bit_set = test_bit(i, scan_mask);
 		if (bit_set)
@@ -818,14 +812,9 @@ static int ad7124_update_scan_mode(struct iio_dev *indio_dev,
 		else
 			ret = ad7124_spi_write_mask(st, AD7124_CHANNEL(i), AD7124_CHANNEL_ENABLE,
 						    0, 2);
-		if (ret < 0) {
-			mutex_unlock(&st->cfgs_lock);
-
+		if (ret < 0)
 			return ret;
-		}
 	}
-
-	mutex_unlock(&st->cfgs_lock);
 
 	return 0;
 }
