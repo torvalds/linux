@@ -280,6 +280,23 @@ static void print_dir_item(const struct extent_buffer *eb, int i)
 	}
 }
 
+static void print_inode_ref_item(const struct extent_buffer *eb, int i)
+{
+	const u32 size = btrfs_item_size(eb, i);
+	struct btrfs_inode_ref *ref = btrfs_item_ptr(eb, i, struct btrfs_inode_ref);
+	u32 cur = 0;
+
+	while (cur < size) {
+		const u64 index = btrfs_inode_ref_index(eb, ref);
+		const u32 name_len = btrfs_inode_ref_name_len(eb, ref);
+		const u32 len = sizeof(*ref) + name_len;
+
+		pr_info("\t\tindex %llu name_len %u\n", index, name_len);
+		ref = (struct btrfs_inode_ref *)((char *)ref + len);
+		cur += len;
+	}
+}
+
 void btrfs_print_leaf(const struct extent_buffer *l)
 {
 	struct btrfs_fs_info *fs_info;
@@ -313,6 +330,9 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 		switch (type) {
 		case BTRFS_INODE_ITEM_KEY:
 			print_inode_item(l, i);
+			break;
+		case BTRFS_INODE_REF_KEY:
+			print_inode_ref_item(l, i);
 			break;
 		case BTRFS_DIR_ITEM_KEY:
 		case BTRFS_DIR_INDEX_KEY:
