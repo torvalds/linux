@@ -21,7 +21,7 @@
  * DOC: Xe Configfs
  *
  * Overview
- * =========
+ * ========
  *
  * Configfs is a filesystem-based manager of kernel objects. XE KMD registers a
  * configfs subsystem called ``xe`` that creates a directory in the mounted
@@ -34,7 +34,7 @@
  *
  * To create a device, the ``xe`` module should already be loaded, but some
  * attributes can only be set before binding the device. It can be accomplished
- * by blocking the driver autoprobe:
+ * by blocking the driver autoprobe::
  *
  *	# echo 0 > /sys/bus/pci/drivers_autoprobe
  *	# modprobe xe
