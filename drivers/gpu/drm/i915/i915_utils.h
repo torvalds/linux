@@ -38,7 +38,6 @@
 #endif
 
 struct drm_i915_private;
-struct timer_list;
 
 #define MISSING_CASE(x) WARN(1, "Missing case (%s == %ld)\n", \
 			     __stringify(x), (long)(x))
@@ -268,19 +267,6 @@ static inline void __add_taint_for_CI(unsigned int taint)
 	 * the machine if the kernel is tainted.
 	 */
 	add_taint(taint, LOCKDEP_STILL_OK);
-}
-
-void cancel_timer(struct timer_list *t);
-void set_timer_ms(struct timer_list *t, unsigned long timeout);
-
-static inline bool timer_active(const struct timer_list *t)
-{
-	return READ_ONCE(t->expires);
-}
-
-static inline bool timer_expired(const struct timer_list *t)
-{
-	return timer_active(t) && !timer_pending(t);
 }
 
 static inline bool i915_run_as_guest(void)

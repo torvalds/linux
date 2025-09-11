@@ -32,6 +32,7 @@ i915-y += \
 	i915_scatterlist.o \
 	i915_switcheroo.o \
 	i915_sysfs.o \
+	i915_timer_util.o \
 	i915_utils.o \
 	intel_clock_gating.o \
 	intel_cpu_info.o \
