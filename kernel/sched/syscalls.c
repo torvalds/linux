@@ -64,7 +64,6 @@ static int effective_prio(struct task_struct *p)
 
 void set_user_nice(struct task_struct *p, long nice)
 {
-	struct rq *rq;
 	int old_prio;
 
 	if (task_nice(p) == nice || nice < MIN_NICE || nice > MAX_NICE)
@@ -73,10 +72,7 @@ void set_user_nice(struct task_struct *p, long nice)
 	 * We have to be careful, if called from sys_setpriority(),
 	 * the task might be in the middle of scheduling on another CPU.
 	 */
-	CLASS(task_rq_lock, rq_guard)(p);
-	rq = rq_guard.rq;
-
-	update_rq_clock(rq);
+	guard(task_rq_lock)(p);
 
 	/*
 	 * The RT priorities are set via sched_setscheduler(), but we still
@@ -89,7 +85,7 @@ void set_user_nice(struct task_struct *p, long nice)
 		return;
 	}
 
-	scoped_guard (sched_change, p, DEQUEUE_SAVE | DEQUEUE_NOCLOCK) {
+	scoped_guard (sched_change, p, DEQUEUE_SAVE) {
 		p->static_prio = NICE_TO_PRIO(nice);
 		set_load_weight(p, true);
 		old_prio = p->prio;

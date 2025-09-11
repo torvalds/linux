@@ -2346,10 +2346,8 @@ static void migrate_disable_switch(struct rq *rq, struct task_struct *p)
 	if (p->cpus_ptr != &p->cpus_mask)
 		return;
 
-	scoped_guard (task_rq_lock, p) {
-		update_rq_clock(scope.rq);
+	scoped_guard (task_rq_lock, p)
 		do_set_cpus_allowed(p, &ac);
-	}
 }
 
 void ___migrate_enable(void)
@@ -2666,9 +2664,7 @@ void set_cpus_allowed_common(struct task_struct *p, struct affinity_context *ctx
 static void
 do_set_cpus_allowed(struct task_struct *p, struct affinity_context *ctx)
 {
-	u32 flags = DEQUEUE_SAVE | DEQUEUE_NOCLOCK;
-
-	scoped_guard (sched_change, p, flags) {
+	scoped_guard (sched_change, p, DEQUEUE_SAVE) {
 		p->sched_class->set_cpus_allowed(p, ctx);
 		mm_set_cpus_allowed(p->mm, ctx->new_mask);
 	}
@@ -2690,10 +2686,8 @@ void set_cpus_allowed_force(struct task_struct *p, const struct cpumask *new_mas
 		struct rcu_head rcu;
 	};
 
-	scoped_guard (__task_rq_lock, p) {
-		update_rq_clock(scope.rq);
+	scoped_guard (__task_rq_lock, p)
 		do_set_cpus_allowed(p, &ac);
-	}
 
 	/*
 	 * Because this is called with p->pi_lock held, it is not possible
@@ -9108,15 +9102,12 @@ static void sched_change_group(struct task_struct *tsk)
  */
 void sched_move_task(struct task_struct *tsk, bool for_autogroup)
 {
-	unsigned int queue_flags =
-		DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
+	unsigned int queue_flags = DEQUEUE_SAVE | DEQUEUE_MOVE;
 	bool resched = false;
 	struct rq *rq;
 
 	CLASS(task_rq_lock, rq_guard)(tsk);
 	rq = rq_guard.rq;
-
-	update_rq_clock(rq);
 
 	scoped_guard (sched_change, tsk, queue_flags) {
 		sched_change_group(tsk);
@@ -10792,16 +10783,14 @@ struct sched_change_ctx *sched_change_begin(struct task_struct *p, unsigned int 
 
 	lockdep_assert_rq_held(rq);
 
+	if (!(flags & DEQUEUE_NOCLOCK)) {
+		update_rq_clock(rq);
+		flags |= DEQUEUE_NOCLOCK;
+	}
+
 	if (flags & DEQUEUE_CLASS) {
-		if (p->sched_class->switching_from) {
-			/*
-			 * switching_from_fair() assumes CLASS implies NOCLOCK;
-			 * fixing this assumption would mean switching_from()
-			 * would need to be able to change flags.
-			 */
-			WARN_ON(!(flags & DEQUEUE_NOCLOCK));
+		if (p->sched_class->switching_from)
 			p->sched_class->switching_from(rq, p);
-		}
 	}
 
 	*ctx = (struct sched_change_ctx){
@@ -10840,7 +10829,7 @@ void sched_change_end(struct sched_change_ctx *ctx)
 		p->sched_class->switching_to(rq, p);
 
 	if (ctx->queued)
-		enqueue_task(rq, p, ctx->flags | ENQUEUE_NOCLOCK);
+		enqueue_task(rq, p, ctx->flags);
 	if (ctx->running)
 		set_next_task(rq, p);
 
