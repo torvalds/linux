@@ -1383,22 +1383,22 @@ void dcn401_prepare_bandwidth(struct dc *dc,
 			false);
 
 	/* program dchubbub watermarks:
-	 * For assigning wm_optimized_required, use |= operator since we don't want
+	 * For assigning optimized_required, use |= operator since we don't want
 	 * to clear the value if the optimize has not happened yet
 	 */
-	dc->wm_optimized_required |= hubbub->funcs->program_watermarks(hubbub,
+	dc->optimized_required |= hubbub->funcs->program_watermarks(hubbub,
 					&context->bw_ctx.bw.dcn.watermarks,
 					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 					false);
 	/* update timeout thresholds */
 	if (hubbub->funcs->program_arbiter) {
-		dc->wm_optimized_required |= hubbub->funcs->program_arbiter(hubbub, &context->bw_ctx.bw.dcn.arb_regs, false);
+		dc->optimized_required |= hubbub->funcs->program_arbiter(hubbub, &context->bw_ctx.bw.dcn.arb_regs, false);
 	}
 
 	/* decrease compbuf size */
 	if (hubbub->funcs->program_compbuf_segments) {
 		compbuf_size = context->bw_ctx.bw.dcn.arb_regs.compbuf_size;
-		dc->wm_optimized_required |= (compbuf_size != dc->current_state->bw_ctx.bw.dcn.arb_regs.compbuf_size);
+		dc->optimized_required |= (compbuf_size != dc->current_state->bw_ctx.bw.dcn.arb_regs.compbuf_size);
 
 		hubbub->funcs->program_compbuf_segments(hubbub, compbuf_size, false);
 	}
