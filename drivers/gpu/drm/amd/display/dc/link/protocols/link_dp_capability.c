@@ -424,6 +424,21 @@ static enum dc_link_rate get_link_rate_from_max_link_bw(
 	return link_rate;
 }
 
+static enum dc_lane_count get_lttpr_max_lane_count(struct dc_link *link)
+{
+	enum dc_lane_count lttpr_max_lane_count = LANE_COUNT_UNKNOWN;
+
+	if (link->dpcd_caps.lttpr_caps.max_lane_count <= LANE_COUNT_DP_MAX)
+		lttpr_max_lane_count = link->dpcd_caps.lttpr_caps.max_lane_count;
+
+	/* if bw_allocation is enabled and nrd_max_lane_count is set, use it */
+	if (link->dpia_bw_alloc_config.bw_alloc_enabled &&
+			link->dpia_bw_alloc_config.nrd_max_lane_count > 0)
+		lttpr_max_lane_count = link->dpia_bw_alloc_config.nrd_max_lane_count;
+
+	return lttpr_max_lane_count;
+}
+
 static enum dc_link_rate get_lttpr_max_link_rate(struct dc_link *link)
 {
 
@@ -437,6 +452,11 @@ static enum dc_link_rate get_lttpr_max_link_rate(struct dc_link *link)
 		lttpr_max_link_rate = link->dpcd_caps.lttpr_caps.max_link_rate;
 		break;
 	}
+
+	/* if bw_allocation is enabled and nrd_max_link_rate is set, use it */
+	if (link->dpia_bw_alloc_config.bw_alloc_enabled &&
+			link->dpia_bw_alloc_config.nrd_max_link_rate > 0)
+		lttpr_max_link_rate = link->dpia_bw_alloc_config.nrd_max_link_rate;
 
 	if (link->dpcd_caps.lttpr_caps.supported_128b_132b_rates.bits.UHBR20)
 		lttpr_max_link_rate = LINK_RATE_UHBR20;
@@ -2241,6 +2261,7 @@ const struct dc_link_settings *dp_get_verified_link_cap(
 struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 {
 	struct dc_link_settings max_link_cap = {0};
+	enum dc_lane_count lttpr_max_lane_count;
 	enum dc_link_rate lttpr_max_link_rate;
 	enum dc_link_rate cable_max_link_rate;
 	struct resource_context *res_ctx = &link->dc->current_state->res_ctx;
@@ -2305,8 +2326,11 @@ struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 
 		/* Some LTTPR devices do not report valid DPCD revisions, if so, do not take it's link cap into consideration. */
 		if (link->dpcd_caps.lttpr_caps.revision.raw >= DPCD_REV_14) {
-			if (link->dpcd_caps.lttpr_caps.max_lane_count < max_link_cap.lane_count)
-				max_link_cap.lane_count = link->dpcd_caps.lttpr_caps.max_lane_count;
+			lttpr_max_lane_count = get_lttpr_max_lane_count(link);
+
+			if (lttpr_max_lane_count < max_link_cap.lane_count)
+				max_link_cap.lane_count = lttpr_max_lane_count;
+
 			lttpr_max_link_rate = get_lttpr_max_link_rate(link);
 
 			if (lttpr_max_link_rate < max_link_cap.link_rate)
@@ -2412,6 +2436,11 @@ bool dp_verify_link_cap_with_retries(
 
 	dp_trace_detect_lt_init(link);
 
+	DC_LOG_HW_LINK_TRAINING("%s: Link[%d]  LinkRate=0x%x LaneCount=%d",
+		__func__, link->link_index,
+		known_limit_link_setting->link_rate,
+		known_limit_link_setting->lane_count);
+
 	if (link->link_enc && link->link_enc->features.flags.bits.DP_IS_USB_C &&
 			link->dc->debug.usbc_combo_phy_reset_wa)
 		apply_usbc_combo_phy_reset_wa(link, known_limit_link_setting);
@@ -2447,6 +2476,11 @@ bool dp_verify_link_cap_with_retries(
 
 	dp_trace_lt_fail_count_update(link, fail_count, true);
 	dp_trace_set_lt_end_timestamp(link, true);
+
+	DC_LOG_HW_LINK_TRAINING("%s: Link[%d]  Exit. is_success=%d  fail_count=%d",
+		__func__, link->link_index,
+		success,
+		fail_count);
 
 	return success;
 }
