@@ -187,7 +187,7 @@ int rxgk_extract_token(struct rxrpc_connection *conn, struct sk_buff *skb,
 	struct key *server_key;
 	unsigned int ticket_offset, ticket_len;
 	u32 kvno, enctype;
-	int ret, ec;
+	int ret, ec = 0;
 
 	struct {
 		__be32 kvno;
@@ -236,9 +236,11 @@ int rxgk_extract_token(struct rxrpc_connection *conn, struct sk_buff *skb,
 			       &ticket_offset, &ticket_len, &ec);
 	crypto_free_aead(token_enc);
 	token_enc = NULL;
-	if (ret < 0)
-		return rxrpc_abort_conn(conn, skb, ec, ret,
-					rxgk_abort_resp_tok_dec);
+	if (ret < 0) {
+		if (ret != -ENOMEM)
+			return rxrpc_abort_conn(conn, skb, ec, ret,
+						rxgk_abort_resp_tok_dec);
+	}
 
 	ret = conn->security->default_decode_ticket(conn, skb, ticket_offset,
 						    ticket_len, _key);
