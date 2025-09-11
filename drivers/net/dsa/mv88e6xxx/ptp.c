@@ -184,7 +184,7 @@ static int mv88e6352_config_eventcap(struct mv88e6xxx_chip *chip, int event,
 	if (!rising)
 		chip->evcap_config |= MV88E6XXX_TAI_CFG_EVREQ_FALLING;
 
-	global_config = (chip->evcap_config | chip->trig_config);
+	global_config = chip->evcap_config;
 	err = mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_CFG, global_config);
 	if (err)
 		return err;
