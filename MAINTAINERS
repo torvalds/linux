@@ -15540,7 +15540,7 @@ M:	Andrew-CT Chen <andrew-ct.chen@mediatek.com>
 M:	Yunfei Dong <yunfei.dong@mediatek.com>
 S:	Supported
 F:	Documentation/devicetree/bindings/media/mediatek,vcodec*.yaml
-F:	Documentation/devicetree/bindings/media/mediatek-vpu.txt
+F:	Documentation/devicetree/bindings/media/mediatek,mt8173-vpu.yaml
 F:	drivers/media/platform/mediatek/vcodec/
 F:	drivers/media/platform/mediatek/vpu/
 
