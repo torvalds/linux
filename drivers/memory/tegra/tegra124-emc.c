@@ -896,7 +896,7 @@ static void emc_read_current_timing(struct tegra_emc *emc,
 	timing->emc_mode_reset = 0;
 }
 
-static int emc_init(struct tegra_emc *emc)
+static void emc_init(struct tegra_emc *emc)
 {
 	emc->dram_type = readl(emc->regs + EMC_FBIO_CFG5);
 
@@ -913,8 +913,6 @@ static int emc_init(struct tegra_emc *emc)
 	emc->dram_num = tegra_mc_get_emem_device_count(emc->mc);
 
 	emc_read_current_timing(emc, &emc->last_timing);
-
-	return 0;
 }
 
 static int load_one_timing_from_dt(struct tegra_emc *emc,
@@ -1472,11 +1470,7 @@ static int tegra_emc_probe(struct platform_device *pdev)
 			      ram_code);
 	}
 
-	err = emc_init(emc);
-	if (err) {
-		dev_err(&pdev->dev, "EMC initialization failed: %d\n", err);
-		return err;
-	}
+	emc_init(emc);
 
 	platform_set_drvdata(pdev, emc);
 
