@@ -1303,6 +1303,7 @@ static void disk_release(struct device *dev)
 	disk_free_zone_resources(disk);
 	xa_destroy(&disk->part_tbl);
 
+	kobject_put(&disk->queue_kobj);
 	disk->queue->disk = NULL;
 	blk_put_queue(disk->queue);
 
@@ -1486,6 +1487,7 @@ struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 	INIT_LIST_HEAD(&disk->slave_bdevs);
 #endif
 	mutex_init(&disk->rqos_state_mutex);
+	kobject_init(&disk->queue_kobj, &blk_queue_ktype);
 	return disk;
 
 out_erase_part0:

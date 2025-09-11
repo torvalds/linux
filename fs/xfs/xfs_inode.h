@@ -358,7 +358,18 @@ static inline bool xfs_inode_has_bigrtalloc(const struct xfs_inode *ip)
 
 static inline bool xfs_inode_can_hw_atomic_write(const struct xfs_inode *ip)
 {
+	if (IS_DAX(VFS_IC(ip)))
+		return false;
+
 	return xfs_inode_buftarg(ip)->bt_awu_max > 0;
+}
+
+static inline bool xfs_inode_can_sw_atomic_write(const struct xfs_inode *ip)
+{
+	if (IS_DAX(VFS_IC(ip)))
+		return false;
+
+	return xfs_can_sw_atomic_write(ip->i_mount);
 }
 
 /*

@@ -99,6 +99,7 @@ TEST_GEN_PROGS += bind_wildcard
 TEST_GEN_PROGS += bind_timewait
 TEST_PROGS += test_vxlan_mdb.sh
 TEST_PROGS += test_bridge_neigh_suppress.sh
+TEST_PROGS += test_vxlan_nh.sh
 TEST_PROGS += test_vxlan_nolocalbypass.sh
 TEST_PROGS += test_bridge_backup_port.sh
 TEST_PROGS += test_neigh.sh
