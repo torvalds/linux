@@ -5,6 +5,7 @@
 #include "idpf_virtchnl.h"
 #include "idpf_ptp.h"
 #include "xdp.h"
+#include "xsk.h"
 
 static const struct net_device_ops idpf_netdev_ops;
 
@@ -2618,4 +2619,5 @@ static const struct net_device_ops idpf_netdev_ops = {
 	.ndo_hwtstamp_set = idpf_hwtstamp_set,
 	.ndo_bpf = idpf_xdp,
 	.ndo_xdp_xmit = idpf_xdp_xmit,
+	.ndo_xsk_wakeup = idpf_xsk_wakeup,
 };

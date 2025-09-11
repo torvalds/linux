@@ -374,9 +374,10 @@ struct idpf_intr_reg {
  * @complq: array of completion queues
  * @xsksq: array of XSk send queues
  * @intr_reg: See struct idpf_intr_reg
- * @napi: napi handler
+ * @csd: XSk wakeup CSD
  * @total_events: Number of interrupts processed
  * @wb_on_itr: whether WB on ITR is enabled
+ * @napi: napi handler
  * @tx_dim: Data for TX net_dim algorithm
  * @tx_itr_value: TX interrupt throttling rate
  * @tx_intr_mode: Dynamic ITR or not
@@ -406,9 +407,12 @@ struct idpf_q_vector {
 	__cacheline_group_end_aligned(read_mostly);
 
 	__cacheline_group_begin_aligned(read_write);
-	struct napi_struct napi;
+	call_single_data_t csd;
+
 	u16 total_events;
 	bool wb_on_itr;
+
+	struct napi_struct napi;
 
 	struct dim tx_dim;
 	u16 tx_itr_value;
@@ -427,7 +431,7 @@ struct idpf_q_vector {
 	__cacheline_group_end_aligned(cold);
 };
 libeth_cacheline_set_assert(struct idpf_q_vector, 136,
-			    24 + sizeof(struct napi_struct) +
+			    56 + sizeof(struct napi_struct) +
 			    2 * sizeof(struct dim),
 			    8);
 

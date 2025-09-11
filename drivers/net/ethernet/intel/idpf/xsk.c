@@ -158,6 +158,11 @@ void idpf_xsk_clear_queue(void *q, enum virtchnl2_queue_type type)
 	}
 }
 
+void idpf_xsk_init_wakeup(struct idpf_q_vector *qv)
+{
+	libeth_xsk_init_wakeup(&qv->csd, &qv->napi);
+}
+
 void idpf_xsksq_clean(struct idpf_tx_queue *xdpsq)
 {
 	struct libeth_xdpsq_napi_stats ss = { };
@@ -601,4 +606,28 @@ err_dis:
 	libeth_xsk_setup_pool(vport->netdev, qid, false);
 
 	return ret;
+}
+
+int idpf_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
+{
+	const struct idpf_netdev_priv *np = netdev_priv(dev);
+	const struct idpf_vport *vport = np->vport;
+	struct idpf_q_vector *q_vector;
+
+	if (unlikely(idpf_vport_ctrl_is_locked(dev)))
+		return -EBUSY;
+
+	if (unlikely(!vport->link_up))
+		return -ENETDOWN;
+
+	if (unlikely(!vport->num_xdp_txq))
+		return -ENXIO;
+
+	q_vector = idpf_find_rxq_vec(vport, qid);
+	if (unlikely(!q_vector->xsksq))
+		return -ENXIO;
+
+	libeth_xsk_wakeup(&q_vector->csd, qid);
+
+	return 0;
 }

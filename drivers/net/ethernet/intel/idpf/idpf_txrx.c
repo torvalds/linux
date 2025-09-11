@@ -1210,6 +1210,8 @@ static int idpf_qp_enable(const struct idpf_queue_set *qs, u32 qid)
 		if (!idpf_queue_has(XSK, q->txq))
 			continue;
 
+		idpf_xsk_init_wakeup(q_vector);
+
 		q->txq->q_vector = q_vector;
 		q_vector->xsksq[q_vector->num_xsksq++] = q->txq;
 	}
@@ -4418,6 +4420,7 @@ static void idpf_vport_intr_map_vector_to_qs(struct idpf_vport *vport)
 			continue;
 
 		qv = idpf_find_rxq_vec(vport, i);
+		idpf_xsk_init_wakeup(qv);
 
 		xdpsq->q_vector = qv;
 		qv->xsksq[qv->num_xsksq++] = xdpsq;
