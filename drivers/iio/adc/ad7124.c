@@ -621,6 +621,33 @@ static const struct ad_sigma_delta_info ad7124_sigma_delta_info = {
 	.num_resetclks = 64,
 };
 
+static const int ad7124_voltage_scales[][2] = {
+	{ 0, 1164 },
+	{ 0, 2328 },
+	{ 0, 4656 },
+	{ 0, 9313 },
+	{ 0, 18626 },
+	{ 0, 37252 },
+	{ 0, 74505 },
+	{ 0, 149011 },
+	{ 0, 298023 },
+};
+
+static int ad7124_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length, long info)
+{
+	switch (info) {
+	case IIO_CHAN_INFO_SCALE:
+		*vals = (const int *)ad7124_voltage_scales;
+		*type = IIO_VAL_INT_PLUS_NANO;
+		*length = ARRAY_SIZE(ad7124_voltage_scales) * 2;
+		return IIO_AVAIL_LIST;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int ad7124_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long info)
@@ -775,18 +802,6 @@ static int ad7124_reg_access(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static IIO_CONST_ATTR(in_voltage_scale_available,
-	"0.000001164 0.000002328 0.000004656 0.000009313 0.000018626 0.000037252 0.000074505 0.000149011 0.000298023");
-
-static struct attribute *ad7124_attributes[] = {
-	&iio_const_attr_in_voltage_scale_available.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group ad7124_attrs_group = {
-	.attrs = ad7124_attributes,
-};
-
 static int ad7124_update_scan_mode(struct iio_dev *indio_dev,
 				   const unsigned long *scan_mask)
 {
@@ -816,12 +831,12 @@ static int ad7124_update_scan_mode(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info ad7124_info = {
+	.read_avail = ad7124_read_avail,
 	.read_raw = ad7124_read_raw,
 	.write_raw = ad7124_write_raw,
 	.debugfs_reg_access = &ad7124_reg_access,
 	.validate_trigger = ad_sd_validate_trigger,
 	.update_scan_mode = ad7124_update_scan_mode,
-	.attrs = &ad7124_attrs_group,
 };
 
 /* Only called during probe, so dev_err_probe() can be used */
@@ -1011,6 +1026,7 @@ static const struct iio_chan_spec ad7124_channel_template = {
 		BIT(IIO_CHAN_INFO_OFFSET) |
 		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
 		BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),
+	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE),
 	.scan_type = {
 		.sign = 'u',
 		.realbits = 24,
