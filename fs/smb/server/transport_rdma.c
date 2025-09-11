@@ -863,72 +863,6 @@ static void smb_direct_post_recv_credits(struct work_struct *work)
 		queue_work(sc->workqueue, &sc->idle.immediate_work);
 }
 
-static void send_done(struct ib_cq *cq, struct ib_wc *wc)
-{
-	struct smbdirect_send_io *sendmsg, *sibling, *next;
-	struct smbdirect_socket *sc;
-	int lcredits = 0;
-
-	sendmsg = container_of(wc->wr_cqe, struct smbdirect_send_io, cqe);
-	sc = sendmsg->socket;
-
-	ksmbd_debug(RDMA, "Send completed. status='%s (%d)', opcode=%d\n",
-		    ib_wc_status_msg(wc->status), wc->status,
-		    wc->opcode);
-
-	if (unlikely(!(sendmsg->wr.send_flags & IB_SEND_SIGNALED))) {
-		/*
-		 * This happens when smbdirect_send_io is a sibling
-		 * before the final message, it is signaled on
-		 * error anyway, so we need to skip
-		 * smbdirect_connection_free_send_io here,
-		 * otherwise is will destroy the memory
-		 * of the siblings too, which will cause
-		 * use after free problems for the others
-		 * triggered from ib_drain_qp().
-		 */
-		if (wc->status != IB_WC_SUCCESS)
-			goto skip_free;
-
-		/*
-		 * This should not happen!
-		 * But we better just close the
-		 * connection...
-		 */
-		pr_err("unexpected send completion wc->status=%s (%d) wc->opcode=%d\n",
-		       ib_wc_status_msg(wc->status), wc->status, wc->opcode);
-		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
-		return;
-	}
-
-	/*
-	 * Free possible siblings and then the main send_io
-	 */
-	list_for_each_entry_safe(sibling, next, &sendmsg->sibling_list, sibling_list) {
-		list_del_init(&sibling->sibling_list);
-		smbdirect_connection_free_send_io(sibling);
-		lcredits += 1;
-	}
-	/* Note this frees wc->wr_cqe, but not wc */
-	smbdirect_connection_free_send_io(sendmsg);
-	lcredits += 1;
-
-	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_SEND) {
-skip_free:
-		pr_err("Send error. status='%s (%d)', opcode=%d\n",
-		       ib_wc_status_msg(wc->status), wc->status,
-		       wc->opcode);
-		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
-		return;
-	}
-
-	atomic_add(lcredits, &sc->send_io.lcredits.count);
-	wake_up(&sc->send_io.lcredits.wait_queue);
-
-	if (atomic_dec_and_test(&sc->send_io.pending.count))
-		wake_up(&sc->send_io.pending.zero_wait_queue);
-}
-
 static int manage_credits_prior_sending(struct smbdirect_socket *sc)
 {
 	int missing;
@@ -1275,7 +1209,7 @@ static int post_sendmsg(struct smbdirect_socket *sc,
 					      msg->sge[i].addr, msg->sge[i].length,
 					      DMA_TO_DEVICE);
 
-	msg->cqe.done = send_done;
+	msg->cqe.done = smbdirect_connection_send_io_done;
 	msg->wr.opcode = IB_WR_SEND;
 	msg->wr.sg_list = &msg->sge[0];
 	msg->wr.num_sge = msg->num_sge;
