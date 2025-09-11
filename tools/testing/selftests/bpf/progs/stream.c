@@ -37,7 +37,15 @@ int stream_exhaust(void *ctx)
 }
 
 SEC("syscall")
+__arch_x86_64
+__arch_arm64
+__arch_s390x
 __success __retval(0)
+__stderr("ERROR: Timeout detected for may_goto instruction")
+__stderr("CPU: {{[0-9]+}} UID: 0 PID: {{[0-9]+}} Comm: {{.*}}")
+__stderr("Call trace:\n"
+"{{([a-zA-Z_][a-zA-Z0-9_]*\\+0x[0-9a-fA-F]+/0x[0-9a-fA-F]+\n"
+"|[ \t]+[^\n]+\n)*}}")
 int stream_cond_break(void *ctx)
 {
 	while (can_loop)
@@ -47,6 +55,15 @@ int stream_cond_break(void *ctx)
 
 SEC("syscall")
 __success __retval(0)
+__stderr("ERROR: AA or ABBA deadlock detected for bpf_res_spin_lock")
+__stderr("{{Attempted lock   = (0x[0-9a-fA-F]+)\n"
+"Total held locks = 1\n"
+"Held lock\\[ 0\\] = \\1}}")
+__stderr("...")
+__stderr("CPU: {{[0-9]+}} UID: 0 PID: {{[0-9]+}} Comm: {{.*}}")
+__stderr("Call trace:\n"
+"{{([a-zA-Z_][a-zA-Z0-9_]*\\+0x[0-9a-fA-F]+/0x[0-9a-fA-F]+\n"
+"|[ \t]+[^\n]+\n)*}}")
 int stream_deadlock(void *ctx)
 {
 	struct bpf_res_spin_lock *lock, *nlock;
