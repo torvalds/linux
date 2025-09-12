@@ -23,6 +23,7 @@
 #include <linux/sched/task.h>
 #include <linux/sched/signal.h>
 #include <linux/idr.h>
+#include <linux/nstree.h>
 #include <uapi/linux/wait.h>
 #include "pid_sysctl.h"
 
@@ -122,6 +123,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	ns->memfd_noexec_scope = pidns_memfd_noexec_scope(parent_pid_ns);
 #endif
 
+	ns_tree_add(ns);
 	return ns;
 
 out_free_inum:
@@ -147,6 +149,7 @@ static void delayed_free_pidns(struct rcu_head *p)
 
 static void destroy_pid_namespace(struct pid_namespace *ns)
 {
+	ns_tree_remove(ns);
 	unregister_pidns_sysctls(ns);
 
 	ns_free_inum(&ns->ns);
@@ -473,6 +476,7 @@ static __init int pid_namespaces_init(void)
 #endif
 
 	register_pid_ns_sysctl_table_vm();
+	ns_tree_add(&init_pid_ns);
 	return 0;
 }
 
