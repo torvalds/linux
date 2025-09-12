@@ -215,7 +215,6 @@ static inline int get_buf_page_count(void *buf, int size)
 		(uintptr_t)buf / PAGE_SIZE;
 }
 
-static void smb_direct_destroy_pools(struct smbdirect_socket *sc);
 static void smb_direct_post_recv_credits(struct work_struct *work);
 static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 				     struct smbdirect_send_batch *send_ctx,
@@ -272,6 +271,7 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 				     smb_direct_logging_needed,
 				     smb_direct_logging_vaprintf);
 	sc->send_io.mem.gfp_mask = KSMBD_DEFAULT_GFP;
+	sc->recv_io.mem.gfp_mask = KSMBD_DEFAULT_GFP;
 	/*
 	 * from here we operate on the copy.
 	 */
@@ -365,7 +365,7 @@ static void free_transport(struct smb_direct_transport *t)
 		rdma_destroy_id(sc->rdma.cm_id);
 	}
 
-	smb_direct_destroy_pools(sc);
+	smbdirect_connection_destroy_mem_pools(sc);
 	ksmbd_conn_free(KSMBD_TRANS(t)->conn);
 }
 
@@ -1974,76 +1974,6 @@ static int smb_direct_init_params(struct smbdirect_socket *sc)
 	return 0;
 }
 
-static void smb_direct_destroy_pools(struct smbdirect_socket *sc)
-{
-	struct smbdirect_recv_io *recvmsg;
-
-	while ((recvmsg = smbdirect_connection_get_recv_io(sc)))
-		mempool_free(recvmsg, sc->recv_io.mem.pool);
-
-	mempool_destroy(sc->recv_io.mem.pool);
-	sc->recv_io.mem.pool = NULL;
-
-	kmem_cache_destroy(sc->recv_io.mem.cache);
-	sc->recv_io.mem.cache = NULL;
-
-	mempool_destroy(sc->send_io.mem.pool);
-	sc->send_io.mem.pool = NULL;
-
-	kmem_cache_destroy(sc->send_io.mem.cache);
-	sc->send_io.mem.cache = NULL;
-}
-
-static int smb_direct_create_pools(struct smbdirect_socket *sc)
-{
-	struct smbdirect_socket_parameters *sp = &sc->parameters;
-	char name[80];
-	int i;
-	struct smbdirect_recv_io *recvmsg;
-
-	snprintf(name, sizeof(name), "smbdirect_send_io_pool_%p", sc);
-	sc->send_io.mem.cache = kmem_cache_create(name,
-					     sizeof(struct smbdirect_send_io) +
-					      sizeof(struct smbdirect_negotiate_resp),
-					     0, SLAB_HWCACHE_ALIGN, NULL);
-	if (!sc->send_io.mem.cache)
-		return -ENOMEM;
-
-	sc->send_io.mem.pool = mempool_create(sp->send_credit_target,
-					    mempool_alloc_slab, mempool_free_slab,
-					    sc->send_io.mem.cache);
-	if (!sc->send_io.mem.pool)
-		goto err;
-
-	snprintf(name, sizeof(name), "smbdirect_recv_io_pool_%p", sc);
-	sc->recv_io.mem.cache = kmem_cache_create(name,
-					     sizeof(struct smbdirect_recv_io) +
-					     sp->max_recv_size,
-					     0, SLAB_HWCACHE_ALIGN, NULL);
-	if (!sc->recv_io.mem.cache)
-		goto err;
-
-	sc->recv_io.mem.pool =
-		mempool_create(sp->recv_credit_max, mempool_alloc_slab,
-			       mempool_free_slab, sc->recv_io.mem.cache);
-	if (!sc->recv_io.mem.pool)
-		goto err;
-
-	for (i = 0; i < sp->recv_credit_max; i++) {
-		recvmsg = mempool_alloc(sc->recv_io.mem.pool, KSMBD_DEFAULT_GFP);
-		if (!recvmsg)
-			goto err;
-		recvmsg->socket = sc;
-		recvmsg->sge.length = 0;
-		list_add(&recvmsg->list, &sc->recv_io.free.list);
-	}
-
-	return 0;
-err:
-	smb_direct_destroy_pools(sc);
-	return -ENOMEM;
-}
-
 static u32 smb_direct_rdma_rw_send_wrs(struct ib_device *dev, const struct ib_qp_init_attr *attr)
 {
 	/*
@@ -2365,7 +2295,7 @@ static int smb_direct_connect(struct smbdirect_socket *sc)
 		return ret;
 	}
 
-	ret = smb_direct_create_pools(sc);
+	ret = smbdirect_connection_create_mem_pools(sc);
 	if (ret) {
 		pr_err("Can't init RDMA pool: %d\n", ret);
 		return ret;
