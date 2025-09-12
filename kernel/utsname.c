@@ -13,6 +13,7 @@
 #include <linux/cred.h>
 #include <linux/user_namespace.h>
 #include <linux/proc_ns.h>
+#include <linux/nstree.h>
 #include <linux/sched/task.h>
 
 static struct kmem_cache *uts_ns_cache __ro_after_init;
@@ -58,6 +59,7 @@ static struct uts_namespace *clone_uts_ns(struct user_namespace *user_ns,
 	memcpy(&ns->name, &old_ns->name, sizeof(ns->name));
 	ns->user_ns = get_user_ns(user_ns);
 	up_read(&uts_sem);
+	ns_tree_add(ns);
 	return ns;
 
 fail_free:
@@ -93,10 +95,12 @@ struct uts_namespace *copy_utsname(unsigned long flags,
 
 void free_uts_ns(struct uts_namespace *ns)
 {
+	ns_tree_remove(ns);
 	dec_uts_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
 	ns_free_inum(&ns->ns);
-	kmem_cache_free(uts_ns_cache, ns);
+	/* Concurrent nstree traversal depends on a grace period. */
+	kfree_rcu(ns, ns.ns_rcu);
 }
 
 static inline struct uts_namespace *to_uts_ns(struct ns_common *ns)
@@ -162,4 +166,5 @@ void __init uts_ns_init(void)
 			offsetof(struct uts_namespace, name),
 			sizeof_field(struct uts_namespace, name),
 			NULL);
+	ns_tree_add(&init_uts_ns);
 }
