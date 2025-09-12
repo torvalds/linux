@@ -1524,8 +1524,7 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 		break;
 
 	case SYS_ID_AA64MMFR1_EL1:
-		val &= ~(ID_AA64MMFR1_EL1_ECBHB		|
-			 ID_AA64MMFR1_EL1_CMOW		|
+		val &= ~(ID_AA64MMFR1_EL1_CMOW		|
 			 ID_AA64MMFR1_EL1_TIDCP1	|
 			 ID_AA64MMFR1_EL1_nTLBPA	|
 			 ID_AA64MMFR1_EL1_AFP		|
