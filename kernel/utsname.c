@@ -27,16 +27,6 @@ static void dec_uts_namespaces(struct ucounts *ucounts)
 	dec_ucount(ucounts, UCOUNT_UTS_NAMESPACES);
 }
 
-static struct uts_namespace *create_uts_ns(void)
-{
-	struct uts_namespace *uts_ns;
-
-	uts_ns = kmem_cache_alloc(uts_ns_cache, GFP_KERNEL);
-	if (uts_ns)
-		refcount_set(&uts_ns->ns.count, 1);
-	return uts_ns;
-}
-
 /*
  * Clone a new ns copying an original utsname, setting refcount to 1
  * @old_ns: namespace to clone
@@ -55,17 +45,15 @@ static struct uts_namespace *clone_uts_ns(struct user_namespace *user_ns,
 		goto fail;
 
 	err = -ENOMEM;
-	ns = create_uts_ns();
+	ns = kmem_cache_zalloc(uts_ns_cache, GFP_KERNEL);
 	if (!ns)
 		goto fail_dec;
 
-	err = ns_alloc_inum(&ns->ns);
+	err = ns_common_init(&ns->ns, &utsns_operations, true);
 	if (err)
 		goto fail_free;
 
 	ns->ucounts = ucounts;
-	ns->ns.ops = &utsns_operations;
-
 	down_read(&uts_sem);
 	memcpy(&ns->name, &old_ns->name, sizeof(ns->name));
 	ns->user_ns = get_user_ns(user_ns);
