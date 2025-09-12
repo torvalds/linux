@@ -1471,7 +1471,6 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 			 ID_AA64PFR1_EL1_SME		|
 			 ID_AA64PFR1_EL1_RES0		|
 			 ID_AA64PFR1_EL1_MPAM_frac	|
-			 ID_AA64PFR1_EL1_RAS_frac	|
 			 ID_AA64PFR1_EL1_MTE);
 		break;
 
