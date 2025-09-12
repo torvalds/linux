@@ -545,11 +545,16 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx11_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx11_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx11_hex);
-		} else {
+		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(12, 1, 0)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx12_hex)
 					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_gfx12_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx12_hex);
+		} else {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx12_1_0_hex)
+					     > KFD_CWSR_TMA_OFFSET);
+			kfd->cwsr_isa = cwsr_trap_gfx12_1_0_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx12_1_0_hex);
 		}
 
 		kfd->cwsr_enabled = true;
