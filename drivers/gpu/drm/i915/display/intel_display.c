@@ -142,7 +142,7 @@ static void bdw_set_pipe_misc(struct intel_dsb *dsb,
 			      const struct intel_crtc_state *crtc_state);
 
 /* returns HPLL frequency in kHz */
-int vlv_get_hpll_vco(struct drm_device *drm)
+int vlv_clock_get_hpll_vco(struct drm_device *drm)
 {
 	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
 
@@ -183,7 +183,7 @@ static int vlv_get_cck_clock_hpll(struct drm_device *drm,
 	int hpll;
 
 	if (dev_priv->hpll_freq == 0)
-		dev_priv->hpll_freq = vlv_get_hpll_vco(drm);
+		dev_priv->hpll_freq = vlv_clock_get_hpll_vco(drm);
 
 	hpll = vlv_get_cck_clock(drm, name, reg, dev_priv->hpll_freq);
 
@@ -210,7 +210,7 @@ int vlv_clock_get_czclk(struct drm_device *drm)
 int vlv_clock_get_cdclk(struct drm_device *drm)
 {
 	return vlv_get_cck_clock(drm, "cdclk", CCK_DISPLAY_CLOCK_CONTROL,
-				 vlv_get_hpll_vco(drm));
+				 vlv_clock_get_hpll_vco(drm));
 }
 
 int vlv_clock_get_gpll(struct drm_device *drm)

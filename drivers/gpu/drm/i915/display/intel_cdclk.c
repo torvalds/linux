@@ -608,7 +608,7 @@ static void vlv_get_cdclk(struct intel_display *display,
 {
 	u32 val;
 
-	cdclk_config->vco = vlv_get_hpll_vco(display->drm);
+	cdclk_config->vco = vlv_clock_get_hpll_vco(display->drm);
 	cdclk_config->cdclk = vlv_clock_get_cdclk(display->drm);
 
 	vlv_punit_get(display->drm);
