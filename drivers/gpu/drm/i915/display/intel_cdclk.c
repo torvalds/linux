@@ -49,6 +49,7 @@
 #include "intel_vdsc.h"
 #include "skl_watermark.h"
 #include "skl_watermark_regs.h"
+#include "vlv_clock.h"
 #include "vlv_dsi.h"
 #include "vlv_sideband.h"
 

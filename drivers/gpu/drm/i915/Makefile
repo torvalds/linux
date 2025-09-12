@@ -300,6 +300,7 @@ i915-y += \
 	display/skl_scaler.o \
 	display/skl_universal_plane.o \
 	display/skl_watermark.o \
+	display/vlv_clock.o \
 	display/vlv_sideband.o
 i915-$(CONFIG_ACPI) += \
 	display/intel_acpi.o \

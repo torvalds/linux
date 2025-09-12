@@ -435,11 +435,6 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state);
 void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state);
 void i830_enable_pipe(struct intel_display *display, enum pipe pipe);
 void i830_disable_pipe(struct intel_display *display, enum pipe pipe);
-int vlv_clock_get_hpll_vco(struct drm_device *drm);
-int vlv_clock_get_hrawclk(struct drm_device *drm);
-int vlv_clock_get_czclk(struct drm_device *drm);
-int vlv_clock_get_cdclk(struct drm_device *drm);
-int vlv_clock_get_gpll(struct drm_device *drm);
 bool intel_has_pending_fb_unpin(struct intel_display *display);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 struct drm_display_mode *
