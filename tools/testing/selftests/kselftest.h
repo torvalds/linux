@@ -92,6 +92,10 @@
 #endif
 #define __printf(a, b)   __attribute__((format(printf, a, b)))
 
+#ifndef __always_unused
+#define __always_unused __attribute__((__unused__))
+#endif
+
 #ifndef __maybe_unused
 #define __maybe_unused __attribute__((__unused__))
 #endif
