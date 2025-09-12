@@ -4177,18 +4177,15 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns, bool a
 		dec_mnt_namespaces(ucounts);
 		return ERR_PTR(-ENOMEM);
 	}
-	if (!anon) {
-		ret = ns_alloc_inum(&new_ns->ns);
-		if (ret) {
-			kfree(new_ns);
-			dec_mnt_namespaces(ucounts);
-			return ERR_PTR(ret);
-		}
+
+	ret = ns_common_init(&new_ns->ns, &mntns_operations, !anon);
+	if (ret) {
+		kfree(new_ns);
+		dec_mnt_namespaces(ucounts);
+		return ERR_PTR(ret);
 	}
-	new_ns->ns.ops = &mntns_operations;
 	if (!anon)
 		new_ns->seq = atomic64_inc_return(&mnt_ns_seq);
-	refcount_set(&new_ns->ns.count, 1);
 	refcount_set(&new_ns->passive, 1);
 	new_ns->mounts = RB_ROOT;
 	INIT_LIST_HEAD(&new_ns->mnt_ns_list);
