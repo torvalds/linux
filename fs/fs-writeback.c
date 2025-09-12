@@ -667,6 +667,7 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 
 	isw->inodes[0] = inode;
 
+	trace_inode_switch_wbs_queue(inode->i_wb, new_wb, 1);
 	wb_queue_isw(new_wb, isw);
 	return;
 
@@ -752,6 +753,7 @@ bool cleanup_offline_cgwb(struct bdi_writeback *wb)
 		return restart;
 	}
 
+	trace_inode_switch_wbs_queue(wb, new_wb, nr);
 	wb_queue_isw(new_wb, isw);
 
 	return restart;
