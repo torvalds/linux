@@ -609,17 +609,13 @@ static void vlv_get_cdclk(struct intel_display *display,
 	u32 val;
 
 	cdclk_config->vco = vlv_get_hpll_vco(display->drm);
-
-	vlv_iosf_sb_get(display->drm, BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_PUNIT));
-
 	cdclk_config->cdclk = vlv_get_cck_clock(display->drm, "cdclk",
 						CCK_DISPLAY_CLOCK_CONTROL,
 						cdclk_config->vco);
 
+	vlv_punit_get(display->drm);
 	val = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM);
-
-	vlv_iosf_sb_put(display->drm,
-			BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_PUNIT));
+	vlv_punit_put(display->drm);
 
 	if (display->platform.valleyview)
 		cdclk_config->voltage_level = (val & DSPFREQGUAR_MASK) >>

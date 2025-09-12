@@ -163,7 +163,10 @@ int vlv_get_cck_clock(struct drm_device *drm,
 	u32 val;
 	int divider;
 
+	vlv_cck_get(drm);
 	val = vlv_cck_read(drm, reg);
+	vlv_cck_put(drm);
+
 	divider = val & CCK_FREQUENCY_VALUES;
 
 	drm_WARN(drm, (val & CCK_FREQUENCY_STATUS) !=
@@ -182,11 +185,7 @@ int vlv_get_cck_clock_hpll(struct drm_device *drm,
 	if (dev_priv->hpll_freq == 0)
 		dev_priv->hpll_freq = vlv_get_hpll_vco(drm);
 
-	vlv_cck_get(drm);
-
 	hpll = vlv_get_cck_clock(drm, name, reg, dev_priv->hpll_freq);
-
-	vlv_cck_put(drm);
 
 	return hpll;
 }
