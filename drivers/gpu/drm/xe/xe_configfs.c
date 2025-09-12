@@ -404,7 +404,7 @@ int __init xe_configfs_init(void)
 	return 0;
 }
 
-void __exit xe_configfs_exit(void)
+void xe_configfs_exit(void)
 {
 	configfs_unregister_subsystem(&xe_configfs);
 }
