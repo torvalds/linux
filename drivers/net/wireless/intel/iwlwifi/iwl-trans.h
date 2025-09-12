@@ -275,16 +275,6 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
 #define IWL_9000_MAX_RX_HW_QUEUES	1
 
 /**
- * enum iwl_d3_status - WoWLAN image/device status
- * @IWL_D3_STATUS_ALIVE: firmware is still running after resume
- * @IWL_D3_STATUS_RESET: device was reset while suspended
- */
-enum iwl_d3_status {
-	IWL_D3_STATUS_ALIVE,
-	IWL_D3_STATUS_RESET,
-};
-
-/**
  * enum iwl_trans_status: transport status flags
  * @STATUS_SYNC_HCMD_ACTIVE: a SYNC command is being processed
  * @STATUS_DEVICE_ENABLED: APM is enabled
@@ -294,16 +284,12 @@ enum iwl_d3_status {
  * @STATUS_RFKILL_OPMODE: RF-kill state reported to opmode
  * @STATUS_FW_ERROR: the fw is in error state
  * @STATUS_TRANS_DEAD: trans is dead - avoid any read/write operation
- * @STATUS_SUPPRESS_CMD_ERROR_ONCE: suppress "FW error in SYNC CMD" once,
- *	e.g. for testing
  * @STATUS_IN_SW_RESET: device is undergoing reset, cleared by opmode
  *	via iwl_trans_finish_sw_reset()
  * @STATUS_RESET_PENDING: reset worker was scheduled, but didn't dump
  *	the firmware state yet
  * @STATUS_TRANS_RESET_IN_PROGRESS: reset is still in progress, don't
  *	attempt another reset yet
- * @STATUS_SUSPENDED: device is suspended, don't send commands that
- *	aren't marked accordingly
  */
 enum iwl_trans_status {
 	STATUS_SYNC_HCMD_ACTIVE,
@@ -314,11 +300,9 @@ enum iwl_trans_status {
 	STATUS_RFKILL_OPMODE,
 	STATUS_FW_ERROR,
 	STATUS_TRANS_DEAD,
-	STATUS_SUPPRESS_CMD_ERROR_ONCE,
 	STATUS_IN_SW_RESET,
 	STATUS_RESET_PENDING,
 	STATUS_TRANS_RESET_IN_PROGRESS,
-	STATUS_SUSPENDED,
 };
 
 static inline int
@@ -658,8 +642,6 @@ struct iwl_pc_data {
  * @restart_required: indicates debug restart is required
  * @last_tp_resetfw: last handling of reset during debug timepoint
  * @imr_data: IMR debug data allocation
- * @dump_file_name_ext: dump file name extension
- * @dump_file_name_ext_valid: dump file name extension if valid or not
  * @num_pc: number of program counter for cpu
  * @pc_data: details of the program counter
  * @yoyo_bin_loaded: tells if a yoyo debug file has been loaded
@@ -698,8 +680,6 @@ struct iwl_trans_debug {
 	bool restart_required;
 	u32 last_tp_resetfw;
 	struct iwl_imr_data imr_data;
-	u8 dump_file_name_ext[IWL_FW_INI_MAX_NAME];
-	bool dump_file_name_ext_valid;
 	u32 num_pc;
 	struct iwl_pc_data *pc_data;
 	bool yoyo_bin_loaded;
@@ -830,7 +810,6 @@ struct iwl_txq {
  * @hw_rf_id: the device RF ID
  * @hw_cnv_id: the device CNV ID
  * @hw_crf_id: the device CRF ID
- * @hw_wfpm_id: the device wfpm ID
  * @hw_id: the ID of the device / sub-device
  *	Bits 0:15 represent the sub-device ID
  *	Bits 16:31 represent the device ID.
@@ -846,7 +825,6 @@ struct iwl_trans_info {
 	u32 hw_rf_id;
 	u32 hw_crf_id;
 	u32 hw_cnv_id;
-	u32 hw_wfpm_id;
 	u32 hw_id;
 	u8 pcie_link_speed;
 	u8 num_rxqs;
@@ -866,14 +844,11 @@ struct iwl_trans_info {
  * @dev: pointer to struct device * that represents the device
  * @info: device information for use by other layers
  * @pnvm_loaded: indicates PNVM was loaded
- * @pm_support: set to true in start_hw if link pm is supported
- * @ltr_enabled: set to true if the LTR is enabled
+ * @suppress_cmd_error_once: suppress "FW error in SYNC CMD" once,
+ *	e.g. for testing
  * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
  * @reduce_power_loaded: indicates reduced power section was loaded
  * @failed_to_load_reduce_power_image: set to true if pnvm loading failed
- * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
- *	The user should use iwl_trans_{alloc,free}_tx_cmd.
- * @dev_cmd_pool_name: name for the TX command allocation pool
  * @dbgfs_dir: iwlwifi debugfs base dir for this device
  * @sync_cmd_lockdep_map: lockdep map for checking sync commands
  * @dbg: additional debug data, see &struct iwl_trans_debug
@@ -905,17 +880,12 @@ struct iwl_trans {
 	const struct iwl_trans_info info;
 	bool reduced_cap_sku;
 	bool step_urm;
+	bool suppress_cmd_error_once;
 
-	bool pm_support;
-	bool ltr_enabled;
 	u8 pnvm_loaded:1;
 	u8 fail_to_parse_pnvm_image:1;
 	u8 reduce_power_loaded:1;
 	u8 failed_to_load_reduce_power_image:1;
-
-	/* The following fields are internal only */
-	struct kmem_cache *dev_cmd_pool;
-	char dev_cmd_pool_name[50];
 
 	struct dentry *dbgfs_dir;
 
@@ -956,29 +926,21 @@ int iwl_trans_start_fw(struct iwl_trans *trans, const struct iwl_fw *fw,
 
 void iwl_trans_stop_device(struct iwl_trans *trans);
 
-int iwl_trans_d3_suspend(struct iwl_trans *trans, bool test, bool reset);
+int iwl_trans_d3_suspend(struct iwl_trans *trans, bool reset);
 
-int iwl_trans_d3_resume(struct iwl_trans *trans, enum iwl_d3_status *status,
-			bool test, bool reset);
+int iwl_trans_d3_resume(struct iwl_trans *trans, bool reset);
 
 struct iwl_trans_dump_data *
 iwl_trans_dump_data(struct iwl_trans *trans, u32 dump_mask,
 		    const struct iwl_dump_sanitize_ops *sanitize_ops,
 		    void *sanitize_ctx);
 
-static inline struct iwl_device_tx_cmd *
-iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
-{
-	return kmem_cache_zalloc(trans->dev_cmd_pool, GFP_ATOMIC);
-}
+struct iwl_device_tx_cmd *iwl_trans_alloc_tx_cmd(struct iwl_trans *trans);
 
 int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
-static inline void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
-					 struct iwl_device_tx_cmd *dev_cmd)
-{
-	kmem_cache_free(trans->dev_cmd_pool, dev_cmd);
-}
+void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
+			   struct iwl_device_tx_cmd *dev_cmd);
 
 int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		 struct iwl_device_tx_cmd *dev_cmd, int queue);
@@ -1205,9 +1167,7 @@ static inline void iwl_trans_finish_sw_reset(struct iwl_trans *trans)
  *****************************************************/
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
-				  const struct iwl_mac_cfg *mac_cfg,
-				  unsigned int txcmd_size,
-				  unsigned int txcmd_align);
+				  const struct iwl_mac_cfg *mac_cfg);
 void iwl_trans_free(struct iwl_trans *trans);
 
 static inline bool iwl_trans_is_hw_error_value(u32 val)
@@ -1230,11 +1190,6 @@ static inline u16 iwl_trans_get_num_rbds(struct iwl_trans *trans)
 	return result;
 }
 
-static inline void iwl_trans_suppress_cmd_error_once(struct iwl_trans *trans)
-{
-	set_bit(STATUS_SUPPRESS_CMD_ERROR_ONCE, &trans->status);
-}
-
 static inline bool iwl_trans_device_enabled(struct iwl_trans *trans)
 {
 	return test_bit(STATUS_DEVICE_ENABLED, &trans->status);
@@ -1245,6 +1200,20 @@ static inline bool iwl_trans_is_dead(struct iwl_trans *trans)
 	return test_bit(STATUS_TRANS_DEAD, &trans->status);
 }
 
+static inline bool iwl_trans_is_fw_error(struct iwl_trans *trans)
+{
+	return test_bit(STATUS_FW_ERROR, &trans->status);
+}
+
+/*
+ * This function notifies the transport layer of firmware error, the recovery
+ * will be handled by the op mode
+ */
+static inline void iwl_trans_notify_fw_error(struct iwl_trans *trans)
+{
+	trans->state = IWL_TRANS_NO_FW;
+	set_bit(STATUS_FW_ERROR, &trans->status);
+}
 /*****************************************************
  * PCIe handling
  *****************************************************/
@@ -1288,5 +1257,9 @@ static inline u16 iwl_trans_get_device_id(struct iwl_trans *trans)
 {
 	return u32_get_bits(trans->info.hw_id, GENMASK(31, 16));
 }
+
+bool iwl_trans_is_pm_supported(struct iwl_trans *trans);
+
+bool iwl_trans_is_ltr_enabled(struct iwl_trans *trans);
 
 #endif /* __iwl_trans_h__ */

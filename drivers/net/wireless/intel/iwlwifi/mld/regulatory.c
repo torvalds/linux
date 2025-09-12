@@ -163,18 +163,32 @@ int iwl_mld_init_sgom(struct iwl_mld *mld)
 
 static int iwl_mld_ppag_send_cmd(struct iwl_mld *mld)
 {
-	union iwl_ppag_table_cmd cmd = {};
-	int ret, len;
+	struct iwl_fw_runtime *fwrt = &mld->fwrt;
+	union iwl_ppag_table_cmd cmd = {
+		.v7.ppag_config_info.table_source = fwrt->ppag_bios_source,
+		.v7.ppag_config_info.table_revision = fwrt->ppag_bios_rev,
+		.v7.ppag_config_info.value = cpu_to_le32(fwrt->ppag_flags),
+	};
+	int ret;
 
-	ret = iwl_fill_ppag_table(&mld->fwrt, &cmd, &len);
-	/* Not supporting PPAG table is a valid scenario */
-	if (ret < 0)
-		return 0;
+	IWL_DEBUG_RADIO(fwrt,
+			"PPAG MODE bits going to be sent: %d\n",
+			fwrt->ppag_flags);
+
+	for (int chain = 0; chain < IWL_NUM_CHAIN_LIMITS; chain++) {
+		for (int subband = 0; subband < IWL_NUM_SUB_BANDS_V2; subband++) {
+			cmd.v7.gain[chain][subband] =
+				fwrt->ppag_chains[chain].subbands[subband];
+			IWL_DEBUG_RADIO(fwrt,
+					"PPAG table: chain[%d] band[%d]: gain = %d\n",
+					chain, subband, cmd.v7.gain[chain][subband]);
+		}
+	}
 
 	IWL_DEBUG_RADIO(mld, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
 	ret = iwl_mld_send_cmd_pdu(mld, WIDE_ID(PHY_OPS_GROUP,
 						PER_PLATFORM_ANT_GAIN_CMD),
-				   &cmd, len);
+				   &cmd, sizeof(cmd.v7));
 	if (ret < 0)
 		IWL_ERR(mld, "failed to send PER_PLATFORM_ANT_GAIN_CMD (%d)\n",
 			ret);

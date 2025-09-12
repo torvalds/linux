@@ -21,6 +21,80 @@ enum iwl_nvm_sbands_flags {
 	IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ	= BIT(1),
 };
 
+/**
+ * struct iwl_reg_capa - struct for global regulatory capabilities, Used for
+ * handling the different APIs of reg_capa_flags.
+ *
+ * @allow_40mhz: 11n channel with a width of 40Mhz is allowed
+ *	for this regulatory domain.
+ * @allow_80mhz: 11ac channel with a width of 80Mhz is allowed
+ *	for this regulatory domain (valid only in 5 and 6 Ghz).
+ * @allow_160mhz: 11ac channel with a width of 160Mhz is allowed
+ *	for this regulatory domain (valid only in 5 and 6 Ghz).
+ * @allow_320mhz: 11be channel with a width of 320Mhz is allowed
+ *	for this regulatory domain (valid only in 6 Ghz).
+ * @disable_11ax: 11ax is forbidden for this regulatory domain.
+ * @disable_11be: 11be is forbidden for this regulatory domain.
+ */
+struct iwl_reg_capa {
+	bool allow_40mhz;
+	bool allow_80mhz;
+	bool allow_160mhz;
+	bool allow_320mhz;
+	bool disable_11ax;
+	bool disable_11be;
+};
+
+/**
+ * enum iwl_nvm_channel_flags - channel flags in NVM
+ * @NVM_CHANNEL_VALID: channel is usable for this SKU/geo
+ * @NVM_CHANNEL_IBSS: usable as an IBSS channel and deprecated
+ *	when %IWL_NVM_SBANDS_FLAGS_LAR enabled.
+ * @NVM_CHANNEL_ALLOW_20MHZ_ACTIVITY: active scanning allowed and
+ *	AP allowed only in 20 MHz. Valid only
+ *	when %IWL_NVM_SBANDS_FLAGS_LAR enabled.
+ * @NVM_CHANNEL_ACTIVE: active scanning allowed and allows IBSS
+ *	when %IWL_NVM_SBANDS_FLAGS_LAR enabled.
+ * @NVM_CHANNEL_RADAR: radar detection required
+ * @NVM_CHANNEL_INDOOR_ONLY: only indoor use is allowed
+ * @NVM_CHANNEL_GO_CONCURRENT: GO operation is allowed when connected to BSS
+ *	on same channel on 2.4 or same UNII band on 5.2
+ * @NVM_CHANNEL_UNIFORM: uniform spreading required
+ * @NVM_CHANNEL_20MHZ: 20 MHz channel okay
+ * @NVM_CHANNEL_40MHZ: 40 MHz channel okay
+ * @NVM_CHANNEL_80MHZ: 80 MHz channel okay
+ * @NVM_CHANNEL_160MHZ: 160 MHz channel okay
+ * @NVM_CHANNEL_DC_HIGH: DC HIGH required/allowed (?)
+ * @NVM_CHANNEL_VLP: client support connection to UHB VLP AP
+ * @NVM_CHANNEL_AFC: client support connection to UHB AFC AP
+ * @NVM_CHANNEL_VLP_AP_NOT_ALLOWED: UHB VLP AP not allowed,
+ *	Valid only when %NVM_CHANNEL_VLP is enabled.
+ */
+enum iwl_nvm_channel_flags {
+	NVM_CHANNEL_VALID			= BIT(0),
+	NVM_CHANNEL_IBSS			= BIT(1),
+	NVM_CHANNEL_ALLOW_20MHZ_ACTIVITY	= BIT(2),
+	NVM_CHANNEL_ACTIVE			= BIT(3),
+	NVM_CHANNEL_RADAR			= BIT(4),
+	NVM_CHANNEL_INDOOR_ONLY			= BIT(5),
+	NVM_CHANNEL_GO_CONCURRENT		= BIT(6),
+	NVM_CHANNEL_UNIFORM			= BIT(7),
+	NVM_CHANNEL_20MHZ			= BIT(8),
+	NVM_CHANNEL_40MHZ			= BIT(9),
+	NVM_CHANNEL_80MHZ			= BIT(10),
+	NVM_CHANNEL_160MHZ			= BIT(11),
+	NVM_CHANNEL_DC_HIGH			= BIT(12),
+	NVM_CHANNEL_VLP				= BIT(13),
+	NVM_CHANNEL_AFC				= BIT(14),
+	NVM_CHANNEL_VLP_AP_NOT_ALLOWED		= BIT(15),
+};
+
+#if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
+u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
+				int ch_idx, u16 nvm_flags,
+				struct iwl_reg_capa reg_capa);
+#endif
+
 /*
  * iwl_parse_nvm_data - parse NVM data and return values
  *

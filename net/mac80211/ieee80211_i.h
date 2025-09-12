@@ -86,6 +86,14 @@ extern const u8 ieee80211_ac_to_qos_mask[IEEE80211_NUM_ACS];
 
 #define IEEE80211_MAX_NAN_INSTANCE_ID 255
 
+/*
+ * Current mac80211 implementation supports a maximum of 1600 AIDS
+ * for S1G interfaces. With regards to an S1G TIM, this covers 25 blocks
+ * as each block is 64 AIDs.
+ */
+#define IEEE80211_MAX_SUPPORTED_S1G_AID	1600
+#define IEEE80211_MAX_SUPPORTED_S1G_TIM_BLOCKS 25
+
 enum ieee80211_status_data {
 	IEEE80211_STATUS_TYPE_MASK	= 0x00f,
 	IEEE80211_STATUS_TYPE_INVALID	= 0,
@@ -1210,6 +1218,7 @@ struct ieee80211_sub_if_data {
 	} debugfs;
 #endif
 
+	u32 tx_handlers_drop;
 	/* must be last, dynamically sized area in this! */
 	struct ieee80211_vif vif;
 };

@@ -372,7 +372,8 @@ struct iwl_fw_ini_dump_cfg_name {
 	u8 cfg_name[IWL_FW_INI_MAX_CFG_NAME];
 } __packed;
 
-#define IWL_JACKET_CDB_SHIFT 12
+#define IWL_CDB_MASK(val) val << 13
+
 
 /* struct iwl_fw_ini_dump_info - ini dump information
  * @version: dump version

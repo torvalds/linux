@@ -150,8 +150,6 @@ struct iwl_fw_runtime {
 		unsigned long non_collect_ts_start[IWL_FW_INI_TIME_POINT_NUM];
 		u32 *d3_debug_data;
 		u32 lmac_err_id[MAX_NUM_LMAC];
-		u32 tcm_err_id[MAX_NUM_TCM];
-		u32 rcm_err_id[MAX_NUM_RCM];
 		u32 umac_err_id;
 
 		struct iwl_txf_iter_data txf_iter_data;

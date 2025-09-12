@@ -9,7 +9,7 @@
 #define IWL_HR_UCODE_API_MAX	100
 
 /* Lowest firmware API version supported */
-#define IWL_HR_UCODE_API_MIN	98
+#define IWL_HR_UCODE_API_MIN	100
 
 #define IWL_QU_B_HR_B_FW_PRE		"iwlwifi-Qu-b0-hr-b0"
 #define IWL_QU_C_HR_B_FW_PRE		"iwlwifi-Qu-c0-hr-b0"

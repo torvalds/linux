@@ -1850,7 +1850,8 @@ ieee80211_add_link_elems(struct ieee80211_sub_if_data *sdata,
 		ieee80211_put_he_cap(skb, sdata, sband,
 				     &assoc_data->link[link_id].conn);
 		ADD_PRESENT_EXT_ELEM(WLAN_EID_EXT_HE_CAPABILITY);
-		ieee80211_put_he_6ghz_cap(skb, sdata, smps_mode);
+		if (sband->band == NL80211_BAND_6GHZ)
+			ieee80211_put_he_6ghz_cap(skb, sdata, smps_mode);
 	}
 
 	/*
@@ -2112,8 +2113,11 @@ ieee80211_link_common_elems_size(struct ieee80211_sub_if_data *sdata,
 		sizeof(struct ieee80211_he_mcs_nss_supp) +
 		IEEE80211_HE_PPE_THRES_MAX_LEN;
 
-	if (sband->band == NL80211_BAND_6GHZ)
+	if (sband->band == NL80211_BAND_6GHZ) {
 		size += 2 + 1 + sizeof(struct ieee80211_he_6ghz_capa);
+		/* reg connection */
+		size += 4;
+	}
 
 	size += 2 + 1 + sizeof(struct ieee80211_eht_cap_elem) +
 		sizeof(struct ieee80211_eht_mcs_nss_supp) +
@@ -2187,11 +2191,7 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			2 + /* ext capa & op */
 			2; /* EML capa */
 
-		/*
-		 * The capability elements were already considered above;
-		 * note this over-estimates a bit because there's no
-		 * STA profile for the assoc link.
-		 */
+		/* The capability elements were already considered above */
 		size += (n_links - 1) *
 			(1 + 1 + /* subelement ID/length */
 			 2 + /* STA control */
@@ -5729,7 +5729,7 @@ static u8 ieee80211_max_rx_chains(struct ieee80211_link_data *link,
 	he_cap_elem = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_CAPABILITY,
 					     ies->data, ies->len);
 
-	if (!he_cap_elem || he_cap_elem->datalen < sizeof(*he_cap))
+	if (!he_cap_elem || he_cap_elem->datalen < sizeof(*he_cap) + 1)
 		return chains;
 
 	/* skip one byte ext_tag_id */
@@ -6356,6 +6356,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	};
 	u8 ap_mld_addr[ETH_ALEN] __aligned(2);
 	unsigned int link_id;
+	u16 max_aid = IEEE80211_MAX_AID;
 
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
@@ -6382,10 +6383,12 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	reassoc = ieee80211_is_reassoc_resp(mgmt->frame_control);
 	capab_info = le16_to_cpu(mgmt->u.assoc_resp.capab_info);
 	status_code = le16_to_cpu(mgmt->u.assoc_resp.status_code);
-	if (assoc_data->s1g)
+	if (assoc_data->s1g) {
 		elem_start = mgmt->u.s1g_assoc_resp.variable;
-	else
+		max_aid = IEEE80211_MAX_SUPPORTED_S1G_AID;
+	} else {
 		elem_start = mgmt->u.assoc_resp.variable;
+	}
 
 	/*
 	 * Note: this may not be perfect, AP might misbehave - if
@@ -6409,16 +6412,15 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 
 	if (elems->aid_resp)
 		aid = le16_to_cpu(elems->aid_resp->aid);
-	else if (assoc_data->s1g)
-		aid = 0; /* TODO */
 	else
 		aid = le16_to_cpu(mgmt->u.assoc_resp.aid);
 
 	/*
-	 * The 5 MSB of the AID field are reserved
-	 * (802.11-2016 9.4.1.8 AID field)
+	 * The 5 MSB of the AID field are reserved for a non-S1G STA. For
+	 * an S1G STA the 3 MSBs are reserved.
+	 * (802.11-2016 9.4.1.8 AID field).
 	 */
-	aid &= 0x7ff;
+	aid &= assoc_data->s1g ? 0x1fff : 0x7ff;
 
 	sdata_info(sdata,
 		   "RX %sssocResp from %pM (capab=0x%x status=%d aid=%d)\n",
@@ -6455,7 +6457,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		event.u.mlme.reason = status_code;
 		drv_event_callback(sdata->local, sdata, &event);
 	} else {
-		if (aid == 0 || aid > IEEE80211_MAX_AID) {
+		if (aid == 0 || aid > max_aid) {
 			sdata_info(sdata,
 				   "invalid AID value %d (out of range), turn off PS\n",
 				   aid);
@@ -6493,6 +6495,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		}
 
 		sdata->vif.cfg.aid = aid;
+		sdata->vif.cfg.s1g = assoc_data->s1g;
 
 		if (!ieee80211_assoc_success(sdata, mgmt, elems,
 					     elem_start, elem_len)) {
@@ -7440,7 +7443,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	ncrc = elems->crc;
 
 	if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK) &&
-	    ieee80211_check_tim(elems->tim, elems->tim_len, vif_cfg->aid)) {
+	    ieee80211_check_tim(elems->tim, elems->tim_len, vif_cfg->aid,
+				vif_cfg->s1g)) {
 		if (local->hw.conf.dynamic_ps_timeout > 0) {
 			if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 				local->hw.conf.flags &= ~IEEE80211_CONF_PS;

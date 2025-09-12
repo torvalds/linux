@@ -140,8 +140,6 @@ struct iwl_dsm_internal_product_reset_cmd {
 
 struct iwl_fw_runtime;
 
-extern const guid_t iwl_guid;
-
 union acpi_object *iwl_acpi_get_dsm_object(struct device *dev, int rev,
 					   int func, union acpi_object *args,
 					   const guid_t *guid);

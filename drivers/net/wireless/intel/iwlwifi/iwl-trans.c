@@ -268,9 +268,7 @@ static void iwl_trans_restart_wk(struct work_struct *wk)
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
-				  const struct iwl_mac_cfg *mac_cfg,
-				  unsigned int txcmd_size,
-				  unsigned int txcmd_align)
+				  const struct iwl_mac_cfg *mac_cfg)
 {
 	struct iwl_trans *trans;
 #ifdef CONFIG_LOCKDEP
@@ -292,22 +290,12 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 
 	INIT_DELAYED_WORK(&trans->restart.wk, iwl_trans_restart_wk);
 
-	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),
-		 "iwl_cmd_pool:%s", dev_name(trans->dev));
-	trans->dev_cmd_pool =
-		kmem_cache_create(trans->dev_cmd_pool_name,
-				  txcmd_size, txcmd_align,
-				  SLAB_HWCACHE_ALIGN, NULL);
-	if (!trans->dev_cmd_pool)
-		return NULL;
-
 	return trans;
 }
 
 void iwl_trans_free(struct iwl_trans *trans)
 {
 	cancel_delayed_work_sync(&trans->restart.wk);
-	kmem_cache_destroy(trans->dev_cmd_pool);
 }
 
 int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
@@ -317,9 +305,6 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (unlikely(!(cmd->flags & CMD_SEND_IN_RFKILL) &&
 		     test_bit(STATUS_RFKILL_OPMODE, &trans->status)))
 		return -ERFKILL;
-
-	if (unlikely(test_bit(STATUS_SUSPENDED, &trans->status)))
-		return -EHOSTDOWN;
 
 	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
 		return -EIO;
@@ -347,6 +332,19 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_trans_send_cmd);
+
+struct iwl_device_tx_cmd *iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
+{
+	return iwl_pcie_gen1_2_alloc_tx_cmd(trans);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_alloc_tx_cmd);
+
+void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
+			   struct iwl_device_tx_cmd *dev_cmd)
+{
+	iwl_pcie_gen1_2_free_tx_cmd(trans, dev_cmd);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_free_tx_cmd);
 
 /* Comparator for struct iwl_hcmd_names.
  * Used in the binary search over a list of host commands.
@@ -399,7 +397,7 @@ void iwl_trans_op_mode_enter(struct iwl_trans *trans,
 
 	WARN_ON_ONCE(!trans->conf.rx_mpdu_cmd);
 
-	iwl_trans_pcie_op_mode_enter(trans);
+	iwl_pcie_gen1_2_op_mode_enter(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_op_mode_enter);
 
@@ -408,8 +406,6 @@ int iwl_trans_start_hw(struct iwl_trans *trans)
 	might_sleep();
 
 	clear_bit(STATUS_TRANS_RESET_IN_PROGRESS, &trans->status);
-	/* opmode may not resume if it detects errors */
-	clear_bit(STATUS_SUSPENDED, &trans->status);
 
 	return iwl_trans_pcie_start_hw(trans);
 }
@@ -507,33 +503,19 @@ iwl_trans_dump_data(struct iwl_trans *trans, u32 dump_mask,
 					sanitize_ops, sanitize_ctx);
 }
 
-int iwl_trans_d3_suspend(struct iwl_trans *trans, bool test, bool reset)
+int iwl_trans_d3_suspend(struct iwl_trans *trans, bool reset)
 {
-	int err;
-
 	might_sleep();
 
-	err = iwl_trans_pcie_d3_suspend(trans, test, reset);
-
-	if (!err)
-		set_bit(STATUS_SUSPENDED, &trans->status);
-
-	return err;
+	return iwl_trans_pcie_d3_suspend(trans, reset);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_d3_suspend);
 
-int iwl_trans_d3_resume(struct iwl_trans *trans, enum iwl_d3_status *status,
-			bool test, bool reset)
+int iwl_trans_d3_resume(struct iwl_trans *trans, bool reset)
 {
-	int err;
-
 	might_sleep();
 
-	err = iwl_trans_pcie_d3_resume(trans, status, test, reset);
-
-	clear_bit(STATUS_SUSPENDED, &trans->status);
-
-	return err;
+	return iwl_trans_pcie_d3_resume(trans, reset);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_d3_resume);
 
@@ -825,3 +807,18 @@ void iwl_trans_set_reduce_power(struct iwl_trans *trans,
 {
 	iwl_trans_pcie_ctx_info_v2_set_reduce_power(trans, capa);
 }
+
+bool iwl_trans_is_pm_supported(struct iwl_trans *trans)
+{
+	if (WARN_ON(trans->mac_cfg->gen2))
+		return false;
+
+	return iwl_pcie_gen1_is_pm_supported(trans);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_is_pm_supported);
+
+bool iwl_trans_is_ltr_enabled(struct iwl_trans *trans)
+{
+	return iwl_pcie_gen1_2_is_ltr_enabled(trans);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_is_ltr_enabled);
