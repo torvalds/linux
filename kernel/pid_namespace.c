@@ -102,17 +102,15 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	if (ns->pid_cachep == NULL)
 		goto out_free_idr;
 
-	err = ns_alloc_inum(&ns->ns);
+	err = ns_common_init(&ns->ns, &pidns_operations, true);
 	if (err)
 		goto out_free_idr;
-	ns->ns.ops = &pidns_operations;
 
 	ns->pid_max = PID_MAX_LIMIT;
 	err = register_pidns_sysctls(ns);
 	if (err)
 		goto out_free_inum;
 
-	refcount_set(&ns->ns.count, 1);
 	ns->level = level;
 	ns->parent = get_pid_ns(parent_pid_ns);
 	ns->user_ns = get_user_ns(user_ns);
