@@ -190,25 +190,33 @@ int vlv_get_cck_clock_hpll(struct drm_device *drm,
 	return hpll;
 }
 
-int vlv_clock_get_gpll(struct drm_device *drm)
+int vlv_clock_get_czclk(struct drm_device *drm)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 
+	if (!i915->czclk_freq)
+		i915->czclk_freq = vlv_get_cck_clock_hpll(drm, "czclk",
+							  CCK_CZ_CLOCK_CONTROL);
+
+	return i915->czclk_freq;
+}
+
+int vlv_clock_get_gpll(struct drm_device *drm)
+{
 	return vlv_get_cck_clock(drm, "GPLL ref", CCK_GPLL_CLOCK_CONTROL,
-				 i915->czclk_freq);
+				 vlv_clock_get_czclk(drm));
 }
 
 void intel_update_czclk(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	int czclk_freq;
 
 	if (!display->platform.valleyview && !display->platform.cherryview)
 		return;
 
-	dev_priv->czclk_freq = vlv_get_cck_clock_hpll(display->drm, "czclk",
-						      CCK_CZ_CLOCK_CONTROL);
+	czclk_freq = vlv_clock_get_czclk(display->drm);
 
-	drm_dbg_kms(display->drm, "CZ clock rate: %d kHz\n", dev_priv->czclk_freq);
+	drm_dbg_kms(display->drm, "CZ clock rate: %d kHz\n", czclk_freq);
 }
 
 static bool is_hdr_mode(const struct intel_crtc_state *crtc_state)
