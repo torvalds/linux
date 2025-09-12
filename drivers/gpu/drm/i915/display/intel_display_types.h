@@ -50,14 +50,15 @@
 #include "intel_display_limits.h"
 #include "intel_display_power.h"
 #include "intel_dpll_mgr.h"
+#include "intel_dsi_vbt_defs.h"
 #include "intel_wm_types.h"
 
 struct cec_notifier;
 struct drm_printer;
-struct __intel_global_objs_state;
 struct intel_connector;
 struct intel_ddi_buf_trans;
 struct intel_fbc;
+struct intel_global_objs_state;
 struct intel_hdcp_shim;
 struct intel_tc_port;
 
@@ -593,7 +594,7 @@ struct intel_atomic_state {
 
 	struct ref_tracker *wakeref;
 
-	struct __intel_global_objs_state *global_objs;
+	struct intel_global_objs_state *global_objs;
 	int num_global_objs;
 
 	/* Internal commit, as opposed to userspace/client initiated one */
@@ -642,7 +643,6 @@ struct intel_plane_state {
 #define PLANE_HAS_FENCE BIT(0)
 
 	struct intel_fb_view view;
-	u32 phys_dma_addr; /* for cursor_needs_physical */
 
 	/* for legacy cursor fb unpin */
 	struct drm_vblank_work unpin_work;
@@ -664,6 +664,9 @@ struct intel_plane_state {
 
 	/* chroma upsampler control register */
 	u32 cus_ctl;
+
+	/* surface address register */
+	u32 surf;
 
 	/*
 	 * scaler_id
@@ -941,10 +944,6 @@ struct intel_csc_matrix {
 	u16 postoff[3];
 };
 
-void intel_io_mmio_fw_write(void *ctx, i915_reg_t reg, u32 val);
-
-typedef void (*intel_io_reg_write)(void *ctx, i915_reg_t reg, u32 val);
-
 struct intel_crtc_state {
 	/*
 	 * uapi (drm) state. This is the software state shown to userspace.
@@ -1122,6 +1121,7 @@ struct intel_crtc_state {
 	bool req_psr2_sdp_prior_scanline;
 	bool has_panel_replay;
 	bool wm_level_disabled;
+	bool pkg_c_latency_used;
 	u32 dc3co_exitline;
 	u16 su_y_granularity;
 	u8 active_non_psr_pipes;
@@ -1534,6 +1534,7 @@ struct intel_plane {
 	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
 	int (*check_plane)(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state);
+	u32 (*surf_offset)(const struct intel_plane_state *plane_state);
 	int (*min_cdclk)(const struct intel_crtc_state *crtc_state,
 			 const struct intel_plane_state *plane_state);
 	void (*async_flip)(struct intel_dsb *dsb,
@@ -1683,6 +1684,7 @@ struct intel_psr {
 	u8 entry_setup_frames;
 
 	bool link_ok;
+	bool pkg_c_latency_used;
 
 	u8 active_non_psr_pipes;
 };

@@ -8,6 +8,7 @@
 #include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_encoder.h"
+#include "intel_hotplug.h"
 
 static void intel_encoder_link_check_work_fn(struct work_struct *work)
 {
@@ -35,6 +36,28 @@ void intel_encoder_link_check_queue_work(struct intel_encoder *encoder, int dela
 
 	mod_delayed_work(display->wq.unordered,
 			 &encoder->link_check_work, msecs_to_jiffies(delay_ms));
+}
+
+void intel_encoder_unblock_all_hpds(struct intel_display *display)
+{
+	struct intel_encoder *encoder;
+
+	if (!HAS_DISPLAY(display))
+		return;
+
+	for_each_intel_encoder(display->drm, encoder)
+		intel_hpd_unblock(encoder);
+}
+
+void intel_encoder_block_all_hpds(struct intel_display *display)
+{
+	struct intel_encoder *encoder;
+
+	if (!HAS_DISPLAY(display))
+		return;
+
+	for_each_intel_encoder(display->drm, encoder)
+		intel_hpd_block(encoder);
 }
 
 void intel_encoder_suspend_all(struct intel_display *display)
@@ -79,4 +102,22 @@ void intel_encoder_shutdown_all(struct intel_display *display)
 	for_each_intel_encoder(display->drm, encoder)
 		if (encoder->shutdown_complete)
 			encoder->shutdown_complete(encoder);
+}
+
+struct intel_digital_port *intel_dig_port_alloc(void)
+{
+	struct intel_digital_port *dig_port;
+
+	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
+	if (!dig_port)
+		return NULL;
+
+	dig_port->hdmi.hdmi_reg = INVALID_MMIO_REG;
+	dig_port->dp.output_reg = INVALID_MMIO_REG;
+	dig_port->aux_ch = AUX_CH_NONE;
+	dig_port->max_lanes = 4;
+
+	mutex_init(&dig_port->hdcp.mutex);
+
+	return dig_port;
 }

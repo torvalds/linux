@@ -48,6 +48,7 @@
 #include "intel_dpll.h"
 #include "intel_fdi.h"
 #include "intel_gmbus.h"
+#include "intel_link_bw.h"
 #include "intel_lvds.h"
 #include "intel_lvds_regs.h"
 #include "intel_panel.h"
@@ -433,7 +434,7 @@ static int intel_lvds_compute_config(struct intel_encoder *encoder,
 
 	if (HAS_PCH_SPLIT(display)) {
 		crtc_state->has_pch_encoder = true;
-		if (!intel_fdi_compute_pipe_bpp(crtc_state))
+		if (!intel_link_bw_compute_pipe_bpp(crtc_state))
 			return -EINVAL;
 	}
 

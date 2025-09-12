@@ -11,6 +11,7 @@
 #include <drm/drm_modeset_helper.h>
 
 #include "i915_drv.h"
+#include "i915_utils.h"
 #include "intel_bo.h"
 #include "intel_display.h"
 #include "intel_display_core.h"

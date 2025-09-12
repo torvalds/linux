@@ -217,10 +217,9 @@ static void i830_overlay_clock_gating(struct intel_display *display,
 
 	/* WA_OVERLAY_CLKGATE:alm */
 	if (enable)
-		intel_de_write(display, DSPCLK_GATE_D(display), 0);
+		intel_de_write(display, DSPCLK_GATE_D, 0);
 	else
-		intel_de_write(display, DSPCLK_GATE_D(display),
-			       OVRUNIT_CLOCK_GATE_DISABLE);
+		intel_de_write(display, DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
 
 	/* WA_DISABLE_L2CACHE_CLOCK_GATING:alm */
 	pci_bus_read_config_byte(pdev->bus,

@@ -4,7 +4,7 @@
 #include "i915_drv.h"
 #include "intel_display_conversion.h"
 
-struct intel_display *__i915_to_display(struct drm_i915_private *i915)
+static struct intel_display *__i915_to_display(struct drm_i915_private *i915)
 {
 	return i915->display;
 }

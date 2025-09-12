@@ -977,7 +977,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_power_domains_disable(display);
 
 	drm_client_dev_suspend(&i915->drm, false);
-	if (HAS_DISPLAY(i915)) {
+	if (HAS_DISPLAY(display)) {
 		drm_kms_helper_poll_disable(&i915->drm);
 		intel_display_driver_disable_user_access(display);
 
@@ -989,7 +989,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_irq_suspend(i915);
 	intel_hpd_cancel_work(display);
 
-	if (HAS_DISPLAY(i915))
+	if (HAS_DISPLAY(display))
 		intel_display_driver_suspend_access(display);
 
 	intel_encoder_suspend_all(display);
@@ -1060,7 +1060,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	 * properly. */
 	intel_power_domains_disable(display);
 	drm_client_dev_suspend(dev, false);
-	if (HAS_DISPLAY(dev_priv)) {
+	if (HAS_DISPLAY(display)) {
 		drm_kms_helper_poll_disable(dev);
 		intel_display_driver_disable_user_access(display);
 	}
@@ -1072,7 +1072,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	intel_irq_suspend(dev_priv);
 	intel_hpd_cancel_work(display);
 
-	if (HAS_DISPLAY(dev_priv))
+	if (HAS_DISPLAY(display))
 		intel_display_driver_suspend_access(display);
 
 	intel_encoder_suspend_all(display);
@@ -1219,7 +1219,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	 */
 	intel_irq_resume(dev_priv);
 
-	if (HAS_DISPLAY(dev_priv))
+	if (HAS_DISPLAY(display))
 		drm_mode_config_reset(dev);
 
 	i915_gem_resume(dev_priv);
@@ -1228,14 +1228,14 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_clock_gating_init(dev_priv);
 
-	if (HAS_DISPLAY(dev_priv))
+	if (HAS_DISPLAY(display))
 		intel_display_driver_resume_access(display);
 
 	intel_hpd_init(display);
 
 	intel_display_driver_resume(display);
 
-	if (HAS_DISPLAY(dev_priv)) {
+	if (HAS_DISPLAY(display)) {
 		intel_display_driver_enable_user_access(display);
 		drm_kms_helper_poll_enable(dev);
 	}

@@ -22,6 +22,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/iopoll.h>
 #include <linux/time.h>
 
 #include <drm/drm_fixed.h>
@@ -31,6 +32,7 @@
 #include "hsw_ips.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_bw.h"
@@ -672,6 +674,7 @@ static void vlv_set_cdclk(struct intel_display *display,
 	int cdclk = cdclk_config->cdclk;
 	u32 val, cmd = cdclk_config->voltage_level;
 	intel_wakeref_t wakeref;
+	int ret;
 
 	switch (cdclk) {
 	case 400000:
@@ -702,12 +705,12 @@ static void vlv_set_cdclk(struct intel_display *display,
 	val &= ~DSPFREQGUAR_MASK;
 	val |= (cmd << DSPFREQGUAR_SHIFT);
 	vlv_punit_write(display->drm, PUNIT_REG_DSPSSPM, val);
-	if (wait_for((vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM) &
-		      DSPFREQSTAT_MASK) == (cmd << DSPFREQSTAT_SHIFT),
-		     50)) {
-		drm_err(display->drm,
-			"timed out waiting for CDclk change\n");
-	}
+
+	ret = poll_timeout_us(val = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM),
+			      (val & DSPFREQSTAT_MASK) == (cmd << DSPFREQSTAT_SHIFT),
+			      500, 50 * 1000, false);
+	if (ret)
+		drm_err(display->drm, "timed out waiting for CDCLK change\n");
 
 	if (cdclk == 400000) {
 		u32 divider;
@@ -721,11 +724,11 @@ static void vlv_set_cdclk(struct intel_display *display,
 		val |= divider;
 		vlv_cck_write(display->drm, CCK_DISPLAY_CLOCK_CONTROL, val);
 
-		if (wait_for((vlv_cck_read(display->drm, CCK_DISPLAY_CLOCK_CONTROL) &
-			      CCK_FREQUENCY_STATUS) == (divider << CCK_FREQUENCY_STATUS_SHIFT),
-			     50))
-			drm_err(display->drm,
-				"timed out waiting for CDclk change\n");
+		ret = poll_timeout_us(val = vlv_cck_read(display->drm, CCK_DISPLAY_CLOCK_CONTROL),
+				      (val & CCK_FREQUENCY_STATUS) == (divider << CCK_FREQUENCY_STATUS_SHIFT),
+				      500, 50 * 1000, false);
+		if (ret)
+			drm_err(display->drm, "timed out waiting for CDCLK change\n");
 	}
 
 	/* adjust self-refresh exit latency value */
@@ -761,6 +764,7 @@ static void chv_set_cdclk(struct intel_display *display,
 	int cdclk = cdclk_config->cdclk;
 	u32 val, cmd = cdclk_config->voltage_level;
 	intel_wakeref_t wakeref;
+	int ret;
 
 	switch (cdclk) {
 	case 333333:
@@ -786,12 +790,12 @@ static void chv_set_cdclk(struct intel_display *display,
 	val &= ~DSPFREQGUAR_MASK_CHV;
 	val |= (cmd << DSPFREQGUAR_SHIFT_CHV);
 	vlv_punit_write(display->drm, PUNIT_REG_DSPSSPM, val);
-	if (wait_for((vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM) &
-		      DSPFREQSTAT_MASK_CHV) == (cmd << DSPFREQSTAT_SHIFT_CHV),
-		     50)) {
-		drm_err(display->drm,
-			"timed out waiting for CDclk change\n");
-	}
+
+	ret = poll_timeout_us(val = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM),
+			      (val & DSPFREQSTAT_MASK_CHV) == (cmd << DSPFREQSTAT_SHIFT_CHV),
+			      500, 50 * 1000, false);
+	if (ret)
+		drm_err(display->drm, "timed out waiting for CDCLK change\n");
 
 	vlv_punit_put(display->drm);
 
@@ -903,8 +907,10 @@ static void bdw_set_cdclk(struct intel_display *display,
 	 * According to the spec, it should be enough to poll for this 1 us.
 	 * However, extensive testing shows that this can take longer.
 	 */
-	if (wait_for_us(intel_de_read(display, LCPLL_CTL) &
-			LCPLL_CD_SOURCE_FCLK_DONE, 100))
+	ret = intel_de_wait_custom(display, LCPLL_CTL,
+				   LCPLL_CD_SOURCE_FCLK_DONE, LCPLL_CD_SOURCE_FCLK_DONE,
+				   100, 0, NULL);
+	if (ret)
 		drm_err(display->drm, "Switching to FCLK failed\n");
 
 	intel_de_rmw(display, LCPLL_CTL,
@@ -913,8 +919,10 @@ static void bdw_set_cdclk(struct intel_display *display,
 	intel_de_rmw(display, LCPLL_CTL,
 		     LCPLL_CD_SOURCE_FCLK, 0);
 
-	if (wait_for_us((intel_de_read(display, LCPLL_CTL) &
-			 LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
+	ret = intel_de_wait_custom(display, LCPLL_CTL,
+				   LCPLL_CD_SOURCE_FCLK_DONE, 0,
+				   1, 0, NULL);
+	if (ret)
 		drm_err(display->drm, "Switching back to LCPLL failed\n");
 
 	intel_pcode_write(display->drm, HSW_PCODE_DE_WRITE_FREQ_REQ,
@@ -3569,7 +3577,7 @@ static int i9xx_hrawclk(struct intel_display *display)
 	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	/* hrawclock is 1/4 the FSB frequency */
-	return DIV_ROUND_CLOSEST(i9xx_fsb_freq(i915), 4);
+	return DIV_ROUND_CLOSEST(intel_fsb_freq(i915), 4);
 }
 
 /**
@@ -3622,9 +3630,7 @@ DEFINE_SHOW_ATTRIBUTE(i915_cdclk_info);
 
 void intel_cdclk_debugfs_register(struct intel_display *display)
 {
-	struct drm_minor *minor = display->drm->primary;
-
-	debugfs_create_file("i915_cdclk_info", 0444, minor->debugfs_root,
+	debugfs_create_file("i915_cdclk_info", 0444, display->drm->debugfs_root,
 			    display, &i915_cdclk_info_fops);
 }
 

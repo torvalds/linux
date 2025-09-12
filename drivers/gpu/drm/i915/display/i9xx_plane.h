@@ -24,6 +24,7 @@ unsigned int vlv_plane_min_alignment(struct intel_plane *plane,
 				     const struct drm_framebuffer *fb,
 				     int colot_plane);
 int i9xx_check_plane_surface(struct intel_plane_state *plane_state);
+u32 i965_plane_surf_offset(const struct intel_plane_state *plane_state);
 
 struct intel_plane *
 intel_primary_plane_create(struct intel_display *display, enum pipe pipe);
