@@ -143,8 +143,6 @@ int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn)
 
 		if (!txn->msg->comp)
 			txn->comp = &done;
-		else
-			txn->comp = txn->comp;
 	}
 
 	ret = ctrl->xfer_msg(ctrl, txn);
