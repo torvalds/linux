@@ -907,8 +907,7 @@ static void radeon_dpm_thermal_work_handler(struct work_struct *work)
 
 static bool radeon_dpm_single_display(struct radeon_device *rdev)
 {
-	bool single_display = (rdev->pm.dpm.new_active_crtc_count < 2) ?
-		true : false;
+	bool single_display = rdev->pm.dpm.new_active_crtc_count < 2;
 
 	/* check if the vblank period is too short to adjust the mclk */
 	if (single_display && rdev->asic->dpm.vblank_too_short) {

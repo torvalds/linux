@@ -670,4 +670,9 @@ void amdgpu_vm_tlb_fence_create(struct amdgpu_device *adev,
 void amdgpu_vm_print_task_info(struct amdgpu_device *adev,
 			       struct amdgpu_task_info *task_info);
 
+#define amdgpu_vm_bo_va_for_each_valid_mapping(bo_va, mapping) \
+		list_for_each_entry(mapping, &(bo_va)->valids, list)
+#define amdgpu_vm_bo_va_for_each_invalid_mapping(bo_va, mapping) \
+		list_for_each_entry(mapping, &(bo_va)->invalids, list)
+
 #endif
