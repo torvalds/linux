@@ -163,7 +163,7 @@ static bool nsfs_ioctl_valid(unsigned int cmd)
 	case NS_GET_TGID_FROM_PIDNS:
 	case NS_GET_PID_IN_PIDNS:
 	case NS_GET_TGID_IN_PIDNS:
-		return (_IOC_TYPE(cmd) == _IOC_TYPE(cmd));
+		return true;
 	}
 
 	/* Extensible ioctls require some extra handling. */
