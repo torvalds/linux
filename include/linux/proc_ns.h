@@ -66,12 +66,6 @@ static inline void proc_free_inum(unsigned int inum) {}
 
 #endif /* CONFIG_PROC_FS */
 
-static inline int ns_alloc_inum(struct ns_common *ns)
-{
-	WRITE_ONCE(ns->stashed, NULL);
-	return proc_alloc_inum(&ns->inum);
-}
-
 static inline int ns_common_init(struct ns_common *ns,
 				 const struct proc_ns_operations *ops,
 				 bool alloc_inum)
