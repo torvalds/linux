@@ -20,6 +20,7 @@
 #include <linux/sched/task.h>
 #include <linux/uidgid.h>
 #include <linux/proc_fs.h>
+#include <linux/nstree.h>
 
 #include <net/aligned_data.h>
 #include <net/sock.h>
@@ -445,7 +446,7 @@ static __net_init int setup_net(struct net *net)
 	LIST_HEAD(net_exit_list);
 	int error = 0;
 
-	net->net_cookie = atomic64_inc_return(&net_aligned_data.net_cookie);
+	net->net_cookie = ns_tree_gen_id(&net->ns);
 
 	list_for_each_entry(ops, &pernet_list, list) {
 		error = ops_init(ops, net);
@@ -455,6 +456,7 @@ static __net_init int setup_net(struct net *net)
 	down_write(&net_rwsem);
 	list_add_tail_rcu(&net->list, &net_namespace_list);
 	up_write(&net_rwsem);
+	ns_tree_add_raw(net);
 out:
 	return error;
 
@@ -674,8 +676,10 @@ static void cleanup_net(struct work_struct *work)
 
 	/* Don't let anyone else find us. */
 	down_write(&net_rwsem);
-	llist_for_each_entry(net, net_kill_list, cleanup_list)
+	llist_for_each_entry(net, net_kill_list, cleanup_list) {
+		ns_tree_remove(net);
 		list_del_rcu(&net->list);
+	}
 	/* Cache last net. After we unlock rtnl, no one new net
 	 * added to net_namespace_list can assign nsid pointer
 	 * to a net from net_kill_list (see peernet2id_alloc()).
