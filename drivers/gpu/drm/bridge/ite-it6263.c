@@ -146,6 +146,7 @@
 #define  HDMI_COLOR_DEPTH_24		FIELD_PREP(HDMI_COLOR_DEPTH, 4)
 
 #define HDMI_REG_PKT_GENERAL_CTRL	0xc6
+#define HDMI_REG_PKT_NULL_CTRL		0xc9
 #define HDMI_REG_AVI_INFOFRM_CTRL	0xcd
 #define  ENABLE_PKT			BIT(0)
 #define  REPEAT_PKT			BIT(1)
@@ -153,6 +154,12 @@
 /* -----------------------------------------------------------------------------
  * 3) HDMI register bank1: 0x130 ~ 0x1ff (HDMI packet registers)
  */
+
+/* NULL packet registers */
+/* Header Byte(HB): n = 0 ~ 2 */
+#define HDMI_REG_PKT_HB(n)		(0x138 + (n))
+/* Packet Byte(PB): n = 0 ~ 27(HDMI_MAX_INFOFRAME_SIZE), n = 0 for checksum */
+#define HDMI_REG_PKT_PB(n)		(0x13b + (n))
 
 /* AVI packet registers */
 #define HDMI_REG_AVI_DB1		0x158
@@ -224,7 +231,9 @@ static bool it6263_hdmi_writeable_reg(struct device *dev, unsigned int reg)
 	case HDMI_REG_HDMI_MODE:
 	case HDMI_REG_GCP:
 	case HDMI_REG_PKT_GENERAL_CTRL:
+	case HDMI_REG_PKT_NULL_CTRL:
 	case HDMI_REG_AVI_INFOFRM_CTRL:
+	case HDMI_REG_PKT_HB(0) ... HDMI_REG_PKT_PB(HDMI_MAX_INFOFRAME_SIZE):
 	case HDMI_REG_AVI_DB1:
 	case HDMI_REG_AVI_DB2:
 	case HDMI_REG_AVI_DB3:
@@ -755,10 +764,16 @@ static int it6263_hdmi_clear_infoframe(struct drm_bridge *bridge,
 {
 	struct it6263 *it = bridge_to_it6263(bridge);
 
-	if (type == HDMI_INFOFRAME_TYPE_AVI)
+	switch (type) {
+	case HDMI_INFOFRAME_TYPE_AVI:
 		regmap_write(it->hdmi_regmap, HDMI_REG_AVI_INFOFRM_CTRL, 0);
-	else
+		break;
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		regmap_write(it->hdmi_regmap, HDMI_REG_PKT_NULL_CTRL, 0);
+		break;
+	default:
 		dev_dbg(it->dev, "unsupported HDMI infoframe 0x%x\n", type);
+	}
 
 	return 0;
 }
@@ -770,26 +785,35 @@ static int it6263_hdmi_write_infoframe(struct drm_bridge *bridge,
 	struct it6263 *it = bridge_to_it6263(bridge);
 	struct regmap *regmap = it->hdmi_regmap;
 
-	if (type != HDMI_INFOFRAME_TYPE_AVI) {
+	switch (type) {
+	case HDMI_INFOFRAME_TYPE_AVI:
+		/* write the first AVI infoframe data byte chunk(DB1-DB5) */
+		regmap_bulk_write(regmap, HDMI_REG_AVI_DB1,
+				  &buffer[HDMI_INFOFRAME_HEADER_SIZE],
+				  HDMI_AVI_DB_CHUNK1_SIZE);
+
+		/* write the second AVI infoframe data byte chunk(DB6-DB13) */
+		regmap_bulk_write(regmap, HDMI_REG_AVI_DB6,
+				  &buffer[HDMI_INFOFRAME_HEADER_SIZE +
+					  HDMI_AVI_DB_CHUNK1_SIZE],
+				  HDMI_AVI_DB_CHUNK2_SIZE);
+
+		/* write checksum */
+		regmap_write(regmap, HDMI_REG_AVI_CSUM, buffer[3]);
+
+		regmap_write(regmap, HDMI_REG_AVI_INFOFRM_CTRL,
+			     ENABLE_PKT | REPEAT_PKT);
+		break;
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		/* write header and payload */
+		regmap_bulk_write(regmap, HDMI_REG_PKT_HB(0), buffer, len);
+
+		regmap_write(regmap, HDMI_REG_PKT_NULL_CTRL,
+			     ENABLE_PKT | REPEAT_PKT);
+		break;
+	default:
 		dev_dbg(it->dev, "unsupported HDMI infoframe 0x%x\n", type);
-		return 0;
 	}
-
-	/* write the first AVI infoframe data byte chunk(DB1-DB5) */
-	regmap_bulk_write(regmap, HDMI_REG_AVI_DB1,
-			  &buffer[HDMI_INFOFRAME_HEADER_SIZE],
-			  HDMI_AVI_DB_CHUNK1_SIZE);
-
-	/* write the second AVI infoframe data byte chunk(DB6-DB13) */
-	regmap_bulk_write(regmap, HDMI_REG_AVI_DB6,
-			  &buffer[HDMI_INFOFRAME_HEADER_SIZE +
-				  HDMI_AVI_DB_CHUNK1_SIZE],
-			  HDMI_AVI_DB_CHUNK2_SIZE);
-
-	/* write checksum */
-	regmap_write(regmap, HDMI_REG_AVI_CSUM, buffer[3]);
-
-	regmap_write(regmap, HDMI_REG_AVI_INFOFRM_CTRL, ENABLE_PKT | REPEAT_PKT);
 
 	return 0;
 }

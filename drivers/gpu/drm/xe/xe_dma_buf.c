@@ -191,9 +191,21 @@ struct dma_buf *xe_gem_prime_export(struct drm_gem_object *obj, int flags)
 {
 	struct xe_bo *bo = gem_to_xe_bo(obj);
 	struct dma_buf *buf;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = true,
+		.no_wait_gpu = true,
+		/* We opt to avoid OOM on system pages allocations */
+		.gfp_retry_mayfail = true,
+		.allow_res_evict = false,
+	};
+	int ret;
 
 	if (bo->vm)
 		return ERR_PTR(-EPERM);
+
+	ret = ttm_bo_setup_export(&bo->ttm, &ctx);
+	if (ret)
+		return ERR_PTR(ret);
 
 	buf = drm_gem_prime_export(obj, flags);
 	if (!IS_ERR(buf))
