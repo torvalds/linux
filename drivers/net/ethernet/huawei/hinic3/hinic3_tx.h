@@ -125,8 +125,18 @@ struct hinic3_txq {
 	struct hinic3_io_queue  *sq;
 } ____cacheline_aligned;
 
+struct hinic3_dyna_txq_res {
+	struct hinic3_tx_info  *tx_info;
+	struct hinic3_dma_info *bds;
+};
+
 int hinic3_alloc_txqs(struct net_device *netdev);
 void hinic3_free_txqs(struct net_device *netdev);
+
+int hinic3_alloc_txqs_res(struct net_device *netdev, u16 num_sq,
+			  u32 sq_depth, struct hinic3_dyna_txq_res *txqs_res);
+void hinic3_free_txqs_res(struct net_device *netdev, u16 num_sq,
+			  u32 sq_depth, struct hinic3_dyna_txq_res *txqs_res);
 
 netdev_tx_t hinic3_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 bool hinic3_tx_poll(struct hinic3_txq *txq, int budget);

@@ -35,13 +35,35 @@
 
 int hinic3_alloc_rxqs(struct net_device *netdev)
 {
-	/* Completed by later submission due to LoC limit. */
-	return -EFAULT;
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	struct pci_dev *pdev = nic_dev->pdev;
+	u16 num_rxqs = nic_dev->max_qps;
+	struct hinic3_rxq *rxq;
+	u16 q_id;
+
+	nic_dev->rxqs = kcalloc(num_rxqs, sizeof(*nic_dev->rxqs), GFP_KERNEL);
+	if (!nic_dev->rxqs)
+		return -ENOMEM;
+
+	for (q_id = 0; q_id < num_rxqs; q_id++) {
+		rxq = &nic_dev->rxqs[q_id];
+		rxq->netdev = netdev;
+		rxq->dev = &pdev->dev;
+		rxq->q_id = q_id;
+		rxq->buf_len = nic_dev->rx_buf_len;
+		rxq->buf_len_shift = ilog2(nic_dev->rx_buf_len);
+		rxq->q_depth = nic_dev->q_params.rq_depth;
+		rxq->q_mask = nic_dev->q_params.rq_depth - 1;
+	}
+
+	return 0;
 }
 
 void hinic3_free_rxqs(struct net_device *netdev)
 {
-	/* Completed by later submission due to LoC limit. */
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+
+	kfree(nic_dev->rxqs);
 }
 
 static int rx_alloc_mapped_page(struct page_pool *page_pool,
@@ -49,6 +71,9 @@ static int rx_alloc_mapped_page(struct page_pool *page_pool,
 {
 	struct page *page;
 	u32 page_offset;
+
+	if (likely(rx_info->page))
+		return 0;
 
 	page = page_pool_dev_alloc_frag(page_pool, &page_offset, buf_len);
 	if (unlikely(!page))
@@ -100,6 +125,41 @@ static u32 hinic3_rx_fill_buffers(struct hinic3_rxq *rxq)
 	}
 
 	return i;
+}
+
+static u32 hinic3_alloc_rx_buffers(struct hinic3_dyna_rxq_res *rqres,
+				   u32 rq_depth, u16 buf_len)
+{
+	u32 free_wqebbs = rq_depth - 1;
+	u32 idx;
+	int err;
+
+	for (idx = 0; idx < free_wqebbs; idx++) {
+		err = rx_alloc_mapped_page(rqres->page_pool,
+					   &rqres->rx_info[idx], buf_len);
+		if (err)
+			break;
+	}
+
+	return idx;
+}
+
+static void hinic3_free_rx_buffers(struct hinic3_dyna_rxq_res *rqres,
+				   u32 q_depth)
+{
+	struct hinic3_rx_info *rx_info;
+	u32 i;
+
+	/* Free all the Rx ring sk_buffs */
+	for (i = 0; i < q_depth; i++) {
+		rx_info = &rqres->rx_info[i];
+
+		if (rx_info->page) {
+			page_pool_put_full_page(rqres->page_pool,
+						rx_info->page, false);
+			rx_info->page = NULL;
+		}
+	}
 }
 
 static void hinic3_add_rx_frag(struct hinic3_rxq *rxq,
@@ -297,6 +357,92 @@ static int recv_one_pkt(struct hinic3_rxq *rxq, struct hinic3_rq_cqe *rx_cqe,
 	}
 
 	return 0;
+}
+
+int hinic3_alloc_rxqs_res(struct net_device *netdev, u16 num_rq,
+			  u32 rq_depth, struct hinic3_dyna_rxq_res *rxqs_res)
+{
+	u64 cqe_mem_size = sizeof(struct hinic3_rq_cqe) * rq_depth;
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	struct page_pool_params pp_params = {};
+	struct hinic3_dyna_rxq_res *rqres;
+	u32 pkt_idx;
+	int idx;
+
+	for (idx = 0; idx < num_rq; idx++) {
+		rqres = &rxqs_res[idx];
+		rqres->rx_info = kcalloc(rq_depth, sizeof(*rqres->rx_info),
+					 GFP_KERNEL);
+		if (!rqres->rx_info)
+			goto err_free_rqres;
+
+		rqres->cqe_start_vaddr =
+			dma_alloc_coherent(&nic_dev->pdev->dev, cqe_mem_size,
+					   &rqres->cqe_start_paddr, GFP_KERNEL);
+		if (!rqres->cqe_start_vaddr) {
+			netdev_err(netdev, "Failed to alloc rxq%d rx cqe\n",
+				   idx);
+			goto err_free_rx_info;
+		}
+
+		pp_params.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV;
+		pp_params.pool_size = rq_depth * nic_dev->rx_buf_len /
+				      PAGE_SIZE;
+		pp_params.nid = dev_to_node(&nic_dev->pdev->dev);
+		pp_params.dev = &nic_dev->pdev->dev;
+		pp_params.dma_dir = DMA_FROM_DEVICE;
+		pp_params.max_len = PAGE_SIZE;
+		rqres->page_pool = page_pool_create(&pp_params);
+		if (!rqres->page_pool) {
+			netdev_err(netdev, "Failed to create rxq%d page pool\n",
+				   idx);
+			goto err_free_cqe;
+		}
+
+		pkt_idx = hinic3_alloc_rx_buffers(rqres, rq_depth,
+						  nic_dev->rx_buf_len);
+		if (!pkt_idx) {
+			netdev_err(netdev, "Failed to alloc rxq%d rx buffers\n",
+				   idx);
+			goto err_destroy_page_pool;
+		}
+		rqres->next_to_alloc = pkt_idx;
+	}
+
+	return 0;
+
+err_destroy_page_pool:
+	page_pool_destroy(rqres->page_pool);
+err_free_cqe:
+	dma_free_coherent(&nic_dev->pdev->dev, cqe_mem_size,
+			  rqres->cqe_start_vaddr,
+			  rqres->cqe_start_paddr);
+err_free_rx_info:
+	kfree(rqres->rx_info);
+err_free_rqres:
+	hinic3_free_rxqs_res(netdev, idx, rq_depth, rxqs_res);
+
+	return -ENOMEM;
+}
+
+void hinic3_free_rxqs_res(struct net_device *netdev, u16 num_rq,
+			  u32 rq_depth, struct hinic3_dyna_rxq_res *rxqs_res)
+{
+	u64 cqe_mem_size = sizeof(struct hinic3_rq_cqe) * rq_depth;
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic3_dyna_rxq_res *rqres;
+	int idx;
+
+	for (idx = 0; idx < num_rq; idx++) {
+		rqres = &rxqs_res[idx];
+
+		hinic3_free_rx_buffers(rqres, rq_depth);
+		page_pool_destroy(rqres->page_pool);
+		dma_free_coherent(&nic_dev->pdev->dev, cqe_mem_size,
+				  rqres->cqe_start_vaddr,
+				  rqres->cqe_start_paddr);
+		kfree(rqres->rx_info);
+	}
 }
 
 int hinic3_rx_poll(struct hinic3_rxq *rxq, int budget)

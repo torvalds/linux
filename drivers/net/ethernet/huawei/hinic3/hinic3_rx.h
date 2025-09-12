@@ -82,9 +82,21 @@ struct hinic3_rxq {
 	dma_addr_t             cqe_start_paddr;
 } ____cacheline_aligned;
 
+struct hinic3_dyna_rxq_res {
+	u16                   next_to_alloc;
+	struct hinic3_rx_info *rx_info;
+	dma_addr_t            cqe_start_paddr;
+	void                  *cqe_start_vaddr;
+	struct page_pool      *page_pool;
+};
+
 int hinic3_alloc_rxqs(struct net_device *netdev);
 void hinic3_free_rxqs(struct net_device *netdev);
 
+int hinic3_alloc_rxqs_res(struct net_device *netdev, u16 num_rq,
+			  u32 rq_depth, struct hinic3_dyna_rxq_res *rxqs_res);
+void hinic3_free_rxqs_res(struct net_device *netdev, u16 num_rq,
+			  u32 rq_depth, struct hinic3_dyna_rxq_res *rxqs_res);
 int hinic3_rx_poll(struct hinic3_rxq *rxq, int budget);
 
 #endif

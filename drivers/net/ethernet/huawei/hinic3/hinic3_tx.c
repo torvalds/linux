@@ -138,6 +138,23 @@ static void hinic3_tx_unmap_skb(struct net_device *netdev,
 			 dma_info[0].len, DMA_TO_DEVICE);
 }
 
+static void free_all_tx_skbs(struct net_device *netdev, u32 sq_depth,
+			     struct hinic3_tx_info *tx_info_arr)
+{
+	struct hinic3_tx_info *tx_info;
+	u32 idx;
+
+	for (idx = 0; idx < sq_depth; idx++) {
+		tx_info = &tx_info_arr[idx];
+		if (tx_info->skb) {
+			hinic3_tx_unmap_skb(netdev, tx_info->skb,
+					    tx_info->dma_info);
+			dev_kfree_skb_any(tx_info->skb);
+			tx_info->skb = NULL;
+		}
+	}
+}
+
 union hinic3_ip {
 	struct iphdr   *v4;
 	struct ipv6hdr *v6;
@@ -632,6 +649,58 @@ void hinic3_flush_txqs(struct net_device *netdev)
 
 #define HINIC3_BDS_PER_SQ_WQEBB \
 	(HINIC3_SQ_WQEBB_SIZE / sizeof(struct hinic3_sq_bufdesc))
+
+int hinic3_alloc_txqs_res(struct net_device *netdev, u16 num_sq,
+			  u32 sq_depth, struct hinic3_dyna_txq_res *txqs_res)
+{
+	struct hinic3_dyna_txq_res *tqres;
+	int idx;
+
+	for (idx = 0; idx < num_sq; idx++) {
+		tqres = &txqs_res[idx];
+
+		tqres->tx_info = kcalloc(sq_depth, sizeof(*tqres->tx_info),
+					 GFP_KERNEL);
+		if (!tqres->tx_info)
+			goto err_free_tqres;
+
+		tqres->bds = kcalloc(sq_depth * HINIC3_BDS_PER_SQ_WQEBB +
+				     HINIC3_MAX_SQ_SGE, sizeof(*tqres->bds),
+				     GFP_KERNEL);
+		if (!tqres->bds) {
+			kfree(tqres->tx_info);
+			goto err_free_tqres;
+		}
+	}
+
+	return 0;
+
+err_free_tqres:
+	while (idx > 0) {
+		idx--;
+		tqres = &txqs_res[idx];
+
+		kfree(tqres->bds);
+		kfree(tqres->tx_info);
+	}
+
+	return -ENOMEM;
+}
+
+void hinic3_free_txqs_res(struct net_device *netdev, u16 num_sq,
+			  u32 sq_depth, struct hinic3_dyna_txq_res *txqs_res)
+{
+	struct hinic3_dyna_txq_res *tqres;
+	int idx;
+
+	for (idx = 0; idx < num_sq; idx++) {
+		tqres = &txqs_res[idx];
+
+		free_all_tx_skbs(netdev, sq_depth, tqres->tx_info);
+		kfree(tqres->bds);
+		kfree(tqres->tx_info);
+	}
+}
 
 bool hinic3_tx_poll(struct hinic3_txq *txq, int budget)
 {
