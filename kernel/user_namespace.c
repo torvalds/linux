@@ -124,12 +124,11 @@ int create_user_ns(struct cred *new)
 		goto fail_dec;
 
 	ns->parent_could_setfcap = cap_raised(new->cap_effective, CAP_SETFCAP);
-	ret = ns_alloc_inum(&ns->ns);
+
+	ret = ns_common_init(&ns->ns, &userns_operations, true);
 	if (ret)
 		goto fail_free;
-	ns->ns.ops = &userns_operations;
 
-	refcount_set(&ns->ns.count, 1);
 	/* Leave the new->user_ns reference with the new user namespace. */
 	ns->parent = parent_ns;
 	ns->level = parent_ns->level + 1;
