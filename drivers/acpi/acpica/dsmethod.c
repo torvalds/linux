@@ -483,10 +483,17 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 	}
 
 	if (this_walk_state->num_operands < obj_desc->method.param_count) {
-		ACPI_ERROR((AE_INFO, "Missing argument for method [%4.4s]",
+		ACPI_ERROR((AE_INFO, "Missing argument(s) for method [%4.4s]",
 			    acpi_ut_get_node_name(method_node)));
 
-		return_ACPI_STATUS(AE_AML_UNINITIALIZED_ARG);
+		return_ACPI_STATUS(AE_AML_TOO_FEW_ARGUMENTS);
+	}
+
+	else if (this_walk_state->num_operands > obj_desc->method.param_count) {
+		ACPI_ERROR((AE_INFO, "Too many arguments for method [%4.4s]",
+			    acpi_ut_get_node_name(method_node)));
+
+		return_ACPI_STATUS(AE_AML_TOO_MANY_ARGUMENTS);
 	}
 
 	/* Init for new method, possibly wait on method mutex */
