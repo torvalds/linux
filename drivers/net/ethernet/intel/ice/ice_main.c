@@ -5023,14 +5023,10 @@ static int ice_init(struct ice_pf *pf)
 	struct device *dev = ice_pf_to_dev(pf);
 	int err;
 
-	err = ice_init_dev(pf);
-	if (err)
-		return err;
-
 	err = ice_init_pf(pf);
 	if (err) {
 		dev_err(dev, "ice_init_pf failed: %d\n", err);
-		goto unroll_dev_init;
+		return err;
 	}
 
 	if (pf->hw.mac_type == ICE_MAC_E830) {
@@ -5080,8 +5076,6 @@ err_init_pf_sw:
 	ice_dealloc_vsis(pf);
 unroll_pf_init:
 	ice_deinit_pf(pf);
-unroll_dev_init:
-	ice_deinit_dev(pf);
 	return err;
 }
 
@@ -5093,7 +5087,6 @@ static void ice_deinit(struct ice_pf *pf)
 	ice_deinit_pf_sw(pf);
 	ice_dealloc_vsis(pf);
 	ice_deinit_pf(pf);
-	ice_deinit_dev(pf);
 }
 
 /**
@@ -5323,9 +5316,13 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	}
 	pf->adapter = adapter;
 
-	err = ice_init(pf);
+	err = ice_init_dev(pf);
 	if (err)
 		goto unroll_adapter;
+
+	err = ice_init(pf);
+	if (err)
+		goto unroll_dev_init;
 
 	devl_lock(priv_to_devlink(pf));
 	err = ice_load(pf);
@@ -5344,6 +5341,8 @@ unroll_load:
 unroll_init:
 	devl_unlock(priv_to_devlink(pf));
 	ice_deinit(pf);
+unroll_dev_init:
+	ice_deinit_dev(pf);
 unroll_adapter:
 	ice_adapter_put(pdev);
 unroll_hw_init:
@@ -5457,6 +5456,7 @@ static void ice_remove(struct pci_dev *pdev)
 	devl_unlock(priv_to_devlink(pf));
 
 	ice_deinit(pf);
+	ice_deinit_dev(pf);
 	ice_vsi_release_all(pf);
 
 	ice_setup_mc_magic_wake(pf);
