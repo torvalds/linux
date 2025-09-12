@@ -1139,7 +1139,7 @@ static int setup_ftrace_ool_stubs(const Elf64_Shdr *sechdrs, unsigned long addr,
 
 	/* reserve stubs */
 	for (i = 0; i < num_stubs; i++)
-		if (patch_u32((void *)&stub->funcdata, PPC_RAW_NOP()))
+		if (patch_u32((void *)&stub[i].funcdata, PPC_RAW_NOP()))
 			return -1;
 #endif
 
