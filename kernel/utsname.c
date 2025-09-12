@@ -103,11 +103,6 @@ void free_uts_ns(struct uts_namespace *ns)
 	kfree_rcu(ns, ns.ns_rcu);
 }
 
-static inline struct uts_namespace *to_uts_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct uts_namespace, ns);
-}
-
 static struct ns_common *utsns_get(struct task_struct *task)
 {
 	struct uts_namespace *ns = NULL;

@@ -89,11 +89,6 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 	return new_ns;
 }
 
-static inline struct cgroup_namespace *to_cg_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct cgroup_namespace, ns);
-}
-
 static int cgroupns_install(struct nsset *nsset, struct ns_common *ns)
 {
 	struct nsproxy *nsproxy = nsset->nsproxy;

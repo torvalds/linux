@@ -794,6 +794,11 @@ extern struct cgroup_namespace init_cgroup_ns;
 
 #ifdef CONFIG_CGROUPS
 
+static inline struct cgroup_namespace *to_cg_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct cgroup_namespace, ns);
+}
+
 void free_cgroup_ns(struct cgroup_namespace *ns);
 
 struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,

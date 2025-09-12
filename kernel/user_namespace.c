@@ -1325,11 +1325,6 @@ bool current_in_userns(const struct user_namespace *target_ns)
 }
 EXPORT_SYMBOL(current_in_userns);
 
-static inline struct user_namespace *to_user_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct user_namespace, ns);
-}
-
 static struct ns_common *userns_get(struct task_struct *task)
 {
 	struct user_namespace *user_ns;

@@ -1541,11 +1541,6 @@ static struct ns_common *netns_get(struct task_struct *task)
 	return net ? &net->ns : NULL;
 }
 
-static inline struct net *to_net_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct net, ns);
-}
-
 static void netns_put(struct ns_common *ns)
 {
 	put_net(to_net_ns(ns));

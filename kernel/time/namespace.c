@@ -261,11 +261,6 @@ void free_time_ns(struct time_namespace *ns)
 	kfree_rcu(ns, ns.ns_rcu);
 }
 
-static struct time_namespace *to_time_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct time_namespace, ns);
-}
-
 static struct ns_common *timens_get(struct task_struct *task)
 {
 	struct time_namespace *ns = NULL;

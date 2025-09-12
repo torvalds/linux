@@ -345,11 +345,6 @@ int reboot_pid_ns(struct pid_namespace *pid_ns, int cmd)
 	return 0;
 }
 
-static inline struct pid_namespace *to_pid_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct pid_namespace, ns);
-}
-
 static struct ns_common *pidns_get(struct task_struct *task)
 {
 	struct pid_namespace *ns;

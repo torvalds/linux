@@ -209,11 +209,6 @@ void put_ipc_ns(struct ipc_namespace *ns)
 	}
 }
 
-static inline struct ipc_namespace *to_ipc_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct ipc_namespace, ns);
-}
-
 static struct ns_common *ipcns_get(struct task_struct *task)
 {
 	struct ipc_namespace *ns = NULL;

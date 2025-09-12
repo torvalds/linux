@@ -262,6 +262,11 @@ void ipx_unregister_sysctl(void);
 #ifdef CONFIG_NET_NS
 void __put_net(struct net *net);
 
+static inline struct net *to_net_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct net, ns);
+}
+
 /* Try using get_net_track() instead */
 static inline struct net *get_net(struct net *net)
 {
