@@ -50,8 +50,12 @@ int hinic3_update_mac(struct hinic3_hwdev *hwdev, const u8 *old_mac,
 
 int hinic3_set_ci_table(struct hinic3_hwdev *hwdev,
 			struct hinic3_sq_attr *attr);
+int hinic3_flush_qps_res(struct hinic3_hwdev *hwdev);
 int hinic3_force_drop_tx_pkt(struct hinic3_hwdev *hwdev);
 
 int hinic3_sync_dcb_state(struct hinic3_hwdev *hwdev, u8 op_code, u8 state);
+int hinic3_get_link_status(struct hinic3_hwdev *hwdev, bool *link_status_up);
+int hinic3_set_vport_enable(struct hinic3_hwdev *hwdev, u16 func_id,
+			    bool enable);
 
 #endif

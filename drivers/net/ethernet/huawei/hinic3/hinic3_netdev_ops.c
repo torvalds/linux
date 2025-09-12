@@ -327,6 +327,59 @@ static void hinic3_close_channel(struct net_device *netdev)
 	hinic3_free_qp_ctxts(nic_dev);
 }
 
+static int hinic3_vport_up(struct net_device *netdev)
+{
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	bool link_status_up;
+	u16 glb_func_id;
+	int err;
+
+	glb_func_id = hinic3_global_func_id(nic_dev->hwdev);
+	err = hinic3_set_vport_enable(nic_dev->hwdev, glb_func_id, true);
+	if (err) {
+		netdev_err(netdev, "Failed to enable vport\n");
+		goto err_flush_qps_res;
+	}
+
+	err = netif_set_real_num_queues(netdev, nic_dev->q_params.num_qps,
+					nic_dev->q_params.num_qps);
+	if (err) {
+		netdev_err(netdev, "Failed to set real number of queues\n");
+		goto err_flush_qps_res;
+	}
+	netif_tx_start_all_queues(netdev);
+
+	err = hinic3_get_link_status(nic_dev->hwdev, &link_status_up);
+	if (!err && link_status_up)
+		netif_carrier_on(netdev);
+
+	return 0;
+
+err_flush_qps_res:
+	hinic3_flush_qps_res(nic_dev->hwdev);
+	/* wait to guarantee that no packets will be sent to host */
+	msleep(100);
+
+	return err;
+}
+
+static void hinic3_vport_down(struct net_device *netdev)
+{
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	u16 glb_func_id;
+
+	netif_carrier_off(netdev);
+	netif_tx_disable(netdev);
+
+	glb_func_id = hinic3_global_func_id(nic_dev->hwdev);
+	hinic3_set_vport_enable(nic_dev->hwdev, glb_func_id, false);
+
+	hinic3_flush_txqs(netdev);
+	/* wait to guarantee that no packets will be sent to host */
+	msleep(100);
+	hinic3_flush_qps_res(nic_dev->hwdev);
+}
+
 static int hinic3_open(struct net_device *netdev)
 {
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
@@ -356,8 +409,14 @@ static int hinic3_open(struct net_device *netdev)
 	if (err)
 		goto err_uninit_qps;
 
+	err = hinic3_vport_up(netdev);
+	if (err)
+		goto err_close_channel;
+
 	return 0;
 
+err_close_channel:
+	hinic3_close_channel(netdev);
 err_uninit_qps:
 	hinic3_uninit_qps(nic_dev, &qp_params);
 	hinic3_free_channel_resources(netdev, &qp_params, &nic_dev->q_params);
@@ -374,6 +433,7 @@ static int hinic3_close(struct net_device *netdev)
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
 	struct hinic3_dyna_qp_params qp_params;
 
+	hinic3_vport_down(netdev);
 	hinic3_close_channel(netdev);
 	hinic3_uninit_qps(nic_dev, &qp_params);
 	hinic3_free_channel_resources(netdev, &qp_params, &nic_dev->q_params);

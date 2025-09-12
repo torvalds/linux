@@ -69,10 +69,25 @@ struct l2nic_cmd_set_ci_attr {
 	u64                  ci_addr;
 };
 
+struct l2nic_cmd_clear_qp_resource {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u16                  rsvd1;
+};
+
 struct l2nic_cmd_force_pkt_drop {
 	struct mgmt_msg_head msg_head;
 	u8                   port;
 	u8                   rsvd1[3];
+};
+
+struct l2nic_cmd_set_vport_state {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u16                  rsvd1;
+	/* 0--disable, 1--enable */
+	u8                   state;
+	u8                   rsvd2[3];
 };
 
 struct l2nic_cmd_set_dcb_state {
@@ -170,6 +185,20 @@ enum l2nic_ucode_cmd {
 	L2NIC_UCODE_CMD_MODIFY_QUEUE_CTX  = 0,
 	L2NIC_UCODE_CMD_CLEAN_QUEUE_CTX   = 1,
 	L2NIC_UCODE_CMD_SET_RSS_INDIR_TBL = 4,
+};
+
+/* hilink mac group command */
+enum mag_cmd {
+	MAG_CMD_GET_LINK_STATUS = 7,
+};
+
+/* firmware also use this cmd report link event to driver */
+struct mag_cmd_get_link_status {
+	struct mgmt_msg_head head;
+	u8                   port_id;
+	/* 0:link down  1:link up */
+	u8                   status;
+	u8                   rsvd0[2];
 };
 
 enum hinic3_nic_feature_cap {

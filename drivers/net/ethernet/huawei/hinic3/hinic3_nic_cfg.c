@@ -267,6 +267,28 @@ int hinic3_set_ci_table(struct hinic3_hwdev *hwdev, struct hinic3_sq_attr *attr)
 	return 0;
 }
 
+int hinic3_flush_qps_res(struct hinic3_hwdev *hwdev)
+{
+	struct l2nic_cmd_clear_qp_resource sq_res = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	sq_res.func_id = hinic3_global_func_id(hwdev);
+
+	mgmt_msg_params_init_default(&msg_params, &sq_res, sizeof(sq_res));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_L2NIC,
+				       L2NIC_CMD_CLEAR_QP_RESOURCE,
+				       &msg_params);
+	if (err || sq_res.msg_head.status) {
+		dev_err(hwdev->dev, "Failed to clear sq resources, err: %d, status: 0x%x\n",
+			err, sq_res.msg_head.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int hinic3_force_drop_tx_pkt(struct hinic3_hwdev *hwdev)
 {
 	struct l2nic_cmd_force_pkt_drop pkt_drop = {};
@@ -310,6 +332,52 @@ int hinic3_sync_dcb_state(struct hinic3_hwdev *hwdev, u8 op_code, u8 state)
 			"Failed to set dcb state, err: %d, status: 0x%x\n",
 			err, dcb_state.head.status);
 		return -EFAULT;
+	}
+
+	return 0;
+}
+
+int hinic3_get_link_status(struct hinic3_hwdev *hwdev, bool *link_status_up)
+{
+	struct mag_cmd_get_link_status get_link = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	get_link.port_id = hinic3_physical_port_id(hwdev);
+
+	mgmt_msg_params_init_default(&msg_params, &get_link, sizeof(get_link));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_HILINK,
+				       MAG_CMD_GET_LINK_STATUS, &msg_params);
+	if (err || get_link.head.status) {
+		dev_err(hwdev->dev, "Failed to get link state, err: %d, status: 0x%x\n",
+			err, get_link.head.status);
+		return -EIO;
+	}
+
+	*link_status_up = !!get_link.status;
+
+	return 0;
+}
+
+int hinic3_set_vport_enable(struct hinic3_hwdev *hwdev, u16 func_id,
+			    bool enable)
+{
+	struct l2nic_cmd_set_vport_state en_state = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	en_state.func_id = func_id;
+	en_state.state = enable ? 1 : 0;
+
+	mgmt_msg_params_init_default(&msg_params, &en_state, sizeof(en_state));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_L2NIC,
+				       L2NIC_CMD_SET_VPORT_ENABLE, &msg_params);
+	if (err || en_state.msg_head.status) {
+		dev_err(hwdev->dev, "Failed to set vport state, err: %d, status: 0x%x\n",
+			err, en_state.msg_head.status);
+		return -EINVAL;
 	}
 
 	return 0;
