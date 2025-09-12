@@ -45,6 +45,16 @@ struct hinic3_hwif {
 	struct hinic3_func_attr attr;
 };
 
+enum hinic3_outbound_ctrl {
+	ENABLE_OUTBOUND  = 0x0,
+	DISABLE_OUTBOUND = 0x1,
+};
+
+enum hinic3_doorbell_ctrl {
+	ENABLE_DOORBELL  = 0,
+	DISABLE_DOORBELL = 1,
+};
+
 enum hinic3_msix_state {
 	HINIC3_MSIX_ENABLE,
 	HINIC3_MSIX_DISABLE,
@@ -61,6 +71,9 @@ void hinic3_hwif_write_reg(struct hinic3_hwif *hwif, u32 reg, u32 val);
 int hinic3_alloc_db_addr(struct hinic3_hwdev *hwdev, void __iomem **db_base,
 			 void __iomem **dwqe_base);
 void hinic3_free_db_addr(struct hinic3_hwdev *hwdev, const u8 __iomem *db_base);
+
+int hinic3_init_hwif(struct hinic3_hwdev *hwdev);
+void hinic3_free_hwif(struct hinic3_hwdev *hwdev);
 
 void hinic3_set_msix_state(struct hinic3_hwdev *hwdev, u16 msix_idx,
 			   enum hinic3_msix_state flag);

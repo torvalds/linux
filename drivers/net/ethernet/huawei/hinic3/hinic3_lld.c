@@ -8,6 +8,7 @@
 #include "hinic3_hwdev.h"
 #include "hinic3_lld.h"
 #include "hinic3_mgmt.h"
+#include "hinic3_pci_id_tbl.h"
 
 #define HINIC3_VF_PCI_CFG_REG_BAR  0
 #define HINIC3_PCI_INTR_REG_BAR    2
@@ -377,7 +378,7 @@ static void hinic3_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id hinic3_pci_table[] = {
-	/* Completed by later submission due to LoC limit. */
+	{PCI_VDEVICE(HUAWEI, PCI_DEV_ID_HINIC3_VF), 0},
 	{0, 0}
 
 };
