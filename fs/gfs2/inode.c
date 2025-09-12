@@ -1368,27 +1368,19 @@ static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
 			    struct file *file, unsigned flags,
 			    umode_t mode)
 {
-	struct dentry *d;
 	bool excl = !!(flags & O_EXCL);
 
-	if (!d_in_lookup(dentry))
-		goto skip_lookup;
-
-	d = __gfs2_lookup(dir, dentry, file);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
-	if (d != NULL)
-		dentry = d;
-	if (d_really_is_positive(dentry)) {
-		if (!(file->f_mode & FMODE_OPENED))
+	if (d_in_lookup(dentry)) {
+		struct dentry *d = __gfs2_lookup(dir, dentry, file);
+		if (file->f_mode & FMODE_OPENED) {
+			if (IS_ERR(d))
+				return PTR_ERR(d);
+			dput(d);
+			return excl && (flags & O_CREAT) ? -EEXIST : 0;
+		}
+		if (d || d_really_is_positive(dentry))
 			return finish_no_open(file, d);
-		dput(d);
-		return excl && (flags & O_CREAT) ? -EEXIST : 0;
 	}
-
-	BUG_ON(d != NULL);
-
-skip_lookup:
 	if (!(flags & O_CREAT))
 		return -ENOENT;
 
