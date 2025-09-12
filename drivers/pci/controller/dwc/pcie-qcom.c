@@ -279,8 +279,6 @@ struct qcom_pcie {
 	void __iomem *elbi;			/* DT elbi */
 	void __iomem *mhi;
 	union qcom_pcie_resources res;
-	struct phy *phy;
-	struct gpio_desc *reset;
 	struct icc_path *icc_mem;
 	struct icc_path *icc_cpu;
 	const struct qcom_pcie_cfg *cfg;
@@ -297,11 +295,8 @@ static void qcom_perst_assert(struct qcom_pcie *pcie, bool assert)
 	struct qcom_pcie_port *port;
 	int val = assert ? 1 : 0;
 
-	if (list_empty(&pcie->ports))
-		gpiod_set_value_cansleep(pcie->reset, val);
-	else
-		list_for_each_entry(port, &pcie->ports, list)
-			gpiod_set_value_cansleep(port->reset, val);
+	list_for_each_entry(port, &pcie->ports, list)
+		gpiod_set_value_cansleep(port->reset, val);
 
 	usleep_range(PERST_DELAY_US, PERST_DELAY_US + 500);
 }
@@ -1253,57 +1248,32 @@ static bool qcom_pcie_link_up(struct dw_pcie *pci)
 	return val & PCI_EXP_LNKSTA_DLLLA;
 }
 
-static void qcom_pcie_phy_exit(struct qcom_pcie *pcie)
-{
-	struct qcom_pcie_port *port;
-
-	if (list_empty(&pcie->ports))
-		phy_exit(pcie->phy);
-	else
-		list_for_each_entry(port, &pcie->ports, list)
-			phy_exit(port->phy);
-}
-
 static void qcom_pcie_phy_power_off(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_port *port;
 
-	if (list_empty(&pcie->ports)) {
-		phy_power_off(pcie->phy);
-	} else {
-		list_for_each_entry(port, &pcie->ports, list)
-			phy_power_off(port->phy);
-	}
+	list_for_each_entry(port, &pcie->ports, list)
+		phy_power_off(port->phy);
 }
 
 static int qcom_pcie_phy_power_on(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_port *port;
-	int ret = 0;
+	int ret;
 
-	if (list_empty(&pcie->ports)) {
-		ret = phy_set_mode_ext(pcie->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_RC);
+	list_for_each_entry(port, &pcie->ports, list) {
+		ret = phy_set_mode_ext(port->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_RC);
 		if (ret)
 			return ret;
 
-		ret = phy_power_on(pcie->phy);
-		if (ret)
+		ret = phy_power_on(port->phy);
+		if (ret) {
+			qcom_pcie_phy_power_off(pcie);
 			return ret;
-	} else {
-		list_for_each_entry(port, &pcie->ports, list) {
-			ret = phy_set_mode_ext(port->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_RC);
-			if (ret)
-				return ret;
-
-			ret = phy_power_on(port->phy);
-			if (ret) {
-				qcom_pcie_phy_power_off(pcie);
-				return ret;
-			}
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 static int qcom_pcie_host_init(struct dw_pcie_rp *pp)
@@ -1750,8 +1720,10 @@ static int qcom_pcie_parse_ports(struct qcom_pcie *pcie)
 	return ret;
 
 err_port_del:
-	list_for_each_entry_safe(port, tmp, &pcie->ports, list)
+	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
+		phy_exit(port->phy);
 		list_del(&port->list);
+	}
 
 	return ret;
 }
@@ -1759,19 +1731,31 @@ err_port_del:
 static int qcom_pcie_parse_legacy_binding(struct qcom_pcie *pcie)
 {
 	struct device *dev = pcie->pci->dev;
+	struct qcom_pcie_port *port;
+	struct gpio_desc *reset;
+	struct phy *phy;
 	int ret;
 
-	pcie->phy = devm_phy_optional_get(dev, "pciephy");
-	if (IS_ERR(pcie->phy))
-		return PTR_ERR(pcie->phy);
+	phy = devm_phy_optional_get(dev, "pciephy");
+	if (IS_ERR(phy))
+		return PTR_ERR(phy);
 
-	pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_HIGH);
-	if (IS_ERR(pcie->reset))
-		return PTR_ERR(pcie->reset);
+	reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_HIGH);
+	if (IS_ERR(reset))
+		return PTR_ERR(reset);
 
-	ret = phy_init(pcie->phy);
+	ret = phy_init(phy);
 	if (ret)
 		return ret;
+
+	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	if (!port)
+		return -ENOMEM;
+
+	port->reset = reset;
+	port->phy = phy;
+	INIT_LIST_HEAD(&port->list);
+	list_add_tail(&port->list, &pcie->ports);
 
 	return 0;
 }
@@ -1986,9 +1970,10 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 err_host_deinit:
 	dw_pcie_host_deinit(pp);
 err_phy_exit:
-	qcom_pcie_phy_exit(pcie);
-	list_for_each_entry_safe(port, tmp, &pcie->ports, list)
+	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
+		phy_exit(port->phy);
 		list_del(&port->list);
+	}
 err_pm_runtime_put:
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
