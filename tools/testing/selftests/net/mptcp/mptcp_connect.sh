@@ -134,7 +134,7 @@ ns4=""
 TEST_GROUP=""
 
 # This function is used in the cleanup trap
-#shellcheck disable=SC2317
+#shellcheck disable=SC2317,SC2329
 cleanup()
 {
 	rm -f "$cin_disconnect"

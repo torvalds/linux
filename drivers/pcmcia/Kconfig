@@ -250,7 +250,4 @@ config ELECTRA_CF
 config PCCARD_NONSTATIC
 	bool
 
-config PCCARD_IODYN
-	bool
-
 endif	# PCCARD

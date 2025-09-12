@@ -1275,7 +1275,6 @@ nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
 		       const u32 *key)
 {
 	struct nft_pipapo *priv = nft_set_priv(set);
-	u8 genmask = nft_genmask_cur(net);
 	const struct nft_pipapo_match *m;
 	const u8 *rp = (const u8 *)key;
 	const struct nft_pipapo_elem *e;
@@ -1293,7 +1292,7 @@ nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
 
 	m = rcu_dereference(priv->match);
 
-	e = pipapo_get_avx2(m, rp, genmask, get_jiffies_64());
+	e = pipapo_get_avx2(m, rp, NFT_GENMASK_ANY, get_jiffies_64());
 	local_bh_enable();
 
 	return e ? &e->ext : NULL;
