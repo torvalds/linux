@@ -4143,7 +4143,7 @@ struct dmub_cmd_replay_copy_settings_data {
 	 */
 	uint8_t hpo_link_enc_inst;
 	/**
-	 * Determines if fast sync in ultra sleep mode is enabled/disabled.
+	 * Determines if fast resync in ultra sleep mode is enabled/disabled.
 	 */
 	uint8_t replay_support_fast_resync_in_ultra_sleep_mode;
 	/**
