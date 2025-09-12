@@ -325,6 +325,13 @@
 			};
 		};
 
+		ocotp: nvmem@400a4000 {
+			compatible = "nxp,s32g2-ocotp";
+			reg = <0x400a4000 0x400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		swt0: watchdog@40100000 {
 			compatible = "nxp,s32g2-swt";
 			reg = <0x40100000 0x1000>;
