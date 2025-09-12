@@ -317,6 +317,14 @@ static void print_inode_extref_item(const struct extent_buffer *eb, int i)
 	}
 }
 
+static void print_dir_log_index_item(const struct extent_buffer *eb, int i)
+{
+	struct btrfs_dir_log_item *dlog;
+
+	dlog = btrfs_item_ptr(eb, i, struct btrfs_dir_log_item);
+	pr_info("\t\tdir log end %llu\n", btrfs_dir_log_end(eb, dlog));
+}
+
 void btrfs_print_leaf(const struct extent_buffer *l)
 {
 	struct btrfs_fs_info *fs_info;
@@ -361,6 +369,9 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 		case BTRFS_DIR_INDEX_KEY:
 		case BTRFS_XATTR_ITEM_KEY:
 			print_dir_item(l, i);
+			break;
+		case BTRFS_DIR_LOG_INDEX_KEY:
+			print_dir_log_index_item(l, i);
 			break;
 		case BTRFS_ROOT_ITEM_KEY:
 			ri = btrfs_item_ptr(l, i, struct btrfs_root_item);
