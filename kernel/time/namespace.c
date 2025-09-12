@@ -12,6 +12,7 @@
 #include <linux/seq_file.h>
 #include <linux/proc_ns.h>
 #include <linux/export.h>
+#include <linux/nstree.h>
 #include <linux/time.h>
 #include <linux/slab.h>
 #include <linux/cred.h>
@@ -104,6 +105,7 @@ static struct time_namespace *clone_time_ns(struct user_namespace *user_ns,
 	ns->user_ns = get_user_ns(user_ns);
 	ns->offsets = old_ns->offsets;
 	ns->frozen_offsets = false;
+	ns_tree_add(ns);
 	return ns;
 
 fail_free_page:
@@ -250,11 +252,13 @@ out:
 
 void free_time_ns(struct time_namespace *ns)
 {
+	ns_tree_remove(ns);
 	dec_time_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
 	ns_free_inum(&ns->ns);
 	__free_page(ns->vvar_page);
-	kfree(ns);
+	/* Concurrent nstree traversal depends on a grace period. */
+	kfree_rcu(ns, ns.ns_rcu);
 }
 
 static struct time_namespace *to_time_ns(struct ns_common *ns)
@@ -487,3 +491,8 @@ struct time_namespace init_time_ns = {
 	.ns.ops		= &timens_operations,
 	.frozen_offsets	= true,
 };
+
+void __init time_ns_init(void)
+{
+	ns_tree_add(&init_time_ns);
+}
