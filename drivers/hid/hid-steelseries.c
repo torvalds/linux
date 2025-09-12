@@ -582,7 +582,7 @@ static void steelseries_remove(struct hid_device *hdev)
 	if (hdev->product == USB_DEVICE_ID_STEELSERIES_SRWS1) {
 #if IS_BUILTIN(CONFIG_LEDS_CLASS) || \
     (IS_MODULE(CONFIG_LEDS_CLASS) && IS_MODULE(CONFIG_HID_STEELSERIES))
-		goto srws1_remove;
+		hid_hw_stop(hdev);
 #endif
 		return;
 	}
@@ -596,7 +596,6 @@ static void steelseries_remove(struct hid_device *hdev)
 	cancel_delayed_work_sync(&sd->battery_work);
 
 	hid_hw_close(hdev);
-srws1_remove:
 	hid_hw_stop(hdev);
 }
 
