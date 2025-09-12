@@ -470,14 +470,6 @@ static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
 	mutex_unlock(&fixmap_lock);
 }
 
-#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-extern __alias(__create_pgd_mapping_locked)
-void create_kpti_ng_temp_pgd(pgd_t *pgdir, phys_addr_t phys, unsigned long virt,
-			     phys_addr_t size, pgprot_t prot,
-			     phys_addr_t (*pgtable_alloc)(enum pgtable_type),
-			     int flags);
-#endif
-
 #define INVALID_PHYS_ADDR	(-1ULL)
 
 static phys_addr_t __pgd_pgtable_alloc(struct mm_struct *mm, gfp_t gfp,
@@ -823,7 +815,7 @@ static bool linear_map_requires_bbml2 __initdata;
 
 u32 idmap_kpti_bbml2_flag;
 
-void __init init_idmap_kpti_bbml2_flag(void)
+static void __init init_idmap_kpti_bbml2_flag(void)
 {
 	WRITE_ONCE(idmap_kpti_bbml2_flag, 1);
 	/* Must be visible to other CPUs before stop_machine() is called. */
@@ -1135,7 +1127,93 @@ static void __init declare_vma(struct vm_struct *vma,
 }
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-static pgprot_t kernel_exec_prot(void)
+#define KPTI_NG_TEMP_VA		(-(1UL << PMD_SHIFT))
+
+static phys_addr_t kpti_ng_temp_alloc __initdata;
+
+static phys_addr_t __init kpti_ng_pgd_alloc(enum pgtable_type type)
+{
+	kpti_ng_temp_alloc -= PAGE_SIZE;
+	return kpti_ng_temp_alloc;
+}
+
+static int __init __kpti_install_ng_mappings(void *__unused)
+{
+	typedef void (kpti_remap_fn)(int, int, phys_addr_t, unsigned long);
+	extern kpti_remap_fn idmap_kpti_install_ng_mappings;
+	kpti_remap_fn *remap_fn;
+
+	int cpu = smp_processor_id();
+	int levels = CONFIG_PGTABLE_LEVELS;
+	int order = order_base_2(levels);
+	u64 kpti_ng_temp_pgd_pa = 0;
+	pgd_t *kpti_ng_temp_pgd;
+	u64 alloc = 0;
+
+	if (levels == 5 && !pgtable_l5_enabled())
+		levels = 4;
+	else if (levels == 4 && !pgtable_l4_enabled())
+		levels = 3;
+
+	remap_fn = (void *)__pa_symbol(idmap_kpti_install_ng_mappings);
+
+	if (!cpu) {
+		alloc = __get_free_pages(GFP_ATOMIC | __GFP_ZERO, order);
+		kpti_ng_temp_pgd = (pgd_t *)(alloc + (levels - 1) * PAGE_SIZE);
+		kpti_ng_temp_alloc = kpti_ng_temp_pgd_pa = __pa(kpti_ng_temp_pgd);
+
+		//
+		// Create a minimal page table hierarchy that permits us to map
+		// the swapper page tables temporarily as we traverse them.
+		//
+		// The physical pages are laid out as follows:
+		//
+		// +--------+-/-------+-/------ +-/------ +-\\\--------+
+		// :  PTE[] : | PMD[] : | PUD[] : | P4D[] : ||| PGD[]  :
+		// +--------+-\-------+-\------ +-\------ +-///--------+
+		//      ^
+		// The first page is mapped into this hierarchy at a PMD_SHIFT
+		// aligned virtual address, so that we can manipulate the PTE
+		// level entries while the mapping is active. The first entry
+		// covers the PTE[] page itself, the remaining entries are free
+		// to be used as a ad-hoc fixmap.
+		//
+		__create_pgd_mapping_locked(kpti_ng_temp_pgd, __pa(alloc),
+					    KPTI_NG_TEMP_VA, PAGE_SIZE, PAGE_KERNEL,
+					    kpti_ng_pgd_alloc, 0);
+	}
+
+	cpu_install_idmap();
+	remap_fn(cpu, num_online_cpus(), kpti_ng_temp_pgd_pa, KPTI_NG_TEMP_VA);
+	cpu_uninstall_idmap();
+
+	if (!cpu) {
+		free_pages(alloc, order);
+		arm64_use_ng_mappings = true;
+	}
+
+	return 0;
+}
+
+void __init kpti_install_ng_mappings(void)
+{
+	/* Check whether KPTI is going to be used */
+	if (!arm64_kernel_unmapped_at_el0())
+		return;
+
+	/*
+	 * We don't need to rewrite the page-tables if either we've done
+	 * it already or we have KASLR enabled and therefore have not
+	 * created any global mappings at all.
+	 */
+	if (arm64_use_ng_mappings)
+		return;
+
+	init_idmap_kpti_bbml2_flag();
+	stop_machine(__kpti_install_ng_mappings, NULL, cpu_online_mask);
+}
+
+static pgprot_t __init kernel_exec_prot(void)
 {
 	return rodata_enabled ? PAGE_KERNEL_ROX : PAGE_KERNEL_EXEC;
 }
