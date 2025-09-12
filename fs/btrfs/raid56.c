@@ -2844,18 +2844,21 @@ void raid56_parity_submit_scrub_rbio(struct btrfs_raid_bio *rbio)
  * This is for scrub call sites where we already have correct data contents.
  * This allows us to avoid reading data stripes again.
  *
- * Unfortunately here we have to do page copy, other than reusing the pages.
+ * Unfortunately here we have to do folio copy, other than reusing the pages.
  * This is due to the fact rbio has its own page management for its cache.
  */
-void raid56_parity_cache_data_pages(struct btrfs_raid_bio *rbio,
-				    struct page **data_pages, u64 data_logical)
+void raid56_parity_cache_data_folios(struct btrfs_raid_bio *rbio,
+				     struct folio **data_folios, u64 data_logical)
 {
+	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
 	const u64 offset_in_full_stripe = data_logical -
 					  rbio->bioc->full_stripe_logical;
-	const int page_index = offset_in_full_stripe >> PAGE_SHIFT;
-	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
-	const u32 sectors_per_page = PAGE_SIZE / sectorsize;
+	unsigned int findex = 0;
+	unsigned int foffset = 0;
 	int ret;
+
+	/* We shouldn't hit RAID56 for bs > ps cases for now. */
+	ASSERT(fs_info->sectorsize <= PAGE_SIZE);
 
 	/*
 	 * If we hit ENOMEM temporarily, but later at
@@ -2873,14 +2876,25 @@ void raid56_parity_cache_data_pages(struct btrfs_raid_bio *rbio,
 	ASSERT(IS_ALIGNED(offset_in_full_stripe, BTRFS_STRIPE_LEN));
 	ASSERT(offset_in_full_stripe < (rbio->nr_data << BTRFS_STRIPE_LEN_SHIFT));
 
-	for (int page_nr = 0; page_nr < (BTRFS_STRIPE_LEN >> PAGE_SHIFT); page_nr++) {
-		struct page *dst = rbio->stripe_pages[page_nr + page_index];
-		struct page *src = data_pages[page_nr];
+	for (unsigned int cur_off = offset_in_full_stripe;
+	     cur_off < offset_in_full_stripe + BTRFS_STRIPE_LEN;
+	     cur_off += PAGE_SIZE) {
+		const unsigned int pindex = cur_off >> PAGE_SHIFT;
+		void *kaddr;
 
-		memcpy_page(dst, 0, src, 0, PAGE_SIZE);
-		for (int sector_nr = sectors_per_page * page_index;
-		     sector_nr < sectors_per_page * (page_index + 1);
-		     sector_nr++)
-			rbio->stripe_sectors[sector_nr].uptodate = true;
+		kaddr = kmap_local_page(rbio->stripe_pages[pindex]);
+		memcpy_from_folio(kaddr, data_folios[findex], foffset, PAGE_SIZE);
+		kunmap_local(kaddr);
+
+		foffset += PAGE_SIZE;
+		ASSERT(foffset <= folio_size(data_folios[findex]));
+		if (foffset == folio_size(data_folios[findex])) {
+			findex++;
+			foffset = 0;
+		}
 	}
+	for (unsigned int sector_nr = offset_in_full_stripe >> fs_info->sectorsize_bits;
+	     sector_nr < (offset_in_full_stripe + BTRFS_STRIPE_LEN) >> fs_info->sectorsize_bits;
+	     sector_nr++)
+		rbio->stripe_sectors[sector_nr].uptodate = true;
 }
