@@ -58,43 +58,32 @@ static int get_silence_period_symbols(const struct intel_crtc_state *crtc_state)
 		1000 / 1000;
 }
 
-static int get_lfps_cycle_min_max_time(const struct intel_crtc_state *crtc_state,
-				       int *min, int *max)
+static void get_lfps_cycle_min_max_time(const struct intel_crtc_state *crtc_state,
+					int *min, int *max)
 {
 	if (crtc_state->port_clock < 540000) {
 		*min = 65 * LFPS_CYCLE_COUNT;
 		*max = 75 * LFPS_CYCLE_COUNT;
-	} else if (crtc_state->port_clock <= 810000) {
+	} else {
 		*min = 140;
 		*max = 800;
-	} else {
-		*min = *max = -1;
-		return -1;
 	}
-
-	return 0;
 }
 
 static int get_lfps_cycle_time(const struct intel_crtc_state *crtc_state)
 {
-	int tlfps_cycle_min, tlfps_cycle_max, ret;
+	int tlfps_cycle_min, tlfps_cycle_max;
 
-	ret = get_lfps_cycle_min_max_time(crtc_state, &tlfps_cycle_min,
-					  &tlfps_cycle_max);
-	if (ret)
-		return ret;
+	get_lfps_cycle_min_max_time(crtc_state, &tlfps_cycle_min,
+				    &tlfps_cycle_max);
 
 	return tlfps_cycle_min +  (tlfps_cycle_max - tlfps_cycle_min) / 2;
 }
 
 static int get_lfps_half_cycle_clocks(const struct intel_crtc_state *crtc_state)
 {
-	int lfps_cycle_time = get_lfps_cycle_time(crtc_state);
-
-	if (lfps_cycle_time < 0)
-		return -1;
-
-	return lfps_cycle_time * crtc_state->port_clock / 1000 / 1000 / (2 * LFPS_CYCLE_COUNT);
+	return get_lfps_cycle_time(crtc_state) * crtc_state->port_clock / 1000 /
+		1000 / (2 * LFPS_CYCLE_COUNT);
 }
 
 /*
@@ -146,8 +135,6 @@ _lnl_compute_aux_less_alpm_params(struct intel_dp *intel_dp,
 	silence_period = get_silence_period_symbols(crtc_state);
 
 	lfps_half_cycle = get_lfps_half_cycle_clocks(crtc_state);
-	if (lfps_half_cycle < 0)
-		return false;
 
 	if (aux_less_wake_lines > ALPM_CTL_AUX_LESS_WAKE_TIME_MASK ||
 	    silence_period > PORT_ALPM_CTL_SILENCE_PERIOD_MASK ||
