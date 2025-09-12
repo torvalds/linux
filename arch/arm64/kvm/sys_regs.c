@@ -1997,6 +1997,26 @@ static u64 sanitise_id_aa64dfr0_el1(const struct kvm_vcpu *vcpu, u64 val)
 	return val;
 }
 
+/*
+ * Older versions of KVM erroneously claim support for FEAT_DoubleLock with
+ * NV-enabled VMs on unsupporting hardware. Silently ignore the incorrect
+ * value if it is consistent with the bug.
+ */
+static bool ignore_feat_doublelock(struct kvm_vcpu *vcpu, u64 val)
+{
+	u8 host, user;
+
+	if (!vcpu_has_nv(vcpu))
+		return false;
+
+	host = SYS_FIELD_GET(ID_AA64DFR0_EL1, DoubleLock,
+			     read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1));
+	user = SYS_FIELD_GET(ID_AA64DFR0_EL1, DoubleLock, val);
+
+	return host == ID_AA64DFR0_EL1_DoubleLock_NI &&
+	       user == ID_AA64DFR0_EL1_DoubleLock_IMP;
+}
+
 static int set_id_aa64dfr0_el1(struct kvm_vcpu *vcpu,
 			       const struct sys_reg_desc *rd,
 			       u64 val)
@@ -2027,6 +2047,11 @@ static int set_id_aa64dfr0_el1(struct kvm_vcpu *vcpu,
 	 */
 	if (debugver < ID_AA64DFR0_EL1_DebugVer_IMP)
 		return -EINVAL;
+
+	if (ignore_feat_doublelock(vcpu, val)) {
+		val &= ~ID_AA64DFR0_EL1_DoubleLock;
+		val |= SYS_FIELD_PREP_ENUM(ID_AA64DFR0_EL1, DoubleLock, NI);
+	}
 
 	return set_id_reg(vcpu, rd, val);
 }

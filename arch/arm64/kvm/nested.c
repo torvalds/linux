@@ -1582,7 +1582,6 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 			 ID_AA64DFR0_EL1_MTPMU		|
 			 ID_AA64DFR0_EL1_TraceBuffer	|
 			 ID_AA64DFR0_EL1_TraceFilt	|
-			 ID_AA64DFR0_EL1_DoubleLock	|
 			 ID_AA64DFR0_EL1_PMSVer		|
 			 ID_AA64DFR0_EL1_CTX_CMPs	|
 			 ID_AA64DFR0_EL1_SEBEP		|
