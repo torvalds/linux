@@ -139,7 +139,7 @@ static int copy_ns_info_to_user(const struct mnt_namespace *mnt_ns,
 	 * the size value will be set to the size the kernel knows about.
 	 */
 	kinfo->size		= min(usize, sizeof(*kinfo));
-	kinfo->mnt_ns_id	= mnt_ns->seq;
+	kinfo->mnt_ns_id	= mnt_ns->ns.ns_id;
 	kinfo->nr_mounts	= READ_ONCE(mnt_ns->nr_mounts);
 	/* Subtract the root mount of the mount namespace. */
 	if (kinfo->nr_mounts)
@@ -221,7 +221,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 
 		mnt_ns = container_of(ns, struct mnt_namespace, ns);
 		idp = (__u64 __user *)arg;
-		id = mnt_ns->seq;
+		id = mnt_ns->ns.ns_id;
 		return put_user(id, idp);
 	}
 	case NS_GET_PID_FROM_PIDNS:
