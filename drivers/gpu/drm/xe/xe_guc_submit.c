@@ -32,6 +32,7 @@
 #include "xe_guc_ct.h"
 #include "xe_guc_exec_queue_types.h"
 #include "xe_guc_id_mgr.h"
+#include "xe_guc_klv_helpers.h"
 #include "xe_guc_submit_types.h"
 #include "xe_hw_engine.h"
 #include "xe_hw_fence.h"
@@ -314,6 +315,71 @@ int xe_guc_submit_init(struct xe_guc *guc, unsigned int num_ids)
 	guc->submission_state.initialized = true;
 
 	return drmm_add_action_or_reset(&xe->drm, guc_submit_fini, guc);
+}
+
+/*
+ * Given that we want to guarantee enough RCS throughput to avoid missing
+ * frames, we set the yield policy to 20% of each 80ms interval.
+ */
+#define RC_YIELD_DURATION	80	/* in ms */
+#define RC_YIELD_RATIO		20	/* in percent */
+static u32 *emit_render_compute_yield_klv(u32 *emit)
+{
+	*emit++ = PREP_GUC_KLV_TAG(SCHEDULING_POLICIES_RENDER_COMPUTE_YIELD);
+	*emit++ = RC_YIELD_DURATION;
+	*emit++ = RC_YIELD_RATIO;
+
+	return emit;
+}
+
+#define SCHEDULING_POLICY_MAX_DWORDS 16
+static int guc_init_global_schedule_policy(struct xe_guc *guc)
+{
+	u32 data[SCHEDULING_POLICY_MAX_DWORDS];
+	u32 *emit = data;
+	u32 count = 0;
+	int ret;
+
+	if (GUC_SUBMIT_VER(guc) < MAKE_GUC_VER(1, 1, 0))
+		return 0;
+
+	*emit++ = XE_GUC_ACTION_UPDATE_SCHEDULING_POLICIES_KLV;
+
+	if (CCS_MASK(guc_to_gt(guc)))
+		emit = emit_render_compute_yield_klv(emit);
+
+	count = emit - data;
+	if (count > 1) {
+		xe_assert(guc_to_xe(guc), count <= SCHEDULING_POLICY_MAX_DWORDS);
+
+		ret = xe_guc_ct_send_block(&guc->ct, data, count);
+		if (ret < 0) {
+			xe_gt_err(guc_to_gt(guc),
+				  "failed to enable GuC sheduling policies: %pe\n",
+				  ERR_PTR(ret));
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+int xe_guc_submit_enable(struct xe_guc *guc)
+{
+	int ret;
+
+	ret = guc_init_global_schedule_policy(guc);
+	if (ret)
+		return ret;
+
+	guc->submission_state.enabled = true;
+
+	return 0;
+}
+
+void xe_guc_submit_disable(struct xe_guc *guc)
+{
+	guc->submission_state.enabled = false;
 }
 
 static void __release_guc_id(struct xe_guc *guc, struct xe_exec_queue *q, u32 xa_count)
@@ -1277,21 +1343,12 @@ rearm:
 	return DRM_GPU_SCHED_STAT_NO_HANG;
 }
 
-static void __guc_exec_queue_fini_async(struct work_struct *w)
+static void guc_exec_queue_fini(struct xe_exec_queue *q)
 {
-	struct xe_guc_exec_queue *ge =
-		container_of(w, struct xe_guc_exec_queue, fini_async);
-	struct xe_exec_queue *q = ge->q;
+	struct xe_guc_exec_queue *ge = q->guc;
 	struct xe_guc *guc = exec_queue_to_guc(q);
 
-	xe_pm_runtime_get(guc_to_xe(guc));
-	trace_xe_exec_queue_destroy(q);
-
 	release_guc_id(guc, q);
-	if (xe_exec_queue_is_lr(q))
-		cancel_work_sync(&ge->lr_tdr);
-	/* Confirm no work left behind accessing device structures */
-	cancel_delayed_work_sync(&ge->sched.base.work_tdr);
 	xe_sched_entity_fini(&ge->entity);
 	xe_sched_fini(&ge->sched);
 
@@ -1300,25 +1357,43 @@ static void __guc_exec_queue_fini_async(struct work_struct *w)
 	 * (timeline name).
 	 */
 	kfree_rcu(ge, rcu);
+}
+
+static void __guc_exec_queue_destroy_async(struct work_struct *w)
+{
+	struct xe_guc_exec_queue *ge =
+		container_of(w, struct xe_guc_exec_queue, destroy_async);
+	struct xe_exec_queue *q = ge->q;
+	struct xe_guc *guc = exec_queue_to_guc(q);
+
+	xe_pm_runtime_get(guc_to_xe(guc));
+	trace_xe_exec_queue_destroy(q);
+
+	if (xe_exec_queue_is_lr(q))
+		cancel_work_sync(&ge->lr_tdr);
+	/* Confirm no work left behind accessing device structures */
+	cancel_delayed_work_sync(&ge->sched.base.work_tdr);
+
 	xe_exec_queue_fini(q);
+
 	xe_pm_runtime_put(guc_to_xe(guc));
 }
 
-static void guc_exec_queue_fini_async(struct xe_exec_queue *q)
+static void guc_exec_queue_destroy_async(struct xe_exec_queue *q)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
 
-	INIT_WORK(&q->guc->fini_async, __guc_exec_queue_fini_async);
+	INIT_WORK(&q->guc->destroy_async, __guc_exec_queue_destroy_async);
 
 	/* We must block on kernel engines so slabs are empty on driver unload */
 	if (q->flags & EXEC_QUEUE_FLAG_PERMANENT || exec_queue_wedged(q))
-		__guc_exec_queue_fini_async(&q->guc->fini_async);
+		__guc_exec_queue_destroy_async(&q->guc->destroy_async);
 	else
-		queue_work(xe->destroy_wq, &q->guc->fini_async);
+		queue_work(xe->destroy_wq, &q->guc->destroy_async);
 }
 
-static void __guc_exec_queue_fini(struct xe_guc *guc, struct xe_exec_queue *q)
+static void __guc_exec_queue_destroy(struct xe_guc *guc, struct xe_exec_queue *q)
 {
 	/*
 	 * Might be done from within the GPU scheduler, need to do async as we
@@ -1327,7 +1402,7 @@ static void __guc_exec_queue_fini(struct xe_guc *guc, struct xe_exec_queue *q)
 	 * this we and don't really care when everything is fini'd, just that it
 	 * is.
 	 */
-	guc_exec_queue_fini_async(q);
+	guc_exec_queue_destroy_async(q);
 }
 
 static void __guc_exec_queue_process_msg_cleanup(struct xe_sched_msg *msg)
@@ -1341,7 +1416,7 @@ static void __guc_exec_queue_process_msg_cleanup(struct xe_sched_msg *msg)
 	if (exec_queue_registered(q))
 		disable_scheduling_deregister(guc, q);
 	else
-		__guc_exec_queue_fini(guc, q);
+		__guc_exec_queue_destroy(guc, q);
 }
 
 static bool guc_exec_queue_allowed_to_change_state(struct xe_exec_queue *q)
@@ -1574,14 +1649,14 @@ static bool guc_exec_queue_try_add_msg(struct xe_exec_queue *q,
 #define STATIC_MSG_CLEANUP	0
 #define STATIC_MSG_SUSPEND	1
 #define STATIC_MSG_RESUME	2
-static void guc_exec_queue_fini(struct xe_exec_queue *q)
+static void guc_exec_queue_destroy(struct xe_exec_queue *q)
 {
 	struct xe_sched_msg *msg = q->guc->static_msgs + STATIC_MSG_CLEANUP;
 
 	if (!(q->flags & EXEC_QUEUE_FLAG_PERMANENT) && !exec_queue_wedged(q))
 		guc_exec_queue_add_msg(q, msg, CLEANUP);
 	else
-		__guc_exec_queue_fini(exec_queue_to_guc(q), q);
+		__guc_exec_queue_destroy(exec_queue_to_guc(q), q);
 }
 
 static int guc_exec_queue_set_priority(struct xe_exec_queue *q,
@@ -1711,6 +1786,7 @@ static const struct xe_exec_queue_ops guc_exec_queue_ops = {
 	.init = guc_exec_queue_init,
 	.kill = guc_exec_queue_kill,
 	.fini = guc_exec_queue_fini,
+	.destroy = guc_exec_queue_destroy,
 	.set_priority = guc_exec_queue_set_priority,
 	.set_timeslice = guc_exec_queue_set_timeslice,
 	.set_preempt_timeout = guc_exec_queue_set_preempt_timeout,
@@ -1732,7 +1808,7 @@ static void guc_exec_queue_stop(struct xe_guc *guc, struct xe_exec_queue *q)
 		if (exec_queue_extra_ref(q) || xe_exec_queue_is_lr(q))
 			xe_exec_queue_put(q);
 		else if (exec_queue_destroyed(q))
-			__guc_exec_queue_fini(guc, q);
+			__guc_exec_queue_destroy(guc, q);
 	}
 	if (q->guc->suspend_pending) {
 		set_exec_queue_suspended(q);
@@ -1989,7 +2065,7 @@ static void handle_deregister_done(struct xe_guc *guc, struct xe_exec_queue *q)
 	if (exec_queue_extra_ref(q) || xe_exec_queue_is_lr(q))
 		xe_exec_queue_put(q);
 	else
-		__guc_exec_queue_fini(guc, q);
+		__guc_exec_queue_destroy(guc, q);
 }
 
 int xe_guc_deregister_done_handler(struct xe_guc *guc, u32 *msg, u32 len)

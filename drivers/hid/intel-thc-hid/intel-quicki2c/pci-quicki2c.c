@@ -997,6 +997,8 @@ static const struct pci_device_id quicki2c_pci_tbl[] = {
 	{ PCI_DEVICE_DATA(INTEL, THC_PTL_H_DEVICE_ID_I2C_PORT2, &ptl_ddata) },
 	{ PCI_DEVICE_DATA(INTEL, THC_PTL_U_DEVICE_ID_I2C_PORT1, &ptl_ddata) },
 	{ PCI_DEVICE_DATA(INTEL, THC_PTL_U_DEVICE_ID_I2C_PORT2, &ptl_ddata) },
+	{ PCI_DEVICE_DATA(INTEL, THC_WCL_DEVICE_ID_I2C_PORT1, &ptl_ddata) },
+	{ PCI_DEVICE_DATA(INTEL, THC_WCL_DEVICE_ID_I2C_PORT2, &ptl_ddata) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, quicki2c_pci_tbl);

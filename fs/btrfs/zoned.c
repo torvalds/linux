@@ -514,6 +514,11 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 
 	if (max_active_zones) {
 		if (nactive > max_active_zones) {
+			if (bdev_max_active_zones(bdev) == 0) {
+				max_active_zones = 0;
+				zone_info->max_active_zones = 0;
+				goto validate;
+			}
 			btrfs_err(device->fs_info,
 			"zoned: %u active zones on %s exceeds max_active_zones %u",
 					 nactive, rcu_dereference(device->name),
@@ -526,6 +531,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 		set_bit(BTRFS_FS_ACTIVE_ZONE_TRACKING, &fs_info->flags);
 	}
 
+validate:
 	/* Validate superblock log */
 	nr_zones = BTRFS_NR_SB_LOG_ZONES;
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {

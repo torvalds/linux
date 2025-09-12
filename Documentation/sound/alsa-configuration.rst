@@ -2293,7 +2293,7 @@ delayed_register
     notice the need.
 skip_validation
     Skip unit descriptor validation (default: no).
-    The option is used to ignores the validation errors with the hexdump
+    The option is used to ignore the validation errors with the hexdump
     of the unit descriptor instead of a driver probe error, so that we
     can check its details.
 quirk_flags

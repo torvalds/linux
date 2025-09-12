@@ -348,6 +348,7 @@ static int kvm_pch_pic_regs_access(struct kvm_device *dev,
 				struct kvm_device_attr *attr,
 				bool is_write)
 {
+	char buf[8];
 	int addr, offset, len = 8, ret = 0;
 	void __user *data;
 	void *p = NULL;
@@ -397,16 +398,22 @@ static int kvm_pch_pic_regs_access(struct kvm_device *dev,
 		return -EINVAL;
 	}
 
-	spin_lock(&s->lock);
-	/* write or read value according to is_write */
 	if (is_write) {
-		if (copy_from_user(p, data, len))
-			ret = -EFAULT;
-	} else {
-		if (copy_to_user(data, p, len))
-			ret = -EFAULT;
+		if (copy_from_user(buf, data, len))
+			return -EFAULT;
 	}
+
+	spin_lock(&s->lock);
+	if (is_write)
+		memcpy(p, buf, len);
+	else
+		memcpy(buf, p, len);
 	spin_unlock(&s->lock);
+
+	if (!is_write) {
+		if (copy_to_user(data, buf, len))
+			return -EFAULT;
+	}
 
 	return ret;
 }

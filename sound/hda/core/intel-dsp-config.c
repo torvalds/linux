@@ -650,6 +650,8 @@ static int snd_intel_dsp_check_soundwire(struct pci_dev *pci)
 	int ret;
 
 	handle = ACPI_HANDLE(&pci->dev);
+	if (!handle)
+		return -ENODEV;
 
 	ret = sdw_intel_acpi_scan(handle, &info);
 	if (ret < 0)
