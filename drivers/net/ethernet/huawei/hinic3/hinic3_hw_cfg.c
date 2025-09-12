@@ -8,6 +8,67 @@
 #include "hinic3_hwif.h"
 #include "hinic3_mbox.h"
 
+#define HINIC3_CFG_MAX_QP  256
+
+static void hinic3_parse_pub_res_cap(struct hinic3_hwdev *hwdev,
+				     struct hinic3_dev_cap *cap,
+				     const struct cfg_cmd_dev_cap *dev_cap,
+				     enum hinic3_func_type type)
+{
+	cap->port_id = dev_cap->port_id;
+	cap->supp_svcs_bitmap = dev_cap->svc_cap_en;
+}
+
+static void hinic3_parse_l2nic_res_cap(struct hinic3_hwdev *hwdev,
+				       struct hinic3_dev_cap *cap,
+				       const struct cfg_cmd_dev_cap *dev_cap,
+				       enum hinic3_func_type type)
+{
+	struct hinic3_nic_service_cap *nic_svc_cap = &cap->nic_svc_cap;
+
+	nic_svc_cap->max_sqs = min(dev_cap->nic_max_sq_id + 1,
+				   HINIC3_CFG_MAX_QP);
+}
+
+static void hinic3_parse_dev_cap(struct hinic3_hwdev *hwdev,
+				 const struct cfg_cmd_dev_cap *dev_cap,
+				 enum hinic3_func_type type)
+{
+	struct hinic3_dev_cap *cap = &hwdev->cfg_mgmt->cap;
+
+	/* Public resource */
+	hinic3_parse_pub_res_cap(hwdev, cap, dev_cap, type);
+
+	/* L2 NIC resource */
+	if (hinic3_support_nic(hwdev))
+		hinic3_parse_l2nic_res_cap(hwdev, cap, dev_cap, type);
+}
+
+static int get_cap_from_fw(struct hinic3_hwdev *hwdev,
+			   enum hinic3_func_type type)
+{
+	struct mgmt_msg_params msg_params = {};
+	struct cfg_cmd_dev_cap dev_cap = {};
+	int err;
+
+	dev_cap.func_id = hinic3_global_func_id(hwdev);
+
+	mgmt_msg_params_init_default(&msg_params, &dev_cap, sizeof(dev_cap));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_CFGM,
+				       CFG_CMD_GET_DEV_CAP, &msg_params);
+	if (err || dev_cap.head.status) {
+		dev_err(hwdev->dev,
+			"Failed to get capability from FW, err: %d, status: 0x%x\n",
+			err, dev_cap.head.status);
+		return -EIO;
+	}
+
+	hinic3_parse_dev_cap(hwdev, &dev_cap, type);
+
+	return 0;
+}
+
 static int hinic3_init_irq_info(struct hinic3_hwdev *hwdev)
 {
 	struct hinic3_cfg_mgmt_info *cfg_mgmt = hwdev->cfg_mgmt;
@@ -151,6 +212,11 @@ void hinic3_free_irq(struct hinic3_hwdev *hwdev, u32 irq_id)
 		}
 	}
 	mutex_unlock(&irq_info->irq_mutex);
+}
+
+int hinic3_init_capability(struct hinic3_hwdev *hwdev)
+{
+	return get_cap_from_fw(hwdev, HINIC3_FUNC_TYPE_VF);
 }
 
 bool hinic3_support_nic(struct hinic3_hwdev *hwdev)

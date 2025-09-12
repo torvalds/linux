@@ -479,6 +479,12 @@ int hinic3_init_hwdev(struct pci_dev *pdev)
 		goto err_free_cfg_mgmt;
 	}
 
+	err = hinic3_init_capability(hwdev);
+	if (err) {
+		dev_err(hwdev->dev, "Failed to init capability\n");
+		goto err_uninit_comm_ch;
+	}
+
 	err = hinic3_set_comm_features(hwdev, hwdev->features,
 				       COMM_MAX_FEATURE_QWORD);
 	if (err) {

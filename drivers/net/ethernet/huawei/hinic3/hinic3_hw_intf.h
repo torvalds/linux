@@ -51,6 +51,48 @@ static inline void mgmt_msg_params_init_default(struct mgmt_msg_params *msg_para
 	msg_params->timeout_ms = 0;
 }
 
+enum cfg_cmd {
+	CFG_CMD_GET_DEV_CAP = 0,
+};
+
+/* Device capabilities, defined by hw */
+struct cfg_cmd_dev_cap {
+	struct mgmt_msg_head head;
+
+	u16                  func_id;
+	u16                  rsvd1;
+
+	/* Public resources */
+	u8                   host_id;
+	u8                   ep_id;
+	u8                   er_id;
+	u8                   port_id;
+
+	u16                  host_total_func;
+	u8                   host_pf_num;
+	u8                   pf_id_start;
+	u16                  host_vf_num;
+	u16                  vf_id_start;
+	u8                   host_oq_id_mask_val;
+	u8                   timer_en;
+	u8                   host_valid_bitmap;
+	u8                   rsvd_host;
+
+	u16                  svc_cap_en;
+	u16                  max_vf;
+	u8                   flexq_en;
+	u8                   valid_cos_bitmap;
+	u8                   port_cos_valid_bitmap;
+	u8                   rsvd2[45];
+
+	/* l2nic */
+	u16                  nic_max_sq_id;
+	u16                  nic_max_rq_id;
+	u16                  nic_default_num_queues;
+
+	u8                   rsvd3[250];
+};
+
 /* COMM Commands between Driver to fw */
 enum comm_cmd {
 	/* Commands for clearing FLR and resources */
