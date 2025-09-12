@@ -146,9 +146,13 @@ int vlv_get_hpll_vco(struct drm_device *drm)
 {
 	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
 
+	vlv_cck_get(drm);
+
 	/* Obtain SKU information */
 	hpll_freq = vlv_cck_read(drm, CCK_FUSE_REG) &
 		CCK_FUSE_HPLL_FREQ_MASK;
+
+	vlv_cck_put(drm);
 
 	return vco_freq[hpll_freq] * 1000;
 }
@@ -175,10 +179,10 @@ int vlv_get_cck_clock_hpll(struct drm_device *drm,
 	struct drm_i915_private *dev_priv = to_i915(drm);
 	int hpll;
 
-	vlv_cck_get(drm);
-
 	if (dev_priv->hpll_freq == 0)
 		dev_priv->hpll_freq = vlv_get_hpll_vco(drm);
+
+	vlv_cck_get(drm);
 
 	hpll = vlv_get_cck_clock(drm, name, reg, dev_priv->hpll_freq);
 
