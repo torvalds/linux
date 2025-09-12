@@ -157,8 +157,8 @@ int vlv_get_hpll_vco(struct drm_device *drm)
 	return vco_freq[hpll_freq] * 1000;
 }
 
-int vlv_get_cck_clock(struct drm_device *drm,
-		      const char *name, u32 reg, int ref_freq)
+static int vlv_get_cck_clock(struct drm_device *drm,
+			     const char *name, u32 reg, int ref_freq)
 {
 	u32 val;
 	int divider;
