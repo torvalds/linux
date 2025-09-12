@@ -179,16 +179,11 @@ static int vlv_get_cck_clock(struct drm_device *drm,
 	return DIV_ROUND_CLOSEST(ref_freq << 1, divider + 1);
 }
 
-static int vlv_get_cck_clock_hpll(struct drm_device *drm,
-				  const char *name, u32 reg)
-{
-	return vlv_get_cck_clock(drm, name, reg, vlv_clock_get_hpll_vco(drm));
-}
-
 int vlv_clock_get_hrawclk(struct drm_device *drm)
 {
 	/* RAWCLK_FREQ_VLV register updated from power well code */
-	return vlv_get_cck_clock_hpll(drm, "hrawclk", CCK_DISPLAY_REF_CLOCK_CONTROL);
+	return vlv_get_cck_clock(drm, "hrawclk", CCK_DISPLAY_REF_CLOCK_CONTROL,
+				 vlv_clock_get_hpll_vco(drm));
 }
 
 int vlv_clock_get_czclk(struct drm_device *drm)
@@ -196,8 +191,8 @@ int vlv_clock_get_czclk(struct drm_device *drm)
 	struct drm_i915_private *i915 = to_i915(drm);
 
 	if (!i915->czclk_freq)
-		i915->czclk_freq = vlv_get_cck_clock_hpll(drm, "czclk",
-							  CCK_CZ_CLOCK_CONTROL);
+		i915->czclk_freq = vlv_get_cck_clock(drm, "czclk", CCK_CZ_CLOCK_CONTROL,
+						     vlv_clock_get_hpll_vco(drm));
 
 	return i915->czclk_freq;
 }
