@@ -229,6 +229,41 @@ int hinic3_update_mac(struct hinic3_hwdev *hwdev, const u8 *old_mac,
 			err, mac_info.msg_head.status);
 		return -EIO;
 	}
+
+	return 0;
+}
+
+int hinic3_set_ci_table(struct hinic3_hwdev *hwdev, struct hinic3_sq_attr *attr)
+{
+	struct l2nic_cmd_set_ci_attr cons_idx_attr = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	cons_idx_attr.func_idx = hinic3_global_func_id(hwdev);
+	cons_idx_attr.dma_attr_off  = attr->dma_attr_off;
+	cons_idx_attr.pending_limit = attr->pending_limit;
+	cons_idx_attr.coalescing_time  = attr->coalescing_time;
+
+	if (attr->intr_en) {
+		cons_idx_attr.intr_en = attr->intr_en;
+		cons_idx_attr.intr_idx = attr->intr_idx;
+	}
+
+	cons_idx_attr.l2nic_sqn = attr->l2nic_sqn;
+	cons_idx_attr.ci_addr = attr->ci_dma_base;
+
+	mgmt_msg_params_init_default(&msg_params, &cons_idx_attr,
+				     sizeof(cons_idx_attr));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_L2NIC,
+				       L2NIC_CMD_SET_SQ_CI_ATTR, &msg_params);
+	if (err || cons_idx_attr.msg_head.status) {
+		dev_err(hwdev->dev,
+			"Failed to set ci attribute table, err: %d, status: 0x%x\n",
+			err, cons_idx_attr.msg_head.status);
+		return -EFAULT;
+	}
+
 	return 0;
 }
 

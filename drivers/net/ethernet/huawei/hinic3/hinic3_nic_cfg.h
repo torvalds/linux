@@ -22,6 +22,16 @@ enum hinic3_nic_event_type {
 	HINIC3_NIC_EVENT_LINK_UP   = 1,
 };
 
+struct hinic3_sq_attr {
+	u8  dma_attr_off;
+	u8  pending_limit;
+	u8  coalescing_time;
+	u8  intr_en;
+	u16 intr_idx;
+	u32 l2nic_sqn;
+	u64 ci_dma_base;
+};
+
 int hinic3_get_nic_feature_from_hw(struct hinic3_nic_dev *nic_dev);
 int hinic3_set_nic_feature_to_hw(struct hinic3_nic_dev *nic_dev);
 bool hinic3_test_support(struct hinic3_nic_dev *nic_dev,
@@ -38,6 +48,8 @@ int hinic3_del_mac(struct hinic3_hwdev *hwdev, const u8 *mac_addr, u16 vlan_id,
 int hinic3_update_mac(struct hinic3_hwdev *hwdev, const u8 *old_mac,
 		      u8 *new_mac, u16 vlan_id, u16 func_id);
 
+int hinic3_set_ci_table(struct hinic3_hwdev *hwdev,
+			struct hinic3_sq_attr *attr);
 int hinic3_force_drop_tx_pkt(struct hinic3_hwdev *hwdev);
 
 #endif

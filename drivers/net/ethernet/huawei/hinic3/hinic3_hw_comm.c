@@ -336,3 +336,91 @@ int hinic3_func_rx_tx_flush(struct hinic3_hwdev *hwdev)
 
 	return ret;
 }
+
+static int get_hw_rx_buf_size_idx(int rx_buf_sz, u16 *buf_sz_idx)
+{
+	/* Supported RX buffer sizes in bytes. Configured by array index. */
+	static const int supported_sizes[16] = {
+		[0] = 32,     [1] = 64,     [2] = 96,     [3] = 128,
+		[4] = 192,    [5] = 256,    [6] = 384,    [7] = 512,
+		[8] = 768,    [9] = 1024,   [10] = 1536,  [11] = 2048,
+		[12] = 3072,  [13] = 4096,  [14] = 8192,  [15] = 16384,
+	};
+	u16 idx;
+
+	/* Scan from biggest to smallest. Choose supported size that is equal or
+	 * smaller. For smaller value HW will under-utilize posted buffers. For
+	 * bigger value HW may overrun posted buffers.
+	 */
+	idx = ARRAY_SIZE(supported_sizes);
+	while (idx > 0) {
+		idx--;
+		if (supported_sizes[idx] <= rx_buf_sz) {
+			*buf_sz_idx = idx;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+int hinic3_set_root_ctxt(struct hinic3_hwdev *hwdev, u32 rq_depth, u32 sq_depth,
+			 int rx_buf_sz)
+{
+	struct comm_cmd_set_root_ctxt root_ctxt = {};
+	struct mgmt_msg_params msg_params = {};
+	u16 buf_sz_idx;
+	int err;
+
+	err = get_hw_rx_buf_size_idx(rx_buf_sz, &buf_sz_idx);
+	if (err)
+		return err;
+
+	root_ctxt.func_id = hinic3_global_func_id(hwdev);
+
+	root_ctxt.set_cmdq_depth = 0;
+	root_ctxt.cmdq_depth = 0;
+
+	root_ctxt.lro_en = 1;
+
+	root_ctxt.rq_depth  = ilog2(rq_depth);
+	root_ctxt.rx_buf_sz = buf_sz_idx;
+	root_ctxt.sq_depth  = ilog2(sq_depth);
+
+	mgmt_msg_params_init_default(&msg_params, &root_ctxt,
+				     sizeof(root_ctxt));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_COMM,
+				       COMM_CMD_SET_VAT, &msg_params);
+	if (err || root_ctxt.head.status) {
+		dev_err(hwdev->dev,
+			"Failed to set root context, err: %d, status: 0x%x\n",
+			err, root_ctxt.head.status);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+int hinic3_clean_root_ctxt(struct hinic3_hwdev *hwdev)
+{
+	struct comm_cmd_set_root_ctxt root_ctxt = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	root_ctxt.func_id = hinic3_global_func_id(hwdev);
+
+	mgmt_msg_params_init_default(&msg_params, &root_ctxt,
+				     sizeof(root_ctxt));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_COMM,
+				       COMM_CMD_SET_VAT, &msg_params);
+	if (err || root_ctxt.head.status) {
+		dev_err(hwdev->dev,
+			"Failed to set root context, err: %d, status: 0x%x\n",
+			err, root_ctxt.head.status);
+		return -EFAULT;
+	}
+
+	return 0;
+}

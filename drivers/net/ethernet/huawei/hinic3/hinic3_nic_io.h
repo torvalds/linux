@@ -139,4 +139,7 @@ void hinic3_init_qps(struct hinic3_nic_dev *nic_dev,
 void hinic3_uninit_qps(struct hinic3_nic_dev *nic_dev,
 		       struct hinic3_dyna_qp_params *qp_params);
 
+int hinic3_init_qp_ctxts(struct hinic3_nic_dev *nic_dev);
+void hinic3_free_qp_ctxts(struct hinic3_nic_dev *nic_dev);
+
 #endif

@@ -221,6 +221,39 @@ static void hinic3_free_channel_resources(struct net_device *netdev,
 	hinic3_free_qps(nic_dev, qp_params);
 }
 
+static int hinic3_open_channel(struct net_device *netdev)
+{
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	int err;
+
+	err = hinic3_init_qp_ctxts(nic_dev);
+	if (err) {
+		netdev_err(netdev, "Failed to init qps\n");
+		return err;
+	}
+
+	err = hinic3_qps_irq_init(netdev);
+	if (err) {
+		netdev_err(netdev, "Failed to init txrxq irq\n");
+		goto err_free_qp_ctxts;
+	}
+
+	return 0;
+
+err_free_qp_ctxts:
+	hinic3_free_qp_ctxts(nic_dev);
+
+	return err;
+}
+
+static void hinic3_close_channel(struct net_device *netdev)
+{
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+
+	hinic3_qps_irq_uninit(netdev);
+	hinic3_free_qp_ctxts(nic_dev);
+}
+
 static int hinic3_open(struct net_device *netdev)
 {
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
@@ -246,7 +279,15 @@ static int hinic3_open(struct net_device *netdev)
 
 	hinic3_init_qps(nic_dev, &qp_params);
 
+	err = hinic3_open_channel(netdev);
+	if (err)
+		goto err_uninit_qps;
+
 	return 0;
+
+err_uninit_qps:
+	hinic3_uninit_qps(nic_dev, &qp_params);
+	hinic3_free_channel_resources(netdev, &qp_params, &nic_dev->q_params);
 
 err_destroy_num_qps:
 	hinic3_destroy_num_qps(netdev);
@@ -261,6 +302,7 @@ static int hinic3_close(struct net_device *netdev)
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
 	struct hinic3_dyna_qp_params qp_params;
 
+	hinic3_close_channel(netdev);
 	hinic3_uninit_qps(nic_dev, &qp_params);
 	hinic3_free_channel_resources(netdev, &qp_params, &nic_dev->q_params);
 

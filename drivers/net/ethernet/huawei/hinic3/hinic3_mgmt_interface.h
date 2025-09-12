@@ -56,6 +56,19 @@ struct l2nic_cmd_update_mac {
 	u8                   new_mac[ETH_ALEN];
 };
 
+struct l2nic_cmd_set_ci_attr {
+	struct mgmt_msg_head msg_head;
+	u16                  func_idx;
+	u8                   dma_attr_off;
+	u8                   pending_limit;
+	u8                   coalescing_time;
+	u8                   intr_en;
+	u16                  intr_idx;
+	u32                  l2nic_sqn;
+	u32                  rsvd;
+	u64                  ci_addr;
+};
+
 struct l2nic_cmd_force_pkt_drop {
 	struct mgmt_msg_head msg_head;
 	u8                   port;
@@ -80,6 +93,13 @@ enum l2nic_cmd {
 	L2NIC_CMD_QOS_DCB_STATE       = 110,
 	L2NIC_CMD_FORCE_PKT_DROP      = 113,
 	L2NIC_CMD_MAX                 = 256,
+};
+
+/* NIC CMDQ MODE */
+enum l2nic_ucode_cmd {
+	L2NIC_UCODE_CMD_MODIFY_QUEUE_CTX  = 0,
+	L2NIC_UCODE_CMD_CLEAN_QUEUE_CTX   = 1,
+	L2NIC_UCODE_CMD_SET_RSS_INDIR_TBL = 4,
 };
 
 enum hinic3_nic_feature_cap {
