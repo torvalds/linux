@@ -54,7 +54,7 @@ static int mlx5_core_func_to_vport(const struct mlx5_core_dev *dev,
 
 /**
  * mlx5_get_default_msix_vec_count - Get the default number of MSI-X vectors
- *                                   to be ssigned to each VF.
+ *                                   to be assigned to each VF.
  * @dev: PF to work on
  * @num_vfs: Number of enabled VFs
  */
