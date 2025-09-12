@@ -245,6 +245,12 @@ struct comm_cmd_set_cmdq_ctxt {
 	struct comm_cmdq_ctxt_info ctxt;
 };
 
+struct comm_cmd_clear_resource {
+	struct mgmt_msg_head head;
+	u16                  func_id;
+	u16                  rsvd1[3];
+};
+
 /* Services supported by HW. HW uses these values when delivering events.
  * HW supports multiple services that are not yet supported by driver
  * (e.g. RoCE).
