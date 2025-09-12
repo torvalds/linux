@@ -4784,7 +4784,6 @@ int ice_init_dev(struct ice_pf *pf)
 
 void ice_deinit_dev(struct ice_pf *pf)
 {
-	ice_deinit_hw(&pf->hw);
 	ice_service_task_stop(pf);
 
 	/* Service task is already stopped, so call reset directly. */
@@ -5466,6 +5465,7 @@ static void ice_remove(struct pci_dev *pdev)
 	ice_set_wake(pf);
 
 	ice_adapter_put(pdev);
+	ice_deinit_hw(&pf->hw);
 
 	ice_deinit_dev(pf);
 	ice_aq_cancel_waiting_tasks(pf);
