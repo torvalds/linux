@@ -207,6 +207,12 @@ int vlv_clock_get_czclk(struct drm_device *drm)
 	return i915->czclk_freq;
 }
 
+int vlv_clock_get_cdclk(struct drm_device *drm)
+{
+	return vlv_get_cck_clock(drm, "cdclk", CCK_DISPLAY_CLOCK_CONTROL,
+				 vlv_get_hpll_vco(drm));
+}
+
 int vlv_clock_get_gpll(struct drm_device *drm)
 {
 	return vlv_get_cck_clock(drm, "GPLL ref", CCK_GPLL_CLOCK_CONTROL,
