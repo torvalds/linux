@@ -58,16 +58,14 @@ new_segment:
 int blk_get_meta_cap(struct block_device *bdev, unsigned int cmd,
 		     struct logical_block_metadata_cap __user *argp)
 {
-	struct blk_integrity *bi = blk_get_integrity(bdev->bd_disk);
+	struct blk_integrity *bi;
 	struct logical_block_metadata_cap meta_cap = {};
 	size_t usize = _IOC_SIZE(cmd);
 
-	if (_IOC_DIR(cmd)  != _IOC_DIR(FS_IOC_GETLBMD_CAP) ||
-	    _IOC_TYPE(cmd) != _IOC_TYPE(FS_IOC_GETLBMD_CAP) ||
-	    _IOC_NR(cmd)   != _IOC_NR(FS_IOC_GETLBMD_CAP) ||
-	    _IOC_SIZE(cmd) < LBMD_SIZE_VER0)
+	if (!extensible_ioctl_valid(cmd, FS_IOC_GETLBMD_CAP, LBMD_SIZE_VER0))
 		return -ENOIOCTLCMD;
 
+	bi = blk_get_integrity(bdev->bd_disk);
 	if (!bi)
 		goto out;
 
