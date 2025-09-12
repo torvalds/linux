@@ -119,7 +119,7 @@
 			"Out Jack", "HPL",
 			"Out Jack", "HPR",
 			"AIN1L", "In Jack",
-			"AIN1L", "In Jack";
+			"AIN1R", "In Jack";
 		status = "okay";
 
 		simple-audio-card,dai-link@0 {
