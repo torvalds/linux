@@ -58,7 +58,7 @@ enum hinic3_tx_offload_type {
 #define SQ_CTRL_QUEUE_INFO_SET(val, member) \
 	FIELD_PREP(SQ_CTRL_QUEUE_INFO_##member##_MASK, val)
 #define SQ_CTRL_QUEUE_INFO_GET(val, member) \
-	FIELD_GET(SQ_CTRL_QUEUE_INFO_##member##_MASK, val)
+	FIELD_GET(SQ_CTRL_QUEUE_INFO_##member##_MASK, le32_to_cpu(val))
 
 #define SQ_CTRL_MAX_PLDOFF  221
 
@@ -77,17 +77,17 @@ enum hinic3_tx_offload_type {
 	FIELD_PREP(SQ_TASK_INFO3_##member##_MASK, val)
 
 struct hinic3_sq_wqe_desc {
-	u32 ctrl_len;
-	u32 queue_info;
-	u32 hi_addr;
-	u32 lo_addr;
+	__le32 ctrl_len;
+	__le32 queue_info;
+	__le32 hi_addr;
+	__le32 lo_addr;
 };
 
 struct hinic3_sq_task {
-	u32 pkt_info0;
-	u32 ip_identify;
-	u32 rsvd;
-	u32 vlan_offload;
+	__le32 pkt_info0;
+	__le32 ip_identify;
+	__le32 rsvd;
+	__le32 vlan_offload;
 };
 
 struct hinic3_sq_wqe_combo {

@@ -66,8 +66,8 @@ static void rq_wqe_buf_set(struct hinic3_io_queue *rq, uint32_t wqe_idx,
 	struct hinic3_rq_wqe *rq_wqe;
 
 	rq_wqe = get_q_element(&rq->wq.qpages, wqe_idx, NULL);
-	rq_wqe->buf_hi_addr = upper_32_bits(dma_addr);
-	rq_wqe->buf_lo_addr = lower_32_bits(dma_addr);
+	rq_wqe->buf_hi_addr = cpu_to_le32(upper_32_bits(dma_addr));
+	rq_wqe->buf_lo_addr = cpu_to_le32(lower_32_bits(dma_addr));
 }
 
 static u32 hinic3_rx_fill_buffers(struct hinic3_rxq *rxq)
@@ -279,7 +279,7 @@ static int recv_one_pkt(struct hinic3_rxq *rxq, struct hinic3_rq_cqe *rx_cqe,
 	if (skb_is_nonlinear(skb))
 		hinic3_pull_tail(skb);
 
-	offload_type = rx_cqe->offload_type;
+	offload_type = le32_to_cpu(rx_cqe->offload_type);
 	hinic3_rx_csum(rxq, offload_type, status, skb);
 
 	num_lro = RQ_CQE_STATUS_GET(status, NUM_LRO);
@@ -311,14 +311,14 @@ int hinic3_rx_poll(struct hinic3_rxq *rxq, int budget)
 	while (likely(nr_pkts < budget)) {
 		sw_ci = rxq->cons_idx & rxq->q_mask;
 		rx_cqe = rxq->cqe_arr + sw_ci;
-		status = rx_cqe->status;
+		status = le32_to_cpu(rx_cqe->status);
 		if (!RQ_CQE_STATUS_GET(status, RXDONE))
 			break;
 
 		/* make sure we read rx_done before packet length */
 		rmb();
 
-		vlan_len = rx_cqe->vlan_len;
+		vlan_len = le32_to_cpu(rx_cqe->vlan_len);
 		pkt_len = RQ_CQE_SGE_GET(vlan_len, LEN);
 		if (recv_one_pkt(rxq, rx_cqe, pkt_len, vlan_len, status))
 			break;

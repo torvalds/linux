@@ -27,21 +27,21 @@
 
 /* RX Completion information that is provided by HW for a specific RX WQE */
 struct hinic3_rq_cqe {
-	u32 status;
-	u32 vlan_len;
-	u32 offload_type;
-	u32 rsvd3;
-	u32 rsvd4;
-	u32 rsvd5;
-	u32 rsvd6;
-	u32 pkt_info;
+	__le32 status;
+	__le32 vlan_len;
+	__le32 offload_type;
+	__le32 rsvd3;
+	__le32 rsvd4;
+	__le32 rsvd5;
+	__le32 rsvd6;
+	__le32 pkt_info;
 };
 
 struct hinic3_rq_wqe {
-	u32 buf_hi_addr;
-	u32 buf_lo_addr;
-	u32 cqe_hi_addr;
-	u32 cqe_lo_addr;
+	__le32 buf_hi_addr;
+	__le32 buf_lo_addr;
+	__le32 cqe_hi_addr;
+	__le32 cqe_lo_addr;
 };
 
 struct hinic3_rx_info {
