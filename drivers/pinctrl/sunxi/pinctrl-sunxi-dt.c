@@ -274,8 +274,7 @@ static void fill_pin_function(struct device *dev, struct device_node *node,
 			if (!strcmp(pins[pin].pin.name, name))
 				break;
 		if (pin == npins) {
-			dev_warn(dev, "%s: cannot find pin %s\n",
-				 of_node_full_name(node), name);
+			dev_warn(dev, "%pOF: cannot find pin %s\n", node, name);
 			index++;
 			continue;
 		}
@@ -283,8 +282,8 @@ static void fill_pin_function(struct device *dev, struct device_node *node,
 		/* Read the associated mux value. */
 		muxval = sunxi_pinctrl_dt_read_pinmux(node, index);
 		if (muxval == INVALID_MUX) {
-			dev_warn(dev, "%s: invalid mux value for pin %s\n",
-				 of_node_full_name(node), name);
+			dev_warn(dev, "%pOF: invalid mux value for pin %s\n",
+				 node, name);
 			index++;
 			continue;
 		}
