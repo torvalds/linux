@@ -240,6 +240,16 @@ config NVMEM_NINTENDO_OTP
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-nintendo-otp.
 
+config NVMEM_S32G_OCOTP
+	tristate "S32G SoC OCOTP support"
+	depends on ARCH_S32
+	help
+	  This is a driver for the 'OCOTP' peripheral available on S32G
+	  platforms.
+
+	  If you say Y here, you will get support for the One Time
+	  Programmable memory pages.
+
 config NVMEM_QCOM_QFPROM
 	tristate "QCOM QFPROM Support"
 	depends on ARCH_QCOM || COMPILE_TEST
