@@ -1527,7 +1527,6 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 		val &= ~(ID_AA64MMFR1_EL1_CMOW		|
 			 ID_AA64MMFR1_EL1_TIDCP1	|
 			 ID_AA64MMFR1_EL1_nTLBPA	|
-			 ID_AA64MMFR1_EL1_AFP		|
 			 ID_AA64MMFR1_EL1_ETS		|
 			 ID_AA64MMFR1_EL1_TWED		|
 			 ID_AA64MMFR1_EL1_XNX		|
