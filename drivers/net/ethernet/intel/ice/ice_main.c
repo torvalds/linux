@@ -4043,8 +4043,6 @@ void ice_start_service_task(struct ice_pf *pf)
  */
 static int ice_init_pf(struct ice_pf *pf)
 {
-	ice_set_pf_caps(pf);
-
 	mutex_init(&pf->sw_mutex);
 	mutex_init(&pf->tc_mutex);
 	mutex_init(&pf->adev_mutex);
@@ -4746,11 +4744,18 @@ int ice_init_dev(struct ice_pf *pf)
 		ice_set_safe_mode_caps(hw);
 	}
 
+	ice_set_pf_caps(pf);
+	err = ice_init_interrupt_scheme(pf);
+	if (err) {
+		dev_err(dev, "ice_init_interrupt_scheme failed: %d\n", err);
+		return -EIO;
+	}
+
 	ice_start_service_task(pf);
 	err = ice_init_pf(pf);
 	if (err) {
 		dev_err(dev, "ice_init_pf failed: %d\n", err);
-		return err;
+		goto unroll_irq_scheme_init;
 	}
 
 	pf->hw.udp_tunnel_nic.set_port = ice_udp_tunnel_set_port;
@@ -4768,14 +4773,6 @@ int ice_init_dev(struct ice_pf *pf)
 		pf->hw.udp_tunnel_nic.tables[1].tunnel_types =
 			UDP_TUNNEL_TYPE_GENEVE;
 	}
-
-	err = ice_init_interrupt_scheme(pf);
-	if (err) {
-		dev_err(dev, "ice_init_interrupt_scheme failed: %d\n", err);
-		err = -EIO;
-		goto unroll_pf_init;
-	}
-
 	/* In case of MSIX we are going to setup the misc vector right here
 	 * to handle admin queue events etc. In case of legacy and MSI
 	 * the misc functionality and queue processing is combined in
@@ -4784,16 +4781,16 @@ int ice_init_dev(struct ice_pf *pf)
 	err = ice_req_irq_msix_misc(pf);
 	if (err) {
 		dev_err(dev, "setup of misc vector failed: %d\n", err);
-		goto unroll_irq_scheme_init;
+		goto unroll_pf_init;
 	}
 
 	return 0;
 
-unroll_irq_scheme_init:
-	ice_clear_interrupt_scheme(pf);
 unroll_pf_init:
 	ice_deinit_pf(pf);
+unroll_irq_scheme_init:
 	ice_service_task_stop(pf);
+	ice_clear_interrupt_scheme(pf);
 	return err;
 }
 
