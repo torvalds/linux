@@ -75,6 +75,21 @@ struct l2nic_cmd_force_pkt_drop {
 	u8                   rsvd1[3];
 };
 
+struct l2nic_cmd_set_dcb_state {
+	struct mgmt_msg_head head;
+	u16                  func_id;
+	/* 0 - get dcb state, 1 - set dcb state */
+	u8                   op_code;
+	/* 0 - disable, 1 - enable dcb */
+	u8                   state;
+	/* 0 - disable, 1 - enable dcb */
+	u8                   port_state;
+	u8                   rsvd[7];
+};
+
+/* IEEE 802.1Qaz std */
+#define L2NIC_DCB_COS_MAX     0x8
+
 /* Commands between NIC to fw */
 enum l2nic_cmd {
 	/* FUNC CFG */

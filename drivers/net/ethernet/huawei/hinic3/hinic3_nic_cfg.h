@@ -52,4 +52,6 @@ int hinic3_set_ci_table(struct hinic3_hwdev *hwdev,
 			struct hinic3_sq_attr *attr);
 int hinic3_force_drop_tx_pkt(struct hinic3_hwdev *hwdev);
 
+int hinic3_sync_dcb_state(struct hinic3_hwdev *hwdev, u8 op_code, u8 state);
+
 #endif

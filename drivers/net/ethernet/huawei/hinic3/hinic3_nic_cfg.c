@@ -289,3 +289,28 @@ int hinic3_force_drop_tx_pkt(struct hinic3_hwdev *hwdev)
 
 	return pkt_drop.msg_head.status;
 }
+
+int hinic3_sync_dcb_state(struct hinic3_hwdev *hwdev, u8 op_code, u8 state)
+{
+	struct l2nic_cmd_set_dcb_state dcb_state = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	dcb_state.op_code = op_code;
+	dcb_state.state = state;
+	dcb_state.func_id = hinic3_global_func_id(hwdev);
+
+	mgmt_msg_params_init_default(&msg_params, &dcb_state,
+				     sizeof(dcb_state));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_L2NIC,
+				       L2NIC_CMD_QOS_DCB_STATE, &msg_params);
+	if (err || dcb_state.head.status) {
+		dev_err(hwdev->dev,
+			"Failed to set dcb state, err: %d, status: 0x%x\n",
+			err, dcb_state.head.status);
+		return -EFAULT;
+	}
+
+	return 0;
+}

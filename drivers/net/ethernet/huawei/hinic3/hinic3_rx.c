@@ -85,6 +85,27 @@ static int rx_alloc_mapped_page(struct page_pool *page_pool,
 	return 0;
 }
 
+/* Associate fixed completion element to every wqe in the rq. Every rq wqe will
+ * always post completion to the same place.
+ */
+static void rq_associate_cqes(struct hinic3_rxq *rxq)
+{
+	struct hinic3_queue_pages *qpages;
+	struct hinic3_rq_wqe *rq_wqe;
+	dma_addr_t cqe_dma;
+	u32 i;
+
+	qpages = &rxq->rq->wq.qpages;
+
+	for (i = 0; i < rxq->q_depth; i++) {
+		rq_wqe = get_q_element(qpages, i, NULL);
+		cqe_dma = rxq->cqe_start_paddr +
+			  i * sizeof(struct hinic3_rq_cqe);
+		rq_wqe->cqe_hi_addr = cpu_to_le32(upper_32_bits(cqe_dma));
+		rq_wqe->cqe_lo_addr = cpu_to_le32(lower_32_bits(cqe_dma));
+	}
+}
+
 static void rq_wqe_buf_set(struct hinic3_io_queue *rq, uint32_t wqe_idx,
 			   dma_addr_t dma_addr, u16 len)
 {
@@ -443,6 +464,49 @@ void hinic3_free_rxqs_res(struct net_device *netdev, u16 num_rq,
 				  rqres->cqe_start_paddr);
 		kfree(rqres->rx_info);
 	}
+}
+
+int hinic3_configure_rxqs(struct net_device *netdev, u16 num_rq,
+			  u32 rq_depth, struct hinic3_dyna_rxq_res *rxqs_res)
+{
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic3_dyna_rxq_res *rqres;
+	struct msix_entry *msix_entry;
+	struct hinic3_rxq *rxq;
+	u16 q_id;
+	u32 pkts;
+
+	for (q_id = 0; q_id < num_rq; q_id++) {
+		rxq = &nic_dev->rxqs[q_id];
+		rqres = &rxqs_res[q_id];
+		msix_entry = &nic_dev->qps_msix_entries[q_id];
+
+		rxq->irq_id = msix_entry->vector;
+		rxq->msix_entry_idx = msix_entry->entry;
+		rxq->next_to_update = 0;
+		rxq->next_to_alloc = rqres->next_to_alloc;
+		rxq->q_depth = rq_depth;
+		rxq->delta = rxq->q_depth;
+		rxq->q_mask = rxq->q_depth - 1;
+		rxq->cons_idx = 0;
+
+		rxq->cqe_arr = rqres->cqe_start_vaddr;
+		rxq->cqe_start_paddr = rqres->cqe_start_paddr;
+		rxq->rx_info = rqres->rx_info;
+		rxq->page_pool = rqres->page_pool;
+
+		rxq->rq = &nic_dev->nic_io->rq[rxq->q_id];
+
+		rq_associate_cqes(rxq);
+
+		pkts = hinic3_rx_fill_buffers(rxq);
+		if (!pkts) {
+			netdev_err(netdev, "Failed to fill Rx buffer\n");
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
 }
 
 int hinic3_rx_poll(struct hinic3_rxq *rxq, int budget)

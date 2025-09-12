@@ -702,6 +702,38 @@ void hinic3_free_txqs_res(struct net_device *netdev, u16 num_sq,
 	}
 }
 
+int hinic3_configure_txqs(struct net_device *netdev, u16 num_sq,
+			  u32 sq_depth, struct hinic3_dyna_txq_res *txqs_res)
+{
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic3_dyna_txq_res *tqres;
+	struct hinic3_txq *txq;
+	u16 q_id;
+	u32 idx;
+
+	for (q_id = 0; q_id < num_sq; q_id++) {
+		txq = &nic_dev->txqs[q_id];
+		tqres = &txqs_res[q_id];
+
+		txq->q_depth = sq_depth;
+		txq->q_mask = sq_depth - 1;
+
+		txq->tx_stop_thrs = min(HINIC3_DEFAULT_STOP_THRS,
+					sq_depth / 20);
+		txq->tx_start_thrs = min(HINIC3_DEFAULT_START_THRS,
+					 sq_depth / 10);
+
+		txq->tx_info = tqres->tx_info;
+		for (idx = 0; idx < sq_depth; idx++)
+			txq->tx_info[idx].dma_info =
+				&tqres->bds[idx * HINIC3_BDS_PER_SQ_WQEBB];
+
+		txq->sq = &nic_dev->nic_io->sq[q_id];
+	}
+
+	return 0;
+}
+
 bool hinic3_tx_poll(struct hinic3_txq *txq, int budget)
 {
 	struct net_device *netdev = txq->netdev;
