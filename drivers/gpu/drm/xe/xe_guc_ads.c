@@ -339,7 +339,7 @@ static void guc_waklv_init(struct xe_guc_ads *ads)
 	if (XE_GT_WA(gt, 13011645652)) {
 		u32 data = 0xC40;
 
-		guc_waklv_enable(ads, &data, sizeof(data) / sizeof(u32), &offset, &remain,
+		guc_waklv_enable(ads, &data, 1, &offset, &remain,
 				 GUC_WA_KLV_NP_RD_WRITE_TO_CLEAR_RCSM_AT_CGP_LATE_RESTORE);
 	}
 
@@ -355,7 +355,7 @@ static void guc_waklv_init(struct xe_guc_ads *ads)
 			0x0,
 			0xF,
 		};
-		guc_waklv_enable(ads, data, sizeof(data) / sizeof(u32), &offset, &remain,
+		guc_waklv_enable(ads, data, ARRAY_SIZE(data), &offset, &remain,
 				 GUC_WA_KLV_RESTORE_UNSAVED_MEDIA_CONTROL_REG);
 	}
 
