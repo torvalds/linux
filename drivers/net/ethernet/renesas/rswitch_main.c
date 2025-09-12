@@ -2090,8 +2090,7 @@ static int rswitch_init(struct rswitch_private *priv)
 	if (err < 0)
 		goto err_fwd_init;
 
-	err = rcar_gen4_ptp_register(priv->ptp_priv, RCAR_GEN4_PTP_REG_LAYOUT,
-				     clk_get_rate(priv->clk));
+	err = rcar_gen4_ptp_register(priv->ptp_priv, clk_get_rate(priv->clk));
 	if (err < 0)
 		goto err_ptp_register;
 
