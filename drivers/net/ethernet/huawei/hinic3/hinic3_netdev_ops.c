@@ -8,6 +8,7 @@
 #include "hinic3_nic_cfg.h"
 #include "hinic3_nic_dev.h"
 #include "hinic3_nic_io.h"
+#include "hinic3_rss.h"
 #include "hinic3_rx.h"
 #include "hinic3_tx.h"
 
@@ -222,7 +223,23 @@ static int hinic3_configure(struct net_device *netdev)
 	/* Ensure DCB is disabled */
 	hinic3_sync_dcb_state(nic_dev->hwdev, 1, 0);
 
+	if (test_bit(HINIC3_RSS_ENABLE, &nic_dev->flags)) {
+		err = hinic3_rss_init(netdev);
+		if (err) {
+			netdev_err(netdev, "Failed to init rss\n");
+			return err;
+		}
+	}
+
 	return 0;
+}
+
+static void hinic3_remove_configure(struct net_device *netdev)
+{
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+
+	if (test_bit(HINIC3_RSS_ENABLE, &nic_dev->flags))
+		hinic3_rss_uninit(netdev);
 }
 
 static int hinic3_alloc_channel_resources(struct net_device *netdev,
@@ -305,6 +322,7 @@ static void hinic3_close_channel(struct net_device *netdev)
 {
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
 
+	hinic3_remove_configure(netdev);
 	hinic3_qps_irq_uninit(netdev);
 	hinic3_free_qp_ctxts(nic_dev);
 }

@@ -19,6 +19,7 @@ hinic3-objs := hinic3_cmdq.o \
 	       hinic3_nic_cfg.o \
 	       hinic3_nic_io.o \
 	       hinic3_queue_common.o \
+	       hinic3_rss.o \
 	       hinic3_rx.o \
 	       hinic3_tx.o \
 	       hinic3_wq.o

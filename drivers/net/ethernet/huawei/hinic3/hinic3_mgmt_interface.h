@@ -87,8 +87,58 @@ struct l2nic_cmd_set_dcb_state {
 	u8                   rsvd[7];
 };
 
+#define L2NIC_RSS_TYPE_VALID_MASK         BIT(23)
+#define L2NIC_RSS_TYPE_TCP_IPV6_EXT_MASK  BIT(24)
+#define L2NIC_RSS_TYPE_IPV6_EXT_MASK      BIT(25)
+#define L2NIC_RSS_TYPE_TCP_IPV6_MASK      BIT(26)
+#define L2NIC_RSS_TYPE_IPV6_MASK          BIT(27)
+#define L2NIC_RSS_TYPE_TCP_IPV4_MASK      BIT(28)
+#define L2NIC_RSS_TYPE_IPV4_MASK          BIT(29)
+#define L2NIC_RSS_TYPE_UDP_IPV6_MASK      BIT(30)
+#define L2NIC_RSS_TYPE_UDP_IPV4_MASK      BIT(31)
+#define L2NIC_RSS_TYPE_SET(val, member)  \
+	FIELD_PREP(L2NIC_RSS_TYPE_##member##_MASK, val)
+#define L2NIC_RSS_TYPE_GET(val, member)  \
+	FIELD_GET(L2NIC_RSS_TYPE_##member##_MASK, val)
+
+#define L2NIC_RSS_INDIR_SIZE  256
+#define L2NIC_RSS_KEY_SIZE    40
+
 /* IEEE 802.1Qaz std */
 #define L2NIC_DCB_COS_MAX     0x8
+
+struct l2nic_cmd_set_rss_ctx_tbl {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u16                  rsvd1;
+	u32                  context;
+};
+
+struct l2nic_cmd_cfg_rss_engine {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u8                   opcode;
+	u8                   hash_engine;
+	u8                   rsvd1[4];
+};
+
+struct l2nic_cmd_cfg_rss_hash_key {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u8                   opcode;
+	u8                   rsvd1;
+	u8                   key[L2NIC_RSS_KEY_SIZE];
+};
+
+struct l2nic_cmd_cfg_rss {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u8                   rss_en;
+	u8                   rq_priority_number;
+	u8                   prio_tc[L2NIC_DCB_COS_MAX];
+	u16                  num_qps;
+	u16                  rsvd1;
+};
 
 /* Commands between NIC to fw */
 enum l2nic_cmd {
@@ -108,6 +158,11 @@ enum l2nic_cmd {
 	L2NIC_CMD_QOS_DCB_STATE       = 110,
 	L2NIC_CMD_FORCE_PKT_DROP      = 113,
 	L2NIC_CMD_MAX                 = 256,
+};
+
+struct l2nic_cmd_rss_set_indir_tbl {
+	__le32 rsvd[4];
+	__le16 entry[L2NIC_RSS_INDIR_SIZE];
 };
 
 /* NIC CMDQ MODE */
