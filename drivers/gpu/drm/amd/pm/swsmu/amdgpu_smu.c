@@ -1925,7 +1925,6 @@ static int smu_hw_init(struct amdgpu_ip_block *ip_block)
 		for (i = 0; i < adev->vcn.num_vcn_inst; i++)
 			smu_dpm_set_vcn_enable(smu, true, i);
 		smu_dpm_set_jpeg_enable(smu, true);
-		smu_dpm_set_vpe_enable(smu, true);
 		smu_dpm_set_umsch_mm_enable(smu, true);
 		smu_set_mall_enable(smu);
 		smu_set_gfx_cgpg(smu, true);
@@ -2133,7 +2132,6 @@ static int smu_hw_fini(struct amdgpu_ip_block *ip_block)
 	}
 	smu_dpm_set_jpeg_enable(smu, false);
 	adev->jpeg.cur_state = AMD_PG_STATE_GATE;
-	smu_dpm_set_vpe_enable(smu, false);
 	smu_dpm_set_umsch_mm_enable(smu, false);
 
 	if (!smu->pm_enabled)
