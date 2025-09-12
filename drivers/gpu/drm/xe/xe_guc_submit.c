@@ -355,7 +355,7 @@ static int guc_init_global_schedule_policy(struct xe_guc *guc)
 		ret = xe_guc_ct_send_block(&guc->ct, data, count);
 		if (ret < 0) {
 			xe_gt_err(guc_to_gt(guc),
-				  "failed to enable GuC sheduling policies: %pe\n",
+				  "failed to enable GuC scheduling policies: %pe\n",
 				  ERR_PTR(ret));
 			return ret;
 		}
