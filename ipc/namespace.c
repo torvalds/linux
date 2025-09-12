@@ -15,6 +15,7 @@
 #include <linux/mount.h>
 #include <linux/user_namespace.h>
 #include <linux/proc_ns.h>
+#include <linux/nstree.h>
 #include <linux/sched/task.h>
 
 #include "util.h"
@@ -85,6 +86,7 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 
 	sem_init_ns(ns);
 	shm_init_ns(ns);
+	ns_tree_add(ns);
 
 	return ns;
 
@@ -201,6 +203,7 @@ void put_ipc_ns(struct ipc_namespace *ns)
 		mq_clear_sbinfo(ns);
 		spin_unlock(&mq_lock);
 
+		ns_tree_remove(ns);
 		if (llist_add(&ns->mnt_llist, &free_ipc_list))
 			schedule_work(&free_ipc_work);
 	}
