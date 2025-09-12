@@ -122,7 +122,10 @@ int qcomtee_objref_to_arg(struct qcomtee_arg *arg, struct tee_param *param,
 		err =  qcomtee_user_param_to_object(&arg->o, param, ctx);
 	/* param is a QTEE object: */
 	else if (param->u.objref.flags & QCOMTEE_OBJREF_FLAG_TEE)
-		err =  qcomtee_context_find_qtee_object(&arg->o, param, ctx);
+		err = qcomtee_context_find_qtee_object(&arg->o, param, ctx);
+	/* param is a memory object: */
+	else if (param->u.objref.flags & QCOMTEE_OBJREF_FLAG_MEM)
+		err = qcomtee_memobj_param_to_object(&arg->o, param, ctx);
 
 	/*
 	 * For callback objects, call qcomtee_object_get() to keep a temporary
@@ -168,6 +171,10 @@ int qcomtee_objref_from_arg(struct tee_param *param, struct qcomtee_arg *arg,
 		if (is_qcomtee_user_object(object))
 			return qcomtee_user_param_from_object(param, object,
 							      ctx);
+		/* object is a memory object: */
+		else if (is_qcomtee_memobj_object(object))
+			return qcomtee_memobj_param_from_object(param, object,
+							       ctx);
 
 		break;
 	case QCOMTEE_OBJECT_TYPE_TEE:
