@@ -872,8 +872,6 @@ static int do_server(struct memory_buffer *mem)
 		goto err_reset_rss;
 	}
 
-	sleep(1);
-
 	if (bind_rx_queue(ifindex, mem->fd, create_queues(), num_queues, &ys)) {
 		pr_err("Failed to bind");
 		goto err_reset_flow_steering;
