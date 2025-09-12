@@ -41,6 +41,7 @@
  * @edl_trigger: capable of triggering EDL mode in the device (if supported)
  * @bar_num: PCI base address register to use for MHI MMIO register space
  * @dma_data_width: DMA transfer word size (32 or 64 bits)
+ * @vf_dma_data_width: DMA transfer word size for VF's (optional)
  * @mru_default: default MRU size for MBIM network packets
  * @sideband_wake: Devices using dedicated sideband GPIO for wakeup instead
  *		   of inband wake support (such as sdx24)
@@ -56,6 +57,7 @@ struct mhi_pci_dev_info {
 	bool edl_trigger;
 	unsigned int bar_num;
 	unsigned int dma_data_width;
+	unsigned int vf_dma_data_width;
 	unsigned int mru_default;
 	bool sideband_wake;
 	bool no_m3;
@@ -300,6 +302,7 @@ static const struct mhi_pci_dev_info mhi_qcom_qdu100_info = {
 	.config = &mhi_qcom_qdu100_config,
 	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
 	.dma_data_width = 32,
+	.vf_dma_data_width = 40,
 	.sideband_wake = false,
 	.no_m3 = true,
 	.reset_on_remove = true,
@@ -1300,6 +1303,7 @@ static int mhi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	const struct mhi_controller_config *mhi_cntrl_config;
 	struct mhi_pci_device *mhi_pdev;
 	struct mhi_controller *mhi_cntrl;
+	unsigned int dma_data_width;
 	int err;
 
 	dev_info(&pdev->dev, "MHI PCI device found: %s\n", info->name);
@@ -1322,9 +1326,12 @@ static int mhi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mhi_cntrl = &mhi_pdev->mhi_cntrl;
 
+	dma_data_width = (pdev->is_virtfn && info->vf_dma_data_width) ?
+			  info->vf_dma_data_width : info->dma_data_width;
+
 	mhi_cntrl->cntrl_dev = &pdev->dev;
 	mhi_cntrl->iova_start = 0;
-	mhi_cntrl->iova_stop = (dma_addr_t)DMA_BIT_MASK(info->dma_data_width);
+	mhi_cntrl->iova_stop = (dma_addr_t)DMA_BIT_MASK(dma_data_width);
 	mhi_cntrl->fw_image = info->fw;
 	mhi_cntrl->edl_image = info->edl;
 
@@ -1348,7 +1355,7 @@ static int mhi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		mhi_cntrl->wake_toggle = mhi_pci_wake_toggle_nop;
 	}
 
-	err = mhi_pci_claim(mhi_cntrl, info->bar_num, DMA_BIT_MASK(info->dma_data_width));
+	err = mhi_pci_claim(mhi_cntrl, info->bar_num, DMA_BIT_MASK(dma_data_width));
 	if (err)
 		return err;
 
