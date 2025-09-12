@@ -19,6 +19,7 @@
 #include <linux/init_syscalls.h>
 #include <linux/umh.h>
 #include <linux/security.h>
+#include <linux/overflow.h>
 
 #include "do_mounts.h"
 #include "initramfs_internal.h"
@@ -152,7 +153,7 @@ static void __init dir_add(const char *name, size_t nlen, time64_t mtime)
 {
 	struct dir_entry *de;
 
-	de = kmalloc(sizeof(struct dir_entry) + nlen, GFP_KERNEL);
+	de = kmalloc(struct_size(de, name, nlen), GFP_KERNEL);
 	if (!de)
 		panic_show_mem("can't allocate dir_entry buffer");
 	INIT_LIST_HEAD(&de->list);
