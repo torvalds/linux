@@ -144,6 +144,18 @@ static int init_hwif_attr(struct hinic3_hwdev *hwdev)
 
 	set_hwif_attr(&hwif->attr, attr0, attr1, attr2, attr3, attr6);
 
+	if (!hwif->attr.num_ceqs) {
+		dev_err(hwdev->dev, "Ceq num cfg in fw is zero\n");
+		return -EFAULT;
+	}
+
+	if (!hwif->attr.num_irqs) {
+		dev_err(hwdev->dev,
+			"Irq num cfg in fw is zero, msix_flex_en %d\n",
+			hwif->attr.msix_flex_en);
+		return -EFAULT;
+	}
+
 	return 0;
 }
 
