@@ -116,6 +116,7 @@ err_unmap_page:
 	}
 	dma_unmap_single(&pdev->dev, dma_info[0].dma, dma_info[0].len,
 			 DMA_TO_DEVICE);
+
 	return err;
 }
 
@@ -601,6 +602,7 @@ netdev_tx_t hinic3_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 err_drop_pkt:
 	dev_kfree_skb_any(skb);
+
 	return NETDEV_TX_OK;
 }
 

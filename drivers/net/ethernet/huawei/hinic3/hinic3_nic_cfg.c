@@ -112,6 +112,7 @@ int hinic3_set_port_mtu(struct net_device *netdev, u16 new_mtu)
 	struct hinic3_hwdev *hwdev = nic_dev->hwdev;
 
 	func_tbl_cfg.mtu = new_mtu;
+
 	return hinic3_set_function_table(hwdev, BIT(L2NIC_FUNC_TBL_CFG_MTU),
 					 &func_tbl_cfg);
 }
