@@ -3,6 +3,7 @@
 #define _LINUX_NS_COMMON_H
 
 #include <linux/refcount.h>
+#include <linux/rbtree.h>
 
 struct proc_ns_operations;
 
@@ -20,6 +21,14 @@ struct ns_common {
 	const struct proc_ns_operations *ops;
 	unsigned int inum;
 	refcount_t count;
+	union {
+		struct {
+			u64 ns_id;
+			struct rb_node ns_tree_node;
+			struct list_head ns_list_node;
+		};
+		struct rcu_head ns_rcu;
+	};
 };
 
 #define to_ns_common(__ns)                              \

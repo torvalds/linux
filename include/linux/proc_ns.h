@@ -79,6 +79,9 @@ static inline int ns_common_init(struct ns_common *ns,
 	refcount_set(&ns->count, 1);
 	ns->stashed = NULL;
 	ns->ops = ops;
+	ns->ns_id = 0;
+	RB_CLEAR_NODE(&ns->ns_tree_node);
+	INIT_LIST_HEAD(&ns->ns_list_node);
 	return 0;
 }
 
