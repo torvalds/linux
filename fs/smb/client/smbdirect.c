@@ -23,9 +23,6 @@ const struct smbdirect_socket_parameters *smbd_get_parameters(struct smbd_connec
 	return &sc->parameters;
 }
 
-static int allocate_receive_buffers(struct smbdirect_socket *sc, int num_buf);
-static void destroy_receive_buffers(struct smbdirect_socket *sc);
-
 static int smbd_post_send(struct smbdirect_socket *sc,
 			  struct smbdirect_send_batch *batch,
 			  struct smbdirect_send_io *request);
@@ -1473,44 +1470,6 @@ static int smbd_negotiate(struct smbdirect_socket *sc)
 	return rc;
 }
 
-/* Preallocate all receive buffer on transport establishment */
-static int allocate_receive_buffers(struct smbdirect_socket *sc, int num_buf)
-{
-	struct smbdirect_recv_io *response;
-	int i;
-
-	for (i = 0; i < num_buf; i++) {
-		response = mempool_alloc(sc->recv_io.mem.pool, GFP_KERNEL);
-		if (!response)
-			goto allocate_failed;
-
-		response->socket = sc;
-		response->sge.length = 0;
-		list_add_tail(&response->list, &sc->recv_io.free.list);
-	}
-
-	return 0;
-
-allocate_failed:
-	while (!list_empty(&sc->recv_io.free.list)) {
-		response = list_first_entry(
-				&sc->recv_io.free.list,
-				struct smbdirect_recv_io, list);
-		list_del(&response->list);
-
-		mempool_free(response, sc->recv_io.mem.pool);
-	}
-	return -ENOMEM;
-}
-
-static void destroy_receive_buffers(struct smbdirect_socket *sc)
-{
-	struct smbdirect_recv_io *response;
-
-	while ((response = smbdirect_connection_get_recv_io(sc)))
-		mempool_free(response, sc->recv_io.mem.pool);
-}
-
 static void send_immediate_empty_message(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
@@ -1591,9 +1550,6 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	} while (response);
 	sc->recv_io.reassembly.data_length = 0;
 
-	log_rdma_event(INFO, "free receive buffers\n");
-	destroy_receive_buffers(sc);
-
 	log_rdma_event(INFO, "freeing mr list\n");
 	destroy_mr_list(sc);
 
@@ -1603,11 +1559,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	rdma_destroy_id(sc->rdma.cm_id);
 
 	/* free mempools */
-	mempool_destroy(sc->send_io.mem.pool);
-	kmem_cache_destroy(sc->send_io.mem.cache);
-
-	mempool_destroy(sc->recv_io.mem.pool);
-	kmem_cache_destroy(sc->recv_io.mem.cache);
+	smbdirect_connection_destroy_mem_pools(sc);
 
 	sc->status = SMBDIRECT_SOCKET_DESTROYED;
 
@@ -1651,81 +1603,6 @@ create_conn:
 	}
 	trace_smb3_smbd_connect_err(server->hostname, server->conn_id, &server->dstaddr);
 	return -ENOENT;
-}
-
-static void destroy_caches(struct smbdirect_socket *sc)
-{
-	destroy_receive_buffers(sc);
-	mempool_destroy(sc->recv_io.mem.pool);
-	kmem_cache_destroy(sc->recv_io.mem.cache);
-	mempool_destroy(sc->send_io.mem.pool);
-	kmem_cache_destroy(sc->send_io.mem.cache);
-}
-
-#define MAX_NAME_LEN	80
-static int allocate_caches(struct smbdirect_socket *sc)
-{
-	struct smbdirect_socket_parameters *sp = &sc->parameters;
-	char name[MAX_NAME_LEN];
-	int rc;
-
-	if (WARN_ON_ONCE(sp->max_recv_size < sizeof(struct smbdirect_data_transfer)))
-		return -ENOMEM;
-
-	scnprintf(name, MAX_NAME_LEN, "smbdirect_send_io_%p", sc);
-	sc->send_io.mem.cache =
-		kmem_cache_create(
-			name,
-			sizeof(struct smbdirect_send_io) +
-				sizeof(struct smbdirect_data_transfer),
-			0, SLAB_HWCACHE_ALIGN, NULL);
-	if (!sc->send_io.mem.cache)
-		return -ENOMEM;
-
-	sc->send_io.mem.pool =
-		mempool_create(sp->send_credit_target, mempool_alloc_slab,
-			mempool_free_slab, sc->send_io.mem.cache);
-	if (!sc->send_io.mem.pool)
-		goto out1;
-
-	scnprintf(name, MAX_NAME_LEN, "smbdirect_recv_io_%p", sc);
-
-	struct kmem_cache_args response_args = {
-		.align		= __alignof__(struct smbdirect_recv_io),
-		.useroffset	= (offsetof(struct smbdirect_recv_io, packet) +
-				   sizeof(struct smbdirect_data_transfer)),
-		.usersize	= sp->max_recv_size - sizeof(struct smbdirect_data_transfer),
-	};
-	sc->recv_io.mem.cache =
-		kmem_cache_create(name,
-				  sizeof(struct smbdirect_recv_io) + sp->max_recv_size,
-				  &response_args, SLAB_HWCACHE_ALIGN);
-	if (!sc->recv_io.mem.cache)
-		goto out2;
-
-	sc->recv_io.mem.pool =
-		mempool_create(sp->recv_credit_max, mempool_alloc_slab,
-		       mempool_free_slab, sc->recv_io.mem.cache);
-	if (!sc->recv_io.mem.pool)
-		goto out3;
-
-	rc = allocate_receive_buffers(sc, sp->recv_credit_max);
-	if (rc) {
-		log_rdma_event(ERR, "failed to allocate receive buffers\n");
-		goto out4;
-	}
-
-	return 0;
-
-out4:
-	mempool_destroy(sc->recv_io.mem.pool);
-out3:
-	kmem_cache_destroy(sc->recv_io.mem.cache);
-out2:
-	mempool_destroy(sc->send_io.mem.pool);
-out1:
-	kmem_cache_destroy(sc->send_io.mem.cache);
-	return -ENOMEM;
 }
 
 /* Create a SMBD connection, called by upper layer */
@@ -1919,7 +1796,7 @@ static struct smbd_connection *_smbd_get_connection(
 
 	log_rdma_event(INFO, "rdma_connect connected\n");
 
-	rc = allocate_caches(sc);
+	rc = smbdirect_connection_create_mem_pools(sc);
 	if (rc) {
 		log_rdma_event(ERR, "cache allocation failed\n");
 		goto allocate_cache_failed;
@@ -1958,7 +1835,7 @@ allocate_mr_failed:
 
 negotiation_failed:
 	disable_delayed_work_sync(&sc->idle.timer_work);
-	destroy_caches(sc);
+	smbdirect_connection_destroy_mem_pools(sc);
 	sc->status = SMBDIRECT_SOCKET_NEGOTIATE_FAILED;
 	rdma_disconnect(sc->rdma.cm_id);
 	wait_event(sc->status_wait,
