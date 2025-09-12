@@ -121,6 +121,14 @@ acpi_tb_print_table_header(acpi_physical_address address,
 			   ACPI_CAST_PTR(struct acpi_table_rsdp,
 					 header)->revision,
 			   local_header.oem_id));
+	} else if (acpi_gbl_CDAT && !acpi_ut_valid_nameseg(header->signature)) {
+
+		/* CDAT does not use the common ACPI table header */
+
+		ACPI_INFO(("%-4.4s 0x%8.8X%8.8X %06X",
+			   ACPI_SIG_CDAT, ACPI_FORMAT_UINT64(address),
+			   ACPI_CAST_PTR(struct acpi_table_cdat,
+					 header)->length));
 	} else {
 		/* Standard ACPI table with full common header */
 
