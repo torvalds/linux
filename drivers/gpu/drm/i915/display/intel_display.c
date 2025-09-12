@@ -190,9 +190,11 @@ int vlv_clock_get_czclk(struct drm_device *drm)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 
-	if (!i915->czclk_freq)
+	if (!i915->czclk_freq) {
 		i915->czclk_freq = vlv_get_cck_clock(drm, "czclk", CCK_CZ_CLOCK_CONTROL,
 						     vlv_clock_get_hpll_vco(drm));
+		drm_dbg_kms(drm, "CZ clock rate: %d kHz\n", i915->czclk_freq);
+	}
 
 	return i915->czclk_freq;
 }
@@ -207,18 +209,6 @@ int vlv_clock_get_gpll(struct drm_device *drm)
 {
 	return vlv_get_cck_clock(drm, "GPLL ref", CCK_GPLL_CLOCK_CONTROL,
 				 vlv_clock_get_czclk(drm));
-}
-
-void intel_update_czclk(struct intel_display *display)
-{
-	int czclk_freq;
-
-	if (!display->platform.valleyview && !display->platform.cherryview)
-		return;
-
-	czclk_freq = vlv_clock_get_czclk(display->drm);
-
-	drm_dbg_kms(display->drm, "CZ clock rate: %d kHz\n", czclk_freq);
 }
 
 static bool is_hdr_mode(const struct intel_crtc_state *crtc_state)
