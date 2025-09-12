@@ -13,6 +13,12 @@
 #include <linux/nsfs.h>
 #include <linux/uaccess.h>
 #include <linux/mnt_namespace.h>
+#include <linux/ipc_namespace.h>
+#include <linux/time_namespace.h>
+#include <linux/utsname.h>
+#include <linux/exportfs.h>
+#include <linux/nstree.h>
+#include <net/net_namespace.h>
 
 #include "mount.h"
 #include "internal.h"
@@ -417,12 +423,164 @@ static const struct stashed_operations nsfs_stashed_ops = {
 	.put_data = nsfs_put_data,
 };
 
+#define NSFS_FID_SIZE_U32_VER0 (NSFS_FILE_HANDLE_SIZE_VER0 / sizeof(u32))
+#define NSFS_FID_SIZE_U32_LATEST (NSFS_FILE_HANDLE_SIZE_LATEST / sizeof(u32))
+
+static int nsfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
+			  struct inode *parent)
+{
+	struct nsfs_file_handle *fid = (struct nsfs_file_handle *)fh;
+	struct ns_common *ns = inode->i_private;
+	int len = *max_len;
+
+	if (parent)
+		return FILEID_INVALID;
+
+	if (len < NSFS_FID_SIZE_U32_VER0) {
+		*max_len = NSFS_FID_SIZE_U32_LATEST;
+		return FILEID_INVALID;
+	} else if (len > NSFS_FID_SIZE_U32_LATEST) {
+		*max_len = NSFS_FID_SIZE_U32_LATEST;
+	}
+
+	fid->ns_id	= ns->ns_id;
+	fid->ns_type	= ns->ops->type;
+	fid->ns_inum	= inode->i_ino;
+	return FILEID_NSFS;
+}
+
+static struct dentry *nsfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
+					int fh_len, int fh_type)
+{
+	struct path path __free(path_put) = {};
+	struct nsfs_file_handle *fid = (struct nsfs_file_handle *)fh;
+	struct user_namespace *owning_ns = NULL;
+	struct ns_common *ns;
+	int ret;
+
+	if (fh_len < NSFS_FID_SIZE_U32_VER0)
+		return NULL;
+
+	/* Check that any trailing bytes are zero. */
+	if ((fh_len > NSFS_FID_SIZE_U32_LATEST) &&
+	    memchr_inv((void *)fid + NSFS_FID_SIZE_U32_LATEST, 0,
+		       fh_len - NSFS_FID_SIZE_U32_LATEST))
+		return NULL;
+
+	switch (fh_type) {
+	case FILEID_NSFS:
+		break;
+	default:
+		return NULL;
+	}
+
+	scoped_guard(rcu) {
+		ns = ns_tree_lookup_rcu(fid->ns_id, fid->ns_type);
+		if (!ns)
+			return NULL;
+
+		VFS_WARN_ON_ONCE(ns->ns_id != fid->ns_id);
+		VFS_WARN_ON_ONCE(ns->ops->type != fid->ns_type);
+		VFS_WARN_ON_ONCE(ns->inum != fid->ns_inum);
+
+		if (!refcount_inc_not_zero(&ns->count))
+			return NULL;
+	}
+
+	switch (ns->ops->type) {
+#ifdef CONFIG_CGROUPS
+	case CLONE_NEWCGROUP:
+		if (!current_in_namespace(to_cg_ns(ns)))
+			owning_ns = to_cg_ns(ns)->user_ns;
+		break;
+#endif
+#ifdef CONFIG_IPC_NS
+	case CLONE_NEWIPC:
+		if (!current_in_namespace(to_ipc_ns(ns)))
+			owning_ns = to_ipc_ns(ns)->user_ns;
+		break;
+#endif
+	case CLONE_NEWNS:
+		if (!current_in_namespace(to_mnt_ns(ns)))
+			owning_ns = to_mnt_ns(ns)->user_ns;
+		break;
+#ifdef CONFIG_NET_NS
+	case CLONE_NEWNET:
+		if (!current_in_namespace(to_net_ns(ns)))
+			owning_ns = to_net_ns(ns)->user_ns;
+		break;
+#endif
+#ifdef CONFIG_PID_NS
+	case CLONE_NEWPID:
+		if (!current_in_namespace(to_pid_ns(ns))) {
+			owning_ns = to_pid_ns(ns)->user_ns;
+		} else if (!READ_ONCE(to_pid_ns(ns)->child_reaper)) {
+			ns->ops->put(ns);
+			return ERR_PTR(-EPERM);
+		}
+		break;
+#endif
+#ifdef CONFIG_TIME_NS
+	case CLONE_NEWTIME:
+		if (!current_in_namespace(to_time_ns(ns)))
+			owning_ns = to_time_ns(ns)->user_ns;
+		break;
+#endif
+#ifdef CONFIG_USER_NS
+	case CLONE_NEWUSER:
+		if (!current_in_namespace(to_user_ns(ns)))
+			owning_ns = to_user_ns(ns);
+		break;
+#endif
+#ifdef CONFIG_UTS_NS
+	case CLONE_NEWUTS:
+		if (!current_in_namespace(to_uts_ns(ns)))
+			owning_ns = to_uts_ns(ns)->user_ns;
+		break;
+#endif
+	default:
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
+	if (owning_ns && !ns_capable(owning_ns, CAP_SYS_ADMIN)) {
+		ns->ops->put(ns);
+		return ERR_PTR(-EPERM);
+	}
+
+	/* path_from_stashed() unconditionally consumes the reference. */
+	ret = path_from_stashed(&ns->stashed, nsfs_mnt, ns, &path);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return no_free_ptr(path.dentry);
+}
+
+static int nsfs_export_permission(struct handle_to_path_ctx *ctx,
+				   unsigned int oflags)
+{
+	/* nsfs_fh_to_dentry() performs all permission checks. */
+	return 0;
+}
+
+static struct file *nsfs_export_open(struct path *path, unsigned int oflags)
+{
+	return file_open_root(path, "", oflags, 0);
+}
+
+static const struct export_operations nsfs_export_operations = {
+	.encode_fh	= nsfs_encode_fh,
+	.fh_to_dentry	= nsfs_fh_to_dentry,
+	.open		= nsfs_export_open,
+	.permission	= nsfs_export_permission,
+};
+
 static int nsfs_init_fs_context(struct fs_context *fc)
 {
 	struct pseudo_fs_context *ctx = init_pseudo(fc, NSFS_MAGIC);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->ops = &nsfs_ops;
+	ctx->eops = &nsfs_export_operations;
 	ctx->dops = &ns_dentry_operations;
 	fc->s_fs_info = (void *)&nsfs_stashed_ops;
 	return 0;

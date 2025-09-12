@@ -53,4 +53,13 @@ enum init_ns_ino {
 	MNT_NS_INIT_INO		= 0xEFFFFFF8U,
 };
 
+struct nsfs_file_handle {
+	__u64 ns_id;
+	__u32 ns_type;
+	__u32 ns_inum;
+};
+
+#define NSFS_FILE_HANDLE_SIZE_VER0 16 /* sizeof first published struct */
+#define NSFS_FILE_HANDLE_SIZE_LATEST sizeof(struct nsfs_file_handle) /* sizeof latest published struct */
+
 #endif /* __LINUX_NSFS_H */
