@@ -21,20 +21,16 @@ static void dec_cgroup_namespaces(struct ucounts *ucounts)
 
 static struct cgroup_namespace *alloc_cgroup_ns(void)
 {
-	struct cgroup_namespace *new_ns;
+	struct cgroup_namespace *new_ns __free(kfree) = NULL;
 	int ret;
 
 	new_ns = kzalloc(sizeof(struct cgroup_namespace), GFP_KERNEL_ACCOUNT);
 	if (!new_ns)
 		return ERR_PTR(-ENOMEM);
-	ret = ns_alloc_inum(&new_ns->ns);
-	if (ret) {
-		kfree(new_ns);
+	ret = ns_common_init(&new_ns->ns, &cgroupns_operations, true);
+	if (ret)
 		return ERR_PTR(ret);
-	}
-	refcount_set(&new_ns->ns.count, 1);
-	new_ns->ns.ops = &cgroupns_operations;
-	return new_ns;
+	return no_free_ptr(new_ns);
 }
 
 void free_cgroup_ns(struct cgroup_namespace *ns)
