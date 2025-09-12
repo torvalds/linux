@@ -59,6 +59,7 @@
 #include <linux/sched/cputime.h>
 #include <linux/sched/deadline.h>
 #include <linux/psi.h>
+#include <linux/nstree.h>
 #include <net/sock.h>
 
 #define CREATE_TRACE_POINTS
@@ -6312,6 +6313,7 @@ int __init cgroup_init(void)
 	WARN_ON(register_filesystem(&cpuset_fs_type));
 #endif
 
+	ns_tree_add(&init_cgroup_ns);
 	return 0;
 }
 

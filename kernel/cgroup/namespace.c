@@ -5,7 +5,7 @@
 #include <linux/slab.h>
 #include <linux/nsproxy.h>
 #include <linux/proc_ns.h>
-
+#include <linux/nstree.h>
 
 /* cgroup namespaces */
 
@@ -30,16 +30,19 @@ static struct cgroup_namespace *alloc_cgroup_ns(void)
 	ret = ns_common_init(&new_ns->ns, &cgroupns_operations, true);
 	if (ret)
 		return ERR_PTR(ret);
+	ns_tree_add(new_ns);
 	return no_free_ptr(new_ns);
 }
 
 void free_cgroup_ns(struct cgroup_namespace *ns)
 {
+	ns_tree_remove(ns);
 	put_css_set(ns->root_cset);
 	dec_cgroup_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
 	ns_free_inum(&ns->ns);
-	kfree(ns);
+	/* Concurrent nstree traversal depends on a grace period. */
+	kfree_rcu(ns, ns.ns_rcu);
 }
 EXPORT_SYMBOL(free_cgroup_ns);
 
