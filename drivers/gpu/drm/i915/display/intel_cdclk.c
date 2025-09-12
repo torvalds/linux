@@ -3561,13 +3561,6 @@ static int pch_rawclk(struct intel_display *display)
 	return (intel_de_read(display, PCH_RAWCLK_FREQ) & RAWCLK_FREQ_MASK) * 1000;
 }
 
-static int vlv_hrawclk(struct intel_display *display)
-{
-	/* RAWCLK_FREQ_VLV register updated from power well code */
-	return vlv_get_cck_clock_hpll(display->drm, "hrawclk",
-				      CCK_DISPLAY_REF_CLOCK_CONTROL);
-}
-
 static int i9xx_hrawclk(struct intel_display *display)
 {
 	struct drm_i915_private *i915 = to_i915(display->drm);
@@ -3601,7 +3594,7 @@ u32 intel_read_rawclk(struct intel_display *display)
 	else if (HAS_PCH_SPLIT(display))
 		freq = pch_rawclk(display);
 	else if (display->platform.valleyview || display->platform.cherryview)
-		freq = vlv_hrawclk(display);
+		freq = vlv_clock_get_hrawclk(display->drm);
 	else if (DISPLAY_VER(display) >= 3)
 		freq = i9xx_hrawclk(display);
 	else
