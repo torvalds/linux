@@ -98,6 +98,11 @@ enum comm_func_reset_bits {
 	COMM_FUNC_RESET_BIT_NIC          = BIT(13),
 };
 
+#define COMM_FUNC_RESET_FLAG \
+	(COMM_FUNC_RESET_BIT_COMM | COMM_FUNC_RESET_BIT_COMM_CMD_CH | \
+	 COMM_FUNC_RESET_BIT_FLUSH | COMM_FUNC_RESET_BIT_MQM | \
+	 COMM_FUNC_RESET_BIT_SMF | COMM_FUNC_RESET_BIT_PF_BW_CFG)
+
 struct comm_cmd_func_reset {
 	struct mgmt_msg_head head;
 	u16                  func_id;
@@ -114,6 +119,46 @@ struct comm_cmd_feature_nego {
 	u64                  s_feature[COMM_MAX_FEATURE_QWORD];
 };
 
+struct comm_global_attr {
+	u8  max_host_num;
+	u8  max_pf_num;
+	u16 vf_id_start;
+	/* for api cmd to mgmt cpu */
+	u8  mgmt_host_node_id;
+	u8  cmdq_num;
+	u8  rsvd1[34];
+};
+
+struct comm_cmd_get_glb_attr {
+	struct mgmt_msg_head    head;
+	struct comm_global_attr attr;
+};
+
+enum comm_func_svc_type {
+	COMM_FUNC_SVC_T_COMM = 0,
+	COMM_FUNC_SVC_T_NIC  = 1,
+};
+
+struct comm_cmd_set_func_svc_used_state {
+	struct mgmt_msg_head head;
+	u16                  func_id;
+	u16                  svc_type;
+	u8                   used_state;
+	u8                   rsvd[35];
+};
+
+struct comm_cmd_set_dma_attr {
+	struct mgmt_msg_head head;
+	u16                  func_id;
+	u8                   entry_idx;
+	u8                   st;
+	u8                   at;
+	u8                   ph;
+	u8                   no_snooping;
+	u8                   tph_en;
+	u32                  resv1;
+};
+
 struct comm_cmd_set_ceq_ctrl_reg {
 	struct mgmt_msg_head head;
 	u16                  func_id;
@@ -121,6 +166,28 @@ struct comm_cmd_set_ceq_ctrl_reg {
 	u32                  ctrl0;
 	u32                  ctrl1;
 	u32                  rsvd1;
+};
+
+struct comm_cmd_cfg_wq_page_size {
+	struct mgmt_msg_head head;
+	u16                  func_id;
+	u8                   opcode;
+	/* real_size=4KB*2^page_size, range(0~20) must be checked by driver */
+	u8                   page_size;
+	u32                  rsvd1;
+};
+
+struct comm_cmd_set_root_ctxt {
+	struct mgmt_msg_head head;
+	u16                  func_id;
+	u8                   set_cmdq_depth;
+	u8                   cmdq_depth;
+	u16                  rx_buf_sz;
+	u8                   lro_en;
+	u8                   rsvd1;
+	u16                  sq_depth;
+	u16                  rq_depth;
+	u64                  rsvd2;
 };
 
 struct comm_cmdq_ctxt_info {
