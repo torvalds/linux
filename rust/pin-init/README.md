@@ -6,6 +6,18 @@
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Rust-for-Linux/pin-init/test.yml)
 # `pin-init`
 
+> [!NOTE]
+> 
+> This crate was originally named [`pinned-init`], but the migration to
+> `pin-init` is not yet complete. The `legcay` branch contains the current
+> version of the `pinned-init` crate & the `main` branch already incorporates
+> the rename to `pin-init`.
+>
+> There are still some changes needed on the kernel side before the migration
+> can be completed.
+
+[`pinned-init`]: https://crates.io/crates/pinned-init
+
 <!-- cargo-rdme start -->
 
 Library to safely and fallibly initialize pinned `struct`s using in-place constructors.
