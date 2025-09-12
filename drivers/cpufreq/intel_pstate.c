@@ -2542,7 +2542,7 @@ static inline bool intel_pstate_sample(struct cpudata *cpu, u64 time)
 	 * that sample.time will always be reset before setting the utilization
 	 * update hook and make the caller skip the sample then.
 	 */
-	if (cpu->last_sample_time) {
+	if (likely(cpu->last_sample_time)) {
 		intel_pstate_calc_avg_perf(cpu);
 		return true;
 	}
