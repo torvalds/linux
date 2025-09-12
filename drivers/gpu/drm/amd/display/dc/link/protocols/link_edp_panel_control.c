@@ -1373,6 +1373,7 @@ bool edp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_co
 	cmd.pr_copy_settings.data.line_time_in_ns = replay_context->line_time_in_ns;
 	cmd.pr_copy_settings.data.flags.bitfields.fec_enable_status = (link->fec_state == dc_link_fec_enabled);
 	cmd.pr_copy_settings.data.flags.bitfields.dsc_enable_status = (pipe_ctx->stream->timing.flags.DSC == 1);
+	cmd.pr_copy_settings.data.debug.u32All = link->replay_settings.config.debug_flags;
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	return true;
