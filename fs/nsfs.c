@@ -25,6 +25,14 @@
 
 static struct vfsmount *nsfs_mnt;
 
+static struct path nsfs_root_path = {};
+
+void nsfs_get_root(struct path *path)
+{
+	*path = nsfs_root_path;
+	path_get(path);
+}
+
 static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg);
 static const struct file_operations ns_file_operations = {
@@ -598,4 +606,6 @@ void __init nsfs_init(void)
 	if (IS_ERR(nsfs_mnt))
 		panic("can't set nsfs up\n");
 	nsfs_mnt->mnt_sb->s_flags &= ~SB_NOUSER;
+	nsfs_root_path.mnt = nsfs_mnt;
+	nsfs_root_path.dentry = nsfs_mnt->mnt_root;
 }
