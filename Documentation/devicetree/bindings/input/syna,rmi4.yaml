@@ -89,6 +89,24 @@ properties:
     required:
       - reg
 
+  rmi4-f1a@1a:
+    type: object
+    additionalProperties: false
+    $ref: input.yaml#
+    description:
+      RMI4 Function 1A is for capacitive keys.
+
+    properties:
+      reg:
+        maxItems: 1
+
+      linux,keycodes:
+        minItems: 1
+        maxItems: 4
+
+    required:
+      - reg
+
 patternProperties:
   "^rmi4-f1[12]@1[12]$":
     type: object
@@ -201,6 +219,7 @@ allOf:
 
 examples:
   - |
+    #include <dt-bindings/input/linux-event-codes.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
     i2c {
@@ -234,6 +253,7 @@ examples:
 
             rmi4-f1a@1a {
                 reg = <0x1a>;
+                linux,keycodes = <KEY_BACK KEY_HOME KEY_MENU>;
             };
         };
     };
