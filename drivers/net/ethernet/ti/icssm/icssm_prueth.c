@@ -29,6 +29,314 @@
 #include <net/pkt_cls.h>
 
 #include "icssm_prueth.h"
+#include "../icssg/icssg_mii_rt.h"
+
+#define OCMC_RAM_SIZE		(SZ_64K)
+
+#define TX_START_DELAY		0x40
+#define TX_CLK_DELAY_100M	0x6
+
+/* Below macro is for 1528 Byte Frame support, to Allow even with
+ * Redundancy tag
+ */
+#define PRUSS_MII_RT_RX_FRMS_MAX_SUPPORT_EMAC  (VLAN_ETH_FRAME_LEN + \
+						ETH_FCS_LEN + \
+						ICSSM_LRE_TAG_SIZE)
+
+/* ensure that order of PRUSS mem regions is same as enum prueth_mem */
+static enum pruss_mem pruss_mem_ids[] = { PRUSS_MEM_DRAM0, PRUSS_MEM_DRAM1,
+					  PRUSS_MEM_SHRD_RAM2 };
+
+static const struct prueth_queue_info queue_infos[][NUM_QUEUES] = {
+	[PRUETH_PORT_QUEUE_HOST] = {
+		[PRUETH_QUEUE1] = {
+			P0_Q1_BUFFER_OFFSET,
+			HOST_QUEUE_DESC_OFFSET,
+			P0_Q1_BD_OFFSET,
+			P0_Q1_BD_OFFSET + ((HOST_QUEUE_1_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE2] = {
+			P0_Q2_BUFFER_OFFSET,
+			HOST_QUEUE_DESC_OFFSET + 8,
+			P0_Q2_BD_OFFSET,
+			P0_Q2_BD_OFFSET + ((HOST_QUEUE_2_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE3] = {
+			P0_Q3_BUFFER_OFFSET,
+			HOST_QUEUE_DESC_OFFSET + 16,
+			P0_Q3_BD_OFFSET,
+			P0_Q3_BD_OFFSET + ((HOST_QUEUE_3_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE4] = {
+			P0_Q4_BUFFER_OFFSET,
+			HOST_QUEUE_DESC_OFFSET + 24,
+			P0_Q4_BD_OFFSET,
+			P0_Q4_BD_OFFSET + ((HOST_QUEUE_4_SIZE - 1) * BD_SIZE),
+		},
+	},
+	[PRUETH_PORT_QUEUE_MII0] = {
+		[PRUETH_QUEUE1] = {
+			P1_Q1_BUFFER_OFFSET,
+			P1_Q1_BUFFER_OFFSET + ((QUEUE_1_SIZE - 1) *
+					ICSS_BLOCK_SIZE),
+			P1_Q1_BD_OFFSET,
+			P1_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE2] = {
+			P1_Q2_BUFFER_OFFSET,
+			P1_Q2_BUFFER_OFFSET + ((QUEUE_2_SIZE - 1) *
+					ICSS_BLOCK_SIZE),
+			P1_Q2_BD_OFFSET,
+			P1_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE3] = {
+			P1_Q3_BUFFER_OFFSET,
+			P1_Q3_BUFFER_OFFSET + ((QUEUE_3_SIZE - 1) *
+					ICSS_BLOCK_SIZE),
+			P1_Q3_BD_OFFSET,
+			P1_Q3_BD_OFFSET + ((QUEUE_3_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE4] = {
+			P1_Q4_BUFFER_OFFSET,
+			P1_Q4_BUFFER_OFFSET + ((QUEUE_4_SIZE - 1) *
+					ICSS_BLOCK_SIZE),
+			P1_Q4_BD_OFFSET,
+			P1_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
+		},
+	},
+	[PRUETH_PORT_QUEUE_MII1] = {
+		[PRUETH_QUEUE1] = {
+			P2_Q1_BUFFER_OFFSET,
+			P2_Q1_BUFFER_OFFSET + ((QUEUE_1_SIZE - 1) *
+					ICSS_BLOCK_SIZE),
+			P2_Q1_BD_OFFSET,
+			P2_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE2] = {
+			P2_Q2_BUFFER_OFFSET,
+			P2_Q2_BUFFER_OFFSET + ((QUEUE_2_SIZE - 1) *
+					ICSS_BLOCK_SIZE),
+			P2_Q2_BD_OFFSET,
+			P2_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE3] = {
+			P2_Q3_BUFFER_OFFSET,
+			P2_Q3_BUFFER_OFFSET + ((QUEUE_3_SIZE - 1) *
+					ICSS_BLOCK_SIZE),
+			P2_Q3_BD_OFFSET,
+			P2_Q3_BD_OFFSET + ((QUEUE_3_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE4] = {
+			P2_Q4_BUFFER_OFFSET,
+			P2_Q4_BUFFER_OFFSET + ((QUEUE_4_SIZE - 1) *
+					ICSS_BLOCK_SIZE),
+			P2_Q4_BD_OFFSET,
+			P2_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
+		},
+	},
+};
+
+static const struct prueth_queue_desc queue_descs[][NUM_QUEUES] = {
+	[PRUETH_PORT_QUEUE_HOST] = {
+		{ .rd_ptr = P0_Q1_BD_OFFSET, .wr_ptr = P0_Q1_BD_OFFSET, },
+		{ .rd_ptr = P0_Q2_BD_OFFSET, .wr_ptr = P0_Q2_BD_OFFSET, },
+		{ .rd_ptr = P0_Q3_BD_OFFSET, .wr_ptr = P0_Q3_BD_OFFSET, },
+		{ .rd_ptr = P0_Q4_BD_OFFSET, .wr_ptr = P0_Q4_BD_OFFSET, },
+	},
+	[PRUETH_PORT_QUEUE_MII0] = {
+		{ .rd_ptr = P1_Q1_BD_OFFSET, .wr_ptr = P1_Q1_BD_OFFSET, },
+		{ .rd_ptr = P1_Q2_BD_OFFSET, .wr_ptr = P1_Q2_BD_OFFSET, },
+		{ .rd_ptr = P1_Q3_BD_OFFSET, .wr_ptr = P1_Q3_BD_OFFSET, },
+		{ .rd_ptr = P1_Q4_BD_OFFSET, .wr_ptr = P1_Q4_BD_OFFSET, },
+	},
+	[PRUETH_PORT_QUEUE_MII1] = {
+		{ .rd_ptr = P2_Q1_BD_OFFSET, .wr_ptr = P2_Q1_BD_OFFSET, },
+		{ .rd_ptr = P2_Q2_BD_OFFSET, .wr_ptr = P2_Q2_BD_OFFSET, },
+		{ .rd_ptr = P2_Q3_BD_OFFSET, .wr_ptr = P2_Q3_BD_OFFSET, },
+		{ .rd_ptr = P2_Q4_BD_OFFSET, .wr_ptr = P2_Q4_BD_OFFSET, },
+	}
+};
+
+static void icssm_prueth_hostconfig(struct prueth *prueth)
+{
+	void __iomem *sram_base = prueth->mem[PRUETH_MEM_SHARED_RAM].va;
+	void __iomem *sram;
+
+	/* queue size lookup table */
+	sram = sram_base + HOST_QUEUE_SIZE_ADDR;
+	writew(HOST_QUEUE_1_SIZE, sram);
+	writew(HOST_QUEUE_2_SIZE, sram + 2);
+	writew(HOST_QUEUE_3_SIZE, sram + 4);
+	writew(HOST_QUEUE_4_SIZE, sram + 6);
+
+	/* queue information table */
+	sram = sram_base + HOST_Q1_RX_CONTEXT_OFFSET;
+	memcpy_toio(sram, queue_infos[PRUETH_PORT_QUEUE_HOST],
+		    sizeof(queue_infos[PRUETH_PORT_QUEUE_HOST]));
+
+	/* buffer offset table */
+	sram = sram_base + HOST_QUEUE_OFFSET_ADDR;
+	writew(P0_Q1_BUFFER_OFFSET, sram);
+	writew(P0_Q2_BUFFER_OFFSET, sram + 2);
+	writew(P0_Q3_BUFFER_OFFSET, sram + 4);
+	writew(P0_Q4_BUFFER_OFFSET, sram + 6);
+
+	/* buffer descriptor offset table*/
+	sram = sram_base + HOST_QUEUE_DESCRIPTOR_OFFSET_ADDR;
+	writew(P0_Q1_BD_OFFSET, sram);
+	writew(P0_Q2_BD_OFFSET, sram + 2);
+	writew(P0_Q3_BD_OFFSET, sram + 4);
+	writew(P0_Q4_BD_OFFSET, sram + 6);
+
+	/* queue table */
+	sram = sram_base + HOST_QUEUE_DESC_OFFSET;
+	memcpy_toio(sram, queue_descs[PRUETH_PORT_QUEUE_HOST],
+		    sizeof(queue_descs[PRUETH_PORT_QUEUE_HOST]));
+}
+
+static void icssm_prueth_mii_init(struct prueth *prueth)
+{
+	struct regmap *mii_rt;
+	u32 rxcfg_reg, rxcfg;
+	u32 txcfg_reg, txcfg;
+
+	mii_rt = prueth->mii_rt;
+
+	rxcfg = PRUSS_MII_RT_RXCFG_RX_ENABLE |
+		PRUSS_MII_RT_RXCFG_RX_DATA_RDY_MODE_DIS |
+		PRUSS_MII_RT_RXCFG_RX_L2_EN |
+		PRUSS_MII_RT_RXCFG_RX_CUT_PREAMBLE |
+		PRUSS_MII_RT_RXCFG_RX_L2_EOF_SCLR_DIS;
+
+	/* Configuration of Port 0 Rx */
+	rxcfg_reg = PRUSS_MII_RT_RXCFG0;
+
+	regmap_write(mii_rt, rxcfg_reg, rxcfg);
+
+	/* Configuration of Port 1 Rx */
+	rxcfg_reg = PRUSS_MII_RT_RXCFG1;
+
+	rxcfg |= PRUSS_MII_RT_RXCFG_RX_MUX_SEL;
+
+	regmap_write(mii_rt, rxcfg_reg, rxcfg);
+
+	txcfg = PRUSS_MII_RT_TXCFG_TX_ENABLE |
+		PRUSS_MII_RT_TXCFG_TX_AUTO_PREAMBLE |
+		PRUSS_MII_RT_TXCFG_TX_32_MODE_EN |
+		(TX_START_DELAY << PRUSS_MII_RT_TXCFG_TX_START_DELAY_SHIFT) |
+		(TX_CLK_DELAY_100M << PRUSS_MII_RT_TXCFG_TX_CLK_DELAY_SHIFT);
+
+	/* Configuration of Port 0 Tx */
+	txcfg_reg = PRUSS_MII_RT_TXCFG0;
+
+	regmap_write(mii_rt, txcfg_reg, txcfg);
+
+	txcfg |= PRUSS_MII_RT_TXCFG_TX_MUX_SEL;
+
+	/* Configuration of Port 1 Tx */
+	txcfg_reg = PRUSS_MII_RT_TXCFG1;
+
+	regmap_write(mii_rt, txcfg_reg, txcfg);
+
+	txcfg_reg = PRUSS_MII_RT_RX_FRMS0;
+
+	/* Min frame length should be set to 64 to allow receive of standard
+	 * Ethernet frames such as PTP, LLDP that will not have the tag/rct.
+	 * Actual size written to register is size - 1 per TRM. This also
+	 * includes CRC/FCS.
+	 */
+	txcfg = FIELD_PREP(PRUSS_MII_RT_RX_FRMS_MIN_FRM_MASK,
+			   (PRUSS_MII_RT_RX_FRMS_MIN_FRM - 1));
+
+	/* For EMAC, set Max frame size to 1528 i.e size with VLAN.
+	 * Actual size written to register is size - 1 as per TRM.
+	 * Since driver support run time change of protocol, driver
+	 * must overwrite the values based on Ethernet type.
+	 */
+	txcfg |= FIELD_PREP(PRUSS_MII_RT_RX_FRMS_MAX_FRM_MASK,
+			    (PRUSS_MII_RT_RX_FRMS_MAX_SUPPORT_EMAC - 1));
+
+	regmap_write(mii_rt, txcfg_reg, txcfg);
+
+	txcfg_reg = PRUSS_MII_RT_RX_FRMS1;
+
+	regmap_write(mii_rt, txcfg_reg, txcfg);
+}
+
+static void icssm_prueth_clearmem(struct prueth *prueth, enum prueth_mem region)
+{
+	memset_io(prueth->mem[region].va, 0, prueth->mem[region].size);
+}
+
+static void icssm_prueth_hostinit(struct prueth *prueth)
+{
+	/* Clear shared RAM */
+	icssm_prueth_clearmem(prueth, PRUETH_MEM_SHARED_RAM);
+
+	/* Clear OCMC RAM */
+	icssm_prueth_clearmem(prueth, PRUETH_MEM_OCMC);
+
+	/* Clear data RAMs */
+	if (prueth->eth_node[PRUETH_MAC0])
+		icssm_prueth_clearmem(prueth, PRUETH_MEM_DRAM0);
+	if (prueth->eth_node[PRUETH_MAC1])
+		icssm_prueth_clearmem(prueth, PRUETH_MEM_DRAM1);
+
+	/* Initialize host queues in shared RAM */
+	icssm_prueth_hostconfig(prueth);
+
+	/* Configure MII_RT */
+	icssm_prueth_mii_init(prueth);
+}
+
+/* This function initialize the driver in EMAC or HSR or PRP mode
+ * based on eth_type
+ */
+static void icssm_prueth_init_ethernet_mode(struct prueth *prueth)
+{
+	icssm_prueth_hostinit(prueth);
+}
+
+static int icssm_prueth_emac_config(struct prueth_emac *emac)
+{
+	struct prueth *prueth = emac->prueth;
+	u32 sharedramaddr, ocmcaddr;
+	void __iomem *dram_base;
+	void __iomem *mac_addr;
+	void __iomem *dram;
+
+	/* PRU needs local shared RAM address for C28 */
+	sharedramaddr = ICSS_LOCAL_SHARED_RAM;
+	/* PRU needs real global OCMC address for C30*/
+	ocmcaddr = (u32)prueth->mem[PRUETH_MEM_OCMC].pa;
+
+	/* Clear data RAM */
+	icssm_prueth_clearmem(prueth, emac->dram);
+
+	dram_base = prueth->mem[emac->dram].va;
+
+	/* setup mac address */
+	mac_addr = dram_base + PORT_MAC_ADDR;
+	memcpy_toio(mac_addr, emac->mac_addr, 6);
+
+	/* queue information table */
+	dram = dram_base + TX_CONTEXT_Q1_OFFSET_ADDR;
+	memcpy_toio(dram, queue_infos[emac->port_id],
+		    sizeof(queue_infos[emac->port_id]));
+
+	/* queue table */
+	dram = dram_base + PORT_QUEUE_DESC_OFFSET;
+	memcpy_toio(dram, queue_descs[emac->port_id],
+		    sizeof(queue_descs[emac->port_id]));
+
+	/* Set in constant table C28 of PRU0 to ICSS Shared memory */
+	pru_rproc_set_ctable(emac->pru, PRU_C28, sharedramaddr);
+
+	/* Set in constant table C30 of PRU0 to OCMC memory */
+	pru_rproc_set_ctable(emac->pru, PRU_C30, ocmcaddr);
+
+	return 0;
+}
 
 /* called back by PHY layer if there is change in link state of hw port*/
 static void icssm_emac_adjust_link(struct net_device *ndev)
@@ -118,7 +426,16 @@ static int icssm_emac_set_boot_pru(struct prueth_emac *emac,
 static int icssm_emac_ndo_open(struct net_device *ndev)
 {
 	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
 	int ret;
+
+	/* set h/w MAC as user might have re-configured */
+	ether_addr_copy(emac->mac_addr, ndev->dev_addr);
+
+	if (!prueth->emac_configured)
+		icssm_prueth_init_ethernet_mode(prueth);
+
+	icssm_prueth_emac_config(emac);
 
 	ret = icssm_emac_set_boot_pru(emac, ndev);
 	if (ret)
@@ -126,7 +443,7 @@ static int icssm_emac_ndo_open(struct net_device *ndev)
 
 	/* start PHY */
 	phy_start(emac->phydev);
-
+	prueth->emac_configured |= BIT(emac->port_id);
 	return 0;
 }
 
@@ -222,9 +539,11 @@ static int icssm_prueth_netdev_init(struct prueth *prueth,
 	/* by default eth_type is EMAC */
 	switch (port) {
 	case PRUETH_PORT_MII0:
+		emac->dram = PRUETH_MEM_DRAM0;
 		emac->pru = prueth->pru0;
 		break;
 	case PRUETH_PORT_MII1:
+		emac->dram = PRUETH_MEM_DRAM1;
 		emac->pru = prueth->pru1;
 		break;
 	default:
@@ -295,6 +614,7 @@ static int icssm_prueth_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np;
 	struct prueth *prueth;
+	struct pruss *pruss;
 	int i, ret;
 
 	np = dev->of_node;
@@ -363,6 +683,12 @@ static int icssm_prueth_probe(struct platform_device *pdev)
 	prueth->eth_node[PRUETH_MAC0] = eth0_node;
 	prueth->eth_node[PRUETH_MAC1] = eth1_node;
 
+	prueth->mii_rt = syscon_regmap_lookup_by_phandle(np, "ti,mii-rt");
+	if (IS_ERR(prueth->mii_rt)) {
+		dev_err(dev, "couldn't get mii-rt syscon regmap\n");
+		return -ENODEV;
+	}
+
 	if (eth0_node) {
 		prueth->pru0 = pru_rproc_get(np, 0, &pruss_id0);
 		if (IS_ERR(prueth->pru0)) {
@@ -381,6 +707,70 @@ static int icssm_prueth_probe(struct platform_device *pdev)
 		}
 	}
 
+	pruss = pruss_get(prueth->pru0 ? prueth->pru0 : prueth->pru1);
+	if (IS_ERR(pruss)) {
+		ret = PTR_ERR(pruss);
+		dev_err(dev, "unable to get pruss handle\n");
+		goto put_pru;
+	}
+	prueth->pruss = pruss;
+
+	/* Configure PRUSS */
+	if (eth0_node)
+		pruss_cfg_gpimode(pruss, pruss_id0, PRUSS_GPI_MODE_MII);
+	if (eth1_node)
+		pruss_cfg_gpimode(pruss, pruss_id1, PRUSS_GPI_MODE_MII);
+	pruss_cfg_miirt_enable(pruss, true);
+	pruss_cfg_xfr_enable(pruss, PRU_TYPE_PRU, true);
+
+	/* Get PRUSS mem resources */
+	/* OCMC is system resource which we get separately */
+	for (i = 0; i < ARRAY_SIZE(pruss_mem_ids); i++) {
+		/* skip appropriate DRAM if not required */
+		if (!eth0_node && i == PRUETH_MEM_DRAM0)
+			continue;
+
+		if (!eth1_node && i == PRUETH_MEM_DRAM1)
+			continue;
+
+		ret = pruss_request_mem_region(pruss, pruss_mem_ids[i],
+					       &prueth->mem[i]);
+		if (ret) {
+			dev_err(dev, "unable to get PRUSS resource %d: %d\n",
+				i, ret);
+			goto put_mem;
+		}
+	}
+
+	prueth->sram_pool = of_gen_pool_get(np, "sram", 0);
+	if (!prueth->sram_pool) {
+		dev_err(dev, "unable to get SRAM pool\n");
+		ret = -ENODEV;
+		goto put_mem;
+	}
+
+	prueth->ocmc_ram_size = OCMC_RAM_SIZE;
+	/* Decreased by 8KB to address the reserved region for AM33x */
+	if (prueth->fw_data->driver_data == PRUSS_AM33XX)
+		prueth->ocmc_ram_size = (SZ_64K - SZ_8K);
+
+	prueth->mem[PRUETH_MEM_OCMC].va =
+			(void __iomem *)gen_pool_alloc(prueth->sram_pool,
+						       prueth->ocmc_ram_size);
+	if (!prueth->mem[PRUETH_MEM_OCMC].va) {
+		dev_err(dev, "unable to allocate OCMC resource\n");
+		ret = -ENOMEM;
+		goto put_mem;
+	}
+	prueth->mem[PRUETH_MEM_OCMC].pa = gen_pool_virt_to_phys
+		(prueth->sram_pool, (unsigned long)
+		 prueth->mem[PRUETH_MEM_OCMC].va);
+	prueth->mem[PRUETH_MEM_OCMC].size = prueth->ocmc_ram_size;
+	dev_dbg(dev, "ocmc: pa %pa va %p size %#zx\n",
+		&prueth->mem[PRUETH_MEM_OCMC].pa,
+		prueth->mem[PRUETH_MEM_OCMC].va,
+		prueth->mem[PRUETH_MEM_OCMC].size);
+
 	/* setup netdev interfaces */
 	if (eth0_node) {
 		ret = icssm_prueth_netdev_init(prueth, eth0_node);
@@ -389,7 +779,7 @@ static int icssm_prueth_probe(struct platform_device *pdev)
 				dev_err(dev, "netdev init %s failed: %d\n",
 					eth0_node->name, ret);
 			}
-			goto put_pru;
+			goto free_pool;
 		}
 	}
 
@@ -427,6 +817,9 @@ static int icssm_prueth_probe(struct platform_device *pdev)
 			prueth->emac[PRUETH_MAC1]->ndev;
 	}
 
+	dev_info(dev, "TI PRU ethernet driver initialized: %s EMAC mode\n",
+		 (!eth0_node || !eth1_node) ? "single" : "dual");
+
 	if (eth1_node)
 		of_node_put(eth1_node);
 	if (eth0_node)
@@ -448,6 +841,18 @@ netdev_exit:
 
 		icssm_prueth_netdev_exit(prueth, eth_node);
 	}
+
+free_pool:
+	gen_pool_free(prueth->sram_pool,
+		      (unsigned long)prueth->mem[PRUETH_MEM_OCMC].va,
+		      prueth->ocmc_ram_size);
+
+put_mem:
+	for (i = PRUETH_MEM_DRAM0; i < PRUETH_MEM_OCMC; i++) {
+		if (prueth->mem[i].va)
+			pruss_release_mem_region(pruss, &prueth->mem[i]);
+	}
+	pruss_put(prueth->pruss);
 
 put_pru:
 	if (eth1_node) {
@@ -484,6 +889,16 @@ static void icssm_prueth_remove(struct platform_device *pdev)
 
 		icssm_prueth_netdev_exit(prueth, eth_node);
 		of_node_put(eth_node);
+	}
+
+	gen_pool_free(prueth->sram_pool,
+		      (unsigned long)prueth->mem[PRUETH_MEM_OCMC].va,
+		      prueth->ocmc_ram_size);
+
+	for (i = PRUETH_MEM_DRAM0; i < PRUETH_MEM_OCMC; i++) {
+		if (prueth->mem[i].va)
+			pruss_release_mem_region(prueth->pruss,
+						 &prueth->mem[i]);
 	}
 
 	pruss_put(prueth->pruss);
@@ -553,6 +968,7 @@ static const struct dev_pm_ops prueth_dev_pm_ops = {
 
 /* AM335x SoC-specific firmware data */
 static struct prueth_private_data am335x_prueth_pdata = {
+	.driver_data = PRUSS_AM33XX,
 	.fw_pru[PRUSS_PRU0] = {
 		.fw_name[PRUSS_ETHTYPE_EMAC] =
 			"ti-pruss/am335x-pru0-prueth-fw.elf",
@@ -565,6 +981,7 @@ static struct prueth_private_data am335x_prueth_pdata = {
 
 /* AM437x SoC-specific firmware data */
 static struct prueth_private_data am437x_prueth_pdata = {
+	.driver_data = PRUSS_AM43XX,
 	.fw_pru[PRUSS_PRU0] = {
 		.fw_name[PRUSS_ETHTYPE_EMAC] =
 			"ti-pruss/am437x-pru0-prueth-fw.elf",
@@ -577,6 +994,7 @@ static struct prueth_private_data am437x_prueth_pdata = {
 
 /* AM57xx SoC-specific firmware data */
 static struct prueth_private_data am57xx_prueth_pdata = {
+	.driver_data = PRUSS_AM57XX,
 	.fw_pru[PRUSS_PRU0] = {
 		.fw_name[PRUSS_ETHTYPE_EMAC] =
 			"ti-pruss/am57xx-pru0-prueth-fw.elf",
