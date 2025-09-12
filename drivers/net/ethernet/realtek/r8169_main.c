@@ -5441,10 +5441,12 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Disable ASPM L1 as that cause random device stop working
 	 * problems as well as full system hangs for some PCIe devices users.
 	 */
-	if (rtl_aspm_is_safe(tp))
+	if (rtl_aspm_is_safe(tp)) {
+		dev_info(&pdev->dev, "System vendor flags ASPM as safe\n");
 		rc = 0;
-	else
+	} else {
 		rc = pci_disable_link_state(pdev, PCIE_LINK_STATE_L1);
+	}
 	tp->aspm_manageable = !rc;
 
 	tp->dash_type = rtl_get_dash_type(tp);
