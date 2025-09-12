@@ -1233,6 +1233,7 @@ static int ice_devlink_reinit_up(struct ice_pf *pf)
 {
 	struct ice_vsi *vsi = ice_get_main_vsi(pf);
 	struct device *dev = ice_pf_to_dev(pf);
+	bool need_dev_deinit = false;
 	int err;
 
 	err = ice_init_hw(&pf->hw);
@@ -1276,9 +1277,11 @@ err_load:
 unroll_pf_init:
 	ice_deinit_pf(pf);
 unroll_dev_init:
-	ice_deinit_dev(pf);
+	need_dev_deinit = true;
 unroll_hw_init:
 	ice_deinit_hw(&pf->hw);
+	if (need_dev_deinit)
+		ice_deinit_dev(pf);
 	return err;
 }
 

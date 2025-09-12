@@ -1033,6 +1033,7 @@ void ice_start_service_task(struct ice_pf *pf);
 int ice_load(struct ice_pf *pf);
 void ice_unload(struct ice_pf *pf);
 void ice_adv_lnk_speed_maps_init(void);
+void ice_init_dev_hw(struct ice_pf *pf);
 int ice_init_dev(struct ice_pf *pf);
 void ice_deinit_dev(struct ice_pf *pf);
 int ice_init_pf(struct ice_pf *pf);
