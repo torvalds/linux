@@ -42,17 +42,6 @@ struct nsproxy {
 };
 extern struct nsproxy init_nsproxy;
 
-#define to_ns_common(__ns)                              \
-	_Generic((__ns),                                \
-		struct cgroup_namespace *: &(__ns->ns), \
-		struct ipc_namespace *:    &(__ns->ns), \
-		struct net *:              &(__ns->ns), \
-		struct pid_namespace *:    &(__ns->ns), \
-		struct mnt_namespace *:    &(__ns->ns), \
-		struct time_namespace *:   &(__ns->ns), \
-		struct user_namespace *:   &(__ns->ns), \
-		struct uts_namespace *:    &(__ns->ns))
-
 /*
  * A structure to encompass all bits needed to install
  * a partial or complete new set of namespaces.
