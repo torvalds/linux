@@ -20,6 +20,12 @@
 
 /* PRUSS local memory map */
 #define ICSS_LOCAL_SHARED_RAM	0x00010000
+#define EMAC_MAX_PKTLEN		(ETH_HLEN + VLAN_HLEN + ETH_DATA_LEN)
+/* Below macro is for 1528 Byte Frame support, to Allow even with
+ * Redundancy tag
+ */
+#define EMAC_MAX_FRM_SUPPORT (ETH_HLEN + VLAN_HLEN + ETH_DATA_LEN + \
+			      ICSSM_LRE_TAG_SIZE)
 
 /* PRU Ethernet Type - Ethernet functionality (protocol
  * implemented) provided by the PRU firmware being loaded.
@@ -74,6 +80,28 @@ struct prueth_queue_info {
 	u16 queue_desc_offset;
 	u16 buffer_desc_offset;
 	u16 buffer_desc_end;
+};
+
+/**
+ * struct prueth_packet_info - Info about a packet in buffer
+ * @shadow: this packet is stored in the collision queue
+ * @port: port packet is on
+ * @length: length of packet
+ * @broadcast: this packet is a broadcast packet
+ * @error: this packet has an error
+ * @lookup_success: src mac found in FDB
+ * @flood: packet is to be flooded
+ * @timestamp: Specifies if timestamp is appended to the packet
+ */
+struct prueth_packet_info {
+	bool shadow;
+	unsigned int port;
+	unsigned int length;
+	bool broadcast;
+	bool error;
+	bool lookup_success;
+	bool flood;
+	bool timestamp;
 };
 
 /* In switch mode there are 3 real ports i.e. 3 mac addrs.
@@ -158,21 +186,39 @@ struct prueth_private_data {
 	const struct prueth_firmware fw_pru[PRUSS_NUM_PRUS];
 };
 
+struct prueth_emac_stats {
+	u64 tx_packets;
+	u64 tx_dropped;
+	u64 tx_bytes;
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_length_errors;
+	u64 rx_over_errors;
+};
+
 /* data for each emac port */
 struct prueth_emac {
 	struct prueth *prueth;
 	struct net_device *ndev;
+	struct napi_struct napi;
 
 	struct rproc *pru;
 	struct phy_device *phydev;
+	struct prueth_queue_desc __iomem *rx_queue_descs;
+	struct prueth_queue_desc __iomem *tx_queue_descs;
 
 	int link;
 	int speed;
 	int duplex;
+	int rx_irq;
 
+	enum prueth_port_queue_id tx_port_queue;
+	enum prueth_queue_id rx_queue_start;
+	enum prueth_queue_id rx_queue_end;
 	enum prueth_port port_id;
 	enum prueth_mem dram;
 	const char *phy_id;
+	u32 msg_enable;
 	u8 mac_addr[6];
 	phy_interface_t phy_if;
 
@@ -180,6 +226,9 @@ struct prueth_emac {
 	 * during link configuration
 	 */
 	spinlock_t lock;
+
+	struct hrtimer tx_hrtimer;
+	struct prueth_emac_stats stats;
 };
 
 struct prueth {
@@ -201,4 +250,11 @@ struct prueth {
 	size_t ocmc_ram_size;
 	u8 emac_configured;
 };
+
+void icssm_parse_packet_info(struct prueth *prueth, u32 buffer_descriptor,
+			     struct prueth_packet_info *pkt_info);
+int icssm_emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
+			 struct prueth_packet_info *pkt_info,
+			 const struct prueth_queue_info *rxqueue);
+
 #endif /* __NET_TI_PRUETH_H */
