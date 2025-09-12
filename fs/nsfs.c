@@ -177,6 +177,7 @@ static bool nsfs_ioctl_valid(unsigned int cmd)
 	case NS_GET_TGID_FROM_PIDNS:
 	case NS_GET_PID_IN_PIDNS:
 	case NS_GET_TGID_IN_PIDNS:
+	case NS_GET_ID:
 		return true;
 	}
 
@@ -226,18 +227,6 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		argp = (uid_t __user *) arg;
 		uid = from_kuid_munged(current_user_ns(), user_ns->owner);
 		return put_user(uid, argp);
-	case NS_GET_MNTNS_ID: {
-		__u64 __user *idp;
-		__u64 id;
-
-		if (ns->ops->type != CLONE_NEWNS)
-			return -EINVAL;
-
-		mnt_ns = container_of(ns, struct mnt_namespace, ns);
-		idp = (__u64 __user *)arg;
-		id = mnt_ns->ns.ns_id;
-		return put_user(id, idp);
-	}
 	case NS_GET_PID_FROM_PIDNS:
 		fallthrough;
 	case NS_GET_TGID_FROM_PIDNS:
@@ -282,6 +271,18 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		if (!ret)
 			ret = -ESRCH;
 		return ret;
+	}
+	case NS_GET_MNTNS_ID:
+		if (ns->ops->type != CLONE_NEWNS)
+			return -EINVAL;
+		fallthrough;
+	case NS_GET_ID: {
+		__u64 __user *idp;
+		__u64 id;
+
+		idp = (__u64 __user *)arg;
+		id = ns->ns_id;
+		return put_user(id, idp);
 	}
 	}
 
