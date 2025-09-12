@@ -39,6 +39,12 @@ static int hinic3_feature_nego(struct hinic3_hwdev *hwdev, u8 opcode,
 	return 0;
 }
 
+int hinic3_get_nic_feature_from_hw(struct hinic3_nic_dev *nic_dev)
+{
+	return hinic3_feature_nego(nic_dev->hwdev, MGMT_MSG_CMD_OP_GET,
+				   &nic_dev->nic_io->feature_cap, 1);
+}
+
 int hinic3_set_nic_feature_to_hw(struct hinic3_nic_dev *nic_dev)
 {
 	return hinic3_feature_nego(nic_dev->hwdev, MGMT_MSG_CMD_OP_SET,
@@ -80,6 +86,23 @@ static int hinic3_set_function_table(struct hinic3_hwdev *hwdev, u32 cfg_bitmap,
 	}
 
 	return 0;
+}
+
+int hinic3_init_function_table(struct hinic3_nic_dev *nic_dev)
+{
+	struct hinic3_nic_io *nic_io = nic_dev->nic_io;
+	struct l2nic_func_tbl_cfg func_tbl_cfg = {};
+	u32 cfg_bitmap;
+
+	func_tbl_cfg.mtu = 0x3FFF; /* default, max mtu */
+	func_tbl_cfg.rx_wqe_buf_size = nic_io->rx_buf_len;
+
+	cfg_bitmap = BIT(L2NIC_FUNC_TBL_CFG_INIT) |
+		     BIT(L2NIC_FUNC_TBL_CFG_MTU) |
+		     BIT(L2NIC_FUNC_TBL_CFG_RX_BUF_SIZE);
+
+	return hinic3_set_function_table(nic_dev->hwdev, cfg_bitmap,
+					 &func_tbl_cfg);
 }
 
 int hinic3_set_port_mtu(struct net_device *netdev, u16 new_mtu)

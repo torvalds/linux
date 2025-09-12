@@ -436,6 +436,18 @@ static void hinic3_uninit_comm_ch(struct hinic3_hwdev *hwdev)
 	free_base_mgmt_channel(hwdev);
 }
 
+static DEFINE_IDA(hinic3_adev_ida);
+
+static int hinic3_adev_idx_alloc(void)
+{
+	return ida_alloc(&hinic3_adev_ida, GFP_KERNEL);
+}
+
+static void hinic3_adev_idx_free(int id)
+{
+	ida_free(&hinic3_adev_ida, id);
+}
+
 int hinic3_init_hwdev(struct pci_dev *pdev)
 {
 	struct hinic3_pcidev *pci_adapter = pci_get_drvdata(pdev);
@@ -451,6 +463,7 @@ int hinic3_init_hwdev(struct pci_dev *pdev)
 	hwdev->pdev = pci_adapter->pdev;
 	hwdev->dev = &pci_adapter->pdev->dev;
 	hwdev->func_state = 0;
+	hwdev->dev_id = hinic3_adev_idx_alloc();
 	spin_lock_init(&hwdev->channel_lock);
 
 	err = hinic3_init_hwif(hwdev);
@@ -504,6 +517,7 @@ err_free_hwif:
 	hinic3_free_hwif(hwdev);
 err_free_hwdev:
 	pci_adapter->hwdev = NULL;
+	hinic3_adev_idx_free(hwdev->dev_id);
 	kfree(hwdev);
 
 	return err;
@@ -519,6 +533,7 @@ void hinic3_free_hwdev(struct hinic3_hwdev *hwdev)
 	hinic3_free_cfg_mgmt(hwdev);
 	destroy_workqueue(hwdev->workq);
 	hinic3_free_hwif(hwdev);
+	hinic3_adev_idx_free(hwdev->dev_id);
 	kfree(hwdev);
 }
 
