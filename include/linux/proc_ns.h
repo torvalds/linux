@@ -72,6 +72,22 @@ static inline int ns_alloc_inum(struct ns_common *ns)
 	return proc_alloc_inum(&ns->inum);
 }
 
+static inline int ns_common_init(struct ns_common *ns,
+				 const struct proc_ns_operations *ops,
+				 bool alloc_inum)
+{
+	if (alloc_inum) {
+		int ret;
+		ret = proc_alloc_inum(&ns->inum);
+		if (ret)
+			return ret;
+	}
+	refcount_set(&ns->count, 1);
+	ns->stashed = NULL;
+	ns->ops = ops;
+	return 0;
+}
+
 #define ns_free_inum(ns) proc_free_inum((ns)->inum)
 
 #define get_proc_ns(inode) ((struct ns_common *)(inode)->i_private)
