@@ -8,6 +8,8 @@ title: Texas Instruments ICSS Industrial Ethernet Peripheral (IEP) module
 
 maintainers:
   - Md Danish Anwar <danishanwar@ti.com>
+  - Parvathi Pudi <parvathi@couthit.com>
+  - Basharath Hussain Khaja <basharath@couthit.com>
 
 properties:
   compatible:
@@ -17,9 +19,11 @@ properties:
               - ti,am642-icss-iep
               - ti,j721e-icss-iep
           - const: ti,am654-icss-iep
-
-      - const: ti,am654-icss-iep
-
+      - enum:
+          - ti,am654-icss-iep
+          - ti,am5728-icss-iep
+          - ti,am4376-icss-iep
+          - ti,am3356-icss-iep
 
   reg:
     maxItems: 1
