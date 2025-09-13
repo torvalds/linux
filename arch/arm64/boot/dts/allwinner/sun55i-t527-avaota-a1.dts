@@ -27,6 +27,12 @@
 		clock-output-names = "ext_osc32k";
 	};
 
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&axp717_adc 3>, /* vsys_v */
+			      <&axp717_adc 4>; /* pmic_temp */
+	};
+
 	reg_vcc12v: vcc12v {
 		/* DC input jack */
 		compatible = "regulator-fixed";
@@ -149,6 +155,17 @@
 		bldoin-supply = <&reg_vcc5v>;
 		cldoin-supply = <&reg_vcc5v>;
 
+		axp717_adc: adc {
+			compatible = "x-powers,axp717-adc";
+			#io-channel-cells = <1>;
+		};
+
+		battery-power {
+			compatible = "x-powers,axp717-battery-power-supply";
+			/* no battery; output used for dcdc4 instead */
+			status = "disabled";
+		};
+
 		regulators {
 			/* Supplies the "little" cluster (1.4 GHz cores) */
 			reg_dcdc1: dcdc1 {
@@ -254,6 +271,12 @@
 				regulator-max-microvolt = <900000>;
 				regulator-name = "vdd-cpus";
 			};
+		};
+
+		usb-power {
+			compatible = "x-powers,axp717-usb-power-supply";
+			/* 12V-5V buck converter can supply up to 5A */
+			input-current-limit-microamp = <3250000>;
 		};
 	};
 

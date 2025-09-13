@@ -39,6 +39,12 @@
 		};
 	};
 
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&axp717_adc 3>, /* vsys_v */
+			      <&axp717_adc 4>; /* pmic_temp */
+	};
+
 	reg_vcc5v: vcc5v {
 		/* board wide 5V supply from the USB-C connector */
 		compatible = "regulator-fixed";
@@ -139,6 +145,17 @@
 		aldoin-supply = <&reg_vcc5v>;
 		bldoin-supply = <&reg_vcc5v>;
 		cldoin-supply = <&reg_vcc5v>;
+
+		axp717_adc: adc {
+			compatible = "x-powers,axp717-adc";
+			#io-channel-cells = <1>;
+		};
+
+		battery-power {
+			compatible = "x-powers,axp717-battery-power-supply";
+			/* charger mode design but has no battery terminal */
+			status = "disabled";
+		};
 
 		regulators {
 			/* Supplies the "little" cluster (1.4 GHz cores) */
@@ -242,6 +259,10 @@
 				regulator-max-microvolt = <900000>;
 				regulator-name = "vdd-cpus";
 			};
+		};
+
+		usb-power {
+			compatible = "x-powers,axp717-usb-power-supply";
 		};
 	};
 
