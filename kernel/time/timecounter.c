@@ -4,7 +4,16 @@
  */
 #include <linux/export.h>
 #include <linux/timecounter.h>
+#include <linux/bits.h>
 
+/**
+ * timecounter_init - initialize a time counter
+ * @tc:         Pointer to timecounter to be initialized
+ * @cc:         Pointer to cycle counter
+ * @start_tstamp: Initial timestamp in nanoseconds
+ *
+ * Initializes the time counter with the given cycle counter and start timestamp.
+ */
 void timecounter_init(struct timecounter *tc,
 		      struct cyclecounter *cc,
 		      u64 start_tstamp)
@@ -12,86 +21,84 @@ void timecounter_init(struct timecounter *tc,
 	tc->cc = cc;
 	tc->cycle_last = cc->read(cc);
 	tc->nsec = start_tstamp;
-	tc->mask = (1ULL << cc->shift) - 1;
+	tc->mask = BIT_ULL(cc->shift) - 1;
 	tc->frac = 0;
 }
 EXPORT_SYMBOL_GPL(timecounter_init);
 
 /**
- * timecounter_read_delta - get nanoseconds since last call of this function
+ * timecounter_read_delta - get nanoseconds since last call
  * @tc:         Pointer to time counter
  *
- * When the underlying cycle counter runs over, this will be handled
- * correctly as long as it does not run over more than once between
- * calls.
- *
- * The first call to this function for a new time counter initializes
- * the time tracking and returns an undefined result.
+ * Returns: nanoseconds since last call, handles cycle counter overflow correctly
+ * as long as it doesn't overflow more than once between calls.
  */
 static u64 timecounter_read_delta(struct timecounter *tc)
 {
+	const struct cyclecounter *cc = tc->cc;
 	u64 cycle_now, cycle_delta;
-	u64 ns_offset;
 
-	/* read cycle counter: */
-	cycle_now = tc->cc->read(tc->cc);
+	cycle_now = cc->read(cc);
+	cycle_delta = (cycle_now - tc->cycle_last) & cc->mask;
 
-	/* calculate the delta since the last timecounter_read_delta(): */
-	cycle_delta = (cycle_now - tc->cycle_last) & tc->cc->mask;
-
-	/* convert to nanoseconds: */
-	ns_offset = cyclecounter_cyc2ns(tc->cc, cycle_delta,
-					tc->mask, &tc->frac);
-
-	/* update time stamp of timecounter_read_delta() call: */
+	/* Update last cycle count immediately */
 	tc->cycle_last = cycle_now;
 
-	return ns_offset;
+	return cyclecounter_cyc2ns(cc, cycle_delta, tc->mask, &tc->frac);
 }
 
+/**
+ * timecounter_read - read the current time counter value
+ * @tc:         Pointer to time counter
+ *
+ * Returns: current time in nanoseconds
+ */
 u64 timecounter_read(struct timecounter *tc)
 {
-	u64 nsec;
-
-	/* increment time by nanoseconds since last call */
-	nsec = timecounter_read_delta(tc);
-	nsec += tc->nsec;
-	tc->nsec = nsec;
-
-	return nsec;
+	tc->nsec += timecounter_read_delta(tc);
+	return tc->nsec;
 }
 EXPORT_SYMBOL_GPL(timecounter_read);
 
-/*
- * This is like cyclecounter_cyc2ns(), but it is used for computing a
- * time previous to the time stored in the cycle counter.
+/**
+ * cc_cyc2ns_backwards - convert cycles to nanoseconds for past timestamps
+ * @cc:         Pointer to cycle counter
+ * @cycles:     Cycles to convert
+ * @mask:       Bitmask for cycle counter
+ * @frac:       Fractional nanoseconds accumulator
+ *
+ * Returns: nanoseconds value for cycles in the past
  */
 static u64 cc_cyc2ns_backwards(const struct cyclecounter *cc,
 			       u64 cycles, u64 mask, u64 frac)
 {
-	u64 ns = (u64) cycles;
-
-	ns = ((ns * cc->mult) - frac) >> cc->shift;
-
-	return ns;
+	return ((cycles * cc->mult) - frac) >> cc->shift;
 }
 
+/**
+ * timecounter_cyc2time - convert a cycle timestamp to nanoseconds
+ * @tc:         Pointer to time counter
+ * @cycle_tstamp: Cycle timestamp to convert
+ *
+ * Returns: corresponding nanoseconds value for the cycle timestamp
+ */
 u64 timecounter_cyc2time(const struct timecounter *tc,
 			 u64 cycle_tstamp)
 {
-	u64 delta = (cycle_tstamp - tc->cycle_last) & tc->cc->mask;
-	u64 nsec = tc->nsec, frac = tc->frac;
+	const struct cyclecounter *cc = tc->cc;
+	u64 delta = (cycle_tstamp - tc->cycle_last) & cc->mask;
+	u64 nsec = tc->nsec;
 
 	/*
-	 * Instead of always treating cycle_tstamp as more recent
-	 * than tc->cycle_last, detect when it is too far in the
-	 * future and treat it as old time stamp instead.
+	 * Handle both cases where cycle_tstamp is before or after cycle_last
+	 * by checking if delta is more than half the counter range
 	 */
-	if (delta > tc->cc->mask / 2) {
-		delta = (tc->cycle_last - cycle_tstamp) & tc->cc->mask;
-		nsec -= cc_cyc2ns_backwards(tc->cc, delta, tc->mask, frac);
+	if (delta > (cc->mask >> 1)) {
+		delta = (tc->cycle_last - cycle_tstamp) & cc->mask;
+		nsec -= cc_cyc2ns_backwards(cc, delta, tc->mask, tc->frac);
 	} else {
-		nsec += cyclecounter_cyc2ns(tc->cc, delta, tc->mask, &frac);
+		u64 frac = tc->frac;
+		nsec += cyclecounter_cyc2ns(cc, delta, tc->mask, &frac);
 	}
 
 	return nsec;
