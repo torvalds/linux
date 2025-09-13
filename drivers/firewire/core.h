@@ -170,6 +170,9 @@ static inline void fw_iso_context_init_work(struct fw_iso_context *ctx, work_fun
 
 /* -topology */
 
+// The initial value of BUS_MANAGER_ID register, to express nothing registered.
+#define BUS_MANAGER_ID_NOT_REGISTERED	0x3f
+
 enum {
 	FW_NODE_CREATED,
 	FW_NODE_UPDATED,

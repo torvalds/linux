@@ -327,7 +327,7 @@ static void bm_work(struct work_struct *work)
 		 * next generation.
 		 */
 		__be32 data[2] = {
-			cpu_to_be32(0x3f),
+			cpu_to_be32(BUS_MANAGER_ID_NOT_REGISTERED),
 			cpu_to_be32(local_id),
 		};
 		struct fw_device *irm_device = fw_node_get_device(card->irm_node);
@@ -372,10 +372,14 @@ static void bm_work(struct work_struct *work)
 		if (rcode == RCODE_COMPLETE) {
 			int bm_id = be32_to_cpu(data[0]);
 
-			if (generation == card->generation)
-				card->bm_node_id = bm_id == 0x3f ? local_id : 0xffc0 | bm_id;
+			if (generation == card->generation) {
+				if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
+					card->bm_node_id = 0xffc0 & bm_id;
+				else
+					card->bm_node_id = local_id;
+			}
 
-			if (bm_id != 0x3f) {
+			if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED) {
 				spin_unlock_irq(&card->lock);
 
 				// Somebody else is BM.  Only act as IRM.
