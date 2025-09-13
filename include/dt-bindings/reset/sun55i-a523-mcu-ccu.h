@@ -1,0 +1,30 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR MIT) */
+/*
+ * Copyright (C) 2025 Chen-Yu Tsai <wens@csie.org>
+ */
+
+#ifndef _DT_BINDINGS_RST_SUN55I_A523_MCU_CCU_H_
+#define _DT_BINDINGS_RST_SUN55I_A523_MCU_CCU_H_
+
+#define RST_BUS_MCU_I2S0		0
+#define RST_BUS_MCU_I2S1		1
+#define RST_BUS_MCU_I2S2		2
+#define RST_BUS_MCU_I2S3		3
+#define RST_BUS_MCU_SPDIF		4
+#define RST_BUS_MCU_DMIC		5
+#define RST_BUS_MCU_AUDIO_CODEC		6
+#define RST_BUS_MCU_DSP_MSGBOX		7
+#define RST_BUS_MCU_DSP_CFG		8
+#define RST_BUS_MCU_NPU			9
+#define RST_BUS_MCU_TIMER		10
+#define RST_BUS_MCU_DSP_DEBUG		11
+#define RST_BUS_MCU_DSP			12
+#define RST_BUS_MCU_DMA			13
+#define RST_BUS_MCU_PUBSRAM		14
+#define RST_BUS_MCU_RISCV_CFG		15
+#define RST_BUS_MCU_RISCV_DEBUG		16
+#define RST_BUS_MCU_RISCV_CORE		17
+#define RST_BUS_MCU_RISCV_MSGBOX	18
+#define RST_BUS_MCU_PWM0		19
+
+#endif /* _DT_BINDINGS_RST_SUN55I_A523_MCU_CCU_H_ */
