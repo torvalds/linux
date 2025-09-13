@@ -62,12 +62,12 @@ int xen_snd_front_stream_query_hw_param(struct xen_snd_front_evtchnl *evtchnl,
 	struct xensnd_req *req;
 	int ret;
 
-	mutex_lock(&evtchnl->u.req.req_io_lock);
+	guard(mutex)(&evtchnl->u.req.req_io_lock);
 
-	mutex_lock(&evtchnl->ring_io_lock);
-	req = be_stream_prepare_req(evtchnl, XENSND_OP_HW_PARAM_QUERY);
-	req->op.hw_param = *hw_param_req;
-	mutex_unlock(&evtchnl->ring_io_lock);
+	scoped_guard(mutex, &evtchnl->ring_io_lock) {
+		req = be_stream_prepare_req(evtchnl, XENSND_OP_HW_PARAM_QUERY);
+		req->op.hw_param = *hw_param_req;
+	}
 
 	ret = be_stream_do_io(evtchnl);
 
@@ -77,7 +77,6 @@ int xen_snd_front_stream_query_hw_param(struct xen_snd_front_evtchnl *evtchnl,
 	if (ret == 0)
 		*hw_param_resp = evtchnl->u.req.resp.hw_param;
 
-	mutex_unlock(&evtchnl->u.req.req_io_lock);
 	return ret;
 }
 
@@ -90,25 +89,24 @@ int xen_snd_front_stream_prepare(struct xen_snd_front_evtchnl *evtchnl,
 	struct xensnd_req *req;
 	int ret;
 
-	mutex_lock(&evtchnl->u.req.req_io_lock);
+	guard(mutex)(&evtchnl->u.req.req_io_lock);
 
-	mutex_lock(&evtchnl->ring_io_lock);
-	req = be_stream_prepare_req(evtchnl, XENSND_OP_OPEN);
-	req->op.open.pcm_format = format;
-	req->op.open.pcm_channels = channels;
-	req->op.open.pcm_rate = rate;
-	req->op.open.buffer_sz = buffer_sz;
-	req->op.open.period_sz = period_sz;
-	req->op.open.gref_directory =
-		xen_front_pgdir_shbuf_get_dir_start(shbuf);
-	mutex_unlock(&evtchnl->ring_io_lock);
+	scoped_guard(mutex, &evtchnl->ring_io_lock) {
+		req = be_stream_prepare_req(evtchnl, XENSND_OP_OPEN);
+		req->op.open.pcm_format = format;
+		req->op.open.pcm_channels = channels;
+		req->op.open.pcm_rate = rate;
+		req->op.open.buffer_sz = buffer_sz;
+		req->op.open.period_sz = period_sz;
+		req->op.open.gref_directory =
+			xen_front_pgdir_shbuf_get_dir_start(shbuf);
+	}
 
 	ret = be_stream_do_io(evtchnl);
 
 	if (ret == 0)
 		ret = be_stream_wait_io(evtchnl);
 
-	mutex_unlock(&evtchnl->u.req.req_io_lock);
 	return ret;
 }
 
@@ -117,18 +115,17 @@ int xen_snd_front_stream_close(struct xen_snd_front_evtchnl *evtchnl)
 	__always_unused struct xensnd_req *req;
 	int ret;
 
-	mutex_lock(&evtchnl->u.req.req_io_lock);
+	guard(mutex)(&evtchnl->u.req.req_io_lock);
 
-	mutex_lock(&evtchnl->ring_io_lock);
-	req = be_stream_prepare_req(evtchnl, XENSND_OP_CLOSE);
-	mutex_unlock(&evtchnl->ring_io_lock);
+	scoped_guard(mutex, &evtchnl->ring_io_lock) {
+		req = be_stream_prepare_req(evtchnl, XENSND_OP_CLOSE);
+	}
 
 	ret = be_stream_do_io(evtchnl);
 
 	if (ret == 0)
 		ret = be_stream_wait_io(evtchnl);
 
-	mutex_unlock(&evtchnl->u.req.req_io_lock);
 	return ret;
 }
 
@@ -138,20 +135,19 @@ int xen_snd_front_stream_write(struct xen_snd_front_evtchnl *evtchnl,
 	struct xensnd_req *req;
 	int ret;
 
-	mutex_lock(&evtchnl->u.req.req_io_lock);
+	guard(mutex)(&evtchnl->u.req.req_io_lock);
 
-	mutex_lock(&evtchnl->ring_io_lock);
-	req = be_stream_prepare_req(evtchnl, XENSND_OP_WRITE);
-	req->op.rw.length = count;
-	req->op.rw.offset = pos;
-	mutex_unlock(&evtchnl->ring_io_lock);
+	scoped_guard(mutex, &evtchnl->ring_io_lock) {
+		req = be_stream_prepare_req(evtchnl, XENSND_OP_WRITE);
+		req->op.rw.length = count;
+		req->op.rw.offset = pos;
+	}
 
 	ret = be_stream_do_io(evtchnl);
 
 	if (ret == 0)
 		ret = be_stream_wait_io(evtchnl);
 
-	mutex_unlock(&evtchnl->u.req.req_io_lock);
 	return ret;
 }
 
@@ -161,20 +157,19 @@ int xen_snd_front_stream_read(struct xen_snd_front_evtchnl *evtchnl,
 	struct xensnd_req *req;
 	int ret;
 
-	mutex_lock(&evtchnl->u.req.req_io_lock);
+	guard(mutex)(&evtchnl->u.req.req_io_lock);
 
-	mutex_lock(&evtchnl->ring_io_lock);
-	req = be_stream_prepare_req(evtchnl, XENSND_OP_READ);
-	req->op.rw.length = count;
-	req->op.rw.offset = pos;
-	mutex_unlock(&evtchnl->ring_io_lock);
+	scoped_guard(mutex, &evtchnl->ring_io_lock) {
+		req = be_stream_prepare_req(evtchnl, XENSND_OP_READ);
+		req->op.rw.length = count;
+		req->op.rw.offset = pos;
+	}
 
 	ret = be_stream_do_io(evtchnl);
 
 	if (ret == 0)
 		ret = be_stream_wait_io(evtchnl);
 
-	mutex_unlock(&evtchnl->u.req.req_io_lock);
 	return ret;
 }
 
@@ -184,19 +179,18 @@ int xen_snd_front_stream_trigger(struct xen_snd_front_evtchnl *evtchnl,
 	struct xensnd_req *req;
 	int ret;
 
-	mutex_lock(&evtchnl->u.req.req_io_lock);
+	guard(mutex)(&evtchnl->u.req.req_io_lock);
 
-	mutex_lock(&evtchnl->ring_io_lock);
-	req = be_stream_prepare_req(evtchnl, XENSND_OP_TRIGGER);
-	req->op.trigger.type = type;
-	mutex_unlock(&evtchnl->ring_io_lock);
+	scoped_guard(mutex, &evtchnl->ring_io_lock) {
+		req = be_stream_prepare_req(evtchnl, XENSND_OP_TRIGGER);
+		req->op.trigger.type = type;
+	}
 
 	ret = be_stream_do_io(evtchnl);
 
 	if (ret == 0)
 		ret = be_stream_wait_io(evtchnl);
 
-	mutex_unlock(&evtchnl->u.req.req_io_lock);
 	return ret;
 }
 

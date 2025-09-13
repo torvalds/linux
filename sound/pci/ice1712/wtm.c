@@ -118,7 +118,7 @@ static int stac9460_dac_mute_get(struct snd_kcontrol *kcontrol,
 	unsigned char val;
 	int idx, id;
 
-	mutex_lock(&spec->mute_mutex);
+	guard(mutex)(&spec->mute_mutex);
 
 	if (kcontrol->private_value) {
 		idx = STAC946X_MASTER_VOLUME;
@@ -133,7 +133,6 @@ static int stac9460_dac_mute_get(struct snd_kcontrol *kcontrol,
 		val = stac9460_2_get(ice, idx - 6);
 	ucontrol->value.integer.value[0] = (~val >> 7) & 0x1;
 
-	mutex_unlock(&spec->mute_mutex);
 	return 0;
 }
 
@@ -455,7 +454,7 @@ static void stac9460_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 		return;
 	/* change detected, setting master clock, muting first */
 	/* due to possible conflicts with mute controls - mutexing */
-	mutex_lock(&spec->mute_mutex);
+	guard(mutex)(&spec->mute_mutex);
 	/* we have to remember current mute status for each DAC */
 	changed = 0xFFFF;
 	stac9460_dac_mute_all(ice, 0, &changed);
@@ -466,7 +465,6 @@ static void stac9460_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 	/* unmuting - only originally unmuted dacs -
 	* i.e. those changed when muting */
 	stac9460_dac_mute_all(ice, 1, &changed);
-	mutex_unlock(&spec->mute_mutex);
 }
 
 

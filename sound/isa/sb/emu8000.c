@@ -35,60 +35,49 @@
 /* Write a word */
 void snd_emu8000_poke(struct snd_emu8000 *emu, unsigned int port, unsigned int reg, unsigned int val)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&emu->reg_lock, flags);
+	guard(spinlock_irqsave)(&emu->reg_lock);
 	if (reg != emu->last_reg) {
 		outw((unsigned short)reg, EMU8000_PTR(emu)); /* Set register */
 		emu->last_reg = reg;
 	}
 	outw((unsigned short)val, port); /* Send data */
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 }
 
 /* Read a word */
 unsigned short snd_emu8000_peek(struct snd_emu8000 *emu, unsigned int port, unsigned int reg)
 {
-	unsigned short res;
-	unsigned long flags;
-	spin_lock_irqsave(&emu->reg_lock, flags);
+	guard(spinlock_irqsave)(&emu->reg_lock);
 	if (reg != emu->last_reg) {
 		outw((unsigned short)reg, EMU8000_PTR(emu)); /* Set register */
 		emu->last_reg = reg;
 	}
-	res = inw(port);	/* Read data */
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
-	return res;
+	return inw(port);	/* Read data */
 }
 
 /* Write a double word */
 void snd_emu8000_poke_dw(struct snd_emu8000 *emu, unsigned int port, unsigned int reg, unsigned int val)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&emu->reg_lock, flags);
+	guard(spinlock_irqsave)(&emu->reg_lock);
 	if (reg != emu->last_reg) {
 		outw((unsigned short)reg, EMU8000_PTR(emu)); /* Set register */
 		emu->last_reg = reg;
 	}
 	outw((unsigned short)val, port); /* Send low word of data */
 	outw((unsigned short)(val>>16), port+2); /* Send high word of data */
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
 }
 
 /* Read a double word */
 unsigned int snd_emu8000_peek_dw(struct snd_emu8000 *emu, unsigned int port, unsigned int reg)
 {
 	unsigned short low;
-	unsigned int res;
-	unsigned long flags;
-	spin_lock_irqsave(&emu->reg_lock, flags);
+
+	guard(spinlock_irqsave)(&emu->reg_lock);
 	if (reg != emu->last_reg) {
 		outw((unsigned short)reg, EMU8000_PTR(emu)); /* Set register */
 		emu->last_reg = reg;
 	}
 	low = inw(port);	/* Read low word of data */
-	res = low + (inw(port+2) << 16);
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
-	return res;
+	return low + (inw(port+2) << 16);
 }
 
 /*
@@ -456,8 +445,6 @@ skip_detect:
 /*exported*/ void
 snd_emu8000_init_fm(struct snd_emu8000 *emu)
 {
-	unsigned long flags;
-
 	/* Initialize the last two channels for DRAM refresh and producing
 	   the reverb and chorus effects for Yamaha OPL-3 synthesizer */
 
@@ -479,12 +466,12 @@ snd_emu8000_init_fm(struct snd_emu8000 *emu)
 
 	snd_emu8000_poke((emu), EMU8000_DATA0(emu), EMU8000_CMD(1, (30)), 0);
 
-	spin_lock_irqsave(&emu->reg_lock, flags);
-	while (!(inw(EMU8000_PTR(emu)) & 0x1000))
-		;
-	while ((inw(EMU8000_PTR(emu)) & 0x1000))
-		;
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &emu->reg_lock) {
+		while (!(inw(EMU8000_PTR(emu)) & 0x1000))
+			;
+		while ((inw(EMU8000_PTR(emu)) & 0x1000))
+			;
+	}
 	snd_emu8000_poke((emu), EMU8000_DATA0(emu), EMU8000_CMD(1, (30)), 0x4828);
 	/* this is really odd part.. */
 	outb(0x3C, EMU8000_PTR(emu));
@@ -838,20 +825,19 @@ static int mixer_bass_treble_get(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 static int mixer_bass_treble_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu8000 *emu = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int change;
 	unsigned short val1;
 	
 	val1 = ucontrol->value.integer.value[0] % 12;
-	spin_lock_irqsave(&emu->control_lock, flags);
-	if (kcontrol->private_value) {
-		change = val1 != emu->treble_level;
-		emu->treble_level = val1;
-	} else {
-		change = val1 != emu->bass_level;
-		emu->bass_level = val1;
+	scoped_guard(spinlock_irqsave, &emu->control_lock) {
+		if (kcontrol->private_value) {
+			change = val1 != emu->treble_level;
+			emu->treble_level = val1;
+		} else {
+			change = val1 != emu->bass_level;
+			emu->bass_level = val1;
+		}
 	}
-	spin_unlock_irqrestore(&emu->control_lock, flags);
 	snd_emu8000_update_equalizer(emu);
 	return change;
 }
@@ -899,21 +885,20 @@ static int mixer_chorus_reverb_get(struct snd_kcontrol *kcontrol, struct snd_ctl
 static int mixer_chorus_reverb_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu8000 *emu = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int change;
 	unsigned short val1;
 	
-	spin_lock_irqsave(&emu->control_lock, flags);
-	if (kcontrol->private_value) {
-		val1 = ucontrol->value.integer.value[0] % SNDRV_EMU8000_CHORUS_NUMBERS;
-		change = val1 != emu->chorus_mode;
-		emu->chorus_mode = val1;
-	} else {
-		val1 = ucontrol->value.integer.value[0] % SNDRV_EMU8000_REVERB_NUMBERS;
-		change = val1 != emu->reverb_mode;
-		emu->reverb_mode = val1;
+	scoped_guard(spinlock_irqsave, &emu->control_lock) {
+		if (kcontrol->private_value) {
+			val1 = ucontrol->value.integer.value[0] % SNDRV_EMU8000_CHORUS_NUMBERS;
+			change = val1 != emu->chorus_mode;
+			emu->chorus_mode = val1;
+		} else {
+			val1 = ucontrol->value.integer.value[0] % SNDRV_EMU8000_REVERB_NUMBERS;
+			change = val1 != emu->reverb_mode;
+			emu->reverb_mode = val1;
+		}
 	}
-	spin_unlock_irqrestore(&emu->control_lock, flags);
 	if (change) {
 		if (kcontrol->private_value)
 			snd_emu8000_update_chorus_mode(emu);
@@ -966,20 +951,19 @@ static int mixer_fm_depth_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 static int mixer_fm_depth_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu8000 *emu = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int change;
 	unsigned short val1;
 	
 	val1 = ucontrol->value.integer.value[0] % 256;
-	spin_lock_irqsave(&emu->control_lock, flags);
-	if (kcontrol->private_value) {
-		change = val1 != emu->fm_chorus_depth;
-		emu->fm_chorus_depth = val1;
-	} else {
-		change = val1 != emu->fm_reverb_depth;
-		emu->fm_reverb_depth = val1;
+	scoped_guard(spinlock_irqsave, &emu->control_lock) {
+		if (kcontrol->private_value) {
+			change = val1 != emu->fm_chorus_depth;
+			emu->fm_chorus_depth = val1;
+		} else {
+			change = val1 != emu->fm_reverb_depth;
+			emu->fm_reverb_depth = val1;
+		}
 	}
-	spin_unlock_irqrestore(&emu->control_lock, flags);
 	if (change)
 		snd_emu8000_init_fm(emu);
 	return change;

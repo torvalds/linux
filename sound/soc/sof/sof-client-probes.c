@@ -137,7 +137,7 @@ static int sof_probes_compr_trigger(struct snd_compr_stream *cstream, int cmd,
 }
 
 static int sof_probes_compr_pointer(struct snd_compr_stream *cstream,
-				    struct snd_compr_tstamp *tstamp,
+				    struct snd_compr_tstamp64 *tstamp,
 				    struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = snd_soc_component_get_drvdata(dai->component);

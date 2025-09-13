@@ -184,28 +184,30 @@ static void emu8k_pcm_timer_func(struct timer_list *t)
 {
 	struct snd_emu8k_pcm *rec = timer_container_of(rec, t, timer);
 	int ptr, delta;
+	bool period_elapsed = false;
 
-	spin_lock(&rec->timer_lock);
-	/* update the current pointer */
-	ptr = emu8k_get_curpos(rec, 0);
-	if (ptr < rec->last_ptr)
-		delta = ptr + rec->buf_size - rec->last_ptr;
-	else
-		delta = ptr - rec->last_ptr;
-	rec->period_pos += delta;
-	rec->last_ptr = ptr;
+	scoped_guard(spinlock, &rec->timer_lock) {
+		/* update the current pointer */
+		ptr = emu8k_get_curpos(rec, 0);
+		if (ptr < rec->last_ptr)
+			delta = ptr + rec->buf_size - rec->last_ptr;
+		else
+			delta = ptr - rec->last_ptr;
+		rec->period_pos += delta;
+		rec->last_ptr = ptr;
 
-	/* reprogram timer */
-	mod_timer(&rec->timer, jiffies + 1);
+		/* reprogram timer */
+		mod_timer(&rec->timer, jiffies + 1);
 
-	/* update period */
-	if (rec->period_pos >= (int)rec->period_size) {
-		rec->period_pos %= rec->period_size;
-		spin_unlock(&rec->timer_lock);
-		snd_pcm_period_elapsed(rec->substream);
-		return;
+		/* update period */
+		if (rec->period_pos >= (int)rec->period_size) {
+			rec->period_pos %= rec->period_size;
+			period_elapsed = true;
+		}
 	}
-	spin_unlock(&rec->timer_lock);
+
+	if (period_elapsed)
+		snd_pcm_period_elapsed(rec->substream);
 }
 
 
@@ -321,7 +323,6 @@ static void setup_voice(struct snd_emu8k_pcm *rec, int ch)
  */
 static void start_voice(struct snd_emu8k_pcm *rec, int ch)
 {
-	unsigned long flags;
 	struct snd_emu8000 *hw = rec->emu;
 	unsigned int temp, aux;
 	int pt = calc_pitch_target(rec->pitch);
@@ -343,12 +344,11 @@ static void start_voice(struct snd_emu8k_pcm *rec, int ch)
 	EMU8000_CPF_WRITE(hw, ch, pt << 16);
 
 	/* start timer */
-	spin_lock_irqsave(&rec->timer_lock, flags);
+	guard(spinlock_irqsave)(&rec->timer_lock);
 	if (! rec->timer_running) {
 		mod_timer(&rec->timer, jiffies + 1);
 		rec->timer_running = 1;
 	}
-	spin_unlock_irqrestore(&rec->timer_lock, flags);
 }
 
 /*
@@ -356,18 +356,16 @@ static void start_voice(struct snd_emu8k_pcm *rec, int ch)
  */
 static void stop_voice(struct snd_emu8k_pcm *rec, int ch)
 {
-	unsigned long flags;
 	struct snd_emu8000 *hw = rec->emu;
 
 	EMU8000_DCYSUSV_WRITE(hw, ch, 0x807F);
 
 	/* stop timer */
-	spin_lock_irqsave(&rec->timer_lock, flags);
+	guard(spinlock_irqsave)(&rec->timer_lock);
 	if (rec->timer_running) {
 		timer_delete(&rec->timer);
 		rec->timer_running = 0;
 	}
-	spin_unlock_irqrestore(&rec->timer_lock, flags);
 }
 
 static int emu8k_pcm_trigger(struct snd_pcm_substream *subs, int cmd)

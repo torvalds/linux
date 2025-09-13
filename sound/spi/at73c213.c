@@ -401,7 +401,7 @@ static int snd_at73c213_mono_get(struct snd_kcontrol *kcontrol,
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 0xff;
 
-	mutex_lock(&chip->mixer_lock);
+	guard(mutex)(&chip->mixer_lock);
 
 	ucontrol->value.integer.value[0] =
 		(chip->reg_image[reg] >> shift) & mask;
@@ -409,8 +409,6 @@ static int snd_at73c213_mono_get(struct snd_kcontrol *kcontrol,
 	if (invert)
 		ucontrol->value.integer.value[0] =
 			mask - ucontrol->value.integer.value[0];
-
-	mutex_unlock(&chip->mixer_lock);
 
 	return 0;
 }
@@ -431,13 +429,11 @@ static int snd_at73c213_mono_put(struct snd_kcontrol *kcontrol,
 		val = mask - val;
 	val <<= shift;
 
-	mutex_lock(&chip->mixer_lock);
+	guard(mutex)(&chip->mixer_lock);
 
 	val = (chip->reg_image[reg] & ~(mask << shift)) | val;
 	change = val != chip->reg_image[reg];
 	retval = snd_at73c213_write_reg(chip, reg, val);
-
-	mutex_unlock(&chip->mixer_lock);
 
 	if (retval)
 		return retval;
@@ -473,7 +469,7 @@ static int snd_at73c213_stereo_get(struct snd_kcontrol *kcontrol,
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 	int invert = (kcontrol->private_value >> 22) & 1;
 
-	mutex_lock(&chip->mixer_lock);
+	guard(mutex)(&chip->mixer_lock);
 
 	ucontrol->value.integer.value[0] =
 		(chip->reg_image[left_reg] >> shift_left) & mask;
@@ -486,8 +482,6 @@ static int snd_at73c213_stereo_get(struct snd_kcontrol *kcontrol,
 		ucontrol->value.integer.value[1] =
 			mask - ucontrol->value.integer.value[1];
 	}
-
-	mutex_unlock(&chip->mixer_lock);
 
 	return 0;
 }
@@ -514,29 +508,20 @@ static int snd_at73c213_stereo_put(struct snd_kcontrol *kcontrol,
 	val1 <<= shift_left;
 	val2 <<= shift_right;
 
-	mutex_lock(&chip->mixer_lock);
+	guard(mutex)(&chip->mixer_lock);
 
 	val1 = (chip->reg_image[left_reg] & ~(mask << shift_left)) | val1;
 	val2 = (chip->reg_image[right_reg] & ~(mask << shift_right)) | val2;
 	change = val1 != chip->reg_image[left_reg]
 		|| val2 != chip->reg_image[right_reg];
 	retval = snd_at73c213_write_reg(chip, left_reg, val1);
-	if (retval) {
-		mutex_unlock(&chip->mixer_lock);
-		goto out;
-	}
+	if (retval)
+		return retval;
 	retval = snd_at73c213_write_reg(chip, right_reg, val2);
-	if (retval) {
-		mutex_unlock(&chip->mixer_lock);
-		goto out;
-	}
-
-	mutex_unlock(&chip->mixer_lock);
+	if (retval)
+		return retval;
 
 	return change;
-
-out:
-	return retval;
 }
 
 #define snd_at73c213_mono_switch_info	snd_ctl_boolean_mono_info
@@ -549,7 +534,7 @@ static int snd_at73c213_mono_switch_get(struct snd_kcontrol *kcontrol,
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 0xff;
 
-	mutex_lock(&chip->mixer_lock);
+	guard(mutex)(&chip->mixer_lock);
 
 	ucontrol->value.integer.value[0] =
 		(chip->reg_image[reg] >> shift) & 0x01;
@@ -557,8 +542,6 @@ static int snd_at73c213_mono_switch_get(struct snd_kcontrol *kcontrol,
 	if (invert)
 		ucontrol->value.integer.value[0] =
 			0x01 - ucontrol->value.integer.value[0];
-
-	mutex_unlock(&chip->mixer_lock);
 
 	return 0;
 }
@@ -583,14 +566,12 @@ static int snd_at73c213_mono_switch_put(struct snd_kcontrol *kcontrol,
 		val = mask - val;
 	val <<= shift;
 
-	mutex_lock(&chip->mixer_lock);
+	guard(mutex)(&chip->mixer_lock);
 
 	val |= (chip->reg_image[reg] & ~(mask << shift));
 	change = val != chip->reg_image[reg];
 
 	retval = snd_at73c213_write_reg(chip, reg, val);
-
-	mutex_unlock(&chip->mixer_lock);
 
 	if (retval)
 		return retval;
