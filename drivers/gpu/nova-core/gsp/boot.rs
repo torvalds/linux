@@ -7,7 +7,11 @@ use kernel::prelude::*;
 use crate::driver::Bar0;
 use crate::falcon::{gsp::Gsp, sec2::Sec2, Falcon};
 use crate::fb::FbLayout;
-use crate::firmware::fwsec::{FwsecCommand, FwsecFirmware};
+use crate::firmware::{
+    booter::{BooterFirmware, BooterKind},
+    fwsec::{FwsecCommand, FwsecFirmware},
+    FIRMWARE_VERSION,
+};
 use crate::gpu::Chipset;
 use crate::regs;
 use crate::vbios::Vbios;
@@ -102,7 +106,7 @@ impl super::Gsp {
         bar: &Bar0,
         chipset: Chipset,
         gsp_falcon: &Falcon<Gsp>,
-        _sec2_falcon: &Falcon<Sec2>,
+        sec2_falcon: &Falcon<Sec2>,
     ) -> Result {
         let dev = pdev.as_ref();
 
@@ -112,6 +116,15 @@ impl super::Gsp {
         dev_dbg!(dev, "{:#x?}\n", fb_layout);
 
         Self::run_fwsec_frts(dev, gsp_falcon, bar, &bios, &fb_layout)?;
+
+        let _booter_loader = BooterFirmware::new(
+            dev,
+            BooterKind::Loader,
+            chipset,
+            FIRMWARE_VERSION,
+            sec2_falcon,
+            bar,
+        )?;
 
         Ok(())
     }

@@ -17,6 +17,7 @@ use crate::falcon::FalconFirmware;
 use crate::gpu;
 use crate::gpu::Chipset;
 
+pub(crate) mod booter;
 pub(crate) mod fwsec;
 
 pub(crate) const FIRMWARE_VERSION: &str = "535.113.01";
@@ -37,8 +38,6 @@ fn request_firmware(
 /// Structure encapsulating the firmware blobs required for the GPU to operate.
 #[expect(dead_code)]
 pub(crate) struct Firmware {
-    booter_load: firmware::Firmware,
-    booter_unload: firmware::Firmware,
     bootloader: firmware::Firmware,
     gsp: firmware::Firmware,
 }
@@ -48,8 +47,6 @@ impl Firmware {
         let request = |name| request_firmware(dev, chipset, name, ver);
 
         Ok(Firmware {
-            booter_load: request("booter_load")?,
-            booter_unload: request("booter_unload")?,
             bootloader: request("bootloader")?,
             gsp: request("gsp")?,
         })
@@ -185,7 +182,6 @@ struct BinFirmware<'a> {
     fw: &'a [u8],
 }
 
-#[expect(dead_code)]
 impl<'a> BinFirmware<'a> {
     /// Interpret `fw` as a firmware image starting with a [`BinHdr`], and returns the
     /// corresponding [`BinFirmware`] that can be used to extract its payload.
