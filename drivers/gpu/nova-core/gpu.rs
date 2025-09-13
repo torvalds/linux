@@ -3,15 +3,13 @@
 use kernel::{device, devres::Devres, error::code::*, pci, prelude::*, sync::Arc};
 
 use crate::driver::Bar0;
-use crate::falcon::{gsp::Gsp, sec2::Sec2, Falcon};
-use crate::fb::FbLayout;
+use crate::falcon::{gsp::Gsp as GspFalcon, sec2::Sec2 as Sec2Falcon, Falcon};
 use crate::fb::SysmemFlush;
-use crate::firmware::fwsec::{FwsecCommand, FwsecFirmware};
 use crate::firmware::{Firmware, FIRMWARE_VERSION};
 use crate::gfw;
+use crate::gsp::Gsp;
 use crate::regs;
 use crate::util;
-use crate::vbios::Vbios;
 use core::fmt;
 
 macro_rules! define_chipset {
@@ -172,133 +170,58 @@ pub(crate) struct Gpu {
     /// System memory page required for flushing all pending GPU-side memory writes done through
     /// PCIE into system memory, via sysmembar (A GPU-initiated HW memory-barrier operation).
     sysmem_flush: SysmemFlush,
+    /// GSP falcon instance, used for GSP boot up and cleanup.
+    gsp_falcon: Falcon<GspFalcon>,
+    /// SEC2 falcon instance, used for GSP boot up and cleanup.
+    sec2_falcon: Falcon<Sec2Falcon>,
+    /// GSP runtime data. Temporarily an empty placeholder.
+    #[pin]
+    gsp: Gsp,
 }
 
 impl Gpu {
-    /// Helper function to load and run the FWSEC-FRTS firmware and confirm that it has properly
-    /// created the WPR2 region.
-    ///
-    /// TODO: this needs to be moved into a larger type responsible for booting the whole GSP
-    /// (`GspBooter`?).
-    fn run_fwsec_frts(
-        dev: &device::Device<device::Bound>,
-        falcon: &Falcon<Gsp>,
-        bar: &Bar0,
-        bios: &Vbios,
-        fb_layout: &FbLayout,
-    ) -> Result<()> {
-        // Check that the WPR2 region does not already exists - if it does, we cannot run
-        // FWSEC-FRTS until the GPU is reset.
-        if regs::NV_PFB_PRI_MMU_WPR2_ADDR_HI::read(bar).higher_bound() != 0 {
-            dev_err!(
-                dev,
-                "WPR2 region already exists - GPU needs to be reset to proceed\n"
-            );
-            return Err(EBUSY);
-        }
-
-        let fwsec_frts = FwsecFirmware::new(
-            dev,
-            falcon,
-            bar,
-            bios,
-            FwsecCommand::Frts {
-                frts_addr: fb_layout.frts.start,
-                frts_size: fb_layout.frts.end - fb_layout.frts.start,
-            },
-        )?;
-
-        // Run FWSEC-FRTS to create the WPR2 region.
-        fwsec_frts.run(dev, falcon, bar)?;
-
-        // SCRATCH_E contains the error code for FWSEC-FRTS.
-        let frts_status = regs::NV_PBUS_SW_SCRATCH_0E_FRTS_ERR::read(bar).frts_err_code();
-        if frts_status != 0 {
-            dev_err!(
-                dev,
-                "FWSEC-FRTS returned with error code {:#x}",
-                frts_status
-            );
-
-            return Err(EIO);
-        }
-
-        // Check that the WPR2 region has been created as we requested.
-        let (wpr2_lo, wpr2_hi) = (
-            regs::NV_PFB_PRI_MMU_WPR2_ADDR_LO::read(bar).lower_bound(),
-            regs::NV_PFB_PRI_MMU_WPR2_ADDR_HI::read(bar).higher_bound(),
-        );
-
-        match (wpr2_lo, wpr2_hi) {
-            (_, 0) => {
-                dev_err!(dev, "WPR2 region not created after running FWSEC-FRTS\n");
-
-                Err(EIO)
-            }
-            (wpr2_lo, _) if wpr2_lo != fb_layout.frts.start => {
-                dev_err!(
-                    dev,
-                    "WPR2 region created at unexpected address {:#x}; expected {:#x}\n",
-                    wpr2_lo,
-                    fb_layout.frts.start,
-                );
-
-                Err(EIO)
-            }
-            (wpr2_lo, wpr2_hi) => {
-                dev_dbg!(dev, "WPR2: {:#x}-{:#x}\n", wpr2_lo, wpr2_hi);
-                dev_dbg!(dev, "GPU instance built\n");
-
-                Ok(())
-            }
-        }
-    }
-
-    pub(crate) fn new(
-        pdev: &pci::Device<device::Bound>,
+    pub(crate) fn new<'a>(
+        pdev: &'a pci::Device<device::Bound>,
         devres_bar: Arc<Devres<Bar0>>,
-    ) -> Result<impl PinInit<Self>> {
-        let bar = devres_bar.access(pdev.as_ref())?;
-        let spec = Spec::new(bar)?;
-        let fw = Firmware::new(pdev.as_ref(), spec.chipset, FIRMWARE_VERSION)?;
+        bar: &'a Bar0,
+    ) -> impl PinInit<Self, Error> + 'a {
+        try_pin_init!(Self {
+            spec: Spec::new(bar).inspect(|spec| {
+                dev_info!(
+                    pdev.as_ref(),
+                    "NVIDIA (Chipset: {}, Architecture: {:?}, Revision: {})\n",
+                    spec.chipset,
+                    spec.chipset.arch(),
+                    spec.revision
+                );
+            })?,
 
-        dev_info!(
-            pdev.as_ref(),
-            "NVIDIA (Chipset: {}, Architecture: {:?}, Revision: {})\n",
-            spec.chipset,
-            spec.chipset.arch(),
-            spec.revision
-        );
+            // We must wait for GFW_BOOT completion before doing any significant setup on the GPU.
+            _: {
+                gfw::wait_gfw_boot_completion(bar)
+                    .inspect_err(|_| dev_err!(pdev.as_ref(), "GFW boot did not complete"))?;
+            },
 
-        // We must wait for GFW_BOOT completion before doing any significant setup on the GPU.
-        gfw::wait_gfw_boot_completion(bar)
-            .inspect_err(|_| dev_err!(pdev.as_ref(), "GFW boot did not complete"))?;
+            fw <- Firmware::new(pdev.as_ref(), spec.chipset, FIRMWARE_VERSION)?,
 
-        let sysmem_flush = SysmemFlush::register(pdev.as_ref(), bar, spec.chipset)?;
+            sysmem_flush: SysmemFlush::register(pdev.as_ref(), bar, spec.chipset)?,
 
-        let gsp_falcon = Falcon::<Gsp>::new(
-            pdev.as_ref(),
-            spec.chipset,
-            bar,
-            spec.chipset > Chipset::GA100,
-        )?;
-        gsp_falcon.clear_swgen0_intr(bar);
+            gsp_falcon: Falcon::new(
+                pdev.as_ref(),
+                spec.chipset,
+                bar,
+                spec.chipset > Chipset::GA100,
+            )
+            .inspect(|falcon| falcon.clear_swgen0_intr(bar))?,
 
-        let _sec2_falcon = Falcon::<Sec2>::new(pdev.as_ref(), spec.chipset, bar, true)?;
+            sec2_falcon: Falcon::new(pdev.as_ref(), spec.chipset, bar, true)?,
 
-        let fb_layout = FbLayout::new(spec.chipset, bar)?;
-        dev_dbg!(pdev.as_ref(), "{:#x?}\n", fb_layout);
+            gsp <- Gsp::new(),
 
-        let bios = Vbios::new(pdev.as_ref(), bar)?;
+            _: { gsp.boot(pdev, bar, spec.chipset, gsp_falcon, sec2_falcon)? },
 
-        Self::run_fwsec_frts(pdev.as_ref(), &gsp_falcon, bar, &bios, &fb_layout)?;
-
-        Ok(pin_init!(Self {
-            spec,
             bar: devres_bar,
-            fw,
-            sysmem_flush,
-        }))
+        })
     }
 
     /// Called when the corresponding [`Device`](device::Device) is unbound.
