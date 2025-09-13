@@ -1947,7 +1947,7 @@ static const struct kobj_type vmbus_chan_ktype = {
  * is running.
  * For example, HV_NIC device is used either by uio_hv_generic or hv_netvsc at any given point of
  * time, and "ring" sysfs is needed only when uio_hv_generic is bound to that device. To avoid
- * exposing the ring buffer by default, this function is reponsible to enable visibility of
+ * exposing the ring buffer by default, this function is responsible to enable visibility of
  * ring for userspace to use.
  * Note: Race conditions can happen with userspace and it is not encouraged to create new
  * use-cases for this. This was added to maintain backward compatibility, while solving
@@ -2110,7 +2110,7 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 	ret = vmbus_add_channel_kobj(child_device_obj,
 				     child_device_obj->channel);
 	if (ret) {
-		pr_err("Unable to register primary channeln");
+		pr_err("Unable to register primary channel\n");
 		goto err_kset_unregister;
 	}
 	hv_debug_add_dev_dir(child_device_obj);
