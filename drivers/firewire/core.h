@@ -27,6 +27,9 @@ struct fw_packet;
 
 /* -card */
 
+// This is the arbitrary value we use to indicate a mismatched gap count.
+#define GAP_COUNT_MISMATCHED	0
+
 extern __printf(2, 3)
 void fw_err(const struct fw_card *card, const char *fmt, ...);
 extern __printf(2, 3)

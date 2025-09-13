@@ -425,7 +425,7 @@ static void bm_work(struct work_struct *work)
 	 */
 	card->bm_generation = generation;
 
-	if (card->gap_count == 0) {
+	if (card->gap_count == GAP_COUNT_MISMATCHED) {
 		/*
 		 * If self IDs have inconsistent gap counts, do a
 		 * bus reset ASAP. The config rom read might never

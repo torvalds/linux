@@ -241,7 +241,7 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 		// If PHYs report different gap counts, set an invalid count which will force a gap
 		// count reconfiguration and a reset.
 		if (phy_packet_self_id_zero_get_gap_count(self_id_sequence[0]) != gap_count)
-			gap_count = 0;
+			gap_count = GAP_COUNT_MISMATCHED;
 
 		update_hop_count(node);
 
