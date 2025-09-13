@@ -8,7 +8,7 @@ mdio-bus-y			+= mdio_bus.o mdio_device.o
 
 ifdef CONFIG_PHYLIB
 # built-in whenever PHYLIB is built-in or module
-obj-y				+= stubs.o mdio-boardinfo.o
+obj-y				+= stubs.o
 endif
 
 libphy-$(CONFIG_SWPHY)		+= swphy.o
