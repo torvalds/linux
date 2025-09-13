@@ -3660,19 +3660,19 @@ static int qm_vf_q_assign(struct hisi_qm *qm, u32 num_vfs)
 	return 0;
 }
 
-static int qm_clear_vft_config(struct hisi_qm *qm)
+static void qm_clear_vft_config(struct hisi_qm *qm)
 {
-	int ret;
 	u32 i;
 
-	for (i = 1; i <= qm->vfs_num; i++) {
-		ret = hisi_qm_set_vft(qm, i, 0, 0);
-		if (ret)
-			return ret;
-	}
-	qm->vfs_num = 0;
+	/*
+	 * When disabling SR-IOV, clear the configuration of each VF in the hardware
+	 * sequentially. Failure to clear a single VF should not affect the clearing
+	 * operation of other VFs.
+	 */
+	for (i = 1; i <= qm->vfs_num; i++)
+		(void)hisi_qm_set_vft(qm, i, 0, 0);
 
-	return 0;
+	qm->vfs_num = 0;
 }
 
 static int qm_func_shaper_enable(struct hisi_qm *qm, u32 fun_index, u32 qos)
@@ -4007,13 +4007,13 @@ int hisi_qm_sriov_enable(struct pci_dev *pdev, int max_vfs)
 		goto err_put_sync;
 	}
 
+	qm->vfs_num = num_vfs;
 	ret = pci_enable_sriov(pdev, num_vfs);
 	if (ret) {
 		pci_err(pdev, "Can't enable VF!\n");
 		qm_clear_vft_config(qm);
 		goto err_put_sync;
 	}
-	qm->vfs_num = num_vfs;
 
 	pci_info(pdev, "VF enabled, vfs_num(=%d)!\n", num_vfs);
 
@@ -4048,11 +4048,10 @@ int hisi_qm_sriov_disable(struct pci_dev *pdev, bool is_frozen)
 	}
 
 	pci_disable_sriov(pdev);
-
-	qm->vfs_num = 0;
+	qm_clear_vft_config(qm);
 	qm_pm_put_sync(qm);
 
-	return qm_clear_vft_config(qm);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(hisi_qm_sriov_disable);
 
