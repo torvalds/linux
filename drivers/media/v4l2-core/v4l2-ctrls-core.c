@@ -827,39 +827,114 @@ static int validate_av1_frame(struct v4l2_ctrl_av1_frame *f)
 	return 0;
 }
 
+/**
+ * validate_av1_sequence - validate AV1 sequence header fields
+ * @s: control struct from userspace
+ *
+ * Implements AV1 spec §5.5.2 color_config() checks that are
+ * possible with the current v4l2_ctrl_av1_sequence definition.
+ *
+ * TODO: extend validation once additional fields such as
+ *       color_primaries, transfer_characteristics,
+ *       matrix_coefficients, and chroma_sample_position
+ *       are added to the uAPI.
+ *
+ * Returns 0 if valid, -EINVAL otherwise.
+ */
 static int validate_av1_sequence(struct v4l2_ctrl_av1_sequence *s)
 {
+	const bool mono  = s->flags & V4L2_AV1_SEQUENCE_FLAG_MONO_CHROME;
+	const bool sx    = s->flags & V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_X;
+	const bool sy    = s->flags & V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_Y;
+	const bool uv_dq = s->flags & V4L2_AV1_SEQUENCE_FLAG_SEPARATE_UV_DELTA_Q;
+
+	/* 1. Reject unknown flags */
 	if (s->flags &
-	~(V4L2_AV1_SEQUENCE_FLAG_STILL_PICTURE |
-	 V4L2_AV1_SEQUENCE_FLAG_USE_128X128_SUPERBLOCK |
-	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_FILTER_INTRA |
-	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_INTRA_EDGE_FILTER |
-	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_INTERINTRA_COMPOUND |
-	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_MASKED_COMPOUND |
-	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_WARPED_MOTION |
-	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_DUAL_FILTER |
-	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_ORDER_HINT |
-	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_JNT_COMP |
-	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_REF_FRAME_MVS |
-	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_SUPERRES |
-	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_CDEF |
-	 V4L2_AV1_SEQUENCE_FLAG_ENABLE_RESTORATION |
-	 V4L2_AV1_SEQUENCE_FLAG_MONO_CHROME |
-	 V4L2_AV1_SEQUENCE_FLAG_COLOR_RANGE |
-	 V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_X |
-	 V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_Y |
-	 V4L2_AV1_SEQUENCE_FLAG_FILM_GRAIN_PARAMS_PRESENT |
-	 V4L2_AV1_SEQUENCE_FLAG_SEPARATE_UV_DELTA_Q))
+	    ~(V4L2_AV1_SEQUENCE_FLAG_STILL_PICTURE |
+	      V4L2_AV1_SEQUENCE_FLAG_USE_128X128_SUPERBLOCK |
+	      V4L2_AV1_SEQUENCE_FLAG_ENABLE_FILTER_INTRA |
+	      V4L2_AV1_SEQUENCE_FLAG_ENABLE_INTRA_EDGE_FILTER |
+	      V4L2_AV1_SEQUENCE_FLAG_ENABLE_INTERINTRA_COMPOUND |
+	      V4L2_AV1_SEQUENCE_FLAG_ENABLE_MASKED_COMPOUND |
+	      V4L2_AV1_SEQUENCE_FLAG_ENABLE_WARPED_MOTION |
+	      V4L2_AV1_SEQUENCE_FLAG_ENABLE_DUAL_FILTER |
+	      V4L2_AV1_SEQUENCE_FLAG_ENABLE_ORDER_HINT |
+	      V4L2_AV1_SEQUENCE_FLAG_ENABLE_JNT_COMP |
+	      V4L2_AV1_SEQUENCE_FLAG_ENABLE_REF_FRAME_MVS |
+	      V4L2_AV1_SEQUENCE_FLAG_ENABLE_SUPERRES |
+	      V4L2_AV1_SEQUENCE_FLAG_ENABLE_CDEF |
+	      V4L2_AV1_SEQUENCE_FLAG_ENABLE_RESTORATION |
+	      V4L2_AV1_SEQUENCE_FLAG_MONO_CHROME |
+	      V4L2_AV1_SEQUENCE_FLAG_COLOR_RANGE |
+	      V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_X |
+	      V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_Y |
+	      V4L2_AV1_SEQUENCE_FLAG_FILM_GRAIN_PARAMS_PRESENT |
+	      V4L2_AV1_SEQUENCE_FLAG_SEPARATE_UV_DELTA_Q))
 		return -EINVAL;
 
-	if (s->seq_profile == 1 && s->flags & V4L2_AV1_SEQUENCE_FLAG_MONO_CHROME)
-		return -EINVAL;
-
-	/* reserved */
+	/* 2. Profile range */
 	if (s->seq_profile > 2)
 		return -EINVAL;
 
-	/* TODO: PROFILES */
+	/* 3. Monochrome shortcut */
+	if (mono) {
+		/* Profile 1 forbids monochrome */
+		if (s->seq_profile == 1)
+			return -EINVAL;
+
+		/* Mono → subsampling must look like 4:0:0: sx=1, sy=1 */
+		if (!sx || !sy)
+			return -EINVAL;
+
+		/* separate_uv_delta_q must be 0 */
+		if (uv_dq)
+			return -EINVAL;
+
+		return 0;
+	}
+
+	/* 4. Profile-specific rules */
+	switch (s->seq_profile) {
+	case 0:
+		/* Profile 0: only 8/10-bit, subsampling=4:2:0 (sx=1, sy=1) */
+		if (s->bit_depth != 8 && s->bit_depth != 10)
+			return -EINVAL;
+		if (!(sx && sy))
+			return -EINVAL;
+		break;
+
+	case 1:
+		/* Profile 1: only 8/10-bit, subsampling=4:4:4 (sx=0, sy=0) */
+		if (s->bit_depth != 8 && s->bit_depth != 10)
+			return -EINVAL;
+		if (sx || sy)
+			return -EINVAL;
+		break;
+
+	case 2:
+		/* Profile 2: 8/10/12-bit allowed */
+		if (s->bit_depth != 8 && s->bit_depth != 10 &&
+		    s->bit_depth != 12)
+			return -EINVAL;
+
+		if (s->bit_depth == 12) {
+			if (!sx) {
+				/* 4:4:4 → sy must be 0 */
+				if (sy)
+					return -EINVAL;
+			} else {
+				/* sx=1 → sy=0 (4:2:2) or sy=1 (4:2:0) */
+				if (sy != 0 && sy != 1)
+					return -EINVAL;
+			}
+		} else {
+			/* 8/10-bit → only 4:2:2 allowed (sx=1, sy=0) */
+			if (!(sx && !sy))
+				return -EINVAL;
+		}
+		break;
+	}
+
 	return 0;
 }
 
