@@ -19,6 +19,19 @@ pub(crate) mod fwsec;
 
 pub(crate) const FIRMWARE_VERSION: &str = "535.113.01";
 
+/// Requests the GPU firmware `name` suitable for `chipset`, with version `ver`.
+fn request_firmware(
+    dev: &device::Device,
+    chipset: gpu::Chipset,
+    name: &str,
+    ver: &str,
+) -> Result<firmware::Firmware> {
+    let chip_name = chipset.name();
+
+    CString::try_from_fmt(fmt!("nvidia/{chip_name}/gsp/{name}-{ver}.bin"))
+        .and_then(|path| firmware::Firmware::request(&path, dev))
+}
+
 /// Structure encapsulating the firmware blobs required for the GPU to operate.
 #[expect(dead_code)]
 pub(crate) struct Firmware {
@@ -30,12 +43,7 @@ pub(crate) struct Firmware {
 
 impl Firmware {
     pub(crate) fn new(dev: &device::Device, chipset: Chipset, ver: &str) -> Result<Firmware> {
-        let chip_name = chipset.name();
-
-        let request = |name_| {
-            CString::try_from_fmt(fmt!("nvidia/{chip_name}/gsp/{name_}-{ver}.bin"))
-                .and_then(|path| firmware::Firmware::request(&path, dev))
-        };
+        let request = |name| request_firmware(dev, chipset, name, ver);
 
         Ok(Firmware {
             booter_load: request("booter_load")?,
