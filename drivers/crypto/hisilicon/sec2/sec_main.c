@@ -47,6 +47,8 @@
 #define SEC_RAS_FE_ENB_MSK		0x0
 #define SEC_OOO_SHUTDOWN_SEL		0x301014
 #define SEC_RAS_DISABLE		0x0
+#define SEC_AXI_ERROR_MASK		(BIT(0) | BIT(1))
+
 #define SEC_MEM_START_INIT_REG	0x301100
 #define SEC_MEM_INIT_DONE_REG		0x301104
 
@@ -713,8 +715,7 @@ static void sec_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
 	val1 = readl(qm->io_base + SEC_CONTROL_REG);
 	if (enable) {
 		val1 |= SEC_AXI_SHUTDOWN_ENABLE;
-		val2 = hisi_qm_get_hw_info(qm, sec_basic_info,
-					   SEC_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
+		val2 = qm->err_info.dev_err.shutdown_mask;
 	} else {
 		val1 &= SEC_AXI_SHUTDOWN_DISABLE;
 		val2 = 0x0;
@@ -728,7 +729,8 @@ static void sec_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
 
 static void sec_hw_error_enable(struct hisi_qm *qm)
 {
-	u32 ce, nfe;
+	struct hisi_qm_err_mask *dev_err = &qm->err_info.dev_err;
+	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
 
 	if (qm->ver == QM_HW_V1) {
 		writel(SEC_CORE_INT_DISABLE, qm->io_base + SEC_CORE_INT_MASK);
@@ -736,22 +738,19 @@ static void sec_hw_error_enable(struct hisi_qm *qm)
 		return;
 	}
 
-	ce = hisi_qm_get_hw_info(qm, sec_basic_info, SEC_CE_MASK_CAP, qm->cap_ver);
-	nfe = hisi_qm_get_hw_info(qm, sec_basic_info, SEC_NFE_MASK_CAP, qm->cap_ver);
-
 	/* clear SEC hw error source if having */
-	writel(ce | nfe | SEC_RAS_FE_ENB_MSK, qm->io_base + SEC_CORE_INT_SOURCE);
+	writel(err_mask, qm->io_base + SEC_CORE_INT_SOURCE);
 
 	/* enable RAS int */
-	writel(ce, qm->io_base + SEC_RAS_CE_REG);
-	writel(SEC_RAS_FE_ENB_MSK, qm->io_base + SEC_RAS_FE_REG);
-	writel(nfe, qm->io_base + SEC_RAS_NFE_REG);
+	writel(dev_err->ce, qm->io_base + SEC_RAS_CE_REG);
+	writel(dev_err->fe, qm->io_base + SEC_RAS_FE_REG);
+	writel(dev_err->nfe, qm->io_base + SEC_RAS_NFE_REG);
 
 	/* enable SEC block master OOO when nfe occurs on Kunpeng930 */
 	sec_master_ooo_ctrl(qm, true);
 
 	/* enable SEC hw error interrupts */
-	writel(ce | nfe | SEC_RAS_FE_ENB_MSK, qm->io_base + SEC_CORE_INT_MASK);
+	writel(err_mask, qm->io_base + SEC_CORE_INT_MASK);
 }
 
 static void sec_hw_error_disable(struct hisi_qm *qm)
@@ -1108,9 +1107,8 @@ static void sec_clear_hw_err_status(struct hisi_qm *qm, u32 err_sts)
 
 static void sec_disable_error_report(struct hisi_qm *qm, u32 err_type)
 {
-	u32 nfe_mask;
+	u32 nfe_mask = qm->err_info.dev_err.nfe;
 
-	nfe_mask = hisi_qm_get_hw_info(qm, sec_basic_info, SEC_NFE_MASK_CAP, qm->cap_ver);
 	writel(nfe_mask & (~err_type), qm->io_base + SEC_RAS_NFE_REG);
 }
 
@@ -1129,11 +1127,11 @@ static enum acc_err_result sec_get_err_result(struct hisi_qm *qm)
 
 	err_status = sec_get_hw_err_status(qm);
 	if (err_status) {
-		if (err_status & qm->err_info.ecc_2bits_mask)
+		if (err_status & qm->err_info.dev_err.ecc_2bits_mask)
 			qm->err_status.is_dev_ecc_mbit = true;
 		sec_log_hw_error(qm, err_status);
 
-		if (err_status & qm->err_info.dev_reset_mask) {
+		if (err_status & qm->err_info.dev_err.reset_mask) {
 			/* Disable the same error reporting until device is recovered. */
 			sec_disable_error_report(qm, err_status);
 			return ACC_ERR_NEED_RESET;
@@ -1149,28 +1147,62 @@ static bool sec_dev_is_abnormal(struct hisi_qm *qm)
 	u32 err_status;
 
 	err_status = sec_get_hw_err_status(qm);
-	if (err_status & qm->err_info.dev_shutdown_mask)
+	if (err_status & qm->err_info.dev_err.shutdown_mask)
 		return true;
 
 	return false;
 }
 
+static void sec_disable_axi_error(struct hisi_qm *qm)
+{
+	struct hisi_qm_err_mask *dev_err = &qm->err_info.dev_err;
+	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
+
+	writel(err_mask & ~SEC_AXI_ERROR_MASK, qm->io_base + SEC_CORE_INT_MASK);
+
+	if (qm->ver > QM_HW_V2)
+		writel(dev_err->shutdown_mask & (~SEC_AXI_ERROR_MASK),
+		       qm->io_base + SEC_OOO_SHUTDOWN_SEL);
+}
+
+static void sec_enable_axi_error(struct hisi_qm *qm)
+{
+	struct hisi_qm_err_mask *dev_err = &qm->err_info.dev_err;
+	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
+
+	/* clear axi error source */
+	writel(SEC_AXI_ERROR_MASK, qm->io_base + SEC_CORE_INT_SOURCE);
+
+	writel(err_mask, qm->io_base + SEC_CORE_INT_MASK);
+
+	if (qm->ver > QM_HW_V2)
+		writel(dev_err->shutdown_mask, qm->io_base + SEC_OOO_SHUTDOWN_SEL);
+}
+
 static void sec_err_info_init(struct hisi_qm *qm)
 {
 	struct hisi_qm_err_info *err_info = &qm->err_info;
+	struct hisi_qm_err_mask *qm_err = &err_info->qm_err;
+	struct hisi_qm_err_mask *dev_err = &err_info->dev_err;
 
-	err_info->fe = SEC_RAS_FE_ENB_MSK;
-	err_info->ce = hisi_qm_get_hw_info(qm, sec_basic_info, SEC_QM_CE_MASK_CAP, qm->cap_ver);
-	err_info->nfe = hisi_qm_get_hw_info(qm, sec_basic_info, SEC_QM_NFE_MASK_CAP, qm->cap_ver);
-	err_info->ecc_2bits_mask = SEC_CORE_INT_STATUS_M_ECC;
-	err_info->qm_shutdown_mask = hisi_qm_get_hw_info(qm, sec_basic_info,
-				     SEC_QM_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
-	err_info->dev_shutdown_mask = hisi_qm_get_hw_info(qm, sec_basic_info,
-			SEC_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
-	err_info->qm_reset_mask = hisi_qm_get_hw_info(qm, sec_basic_info,
-			SEC_QM_RESET_MASK_CAP, qm->cap_ver);
-	err_info->dev_reset_mask = hisi_qm_get_hw_info(qm, sec_basic_info,
-			SEC_RESET_MASK_CAP, qm->cap_ver);
+	qm_err->fe = SEC_RAS_FE_ENB_MSK;
+	qm_err->ce = hisi_qm_get_hw_info(qm, sec_basic_info, SEC_QM_CE_MASK_CAP, qm->cap_ver);
+	qm_err->nfe = hisi_qm_get_hw_info(qm, sec_basic_info, SEC_QM_NFE_MASK_CAP, qm->cap_ver);
+	qm_err->shutdown_mask = hisi_qm_get_hw_info(qm, sec_basic_info,
+						    SEC_QM_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
+	qm_err->reset_mask = hisi_qm_get_hw_info(qm, sec_basic_info,
+						 SEC_QM_RESET_MASK_CAP, qm->cap_ver);
+	qm_err->ecc_2bits_mask = QM_ECC_MBIT;
+
+	dev_err->fe = SEC_RAS_FE_ENB_MSK;
+	dev_err->ce = hisi_qm_get_hw_info(qm, sec_basic_info, SEC_CE_MASK_CAP, qm->cap_ver);
+	dev_err->nfe = hisi_qm_get_hw_info(qm, sec_basic_info, SEC_NFE_MASK_CAP, qm->cap_ver);
+	dev_err->shutdown_mask = hisi_qm_get_hw_info(qm, sec_basic_info,
+						     SEC_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
+	dev_err->reset_mask = hisi_qm_get_hw_info(qm, sec_basic_info,
+						  SEC_RESET_MASK_CAP, qm->cap_ver);
+	dev_err->ecc_2bits_mask = SEC_CORE_INT_STATUS_M_ECC;
+
 	err_info->msi_wr_port = BIT(0);
 	err_info->acpi_rst = "SRST";
 }
@@ -1188,6 +1220,8 @@ static const struct hisi_qm_err_ini sec_err_ini = {
 	.err_info_init		= sec_err_info_init,
 	.get_err_result		= sec_get_err_result,
 	.dev_is_abnormal        = sec_dev_is_abnormal,
+	.disable_axi_error	= sec_disable_axi_error,
+	.enable_axi_error	= sec_enable_axi_error,
 };
 
 static int sec_pf_probe_init(struct sec_dev *sec)

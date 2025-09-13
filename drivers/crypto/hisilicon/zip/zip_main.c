@@ -65,6 +65,7 @@
 #define HZIP_SRAM_ECC_ERR_NUM_SHIFT	16
 #define HZIP_SRAM_ECC_ERR_ADDR_SHIFT	24
 #define HZIP_CORE_INT_MASK_ALL		GENMASK(12, 0)
+#define HZIP_AXI_ERROR_MASK		(BIT(2) | BIT(3))
 #define HZIP_SQE_SIZE			128
 #define HZIP_PF_DEF_Q_NUM		64
 #define HZIP_PF_DEF_Q_BASE		0
@@ -662,8 +663,7 @@ static void hisi_zip_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
 	val1 = readl(qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
 	if (enable) {
 		val1 |= HZIP_AXI_SHUTDOWN_ENABLE;
-		val2 = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-				ZIP_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
+		val2 = qm->err_info.dev_err.shutdown_mask;
 	} else {
 		val1 &= ~HZIP_AXI_SHUTDOWN_ENABLE;
 		val2 = 0x0;
@@ -677,7 +677,8 @@ static void hisi_zip_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
 
 static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 {
-	u32 nfe, ce;
+	struct hisi_qm_err_mask *dev_err = &qm->err_info.dev_err;
+	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
 
 	if (qm->ver == QM_HW_V1) {
 		writel(HZIP_CORE_INT_MASK_ALL,
@@ -686,33 +687,29 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 		return;
 	}
 
-	nfe = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_NFE_MASK_CAP, qm->cap_ver);
-	ce = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_CE_MASK_CAP, qm->cap_ver);
-
 	/* clear ZIP hw error source if having */
-	writel(ce | nfe | HZIP_CORE_INT_RAS_FE_ENB_MASK, qm->io_base + HZIP_CORE_INT_SOURCE);
+	writel(err_mask, qm->io_base + HZIP_CORE_INT_SOURCE);
 
 	/* configure error type */
-	writel(ce, qm->io_base + HZIP_CORE_INT_RAS_CE_ENB);
-	writel(HZIP_CORE_INT_RAS_FE_ENB_MASK, qm->io_base + HZIP_CORE_INT_RAS_FE_ENB);
-	writel(nfe, qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
+	writel(dev_err->ce, qm->io_base + HZIP_CORE_INT_RAS_CE_ENB);
+	writel(dev_err->fe, qm->io_base + HZIP_CORE_INT_RAS_FE_ENB);
+	writel(dev_err->nfe, qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
 
 	hisi_zip_master_ooo_ctrl(qm, true);
 
 	/* enable ZIP hw error interrupts */
-	writel(0, qm->io_base + HZIP_CORE_INT_MASK_REG);
+	writel(~err_mask, qm->io_base + HZIP_CORE_INT_MASK_REG);
 
 	hisi_dae_hw_error_enable(qm);
 }
 
 static void hisi_zip_hw_error_disable(struct hisi_qm *qm)
 {
-	u32 nfe, ce;
+	struct hisi_qm_err_mask *dev_err = &qm->err_info.dev_err;
+	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
 
 	/* disable ZIP hw error interrupts */
-	nfe = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_NFE_MASK_CAP, qm->cap_ver);
-	ce = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_CE_MASK_CAP, qm->cap_ver);
-	writel(ce | nfe | HZIP_CORE_INT_RAS_FE_ENB_MASK, qm->io_base + HZIP_CORE_INT_MASK_REG);
+	writel(err_mask, qm->io_base + HZIP_CORE_INT_MASK_REG);
 
 	hisi_zip_master_ooo_ctrl(qm, false);
 
@@ -1186,9 +1183,8 @@ static void hisi_zip_clear_hw_err_status(struct hisi_qm *qm, u32 err_sts)
 
 static void hisi_zip_disable_error_report(struct hisi_qm *qm, u32 err_type)
 {
-	u32 nfe_mask;
+	u32 nfe_mask = qm->err_info.dev_err.nfe;
 
-	nfe_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_NFE_MASK_CAP, qm->cap_ver);
 	writel(nfe_mask & (~err_type), qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
 }
 
@@ -1230,14 +1226,14 @@ static enum acc_err_result hisi_zip_get_err_result(struct hisi_qm *qm)
 	/* Get device hardware new error status */
 	err_status = hisi_zip_get_hw_err_status(qm);
 	if (err_status) {
-		if (err_status & qm->err_info.ecc_2bits_mask)
+		if (err_status & qm->err_info.dev_err.ecc_2bits_mask)
 			qm->err_status.is_dev_ecc_mbit = true;
 		hisi_zip_log_hw_error(qm, err_status);
 
-		if (err_status & qm->err_info.dev_reset_mask) {
+		if (err_status & qm->err_info.dev_err.reset_mask) {
 			/* Disable the same error reporting until device is recovered. */
 			hisi_zip_disable_error_report(qm, err_status);
-			return ACC_ERR_NEED_RESET;
+			zip_result = ACC_ERR_NEED_RESET;
 		} else {
 			hisi_zip_clear_hw_err_status(qm, err_status);
 		}
@@ -1255,7 +1251,7 @@ static bool hisi_zip_dev_is_abnormal(struct hisi_qm *qm)
 	u32 err_status;
 
 	err_status = hisi_zip_get_hw_err_status(qm);
-	if (err_status & qm->err_info.dev_shutdown_mask)
+	if (err_status & qm->err_info.dev_err.shutdown_mask)
 		return true;
 
 	return hisi_dae_dev_is_abnormal(qm);
@@ -1266,23 +1262,59 @@ static int hisi_zip_set_priv_status(struct hisi_qm *qm)
 	return hisi_dae_close_axi_master_ooo(qm);
 }
 
+static void hisi_zip_disable_axi_error(struct hisi_qm *qm)
+{
+	struct hisi_qm_err_mask *dev_err = &qm->err_info.dev_err;
+	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
+	u32 val;
+
+	val = ~(err_mask & (~HZIP_AXI_ERROR_MASK));
+	writel(val, qm->io_base + HZIP_CORE_INT_MASK_REG);
+
+	if (qm->ver > QM_HW_V2)
+		writel(dev_err->shutdown_mask & (~HZIP_AXI_ERROR_MASK),
+		       qm->io_base + HZIP_OOO_SHUTDOWN_SEL);
+}
+
+static void hisi_zip_enable_axi_error(struct hisi_qm *qm)
+{
+	struct hisi_qm_err_mask *dev_err = &qm->err_info.dev_err;
+	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
+
+	/* clear axi error source */
+	writel(HZIP_AXI_ERROR_MASK, qm->io_base + HZIP_CORE_INT_SOURCE);
+
+	writel(~err_mask, qm->io_base + HZIP_CORE_INT_MASK_REG);
+
+	if (qm->ver > QM_HW_V2)
+		writel(dev_err->shutdown_mask, qm->io_base + HZIP_OOO_SHUTDOWN_SEL);
+}
+
 static void hisi_zip_err_info_init(struct hisi_qm *qm)
 {
 	struct hisi_qm_err_info *err_info = &qm->err_info;
+	struct hisi_qm_err_mask *qm_err = &err_info->qm_err;
+	struct hisi_qm_err_mask *dev_err = &err_info->dev_err;
 
-	err_info->fe = HZIP_CORE_INT_RAS_FE_ENB_MASK;
-	err_info->ce = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_QM_CE_MASK_CAP, qm->cap_ver);
-	err_info->nfe = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-					    ZIP_QM_NFE_MASK_CAP, qm->cap_ver);
-	err_info->ecc_2bits_mask = HZIP_CORE_INT_STATUS_M_ECC;
-	err_info->qm_shutdown_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-							 ZIP_QM_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
-	err_info->dev_shutdown_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-							  ZIP_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
-	err_info->qm_reset_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-						      ZIP_QM_RESET_MASK_CAP, qm->cap_ver);
-	err_info->dev_reset_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-						       ZIP_RESET_MASK_CAP, qm->cap_ver);
+	qm_err->fe = HZIP_CORE_INT_RAS_FE_ENB_MASK;
+	qm_err->ce = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_QM_CE_MASK_CAP, qm->cap_ver);
+	qm_err->nfe = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
+					  ZIP_QM_NFE_MASK_CAP, qm->cap_ver);
+	qm_err->ecc_2bits_mask = QM_ECC_MBIT;
+	qm_err->reset_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
+						 ZIP_QM_RESET_MASK_CAP, qm->cap_ver);
+	qm_err->shutdown_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
+						    ZIP_QM_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
+
+	dev_err->fe = HZIP_CORE_INT_RAS_FE_ENB_MASK;
+	dev_err->ce = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_CE_MASK_CAP, qm->cap_ver);
+	dev_err->nfe = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_NFE_MASK_CAP, qm->cap_ver);
+	dev_err->ecc_2bits_mask = HZIP_CORE_INT_STATUS_M_ECC;
+	dev_err->shutdown_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
+						     ZIP_OOO_SHUTDOWN_MASK_CAP, qm->cap_ver);
+	dev_err->reset_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
+						  ZIP_RESET_MASK_CAP, qm->cap_ver);
+
 	err_info->msi_wr_port = HZIP_WR_PORT;
 	err_info->acpi_rst = "ZRST";
 }
@@ -1302,6 +1334,8 @@ static const struct hisi_qm_err_ini hisi_zip_err_ini = {
 	.get_err_result		= hisi_zip_get_err_result,
 	.set_priv_status	= hisi_zip_set_priv_status,
 	.dev_is_abnormal	= hisi_zip_dev_is_abnormal,
+	.disable_axi_error	= hisi_zip_disable_axi_error,
+	.enable_axi_error	= hisi_zip_enable_axi_error,
 };
 
 static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
