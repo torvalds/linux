@@ -21,13 +21,6 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	ext_osc32k: ext-osc32k-clk {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <32768>;
-		clock-output-names = "ext_osc32k";
-	};
-
 	leds {
 		compatible = "gpio-leds";
 
