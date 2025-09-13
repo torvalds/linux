@@ -286,7 +286,7 @@ pub(crate) struct PFalcon2Base(());
 /// Each engine provides one base for `PFALCON` and `PFALCON2` registers. The `ID` constant is used
 /// to identify a given Falcon instance with register I/O methods.
 pub(crate) trait FalconEngine:
-    Sync + RegisterBase<PFalconBase> + RegisterBase<PFalcon2Base> + Sized
+    Send + Sync + RegisterBase<PFalconBase> + RegisterBase<PFalcon2Base> + Sized
 {
     /// Singleton of the engine, used to identify it with register I/O methods.
     const ID: Self;
