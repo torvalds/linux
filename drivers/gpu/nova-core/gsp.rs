@@ -4,6 +4,9 @@ mod boot;
 
 use kernel::prelude::*;
 
+pub(crate) const GSP_PAGE_SHIFT: usize = 12;
+pub(crate) const GSP_PAGE_SIZE: usize = 1 << GSP_PAGE_SHIFT;
+
 /// GSP runtime data.
 ///
 /// This is an empty pinned placeholder for now.

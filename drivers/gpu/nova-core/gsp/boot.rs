@@ -10,6 +10,7 @@ use crate::fb::FbLayout;
 use crate::firmware::{
     booter::{BooterFirmware, BooterKind},
     fwsec::{FwsecCommand, FwsecFirmware},
+    gsp::GspFirmware,
     FIRMWARE_VERSION,
 };
 use crate::gpu::Chipset;
@@ -111,6 +112,11 @@ impl super::Gsp {
         let dev = pdev.as_ref();
 
         let bios = Vbios::new(dev, bar)?;
+
+        let _gsp_fw = KBox::pin_init(
+            GspFirmware::new(dev, chipset, FIRMWARE_VERSION)?,
+            GFP_KERNEL,
+        )?;
 
         let fb_layout = FbLayout::new(chipset, bar)?;
         dev_dbg!(dev, "{:#x?}\n", fb_layout);

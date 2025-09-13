@@ -19,6 +19,7 @@ use crate::gpu::Chipset;
 
 pub(crate) mod booter;
 pub(crate) mod fwsec;
+pub(crate) mod gsp;
 
 pub(crate) const FIRMWARE_VERSION: &str = "535.113.01";
 
@@ -39,7 +40,6 @@ fn request_firmware(
 #[expect(dead_code)]
 pub(crate) struct Firmware {
     bootloader: firmware::Firmware,
-    gsp: firmware::Firmware,
 }
 
 impl Firmware {
@@ -48,7 +48,6 @@ impl Firmware {
 
         Ok(Firmware {
             bootloader: request("bootloader")?,
-            gsp: request("gsp")?,
         })
     }
 }
