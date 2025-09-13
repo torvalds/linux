@@ -15,11 +15,11 @@ use kernel::transmute::FromBytes;
 use crate::dma::DmaObject;
 use crate::falcon::FalconFirmware;
 use crate::gpu;
-use crate::gpu::Chipset;
 
 pub(crate) mod booter;
 pub(crate) mod fwsec;
 pub(crate) mod gsp;
+pub(crate) mod riscv;
 
 pub(crate) const FIRMWARE_VERSION: &str = "535.113.01";
 
@@ -34,22 +34,6 @@ fn request_firmware(
 
     CString::try_from_fmt(fmt!("nvidia/{chip_name}/gsp/{name}-{ver}.bin"))
         .and_then(|path| firmware::Firmware::request(&path, dev))
-}
-
-/// Structure encapsulating the firmware blobs required for the GPU to operate.
-#[expect(dead_code)]
-pub(crate) struct Firmware {
-    bootloader: firmware::Firmware,
-}
-
-impl Firmware {
-    pub(crate) fn new(dev: &device::Device, chipset: Chipset, ver: &str) -> Result<Firmware> {
-        let request = |name| request_firmware(dev, chipset, name, ver);
-
-        Ok(Firmware {
-            bootloader: request("bootloader")?,
-        })
-    }
 }
 
 /// Structure used to describe some firmwares, notably FWSEC-FRTS.

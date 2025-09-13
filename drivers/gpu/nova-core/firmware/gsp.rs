@@ -9,6 +9,7 @@ use kernel::prelude::*;
 use kernel::scatterlist::{Owned, SGTable};
 
 use crate::dma::DmaObject;
+use crate::firmware::riscv::RiscvFirmware;
 use crate::gpu::{Architecture, Chipset};
 use crate::gsp::GSP_PAGE_SIZE;
 
@@ -131,6 +132,8 @@ pub(crate) struct GspFirmware {
     size: usize,
     /// Device-mapped GSP signatures matching the GPU's [`Chipset`].
     signatures: DmaObject,
+    /// GSP bootloader, verifies the GSP firmware before loading and running it.
+    bootloader: RiscvFirmware,
 }
 
 impl GspFirmware {
@@ -163,6 +166,9 @@ impl GspFirmware {
                 Ok(v)
             })
             .map_err(|_| ENOMEM)?;
+
+        let bl = super::request_firmware(dev, chipset, "bootloader", ver)?;
+        let bootloader = RiscvFirmware::new(dev, &bl)?;
 
         Ok(try_pin_init!(Self {
             fw <- SGTable::new(dev, fw_vvec, DataDirection::ToDevice, GFP_KERNEL),
@@ -206,6 +212,7 @@ impl GspFirmware {
             },
             size,
             signatures,
+            bootloader,
         }))
     }
 
