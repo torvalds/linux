@@ -626,6 +626,8 @@
 				      "pll-audio";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			assigned-clocks = <&r_ccu CLK_R_AHB>, <&r_ccu CLK_R_APB0>;
+			assigned-clock-rates = <200000000>, <100000000>;
 		};
 
 		nmi_intc: interrupt-controller@7010320 {
