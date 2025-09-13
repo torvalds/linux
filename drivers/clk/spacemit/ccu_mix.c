@@ -80,10 +80,12 @@ static int ccu_mix_trigger_fc(struct clk_hw *hw)
 					       MIX_FC_TIMEOUT_US);
 }
 
-static long ccu_factor_round_rate(struct clk_hw *hw, unsigned long rate,
-				  unsigned long *prate)
+static int ccu_factor_determine_rate(struct clk_hw *hw,
+				     struct clk_rate_request *req)
 {
-	return ccu_factor_recalc_rate(hw, *prate);
+	req->rate = ccu_factor_recalc_rate(hw, req->best_parent_rate);
+
+	return 0;
 }
 
 static int ccu_factor_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -198,7 +200,7 @@ const struct clk_ops spacemit_ccu_gate_ops = {
 };
 
 const struct clk_ops spacemit_ccu_factor_ops = {
-	.round_rate	= ccu_factor_round_rate,
+	.determine_rate = ccu_factor_determine_rate,
 	.recalc_rate	= ccu_factor_recalc_rate,
 	.set_rate	= ccu_factor_set_rate,
 };
@@ -220,7 +222,7 @@ const struct clk_ops spacemit_ccu_factor_gate_ops = {
 	.enable		= ccu_gate_enable,
 	.is_enabled	= ccu_gate_is_enabled,
 
-	.round_rate	= ccu_factor_round_rate,
+	.determine_rate = ccu_factor_determine_rate,
 	.recalc_rate	= ccu_factor_recalc_rate,
 	.set_rate	= ccu_factor_set_rate,
 };

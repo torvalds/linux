@@ -39,13 +39,16 @@ static unsigned long ccu_ddn_calc_best_rate(struct ccu_ddn *ddn,
 	return ccu_ddn_calc_rate(prate, *num, *den);
 }
 
-static long ccu_ddn_round_rate(struct clk_hw *hw, unsigned long rate,
-			       unsigned long *prate)
+static int ccu_ddn_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
 {
 	struct ccu_ddn *ddn = hw_to_ccu_ddn(hw);
 	unsigned long num, den;
 
-	return ccu_ddn_calc_best_rate(ddn, rate, *prate, &num, &den);
+	req->rate = ccu_ddn_calc_best_rate(ddn, req->rate,
+					   req->best_parent_rate, &num, &den);
+
+	return 0;
 }
 
 static unsigned long ccu_ddn_recalc_rate(struct clk_hw *hw, unsigned long prate)
@@ -78,6 +81,6 @@ static int ccu_ddn_set_rate(struct clk_hw *hw, unsigned long rate,
 
 const struct clk_ops spacemit_ccu_ddn_ops = {
 	.recalc_rate	= ccu_ddn_recalc_rate,
-	.round_rate	= ccu_ddn_round_rate,
+	.determine_rate = ccu_ddn_determine_rate,
 	.set_rate	= ccu_ddn_set_rate,
 };
