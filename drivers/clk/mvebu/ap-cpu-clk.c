@@ -210,19 +210,21 @@ static int ap_cpu_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-static long ap_cpu_clk_round_rate(struct clk_hw *hw, unsigned long rate,
-				  unsigned long *parent_rate)
+static int ap_cpu_clk_determine_rate(struct clk_hw *hw,
+				     struct clk_rate_request *req)
 {
-	int divider = *parent_rate / rate;
+	int divider = req->best_parent_rate / req->rate;
 
 	divider = min(divider, APN806_MAX_DIVIDER);
 
-	return *parent_rate / divider;
+	req->rate = req->best_parent_rate / divider;
+
+	return 0;
 }
 
 static const struct clk_ops ap_cpu_clk_ops = {
 	.recalc_rate	= ap_cpu_clk_recalc_rate,
-	.round_rate	= ap_cpu_clk_round_rate,
+	.determine_rate = ap_cpu_clk_determine_rate,
 	.set_rate	= ap_cpu_clk_set_rate,
 };
 

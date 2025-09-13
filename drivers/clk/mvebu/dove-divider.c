@@ -108,23 +108,23 @@ static unsigned long dove_recalc_rate(struct clk_hw *hw, unsigned long parent)
 	return rate;
 }
 
-static long dove_round_rate(struct clk_hw *hw, unsigned long rate,
-			    unsigned long *parent)
+static int dove_determine_rate(struct clk_hw *hw,
+			       struct clk_rate_request *req)
 {
 	struct dove_clk *dc = to_dove_clk(hw);
-	unsigned long parent_rate = *parent;
+	unsigned long parent_rate = req->best_parent_rate;
 	int divider;
 
-	divider = dove_calc_divider(dc, rate, parent_rate, false);
+	divider = dove_calc_divider(dc, req->rate, parent_rate, false);
 	if (divider < 0)
 		return divider;
 
-	rate = DIV_ROUND_CLOSEST(parent_rate, divider);
+	req->rate = DIV_ROUND_CLOSEST(parent_rate, divider);
 
 	pr_debug("%s(): %s divider=%u parent=%lu rate=%lu\n",
-		 __func__, dc->name, divider, parent_rate, rate);
+		 __func__, dc->name, divider, parent_rate, req->rate);
 
-	return rate;
+	return 0;
 }
 
 static int dove_set_clock(struct clk_hw *hw, unsigned long rate,
@@ -154,7 +154,7 @@ static int dove_set_clock(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops dove_divider_ops = {
 	.set_rate	= dove_set_clock,
-	.round_rate	= dove_round_rate,
+	.determine_rate = dove_determine_rate,
 	.recalc_rate	= dove_recalc_rate,
 };
 

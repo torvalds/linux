@@ -155,11 +155,13 @@ static unsigned long pbclk_recalc_rate(struct clk_hw *hw,
 	return parent_rate / pbclk_read_pbdiv(pb);
 }
 
-static long pbclk_round_rate(struct clk_hw *hw, unsigned long rate,
-			     unsigned long *parent_rate)
+static int pbclk_determine_rate(struct clk_hw *hw,
+				struct clk_rate_request *req)
 {
-	return calc_best_divided_rate(rate, *parent_rate,
-				      PB_DIV_MAX, PB_DIV_MIN);
+	req->rate = calc_best_divided_rate(req->rate, req->best_parent_rate,
+					   PB_DIV_MAX, PB_DIV_MIN);
+
+	return 0;
 }
 
 static int pbclk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -207,7 +209,7 @@ const struct clk_ops pic32_pbclk_ops = {
 	.disable	= pbclk_disable,
 	.is_enabled	= pbclk_is_enabled,
 	.recalc_rate	= pbclk_recalc_rate,
-	.round_rate	= pbclk_round_rate,
+	.determine_rate = pbclk_determine_rate,
 	.set_rate	= pbclk_set_rate,
 };
 
@@ -372,16 +374,18 @@ static unsigned long roclk_recalc_rate(struct clk_hw *hw,
 	return roclk_calc_rate(parent_rate, rodiv, rotrim);
 }
 
-static long roclk_round_rate(struct clk_hw *hw, unsigned long rate,
-			     unsigned long *parent_rate)
+static int roclk_determine_rate(struct clk_hw *hw,
+				struct clk_rate_request *req)
 {
 	u32 rotrim, rodiv;
 
 	/* calculate dividers for new rate */
-	roclk_calc_div_trim(rate, *parent_rate, &rodiv, &rotrim);
+	roclk_calc_div_trim(req->rate, req->best_parent_rate, &rodiv, &rotrim);
 
 	/* caclulate new rate (rounding) based on new rodiv & rotrim */
-	return roclk_calc_rate(*parent_rate, rodiv, rotrim);
+	req->rate = roclk_calc_rate(req->best_parent_rate, rodiv, rotrim);
+
+	return 0;
 }
 
 static int roclk_determine_rate(struct clk_hw *hw,
@@ -665,12 +669,15 @@ static unsigned long spll_clk_recalc_rate(struct clk_hw *hw,
 	return rate64;
 }
 
-static long spll_clk_round_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long *parent_rate)
+static int spll_clk_determine_rate(struct clk_hw *hw,
+				   struct clk_rate_request *req)
 {
 	struct pic32_sys_pll *pll = clkhw_to_spll(hw);
 
-	return spll_calc_mult_div(pll, rate, *parent_rate, NULL, NULL);
+	req->rate = spll_calc_mult_div(pll, req->rate, req->best_parent_rate,
+				       NULL, NULL);
+
+	return 0;
 }
 
 static int spll_clk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -725,7 +732,7 @@ static int spll_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 /* SPLL clock operation */
 const struct clk_ops pic32_spll_ops = {
 	.recalc_rate	= spll_clk_recalc_rate,
-	.round_rate	= spll_clk_round_rate,
+	.determine_rate = spll_clk_determine_rate,
 	.set_rate	= spll_clk_set_rate,
 };
 
@@ -780,10 +787,13 @@ static unsigned long sclk_get_rate(struct clk_hw *hw, unsigned long parent_rate)
 	return parent_rate / div;
 }
 
-static long sclk_round_rate(struct clk_hw *hw, unsigned long rate,
-			    unsigned long *parent_rate)
+static int sclk_determine_rate(struct clk_hw *hw,
+			       struct clk_rate_request *req)
 {
-	return calc_best_divided_rate(rate, *parent_rate, SLEW_SYSDIV, 1);
+	req->rate = calc_best_divided_rate(req->rate, req->best_parent_rate,
+					   SLEW_SYSDIV, 1);
+
+	return 0;
 }
 
 static int sclk_set_rate(struct clk_hw *hw,
@@ -909,7 +919,7 @@ static int sclk_init(struct clk_hw *hw)
 const struct clk_ops pic32_sclk_ops = {
 	.get_parent	= sclk_get_parent,
 	.set_parent	= sclk_set_parent,
-	.round_rate	= sclk_round_rate,
+	.determine_rate = sclk_determine_rate,
 	.set_rate	= sclk_set_rate,
 	.recalc_rate	= sclk_get_rate,
 	.init		= sclk_init,

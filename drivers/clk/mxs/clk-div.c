@@ -40,12 +40,12 @@ static unsigned long clk_div_recalc_rate(struct clk_hw *hw,
 	return div->ops->recalc_rate(&div->divider.hw, parent_rate);
 }
 
-static long clk_div_round_rate(struct clk_hw *hw, unsigned long rate,
-			       unsigned long *prate)
+static int clk_div_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
 {
 	struct clk_div *div = to_clk_div(hw);
 
-	return div->ops->round_rate(&div->divider.hw, rate, prate);
+	return div->ops->determine_rate(&div->divider.hw, req);
 }
 
 static int clk_div_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -63,7 +63,7 @@ static int clk_div_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops clk_div_ops = {
 	.recalc_rate = clk_div_recalc_rate,
-	.round_rate = clk_div_round_rate,
+	.determine_rate = clk_div_determine_rate,
 	.set_rate = clk_div_set_rate,
 };
 

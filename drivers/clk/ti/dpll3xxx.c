@@ -587,6 +587,7 @@ int omap3_noncore_dpll_determine_rate(struct clk_hw *hw,
 {
 	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
 	struct dpll_data *dd;
+	int ret;
 
 	if (!req->rate)
 		return -EINVAL;
@@ -599,8 +600,10 @@ int omap3_noncore_dpll_determine_rate(struct clk_hw *hw,
 	    (dd->modes & (1 << DPLL_LOW_POWER_BYPASS))) {
 		req->best_parent_hw = dd->clk_bypass;
 	} else {
-		req->rate = omap2_dpll_round_rate(hw, req->rate,
-					  &req->best_parent_rate);
+		ret = omap2_dpll_determine_rate(hw, req);
+		if (ret != 0)
+			return ret;
+
 		req->best_parent_hw = dd->clk_ref;
 	}
 

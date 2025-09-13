@@ -246,34 +246,40 @@ static unsigned long si570_recalc_rate(struct clk_hw *hw,
 	return rate;
 }
 
-static long si570_round_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long *parent_rate)
+static int si570_determine_rate(struct clk_hw *hw,
+				struct clk_rate_request *req)
 {
 	int err;
 	u64 rfreq;
 	unsigned int n1, hs_div;
 	struct clk_si570 *data = to_clk_si570(hw);
 
-	if (!rate)
-		return 0;
+	if (!req->rate) {
+		req->rate = 0;
 
-	if (div64_u64(abs(rate - data->frequency) * 10000LL,
+		return 0;
+	}
+
+	if (div64_u64(abs(req->rate - data->frequency) * 10000LL,
 				data->frequency) < 35) {
-		rfreq = div64_u64((data->rfreq * rate) +
-				div64_u64(data->frequency, 2), data->frequency);
+		rfreq = div64_u64((data->rfreq * req->rate) +
+				  div64_u64(data->frequency, 2),
+				  data->frequency);
 		n1 = data->n1;
 		hs_div = data->hs_div;
 
 	} else {
-		err = si570_calc_divs(rate, data, &rfreq, &n1, &hs_div);
+		err = si570_calc_divs(req->rate, data, &rfreq, &n1, &hs_div);
 		if (err) {
 			dev_err(&data->i2c_client->dev,
 					"unable to round rate\n");
+			req->rate = 0;
+
 			return 0;
 		}
 	}
 
-	return rate;
+	return 0;
 }
 
 /**
@@ -368,7 +374,7 @@ static int si570_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops si570_clk_ops = {
 	.recalc_rate = si570_recalc_rate,
-	.round_rate = si570_round_rate,
+	.determine_rate = si570_determine_rate,
 	.set_rate = si570_set_rate,
 };
 

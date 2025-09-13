@@ -49,7 +49,7 @@ static struct __prci_wrpll_data sifive_fu540_prci_gemgxlpll_data = {
 
 static const struct clk_ops sifive_fu540_prci_wrpll_clk_ops = {
 	.set_rate = sifive_prci_wrpll_set_rate,
-	.round_rate = sifive_prci_wrpll_round_rate,
+	.determine_rate = sifive_prci_wrpll_determine_rate,
 	.recalc_rate = sifive_prci_wrpll_recalc_rate,
 	.enable = sifive_prci_clock_enable,
 	.disable = sifive_prci_clock_disable,

@@ -227,20 +227,28 @@ static unsigned long si514_recalc_rate(struct clk_hw *hw,
 	return si514_calc_rate(&settings);
 }
 
-static long si514_round_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long *parent_rate)
+static int si514_determine_rate(struct clk_hw *hw,
+				struct clk_rate_request *req)
 {
 	struct clk_si514_muldiv settings;
 	int err;
 
-	if (!rate)
+	if (!req->rate) {
+		req->rate = 0;
+
 		return 0;
+	}
 
-	err = si514_calc_muldiv(&settings, rate);
-	if (err)
-		return err;
+	err = si514_calc_muldiv(&settings, req->rate);
+	if (err) {
+		req->rate = err;
 
-	return si514_calc_rate(&settings);
+		return 0;
+	}
+
+	req->rate = si514_calc_rate(&settings);
+
+	return 0;
 }
 
 /*
@@ -289,7 +297,7 @@ static const struct clk_ops si514_clk_ops = {
 	.unprepare = si514_unprepare,
 	.is_prepared = si514_is_prepared,
 	.recalc_rate = si514_recalc_rate,
-	.round_rate = si514_round_rate,
+	.determine_rate = si514_determine_rate,
 	.set_rate = si514_set_rate,
 };
 

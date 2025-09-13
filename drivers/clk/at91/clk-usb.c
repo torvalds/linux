@@ -319,8 +319,8 @@ static unsigned long at91rm9200_clk_usb_recalc_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static long at91rm9200_clk_usb_round_rate(struct clk_hw *hw, unsigned long rate,
-					  unsigned long *parent_rate)
+static int at91rm9200_clk_usb_determine_rate(struct clk_hw *hw,
+					     struct clk_rate_request *req)
 {
 	struct at91rm9200_clk_usb *usb = to_at91rm9200_clk_usb(hw);
 	struct clk_hw *parent = clk_hw_get_parent(hw);
@@ -336,25 +336,27 @@ static long at91rm9200_clk_usb_round_rate(struct clk_hw *hw, unsigned long rate,
 		if (!usb->divisors[i])
 			continue;
 
-		tmp_parent_rate = rate * usb->divisors[i];
+		tmp_parent_rate = req->rate * usb->divisors[i];
 		tmp_parent_rate = clk_hw_round_rate(parent, tmp_parent_rate);
 		tmprate = DIV_ROUND_CLOSEST(tmp_parent_rate, usb->divisors[i]);
-		if (tmprate < rate)
-			tmpdiff = rate - tmprate;
+		if (tmprate < req->rate)
+			tmpdiff = req->rate - tmprate;
 		else
-			tmpdiff = tmprate - rate;
+			tmpdiff = tmprate - req->rate;
 
 		if (bestdiff < 0 || bestdiff > tmpdiff) {
 			bestrate = tmprate;
 			bestdiff = tmpdiff;
-			*parent_rate = tmp_parent_rate;
+			req->best_parent_rate = tmp_parent_rate;
 		}
 
 		if (!bestdiff)
 			break;
 	}
 
-	return bestrate;
+	req->rate = bestrate;
+
+	return 0;
 }
 
 static int at91rm9200_clk_usb_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -384,7 +386,7 @@ static int at91rm9200_clk_usb_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops at91rm9200_usb_ops = {
 	.recalc_rate = at91rm9200_clk_usb_recalc_rate,
-	.round_rate = at91rm9200_clk_usb_round_rate,
+	.determine_rate = at91rm9200_clk_usb_determine_rate,
 	.set_rate = at91rm9200_clk_usb_set_rate,
 };
 

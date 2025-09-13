@@ -491,28 +491,33 @@ static long lmk04832_calc_pll2_params(unsigned long prate, unsigned long rate,
 	return DIV_ROUND_CLOSEST(prate * 2 * pll2_p * pll2_n, pll2_r);
 }
 
-static long lmk04832_vco_round_rate(struct clk_hw *hw, unsigned long rate,
-				    unsigned long *prate)
+static int lmk04832_vco_determine_rate(struct clk_hw *hw,
+				       struct clk_rate_request *req)
 {
 	struct lmk04832 *lmk = container_of(hw, struct lmk04832, vco);
 	unsigned int n, p, r;
 	long vco_rate;
 	int ret;
 
-	ret = lmk04832_check_vco_ranges(lmk, rate);
+	ret = lmk04832_check_vco_ranges(lmk, req->rate);
 	if (ret < 0)
 		return ret;
 
-	vco_rate = lmk04832_calc_pll2_params(*prate, rate, &n, &p, &r);
+	vco_rate = lmk04832_calc_pll2_params(req->best_parent_rate, req->rate,
+					     &n, &p, &r);
 	if (vco_rate < 0) {
 		dev_err(lmk->dev, "PLL2 parameters out of range\n");
-		return vco_rate;
+		req->rate = vco_rate;
+
+		return 0;
 	}
 
-	if (rate != vco_rate)
+	if (req->rate != vco_rate)
 		return -EINVAL;
 
-	return vco_rate;
+	req->rate = vco_rate;
+
+	return 0;
 }
 
 static int lmk04832_vco_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -579,7 +584,7 @@ static const struct clk_ops lmk04832_vco_ops = {
 	.prepare = lmk04832_vco_prepare,
 	.unprepare = lmk04832_vco_unprepare,
 	.recalc_rate = lmk04832_vco_recalc_rate,
-	.round_rate = lmk04832_vco_round_rate,
+	.determine_rate = lmk04832_vco_determine_rate,
 	.set_rate = lmk04832_vco_set_rate,
 };
 
@@ -888,25 +893,27 @@ static unsigned long lmk04832_sclk_recalc_rate(struct clk_hw *hw,
 	return DIV_ROUND_CLOSEST(prate, sysref_div);
 }
 
-static long lmk04832_sclk_round_rate(struct clk_hw *hw, unsigned long rate,
-				     unsigned long *prate)
+static int lmk04832_sclk_determine_rate(struct clk_hw *hw,
+					struct clk_rate_request *req)
 {
 	struct lmk04832 *lmk = container_of(hw, struct lmk04832, sclk);
 	unsigned long sclk_rate;
 	unsigned int sysref_div;
 
-	sysref_div = DIV_ROUND_CLOSEST(*prate, rate);
-	sclk_rate = DIV_ROUND_CLOSEST(*prate, sysref_div);
+	sysref_div = DIV_ROUND_CLOSEST(req->best_parent_rate, req->rate);
+	sclk_rate = DIV_ROUND_CLOSEST(req->best_parent_rate, sysref_div);
 
 	if (sysref_div < 0x07 || sysref_div > 0x1fff) {
 		dev_err(lmk->dev, "SYSREF divider out of range\n");
 		return -EINVAL;
 	}
 
-	if (rate != sclk_rate)
+	if (req->rate != sclk_rate)
 		return -EINVAL;
 
-	return sclk_rate;
+	req->rate = sclk_rate;
+
+	return 0;
 }
 
 static int lmk04832_sclk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -945,7 +952,7 @@ static const struct clk_ops lmk04832_sclk_ops = {
 	.prepare = lmk04832_sclk_prepare,
 	.unprepare = lmk04832_sclk_unprepare,
 	.recalc_rate = lmk04832_sclk_recalc_rate,
-	.round_rate = lmk04832_sclk_round_rate,
+	.determine_rate = lmk04832_sclk_determine_rate,
 	.set_rate = lmk04832_sclk_set_rate,
 };
 
@@ -1069,26 +1076,28 @@ static unsigned long lmk04832_dclk_recalc_rate(struct clk_hw *hw,
 	return rate;
 }
 
-static long lmk04832_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
-				     unsigned long *prate)
+static int lmk04832_dclk_determine_rate(struct clk_hw *hw,
+					struct clk_rate_request *req)
 {
 	struct lmk_dclk *dclk = container_of(hw, struct lmk_dclk, hw);
 	struct lmk04832 *lmk = dclk->lmk;
 	unsigned long dclk_rate;
 	unsigned int dclk_div;
 
-	dclk_div = DIV_ROUND_CLOSEST(*prate, rate);
-	dclk_rate = DIV_ROUND_CLOSEST(*prate, dclk_div);
+	dclk_div = DIV_ROUND_CLOSEST(req->best_parent_rate, req->rate);
+	dclk_rate = DIV_ROUND_CLOSEST(req->best_parent_rate, dclk_div);
 
 	if (dclk_div < 1 || dclk_div > 0x3ff) {
 		dev_err(lmk->dev, "%s_div out of range\n", clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 
-	if (rate != dclk_rate)
+	if (req->rate != dclk_rate)
 		return -EINVAL;
 
-	return dclk_rate;
+	req->rate = dclk_rate;
+
+	return 0;
 }
 
 static int lmk04832_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -1158,7 +1167,7 @@ static const struct clk_ops lmk04832_dclk_ops = {
 	.prepare = lmk04832_dclk_prepare,
 	.unprepare = lmk04832_dclk_unprepare,
 	.recalc_rate = lmk04832_dclk_recalc_rate,
-	.round_rate = lmk04832_dclk_round_rate,
+	.determine_rate = lmk04832_dclk_determine_rate,
 	.set_rate = lmk04832_dclk_set_rate,
 };
 
