@@ -175,6 +175,12 @@ static void hisi_dae_disable_error_report(struct hisi_qm *qm, u32 err_type)
 	writel(DAE_ERR_NFE_MASK & (~err_type), qm->io_base + DAE_ERR_NFE_OFFSET);
 }
 
+static void hisi_dae_enable_error_report(struct hisi_qm *qm)
+{
+	writel(DAE_ERR_CE_MASK, qm->io_base + DAE_ERR_CE_OFFSET);
+	writel(DAE_ERR_NFE_MASK, qm->io_base + DAE_ERR_NFE_OFFSET);
+}
+
 static void hisi_dae_log_hw_error(struct hisi_qm *qm, u32 err_type)
 {
 	const struct hisi_dae_hw_error *err = dae_hw_error;
@@ -216,6 +222,8 @@ enum acc_err_result hisi_dae_get_err_result(struct hisi_qm *qm)
 		return ACC_ERR_NEED_RESET;
 	}
 	hisi_dae_clear_hw_err_status(qm, err_status);
+	/* Avoid firmware disable error report, re-enable. */
+	hisi_dae_enable_error_report(qm);
 
 	return ACC_ERR_RECOVERED;
 }

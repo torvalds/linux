@@ -1399,6 +1399,15 @@ static void hpre_disable_error_report(struct hisi_qm *qm, u32 err_type)
 	writel(nfe_mask & (~err_type), qm->io_base + HPRE_RAS_NFE_ENB);
 }
 
+static void hpre_enable_error_report(struct hisi_qm *qm)
+{
+	u32 nfe_mask = qm->err_info.dev_err.nfe;
+	u32 ce_mask = qm->err_info.dev_err.ce;
+
+	writel(nfe_mask, qm->io_base + HPRE_RAS_NFE_ENB);
+	writel(ce_mask, qm->io_base + HPRE_RAS_CE_ENB);
+}
+
 static void hpre_open_axi_master_ooo(struct hisi_qm *qm)
 {
 	u32 value;
@@ -1426,6 +1435,8 @@ static enum acc_err_result hpre_get_err_result(struct hisi_qm *qm)
 			return ACC_ERR_NEED_RESET;
 		}
 		hpre_clear_hw_err_status(qm, err_status);
+		/* Avoid firmware disable error report, re-enable. */
+		hpre_enable_error_report(qm);
 	}
 
 	return ACC_ERR_RECOVERED;

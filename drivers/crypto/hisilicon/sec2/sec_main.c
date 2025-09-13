@@ -1112,6 +1112,15 @@ static void sec_disable_error_report(struct hisi_qm *qm, u32 err_type)
 	writel(nfe_mask & (~err_type), qm->io_base + SEC_RAS_NFE_REG);
 }
 
+static void sec_enable_error_report(struct hisi_qm *qm)
+{
+	u32 nfe_mask = qm->err_info.dev_err.nfe;
+	u32 ce_mask = qm->err_info.dev_err.ce;
+
+	writel(nfe_mask, qm->io_base + SEC_RAS_NFE_REG);
+	writel(ce_mask, qm->io_base + SEC_RAS_CE_REG);
+}
+
 static void sec_open_axi_master_ooo(struct hisi_qm *qm)
 {
 	u32 val;
@@ -1137,6 +1146,8 @@ static enum acc_err_result sec_get_err_result(struct hisi_qm *qm)
 			return ACC_ERR_NEED_RESET;
 		}
 		sec_clear_hw_err_status(qm, err_status);
+		/* Avoid firmware disable error report, re-enable. */
+		sec_enable_error_report(qm);
 	}
 
 	return ACC_ERR_RECOVERED;
