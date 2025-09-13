@@ -4048,14 +4048,6 @@ struct dmub_cmd_replay_copy_settings_data {
 	 */
 	uint8_t digbe_inst;
 	/**
-	 * @hpo_stream_enc_inst: HPO stream encoder instance
-	 */
-	uint8_t hpo_stream_enc_inst;
-	/**
-	 * @hpo_link_enc_inst: HPO link encoder instance
-	 */
-	uint8_t hpo_link_enc_inst;
-	/**
 	 * AUX HW instance.
 	 */
 	uint8_t aux_inst;
@@ -4159,18 +4151,6 @@ struct dmub_rb_cmd_replay_enable_data {
 	 * This does not support HDMI/DP2 for now.
 	 */
 	uint8_t phy_rate;
-	/**
-	 * @hpo_stream_enc_inst: HPO stream encoder instance
-	 */
-	uint8_t hpo_stream_enc_inst;
-	/**
-	 * @hpo_link_enc_inst: HPO link encoder instance
-	 */
-	uint8_t hpo_link_enc_inst;
-	/**
-	 * @pad: Align structure to 4 byte boundary.
-	 */
-	uint8_t pad[2];
 };
 
 /**

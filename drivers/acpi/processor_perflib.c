@@ -180,7 +180,7 @@ void acpi_processor_ppc_init(struct cpufreq_policy *policy)
 		struct acpi_processor *pr = per_cpu(processors, cpu);
 		int ret;
 
-		if (!pr || !pr->performance)
+		if (!pr)
 			continue;
 
 		/*
@@ -196,6 +196,9 @@ void acpi_processor_ppc_init(struct cpufreq_policy *policy)
 		if (ret < 0)
 			pr_err("Failed to add freq constraint for CPU%d (%d)\n",
 			       cpu, ret);
+
+		if (!pr->performance)
+			continue;
 
 		ret = acpi_processor_get_platform_limit(pr);
 		if (ret)

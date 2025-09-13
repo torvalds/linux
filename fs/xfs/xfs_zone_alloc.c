@@ -166,10 +166,9 @@ xfs_open_zone_mark_full(
 static void
 xfs_zone_record_blocks(
 	struct xfs_trans	*tp,
-	xfs_fsblock_t		fsbno,
-	xfs_filblks_t		len,
 	struct xfs_open_zone	*oz,
-	bool			used)
+	xfs_fsblock_t		fsbno,
+	xfs_filblks_t		len)
 {
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_rtgroup	*rtg = oz->oz_rtg;
@@ -179,16 +178,35 @@ xfs_zone_record_blocks(
 
 	xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
 	xfs_rtgroup_trans_join(tp, rtg, XFS_RTGLOCK_RMAP);
-	if (used) {
-		rmapip->i_used_blocks += len;
-		ASSERT(rmapip->i_used_blocks <= rtg_blocks(rtg));
-	} else {
-		xfs_add_frextents(mp, len);
-	}
+	rmapip->i_used_blocks += len;
+	ASSERT(rmapip->i_used_blocks <= rtg_blocks(rtg));
 	oz->oz_written += len;
 	if (oz->oz_written == rtg_blocks(rtg))
 		xfs_open_zone_mark_full(oz);
 	xfs_trans_log_inode(tp, rmapip, XFS_ILOG_CORE);
+}
+
+/*
+ * Called for blocks that have been written to disk, but not actually linked to
+ * an inode, which can happen when garbage collection races with user data
+ * writes to a file.
+ */
+static void
+xfs_zone_skip_blocks(
+	struct xfs_open_zone	*oz,
+	xfs_filblks_t		len)
+{
+	struct xfs_rtgroup	*rtg = oz->oz_rtg;
+
+	trace_xfs_zone_skip_blocks(oz, 0, len);
+
+	xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
+	oz->oz_written += len;
+	if (oz->oz_written == rtg_blocks(rtg))
+		xfs_open_zone_mark_full(oz);
+	xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_RMAP);
+
+	xfs_add_frextents(rtg_mount(rtg), len);
 }
 
 static int
@@ -250,8 +268,7 @@ xfs_zoned_map_extent(
 		}
 	}
 
-	xfs_zone_record_blocks(tp, new->br_startblock, new->br_blockcount, oz,
-			true);
+	xfs_zone_record_blocks(tp, oz, new->br_startblock, new->br_blockcount);
 
 	/* Map the new blocks into the data fork. */
 	xfs_bmap_map_extent(tp, ip, XFS_DATA_FORK, new);
@@ -259,8 +276,7 @@ xfs_zoned_map_extent(
 
 skip:
 	trace_xfs_reflink_cow_remap_skip(ip, new);
-	xfs_zone_record_blocks(tp, new->br_startblock, new->br_blockcount, oz,
-			false);
+	xfs_zone_skip_blocks(oz, new->br_blockcount);
 	return 0;
 }
 

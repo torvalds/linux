@@ -306,9 +306,6 @@ static bool vmd_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 				  struct irq_domain *real_parent,
 				  struct msi_domain_info *info)
 {
-	if (WARN_ON_ONCE(info->bus_token != DOMAIN_BUS_PCI_DEVICE_MSIX))
-		return false;
-
 	if (!msi_lib_init_dev_msi_info(dev, domain, real_parent, info))
 		return false;
 

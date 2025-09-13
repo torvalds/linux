@@ -265,6 +265,9 @@ static bool spi_mem_internal_supports_op(struct spi_mem *mem,
  */
 bool spi_mem_supports_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
+	/* Make sure the operation frequency is correct before going futher */
+	spi_mem_adjust_op_freq(mem, (struct spi_mem_op *)op);
+
 	if (spi_mem_check_op(op))
 		return false;
 
@@ -577,6 +580,7 @@ EXPORT_SYMBOL_GPL(spi_mem_adjust_op_freq);
  * spi_mem_calc_op_duration() - Derives the theoretical length (in ns) of an
  *			        operation. This helps finding the best variant
  *			        among a list of possible choices.
+ * @mem: the SPI memory
  * @op: the operation to benchmark
  *
  * Some chips have per-op frequency limitations, PCBs usually have their own

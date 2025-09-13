@@ -434,7 +434,7 @@ void ref_tracker_dir_debugfs(struct ref_tracker_dir *dir)
 	if (dentry && !xa_is_err(dentry))
 		return;
 
-	ret = snprintf(name, sizeof(name), "%s@%px", dir->class, dir);
+	ret = snprintf(name, sizeof(name), "%s@%p", dir->class, dir);
 	name[sizeof(name) - 1] = '\0';
 
 	if (ret < sizeof(name)) {

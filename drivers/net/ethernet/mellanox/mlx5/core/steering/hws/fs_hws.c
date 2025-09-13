@@ -267,6 +267,7 @@ static int mlx5_cmd_hws_create_flow_table(struct mlx5_flow_root_namespace *ns,
 
 	tbl_attr.type = MLX5HWS_TABLE_TYPE_FDB;
 	tbl_attr.level = ft_attr->level;
+	tbl_attr.uid = ft_attr->uid;
 	tbl = mlx5hws_table_create(ctx, &tbl_attr);
 	if (!tbl) {
 		mlx5_core_err(ns->dev, "Failed creating hws flow_table\n");
