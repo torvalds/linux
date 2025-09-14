@@ -33,10 +33,7 @@ SCSI驱动接口
    :maxdepth: 1
 
    scsi_mid_low_api
-
-Todolist:
-
-* scsi_eh
+   scsi_eh
 
 SCSI驱动参数
 ============
