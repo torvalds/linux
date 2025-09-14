@@ -20,6 +20,7 @@ properties:
               - samsung,exynos5433-chipid
               - samsung,exynos7-chipid
               - samsung,exynos7870-chipid
+              - samsung,exynos8890-chipid
           - const: samsung,exynos4210-chipid
       - items:
           - enum:
