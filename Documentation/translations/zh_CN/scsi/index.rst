@@ -50,9 +50,10 @@ SCSI主机适配器驱动
 .. toctree::
    :maxdepth: 1
 
+   sd-parameters
+
 Todolist:
 
-* sd-parameters
 * 53c700
 * aacraid
 * advansys
