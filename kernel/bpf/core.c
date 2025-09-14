@@ -39,6 +39,7 @@
 #include <linux/bpf_mem_alloc.h>
 #include <linux/memcontrol.h>
 #include <linux/execmem.h>
+#include <crypto/sha2.h>
 
 #include <asm/barrier.h>
 #include <linux/unaligned.h>
@@ -296,7 +297,6 @@ void __bpf_prog_free(struct bpf_prog *fp)
 int bpf_prog_calc_tag(struct bpf_prog *fp)
 {
 	size_t size = bpf_prog_insn_size(fp);
-	u8 digest[SHA1_DIGEST_SIZE];
 	struct bpf_insn *dst;
 	bool was_ld_map;
 	u32 i;
@@ -327,8 +327,7 @@ int bpf_prog_calc_tag(struct bpf_prog *fp)
 			was_ld_map = false;
 		}
 	}
-	sha1((const u8 *)dst, size, digest);
-	memcpy(fp->tag, digest, sizeof(fp->tag));
+	sha256((u8 *)dst, size, fp->digest);
 	vfree(dst);
 	return 0;
 }
