@@ -41,9 +41,10 @@ SCSI驱动参数
 .. toctree::
    :maxdepth: 1
 
+   scsi-parameters
+
 Todolist:
 
-* scsi-parameters
 * link_power_management_policy
 
 SCSI主机适配器驱动
