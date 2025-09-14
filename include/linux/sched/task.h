@@ -210,9 +210,8 @@ static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
  * pins the final release of task.io_context.  Also protects ->cpuset and
  * ->cgroup.subsys[]. And ->vfork_done. And ->sysvshm.shm_clist.
  *
- * Nests both inside and outside of read_lock(&tasklist_lock).
- * It must not be nested with write_lock_irq(&tasklist_lock),
- * neither inside nor outside.
+ * Nests inside of read_lock(&tasklist_lock). It must not be nested with
+ * write_lock_irq(&tasklist_lock), neither inside nor outside.
  */
 static inline void task_lock(struct task_struct *p)
 {
