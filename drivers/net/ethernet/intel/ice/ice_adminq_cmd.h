@@ -2399,42 +2399,6 @@ struct ice_aqc_event_lan_overflow {
 	u8 reserved[8];
 };
 
-enum ice_aqc_fw_logging_mod {
-	ICE_AQC_FW_LOG_ID_GENERAL = 0,
-	ICE_AQC_FW_LOG_ID_CTRL,
-	ICE_AQC_FW_LOG_ID_LINK,
-	ICE_AQC_FW_LOG_ID_LINK_TOPO,
-	ICE_AQC_FW_LOG_ID_DNL,
-	ICE_AQC_FW_LOG_ID_I2C,
-	ICE_AQC_FW_LOG_ID_SDP,
-	ICE_AQC_FW_LOG_ID_MDIO,
-	ICE_AQC_FW_LOG_ID_ADMINQ,
-	ICE_AQC_FW_LOG_ID_HDMA,
-	ICE_AQC_FW_LOG_ID_LLDP,
-	ICE_AQC_FW_LOG_ID_DCBX,
-	ICE_AQC_FW_LOG_ID_DCB,
-	ICE_AQC_FW_LOG_ID_XLR,
-	ICE_AQC_FW_LOG_ID_NVM,
-	ICE_AQC_FW_LOG_ID_AUTH,
-	ICE_AQC_FW_LOG_ID_VPD,
-	ICE_AQC_FW_LOG_ID_IOSF,
-	ICE_AQC_FW_LOG_ID_PARSER,
-	ICE_AQC_FW_LOG_ID_SW,
-	ICE_AQC_FW_LOG_ID_SCHEDULER,
-	ICE_AQC_FW_LOG_ID_TXQ,
-	ICE_AQC_FW_LOG_ID_RSVD,
-	ICE_AQC_FW_LOG_ID_POST,
-	ICE_AQC_FW_LOG_ID_WATCHDOG,
-	ICE_AQC_FW_LOG_ID_TASK_DISPATCH,
-	ICE_AQC_FW_LOG_ID_MNG,
-	ICE_AQC_FW_LOG_ID_SYNCE,
-	ICE_AQC_FW_LOG_ID_HEALTH,
-	ICE_AQC_FW_LOG_ID_TSDRV,
-	ICE_AQC_FW_LOG_ID_PFREG,
-	ICE_AQC_FW_LOG_ID_MDLVER,
-	ICE_AQC_FW_LOG_ID_MAX,
-};
-
 enum ice_aqc_health_status_mask {
 	ICE_AQC_HEALTH_STATUS_SET_PF_SPECIFIC_MASK = BIT(0),
 	ICE_AQC_HEALTH_STATUS_SET_ALL_PF_MASK      = BIT(1),
@@ -2514,48 +2478,6 @@ struct ice_aqc_health_status_elem {
 	__le16 event_source;
 	__le32 internal_data1;
 	__le32 internal_data2;
-};
-
-/* Set FW Logging configuration (indirect 0xFF30)
- * Register for FW Logging (indirect 0xFF31)
- * Query FW Logging (indirect 0xFF32)
- * FW Log Event (indirect 0xFF33)
- */
-struct ice_aqc_fw_log {
-	u8 cmd_flags;
-#define ICE_AQC_FW_LOG_CONF_UART_EN	BIT(0)
-#define ICE_AQC_FW_LOG_CONF_AQ_EN	BIT(1)
-#define ICE_AQC_FW_LOG_QUERY_REGISTERED	BIT(2)
-#define ICE_AQC_FW_LOG_CONF_SET_VALID	BIT(3)
-#define ICE_AQC_FW_LOG_AQ_REGISTER	BIT(0)
-#define ICE_AQC_FW_LOG_AQ_QUERY		BIT(2)
-
-	u8 rsp_flag;
-	__le16 fw_rt_msb;
-	union {
-		struct {
-			__le32 fw_rt_lsb;
-		} sync;
-		struct {
-			__le16 log_resolution;
-#define ICE_AQC_FW_LOG_MIN_RESOLUTION		(1)
-#define ICE_AQC_FW_LOG_MAX_RESOLUTION		(128)
-
-			__le16 mdl_cnt;
-		} cfg;
-	} ops;
-	__le32 addr_high;
-	__le32 addr_low;
-};
-
-/* Response Buffer for:
- *    Set Firmware Logging Configuration (0xFF30)
- *    Query FW Logging (0xFF32)
- */
-struct ice_aqc_fw_log_cfg_resp {
-	__le16 module_identifier;
-	u8 log_level;
-	u8 rsvd0;
 };
 
 /* Admin Queue command opcodes */
