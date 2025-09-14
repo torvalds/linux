@@ -15074,6 +15074,7 @@ M:	Ivaylo Ivanov <ivo.ivanov.ivanov1@gmail.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/regulator/maxim,max77838.yaml
+F:	drivers/regulator/max77838-regulator.c
 
 MAXIM MAX77976 BATTERY CHARGER
 M:	Luca Ceresoli <luca@lucaceresoli.net>
