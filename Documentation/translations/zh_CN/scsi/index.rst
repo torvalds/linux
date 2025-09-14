@@ -42,10 +42,7 @@ SCSI驱动参数
    :maxdepth: 1
 
    scsi-parameters
-
-Todolist:
-
-* link_power_management_policy
+   link_power_management_policy
 
 SCSI主机适配器驱动
 ==================
