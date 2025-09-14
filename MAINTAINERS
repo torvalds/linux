@@ -25319,6 +25319,18 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/net/ti,icss*.yaml
 F:	drivers/net/ethernet/ti/icssg/*
 
+TI ICSSM ETHERNET DRIVER (ICSSM)
+M:	MD Danish Anwar <danishanwar@ti.com>
+M:	Parvathi Pudi <parvathi@couthit.com>
+R:	Roger Quadros <rogerq@kernel.org>
+R:	Mohan Reddy Putluru <pmohan@couthit.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/ti,icssm*.yaml
+F:	Documentation/devicetree/bindings/net/ti,pruss-ecap.yaml
+F:	drivers/net/ethernet/ti/icssm/*
+
 TI J721E CSI2RX DRIVER
 M:	Jai Luthra <jai.luthra@linux.dev>
 L:	linux-media@vger.kernel.org
