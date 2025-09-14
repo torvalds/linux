@@ -1278,7 +1278,7 @@ struct xe_svm_range *xe_svm_range_find_or_insert(struct xe_vm *vm, u64 addr,
 	r = drm_gpusvm_range_find_or_insert(&vm->svm.gpusvm, max(addr, xe_vma_start(vma)),
 					    xe_vma_start(vma), xe_vma_end(vma), ctx);
 	if (IS_ERR(r))
-		return ERR_PTR(PTR_ERR(r));
+		return ERR_CAST(r);
 
 	return to_xe_range(r);
 }
