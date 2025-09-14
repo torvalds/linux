@@ -46,6 +46,7 @@ Supported boards:
  * ROG ZENITH II EXTREME
  * ROG ZENITH II EXTREME ALPHA
  * TUF GAMING X670E PLUS
+ * TUF GAMING X670E PLUS WIFI
 
 Authors:
     - Eugene Shalygin <eugene.shalygin@gmail.com>
