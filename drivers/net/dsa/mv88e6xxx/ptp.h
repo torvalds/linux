@@ -54,7 +54,6 @@
 
 /* Offset 0x09: Event Status */
 #define MV88E6XXX_TAI_EVENT_STATUS		0x09
-#define MV88E6XXX_TAI_EVENT_STATUS_CAP_TRIG	0x4000
 #define MV88E6XXX_TAI_EVENT_STATUS_ERROR	0x0200
 #define MV88E6XXX_TAI_EVENT_STATUS_VALID	0x0100
 #define MV88E6XXX_TAI_EVENT_STATUS_CTR_MASK	0x00ff
@@ -149,7 +148,6 @@ void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip);
 				      ptp_clock_info)
 
 extern const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops;
-extern const struct mv88e6xxx_ptp_ops mv88e6250_ptp_ops;
 extern const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops;
 extern const struct mv88e6xxx_ptp_ops mv88e6390_ptp_ops;
 
@@ -170,7 +168,6 @@ static inline void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip)
 }
 
 static const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops = {};
-static const struct mv88e6xxx_ptp_ops mv88e6250_ptp_ops = {};
 static const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {};
 static const struct mv88e6xxx_ptp_ops mv88e6390_ptp_ops = {};
 
