@@ -1291,6 +1291,28 @@ LIBBPF_API int bpf_map__lookup_and_delete_elem(const struct bpf_map *map,
  */
 LIBBPF_API int bpf_map__get_next_key(const struct bpf_map *map,
 				     const void *cur_key, void *next_key, size_t key_sz);
+/**
+ * @brief **bpf_map__set_exclusive_program()** sets a map to be exclusive to the
+ * specified program. This must be called *before* the map is created.
+ *
+ * @param map BPF map to make exclusive.
+ * @param prog BPF program to be the exclusive user of the map. Must belong
+ * to the same bpf_object as the map.
+ * @return 0 on success; a negative error code otherwise.
+ *
+ * This function must be called after the BPF object is opened but before
+ * it is loaded. Once the object is loaded, only the specified program
+ * will be able to access the map's contents.
+ */
+LIBBPF_API int bpf_map__set_exclusive_program(struct bpf_map *map, struct bpf_program *prog);
+
+/**
+ * @brief **bpf_map__exclusive_program()** returns the exclusive program
+ * that is registered with the map (if any).
+ * @param map BPF map to which the exclusive program is registered.
+ * @return the registered exclusive program.
+ */
+LIBBPF_API struct bpf_program *bpf_map__exclusive_program(struct bpf_map *map);
 
 struct bpf_xdp_set_link_opts {
 	size_t sz;
