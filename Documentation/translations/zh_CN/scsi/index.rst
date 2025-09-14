@@ -24,9 +24,7 @@ SCSI子系统
 .. toctree::
    :maxdepth: 1
 
-Todolist:
-
-* scsi
+   scsi
 
 SCSI驱动接口
 ============
