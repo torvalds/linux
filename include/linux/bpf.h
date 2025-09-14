@@ -3424,6 +3424,38 @@ static inline int bpf_fd_reuseport_array_update_elem(struct bpf_map *map,
 #endif /* CONFIG_BPF_SYSCALL */
 #endif /* defined(CONFIG_INET) && defined(CONFIG_BPF_SYSCALL) */
 
+#if defined(CONFIG_KEYS) && defined(CONFIG_BPF_SYSCALL)
+
+struct bpf_key *bpf_lookup_user_key(s32 serial, u64 flags);
+struct bpf_key *bpf_lookup_system_key(u64 id);
+void bpf_key_put(struct bpf_key *bkey);
+int bpf_verify_pkcs7_signature(struct bpf_dynptr *data_p,
+			       struct bpf_dynptr *sig_p,
+			       struct bpf_key *trusted_keyring);
+
+#else
+static inline struct bpf_key *bpf_lookup_user_key(u32 serial, u64 flags)
+{
+	return NULL;
+}
+
+static inline struct bpf_key *bpf_lookup_system_key(u64 id)
+{
+	return NULL;
+}
+
+static inline void bpf_key_put(struct bpf_key *bkey)
+{
+}
+
+static inline int bpf_verify_pkcs7_signature(struct bpf_dynptr *data_p,
+					     struct bpf_dynptr *sig_p,
+					     struct bpf_key *trusted_keyring)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* defined(CONFIG_KEYS) && defined(CONFIG_BPF_SYSCALL) */
+
 /* verifier prototypes for helper functions called from eBPF programs */
 extern const struct bpf_func_proto bpf_map_lookup_elem_proto;
 extern const struct bpf_func_proto bpf_map_update_elem_proto;
