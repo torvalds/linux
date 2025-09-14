@@ -50,6 +50,7 @@ properties:
           - enum:
               - axis,artpec9-uart
               - samsung,exynos7870-uart
+              - samsung,exynos8890-uart
           - const: samsung,exynos8895-uart
 
   reg:
