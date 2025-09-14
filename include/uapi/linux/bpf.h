@@ -1522,6 +1522,12 @@ union bpf_attr {
 		 * If provided, map_flags should have BPF_F_TOKEN_FD flag set.
 		 */
 		__s32	map_token_fd;
+
+		/* Hash of the program that has exclusive access to the map.
+		 */
+		__aligned_u64 excl_prog_hash;
+		/* Size of the passed excl_prog_hash. */
+		__u32 excl_prog_hash_size;
 	};
 
 	struct { /* anonymous struct used by BPF_MAP_*_ELEM and BPF_MAP_FREEZE commands */
