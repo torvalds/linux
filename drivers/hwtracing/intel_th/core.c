@@ -166,7 +166,7 @@ static void intel_th_remove(struct device *dev)
 	pm_runtime_enable(dev);
 }
 
-static struct bus_type intel_th_bus = {
+static const struct bus_type intel_th_bus = {
 	.name		= "intel_th",
 	.match		= intel_th_match,
 	.probe		= intel_th_probe,
