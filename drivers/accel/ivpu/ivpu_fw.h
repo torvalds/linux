@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  */
 
 #ifndef __IVPU_FW_H__
@@ -50,6 +50,11 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 static inline bool ivpu_fw_is_cold_boot(struct ivpu_device *vdev)
 {
 	return vdev->fw->entry_point == vdev->fw->cold_boot_entry_point;
+}
+
+static inline u32 ivpu_fw_preempt_buf_size(struct ivpu_device *vdev)
+{
+	return vdev->fw->primary_preempt_buf_size + vdev->fw->secondary_preempt_buf_size;
 }
 
 #endif /* __IVPU_FW_H__ */

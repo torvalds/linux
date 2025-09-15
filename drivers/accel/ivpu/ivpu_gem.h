@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  */
 #ifndef __IVPU_GEM_H__
 #define __IVPU_GEM_H__
@@ -94,6 +94,11 @@ static inline u32 cpu_to_vpu_addr(struct ivpu_bo *bo, void *cpu_addr)
 		return 0;
 
 	return bo->vpu_addr + (cpu_addr - ivpu_bo_vaddr(bo));
+}
+
+static inline bool ivpu_bo_is_mappable(struct ivpu_bo *bo)
+{
+	return bo->flags & DRM_IVPU_BO_MAPPABLE;
 }
 
 #endif /* __IVPU_GEM_H__ */

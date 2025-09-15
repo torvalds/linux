@@ -200,6 +200,9 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 	case DRM_IVPU_PARAM_CAPABILITIES:
 		args->value = ivpu_is_capable(vdev, args->index);
 		break;
+	case DRM_IVPU_PARAM_PREEMPT_BUFFER_SIZE:
+		args->value = ivpu_fw_preempt_buf_size(vdev);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
