@@ -363,7 +363,7 @@ static void *chain_alloc(struct chain_allocator *ca, unsigned int size)
  *
  * One radix tree is represented by one struct mem_zone_bm_rtree. There are
  * two linked lists for the nodes of the tree, one for the inner nodes and
- * one for the leave nodes. The linked leave nodes are used for fast linear
+ * one for the leaf nodes. The linked leaf nodes are used for fast linear
  * access of the memory bitmap.
  *
  * The struct rtree_node represents one node of the radix tree.
