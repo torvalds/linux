@@ -3767,6 +3767,8 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 		return 0;
 
 	control = &con->eeprom_control;
+	con->ras_smu_drv = amdgpu_dpm_get_ras_smu_driver(adev);
+
 	ret = amdgpu_ras_eeprom_init(control);
 	control->is_eeprom_valid = !ret;
 

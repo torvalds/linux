@@ -1546,7 +1546,8 @@ void amdgpu_ras_eeprom_check_and_recover(struct amdgpu_device *adev)
 	struct amdgpu_ras_eeprom_control *control;
 	int res;
 
-	if (!__is_ras_eeprom_supported(adev) || !ras)
+	if (!__is_ras_eeprom_supported(adev) || !ras ||
+	    amdgpu_ras_smu_eeprom_supported(adev))
 		return;
 	control = &ras->eeprom_control;
 	if (!control->is_eeprom_valid)
@@ -1566,4 +1567,45 @@ void amdgpu_ras_eeprom_check_and_recover(struct amdgpu_device *adev)
 		control->is_eeprom_valid = false;
 	}
 	return;
+}
+
+static const struct ras_smu_drv *amdgpu_ras_get_smu_ras_drv(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	if (!ras)
+		return NULL;
+
+	return ras->ras_smu_drv;
+}
+
+static uint64_t amdgpu_ras_smu_get_feature_flags(struct amdgpu_device *adev)
+{
+	const struct ras_smu_drv *ras_smu_drv = amdgpu_ras_get_smu_ras_drv(adev);
+	uint64_t flags = 0ULL;
+
+	if (!ras_smu_drv)
+		goto out;
+
+	if (ras_smu_drv->ras_smu_feature_flags)
+		ras_smu_drv->ras_smu_feature_flags(adev, &flags);
+
+out:
+	return flags;
+}
+
+bool amdgpu_ras_smu_eeprom_supported(struct amdgpu_device *adev)
+{
+	const struct ras_smu_drv *smu_ras_drv = amdgpu_ras_get_smu_ras_drv(adev);
+	uint64_t flags = 0ULL;
+
+	if (!__is_ras_eeprom_supported(adev) || !smu_ras_drv)
+		return false;
+
+	if (!smu_ras_drv->smu_eeprom_funcs)
+		return false;
+
+	flags = amdgpu_ras_smu_get_feature_flags(adev);
+
+	return !!(flags & RAS_SMU_FEATURE_BIT__RAS_EEPROM);
 }
