@@ -224,6 +224,27 @@ static void blk_atomic_writes_update_limits(struct queue_limits *lim)
 		lim->atomic_write_hw_boundary >> SECTOR_SHIFT;
 }
 
+/*
+ * Test whether any boundary is aligned with any chunk size. Stacked
+ * devices store any stripe size in t->chunk_sectors.
+ */
+static bool blk_valid_atomic_writes_boundary(unsigned int chunk_sectors,
+					unsigned int boundary_sectors)
+{
+	if (!chunk_sectors || !boundary_sectors)
+		return true;
+
+	if (boundary_sectors > chunk_sectors &&
+	    boundary_sectors % chunk_sectors)
+		return false;
+
+	if (chunk_sectors > boundary_sectors &&
+	    chunk_sectors % boundary_sectors)
+		return false;
+
+	return true;
+}
+
 static void blk_validate_atomic_write_limits(struct queue_limits *lim)
 {
 	unsigned int boundary_sectors;
@@ -264,20 +285,9 @@ static void blk_validate_atomic_write_limits(struct queue_limits *lim)
 		if (WARN_ON_ONCE(lim->atomic_write_hw_max >
 				 lim->atomic_write_hw_boundary))
 			goto unsupported;
-		/*
-		 * A feature of boundary support is that it disallows bios to
-		 * be merged which would result in a merged request which
-		 * crosses either a chunk sector or atomic write HW boundary,
-		 * even though chunk sectors may be just set for performance.
-		 * For simplicity, disallow atomic writes for a chunk sector
-		 * which is non-zero and smaller than atomic write HW boundary.
-		 * Furthermore, chunk sectors must be a multiple of atomic
-		 * write HW boundary. Otherwise boundary support becomes
-		 * complicated.
-		 * Devices which do not conform to these rules can be dealt
-		 * with if and when they show up.
-		 */
-		if (WARN_ON_ONCE(lim->chunk_sectors % boundary_sectors))
+
+		if (WARN_ON_ONCE(!blk_valid_atomic_writes_boundary(
+			lim->chunk_sectors, boundary_sectors)))
 			goto unsupported;
 
 		/*
@@ -644,31 +654,6 @@ static bool blk_stack_atomic_writes_tail(struct queue_limits *t,
 	return true;
 }
 
-/* Check for valid boundary of first bottom device */
-static bool blk_stack_atomic_writes_boundary_head(struct queue_limits *t,
-				struct queue_limits *b)
-{
-	unsigned int boundary_sectors;
-
-	if (!b->atomic_write_hw_boundary || !t->chunk_sectors)
-		return true;
-
-	boundary_sectors = b->atomic_write_hw_boundary >> SECTOR_SHIFT;
-
-	/*
-	 * Ensure atomic write boundary is aligned with chunk sectors. Stacked
-	 * devices store any stripe size in t->chunk_sectors.
-	 */
-	if (boundary_sectors > t->chunk_sectors &&
-	    boundary_sectors % t->chunk_sectors)
-		return false;
-	if (t->chunk_sectors > boundary_sectors &&
-	    t->chunk_sectors % boundary_sectors)
-		return false;
-
-	return true;
-}
-
 static void blk_stack_atomic_writes_chunk_sectors(struct queue_limits *t)
 {
 	unsigned int chunk_bytes;
@@ -706,7 +691,8 @@ static void blk_stack_atomic_writes_chunk_sectors(struct queue_limits *t)
 static bool blk_stack_atomic_writes_head(struct queue_limits *t,
 				struct queue_limits *b)
 {
-	if (!blk_stack_atomic_writes_boundary_head(t, b))
+	if (!blk_valid_atomic_writes_boundary(t->chunk_sectors,
+			b->atomic_write_hw_boundary >> SECTOR_SHIFT))
 		return false;
 
 	t->atomic_write_hw_unit_max = b->atomic_write_hw_unit_max;
