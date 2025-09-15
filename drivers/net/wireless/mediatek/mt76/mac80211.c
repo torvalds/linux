@@ -1235,6 +1235,8 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
 	mstat = *((struct mt76_rx_status *)skb->cb);
 	memset(status, 0, sizeof(*status));
 
+	skb->priority = mstat.qos_ctl & IEEE80211_QOS_CTL_TID_MASK;
+
 	status->flag = mstat.flag;
 	status->freq = mstat.freq;
 	status->enc_flags = mstat.enc_flags;
