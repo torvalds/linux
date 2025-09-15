@@ -2037,9 +2037,10 @@ static int smb_direct_create_qpair(struct smbdirect_socket *sc,
 		return ret;
 	}
 
-	sc->ib.send_cq = ib_alloc_cq(sc->ib.dev, sc,
-				 sp->send_credit_target + cap->max_rdma_ctxs,
-				 0, IB_POLL_WORKQUEUE);
+	sc->ib.send_cq = ib_alloc_cq_any(sc->ib.dev, sc,
+					 sp->send_credit_target +
+					 cap->max_rdma_ctxs,
+					 IB_POLL_WORKQUEUE);
 	if (IS_ERR(sc->ib.send_cq)) {
 		pr_err("Can't create RDMA send CQ\n");
 		ret = PTR_ERR(sc->ib.send_cq);
@@ -2047,8 +2048,9 @@ static int smb_direct_create_qpair(struct smbdirect_socket *sc,
 		goto err;
 	}
 
-	sc->ib.recv_cq = ib_alloc_cq(sc->ib.dev, sc,
-				     sp->recv_credit_max, 0, IB_POLL_WORKQUEUE);
+	sc->ib.recv_cq = ib_alloc_cq_any(sc->ib.dev, sc,
+					 sp->recv_credit_max,
+					 IB_POLL_WORKQUEUE);
 	if (IS_ERR(sc->ib.recv_cq)) {
 		pr_err("Can't create RDMA recv CQ\n");
 		ret = PTR_ERR(sc->ib.recv_cq);
