@@ -97,18 +97,21 @@ struct fw_card {
 		spinlock_t lock;
 	} transactions;
 
-	u32 split_timeout_hi;
-	u32 split_timeout_lo;
-	unsigned int split_timeout_cycles;
-	unsigned int split_timeout_jiffies;
+	struct {
+		u32 hi;
+		u32 lo;
+		unsigned int cycles;
+		unsigned int jiffies;
+		spinlock_t lock;
+	} split_timeout;
 
 	unsigned long long guid;
 	unsigned max_receive;
 	int link_speed;
 	int config_rom_generation;
 
-	spinlock_t lock; /* Take this lock when handling the lists in
-			  * this struct. */
+	spinlock_t lock;
+
 	struct fw_node *local_node;
 	struct fw_node *root_node;
 	struct fw_node *irm_node;

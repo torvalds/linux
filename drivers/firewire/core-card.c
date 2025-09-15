@@ -550,10 +550,12 @@ void fw_card_initialize(struct fw_card *card,
 	INIT_LIST_HEAD(&card->transactions.list);
 	spin_lock_init(&card->transactions.lock);
 
-	card->split_timeout_hi = DEFAULT_SPLIT_TIMEOUT / 8000;
-	card->split_timeout_lo = (DEFAULT_SPLIT_TIMEOUT % 8000) << 19;
-	card->split_timeout_cycles = DEFAULT_SPLIT_TIMEOUT;
-	card->split_timeout_jiffies = isoc_cycles_to_jiffies(DEFAULT_SPLIT_TIMEOUT);
+	card->split_timeout.hi = DEFAULT_SPLIT_TIMEOUT / 8000;
+	card->split_timeout.lo = (DEFAULT_SPLIT_TIMEOUT % 8000) << 19;
+	card->split_timeout.cycles = DEFAULT_SPLIT_TIMEOUT;
+	card->split_timeout.jiffies = isoc_cycles_to_jiffies(DEFAULT_SPLIT_TIMEOUT);
+	spin_lock_init(&card->split_timeout.lock);
+
 	card->color = 0;
 	card->broadcast_channel = BROADCAST_CHANNEL_INITIAL;
 

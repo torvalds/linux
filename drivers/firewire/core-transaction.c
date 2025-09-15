@@ -137,14 +137,18 @@ static void split_transaction_timeout_callback(struct timer_list *timer)
 static void start_split_transaction_timeout(struct fw_transaction *t,
 					    struct fw_card *card)
 {
-	guard(spinlock_irqsave)(&card->lock);
+	unsigned long delta;
 
 	if (list_empty(&t->link) || WARN_ON(t->is_split_transaction))
 		return;
 
 	t->is_split_transaction = true;
-	mod_timer(&t->split_timeout_timer,
-		  jiffies + card->split_timeout_jiffies);
+
+	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
+	// local destination never runs in any type of IRQ context.
+	scoped_guard(spinlock_irqsave, &card->split_timeout.lock)
+		delta = card->split_timeout.jiffies;
+	mod_timer(&t->split_timeout_timer, jiffies + delta);
 }
 
 static u32 compute_split_timeout_timestamp(struct fw_card *card, u32 request_timestamp);
@@ -164,8 +168,12 @@ static void transmit_complete_callback(struct fw_packet *packet,
 		break;
 	case ACK_PENDING:
 	{
-		t->split_timeout_cycle =
-			compute_split_timeout_timestamp(card, packet->timestamp) & 0xffff;
+		// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
+		// local destination never runs in any type of IRQ context.
+		scoped_guard(spinlock_irqsave, &card->split_timeout.lock) {
+			t->split_timeout_cycle =
+				compute_split_timeout_timestamp(card, packet->timestamp) & 0xffff;
+		}
 		start_split_transaction_timeout(t, card);
 		break;
 	}
@@ -790,11 +798,14 @@ EXPORT_SYMBOL(fw_fill_response);
 
 static u32 compute_split_timeout_timestamp(struct fw_card *card,
 					   u32 request_timestamp)
+__must_hold(&card->split_timeout.lock)
 {
 	unsigned int cycles;
 	u32 timestamp;
 
-	cycles = card->split_timeout_cycles;
+	lockdep_assert_held(&card->split_timeout.lock);
+
+	cycles = card->split_timeout.cycles;
 	cycles += request_timestamp & 0x1fff;
 
 	timestamp = request_timestamp & ~0x1fff;
@@ -845,9 +856,12 @@ static struct fw_request *allocate_request(struct fw_card *card,
 		return NULL;
 	kref_init(&request->kref);
 
+	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
+	// local destination never runs in any type of IRQ context.
+	scoped_guard(spinlock_irqsave, &card->split_timeout.lock)
+		request->response.timestamp = compute_split_timeout_timestamp(card, p->timestamp);
+
 	request->response.speed = p->speed;
-	request->response.timestamp =
-			compute_split_timeout_timestamp(card, p->timestamp);
 	request->response.generation = p->generation;
 	request->response.ack = 0;
 	request->response.callback = free_response_callback;
@@ -1228,16 +1242,17 @@ static const struct fw_address_region registers_region =
 	  .end   = CSR_REGISTER_BASE | CSR_CONFIG_ROM, };
 
 static void update_split_timeout(struct fw_card *card)
+__must_hold(&card->split_timeout.lock)
 {
 	unsigned int cycles;
 
-	cycles = card->split_timeout_hi * 8000 + (card->split_timeout_lo >> 19);
+	cycles = card->split_timeout.hi * 8000 + (card->split_timeout.lo >> 19);
 
 	/* minimum per IEEE 1394, maximum which doesn't overflow OHCI */
 	cycles = clamp(cycles, 800u, 3u * 8000u);
 
-	card->split_timeout_cycles = cycles;
-	card->split_timeout_jiffies = isoc_cycles_to_jiffies(cycles);
+	card->split_timeout.cycles = cycles;
+	card->split_timeout.jiffies = isoc_cycles_to_jiffies(cycles);
 }
 
 static void handle_registers(struct fw_card *card, struct fw_request *request,
@@ -1287,12 +1302,15 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 
 	case CSR_SPLIT_TIMEOUT_HI:
 		if (tcode == TCODE_READ_QUADLET_REQUEST) {
-			*data = cpu_to_be32(card->split_timeout_hi);
+			*data = cpu_to_be32(card->split_timeout.hi);
 		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
-			guard(spinlock_irqsave)(&card->lock);
-
-			card->split_timeout_hi = be32_to_cpu(*data) & 7;
-			update_split_timeout(card);
+			// NOTE: This can be without irqsave when we can guarantee that
+			// __fw_send_request() for local destination never runs in any type of IRQ
+			// context.
+			scoped_guard(spinlock_irqsave, &card->split_timeout.lock) {
+				card->split_timeout.hi = be32_to_cpu(*data) & 7;
+				update_split_timeout(card);
+			}
 		} else {
 			rcode = RCODE_TYPE_ERROR;
 		}
@@ -1300,12 +1318,15 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 
 	case CSR_SPLIT_TIMEOUT_LO:
 		if (tcode == TCODE_READ_QUADLET_REQUEST) {
-			*data = cpu_to_be32(card->split_timeout_lo);
+			*data = cpu_to_be32(card->split_timeout.lo);
 		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
-			guard(spinlock_irqsave)(&card->lock);
-
-			card->split_timeout_lo = be32_to_cpu(*data) & 0xfff80000;
-			update_split_timeout(card);
+			// NOTE: This can be without irqsave when we can guarantee that
+			// __fw_send_request() for local destination never runs in any type of IRQ
+			// context.
+			scoped_guard(spinlock_irqsave, &card->split_timeout.lock) {
+				card->split_timeout.lo = be32_to_cpu(*data) & 0xfff80000;
+				update_split_timeout(card);
+			}
 		} else {
 			rcode = RCODE_TYPE_ERROR;
 		}
