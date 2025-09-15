@@ -205,6 +205,12 @@ properties:
 
       - items:
           - enum:
+              - sony,huashan
+          - const: qcom,msm8960t
+          - const: qcom,msm8960
+
+      - items:
+          - enum:
               - lge,hammerhead
               - samsung,hlte
               - sony,xperia-amami

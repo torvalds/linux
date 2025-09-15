@@ -1,20 +1,22 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2025, Antony Kurniawan Soemardi <linux@smankusors.com>
+ */
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/reset/qcom,gcc-msm8960.h>
 
 #include "qcom-msm8960.dtsi"
 #include "pm8921.dtsi"
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
-#include <dt-bindings/input/gpio-keys.h>
 
 / {
-	model = "Samsung Galaxy Express SGH-I437";
-	compatible = "samsung,expressatt", "qcom,msm8960";
+	model = "Sony Xperia SP";
+	compatible = "sony,huashan", "qcom,msm8960t", "qcom,msm8960";
 	chassis-type = "handset";
 
 	aliases {
-		serial0 = &gsbi5_serial;
+		serial0 = &gsbi8_serial;
 		mmc0 = &sdcc1; /* SDCC1 eMMC slot */
 		mmc1 = &sdcc3; /* SDCC3 SD card slot */
 	};
@@ -26,141 +28,71 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&gpio_keys_pin_a>;
-
-		key-home {
-			label = "Home";
-			gpios = <&msmgpio 40 GPIO_ACTIVE_LOW>;
-			debounce-interval = <5>;
-			linux,code = <KEY_HOMEPAGE>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
-
 		key-volume-up {
 			label = "Volume Up";
-			gpios = <&msmgpio 50 GPIO_ACTIVE_LOW>;
-			debounce-interval = <5>;
+			gpios = <&pm8921_gpio 21 GPIO_ACTIVE_LOW>;
+			debounce-interval = <10>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
 		key-volume-down {
 			label = "Volume Down";
-			gpios = <&msmgpio 81 GPIO_ACTIVE_LOW>;
-			debounce-interval = <5>;
+			gpios = <&pm8921_gpio 20 GPIO_ACTIVE_LOW>;
+			debounce-interval = <10>;
 			linux,code = <KEY_VOLUMEDOWN>;
 		};
 	};
 };
 
-&gsbi5 {
+&gsbi8 {
 	qcom,mode = <GSBI_PROT_I2C_UART>;
 	status = "okay";
 };
 
-&gsbi5_serial {
+&gsbi8_serial {
 	status = "okay";
-};
-
-&sdcc1 {
-	vmmc-supply = <&pm8921_l5>;
-	status = "okay";
-};
-
-&sdcc3 {
-	vmmc-supply = <&pm8921_l6>;
-	vqmmc-supply = <&pm8921_l7>;
-
-	pinctrl-0 = <&sdcc3_default_state>;
-	pinctrl-1 = <&sdcc3_sleep_state>;
-	pinctrl-names = "default", "sleep";
-
-	status = "okay";
-};
-
-&gsbi1 {
-	qcom,mode = <GSBI_PROT_SPI>;
-	pinctrl-0 = <&spi1_default>;
-	pinctrl-names = "default";
-	status = "okay";
-};
-
-&gsbi1_spi {
-	status = "okay";
-};
-
-&gsbi3 {
-	qcom,mode = <GSBI_PROT_I2C>;
-	status = "okay";
-};
-
-&gsbi3_i2c {
-	status = "okay";
-
-	// Atmel mXT224S touchscreen
-	touchscreen@4a {
-		compatible = "atmel,maxtouch";
-		reg = <0x4a>;
-		interrupt-parent = <&msmgpio>;
-		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
-		vdda-supply = <&pm8921_lvs6>;
-		vdd-supply = <&pm8921_l17>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&touchscreen>;
-	};
-};
-
-&msmgpio {
-	spi1_default: spi1-default-state {
-		mosi-pins {
-			pins = "gpio6";
-			function = "gsbi1";
-			drive-strength = <12>;
-			bias-disable;
-		};
-
-		miso-pins {
-			pins = "gpio7";
-			function = "gsbi1";
-			drive-strength = <12>;
-			bias-disable;
-		};
-
-		cs-pins {
-			pins = "gpio8";
-			function = "gsbi1";
-			drive-strength = <12>;
-			bias-disable;
-			output-low;
-		};
-
-		clk-pins {
-			pins = "gpio9";
-			function = "gsbi1";
-			drive-strength = <12>;
-			bias-disable;
-		};
-	};
-
-	gpio_keys_pin_a: gpio-keys-active-state {
-		pins = "gpio40", "gpio50", "gpio81";
-		function = "gpio";
-		drive-strength = <8>;
-		bias-disable;
-	};
-
-	touchscreen: touchscreen-int-state {
-		pins = "gpio11";
-		function = "gpio";
-		output-enable;
-		bias-disable;
-		drive-strength = <2>;
-	};
 };
 
 &pm8921 {
 	interrupts-extended = <&msmgpio 104 IRQ_TYPE_LEVEL_LOW>;
+};
+
+&pm8921_gpio {
+	keypad_default_state: keypad-default-state {
+		keypad-sense-pins {
+			pins = "gpio1", "gpio2", "gpio3", "gpio4", "gpio5";
+			function = PMIC_GPIO_FUNC_NORMAL;
+			bias-pull-up;
+			input-enable;
+			power-source = <PM8921_GPIO_S4>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+			qcom,pull-up-strength = <PMIC_GPIO_PULL_UP_31P5>;
+		};
+
+		keypad-drive-pins {
+			pins = "gpio9", "gpio10";
+			function = PMIC_GPIO_FUNC_FUNC1;
+			bias-disable;
+			drive-open-drain;
+			output-low;
+			power-source = <PM8921_GPIO_S4>;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+		};
+	};
+};
+
+&pm8921_keypad {
+	linux,keymap = <
+		MATRIX_KEY(1, 0, KEY_CAMERA_FOCUS)
+		MATRIX_KEY(1, 1, KEY_CAMERA)
+	>;
+	keypad,num-rows = <2>;
+	keypad,num-columns = <5>;
+
+	pinctrl-0 = <&keypad_default_state>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
 
 &rpm {
@@ -174,8 +106,10 @@
 		vdd_l21_l23_l29-supply = <&pm8921_s8>;
 		vdd_l24-supply = <&pm8921_s1>;
 		vdd_l25-supply = <&pm8921_s1>;
+		vdd_l26-supply = <&pm8921_s7>;
 		vdd_l27-supply = <&pm8921_s7>;
 		vdd_l28-supply = <&pm8921_s7>;
+		vdd_l29-supply = <&pm8921_s8>;
 
 		/* Buck SMPS */
 		pm8921_s1: s1 {
@@ -240,7 +174,7 @@
 
 		pm8921_l3: l3 {
 			regulator-min-microvolt = <3075000>;
-			regulator-max-microvolt = <3300000>;
+			regulator-max-microvolt = <3075000>;
 			bias-pull-down;
 		};
 
@@ -271,8 +205,8 @@
 		};
 
 		pm8921_l8: l8 {
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3100000>;
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <3000000>;
 			bias-pull-down;
 		};
 
@@ -289,13 +223,13 @@
 		};
 
 		pm8921_l11: l11 {
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <3300000>;
+			regulator-min-microvolt = <2600000>;
+			regulator-max-microvolt = <3000000>;
 			bias-pull-down;
 		};
 
 		pm8921_l12: l12 {
-			regulator-min-microvolt = <1200000>;
+			regulator-min-microvolt = <1050000>;
 			regulator-max-microvolt = <1200000>;
 			bias-pull-down;
 		};
@@ -313,20 +247,21 @@
 		};
 
 		pm8921_l16: l16 {
-			regulator-min-microvolt = <2800000>;
+			regulator-min-microvolt = <2600000>;
 			regulator-max-microvolt = <3000000>;
 			bias-pull-down;
 		};
 
 		pm8921_l17: l17 {
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3000000>;
 			bias-pull-down;
 		};
 
 		pm8921_l18: l18 {
 			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1500000>;
+			regulator-max-microvolt = <1200000>;
 			bias-pull-down;
 		};
 
@@ -397,6 +332,22 @@
 			qcom,switch-mode-frequency = <1600000>;
 		};
 	};
+};
+
+&sdcc1 {
+	vmmc-supply = <&pm8921_l5>;
+	status = "okay";
+};
+
+&sdcc3 {
+	vmmc-supply = <&pm8921_l6>;
+	vqmmc-supply = <&pm8921_l7>;
+
+	pinctrl-0 = <&sdcc3_default_state>;
+	pinctrl-1 = <&sdcc3_sleep_state>;
+	pinctrl-names = "default", "sleep";
+
+	status = "okay";
 };
 
 &usb_hs1_phy {
