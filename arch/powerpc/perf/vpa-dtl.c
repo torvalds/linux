@@ -85,8 +85,11 @@ struct vpa_pmu_buf {
 	u64     *base;
 	u64     size;
 	u64     head;
+	u64	head_size;
 	/* boot timebase and frequency needs to be saved only at once */
 	int	boottb_freq_saved;
+	u64	threshold;
+	bool	full;
 };
 
 /*
@@ -121,9 +124,29 @@ static void vpa_dtl_capture_aux(long *n_entries, struct vpa_pmu_buf *buf,
 	struct dtl_entry *aux_copy_buf = (struct dtl_entry *)buf->base;
 
 	/*
+	 * check if there is enough space to contain the
+	 * DTL data. If not, save the data for available
+	 * memory and set full to true.
+	 */
+	if (buf->head + *n_entries >= buf->threshold) {
+		*n_entries = buf->threshold - buf->head;
+		buf->full = 1;
+	}
+
+	/*
 	 * Copy to AUX buffer from per-thread address
 	 */
 	memcpy(aux_copy_buf + buf->head, &dtl->buf[index], *n_entries * sizeof(struct dtl_entry));
+
+	if (buf->full) {
+		/*
+		 * Set head of private aux to zero when buffer is full
+		 * so that next data will be copied to beginning of the
+		 * buffer
+		 */
+		buf->head = 0;
+		return;
+	}
 
 	buf->head += *n_entries;
 
@@ -178,6 +201,7 @@ static void vpa_dtl_dump_sample_data(struct perf_event *event)
 	struct vpa_pmu_buf *aux_buf;
 
 	struct vpa_dtl *dtl = &per_cpu(vpa_dtl_cpu, event->cpu);
+	u64 size;
 
 	cur_idx = be64_to_cpu(lppaca_of(event->cpu).dtl_idx);
 	last_idx = dtl->last_idx;
@@ -222,13 +246,37 @@ static void vpa_dtl_dump_sample_data(struct perf_event *event)
 		n_req -= read_size;
 		n_read += read_size;
 		i = 0;
+		if (aux_buf->full) {
+			size = (n_read * sizeof(struct dtl_entry));
+			if ((size +  aux_buf->head_size) > aux_buf->size) {
+				size = aux_buf->size - aux_buf->head_size;
+				perf_aux_output_end(&vpa_ctx->handle, size);
+				aux_buf->head = 0;
+				aux_buf->head_size = 0;
+			} else {
+				aux_buf->head_size += (n_read * sizeof(struct dtl_entry));
+				perf_aux_output_end(&vpa_ctx->handle, n_read * sizeof(struct dtl_entry));
+			}
+			goto out;
+		}
 	}
 
 	/* .. and now the head */
 	vpa_dtl_capture_aux(&n_req, aux_buf, dtl, i);
 
-	/* Move the aux->head to indicate size of data in aux buffer */
-	perf_aux_output_end(&vpa_ctx->handle, (n_req + n_read) * sizeof(struct dtl_entry));
+	size = ((n_req + n_read) * sizeof(struct dtl_entry));
+	if ((size +  aux_buf->head_size) > aux_buf->size) {
+		size = aux_buf->size - aux_buf->head_size;
+		perf_aux_output_end(&vpa_ctx->handle, size);
+		aux_buf->head = 0;
+		aux_buf->head_size = 0;
+	} else {
+		aux_buf->head_size += ((n_req + n_read) * sizeof(struct dtl_entry));
+		/* Move the aux->head to indicate size of data in aux buffer */
+		perf_aux_output_end(&vpa_ctx->handle, (n_req + n_read) * sizeof(struct dtl_entry));
+	}
+out:
+	aux_buf->full = 0;
 }
 
 /*
@@ -491,7 +539,9 @@ static void *vpa_dtl_setup_aux(struct perf_event *event, void **pages,
 
 	buf->size = nr_pages << PAGE_SHIFT;
 	buf->head = 0;
+	buf->head_size = 0;
 	buf->boottb_freq_saved = 0;
+	buf->threshold = ((buf->size - 32) / sizeof(struct dtl_entry));
 	return no_free_ptr(buf);
 }
 
