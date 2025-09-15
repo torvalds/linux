@@ -46,7 +46,6 @@
 
 #include "gem/i915_gem_object.h"
 #include "i915_scheduler_types.h"
-#include "i915_vma.h"
 #include "i9xx_plane_regs.h"
 #include "intel_bo.h"
 #include "intel_cdclk.h"
@@ -1748,9 +1747,4 @@ int intel_plane_atomic_check(struct intel_atomic_state *state)
 	}
 
 	return 0;
-}
-
-u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state)
-{
-	return i915_ggtt_offset(plane_state->ggtt_vma);
 }

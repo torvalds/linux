@@ -28,7 +28,6 @@ config ARM_APPLE_SOC_CPUFREQ
 	tristate "Apple Silicon SoC CPUFreq support"
 	depends on ARCH_APPLE || (COMPILE_TEST && 64BIT)
 	select PM_OPP
-	default ARCH_APPLE
 	help
 	  This adds the CPUFreq driver for Apple Silicon machines
 	  (e.g. Apple M1).
@@ -238,7 +237,7 @@ config ARM_TEGRA20_CPUFREQ
 	  This adds the CPUFreq driver support for Tegra20/30 SOCs.
 
 config ARM_TEGRA124_CPUFREQ
-	bool "Tegra124 CPUFreq support"
+	tristate "Tegra124 CPUFreq support"
 	depends on ARCH_TEGRA || COMPILE_TEST
 	depends on CPUFREQ_DT
 	default ARCH_TEGRA

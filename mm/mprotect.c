@@ -40,11 +40,8 @@
 
 #include "internal.h"
 
-bool can_change_pte_writable(struct vm_area_struct *vma, unsigned long addr,
-			     pte_t pte)
+static bool maybe_change_pte_writable(struct vm_area_struct *vma, pte_t pte)
 {
-	struct page *page;
-
 	if (WARN_ON_ONCE(!(vma->vm_flags & VM_WRITE)))
 		return false;
 
@@ -60,16 +57,32 @@ bool can_change_pte_writable(struct vm_area_struct *vma, unsigned long addr,
 	if (userfaultfd_pte_wp(vma, pte))
 		return false;
 
-	if (!(vma->vm_flags & VM_SHARED)) {
-		/*
-		 * Writable MAP_PRIVATE mapping: We can only special-case on
-		 * exclusive anonymous pages, because we know that our
-		 * write-fault handler similarly would map them writable without
-		 * any additional checks while holding the PT lock.
-		 */
-		page = vm_normal_page(vma, addr, pte);
-		return page && PageAnon(page) && PageAnonExclusive(page);
-	}
+	return true;
+}
+
+static bool can_change_private_pte_writable(struct vm_area_struct *vma,
+					    unsigned long addr, pte_t pte)
+{
+	struct page *page;
+
+	if (!maybe_change_pte_writable(vma, pte))
+		return false;
+
+	/*
+	 * Writable MAP_PRIVATE mapping: We can only special-case on
+	 * exclusive anonymous pages, because we know that our
+	 * write-fault handler similarly would map them writable without
+	 * any additional checks while holding the PT lock.
+	 */
+	page = vm_normal_page(vma, addr, pte);
+	return page && PageAnon(page) && PageAnonExclusive(page);
+}
+
+static bool can_change_shared_pte_writable(struct vm_area_struct *vma,
+					   pte_t pte)
+{
+	if (!maybe_change_pte_writable(vma, pte))
+		return false;
 
 	VM_WARN_ON_ONCE(is_zero_pfn(pte_pfn(pte)) && pte_dirty(pte));
 
@@ -83,6 +96,179 @@ bool can_change_pte_writable(struct vm_area_struct *vma, unsigned long addr,
 	return pte_dirty(pte);
 }
 
+bool can_change_pte_writable(struct vm_area_struct *vma, unsigned long addr,
+			     pte_t pte)
+{
+	if (!(vma->vm_flags & VM_SHARED))
+		return can_change_private_pte_writable(vma, addr, pte);
+
+	return can_change_shared_pte_writable(vma, pte);
+}
+
+static int mprotect_folio_pte_batch(struct folio *folio, pte_t *ptep,
+				    pte_t pte, int max_nr_ptes, fpb_t flags)
+{
+	/* No underlying folio, so cannot batch */
+	if (!folio)
+		return 1;
+
+	if (!folio_test_large(folio))
+		return 1;
+
+	return folio_pte_batch_flags(folio, NULL, ptep, &pte, max_nr_ptes, flags);
+}
+
+static bool prot_numa_skip(struct vm_area_struct *vma, unsigned long addr,
+			   pte_t oldpte, pte_t *pte, int target_node,
+			   struct folio *folio)
+{
+	bool ret = true;
+	bool toptier;
+	int nid;
+
+	/* Avoid TLB flush if possible */
+	if (pte_protnone(oldpte))
+		goto skip;
+
+	if (!folio)
+		goto skip;
+
+	if (folio_is_zone_device(folio) || folio_test_ksm(folio))
+		goto skip;
+
+	/* Also skip shared copy-on-write pages */
+	if (is_cow_mapping(vma->vm_flags) &&
+	    (folio_maybe_dma_pinned(folio) || folio_maybe_mapped_shared(folio)))
+		goto skip;
+
+	/*
+	 * While migration can move some dirty pages,
+	 * it cannot move them all from MIGRATE_ASYNC
+	 * context.
+	 */
+	if (folio_is_file_lru(folio) && folio_test_dirty(folio))
+		goto skip;
+
+	/*
+	 * Don't mess with PTEs if page is already on the node
+	 * a single-threaded process is running on.
+	 */
+	nid = folio_nid(folio);
+	if (target_node == nid)
+		goto skip;
+
+	toptier = node_is_toptier(nid);
+
+	/*
+	 * Skip scanning top tier node if normal numa
+	 * balancing is disabled
+	 */
+	if (!(sysctl_numa_balancing_mode & NUMA_BALANCING_NORMAL) && toptier)
+		goto skip;
+
+	ret = false;
+	if (folio_use_access_time(folio))
+		folio_xchg_access_time(folio, jiffies_to_msecs(jiffies));
+
+skip:
+	return ret;
+}
+
+/* Set nr_ptes number of ptes, starting from idx */
+static void prot_commit_flush_ptes(struct vm_area_struct *vma, unsigned long addr,
+		pte_t *ptep, pte_t oldpte, pte_t ptent, int nr_ptes,
+		int idx, bool set_write, struct mmu_gather *tlb)
+{
+	/*
+	 * Advance the position in the batch by idx; note that if idx > 0,
+	 * then the nr_ptes passed here is <= batch size - idx.
+	 */
+	addr += idx * PAGE_SIZE;
+	ptep += idx;
+	oldpte = pte_advance_pfn(oldpte, idx);
+	ptent = pte_advance_pfn(ptent, idx);
+
+	if (set_write)
+		ptent = pte_mkwrite(ptent, vma);
+
+	modify_prot_commit_ptes(vma, addr, ptep, oldpte, ptent, nr_ptes);
+	if (pte_needs_flush(oldpte, ptent))
+		tlb_flush_pte_range(tlb, addr, nr_ptes * PAGE_SIZE);
+}
+
+/*
+ * Get max length of consecutive ptes pointing to PageAnonExclusive() pages or
+ * !PageAnonExclusive() pages, starting from start_idx. Caller must enforce
+ * that the ptes point to consecutive pages of the same anon large folio.
+ */
+static int page_anon_exclusive_sub_batch(int start_idx, int max_len,
+		struct page *first_page, bool expected_anon_exclusive)
+{
+	int idx;
+
+	for (idx = start_idx + 1; idx < start_idx + max_len; ++idx) {
+		if (expected_anon_exclusive != PageAnonExclusive(first_page + idx))
+			break;
+	}
+	return idx - start_idx;
+}
+
+/*
+ * This function is a result of trying our very best to retain the
+ * "avoid the write-fault handler" optimization. In can_change_pte_writable(),
+ * if the vma is a private vma, and we cannot determine whether to change
+ * the pte to writable just from the vma and the pte, we then need to look
+ * at the actual page pointed to by the pte. Unfortunately, if we have a
+ * batch of ptes pointing to consecutive pages of the same anon large folio,
+ * the anon-exclusivity (or the negation) of the first page does not guarantee
+ * the anon-exclusivity (or the negation) of the other pages corresponding to
+ * the pte batch; hence in this case it is incorrect to decide to change or
+ * not change the ptes to writable just by using information from the first
+ * pte of the batch. Therefore, we must individually check all pages and
+ * retrieve sub-batches.
+ */
+static void commit_anon_folio_batch(struct vm_area_struct *vma,
+		struct folio *folio, struct page *first_page, unsigned long addr, pte_t *ptep,
+		pte_t oldpte, pte_t ptent, int nr_ptes, struct mmu_gather *tlb)
+{
+	bool expected_anon_exclusive;
+	int sub_batch_idx = 0;
+	int len;
+
+	while (nr_ptes) {
+		expected_anon_exclusive = PageAnonExclusive(first_page + sub_batch_idx);
+		len = page_anon_exclusive_sub_batch(sub_batch_idx, nr_ptes,
+					first_page, expected_anon_exclusive);
+		prot_commit_flush_ptes(vma, addr, ptep, oldpte, ptent, len,
+				       sub_batch_idx, expected_anon_exclusive, tlb);
+		sub_batch_idx += len;
+		nr_ptes -= len;
+	}
+}
+
+static void set_write_prot_commit_flush_ptes(struct vm_area_struct *vma,
+		struct folio *folio, struct page *page, unsigned long addr, pte_t *ptep,
+		pte_t oldpte, pte_t ptent, int nr_ptes, struct mmu_gather *tlb)
+{
+	bool set_write;
+
+	if (vma->vm_flags & VM_SHARED) {
+		set_write = can_change_shared_pte_writable(vma, ptent);
+		prot_commit_flush_ptes(vma, addr, ptep, oldpte, ptent, nr_ptes,
+				       /* idx = */ 0, set_write, tlb);
+		return;
+	}
+
+	set_write = maybe_change_pte_writable(vma, ptent) &&
+		    (folio && folio_test_anon(folio));
+	if (!set_write) {
+		prot_commit_flush_ptes(vma, addr, ptep, oldpte, ptent, nr_ptes,
+				       /* idx = */ 0, set_write, tlb);
+		return;
+	}
+	commit_anon_folio_batch(vma, folio, page, addr, ptep, oldpte, ptent, nr_ptes, tlb);
+}
+
 static long change_pte_range(struct mmu_gather *tlb,
 		struct vm_area_struct *vma, pmd_t *pmd, unsigned long addr,
 		unsigned long end, pgprot_t newprot, unsigned long cp_flags)
@@ -94,6 +280,7 @@ static long change_pte_range(struct mmu_gather *tlb,
 	bool prot_numa = cp_flags & MM_CP_PROT_NUMA;
 	bool uffd_wp = cp_flags & MM_CP_UFFD_WP;
 	bool uffd_wp_resolve = cp_flags & MM_CP_UFFD_WP_RESOLVE;
+	int nr_ptes;
 
 	tlb_change_page_size(tlb, PAGE_SIZE);
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
@@ -108,65 +295,37 @@ static long change_pte_range(struct mmu_gather *tlb,
 	flush_tlb_batched_pending(vma->vm_mm);
 	arch_enter_lazy_mmu_mode();
 	do {
+		nr_ptes = 1;
 		oldpte = ptep_get(pte);
 		if (pte_present(oldpte)) {
+			const fpb_t flags = FPB_RESPECT_SOFT_DIRTY | FPB_RESPECT_WRITE;
+			int max_nr_ptes = (end - addr) >> PAGE_SHIFT;
+			struct folio *folio = NULL;
+			struct page *page;
 			pte_t ptent;
 
+			page = vm_normal_page(vma, addr, oldpte);
+			if (page)
+				folio = page_folio(page);
 			/*
 			 * Avoid trapping faults against the zero or KSM
 			 * pages. See similar comment in change_huge_pmd.
 			 */
 			if (prot_numa) {
-				struct folio *folio;
-				int nid;
-				bool toptier;
+				int ret = prot_numa_skip(vma, addr, oldpte, pte,
+							 target_node, folio);
+				if (ret) {
 
-				/* Avoid TLB flush if possible */
-				if (pte_protnone(oldpte))
+					/* determine batch to skip */
+					nr_ptes = mprotect_folio_pte_batch(folio,
+						  pte, oldpte, max_nr_ptes, /* flags = */ 0);
 					continue;
-
-				folio = vm_normal_folio(vma, addr, oldpte);
-				if (!folio || folio_is_zone_device(folio) ||
-				    folio_test_ksm(folio))
-					continue;
-
-				/* Also skip shared copy-on-write pages */
-				if (is_cow_mapping(vma->vm_flags) &&
-				    (folio_maybe_dma_pinned(folio) ||
-				     folio_maybe_mapped_shared(folio)))
-					continue;
-
-				/*
-				 * While migration can move some dirty pages,
-				 * it cannot move them all from MIGRATE_ASYNC
-				 * context.
-				 */
-				if (folio_is_file_lru(folio) &&
-				    folio_test_dirty(folio))
-					continue;
-
-				/*
-				 * Don't mess with PTEs if page is already on the node
-				 * a single-threaded process is running on.
-				 */
-				nid = folio_nid(folio);
-				if (target_node == nid)
-					continue;
-				toptier = node_is_toptier(nid);
-
-				/*
-				 * Skip scanning top tier node if normal numa
-				 * balancing is disabled
-				 */
-				if (!(sysctl_numa_balancing_mode & NUMA_BALANCING_NORMAL) &&
-				    toptier)
-					continue;
-				if (folio_use_access_time(folio))
-					folio_xchg_access_time(folio,
-						jiffies_to_msecs(jiffies));
+				}
 			}
 
-			oldpte = ptep_modify_prot_start(vma, addr, pte);
+			nr_ptes = mprotect_folio_pte_batch(folio, pte, oldpte, max_nr_ptes, flags);
+
+			oldpte = modify_prot_start_ptes(vma, addr, pte, nr_ptes);
 			ptent = pte_modify(oldpte, newprot);
 
 			if (uffd_wp)
@@ -188,14 +347,13 @@ static long change_pte_range(struct mmu_gather *tlb,
 			 * COW or special handling is required.
 			 */
 			if ((cp_flags & MM_CP_TRY_CHANGE_WRITABLE) &&
-			    !pte_write(ptent) &&
-			    can_change_pte_writable(vma, addr, ptent))
-				ptent = pte_mkwrite(ptent, vma);
-
-			ptep_modify_prot_commit(vma, addr, pte, oldpte, ptent);
-			if (pte_needs_flush(oldpte, ptent))
-				tlb_flush_pte_range(tlb, addr, PAGE_SIZE);
-			pages++;
+			     !pte_write(ptent))
+				set_write_prot_commit_flush_ptes(vma, folio, page,
+				addr, pte, oldpte, ptent, nr_ptes, tlb);
+			else
+				prot_commit_flush_ptes(vma, addr, pte, oldpte, ptent,
+					nr_ptes, /* idx = */ 0, /* set_write = */ false, tlb);
+			pages += nr_ptes;
 		} else if (is_swap_pte(oldpte)) {
 			swp_entry_t entry = pte_to_swp_entry(oldpte);
 			pte_t newpte;
@@ -280,7 +438,7 @@ static long change_pte_range(struct mmu_gather *tlb,
 				pages++;
 			}
 		}
-	} while (pte++, addr += PAGE_SIZE, addr != end);
+	} while (pte += nr_ptes, addr += nr_ptes * PAGE_SIZE, addr != end);
 	arch_leave_lazy_mmu_mode();
 	pte_unmap_unlock(pte - 1, ptl);
 
@@ -376,7 +534,7 @@ again:
 			goto next;
 
 		_pmd = pmdp_get_lockless(pmd);
-		if (is_swap_pmd(_pmd) || pmd_trans_huge(_pmd) || pmd_devmap(_pmd)) {
+		if (is_swap_pmd(_pmd) || pmd_trans_huge(_pmd)) {
 			if ((next - addr != HPAGE_PMD_SIZE) ||
 			    pgtable_split_needed(vma, cp_flags)) {
 				__split_huge_pmd(vma, pmd, addr, false);
@@ -596,16 +754,16 @@ static const struct mm_walk_ops prot_none_walk_ops = {
 int
 mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	       struct vm_area_struct *vma, struct vm_area_struct **pprev,
-	       unsigned long start, unsigned long end, unsigned long newflags)
+	       unsigned long start, unsigned long end, vm_flags_t newflags)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	unsigned long oldflags = READ_ONCE(vma->vm_flags);
+	vm_flags_t oldflags = READ_ONCE(vma->vm_flags);
 	long nrpages = (end - start) >> PAGE_SHIFT;
 	unsigned int mm_cp_flags = 0;
 	unsigned long charged = 0;
 	int error;
 
-	if (!can_modify_vma(vma))
+	if (vma_is_sealed(vma))
 		return -EPERM;
 
 	if (newflags == oldflags) {
@@ -774,8 +932,8 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 	nstart = start;
 	tmp = vma->vm_start;
 	for_each_vma_range(vmi, vma, end) {
-		unsigned long mask_off_old_flags;
-		unsigned long newflags;
+		vm_flags_t mask_off_old_flags;
+		vm_flags_t newflags;
 		int new_vma_pkey;
 
 		if (vma->vm_start != tmp) {

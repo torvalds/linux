@@ -141,6 +141,7 @@ config VIDEO_IMX214
 	depends on GPIOLIB
 	select REGMAP_I2C
 	select V4L2_CCI_I2C
+	select VIDEO_CCS_PLL
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX214 camera.
@@ -765,24 +766,25 @@ config VIDEO_THP7312
 
 endmenu
 
-menu "Lens drivers"
-	visible if MEDIA_CAMERA_SUPPORT
+menuconfig VIDEO_CAMERA_LENS
+	bool "Lens drivers"
+	depends on MEDIA_CAMERA_SUPPORT && I2C
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	default y
+
+if VIDEO_CAMERA_LENS
 
 config VIDEO_AD5820
 	tristate "AD5820 lens voice coil support"
-	depends on GPIOLIB && I2C && VIDEO_DEV
-	select MEDIA_CONTROLLER
-	select V4L2_ASYNC
+	depends on GPIOLIB
 	help
 	  This is a driver for the AD5820 camera lens voice coil.
 	  It is used for example in Nokia N900 (RX-51).
 
 config VIDEO_AK7375
 	tristate "AK7375 lens voice coil support"
-	depends on I2C && VIDEO_DEV
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_ASYNC
 	help
 	  This is a driver for the AK7375 camera lens voice coil.
 	  AK7375 is a 12 bit DAC with 120mA output current sink
@@ -791,10 +793,7 @@ config VIDEO_AK7375
 
 config VIDEO_DW9714
 	tristate "DW9714 lens voice coil support"
-	depends on I2C && VIDEO_DEV
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_ASYNC
+	depends on GPIOLIB
 	help
 	  This is a driver for the DW9714 camera lens voice coil.
 	  DW9714 is a 10 bit DAC with 120mA output current sink
@@ -803,10 +802,6 @@ config VIDEO_DW9714
 
 config VIDEO_DW9719
 	tristate "DW9719 lens voice coil support"
-	depends on I2C && VIDEO_DEV
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_ASYNC
 	select V4L2_CCI_I2C
 	help
 	  This is a driver for the DW9719 camera lens voice coil.
@@ -815,10 +810,6 @@ config VIDEO_DW9719
 
 config VIDEO_DW9768
 	tristate "DW9768 lens voice coil support"
-	depends on I2C && VIDEO_DEV
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
 	help
 	  This is a driver for the DW9768 camera lens voice coil.
 	  DW9768 is a 10 bit DAC with 100mA output current sink
@@ -827,17 +818,13 @@ config VIDEO_DW9768
 
 config VIDEO_DW9807_VCM
 	tristate "DW9807 lens voice coil support"
-	depends on I2C && VIDEO_DEV
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_ASYNC
 	help
 	  This is a driver for the DW9807 camera lens voice coil.
 	  DW9807 is a 10 bit DAC with 100mA output current sink
 	  capability. This is designed for linear control of
 	  voice coil motors, controlled via I2C serial interface.
 
-endmenu
+endif
 
 menu "Flash devices"
 	visible if MEDIA_CAMERA_SUPPORT
@@ -1684,7 +1671,7 @@ config VIDEO_MAX96714
 
 config VIDEO_MAX96717
 	tristate "Maxim MAX96717 GMSL2 Serializer support"
-	depends on OF && I2C && VIDEO_DEV && COMMON_CLK
+	depends on I2C && VIDEO_DEV && COMMON_CLK
 	select I2C_MUX
 	select MEDIA_CONTROLLER
 	select GPIOLIB

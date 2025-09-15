@@ -186,22 +186,22 @@ examples:
         };
 
         power-controller {
-           compatible = "amlogic,meson-axg-pwrc";
-           #power-domain-cells = <1>;
-           amlogic,ao-sysctrl = <&sysctrl_AO>;
+            compatible = "amlogic,meson-axg-pwrc";
+            #power-domain-cells = <1>;
+            amlogic,ao-sysctrl = <&sysctrl_AO>;
 
-           resets = <&reset_viu>,
-                    <&reset_venc>,
-                    <&reset_vcbus>,
-                    <&reset_vencl>,
-                    <&reset_vid_lock>;
-           reset-names = "viu", "venc", "vcbus", "vencl", "vid_lock";
-           clocks = <&clk_vpu>, <&clk_vapb>;
-           clock-names = "vpu", "vapb";
+            resets = <&reset_viu>,
+                     <&reset_venc>,
+                     <&reset_vcbus>,
+                     <&reset_vencl>,
+                     <&reset_vid_lock>;
+            reset-names = "viu", "venc", "vcbus", "vencl", "vid_lock";
+            clocks = <&clk_vpu>, <&clk_vapb>;
+            clock-names = "vpu", "vapb";
         };
 
         phy {
-           compatible = "amlogic,axg-mipi-pcie-analog-phy";
-           #phy-cells = <0>;
+            compatible = "amlogic,axg-mipi-pcie-analog-phy";
+            #phy-cells = <0>;
         };
     };

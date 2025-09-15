@@ -132,3 +132,12 @@ Description:
 
 		A list of governors that support the node:
 		- simple_ondemand
+
+What:		/sys/class/devfreq/.../related_cpus
+Date:		June 2025
+Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Description:	The list of CPUs whose performance is closely related to the
+		frequency of this devfreq domain.
+
+		This file is only present if a specific devfreq device is
+		closely associated with a subset of CPUs.

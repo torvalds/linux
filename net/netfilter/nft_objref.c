@@ -111,10 +111,9 @@ void nft_objref_map_eval(const struct nft_expr *expr,
 	struct net *net = nft_net(pkt);
 	const struct nft_set_ext *ext;
 	struct nft_object *obj;
-	bool found;
 
-	found = nft_set_do_lookup(net, set, &regs->data[priv->sreg], &ext);
-	if (!found) {
+	ext = nft_set_do_lookup(net, set, &regs->data[priv->sreg]);
+	if (!ext) {
 		ext = nft_set_catchall_lookup(net, set);
 		if (!ext) {
 			regs->verdict.code = NFT_BREAK;

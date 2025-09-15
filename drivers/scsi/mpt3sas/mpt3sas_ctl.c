@@ -2914,7 +2914,6 @@ int mpt3sas_send_mctp_passthru_req(struct mpt3_passthru_command *command)
 {
 	struct MPT3SAS_ADAPTER *ioc;
 	MPI2RequestHeader_t *mpi_request = NULL, *request;
-	MPI2DefaultReply_t *mpi_reply;
 	Mpi26MctpPassthroughRequest_t *mctp_passthru_req;
 	u16 smid;
 	unsigned long timeout;
@@ -3021,8 +3020,6 @@ int mpt3sas_send_mctp_passthru_req(struct mpt3_passthru_command *command)
 		    sizeof(Mpi26MctpPassthroughRequest_t) / 4, issue_reset);
 		goto issue_host_reset;
 	}
-
-	mpi_reply = ioc->ctl_cmds.reply;
 
 	/* copy out xdata to user */
 	if (data_in_sz)

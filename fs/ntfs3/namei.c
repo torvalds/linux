@@ -171,6 +171,10 @@ static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct ntfs_inode *ni = ntfs_i(dir);
 	int err;
 
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ni)))
+		return -EINVAL;
+
 	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
 		return -EIO;
 
@@ -190,6 +194,10 @@ static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, const char *symname)
 {
 	u32 size = strlen(symname);
+
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ntfs_i(dir))))
+		return -EINVAL;
 
 	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
 		return -EIO;
@@ -215,6 +223,10 @@ static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct ntfs_inode *ni = ntfs_i(dir);
 	int err;
+
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ni)))
+		return -EINVAL;
 
 	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
 		return -EIO;
@@ -244,7 +256,7 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 	struct ntfs_inode *ni = ntfs_i(inode);
 	struct inode *new_inode = d_inode(new_dentry);
 	struct NTFS_DE *de, *new_de;
-	bool is_same, is_bad;
+	bool is_same;
 	/*
 	 * de		- memory of PATH_MAX bytes:
 	 * [0-1024)	- original name (dentry->d_name)
@@ -255,6 +267,10 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 	static_assert(SIZEOF_ATTRIBUTE_FILENAME_MAX + sizeof(struct NTFS_DE) <
 		      1024);
 	static_assert(PATH_MAX >= 4 * 1024);
+
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ni)))
+		return -EINVAL;
 
 	if (unlikely(ntfs3_forced_shutdown(sb)))
 		return -EIO;
@@ -313,12 +329,8 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 	if (dir_ni != new_dir_ni)
 		ni_lock_dir2(new_dir_ni);
 
-	is_bad = false;
-	err = ni_rename(dir_ni, new_dir_ni, ni, de, new_de, &is_bad);
-	if (is_bad) {
-		/* Restore after failed rename failed too. */
-		_ntfs_bad_inode(inode);
-	} else if (!err) {
+	err = ni_rename(dir_ni, new_dir_ni, ni, de, new_de);
+	if (!err) {
 		simple_rename_timestamp(dir, dentry, new_dir, new_dentry);
 		mark_inode_dirty(inode);
 		mark_inode_dirty(dir);

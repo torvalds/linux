@@ -164,7 +164,7 @@ u64 xe_guc_cache_gpu_addr_from_ptr(struct xe_guc_buf_cache *cache, const void *p
 	if (offset < 0 || offset + size > cache->sam->base.size)
 		return 0;
 
-	return cache->sam->gpu_addr + offset;
+	return xe_sa_manager_gpu_addr(cache->sam) + offset;
 }
 
 #if IS_BUILTIN(CONFIG_DRM_XE_KUNIT_TEST)

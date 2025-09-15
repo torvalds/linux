@@ -802,4 +802,21 @@ static inline void xfs_mod_sb_delalloc(struct xfs_mount *mp, int64_t delta)
 int xfs_set_max_atomic_write_opt(struct xfs_mount *mp,
 		unsigned long long new_max_bytes);
 
+static inline struct xfs_buftarg *
+xfs_group_type_buftarg(
+	struct xfs_mount	*mp,
+	enum xfs_group_type	type)
+{
+	switch (type) {
+	case XG_TYPE_AG:
+		return mp->m_ddev_targp;
+	case XG_TYPE_RTG:
+		return mp->m_rtdev_targp;
+	default:
+		ASSERT(0);
+		break;
+	}
+	return NULL;
+}
+
 #endif	/* __XFS_MOUNT_H__ */

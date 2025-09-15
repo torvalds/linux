@@ -562,12 +562,12 @@ static int gpr_set(struct task_struct *target,
 
 static const struct user_regset native_regsets[] = {
 	[REGSET_GENERAL] = {
-		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
+		USER_REGSET_NOTE_TYPE(PRSTATUS), .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
 		.regset_get = gpr_get, .set = gpr_set
 	},
 	[REGSET_FP] = {
-		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG), .n = ELF_NFPREG,
 		.size = sizeof(__u64), .align = sizeof(__u64),
 		.regset_get = fpr_get, .set = fpr_set
 	}
@@ -629,12 +629,12 @@ static int gpr32_set(struct task_struct *target,
  */
 static const struct user_regset compat_regsets[] = {
 	[REGSET_GENERAL] = {
-		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
+		USER_REGSET_NOTE_TYPE(PRSTATUS), .n = ELF_NGREG,
 		.size = sizeof(compat_long_t), .align = sizeof(compat_long_t),
 		.regset_get = gpr32_get, .set = gpr32_set
 	},
 	[REGSET_FP] = {
-		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG), .n = ELF_NFPREG,
 		.size = sizeof(__u64), .align = sizeof(__u64),
 		.regset_get = fpr_get, .set = fpr_set
 	}

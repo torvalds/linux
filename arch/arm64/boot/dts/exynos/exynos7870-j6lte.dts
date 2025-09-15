@@ -89,7 +89,7 @@
 	memory@40000000 {
 		device_type = "memory";
 		reg = <0x0 0x40000000 0x3d800000>,
-		      <0x0 0x80000000 0x7d800000>;
+		      <0x0 0x80000000 0x40000000>;
 	};
 
 	pwrseq_mmc1: pwrseq-mmc1 {

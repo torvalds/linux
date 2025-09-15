@@ -62,3 +62,7 @@
 		};
 	};
 };
+
+&gpu {
+	compatible = "apple,agx-g13c", "apple,agx-g13s";
+};

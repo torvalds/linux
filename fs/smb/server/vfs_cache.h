@@ -44,6 +44,7 @@ struct ksmbd_lock {
 struct stream {
 	char *name;
 	ssize_t size;
+	loff_t pos;
 };
 
 struct ksmbd_inode {
@@ -111,6 +112,8 @@ struct ksmbd_file {
 	bool				is_durable;
 	bool				is_persistent;
 	bool				is_resilient;
+
+	bool                            is_posix_ctxt;
 };
 
 static inline void set_ctx_actor(struct dir_context *ctx,

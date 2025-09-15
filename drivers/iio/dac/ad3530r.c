@@ -166,7 +166,9 @@ static ssize_t ad3530r_set_dac_powerdown(struct iio_dev *indio_dev,
 	      AD3530R_OUTPUT_OPERATING_MODE_0 :
 	      AD3530R_OUTPUT_OPERATING_MODE_1;
 	pdmode = powerdown ? st->chan[chan->channel].powerdown_mode : 0;
-	mask = AD3530R_OP_MODE_CHAN_MSK(chan->channel);
+	mask = chan->channel < AD3531R_MAX_CHANNELS ?
+	       AD3530R_OP_MODE_CHAN_MSK(chan->channel) :
+	       AD3530R_OP_MODE_CHAN_MSK(chan->channel - 4);
 	val = field_prep(mask, pdmode);
 
 	ret = regmap_update_bits(st->regmap, reg, mask, val);

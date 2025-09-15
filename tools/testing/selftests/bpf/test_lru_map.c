@@ -138,6 +138,18 @@ static int sched_next_online(int pid, int *next_to_try)
 	return ret;
 }
 
+/* Derive target_free from map_size, same as bpf_common_lru_populate */
+static unsigned int __tgt_size(unsigned int map_size)
+{
+	return (map_size / nr_cpus) / 2;
+}
+
+/* Inverse of how bpf_common_lru_populate derives target_free from map_size. */
+static unsigned int __map_size(unsigned int tgt_free)
+{
+	return tgt_free * nr_cpus * 2;
+}
+
 /* Size of the LRU map is 2
  * Add key=1 (+1 key)
  * Add key=2 (+1 key)
@@ -231,11 +243,11 @@ static void test_lru_sanity0(int map_type, int map_flags)
 	printf("Pass\n");
 }
 
-/* Size of the LRU map is 1.5*tgt_free
- * Insert 1 to tgt_free (+tgt_free keys)
- * Lookup 1 to tgt_free/2
- * Insert 1+tgt_free to 2*tgt_free (+tgt_free keys)
- * => 1+tgt_free/2 to LOCALFREE_TARGET will be removed by LRU
+/* Verify that unreferenced elements are recycled before referenced ones.
+ * Insert elements.
+ * Reference a subset of these.
+ * Insert more, enough to trigger recycling.
+ * Verify that unreferenced are recycled.
  */
 static void test_lru_sanity1(int map_type, int map_flags, unsigned int tgt_free)
 {
@@ -257,7 +269,7 @@ static void test_lru_sanity1(int map_type, int map_flags, unsigned int tgt_free)
 	batch_size = tgt_free / 2;
 	assert(batch_size * 2 == tgt_free);
 
-	map_size = tgt_free + batch_size;
+	map_size = __map_size(tgt_free) + batch_size;
 	lru_map_fd = create_map(map_type, map_flags, map_size);
 	assert(lru_map_fd != -1);
 
@@ -266,13 +278,13 @@ static void test_lru_sanity1(int map_type, int map_flags, unsigned int tgt_free)
 
 	value[0] = 1234;
 
-	/* Insert 1 to tgt_free (+tgt_free keys) */
-	end_key = 1 + tgt_free;
+	/* Insert map_size - batch_size keys */
+	end_key = 1 + __map_size(tgt_free);
 	for (key = 1; key < end_key; key++)
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
 					    BPF_NOEXIST));
 
-	/* Lookup 1 to tgt_free/2 */
+	/* Lookup 1 to batch_size */
 	end_key = 1 + batch_size;
 	for (key = 1; key < end_key; key++) {
 		assert(!bpf_map_lookup_elem_with_ref_bit(lru_map_fd, key, value));
@@ -280,12 +292,13 @@ static void test_lru_sanity1(int map_type, int map_flags, unsigned int tgt_free)
 					    BPF_NOEXIST));
 	}
 
-	/* Insert 1+tgt_free to 2*tgt_free
-	 * => 1+tgt_free/2 to LOCALFREE_TARGET will be
+	/* Insert another map_size - batch_size keys
+	 * Map will contain 1 to batch_size plus these latest, i.e.,
+	 * => previous 1+batch_size to map_size - batch_size will have been
 	 * removed by LRU
 	 */
-	key = 1 + tgt_free;
-	end_key = key + tgt_free;
+	key = 1 + __map_size(tgt_free);
+	end_key = key + __map_size(tgt_free);
 	for (; key < end_key; key++) {
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
 					    BPF_NOEXIST));
@@ -301,17 +314,8 @@ static void test_lru_sanity1(int map_type, int map_flags, unsigned int tgt_free)
 	printf("Pass\n");
 }
 
-/* Size of the LRU map 1.5 * tgt_free
- * Insert 1 to tgt_free (+tgt_free keys)
- * Update 1 to tgt_free/2
- *   => The original 1 to tgt_free/2 will be removed due to
- *      the LRU shrink process
- * Re-insert 1 to tgt_free/2 again and do a lookup immeidately
- * Insert 1+tgt_free to tgt_free*3/2
- * Insert 1+tgt_free*3/2 to tgt_free*5/2
- *   => Key 1+tgt_free to tgt_free*3/2
- *      will be removed from LRU because it has never
- *      been lookup and ref bit is not set
+/* Verify that insertions exceeding map size will recycle the oldest.
+ * Verify that unreferenced elements are recycled before referenced.
  */
 static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 {
@@ -334,7 +338,7 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	batch_size = tgt_free / 2;
 	assert(batch_size * 2 == tgt_free);
 
-	map_size = tgt_free + batch_size;
+	map_size = __map_size(tgt_free) + batch_size;
 	lru_map_fd = create_map(map_type, map_flags, map_size);
 	assert(lru_map_fd != -1);
 
@@ -343,8 +347,8 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 
 	value[0] = 1234;
 
-	/* Insert 1 to tgt_free (+tgt_free keys) */
-	end_key = 1 + tgt_free;
+	/* Insert map_size - batch_size keys */
+	end_key = 1 + __map_size(tgt_free);
 	for (key = 1; key < end_key; key++)
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
 					    BPF_NOEXIST));
@@ -357,8 +361,7 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	 * shrink the inactive list to get tgt_free
 	 * number of free nodes.
 	 *
-	 * Hence, the oldest key 1 to tgt_free/2
-	 * are removed from the LRU list.
+	 * Hence, the oldest key is removed from the LRU list.
 	 */
 	key = 1;
 	if (map_type == BPF_MAP_TYPE_LRU_PERCPU_HASH) {
@@ -370,8 +373,7 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 					   BPF_EXIST));
 	}
 
-	/* Re-insert 1 to tgt_free/2 again and do a lookup
-	 * immeidately.
+	/* Re-insert 1 to batch_size again and do a lookup immediately.
 	 */
 	end_key = 1 + batch_size;
 	value[0] = 4321;
@@ -387,17 +389,18 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 
 	value[0] = 1234;
 
-	/* Insert 1+tgt_free to tgt_free*3/2 */
-	end_key = 1 + tgt_free + batch_size;
-	for (key = 1 + tgt_free; key < end_key; key++)
+	/* Insert batch_size new elements */
+	key = 1 + __map_size(tgt_free);
+	end_key = key + batch_size;
+	for (; key < end_key; key++)
 		/* These newly added but not referenced keys will be
 		 * gone during the next LRU shrink.
 		 */
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
 					    BPF_NOEXIST));
 
-	/* Insert 1+tgt_free*3/2 to  tgt_free*5/2 */
-	end_key = key + tgt_free;
+	/* Insert map_size - batch_size elements */
+	end_key += __map_size(tgt_free);
 	for (; key < end_key; key++) {
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
 					    BPF_NOEXIST));
@@ -413,12 +416,12 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	printf("Pass\n");
 }
 
-/* Size of the LRU map is 2*tgt_free
- * It is to test the active/inactive list rotation
- * Insert 1 to 2*tgt_free (+2*tgt_free keys)
- * Lookup key 1 to tgt_free*3/2
- * Add 1+2*tgt_free to tgt_free*5/2 (+tgt_free/2 keys)
- *  => key 1+tgt_free*3/2 to 2*tgt_free are removed from LRU
+/* Test the active/inactive list rotation
+ *
+ * Fill the whole map, deplete the free list.
+ * Reference all except the last lru->target_free elements.
+ * Insert lru->target_free new elements. This triggers one shrink.
+ * Verify that the non-referenced elements are replaced.
  */
 static void test_lru_sanity3(int map_type, int map_flags, unsigned int tgt_free)
 {
@@ -437,8 +440,7 @@ static void test_lru_sanity3(int map_type, int map_flags, unsigned int tgt_free)
 
 	assert(sched_next_online(0, &next_cpu) != -1);
 
-	batch_size = tgt_free / 2;
-	assert(batch_size * 2 == tgt_free);
+	batch_size = __tgt_size(tgt_free);
 
 	map_size = tgt_free * 2;
 	lru_map_fd = create_map(map_type, map_flags, map_size);
@@ -449,23 +451,21 @@ static void test_lru_sanity3(int map_type, int map_flags, unsigned int tgt_free)
 
 	value[0] = 1234;
 
-	/* Insert 1 to 2*tgt_free (+2*tgt_free keys) */
-	end_key = 1 + (2 * tgt_free);
+	/* Fill the map */
+	end_key = 1 + map_size;
 	for (key = 1; key < end_key; key++)
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
 					    BPF_NOEXIST));
 
-	/* Lookup key 1 to tgt_free*3/2 */
-	end_key = tgt_free + batch_size;
+	/* Reference all but the last batch_size */
+	end_key = 1 + map_size - batch_size;
 	for (key = 1; key < end_key; key++) {
 		assert(!bpf_map_lookup_elem_with_ref_bit(lru_map_fd, key, value));
 		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
 					    BPF_NOEXIST));
 	}
 
-	/* Add 1+2*tgt_free to tgt_free*5/2
-	 * (+tgt_free/2 keys)
-	 */
+	/* Insert new batch_size: replaces the non-referenced elements */
 	key = 2 * tgt_free + 1;
 	end_key = key + batch_size;
 	for (; key < end_key; key++) {
@@ -500,7 +500,8 @@ static void test_lru_sanity4(int map_type, int map_flags, unsigned int tgt_free)
 		lru_map_fd = create_map(map_type, map_flags,
 					3 * tgt_free * nr_cpus);
 	else
-		lru_map_fd = create_map(map_type, map_flags, 3 * tgt_free);
+		lru_map_fd = create_map(map_type, map_flags,
+					3 * __map_size(tgt_free));
 	assert(lru_map_fd != -1);
 
 	expected_map_fd = create_map(BPF_MAP_TYPE_HASH, 0,

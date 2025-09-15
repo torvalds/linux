@@ -249,6 +249,7 @@ static int data_update_invalid_bkey(struct data_update *m,
 	bch2_bkey_val_to_text(&buf, c, k);
 	prt_str(&buf, "\nnew: ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
+	prt_newline(&buf);
 
 	bch2_fs_emergency_read_only2(c, &buf);
 

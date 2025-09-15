@@ -19,8 +19,6 @@
 #include "../mmu.h"
 #include "common.h"
 
-#define X2APIC_MSR(r) (APIC_BASE_MSR + ((r) >> 4))
-
 #ifdef CONFIG_X86_64
 #define MAX_NR_USER_RETURN_MSRS	7
 #else
@@ -296,13 +294,6 @@ struct vcpu_vmx {
 	struct pt_desc pt_desc;
 	struct lbr_desc lbr_desc;
 
-	/* Save desired MSR intercept (read: pass-through) state */
-#define MAX_POSSIBLE_PASSTHROUGH_MSRS	16
-	struct {
-		DECLARE_BITMAP(read, MAX_POSSIBLE_PASSTHROUGH_MSRS);
-		DECLARE_BITMAP(write, MAX_POSSIBLE_PASSTHROUGH_MSRS);
-	} shadow_msr_intercept;
-
 	/* ve_info must be page aligned. */
 	struct vmx_ve_information *ve_info;
 };
@@ -395,24 +386,54 @@ bool __vmx_vcpu_run(struct vcpu_vmx *vmx, unsigned long *regs,
 int vmx_find_loadstore_msr_slot(struct vmx_msrs *m, u32 msr);
 void vmx_ept_load_pdptrs(struct kvm_vcpu *vcpu);
 
-void vmx_disable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type);
-void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type);
+void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type, bool set);
+
+static inline void vmx_disable_intercept_for_msr(struct kvm_vcpu *vcpu,
+						 u32 msr, int type)
+{
+	vmx_set_intercept_for_msr(vcpu, msr, type, false);
+}
+
+static inline void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu,
+						u32 msr, int type)
+{
+	vmx_set_intercept_for_msr(vcpu, msr, type, true);
+}
 
 u64 vmx_get_l2_tsc_offset(struct kvm_vcpu *vcpu);
 u64 vmx_get_l2_tsc_multiplier(struct kvm_vcpu *vcpu);
 
 gva_t vmx_get_untagged_addr(struct kvm_vcpu *vcpu, gva_t gva, unsigned int flags);
 
-static inline void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr,
-					     int type, bool value)
+void vmx_update_cpu_dirty_logging(struct kvm_vcpu *vcpu);
+
+u64 vmx_get_supported_debugctl(struct kvm_vcpu *vcpu, bool host_initiated);
+bool vmx_is_valid_debugctl(struct kvm_vcpu *vcpu, u64 data, bool host_initiated);
+
+#define VMX_HOST_OWNED_DEBUGCTL_BITS	(DEBUGCTLMSR_FREEZE_IN_SMM)
+
+static inline void vmx_guest_debugctl_write(struct kvm_vcpu *vcpu, u64 val)
 {
-	if (value)
-		vmx_enable_intercept_for_msr(vcpu, msr, type);
-	else
-		vmx_disable_intercept_for_msr(vcpu, msr, type);
+	WARN_ON_ONCE(val & VMX_HOST_OWNED_DEBUGCTL_BITS);
+
+	val |= vcpu->arch.host_debugctl & VMX_HOST_OWNED_DEBUGCTL_BITS;
+	vmcs_write64(GUEST_IA32_DEBUGCTL, val);
 }
 
-void vmx_update_cpu_dirty_logging(struct kvm_vcpu *vcpu);
+static inline u64 vmx_guest_debugctl_read(void)
+{
+	return vmcs_read64(GUEST_IA32_DEBUGCTL) & ~VMX_HOST_OWNED_DEBUGCTL_BITS;
+}
+
+static inline void vmx_reload_guest_debugctl(struct kvm_vcpu *vcpu)
+{
+	u64 val = vmcs_read64(GUEST_IA32_DEBUGCTL);
+
+	if (!((val ^ vcpu->arch.host_debugctl) & VMX_HOST_OWNED_DEBUGCTL_BITS))
+		return;
+
+	vmx_guest_debugctl_write(vcpu, val & ~VMX_HOST_OWNED_DEBUGCTL_BITS);
+}
 
 /*
  * Note, early Intel manuals have the write-low and read-high bitmap offsets

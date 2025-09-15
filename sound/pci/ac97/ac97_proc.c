@@ -98,7 +98,7 @@ static void snd_ac97_proc_read_main(struct snd_ac97 *ac97, struct snd_info_buffe
 	static const char *spdif_rates_cs4205[4] = { " Rate=48kHz", " Rate=44.1kHz", " Rate=res", " Rate=res" };
 	static const char *double_rate_slots[4] = { "10/11", "7/8", "reserved", "reserved" };
 
-	snd_ac97_get_name(NULL, ac97->id, name, 0);
+	snd_ac97_get_name(NULL, ac97->id, name, sizeof(name), 0);
 	snd_iprintf(buffer, "%d-%d/%d: %s\n\n", ac97->addr, ac97->num, subidx, name);
 
 	if ((ac97->scaps & AC97_SCAP_AUDIO) == 0)

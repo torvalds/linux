@@ -22,6 +22,11 @@
 		brightness-levels = <0 40 60 80 100 130 190 255>;
 		default-brightness-level = <5>;
 	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x20000000>;
+	};
 };
 
 &fb {

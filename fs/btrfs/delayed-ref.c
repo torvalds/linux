@@ -928,7 +928,7 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 	if (action == BTRFS_ADD_DELAYED_EXTENT)
 		action = BTRFS_ADD_DELAYED_REF;
 
-	if (is_fstree(generic_ref->ref_root))
+	if (btrfs_is_fstree(generic_ref->ref_root))
 		seq = atomic64_read(&fs_info->tree_mod_seq);
 
 	refcount_set(&ref->refs, 1);
@@ -958,8 +958,8 @@ void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 mod_root,
 #endif
 	generic_ref->tree_ref.level = level;
 	generic_ref->type = BTRFS_REF_METADATA;
-	if (skip_qgroup || !(is_fstree(generic_ref->ref_root) &&
-			     (!mod_root || is_fstree(mod_root))))
+	if (skip_qgroup || !(btrfs_is_fstree(generic_ref->ref_root) &&
+			     (!mod_root || btrfs_is_fstree(mod_root))))
 		generic_ref->skip_qgroup = true;
 	else
 		generic_ref->skip_qgroup = false;
@@ -976,8 +976,8 @@ void btrfs_init_data_ref(struct btrfs_ref *generic_ref, u64 ino, u64 offset,
 	generic_ref->data_ref.objectid = ino;
 	generic_ref->data_ref.offset = offset;
 	generic_ref->type = BTRFS_REF_DATA;
-	if (skip_qgroup || !(is_fstree(generic_ref->ref_root) &&
-			     (!mod_root || is_fstree(mod_root))))
+	if (skip_qgroup || !(btrfs_is_fstree(generic_ref->ref_root) &&
+			     (!mod_root || btrfs_is_fstree(mod_root))))
 		generic_ref->skip_qgroup = true;
 	else
 		generic_ref->skip_qgroup = false;

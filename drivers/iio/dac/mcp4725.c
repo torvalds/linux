@@ -24,8 +24,6 @@
 
 #include <linux/iio/dac/mcp4725.h>
 
-#define MCP4725_DRV_NAME "mcp4725"
-
 #define MCP472X_REF_VDD			0x00
 #define MCP472X_REF_VREF_UNBUFFERED	0x02
 #define MCP472X_REF_VREF_BUFFERED	0x03
@@ -546,7 +544,7 @@ MODULE_DEVICE_TABLE(of, mcp4725_of_match);
 
 static struct i2c_driver mcp4725_driver = {
 	.driver = {
-		.name	= MCP4725_DRV_NAME,
+		.name	= "mcp4725",
 		.of_match_table = mcp4725_of_match,
 		.pm	= pm_sleep_ptr(&mcp4725_pm_ops),
 	},

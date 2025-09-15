@@ -29,12 +29,14 @@ struct wm_adsp {
 	const char *part;
 	const char *fwf_name;
 	const char *system_name;
+	const char *fwf_suffix;
 	struct snd_soc_component *component;
 
 	unsigned int sys_config_size;
 
 	int fw;
 	bool wmfw_optional;
+	bool bin_mandatory;
 
 	struct work_struct boot_work;
 	int (*control_add)(struct wm_adsp *dsp, struct cs_dsp_coeff_ctl *cs_ctl);

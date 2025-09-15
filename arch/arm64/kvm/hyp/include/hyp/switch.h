@@ -65,6 +65,136 @@ static inline void __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 	}
 }
 
+static inline void __activate_cptr_traps_nvhe(struct kvm_vcpu *vcpu)
+{
+	u64 val = CPTR_NVHE_EL2_RES1 | CPTR_EL2_TAM | CPTR_EL2_TTA;
+
+	/*
+	 * Always trap SME since it's not supported in KVM.
+	 * TSM is RES1 if SME isn't implemented.
+	 */
+	val |= CPTR_EL2_TSM;
+
+	if (!vcpu_has_sve(vcpu) || !guest_owns_fp_regs())
+		val |= CPTR_EL2_TZ;
+
+	if (!guest_owns_fp_regs())
+		val |= CPTR_EL2_TFP;
+
+	write_sysreg(val, cptr_el2);
+}
+
+static inline void __activate_cptr_traps_vhe(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * With VHE (HCR.E2H == 1), accesses to CPACR_EL1 are routed to
+	 * CPTR_EL2. In general, CPACR_EL1 has the same layout as CPTR_EL2,
+	 * except for some missing controls, such as TAM.
+	 * In this case, CPTR_EL2.TAM has the same position with or without
+	 * VHE (HCR.E2H == 1) which allows us to use here the CPTR_EL2.TAM
+	 * shift value for trapping the AMU accesses.
+	 */
+	u64 val = CPTR_EL2_TAM | CPACR_EL1_TTA;
+	u64 cptr;
+
+	if (guest_owns_fp_regs()) {
+		val |= CPACR_EL1_FPEN;
+		if (vcpu_has_sve(vcpu))
+			val |= CPACR_EL1_ZEN;
+	}
+
+	if (!vcpu_has_nv(vcpu))
+		goto write;
+
+	/*
+	 * The architecture is a bit crap (what a surprise): an EL2 guest
+	 * writing to CPTR_EL2 via CPACR_EL1 can't set any of TCPAC or TTA,
+	 * as they are RES0 in the guest's view. To work around it, trap the
+	 * sucker using the very same bit it can't set...
+	 */
+	if (vcpu_el2_e2h_is_set(vcpu) && is_hyp_ctxt(vcpu))
+		val |= CPTR_EL2_TCPAC;
+
+	/*
+	 * Layer the guest hypervisor's trap configuration on top of our own if
+	 * we're in a nested context.
+	 */
+	if (is_hyp_ctxt(vcpu))
+		goto write;
+
+	cptr = vcpu_sanitised_cptr_el2(vcpu);
+
+	/*
+	 * Pay attention, there's some interesting detail here.
+	 *
+	 * The CPTR_EL2.xEN fields are 2 bits wide, although there are only two
+	 * meaningful trap states when HCR_EL2.TGE = 0 (running a nested guest):
+	 *
+	 *  - CPTR_EL2.xEN = x0, traps are enabled
+	 *  - CPTR_EL2.xEN = x1, traps are disabled
+	 *
+	 * In other words, bit[0] determines if guest accesses trap or not. In
+	 * the interest of simplicity, clear the entire field if the guest
+	 * hypervisor has traps enabled to dispel any illusion of something more
+	 * complicated taking place.
+	 */
+	if (!(SYS_FIELD_GET(CPACR_EL1, FPEN, cptr) & BIT(0)))
+		val &= ~CPACR_EL1_FPEN;
+	if (!(SYS_FIELD_GET(CPACR_EL1, ZEN, cptr) & BIT(0)))
+		val &= ~CPACR_EL1_ZEN;
+
+	if (kvm_has_feat(vcpu->kvm, ID_AA64MMFR3_EL1, S2POE, IMP))
+		val |= cptr & CPACR_EL1_E0POE;
+
+	val |= cptr & CPTR_EL2_TCPAC;
+
+write:
+	write_sysreg(val, cpacr_el1);
+}
+
+static inline void __activate_cptr_traps(struct kvm_vcpu *vcpu)
+{
+	if (!guest_owns_fp_regs())
+		__activate_traps_fpsimd32(vcpu);
+
+	if (has_vhe() || has_hvhe())
+		__activate_cptr_traps_vhe(vcpu);
+	else
+		__activate_cptr_traps_nvhe(vcpu);
+}
+
+static inline void __deactivate_cptr_traps_nvhe(struct kvm_vcpu *vcpu)
+{
+	u64 val = CPTR_NVHE_EL2_RES1;
+
+	if (!cpus_have_final_cap(ARM64_SVE))
+		val |= CPTR_EL2_TZ;
+	if (!cpus_have_final_cap(ARM64_SME))
+		val |= CPTR_EL2_TSM;
+
+	write_sysreg(val, cptr_el2);
+}
+
+static inline void __deactivate_cptr_traps_vhe(struct kvm_vcpu *vcpu)
+{
+	u64 val = CPACR_EL1_FPEN;
+
+	if (cpus_have_final_cap(ARM64_SVE))
+		val |= CPACR_EL1_ZEN;
+	if (cpus_have_final_cap(ARM64_SME))
+		val |= CPACR_EL1_SMEN;
+
+	write_sysreg(val, cpacr_el1);
+}
+
+static inline void __deactivate_cptr_traps(struct kvm_vcpu *vcpu)
+{
+	if (has_vhe() || has_hvhe())
+		__deactivate_cptr_traps_vhe(vcpu);
+	else
+		__deactivate_cptr_traps_nvhe(vcpu);
+}
+
 #define reg_to_fgt_masks(reg)						\
 	({								\
 		struct fgt_masks *m;					\
@@ -168,7 +298,7 @@ static inline void __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 		u64 val;						\
 									\
 		ctxt_sys_reg(hctxt, reg) = read_sysreg_s(SYS_ ## reg);	\
-		if (vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu))		\
+		if (is_nested_ctxt(vcpu))				\
 			compute_clr_set(vcpu, reg, c, s);		\
 									\
 		compute_undef_clr_set(vcpu, kvm, reg, c, s);		\
@@ -306,7 +436,7 @@ static inline void __activate_traps_common(struct kvm_vcpu *vcpu)
 
 	if (cpus_have_final_cap(ARM64_HAS_HCX)) {
 		u64 hcrx = vcpu->arch.hcrx_el2;
-		if (vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu)) {
+		if (is_nested_ctxt(vcpu)) {
 			u64 val = __vcpu_sys_reg(vcpu, HCRX_EL2);
 			hcrx |= val & __HCRX_EL2_MASK;
 			hcrx &= ~(~val & __HCRX_EL2_nMASK);
@@ -346,21 +476,56 @@ static inline void ___activate_traps(struct kvm_vcpu *vcpu, u64 hcr)
 
 	write_sysreg_hcr(hcr);
 
-	if (cpus_have_final_cap(ARM64_HAS_RAS_EXTN) && (hcr & HCR_VSE))
-		write_sysreg_s(vcpu->arch.vsesr_el2, SYS_VSESR_EL2);
+	if (cpus_have_final_cap(ARM64_HAS_RAS_EXTN) && (hcr & HCR_VSE)) {
+		u64 vsesr;
+
+		/*
+		 * When HCR_EL2.AMO is set, physical SErrors are taken to EL2
+		 * and vSError injection is enabled for EL1. Conveniently, for
+		 * NV this means that it is never the case where a 'physical'
+		 * SError (injected by KVM or userspace) and vSError are
+		 * deliverable to the same context.
+		 *
+		 * As such, we can trivially select between the host or guest's
+		 * VSESR_EL2. Except for the case that FEAT_RAS hasn't been
+		 * exposed to the guest, where ESR propagation in hardware
+		 * occurs unconditionally.
+		 *
+		 * Paper over the architectural wart and use an IMPLEMENTATION
+		 * DEFINED ESR value in case FEAT_RAS is hidden from the guest.
+		 */
+		if (!vserror_state_is_nested(vcpu))
+			vsesr = vcpu->arch.vsesr_el2;
+		else if (kvm_has_ras(kern_hyp_va(vcpu->kvm)))
+			vsesr = __vcpu_sys_reg(vcpu, VSESR_EL2);
+		else
+			vsesr = ESR_ELx_ISV;
+
+		write_sysreg_s(vsesr, SYS_VSESR_EL2);
+	}
 }
 
 static inline void ___deactivate_traps(struct kvm_vcpu *vcpu)
 {
+	u64 *hcr;
+
+	if (vserror_state_is_nested(vcpu))
+		hcr = __ctxt_sys_reg(&vcpu->arch.ctxt, HCR_EL2);
+	else
+		hcr = &vcpu->arch.hcr_el2;
+
 	/*
 	 * If we pended a virtual abort, preserve it until it gets
 	 * cleared. See D1.14.3 (Virtual Interrupts) for details, but
 	 * the crucial bit is "On taking a vSError interrupt,
 	 * HCR_EL2.VSE is cleared to 0."
+	 *
+	 * Additionally, when in a nested context we need to propagate the
+	 * updated state to the guest hypervisor's HCR_EL2.
 	 */
-	if (vcpu->arch.hcr_el2 & HCR_VSE) {
-		vcpu->arch.hcr_el2 &= ~HCR_VSE;
-		vcpu->arch.hcr_el2 |= read_sysreg(hcr_el2) & HCR_VSE;
+	if (*hcr & HCR_VSE) {
+		*hcr &= ~HCR_VSE;
+		*hcr |= read_sysreg(hcr_el2) & HCR_VSE;
 	}
 }
 
@@ -401,7 +566,7 @@ static inline void __hyp_sve_restore_guest(struct kvm_vcpu *vcpu)
 	 * nested guest, as the guest hypervisor could select a smaller VL. Slap
 	 * that into hardware before wrapping up.
 	 */
-	if (vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu))
+	if (is_nested_ctxt(vcpu))
 		sve_cond_update_zcr_vq(__vcpu_sys_reg(vcpu, ZCR_EL2), SYS_ZCR_EL2);
 
 	write_sysreg_el1(__vcpu_sys_reg(vcpu, vcpu_sve_zcr_elx(vcpu)), SYS_ZCR);
@@ -427,7 +592,7 @@ static inline void fpsimd_lazy_switch_to_guest(struct kvm_vcpu *vcpu)
 
 	if (vcpu_has_sve(vcpu)) {
 		/* A guest hypervisor may restrict the effective max VL. */
-		if (vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu))
+		if (is_nested_ctxt(vcpu))
 			zcr_el2 = __vcpu_sys_reg(vcpu, ZCR_EL2);
 		else
 			zcr_el2 = vcpu_sve_max_vq(vcpu) - 1;
@@ -486,11 +651,6 @@ static void kvm_hyp_save_fpsimd_host(struct kvm_vcpu *vcpu)
 	 */
 	if (system_supports_sve()) {
 		__hyp_sve_save_host();
-
-		/* Re-enable SVE traps if not supported for the guest vcpu. */
-		if (!vcpu_has_sve(vcpu))
-			cpacr_clear_set(CPACR_EL1_ZEN, 0);
-
 	} else {
 		__fpsimd_save_state(host_data_ptr(host_ctxt.fp_regs));
 	}
@@ -541,10 +701,7 @@ static inline bool kvm_hyp_handle_fpsimd(struct kvm_vcpu *vcpu, u64 *exit_code)
 	/* Valid trap.  Switch the context: */
 
 	/* First disable enough traps to allow us to update the registers */
-	if (sve_guest || (is_protected_kvm_enabled() && system_supports_sve()))
-		cpacr_clear_set(0, CPACR_EL1_FPEN | CPACR_EL1_ZEN);
-	else
-		cpacr_clear_set(0, CPACR_EL1_FPEN);
+	__deactivate_cptr_traps(vcpu);
 	isb();
 
 	/* Write out the host state if it's in the registers */
@@ -565,6 +722,13 @@ static inline bool kvm_hyp_handle_fpsimd(struct kvm_vcpu *vcpu, u64 *exit_code)
 		write_sysreg(__vcpu_sys_reg(vcpu, FPEXC32_EL2), fpexc32_el2);
 
 	*host_data_ptr(fp_owner) = FP_STATE_GUEST_OWNED;
+
+	/*
+	 * Re-enable traps necessary for the current state of the guest, e.g.
+	 * those enabled by a guest hypervisor. The ERET to the guest will
+	 * provide the necessary context synchronization.
+	 */
+	__activate_cptr_traps(vcpu);
 
 	return true;
 }

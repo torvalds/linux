@@ -875,8 +875,8 @@ out_err:
  * krb5_etm_decrypt - Decrypt using the RFC 8009 rules
  * @kctx: Kerberos context
  * @offset: starting offset of the ciphertext, in bytes
- * @len:
- * @buf:
+ * @len: size of ciphertext to unwrap
+ * @buf: ciphertext to unwrap
  * @headskip: OUT: the enctype's confounder length, in octets
  * @tailskip: OUT: the enctype's HMAC length, in octets
  *

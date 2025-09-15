@@ -53,6 +53,12 @@ config HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 config HAVE_DYNAMIC_FTRACE_WITH_CALL_OPS
 	bool
 
+config HAVE_EXTRA_IPI_TRACEPOINTS
+	bool
+	help
+	 For architectures that use ipi_raise, ipi_entry and ipi_exit
+	 tracepoints.
+
 config HAVE_DYNAMIC_FTRACE_WITH_ARGS
 	bool
 	help
@@ -73,11 +79,6 @@ config HAVE_DYNAMIC_FTRACE_NO_PATCHABLE
 	help
 	  If the architecture generates __patchable_function_entries sections
 	  but does not want them included in the ftrace locations.
-
-config HAVE_FTRACE_MCOUNT_RECORD
-	bool
-	help
-	  See Documentation/trace/ftrace-design.rst
 
 config HAVE_SYSCALL_TRACEPOINTS
 	bool
@@ -199,6 +200,19 @@ menuconfig FTRACE
 
 if FTRACE
 
+config TRACEFS_AUTOMOUNT_DEPRECATED
+	bool "Automount tracefs on debugfs [DEPRECATED]"
+	depends on TRACING
+	default y
+	help
+	  The tracing interface was moved from /sys/kernel/debug/tracing
+	  to /sys/kernel/tracing in 2015, but the tracing file system
+	  was still automounted in /sys/kernel/debug for backward
+	  compatibility with tooling.
+
+	  The new interface has been around for more than 10 years and
+	  the old debug mount will soon be removed.
+
 config BOOTTIME_TRACING
 	bool "Boot-time Tracing support"
 	depends on TRACING
@@ -275,7 +289,7 @@ config FUNCTION_TRACE_ARGS
 	  funcgraph-args (for the function graph tracer)
 
 config DYNAMIC_FTRACE
-	bool "enable/disable function tracing dynamically"
+	bool
 	depends on FUNCTION_TRACER
 	depends on HAVE_DYNAMIC_FTRACE
 	default y
@@ -779,6 +793,20 @@ config UPROBE_EVENTS
 	  This option is required if you plan to use perf-probe subcommand
 	  of perf tools on user space applications.
 
+config EPROBE_EVENTS
+	bool "Enable event-based dynamic events"
+	depends on TRACING
+	depends on HAVE_REGS_AND_STACK_ACCESS_API
+	select PROBE_EVENTS
+	select DYNAMIC_EVENTS
+	default y
+	help
+	  Eprobes are dynamic events that can be placed on other existing
+	  events. It can be used to limit what fields are recorded in
+	  an event or even dereference a field of an event. It can
+	  convert the type of an event field. For example, turn an
+	  address into a string.
+
 config BPF_EVENTS
 	depends on BPF_SYSCALL
 	depends on (KPROBE_EVENTS || UPROBE_EVENTS) && PERF_EVENTS
@@ -803,27 +831,22 @@ config BPF_KPROBE_OVERRIDE
 	 Allows BPF to override the execution of a probed function and
 	 set a different return value.  This is used for error injection.
 
-config FTRACE_MCOUNT_RECORD
-	def_bool y
-	depends on DYNAMIC_FTRACE
-	depends on HAVE_FTRACE_MCOUNT_RECORD
-
 config FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY
 	bool
-	depends on FTRACE_MCOUNT_RECORD
+	depends on DYNAMIC_FTRACE
 
 config FTRACE_MCOUNT_USE_CC
 	def_bool y
 	depends on $(cc-option,-mrecord-mcount)
 	depends on !FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY
-	depends on FTRACE_MCOUNT_RECORD
+	depends on DYNAMIC_FTRACE
 
 config FTRACE_MCOUNT_USE_OBJTOOL
 	def_bool y
 	depends on HAVE_OBJTOOL_MCOUNT
 	depends on !FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY
 	depends on !FTRACE_MCOUNT_USE_CC
-	depends on FTRACE_MCOUNT_RECORD
+	depends on DYNAMIC_FTRACE
 	select OBJTOOL
 
 config FTRACE_MCOUNT_USE_RECORDMCOUNT
@@ -831,7 +854,7 @@ config FTRACE_MCOUNT_USE_RECORDMCOUNT
 	depends on !FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY
 	depends on !FTRACE_MCOUNT_USE_CC
 	depends on !FTRACE_MCOUNT_USE_OBJTOOL
-	depends on FTRACE_MCOUNT_RECORD
+	depends on DYNAMIC_FTRACE
 
 config TRACING_MAP
 	bool

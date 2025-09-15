@@ -24,7 +24,7 @@
 extern struct fault_attr gt_reset_failure;
 static inline bool xe_fault_inject_gt_reset(void)
 {
-	return should_fail(&gt_reset_failure, 1);
+	return IS_ENABLED(CONFIG_DEBUG_FS) && should_fail(&gt_reset_failure, 1);
 }
 
 struct xe_gt *xe_gt_alloc(struct xe_tile *tile);

@@ -71,7 +71,7 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	struct bch_dev *ca = bch2_dev_tryget(c, k.k->p.inode);
+	struct bch_dev *ca = bch2_dev_bucket_tryget(c, k.k->p);
 	if (!ca)
 		goto out;
 

@@ -21,5 +21,6 @@
 #define RST_BUS_R_IR_RX		12
 #define RST_BUS_R_RTC		13
 #define RST_BUS_R_CPUCFG	14
+#define RST_BUS_R_PPU0		15
 
 #endif /* _DT_BINDINGS_RST_SUN55I_A523_R_CCU_H_ */

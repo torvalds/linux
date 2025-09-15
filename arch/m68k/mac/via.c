@@ -621,6 +621,22 @@ static u64 mac_read_clk(struct clocksource *cs)
 	 * These problems are avoided by ignoring the low byte. Clock accuracy
 	 * is 256 times worse (error can reach 0.327 ms) but CPU overhead is
 	 * reduced by avoiding slow VIA register accesses.
+	 *
+	 * The VIA timer counter observably decrements to 0xFFFF before the
+	 * counter reload interrupt gets raised. That complicates things a bit.
+	 *
+	 * State | vT1CH      | VIA_TIMER_1_INT | inference drawn
+	 * ------+------------+-----------------+-----------------------------
+	 * i     | FE thru 00 | false           | counter is decrementing
+	 * ii    | FF         | false           | counter wrapped
+	 * iii   | FF         | true            | wrapped, interrupt raised
+	 * iv    | FF         | false           | wrapped, interrupt handled
+	 * v     | FE thru 00 | true            | wrapped, interrupt unhandled
+	 *
+	 * State iv is never observed because handling the interrupt involves
+	 * a 6522 register access and every access consumes a "phi 2" clock
+	 * cycle. So 0xFF implies either state ii or state iii, depending on
+	 * the value of the VIA_TIMER_1_INT bit.
 	 */
 
 	local_irq_save(flags);

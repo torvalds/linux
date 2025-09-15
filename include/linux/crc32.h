@@ -5,33 +5,81 @@
 #include <linux/types.h>
 #include <linux/bitrev.h>
 
-u32 crc32_le_arch(u32 crc, const u8 *p, size_t len);
-u32 crc32_le_base(u32 crc, const u8 *p, size_t len);
-u32 crc32_be_arch(u32 crc, const u8 *p, size_t len);
-u32 crc32_be_base(u32 crc, const u8 *p, size_t len);
-u32 crc32c_arch(u32 crc, const u8 *p, size_t len);
-u32 crc32c_base(u32 crc, const u8 *p, size_t len);
+/**
+ * crc32_le() - Compute least-significant-bit-first IEEE CRC-32
+ * @crc: Initial CRC value.  ~0 (recommended) or 0 for a new CRC computation, or
+ *	 the previous CRC value if computing incrementally.
+ * @p: Pointer to the data buffer
+ * @len: Length of data in bytes
+ *
+ * This implements the CRC variant that is often known as the IEEE CRC-32, or
+ * simply CRC-32, and is widely used in Ethernet and other applications:
+ *
+ * - Polynomial: x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 +
+ *		 x^7 + x^5 + x^4 + x^2 + x^1 + x^0
+ * - Bit order: Least-significant-bit-first
+ * - Polynomial in integer form: 0xedb88320
+ *
+ * This does *not* invert the CRC at the beginning or end.  The caller is
+ * expected to do that if it needs to.  Inverting at both ends is recommended.
+ *
+ * For new applications, prefer to use CRC-32C instead.  See crc32c().
+ *
+ * Context: Any context
+ * Return: The new CRC value
+ */
+u32 crc32_le(u32 crc, const void *p, size_t len);
 
-static inline u32 crc32_le(u32 crc, const void *p, size_t len)
+/* This is just an alias for crc32_le(). */
+static inline u32 crc32(u32 crc, const void *p, size_t len)
 {
-	if (IS_ENABLED(CONFIG_CRC32_ARCH))
-		return crc32_le_arch(crc, p, len);
-	return crc32_le_base(crc, p, len);
+	return crc32_le(crc, p, len);
 }
 
-static inline u32 crc32_be(u32 crc, const void *p, size_t len)
-{
-	if (IS_ENABLED(CONFIG_CRC32_ARCH))
-		return crc32_be_arch(crc, p, len);
-	return crc32_be_base(crc, p, len);
-}
+/**
+ * crc32_be() - Compute most-significant-bit-first IEEE CRC-32
+ * @crc: Initial CRC value.  ~0 (recommended) or 0 for a new CRC computation, or
+ *	 the previous CRC value if computing incrementally.
+ * @p: Pointer to the data buffer
+ * @len: Length of data in bytes
+ *
+ * crc32_be() is the same as crc32_le() except that crc32_be() computes the
+ * *most-significant-bit-first* variant of the CRC.  I.e., within each byte, the
+ * most significant bit is processed first (treated as highest order polynomial
+ * coefficient).  The same bit order is also used for the CRC value itself:
+ *
+ * - Polynomial: x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 +
+ *		 x^7 + x^5 + x^4 + x^2 + x^1 + x^0
+ * - Bit order: Most-significant-bit-first
+ * - Polynomial in integer form: 0x04c11db7
+ *
+ * Context: Any context
+ * Return: The new CRC value
+ */
+u32 crc32_be(u32 crc, const void *p, size_t len);
 
-static inline u32 crc32c(u32 crc, const void *p, size_t len)
-{
-	if (IS_ENABLED(CONFIG_CRC32_ARCH))
-		return crc32c_arch(crc, p, len);
-	return crc32c_base(crc, p, len);
-}
+/**
+ * crc32c() - Compute CRC-32C
+ * @crc: Initial CRC value.  ~0 (recommended) or 0 for a new CRC computation, or
+ *	 the previous CRC value if computing incrementally.
+ * @p: Pointer to the data buffer
+ * @len: Length of data in bytes
+ *
+ * This implements CRC-32C, i.e. the Castagnoli CRC.  This is the recommended
+ * CRC variant to use in new applications that want a 32-bit CRC.
+ *
+ * - Polynomial: x^32 + x^28 + x^27 + x^26 + x^25 + x^23 + x^22 + x^20 + x^19 +
+ *		 x^18 + x^14 + x^13 + x^11 + x^10 + x^9 + x^8 + x^6 + x^0
+ * - Bit order: Least-significant-bit-first
+ * - Polynomial in integer form: 0x82f63b78
+ *
+ * This does *not* invert the CRC at the beginning or end.  The caller is
+ * expected to do that if it needs to.  Inverting at both ends is recommended.
+ *
+ * Context: Any context
+ * Return: The new CRC value
+ */
+u32 crc32c(u32 crc, const void *p, size_t len);
 
 /*
  * crc32_optimizations() returns flags that indicate which CRC32 library
@@ -47,33 +95,6 @@ u32 crc32_optimizations(void);
 #else
 static inline u32 crc32_optimizations(void) { return 0; }
 #endif
-
-/**
- * crc32_le_combine - Combine two crc32 check values into one. For two
- * 		      sequences of bytes, seq1 and seq2 with lengths len1
- * 		      and len2, crc32_le() check values were calculated
- * 		      for each, crc1 and crc2.
- *
- * @crc1: crc32 of the first block
- * @crc2: crc32 of the second block
- * @len2: length of the second block
- *
- * Return: The crc32_le() check value of seq1 and seq2 concatenated,
- * 	   requiring only crc1, crc2, and len2. Note: If seq_full denotes
- * 	   the concatenated memory area of seq1 with seq2, and crc_full
- * 	   the crc32_le() value of seq_full, then crc_full ==
- * 	   crc32_le_combine(crc1, crc2, len2) when crc_full was seeded
- * 	   with the same initializer as crc1, and crc2 seed was 0. See
- * 	   also crc32_combine_test().
- */
-u32 crc32_le_shift(u32 crc, size_t len);
-
-static inline u32 crc32_le_combine(u32 crc1, u32 crc2, size_t len2)
-{
-	return crc32_le_shift(crc1, len2) ^ crc2;
-}
-
-#define crc32(seed, data, length)  crc32_le(seed, (unsigned char const *)(data), length)
 
 /*
  * Helpers for hash table generation of ethernet nics:

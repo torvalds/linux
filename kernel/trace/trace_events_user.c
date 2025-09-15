@@ -496,7 +496,7 @@ static bool user_event_enabler_queue_fault(struct user_event_mm *mm,
 {
 	struct user_event_enabler_fault *fault;
 
-	fault = kmem_cache_zalloc(fault_cache, GFP_NOWAIT | __GFP_NOWARN);
+	fault = kmem_cache_zalloc(fault_cache, GFP_NOWAIT);
 
 	if (!fault)
 		return false;

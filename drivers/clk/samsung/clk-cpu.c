@@ -243,7 +243,7 @@ static int exynos_cpuclk_pre_rate_change(struct clk_notifier_data *ndata,
 		if (cpuclk->flags & CLK_CPU_NEEDS_DEBUG_ALT_DIV) {
 			/*
 			 * In Exynos4210, ATB clock parent is also mout_core. So
-			 * ATB clock also needs to be mantained at safe speed.
+			 * ATB clock also needs to be maintained at safe speed.
 			 */
 			alt_div |= E4210_DIV0_ATB_MASK;
 			alt_div_mask |= E4210_DIV0_ATB_MASK;

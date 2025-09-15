@@ -319,7 +319,7 @@ EXPORT_SYMBOL_GPL(devm_gpiod_unhinge);
  */
 void devm_gpiod_put_array(struct device *dev, struct gpio_descs *descs)
 {
-	devm_remove_action(dev, devm_gpiod_release_array, descs);
+	devm_release_action(dev, devm_gpiod_release_array, descs);
 }
 EXPORT_SYMBOL_GPL(devm_gpiod_put_array);
 

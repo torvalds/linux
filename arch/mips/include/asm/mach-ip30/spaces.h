@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2016 Joshua Kinard <kumba@gentoo.org>
+ * Copyright (C) 2016 Joshua Kinard <linux@kumba.dev>
  *
  */
 #ifndef _ASM_MACH_IP30_SPACES_H

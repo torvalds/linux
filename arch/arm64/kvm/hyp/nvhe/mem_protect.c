@@ -479,6 +479,7 @@ static int host_stage2_adjust_range(u64 addr, struct kvm_mem_range *range)
 {
 	struct kvm_mem_range cur;
 	kvm_pte_t pte;
+	u64 granule;
 	s8 level;
 	int ret;
 
@@ -496,18 +497,21 @@ static int host_stage2_adjust_range(u64 addr, struct kvm_mem_range *range)
 		return -EPERM;
 	}
 
-	do {
-		u64 granule = kvm_granule_size(level);
+	for (; level <= KVM_PGTABLE_LAST_LEVEL; level++) {
+		if (!kvm_level_supports_block_mapping(level))
+			continue;
+		granule = kvm_granule_size(level);
 		cur.start = ALIGN_DOWN(addr, granule);
 		cur.end = cur.start + granule;
-		level++;
-	} while ((level <= KVM_PGTABLE_LAST_LEVEL) &&
-			!(kvm_level_supports_block_mapping(level) &&
-			  range_included(&cur, range)));
+		if (!range_included(&cur, range))
+			continue;
+		*range = cur;
+		return 0;
+	}
 
-	*range = cur;
+	WARN_ON(1);
 
-	return 0;
+	return -EINVAL;
 }
 
 int host_stage2_idmap_locked(phys_addr_t addr, u64 size,

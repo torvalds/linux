@@ -15,13 +15,14 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev,
 				      enum vga_switcheroo_state state)
 {
 	struct drm_i915_private *i915 = pdev_to_i915(pdev);
+	struct intel_display *display = i915 ? i915->display : NULL;
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 
 	if (!i915) {
 		dev_err(&pdev->dev, "DRM not initialized, aborting switch.\n");
 		return;
 	}
-	if (!HAS_DISPLAY(i915)) {
+	if (!HAS_DISPLAY(display)) {
 		dev_err(&pdev->dev, "Device state not initialized, aborting switch.\n");
 		return;
 	}
@@ -44,13 +45,14 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev,
 static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 {
 	struct drm_i915_private *i915 = pdev_to_i915(pdev);
+	struct intel_display *display = i915 ? i915->display : NULL;
 
 	/*
 	 * FIXME: open_count is protected by drm_global_mutex but that would lead to
 	 * locking inversion with the driver load path. And the access here is
 	 * completely racy anyway. So don't bother with locking for now.
 	 */
-	return i915 && HAS_DISPLAY(i915) && atomic_read(&i915->drm.open_count) == 0;
+	return i915 && HAS_DISPLAY(display) && atomic_read(&i915->drm.open_count) == 0;
 }
 
 static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {

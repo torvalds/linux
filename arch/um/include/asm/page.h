@@ -11,7 +11,7 @@
 
 #include <vdso/page.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct page;
 
@@ -94,7 +94,7 @@ extern unsigned long uml_physmem;
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
 
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 
 #ifdef CONFIG_X86_32
 #define __HAVE_ARCH_GATE_AREA 1

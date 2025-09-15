@@ -370,6 +370,23 @@ static int bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 o
 	return 0;
 }
 
+bool bpf_jit_bypass_spec_v1(void)
+{
+#if defined(CONFIG_PPC_E500) || defined(CONFIG_PPC_BOOK3S_64)
+	return !(security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) &&
+		 security_ftr_enabled(SEC_FTR_BNDS_CHK_SPEC_BAR));
+#else
+	return true;
+#endif
+}
+
+bool bpf_jit_bypass_spec_v4(void)
+{
+	return !(security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) &&
+		 security_ftr_enabled(SEC_FTR_STF_BARRIER) &&
+		 stf_barrier_type_get() != STF_BARRIER_NONE);
+}
+
 /*
  * We spill into the redzone always, even if the bpf program has its own stackframe.
  * Offsets hardcoded based on BPF_PPC_STACK_SAVE -- see bpf_jit_stack_local()
@@ -392,11 +409,77 @@ asm (
 "		blr				;"
 );
 
+static int emit_atomic_ld_st(const struct bpf_insn insn, struct codegen_context *ctx, u32 *image)
+{
+	u32 code = insn.code;
+	u32 dst_reg = bpf_to_ppc(insn.dst_reg);
+	u32 src_reg = bpf_to_ppc(insn.src_reg);
+	u32 size = BPF_SIZE(code);
+	u32 tmp1_reg = bpf_to_ppc(TMP_REG_1);
+	u32 tmp2_reg = bpf_to_ppc(TMP_REG_2);
+	s16 off = insn.off;
+	s32 imm = insn.imm;
+
+	switch (imm) {
+	case BPF_LOAD_ACQ:
+		switch (size) {
+		case BPF_B:
+			EMIT(PPC_RAW_LBZ(dst_reg, src_reg, off));
+			break;
+		case BPF_H:
+			EMIT(PPC_RAW_LHZ(dst_reg, src_reg, off));
+			break;
+		case BPF_W:
+			EMIT(PPC_RAW_LWZ(dst_reg, src_reg, off));
+			break;
+		case BPF_DW:
+			if (off % 4) {
+				EMIT(PPC_RAW_LI(tmp1_reg, off));
+				EMIT(PPC_RAW_LDX(dst_reg, src_reg, tmp1_reg));
+			} else {
+				EMIT(PPC_RAW_LD(dst_reg, src_reg, off));
+			}
+			break;
+		}
+		EMIT(PPC_RAW_LWSYNC());
+		break;
+	case BPF_STORE_REL:
+		EMIT(PPC_RAW_LWSYNC());
+		switch (size) {
+		case BPF_B:
+			EMIT(PPC_RAW_STB(src_reg, dst_reg, off));
+			break;
+		case BPF_H:
+			EMIT(PPC_RAW_STH(src_reg, dst_reg, off));
+			break;
+		case BPF_W:
+			EMIT(PPC_RAW_STW(src_reg, dst_reg, off));
+			break;
+		case BPF_DW:
+			if (off % 4) {
+				EMIT(PPC_RAW_LI(tmp2_reg, off));
+				EMIT(PPC_RAW_STDX(src_reg, dst_reg, tmp2_reg));
+			} else {
+				EMIT(PPC_RAW_STD(src_reg, dst_reg, off));
+			}
+			break;
+		}
+		break;
+	default:
+		pr_err_ratelimited("unexpected atomic load/store op code %02x\n",
+				   imm);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* Assemble the body code between the prologue & epilogue */
 int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct codegen_context *ctx,
 		       u32 *addrs, int pass, bool extra_pass)
 {
 	enum stf_barrier_type stf_barrier = stf_barrier_type_get();
+	bool sync_emitted, ori31_emitted;
 	const struct bpf_insn *insn = fp->insnsi;
 	int flen = fp->len;
 	int i, ret;
@@ -789,30 +872,51 @@ emit_clear:
 
 		/*
 		 * BPF_ST NOSPEC (speculation barrier)
+		 *
+		 * The following must act as a barrier against both Spectre v1
+		 * and v4 if we requested both mitigations. Therefore, also emit
+		 * 'isync; sync' on E500 or 'ori31' on BOOK3S_64 in addition to
+		 * the insns needed for a Spectre v4 barrier.
+		 *
+		 * If we requested only !bypass_spec_v1 OR only !bypass_spec_v4,
+		 * we can skip the respective other barrier type as an
+		 * optimization.
 		 */
 		case BPF_ST | BPF_NOSPEC:
-			if (!security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) ||
-					!security_ftr_enabled(SEC_FTR_STF_BARRIER))
-				break;
-
-			switch (stf_barrier) {
-			case STF_BARRIER_EIEIO:
-				EMIT(PPC_RAW_EIEIO() | 0x02000000);
-				break;
-			case STF_BARRIER_SYNC_ORI:
+			sync_emitted = false;
+			ori31_emitted = false;
+			if (IS_ENABLED(CONFIG_PPC_E500) &&
+			    !bpf_jit_bypass_spec_v1()) {
+				EMIT(PPC_RAW_ISYNC());
 				EMIT(PPC_RAW_SYNC());
-				EMIT(PPC_RAW_LD(tmp1_reg, _R13, 0));
-				EMIT(PPC_RAW_ORI(_R31, _R31, 0));
-				break;
-			case STF_BARRIER_FALLBACK:
-				ctx->seen |= SEEN_FUNC;
-				PPC_LI64(_R12, dereference_kernel_function_descriptor(bpf_stf_barrier));
-				EMIT(PPC_RAW_MTCTR(_R12));
-				EMIT(PPC_RAW_BCTRL());
-				break;
-			case STF_BARRIER_NONE:
-				break;
+				sync_emitted = true;
 			}
+			if (!bpf_jit_bypass_spec_v4()) {
+				switch (stf_barrier) {
+				case STF_BARRIER_EIEIO:
+					EMIT(PPC_RAW_EIEIO() | 0x02000000);
+					break;
+				case STF_BARRIER_SYNC_ORI:
+					if (!sync_emitted)
+						EMIT(PPC_RAW_SYNC());
+					EMIT(PPC_RAW_LD(tmp1_reg, _R13, 0));
+					EMIT(PPC_RAW_ORI(_R31, _R31, 0));
+					ori31_emitted = true;
+					break;
+				case STF_BARRIER_FALLBACK:
+					ctx->seen |= SEEN_FUNC;
+					PPC_LI64(_R12, dereference_kernel_function_descriptor(bpf_stf_barrier));
+					EMIT(PPC_RAW_MTCTR(_R12));
+					EMIT(PPC_RAW_BCTRL());
+					break;
+				case STF_BARRIER_NONE:
+					break;
+				}
+			}
+			if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) &&
+			    !bpf_jit_bypass_spec_v1() &&
+			    !ori31_emitted)
+				EMIT(PPC_RAW_ORI(_R31, _R31, 0));
 			break;
 
 		/*
@@ -859,8 +963,25 @@ emit_clear:
 		/*
 		 * BPF_STX ATOMIC (atomic ops)
 		 */
+		case BPF_STX | BPF_ATOMIC | BPF_B:
+		case BPF_STX | BPF_ATOMIC | BPF_H:
 		case BPF_STX | BPF_ATOMIC | BPF_W:
 		case BPF_STX | BPF_ATOMIC | BPF_DW:
+			if (bpf_atomic_is_load_store(&insn[i])) {
+				ret = emit_atomic_ld_st(insn[i], ctx, image);
+				if (ret)
+					return ret;
+
+				if (size != BPF_DW && insn_is_zext(&insn[i + 1]))
+					addrs[++i] = ctx->idx * 4;
+				break;
+			} else if (size == BPF_B || size == BPF_H) {
+				pr_err_ratelimited(
+					"eBPF filter atomic op code %02x (@%d) unsupported\n",
+					code, i);
+				return -EOPNOTSUPP;
+			}
+
 			save_reg = tmp2_reg;
 			ret_reg = src_reg;
 

@@ -169,7 +169,7 @@ static struct gpio_desc *all_descriptors[GPIB_PINS + SN7516X_PINS];
 #define TE all_descriptors[18]
 #define ACT_LED all_descriptors[19]
 
-/* YOGA dapter uses a global enable for the buffer chips, re-using the TE pin */
+/* YOGA adapter uses a global enable for the buffer chips, re-using the TE pin */
 #define YOGA_ENABLE TE
 
 static int gpios_vector[] = {

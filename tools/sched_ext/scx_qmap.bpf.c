@@ -615,6 +615,26 @@ void BPF_STRUCT_OPS(qmap_dump_task, struct scx_dump_ctx *dctx, struct task_struc
 		     taskc->force_local, taskc->core_sched_seq);
 }
 
+s32 BPF_STRUCT_OPS(qmap_cgroup_init, struct cgroup *cgrp, struct scx_cgroup_init_args *args)
+{
+	bpf_printk("CGRP INIT %llu weight=%u period=%lu quota=%ld burst=%lu",
+		   cgrp->kn->id, args->weight, args->bw_period_us,
+		   args->bw_quota_us, args->bw_burst_us);
+	return 0;
+}
+
+void BPF_STRUCT_OPS(qmap_cgroup_set_weight, struct cgroup *cgrp, u32 weight)
+{
+	bpf_printk("CGRP SET %llu weight=%u", cgrp->kn->id, weight);
+}
+
+void BPF_STRUCT_OPS(qmap_cgroup_set_bandwidth, struct cgroup *cgrp,
+		    u64 period_us, u64 quota_us, u64 burst_us)
+{
+	bpf_printk("CGRP SET %llu period=%lu quota=%ld burst=%lu", cgrp->kn->id,
+		   period_us, quota_us, burst_us);
+}
+
 /*
  * Print out the online and possible CPU map using bpf_printk() as a
  * demonstration of using the cpumask kfuncs and ops.cpu_on/offline().
@@ -840,6 +860,9 @@ SCX_OPS_DEFINE(qmap_ops,
 	       .dump			= (void *)qmap_dump,
 	       .dump_cpu		= (void *)qmap_dump_cpu,
 	       .dump_task		= (void *)qmap_dump_task,
+	       .cgroup_init		= (void *)qmap_cgroup_init,
+	       .cgroup_set_weight	= (void *)qmap_cgroup_set_weight,
+	       .cgroup_set_bandwidth	= (void *)qmap_cgroup_set_bandwidth,
 	       .cpu_online		= (void *)qmap_cpu_online,
 	       .cpu_offline		= (void *)qmap_cpu_offline,
 	       .init			= (void *)qmap_init,

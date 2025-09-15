@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015 Intel Deutschland GmbH
- * Copyright (C) 2022-2024 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  */
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
@@ -514,6 +514,9 @@ int drv_set_key(struct ieee80211_local *local,
 	if (WARN_ON(key->link_id >= 0 && sdata->vif.active_links &&
 		    !(sdata->vif.active_links & BIT(key->link_id))))
 		return -ENOLINK;
+
+	if (fips_enabled)
+		return -EOPNOTSUPP;
 
 	trace_drv_set_key(local, cmd, sdata, sta, key);
 	ret = local->ops->set_key(&local->hw, cmd, &sdata->vif, sta, key);

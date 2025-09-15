@@ -116,8 +116,8 @@ static int thunderx_gpio_dir_in(struct gpio_chip *chip, unsigned int line)
 	return 0;
 }
 
-static void thunderx_gpio_set(struct gpio_chip *chip, unsigned int line,
-			      int value)
+static int thunderx_gpio_set(struct gpio_chip *chip, unsigned int line,
+			     int value)
 {
 	struct thunderx_gpio *txgpio = gpiochip_get_data(chip);
 	int bank = line / 64;
@@ -127,6 +127,8 @@ static void thunderx_gpio_set(struct gpio_chip *chip, unsigned int line,
 		(bank * GPIO_2ND_BANK) + (value ? GPIO_TX_SET : GPIO_TX_CLR);
 
 	writeq(BIT_ULL(bank_bit), reg);
+
+	return 0;
 }
 
 static int thunderx_gpio_dir_out(struct gpio_chip *chip, unsigned int line,
@@ -269,9 +271,9 @@ static int thunderx_gpio_get(struct gpio_chip *chip, unsigned int line)
 		return masked_bits != 0;
 }
 
-static void thunderx_gpio_set_multiple(struct gpio_chip *chip,
-				       unsigned long *mask,
-				       unsigned long *bits)
+static int thunderx_gpio_set_multiple(struct gpio_chip *chip,
+				      unsigned long *mask,
+				      unsigned long *bits)
 {
 	int bank;
 	u64 set_bits, clear_bits;
@@ -283,6 +285,8 @@ static void thunderx_gpio_set_multiple(struct gpio_chip *chip,
 		writeq(set_bits, txgpio->register_base + (bank * GPIO_2ND_BANK) + GPIO_TX_SET);
 		writeq(clear_bits, txgpio->register_base + (bank * GPIO_2ND_BANK) + GPIO_TX_CLR);
 	}
+
+	return 0;
 }
 
 static void thunderx_gpio_irq_ack(struct irq_data *d)

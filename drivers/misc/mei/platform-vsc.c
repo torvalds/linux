@@ -256,6 +256,9 @@ static int mei_vsc_hw_reset(struct mei_device *mei_dev, bool intr_enable)
 
 	vsc_tp_reset(hw->tp);
 
+	if (!intr_enable)
+		return 0;
+
 	return vsc_tp_init(hw->tp, mei_dev->dev);
 }
 
@@ -377,6 +380,8 @@ err_stop:
 err_cancel:
 	mei_cancel_work(mei_dev);
 
+	vsc_tp_register_event_cb(tp, NULL, NULL);
+
 	mei_disable_interrupts(mei_dev);
 
 	return ret;
@@ -385,10 +390,13 @@ err_cancel:
 static void mei_vsc_remove(struct platform_device *pdev)
 {
 	struct mei_device *mei_dev = platform_get_drvdata(pdev);
+	struct mei_vsc_hw *hw = mei_dev_to_vsc_hw(mei_dev);
 
 	pm_runtime_disable(mei_dev->dev);
 
 	mei_stop(mei_dev);
+
+	vsc_tp_register_event_cb(hw->tp, NULL, NULL);
 
 	mei_disable_interrupts(mei_dev);
 

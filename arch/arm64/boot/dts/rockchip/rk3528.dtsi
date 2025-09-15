@@ -95,6 +95,36 @@
 		};
 	};
 
+	gpu_opp_table: opp-table-gpu {
+		compatible = "operating-points-v2";
+
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <875000 875000 1000000>;
+			opp-suspend;
+		};
+
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <875000 875000 1000000>;
+		};
+
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <875000 875000 1000000>;
+		};
+
+		opp-700000000 {
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = <900000 900000 1000000>;
+		};
+
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <950000 950000 1000000>;
+		};
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3528-pinctrl";
 		rockchip,grf = <&ioc_grf>;
@@ -439,13 +469,133 @@
 			reg = <0x0 0xff540000 0x0 0x40000>;
 		};
 
+		pmu: power-management@ff600000 {
+			compatible = "rockchip,rk3528-pmu", "syscon", "simple-mfd";
+			reg = <0x0 0xff600000 0x0 0x2000>;
+
+			power: power-controller {
+				compatible = "rockchip,rk3528-power-controller";
+				#power-domain-cells = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/* These power domains are grouped by VD_GPU */
+				power-domain@4 {
+					reg = <4>;
+					clocks = <&cru ACLK_GPU_MALI>,
+						 <&cru PCLK_GPU_ROOT>;
+					pm_qos = <&qos_gpu_m0>,
+						 <&qos_gpu_m1>;
+					#power-domain-cells = <0>;
+				};
+
+				/* These power domains are grouped by VD_LOGIC */
+				power-domain@5 {
+					reg = <5>;
+					pm_qos = <&qos_rkvdec>;
+					#power-domain-cells = <0>;
+					status = "disabled";
+				};
+				power-domain@6 {
+					reg = <6>;
+					pm_qos = <&qos_rkvenc>;
+					#power-domain-cells = <0>;
+					status = "disabled";
+				};
+				power-domain@7 {
+					reg = <7>;
+					pm_qos = <&qos_gmac0>,
+						 <&qos_hdcp>,
+						 <&qos_jpegdec>,
+						 <&qos_rga2_m0ro>,
+						 <&qos_rga2_m0wo>,
+						 <&qos_sdmmc0>,
+						 <&qos_usb2host>,
+						 <&qos_vdpp>,
+						 <&qos_vop>;
+					#power-domain-cells = <0>;
+					status = "disabled";
+				};
+				power-domain@8 {
+					reg = <8>;
+					pm_qos = <&qos_emmc>,
+						 <&qos_fspi>,
+						 <&qos_gmac1>,
+						 <&qos_pcie>,
+						 <&qos_sdio0>,
+						 <&qos_sdio1>,
+						 <&qos_tsp>,
+						 <&qos_usb3otg>,
+						 <&qos_vpu>;
+					#power-domain-cells = <0>;
+					status = "disabled";
+				};
+			};
+		};
+
+		gpu: gpu@ff700000 {
+			compatible = "rockchip,rk3528-mali", "arm,mali-450";
+			reg = <0x0 0xff700000 0x0 0x40000>;
+			assigned-clocks = <&cru ACLK_GPU_MALI>,
+					  <&scmi_clk SCMI_CLK_GPU>;
+			assigned-clock-rates = <297000000>, <300000000>;
+			clocks = <&cru ACLK_GPU_MALI>, <&scmi_clk SCMI_CLK_GPU>;
+			clock-names = "bus", "core";
+			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "gp",
+					  "gpmmu",
+					  "pp",
+					  "pp0",
+					  "ppmmu0",
+					  "pp1",
+					  "ppmmu1";
+			operating-points-v2 = <&gpu_opp_table>;
+			power-domains = <&power 4>;
+			resets = <&cru SRST_A_GPU>;
+			status = "disabled";
+		};
+
+		spi0: spi@ff9c0000 {
+			compatible = "rockchip,rk3528-spi",
+				     "rockchip,rk3066-spi";
+			reg = <0x0 0xff9c0000 0x0 0x1000>;
+			clocks = <&cru CLK_SPI0>, <&cru PCLK_SPI0>;
+			clock-names = "spiclk", "apb_pclk";
+			interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&dmac 25>, <&dmac 24>;
+			dma-names = "tx", "rx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi1: spi@ff9d0000 {
+			compatible = "rockchip,rk3528-spi",
+				     "rockchip,rk3066-spi";
+			reg = <0x0 0xff9d0000 0x0 0x1000>;
+			clocks = <&cru CLK_SPI1>, <&cru PCLK_SPI1>;
+			clock-names = "spiclk", "apb_pclk";
+			interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&dmac 31>, <&dmac 30>;
+			dma-names = "tx", "rx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		uart0: serial@ff9f0000 {
 			compatible = "rockchip,rk3528-uart", "snps,dw-apb-uart";
 			reg = <0x0 0xff9f0000 0x0 0x100>;
 			clocks = <&cru SCLK_UART0>, <&cru PCLK_UART0>;
 			clock-names = "baudclk", "apb_pclk";
 			interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&dmac 8>, <&dmac 9>;
+			dmas = <&dmac 9>, <&dmac 8>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			status = "disabled";
@@ -457,7 +607,7 @@
 			clocks = <&cru SCLK_UART1>, <&cru PCLK_UART1>;
 			clock-names = "baudclk", "apb_pclk";
 			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&dmac 10>, <&dmac 11>;
+			dmas = <&dmac 11>, <&dmac 10>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			status = "disabled";
@@ -469,7 +619,7 @@
 			clocks = <&cru SCLK_UART2>, <&cru PCLK_UART2>;
 			clock-names = "baudclk", "apb_pclk";
 			interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&dmac 12>, <&dmac 13>;
+			dmas = <&dmac 13>, <&dmac 12>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			status = "disabled";
@@ -481,7 +631,7 @@
 			clocks = <&cru SCLK_UART3>, <&cru PCLK_UART3>;
 			clock-names = "baudclk", "apb_pclk";
 			interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&dmac 14>, <&dmac 15>;
+			dmas = <&dmac 15>, <&dmac 14>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			status = "disabled";
@@ -493,7 +643,7 @@
 			clocks = <&cru SCLK_UART4>, <&cru PCLK_UART4>;
 			clock-names = "baudclk", "apb_pclk";
 			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&dmac 16>, <&dmac 17>;
+			dmas = <&dmac 17>, <&dmac 16>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			status = "disabled";
@@ -505,7 +655,7 @@
 			clocks = <&cru SCLK_UART5>, <&cru PCLK_UART5>;
 			clock-names = "baudclk", "apb_pclk";
 			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&dmac 18>, <&dmac 19>;
+			dmas = <&dmac 19>, <&dmac 18>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			status = "disabled";
@@ -517,7 +667,7 @@
 			clocks = <&cru SCLK_UART6>, <&cru PCLK_UART6>;
 			clock-names = "baudclk", "apb_pclk";
 			interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&dmac 20>, <&dmac 21>;
+			dmas = <&dmac 21>, <&dmac 20>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			status = "disabled";
@@ -529,7 +679,7 @@
 			clocks = <&cru SCLK_UART7>, <&cru PCLK_UART7>;
 			clock-names = "baudclk", "apb_pclk";
 			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&dmac 22>, <&dmac 23>;
+			dmas = <&dmac 23>, <&dmac 22>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			status = "disabled";

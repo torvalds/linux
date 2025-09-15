@@ -200,8 +200,7 @@ void zstd_init_workspace_manager(void)
 
 	ws = zstd_alloc_workspace(ZSTD_BTRFS_MAX_LEVEL);
 	if (IS_ERR(ws)) {
-		pr_warn(
-		"BTRFS: cannot preallocate zstd compression workspace\n");
+		btrfs_warn(NULL, "cannot preallocate zstd compression workspace");
 	} else {
 		set_bit(ZSTD_BTRFS_MAX_LEVEL - 1, &wsm.active_map);
 		list_add(ws, &wsm.idle_ws[ZSTD_BTRFS_MAX_LEVEL - 1]);

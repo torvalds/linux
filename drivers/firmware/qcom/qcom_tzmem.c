@@ -20,6 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
+#include "qcom_scm.h"
 #include "qcom_tzmem.h"
 
 struct qcom_tzmem_area {
@@ -94,7 +95,7 @@ static int qcom_tzmem_init(void)
 			goto notsupp;
 	}
 
-	ret = qcom_scm_shm_bridge_enable();
+	ret = qcom_scm_shm_bridge_enable(qcom_tzmem_dev);
 	if (ret == -EOPNOTSUPP)
 		goto notsupp;
 
@@ -124,9 +125,9 @@ static int qcom_tzmem_init_area(struct qcom_tzmem_area *area)
 	if (!handle)
 		return -ENOMEM;
 
-	ret = qcom_scm_shm_bridge_create(qcom_tzmem_dev, pfn_and_ns_perm,
-					 ipfn_and_s_perm, size_and_flags,
-					 QCOM_SCM_VMID_HLOS, handle);
+	ret = qcom_scm_shm_bridge_create(pfn_and_ns_perm, ipfn_and_s_perm,
+					 size_and_flags, QCOM_SCM_VMID_HLOS,
+					 handle);
 	if (ret)
 		return ret;
 
@@ -142,7 +143,7 @@ static void qcom_tzmem_cleanup_area(struct qcom_tzmem_area *area)
 	if (!qcom_tzmem_using_shm_bridge)
 		return;
 
-	qcom_scm_shm_bridge_delete(qcom_tzmem_dev, *handle);
+	qcom_scm_shm_bridge_delete(*handle);
 	kfree(handle);
 }
 

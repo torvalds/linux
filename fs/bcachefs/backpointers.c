@@ -353,7 +353,7 @@ static struct bkey_s_c __bch2_backpointer_get_key(struct btree_trans *trans,
 		return ret ? bkey_s_c_err(ret) : bkey_s_c_null;
 	} else {
 		struct btree *b = __bch2_backpointer_get_node(trans, bp, iter, last_flushed, commit);
-		if (b == ERR_PTR(bch_err_throw(c, backpointer_to_overwritten_btree_node)))
+		if (b == ERR_PTR(-BCH_ERR_backpointer_to_overwritten_btree_node))
 			return bkey_s_c_null;
 		if (IS_ERR_OR_NULL(b))
 			return ((struct bkey_s_c) { .k = ERR_CAST(b) });

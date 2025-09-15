@@ -40,48 +40,6 @@ static struct i40e_vsi *i40e_dbg_find_vsi(struct i40e_pf *pf, int seid)
  * setup, adding or removing filters, or other things.  Many of
  * these will be useful for some forms of unit testing.
  **************************************************************/
-static char i40e_dbg_command_buf[256] = "";
-
-/**
- * i40e_dbg_command_read - read for command datum
- * @filp: the opened file
- * @buffer: where to write the data for the user to read
- * @count: the size of the user's buffer
- * @ppos: file position offset
- **/
-static ssize_t i40e_dbg_command_read(struct file *filp, char __user *buffer,
-				     size_t count, loff_t *ppos)
-{
-	struct i40e_pf *pf = filp->private_data;
-	struct i40e_vsi *main_vsi;
-	int bytes_not_copied;
-	int buf_size = 256;
-	char *buf;
-	int len;
-
-	/* don't allow partial reads */
-	if (*ppos != 0)
-		return 0;
-	if (count < buf_size)
-		return -ENOSPC;
-
-	buf = kzalloc(buf_size, GFP_KERNEL);
-	if (!buf)
-		return -ENOSPC;
-
-	main_vsi = i40e_pf_get_main_vsi(pf);
-	len = snprintf(buf, buf_size, "%s: %s\n", main_vsi->netdev->name,
-		       i40e_dbg_command_buf);
-
-	bytes_not_copied = copy_to_user(buffer, buf, len);
-	kfree(buf);
-
-	if (bytes_not_copied)
-		return -EFAULT;
-
-	*ppos = len;
-	return len;
-}
 
 static char *i40e_filter_state_string[] = {
 	"INVALID",
@@ -489,7 +447,7 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 	dev_info(&pf->pdev->dev, "AdminQ Tx Ring\n");
 	ring = &(hw->aq.asq);
 	for (i = 0; i < ring->count; i++) {
-		struct i40e_aq_desc *d = I40E_ADMINQ_DESC(*ring, i);
+		struct libie_aq_desc *d = I40E_ADMINQ_DESC(*ring, i);
 
 		dev_info(&pf->pdev->dev,
 			 "   at[%02d] flags=0x%04x op=0x%04x dlen=0x%04x ret=0x%04x cookie_h=0x%08x cookie_l=0x%08x\n",
@@ -502,7 +460,7 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 	dev_info(&pf->pdev->dev, "AdminQ Rx Ring\n");
 	ring = &(hw->aq.arq);
 	for (i = 0; i < ring->count; i++) {
-		struct i40e_aq_desc *d = I40E_ADMINQ_DESC(*ring, i);
+		struct libie_aq_desc *d = I40E_ADMINQ_DESC(*ring, i);
 
 		dev_info(&pf->pdev->dev,
 			 "   ar[%02d] flags=0x%04x op=0x%04x dlen=0x%04x ret=0x%04x cookie_h=0x%08x cookie_l=0x%08x\n",
@@ -1268,10 +1226,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			dev_info(&pf->pdev->dev, "clear_stats vsi [seid] or clear_stats port\n");
 		}
 	} else if (strncmp(cmd_buf, "send aq_cmd", 11) == 0) {
-		struct i40e_aq_desc *desc;
+		struct libie_aq_desc *desc;
 		int ret;
 
-		desc = kzalloc(sizeof(struct i40e_aq_desc), GFP_KERNEL);
+		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 		if (!desc)
 			goto command_write_done;
 		cnt = sscanf(&cmd_buf[11],
@@ -1279,10 +1237,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			     &desc->flags,
 			     &desc->opcode, &desc->datalen, &desc->retval,
 			     &desc->cookie_high, &desc->cookie_low,
-			     &desc->params.internal.param0,
-			     &desc->params.internal.param1,
-			     &desc->params.internal.param2,
-			     &desc->params.internal.param3);
+			     &desc->params.generic.param0,
+			     &desc->params.generic.param1,
+			     &desc->params.generic.addr_high,
+			     &desc->params.generic.addr_low);
 		if (cnt != 10) {
 			dev_info(&pf->pdev->dev,
 				 "send aq_cmd: bad command string, cnt=%d\n",
@@ -1307,19 +1265,19 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			 "AQ desc WB 0x%04x 0x%04x 0x%04x 0x%04x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			 desc->flags, desc->opcode, desc->datalen, desc->retval,
 			 desc->cookie_high, desc->cookie_low,
-			 desc->params.internal.param0,
-			 desc->params.internal.param1,
-			 desc->params.internal.param2,
-			 desc->params.internal.param3);
+			 desc->params.generic.param0,
+			 desc->params.generic.param1,
+			 desc->params.generic.addr_high,
+			 desc->params.generic.addr_low);
 		kfree(desc);
 		desc = NULL;
 	} else if (strncmp(cmd_buf, "send indirect aq_cmd", 20) == 0) {
-		struct i40e_aq_desc *desc;
+		struct libie_aq_desc *desc;
 		u16 buffer_len;
 		u8 *buff;
 		int ret;
 
-		desc = kzalloc(sizeof(struct i40e_aq_desc), GFP_KERNEL);
+		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 		if (!desc)
 			goto command_write_done;
 		cnt = sscanf(&cmd_buf[20],
@@ -1327,10 +1285,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			     &desc->flags,
 			     &desc->opcode, &desc->datalen, &desc->retval,
 			     &desc->cookie_high, &desc->cookie_low,
-			     &desc->params.internal.param0,
-			     &desc->params.internal.param1,
-			     &desc->params.internal.param2,
-			     &desc->params.internal.param3,
+			     &desc->params.generic.param0,
+			     &desc->params.generic.param1,
+			     &desc->params.generic.addr_high,
+			     &desc->params.generic.addr_low,
 			     &buffer_len);
 		if (cnt != 11) {
 			dev_info(&pf->pdev->dev,
@@ -1350,7 +1308,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			desc = NULL;
 			goto command_write_done;
 		}
-		desc->flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
+		desc->flags |= cpu_to_le16((u16)LIBIE_AQ_FLAG_BUF);
 		ret = i40e_asq_send_command(&pf->hw, desc, buff,
 					    buffer_len, NULL);
 		if (!ret) {
@@ -1368,10 +1326,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			 "AQ desc WB 0x%04x 0x%04x 0x%04x 0x%04x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			 desc->flags, desc->opcode, desc->datalen, desc->retval,
 			 desc->cookie_high, desc->cookie_low,
-			 desc->params.internal.param0,
-			 desc->params.internal.param1,
-			 desc->params.internal.param2,
-			 desc->params.internal.param3);
+			 desc->params.generic.param0,
+			 desc->params.generic.param1,
+			 desc->params.generic.addr_high,
+			 desc->params.generic.addr_low);
 		print_hex_dump(KERN_INFO, "AQ buffer WB: ",
 			       DUMP_PREFIX_OFFSET, 16, 1,
 			       buff, buffer_len, true);
@@ -1621,7 +1579,6 @@ command_write_done:
 static const struct file_operations i40e_dbg_command_fops = {
 	.owner = THIS_MODULE,
 	.open =  simple_open,
-	.read =  i40e_dbg_command_read,
 	.write = i40e_dbg_command_write,
 };
 
@@ -1630,48 +1587,6 @@ static const struct file_operations i40e_dbg_command_fops = {
  * The netdev_ops entry in debugfs is for giving the driver commands
  * to be executed from the netdev operations.
  **************************************************************/
-static char i40e_dbg_netdev_ops_buf[256] = "";
-
-/**
- * i40e_dbg_netdev_ops_read - read for netdev_ops datum
- * @filp: the opened file
- * @buffer: where to write the data for the user to read
- * @count: the size of the user's buffer
- * @ppos: file position offset
- **/
-static ssize_t i40e_dbg_netdev_ops_read(struct file *filp, char __user *buffer,
-					size_t count, loff_t *ppos)
-{
-	struct i40e_pf *pf = filp->private_data;
-	struct i40e_vsi *main_vsi;
-	int bytes_not_copied;
-	int buf_size = 256;
-	char *buf;
-	int len;
-
-	/* don't allow partal reads */
-	if (*ppos != 0)
-		return 0;
-	if (count < buf_size)
-		return -ENOSPC;
-
-	buf = kzalloc(buf_size, GFP_KERNEL);
-	if (!buf)
-		return -ENOSPC;
-
-	main_vsi = i40e_pf_get_main_vsi(pf);
-	len = snprintf(buf, buf_size, "%s: %s\n", main_vsi->netdev->name,
-		       i40e_dbg_netdev_ops_buf);
-
-	bytes_not_copied = copy_to_user(buffer, buf, len);
-	kfree(buf);
-
-	if (bytes_not_copied)
-		return -EFAULT;
-
-	*ppos = len;
-	return len;
-}
 
 /**
  * i40e_dbg_netdev_ops_write - write into netdev_ops datum
@@ -1685,35 +1600,36 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 					 size_t count, loff_t *ppos)
 {
 	struct i40e_pf *pf = filp->private_data;
+	char *cmd_buf, *buf_tmp;
 	int bytes_not_copied;
 	struct i40e_vsi *vsi;
-	char *buf_tmp;
 	int vsi_seid;
 	int i, cnt;
 
 	/* don't allow partial writes */
 	if (*ppos != 0)
 		return 0;
-	if (count >= sizeof(i40e_dbg_netdev_ops_buf))
-		return -ENOSPC;
 
-	memset(i40e_dbg_netdev_ops_buf, 0, sizeof(i40e_dbg_netdev_ops_buf));
-	bytes_not_copied = copy_from_user(i40e_dbg_netdev_ops_buf,
-					  buffer, count);
-	if (bytes_not_copied)
+	cmd_buf = kzalloc(count + 1, GFP_KERNEL);
+	if (!cmd_buf)
+		return count;
+	bytes_not_copied = copy_from_user(cmd_buf, buffer, count);
+	if (bytes_not_copied) {
+		kfree(cmd_buf);
 		return -EFAULT;
-	i40e_dbg_netdev_ops_buf[count] = '\0';
+	}
+	cmd_buf[count] = '\0';
 
-	buf_tmp = strchr(i40e_dbg_netdev_ops_buf, '\n');
+	buf_tmp = strchr(cmd_buf, '\n');
 	if (buf_tmp) {
 		*buf_tmp = '\0';
-		count = buf_tmp - i40e_dbg_netdev_ops_buf + 1;
+		count = buf_tmp - cmd_buf + 1;
 	}
 
-	if (strncmp(i40e_dbg_netdev_ops_buf, "change_mtu", 10) == 0) {
+	if (strncmp(cmd_buf, "change_mtu", 10) == 0) {
 		int mtu;
 
-		cnt = sscanf(&i40e_dbg_netdev_ops_buf[11], "%i %i",
+		cnt = sscanf(&cmd_buf[11], "%i %i",
 			     &vsi_seid, &mtu);
 		if (cnt != 2) {
 			dev_info(&pf->pdev->dev, "change_mtu <vsi_seid> <mtu>\n");
@@ -1735,8 +1651,8 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 			dev_info(&pf->pdev->dev, "Could not acquire RTNL - please try again\n");
 		}
 
-	} else if (strncmp(i40e_dbg_netdev_ops_buf, "set_rx_mode", 11) == 0) {
-		cnt = sscanf(&i40e_dbg_netdev_ops_buf[11], "%i", &vsi_seid);
+	} else if (strncmp(cmd_buf, "set_rx_mode", 11) == 0) {
+		cnt = sscanf(&cmd_buf[11], "%i", &vsi_seid);
 		if (cnt != 1) {
 			dev_info(&pf->pdev->dev, "set_rx_mode <vsi_seid>\n");
 			goto netdev_ops_write_done;
@@ -1756,8 +1672,8 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 			dev_info(&pf->pdev->dev, "Could not acquire RTNL - please try again\n");
 		}
 
-	} else if (strncmp(i40e_dbg_netdev_ops_buf, "napi", 4) == 0) {
-		cnt = sscanf(&i40e_dbg_netdev_ops_buf[4], "%i", &vsi_seid);
+	} else if (strncmp(cmd_buf, "napi", 4) == 0) {
+		cnt = sscanf(&cmd_buf[4], "%i", &vsi_seid);
 		if (cnt != 1) {
 			dev_info(&pf->pdev->dev, "napi <vsi_seid>\n");
 			goto netdev_ops_write_done;
@@ -1775,21 +1691,20 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 			dev_info(&pf->pdev->dev, "napi called\n");
 		}
 	} else {
-		dev_info(&pf->pdev->dev, "unknown command '%s'\n",
-			 i40e_dbg_netdev_ops_buf);
+		dev_info(&pf->pdev->dev, "unknown command '%s'\n", cmd_buf);
 		dev_info(&pf->pdev->dev, "available commands\n");
 		dev_info(&pf->pdev->dev, "  change_mtu <vsi_seid> <mtu>\n");
 		dev_info(&pf->pdev->dev, "  set_rx_mode <vsi_seid>\n");
 		dev_info(&pf->pdev->dev, "  napi <vsi_seid>\n");
 	}
 netdev_ops_write_done:
+	kfree(cmd_buf);
 	return count;
 }
 
 static const struct file_operations i40e_dbg_netdev_ops_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = i40e_dbg_netdev_ops_read,
 	.write = i40e_dbg_netdev_ops_write,
 };
 

@@ -308,24 +308,23 @@ int __copy_io(unsigned long clone_flags, struct task_struct *tsk)
 
 #ifdef CONFIG_BLK_ICQ
 /**
- * ioc_lookup_icq - lookup io_cq from ioc
+ * ioc_lookup_icq - lookup io_cq from ioc in io issue path
  * @q: the associated request_queue
  *
  * Look up io_cq associated with @ioc - @q pair from @ioc.  Must be called
- * with @q->queue_lock held.
+ * from io issue path, either return NULL if current issue io to @q for the
+ * first time, or return a valid icq.
  */
 struct io_cq *ioc_lookup_icq(struct request_queue *q)
 {
 	struct io_context *ioc = current->io_context;
 	struct io_cq *icq;
 
-	lockdep_assert_held(&q->queue_lock);
-
 	/*
 	 * icq's are indexed from @ioc using radix tree and hint pointer,
-	 * both of which are protected with RCU.  All removals are done
-	 * holding both q and ioc locks, and we're holding q lock - if we
-	 * find a icq which points to us, it's guaranteed to be valid.
+	 * both of which are protected with RCU, io issue path ensures that
+	 * both request_queue and current task are valid, the found icq
+	 * is guaranteed to be valid until the io is done.
 	 */
 	rcu_read_lock();
 	icq = rcu_dereference(ioc->icq_hint);
@@ -419,10 +418,7 @@ struct io_cq *ioc_find_get_icq(struct request_queue *q)
 		task_unlock(current);
 	} else {
 		get_io_context(ioc);
-
-		spin_lock_irq(&q->queue_lock);
 		icq = ioc_lookup_icq(q);
-		spin_unlock_irq(&q->queue_lock);
 	}
 
 	if (!icq) {

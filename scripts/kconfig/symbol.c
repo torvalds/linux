@@ -195,6 +195,10 @@ static void sym_set_changed(struct symbol *sym)
 
 	list_for_each_entry(menu, &sym->menus, link)
 		menu->flags |= MENU_CHANGED;
+
+	menu = sym_get_choice_menu(sym);
+	if (menu)
+		menu->flags |= MENU_CHANGED;
 }
 
 static void sym_set_all_changed(void)

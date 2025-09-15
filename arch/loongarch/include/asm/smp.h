@@ -39,7 +39,7 @@ int loongson_cpu_disable(void);
 void loongson_cpu_die(unsigned int cpu);
 #endif
 
-static inline void plat_smp_setup(void)
+static inline void __init plat_smp_setup(void)
 {
 	loongson_smp_setup();
 }

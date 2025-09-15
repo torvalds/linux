@@ -11,6 +11,7 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/slab.h>

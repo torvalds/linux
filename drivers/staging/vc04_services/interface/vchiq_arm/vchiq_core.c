@@ -3343,7 +3343,6 @@ vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instanc
 			return -EAGAIN;
 
 		vchiq_set_conn_state(state, VCHIQ_CONNSTATE_CONNECTED);
-		vchiq_platform_connected(state);
 		complete(&state->connect);
 	}
 

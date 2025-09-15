@@ -988,7 +988,7 @@ static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
 {
 	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
 	struct device *host_dev = ab->dev;
-	struct platform_device_info info = {0};
+	struct platform_device_info info = {};
 	struct iommu_domain *iommu_dom;
 	struct platform_device *pdev;
 	struct device_node *node;

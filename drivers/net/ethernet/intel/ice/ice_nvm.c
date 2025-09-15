@@ -22,10 +22,10 @@ int ice_aq_read_nvm(struct ice_hw *hw, u16 module_typeid, u32 offset,
 		    u16 length, void *data, bool last_command,
 		    bool read_shadow_ram, struct ice_sq_cd *cd)
 {
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	struct ice_aqc_nvm *cmd;
 
-	cmd = &desc.params.nvm;
+	cmd = libie_aq_raw(&desc);
 
 	if (offset > ICE_AQC_NVM_MAX_OFFSET)
 		return -EINVAL;
@@ -125,10 +125,10 @@ ice_aq_update_nvm(struct ice_hw *hw, u16 module_typeid, u32 offset,
 		  u16 length, void *data, bool last_command, u8 command_flags,
 		  struct ice_sq_cd *cd)
 {
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	struct ice_aqc_nvm *cmd;
 
-	cmd = &desc.params.nvm;
+	cmd = libie_aq_raw(&desc);
 
 	/* In offset the highest byte must be zeroed. */
 	if (offset & 0xFF000000)
@@ -146,7 +146,7 @@ ice_aq_update_nvm(struct ice_hw *hw, u16 module_typeid, u32 offset,
 	cmd->offset_high = (offset >> 16) & 0xFF;
 	cmd->length = cpu_to_le16(length);
 
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	return ice_aq_send_cmd(hw, &desc, data, length, cd);
 }
@@ -161,10 +161,10 @@ ice_aq_update_nvm(struct ice_hw *hw, u16 module_typeid, u32 offset,
  */
 int ice_aq_erase_nvm(struct ice_hw *hw, u16 module_typeid, struct ice_sq_cd *cd)
 {
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	struct ice_aqc_nvm *cmd;
 
-	cmd = &desc.params.nvm;
+	cmd = libie_aq_raw(&desc);
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_erase);
 
@@ -869,7 +869,7 @@ static int ice_discover_flash_size(struct ice_hw *hw)
 
 		status = ice_read_flat_nvm(hw, offset, &len, &data, false);
 		if (status == -EIO &&
-		    hw->adminq.sq_last_status == ICE_AQ_RC_EINVAL) {
+		    hw->adminq.sq_last_status == LIBIE_AQ_RC_EINVAL) {
 			ice_debug(hw, ICE_DBG_NVM, "%s: New upper bound of %u bytes\n",
 				  __func__, offset);
 			status = 0;
@@ -1182,14 +1182,14 @@ int ice_init_nvm(struct ice_hw *hw)
 int ice_nvm_validate_checksum(struct ice_hw *hw)
 {
 	struct ice_aqc_nvm_checksum *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
 	status = ice_acquire_nvm(hw, ICE_RES_READ);
 	if (status)
 		return status;
 
-	cmd = &desc.params.nvm_checksum;
+	cmd = libie_aq_raw(&desc);
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_checksum);
 	cmd->flags = ICE_AQC_NVM_CHECKSUM_VERIFY;
@@ -1226,11 +1226,11 @@ int ice_nvm_validate_checksum(struct ice_hw *hw)
  */
 int ice_nvm_write_activate(struct ice_hw *hw, u16 cmd_flags, u8 *response_flags)
 {
+	struct libie_aq_desc desc;
 	struct ice_aqc_nvm *cmd;
-	struct ice_aq_desc desc;
 	int err;
 
-	cmd = &desc.params.nvm;
+	cmd = libie_aq_raw(&desc);
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_write_activate);
 
 	cmd->cmd_flags = (u8)(cmd_flags & 0xFF);
@@ -1252,7 +1252,7 @@ int ice_nvm_write_activate(struct ice_hw *hw, u16 cmd_flags, u8 *response_flags)
  */
 int ice_aq_nvm_update_empr(struct ice_hw *hw)
 {
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_update_empr);
 
@@ -1278,15 +1278,15 @@ ice_nvm_set_pkg_data(struct ice_hw *hw, bool del_pkg_data_flag, u8 *data,
 		     u16 length, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_nvm_pkg_data *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 
 	if (length != 0 && !data)
 		return -EINVAL;
 
-	cmd = &desc.params.pkg_data;
+	cmd = libie_aq_raw(&desc);
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_pkg_data);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	if (del_pkg_data_flag)
 		cmd->cmd_flags |= ICE_AQC_NVM_PKG_DELETE;
@@ -1316,17 +1316,17 @@ ice_nvm_pass_component_tbl(struct ice_hw *hw, u8 *data, u16 length,
 			   u8 *comp_response_code, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_nvm_pass_comp_tbl *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
 	if (!data || !comp_response || !comp_response_code)
 		return -EINVAL;
 
-	cmd = &desc.params.pass_comp_tbl;
+	cmd = libie_aq_raw(&desc);
 
 	ice_fill_dflt_direct_cmd_desc(&desc,
 				      ice_aqc_opc_nvm_pass_component_tbl);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	cmd->transfer_flag = transfer_flag;
 	status = ice_aq_send_cmd(hw, &desc, data, length, cd);

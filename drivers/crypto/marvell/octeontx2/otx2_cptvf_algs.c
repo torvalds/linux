@@ -384,7 +384,8 @@ static inline int cpt_enc_dec(struct skcipher_request *req, u32 enc)
 	req_info->req_type = OTX2_CPT_ENC_DEC_REQ;
 	req_info->is_enc = enc;
 	req_info->is_trunc_hmac = false;
-	req_info->ctrl.s.grp = otx2_cpt_get_kcrypto_eng_grp_num(pdev);
+	req_info->ctrl.s.grp = otx2_cpt_get_eng_grp_num(pdev,
+							OTX2_CPT_SE_TYPES);
 
 	req_info->req.cptr = ctx->er_ctx.hw_ctx;
 	req_info->req.cptr_dma = ctx->er_ctx.cptr_dma;
@@ -1288,7 +1289,8 @@ static int cpt_aead_enc_dec(struct aead_request *req, u8 reg_type, u8 enc)
 	if (status)
 		return status;
 
-	req_info->ctrl.s.grp = otx2_cpt_get_kcrypto_eng_grp_num(pdev);
+	req_info->ctrl.s.grp = otx2_cpt_get_eng_grp_num(pdev,
+							OTX2_CPT_SE_TYPES);
 
 	/*
 	 * We perform an asynchronous send and once

@@ -36,6 +36,7 @@
 #include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <net/netevent.h>
+#include <net/ipv6_stubs.h>
 
 #include "en.h"
 #include "eswitch.h"
@@ -259,9 +260,15 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 				  struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
 	struct mlx5_core_dev *mdev = mlx5e_ipsec_sa2dev(sa_entry);
+	struct mlx5e_ipsec_addr *addrs = &attrs->addrs;
 	struct net_device *netdev = sa_entry->dev;
+	struct xfrm_state *x = sa_entry->x;
+	struct dst_entry *rt_dst_entry;
+	struct flowi4 fl4 = {};
+	struct flowi6 fl6 = {};
 	struct neighbour *n;
 	u8 addr[ETH_ALEN];
+	struct rtable *rt;
 	const void *pkey;
 	u8 *dst, *src;
 
@@ -274,18 +281,89 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	case XFRM_DEV_OFFLOAD_IN:
 		src = attrs->dmac;
 		dst = attrs->smac;
-		pkey = &attrs->addrs.saddr.a4;
+
+		switch (addrs->family) {
+		case AF_INET:
+			fl4.flowi4_proto = x->sel.proto;
+			fl4.daddr = addrs->saddr.a4;
+			fl4.saddr = addrs->daddr.a4;
+			pkey = &addrs->saddr.a4;
+			break;
+		case AF_INET6:
+			fl6.flowi6_proto = x->sel.proto;
+			memcpy(fl6.daddr.s6_addr32, addrs->saddr.a6, 16);
+			memcpy(fl6.saddr.s6_addr32, addrs->daddr.a6, 16);
+			pkey = &addrs->saddr.a6;
+			break;
+		default:
+			return;
+		}
 		break;
 	case XFRM_DEV_OFFLOAD_OUT:
 		src = attrs->smac;
 		dst = attrs->dmac;
-		pkey = &attrs->addrs.daddr.a4;
+		switch (addrs->family) {
+		case AF_INET:
+			fl4.flowi4_proto = x->sel.proto;
+			fl4.daddr = addrs->daddr.a4;
+			fl4.saddr = addrs->saddr.a4;
+			pkey = &addrs->daddr.a4;
+			break;
+		case AF_INET6:
+			fl6.flowi6_proto = x->sel.proto;
+			memcpy(fl6.daddr.s6_addr32, addrs->daddr.a6, 16);
+			memcpy(fl6.saddr.s6_addr32, addrs->saddr.a6, 16);
+			pkey = &addrs->daddr.a6;
+			break;
+		default:
+			return;
+		}
 		break;
 	default:
 		return;
 	}
 
 	ether_addr_copy(src, addr);
+
+	/* Destination can refer to a routed network, so perform FIB lookup
+	 * to resolve nexthop and get its MAC. Neighbour resolution is used as
+	 * fallback.
+	 */
+	switch (addrs->family) {
+	case AF_INET:
+		rt = ip_route_output_key(dev_net(netdev), &fl4);
+		if (IS_ERR(rt))
+			goto neigh;
+
+		if (rt->rt_type != RTN_UNICAST) {
+			ip_rt_put(rt);
+			goto neigh;
+		}
+		rt_dst_entry = &rt->dst;
+		break;
+	case AF_INET6:
+		rt_dst_entry = ipv6_stub->ipv6_dst_lookup_flow(
+			dev_net(netdev), NULL, &fl6, NULL);
+		if (IS_ERR(rt_dst_entry))
+			goto neigh;
+		break;
+	default:
+		return;
+	}
+
+	n = dst_neigh_lookup(rt_dst_entry, pkey);
+	if (!n) {
+		dst_release(rt_dst_entry);
+		goto neigh;
+	}
+
+	neigh_ha_snapshot(addr, n, netdev);
+	ether_addr_copy(dst, addr);
+	dst_release(rt_dst_entry);
+	neigh_release(n);
+	return;
+
+neigh:
 	n = neigh_lookup(&arp_tbl, pkey, netdev);
 	if (!n) {
 		n = neigh_create(&arp_tbl, pkey, netdev);

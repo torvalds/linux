@@ -104,7 +104,7 @@ struct iwl_qos_info {
 };
 
 /**
- * enum iwl_agg_state
+ * enum iwl_agg_state - aggregation state
  *
  * The state machine of the BA agreement establishment / tear down.
  * These states relate to a specific RA / TID.
@@ -519,7 +519,7 @@ enum iwl_scan_type {
 };
 
 /**
- * struct iwl_hw_params
+ * struct iwl_hw_params - HW parameters
  *
  * Holds the module parameters
  *

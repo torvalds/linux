@@ -24,45 +24,46 @@ static const struct inode_operations kernfs_iops = {
 	.listxattr	= kernfs_iop_listxattr,
 };
 
-static struct kernfs_iattrs *__kernfs_iattrs(struct kernfs_node *kn, int alloc)
+static struct kernfs_iattrs *__kernfs_iattrs(struct kernfs_node *kn, bool alloc)
 {
-	static DEFINE_MUTEX(iattr_mutex);
-	struct kernfs_iattrs *ret;
+	struct kernfs_iattrs *ret __free(kfree) = NULL;
+	struct kernfs_iattrs *attr;
 
-	mutex_lock(&iattr_mutex);
+	attr = READ_ONCE(kn->iattr);
+	if (attr || !alloc)
+		return attr;
 
-	if (kn->iattr || !alloc)
-		goto out_unlock;
-
-	kn->iattr = kmem_cache_zalloc(kernfs_iattrs_cache, GFP_KERNEL);
-	if (!kn->iattr)
-		goto out_unlock;
+	ret = kmem_cache_zalloc(kernfs_iattrs_cache, GFP_KERNEL);
+	if (!ret)
+		return NULL;
 
 	/* assign default attributes */
-	kn->iattr->ia_uid = GLOBAL_ROOT_UID;
-	kn->iattr->ia_gid = GLOBAL_ROOT_GID;
+	ret->ia_uid = GLOBAL_ROOT_UID;
+	ret->ia_gid = GLOBAL_ROOT_GID;
 
-	ktime_get_real_ts64(&kn->iattr->ia_atime);
-	kn->iattr->ia_mtime = kn->iattr->ia_atime;
-	kn->iattr->ia_ctime = kn->iattr->ia_atime;
+	ktime_get_real_ts64(&ret->ia_atime);
+	ret->ia_mtime = ret->ia_atime;
+	ret->ia_ctime = ret->ia_atime;
 
-	simple_xattrs_init(&kn->iattr->xattrs);
-	atomic_set(&kn->iattr->nr_user_xattrs, 0);
-	atomic_set(&kn->iattr->user_xattr_size, 0);
-out_unlock:
-	ret = kn->iattr;
-	mutex_unlock(&iattr_mutex);
-	return ret;
+	simple_xattrs_init(&ret->xattrs);
+	atomic_set(&ret->nr_user_xattrs, 0);
+	atomic_set(&ret->user_xattr_size, 0);
+
+	/* If someone raced us, recognize it. */
+	if (!try_cmpxchg(&kn->iattr, &attr, ret))
+		return READ_ONCE(kn->iattr);
+
+	return no_free_ptr(ret);
 }
 
 static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
 {
-	return __kernfs_iattrs(kn, 1);
+	return __kernfs_iattrs(kn, true);
 }
 
 static struct kernfs_iattrs *kernfs_iattrs_noalloc(struct kernfs_node *kn)
 {
-	return __kernfs_iattrs(kn, 0);
+	return __kernfs_iattrs(kn, false);
 }
 
 int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
@@ -166,9 +167,10 @@ static inline void set_inode_attr(struct inode *inode,
 
 static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 {
-	struct kernfs_iattrs *attrs = kn->iattr;
+	struct kernfs_iattrs *attrs;
 
 	inode->i_mode = kn->mode;
+	attrs = kernfs_iattrs_noalloc(kn);
 	if (attrs)
 		/*
 		 * kernfs_node has non-default attributes get them from
@@ -306,7 +308,9 @@ int kernfs_xattr_set(struct kernfs_node *kn, const char *name,
 		     const void *value, size_t size, int flags)
 {
 	struct simple_xattr *old_xattr;
-	struct kernfs_iattrs *attrs = kernfs_iattrs(kn);
+	struct kernfs_iattrs *attrs;
+
+	attrs = kernfs_iattrs(kn);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -345,8 +349,9 @@ static int kernfs_vfs_user_xattr_add(struct kernfs_node *kn,
 				     struct simple_xattrs *xattrs,
 				     const void *value, size_t size, int flags)
 {
-	atomic_t *sz = &kn->iattr->user_xattr_size;
-	atomic_t *nr = &kn->iattr->nr_user_xattrs;
+	struct kernfs_iattrs *attr = kernfs_iattrs_noalloc(kn);
+	atomic_t *sz = &attr->user_xattr_size;
+	atomic_t *nr = &attr->nr_user_xattrs;
 	struct simple_xattr *old_xattr;
 	int ret;
 
@@ -384,8 +389,9 @@ static int kernfs_vfs_user_xattr_rm(struct kernfs_node *kn,
 				    struct simple_xattrs *xattrs,
 				    const void *value, size_t size, int flags)
 {
-	atomic_t *sz = &kn->iattr->user_xattr_size;
-	atomic_t *nr = &kn->iattr->nr_user_xattrs;
+	struct kernfs_iattrs *attr = kernfs_iattrs_noalloc(kn);
+	atomic_t *sz = &attr->user_xattr_size;
+	atomic_t *nr = &attr->nr_user_xattrs;
 	struct simple_xattr *old_xattr;
 
 	old_xattr = simple_xattr_set(xattrs, full_name, value, size, flags);

@@ -1564,6 +1564,7 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
+	struct mmc_host *mmc = host->mmc;
 	bool done = false;
 	u32 val = SWITCHABLE_SIGNALING_VOLTAGE;
 	const struct sdhci_msm_offset *msm_offset =
@@ -1621,6 +1622,12 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 				 "%s: pwr_irq for req: (%d) timed out\n",
 				 mmc_hostname(host->mmc), req_type);
 	}
+
+	if ((req_type & REQ_BUS_ON) && mmc->card && !mmc->ops->get_cd(mmc)) {
+		sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
+		host->pwr = 0;
+	}
+
 	pr_debug("%s: %s: request %d done\n", mmc_hostname(host->mmc),
 			__func__, req_type);
 }
@@ -1677,6 +1684,13 @@ static void sdhci_msm_handle_pwr_irq(struct sdhci_host *host, int irq)
 			msm_offset->core_pwrctl_clear);
 		retry--;
 		udelay(10);
+	}
+
+	if ((irq_status & CORE_PWRCTL_BUS_ON) && mmc->card &&
+	    !mmc->ops->get_cd(mmc)) {
+		msm_host_writel(msm_host, CORE_PWRCTL_BUS_FAIL, host,
+				msm_offset->core_pwrctl_ctl);
+		return;
 	}
 
 	/* Handle BUS ON/OFF*/
@@ -2526,7 +2540,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
-		goto pltfm_free;
+		return ret;
 
 	/*
 	 * Based on the compatible string, load the required msm host info from
@@ -2548,7 +2562,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 	ret = sdhci_msm_gcc_reset(&pdev->dev, host);
 	if (ret)
-		goto pltfm_free;
+		return ret;
 
 	/* Setup SDCC bus voter clock. */
 	msm_host->bus_clk = devm_clk_get(&pdev->dev, "bus");
@@ -2556,10 +2570,10 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		/* Vote for max. clk rate for max. performance */
 		ret = clk_set_rate(msm_host->bus_clk, INT_MAX);
 		if (ret)
-			goto pltfm_free;
+			return ret;
 		ret = clk_prepare_enable(msm_host->bus_clk);
 		if (ret)
-			goto pltfm_free;
+			return ret;
 	}
 
 	/* Setup main peripheral bus clock */
@@ -2750,7 +2764,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	if (ret)
 		goto pm_runtime_disable;
 
-	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
 
 	return 0;
@@ -2765,8 +2778,6 @@ clk_disable:
 bus_clk_disable:
 	if (!IS_ERR(msm_host->bus_clk))
 		clk_disable_unprepare(msm_host->bus_clk);
-pltfm_free:
-	sdhci_pltfm_free(pdev);
 	return ret;
 }
 
@@ -2788,7 +2799,6 @@ static void sdhci_msm_remove(struct platform_device *pdev)
 				   msm_host->bulk_clks);
 	if (!IS_ERR(msm_host->bus_clk))
 		clk_disable_unprepare(msm_host->bus_clk);
-	sdhci_pltfm_free(pdev);
 }
 
 static __maybe_unused int sdhci_msm_runtime_suspend(struct device *dev)

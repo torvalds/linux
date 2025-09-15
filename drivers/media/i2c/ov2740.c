@@ -766,11 +766,9 @@ static int ov2740_init_controls(struct ov2740 *ov2740)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov2740->sd);
 	struct v4l2_ctrl_handler *ctrl_hdlr;
-	const struct ov2740_mode *cur_mode;
 	s64 exposure_max, h_blank, pixel_rate;
 	u32 vblank_min, vblank_max, vblank_default;
 	struct v4l2_fwnode_device_properties props;
-	int size;
 	int ret;
 
 	ctrl_hdlr = &ov2740->ctrl_handler;
@@ -778,12 +776,10 @@ static int ov2740_init_controls(struct ov2740 *ov2740)
 	if (ret)
 		return ret;
 
-	cur_mode = ov2740->cur_mode;
-	size = ARRAY_SIZE(link_freq_menu_items);
-
 	ov2740->link_freq =
 		v4l2_ctrl_new_int_menu(ctrl_hdlr, &ov2740_ctrl_ops,
-				       V4L2_CID_LINK_FREQ, size - 1,
+				       V4L2_CID_LINK_FREQ,
+				       ARRAY_SIZE(link_freq_menu_items) - 1,
 				       ov2740->supported_modes->link_freq_index,
 				       link_freq_menu_items);
 	if (ov2740->link_freq)
@@ -794,14 +790,14 @@ static int ov2740_init_controls(struct ov2740 *ov2740)
 					       V4L2_CID_PIXEL_RATE, 0,
 					       pixel_rate, 1, pixel_rate);
 
-	vblank_min = cur_mode->vts_min - cur_mode->height;
-	vblank_max = cur_mode->vts_max - cur_mode->height;
-	vblank_default = cur_mode->vts_def - cur_mode->height;
+	vblank_min = ov2740->cur_mode->vts_min - ov2740->cur_mode->height;
+	vblank_max = ov2740->cur_mode->vts_max - ov2740->cur_mode->height;
+	vblank_default = ov2740->cur_mode->vts_def - ov2740->cur_mode->height;
 	ov2740->vblank = v4l2_ctrl_new_std(ctrl_hdlr, &ov2740_ctrl_ops,
 					   V4L2_CID_VBLANK, vblank_min,
 					   vblank_max, 1, vblank_default);
 
-	h_blank = cur_mode->hts - cur_mode->width;
+	h_blank = ov2740->cur_mode->hts - ov2740->cur_mode->width;
 	ov2740->hblank = v4l2_ctrl_new_std(ctrl_hdlr, &ov2740_ctrl_ops,
 					   V4L2_CID_HBLANK, h_blank, h_blank, 1,
 					   h_blank);
@@ -814,7 +810,7 @@ static int ov2740_init_controls(struct ov2740 *ov2740)
 	v4l2_ctrl_new_std(ctrl_hdlr, &ov2740_ctrl_ops, V4L2_CID_DIGITAL_GAIN,
 			  OV2740_DGTL_GAIN_MIN, OV2740_DGTL_GAIN_MAX,
 			  OV2740_DGTL_GAIN_STEP, OV2740_DGTL_GAIN_DEFAULT);
-	exposure_max = cur_mode->vts_def - OV2740_EXPOSURE_MAX_MARGIN;
+	exposure_max = ov2740->cur_mode->vts_def - OV2740_EXPOSURE_MAX_MARGIN;
 	ov2740->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &ov2740_ctrl_ops,
 					     V4L2_CID_EXPOSURE,
 					     OV2740_EXPOSURE_MIN, exposure_max,

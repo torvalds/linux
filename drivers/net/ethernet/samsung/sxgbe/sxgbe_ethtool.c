@@ -308,8 +308,8 @@ static int sxgbe_set_coalesce(struct net_device *dev,
 	return 0;
 }
 
-static int sxgbe_get_rss_hash_opts(struct sxgbe_priv_data *priv,
-				   struct ethtool_rxnfc *cmd)
+static int sxgbe_get_rxfh_fields(struct net_device *dev,
+				 struct ethtool_rxfh_fields *cmd)
 {
 	cmd->data = 0;
 
@@ -344,26 +344,11 @@ static int sxgbe_get_rss_hash_opts(struct sxgbe_priv_data *priv,
 	return 0;
 }
 
-static int sxgbe_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
-			   u32 *rule_locs)
+static int sxgbe_set_rxfh_fields(struct net_device *dev,
+				 const struct ethtool_rxfh_fields *cmd,
+				 struct netlink_ext_ack *extack)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
-
-	switch (cmd->cmd) {
-	case ETHTOOL_GRXFH:
-		ret = sxgbe_get_rss_hash_opts(priv, cmd);
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
-static int sxgbe_set_rss_hash_opt(struct sxgbe_priv_data *priv,
-				  struct ethtool_rxnfc *cmd)
-{
 	u32 reg_val = 0;
 
 	/* RSS does not support anything other than hashing
@@ -421,22 +406,6 @@ static int sxgbe_set_rss_hash_opt(struct sxgbe_priv_data *priv,
 	return 0;
 }
 
-static int sxgbe_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
-{
-	struct sxgbe_priv_data *priv = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
-
-	switch (cmd->cmd) {
-	case ETHTOOL_SRXFH:
-		ret = sxgbe_set_rss_hash_opt(priv, cmd);
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
 static void sxgbe_get_regs(struct net_device *dev,
 			   struct ethtool_regs *regs, void *space)
 {
@@ -489,8 +458,8 @@ static const struct ethtool_ops sxgbe_ethtool_ops = {
 	.get_channels = sxgbe_get_channels,
 	.get_coalesce = sxgbe_get_coalesce,
 	.set_coalesce = sxgbe_set_coalesce,
-	.get_rxnfc = sxgbe_get_rxnfc,
-	.set_rxnfc = sxgbe_set_rxnfc,
+	.get_rxfh_fields = sxgbe_get_rxfh_fields,
+	.set_rxfh_fields = sxgbe_set_rxfh_fields,
 	.get_regs = sxgbe_get_regs,
 	.get_regs_len = sxgbe_get_regs_len,
 	.get_eee = sxgbe_get_eee,

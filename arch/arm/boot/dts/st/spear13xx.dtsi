@@ -149,7 +149,7 @@
 			status = "disabled";
 		};
 
-		gmac0: eth@e2000000 {
+		gmac0: ethernet@e2000000 {
 			compatible = "st,spear600-gmac";
 			reg = <0xe2000000 0x8000>;
 			interrupts = <0 33 0x4>,

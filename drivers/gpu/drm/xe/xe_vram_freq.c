@@ -34,7 +34,7 @@ static ssize_t max_freq_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct xe_tile *tile = dev_to_tile(dev);
-	u32 val, mbox;
+	u32 val = 0, mbox;
 	int err;
 
 	mbox = REG_FIELD_PREP(PCODE_MB_COMMAND, PCODE_FREQUENCY_CONFIG)
@@ -56,7 +56,7 @@ static ssize_t min_freq_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct xe_tile *tile = dev_to_tile(dev);
-	u32 val, mbox;
+	u32 val = 0, mbox;
 	int err;
 
 	mbox = REG_FIELD_PREP(PCODE_MB_COMMAND, PCODE_FREQUENCY_CONFIG)

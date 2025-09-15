@@ -211,20 +211,18 @@ static int ma35_probe(struct platform_device *pdev)
 	priv = sdhci_pltfm_priv(pltfm_host);
 
 	pltfm_host->clk = devm_clk_get_optional_enabled(dev, NULL);
-	if (IS_ERR(pltfm_host->clk)) {
-		err = dev_err_probe(dev, PTR_ERR(pltfm_host->clk), "failed to get clk\n");
-		goto err_sdhci;
-	}
+	if (IS_ERR(pltfm_host->clk))
+		return dev_err_probe(dev, PTR_ERR(pltfm_host->clk),
+				     "failed to get clk\n");
 
 	err = mmc_of_parse(host->mmc);
 	if (err)
-		goto err_sdhci;
+		return err;
 
 	priv->rst = devm_reset_control_get_exclusive(dev, NULL);
-	if (IS_ERR(priv->rst)) {
-		err = dev_err_probe(dev, PTR_ERR(priv->rst), "failed to get reset control\n");
-		goto err_sdhci;
-	}
+	if (IS_ERR(priv->rst))
+		return dev_err_probe(dev, PTR_ERR(priv->rst),
+				     "failed to get reset control\n");
 
 	sdhci_get_of_property(pdev);
 
@@ -255,7 +253,7 @@ static int ma35_probe(struct platform_device *pdev)
 
 	err = sdhci_add_host(host);
 	if (err)
-		goto err_sdhci;
+		return err;
 
 	/*
 	 * Split data into chunks of 16 or 8 bytes for transmission.
@@ -268,10 +266,6 @@ static int ma35_probe(struct platform_device *pdev)
 	sdhci_writew(host, ctl, MA35_SDHCI_MBIUCTL);
 
 	return 0;
-
-err_sdhci:
-	sdhci_pltfm_free(pdev);
-	return err;
 }
 
 static void ma35_disable_card_clk(struct sdhci_host *host)
@@ -291,7 +285,6 @@ static void ma35_remove(struct platform_device *pdev)
 
 	sdhci_remove_host(host, 0);
 	ma35_disable_card_clk(host);
-	sdhci_pltfm_free(pdev);
 }
 
 static const struct of_device_id sdhci_ma35_dt_ids[] = {

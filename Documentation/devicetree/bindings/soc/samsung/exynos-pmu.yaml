@@ -203,6 +203,9 @@ allOf:
     then:
       required:
         - google,pmu-intr-gen-syscon
+    else:
+      properties:
+        google,pmu-intr-gen-syscon: false
 
 examples:
   - |

@@ -82,7 +82,7 @@ repeat:
 	if (folio_test_uptodate(folio))
 		goto out;
 
-	fio.page = &folio->page;
+	fio.folio = folio;
 
 	err = f2fs_submit_page_bio(&fio);
 	if (err) {
@@ -309,7 +309,7 @@ int f2fs_ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 			continue;
 		}
 
-		fio.page = &folio->page;
+		fio.folio = folio;
 		err = f2fs_submit_page_bio(&fio);
 		f2fs_folio_put(folio, err ? true : false);
 
@@ -485,7 +485,7 @@ static bool f2fs_dirty_meta_folio(struct address_space *mapping,
 		folio_mark_uptodate(folio);
 	if (filemap_dirty_folio(mapping, folio)) {
 		inc_page_count(F2FS_M_SB(mapping), F2FS_DIRTY_META);
-		set_page_private_reference(&folio->page);
+		folio_set_f2fs_reference(folio);
 		return true;
 	}
 	return false;
@@ -1045,7 +1045,7 @@ void f2fs_update_dirty_folio(struct inode *inode, struct folio *folio)
 	inode_inc_dirty_pages(inode);
 	spin_unlock(&sbi->inode_lock[type]);
 
-	set_page_private_reference(&folio->page);
+	folio_set_f2fs_reference(folio);
 }
 
 void f2fs_remove_dirty_inode(struct inode *inode)

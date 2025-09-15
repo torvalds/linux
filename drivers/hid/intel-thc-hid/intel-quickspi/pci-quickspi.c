@@ -11,8 +11,11 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 
+#include <linux/gpio/consumer.h>
+
 #include "intel-thc-dev.h"
 #include "intel-thc-hw.h"
+#include "intel-thc-wot.h"
 
 #include "quickspi-dev.h"
 #include "quickspi-hid.h"
@@ -45,6 +48,15 @@ static guid_t thc_quickspi_guid =
 static guid_t thc_platform_guid =
 	GUID_INIT(0x84005682, 0x5b71, 0x41a4, 0x8d, 0x66, 0x81, 0x30,
 		  0xf7, 0x87, 0xa1, 0x38);
+
+
+/* QuickSPI Wake-on-Touch GPIO resource */
+static const struct acpi_gpio_params wake_gpio = { 0, 0, true };
+
+static const struct acpi_gpio_mapping quickspi_gpios[] = {
+	{ "wake-on-touch", &wake_gpio, 1 },
+	{ }
+};
 
 /**
  * thc_acpi_get_property - Query device ACPI parameter
@@ -426,6 +438,8 @@ static struct quickspi_device *quickspi_dev_init(struct pci_dev *pdev, void __io
 
 	thc_interrupt_enable(qsdev->thc_hw, true);
 
+	thc_wot_config(qsdev->thc_hw, &quickspi_gpios[0]);
+
 	qsdev->state = QUICKSPI_INITIATED;
 
 	return qsdev;
@@ -442,6 +456,7 @@ static void quickspi_dev_deinit(struct quickspi_device *qsdev)
 {
 	thc_interrupt_enable(qsdev->thc_hw, false);
 	thc_ltr_unconfig(qsdev->thc_hw);
+	thc_wot_unconfig(qsdev->thc_hw);
 
 	qsdev->state = QUICKSPI_DISABLED;
 }

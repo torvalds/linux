@@ -63,7 +63,7 @@ struct nfs4_minor_version_ops {
 	bool	(*match_stateid)(const nfs4_stateid *,
 			const nfs4_stateid *);
 	int	(*find_root_sec)(struct nfs_server *, struct nfs_fh *,
-			struct nfs_fsinfo *);
+				 struct nfs_fattr *);
 	void	(*free_lock_state)(struct nfs_server *,
 			struct nfs4_lock_state *);
 	int	(*test_and_free_expired)(struct nfs_server *,
@@ -296,7 +296,8 @@ extern int nfs4_call_sync(struct rpc_clnt *, struct nfs_server *,
 extern void nfs4_init_sequence(struct nfs4_sequence_args *, struct nfs4_sequence_res *, int, int);
 extern int nfs4_proc_setclientid(struct nfs_client *, u32, unsigned short, const struct cred *, struct nfs4_setclientid_res *);
 extern int nfs4_proc_setclientid_confirm(struct nfs_client *, struct nfs4_setclientid_res *arg, const struct cred *);
-extern int nfs4_proc_get_rootfh(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *, bool);
+extern int nfs4_proc_get_rootfh(struct nfs_server *, struct nfs_fh *,
+				struct nfs_fattr *, bool);
 extern int nfs4_proc_bind_conn_to_session(struct nfs_client *, const struct cred *cred);
 extern int nfs4_proc_exchange_id(struct nfs_client *clp, const struct cred *cred);
 extern int nfs4_destroy_clientid(struct nfs_client *clp);

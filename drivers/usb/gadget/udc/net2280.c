@@ -203,13 +203,13 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	}
 
 	/* erratum 0119 workaround ties up an endpoint number */
-	if ((desc->bEndpointAddress & 0x0f) == EP_DONTUSE) {
+	if (usb_endpoint_num(desc) == EP_DONTUSE) {
 		ret = -EDOM;
 		goto print_err;
 	}
 
 	if (dev->quirks & PLX_PCIE) {
-		if ((desc->bEndpointAddress & 0x0f) >= 0x0c) {
+		if (usb_endpoint_num(desc) >= 0x0c) {
 			ret = -EDOM;
 			goto print_err;
 		}
@@ -255,7 +255,7 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		else
 			tmp &= ~USB3380_EP_CFG_MASK_OUT;
 	}
-	type = (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK);
+	type = usb_endpoint_type(desc);
 	if (type == USB_ENDPOINT_XFER_INT) {
 		/* erratum 0105 workaround prevents hs NYET */
 		if (dev->chiprev == 0100 &&
@@ -1334,7 +1334,7 @@ net2280_set_halt_and_wedge(struct usb_ep *_ep, int value, int wedged)
 		retval = -ESHUTDOWN;
 		goto print_err;
 	}
-	if (ep->desc /* not ep0 */ && (ep->desc->bmAttributes & 0x03)
+	if (ep->desc /* not ep0 */ && usb_endpoint_type(ep->desc)
 						== USB_ENDPOINT_XFER_ISOC) {
 		retval = -EINVAL;
 		goto print_err;

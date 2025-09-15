@@ -97,6 +97,20 @@ bool rxrpc_direct_abort(struct sk_buff *skb, enum rxrpc_abort_reason why,
 	return false;
 }
 
+/*
+ * Directly produce a connection abort from a packet.
+ */
+bool rxrpc_direct_conn_abort(struct sk_buff *skb, enum rxrpc_abort_reason why,
+			     s32 abort_code, int err)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+
+	trace_rxrpc_abort(0, why, sp->hdr.cid, 0, sp->hdr.seq, abort_code, err);
+	skb->mark = RXRPC_SKB_MARK_REJECT_CONN_ABORT;
+	skb->priority = abort_code;
+	return false;
+}
+
 static bool rxrpc_bad_message(struct sk_buff *skb, enum rxrpc_abort_reason why)
 {
 	return rxrpc_direct_abort(skb, why, RX_PROTOCOL_ERROR, -EBADMSG);

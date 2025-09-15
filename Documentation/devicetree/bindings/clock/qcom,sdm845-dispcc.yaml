@@ -13,7 +13,7 @@ description: |
   Qualcomm display clock control module provides the clocks, resets and power
   domains on SDM845.
 
-  See also:: include/dt-bindings/clock/qcom,dispcc-sdm845.h
+  See also: include/dt-bindings/clock/qcom,dispcc-sdm845.h
 
 properties:
   compatible:

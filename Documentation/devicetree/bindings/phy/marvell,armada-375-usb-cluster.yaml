@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/marvell,armada-375-usb-cluster.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Armada 375 USB Cluster
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+description:
+  Control register for the Armada 375 USB cluster, managing USB2 and USB3 features.
+
+properties:
+  compatible:
+    const: marvell,armada-375-usb-cluster
+
+  reg:
+    maxItems: 1
+
+  '#phy-cells':
+    description: Number of PHY cells in specifier. 1 for USB2, 2 for USB3.
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - '#phy-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    usbcluster: usb-cluster@18400 {
+        compatible = "marvell,armada-375-usb-cluster";
+        reg = <0x18400 0x4>;
+        #phy-cells = <1>;
+    };

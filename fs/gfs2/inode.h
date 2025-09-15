@@ -44,17 +44,17 @@ static inline int gfs2_is_dir(const struct gfs2_inode *ip)
 
 static inline void gfs2_set_inode_blocks(struct inode *inode, u64 blocks)
 {
-	inode->i_blocks = blocks << (inode->i_blkbits - 9);
+	inode->i_blocks = blocks << (inode->i_blkbits - SECTOR_SHIFT);
 }
 
 static inline u64 gfs2_get_inode_blocks(const struct inode *inode)
 {
-	return inode->i_blocks >> (inode->i_blkbits - 9);
+	return inode->i_blocks >> (inode->i_blkbits - SECTOR_SHIFT);
 }
 
 static inline void gfs2_add_inode_blocks(struct inode *inode, s64 change)
 {
-	change <<= inode->i_blkbits - 9;
+	change <<= inode->i_blkbits - SECTOR_SHIFT;
 	gfs2_assert(GFS2_SB(inode), (change >= 0 || inode->i_blocks >= -change));
 	inode->i_blocks += change;
 }
@@ -107,9 +107,9 @@ loff_t gfs2_seek_hole(struct file *file, loff_t offset);
 extern const struct file_operations gfs2_file_fops_nolock;
 extern const struct file_operations gfs2_dir_fops_nolock;
 
-int gfs2_fileattr_get(struct dentry *dentry, struct fileattr *fa);
+int gfs2_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
 int gfs2_fileattr_set(struct mnt_idmap *idmap,
-		      struct dentry *dentry, struct fileattr *fa);
+		      struct dentry *dentry, struct file_kattr *fa);
 void gfs2_set_inode_flags(struct inode *inode);
 
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM

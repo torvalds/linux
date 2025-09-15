@@ -203,8 +203,6 @@ static int __rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr,
 
 		page = hmm_pfn_to_page(umem_odp->map.pfn_list[idx]);
 		user_va = kmap_local_page(page);
-		if (!user_va)
-			return -EFAULT;
 
 		src = (dir == RXE_TO_MR_OBJ) ? addr : user_va;
 		dest = (dir == RXE_TO_MR_OBJ) ? user_va : addr;
@@ -283,16 +281,14 @@ static enum resp_states rxe_odp_do_atomic_op(struct rxe_mr *mr, u64 iova,
 		return RESPST_ERR_RKEY_VIOLATION;
 	}
 
-	idx = rxe_odp_iova_to_index(umem_odp, iova);
 	page_offset = rxe_odp_iova_to_page_offset(umem_odp, iova);
-	page = hmm_pfn_to_page(umem_odp->map.pfn_list[idx]);
-	if (!page)
-		return RESPST_ERR_RKEY_VIOLATION;
-
 	if (unlikely(page_offset & 0x7)) {
 		rxe_dbg_mr(mr, "iova not aligned\n");
 		return RESPST_ERR_MISALIGNED_ATOMIC;
 	}
+
+	idx = rxe_odp_iova_to_index(umem_odp, iova);
+	page = hmm_pfn_to_page(umem_odp->map.pfn_list[idx]);
 
 	va = kmap_local_page(page);
 
@@ -352,10 +348,6 @@ int rxe_odp_flush_pmem_iova(struct rxe_mr *mr, u64 iova,
 		page_offset = rxe_odp_iova_to_page_offset(umem_odp, iova);
 
 		page = hmm_pfn_to_page(umem_odp->map.pfn_list[index]);
-		if (!page) {
-			mutex_unlock(&umem_odp->umem_mutex);
-			return -EFAULT;
-		}
 
 		bytes = min_t(unsigned int, length,
 			      mr_page_size(mr) - page_offset);
@@ -396,18 +388,15 @@ enum resp_states rxe_odp_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 		return RESPST_ERR_RKEY_VIOLATION;
 
 	page_offset = rxe_odp_iova_to_page_offset(umem_odp, iova);
-	index = rxe_odp_iova_to_index(umem_odp, iova);
-	page = hmm_pfn_to_page(umem_odp->map.pfn_list[index]);
-	if (!page) {
-		mutex_unlock(&umem_odp->umem_mutex);
-		return RESPST_ERR_RKEY_VIOLATION;
-	}
 	/* See IBA A19.4.2 */
 	if (unlikely(page_offset & 0x7)) {
 		mutex_unlock(&umem_odp->umem_mutex);
 		rxe_dbg_mr(mr, "misaligned address\n");
 		return RESPST_ERR_MISALIGNED_ATOMIC;
 	}
+
+	index = rxe_odp_iova_to_index(umem_odp, iova);
+	page = hmm_pfn_to_page(umem_odp->map.pfn_list[index]);
 
 	va = kmap_local_page(page);
 	/* Do atomic write after all prior operations have completed */
@@ -417,4 +406,173 @@ enum resp_states rxe_odp_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 	mutex_unlock(&umem_odp->umem_mutex);
 
 	return RESPST_NONE;
+}
+
+struct prefetch_mr_work {
+	struct work_struct work;
+	u32 pf_flags;
+	u32 num_sge;
+	struct {
+		u64 io_virt;
+		struct rxe_mr *mr;
+		size_t length;
+	} frags[];
+};
+
+static void rxe_ib_prefetch_mr_work(struct work_struct *w)
+{
+	struct prefetch_mr_work *work =
+		container_of(w, struct prefetch_mr_work, work);
+	int ret;
+	u32 i;
+
+	/*
+	 * We rely on IB/core that work is executed
+	 * if we have num_sge != 0 only.
+	 */
+	WARN_ON(!work->num_sge);
+	for (i = 0; i < work->num_sge; ++i) {
+		struct ib_umem_odp *umem_odp;
+
+		ret = rxe_odp_do_pagefault_and_lock(work->frags[i].mr,
+						    work->frags[i].io_virt,
+						    work->frags[i].length,
+						    work->pf_flags);
+		if (ret < 0) {
+			rxe_dbg_mr(work->frags[i].mr,
+				   "failed to prefetch the mr\n");
+			goto deref;
+		}
+
+		umem_odp = to_ib_umem_odp(work->frags[i].mr->umem);
+		mutex_unlock(&umem_odp->umem_mutex);
+
+deref:
+		rxe_put(work->frags[i].mr);
+	}
+
+	kvfree(work);
+}
+
+static int rxe_ib_prefetch_sg_list(struct ib_pd *ibpd,
+				   enum ib_uverbs_advise_mr_advice advice,
+				   u32 pf_flags, struct ib_sge *sg_list,
+				   u32 num_sge)
+{
+	struct rxe_pd *pd = container_of(ibpd, struct rxe_pd, ibpd);
+	int ret = 0;
+	u32 i;
+
+	for (i = 0; i < num_sge; ++i) {
+		struct rxe_mr *mr;
+		struct ib_umem_odp *umem_odp;
+
+		mr = lookup_mr(pd, IB_ACCESS_LOCAL_WRITE,
+			       sg_list[i].lkey, RXE_LOOKUP_LOCAL);
+
+		if (!mr) {
+			rxe_dbg_pd(pd, "mr with lkey %x not found\n",
+				   sg_list[i].lkey);
+			return -EINVAL;
+		}
+
+		if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_WRITE &&
+		    !mr->umem->writable) {
+			rxe_dbg_mr(mr, "missing write permission\n");
+			rxe_put(mr);
+			return -EPERM;
+		}
+
+		ret = rxe_odp_do_pagefault_and_lock(
+			mr, sg_list[i].addr, sg_list[i].length, pf_flags);
+		if (ret < 0) {
+			rxe_dbg_mr(mr, "failed to prefetch the mr\n");
+			rxe_put(mr);
+			return ret;
+		}
+
+		umem_odp = to_ib_umem_odp(mr->umem);
+		mutex_unlock(&umem_odp->umem_mutex);
+
+		rxe_put(mr);
+	}
+
+	return 0;
+}
+
+static int rxe_ib_advise_mr_prefetch(struct ib_pd *ibpd,
+				     enum ib_uverbs_advise_mr_advice advice,
+				     u32 flags, struct ib_sge *sg_list,
+				     u32 num_sge)
+{
+	struct rxe_pd *pd = container_of(ibpd, struct rxe_pd, ibpd);
+	u32 pf_flags = RXE_PAGEFAULT_DEFAULT;
+	struct prefetch_mr_work *work;
+	struct rxe_mr *mr;
+	u32 i;
+
+	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH)
+		pf_flags |= RXE_PAGEFAULT_RDONLY;
+
+	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_NO_FAULT)
+		pf_flags |= RXE_PAGEFAULT_SNAPSHOT;
+
+	/* Synchronous call */
+	if (flags & IB_UVERBS_ADVISE_MR_FLAG_FLUSH)
+		return rxe_ib_prefetch_sg_list(ibpd, advice, pf_flags, sg_list,
+					       num_sge);
+
+	/* Asynchronous call is "best-effort" and allowed to fail */
+	work = kvzalloc(struct_size(work, frags, num_sge), GFP_KERNEL);
+	if (!work)
+		return -ENOMEM;
+
+	INIT_WORK(&work->work, rxe_ib_prefetch_mr_work);
+	work->pf_flags = pf_flags;
+	work->num_sge = num_sge;
+
+	for (i = 0; i < num_sge; ++i) {
+		/* Takes a reference, which will be released in the queued work */
+		mr = lookup_mr(pd, IB_ACCESS_LOCAL_WRITE,
+			       sg_list[i].lkey, RXE_LOOKUP_LOCAL);
+		if (!mr) {
+			mr = ERR_PTR(-EINVAL);
+			goto err;
+		}
+
+		work->frags[i].io_virt = sg_list[i].addr;
+		work->frags[i].length = sg_list[i].length;
+		work->frags[i].mr = mr;
+	}
+
+	queue_work(system_unbound_wq, &work->work);
+
+	return 0;
+
+ err:
+	/* rollback reference counts for the invalid request */
+	while (i > 0) {
+		i--;
+		rxe_put(work->frags[i].mr);
+	}
+
+	kvfree(work);
+
+	return PTR_ERR(mr);
+}
+
+int rxe_ib_advise_mr(struct ib_pd *ibpd,
+		     enum ib_uverbs_advise_mr_advice advice,
+		     u32 flags,
+		     struct ib_sge *sg_list,
+		     u32 num_sge,
+		     struct uverbs_attr_bundle *attrs)
+{
+	if (advice != IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH &&
+	    advice != IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_WRITE &&
+	    advice != IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_NO_FAULT)
+		return -EOPNOTSUPP;
+
+	return rxe_ib_advise_mr_prefetch(ibpd, advice, flags,
+					 sg_list, num_sge);
 }

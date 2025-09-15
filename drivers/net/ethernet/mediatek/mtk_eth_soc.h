@@ -141,8 +141,10 @@
 #define MTK_GDMA_MAC_ADRH(x)	({ typeof(x) _x = (x); (_x == MTK_GMAC3_ID) ?	\
 				   0x54C : 0x50C + (_x * 0x1000); })
 
-/* Internal SRAM offset */
-#define MTK_ETH_SRAM_OFFSET	0x40000
+/* legacy DT support for internal SRAM */
+#define MTK_ETH_SRAM_OFFSET		0x40000
+#define MTK_ETH_SRAM_GRANULARITY	32
+#define MTK_ETH_NETSYS_V2_SRAM_SIZE	0x40000
 
 /* FE global misc reg*/
 #define MTK_FE_GLO_MISC         0x124
@@ -641,6 +643,11 @@
 #define MTK_FE_GDM2_FSM		0x22C
 
 #define MTK_MAC_FSM(x)		(0x1010C + ((x) * 0x100))
+
+#define MTK_FE_IRQ_SHARED	0
+#define MTK_FE_IRQ_TX		0
+#define MTK_FE_IRQ_RX		1
+#define MTK_FE_IRQ_NUM		(MTK_FE_IRQ_RX + 1)
 
 struct mtk_rx_dma {
 	unsigned int rxd1;
@@ -1238,8 +1245,9 @@ struct mtk_soc_data {
 /* struct mtk_eth -	This is the main datasructure for holding the state
  *			of the driver
  * @dev:		The device pointer
- * @dev:		The device pointer used for dma mapping/alloc
+ * @dma_dev:		The device pointer used for dma mapping/alloc
  * @base:		The mapped register i/o base
+ * @sram_pool:		Pointer to SRAM pool used for DMA descriptor rings
  * @page_lock:		Make sure that register operations are atomic
  * @tx_irq__lock:	Make sure that IRQ register operations are atomic
  * @rx_irq__lock:	Make sure that IRQ register operations are atomic
@@ -1285,14 +1293,14 @@ struct mtk_eth {
 	struct device			*dev;
 	struct device			*dma_dev;
 	void __iomem			*base;
-	void				*sram_base;
+	struct gen_pool			*sram_pool;
 	spinlock_t			page_lock;
 	spinlock_t			tx_irq_lock;
 	spinlock_t			rx_irq_lock;
 	struct net_device		*dummy_dev;
 	struct net_device		*netdev[MTK_MAX_DEVS];
 	struct mtk_mac			*mac[MTK_MAX_DEVS];
-	int				irq[3];
+	int				irq[MTK_FE_IRQ_NUM];
 	u32				msg_enable;
 	unsigned long			sysclk;
 	struct regmap			*ethsys;

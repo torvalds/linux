@@ -234,7 +234,7 @@
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <104000000>;
-		spi-cs-setup-ns = <7>;
+		spi-cs-setup-delay-ns = <7>;
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <4>;
 		m25p,fast-read;
@@ -385,7 +385,7 @@
 
 	wilc: wifi@0 {
 		reg = <0>;
-		compatible = "microchip,wilc1000";
+		compatible = "microchip,wilc3000", "microchip,wilc1000";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_wilc_default>;
 		clocks = <&pmc PMC_TYPE_SYSTEM 9>;

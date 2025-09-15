@@ -6,12 +6,11 @@
 
 use crate::{
     bindings, container_of, device,
-    device_id::RawDeviceId,
+    device_id::{RawDeviceId, RawDeviceIdIndex},
     driver,
-    error::{to_result, Result},
+    error::{from_result, to_result, Result},
     prelude::*,
-    str::CStr,
-    types::{ForeignOwnable, Opaque},
+    types::Opaque,
     ThisModule,
 };
 use core::{
@@ -61,37 +60,32 @@ impl<T: Driver + 'static> Adapter<T> {
         // `struct auxiliary_device`.
         //
         // INVARIANT: `adev` is valid for the duration of `probe_callback()`.
-        let adev = unsafe { &*adev.cast::<Device<device::Core>>() };
+        let adev = unsafe { &*adev.cast::<Device<device::CoreInternal>>() };
 
         // SAFETY: `DeviceId` is a `#[repr(transparent)`] wrapper of `struct auxiliary_device_id`
         // and does not add additional invariants, so it's safe to transmute.
         let id = unsafe { &*id.cast::<DeviceId>() };
         let info = T::ID_TABLE.info(id.index());
 
-        match T::probe(adev, info) {
-            Ok(data) => {
-                // Let the `struct auxiliary_device` own a reference of the driver's private data.
-                // SAFETY: By the type invariant `adev.as_raw` returns a valid pointer to a
-                // `struct auxiliary_device`.
-                unsafe {
-                    bindings::auxiliary_set_drvdata(adev.as_raw(), data.into_foreign().cast())
-                };
-            }
-            Err(err) => return Error::to_errno(err),
-        }
+        from_result(|| {
+            let data = T::probe(adev, info)?;
 
-        0
+            adev.as_ref().set_drvdata(data);
+            Ok(0)
+        })
     }
 
     extern "C" fn remove_callback(adev: *mut bindings::auxiliary_device) {
-        // SAFETY: The auxiliary bus only ever calls the remove callback with a valid pointer to a
+        // SAFETY: The auxiliary bus only ever calls the probe callback with a valid pointer to a
         // `struct auxiliary_device`.
-        let ptr = unsafe { bindings::auxiliary_get_drvdata(adev) };
+        //
+        // INVARIANT: `adev` is valid for the duration of `probe_callback()`.
+        let adev = unsafe { &*adev.cast::<Device<device::CoreInternal>>() };
 
         // SAFETY: `remove_callback` is only ever called after a successful call to
-        // `probe_callback`, hence it's guaranteed that `ptr` points to a valid and initialized
-        // `KBox<T>` pointer created through `KBox::into_foreign`.
-        drop(unsafe { KBox::<T>::from_foreign(ptr.cast()) });
+        // `probe_callback`, hence it's guaranteed that `Device::set_drvdata()` has been called
+        // and stored a `Pin<KBox<T>>`.
+        drop(unsafe { adev.as_ref().drvdata_obtain::<Pin<KBox<T>>>() });
     }
 }
 
@@ -140,13 +134,14 @@ impl DeviceId {
     }
 }
 
-// SAFETY:
-// * `DeviceId` is a `#[repr(transparent)`] wrapper of `auxiliary_device_id` and does not add
-//   additional invariants, so it's safe to transmute to `RawType`.
-// * `DRIVER_DATA_OFFSET` is the offset to the `driver_data` field.
+// SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `auxiliary_device_id` and does not add
+// additional invariants, so it's safe to transmute to `RawType`.
 unsafe impl RawDeviceId for DeviceId {
     type RawType = bindings::auxiliary_device_id;
+}
 
+// SAFETY: `DRIVER_DATA_OFFSET` is the offset to the `driver_data` field.
+unsafe impl RawDeviceIdIndex for DeviceId {
     const DRIVER_DATA_OFFSET: usize =
         core::mem::offset_of!(bindings::auxiliary_device_id, driver_data);
 
@@ -276,7 +271,7 @@ impl<Ctx: device::DeviceContext> AsRef<device::Device<Ctx>> for Device<Ctx> {
         let dev = unsafe { addr_of_mut!((*self.as_raw()).dev) };
 
         // SAFETY: `dev` points to a valid `struct device`.
-        unsafe { device::Device::as_ref(dev) }
+        unsafe { device::Device::from_raw(dev) }
     }
 }
 

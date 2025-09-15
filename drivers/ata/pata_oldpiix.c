@@ -214,7 +214,7 @@ static struct ata_port_operations oldpiix_pata_ops = {
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= oldpiix_set_piomode,
 	.set_dmamode		= oldpiix_set_dmamode,
-	.prereset		= oldpiix_pre_reset,
+	.reset.prereset		= oldpiix_pre_reset,
 };
 
 

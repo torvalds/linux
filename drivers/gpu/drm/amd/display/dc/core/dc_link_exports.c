@@ -520,3 +520,10 @@ enum dc_status dc_link_validate_dp_tunneling_bandwidth(const struct dc *dc, cons
 	return dc->link_srv->validate_dp_tunnel_bandwidth(dc, new_ctx);
 }
 
+void dc_link_get_alpm_support(struct dc_link *link,
+	bool *auxless_support,
+	bool *auxwake_support)
+{
+	link->dc->link_srv->edp_get_alpm_support(link, auxless_support, auxwake_support);
+}
+

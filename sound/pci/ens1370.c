@@ -1244,7 +1244,7 @@ static int snd_ensoniq_pcm(struct ensoniq *ensoniq, int device)
 
 	pcm->private_data = ensoniq;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, CHIP_NAME " DAC2/ADC");
+	strscpy(pcm->name, CHIP_NAME " DAC2/ADC");
 	ensoniq->pcm1 = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1276,7 +1276,7 @@ static int snd_ensoniq_pcm2(struct ensoniq *ensoniq, int device)
 #endif
 	pcm->private_data = ensoniq;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, CHIP_NAME " DAC1");
+	strscpy(pcm->name, CHIP_NAME " DAC1");
 	ensoniq->pcm2 = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -2250,7 +2250,7 @@ static int snd_ensoniq_midi(struct ensoniq *ensoniq, int device)
 	err = snd_rawmidi_new(ensoniq->card, "ES1370/1", device, 1, 1, &rmidi);
 	if (err < 0)
 		return err;
-	strcpy(rmidi->name, CHIP_NAME);
+	strscpy(rmidi->name, CHIP_NAME);
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT, &snd_ensoniq_midi_output);
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT, &snd_ensoniq_midi_input);
 	rmidi->info_flags |= SNDRV_RAWMIDI_INFO_OUTPUT | SNDRV_RAWMIDI_INFO_INPUT |
@@ -2346,9 +2346,9 @@ static int __snd_audiopci_probe(struct pci_dev *pci,
 
 	snd_ensoniq_create_gameport(ensoniq, dev);
 
-	strcpy(card->driver, DRIVER_NAME);
+	strscpy(card->driver, DRIVER_NAME);
 
-	strcpy(card->shortname, "Ensoniq AudioPCI");
+	strscpy(card->shortname, "Ensoniq AudioPCI");
 	sprintf(card->longname, "%s %s at 0x%lx, irq %i",
 		card->shortname,
 		card->driver,

@@ -19,7 +19,8 @@ enum {
 	ENUM_BIT(EXTENT_DIRTY),
 	ENUM_BIT(EXTENT_LOCKED),
 	ENUM_BIT(EXTENT_DIO_LOCKED),
-	ENUM_BIT(EXTENT_NEW),
+	ENUM_BIT(EXTENT_DIRTY_LOG1),
+	ENUM_BIT(EXTENT_DIRTY_LOG2),
 	ENUM_BIT(EXTENT_DELALLOC),
 	ENUM_BIT(EXTENT_DEFRAG),
 	ENUM_BIT(EXTENT_BOUNDARY),
@@ -189,12 +190,6 @@ static inline int btrfs_unlock_extent(struct extent_io_tree *tree, u64 start, u6
 {
 	return btrfs_clear_extent_bit_changeset(tree, start, end, EXTENT_LOCKED,
 						cached, NULL);
-}
-
-static inline int btrfs_clear_extent_bits(struct extent_io_tree *tree, u64 start,
-					  u64 end, u32 bits)
-{
-	return btrfs_clear_extent_bit(tree, start, end, bits, NULL);
 }
 
 int btrfs_set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,

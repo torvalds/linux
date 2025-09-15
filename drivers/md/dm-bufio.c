@@ -2742,7 +2742,11 @@ static unsigned long __evict_a_few(unsigned long nr_buffers)
 		__make_buffer_clean(b);
 		__free_buffer_wake(b);
 
-		cond_resched();
+		if (need_resched()) {
+			dm_bufio_unlock(c);
+			cond_resched();
+			dm_bufio_lock(c);
+		}
 	}
 
 	dm_bufio_unlock(c);

@@ -23,6 +23,8 @@
 #include <linux/security.h>
 #include <linux/pid_namespace.h>
 #include <linux/pid.h>
+#include <uapi/linux/pidfd.h>
+#include <linux/pidfs.h>
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
 #include <linux/errqueue.h>
@@ -145,6 +147,22 @@ void __scm_destroy(struct scm_cookie *scm)
 }
 EXPORT_SYMBOL(__scm_destroy);
 
+static inline int scm_replace_pid(struct scm_cookie *scm, struct pid *pid)
+{
+	int err;
+
+	/* drop all previous references */
+	scm_destroy_cred(scm);
+
+	err = pidfs_register_pid(pid);
+	if (unlikely(err))
+		return err;
+
+	scm->pid = pid;
+	scm->creds.pid = pid_vnr(pid);
+	return 0;
+}
+
 int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 {
 	const struct proto_ops *ops = READ_ONCE(sock->ops);
@@ -189,15 +207,21 @@ int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 			if (err)
 				goto error;
 
-			p->creds.pid = creds.pid;
 			if (!p->pid || pid_vnr(p->pid) != creds.pid) {
 				struct pid *pid;
 				err = -ESRCH;
 				pid = find_get_pid(creds.pid);
 				if (!pid)
 					goto error;
-				put_pid(p->pid);
-				p->pid = pid;
+
+				/* pass a struct pid reference from
+				 * find_get_pid() to scm_replace_pid().
+				 */
+				err = scm_replace_pid(p, pid);
+				if (err) {
+					put_pid(pid);
+					goto error;
+				}
 			}
 
 			err = -EINVAL;
@@ -459,7 +483,7 @@ static void scm_pidfd_recv(struct msghdr *msg, struct scm_cookie *scm)
 	if (!scm->pid)
 		return;
 
-	pidfd = pidfd_prepare(scm->pid, 0, &pidfd_file);
+	pidfd = pidfd_prepare(scm->pid, PIDFD_STALE, &pidfd_file);
 
 	if (put_cmsg(msg, SOL_SOCKET, SCM_PIDFD, sizeof(int), &pidfd)) {
 		if (pidfd_file) {

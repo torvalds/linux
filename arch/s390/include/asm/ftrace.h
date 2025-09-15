@@ -5,7 +5,7 @@
 #define ARCH_SUPPORTS_FTRACE_OPS 1
 #define MCOUNT_INSN_SIZE	6
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/stacktrace.h>
 
 static __always_inline unsigned long return_address(unsigned int n)
@@ -134,7 +134,7 @@ void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *op, struct ftrace_regs *fregs);
 #define ftrace_graph_func ftrace_graph_func
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #ifdef CONFIG_FUNCTION_TRACER
 

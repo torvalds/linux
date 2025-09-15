@@ -104,7 +104,7 @@ static const char *const hwmon_units[HWMON_TYPE_MAX] = {
 struct hwmon_pmu {
 	struct perf_pmu pmu;
 	struct hashmap events;
-	int hwmon_dir_fd;
+	char *hwmon_dir;
 };
 
 /**
@@ -245,7 +245,7 @@ static int hwmon_pmu__read_events(struct hwmon_pmu *pmu)
 		return 0;
 
 	/* Use openat so that the directory contents are refreshed. */
-	io_dir__init(&dir, openat(pmu->hwmon_dir_fd, ".", O_CLOEXEC | O_DIRECTORY | O_RDONLY));
+	io_dir__init(&dir, open(pmu->hwmon_dir, O_CLOEXEC | O_DIRECTORY | O_RDONLY));
 
 	if (dir.dirfd < 0)
 		return -ENOENT;
@@ -283,7 +283,7 @@ static int hwmon_pmu__read_events(struct hwmon_pmu *pmu)
 		__set_bit(item, alarm ? value->alarm_items : value->items);
 		if (item == HWMON_ITEM_LABEL) {
 			char buf[128];
-			int fd = openat(pmu->hwmon_dir_fd, ent->d_name, O_RDONLY);
+			int fd = openat(dir.dirfd, ent->d_name, O_RDONLY);
 			ssize_t read_len;
 
 			if (fd < 0)
@@ -342,9 +342,10 @@ err_out:
 	return err;
 }
 
-struct perf_pmu *hwmon_pmu__new(struct list_head *pmus, int hwmon_dir, const char *sysfs_name, const char *name)
+struct perf_pmu *hwmon_pmu__new(struct list_head *pmus, const char *hwmon_dir,
+				const char *sysfs_name, const char *name)
 {
-	char buf[32];
+	char buf[64];
 	struct hwmon_pmu *hwm;
 	__u32 type = PERF_PMU_TYPE_HWMON_START + strtoul(sysfs_name + 5, NULL, 10);
 
@@ -365,7 +366,11 @@ struct perf_pmu *hwmon_pmu__new(struct list_head *pmus, int hwmon_dir, const cha
 		return NULL;
 	}
 
-	hwm->hwmon_dir_fd = hwmon_dir;
+	hwm->hwmon_dir = strdup(hwmon_dir);
+	if (!hwm->hwmon_dir) {
+		perf_pmu__delete(&hwm->pmu);
+		return NULL;
+	}
 	hwm->pmu.alias_name = strdup(sysfs_name);
 	if (!hwm->pmu.alias_name) {
 		perf_pmu__delete(&hwm->pmu);
@@ -399,7 +404,7 @@ void hwmon_pmu__exit(struct perf_pmu *pmu)
 		free(value);
 	}
 	hashmap__clear(&hwm->events);
-	close(hwm->hwmon_dir_fd);
+	zfree(&hwm->hwmon_dir);
 }
 
 static size_t hwmon_pmu__describe_items(struct hwmon_pmu *hwm, char *out_buf, size_t out_buf_len,
@@ -409,6 +414,10 @@ static size_t hwmon_pmu__describe_items(struct hwmon_pmu *hwm, char *out_buf, si
 	size_t bit;
 	char buf[64];
 	size_t len = 0;
+	int dir = open(hwm->hwmon_dir, O_CLOEXEC | O_DIRECTORY | O_RDONLY);
+
+	if (dir < 0)
+		return 0;
 
 	for_each_set_bit(bit, items, HWMON_ITEM__MAX) {
 		int fd;
@@ -421,7 +430,7 @@ static size_t hwmon_pmu__describe_items(struct hwmon_pmu *hwm, char *out_buf, si
 			key.num,
 			hwmon_item_strs[bit],
 			is_alarm ? "_alarm" : "");
-		fd = openat(hwm->hwmon_dir_fd, buf, O_RDONLY);
+		fd = openat(dir, buf, O_RDONLY);
 		if (fd > 0) {
 			ssize_t read_len = read(fd, buf, sizeof(buf));
 
@@ -443,6 +452,7 @@ static size_t hwmon_pmu__describe_items(struct hwmon_pmu *hwm, char *out_buf, si
 			close(fd);
 		}
 	}
+	close(dir);
 	return len;
 }
 
@@ -712,6 +722,7 @@ int perf_pmus__read_hwmon_pmus(struct list_head *pmus)
 		size_t line_len;
 		int hwmon_dir, name_fd;
 		struct io io;
+		char buf2[128];
 
 		if (class_hwmon_ent->d_type != DT_LNK)
 			continue;
@@ -730,12 +741,13 @@ int perf_pmus__read_hwmon_pmus(struct list_head *pmus)
 			close(hwmon_dir);
 			continue;
 		}
-		io__init(&io, name_fd, buf, sizeof(buf));
+		io__init(&io, name_fd, buf2, sizeof(buf2));
 		io__getline(&io, &line, &line_len);
 		if (line_len > 0 && line[line_len - 1] == '\n')
 			line[line_len - 1] = '\0';
-		hwmon_pmu__new(pmus, hwmon_dir, class_hwmon_ent->d_name, line);
+		hwmon_pmu__new(pmus, buf, class_hwmon_ent->d_name, line);
 		close(name_fd);
+		close(hwmon_dir);
 	}
 	free(line);
 	close(class_hwmon_dir.dirfd);
@@ -753,6 +765,10 @@ int evsel__hwmon_pmu_open(struct evsel *evsel,
 		.type_and_num = evsel->core.attr.config,
 	};
 	int idx = 0, thread = 0, nthreads, err = 0;
+	int dir = open(hwm->hwmon_dir, O_CLOEXEC | O_DIRECTORY | O_RDONLY);
+
+	if (dir < 0)
+		return -errno;
 
 	nthreads = perf_thread_map__nr(threads);
 	for (idx = start_cpu_map_idx; idx < end_cpu_map_idx; idx++) {
@@ -763,7 +779,7 @@ int evsel__hwmon_pmu_open(struct evsel *evsel,
 			snprintf(buf, sizeof(buf), "%s%d_input",
 				 hwmon_type_strs[key.type], key.num);
 
-			fd = openat(hwm->hwmon_dir_fd, buf, O_RDONLY);
+			fd = openat(dir, buf, O_RDONLY);
 			FD(evsel, idx, thread) = fd;
 			if (fd < 0) {
 				err = -errno;
@@ -771,6 +787,7 @@ int evsel__hwmon_pmu_open(struct evsel *evsel,
 			}
 		}
 	}
+	close(dir);
 	return 0;
 out_close:
 	if (err)
@@ -784,6 +801,7 @@ out_close:
 		}
 		thread = nthreads;
 	} while (--idx >= 0);
+	close(dir);
 	return err;
 }
 

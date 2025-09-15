@@ -59,14 +59,12 @@ description: |
         <dt-bindings/mailbox/tegra186-hsp.h>
 
 properties:
-  $nodename:
-    pattern: "^hsp@[0-9a-f]+$"
-
   compatible:
     oneOf:
-      - const: nvidia,tegra186-hsp
-      - const: nvidia,tegra194-hsp
-      - const: nvidia,tegra264-hsp
+      - enum:
+          - nvidia,tegra186-hsp
+          - nvidia,tegra194-hsp
+          - nvidia,tegra264-hsp
       - items:
           - const: nvidia,tegra234-hsp
           - const: nvidia,tegra194-hsp
@@ -76,13 +74,32 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 9
+    maxItems: 17
 
   interrupt-names:
     oneOf:
       # shared interrupts are optional
       - items:
           - const: doorbell
+
+      - items:
+          - const: doorbell
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
+          - pattern: "^shared([0-9]|1[0-5])$"
 
       - items:
           - const: doorbell
@@ -111,14 +128,10 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/mailbox/tegra186-hsp.h>
 
-    hsp_top0: hsp@3c00000 {
+    mailbox@3c00000 {
         compatible = "nvidia,tegra186-hsp";
         reg = <0x03c00000 0xa0000>;
         interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "doorbell";
         #mbox-cells = <2>;
-    };
-
-    client {
-        mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB TEGRA_HSP_DB_MASTER_CCPLEX>;
     };

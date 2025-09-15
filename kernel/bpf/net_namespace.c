@@ -11,8 +11,6 @@
 
 struct bpf_netns_link {
 	struct bpf_link	link;
-	enum bpf_attach_type type;
-	enum netns_bpf_attach_type netns_type;
 
 	/* We don't hold a ref to net in order to auto-detach the link
 	 * when netns is going away. Instead we rely on pernet
@@ -21,6 +19,7 @@ struct bpf_netns_link {
 	 */
 	struct net *net;
 	struct list_head node; /* node in list of links attached to net */
+	enum netns_bpf_attach_type netns_type;
 };
 
 /* Protects updates to netns_bpf */
@@ -216,7 +215,7 @@ static int bpf_netns_link_fill_info(const struct bpf_link *link,
 	mutex_unlock(&netns_bpf_mutex);
 
 	info->netns.netns_ino = inum;
-	info->netns.attach_type = net_link->type;
+	info->netns.attach_type = link->attach_type;
 	return 0;
 }
 
@@ -230,7 +229,7 @@ static void bpf_netns_link_show_fdinfo(const struct bpf_link *link,
 		   "netns_ino:\t%u\n"
 		   "attach_type:\t%u\n",
 		   info.netns.netns_ino,
-		   info.netns.attach_type);
+		   link->attach_type);
 }
 
 static const struct bpf_link_ops bpf_netns_link_ops = {
@@ -501,9 +500,8 @@ int netns_bpf_link_create(const union bpf_attr *attr, struct bpf_prog *prog)
 		goto out_put_net;
 	}
 	bpf_link_init(&net_link->link, BPF_LINK_TYPE_NETNS,
-		      &bpf_netns_link_ops, prog);
+		      &bpf_netns_link_ops, prog, type);
 	net_link->net = net;
-	net_link->type = type;
 	net_link->netns_type = netns_type;
 
 	err = bpf_link_prime(&net_link->link, &link_primer);

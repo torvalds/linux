@@ -813,10 +813,10 @@ static int __xudc_ep_enable(struct xusb_ep *ep,
 
 	ep->is_in = ((desc->bEndpointAddress & USB_DIR_IN) != 0);
 	/* Bit 3...0:endpoint number */
-	ep->epnumber = (desc->bEndpointAddress & 0x0f);
+	ep->epnumber = usb_endpoint_num(desc);
 	ep->desc = desc;
 	ep->ep_usb.desc = desc;
-	tmp = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+	tmp = usb_endpoint_type(desc);
 	ep->ep_usb.maxpacket = maxpacket = le16_to_cpu(desc->wMaxPacketSize);
 
 	switch (tmp) {

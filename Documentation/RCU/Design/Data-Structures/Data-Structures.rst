@@ -286,6 +286,39 @@ in order to detect the beginnings and ends of grace periods in a
 distributed fashion. The values flow from ``rcu_state`` to ``rcu_node``
 (down the tree from the root to the leaves) to ``rcu_data``.
 
++-----------------------------------------------------------------------+
+| **Quick Quiz**:                                                       |
++-----------------------------------------------------------------------+
+| Given that the root rcu_node structure has a gp_seq field,            |
+| why does RCU maintain a separate gp_seq in the rcu_state structure?   |
+| Why not just use the root rcu_node's gp_seq as the official record    |
+| and update it directly when starting a new grace period?              |
++-----------------------------------------------------------------------+
+| **Answer**:                                                           |
++-----------------------------------------------------------------------+
+| On single-node RCU trees (where the root node is also a leaf),        |
+| updating the root node's gp_seq immediately would create unnecessary  |
+| lock contention. Here's why:                                          |
+|                                                                       |
+| If we did rcu_seq_start() directly on the root node's gp_seq:         |
+|                                                                       |
+| 1. All CPUs would immediately see their node's gp_seq from their rdp's|
+|    gp_seq, in rcu_pending(). They would all then invoke the RCU-core. |
+| 2. Which calls note_gp_changes() and try to acquire the node lock.    |
+| 3. But rnp->qsmask isn't initialized yet (happens later in            |
+|    rcu_gp_init())                                                     |
+| 4. So each CPU would acquire the lock, find it can't determine if it  |
+|    needs to report quiescent state (no qsmask), update rdp->gp_seq,   |
+|    and release the lock.                                              |
+| 5. Result: Lots of lock acquisitions with no grace period progress    |
+|                                                                       |
+| By having a separate rcu_state.gp_seq, we can increment the official  |
+| grace period counter without immediately affecting what CPUs see in   |
+| their nodes. The hierarchical propagation in rcu_gp_init() then       |
+| updates the root node's gp_seq and qsmask together under the same lock|
+| acquisition, avoiding this useless contention.                        |
++-----------------------------------------------------------------------+
+
 Miscellaneous
 '''''''''''''
 

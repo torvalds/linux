@@ -1406,6 +1406,9 @@ int bch2_check_discard_freespace_key(struct btree_trans *trans, struct btree_ite
 		: BCH_DATA_free;
 	struct printbuf buf = PRINTBUF;
 
+	unsigned fsck_flags = (async_repair ? FSCK_ERR_NO_LOG : 0)|
+		FSCK_CAN_FIX|FSCK_CAN_IGNORE;
+
 	struct bpos bucket = iter->pos;
 	bucket.offset &= ~(~0ULL << 56);
 	u64 genbits = iter->pos.offset & (~0ULL << 56);
@@ -1419,9 +1422,10 @@ int bch2_check_discard_freespace_key(struct btree_trans *trans, struct btree_ite
 		return ret;
 
 	if (!bch2_dev_bucket_exists(c, bucket)) {
-		if (fsck_err(trans, need_discard_freespace_key_to_invalid_dev_bucket,
-			     "entry in %s btree for nonexistant dev:bucket %llu:%llu",
-			     bch2_btree_id_str(iter->btree_id), bucket.inode, bucket.offset))
+		if (__fsck_err(trans, fsck_flags,
+			       need_discard_freespace_key_to_invalid_dev_bucket,
+			       "entry in %s btree for nonexistant dev:bucket %llu:%llu",
+			       bch2_btree_id_str(iter->btree_id), bucket.inode, bucket.offset))
 			goto delete;
 		ret = 1;
 		goto out;
@@ -1433,7 +1437,8 @@ int bch2_check_discard_freespace_key(struct btree_trans *trans, struct btree_ite
 	if (a->data_type != state ||
 	    (state == BCH_DATA_free &&
 	     genbits != alloc_freespace_genbits(*a))) {
-		if (fsck_err(trans, need_discard_freespace_key_bad,
+		if (__fsck_err(trans, fsck_flags,
+			       need_discard_freespace_key_bad,
 			     "%s\nincorrectly set at %s:%llu:%llu:0 (free %u, genbits %llu should be %llu)",
 			     (bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf),
 			     bch2_btree_id_str(iter->btree_id),

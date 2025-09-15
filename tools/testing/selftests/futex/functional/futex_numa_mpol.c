@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
 	struct futex32_numa *futex_numa;
 	int mem_size, i;
 	void *futex_ptr;
-	char c;
+	int c;
 
 	while ((c = getopt(argc, argv, "chv:")) != -1) {
 		switch (c) {
@@ -210,6 +210,10 @@ int main(int argc, char *argv[])
 		ret = mbind(futex_ptr, mem_size, MPOL_BIND, &nodemask,
 			    sizeof(nodemask) * 8, 0);
 		if (ret == 0) {
+			ret = numa_set_mempolicy_home_node(futex_ptr, mem_size, i, 0);
+			if (ret != 0)
+				ksft_exit_fail_msg("Failed to set home node: %m, %d\n", errno);
+
 			ksft_print_msg("Node %d test\n", i);
 			futex_numa->futex = 0;
 			futex_numa->numa = FUTEX_NO_NODE;
@@ -220,8 +224,8 @@ int main(int argc, char *argv[])
 			if (0)
 				test_futex_mpol(futex_numa, 0);
 			if (futex_numa->numa != i) {
-				ksft_test_result_fail("Returned NUMA node is %d expected %d\n",
-						      futex_numa->numa, i);
+				ksft_exit_fail_msg("Returned NUMA node is %d expected %d\n",
+						   futex_numa->numa, i);
 			}
 		}
 	}

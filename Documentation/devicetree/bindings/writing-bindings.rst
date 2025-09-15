@@ -39,10 +39,22 @@ Overall design
 Properties
 ==========
 
-- DO make 'compatible' properties specific. DON'T use wildcards in compatible
-  strings. DO use fallback compatibles when devices are the same as or a subset
-  of prior implementations. DO add new compatibles in case there are new
-  features or bugs.
+- DO make 'compatible' properties specific.
+
+   - DON'T use wildcards or device-family names in compatible strings.
+
+   - DO use fallback compatibles when devices are the same as or a superset of
+     prior implementations.
+
+   - DO add new compatibles in case there are new features or bugs.
+
+   - DO use a SoC-specific compatible for all SoC devices, followed by a
+     fallback if appropriate. SoC-specific compatibles are also preferred for
+     the fallbacks.
+
+   - DON'T use bus suffixes to encode the type of interface device is using.
+     The parent bus node already implies that interface.  DON'T add the type of
+     device, if the device cannot be anything else.
 
 - DO use a vendor prefix on device-specific property names. Consider if
   properties could be common among devices of the same class. Check other
@@ -51,12 +63,21 @@ Properties
 - DON'T redefine common properties. Just reference the definition and define
   constraints specific to the device.
 
+- DON'T add properties to avoid a specific compatible. DON'T add properties if
+  they are implied by (deducible from) the compatible.
+
 - DO use common property unit suffixes for properties with scientific units.
   Recommended suffixes are listed at
   https://github.com/devicetree-org/dt-schema/blob/main/dtschema/schemas/property-units.yaml
 
 - DO define properties in terms of constraints. How many entries? What are
-  possible values? What is the order?
+  possible values? What is the order? All these constraints represent the ABI
+  as well.
+
+- DON'T make changes that break the ABI without explicit and detailed rationale
+  for why the changes have to be made and their impact. ABI impact goes beyond
+  the Linux kernel, because it also covers other open-source upstream projects.
+
 
 Typical cases and caveats
 =========================
@@ -64,7 +85,7 @@ Typical cases and caveats
 - Phandle entries, like clocks/dmas/interrupts/resets, should always be
   explicitly ordered. Include the {clock,dma,interrupt,reset}-names if there is
   more than one phandle. When used, both of these fields need the same
-  constraints (e.g.  list of items).
+  constraints (e.g. list of items).
 
 - For names used in {clock,dma,interrupt,reset}-names, do not add any suffix,
   e.g.: "tx" instead of "txirq" (for interrupt).
@@ -83,6 +104,15 @@ Typical cases and caveats
 
 - "syscon" is not a generic property. Use vendor and type, e.g.
   "vendor,power-manager-syscon".
+
+- Do not add instance index (IDs) properties or custom OF aliases.  If the
+  devices have different programming model, they might need different
+  compatibles.  If such devices use some other device in a different way, e.g.
+  they program the phy differently, use cell/phandle arguments.
+
+- Bindings files should be named like compatible: vendor,device.yaml. In case
+  of multiple compatibles in the binding, use one of the fallbacks or a more
+  generic name, yet still matching compatible style.
 
 Board/SoC .dts Files
 ====================

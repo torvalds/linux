@@ -222,7 +222,10 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 	if (size_cmdline != -1) {
 		selected_size = size_cmdline;
 		selected_base = base_cmdline;
-		selected_limit = min_not_zero(limit_cmdline, limit);
+
+		/* Hornor the user setup dma address limit */
+		selected_limit = limit_cmdline ?: limit;
+
 		if (base_cmdline + size_cmdline == limit_cmdline)
 			fixed = true;
 	} else {
@@ -480,8 +483,6 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 		pr_err("Reserved memory: unable to setup CMA region\n");
 		return err;
 	}
-	/* Architecture specific contiguous memory fixup. */
-	dma_contiguous_early_fixup(rmem->base, rmem->size);
 
 	if (default_cma)
 		dma_contiguous_default_area = cma;

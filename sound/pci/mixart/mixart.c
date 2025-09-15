@@ -970,7 +970,7 @@ static int snd_mixart_pcm_analog(struct snd_mixart *chip)
 
 	pcm->info_flags = 0;
 	pcm->nonatomic = true;
-	strcpy(pcm->name, name);
+	strscpy(pcm->name, name);
 
 	preallocate_buffers(chip, pcm);
 
@@ -1004,7 +1004,7 @@ static int snd_mixart_pcm_digital(struct snd_mixart *chip)
 
 	pcm->info_flags = 0;
 	pcm->nonatomic = true;
-	strcpy(pcm->name, name);
+	strscpy(pcm->name, name);
 
 	preallocate_buffers(chip, pcm);
 
@@ -1330,7 +1330,7 @@ static int snd_mixart_probe(struct pci_dev *pci,
 			return err;
 		}
 
-		strcpy(card->driver, CARD_NAME);
+		strscpy(card->driver, CARD_NAME);
 		snprintf(card->shortname, sizeof(card->shortname),
 			 "Digigram miXart [PCM #%d]", i);
 		snprintf(card->longname, sizeof(card->longname),

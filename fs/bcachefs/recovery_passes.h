@@ -17,6 +17,15 @@ enum bch_run_recovery_pass_flags {
 	RUN_RECOVERY_PASS_ratelimit	= BIT(1),
 };
 
+static inline bool go_rw_in_recovery(struct bch_fs *c)
+{
+	return (c->journal_keys.nr ||
+		!c->opts.read_only ||
+		!c->sb.clean ||
+		c->opts.recovery_passes ||
+		(c->opts.fsck && !(c->sb.features & BIT_ULL(BCH_FEATURE_no_alloc_info))));
+}
+
 int bch2_run_print_explicit_recovery_pass(struct bch_fs *, enum bch_recovery_pass);
 
 int __bch2_run_explicit_recovery_pass(struct bch_fs *, struct printbuf *,

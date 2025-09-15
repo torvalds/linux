@@ -39,26 +39,26 @@ int restore_queue(struct msgque_data *msgque)
 
 	fd = open("/proc/sys/kernel/msg_next_id", O_WRONLY);
 	if (fd == -1) {
-		printf("Failed to open /proc/sys/kernel/msg_next_id\n");
+		ksft_test_result_fail("Failed to open /proc/sys/kernel/msg_next_id\n");
 		return -errno;
 	}
 	sprintf(buf, "%d", msgque->msq_id);
 
 	ret = write(fd, buf, strlen(buf));
 	if (ret != strlen(buf)) {
-		printf("Failed to write to /proc/sys/kernel/msg_next_id\n");
+		ksft_test_result_fail("Failed to write to /proc/sys/kernel/msg_next_id\n");
 		return -errno;
 	}
 
 	id = msgget(msgque->key, msgque->mode | IPC_CREAT | IPC_EXCL);
 	if (id == -1) {
-		printf("Failed to create queue\n");
+		ksft_test_result_fail("Failed to create queue\n");
 		return -errno;
 	}
 
 	if (id != msgque->msq_id) {
-		printf("Restored queue has wrong id (%d instead of %d)\n",
-							id, msgque->msq_id);
+		ksft_test_result_fail("Restored queue has wrong id (%d instead of %d)\n"
+								, id, msgque->msq_id);
 		ret = -EFAULT;
 		goto destroy;
 	}
@@ -66,7 +66,7 @@ int restore_queue(struct msgque_data *msgque)
 	for (i = 0; i < msgque->qnum; i++) {
 		if (msgsnd(msgque->msq_id, &msgque->messages[i].mtype,
 			   msgque->messages[i].msize, IPC_NOWAIT) != 0) {
-			printf("msgsnd failed (%m)\n");
+			ksft_test_result_fail("msgsnd failed (%m)\n");
 			ret = -errno;
 			goto destroy;
 		}
@@ -90,23 +90,22 @@ int check_and_destroy_queue(struct msgque_data *msgque)
 		if (ret < 0) {
 			if (errno == ENOMSG)
 				break;
-			printf("Failed to read IPC message: %m\n");
+			ksft_test_result_fail("Failed to read IPC message: %m\n");
 			ret = -errno;
 			goto err;
 		}
 		if (ret != msgque->messages[cnt].msize) {
-			printf("Wrong message size: %d (expected %d)\n", ret,
-						msgque->messages[cnt].msize);
+			ksft_test_result_fail("Wrong message size: %d (expected %d)\n", ret, msgque->messages[cnt].msize);
 			ret = -EINVAL;
 			goto err;
 		}
 		if (message.mtype != msgque->messages[cnt].mtype) {
-			printf("Wrong message type\n");
+			ksft_test_result_fail("Wrong message type\n");
 			ret = -EINVAL;
 			goto err;
 		}
 		if (memcmp(message.mtext, msgque->messages[cnt].mtext, ret)) {
-			printf("Wrong message content\n");
+			ksft_test_result_fail("Wrong message content\n");
 			ret = -EINVAL;
 			goto err;
 		}
@@ -114,7 +113,7 @@ int check_and_destroy_queue(struct msgque_data *msgque)
 	}
 
 	if (cnt != msgque->qnum) {
-		printf("Wrong message number\n");
+		ksft_test_result_fail("Wrong message number\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -139,7 +138,7 @@ int dump_queue(struct msgque_data *msgque)
 		if (ret < 0) {
 			if (errno == EINVAL)
 				continue;
-			printf("Failed to get stats for IPC queue with id %d\n",
+			ksft_test_result_fail("Failed to get stats for IPC queue with id %d\n",
 					kern_id);
 			return -errno;
 		}
@@ -150,7 +149,7 @@ int dump_queue(struct msgque_data *msgque)
 
 	msgque->messages = malloc(sizeof(struct msg1) * ds.msg_qnum);
 	if (msgque->messages == NULL) {
-		printf("Failed to get stats for IPC queue\n");
+		ksft_test_result_fail("Failed to get stats for IPC queue\n");
 		return -ENOMEM;
 	}
 
@@ -162,7 +161,7 @@ int dump_queue(struct msgque_data *msgque)
 		ret = msgrcv(msgque->msq_id, &msgque->messages[i].mtype,
 				MAX_MSG_SIZE, i, IPC_NOWAIT | MSG_COPY);
 		if (ret < 0) {
-			printf("Failed to copy IPC message: %m (%d)\n", errno);
+			ksft_test_result_fail("Failed to copy IPC message: %m (%d)\n", errno);
 			return -errno;
 		}
 		msgque->messages[i].msize = ret;
@@ -178,7 +177,7 @@ int fill_msgque(struct msgque_data *msgque)
 	memcpy(msgbuf.mtext, TEST_STRING, sizeof(TEST_STRING));
 	if (msgsnd(msgque->msq_id, &msgbuf.mtype, sizeof(TEST_STRING),
 				IPC_NOWAIT) != 0) {
-		printf("First message send failed (%m)\n");
+		ksft_test_result_fail("First message send failed (%m)\n");
 		return -errno;
 	}
 
@@ -186,7 +185,7 @@ int fill_msgque(struct msgque_data *msgque)
 	memcpy(msgbuf.mtext, ANOTHER_TEST_STRING, sizeof(ANOTHER_TEST_STRING));
 	if (msgsnd(msgque->msq_id, &msgbuf.mtype, sizeof(ANOTHER_TEST_STRING),
 				IPC_NOWAIT) != 0) {
-		printf("Second message send failed (%m)\n");
+		ksft_test_result_fail("Second message send failed (%m)\n");
 		return -errno;
 	}
 	return 0;
@@ -202,44 +201,44 @@ int main(int argc, char **argv)
 
 	msgque.key = ftok(argv[0], 822155650);
 	if (msgque.key == -1) {
-		printf("Can't make key: %d\n", -errno);
+		ksft_test_result_fail("Can't make key: %d\n", -errno);
 		ksft_exit_fail();
 	}
 
 	msgque.msq_id = msgget(msgque.key, IPC_CREAT | IPC_EXCL | 0666);
 	if (msgque.msq_id == -1) {
 		err = -errno;
-		printf("Can't create queue: %d\n", err);
+		ksft_test_result_fail("Can't create queue: %d\n", err);
 		goto err_out;
 	}
 
 	err = fill_msgque(&msgque);
 	if (err) {
-		printf("Failed to fill queue: %d\n", err);
+		ksft_test_result_fail("Failed to fill queue: %d\n", err);
 		goto err_destroy;
 	}
 
 	err = dump_queue(&msgque);
 	if (err) {
-		printf("Failed to dump queue: %d\n", err);
+		ksft_test_result_fail("Failed to dump queue: %d\n", err);
 		goto err_destroy;
 	}
 
 	err = check_and_destroy_queue(&msgque);
 	if (err) {
-		printf("Failed to check and destroy queue: %d\n", err);
+		ksft_test_result_fail("Failed to check and destroy queue: %d\n", err);
 		goto err_out;
 	}
 
 	err = restore_queue(&msgque);
 	if (err) {
-		printf("Failed to restore queue: %d\n", err);
+		ksft_test_result_fail("Failed to restore queue: %d\n", err);
 		goto err_destroy;
 	}
 
 	err = check_and_destroy_queue(&msgque);
 	if (err) {
-		printf("Failed to test queue: %d\n", err);
+		ksft_test_result_fail("Failed to test queue: %d\n", err);
 		goto err_out;
 	}
 	ksft_exit_pass();

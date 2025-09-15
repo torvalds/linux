@@ -128,23 +128,27 @@ static void part_stat_read_all(struct block_device *part,
 static void bdev_count_inflight_rw(struct block_device *part,
 		unsigned int inflight[2], bool mq_driver)
 {
+	int write = 0;
+	int read = 0;
 	int cpu;
 
 	if (mq_driver) {
 		blk_mq_in_driver_rw(part, inflight);
-	} else {
-		for_each_possible_cpu(cpu) {
-			inflight[READ] += part_stat_local_read_cpu(
-						part, in_flight[READ], cpu);
-			inflight[WRITE] += part_stat_local_read_cpu(
-						part, in_flight[WRITE], cpu);
-		}
+		return;
 	}
 
-	if (WARN_ON_ONCE((int)inflight[READ] < 0))
-		inflight[READ] = 0;
-	if (WARN_ON_ONCE((int)inflight[WRITE] < 0))
-		inflight[WRITE] = 0;
+	for_each_possible_cpu(cpu) {
+		read += part_stat_local_read_cpu(part, in_flight[READ], cpu);
+		write += part_stat_local_read_cpu(part, in_flight[WRITE], cpu);
+	}
+
+	/*
+	 * While iterating all CPUs, some IOs may be issued from a CPU already
+	 * traversed and complete on a CPU that has not yet been traversed,
+	 * causing the inflight number to be negative.
+	 */
+	inflight[READ] = read > 0 ? read : 0;
+	inflight[WRITE] = write > 0 ? write : 0;
 }
 
 /**
@@ -1299,6 +1303,7 @@ static void disk_release(struct device *dev)
 	disk_free_zone_resources(disk);
 	xa_destroy(&disk->part_tbl);
 
+	kobject_put(&disk->queue_kobj);
 	disk->queue->disk = NULL;
 	blk_put_queue(disk->queue);
 
@@ -1482,6 +1487,7 @@ struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 	INIT_LIST_HEAD(&disk->slave_bdevs);
 #endif
 	mutex_init(&disk->rqos_state_mutex);
+	kobject_init(&disk->queue_kobj, &blk_queue_ktype);
 	return disk;
 
 out_erase_part0:

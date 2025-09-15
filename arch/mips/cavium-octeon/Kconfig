@@ -23,12 +23,6 @@ config CAVIUM_OCTEON_CVMSEG_SIZE
 	  legally range is from zero to 54 cache blocks (i.e. CVMSEG LM is
 	  between zero and 6192 bytes).
 
-config CRYPTO_SHA256_OCTEON
-	tristate
-	default CRYPTO_LIB_SHA256
-	select CRYPTO_ARCH_HAVE_LIB_SHA256
-	select CRYPTO_LIB_SHA256_GENERIC
-
 endif # CPU_CAVIUM_OCTEON
 
 if CAVIUM_OCTEON_SOC

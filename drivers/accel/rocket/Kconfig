@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config DRM_ACCEL_ROCKET
+	tristate "Rocket (support for Rockchip NPUs)"
+	depends on DRM_ACCEL
+	depends on (ARCH_ROCKCHIP && ARM64) || COMPILE_TEST
+	depends on ROCKCHIP_IOMMU || COMPILE_TEST
+	depends on MMU
+	select DRM_SCHED
+	select DRM_GEM_SHMEM_HELPER
+	help
+	  Choose this option if you have a Rockchip SoC that contains a
+	  compatible Neural Processing Unit (NPU), such as the RK3588. Called by
+	  Rockchip either RKNN or RKNPU, it accelerates inference of neural
+	  networks.
+
+	  The interface exposed to userspace is described in
+	  include/uapi/drm/rocket_accel.h and is used by the Rocket userspace
+	  driver in Mesa3D.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rocket.

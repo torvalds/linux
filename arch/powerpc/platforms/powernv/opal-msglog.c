@@ -102,7 +102,7 @@ static ssize_t opal_msglog_read(struct file *file, struct kobject *kobj,
 
 static struct bin_attribute opal_msglog_attr __ro_after_init = {
 	.attr = {.name = "msglog", .mode = 0400},
-	.read_new = opal_msglog_read
+	.read = opal_msglog_read
 };
 
 struct memcons *__init memcons_init(struct device_node *node, const char *mc_prop_name)

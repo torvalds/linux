@@ -879,6 +879,122 @@ static void test_btf_dump_var_data(struct btf *btf, struct btf_dump *d,
 			  "static int bpf_cgrp_storage_busy = (int)2", 2);
 }
 
+struct btf_dump_string_ctx {
+	struct btf *btf;
+	struct btf_dump *d;
+	char *str;
+	struct btf_dump_type_data_opts *opts;
+	int array_id;
+};
+
+static int btf_dump_one_string(struct btf_dump_string_ctx *ctx,
+			       char *ptr, size_t ptr_sz,
+			       const char *expected_val)
+{
+	size_t type_sz;
+	int ret;
+
+	ctx->str[0] = '\0';
+	type_sz = btf__resolve_size(ctx->btf, ctx->array_id);
+	ret = btf_dump__dump_type_data(ctx->d, ctx->array_id, ptr, ptr_sz, ctx->opts);
+	if (type_sz <= ptr_sz) {
+		if (!ASSERT_EQ(ret, type_sz, "failed/unexpected type_sz"))
+			return -EINVAL;
+	}
+	if (!ASSERT_STREQ(ctx->str, expected_val, "ensure expected/actual match"))
+		return -EFAULT;
+	return 0;
+}
+
+static void btf_dump_strings(struct btf_dump_string_ctx *ctx)
+{
+	struct btf_dump_type_data_opts *opts = ctx->opts;
+
+	opts->emit_strings = true;
+
+	opts->compact = true;
+	opts->emit_zeroes = false;
+
+	opts->skip_names = false;
+	btf_dump_one_string(ctx, "foo", 4, "(char[4])\"foo\"");
+
+	opts->skip_names = true;
+	btf_dump_one_string(ctx, "foo", 4, "\"foo\"");
+
+	/* This should have no effect. */
+	opts->emit_zeroes = false;
+	btf_dump_one_string(ctx, "foo", 4, "\"foo\"");
+
+	/* This should have no effect. */
+	opts->compact = false;
+	btf_dump_one_string(ctx, "foo", 4, "\"foo\"");
+
+	/* Non-printable characters come out as hex. */
+	btf_dump_one_string(ctx, "fo\xff", 4, "\"fo\\xff\"");
+	btf_dump_one_string(ctx, "fo\x7", 4, "\"fo\\x07\"");
+
+	/*
+	 * Strings that are too long for the specified type ("char[4]")
+	 * should fall back to the current behavior.
+	 */
+	opts->compact = true;
+	btf_dump_one_string(ctx, "abcde", 6, "['a','b','c','d',]");
+
+	/*
+	 * Strings that are too short for the specified type ("char[4]")
+	 * should work normally.
+	 */
+	btf_dump_one_string(ctx, "ab", 3, "\"ab\"");
+
+	/* Non-NUL-terminated arrays don't get printed as strings. */
+	char food[4] = { 'f', 'o', 'o', 'd' };
+	char bye[3] = { 'b', 'y', 'e' };
+
+	btf_dump_one_string(ctx, food, 4, "['f','o','o','d',]");
+	btf_dump_one_string(ctx, bye, 3, "['b','y','e',]");
+
+	/* The embedded NUL should terminate the string. */
+	char embed[4] = { 'f', 'o', '\0', 'd' };
+
+	btf_dump_one_string(ctx, embed, 4, "\"fo\"");
+}
+
+static void test_btf_dump_string_data(void)
+{
+	struct test_ctx t = {};
+	char str[STRSIZE];
+	struct btf_dump *d;
+	DECLARE_LIBBPF_OPTS(btf_dump_type_data_opts, opts);
+	struct btf_dump_string_ctx ctx;
+	int char_id, int_id, array_id;
+
+	if (test_ctx__init(&t))
+		return;
+
+	d = btf_dump__new(t.btf, btf_dump_snprintf, str, NULL);
+	if (!ASSERT_OK_PTR(d, "could not create BTF dump"))
+		return;
+
+	/* Generate BTF for a four-element char array. */
+	char_id = btf__add_int(t.btf, "char", 1, BTF_INT_CHAR);
+	ASSERT_EQ(char_id, 1, "char_id");
+	int_id = btf__add_int(t.btf, "int", 4, BTF_INT_SIGNED);
+	ASSERT_EQ(int_id, 2, "int_id");
+	array_id = btf__add_array(t.btf, int_id, char_id, 4);
+	ASSERT_EQ(array_id, 3, "array_id");
+
+	ctx.btf = t.btf;
+	ctx.d = d;
+	ctx.str = str;
+	ctx.opts = &opts;
+	ctx.array_id = array_id;
+
+	btf_dump_strings(&ctx);
+
+	btf_dump__free(d);
+	test_ctx__free(&t);
+}
+
 static void test_btf_datasec(struct btf *btf, struct btf_dump *d, char *str,
 			     const char *name, const char *expected_val,
 			     void *data, size_t data_sz)
@@ -970,6 +1086,8 @@ void test_btf_dump() {
 		test_btf_dump_struct_data(btf, d, str);
 	if (test__start_subtest("btf_dump: var_data"))
 		test_btf_dump_var_data(btf, d, str);
+	if (test__start_subtest("btf_dump: string_data"))
+		test_btf_dump_string_data();
 	btf_dump__free(d);
 	btf__free(btf);
 

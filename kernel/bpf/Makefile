@@ -14,7 +14,7 @@ obj-$(CONFIG_BPF_SYSCALL) += bpf_local_storage.o bpf_task_storage.o
 obj-${CONFIG_BPF_LSM}	  += bpf_inode_storage.o
 obj-$(CONFIG_BPF_SYSCALL) += disasm.o mprog.o
 obj-$(CONFIG_BPF_JIT) += trampoline.o
-obj-$(CONFIG_BPF_SYSCALL) += btf.o memalloc.o rqspinlock.o
+obj-$(CONFIG_BPF_SYSCALL) += btf.o memalloc.o rqspinlock.o stream.o
 ifeq ($(CONFIG_MMU)$(CONFIG_64BIT),yy)
 obj-$(CONFIG_BPF_SYSCALL) += arena.o range_tree.o
 endif
@@ -62,3 +62,4 @@ CFLAGS_REMOVE_bpf_lru_list.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_queue_stack_maps.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_lpm_trie.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_ringbuf.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_rqspinlock.o = $(CC_FLAGS_FTRACE)

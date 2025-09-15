@@ -1336,11 +1336,10 @@ static void retire_capture_urb(struct snd_usb_substream *subs,
 
 	for (i = 0; i < urb->number_of_packets; i++) {
 		cp = (unsigned char *)urb->transfer_buffer + urb->iso_frame_desc[i].offset + subs->pkt_offset_adj;
-		if (urb->iso_frame_desc[i].status && printk_ratelimit()) {
-			dev_dbg(&subs->dev->dev, "frame %d active: %d\n",
-				i, urb->iso_frame_desc[i].status);
-			// continue;
-		}
+		if (urb->iso_frame_desc[i].status)
+			dev_dbg_ratelimited(&subs->dev->dev,
+					    "frame %d active: %d\n", i,
+					    urb->iso_frame_desc[i].status);
 		bytes = urb->iso_frame_desc[i].actual_length;
 		if (subs->stream_offset_adj > 0) {
 			unsigned int adj = min(subs->stream_offset_adj, bytes);

@@ -82,7 +82,7 @@ static const struct iio_chan_spec atlas_hum_ezo_channels[] = {
 	},
 };
 
-static struct atlas_ezo_device atlas_ezo_devices[] = {
+static const struct atlas_ezo_device atlas_ezo_devices[] = {
 	[ATLAS_CO2_EZO] = {
 		.channels = atlas_co2_ezo_channels,
 		.num_channels = 1,

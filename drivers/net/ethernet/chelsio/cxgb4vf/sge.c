@@ -2191,7 +2191,7 @@ static void __iomem *bar2_address(struct adapter *adapter,
 /**
  *	t4vf_sge_alloc_rxq - allocate an SGE RX Queue
  *	@adapter: the adapter
- *	@rspq: pointer to to the new rxq's Response Queue to be filled in
+ *	@rspq: pointer to the new rxq's Response Queue to be filled in
  *	@iqasynch: if 0, a normal rspq; if 1, an asynchronous event queue
  *	@dev: the network device associated with the new rspq
  *	@intr_dest: MSI-X vector index (overriden in MSI mode)

@@ -325,11 +325,8 @@ static void move_to_next_cpu(void)
 
 	cpus_read_lock();
 	cpumask_and(current_mask, cpu_online_mask, tr->tracing_cpumask);
-	next_cpu = cpumask_next(raw_smp_processor_id(), current_mask);
+	next_cpu = cpumask_next_wrap(raw_smp_processor_id(), current_mask);
 	cpus_read_unlock();
-
-	if (next_cpu >= nr_cpu_ids)
-		next_cpu = cpumask_first(current_mask);
 
 	if (next_cpu >= nr_cpu_ids) /* Shouldn't happen! */
 		goto change_mode;

@@ -180,10 +180,8 @@ static void nfs_local_probe(struct nfs_client *clp)
 		return;
 	}
 
-	if (nfs_client_is_local(clp)) {
-		/* If already enabled, disable and re-enable */
-		nfs_localio_disable_client(clp);
-	}
+	if (nfs_client_is_local(clp))
+		return;
 
 	if (!nfs_uuid_begin(&clp->cl_uuid))
 		return;
@@ -244,7 +242,8 @@ __nfs_local_open_fh(struct nfs_client *clp, const struct cred *cred,
 		case -ENOMEM:
 		case -ENXIO:
 		case -ENOENT:
-			/* Revalidate localio, will disable if unsupported */
+			/* Revalidate localio */
+			nfs_localio_disable_client(clp);
 			nfs_local_probe(clp);
 		}
 	}
@@ -453,12 +452,13 @@ static void nfs_local_call_read(struct work_struct *work)
 	nfs_local_iter_init(&iter, iocb, READ);
 
 	status = filp->f_op->read_iter(&iocb->kiocb, &iter);
+
+	revert_creds(save_cred);
+
 	if (status != -EIOCBQUEUED) {
 		nfs_local_read_done(iocb, status);
 		nfs_local_pgio_release(iocb);
 	}
-
-	revert_creds(save_cred);
 }
 
 static int
@@ -500,14 +500,13 @@ nfs_copy_boot_verifier(struct nfs_write_verifier *verifier, struct inode *inode)
 {
 	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
 	u32 *verf = (u32 *)verifier->data;
-	int seq = 0;
+	unsigned int seq;
 
 	do {
-		read_seqbegin_or_lock(&clp->cl_boot_lock, &seq);
+		seq = read_seqbegin(&clp->cl_boot_lock);
 		verf[0] = (u32)clp->cl_nfssvc_boot.tv_sec;
 		verf[1] = (u32)clp->cl_nfssvc_boot.tv_nsec;
-	} while (need_seqretry(&clp->cl_boot_lock, seq));
-	done_seqretry(&clp->cl_boot_lock, seq);
+	} while (read_seqretry(&clp->cl_boot_lock, seq));
 }
 
 static void
@@ -649,14 +648,15 @@ static void nfs_local_call_write(struct work_struct *work)
 	file_start_write(filp);
 	status = filp->f_op->write_iter(&iocb->kiocb, &iter);
 	file_end_write(filp);
+
+	revert_creds(save_cred);
+	current->flags = old_flags;
+
 	if (status != -EIOCBQUEUED) {
 		nfs_local_write_done(iocb, status);
 		nfs_local_vfs_getattr(iocb);
 		nfs_local_pgio_release(iocb);
 	}
-
-	revert_creds(save_cred);
-	current->flags = old_flags;
 }
 
 static int

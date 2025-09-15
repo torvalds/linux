@@ -448,7 +448,7 @@ static int psp_sw_init(struct amdgpu_ip_block *ip_block)
 	psp->cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!psp->cmd) {
 		dev_err(adev->dev, "Failed to allocate memory to command buffer!\n");
-		ret = -ENOMEM;
+		return -ENOMEM;
 	}
 
 	adev->psp.xgmi_context.supports_extended_data =
@@ -506,8 +506,7 @@ static int psp_sw_init(struct amdgpu_ip_block *ip_block)
 	}
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
-				      (amdgpu_sriov_vf(adev) || adev->debug_use_vram_fw_buf) ?
-				      AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
+				      AMDGPU_GEM_DOMAIN_VRAM,
 				      &psp->fw_pri_bo,
 				      &psp->fw_pri_mc_addr,
 				      &psp->fw_pri_buf);
@@ -666,6 +665,10 @@ static const char *psp_gfx_cmd_name(enum psp_gfx_cmd_id cmd_id)
 		return "FB_FW_RESERV_ADDR";
 	case GFX_CMD_ID_FB_FW_RESERV_EXT_ADDR:
 		return "FB_FW_RESERV_EXT_ADDR";
+	case GFX_CMD_ID_SRIOV_SPATIAL_PART:
+		return "SPATIAL_PARTITION";
+	case GFX_CMD_ID_FB_NPS_MODE:
+		return "NPS_MODE_CHANGE";
 	default:
 		return "UNKNOWN CMD";
 	}
@@ -877,9 +880,7 @@ static int psp_tmr_init(struct psp_context *psp)
 		pptr = amdgpu_sriov_vf(psp->adev) ? &tmr_buf : NULL;
 		ret = amdgpu_bo_create_kernel(psp->adev, tmr_size,
 					      PSP_TMR_ALIGNMENT,
-					      AMDGPU_HAS_VRAM(psp->adev) ?
-					      AMDGPU_GEM_DOMAIN_VRAM :
-					      AMDGPU_GEM_DOMAIN_GTT,
+					      AMDGPU_GEM_DOMAIN_GTT | AMDGPU_GEM_DOMAIN_VRAM,
 					      &psp->tmr_bo, &psp->tmr_mc_addr,
 					      pptr);
 	}
@@ -1039,15 +1040,28 @@ int psp_update_fw_reservation(struct psp_context *psp)
 {
 	int ret;
 	uint64_t reserv_addr, reserv_addr_ext;
-	uint32_t reserv_size, reserv_size_ext;
+	uint32_t reserv_size, reserv_size_ext, mp0_ip_ver;
 	struct amdgpu_device *adev = psp->adev;
+
+	mp0_ip_ver = amdgpu_ip_version(adev, MP0_HWIP, 0);
 
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	if ((amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(14, 0, 2)) &&
-	    (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(14, 0, 3)))
+	switch (mp0_ip_ver) {
+	case IP_VERSION(14, 0, 2):
+		if (adev->psp.sos.fw_version < 0x3b0e0d)
+			return 0;
+		break;
+
+	case IP_VERSION(14, 0, 3):
+		if (adev->psp.sos.fw_version < 0x3a0e14)
+			return 0;
+		break;
+
+	default:
 		return 0;
+	}
 
 	ret = psp_get_fw_reservation_info(psp, GFX_CMD_ID_FB_FW_RESERV_ADDR, &reserv_addr, &reserv_size);
 	if (ret)
@@ -4255,8 +4269,8 @@ rel_buf:
 static const struct bin_attribute psp_vbflash_bin_attr = {
 	.attr = {.name = "psp_vbflash", .mode = 0660},
 	.size = 0,
-	.write_new = amdgpu_psp_vbflash_write,
-	.read_new = amdgpu_psp_vbflash_read,
+	.write = amdgpu_psp_vbflash_write,
+	.read = amdgpu_psp_vbflash_read,
 };
 
 /**
@@ -4319,7 +4333,7 @@ static umode_t amdgpu_bin_flash_attr_is_visible(struct kobject *kobj,
 
 const struct attribute_group amdgpu_flash_attr_group = {
 	.attrs = flash_attrs,
-	.bin_attrs_new = bin_flash_attrs,
+	.bin_attrs = bin_flash_attrs,
 	.is_bin_visible = amdgpu_bin_flash_attr_is_visible,
 	.is_visible = amdgpu_flash_attr_is_visible,
 };

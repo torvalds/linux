@@ -179,4 +179,132 @@ int BPF_PROG(trusted_acq_rel, struct task_struct *task, u64 clone_flags)
 	return subprog_trusted_acq_rel(task);
 }
 
+__weak int subprog_untrusted_bad_tags(struct task_struct *task __arg_untrusted __arg_nullable)
+{
+	return task->pid;
+}
+
+SEC("tp_btf/sys_enter")
+__failure
+__msg("arg#0 untrusted cannot be combined with any other tags")
+int untrusted_bad_tags(void *ctx)
+{
+	return subprog_untrusted_bad_tags(0);
+}
+
+struct local_type_wont_be_accepted {};
+
+__weak int subprog_untrusted_bad_type(struct local_type_wont_be_accepted *p __arg_untrusted)
+{
+	return 0;
+}
+
+SEC("tp_btf/sys_enter")
+__failure
+__msg("arg#0 reference type('STRUCT local_type_wont_be_accepted') has no matches")
+int untrusted_bad_type(void *ctx)
+{
+	return subprog_untrusted_bad_type(bpf_rdonly_cast(0, 0));
+}
+
+__weak int subprog_untrusted(const volatile struct task_struct *restrict task __arg_untrusted)
+{
+	return task->pid;
+}
+
+SEC("tp_btf/sys_enter")
+__success
+__log_level(2)
+__msg("r1 = {{.*}}; {{.*}}R1_w=trusted_ptr_task_struct()")
+__msg("Func#1 ('subprog_untrusted') is global and assumed valid.")
+__msg("Validating subprog_untrusted() func#1...")
+__msg(": R1=untrusted_ptr_task_struct")
+int trusted_to_untrusted(void *ctx)
+{
+	return subprog_untrusted(bpf_get_current_task_btf());
+}
+
+char mem[16];
+u32 off;
+
+SEC("tp_btf/sys_enter")
+__success
+int anything_to_untrusted(void *ctx)
+{
+	/* untrusted to untrusted */
+	subprog_untrusted(bpf_core_cast(0, struct task_struct));
+	/* wrong type to untrusted */
+	subprog_untrusted((void *)bpf_core_cast(0, struct bpf_verifier_env));
+	/* map value to untrusted */
+	subprog_untrusted((void *)mem);
+	/* scalar to untrusted */
+	subprog_untrusted(0);
+	/* variable offset to untrusted (map) */
+	subprog_untrusted((void *)mem + off);
+	/* variable offset to untrusted (trusted) */
+	subprog_untrusted((void *)bpf_get_current_task_btf() + off);
+	return 0;
+}
+
+__weak int subprog_untrusted2(struct task_struct *task __arg_untrusted)
+{
+	return subprog_trusted_task_nullable(task);
+}
+
+SEC("tp_btf/sys_enter")
+__failure
+__msg("R1 type=untrusted_ptr_ expected=ptr_, trusted_ptr_, rcu_ptr_")
+__msg("Caller passes invalid args into func#{{.*}} ('subprog_trusted_task_nullable')")
+int untrusted_to_trusted(void *ctx)
+{
+	return subprog_untrusted2(bpf_get_current_task_btf());
+}
+
+__weak int subprog_void_untrusted(void *p __arg_untrusted)
+{
+	return *(int *)p;
+}
+
+__weak int subprog_char_untrusted(char *p __arg_untrusted)
+{
+	return *(int *)p;
+}
+
+__weak int subprog_enum_untrusted(enum bpf_attach_type *p __arg_untrusted)
+{
+	return *(int *)p;
+}
+
+SEC("tp_btf/sys_enter")
+__success
+__log_level(2)
+__msg("r1 = {{.*}}; {{.*}}R1_w=trusted_ptr_task_struct()")
+__msg("Func#1 ('subprog_void_untrusted') is global and assumed valid.")
+__msg("Validating subprog_void_untrusted() func#1...")
+__msg(": R1=rdonly_untrusted_mem(sz=0)")
+int trusted_to_untrusted_mem(void *ctx)
+{
+	return subprog_void_untrusted(bpf_get_current_task_btf());
+}
+
+SEC("tp_btf/sys_enter")
+__success
+int anything_to_untrusted_mem(void *ctx)
+{
+	/* untrusted to untrusted mem */
+	subprog_void_untrusted(bpf_core_cast(0, struct task_struct));
+	/* map value to untrusted mem */
+	subprog_void_untrusted(mem);
+	/* scalar to untrusted mem */
+	subprog_void_untrusted(0);
+	/* variable offset to untrusted mem (map) */
+	subprog_void_untrusted((void *)mem + off);
+	/* variable offset to untrusted mem (trusted) */
+	subprog_void_untrusted(bpf_get_current_task_btf() + off);
+	/* variable offset to untrusted char/enum (map) */
+	subprog_char_untrusted(mem + off);
+	subprog_enum_untrusted((void *)mem + off);
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";

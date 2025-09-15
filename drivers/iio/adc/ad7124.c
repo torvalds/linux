@@ -94,11 +94,6 @@
 
 /* AD7124 input sources */
 
-enum ad7124_ids {
-	ID_AD7124_4,
-	ID_AD7124_8,
-};
-
 enum ad7124_ref_sel {
 	AD7124_REFIN1,
 	AD7124_REFIN2,
@@ -193,17 +188,16 @@ struct ad7124_state {
 	DECLARE_KFIFO(live_cfgs_fifo, struct ad7124_channel_config *, AD7124_MAX_CONFIGS);
 };
 
-static struct ad7124_chip_info ad7124_chip_info_tbl[] = {
-	[ID_AD7124_4] = {
-		.name = "ad7124-4",
-		.chip_id = AD7124_ID_DEVICE_ID_AD7124_4,
-		.num_inputs = 8,
-	},
-	[ID_AD7124_8] = {
-		.name = "ad7124-8",
-		.chip_id = AD7124_ID_DEVICE_ID_AD7124_8,
-		.num_inputs = 16,
-	},
+static const struct ad7124_chip_info ad7124_4_chip_info = {
+	.name = "ad7124-4",
+	.chip_id = AD7124_ID_DEVICE_ID_AD7124_4,
+	.num_inputs = 8,
+};
+
+static const struct ad7124_chip_info ad7124_8_chip_info = {
+	.name = "ad7124-8",
+	.chip_id = AD7124_ID_DEVICE_ID_AD7124_8,
+	.num_inputs = 16,
 };
 
 static int ad7124_find_closest_match(const int *array,
@@ -855,7 +849,7 @@ enum {
 static int ad7124_syscalib_locked(struct ad7124_state *st, const struct iio_chan_spec *chan)
 {
 	struct device *dev = &st->sd.spi->dev;
-	struct ad7124_channel *ch = &st->channels[chan->channel];
+	struct ad7124_channel *ch = &st->channels[chan->address];
 	int ret;
 
 	if (ch->syscalib_mode == AD7124_SYSCALIB_ZERO_SCALE) {
@@ -871,8 +865,8 @@ static int ad7124_syscalib_locked(struct ad7124_state *st, const struct iio_chan
 		if (ret < 0)
 			return ret;
 
-		dev_dbg(dev, "offset for channel %d after zero-scale calibration: 0x%x\n",
-			chan->channel, ch->cfg.calibration_offset);
+		dev_dbg(dev, "offset for channel %lu after zero-scale calibration: 0x%x\n",
+			chan->address, ch->cfg.calibration_offset);
 	} else {
 		ch->cfg.calibration_gain = st->gain_default;
 
@@ -886,8 +880,8 @@ static int ad7124_syscalib_locked(struct ad7124_state *st, const struct iio_chan
 		if (ret < 0)
 			return ret;
 
-		dev_dbg(dev, "gain for channel %d after full-scale calibration: 0x%x\n",
-			chan->channel, ch->cfg.calibration_gain);
+		dev_dbg(dev, "gain for channel %lu after full-scale calibration: 0x%x\n",
+			chan->address, ch->cfg.calibration_gain);
 	}
 
 	return 0;
@@ -930,7 +924,7 @@ static int ad7124_set_syscalib_mode(struct iio_dev *indio_dev,
 {
 	struct ad7124_state *st = iio_priv(indio_dev);
 
-	st->channels[chan->channel].syscalib_mode = mode;
+	st->channels[chan->address].syscalib_mode = mode;
 
 	return 0;
 }
@@ -940,7 +934,7 @@ static int ad7124_get_syscalib_mode(struct iio_dev *indio_dev,
 {
 	struct ad7124_state *st = iio_priv(indio_dev);
 
-	return st->channels[chan->channel].syscalib_mode;
+	return st->channels[chan->address].syscalib_mode;
 }
 
 static const struct iio_enum ad7124_syscalib_mode_enum = {
@@ -1341,17 +1335,15 @@ static int ad7124_probe(struct spi_device *spi)
 }
 
 static const struct of_device_id ad7124_of_match[] = {
-	{ .compatible = "adi,ad7124-4",
-		.data = &ad7124_chip_info_tbl[ID_AD7124_4], },
-	{ .compatible = "adi,ad7124-8",
-		.data = &ad7124_chip_info_tbl[ID_AD7124_8], },
+	{ .compatible = "adi,ad7124-4", .data = &ad7124_4_chip_info },
+	{ .compatible = "adi,ad7124-8", .data = &ad7124_8_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7124_of_match);
 
 static const struct spi_device_id ad71124_ids[] = {
-	{ "ad7124-4", (kernel_ulong_t)&ad7124_chip_info_tbl[ID_AD7124_4] },
-	{ "ad7124-8", (kernel_ulong_t)&ad7124_chip_info_tbl[ID_AD7124_8] },
+	{ "ad7124-4", (kernel_ulong_t)&ad7124_4_chip_info },
+	{ "ad7124-8", (kernel_ulong_t)&ad7124_8_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad71124_ids);

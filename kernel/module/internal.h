@@ -58,6 +58,9 @@ extern const struct kernel_symbol __stop___ksymtab_gpl[];
 extern const u32 __start___kcrctab[];
 extern const u32 __start___kcrctab_gpl[];
 
+#define KMOD_PATH_LEN 256
+extern char modprobe_path[];
+
 struct load_info {
 	const char *name;
 	/* pointer to module in temporary copy, freed at end of load_module() */
@@ -107,6 +110,13 @@ struct find_symbol_arg {
 	const u32 *crc;
 	const struct kernel_symbol *sym;
 	enum mod_license license;
+};
+
+/* modules using other modules */
+struct module_use {
+	struct list_head source_list;
+	struct list_head target_list;
+	struct module *source, *target;
 };
 
 int mod_verify_sig(const void *mod, struct load_info *info);

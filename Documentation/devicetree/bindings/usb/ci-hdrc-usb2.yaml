@@ -23,6 +23,7 @@ properties:
           - nvidia,tegra30-udc
           - nvidia,tegra114-udc
           - nvidia,tegra124-udc
+          - nxp,s32g2-usb
           - qcom,ci-hdrc
       - items:
           - enum:
@@ -37,6 +38,10 @@ properties:
           - enum:
               - nuvoton,npcm845-udc
           - const: nuvoton,npcm750-udc
+      - items:
+          - enum:
+              - nxp,s32g3-usb
+          - const: nxp,s32g2-usb
 
   clocks:
     minItems: 1

@@ -14,6 +14,7 @@
 #include <linux/skbuff.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
+#include <linux/types.h>
 #include <net/genetlink.h>
 #include <net/netlink.h>
 #include <uapi/linux/batman_adv.h>

@@ -39,7 +39,7 @@ struct device_link;
 struct pci_pwrctrl {
 	struct device *dev;
 
-	/* Private: don't use. */
+	/* private: internal use only */
 	struct notifier_block nb;
 	struct device_link *link;
 	struct work_struct work;

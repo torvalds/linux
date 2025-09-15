@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -390,6 +390,10 @@ lpfc_sli4_vport_delete_fcp_xri_aborted(struct lpfc_vport *vport)
 	if (!(vport->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
 		return;
 
+	/* may be called before queues established if hba_setup fails */
+	if (!phba->sli4_hba.hdwq)
+		return;
+
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
 		qp = &phba->sli4_hba.hdwq[idx];
@@ -532,7 +536,8 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 			psb = container_of(iocbq, struct lpfc_io_buf, cur_iocbq);
 			psb->flags &= ~LPFC_SBUF_XBUSY;
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
-			if (!list_empty(&pring->txq))
+			if (test_bit(HBA_SETUP, &phba->hba_flag) &&
+			    !list_empty(&pring->txq))
 				lpfc_worker_wake_up(phba);
 			return;
 		}

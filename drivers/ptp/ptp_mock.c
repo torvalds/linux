@@ -41,7 +41,7 @@ struct mock_phc {
 	spinlock_t lock;
 };
 
-static u64 mock_phc_cc_read(const struct cyclecounter *cc)
+static u64 mock_phc_cc_read(struct cyclecounter *cc)
 {
 	return ktime_get_raw_ns();
 }

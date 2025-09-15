@@ -277,13 +277,15 @@ static int live_forcewake_domains(void *arg)
 #define FW_RANGE 0x40000
 	struct intel_gt *gt = arg;
 	struct intel_uncore *uncore = gt->uncore;
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_display *display = i915->display;
 	unsigned long *valid;
 	u32 offset;
 	int err;
 
-	if (!HAS_FPGA_DBG_UNCLAIMED(gt->i915) &&
-	    !IS_VALLEYVIEW(gt->i915) &&
-	    !IS_CHERRYVIEW(gt->i915))
+	if (!HAS_FPGA_DBG_UNCLAIMED(display) &&
+	    !IS_VALLEYVIEW(i915) &&
+	    !IS_CHERRYVIEW(i915))
 		return 0;
 
 	/*

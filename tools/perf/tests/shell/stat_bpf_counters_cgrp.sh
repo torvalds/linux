@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # perf stat --bpf-counters --for-each-cgroup test
 # SPDX-License-Identifier: GPL-2.0
 

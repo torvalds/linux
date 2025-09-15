@@ -60,6 +60,11 @@
         "CountersNumGeneric": 4
     },
     {
+        "Unit": "UBOX",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": "2"
+    },
+    {
         "Unit": "PCU",
         "CountersNumFixed": "0",
         "CountersNumGeneric": "4"
@@ -73,10 +78,5 @@
         "Unit": "MDF",
         "CountersNumFixed": "0",
         "CountersNumGeneric": "4"
-    },
-    {
-        "Unit": "UBOX",
-        "CountersNumFixed": "0",
-        "CountersNumGeneric": "2"
     }
 ]

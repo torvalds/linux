@@ -176,6 +176,9 @@ static inline int bch2_foreground_maybe_merge(struct btree_trans *trans,
 
 int bch2_btree_node_rewrite(struct btree_trans *, struct btree_iter *,
 			    struct btree *, unsigned, unsigned);
+int bch2_btree_node_rewrite_key(struct btree_trans *,
+				enum btree_id, unsigned,
+				struct bkey_i *, unsigned);
 int bch2_btree_node_rewrite_pos(struct btree_trans *,
 				enum btree_id, unsigned,
 				struct bpos, unsigned, unsigned);

@@ -153,8 +153,6 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 		c->verify_data = __bch2_btree_node_mem_alloc(c);
 		if (!c->verify_data)
 			goto out;
-
-		list_del_init(&c->verify_data->list);
 	}
 
 	BUG_ON(b->nsets != 1);
@@ -586,6 +584,8 @@ static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 	i->ubuf = buf;
 	i->size	= size;
 	i->ret	= 0;
+
+	int srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
 restart:
 	seqmutex_lock(&c->btree_trans_lock);
 	list_sort(&c->btree_trans_list, list_ptr_order_cmp);
@@ -598,6 +598,11 @@ restart:
 
 		if (!closure_get_not_zero(&trans->ref))
 			continue;
+
+		if (!trans->srcu_held) {
+			closure_put(&trans->ref);
+			continue;
+		}
 
 		u32 seq = seqmutex_unlock(&c->btree_trans_lock);
 
@@ -620,6 +625,8 @@ restart:
 	}
 	seqmutex_unlock(&c->btree_trans_lock);
 unlocked:
+	srcu_read_unlock(&c->btree_trans_barrier, srcu_idx);
+
 	if (i->buf.allocation_failure)
 		ret = -ENOMEM;
 

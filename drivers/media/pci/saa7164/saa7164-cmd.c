@@ -295,34 +295,6 @@ static int saa7164_cmd_wait(struct saa7164_dev *dev, u8 seqno)
 	return ret;
 }
 
-void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno)
-{
-	int i;
-	dprintk(DBGLVL_CMD, "%s()\n", __func__);
-
-	mutex_lock(&dev->lock);
-	for (i = 0; i < SAA_CMD_MAX_MSG_UNITS; i++) {
-		if (dev->cmds[i].inuse == 1) {
-			dprintk(DBGLVL_CMD,
-				"seqno %d inuse, sig = %d, t/out = %d\n",
-				dev->cmds[i].seqno,
-				dev->cmds[i].signalled,
-				dev->cmds[i].timeout);
-		}
-	}
-
-	for (i = 0; i < SAA_CMD_MAX_MSG_UNITS; i++) {
-		if ((dev->cmds[i].inuse == 1) && ((i == 0) ||
-			(dev->cmds[i].signalled) || (dev->cmds[i].timeout))) {
-			dprintk(DBGLVL_CMD, "%s(seqno=%d) calling wake_up\n",
-				__func__, i);
-			dev->cmds[i].signalled = 1;
-			wake_up(&dev->cmds[i].wait);
-		}
-	}
-	mutex_unlock(&dev->lock);
-}
-
 int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 	u16 controlselector, u16 size, void *buf)
 {

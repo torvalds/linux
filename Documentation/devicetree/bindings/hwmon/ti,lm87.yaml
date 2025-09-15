@@ -18,7 +18,9 @@ description: |
 
 properties:
   compatible:
-    const: ti,lm87
+    enum:
+      - adi,adm1024
+      - ti,lm87
 
   reg:
     maxItems: 1

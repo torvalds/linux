@@ -423,17 +423,16 @@ more:
 			req->r_inode_drop = CEPH_CAP_FILE_EXCL;
 		}
 		if (dfi->last_name) {
-			struct qstr d_name = { .name = dfi->last_name,
-					       .len = strlen(dfi->last_name) };
+			int len = strlen(dfi->last_name);
 
 			req->r_path2 = kzalloc(NAME_MAX + 1, GFP_KERNEL);
 			if (!req->r_path2) {
 				ceph_mdsc_put_request(req);
 				return -ENOMEM;
 			}
+			memcpy(req->r_path2, dfi->last_name, len);
 
-			err = ceph_encode_encrypted_dname(inode, &d_name,
-							  req->r_path2);
+			err = ceph_encode_encrypted_dname(inode, req->r_path2, len);
 			if (err < 0) {
 				ceph_mdsc_put_request(req);
 				return err;
@@ -1272,10 +1271,8 @@ static void ceph_async_unlink_cb(struct ceph_mds_client *mdsc,
 
 	/* If op failed, mark everyone involved for errors */
 	if (result) {
-		int pathlen = 0;
-		u64 base = 0;
-		char *path = ceph_mdsc_build_path(mdsc, dentry, &pathlen,
-						  &base, 0);
+		struct ceph_path_info path_info = {0};
+		char *path = ceph_mdsc_build_path(mdsc, dentry, &path_info, 0);
 
 		/* mark error on parent + clear complete */
 		mapping_set_error(req->r_parent->i_mapping, result);
@@ -1289,8 +1286,8 @@ static void ceph_async_unlink_cb(struct ceph_mds_client *mdsc,
 		mapping_set_error(req->r_old_inode->i_mapping, result);
 
 		pr_warn_client(cl, "failure path=(%llx)%s result=%d!\n",
-			       base, IS_ERR(path) ? "<<bad>>" : path, result);
-		ceph_mdsc_free_path(path, pathlen);
+			       path_info.vino.ino, IS_ERR(path) ? "<<bad>>" : path, result);
+		ceph_mdsc_free_path_info(&path_info);
 	}
 out:
 	iput(req->r_old_inode);
@@ -1348,8 +1345,6 @@ static int ceph_unlink(struct inode *dir, struct dentry *dentry)
 	int err = -EROFS;
 	int op;
 	char *path;
-	int pathlen;
-	u64 pathbase;
 
 	if (ceph_snap(dir) == CEPH_SNAPDIR) {
 		/* rmdir .snap/foo is RMSNAP */
@@ -1368,14 +1363,15 @@ static int ceph_unlink(struct inode *dir, struct dentry *dentry)
 	if (!dn) {
 		try_async = false;
 	} else {
-		path = ceph_mdsc_build_path(mdsc, dn, &pathlen, &pathbase, 0);
+		struct ceph_path_info path_info;
+		path = ceph_mdsc_build_path(mdsc, dn, &path_info, 0);
 		if (IS_ERR(path)) {
 			try_async = false;
 			err = 0;
 		} else {
 			err = ceph_mds_check_access(mdsc, path, MAY_WRITE);
 		}
-		ceph_mdsc_free_path(path, pathlen);
+		ceph_mdsc_free_path_info(&path_info);
 		dput(dn);
 
 		/* For none EACCES cases will let the MDS do the mds auth check */

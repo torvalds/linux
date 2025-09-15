@@ -230,7 +230,7 @@ struct handle_to_path_ctx {
  *    directory.  The name should be stored in the @name (with the
  *    understanding that it is already pointing to a %NAME_MAX+1 sized
  *    buffer.   get_name() should return %0 on success, a negative error code
- *    or error.  @get_name will be called without @parent->i_mutex held.
+ *    or error.  @get_name will be called without @parent->i_rwsem held.
  *
  * get_parent:
  *    @get_parent should find the parent directory for the given @child which
@@ -247,7 +247,7 @@ struct handle_to_path_ctx {
  *    @commit_metadata should commit metadata changes to stable storage.
  *
  * Locking rules:
- *    get_parent is called with child->d_inode->i_mutex down
+ *    get_parent is called with child->d_inode->i_rwsem down
  *    get_name is not (which is possibly inconsistent)
  */
 

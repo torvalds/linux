@@ -358,30 +358,28 @@ static ssize_t amd_pmf_get_pb_data(struct file *filp, const char __user *buf,
 		return -EINVAL;
 
 	/* re-alloc to the new buffer length of the policy binary */
-	new_policy_buf = memdup_user(buf, length);
-	if (IS_ERR(new_policy_buf))
-		return PTR_ERR(new_policy_buf);
+	new_policy_buf = devm_kzalloc(dev->dev, length, GFP_KERNEL);
+	if (!new_policy_buf)
+		return -ENOMEM;
 
-	kfree(dev->policy_buf);
+	if (copy_from_user(new_policy_buf, buf, length)) {
+		devm_kfree(dev->dev, new_policy_buf);
+		return -EFAULT;
+	}
+
+	devm_kfree(dev->dev, dev->policy_buf);
 	dev->policy_buf = new_policy_buf;
 	dev->policy_sz = length;
 
-	if (!amd_pmf_pb_valid(dev)) {
-		ret = -EINVAL;
-		goto cleanup;
-	}
+	if (!amd_pmf_pb_valid(dev))
+		return -EINVAL;
 
 	amd_pmf_hex_dump_pb(dev);
 	ret = amd_pmf_start_policy_engine(dev);
 	if (ret < 0)
-		goto cleanup;
+		return ret;
 
 	return length;
-
-cleanup:
-	kfree(dev->policy_buf);
-	dev->policy_buf = NULL;
-	return ret;
 }
 
 static const struct file_operations pb_fops = {
@@ -422,12 +420,12 @@ static int amd_pmf_ta_open_session(struct tee_context *ctx, u32 *id, const uuid_
 	rc = tee_client_open_session(ctx, &sess_arg, NULL);
 	if (rc < 0 || sess_arg.ret != 0) {
 		pr_err("Failed to open TEE session err:%#x, rc:%d\n", sess_arg.ret, rc);
-		return rc;
+		return rc ?: -EINVAL;
 	}
 
 	*id = sess_arg.session;
 
-	return rc;
+	return 0;
 }
 
 static int amd_pmf_register_input_device(struct amd_pmf_dev *dev)
@@ -462,7 +460,9 @@ static int amd_pmf_tee_init(struct amd_pmf_dev *dev, const uuid_t *uuid)
 	dev->tee_ctx = tee_client_open_context(NULL, amd_pmf_amdtee_ta_match, NULL, NULL);
 	if (IS_ERR(dev->tee_ctx)) {
 		dev_err(dev->dev, "Failed to open TEE context\n");
-		return PTR_ERR(dev->tee_ctx);
+		ret = PTR_ERR(dev->tee_ctx);
+		dev->tee_ctx = NULL;
+		return ret;
 	}
 
 	ret = amd_pmf_ta_open_session(dev->tee_ctx, &dev->session_id, uuid);
@@ -502,9 +502,12 @@ out_ctx:
 
 static void amd_pmf_tee_deinit(struct amd_pmf_dev *dev)
 {
+	if (!dev->tee_ctx)
+		return;
 	tee_shm_free(dev->fw_shm_pool);
 	tee_client_close_session(dev->tee_ctx, dev->session_id);
 	tee_client_close_context(dev->tee_ctx);
+	dev->tee_ctx = NULL;
 }
 
 int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
@@ -527,64 +530,45 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 
 	ret = amd_pmf_set_dram_addr(dev, true);
 	if (ret)
-		goto err_cancel_work;
+		return ret;
 
 	dev->policy_base = devm_ioremap_resource(dev->dev, dev->res);
-	if (IS_ERR(dev->policy_base)) {
-		ret = PTR_ERR(dev->policy_base);
-		goto err_free_dram_buf;
-	}
+	if (IS_ERR(dev->policy_base))
+		return PTR_ERR(dev->policy_base);
 
-	dev->policy_buf = kzalloc(dev->policy_sz, GFP_KERNEL);
-	if (!dev->policy_buf) {
-		ret = -ENOMEM;
-		goto err_free_dram_buf;
-	}
+	dev->policy_buf = devm_kzalloc(dev->dev, dev->policy_sz, GFP_KERNEL);
+	if (!dev->policy_buf)
+		return -ENOMEM;
 
 	memcpy_fromio(dev->policy_buf, dev->policy_base, dev->policy_sz);
 
 	if (!amd_pmf_pb_valid(dev)) {
 		dev_info(dev->dev, "No Smart PC policy present\n");
-		ret = -EINVAL;
-		goto err_free_policy;
+		return -EINVAL;
 	}
 
 	amd_pmf_hex_dump_pb(dev);
 
-	dev->prev_data = kzalloc(sizeof(*dev->prev_data), GFP_KERNEL);
-	if (!dev->prev_data) {
-		ret = -ENOMEM;
-		goto err_free_policy;
-	}
+	dev->prev_data = devm_kzalloc(dev->dev, sizeof(*dev->prev_data), GFP_KERNEL);
+	if (!dev->prev_data)
+		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(amd_pmf_ta_uuid); i++) {
 		ret = amd_pmf_tee_init(dev, &amd_pmf_ta_uuid[i]);
 		if (ret)
-			goto err_free_prev_data;
+			return ret;
 
 		ret = amd_pmf_start_policy_engine(dev);
-		switch (ret) {
-		case TA_PMF_TYPE_SUCCESS:
-			status = true;
-			break;
-		case TA_ERROR_CRYPTO_INVALID_PARAM:
-		case TA_ERROR_CRYPTO_BIN_TOO_LARGE:
-			amd_pmf_tee_deinit(dev);
-			status = false;
-			break;
-		default:
-			ret = -EINVAL;
-			amd_pmf_tee_deinit(dev);
-			goto err_free_prev_data;
-		}
-
+		dev_dbg(dev->dev, "start policy engine ret: %d\n", ret);
+		status = ret == TA_PMF_TYPE_SUCCESS;
 		if (status)
 			break;
+		amd_pmf_tee_deinit(dev);
 	}
 
 	if (!status && !pb_side_load) {
 		ret = -EINVAL;
-		goto err_free_prev_data;
+		goto err;
 	}
 
 	if (pb_side_load)
@@ -592,22 +576,12 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 
 	ret = amd_pmf_register_input_device(dev);
 	if (ret)
-		goto err_pmf_remove_pb;
+		goto err;
 
 	return 0;
 
-err_pmf_remove_pb:
-	if (pb_side_load && dev->esbin)
-		amd_pmf_remove_pb(dev);
-	amd_pmf_tee_deinit(dev);
-err_free_prev_data:
-	kfree(dev->prev_data);
-err_free_policy:
-	kfree(dev->policy_buf);
-err_free_dram_buf:
-	kfree(dev->buf);
-err_cancel_work:
-	cancel_delayed_work_sync(&dev->pb_work);
+err:
+	amd_pmf_deinit_smart_pc(dev);
 
 	return ret;
 }
@@ -621,11 +595,5 @@ void amd_pmf_deinit_smart_pc(struct amd_pmf_dev *dev)
 		amd_pmf_remove_pb(dev);
 
 	cancel_delayed_work_sync(&dev->pb_work);
-	kfree(dev->prev_data);
-	dev->prev_data = NULL;
-	kfree(dev->policy_buf);
-	dev->policy_buf = NULL;
-	kfree(dev->buf);
-	dev->buf = NULL;
 	amd_pmf_tee_deinit(dev);
 }

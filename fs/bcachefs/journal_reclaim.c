@@ -170,6 +170,12 @@ static struct journal_space __journal_space_available(struct journal *j, unsigne
 		return (struct journal_space) { 0, 0 };
 
 	/*
+	 * It's possible for bucket size to be misaligned w.r.t. the filesystem
+	 * block size:
+	 */
+	min_bucket_size = round_down(min_bucket_size, block_sectors(c));
+
+	/*
 	 * We sorted largest to smallest, and we want the smallest out of the
 	 * @nr_devs_want largest devices:
 	 */

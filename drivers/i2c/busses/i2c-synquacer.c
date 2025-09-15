@@ -520,8 +520,8 @@ static u32 synquacer_i2c_functionality(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm synquacer_i2c_algo = {
-	.master_xfer	= synquacer_i2c_xfer,
-	.functionality	= synquacer_i2c_functionality,
+	.xfer = synquacer_i2c_xfer,
+	.functionality = synquacer_i2c_functionality,
 };
 
 static const struct i2c_adapter synquacer_i2c_ops = {

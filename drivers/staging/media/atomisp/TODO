@@ -7,8 +7,6 @@ TODO
 
 * Remove/disable custom v4l2-ctrls
 
-* Remove custom sysfs files created by atomisp_drvfs.c
-
 * Remove unnecessary/unwanted module parameters
 
 * Remove abuse of priv field in various v4l2 userspace API structs

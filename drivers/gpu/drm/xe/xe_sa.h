@@ -7,6 +7,8 @@
 
 #include <linux/sizes.h>
 #include <linux/types.h>
+
+#include "xe_bo.h"
 #include "xe_sa_types.h"
 
 struct dma_fence;
@@ -43,9 +45,20 @@ to_xe_sa_manager(struct drm_suballoc_manager *mng)
 	return container_of(mng, struct xe_sa_manager, base);
 }
 
+/**
+ * xe_sa_manager_gpu_addr - Retrieve GPU address of a back storage BO
+ * within suballocator.
+ * @sa_manager: the &xe_sa_manager struct instance
+ * Return: GGTT address of the back storage BO.
+ */
+static inline u64 xe_sa_manager_gpu_addr(struct xe_sa_manager *sa_manager)
+{
+	return xe_bo_ggtt_addr(sa_manager->bo);
+}
+
 static inline u64 xe_sa_bo_gpu_addr(struct drm_suballoc *sa)
 {
-	return to_xe_sa_manager(sa->manager)->gpu_addr +
+	return xe_sa_manager_gpu_addr(to_xe_sa_manager(sa->manager)) +
 		drm_suballoc_soffset(sa);
 }
 

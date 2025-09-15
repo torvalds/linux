@@ -219,20 +219,18 @@ static const struct msi_parent_ops sg2044_msi_parent_ops = {
 static int sg204x_msi_init_domains(struct sg204x_msi_chipdata *data,
 				   struct irq_domain *plic_domain, struct device *dev)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct irq_domain *middle_domain;
+	struct irq_domain_info info = {
+		.ops		= &sg204x_msi_middle_domain_ops,
+		.parent		= plic_domain,
+		.size		= data->num_irqs,
+		.fwnode		= dev_fwnode(dev),
+		.host_data	= data,
+	};
 
-	middle_domain = irq_domain_create_hierarchy(plic_domain, 0, data->num_irqs, fwnode,
-						    &sg204x_msi_middle_domain_ops, data);
-	if (!middle_domain) {
+	if (!msi_create_parent_irq_domain(&info, data->chip_info->parent_ops)) {
 		pr_err("Failed to create the MSI middle domain\n");
 		return -ENOMEM;
 	}
-
-	irq_domain_update_bus_token(middle_domain, DOMAIN_BUS_NEXUS);
-
-	middle_domain->flags |= IRQ_DOMAIN_FLAG_MSI_PARENT;
-	middle_domain->msi_parent_ops = data->chip_info->parent_ops;
 	return 0;
 }
 

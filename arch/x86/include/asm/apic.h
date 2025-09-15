@@ -488,16 +488,78 @@ static inline void apic_setup_apic_calls(void) { }
 
 extern void apic_ack_irq(struct irq_data *data);
 
+#define APIC_VECTOR_TO_BIT_NUMBER(v) ((unsigned int)(v) % 32)
+#define APIC_VECTOR_TO_REG_OFFSET(v) ((unsigned int)(v) / 32 * 0x10)
+
 static inline bool lapic_vector_set_in_irr(unsigned int vector)
 {
-	u32 irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
+	u32 irr = apic_read(APIC_IRR + APIC_VECTOR_TO_REG_OFFSET(vector));
 
-	return !!(irr & (1U << (vector % 32)));
+	return !!(irr & (1U << APIC_VECTOR_TO_BIT_NUMBER(vector)));
 }
 
 static inline bool is_vector_pending(unsigned int vector)
 {
 	return lapic_vector_set_in_irr(vector) || pi_pending_this_cpu(vector);
+}
+
+#define MAX_APIC_VECTOR			256
+#define APIC_VECTORS_PER_REG		32
+
+/*
+ * Vector states are maintained by APIC in 32-bit registers that are
+ * 16 bytes aligned. The status of each vector is kept in a single
+ * bit.
+ */
+static inline int apic_find_highest_vector(void *bitmap)
+{
+	int vec;
+	u32 *reg;
+
+	for (vec = MAX_APIC_VECTOR - APIC_VECTORS_PER_REG; vec >= 0; vec -= APIC_VECTORS_PER_REG) {
+		reg = bitmap + APIC_VECTOR_TO_REG_OFFSET(vec);
+		if (*reg)
+			return __fls(*reg) + vec;
+	}
+
+	return -1;
+}
+
+static inline u32 apic_get_reg(void *regs, int reg)
+{
+	return *((u32 *) (regs + reg));
+}
+
+static inline void apic_set_reg(void *regs, int reg, u32 val)
+{
+	*((u32 *) (regs + reg)) = val;
+}
+
+static __always_inline u64 apic_get_reg64(void *regs, int reg)
+{
+	BUILD_BUG_ON(reg != APIC_ICR);
+	return *((u64 *) (regs + reg));
+}
+
+static __always_inline void apic_set_reg64(void *regs, int reg, u64 val)
+{
+	BUILD_BUG_ON(reg != APIC_ICR);
+	*((u64 *) (regs + reg)) = val;
+}
+
+static inline void apic_clear_vector(int vec, void *bitmap)
+{
+	clear_bit(APIC_VECTOR_TO_BIT_NUMBER(vec), bitmap + APIC_VECTOR_TO_REG_OFFSET(vec));
+}
+
+static inline void apic_set_vector(int vec, void *bitmap)
+{
+	set_bit(APIC_VECTOR_TO_BIT_NUMBER(vec), bitmap + APIC_VECTOR_TO_REG_OFFSET(vec));
+}
+
+static inline int apic_test_vector(int vec, void *bitmap)
+{
+	return test_bit(APIC_VECTOR_TO_BIT_NUMBER(vec), bitmap + APIC_VECTOR_TO_REG_OFFSET(vec));
 }
 
 /*

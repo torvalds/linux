@@ -155,9 +155,9 @@ static const struct geni_i2c_clk_fld geni_i2c_clk_map_19p2mhz[] = {
 
 /* source_clock = 32 MHz */
 static const struct geni_i2c_clk_fld geni_i2c_clk_map_32mhz[] = {
-	{ I2C_MAX_STANDARD_MODE_FREQ, 8, 14, 18, 40 },
-	{ I2C_MAX_FAST_MODE_FREQ, 4,  3, 11, 20 },
-	{ I2C_MAX_FAST_MODE_PLUS_FREQ, 2, 3,  6, 15 },
+	{ I2C_MAX_STANDARD_MODE_FREQ, 8, 14, 18, 38 },
+	{ I2C_MAX_FAST_MODE_FREQ, 4,  3, 9, 19 },
+	{ I2C_MAX_FAST_MODE_PLUS_FREQ, 2, 3, 5, 15 },
 	{}
 };
 
@@ -727,8 +727,8 @@ static u32 geni_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm geni_i2c_algo = {
-	.master_xfer	= geni_i2c_xfer,
-	.functionality	= geni_i2c_func,
+	.xfer = geni_i2c_xfer,
+	.functionality = geni_i2c_func,
 };
 
 #ifdef CONFIG_ACPI

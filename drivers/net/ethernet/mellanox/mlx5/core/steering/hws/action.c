@@ -117,7 +117,7 @@ static int hws_action_get_shared_stc_nic(struct mlx5hws_context *ctx,
 		mlx5hws_err(ctx, "No such stc_type: %d\n", stc_type);
 		pr_warn("HWS: Invalid stc_type: %d\n", stc_type);
 		ret = -EINVAL;
-		goto unlock_and_out;
+		goto free_shared_stc;
 	}
 
 	ret = mlx5hws_action_alloc_single_stc(ctx, &stc_attr, tbl_type,
@@ -1358,12 +1358,9 @@ free_action:
 }
 
 struct mlx5hws_action *
-mlx5hws_action_create_dest_array(struct mlx5hws_context *ctx,
-				 size_t num_dest,
+mlx5hws_action_create_dest_array(struct mlx5hws_context *ctx, size_t num_dest,
 				 struct mlx5hws_action_dest_attr *dests,
-				 bool ignore_flow_level,
-				 u32 flow_source,
-				 u32 flags)
+				 bool ignore_flow_level, u32 flags)
 {
 	struct mlx5hws_cmd_set_fte_dest *dest_list = NULL;
 	struct mlx5hws_cmd_ft_create_attr ft_attr = {0};

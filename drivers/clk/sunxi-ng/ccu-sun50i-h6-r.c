@@ -80,7 +80,7 @@ static struct ccu_div r_apb2_clk = {
  * in the BSP source code, although most of them are unused. The existence
  * of the hardware block is verified with "3.1 Memory Mapping" chapter in
  * "Allwinner H6 V200 User Manual V1.1"; and the parent APB buses are verified
- * with "3.3.2.1 System Bus Tree" chapter inthe same document.
+ * with "3.3.2.1 System Bus Tree" chapter in the same document.
  */
 static SUNXI_CCU_GATE(r_apb1_timer_clk,	"r-apb1-timer",	"r-apb1",
 		      0x11c, BIT(0), 0);

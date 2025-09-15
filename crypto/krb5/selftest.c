@@ -152,6 +152,7 @@ static int krb5_test_one_prf(const struct krb5_prf_test *test)
 
 out:
 	clear_buf(&result);
+	clear_buf(&prf);
 	clear_buf(&octet);
 	clear_buf(&key);
 	return ret;

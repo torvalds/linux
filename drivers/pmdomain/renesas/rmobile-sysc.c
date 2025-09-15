@@ -335,5 +335,4 @@ static int __init rmobile_init_pm_domains(void)
 
 	return ret;
 }
-
-core_initcall(rmobile_init_pm_domains);
+postcore_initcall(rmobile_init_pm_domains);

@@ -1072,6 +1072,7 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 	pr_warn_ratelimited("SELinux: %s (%d) wrote to /sys/fs/selinux/user!"
 		" This will not be supported in the future; please update your"
 		" userspace.\n", current->comm, current->pid);
+	ssleep(5);
 
 	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__COMPUTE_USER,
@@ -2096,8 +2097,6 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 err:
 	pr_err("SELinux: %s:  failed while creating inodes\n",
 		__func__);
-
-	selinux_fs_info_free(sb);
 
 	return ret;
 }

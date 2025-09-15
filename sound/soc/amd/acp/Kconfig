@@ -148,6 +148,7 @@ config SND_SOC_AMD_SOF_SDW_MACH
 	select SND_SOC_RT1316_SDW
 	select SND_SOC_RT715_SDW
 	select SND_SOC_RT715_SDCA_SDW
+	select SND_SOC_RT722_SDCA_SDW
 	help
 	  This option enables SOF sound card support for SoundWire enabled
 	  AMD platforms along with ACP PDM controller.

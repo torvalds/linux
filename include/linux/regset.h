@@ -151,7 +151,8 @@ typedef int user_regset_writeback_fn(struct task_struct *target,
  * @align:		Required alignment, in bytes.
  * @bias:		Bias from natural indexing.
  * @core_note_type:	ELF note @n_type value used in core dumps.
- * @get:		Function to fetch values.
+ * @core_note_name:	ELF note name to qualify the note type.
+ * @regset_get:		Function to fetch values.
  * @set:		Function to store values.
  * @active:		Function to report if regset is active, or %NULL.
  * @writeback:		Function to write data back to user memory, or %NULL.
@@ -190,6 +191,10 @@ typedef int user_regset_writeback_fn(struct task_struct *target,
  *
  * If nonzero, @core_note_type gives the n_type field (NT_* value)
  * of the core file note in which this regset's data appears.
+ * @core_note_name specifies the note name.  The preferred way to
+ * specify these two fields is to use the @USER_REGSET_NOTE_TYPE()
+ * macro.
+ *
  * NT_PRSTATUS is a special case in that the regset data starts at
  * offsetof(struct elf_prstatus, pr_reg) into the note data; that is
  * part of the per-machine ELF formats userland knows about.  In
@@ -207,7 +212,12 @@ struct user_regset {
 	unsigned int 			align;
 	unsigned int 			bias;
 	unsigned int 			core_note_type;
+	const char			*core_note_name;
 };
+
+#define USER_REGSET_NOTE_TYPE(type) \
+	.core_note_type			= (NT_ ## type), \
+	.core_note_name			= (NN_ ## type)
 
 /**
  * struct user_regset_view - available regsets

@@ -286,10 +286,10 @@ static void remap_dfa_accept(struct aa_dfa *dfa, unsigned int factor)
 
 	AA_BUG(!dfa);
 
-	for (state = 0; state < state_count; state++)
+	for (state = 0; state < state_count; state++) {
 		ACCEPT_TABLE(dfa)[state] = state * factor;
-	kvfree(dfa->tables[YYTD_ID_ACCEPT2]);
-	dfa->tables[YYTD_ID_ACCEPT2] = NULL;
+		ACCEPT_TABLE2(dfa)[state] = factor > 1 ? ACCEPT_FLAG_OWNER : 0;
+	}
 }
 
 /* TODO: merge different dfa mappings into single map_policy fn */

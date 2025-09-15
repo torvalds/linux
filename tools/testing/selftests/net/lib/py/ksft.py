@@ -32,6 +32,7 @@ class KsftTerminate(KeyboardInterrupt):
 
 
 def ksft_pr(*objs, **kwargs):
+    kwargs["flush"] = True
     print("#", *objs, **kwargs)
 
 
@@ -139,7 +140,7 @@ def ktap_result(ok, cnt=1, case="", comment=""):
         res += "." + str(case.__name__)
     if comment:
         res += " # " + comment
-    print(res)
+    print(res, flush=True)
 
 
 def ksft_flush_defer():
@@ -227,8 +228,8 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
 
     totals = {"pass": 0, "fail": 0, "skip": 0, "xfail": 0}
 
-    print("TAP version 13")
-    print("1.." + str(len(cases)))
+    print("TAP version 13", flush=True)
+    print("1.." + str(len(cases)), flush=True)
 
     global KSFT_RESULT
     cnt = 0

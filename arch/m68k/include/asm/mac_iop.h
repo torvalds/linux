@@ -66,7 +66,7 @@
 #define IOP_ADDR_ALIVE		0x031F
 #define IOP_ADDR_RECV_MSG	0x0320
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * IOP Control registers, staggered because in usual Apple style they were
@@ -163,4 +163,4 @@ extern void iop_ism_irq_poll(uint);
 
 extern void iop_register_interrupts(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */

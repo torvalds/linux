@@ -722,7 +722,7 @@ static int xe_guc_pc_set_max_freq_locked(struct xe_guc_pc *pc, u32 freq)
  */
 int xe_guc_pc_set_max_freq(struct xe_guc_pc *pc, u32 freq)
 {
-	if (XE_WA(pc_to_gt(pc), 22019338487)) {
+	if (XE_GT_WA(pc_to_gt(pc), 22019338487)) {
 		if (wait_for_flush_complete(pc) != 0)
 			return -EAGAIN;
 	}
@@ -835,7 +835,7 @@ static u32 pc_max_freq_cap(struct xe_guc_pc *pc)
 {
 	struct xe_gt *gt = pc_to_gt(pc);
 
-	if (XE_WA(gt, 22019338487)) {
+	if (XE_GT_WA(gt, 22019338487)) {
 		if (xe_gt_is_media_type(gt))
 			return min(LNL_MERT_FREQ_CAP, pc->rp0_freq);
 		else
@@ -899,7 +899,7 @@ static int pc_adjust_freq_bounds(struct xe_guc_pc *pc)
 	if (pc_get_min_freq(pc) > pc->rp0_freq)
 		ret = pc_set_min_freq(pc, pc->rp0_freq);
 
-	if (XE_WA(tile->primary_gt, 14022085890))
+	if (XE_GT_WA(tile->primary_gt, 14022085890))
 		ret = pc_set_min_freq(pc, max(BMG_MIN_FREQ, pc_get_min_freq(pc)));
 
 out:
@@ -931,7 +931,7 @@ static bool needs_flush_freq_limit(struct xe_guc_pc *pc)
 {
 	struct xe_gt *gt = pc_to_gt(pc);
 
-	return  XE_WA(gt, 22019338487) &&
+	return  XE_GT_WA(gt, 22019338487) &&
 		pc->rp0_freq > BMG_MERT_FLUSH_FREQ_CAP;
 }
 
@@ -1017,7 +1017,7 @@ static int pc_set_mert_freq_cap(struct xe_guc_pc *pc)
 {
 	int ret;
 
-	if (!XE_WA(pc_to_gt(pc), 22019338487))
+	if (!XE_GT_WA(pc_to_gt(pc), 22019338487))
 		return 0;
 
 	guard(mutex)(&pc->freq_lock);
@@ -1076,7 +1076,6 @@ int xe_guc_pc_gucrc_disable(struct xe_guc_pc *pc)
 {
 	struct xe_device *xe = pc_to_xe(pc);
 	struct xe_gt *gt = pc_to_gt(pc);
-	unsigned int fw_ref;
 	int ret = 0;
 
 	if (xe->info.skip_guc_pc)
@@ -1086,17 +1085,7 @@ int xe_guc_pc_gucrc_disable(struct xe_guc_pc *pc)
 	if (ret)
 		return ret;
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL)) {
-		xe_force_wake_put(gt_to_fw(gt), fw_ref);
-		return -ETIMEDOUT;
-	}
-
-	xe_gt_idle_disable_c6(gt);
-
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
-
-	return 0;
+	return xe_gt_idle_disable_c6(gt);
 }
 
 /**

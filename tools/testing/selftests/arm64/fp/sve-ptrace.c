@@ -170,7 +170,7 @@ static void ptrace_set_get_inherit(pid_t child, const struct vec_type *type)
 	memset(&sve, 0, sizeof(sve));
 	sve.size = sizeof(sve);
 	sve.vl = sve_vl_from_vq(SVE_VQ_MIN);
-	sve.flags = SVE_PT_VL_INHERIT;
+	sve.flags = SVE_PT_VL_INHERIT | SVE_PT_REGS_SVE;
 	ret = set_sve(child, type, &sve);
 	if (ret != 0) {
 		ksft_test_result_fail("Failed to set %s SVE_PT_VL_INHERIT\n",
@@ -235,6 +235,7 @@ static void ptrace_set_get_vl(pid_t child, const struct vec_type *type,
 	/* Set the VL by doing a set with no register payload */
 	memset(&sve, 0, sizeof(sve));
 	sve.size = sizeof(sve);
+	sve.flags = SVE_PT_REGS_SVE;
 	sve.vl = vl;
 	ret = set_sve(child, type, &sve);
 	if (ret != 0) {
@@ -253,7 +254,7 @@ static void ptrace_set_get_vl(pid_t child, const struct vec_type *type,
 		return;
 	}
 
-	ksft_test_result(new_sve->vl = prctl_vl, "Set %s VL %u\n",
+	ksft_test_result(new_sve->vl == prctl_vl, "Set %s VL %u\n",
 			 type->name, vl);
 
 	free(new_sve);
@@ -301,8 +302,10 @@ static void ptrace_sve_fpsimd(pid_t child, const struct vec_type *type)
 			p[j] = j;
 	}
 
+	/* This should only succeed for SVE */
 	ret = set_sve(child, type, sve);
-	ksft_test_result(ret == 0, "%s FPSIMD set via SVE: %d\n",
+	ksft_test_result((type->regset == NT_ARM_SVE) == (ret == 0),
+			 "%s FPSIMD set via SVE: %d\n",
 			 type->name, ret);
 	if (ret)
 		goto out;
@@ -749,9 +752,6 @@ int main(void)
 
 	ksft_print_header();
 	ksft_set_plan(EXPECTED_TESTS);
-
-	if (!(getauxval(AT_HWCAP) & HWCAP_SVE))
-		ksft_exit_skip("SVE not available\n");
 
 	child = fork();
 	if (!child)

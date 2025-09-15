@@ -33,7 +33,7 @@ int __fbnic_open(struct fbnic_net *fbn)
 		dev_warn(fbd->dev,
 			 "Error %d sending host ownership message to the firmware\n",
 			 err);
-		goto free_resources;
+		goto err_reset_queues;
 	}
 
 	err = fbnic_time_start(fbn);
@@ -52,11 +52,15 @@ int __fbnic_open(struct fbnic_net *fbn)
 	fbnic_bmc_rpc_init(fbd);
 	fbnic_rss_reinit(fbd, fbn);
 
+	phylink_resume(fbn->phylink);
+
 	return 0;
 time_stop:
 	fbnic_time_stop(fbn);
 release_ownership:
 	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
+err_reset_queues:
+	fbnic_reset_netif_queues(fbn);
 free_resources:
 	fbnic_free_resources(fbn);
 free_napi_vectors:
@@ -81,6 +85,8 @@ static int fbnic_open(struct net_device *netdev)
 static int fbnic_stop(struct net_device *netdev)
 {
 	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	phylink_suspend(fbn->phylink, fbnic_bmc_present(fbn->fbd));
 
 	fbnic_down(fbn);
 	fbnic_pcs_free_irq(fbn->fbd);
@@ -420,15 +426,17 @@ static void fbnic_get_stats64(struct net_device *dev,
 	tx_packets = stats->packets;
 	tx_dropped = stats->dropped;
 
-	stats64->tx_bytes = tx_bytes;
-	stats64->tx_packets = tx_packets;
-	stats64->tx_dropped = tx_dropped;
-
 	/* Record drops from Tx HW Datapath */
+	spin_lock(&fbd->hw_stats_lock);
 	tx_dropped += fbd->hw_stats.tmi.drop.frames.value +
 		      fbd->hw_stats.tti.cm_drop.frames.value +
 		      fbd->hw_stats.tti.frame_drop.frames.value +
 		      fbd->hw_stats.tti.tbi_drop.frames.value;
+	spin_unlock(&fbd->hw_stats_lock);
+
+	stats64->tx_bytes = tx_bytes;
+	stats64->tx_packets = tx_packets;
+	stats64->tx_dropped = tx_dropped;
 
 	for (i = 0; i < fbn->num_tx_queues; i++) {
 		struct fbnic_ring *txr = fbn->tx[i];
@@ -736,8 +744,6 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 	 */
 	netdev->ethtool->wol_enabled = true;
 
-	fbn->fec = FBNIC_FEC_AUTO | FBNIC_FEC_RS;
-	fbn->link_mode = FBNIC_LINK_AUTO | FBNIC_LINK_50R2;
 	netif_carrier_off(netdev);
 
 	netif_tx_stop_all_queues(netdev);

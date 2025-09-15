@@ -39,7 +39,7 @@ static int rvu_rep_up_notify(struct rvu *rvu, struct rep_event *event)
 	struct rep_event *msg;
 	int pf;
 
-	pf = rvu_get_pf(event->pcifunc);
+	pf = rvu_get_pf(rvu->pdev, event->pcifunc);
 
 	if (event->event & RVU_EVENT_MAC_ADDR_CHANGE)
 		ether_addr_copy(pfvf->mac_addr, event->evt_data.mac);
@@ -114,10 +114,10 @@ int rvu_rep_notify_pfvf_state(struct rvu *rvu, u16 pcifunc, bool enable)
 	struct rep_event *req;
 	int pf;
 
-	if (!is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc)))
+	if (!is_pf_cgxmapped(rvu, rvu_get_pf(rvu->pdev, pcifunc)))
 		return 0;
 
-	pf = rvu_get_pf(rvu->rep_pcifunc);
+	pf = rvu_get_pf(rvu->pdev, rvu->rep_pcifunc);
 
 	mutex_lock(&rvu->mbox_lock);
 	req = otx2_mbox_alloc_msg_rep_event_up_notify(rvu, pf);
@@ -325,7 +325,7 @@ int rvu_rep_install_mcam_rules(struct rvu *rvu)
 		if (!is_pf_cgxmapped(rvu, pf))
 			continue;
 
-		pcifunc = pf << RVU_PFVF_PF_SHIFT;
+		pcifunc = rvu_make_pcifunc(rvu->pdev, pf, 0);
 		rvu_get_nix_blkaddr(rvu, pcifunc);
 		rep = true;
 		for (i = 0; i < 2; i++) {
@@ -345,8 +345,7 @@ int rvu_rep_install_mcam_rules(struct rvu *rvu)
 
 		rvu_get_pf_numvfs(rvu, pf, &numvfs, NULL);
 		for (vf = 0; vf < numvfs; vf++) {
-			pcifunc = pf << RVU_PFVF_PF_SHIFT |
-				  ((vf + 1) & RVU_PFVF_FUNC_MASK);
+			pcifunc = rvu_make_pcifunc(rvu->pdev, pf, vf + 1);
 			rvu_get_nix_blkaddr(rvu, pcifunc);
 
 			/* Skip installimg rules if nixlf is not attached */
@@ -454,7 +453,7 @@ int rvu_mbox_handler_get_rep_cnt(struct rvu *rvu, struct msg_req *req,
 	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
 		if (!is_pf_cgxmapped(rvu, pf))
 			continue;
-		pcifunc = pf << RVU_PFVF_PF_SHIFT;
+		pcifunc = rvu_make_pcifunc(rvu->pdev, pf, 0);
 		rvu->rep2pfvf_map[rep] = pcifunc;
 		rsp->rep_pf_map[rep] = pcifunc;
 		rep++;

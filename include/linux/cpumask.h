@@ -355,6 +355,18 @@ unsigned int cpumask_next_wrap(int n, const struct cpumask *src)
 }
 
 /**
+ * cpumask_random - get random cpu in *src.
+ * @src: cpumask pointer
+ *
+ * Return: random set bit, or >= nr_cpu_ids if @src is empty.
+ */
+static __always_inline
+unsigned int cpumask_random(const struct cpumask *src)
+{
+	return find_random_bit(cpumask_bits(src), nr_cpu_ids);
+}
+
+/**
  * for_each_cpu - iterate over every cpu in a mask
  * @cpu: the (optionally unsigned) integer iterator
  * @mask: the cpumask pointer
@@ -547,22 +559,6 @@ unsigned int cpumask_nth_and(unsigned int cpu, const struct cpumask *srcp1,
 }
 
 /**
- * cpumask_nth_andnot - get the Nth cpu set in 1st cpumask, and clear in 2nd.
- * @srcp1: the cpumask pointer
- * @srcp2: the cpumask pointer
- * @cpu: the Nth cpu to find, starting from 0
- *
- * Return: >= nr_cpu_ids if such cpu doesn't exist.
- */
-static __always_inline
-unsigned int cpumask_nth_andnot(unsigned int cpu, const struct cpumask *srcp1,
-							const struct cpumask *srcp2)
-{
-	return find_nth_andnot_bit(cpumask_bits(srcp1), cpumask_bits(srcp2),
-				small_cpumask_bits, cpumask_check(cpu));
-}
-
-/**
  * cpumask_nth_and_andnot - get the Nth cpu set in 1st and 2nd cpumask, and clear in 3rd.
  * @srcp1: the cpumask pointer
  * @srcp2: the cpumask pointer
@@ -609,6 +605,18 @@ void __cpumask_set_cpu(unsigned int cpu, struct cpumask *dstp)
 	__set_bit(cpumask_check(cpu), cpumask_bits(dstp));
 }
 
+/**
+ * cpumask_clear_cpus - clear cpus in a cpumask
+ * @dstp:  the cpumask pointer
+ * @cpu:   cpu number (< nr_cpu_ids)
+ * @ncpus: number of cpus to clear (< nr_cpu_ids)
+ */
+static __always_inline void cpumask_clear_cpus(struct cpumask *dstp,
+						unsigned int cpu, unsigned int ncpus)
+{
+	cpumask_check(cpu + ncpus - 1);
+	bitmap_clear(cpumask_bits(dstp), cpumask_check(cpu), ncpus);
+}
 
 /**
  * cpumask_clear_cpu - clear a cpu in a cpumask

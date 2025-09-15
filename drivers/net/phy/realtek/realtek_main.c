@@ -436,9 +436,15 @@ static irqreturn_t rtl8211f_handle_interrupt(struct phy_device *phydev)
 
 static void rtl8211f_get_wol(struct phy_device *dev, struct ethtool_wolinfo *wol)
 {
+	int wol_events;
+
 	wol->supported = WAKE_MAGIC;
-	if (phy_read_paged(dev, RTL8211F_WOL_SETTINGS_PAGE, RTL8211F_WOL_SETTINGS_EVENTS)
-	    & RTL8211F_WOL_EVENT_MAGIC)
+
+	wol_events = phy_read_paged(dev, RTL8211F_WOL_SETTINGS_PAGE, RTL8211F_WOL_SETTINGS_EVENTS);
+	if (wol_events < 0)
+		return;
+
+	if (wol_events & RTL8211F_WOL_EVENT_MAGIC)
 		wol->wolopts = WAKE_MAGIC;
 }
 

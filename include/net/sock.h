@@ -285,6 +285,7 @@ struct sk_filter;
   *	@sk_ack_backlog: current listen backlog
   *	@sk_max_ack_backlog: listen backlog set in listen()
   *	@sk_uid: user id of owner
+  *	@sk_ino: inode number (zero if orphaned)
   *	@sk_prefer_busy_poll: prefer busypolling over softirq processing
   *	@sk_busy_poll_budget: napi processing budget when busypolling
   *	@sk_priority: %SO_PRIORITY setting
@@ -518,6 +519,7 @@ struct sock {
 	u32			sk_ack_backlog;
 	u32			sk_max_ack_backlog;
 	kuid_t			sk_uid;
+	unsigned long		sk_ino;
 	spinlock_t		sk_peer_lock;
 	int			sk_bind_phc;
 	struct pid		*sk_peer_pid;
@@ -1553,7 +1555,7 @@ __sk_rmem_schedule(struct sock *sk, int size, bool pfmemalloc)
 }
 
 static inline bool
-sk_rmem_schedule(struct sock *sk, struct sk_buff *skb, int size)
+sk_rmem_schedule(struct sock *sk, const struct sk_buff *skb, int size)
 {
 	return __sk_rmem_schedule(sk, size, skb_pfmemalloc(skb));
 }
@@ -2056,6 +2058,10 @@ static inline int sk_rx_queue_get(const struct sock *sk)
 static inline void sk_set_socket(struct sock *sk, struct socket *sock)
 {
 	sk->sk_socket = sock;
+	if (sock) {
+		WRITE_ONCE(sk->sk_uid, SOCK_INODE(sock)->i_uid);
+		WRITE_ONCE(sk->sk_ino, SOCK_INODE(sock)->i_ino);
+	}
 }
 
 static inline wait_queue_head_t *sk_sleep(struct sock *sk)
@@ -2076,6 +2082,8 @@ static inline void sock_orphan(struct sock *sk)
 	sock_set_flag(sk, SOCK_DEAD);
 	sk_set_socket(sk, NULL);
 	sk->sk_wq  = NULL;
+	/* Note: sk_uid is unchanged. */
+	WRITE_ONCE(sk->sk_ino, 0);
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
@@ -2086,18 +2094,25 @@ static inline void sock_graft(struct sock *sk, struct socket *parent)
 	rcu_assign_pointer(sk->sk_wq, &parent->wq);
 	parent->sk = sk;
 	sk_set_socket(sk, parent);
-	sk->sk_uid = SOCK_INODE(parent)->i_uid;
 	security_sock_graft(sk, parent);
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
-kuid_t sock_i_uid(struct sock *sk);
-unsigned long __sock_i_ino(struct sock *sk);
-unsigned long sock_i_ino(struct sock *sk);
+static inline unsigned long sock_i_ino(const struct sock *sk)
+{
+	/* Paired with WRITE_ONCE() in sock_graft() and sock_orphan() */
+	return READ_ONCE(sk->sk_ino);
+}
+
+static inline kuid_t sk_uid(const struct sock *sk)
+{
+	/* Paired with WRITE_ONCE() in sockfs_setattr() */
+	return READ_ONCE(sk->sk_uid);
+}
 
 static inline kuid_t sock_net_uid(const struct net *net, const struct sock *sk)
 {
-	return sk ? sk->sk_uid : make_kuid(net->user_ns, 0);
+	return sk ? sk_uid(sk) : make_kuid(net->user_ns, 0);
 }
 
 static inline u32 net_tx_rndhash(void)
@@ -2590,12 +2605,12 @@ static inline gfp_t gfp_memcg_charge(void)
 
 static inline long sock_rcvtimeo(const struct sock *sk, bool noblock)
 {
-	return noblock ? 0 : sk->sk_rcvtimeo;
+	return noblock ? 0 : READ_ONCE(sk->sk_rcvtimeo);
 }
 
 static inline long sock_sndtimeo(const struct sock *sk, bool noblock)
 {
-	return noblock ? 0 : sk->sk_sndtimeo;
+	return noblock ? 0 : READ_ONCE(sk->sk_sndtimeo);
 }
 
 static inline int sock_rcvlowat(const struct sock *sk, int waitall, int len)
@@ -2676,6 +2691,10 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 			   struct sk_buff *skb);
 void __sock_recv_wifi_status(struct msghdr *msg, struct sock *sk,
 			     struct sk_buff *skb);
+
+bool skb_has_tx_timestamp(struct sk_buff *skb, const struct sock *sk);
+int skb_get_tx_timestamp(struct sk_buff *skb, struct sock *sk,
+			 struct timespec64 *ts);
 
 static inline void
 sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
@@ -2982,7 +3001,6 @@ void sock_set_timestamp(struct sock *sk, int optname, bool valbool);
 int sock_set_timestamping(struct sock *sk, int optname,
 			  struct so_timestamping timestamping);
 
-void sock_enable_timestamps(struct sock *sk);
 #if defined(CONFIG_CGROUP_BPF)
 void bpf_skops_tx_timestamping(struct sock *sk, struct sk_buff *skb, int op);
 #else

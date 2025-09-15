@@ -877,7 +877,12 @@ int test_file_stream(void)
 	return 0;
 }
 
-int test_fork(void)
+enum fork_type {
+	FORK_STANDARD,
+	FORK_VFORK,
+};
+
+int test_fork(enum fork_type type)
 {
 	int status;
 	pid_t pid;
@@ -886,14 +891,23 @@ int test_fork(void)
 	fflush(stdout);
 	fflush(stderr);
 
-	pid = fork();
+	switch (type) {
+	case FORK_STANDARD:
+		pid = fork();
+		break;
+	case FORK_VFORK:
+		pid = vfork();
+		break;
+	default:
+		return 1;
+	}
 
 	switch (pid) {
 	case -1:
 		return 1;
 
 	case 0:
-		exit(123);
+		_exit(123);
 
 	default:
 		pid = waitpid(pid, &status, 0);
@@ -1330,7 +1344,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(dup3_m1);           tmp = dup3(-1, 100, 0); EXPECT_SYSER(1, tmp, -1, EBADF); if (tmp != -1) close(tmp); break;
 		CASE_TEST(execve_root);       EXPECT_SYSER(1, execve("/", (char*[]){ [0] = "/", [1] = NULL }, NULL), -1, EACCES); break;
 		CASE_TEST(file_stream);       EXPECT_SYSZR(1, test_file_stream()); break;
-		CASE_TEST(fork);              EXPECT_SYSZR(1, test_fork()); break;
+		CASE_TEST(fork);              EXPECT_SYSZR(1, test_fork(FORK_STANDARD)); break;
 		CASE_TEST(getdents64_root);   EXPECT_SYSNE(1, test_getdents64("/"), -1); break;
 		CASE_TEST(getdents64_null);   EXPECT_SYSER(1, test_getdents64("/dev/null"), -1, ENOTDIR); break;
 		CASE_TEST(directories);       EXPECT_SYSZR(proc, test_dirent()); break;
@@ -1349,6 +1363,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(mmap_bad);          EXPECT_PTRER(1, mmap(NULL, 0, PROT_READ, MAP_PRIVATE, 0, 0), MAP_FAILED, EINVAL); break;
 		CASE_TEST(munmap_bad);        EXPECT_SYSER(1, munmap(NULL, 0), -1, EINVAL); break;
 		CASE_TEST(mmap_munmap_good);  EXPECT_SYSZR(1, test_mmap_munmap()); break;
+		CASE_TEST(nanosleep);         ts.tv_nsec = -1; EXPECT_SYSER(1, nanosleep(&ts, NULL), -1, EINVAL); break;
 		CASE_TEST(open_tty);          EXPECT_SYSNE(1, tmp = open("/dev/null", O_RDONLY), -1); if (tmp != -1) close(tmp); break;
 		CASE_TEST(open_blah);         EXPECT_SYSER(1, tmp = open("/proc/self/blah", O_RDONLY), -1, ENOENT); if (tmp != -1) close(tmp); break;
 		CASE_TEST(openat_dir);        EXPECT_SYSZR(1, test_openat()); break;
@@ -1374,6 +1389,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(uname_fault);       EXPECT_SYSER(1, uname(NULL), -1, EFAULT); break;
 		CASE_TEST(unlink_root);       EXPECT_SYSER(1, unlink("/"), -1, EISDIR); break;
 		CASE_TEST(unlink_blah);       EXPECT_SYSER(1, unlink("/proc/self/blah"), -1, ENOENT); break;
+		CASE_TEST(vfork);             EXPECT_SYSZR(1, test_fork(FORK_VFORK)); break;
 		CASE_TEST(wait_child);        EXPECT_SYSER(1, wait(&tmp), -1, ECHILD); break;
 		CASE_TEST(waitpid_min);       EXPECT_SYSER(1, waitpid(INT_MIN, &tmp, WNOHANG), -1, ESRCH); break;
 		CASE_TEST(waitpid_child);     EXPECT_SYSER(1, waitpid(getpid(), &tmp, WNOHANG), -1, ECHILD); break;
@@ -1413,7 +1429,7 @@ int run_stdlib(int min, int max)
 		 * Add some more chars after the \0, to test functions that overwrite the buffer set
 		 * the \0 at the exact right position.
 		 */
-		char buf[10] = "test123456";
+		char buf[11] = "test123456";
 		buf[4] = '\0';
 
 
@@ -1646,6 +1662,28 @@ int test_strerror(void)
 	return 0;
 }
 
+static int test_printf_error(void)
+{
+	int fd, ret, saved_errno;
+
+	fd = open("/dev/full", O_RDWR);
+	if (fd == -1)
+		return 1;
+
+	errno = 0;
+	ret = dprintf(fd, "foo");
+	saved_errno = errno;
+	close(fd);
+
+	if (ret != -1)
+		return 2;
+
+	if (saved_errno != ENOSPC)
+		return 3;
+
+	return 0;
+}
+
 static int run_printf(int min, int max)
 {
 	int test;
@@ -1675,6 +1713,7 @@ static int run_printf(int min, int max)
 		CASE_TEST(width_trunc);  EXPECT_VFPRINTF(25, "                    ", "%25d", 1); break;
 		CASE_TEST(scanf);        EXPECT_ZR(1, test_scanf()); break;
 		CASE_TEST(strerror);     EXPECT_ZR(1, test_strerror()); break;
+		CASE_TEST(printf_error); EXPECT_ZR(1, test_printf_error()); break;
 		case __LINE__:
 			return ret; /* must be last */
 		/* note: do not set any defaults so as to permit holes above */
@@ -1762,12 +1801,14 @@ int prepare(void)
 	if (stat("/dev/.", &stat_buf) == 0 || mkdir("/dev", 0755) == 0) {
 		if (stat("/dev/console", &stat_buf) != 0 ||
 		    stat("/dev/null", &stat_buf) != 0 ||
-		    stat("/dev/zero", &stat_buf) != 0) {
+		    stat("/dev/zero", &stat_buf) != 0 ||
+		    stat("/dev/full", &stat_buf) != 0) {
 			/* try devtmpfs first, otherwise fall back to manual creation */
 			if (mount("/dev", "/dev", "devtmpfs", 0, 0) != 0) {
 				mknod("/dev/console", 0600 | S_IFCHR, makedev(5, 1));
 				mknod("/dev/null",    0666 | S_IFCHR, makedev(1, 3));
 				mknod("/dev/zero",    0666 | S_IFCHR, makedev(1, 5));
+				mknod("/dev/full",    0666 | S_IFCHR, makedev(1, 7));
 			}
 		}
 	}

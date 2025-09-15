@@ -271,6 +271,16 @@ def main():
 
     logger.addHandler(handler)
 
+    python_ver = sys.version_info[:2]
+    if python_ver < (3,6):
+        logger.warning("Python 3.6 or later is required by kernel-doc")
+
+        # Return 0 here to avoid breaking compilation
+        sys.exit(0)
+
+    if python_ver < (3,7):
+        logger.warning("Python 3.7 or later is required for correct results")
+
     if args.man:
         out_style = ManFormat(modulename=args.modulename)
     elif args.none:

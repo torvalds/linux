@@ -2688,10 +2688,15 @@ static int ov5670_probe(struct i2c_client *client)
 	if (ret)
 		return dev_err_probe(&client->dev, ret, "GPIO probe failed\n");
 
-	/* Graph Endpoint */
+	/*
+	 * Graph Endpoint. If it's missing we defer rather than fail, as this
+	 * sensor is known to co-exist on systems with the IPU3 and so it might
+	 * be created by the ipu-bridge.
+	 */
 	handle = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
 	if (!handle)
-		return dev_err_probe(&client->dev, -ENXIO, "Endpoint for node get failed\n");
+		return dev_err_probe(&client->dev, -EPROBE_DEFER,
+				     "Endpoint for node get failed\n");
 
 	ov5670->endpoint.bus_type = V4L2_MBUS_CSI2_DPHY;
 	ov5670->endpoint.bus.mipi_csi2.num_data_lanes = 2;

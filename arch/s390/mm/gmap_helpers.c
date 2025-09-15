@@ -4,6 +4,8 @@
  *
  *    Copyright IBM Corp. 2007, 2025
  */
+
+#include <linux/export.h>
 #include <linux/mm_types.h>
 #include <linux/mmap_lock.h>
 #include <linux/mm.h>

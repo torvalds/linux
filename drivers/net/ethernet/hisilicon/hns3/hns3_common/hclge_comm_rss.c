@@ -151,7 +151,7 @@ EXPORT_SYMBOL_GPL(hclge_comm_set_rss_hash_key);
 int hclge_comm_set_rss_tuple(struct hnae3_ae_dev *ae_dev,
 			     struct hclge_comm_hw *hw,
 			     struct hclge_comm_rss_cfg *rss_cfg,
-			     struct ethtool_rxnfc *nfc)
+			     const struct ethtool_rxfh_fields *nfc)
 {
 	struct hclge_comm_rss_input_tuple_cmd *req;
 	struct hclge_desc desc;
@@ -422,7 +422,7 @@ int hclge_comm_set_rss_algo_key(struct hclge_comm_hw *hw, const u8 hfunc,
 }
 EXPORT_SYMBOL_GPL(hclge_comm_set_rss_algo_key);
 
-static u8 hclge_comm_get_rss_hash_bits(struct ethtool_rxnfc *nfc)
+static u8 hclge_comm_get_rss_hash_bits(const struct ethtool_rxfh_fields *nfc)
 {
 	u8 hash_sets = nfc->data & RXH_L4_B_0_1 ? HCLGE_COMM_S_PORT_BIT : 0;
 
@@ -448,7 +448,7 @@ static u8 hclge_comm_get_rss_hash_bits(struct ethtool_rxnfc *nfc)
 }
 
 int hclge_comm_init_rss_tuple_cmd(struct hclge_comm_rss_cfg *rss_cfg,
-				  struct ethtool_rxnfc *nfc,
+				  const struct ethtool_rxfh_fields *nfc,
 				  struct hnae3_ae_dev *ae_dev,
 				  struct hclge_comm_rss_input_tuple_cmd *req)
 {

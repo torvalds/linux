@@ -64,6 +64,9 @@ void bch2_reflink_p_to_text(struct printbuf *out, struct bch_fs *c,
 	       REFLINK_P_IDX(p.v),
 	       le32_to_cpu(p.v->front_pad),
 	       le32_to_cpu(p.v->back_pad));
+
+	if (REFLINK_P_ERROR(p.v))
+		prt_str(out, " error");
 }
 
 bool bch2_reflink_p_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r)
@@ -269,13 +272,12 @@ struct bkey_s_c bch2_lookup_indirect_extent(struct btree_trans *trans,
 		return k;
 
 	if (unlikely(!bkey_extent_is_reflink_data(k.k))) {
-		unsigned size = min((u64) k.k->size,
-				    REFLINK_P_IDX(p.v) + p.k->size + le32_to_cpu(p.v->back_pad) -
-				    reflink_offset);
-		bch2_key_resize(&iter->k, size);
+		u64 missing_end = min(k.k->p.offset,
+				      REFLINK_P_IDX(p.v) + p.k->size + le32_to_cpu(p.v->back_pad));
+		BUG_ON(reflink_offset == missing_end);
 
 		int ret = bch2_indirect_extent_missing_error(trans, p, reflink_offset,
-							     k.k->p.offset, should_commit);
+							     missing_end, should_commit);
 		if (ret) {
 			bch2_trans_iter_exit(trans, iter);
 			return bkey_s_c_err(ret);

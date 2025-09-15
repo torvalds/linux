@@ -1096,7 +1096,7 @@ static inline u32 iwl_trans_write_mem32(struct iwl_trans *trans, u32 addr,
 
 void iwl_trans_set_pmi(struct iwl_trans *trans, bool state);
 
-int iwl_trans_sw_reset(struct iwl_trans *trans, bool retake_ownership);
+int iwl_trans_sw_reset(struct iwl_trans *trans);
 
 void iwl_trans_set_bits_mask(struct iwl_trans *trans, u32 reg,
 			     u32 mask, u32 value);
@@ -1204,9 +1204,10 @@ static inline void iwl_trans_finish_sw_reset(struct iwl_trans *trans)
  * transport helper functions
  *****************************************************/
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
-			  struct device *dev,
-			  const struct iwl_mac_cfg *cfg_trans);
-int iwl_trans_init(struct iwl_trans *trans);
+				  struct device *dev,
+				  const struct iwl_mac_cfg *mac_cfg,
+				  unsigned int txcmd_size,
+				  unsigned int txcmd_align);
 void iwl_trans_free(struct iwl_trans *trans);
 
 static inline bool iwl_trans_is_hw_error_value(u32 val)
@@ -1227,6 +1228,21 @@ static inline u16 iwl_trans_get_num_rbds(struct iwl_trans *trans)
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		return 2 * result;
 	return result;
+}
+
+static inline void iwl_trans_suppress_cmd_error_once(struct iwl_trans *trans)
+{
+	set_bit(STATUS_SUPPRESS_CMD_ERROR_ONCE, &trans->status);
+}
+
+static inline bool iwl_trans_device_enabled(struct iwl_trans *trans)
+{
+	return test_bit(STATUS_DEVICE_ENABLED, &trans->status);
+}
+
+static inline bool iwl_trans_is_dead(struct iwl_trans *trans)
+{
+	return test_bit(STATUS_TRANS_DEAD, &trans->status);
 }
 
 /*****************************************************

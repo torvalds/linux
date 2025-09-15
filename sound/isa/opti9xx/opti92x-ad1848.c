@@ -171,7 +171,7 @@ static int snd_opti9xx_init(struct snd_opti9xx *chip,
 	static const int opti9xx_mc_size[] = {7, 7, 10, 10, 2, 2, 2};
 
 	chip->hardware = hardware;
-	strcpy(chip->name, snd_opti9xx_names[hardware]);
+	strscpy(chip->name, snd_opti9xx_names[hardware]);
 
 	spin_lock_init(&chip->lock);
 
@@ -594,35 +594,35 @@ static int snd_opti93x_mixer(struct snd_wss *chip)
 
 	card = chip->card;
 
-	strcpy(card->mixername, chip->pcm->name);
+	strscpy(card->mixername, chip->pcm->name);
 
 	memset(&id1, 0, sizeof(id1));
 	memset(&id2, 0, sizeof(id2));
 	id1.iface = id2.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	/* reassign AUX0 switch to CD */
-	strcpy(id1.name, "Aux Playback Switch");
-	strcpy(id2.name, "CD Playback Switch");
+	strscpy(id1.name, "Aux Playback Switch");
+	strscpy(id2.name, "CD Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
 		dev_err(card->dev, "Cannot rename opti93x control\n");
 		return err;
 	}
 	/* reassign AUX1 switch to FM */
-	strcpy(id1.name, "Aux Playback Switch"); id1.index = 1;
-	strcpy(id2.name, "FM Playback Switch");
+	strscpy(id1.name, "Aux Playback Switch"); id1.index = 1;
+	strscpy(id2.name, "FM Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
 		dev_err(card->dev, "Cannot rename opti93x control\n");
 		return err;
 	}
 	/* remove AUX1 volume */
-	strcpy(id1.name, "Aux Playback Volume"); id1.index = 1;
+	strscpy(id1.name, "Aux Playback Volume"); id1.index = 1;
 	snd_ctl_remove_id(card, &id1);
 
 	/* Replace WSS volume controls with OPTi93x volume controls */
 	id1.index = 0;
 	for (idx = 0; idx < ARRAY_SIZE(snd_opti93x_controls); idx++) {
-		strcpy(id1.name, snd_opti93x_controls[idx].name);
+		strscpy(id1.name, snd_opti93x_controls[idx].name);
 		snd_ctl_remove_id(card, &id1);
 
 		err = snd_ctl_add(card,
@@ -857,7 +857,7 @@ static int snd_opti9xx_probe(struct snd_card *card)
 #endif
 	chip->irq = irq;
 	card->sync_irq = chip->irq;
-	strcpy(card->driver, chip->name);
+	strscpy(card->driver, chip->name);
 	sprintf(card->shortname, "OPTi %s", card->driver);
 #if defined(CS4231) || defined(OPTi93X)
 	scnprintf(card->longname, sizeof(card->longname),

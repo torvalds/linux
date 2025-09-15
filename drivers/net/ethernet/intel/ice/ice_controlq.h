@@ -12,7 +12,7 @@
 #define ICE_SBQ_MAX_BUF_LEN 512
 
 #define ICE_CTL_Q_DESC(R, i) \
-	(&(((struct ice_aq_desc *)((R).desc_buf.va))[i]))
+	(&(((struct libie_aq_desc *)((R).desc_buf.va))[i]))
 
 #define ICE_CTL_Q_DESC_UNUSED(R) \
 	((u16)((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
@@ -76,12 +76,12 @@ struct ice_ctl_q_ring {
 
 /* sq transaction details */
 struct ice_sq_cd {
-	struct ice_aq_desc *wb_desc;
+	struct libie_aq_desc *wb_desc;
 };
 
 /* rq event information */
 struct ice_rq_event_info {
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	u16 msg_len;
 	u16 buf_len;
 	u8 *msg_buf;
@@ -96,7 +96,7 @@ struct ice_ctl_q_info {
 	u16 num_sq_entries;		/* send queue depth */
 	u16 rq_buf_size;		/* receive queue buffer size */
 	u16 sq_buf_size;		/* send queue buffer size */
-	enum ice_aq_err sq_last_status;	/* last status on send queue */
+	enum libie_aq_err sq_last_status;	/* last status on send queue */
 	struct mutex sq_lock;		/* Send queue lock */
 	struct mutex rq_lock;		/* Receive queue lock */
 };

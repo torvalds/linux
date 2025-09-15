@@ -10,6 +10,8 @@
 #include <sys/sysinfo.h>
 #include <sys/syscall.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdlib.h>
 
 #include <asm/unistd.h>
 #include "../kselftest_harness.h"
@@ -17,9 +19,13 @@
 #ifndef PR_SET_SYSCALL_USER_DISPATCH
 # define PR_SET_SYSCALL_USER_DISPATCH	59
 # define PR_SYS_DISPATCH_OFF	0
-# define PR_SYS_DISPATCH_ON	1
 # define SYSCALL_DISPATCH_FILTER_ALLOW	0
 # define SYSCALL_DISPATCH_FILTER_BLOCK	1
+#endif
+
+#ifndef PR_SYS_DISPATCH_EXCLUSIVE_ON
+# define PR_SYS_DISPATCH_EXCLUSIVE_ON	1
+# define PR_SYS_DISPATCH_INCLUSIVE_ON	2
 #endif
 
 #ifndef SYS_USER_DISPATCH
@@ -65,7 +71,7 @@ TEST_SIGNAL(dispatch_trigger_sigsys, SIGSYS)
 	ret = sysinfo(&info);
 	ASSERT_EQ(0, ret);
 
-	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, 0, 0, &sel);
+	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_EXCLUSIVE_ON, 0, 0, &sel);
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Kernel does not support CONFIG_SYSCALL_USER_DISPATCH");
 	}
@@ -79,6 +85,21 @@ TEST_SIGNAL(dispatch_trigger_sigsys, SIGSYS)
 	}
 }
 
+static void prctl_valid(struct __test_metadata *_metadata,
+			unsigned long op, unsigned long off,
+			unsigned long size, void *sel)
+{
+	EXPECT_EQ(0, prctl(PR_SET_SYSCALL_USER_DISPATCH, op, off, size, sel));
+}
+
+static void prctl_invalid(struct __test_metadata *_metadata,
+			  unsigned long op, unsigned long off,
+			  unsigned long size, void *sel, int err)
+{
+	EXPECT_EQ(-1, prctl(PR_SET_SYSCALL_USER_DISPATCH, op, off, size, sel));
+	EXPECT_EQ(err, errno);
+}
+
 TEST(bad_prctl_param)
 {
 	char sel = SYSCALL_DISPATCH_FILTER_ALLOW;
@@ -86,57 +107,54 @@ TEST(bad_prctl_param)
 
 	/* Invalid op */
 	op = -1;
-	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0, 0, &sel);
-	ASSERT_EQ(EINVAL, errno);
+	prctl_invalid(_metadata, op, 0, 0, &sel, EINVAL);
 
 	/* PR_SYS_DISPATCH_OFF */
 	op = PR_SYS_DISPATCH_OFF;
 
 	/* offset != 0 */
-	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0x1, 0x0, 0);
-	EXPECT_EQ(EINVAL, errno);
+	prctl_invalid(_metadata, op, 0x1, 0x0, 0, EINVAL);
 
 	/* len != 0 */
-	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0x0, 0xff, 0);
-	EXPECT_EQ(EINVAL, errno);
+	prctl_invalid(_metadata, op, 0x0, 0xff, 0, EINVAL);
 
 	/* sel != NULL */
-	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0x0, 0x0, &sel);
-	EXPECT_EQ(EINVAL, errno);
+	prctl_invalid(_metadata, op, 0x0, 0x0, &sel, EINVAL);
 
 	/* Valid parameter */
-	errno = 0;
-	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0x0, 0x0, 0x0);
-	EXPECT_EQ(0, errno);
+	prctl_valid(_metadata, op, 0x0, 0x0, 0x0);
 
-	/* PR_SYS_DISPATCH_ON */
-	op = PR_SYS_DISPATCH_ON;
+	/* PR_SYS_DISPATCH_EXCLUSIVE_ON */
+	op = PR_SYS_DISPATCH_EXCLUSIVE_ON;
 
 	/* Dispatcher region is bad (offset > 0 && len == 0) */
-	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0x1, 0x0, &sel);
-	EXPECT_EQ(EINVAL, errno);
-	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, -1L, 0x0, &sel);
-	EXPECT_EQ(EINVAL, errno);
+	prctl_invalid(_metadata, op, 0x1, 0x0, &sel, EINVAL);
+	prctl_invalid(_metadata, op, -1L, 0x0, &sel, EINVAL);
 
 	/* Invalid selector */
-	prctl(PR_SET_SYSCALL_USER_DISPATCH, op, 0x0, 0x1, (void *) -1);
-	ASSERT_EQ(EFAULT, errno);
+	prctl_invalid(_metadata, op, 0x0, 0x1, (void *) -1, EFAULT);
 
 	/*
 	 * Dispatcher range overflows unsigned long
 	 */
-	prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, 1, -1L, &sel);
-	ASSERT_EQ(EINVAL, errno) {
-		TH_LOG("Should reject bad syscall range");
-	}
+	prctl_invalid(_metadata, PR_SYS_DISPATCH_EXCLUSIVE_ON, 1, -1L, &sel, EINVAL);
 
 	/*
 	 * Allowed range overflows usigned long
 	 */
-	prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, -1L, 0x1, &sel);
-	ASSERT_EQ(EINVAL, errno) {
-		TH_LOG("Should reject bad syscall range");
-	}
+	prctl_invalid(_metadata, PR_SYS_DISPATCH_EXCLUSIVE_ON, -1L, 0x1, &sel, EINVAL);
+
+	/* 0 len should fail for PR_SYS_DISPATCH_INCLUSIVE_ON */
+	prctl_invalid(_metadata, PR_SYS_DISPATCH_INCLUSIVE_ON, 1, 0, 0, EINVAL);
+
+	/* Range wrap-around should fail */
+	prctl_invalid(_metadata, PR_SYS_DISPATCH_INCLUSIVE_ON, -1L, 2, 0, EINVAL);
+
+	/* Normal range shouldn't fail */
+	prctl_valid(_metadata, PR_SYS_DISPATCH_INCLUSIVE_ON, 2, 3, 0);
+
+	/* Invalid selector */
+	prctl_invalid(_metadata, PR_SYS_DISPATCH_INCLUSIVE_ON, 2, 3, (void *) -1, EFAULT);
 }
 
 /*
@@ -147,11 +165,13 @@ char glob_sel;
 int nr_syscalls_emulated;
 int si_code;
 int si_errno;
+unsigned long syscall_addr;
 
 static void handle_sigsys(int sig, siginfo_t *info, void *ucontext)
 {
 	si_code = info->si_code;
 	si_errno = info->si_errno;
+	syscall_addr = (unsigned long)info->si_call_addr;
 
 	if (info->si_syscall == MAGIC_SYSCALL_1)
 		nr_syscalls_emulated++;
@@ -174,31 +194,34 @@ static void handle_sigsys(int sig, siginfo_t *info, void *ucontext)
 #endif
 }
 
+int setup_sigsys_handler(void)
+{
+	struct sigaction act;
+	sigset_t mask;
+
+	memset(&act, 0, sizeof(act));
+	sigemptyset(&mask);
+	act.sa_sigaction = handle_sigsys;
+	act.sa_flags = SA_SIGINFO;
+	act.sa_mask = mask;
+	return sigaction(SIGSYS, &act, NULL);
+}
+
 TEST(dispatch_and_return)
 {
 	long ret;
-	struct sigaction act;
-	sigset_t mask;
 
 	glob_sel = 0;
 	nr_syscalls_emulated = 0;
 	si_code = 0;
 	si_errno = 0;
 
-	memset(&act, 0, sizeof(act));
-	sigemptyset(&mask);
-
-	act.sa_sigaction = handle_sigsys;
-	act.sa_flags = SA_SIGINFO;
-	act.sa_mask = mask;
-
-	ret = sigaction(SIGSYS, &act, NULL);
-	ASSERT_EQ(0, ret);
+	ASSERT_EQ(0, setup_sigsys_handler());
 
 	/* Make sure selector is good prior to prctl. */
 	SYSCALL_DISPATCH_OFF(glob_sel);
 
-	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, 0, 0, &glob_sel);
+	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_EXCLUSIVE_ON, 0, 0, &glob_sel);
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Kernel does not support CONFIG_SYSCALL_USER_DISPATCH");
 	}
@@ -254,7 +277,7 @@ TEST_SIGNAL(bad_selector, SIGSYS)
 	/* Make sure selector is good prior to prctl. */
 	SYSCALL_DISPATCH_OFF(glob_sel);
 
-	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, 0, 0, &glob_sel);
+	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_EXCLUSIVE_ON, 0, 0, &glob_sel);
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Kernel does not support CONFIG_SYSCALL_USER_DISPATCH");
 	}
@@ -278,7 +301,7 @@ TEST(disable_dispatch)
 	struct sysinfo info;
 	char sel = 0;
 
-	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, 0, 0, &sel);
+	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_EXCLUSIVE_ON, 0, 0, &sel);
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Kernel does not support CONFIG_SYSCALL_USER_DISPATCH");
 	}
@@ -310,7 +333,7 @@ TEST(direct_dispatch_range)
 	 * Instead of calculating libc addresses; allow the entire
 	 * memory map and lock the selector.
 	 */
-	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_ON, 0, -1L, &sel);
+	ret = prctl(PR_SET_SYSCALL_USER_DISPATCH, PR_SYS_DISPATCH_EXCLUSIVE_ON, 0, -1L, &sel);
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Kernel does not support CONFIG_SYSCALL_USER_DISPATCH");
 	}
@@ -321,6 +344,37 @@ TEST(direct_dispatch_range)
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Dispatch triggered unexpectedly");
 	}
+}
+
+static void test_range(struct __test_metadata *_metadata,
+		       unsigned long op, unsigned long off,
+		       unsigned long size, bool dispatch)
+{
+	nr_syscalls_emulated = 0;
+	SYSCALL_DISPATCH_OFF(glob_sel);
+	EXPECT_EQ(0, prctl(PR_SET_SYSCALL_USER_DISPATCH, op, off, size, &glob_sel));
+	SYSCALL_DISPATCH_ON(glob_sel);
+	if (dispatch) {
+		EXPECT_EQ(syscall(MAGIC_SYSCALL_1), MAGIC_SYSCALL_1);
+		EXPECT_EQ(nr_syscalls_emulated, 1);
+	} else {
+		EXPECT_EQ(syscall(MAGIC_SYSCALL_1), -1);
+		EXPECT_EQ(nr_syscalls_emulated, 0);
+	}
+}
+
+TEST(dispatch_range)
+{
+	ASSERT_EQ(0, setup_sigsys_handler());
+	test_range(_metadata, PR_SYS_DISPATCH_EXCLUSIVE_ON, 0, 0, true);
+	test_range(_metadata, PR_SYS_DISPATCH_EXCLUSIVE_ON, syscall_addr, 1, false);
+	test_range(_metadata, PR_SYS_DISPATCH_EXCLUSIVE_ON, syscall_addr-100, 200, false);
+	test_range(_metadata, PR_SYS_DISPATCH_EXCLUSIVE_ON, syscall_addr+1, 100, true);
+	test_range(_metadata, PR_SYS_DISPATCH_EXCLUSIVE_ON, syscall_addr-100, 100, true);
+	test_range(_metadata, PR_SYS_DISPATCH_INCLUSIVE_ON, syscall_addr, 1, true);
+	test_range(_metadata, PR_SYS_DISPATCH_INCLUSIVE_ON, syscall_addr-1, 1, false);
+	test_range(_metadata, PR_SYS_DISPATCH_INCLUSIVE_ON, syscall_addr+1, 1, false);
+	SYSCALL_DISPATCH_OFF(glob_sel);
 }
 
 TEST_HARNESS_MAIN

@@ -121,8 +121,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 
 	show_val_kb(m, "NFS_Unstable:   ", 0);
 	show_val_kb(m, "Bounce:         ", 0);
-	show_val_kb(m, "WritebackTmp:   ",
-		    global_node_page_state(NR_WRITEBACK_TEMP));
+	show_val_kb(m, "WritebackTmp:   ", 0);
 	show_val_kb(m, "CommitLimit:    ", vm_commit_limit());
 	show_val_kb(m, "Committed_AS:   ", committed);
 	seq_printf(m, "VmallocTotal:   %8lu kB\n",

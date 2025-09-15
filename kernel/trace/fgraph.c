@@ -1325,6 +1325,10 @@ int register_ftrace_graph(struct fgraph_ops *gops)
 	int ret = 0;
 	int i = -1;
 
+	if (WARN_ONCE(gops->ops.flags & FTRACE_OPS_FL_GRAPH,
+		      "function graph ops registered again"))
+		return -EBUSY;
+
 	guard(mutex)(&ftrace_lock);
 
 	if (!fgraph_stack_cachep) {
@@ -1393,6 +1397,8 @@ error:
 		ftrace_graph_active--;
 		gops->saved_func = NULL;
 		fgraph_lru_release_index(i);
+		if (!ftrace_graph_active)
+			unregister_pm_notifier(&ftrace_suspend_notifier);
 	}
 	return ret;
 }
@@ -1401,17 +1407,21 @@ void unregister_ftrace_graph(struct fgraph_ops *gops)
 {
 	int command = 0;
 
+	if (WARN_ONCE(!(gops->ops.flags & FTRACE_OPS_FL_GRAPH),
+		      "function graph ops unregistered without registering"))
+		return;
+
 	guard(mutex)(&ftrace_lock);
 
 	if (unlikely(!ftrace_graph_active))
-		return;
+		goto out;
 
 	if (unlikely(gops->idx < 0 || gops->idx >= FGRAPH_ARRAY_SIZE ||
 		     fgraph_array[gops->idx] != gops))
-		return;
+		goto out;
 
 	if (fgraph_lru_release_index(gops->idx) < 0)
-		return;
+		goto out;
 
 	fgraph_array[gops->idx] = &fgraph_stub;
 
@@ -1434,4 +1444,6 @@ void unregister_ftrace_graph(struct fgraph_ops *gops)
 		unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
 	}
 	gops->saved_func = NULL;
+ out:
+	gops->ops.flags &= ~FTRACE_OPS_FL_GRAPH;
 }

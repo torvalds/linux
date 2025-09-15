@@ -11,10 +11,11 @@ from hidtools.util import BusType
 
 import libevdev
 import logging
+from . import base
 
 logger = logging.getLogger("hidtools.test.ite-keyboard")
 
-KERNEL_MODULE = ("itetech", "hid_ite")
+KERNEL_MODULE = base.KernelModule("itetech", "hid_ite")
 
 
 class KbdData(object):

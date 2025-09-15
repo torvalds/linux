@@ -34,6 +34,10 @@ properties:
           - const: mediatek,mt2701-auxadc
       - items:
           - enum:
+              - mediatek,mt7981-auxadc
+          - const: mediatek,mt7986-auxadc
+      - items:
+          - enum:
               - mediatek,mt6893-auxadc
               - mediatek,mt8183-auxadc
               - mediatek,mt8186-auxadc

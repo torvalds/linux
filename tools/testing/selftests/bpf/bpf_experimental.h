@@ -596,4 +596,7 @@ extern int bpf_iter_dmabuf_new(struct bpf_iter_dmabuf *it) __weak __ksym;
 extern struct dma_buf *bpf_iter_dmabuf_next(struct bpf_iter_dmabuf *it) __weak __ksym;
 extern void bpf_iter_dmabuf_destroy(struct bpf_iter_dmabuf *it) __weak __ksym;
 
+extern int bpf_cgroup_read_xattr(struct cgroup *cgroup, const char *name__str,
+				 struct bpf_dynptr *value_p) __weak __ksym;
+
 #endif

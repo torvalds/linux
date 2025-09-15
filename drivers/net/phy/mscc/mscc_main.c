@@ -530,7 +530,6 @@ static int vsc85xx_update_rgmii_cntl(struct phy_device *phydev, u32 rgmii_cntl,
 	u16 rgmii_rx_delay_pos = ffs(rgmii_rx_delay_mask) - 1;
 	u16 rgmii_tx_delay_pos = ffs(rgmii_tx_delay_mask) - 1;
 	int delay_size = ARRAY_SIZE(vsc85xx_internal_delay);
-	struct device *dev = &phydev->mdio.dev;
 	u16 reg_val = 0;
 	u16 mask = 0;
 	s32 rx_delay;
@@ -549,7 +548,7 @@ static int vsc85xx_update_rgmii_cntl(struct phy_device *phydev, u32 rgmii_cntl,
 	if (phy_interface_is_rgmii(phydev))
 		mask |= rgmii_rx_delay_mask | rgmii_tx_delay_mask;
 
-	rx_delay = phy_get_internal_delay(phydev, dev, vsc85xx_internal_delay,
+	rx_delay = phy_get_internal_delay(phydev, vsc85xx_internal_delay,
 					  delay_size, true);
 	if (rx_delay < 0) {
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID ||
@@ -559,7 +558,7 @@ static int vsc85xx_update_rgmii_cntl(struct phy_device *phydev, u32 rgmii_cntl,
 			rx_delay = RGMII_CLK_DELAY_0_2_NS;
 	}
 
-	tx_delay = phy_get_internal_delay(phydev, dev, vsc85xx_internal_delay,
+	tx_delay = phy_get_internal_delay(phydev, vsc85xx_internal_delay,
 					  delay_size, false);
 	if (tx_delay < 0) {
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID ||
@@ -2336,6 +2335,11 @@ static int vsc85xx_probe(struct phy_device *phydev)
 	return vsc85xx_dt_led_modes_get(phydev, default_mode);
 }
 
+static void vsc85xx_remove(struct phy_device *phydev)
+{
+	vsc8584_ptp_deinit(phydev);
+}
+
 /* Microsemi VSC85xx PHYs */
 static struct phy_driver vsc85xx_driver[] = {
 {
@@ -2590,6 +2594,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.config_intr    = &vsc85xx_config_intr,
 	.suspend	= &genphy_suspend,
 	.resume		= &genphy_resume,
+	.remove		= &vsc85xx_remove,
 	.probe		= &vsc8574_probe,
 	.set_wol	= &vsc85xx_wol_set,
 	.get_wol	= &vsc85xx_wol_get,
@@ -2615,6 +2620,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.config_intr    = &vsc85xx_config_intr,
 	.suspend	= &genphy_suspend,
 	.resume		= &genphy_resume,
+	.remove		= &vsc85xx_remove,
 	.probe		= &vsc8574_probe,
 	.set_wol	= &vsc85xx_wol_set,
 	.get_wol	= &vsc85xx_wol_get,
@@ -2640,6 +2646,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.config_intr    = &vsc85xx_config_intr,
 	.suspend	= &genphy_suspend,
 	.resume		= &genphy_resume,
+	.remove		= &vsc85xx_remove,
 	.probe		= &vsc8584_probe,
 	.get_tunable	= &vsc85xx_get_tunable,
 	.set_tunable	= &vsc85xx_set_tunable,
@@ -2663,6 +2670,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.config_intr    = &vsc85xx_config_intr,
 	.suspend	= &genphy_suspend,
 	.resume		= &genphy_resume,
+	.remove		= &vsc85xx_remove,
 	.probe		= &vsc8584_probe,
 	.get_tunable	= &vsc85xx_get_tunable,
 	.set_tunable	= &vsc85xx_set_tunable,
@@ -2686,6 +2694,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.config_intr    = &vsc85xx_config_intr,
 	.suspend	= &genphy_suspend,
 	.resume		= &genphy_resume,
+	.remove		= &vsc85xx_remove,
 	.probe		= &vsc8584_probe,
 	.get_tunable	= &vsc85xx_get_tunable,
 	.set_tunable	= &vsc85xx_set_tunable,

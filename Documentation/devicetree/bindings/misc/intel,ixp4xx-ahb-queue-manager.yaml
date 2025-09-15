@@ -45,7 +45,7 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     qmgr: queue-manager@60000000 {
-         compatible = "intel,ixp4xx-ahb-queue-manager";
-         reg = <0x60000000 0x4000>;
-         interrupts = <3 IRQ_TYPE_LEVEL_HIGH>, <4 IRQ_TYPE_LEVEL_HIGH>;
+        compatible = "intel,ixp4xx-ahb-queue-manager";
+        reg = <0x60000000 0x4000>;
+        interrupts = <3 IRQ_TYPE_LEVEL_HIGH>, <4 IRQ_TYPE_LEVEL_HIGH>;
     };

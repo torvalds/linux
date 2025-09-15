@@ -6,7 +6,7 @@ ALL_TESTS="match_dst_mac_test match_src_mac_test match_dst_ip_test \
 	match_ip_tos_test match_indev_test match_ip_ttl_test
 	match_mpls_label_test \
 	match_mpls_tc_test match_mpls_bos_test match_mpls_ttl_test \
-	match_mpls_lse_test"
+	match_mpls_lse_test match_erspan_opts_test"
 NUM_NETIFS=2
 source tc_common.sh
 source lib.sh
@@ -674,6 +674,56 @@ match_mpls_lse_test()
 	tc filter del dev $h2 ingress protocol mpls_uc pref 1 handle 101 flower
 
 	log_test "mpls lse match ($tcflags)"
+}
+
+match_erspan_opts_test()
+{
+	RET=0
+
+	check_tc_erspan_support $h2 || return 0
+
+	# h1 erspan setup
+	tunnel_create erspan1 erspan 192.0.2.1 192.0.2.2 dev $h1 seq key 1001 \
+		tos C ttl 64 erspan_ver 1 erspan 6789 # ERSPAN Type II
+	tunnel_create erspan2 erspan 192.0.2.1 192.0.2.2 dev $h1 seq key 1002 \
+		tos C ttl 64 erspan_ver 2 erspan_dir egress erspan_hwid 63 \
+		# ERSPAN Type III
+	ip link set dev erspan1 master v$h1
+	ip link set dev erspan2 master v$h1
+	# h2 erspan setup
+	ip link add ep-ex type erspan ttl 64 external # To collect tunnel info
+	ip link set ep-ex up
+	ip link set dev ep-ex master v$h2
+	tc qdisc add dev ep-ex clsact
+
+	# ERSPAN Type II [decap direction]
+	tc filter add dev ep-ex ingress protocol ip  handle 101 flower \
+		$tcflags enc_src_ip 192.0.2.1 enc_dst_ip 192.0.2.2 \
+		enc_key_id 1001 erspan_opts 1:6789:0:0 \
+		action drop
+	# ERSPAN Type III [decap direction]
+	tc filter add dev ep-ex ingress protocol ip  handle 102 flower \
+		$tcflags enc_src_ip 192.0.2.1 enc_dst_ip 192.0.2.2 \
+		enc_key_id 1002 erspan_opts 2:0:1:63 action drop
+
+	ep1mac=$(mac_get erspan1)
+	$MZ erspan1 -c 1 -p 64 -a $ep1mac -b $h2mac -t ip -q
+	tc_check_packets "dev ep-ex ingress" 101 1
+	check_err $? "ERSPAN Type II"
+
+	ep2mac=$(mac_get erspan2)
+	$MZ erspan2 -c 1 -p 64 -a $ep1mac -b $h2mac -t ip -q
+	tc_check_packets "dev ep-ex ingress" 102 1
+	check_err $? "ERSPAN Type III"
+
+	# h2 erspan cleanup
+	tc qdisc del dev ep-ex clsact
+	tunnel_destroy ep-ex
+	# h1 erspan cleanup
+	tunnel_destroy erspan2 # ERSPAN Type III
+	tunnel_destroy erspan1 # ERSPAN Type II
+
+	log_test "erspan_opts match ($tcflags)"
 }
 
 setup_prepare()

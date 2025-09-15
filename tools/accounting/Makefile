@@ -2,7 +2,7 @@
 CC := $(CROSS_COMPILE)gcc
 CFLAGS := -I../../usr/include
 
-PROGS := getdelays procacct
+PROGS := getdelays procacct delaytop
 
 all: $(PROGS)
 

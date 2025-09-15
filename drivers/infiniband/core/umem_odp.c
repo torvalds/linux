@@ -76,6 +76,17 @@ static int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
 	end = ALIGN(end, page_size);
 	if (unlikely(end < page_size))
 		return -EOVERFLOW;
+	/*
+	 * The mmu notifier can be called within reclaim contexts and takes the
+	 * umem_mutex. This is rare to trigger in testing, teach lockdep about
+	 * it.
+	 */
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		fs_reclaim_acquire(GFP_KERNEL);
+		mutex_lock(&umem_odp->umem_mutex);
+		mutex_unlock(&umem_odp->umem_mutex);
+		fs_reclaim_release(GFP_KERNEL);
+	}
 
 	nr_entries = (end - start) >> PAGE_SHIFT;
 	if (!(nr_entries * PAGE_SIZE / page_size))
@@ -104,7 +115,7 @@ static int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
 
 out_free_map:
 	if (ib_uses_virt_dma(dev))
-		kfree(map->pfn_list);
+		kvfree(map->pfn_list);
 	else
 		hmm_dma_map_free(dev->dma_device, map);
 	return ret;
@@ -276,7 +287,7 @@ static void ib_umem_odp_free(struct ib_umem_odp *umem_odp)
 	mutex_unlock(&umem_odp->umem_mutex);
 	mmu_interval_notifier_remove(&umem_odp->notifier);
 	if (ib_uses_virt_dma(dev))
-		kfree(umem_odp->map.pfn_list);
+		kvfree(umem_odp->map.pfn_list);
 	else
 		hmm_dma_map_free(dev->dma_device, &umem_odp->map);
 }

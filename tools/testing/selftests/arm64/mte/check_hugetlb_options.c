@@ -151,7 +151,7 @@ static int check_hugetlb_memory_mapping(int mem_type, int mode, int mapping, int
 
 	map_size = default_huge_page_size();
 
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG, false);
 	map_ptr = (char *)mte_allocate_memory(map_size, mem_type, mapping, false);
 	if (check_allocated_memory(map_ptr, map_size, mem_type, false) != KSFT_PASS)
 		return KSFT_FAIL;
@@ -180,7 +180,7 @@ static int check_clear_prot_mte_flag(int mem_type, int mode, int mapping)
 	unsigned long map_size;
 
 	prot_flag = PROT_READ | PROT_WRITE;
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG, false);
 	map_size = default_huge_page_size();
 	map_ptr = (char *)mte_allocate_memory_tag_range(map_size, mem_type, mapping,
 							0, 0);
@@ -210,7 +210,7 @@ static int check_child_hugetlb_memory_mapping(int mem_type, int mode, int mappin
 
 	map_size = default_huge_page_size();
 
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG, false);
 	ptr = (char *)mte_allocate_memory_tag_range(map_size, mem_type, mapping,
 						    0, 0);
 	if (check_allocated_memory_range(ptr, map_size, mem_type,
@@ -235,8 +235,8 @@ int main(int argc, char *argv[])
 		return err;
 
 	/* Register signal handlers */
-	mte_register_signal(SIGBUS, mte_default_handler);
-	mte_register_signal(SIGSEGV, mte_default_handler);
+	mte_register_signal(SIGBUS, mte_default_handler, false);
+	mte_register_signal(SIGSEGV, mte_default_handler, false);
 
 	allocate_hugetlb();
 

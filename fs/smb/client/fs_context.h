@@ -341,7 +341,23 @@ struct smb3_fs_context {
 
 extern const struct fs_parameter_spec smb3_fs_parameters[];
 
-extern enum cifs_symlink_type get_cifs_symlink_type(struct cifs_sb_info *cifs_sb);
+static inline enum cifs_symlink_type cifs_symlink_type(struct cifs_sb_info *cifs_sb)
+{
+	bool posix = cifs_sb_master_tcon(cifs_sb)->posix_extensions;
+
+	if (cifs_sb->ctx->symlink_type != CIFS_SYMLINK_TYPE_DEFAULT)
+		return cifs_sb->ctx->symlink_type;
+
+	if (cifs_sb->ctx->mfsymlinks)
+		return CIFS_SYMLINK_TYPE_MFSYMLINKS;
+	else if (cifs_sb->ctx->sfu_emul)
+		return CIFS_SYMLINK_TYPE_SFU;
+	else if (cifs_sb->ctx->linux_ext && !cifs_sb->ctx->no_linux_ext)
+		return posix ? CIFS_SYMLINK_TYPE_NATIVE : CIFS_SYMLINK_TYPE_UNIX;
+	else if (cifs_sb->ctx->reparse_type != CIFS_REPARSE_TYPE_NONE)
+		return CIFS_SYMLINK_TYPE_NATIVE;
+	return CIFS_SYMLINK_TYPE_NONE;
+}
 
 extern int smb3_init_fs_context(struct fs_context *fc);
 extern void smb3_cleanup_fs_context_contents(struct smb3_fs_context *ctx);

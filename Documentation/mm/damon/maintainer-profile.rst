@@ -7,9 +7,9 @@ The DAMON subsystem covers the files that are listed in 'DATA ACCESS MONITOR'
 section of 'MAINTAINERS' file.
 
 The mailing lists for the subsystem are damon@lists.linux.dev and
-linux-mm@kvack.org.  Patches should be made against the `mm-unstable tree
-<https://git.kernel.org/akpm/mm/h/mm-unstable>`_ whenever possible and posted
-to the mailing lists.
+linux-mm@kvack.org.  Patches should be made against the `mm-new tree
+<https://git.kernel.org/akpm/mm/h/mm-new>`_ whenever possible and posted to the
+mailing lists.
 
 SCM Trees
 ---------
@@ -17,17 +17,19 @@ SCM Trees
 There are multiple Linux trees for DAMON development.  Patches under
 development or testing are queued in `damon/next
 <https://git.kernel.org/sj/h/damon/next>`_ by the DAMON maintainer.
-Sufficiently reviewed patches will be queued in `mm-unstable
-<https://git.kernel.org/akpm/mm/h/mm-unstable>`_ by the memory management
-subsystem maintainer.  After more sufficient tests, the patches will be queued
-in `mm-stable <https://git.kernel.org/akpm/mm/h/mm-stable>`_, and finally
-pull-requested to the mainline by the memory management subsystem maintainer.
+Sufficiently reviewed patches will be queued in `mm-new
+<https://git.kernel.org/akpm/mm/h/mm-new>`_ by the memory management subsystem
+maintainer.  As more sufficient tests are done, the patches will move to
+`mm-unstable <https://git.kernel.org/akpm/mm/h/mm-unstable>`_ and then to
+`mm-stable <https://git.kernel.org/akpm/mm/h/mm-stable>`_.  And finally those
+will be pull-requested to the mainline by the memory management subsystem
+maintainer.
 
-Note again the patches for `mm-unstable tree
-<https://git.kernel.org/akpm/mm/h/mm-unstable>`_ are queued by the memory
-management subsystem maintainer.  If the patches requires some patches in
-`damon/next tree <https://git.kernel.org/sj/h/damon/next>`_ which not yet merged
-in mm-unstable, please make sure the requirement is clearly specified.
+Note again the patches for `mm-new tree
+<https://git.kernel.org/akpm/mm/h/mm-new>`_ are queued by the memory management
+subsystem maintainer.  If the patches requires some patches in `damon/next tree
+<https://git.kernel.org/sj/h/damon/next>`_ which not yet merged in mm-new,
+please make sure the requirement is clearly specified.
 
 Submit checklist addendum
 -------------------------
@@ -53,8 +55,9 @@ Further doing below and putting the results will be helpful.
 Key cycle dates
 ---------------
 
-Patches can be sent anytime.  Key cycle dates of the `mm-unstable
-<https://git.kernel.org/akpm/mm/h/mm-unstable>`_ and `mm-stable
+Patches can be sent anytime.  Key cycle dates of the `mm-new
+<https://git.kernel.org/akpm/mm/h/mm-new>`_, `mm-unstable
+<https://git.kernel.org/akpm/mm/h/mm-unstable>`_and `mm-stable
 <https://git.kernel.org/akpm/mm/h/mm-stable>`_ trees depend on the memory
 management subsystem maintainer.
 

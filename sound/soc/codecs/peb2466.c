@@ -1945,7 +1945,7 @@ static int peb2466_gpio_init(struct peb2466 *peb2466)
 	peb2466->gpio.gpio_chip.direction_input = peb2466_chip_direction_input;
 	peb2466->gpio.gpio_chip.direction_output = peb2466_chip_direction_output;
 	peb2466->gpio.gpio_chip.get = peb2466_chip_gpio_get;
-	peb2466->gpio.gpio_chip.set_rv = peb2466_chip_gpio_set;
+	peb2466->gpio.gpio_chip.set = peb2466_chip_gpio_set;
 	peb2466->gpio.gpio_chip.can_sleep = true;
 
 	return devm_gpiochip_add_data(&peb2466->spi->dev, &peb2466->gpio.gpio_chip,

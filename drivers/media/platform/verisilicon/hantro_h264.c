@@ -325,12 +325,12 @@ static void update_dpb(struct hantro_ctx *ctx)
 				continue;
 
 			*cdpb = *ndpb;
-			set_bit(j, used);
+			__set_bit(j, used);
 			break;
 		}
 
 		if (j == ARRAY_SIZE(ctx->h264_dec.dpb))
-			set_bit(i, new);
+			__set_bit(i, new);
 	}
 
 	/* For entries that could not be matched, use remaining free slots. */
@@ -349,7 +349,7 @@ static void update_dpb(struct hantro_ctx *ctx)
 
 		cdpb = &ctx->h264_dec.dpb[j];
 		*cdpb = *ndpb;
-		set_bit(j, used);
+		__set_bit(j, used);
 	}
 }
 

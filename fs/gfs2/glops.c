@@ -11,6 +11,7 @@
 #include <linux/bio.h>
 #include <linux/posix_acl.h>
 #include <linux/security.h>
+#include <linux/log2.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -447,6 +448,11 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 
 	depth = be16_to_cpu(str->di_depth);
 	if (unlikely(depth > GFS2_DIR_MAX_DEPTH)) {
+		gfs2_consist_inode(ip);
+		return -EIO;
+	}
+	if ((ip->i_diskflags & GFS2_DIF_EXHASH) &&
+	    depth < ilog2(sdp->sd_hash_ptrs)) {
 		gfs2_consist_inode(ip);
 		return -EIO;
 	}

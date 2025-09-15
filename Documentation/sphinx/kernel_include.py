@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8; mode: python -*-
+# SPDX-License-Identifier: GPL-2.0
 # pylint: disable=R0903, C0330, R0914, R0912, E0401
 
 """

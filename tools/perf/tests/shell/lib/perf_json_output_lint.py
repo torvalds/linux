@@ -45,7 +45,7 @@ def is_counter_value(num):
 
 def check_json_output(expected_items):
   checks = {
-      'aggregate-number': lambda x: isfloat(x),
+      'counters': lambda x: isfloat(x),
       'core': lambda x: True,
       'counter-value': lambda x: is_counter_value(x),
       'cgroup': lambda x: True,
@@ -75,7 +75,7 @@ def check_json_output(expected_items):
       if count not in expected_items and count >= 1 and count <= 7 and 'metric-value' in item:
         # Events that generate >1 metric may have isolated metric
         # values and possibly other prefixes like interval, core,
-        # aggregate-number, or event-runtime/pcnt-running from multiplexing.
+        # counters, or event-runtime/pcnt-running from multiplexing.
         pass
       elif count not in expected_items and count >= 1 and count <= 5 and 'metricgroup' in item:
         pass

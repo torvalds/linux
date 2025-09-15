@@ -78,8 +78,7 @@ static const struct seq_operations bpf_prog_seq_ops = {
 	.show	= bpf_prog_seq_show,
 };
 
-BTF_ID_LIST(btf_bpf_prog_id)
-BTF_ID(struct, bpf_prog)
+BTF_ID_LIST_SINGLE(btf_bpf_prog_id, struct, bpf_prog)
 
 static const struct bpf_iter_seq_info bpf_prog_seq_info = {
 	.seq_ops		= &bpf_prog_seq_ops,

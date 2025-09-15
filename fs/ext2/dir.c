@@ -87,7 +87,7 @@ static void ext2_commit_chunk(struct folio *folio, loff_t pos, unsigned len)
 	struct inode *dir = mapping->host;
 
 	inode_inc_iversion(dir);
-	block_write_end(NULL, mapping, pos, len, len, folio, NULL);
+	block_write_end(pos, len, len, folio);
 
 	if (pos+len > dir->i_size) {
 		i_size_write(dir, pos+len);

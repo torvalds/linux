@@ -312,6 +312,8 @@ static struct iommu_domain *msm_iommu_domain_alloc_paging(struct device *dev)
 
 	INIT_LIST_HEAD(&priv->list_attached);
 
+	priv->domain.pgsize_bitmap = MSM_IOMMU_PGSIZES;
+
 	priv->domain.geometry.aperture_start = 0;
 	priv->domain.geometry.aperture_end   = (1ULL << 32) - 1;
 	priv->domain.geometry.force_aperture = true;
@@ -339,7 +341,7 @@ static int msm_iommu_domain_config(struct msm_priv *priv)
 	spin_lock_init(&priv->pgtlock);
 
 	priv->cfg = (struct io_pgtable_cfg) {
-		.pgsize_bitmap = msm_iommu_ops.pgsize_bitmap,
+		.pgsize_bitmap = priv->domain.pgsize_bitmap,
 		.ias = 32,
 		.oas = 32,
 		.tlb = &msm_iommu_flush_ops,
@@ -351,8 +353,6 @@ static int msm_iommu_domain_config(struct msm_priv *priv)
 		dev_err(priv->dev, "Failed to allocate pgtable\n");
 		return -EINVAL;
 	}
-
-	msm_iommu_ops.pgsize_bitmap = priv->cfg.pgsize_bitmap;
 
 	return 0;
 }
@@ -692,7 +692,6 @@ static struct iommu_ops msm_iommu_ops = {
 	.domain_alloc_paging = msm_iommu_domain_alloc_paging,
 	.probe_device = msm_iommu_probe_device,
 	.device_group = generic_device_group,
-	.pgsize_bitmap = MSM_IOMMU_PGSIZES,
 	.of_xlate = qcom_iommu_of_xlate,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= msm_iommu_attach_dev,

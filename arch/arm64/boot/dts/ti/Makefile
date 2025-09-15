@@ -33,6 +33,9 @@ dtb-$(CONFIG_ARCH_K3) += k3-am62-pocketbeagle2.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am62a7-sk.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am62a7-phyboard-lyra-rdk.dtb
 
+# Boards with AM62Dx SoC
+dtb-$(CONFIG_ARCH_K3) += k3-am62d2-evm.dtb
+
 # Boards with AM62Px SoC
 dtb-$(CONFIG_ARCH_K3) += k3-am62p5-sk.dtb
 dtb-$(CONFIG_ARCH_K3) += k3-am62p5-verdin-nonwifi-dahlia.dtb
@@ -278,24 +281,4 @@ dtb- += k3-am625-beagleplay-csi2-ov5640.dtb \
 	k3-j784s4-evm-usxgmii-exp1-exp2.dtb
 
 # Enable support for device-tree overlays
-DTC_FLAGS_k3-am625-beagleplay += -@
-DTC_FLAGS_k3-am625-phyboard-lyra-rdk += -@
-DTC_FLAGS_k3-am62a7-phyboard-lyra-rdk += -@
-DTC_FLAGS_k3-am625-sk += -@
-DTC_FLAGS_k3-am62-lp-sk += -@
-DTC_FLAGS_k3-am62a7-sk += -@
-DTC_FLAGS_k3-am62p5-sk += -@
-DTC_FLAGS_k3-am642-evm += -@
-DTC_FLAGS_k3-am642-phyboard-electra-rdk += -@
-DTC_FLAGS_k3-am642-tqma64xxl-mbax4xxl += -@
-DTC_FLAGS_k3-am6548-iot2050-advanced-m2 += -@
-DTC_FLAGS_k3-am68-sk-base-board += -@
-DTC_FLAGS_k3-am69-sk += -@
-DTC_FLAGS_k3-j7200-common-proc-board += -@
-DTC_FLAGS_k3-j721e-common-proc-board += -@
-DTC_FLAGS_k3-j721e-evm-pcie0-ep += -@
-DTC_FLAGS_k3-j721e-sk += -@
-DTC_FLAGS_k3-j721s2-common-proc-board += -@
-DTC_FLAGS_k3-j722s-evm += -@
-DTC_FLAGS_k3-j784s4-evm += -@
-DTC_FLAGS_k3-j742s2-evm += -@
+DTC_FLAGS := -@

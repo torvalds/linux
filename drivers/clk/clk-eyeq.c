@@ -131,7 +131,7 @@ struct eqc_early_match_data {
  * Both factors (mult and div) must fit in 32 bits. When an operation overflows,
  * this function throws away low bits so that factors still fit in 32 bits.
  *
- * Precision loss depends on amplitude of mult and div. Worst theorical
+ * Precision loss depends on amplitude of mult and div. Worst theoretical
  * loss is: (UINT_MAX+1) / UINT_MAX - 1 = 2.3e-10.
  * This is 1Hz every 4.3GHz.
  */

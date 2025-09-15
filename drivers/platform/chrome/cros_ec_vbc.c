@@ -108,7 +108,7 @@ static const struct bin_attribute *const cros_ec_vbc_bin_attrs[] = {
 
 static const struct attribute_group cros_ec_vbc_attr_group = {
 	.name = "vbc",
-	.bin_attrs_new = cros_ec_vbc_bin_attrs,
+	.bin_attrs = cros_ec_vbc_bin_attrs,
 };
 
 static int cros_ec_vbc_probe(struct platform_device *pd)

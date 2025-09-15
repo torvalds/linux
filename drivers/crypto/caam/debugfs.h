@@ -18,7 +18,7 @@ static inline void caam_debugfs_init(struct caam_drv_private *ctrlpriv,
 {}
 #endif
 
-#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_CAAM_QI)
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_CRYPTO_DEV_FSL_CAAM_CRYPTO_API_QI)
 void caam_debugfs_qi_congested(void);
 void caam_debugfs_qi_init(struct caam_drv_private *ctrlpriv);
 #else

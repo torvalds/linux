@@ -267,7 +267,7 @@ static void get_skas_faultinfo(int pid, struct faultinfo *fi)
 	memcpy(fi, (void *)current_stub_stack(), sizeof(*fi));
 }
 
-static void handle_trap(int pid, struct uml_pt_regs *regs)
+static void handle_trap(struct uml_pt_regs *regs)
 {
 	if ((UPT_IP(regs) >= STUB_START) && (UPT_IP(regs) < STUB_END))
 		fatal_sigsegv();
@@ -434,7 +434,6 @@ static int __init init_stub_exe_fd(void)
 __initcall(init_stub_exe_fd);
 
 int using_seccomp;
-int userspace_pid[NR_CPUS];
 
 /**
  * start_userspace() - prepare a new userspace process
@@ -548,12 +547,12 @@ out_close:
 	return err;
 }
 
-int unscheduled_userspace_iterations;
+static int unscheduled_userspace_iterations;
 extern unsigned long tt_extra_sched_jiffies;
 
 void userspace(struct uml_pt_regs *regs)
 {
-	int err, status, op, pid = userspace_pid[0];
+	int err, status, op;
 	siginfo_t si_ptrace;
 	siginfo_t *si;
 	int sig;
@@ -562,6 +561,8 @@ void userspace(struct uml_pt_regs *regs)
 	interrupt_end();
 
 	while (1) {
+		struct mm_id *mm_id = current_mm_id();
+
 		/*
 		 * When we are in time-travel mode, userspace can theoretically
 		 * do a *lot* of work without being scheduled. The problem with
@@ -590,14 +591,12 @@ void userspace(struct uml_pt_regs *regs)
 		current_mm_sync();
 
 		if (using_seccomp) {
-			struct mm_id *mm_id = current_mm_id();
 			struct stub_data *proc_data = (void *) mm_id->stack;
-			int ret;
 
-			ret = set_stub_state(regs, proc_data, singlestepping());
-			if (ret) {
+			err = set_stub_state(regs, proc_data, singlestepping());
+			if (err) {
 				printk(UM_KERN_ERR "%s - failed to set regs: %d",
-				       __func__, ret);
+				       __func__, err);
 				fatal_sigsegv();
 			}
 
@@ -623,10 +622,10 @@ void userspace(struct uml_pt_regs *regs)
 			mm_id->syscall_data_len = 0;
 			mm_id->syscall_fd_num = 0;
 
-			ret = get_stub_state(regs, proc_data, NULL);
-			if (ret) {
+			err = get_stub_state(regs, proc_data, NULL);
+			if (err) {
 				printk(UM_KERN_ERR "%s - failed to get regs: %d",
-				       __func__, ret);
+				       __func__, err);
 				fatal_sigsegv();
 			}
 
@@ -645,8 +644,10 @@ void userspace(struct uml_pt_regs *regs)
 				GET_FAULTINFO_FROM_MC(regs->faultinfo, mcontext);
 			}
 		} else {
+			int pid = mm_id->pid;
+
 			/* Flush out any pending syscalls */
-			err = syscall_stub_flush(current_mm_id());
+			err = syscall_stub_flush(mm_id);
 			if (err) {
 				if (err == -ENOMEM)
 					report_enomem();
@@ -756,7 +757,7 @@ void userspace(struct uml_pt_regs *regs)
 				handle_syscall(regs);
 				break;
 			case SIGTRAP + 0x80:
-				handle_trap(pid, regs);
+				handle_trap(regs);
 				break;
 			case SIGTRAP:
 				relay_signal(SIGTRAP, (struct siginfo *)si, regs, NULL);
@@ -777,7 +778,6 @@ void userspace(struct uml_pt_regs *regs)
 				       __func__, sig);
 				fatal_sigsegv();
 			}
-			pid = userspace_pid[0];
 			interrupt_end();
 
 			/* Avoid -ERESTARTSYS handling in host */
@@ -901,9 +901,4 @@ void reboot_skas(void)
 {
 	block_signals_trace();
 	UML_LONGJMP(&initial_jmpbuf, noreboot ? INIT_JMP_HALT : INIT_JMP_REBOOT);
-}
-
-void __switch_mm(struct mm_id *mm_idp)
-{
-	userspace_pid[0] = mm_idp->pid;
 }

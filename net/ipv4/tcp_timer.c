@@ -478,7 +478,7 @@ static void tcp_fastopen_synack_timer(struct sock *sk, struct request_sock *req)
 	 * regular retransmit because if the child socket has been accepted
 	 * it's not good to give up too easily.
 	 */
-	inet_rtx_syn_ack(sk, req);
+	tcp_rtx_synack(sk, req);
 	req->num_timeout++;
 	tcp_update_rto_stats(sk);
 	if (!tp->retrans_stamp)

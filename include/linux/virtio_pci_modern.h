@@ -3,6 +3,7 @@
 #define _LINUX_VIRTIO_PCI_MODERN_H
 
 #include <linux/pci.h>
+#include <linux/virtio_config.h>
 #include <linux/virtio_pci.h>
 
 /**
@@ -95,10 +96,44 @@ static inline void vp_iowrite64_twopart(u64 val,
 	vp_iowrite32(val >> 32, hi);
 }
 
-u64 vp_modern_get_features(struct virtio_pci_modern_device *mdev);
-u64 vp_modern_get_driver_features(struct virtio_pci_modern_device *mdev);
-void vp_modern_set_features(struct virtio_pci_modern_device *mdev,
-		     u64 features);
+void
+vp_modern_get_driver_extended_features(struct virtio_pci_modern_device *mdev,
+				       u64 *features);
+void vp_modern_get_extended_features(struct virtio_pci_modern_device *mdev,
+				     u64 *features);
+void vp_modern_set_extended_features(struct virtio_pci_modern_device *mdev,
+				     const u64 *features);
+
+static inline u64
+vp_modern_get_features(struct virtio_pci_modern_device *mdev)
+{
+	u64 features_array[VIRTIO_FEATURES_DWORDS];
+
+	vp_modern_get_extended_features(mdev, features_array);
+	return features_array[0];
+}
+
+static inline u64
+vp_modern_get_driver_features(struct virtio_pci_modern_device *mdev)
+{
+	u64 features_array[VIRTIO_FEATURES_DWORDS];
+	int i;
+
+	vp_modern_get_driver_extended_features(mdev, features_array);
+	for (i = 1; i < VIRTIO_FEATURES_DWORDS; ++i)
+		WARN_ON_ONCE(features_array[i]);
+	return features_array[0];
+}
+
+static inline void
+vp_modern_set_features(struct virtio_pci_modern_device *mdev, u64 features)
+{
+	u64 features_array[VIRTIO_FEATURES_DWORDS];
+
+	virtio_features_from_u64(features_array, features);
+	vp_modern_set_extended_features(mdev, features_array);
+}
+
 u32 vp_modern_generation(struct virtio_pci_modern_device *mdev);
 u8 vp_modern_get_status(struct virtio_pci_modern_device *mdev);
 void vp_modern_set_status(struct virtio_pci_modern_device *mdev,

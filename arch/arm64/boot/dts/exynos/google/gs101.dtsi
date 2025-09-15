@@ -155,6 +155,7 @@
 				idle-state-name = "c2";
 				compatible = "arm,idle-state";
 				arm,psci-suspend-param = <0x0010000>;
+				local-timer-stop;
 				entry-latency-us = <70>;
 				exit-latency-us = <160>;
 				min-residency-us = <2000>;
@@ -164,6 +165,7 @@
 				idle-state-name = "c2";
 				compatible = "arm,idle-state";
 				arm,psci-suspend-param = <0x0010000>;
+				local-timer-stop;
 				entry-latency-us = <150>;
 				exit-latency-us = <190>;
 				min-residency-us = <2500>;
@@ -173,6 +175,7 @@
 				idle-state-name = "c2";
 				compatible = "arm,idle-state";
 				arm,psci-suspend-param = <0x0010000>;
+				local-timer-stop;
 				entry-latency-us = <235>;
 				exit-latency-us = <220>;
 				min-residency-us = <3500>;
@@ -1368,6 +1371,7 @@
 				 <&cmu_hsi2 CLK_GOUT_HSI2_SYSREG_HSI2_PCLK>;
 			clock-names = "core_clk", "sclk_unipro_main", "fmp",
 				      "aclk", "pclk", "sysreg";
+			dma-coherent;
 			freq-table-hz = <0 0>, <0 0>, <0 0>, <0 0>, <0 0>, <0 0>;
 			pinctrl-0 = <&ufs_rst_n &ufs_refclk_out>;
 			pinctrl-names = "default";
@@ -1415,10 +1419,7 @@
 			};
 
 			reboot: syscon-reboot {
-				compatible = "syscon-reboot";
-				offset = <0x3a00>; /* SYSTEM_CONFIGURATION */
-				mask = <0x2>; /* SWRESET_SYSTEM */
-				value = <0x2>; /* reset value */
+				compatible = "google,gs101-reboot";
 			};
 
 			reboot-mode {
@@ -1426,6 +1427,7 @@
 				offset = <0x0810>; /* EXYNOS_PMU_SYSIP_DAT0 */
 				mode-bootloader = <0xfc>;
 				mode-charge = <0x0a>;
+				mode-dm-verity-device-corrupted = <0x50>;
 				mode-fastboot = <0xfa>;
 				mode-reboot-ab-update = <0x52>;
 				mode-recovery = <0xff>;

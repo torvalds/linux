@@ -85,6 +85,8 @@ config CROS_EC_UCSI
 config UCSI_LENOVO_YOGA_C630
 	tristate "UCSI Interface Driver for Lenovo Yoga C630"
 	depends on EC_LENOVO_YOGA_C630
+	depends on DRM || !DRM
+	select DRM_AUX_HPD_BRIDGE if DRM_BRIDGE && OF
 	help
 	  This driver enables UCSI support on the Lenovo Yoga C630 laptop.
 

@@ -340,8 +340,6 @@ static int mlx5e_ptp_alloc_txqsq(struct mlx5e_ptp *c, int txq_ix,
 	sq->stats     = &c->priv->ptp_stats.sq[tc];
 	sq->ptpsq     = ptpsq;
 	INIT_WORK(&sq->recover_work, mlx5e_tx_err_cqe_work);
-	if (!MLX5_CAP_ETH(mdev, wqe_vlan_insert))
-		set_bit(MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE, &sq->state);
 	sq->stop_room = param->stop_room;
 	sq->ptp_cyc2time = mlx5_sq_ts_translator(mdev);
 

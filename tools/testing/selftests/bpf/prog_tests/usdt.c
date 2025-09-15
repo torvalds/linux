@@ -270,8 +270,16 @@ static void subtest_multispec_usdt(void)
 	 */
 	trigger_300_usdts();
 
-	/* we'll reuse usdt_100 BPF program for usdt_300 test */
 	bpf_link__destroy(skel->links.usdt_100);
+
+	bss->usdt_100_called = 0;
+	bss->usdt_100_sum = 0;
+
+	/* If built with arm64/clang, there will be much less number of specs
+	 * for usdt_300 call sites.
+	 */
+#if !defined(__aarch64__) || !defined(__clang__)
+	/* we'll reuse usdt_100 BPF program for usdt_300 test */
 	skel->links.usdt_100 = bpf_program__attach_usdt(skel->progs.usdt_100, -1, "/proc/self/exe",
 							"test", "usdt_300", NULL);
 	err = -errno;
@@ -282,13 +290,11 @@ static void subtest_multispec_usdt(void)
 	/* let's check that there are no "dangling" BPF programs attached due
 	 * to partial success of the above test:usdt_300 attachment
 	 */
-	bss->usdt_100_called = 0;
-	bss->usdt_100_sum = 0;
-
 	f300(777); /* this is 301st instance of usdt_300 */
 
 	ASSERT_EQ(bss->usdt_100_called, 0, "usdt_301_called");
 	ASSERT_EQ(bss->usdt_100_sum, 0, "usdt_301_sum");
+#endif
 
 	/* This time we have USDT with 400 inlined invocations, but arg specs
 	 * should be the same across all sites, so libbpf will only need to

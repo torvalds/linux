@@ -224,6 +224,7 @@
 			reg-names = "rtc", "alarm";
 			interrupts = <0x0 0x62 0x1 IRQ_TYPE_EDGE_RISING>;
 			qcom,no-alarm; /* alarm owned by ADSP */
+			qcom,uefi-rtc-info;
 		};
 
 		pmk8550_sdam_2: nvram@7100 {

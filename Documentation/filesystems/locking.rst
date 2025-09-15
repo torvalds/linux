@@ -87,8 +87,8 @@ prototypes::
 	int (*tmpfile) (struct mnt_idmap *, struct inode *,
 			struct file *, umode_t);
 	int (*fileattr_set)(struct mnt_idmap *idmap,
-			    struct dentry *dentry, struct fileattr *fa);
-	int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
+			    struct dentry *dentry, struct file_kattr *fa);
+	int (*fileattr_get)(struct dentry *dentry, struct file_kattr *fa);
 	struct posix_acl * (*get_acl)(struct mnt_idmap *, struct dentry *, int);
 	struct offset_ctx *(*get_offset_ctx)(struct inode *inode);
 
@@ -253,10 +253,10 @@ prototypes::
 	int (*writepages)(struct address_space *, struct writeback_control *);
 	bool (*dirty_folio)(struct address_space *, struct folio *folio);
 	void (*readahead)(struct readahead_control *);
-	int (*write_begin)(struct file *, struct address_space *mapping,
+	int (*write_begin)(const struct kiocb *, struct address_space *mapping,
 				loff_t pos, unsigned len,
 				struct folio **foliop, void **fsdata);
-	int (*write_end)(struct file *, struct address_space *mapping,
+	int (*write_end)(const struct kiocb *, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned copied,
 				struct folio *folio, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);

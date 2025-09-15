@@ -239,7 +239,7 @@ ingenic_cgu_new(const struct ingenic_cgu_clk_info *clock_info,
  *
  * Register the clocks described by the CGU with the common clock framework.
  *
- * Return: 0 on success or -errno if unsuccesful.
+ * Return: 0 on success or -errno if unsuccessful.
  */
 int ingenic_cgu_register_clocks(struct ingenic_cgu *cgu);
 

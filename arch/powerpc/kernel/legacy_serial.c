@@ -54,9 +54,10 @@ static int legacy_serial_console = -1;
 static const upf_t legacy_port_flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
 	UPF_SHARE_IRQ | UPF_FIXED_PORT;
 
-static unsigned int tsi_serial_in(struct uart_port *p, int offset)
+static u32 tsi_serial_in(struct uart_port *p, unsigned int offset)
 {
-	unsigned int tmp;
+	u32 tmp;
+
 	offset = offset << p->regshift;
 	if (offset == UART_IIR) {
 		tmp = readl(p->membase + (UART_IIR & ~3));
@@ -65,7 +66,7 @@ static unsigned int tsi_serial_in(struct uart_port *p, int offset)
 		return readb(p->membase + offset);
 }
 
-static void tsi_serial_out(struct uart_port *p, int offset, int value)
+static void tsi_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	offset = offset << p->regshift;
 	if (!((offset == UART_IER) && (value & UART_IER_UUE)))
@@ -77,6 +78,8 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 				  phys_addr_t taddr, unsigned long irq,
 				  upf_t flags, int irq_check_parent)
 {
+	struct plat_serial8250_port *legacy_port;
+	struct legacy_serial_info *legacy_info;
 	const __be32 *clk, *spd, *rs;
 	u32 clock = BASE_BAUD * 16;
 	u32 shift = 0;
@@ -110,16 +113,17 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 	if (index >= legacy_serial_count)
 		legacy_serial_count = index + 1;
 
+	legacy_port = &legacy_serial_ports[index];
+	legacy_info = &legacy_serial_infos[index];
+
 	/* Check if there is a port who already claimed our slot */
-	if (legacy_serial_infos[index].np != NULL) {
+	if (legacy_info->np != NULL) {
 		/* if we still have some room, move it, else override */
 		if (legacy_serial_count < MAX_LEGACY_SERIAL_PORTS) {
 			printk(KERN_DEBUG "Moved legacy port %d -> %d\n",
 			       index, legacy_serial_count);
-			legacy_serial_ports[legacy_serial_count] =
-				legacy_serial_ports[index];
-			legacy_serial_infos[legacy_serial_count] =
-				legacy_serial_infos[index];
+			legacy_serial_ports[legacy_serial_count] = *legacy_port;
+			legacy_serial_infos[legacy_serial_count] = *legacy_info;
 			legacy_serial_count++;
 		} else {
 			printk(KERN_DEBUG "Replacing legacy port %d\n", index);
@@ -127,36 +131,32 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 	}
 
 	/* Now fill the entry */
-	memset(&legacy_serial_ports[index], 0,
-	       sizeof(struct plat_serial8250_port));
+	memset(legacy_port, 0, sizeof(*legacy_port));
 	if (iotype == UPIO_PORT)
-		legacy_serial_ports[index].iobase = base;
+		legacy_port->iobase = base;
 	else
-		legacy_serial_ports[index].mapbase = base;
+		legacy_port->mapbase = base;
 
-	legacy_serial_ports[index].iotype = iotype;
-	legacy_serial_ports[index].uartclk = clock;
-	legacy_serial_ports[index].irq = irq;
-	legacy_serial_ports[index].flags = flags;
-	legacy_serial_ports[index].regshift = shift;
-	legacy_serial_infos[index].taddr = taddr;
-	legacy_serial_infos[index].np = of_node_get(np);
-	legacy_serial_infos[index].clock = clock;
-	legacy_serial_infos[index].speed = spd ? be32_to_cpup(spd) : 0;
-	legacy_serial_infos[index].irq_check_parent = irq_check_parent;
+	legacy_port->iotype = iotype;
+	legacy_port->uartclk = clock;
+	legacy_port->irq = irq;
+	legacy_port->flags = flags;
+	legacy_port->regshift = shift;
+	legacy_info->taddr = taddr;
+	legacy_info->np = of_node_get(np);
+	legacy_info->clock = clock;
+	legacy_info->speed = spd ? be32_to_cpup(spd) : 0;
+	legacy_info->irq_check_parent = irq_check_parent;
 
 	if (iotype == UPIO_TSI) {
-		legacy_serial_ports[index].serial_in = tsi_serial_in;
-		legacy_serial_ports[index].serial_out = tsi_serial_out;
+		legacy_port->serial_in = tsi_serial_in;
+		legacy_port->serial_out = tsi_serial_out;
 	}
 
-	printk(KERN_DEBUG "Found legacy serial port %d for %pOF\n",
-	       index, np);
-	printk(KERN_DEBUG "  %s=%llx, taddr=%llx, irq=%lx, clk=%d, speed=%d\n",
+	printk(KERN_DEBUG "Found legacy serial port %d for %pOF\n", index, np);
+	printk(KERN_DEBUG "  %s=%pa, taddr=%pa, irq=%lx, clk=%d, speed=%d\n",
 	       (iotype == UPIO_PORT) ? "port" : "mem",
-	       (unsigned long long)base, (unsigned long long)taddr, irq,
-	       legacy_serial_ports[index].uartclk,
-	       legacy_serial_infos[index].speed);
+	       &base, &taddr, irq, legacy_port->uartclk, legacy_info->speed);
 
 	return index;
 }

@@ -30,6 +30,7 @@
 #define MXC_JPEG_MAX_PLANES		2
 #define MXC_JPEG_PATTERN_WIDTH		128
 #define MXC_JPEG_PATTERN_HEIGHT		64
+#define MXC_JPEG_ADDR_ALIGNMENT		16
 
 enum mxc_jpeg_enc_state {
 	MXC_JPEG_ENCODING	= 0, /* jpeg encode phase */

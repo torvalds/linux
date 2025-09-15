@@ -63,7 +63,7 @@ struct clk_si570_info {
  * struct clk_si570:
  * @hw:	Clock hw struct
  * @regmap:	Device's regmap
- * @div_offset:	Rgister offset for dividers
+ * @div_offset:	Register offset for dividers
  * @info:	Device info
  * @fxtal:	Factory xtal frequency
  * @n1:		Clock divider N1
@@ -181,7 +181,7 @@ static int si570_update_rfreq(struct clk_si570 *data)
 }
 
 /**
- * si570_calc_divs() - Caluclate clock dividers
+ * si570_calc_divs() - Calculate clock dividers
  * @frequency:	Target frequency
  * @data:	Driver data structure
  * @out_rfreq:	RFREG fractional multiplier (output)

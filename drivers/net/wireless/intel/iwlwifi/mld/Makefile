@@ -9,8 +9,4 @@ iwlmld-$(CONFIG_IWLWIFI_DEBUGFS) += debugfs.o
 iwlmld-$(CONFIG_IWLWIFI_LEDS) += led.o
 iwlmld-$(CONFIG_PM_SLEEP) += d3.o
 
-# non-upstream things
-iwlmld-$(CONFIG_IWL_VENDOR_CMDS) += vendor-cmd.o
-iwlmld-$(CONFIG_IWLMVM_AX_SOFTAP_TESTMODE) += ax-softap-testmode.o
-
 subdir-ccflags-y += -I$(src)/../

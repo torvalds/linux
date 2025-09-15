@@ -38,9 +38,7 @@ properties:
       - const: usbin_i
       - const: usbin_v
 
-  monitored-battery:
-    description: phandle to the simple-battery node
-    $ref: /schemas/types.yaml#/definitions/phandle
+  monitored-battery: true
 
 required:
   - compatible
@@ -50,6 +48,9 @@ required:
   - io-channels
   - io-channel-names
   - monitored-battery
+
+allOf:
+  - $ref: power-supply.yaml#
 
 additionalProperties: false
 

@@ -656,7 +656,7 @@ static bool wait_for_entering_dp_alt_mode(struct dc_link *link)
 		return true;
 
 	is_in_alt_mode = link->link_enc->funcs->is_in_alt_mode(link->link_enc);
-	DC_LOG_DC("DP Alt mode state on HPD: %d\n", is_in_alt_mode);
+	DC_LOG_DC("DP Alt mode state on HPD: %d  Link=%d\n", is_in_alt_mode, link->link_index);
 
 	if (is_in_alt_mode)
 		return true;

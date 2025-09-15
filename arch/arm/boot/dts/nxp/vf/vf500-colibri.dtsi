@@ -40,30 +40,28 @@
 };
 
 &iomuxc {
-	vf610-colibri {
-		pinctrl_touchctrl_idle: touchctrl_idle {
-			fsl,pins = <
-				VF610_PAD_PTA18__GPIO_8		0x006d
-				VF610_PAD_PTA19__GPIO_9		0x006c
-				>;
-		};
+	pinctrl_touchctrl_idle: touchctrl_idlegrp {
+		fsl,pins = <
+			VF610_PAD_PTA18__GPIO_8		0x006d
+			VF610_PAD_PTA19__GPIO_9		0x006c
+			>;
+	};
 
-		pinctrl_touchctrl_default: touchctrl_default {
-			fsl,pins = <
-				VF610_PAD_PTA18__ADC0_SE0	0x0040
-				VF610_PAD_PTA19__ADC0_SE1	0x0040
-				VF610_PAD_PTA16__ADC1_SE0	0x0040
-				VF610_PAD_PTB2__ADC1_SE2	0x0040
-				>;
-		};
+	pinctrl_touchctrl_default: touchctrl_defaultgrp {
+		fsl,pins = <
+			VF610_PAD_PTA18__ADC0_SE0	0x0040
+			VF610_PAD_PTA19__ADC0_SE1	0x0040
+			VF610_PAD_PTA16__ADC1_SE0	0x0040
+			VF610_PAD_PTB2__ADC1_SE2	0x0040
+			>;
+	};
 
-		pinctrl_touchctrl_gpios: touchctrl_gpios {
-			fsl,pins = <
-				VF610_PAD_PTA23__GPIO_13	0x22e9
-				VF610_PAD_PTB23__GPIO_93	0x22e9
-				VF610_PAD_PTA22__GPIO_12	0x22e9
-				VF610_PAD_PTA11__GPIO_4		0x22e9
-				>;
-		};
+	pinctrl_touchctrl_gpios: touchctrl_gpiosgrp {
+		fsl,pins = <
+			VF610_PAD_PTA23__GPIO_13	0x22e9
+			VF610_PAD_PTB23__GPIO_93	0x22e9
+			VF610_PAD_PTA22__GPIO_12	0x22e9
+			VF610_PAD_PTA11__GPIO_4		0x22e9
+			>;
 	};
 };

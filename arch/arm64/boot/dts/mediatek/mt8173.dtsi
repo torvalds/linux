@@ -318,6 +318,14 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		afe_dma_mem: audio-dma-pool {
+			compatible = "shared-dma-pool";
+			size = <0 0x100000>;
+			alignment = <0 0x10>;
+			no-map;
+		};
+
 		vpu_dma_reserved: vpu-dma-mem@b7000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0xb7000000 0 0x500000>;
@@ -887,6 +895,7 @@
 					  <&topckgen CLK_TOP_AUD_2_SEL>;
 			assigned-clock-parents = <&topckgen CLK_TOP_APLL1>,
 						 <&topckgen CLK_TOP_APLL2>;
+			memory-region = <&afe_dma_mem>;
 		};
 
 		mmc0: mmc@11230000 {

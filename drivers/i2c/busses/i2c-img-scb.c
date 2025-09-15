@@ -1143,7 +1143,7 @@ static u32 img_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm img_i2c_algo = {
-	.master_xfer = img_i2c_xfer,
+	.xfer = img_i2c_xfer,
 	.functionality = img_i2c_func,
 };
 

@@ -200,7 +200,7 @@ static void pool_block_push(struct dma_pool *pool, struct dma_block *block,
 
 
 /**
- * dma_pool_create_node - Creates a pool of consistent memory blocks, for dma.
+ * dma_pool_create_node - Creates a pool of coherent DMA memory blocks.
  * @name: name of pool, for diagnostics
  * @dev: device that will be doing the DMA
  * @size: size of the blocks in this pool.
@@ -210,7 +210,7 @@ static void pool_block_push(struct dma_pool *pool, struct dma_block *block,
  * Context: not in_interrupt()
  *
  * Given one of these pools, dma_pool_alloc()
- * may be used to allocate memory.  Such memory will all have "consistent"
+ * may be used to allocate memory.  Such memory will all have coherent
  * DMA mappings, accessible by the device and its driver without using
  * cache flushing primitives.  The actual size of blocks allocated may be
  * larger than requested because of alignment.
@@ -395,7 +395,7 @@ void dma_pool_destroy(struct dma_pool *pool)
 EXPORT_SYMBOL(dma_pool_destroy);
 
 /**
- * dma_pool_alloc - get a block of consistent memory
+ * dma_pool_alloc - get a block of coherent memory
  * @pool: dma pool that will produce the block
  * @mem_flags: GFP_* bitmask
  * @handle: pointer to dma address of block

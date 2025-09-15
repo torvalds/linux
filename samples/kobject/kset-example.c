@@ -14,8 +14,8 @@
 
 /*
  * This module shows how to create a kset in sysfs called
- * /sys/kernel/kset-example
- * Then tree kobjects are created and assigned to this kset, "foo", "baz",
+ * /sys/kernel/kset_example
+ * Then three kobjects are created and assigned to this kset, "foo", "baz",
  * and "bar".  In those kobjects, attributes of the same name are also
  * created and if an integer is written to these files, it can be later
  * read out of it.

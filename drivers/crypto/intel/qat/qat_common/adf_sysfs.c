@@ -269,6 +269,8 @@ static ssize_t rp2srv_show(struct device *dev, struct device_attribute *attr,
 		return sysfs_emit(buf, "%s\n", ADF_CFG_SYM);
 	case ASYM:
 		return sysfs_emit(buf, "%s\n", ADF_CFG_ASYM);
+	case DECOMP:
+		return sysfs_emit(buf, "%s\n", ADF_CFG_DECOMP);
 	default:
 		break;
 	}

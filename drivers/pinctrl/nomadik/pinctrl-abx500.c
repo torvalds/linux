@@ -536,7 +536,7 @@ static const struct gpio_chip abx500gpio_chip = {
 	.direction_input	= abx500_gpio_direction_input,
 	.get			= abx500_gpio_get,
 	.direction_output	= abx500_gpio_direction_output,
-	.set_rv			= abx500_gpio_set,
+	.set			= abx500_gpio_set,
 	.to_irq			= abx500_gpio_to_irq,
 	.dbg_show		= abx500_gpio_dbg_show,
 };

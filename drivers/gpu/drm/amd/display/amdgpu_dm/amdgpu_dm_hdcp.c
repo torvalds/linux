@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2019 Advanced Micro Devices, Inc.
  *
@@ -222,6 +223,7 @@ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 		display_adjust.disable = MOD_HDCP_DISPLAY_NOT_DISABLE;
 
 		link_adjust.auth_delay = 2;
+		link_adjust.retry_limit = MAX_NUM_OF_ATTEMPTS;
 
 		if (content_type == DRM_MODE_HDCP_CONTENT_TYPE0) {
 			link_adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
@@ -571,6 +573,7 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->dp.usb4_enabled = config->usb4_enabled;
 	display->adjust.disable = MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION;
 	link->adjust.auth_delay = 2;
+	link->adjust.retry_limit = MAX_NUM_OF_ATTEMPTS;
 	link->adjust.hdcp1.disable = 0;
 	hdcp_w->encryption_status[display->index] = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
 
@@ -723,8 +726,8 @@ ret:
 static const struct bin_attribute data_attr = {
 	.attr = {.name = "hdcp_srm", .mode = 0664},
 	.size = PSP_HDCP_SRM_FIRST_GEN_MAX_SIZE, /* Limit SRM size */
-	.write_new = srm_data_write,
-	.read_new = srm_data_read,
+	.write = srm_data_write,
+	.read = srm_data_read,
 };
 
 struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev,

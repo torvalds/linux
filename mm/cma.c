@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/log2.h>
 #include <linux/cma.h>
 #include <linux/highmem.h>
@@ -34,12 +35,6 @@
 
 struct cma cma_areas[MAX_CMA_AREAS];
 unsigned int cma_area_count;
-
-static int __init __cma_declare_contiguous_nid(phys_addr_t *basep,
-			phys_addr_t size, phys_addr_t limit,
-			phys_addr_t alignment, unsigned int order_per_bit,
-			bool fixed, const char *name, struct cma **res_cma,
-			int nid);
 
 phys_addr_t cma_get_base(const struct cma *cma)
 {
@@ -358,6 +353,168 @@ static void __init list_insert_sorted(
 	}
 }
 
+static int __init cma_fixed_reserve(phys_addr_t base, phys_addr_t size)
+{
+	if (IS_ENABLED(CONFIG_HIGHMEM)) {
+		phys_addr_t highmem_start = __pa(high_memory - 1) + 1;
+
+		/*
+		 * If allocating at a fixed base the request region must not
+		 * cross the low/high memory boundary.
+		 */
+		if (base < highmem_start && base + size > highmem_start) {
+			pr_err("Region at %pa defined on low/high memory boundary (%pa)\n",
+			       &base, &highmem_start);
+			return -EINVAL;
+		}
+	}
+
+	if (memblock_is_region_reserved(base, size) ||
+	    memblock_reserve(base, size) < 0) {
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static phys_addr_t __init cma_alloc_mem(phys_addr_t base, phys_addr_t size,
+			phys_addr_t align, phys_addr_t limit, int nid)
+{
+	phys_addr_t addr = 0;
+
+	/*
+	 * If there is enough memory, try a bottom-up allocation first.
+	 * It will place the new cma area close to the start of the node
+	 * and guarantee that the compaction is moving pages out of the
+	 * cma area and not into it.
+	 * Avoid using first 4GB to not interfere with constrained zones
+	 * like DMA/DMA32.
+	 */
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+	if (!memblock_bottom_up() && limit >= SZ_4G + size) {
+		memblock_set_bottom_up(true);
+		addr = memblock_alloc_range_nid(size, align, SZ_4G, limit,
+						nid, true);
+		memblock_set_bottom_up(false);
+	}
+#endif
+
+	/*
+	 * On systems with HIGHMEM try allocating from there before consuming
+	 * memory in lower zones.
+	 */
+	if (!addr && IS_ENABLED(CONFIG_HIGHMEM)) {
+		phys_addr_t highmem = __pa(high_memory - 1) + 1;
+
+		/*
+		 * All pages in the reserved area must come from the same zone.
+		 * If the requested region crosses the low/high memory boundary,
+		 * try allocating from high memory first and fall back to low
+		 * memory in case of failure.
+		 */
+		if (base < highmem && limit > highmem) {
+			addr = memblock_alloc_range_nid(size, align, highmem,
+							limit, nid, true);
+			limit = highmem;
+		}
+	}
+
+	if (!addr)
+		addr = memblock_alloc_range_nid(size, align, base, limit, nid,
+						true);
+
+	return addr;
+}
+
+static int __init __cma_declare_contiguous_nid(phys_addr_t *basep,
+			phys_addr_t size, phys_addr_t limit,
+			phys_addr_t alignment, unsigned int order_per_bit,
+			bool fixed, const char *name, struct cma **res_cma,
+			int nid)
+{
+	phys_addr_t memblock_end = memblock_end_of_DRAM();
+	phys_addr_t base = *basep;
+	int ret;
+
+	pr_debug("%s(size %pa, base %pa, limit %pa alignment %pa)\n",
+		__func__, &size, &base, &limit, &alignment);
+
+	if (cma_area_count == ARRAY_SIZE(cma_areas)) {
+		pr_err("Not enough slots for CMA reserved regions!\n");
+		return -ENOSPC;
+	}
+
+	if (!size)
+		return -EINVAL;
+
+	if (alignment && !is_power_of_2(alignment))
+		return -EINVAL;
+
+	if (!IS_ENABLED(CONFIG_NUMA))
+		nid = NUMA_NO_NODE;
+
+	/* Sanitise input arguments. */
+	alignment = max_t(phys_addr_t, alignment, CMA_MIN_ALIGNMENT_BYTES);
+	if (fixed && base & (alignment - 1)) {
+		pr_err("Region at %pa must be aligned to %pa bytes\n",
+			&base, &alignment);
+		return -EINVAL;
+	}
+	base = ALIGN(base, alignment);
+	size = ALIGN(size, alignment);
+	limit &= ~(alignment - 1);
+
+	if (!base)
+		fixed = false;
+
+	/* size should be aligned with order_per_bit */
+	if (!IS_ALIGNED(size >> PAGE_SHIFT, 1 << order_per_bit))
+		return -EINVAL;
+
+
+	/*
+	 * If the limit is unspecified or above the memblock end, its effective
+	 * value will be the memblock end. Set it explicitly to simplify further
+	 * checks.
+	 */
+	if (limit == 0 || limit > memblock_end)
+		limit = memblock_end;
+
+	if (base + size > limit) {
+		pr_err("Size (%pa) of region at %pa exceeds limit (%pa)\n",
+			&size, &base, &limit);
+		return -EINVAL;
+	}
+
+	/* Reserve memory */
+	if (fixed) {
+		ret = cma_fixed_reserve(base, size);
+		if (ret)
+			return ret;
+	} else {
+		base = cma_alloc_mem(base, size, alignment, limit, nid);
+		if (!base)
+			return -ENOMEM;
+
+		/*
+		 * kmemleak scans/reads tracked objects for pointers to other
+		 * objects but this address isn't mapped and accessible
+		 */
+		kmemleak_ignore_phys(base);
+	}
+
+	ret = cma_init_reserved_mem(base, size, order_per_bit, name, res_cma);
+	if (ret) {
+		memblock_phys_free(base, size);
+		return ret;
+	}
+
+	(*res_cma)->nid = nid;
+	*basep = base;
+
+	return 0;
+}
+
 /*
  * Create CMA areas with a total size of @total_size. A normal allocation
  * for one area is tried first. If that fails, the biggest memblock
@@ -548,8 +705,7 @@ out:
 			(unsigned long)total_size / SZ_1M);
 	else
 		pr_info("Reserved %lu MiB in %d range%s\n",
-			(unsigned long)total_size / SZ_1M, nr,
-			nr > 1 ? "s" : "");
+			(unsigned long)total_size / SZ_1M, nr, str_plural(nr));
 	return ret;
 }
 
@@ -593,154 +749,9 @@ int __init cma_declare_contiguous_nid(phys_addr_t base,
 	return ret;
 }
 
-static int __init __cma_declare_contiguous_nid(phys_addr_t *basep,
-			phys_addr_t size, phys_addr_t limit,
-			phys_addr_t alignment, unsigned int order_per_bit,
-			bool fixed, const char *name, struct cma **res_cma,
-			int nid)
-{
-	phys_addr_t memblock_end = memblock_end_of_DRAM();
-	phys_addr_t highmem_start, base = *basep;
-	int ret;
-
-	/*
-	 * We can't use __pa(high_memory) directly, since high_memory
-	 * isn't a valid direct map VA, and DEBUG_VIRTUAL will (validly)
-	 * complain. Find the boundary by adding one to the last valid
-	 * address.
-	 */
-	if (IS_ENABLED(CONFIG_HIGHMEM))
-		highmem_start = __pa(high_memory - 1) + 1;
-	else
-		highmem_start = memblock_end_of_DRAM();
-	pr_debug("%s(size %pa, base %pa, limit %pa alignment %pa)\n",
-		__func__, &size, &base, &limit, &alignment);
-
-	if (cma_area_count == ARRAY_SIZE(cma_areas)) {
-		pr_err("Not enough slots for CMA reserved regions!\n");
-		return -ENOSPC;
-	}
-
-	if (!size)
-		return -EINVAL;
-
-	if (alignment && !is_power_of_2(alignment))
-		return -EINVAL;
-
-	if (!IS_ENABLED(CONFIG_NUMA))
-		nid = NUMA_NO_NODE;
-
-	/* Sanitise input arguments. */
-	alignment = max_t(phys_addr_t, alignment, CMA_MIN_ALIGNMENT_BYTES);
-	if (fixed && base & (alignment - 1)) {
-		pr_err("Region at %pa must be aligned to %pa bytes\n",
-			&base, &alignment);
-		return -EINVAL;
-	}
-	base = ALIGN(base, alignment);
-	size = ALIGN(size, alignment);
-	limit &= ~(alignment - 1);
-
-	if (!base)
-		fixed = false;
-
-	/* size should be aligned with order_per_bit */
-	if (!IS_ALIGNED(size >> PAGE_SHIFT, 1 << order_per_bit))
-		return -EINVAL;
-
-	/*
-	 * If allocating at a fixed base the request region must not cross the
-	 * low/high memory boundary.
-	 */
-	if (fixed && base < highmem_start && base + size > highmem_start) {
-		pr_err("Region at %pa defined on low/high memory boundary (%pa)\n",
-			&base, &highmem_start);
-		return -EINVAL;
-	}
-
-	/*
-	 * If the limit is unspecified or above the memblock end, its effective
-	 * value will be the memblock end. Set it explicitly to simplify further
-	 * checks.
-	 */
-	if (limit == 0 || limit > memblock_end)
-		limit = memblock_end;
-
-	if (base + size > limit) {
-		pr_err("Size (%pa) of region at %pa exceeds limit (%pa)\n",
-			&size, &base, &limit);
-		return -EINVAL;
-	}
-
-	/* Reserve memory */
-	if (fixed) {
-		if (memblock_is_region_reserved(base, size) ||
-		    memblock_reserve(base, size) < 0) {
-			return -EBUSY;
-		}
-	} else {
-		phys_addr_t addr = 0;
-
-		/*
-		 * If there is enough memory, try a bottom-up allocation first.
-		 * It will place the new cma area close to the start of the node
-		 * and guarantee that the compaction is moving pages out of the
-		 * cma area and not into it.
-		 * Avoid using first 4GB to not interfere with constrained zones
-		 * like DMA/DMA32.
-		 */
-#ifdef CONFIG_PHYS_ADDR_T_64BIT
-		if (!memblock_bottom_up() && memblock_end >= SZ_4G + size) {
-			memblock_set_bottom_up(true);
-			addr = memblock_alloc_range_nid(size, alignment, SZ_4G,
-							limit, nid, true);
-			memblock_set_bottom_up(false);
-		}
-#endif
-
-		/*
-		 * All pages in the reserved area must come from the same zone.
-		 * If the requested region crosses the low/high memory boundary,
-		 * try allocating from high memory first and fall back to low
-		 * memory in case of failure.
-		 */
-		if (!addr && base < highmem_start && limit > highmem_start) {
-			addr = memblock_alloc_range_nid(size, alignment,
-					highmem_start, limit, nid, true);
-			limit = highmem_start;
-		}
-
-		if (!addr) {
-			addr = memblock_alloc_range_nid(size, alignment, base,
-					limit, nid, true);
-			if (!addr)
-				return -ENOMEM;
-		}
-
-		/*
-		 * kmemleak scans/reads tracked objects for pointers to other
-		 * objects but this address isn't mapped and accessible
-		 */
-		kmemleak_ignore_phys(addr);
-		base = addr;
-	}
-
-	ret = cma_init_reserved_mem(base, size, order_per_bit, name, res_cma);
-	if (ret) {
-		memblock_phys_free(base, size);
-		return ret;
-	}
-
-	(*res_cma)->nid = nid;
-	*basep = base;
-
-	return 0;
-}
-
 static void cma_debug_show_areas(struct cma *cma)
 {
-	unsigned long next_zero_bit, next_set_bit, nr_zero;
-	unsigned long start;
+	unsigned long start, end;
 	unsigned long nr_part;
 	unsigned long nbits;
 	int r;
@@ -751,22 +762,12 @@ static void cma_debug_show_areas(struct cma *cma)
 	for (r = 0; r < cma->nranges; r++) {
 		cmr = &cma->ranges[r];
 
-		start = 0;
 		nbits = cma_bitmap_maxno(cma, cmr);
 
 		pr_info("range %d: ", r);
-		for (;;) {
-			next_zero_bit = find_next_zero_bit(cmr->bitmap,
-							   nbits, start);
-			if (next_zero_bit >= nbits)
-				break;
-			next_set_bit = find_next_bit(cmr->bitmap, nbits,
-						     next_zero_bit);
-			nr_zero = next_set_bit - next_zero_bit;
-			nr_part = nr_zero << cma->order_per_bit;
-			pr_cont("%s%lu@%lu", start ? "+" : "", nr_part,
-				next_zero_bit);
-			start = next_zero_bit + nr_zero;
+		for_each_clear_bitrange(start, end, cmr->bitmap, nbits) {
+			nr_part = (end - start) << cma->order_per_bit;
+			pr_cont("%s%lu@%lu", start ? "+" : "", nr_part, start);
 		}
 		pr_info("\n");
 	}
@@ -822,7 +823,7 @@ static int cma_range_alloc(struct cma *cma, struct cma_memrange *cmr,
 
 		pfn = cmr->base_pfn + (bitmap_no << cma->order_per_bit);
 		mutex_lock(&cma->alloc_mutex);
-		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA, gfp);
+		ret = alloc_contig_range(pfn, pfn + count, ACR_FLAGS_CMA, gfp);
 		mutex_unlock(&cma->alloc_mutex);
 		if (ret == 0) {
 			page = pfn_to_page(pfn);
@@ -854,8 +855,6 @@ static struct page *__cma_alloc(struct cma *cma, unsigned long count,
 	unsigned long i;
 	const char *name = cma ? cma->name : NULL;
 
-	trace_cma_alloc_start(name, count, align);
-
 	if (!cma || !cma->count)
 		return page;
 
@@ -864,6 +863,8 @@ static struct page *__cma_alloc(struct cma *cma, unsigned long count,
 
 	if (!count)
 		return page;
+
+	trace_cma_alloc_start(name, count, align);
 
 	for (r = 0; r < cma->nranges; r++) {
 		page = NULL;

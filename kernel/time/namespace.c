@@ -242,6 +242,11 @@ static void timens_set_vvar_page(struct task_struct *task,
 	for (i = 0; i < CS_BASES; i++)
 		timens_setup_vdso_clock_data(&vc[i], ns);
 
+	if (IS_ENABLED(CONFIG_POSIX_AUX_CLOCKS)) {
+		for (i = 0; i < ARRAY_SIZE(vdata->aux_clock_data); i++)
+			timens_setup_vdso_clock_data(&vdata->aux_clock_data[i], ns);
+	}
+
 out:
 	mutex_unlock(&offset_lock);
 }

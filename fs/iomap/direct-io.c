@@ -3,14 +3,9 @@
  * Copyright (C) 2010 Red Hat, Inc.
  * Copyright (c) 2016-2025 Christoph Hellwig.
  */
-#include <linux/module.h>
-#include <linux/compiler.h>
-#include <linux/fs.h>
 #include <linux/fscrypt.h>
 #include <linux/pagemap.h>
 #include <linux/iomap.h>
-#include <linux/backing-dev.h>
-#include <linux/uio.h>
 #include <linux/task_io_accounting_ops.h>
 #include "internal.h"
 #include "trace.h"
@@ -368,14 +363,14 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 		if (iomap->flags & IOMAP_F_SHARED)
 			dio->flags |= IOMAP_DIO_COW;
 
-		if (iomap->flags & IOMAP_F_NEW) {
+		if (iomap->flags & IOMAP_F_NEW)
 			need_zeroout = true;
-		} else if (iomap->type == IOMAP_MAPPED) {
-			if (iomap_dio_can_use_fua(iomap, dio))
-				bio_opf |= REQ_FUA;
-			else
-				dio->flags &= ~IOMAP_DIO_WRITE_THROUGH;
-		}
+		else if (iomap->type == IOMAP_MAPPED &&
+			 iomap_dio_can_use_fua(iomap, dio))
+			bio_opf |= REQ_FUA;
+
+		if (!(bio_opf & REQ_FUA))
+			dio->flags &= ~IOMAP_DIO_WRITE_THROUGH;
 
 		/*
 		 * We can only do deferred completion for pure overwrites that

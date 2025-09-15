@@ -657,7 +657,7 @@ static int lock_stat_open(struct inode *inode, struct file *file)
 			if (!test_bit(idx, lock_classes_in_use))
 				continue;
 			iter->class = class;
-			iter->stats = lock_stats(class);
+			lock_stats(class, &iter->stats);
 			iter++;
 		}
 

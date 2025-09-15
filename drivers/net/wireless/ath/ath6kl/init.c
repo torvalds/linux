@@ -207,7 +207,7 @@ static const struct ath6kl_hw hw_list[] = {
 
 /*
  * This configuration item sets the value of disconnect timeout
- * Firmware delays sending the disconnec event to the host for this
+ * Firmware delays sending the disconnect event to the host for this
  * timeout after is gets disconnected from the current AP.
  * If the firmware successly roams within the disconnect timeout
  * it sends a new connect event
@@ -221,7 +221,7 @@ struct sk_buff *ath6kl_buf_alloc(int size)
 	struct sk_buff *skb;
 	u16 reserved;
 
-	/* Add chacheline space at front and back of buffer */
+	/* Add cacheline space at front and back of buffer */
 	reserved = roundup((2 * L1_CACHE_BYTES) + ATH6KL_DATA_OFFSET +
 		   sizeof(struct htc_packet) + ATH6KL_HTC_ALIGN_BYTES, 4);
 	skb = dev_alloc_skb(size + reserved);

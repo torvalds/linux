@@ -1645,7 +1645,7 @@ static int snd_ali_pcm(struct snd_ali *codec, int device,
 	pcm->info_flags = 0;
 	pcm->dev_class = desc->class;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
-	strcpy(pcm->name, desc->name);
+	strscpy(pcm->name, desc->name);
 	codec->pcm[0] = pcm;
 	return 0;
 }
@@ -2133,8 +2133,8 @@ static int __snd_ali_probe(struct pci_dev *pci,
 
 	snd_ali_proc_init(codec);
 
-	strcpy(card->driver, "ALI5451");
-	strcpy(card->shortname, "ALI 5451");
+	strscpy(card->driver, "ALI5451");
+	strscpy(card->shortname, "ALI 5451");
 	
 	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname, codec->port, codec->irq);

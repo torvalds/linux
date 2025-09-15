@@ -261,6 +261,36 @@ config MFD_CROS_EC_DEV
 	  To compile this driver as a module, choose M here: the module will be
 	  called cros-ec-dev.
 
+config MFD_CS40L50_CORE
+	tristate
+	select MFD_CORE
+	select FW_CS_DSP
+	select REGMAP_IRQ
+
+config MFD_CS40L50_I2C
+	tristate "Cirrus Logic CS40L50 (I2C)"
+	select REGMAP_I2C
+	select MFD_CS40L50_CORE
+	depends on I2C
+	help
+	  Select this to support the Cirrus Logic CS40L50 Haptic
+	  Driver over I2C.
+
+	  This driver can be built as a module. If built as a module it will be
+	  called "cs40l50-i2c".
+
+config MFD_CS40L50_SPI
+	tristate "Cirrus Logic CS40L50 (SPI)"
+	select REGMAP_SPI
+	select MFD_CS40L50_CORE
+	depends on SPI
+	help
+	  Select this to support the Cirrus Logic CS40L50 Haptic
+	  Driver over SPI.
+
+	  This driver can be built as a module. If built as a module it will be
+	  called "cs40l50-spi".
+
 config MFD_CS42L43
 	tristate
 	select MFD_CORE
@@ -284,6 +314,32 @@ config MFD_CS42L43_SDW
 	help
 	  Select this to support the Cirrus Logic CS42L43 PC CODEC with
 	  headphone and class D speaker drivers over SoundWire.
+
+config MFD_LOCHNAGAR
+	bool "Cirrus Logic Lochnagar Audio Development Board"
+	select MFD_CORE
+	select REGMAP_I2C
+	depends on I2C=y && OF
+	help
+	  Support for Cirrus Logic Lochnagar audio development board.
+
+config MFD_MACSMC
+	tristate "Apple Silicon System Management Controller (SMC)"
+	depends on ARCH_APPLE || COMPILE_TEST
+	depends on OF
+	depends on APPLE_RTKIT
+	select MFD_CORE
+	help
+	  The System Management Controller (SMC) on Apple Silicon machines is a
+	  piece of hardware that exposes various functionalities such as
+	  temperature sensors, voltage/power meters, shutdown/reboot handling,
+	  GPIOs and more.
+
+	  Communication happens via a shared mailbox using the RTKit protocol
+	  which is also used for other co-processors. The SMC protocol then
+	  allows reading and writing many different keys which implement the
+	  various features. The MFD core device handles this protocol and
+	  exposes it to the sub-devices.
 
 config MFD_MADERA
 	tristate "Cirrus Logic Madera codecs"
@@ -313,16 +369,6 @@ config MFD_MADERA_SPI
 	help
 	  Support for the Cirrus Logic Madera platform audio SoC
 	  core functionality controlled via SPI.
-
-config MFD_MAX5970
-	tristate "Maxim 5970/5978 power switch and monitor"
-	depends on I2C && OF
-	select MFD_SIMPLE_MFD_I2C
-	help
-	  This driver controls a Maxim 5970/5978 switch via I2C bus.
-	  The MAX5970/5978 is a smart switch with no output regulation, but
-	  fault protection and voltage and current monitoring capabilities.
-	  Also it supports upto 4 indication leds.
 
 config MFD_CS47L15
 	bool "Cirrus Logic CS47L15"
@@ -829,6 +875,16 @@ config MFD_88PM886_PMIC
 	  This enables support for Marvell 88PM886 Power Management IC.
 	  This includes the I2C driver and the core APIs _only_, you have to
 	  select individual components like onkey under the corresponding menus.
+
+config MFD_MAX5970
+	tristate "Maxim 5970/5978 power switch and monitor"
+	depends on I2C && OF
+	select MFD_SIMPLE_MFD_I2C
+	help
+	  This driver controls a Maxim 5970/5978 switch via I2C bus.
+	  The MAX5970/5978 is a smart switch with no output regulation, but
+	  fault protection and voltage and current monitoring capabilities.
+	  Also it supports upto 4 indication leds.
 
 config MFD_MAX14577
 	tristate "Maxim Semiconductor MAX14577/77836 MUIC + Charger Support"
@@ -1952,14 +2008,6 @@ config MFD_VX855
 	  VIA VX855/VX875 south bridge. You will need to enable the vx855_spi
 	  and/or vx855_gpio drivers for this to do anything useful.
 
-config MFD_LOCHNAGAR
-	bool "Cirrus Logic Lochnagar Audio Development Board"
-	select MFD_CORE
-	select REGMAP_I2C
-	depends on I2C=y && OF
-	help
-	  Support for Cirrus Logic Lochnagar audio development board.
-
 config MFD_ARIZONA
 	select REGMAP
 	select REGMAP_IRQ
@@ -2316,36 +2364,6 @@ config MCP_UCB1200_TS
 	depends on MCP_UCB1200 && INPUT
 
 endmenu
-
-config MFD_CS40L50_CORE
-	tristate
-	select MFD_CORE
-	select FW_CS_DSP
-	select REGMAP_IRQ
-
-config MFD_CS40L50_I2C
-	tristate "Cirrus Logic CS40L50 (I2C)"
-	select REGMAP_I2C
-	select MFD_CS40L50_CORE
-	depends on I2C
-	help
-	  Select this to support the Cirrus Logic CS40L50 Haptic
-	  Driver over I2C.
-
-	  This driver can be built as a module. If built as a module it will be
-	  called "cs40l50-i2c".
-
-config MFD_CS40L50_SPI
-	tristate "Cirrus Logic CS40L50 (SPI)"
-	select REGMAP_SPI
-	select MFD_CS40L50_CORE
-	depends on SPI
-	help
-	  Select this to support the Cirrus Logic CS40L50 Haptic
-	  Driver over SPI.
-
-	  This driver can be built as a module. If built as a module it will be
-	  called "cs40l50-spi".
 
 config MFD_VEXPRESS_SYSREG
 	tristate "Versatile Express System Registers"

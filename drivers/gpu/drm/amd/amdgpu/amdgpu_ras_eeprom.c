@@ -743,8 +743,7 @@ amdgpu_ras_eeprom_append_table(struct amdgpu_ras_eeprom_control *control,
 	else
 		control->ras_num_mca_recs += num;
 
-	control->ras_num_bad_pages = control->ras_num_pa_recs +
-				control->ras_num_mca_recs * adev->umc.retire_unit;
+	control->ras_num_bad_pages = con->bad_page_num;
 Out:
 	kfree(buf);
 	return res;
@@ -766,6 +765,10 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 		dev_warn(adev->dev,
 			"Saved bad pages %d reaches threshold value %d\n",
 			control->ras_num_bad_pages, ras->bad_page_cnt_threshold);
+
+		if (adev->cper.enabled && amdgpu_cper_generate_bp_threshold_record(adev))
+			dev_warn(adev->dev, "fail to generate bad page threshold cper records\n");
+
 		if ((amdgpu_bad_page_threshold != -1) &&
 		    (amdgpu_bad_page_threshold != -2)) {
 			control->tbl_hdr.header = RAS_TABLE_HDR_BAD;
@@ -774,9 +777,10 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 				control->tbl_rai.health_percent = 0;
 			}
 			ras->is_rma = true;
-			/* ignore the -ENOTSUPP return value */
-			amdgpu_dpm_send_rma_reason(adev);
 		}
+
+		/* ignore the -ENOTSUPP return value */
+		amdgpu_dpm_send_rma_reason(adev);
 	}
 
 	if (control->tbl_hdr.version >= RAS_TABLE_VER_V2_1)
@@ -1457,8 +1461,7 @@ int amdgpu_ras_eeprom_check(struct amdgpu_ras_eeprom_control *control)
 	if (!__get_eeprom_i2c_addr(adev, control))
 		return -EINVAL;
 
-	control->ras_num_bad_pages = control->ras_num_pa_recs +
-			control->ras_num_mca_recs * adev->umc.retire_unit;
+	control->ras_num_bad_pages = ras->bad_page_num;
 
 	if (hdr->header == RAS_TABLE_HDR_VAL) {
 		dev_dbg(adev->dev,

@@ -25,6 +25,8 @@
  *   Jani Nikula <jani.nikula@intel.com>
  */
 
+#include <linux/iopoll.h>
+
 #include <drm/display/drm_dsc_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fixed.h>
@@ -72,8 +74,12 @@ static int payload_credits_available(struct intel_display *display,
 static bool wait_for_header_credits(struct intel_display *display,
 				    enum transcoder dsi_trans, int hdr_credit)
 {
-	if (wait_for_us(header_credits_available(display, dsi_trans) >=
-			hdr_credit, 100)) {
+	int ret, available;
+
+	ret = poll_timeout_us(available = header_credits_available(display, dsi_trans),
+			      available >= hdr_credit,
+			      10, 100, false);
+	if (ret) {
 		drm_err(display->drm, "DSI header credits not released\n");
 		return false;
 	}
@@ -84,8 +90,12 @@ static bool wait_for_header_credits(struct intel_display *display,
 static bool wait_for_payload_credits(struct intel_display *display,
 				     enum transcoder dsi_trans, int payld_credit)
 {
-	if (wait_for_us(payload_credits_available(display, dsi_trans) >=
-			payld_credit, 100)) {
+	int ret, available;
+
+	ret = poll_timeout_us(available = payload_credits_available(display, dsi_trans),
+			      available >= payld_credit,
+			      10, 100, false);
+	if (ret) {
 		drm_err(display->drm, "DSI payload credits not released\n");
 		return false;
 	}
@@ -137,8 +147,11 @@ static void wait_for_cmds_dispatched_to_panel(struct intel_encoder *encoder)
 	/* wait for LP TX in progress bit to be cleared */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		if (wait_for_us(!(intel_de_read(display, DSI_LP_MSG(dsi_trans)) &
-				  LPTX_IN_PROGRESS), 20))
+
+		ret = intel_de_wait_custom(display, DSI_LP_MSG(dsi_trans),
+					   LPTX_IN_PROGRESS, 0,
+					   20, 0, NULL);
+		if (ret)
 			drm_err(display->drm, "LPTX bit not cleared\n");
 	}
 }
@@ -516,13 +529,15 @@ static void gen11_dsi_enable_ddi_buffer(struct intel_encoder *encoder)
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
+	int ret;
 
 	for_each_dsi_port(port, intel_dsi->ports) {
 		intel_de_rmw(display, DDI_BUF_CTL(port), 0, DDI_BUF_CTL_ENABLE);
 
-		if (wait_for_us(!(intel_de_read(display, DDI_BUF_CTL(port)) &
-				  DDI_BUF_IS_IDLE),
-				  500))
+		ret = intel_de_wait_custom(display, DDI_BUF_CTL(port),
+					   DDI_BUF_IS_IDLE, 0,
+					   500, 0, NULL);
+		if (ret)
 			drm_err(display->drm, "DDI port:%c buffer idle\n",
 				port_name(port));
 	}
@@ -838,9 +853,14 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 
 	/* wait for link ready */
 	for_each_dsi_port(port, intel_dsi->ports) {
+		int ret;
+
 		dsi_trans = dsi_port_to_transcoder(port);
-		if (wait_for_us((intel_de_read(display, DSI_TRANS_FUNC_CONF(dsi_trans)) &
-				 LINK_READY), 2500))
+
+		ret = intel_de_wait_custom(display, DSI_TRANS_FUNC_CONF(dsi_trans),
+					   LINK_READY, LINK_READY,
+					   2500, 0, NULL);
+		if (ret)
 			drm_err(display->drm, "DSI link not ready\n");
 	}
 }
@@ -1321,6 +1341,7 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 	enum port port;
 	enum transcoder dsi_trans;
 	u32 tmp;
+	int ret;
 
 	/* disable periodic update mode */
 	if (is_cmd_mode(intel_dsi)) {
@@ -1337,9 +1358,10 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 		tmp &= ~LINK_ULPS_TYPE_LP11;
 		intel_de_write(display, DSI_LP_MSG(dsi_trans), tmp);
 
-		if (wait_for_us((intel_de_read(display, DSI_LP_MSG(dsi_trans)) &
-				 LINK_IN_ULPS),
-				10))
+		ret = intel_de_wait_custom(display, DSI_LP_MSG(dsi_trans),
+					   LINK_IN_ULPS, LINK_IN_ULPS,
+					   10, 0, NULL);
+		if (ret)
 			drm_err(display->drm, "DSI link not in ULPS\n");
 	}
 
@@ -1367,14 +1389,17 @@ static void gen11_dsi_disable_port(struct intel_encoder *encoder)
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
+	int ret;
 
 	gen11_dsi_ungate_clocks(encoder);
 	for_each_dsi_port(port, intel_dsi->ports) {
 		intel_de_rmw(display, DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE, 0);
 
-		if (wait_for_us((intel_de_read(display, DDI_BUF_CTL(port)) &
-				 DDI_BUF_IS_IDLE),
-				 8))
+		ret = intel_de_wait_custom(display, DDI_BUF_CTL(port),
+					   DDI_BUF_IS_IDLE, DDI_BUF_IS_IDLE,
+					   8, 0, NULL);
+
+		if (ret)
 			drm_err(display->drm,
 				"DDI port:%c buffer not idle\n",
 				port_name(port));

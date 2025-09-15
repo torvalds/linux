@@ -99,7 +99,7 @@
 #define ADF_GEN6_PVC0CTL_OFFSET			0x204
 #define ADF_GEN6_PVC0CTL_TCVCMAP_OFFSET		1
 #define ADF_GEN6_PVC0CTL_TCVCMAP_MASK		GENMASK(7, 1)
-#define ADF_GEN6_PVC0CTL_TCVCMAP_DEFAULT	0x7F
+#define ADF_GEN6_PVC0CTL_TCVCMAP_DEFAULT	0x3F
 
 /* VC1 Resource Control Register */
 #define ADF_GEN6_PVC1CTL_OFFSET			0x210
@@ -122,6 +122,13 @@
 /* Number of heartbeat counter pairs */
 #define ADF_NUM_HB_CNT_PER_AE ADF_NUM_THREADS_PER_AE
 
+/* Rate Limiting */
+#define ADF_GEN6_RL_R2L_OFFSET			0x508000
+#define ADF_GEN6_RL_L2C_OFFSET			0x509000
+#define ADF_GEN6_RL_C2S_OFFSET			0x508818
+#define ADF_GEN6_RL_TOKEN_PCIEIN_BUCKET_OFFSET	0x508800
+#define ADF_GEN6_RL_TOKEN_PCIEOUT_BUCKET_OFFSET	0x508804
+
 /* Physical function fuses */
 #define ADF_6XXX_ACCELENGINES_MASK	GENMASK(8, 0)
 #define ADF_6XXX_ADMIN_AE_MASK		GENMASK(8, 8)
@@ -132,6 +139,19 @@
 #define ADF_6XXX_CY_OBJ		"qat_6xxx_cy.bin"
 #define ADF_6XXX_DC_OBJ		"qat_6xxx_dc.bin"
 #define ADF_6XXX_ADMIN_OBJ	"qat_6xxx_admin.bin"
+
+/* RL constants */
+#define ADF_6XXX_RL_PCIE_SCALE_FACTOR_DIV	100
+#define ADF_6XXX_RL_PCIE_SCALE_FACTOR_MUL	102
+#define ADF_6XXX_RL_SCANS_PER_SEC		954
+#define ADF_6XXX_RL_MAX_TP_ASYM			173750UL
+#define ADF_6XXX_RL_MAX_TP_SYM			95000UL
+#define ADF_6XXX_RL_MAX_TP_DC			40000UL
+#define ADF_6XXX_RL_MAX_TP_DECOMP		40000UL
+#define ADF_6XXX_RL_SLICE_REF			1000UL
+
+/* Clock frequency */
+#define ADF_6XXX_AE_FREQ			(1000 * HZ_PER_MHZ)
 
 enum icp_qat_gen6_slice_mask {
 	ICP_ACCEL_GEN6_MASK_UCS_SLICE = BIT(0),

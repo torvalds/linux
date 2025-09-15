@@ -2,3 +2,4 @@
 sigtrap_threads
 remove_on_exec
 watermark_signal
+mmap

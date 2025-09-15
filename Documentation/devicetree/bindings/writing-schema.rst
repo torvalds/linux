@@ -171,6 +171,9 @@ Coding style
 Use YAML coding style (two-space indentation). For DTS examples in the schema,
 preferred is four-space indentation.
 
+Place entries in 'properties' and 'required' sections in the same order, using
+style from Documentation/devicetree/bindings/dts-coding-style.rst.
+
 Testing
 -------
 

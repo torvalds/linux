@@ -450,7 +450,7 @@ int k3_rproc_of_get_memories(struct platform_device *pdev,
 		kproc->mem[i].dev_addr = data->mems[i].dev_addr;
 		kproc->mem[i].size = resource_size(res);
 
-		dev_dbg(dev, "memory %8s: bus addr %pa size 0x%zx va %pK da 0x%x\n",
+		dev_dbg(dev, "memory %8s: bus addr %pa size 0x%zx va %p da 0x%x\n",
 			data->mems[i].name, &kproc->mem[i].bus_addr,
 			kproc->mem[i].size, kproc->mem[i].cpu_addr,
 			kproc->mem[i].dev_addr);
@@ -528,7 +528,7 @@ int k3_reserved_mem_init(struct k3_rproc *kproc)
 			return -ENOMEM;
 		}
 
-		dev_dbg(dev, "reserved memory%d: bus addr %pa size 0x%zx va %pK da 0x%x\n",
+		dev_dbg(dev, "reserved memory%d: bus addr %pa size 0x%zx va %p da 0x%x\n",
 			i + 1, &kproc->rmem[i].bus_addr,
 			kproc->rmem[i].size, kproc->rmem[i].cpu_addr,
 			kproc->rmem[i].dev_addr);

@@ -22,6 +22,7 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,milos-tcsr
           - qcom,sar2130p-tcsr
           - qcom,sm8550-tcsr
           - qcom,sm8650-tcsr

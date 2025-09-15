@@ -809,7 +809,7 @@ EXPORT_SYMBOL(vme_master_free);
  * @vdev: Pointer to VME device struct vme_dev assigned to driver instance.
  * @route: Required src/destination combination.
  *
- * Request a VME DMA controller with capability to perform transfers bewteen
+ * Request a VME DMA controller with capability to perform transfers between
  * requested source/destination combination.
  *
  * Return: Pointer to VME DMA resource on success, NULL on failure.
@@ -1045,7 +1045,7 @@ void vme_dma_free_attribute(struct vme_dma_attr *attributes)
 EXPORT_SYMBOL(vme_dma_free_attribute);
 
 /**
- * vme_dma_list_add - Add enty to a VME DMA list.
+ * vme_dma_list_add - Add entry to a VME DMA list.
  * @list: Pointer to VME list.
  * @src: Pointer to DMA list attribute to use as source.
  * @dest: Pointer to DMA list attribute to use as destination.
@@ -1925,7 +1925,7 @@ EXPORT_SYMBOL(vme_unregister_driver);
 
 static int vme_bus_match(struct device *dev, const struct device_driver *drv)
 {
-	struct vme_driver *vme_drv;
+	const struct vme_driver *vme_drv;
 
 	vme_drv = container_of(drv, struct vme_driver, driver);
 

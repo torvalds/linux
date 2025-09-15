@@ -56,7 +56,7 @@ static void t10_pi_generate(struct blk_integrity_iter *iter,
 			pi->ref_tag = 0;
 
 		iter->data_buf += iter->interval;
-		iter->prot_buf += bi->tuple_size;
+		iter->prot_buf += bi->metadata_size;
 		iter->seed++;
 	}
 }
@@ -105,7 +105,7 @@ static blk_status_t t10_pi_verify(struct blk_integrity_iter *iter,
 
 next:
 		iter->data_buf += iter->interval;
-		iter->prot_buf += bi->tuple_size;
+		iter->prot_buf += bi->metadata_size;
 		iter->seed++;
 	}
 
@@ -125,7 +125,7 @@ next:
 static void t10_pi_type1_prepare(struct request *rq)
 {
 	struct blk_integrity *bi = &rq->q->limits.integrity;
-	const int tuple_sz = bi->tuple_size;
+	const int tuple_sz = bi->metadata_size;
 	u32 ref_tag = t10_pi_ref_tag(rq);
 	u8 offset = bi->pi_offset;
 	struct bio *bio;
@@ -177,7 +177,7 @@ static void t10_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 {
 	struct blk_integrity *bi = &rq->q->limits.integrity;
 	unsigned intervals = nr_bytes >> bi->interval_exp;
-	const int tuple_sz = bi->tuple_size;
+	const int tuple_sz = bi->metadata_size;
 	u32 ref_tag = t10_pi_ref_tag(rq);
 	u8 offset = bi->pi_offset;
 	struct bio *bio;
@@ -234,7 +234,7 @@ static void ext_pi_crc64_generate(struct blk_integrity_iter *iter,
 			put_unaligned_be48(0ULL, pi->ref_tag);
 
 		iter->data_buf += iter->interval;
-		iter->prot_buf += bi->tuple_size;
+		iter->prot_buf += bi->metadata_size;
 		iter->seed++;
 	}
 }
@@ -289,7 +289,7 @@ static blk_status_t ext_pi_crc64_verify(struct blk_integrity_iter *iter,
 
 next:
 		iter->data_buf += iter->interval;
-		iter->prot_buf += bi->tuple_size;
+		iter->prot_buf += bi->metadata_size;
 		iter->seed++;
 	}
 
@@ -299,7 +299,7 @@ next:
 static void ext_pi_type1_prepare(struct request *rq)
 {
 	struct blk_integrity *bi = &rq->q->limits.integrity;
-	const int tuple_sz = bi->tuple_size;
+	const int tuple_sz = bi->metadata_size;
 	u64 ref_tag = ext_pi_ref_tag(rq);
 	u8 offset = bi->pi_offset;
 	struct bio *bio;
@@ -340,7 +340,7 @@ static void ext_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 {
 	struct blk_integrity *bi = &rq->q->limits.integrity;
 	unsigned intervals = nr_bytes >> bi->interval_exp;
-	const int tuple_sz = bi->tuple_size;
+	const int tuple_sz = bi->metadata_size;
 	u64 ref_tag = ext_pi_ref_tag(rq);
 	u8 offset = bi->pi_offset;
 	struct bio *bio;

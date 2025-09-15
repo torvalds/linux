@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SPI access driver for TI TPS65224/TPS6594/TPS6593/LP8764 PMICs
+ * SPI access driver for the following TI PMICs:
+ *  - LP8764
+ *  - TPS65224
+ *  - TPS652G1
+ *  - TPS6593
+ *  - TPS6594
  *
  * Copyright (C) 2023 BayLibre Incorporated - https://www.baylibre.com/
  */
@@ -82,6 +87,7 @@ static const struct of_device_id tps6594_spi_of_match_table[] = {
 	{ .compatible = "ti,tps6593-q1", .data = (void *)TPS6593, },
 	{ .compatible = "ti,lp8764-q1",  .data = (void *)LP8764,  },
 	{ .compatible = "ti,tps65224-q1", .data = (void *)TPS65224, },
+	{ .compatible = "ti,tps652g1", .data = (void *)TPS652G1, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, tps6594_spi_of_match_table);
@@ -107,7 +113,7 @@ static int tps6594_spi_probe(struct spi_device *spi)
 		return dev_err_probe(dev, -EINVAL, "Failed to find matching chip ID\n");
 	tps->chip_id = (unsigned long)match->data;
 
-	if (tps->chip_id == TPS65224)
+	if (tps->chip_id == TPS65224 || tps->chip_id == TPS652G1)
 		tps6594_spi_regmap_config.volatile_table = &tps65224_volatile_table;
 
 	tps->regmap = devm_regmap_init(dev, NULL, spi, &tps6594_spi_regmap_config);

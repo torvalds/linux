@@ -121,6 +121,8 @@ struct datapath {
  * @cutlen: The number of bytes from the packet end to be removed.
  * @probability: The sampling probability that was applied to this skb; 0 means
  * no sampling has occurred; U32_MAX means 100% probability.
+ * @upcall_pid: Netlink socket PID to use for sending this packet to userspace;
+ * 0 means "not set" and default per-CPU or per-vport dispatch should be used.
  */
 struct ovs_skb_cb {
 	struct vport		*input_vport;
@@ -128,6 +130,7 @@ struct ovs_skb_cb {
 	u16			acts_origlen;
 	u32			cutlen;
 	u32			probability;
+	u32			upcall_pid;
 };
 #define OVS_CB(skb) ((struct ovs_skb_cb *)(skb)->cb)
 
@@ -220,7 +223,8 @@ struct ovs_pcpu_storage {
 	struct task_struct *owner;
 	local_lock_t bh_lock;
 };
-DECLARE_PER_CPU(struct ovs_pcpu_storage, ovs_pcpu_storage);
+
+extern struct ovs_pcpu_storage __percpu *ovs_pcpu_storage;
 
 /**
  * enum ovs_pkt_hash_types - hash info to include with a packet

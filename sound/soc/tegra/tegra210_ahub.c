@@ -2066,7 +2066,7 @@ static bool tegra264_ahub_wr_reg(struct device *dev, unsigned int reg)
 			return true;
 		default:
 			break;
-		};
+		}
 	}
 
 	return false;

@@ -236,7 +236,8 @@ static void i9xx_set_backlight(const struct drm_connector_state *conn_state, u32
 	struct intel_panel *panel = &connector->panel;
 	u32 tmp, mask;
 
-	drm_WARN_ON(display->drm, panel->backlight.pwm_level_max == 0);
+	if (drm_WARN_ON(display->drm, panel->backlight.pwm_level_max == 0))
+		return;
 
 	if (panel->backlight.combination_mode) {
 		struct pci_dev *pdev = to_pci_dev(display->drm->dev);

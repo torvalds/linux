@@ -23,7 +23,7 @@ static const u32 max98373_i2c_cache_reg[] = {
 	MAX98373_R20B6_BDE_CUR_STATE_READBACK,
 };
 
-static struct reg_default max98373_reg[] = {
+static const struct reg_default max98373_reg[] = {
 	{MAX98373_R2000_SW_RESET, 0x00},
 	{MAX98373_R2001_INT_RAW1, 0x00},
 	{MAX98373_R2002_INT_RAW2, 0x00},

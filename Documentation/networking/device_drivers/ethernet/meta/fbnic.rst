@@ -28,6 +28,36 @@ devlink dev info provides version information for all three components. In
 addition to the version the hg commit hash of the build is included as a
 separate entry.
 
+Configuration
+-------------
+
+Ringparams (ethtool -g / -G)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fbnic has two submission (host -> device) rings for every completion
+(device -> host) ring. The three ring objects together form a single
+"queue" as used by higher layer software (a Rx, or a Tx queue).
+
+For Rx the two submission rings are used to pass empty pages to the NIC.
+Ring 0 is the Header Page Queue (HPQ), NIC will use its pages to place
+L2-L4 headers (or full frames if frame is not header-data split).
+Ring 1 is the Payload Page Queue (PPQ) and used for packet payloads.
+The completion ring is used to receive packet notifications / metadata.
+ethtool ``rx`` ringparam maps to the size of the completion ring,
+``rx-mini`` to the HPQ, and ``rx-jumbo`` to the PPQ.
+
+For Tx both submission rings can be used to submit packets, the completion
+ring carries notifications for both. fbnic uses one of the submission
+rings for normal traffic from the stack and the second one for XDP frames.
+ethtool ``tx`` ringparam controls both the size of the submission rings
+and the completion ring.
+
+Every single entry on the HPQ and PPQ (``rx-mini``, ``rx-jumbo``)
+corresponds to 4kB of allocated memory, while entries on the remaining
+rings are in units of descriptors (8B). The ideal ratio of submission
+and completion ring sizes will depend on the workload, as for small packets
+multiple packets will fit into a single page.
+
 Upgrading Firmware
 ------------------
 

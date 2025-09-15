@@ -146,8 +146,8 @@ static int ahci_qoriq_hardreset(struct ata_link *link, unsigned int *class,
 }
 
 static struct ata_port_operations ahci_qoriq_ops = {
-	.inherits	= &ahci_ops,
-	.hardreset	= ahci_qoriq_hardreset,
+	.inherits		= &ahci_ops,
+	.reset.hardreset	= ahci_qoriq_hardreset,
 };
 
 static const struct ata_port_info ahci_qoriq_port_info = {

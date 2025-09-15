@@ -181,7 +181,7 @@ int iwl_mld_send_phy_cfg_cmd(struct iwl_mld *mld)
 		.phy_specific_cfg = mld->fwrt.phy_filters,
 	};
 
-	IWL_INFO(mld, "Sending Phy CFG command: 0x%x\n", cmd.phy_cfg);
+	IWL_DEBUG_INFO(mld, "Sending Phy CFG command: 0x%x\n", cmd.phy_cfg);
 
 	return iwl_mld_send_cmd_pdu(mld, PHY_CONFIGURATION_CMD, &cmd);
 }

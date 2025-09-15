@@ -10,7 +10,7 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include "bnxt_hsi.h"
+#include <linux/bnxt/hsi.h>
 #include <linux/dim.h>
 #include "bnxt.h"
 #include "bnxt_debugfs.h"

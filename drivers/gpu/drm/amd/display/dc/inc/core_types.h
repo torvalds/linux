@@ -228,8 +228,7 @@ struct resource_funcs {
 	enum dc_status (*update_dc_state_for_encoder_switch)(struct dc_link *link,
 		struct dc_link_settings *link_setting,
 		uint8_t pipe_count,
-		struct pipe_ctx *pipes,
-		struct audio_output *audio_output);
+		struct pipe_ctx *pipes);
 };
 
 struct audio_support{
@@ -361,6 +360,8 @@ struct stream_resource {
 	uint8_t gsl_group;
 
 	struct test_pattern_params test_pattern_params;
+
+	struct audio_output audio_output;
 };
 
 struct plane_resource {
@@ -433,7 +434,7 @@ enum p_state_switch_method {
 	P_STATE_V_ACTIVE,
 	P_STATE_SUB_VP,
 	P_STATE_DRR_SUB_VP,
-	P_STATE_V_BLANK_SUB_VP
+	P_STATE_V_BLANK_SUB_VP,
 };
 
 struct pipe_ctx {
@@ -683,6 +684,7 @@ struct replay_context {
 	/* Controller Id used for Dig Fe source select */
 	enum controller_id controllerId;
 	unsigned int line_time_in_ns;
+	bool os_request_force_ffu;
 };
 
 enum dc_replay_enable {

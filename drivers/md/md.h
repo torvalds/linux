@@ -523,7 +523,7 @@ struct mddev {
 	unsigned long			normal_io_events; /* IO event timestamp */
 	atomic_t			recovery_active; /* blocks scheduled, but not written */
 	wait_queue_head_t		recovery_wait;
-	sector_t			recovery_cp;
+	sector_t			resync_offset;
 	sector_t			resync_min;	/* user requested sync
 							 * starts here */
 	sector_t			resync_max;	/* resync should pause
@@ -700,11 +700,26 @@ static inline bool reshape_interrupted(struct mddev *mddev)
 
 static inline int __must_check mddev_lock(struct mddev *mddev)
 {
-	return mutex_lock_interruptible(&mddev->reconfig_mutex);
+	int ret;
+
+	ret = mutex_lock_interruptible(&mddev->reconfig_mutex);
+
+	/* MD_DELETED is set in do_md_stop with reconfig_mutex.
+	 * So check it here.
+	 */
+	if (!ret && test_bit(MD_DELETED, &mddev->flags)) {
+		ret = -ENODEV;
+		mutex_unlock(&mddev->reconfig_mutex);
+	}
+
+	return ret;
 }
 
 /* Sometimes we need to take the lock in a situation where
  * failure due to interrupts is not acceptable.
+ * It doesn't need to check MD_DELETED here, the owner which
+ * holds the lock here can't be stopped. And all paths can't
+ * call this function after do_md_stop.
  */
 static inline void mddev_lock_nointr(struct mddev *mddev)
 {
@@ -713,7 +728,14 @@ static inline void mddev_lock_nointr(struct mddev *mddev)
 
 static inline int mddev_trylock(struct mddev *mddev)
 {
-	return mutex_trylock(&mddev->reconfig_mutex);
+	int ret;
+
+	ret = mutex_trylock(&mddev->reconfig_mutex);
+	if (!ret && test_bit(MD_DELETED, &mddev->flags)) {
+		ret = -ENODEV;
+		mutex_unlock(&mddev->reconfig_mutex);
+	}
+	return ret;
 }
 extern void mddev_unlock(struct mddev *mddev);
 

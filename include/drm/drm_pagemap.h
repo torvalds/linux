@@ -6,6 +6,8 @@
 #include <linux/hmm.h>
 #include <linux/types.h>
 
+#define NR_PAGES(order) (1U << (order))
+
 struct drm_pagemap;
 struct drm_pagemap_zdd;
 struct device;
@@ -23,7 +25,7 @@ enum drm_interconnect_protocol {
 };
 
 /**
- * struct drm_pagemap_device_addr - Device address representation.
+ * struct drm_pagemap_addr - Address representation.
  * @addr: The dma address or driver-defined address for driver private interconnects.
  * @proto: The interconnect protocol.
  * @order: The page order of the device mapping. (Size is PAGE_SIZE << order).
@@ -32,7 +34,7 @@ enum drm_interconnect_protocol {
  * Note: There is room for improvement here. We should be able to pack into
  * 64 bits.
  */
-struct drm_pagemap_device_addr {
+struct drm_pagemap_addr {
 	dma_addr_t addr;
 	u64 proto : 54;
 	u64 order : 8;
@@ -40,21 +42,21 @@ struct drm_pagemap_device_addr {
 };
 
 /**
- * drm_pagemap_device_addr_encode() - Encode a dma address with metadata
+ * drm_pagemap_addr_encode() - Encode a dma address with metadata
  * @addr: The dma address or driver-defined address for driver private interconnects.
  * @proto: The interconnect protocol.
  * @order: The page order of the dma mapping. (Size is PAGE_SIZE << order).
  * @dir: The DMA direction.
  *
- * Return: A struct drm_pagemap_device_addr encoding the above information.
+ * Return: A struct drm_pagemap_addr encoding the above information.
  */
-static inline struct drm_pagemap_device_addr
-drm_pagemap_device_addr_encode(dma_addr_t addr,
-			       enum drm_interconnect_protocol proto,
-			       unsigned int order,
-			       enum dma_data_direction dir)
+static inline struct drm_pagemap_addr
+drm_pagemap_addr_encode(dma_addr_t addr,
+			enum drm_interconnect_protocol proto,
+			unsigned int order,
+			enum dma_data_direction dir)
 {
-	return (struct drm_pagemap_device_addr) {
+	return (struct drm_pagemap_addr) {
 		.addr = addr,
 		.proto = proto,
 		.order = order,
@@ -75,11 +77,11 @@ struct drm_pagemap_ops {
 	 * @order: The page order of the device mapping. (Size is PAGE_SIZE << order).
 	 * @dir: The transfer direction.
 	 */
-	struct drm_pagemap_device_addr (*device_map)(struct drm_pagemap *dpagemap,
-						     struct device *dev,
-						     struct page *page,
-						     unsigned int order,
-						     enum dma_data_direction dir);
+	struct drm_pagemap_addr (*device_map)(struct drm_pagemap *dpagemap,
+					      struct device *dev,
+					      struct page *page,
+					      unsigned int order,
+					      enum dma_data_direction dir);
 
 	/**
 	 * @device_unmap: Unmap a device address previously obtained using @device_map.
@@ -90,7 +92,7 @@ struct drm_pagemap_ops {
 	 */
 	void (*device_unmap)(struct drm_pagemap *dpagemap,
 			     struct device *dev,
-			     struct drm_pagemap_device_addr addr);
+			     struct drm_pagemap_addr addr);
 
 	/**
 	 * @populate_mm: Populate part of the mm with @dpagemap memory,
@@ -170,29 +172,33 @@ struct drm_pagemap_devmem_ops {
 	/**
 	 * @copy_to_devmem: Copy to device memory (required for migration)
 	 * @pages: Pointer to array of device memory pages (destination)
-	 * @dma_addr: Pointer to array of DMA addresses (source)
+	 * @pagemap_addr: Pointer to array of DMA information (source)
 	 * @npages: Number of pages to copy
 	 *
-	 * Copy pages to device memory.
+	 * Copy pages to device memory. If the order of a @pagemap_addr entry
+	 * is greater than 0, the entry is populated but subsequent entries
+	 * within the range of that order are not populated.
 	 *
 	 * Return: 0 on success, a negative error code on failure.
 	 */
 	int (*copy_to_devmem)(struct page **pages,
-			      dma_addr_t *dma_addr,
+			      struct drm_pagemap_addr *pagemap_addr,
 			      unsigned long npages);
 
 	/**
 	 * @copy_to_ram: Copy to system RAM (required for migration)
 	 * @pages: Pointer to array of device memory pages (source)
-	 * @dma_addr: Pointer to array of DMA addresses (destination)
+	 * @pagemap_addr: Pointer to array of DMA information (destination)
 	 * @npages: Number of pages to copy
 	 *
-	 * Copy pages to system RAM.
+	 * Copy pages to system RAM. If the order of a @pagemap_addr entry
+	 * is greater than 0, the entry is populated but subsequent entries
+	 * within the range of that order are not populated.
 	 *
 	 * Return: 0 on success, a negative error code on failure.
 	 */
 	int (*copy_to_ram)(struct page **pages,
-			   dma_addr_t *dma_addr,
+			   struct drm_pagemap_addr *pagemap_addr,
 			   unsigned long npages);
 };
 

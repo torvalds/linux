@@ -280,7 +280,8 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 	 */
 again:
 	*err = 0;
-	jblocks = ext4_writepage_trans_blocks(orig_inode) * 2;
+	jblocks = ext4_meta_trans_blocks(orig_inode, block_len_in_page,
+					 block_len_in_page) * 2;
 	handle = ext4_journal_start(orig_inode, EXT4_HT_MOVE_EXTENTS, jblocks);
 	if (IS_ERR(handle)) {
 		*err = PTR_ERR(handle);

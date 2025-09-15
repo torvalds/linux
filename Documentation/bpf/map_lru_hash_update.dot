@@ -35,18 +35,18 @@ digraph {
   fn_bpf_lru_list_pop_free_to_local [shape=rectangle,fillcolor=2,
     label="Flush local pending,
     Rotate Global list, move
-    LOCAL_FREE_TARGET
+    target_free
     from global -> local"]
   // Also corresponds to:
   // fn__local_list_flush()
   // fn_bpf_lru_list_rotate()
   fn___bpf_lru_node_move_to_free[shape=diamond,fillcolor=2,
-    label="Able to free\nLOCAL_FREE_TARGET\nnodes?"]
+    label="Able to free\ntarget_free\nnodes?"]
 
   fn___bpf_lru_list_shrink_inactive [shape=rectangle,fillcolor=3,
     label="Shrink inactive list
       up to remaining
-      LOCAL_FREE_TARGET
+      target_free
       (global LRU -> local)"]
   fn___bpf_lru_list_shrink [shape=diamond,fillcolor=2,
     label="> 0 entries in\nlocal free list?"]

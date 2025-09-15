@@ -6,7 +6,7 @@
 #include <linux/genalloc.h>
 #include <linux/io.h>
 #include <linux/mailbox_client.h>
-#include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 
 #include <soc/tegra/bpmp.h>
@@ -192,16 +192,11 @@ static void tegra186_bpmp_teardown_channels(struct tegra_bpmp *bpmp)
 static int tegra186_bpmp_dram_init(struct tegra_bpmp *bpmp)
 {
 	struct tegra186_bpmp *priv = bpmp->priv;
-	struct device_node *np;
 	struct resource res;
 	size_t size;
 	int err;
 
-	np = of_parse_phandle(bpmp->dev->of_node, "memory-region", 0);
-	if (!np)
-		return -ENODEV;
-
-	err = of_address_to_resource(np, 0, &res);
+	err = of_reserved_mem_region_to_resource(bpmp->dev->of_node, 0, &res);
 	if (err < 0) {
 		dev_warn(bpmp->dev, "failed to parse memory region: %d\n", err);
 		return err;

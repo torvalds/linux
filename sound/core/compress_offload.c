@@ -1269,62 +1269,62 @@ static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	stream = &data->stream;
 
 	guard(mutex)(&stream->device->lock);
-	switch (_IOC_NR(cmd)) {
-	case _IOC_NR(SNDRV_COMPRESS_IOCTL_VERSION):
+	switch (cmd) {
+	case SNDRV_COMPRESS_IOCTL_VERSION:
 		return put_user(SNDRV_COMPRESS_VERSION,
 				(int __user *)arg) ? -EFAULT : 0;
-	case _IOC_NR(SNDRV_COMPRESS_GET_CAPS):
+	case SNDRV_COMPRESS_GET_CAPS:
 		return snd_compr_get_caps(stream, arg);
 #ifndef COMPR_CODEC_CAPS_OVERFLOW
-	case _IOC_NR(SNDRV_COMPRESS_GET_CODEC_CAPS):
+	case SNDRV_COMPRESS_GET_CODEC_CAPS:
 		return snd_compr_get_codec_caps(stream, arg);
 #endif
-	case _IOC_NR(SNDRV_COMPRESS_SET_PARAMS):
+	case SNDRV_COMPRESS_SET_PARAMS:
 		return snd_compr_set_params(stream, arg);
-	case _IOC_NR(SNDRV_COMPRESS_GET_PARAMS):
+	case SNDRV_COMPRESS_GET_PARAMS:
 		return snd_compr_get_params(stream, arg);
-	case _IOC_NR(SNDRV_COMPRESS_SET_METADATA):
+	case SNDRV_COMPRESS_SET_METADATA:
 		return snd_compr_set_metadata(stream, arg);
-	case _IOC_NR(SNDRV_COMPRESS_GET_METADATA):
+	case SNDRV_COMPRESS_GET_METADATA:
 		return snd_compr_get_metadata(stream, arg);
 	}
 
 	if (stream->direction == SND_COMPRESS_ACCEL) {
 #if IS_ENABLED(CONFIG_SND_COMPRESS_ACCEL)
-		switch (_IOC_NR(cmd)) {
-		case _IOC_NR(SNDRV_COMPRESS_TASK_CREATE):
+		switch (cmd) {
+		case SNDRV_COMPRESS_TASK_CREATE:
 			return snd_compr_task_create(stream, arg);
-		case _IOC_NR(SNDRV_COMPRESS_TASK_FREE):
+		case SNDRV_COMPRESS_TASK_FREE:
 			return snd_compr_task_seq(stream, arg, snd_compr_task_free_one);
-		case _IOC_NR(SNDRV_COMPRESS_TASK_START):
+		case SNDRV_COMPRESS_TASK_START:
 			return snd_compr_task_start_ioctl(stream, arg);
-		case _IOC_NR(SNDRV_COMPRESS_TASK_STOP):
+		case SNDRV_COMPRESS_TASK_STOP:
 			return snd_compr_task_seq(stream, arg, snd_compr_task_stop_one);
-		case _IOC_NR(SNDRV_COMPRESS_TASK_STATUS):
+		case SNDRV_COMPRESS_TASK_STATUS:
 			return snd_compr_task_status_ioctl(stream, arg);
 		}
 #endif
 		return -ENOTTY;
 	}
 
-	switch (_IOC_NR(cmd)) {
-	case _IOC_NR(SNDRV_COMPRESS_TSTAMP):
+	switch (cmd) {
+	case SNDRV_COMPRESS_TSTAMP:
 		return snd_compr_tstamp(stream, arg);
-	case _IOC_NR(SNDRV_COMPRESS_AVAIL):
+	case SNDRV_COMPRESS_AVAIL:
 		return snd_compr_ioctl_avail(stream, arg);
-	case _IOC_NR(SNDRV_COMPRESS_PAUSE):
+	case SNDRV_COMPRESS_PAUSE:
 		return snd_compr_pause(stream);
-	case _IOC_NR(SNDRV_COMPRESS_RESUME):
+	case SNDRV_COMPRESS_RESUME:
 		return snd_compr_resume(stream);
-	case _IOC_NR(SNDRV_COMPRESS_START):
+	case SNDRV_COMPRESS_START:
 		return snd_compr_start(stream);
-	case _IOC_NR(SNDRV_COMPRESS_STOP):
+	case SNDRV_COMPRESS_STOP:
 		return snd_compr_stop(stream);
-	case _IOC_NR(SNDRV_COMPRESS_DRAIN):
+	case SNDRV_COMPRESS_DRAIN:
 		return snd_compr_drain(stream);
-	case _IOC_NR(SNDRV_COMPRESS_PARTIAL_DRAIN):
+	case SNDRV_COMPRESS_PARTIAL_DRAIN:
 		return snd_compr_partial_drain(stream);
-	case _IOC_NR(SNDRV_COMPRESS_NEXT_TRACK):
+	case SNDRV_COMPRESS_NEXT_TRACK:
 		return snd_compr_next_track(stream);
 	}
 

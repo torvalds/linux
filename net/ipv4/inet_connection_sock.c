@@ -168,7 +168,7 @@ static bool inet_use_bhash2_on_bind(const struct sock *sk)
 }
 
 static bool inet_bind_conflict(const struct sock *sk, struct sock *sk2,
-			       kuid_t sk_uid, bool relax,
+			       kuid_t uid, bool relax,
 			       bool reuseport_cb_ok, bool reuseport_ok)
 {
 	int bound_dev_if2;
@@ -185,12 +185,12 @@ static bool inet_bind_conflict(const struct sock *sk, struct sock *sk2,
 			if (!relax || (!reuseport_ok && sk->sk_reuseport &&
 				       sk2->sk_reuseport && reuseport_cb_ok &&
 				       (sk2->sk_state == TCP_TIME_WAIT ||
-					uid_eq(sk_uid, sock_i_uid(sk2)))))
+					uid_eq(uid, sk_uid(sk2)))))
 				return true;
 		} else if (!reuseport_ok || !sk->sk_reuseport ||
 			   !sk2->sk_reuseport || !reuseport_cb_ok ||
 			   (sk2->sk_state != TCP_TIME_WAIT &&
-			    !uid_eq(sk_uid, sock_i_uid(sk2)))) {
+			    !uid_eq(uid, sk_uid(sk2)))) {
 			return true;
 		}
 	}
@@ -198,7 +198,7 @@ static bool inet_bind_conflict(const struct sock *sk, struct sock *sk2,
 }
 
 static bool __inet_bhash2_conflict(const struct sock *sk, struct sock *sk2,
-				   kuid_t sk_uid, bool relax,
+				   kuid_t uid, bool relax,
 				   bool reuseport_cb_ok, bool reuseport_ok)
 {
 	if (ipv6_only_sock(sk2)) {
@@ -211,20 +211,20 @@ static bool __inet_bhash2_conflict(const struct sock *sk, struct sock *sk2,
 #endif
 	}
 
-	return inet_bind_conflict(sk, sk2, sk_uid, relax,
+	return inet_bind_conflict(sk, sk2, uid, relax,
 				  reuseport_cb_ok, reuseport_ok);
 }
 
 static bool inet_bhash2_conflict(const struct sock *sk,
 				 const struct inet_bind2_bucket *tb2,
-				 kuid_t sk_uid,
+				 kuid_t uid,
 				 bool relax, bool reuseport_cb_ok,
 				 bool reuseport_ok)
 {
 	struct sock *sk2;
 
 	sk_for_each_bound(sk2, &tb2->owners) {
-		if (__inet_bhash2_conflict(sk, sk2, sk_uid, relax,
+		if (__inet_bhash2_conflict(sk, sk2, uid, relax,
 					   reuseport_cb_ok, reuseport_ok))
 			return true;
 	}
@@ -242,8 +242,8 @@ static int inet_csk_bind_conflict(const struct sock *sk,
 				  const struct inet_bind2_bucket *tb2, /* may be null */
 				  bool relax, bool reuseport_ok)
 {
-	kuid_t uid = sock_i_uid((struct sock *)sk);
 	struct sock_reuseport *reuseport_cb;
+	kuid_t uid = sk_uid(sk);
 	bool reuseport_cb_ok;
 	struct sock *sk2;
 
@@ -287,11 +287,11 @@ static int inet_csk_bind_conflict(const struct sock *sk,
 static bool inet_bhash2_addr_any_conflict(const struct sock *sk, int port, int l3mdev,
 					  bool relax, bool reuseport_ok)
 {
-	kuid_t uid = sock_i_uid((struct sock *)sk);
 	const struct net *net = sock_net(sk);
 	struct sock_reuseport *reuseport_cb;
 	struct inet_bind_hashbucket *head2;
 	struct inet_bind2_bucket *tb2;
+	kuid_t uid = sk_uid(sk);
 	bool conflict = false;
 	bool reuseport_cb_ok;
 
@@ -425,15 +425,13 @@ success:
 static inline int sk_reuseport_match(struct inet_bind_bucket *tb,
 				     struct sock *sk)
 {
-	kuid_t uid = sock_i_uid(sk);
-
 	if (tb->fastreuseport <= 0)
 		return 0;
 	if (!sk->sk_reuseport)
 		return 0;
 	if (rcu_access_pointer(sk->sk_reuseport_cb))
 		return 0;
-	if (!uid_eq(tb->fastuid, uid))
+	if (!uid_eq(tb->fastuid, sk_uid(sk)))
 		return 0;
 	/* We only need to check the rcv_saddr if this tb was once marked
 	 * without fastreuseport and then was reset, as we can only know that
@@ -458,14 +456,13 @@ static inline int sk_reuseport_match(struct inet_bind_bucket *tb,
 void inet_csk_update_fastreuse(struct inet_bind_bucket *tb,
 			       struct sock *sk)
 {
-	kuid_t uid = sock_i_uid(sk);
 	bool reuse = sk->sk_reuse && sk->sk_state != TCP_LISTEN;
 
 	if (hlist_empty(&tb->bhash2)) {
 		tb->fastreuse = reuse;
 		if (sk->sk_reuseport) {
 			tb->fastreuseport = FASTREUSEPORT_ANY;
-			tb->fastuid = uid;
+			tb->fastuid = sk_uid(sk);
 			tb->fast_rcv_saddr = sk->sk_rcv_saddr;
 			tb->fast_ipv6_only = ipv6_only_sock(sk);
 			tb->fast_sk_family = sk->sk_family;
@@ -492,7 +489,7 @@ void inet_csk_update_fastreuse(struct inet_bind_bucket *tb,
 			 */
 			if (!sk_reuseport_match(tb, sk)) {
 				tb->fastreuseport = FASTREUSEPORT_STRICT;
-				tb->fastuid = uid;
+				tb->fastuid = sk_uid(sk);
 				tb->fast_rcv_saddr = sk->sk_rcv_saddr;
 				tb->fast_ipv6_only = ipv6_only_sock(sk);
 				tb->fast_sk_family = sk->sk_family;
@@ -812,7 +809,7 @@ struct dst_entry *inet_csk_route_req(const struct sock *sk,
 			   sk->sk_protocol, inet_sk_flowi_flags(sk),
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->ir_rmt_addr,
 			   ireq->ir_loc_addr, ireq->ir_rmt_port,
-			   htons(ireq->ir_num), sk->sk_uid);
+			   htons(ireq->ir_num), sk_uid(sk));
 	security_req_classify_flow(req, flowi4_to_flowi_common(fl4));
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
@@ -849,7 +846,7 @@ struct dst_entry *inet_csk_route_child_sock(const struct sock *sk,
 			   sk->sk_protocol, inet_sk_flowi_flags(sk),
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->ir_rmt_addr,
 			   ireq->ir_loc_addr, ireq->ir_rmt_port,
-			   htons(ireq->ir_num), sk->sk_uid);
+			   htons(ireq->ir_num), sk_uid(sk));
 	security_req_classify_flow(req, flowi4_to_flowi_common(fl4));
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
@@ -885,15 +882,6 @@ static void syn_ack_recalc(struct request_sock *req,
 	 */
 	*resend = !inet_rsk(req)->acked ||
 		  req->num_timeout >= rskq_defer_accept - 1;
-}
-
-int inet_rtx_syn_ack(const struct sock *parent, struct request_sock *req)
-{
-	int err = req->rsk_ops->rtx_syn_ack(parent, req);
-
-	if (!err)
-		req->num_retrans++;
-	return err;
 }
 
 static struct request_sock *
@@ -1135,7 +1123,7 @@ static void reqsk_timer_handler(struct timer_list *t)
 	req->rsk_ops->syn_ack_timeout(req);
 	if (!expire &&
 	    (!resend ||
-	     !inet_rtx_syn_ack(sk_listener, req) ||
+	     !tcp_rtx_synack(sk_listener, req) ||
 	     inet_rsk(req)->acked)) {
 		if (req->num_timeout++ == 0)
 			atomic_dec(&queue->young);

@@ -738,7 +738,7 @@ struct i2c_atr *i2c_atr_new(struct i2c_adapter *parent, struct device *dev,
 	atr->flags = flags;
 
 	if (parent->algo->master_xfer)
-		atr->algo.master_xfer = i2c_atr_master_xfer;
+		atr->algo.xfer = i2c_atr_master_xfer;
 	if (parent->algo->smbus_xfer)
 		atr->algo.smbus_xfer = i2c_atr_smbus_xfer;
 	atr->algo.functionality = i2c_atr_functionality;

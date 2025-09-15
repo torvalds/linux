@@ -101,7 +101,7 @@ static inline int sgx_encl_find(struct mm_struct *mm, unsigned long addr,
 }
 
 int sgx_encl_may_map(struct sgx_encl *encl, unsigned long start,
-		     unsigned long end, unsigned long vm_flags);
+		     unsigned long end, vm_flags_t vm_flags);
 
 bool current_is_ksgxd(void);
 void sgx_encl_release(struct kref *ref);

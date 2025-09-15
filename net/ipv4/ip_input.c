@@ -226,6 +226,12 @@ resubmit:
 
 static int ip_local_deliver_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	if (unlikely(skb_orphan_frags_rx(skb, GFP_ATOMIC))) {
+		__IP_INC_STATS(net, IPSTATS_MIB_INDISCARDS);
+		kfree_skb_reason(skb, SKB_DROP_REASON_NOMEM);
+		return 0;
+	}
+
 	skb_clear_delivery_time(skb);
 	__skb_pull(skb, skb_network_header_len(skb));
 
@@ -319,8 +325,8 @@ static int ip_rcv_finish_core(struct net *net,
 			      const struct sk_buff *hint)
 {
 	const struct iphdr *iph = ip_hdr(skb);
-	int err, drop_reason;
 	struct rtable *rt;
+	int drop_reason;
 
 	if (ip_can_use_hint(skb, iph, hint)) {
 		drop_reason = ip_route_use_hint(skb, iph->daddr, iph->saddr,
@@ -345,9 +351,10 @@ static int ip_rcv_finish_core(struct net *net,
 			break;
 		case IPPROTO_UDP:
 			if (READ_ONCE(net->ipv4.sysctl_udp_early_demux)) {
-				err = udp_v4_early_demux(skb);
-				if (unlikely(err))
+				drop_reason = udp_v4_early_demux(skb);
+				if (unlikely(drop_reason))
 					goto drop_error;
+				drop_reason = SKB_DROP_REASON_NOT_SPECIFIED;
 
 				/* must reload iph, skb->head might have changed */
 				iph = ip_hdr(skb);

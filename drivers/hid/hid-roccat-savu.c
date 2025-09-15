@@ -42,7 +42,7 @@ static const struct bin_attribute *const savu_bin_attrs[] = {
 };
 
 static const struct attribute_group savu_group = {
-	.bin_attrs_new = savu_bin_attrs,
+	.bin_attrs = savu_bin_attrs,
 };
 
 static const struct attribute_group *savu_groups[] = {

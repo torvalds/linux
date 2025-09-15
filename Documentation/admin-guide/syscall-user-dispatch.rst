@@ -53,19 +53,24 @@ following prctl:
 
   prctl(PR_SET_SYSCALL_USER_DISPATCH, <op>, <offset>, <length>, [selector])
 
-<op> is either PR_SYS_DISPATCH_ON or PR_SYS_DISPATCH_OFF, to enable and
-disable the mechanism globally for that thread.  When
-PR_SYS_DISPATCH_OFF is used, the other fields must be zero.
+<op> is either PR_SYS_DISPATCH_EXCLUSIVE_ON/PR_SYS_DISPATCH_INCLUSIVE_ON
+or PR_SYS_DISPATCH_OFF, to enable and disable the mechanism globally for
+that thread.  When PR_SYS_DISPATCH_OFF is used, the other fields must be zero.
 
-[<offset>, <offset>+<length>) delimit a memory region interval
-from which syscalls are always executed directly, regardless of the
-userspace selector.  This provides a fast path for the C library, which
-includes the most common syscall dispatchers in the native code
-applications, and also provides a way for the signal handler to return
+For PR_SYS_DISPATCH_EXCLUSIVE_ON [<offset>, <offset>+<length>) delimit
+a memory region interval from which syscalls are always executed directly,
+regardless of the userspace selector.  This provides a fast path for the
+C library, which includes the most common syscall dispatchers in the native
+code applications, and also provides a way for the signal handler to return
 without triggering a nested SIGSYS on (rt\_)sigreturn.  Users of this
 interface should make sure that at least the signal trampoline code is
 included in this region. In addition, for syscalls that implement the
 trampoline code on the vDSO, that trampoline is never intercepted.
+
+For PR_SYS_DISPATCH_INCLUSIVE_ON [<offset>, <offset>+<length>) delimit
+a memory region interval from which syscalls are dispatched based on
+the userspace selector. Syscalls from outside of the range are always
+executed directly.
 
 [selector] is a pointer to a char-sized region in the process memory
 region, that provides a quick way to enable disable syscall redirection

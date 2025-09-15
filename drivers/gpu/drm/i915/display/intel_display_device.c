@@ -1354,6 +1354,19 @@ static const struct intel_display_device_info xe2_lpd_display = {
 	.__runtime_defaults.has_dbuf_overlap_detection = true,
 };
 
+static const struct intel_display_device_info wcl_display = {
+	XE_LPDP_FEATURES,
+
+	.__runtime_defaults.cpu_transcoder_mask =
+		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
+	.__runtime_defaults.pipe_mask =
+		BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+	.__runtime_defaults.fbc_mask =
+		BIT(INTEL_FBC_A) | BIT(INTEL_FBC_B) | BIT(INTEL_FBC_C),
+	.__runtime_defaults.port_mask =
+		BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_TC1) | BIT(PORT_TC2),
+};
+
 static const struct intel_display_device_info xe2_hpd_display = {
 	XE_LPDP_FEATURES,
 	.__runtime_defaults.port_mask = BIT(PORT_A) |
@@ -1480,7 +1493,7 @@ static const struct {
 	{ 14,  1, &xe2_hpd_display },
 	{ 20,  0, &xe2_lpd_display },
 	{ 30,  0, &xe2_lpd_display },
-	{ 30,  2, &xe2_lpd_display },
+	{ 30,  2, &wcl_display },
 };
 
 static const struct intel_display_device_info *

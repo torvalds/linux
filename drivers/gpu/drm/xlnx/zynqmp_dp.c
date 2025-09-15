@@ -1870,20 +1870,14 @@ static int zynqmp_dp_test_setup(struct zynqmp_dp *dp)
 static ssize_t zynqmp_dp_pattern_read(struct file *file, char __user *user_buf,
 				      size_t count, loff_t *ppos)
 {
-	struct dentry *dentry = file->f_path.dentry;
 	struct zynqmp_dp *dp = file->private_data;
 	char buf[16];
 	ssize_t ret;
-
-	ret = debugfs_file_get(dentry);
-	if (unlikely(ret))
-		return ret;
 
 	scoped_guard(mutex, &dp->lock)
 		ret = snprintf(buf, sizeof(buf), "%s\n",
 			       test_pattern_str[dp->test.pattern]);
 
-	debugfs_file_put(dentry);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, ret);
 }
 
@@ -1891,27 +1885,20 @@ static ssize_t zynqmp_dp_pattern_write(struct file *file,
 				       const char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
-	struct dentry *dentry = file->f_path.dentry;
 	struct zynqmp_dp *dp = file->private_data;
 	char buf[16];
 	ssize_t ret;
 	int pattern;
 
-	ret = debugfs_file_get(dentry);
-	if (unlikely(ret))
-		return ret;
-
 	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf,
 				     count);
 	if (ret < 0)
-		goto out;
+		return ret;
 	buf[ret] = '\0';
 
 	pattern = sysfs_match_string(test_pattern_str, buf);
-	if (pattern < 0) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (pattern < 0)
+		return -EINVAL;
 
 	mutex_lock(&dp->lock);
 	dp->test.pattern = pattern;
@@ -1920,8 +1907,6 @@ static ssize_t zynqmp_dp_pattern_write(struct file *file,
 						 dp->test.custom) ?: ret;
 	mutex_unlock(&dp->lock);
 
-out:
-	debugfs_file_put(dentry);
 	return ret;
 }
 
@@ -2027,20 +2012,13 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_zynqmp_dp_active, zynqmp_dp_active_get,
 static ssize_t zynqmp_dp_custom_read(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
-	struct dentry *dentry = file->f_path.dentry;
 	struct zynqmp_dp *dp = file->private_data;
 	ssize_t ret;
-
-	ret = debugfs_file_get(dentry);
-	if (unlikely(ret))
-		return ret;
 
 	mutex_lock(&dp->lock);
 	ret = simple_read_from_buffer(user_buf, count, ppos, &dp->test.custom,
 				      sizeof(dp->test.custom));
 	mutex_unlock(&dp->lock);
-
-	debugfs_file_put(dentry);
 	return ret;
 }
 
@@ -2048,18 +2026,13 @@ static ssize_t zynqmp_dp_custom_write(struct file *file,
 				      const char __user *user_buf,
 				      size_t count, loff_t *ppos)
 {
-	struct dentry *dentry = file->f_path.dentry;
 	struct zynqmp_dp *dp = file->private_data;
 	ssize_t ret;
 	char buf[sizeof(dp->test.custom)];
 
-	ret = debugfs_file_get(dentry);
-	if (unlikely(ret))
-		return ret;
-
 	ret = simple_write_to_buffer(buf, sizeof(buf), ppos, user_buf, count);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	mutex_lock(&dp->lock);
 	memcpy(dp->test.custom, buf, ret);
@@ -2067,9 +2040,6 @@ static ssize_t zynqmp_dp_custom_write(struct file *file,
 		ret = zynqmp_dp_set_test_pattern(dp, dp->test.pattern,
 						 dp->test.custom) ?: ret;
 	mutex_unlock(&dp->lock);
-
-out:
-	debugfs_file_put(dentry);
 	return ret;
 }
 

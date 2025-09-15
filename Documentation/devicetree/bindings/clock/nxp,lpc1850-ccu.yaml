@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/nxp,lpc1850-ccu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP LPC1850 Clock Control Unit (CCU)
+
+description:
+  Each CGU base clock has several clock branches which can be turned on
+  or off independently by the Clock Control Units CCU1 or CCU2. The
+  branch clocks are distributed between CCU1 and CCU2.
+
+  Above text taken from NXP LPC1850 User Manual
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: nxp,lpc1850-ccu
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 8
+
+  clock-names:
+    minItems: 1
+    maxItems: 8
+    items:
+      enum:
+        - base_usb0_clk
+        - base_periph_clk
+        - base_usb1_clk
+        - base_cpu_clk
+        - base_spifi_clk
+        - base_spi_clk
+        - base_apb1_clk
+        - base_apb3_clk
+        - base_adchs_clk
+        - base_sdio_clk
+        - base_ssp0_clk
+        - base_ssp1_clk
+        - base_uart0_clk
+        - base_uart1_clk
+        - base_uart2_clk
+        - base_uart3_clk
+        - base_audio_clk
+    description:
+      Which branch clocks that are available on the CCU depends on the
+      specific LPC part. Check the user manual for your specific part.
+
+      A list of CCU clocks can be found in dt-bindings/clock/lpc18xx-ccu.h.
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/lpc18xx-cgu.h>
+
+    clock-controller@40051000 {
+        compatible = "nxp,lpc1850-ccu";
+        reg = <0x40051000 0x1000>;
+        #clock-cells = <1>;
+        clocks = <&cgu BASE_APB3_CLK>, <&cgu BASE_APB1_CLK>,
+                 <&cgu BASE_SPIFI_CLK>, <&cgu BASE_CPU_CLK>,
+                 <&cgu BASE_PERIPH_CLK>, <&cgu BASE_USB0_CLK>,
+                 <&cgu BASE_USB1_CLK>, <&cgu BASE_SPI_CLK>;
+        clock-names = "base_apb3_clk",   "base_apb1_clk",
+                      "base_spifi_clk",  "base_cpu_clk",
+                      "base_periph_clk", "base_usb0_clk",
+                      "base_usb1_clk",   "base_spi_clk";
+    };
+
+  - |
+    #include <dt-bindings/clock/lpc18xx-cgu.h>
+
+    clock-controller@40052000 {
+        compatible = "nxp,lpc1850-ccu";
+        reg = <0x40052000 0x1000>;
+        #clock-cells = <1>;
+        clocks = <&cgu BASE_AUDIO_CLK>, <&cgu BASE_UART3_CLK>,
+                 <&cgu BASE_UART2_CLK>, <&cgu BASE_UART1_CLK>,
+                 <&cgu BASE_UART0_CLK>, <&cgu BASE_SSP1_CLK>,
+                 <&cgu BASE_SSP0_CLK>,  <&cgu BASE_SDIO_CLK>;
+        clock-names = "base_audio_clk", "base_uart3_clk",
+                      "base_uart2_clk", "base_uart1_clk",
+                      "base_uart0_clk", "base_ssp1_clk",
+                      "base_ssp0_clk",  "base_sdio_clk";
+    };
+

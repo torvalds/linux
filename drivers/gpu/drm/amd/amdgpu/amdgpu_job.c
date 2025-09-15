@@ -209,11 +209,12 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev,
 			     struct drm_sched_entity *entity, void *owner,
 			     size_t size, enum amdgpu_ib_pool_type pool_type,
-			     struct amdgpu_job **job)
+			     struct amdgpu_job **job, u64 k_job_id)
 {
 	int r;
 
-	r = amdgpu_job_alloc(adev, NULL, entity, owner, 1, job, 0);
+	r = amdgpu_job_alloc(adev, NULL, entity, owner, 1, job,
+			     k_job_id);
 	if (r)
 		return r;
 
@@ -365,13 +366,6 @@ amdgpu_job_prepare_job(struct drm_sched_job *sched_job,
 			dev_err(ring->adev->dev, "Error getting VM ID (%d)\n", r);
 			goto error;
 		}
-		/*
-		 * The VM structure might be released after the VMID is
-		 * assigned, we had multiple problems with people trying to use
-		 * the VM pointer so better set it to NULL.
-		 */
-		if (!fence)
-			job->vm = NULL;
 		return fence;
 	}
 

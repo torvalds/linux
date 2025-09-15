@@ -1451,6 +1451,7 @@ void annotated_source__purge(struct annotated_source *as)
 		list_del_init(&al->node);
 		disasm_line__free(disasm_line(al));
 	}
+	as->tried_source = false;
 }
 
 static size_t disasm_line__fprintf(struct disasm_line *dl, FILE *fp)
@@ -2280,6 +2281,7 @@ void annotation_options__init(void)
 	opt->annotate_src = true;
 	opt->offset_level = ANNOTATION__OFFSET_JUMP_TARGETS;
 	opt->percent_type = PERCENT_PERIOD_LOCAL;
+	opt->hide_src_code = true;
 	opt->hide_src_code_on_title = true;
 }
 

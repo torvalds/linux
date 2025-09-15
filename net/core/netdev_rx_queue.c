@@ -97,14 +97,12 @@ int __net_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
 	if (!netdev_need_ops_lock(dev))
 		return -EOPNOTSUPP;
 
-	if (rxq_idx >= dev->real_num_rx_queues)
-		return -EINVAL;
-	rxq_idx = array_index_nospec(rxq_idx, dev->real_num_rx_queues);
-
 	if (rxq_idx >= dev->real_num_rx_queues) {
 		NL_SET_ERR_MSG(extack, "rx queue index out of range");
 		return -ERANGE;
 	}
+	rxq_idx = array_index_nospec(rxq_idx, dev->real_num_rx_queues);
+
 	if (dev->cfg->hds_config != ETHTOOL_TCP_DATA_SPLIT_ENABLED) {
 		NL_SET_ERR_MSG(extack, "tcp-data-split is disabled");
 		return -EINVAL;

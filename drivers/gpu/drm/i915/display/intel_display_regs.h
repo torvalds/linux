@@ -2890,6 +2890,7 @@ enum skl_power_gate {
 #define   DP_PIN_ASSIGNMENT_SHIFT(idx)		((idx) * 4)
 #define   DP_PIN_ASSIGNMENT_MASK(idx)		(0xf << ((idx) * 4))
 #define   DP_PIN_ASSIGNMENT(idx, x)		((x) << ((idx) * 4))
+/* See enum intel_tc_pin_assignment for the pin assignment field values. */
 
 #define _TCSS_DDI_STATUS_1			0x161500
 #define _TCSS_DDI_STATUS_2			0x161504
@@ -2897,6 +2898,7 @@ enum skl_power_gate {
 								 _TCSS_DDI_STATUS_1, \
 								 _TCSS_DDI_STATUS_2))
 #define  TCSS_DDI_STATUS_PIN_ASSIGNMENT_MASK	REG_GENMASK(28, 25)
+/* See enum intel_tc_pin_assignment for the pin assignment field values. */
 #define  TCSS_DDI_STATUS_READY			REG_BIT(2)
 #define  TCSS_DDI_STATUS_HPD_LIVE_STATUS_TBT	REG_BIT(1)
 #define  TCSS_DDI_STATUS_HPD_LIVE_STATUS_ALT	REG_BIT(0)

@@ -26,15 +26,27 @@ static uint32_t last_guest_seed;
 
 static int vcpu_mmap_sz(void);
 
-int open_path_or_exit(const char *path, int flags)
+int __open_path_or_exit(const char *path, int flags, const char *enoent_help)
 {
 	int fd;
 
 	fd = open(path, flags);
-	__TEST_REQUIRE(fd >= 0 || errno != ENOENT, "Cannot open %s: %s", path, strerror(errno));
-	TEST_ASSERT(fd >= 0, "Failed to open '%s'", path);
+	if (fd < 0)
+		goto error;
 
 	return fd;
+
+error:
+	if (errno == EACCES || errno == ENOENT)
+		ksft_exit_skip("- Cannot open '%s': %s.  %s\n",
+			       path, strerror(errno),
+			       errno == EACCES ? "Root required?" : enoent_help);
+	TEST_FAIL("Failed to open '%s'", path);
+}
+
+int open_path_or_exit(const char *path, int flags)
+{
+	return __open_path_or_exit(path, flags, "");
 }
 
 /*
@@ -48,7 +60,7 @@ int open_path_or_exit(const char *path, int flags)
  */
 static int _open_kvm_dev_path_or_exit(int flags)
 {
-	return open_path_or_exit(KVM_DEV_PATH, flags);
+	return __open_path_or_exit(KVM_DEV_PATH, flags, "Is KVM loaded and enabled?");
 }
 
 int open_kvm_dev_path_or_exit(void)
@@ -63,6 +75,9 @@ static ssize_t get_module_param(const char *module_name, const char *param,
 	char path[path_size];
 	ssize_t bytes_read;
 	int fd, r;
+
+	/* Verify KVM is loaded, to provide a more helpful SKIP message. */
+	close(open_kvm_dev_path_or_exit());
 
 	r = snprintf(path, path_size, "/sys/module/%s/parameters/%s",
 		     module_name, param);
@@ -605,15 +620,14 @@ struct kvm_vcpu *vm_recreate_with_one_vcpu(struct kvm_vm *vm)
 	return vm_vcpu_recreate(vm, 0);
 }
 
-void kvm_pin_this_task_to_pcpu(uint32_t pcpu)
+int __pin_task_to_cpu(pthread_t task, int cpu)
 {
-	cpu_set_t mask;
-	int r;
+	cpu_set_t cpuset;
 
-	CPU_ZERO(&mask);
-	CPU_SET(pcpu, &mask);
-	r = sched_setaffinity(0, sizeof(mask), &mask);
-	TEST_ASSERT(!r, "sched_setaffinity() failed for pCPU '%u'.", pcpu);
+	CPU_ZERO(&cpuset);
+	CPU_SET(cpu, &cpuset);
+
+	return pthread_setaffinity_np(task, sizeof(cpuset), &cpuset);
 }
 
 static uint32_t parse_pcpu(const char *cpu_str, const cpu_set_t *allowed_mask)
@@ -667,7 +681,7 @@ void kvm_parse_vcpu_pinning(const char *pcpus_string, uint32_t vcpu_to_pcpu[],
 
 	/* 2. Check if the main worker needs to be pinned. */
 	if (cpu) {
-		kvm_pin_this_task_to_pcpu(parse_pcpu(cpu, &allowed_mask));
+		pin_self_to_cpu(parse_pcpu(cpu, &allowed_mask));
 		cpu = strtok(NULL, delim);
 	}
 
@@ -1716,7 +1730,18 @@ void *addr_gpa2alias(struct kvm_vm *vm, vm_paddr_t gpa)
 /* Create an interrupt controller chip for the specified VM. */
 void vm_create_irqchip(struct kvm_vm *vm)
 {
-	vm_ioctl(vm, KVM_CREATE_IRQCHIP, NULL);
+	int r;
+
+	/*
+	 * Allocate a fully in-kernel IRQ chip by default, but fall back to a
+	 * split model (x86 only) if that fails (KVM x86 allows compiling out
+	 * support for KVM_CREATE_IRQCHIP).
+	 */
+	r = __vm_ioctl(vm, KVM_CREATE_IRQCHIP, NULL);
+	if (r && errno == ENOTTY && kvm_has_cap(KVM_CAP_SPLIT_IRQCHIP))
+		vm_enable_cap(vm, KVM_CAP_SPLIT_IRQCHIP, 24);
+	else
+		TEST_ASSERT_VM_VCPU_IOCTL(!r, KVM_CREATE_IRQCHIP, r, vm);
 
 	vm->has_irqchip = true;
 }

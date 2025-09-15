@@ -716,6 +716,9 @@ extern char sie_exit;
 bool kvm_s390_pv_is_protected(struct kvm *kvm);
 bool kvm_s390_pv_cpu_is_protected(struct kvm_vcpu *vcpu);
 
+extern int kvm_s390_enter_exit_sie(struct kvm_s390_sie_block *scb,
+				   u64 *gprs, unsigned long gasce);
+
 extern int kvm_s390_gisc_register(struct kvm *kvm, u32 gisc);
 extern int kvm_s390_gisc_unregister(struct kvm *kvm, u32 gisc);
 

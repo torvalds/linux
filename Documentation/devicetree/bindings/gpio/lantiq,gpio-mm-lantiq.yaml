@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/lantiq,gpio-mm-lantiq.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Lantiq SoC External Bus memory mapped GPIO controller
+
+maintainers:
+  - John Crispin <john@phrozen.org>
+
+description: |
+  By attaching hardware latches to the EBU it is possible to create output
+  only gpios. This driver configures a special memory address, which when
+  written to outputs 16 bit to the latches.
+
+  The node describing the memory mapped GPIOs needs to be a child of the node
+  describing the "lantiq,localbus".
+
+properties:
+  compatible:
+    enum:
+      - lantiq,gpio-mm-lantiq
+      - lantiq,gpio-mm
+
+  reg:
+    maxItems: 1
+
+  '#gpio-cells':
+    const: 2
+
+  gpio-controller: true
+
+  lantiq,shadow:
+    description: The default value that we shall assume as already set on the shift register cascade.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - '#gpio-cells'
+  - gpio-controller
+
+additionalProperties: false
+
+examples:
+  - |
+    gpio@4000000 {
+        compatible = "lantiq,gpio-mm-lantiq";
+        reg = <0x4000000 0x10>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        lantiq,shadow = <0x77f>;
+    };

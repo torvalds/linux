@@ -452,7 +452,7 @@ static u32 __fbnic_mac_cmd_config_asic(struct fbnic_dev *fbd,
 		command_config |= FBNIC_MAC_COMMAND_CONFIG_RX_PAUSE_DIS;
 
 	/* Disable fault handling if no FEC is requested */
-	if ((fbn->fec & FBNIC_FEC_MODE_MASK) == FBNIC_FEC_OFF)
+	if (fbn->fec == FBNIC_FEC_OFF)
 		command_config |= FBNIC_MAC_COMMAND_CONFIG_FLT_HDL_DIS;
 
 	return command_config;
@@ -468,15 +468,15 @@ static bool fbnic_mac_get_pcs_link_status(struct fbnic_dev *fbd)
 		return false;
 
 	/* Define the expected lane mask for the status bits we need to check */
-	switch (fbn->link_mode & FBNIC_LINK_MODE_MASK) {
-	case FBNIC_LINK_100R2:
+	switch (fbn->aui) {
+	case FBNIC_AUI_100GAUI2:
 		lane_mask = 0xf;
 		break;
-	case FBNIC_LINK_50R1:
+	case FBNIC_AUI_50GAUI1:
 		lane_mask = 3;
 		break;
-	case FBNIC_LINK_50R2:
-		switch (fbn->fec & FBNIC_FEC_MODE_MASK) {
+	case FBNIC_AUI_LAUI2:
+		switch (fbn->fec) {
 		case FBNIC_FEC_OFF:
 			lane_mask = 0x63;
 			break;
@@ -488,13 +488,13 @@ static bool fbnic_mac_get_pcs_link_status(struct fbnic_dev *fbd)
 			break;
 		}
 		break;
-	case FBNIC_LINK_25R1:
+	case FBNIC_AUI_25GAUI:
 		lane_mask = 1;
 		break;
 	}
 
 	/* Use an XOR to remove the bits we expect to see set */
-	switch (fbn->fec & FBNIC_FEC_MODE_MASK) {
+	switch (fbn->fec) {
 	case FBNIC_FEC_OFF:
 		lane_mask ^= FIELD_GET(FBNIC_SIG_PCS_OUT0_BLOCK_LOCK,
 				       pcs_status);
@@ -540,53 +540,41 @@ static bool fbnic_pcs_get_link_asic(struct fbnic_dev *fbd)
 	return link;
 }
 
-static void fbnic_pcs_get_fw_settings(struct fbnic_dev *fbd)
+void fbnic_mac_get_fw_settings(struct fbnic_dev *fbd, u8 *aui, u8 *fec)
 {
-	struct fbnic_net *fbn = netdev_priv(fbd->netdev);
-	u8 link_mode = fbn->link_mode;
-	u8 fec = fbn->fec;
-
-	/* Update FEC first to reflect FW current mode */
-	if (fbn->fec & FBNIC_FEC_AUTO) {
-		switch (fbd->fw_cap.link_fec) {
-		case FBNIC_FW_LINK_FEC_NONE:
-			fec = FBNIC_FEC_OFF;
-			break;
-		case FBNIC_FW_LINK_FEC_RS:
-			fec = FBNIC_FEC_RS;
-			break;
-		case FBNIC_FW_LINK_FEC_BASER:
-			fec = FBNIC_FEC_BASER;
-			break;
-		default:
-			return;
-		}
-
-		fbn->fec = fec;
+	/* Retrieve default speed from FW */
+	switch (fbd->fw_cap.link_speed) {
+	case FBNIC_FW_LINK_MODE_25CR:
+		*aui = FBNIC_AUI_25GAUI;
+		break;
+	case FBNIC_FW_LINK_MODE_50CR2:
+		*aui = FBNIC_AUI_LAUI2;
+		break;
+	case FBNIC_FW_LINK_MODE_50CR:
+		*aui = FBNIC_AUI_50GAUI1;
+		*fec = FBNIC_FEC_RS;
+		return;
+	case FBNIC_FW_LINK_MODE_100CR2:
+		*aui = FBNIC_AUI_100GAUI2;
+		*fec = FBNIC_FEC_RS;
+		return;
+	default:
+		*aui = FBNIC_AUI_UNKNOWN;
+		return;
 	}
 
-	/* Do nothing if AUTO mode is not engaged */
-	if (fbn->link_mode & FBNIC_LINK_AUTO) {
-		switch (fbd->fw_cap.link_speed) {
-		case FBNIC_FW_LINK_SPEED_25R1:
-			link_mode = FBNIC_LINK_25R1;
-			break;
-		case FBNIC_FW_LINK_SPEED_50R2:
-			link_mode = FBNIC_LINK_50R2;
-			break;
-		case FBNIC_FW_LINK_SPEED_50R1:
-			link_mode = FBNIC_LINK_50R1;
-			fec = FBNIC_FEC_RS;
-			break;
-		case FBNIC_FW_LINK_SPEED_100R2:
-			link_mode = FBNIC_LINK_100R2;
-			fec = FBNIC_FEC_RS;
-			break;
-		default:
-			return;
-		}
-
-		fbn->link_mode = link_mode;
+	/* Update FEC first to reflect FW current mode */
+	switch (fbd->fw_cap.link_fec) {
+	case FBNIC_FW_LINK_FEC_NONE:
+		*fec = FBNIC_FEC_OFF;
+		break;
+	case FBNIC_FW_LINK_FEC_RS:
+	default:
+		*fec = FBNIC_FEC_RS;
+		break;
+	case FBNIC_FW_LINK_FEC_BASER:
+		*fec = FBNIC_FEC_BASER;
+		break;
 	}
 }
 
@@ -595,9 +583,6 @@ static int fbnic_pcs_enable_asic(struct fbnic_dev *fbd)
 	/* Mask and clear the PCS interrupt, will be enabled by link handler */
 	wr32(fbd, FBNIC_SIG_PCS_INTR_MASK, ~0);
 	wr32(fbd, FBNIC_SIG_PCS_INTR_STS, ~0);
-
-	/* Pull in settings from FW */
-	fbnic_pcs_get_fw_settings(fbd);
 
 	return 0;
 }
@@ -680,6 +665,76 @@ fbnic_mac_get_eth_mac_stats(struct fbnic_dev *fbd, bool reset,
 			    MAC_STAT_TX_BROADCAST);
 }
 
+static void
+fbnic_mac_get_eth_ctrl_stats(struct fbnic_dev *fbd, bool reset,
+			     struct fbnic_eth_ctrl_stats *ctrl_stats)
+{
+	fbnic_mac_stat_rd64(fbd, reset, ctrl_stats->MACControlFramesReceived,
+			    MAC_STAT_RX_CONTROL_FRAMES);
+	fbnic_mac_stat_rd64(fbd, reset, ctrl_stats->MACControlFramesTransmitted,
+			    MAC_STAT_TX_CONTROL_FRAMES);
+}
+
+static void
+fbnic_mac_get_rmon_stats(struct fbnic_dev *fbd, bool reset,
+			 struct fbnic_rmon_stats *rmon_stats)
+{
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->undersize_pkts,
+			    MAC_STAT_RX_UNDERSIZE);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->oversize_pkts,
+			    MAC_STAT_RX_OVERSIZE);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->fragments,
+			    MAC_STAT_RX_FRAGMENT);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->jabbers,
+			    MAC_STAT_RX_JABBER);
+
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[0],
+			    MAC_STAT_RX_PACKET_64_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[1],
+			    MAC_STAT_RX_PACKET_65_127_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[2],
+			    MAC_STAT_RX_PACKET_128_255_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[3],
+			    MAC_STAT_RX_PACKET_256_511_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[4],
+			    MAC_STAT_RX_PACKET_512_1023_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[5],
+			    MAC_STAT_RX_PACKET_1024_1518_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[6],
+			    RPC_STAT_RX_PACKET_1519_2047_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[7],
+			    RPC_STAT_RX_PACKET_2048_4095_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[8],
+			    RPC_STAT_RX_PACKET_4096_8191_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[9],
+			    RPC_STAT_RX_PACKET_8192_9216_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[10],
+			    RPC_STAT_RX_PACKET_9217_MAX_BYTES);
+
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[0],
+			    MAC_STAT_TX_PACKET_64_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[1],
+			    MAC_STAT_TX_PACKET_65_127_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[2],
+			    MAC_STAT_TX_PACKET_128_255_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[3],
+			    MAC_STAT_TX_PACKET_256_511_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[4],
+			    MAC_STAT_TX_PACKET_512_1023_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[5],
+			    MAC_STAT_TX_PACKET_1024_1518_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[6],
+			    TMI_STAT_TX_PACKET_1519_2047_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[7],
+			    TMI_STAT_TX_PACKET_2048_4095_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[8],
+			    TMI_STAT_TX_PACKET_4096_8191_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[9],
+			    TMI_STAT_TX_PACKET_8192_9216_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[10],
+			    TMI_STAT_TX_PACKET_9217_MAX_BYTES);
+}
+
 static int fbnic_mac_get_sensor_asic(struct fbnic_dev *fbd, int id,
 				     long *val)
 {
@@ -741,7 +796,7 @@ static int fbnic_mac_get_sensor_asic(struct fbnic_dev *fbd, int id,
 
 	*val = *sensor;
 exit_cleanup:
-	fbnic_fw_clear_cmpl(fbd, fw_cmpl);
+	fbnic_mbx_clear_cmpl(fbd, fw_cmpl);
 exit_free:
 	fbnic_fw_put_cmpl(fw_cmpl);
 
@@ -755,6 +810,8 @@ static const struct fbnic_mac fbnic_mac_asic = {
 	.pcs_get_link = fbnic_pcs_get_link_asic,
 	.pcs_get_link_event = fbnic_pcs_get_link_event_asic,
 	.get_eth_mac_stats = fbnic_mac_get_eth_mac_stats,
+	.get_eth_ctrl_stats = fbnic_mac_get_eth_ctrl_stats,
+	.get_rmon_stats = fbnic_mac_get_rmon_stats,
 	.link_down = fbnic_mac_link_down_asic,
 	.link_up = fbnic_mac_link_up_asic,
 	.get_sensor = fbnic_mac_get_sensor_asic,

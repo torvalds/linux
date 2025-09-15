@@ -112,7 +112,7 @@ static umode_t soc_dev_attr_is_visible(struct kobject *kobj,
 }
 
 static const struct attribute_group soc_dapm_dev_group = {
-	.attrs = soc_dapm_dev_attrs,
+	.attrs = snd_soc_dapm_dev_attrs,
 	.is_visible = soc_dev_attr_is_visible,
 };
 
@@ -369,20 +369,25 @@ struct snd_soc_component
 *snd_soc_lookup_component_nolocked(struct device *dev, const char *driver_name)
 {
 	struct snd_soc_component *component;
-	struct snd_soc_component *found_component;
 
-	found_component = NULL;
 	for_each_component(component) {
-		if ((dev == component->dev) &&
-		    (!driver_name ||
-		     (driver_name == component->driver->name) ||
-		     (strcmp(component->driver->name, driver_name) == 0))) {
-			found_component = component;
-			break;
-		}
+		if (dev != component->dev)
+			continue;
+
+		if (!driver_name)
+			return component;
+
+		if (!component->driver->name)
+			continue;
+
+		if (component->driver->name == driver_name)
+			return component;
+
+		if (strcmp(component->driver->name, driver_name) == 0)
+			return component;
 	}
 
-	return found_component;
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(snd_soc_lookup_component_nolocked);
 
@@ -681,7 +686,7 @@ int snd_soc_suspend(struct device *dev)
 	soc_dapm_suspend_resume(card, SND_SOC_DAPM_STREAM_SUSPEND);
 
 	/* Recheck all endpoints too, their state is affected by suspend */
-	dapm_mark_endpoints_dirty(card);
+	snd_soc_dapm_mark_endpoints_dirty(card);
 	snd_soc_dapm_sync(&card->dapm);
 
 	/* suspend all COMPONENTs */
@@ -778,7 +783,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	dev_dbg(card->dev, "ASoC: resume work completed\n");
 
 	/* Recheck all endpoints too, their state is affected by suspend */
-	dapm_mark_endpoints_dirty(card);
+	snd_soc_dapm_mark_endpoints_dirty(card);
 	snd_soc_dapm_sync(&card->dapm);
 
 	/* userspace can access us now we are back as we were before */
@@ -1139,6 +1144,9 @@ sanity_check:
 void snd_soc_remove_pcm_runtime(struct snd_soc_card *card,
 				struct snd_soc_pcm_runtime *rtd)
 {
+	if (!rtd)
+		return;
+
 	lockdep_assert_held(&client_mutex);
 
 	/*
@@ -2286,7 +2294,7 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 	}
 
 	card->instantiated = 1;
-	dapm_mark_endpoints_dirty(card);
+	snd_soc_dapm_mark_endpoints_dirty(card);
 	snd_soc_dapm_sync(&card->dapm);
 
 	/* deactivate pins to sleep state */
@@ -2604,6 +2612,7 @@ static char *fmt_single_name(struct device *dev, int *id)
 	const char *devname = dev_name(dev);
 	char *found, *name;
 	unsigned int id1, id2;
+	int __id;
 
 	if (devname == NULL)
 		return NULL;
@@ -2616,10 +2625,10 @@ static char *fmt_single_name(struct device *dev, int *id)
 	found = strstr(name, dev->driver->name);
 	if (found) {
 		/* get ID */
-		if (sscanf(&found[strlen(dev->driver->name)], ".%d", id) == 1) {
+		if (sscanf(&found[strlen(dev->driver->name)], ".%d", &__id) == 1) {
 
 			/* discard ID from name if ID == -1 */
-			if (*id == -1)
+			if (__id == -1)
 				found[strlen(dev->driver->name)] = '\0';
 		}
 
@@ -2627,15 +2636,18 @@ static char *fmt_single_name(struct device *dev, int *id)
 	} else if (sscanf(name, "%x-%x", &id1, &id2) == 2) {
 
 		/* create unique ID number from I2C addr and bus */
-		*id = ((id1 & 0xffff) << 16) + id2;
+		__id = ((id1 & 0xffff) << 16) + id2;
 
 		devm_kfree(dev, name);
 
 		/* sanitize component name for DAI link creation */
 		name = devm_kasprintf(dev, GFP_KERNEL, "%s.%s", dev->driver->name, devname);
 	} else {
-		*id = 0;
+		__id = 0;
 	}
+
+	if (id)
+		*id = __id;
 
 	return name;
 }
@@ -2831,7 +2843,7 @@ int snd_soc_component_initialize(struct snd_soc_component *component,
 	mutex_init(&component->io_mutex);
 
 	if (!component->name) {
-		component->name = fmt_single_name(dev, &component->id);
+		component->name = fmt_single_name(dev, NULL);
 		if (!component->name) {
 			dev_err(dev, "ASoC: Failed to allocate name\n");
 			return -ENOMEM;

@@ -3,6 +3,8 @@
 #define _MM_SWAP_H
 
 struct mempolicy;
+struct swap_iocb;
+
 extern int page_cluster;
 
 #ifdef CONFIG_SWAP
@@ -20,8 +22,8 @@ static inline void swap_read_unplug(struct swap_iocb *plug)
 		__swap_read_unplug(plug);
 }
 void swap_write_unplug(struct swap_iocb *sio);
-int swap_writeout(struct folio *folio, struct writeback_control *wbc);
-void __swap_writepage(struct folio *folio, struct writeback_control *wbc);
+int swap_writeout(struct folio *folio, struct swap_iocb **swap_plug);
+void __swap_writepage(struct folio *folio, struct swap_iocb **swap_plug);
 
 /* linux/mm/swap_state.c */
 /* One swap address space for each 64M swap space */
@@ -106,6 +108,25 @@ static inline int swap_zeromap_batch(swp_entry_t entry, int max_nr,
 		return find_next_bit(sis->zeromap, end, start) - start;
 }
 
+static inline int non_swapcache_batch(swp_entry_t entry, int max_nr)
+{
+	struct swap_info_struct *si = swp_swap_info(entry);
+	pgoff_t offset = swp_offset(entry);
+	int i;
+
+	/*
+	 * While allocating a large folio and doing mTHP swapin, we need to
+	 * ensure all entries are not cached, otherwise, the mTHP folio will
+	 * be in conflict with the folio in swap cache.
+	 */
+	for (i = 0; i < max_nr; i++) {
+		if ((si->swap_map[offset + i] & SWAP_HAS_CACHE))
+			return i;
+	}
+
+	return i;
+}
+
 #else /* CONFIG_SWAP */
 struct swap_iocb;
 static inline void swap_read_folio(struct folio *folio, struct swap_iocb **plug)
@@ -141,7 +162,8 @@ static inline struct folio *swapin_readahead(swp_entry_t swp, gfp_t gfp_mask,
 	return NULL;
 }
 
-static inline int swap_writeout(struct folio *f, struct writeback_control *wbc)
+static inline int swap_writeout(struct folio *folio,
+		struct swap_iocb **swap_plug)
 {
 	return 0;
 }
@@ -199,6 +221,10 @@ static inline int swap_zeromap_batch(swp_entry_t entry, int max_nr,
 	return 0;
 }
 
+static inline int non_swapcache_batch(swp_entry_t entry, int max_nr)
+{
+	return 0;
+}
 #endif /* CONFIG_SWAP */
 
 /**

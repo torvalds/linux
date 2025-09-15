@@ -646,7 +646,7 @@ static void get_meta_and_pte_attr(struct display_mode_lib *mode_lib,
 
 	// the dpte_group_bytes is reduced for the specific case of vertical
 	// access of a tile surface that has dpte request of 8x1 ptes.
-	if (!surf_linear & (log2_dpte_req_height_ptes == 0) & surf_vert) //reduced, in this case, will have page fault within a group
+	if (!surf_linear && (log2_dpte_req_height_ptes == 0) && surf_vert) //reduced, in this case, will have page fault within a group
 		rq_sizing_param->dpte_group_bytes = 512;
 	else
 		//full size

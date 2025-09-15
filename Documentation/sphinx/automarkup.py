@@ -23,12 +23,6 @@ from kernel_abi import get_kernel_abi
 RE_function = re.compile(r'\b(([a-zA-Z_]\w+)\(\))', flags=re.ASCII)
 
 #
-# Sphinx 2 uses the same :c:type role for struct, union, enum and typedef
-#
-RE_generic_type = re.compile(r'\b(struct|union|enum|typedef)\s+([a-zA-Z_]\w+)',
-                             flags=re.ASCII)
-
-#
 # Sphinx 3 uses a different C role for each one of struct, union, enum and
 # typedef
 #
@@ -150,20 +144,12 @@ def markup_func_ref_sphinx3(docname, app, match):
     return target_text
 
 def markup_c_ref(docname, app, match):
-    class_str = {# Sphinx 2 only
-                 RE_function: 'c-func',
-                 RE_generic_type: 'c-type',
-                 # Sphinx 3+ only
-                 RE_struct: 'c-struct',
+    class_str = {RE_struct: 'c-struct',
                  RE_union: 'c-union',
                  RE_enum: 'c-enum',
                  RE_typedef: 'c-type',
                  }
-    reftype_str = {# Sphinx 2 only
-                   RE_function: 'function',
-                   RE_generic_type: 'type',
-                   # Sphinx 3+ only
-                   RE_struct: 'struct',
+    reftype_str = {RE_struct: 'struct',
                    RE_union: 'union',
                    RE_enum: 'enum',
                    RE_typedef: 'type',
@@ -249,8 +235,13 @@ def add_and_resolve_xref(app, docname, domain, reftype, target, contnode=None):
 
     if xref:
         return xref
-
-    return None
+    #
+    # We didn't find the xref; if a container node was supplied,
+    # mark it as a broken xref
+    #
+    if contnode:
+        contnode['classes'].append("broken_xref")
+    return contnode
 
 #
 # Variant of markup_abi_ref() that warns whan a reference is not found
