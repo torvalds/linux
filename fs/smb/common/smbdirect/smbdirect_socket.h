@@ -120,6 +120,7 @@ struct smbdirect_socket {
 	/* IB verbs related */
 	struct {
 		struct ib_pd *pd;
+		enum ib_poll_context poll_ctx;
 		struct ib_cq *send_cq;
 		struct ib_cq *recv_cq;
 
@@ -497,6 +498,8 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 
 	INIT_WORK(&sc->disconnect_work, __smbdirect_socket_disabled_work);
 	disable_work_sync(&sc->disconnect_work);
+
+	sc->ib.poll_ctx = IB_POLL_UNBOUND_WORKQUEUE;
 
 	spin_lock_init(&sc->connect.lock);
 	INIT_WORK(&sc->connect.work, __smbdirect_socket_disabled_work);
