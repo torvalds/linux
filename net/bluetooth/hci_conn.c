@@ -149,8 +149,6 @@ static void hci_conn_cleanup(struct hci_conn *conn)
 
 	hci_chan_list_flush(conn);
 
-	hci_conn_hash_del(hdev, conn);
-
 	if (HCI_CONN_HANDLE_UNSET(conn->handle))
 		ida_free(&hdev->unset_handle_ida, conn->handle);
 
@@ -1152,28 +1150,54 @@ void hci_conn_del(struct hci_conn *conn)
 	disable_delayed_work_sync(&conn->auto_accept_work);
 	disable_delayed_work_sync(&conn->idle_work);
 
-	if (conn->type == ACL_LINK) {
-		/* Unacked frames */
-		hdev->acl_cnt += conn->sent;
-	} else if (conn->type == LE_LINK) {
-		cancel_delayed_work(&conn->le_conn_timeout);
+	/* Remove the connection from the list so unacked logic can detect when
+	 * a certain pool is not being utilized.
+	 */
+	hci_conn_hash_del(hdev, conn);
 
-		if (hdev->le_pkts)
-			hdev->le_cnt += conn->sent;
+	/* Handle unacked frames:
+	 *
+	 * - In case there are no connection, or if restoring the buffers
+	 *   considered in transist would overflow, restore all buffers to the
+	 *   pool.
+	 * - Otherwise restore just the buffers considered in transit for the
+	 *   hci_conn
+	 */
+	switch (conn->type) {
+	case ACL_LINK:
+		if (!hci_conn_num(hdev, ACL_LINK) ||
+		    hdev->acl_cnt + conn->sent > hdev->acl_pkts)
+			hdev->acl_cnt = hdev->acl_pkts;
 		else
 			hdev->acl_cnt += conn->sent;
-	} else {
-		/* Unacked ISO frames */
-		if (conn->type == CIS_LINK ||
-		    conn->type == BIS_LINK ||
-		    conn->type == PA_LINK) {
-			if (hdev->iso_pkts)
-				hdev->iso_cnt += conn->sent;
-			else if (hdev->le_pkts)
+		break;
+	case LE_LINK:
+		cancel_delayed_work(&conn->le_conn_timeout);
+
+		if (hdev->le_pkts) {
+			if (!hci_conn_num(hdev, LE_LINK) ||
+			    hdev->le_cnt + conn->sent > hdev->le_pkts)
+				hdev->le_cnt = hdev->le_pkts;
+			else
 				hdev->le_cnt += conn->sent;
+		} else {
+			if ((!hci_conn_num(hdev, LE_LINK) &&
+			     !hci_conn_num(hdev, ACL_LINK)) ||
+			    hdev->acl_cnt + conn->sent > hdev->acl_pkts)
+				hdev->acl_cnt = hdev->acl_pkts;
 			else
 				hdev->acl_cnt += conn->sent;
 		}
+		break;
+	case CIS_LINK:
+	case BIS_LINK:
+	case PA_LINK:
+		if (!hci_iso_count(hdev) ||
+		    hdev->iso_cnt + conn->sent > hdev->iso_pkts)
+			hdev->iso_cnt = hdev->iso_pkts;
+		else
+			hdev->iso_cnt += conn->sent;
+		break;
 	}
 
 	skb_queue_purge(&conn->data_q);

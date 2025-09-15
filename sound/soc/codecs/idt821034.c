@@ -1067,7 +1067,7 @@ static int idt821034_chip_direction_output(struct gpio_chip *c, unsigned int off
 
 	ret = idt821034_set_slic_conf(idt821034, ch, slic_conf);
 	if (ret) {
-		dev_err(&idt821034->spi->dev, "dir in gpio %d (%u, 0x%x) failed (%d)\n",
+		dev_err(&idt821034->spi->dev, "dir out gpio %d (%u, 0x%x) failed (%d)\n",
 			offset, ch, mask, ret);
 	}
 

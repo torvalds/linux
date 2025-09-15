@@ -2990,7 +2990,6 @@ static int ov64a40_start_streaming(struct ov64a40 *ov64a40,
 	return 0;
 
 error_power_off:
-	pm_runtime_mark_last_busy(ov64a40->dev);
 	pm_runtime_put_autosuspend(ov64a40->dev);
 
 	return ret;
@@ -3000,7 +2999,6 @@ static int ov64a40_stop_streaming(struct ov64a40 *ov64a40,
 				  struct v4l2_subdev_state *state)
 {
 	cci_update_bits(ov64a40->cci, OV64A40_REG_SMIA, BIT(0), 0, NULL);
-	pm_runtime_mark_last_busy(ov64a40->dev);
 	pm_runtime_put_autosuspend(ov64a40->dev);
 
 	__v4l2_ctrl_grab(ov64a40->link_freq, false);
@@ -3329,10 +3327,8 @@ static int ov64a40_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	if (pm_status > 0) {
-		pm_runtime_mark_last_busy(ov64a40->dev);
+	if (pm_status > 0)
 		pm_runtime_put_autosuspend(ov64a40->dev);
-	}
 
 	return ret;
 }
@@ -3622,7 +3618,6 @@ static int ov64a40_probe(struct i2c_client *client)
 		goto error_subdev_cleanup;
 	}
 
-	pm_runtime_mark_last_busy(&client->dev);
 	pm_runtime_put_autosuspend(&client->dev);
 
 	return 0;
