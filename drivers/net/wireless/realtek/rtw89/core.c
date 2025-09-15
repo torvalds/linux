@@ -1897,6 +1897,10 @@ static void rtw89_core_parse_phy_status_ie00(struct rtw89_dev *rtwdev,
 
 	tmp_rpl = le32_get_bits(ie->w0, RTW89_PHY_STS_IE00_W0_RPL);
 	phy_ppdu->rpl_avg = tmp_rpl >> 1;
+
+	if (!phy_ppdu->hdr_2_en)
+		phy_ppdu->rx_path_en =
+			le32_get_bits(ie->w3, RTW89_PHY_STS_IE00_W3_RX_PATH_EN);
 }
 
 static void rtw89_core_parse_phy_status_ie00_v2(struct rtw89_dev *rtwdev,
