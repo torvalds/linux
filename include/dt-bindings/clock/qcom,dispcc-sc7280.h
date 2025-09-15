@@ -52,4 +52,8 @@
 /* DISP_CC power domains */
 #define DISP_CC_MDSS_CORE_GDSC				0
 
+/* DISPCC resets */
+#define DISP_CC_MDSS_CORE_BCR				0
+#define DISP_CC_MDSS_RSCC_BCR				1
+
 #endif

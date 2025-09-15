@@ -1834,14 +1834,6 @@
 			iommus = <&apps_iommu 5>;
 			memory-region = <&venus_mem>;
 			status = "disabled";
-
-			video-decoder {
-				compatible = "venus-decoder";
-			};
-
-			video-encoder {
-				compatible = "venus-encoder";
-			};
 		};
 
 		apps_iommu: iommu@1ef0000 {

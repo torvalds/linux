@@ -44,7 +44,8 @@
 
 		clocks = <&clock_camcc CAM_CC_MCLK0_CLK>;
 		clock-names = "xvclk";
-		clock-frequency = <19200000>;
+		assigned-clocks = <&clock_camcc CAM_CC_MCLK0_CLK>;
+		assigned-clock-rates = <19200000>;
 
 		/*
 		 * The &vreg_s4a_1p8 trace is powered on as a,

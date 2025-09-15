@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "sm8250-samsung-common.dtsi"
+
+/ {
+	model = "Samsung Galaxy S20";
+	compatible = "samsung,x1q", "qcom,sm8250";
+	chassis-type = "handset";
+};
+
+&adsp {
+	firmware-name = "qcom/sm8250/Samsung/x1q/adsp.mbn";
+	status = "okay";
+};
+
+&cdsp {
+	firmware-name = "qcom/sm8250/Samsung/x1q/cdsp.mbn";
+	status = "okay";
+};
+
+&slpi {
+	firmware-name = "qcom/sm8250/Samsung/x1q/slpi.mbn";
+	status = "okay";
+};

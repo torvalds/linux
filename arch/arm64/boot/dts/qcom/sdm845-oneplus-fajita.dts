@@ -10,8 +10,6 @@
 / {
 	model = "OnePlus 6T";
 	compatible = "oneplus,fajita", "qcom,sdm845";
-	chassis-type = "handset";
-	qcom,msm-id = <0x141 0x20001>;
 	qcom,board-id = <8 0 18801 41>;
 
 	battery: battery {
@@ -20,6 +18,14 @@
 		charge-full-design-microamp-hours = <3700000>;
 		voltage-min-design-microvolt = <3400000>;
 		voltage-max-design-microvolt = <4400000>;
+
+		/*
+		 * Typical designs have multiple charger ICs which can handle more
+		 * current but the OnePlus 6/T do not, hence the lower limit. This
+		 * does not apply when using the Dash Charger, however this is not
+		 * yet supported.
+		 */
+		constant-charge-current-max-microamp = <1800000>;
 	};
 };
 
