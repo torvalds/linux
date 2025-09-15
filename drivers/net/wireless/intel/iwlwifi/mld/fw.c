@@ -124,7 +124,6 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	u16 status;
 
 	switch (version) {
-	case 6:
 	case 7:
 		expected_sz = sizeof(struct iwl_alive_ntf_v7);
 		break;
@@ -188,9 +187,8 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 		     le32_to_cpu(umac->umac_major),
 		     le32_to_cpu(umac->umac_minor));
 
-	if (version >= 7)
-		IWL_DEBUG_FW(mld, "FW alive flags 0x%x\n",
-			     le16_to_cpu(palive->flags));
+	IWL_DEBUG_FW(mld, "FW alive flags 0x%x\n",
+		     le16_to_cpu(palive->flags));
 
 	if (version >= 8)
 		IWL_DEBUG_FW(mld, "platform_id 0x%llx\n",
