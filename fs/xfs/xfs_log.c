@@ -2656,10 +2656,11 @@ restart:
 	 * until you know exactly how many bytes get copied.  Therefore, wait
 	 * until later to update ic_offset.
 	 *
-	 * xlog_write() algorithm assumes that at least 2 xlog_op_header_t's
+	 * xlog_write() algorithm assumes that at least 2 xlog_op_header's
 	 * can fit into remaining data section.
 	 */
-	if (iclog->ic_size - iclog->ic_offset < 2*sizeof(xlog_op_header_t)) {
+	if (iclog->ic_size - iclog->ic_offset <
+	    2 * sizeof(struct xlog_op_header)) {
 		int		error = 0;
 
 		xlog_state_switch_iclogs(log, iclog, iclog->ic_size);
@@ -3153,11 +3154,11 @@ xlog_calc_unit_res(
 	 */
 
 	/* for trans header */
-	unit_bytes += sizeof(xlog_op_header_t);
+	unit_bytes += sizeof(struct xlog_op_header);
 	unit_bytes += sizeof(xfs_trans_header_t);
 
 	/* for start-rec */
-	unit_bytes += sizeof(xlog_op_header_t);
+	unit_bytes += sizeof(struct xlog_op_header);
 
 	/*
 	 * for LR headers - the space for data in an iclog is the size minus
@@ -3180,12 +3181,12 @@ xlog_calc_unit_res(
 	num_headers = howmany(unit_bytes, iclog_space);
 
 	/* for split-recs - ophdrs added when data split over LRs */
-	unit_bytes += sizeof(xlog_op_header_t) * num_headers;
+	unit_bytes += sizeof(struct xlog_op_header) * num_headers;
 
 	/* add extra header reservations if we overrun */
 	while (!num_headers ||
 	       howmany(unit_bytes, iclog_space) > num_headers) {
-		unit_bytes += sizeof(xlog_op_header_t);
+		unit_bytes += sizeof(struct xlog_op_header);
 		num_headers++;
 	}
 	unit_bytes += log->l_iclog_hsize * num_headers;
@@ -3322,7 +3323,7 @@ xlog_verify_iclog(
 	struct xlog_in_core	*iclog,
 	int			count)
 {
-	xlog_op_header_t	*ophead;
+	struct xlog_op_header	*ophead;
 	xlog_in_core_t		*icptr;
 	xlog_in_core_2_t	*xhdr;
 	void			*base_ptr, *ptr, *p;
@@ -3400,7 +3401,7 @@ xlog_verify_iclog(
 				op_len = be32_to_cpu(iclog->ic_header.h_cycle_data[idx]);
 			}
 		}
-		ptr += sizeof(xlog_op_header_t) + op_len;
+		ptr += sizeof(struct xlog_op_header) + op_len;
 	}
 }
 #endif
