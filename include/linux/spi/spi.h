@@ -170,6 +170,7 @@ extern void spi_transfer_cs_change_delay_exec(struct spi_message *msg,
  *	two delays will be added up.
  * @chip_select: Array of physical chipselect, spi->chipselect[i] gives
  *	the corresponding physical CS for logical CS i.
+ * @num_chipselect: Number of physical chipselects used.
  * @cs_index_mask: Bit mask of the active chipselect(s) in the chipselect array
  * @cs_gpiod: Array of GPIO descriptors of the corresponding chipselect lines
  *	(optional, NULL when not using a GPIO line)
@@ -229,6 +230,7 @@ struct spi_device {
 	struct spi_delay	cs_inactive;
 
 	u8			chip_select[SPI_CS_CNT_MAX];
+	u8			num_chipselect;
 
 	/*
 	 * Bit mask of the chipselect(s) that the driver need to use from
@@ -315,7 +317,7 @@ static inline bool spi_is_csgpiod(struct spi_device *spi)
 {
 	u8 idx;
 
-	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
+	for (idx = 0; idx < spi->num_chipselect; idx++) {
 		if (spi_get_csgpiod(spi, idx))
 			return true;
 	}
