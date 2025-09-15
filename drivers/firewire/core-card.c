@@ -240,7 +240,7 @@ static void br_work(struct work_struct *work)
 
 	/* Delay for 2s after last reset per IEEE 1394 clause 8.2.1. */
 	if (card->reset_jiffies != 0 &&
-	    time_before64(get_jiffies_64(), card->reset_jiffies + secs_to_jiffies(2))) {
+	    time_is_after_jiffies64(card->reset_jiffies + secs_to_jiffies(2))) {
 		trace_bus_reset_postpone(card->index, card->generation, card->br_short);
 
 		if (!queue_delayed_work(fw_workqueue, &card->br_work, secs_to_jiffies(2)))
@@ -308,7 +308,7 @@ static void bm_work(struct work_struct *work)
 	irm_id   = card->irm_node->node_id;
 	local_id = card->local_node->node_id;
 
-	grace = time_after64(get_jiffies_64(), card->reset_jiffies + msecs_to_jiffies(125));
+	grace = time_is_before_jiffies64(card->reset_jiffies + msecs_to_jiffies(125));
 
 	if ((is_next_generation(generation, card->bm_generation) &&
 	     !card->bm_abdicate) ||

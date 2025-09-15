@@ -855,8 +855,7 @@ static void fw_device_shutdown(struct work_struct *work)
 {
 	struct fw_device *device = from_work(device, work, work.work);
 
-	if (time_before64(get_jiffies_64(),
-			  device->card->reset_jiffies + SHUTDOWN_DELAY)
+	if (time_is_after_jiffies64(device->card->reset_jiffies + SHUTDOWN_DELAY)
 	    && !list_empty(&device->card->link)) {
 		fw_schedule_device_work(device, SHUTDOWN_DELAY);
 		return;

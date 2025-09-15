@@ -1324,7 +1324,7 @@ static void iso_resource_work(struct work_struct *work)
 		todo = r->todo;
 		// Allow 1000ms grace period for other reallocations.
 		if (todo == ISO_RES_ALLOC &&
-		    time_before64(get_jiffies_64(), client->device->card->reset_jiffies + secs_to_jiffies(1))) {
+		    time_is_after_jiffies64(client->device->card->reset_jiffies + secs_to_jiffies(1))) {
 			schedule_iso_resource(r, msecs_to_jiffies(333));
 			skip = true;
 		} else {
