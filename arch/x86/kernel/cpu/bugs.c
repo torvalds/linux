@@ -1845,7 +1845,8 @@ enum spectre_v2_mitigation_cmd {
 	SPECTRE_V2_CMD_IBRS,
 };
 
-static enum spectre_v2_mitigation_cmd spectre_v2_cmd __ro_after_init = SPECTRE_V2_CMD_AUTO;
+static enum spectre_v2_mitigation_cmd spectre_v2_cmd __ro_after_init =
+	IS_ENABLED(CONFIG_MITIGATION_SPECTRE_V2) ? SPECTRE_V2_CMD_AUTO : SPECTRE_V2_CMD_NONE;
 
 enum spectre_v2_user_mitigation_cmd {
 	SPECTRE_V2_USER_CMD_NONE,
@@ -2039,112 +2040,51 @@ static const char * const spectre_v2_strings[] = {
 	[SPECTRE_V2_IBRS]			= "Mitigation: IBRS",
 };
 
-static const struct {
-	const char *option;
-	enum spectre_v2_mitigation_cmd cmd;
-	bool secure;
-} mitigation_options[] __initconst = {
-	{ "off",		SPECTRE_V2_CMD_NONE,		  false },
-	{ "on",			SPECTRE_V2_CMD_FORCE,		  true  },
-	{ "retpoline",		SPECTRE_V2_CMD_RETPOLINE,	  false },
-	{ "retpoline,amd",	SPECTRE_V2_CMD_RETPOLINE_LFENCE,  false },
-	{ "retpoline,lfence",	SPECTRE_V2_CMD_RETPOLINE_LFENCE,  false },
-	{ "retpoline,generic",	SPECTRE_V2_CMD_RETPOLINE_GENERIC, false },
-	{ "eibrs",		SPECTRE_V2_CMD_EIBRS,		  false },
-	{ "eibrs,lfence",	SPECTRE_V2_CMD_EIBRS_LFENCE,	  false },
-	{ "eibrs,retpoline",	SPECTRE_V2_CMD_EIBRS_RETPOLINE,	  false },
-	{ "auto",		SPECTRE_V2_CMD_AUTO,		  false },
-	{ "ibrs",		SPECTRE_V2_CMD_IBRS,              false },
-};
+static bool nospectre_v2 __ro_after_init;
 
-static void __init spec_v2_print_cond(const char *reason, bool secure)
+static int __init nospectre_v2_parse_cmdline(char *str)
 {
-	if (boot_cpu_has_bug(X86_BUG_SPECTRE_V2) != secure)
-		pr_info("%s selected on command line.\n", reason);
+	nospectre_v2 = true;
+	spectre_v2_cmd = SPECTRE_V2_CMD_NONE;
+	return 0;
 }
+early_param("nospectre_v2", nospectre_v2_parse_cmdline);
 
-static enum spectre_v2_mitigation_cmd __init spectre_v2_parse_cmdline(void)
+static int __init spectre_v2_parse_cmdline(char *str)
 {
-	enum spectre_v2_mitigation_cmd cmd;
-	char arg[20];
-	int ret, i;
+	if (!str)
+		return -EINVAL;
 
-	cmd = IS_ENABLED(CONFIG_MITIGATION_SPECTRE_V2) ?  SPECTRE_V2_CMD_AUTO : SPECTRE_V2_CMD_NONE;
-	if (cmdline_find_option_bool(boot_command_line, "nospectre_v2"))
-		return SPECTRE_V2_CMD_NONE;
+	if (nospectre_v2)
+		return 0;
 
-	ret = cmdline_find_option(boot_command_line, "spectre_v2", arg, sizeof(arg));
-	if (ret < 0)
-		return cmd;
+	if (!strcmp(str, "off"))
+		spectre_v2_cmd = SPECTRE_V2_CMD_NONE;
+	else if (!strcmp(str, "on"))
+		spectre_v2_cmd = SPECTRE_V2_CMD_FORCE;
+	else if (!strcmp(str, "retpoline"))
+		spectre_v2_cmd = SPECTRE_V2_CMD_RETPOLINE;
+	else if (!strcmp(str, "retpoline,amd") ||
+		 !strcmp(str, "retpoline,lfence"))
+		spectre_v2_cmd = SPECTRE_V2_CMD_RETPOLINE_LFENCE;
+	else if (!strcmp(str, "retpoline,generic"))
+		spectre_v2_cmd = SPECTRE_V2_CMD_RETPOLINE_GENERIC;
+	else if (!strcmp(str, "eibrs"))
+		spectre_v2_cmd = SPECTRE_V2_CMD_EIBRS;
+	else if (!strcmp(str, "eibrs,lfence"))
+		spectre_v2_cmd = SPECTRE_V2_CMD_EIBRS_LFENCE;
+	else if (!strcmp(str, "eibrs,retpoline"))
+		spectre_v2_cmd = SPECTRE_V2_CMD_EIBRS_RETPOLINE;
+	else if (!strcmp(str, "auto"))
+		spectre_v2_cmd = SPECTRE_V2_CMD_AUTO;
+	else if (!strcmp(str, "ibrs"))
+		spectre_v2_cmd = SPECTRE_V2_CMD_IBRS;
+	else
+		pr_err("Ignoring unknown spectre_v2 option (%s).", str);
 
-	for (i = 0; i < ARRAY_SIZE(mitigation_options); i++) {
-		if (!match_option(arg, ret, mitigation_options[i].option))
-			continue;
-		cmd = mitigation_options[i].cmd;
-		break;
-	}
-
-	if (i >= ARRAY_SIZE(mitigation_options)) {
-		pr_err("unknown option (%s). Switching to default mode\n", arg);
-		return cmd;
-	}
-
-	if ((cmd == SPECTRE_V2_CMD_RETPOLINE ||
-	     cmd == SPECTRE_V2_CMD_RETPOLINE_LFENCE ||
-	     cmd == SPECTRE_V2_CMD_RETPOLINE_GENERIC ||
-	     cmd == SPECTRE_V2_CMD_EIBRS_LFENCE ||
-	     cmd == SPECTRE_V2_CMD_EIBRS_RETPOLINE) &&
-	    !IS_ENABLED(CONFIG_MITIGATION_RETPOLINE)) {
-		pr_err("%s selected but not compiled in. Switching to AUTO select\n",
-		       mitigation_options[i].option);
-		return SPECTRE_V2_CMD_AUTO;
-	}
-
-	if ((cmd == SPECTRE_V2_CMD_EIBRS ||
-	     cmd == SPECTRE_V2_CMD_EIBRS_LFENCE ||
-	     cmd == SPECTRE_V2_CMD_EIBRS_RETPOLINE) &&
-	    !boot_cpu_has(X86_FEATURE_IBRS_ENHANCED)) {
-		pr_err("%s selected but CPU doesn't have Enhanced or Automatic IBRS. Switching to AUTO select\n",
-		       mitigation_options[i].option);
-		return SPECTRE_V2_CMD_AUTO;
-	}
-
-	if ((cmd == SPECTRE_V2_CMD_RETPOLINE_LFENCE ||
-	     cmd == SPECTRE_V2_CMD_EIBRS_LFENCE) &&
-	    !boot_cpu_has(X86_FEATURE_LFENCE_RDTSC)) {
-		pr_err("%s selected, but CPU doesn't have a serializing LFENCE. Switching to AUTO select\n",
-		       mitigation_options[i].option);
-		return SPECTRE_V2_CMD_AUTO;
-	}
-
-	if (cmd == SPECTRE_V2_CMD_IBRS && !IS_ENABLED(CONFIG_MITIGATION_IBRS_ENTRY)) {
-		pr_err("%s selected but not compiled in. Switching to AUTO select\n",
-		       mitigation_options[i].option);
-		return SPECTRE_V2_CMD_AUTO;
-	}
-
-	if (cmd == SPECTRE_V2_CMD_IBRS && boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) {
-		pr_err("%s selected but not Intel CPU. Switching to AUTO select\n",
-		       mitigation_options[i].option);
-		return SPECTRE_V2_CMD_AUTO;
-	}
-
-	if (cmd == SPECTRE_V2_CMD_IBRS && !boot_cpu_has(X86_FEATURE_IBRS)) {
-		pr_err("%s selected but CPU doesn't have IBRS. Switching to AUTO select\n",
-		       mitigation_options[i].option);
-		return SPECTRE_V2_CMD_AUTO;
-	}
-
-	if (cmd == SPECTRE_V2_CMD_IBRS && cpu_feature_enabled(X86_FEATURE_XENPV)) {
-		pr_err("%s selected but running as XenPV guest. Switching to AUTO select\n",
-		       mitigation_options[i].option);
-		return SPECTRE_V2_CMD_AUTO;
-	}
-
-	spec_v2_print_cond(mitigation_options[i].option,
-			   mitigation_options[i].secure);
-	return cmd;
+	return 0;
 }
+early_param("spectre_v2", spectre_v2_parse_cmdline);
 
 static enum spectre_v2_mitigation __init spectre_v2_select_retpoline(void)
 {
@@ -2332,7 +2272,50 @@ static void __init bhi_apply_mitigation(void)
 
 static void __init spectre_v2_select_mitigation(void)
 {
-	spectre_v2_cmd = spectre_v2_parse_cmdline();
+	if ((spectre_v2_cmd == SPECTRE_V2_CMD_RETPOLINE ||
+	     spectre_v2_cmd == SPECTRE_V2_CMD_RETPOLINE_LFENCE ||
+	     spectre_v2_cmd == SPECTRE_V2_CMD_RETPOLINE_GENERIC ||
+	     spectre_v2_cmd == SPECTRE_V2_CMD_EIBRS_LFENCE ||
+	     spectre_v2_cmd == SPECTRE_V2_CMD_EIBRS_RETPOLINE) &&
+	    !IS_ENABLED(CONFIG_MITIGATION_RETPOLINE)) {
+		pr_err("RETPOLINE selected but not compiled in. Switching to AUTO select\n");
+		spectre_v2_cmd = SPECTRE_V2_CMD_AUTO;
+	}
+
+	if ((spectre_v2_cmd == SPECTRE_V2_CMD_EIBRS ||
+	     spectre_v2_cmd == SPECTRE_V2_CMD_EIBRS_LFENCE ||
+	     spectre_v2_cmd == SPECTRE_V2_CMD_EIBRS_RETPOLINE) &&
+	    !boot_cpu_has(X86_FEATURE_IBRS_ENHANCED)) {
+		pr_err("EIBRS selected but CPU doesn't have Enhanced or Automatic IBRS. Switching to AUTO select\n");
+		spectre_v2_cmd = SPECTRE_V2_CMD_AUTO;
+	}
+
+	if ((spectre_v2_cmd == SPECTRE_V2_CMD_RETPOLINE_LFENCE ||
+	     spectre_v2_cmd == SPECTRE_V2_CMD_EIBRS_LFENCE) &&
+	    !boot_cpu_has(X86_FEATURE_LFENCE_RDTSC)) {
+		pr_err("LFENCE selected, but CPU doesn't have a serializing LFENCE. Switching to AUTO select\n");
+		spectre_v2_cmd = SPECTRE_V2_CMD_AUTO;
+	}
+
+	if (spectre_v2_cmd == SPECTRE_V2_CMD_IBRS && !IS_ENABLED(CONFIG_MITIGATION_IBRS_ENTRY)) {
+		pr_err("IBRS selected but not compiled in. Switching to AUTO select\n");
+		spectre_v2_cmd = SPECTRE_V2_CMD_AUTO;
+	}
+
+	if (spectre_v2_cmd == SPECTRE_V2_CMD_IBRS && boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) {
+		pr_err("IBRS selected but not Intel CPU. Switching to AUTO select\n");
+		spectre_v2_cmd = SPECTRE_V2_CMD_AUTO;
+	}
+
+	if (spectre_v2_cmd == SPECTRE_V2_CMD_IBRS && !boot_cpu_has(X86_FEATURE_IBRS)) {
+		pr_err("IBRS selected but CPU doesn't have IBRS. Switching to AUTO select\n");
+		spectre_v2_cmd = SPECTRE_V2_CMD_AUTO;
+	}
+
+	if (spectre_v2_cmd == SPECTRE_V2_CMD_IBRS && cpu_feature_enabled(X86_FEATURE_XENPV)) {
+		pr_err("IBRS selected but running as XenPV guest. Switching to AUTO select\n");
+		spectre_v2_cmd = SPECTRE_V2_CMD_AUTO;
+	}
 
 	if (!boot_cpu_has_bug(X86_BUG_SPECTRE_V2) &&
 	    (spectre_v2_cmd == SPECTRE_V2_CMD_NONE || spectre_v2_cmd == SPECTRE_V2_CMD_AUTO))
