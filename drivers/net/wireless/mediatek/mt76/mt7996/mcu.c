@@ -242,6 +242,30 @@ mt7996_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 	return ret;
 }
 
+static void
+mt7996_mcu_set_timeout(struct mt76_dev *mdev, int cmd)
+{
+	mdev->mcu.timeout = 5 * HZ;
+
+	if (!(cmd & __MCU_CMD_FIELD_UNI))
+		return;
+
+	switch (FIELD_GET(__MCU_CMD_FIELD_ID, cmd)) {
+	case MCU_UNI_CMD_THERMAL:
+	case MCU_UNI_CMD_TWT:
+	case MCU_UNI_CMD_GET_MIB_INFO:
+	case MCU_UNI_CMD_STA_REC_UPDATE:
+	case MCU_UNI_CMD_BSS_INFO_UPDATE:
+		mdev->mcu.timeout = 2 * HZ;
+		return;
+	case MCU_UNI_CMD_EFUSE_CTRL:
+		mdev->mcu.timeout = 20 * HZ;
+		return;
+	default:
+		break;
+	}
+}
+
 static int
 mt7996_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			int cmd, int *wait_seq)
@@ -255,7 +279,7 @@ mt7996_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	u32 val;
 	u8 seq;
 
-	mdev->mcu.timeout = 20 * HZ;
+	mt7996_mcu_set_timeout(mdev, cmd);
 
 	seq = ++dev->mt76.mcu.msg_seq & 0xf;
 	if (!seq)
