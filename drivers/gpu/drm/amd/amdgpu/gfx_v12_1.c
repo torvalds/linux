@@ -2668,6 +2668,17 @@ static void gfx_v12_1_xcc_disable_early_write_ack(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regTCP_CNTL3, data);
 }
 
+static void gfx_v12_1_xcc_disable_tcp_spill_cache(struct amdgpu_device *adev,
+					int xcc_id)
+{
+	uint32_t data;
+
+	data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regTCP_CNTL);
+	data = REG_SET_FIELD(data, TCP_CNTL, TCP_SPILL_CACHE_DISABLE, 0x1);
+
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regTCP_CNTL, data);
+}
+
 static void gfx_v12_1_init_golden_registers(struct amdgpu_device *adev)
 {
 	int i;
@@ -2677,6 +2688,7 @@ static void gfx_v12_1_init_golden_registers(struct amdgpu_device *adev)
 		gfx_v12_1_xcc_enable_atomics(adev, i);
 		gfx_v12_1_xcc_setup_tcp_thrashing_ctrl(adev, i);
 		gfx_v12_1_xcc_disable_early_write_ack(adev, i);
+		gfx_v12_1_xcc_disable_tcp_spill_cache(adev, i);
 	}
 }
 
