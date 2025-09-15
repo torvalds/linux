@@ -6,6 +6,7 @@
 #include "messages.h"
 #include "ctree.h"
 #include "disk-io.h"
+#include "file-item.h"
 #include "print-tree.h"
 #include "accessors.h"
 #include "tree-checker.h"
@@ -423,8 +424,9 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 				btrfs_file_extent_type(l, fi));
 			if (btrfs_file_extent_type(l, fi) ==
 			    BTRFS_FILE_EXTENT_INLINE) {
-				pr_info("\t\tinline extent data size %llu\n",
-				       btrfs_file_extent_ram_bytes(l, fi));
+				pr_info("\t\tinline extent data size %u ram_bytes %llu\n",
+					btrfs_file_extent_inline_item_len(l, i),
+					btrfs_file_extent_ram_bytes(l, fi));
 				break;
 			}
 			pr_info("\t\textent data disk bytenr %llu nr %llu\n",
