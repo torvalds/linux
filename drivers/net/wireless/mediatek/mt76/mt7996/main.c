@@ -185,10 +185,13 @@ mt7996_set_hw_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		  unsigned int link_id, struct ieee80211_key_conf *key)
 {
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+	struct ieee80211_bss_conf *link_conf;
 	struct mt7996_sta_link *msta_link;
 	struct mt7996_vif_link *link;
 	int idx = key->keyidx;
 	u8 *wcid_keyidx;
+	bool is_bigtk;
+	int err;
 
 	link = mt7996_vif_link(dev, vif, link_id);
 	if (!link)
@@ -213,12 +216,13 @@ mt7996_set_hw_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 	wcid_keyidx = &msta_link->wcid.hw_key_idx;
 
+	is_bigtk = key->keyidx == 6 || key->keyidx == 7;
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-		if (key->keyidx == 6 || key->keyidx == 7) {
+		if (is_bigtk) {
 			wcid_keyidx = &msta_link->wcid.hw_key_idx2;
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
 		}
@@ -227,14 +231,11 @@ mt7996_set_hw_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		break;
 	}
 
+	link_conf = link_conf_dereference_protected(vif, link_id);
+	if (!link_conf)
+		link_conf = &vif->bss_conf;
+
 	if (cmd == SET_KEY && !sta && !link->mt76.cipher) {
-		struct ieee80211_bss_conf *link_conf;
-
-		link_conf = link_conf_dereference_protected(vif,
-							    link_id);
-		if (!link_conf)
-			link_conf = &vif->bss_conf;
-
 		link->mt76.cipher =
 			mt76_connac_mcu_get_cipher(key->cipher);
 		mt7996_mcu_add_bss_info(link->phy, vif, link_conf,
@@ -251,9 +252,17 @@ mt7996_set_hw_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	mt76_wcid_key_setup(&dev->mt76, &msta_link->wcid, key);
 
-	return mt7996_mcu_add_key(&dev->mt76, vif, key,
-				  MCU_WMWA_UNI_CMD(STA_REC_UPDATE),
-				  &msta_link->wcid, cmd);
+	err = mt7996_mcu_add_key(&dev->mt76, vif, key,
+				 MCU_WMWA_UNI_CMD(STA_REC_UPDATE),
+				 &msta_link->wcid, cmd);
+
+	/* remove and add beacon in order to enable beacon protection */
+	if (cmd == SET_KEY && is_bigtk && link_conf->enable_beacon) {
+		mt7996_mcu_add_beacon(hw, vif, link_conf, false);
+		mt7996_mcu_add_beacon(hw, vif, link_conf, true);
+	}
+
+	return err;
 }
 
 struct mt7996_key_iter_data {
@@ -900,7 +909,7 @@ mt7996_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		link->mt76.beacon_rates_idx =
 			mt7996_get_rates_table(phy, info, true, false);
 
-		mt7996_mcu_add_beacon(hw, vif, info);
+		mt7996_mcu_add_beacon(hw, vif, info, info->enable_beacon);
 	}
 
 	if (changed & (BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
@@ -928,7 +937,7 @@ mt7996_channel_switch_beacon(struct ieee80211_hw *hw,
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 
 	mutex_lock(&dev->mt76.mutex);
-	mt7996_mcu_add_beacon(hw, vif, &vif->bss_conf);
+	mt7996_mcu_add_beacon(hw, vif, &vif->bss_conf, vif->bss_conf.enable_beacon);
 	mutex_unlock(&dev->mt76.mutex);
 }
 

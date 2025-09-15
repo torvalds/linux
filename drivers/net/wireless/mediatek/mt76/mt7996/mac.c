@@ -2176,7 +2176,8 @@ mt7996_update_vif_beacon(void *priv, u8 *mac, struct ieee80211_vif *vif)
 		if (!link || link->phy != phy)
 			continue;
 
-		mt7996_mcu_add_beacon(dev->mt76.hw, vif, link_conf);
+		mt7996_mcu_add_beacon(dev->mt76.hw, vif, link_conf,
+				      link_conf->enable_beacon);
 	}
 }
 

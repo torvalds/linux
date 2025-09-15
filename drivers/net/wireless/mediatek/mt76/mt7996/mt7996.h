@@ -682,7 +682,7 @@ int mt7996_mcu_update_bss_color(struct mt7996_dev *dev,
 				struct mt76_vif_link *mlink,
 				struct cfg80211_he_bss_color *he_bss_color);
 int mt7996_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			  struct ieee80211_bss_conf *link_conf);
+			  struct ieee80211_bss_conf *link_conf, bool enabled);
 int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
 				    struct ieee80211_bss_conf *link_conf,
 				    struct mt7996_vif_link *link, u32 changed);

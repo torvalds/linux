@@ -2760,7 +2760,7 @@ mt7996_mcu_beacon_cont(struct mt7996_dev *dev,
 }
 
 int mt7996_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			  struct ieee80211_bss_conf *link_conf)
+			  struct ieee80211_bss_conf *link_conf, bool enabled)
 {
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 	struct mt7996_vif_link *link = mt7996_vif_conf_link(dev, vif, link_conf);
@@ -2771,7 +2771,6 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct tlv *tlv;
 	struct bss_bcn_content_tlv *bcn;
 	int len, extra_len = 0;
-	bool enabled = link_conf->enable_beacon;
 
 	if (link_conf->nontransmitted)
 		return 0;
