@@ -331,8 +331,7 @@ int __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 				break;
 			total_len += sent;
 		}
-
-}
+	}
 
 unmask:
 	sigprocmask(SIG_SETMASK, &oldmask, NULL);
