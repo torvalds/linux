@@ -642,12 +642,14 @@
 	power-monitor@12 {
 		compatible = "ti,lm5066i";
 		reg = <0x12>;
+		shunt-resistor-micro-ohms = <183>;
 	};
 
 	// PDB
 	power-monitor@14 {
 		compatible = "ti,lm5066i";
 		reg = <0x14>;
+		shunt-resistor-micro-ohms = <183>;
 	};
 
 	// Module 0
