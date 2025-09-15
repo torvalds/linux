@@ -44,6 +44,43 @@ static void sha256_blocks(struct sha256_block_state *state,
 	}
 }
 
+static_assert(offsetof(struct __sha256_ctx, state) == 0);
+static_assert(offsetof(struct __sha256_ctx, bytecount) == 32);
+static_assert(offsetof(struct __sha256_ctx, buf) == 40);
+asmlinkage void sha256_ce_finup2x(const struct __sha256_ctx *ctx,
+				  const u8 *data1, const u8 *data2, int len,
+				  u8 out1[SHA256_DIGEST_SIZE],
+				  u8 out2[SHA256_DIGEST_SIZE]);
+
+#define sha256_finup_2x_arch sha256_finup_2x_arch
+static bool sha256_finup_2x_arch(const struct __sha256_ctx *ctx,
+				 const u8 *data1, const u8 *data2, size_t len,
+				 u8 out1[SHA256_DIGEST_SIZE],
+				 u8 out2[SHA256_DIGEST_SIZE])
+{
+	/*
+	 * The assembly requires len >= SHA256_BLOCK_SIZE && len <= INT_MAX.
+	 * Further limit len to 65536 to avoid spending too long with preemption
+	 * disabled.  (Of course, in practice len is nearly always 4096 anyway.)
+	 */
+	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
+	    static_branch_likely(&have_ce) && len >= SHA256_BLOCK_SIZE &&
+	    len <= 65536 && likely(may_use_simd())) {
+		kernel_neon_begin();
+		sha256_ce_finup2x(ctx, data1, data2, len, out1, out2);
+		kernel_neon_end();
+		kmsan_unpoison_memory(out1, SHA256_DIGEST_SIZE);
+		kmsan_unpoison_memory(out2, SHA256_DIGEST_SIZE);
+		return true;
+	}
+	return false;
+}
+
+static bool sha256_finup_2x_is_optimized_arch(void)
+{
+	return static_key_enabled(&have_ce);
+}
+
 #ifdef CONFIG_KERNEL_MODE_NEON
 #define sha256_mod_init_arch sha256_mod_init_arch
 static inline void sha256_mod_init_arch(void)
