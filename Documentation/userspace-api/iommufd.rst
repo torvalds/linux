@@ -43,7 +43,7 @@ Following IOMMUFD objects are exposed to userspace:
 
 - IOMMUFD_OBJ_HWPT_PAGING, representing an actual hardware I/O page table
   (i.e. a single struct iommu_domain) managed by the iommu driver. "PAGING"
-  primarly indicates this type of HWPT should be linked to an IOAS. It also
+  primarily indicates this type of HWPT should be linked to an IOAS. It also
   indicates that it is backed by an iommu_domain with __IOMMU_DOMAIN_PAGING
   feature flag. This can be either an UNMANAGED stage-1 domain for a device
   running in the user space, or a nesting parent stage-2 domain for mappings
@@ -76,7 +76,7 @@ Following IOMMUFD objects are exposed to userspace:
 
   * Security namespace for guest owned ID, e.g. guest-controlled cache tags
   * Non-device-affiliated event reporting, e.g. invalidation queue errors
-  * Access to a sharable nesting parent pagetable across physical IOMMUs
+  * Access to a shareable nesting parent pagetable across physical IOMMUs
   * Virtualization of various platforms IDs, e.g. RIDs and others
   * Delivery of paravirtualized invalidation
   * Direct assigned invalidation queues

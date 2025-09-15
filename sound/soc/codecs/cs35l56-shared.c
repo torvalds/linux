@@ -838,6 +838,15 @@ const struct cirrus_amp_cal_controls cs35l56_calibration_controls = {
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_calibration_controls, "SND_SOC_CS35L56_SHARED");
 
+static const struct cirrus_amp_cal_controls cs35l63_calibration_controls = {
+	.alg_id =	0xbf210,
+	.mem_region =	WMFW_ADSP2_YM,
+	.ambient =	"CAL_AMBIENT",
+	.calr =		"CAL_R",
+	.status =	"CAL_STATUS",
+	.checksum =	"CAL_CHECKSUM",
+};
+
 int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base)
 {
 	u64 silicon_uid = 0;
@@ -912,19 +921,31 @@ EXPORT_SYMBOL_NS_GPL(cs35l56_read_prot_status, "SND_SOC_CS35L56_SHARED");
 void cs35l56_log_tuning(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_dsp)
 {
 	__be32 pid, sid, tid;
+	unsigned int alg_id;
 	int ret;
+
+	switch (cs35l56_base->type) {
+	case 0x54:
+	case 0x56:
+	case 0x57:
+		alg_id = 0x9f212;
+		break;
+	default:
+		alg_id = 0xbf212;
+		break;
+	}
 
 	scoped_guard(mutex, &cs_dsp->pwr_lock) {
 		ret = cs_dsp_coeff_read_ctrl(cs_dsp_get_ctl(cs_dsp, "AS_PRJCT_ID",
-							    WMFW_ADSP2_XM, 0x9f212),
+							    WMFW_ADSP2_XM, alg_id),
 					     0, &pid, sizeof(pid));
 		if (!ret)
 			ret = cs_dsp_coeff_read_ctrl(cs_dsp_get_ctl(cs_dsp, "AS_CHNNL_ID",
-								    WMFW_ADSP2_XM, 0x9f212),
+								    WMFW_ADSP2_XM, alg_id),
 						     0, &sid, sizeof(sid));
 		if (!ret)
 			ret = cs_dsp_coeff_read_ctrl(cs_dsp_get_ctl(cs_dsp, "AS_SNPSHT_ID",
-								    WMFW_ADSP2_XM, 0x9f212),
+								    WMFW_ADSP2_XM, alg_id),
 						     0, &tid, sizeof(tid));
 	}
 
@@ -974,8 +995,10 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	case 0x35A54:
 	case 0x35A56:
 	case 0x35A57:
+		cs35l56_base->calibration_controls = &cs35l56_calibration_controls;
 		break;
 	case 0x35A630:
+		cs35l56_base->calibration_controls = &cs35l63_calibration_controls;
 		devid = devid >> 4;
 		break;
 	default:

@@ -886,6 +886,9 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode, int rw_type)
 	if (req->flags & REQ_F_HAS_METADATA) {
 		struct io_async_rw *io = req->async_data;
 
+		if (!(file->f_mode & FMODE_HAS_METADATA))
+			return -EINVAL;
+
 		/*
 		 * We have a union of meta fields with wpq used for buffered-io
 		 * in io_async_rw, so fail it here.
