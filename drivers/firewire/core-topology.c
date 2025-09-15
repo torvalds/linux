@@ -325,9 +325,11 @@ static void report_found_node(struct fw_card *card,
 	card->bm_retries = 0;
 }
 
-/* Must be called with card->lock held */
 void fw_destroy_nodes(struct fw_card *card)
+__must_hold(&card->lock)
 {
+	lockdep_assert_held(&card->lock);
+
 	card->color++;
 	if (card->local_node != NULL)
 		for_each_fw_node(card, card->local_node, report_lost_node);
