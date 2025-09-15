@@ -103,7 +103,7 @@ struct drm_gpuva {
 	} va;
 
 	/**
-	 * @gem: structure containing the &drm_gem_object and it's offset
+	 * @gem: structure containing the &drm_gem_object and its offset
 	 */
 	struct {
 		/**
@@ -843,7 +843,7 @@ struct drm_gpuva_op_map {
 	} va;
 
 	/**
-	 * @gem: structure containing the &drm_gem_object and it's offset
+	 * @gem: structure containing the &drm_gem_object and its offset
 	 */
 	struct {
 		/**
@@ -1189,11 +1189,11 @@ struct drm_gpuvm_ops {
 
 	/**
 	 * @sm_step_unmap: called from &drm_gpuvm_sm_map and
-	 * &drm_gpuvm_sm_unmap to unmap an existent mapping
+	 * &drm_gpuvm_sm_unmap to unmap an existing mapping
 	 *
-	 * This callback is called when existent mapping needs to be unmapped.
+	 * This callback is called when existing mapping needs to be unmapped.
 	 * This is the case when either a newly requested mapping encloses an
-	 * existent mapping or an unmap of an existent mapping is requested.
+	 * existing mapping or an unmap of an existing mapping is requested.
 	 *
 	 * The &priv pointer matches the one the driver passed to
 	 * &drm_gpuvm_sm_map or &drm_gpuvm_sm_unmap, respectively.

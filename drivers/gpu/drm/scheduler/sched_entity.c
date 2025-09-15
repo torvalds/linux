@@ -391,7 +391,8 @@ EXPORT_SYMBOL(drm_sched_entity_set_priority);
  * Add a callback to the current dependency of the entity to wake up the
  * scheduler when the entity becomes available.
  */
-static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
+static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity,
+					       struct drm_sched_job *sched_job)
 {
 	struct drm_gpu_scheduler *sched = entity->rq->sched;
 	struct dma_fence *fence = entity->dependency;
@@ -420,6 +421,10 @@ static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 		dma_fence_put(entity->dependency);
 		entity->dependency = fence;
 	}
+
+	if (trace_drm_sched_job_unschedulable_enabled() &&
+	    !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &entity->dependency->flags))
+		trace_drm_sched_job_unschedulable(sched_job, entity->dependency);
 
 	if (!dma_fence_add_callback(entity->dependency, &entity->cb,
 				    drm_sched_entity_wakeup))
@@ -461,10 +466,8 @@ struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 
 	while ((entity->dependency =
 			drm_sched_job_dependency(sched_job, entity))) {
-		if (drm_sched_entity_add_dependency_cb(entity)) {
-			trace_drm_sched_job_unschedulable(sched_job, entity->dependency);
+		if (drm_sched_entity_add_dependency_cb(entity, sched_job))
 			return NULL;
-		}
 	}
 
 	/* skip jobs from entity that marked guilty */

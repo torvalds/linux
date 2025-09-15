@@ -272,7 +272,7 @@
 	phy-mode = "rmii";
 	phy-handle = <&phy0>;
 	assigned-clocks = <&cru SCLK_MAC_SRC>;
-	assigned-clock-rates= <50000000>;
+	assigned-clock-rates = <50000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&rmii_pins>;
 	status = "okay";

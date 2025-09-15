@@ -450,7 +450,6 @@ static int xgene_ahci_pmp_softreset(struct ata_link *link, unsigned int *class,
 {
 	int pmp = sata_srst_pmp(link);
 	struct ata_port *ap = link->ap;
-	u32 rc;
 	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 port_fbs;
 
@@ -463,9 +462,7 @@ static int xgene_ahci_pmp_softreset(struct ata_link *link, unsigned int *class,
 	port_fbs |= pmp << PORT_FBS_DEV_OFFSET;
 	writel(port_fbs, port_mmio + PORT_FBS);
 
-	rc = ahci_do_softreset(link, class, pmp, deadline, ahci_check_ready);
-
-	return rc;
+	return ahci_do_softreset(link, class, pmp, deadline, ahci_check_ready);
 }
 
 /**
@@ -500,7 +497,7 @@ static int xgene_ahci_softreset(struct ata_link *link, unsigned int *class,
 	u32 port_fbs;
 	u32 port_fbs_save;
 	u32 retry = 1;
-	u32 rc;
+	int rc;
 
 	port_fbs_save = readl(port_mmio + PORT_FBS);
 

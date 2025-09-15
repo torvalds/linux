@@ -260,6 +260,6 @@
 	status = "okay";
 };
 
-&usb_host_ohci{
+&usb_host_ohci {
 	status = "okay";
 };
