@@ -1643,6 +1643,7 @@ int mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
 void mt76_scan_work(struct work_struct *work);
 void mt76_abort_scan(struct mt76_dev *dev);
 void mt76_roc_complete_work(struct work_struct *work);
+void mt76_roc_complete(struct mt76_phy *phy);
 void mt76_abort_roc(struct mt76_phy *phy);
 struct mt76_vif_link *mt76_get_vif_phy_link(struct mt76_phy *phy,
 					    struct ieee80211_vif *vif);

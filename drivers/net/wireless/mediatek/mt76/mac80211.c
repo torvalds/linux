@@ -826,6 +826,7 @@ static void mt76_reset_phy(struct mt76_phy *phy)
 	INIT_LIST_HEAD(&phy->tx_list);
 	phy->num_sta = 0;
 	phy->chanctx = NULL;
+	mt76_roc_complete(phy);
 }
 
 void mt76_reset_device(struct mt76_dev *dev)
@@ -845,6 +846,8 @@ void mt76_reset_device(struct mt76_dev *dev)
 		rcu_assign_pointer(dev->wcid[i], NULL);
 	}
 	rcu_read_unlock();
+
+	mt76_abort_scan(dev);
 
 	INIT_LIST_HEAD(&dev->wcid_list);
 	INIT_LIST_HEAD(&dev->sta_poll_list);
