@@ -90,7 +90,7 @@ union fsverity_hash_ctx *
 fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
 			    const u8 *salt, size_t salt_size);
 void fsverity_hash_block(const struct merkle_tree_params *params,
-			 const struct inode *inode, const void *data, u8 *out);
+			 const void *data, u8 *out);
 void fsverity_hash_buffer(const struct fsverity_hash_alg *alg,
 			  const void *data, size_t size, u8 *out);
 void __init fsverity_check_hash_algs(void);
