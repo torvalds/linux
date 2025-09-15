@@ -498,7 +498,7 @@ static void scmi_optee_mark_txdone(struct scmi_chan_info *cinfo, int ret,
 	mutex_unlock(&channel->mu);
 }
 
-static struct scmi_transport_ops scmi_optee_ops = {
+static const struct scmi_transport_ops scmi_optee_ops = {
 	.chan_available = scmi_optee_chan_available,
 	.chan_setup = scmi_optee_chan_setup,
 	.chan_free = scmi_optee_chan_free,

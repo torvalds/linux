@@ -1660,6 +1660,7 @@ protocol_id: 0x84
 |Name                |Description                                              |
 +--------------------+---------------------------------------------------------+
 |int32 status        |SUCCESS: system log return                               |
+|                    |NOT_SUPPORTED: system log not available                  |
 +--------------------+---------------------------------------------------------+
 |uint32 numLogflags  |Descriptor for the log data returned by this call.       |
 |                    |Bits[31:20] Number of remaining log words.               |
@@ -1668,6 +1669,30 @@ protocol_id: 0x84
 |                    |call                                                     |
 +--------------------+---------------------------------------------------------+
 |uint32 syslog[N]    |Log data array, N is defined in bits[11:0] of numLogflags|
++--------------------+---------------------------------------------------------+
+
+MISC_BOARD_INFO
+~~~~~~~~~~~~~~~
+
+message_id: 0xE
+protocol_id: 0x84
+
++--------------------+---------------------------------------------------------+
+|Return values                                                                 |
++--------------------+---------------------------------------------------------+
+|Name                |Description                                              |
++--------------------+---------------------------------------------------------+
+|int32 status        |SUCCESS: config name return                              |
+|                    |NOT_SUPPORTED: name not available                        |
++--------------------+---------------------------------------------------------+
+|uint32 attributes   |Board-specific attributes reserved for future expansion  |
+|                    |without breaking backwards compatibility. The firmware   |
+|                    |sets the value to 0                                      |
++--------------------+---------------------------------------------------------+
+|uint8 boardname[16] |Board name. NULL terminated ASCII string, up to 16 bytes |
+|                    |in length. This is System Manager(SM) firmware-exported  |
+|                    |board-name and may not align with the board name in the  |
+|                    |device tree.                                             |
 +--------------------+---------------------------------------------------------+
 
 NEGOTIATE_PROTOCOL_VERSION
