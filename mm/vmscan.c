@@ -5772,9 +5772,9 @@ static int __init init_lru_gen(void)
 	if (sysfs_create_group(mm_kobj, &lru_gen_attr_group))
 		pr_err("lru_gen: failed to create sysfs group\n");
 
-	debugfs_create_file_aux_num("lru_gen", 0644, NULL, NULL, 1,
+	debugfs_create_file_aux_num("lru_gen", 0644, NULL, NULL, false,
 				    &lru_gen_rw_fops);
-	debugfs_create_file_aux_num("lru_gen_full", 0444, NULL, NULL, 0,
+	debugfs_create_file_aux_num("lru_gen_full", 0444, NULL, NULL, true,
 				    &lru_gen_ro_fops);
 
 	return 0;

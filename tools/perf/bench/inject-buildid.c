@@ -85,7 +85,7 @@ static int add_dso(const char *fpath, const struct stat *sb __maybe_unused,
 	if (typeflag == FTW_D || typeflag == FTW_SL)
 		return 0;
 
-	if (filename__read_build_id(fpath, &bid) < 0)
+	if (filename__read_build_id(fpath, &bid, /*block=*/true) < 0)
 		return 0;
 
 	dso->name = realpath(fpath, NULL);

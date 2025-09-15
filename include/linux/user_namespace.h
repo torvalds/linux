@@ -168,6 +168,11 @@ static inline void set_userns_rlimit_max(struct user_namespace *ns,
 
 #ifdef CONFIG_USER_NS
 
+static inline struct user_namespace *to_user_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct user_namespace, ns);
+}
+
 static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
 {
 	if (ns)

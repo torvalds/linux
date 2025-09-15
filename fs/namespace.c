@@ -33,6 +33,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/mnt_idmapping.h>
 #include <linux/pidfs.h>
+#include <linux/nstree.h>
 
 #include "pnode.h"
 #include "internal.h"
@@ -80,13 +81,10 @@ static DECLARE_RWSEM(namespace_sem);
 static HLIST_HEAD(unmounted);	/* protected by namespace_sem */
 static LIST_HEAD(ex_mountpoints); /* protected by namespace_sem */
 static struct mnt_namespace *emptied_ns; /* protected by namespace_sem */
-static DEFINE_SEQLOCK(mnt_ns_tree_lock);
 
 #ifdef CONFIG_FSNOTIFY
 LIST_HEAD(notify_list); /* protected by namespace_sem */
 #endif
-static struct rb_root mnt_ns_tree = RB_ROOT; /* protected by mnt_ns_tree_lock */
-static LIST_HEAD(mnt_ns_list); /* protected by mnt_ns_tree_lock */
 
 enum mount_kattr_flags_t {
 	MOUNT_KATTR_RECURSE		= (1 << 0),
@@ -119,53 +117,12 @@ __cacheline_aligned_in_smp DEFINE_SEQLOCK(mount_lock);
 
 static inline struct mnt_namespace *node_to_mnt_ns(const struct rb_node *node)
 {
+	struct ns_common *ns;
+
 	if (!node)
 		return NULL;
-	return rb_entry(node, struct mnt_namespace, mnt_ns_tree_node);
-}
-
-static int mnt_ns_cmp(struct rb_node *a, const struct rb_node *b)
-{
-	struct mnt_namespace *ns_a = node_to_mnt_ns(a);
-	struct mnt_namespace *ns_b = node_to_mnt_ns(b);
-	u64 seq_a = ns_a->seq;
-	u64 seq_b = ns_b->seq;
-
-	if (seq_a < seq_b)
-		return -1;
-	if (seq_a > seq_b)
-		return 1;
-	return 0;
-}
-
-static inline void mnt_ns_tree_write_lock(void)
-{
-	write_seqlock(&mnt_ns_tree_lock);
-}
-
-static inline void mnt_ns_tree_write_unlock(void)
-{
-	write_sequnlock(&mnt_ns_tree_lock);
-}
-
-static void mnt_ns_tree_add(struct mnt_namespace *ns)
-{
-	struct rb_node *node, *prev;
-
-	mnt_ns_tree_write_lock();
-	node = rb_find_add_rcu(&ns->mnt_ns_tree_node, &mnt_ns_tree, mnt_ns_cmp);
-	/*
-	 * If there's no previous entry simply add it after the
-	 * head and if there is add it after the previous entry.
-	 */
-	prev = rb_prev(&ns->mnt_ns_tree_node);
-	if (!prev)
-		list_add_rcu(&ns->mnt_ns_list, &mnt_ns_list);
-	else
-		list_add_rcu(&ns->mnt_ns_list, &node_to_mnt_ns(prev)->mnt_ns_list);
-	mnt_ns_tree_write_unlock();
-
-	WARN_ON_ONCE(node);
+	ns = rb_entry(node, struct ns_common, ns_tree_node);
+	return container_of(ns, struct mnt_namespace, ns);
 }
 
 static void mnt_ns_release(struct mnt_namespace *ns)
@@ -181,32 +138,16 @@ DEFINE_FREE(mnt_ns_release, struct mnt_namespace *, if (_T) mnt_ns_release(_T))
 
 static void mnt_ns_release_rcu(struct rcu_head *rcu)
 {
-	mnt_ns_release(container_of(rcu, struct mnt_namespace, mnt_ns_rcu));
+	mnt_ns_release(container_of(rcu, struct mnt_namespace, ns.ns_rcu));
 }
 
 static void mnt_ns_tree_remove(struct mnt_namespace *ns)
 {
 	/* remove from global mount namespace list */
-	if (!is_anon_ns(ns)) {
-		mnt_ns_tree_write_lock();
-		rb_erase(&ns->mnt_ns_tree_node, &mnt_ns_tree);
-		list_bidir_del_rcu(&ns->mnt_ns_list);
-		mnt_ns_tree_write_unlock();
-	}
+	if (ns_tree_active(ns))
+		ns_tree_remove(ns);
 
-	call_rcu(&ns->mnt_ns_rcu, mnt_ns_release_rcu);
-}
-
-static int mnt_ns_find(const void *key, const struct rb_node *node)
-{
-	const u64 mnt_ns_id = *(u64 *)key;
-	const struct mnt_namespace *ns = node_to_mnt_ns(node);
-
-	if (mnt_ns_id < ns->seq)
-		return -1;
-	if (mnt_ns_id > ns->seq)
-		return 1;
-	return 0;
+	call_rcu(&ns->ns.ns_rcu, mnt_ns_release_rcu);
 }
 
 /*
@@ -225,28 +166,21 @@ static int mnt_ns_find(const void *key, const struct rb_node *node)
  */
 static struct mnt_namespace *lookup_mnt_ns(u64 mnt_ns_id)
 {
-	struct mnt_namespace *ns;
-	struct rb_node *node;
-	unsigned int seq;
+	struct mnt_namespace *mnt_ns;
+	struct ns_common *ns;
 
 	guard(rcu)();
-	do {
-		seq = read_seqbegin(&mnt_ns_tree_lock);
-		node = rb_find_rcu(&mnt_ns_id, &mnt_ns_tree, mnt_ns_find);
-		if (node)
-			break;
-	} while (read_seqretry(&mnt_ns_tree_lock, seq));
-
-	if (!node)
+	ns = ns_tree_lookup_rcu(mnt_ns_id, CLONE_NEWNS);
+	if (!ns)
 		return NULL;
 
 	/*
 	 * The last reference count is put with RCU delay so we can
 	 * unconditonally acquire a reference here.
 	 */
-	ns = node_to_mnt_ns(node);
-	refcount_inc(&ns->passive);
-	return ns;
+	mnt_ns = container_of(ns, struct mnt_namespace, ns);
+	refcount_inc(&mnt_ns->passive);
+	return mnt_ns;
 }
 
 static inline void lock_mount_hash(void)
@@ -1017,7 +951,7 @@ static inline bool check_anonymous_mnt(struct mount *mnt)
 		return false;
 
 	seq = mnt->mnt_ns->seq_origin;
-	return !seq || (seq == current->nsproxy->mnt_ns->seq);
+	return !seq || (seq == current->nsproxy->mnt_ns->ns.ns_id);
 }
 
 /*
@@ -1197,10 +1131,7 @@ static void commit_tree(struct mount *mnt)
 
 	if (!mnt_ns_attached(mnt)) {
 		for (struct mount *m = mnt; m; m = next_mnt(m, mnt))
-			if (unlikely(mnt_ns_attached(m)))
-				m = skip_mnt_tree(m);
-			else
-				mnt_add_to_ns(n, m);
+			mnt_add_to_ns(n, m);
 		n->nr_mounts += n->pending_mounts;
 		n->pending_mounts = 0;
 	}
@@ -2155,19 +2086,16 @@ struct ns_common *from_mnt_ns(struct mnt_namespace *mnt)
 
 struct mnt_namespace *get_sequential_mnt_ns(struct mnt_namespace *mntns, bool previous)
 {
+	struct ns_common *ns;
+
 	guard(rcu)();
 
 	for (;;) {
-		struct list_head *list;
+		ns = ns_tree_adjoined_rcu(mntns, previous);
+		if (IS_ERR(ns))
+			return ERR_CAST(ns);
 
-		if (previous)
-			list = rcu_dereference(list_bidir_prev_rcu(&mntns->mnt_ns_list));
-		else
-			list = rcu_dereference(list_next_rcu(&mntns->mnt_ns_list));
-		if (list_is_head(list, &mnt_ns_list))
-			return ERR_PTR(-ENOENT);
-
-		mntns = list_entry_rcu(list, struct mnt_namespace, mnt_ns_list);
+		mntns = to_mnt_ns(ns);
 
 		/*
 		 * The last passive reference count is put with RCU
@@ -2207,7 +2135,7 @@ static bool mnt_ns_loop(struct dentry *dentry)
 	if (!mnt_ns)
 		return false;
 
-	return current->nsproxy->mnt_ns->seq >= mnt_ns->seq;
+	return current->nsproxy->mnt_ns->ns.ns_id >= mnt_ns->ns.ns_id;
 }
 
 struct mount *copy_tree(struct mount *src_root, struct dentry *dentry,
@@ -2704,6 +2632,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 			lock_mnt_tree(child);
 		q = __lookup_mnt(&child->mnt_parent->mnt,
 				 child->mnt_mountpoint);
+		commit_tree(child);
 		if (q) {
 			struct mountpoint *mp = root.mp;
 			struct mount *r = child;
@@ -2713,7 +2642,6 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 				mp = shorter;
 			mnt_change_mountpoint(r, mp, q);
 		}
-		commit_tree(child);
 	}
 	unpin_mountpoint(&root);
 	unlock_mount_hash();
@@ -2862,6 +2790,19 @@ static int graft_tree(struct mount *mnt, struct mount *p, struct mountpoint *mp)
 	return attach_recursive_mnt(mnt, p, mp);
 }
 
+static int may_change_propagation(const struct mount *m)
+{
+        struct mnt_namespace *ns = m->mnt_ns;
+
+	 // it must be mounted in some namespace
+	 if (IS_ERR_OR_NULL(ns))         // is_mounted()
+		 return -EINVAL;
+	 // and the caller must be admin in userns of that namespace
+	 if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
+		 return -EPERM;
+	 return 0;
+}
+
 /*
  * Sanity check the flags to change_mnt_propagation.
  */
@@ -2898,10 +2839,10 @@ static int do_change_type(struct path *path, int ms_flags)
 		return -EINVAL;
 
 	namespace_lock();
-	if (!check_mnt(mnt)) {
-		err = -EINVAL;
+	err = may_change_propagation(mnt);
+	if (err)
 		goto out_unlock;
-	}
+
 	if (type == MS_SHARED) {
 		err = invent_group_ids(mnt, recurse);
 		if (err)
@@ -3070,7 +3011,7 @@ static struct file *open_detached_copy(struct path *path, bool recursive)
 		if (is_anon_ns(src_mnt_ns))
 			ns->seq_origin = src_mnt_ns->seq_origin;
 		else
-			ns->seq_origin = src_mnt_ns->seq;
+			ns->seq_origin = src_mnt_ns->ns.ns_id;
 	}
 
 	mnt = __do_loopback(path, recursive);
@@ -3347,18 +3288,11 @@ static int do_set_group(struct path *from_path, struct path *to_path)
 
 	namespace_lock();
 
-	err = -EINVAL;
-	/* To and From must be mounted */
-	if (!is_mounted(&from->mnt))
+	err = may_change_propagation(from);
+	if (err)
 		goto out;
-	if (!is_mounted(&to->mnt))
-		goto out;
-
-	err = -EPERM;
-	/* We should be allowed to modify mount namespaces of both mounts */
-	if (!ns_capable(from->mnt_ns->user_ns, CAP_SYS_ADMIN))
-		goto out;
-	if (!ns_capable(to->mnt_ns->user_ns, CAP_SYS_ADMIN))
+	err = may_change_propagation(to);
+	if (err)
 		goto out;
 
 	err = -EINVAL;
@@ -4153,15 +4087,6 @@ static void free_mnt_ns(struct mnt_namespace *ns)
 	mnt_ns_tree_remove(ns);
 }
 
-/*
- * Assign a sequence number so we can detect when we attempt to bind
- * mount a reference to an older mount namespace into the current
- * mount namespace, preventing reference counting loops.  A 64bit
- * number incrementing at 10Ghz will take 12,427 years to wrap which
- * is effectively never, so we can ignore the possibility.
- */
-static atomic64_t mnt_ns_seq = ATOMIC64_INIT(1);
-
 static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns, bool anon)
 {
 	struct mnt_namespace *new_ns;
@@ -4177,22 +4102,17 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns, bool a
 		dec_mnt_namespaces(ucounts);
 		return ERR_PTR(-ENOMEM);
 	}
-	if (!anon) {
-		ret = ns_alloc_inum(&new_ns->ns);
-		if (ret) {
-			kfree(new_ns);
-			dec_mnt_namespaces(ucounts);
-			return ERR_PTR(ret);
-		}
+
+	ret = ns_common_init(&new_ns->ns, &mntns_operations, !anon);
+	if (ret) {
+		kfree(new_ns);
+		dec_mnt_namespaces(ucounts);
+		return ERR_PTR(ret);
 	}
-	new_ns->ns.ops = &mntns_operations;
 	if (!anon)
-		new_ns->seq = atomic64_inc_return(&mnt_ns_seq);
-	refcount_set(&new_ns->ns.count, 1);
+		ns_tree_gen_id(&new_ns->ns);
 	refcount_set(&new_ns->passive, 1);
 	new_ns->mounts = RB_ROOT;
-	INIT_LIST_HEAD(&new_ns->mnt_ns_list);
-	RB_CLEAR_NODE(&new_ns->mnt_ns_tree_node);
 	init_waitqueue_head(&new_ns->poll);
 	new_ns->user_ns = get_user_ns(user_ns);
 	new_ns->ucounts = ucounts;
@@ -4278,7 +4198,7 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
 	if (pwdmnt)
 		mntput(pwdmnt);
 
-	mnt_ns_tree_add(new_ns);
+	ns_tree_add_raw(new_ns);
 	return new_ns;
 }
 
@@ -4551,20 +4471,10 @@ SYSCALL_DEFINE5(move_mount,
 	if (flags & MOVE_MOUNT_SET_GROUP)	mflags |= MNT_TREE_PROPAGATION;
 	if (flags & MOVE_MOUNT_BENEATH)		mflags |= MNT_TREE_BENEATH;
 
-	lflags = 0;
-	if (flags & MOVE_MOUNT_F_SYMLINKS)	lflags |= LOOKUP_FOLLOW;
-	if (flags & MOVE_MOUNT_F_AUTOMOUNTS)	lflags |= LOOKUP_AUTOMOUNT;
 	uflags = 0;
-	if (flags & MOVE_MOUNT_F_EMPTY_PATH)	uflags = AT_EMPTY_PATH;
-	from_name = getname_maybe_null(from_pathname, uflags);
-	if (IS_ERR(from_name))
-		return PTR_ERR(from_name);
+	if (flags & MOVE_MOUNT_T_EMPTY_PATH)
+		uflags = AT_EMPTY_PATH;
 
-	lflags = 0;
-	if (flags & MOVE_MOUNT_T_SYMLINKS)	lflags |= LOOKUP_FOLLOW;
-	if (flags & MOVE_MOUNT_T_AUTOMOUNTS)	lflags |= LOOKUP_AUTOMOUNT;
-	uflags = 0;
-	if (flags & MOVE_MOUNT_T_EMPTY_PATH)	uflags = AT_EMPTY_PATH;
 	to_name = getname_maybe_null(to_pathname, uflags);
 	if (IS_ERR(to_name))
 		return PTR_ERR(to_name);
@@ -4577,10 +4487,23 @@ SYSCALL_DEFINE5(move_mount,
 		to_path = fd_file(f_to)->f_path;
 		path_get(&to_path);
 	} else {
+		lflags = 0;
+		if (flags & MOVE_MOUNT_T_SYMLINKS)
+			lflags |= LOOKUP_FOLLOW;
+		if (flags & MOVE_MOUNT_T_AUTOMOUNTS)
+			lflags |= LOOKUP_AUTOMOUNT;
 		ret = filename_lookup(to_dfd, to_name, lflags, &to_path, NULL);
 		if (ret)
 			return ret;
 	}
+
+	uflags = 0;
+	if (flags & MOVE_MOUNT_F_EMPTY_PATH)
+		uflags = AT_EMPTY_PATH;
+
+	from_name = getname_maybe_null(from_pathname, uflags);
+	if (IS_ERR(from_name))
+		return PTR_ERR(from_name);
 
 	if (!from_name && from_dfd >= 0) {
 		CLASS(fd_raw, f_from)(from_dfd);
@@ -4590,6 +4513,11 @@ SYSCALL_DEFINE5(move_mount,
 		return vfs_move_mount(&fd_file(f_from)->f_path, &to_path, mflags);
 	}
 
+	lflags = 0;
+	if (flags & MOVE_MOUNT_F_SYMLINKS)
+		lflags |= LOOKUP_FOLLOW;
+	if (flags & MOVE_MOUNT_F_AUTOMOUNTS)
+		lflags |= LOOKUP_AUTOMOUNT;
 	ret = filename_lookup(from_dfd, from_name, lflags, &from_path, NULL);
 	if (ret)
 		return ret;
@@ -5176,7 +5104,8 @@ SYSCALL_DEFINE5(open_tree_attr, int, dfd, const char __user *, filename,
 		int ret;
 		struct mount_kattr kattr = {};
 
-		kattr.kflags = MOUNT_KATTR_IDMAP_REPLACE;
+		if (flags & OPEN_TREE_CLONE)
+			kattr.kflags = MOUNT_KATTR_IDMAP_REPLACE;
 		if (flags & AT_RECURSIVE)
 			kattr.kflags |= MOUNT_KATTR_RECURSE;
 
@@ -5388,7 +5317,7 @@ static int statmount_sb_source(struct kstatmount *s, struct seq_file *seq)
 static void statmount_mnt_ns_id(struct kstatmount *s, struct mnt_namespace *ns)
 {
 	s->sm.mask |= STATMOUNT_MNT_NS_ID;
-	s->sm.mnt_ns_id = ns->seq;
+	s->sm.mnt_ns_id = ns->ns.ns_id;
 }
 
 static int statmount_mnt_opts(struct kstatmount *s, struct seq_file *seq)
@@ -6093,7 +6022,6 @@ static void __init init_mount_tree(void)
 	ns = alloc_mnt_ns(&init_user_ns, true);
 	if (IS_ERR(ns))
 		panic("Can't allocate initial namespace");
-	ns->seq = atomic64_inc_return(&mnt_ns_seq);
 	ns->ns.inum = PROC_MNT_INIT_INO;
 	m = real_mount(mnt);
 	ns->root = m;
@@ -6108,7 +6036,7 @@ static void __init init_mount_tree(void)
 	set_fs_pwd(current->fs, &root);
 	set_fs_root(current->fs, &root);
 
-	mnt_ns_tree_add(ns);
+	ns_tree_add(ns);
 }
 
 void __init mnt_init(void)

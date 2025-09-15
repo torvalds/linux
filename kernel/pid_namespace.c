@@ -23,6 +23,7 @@
 #include <linux/sched/task.h>
 #include <linux/sched/signal.h>
 #include <linux/idr.h>
+#include <linux/nstree.h>
 #include <uapi/linux/wait.h>
 #include "pid_sysctl.h"
 
@@ -102,17 +103,15 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	if (ns->pid_cachep == NULL)
 		goto out_free_idr;
 
-	err = ns_alloc_inum(&ns->ns);
+	err = ns_common_init(&ns->ns, &pidns_operations, true);
 	if (err)
 		goto out_free_idr;
-	ns->ns.ops = &pidns_operations;
 
 	ns->pid_max = PID_MAX_LIMIT;
 	err = register_pidns_sysctls(ns);
 	if (err)
 		goto out_free_inum;
 
-	refcount_set(&ns->ns.count, 1);
 	ns->level = level;
 	ns->parent = get_pid_ns(parent_pid_ns);
 	ns->user_ns = get_user_ns(user_ns);
@@ -124,6 +123,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	ns->memfd_noexec_scope = pidns_memfd_noexec_scope(parent_pid_ns);
 #endif
 
+	ns_tree_add(ns);
 	return ns;
 
 out_free_inum:
@@ -149,6 +149,7 @@ static void delayed_free_pidns(struct rcu_head *p)
 
 static void destroy_pid_namespace(struct pid_namespace *ns)
 {
+	ns_tree_remove(ns);
 	unregister_pidns_sysctls(ns);
 
 	ns_free_inum(&ns->ns);
@@ -344,11 +345,6 @@ int reboot_pid_ns(struct pid_namespace *pid_ns, int cmd)
 	return 0;
 }
 
-static inline struct pid_namespace *to_pid_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct pid_namespace, ns);
-}
-
 static struct ns_common *pidns_get(struct task_struct *task)
 {
 	struct pid_namespace *ns;
@@ -475,6 +471,7 @@ static __init int pid_namespaces_init(void)
 #endif
 
 	register_pid_ns_sysctl_table_vm();
+	ns_tree_add(&init_pid_ns);
 	return 0;
 }
 

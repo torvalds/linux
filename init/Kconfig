@@ -117,10 +117,11 @@ config CC_HAS_NO_PROFILE_FN_ATTR
 
 config CC_HAS_COUNTED_BY
 	bool
-	# clang needs to be at least 19.1.3 to avoid __bdos miscalculations
-	# https://github.com/llvm/llvm-project/pull/110497
-	# https://github.com/llvm/llvm-project/pull/112636
-	default y if CC_IS_CLANG && CLANG_VERSION >= 190103
+	# clang needs to be at least 20.1.0 to avoid potential crashes
+	# when building structures that contain __counted_by
+	# https://github.com/ClangBuiltLinux/linux/issues/2114
+	# https://github.com/llvm/llvm-project/commit/160fb1121cdf703c3ef5e61fb26c5659eb581489
+	default y if CC_IS_CLANG && CLANG_VERSION >= 200100
 	# supported since gcc 15.1.0
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108896
 	default y if CC_IS_GCC && GCC_VERSION >= 150100

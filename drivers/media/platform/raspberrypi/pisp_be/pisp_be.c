@@ -950,7 +950,6 @@ static void pispbe_node_stop_streaming(struct vb2_queue *q)
 		kfree(job);
 	}
 
-	pm_runtime_mark_last_busy(pispbe->dev);
 	pm_runtime_put_autosuspend(pispbe->dev);
 
 	dev_dbg(pispbe->dev, "Nodes streaming now 0x%x\n",
@@ -1742,7 +1741,6 @@ static int pispbe_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_devs_err;
 
-	pm_runtime_mark_last_busy(pispbe->dev);
 	pm_runtime_put_autosuspend(pispbe->dev);
 
 	return 0;

@@ -17,11 +17,7 @@ struct mnt_namespace {
 	};
 	struct user_namespace	*user_ns;
 	struct ucounts		*ucounts;
-	u64			seq;	/* Sequence number to prevent loops */
-	union {
-		wait_queue_head_t	poll;
-		struct rcu_head		mnt_ns_rcu;
-	};
+	wait_queue_head_t	poll;
 	u64			seq_origin; /* Sequence number of origin mount namespace */
 	u64 event;
 #ifdef CONFIG_FSNOTIFY
@@ -30,8 +26,6 @@ struct mnt_namespace {
 #endif
 	unsigned int		nr_mounts; /* # of mounts in the namespace */
 	unsigned int		pending_mounts;
-	struct rb_node		mnt_ns_tree_node; /* node in the mnt_ns_tree */
-	struct list_head	mnt_ns_list; /* entry in the sequential list of mounts namespace */
 	refcount_t		passive; /* number references not pinning @mounts */
 } __randomize_layout;
 
@@ -173,7 +167,7 @@ static inline bool is_local_mountpoint(const struct dentry *dentry)
 
 static inline bool is_anon_ns(struct mnt_namespace *ns)
 {
-	return ns->seq == 0;
+	return ns->ns.ns_id == 0;
 }
 
 static inline bool anon_ns_root(const struct mount *m)

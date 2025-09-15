@@ -296,12 +296,12 @@ static __u32 pidfs_coredump_mask(unsigned long mm_flags)
 static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct pidfd_info __user *uinfo = (struct pidfd_info __user *)arg;
+	struct task_struct *task __free(put_task) = NULL;
 	struct pid *pid = pidfd_pid(file);
 	size_t usize = _IOC_SIZE(cmd);
 	struct pidfd_info kinfo = {};
 	struct pidfs_exit_info *exit_info;
 	struct user_namespace *user_ns;
-	struct task_struct *task;
 	struct pidfs_attr *attr;
 	const struct cred *c;
 	__u64 mask;
@@ -440,7 +440,7 @@ static bool pidfs_ioctl_valid(unsigned int cmd)
 		 * erronously mistook the file descriptor for a pidfd.
 		 * This is not perfect but will catch most cases.
 		 */
-		return (_IOC_TYPE(cmd) == _IOC_TYPE(PIDFD_GET_INFO));
+		return extensible_ioctl_valid(cmd, PIDFD_GET_INFO, PIDFD_INFO_SIZE_VER0);
 	}
 
 	return false;

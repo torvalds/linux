@@ -5,7 +5,7 @@
 #ifndef _LINUX_PROC_NS_H
 #define _LINUX_PROC_NS_H
 
-#include <linux/ns_common.h>
+#include <linux/nsfs.h>
 #include <uapi/linux/nsfs.h>
 
 struct pid_namespace;
@@ -66,25 +66,27 @@ static inline void proc_free_inum(unsigned int inum) {}
 
 #endif /* CONFIG_PROC_FS */
 
-static inline int ns_alloc_inum(struct ns_common *ns)
+static inline int ns_common_init(struct ns_common *ns,
+				 const struct proc_ns_operations *ops,
+				 bool alloc_inum)
 {
-	WRITE_ONCE(ns->stashed, NULL);
-	return proc_alloc_inum(&ns->inum);
+	if (alloc_inum) {
+		int ret;
+		ret = proc_alloc_inum(&ns->inum);
+		if (ret)
+			return ret;
+	}
+	refcount_set(&ns->count, 1);
+	ns->stashed = NULL;
+	ns->ops = ops;
+	ns->ns_id = 0;
+	RB_CLEAR_NODE(&ns->ns_tree_node);
+	INIT_LIST_HEAD(&ns->ns_list_node);
+	return 0;
 }
 
 #define ns_free_inum(ns) proc_free_inum((ns)->inum)
 
 #define get_proc_ns(inode) ((struct ns_common *)(inode)->i_private)
-extern int ns_get_path(struct path *path, struct task_struct *task,
-			const struct proc_ns_operations *ns_ops);
-typedef struct ns_common *ns_get_path_helper_t(void *);
-extern int ns_get_path_cb(struct path *path, ns_get_path_helper_t ns_get_cb,
-			    void *private_data);
-
-extern bool ns_match(const struct ns_common *ns, dev_t dev, ino_t ino);
-
-extern int ns_get_name(char *buf, size_t size, struct task_struct *task,
-			const struct proc_ns_operations *ns_ops);
-extern void nsfs_init(void);
 
 #endif /* _LINUX_PROC_NS_H */

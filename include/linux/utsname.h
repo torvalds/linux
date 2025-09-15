@@ -30,6 +30,11 @@ struct uts_namespace {
 extern struct uts_namespace init_uts_ns;
 
 #ifdef CONFIG_UTS_NS
+static inline struct uts_namespace *to_uts_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct uts_namespace, ns);
+}
+
 static inline void get_uts_ns(struct uts_namespace *ns)
 {
 	refcount_inc(&ns->ns.count);
