@@ -5752,7 +5752,7 @@ static const struct file_operations lpfc_debugfs_op_slow_ring_trc = {
 };
 
 static struct dentry *lpfc_debugfs_root = NULL;
-static atomic_t lpfc_debugfs_hba_count;
+static unsigned int lpfc_debugfs_hba_count;
 
 /*
  * File operations for the iDiag debugfs
@@ -6074,7 +6074,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 	/* Setup lpfc root directory */
 	if (!lpfc_debugfs_root) {
 		lpfc_debugfs_root = debugfs_create_dir("lpfc", NULL);
-		atomic_set(&lpfc_debugfs_hba_count, 0);
+		lpfc_debugfs_hba_count = 0;
 		if (IS_ERR(lpfc_debugfs_root)) {
 			lpfc_vlog_msg(vport, KERN_WARNING, LOG_INIT,
 				      "0527 Cannot create debugfs lpfc\n");
@@ -6090,13 +6090,13 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		pport_setup = true;
 		phba->hba_debugfs_root =
 			debugfs_create_dir(name, lpfc_debugfs_root);
-		atomic_set(&phba->debugfs_vport_count, 0);
+		phba->debugfs_vport_count = 0;
 		if (IS_ERR(phba->hba_debugfs_root)) {
 			lpfc_vlog_msg(vport, KERN_WARNING, LOG_INIT,
 				      "0528 Cannot create debugfs %s\n", name);
 			return;
 		}
-		atomic_inc(&lpfc_debugfs_hba_count);
+		lpfc_debugfs_hba_count++;
 
 		/* Multi-XRI pools */
 		debugfs_create_file("multixripools", 0644,
@@ -6268,7 +6268,7 @@ nvmeio_off:
 				      "0529 Cannot create debugfs %s\n", name);
 			return;
 		}
-		atomic_inc(&phba->debugfs_vport_count);
+		phba->debugfs_vport_count++;
 	}
 
 	if (lpfc_debugfs_max_disc_trc) {
@@ -6402,10 +6402,10 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 	if (vport->vport_debugfs_root) {
 		debugfs_remove(vport->vport_debugfs_root); /* vportX */
 		vport->vport_debugfs_root = NULL;
-		atomic_dec(&phba->debugfs_vport_count);
+		phba->debugfs_vport_count--;
 	}
 
-	if (atomic_read(&phba->debugfs_vport_count) == 0) {
+	if (!phba->debugfs_vport_count) {
 		kfree(phba->slow_ring_trc);
 		phba->slow_ring_trc = NULL;
 
@@ -6415,10 +6415,10 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 		if (phba->hba_debugfs_root) {
 			debugfs_remove(phba->hba_debugfs_root); /* fnX */
 			phba->hba_debugfs_root = NULL;
-			atomic_dec(&lpfc_debugfs_hba_count);
+			lpfc_debugfs_hba_count--;
 		}
 
-		if (atomic_read(&lpfc_debugfs_hba_count) == 0) {
+		if (!lpfc_debugfs_hba_count) {
 			debugfs_remove(lpfc_debugfs_root); /* lpfc */
 			lpfc_debugfs_root = NULL;
 		}

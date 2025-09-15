@@ -1332,7 +1332,7 @@ struct lpfc_hba {
 	unsigned long last_ramp_down_time;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct dentry *hba_debugfs_root;
-	atomic_t debugfs_vport_count;
+	unsigned int debugfs_vport_count;
 
 	struct lpfc_debugfs_nvmeio_trc *nvmeio_trc;
 	atomic_t nvmeio_trc_cnt;
