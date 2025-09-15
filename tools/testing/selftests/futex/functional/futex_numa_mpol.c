@@ -174,9 +174,12 @@ int main(int argc, char *argv[])
 	ksft_set_plan(1);
 
 	mem_size = sysconf(_SC_PAGE_SIZE);
-	futex_ptr = mmap(NULL, mem_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+	futex_ptr = mmap(NULL, mem_size * 2, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
 	if (futex_ptr == MAP_FAILED)
 		ksft_exit_fail_msg("mmap() for %d bytes failed\n", mem_size);
+
+	/* Create an invalid memory region for the "Memory out of range" test */
+	mprotect(futex_ptr + mem_size, mem_size, PROT_NONE);
 
 	futex_numa = futex_ptr;
 
@@ -191,6 +194,9 @@ int main(int argc, char *argv[])
 	/* FUTEX2_NUMA futex must be 8-byte aligned */
 	ksft_print_msg("Mis-aligned futex\n");
 	test_futex(futex_ptr + mem_size - 4, EINVAL);
+
+	ksft_print_msg("Memory out of range\n");
+	test_futex(futex_ptr + mem_size, EFAULT);
 
 	futex_numa->numa = FUTEX_NO_NODE;
 	mprotect(futex_ptr, mem_size, PROT_READ);
