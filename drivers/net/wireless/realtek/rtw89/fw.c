@@ -8726,9 +8726,10 @@ int rtw89_fw_h2c_wow_gtk_ofld(struct rtw89_dev *rtwdev,
 			goto fail;
 	}
 
-	/* not support TKIP yet */
 	h2c->w0 = le32_encode_bits(enable, RTW89_H2C_WOW_GTK_OFLD_W0_EN) |
-		  le32_encode_bits(0, RTW89_H2C_WOW_GTK_OFLD_W0_TKIP_EN) |
+		  le32_encode_bits(!!memchr_inv(gtk_info->txmickey, 0,
+						sizeof(gtk_info->txmickey)),
+				   RTW89_H2C_WOW_GTK_OFLD_W0_TKIP_EN) |
 		  le32_encode_bits(gtk_info->igtk_keyid ? 1 : 0,
 				   RTW89_H2C_WOW_GTK_OFLD_W0_IEEE80211W_EN) |
 		  le32_encode_bits(macid, RTW89_H2C_WOW_GTK_OFLD_W0_MAC_ID) |

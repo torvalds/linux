@@ -5771,8 +5771,8 @@ struct rtw89_wow_gtk_info {
 	u8 kck[32];
 	u8 kek[32];
 	u8 tk1[16];
-	u8 txmickey[8];
 	u8 rxmickey[8];
+	u8 txmickey[8];
 	__le32 igtk_keyid;
 	__le64 ipn;
 	u8 igtk[2][32];
