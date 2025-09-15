@@ -1188,16 +1188,6 @@ static int get_sg_list(void *buf, int size, struct scatterlist *sg_list, int nen
 	return i;
 }
 
-static int get_mapped_sg_list(struct ib_device *device, void *buf, int size,
-			      struct scatterlist *sg_list, int nentries,
-			      enum dma_data_direction dir, int *npages)
-{
-	*npages = get_sg_list(buf, size, sg_list, nentries);
-	if (*npages < 0)
-		return -EINVAL;
-	return ib_dma_map_sg(device, sg_list, *npages, dir);
-}
-
 static int post_sendmsg(struct smbdirect_socket *sc,
 			struct smbdirect_send_batch *send_ctx,
 			struct smbdirect_send_io *msg)
@@ -1241,10 +1231,9 @@ static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 				     struct kvec *iov, int niov,
 				     int remaining_data_length)
 {
-	int i, j, ret;
+	int i, ret;
 	struct smbdirect_send_io *msg;
 	int data_length;
-	struct scatterlist sg[SMBDIRECT_SEND_IO_MAX_SGE - 1];
 	struct smbdirect_send_batch _send_ctx;
 	int new_credits;
 
@@ -1291,35 +1280,27 @@ static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 	if (ret)
 		goto header_failed;
 
-	for (i = 0; i < niov; i++) {
-		struct ib_sge *sge;
-		int sg_cnt;
-		int npages;
+	if (data_length) {
+		struct smbdirect_map_sges extract = {
+			.num_sge	= msg->num_sge,
+			.max_sge	= ARRAY_SIZE(msg->sge),
+			.sge		= msg->sge,
+			.device		= sc->ib.dev,
+			.local_dma_lkey	= sc->ib.pd->local_dma_lkey,
+			.direction	= DMA_TO_DEVICE,
+		};
+		struct iov_iter iter;
 
-		sg_init_table(sg, SMBDIRECT_SEND_IO_MAX_SGE - 1);
-		sg_cnt = get_mapped_sg_list(sc->ib.dev,
-					    iov[i].iov_base, iov[i].iov_len,
-					    sg, SMBDIRECT_SEND_IO_MAX_SGE - 1,
-					    DMA_TO_DEVICE, &npages);
-		if (sg_cnt <= 0) {
-			pr_err("failed to map buffer\n");
-			ret = -ENOMEM;
+		iov_iter_kvec(&iter, ITER_SOURCE, iov, niov, data_length);
+
+		ret = smbdirect_map_sges_from_iter(&iter, data_length, &extract);
+		if (ret < 0)
 			goto err;
-		} else if (sg_cnt + msg->num_sge > SMBDIRECT_SEND_IO_MAX_SGE) {
-			pr_err("buffer not fitted into sges\n");
-			ret = -E2BIG;
-			ib_dma_unmap_sg(sc->ib.dev, sg, npages,
-					DMA_TO_DEVICE);
+		if (WARN_ON_ONCE(ret != data_length)) {
+			ret = -EIO;
 			goto err;
 		}
-
-		for (j = 0; j < sg_cnt; j++) {
-			sge = &msg->sge[msg->num_sge];
-			sge->addr = sg_dma_address(&sg[j]);
-			sge->length = sg_dma_len(&sg[j]);
-			sge->lkey  = sc->ib.pd->local_dma_lkey;
-			msg->num_sge++;
-		}
+		msg->num_sge = extract.num_sge;
 	}
 
 	ret = post_sendmsg(sc, send_ctx, msg);
