@@ -4420,7 +4420,7 @@
 			frame@17c27000 {
 				frame-number = <3>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x17c26000 0x1000>;
+				reg = <0x17c27000 0x1000>;
 				status = "disabled";
 			};
 
