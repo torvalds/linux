@@ -36,7 +36,7 @@
 	max-speed = <100>;
 };
 
-&ecspi1{
+&ecspi1 {
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
 };
