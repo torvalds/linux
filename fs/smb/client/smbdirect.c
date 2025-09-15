@@ -1441,10 +1441,8 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	log_rdma_event(INFO, "cancelling recv_io.posted.refill_work\n");
 	disable_work_sync(&sc->recv_io.posted.refill_work);
 
-	log_rdma_event(INFO, "destroying qp\n");
+	log_rdma_event(INFO, "drain qp\n");
 	ib_drain_qp(sc->ib.qp);
-	rdma_destroy_qp(sc->rdma.cm_id);
-	sc->ib.qp = NULL;
 
 	log_rdma_event(INFO, "cancelling idle timer\n");
 	disable_delayed_work_sync(&sc->idle.timer_work);
@@ -1470,9 +1468,8 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	log_rdma_event(INFO, "freeing mr list\n");
 	destroy_mr_list(sc);
 
-	ib_free_cq(sc->ib.send_cq);
-	ib_free_cq(sc->ib.recv_cq);
-	ib_dealloc_pd(sc->ib.pd);
+	log_rdma_event(INFO, "destroying qp\n");
+	smbdirect_connection_destroy_qp(sc);
 	rdma_destroy_id(sc->rdma.cm_id);
 
 	/* free mempools */
@@ -1532,8 +1529,6 @@ static struct smbd_connection *_smbd_get_connection(
 	struct smbdirect_socket_parameters init_params = {};
 	struct smbdirect_socket_parameters *sp;
 	struct rdma_conn_param conn_param;
-	struct ib_qp_cap qp_cap;
-	struct ib_qp_init_attr qp_attr;
 	struct sockaddr_in *addr_in = (struct sockaddr_in *) dstaddr;
 	struct ib_port_immutable port_immutable;
 	__be32 ird_ord_hdr[2];
@@ -1569,6 +1564,7 @@ static struct smbd_connection *_smbd_get_connection(
 		goto create_wq_failed;
 	smbdirect_socket_prepare_create(sc, sp, workqueue);
 	smbdirect_socket_set_logging(sc, NULL, smbd_logging_needed, smbd_logging_vaprintf);
+	sc->ib.poll_ctx = IB_POLL_SOFTIRQ;
 	/*
 	 * from here we operate on the copy.
 	 */
@@ -1580,94 +1576,17 @@ static struct smbd_connection *_smbd_get_connection(
 		goto create_id_failed;
 	}
 
-	if (sp->send_credit_target > sc->ib.dev->attrs.max_cqe ||
-	    sp->send_credit_target > sc->ib.dev->attrs.max_qp_wr) {
-		log_rdma_event(ERR, "consider lowering send_credit_target = %d. Possible CQE overrun, device reporting max_cqe %d max_qp_wr %d\n",
-			       sp->send_credit_target,
-			       sc->ib.dev->attrs.max_cqe,
-			       sc->ib.dev->attrs.max_qp_wr);
-		goto config_failed;
-	}
-
-	if (sp->recv_credit_max > sc->ib.dev->attrs.max_cqe ||
-	    sp->recv_credit_max > sc->ib.dev->attrs.max_qp_wr) {
-		log_rdma_event(ERR, "consider lowering receive_credit_max = %d. Possible CQE overrun, device reporting max_cqe %d max_qp_wr %d\n",
-			       sp->recv_credit_max,
-			       sc->ib.dev->attrs.max_cqe,
-			       sc->ib.dev->attrs.max_qp_wr);
-		goto config_failed;
-	}
-
-	if (sc->ib.dev->attrs.max_send_sge < SMBDIRECT_SEND_IO_MAX_SGE ||
-	    sc->ib.dev->attrs.max_recv_sge < SMBDIRECT_RECV_IO_MAX_SGE) {
-		log_rdma_event(ERR,
-			"device %.*s max_send_sge/max_recv_sge = %d/%d too small\n",
-			IB_DEVICE_NAME_MAX,
-			sc->ib.dev->name,
-			sc->ib.dev->attrs.max_send_sge,
-			sc->ib.dev->attrs.max_recv_sge);
-		goto config_failed;
-	}
-
 	sp->responder_resources =
 		min_t(u8, sp->responder_resources,
 		      sc->ib.dev->attrs.max_qp_rd_atom);
 	log_rdma_mr(INFO, "responder_resources=%d\n",
 		sp->responder_resources);
 
-	/*
-	 * We use allocate sp->responder_resources * 2 MRs
-	 * and each MR needs WRs for REG and INV, so
-	 * we use '* 4'.
-	 *
-	 * +1 for ib_drain_qp()
-	 */
-	memset(&qp_cap, 0, sizeof(qp_cap));
-	qp_cap.max_send_wr = sp->send_credit_target + sp->responder_resources * 4 + 1;
-	qp_cap.max_recv_wr = sp->recv_credit_max + 1;
-	qp_cap.max_send_sge = SMBDIRECT_SEND_IO_MAX_SGE;
-	qp_cap.max_recv_sge = SMBDIRECT_RECV_IO_MAX_SGE;
-
-	sc->ib.pd = ib_alloc_pd(sc->ib.dev, 0);
-	if (IS_ERR(sc->ib.pd)) {
-		rc = PTR_ERR(sc->ib.pd);
-		sc->ib.pd = NULL;
-		log_rdma_event(ERR, "ib_alloc_pd() returned %d\n", rc);
-		goto alloc_pd_failed;
-	}
-
-	sc->ib.send_cq =
-		ib_alloc_cq_any(sc->ib.dev, sc,
-				qp_cap.max_send_wr, IB_POLL_SOFTIRQ);
-	if (IS_ERR(sc->ib.send_cq)) {
-		sc->ib.send_cq = NULL;
-		goto alloc_cq_failed;
-	}
-
-	sc->ib.recv_cq =
-		ib_alloc_cq_any(sc->ib.dev, sc,
-				qp_cap.max_recv_wr, IB_POLL_SOFTIRQ);
-	if (IS_ERR(sc->ib.recv_cq)) {
-		sc->ib.recv_cq = NULL;
-		goto alloc_cq_failed;
-	}
-
-	memset(&qp_attr, 0, sizeof(qp_attr));
-	qp_attr.event_handler = smbdirect_connection_qp_event_handler;
-	qp_attr.qp_context = sc;
-	qp_attr.cap = qp_cap;
-	qp_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
-	qp_attr.qp_type = IB_QPT_RC;
-	qp_attr.send_cq = sc->ib.send_cq;
-	qp_attr.recv_cq = sc->ib.recv_cq;
-	qp_attr.port_num = ~0;
-
-	rc = rdma_create_qp(sc->rdma.cm_id, sc->ib.pd, &qp_attr);
+	rc = smbdirect_connection_create_qp(sc);
 	if (rc) {
-		log_rdma_event(ERR, "rdma_create_qp failed %i\n", rc);
+		log_rdma_event(ERR, "smbdirect_connection_create_qp failed %i\n", rc);
 		goto create_qp_failed;
 	}
-	sc->ib.qp = sc->rdma.cm_id->qp;
 
 	memset(&conn_param, 0, sizeof(conn_param));
 	conn_param.initiator_depth = sp->initiator_depth;
@@ -1760,19 +1679,9 @@ negotiation_failed:
 
 allocate_cache_failed:
 rdma_connect_failed:
-	rdma_destroy_qp(sc->rdma.cm_id);
+	smbdirect_connection_destroy_qp(sc);
 
 create_qp_failed:
-alloc_cq_failed:
-	if (sc->ib.send_cq)
-		ib_free_cq(sc->ib.send_cq);
-	if (sc->ib.recv_cq)
-		ib_free_cq(sc->ib.recv_cq);
-
-	ib_dealloc_pd(sc->ib.pd);
-
-alloc_pd_failed:
-config_failed:
 	rdma_destroy_id(sc->rdma.cm_id);
 
 create_id_failed:
