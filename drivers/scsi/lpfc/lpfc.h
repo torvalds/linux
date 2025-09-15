@@ -661,14 +661,11 @@ struct lpfc_vport {
 	uint32_t num_disc_nodes;	/* in addition to hba_state */
 	uint32_t gidft_inp;		/* cnt of outstanding GID_FTs */
 
-	uint32_t fc_nlp_cnt;	/* outstanding NODELIST requests */
 	uint32_t fc_rscn_id_cnt;	/* count of RSCNs payloads in list */
 	uint32_t fc_rscn_flush;		/* flag use of fc_rscn_id_list */
 	struct lpfc_dmabuf *fc_rscn_id_list[FC_MAX_HOLD_RSCN];
 	struct lpfc_name fc_nodename;	/* fc nodename */
 	struct lpfc_name fc_portname;	/* fc portname */
-
-	struct lpfc_work_evt disc_timeout_evt;
 
 	struct timer_list fc_disctmo;	/* Discovery rescue timer */
 	uint8_t fc_ns_retry;	/* retries for fabric nameserver */
@@ -767,7 +764,6 @@ struct lpfc_vport {
 	/* There is a single nvme instance per vport. */
 	struct nvme_fc_local_port *localport;
 	uint8_t  nvmei_support; /* driver supports NVME Initiator */
-	uint32_t last_fcp_wqidx;
 	uint32_t rcv_flogi_cnt; /* How many unsol FLOGIs ACK'd. */
 };
 
@@ -1060,8 +1056,6 @@ struct lpfc_hba {
 
 	struct lpfc_dmabuf hbqslimp;
 
-	uint16_t pci_cfg_value;
-
 	uint8_t fc_linkspeed;	/* Link speed after last READ_LA */
 
 	uint32_t fc_eventTag;	/* event tag for link attention */
@@ -1088,7 +1082,6 @@ struct lpfc_hba {
 
 	struct lpfc_stats fc_stat;
 
-	struct lpfc_nodelist fc_fcpnodev; /* nodelist entry for no device */
 	uint32_t nport_event_cnt;	/* timestamp for nlplist entry */
 
 	uint8_t  wwnn[8];
@@ -1228,9 +1221,6 @@ struct lpfc_hba {
 	uint32_t hbq_in_use;		/* HBQs in use flag */
 	uint32_t hbq_count;	        /* Count of configured HBQs */
 	struct hbq_s hbqs[LPFC_MAX_HBQS]; /* local copy of hbq indicies  */
-
-	atomic_t fcp_qidx;         /* next FCP WQ (RR Policy) */
-	atomic_t nvme_qidx;        /* next NVME WQ (RR Policy) */
 
 	phys_addr_t pci_bar0_map;     /* Physical address for PCI BAR0 */
 	phys_addr_t pci_bar1_map;     /* Physical address for PCI BAR1 */
