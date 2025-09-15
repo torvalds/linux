@@ -85,6 +85,24 @@ struct vpa_pmu_buf {
 	u64     *base;
 	u64     size;
 	u64     head;
+	/* boot timebase and frequency needs to be saved only at once */
+	int	boottb_freq_saved;
+};
+
+/*
+ * To corelate each DTL entry with other events across CPU's,
+ * we need to map timebase from "struct dtl_entry" which phyp
+ * provides with boot timebase. This also needs timebase frequency.
+ * Formula is: ((timbase from DTL entry - boot time) / frequency)
+ *
+ * To match with size of "struct dtl_entry" to ease post processing,
+ * padded 24 bytes to the structure.
+ */
+struct boottb_freq {
+	u64	boot_tb;
+	u64	tb_freq;
+	u64	timebase;
+	u64	padded[3];
 };
 
 static DEFINE_PER_CPU(struct vpa_pmu_ctx, vpa_pmu_ctx);
@@ -95,12 +113,122 @@ static int dtl_global_refc;
 static spinlock_t dtl_global_lock = __SPIN_LOCK_UNLOCKED(dtl_global_lock);
 
 /*
+ * Capture DTL data in AUX buffer
+ */
+static void vpa_dtl_capture_aux(long *n_entries, struct vpa_pmu_buf *buf,
+		struct vpa_dtl *dtl, int index)
+{
+	struct dtl_entry *aux_copy_buf = (struct dtl_entry *)buf->base;
+
+	/*
+	 * Copy to AUX buffer from per-thread address
+	 */
+	memcpy(aux_copy_buf + buf->head, &dtl->buf[index], *n_entries * sizeof(struct dtl_entry));
+
+	buf->head += *n_entries;
+
+	return;
+}
+
+/*
  * Function to dump the dispatch trace log buffer data to the
  * perf data.
+ *
+ * perf_aux_output_begin: This function is called before writing
+ * to AUX area. This returns the pointer to aux area private structure,
+ * ie "struct vpa_pmu_buf" here which is set in setup_aux() function.
+ * The function obtains the output handle (used in perf_aux_output_end).
+ * when capture completes in vpa_dtl_capture_aux(), call perf_aux_output_end()
+ * to commit the recorded data.
+ *
+ * perf_aux_output_end: This function commits data by adjusting the
+ * aux_head of "struct perf_buffer". aux_tail will be moved in perf tools
+ * side when writing the data from aux buffer to perf.data file in disk.
+ *
+ * Here in the private aux structure, we maintain head to know where
+ * to copy data next time in the PMU driver. vpa_pmu_buf->head is moved to
+ * maintain the aux head for PMU driver. It is responsiblity of PMU
+ * driver to make sure data is copied between perf_aux_output_begin and
+ * perf_aux_output_end.
+ *
+ * After data is copied in vpa_dtl_capture_aux() function, perf_aux_output_end()
+ * is called to move the aux->head of "struct perf_buffer" to indicate size of
+ * data in aux buffer. This will post a PERF_RECORD_AUX into the perf buffer.
+ * Data will be written to disk only when the allocated buffer is full.
+ *
+ * By this approach, all the DTL data will be present as-is in the
+ * perf.data. The data will be pre-processed in perf tools side when doing
+ * perf report/perf script and this will avoid time taken to create samples
+ * in the kernel space.
  */
 static void vpa_dtl_dump_sample_data(struct perf_event *event)
 {
-	return;
+	u64 cur_idx, last_idx, i;
+	u64 boot_tb;
+	struct boottb_freq boottb_freq;
+
+	/* actual number of entries read */
+	long n_read = 0, read_size = 0;
+
+	/* number of entries added to dtl buffer */
+	long n_req;
+
+	struct vpa_pmu_ctx *vpa_ctx = this_cpu_ptr(&vpa_pmu_ctx);
+
+	struct vpa_pmu_buf *aux_buf;
+
+	struct vpa_dtl *dtl = &per_cpu(vpa_dtl_cpu, event->cpu);
+
+	cur_idx = be64_to_cpu(lppaca_of(event->cpu).dtl_idx);
+	last_idx = dtl->last_idx;
+
+	if (last_idx + N_DISPATCH_LOG <= cur_idx)
+		last_idx = cur_idx - N_DISPATCH_LOG + 1;
+
+	n_req = cur_idx - last_idx;
+
+	/* no new entry added to the buffer, return */
+	if (n_req <= 0)
+		return;
+
+	dtl->last_idx = last_idx + n_req;
+	boot_tb = get_boot_tb();
+
+	i = last_idx % N_DISPATCH_LOG;
+
+	aux_buf = perf_aux_output_begin(&vpa_ctx->handle, event);
+	if (!aux_buf) {
+		pr_debug("returning. no aux\n");
+		return;
+	}
+
+	if (!aux_buf->boottb_freq_saved) {
+		pr_debug("Copying boot tb to aux buffer: %lld\n", boot_tb);
+		/* Save boot_tb to convert raw timebase to it's relative system boot time */
+		boottb_freq.boot_tb = boot_tb;
+		/* Save tb_ticks_per_sec to convert timebase to sec */
+		boottb_freq.tb_freq = tb_ticks_per_sec;
+		boottb_freq.timebase = 0;
+		memcpy(aux_buf->base, &boottb_freq, sizeof(boottb_freq));
+		aux_buf->head += 1;
+		aux_buf->boottb_freq_saved = 1;
+		n_read += 1;
+	}
+
+	/* read the tail of the buffer if we've wrapped */
+	if (i + n_req > N_DISPATCH_LOG) {
+		read_size = N_DISPATCH_LOG - i;
+		vpa_dtl_capture_aux(&read_size, aux_buf, dtl, i);
+		n_req -= read_size;
+		n_read += read_size;
+		i = 0;
+	}
+
+	/* .. and now the head */
+	vpa_dtl_capture_aux(&n_req, aux_buf, dtl, i);
+
+	/* Move the aux->head to indicate size of data in aux buffer */
+	perf_aux_output_end(&vpa_ctx->handle, (n_req + n_read) * sizeof(struct dtl_entry));
 }
 
 /*
@@ -363,6 +491,7 @@ static void *vpa_dtl_setup_aux(struct perf_event *event, void **pages,
 
 	buf->size = nr_pages << PAGE_SHIFT;
 	buf->head = 0;
+	buf->boottb_freq_saved = 0;
 	return no_free_ptr(buf);
 }
 
