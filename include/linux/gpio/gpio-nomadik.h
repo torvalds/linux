@@ -268,8 +268,7 @@ void nmk_gpio_dbg_show_one(struct seq_file *s, struct pinctrl_dev *pctldev,
 static inline void nmk_gpio_dbg_show_one(struct seq_file *s,
 					 struct pinctrl_dev *pctldev,
 					 struct gpio_chip *chip,
-					 unsigned int offset,
-					 unsigned int gpio)
+					 unsigned int offset)
 {
 }
 
