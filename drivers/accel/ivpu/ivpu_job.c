@@ -219,11 +219,13 @@ static int ivpu_register_db(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *
 		ret = ivpu_jsm_register_db(vdev, file_priv->ctx.id, cmdq->db_id,
 					   cmdq->mem->vpu_addr, ivpu_bo_size(cmdq->mem));
 
-	if (!ret)
+	if (!ret) {
 		ivpu_dbg(vdev, JOB, "DB %d registered to cmdq %d ctx %d priority %d\n",
 			 cmdq->db_id, cmdq->id, file_priv->ctx.id, cmdq->priority);
-	else
+	} else {
 		xa_erase(&vdev->db_xa, cmdq->db_id);
+		cmdq->db_id = 0;
+	}
 
 	return ret;
 }
