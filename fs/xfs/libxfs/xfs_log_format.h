@@ -622,11 +622,11 @@ struct xfs_extent_32 {
 	uint32_t	ext_len;
 } __attribute__((packed));
 
-typedef struct xfs_extent_64 {
+struct xfs_extent_64 {
 	uint64_t	ext_start;
 	uint32_t	ext_len;
 	uint32_t	ext_pad;
-} xfs_extent_64_t;
+};
 
 /*
  * This is the structure used to lay out an efi log item in the
@@ -670,7 +670,7 @@ typedef struct xfs_efi_log_format_64 {
 	uint16_t		efi_size;	/* size of this item */
 	uint32_t		efi_nextents;	/* # extents to free */
 	uint64_t		efi_id;		/* efi identifier */
-	xfs_extent_64_t		efi_extents[];	/* array of extents to free */
+	struct xfs_extent_64	efi_extents[];	/* array of extents to free */
 } xfs_efi_log_format_64_t;
 
 static inline size_t
@@ -723,7 +723,7 @@ typedef struct xfs_efd_log_format_64 {
 	uint16_t		efd_size;	/* size of this item */
 	uint32_t		efd_nextents;	/* # of extents freed */
 	uint64_t		efd_efi_id;	/* id of corresponding efi */
-	xfs_extent_64_t		efd_extents[];	/* array of extents freed */
+	struct xfs_extent_64	efd_extents[];	/* array of extents freed */
 } xfs_efd_log_format_64_t;
 
 static inline size_t
