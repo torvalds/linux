@@ -3912,6 +3912,12 @@ S: C/ Federico Garcia Lorca 1 10-A
 S: Sevilla 41005
 S: Spain
 
+N: Björn Töpel
+E: bjorn@kernel.org
+D: AF_XDP
+S: Gothenburg
+S: Sweden
+
 N: Linus Torvalds
 E: torvalds@linux-foundation.org
 D: Original kernel hacker
