@@ -122,8 +122,8 @@ static int rmi_cpuid_read(struct sbrmi_data *data,
 		if (ret < 0)
 			goto exit_unlock;
 	}
-	/* CPUID protocol for REV 0x10 is not supported*/
-	if (data->rev == 0x10) {
+	/* CPUID protocol for REV 0x20 is only supported*/
+	if (data->rev != 0x20) {
 		ret = -EOPNOTSUPP;
 		goto exit_unlock;
 	}
@@ -203,8 +203,8 @@ static int rmi_mca_msr_read(struct sbrmi_data *data,
 		if (ret < 0)
 			goto exit_unlock;
 	}
-	/* MCA MSR protocol for REV 0x10 is not supported*/
-	if (data->rev == 0x10) {
+	/* MCA MSR protocol for REV 0x20 is supported*/
+	if (data->rev != 0x20) {
 		ret = -EOPNOTSUPP;
 		goto exit_unlock;
 	}
