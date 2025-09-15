@@ -61,6 +61,8 @@
 	pinctrl-0 = <&ap_mmc0_pins>;
 	pinctrl-names = "default";
 	vqmmc-supply = <&v_1_8>;
+	no-sdio;
+	non-removable;
 	status = "okay";
 };
 
