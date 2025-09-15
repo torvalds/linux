@@ -35,8 +35,10 @@
 /* MSR */
 #define MSR_RD_REG_LEN		0xa
 #define MSR_WR_REG_LEN		0x8
+#define MSR_WR_REG_LEN_EXT	0x9
 #define MSR_RD_DATA_LEN		0x8
 #define MSR_WR_DATA_LEN		0x7
+#define MSR_WR_DATA_LEN_EXT	0x8
 
 /* CPUID MSR Command Ids */
 #define CPUID_MCA_CMD	0x73
@@ -117,6 +119,17 @@ static inline void prepare_mca_msr_input_message(struct cpu_msr_indata *input,
 	input->wr_len		= MSR_WR_DATA_LEN;
 	input->proto_cmd	= RD_MCA_CMD;
 	input->thread		= thread_id << 1;
+	input->value		= data_in;
+}
+
+static inline void prepare_mca_msr_input_message_ext(struct cpu_msr_indata_ext *input,
+						     u16 thread_id, u32 data_in)
+{
+	input->rd_len		= MSR_RD_DATA_LEN;
+	input->wr_len		= MSR_WR_DATA_LEN_EXT;
+	input->proto_cmd	= RD_MCA_CMD;
+	input->thread_lo	= (thread_id & 0xFF) << 1;
+	input->thread_hi	= thread_id >> 8;
 	input->value		= data_in;
 }
 
@@ -248,13 +261,47 @@ exit_unlock:
 	return ret;
 }
 
+static int rmi_mcamsr_input(struct sbrmi_data *data, struct apml_mcamsr_msg *msg,
+			    u16 thread)
+{
+	struct cpu_msr_indata input = {0};
+	int val = 0, ret;
+
+	/* Thread > 127, Thread128 CS register, 1'b1 needs to be set to 1 */
+	if (thread > 127) {
+		thread -= 128;
+		val = 1;
+	}
+
+	ret = regmap_write(data->regmap, SBRMI_THREAD128CS, val);
+	if (ret < 0)
+		return ret;
+
+	prepare_mca_msr_input_message(&input, thread,
+				      msg->mcamsr_in_out & CPUID_MCA_FUNC_MASK);
+
+	return regmap_bulk_write(data->regmap, CPUID_MCA_CMD,
+				 &input, MSR_WR_REG_LEN);
+}
+
+static int rmi_mcamsr_input_ext(struct sbrmi_data *data, struct apml_mcamsr_msg *msg,
+				u16 thread)
+{
+	struct cpu_msr_indata_ext input = {0};
+
+	prepare_mca_msr_input_message_ext(&input, thread,
+					  msg->mcamsr_in_out & CPUID_MCA_FUNC_MASK);
+
+	return regmap_bulk_write(data->regmap, CPUID_MCA_CMD,
+				 &input, MSR_WR_REG_LEN_EXT);
+}
+
 /* MCA MSR protocol */
 static int rmi_mca_msr_read(struct sbrmi_data *data,
 			    struct apml_mcamsr_msg  *msg)
 {
 	struct cpu_msr_outdata output = {0};
-	struct cpu_msr_indata input = {0};
-	int ret, val = 0;
+	int ret;
 	int hw_status;
 	u16 thread;
 
@@ -265,30 +312,29 @@ static int rmi_mca_msr_read(struct sbrmi_data *data,
 		if (ret < 0)
 			goto exit_unlock;
 	}
-	/* MCA MSR protocol for REV 0x20 is supported*/
-	if (data->rev != 0x20) {
+
+	/* Extract thread from the input msg structure */
+	thread = msg->mcamsr_in_out >> CPUID_MCA_THRD_INDEX;
+
+	switch (data->rev) {
+	case 0x10:
+		/* MCAMSR protocol for REV 0x10 is not supported*/
+		ret = -EOPNOTSUPP;
+		goto exit_unlock;
+	case 0x20:
+		ret = rmi_mcamsr_input(data, msg, thread);
+		if (ret)
+			goto exit_unlock;
+		break;
+	case 0x21:
+		ret = rmi_mcamsr_input_ext(data, msg, thread);
+		if (ret)
+			goto exit_unlock;
+		break;
+	default:
 		ret = -EOPNOTSUPP;
 		goto exit_unlock;
 	}
-
-	thread = msg->mcamsr_in_out >> CPUID_MCA_THRD_INDEX;
-
-	/* Thread > 127, Thread128 CS register, 1'b1 needs to be set to 1 */
-	if (thread > 127) {
-		thread -= 128;
-		val = 1;
-	}
-	ret = regmap_write(data->regmap, SBRMI_THREAD128CS, val);
-	if (ret < 0)
-		goto exit_unlock;
-
-	prepare_mca_msr_input_message(&input, thread,
-				      msg->mcamsr_in_out & CPUID_MCA_FUNC_MASK);
-
-	ret = regmap_bulk_write(data->regmap, CPUID_MCA_CMD,
-				&input, MSR_WR_REG_LEN);
-	if (ret < 0)
-		goto exit_unlock;
 
 	/*
 	 * For RMI Rev 0x20, new h/w status bit is introduced. which is used
