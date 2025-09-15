@@ -544,8 +544,12 @@ void fw_card_initialize(struct fw_card *card,
 	card->index = atomic_inc_return(&index);
 	card->driver = driver;
 	card->device = device;
-	card->current_tlabel = 0;
-	card->tlabel_mask = 0;
+
+	card->transactions.current_tlabel = 0;
+	card->transactions.tlabel_mask = 0;
+	INIT_LIST_HEAD(&card->transactions.list);
+	spin_lock_init(&card->transactions.lock);
+
 	card->split_timeout_hi = DEFAULT_SPLIT_TIMEOUT / 8000;
 	card->split_timeout_lo = (DEFAULT_SPLIT_TIMEOUT % 8000) << 19;
 	card->split_timeout_cycles = DEFAULT_SPLIT_TIMEOUT;
@@ -555,7 +559,7 @@ void fw_card_initialize(struct fw_card *card,
 
 	kref_init(&card->kref);
 	init_completion(&card->done);
-	INIT_LIST_HEAD(&card->transaction_list);
+
 	spin_lock_init(&card->lock);
 
 	card->local_node = NULL;
@@ -772,7 +776,7 @@ void fw_core_remove_card(struct fw_card *card)
 	destroy_workqueue(card->isoc_wq);
 	destroy_workqueue(card->async_wq);
 
-	WARN_ON(!list_empty(&card->transaction_list));
+	WARN_ON(!list_empty(&card->transactions.list));
 }
 EXPORT_SYMBOL(fw_core_remove_card);
 

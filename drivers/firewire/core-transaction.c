@@ -49,12 +49,14 @@ static int close_transaction(struct fw_transaction *transaction, struct fw_card 
 {
 	struct fw_transaction *t = NULL, *iter;
 
-	scoped_guard(spinlock_irqsave, &card->lock) {
-		list_for_each_entry(iter, &card->transaction_list, link) {
+	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
+	// local destination never runs in any type of IRQ context.
+	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
+		list_for_each_entry(iter, &card->transactions.list, link) {
 			if (iter == transaction) {
 				if (try_cancel_split_timeout(iter)) {
 					list_del_init(&iter->link);
-					card->tlabel_mask &= ~(1ULL << iter->tlabel);
+					card->transactions.tlabel_mask &= ~(1ULL << iter->tlabel);
 					t = iter;
 				}
 				break;
@@ -117,11 +119,11 @@ static void split_transaction_timeout_callback(struct timer_list *timer)
 	struct fw_transaction *t = timer_container_of(t, timer, split_timeout_timer);
 	struct fw_card *card = t->card;
 
-	scoped_guard(spinlock_irqsave, &card->lock) {
+	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
 		if (list_empty(&t->link))
 			return;
 		list_del(&t->link);
-		card->tlabel_mask &= ~(1ULL << t->tlabel);
+		card->transactions.tlabel_mask &= ~(1ULL << t->tlabel);
 	}
 
 	if (!t->with_tstamp) {
@@ -259,18 +261,21 @@ static void fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 }
 
 static int allocate_tlabel(struct fw_card *card)
+__must_hold(&card->transactions_lock)
 {
 	int tlabel;
 
-	tlabel = card->current_tlabel;
-	while (card->tlabel_mask & (1ULL << tlabel)) {
+	lockdep_assert_held(&card->transactions.lock);
+
+	tlabel = card->transactions.current_tlabel;
+	while (card->transactions.tlabel_mask & (1ULL << tlabel)) {
 		tlabel = (tlabel + 1) & 0x3f;
-		if (tlabel == card->current_tlabel)
+		if (tlabel == card->transactions.current_tlabel)
 			return -EBUSY;
 	}
 
-	card->current_tlabel = (tlabel + 1) & 0x3f;
-	card->tlabel_mask |= 1ULL << tlabel;
+	card->transactions.current_tlabel = (tlabel + 1) & 0x3f;
+	card->transactions.tlabel_mask |= 1ULL << tlabel;
 
 	return tlabel;
 }
@@ -331,7 +336,6 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 		void *payload, size_t length, union fw_transaction_callback callback,
 		bool with_tstamp, void *callback_data)
 {
-	unsigned long flags;
 	int tlabel;
 
 	/*
@@ -339,11 +343,11 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 	 * the list while holding the card spinlock.
 	 */
 
-	spin_lock_irqsave(&card->lock, flags);
-
-	tlabel = allocate_tlabel(card);
+	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
+	// local destination never runs in any type of IRQ context.
+	scoped_guard(spinlock_irqsave, &card->transactions.lock)
+		tlabel = allocate_tlabel(card);
 	if (tlabel < 0) {
-		spin_unlock_irqrestore(&card->lock, flags);
 		if (!with_tstamp) {
 			callback.without_tstamp(card, RCODE_SEND_ERROR, NULL, 0, callback_data);
 		} else {
@@ -368,15 +372,22 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 	t->callback = callback;
 	t->with_tstamp = with_tstamp;
 	t->callback_data = callback_data;
-
-	fw_fill_request(&t->packet, tcode, t->tlabel, destination_id, card->node_id, generation,
-			speed, offset, payload, length);
 	t->packet.callback = transmit_complete_callback;
 
-	list_add_tail(&t->link, &card->transaction_list);
+	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
+	// local destination never runs in any type of IRQ context.
+	scoped_guard(spinlock_irqsave, &card->lock) {
+		// The node_id field of fw_card can be updated when handling SelfIDComplete.
+		fw_fill_request(&t->packet, tcode, t->tlabel, destination_id, card->node_id,
+				generation, speed, offset, payload, length);
+	}
 
-	spin_unlock_irqrestore(&card->lock, flags);
+	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
+	// local destination never runs in any type of IRQ context.
+	scoped_guard(spinlock_irqsave, &card->transactions.lock)
+		list_add_tail(&t->link, &card->transactions.list);
 
+	// Safe with no lock, since the index field of fw_card is immutable once assigned.
 	trace_async_request_outbound_initiate((uintptr_t)t, card->index, generation, speed,
 					      t->packet.header, payload,
 					      tcode_is_read_request(tcode) ? 0 : length / 4);
@@ -1111,12 +1122,14 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 		break;
 	}
 
-	scoped_guard(spinlock_irqsave, &card->lock) {
-		list_for_each_entry(iter, &card->transaction_list, link) {
+	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
+	// local destination never runs in any type of IRQ context.
+	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
+		list_for_each_entry(iter, &card->transactions.list, link) {
 			if (iter->node_id == source && iter->tlabel == tlabel) {
 				if (try_cancel_split_timeout(iter)) {
 					list_del_init(&iter->link);
-					card->tlabel_mask &= ~(1ULL << iter->tlabel);
+					card->transactions.tlabel_mask &= ~(1ULL << iter->tlabel);
 					t = iter;
 				}
 				break;

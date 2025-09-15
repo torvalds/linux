@@ -88,10 +88,14 @@ struct fw_card {
 
 	int node_id;
 	int generation;
-	int current_tlabel;
-	u64 tlabel_mask;
-	struct list_head transaction_list;
 	u64 reset_jiffies;
+
+	struct {
+		int current_tlabel;
+		u64 tlabel_mask;
+		struct list_head list;
+		spinlock_t lock;
+	} transactions;
 
 	u32 split_timeout_hi;
 	u32 split_timeout_lo;
