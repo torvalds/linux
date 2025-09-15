@@ -150,13 +150,13 @@ static void mei_gsc_remove(struct auxiliary_device *aux_dev)
 	if (mei_me_hw_use_polling(hw))
 		kthread_stop(hw->polling_thread);
 
-	mei_deregister(dev);
-
 	pm_runtime_disable(&aux_dev->dev);
 
 	mei_disable_interrupts(dev);
 	if (!mei_me_hw_use_polling(hw))
 		devm_free_irq(&aux_dev->dev, hw->irq, dev);
+
+	mei_deregister(dev);
 }
 
 static int __maybe_unused mei_gsc_pm_suspend(struct device *device)

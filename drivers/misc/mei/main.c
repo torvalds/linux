@@ -1208,12 +1208,12 @@ static int mei_minor_get(struct mei_device *dev)
 /**
  * mei_minor_free - mark device minor number as free
  *
- * @dev:  device pointer
+ * @minor: minor number to free
  */
-static void mei_minor_free(struct mei_device *dev)
+static void mei_minor_free(int minor)
 {
 	mutex_lock(&mei_minor_lock);
-	idr_remove(&mei_idr, dev->minor);
+	idr_remove(&mei_idr, minor);
 	mutex_unlock(&mei_minor_lock);
 }
 
@@ -1225,10 +1225,13 @@ static void mei_device_release(struct device *dev)
 int mei_register(struct mei_device *dev, struct device *parent)
 {
 	int ret, devno;
+	int minor;
 
 	ret = mei_minor_get(dev);
 	if (ret < 0)
 		return ret;
+
+	minor = dev->minor;
 
 	/* Fill in the data structures */
 	devno = MKDEV(MAJOR(mei_devt), dev->minor);
@@ -1279,7 +1282,7 @@ int mei_register(struct mei_device *dev, struct device *parent)
 err_del_cdev:
 	cdev_del(dev->cdev);
 err:
-	mei_minor_free(dev);
+	mei_minor_free(minor);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mei_register);
@@ -1287,6 +1290,7 @@ EXPORT_SYMBOL_GPL(mei_register);
 void mei_deregister(struct mei_device *dev)
 {
 	int devno;
+	int minor = dev->minor;
 
 	devno = dev->cdev->dev;
 	cdev_del(dev->cdev);
@@ -1295,7 +1299,7 @@ void mei_deregister(struct mei_device *dev)
 
 	device_destroy(&mei_class, devno);
 
-	mei_minor_free(dev);
+	mei_minor_free(minor);
 }
 EXPORT_SYMBOL_GPL(mei_deregister);
 
