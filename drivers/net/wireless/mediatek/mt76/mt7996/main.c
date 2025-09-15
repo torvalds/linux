@@ -262,13 +262,6 @@ mt7996_set_hw_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 		mt76_wcid_key_setup(&dev->mt76, &msta_link->wcid, key);
 
-		if (key->keyidx == 6 || key->keyidx == 7) {
-			err = mt7996_mcu_bcn_prot_enable(dev, link,
-							 msta_link, key);
-			if (err)
-				return err;
-		}
-
 		err = mt7996_mcu_add_key(&dev->mt76, vif, key,
 					 MCU_WMWA_UNI_CMD(STA_REC_UPDATE),
 					 &msta_link->wcid, cmd);
