@@ -2356,10 +2356,58 @@ out:
 }
 
 static void
+mt7996_mac_reset_sta_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+	struct mt7996_dev *dev = data;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(msta->link); i++) {
+		struct mt7996_sta_link *msta_link = NULL;
+
+		msta_link = rcu_replace_pointer(msta->link[i], msta_link,
+						lockdep_is_held(&dev->mt76.mutex));
+		if (!msta_link)
+			continue;
+
+		mt7996_mac_sta_deinit_link(dev, msta_link);
+
+		if (msta->deflink_id == i) {
+			msta->deflink_id = IEEE80211_LINK_UNSPECIFIED;
+			continue;
+		}
+
+		kfree_rcu(msta_link, rcu_head);
+	}
+}
+
+static void
+mt7996_mac_reset_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
+	struct mt76_vif_data *mvif = mlink->mvif;
+	struct mt7996_dev *dev = data;
+	int i;
+
+	rcu_read_lock();
+	for (i = 0; i < ARRAY_SIZE(mvif->link); i++) {
+
+		mlink = mt76_dereference(mvif->link[i], &dev->mt76);
+		if (!mlink || mlink == (struct mt76_vif_link *)vif->drv_priv)
+			continue;
+
+		rcu_assign_pointer(mvif->link[i], NULL);
+		kfree_rcu(mlink, rcu_head);
+	}
+	rcu_read_unlock();
+}
+
+static void
 mt7996_mac_full_reset(struct mt7996_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
 	struct mt7996_phy *phy;
+	LIST_HEAD(list);
 	int i;
 
 	dev->recovery.hw_full_reset = true;
@@ -2376,18 +2424,42 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
 		if (!mt7996_mac_restart(dev))
 			break;
 	}
-	mutex_unlock(&dev->mt76.mutex);
 
 	if (i == 10)
 		dev_err(dev->mt76.dev, "chip full reset failed\n");
 
-	ieee80211_restart_hw(mt76_hw(dev));
-	ieee80211_wake_queues(mt76_hw(dev));
-
-	dev->recovery.hw_full_reset = false;
 	mt7996_for_each_phy(dev, phy)
-		ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
-					     MT7996_WATCHDOG_TIME);
+		phy->omac_mask = 0;
+
+	ieee80211_iterate_stations_atomic(hw, mt7996_mac_reset_sta_iter, dev);
+	ieee80211_iterate_active_interfaces_atomic(hw,
+						   IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER,
+						   mt7996_mac_reset_vif_iter, dev);
+	mt76_reset_device(&dev->mt76);
+
+	INIT_LIST_HEAD(&dev->sta_rc_list);
+	INIT_LIST_HEAD(&dev->twt_list);
+
+	spin_lock_bh(&dev->wed_rro.lock);
+	list_splice_init(&dev->wed_rro.poll_list, &list);
+	spin_unlock_bh(&dev->wed_rro.lock);
+
+	while (!list_empty(&list)) {
+		struct mt7996_wed_rro_session_id *e;
+
+		e = list_first_entry(&list, struct mt7996_wed_rro_session_id,
+				     list);
+		list_del_init(&e->list);
+		kfree(e);
+	}
+
+	i = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7996_WTBL_STA);
+	dev->mt76.global_wcid.idx = i;
+	dev->recovery.hw_full_reset = false;
+
+	mutex_unlock(&dev->mt76.mutex);
+
+	ieee80211_restart_hw(mt76_hw(dev));
 }
 
 void mt7996_mac_reset_work(struct work_struct *work)
