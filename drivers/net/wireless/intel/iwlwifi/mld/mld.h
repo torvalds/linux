@@ -134,6 +134,8 @@
  * @fw: a pointer to the fw object
  * @hw: pointer to the hw object.
  * @wiphy: a pointer to the wiphy struct, for easier access to it.
+ * @ext_capab: extended capabilities that will be set to wiphy on registration.
+ * @sta_ext_capab: extended capabilities for the station interface.
  * @nvm_data: pointer to the nvm_data that includes all our capabilities
  * @fwrt: fw runtime data
  * @debugfs_dir: debugfs directory
@@ -227,6 +229,8 @@ struct iwl_mld {
 	const struct iwl_fw *fw;
 	struct ieee80211_hw *hw;
 	struct wiphy *wiphy;
+	struct wiphy_iftype_ext_capab ext_capab[IWL_MLD_EXT_CAPA_NUM_IFTYPES];
+	u8 sta_ext_capab[IWL_MLD_STA_EXT_CAPA_SIZE];
 	struct iwl_nvm_data *nvm_data;
 	struct iwl_fw_runtime fwrt;
 	struct dentry *debugfs_dir;

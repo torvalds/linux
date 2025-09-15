@@ -76,13 +76,12 @@ iwl_mld_iface_combinations[] = {
 	},
 };
 
-static const u8 if_types_ext_capa_sta[] = {
-	 [0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
-	 [2] = WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT,
-	 [7] = WLAN_EXT_CAPA8_OPMODE_NOTIF |
-	       WLAN_EXT_CAPA8_MAX_MSDU_IN_AMSDU_LSB,
-	 [8] = WLAN_EXT_CAPA9_MAX_MSDU_IN_AMSDU_MSB,
-	 [9] = WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT,
+static const u8 ext_capa_base[IWL_MLD_STA_EXT_CAPA_SIZE] = {
+	[0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
+	[2] = WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT,
+	[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF |
+	      WLAN_EXT_CAPA8_MAX_MSDU_IN_AMSDU_LSB,
+	[8] = WLAN_EXT_CAPA9_MAX_MSDU_IN_AMSDU_MSB,
 };
 
 #define IWL_MLD_EMLSR_CAPA	(IEEE80211_EML_CAP_EMLSR_SUPP | \
@@ -94,18 +93,6 @@ static const u8 if_types_ext_capa_sta[] = {
 			IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP, \
 			IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP_SAME) | \
 			IEEE80211_MLD_CAP_OP_LINK_RECONF_SUPPORT)
-
-static const struct wiphy_iftype_ext_capab iftypes_ext_capa[] = {
-	{
-		.iftype = NL80211_IFTYPE_STATION,
-		.extended_capabilities = if_types_ext_capa_sta,
-		.extended_capabilities_mask = if_types_ext_capa_sta,
-		.extended_capabilities_len = sizeof(if_types_ext_capa_sta),
-		/* relevant only if EHT is supported */
-		.eml_capabilities = IWL_MLD_EMLSR_CAPA,
-		.mld_capa_and_ops = IWL_MLD_CAPA_OPS,
-	},
-};
 
 static void iwl_mld_hw_set_addresses(struct iwl_mld *mld)
 {
@@ -336,21 +323,37 @@ static void iwl_mac_hw_set_wiphy(struct iwl_mld *mld)
 	if (fw_has_capa(ucode_capa, IWL_UCODE_TLV_CAPA_PROTECTED_TWT))
 		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_PROTECTED_TWT);
 
-	wiphy->iftype_ext_capab = NULL;
-	wiphy->num_iftype_ext_capab = 0;
-
-	if (!iwlwifi_mod_params.disable_11ax) {
-		wiphy->iftype_ext_capab = iftypes_ext_capa;
-		wiphy->num_iftype_ext_capab = ARRAY_SIZE(iftypes_ext_capa);
-
-		ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
-		ieee80211_hw_set(hw, SUPPORTS_ONLY_HE_MULTI_BSSID);
-	}
-
 	if (iwlmld_mod_params.power_scheme != IWL_POWER_SCHEME_CAM)
 		wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;
 	else
 		wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
+
+	/* We are done for non-HE */
+	if (iwlwifi_mod_params.disable_11ax)
+		return;
+
+	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
+	ieee80211_hw_set(hw, SUPPORTS_ONLY_HE_MULTI_BSSID);
+
+	wiphy->iftype_ext_capab = mld->ext_capab;
+	wiphy->num_iftype_ext_capab = ARRAY_SIZE(mld->ext_capab);
+
+	BUILD_BUG_ON(sizeof(mld->sta_ext_capab) < sizeof(ext_capa_base));
+
+	memcpy(mld->sta_ext_capab, ext_capa_base, sizeof(ext_capa_base));
+
+	mld->ext_capab[0].iftype = NL80211_IFTYPE_STATION;
+	mld->ext_capab[0].extended_capabilities = mld->sta_ext_capab;
+	mld->ext_capab[0].extended_capabilities_mask = mld->sta_ext_capab;
+	mld->ext_capab[0].extended_capabilities_len = sizeof(mld->sta_ext_capab);
+
+	if (!mld->nvm_data->sku_cap_11be_enable ||
+	    iwlwifi_mod_params.disable_11be)
+		return;
+
+	mld->ext_capab[0].eml_capabilities = IWL_MLD_EMLSR_CAPA;
+	mld->ext_capab[0].mld_capa_and_ops = IWL_MLD_CAPA_OPS;
+
 }
 
 static void iwl_mac_hw_set_misc(struct iwl_mld *mld)
