@@ -126,7 +126,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	switch (version) {
 	case 6:
 	case 7:
-		expected_sz = sizeof(struct iwl_alive_ntf_v6);
+		expected_sz = sizeof(struct iwl_alive_ntf_v7);
 		break;
 	case 8:
 		expected_sz = sizeof(struct iwl_alive_ntf);
