@@ -27,6 +27,7 @@
 #define CLKS_NR_HSI0			(CLK_DOUT_HSI0_PCIE_APB + 1)
 #define CLKS_NR_HSI1			(CLK_MOUT_HSI1_USBDRD + 1)
 #define CLKS_NR_HSI2			(CLK_DOUT_HSI2_ETHERNET_PTP + 1)
+#define CLKS_NR_M2M                     (CLK_DOUT_M2M_NOCP + 1)
 
 /* ---- CMU_TOP ------------------------------------------------------------ */
 
@@ -1821,6 +1822,47 @@ static const struct samsung_cmu_info hsi2_cmu_info __initconst = {
 	.clk_name               = "noc",
 };
 
+/* ---- CMU_M2M --------------------------------------------------------- */
+
+/* Register Offset definitions for CMU_M2M (0x1a800000) */
+#define PLL_CON0_MUX_CLKCMU_M2M_JPEG_USER       0x600
+#define PLL_CON0_MUX_CLKCMU_M2M_NOC_USER        0x610
+#define CLK_CON_DIV_DIV_CLK_M2M_NOCP            0x1800
+
+static const unsigned long m2m_clk_regs[] __initconst = {
+	PLL_CON0_MUX_CLKCMU_M2M_JPEG_USER,
+	PLL_CON0_MUX_CLKCMU_M2M_NOC_USER,
+	CLK_CON_DIV_DIV_CLK_M2M_NOCP,
+};
+
+/* List of parent clocks for Muxes in CMU_M2M */
+PNAME(mout_clkcmu_m2m_noc_user_p) = { "oscclk", "dout_clkcmu_m2m_noc" };
+PNAME(mout_clkcmu_m2m_jpeg_user_p) = { "oscclk", "dout_clkcmu_m2m_jpeg" };
+
+static const struct samsung_mux_clock m2m_mux_clks[] __initconst = {
+	MUX(CLK_MOUT_M2M_JPEG_USER, "mout_clkcmu_m2m_jpeg_user",
+	    mout_clkcmu_m2m_jpeg_user_p, PLL_CON0_MUX_CLKCMU_M2M_JPEG_USER, 4, 1),
+	MUX(CLK_MOUT_M2M_NOC_USER, "mout_clkcmu_m2m_noc_user",
+	    mout_clkcmu_m2m_noc_user_p, PLL_CON0_MUX_CLKCMU_M2M_NOC_USER, 4, 1),
+};
+
+static const struct samsung_div_clock m2m_div_clks[] __initconst = {
+	DIV(CLK_DOUT_M2M_NOCP, "dout_m2m_nocp",
+	    "mout_clkcmu_m2m_noc_user", CLK_CON_DIV_DIV_CLK_M2M_NOCP,
+	    0, 3),
+};
+
+static const struct samsung_cmu_info m2m_cmu_info __initconst = {
+	.mux_clks               = m2m_mux_clks,
+	.nr_mux_clks            = ARRAY_SIZE(m2m_mux_clks),
+	.div_clks               = m2m_div_clks,
+	.nr_div_clks            = ARRAY_SIZE(m2m_div_clks),
+	.nr_clk_ids             = CLKS_NR_M2M,
+	.clk_regs               = m2m_clk_regs,
+	.nr_clk_regs            = ARRAY_SIZE(m2m_clk_regs),
+	.clk_name               = "noc",
+};
+
 static int __init exynosautov920_cmu_probe(struct platform_device *pdev)
 {
 	const struct samsung_cmu_info *info;
@@ -1851,6 +1893,9 @@ static const struct of_device_id exynosautov920_cmu_of_match[] = {
 	}, {
 		.compatible = "samsung,exynosautov920-cmu-hsi2",
 		.data = &hsi2_cmu_info,
+	}, {
+		.compatible = "samsung,exynosautov920-cmu-m2m",
+		.data = &m2m_cmu_info,
 	},
 	{ }
 };
