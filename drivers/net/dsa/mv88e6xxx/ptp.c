@@ -551,6 +551,7 @@ int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip)
 	return 0;
 }
 
+/* This must never be called holding the register lock */
 void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip)
 {
 	if (chip->ptp_clock) {
