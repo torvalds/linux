@@ -1768,7 +1768,7 @@ static int f2fs_drop_inode(struct inode *inode)
 		trace_f2fs_drop_inode(inode, 0);
 		return 0;
 	}
-	ret = generic_drop_inode(inode);
+	ret = inode_generic_drop(inode);
 	if (!ret)
 		ret = fscrypt_drop_inode(inode);
 	trace_f2fs_drop_inode(inode, ret);

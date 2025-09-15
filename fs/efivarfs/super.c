@@ -127,7 +127,7 @@ static int efivarfs_unfreeze_fs(struct super_block *sb);
 
 static const struct super_operations efivarfs_ops = {
 	.statfs = efivarfs_statfs,
-	.drop_inode = generic_delete_inode,
+	.drop_inode = inode_just_drop,
 	.alloc_inode = efivarfs_alloc_inode,
 	.free_inode = efivarfs_free_inode,
 	.show_options = efivarfs_show_options,

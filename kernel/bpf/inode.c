@@ -788,7 +788,7 @@ static void bpf_free_inode(struct inode *inode)
 
 const struct super_operations bpf_super_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= inode_just_drop,
 	.show_options	= bpf_show_options,
 	.free_inode	= bpf_free_inode,
 };

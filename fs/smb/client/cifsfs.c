@@ -857,7 +857,7 @@ static int cifs_drop_inode(struct inode *inode)
 
 	/* no serverino => unconditional eviction */
 	return !(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) ||
-		generic_drop_inode(inode);
+		inode_generic_drop(inode);
 }
 
 static const struct super_operations cifs_super_ops = {

@@ -778,7 +778,7 @@ xfs_fs_drop_inode(
 		return 0;
 	}
 
-	return generic_drop_inode(inode);
+	return inode_generic_drop(inode);
 }
 
 STATIC void

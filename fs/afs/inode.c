@@ -723,9 +723,9 @@ int afs_drop_inode(struct inode *inode)
 	_enter("");
 
 	if (test_bit(AFS_VNODE_PSEUDODIR, &AFS_FS_I(inode)->flags))
-		return generic_delete_inode(inode);
+		return inode_just_drop(inode);
 	else
-		return generic_drop_inode(inode);
+		return inode_generic_drop(inode);
 }
 
 /*

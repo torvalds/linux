@@ -1050,7 +1050,7 @@ static int gfs2_drop_inode(struct inode *inode)
 	if (test_bit(SDF_EVICTING, &sdp->sd_flags))
 		return 1;
 
-	return generic_drop_inode(inode);
+	return inode_generic_drop(inode);
 }
 
 /**

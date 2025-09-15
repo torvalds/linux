@@ -718,7 +718,7 @@ static void pidfs_evict_inode(struct inode *inode)
 }
 
 static const struct super_operations pidfs_sops = {
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= inode_just_drop,
 	.evict_inode	= pidfs_evict_inode,
 	.statfs		= simple_statfs,
 };

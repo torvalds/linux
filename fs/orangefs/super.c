@@ -306,7 +306,7 @@ static const struct super_operations orangefs_s_ops = {
 	.free_inode = orangefs_free_inode,
 	.destroy_inode = orangefs_destroy_inode,
 	.write_inode = orangefs_write_inode,
-	.drop_inode = generic_delete_inode,
+	.drop_inode = inode_just_drop,
 	.statfs = orangefs_statfs,
 	.show_options = orangefs_show_options,
 };

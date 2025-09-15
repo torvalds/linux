@@ -282,7 +282,7 @@ static int pstore_reconfigure(struct fs_context *fc)
 
 static const struct super_operations pstore_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= inode_just_drop,
 	.evict_inode	= pstore_evict_inode,
 	.show_options	= pstore_show_options,
 };

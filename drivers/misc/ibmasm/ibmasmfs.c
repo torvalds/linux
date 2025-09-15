@@ -94,7 +94,7 @@ static int ibmasmfs_init_fs_context(struct fs_context *fc)
 
 static const struct super_operations ibmasmfs_s_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= inode_just_drop,
 };
 
 static const struct file_operations *ibmasmfs_dir_ops = &simple_dir_operations;
