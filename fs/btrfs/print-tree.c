@@ -325,6 +325,18 @@ static void print_dir_log_index_item(const struct extent_buffer *eb, int i)
 	pr_info("\t\tdir log end %llu\n", btrfs_dir_log_end(eb, dlog));
 }
 
+static void print_extent_csum(const struct extent_buffer *eb, int i)
+{
+	const struct btrfs_fs_info *fs_info = eb->fs_info;
+	const u32 size = btrfs_item_size(eb, i);
+	const u32 csum_bytes = (size / fs_info->csum_size) * fs_info->sectorsize;
+	struct btrfs_key key;
+
+	btrfs_item_key_to_cpu(eb, &key, i);
+	pr_info("\t\trange start %llu end %llu length %u\n",
+		key.offset, key.offset + csum_bytes, csum_bytes);
+}
+
 void btrfs_print_leaf(const struct extent_buffer *l)
 {
 	struct btrfs_fs_info *fs_info;
@@ -372,6 +384,9 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 			break;
 		case BTRFS_DIR_LOG_INDEX_KEY:
 			print_dir_log_index_item(l, i);
+			break;
+		case BTRFS_EXTENT_CSUM_KEY:
+			print_extent_csum(l, i);
 			break;
 		case BTRFS_ROOT_ITEM_KEY:
 			ri = btrfs_item_ptr(l, i, struct btrfs_root_item);
