@@ -103,6 +103,7 @@
 
 	gic: interrupt-controller@78010000 {
 		compatible = "arm,cortex-a15-gic";
+		#address-cells = <0>;
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x0 0x78010000 0x0 0x1000>,	/* GIC Dist */
