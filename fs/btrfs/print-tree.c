@@ -13,6 +13,12 @@
 #include "volumes.h"
 #include "raid-stripe-tree.h"
 
+/*
+ * Large enough buffer size for the stringification of any key type yet short
+ * enough to use the stack and avoid allocations.
+ */
+#define KEY_TYPE_BUF_SIZE 32
+
 struct root_name_map {
 	u64 id;
 	const char *name;
@@ -366,6 +372,60 @@ static void print_file_extent_item(const struct extent_buffer *eb, int i)
 		btrfs_file_extent_compression(eb, fi));
 }
 
+static void key_type_string(const struct btrfs_key *key, char *buf, int buf_size)
+{
+	static const char *key_to_str[256] = {
+		[BTRFS_INODE_ITEM_KEY]			= "INODE_ITEM",
+		[BTRFS_INODE_REF_KEY]			= "INODE_REF",
+		[BTRFS_INODE_EXTREF_KEY]		= "INODE_EXTREF",
+		[BTRFS_DIR_ITEM_KEY]			= "DIR_ITEM",
+		[BTRFS_DIR_INDEX_KEY]			= "DIR_INDEX",
+		[BTRFS_DIR_LOG_ITEM_KEY]		= "DIR_LOG_ITEM",
+		[BTRFS_DIR_LOG_INDEX_KEY]		= "DIR_LOG_INDEX",
+		[BTRFS_XATTR_ITEM_KEY]			= "XATTR_ITEM",
+		[BTRFS_VERITY_DESC_ITEM_KEY]		= "VERITY_DESC_ITEM",
+		[BTRFS_VERITY_MERKLE_ITEM_KEY]		= "VERITY_MERKLE_ITEM",
+		[BTRFS_ORPHAN_ITEM_KEY]			= "ORPHAN_ITEM",
+		[BTRFS_ROOT_ITEM_KEY]			= "ROOT_ITEM",
+		[BTRFS_ROOT_REF_KEY]			= "ROOT_REF",
+		[BTRFS_ROOT_BACKREF_KEY]		= "ROOT_BACKREF",
+		[BTRFS_EXTENT_ITEM_KEY]			= "EXTENT_ITEM",
+		[BTRFS_METADATA_ITEM_KEY]		= "METADATA_ITEM",
+		[BTRFS_TREE_BLOCK_REF_KEY]		= "TREE_BLOCK_REF",
+		[BTRFS_SHARED_BLOCK_REF_KEY]		= "SHARED_BLOCK_REF",
+		[BTRFS_EXTENT_DATA_REF_KEY]		= "EXTENT_DATA_REF",
+		[BTRFS_SHARED_DATA_REF_KEY]		= "SHARED_DATA_REF",
+		[BTRFS_EXTENT_OWNER_REF_KEY]		= "EXTENT_OWNER_REF",
+		[BTRFS_EXTENT_CSUM_KEY]			= "EXTENT_CSUM",
+		[BTRFS_EXTENT_DATA_KEY]			= "EXTENT_DATA",
+		[BTRFS_BLOCK_GROUP_ITEM_KEY]		= "BLOCK_GROUP_ITEM",
+		[BTRFS_FREE_SPACE_INFO_KEY]		= "FREE_SPACE_INFO",
+		[BTRFS_FREE_SPACE_EXTENT_KEY]		= "FREE_SPACE_EXTENT",
+		[BTRFS_FREE_SPACE_BITMAP_KEY]		= "FREE_SPACE_BITMAP",
+		[BTRFS_CHUNK_ITEM_KEY]			= "CHUNK_ITEM",
+		[BTRFS_DEV_ITEM_KEY]			= "DEV_ITEM",
+		[BTRFS_DEV_EXTENT_KEY]			= "DEV_EXTENT",
+		[BTRFS_TEMPORARY_ITEM_KEY]		= "TEMPORARY_ITEM",
+		[BTRFS_DEV_REPLACE_KEY]			= "DEV_REPLACE",
+		[BTRFS_STRING_ITEM_KEY]			= "STRING_ITEM",
+		[BTRFS_QGROUP_STATUS_KEY]		= "QGROUP_STATUS",
+		[BTRFS_QGROUP_RELATION_KEY]		= "QGROUP_RELATION",
+		[BTRFS_QGROUP_INFO_KEY]			= "QGROUP_INFO",
+		[BTRFS_QGROUP_LIMIT_KEY]		= "QGROUP_LIMIT",
+		[BTRFS_PERSISTENT_ITEM_KEY]		= "PERSISTENT_ITEM",
+		[BTRFS_UUID_KEY_SUBVOL]			= "UUID_KEY_SUBVOL",
+		[BTRFS_UUID_KEY_RECEIVED_SUBVOL]	= "UUID_KEY_RECEIVED_SUBVOL",
+		[BTRFS_RAID_STRIPE_KEY]			= "RAID_STRIPE",
+	};
+
+	if (key->type == 0 && key->objectid == BTRFS_FREE_SPACE_OBJECTID)
+		scnprintf(buf, buf_size, "UNTYPED");
+	else if (key_to_str[key->type])
+		scnprintf(buf, buf_size, key_to_str[key->type]);
+	else
+		scnprintf(buf, buf_size, "UNKNOWN.%d", key->type);
+}
+
 void btrfs_print_leaf(const struct extent_buffer *l)
 {
 	struct btrfs_fs_info *fs_info;
@@ -390,10 +450,14 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 		   btrfs_leaf_free_space(l), btrfs_header_owner(l));
 	print_eb_refs_lock(l);
 	for (i = 0 ; i < nr ; i++) {
+		char key_buf[KEY_TYPE_BUF_SIZE];
+
 		btrfs_item_key_to_cpu(l, &key, i);
 		type = key.type;
-		pr_info("\titem %d key (%llu %u %llu) itemoff %d itemsize %d\n",
-			i, key.objectid, type, key.offset,
+		key_type_string(&key, key_buf, KEY_TYPE_BUF_SIZE);
+
+		pr_info("\titem %d key (%llu %s %llu) itemoff %d itemsize %d\n",
+			i, key.objectid, key_buf, key.offset,
 			btrfs_item_offset(l, i), btrfs_item_size(l, i));
 		switch (type) {
 		case BTRFS_INODE_ITEM_KEY:
