@@ -135,7 +135,7 @@
 
 		opp-1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-supported-hw = <0x01 0x0006>;
+			opp-supported-hw = <0x01 0x0007>;
 			clock-latency-ns = <6000000>;
 		};
 
