@@ -37,6 +37,7 @@ powerpc
     vas-api
     vcpudispatch_stats
     vmemmap_dedup
+    vpa-dtl
 
     features
 
