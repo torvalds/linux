@@ -926,13 +926,6 @@ static int smbd_ia_open(
 	if (sc->ib.dev->attrs.kernel_cap_flags & IBK_SG_GAPS_REG)
 		sc->mr_io.type = IB_MR_TYPE_SG_GAPS;
 
-	sc->ib.pd = ib_alloc_pd(sc->ib.dev, 0);
-	if (IS_ERR(sc->ib.pd)) {
-		rc = PTR_ERR(sc->ib.pd);
-		log_rdma_event(ERR, "ib_alloc_pd() returned %d\n", rc);
-		goto out2;
-	}
-
 	return 0;
 
 out2:
@@ -1858,6 +1851,14 @@ static struct smbd_connection *_smbd_get_connection(
 		goto config_failed;
 	}
 
+	sc->ib.pd = ib_alloc_pd(sc->ib.dev, 0);
+	if (IS_ERR(sc->ib.pd)) {
+		rc = PTR_ERR(sc->ib.pd);
+		sc->ib.pd = NULL;
+		log_rdma_event(ERR, "ib_alloc_pd() returned %d\n", rc);
+		goto alloc_pd_failed;
+	}
+
 	sc->ib.send_cq =
 		ib_alloc_cq_any(sc->ib.dev, sc,
 				sp->send_credit_target, IB_POLL_SOFTIRQ);
@@ -2002,8 +2003,10 @@ alloc_cq_failed:
 	if (sc->ib.recv_cq)
 		ib_free_cq(sc->ib.recv_cq);
 
-config_failed:
 	ib_dealloc_pd(sc->ib.pd);
+
+alloc_pd_failed:
+config_failed:
 	rdma_destroy_id(sc->rdma.cm_id);
 
 create_id_failed:
