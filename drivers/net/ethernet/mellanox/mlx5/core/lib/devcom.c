@@ -4,6 +4,7 @@
 #include <linux/mlx5/vport.h>
 #include <linux/list.h>
 #include "lib/devcom.h"
+#include "lib/mlx5.h"
 #include "mlx5_core.h"
 
 static LIST_HEAD(devcom_dev_list);
@@ -23,7 +24,9 @@ struct mlx5_devcom_dev {
 };
 
 struct mlx5_devcom_key {
+	u32 flags;
 	union mlx5_devcom_match_key key;
+	possible_net_t net;
 };
 
 struct mlx5_devcom_comp {
@@ -123,6 +126,9 @@ mlx5_devcom_comp_alloc(u64 id, const struct mlx5_devcom_match_attr *attr,
 
 	comp->id = id;
 	comp->key.key = attr->key;
+	comp->key.flags = attr->flags;
+	if (attr->flags & MLX5_DEVCOM_MATCH_FLAGS_NS)
+		write_pnet(&comp->key.net, attr->net);
 	comp->handler = handler;
 	init_rwsem(&comp->sem);
 	lockdep_register_key(&comp->lock_key);
@@ -190,7 +196,14 @@ devcom_component_equal(struct mlx5_devcom_comp *devcom,
 	if (devcom->id != id)
 		return false;
 
+	if (devcom->key.flags != attr->flags)
+		return false;
+
 	if (memcmp(&devcom->key.key, &attr->key, sizeof(devcom->key.key)))
+		return false;
+
+	if (devcom->key.flags & MLX5_DEVCOM_MATCH_FLAGS_NS &&
+	    !net_eq(read_pnet(&devcom->key.net), attr->net))
 		return false;
 
 	return true;

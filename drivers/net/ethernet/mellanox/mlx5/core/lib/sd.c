@@ -217,6 +217,8 @@ static int sd_register(struct mlx5_core_dev *dev)
 
 	sd = mlx5_get_sd(dev);
 	attr.key.val = sd->group_id;
+	attr.flags = MLX5_DEVCOM_MATCH_FLAGS_NS;
+	attr.net = mlx5_core_net(dev);
 	devcom = mlx5_devcom_register_component(dev->priv.devc, MLX5_DEVCOM_SD_GROUP,
 						&attr, NULL, dev);
 	if (IS_ERR(devcom))

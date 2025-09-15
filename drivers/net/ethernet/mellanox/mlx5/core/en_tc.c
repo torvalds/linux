@@ -66,6 +66,7 @@
 #include "lib/devcom.h"
 #include "lib/geneve.h"
 #include "lib/fs_chains.h"
+#include "lib/mlx5.h"
 #include "diag/en_tc_tracepoint.h"
 #include <asm/div64.h>
 #include "lag/lag.h"
@@ -5450,6 +5451,8 @@ int mlx5e_tc_esw_init(struct mlx5_rep_uplink_priv *uplink_priv)
 	err = netif_get_port_parent_id(priv->netdev, &ppid, false);
 	if (!err) {
 		memcpy(&attr.key.val, &ppid.id, sizeof(attr.key.val));
+		attr.flags = MLX5_DEVCOM_MATCH_FLAGS_NS;
+		attr.net = mlx5_core_net(esw->dev);
 		mlx5_esw_offloads_devcom_init(esw, &attr);
 	}
 
