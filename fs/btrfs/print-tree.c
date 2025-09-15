@@ -424,9 +424,10 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 				btrfs_file_extent_type(l, fi));
 			if (btrfs_file_extent_type(l, fi) ==
 			    BTRFS_FILE_EXTENT_INLINE) {
-				pr_info("\t\tinline extent data size %u ram_bytes %llu\n",
+				pr_info("\t\tinline extent data size %u ram_bytes %llu compression %hhu\n",
 					btrfs_file_extent_inline_item_len(l, i),
-					btrfs_file_extent_ram_bytes(l, fi));
+					btrfs_file_extent_ram_bytes(l, fi),
+					btrfs_file_extent_compression(l, fi));
 				break;
 			}
 			pr_info("\t\textent data disk bytenr %llu nr %llu\n",
@@ -436,6 +437,8 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 			       btrfs_file_extent_offset(l, fi),
 			       btrfs_file_extent_num_bytes(l, fi),
 			       btrfs_file_extent_ram_bytes(l, fi));
+			pr_info("\t\textent compression %hhu\n",
+				btrfs_file_extent_compression(l, fi));
 			break;
 		case BTRFS_BLOCK_GROUP_ITEM_KEY:
 			bi = btrfs_item_ptr(l, i,
