@@ -824,6 +824,8 @@ static void mt76_reset_phy(struct mt76_phy *phy)
 		return;
 
 	INIT_LIST_HEAD(&phy->tx_list);
+	phy->num_sta = 0;
+	phy->chanctx = NULL;
 }
 
 void mt76_reset_device(struct mt76_dev *dev)
