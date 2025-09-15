@@ -650,6 +650,8 @@ patternProperties:
     description: HiDeep Inc.
   "^himax,.*":
     description: Himax Technologies, Inc.
+  "^hinlink,.*":
+    description: Shenzhen HINLINK Technology Co., Ltd.
   "^hirschmann,.*":
     description: Hirschmann Automation and Control GmbH
   "^hisi,.*":

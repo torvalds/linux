@@ -107,6 +107,18 @@
 		vin-supply = <&vcc_1v8_s3>;
 	};
 
+	vcc3v3_lcd_s0: regulator-vcc3v3-lcd-s0 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_pwren_h>;
+		regulator-name = "vcc3v3-lcd-s0";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_s3>;
+	};
+
 	vcc3v3_pcie: regulator-vcc3v3-pcie {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -715,6 +727,10 @@
 	};
 
 	power {
+		lcd_pwren_h: lcd-pwren-h {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
 		vcc5vd_en: vcc5vd-en {
 			rockchip,pins = <2 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
