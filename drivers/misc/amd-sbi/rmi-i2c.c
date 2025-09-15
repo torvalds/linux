@@ -18,6 +18,8 @@
 #include <linux/regmap.h>
 #include "rmi-core.h"
 
+#define REV_TWO_BYTE_ADDR	0x21
+
 static int sbrmi_enable_alert(struct sbrmi_data *data)
 {
 	int ctrl, ret;
@@ -89,15 +91,40 @@ static struct regmap_config sbrmi_regmap_config = {
 	.val_bits = 8,
 };
 
+static struct regmap_config sbrmi_regmap_config_ext = {
+	.reg_bits = 16,
+	.val_bits = 8,
+	.reg_format_endian = REGMAP_ENDIAN_LITTLE,
+};
+
 static int sbrmi_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct regmap *regmap;
+	int rev, ret;
 
 	regmap = devm_regmap_init_i2c(client, &sbrmi_regmap_config);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
+	ret = regmap_read(regmap, SBRMI_REV, &rev);
+	if (ret)
+		return ret;
+
+	/*
+	 * For Turin and newer platforms, revision is 0x21 or later. This is
+	 * to identify the two byte register address size. However, one
+	 * byte transaction can be successful.
+	 * Verify if revision is 0x21 or later, if yes, switch to 2 byte
+	 * address size.
+	 * Continuously using 1 byte address for revision 0x21 or later can lead
+	 * to bus corruption.
+	 */
+	if (rev >= REV_TWO_BYTE_ADDR) {
+		regmap = devm_regmap_init_i2c(client, &sbrmi_regmap_config_ext);
+		if (IS_ERR(regmap))
+			return PTR_ERR(regmap);
+	}
 	return sbrmi_common_probe(dev, regmap, client->addr);
 }
 
@@ -141,10 +168,30 @@ static int sbrmi_i3c_probe(struct i3c_device *i3cdev)
 {
 	struct device *dev = i3cdev_to_dev(i3cdev);
 	struct regmap *regmap;
+	int rev, ret;
 
 	regmap = devm_regmap_init_i3c(i3cdev, &sbrmi_regmap_config);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
+
+	ret = regmap_read(regmap, SBRMI_REV, &rev);
+	if (ret)
+		return ret;
+
+	/*
+	 * For Turin and newer platforms, revision is 0x21 or later. This is
+	 * to identify the two byte register address size. However, one
+	 * byte transaction can be successful.
+	 * Verify if revision is 0x21 or later, if yes, switch to 2 byte
+	 * address size.
+	 * Continuously using 1 byte address for revision 0x21 or later can lead
+	 * to bus corruption.
+	 */
+	if (rev >= REV_TWO_BYTE_ADDR) {
+		regmap = devm_regmap_init_i3c(i3cdev, &sbrmi_regmap_config_ext);
+		if (IS_ERR(regmap))
+			return PTR_ERR(regmap);
+	}
 
 	/*
 	 * AMD APML I3C devices support static address.
