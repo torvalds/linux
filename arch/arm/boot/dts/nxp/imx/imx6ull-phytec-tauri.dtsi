@@ -15,7 +15,7 @@
 	};
 
 	gpio_keys: gpio-keys {
-		compatible = "gpio-key";
+		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 
@@ -79,13 +79,13 @@
 		user-led1 {
 			label = "yellow";
 			gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "off";
+			linux,default-trigger = "none";
 		};
 
 		user-led2 {
 			label = "red";
 			gpios = <&gpio5 9 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "off";
+			linux,default-trigger = "none";
 		};
 	};
 };

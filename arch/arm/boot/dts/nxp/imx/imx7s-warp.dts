@@ -23,7 +23,7 @@
 		pinctrl-0 = <&pinctrl_gpio>;
 		autorepeat;
 
-		back {
+		key-back {
 			label = "Back";
 			gpios = <&gpio7 1 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_BACK>;

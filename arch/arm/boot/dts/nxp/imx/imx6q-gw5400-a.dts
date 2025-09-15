@@ -184,7 +184,7 @@
 		#gpio-cells = <2>;
 	};
 
-	rtc: ds1672@68 {
+	rtc: rtc@68 {
 		compatible = "dallas,ds1672";
 		reg = <0x68>;
 	};

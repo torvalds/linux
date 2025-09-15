@@ -66,7 +66,7 @@
 	bus-num = <0>;
 	status = "okay";
 
-	dspiflash: at45db021d@0 {
+	dspiflash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "atmel,at45db021d", "atmel,at45", "atmel,dataflash";
@@ -187,7 +187,7 @@
 		 <0x3 0x0 0x0 0x7fb00000 0x00000100>;
 	status = "okay";
 
-	nor@0,0 {
+	flash@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "cfi-flash";
@@ -211,8 +211,8 @@
 		device-width = <1>;
 		ranges = <0 3 0 0x100>;
 
-		mdio-mux-emi1 {
-			compatible = "mdio-mux-mmioreg";
+		mdio-mux@54 {
+			compatible = "mdio-mux-mmioreg", "mdio-mux";
 			mdio-parent-bus = <&mdio0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
