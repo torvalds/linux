@@ -56,6 +56,7 @@ void blk_set_stacking_limits(struct queue_limits *lim)
 	lim->max_user_wzeroes_unmap_sectors = UINT_MAX;
 	lim->max_hw_zone_append_sectors = UINT_MAX;
 	lim->max_user_discard_sectors = UINT_MAX;
+	lim->atomic_write_hw_max = UINT_MAX;
 }
 EXPORT_SYMBOL(blk_set_stacking_limits);
 
@@ -230,6 +231,10 @@ static void blk_validate_atomic_write_limits(struct queue_limits *lim)
 			lim->atomic_write_hw_max >> SECTOR_SHIFT;
 
 	if (!(lim->features & BLK_FEAT_ATOMIC_WRITES))
+		goto unsupported;
+
+	/* UINT_MAX indicates stacked limits in initial state */
+	if (lim->atomic_write_hw_max == UINT_MAX)
 		goto unsupported;
 
 	if (!lim->atomic_write_hw_max)
@@ -723,18 +728,14 @@ static void blk_stack_atomic_writes_limits(struct queue_limits *t,
 	if (!blk_atomic_write_start_sect_aligned(start, b))
 		goto unsupported;
 
-	/*
-	 * If atomic_write_hw_max is set, we have already stacked 1x bottom
-	 * device, so check for compliance.
-	 */
-	if (t->atomic_write_hw_max) {
+	/* UINT_MAX indicates no stacking of bottom devices yet */
+	if (t->atomic_write_hw_max == UINT_MAX) {
+		if (!blk_stack_atomic_writes_head(t, b))
+			goto unsupported;
+	} else {
 		if (!blk_stack_atomic_writes_tail(t, b))
 			goto unsupported;
-		return;
 	}
-
-	if (!blk_stack_atomic_writes_head(t, b))
-		goto unsupported;
 	blk_stack_atomic_writes_chunk_sectors(t);
 	return;
 
