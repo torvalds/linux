@@ -623,11 +623,6 @@ static void spi_dev_set_name(struct spi_device *spi)
  */
 #define SPI_INVALID_CS		((s8)-1)
 
-static inline bool is_valid_cs(s8 chip_select)
-{
-	return chip_select != SPI_INVALID_CS;
-}
-
 static inline int spi_dev_check_cs(struct device *dev,
 				   struct spi_device *spi, u8 idx,
 				   struct spi_device *new_spi, u8 new_idx)
@@ -638,7 +633,7 @@ static inline int spi_dev_check_cs(struct device *dev,
 	cs = spi_get_chipselect(spi, idx);
 	for (idx_new = new_idx; idx_new < new_spi->num_chipselect; idx_new++) {
 		cs_new = spi_get_chipselect(new_spi, idx_new);
-		if (is_valid_cs(cs) && is_valid_cs(cs_new) && cs == cs_new) {
+		if (cs == cs_new) {
 			dev_err(dev, "chipselect %u already in use\n", cs_new);
 			return -EBUSY;
 		}
@@ -684,7 +679,7 @@ static int __spi_add_device(struct spi_device *spi)
 	for (idx = 0; idx < spi->num_chipselect; idx++) {
 		/* Chipselects are numbered 0..max; validate. */
 		cs = spi_get_chipselect(spi, idx);
-		if (is_valid_cs(cs) && cs >= ctlr->num_chipselect) {
+		if (cs >= ctlr->num_chipselect) {
 			dev_err(dev, "cs%d >= max %d\n", spi_get_chipselect(spi, idx),
 				ctlr->num_chipselect);
 			return -EINVAL;
@@ -730,8 +725,7 @@ static int __spi_add_device(struct spi_device *spi)
 
 		for (idx = 0; idx < spi->num_chipselect; idx++) {
 			cs = spi_get_chipselect(spi, idx);
-			if (is_valid_cs(cs))
-				spi_set_csgpiod(spi, idx, ctlr->cs_gpiods[cs]);
+			spi_set_csgpiod(spi, idx, ctlr->cs_gpiods[cs]);
 		}
 	}
 
