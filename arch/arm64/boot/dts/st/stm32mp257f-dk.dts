@@ -19,6 +19,7 @@
 	compatible = "st,stm32mp257f-dk", "st,stm32mp257";
 
 	aliases {
+		ethernet0 = &ethernet1;
 		serial0 = &usart2;
 	};
 
@@ -75,6 +76,28 @@
 &arm_wdt {
 	timeout-sec = <32>;
 	status = "okay";
+};
+
+&ethernet1 {
+	pinctrl-0 = <&eth1_rgmii_pins_b>;
+	pinctrl-1 = <&eth1_rgmii_sleep_pins_b>;
+	pinctrl-names = "default", "sleep";
+	phy-handle = <&phy1_eth1>;
+	phy-mode = "rgmii-id";
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,dwmac-mdio";
+		phy1_eth1: ethernet-phy@1 {
+			compatible = "ethernet-phy-id001c.c916";
+			reg = <1>;
+			reset-gpios =  <&gpioa 2 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <80000>;
+		};
+	};
 };
 
 &scmi_regu {
