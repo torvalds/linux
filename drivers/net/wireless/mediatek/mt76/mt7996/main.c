@@ -252,13 +252,13 @@ mt7996_set_hw_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 						&link->mt76, msta_link, true);
 		}
 
-		if (cmd == SET_KEY) {
+		if (cmd == SET_KEY)
 			*wcid_keyidx = idx;
-		} else {
-			if (idx == *wcid_keyidx)
-				*wcid_keyidx = -1;
+		else if (idx == *wcid_keyidx)
+			*wcid_keyidx = -1;
+
+		if (cmd != SET_KEY && sta)
 			continue;
-		}
 
 		mt76_wcid_key_setup(&dev->mt76, &msta_link->wcid, key);
 
@@ -277,10 +277,12 @@ mt7996_key_iter(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta, struct ieee80211_key_conf *key,
 		void *data)
 {
+	enum set_key_cmd *cmd = data;
+
 	if (sta)
 		return;
 
-	WARN_ON(mt7996_set_hw_key(hw, SET_KEY, vif, NULL, key));
+	WARN_ON(mt7996_set_hw_key(hw, *cmd, vif, NULL, key));
 }
 
 int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
@@ -291,6 +293,7 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_sta_link *msta_link = &link->msta_link;
 	struct mt7996_phy *phy = mphy->priv;
+	enum set_key_cmd key_cmd = SET_KEY;
 	struct mt7996_dev *dev = phy->dev;
 	u8 band_idx = phy->mt76->band_idx;
 	struct mt76_txq *mtxq;
@@ -370,7 +373,7 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 				   CONN_STATE_PORT_SECURE, true);
 	rcu_assign_pointer(dev->mt76.wcid[idx], &msta_link->wcid);
 
-	ieee80211_iter_keys(mphy->hw, vif, mt7996_key_iter, NULL);
+	ieee80211_iter_keys(mphy->hw, vif, mt7996_key_iter, &key_cmd);
 
 	if (mvif->mt76.deflink_id == IEEE80211_LINK_UNSPECIFIED)
 		mvif->mt76.deflink_id = link_conf->link_id;
@@ -385,9 +388,12 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 	struct mt7996_vif_link *link = container_of(mlink, struct mt7996_vif_link, mt76);
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_sta_link *msta_link = &link->msta_link;
+	enum set_key_cmd key_cmd = DISABLE_KEY;
 	struct mt7996_phy *phy = mphy->priv;
 	struct mt7996_dev *dev = phy->dev;
 	int idx = msta_link->wcid.idx;
+
+	ieee80211_iter_keys(mphy->hw, vif, mt7996_key_iter, &key_cmd);
 
 	mt7996_mcu_add_sta(dev, link_conf, NULL, link, NULL,
 			   CONN_STATE_DISCONNECT, false);
