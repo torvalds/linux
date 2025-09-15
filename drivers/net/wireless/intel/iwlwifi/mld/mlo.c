@@ -603,7 +603,7 @@ void iwl_mld_emlsr_check_tpt(struct wiphy *wiphy, struct wiphy_work *wk)
 
 	/* EMLSR is not active */
 	if (sec_link_id == -1)
-		return;
+		goto schedule;
 
 	IWL_DEBUG_INFO(mld, "Secondary Link %d: Tx MPDUs: %ld. Rx MPDUs: %ld\n",
 		       sec_link_id, sec_link_tx, sec_link_rx);
@@ -625,6 +625,7 @@ void iwl_mld_emlsr_check_tpt(struct wiphy *wiphy, struct wiphy_work *wk)
 		return;
 	}
 
+schedule:
 	/* Check again when the next window ends  */
 	wiphy_delayed_work_queue(mld_vif->mld->wiphy,
 				 &mld_vif->emlsr.check_tpt_wk,
