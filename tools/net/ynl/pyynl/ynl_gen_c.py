@@ -2106,10 +2106,10 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     for arg, aspec in struct.member_list():
         if aspec['type'] == 'indexed-array' and 'sub-type' in aspec:
             if aspec["sub-type"] in {'binary', 'nest'}:
-                local_vars.append(f'const struct nlattr *attr_{aspec.c_name};')
+                local_vars.append(f'const struct nlattr *attr_{aspec.c_name} = NULL;')
                 array_nests.add(arg)
             elif aspec['sub-type'] in scalars:
-                local_vars.append(f'const struct nlattr *attr_{aspec.c_name};')
+                local_vars.append(f'const struct nlattr *attr_{aspec.c_name} = NULL;')
                 array_nests.add(arg)
             else:
                 raise Exception(f'Not supported sub-type {aspec["sub-type"]}')
