@@ -875,6 +875,11 @@
 	};
 };
 
+&iris {
+	firmware-name = "qcom/x1e80100/dell/xps13-9345/qcvss8380.mbn";
+	status = "okay";
+};
+
 &mdss {
 	status = "okay";
 };
