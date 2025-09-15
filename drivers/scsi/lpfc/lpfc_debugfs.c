@@ -2373,93 +2373,117 @@ out:
 
 static ssize_t
 lpfc_debugfs_dif_err_read(struct file *file, char __user *buf,
-	size_t nbytes, loff_t *ppos)
+			  size_t nbytes, loff_t *ppos)
 {
 	struct lpfc_hba *phba = file->private_data;
 	int kind = debugfs_get_aux_num(file);
-	char cbuf[32];
-	uint64_t tmp = 0;
+	char cbuf[32] = {0};
 	int cnt = 0;
 
-	if (kind == writeGuard)
-		cnt = scnprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_wgrd_cnt);
-	else if (kind == writeApp)
-		cnt = scnprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_wapp_cnt);
-	else if (kind == writeRef)
-		cnt = scnprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_wref_cnt);
-	else if (kind == readGuard)
-		cnt = scnprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_rgrd_cnt);
-	else if (kind == readApp)
-		cnt = scnprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_rapp_cnt);
-	else if (kind == readRef)
-		cnt = scnprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_rref_cnt);
-	else if (kind == InjErrNPortID)
-		cnt = scnprintf(cbuf, 32, "0x%06x\n",
+	switch (kind) {
+	case writeGuard:
+		cnt = scnprintf(cbuf, sizeof(cbuf), "%u\n",
+				phba->lpfc_injerr_wgrd_cnt);
+		break;
+	case writeApp:
+		cnt = scnprintf(cbuf, sizeof(cbuf), "%u\n",
+				phba->lpfc_injerr_wapp_cnt);
+		break;
+	case writeRef:
+		cnt = scnprintf(cbuf, sizeof(cbuf), "%u\n",
+				phba->lpfc_injerr_wref_cnt);
+		break;
+	case readGuard:
+		cnt = scnprintf(cbuf, sizeof(cbuf), "%u\n",
+				phba->lpfc_injerr_rgrd_cnt);
+		break;
+	case readApp:
+		cnt = scnprintf(cbuf, sizeof(cbuf), "%u\n",
+				phba->lpfc_injerr_rapp_cnt);
+		break;
+	case readRef:
+		cnt = scnprintf(cbuf, sizeof(cbuf), "%u\n",
+				phba->lpfc_injerr_rref_cnt);
+		break;
+	case InjErrNPortID:
+		cnt = scnprintf(cbuf, sizeof(cbuf), "0x%06x\n",
 				phba->lpfc_injerr_nportid);
-	else if (kind == InjErrWWPN) {
-		memcpy(&tmp, &phba->lpfc_injerr_wwpn, sizeof(struct lpfc_name));
-		tmp = cpu_to_be64(tmp);
-		cnt = scnprintf(cbuf, 32, "0x%016llx\n", tmp);
-	} else if (kind == InjErrLBA) {
-		if (phba->lpfc_injerr_lba == (sector_t)(-1))
-			cnt = scnprintf(cbuf, 32, "off\n");
+		break;
+	case InjErrWWPN:
+		cnt = scnprintf(cbuf, sizeof(cbuf), "0x%016llx\n",
+				be64_to_cpu(phba->lpfc_injerr_wwpn.u.wwn_be));
+		break;
+	case InjErrLBA:
+		if (phba->lpfc_injerr_lba == LPFC_INJERR_LBA_OFF)
+			cnt = scnprintf(cbuf, sizeof(cbuf), "off\n");
 		else
-			cnt = scnprintf(cbuf, 32, "0x%llx\n",
-				 (uint64_t) phba->lpfc_injerr_lba);
-	} else
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			 "0547 Unknown debugfs error injection entry\n");
+			cnt = scnprintf(cbuf, sizeof(cbuf), "0x%llx\n",
+					(uint64_t)phba->lpfc_injerr_lba);
+		break;
+	default:
+		lpfc_log_msg(phba, KERN_WARNING, LOG_INIT,
+			     "0547 Unknown debugfs error injection entry\n");
+		break;
+	}
 
 	return simple_read_from_buffer(buf, nbytes, ppos, &cbuf, cnt);
 }
 
 static ssize_t
 lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
-	size_t nbytes, loff_t *ppos)
+			   size_t nbytes, loff_t *ppos)
 {
 	struct lpfc_hba *phba = file->private_data;
 	int kind = debugfs_get_aux_num(file);
-	char dstbuf[33];
-	uint64_t tmp = 0;
-	int size;
+	char dstbuf[33] = {0};
+	unsigned long long tmp;
+	unsigned long size;
 
-	memset(dstbuf, 0, 33);
-	size = (nbytes < 32) ? nbytes : 32;
+	size = (nbytes < (sizeof(dstbuf) - 1)) ? nbytes : (sizeof(dstbuf) - 1);
 	if (copy_from_user(dstbuf, buf, size))
 		return -EFAULT;
 
-	if (kind == InjErrLBA) {
-		if ((dstbuf[0] == 'o') && (dstbuf[1] == 'f') &&
-		    (dstbuf[2] == 'f'))
-			tmp = (uint64_t)(-1);
+	if (kstrtoull(dstbuf, 0, &tmp)) {
+		if (kind != InjErrLBA || !strstr(dstbuf, "off"))
+			return -EINVAL;
 	}
 
-	if ((tmp == 0) && (kstrtoull(dstbuf, 0, &tmp)))
-		return -EINVAL;
-
-	if (kind == writeGuard)
+	switch (kind) {
+	case writeGuard:
 		phba->lpfc_injerr_wgrd_cnt = (uint32_t)tmp;
-	else if (kind == writeApp)
+		break;
+	case writeApp:
 		phba->lpfc_injerr_wapp_cnt = (uint32_t)tmp;
-	else if (kind == writeRef)
+		break;
+	case writeRef:
 		phba->lpfc_injerr_wref_cnt = (uint32_t)tmp;
-	else if (kind == readGuard)
+		break;
+	case readGuard:
 		phba->lpfc_injerr_rgrd_cnt = (uint32_t)tmp;
-	else if (kind == readApp)
+		break;
+	case readApp:
 		phba->lpfc_injerr_rapp_cnt = (uint32_t)tmp;
-	else if (kind == readRef)
+		break;
+	case readRef:
 		phba->lpfc_injerr_rref_cnt = (uint32_t)tmp;
-	else if (kind == InjErrLBA)
-		phba->lpfc_injerr_lba = (sector_t)tmp;
-	else if (kind == InjErrNPortID)
+		break;
+	case InjErrLBA:
+		if (strstr(dstbuf, "off"))
+			phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+		else
+			phba->lpfc_injerr_lba = (sector_t)tmp;
+		break;
+	case InjErrNPortID:
 		phba->lpfc_injerr_nportid = (uint32_t)(tmp & Mask_DID);
-	else if (kind == InjErrWWPN) {
-		tmp = cpu_to_be64(tmp);
-		memcpy(&phba->lpfc_injerr_wwpn, &tmp, sizeof(struct lpfc_name));
-	} else
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			 "0548 Unknown debugfs error injection entry\n");
-
+		break;
+	case InjErrWWPN:
+		phba->lpfc_injerr_wwpn.u.wwn_be = cpu_to_be64(tmp);
+		break;
+	default:
+		lpfc_log_msg(phba, KERN_WARNING, LOG_INIT,
+			     "0548 Unknown debugfs error injection entry\n");
+		break;
+	}
 	return nbytes;
 }
 
