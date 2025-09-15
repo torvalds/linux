@@ -6390,9 +6390,13 @@ static inline void rtw89_hci_clear(struct rtw89_dev *rtwdev, struct pci_dev *pde
 static inline
 struct rtw89_tx_skb_data *RTW89_TX_SKB_CB(struct sk_buff *skb)
 {
+	/*
+	 * This should be used by/after rtw89_hci_tx_write() and before doing
+	 * ieee80211_tx_info_clear_status().
+	 */
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	return (struct rtw89_tx_skb_data *)info->status.status_driver_data;
+	return (struct rtw89_tx_skb_data *)info->driver_data;
 }
 
 static inline u8 rtw89_read8(struct rtw89_dev *rtwdev, u32 addr)

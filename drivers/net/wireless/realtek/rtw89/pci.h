@@ -1634,10 +1634,7 @@ struct rtw89_pci {
 
 static inline struct rtw89_pci_rx_info *RTW89_PCI_RX_SKB_CB(struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
-	BUILD_BUG_ON(sizeof(struct rtw89_pci_tx_data) >
-		     sizeof(info->status.status_driver_data));
+	BUILD_BUG_ON(sizeof(struct rtw89_pci_rx_info) > sizeof(skb->cb));
 
 	return (struct rtw89_pci_rx_info *)skb->cb;
 }
@@ -1667,6 +1664,10 @@ rtw89_pci_rxbd_increase(struct rtw89_pci_rx_ring *rx_ring, u32 cnt)
 static inline struct rtw89_pci_tx_data *RTW89_PCI_TX_SKB_CB(struct sk_buff *skb)
 {
 	struct rtw89_tx_skb_data *data = RTW89_TX_SKB_CB(skb);
+
+	BUILD_BUG_ON(sizeof(struct rtw89_tx_skb_data) +
+		     sizeof(struct rtw89_pci_tx_data) >
+		     sizeof_field(struct ieee80211_tx_info, driver_data));
 
 	return (struct rtw89_pci_tx_data *)data->hci_priv;
 }
