@@ -977,7 +977,7 @@ static ssize_t implementation_id_show(struct device *dev,
 	struct tee_ioctl_version_data vers;
 
 	teedev->desc->ops->get_version(teedev, &vers);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", vers.impl_id);
+	return sysfs_emit(buf, "%d\n", vers.impl_id);
 }
 static DEVICE_ATTR_RO(implementation_id);
 
