@@ -5338,26 +5338,46 @@ void rtw89_core_csa_beacon_work(struct wiphy *wiphy, struct wiphy_work *work)
 	}
 }
 
-int rtw89_wait_for_cond(struct rtw89_wait_info *wait, unsigned int cond)
+struct rtw89_wait_response *
+rtw89_wait_for_cond_prep(struct rtw89_wait_info *wait, unsigned int cond)
 {
 	struct rtw89_wait_response *prep;
-	unsigned long time_left;
 	unsigned int cur;
-	int err = 0;
+
+	/* use -EPERM _iff_ telling eval side not to make any changes */
 
 	cur = atomic_cmpxchg(&wait->cond, RTW89_WAIT_COND_IDLE, cond);
 	if (cur != RTW89_WAIT_COND_IDLE)
-		return -EBUSY;
+		return ERR_PTR(-EPERM);
 
 	prep = kzalloc(sizeof(*prep), GFP_KERNEL);
-	if (!prep) {
-		err = -ENOMEM;
-		goto reset;
-	}
+	if (!prep)
+		return ERR_PTR(-ENOMEM);
 
 	init_completion(&prep->completion);
 
 	rcu_assign_pointer(wait->resp, prep);
+
+	return prep;
+}
+
+int rtw89_wait_for_cond_eval(struct rtw89_wait_info *wait,
+			     struct rtw89_wait_response *prep, int err)
+{
+	unsigned long time_left;
+
+	if (IS_ERR(prep)) {
+		err = err ?: PTR_ERR(prep);
+
+		/* special error case: no permission to reset anything */
+		if (PTR_ERR(prep) == -EPERM)
+			return err;
+
+		goto reset;
+	}
+
+	if (err)
+		goto cleanup;
 
 	time_left = wait_for_completion_timeout(&prep->completion,
 						RTW89_WAIT_FOR_COND_TIMEOUT);
