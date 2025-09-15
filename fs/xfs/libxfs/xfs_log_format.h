@@ -686,13 +686,13 @@ xfs_efi_log_format64_sizeof(
  * log.  The efd_extents array is a variable size array whose
  * size is given by efd_nextents;
  */
-typedef struct xfs_efd_log_format {
+struct xfs_efd_log_format {
 	uint16_t		efd_type;	/* efd log item type */
 	uint16_t		efd_size;	/* size of this item */
 	uint32_t		efd_nextents;	/* # of extents freed */
 	uint64_t		efd_efi_id;	/* id of corresponding efi */
 	struct xfs_extent	efd_extents[];	/* array of extents freed */
-} xfs_efd_log_format_t;
+};
 
 static inline size_t
 xfs_efd_log_format_sizeof(
