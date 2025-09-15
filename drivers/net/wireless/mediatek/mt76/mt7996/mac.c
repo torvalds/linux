@@ -968,7 +968,7 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 		val |= MT_TXD5_TX_STATUS_HOST;
 	txwi[5] = cpu_to_le32(val);
 
-	val = MT_TXD6_DAS;
+	val = MT_TXD6_DAS | MT_TXD6_VTA;
 	if ((q_idx >= MT_LMAC_ALTX0 && q_idx <= MT_LMAC_BCN0) ||
 	    skb->protocol == cpu_to_be16(ETH_P_PAE))
 		val |= MT_TXD6_DIS_MAT;
