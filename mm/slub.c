@@ -3492,11 +3492,6 @@ static inline bool free_debug_processing(struct kmem_cache *s,
 	int cnt = 0;
 
 	if (s->flags & SLAB_CONSISTENCY_CHECKS) {
-		if (!validate_slab_ptr(slab)) {
-			slab_err(s, slab, "Not a valid slab page");
-			goto out;
-		}
-
 		if (!check_slab(s, slab))
 			goto out;
 	}
