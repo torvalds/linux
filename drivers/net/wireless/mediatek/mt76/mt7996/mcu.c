@@ -1837,19 +1837,6 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
 			bf->mem_20m = bf->nrow < BF_MAT_ORDER ?
 				      matrix[bf->nrow][bf->ncol] : 0;
 	}
-
-	switch (link_sta->bandwidth) {
-	case IEEE80211_STA_RX_BW_160:
-	case IEEE80211_STA_RX_BW_80:
-		bf->mem_total = bf->mem_20m * 2;
-		break;
-	case IEEE80211_STA_RX_BW_40:
-		bf->mem_total = bf->mem_20m;
-		break;
-	case IEEE80211_STA_RX_BW_20:
-	default:
-		break;
-	}
 }
 
 static void
