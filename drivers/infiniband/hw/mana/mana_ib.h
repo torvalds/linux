@@ -412,7 +412,7 @@ struct mana_ib_ah_attr {
 	u8 traffic_class;
 	u16 src_port;
 	u16 dest_port;
-	u32 reserved;
+	u32 flow_label;
 };
 
 struct mana_rnic_set_qp_state_req {
@@ -429,8 +429,15 @@ struct mana_rnic_set_qp_state_req {
 	u32 retry_cnt;
 	u32 rnr_retry;
 	u32 min_rnr_timer;
-	u32 reserved;
+	u32 rate_limit;
 	struct mana_ib_ah_attr ah_attr;
+	u64 reserved1;
+	u32 qkey;
+	u32 qp_access_flags;
+	u8 local_ack_timeout;
+	u8 max_rd_atomic;
+	u16 reserved2;
+	u32 reserved3;
 }; /* HW Data */
 
 struct mana_rnic_set_qp_state_resp {
