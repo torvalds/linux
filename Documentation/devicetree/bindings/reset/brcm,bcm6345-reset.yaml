@@ -13,7 +13,9 @@ maintainers:
 
 properties:
   compatible:
-    const: brcm,bcm6345-reset
+    enum:
+      - brcm,bcm6345-reset
+      - brcm,bcm63xx-ephy-ctrl
 
   reg:
     maxItems: 1
