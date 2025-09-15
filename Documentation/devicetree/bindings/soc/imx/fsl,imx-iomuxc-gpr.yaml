@@ -38,6 +38,7 @@ properties:
           - const: simple-mfd
       - items:
           - enum:
+              - fsl,imx53-iomuxc-gpr
               - fsl,imx8mm-iomuxc-gpr
               - fsl,imx8mn-iomuxc-gpr
               - fsl,imx8mp-iomuxc-gpr
