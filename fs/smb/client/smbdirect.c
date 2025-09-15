@@ -362,26 +362,6 @@ static int smbd_conn_upcall(
 	return 0;
 }
 
-/* Upcall from RDMA QP */
-static void
-smbd_qp_async_error_upcall(struct ib_event *event, void *context)
-{
-	struct smbdirect_socket *sc = context;
-
-	log_rdma_event(ERR, "%s on device %s socket %p\n",
-		ib_event_msg(event->event), event->device->name, sc);
-
-	switch (event->event) {
-	case IB_EVENT_CQ_ERR:
-	case IB_EVENT_QP_FATAL:
-		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
-		break;
-
-	default:
-		break;
-	}
-}
-
 static inline void *smbdirect_send_io_payload(struct smbdirect_send_io *request)
 {
 	return (void *)request->packet;
@@ -1724,7 +1704,7 @@ static struct smbd_connection *_smbd_get_connection(
 	}
 
 	memset(&qp_attr, 0, sizeof(qp_attr));
-	qp_attr.event_handler = smbd_qp_async_error_upcall;
+	qp_attr.event_handler = smbdirect_connection_qp_event_handler;
 	qp_attr.qp_context = sc;
 	qp_attr.cap = qp_cap;
 	qp_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
