@@ -204,11 +204,6 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 		return 0;
 	}
 
-	if (mlx5_lag_is_active(dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "reload is unsupported in Lag mode");
-		return -EOPNOTSUPP;
-	}
-
 	if (mlx5_core_is_mp_slave(dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "reload is unsupported for multi port slave");
 		return -EOPNOTSUPP;

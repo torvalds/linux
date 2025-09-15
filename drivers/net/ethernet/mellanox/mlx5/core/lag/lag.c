@@ -35,6 +35,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/eswitch.h>
 #include <linux/mlx5/vport.h>
+#include "lib/mlx5.h"
 #include "lib/devcom.h"
 #include "mlx5_core.h"
 #include "eswitch.h"
@@ -231,9 +232,13 @@ static void mlx5_do_bond_work(struct work_struct *work);
 static void mlx5_ldev_free(struct kref *ref)
 {
 	struct mlx5_lag *ldev = container_of(ref, struct mlx5_lag, ref);
+	struct net *net;
 
-	if (ldev->nb.notifier_call)
-		unregister_netdevice_notifier_net(&init_net, &ldev->nb);
+	if (ldev->nb.notifier_call) {
+		net = read_pnet(&ldev->net);
+		unregister_netdevice_notifier_net(net, &ldev->nb);
+	}
+
 	mlx5_lag_mp_cleanup(ldev);
 	cancel_delayed_work_sync(&ldev->bond_work);
 	destroy_workqueue(ldev->wq);
@@ -271,7 +276,8 @@ static struct mlx5_lag *mlx5_lag_dev_alloc(struct mlx5_core_dev *dev)
 	INIT_DELAYED_WORK(&ldev->bond_work, mlx5_do_bond_work);
 
 	ldev->nb.notifier_call = mlx5_lag_netdev_event;
-	if (register_netdevice_notifier_net(&init_net, &ldev->nb)) {
+	write_pnet(&ldev->net, mlx5_core_net(dev));
+	if (register_netdevice_notifier_net(read_pnet(&ldev->net), &ldev->nb)) {
 		ldev->nb.notifier_call = NULL;
 		mlx5_core_err(dev, "Failed to register LAG netdev notifier\n");
 	}
@@ -1413,6 +1419,8 @@ static int mlx5_lag_register_hca_devcom_comp(struct mlx5_core_dev *dev)
 {
 	struct mlx5_devcom_match_attr attr = {
 		.key.val = mlx5_query_nic_system_image_guid(dev),
+		.flags = MLX5_DEVCOM_MATCH_FLAGS_NS,
+		.net = mlx5_core_net(dev),
 	};
 
 	/* This component is use to sync adding core_dev to lag_dev and to sync
