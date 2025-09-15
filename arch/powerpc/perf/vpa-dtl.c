@@ -11,6 +11,7 @@
 #include <asm/dtl.h>
 #include <linux/perf_event.h>
 #include <asm/plpar_wrappers.h>
+#include <linux/vmalloc.h>
 
 #define EVENT(_name, _code)     enum{_name = _code}
 
@@ -74,6 +75,19 @@ struct vpa_dtl {
 	u64			last_idx;
 };
 
+struct vpa_pmu_ctx {
+	struct perf_output_handle handle;
+};
+
+struct vpa_pmu_buf {
+	int     nr_pages;
+	bool    snapshot;
+	u64     *base;
+	u64     size;
+	u64     head;
+};
+
+static DEFINE_PER_CPU(struct vpa_pmu_ctx, vpa_pmu_ctx);
 static DEFINE_PER_CPU(struct vpa_dtl, vpa_dtl_cpu);
 
 /* variable to capture reference count for the active dtl threads */
@@ -302,6 +316,67 @@ static void vpa_dtl_event_read(struct perf_event *event)
 {
 }
 
+/*
+ * Set up pmu-private data structures for an AUX area
+ * **pages contains the aux buffer allocated for this event
+ * for the corresponding cpu. rb_alloc_aux uses "alloc_pages_node"
+ * and returns pointer to each page address. Map these pages to
+ * contiguous space using vmap and use that as base address.
+ *
+ * The aux private data structure ie, "struct vpa_pmu_buf" mainly
+ * saves
+ * - buf->base: aux buffer base address
+ * - buf->head: offset from base address where data will be written to.
+ * - buf->size: Size of allocated memory
+ */
+static void *vpa_dtl_setup_aux(struct perf_event *event, void **pages,
+		int nr_pages, bool snapshot)
+{
+	int i, cpu = event->cpu;
+	struct vpa_pmu_buf *buf __free(kfree) = NULL;
+	struct page **pglist __free(kfree) = NULL;
+
+	/* We need at least one page for this to work. */
+	if (!nr_pages)
+		return NULL;
+
+	if (cpu == -1)
+		cpu = raw_smp_processor_id();
+
+	buf = kzalloc_node(sizeof(*buf), GFP_KERNEL, cpu_to_node(cpu));
+	if (!buf)
+		return NULL;
+
+	pglist = kcalloc(nr_pages, sizeof(*pglist), GFP_KERNEL);
+	if (!pglist)
+		return NULL;
+
+	for (i = 0; i < nr_pages; ++i)
+		pglist[i] = virt_to_page(pages[i]);
+
+	buf->base = vmap(pglist, nr_pages, VM_MAP, PAGE_KERNEL);
+	if (!buf->base)
+		return NULL;
+
+	buf->nr_pages = nr_pages;
+	buf->snapshot = false;
+
+	buf->size = nr_pages << PAGE_SHIFT;
+	buf->head = 0;
+	return no_free_ptr(buf);
+}
+
+/*
+ * free pmu-private AUX data structures
+ */
+static void vpa_dtl_free_aux(void *aux)
+{
+	struct vpa_pmu_buf *buf = aux;
+
+	vunmap(buf->base);
+	kfree(buf);
+}
+
 static struct pmu vpa_dtl_pmu = {
 	.task_ctx_nr = perf_invalid_context,
 
@@ -311,6 +386,8 @@ static struct pmu vpa_dtl_pmu = {
 	.add         = vpa_dtl_event_add,
 	.del         = vpa_dtl_event_del,
 	.read        = vpa_dtl_event_read,
+	.setup_aux   = vpa_dtl_setup_aux,
+	.free_aux    = vpa_dtl_free_aux,
 	.capabilities = PERF_PMU_CAP_NO_EXCLUDE | PERF_PMU_CAP_EXCLUSIVE,
 };
 
