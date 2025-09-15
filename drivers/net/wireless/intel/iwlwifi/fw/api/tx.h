@@ -963,7 +963,7 @@ struct iwl_scd_txq_cfg_cmd {
 } __packed; /* SCD_QUEUE_CFG_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_scd_txq_cfg_rsp
+ * struct iwl_scd_txq_cfg_rsp - scheduler TXQ configuration response
  * @token: taken from the command
  * @sta_id: station id from the command
  * @tid: tid from the command

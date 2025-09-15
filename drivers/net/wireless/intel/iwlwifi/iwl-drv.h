@@ -62,7 +62,8 @@ struct iwl_rf_cfg;
  * starts the driver: fetches the firmware. This should be called by bus
  * specific system flows implementations. For example, the bus specific probe
  * function should do bus related operations only, and then call to this
- * function. It returns the driver object or %NULL if an error occurred.
+ * function.
+ * Return: the driver object or %NULL if an error occurred.
  */
 struct iwl_drv *iwl_drv_start(struct iwl_trans *trans);
 

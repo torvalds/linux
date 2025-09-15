@@ -45,6 +45,8 @@ struct iwl_fwrt_shared_mem_cfg {
  * struct iwl_fwrt_dump_data - dump data
  * @trig: trigger the worker was scheduled upon
  * @fw_pkt: packet received from FW
+ * @desc: dump descriptor
+ * @monitor_only: only dump for monitor
  *
  * Note that the decision which part of the union is used
  * is based on iwl_trans_dbg_ini_valid(): the 'trig' part
@@ -68,6 +70,7 @@ struct iwl_fwrt_dump_data {
  * struct iwl_fwrt_wk_data - dump worker data struct
  * @idx: index of the worker
  * @wk: worker
+ * @dump_data: dump data
  */
 struct iwl_fwrt_wk_data  {
 	u8 idx;
@@ -91,8 +94,8 @@ struct iwl_txf_iter_data {
 
 /**
  * struct iwl_fw_runtime - runtime data for firmware
+ * @trans: transport pointer
  * @fw: firmware image
- * @cfg: NIC configuration
  * @dev: device pointer
  * @ops: user ops
  * @ops_ctx: user ops context
@@ -117,6 +120,23 @@ struct iwl_txf_iter_data {
  *	zero (default initialization) means it hasn't been read yet,
  *	and BIT(0) is set when it has since function 0 also has this
  *	bitmap and is always supported
+ * @geo_enabled: WGDS table is present
+ * @geo_num_profiles: number of geo profiles
+ * @geo_rev: geo profiles table revision
+ * @ppag_chains: PPAG table data
+ * @ppag_flags: PPAG flags
+ * @reduced_power_flags: reduced power flags
+ * @sanitize_ctx: context for dump sanitizer
+ * @sanitize_ops: dump sanitizer ops
+ * @sar_chain_a_profile: SAR chain A profile
+ * @sar_chain_b_profile: SAR chain B profile
+ * @sgom_enabled: SGOM enabled
+ * @sgom_table: SGOM table
+ * @timestamp: timestamp marker data
+ * @timestamp.wk: timestamp marking worker
+ * @timestamp.seq: timestamp marking sequence
+ * @timestamp.delay: timestamp marking worker delay
+ * @tpc_enabled: TPC enabled
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
