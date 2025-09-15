@@ -2765,6 +2765,10 @@ static int rtw8922a_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static const struct rtw89_chanctx_listener rtw8922a_chanctx_listener = {
+	.callbacks[RTW89_CHANCTX_CALLBACK_TAS] = rtw89_tas_chanctx_cb,
+};
+
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support rtw_wowlan_stub_8922a = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT |
@@ -2876,6 +2880,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.nctl_post_table	= NULL,
 	.dflt_parms		= NULL, /* load parm from fw */
 	.rfe_parms_conf		= NULL, /* load parm from fw */
+	.chanctx_listener	= &rtw8922a_chanctx_listener,
 	.txpwr_factor_bb	= 3,
 	.txpwr_factor_rf	= 2,
 	.txpwr_factor_mac	= 1,
@@ -2895,7 +2900,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 				  BIT(NL80211_CHAN_WIDTH_160),
 	.support_unii4		= true,
 	.support_ant_gain	= true,
-	.support_tas		= false,
+	.support_tas		= true,
 	.support_sar_by_ant	= true,
 	.support_noise		= false,
 	.ul_tb_waveform_ctrl	= false,

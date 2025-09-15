@@ -5520,6 +5520,7 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 	rtw89_btc_ntfy_radio_state(rtwdev, BTC_RFCTRL_WL_ON);
 	rtw89_fw_h2c_fw_log(rtwdev, rtwdev->fw.log.enable);
 	rtw89_fw_h2c_init_ba_cam(rtwdev);
+	rtw89_tas_fw_timer_enable(rtwdev, true);
 
 	return 0;
 }
@@ -5535,6 +5536,7 @@ void rtw89_core_stop(struct rtw89_dev *rtwdev)
 	if (!test_bit(RTW89_FLAG_RUNNING, rtwdev->flags))
 		return;
 
+	rtw89_tas_fw_timer_enable(rtwdev, false);
 	rtw89_btc_ntfy_radio_state(rtwdev, BTC_RFCTRL_WL_OFF);
 
 	clear_bit(RTW89_FLAG_RUNNING, rtwdev->flags);
