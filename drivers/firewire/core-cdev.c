@@ -47,6 +47,9 @@
 #define FW_CDEV_VERSION_AUTO_FLUSH_ISO_OVERFLOW	5
 #define FW_CDEV_VERSION_EVENT_ASYNC_TSTAMP	6
 
+static DEFINE_SPINLOCK(phy_receiver_list_lock);
+static LIST_HEAD(phy_receiver_list);
+
 struct client {
 	u32 version;
 	struct fw_device *device;
@@ -1669,15 +1672,16 @@ static int ioctl_send_phy_packet(struct client *client, union ioctl_arg *arg)
 static int ioctl_receive_phy_packets(struct client *client, union ioctl_arg *arg)
 {
 	struct fw_cdev_receive_phy_packets *a = &arg->receive_phy_packets;
-	struct fw_card *card = client->device->card;
 
 	/* Access policy: Allow this ioctl only on local nodes' device files. */
 	if (!client->device->is_local)
 		return -ENOSYS;
 
-	guard(spinlock_irq)(&card->lock);
+	// NOTE: This can be without irq when we can guarantee that __fw_send_request() for local
+	// destination never runs in any type of IRQ context.
+	scoped_guard(spinlock_irq, &phy_receiver_list_lock)
+		list_move_tail(&client->phy_receiver_link, &phy_receiver_list);
 
-	list_move_tail(&client->phy_receiver_link, &card->phy_receiver_list);
 	client->phy_receiver_closure = a->closure;
 
 	return 0;
@@ -1687,10 +1691,17 @@ void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p)
 {
 	struct client *client;
 
-	guard(spinlock_irqsave)(&card->lock);
+	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for local
+	// destination never runs in any type of IRQ context.
+	guard(spinlock_irqsave)(&phy_receiver_list_lock);
 
-	list_for_each_entry(client, &card->phy_receiver_list, phy_receiver_link) {
-		struct inbound_phy_packet_event *e = kmalloc(sizeof(*e) + 8, GFP_ATOMIC);
+	list_for_each_entry(client, &phy_receiver_list, phy_receiver_link) {
+		struct inbound_phy_packet_event *e;
+
+		if (client->device->card != card)
+			continue;
+
+		e = kmalloc(sizeof(*e) + 8, GFP_ATOMIC);
 		if (e == NULL)
 			break;
 
@@ -1857,7 +1868,9 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	struct client_resource *resource;
 	unsigned long index;
 
-	scoped_guard(spinlock_irq, &client->device->card->lock)
+	// NOTE: This can be without irq when we can guarantee that __fw_send_request() for local
+	// destination never runs in any type of IRQ context.
+	scoped_guard(spinlock_irq, &phy_receiver_list_lock)
 		list_del(&client->phy_receiver_link);
 
 	scoped_guard(mutex, &client->device->client_list_mutex)
