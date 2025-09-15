@@ -702,13 +702,13 @@ xfs_efd_log_format_sizeof(
 			nr * sizeof(struct xfs_extent);
 }
 
-typedef struct xfs_efd_log_format_32 {
+struct xfs_efd_log_format_32 {
 	uint16_t		efd_type;	/* efd log item type */
 	uint16_t		efd_size;	/* size of this item */
 	uint32_t		efd_nextents;	/* # of extents freed */
 	uint64_t		efd_efi_id;	/* id of corresponding efi */
 	struct xfs_extent_32	efd_extents[];	/* array of extents freed */
-} __attribute__((packed)) xfs_efd_log_format_32_t;
+} __attribute__((packed));
 
 static inline size_t
 xfs_efd_log_format32_sizeof(
