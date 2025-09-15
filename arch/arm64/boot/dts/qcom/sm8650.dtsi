@@ -5186,7 +5186,7 @@
 
 			/*
 			 * IRIS firmware is signed by vendors, only
-			 * enable in boards where the proper signed firmware
+			 * enable on boards where the proper signed firmware
 			 * is available.
 			 */
 			status = "disabled";
