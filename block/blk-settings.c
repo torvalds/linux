@@ -643,18 +643,24 @@ static bool blk_stack_atomic_writes_tail(struct queue_limits *t,
 static bool blk_stack_atomic_writes_boundary_head(struct queue_limits *t,
 				struct queue_limits *b)
 {
+	unsigned int boundary_sectors;
+
+	if (!b->atomic_write_hw_boundary || !t->chunk_sectors)
+		return true;
+
+	boundary_sectors = b->atomic_write_hw_boundary >> SECTOR_SHIFT;
+
 	/*
 	 * Ensure atomic write boundary is aligned with chunk sectors. Stacked
-	 * devices store chunk sectors in t->io_min.
+	 * devices store any stripe size in t->chunk_sectors.
 	 */
-	if (b->atomic_write_hw_boundary > t->io_min &&
-	    b->atomic_write_hw_boundary % t->io_min)
+	if (boundary_sectors > t->chunk_sectors &&
+	    boundary_sectors % t->chunk_sectors)
 		return false;
-	if (t->io_min > b->atomic_write_hw_boundary &&
-	    t->io_min % b->atomic_write_hw_boundary)
+	if (t->chunk_sectors > boundary_sectors &&
+	    t->chunk_sectors % boundary_sectors)
 		return false;
 
-	t->atomic_write_hw_boundary = b->atomic_write_hw_boundary;
 	return true;
 }
 
@@ -695,13 +701,13 @@ static void blk_stack_atomic_writes_chunk_sectors(struct queue_limits *t)
 static bool blk_stack_atomic_writes_head(struct queue_limits *t,
 				struct queue_limits *b)
 {
-	if (b->atomic_write_hw_boundary &&
-	    !blk_stack_atomic_writes_boundary_head(t, b))
+	if (!blk_stack_atomic_writes_boundary_head(t, b))
 		return false;
 
 	t->atomic_write_hw_unit_max = b->atomic_write_hw_unit_max;
 	t->atomic_write_hw_unit_min = b->atomic_write_hw_unit_min;
 	t->atomic_write_hw_max = b->atomic_write_hw_max;
+	t->atomic_write_hw_boundary = b->atomic_write_hw_boundary;
 	return true;
 }
 
