@@ -90,6 +90,7 @@ const struct iwl_mac_cfg iwl_bz_mac_cfg = {
 	.low_latency_xtal = true,
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
+EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_bz_mac_cfg);
 
 const struct iwl_mac_cfg iwl_gl_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_BZ,
