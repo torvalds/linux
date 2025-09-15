@@ -71,7 +71,7 @@ enum dmub_status dmub_srv_stat_get_notification(struct dmub_srv *dmub,
 	switch (cmd.cmd_common.header.type) {
 	case DMUB_OUT_CMD__DP_AUX_REPLY:
 		notify->type = DMUB_NOTIFICATION_AUX_REPLY;
-		notify->link_index = cmd.dp_aux_reply.control.instance;
+		notify->instance = cmd.dp_aux_reply.control.instance;
 		notify->result = cmd.dp_aux_reply.control.result;
 		dmub_memcpy((void *)&notify->aux_reply,
 			(void *)&cmd.dp_aux_reply.reply_data, sizeof(struct aux_reply_data));
@@ -84,17 +84,17 @@ enum dmub_status dmub_srv_stat_get_notification(struct dmub_srv *dmub,
 			notify->type = DMUB_NOTIFICATION_HPD_IRQ;
 		}
 
-		notify->link_index = cmd.dp_hpd_notify.hpd_data.instance;
+		notify->instance = cmd.dp_hpd_notify.hpd_data.instance;
 		notify->result = AUX_RET_SUCCESS;
 		break;
 	case DMUB_OUT_CMD__SET_CONFIG_REPLY:
 		notify->type = DMUB_NOTIFICATION_SET_CONFIG_REPLY;
-		notify->link_index = cmd.set_config_reply.set_config_reply_control.instance;
+		notify->instance = cmd.set_config_reply.set_config_reply_control.instance;
 		notify->sc_status = cmd.set_config_reply.set_config_reply_control.status;
 		break;
 	case DMUB_OUT_CMD__DPIA_NOTIFICATION:
 		notify->type = DMUB_NOTIFICATION_DPIA_NOTIFICATION;
-		notify->link_index = cmd.dpia_notification.payload.header.instance;
+		notify->instance = cmd.dpia_notification.payload.header.instance;
 		break;
 	case DMUB_OUT_CMD__HPD_SENSE_NOTIFY:
 		notify->type = DMUB_NOTIFICATION_HPD_SENSE_NOTIFY;

@@ -36,7 +36,7 @@ impl File {
             _ => return Err(EINVAL),
         };
 
-        getparam.value = value;
+        getparam.value = Into::<u64>::into(value);
 
         Ok(0)
     }

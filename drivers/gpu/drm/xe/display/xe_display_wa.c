@@ -14,5 +14,5 @@ bool intel_display_needs_wa_16023588340(struct intel_display *display)
 {
 	struct xe_device *xe = to_xe_device(display->drm);
 
-	return XE_WA(xe_root_mmio_gt(xe), 16023588340);
+	return XE_GT_WA(xe_root_mmio_gt(xe), 16023588340);
 }

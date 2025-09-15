@@ -127,6 +127,43 @@ void hubp401_program_3dlut_fl_format(struct hubp *hubp, enum hubp_3dlut_fl_forma
 	REG_UPDATE(_3DLUT_FL_CONFIG, HUBP0_3DLUT_FL_FORMAT, format);
 }
 
+void hubp401_program_3dlut_fl_config(
+	struct hubp *hubp,
+	struct hubp_fl_3dlut_config *cfg)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	uint32_t mpc_width = {(cfg->width == 17) ? 0 : 1};
+	uint32_t width = {cfg->width};
+
+	if (cfg->layout == DC_CM2_GPU_MEM_LAYOUT_1D_PACKED_LINEAR)
+		width = (cfg->width == 17) ? 4916 : 35940;
+
+	REG_UPDATE_2(_3DLUT_FL_CONFIG,
+		HUBP0_3DLUT_FL_MODE, cfg->mode,
+		HUBP0_3DLUT_FL_FORMAT, cfg->format);
+
+	REG_UPDATE_2(_3DLUT_FL_BIAS_SCALE,
+		HUBP0_3DLUT_FL_BIAS, cfg->bias,
+		HUBP0_3DLUT_FL_SCALE, cfg->scale);
+
+	REG_UPDATE(HUBP_3DLUT_ADDRESS_HIGH,
+		HUBP_3DLUT_ADDRESS_HIGH, cfg->address.lut3d.addr.high_part);
+	REG_UPDATE(HUBP_3DLUT_ADDRESS_LOW,
+		HUBP_3DLUT_ADDRESS_LOW, cfg->address.lut3d.addr.low_part);
+
+	//cross bar
+	REG_UPDATE_8(HUBP_3DLUT_CONTROL,
+		HUBP_3DLUT_MPC_WIDTH, mpc_width,
+		HUBP_3DLUT_WIDTH, width,
+		HUBP_3DLUT_CROSSBAR_SELECT_CR_R, cfg->crossbar_bit_slice_cr_r,
+		HUBP_3DLUT_CROSSBAR_SELECT_Y_G, cfg->crossbar_bit_slice_y_g,
+		HUBP_3DLUT_CROSSBAR_SELECT_CB_B, cfg->crossbar_bit_slice_cb_b,
+		HUBP_3DLUT_ADDRESSING_MODE, cfg->addr_mode,
+		HUBP_3DLUT_TMZ, cfg->protection_bits,
+		HUBP_3DLUT_ENABLE, cfg->enabled ? 1 : 0);
+}
+
 void hubp401_update_mall_sel(struct hubp *hubp, uint32_t mall_sel, bool c_cursor)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
@@ -1033,6 +1070,10 @@ static struct hubp_funcs dcn401_hubp_funcs = {
 	.hubp_program_3dlut_fl_crossbar = hubp401_program_3dlut_fl_crossbar,
 	.hubp_get_3dlut_fl_done = hubp401_get_3dlut_fl_done,
 	.hubp_clear_tiling = hubp401_clear_tiling,
+	.hubp_program_3dlut_fl_config = hubp401_program_3dlut_fl_config,
+	.hubp_get_underflow_status = hubp3_get_underflow_status,
+	.hubp_get_current_read_line = hubp3_get_current_read_line,
+	.hubp_get_det_config_error = hubp31_get_det_config_error,
 };
 
 bool hubp401_construct(

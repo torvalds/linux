@@ -264,9 +264,7 @@ static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 	if (ret)
 		return ret;
 
-	/* ID is used by dell-smbios to set priority of drivers */
-	wdev->dev.id = 1;
-	ret = dell_smbios_register_device(&wdev->dev, &dell_smbios_wmi_call);
+	ret = dell_smbios_register_device(&wdev->dev, 1, &dell_smbios_wmi_call);
 	if (ret)
 		return ret;
 

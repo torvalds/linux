@@ -28,13 +28,13 @@
 #include <linux/acpi.h>
 #include <linux/debugfs.h>
 #include <linux/dmi.h>
+#include <linux/iopoll.h>
 #include <acpi/video.h>
 
 #include <drm/drm_edid.h>
 #include <drm/drm_file.h>
 #include <drm/drm_print.h>
 
-#include "i915_utils.h"
 #include "intel_acpi.h"
 #include "intel_backlight.h"
 #include "intel_display_core.h"
@@ -357,10 +357,12 @@ static int swsci(struct intel_display *display,
 	pci_write_config_word(pdev, SWSCI, swsci_val);
 
 	/* Poll for the result. */
-#define C (((scic = swsci->scic) & SWSCI_SCIC_INDICATOR) == 0)
-	if (wait_for(C, dslp)) {
+	ret = poll_timeout_us(scic = swsci->scic,
+			      (scic & SWSCI_SCIC_INDICATOR) == 0,
+			      1000, dslp * 1000, false);
+	if (ret) {
 		drm_dbg(display->drm, "SWSCI request timed out\n");
-		return -ETIMEDOUT;
+		return ret;
 	}
 
 	scic = (scic & SWSCI_SCIC_EXIT_STATUS_MASK) >>
@@ -1299,8 +1301,6 @@ DEFINE_SHOW_ATTRIBUTE(intel_opregion);
 
 void intel_opregion_debugfs_register(struct intel_display *display)
 {
-	struct drm_minor *minor = display->drm->primary;
-
-	debugfs_create_file("i915_opregion", 0444, minor->debugfs_root,
+	debugfs_create_file("i915_opregion", 0444, display->drm->debugfs_root,
 			    display, &intel_opregion_fops);
 }

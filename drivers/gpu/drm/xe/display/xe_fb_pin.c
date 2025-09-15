@@ -16,6 +16,7 @@
 #include "xe_device.h"
 #include "xe_ggtt.h"
 #include "xe_pm.h"
+#include "xe_vram_types.h"
 
 static void
 write_dpt_rotated(struct xe_bo *bo, struct iosys_map *map, u32 *dpt_ofs, u32 bo_ofs,
@@ -289,7 +290,7 @@ static struct i915_vma *__xe_pin_fb_vma(const struct intel_framebuffer *fb,
 	if (IS_DGFX(to_xe_device(bo->ttm.base.dev)) &&
 	    intel_fb_rc_ccs_cc_plane(&fb->base) >= 0 &&
 	    !(bo->flags & XE_BO_FLAG_NEEDS_CPU_ACCESS)) {
-		struct xe_tile *tile = xe_device_get_root_tile(xe);
+		struct xe_vram_region *vram = xe_device_get_root_tile(xe)->mem.vram;
 
 		/*
 		 * If we need to able to access the clear-color value stored in
@@ -297,7 +298,7 @@ static struct i915_vma *__xe_pin_fb_vma(const struct intel_framebuffer *fb,
 		 * accessible.  This is important on small-bar systems where
 		 * only some subset of VRAM is CPU accessible.
 		 */
-		if (tile->mem.vram.io_size < tile->mem.vram.usable_size) {
+		if (xe_vram_region_io_size(vram) < xe_vram_region_usable_size(vram)) {
 			ret = -EINVAL;
 			goto err;
 		}
@@ -382,6 +383,7 @@ static bool reuse_vma(struct intel_plane_state *new_plane_state,
 		      const struct intel_plane_state *old_plane_state)
 {
 	struct intel_framebuffer *fb = to_intel_framebuffer(new_plane_state->hw.fb);
+	struct intel_plane *plane = to_intel_plane(new_plane_state->uapi.plane);
 	struct xe_device *xe = to_xe_device(fb->base.dev);
 	struct intel_display *display = xe->display;
 	struct i915_vma *vma;
@@ -405,6 +407,10 @@ static bool reuse_vma(struct intel_plane_state *new_plane_state,
 found:
 	refcount_inc(&vma->ref);
 	new_plane_state->ggtt_vma = vma;
+
+	new_plane_state->surf = i915_ggtt_offset(new_plane_state->ggtt_vma) +
+		plane->surf_offset(new_plane_state);
+
 	return true;
 }
 
@@ -431,6 +437,10 @@ int intel_plane_pin_fb(struct intel_plane_state *new_plane_state,
 		return PTR_ERR(vma);
 
 	new_plane_state->ggtt_vma = vma;
+
+	new_plane_state->surf = i915_ggtt_offset(new_plane_state->ggtt_vma) +
+		plane->surf_offset(new_plane_state);
+
 	return 0;
 }
 

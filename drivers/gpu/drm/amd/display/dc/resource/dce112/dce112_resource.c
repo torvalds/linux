@@ -1111,12 +1111,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 				&clks);
 
 		dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-			clks.clocks_in_khz[0] * memory_type_multiplier, 1000);
+			(int64_t)clks.clocks_in_khz[0] * memory_type_multiplier, 1000);
 		dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-			clks.clocks_in_khz[clks.num_levels>>1] * memory_type_multiplier,
+			(int64_t)clks.clocks_in_khz[clks.num_levels>>1] * memory_type_multiplier,
 			1000);
 		dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-			clks.clocks_in_khz[clks.num_levels-1] * memory_type_multiplier,
+			(int64_t)clks.clocks_in_khz[clks.num_levels-1] * memory_type_multiplier,
 			1000);
 
 		return;
@@ -1152,12 +1152,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	 * YCLK = UMACLK*m_memoryTypeMultiplier
 	 */
 	dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-		mem_clks.data[0].clocks_in_khz * memory_type_multiplier, 1000);
+		(int64_t)mem_clks.data[0].clocks_in_khz * memory_type_multiplier, 1000);
 	dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * memory_type_multiplier,
+		(int64_t)mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * memory_type_multiplier,
 		1000);
 	dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * memory_type_multiplier,
+		(int64_t)mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * memory_type_multiplier,
 		1000);
 
 	/* Now notify PPLib/SMU about which Watermarks sets they should select

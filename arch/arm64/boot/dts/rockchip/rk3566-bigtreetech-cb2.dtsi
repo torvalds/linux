@@ -53,7 +53,7 @@
 			gpios = <&gpio4 RK_PA1 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
 			pinctrl-names = "default";
-			pinctrl-0 =<&blue_led>;
+			pinctrl-0 = <&blue_led>;
 		};
 
 		led-1 {
@@ -62,7 +62,7 @@
 			gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 			pinctrl-names = "default";
-			pinctrl-0 =<&heartbeat_led>;
+			pinctrl-0 = <&heartbeat_led>;
 		};
 	};
 

@@ -96,6 +96,7 @@ static void xe_display_fini_early(void *arg)
 	if (!xe->info.probe_display)
 		return;
 
+	intel_hpd_cancel_work(display);
 	intel_display_driver_remove_nogem(display);
 	intel_display_driver_remove_noirq(display);
 	intel_opregion_cleanup(display);
@@ -340,6 +341,8 @@ void xe_display_pm_suspend(struct xe_device *xe)
 
 	xe_display_flush_cleanup_work(xe);
 
+	intel_encoder_block_all_hpds(display);
+
 	intel_hpd_cancel_work(display);
 
 	if (has_display(xe)) {
@@ -370,6 +373,7 @@ void xe_display_pm_shutdown(struct xe_device *xe)
 
 	xe_display_flush_cleanup_work(xe);
 	intel_dp_mst_suspend(display);
+	intel_encoder_block_all_hpds(display);
 	intel_hpd_cancel_work(display);
 
 	if (has_display(xe))
@@ -470,6 +474,8 @@ void xe_display_pm_resume(struct xe_device *xe)
 		intel_display_driver_resume_access(display);
 
 	intel_hpd_init(display);
+
+	intel_encoder_unblock_all_hpds(display);
 
 	if (has_display(xe)) {
 		intel_display_driver_resume(display);
