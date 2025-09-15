@@ -17,6 +17,8 @@
 
 #include "clk-mux.h"
 
+#define MTK_WAIT_FENC_DONE_US	30
+
 struct mtk_clk_mux {
 	struct clk_hw hw;
 	struct regmap *regmap;
@@ -28,6 +30,33 @@ struct mtk_clk_mux {
 static inline struct mtk_clk_mux *to_mtk_clk_mux(struct clk_hw *hw)
 {
 	return container_of(hw, struct mtk_clk_mux, hw);
+}
+
+static int mtk_clk_mux_fenc_enable_setclr(struct clk_hw *hw)
+{
+	struct mtk_clk_mux *mux = to_mtk_clk_mux(hw);
+	unsigned long flags;
+	u32 val;
+	int ret;
+
+	if (mux->lock)
+		spin_lock_irqsave(mux->lock, flags);
+	else
+		__acquire(mux->lock);
+
+	regmap_write(mux->regmap, mux->data->clr_ofs,
+		     BIT(mux->data->gate_shift));
+
+	ret = regmap_read_poll_timeout_atomic(mux->regmap, mux->data->fenc_sta_mon_ofs,
+					      val, val & BIT(mux->data->fenc_shift), 1,
+					      MTK_WAIT_FENC_DONE_US);
+
+	if (mux->lock)
+		spin_unlock_irqrestore(mux->lock, flags);
+	else
+		__release(mux->lock);
+
+	return ret;
 }
 
 static int mtk_clk_mux_enable_setclr(struct clk_hw *hw)
@@ -68,6 +97,16 @@ static void mtk_clk_mux_disable_setclr(struct clk_hw *hw)
 
 	regmap_write(mux->regmap, mux->data->set_ofs,
 			BIT(mux->data->gate_shift));
+}
+
+static int mtk_clk_mux_fenc_is_enabled(struct clk_hw *hw)
+{
+	struct mtk_clk_mux *mux = to_mtk_clk_mux(hw);
+	u32 val;
+
+	regmap_read(mux->regmap, mux->data->fenc_sta_mon_ofs, &val);
+
+	return !!(val & BIT(mux->data->fenc_shift));
 }
 
 static int mtk_clk_mux_is_enabled(struct clk_hw *hw)
@@ -165,6 +204,16 @@ const struct clk_ops mtk_mux_gate_clr_set_upd_ops  = {
 	.determine_rate = mtk_clk_mux_determine_rate,
 };
 EXPORT_SYMBOL_GPL(mtk_mux_gate_clr_set_upd_ops);
+
+const struct clk_ops mtk_mux_gate_fenc_clr_set_upd_ops = {
+	.enable = mtk_clk_mux_fenc_enable_setclr,
+	.disable = mtk_clk_mux_disable_setclr,
+	.is_enabled = mtk_clk_mux_fenc_is_enabled,
+	.get_parent = mtk_clk_mux_get_parent,
+	.set_parent = mtk_clk_mux_set_parent_setclr_lock,
+	.determine_rate = mtk_clk_mux_determine_rate,
+};
+EXPORT_SYMBOL_GPL(mtk_mux_gate_fenc_clr_set_upd_ops);
 
 static struct clk_hw *mtk_clk_register_mux(struct device *dev,
 					   const struct mtk_mux *mux,
