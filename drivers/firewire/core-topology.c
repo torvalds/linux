@@ -458,46 +458,40 @@ void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
 
 	trace_bus_reset_handle(card->index, generation, node_id, bm_abdicate, self_ids, self_id_count);
 
-	guard(spinlock_irqsave)(&card->lock);
+	scoped_guard(spinlock, &card->lock) {
+		// If the selfID buffer is not the immediate successor of the
+		// previously processed one, we cannot reliably compare the
+		// old and new topologies.
+		if (!is_next_generation(generation, card->generation) && card->local_node != NULL) {
+			fw_destroy_nodes(card);
+			card->bm_retries = 0;
+		}
+		card->broadcast_channel_allocated = card->broadcast_channel_auto_allocated;
+		card->node_id = node_id;
+		// Update node_id before generation to prevent anybody from using
+		// a stale node_id together with a current generation.
+		smp_wmb();
+		card->generation = generation;
+		card->reset_jiffies = get_jiffies_64();
+		card->bm_node_id  = 0xffff;
+		card->bm_abdicate = bm_abdicate;
+		fw_schedule_bm_work(card, 0);
 
-	/*
-	 * If the selfID buffer is not the immediate successor of the
-	 * previously processed one, we cannot reliably compare the
-	 * old and new topologies.
-	 */
-	if (!is_next_generation(generation, card->generation) &&
-	    card->local_node != NULL) {
-		fw_destroy_nodes(card);
-		card->bm_retries = 0;
-	}
+		local_node = build_tree(card, self_ids, self_id_count, generation);
 
-	card->broadcast_channel_allocated = card->broadcast_channel_auto_allocated;
-	card->node_id = node_id;
-	/*
-	 * Update node_id before generation to prevent anybody from using
-	 * a stale node_id together with a current generation.
-	 */
-	smp_wmb();
-	card->generation = generation;
-	card->reset_jiffies = get_jiffies_64();
-	card->bm_node_id  = 0xffff;
-	card->bm_abdicate = bm_abdicate;
-	fw_schedule_bm_work(card, 0);
+		update_topology_map(card, self_ids, self_id_count);
 
-	local_node = build_tree(card, self_ids, self_id_count, generation);
+		card->color++;
 
-	update_topology_map(card, self_ids, self_id_count);
-
-	card->color++;
-
-	if (local_node == NULL) {
-		fw_err(card, "topology build failed\n");
-		/* FIXME: We need to issue a bus reset in this case. */
-	} else if (card->local_node == NULL) {
-		card->local_node = local_node;
-		for_each_fw_node(card, local_node, report_found_node);
-	} else {
-		update_tree(card, local_node);
+		if (local_node == NULL) {
+			fw_err(card, "topology build failed\n");
+			// FIXME: We need to issue a bus reset in this case.
+		} else if (card->local_node == NULL) {
+			card->local_node = local_node;
+			for_each_fw_node(card, local_node, report_found_node);
+		} else {
+			update_tree(card, local_node);
+		}
 	}
 }
 EXPORT_SYMBOL(fw_core_handle_bus_reset);
