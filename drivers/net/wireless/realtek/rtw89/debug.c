@@ -3563,6 +3563,58 @@ static int rtw89_dbg_trigger_ctrl_error(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static int rtw89_dbg_trigger_mac_error_ax(struct rtw89_dev *rtwdev)
+{
+	u16 val16;
+	u8 val8;
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, RTW89_MAC_0, RTW89_CMAC_SEL);
+	if (ret)
+		return ret;
+
+	val8 = rtw89_read8(rtwdev, R_AX_CMAC_FUNC_EN);
+	rtw89_write8(rtwdev, R_AX_CMAC_FUNC_EN, val8 & ~B_AX_TMAC_EN);
+	mdelay(1);
+	rtw89_write8(rtwdev, R_AX_CMAC_FUNC_EN, val8);
+
+	val16 = rtw89_read16(rtwdev, R_AX_PTCL_IMR0);
+	rtw89_write16(rtwdev, R_AX_PTCL_IMR0, val16 | B_AX_F2PCMD_EMPTY_ERR_INT_EN);
+	rtw89_write16(rtwdev, R_AX_PTCL_IMR0, val16);
+
+	return 0;
+}
+
+static int rtw89_dbg_trigger_mac_error_be(struct rtw89_dev *rtwdev)
+{
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, RTW89_MAC_0, RTW89_CMAC_SEL);
+	if (ret)
+		return ret;
+
+	rtw89_write32_set(rtwdev, R_BE_CMAC_FW_TRIGGER_IDCT_ISR,
+			  B_BE_CMAC_FW_TRIG_IDCT | B_BE_CMAC_FW_ERR_IDCT_IMR);
+
+	return 0;
+}
+
+static int rtw89_dbg_trigger_mac_error(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	rtw89_leave_ps_mode(rtwdev);
+
+	switch (chip->chip_gen) {
+	case RTW89_CHIP_AX:
+		return rtw89_dbg_trigger_mac_error_ax(rtwdev);
+	case RTW89_CHIP_BE:
+		return rtw89_dbg_trigger_mac_error_be(rtwdev);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static ssize_t
 rtw89_debug_priv_fw_crash_get(struct rtw89_dev *rtwdev,
 			      struct rtw89_debugfs_priv *debugfs_priv,
@@ -3578,6 +3630,7 @@ rtw89_debug_priv_fw_crash_get(struct rtw89_dev *rtwdev,
 enum rtw89_dbg_crash_simulation_type {
 	RTW89_DBG_SIM_CPU_EXCEPTION = 1,
 	RTW89_DBG_SIM_CTRL_ERROR = 2,
+	RTW89_DBG_SIM_MAC_ERROR = 3,
 };
 
 static ssize_t
@@ -3586,6 +3639,7 @@ rtw89_debug_priv_fw_crash_set(struct rtw89_dev *rtwdev,
 			      const char *buf, size_t count)
 {
 	int (*sim)(struct rtw89_dev *rtwdev);
+	bool announce = true;
 	u8 crash_type;
 	int ret;
 
@@ -3604,11 +3658,19 @@ rtw89_debug_priv_fw_crash_set(struct rtw89_dev *rtwdev,
 	case RTW89_DBG_SIM_CTRL_ERROR:
 		sim = rtw89_dbg_trigger_ctrl_error;
 		break;
+	case RTW89_DBG_SIM_MAC_ERROR:
+		sim = rtw89_dbg_trigger_mac_error;
+
+		/* Driver SER flow won't get involved; only FW will. */
+		announce = false;
+		break;
 	default:
 		return -EINVAL;
 	}
 
-	set_bit(RTW89_FLAG_CRASH_SIMULATING, rtwdev->flags);
+	if (announce)
+		set_bit(RTW89_FLAG_CRASH_SIMULATING, rtwdev->flags);
+
 	ret = sim(rtwdev);
 
 	if (ret)
