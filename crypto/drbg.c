@@ -1506,10 +1506,9 @@ static int drbg_kcapi_hash(struct drbg_state *drbg, unsigned char *outval,
 #ifdef CONFIG_CRYPTO_DRBG_CTR
 static int drbg_fini_sym_kernel(struct drbg_state *drbg)
 {
-	struct crypto_cipher *tfm =
-		(struct crypto_cipher *)drbg->priv_data;
-	if (tfm)
-		crypto_free_cipher(tfm);
+	struct crypto_aes_ctx *aesctx =	(struct crypto_aes_ctx *)drbg->priv_data;
+
+	kfree(aesctx);
 	drbg->priv_data = NULL;
 
 	if (drbg->ctr_handle)
@@ -1528,20 +1527,16 @@ static int drbg_fini_sym_kernel(struct drbg_state *drbg)
 
 static int drbg_init_sym_kernel(struct drbg_state *drbg)
 {
-	struct crypto_cipher *tfm;
+	struct crypto_aes_ctx *aesctx;
 	struct crypto_skcipher *sk_tfm;
 	struct skcipher_request *req;
 	unsigned int alignmask;
 	char ctr_name[CRYPTO_MAX_ALG_NAME];
 
-	tfm = crypto_alloc_cipher(drbg->core->backend_cra_name, 0, 0);
-	if (IS_ERR(tfm)) {
-		pr_info("DRBG: could not allocate cipher TFM handle: %s\n",
-				drbg->core->backend_cra_name);
-		return PTR_ERR(tfm);
-	}
-	BUG_ON(drbg_blocklen(drbg) != crypto_cipher_blocksize(tfm));
-	drbg->priv_data = tfm;
+	aesctx = kzalloc(sizeof(*aesctx), GFP_KERNEL);
+	if (!aesctx)
+		return -ENOMEM;
+	drbg->priv_data = aesctx;
 
 	if (snprintf(ctr_name, CRYPTO_MAX_ALG_NAME, "ctr(%s)",
 	    drbg->core->backend_cra_name) >= CRYPTO_MAX_ALG_NAME) {
