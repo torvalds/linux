@@ -229,8 +229,7 @@ void fw_schedule_bus_reset(struct fw_card *card, bool delayed, bool short_reset)
 
 	/* Use an arbitrary short delay to combine multiple reset requests. */
 	fw_card_get(card);
-	if (!queue_delayed_work(fw_workqueue, &card->br_work,
-				delayed ? DIV_ROUND_UP(HZ, 100) : 0))
+	if (!queue_delayed_work(fw_workqueue, &card->br_work, delayed ? msecs_to_jiffies(10) : 0))
 		fw_card_put(card);
 }
 EXPORT_SYMBOL(fw_schedule_bus_reset);
@@ -241,10 +240,10 @@ static void br_work(struct work_struct *work)
 
 	/* Delay for 2s after last reset per IEEE 1394 clause 8.2.1. */
 	if (card->reset_jiffies != 0 &&
-	    time_before64(get_jiffies_64(), card->reset_jiffies + 2 * HZ)) {
+	    time_before64(get_jiffies_64(), card->reset_jiffies + secs_to_jiffies(2))) {
 		trace_bus_reset_postpone(card->index, card->generation, card->br_short);
 
-		if (!queue_delayed_work(fw_workqueue, &card->br_work, 2 * HZ))
+		if (!queue_delayed_work(fw_workqueue, &card->br_work, secs_to_jiffies(2)))
 			fw_card_put(card);
 		return;
 	}
@@ -309,8 +308,7 @@ static void bm_work(struct work_struct *work)
 	irm_id   = card->irm_node->node_id;
 	local_id = card->local_node->node_id;
 
-	grace = time_after64(get_jiffies_64(),
-			     card->reset_jiffies + DIV_ROUND_UP(HZ, 8));
+	grace = time_after64(get_jiffies_64(), card->reset_jiffies + msecs_to_jiffies(125));
 
 	if ((is_next_generation(generation, card->bm_generation) &&
 	     !card->bm_abdicate) ||
@@ -396,7 +394,7 @@ static void bm_work(struct work_struct *work)
 			 * that the problem has gone away by then.
 			 */
 			spin_unlock_irq(&card->lock);
-			fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 8));
+			fw_schedule_bm_work(card, msecs_to_jiffies(125));
 			return;
 		}
 
@@ -418,7 +416,7 @@ static void bm_work(struct work_struct *work)
 		 * bus reset is less than 125ms ago.  Reschedule this job.
 		 */
 		spin_unlock_irq(&card->lock);
-		fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 8));
+		fw_schedule_bm_work(card, msecs_to_jiffies(125));
 		return;
 	}
 
@@ -551,8 +549,7 @@ void fw_card_initialize(struct fw_card *card,
 	card->split_timeout_hi = DEFAULT_SPLIT_TIMEOUT / 8000;
 	card->split_timeout_lo = (DEFAULT_SPLIT_TIMEOUT % 8000) << 19;
 	card->split_timeout_cycles = DEFAULT_SPLIT_TIMEOUT;
-	card->split_timeout_jiffies =
-			DIV_ROUND_UP(DEFAULT_SPLIT_TIMEOUT * HZ, 8000);
+	card->split_timeout_jiffies = isoc_cycles_to_jiffies(DEFAULT_SPLIT_TIMEOUT);
 	card->color = 0;
 	card->broadcast_channel = BROADCAST_CHANNEL_INITIAL;
 

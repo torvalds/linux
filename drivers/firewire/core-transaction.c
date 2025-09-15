@@ -458,7 +458,7 @@ static struct fw_packet phy_config_packet = {
 void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count)
 {
-	long timeout = DIV_ROUND_UP(HZ, 10);
+	long timeout = msecs_to_jiffies(100);
 	u32 data = 0;
 
 	phy_packet_set_packet_identifier(&data, PHY_PACKET_PACKET_IDENTIFIER_PHY_CONFIG);
@@ -1220,7 +1220,7 @@ static void update_split_timeout(struct fw_card *card)
 	cycles = clamp(cycles, 800u, 3u * 8000u);
 
 	card->split_timeout_cycles = cycles;
-	card->split_timeout_jiffies = DIV_ROUND_UP(cycles * HZ, 8000);
+	card->split_timeout_jiffies = isoc_cycles_to_jiffies(cycles);
 }
 
 static void handle_registers(struct fw_card *card, struct fw_request *request,
