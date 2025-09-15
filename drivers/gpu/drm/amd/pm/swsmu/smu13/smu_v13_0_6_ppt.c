@@ -354,9 +354,11 @@ static void smu_v13_0_12_init_caps(struct smu_context *smu)
 	}
 
 	if (fw_ver >= 0x04560700) {
-		if (!amdgpu_sriov_vf(smu->adev))
+		if (fw_ver >= 0x04560900) {
 			smu_v13_0_6_cap_set(smu, SMU_CAP(TEMP_METRICS));
-		else if (fw_ver >= 0x04560900)
+			if (smu->adev->gmc.xgmi.physical_node_id == 0)
+				smu_v13_0_6_cap_set(smu, SMU_CAP(NPM_METRICS));
+		} else if (!amdgpu_sriov_vf(smu->adev))
 			smu_v13_0_6_cap_set(smu, SMU_CAP(TEMP_METRICS));
 	} else {
 		smu_v13_0_12_tables_fini(smu);
