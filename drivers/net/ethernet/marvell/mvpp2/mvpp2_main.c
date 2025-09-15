@@ -4439,6 +4439,8 @@ out:
 		txq_pcpu->count += frags;
 		aggr_txq->count += frags;
 
+		skb_tx_timestamp(skb);
+
 		/* Enable transmit */
 		wmb();
 		mvpp2_aggr_txq_pend_desc_add(port, frags);
@@ -5252,14 +5254,14 @@ static int mvpp2_ethtool_get_ts_info(struct net_device *dev,
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 
+	ethtool_op_get_ts_info(dev, info);
 	if (!port->hwtstamp)
-		return -EOPNOTSUPP;
+		return 0;
 
 	info->phc_index = mvpp22_tai_ptp_clock_index(port->priv->tai);
-	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				SOF_TIMESTAMPING_TX_HARDWARE |
-				SOF_TIMESTAMPING_RX_HARDWARE |
-				SOF_TIMESTAMPING_RAW_HARDWARE;
+	info->so_timestamping |= SOF_TIMESTAMPING_TX_HARDWARE |
+				 SOF_TIMESTAMPING_RX_HARDWARE |
+				 SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) |
 			 BIT(HWTSTAMP_TX_ON);
 	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
