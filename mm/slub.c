@@ -821,6 +821,8 @@ static inline unsigned int get_orig_size(struct kmem_cache *s, void *object)
 	return *(unsigned int *)p;
 }
 
+#ifdef CONFIG_SLUB_DEBUG
+
 /*
  * For debugging context when we want to check if the struct slab pointer
  * appears to be valid.
@@ -830,7 +832,6 @@ static inline bool validate_slab_ptr(struct slab *slab)
 	return PageSlab(slab_page(slab));
 }
 
-#ifdef CONFIG_SLUB_DEBUG
 static unsigned long object_map[BITS_TO_LONGS(MAX_OBJS_PER_PAGE)];
 static DEFINE_SPINLOCK(object_map_lock);
 
@@ -1651,11 +1652,6 @@ static noinline bool alloc_debug_processing(struct kmem_cache *s,
 			struct slab *slab, void *object, int orig_size)
 {
 	if (s->flags & SLAB_CONSISTENCY_CHECKS) {
-		if (!validate_slab_ptr(slab)) {
-			slab_err(s, slab, "Not a valid slab page");
-			return false;
-		}
-
 		if (!alloc_consistency_checks(s, slab, object))
 			goto bad;
 	}
@@ -2825,13 +2821,21 @@ static void *alloc_single_from_partial(struct kmem_cache *s,
 
 	lockdep_assert_held(&n->list_lock);
 
+#ifdef CONFIG_SLUB_DEBUG
+	if (s->flags & SLAB_CONSISTENCY_CHECKS) {
+		if (!validate_slab_ptr(slab)) {
+			slab_err(s, slab, "Not a valid slab page");
+			return NULL;
+		}
+	}
+#endif
+
 	object = slab->freelist;
 	slab->freelist = get_freepointer(s, object);
 	slab->inuse++;
 
 	if (!alloc_debug_processing(s, slab, object, orig_size)) {
-		if (validate_slab_ptr(slab))
-			remove_partial(n, slab);
+		remove_partial(n, slab);
 		return NULL;
 	}
 
