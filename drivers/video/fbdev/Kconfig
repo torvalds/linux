@@ -1774,7 +1774,7 @@ config FB_BROADSHEET
 
 config FB_HYPERV
 	tristate "Microsoft Hyper-V Synthetic Video support"
-	depends on FB && HYPERV
+	depends on FB && HYPERV_VMBUS
 	select DMA_CMA if HAVE_DMA_CONTIGUOUS && CMA
 	select FB_IOMEM_HELPERS_DEFERRED
 	help

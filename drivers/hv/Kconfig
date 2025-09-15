@@ -45,17 +45,24 @@ config HYPERV_TIMER
 
 config HYPERV_UTILS
 	tristate "Microsoft Hyper-V Utilities driver"
-	depends on HYPERV && CONNECTOR && NLS
+	depends on HYPERV_VMBUS && CONNECTOR && NLS
 	depends on PTP_1588_CLOCK_OPTIONAL
 	help
 	  Select this option to enable the Hyper-V Utilities.
 
 config HYPERV_BALLOON
 	tristate "Microsoft Hyper-V Balloon driver"
-	depends on HYPERV
+	depends on HYPERV_VMBUS
 	select PAGE_REPORTING
 	help
 	  Select this option to enable Hyper-V Balloon driver.
+
+config HYPERV_VMBUS
+	tristate "Microsoft Hyper-V VMBus driver"
+	depends on HYPERV
+	default HYPERV
+	help
+	  Select this option to enable Hyper-V Vmbus driver.
 
 config MSHV_ROOT
 	tristate "Microsoft Hyper-V root partition support"
