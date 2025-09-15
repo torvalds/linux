@@ -187,7 +187,7 @@
 	};
 
 	psci {
-		compatible = "arm,psci-0.2";
+		compatible = "arm,psci-1.0", "arm,psci-0.2";
 		method = "smc";
 	};
 
@@ -550,6 +550,7 @@
 			reg = <0x0 0xfec10000 0x0 0x1000>;
 			clock-names = "apb_pclk";
 			cpu = <&cpu0>;
+			status = "disabled";
 		};
 
 		cpu1_debug: debug@fed10000 {
@@ -557,6 +558,7 @@
 			reg = <0x0 0xfed10000 0x0 0x1000>;
 			clock-names = "apb_pclk";
 			cpu = <&cpu1>;
+			status = "disabled";
 		};
 
 		cpu2_debug: debug@fee10000 {
@@ -564,6 +566,7 @@
 			reg = <0x0 0xfee10000 0x0 0x1000>;
 			clock-names = "apb_pclk";
 			cpu = <&cpu2>;
+			status = "disabled";
 		};
 
 		cpu3_debug: debug@fef10000 {
@@ -571,6 +574,7 @@
 			reg = <0x0 0xfef10000 0x0 0x1000>;
 			clock-names = "apb_pclk";
 			cpu = <&cpu3>;
+			status = "disabled";
 		};
 
 		/* GDMA */
@@ -1319,22 +1323,22 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				port@0 {
+				live_video: port@0 {
 					reg = <0>;
 				};
-				port@1 {
+				live_gfx: port@1 {
 					reg = <1>;
 				};
-				port@2 {
+				live_audio: port@2 {
 					reg = <2>;
 				};
-				port@3 {
+				out_video: port@3 {
 					reg = <3>;
 				};
-				port@4 {
+				out_audio: port@4 {
 					reg = <4>;
 				};
-				port@5 {
+				out_dp: port@5 {
 					reg = <5>;
 				};
 			};

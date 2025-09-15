@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * dts file for KV260 revA Carrier Card
+ * dts file for KR260 revA Carrier Card
  *
- * (C) Copyright 2020 - 2022, Xilinx, Inc.
- * (C) Copyright 2022 - 2023, Advanced Micro Devices, Inc.
+ * (C) Copyright 2021, Xilinx, Inc.
  *
  * Michal Simek <michal.simek@amd.com>
  */
@@ -17,14 +16,13 @@
 /plugin/;
 
 &{/} {
-	compatible = "xlnx,zynqmp-sk-kv260-rev2",
-		     "xlnx,zynqmp-sk-kv260-rev1",
-		     "xlnx,zynqmp-sk-kv260-revB",
-		     "xlnx,zynqmp-sk-kv260", "xlnx,zynqmp";
-	model = "ZynqMP KV260 revB";
+	compatible = "xlnx,zynqmp-sk-kr260-revA",
+		     "xlnx,zynqmp-sk-kr260", "xlnx,zynqmp";
+	model = "ZynqMP KR260 revA";
 
 	aliases {
-		ethernet0 = "/axi/ethernet@ff0e0000"; /* &gem3 */
+		ethernet0 = "/axi/ethernet@ff0b0000"; /* &gem0 */
+		ethernet1 = "/axi/ethernet@ff0c0000"; /* &gem1 */
 	};
 
 	ina260-u14 {
@@ -32,42 +30,47 @@
 		io-channels = <&u14 0>, <&u14 1>, <&u14 2>;
 	};
 
-	si5332_0: si5332-0 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <125000000>;
-	};
-
-	si5332_1: si5332-1 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <25000000>;
-	};
-
-	si5332_2: si5332-2 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <48000000>;
-	};
-
-	si5332_3: si5332-3 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <24000000>;
-	};
-
-	si5332_4: si5332-4 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <26000000>;
-	};
-
-	si5332_5: si5332-5 { /* u17 */
+	clk_27: clock0 { /* u86 - DP */
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <27000000>;
 	};
 
+	clk_125: si5332-0 { /* u17 - GEM0/1 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <125000000>;
+	};
+
+	clk_74: si5332-5 { /* u17 - SLVC-EC */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <74250000>;
+	};
+
+	clk_26: si5332-2 { /* u17 - USB */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	clk_156: si5332-3 { /* u17 - SFP+ */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <156250000>;
+	};
+
+	clk_25_0: si5332-1 { /* u17 - GEM2 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
+	clk_25_1: si5332-4 { /* u17 - GEM3 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
 	dpcon {
 		compatible = "dp-connector";
 		label = "P11";
@@ -81,7 +84,7 @@
 	};
 };
 
-&i2c1 { /* I2C_SCK C23/C24 - MIO from SOM */
+&i2c1 { /* I2C_SCK C26/C27 - MIO from SOM */
 	#address-cells = <1>;
 	#size-cells = <0>;
 	pinctrl-names = "default", "gpio";
@@ -96,25 +99,60 @@
 		label = "ina260-u14";
 		reg = <0x40>;
 	};
-	hub: usb-hub@2d {
-		compatible = "microchip,usb5744";
-		reg = <0x2d>;
+
+	slg7xl45106: gpio@11 { /* u19 - reset logic */
+		compatible = "dlg,slg7xl45106";
+		reg = <0x11>;
+		label = "resetchip";
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "USB0_PHY_RESET_B", "USB1_PHY_RESET_B",
+				  "SD_RESET_B", "USB0_HUB_RESET_B",
+				  "USB1_HUB_RESET_B", "PS_GEM0_RESET_B",
+				  "PS_GEM1_RESET_B", "";
 	};
-	/* u27 - 0xe0 - STDP4320 DP/HDMI splitter */
+
+	i2c-mux@74 { /* u18 */
+		compatible = "nxp,pca9546";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x74>;
+		usbhub_i2c0: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			hub_1: usb-hub@2d {
+				compatible = "microchip,usb5744";
+				reg = <0x2d>;
+			};
+		};
+		usbhub_i2c1: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+			hub_2: usb-hub@2d {
+				compatible = "microchip,usb5744";
+				reg = <0x2d>;
+			};
+		};
+		/* Bus 2/3 are not connected */
+	};
+
+	/* si5332@6a - u17 - clock-generator */
 };
 
-/* DP/USB 3.0 */
+/* GEM SGMII/DP and USB 3.0 */
 &psgtr {
 	status = "okay";
-	/* pcie, usb3, sata */
-	clocks = <&si5332_5>, <&si5332_4>, <&si5332_0>;
+	/* gem0/1, dp, usb */
+	clocks = <&clk_125>, <&clk_27>, <&clk_26>;
 	clock-names = "ref0", "ref1", "ref2";
 };
 
 &zynqmp_dpsub {
 	status = "okay";
-	phy-names = "dp-phy0", "dp-phy1";
-	phys = <&psgtr 1 PHY_TYPE_DP 0 0>, <&psgtr 0 PHY_TYPE_DP 1 0>;
+	phy-names = "dp-phy0";
+	phys = <&psgtr 1 PHY_TYPE_DP 0 1>;
 	assigned-clock-rates = <27000000>, <25000000>, <300000000>;
 };
 
@@ -129,12 +167,13 @@
 	assigned-clock-rates = <600000000>;
 };
 
-&usb0 {
+&usb0 { /* mio52 - mio63 */
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb0_default>;
 	phy-names = "usb3-phy";
-	phys = <&psgtr 2 PHY_TYPE_USB3 0 1>;
+	phys = <&psgtr 2 PHY_TYPE_USB3 0 2>;
+	reset-gpios = <&slg7xl45106 0 GPIO_ACTIVE_LOW>;
 	assigned-clock-rates = <250000000>, <20000000>;
 };
 
@@ -151,8 +190,8 @@
 		compatible = "usb424,2744";
 		reg = <1>;
 		peer-hub = <&hub_3_0>;
-		i2c-bus = <&hub>;
-		reset-gpios = <&gpio 44 GPIO_ACTIVE_LOW>;
+		i2c-bus = <&hub_1>;
+		reset-gpios = <&slg7xl45106 3 GPIO_ACTIVE_LOW>;
 	};
 
 	/* 3.0 hub on port 2 */
@@ -160,78 +199,98 @@
 		compatible = "usb424,5744";
 		reg = <2>;
 		peer-hub = <&hub_2_0>;
-		i2c-bus = <&hub>;
-		reset-gpios = <&gpio 44 GPIO_ACTIVE_LOW>;
+		i2c-bus = <&hub_1>;
+		reset-gpios = <&slg7xl45106 3 GPIO_ACTIVE_LOW>;
 	};
 };
 
-&sdhci1 { /* on CC with tuned parameters */
+&usb1 { /* mio64 - mio75 */
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sdhci1_default>;
-	/*
-	 * SD 3.0 requires level shifter and this property
-	 * should be removed if the board has level shifter and
-	 * need to work in UHS mode
-	 */
-	no-1-8-v;
-	disable-wp;
-	xlnx,mio-bank = <1>;
-	clk-phase-sd-hs = <126>, <60>;
-	clk-phase-uhs-sdr25 = <120>, <60>;
-	clk-phase-uhs-ddr50 = <126>, <48>;
-	assigned-clock-rates = <187498123>;
-	bus-width = <4>;
+	pinctrl-0 = <&pinctrl_usb1_default>;
+	phy-names = "usb3-phy";
+	phys = <&psgtr 3 PHY_TYPE_USB3 1 2>;
+	reset-gpios = <&slg7xl45106 1 GPIO_ACTIVE_LOW>;
+	assigned-clock-rates = <250000000>, <20000000>;
 };
 
-&gem3 {
+&dwc3_1 {
+	status = "okay";
+	dr_mode = "host";
+	snps,usb3_lpm_capable;
+	maximum-speed = "super-speed";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/* 2.0 hub on port 1 */
+	hub1_2_0: hub@1 {
+		compatible = "usb424,2744";
+		reg = <1>;
+		peer-hub = <&hub1_3_0>;
+		i2c-bus = <&hub_2>;
+		reset-gpios = <&slg7xl45106 4 GPIO_ACTIVE_LOW>;
+	};
+
+	/* 3.0 hub on port 2 */
+	hub1_3_0: hub@2 {
+		compatible = "usb424,5744";
+		reg = <2>;
+		peer-hub = <&hub1_2_0>;
+		i2c-bus = <&hub_2>;
+		reset-gpios = <&slg7xl45106 4 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&gem0 { /* mdio mio50/51 */
+	status = "okay";
+	phys = <&psgtr 0 PHY_TYPE_SGMII 0 0>;
+	phy-handle = <&phy0>;
+	phy-mode = "sgmii";
+	assigned-clock-rates = <250000000>;
+};
+
+&gem1 { /* mdio mio50/51, gem mio38 - mio49 */
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_gem3_default>;
-	phy-handle = <&phy0>;
+	pinctrl-0 = <&pinctrl_gem1_default>;
+	phy-handle = <&phy1>;
 	phy-mode = "rgmii-id";
 	assigned-clock-rates = <250000000>;
 
 	mdio: mdio {
 		#address-cells = <1>;
 		#size-cells = <0>;
-
-		phy0: ethernet-phy@1 {
+		phy0: ethernet-phy@4 { /* u81 */
 			#phy-cells = <1>;
-			reg = <1>;
 			compatible = "ethernet-phy-id2000.a231";
+			reg = <4>;
+			ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
+			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_75_NS>;
+			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+			ti,dp83867-rxctrl-strap-quirk;
+			reset-assert-us = <300>;
+			reset-deassert-us = <280>;
+			reset-gpios = <&slg7xl45106 5 GPIO_ACTIVE_LOW>;
+		};
+		phy1: ethernet-phy@8 { /* u36 */
+			#phy-cells = <1>;
+			compatible = "ethernet-phy-id2000.a231";
+			reg = <8>;
 			ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
 			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_75_NS>;
 			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
 			ti,dp83867-rxctrl-strap-quirk;
 			reset-assert-us = <100>;
 			reset-deassert-us = <280>;
-			reset-gpios = <&gpio 38 GPIO_ACTIVE_LOW>;
+			reset-gpios = <&slg7xl45106 6 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
 
+/* gem2/gem3 via PL with phys u79@2 and u80@3 */
+
 &pinctrl0 {
 	status = "okay";
-
-	pinctrl_gpio0_default: gpio0-default {
-		conf {
-			groups = "gpio0_38_grp";
-			bias-pull-up;
-			power-source = <IO_STANDARD_LVCMOS18>;
-		};
-
-		mux {
-			groups = "gpio0_38_grp";
-			function = "gpio0";
-		};
-
-		conf-tx {
-			pins = "MIO38";
-			bias-disable;
-			output-enable;
-		};
-	};
 
 	pinctrl_uart1_default: uart1-default {
 		conf {
@@ -285,36 +344,36 @@
 		};
 	};
 
-	pinctrl_gem3_default: gem3-default {
+	pinctrl_gem1_default: gem1-default {
 		conf {
-			groups = "ethernet3_0_grp";
+			groups = "ethernet1_0_grp";
 			slew-rate = <SLEW_RATE_SLOW>;
 			power-source = <IO_STANDARD_LVCMOS18>;
 		};
 
 		conf-rx {
-			pins = "MIO70", "MIO72", "MIO74";
+			pins = "MIO44", "MIO46", "MIO48";
 			bias-high-impedance;
 			low-power-disable;
 		};
 
 		conf-bootstrap {
-			pins = "MIO71", "MIO73", "MIO75";
+			pins = "MIO45", "MIO47", "MIO49";
 			bias-disable;
 			output-enable;
 			low-power-disable;
 		};
 
 		conf-tx {
-			pins = "MIO64", "MIO65", "MIO66",
-				"MIO67", "MIO68", "MIO69";
+			pins = "MIO38", "MIO39", "MIO40",
+				"MIO41", "MIO42", "MIO43";
 			bias-disable;
 			output-enable;
 			low-power-enable;
 		};
 
 		conf-mdio {
-			groups = "mdio3_0_grp";
+			groups = "mdio1_0_grp";
 			slew-rate = <SLEW_RATE_SLOW>;
 			power-source = <IO_STANDARD_LVCMOS18>;
 			bias-disable;
@@ -322,13 +381,13 @@
 		};
 
 		mux-mdio {
-			function = "mdio3";
-			groups = "mdio3_0_grp";
+			function = "mdio1";
+			groups = "mdio1_0_grp";
 		};
 
 		mux {
-			function = "ethernet3";
-			groups = "ethernet3_0_grp";
+			function = "ethernet1";
+			groups = "ethernet1_0_grp";
 		};
 	};
 
@@ -360,39 +419,33 @@
 		};
 	};
 
-	pinctrl_sdhci1_default: sdhci1-default {
+	pinctrl_usb1_default: usb1-default {
 		conf {
-			groups = "sdio1_0_grp";
-			slew-rate = <SLEW_RATE_SLOW>;
+			groups = "usb1_0_grp";
 			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+
+		conf-rx {
+			pins = "MIO64", "MIO65", "MIO67";
+			bias-high-impedance;
+			drive-strength = <12>;
+			slew-rate = <SLEW_RATE_FAST>;
+		};
+
+		conf-tx {
+			pins = "MIO66", "MIO68", "MIO69", "MIO70", "MIO71",
+			"MIO72", "MIO73", "MIO74", "MIO75";
 			bias-disable;
 			output-enable;
-		};
-
-		conf-cd {
-			groups = "sdio1_cd_0_grp";
-			bias-high-impedance;
-			bias-pull-up;
+			drive-strength = <4>;
 			slew-rate = <SLEW_RATE_SLOW>;
-			power-source = <IO_STANDARD_LVCMOS18>;
-		};
-
-		mux-cd {
-			groups = "sdio1_cd_0_grp";
-			function = "sdio1_cd";
 		};
 
 		mux {
-			groups = "sdio1_0_grp";
-			function = "sdio1";
+			groups = "usb1_0_grp";
+			function = "usb1";
 		};
 	};
-};
-
-&gpio {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_gpio0_default>;
 };
 
 &uart1 {

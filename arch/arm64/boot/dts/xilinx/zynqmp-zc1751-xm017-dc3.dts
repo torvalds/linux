@@ -129,7 +129,6 @@
 /* MT29F64G08AECDBJ4-6 */
 &nand0 {
 	status = "okay";
-	arasan,has-mdma;
 	num-cs = <2>;
 };
 
