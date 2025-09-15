@@ -123,20 +123,21 @@ static bool acpi_nondev_subnode_extract(union acpi_object *desc,
 	if (acpi_enumerate_nondev_subnodes(scope, desc, &dn->data, &dn->fwnode))
 		result = true;
 
-	if (result) {
-		/*
-		 * This will be NULL if the desc package is embedded in an outer
-		 * _DSD-equivalent package and its scope cannot be determined.
-		 */
-		dn->handle = handle;
-		dn->data.pointer = desc;
-		list_add_tail(&dn->sibling, list);
-		return true;
+	if (!result) {
+		kfree(dn);
+		acpi_handle_debug(handle, "Invalid properties/subnodes data, skipping\n");
+		return false;
 	}
 
-	kfree(dn);
-	acpi_handle_debug(handle, "Invalid properties/subnodes data, skipping\n");
-	return false;
+	/*
+	 * This will be NULL if the desc package is embedded in an outer
+	 * _DSD-equivalent package and its scope cannot be determined.
+	 */
+	dn->handle = handle;
+	dn->data.pointer = desc;
+	list_add_tail(&dn->sibling, list);
+
+	return true;
 }
 
 static bool acpi_nondev_subnode_ok(acpi_handle scope,
