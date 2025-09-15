@@ -23,6 +23,7 @@
 #include "roc.h"
 #include "mlo.h"
 #include "stats.h"
+#include "iwl-nvm-parse.h"
 #include "ftm-initiator.h"
 #include "low_latency.h"
 #include "fw/api/scan.h"
@@ -2591,11 +2592,44 @@ iwl_mld_can_neg_ttlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return NEG_TTLM_RES_ACCEPT;
 }
 
+static int iwl_mld_get_antenna(struct ieee80211_hw *hw, int radio_idx,
+			       u32 *tx_ant, u32 *rx_ant)
+{
+	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
+
+	*tx_ant = iwl_mld_get_valid_tx_ant(mld);
+	*rx_ant = iwl_mld_get_valid_rx_ant(mld);
+
+	return 0;
+}
+
+static int iwl_mld_set_antenna(struct ieee80211_hw *hw, int radio_idx,
+			       u32 tx_ant, u32 rx_ant)
+{
+	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
+
+	if (WARN_ON(!mld->nvm_data))
+		return -EBUSY;
+
+	/* mac80211 ensures the device is not started,
+	 * so the firmware cannot be running
+	 */
+
+	mld->set_tx_ant = tx_ant;
+	mld->set_rx_ant = rx_ant;
+
+	iwl_reinit_cab(mld->trans, mld->nvm_data, tx_ant, rx_ant, mld->fw);
+
+	return 0;
+}
+
 const struct ieee80211_ops iwl_mld_hw_ops = {
 	.tx = iwl_mld_mac80211_tx,
 	.start = iwl_mld_mac80211_start,
 	.stop = iwl_mld_mac80211_stop,
 	.config = iwl_mld_mac80211_config,
+	.get_antenna = iwl_mld_get_antenna,
+	.set_antenna = iwl_mld_set_antenna,
 	.add_interface = iwl_mld_mac80211_add_interface,
 	.remove_interface = iwl_mld_mac80211_remove_interface,
 	.conf_tx = iwl_mld_mac80211_conf_tx,

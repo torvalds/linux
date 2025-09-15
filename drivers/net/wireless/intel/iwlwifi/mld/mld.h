@@ -180,6 +180,8 @@
  * @mcast_filter_cmd: pointer to the multicast filter command.
  * @mgmt_tx_ant: stores the last TX antenna index; used for setting
  *	TX rate_n_flags for non-STA mgmt frames (toggles on every TX failure).
+ * @set_tx_ant: stores the last TX antenna bitmask set by user space (if any)
+ * @set_rx_ant: stores the last RX antenna bitmask set by user space (if any)
  * @fw_rates_ver_3: FW rates are in version 3
  * @low_latency: low-latency manager.
  * @tzone: thermal zone device's data
@@ -279,6 +281,9 @@ struct iwl_mld {
 
 	u8 mgmt_tx_ant;
 
+	u8 set_tx_ant;
+	u8 set_rx_ant;
+
 	bool fw_rates_ver_3;
 
 	struct iwl_mld_low_latency low_latency;
@@ -374,6 +379,9 @@ static inline u8 iwl_mld_get_valid_tx_ant(const struct iwl_mld *mld)
 	if (mld->nvm_data && mld->nvm_data->valid_tx_ant)
 		tx_ant &= mld->nvm_data->valid_tx_ant;
 
+	if (mld->set_tx_ant)
+		tx_ant &= mld->set_tx_ant;
+
 	return tx_ant;
 }
 
@@ -383,6 +391,9 @@ static inline u8 iwl_mld_get_valid_rx_ant(const struct iwl_mld *mld)
 
 	if (mld->nvm_data && mld->nvm_data->valid_rx_ant)
 		rx_ant &= mld->nvm_data->valid_rx_ant;
+
+	if (mld->set_rx_ant)
+		rx_ant &= mld->set_rx_ant;
 
 	return rx_ant;
 }
