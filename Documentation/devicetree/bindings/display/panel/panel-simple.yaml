@@ -178,6 +178,8 @@ properties:
       - innolux,g121xce-l01
         # InnoLux 15.6" FHD (1920x1080) TFT LCD panel
       - innolux,g156hce-l01
+        # InnoLux 13.3" FHD (1920x1080) TFT LCD panel
+      - innolux,n133hse-ea1
         # InnoLux 15.6" WXGA TFT LCD panel
       - innolux,n156bge-l21
         # Innolux Corporation 7.0" WSVGA (1024x600) TFT LCD panel
@@ -228,6 +230,8 @@ properties:
       - netron-dy,e231732
         # Newhaven Display International 480 x 272 TFT LCD panel
       - newhaven,nhd-4.3-480272ef-atxl
+        # NLT Technologies, Ltd. 12.1" WXGA (1280 x 800) LVDS TFT LCD panel
+      - nlt,nl12880bc20-spwg-24
         # NLT Technologies, Ltd. 15.6" WXGA (1366×768) LVDS TFT LCD panel
       - nlt,nl13676bc25-03f
         # New Vision Display 7.0" 800 RGB x 480 TFT LCD panel
