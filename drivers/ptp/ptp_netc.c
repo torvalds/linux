@@ -305,13 +305,14 @@ static void netc_timer_enable_periodic_pulse(struct netc_timer *priv,
 	fiper_ctrl |= FIPER_CTRL_SET_PW(channel, fiper_pw);
 	fiper_ctrl |= alarm_id ? FIPER_CTRL_FS_ALARM(channel) : 0;
 
-	priv->tmr_emask |= TMR_TEVNET_PPEN(channel) |
-			   TMR_TEVENT_ALMEN(alarm_id);
+	priv->tmr_emask |= TMR_TEVENT_ALMEN(alarm_id);
 
-	if (pp->type == NETC_PP_PPS)
+	if (pp->type == NETC_PP_PPS) {
+		priv->tmr_emask |= TMR_TEVNET_PPEN(channel);
 		netc_timer_set_pps_alarm(priv, channel, integral_period);
-	else
+	} else {
 		netc_timer_set_perout_alarm(priv, channel, integral_period);
+	}
 
 	netc_timer_wr(priv, NETC_TMR_TEMASK, priv->tmr_emask);
 	netc_timer_wr(priv, NETC_TMR_FIPER(channel), fiper);
