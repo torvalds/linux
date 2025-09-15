@@ -4690,6 +4690,7 @@ struct rtw89_fw_elm_info {
 	struct rtw89_fw_txpwr_track_cfg *txpwr_trk;
 	struct rtw89_phy_rfk_log_fmt *rfk_log_fmt;
 	const struct rtw89_regd_data *regd;
+	const struct rtw89_fw_element_hdr *afe;
 };
 
 enum rtw89_fw_mss_dev_type {

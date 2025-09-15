@@ -5417,6 +5417,8 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 {
 	int ret;
 
+	rtw89_phy_init_bb_afe(rtwdev);
+
 	ret = rtw89_mac_init(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "mac init fail, ret:%d\n", ret);

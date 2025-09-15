@@ -3984,6 +3984,7 @@ enum rtw89_fw_element_id {
 	RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_RU_2GHZ = 24,
 	RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_RU_5GHZ = 25,
 	RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_RU_6GHZ = 26,
+	RTW89_FW_ELEMENT_ID_AFE_PWR_SEQ = 27,
 
 	RTW89_FW_ELEMENT_ID_NUM,
 };
@@ -4089,6 +4090,30 @@ struct rtw89_fw_txpwr_track_cfg {
 	 BIT(RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_A_N) | \
 	 BIT(RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_A_P))
 
+enum rtw89_fw_afe_action {
+	RTW89_FW_AFE_ACTION_WRITE = 0,
+	RTW89_FW_AFE_ACTION_DELAY = 1,
+	RTW89_FW_AFE_ACTION_POLL = 2,
+};
+
+enum rtw89_fw_afe_cat {
+	RTW89_FW_AFE_CAT_BB = 0,
+	RTW89_FW_AFE_CAT_BB1 = 1,
+	RTW89_FW_AFE_CAT_MAC = 2,
+	RTW89_FW_AFE_CAT_MAC1 = 3,
+	RTW89_FW_AFE_CAT_AFEDIG = 4,
+	RTW89_FW_AFE_CAT_AFEDIG1 = 5,
+};
+
+enum rtw89_fw_afe_class {
+	RTW89_FW_AFE_CLASS_P0 = 0,
+	RTW89_FW_AFE_CLASS_P1 = 1,
+	RTW89_FW_AFE_CLASS_P2 = 2,
+	RTW89_FW_AFE_CLASS_P3 = 3,
+	RTW89_FW_AFE_CLASS_P4 = 4,
+	RTW89_FW_AFE_CLASS_CMN = 5,
+};
+
 struct rtw89_fw_element_hdr {
 	__le32 id; /* enum rtw89_fw_element_id */
 	__le32 size; /* exclude header size */
@@ -4126,6 +4151,17 @@ struct rtw89_fw_element_hdr {
 			u8 rsvd1[3];
 			__le16 offset[];
 		} __packed rfk_log_fmt;
+		struct {
+			u8 rsvd[8];
+			struct rtw89_phy_afe_info {
+				__le32 action; /* enum rtw89_fw_afe_action */
+				__le32 cat; /* enum rtw89_fw_afe_cat */
+				__le32 class; /* enum rtw89_fw_afe_class */
+				__le32 addr;
+				__le32 mask;
+				__le32 val;
+			} __packed infos[];
+		} __packed afe;
 		struct __rtw89_fw_txpwr_element txpwr;
 		struct __rtw89_fw_regd_element regd;
 	} __packed u;

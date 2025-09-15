@@ -1702,6 +1702,91 @@ void rtw89_phy_init_bb_reg(struct rtw89_dev *rtwdev)
 	rtw89_phy_bb_reset(rtwdev);
 }
 
+void rtw89_phy_init_bb_afe(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	const struct rtw89_fw_element_hdr *afe_elm = elm_info->afe;
+	const struct rtw89_phy_afe_info *info;
+	u32 action, cat, class;
+	u32 addr, mask, val;
+	u32 poll, rpt;
+	u32 n, i;
+
+	if (!afe_elm)
+		return;
+
+	n = le32_to_cpu(afe_elm->size) / sizeof(*info);
+
+	for (i = 0; i < n; i++) {
+		info = &afe_elm->u.afe.infos[i];
+
+		class = le32_to_cpu(info->class);
+		switch (class) {
+		case RTW89_FW_AFE_CLASS_P0:
+		case RTW89_FW_AFE_CLASS_P1:
+		case RTW89_FW_AFE_CLASS_CMN:
+			/* Currently support two paths */
+			break;
+		case RTW89_FW_AFE_CLASS_P2:
+		case RTW89_FW_AFE_CLASS_P3:
+		case RTW89_FW_AFE_CLASS_P4:
+		default:
+			rtw89_warn(rtwdev, "unexpected AFE class %u\n", class);
+			continue;
+		}
+
+		addr = le32_to_cpu(info->addr);
+		mask = le32_to_cpu(info->mask);
+		val = le32_to_cpu(info->val);
+		cat = le32_to_cpu(info->cat);
+		action = le32_to_cpu(info->action);
+
+		switch (action) {
+		case RTW89_FW_AFE_ACTION_WRITE:
+			switch (cat) {
+			case RTW89_FW_AFE_CAT_MAC:
+			case RTW89_FW_AFE_CAT_MAC1:
+				rtw89_write32_mask(rtwdev, addr, mask, val);
+				break;
+			case RTW89_FW_AFE_CAT_AFEDIG:
+			case RTW89_FW_AFE_CAT_AFEDIG1:
+				rtw89_write32_mask(rtwdev, addr, mask, val);
+				break;
+			case RTW89_FW_AFE_CAT_BB:
+				rtw89_phy_write32_idx(rtwdev, addr, mask, val, RTW89_PHY_0);
+				break;
+			case RTW89_FW_AFE_CAT_BB1:
+				rtw89_phy_write32_idx(rtwdev, addr, mask, val, RTW89_PHY_1);
+				break;
+			default:
+				rtw89_warn(rtwdev,
+					   "unexpected AFE writing action %u\n", action);
+				break;
+			}
+			break;
+		case RTW89_FW_AFE_ACTION_POLL:
+			for (poll = 0; poll <= 10; poll++) {
+				/*
+				 * For CAT_BB, AFE reads register with mcu_offset 0,
+				 * so both CAT_MAC and CAT_BB use the same method.
+				 */
+				rpt = rtw89_read32_mask(rtwdev, addr, mask);
+				if (rpt == val)
+					goto poll_done;
+
+				fsleep(1);
+			}
+			rtw89_warn(rtwdev, "failed to poll AFE cat=%u addr=0x%x mask=0x%x\n",
+				   cat, addr, mask);
+poll_done:
+			break;
+		case RTW89_FW_AFE_ACTION_DELAY:
+			fsleep(addr);
+			break;
+		}
+	}
+}
+
 static u32 rtw89_phy_nctl_poll(struct rtw89_dev *rtwdev)
 {
 	rtw89_phy_write32(rtwdev, 0x8080, 0x4);
