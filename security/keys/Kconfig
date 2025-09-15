@@ -87,10 +87,9 @@ config ENCRYPTED_KEYS
 	tristate "ENCRYPTED KEYS"
 	depends on KEYS
 	select CRYPTO
-	select CRYPTO_HMAC
 	select CRYPTO_AES
 	select CRYPTO_CBC
-	select CRYPTO_SHA256
+	select CRYPTO_LIB_SHA256
 	select CRYPTO_RNG
 	help
 	  This option provides support for create/encrypting/decrypting keys
