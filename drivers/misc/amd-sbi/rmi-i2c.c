@@ -9,6 +9,8 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/i3c/device.h>
+#include <linux/i3c/master.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -135,7 +137,48 @@ static struct i2c_driver sbrmi_driver = {
 	.id_table = sbrmi_id,
 };
 
-module_i2c_driver(sbrmi_driver);
+static int sbrmi_i3c_probe(struct i3c_device *i3cdev)
+{
+	struct device *dev = i3cdev_to_dev(i3cdev);
+	struct regmap *regmap;
+
+	regmap = devm_regmap_init_i3c(i3cdev, &sbrmi_regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	/*
+	 * AMD APML I3C devices support static address.
+	 * If static address is defined, dynamic address is same as static address.
+	 * In case static address is not defined, I3C master controller defined
+	 * dynamic address is used.
+	 */
+	return sbrmi_common_probe(dev, regmap, i3cdev->desc->info.dyn_addr);
+}
+
+static void sbrmi_i3c_remove(struct i3c_device *i3cdev)
+{
+	struct sbrmi_data *data = dev_get_drvdata(&i3cdev->dev);
+
+	misc_deregister(&data->sbrmi_misc_dev);
+}
+
+static const struct i3c_device_id sbrmi_i3c_id[] = {
+	/* PID for AMD SBRMI device */
+	I3C_DEVICE_EXTRA_INFO(0x112, 0x0, 0x2, NULL),
+	{}
+};
+MODULE_DEVICE_TABLE(i3c, sbrmi_i3c_id);
+
+static struct i3c_driver sbrmi_i3c_driver = {
+	.driver = {
+		.name = "sbrmi-i3c",
+	},
+	.probe = sbrmi_i3c_probe,
+	.remove = sbrmi_i3c_remove,
+	.id_table = sbrmi_i3c_id,
+};
+
+module_i3c_i2c_driver(sbrmi_i3c_driver, &sbrmi_driver);
 
 MODULE_AUTHOR("Akshay Gupta <akshay.gupta@amd.com>");
 MODULE_AUTHOR("Naveen Krishna Chatradhi <naveenkrishna.chatradhi@amd.com>");
