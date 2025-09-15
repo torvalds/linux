@@ -1749,23 +1749,6 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 	return 0;
 }
 
-static void smb_direct_qpair_handler(struct ib_event *event, void *context)
-{
-	struct smbdirect_socket *sc = context;
-
-	ksmbd_debug(RDMA, "Received QP event. cm_id=%p, event=%s (%d)\n",
-		    sc->rdma.cm_id, ib_event_msg(event->event), event->event);
-
-	switch (event->event) {
-	case IB_EVENT_CQ_ERR:
-	case IB_EVENT_QP_FATAL:
-		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
-		break;
-	default:
-		break;
-	}
-}
-
 static int smb_direct_send_negotiate_response(struct smbdirect_socket *sc,
 					      int failed)
 {
@@ -2116,7 +2099,7 @@ static int smb_direct_create_qpair(struct smbdirect_socket *sc)
 	 * again if max_rdma_ctxs is not 0.
 	 */
 	memset(&qp_attr, 0, sizeof(qp_attr));
-	qp_attr.event_handler = smb_direct_qpair_handler;
+	qp_attr.event_handler = smbdirect_connection_qp_event_handler;
 	qp_attr.qp_context = sc;
 	qp_attr.cap = qp_cap;
 	qp_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
