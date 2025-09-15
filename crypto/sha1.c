@@ -49,6 +49,18 @@ static int __crypto_sha1_import(struct sha1_ctx *ctx, const void *in)
 	return 0;
 }
 
+static int __crypto_sha1_export_core(const struct sha1_ctx *ctx, void *out)
+{
+	memcpy(out, ctx, offsetof(struct sha1_ctx, buf));
+	return 0;
+}
+
+static int __crypto_sha1_import_core(struct sha1_ctx *ctx, const void *in)
+{
+	memcpy(ctx, in, offsetof(struct sha1_ctx, buf));
+	return 0;
+}
+
 const u8 sha1_zero_message_hash[SHA1_DIGEST_SIZE] = {
 	0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d,
 	0x32, 0x55, 0xbf, 0xef, 0x95, 0x60, 0x18, 0x90,
@@ -92,6 +104,16 @@ static int crypto_sha1_export(struct shash_desc *desc, void *out)
 static int crypto_sha1_import(struct shash_desc *desc, const void *in)
 {
 	return __crypto_sha1_import(SHA1_CTX(desc), in);
+}
+
+static int crypto_sha1_export_core(struct shash_desc *desc, void *out)
+{
+	return __crypto_sha1_export_core(SHA1_CTX(desc), out);
+}
+
+static int crypto_sha1_import_core(struct shash_desc *desc, const void *in)
+{
+	return __crypto_sha1_import_core(SHA1_CTX(desc), in);
 }
 
 #define HMAC_SHA1_KEY(tfm) ((struct hmac_sha1_key *)crypto_shash_ctx(tfm))
@@ -143,6 +165,19 @@ static int crypto_hmac_sha1_import(struct shash_desc *desc, const void *in)
 	return __crypto_sha1_import(&ctx->sha_ctx, in);
 }
 
+static int crypto_hmac_sha1_export_core(struct shash_desc *desc, void *out)
+{
+	return __crypto_sha1_export_core(&HMAC_SHA1_CTX(desc)->sha_ctx, out);
+}
+
+static int crypto_hmac_sha1_import_core(struct shash_desc *desc, const void *in)
+{
+	struct hmac_sha1_ctx *ctx = HMAC_SHA1_CTX(desc);
+
+	ctx->ostate = HMAC_SHA1_KEY(desc->tfm)->ostate;
+	return __crypto_sha1_import_core(&ctx->sha_ctx, in);
+}
+
 static struct shash_alg algs[] = {
 	{
 		.base.cra_name		= "sha1",
@@ -157,6 +192,8 @@ static struct shash_alg algs[] = {
 		.digest			= crypto_sha1_digest,
 		.export			= crypto_sha1_export,
 		.import			= crypto_sha1_import,
+		.export_core		= crypto_sha1_export_core,
+		.import_core		= crypto_sha1_import_core,
 		.descsize		= sizeof(struct sha1_ctx),
 		.statesize		= SHA1_SHASH_STATE_SIZE,
 	},
@@ -175,6 +212,8 @@ static struct shash_alg algs[] = {
 		.digest			= crypto_hmac_sha1_digest,
 		.export			= crypto_hmac_sha1_export,
 		.import			= crypto_hmac_sha1_import,
+		.export_core		= crypto_hmac_sha1_export_core,
+		.import_core		= crypto_hmac_sha1_import_core,
 		.descsize		= sizeof(struct hmac_sha1_ctx),
 		.statesize		= SHA1_SHASH_STATE_SIZE,
 	},

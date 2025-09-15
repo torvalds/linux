@@ -1931,7 +1931,7 @@ cifs_drop_nlink(struct inode *inode)
  * but will return the EACCES to the caller. Note that the VFS does not call
  * unlink on negative dentries currently.
  */
-int cifs_unlink(struct inode *dir, struct dentry *dentry)
+static int __cifs_unlink(struct inode *dir, struct dentry *dentry, bool sillyrename)
 {
 	int rc = 0;
 	unsigned int xid;
@@ -1943,14 +1943,23 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
+	__u32 dosattr = 0, origattr = 0;
 	struct TCP_Server_Info *server;
 	struct iattr *attrs = NULL;
-	__u32 dosattr = 0, origattr = 0;
+	bool rehash = false;
 
 	cifs_dbg(FYI, "cifs_unlink, dir=0x%p, dentry=0x%p\n", dir, dentry);
 
 	if (unlikely(cifs_forced_shutdown(cifs_sb)))
 		return -EIO;
+
+	/* Unhash dentry in advance to prevent any concurrent opens */
+	spin_lock(&dentry->d_lock);
+	if (!d_unhashed(dentry)) {
+		__d_drop(dentry);
+		rehash = true;
+	}
+	spin_unlock(&dentry->d_lock);
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
@@ -1994,7 +2003,11 @@ retry_std_delete:
 		goto psx_del_no_retry;
 	}
 
-	rc = server->ops->unlink(xid, tcon, full_path, cifs_sb, dentry);
+	if (sillyrename || (server->vals->protocol_id > SMB10_PROT_ID &&
+			    d_is_positive(dentry) && d_count(dentry) > 2))
+		rc = -EBUSY;
+	else
+		rc = server->ops->unlink(xid, tcon, full_path, cifs_sb, dentry);
 
 psx_del_no_retry:
 	if (!rc) {
@@ -2003,7 +2016,8 @@ psx_del_no_retry:
 			cifs_drop_nlink(inode);
 		}
 	} else if (rc == -ENOENT) {
-		d_drop(dentry);
+		if (simple_positive(dentry))
+			d_delete(dentry);
 	} else if (rc == -EBUSY) {
 		if (server->ops->rename_pending_delete) {
 			rc = server->ops->rename_pending_delete(full_path,
@@ -2056,7 +2070,14 @@ unlink_out:
 	kfree(attrs);
 	free_xid(xid);
 	cifs_put_tlink(tlink);
+	if (rehash)
+		d_rehash(dentry);
 	return rc;
+}
+
+int cifs_unlink(struct inode *dir, struct dentry *dentry)
+{
+	return __cifs_unlink(dir, dentry, false);
 }
 
 static int
@@ -2346,14 +2367,16 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	rc = server->ops->rmdir(xid, tcon, full_path, cifs_sb);
 	cifs_put_tlink(tlink);
 
+	cifsInode = CIFS_I(d_inode(direntry));
+
 	if (!rc) {
+		set_bit(CIFS_INO_DELETE_PENDING, &cifsInode->flags);
 		spin_lock(&d_inode(direntry)->i_lock);
 		i_size_write(d_inode(direntry), 0);
 		clear_nlink(d_inode(direntry));
 		spin_unlock(&d_inode(direntry)->i_lock);
 	}
 
-	cifsInode = CIFS_I(d_inode(direntry));
 	/* force revalidate to go get info when needed */
 	cifsInode->time = 0;
 
@@ -2446,8 +2469,11 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	}
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 do_rename_exit:
-	if (rc == 0)
+	if (rc == 0) {
 		d_move(from_dentry, to_dentry);
+		/* Force a new lookup */
+		d_drop(from_dentry);
+	}
 	cifs_put_tlink(tlink);
 	return rc;
 }
@@ -2458,10 +2484,12 @@ cifs_rename2(struct mnt_idmap *idmap, struct inode *source_dir,
 	     struct dentry *target_dentry, unsigned int flags)
 {
 	const char *from_name, *to_name;
+	struct TCP_Server_Info *server;
 	void *page1, *page2;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
+	bool rehash = false;
 	unsigned int xid;
 	int rc, tmprc;
 	int retry_count = 0;
@@ -2477,10 +2505,22 @@ cifs_rename2(struct mnt_idmap *idmap, struct inode *source_dir,
 	if (unlikely(cifs_forced_shutdown(cifs_sb)))
 		return -EIO;
 
+	/*
+	 * Prevent any concurrent opens on the target by unhashing the dentry.
+	 * VFS already unhashes the target when renaming directories.
+	 */
+	if (d_is_positive(target_dentry) && !d_is_dir(target_dentry)) {
+		if (!d_unhashed(target_dentry)) {
+			d_drop(target_dentry);
+			rehash = true;
+		}
+	}
+
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
 	tcon = tlink_tcon(tlink);
+	server = tcon->ses->server;
 
 	page1 = alloc_dentry_path();
 	page2 = alloc_dentry_path();
@@ -2518,6 +2558,8 @@ cifs_rename2(struct mnt_idmap *idmap, struct inode *source_dir,
 		}
 	}
 
+	if (!rc)
+		rehash = false;
 	/*
 	 * No-replace is the natural behavior for CIFS, so skip unlink hacks.
 	 */
@@ -2565,23 +2607,61 @@ cifs_rename2(struct mnt_idmap *idmap, struct inode *source_dir,
 
 unlink_target:
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
-
-	/* Try unlinking the target dentry if it's not negative */
-	if (d_really_is_positive(target_dentry) && (rc == -EACCES || rc == -EEXIST)) {
-		if (d_is_dir(target_dentry))
-			tmprc = cifs_rmdir(target_dir, target_dentry);
-		else
-			tmprc = cifs_unlink(target_dir, target_dentry);
-		if (tmprc)
-			goto cifs_rename_exit;
-		rc = cifs_do_rename(xid, source_dentry, from_name,
-				    target_dentry, to_name);
+	if (d_really_is_positive(target_dentry)) {
+		if (!rc) {
+			struct inode *inode = d_inode(target_dentry);
+			/*
+			 * Samba and ksmbd servers allow renaming a target
+			 * directory that is open, so make sure to update
+			 * ->i_nlink and then mark it as delete pending.
+			 */
+			if (S_ISDIR(inode->i_mode)) {
+				drop_cached_dir_by_name(xid, tcon, to_name, cifs_sb);
+				spin_lock(&inode->i_lock);
+				i_size_write(inode, 0);
+				clear_nlink(inode);
+				spin_unlock(&inode->i_lock);
+				set_bit(CIFS_INO_DELETE_PENDING, &CIFS_I(inode)->flags);
+				CIFS_I(inode)->time = 0; /* force reval */
+				inode_set_ctime_current(inode);
+				inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
+			}
+		} else if (rc == -EACCES || rc == -EEXIST) {
+			/*
+			 * Rename failed, possibly due to a busy target.
+			 * Retry it by unliking the target first.
+			 */
+			if (d_is_dir(target_dentry)) {
+				tmprc = cifs_rmdir(target_dir, target_dentry);
+			} else {
+				tmprc = __cifs_unlink(target_dir, target_dentry,
+						      server->vals->protocol_id > SMB10_PROT_ID);
+			}
+			if (tmprc) {
+				/*
+				 * Some servers will return STATUS_ACCESS_DENIED
+				 * or STATUS_DIRECTORY_NOT_EMPTY when failing to
+				 * rename a non-empty directory.  Make sure to
+				 * propagate the appropriate error back to
+				 * userspace.
+				 */
+				if (tmprc == -EEXIST || tmprc == -ENOTEMPTY)
+					rc = tmprc;
+				goto cifs_rename_exit;
+			}
+			rc = cifs_do_rename(xid, source_dentry, from_name,
+					    target_dentry, to_name);
+			if (!rc)
+				rehash = false;
+		}
 	}
 
 	/* force revalidate to go get info when needed */
 	CIFS_I(source_dir)->time = CIFS_I(target_dir)->time = 0;
 
 cifs_rename_exit:
+	if (rehash)
+		d_rehash(target_dentry);
 	kfree(info_buf_source);
 	free_dentry_path(page2);
 	free_dentry_path(page1);
@@ -2599,6 +2679,8 @@ cifs_dentry_needs_reval(struct dentry *dentry)
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	struct cached_fid *cfid = NULL;
 
+	if (test_bit(CIFS_INO_DELETE_PENDING, &cifs_i->flags))
+		return false;
 	if (cifs_i->time == 0)
 		return true;
 

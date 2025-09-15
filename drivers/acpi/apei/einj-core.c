@@ -315,7 +315,7 @@ static void __iomem *einj_get_parameter_address(void)
 			memcpy_fromio(&v5param, p, v5param_size);
 			acpi5 = 1;
 			check_vendor_extension(pa_v5, &v5param);
-			if (available_error_type & ACPI65_EINJV2_SUPP) {
+			if (is_v2 && available_error_type & ACPI65_EINJV2_SUPP) {
 				len = v5param.einjv2_struct.length;
 				offset = offsetof(struct einjv2_extension_struct, component_arr);
 				max_nr_components = (len - offset) /
@@ -540,6 +540,9 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 		struct set_error_type_with_address *v5param;
 
 		v5param = kmalloc(v5param_size, GFP_KERNEL);
+		if (!v5param)
+			return -ENOMEM;
+
 		memcpy_fromio(v5param, einj_param, v5param_size);
 		v5param->type = type;
 		if (type & ACPI5_VENDOR_BIT) {
@@ -1091,7 +1094,7 @@ err_put_table:
 	return rc;
 }
 
-static void __exit einj_remove(struct faux_device *fdev)
+static void einj_remove(struct faux_device *fdev)
 {
 	struct apei_exec_context ctx;
 
@@ -1114,15 +1117,9 @@ static void __exit einj_remove(struct faux_device *fdev)
 }
 
 static struct faux_device *einj_dev;
-/*
- * einj_remove() lives in .exit.text. For drivers registered via
- * platform_driver_probe() this is ok because they cannot get unbound at
- * runtime. So mark the driver struct with __refdata to prevent modpost
- * triggering a section mismatch warning.
- */
-static struct faux_device_ops einj_device_ops __refdata = {
+static struct faux_device_ops einj_device_ops = {
 	.probe = einj_probe,
-	.remove = __exit_p(einj_remove),
+	.remove = einj_remove,
 };
 
 static int __init einj_init(void)

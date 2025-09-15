@@ -479,6 +479,9 @@ void css_rstat_exit(struct cgroup_subsys_state *css)
 	if (!css_uses_rstat(css))
 		return;
 
+	if (!css->rstat_cpu)
+		return;
+
 	css_rstat_flush(css);
 
 	/* sanity check */

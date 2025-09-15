@@ -27,6 +27,7 @@ static void get_rodata_table_size_by_table_annotate(struct objtool_file *file,
 	struct table_info *next_table;
 	unsigned long tmp_insn_offset;
 	unsigned long tmp_rodata_offset;
+	bool is_valid_list = false;
 
 	rsec = find_section_by_name(file->elf, ".rela.discard.tablejump_annotate");
 	if (!rsec)
@@ -35,6 +36,12 @@ static void get_rodata_table_size_by_table_annotate(struct objtool_file *file,
 	INIT_LIST_HEAD(&table_list);
 
 	for_each_reloc(rsec, reloc) {
+		if (reloc->sym->sec->rodata)
+			continue;
+
+		if (strcmp(insn->sec->name, reloc->sym->sec->name))
+			continue;
+
 		orig_table = malloc(sizeof(struct table_info));
 		if (!orig_table) {
 			WARN("malloc failed");
@@ -49,6 +56,22 @@ static void get_rodata_table_size_by_table_annotate(struct objtool_file *file,
 
 		if (reloc_idx(reloc) + 1 == sec_num_entries(rsec))
 			break;
+
+		if (strcmp(insn->sec->name, (reloc + 1)->sym->sec->name)) {
+			list_for_each_entry(orig_table, &table_list, jump_info) {
+				if (orig_table->insn_offset == insn->offset) {
+					is_valid_list = true;
+					break;
+				}
+			}
+
+			if (!is_valid_list) {
+				list_del_init(&table_list);
+				continue;
+			}
+
+			break;
+		}
 	}
 
 	list_for_each_entry(orig_table, &table_list, jump_info) {
