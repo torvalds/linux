@@ -5387,12 +5387,13 @@ void mlx5e_tc_ht_cleanup(struct rhashtable *tc_ht)
 int mlx5e_tc_esw_init(struct mlx5_rep_uplink_priv *uplink_priv)
 {
 	const size_t sz_enc_opts = sizeof(struct tunnel_match_enc_opts);
+	struct mlx5_devcom_match_attr attr = {};
 	struct netdev_phys_item_id ppid;
 	struct mlx5e_rep_priv *rpriv;
 	struct mapping_ctx *mapping;
 	struct mlx5_eswitch *esw;
 	struct mlx5e_priv *priv;
-	u64 mapping_id, key;
+	u64 mapping_id;
 	int err = 0;
 
 	rpriv = container_of(uplink_priv, struct mlx5e_rep_priv, uplink_priv);
@@ -5448,8 +5449,8 @@ int mlx5e_tc_esw_init(struct mlx5_rep_uplink_priv *uplink_priv)
 
 	err = netif_get_port_parent_id(priv->netdev, &ppid, false);
 	if (!err) {
-		memcpy(&key, &ppid.id, sizeof(key));
-		mlx5_esw_offloads_devcom_init(esw, key);
+		memcpy(&attr.key.val, &ppid.id, sizeof(attr.key.val));
+		mlx5_esw_offloads_devcom_init(esw, &attr);
 	}
 
 	return 0;

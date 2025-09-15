@@ -6,6 +6,14 @@
 
 #include <linux/mlx5/driver.h>
 
+union mlx5_devcom_match_key {
+	u64 val;
+};
+
+struct mlx5_devcom_match_attr {
+	union mlx5_devcom_match_key key;
+};
+
 enum mlx5_devcom_component {
 	MLX5_DEVCOM_ESW_OFFLOADS,
 	MLX5_DEVCOM_MPV,
@@ -25,7 +33,7 @@ void mlx5_devcom_unregister_device(struct mlx5_devcom_dev *devc);
 struct mlx5_devcom_comp_dev *
 mlx5_devcom_register_component(struct mlx5_devcom_dev *devc,
 			       enum mlx5_devcom_component id,
-			       u64 key,
+			       const struct mlx5_devcom_match_attr *attr,
 			       mlx5_devcom_event_handler_t handler,
 			       void *data);
 void mlx5_devcom_unregister_component(struct mlx5_devcom_comp_dev *devcom);

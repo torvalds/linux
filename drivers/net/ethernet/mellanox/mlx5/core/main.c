@@ -975,6 +975,10 @@ static void mlx5_pci_close(struct mlx5_core_dev *dev)
 
 static void mlx5_register_hca_devcom_comp(struct mlx5_core_dev *dev)
 {
+	struct mlx5_devcom_match_attr attr = {
+		.key.val = mlx5_query_nic_system_image_guid(dev),
+	};
+
 	/* This component is use to sync adding core_dev to lag_dev and to sync
 	 * changes of mlx5_adev_devices between LAG layer and other layers.
 	 */
@@ -983,8 +987,7 @@ static void mlx5_register_hca_devcom_comp(struct mlx5_core_dev *dev)
 
 	dev->priv.hca_devcom_comp =
 		mlx5_devcom_register_component(dev->priv.devc, MLX5_DEVCOM_HCA_PORTS,
-					       mlx5_query_nic_system_image_guid(dev),
-					       NULL, dev);
+					       &attr, NULL, dev);
 	if (IS_ERR(dev->priv.hca_devcom_comp))
 		mlx5_core_err(dev, "Failed to register devcom HCA component\n");
 }
