@@ -50,25 +50,17 @@ static int sbrmi_get_max_pwr_limit(struct sbrmi_data *data)
 	return ret;
 }
 
-static int sbrmi_i2c_probe(struct i2c_client *client)
+static int sbrmi_common_probe(struct device *dev, struct regmap *regmap, uint8_t address)
 {
-	struct device *dev = &client->dev;
 	struct sbrmi_data *data;
-	struct regmap_config sbrmi_i2c_regmap_config = {
-		.reg_bits = 8,
-		.val_bits = 8,
-	};
 	int ret;
 
 	data = devm_kzalloc(dev, sizeof(struct sbrmi_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
+	data->regmap = regmap;
 	mutex_init(&data->lock);
-
-	data->regmap = devm_regmap_init_i2c(client, &sbrmi_i2c_regmap_config);
-	if (IS_ERR(data->regmap))
-		return PTR_ERR(data->regmap);
 
 	/* Enable alert for SB-RMI sequence */
 	ret = sbrmi_enable_alert(data);
@@ -80,13 +72,31 @@ static int sbrmi_i2c_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	data->dev_static_addr = client->addr;
+	data->dev_static_addr = address;
+
 	dev_set_drvdata(dev, data);
 
 	ret = create_hwmon_sensor_device(dev, data);
 	if (ret < 0)
 		return ret;
 	return create_misc_rmi_device(data, dev);
+}
+
+static struct regmap_config sbrmi_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+};
+
+static int sbrmi_i2c_probe(struct i2c_client *client)
+{
+	struct device *dev = &client->dev;
+	struct regmap *regmap;
+
+	regmap = devm_regmap_init_i2c(client, &sbrmi_regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	return sbrmi_common_probe(dev, regmap, client->addr);
 }
 
 static void sbrmi_i2c_remove(struct i2c_client *client)
