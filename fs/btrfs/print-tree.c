@@ -338,6 +338,34 @@ static void print_extent_csum(const struct extent_buffer *eb, int i)
 		key.offset, key.offset + csum_bytes, csum_bytes);
 }
 
+static void print_file_extent_item(const struct extent_buffer *eb, int i)
+{
+	struct btrfs_file_extent_item *fi;
+
+	fi = btrfs_item_ptr(eb, i, struct btrfs_file_extent_item);
+	pr_info("\t\tgeneration %llu type %hhu\n",
+		btrfs_file_extent_generation(eb, fi),
+		btrfs_file_extent_type(eb, fi));
+
+	if (btrfs_file_extent_type(eb, fi) == BTRFS_FILE_EXTENT_INLINE) {
+		pr_info("\t\tinline extent data size %u ram_bytes %llu compression %hhu\n",
+			btrfs_file_extent_inline_item_len(eb, i),
+			btrfs_file_extent_ram_bytes(eb, fi),
+			btrfs_file_extent_compression(eb, fi));
+		return;
+	}
+
+	pr_info("\t\textent data disk bytenr %llu nr %llu\n",
+		btrfs_file_extent_disk_bytenr(eb, fi),
+		btrfs_file_extent_disk_num_bytes(eb, fi));
+	pr_info("\t\textent data offset %llu nr %llu ram %llu\n",
+		btrfs_file_extent_offset(eb, fi),
+		btrfs_file_extent_num_bytes(eb, fi),
+		btrfs_file_extent_ram_bytes(eb, fi));
+	pr_info("\t\textent compression %hhu\n",
+		btrfs_file_extent_compression(eb, fi));
+}
+
 void btrfs_print_leaf(const struct extent_buffer *l)
 {
 	struct btrfs_fs_info *fs_info;
@@ -345,7 +373,6 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 	u32 type, nr;
 	struct btrfs_root_item *ri;
 	struct btrfs_block_group_item *bi;
-	struct btrfs_file_extent_item *fi;
 	struct btrfs_extent_data_ref *dref;
 	struct btrfs_shared_data_ref *sref;
 	struct btrfs_dev_extent *dev_extent;
@@ -417,28 +444,7 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 			       btrfs_shared_data_ref_count(l, sref));
 			break;
 		case BTRFS_EXTENT_DATA_KEY:
-			fi = btrfs_item_ptr(l, i,
-					    struct btrfs_file_extent_item);
-			pr_info("\t\tgeneration %llu type %hhu\n",
-				btrfs_file_extent_generation(l, fi),
-				btrfs_file_extent_type(l, fi));
-			if (btrfs_file_extent_type(l, fi) ==
-			    BTRFS_FILE_EXTENT_INLINE) {
-				pr_info("\t\tinline extent data size %u ram_bytes %llu compression %hhu\n",
-					btrfs_file_extent_inline_item_len(l, i),
-					btrfs_file_extent_ram_bytes(l, fi),
-					btrfs_file_extent_compression(l, fi));
-				break;
-			}
-			pr_info("\t\textent data disk bytenr %llu nr %llu\n",
-			       btrfs_file_extent_disk_bytenr(l, fi),
-			       btrfs_file_extent_disk_num_bytes(l, fi));
-			pr_info("\t\textent data offset %llu nr %llu ram %llu\n",
-			       btrfs_file_extent_offset(l, fi),
-			       btrfs_file_extent_num_bytes(l, fi),
-			       btrfs_file_extent_ram_bytes(l, fi));
-			pr_info("\t\textent compression %hhu\n",
-				btrfs_file_extent_compression(l, fi));
+			print_file_extent_item(l, i);
 			break;
 		case BTRFS_BLOCK_GROUP_ITEM_KEY:
 			bi = btrfs_item_ptr(l, i,
