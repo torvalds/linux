@@ -183,11 +183,9 @@
 &i2c0 {
 	status = "okay";
 
-	pwm@5e{
-		compatible = "max31790";
+	pwm@5e {
+		compatible = "maxim,max31790";
 		reg = <0x5e>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 	};
 
 	power-sensor@40 {
@@ -234,7 +232,7 @@
 		"","",
 		"","",
 		"","",
-		"","fcb1-activate",
+		"","fcb2-activate",
 		"","";
 	};
 };
@@ -257,11 +255,9 @@
 &i2c2 {
 	status = "okay";
 
-	pwm@5e{
-		compatible = "max31790";
+	pwm@5e {
+		compatible = "maxim,max31790";
 		reg = <0x5e>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 	};
 
 	power-sensor@40 {
@@ -308,7 +304,7 @@
 		"","",
 		"","",
 		"","",
-		"","fcb0-activate",
+		"","fcb1-activate",
 		"","";
 	};
 };
@@ -372,6 +368,12 @@
 	power-monitor@40 {
 		compatible = "infineon,xdp710";
 		reg = <0x40>;
+	};
+
+	power-sensor@45 {
+		compatible = "ti,ina238";
+		reg = <0x45>;
+		shunt-resistor = <500>;
 	};
 };
 
@@ -514,6 +516,10 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
+			power-sensor@20 {
+				compatible = "mps,mp5990";
+				reg = <0x20>;
+			};
 			power-monitor@61 {
 				compatible = "isil,isl69260";
 				reg = <0x61>;
@@ -692,14 +698,14 @@
 	"","",
 	/*A4-A7 line 8-15*/
 	"","power-config-asic-module-enable",
-	"","power-config-asic-power-good",
-	"","power-config-pdb-power-good",
+	"power-p3v3-standby","power-config-asic-power-good",
+	"power-p1v8-good","power-config-pdb-power-good",
 	"presence-cpu","smi-control-n",
 	/*B0-B3 line 16-23*/
 	"","nmi-control-n",
-	"","nmi-control-sync-flood-n",
+	"power-pvdd33-s5","nmi-control-sync-flood-n",
 	"","",
-	"","",
+	"power-pvdd18-s5","",
 	/*B4-B7 line 24-31*/
 	"","FM_CPU_SP5R1",
 	"reset-cause-rsmrst","FM_CPU_SP5R2",
@@ -743,7 +749,7 @@
 	/*F4-F7 line 88-95*/
 	"presence-asic-modules-0","rt-cpu0-p1-force-enable",
 	"presence-asic-modules-1","bios-debug-msg-disable",
-	"","uart-control-buffer-select",
+	"power-asic-good","uart-control-buffer-select",
 	"presence-cmm","ac-control-n",
 	/*G0-G3 line 96-103*/
 	"FM_CPU_CORETYPE2","",
@@ -795,7 +801,7 @@
 	"asic0-card-type-detection2-n","",
 	"uart-switch-lsb","",
 	"uart-switch-msb","",
-	"","",
+	"power-12v-memory-good","",
 	/*M4-M7 line 200-207*/
 	"","","","","","","","",
 	/*N0-N3 line 208-215*/
@@ -803,7 +809,10 @@
 	/*N4-N7 line 216-223*/
 	"","","","","","","","",
 	/*O0-O3 line 224-231*/
-	"","","","","","","","",
+	"","",
+	"irq-pvddcore0-ocp-alert","",
+	"irq-pvddcore1-ocp-alert","",
+	"","",
 	/*O4-O7 line 232-239*/
 	"","","","","","","","",
 	/*P0-P3 line 240-247*/

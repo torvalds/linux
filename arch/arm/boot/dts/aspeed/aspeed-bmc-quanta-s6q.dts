@@ -509,7 +509,7 @@
 			reg = <1>;
 
 			cpu0_pvccin@60 {
-				compatible = "isil,raa229004";
+				compatible = "renesas,raa229004";
 				reg = <0x60>;
 			};
 
@@ -530,7 +530,7 @@
 			reg = <2>;
 
 			cpu1_pvccin@72 {
-				compatible = "isil,raa229004";
+				compatible = "renesas,raa229004";
 				reg = <0x72>;
 			};
 
