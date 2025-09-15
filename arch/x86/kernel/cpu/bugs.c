@@ -687,8 +687,7 @@ static const char * const mmio_strings[] = {
 
 static void __init mmio_select_mitigation(void)
 {
-	if (!boot_cpu_has_bug(X86_BUG_MMIO_STALE_DATA) ||
-	     cpu_mitigations_off()) {
+	if (!boot_cpu_has_bug(X86_BUG_MMIO_STALE_DATA)) {
 		mmio_mitigation = MMIO_MITIGATION_OFF;
 		return;
 	}
@@ -3125,14 +3124,15 @@ ibpb_on_vmexit:
 
 static void __init srso_update_mitigation(void)
 {
+	if (!boot_cpu_has_bug(X86_BUG_SRSO))
+		return;
+
 	/* If retbleed is using IBPB, that works for SRSO as well */
 	if (retbleed_mitigation == RETBLEED_MITIGATION_IBPB &&
 	    boot_cpu_has(X86_FEATURE_IBPB_BRTYPE))
 		srso_mitigation = SRSO_MITIGATION_IBPB;
 
-	if (boot_cpu_has_bug(X86_BUG_SRSO) &&
-	    !cpu_mitigations_off())
-		pr_info("%s\n", srso_strings[srso_mitigation]);
+	pr_info("%s\n", srso_strings[srso_mitigation]);
 }
 
 static void __init srso_apply_mitigation(void)
