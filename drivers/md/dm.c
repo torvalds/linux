@@ -490,18 +490,13 @@ u64 dm_start_time_ns_from_clone(struct bio *bio)
 }
 EXPORT_SYMBOL_GPL(dm_start_time_ns_from_clone);
 
-static inline bool bio_is_flush_with_data(struct bio *bio)
-{
-	return ((bio->bi_opf & REQ_PREFLUSH) && bio->bi_iter.bi_size);
-}
-
 static inline unsigned int dm_io_sectors(struct dm_io *io, struct bio *bio)
 {
 	/*
 	 * If REQ_PREFLUSH set, don't account payload, it will be
 	 * submitted (and accounted) after this flush completes.
 	 */
-	if (bio_is_flush_with_data(bio))
+	if (io->requeue_flush_with_data)
 		return 0;
 	if (unlikely(dm_io_flagged(io, DM_IO_WAS_SPLIT)))
 		return io->sectors;
@@ -590,6 +585,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio, gfp_t g
 	io = container_of(tio, struct dm_io, tio);
 	io->magic = DM_IO_MAGIC;
 	io->status = BLK_STS_OK;
+	io->requeue_flush_with_data = false;
 
 	/* one ref is for submission, the other is for completion */
 	atomic_set(&io->io_count, 2);
@@ -948,6 +944,7 @@ static void __dm_io_complete(struct dm_io *io, bool first_stage)
 	struct mapped_device *md = io->md;
 	blk_status_t io_error;
 	bool requeued;
+	bool requeue_flush_with_data;
 
 	requeued = dm_handle_requeue(io, first_stage);
 	if (requeued && first_stage)
@@ -964,6 +961,7 @@ static void __dm_io_complete(struct dm_io *io, bool first_stage)
 		__dm_start_io_acct(io);
 		dm_end_io_acct(io);
 	}
+	requeue_flush_with_data = io->requeue_flush_with_data;
 	free_io(io);
 	smp_wmb();
 	this_cpu_dec(*md->pending_io);
@@ -976,7 +974,7 @@ static void __dm_io_complete(struct dm_io *io, bool first_stage)
 	if (requeued)
 		return;
 
-	if (bio_is_flush_with_data(bio)) {
+	if (unlikely(requeue_flush_with_data)) {
 		/*
 		 * Preflush done for flush with data, reissue
 		 * without REQ_PREFLUSH.
@@ -1996,12 +1994,30 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	}
 	init_clone_info(&ci, io, map, bio, is_abnormal);
 
-	if (bio->bi_opf & REQ_PREFLUSH) {
+	if (unlikely((bio->bi_opf & REQ_PREFLUSH) != 0)) {
+		/*
+		 * The "flush_bypasses_map" is set on targets where it is safe
+		 * to skip the map function and submit bios directly to the
+		 * underlying block devices - currently, it is set for dm-linear
+		 * and dm-stripe.
+		 *
+		 * If we have just one underlying device (i.e. there is one
+		 * linear target or multiple linear targets pointing to the same
+		 * device), we can send the flush with data directly to it.
+		 */
+		if (map->flush_bypasses_map) {
+			struct list_head *devices = dm_table_get_devices(map);
+			if (devices->next == devices->prev)
+				goto send_preflush_with_data;
+		}
+		if (bio->bi_iter.bi_size)
+			io->requeue_flush_with_data = true;
 		__send_empty_flush(&ci);
 		/* dm_io_complete submits any data associated with flush */
 		goto out;
 	}
 
+send_preflush_with_data:
 	if (static_branch_unlikely(&zoned_enabled) &&
 	    (bio_op(bio) == REQ_OP_ZONE_RESET_ALL)) {
 		error = __send_zone_reset_all(&ci);
