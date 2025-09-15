@@ -2057,29 +2057,32 @@ static int __init spectre_v2_parse_cmdline(char *str)
 	if (nospectre_v2)
 		return 0;
 
-	if (!strcmp(str, "off"))
+	if (!strcmp(str, "off")) {
 		spectre_v2_cmd = SPECTRE_V2_CMD_NONE;
-	else if (!strcmp(str, "on"))
+	} else if (!strcmp(str, "on")) {
 		spectre_v2_cmd = SPECTRE_V2_CMD_FORCE;
-	else if (!strcmp(str, "retpoline"))
+		setup_force_cpu_bug(X86_BUG_SPECTRE_V2);
+		setup_force_cpu_bug(X86_BUG_SPECTRE_V2_USER);
+	} else if (!strcmp(str, "retpoline")) {
 		spectre_v2_cmd = SPECTRE_V2_CMD_RETPOLINE;
-	else if (!strcmp(str, "retpoline,amd") ||
-		 !strcmp(str, "retpoline,lfence"))
+	} else if (!strcmp(str, "retpoline,amd") ||
+		 !strcmp(str, "retpoline,lfence")) {
 		spectre_v2_cmd = SPECTRE_V2_CMD_RETPOLINE_LFENCE;
-	else if (!strcmp(str, "retpoline,generic"))
+	} else if (!strcmp(str, "retpoline,generic")) {
 		spectre_v2_cmd = SPECTRE_V2_CMD_RETPOLINE_GENERIC;
-	else if (!strcmp(str, "eibrs"))
+	} else if (!strcmp(str, "eibrs")) {
 		spectre_v2_cmd = SPECTRE_V2_CMD_EIBRS;
-	else if (!strcmp(str, "eibrs,lfence"))
+	} else if (!strcmp(str, "eibrs,lfence")) {
 		spectre_v2_cmd = SPECTRE_V2_CMD_EIBRS_LFENCE;
-	else if (!strcmp(str, "eibrs,retpoline"))
+	} else if (!strcmp(str, "eibrs,retpoline")) {
 		spectre_v2_cmd = SPECTRE_V2_CMD_EIBRS_RETPOLINE;
-	else if (!strcmp(str, "auto"))
+	} else if (!strcmp(str, "auto")) {
 		spectre_v2_cmd = SPECTRE_V2_CMD_AUTO;
-	else if (!strcmp(str, "ibrs"))
+	} else if (!strcmp(str, "ibrs")) {
 		spectre_v2_cmd = SPECTRE_V2_CMD_IBRS;
-	else
+	} else {
 		pr_err("Ignoring unknown spectre_v2 option (%s).", str);
+	}
 
 	return 0;
 }
@@ -2232,10 +2235,6 @@ static void __init bhi_update_mitigation(void)
 {
 	if (spectre_v2_cmd == SPECTRE_V2_CMD_NONE)
 		bhi_mitigation = BHI_MITIGATION_OFF;
-
-	if (!boot_cpu_has_bug(X86_BUG_SPECTRE_V2) &&
-	     spectre_v2_cmd == SPECTRE_V2_CMD_AUTO)
-		bhi_mitigation = BHI_MITIGATION_OFF;
 }
 
 static void __init bhi_apply_mitigation(void)
@@ -2316,9 +2315,10 @@ static void __init spectre_v2_select_mitigation(void)
 		spectre_v2_cmd = SPECTRE_V2_CMD_AUTO;
 	}
 
-	if (!boot_cpu_has_bug(X86_BUG_SPECTRE_V2) &&
-	    (spectre_v2_cmd == SPECTRE_V2_CMD_NONE || spectre_v2_cmd == SPECTRE_V2_CMD_AUTO))
+	if (!boot_cpu_has_bug(X86_BUG_SPECTRE_V2)) {
+		spectre_v2_cmd = SPECTRE_V2_CMD_NONE;
 		return;
+	}
 
 	switch (spectre_v2_cmd) {
 	case SPECTRE_V2_CMD_NONE:
