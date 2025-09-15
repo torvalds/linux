@@ -229,7 +229,6 @@ static const struct regmap_config qrc_regmap_config = {
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register =	0x68,
-	.fast_io = true,
 };
 
 static const struct reg_sequence msm8976_cfg_dfs_sid[] = {
