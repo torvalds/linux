@@ -633,13 +633,13 @@ struct xfs_extent_64 {
  * log.  The efi_extents field is a variable size array whose
  * size is given by efi_nextents.
  */
-typedef struct xfs_efi_log_format {
+struct xfs_efi_log_format {
 	uint16_t		efi_type;	/* efi log item type */
 	uint16_t		efi_size;	/* size of this item */
 	uint32_t		efi_nextents;	/* # extents to free */
 	uint64_t		efi_id;		/* efi identifier */
 	struct xfs_extent	efi_extents[];	/* array of extents to free */
-} xfs_efi_log_format_t;
+};
 
 static inline size_t
 xfs_efi_log_format_sizeof(
