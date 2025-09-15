@@ -483,11 +483,6 @@ static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.cache_defaults[VPU_BOOT_L2_CACHE_CFG_NN].cfg = 0x%x\n",
 		 boot_params->cache_defaults[VPU_BOOT_L2_CACHE_CFG_NN].cfg);
 
-	ivpu_dbg(vdev, FW_BOOT, "boot_params.global_memory_allocator_base = 0x%llx\n",
-		 boot_params->global_memory_allocator_base);
-	ivpu_dbg(vdev, FW_BOOT, "boot_params.global_memory_allocator_size = 0x%x\n",
-		 boot_params->global_memory_allocator_size);
-
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.shave_nn_fw_base = 0x%llx\n",
 		 boot_params->shave_nn_fw_base);
 
@@ -495,10 +490,6 @@ static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_
 		 boot_params->watchdog_irq_mss);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.watchdog_irq_nce = 0x%x\n",
 		 boot_params->watchdog_irq_nce);
-	ivpu_dbg(vdev, FW_BOOT, "boot_params.host_to_vpu_irq = 0x%x\n",
-		 boot_params->host_to_vpu_irq);
-	ivpu_dbg(vdev, FW_BOOT, "boot_params.job_done_irq = 0x%x\n",
-		 boot_params->job_done_irq);
 
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.host_version_id = 0x%x\n",
 		 boot_params->host_version_id);
