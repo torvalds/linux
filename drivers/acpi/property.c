@@ -124,13 +124,22 @@ static bool acpi_nondev_subnode_extract(union acpi_object *desc,
 	return false;
 }
 
-static bool acpi_nondev_subnode_data_ok(acpi_handle handle,
-					const union acpi_object *link,
-					struct list_head *list,
-					struct fwnode_handle *parent)
+static bool acpi_nondev_subnode_ok(acpi_handle scope,
+				   const union acpi_object *link,
+				   struct list_head *list,
+				   struct fwnode_handle *parent)
 {
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
+	acpi_handle handle;
 	acpi_status status;
+
+	if (!scope)
+		return false;
+
+	status = acpi_get_handle(scope, link->package.elements[1].string.pointer,
+				 &handle);
+	if (ACPI_FAILURE(status))
+		return false;
 
 	status = acpi_evaluate_object_typed(handle, NULL, NULL, &buf,
 					    ACPI_TYPE_PACKAGE);
@@ -145,25 +154,6 @@ static bool acpi_nondev_subnode_data_ok(acpi_handle handle,
 	return false;
 }
 
-static bool acpi_nondev_subnode_ok(acpi_handle scope,
-				   const union acpi_object *link,
-				   struct list_head *list,
-				   struct fwnode_handle *parent)
-{
-	acpi_handle handle;
-	acpi_status status;
-
-	if (!scope)
-		return false;
-
-	status = acpi_get_handle(scope, link->package.elements[1].string.pointer,
-				 &handle);
-	if (ACPI_FAILURE(status))
-		return false;
-
-	return acpi_nondev_subnode_data_ok(handle, link, list, parent);
-}
-
 static bool acpi_add_nondev_subnodes(acpi_handle scope,
 				     union acpi_object *links,
 				     struct list_head *list,
@@ -174,7 +164,6 @@ static bool acpi_add_nondev_subnodes(acpi_handle scope,
 
 	for (i = 0; i < links->package.count; i++) {
 		union acpi_object *link, *desc;
-		acpi_handle handle;
 		bool result;
 
 		link = &links->package.elements[i];
@@ -186,22 +175,26 @@ static bool acpi_add_nondev_subnodes(acpi_handle scope,
 		if (link->package.elements[0].type != ACPI_TYPE_STRING)
 			continue;
 
-		/* The second one may be a string, a reference or a package. */
+		/* The second one may be a string or a package. */
 		switch (link->package.elements[1].type) {
 		case ACPI_TYPE_STRING:
 			result = acpi_nondev_subnode_ok(scope, link, list,
 							 parent);
-			break;
-		case ACPI_TYPE_LOCAL_REFERENCE:
-			handle = link->package.elements[1].reference.handle;
-			result = acpi_nondev_subnode_data_ok(handle, link, list,
-							     parent);
 			break;
 		case ACPI_TYPE_PACKAGE:
 			desc = &link->package.elements[1];
 			result = acpi_nondev_subnode_extract(desc, NULL, link,
 							     list, parent);
 			break;
+		case ACPI_TYPE_LOCAL_REFERENCE:
+			/*
+			 * It is not expected to see any local references in
+			 * the links package because referencing a named object
+			 * should cause it to be evaluated in place.
+			 */
+			acpi_handle_info(scope, "subnode %s: Unexpected reference\n",
+					 link->package.elements[0].string.pointer);
+			fallthrough;
 		default:
 			result = false;
 			break;
