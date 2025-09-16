@@ -178,6 +178,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_NAU8825
 	imply SND_SOC_HDMI_CODEC
 	imply SND_SOC_PCM1681
+	imply SND_SOC_PCM1754
 	imply SND_SOC_PCM1789_I2C
 	imply SND_SOC_PCM179X_I2C
 	imply SND_SOC_PCM179X_SPI
@@ -1441,6 +1442,10 @@ config SND_SOC_MSM8916_WCD_DIGITAL
 config SND_SOC_PCM1681
 	tristate "Texas Instruments PCM1681 CODEC"
 	depends on I2C
+
+config SND_SOC_PCM1754
+	tristate "Texas Instruments PCM1754 CODEC"
+	depends on GPIOLIB
 
 config SND_SOC_PCM1789
 	tristate

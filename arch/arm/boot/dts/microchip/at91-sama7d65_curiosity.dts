@@ -387,6 +387,8 @@
 
 &sdmmc1 {
 	bus-width = <4>;
+	no-1-8-v;
+	sdhci-caps-mask = <0x0 0x00200000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdmmc1_default>;
 	status = "okay";

@@ -481,6 +481,7 @@ static inline void vsc8584_config_macsec_intr(struct phy_device *phydev)
 void vsc85xx_link_change_notify(struct phy_device *phydev);
 void vsc8584_config_ts_intr(struct phy_device *phydev);
 int vsc8584_ptp_init(struct phy_device *phydev);
+void vsc8584_ptp_deinit(struct phy_device *phydev);
 int vsc8584_ptp_probe_once(struct phy_device *phydev);
 int vsc8584_ptp_probe(struct phy_device *phydev);
 irqreturn_t vsc8584_handle_ts_interrupt(struct phy_device *phydev);
@@ -494,6 +495,9 @@ static inline void vsc8584_config_ts_intr(struct phy_device *phydev)
 static inline int vsc8584_ptp_init(struct phy_device *phydev)
 {
 	return 0;
+}
+static inline void vsc8584_ptp_deinit(struct phy_device *phydev)
+{
 }
 static inline int vsc8584_ptp_probe_once(struct phy_device *phydev)
 {
