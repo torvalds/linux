@@ -225,6 +225,8 @@ snd-soc-pcm512x-i2c-y := pcm512x-i2c.o
 snd-soc-pcm512x-spi-y := pcm512x-spi.o
 snd-soc-pcm6240-y := pcm6240.o
 snd-soc-peb2466-y := peb2466.o
+snd-soc-pm4125-y := pm4125.o
+snd-soc-pm4125-sdw-y := pm4125-sdw.o
 snd-soc-rk3308-y := rk3308_codec.o
 snd-soc-rk3328-y := rk3328_codec.o
 snd-soc-rk817-y := rk817_codec.o
@@ -647,6 +649,12 @@ obj-$(CONFIG_SND_SOC_PCM512x_I2C)	+= snd-soc-pcm512x-i2c.o
 obj-$(CONFIG_SND_SOC_PCM512x_SPI)	+= snd-soc-pcm512x-spi.o
 obj-$(CONFIG_SND_SOC_PCM6240)	+= snd-soc-pcm6240.o
 obj-$(CONFIG_SND_SOC_PEB2466)	+= snd-soc-peb2466.o
+obj-$(CONFIG_SND_SOC_PM4125_SDW) += snd-soc-pm4125-sdw.o
+obj-$(CONFIG_SND_SOC_PM4125)   += snd-soc-pm4125.o
+ifdef CONFIG_SND_SOC_PM4125_SDW
+# avoid link failure by forcing sdw code built-in when needed
+obj-$(CONFIG_SND_SOC_PM4125) += snd-soc-pm4125-sdw.o
+endif
 obj-$(CONFIG_SND_SOC_RK3308)	+= snd-soc-rk3308.o
 obj-$(CONFIG_SND_SOC_RK3328)	+= snd-soc-rk3328.o
 obj-$(CONFIG_SND_SOC_RK817)	+= snd-soc-rk817.o

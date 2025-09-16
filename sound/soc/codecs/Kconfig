@@ -194,6 +194,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_PCM512x_SPI
 	imply SND_SOC_PCM6240
 	imply SND_SOC_PEB2466
+	imply SND_SOC_PM4125_SDW
 	imply SND_SOC_RK3308
 	imply SND_SOC_RK3328
 	imply SND_SOC_RK817
@@ -1562,6 +1563,23 @@ config SND_SOC_PEB2466
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-soc-peb2466.
+
+config SND_SOC_PM4125
+	depends on SND_SOC_PM4125_SDW
+	tristate
+	depends on SOUNDWIRE || !SOUNDWIRE
+
+config SND_SOC_PM4125_SDW
+	tristate "PM4125 audio codec - SDW"
+	select SND_SOC_PM4125
+	select SND_SOC_WCD_MBHC
+	select REGMAP_IRQ
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	help
+	  The PMIC PM4125 has an in-built audio codec IC used with SoCs
+	  like QCM2290, and it is connected via soundwire and SPMI.
+	  To compile this codec driver say Y or m.
 
 config SND_SOC_RK3308
 	tristate "Rockchip RK3308 audio CODEC"
