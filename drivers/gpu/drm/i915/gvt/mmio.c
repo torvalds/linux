@@ -58,7 +58,7 @@ int intel_vgpu_gpa_to_mmio_offset(struct intel_vgpu *vgpu, u64 gpa)
 }
 
 #define reg_is_mmio(gvt, reg)  \
-	(reg >= 0 && reg < gvt->device_info.mmio_size)
+	(reg < gvt->device_info.mmio_size)
 
 #define reg_is_gtt(gvt, reg)   \
 	(reg >= gvt->device_info.gtt_start_offset \
