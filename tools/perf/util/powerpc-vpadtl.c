@@ -3,6 +3,7 @@
  * VPA DTL PMU support
  */
 
+#include <linux/string.h>
 #include <inttypes.h>
 #include "color.h"
 #include "evlist.h"
@@ -24,6 +25,7 @@ struct powerpc_vpadtl {
 	struct perf_session		*session;
 	struct machine			*machine;
 	u32				pmu_type;
+	u64				sample_id;
 };
 
 struct boottb_freq {
@@ -215,6 +217,65 @@ static void powerpc_vpadtl_print_info(__u64 *arr)
 	fprintf(stdout, powerpc_vpadtl_info_fmts[POWERPC_VPADTL_TYPE], arr[POWERPC_VPADTL_TYPE]);
 }
 
+static void set_event_name(struct evlist *evlist, u64 id,
+		const char *name)
+{
+	struct evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel->core.id && evsel->core.id[0] == id) {
+			if (evsel->name)
+				zfree(&evsel->name);
+			evsel->name = strdup(name);
+			break;
+		}
+	}
+}
+
+static int
+powerpc_vpadtl_synth_events(struct powerpc_vpadtl *vpa, struct perf_session *session)
+{
+	struct evlist *evlist = session->evlist;
+	struct evsel *evsel;
+	struct perf_event_attr attr;
+	bool found = false;
+	u64 id;
+	int err;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (strstarts(evsel->name, "vpa_dtl")) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		pr_debug("No selected events with VPA trace data\n");
+		return 0;
+	}
+
+	memset(&attr, 0, sizeof(struct perf_event_attr));
+	attr.size = sizeof(struct perf_event_attr);
+	attr.sample_type = evsel->core.attr.sample_type;
+	attr.sample_id_all = evsel->core.attr.sample_id_all;
+	attr.type = PERF_TYPE_SYNTH;
+	attr.config = PERF_SYNTH_POWERPC_VPA_DTL;
+
+	/* create new id val to be a fixed offset from evsel id */
+	id = evsel->core.id[0] + 1000000000;
+	if (!id)
+		id = 1;
+
+	err = perf_session__deliver_synth_attr_event(session, &attr, id);
+	if (err)
+		return err;
+
+	vpa->sample_id = id;
+	set_event_name(evlist, id, "vpa-dtl");
+
+	return 0;
+}
+
 /*
  * Process the PERF_RECORD_AUXTRACE_INFO records and setup
  * the infrastructure to process auxtrace events. PERF_RECORD_AUXTRACE_INFO
@@ -256,7 +317,22 @@ int powerpc_vpadtl_process_auxtrace_info(union perf_event *event,
 
 	powerpc_vpadtl_print_info(&auxtrace_info->priv[0]);
 
+	if (dump_trace)
+		return 0;
+
+	err = powerpc_vpadtl_synth_events(vpa, session);
+	if (err)
+		goto err_free_queues;
+
+	err = auxtrace_queues__process_index(&vpa->queues, session);
+	if (err)
+		goto err_free_queues;
+
 	return 0;
+
+err_free_queues:
+	auxtrace_queues__free(&vpa->queues);
+	session->auxtrace = NULL;
 
 err_free:
 	free(vpa);
