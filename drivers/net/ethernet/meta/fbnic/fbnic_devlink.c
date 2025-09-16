@@ -485,6 +485,34 @@ cmpl_free:
 	return err;
 }
 
+static int
+fbnic_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
+			   struct devlink_fmsg *fmsg,
+			   struct netlink_ext_ack *extack)
+{
+	struct fbnic_dev *fbd = devlink_health_reporter_priv(reporter);
+	u32 sec, msec;
+
+	/* Device is most likely down, we're not exchanging heartbeats */
+	if (!fbd->prev_firmware_time)
+		return 0;
+
+	sec = div_u64_rem(fbd->firmware_time, MSEC_PER_SEC, &msec);
+
+	devlink_fmsg_pair_nest_start(fmsg, "last_heartbeat");
+	devlink_fmsg_obj_nest_start(fmsg);
+	devlink_fmsg_pair_nest_start(fmsg, "fw_uptime");
+	devlink_fmsg_obj_nest_start(fmsg);
+	devlink_fmsg_u32_pair_put(fmsg, "sec", sec);
+	devlink_fmsg_u32_pair_put(fmsg, "msec", msec);
+	devlink_fmsg_obj_nest_end(fmsg);
+	devlink_fmsg_pair_nest_end(fmsg);
+	devlink_fmsg_obj_nest_end(fmsg);
+	devlink_fmsg_pair_nest_end(fmsg);
+
+	return 0;
+}
+
 void __printf(2, 3)
 fbnic_devlink_fw_report(struct fbnic_dev *fbd, const char *format, ...)
 {
@@ -503,6 +531,7 @@ fbnic_devlink_fw_report(struct fbnic_dev *fbd, const char *format, ...)
 static const struct devlink_health_reporter_ops fbnic_fw_ops = {
 	.name = "fw",
 	.dump = fbnic_fw_reporter_dump,
+	.diagnose = fbnic_fw_reporter_diagnose,
 };
 
 int fbnic_devlink_health_create(struct fbnic_dev *fbd)
