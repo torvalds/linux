@@ -169,7 +169,7 @@ static __always_inline unsigned char __flogr(unsigned long word)
 		asm volatile(
 			"       flogr   %[rp],%[rp]\n"
 			: [rp] "+d" (rp.pair) : : "cc");
-		return rp.even;
+		return rp.even & 127;
 	}
 }
 
