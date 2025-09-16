@@ -157,14 +157,6 @@ err:
 	return ret;
 }
 
-static int io_zcrx_map_area_dmabuf(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
-{
-	if (!IS_ENABLED(CONFIG_DMA_SHARED_BUFFER))
-		return -EINVAL;
-	return io_populate_area_dma(ifq, area, area->mem.sgt,
-				    area->mem.dmabuf_offset);
-}
-
 static unsigned long io_count_account_pages(struct page **pages, unsigned nr_pages)
 {
 	struct folio *last_folio = NULL;
@@ -275,30 +267,29 @@ static void io_zcrx_unmap_area(struct io_zcrx_ifq *ifq,
 	}
 }
 
-static unsigned io_zcrx_map_area_umem(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
-{
-	int ret;
-
-	ret = dma_map_sgtable(ifq->dev, &area->mem.page_sg_table,
-				DMA_FROM_DEVICE, IO_DMA_ATTR);
-	if (ret < 0)
-		return ret;
-	return io_populate_area_dma(ifq, area, &area->mem.page_sg_table, 0);
-}
-
 static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 {
+	unsigned long offset;
+	struct sg_table *sgt;
 	int ret;
 
 	guard(mutex)(&ifq->dma_lock);
 	if (area->is_mapped)
 		return 0;
 
-	if (area->mem.is_dmabuf)
-		ret = io_zcrx_map_area_dmabuf(ifq, area);
-	else
-		ret = io_zcrx_map_area_umem(ifq, area);
+	if (!area->mem.is_dmabuf) {
+		ret = dma_map_sgtable(ifq->dev, &area->mem.page_sg_table,
+				      DMA_FROM_DEVICE, IO_DMA_ATTR);
+		if (ret < 0)
+			return ret;
+		sgt = &area->mem.page_sg_table;
+		offset = 0;
+	} else {
+		sgt = area->mem.sgt;
+		offset = area->mem.dmabuf_offset;
+	}
 
+	ret = io_populate_area_dma(ifq, area, sgt, offset);
 	if (ret == 0)
 		area->is_mapped = true;
 	return ret;
