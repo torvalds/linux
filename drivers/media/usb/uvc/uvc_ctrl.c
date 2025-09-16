@@ -2929,8 +2929,7 @@ int uvc_ctrl_restore_values(struct uvc_device *dev)
 			if (!ctrl->initialized || !ctrl->modified ||
 			    (ctrl->info.flags & UVC_CTRL_FLAG_RESTORE) == 0)
 				continue;
-			dev_dbg(&dev->intf->dev,
-				"restoring control %pUl/%u/%u\n",
+			uvc_dbg(dev, CONTROL, "restoring control %pUl/%u/%u\n",
 				ctrl->info.entity, ctrl->info.index,
 				ctrl->info.selector);
 			ctrl->dirty = 1;
