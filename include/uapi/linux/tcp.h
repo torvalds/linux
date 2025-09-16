@@ -323,6 +323,8 @@ struct tcp_info {
 	__u32	tcpi_received_e1_bytes;
 	__u32	tcpi_received_e0_bytes;
 	__u32	tcpi_received_ce_bytes;
+	__u16	tcpi_accecn_fail_mode;
+	__u16	tcpi_accecn_opt_seen;
 };
 
 /* netlink attributes types for SCM_TIMESTAMPING_OPT_STATS */
