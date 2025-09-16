@@ -33,25 +33,6 @@
 /* Offset 0x01: Timestamp Clock Period (ps) */
 #define MV88E6XXX_TAI_CLOCK_PERIOD		0x01
 
-/* Offset 0x02/0x03: Trigger Generation Amount */
-#define MV88E6XXX_TAI_TRIG_GEN_AMOUNT_LO	0x02
-#define MV88E6XXX_TAI_TRIG_GEN_AMOUNT_HI	0x03
-
-/* Offset 0x04: Clock Compensation */
-#define MV88E6XXX_TAI_TRIG_CLOCK_COMP		0x04
-
-/* Offset 0x05: Trigger Configuration */
-#define MV88E6XXX_TAI_TRIG_CFG			0x05
-
-/* Offset 0x06: Ingress Rate Limiter Clock Generation Amount */
-#define MV88E6XXX_TAI_IRL_AMOUNT		0x06
-
-/* Offset 0x07: Ingress Rate Limiter Compensation */
-#define MV88E6XXX_TAI_IRL_COMP			0x07
-
-/* Offset 0x08: Ingress Rate Limiter Compensation */
-#define MV88E6XXX_TAI_IRL_COMP_PS		0x08
-
 /* Offset 0x09: Event Status */
 #define MV88E6352_TAI_EVENT_STATUS		0x09
 #define MV88E6352_TAI_EVENT_STATUS_ERROR	0x0200
@@ -62,13 +43,6 @@
 /* Offset 0x0E/0x0F: PTP Global Time */
 #define MV88E6352_TAI_TIME_LO			0x0e
 #define MV88E6352_TAI_TIME_HI			0x0f
-
-/* Offset 0x10/0x11: Trig Generation Time */
-#define MV88E6XXX_TAI_TRIG_TIME_LO		0x10
-#define MV88E6XXX_TAI_TRIG_TIME_HI		0x11
-
-/* Offset 0x12: Lock Status */
-#define MV88E6XXX_TAI_LOCK_STATUS		0x12
 
 /* Offset 0x00: Ether Type */
 #define MV88E6XXX_PTP_GC_ETYPE			0x00
