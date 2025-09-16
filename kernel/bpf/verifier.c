@@ -1950,9 +1950,24 @@ static int maybe_exit_scc(struct bpf_verifier_env *env, struct bpf_verifier_stat
 		return 0;
 	visit = scc_visit_lookup(env, callchain);
 	if (!visit) {
-		verifier_bug(env, "scc exit: no visit info for call chain %s",
-			     format_callchain(env, callchain));
-		return -EFAULT;
+		/*
+		 * If path traversal stops inside an SCC, corresponding bpf_scc_visit
+		 * must exist for non-speculative paths. For non-speculative paths
+		 * traversal stops when:
+		 * a. Verification error is found, maybe_exit_scc() is not called.
+		 * b. Top level BPF_EXIT is reached. Top level BPF_EXIT is not a member
+		 *    of any SCC.
+		 * c. A checkpoint is reached and matched. Checkpoints are created by
+		 *    is_state_visited(), which calls maybe_enter_scc(), which allocates
+		 *    bpf_scc_visit instances for checkpoints within SCCs.
+		 * (c) is the only case that can reach this point.
+		 */
+		if (!st->speculative) {
+			verifier_bug(env, "scc exit: no visit info for call chain %s",
+				     format_callchain(env, callchain));
+			return -EFAULT;
+		}
+		return 0;
 	}
 	if (visit->entry_state != st)
 		return 0;
