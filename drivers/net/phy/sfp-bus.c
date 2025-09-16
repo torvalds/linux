@@ -22,7 +22,6 @@ struct sfp_bus {
 	const struct sfp_socket_ops *socket_ops;
 	struct device *sfp_dev;
 	struct sfp *sfp;
-	const struct sfp_quirk *sfp_quirk;
 
 	const struct sfp_upstream_ops *upstream_ops;
 	void *upstream;
@@ -30,6 +29,8 @@ struct sfp_bus {
 
 	bool registered;
 	bool started;
+
+	struct sfp_module_caps caps;
 };
 
 /**
@@ -48,6 +49,13 @@ struct sfp_bus {
  */
 int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		   unsigned long *support)
+{
+	return bus->caps.port;
+}
+EXPORT_SYMBOL_GPL(sfp_parse_port);
+
+static void sfp_module_parse_port(struct sfp_bus *bus,
+				  const struct sfp_eeprom_id *id)
 {
 	int port;
 
@@ -91,21 +99,18 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		break;
 	}
 
-	if (support) {
-		switch (port) {
-		case PORT_FIBRE:
-			phylink_set(support, FIBRE);
-			break;
+	switch (port) {
+	case PORT_FIBRE:
+		phylink_set(bus->caps.link_modes, FIBRE);
+		break;
 
-		case PORT_TP:
-			phylink_set(support, TP);
-			break;
-		}
+	case PORT_TP:
+		phylink_set(bus->caps.link_modes, TP);
+		break;
 	}
 
-	return port;
+	bus->caps.port = port;
 }
-EXPORT_SYMBOL_GPL(sfp_parse_port);
 
 /**
  * sfp_may_have_phy() - indicate whether the module may have a PHY
@@ -117,8 +122,17 @@ EXPORT_SYMBOL_GPL(sfp_parse_port);
  */
 bool sfp_may_have_phy(struct sfp_bus *bus, const struct sfp_eeprom_id *id)
 {
-	if (id->base.e1000_base_t)
-		return true;
+	return bus->caps.may_have_phy;
+}
+EXPORT_SYMBOL_GPL(sfp_may_have_phy);
+
+static void sfp_module_parse_may_have_phy(struct sfp_bus *bus,
+					  const struct sfp_eeprom_id *id)
+{
+	if (id->base.e1000_base_t) {
+		bus->caps.may_have_phy = true;
+		return;
+	}
 
 	if (id->base.phys_id != SFF8024_ID_DWDM_SFP) {
 		switch (id->base.extended_cc) {
@@ -126,13 +140,13 @@ bool sfp_may_have_phy(struct sfp_bus *bus, const struct sfp_eeprom_id *id)
 		case SFF8024_ECC_10GBASE_T_SR:
 		case SFF8024_ECC_5GBASE_T:
 		case SFF8024_ECC_2_5GBASE_T:
-			return true;
+			bus->caps.may_have_phy = true;
+			return;
 		}
 	}
 
-	return false;
+	bus->caps.may_have_phy = false;
 }
-EXPORT_SYMBOL_GPL(sfp_may_have_phy);
 
 /**
  * sfp_parse_support() - Parse the eeprom id for supported link modes
@@ -148,8 +162,17 @@ EXPORT_SYMBOL_GPL(sfp_may_have_phy);
 void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		       unsigned long *support, unsigned long *interfaces)
 {
+	linkmode_or(support, support, bus->caps.link_modes);
+	phy_interface_copy(interfaces, bus->caps.interfaces);
+}
+EXPORT_SYMBOL_GPL(sfp_parse_support);
+
+static void sfp_module_parse_support(struct sfp_bus *bus,
+				     const struct sfp_eeprom_id *id)
+{
+	unsigned long *interfaces = bus->caps.interfaces;
+	unsigned long *modes = bus->caps.link_modes;
 	unsigned int br_min, br_nom, br_max;
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(modes) = { 0, };
 
 	/* Decode the bitrate information to MBd */
 	br_min = br_nom = br_max = 0;
@@ -338,13 +361,22 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	phylink_set(modes, Autoneg);
 	phylink_set(modes, Pause);
 	phylink_set(modes, Asym_Pause);
-
-	if (bus->sfp_quirk && bus->sfp_quirk->modes)
-		bus->sfp_quirk->modes(id, modes, interfaces);
-
-	linkmode_or(support, support, modes);
 }
-EXPORT_SYMBOL_GPL(sfp_parse_support);
+
+static void sfp_init_module(struct sfp_bus *bus,
+			    const struct sfp_eeprom_id *id,
+			    const struct sfp_quirk *quirk)
+{
+	memset(&bus->caps, 0, sizeof(bus->caps));
+
+	sfp_module_parse_support(bus, id);
+	sfp_module_parse_port(bus, id);
+	sfp_module_parse_may_have_phy(bus, id);
+
+	if (quirk && quirk->modes)
+		quirk->modes(id, bus->caps.link_modes,
+			     bus->caps.interfaces);
+}
 
 /**
  * sfp_select_interface() - Select appropriate phy_interface_t mode
@@ -794,7 +826,7 @@ int sfp_module_insert(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	const struct sfp_upstream_ops *ops = sfp_get_upstream_ops(bus);
 	int ret = 0;
 
-	bus->sfp_quirk = quirk;
+	sfp_init_module(bus, id, quirk);
 
 	if (ops && ops->module_insert)
 		ret = ops->module_insert(bus->upstream, id);
@@ -809,8 +841,6 @@ void sfp_module_remove(struct sfp_bus *bus)
 
 	if (ops && ops->module_remove)
 		ops->module_remove(bus->upstream);
-
-	bus->sfp_quirk = NULL;
 }
 EXPORT_SYMBOL_GPL(sfp_module_remove);
 

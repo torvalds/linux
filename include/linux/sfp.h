@@ -522,6 +522,28 @@ struct ethtool_modinfo;
 struct sfp_bus;
 
 /**
+ * struct sfp_module_caps - sfp module capabilities
+ * @interfaces: bitmap of interfaces that the module may support
+ * @link_modes: bitmap of ethtool link modes that the module may support
+ */
+struct sfp_module_caps {
+	DECLARE_PHY_INTERFACE_MASK(interfaces);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(link_modes);
+	/**
+	 * @may_have_phy: indicate whether the module may have an ethernet PHY
+	 * There is no way to be sure that a module has a PHY as the EEPROM
+	 * doesn't contain this information. When set, this does not mean that
+	 * the module definitely has a PHY.
+	 */
+	bool may_have_phy;
+	/**
+	 * @port: one of ethtool %PORT_* definitions, parsed from the module
+	 * EEPROM, or %PORT_OTHER if the port type is not known.
+	 */
+	u8 port;
+};
+
+/**
  * struct sfp_upstream_ops - upstream operations structure
  * @attach: called when the sfp socket driver is bound to the upstream
  *   (mandatory).
