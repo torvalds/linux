@@ -53,7 +53,6 @@ struct io_zcrx_ifq {
 	struct device			*dev;
 	struct net_device		*netdev;
 	netdevice_tracker		netdev_tracker;
-	spinlock_t			lock;
 
 	/*
 	 * Page pool and net configuration lock, can be taken deeper in the
