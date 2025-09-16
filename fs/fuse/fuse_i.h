@@ -54,6 +54,13 @@
 /** Frequency (in jiffies) of request timeout checks, if opted into */
 extern const unsigned long fuse_timeout_timer_freq;
 
+/*
+ * Dentries invalidation workqueue period, in seconds.  The value of this
+ * parameter shall be >= FUSE_DENTRY_INVAL_FREQ_MIN seconds, or 0 (zero), in
+ * which case no workqueue will be created.
+ */
+extern unsigned inval_wq __read_mostly;
+
 /** Maximum of max_pages received in init_out */
 extern unsigned int fuse_max_pages_limit;
 /*
@@ -1276,6 +1283,9 @@ void fuse_wait_aborted(struct fuse_conn *fc);
 
 /* Check if any requests timed out */
 void fuse_check_timeout(struct work_struct *work);
+
+void fuse_dentry_tree_init(void);
+void fuse_dentry_tree_cleanup(void);
 
 /**
  * Invalidate inode attributes

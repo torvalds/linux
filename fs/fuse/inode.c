@@ -2294,6 +2294,8 @@ static int __init fuse_init(void)
 	if (res)
 		goto err_sysfs_cleanup;
 
+	fuse_dentry_tree_init();
+
 	sanitize_global_limit(&max_user_bgreq);
 	sanitize_global_limit(&max_user_congthresh);
 
@@ -2313,6 +2315,7 @@ static void __exit fuse_exit(void)
 {
 	pr_debug("exit\n");
 
+	fuse_dentry_tree_cleanup();
 	fuse_ctl_cleanup();
 	fuse_sysfs_cleanup();
 	fuse_fs_cleanup();
