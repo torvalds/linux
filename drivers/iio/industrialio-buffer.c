@@ -2412,6 +2412,8 @@ int iio_push_to_buffers_with_ts_unaligned(struct iio_dev *indio_dev,
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 
+	might_sleep();
+
 	/*
 	 * Conservative estimate - we can always safely copy the minimum
 	 * of either the data provided or the length of the destination buffer.
