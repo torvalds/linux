@@ -24,6 +24,7 @@ struct core_boot_config {
 
 struct cluster_boot_config {
 	unsigned long *core_power;
+	struct cpumask cpumask;
 	struct core_boot_config *core_config;
 };
 

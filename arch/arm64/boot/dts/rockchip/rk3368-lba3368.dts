@@ -609,7 +609,7 @@
 
 	bluetooth {
 		compatible = "brcm,bcm4345c5";
-		interrupts-extended = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
+		interrupts-extended = <&gpio3 RK_PA7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "host-wakeup";
 		clocks = <&rk808 RK808_CLKOUT1>;
 		clock-names = "lpo";

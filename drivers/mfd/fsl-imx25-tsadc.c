@@ -71,8 +71,8 @@ static int mx25_tsadc_setup_irq(struct platform_device *pdev,
 	if (irq < 0)
 		return irq;
 
-	tsadc->domain = irq_domain_create_simple(of_fwnode_handle(dev->of_node), 2, 0,
-						 &mx25_tsadc_domain_ops, tsadc);
+	tsadc->domain = irq_domain_create_simple(dev_fwnode(dev), 2, 0, &mx25_tsadc_domain_ops,
+						 tsadc);
 	if (!tsadc->domain) {
 		dev_err(dev, "Failed to add irq domain\n");
 		return -ENOMEM;

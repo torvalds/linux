@@ -59,7 +59,7 @@ endif # BLOCK
 config FS_DAX
 	bool "File system based Direct Access (DAX) support"
 	depends on MMU
-	depends on ZONE_DEVICE || FS_DAX_LIMITED
+	depends on ZONE_DEVICE
 	select FS_IOMAP
 	select DAX
 	help
@@ -94,13 +94,6 @@ config FS_DAX_PMD
 	depends on FS_DAX
 	depends on ZONE_DEVICE
 	depends on TRANSPARENT_HUGEPAGE
-
-# Selected by DAX drivers that do not expect filesystem DAX to support
-# get_user_pages() of DAX mappings. I.e. "limited" indicates no support
-# for fork() of processes with MAP_SHARED mappings or support for
-# direct-I/O to a DAX mapping.
-config FS_DAX_LIMITED
-	bool
 
 # Posix ACL utility routines
 #
@@ -256,7 +249,7 @@ config ARCH_SUPPORTS_HUGETLBFS
 
 menuconfig HUGETLBFS
 	bool "HugeTLB file system support"
-	depends on X86 || SPARC64 || ARCH_SUPPORTS_HUGETLBFS || BROKEN
+	depends on ARCH_SUPPORTS_HUGETLBFS
 	depends on (SYSFS || SYSCTL)
 	select MEMFD_CREATE
 	select PADATA if SMP

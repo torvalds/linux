@@ -20,6 +20,7 @@
 #include <linux/bits.h>
 #include <linux/build_bug.h>
 #include <linux/device.h>
+#include <linux/idr.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -73,6 +74,8 @@ struct wmi_guid_count_context {
 	const guid_t *guid;
 	int count;
 };
+
+static DEFINE_IDA(wmi_ida);
 
 /*
  * If the GUID data block is marked as expensive, we must enable and
@@ -984,6 +987,19 @@ static int guid_count(const guid_t *guid)
 	return context.count;
 }
 
+static int wmi_dev_set_name(struct wmi_block *wblock, int count)
+{
+	if (IS_ENABLED(CONFIG_ACPI_WMI_LEGACY_DEVICE_NAMES)) {
+		if (count)
+			return dev_set_name(&wblock->dev.dev, "%pUL-%d", &wblock->gblock.guid,
+					    count);
+		else
+			return dev_set_name(&wblock->dev.dev, "%pUL", &wblock->gblock.guid);
+	}
+
+	return dev_set_name(&wblock->dev.dev, "%pUL-%d", &wblock->gblock.guid, wblock->dev.dev.id);
+}
+
 static int wmi_create_device(struct device *wmi_bus_dev,
 			     struct wmi_block *wblock,
 			     struct acpi_device *device)
@@ -992,7 +1008,7 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 	struct acpi_device_info *info;
 	acpi_handle method_handle;
 	acpi_status status;
-	int count;
+	int count, ret;
 
 	if (wblock->gblock.flags & ACPI_WMI_EVENT) {
 		wblock->dev.dev.type = &wmi_type_event;
@@ -1063,11 +1079,18 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 	if (count < 0)
 		return count;
 
-	if (count) {
-		dev_set_name(&wblock->dev.dev, "%pUL-%d", &wblock->gblock.guid, count);
+	if (count)
 		set_bit(WMI_GUID_DUPLICATED, &wblock->flags);
-	} else {
-		dev_set_name(&wblock->dev.dev, "%pUL", &wblock->gblock.guid);
+
+	ret = ida_alloc(&wmi_ida, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
+
+	wblock->dev.dev.id = ret;
+	ret = wmi_dev_set_name(wblock, count);
+	if (ret < 0) {
+		ida_free(&wmi_ida, wblock->dev.dev.id);
+		return ret;
 	}
 
 	device_initialize(&wblock->dev.dev);
@@ -1153,6 +1176,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 			dev_err(wmi_bus_dev, "failed to register %pUL\n",
 				&wblock->gblock.guid);
 
+			ida_free(&wmi_ida, wblock->dev.dev.id);
 			put_device(&wblock->dev.dev);
 		}
 	}
@@ -1252,7 +1276,10 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event, void *context
 
 static int wmi_remove_device(struct device *dev, void *data)
 {
+	int id = dev->id;
+
 	device_unregister(dev);
+	ida_free(&wmi_ida, id);
 
 	return 0;
 }

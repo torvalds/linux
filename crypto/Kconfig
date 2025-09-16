@@ -986,15 +986,16 @@ config CRYPTO_SHA1
 	select CRYPTO_HASH
 	select CRYPTO_LIB_SHA1
 	help
-	  SHA-1 secure hash algorithm (FIPS 180, ISO/IEC 10118-3)
+	  SHA-1 secure hash algorithm (FIPS 180, ISO/IEC 10118-3), including
+	  HMAC support.
 
 config CRYPTO_SHA256
 	tristate "SHA-224 and SHA-256"
 	select CRYPTO_HASH
 	select CRYPTO_LIB_SHA256
-	select CRYPTO_LIB_SHA256_GENERIC
 	help
-	  SHA-224 and SHA-256 secure hash algorithms (FIPS 180, ISO/IEC 10118-3)
+	  SHA-224 and SHA-256 secure hash algorithms (FIPS 180, ISO/IEC
+	  10118-3), including HMAC support.
 
 	  This is required for IPsec AH (XFRM_AH) and IPsec ESP (XFRM_ESP).
 	  Used by the btrfs filesystem, Ceph, NFS, and SMB.
@@ -1002,8 +1003,10 @@ config CRYPTO_SHA256
 config CRYPTO_SHA512
 	tristate "SHA-384 and SHA-512"
 	select CRYPTO_HASH
+	select CRYPTO_LIB_SHA512
 	help
-	  SHA-384 and SHA-512 secure hash algorithms (FIPS 180, ISO/IEC 10118-3)
+	  SHA-384 and SHA-512 secure hash algorithms (FIPS 180, ISO/IEC
+	  10118-3), including HMAC support.
 
 config CRYPTO_SHA3
 	tristate "SHA-3"
@@ -1419,9 +1422,6 @@ config CRYPTO_USER_API_ENABLE_OBSOLETE
 	  only useful for userspace clients that still rely on them.
 
 endmenu
-
-config CRYPTO_HASH_INFO
-	bool
 
 if !KMSAN # avoid false positives from assembly
 if ARM

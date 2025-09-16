@@ -5,6 +5,7 @@
 
 #include <crypto/aes.h>
 #include <linux/crypto.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/unaligned.h>
 

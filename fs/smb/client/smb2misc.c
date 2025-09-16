@@ -614,6 +614,15 @@ smb2_is_valid_lease_break(char *buffer, struct TCP_Server_Info *server)
 	struct cifs_tcon *tcon;
 	struct cifs_pending_open *open;
 
+	/* Trace receipt of lease break request from server */
+	trace_smb3_lease_break_enter(le32_to_cpu(rsp->CurrentLeaseState),
+		le32_to_cpu(rsp->Flags),
+		le16_to_cpu(rsp->Epoch),
+		le32_to_cpu(rsp->hdr.Id.SyncId.TreeId),
+		le64_to_cpu(rsp->hdr.SessionId),
+		*((u64 *)rsp->LeaseKey),
+		*((u64 *)&rsp->LeaseKey[8]));
+
 	cifs_dbg(FYI, "Checking for lease break\n");
 
 	/* If server is a channel, select the primary channel */
@@ -660,10 +669,12 @@ smb2_is_valid_lease_break(char *buffer, struct TCP_Server_Info *server)
 	spin_unlock(&cifs_tcp_ses_lock);
 	cifs_dbg(FYI, "Can not process lease break - no lease matched\n");
 	trace_smb3_lease_not_found(le32_to_cpu(rsp->CurrentLeaseState),
-				   le32_to_cpu(rsp->hdr.Id.SyncId.TreeId),
-				   le64_to_cpu(rsp->hdr.SessionId),
-				   *((u64 *)rsp->LeaseKey),
-				   *((u64 *)&rsp->LeaseKey[8]));
+					   le32_to_cpu(rsp->Flags),
+					   le16_to_cpu(rsp->Epoch),
+					   le32_to_cpu(rsp->hdr.Id.SyncId.TreeId),
+					   le64_to_cpu(rsp->hdr.SessionId),
+					   *((u64 *)rsp->LeaseKey),
+					   *((u64 *)&rsp->LeaseKey[8]));
 
 	return false;
 }

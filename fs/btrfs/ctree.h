@@ -224,16 +224,10 @@ struct btrfs_root {
 
 	struct list_head root_list;
 
-	/*
-	 * Xarray that keeps track of in-memory inodes, protected by the lock
-	 * @inode_lock.
-	 */
+	/* Xarray that keeps track of in-memory inodes. */
 	struct xarray inodes;
 
-	/*
-	 * Xarray that keeps track of delayed nodes of every inode, protected
-	 * by @inode_lock.
-	 */
+	/* Xarray that keeps track of delayed nodes of every inode. */
 	struct xarray delayed_nodes;
 	/*
 	 * right now this just gets used so that a root has its own devid
@@ -508,7 +502,7 @@ static inline u32 BTRFS_MAX_XATTR_SIZE(const struct btrfs_fs_info *info)
 int __init btrfs_ctree_init(void);
 void __cold btrfs_ctree_exit(void);
 
-int btrfs_bin_search(struct extent_buffer *eb, int first_slot,
+int btrfs_bin_search(const struct extent_buffer *eb, int first_slot,
 		     const struct btrfs_key *key, int *slot);
 
 int __pure btrfs_comp_cpu_keys(const struct btrfs_key *k1, const struct btrfs_key *k2);
@@ -576,9 +570,9 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root,
 		      struct extent_buffer *buf,
 		      struct extent_buffer **cow_ret, u64 new_root_objectid);
-bool btrfs_block_can_be_shared(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root,
-			       struct extent_buffer *buf);
+bool btrfs_block_can_be_shared(const struct btrfs_trans_handle *trans,
+			       const struct btrfs_root *root,
+			       const struct extent_buffer *buf);
 int btrfs_del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct btrfs_path *path, int level, int slot);
 void btrfs_extend_item(struct btrfs_trans_handle *trans,
@@ -727,13 +721,18 @@ static inline int btrfs_next_item(struct btrfs_root *root, struct btrfs_path *p)
 }
 int btrfs_leaf_free_space(const struct extent_buffer *leaf);
 
-static inline int is_fstree(u64 rootid)
+static inline bool btrfs_is_fstree(u64 rootid)
 {
-	if (rootid == BTRFS_FS_TREE_OBJECTID ||
-	    ((s64)rootid >= (s64)BTRFS_FIRST_FREE_OBJECTID &&
-	      !btrfs_qgroup_level(rootid)))
-		return 1;
-	return 0;
+	if (rootid == BTRFS_FS_TREE_OBJECTID)
+		return true;
+
+	if ((s64)rootid < (s64)BTRFS_FIRST_FREE_OBJECTID)
+		return false;
+
+	if (btrfs_qgroup_level(rootid) != 0)
+		return false;
+
+	return true;
 }
 
 static inline bool btrfs_is_data_reloc_root(const struct btrfs_root *root)

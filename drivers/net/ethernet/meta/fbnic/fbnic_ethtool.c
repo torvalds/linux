@@ -531,20 +531,6 @@ static int fbnic_get_rss_hash_idx(u32 flow_type)
 	return -1;
 }
 
-static int
-fbnic_get_rss_hash_opts(struct fbnic_net *fbn, struct ethtool_rxnfc *cmd)
-{
-	int hash_opt_idx = fbnic_get_rss_hash_idx(cmd->flow_type);
-
-	if (hash_opt_idx < 0)
-		return -EINVAL;
-
-	/* Report options from rss_en table in fbn */
-	cmd->data = fbn->rss_flow_hash[hash_opt_idx];
-
-	return 0;
-}
-
 static int fbnic_get_cls_rule_all(struct fbnic_net *fbn,
 				  struct ethtool_rxnfc *cmd,
 				  u32 *rule_locs)
@@ -779,9 +765,6 @@ static int fbnic_get_rxnfc(struct net_device *netdev,
 		cmd->data = fbn->num_rx_queues;
 		ret = 0;
 		break;
-	case ETHTOOL_GRXFH:
-		ret = fbnic_get_rss_hash_opts(fbn, cmd);
-		break;
 	case ETHTOOL_GRXCLSRULE:
 		ret = fbnic_get_cls_rule(fbn, cmd);
 		break;
@@ -801,41 +784,6 @@ static int fbnic_get_rxnfc(struct net_device *netdev,
 	}
 
 	return ret;
-}
-
-#define FBNIC_L2_HASH_OPTIONS \
-	(RXH_L2DA | RXH_DISCARD)
-#define FBNIC_L3_HASH_OPTIONS \
-	(FBNIC_L2_HASH_OPTIONS | RXH_IP_SRC | RXH_IP_DST)
-#define FBNIC_L4_HASH_OPTIONS \
-	(FBNIC_L3_HASH_OPTIONS | RXH_L4_B_0_1 | RXH_L4_B_2_3)
-
-static int
-fbnic_set_rss_hash_opts(struct fbnic_net *fbn, const struct ethtool_rxnfc *cmd)
-{
-	int hash_opt_idx;
-
-	/* Verify the type requested is correct */
-	hash_opt_idx = fbnic_get_rss_hash_idx(cmd->flow_type);
-	if (hash_opt_idx < 0)
-		return -EINVAL;
-
-	/* Verify the fields asked for can actually be assigned based on type */
-	if (cmd->data & ~FBNIC_L4_HASH_OPTIONS ||
-	    (hash_opt_idx > FBNIC_L4_HASH_OPT &&
-	     cmd->data & ~FBNIC_L3_HASH_OPTIONS) ||
-	    (hash_opt_idx > FBNIC_IP_HASH_OPT &&
-	     cmd->data & ~FBNIC_L2_HASH_OPTIONS))
-		return -EINVAL;
-
-	fbn->rss_flow_hash[hash_opt_idx] = cmd->data;
-
-	if (netif_running(fbn->netdev)) {
-		fbnic_rss_reinit(fbn->fbd, fbn);
-		fbnic_write_rules(fbn->fbd);
-	}
-
-	return 0;
 }
 
 static int fbnic_cls_rule_any_loc(struct fbnic_dev *fbd)
@@ -1244,9 +1192,6 @@ static int fbnic_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 	int ret = -EOPNOTSUPP;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_SRXFH:
-		ret = fbnic_set_rss_hash_opts(fbn, cmd);
-		break;
 	case ETHTOOL_SRXCLSRLINS:
 		ret = fbnic_set_cls_rule_ins(fbn, cmd);
 		break;
@@ -1342,6 +1287,60 @@ fbnic_set_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh,
 
 	if (changes && netif_running(netdev))
 		fbnic_rss_reinit_hw(fbn->fbd, fbn);
+
+	return 0;
+}
+
+static int
+fbnic_get_rss_hash_opts(struct net_device *netdev,
+			struct ethtool_rxfh_fields *cmd)
+{
+	int hash_opt_idx = fbnic_get_rss_hash_idx(cmd->flow_type);
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	if (hash_opt_idx < 0)
+		return -EINVAL;
+
+	/* Report options from rss_en table in fbn */
+	cmd->data = fbn->rss_flow_hash[hash_opt_idx];
+
+	return 0;
+}
+
+#define FBNIC_L2_HASH_OPTIONS \
+	(RXH_L2DA | RXH_DISCARD)
+#define FBNIC_L3_HASH_OPTIONS \
+	(FBNIC_L2_HASH_OPTIONS | RXH_IP_SRC | RXH_IP_DST)
+#define FBNIC_L4_HASH_OPTIONS \
+	(FBNIC_L3_HASH_OPTIONS | RXH_L4_B_0_1 | RXH_L4_B_2_3)
+
+static int
+fbnic_set_rss_hash_opts(struct net_device *netdev,
+			const struct ethtool_rxfh_fields *cmd,
+			struct netlink_ext_ack *extack)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	int hash_opt_idx;
+
+	/* Verify the type requested is correct */
+	hash_opt_idx = fbnic_get_rss_hash_idx(cmd->flow_type);
+	if (hash_opt_idx < 0)
+		return -EINVAL;
+
+	/* Verify the fields asked for can actually be assigned based on type */
+	if (cmd->data & ~FBNIC_L4_HASH_OPTIONS ||
+	    (hash_opt_idx > FBNIC_L4_HASH_OPT &&
+	     cmd->data & ~FBNIC_L3_HASH_OPTIONS) ||
+	    (hash_opt_idx > FBNIC_IP_HASH_OPT &&
+	     cmd->data & ~FBNIC_L2_HASH_OPTIONS))
+		return -EINVAL;
+
+	fbn->rss_flow_hash[hash_opt_idx] = cmd->data;
+
+	if (netif_running(fbn->netdev)) {
+		fbnic_rss_reinit(fbn->fbd, fbn);
+		fbnic_write_rules(fbn->fbd);
+	}
 
 	return 0;
 }
@@ -1446,7 +1445,7 @@ static int fbnic_set_channels(struct net_device *netdev,
 	standalone = ch->rx_count + ch->tx_count;
 
 	/* Limits for standalone queues:
-	 *  - each queue has it's own NAPI (num_napi >= rx + tx + combined)
+	 *  - each queue has its own NAPI (num_napi >= rx + tx + combined)
 	 *  - combining queues (combined not 0, rx or tx must be 0)
 	 */
 	if ((ch->rx_count && ch->tx_count && ch->combined_count) ||
@@ -1612,35 +1611,107 @@ fbnic_get_eth_mac_stats(struct net_device *netdev,
 			  &mac_stats->eth_mac.FrameTooLongErrors);
 }
 
+static void
+fbnic_get_eth_ctrl_stats(struct net_device *netdev,
+			 struct ethtool_eth_ctrl_stats *eth_ctrl_stats)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_mac_stats *mac_stats;
+	struct fbnic_dev *fbd = fbn->fbd;
+
+	mac_stats = &fbd->hw_stats.mac;
+
+	fbd->mac->get_eth_ctrl_stats(fbd, false, &mac_stats->eth_ctrl);
+
+	eth_ctrl_stats->MACControlFramesReceived =
+		mac_stats->eth_ctrl.MACControlFramesReceived.value;
+	eth_ctrl_stats->MACControlFramesTransmitted =
+		mac_stats->eth_ctrl.MACControlFramesTransmitted.value;
+}
+
+static const struct ethtool_rmon_hist_range fbnic_rmon_ranges[] = {
+	{    0,   64 },
+	{   65,  127 },
+	{  128,  255 },
+	{  256,  511 },
+	{  512, 1023 },
+	{ 1024, 1518 },
+	{ 1519, 2047 },
+	{ 2048, 4095 },
+	{ 4096, 8191 },
+	{ 8192, 9216 },
+	{ 9217, FBNIC_MAX_JUMBO_FRAME_SIZE },
+	{}
+};
+
+static void
+fbnic_get_rmon_stats(struct net_device *netdev,
+		     struct ethtool_rmon_stats *rmon_stats,
+		     const struct ethtool_rmon_hist_range **ranges)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_mac_stats *mac_stats;
+	struct fbnic_dev *fbd = fbn->fbd;
+	int i;
+
+	mac_stats = &fbd->hw_stats.mac;
+
+	fbd->mac->get_rmon_stats(fbd, false, &mac_stats->rmon);
+
+	rmon_stats->undersize_pkts =
+		mac_stats->rmon.undersize_pkts.value;
+	rmon_stats->oversize_pkts =
+		mac_stats->rmon.oversize_pkts.value;
+	rmon_stats->fragments =
+		mac_stats->rmon.fragments.value;
+	rmon_stats->jabbers =
+		mac_stats->rmon.jabbers.value;
+
+	for (i = 0; fbnic_rmon_ranges[i].high; i++) {
+		rmon_stats->hist[i] = mac_stats->rmon.hist[i].value;
+		rmon_stats->hist_tx[i] = mac_stats->rmon.hist_tx[i].value;
+	}
+
+	*ranges = fbnic_rmon_ranges;
+}
+
 static const struct ethtool_ops fbnic_ethtool_ops = {
-	.supported_coalesce_params	=
-				  ETHTOOL_COALESCE_USECS |
-				  ETHTOOL_COALESCE_RX_MAX_FRAMES,
-	.rxfh_max_num_contexts	= FBNIC_RPC_RSS_TBL_COUNT,
-	.get_drvinfo		= fbnic_get_drvinfo,
-	.get_regs_len		= fbnic_get_regs_len,
-	.get_regs		= fbnic_get_regs,
-	.get_coalesce		= fbnic_get_coalesce,
-	.set_coalesce		= fbnic_set_coalesce,
-	.get_ringparam		= fbnic_get_ringparam,
-	.set_ringparam		= fbnic_set_ringparam,
-	.get_strings		= fbnic_get_strings,
-	.get_ethtool_stats	= fbnic_get_ethtool_stats,
-	.get_sset_count		= fbnic_get_sset_count,
-	.get_rxnfc		= fbnic_get_rxnfc,
-	.set_rxnfc		= fbnic_set_rxnfc,
-	.get_rxfh_key_size	= fbnic_get_rxfh_key_size,
-	.get_rxfh_indir_size	= fbnic_get_rxfh_indir_size,
-	.get_rxfh		= fbnic_get_rxfh,
-	.set_rxfh		= fbnic_set_rxfh,
-	.create_rxfh_context	= fbnic_create_rxfh_context,
-	.modify_rxfh_context	= fbnic_modify_rxfh_context,
-	.remove_rxfh_context	= fbnic_remove_rxfh_context,
-	.get_channels		= fbnic_get_channels,
-	.set_channels		= fbnic_set_channels,
-	.get_ts_info		= fbnic_get_ts_info,
-	.get_ts_stats		= fbnic_get_ts_stats,
-	.get_eth_mac_stats	= fbnic_get_eth_mac_stats,
+	.supported_coalesce_params	= ETHTOOL_COALESCE_USECS |
+					  ETHTOOL_COALESCE_RX_MAX_FRAMES,
+	.rxfh_max_num_contexts		= FBNIC_RPC_RSS_TBL_COUNT,
+	.get_drvinfo			= fbnic_get_drvinfo,
+	.get_regs_len			= fbnic_get_regs_len,
+	.get_regs			= fbnic_get_regs,
+	.get_link			= ethtool_op_get_link,
+	.get_coalesce			= fbnic_get_coalesce,
+	.set_coalesce			= fbnic_set_coalesce,
+	.get_ringparam			= fbnic_get_ringparam,
+	.set_ringparam			= fbnic_set_ringparam,
+	.get_pauseparam			= fbnic_phylink_get_pauseparam,
+	.set_pauseparam			= fbnic_phylink_set_pauseparam,
+	.get_strings			= fbnic_get_strings,
+	.get_ethtool_stats		= fbnic_get_ethtool_stats,
+	.get_sset_count			= fbnic_get_sset_count,
+	.get_rxnfc			= fbnic_get_rxnfc,
+	.set_rxnfc			= fbnic_set_rxnfc,
+	.get_rxfh_key_size		= fbnic_get_rxfh_key_size,
+	.get_rxfh_indir_size		= fbnic_get_rxfh_indir_size,
+	.get_rxfh			= fbnic_get_rxfh,
+	.set_rxfh			= fbnic_set_rxfh,
+	.get_rxfh_fields		= fbnic_get_rss_hash_opts,
+	.set_rxfh_fields		= fbnic_set_rss_hash_opts,
+	.create_rxfh_context		= fbnic_create_rxfh_context,
+	.modify_rxfh_context		= fbnic_modify_rxfh_context,
+	.remove_rxfh_context		= fbnic_remove_rxfh_context,
+	.get_channels			= fbnic_get_channels,
+	.set_channels			= fbnic_set_channels,
+	.get_ts_info			= fbnic_get_ts_info,
+	.get_ts_stats			= fbnic_get_ts_stats,
+	.get_link_ksettings		= fbnic_phylink_ethtool_ksettings_get,
+	.get_fecparam			= fbnic_phylink_get_fecparam,
+	.get_eth_mac_stats		= fbnic_get_eth_mac_stats,
+	.get_eth_ctrl_stats		= fbnic_get_eth_ctrl_stats,
+	.get_rmon_stats			= fbnic_get_rmon_stats,
 };
 
 void fbnic_set_ethtool_ops(struct net_device *dev)

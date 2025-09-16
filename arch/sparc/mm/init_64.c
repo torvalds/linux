@@ -3201,7 +3201,7 @@ void copy_highpage(struct page *to, struct page *from)
 }
 EXPORT_SYMBOL(copy_highpage);
 
-pgprot_t vm_get_page_prot(unsigned long vm_flags)
+pgprot_t vm_get_page_prot(vm_flags_t vm_flags)
 {
 	unsigned long prot = pgprot_val(protection_map[vm_flags &
 					(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]);

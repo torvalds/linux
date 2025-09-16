@@ -247,9 +247,11 @@ static int s6d27a1_probe(struct spi_device *spi)
 	struct s6d27a1 *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_panel_alloc(dev, struct s6d27a1, panel,
+				   &s6d27a1_drm_funcs,
+				   DRM_MODE_CONNECTOR_DPI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	ctx->dev = dev;
 
@@ -276,9 +278,6 @@ static int s6d27a1_probe(struct spi_device *spi)
 		return dev_err_probe(dev, ret, "MIPI DBI init failed\n");
 
 	ctx->dbi.read_commands = s6d27a1_dbi_read_commands;
-
-	drm_panel_init(&ctx->panel, dev, &s6d27a1_drm_funcs,
-		       DRM_MODE_CONNECTOR_DPI);
 
 	ret = drm_panel_of_backlight(&ctx->panel);
 	if (ret)

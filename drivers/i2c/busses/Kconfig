@@ -992,7 +992,6 @@ config I2C_APPLE
 	tristate "Apple SMBus platform driver"
 	depends on !I2C_PASEMI
 	depends on ARCH_APPLE || COMPILE_TEST
-	default ARCH_APPLE
 	help
 	  Say Y here if you want to use the I2C controller present on Apple
 	  Silicon chips such as the M1.

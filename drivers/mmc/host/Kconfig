@@ -1111,6 +1111,19 @@ config MMC_OWL
 	  This selects support for the SD/MMC Host Controller on
 	  Actions Semi Owl SoCs.
 
+config MMC_LOONGSON2
+	tristate "Loongson-2K SD/SDIO/eMMC Host Interface support"
+	depends on LOONGARCH || COMPILE_TEST
+	depends on HAS_DMA
+	help
+	  This selects support for the SD/SDIO/eMMC Host Controller on
+	  Loongson-2K series CPUs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mmc_loongson2.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_EXTERNAL_DMA
 	bool
 

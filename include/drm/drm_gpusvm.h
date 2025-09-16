@@ -16,90 +16,8 @@ struct drm_gpusvm;
 struct drm_gpusvm_notifier;
 struct drm_gpusvm_ops;
 struct drm_gpusvm_range;
-struct drm_gpusvm_devmem;
 struct drm_pagemap;
 struct drm_pagemap_device_addr;
-
-/**
- * struct drm_gpusvm_devmem_ops - Operations structure for GPU SVM device memory
- *
- * This structure defines the operations for GPU Shared Virtual Memory (SVM)
- * device memory. These operations are provided by the GPU driver to manage device memory
- * allocations and perform operations such as migration between device memory and system
- * RAM.
- */
-struct drm_gpusvm_devmem_ops {
-	/**
-	 * @devmem_release: Release device memory allocation (optional)
-	 * @devmem_allocation: device memory allocation
-	 *
-	 * Release device memory allocation and drop a reference to device
-	 * memory allocation.
-	 */
-	void (*devmem_release)(struct drm_gpusvm_devmem *devmem_allocation);
-
-	/**
-	 * @populate_devmem_pfn: Populate device memory PFN (required for migration)
-	 * @devmem_allocation: device memory allocation
-	 * @npages: Number of pages to populate
-	 * @pfn: Array of page frame numbers to populate
-	 *
-	 * Populate device memory page frame numbers (PFN).
-	 *
-	 * Return: 0 on success, a negative error code on failure.
-	 */
-	int (*populate_devmem_pfn)(struct drm_gpusvm_devmem *devmem_allocation,
-				   unsigned long npages, unsigned long *pfn);
-
-	/**
-	 * @copy_to_devmem: Copy to device memory (required for migration)
-	 * @pages: Pointer to array of device memory pages (destination)
-	 * @dma_addr: Pointer to array of DMA addresses (source)
-	 * @npages: Number of pages to copy
-	 *
-	 * Copy pages to device memory.
-	 *
-	 * Return: 0 on success, a negative error code on failure.
-	 */
-	int (*copy_to_devmem)(struct page **pages,
-			      dma_addr_t *dma_addr,
-			      unsigned long npages);
-
-	/**
-	 * @copy_to_ram: Copy to system RAM (required for migration)
-	 * @pages: Pointer to array of device memory pages (source)
-	 * @dma_addr: Pointer to array of DMA addresses (destination)
-	 * @npages: Number of pages to copy
-	 *
-	 * Copy pages to system RAM.
-	 *
-	 * Return: 0 on success, a negative error code on failure.
-	 */
-	int (*copy_to_ram)(struct page **pages,
-			   dma_addr_t *dma_addr,
-			   unsigned long npages);
-};
-
-/**
- * struct drm_gpusvm_devmem - Structure representing a GPU SVM device memory allocation
- *
- * @dev: Pointer to the device structure which device memory allocation belongs to
- * @mm: Pointer to the mm_struct for the address space
- * @detached: device memory allocations is detached from device pages
- * @ops: Pointer to the operations structure for GPU SVM device memory
- * @dpagemap: The struct drm_pagemap of the pages this allocation belongs to.
- * @size: Size of device memory allocation
- * @timeslice_expiration: Timeslice expiration in jiffies
- */
-struct drm_gpusvm_devmem {
-	struct device *dev;
-	struct mm_struct *mm;
-	struct completion detached;
-	const struct drm_gpusvm_devmem_ops *ops;
-	struct drm_pagemap *dpagemap;
-	size_t size;
-	u64 timeslice_expiration;
-};
 
 /**
  * struct drm_gpusvm_ops - Operations structure for GPU SVM
@@ -327,6 +245,11 @@ void drm_gpusvm_fini(struct drm_gpusvm *gpusvm);
 
 void drm_gpusvm_free(struct drm_gpusvm *gpusvm);
 
+unsigned long
+drm_gpusvm_find_vma_start(struct drm_gpusvm *gpusvm,
+			  unsigned long start,
+			  unsigned long end);
+
 struct drm_gpusvm_range *
 drm_gpusvm_range_find_or_insert(struct drm_gpusvm *gpusvm,
 				unsigned long fault_addr,
@@ -356,15 +279,6 @@ void drm_gpusvm_range_unmap_pages(struct drm_gpusvm *gpusvm,
 				  struct drm_gpusvm_range *range,
 				  const struct drm_gpusvm_ctx *ctx);
 
-int drm_gpusvm_migrate_to_devmem(struct drm_gpusvm *gpusvm,
-				 struct drm_gpusvm_range *range,
-				 struct drm_gpusvm_devmem *devmem_allocation,
-				 const struct drm_gpusvm_ctx *ctx);
-
-int drm_gpusvm_evict_to_ram(struct drm_gpusvm_devmem *devmem_allocation);
-
-const struct dev_pagemap_ops *drm_gpusvm_pagemap_ops_get(void);
-
 bool drm_gpusvm_has_mapping(struct drm_gpusvm *gpusvm, unsigned long start,
 			    unsigned long end);
 
@@ -374,11 +288,6 @@ drm_gpusvm_range_find(struct drm_gpusvm_notifier *notifier, unsigned long start,
 
 void drm_gpusvm_range_set_unmapped(struct drm_gpusvm_range *range,
 				   const struct mmu_notifier_range *mmu_range);
-
-void drm_gpusvm_devmem_init(struct drm_gpusvm_devmem *devmem_allocation,
-			    struct device *dev, struct mm_struct *mm,
-			    const struct drm_gpusvm_devmem_ops *ops,
-			    struct drm_pagemap *dpagemap, size_t size);
 
 #ifdef CONFIG_LOCKDEP
 /**

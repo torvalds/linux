@@ -524,12 +524,12 @@ static enum a2l_style addr2line_configure(struct child_process *a2l, const char 
 			style = LLVM;
 			cached = true;
 			lines = 1;
-			pr_debug("Detected LLVM addr2line style\n");
+			pr_debug3("Detected LLVM addr2line style\n");
 		} else if (ch == '0') {
 			style = GNU_BINUTILS;
 			cached = true;
 			lines = 3;
-			pr_debug("Detected binutils addr2line style\n");
+			pr_debug3("Detected binutils addr2line style\n");
 		} else {
 			if (!symbol_conf.disable_add2line_warn) {
 				char *output = NULL;
@@ -595,7 +595,7 @@ static int read_addr2line_record(struct io *io,
 	if (io__getline(io, &line, &line_len) < 0 || !line_len)
 		goto error;
 
-	pr_debug("%s %s: addr2line read address for sentinel: %s", __func__, dso_name, line);
+	pr_debug3("%s %s: addr2line read address for sentinel: %s", __func__, dso_name, line);
 	if (style == LLVM && line_len == 2 && line[0] == ',') {
 		/* Found the llvm-addr2line sentinel character. */
 		zfree(&line);
@@ -641,7 +641,7 @@ static int read_addr2line_record(struct io *io,
 	if (first && (io__getline(io, &line, &line_len) < 0 || !line_len))
 		goto error;
 
-	pr_debug("%s %s: addr2line read line: %s", __func__, dso_name, line);
+	pr_debug3("%s %s: addr2line read line: %s", __func__, dso_name, line);
 	if (function != NULL)
 		*function = strdup(strim(line));
 
@@ -652,7 +652,7 @@ static int read_addr2line_record(struct io *io,
 	if (io__getline(io, &line, &line_len) < 0 || !line_len)
 		goto error;
 
-	pr_debug("%s %s: addr2line filename:number : %s", __func__, dso_name, line);
+	pr_debug3("%s %s: addr2line filename:number : %s", __func__, dso_name, line);
 	if (filename_split(line, line_nr == NULL ? &dummy_line_nr : line_nr) == 0 &&
 	    style == GNU_BINUTILS) {
 		ret = 0;

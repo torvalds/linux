@@ -107,6 +107,10 @@ properties:
       - const: bridge
       - const: swinit
 
+  num-lanes:
+    default: 1
+    maximum: 4
+
 required:
   - compatible
   - reg

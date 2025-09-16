@@ -218,15 +218,27 @@ int amdgpu_xcp_restore_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 	return __amdgpu_xcp_switch_partition_mode(xcp_mgr, xcp_mgr->mode);
 }
 
+static bool __amdgpu_xcp_is_cached_mode_valid(struct amdgpu_xcp_mgr *xcp_mgr)
+{
+	if (!xcp_mgr->funcs || !xcp_mgr->funcs->query_partition_mode)
+		return true;
+
+	if (!amdgpu_sriov_vf(xcp_mgr->adev) &&
+	    xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
+		return true;
+
+	if (xcp_mgr->mode != AMDGPU_XCP_MODE_NONE &&
+	    xcp_mgr->mode != AMDGPU_XCP_MODE_TRANS)
+		return true;
+
+	return false;
+}
+
 int amdgpu_xcp_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
 {
 	int mode;
 
-	if (!amdgpu_sriov_vf(xcp_mgr->adev) &&
-	    xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
-		return xcp_mgr->mode;
-
-	if (!xcp_mgr->funcs || !xcp_mgr->funcs->query_partition_mode)
+	if (__amdgpu_xcp_is_cached_mode_valid(xcp_mgr))
 		return xcp_mgr->mode;
 
 	if (!(flags & AMDGPU_XCP_FL_LOCKED))
@@ -443,6 +455,222 @@ void amdgpu_xcp_release_sched(struct amdgpu_device *adev,
 		ring = to_amdgpu_ring(entity->entity.rq->sched);
 		atomic_dec(&adev->xcp_mgr->xcp[ring->xcp_id].ref_cnt);
 	}
+}
+
+int amdgpu_xcp_select_scheds(struct amdgpu_device *adev,
+			     u32 hw_ip, u32 hw_prio,
+			     struct amdgpu_fpriv *fpriv,
+			     unsigned int *num_scheds,
+			     struct drm_gpu_scheduler ***scheds)
+{
+	u32 sel_xcp_id;
+	int i;
+	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
+
+	if (fpriv->xcp_id == AMDGPU_XCP_NO_PARTITION) {
+		u32 least_ref_cnt = ~0;
+
+		fpriv->xcp_id = 0;
+		for (i = 0; i < xcp_mgr->num_xcps; i++) {
+			u32 total_ref_cnt;
+
+			total_ref_cnt = atomic_read(&xcp_mgr->xcp[i].ref_cnt);
+			if (total_ref_cnt < least_ref_cnt) {
+				fpriv->xcp_id = i;
+				least_ref_cnt = total_ref_cnt;
+			}
+		}
+	}
+	sel_xcp_id = fpriv->xcp_id;
+
+	if (xcp_mgr->xcp[sel_xcp_id].gpu_sched[hw_ip][hw_prio].num_scheds) {
+		*num_scheds =
+			xcp_mgr->xcp[fpriv->xcp_id].gpu_sched[hw_ip][hw_prio].num_scheds;
+		*scheds =
+			xcp_mgr->xcp[fpriv->xcp_id].gpu_sched[hw_ip][hw_prio].sched;
+		atomic_inc(&adev->xcp_mgr->xcp[sel_xcp_id].ref_cnt);
+		dev_dbg(adev->dev, "Selected partition #%d", sel_xcp_id);
+	} else {
+		dev_err(adev->dev, "Failed to schedule partition #%d.", sel_xcp_id);
+		return -ENOENT;
+	}
+
+	return 0;
+}
+
+static void amdgpu_set_xcp_id(struct amdgpu_device *adev,
+			      uint32_t inst_idx,
+			      struct amdgpu_ring *ring)
+{
+	int xcp_id;
+	enum AMDGPU_XCP_IP_BLOCK ip_blk;
+	uint32_t inst_mask;
+
+	ring->xcp_id = AMDGPU_XCP_NO_PARTITION;
+	if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE)
+		adev->gfx.enforce_isolation[0].xcp_id = ring->xcp_id;
+	if ((adev->xcp_mgr->mode == AMDGPU_XCP_MODE_NONE) ||
+	    (ring->funcs->type == AMDGPU_RING_TYPE_CPER))
+		return;
+
+	inst_mask = 1 << inst_idx;
+
+	switch (ring->funcs->type) {
+	case AMDGPU_HW_IP_GFX:
+	case AMDGPU_RING_TYPE_COMPUTE:
+	case AMDGPU_RING_TYPE_KIQ:
+		ip_blk = AMDGPU_XCP_GFX;
+		break;
+	case AMDGPU_RING_TYPE_SDMA:
+		ip_blk = AMDGPU_XCP_SDMA;
+		break;
+	case AMDGPU_RING_TYPE_VCN_ENC:
+	case AMDGPU_RING_TYPE_VCN_JPEG:
+		ip_blk = AMDGPU_XCP_VCN;
+		break;
+	default:
+		dev_err(adev->dev, "Not support ring type %d!", ring->funcs->type);
+		return;
+	}
+
+	for (xcp_id = 0; xcp_id < adev->xcp_mgr->num_xcps; xcp_id++) {
+		if (adev->xcp_mgr->xcp[xcp_id].ip[ip_blk].inst_mask & inst_mask) {
+			ring->xcp_id = xcp_id;
+			dev_dbg(adev->dev, "ring:%s xcp_id :%u", ring->name,
+				ring->xcp_id);
+			if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE)
+				adev->gfx.enforce_isolation[xcp_id].xcp_id = xcp_id;
+			break;
+		}
+	}
+}
+
+static void amdgpu_xcp_gpu_sched_update(struct amdgpu_device *adev,
+					struct amdgpu_ring *ring,
+					unsigned int sel_xcp_id)
+{
+	unsigned int *num_gpu_sched;
+
+	num_gpu_sched = &adev->xcp_mgr->xcp[sel_xcp_id]
+			.gpu_sched[ring->funcs->type][ring->hw_prio].num_scheds;
+	adev->xcp_mgr->xcp[sel_xcp_id].gpu_sched[ring->funcs->type][ring->hw_prio]
+			.sched[(*num_gpu_sched)++] = &ring->sched;
+	dev_dbg(adev->dev, "%s :[%d] gpu_sched[%d][%d] = %d",
+		ring->name, sel_xcp_id, ring->funcs->type,
+		ring->hw_prio, *num_gpu_sched);
+}
+
+static int amdgpu_xcp_sched_list_update(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+	int i;
+
+	for (i = 0; i < MAX_XCP; i++) {
+		atomic_set(&adev->xcp_mgr->xcp[i].ref_cnt, 0);
+		memset(adev->xcp_mgr->xcp[i].gpu_sched, 0, sizeof(adev->xcp_mgr->xcp->gpu_sched));
+	}
+
+	if (adev->xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
+		return 0;
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
+		ring = adev->rings[i];
+		if (!ring || !ring->sched.ready || ring->no_scheduler)
+			continue;
+
+		amdgpu_xcp_gpu_sched_update(adev, ring, ring->xcp_id);
+
+		/* VCN may be shared by two partitions under CPX MODE in certain
+		 * configs.
+		 */
+		if ((ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC ||
+		     ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG) &&
+		    (adev->xcp_mgr->num_xcps > adev->vcn.num_vcn_inst))
+			amdgpu_xcp_gpu_sched_update(adev, ring, ring->xcp_id + 1);
+	}
+
+	return 0;
+}
+
+int amdgpu_xcp_update_partition_sched_list(struct amdgpu_device *adev)
+{
+	int i;
+
+	for (i = 0; i < adev->num_rings; i++) {
+		struct amdgpu_ring *ring = adev->rings[i];
+
+		if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE ||
+			ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
+			amdgpu_set_xcp_id(adev, ring->xcc_id, ring);
+		else
+			amdgpu_set_xcp_id(adev, ring->me, ring);
+	}
+
+	return amdgpu_xcp_sched_list_update(adev);
+}
+
+void amdgpu_xcp_update_supported_modes(struct amdgpu_xcp_mgr *xcp_mgr)
+{
+	struct amdgpu_device *adev = xcp_mgr->adev;
+
+	xcp_mgr->supp_xcp_modes = 0;
+
+	switch (NUM_XCC(adev->gfx.xcc_mask)) {
+	case 8:
+		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
+					  BIT(AMDGPU_DPX_PARTITION_MODE) |
+					  BIT(AMDGPU_QPX_PARTITION_MODE) |
+					  BIT(AMDGPU_CPX_PARTITION_MODE);
+		break;
+	case 6:
+		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
+					  BIT(AMDGPU_TPX_PARTITION_MODE) |
+					  BIT(AMDGPU_CPX_PARTITION_MODE);
+		break;
+	case 4:
+		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
+					  BIT(AMDGPU_DPX_PARTITION_MODE) |
+					  BIT(AMDGPU_CPX_PARTITION_MODE);
+		break;
+	case 2:
+		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
+					  BIT(AMDGPU_CPX_PARTITION_MODE);
+		break;
+	case 1:
+		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
+					  BIT(AMDGPU_CPX_PARTITION_MODE);
+		break;
+
+	default:
+		break;
+	}
+}
+
+int amdgpu_xcp_pre_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
+{
+	/* TODO:
+	 * Stop user queues and threads, and make sure GPU is empty of work.
+	 */
+
+	if (flags & AMDGPU_XCP_OPS_KFD)
+		amdgpu_amdkfd_device_fini_sw(xcp_mgr->adev);
+
+	return 0;
+}
+
+int amdgpu_xcp_post_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
+{
+	int ret = 0;
+
+	if (flags & AMDGPU_XCP_OPS_KFD) {
+		amdgpu_amdkfd_device_probe(xcp_mgr->adev);
+		amdgpu_amdkfd_device_init(xcp_mgr->adev);
+		/* If KFD init failed, return failure */
+		if (!xcp_mgr->adev->kfd.init_complete)
+			ret = -EIO;
+	}
+
+	return ret;
 }
 
 /*====================== xcp sysfs - configuration ======================*/

@@ -144,7 +144,8 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 
 	/* If algo exists, it means that the i2c_adapter's initialized */
 	if (!adev->pm.fru_eeprom_i2c_bus || !adev->pm.fru_eeprom_i2c_bus->algo) {
-		DRM_WARN("Cannot access FRU, EEPROM accessor not initialized");
+		dev_warn(adev->dev,
+			 "Cannot access FRU, EEPROM accessor not initialized");
 		return -ENODEV;
 	}
 
@@ -152,19 +153,22 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	len = amdgpu_eeprom_read(adev->pm.fru_eeprom_i2c_bus, fru_addr, buf,
 				 sizeof(buf));
 	if (len != 8) {
-		DRM_ERROR("Couldn't read the IPMI Common Header: %d", len);
+		dev_err(adev->dev, "Couldn't read the IPMI Common Header: %d",
+			len);
 		return len < 0 ? len : -EIO;
 	}
 
 	if (buf[0] != 1) {
-		DRM_ERROR("Bad IPMI Common Header version: 0x%02x", buf[0]);
+		dev_err(adev->dev, "Bad IPMI Common Header version: 0x%02x",
+			buf[0]);
 		return -EIO;
 	}
 
 	for (csum = 0; len > 0; len--)
 		csum += buf[len - 1];
 	if (csum) {
-		DRM_ERROR("Bad IPMI Common Header checksum: 0x%02x", csum);
+		dev_err(adev->dev, "Bad IPMI Common Header checksum: 0x%02x",
+			csum);
 		return -EIO;
 	}
 
@@ -179,12 +183,14 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	/* Read the header of the PIA. */
 	len = amdgpu_eeprom_read(adev->pm.fru_eeprom_i2c_bus, addr, buf, 3);
 	if (len != 3) {
-		DRM_ERROR("Couldn't read the Product Info Area header: %d", len);
+		dev_err(adev->dev,
+			"Couldn't read the Product Info Area header: %d", len);
 		return len < 0 ? len : -EIO;
 	}
 
 	if (buf[0] != 1) {
-		DRM_ERROR("Bad IPMI Product Info Area version: 0x%02x", buf[0]);
+		dev_err(adev->dev, "Bad IPMI Product Info Area version: 0x%02x",
+			buf[0]);
 		return -EIO;
 	}
 
@@ -197,14 +203,16 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	len = amdgpu_eeprom_read(adev->pm.fru_eeprom_i2c_bus, addr, pia, size);
 	if (len != size) {
 		kfree(pia);
-		DRM_ERROR("Couldn't read the Product Info Area: %d", len);
+		dev_err(adev->dev, "Couldn't read the Product Info Area: %d",
+			len);
 		return len < 0 ? len : -EIO;
 	}
 
 	for (csum = 0; size > 0; size--)
 		csum += pia[size - 1];
 	if (csum) {
-		DRM_ERROR("Bad Product Info Area checksum: 0x%02x", csum);
+		dev_err(adev->dev, "Bad Product Info Area checksum: 0x%02x",
+			csum);
 		kfree(pia);
 		return -EIO;
 	}

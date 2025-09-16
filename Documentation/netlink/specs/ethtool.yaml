@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: ethtool
 
 protocol: genetlink-legacy
@@ -15,14 +15,14 @@ definitions:
     name: udp-tunnel-type
     enum-name:
     type: enum
-    entries: [ vxlan, geneve, vxlan-gpe ]
+    entries: [vxlan, geneve, vxlan-gpe]
     enum-cnt-name: __ethtool-udp-tunnel-type-cnt
     render-max: true
   -
     name: stringset
     type: enum
     entries: []
-    header: linux/ethtool.h # skip rendering, no actual definition
+    header: linux/ethtool.h  # skip rendering, no actual definition
   -
     name: header-flags
     type: flags
@@ -58,49 +58,51 @@ definitions:
         doc: The firmware flashing process was stopped due to an error.
   -
     name: c33-pse-ext-state
-    doc: "groups of PSE extended states functions. IEEE 802.3-2022 33.2.4.4 Variables"
+    doc: |
+      "groups of PSE extended states functions. IEEE 802.3-2022 33.2.4.4
+      Variables"
     type: enum
     name-prefix: ethtool-c33-pse-ext-state-
     header: linux/ethtool.h
     entries:
-        -
-          name: none
-          doc: none
-        -
-          name: error-condition
-          doc: Group of error_condition states
-        -
-          name: mr-mps-valid
-          doc: Group of mr_mps_valid states
-        -
-          name: mr-pse-enable
-          doc: Group of mr_pse_enable states
-        -
-          name: option-detect-ted
-          doc: Group of option_detect_ted states
-        -
-          name: option-vport-lim
-          doc: Group of option_vport_lim states
-        -
-          name: ovld-detected
-          doc: Group of ovld_detected states
-        -
-          name: power-not-available
-          doc: Group of power_not_available states
-        -
-          name: short-detected
-          doc: Group of short_detected states
+      -
+        name: none
+        doc: none
+      -
+        name: error-condition
+        doc: Group of error_condition states
+      -
+        name: mr-mps-valid
+        doc: Group of mr_mps_valid states
+      -
+        name: mr-pse-enable
+        doc: Group of mr_pse_enable states
+      -
+        name: option-detect-ted
+        doc: Group of option_detect_ted states
+      -
+        name: option-vport-lim
+        doc: Group of option_vport_lim states
+      -
+        name: ovld-detected
+        doc: Group of ovld_detected states
+      -
+        name: power-not-available
+        doc: Group of power_not_available states
+      -
+        name: short-detected
+        doc: Group of short_detected states
   -
     name: phy-upstream-type
     enum-name: phy-upstream
     header: linux/ethtool.h
     type: enum
     name-prefix: phy-upstream
-    entries: [ mac, phy ]
+    entries: [mac, phy]
   -
     name: tcp-data-split
     type: enum
-    entries: [ unknown, disabled, enabled ]
+    entries: [unknown, disabled, enabled]
   -
     name: hwtstamp-source
     doc: Source of the hardware timestamp
@@ -119,6 +121,92 @@ definitions:
         doc: |
           Hardware timestamp comes from one PHY device
           of the network topology
+  -
+    name: pse-event
+    doc: PSE event list for the PSE controller
+    type: flags
+    name-prefix: ethtool-
+    entries:
+      -
+        name: pse-event-over-current
+        doc: PSE output current is too high
+      -
+        name: pse-event-over-temp
+        doc: PSE in over temperature state
+      -
+        name: c33-pse-event-detection
+        doc: |
+          detection process occur on the PSE. IEEE 802.3-2022 33.2.5 and
+          145.2.6 PSE detection of PDs. IEEE 802.3-202 30.9.1.1.5
+          aPSEPowerDetectionStatus
+      -
+        name: c33-pse-event-classification
+        doc: |
+          classification process occur on the PSE. IEEE 802.3-2022 33.2.6
+          and 145.2.8 classification of PDs mutual identification.
+          IEEE 802.3-2022 30.9.1.1.8 aPSEPowerClassification.
+      -
+        name: c33-pse-event-disconnection
+        doc: |
+          PD has been disconnected on the PSE. IEEE 802.3-2022 33.3.8
+          and 145.3.9 PD Maintain Power Signature. IEEE 802.3-2022
+          33.5.1.2.9 MPS Absent. IEEE 802.3-2022 30.9.1.1.20
+          aPSEMPSAbsentCounter.
+      -
+        name: pse-event-over-budget
+        doc: PSE turned off due to over budget situation
+      -
+        name: pse-event-sw-pw-control-error
+        doc: PSE faced an error managing the power control from software
+  -
+    name: input-xfrm
+    doc: RSS hash function transformations.
+    type: flags
+    enum-name:
+    name-prefix: rxh-xfrm-
+    header: linux/ethtool.h
+    entries:
+      -
+        name: sym-xor
+        doc: >-
+          XOR the corresponding source and destination fields of each specified
+          protocol. Both copies of the XOR'ed fields are fed into the RSS and
+          RXHASH calculation. Note that this XORing reduces the input set
+          entropy and could be exploited to reduce the RSS queue spread.
+      -
+        name: sym-or-xor
+        doc: >-
+          Similar to SYM_XOR, except that one copy of the XOR'ed fields is
+          replaced by an OR of the same fields.
+  -
+    name: rxfh-fields
+    name-prefix: rxh-
+    enum-name:
+    header: linux/ethtool.h
+    type: flags
+    entries:
+      -
+        name: l2da
+        value: 1
+      -
+        name: vlan
+      -
+        name: l3-proto
+      -
+        name: ip-src
+      -
+        name: ip-dst
+      -
+        name: l4-b-0-1
+        doc: src port in case of TCP/UDP/SCTP
+      -
+        name: l4-b-2-3
+        doc: dst port in case of TCP/UDP/SCTP
+      -
+        name: gtp-teid
+      -
+        name: discard
+        value: 31
 
 attribute-sets:
   -
@@ -1227,7 +1315,7 @@ attribute-sets:
       -
         name: stat
         type: u64
-        type-value: [ id ]
+        type-value: [id]
       -
         name: hist-rx
         type: nest
@@ -1396,6 +1484,135 @@ attribute-sets:
         type: nest
         multi-attr: true
         nested-attributes: c33-pse-pw-limit
+      -
+        name: pse-pw-d-id
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: pse-prio-max
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: pse-prio
+        type: u32
+        name-prefix: ethtool-a-
+  -
+    name: flow
+    attr-cnt-name: --ethtool-a-flow-cnt
+    doc: |
+      Flow types, corresponding to those defined in the old
+      ethtool header for RXFH and RXNFC as ${PROTO}_FLOW.
+      The values are not matching the old ones to avoid carrying
+      into Netlink the IP_USER_FLOW vs IPV4_FLOW vs IPV4_USER_FLOW confusion.
+    attributes:
+      -
+        name: ether
+        type: uint
+        enum: rxfh-fields
+      -
+        name: ip4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: ip6
+        type: uint
+        enum: rxfh-fields
+      -
+        name: tcp4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: tcp6
+        type: uint
+        enum: rxfh-fields
+      -
+        name: udp4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: udp6
+        type: uint
+        enum: rxfh-fields
+      -
+        name: sctp4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: sctp6
+        type: uint
+        enum: rxfh-fields
+      -
+        name: ah4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: ah6
+        type: uint
+        enum: rxfh-fields
+      -
+        name: esp4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: esp6
+        type: uint
+        enum: rxfh-fields
+      -
+        name: ah-esp4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: ah-esp6
+        type: uint
+        enum: rxfh-fields
+      -
+        name: gtpu4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: gtpu6
+        type: uint
+        enum: rxfh-fields
+      -
+        name: gtpc4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: gtpc6
+        type: uint
+        enum: rxfh-fields
+      -
+        name: gtpc-teid4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: gtpc-teid6
+        type: uint
+        enum: rxfh-fields
+      -
+        name: gtpu-eh4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: gtpu-eh6
+        type: uint
+        enum: rxfh-fields
+      -
+        name: gtpu-ul4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: gtpu-ul6
+        type: uint
+        enum: rxfh-fields
+      -
+        name: gtpu-dl4
+        type: uint
+        enum: rxfh-fields
+      -
+        name: gtpu-dl6
+        type: uint
+        enum: rxfh-fields
   -
     name: rss
     attr-cnt-name: __ethtool-a-rss-cnt
@@ -1424,9 +1641,14 @@ attribute-sets:
       -
         name: input-xfrm
         type: u32
+        enum: input-xfrm
       -
         name: start-context
         type: u32
+      -
+        name: flow-hash
+        type: nest
+        nested-attributes: flow
   -
     name: plca
     attr-cnt-name: __ethtool-a-plca-cnt
@@ -1556,6 +1778,19 @@ attribute-sets:
         name: hwtstamp-flags
         type: nest
         nested-attributes: bitset
+  -
+    name: pse-ntf
+    attr-cnt-name: --ethtool-a-pse-ntf-cnt
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+      -
+        name: events
+        type: uint
+        enum: pse-event
+        doc: List of events reported by the PSE controller
 
 operations:
   enum-model: directional
@@ -2109,14 +2344,14 @@ operations:
         request:
           attributes:
             - header
-        reply:
-          attributes:
-            - header
             - offset
             - length
             - page
             - bank
             - i2c-address
+        reply:
+          attributes:
+            - header
             - data
       dump: *module-eeprom-get-op
     -
@@ -2206,6 +2441,9 @@ operations:
             - c33-pse-ext-substate
             - c33-pse-avail-pw-limit
             - c33-pse-pw-limit-ranges
+            - pse-pw-d-id
+            - pse-prio-max
+            - pse-prio
       dump: *pse-get-op
     -
       name: pse-set
@@ -2220,6 +2458,7 @@ operations:
             - podl-pse-admin-control
             - c33-pse-admin-control
             - c33-pse-avail-pw-limit
+            - pse-prio
     -
       name: rss-get
       doc: Get RSS params.
@@ -2239,6 +2478,7 @@ operations:
             - indir
             - hkey
             - input-xfrm
+            - flow-hash
       dump:
         request:
           attributes:
@@ -2414,3 +2654,79 @@ operations:
           attributes: *tsconfig
         reply:
           attributes: *tsconfig
+    -
+      name: pse-ntf
+      doc: Notification for PSE events.
+
+      attribute-set: pse-ntf
+
+      event:
+        attributes:
+          - header
+          - events
+    -
+      name: rss-set
+      doc: Set RSS params.
+
+      attribute-set: rss
+
+      do:
+        request:
+          attributes:
+            - header
+            - context
+            - hfunc
+            - indir
+            - hkey
+            - input-xfrm
+            - flow-hash
+    -
+      name: rss-ntf
+      doc: |
+        Notification for change in RSS configuration.
+        For additional contexts only modifications use this notification,
+        creation and deletion have dedicated messages.
+      notify: rss-get
+    -
+      name: rss-create-act
+      doc: Create an RSS context.
+      attribute-set: rss
+      do:
+        request: &rss-create-attrs
+          attributes:
+            - header
+            - context
+            - hfunc
+            - indir
+            - hkey
+            - input-xfrm
+        reply: *rss-create-attrs
+    -
+      name: rss-create-ntf
+      doc: |
+        Notification for creation of an additional RSS context.
+      notify: rss-create-act
+    -
+      name: rss-delete-act
+      doc: Delete an RSS context.
+      attribute-set: rss
+      do:
+        request:
+          attributes:
+            - header
+            - context
+    -
+      name: rss-delete-ntf
+      doc: |
+        Notification for deletion of an additional RSS context.
+      attribute-set: rss
+      event:
+        attributes:
+          - header
+          - context
+
+mcast-groups:
+  list:
+    -
+      name: monitor
+      c-define-name: ethtool-mcgrp-monitor-name

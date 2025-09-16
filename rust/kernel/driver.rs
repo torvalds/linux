@@ -2,11 +2,96 @@
 
 //! Generic support for drivers of different buses (e.g., PCI, Platform, Amba, etc.).
 //!
-//! Each bus / subsystem is expected to implement [`RegistrationOps`], which allows drivers to
-//! register using the [`Registration`] class.
+//! This documentation describes how to implement a bus specific driver API and how to align it with
+//! the design of (bus specific) devices.
+//!
+//! Note: Readers are expected to know the content of the documentation of [`Device`] and
+//! [`DeviceContext`].
+//!
+//! # Driver Trait
+//!
+//! The main driver interface is defined by a bus specific driver trait. For instance:
+//!
+//! ```ignore
+//! pub trait Driver: Send {
+//!     /// The type holding information about each device ID supported by the driver.
+//!     type IdInfo: 'static;
+//!
+//!     /// The table of OF device ids supported by the driver.
+//!     const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>> = None;
+//!
+//!     /// The table of ACPI device ids supported by the driver.
+//!     const ACPI_ID_TABLE: Option<acpi::IdTable<Self::IdInfo>> = None;
+//!
+//!     /// Driver probe.
+//!     fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> Result<Pin<KBox<Self>>>;
+//!
+//!     /// Driver unbind (optional).
+//!     fn unbind(dev: &Device<device::Core>, this: Pin<&Self>) {
+//!         let _ = (dev, this);
+//!     }
+//! }
+//! ```
+//!
+//! For specific examples see [`auxiliary::Driver`], [`pci::Driver`] and [`platform::Driver`].
+//!
+//! The `probe()` callback should return a `Result<Pin<KBox<Self>>>`, i.e. the driver's private
+//! data. The bus abstraction should store the pointer in the corresponding bus device. The generic
+//! [`Device`] infrastructure provides common helpers for this purpose on its
+//! [`Device<CoreInternal>`] implementation.
+//!
+//! All driver callbacks should provide a reference to the driver's private data. Once the driver
+//! is unbound from the device, the bus abstraction should take back the ownership of the driver's
+//! private data from the corresponding [`Device`] and [`drop`] it.
+//!
+//! All driver callbacks should provide a [`Device<Core>`] reference (see also [`device::Core`]).
+//!
+//! # Adapter
+//!
+//! The adapter implementation of a bus represents the abstraction layer between the C bus
+//! callbacks and the Rust bus callbacks. It therefore has to be generic over an implementation of
+//! the [driver trait](#driver-trait).
+//!
+//! ```ignore
+//! pub struct Adapter<T: Driver>;
+//! ```
+//!
+//! There's a common [`Adapter`] trait that can be implemented to inherit common driver
+//! infrastructure, such as finding the ID info from an [`of::IdTable`] or [`acpi::IdTable`].
+//!
+//! # Driver Registration
+//!
+//! In order to register C driver types (such as `struct platform_driver`) the [adapter](#adapter)
+//! should implement the [`RegistrationOps`] trait.
+//!
+//! This trait implementation can be used to create the actual registration with the common
+//! [`Registration`] type.
+//!
+//! Typically, bus abstractions want to provide a bus specific `module_bus_driver!` macro, which
+//! creates a kernel module with exactly one [`Registration`] for the bus specific adapter.
+//!
+//! The generic driver infrastructure provides a helper for this with the [`module_driver`] macro.
+//!
+//! # Device IDs
+//!
+//! Besides the common device ID types, such as [`of::DeviceId`] and [`acpi::DeviceId`], most buses
+//! may need to implement their own device ID types.
+//!
+//! For this purpose the generic infrastructure in [`device_id`] should be used.
+//!
+//! [`auxiliary::Driver`]: kernel::auxiliary::Driver
+//! [`Core`]: device::Core
+//! [`Device`]: device::Device
+//! [`Device<Core>`]: device::Device<device::Core>
+//! [`Device<CoreInternal>`]: device::Device<device::CoreInternal>
+//! [`DeviceContext`]: device::DeviceContext
+//! [`device_id`]: kernel::device_id
+//! [`module_driver`]: kernel::module_driver
+//! [`pci::Driver`]: kernel::pci::Driver
+//! [`platform::Driver`]: kernel::platform::Driver
 
 use crate::error::{Error, Result};
-use crate::{device, of, str::CStr, try_pin_init, types::Opaque, ThisModule};
+use crate::{acpi, device, of, str::CStr, try_pin_init, types::Opaque, ThisModule};
 use core::pin::Pin;
 use pin_init::{pin_data, pinned_drop, PinInit};
 
@@ -141,36 +226,76 @@ pub trait Adapter {
     /// The type holding driver private data about each device id supported by the driver.
     type IdInfo: 'static;
 
+    /// The [`acpi::IdTable`] of the corresponding driver
+    fn acpi_id_table() -> Option<acpi::IdTable<Self::IdInfo>>;
+
+    /// Returns the driver's private data from the matching entry in the [`acpi::IdTable`], if any.
+    ///
+    /// If this returns `None`, it means there is no match with an entry in the [`acpi::IdTable`].
+    fn acpi_id_info(dev: &device::Device) -> Option<&'static Self::IdInfo> {
+        #[cfg(not(CONFIG_ACPI))]
+        {
+            let _ = dev;
+            None
+        }
+
+        #[cfg(CONFIG_ACPI)]
+        {
+            let table = Self::acpi_id_table()?;
+
+            // SAFETY:
+            // - `table` has static lifetime, hence it's valid for read,
+            // - `dev` is guaranteed to be valid while it's alive, and so is `dev.as_raw()`.
+            let raw_id = unsafe { bindings::acpi_match_device(table.as_ptr(), dev.as_raw()) };
+
+            if raw_id.is_null() {
+                None
+            } else {
+                // SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct acpi_device_id`
+                // and does not add additional invariants, so it's safe to transmute.
+                let id = unsafe { &*raw_id.cast::<acpi::DeviceId>() };
+
+                Some(table.info(<acpi::DeviceId as crate::device_id::RawDeviceIdIndex>::index(id)))
+            }
+        }
+    }
+
     /// The [`of::IdTable`] of the corresponding driver.
     fn of_id_table() -> Option<of::IdTable<Self::IdInfo>>;
 
     /// Returns the driver's private data from the matching entry in the [`of::IdTable`], if any.
     ///
     /// If this returns `None`, it means there is no match with an entry in the [`of::IdTable`].
-    #[cfg(CONFIG_OF)]
     fn of_id_info(dev: &device::Device) -> Option<&'static Self::IdInfo> {
-        let table = Self::of_id_table()?;
-
-        // SAFETY:
-        // - `table` has static lifetime, hence it's valid for read,
-        // - `dev` is guaranteed to be valid while it's alive, and so is `pdev.as_ref().as_raw()`.
-        let raw_id = unsafe { bindings::of_match_device(table.as_ptr(), dev.as_raw()) };
-
-        if raw_id.is_null() {
+        #[cfg(not(CONFIG_OF))]
+        {
+            let _ = dev;
             None
-        } else {
-            // SAFETY: `DeviceId` is a `#[repr(transparent)` wrapper of `struct of_device_id` and
-            // does not add additional invariants, so it's safe to transmute.
-            let id = unsafe { &*raw_id.cast::<of::DeviceId>() };
-
-            Some(table.info(<of::DeviceId as crate::device_id::RawDeviceId>::index(id)))
         }
-    }
 
-    #[cfg(not(CONFIG_OF))]
-    #[allow(missing_docs)]
-    fn of_id_info(_dev: &device::Device) -> Option<&'static Self::IdInfo> {
-        None
+        #[cfg(CONFIG_OF)]
+        {
+            let table = Self::of_id_table()?;
+
+            // SAFETY:
+            // - `table` has static lifetime, hence it's valid for read,
+            // - `dev` is guaranteed to be valid while it's alive, and so is `dev.as_raw()`.
+            let raw_id = unsafe { bindings::of_match_device(table.as_ptr(), dev.as_raw()) };
+
+            if raw_id.is_null() {
+                None
+            } else {
+                // SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct of_device_id`
+                // and does not add additional invariants, so it's safe to transmute.
+                let id = unsafe { &*raw_id.cast::<of::DeviceId>() };
+
+                Some(
+                    table.info(<of::DeviceId as crate::device_id::RawDeviceIdIndex>::index(
+                        id,
+                    )),
+                )
+            }
+        }
     }
 
     /// Returns the driver's private data from the matching entry of any of the ID tables, if any.
@@ -178,6 +303,11 @@ pub trait Adapter {
     /// If this returns `None`, it means that there is no match in any of the ID tables directly
     /// associated with a [`device::Device`].
     fn id_info(dev: &device::Device) -> Option<&'static Self::IdInfo> {
+        let id = Self::acpi_id_info(dev);
+        if id.is_some() {
+            return id;
+        }
+
         let id = Self::of_id_info(dev);
         if id.is_some() {
             return id;

@@ -8,13 +8,13 @@
 #include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_color_mgmt.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fbdev_shmem.h>
-#include <drm/drm_format_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -644,36 +644,36 @@ static void ofdrm_qemu_cmap_write(struct ofdrm_device *odev, unsigned char index
 	writeb(b, data);
 }
 
-static void ofdrm_device_set_gamma_linear(struct ofdrm_device *odev,
-					  const struct drm_format_info *format)
+static void ofdrm_set_gamma_lut(struct drm_crtc *crtc, unsigned int index,
+				u16 red, u16 green, u16 blue)
+{
+	struct drm_device *dev = crtc->dev;
+	struct ofdrm_device *odev = ofdrm_device_of_dev(dev);
+	u8 i8 = index & 0xff;
+	u8 r8 = red >> 8;
+	u8 g8 = green >> 8;
+	u8 b8 = blue >> 8;
+
+	if (drm_WARN_ON_ONCE(dev, index != i8))
+		return; /* driver bug */
+
+	odev->funcs->cmap_write(odev, i8, r8, g8, b8);
+}
+
+static void ofdrm_device_fill_gamma(struct ofdrm_device *odev,
+				    const struct drm_format_info *format)
 {
 	struct drm_device *dev = &odev->sysfb.dev;
-	int i;
+	struct drm_crtc *crtc = &odev->crtc;
 
 	switch (format->format) {
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_RGB565 | DRM_FORMAT_BIG_ENDIAN:
-		/* Use better interpolation, to take 32 values from 0 to 255 */
-		for (i = 0; i < OFDRM_GAMMA_LUT_SIZE / 8; i++) {
-			unsigned char r = i * 8 + i / 4;
-			unsigned char g = i * 4 + i / 16;
-			unsigned char b = i * 8 + i / 4;
-
-			odev->funcs->cmap_write(odev, i, r, g, b);
-		}
-		/* Green has one more bit, so add padding with 0 for red and blue. */
-		for (i = OFDRM_GAMMA_LUT_SIZE / 8; i < OFDRM_GAMMA_LUT_SIZE / 4; i++) {
-			unsigned char r = 0;
-			unsigned char g = i * 4 + i / 16;
-			unsigned char b = 0;
-
-			odev->funcs->cmap_write(odev, i, r, g, b);
-		}
+		drm_crtc_fill_gamma_565(crtc, ofdrm_set_gamma_lut);
 		break;
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_BGRX8888:
-		for (i = 0; i < OFDRM_GAMMA_LUT_SIZE; i++)
-			odev->funcs->cmap_write(odev, i, i, i, i);
+		drm_crtc_fill_gamma_888(crtc, ofdrm_set_gamma_lut);
 		break;
 	default:
 		drm_warn_once(dev, "Unsupported format %p4cc for gamma correction\n",
@@ -682,42 +682,21 @@ static void ofdrm_device_set_gamma_linear(struct ofdrm_device *odev,
 	}
 }
 
-static void ofdrm_device_set_gamma(struct ofdrm_device *odev,
-				   const struct drm_format_info *format,
-				   struct drm_color_lut *lut)
+static void ofdrm_device_load_gamma(struct ofdrm_device *odev,
+				    const struct drm_format_info *format,
+				    struct drm_color_lut *lut)
 {
 	struct drm_device *dev = &odev->sysfb.dev;
-	int i;
+	struct drm_crtc *crtc = &odev->crtc;
 
 	switch (format->format) {
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_RGB565 | DRM_FORMAT_BIG_ENDIAN:
-		/* Use better interpolation, to take 32 values from lut[0] to lut[255] */
-		for (i = 0; i < OFDRM_GAMMA_LUT_SIZE / 8; i++) {
-			unsigned char r = lut[i * 8 + i / 4].red >> 8;
-			unsigned char g = lut[i * 4 + i / 16].green >> 8;
-			unsigned char b = lut[i * 8 + i / 4].blue >> 8;
-
-			odev->funcs->cmap_write(odev, i, r, g, b);
-		}
-		/* Green has one more bit, so add padding with 0 for red and blue. */
-		for (i = OFDRM_GAMMA_LUT_SIZE / 8; i < OFDRM_GAMMA_LUT_SIZE / 4; i++) {
-			unsigned char r = 0;
-			unsigned char g = lut[i * 4 + i / 16].green >> 8;
-			unsigned char b = 0;
-
-			odev->funcs->cmap_write(odev, i, r, g, b);
-		}
+		drm_crtc_load_gamma_565_from_888(crtc, lut, ofdrm_set_gamma_lut);
 		break;
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_BGRX8888:
-		for (i = 0; i < OFDRM_GAMMA_LUT_SIZE; i++) {
-			unsigned char r = lut[i].red >> 8;
-			unsigned char g = lut[i].green >> 8;
-			unsigned char b = lut[i].blue >> 8;
-
-			odev->funcs->cmap_write(odev, i, r, g, b);
-		}
+		drm_crtc_load_gamma_888(crtc, lut, ofdrm_set_gamma_lut);
 		break;
 	default:
 		drm_warn_once(dev, "Unsupported format %p4cc for gamma correction\n",
@@ -753,9 +732,9 @@ static void ofdrm_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_ato
 		const struct drm_format_info *format = sysfb_crtc_state->format;
 
 		if (crtc_state->gamma_lut)
-			ofdrm_device_set_gamma(odev, format, crtc_state->gamma_lut->data);
+			ofdrm_device_load_gamma(odev, format, crtc_state->gamma_lut->data);
 		else
-			ofdrm_device_set_gamma_linear(odev, format);
+			ofdrm_device_fill_gamma(odev, format);
 	}
 }
 
@@ -1035,8 +1014,8 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 
 	/* Primary plane */
 
-	nformats = drm_fb_build_fourcc_list(dev, &format->format, 1,
-					    odev->formats, ARRAY_SIZE(odev->formats));
+	nformats = drm_sysfb_build_fourcc_list(dev, &format->format, 1,
+					       odev->formats, ARRAY_SIZE(odev->formats));
 
 	primary_plane = &odev->primary_plane;
 	ret = drm_universal_plane_init(dev, primary_plane, 0, &ofdrm_primary_plane_funcs,

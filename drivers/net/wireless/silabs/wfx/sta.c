@@ -220,7 +220,7 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return 0;
 }
 
-int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+int wfx_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx, u32 value)
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = NULL;
@@ -706,7 +706,7 @@ void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif
 	wvif->channel = NULL;
 }
 
-int wfx_config(struct ieee80211_hw *hw, u32 changed)
+int wfx_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	return 0;
 }

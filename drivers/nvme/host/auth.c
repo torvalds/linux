@@ -742,7 +742,7 @@ static int nvme_auth_secure_concat(struct nvme_ctrl *ctrl,
 			 "%s: qid %d failed to generate digest, error %d\n",
 			 __func__, chap->qid, ret);
 		goto out_free_psk;
-	};
+	}
 	dev_dbg(ctrl->device, "%s: generated digest %s\n",
 		 __func__, digest);
 	ret = nvme_auth_derive_tls_psk(chap->hash_id, psk, psk_len,
@@ -752,7 +752,7 @@ static int nvme_auth_secure_concat(struct nvme_ctrl *ctrl,
 			 "%s: qid %d failed to derive TLS psk, error %d\n",
 			 __func__, chap->qid, ret);
 		goto out_free_digest;
-	};
+	}
 
 	tls_key = nvme_tls_psk_refresh(ctrl->opts->keyring,
 				       ctrl->opts->host->nqn,

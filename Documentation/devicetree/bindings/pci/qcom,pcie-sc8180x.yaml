@@ -33,8 +33,8 @@ properties:
       - const: mhi # MHI registers
 
   clocks:
-    minItems: 8
-    maxItems: 8
+    minItems: 6
+    maxItems: 6
 
   clock-names:
     items:
@@ -44,8 +44,6 @@ properties:
       - const: bus_master # Master AXI clock
       - const: bus_slave # Slave AXI clock
       - const: slave_q2a # Slave Q2A clock
-      - const: ref # REFERENCE clock
-      - const: tbu # PCIe TBU clock
 
   interrupts:
     minItems: 8
@@ -117,17 +115,13 @@ examples:
                      <&gcc GCC_PCIE_0_CFG_AHB_CLK>,
                      <&gcc GCC_PCIE_0_MSTR_AXI_CLK>,
                      <&gcc GCC_PCIE_0_SLV_AXI_CLK>,
-                     <&gcc GCC_PCIE_0_SLV_Q2A_AXI_CLK>,
-                     <&gcc GCC_PCIE_0_CLKREF_CLK>,
-                     <&gcc GCC_AGGRE_NOC_PCIE_TBU_CLK>;
+                     <&gcc GCC_PCIE_0_SLV_Q2A_AXI_CLK>;
             clock-names = "pipe",
                           "aux",
                           "cfg",
                           "bus_master",
                           "bus_slave",
-                          "slave_q2a",
-                          "ref",
-                          "tbu";
+                          "slave_q2a";
 
             dma-coherent;
 

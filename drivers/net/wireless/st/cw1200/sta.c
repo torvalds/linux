@@ -321,7 +321,7 @@ int cw1200_change_interface(struct ieee80211_hw *dev,
 	return ret;
 }
 
-int cw1200_config(struct ieee80211_hw *dev, u32 changed)
+int cw1200_config(struct ieee80211_hw *dev, int radio_idx, u32 changed)
 {
 	int ret = 0;
 	struct cw1200_common *priv = dev->priv;
@@ -857,7 +857,8 @@ void cw1200_wep_key_work(struct work_struct *work)
 	wsm_unlock_tx(priv);
 }
 
-int cw1200_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+int cw1200_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+			     u32 value)
 {
 	int ret = 0;
 	__le32 val32;
@@ -1290,7 +1291,7 @@ static void cw1200_do_join(struct cw1200_common *priv)
 		rcu_read_lock();
 		ssidie = ieee80211_bss_get_ie(bss, WLAN_EID_SSID);
 		if (ssidie) {
-			join.ssid_len = ssidie[1];
+			join.ssid_len = min(ssidie[1], IEEE80211_MAX_SSID_LEN);
 			memcpy(join.ssid, &ssidie[2], join.ssid_len);
 		}
 		rcu_read_unlock();

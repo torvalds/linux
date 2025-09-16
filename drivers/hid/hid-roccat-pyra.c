@@ -154,8 +154,8 @@ PYRA_SYSFS_RW(thingy, THINGY); \
 static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = PYRA_SIZE_ ## THINGY, \
-	.read_new = pyra_sysfs_read_ ## thingy, \
-	.write_new = pyra_sysfs_write_ ## thingy \
+	.read = pyra_sysfs_read_ ## thingy, \
+	.write = pyra_sysfs_write_ ## thingy \
 }
 
 #define PYRA_BIN_ATTRIBUTE_R(thingy, THINGY) \
@@ -163,7 +163,7 @@ PYRA_SYSFS_R(thingy, THINGY); \
 static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0440 }, \
 	.size_new = PYRA_SIZE_ ## THINGY, \
-	.read_new = pyra_sysfs_read_ ## thingy, \
+	.read = pyra_sysfs_read_ ## thingy, \
 }
 
 #define PYRA_BIN_ATTRIBUTE_W(thingy, THINGY) \
@@ -171,7 +171,7 @@ PYRA_SYSFS_W(thingy, THINGY); \
 static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0220 }, \
 	.size = PYRA_SIZE_ ## THINGY, \
-	.write_new = pyra_sysfs_write_ ## thingy \
+	.write = pyra_sysfs_write_ ## thingy \
 }
 
 PYRA_BIN_ATTRIBUTE_W(control, CONTROL);
@@ -219,13 +219,13 @@ static ssize_t pyra_sysfs_read_profilex_buttons(struct file *fp,
 static const struct bin_attribute bin_attr_profile##number##_settings = {	\
 	.attr = { .name = "profile" #number "_settings", .mode = 0440 },	\
 	.size = PYRA_SIZE_PROFILE_SETTINGS,				\
-	.read_new = pyra_sysfs_read_profilex_settings,			\
+	.read = pyra_sysfs_read_profilex_settings,			\
 	.private = &profile_numbers[number-1],				\
 };									\
 static const struct bin_attribute bin_attr_profile##number##_buttons = {	\
 	.attr = { .name = "profile" #number "_buttons", .mode = 0440 },	\
 	.size = PYRA_SIZE_PROFILE_BUTTONS,				\
-	.read_new = pyra_sysfs_read_profilex_buttons,			\
+	.read = pyra_sysfs_read_profilex_buttons,			\
 	.private = &profile_numbers[number-1],				\
 };
 PROFILE_ATTR(1);
@@ -355,7 +355,7 @@ static const struct bin_attribute *const pyra_bin_attributes[] = {
 
 static const struct attribute_group pyra_group = {
 	.attrs = pyra_attrs,
-	.bin_attrs_new = pyra_bin_attributes,
+	.bin_attrs = pyra_bin_attributes,
 };
 
 static const struct attribute_group *pyra_groups[] = {

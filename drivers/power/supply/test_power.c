@@ -259,6 +259,7 @@ static const struct power_supply_config test_power_configs[] = {
 static int test_power_battery_extmanufacture_year = 1234;
 static int test_power_battery_exttemp_max = 1000;
 static const enum power_supply_property test_power_battery_extprops[] = {
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
 	POWER_SUPPLY_PROP_MANUFACTURE_YEAR,
 	POWER_SUPPLY_PROP_TEMP_MAX,
 };
@@ -270,6 +271,9 @@ static int test_power_battery_extget_property(struct power_supply *psy,
 					      union power_supply_propval *val)
 {
 	switch (psp) {
+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
+		return power_supply_get_property_direct(psy, POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
+							val);
 	case POWER_SUPPLY_PROP_MANUFACTURE_YEAR:
 		val->intval = test_power_battery_extmanufacture_year;
 		break;

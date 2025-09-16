@@ -25,6 +25,7 @@
 #include <linux/sizes.h>
 #include <linux/compat.h>
 #include <linux/fsnotify.h>
+#include <linux/page_idle.h>
 
 #include <linux/uaccess.h>
 
@@ -670,9 +671,9 @@ struct anon_vma *folio_anon_vma(const struct folio *folio)
 {
 	unsigned long mapping = (unsigned long)folio->mapping;
 
-	if ((mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
+	if ((mapping & FOLIO_MAPPING_FLAGS) != FOLIO_MAPPING_ANON)
 		return NULL;
-	return (void *)(mapping - PAGE_MAPPING_ANON);
+	return (void *)(mapping - FOLIO_MAPPING_ANON);
 }
 
 /**
@@ -699,7 +700,7 @@ struct address_space *folio_mapping(struct folio *folio)
 		return swap_address_space(folio->swap);
 
 	mapping = folio->mapping;
-	if ((unsigned long)mapping & PAGE_MAPPING_FLAGS)
+	if ((unsigned long)mapping & FOLIO_MAPPING_FLAGS)
 		return NULL;
 
 	return mapping;
@@ -1171,3 +1172,112 @@ int compat_vma_mmap_prepare(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 EXPORT_SYMBOL(compat_vma_mmap_prepare);
+
+static void set_ps_flags(struct page_snapshot *ps, const struct folio *folio,
+			 const struct page *page)
+{
+	/*
+	 * Only the first page of a high-order buddy page has PageBuddy() set.
+	 * So we have to check manually whether this page is part of a high-
+	 * order buddy page.
+	 */
+	if (PageBuddy(page))
+		ps->flags |= PAGE_SNAPSHOT_PG_BUDDY;
+	else if (page_count(page) == 0 && is_free_buddy_page(page))
+		ps->flags |= PAGE_SNAPSHOT_PG_BUDDY;
+
+	if (folio_test_idle(folio))
+		ps->flags |= PAGE_SNAPSHOT_PG_IDLE;
+}
+
+/**
+ * snapshot_page() - Create a snapshot of a struct page
+ * @ps: Pointer to a struct page_snapshot to store the page snapshot
+ * @page: The page to snapshot
+ *
+ * Create a snapshot of the page and store both its struct page and struct
+ * folio representations in @ps.
+ *
+ * A snapshot is marked as "faithful" if the compound state of @page was
+ * stable and allowed safe reconstruction of the folio representation. In
+ * rare cases where this is not possible (e.g. due to folio splitting),
+ * snapshot_page() falls back to treating @page as a single page and the
+ * snapshot is marked as "unfaithful". The snapshot_page_is_faithful()
+ * helper can be used to check for this condition.
+ */
+void snapshot_page(struct page_snapshot *ps, const struct page *page)
+{
+	unsigned long head, nr_pages = 1;
+	struct folio *foliop;
+	int loops = 5;
+
+	ps->pfn = page_to_pfn(page);
+	ps->flags = PAGE_SNAPSHOT_FAITHFUL;
+
+again:
+	memset(&ps->folio_snapshot, 0, sizeof(struct folio));
+	memcpy(&ps->page_snapshot, page, sizeof(*page));
+	head = ps->page_snapshot.compound_head;
+	if ((head & 1) == 0) {
+		ps->idx = 0;
+		foliop = (struct folio *)&ps->page_snapshot;
+		if (!folio_test_large(foliop)) {
+			set_ps_flags(ps, page_folio(page), page);
+			memcpy(&ps->folio_snapshot, foliop,
+			       sizeof(struct page));
+			return;
+		}
+		foliop = (struct folio *)page;
+	} else {
+		foliop = (struct folio *)(head - 1);
+		ps->idx = folio_page_idx(foliop, page);
+	}
+
+	if (ps->idx < MAX_FOLIO_NR_PAGES) {
+		memcpy(&ps->folio_snapshot, foliop, 2 * sizeof(struct page));
+		nr_pages = folio_nr_pages(&ps->folio_snapshot);
+		if (nr_pages > 1)
+			memcpy(&ps->folio_snapshot.__page_2, &foliop->__page_2,
+			       sizeof(struct page));
+		set_ps_flags(ps, foliop, page);
+	}
+
+	if (ps->idx > nr_pages) {
+		if (loops-- > 0)
+			goto again;
+		clear_compound_head(&ps->page_snapshot);
+		foliop = (struct folio *)&ps->page_snapshot;
+		memcpy(&ps->folio_snapshot, foliop, sizeof(struct page));
+		ps->flags = 0;
+		ps->idx = 0;
+	}
+}
+
+#ifdef CONFIG_MMU
+/**
+ * folio_pte_batch - detect a PTE batch for a large folio
+ * @folio: The large folio to detect a PTE batch for.
+ * @ptep: Page table pointer for the first entry.
+ * @pte: Page table entry for the first page.
+ * @max_nr: The maximum number of table entries to consider.
+ *
+ * This is a simplified variant of folio_pte_batch_flags().
+ *
+ * Detect a PTE batch: consecutive (present) PTEs that map consecutive
+ * pages of the same large folio in a single VMA and a single page table.
+ *
+ * All PTEs inside a PTE batch have the same PTE bits set, excluding the PFN,
+ * the accessed bit, writable bit, dirt-bit and soft-dirty bit.
+ *
+ * ptep must map any page of the folio. max_nr must be at least one and
+ * must be limited by the caller so scanning cannot exceed a single VMA and
+ * a single page table.
+ *
+ * Return: the number of table entries in the batch.
+ */
+unsigned int folio_pte_batch(struct folio *folio, pte_t *ptep, pte_t pte,
+		unsigned int max_nr)
+{
+	return folio_pte_batch_flags(folio, NULL, ptep, &pte, max_nr, 0);
+}
+#endif /* CONFIG_MMU */

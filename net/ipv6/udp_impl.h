@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _UDP6_IMPL_H
 #define _UDP6_IMPL_H
+#include <net/aligned_data.h>
 #include <net/udp.h>
 #include <net/udplite.h>
 #include <net/protocol.h>

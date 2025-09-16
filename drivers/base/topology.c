@@ -179,7 +179,7 @@ static umode_t topology_is_visible(struct kobject *kobj,
 
 static const struct attribute_group topology_attr_group = {
 	.attrs = default_attrs,
-	.bin_attrs_new = bin_attrs,
+	.bin_attrs = bin_attrs,
 	.is_visible = topology_is_visible,
 	.name = "topology"
 };

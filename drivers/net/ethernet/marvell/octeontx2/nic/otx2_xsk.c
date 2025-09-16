@@ -132,7 +132,7 @@ int otx2_xsk_pool_enable(struct otx2_nic *pf, struct xsk_buff_pool *pool, u16 qi
 	set_bit(qidx, pf->af_xdp_zc_qidx);
 	otx2_clean_up_rq(pf, qidx);
 	/* Reconfigure RSS table as 'qidx' cannot be part of RSS now */
-	otx2_set_rss_table(pf, DEFAULT_RSS_CONTEXT_GROUP);
+	otx2_set_rss_table(pf, DEFAULT_RSS_CONTEXT_GROUP, NULL);
 	/* Kick start the NAPI context so that receiving will start */
 	return otx2_xsk_wakeup(pf->netdev, qidx, XDP_WAKEUP_RX);
 }
@@ -153,7 +153,7 @@ int otx2_xsk_pool_disable(struct otx2_nic *pf, u16 qidx)
 	clear_bit(qidx, pf->af_xdp_zc_qidx);
 	xsk_pool_dma_unmap(pool, DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING);
 	/* Reconfigure RSS table as 'qidx' now need to be part of RSS now */
-	otx2_set_rss_table(pf, DEFAULT_RSS_CONTEXT_GROUP);
+	otx2_set_rss_table(pf, DEFAULT_RSS_CONTEXT_GROUP, NULL);
 
 	return 0;
 }

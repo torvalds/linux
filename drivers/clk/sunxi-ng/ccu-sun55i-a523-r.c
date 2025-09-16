@@ -204,6 +204,7 @@ static struct ccu_reset_map sun55i_a523_r_ccu_resets[] = {
 	[RST_BUS_R_IR_RX]	= { 0x1cc, BIT(16) },
 	[RST_BUS_R_RTC]		= { 0x20c, BIT(16) },
 	[RST_BUS_R_CPUCFG]	= { 0x22c, BIT(16) },
+	[RST_BUS_R_PPU0]	= { 0x1ac, BIT(16) },
 };
 
 static const struct sunxi_ccu_desc sun55i_a523_r_ccu_desc = {

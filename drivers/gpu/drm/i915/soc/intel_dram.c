@@ -5,12 +5,17 @@
 
 #include <linux/string_helpers.h>
 
+#include <drm/drm_managed.h>
+
+#include "../display/intel_display_core.h" /* FIXME */
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_dram.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
-#include "vlv_sideband.h"
+#include "intel_uncore.h"
+#include "vlv_iosf_sb.h"
 
 struct dram_dimm_info {
 	u16 size;
@@ -97,9 +102,9 @@ static unsigned int chv_mem_freq(struct drm_i915_private *i915)
 {
 	u32 val;
 
-	vlv_iosf_sb_get(i915, BIT(VLV_IOSF_SB_CCK));
-	val = vlv_cck_read(i915, CCK_FUSE_REG);
-	vlv_iosf_sb_put(i915, BIT(VLV_IOSF_SB_CCK));
+	vlv_iosf_sb_get(&i915->drm, BIT(VLV_IOSF_SB_CCK));
+	val = vlv_iosf_sb_read(&i915->drm, VLV_IOSF_SB_CCK, CCK_FUSE_REG);
+	vlv_iosf_sb_put(&i915->drm, BIT(VLV_IOSF_SB_CCK));
 
 	switch ((val >> 2) & 0x7) {
 	case 3:
@@ -113,9 +118,9 @@ static unsigned int vlv_mem_freq(struct drm_i915_private *i915)
 {
 	u32 val;
 
-	vlv_iosf_sb_get(i915, BIT(VLV_IOSF_SB_PUNIT));
-	val = vlv_punit_read(i915, PUNIT_REG_GPU_FREQ_STS);
-	vlv_iosf_sb_put(i915, BIT(VLV_IOSF_SB_PUNIT));
+	vlv_iosf_sb_get(&i915->drm, BIT(VLV_IOSF_SB_PUNIT));
+	val = vlv_iosf_sb_read(&i915->drm, VLV_IOSF_SB_PUNIT, PUNIT_REG_GPU_FREQ_STS);
+	vlv_iosf_sb_put(&i915->drm, BIT(VLV_IOSF_SB_PUNIT));
 
 	switch ((val >> 6) & 3) {
 	case 0:
@@ -381,9 +386,8 @@ intel_is_dram_symmetric(const struct dram_channel_info *ch0,
 }
 
 static int
-skl_dram_get_channels_info(struct drm_i915_private *i915)
+skl_dram_get_channels_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
-	struct dram_info *dram_info = &i915->dram_info;
 	struct dram_channel_info ch0 = {}, ch1 = {};
 	u32 val;
 	int ret;
@@ -444,14 +448,13 @@ skl_get_dram_type(struct drm_i915_private *i915)
 }
 
 static int
-skl_get_dram_info(struct drm_i915_private *i915)
+skl_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
-	struct dram_info *dram_info = &i915->dram_info;
 	int ret;
 
 	dram_info->type = skl_get_dram_type(i915);
 
-	ret = skl_dram_get_channels_info(i915);
+	ret = skl_dram_get_channels_info(i915, dram_info);
 	if (ret)
 		return ret;
 
@@ -536,9 +539,8 @@ static void bxt_get_dimm_info(struct dram_dimm_info *dimm, u32 val)
 	dimm->size = bxt_get_dimm_size(val) * intel_dimm_num_devices(dimm);
 }
 
-static int bxt_get_dram_info(struct drm_i915_private *i915)
+static int bxt_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
-	struct dram_info *dram_info = &i915->dram_info;
 	u32 val;
 	u8 valid_ranks = 0;
 	int i;
@@ -583,14 +585,14 @@ static int bxt_get_dram_info(struct drm_i915_private *i915)
 	return 0;
 }
 
-static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv)
+static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv,
+					  struct dram_info *dram_info)
 {
-	struct dram_info *dram_info = &dev_priv->dram_info;
 	u32 val = 0;
 	int ret;
 
-	ret = snb_pcode_read(&dev_priv->uncore, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-			     ICL_PCODE_MEM_SS_READ_GLOBAL_INFO, &val, NULL);
+	ret = intel_pcode_read(&dev_priv->drm, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+			       ICL_PCODE_MEM_SS_READ_GLOBAL_INFO, &val, NULL);
 	if (ret)
 		return ret;
 
@@ -645,27 +647,26 @@ static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-static int gen11_get_dram_info(struct drm_i915_private *i915)
+static int gen11_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
-	int ret = skl_get_dram_info(i915);
+	int ret = skl_get_dram_info(i915, dram_info);
 
 	if (ret)
 		return ret;
 
-	return icl_pcode_read_mem_global_info(i915);
+	return icl_pcode_read_mem_global_info(i915, dram_info);
 }
 
-static int gen12_get_dram_info(struct drm_i915_private *i915)
+static int gen12_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
-	i915->dram_info.wm_lv_0_adjust_needed = false;
+	dram_info->wm_lv_0_adjust_needed = false;
 
-	return icl_pcode_read_mem_global_info(i915);
+	return icl_pcode_read_mem_global_info(i915, dram_info);
 }
 
-static int xelpdp_get_dram_info(struct drm_i915_private *i915)
+static int xelpdp_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
 	u32 val = intel_uncore_read(&i915->uncore, MTL_MEM_SS_INFO_GLOBAL);
-	struct dram_info *dram_info = &i915->dram_info;
 
 	switch (REG_FIELD_GET(MTL_DDR_TYPE_MASK, val)) {
 	case 0:
@@ -706,16 +707,22 @@ static int xelpdp_get_dram_info(struct drm_i915_private *i915)
 	return 0;
 }
 
-void intel_dram_detect(struct drm_i915_private *i915)
+int intel_dram_detect(struct drm_i915_private *i915)
 {
-	struct dram_info *dram_info = &i915->dram_info;
+	struct dram_info *dram_info;
 	int ret;
 
 	detect_fsb_freq(i915);
 	detect_mem_freq(i915);
 
 	if (GRAPHICS_VER(i915) < 9 || IS_DG2(i915) || !HAS_DISPLAY(i915))
-		return;
+		return 0;
+
+	dram_info = drmm_kzalloc(&i915->drm, sizeof(*dram_info), GFP_KERNEL);
+	if (!dram_info)
+		return -ENOMEM;
+
+	i915->dram_info = dram_info;
 
 	/*
 	 * Assume level 0 watermark latency adjustment is needed until proven
@@ -724,21 +731,22 @@ void intel_dram_detect(struct drm_i915_private *i915)
 	dram_info->wm_lv_0_adjust_needed = !IS_BROXTON(i915) && !IS_GEMINILAKE(i915);
 
 	if (DISPLAY_VER(i915) >= 14)
-		ret = xelpdp_get_dram_info(i915);
+		ret = xelpdp_get_dram_info(i915, dram_info);
 	else if (GRAPHICS_VER(i915) >= 12)
-		ret = gen12_get_dram_info(i915);
+		ret = gen12_get_dram_info(i915, dram_info);
 	else if (GRAPHICS_VER(i915) >= 11)
-		ret = gen11_get_dram_info(i915);
+		ret = gen11_get_dram_info(i915, dram_info);
 	else if (IS_BROXTON(i915) || IS_GEMINILAKE(i915))
-		ret = bxt_get_dram_info(i915);
+		ret = bxt_get_dram_info(i915, dram_info);
 	else
-		ret = skl_get_dram_info(i915);
+		ret = skl_get_dram_info(i915, dram_info);
 
 	drm_dbg_kms(&i915->drm, "DRAM type: %s\n",
 		    intel_dram_type_str(dram_info->type));
 
+	/* TODO: Do we want to abort probe on dram detection failures? */
 	if (ret)
-		return;
+		return 0;
 
 	drm_dbg_kms(&i915->drm, "Num qgv points %u\n", dram_info->num_qgv_points);
 
@@ -746,6 +754,20 @@ void intel_dram_detect(struct drm_i915_private *i915)
 
 	drm_dbg_kms(&i915->drm, "Watermark level 0 adjustment needed: %s\n",
 		    str_yes_no(dram_info->wm_lv_0_adjust_needed));
+
+	return 0;
+}
+
+/*
+ * Returns NULL for platforms that don't have dram info. Avoid overzealous NULL
+ * checks, and prefer not dereferencing on platforms that shouldn't look at dram
+ * info, to catch accidental and incorrect dram info checks.
+ */
+const struct dram_info *intel_dram_info(struct drm_device *drm)
+{
+	struct drm_i915_private *i915 = to_i915(drm);
+
+	return i915->dram_info;
 }
 
 static u32 gen9_edram_size_mb(struct drm_i915_private *i915, u32 cap)

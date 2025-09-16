@@ -510,7 +510,7 @@ int mei_hbm_cl_notify_req(struct mei_device *dev,
 
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret)
-		dev_err(dev->dev, "notify request failed: ret = %d\n", ret);
+		cl_err(dev, cl, "notify request failed: ret = %d\n", ret);
 
 	return ret;
 }
@@ -626,7 +626,7 @@ int mei_hbm_cl_dma_map_req(struct mei_device *dev, struct mei_cl *cl)
 
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret)
-		dev_err(dev->dev, "dma map request failed: ret = %d\n", ret);
+		cl_err(dev, cl, "dma map request failed: ret = %d\n", ret);
 
 	return ret;
 }
@@ -654,7 +654,7 @@ int mei_hbm_cl_dma_unmap_req(struct mei_device *dev, struct mei_cl *cl)
 
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret)
-		dev_err(dev->dev, "dma unmap request failed: ret = %d\n", ret);
+		cl_err(dev, cl, "dma unmap request failed: ret = %d\n", ret);
 
 	return ret;
 }
@@ -679,10 +679,10 @@ static void mei_hbm_cl_dma_map_res(struct mei_device *dev,
 		return;
 
 	if (res->status) {
-		dev_err(dev->dev, "cl dma map failed %d\n", res->status);
+		cl_err(dev, cl, "cl dma map failed %d\n", res->status);
 		cl->status = -EFAULT;
 	} else {
-		dev_dbg(dev->dev, "cl dma map succeeded\n");
+		cl_dbg(dev, cl, "cl dma map succeeded\n");
 		cl->dma_mapped = 1;
 		cl->status = 0;
 	}
@@ -709,10 +709,10 @@ static void mei_hbm_cl_dma_unmap_res(struct mei_device *dev,
 		return;
 
 	if (res->status) {
-		dev_err(dev->dev, "cl dma unmap failed %d\n", res->status);
+		cl_err(dev, cl, "cl dma unmap failed %d\n", res->status);
 		cl->status = -EFAULT;
 	} else {
-		dev_dbg(dev->dev, "cl dma unmap succeeded\n");
+		cl_dbg(dev, cl, "cl dma unmap succeeded\n");
 		cl->dma_mapped = 0;
 		cl->status = 0;
 	}

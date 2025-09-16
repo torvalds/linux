@@ -105,10 +105,13 @@ struct dcn401_clk_mgr {
 };
 
 void dcn401_init_clocks(struct clk_mgr *clk_mgr_base);
+bool dcn401_is_dc_mode_present(struct clk_mgr *clk_mgr_base);
 
 struct clk_mgr_internal *dcn401_clk_mgr_construct(struct dc_context *ctx,
 		struct dccg *dccg);
 
 void dcn401_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr);
+
+unsigned int dcn401_get_max_clock_khz(struct clk_mgr *clk_mgr_base, enum clk_type clk_type);
 
 #endif /* __DCN401_CLK_MGR_H_ */

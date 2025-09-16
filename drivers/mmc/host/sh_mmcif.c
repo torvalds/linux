@@ -1444,13 +1444,13 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
-	mmc = mmc_alloc_host(sizeof(struct sh_mmcif_host), dev);
+	mmc = devm_mmc_alloc_host(dev, sizeof(*host));
 	if (!mmc)
 		return -ENOMEM;
 
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
-		goto err_host;
+		return ret;
 
 	host		= mmc_priv(mmc);
 	host->mmc	= mmc;
@@ -1481,15 +1481,13 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 
 	host->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(host->clk)) {
-		ret = PTR_ERR(host->clk);
-		dev_err(dev, "cannot get clock: %d\n", ret);
-		goto err_host;
-	}
+	if (IS_ERR(host->clk))
+		return dev_err_probe(dev, PTR_ERR(host->clk),
+				     "cannot get clock\n");
 
 	ret = clk_prepare_enable(host->clk);
 	if (ret < 0)
-		goto err_host;
+		return ret;
 
 	sh_mmcif_clk_setup(host);
 
@@ -1542,8 +1540,6 @@ err_clk:
 	clk_disable_unprepare(host->clk);
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-err_host:
-	mmc_free_host(mmc);
 	return ret;
 }
 
@@ -1568,7 +1564,6 @@ static void sh_mmcif_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&host->timeout_work);
 
 	clk_disable_unprepare(host->clk);
-	mmc_free_host(host->mmc);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 }

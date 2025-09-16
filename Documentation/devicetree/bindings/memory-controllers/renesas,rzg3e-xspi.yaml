@@ -23,7 +23,14 @@ allOf:
 
 properties:
   compatible:
-    const: renesas,r9a09g047-xspi  # RZ/G3E
+    oneOf:
+      - const: renesas,r9a09g047-xspi  # RZ/G3E
+
+      - items:
+          - enum:
+              - renesas,r9a09g056-xspi  # RZ/V2N
+              - renesas,r9a09g057-xspi  # RZ/V2H(P)
+          - const: renesas,r9a09g047-xspi
 
   reg:
     items:

@@ -1501,13 +1501,7 @@ void gserial_suspend(struct gserial *gser)
 		spin_unlock_irqrestore(&serial_port_lock, flags);
 		if (!gserial_wakeup_host(gser))
 			return;
-
-		/* Check if port is valid after acquiring lock back */
 		spin_lock_irqsave(&serial_port_lock, flags);
-		if (!port) {
-			spin_unlock_irqrestore(&serial_port_lock, flags);
-			return;
-		}
 	}
 
 	spin_lock(&port->port_lock);

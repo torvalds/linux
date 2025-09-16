@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Check open filename arg using perf trace + vfs_getname (exclusive)
 
 # Uses the 'perf test shell' library to add probe:vfs_getname to the system

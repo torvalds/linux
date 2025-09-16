@@ -9,12 +9,13 @@
  */
 
 #include <crypto/internal/blake2s.h>
-#include <linux/types.h>
-#include <linux/string.h>
+#include <linux/bug.h>
+#include <linux/export.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/bug.h>
+#include <linux/string.h>
+#include <linux/types.h>
 
 static inline void blake2s_set_lastblock(struct blake2s_state *state)
 {

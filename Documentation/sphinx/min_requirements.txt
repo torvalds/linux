@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
+alabaster >=0.7,<0.8
+docutils>=0.15,<0.18
+jinja2>=2.3,<3.1
+PyYAML>=5.1,<6.1
+Sphinx==3.4.3
+sphinxcontrib-applehelp==1.0.2
+sphinxcontrib-devhelp==1.0.1
+sphinxcontrib-htmlhelp==1.0.3
+sphinxcontrib-qthelp==1.0.2
+sphinxcontrib-serializinghtml==1.1.4

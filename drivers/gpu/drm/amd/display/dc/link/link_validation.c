@@ -86,6 +86,10 @@ static bool dp_active_dongle_validate_timing(
 			if (!dongle_caps->is_dp_hdmi_ycbcr420_pass_through)
 				return false;
 			break;
+		case PIXEL_ENCODING_UNDEFINED:
+			/* These color depths are currently not supported */
+			ASSERT(false);
+			break;
 		default:
 			/* Invalid Pixel Encoding*/
 			return false;
@@ -103,6 +107,10 @@ static bool dp_active_dongle_validate_timing(
 		case COLOR_DEPTH_121212:
 			if (dongle_caps->dp_hdmi_max_bpc < 12)
 				return false;
+			break;
+		case COLOR_DEPTH_UNDEFINED:
+			/* These color depths are currently not supported */
+			ASSERT(false);
 			break;
 		case COLOR_DEPTH_141414:
 		case COLOR_DEPTH_161616:
@@ -255,6 +263,14 @@ uint32_t dp_link_bandwidth_kbps(
 	return link_rate_per_lane_kbps * link_settings->lane_count / 10000 * total_data_bw_efficiency_x10000;
 }
 
+static uint32_t dp_get_timing_bandwidth_kbps(
+	const struct dc_crtc_timing *timing,
+	const struct dc_link *link)
+{
+	return dc_bandwidth_in_kbps_from_timing(timing,
+			dc_link_get_highest_encoding_format(link));
+}
+
 static bool dp_validate_mode_timing(
 	struct dc_link *link,
 	const struct dc_crtc_timing *timing)
@@ -351,63 +367,81 @@ enum dc_status link_validate_mode_timing(
 	return DC_OK;
 }
 
-/*
- * This function calculates the bandwidth required for the stream timing
- * and aggregates the stream bandwidth for the respective dpia link
- *
- * @stream: pointer to the dc_stream_state struct instance
- * @num_streams: number of streams to be validated
- *
- * return: true if validation is succeeded
- */
-bool link_validate_dpia_bandwidth(const struct dc_stream_state *stream, const unsigned int num_streams)
+static const struct dc_tunnel_settings *get_dp_tunnel_settings(const struct dc_state *context,
+		const struct dc_stream_state *stream)
 {
-	int bw_needed[MAX_DPIA_NUM] = {0};
-	struct dc_link *dpia_link[MAX_DPIA_NUM] = {0};
-	int num_dpias = 0;
+	int i;
+	const struct dc_tunnel_settings *dp_tunnel_settings = NULL;
 
-	for (unsigned int i = 0; i < num_streams; ++i) {
-		if (stream[i].signal == SIGNAL_TYPE_DISPLAY_PORT) {
-			/* new dpia sst stream, check whether it exceeds max dpia */
-			if (num_dpias >= MAX_DPIA_NUM)
-				return false;
-
-			dpia_link[num_dpias] = stream[i].link;
-			bw_needed[num_dpias] = dc_bandwidth_in_kbps_from_timing(&stream[i].timing,
-					dc_link_get_highest_encoding_format(dpia_link[num_dpias]));
-			num_dpias++;
-		} else if (stream[i].signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-			uint8_t j = 0;
-			/* check whether its a known dpia link */
-			for (; j < num_dpias; ++j) {
-				if (dpia_link[j] == stream[i].link)
-					break;
-			}
-
-			if (j == num_dpias) {
-				/* new dpia mst stream, check whether it exceeds max dpia */
-				if (num_dpias >= MAX_DPIA_NUM)
-					return false;
-				else {
-					dpia_link[j] = stream[i].link;
-					num_dpias++;
-				}
-			}
-
-			bw_needed[j] += dc_bandwidth_in_kbps_from_timing(&stream[i].timing,
-				dc_link_get_highest_encoding_format(dpia_link[j]));
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (context->res_ctx.pipe_ctx[i].stream && (context->res_ctx.pipe_ctx[i].stream == stream)) {
+			dp_tunnel_settings = &context->res_ctx.pipe_ctx[i].link_config.dp_tunnel_settings;
+			break;
 		}
 	}
 
-	/* Include dp overheads */
-	for (uint8_t i = 0; i < num_dpias; ++i) {
-		int dp_overhead = 0;
+	return dp_tunnel_settings;
+}
 
-		dp_overhead = link_dp_dpia_get_dp_overhead_in_dp_tunneling(dpia_link[i]);
-		bw_needed[i] += dp_overhead;
+/*
+ * Calculates the DP tunneling bandwidth required for the stream timing
+ * and aggregates the stream bandwidth for the respective DP tunneling link
+ *
+ * return: dc_status
+ */
+enum dc_status link_validate_dp_tunnel_bandwidth(const struct dc *dc, const struct dc_state *new_ctx)
+{
+	struct dc_validation_dpia_set dpia_link_sets[MAX_DPIA_NUM] = { 0 };
+	uint8_t link_count = 0;
+	enum dc_status result = DC_OK;
+
+	// Iterate through streams in the new context
+	for (uint8_t i = 0; (i < MAX_PIPES && i < new_ctx->stream_count); i++) {
+		const struct dc_stream_state *stream = new_ctx->streams[i];
+		const struct dc_link *link;
+		const struct dc_tunnel_settings *dp_tunnel_settings;
+		uint32_t timing_bw;
+
+		if (stream == NULL)
+			continue;
+
+		link = stream->link;
+
+		if (!(link && (stream->signal == SIGNAL_TYPE_DISPLAY_PORT
+				|| stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
+				&& link->hpd_status))
+			continue;
+
+		dp_tunnel_settings = get_dp_tunnel_settings(new_ctx, stream);
+
+		if ((dp_tunnel_settings == NULL) || (dp_tunnel_settings->should_use_dp_bw_allocation == false))
+			continue;
+
+		timing_bw = dp_get_timing_bandwidth_kbps(&stream->timing, link);
+
+		// Find an existing entry for this 'link' in 'dpia_link_sets'
+		for (uint8_t j = 0; j < MAX_DPIA_NUM; j++) {
+			bool is_new_slot = false;
+
+			if (dpia_link_sets[j].link == NULL) {
+				is_new_slot = true;
+				link_count++;
+				dpia_link_sets[j].required_bw = 0;
+				dpia_link_sets[j].link = link;
+			}
+
+			if (is_new_slot || (dpia_link_sets[j].link == link)) {
+				dpia_link_sets[j].tunnel_settings = dp_tunnel_settings;
+				dpia_link_sets[j].required_bw += timing_bw;
+				break;
+			}
+		}
 	}
 
-	return dpia_validate_usb4_bw(dpia_link, bw_needed, num_dpias);
+	if (link_count && link_dpia_validate_dp_tunnel_bandwidth(dpia_link_sets, link_count) == false)
+		result = DC_FAIL_DP_TUNNEL_BW_VALIDATE;
+
+	return result;
 }
 
 struct dp_audio_layout_config {

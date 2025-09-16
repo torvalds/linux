@@ -70,14 +70,13 @@ void __net_devmem_dmabuf_binding_free(struct work_struct *wq)
 		gen_pool_destroy(binding->chunk_pool);
 
 	dma_buf_unmap_attachment_unlocked(binding->attachment, binding->sgt,
-					  DMA_FROM_DEVICE);
+					  binding->direction);
 	dma_buf_detach(binding->dmabuf, binding->attachment);
 	dma_buf_put(binding->dmabuf);
 	xa_destroy(&binding->bound_rxqs);
 	kvfree(binding->tx_vec);
 	kfree(binding);
 }
-EXPORT_SYMBOL(__net_devmem_dmabuf_binding_free);
 
 struct net_iov *
 net_devmem_alloc_dmabuf(struct net_devmem_dmabuf_binding *binding)
@@ -208,6 +207,7 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 	mutex_init(&binding->lock);
 
 	binding->dmabuf = dmabuf;
+	binding->direction = direction;
 
 	binding->attachment = dma_buf_attach(binding->dmabuf, dev->dev.parent);
 	if (IS_ERR(binding->attachment)) {
@@ -312,7 +312,7 @@ err_tx_vec:
 	kvfree(binding->tx_vec);
 err_unmap:
 	dma_buf_unmap_attachment_unlocked(binding->attachment, binding->sgt,
-					  DMA_FROM_DEVICE);
+					  direction);
 err_detach:
 	dma_buf_detach(dmabuf, binding->attachment);
 err_free_binding:

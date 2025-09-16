@@ -199,7 +199,7 @@ int main(int argc, char *argv[])
 
 	/*
 	 * Dump signal from the process-wide queue.
-	 * The number of signals is not multible to the buffer size
+	 * The number of signals is not multiple to the buffer size
 	 */
 	if (check_direct_path(child, 1, 3))
 		goto out;

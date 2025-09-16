@@ -97,9 +97,6 @@ config ARCH_TEGRA_186_SOC
 	bool "NVIDIA Tegra186 SoC"
 	depends on !CPU_BIG_ENDIAN
 	select MAILBOX
-	select TEGRA_BPMP
-	select TEGRA_HSP_MBOX
-	select TEGRA_IVC
 	select SOC_TEGRA_PMC
 	help
 	  Enable support for the NVIDIA Tegar186 SoC. The Tegra186 features a
@@ -114,9 +111,6 @@ config ARCH_TEGRA_194_SOC
 	depends on !CPU_BIG_ENDIAN
 	select MAILBOX
 	select PINCTRL_TEGRA194
-	select TEGRA_BPMP
-	select TEGRA_HSP_MBOX
-	select TEGRA_IVC
 	select SOC_TEGRA_PMC
 	help
 	  Enable support for the NVIDIA Tegra194 SoC.
@@ -126,9 +120,6 @@ config ARCH_TEGRA_234_SOC
 	depends on !CPU_BIG_ENDIAN
 	select MAILBOX
 	select PINCTRL_TEGRA234
-	select TEGRA_BPMP
-	select TEGRA_HSP_MBOX
-	select TEGRA_IVC
 	select SOC_TEGRA_PMC
 	help
 	  Enable support for the NVIDIA Tegra234 SoC.
@@ -137,6 +128,14 @@ config ARCH_TEGRA_241_SOC
 	bool "NVIDIA Tegra241 SoC"
 	help
 	  Enable support for the NVIDIA Tegra241 SoC.
+
+config ARCH_TEGRA_264_SOC
+	bool "NVIDIA Tegra264 SoC"
+	depends on !CPU_BIG_ENDIAN
+	select MAILBOX
+	select SOC_TEGRA_PMC
+	help
+	  Enable support for the NVIDIA Tegra264 SoC.
 
 endif
 endif

@@ -334,6 +334,19 @@ struct vop2 {
 	/* optional internal rgb encoder */
 	struct rockchip_rgb *rgb;
 
+	/*
+	 * Used to record layer selection configuration on rk356x/rk3588
+	 * as register RK3568_OVL_LAYER_SEL and RK3568_OVL_PORT_SEL are
+	 * shared for all the Video Ports.
+	 */
+	u32 old_layer_sel;
+	u32 old_port_sel;
+	/*
+	 * Ensure that the updates to these two registers(RKK3568_OVL_LAYER_SEL/RK3568_OVL_PORT_SEL)
+	 * take effect in sequence.
+	 */
+	struct mutex ovl_lock;
+
 	/* must be put at the end of the struct */
 	struct vop2_win win[];
 };
@@ -727,6 +740,7 @@ enum dst_factor_mode {
 #define RK3588_OVL_PORT_SEL__CLUSTER2			GENMASK(21, 20)
 #define RK3568_OVL_PORT_SEL__CLUSTER1			GENMASK(19, 18)
 #define RK3568_OVL_PORT_SEL__CLUSTER0			GENMASK(17, 16)
+#define RK3588_OVL_PORT_SET__PORT3_MUX			GENMASK(15, 12)
 #define RK3568_OVL_PORT_SET__PORT2_MUX			GENMASK(11, 8)
 #define RK3568_OVL_PORT_SET__PORT1_MUX			GENMASK(7, 4)
 #define RK3568_OVL_PORT_SET__PORT0_MUX			GENMASK(3, 0)
@@ -829,6 +843,25 @@ static inline struct vop2_video_port *to_vop2_video_port(struct drm_crtc *crtc)
 static inline struct vop2_win *to_vop2_win(struct drm_plane *p)
 {
 	return container_of(p, struct vop2_win, base);
+}
+
+/*
+ * Note:
+ * The write mask function is documented but missing on rk3566/8, writes
+ * to these bits have no effect. For newer soc(rk3588 and following) the
+ * write mask is needed for register writes.
+ *
+ * GLB_CFG_DONE_EN has no write mask bit.
+ *
+ */
+static inline void vop2_cfg_done(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	u32 val = RK3568_REG_CFG_DONE__GLB_CFG_DONE_EN;
+
+	val |= BIT(vp->id) | (BIT(vp->id) << 16);
+
+	regmap_set_bits(vop2->map, RK3568_REG_CFG_DONE, val);
 }
 
 #endif /* _ROCKCHIP_DRM_VOP2_H */

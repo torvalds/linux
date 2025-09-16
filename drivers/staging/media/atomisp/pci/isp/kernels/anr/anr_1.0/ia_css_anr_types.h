@@ -11,9 +11,11 @@
  * CSS-API header file for Advanced Noise Reduction kernel v1
  */
 
+#include <linux/math.h>
+
 /* Application specific DMA settings  */
 #define ANR_BPP                 10
-#define ANR_ELEMENT_BITS        ((CEIL_DIV(ANR_BPP, 8)) * 8)
+#define ANR_ELEMENT_BITS        round_up(ANR_BPP, 8)
 
 /* Advanced Noise Reduction configuration.
  *  This is also known as Low-Light.

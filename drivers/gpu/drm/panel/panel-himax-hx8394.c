@@ -477,6 +477,147 @@ static const struct hx8394_panel_desc mchp_ac40t08a_desc = {
 	.init_sequence = mchp_ac40t08a_init_sequence,
 };
 
+/*
+ * HL055FHAV028C is based on Himax HX8399, so datasheet pages are
+ * slightly different than HX8394 based panels.
+ */
+static void hl055fhav028c_init_sequence(struct mipi_dsi_multi_context *dsi_ctx)
+{
+	/* 6.3.6 SETEXTC: Set extension command (B9h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETEXTC,
+				     0xff, 0x83, 0x99);
+
+	/* 6.3.17 SETOFFSET: Set offset voltage (D2h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETOFFSET,
+				     0x77);
+
+	/* 6.3.1 SETPOWER: Set power (B1h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETPOWER,
+				     0x02, 0x04, 0x74, 0x94, 0x01, 0x32,
+				     0x33, 0x11, 0x11, 0xab, 0x4d, 0x56,
+				     0x73, 0x02, 0x02);
+
+	/* 6.3.2 SETDISP: Set display related register (B2h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETDISP,
+				     0x00, 0x80, 0x80, 0xae, 0x05, 0x07,
+				     0x5a, 0x11, 0x00, 0x00, 0x10, 0x1e,
+				     0x70, 0x03, 0xd4);
+
+	/* 6.3.3 SETCYC: Set display waveform cycles (B4h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETCYC,
+				     0x00, 0xff, 0x02, 0xc0, 0x02, 0xc0,
+				     0x00, 0x00, 0x08, 0x00, 0x04, 0x06,
+				     0x00, 0x32, 0x04, 0x0a, 0x08, 0x21,
+				     0x03, 0x01, 0x00, 0x0f, 0xb8, 0x8b,
+				     0x02, 0xc0, 0x02, 0xc0, 0x00, 0x00,
+				     0x08, 0x00, 0x04, 0x06, 0x00, 0x32,
+				     0x04, 0x0a, 0x08, 0x01, 0x00, 0x0f,
+				     0xb8, 0x01);
+
+	/* 6.3.18 SETGIP0: Set GIP Option0 (D3h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETGIP0,
+				     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				     0x06, 0x00, 0x00, 0x10, 0x04, 0x00,
+				     0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+				     0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+				     0x00, 0x05, 0x05, 0x07, 0x00, 0x00,
+				     0x00, 0x05, 0x40);
+
+	/* 6.3.19 Set GIP Option1 (D5h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETGIP1,
+				     0x18, 0x18, 0x19, 0x19, 0x18, 0x18,
+				     0x21, 0x20, 0x01, 0x00, 0x07, 0x06,
+				     0x05, 0x04, 0x03, 0x02, 0x18, 0x18,
+				     0x18, 0x18, 0x18, 0x18, 0x2f, 0x2f,
+				     0x30, 0x30, 0x31, 0x31, 0x18, 0x18,
+				     0x18, 0x18);
+
+	/* 6.3.20 Set GIP Option2 (D6h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETGIP2,
+				     0x18, 0x18, 0x19, 0x19, 0x40, 0x40,
+				     0x20, 0x21, 0x02, 0x03, 0x04, 0x05,
+				     0x06, 0x07, 0x00, 0x01, 0x40, 0x40,
+				     0x40, 0x40, 0x40, 0x40, 0x2f, 0x2f,
+				     0x30, 0x30, 0x31, 0x31, 0x40, 0x40,
+				     0x40, 0x40);
+
+	/* 6.3.21 Set GIP Option3 (D8h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_UNKNOWN4,
+				     0xa2, 0xaa, 0x02, 0xa0, 0xa2, 0xa8,
+				     0x02, 0xa0, 0xb0, 0x00, 0x00, 0x00,
+				     0xb0, 0x00, 0x00, 0x00);
+
+	/* 6.3.9 Set register bank (BDh) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETREGBANK,
+				     0x01);
+
+	/* 6.3.21 Set GIP Option3 (D8h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_UNKNOWN4,
+				     0xb0, 0x00, 0x00, 0x00, 0xb0, 0x00,
+				     0x00, 0x00, 0xe2, 0xaa, 0x03, 0xf0,
+				     0xe2, 0xaa, 0x03, 0xf0);
+
+	/* 6.3.9 Set register bank (BDh) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETREGBANK,
+				     0x02);
+
+	/* 6.3.21 Set GIP Option3 (D8h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_UNKNOWN4,
+				     0xe2, 0xaa, 0x03, 0xf0, 0xe2, 0xaa,
+				     0x03, 0xf0);
+
+	/* 6.3.9 Set register bank (BDh) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETREGBANK,
+				     0x00);
+
+	/* 6.3.4 SETVCOM: Set VCOM voltage (B6h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETVCOM,
+				     0x7a, 0x7a);
+
+	/* 6.3.26 SETGAMMA: Set gamma curve related setting (E0h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETGAMMA,
+				     0x00, 0x18, 0x27, 0x24, 0x5a, 0x68,
+				     0x79, 0x78, 0x81, 0x8a, 0x92, 0x99,
+				     0x9e, 0xa7, 0xaf, 0xb4, 0xb9, 0xc3,
+				     0xc7, 0xd1, 0xc6, 0xd4, 0xd5, 0x6c,
+				     0x67, 0x71, 0x77, 0x00, 0x00, 0x18,
+				     0x27, 0x24, 0x5a, 0x68, 0x79, 0x78,
+				     0x81, 0x8a, 0x92, 0x99, 0x9e, 0xa7,
+				     0xaf, 0xb4, 0xb9, 0xc3, 0xc7, 0xd1,
+				     0xc6, 0xd4, 0xd5, 0x6c, 0x67, 0x77);
+
+	/* Unknown command, not listed in the HX8399-C datasheet (C6h) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_UNKNOWN2,
+				     0xff, 0xf9);
+
+	/* 6.3.16 SETPANEL (CCh) */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, HX8394_CMD_SETPANEL,
+				     0x08);
+}
+
+static const struct drm_display_mode hl055fhav028c_mode = {
+	.hdisplay	= 1080,
+	.hsync_start	= 1080 + 32,
+	.hsync_end	= 1080 + 32 + 8,
+	.htotal		= 1080 + 32 + 8 + 32,
+	.vdisplay	= 1920,
+	.vsync_start	= 1920 + 16,
+	.vsync_end	= 1920 + 16 + 2,
+	.vtotal		= 1920 + 16 + 2 + 14,
+	.clock		= 134920,
+	.flags		= DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+	.width_mm	= 70,
+	.height_mm	= 127,
+};
+
+static const struct hx8394_panel_desc hl055fhav028c_desc = {
+	.mode = &hl055fhav028c_mode,
+	.lanes = 4,
+	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST,
+	.format = MIPI_DSI_FMT_RGB888,
+	.init_sequence = hl055fhav028c_init_sequence,
+};
+
 static int hx8394_enable(struct drm_panel *panel)
 {
 	struct hx8394 *ctx = panel_to_hx8394(panel);
@@ -611,9 +752,11 @@ static int hx8394_probe(struct mipi_dsi_device *dsi)
 	struct hx8394 *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_panel_alloc(dev, struct hx8394, panel,
+				   &hx8394_drm_funcs,
+				   DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio))
@@ -644,9 +787,6 @@ static int hx8394_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(ctx->iovcc))
 		return dev_err_probe(dev, PTR_ERR(ctx->iovcc),
 				     "Failed to request iovcc regulator\n");
-
-	drm_panel_init(&ctx->panel, dev, &hx8394_drm_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 
 	ret = drm_panel_of_backlight(&ctx->panel);
 	if (ret)
@@ -683,6 +823,7 @@ static void hx8394_remove(struct mipi_dsi_device *dsi)
 
 static const struct of_device_id hx8394_of_match[] = {
 	{ .compatible = "hannstar,hsd060bhw4", .data = &hsd060bhw4_desc },
+	{ .compatible = "huiling,hl055fhav028c", .data = &hl055fhav028c_desc },
 	{ .compatible = "powkiddy,x55-panel", .data = &powkiddy_x55_desc },
 	{ .compatible = "microchip,ac40t08a-mipi-panel", .data = &mchp_ac40t08a_desc },
 	{ /* sentinel */ }

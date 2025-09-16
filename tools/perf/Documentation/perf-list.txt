@@ -278,26 +278,33 @@ also be supplied. For example:
 
   perf stat -C 0 -e 'hv_gpci/dtbp_ptitc,phys_processor_idx=0x2/' ...
 
-EVENT QUALIFIERS:
+EVENT QUALIFIERS
+----------------
 
 It is also possible to add extra qualifiers to an event:
 
 percore:
 
-Sums up the event counts for all hardware threads in a core, e.g.:
-
-
-  perf stat -e cpu/event=0,umask=0x3,percore=1/
+  Sums up the event counts for all hardware threads in a core, e.g.:
+    perf stat -e cpu/event=0,umask=0x3,percore=1/
 
 cpu:
 
-Specifies the CPU to open the event upon. The value may be repeated to
-specify opening the event on multiple CPUs:
+  Specifies a CPU or a range of CPUs to open the event upon. It may
+  also reference a PMU to copy the CPU mask from. The value may be
+  repeated to specify opening the event on multiple CPUs.
 
+  Example 1: to open the instructions event on CPUs 0 and 2, the
+  cycles event on CPUs 1 and 2:
+    perf stat -e instructions/cpu=0,cpu=2/,cycles/cpu=1-2/ -a sleep 1
 
-  perf stat -e instructions/cpu=0,cpu=2/,cycles/cpu=1,cpu=2/ -a sleep 1
-  perf stat -e data_read/cpu=0/,data_write/cpu=1/ -a sleep 1
+  Example 2: to open the data_read uncore event on CPU 0 and the
+  data_write uncore event on CPU 1:
+    perf stat -e data_read/cpu=0/,data_write/cpu=1/ -a sleep 1
 
+  Example 3: to open the software msr/tsc/ event only on the CPUs
+  matching those from the cpu_core PMU:
+    perf stat -e msr/tsc,cpu=cpu_core/ -a sleep 1
 
 EVENT GROUPS
 ------------

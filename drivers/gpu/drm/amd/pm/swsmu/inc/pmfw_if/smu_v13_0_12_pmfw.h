@@ -86,8 +86,10 @@ typedef enum {
 /*36*/  FEATURE_PIT                         = 36,
 /*37*/  FEATURE_DVO                         = 37,
 /*38*/  FEATURE_XVMINORPSM_CLKSTOP_DS       = 38,
+/*39*/  FEATURE_GLOBAL_DPM                  = 39,
+/*40*/  FEATURE_NODE_POWER_MANAGER          = 40,
 
-/*39*/  NUM_FEATURES                        = 39
+/*41*/  NUM_FEATURES                        = 41
 } FEATURE_LIST_e;
 
 //enum for MPIO PCIe gen speed msgs
@@ -133,7 +135,7 @@ typedef enum {
   GFX_DVM_MARGIN_COUNT
 } GFX_DVM_MARGIN_e;
 
-#define SMU_METRICS_TABLE_VERSION 0x12
+#define SMU_METRICS_TABLE_VERSION 0x13
 
 typedef struct __attribute__((packed, aligned(4))) {
   uint64_t AccumulationCounter;
@@ -275,6 +277,16 @@ typedef struct {
   //PSNs
   uint64_t PublicSerialNumber_AID[4];
   uint64_t PublicSerialNumber_XCD[8];
+
+  //XGMI
+  uint32_t MaxXgmiWidth;
+  uint32_t MaxXgmiBitrate;
+
+  // Telemetry
+  uint32_t InputTelemetryVoltageInmV;
+
+  // General info
+  uint32_t pldmVersion[2];
 } StaticMetricsTable_t;
 #pragma pack(pop)
 

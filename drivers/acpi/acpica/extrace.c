@@ -136,9 +136,9 @@ acpi_ex_trace_point(acpi_trace_event_type type,
 
 	if (pathname) {
 		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-				  "%s %s [0x%p:%s] execution.\n",
+				  "%s %s [%s] execution.\n",
 				  acpi_ex_get_trace_event_name(type),
-				  begin ? "Begin" : "End", aml, pathname));
+				  begin ? "Begin" : "End", pathname));
 	} else {
 		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
 				  "%s %s [0x%p] execution.\n",

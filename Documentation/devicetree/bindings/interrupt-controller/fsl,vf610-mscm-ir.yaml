@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/fsl,vf610-mscm-ir.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Vybrid Miscellaneous System Control - Interrupt Router
+
+description:
+  The MSCM IP contains multiple sub modules, this binding describes the second
+  block of registers which control the interrupt router. The interrupt router
+  allows to configure the recipient of each peripheral interrupt. Furthermore
+  it controls the directed processor interrupts. The module is available in all
+  Vybrid SoC's but is only really useful in dual core configurations (VF6xx
+  which comes with a Cortex-A5/Cortex-M4 combination).
+
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: fsl,vf610-mscm-ir
+
+  reg:
+    maxItems: 1
+
+  fsl,cpucfg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      The handle to the MSCM CPU configuration node, required
+      to get the current CPU ID
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+    description:
+      Two cells, interrupt number and cells.
+      The hardware interrupt number according to interrupt
+      assignment of the interrupt router is required.
+      Flags get passed only when using GIC as parent. Flags
+      encoding as documented by the GIC bindings.
+
+required:
+  - compatible
+  - reg
+  - fsl,cpucfg
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    interrupt-controller@40001800 {
+        compatible = "fsl,vf610-mscm-ir";
+        reg = <0x40001800 0x400>;
+        fsl,cpucfg = <&mscm_cpucfg>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        interrupt-parent = <&intc>;
+    };

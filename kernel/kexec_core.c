@@ -40,6 +40,7 @@
 #include <linux/hugetlb.h>
 #include <linux/objtool.h>
 #include <linux/kmsg_dump.h>
+#include <linux/dma-map-ops.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>
@@ -553,6 +554,24 @@ static void kimage_free_entry(kimage_entry_t entry)
 	kimage_free_pages(page);
 }
 
+static void kimage_free_cma(struct kimage *image)
+{
+	unsigned long i;
+
+	for (i = 0; i < image->nr_segments; i++) {
+		struct page *cma = image->segment_cma[i];
+		u32 nr_pages = image->segment[i].memsz >> PAGE_SHIFT;
+
+		if (!cma)
+			continue;
+
+		arch_kexec_pre_free_pages(page_address(cma), nr_pages);
+		dma_release_from_contiguous(NULL, cma, nr_pages);
+		image->segment_cma[i] = NULL;
+	}
+
+}
+
 void kimage_free(struct kimage *image)
 {
 	kimage_entry_t *ptr, entry;
@@ -590,6 +609,9 @@ void kimage_free(struct kimage *image)
 
 	/* Free the kexec control pages... */
 	kimage_free_page_list(&image->control_pages);
+
+	/* Free CMA allocations */
+	kimage_free_cma(image);
 
 	/*
 	 * Free up any temporary buffers allocated. This might hit if
@@ -716,9 +738,69 @@ static struct page *kimage_alloc_page(struct kimage *image,
 	return page;
 }
 
-static int kimage_load_normal_segment(struct kimage *image,
-					 struct kexec_segment *segment)
+static int kimage_load_cma_segment(struct kimage *image, int idx)
 {
+	struct kexec_segment *segment = &image->segment[idx];
+	struct page *cma = image->segment_cma[idx];
+	char *ptr = page_address(cma);
+	unsigned long maddr;
+	size_t ubytes, mbytes;
+	int result = 0;
+	unsigned char __user *buf = NULL;
+	unsigned char *kbuf = NULL;
+
+	if (image->file_mode)
+		kbuf = segment->kbuf;
+	else
+		buf = segment->buf;
+	ubytes = segment->bufsz;
+	mbytes = segment->memsz;
+	maddr = segment->mem;
+
+	/* Then copy from source buffer to the CMA one */
+	while (mbytes) {
+		size_t uchunk, mchunk;
+
+		ptr += maddr & ~PAGE_MASK;
+		mchunk = min_t(size_t, mbytes,
+				PAGE_SIZE - (maddr & ~PAGE_MASK));
+		uchunk = min(ubytes, mchunk);
+
+		if (uchunk) {
+			/* For file based kexec, source pages are in kernel memory */
+			if (image->file_mode)
+				memcpy(ptr, kbuf, uchunk);
+			else
+				result = copy_from_user(ptr, buf, uchunk);
+			ubytes -= uchunk;
+			if (image->file_mode)
+				kbuf += uchunk;
+			else
+				buf += uchunk;
+		}
+
+		if (result) {
+			result = -EFAULT;
+			goto out;
+		}
+
+		ptr    += mchunk;
+		maddr  += mchunk;
+		mbytes -= mchunk;
+
+		cond_resched();
+	}
+
+	/* Clear any remainder */
+	memset(ptr, 0, mbytes);
+
+out:
+	return result;
+}
+
+static int kimage_load_normal_segment(struct kimage *image, int idx)
+{
+	struct kexec_segment *segment = &image->segment[idx];
 	unsigned long maddr;
 	size_t ubytes, mbytes;
 	int result;
@@ -732,6 +814,9 @@ static int kimage_load_normal_segment(struct kimage *image,
 	ubytes = segment->bufsz;
 	mbytes = segment->memsz;
 	maddr = segment->mem;
+
+	if (image->segment_cma[idx])
+		return kimage_load_cma_segment(image, idx);
 
 	result = kimage_set_destination(image, maddr);
 	if (result < 0)
@@ -787,13 +872,13 @@ out:
 }
 
 #ifdef CONFIG_CRASH_DUMP
-static int kimage_load_crash_segment(struct kimage *image,
-					struct kexec_segment *segment)
+static int kimage_load_crash_segment(struct kimage *image, int idx)
 {
 	/* For crash dumps kernels we simply copy the data from
 	 * user space to it's destination.
 	 * We do things a page at a time for the sake of kmap.
 	 */
+	struct kexec_segment *segment = &image->segment[idx];
 	unsigned long maddr;
 	size_t ubytes, mbytes;
 	int result;
@@ -858,18 +943,17 @@ out:
 }
 #endif
 
-int kimage_load_segment(struct kimage *image,
-				struct kexec_segment *segment)
+int kimage_load_segment(struct kimage *image, int idx)
 {
 	int result = -ENOMEM;
 
 	switch (image->type) {
 	case KEXEC_TYPE_DEFAULT:
-		result = kimage_load_normal_segment(image, segment);
+		result = kimage_load_normal_segment(image, idx);
 		break;
 #ifdef CONFIG_CRASH_DUMP
 	case KEXEC_TYPE_CRASH:
-		result = kimage_load_crash_segment(image, segment);
+		result = kimage_load_crash_segment(image, idx);
 		break;
 #endif
 	}
@@ -1080,7 +1164,7 @@ int kernel_kexec(void)
 		console_suspend_all();
 		error = dpm_suspend_start(PMSG_FREEZE);
 		if (error)
-			goto Resume_console;
+			goto Resume_devices;
 		/*
 		 * dpm_suspend_end() must be called after dpm_suspend_start()
 		 * to complete the transition, like in the hibernation flows
@@ -1135,8 +1219,6 @@ int kernel_kexec(void)
 		dpm_resume_start(PMSG_RESTORE);
  Resume_devices:
 		dpm_resume_end(PMSG_RESTORE);
- Resume_console:
-		pm_restore_gfp_mask();
 		console_resume_all();
 		thaw_processes();
  Restore_console:

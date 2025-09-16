@@ -93,6 +93,8 @@
 		snps,axi-config = <&stmmac_axi_config_2>;
 		snps,tso;
 		access-controllers = <&etzpc 49>;
+		nvmem-cells = <&ethernet_mac2_address>;
+		nvmem-cell-names = "mac-address";
 		status = "disabled";
 
 		stmmac_axi_config_2: stmmac-axi-config {

@@ -161,7 +161,7 @@ static int airoha_npu_send_msg(struct airoha_npu *npu, int func_id,
 }
 
 static int airoha_npu_run_firmware(struct device *dev, void __iomem *base,
-				   struct reserved_mem *rmem)
+				   struct resource *res)
 {
 	const struct firmware *fw;
 	void __iomem *addr;
@@ -178,9 +178,9 @@ static int airoha_npu_run_firmware(struct device *dev, void __iomem *base,
 		goto out;
 	}
 
-	addr = devm_ioremap(dev, rmem->base, rmem->size);
-	if (!addr) {
-		ret = -ENOMEM;
+	addr = devm_ioremap_resource(dev, res);
+	if (IS_ERR(addr)) {
+		ret = PTR_ERR(addr);
 		goto out;
 	}
 
@@ -475,9 +475,8 @@ static const struct regmap_config regmap_config = {
 static int airoha_npu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct reserved_mem *rmem;
 	struct airoha_npu *npu;
-	struct device_node *np;
+	struct resource res;
 	void __iomem *base;
 	int i, irq, err;
 
@@ -499,15 +498,9 @@ static int airoha_npu_probe(struct platform_device *pdev)
 	if (IS_ERR(npu->regmap))
 		return PTR_ERR(npu->regmap);
 
-	np = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!np)
-		return -ENODEV;
-
-	rmem = of_reserved_mem_lookup(np);
-	of_node_put(np);
-
-	if (!rmem)
-		return -ENODEV;
+	err = of_reserved_mem_region_to_resource(dev->of_node, 0, &res);
+	if (err)
+		return err;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -540,12 +533,12 @@ static int airoha_npu_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	err = airoha_npu_run_firmware(dev, base, rmem);
+	err = airoha_npu_run_firmware(dev, base, &res);
 	if (err)
 		return dev_err_probe(dev, err, "failed to run npu firmware\n");
 
 	regmap_write(npu->regmap, REG_CR_NPU_MIB(10),
-		     rmem->base + NPU_EN7581_FIRMWARE_RV32_MAX_SIZE);
+		     res.start + NPU_EN7581_FIRMWARE_RV32_MAX_SIZE);
 	regmap_write(npu->regmap, REG_CR_NPU_MIB(11), 0x40000); /* SRAM 256K */
 	regmap_write(npu->regmap, REG_CR_NPU_MIB(12), 0);
 	regmap_write(npu->regmap, REG_CR_NPU_MIB(21), 1);
@@ -553,7 +546,7 @@ static int airoha_npu_probe(struct platform_device *pdev)
 
 	/* setting booting address */
 	for (i = 0; i < NPU_NUM_CORES; i++)
-		regmap_write(npu->regmap, REG_CR_BOOT_BASE(i), rmem->base);
+		regmap_write(npu->regmap, REG_CR_BOOT_BASE(i), res.start);
 	usleep_range(1000, 2000);
 
 	/* enable NPU cores */
@@ -586,6 +579,8 @@ static struct platform_driver airoha_npu_driver = {
 };
 module_platform_driver(airoha_npu_driver);
 
+MODULE_FIRMWARE(NPU_EN7581_FIRMWARE_DATA);
+MODULE_FIRMWARE(NPU_EN7581_FIRMWARE_RV32);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 MODULE_DESCRIPTION("Airoha Network Processor Unit driver");

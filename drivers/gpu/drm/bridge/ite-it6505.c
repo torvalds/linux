@@ -3238,7 +3238,7 @@ static void it6505_bridge_atomic_post_disable(struct drm_bridge *bridge,
 }
 
 static enum drm_connector_status
-it6505_bridge_detect(struct drm_bridge *bridge)
+it6505_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct it6505 *it6505 = bridge_to_it6505(bridge);
 
@@ -3583,9 +3583,10 @@ static int it6505_i2c_probe(struct i2c_client *client)
 	struct extcon_dev *extcon;
 	int err;
 
-	it6505 = devm_kzalloc(&client->dev, sizeof(*it6505), GFP_KERNEL);
-	if (!it6505)
-		return -ENOMEM;
+	it6505 = devm_drm_bridge_alloc(&client->dev, struct it6505, bridge,
+				       &it6505_bridge_funcs);
+	if (IS_ERR(it6505))
+		return PTR_ERR(it6505);
 
 	mutex_init(&it6505->extcon_lock);
 	mutex_init(&it6505->mode_lock);
@@ -3660,7 +3661,6 @@ static int it6505_i2c_probe(struct i2c_client *client)
 	it6505->aux.transfer = it6505_aux_transfer;
 	drm_dp_aux_init(&it6505->aux);
 
-	it6505->bridge.funcs = &it6505_bridge_funcs;
 	it6505->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
 	it6505->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID |
 			     DRM_BRIDGE_OP_HPD;

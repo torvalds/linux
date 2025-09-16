@@ -152,8 +152,10 @@ enum AMDGIM_REG_ACCESS_FLAG {
 	AMDGIM_FEATURE_MMHUB_REG_RLC_EN   = (1 << 1),
 	/* Use RLC to program GC regs */
 	AMDGIM_FEATURE_GC_REG_RLC_EN      = (1 << 2),
-	/* Use PSP to program L1_TLB_CNTL*/
+	/* Use PSP to program L1_TLB_CNTL */
 	AMDGIM_FEATURE_L1_TLB_CNTL_PSP_EN = (1 << 3),
+	/* Use RLCG to program SQ_CONFIG1 */
+	AMDGIM_FEATURE_REG_ACCESS_SQ_CONFIG = (1 << 4),
 };
 
 struct amdgim_pf2vf_info_v1 {
@@ -301,6 +303,9 @@ struct amdgpu_virt {
 	union amd_sriov_ras_caps ras_telemetry_en_caps;
 	struct amdgpu_virt_ras ras;
 	struct amd_sriov_ras_telemetry_error_count count_cache;
+
+	/* hibernate and resume with different VF feature for xgmi enabled system */
+	bool is_xgmi_node_migrate_enabled;
 };
 
 struct amdgpu_video_codec_info;
@@ -342,6 +347,10 @@ struct amdgpu_video_codec_info;
 
 #define amdgpu_sriov_rlcg_error_report_enabled(adev) \
         (amdgpu_sriov_reg_indirect_mmhub(adev) || amdgpu_sriov_reg_indirect_gc(adev))
+
+#define amdgpu_sriov_reg_access_sq_config(adev) \
+(amdgpu_sriov_vf((adev)) && \
+	((adev)->virt.reg_access & (AMDGIM_FEATURE_REG_ACCESS_SQ_CONFIG)))
 
 #define amdgpu_passthrough(adev) \
 ((adev)->virt.caps & AMDGPU_PASSTHROUGH_MODE)
@@ -386,6 +395,10 @@ static inline bool is_virtual_machine(void)
 	((adev)->virt.gim_feature & AMDGIM_FEATURE_VCN_RB_DECOUPLE)
 #define amdgpu_sriov_is_mes_info_enable(adev) \
 	((adev)->virt.gim_feature & AMDGIM_FEATURE_MES_INFO_ENABLE)
+
+#define amdgpu_virt_xgmi_migrate_enabled(adev) \
+	((adev)->virt.is_xgmi_node_migrate_enabled && (adev)->gmc.xgmi.node_segment_size != 0)
+
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);
 int amdgpu_virt_request_full_gpu(struct amdgpu_device *adev, bool init);

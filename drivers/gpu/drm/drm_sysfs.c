@@ -319,7 +319,7 @@ static const struct bin_attribute edid_attr = {
 	.attr.name = "edid",
 	.attr.mode = 0444,
 	.size = 0,
-	.read_new = edid_show,
+	.read = edid_show,
 };
 
 static const struct bin_attribute *const connector_bin_attrs[] = {
@@ -329,7 +329,7 @@ static const struct bin_attribute *const connector_bin_attrs[] = {
 
 static const struct attribute_group connector_dev_group = {
 	.attrs = connector_dev_attrs,
-	.bin_attrs_new = connector_bin_attrs,
+	.bin_attrs = connector_bin_attrs,
 };
 
 static const struct attribute_group *connector_dev_groups[] = {

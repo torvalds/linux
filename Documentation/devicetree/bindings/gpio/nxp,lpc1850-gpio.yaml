@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/nxp,lpc1850-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP LPC18xx/43xx GPIO controller
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: nxp,lpc1850-gpio
+
+  reg:
+    minItems: 1
+    maxItems: 4
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: gpio
+      - const: gpio-pin-ic
+      - const: gpio-group0-ic
+      - const: gpio-gpoup1-ic
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+    description: |
+      - The first cell is an interrupt number within
+        0..9 range, for GPIO pin interrupts it is equal
+        to 'nxp,gpio-pin-interrupt' property value of
+        GPIO pin configuration, 8 is for GPIO GROUP0
+        interrupt, 9 is for GPIO GROUP1 interrupt
+      - The second cell is used to specify interrupt type
+
+  gpio-ranges: true
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - gpio-controller
+  - '#gpio-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/lpc18xx-ccu.h>
+
+    gpio@400f4000 {
+        compatible = "nxp,lpc1850-gpio";
+        reg = <0x400f4000 0x4000>, <0x40087000 0x1000>,
+              <0x40088000 0x1000>, <0x40089000 0x1000>;
+        reg-names = "gpio", "gpio-pin-ic", "gpio-group0-ic", "gpio-gpoup1-ic";
+        clocks = <&ccu1 CLK_CPU_GPIO>;
+        resets = <&rgu 28>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+    };
+

@@ -87,106 +87,105 @@ additionalProperties: false
 
 examples:
   - |
-   #include <dt-bindings/leds/common.h>
-   led-controller {
-     compatible = "mediatek,mt6360-led";
-     #address-cells = <1>;
-     #size-cells = <0>;
+    #include <dt-bindings/leds/common.h>
+    led-controller {
+        compatible = "mediatek,mt6360-led";
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-     multi-led@0 {
-       reg = <0>;
-       function = LED_FUNCTION_INDICATOR;
-       color = <LED_COLOR_ID_RGB>;
-       led-max-microamp = <24000>;
-       #address-cells = <1>;
-       #size-cells = <0>;
-       led@0 {
-         reg = <0>;
-         color = <LED_COLOR_ID_RED>;
-       };
-       led@1 {
-         reg = <1>;
-         color = <LED_COLOR_ID_GREEN>;
-       };
-       led@2 {
-         reg = <2>;
-         color = <LED_COLOR_ID_BLUE>;
-       };
-     };
-     led@3 {
-       reg = <3>;
-       function = LED_FUNCTION_INDICATOR;
-       color = <LED_COLOR_ID_WHITE>;
-       led-max-microamp = <150000>;
-     };
-     led@4 {
-       reg = <4>;
-       function = LED_FUNCTION_FLASH;
-       color = <LED_COLOR_ID_WHITE>;
-       function-enumerator = <1>;
-       led-max-microamp = <200000>;
-       flash-max-microamp = <500000>;
-       flash-max-timeout-us = <1024000>;
-     };
-     led@5 {
-       reg = <5>;
-       function = LED_FUNCTION_FLASH;
-       color = <LED_COLOR_ID_WHITE>;
-       function-enumerator = <2>;
-       led-max-microamp = <200000>;
-       flash-max-microamp = <500000>;
-       flash-max-timeout-us = <1024000>;
-     };
-   };
+        multi-led@0 {
+            reg = <0>;
+            function = LED_FUNCTION_INDICATOR;
+            color = <LED_COLOR_ID_RGB>;
+            led-max-microamp = <24000>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            led@0 {
+                reg = <0>;
+                color = <LED_COLOR_ID_RED>;
+            };
+            led@1 {
+                reg = <1>;
+                color = <LED_COLOR_ID_GREEN>;
+            };
+            led@2 {
+                reg = <2>;
+                color = <LED_COLOR_ID_BLUE>;
+            };
+        };
+        led@3 {
+            reg = <3>;
+            function = LED_FUNCTION_INDICATOR;
+            color = <LED_COLOR_ID_WHITE>;
+            led-max-microamp = <150000>;
+        };
+        led@4 {
+            reg = <4>;
+            function = LED_FUNCTION_FLASH;
+            color = <LED_COLOR_ID_WHITE>;
+            function-enumerator = <1>;
+            led-max-microamp = <200000>;
+            flash-max-microamp = <500000>;
+            flash-max-timeout-us = <1024000>;
+        };
+        led@5 {
+            reg = <5>;
+            function = LED_FUNCTION_FLASH;
+            color = <LED_COLOR_ID_WHITE>;
+            function-enumerator = <2>;
+            led-max-microamp = <200000>;
+            flash-max-microamp = <500000>;
+            flash-max-timeout-us = <1024000>;
+        };
+    };
 
   - |
+    led-controller {
+        compatible = "mediatek,mt6360-led";
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-   led-controller {
-     compatible = "mediatek,mt6360-led";
-     #address-cells = <1>;
-     #size-cells = <0>;
-
-     led@0 {
-       reg = <0>;
-       function = LED_FUNCTION_INDICATOR;
-       color = <LED_COLOR_ID_RED>;
-       led-max-microamp = <24000>;
-     };
-     led@1 {
-       reg = <1>;
-       function = LED_FUNCTION_INDICATOR;
-       color = <LED_COLOR_ID_GREEN>;
-       led-max-microamp = <24000>;
-     };
-     led@2 {
-       reg = <2>;
-       function = LED_FUNCTION_INDICATOR;
-       color = <LED_COLOR_ID_BLUE>;
-       led-max-microamp = <24000>;
-     };
-     led@3 {
-       reg = <3>;
-       function = LED_FUNCTION_INDICATOR;
-       color = <LED_COLOR_ID_WHITE>;
-       led-max-microamp = <150000>;
-     };
-     led@4 {
-       reg = <4>;
-       function = LED_FUNCTION_FLASH;
-       color = <LED_COLOR_ID_WHITE>;
-       function-enumerator = <1>;
-       led-max-microamp = <200000>;
-       flash-max-microamp = <500000>;
-       flash-max-timeout-us = <1024000>;
-     };
-     led@5 {
-       reg = <5>;
-       function = LED_FUNCTION_FLASH;
-       color = <LED_COLOR_ID_WHITE>;
-       function-enumerator = <2>;
-       led-max-microamp = <200000>;
-       flash-max-microamp = <500000>;
-       flash-max-timeout-us = <1024000>;
-     };
-   };
+        led@0 {
+            reg = <0>;
+            function = LED_FUNCTION_INDICATOR;
+            color = <LED_COLOR_ID_RED>;
+            led-max-microamp = <24000>;
+        };
+        led@1 {
+            reg = <1>;
+            function = LED_FUNCTION_INDICATOR;
+            color = <LED_COLOR_ID_GREEN>;
+            led-max-microamp = <24000>;
+        };
+        led@2 {
+            reg = <2>;
+            function = LED_FUNCTION_INDICATOR;
+            color = <LED_COLOR_ID_BLUE>;
+            led-max-microamp = <24000>;
+        };
+        led@3 {
+            reg = <3>;
+            function = LED_FUNCTION_INDICATOR;
+            color = <LED_COLOR_ID_WHITE>;
+            led-max-microamp = <150000>;
+        };
+        led@4 {
+            reg = <4>;
+            function = LED_FUNCTION_FLASH;
+            color = <LED_COLOR_ID_WHITE>;
+            function-enumerator = <1>;
+            led-max-microamp = <200000>;
+            flash-max-microamp = <500000>;
+            flash-max-timeout-us = <1024000>;
+        };
+        led@5 {
+            reg = <5>;
+            function = LED_FUNCTION_FLASH;
+            color = <LED_COLOR_ID_WHITE>;
+            function-enumerator = <2>;
+            led-max-microamp = <200000>;
+            flash-max-microamp = <500000>;
+            flash-max-timeout-us = <1024000>;
+        };
+    };
 ...

@@ -127,7 +127,7 @@ static const struct bin_attribute user_eeprom_attr = {
 		.mode = S_IRUGO,
 	},
 	.size = USER_EEPROM_SIZE,
-	.read_new = max6875_read,
+	.read = max6875_read,
 };
 
 static int max6875_probe(struct i2c_client *client)

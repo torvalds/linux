@@ -15,7 +15,9 @@ properties:
     oneOf:
       - const: atmel,at91sam9g46-aes
       - items:
-          - const: microchip,sam9x7-aes
+          - enum:
+              - microchip,sam9x7-aes
+              - microchip,sama7d65-aes
           - const: atmel,at91sam9g46-aes
 
   reg:

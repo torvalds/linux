@@ -473,188 +473,30 @@ do {									\
 
 void __cmpxchg_user_key_called_with_bad_pointer(void);
 
-#define CMPXCHG_USER_KEY_MAX_LOOPS 128
+int __cmpxchg_user_key1(unsigned long address, unsigned char *uval,
+			unsigned char old, unsigned char new, unsigned long key);
+int __cmpxchg_user_key2(unsigned long address, unsigned short *uval,
+			unsigned short old, unsigned short new, unsigned long key);
+int __cmpxchg_user_key4(unsigned long address, unsigned int *uval,
+			unsigned int old, unsigned int new, unsigned long key);
+int __cmpxchg_user_key8(unsigned long address, unsigned long *uval,
+			unsigned long old, unsigned long new, unsigned long key);
+int __cmpxchg_user_key16(unsigned long address, __uint128_t *uval,
+			 __uint128_t old, __uint128_t new, unsigned long key);
 
-static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
-					      __uint128_t old, __uint128_t new,
-					      unsigned long key, int size)
+static __always_inline int _cmpxchg_user_key(unsigned long address, void *uval,
+					     __uint128_t old, __uint128_t new,
+					     unsigned long key, int size)
 {
-	bool sacf_flag;
-	int rc = 0;
-
 	switch (size) {
-	case 1: {
-		unsigned int prev, shift, mask, _old, _new;
-		unsigned long count;
-
-		shift = (3 ^ (address & 3)) << 3;
-		address ^= address & 3;
-		_old = ((unsigned int)old & 0xff) << shift;
-		_new = ((unsigned int)new & 0xff) << shift;
-		mask = ~(0xff << shift);
-		sacf_flag = enable_sacf_uaccess();
-		asm_inline volatile(
-			"	spka	0(%[key])\n"
-			"	sacf	256\n"
-			"	llill	%[count],%[max_loops]\n"
-			"0:	l	%[prev],%[address]\n"
-			"1:	nr	%[prev],%[mask]\n"
-			"	xilf	%[mask],0xffffffff\n"
-			"	or	%[new],%[prev]\n"
-			"	or	%[prev],%[tmp]\n"
-			"2:	lr	%[tmp],%[prev]\n"
-			"3:	cs	%[prev],%[new],%[address]\n"
-			"4:	jnl	5f\n"
-			"	xr	%[tmp],%[prev]\n"
-			"	xr	%[new],%[tmp]\n"
-			"	nr	%[tmp],%[mask]\n"
-			"	jnz	5f\n"
-			"	brct	%[count],2b\n"
-			"5:	sacf	768\n"
-			"	spka	%[default_key]\n"
-			EX_TABLE_UA_LOAD_REG(0b, 5b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(1b, 5b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(3b, 5b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(4b, 5b, %[rc], %[prev])
-			: [rc] "+&d" (rc),
-			  [prev] "=&d" (prev),
-			  [address] "+Q" (*(int *)address),
-			  [tmp] "+&d" (_old),
-			  [new] "+&d" (_new),
-			  [mask] "+&d" (mask),
-			  [count] "=a" (count)
-			: [key] "%[count]" (key << 4),
-			  [default_key] "J" (PAGE_DEFAULT_KEY),
-			  [max_loops] "J" (CMPXCHG_USER_KEY_MAX_LOOPS)
-			: "memory", "cc");
-		disable_sacf_uaccess(sacf_flag);
-		*(unsigned char *)uval = prev >> shift;
-		if (!count)
-			rc = -EAGAIN;
-		return rc;
+	case 1:  return __cmpxchg_user_key1(address, uval, old, new, key);
+	case 2:  return __cmpxchg_user_key2(address, uval, old, new, key);
+	case 4:  return __cmpxchg_user_key4(address, uval, old, new, key);
+	case 8:  return __cmpxchg_user_key8(address, uval, old, new, key);
+	case 16: return __cmpxchg_user_key16(address, uval, old, new, key);
+	default: __cmpxchg_user_key_called_with_bad_pointer();
 	}
-	case 2: {
-		unsigned int prev, shift, mask, _old, _new;
-		unsigned long count;
-
-		shift = (2 ^ (address & 2)) << 3;
-		address ^= address & 2;
-		_old = ((unsigned int)old & 0xffff) << shift;
-		_new = ((unsigned int)new & 0xffff) << shift;
-		mask = ~(0xffff << shift);
-		sacf_flag = enable_sacf_uaccess();
-		asm_inline volatile(
-			"	spka	0(%[key])\n"
-			"	sacf	256\n"
-			"	llill	%[count],%[max_loops]\n"
-			"0:	l	%[prev],%[address]\n"
-			"1:	nr	%[prev],%[mask]\n"
-			"	xilf	%[mask],0xffffffff\n"
-			"	or	%[new],%[prev]\n"
-			"	or	%[prev],%[tmp]\n"
-			"2:	lr	%[tmp],%[prev]\n"
-			"3:	cs	%[prev],%[new],%[address]\n"
-			"4:	jnl	5f\n"
-			"	xr	%[tmp],%[prev]\n"
-			"	xr	%[new],%[tmp]\n"
-			"	nr	%[tmp],%[mask]\n"
-			"	jnz	5f\n"
-			"	brct	%[count],2b\n"
-			"5:	sacf	768\n"
-			"	spka	%[default_key]\n"
-			EX_TABLE_UA_LOAD_REG(0b, 5b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(1b, 5b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(3b, 5b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(4b, 5b, %[rc], %[prev])
-			: [rc] "+&d" (rc),
-			  [prev] "=&d" (prev),
-			  [address] "+Q" (*(int *)address),
-			  [tmp] "+&d" (_old),
-			  [new] "+&d" (_new),
-			  [mask] "+&d" (mask),
-			  [count] "=a" (count)
-			: [key] "%[count]" (key << 4),
-			  [default_key] "J" (PAGE_DEFAULT_KEY),
-			  [max_loops] "J" (CMPXCHG_USER_KEY_MAX_LOOPS)
-			: "memory", "cc");
-		disable_sacf_uaccess(sacf_flag);
-		*(unsigned short *)uval = prev >> shift;
-		if (!count)
-			rc = -EAGAIN;
-		return rc;
-	}
-	case 4:	{
-		unsigned int prev = old;
-
-		sacf_flag = enable_sacf_uaccess();
-		asm_inline volatile(
-			"	spka	0(%[key])\n"
-			"	sacf	256\n"
-			"0:	cs	%[prev],%[new],%[address]\n"
-			"1:	sacf	768\n"
-			"	spka	%[default_key]\n"
-			EX_TABLE_UA_LOAD_REG(0b, 1b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(1b, 1b, %[rc], %[prev])
-			: [rc] "+&d" (rc),
-			  [prev] "+&d" (prev),
-			  [address] "+Q" (*(int *)address)
-			: [new] "d" ((unsigned int)new),
-			  [key] "a" (key << 4),
-			  [default_key] "J" (PAGE_DEFAULT_KEY)
-			: "memory", "cc");
-		disable_sacf_uaccess(sacf_flag);
-		*(unsigned int *)uval = prev;
-		return rc;
-	}
-	case 8: {
-		unsigned long prev = old;
-
-		sacf_flag = enable_sacf_uaccess();
-		asm_inline volatile(
-			"	spka	0(%[key])\n"
-			"	sacf	256\n"
-			"0:	csg	%[prev],%[new],%[address]\n"
-			"1:	sacf	768\n"
-			"	spka	%[default_key]\n"
-			EX_TABLE_UA_LOAD_REG(0b, 1b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(1b, 1b, %[rc], %[prev])
-			: [rc] "+&d" (rc),
-			  [prev] "+&d" (prev),
-			  [address] "+QS" (*(long *)address)
-			: [new] "d" ((unsigned long)new),
-			  [key] "a" (key << 4),
-			  [default_key] "J" (PAGE_DEFAULT_KEY)
-			: "memory", "cc");
-		disable_sacf_uaccess(sacf_flag);
-		*(unsigned long *)uval = prev;
-		return rc;
-	}
-	case 16: {
-		__uint128_t prev = old;
-
-		sacf_flag = enable_sacf_uaccess();
-		asm_inline volatile(
-			"	spka	0(%[key])\n"
-			"	sacf	256\n"
-			"0:	cdsg	%[prev],%[new],%[address]\n"
-			"1:	sacf	768\n"
-			"	spka	%[default_key]\n"
-			EX_TABLE_UA_LOAD_REGPAIR(0b, 1b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REGPAIR(1b, 1b, %[rc], %[prev])
-			: [rc] "+&d" (rc),
-			  [prev] "+&d" (prev),
-			  [address] "+QS" (*(__int128_t *)address)
-			: [new] "d" (new),
-			  [key] "a" (key << 4),
-			  [default_key] "J" (PAGE_DEFAULT_KEY)
-			: "memory", "cc");
-		disable_sacf_uaccess(sacf_flag);
-		*(__uint128_t *)uval = prev;
-		return rc;
-	}
-	}
-	__cmpxchg_user_key_called_with_bad_pointer();
-	return rc;
+	return 0;
 }
 
 /**
@@ -686,8 +528,8 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 	BUILD_BUG_ON(sizeof(*(__ptr)) != sizeof(*(__uval)));		\
 	might_fault();							\
 	__chk_user_ptr(__ptr);						\
-	__cmpxchg_user_key((unsigned long)(__ptr), (void *)(__uval),	\
-			   (old), (new), (key), sizeof(*(__ptr)));	\
+	_cmpxchg_user_key((unsigned long)(__ptr), (void *)(__uval),	\
+			  (old), (new), (key), sizeof(*(__ptr)));	\
 })
 
 #endif /* __S390_UACCESS_H */

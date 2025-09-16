@@ -1206,7 +1206,7 @@ static const struct irq_domain_ops soctherm_oc_domain_ops = {
 /**
  * soctherm_oc_int_init() - Initial enabling of the over
  * current interrupts
- * @np:	The devicetree node for soctherm
+ * @fwnode:	The devicetree node for soctherm
  * @num_irqs:	The number of new interrupt requests
  *
  * Sets the over current interrupt request chip data
@@ -1215,7 +1215,7 @@ static const struct irq_domain_ops soctherm_oc_domain_ops = {
  * -ENOMEM (out of memory), or irq_base if the function failed to
  * allocate the irqs
  */
-static int soctherm_oc_int_init(struct device_node *np, int num_irqs)
+static int soctherm_oc_int_init(struct fwnode_handle *fwnode, int num_irqs)
 {
 	if (!num_irqs) {
 		pr_info("%s(): OC interrupts are not enabled\n", __func__);
@@ -1234,10 +1234,8 @@ static int soctherm_oc_int_init(struct device_node *np, int num_irqs)
 	soc_irq_cdata.irq_chip.irq_set_type = soctherm_oc_irq_set_type;
 	soc_irq_cdata.irq_chip.irq_set_wake = NULL;
 
-	soc_irq_cdata.domain = irq_domain_create_linear(of_fwnode_handle(np), num_irqs,
-						     &soctherm_oc_domain_ops,
-						     &soc_irq_cdata);
-
+	soc_irq_cdata.domain = irq_domain_create_linear(fwnode, num_irqs, &soctherm_oc_domain_ops,
+							&soc_irq_cdata);
 	if (!soc_irq_cdata.domain) {
 		pr_err("%s: Failed to create IRQ domain\n", __func__);
 		return -ENOMEM;
@@ -1968,10 +1966,9 @@ static void tegra_soctherm_throttle(struct device *dev)
 static int soctherm_interrupts_init(struct platform_device *pdev,
 				    struct tegra_soctherm *tegra)
 {
-	struct device_node *np = pdev->dev.of_node;
 	int ret;
 
-	ret = soctherm_oc_int_init(np, TEGRA_SOC_OC_IRQ_MAX);
+	ret = soctherm_oc_int_init(dev_fwnode(&pdev->dev), TEGRA_SOC_OC_IRQ_MAX);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "soctherm_oc_int_init failed\n");
 		return ret;

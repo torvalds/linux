@@ -373,7 +373,7 @@ static void get_checkpoint_info(struct mqd_manager *mm, void *mqd, u32 *ctl_stac
 {
 	struct v9_mqd *m = get_mqd(mqd);
 
-	*ctl_stack_size = m->cp_hqd_cntl_stack_size;
+	*ctl_stack_size = m->cp_hqd_cntl_stack_size * NUM_XCC(mm->dev->xcc_mask);
 }
 
 static void checkpoint_mqd(struct mqd_manager *mm, void *mqd, void *mqd_dst, void *ctl_stack_dst)
@@ -386,6 +386,24 @@ static void checkpoint_mqd(struct mqd_manager *mm, void *mqd, void *mqd_dst, voi
 
 	memcpy(mqd_dst, m, sizeof(struct v9_mqd));
 	memcpy(ctl_stack_dst, ctl_stack, m->cp_hqd_cntl_stack_size);
+}
+
+static void checkpoint_mqd_v9_4_3(struct mqd_manager *mm,
+								  void *mqd,
+								  void *mqd_dst,
+								  void *ctl_stack_dst)
+{
+	struct v9_mqd *m;
+	int xcc;
+	uint64_t size = get_mqd(mqd)->cp_mqd_stride_size;
+
+	for (xcc = 0; xcc < NUM_XCC(mm->dev->xcc_mask); xcc++) {
+		m = get_mqd(mqd + size * xcc);
+
+		checkpoint_mqd(mm, m,
+				(uint8_t *)mqd_dst + sizeof(*m) * xcc,
+				(uint8_t *)ctl_stack_dst + m->cp_hqd_cntl_stack_size * xcc);
+	}
 }
 
 static void restore_mqd(struct mqd_manager *mm, void **mqd,
@@ -764,13 +782,35 @@ static void restore_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
 			const void *mqd_src,
 			const void *ctl_stack_src, u32 ctl_stack_size)
 {
-	restore_mqd(mm, mqd, mqd_mem_obj, gart_addr, qp, mqd_src, ctl_stack_src, ctl_stack_size);
-	if (amdgpu_sriov_multi_vf_mode(mm->dev->adev)) {
-		struct v9_mqd *m;
+	struct kfd_mem_obj xcc_mqd_mem_obj;
+	u32 mqd_ctl_stack_size;
+	struct v9_mqd *m;
+	u32 num_xcc;
+	int xcc;
 
-		m = (struct v9_mqd *) mqd_mem_obj->cpu_ptr;
-		m->cp_hqd_pq_doorbell_control |= 1 <<
-				CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_MODE__SHIFT;
+	uint64_t offset = mm->mqd_stride(mm, qp);
+
+	mm->dev->dqm->current_logical_xcc_start++;
+
+	num_xcc = NUM_XCC(mm->dev->xcc_mask);
+	mqd_ctl_stack_size = ctl_stack_size / num_xcc;
+
+	memset(&xcc_mqd_mem_obj, 0x0, sizeof(struct kfd_mem_obj));
+
+	/* Set the MQD pointer and gart address to XCC0 MQD */
+	*mqd = mqd_mem_obj->cpu_ptr;
+	if (gart_addr)
+		*gart_addr = mqd_mem_obj->gpu_addr;
+
+	for (xcc = 0; xcc < num_xcc; xcc++) {
+		get_xcc_mqd(mqd_mem_obj, &xcc_mqd_mem_obj, offset * xcc);
+		restore_mqd(mm, (void **)&m,
+					&xcc_mqd_mem_obj,
+					NULL,
+					qp,
+					(uint8_t *)mqd_src + xcc * sizeof(*m),
+					(uint8_t *)ctl_stack_src + xcc *  mqd_ctl_stack_size,
+					mqd_ctl_stack_size);
 	}
 }
 static int destroy_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
@@ -906,7 +946,6 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		mqd->free_mqd = kfd_free_mqd_cp;
 		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->get_checkpoint_info = get_checkpoint_info;
-		mqd->checkpoint_mqd = checkpoint_mqd;
 		mqd->mqd_size = sizeof(struct v9_mqd);
 		mqd->mqd_stride = mqd_stride_v9;
 #if defined(CONFIG_DEBUG_FS)
@@ -918,16 +957,18 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 			mqd->init_mqd = init_mqd_v9_4_3;
 			mqd->load_mqd = load_mqd_v9_4_3;
 			mqd->update_mqd = update_mqd_v9_4_3;
-			mqd->restore_mqd = restore_mqd_v9_4_3;
 			mqd->destroy_mqd = destroy_mqd_v9_4_3;
 			mqd->get_wave_state = get_wave_state_v9_4_3;
+			mqd->checkpoint_mqd = checkpoint_mqd_v9_4_3;
+			mqd->restore_mqd = restore_mqd_v9_4_3;
 		} else {
 			mqd->init_mqd = init_mqd;
 			mqd->load_mqd = load_mqd;
 			mqd->update_mqd = update_mqd;
-			mqd->restore_mqd = restore_mqd;
 			mqd->destroy_mqd = kfd_destroy_mqd_cp;
 			mqd->get_wave_state = get_wave_state;
+			mqd->checkpoint_mqd = checkpoint_mqd;
+			mqd->restore_mqd = restore_mqd;
 		}
 		break;
 	case KFD_MQD_TYPE_HIQ:

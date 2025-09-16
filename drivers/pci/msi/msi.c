@@ -113,7 +113,8 @@ static int pci_setup_msi_context(struct pci_dev *dev)
 
 void pci_msi_update_mask(struct msi_desc *desc, u32 clear, u32 set)
 {
-	raw_spinlock_t *lock = &to_pci_dev(desc->dev)->msi_lock;
+	struct pci_dev *dev = msi_desc_to_pci_dev(desc);
+	raw_spinlock_t *lock = &dev->msi_lock;
 	unsigned long flags;
 
 	if (!desc->pci.msi_attrib.can_mask)
@@ -122,8 +123,7 @@ void pci_msi_update_mask(struct msi_desc *desc, u32 clear, u32 set)
 	raw_spin_lock_irqsave(lock, flags);
 	desc->pci.msi_mask &= ~clear;
 	desc->pci.msi_mask |= set;
-	pci_write_config_dword(msi_desc_to_pci_dev(desc), desc->pci.mask_pos,
-			       desc->pci.msi_mask);
+	pci_write_config_dword(dev, desc->pci.mask_pos, desc->pci.msi_mask);
 	raw_spin_unlock_irqrestore(lock, flags);
 }
 
@@ -943,7 +943,7 @@ int pci_msix_write_tph_tag(struct pci_dev *pdev, unsigned int index, u16 tag)
 	/*
 	 * This is a horrible hack, but short of implementing a PCI
 	 * specific interrupt chip callback and a huge pile of
-	 * infrastructure, this is the minor nuissance. It provides the
+	 * infrastructure, this is the minor nuisance. It provides the
 	 * protection against concurrent operations on this entry and keeps
 	 * the control word cache in sync.
 	 */

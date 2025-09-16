@@ -21,13 +21,54 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/io.h>
+#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/b53.h>
+#include <linux/regmap.h>
 
 #include "b53_priv.h"
 
+#define BCM63XX_EPHY_REG 0x3C
+
+struct b53_phy_info {
+	u32 ephy_enable_mask;
+	u32 ephy_port_mask;
+	u32 ephy_bias_bit;
+	const u32 *ephy_offset;
+};
+
 struct b53_mmap_priv {
 	void __iomem *regs;
+	struct regmap *gpio_ctrl;
+	const struct b53_phy_info *phy_info;
+	u32 phys_enabled;
+};
+
+static const u32 bcm6318_ephy_offsets[] = {4, 5, 6, 7};
+
+static const struct b53_phy_info bcm6318_ephy_info = {
+	.ephy_enable_mask = BIT(0) | BIT(4) | BIT(8) | BIT(12) | BIT(16),
+	.ephy_port_mask = GENMASK((ARRAY_SIZE(bcm6318_ephy_offsets) - 1), 0),
+	.ephy_bias_bit = 24,
+	.ephy_offset = bcm6318_ephy_offsets,
+};
+
+static const u32 bcm6368_ephy_offsets[] = {2, 3, 4, 5};
+
+static const struct b53_phy_info bcm6368_ephy_info = {
+	.ephy_enable_mask = BIT(0),
+	.ephy_port_mask = GENMASK((ARRAY_SIZE(bcm6368_ephy_offsets) - 1), 0),
+	.ephy_bias_bit = 0,
+	.ephy_offset = bcm6368_ephy_offsets,
+};
+
+static const u32 bcm63268_ephy_offsets[] = {4, 9, 14};
+
+static const struct b53_phy_info bcm63268_ephy_info = {
+	.ephy_enable_mask = GENMASK(4, 0),
+	.ephy_port_mask = GENMASK((ARRAY_SIZE(bcm63268_ephy_offsets) - 1), 0),
+	.ephy_bias_bit = 24,
+	.ephy_offset = bcm63268_ephy_offsets,
 };
 
 static int b53_mmap_read8(struct b53_device *dev, u8 page, u8 reg, u8 *val)
@@ -229,6 +270,50 @@ static int b53_mmap_phy_write16(struct b53_device *dev, int addr, int reg,
 	return -EIO;
 }
 
+static int bcm63xx_ephy_set(struct b53_device *dev, int port, bool enable)
+{
+	struct b53_mmap_priv *priv = dev->priv;
+	const struct b53_phy_info *info = priv->phy_info;
+	struct regmap *gpio_ctrl = priv->gpio_ctrl;
+	u32 mask, val;
+
+	if (enable) {
+		mask = (info->ephy_enable_mask << info->ephy_offset[port])
+				| BIT(info->ephy_bias_bit);
+		val = 0;
+	} else {
+		mask = (info->ephy_enable_mask << info->ephy_offset[port]);
+		if (!((priv->phys_enabled & ~BIT(port)) & info->ephy_port_mask))
+			mask |= BIT(info->ephy_bias_bit);
+		val = mask;
+	}
+	return regmap_update_bits(gpio_ctrl, BCM63XX_EPHY_REG, mask, val);
+}
+
+static void b53_mmap_phy_enable(struct b53_device *dev, int port)
+{
+	struct b53_mmap_priv *priv = dev->priv;
+	int ret = 0;
+
+	if (priv->phy_info && (BIT(port) & priv->phy_info->ephy_port_mask))
+		ret = bcm63xx_ephy_set(dev, port, true);
+
+	if (!ret)
+		priv->phys_enabled |= BIT(port);
+}
+
+static void b53_mmap_phy_disable(struct b53_device *dev, int port)
+{
+	struct b53_mmap_priv *priv = dev->priv;
+	int ret = 0;
+
+	if (priv->phy_info && (BIT(port) & priv->phy_info->ephy_port_mask))
+		ret = bcm63xx_ephy_set(dev, port, false);
+
+	if (!ret)
+		priv->phys_enabled &= ~BIT(port);
+}
+
 static const struct b53_io_ops b53_mmap_ops = {
 	.read8 = b53_mmap_read8,
 	.read16 = b53_mmap_read16,
@@ -242,6 +327,8 @@ static const struct b53_io_ops b53_mmap_ops = {
 	.write64 = b53_mmap_write64,
 	.phy_read16 = b53_mmap_phy_read16,
 	.phy_write16 = b53_mmap_phy_write16,
+	.phy_enable = b53_mmap_phy_enable,
+	.phy_disable = b53_mmap_phy_disable,
 };
 
 static int b53_mmap_probe_of(struct platform_device *pdev,
@@ -313,6 +400,18 @@ static int b53_mmap_probe(struct platform_device *pdev)
 
 	priv->regs = pdata->regs;
 
+	priv->gpio_ctrl = syscon_regmap_lookup_by_phandle(np, "brcm,gpio-ctrl");
+	if (!IS_ERR(priv->gpio_ctrl)) {
+		if (pdata->chip_id == BCM6318_DEVICE_ID ||
+		    pdata->chip_id == BCM6328_DEVICE_ID ||
+		    pdata->chip_id == BCM6362_DEVICE_ID)
+			priv->phy_info = &bcm6318_ephy_info;
+		else if (pdata->chip_id == BCM6368_DEVICE_ID)
+			priv->phy_info = &bcm6368_ephy_info;
+		else if (pdata->chip_id == BCM63268_DEVICE_ID)
+			priv->phy_info = &bcm63268_ephy_info;
+	}
+
 	dev = b53_switch_alloc(&pdev->dev, &b53_mmap_ops, priv);
 	if (!dev)
 		return -ENOMEM;
@@ -348,16 +447,16 @@ static const struct of_device_id b53_mmap_of_table[] = {
 		.data = (void *)BCM63XX_DEVICE_ID,
 	}, {
 		.compatible = "brcm,bcm6318-switch",
-		.data = (void *)BCM63268_DEVICE_ID,
+		.data = (void *)BCM6318_DEVICE_ID,
 	}, {
 		.compatible = "brcm,bcm6328-switch",
-		.data = (void *)BCM63XX_DEVICE_ID,
+		.data = (void *)BCM6328_DEVICE_ID,
 	}, {
 		.compatible = "brcm,bcm6362-switch",
-		.data = (void *)BCM63XX_DEVICE_ID,
+		.data = (void *)BCM6362_DEVICE_ID,
 	}, {
 		.compatible = "brcm,bcm6368-switch",
-		.data = (void *)BCM63XX_DEVICE_ID,
+		.data = (void *)BCM6368_DEVICE_ID,
 	}, {
 		.compatible = "brcm,bcm63268-switch",
 		.data = (void *)BCM63268_DEVICE_ID,

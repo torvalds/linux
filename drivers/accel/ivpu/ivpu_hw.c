@@ -94,12 +94,14 @@ static void timeouts_init(struct ivpu_device *vdev)
 		vdev->timeout.boot = -1;
 		vdev->timeout.jsm = -1;
 		vdev->timeout.tdr = -1;
+		vdev->timeout.inference = -1;
 		vdev->timeout.autosuspend = -1;
 		vdev->timeout.d0i3_entry_msg = -1;
 	} else if (ivpu_is_fpga(vdev)) {
 		vdev->timeout.boot = 50;
 		vdev->timeout.jsm = 15000;
 		vdev->timeout.tdr = 30000;
+		vdev->timeout.inference = 900000;
 		vdev->timeout.autosuspend = -1;
 		vdev->timeout.d0i3_entry_msg = 500;
 		vdev->timeout.state_dump_msg = 10000;
@@ -107,6 +109,7 @@ static void timeouts_init(struct ivpu_device *vdev)
 		vdev->timeout.boot = 50;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 10000;
+		vdev->timeout.inference = 300000;
 		vdev->timeout.autosuspend = 100;
 		vdev->timeout.d0i3_entry_msg = 100;
 		vdev->timeout.state_dump_msg = 10;
@@ -114,6 +117,7 @@ static void timeouts_init(struct ivpu_device *vdev)
 		vdev->timeout.boot = 1000;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 2000;
+		vdev->timeout.inference = 60000;
 		if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_37XX)
 			vdev->timeout.autosuspend = 10;
 		else

@@ -21,7 +21,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-#define DRV_NAME "ad2s1200"
 
 /* input clock on serial interface */
 #define AD2S1200_HZ	8192000
@@ -192,7 +191,7 @@ MODULE_DEVICE_TABLE(spi, ad2s1200_id);
 
 static struct spi_driver ad2s1200_driver = {
 	.driver = {
-		.name = DRV_NAME,
+		.name = "ad2s1200",
 		.of_match_table = ad2s1200_of_match,
 	},
 	.probe = ad2s1200_probe,

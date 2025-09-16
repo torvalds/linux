@@ -85,8 +85,10 @@ int hv_post_message(union hv_connection_id connection_id,
 		else
 			status = HV_STATUS_INVALID_PARAMETER;
 	} else {
-		status = hv_do_hypercall(HVCALL_POST_MESSAGE,
-					 aligned_msg, NULL);
+		u64 control = HVCALL_POST_MESSAGE;
+
+		control |= hv_nested ? HV_HYPERCALL_NESTED : 0;
+		status = hv_do_hypercall(control, aligned_msg, NULL);
 	}
 
 	local_irq_restore(flags);

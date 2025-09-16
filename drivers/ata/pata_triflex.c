@@ -170,7 +170,7 @@ static struct ata_port_operations triflex_port_ops = {
 	.bmdma_stop	= triflex_bmdma_stop,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= triflex_set_piomode,
-	.prereset	= triflex_prereset,
+	.reset.prereset	= triflex_prereset,
 };
 
 static int triflex_init_one(struct pci_dev *dev, const struct pci_device_id *id)

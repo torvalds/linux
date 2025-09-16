@@ -9,6 +9,7 @@ are configurable at compile, boot or run time.
 .. toctree::
    :maxdepth: 1
 
+   attack_vector_controls
    spectre
    l1tf
    mds
@@ -25,3 +26,4 @@ are configurable at compile, boot or run time.
    rsb
    old_microcode
    indirect-target-selection
+   vmscape

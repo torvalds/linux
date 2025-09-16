@@ -28,10 +28,6 @@
 
 #include "link.h"
 
-/* Number of Host Routers per motherboard is 2 */
-#define MAX_HR_NUM			2
-/* Number of DPIA per host router is 2 */
-#define MAX_DPIA_NUM		(MAX_HR_NUM * 2)
 
 /*
  * Host Router BW type
@@ -40,6 +36,16 @@ enum bw_type {
 	HOST_ROUTER_BW_ESTIMATED,
 	HOST_ROUTER_BW_ALLOCATED,
 	HOST_ROUTER_BW_INVALID,
+};
+
+struct usb4_router_validation_set {
+	bool is_valid;
+	uint8_t cm_id;
+	uint8_t dpia_count;
+	uint32_t required_bw;
+	uint32_t allocated_bw;
+	uint32_t estimated_bw;
+	uint32_t remaining_bw;
 };
 
 /*
@@ -74,25 +80,13 @@ void link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int r
 void dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int peak_bw);
 
 /*
- * Handle the validation of total BW here and confirm that the bw used by each
- * DPIA doesn't exceed available BW for each host router (HR)
- *
- * @link[]: array of link pointer to all possible DPIA links
- * @bw_needed[]: bw needed for each DPIA link based on timing
- * @num_dpias: Number of DPIAs for the above 2 arrays. Should always be <= MAX_DPIA_NUM
- *
- * return: TRUE if bw used by DPIAs doesn't exceed available BW else return FALSE
- */
-bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed, const unsigned int num_dpias);
-
-/*
  * Obtain all the DP overheads in dp tunneling for the dpia link
  *
  * @link: pointer to the dc_link struct instance
  *
  * return: DP overheads in DP tunneling
  */
-int link_dp_dpia_get_dp_overhead_in_dp_tunneling(struct dc_link *link);
+uint32_t link_dpia_get_dp_overhead(const struct dc_link *link);
 
 /*
  * Handle DP BW allocation status register
@@ -104,4 +98,15 @@ int link_dp_dpia_get_dp_overhead_in_dp_tunneling(struct dc_link *link);
  */
 void link_dp_dpia_handle_bw_alloc_status(struct dc_link *link, uint8_t status);
 
+/*
+ * Aggregates the DPIA bandwidth usage for the respective USB4 Router.
+ *
+ * @dc_validation_dpia_set: pointer to the dc_validation_dpia_set
+ * @count: number of DPIA validation sets
+ *
+ * return: true if validation is succeeded
+ */
+bool link_dpia_validate_dp_tunnel_bandwidth(const struct dc_validation_dpia_set *dpia_link_sets, uint8_t count);
+
 #endif /* DC_INC_LINK_DP_DPIA_BW_H_ */
+

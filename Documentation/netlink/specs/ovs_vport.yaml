@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: ovs_vport
 version: 2
 protocol: genetlink-legacy
@@ -21,7 +21,7 @@ definitions:
     type: enum
     enum-name: ovs-vport-type
     name-prefix: ovs-vport-type-
-    entries: [ unspec, netdev, internal, gre, vxlan, geneve ]
+    entries: [unspec, netdev, internal, gre, vxlan, geneve]
   -
     name: ovs-vport-stats
     type: struct

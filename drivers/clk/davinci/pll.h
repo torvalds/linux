@@ -80,7 +80,7 @@ static const struct davinci_pll_sysclk_info n = {	\
  * @name: The name of the clock
  * @parent_names: Array of names of the parent clocks
  * @num_parents: Length of @parent_names
- * @table: Array of values to write to OCSEL[OCSRC] cooresponding to
+ * @table: Array of values to write to OCSEL[OCSRC] corresponding to
  *         @parent_names
  * @ocsrc_mask: Bitmask for OCSEL[OCSRC]
  */

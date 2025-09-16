@@ -239,8 +239,8 @@ static int amdgpu_userq_fence_create(struct amdgpu_usermode_queue *userq,
 	fence = &userq_fence->base;
 	userq_fence->fence_drv = fence_drv;
 
-	dma_fence_init(fence, &amdgpu_userq_fence_ops, &userq_fence->lock,
-		       fence_drv->context, seq);
+	dma_fence_init64(fence, &amdgpu_userq_fence_ops, &userq_fence->lock,
+			 fence_drv->context, seq);
 
 	amdgpu_userq_fence_driver_get(fence_drv);
 	dma_fence_get(fence);
@@ -334,7 +334,6 @@ static void amdgpu_userq_fence_release(struct dma_fence *f)
 }
 
 static const struct dma_fence_ops amdgpu_userq_fence_ops = {
-	.use_64bit_seqno = true,
 	.get_driver_name = amdgpu_userq_fence_get_driver_name,
 	.get_timeline_name = amdgpu_userq_fence_get_timeline_name,
 	.signaled = amdgpu_userq_fence_signaled,

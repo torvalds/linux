@@ -95,6 +95,9 @@ void fbnic_mbx_init(struct fbnic_dev *fbd)
 	/* Initialize lock to protect Tx ring */
 	spin_lock_init(&fbd->fw_tx_lock);
 
+	/* Reset FW Capabilities */
+	memset(&fbd->fw_cap, 0, sizeof(fbd->fw_cap));
+
 	/* Reinitialize mailbox memory */
 	for (i = 0; i < FBNIC_IPC_MBX_INDICES; i++)
 		memset(&fbd->mbx[i], 0, sizeof(struct fbnic_fw_mbx));
@@ -335,6 +338,16 @@ unlock_mbx:
 	return err;
 }
 
+void fbnic_mbx_clear_cmpl(struct fbnic_dev *fbd,
+			  struct fbnic_fw_completion *fw_cmpl)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
+	fbnic_mbx_clear_cmpl_slot(fbd, fw_cmpl);
+	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
+}
+
 static void fbnic_fw_release_cmpl_data(struct kref *kref)
 {
 	struct fbnic_fw_completion *cmpl_data;
@@ -373,11 +386,11 @@ fbnic_fw_get_cmpl_by_type(struct fbnic_dev *fbd, u32 msg_type)
  *
  * Return:
  *   One the following values:
- *     -EOPNOTSUPP: Is not ASIC so mailbox is not supported
- *     -ENODEV: Device I/O error
- *     -ENOMEM: Failed to allocate message
- *     -EBUSY: No space in mailbox
- *     -ENOSPC: DMA mapping failed
+ *	-EOPNOTSUPP: Is not ASIC so mailbox is not supported
+ *	-ENODEV: Device I/O error
+ *	-ENOMEM: Failed to allocate message
+ *	-EBUSY: No space in mailbox
+ *	-ENOSPC: DMA mapping failed
  *
  * This function sends a single TLV header indicating the host wants to take
  * some action. However there are no other side effects which means that any
@@ -560,16 +573,15 @@ static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 	if (!fbd->fw_cap.running.mgmt.version)
 		return -EINVAL;
 
-	if (fbd->fw_cap.running.mgmt.version < MIN_FW_VERSION_CODE) {
+	if (fbd->fw_cap.running.mgmt.version < MIN_FW_VER_CODE) {
+		char required_ver[FBNIC_FW_VER_MAX_SIZE];
 		char running_ver[FBNIC_FW_VER_MAX_SIZE];
 
 		fbnic_mk_fw_ver_str(fbd->fw_cap.running.mgmt.version,
 				    running_ver);
-		dev_err(fbd->dev, "Device firmware version(%s) is older than minimum required version(%02d.%02d.%02d)\n",
-			running_ver,
-			MIN_FW_MAJOR_VERSION,
-			MIN_FW_MINOR_VERSION,
-			MIN_FW_BUILD_VERSION);
+		fbnic_mk_fw_ver_str(MIN_FW_VER_CODE, required_ver);
+		dev_err(fbd->dev, "Device firmware version(%s) is older than minimum required version(%s)\n",
+			running_ver, required_ver);
 		/* Disable TX mailbox to prevent card use until firmware is
 		 * updated.
 		 */
@@ -1022,6 +1034,169 @@ msg_err:
 	return err;
 }
 
+static const struct fbnic_tlv_index fbnic_fw_log_req_index[] = {
+	FBNIC_TLV_ATTR_U32(FBNIC_FW_LOG_MSEC),
+	FBNIC_TLV_ATTR_U64(FBNIC_FW_LOG_INDEX),
+	FBNIC_TLV_ATTR_STRING(FBNIC_FW_LOG_MSG, FBNIC_FW_LOG_MAX_SIZE),
+	FBNIC_TLV_ATTR_U32(FBNIC_FW_LOG_LENGTH),
+	FBNIC_TLV_ATTR_ARRAY(FBNIC_FW_LOG_MSEC_ARRAY),
+	FBNIC_TLV_ATTR_ARRAY(FBNIC_FW_LOG_INDEX_ARRAY),
+	FBNIC_TLV_ATTR_ARRAY(FBNIC_FW_LOG_MSG_ARRAY),
+	FBNIC_TLV_ATTR_LAST
+};
+
+static int fbnic_fw_process_log_array(struct fbnic_tlv_msg **results,
+				      u16 length, u16 arr_type_idx,
+				      u16 attr_type_idx,
+				      struct fbnic_tlv_msg **tlv_array_out)
+{
+	struct fbnic_tlv_msg *attr;
+	int attr_len;
+	int err;
+
+	if (!results[attr_type_idx])
+		return -EINVAL;
+
+	tlv_array_out[0] = results[attr_type_idx];
+
+	if (!length)
+		return 0;
+
+	if (!results[arr_type_idx])
+		return -EINVAL;
+
+	attr = results[arr_type_idx];
+	attr_len = le16_to_cpu(attr->hdr.len) / sizeof(u32) - 1;
+	err = fbnic_tlv_attr_parse_array(&attr[1], attr_len, &tlv_array_out[1],
+					 fbnic_fw_log_req_index,
+					 attr_type_idx,
+					 length);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int fbnic_fw_parse_logs(struct fbnic_dev *fbd,
+			       struct fbnic_tlv_msg **msec_tlv,
+			       struct fbnic_tlv_msg **index_tlv,
+			       struct fbnic_tlv_msg **log_tlv,
+			       int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		char log[FBNIC_FW_LOG_MAX_SIZE];
+		ssize_t len;
+		u64 index;
+		u32 msec;
+		int err;
+
+		if (!msec_tlv[i] || !index_tlv[i] || !log_tlv[i]) {
+			dev_warn(fbd->dev, "Received log message with missing attributes!\n");
+			return -EINVAL;
+		}
+
+		index = fbnic_tlv_attr_get_signed(index_tlv[i], 0);
+		msec = fbnic_tlv_attr_get_signed(msec_tlv[i], 0);
+		len = fbnic_tlv_attr_get_string(log_tlv[i], log,
+						FBNIC_FW_LOG_MAX_SIZE);
+		if (len < 0)
+			return len;
+
+		err = fbnic_fw_log_write(fbd, index, msec, log);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int fbnic_fw_parse_log_req(void *opaque,
+				  struct fbnic_tlv_msg **results)
+{
+	struct fbnic_tlv_msg *index_tlv[FBNIC_FW_MAX_LOG_HISTORY];
+	struct fbnic_tlv_msg *msec_tlv[FBNIC_FW_MAX_LOG_HISTORY];
+	struct fbnic_tlv_msg *log_tlv[FBNIC_FW_MAX_LOG_HISTORY];
+	struct fbnic_dev *fbd = opaque;
+	u16 length;
+	int err;
+
+	length = fta_get_uint(results, FBNIC_FW_LOG_LENGTH);
+	if (length >= FBNIC_FW_MAX_LOG_HISTORY)
+		return -E2BIG;
+
+	err = fbnic_fw_process_log_array(results, length,
+					 FBNIC_FW_LOG_MSEC_ARRAY,
+					 FBNIC_FW_LOG_MSEC, msec_tlv);
+	if (err)
+		return err;
+
+	err = fbnic_fw_process_log_array(results, length,
+					 FBNIC_FW_LOG_INDEX_ARRAY,
+					 FBNIC_FW_LOG_INDEX, index_tlv);
+	if (err)
+		return err;
+
+	err = fbnic_fw_process_log_array(results, length,
+					 FBNIC_FW_LOG_MSG_ARRAY,
+					 FBNIC_FW_LOG_MSG, log_tlv);
+	if (err)
+		return err;
+
+	err = fbnic_fw_parse_logs(fbd, msec_tlv, index_tlv, log_tlv,
+				  length + 1);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+int fbnic_fw_xmit_send_logs(struct fbnic_dev *fbd, bool enable,
+			    bool send_log_history)
+{
+	struct fbnic_tlv_msg *msg;
+	int err;
+
+	if (fbd->fw_cap.running.mgmt.version < MIN_FW_VER_CODE_LOG) {
+		dev_warn(fbd->dev, "Firmware version is too old to support firmware logs!\n");
+		return -EOPNOTSUPP;
+	}
+
+	msg = fbnic_tlv_msg_alloc(FBNIC_TLV_MSG_ID_LOG_SEND_LOGS_REQ);
+	if (!msg)
+		return -ENOMEM;
+
+	if (enable) {
+		err = fbnic_tlv_attr_put_flag(msg, FBNIC_SEND_LOGS);
+		if (err)
+			goto free_message;
+
+		/* Report request for version 1 of logs */
+		err = fbnic_tlv_attr_put_int(msg, FBNIC_SEND_LOGS_VERSION,
+					     FBNIC_FW_LOG_VERSION);
+		if (err)
+			goto free_message;
+
+		if (send_log_history) {
+			err = fbnic_tlv_attr_put_flag(msg,
+						      FBNIC_SEND_LOGS_HISTORY);
+			if (err)
+				goto free_message;
+		}
+	}
+
+	err = fbnic_mbx_map_tlv_msg(fbd, msg);
+	if (err)
+		goto free_message;
+
+	return 0;
+
+free_message:
+	free_page((unsigned long)msg);
+	return err;
+}
+
 static const struct fbnic_tlv_parser fbnic_fw_tlv_parser[] = {
 	FBNIC_TLV_PARSER(FW_CAP_RESP, fbnic_fw_cap_resp_index,
 			 fbnic_fw_parse_cap_resp),
@@ -1041,6 +1216,9 @@ static const struct fbnic_tlv_parser fbnic_fw_tlv_parser[] = {
 	FBNIC_TLV_PARSER(TSENE_READ_RESP,
 			 fbnic_tsene_read_resp_index,
 			 fbnic_fw_parse_tsene_read_resp),
+	FBNIC_TLV_PARSER(LOG_MSG_REQ,
+			 fbnic_fw_log_req_index,
+			 fbnic_fw_parse_log_req),
 	FBNIC_TLV_MSG_ERROR
 };
 
@@ -1117,6 +1295,7 @@ void fbnic_mbx_poll(struct fbnic_dev *fbd)
 
 int fbnic_mbx_poll_tx_ready(struct fbnic_dev *fbd)
 {
+	struct fbnic_fw_mbx *tx_mbx = &fbd->mbx[FBNIC_IPC_MBX_TX_IDX];
 	unsigned long timeout = jiffies + 10 * HZ + 1;
 	int err, i;
 
@@ -1149,8 +1328,23 @@ int fbnic_mbx_poll_tx_ready(struct fbnic_dev *fbd)
 	if (err)
 		goto clean_mbx;
 
-	/* Use "1" to indicate we entered the state waiting for a response */
-	fbd->fw_cap.running.mgmt.version = 1;
+	/* Poll until we get a current management firmware version, use "1"
+	 * to indicate we entered the polling state waiting for a response
+	 */
+	for (fbd->fw_cap.running.mgmt.version = 1;
+	     fbd->fw_cap.running.mgmt.version < MIN_FW_VER_CODE;) {
+		if (!tx_mbx->ready)
+			err = -ENODEV;
+		if (err)
+			goto clean_mbx;
+
+		msleep(20);
+		fbnic_mbx_poll(fbd);
+
+		/* set err, but wait till mgmt.version check to report it */
+		if (!time_is_after_jiffies(timeout))
+			err = -ETIMEDOUT;
+	}
 
 	return 0;
 clean_mbx:
@@ -1242,16 +1436,6 @@ struct fbnic_fw_completion *fbnic_fw_alloc_cmpl(u32 msg_type)
 	kref_init(&cmpl->ref_count);
 
 	return cmpl;
-}
-
-void fbnic_fw_clear_cmpl(struct fbnic_dev *fbd,
-			 struct fbnic_fw_completion *fw_cmpl)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
-	fbnic_mbx_clear_cmpl_slot(fbd, fw_cmpl);
-	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
 }
 
 void fbnic_fw_put_cmpl(struct fbnic_fw_completion *fw_cmpl)

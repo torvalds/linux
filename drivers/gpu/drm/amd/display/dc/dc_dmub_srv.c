@@ -1269,12 +1269,16 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 			new_signals.bits.allow_ips1 = 1;
 			new_signals.bits.allow_ips2 = 1;
 			new_signals.bits.allow_z10 = 1;
+			// New in IPSv2.0
+			new_signals.bits.allow_ips1z8 = 1;
 		} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS1) {
 			new_signals.bits.allow_ips1 = 1;
 		} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS2) {
+			// IPSv1.0 only
 			new_signals.bits.allow_pg = 1;
 			new_signals.bits.allow_ips1 = 1;
 		} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS2_Z10) {
+			// IPSv1.0 only
 			new_signals.bits.allow_pg = 1;
 			new_signals.bits.allow_ips1 = 1;
 			new_signals.bits.allow_ips2 = 1;
@@ -1286,6 +1290,8 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 				new_signals.bits.allow_ips1 = 1;
 				new_signals.bits.allow_ips2 = 1;
 				new_signals.bits.allow_z10 = 1;
+				// New in IPSv2.0
+				new_signals.bits.allow_ips1z8 = 1;
 			} else {
 				/* RCG only */
 				new_signals.bits.allow_pg = 0;
@@ -1293,8 +1299,28 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 				new_signals.bits.allow_ips2 = 0;
 				new_signals.bits.allow_z10 = 0;
 			}
+		} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_Z8_RETENTION) {
+			new_signals.bits.allow_pg = 1;
+			new_signals.bits.allow_ips1 = 1;
+			new_signals.bits.allow_ips2 = 1;
+			new_signals.bits.allow_z10 = 1;
 		}
-
+		// Setting RCG allow bits (IPSv2.0)
+		if (dc->config.disable_ips_rcg == DMUB_IPS_RCG_ENABLE) {
+			new_signals.bits.allow_ips0_rcg = 1;
+			new_signals.bits.allow_ips1_rcg = 1;
+		} else if (dc->config.disable_ips_rcg == DMUB_IPS0_RCG_DISABLE) {
+			new_signals.bits.allow_ips1_rcg = 1;
+		} else if (dc->config.disable_ips_rcg == DMUB_IPS1_RCG_DISABLE) {
+			new_signals.bits.allow_ips0_rcg = 1;
+		}
+		// IPS dynamic allow bits (IPSv2 change, vpb use case)
+		if (dc->config.disable_ips_in_vpb == DMUB_IPS_VPB_ENABLE_IPS1_AND_RCG) {
+			new_signals.bits.allow_dynamic_ips1 = 1;
+		} else if (dc->config.disable_ips_in_vpb == DMUB_IPS_VPB_ENABLE_ALL) {
+			new_signals.bits.allow_dynamic_ips1 = 1;
+			new_signals.bits.allow_dynamic_ips1_z8 = 1;
+		}
 		ips_driver->signals = new_signals;
 		dc_dmub_srv->driver_signals = ips_driver->signals;
 	}
@@ -1318,7 +1344,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 {
 	struct dc_dmub_srv *dc_dmub_srv;
-	uint32_t rcg_exit_count = 0, ips1_exit_count = 0, ips2_exit_count = 0;
+	uint32_t rcg_exit_count = 0, ips1_exit_count = 0, ips2_exit_count = 0, ips1z8_exit_count = 0;
 
 	if (dc->debug.dmcub_emulation)
 		return;
@@ -1338,31 +1364,34 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		rcg_exit_count = ips_fw->rcg_exit_count;
 		ips1_exit_count = ips_fw->ips1_exit_count;
 		ips2_exit_count = ips_fw->ips2_exit_count;
+		ips1z8_exit_count = ips_fw->ips1_z8ret_exit_count;
 
 		ips_driver->signals.all = 0;
 		dc_dmub_srv->driver_signals = ips_driver->signals;
 
 		DC_LOG_IPS(
-			"%s (allow ips1=%u ips2=%u) (commit ips1=%u ips2=%u) (count rcg=%u ips1=%u ips2=%u)",
+			"%s (allow ips1=%u ips2=%u) (commit ips1=%u ips2=%u ips1z8=%u) (count rcg=%u ips1=%u ips2=%u ips1_z8=%u)",
 			__func__,
 			ips_driver->signals.bits.allow_ips1,
 			ips_driver->signals.bits.allow_ips2,
 			ips_fw->signals.bits.ips1_commit,
 			ips_fw->signals.bits.ips2_commit,
+			ips_fw->signals.bits.ips1z8_commit,
 			ips_fw->rcg_entry_count,
 			ips_fw->ips1_entry_count,
-			ips_fw->ips2_entry_count);
+			ips_fw->ips2_entry_count,
+			ips_fw->ips1_z8ret_entry_count);
 
 		/* Note: register access has technically not resumed for DCN here, but we
 		 * need to be message PMFW through our standard register interface.
 		 */
 		dc_dmub_srv->needs_idle_wake = false;
 
-		if ((prev_driver_signals.bits.allow_ips2 || prev_driver_signals.all == 0) &&
+		if (!dc->caps.ips_v2_support && ((prev_driver_signals.bits.allow_ips2 || prev_driver_signals.all == 0) &&
 		    (!dc->debug.optimize_ips_handshake ||
-		     ips_fw->signals.bits.ips2_commit || !ips_fw->signals.bits.in_idle)) {
+		     ips_fw->signals.bits.ips2_commit || !ips_fw->signals.bits.in_idle))) {
 			DC_LOG_IPS(
-				"wait IPS2 eval (ips1_commit=%u ips2_commit=%u)",
+				"wait IPS2 eval (ips1_commit=%u ips2_commit=%u )",
 				ips_fw->signals.bits.ips1_commit,
 				ips_fw->signals.bits.ips2_commit);
 
@@ -1422,28 +1451,31 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		dc_dmub_srv_notify_idle(dc, false);
 		if (prev_driver_signals.bits.allow_ips1 || prev_driver_signals.all == 0) {
 			DC_LOG_IPS(
-				"wait for IPS1 commit clear (ips1_commit=%u ips2_commit=%u)",
+				"wait for IPS1 commit clear (ips1_commit=%u ips2_commit=%u ips1z8=%u)",
 				ips_fw->signals.bits.ips1_commit,
-				ips_fw->signals.bits.ips2_commit);
+				ips_fw->signals.bits.ips2_commit,
+				ips_fw->signals.bits.ips1z8_commit);
 
 			while (ips_fw->signals.bits.ips1_commit)
 				udelay(1);
 
 			DC_LOG_IPS(
-				"wait for IPS1 commit clear done (ips1_commit=%u ips2_commit=%u)",
+				"wait for IPS1 commit clear done (ips1_commit=%u ips2_commit=%u ips1z8=%u)",
 				ips_fw->signals.bits.ips1_commit,
-				ips_fw->signals.bits.ips2_commit);
+				ips_fw->signals.bits.ips2_commit,
+				ips_fw->signals.bits.ips1z8_commit);
 		}
 	}
 
 	if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
 		ASSERT(0);
 
-	DC_LOG_IPS("%s exit (count rcg=%u ips1=%u ips2=%u)",
+	DC_LOG_IPS("%s exit (count rcg=%u ips1=%u ips2=%u ips1z8=%u)",
 		__func__,
 		rcg_exit_count,
 		ips1_exit_count,
-		ips2_exit_count);
+		ips2_exit_count,
+		ips1z8_exit_count);
 }
 
 void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state power_state)
@@ -1656,7 +1688,7 @@ bool dc_wake_and_execute_gpint(const struct dc_context *ctx, enum dmub_gpint_com
 	return result;
 }
 
-void dc_dmub_srv_fams2_update_config(struct dc *dc,
+static void dc_dmub_srv_rb_based_fams2_update_config(struct dc *dc,
 		struct dc_state *context,
 		bool enable)
 {
@@ -1720,6 +1752,63 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 	}
 
 	dm_execute_dmub_cmd_list(dc->ctx, num_cmds, cmd, DM_DMUB_WAIT_TYPE_WAIT);
+}
+
+static void dc_dmub_srv_ib_based_fams2_update_config(struct dc *dc,
+		struct dc_state *context,
+		bool enable)
+{
+	struct dmub_fams2_config_v2 *config = (struct dmub_fams2_config_v2 *)dc->ctx->dmub_srv->dmub->ib_mem_gart.cpu_addr;
+	union dmub_rb_cmd cmd;
+	uint32_t i;
+
+	memset(config, 0, sizeof(*config));
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.ib_fams2_config.header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
+	cmd.ib_fams2_config.header.sub_type = DMUB_CMD__FAMS2_IB_CONFIG;
+
+	cmd.ib_fams2_config.ib_data.src.quad_part = dc->ctx->dmub_srv->dmub->ib_mem_gart.gpu_addr;
+	cmd.ib_fams2_config.ib_data.size = sizeof(*config);
+
+	if (enable && context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable) {
+		/* copy static feature configuration overrides */
+		config->global.features.bits.enable_stall_recovery = dc->debug.fams2_config.bits.enable_stall_recovery;
+		config->global.features.bits.enable_offload_flip = dc->debug.fams2_config.bits.enable_offload_flip;
+		config->global.features.bits.enable_debug = dc->debug.fams2_config.bits.enable_debug;
+
+		/* send global configuration parameters */
+		memcpy(&config->global, &context->bw_ctx.bw.dcn.fams2_global_config,
+			sizeof(struct dmub_cmd_fams2_global_config));
+
+		/* construct per-stream configs */
+		for (i = 0; i < context->bw_ctx.bw.dcn.fams2_global_config.num_streams; i++) {
+			/* copy stream static base state */
+			memcpy(&config->stream_v1[i].base,
+				&context->bw_ctx.bw.dcn.fams2_stream_base_params[i],
+				sizeof(config->stream_v1[i].base));
+
+			/* copy stream static sub-state */
+			memcpy(&config->stream_v1[i].sub_state,
+				&context->bw_ctx.bw.dcn.fams2_stream_sub_params_v2[i],
+				sizeof(config->stream_v1[i].sub_state));
+		}
+	}
+
+	config->global.features.bits.enable_visual_confirm = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS2;
+	config->global.features.bits.enable = enable;
+
+	dm_execute_dmub_cmd_list(dc->ctx, 1, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+}
+
+void dc_dmub_srv_fams2_update_config(struct dc *dc,
+		struct dc_state *context,
+		bool enable)
+{
+	if (dc->debug.fams_version.major == 2)
+		dc_dmub_srv_rb_based_fams2_update_config(dc, context, enable);
+	if (dc->debug.fams_version.major == 3)
+		dc_dmub_srv_ib_based_fams2_update_config(dc, context, enable);
 }
 
 void dc_dmub_srv_fams2_drr_update(struct dc *dc,
@@ -1847,83 +1936,267 @@ void dc_dmub_srv_fams2_passthrough_flip(
 	}
 }
 
-bool dc_dmub_srv_ips_residency_cntl(struct dc_dmub_srv *dc_dmub_srv, bool start_measurement)
-{
-	bool result;
 
-	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+bool dc_dmub_srv_ips_residency_cntl(const struct dc_context *ctx, uint8_t panel_inst, bool start_measurement)
+{
+	union dmub_rb_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.ips_residency_cntl.header.type = DMUB_CMD__IPS;
+	cmd.ips_residency_cntl.header.sub_type = DMUB_CMD__IPS_RESIDENCY_CNTL;
+	cmd.ips_residency_cntl.header.payload_bytes = sizeof(struct dmub_cmd_ips_residency_cntl_data);
+
+	// only panel_inst=0 is supported at the moment
+	cmd.ips_residency_cntl.cntl_data.panel_inst = panel_inst;
+	cmd.ips_residency_cntl.cntl_data.start_measurement = start_measurement;
+
+	if (!dc_wake_and_execute_dmub_cmd(ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
 		return false;
 
-	result = dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__IPS_RESIDENCY,
-					   start_measurement, NULL, DM_DMUB_WAIT_TYPE_WAIT);
+	return true;
+}
+
+bool dc_dmub_srv_ips_query_residency_info(const struct dc_context *ctx, uint8_t panel_inst, struct dmub_ips_residency_info *driver_info,
+					  enum ips_residency_mode ips_mode)
+{
+	union dmub_rb_cmd cmd;
+	uint32_t bytes = sizeof(struct dmub_ips_residency_info);
+
+	dmub_flush_buffer_mem(&ctx->dmub_srv->dmub->scratch_mem_fb);
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.ips_query_residency_info.header.type = DMUB_CMD__IPS;
+	cmd.ips_query_residency_info.header.sub_type = DMUB_CMD__IPS_QUERY_RESIDENCY_INFO;
+	cmd.ips_query_residency_info.header.payload_bytes = sizeof(struct dmub_cmd_ips_query_residency_info_data);
+
+	cmd.ips_query_residency_info.info_data.dest.quad_part = ctx->dmub_srv->dmub->scratch_mem_fb.gpu_addr;
+	cmd.ips_query_residency_info.info_data.size = bytes;
+	cmd.ips_query_residency_info.info_data.panel_inst = panel_inst;
+	cmd.ips_query_residency_info.info_data.ips_mode = (uint32_t)ips_mode;
+
+	if (!dc_wake_and_execute_dmub_cmd(ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY) ||
+					  cmd.ips_query_residency_info.header.ret_status == 0)
+		return false;
+
+	// copy the result to the output since ret_status != 0 means the command returned data
+	memcpy(driver_info, ctx->dmub_srv->dmub->scratch_mem_fb.cpu_addr, bytes);
+
+	return true;
+}
+
+bool dmub_lsdma_init(struct dc_dmub_srv *dc_dmub_srv)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_INIT_CONFIG;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.init_data.gpu_addr_base.quad_part = dc_ctx->dmub_srv->dmub->lsdma_rb_fb.gpu_addr;
+	lsdma_data->u.init_data.ring_size               = dc_ctx->dmub_srv->dmub->lsdma_rb_fb.size;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA Init failed in DMUB");
 
 	return result;
 }
 
-void dc_dmub_srv_ips_query_residency_info(struct dc_dmub_srv *dc_dmub_srv, struct ips_residency_info *output)
+bool dmub_lsdma_send_linear_copy_packet(
+	struct dc_dmub_srv *dc_dmub_srv,
+	uint64_t src_addr,
+	uint64_t dst_addr,
+	uint32_t count)
 {
-	uint32_t i;
-	enum dmub_gpint_command command_code;
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_LINEAR_COPY;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.linear_copy_data.count   = count - 1; // LSDMA controller expects bytes to copy -1
+	lsdma_data->u.linear_copy_data.src_lo  = src_addr & 0xFFFFFFFF;
+	lsdma_data->u.linear_copy_data.src_hi  = (src_addr >> 32) & 0xFFFFFFFF;
+	lsdma_data->u.linear_copy_data.dst_lo  = dst_addr & 0xFFFFFFFF;
+	lsdma_data->u.linear_copy_data.dst_hi  = (dst_addr >> 32) & 0xFFFFFFFF;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA Linear Copy failed in DMUB");
+
+	return result;
+}
+
+bool dmub_lsdma_send_tiled_to_tiled_copy_command(
+	struct dc_dmub_srv *dc_dmub_srv,
+	struct lsdma_send_tiled_to_tiled_copy_command_params params)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_TILED_TO_TILED_COPY;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.tiled_copy_data.src_addr_lo      = params.src_addr & 0xFFFFFFFF;
+	lsdma_data->u.tiled_copy_data.src_addr_hi      = (params.src_addr >> 32) & 0xFFFFFFFF;
+	lsdma_data->u.tiled_copy_data.dst_addr_lo      = params.dst_addr & 0xFFFFFFFF;
+	lsdma_data->u.tiled_copy_data.dst_addr_hi      = (params.dst_addr >> 32) & 0xFFFFFFFF;
+	lsdma_data->u.tiled_copy_data.src_x            = params.src_x;
+	lsdma_data->u.tiled_copy_data.src_y            = params.src_y;
+	lsdma_data->u.tiled_copy_data.dst_x            = params.dst_x;
+	lsdma_data->u.tiled_copy_data.dst_y            = params.dst_y;
+	lsdma_data->u.tiled_copy_data.src_width        = params.src_width - 1; // LSDMA controller expects width -1
+	lsdma_data->u.tiled_copy_data.dst_width        = params.dst_width - 1; // LSDMA controller expects width -1
+	lsdma_data->u.tiled_copy_data.src_swizzle_mode = params.swizzle_mode;
+	lsdma_data->u.tiled_copy_data.dst_swizzle_mode = params.swizzle_mode;
+	lsdma_data->u.tiled_copy_data.src_element_size = params.element_size;
+	lsdma_data->u.tiled_copy_data.dst_element_size = params.element_size;
+	lsdma_data->u.tiled_copy_data.rect_x           = params.rect_x;
+	lsdma_data->u.tiled_copy_data.rect_y           = params.rect_y;
+	lsdma_data->u.tiled_copy_data.dcc              = params.dcc;
+	lsdma_data->u.tiled_copy_data.tmz              = params.tmz;
+	lsdma_data->u.tiled_copy_data.read_compress    = params.read_compress;
+	lsdma_data->u.tiled_copy_data.write_compress   = params.write_compress;
+	lsdma_data->u.tiled_copy_data.src_height       = params.src_height - 1; // LSDMA controller expects height -1
+	lsdma_data->u.tiled_copy_data.dst_height       = params.dst_height - 1; // LSDMA controller expects height -1
+	lsdma_data->u.tiled_copy_data.data_format      = params.data_format;
+	lsdma_data->u.tiled_copy_data.max_com          = params.max_com;
+	lsdma_data->u.tiled_copy_data.max_uncom        = params.max_uncom;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA Tiled to Tiled Copy failed in DMUB");
+
+	return result;
+}
+
+bool dmub_lsdma_send_pio_copy_command(
+	struct dc_dmub_srv *dc_dmub_srv,
+	uint64_t src_addr,
+	uint64_t dst_addr,
+	uint32_t byte_count,
+	uint32_t overlap_disable)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_PIO_COPY;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.pio_copy_data.packet.fields.byte_count      = byte_count;
+	lsdma_data->u.pio_copy_data.packet.fields.overlap_disable = overlap_disable;
+	lsdma_data->u.pio_copy_data.src_lo                        = src_addr & 0xFFFFFFFF;
+	lsdma_data->u.pio_copy_data.src_hi                        = (src_addr >> 32) & 0xFFFFFFFF;
+	lsdma_data->u.pio_copy_data.dst_lo                        = dst_addr & 0xFFFFFFFF;
+	lsdma_data->u.pio_copy_data.dst_hi                        = (dst_addr >> 32) & 0xFFFFFFFF;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA PIO Copy failed in DMUB");
+
+	return result;
+}
+
+bool dmub_lsdma_send_pio_constfill_command(
+	struct dc_dmub_srv *dc_dmub_srv,
+	uint64_t dst_addr,
+	uint32_t byte_count,
+	uint32_t data)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_PIO_CONSTFILL;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.pio_constfill_data.packet.fields.constant_fill = 1;
+	lsdma_data->u.pio_constfill_data.packet.fields.byte_count    = byte_count;
+	lsdma_data->u.pio_constfill_data.dst_lo                      = dst_addr & 0xFFFFFFFF;
+	lsdma_data->u.pio_constfill_data.dst_hi                      = (dst_addr >> 32) & 0xFFFFFFFF;
+	lsdma_data->u.pio_constfill_data.data                        = data;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA PIO Constfill failed in DMUB");
+
+	return result;
+}
+
+bool dmub_lsdma_send_poll_reg_write_command(struct dc_dmub_srv *dc_dmub_srv, uint32_t reg_addr, uint32_t reg_data)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_POLL_REG_WRITE;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.reg_write_data.reg_addr = reg_addr;
+	lsdma_data->u.reg_write_data.reg_data = reg_data;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA Poll Reg failed in DMUB");
+
+	return result;
+}
+
+void dc_dmub_srv_release_hw(const struct dc *dc)
+{
+	struct dc_dmub_srv *dc_dmub_srv = dc->ctx->dmub_srv;
+	union dmub_rb_cmd cmd = {0};
 
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
 		return;
 
-	switch (output->ips_mode) {
-	case DMUB_IPS_MODE_IPS1_MAX:
-		command_code = DMUB_GPINT__GET_IPS1_HISTOGRAM_COUNTER;
-		break;
-	case DMUB_IPS_MODE_IPS2:
-		command_code = DMUB_GPINT__GET_IPS2_HISTOGRAM_COUNTER;
-		break;
-	case DMUB_IPS_MODE_IPS1_RCG:
-		command_code = DMUB_GPINT__GET_IPS1_RCG_HISTOGRAM_COUNTER;
-		break;
-	case DMUB_IPS_MODE_IPS1_ONO2_ON:
-		command_code = DMUB_GPINT__GET_IPS1_ONO2_ON_HISTOGRAM_COUNTER;
-		break;
-	default:
-		command_code = DMUB_GPINT__INVALID_COMMAND;
-		break;
-	}
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.idle_opt_notify_idle.header.type = DMUB_CMD__IDLE_OPT;
+	cmd.idle_opt_notify_idle.header.sub_type = DMUB_CMD__IDLE_OPT_RELEASE_HW;
+	cmd.idle_opt_notify_idle.header.payload_bytes =
+		sizeof(cmd.idle_opt_notify_idle) -
+		sizeof(cmd.idle_opt_notify_idle.header);
 
-	if (command_code == DMUB_GPINT__INVALID_COMMAND)
-		return;
-
-	for (i = 0; i < GPINT_RETRY_NUM; i++) {
-		// false could mean GPINT timeout, in which case we should retry
-		if (dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_PERCENT,
-					      (uint16_t)(output->ips_mode), &output->residency_percent,
-					      DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-			break;
-		udelay(100);
-	}
-
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_ENTRY_COUNTER,
-				      (uint16_t)(output->ips_mode),
-				       &output->entry_counter, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->entry_counter = 0;
-
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_DURATION_US_LO,
-				      (uint16_t)(output->ips_mode),
-				       &output->total_active_time_us[0], DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->total_active_time_us[0] = 0;
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_DURATION_US_HI,
-				      (uint16_t)(output->ips_mode),
-				       &output->total_active_time_us[1], DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->total_active_time_us[1] = 0;
-
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_INACTIVE_RESIDENCY_DURATION_US_LO,
-				      (uint16_t)(output->ips_mode),
-				       &output->total_inactive_time_us[0], DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->total_inactive_time_us[0] = 0;
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_INACTIVE_RESIDENCY_DURATION_US_HI,
-				      (uint16_t)(output->ips_mode),
-				       &output->total_inactive_time_us[1], DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->total_inactive_time_us[1] = 0;
-
-	// NUM_IPS_HISTOGRAM_BUCKETS = 16
-	for (i = 0; i < 16; i++)
-		if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, command_code, i, &output->histogram[i],
-					       DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-			output->histogram[i] = 0;
+	dm_execute_dmub_cmd(dc->ctx, &cmd,  DM_DMUB_WAIT_TYPE_WAIT);
 }

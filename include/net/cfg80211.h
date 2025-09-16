@@ -560,7 +560,7 @@ struct ieee80211_sta_s1g_cap {
  * @vht_cap: VHT capabilities in this band
  * @s1g_cap: S1G capabilities in this band
  * @edmg_cap: EDMG capabilities in this band
- * @s1g_cap: S1G capabilities in this band (S1B band only, of course)
+ * @s1g_cap: S1G capabilities in this band (S1G band only, of course)
  * @n_iftype_data: number of iftype data entries
  * @iftype_data: interface type data entries.  Note that the bits in
  *	@types_mask inside this structure cannot overlap (i.e. only
@@ -633,7 +633,7 @@ ieee80211_get_sband_iftype_data(const struct ieee80211_supported_band *sband,
 	const struct ieee80211_sband_iftype_data *data;
 	int i;
 
-	if (WARN_ON(iftype >= NL80211_IFTYPE_MAX))
+	if (WARN_ON(iftype >= NUM_NL80211_IFTYPES))
 		return NULL;
 
 	if (iftype == NL80211_IFTYPE_AP_VLAN)
@@ -1424,6 +1424,23 @@ struct cfg80211_unsol_bcast_probe_resp {
 };
 
 /**
+ * struct cfg80211_s1g_short_beacon - S1G short beacon data.
+ *
+ * @update: Set to true if the feature configuration should be updated.
+ * @short_head: Short beacon head.
+ * @short_tail: Short beacon tail.
+ * @short_head_len: Short beacon head len.
+ * @short_tail_len: Short beacon tail len.
+ */
+struct cfg80211_s1g_short_beacon {
+	bool update;
+	const u8 *short_head;
+	const u8 *short_tail;
+	size_t short_head_len;
+	size_t short_tail_len;
+};
+
+/**
  * struct cfg80211_ap_settings - AP configuration
  *
  * Used to configure an AP interface.
@@ -1463,6 +1480,8 @@ struct cfg80211_unsol_bcast_probe_resp {
  * @fils_discovery: FILS discovery transmission parameters
  * @unsol_bcast_probe_resp: Unsolicited broadcast probe response parameters
  * @mbssid_config: AP settings for multiple bssid
+ * @s1g_long_beacon_period: S1G long beacon period
+ * @s1g_short_beacon: S1G short beacon data
  */
 struct cfg80211_ap_settings {
 	struct cfg80211_chan_def chandef;
@@ -1496,6 +1515,8 @@ struct cfg80211_ap_settings {
 	struct cfg80211_fils_discovery fils_discovery;
 	struct cfg80211_unsol_bcast_probe_resp unsol_bcast_probe_resp;
 	struct cfg80211_mbssid_config mbssid_config;
+	u8 s1g_long_beacon_period;
+	struct cfg80211_s1g_short_beacon s1g_short_beacon;
 };
 
 
@@ -1507,11 +1528,13 @@ struct cfg80211_ap_settings {
  * @beacon: beacon data
  * @fils_discovery: FILS discovery transmission parameters
  * @unsol_bcast_probe_resp: Unsolicited broadcast probe response parameters
+ * @s1g_short_beacon: S1G short beacon data
  */
 struct cfg80211_ap_update {
 	struct cfg80211_beacon_data beacon;
 	struct cfg80211_fils_discovery fils_discovery;
 	struct cfg80211_unsol_bcast_probe_resp unsol_bcast_probe_resp;
+	struct cfg80211_s1g_short_beacon s1g_short_beacon;
 };
 
 /**
@@ -1526,6 +1549,7 @@ struct cfg80211_ap_update {
  * @n_counter_offsets_beacon: number of csa counters the beacon (tail)
  * @n_counter_offsets_presp: number of csa counters in the probe response
  * @beacon_after: beacon data to be used on the new channel
+ * @unsol_bcast_probe_resp: Unsolicited broadcast probe response parameters
  * @radar_required: whether radar detection is required on the new channel
  * @block_tx: whether transmissions should be blocked while changing
  * @count: number of beacons until switch
@@ -1540,6 +1564,7 @@ struct cfg80211_csa_settings {
 	unsigned int n_counter_offsets_beacon;
 	unsigned int n_counter_offsets_presp;
 	struct cfg80211_beacon_data beacon_after;
+	struct cfg80211_unsol_bcast_probe_resp unsol_bcast_probe_resp;
 	bool radar_required;
 	bool block_tx;
 	u8 count;
@@ -1555,6 +1580,7 @@ struct cfg80211_csa_settings {
  * @counter_offset_beacon: offsets of the counters within the beacon (tail)
  * @counter_offset_presp: offsets of the counters within the probe response
  * @beacon_next: beacon data to be used after the color change
+ * @unsol_bcast_probe_resp: Unsolicited broadcast probe response parameters
  * @count: number of beacons until the color change
  * @color: the color used after the change
  * @link_id: defines the link on which color change is expected during MLO.
@@ -1565,6 +1591,7 @@ struct cfg80211_color_change_settings {
 	u16 counter_offset_beacon;
 	u16 counter_offset_presp;
 	struct cfg80211_beacon_data beacon_next;
+	struct cfg80211_unsol_bcast_probe_resp unsol_bcast_probe_resp;
 	u8 count;
 	u8 color;
 	u8 link_id;
@@ -1653,6 +1680,7 @@ struct sta_txpwr {
  * @he_6ghz_capa: HE 6 GHz Band capabilities of station
  * @eht_capa: EHT capabilities of station
  * @eht_capa_len: the length of the EHT capabilities
+ * @s1g_capa: S1G capabilities of station
  */
 struct link_station_parameters {
 	const u8 *mld_mac;
@@ -1671,6 +1699,7 @@ struct link_station_parameters {
 	const struct ieee80211_he_6ghz_capa *he_6ghz_capa;
 	const struct ieee80211_eht_cap_elem *eht_capa;
 	u8 eht_capa_len;
+	const struct ieee80211_s1g_cap *s1g_capa;
 };
 
 /**
@@ -2018,6 +2047,99 @@ struct cfg80211_tid_stats {
 #define IEEE80211_MAX_CHAINS	4
 
 /**
+ * struct link_station_info - link station information
+ *
+ * Link station information filled by driver for get_station() and
+ *	dump_station().
+ * @filled: bit flag of flags using the bits of &enum nl80211_sta_info to
+ *	indicate the relevant values in this struct for them
+ * @connected_time: time(in secs) since a link of station is last connected
+ * @inactive_time: time since last activity for link station(tx/rx)
+ *	in milliseconds
+ * @assoc_at: bootime (ns) of the last association of link of station
+ * @rx_bytes: bytes (size of MPDUs) received from this link of station
+ * @tx_bytes: bytes (size of MPDUs) transmitted to this link of station
+ * @signal: The signal strength, type depends on the wiphy's signal_type.
+ *	For CFG80211_SIGNAL_TYPE_MBM, value is expressed in _dBm_.
+ * @signal_avg: Average signal strength, type depends on the wiphy's
+ *	signal_type. For CFG80211_SIGNAL_TYPE_MBM, value is expressed in _dBm_
+ * @chains: bitmask for filled values in @chain_signal, @chain_signal_avg
+ * @chain_signal: per-chain signal strength of last received packet in dBm
+ * @chain_signal_avg: per-chain signal strength average in dBm
+ * @txrate: current unicast bitrate from this link of station
+ * @rxrate: current unicast bitrate to this link of station
+ * @rx_packets: packets (MSDUs & MMPDUs) received from this link of station
+ * @tx_packets: packets (MSDUs & MMPDUs) transmitted to this link of station
+ * @tx_retries: cumulative retry counts (MPDUs) for this link of station
+ * @tx_failed: number of failed transmissions (MPDUs) (retries exceeded, no ACK)
+ * @rx_dropped_misc:  Dropped for un-specified reason.
+ * @bss_param: current BSS parameters
+ * @beacon_loss_count: Number of times beacon loss event has triggered.
+ * @expected_throughput: expected throughput in kbps (including 802.11 headers)
+ *	towards this station.
+ * @rx_beacon: number of beacons received from this peer
+ * @rx_beacon_signal_avg: signal strength average (in dBm) for beacons received
+ *	from this peer
+ * @rx_duration: aggregate PPDU duration(usecs) for all the frames from a peer
+ * @tx_duration: aggregate PPDU duration(usecs) for all the frames to a peer
+ * @airtime_weight: current airtime scheduling weight
+ * @pertid: per-TID statistics, see &struct cfg80211_tid_stats, using the last
+ *	(IEEE80211_NUM_TIDS) index for MSDUs not encapsulated in QoS-MPDUs.
+ *	Note that this doesn't use the @filled bit, but is used if non-NULL.
+ * @ack_signal: signal strength (in dBm) of the last ACK frame.
+ * @avg_ack_signal: average rssi value of ack packet for the no of msdu's has
+ *	been sent.
+ * @rx_mpdu_count: number of MPDUs received from this station
+ * @fcs_err_count: number of packets (MPDUs) received from this station with
+ *	an FCS error. This counter should be incremented only when TA of the
+ *	received packet with an FCS error matches the peer MAC address.
+ * @addr: For MLO STA connection, filled with address of the link of station.
+ */
+struct link_station_info {
+	u64 filled;
+	u32 connected_time;
+	u32 inactive_time;
+	u64 assoc_at;
+	u64 rx_bytes;
+	u64 tx_bytes;
+	s8 signal;
+	s8 signal_avg;
+
+	u8 chains;
+	s8 chain_signal[IEEE80211_MAX_CHAINS];
+	s8 chain_signal_avg[IEEE80211_MAX_CHAINS];
+
+	struct rate_info txrate;
+	struct rate_info rxrate;
+	u32 rx_packets;
+	u32 tx_packets;
+	u32 tx_retries;
+	u32 tx_failed;
+	u32 rx_dropped_misc;
+	struct sta_bss_parameters bss_param;
+
+	u32 beacon_loss_count;
+
+	u32 expected_throughput;
+
+	u64 tx_duration;
+	u64 rx_duration;
+	u64 rx_beacon;
+	u8 rx_beacon_signal_avg;
+
+	u16 airtime_weight;
+
+	s8 ack_signal;
+	s8 avg_ack_signal;
+	struct cfg80211_tid_stats *pertid;
+
+	u32 rx_mpdu_count;
+	u32 fcs_err_count;
+
+	u8 addr[ETH_ALEN] __aligned(2);
+};
+
+/**
  * struct station_info - station information
  *
  * Station information filled by driver for get_station() and dump_station.
@@ -2101,6 +2223,11 @@ struct cfg80211_tid_stats {
  *	dump_station() callbacks. User space needs this information to determine
  *	the accepted and rejected affiliated links of the connected station.
  * @assoc_resp_ies_len: Length of @assoc_resp_ies buffer in octets.
+ * @valid_links: bitmap of valid links, or 0 for non-MLO. Drivers fill this
+ *	information in cfg80211_new_sta(), cfg80211_del_sta_sinfo(),
+ *	get_station() and dump_station() callbacks.
+ * @links: reference to Link sta entries for MLO STA, all link specific
+ *	information is accessed through links[link_id].
  */
 struct station_info {
 	u64 filled;
@@ -2165,6 +2292,9 @@ struct station_info {
 	u8 mld_addr[ETH_ALEN] __aligned(2);
 	const u8 *assoc_resp_ies;
 	size_t assoc_resp_ies_len;
+
+	u16 valid_links;
+	struct link_station_info *links[IEEE80211_MLD_MAX_NUM_LINKS];
 };
 
 /**
@@ -2645,15 +2775,16 @@ struct cfg80211_scan_6ghz_params {
  * @wiphy: the wiphy this was for
  * @scan_start: time (in jiffies) when the scan started
  * @wdev: the wireless device to scan for
- * @info: (internal) information about completed scan
- * @notified: (internal) scan request was notified as done or aborted
  * @no_cck: used to send probe requests at non CCK rate in 2GHz band
  * @mac_addr: MAC address used with randomisation
  * @mac_addr_mask: MAC address mask used with randomisation, bits that
  *	are 0 in the mask should be randomised, bits that are 1 should
  *	be taken from the @mac_addr
  * @scan_6ghz: relevant for split scan request only,
- *	true if this is the second scan request
+ *	true if this is a 6 GHz scan request
+ * @first_part: %true if this is the first part of a split scan request or a
+ *	scan that was not split. May be %true for a @scan_6ghz scan if no other
+ *	channels were requested
  * @n_6ghz_params: number of 6 GHz params
  * @scan_6ghz_params: 6 GHz params
  * @bssid: BSSID to scan for (most commonly, the wildcard BSSID)
@@ -2677,14 +2808,11 @@ struct cfg80211_scan_request {
 	u8 mac_addr[ETH_ALEN] __aligned(2);
 	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
 	u8 bssid[ETH_ALEN] __aligned(2);
-
-	/* internal */
 	struct wiphy *wiphy;
 	unsigned long scan_start;
-	struct cfg80211_scan_info info;
-	bool notified;
 	bool no_cck;
 	bool scan_6ghz;
+	bool first_part;
 	u32 n_6ghz_params;
 	struct cfg80211_scan_6ghz_params *scan_6ghz_params;
 	s8 tsf_report_link_id;
@@ -4752,12 +4880,14 @@ struct cfg80211_ops {
 	int	(*set_mcast_rate)(struct wiphy *wiphy, struct net_device *dev,
 				  int rate[NUM_NL80211_BANDS]);
 
-	int	(*set_wiphy_params)(struct wiphy *wiphy, u32 changed);
+	int	(*set_wiphy_params)(struct wiphy *wiphy, int radio_idx,
+				    u32 changed);
 
 	int	(*set_tx_power)(struct wiphy *wiphy, struct wireless_dev *wdev,
+				int radio_idx,
 				enum nl80211_tx_power_setting type, int mbm);
 	int	(*get_tx_power)(struct wiphy *wiphy, struct wireless_dev *wdev,
-				unsigned int link_id, int *dbm);
+				int radio_idx, unsigned int link_id, int *dbm);
 
 	void	(*rfkill_poll)(struct wiphy *wiphy);
 
@@ -4819,8 +4949,10 @@ struct cfg80211_ops {
 						   struct wireless_dev *wdev,
 						   struct mgmt_frame_regs *upd);
 
-	int	(*set_antenna)(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant);
-	int	(*get_antenna)(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant);
+	int	(*set_antenna)(struct wiphy *wiphy, int radio_idx,
+			       u32 tx_ant, u32 rx_ant);
+	int	(*get_antenna)(struct wiphy *wiphy, int radio_idx,
+			       u32 *tx_ant, u32 *rx_ant);
 
 	int	(*sched_scan_start)(struct wiphy *wiphy,
 				struct net_device *dev,
@@ -5443,6 +5575,18 @@ struct wiphy_iftype_akm_suites {
 };
 
 /**
+ * struct wiphy_radio_cfg - physical radio config of a wiphy
+ * This structure describes the configurations of a physical radio in a
+ * wiphy. It is used to denote per-radio attributes belonging to a wiphy.
+ *
+ * @rts_threshold: RTS threshold (dot11RTSThreshold);
+ *	-1 (default) = RTS/CTS disabled
+ */
+struct wiphy_radio_cfg {
+	u32 rts_threshold;
+};
+
+/**
  * struct wiphy_radio_freq_range - wiphy frequency range
  * @start_freq:  start range edge frequency (kHz)
  * @end_freq:    end range edge frequency (kHz)
@@ -5697,6 +5841,10 @@ struct wiphy_radio {
  *	supports enabling HW timestamping for all peers (i.e. no need to
  *	specify a mac address).
  *
+ * @radio_cfg: configuration of radios belonging to a muli-radio wiphy. This
+ *	struct contains a list of all radio specific attributes and should be
+ *	used only for multi-radio wiphy.
+ *
  * @radio: radios belonging to this wiphy
  * @n_radio: number of radios
  */
@@ -5785,6 +5933,8 @@ struct wiphy {
 
 	void (*reg_notifier)(struct wiphy *wiphy,
 			     struct regulatory_request *request);
+
+	struct wiphy_radio_cfg *radio_cfg;
 
 	/* fields below are read-only, assigned by cfg80211 */
 
@@ -8466,6 +8616,17 @@ void cfg80211_tx_mgmt_expired(struct wireless_dev *wdev, u64 cookie,
 int cfg80211_sinfo_alloc_tid_stats(struct station_info *sinfo, gfp_t gfp);
 
 /**
+ * cfg80211_link_sinfo_alloc_tid_stats - allocate per-tid statistics.
+ *
+ * @link_sinfo: the link station information
+ * @gfp: allocation flags
+ *
+ * Return: 0 on success. Non-zero on error.
+ */
+int cfg80211_link_sinfo_alloc_tid_stats(struct link_station_info *link_sinfo,
+					gfp_t gfp);
+
+/**
  * cfg80211_sinfo_release_content - release contents of station info
  * @sinfo: the station information
  *
@@ -8476,6 +8637,13 @@ int cfg80211_sinfo_alloc_tid_stats(struct station_info *sinfo, gfp_t gfp);
 static inline void cfg80211_sinfo_release_content(struct station_info *sinfo)
 {
 	kfree(sinfo->pertid);
+
+	for (int link_id = 0; link_id < ARRAY_SIZE(sinfo->links); link_id++) {
+		if (sinfo->links[link_id]) {
+			kfree(sinfo->links[link_id]->pertid);
+			kfree(sinfo->links[link_id]);
+		}
+	}
 }
 
 /**
@@ -8880,6 +9048,7 @@ void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
 /**
  * cfg80211_rx_spurious_frame - inform userspace about a spurious frame
  * @dev: The device the frame matched to
+ * @link_id: the link the frame was received on, -1 if not applicable or unknown
  * @addr: the transmitter address
  * @gfp: context flags
  *
@@ -8889,13 +9058,14 @@ void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
  * Return: %true if the frame was passed to userspace (or this failed
  * for a reason other than not having a subscription.)
  */
-bool cfg80211_rx_spurious_frame(struct net_device *dev,
-				const u8 *addr, gfp_t gfp);
+bool cfg80211_rx_spurious_frame(struct net_device *dev, const u8 *addr,
+				int link_id, gfp_t gfp);
 
 /**
  * cfg80211_rx_unexpected_4addr_frame - inform about unexpected WDS frame
  * @dev: The device the frame matched to
  * @addr: the transmitter address
+ * @link_id: the link the frame was received on, -1 if not applicable or unknown
  * @gfp: context flags
  *
  * This function is used in AP mode (only!) to inform userspace that
@@ -8905,8 +9075,8 @@ bool cfg80211_rx_spurious_frame(struct net_device *dev,
  * Return: %true if the frame was passed to userspace (or this failed
  * for a reason other than not having a subscription.)
  */
-bool cfg80211_rx_unexpected_4addr_frame(struct net_device *dev,
-					const u8 *addr, gfp_t gfp);
+bool cfg80211_rx_unexpected_4addr_frame(struct net_device *dev, const u8 *addr,
+					int link_id, gfp_t gfp);
 
 /**
  * cfg80211_probe_status - notify userspace about probe status
@@ -9372,6 +9542,17 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 			       void (*iter)(const struct ieee80211_iface_combination *c,
 					    void *data),
 			       void *data);
+/**
+ * cfg80211_get_radio_idx_by_chan - get the radio index by the channel
+ *
+ * @wiphy: the wiphy
+ * @chan: channel for which the supported radio index is required
+ *
+ * Return: radio index on success or a negative error code
+ */
+int cfg80211_get_radio_idx_by_chan(struct wiphy *wiphy,
+				   const struct ieee80211_channel *chan);
+
 
 /**
  * cfg80211_stop_iface - trigger interface disconnection
@@ -9736,6 +9917,11 @@ void cfg80211_links_removed(struct net_device *dev, u16 link_mask);
  * struct cfg80211_mlo_reconf_done_data - MLO reconfiguration data
  * @buf: MLO Reconfiguration Response frame (header + body)
  * @len: length of the frame data
+ * @driver_initiated: Indicates whether the add links request is initiated by
+ *	driver. This is set to true when the link reconfiguration request
+ *	initiated by driver due to AP link recommendation requests
+ *	(Ex: BTM (BSS Transition Management) request) handling offloaded to
+ *	driver.
  * @added_links: BIT mask of links successfully added to the association
  * @links: per-link information indexed by link ID
  * @links.bss: the BSS that MLO reconfiguration was requested for, ownership of
@@ -9748,6 +9934,7 @@ void cfg80211_links_removed(struct net_device *dev, u16 link_mask);
 struct cfg80211_mlo_reconf_done_data {
 	const u8 *buf;
 	size_t len;
+	bool driver_initiated;
 	u16 added_links;
 	struct {
 		struct cfg80211_bss *bss;

@@ -12,7 +12,7 @@ void dcn351_update_bw_bounding_box_fpu(struct dc *dc,
 int dcn351_populate_dml_pipes_from_context_fpu(struct dc *dc,
 					      struct dc_state *context,
 					      display_e2e_pipe_params_st *pipes,
-					      bool fast_validate);
+					      enum dc_validate_mode validate_mode);
 
 void dcn351_decide_zstate_support(struct dc *dc, struct dc_state *context);
 

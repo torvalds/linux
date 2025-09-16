@@ -1920,11 +1920,12 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 					"extent type past end of inode %llu:%u, i_size %llu\n%s",
 					i->inode.bi_inum, i->inode.bi_snapshot, i->inode.bi_size,
 					(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-				ret = bch2_fpunch_snapshot(trans,
-							   SPOS(i->inode.bi_inum,
-								last_block,
-								i->inode.bi_snapshot),
-							   POS(i->inode.bi_inum, U64_MAX));
+				ret =   snapshots_seen_add_inorder(c, s, i->inode.bi_snapshot) ?:
+					bch2_fpunch_snapshot(trans,
+							     SPOS(i->inode.bi_inum,
+								  last_block,
+								  i->inode.bi_snapshot),
+							     POS(i->inode.bi_inum, U64_MAX));
 				if (ret)
 					goto err;
 

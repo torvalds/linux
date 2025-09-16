@@ -136,7 +136,7 @@ static const struct mfd_cell mt6323_devs[] = {
 		.name = "mt6323-led",
 		.of_compatible = "mediatek,mt6323-led"
 	}, {
-		.name = "mtk-pmic-keys",
+		.name = "mt6323-keys",
 		.num_resources = ARRAY_SIZE(mt6323_keys_resources),
 		.resources = mt6323_keys_resources,
 		.of_compatible = "mediatek,mt6323-keys"
@@ -153,7 +153,7 @@ static const struct mfd_cell mt6328_devs[] = {
 		.name = "mt6328-regulator",
 		.of_compatible = "mediatek,mt6328-regulator"
 	}, {
-		.name = "mtk-pmic-keys",
+		.name = "mt6328-keys",
 		.num_resources = ARRAY_SIZE(mt6328_keys_resources),
 		.resources = mt6328_keys_resources,
 		.of_compatible = "mediatek,mt6328-keys"
@@ -175,7 +175,7 @@ static const struct mfd_cell mt6357_devs[] = {
 		.name = "mt6357-sound",
 		.of_compatible = "mediatek,mt6357-sound"
 	}, {
-		.name = "mtk-pmic-keys",
+		.name = "mt6357-keys",
 		.num_resources = ARRAY_SIZE(mt6357_keys_resources),
 		.resources = mt6357_keys_resources,
 		.of_compatible = "mediatek,mt6357-keys"
@@ -196,7 +196,7 @@ static const struct mfd_cell mt6331_mt6332_devs[] = {
 		.name = "mt6332-regulator",
 		.of_compatible = "mediatek,mt6332-regulator"
 	}, {
-		.name = "mtk-pmic-keys",
+		.name = "mt6331-keys",
 		.num_resources = ARRAY_SIZE(mt6331_keys_resources),
 		.resources = mt6331_keys_resources,
 		.of_compatible = "mediatek,mt6331-keys"
@@ -240,7 +240,7 @@ static const struct mfd_cell mt6359_devs[] = {
 	},
 	{ .name = "mt6359-sound", },
 	{
-		.name = "mtk-pmic-keys",
+		.name = "mt6359-keys",
 		.num_resources = ARRAY_SIZE(mt6359_keys_resources),
 		.resources = mt6359_keys_resources,
 		.of_compatible = "mediatek,mt6359-keys"
@@ -272,7 +272,7 @@ static const struct mfd_cell mt6397_devs[] = {
 		.name = "mt6397-pinctrl",
 		.of_compatible = "mediatek,mt6397-pinctrl",
 	}, {
-		.name = "mtk-pmic-keys",
+		.name = "mt6397-keys",
 		.num_resources = ARRAY_SIZE(mt6397_keys_resources),
 		.resources = mt6397_keys_resources,
 		.of_compatible = "mediatek,mt6397-keys"

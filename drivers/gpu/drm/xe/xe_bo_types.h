@@ -32,8 +32,6 @@ struct xe_bo {
 	struct xe_bo *backup_obj;
 	/** @parent_obj: Ref to parent bo if this a backup_obj */
 	struct xe_bo *parent_obj;
-	/** @size: Size of this buffer object */
-	size_t size;
 	/** @flags: flags for this buffer object */
 	u32 flags;
 	/** @vm: VM this BO is attached to, for extobj this will be NULL */
@@ -86,7 +84,7 @@ struct xe_bo {
 	u16 cpu_caching;
 
 	/** @devmem_allocation: SVM device memory allocation */
-	struct drm_gpusvm_devmem devmem_allocation;
+	struct drm_pagemap_devmem devmem_allocation;
 
 	/** @vram_userfault_link: Link into @mem_access.vram_userfault.list */
 		struct list_head vram_userfault_link;

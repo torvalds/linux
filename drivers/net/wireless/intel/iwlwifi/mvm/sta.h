@@ -214,7 +214,7 @@ struct iwl_mvm_vif;
  */
 
 /**
- * enum iwl_mvm_agg_state
+ * enum iwl_mvm_agg_state - aggregation session state
  *
  * The state machine of the BA agreement establishment / tear down.
  * These states relate to a specific RA / TID.
@@ -483,6 +483,7 @@ struct iwl_mvm_int_sta {
  *	about. Otherwise (if this is a new STA), this should be false.
  * @flags: if update==true, this marks what is being changed via ORs of values
  *	from enum iwl_sta_modify_flag. Otherwise, this is ignored.
+ * Return: negative error code or 0 on success
  */
 int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			   bool update, unsigned int flags);

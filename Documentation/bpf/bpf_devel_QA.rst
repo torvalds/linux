@@ -611,9 +611,10 @@ Q: I have added a new BPF instruction to the kernel, how can I integrate
 it into LLVM?
 
 A: LLVM has a ``-mcpu`` selector for the BPF back end in order to allow
-the selection of BPF instruction set extensions. By default the
-``generic`` processor target is used, which is the base instruction set
-(v1) of BPF.
+the selection of BPF instruction set extensions. Before llvm version 20,
+the ``generic`` processor target is used, which is the base instruction
+set (v1) of BPF. Since llvm 20, the default processor target has changed
+to instruction set v3.
 
 LLVM has an option to select ``-mcpu=probe`` where it will probe the host
 kernel for supported BPF instruction set extensions and selects the

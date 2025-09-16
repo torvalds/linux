@@ -593,7 +593,7 @@ static int ixgbe_cancel_pending_update(struct ixgbe_adapter *adapter,
 					   "Canceling previous pending update",
 					   component, 0, 0);
 
-	err = ixgbe_acquire_nvm(hw, IXGBE_RES_WRITE);
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_WRITE);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Failed to acquire device flash lock");
@@ -686,7 +686,7 @@ int ixgbe_flash_pldm_image(struct devlink *devlink,
 	if (err)
 		return err;
 
-	err = ixgbe_acquire_nvm(hw, IXGBE_RES_WRITE);
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_WRITE);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Failed to acquire device flash lock");

@@ -20,12 +20,6 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
-#if 0
-#define ADDRLABEL(x...) printk(x)
-#else
-#define ADDRLABEL(x...) do { ; } while (0)
-#endif
-
 /*
  * Policy Table
  */
@@ -150,8 +144,8 @@ u32 ipv6_addr_label(struct net *net,
 	label = p ? p->label : IPV6_ADDR_LABEL_DEFAULT;
 	rcu_read_unlock();
 
-	ADDRLABEL(KERN_DEBUG "%s(addr=%pI6, type=%d, ifindex=%d) => %08x\n",
-		  __func__, addr, type, ifindex, label);
+	net_dbg_ratelimited("%s(addr=%pI6, type=%d, ifindex=%d) => %08x\n", __func__, addr, type,
+			    ifindex, label);
 
 	return label;
 }
@@ -164,8 +158,8 @@ static struct ip6addrlbl_entry *ip6addrlbl_alloc(const struct in6_addr *prefix,
 	struct ip6addrlbl_entry *newp;
 	int addrtype;
 
-	ADDRLABEL(KERN_DEBUG "%s(prefix=%pI6, prefixlen=%d, ifindex=%d, label=%u)\n",
-		  __func__, prefix, prefixlen, ifindex, (unsigned int)label);
+	net_dbg_ratelimited("%s(prefix=%pI6, prefixlen=%d, ifindex=%d, label=%u)\n", __func__,
+			    prefix, prefixlen, ifindex, (unsigned int)label);
 
 	addrtype = ipv6_addr_type(prefix) & (IPV6_ADDR_MAPPED | IPV6_ADDR_COMPATv4 | IPV6_ADDR_LOOPBACK);
 
@@ -207,8 +201,7 @@ static int __ip6addrlbl_add(struct net *net, struct ip6addrlbl_entry *newp,
 	struct hlist_node *n;
 	int ret = 0;
 
-	ADDRLABEL(KERN_DEBUG "%s(newp=%p, replace=%d)\n", __func__, newp,
-		  replace);
+	net_dbg_ratelimited("%s(newp=%p, replace=%d)\n", __func__, newp, replace);
 
 	hlist_for_each_entry_safe(p, n,	&net->ipv6.ip6addrlbl_table.head, list) {
 		if (p->prefixlen == newp->prefixlen &&
@@ -247,9 +240,8 @@ static int ip6addrlbl_add(struct net *net,
 	struct ip6addrlbl_entry *newp;
 	int ret = 0;
 
-	ADDRLABEL(KERN_DEBUG "%s(prefix=%pI6, prefixlen=%d, ifindex=%d, label=%u, replace=%d)\n",
-		  __func__, prefix, prefixlen, ifindex, (unsigned int)label,
-		  replace);
+	net_dbg_ratelimited("%s(prefix=%pI6, prefixlen=%d, ifindex=%d, label=%u, replace=%d)\n",
+			    __func__, prefix, prefixlen, ifindex, (unsigned int)label, replace);
 
 	newp = ip6addrlbl_alloc(prefix, prefixlen, ifindex, label);
 	if (IS_ERR(newp))
@@ -271,8 +263,8 @@ static int __ip6addrlbl_del(struct net *net,
 	struct hlist_node *n;
 	int ret = -ESRCH;
 
-	ADDRLABEL(KERN_DEBUG "%s(prefix=%pI6, prefixlen=%d, ifindex=%d)\n",
-		  __func__, prefix, prefixlen, ifindex);
+	net_dbg_ratelimited("%s(prefix=%pI6, prefixlen=%d, ifindex=%d)\n", __func__, prefix,
+			    prefixlen, ifindex);
 
 	hlist_for_each_entry_safe(p, n, &net->ipv6.ip6addrlbl_table.head, list) {
 		if (p->prefixlen == prefixlen &&
@@ -294,8 +286,8 @@ static int ip6addrlbl_del(struct net *net,
 	struct in6_addr prefix_buf;
 	int ret;
 
-	ADDRLABEL(KERN_DEBUG "%s(prefix=%pI6, prefixlen=%d, ifindex=%d)\n",
-		  __func__, prefix, prefixlen, ifindex);
+	net_dbg_ratelimited("%s(prefix=%pI6, prefixlen=%d, ifindex=%d)\n", __func__, prefix,
+			    prefixlen, ifindex);
 
 	ipv6_addr_prefix(&prefix_buf, prefix, prefixlen);
 	spin_lock(&net->ipv6.ip6addrlbl_table.lock);
@@ -311,8 +303,6 @@ static int __net_init ip6addrlbl_net_init(struct net *net)
 	struct hlist_node *n;
 	int err;
 	int i;
-
-	ADDRLABEL(KERN_DEBUG "%s\n", __func__);
 
 	spin_lock_init(&net->ipv6.ip6addrlbl_table.lock);
 	INIT_HLIST_HEAD(&net->ipv6.ip6addrlbl_table.head);

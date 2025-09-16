@@ -16,7 +16,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/async.h>
-#include <linux/export.h>
 #include <linux/mutex.h>
 
 #include <asm/pgalloc.h>
@@ -539,7 +538,7 @@ static __init struct sclp_sd_file *sclp_sd_file_create(const char *name, u8 di)
 	sysfs_bin_attr_init(&sd_file->data_attr);
 	sd_file->data_attr.attr.name = "data";
 	sd_file->data_attr.attr.mode = 0444;
-	sd_file->data_attr.read_new = data_read;
+	sd_file->data_attr.read = data_read;
 
 	rc = sysfs_create_bin_file(&sd_file->kobj, &sd_file->data_attr);
 	if (rc) {

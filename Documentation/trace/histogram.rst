@@ -249,7 +249,7 @@ Extended error information
   table, it should keep a running total of the number of bytes
   requested by that call_site.
 
-  We'll let it run for awhile and then dump the contents of the 'hist'
+  We'll let it run for a while and then dump the contents of the 'hist'
   file in the kmalloc event's subdirectory (for readability, a number
   of entries have been omitted)::
 

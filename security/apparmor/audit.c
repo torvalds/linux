@@ -192,7 +192,7 @@ int aa_audit(int type, struct aa_profile *profile,
 	aa_audit_msg(type, ad, cb);
 
 	if (ad->type == AUDIT_APPARMOR_KILL)
-		(void)send_sig_info(SIGKILL, NULL,
+		(void)send_sig_info(profile->signal, NULL,
 			ad->common.type == LSM_AUDIT_DATA_TASK &&
 			ad->common.u.tsk ? ad->common.u.tsk : current);
 

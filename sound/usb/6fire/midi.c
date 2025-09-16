@@ -183,7 +183,7 @@ int usb6fire_midi_init(struct sfire_chip *chip)
 		return ret;
 	}
 	rt->instance->private_data = rt;
-	strcpy(rt->instance->name, "DMX6FireUSB MIDI");
+	strscpy(rt->instance->name, "DMX6FireUSB MIDI");
 	rt->instance->info_flags = SNDRV_RAWMIDI_INFO_OUTPUT |
 			SNDRV_RAWMIDI_INFO_INPUT |
 			SNDRV_RAWMIDI_INFO_DUPLEX;

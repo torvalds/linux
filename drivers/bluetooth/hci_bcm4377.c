@@ -420,7 +420,7 @@ struct bcm4377_ring_state {
  * payloads_dma:DMA address for payload buffer
  * events: pointer to array of completions if waiting is allowed
  * msgids: bitmap to keep track of used message ids
- * lock: Spinlock to protect access to ring structurs used in the irq handler
+ * lock: Spinlock to protect access to ring structures used in the irq handler
  */
 struct bcm4377_transfer_ring {
 	enum bcm4377_transfer_ring_id ring_id;

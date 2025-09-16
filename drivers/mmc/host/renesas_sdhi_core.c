@@ -686,9 +686,8 @@ static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
 	/* Set SCC */
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TAPSET, priv->tap_set);
 
-	/* Enable auto re-tuning */
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_RVSCNTL,
-		       SH_MOBILE_SDHI_SCC_RVSCNTL_RVSEN |
+		       (priv->card_is_sdio ? 0 : SH_MOBILE_SDHI_SCC_RVSCNTL_RVSEN) |
 		       sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_RVSCNTL));
 
 	return 0;
@@ -778,6 +777,14 @@ static bool renesas_sdhi_manual_correction(struct tmio_mmc_host *host, bool use_
 		if (bad_taps & BIT(new_tap % priv->tap_num))
 			return test_bit(error_tap % priv->tap_num, priv->smpcmp);
 	} else {
+		if (!priv->card_is_sdio &&
+		    !(val & SH_MOBILE_SDHI_SCC_RVSREQ_RVSERR)) {
+			u32 smpcmp = sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_SMPCMP);
+
+			/* DAT1 is unmatched because of an SDIO irq */
+			if (smpcmp & (BIT(17) | BIT(1)))
+				return false;
+		}
 		if (val & SH_MOBILE_SDHI_SCC_RVSREQ_RVSERR)
 			return true;    /* need retune */
 		else if (val & SH_MOBILE_SDHI_SCC_RVSREQ_REQTAPUP)
@@ -828,11 +835,14 @@ static bool renesas_sdhi_check_scc_error(struct tmio_mmc_host *host,
 	if (mmc_doing_tune(host->mmc))
 		return false;
 
-	if (((mrq->cmd->error == -ETIMEDOUT) ||
-	     (mrq->data && mrq->data->error == -ETIMEDOUT)) &&
-	    ((host->mmc->caps & MMC_CAP_NONREMOVABLE) ||
-	     (host->ops.get_cd && host->ops.get_cd(host->mmc))))
-		ret |= true;
+	/* mrq can be NULL to check SCC error on SDIO irq without any request */
+	if (mrq) {
+		if (((mrq->cmd->error == -ETIMEDOUT) ||
+		     (mrq->data && mrq->data->error == -ETIMEDOUT)) &&
+		    ((host->mmc->caps & MMC_CAP_NONREMOVABLE) ||
+		     (host->ops.get_cd && host->ops.get_cd(host->mmc))))
+			ret |= true;
+	}
 
 	if (sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_RVSCNTL) &
 	    SH_MOBILE_SDHI_SCC_RVSCNTL_RVSEN)
@@ -841,6 +851,28 @@ static bool renesas_sdhi_check_scc_error(struct tmio_mmc_host *host,
 		ret |= renesas_sdhi_manual_correction(host, use_4tap);
 
 	return ret;
+}
+
+static void renesas_sdhi_init_card(struct mmc_host *mmc, struct mmc_card *card)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct renesas_sdhi *priv = host_to_priv(host);
+
+	/*
+	 * This controller cannot do auto-retune with SDIO irqs, so we
+	 * then need to enforce manual correction. However, when tuning,
+	 * mmc->card is not populated yet, so we don't know if the card
+	 * is SDIO. init_card provides this information earlier, so we
+	 * keep a copy of it.
+	 */
+	priv->card_is_sdio = mmc_card_sdio(card);
+}
+
+static void renesas_sdhi_sdio_irq(struct tmio_mmc_host *host)
+{
+	/* This controller requires retune when an SDIO irq occurs */
+	if (renesas_sdhi_check_scc_error(host, NULL))
+		mmc_retune_needed(host->mmc);
 }
 
 static int renesas_sdhi_wait_idle(struct tmio_mmc_host *host, u32 bit)
@@ -1164,7 +1196,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	ret = renesas_sdhi_clk_enable(host);
 	if (ret)
-		goto efree;
+		return ret;
 
 	rcfg.of_node = of_get_available_child_by_name(dev->of_node, "vqmmc-regulator");
 	if (rcfg.of_node) {
@@ -1227,6 +1259,8 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 			dev_warn(&host->pdev->dev, "Unknown clock rate for tuning\n");
 
 		host->check_retune = renesas_sdhi_check_scc_error;
+		host->sdio_irq = renesas_sdhi_sdio_irq;
+		host->ops.init_card = renesas_sdhi_init_card;
 		host->ops.execute_tuning = renesas_sdhi_execute_tuning;
 		host->ops.prepare_hs400_tuning = renesas_sdhi_prepare_hs400_tuning;
 		host->ops.hs400_downgrade = renesas_sdhi_disable_scc;
@@ -1266,9 +1300,6 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 edisclk:
 	renesas_sdhi_clk_disable(host);
-efree:
-	tmio_mmc_host_free(host);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(renesas_sdhi_probe);
@@ -1279,7 +1310,6 @@ void renesas_sdhi_remove(struct platform_device *pdev)
 
 	tmio_mmc_host_remove(host);
 	renesas_sdhi_clk_disable(host);
-	tmio_mmc_host_free(host);
 }
 EXPORT_SYMBOL_GPL(renesas_sdhi_remove);
 

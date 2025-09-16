@@ -370,7 +370,6 @@ void odm_DIGInit(void *pDM_VOID)
 
 	pDM_DigTable->rx_gain_range_max = DM_DIG_MAX_NIC;
 	pDM_DigTable->rx_gain_range_min = DM_DIG_MIN_NIC;
-
 }
 
 

@@ -497,7 +497,7 @@ restart:
 
 static ssize_t
 xfs_zoned_write_space_reserve(
-	struct xfs_inode		*ip,
+	struct xfs_mount		*mp,
 	struct kiocb			*iocb,
 	struct iov_iter			*from,
 	unsigned int			flags,
@@ -533,8 +533,8 @@ xfs_zoned_write_space_reserve(
 	 *
 	 * Any remaining block will be returned after the write.
 	 */
-	return xfs_zoned_space_reserve(ip,
-			XFS_B_TO_FSB(ip->i_mount, count) + 1 + 2, flags, ac);
+	return xfs_zoned_space_reserve(mp, XFS_B_TO_FSB(mp, count) + 1 + 2,
+			flags, ac);
 }
 
 static int
@@ -718,13 +718,13 @@ xfs_file_dio_write_zoned(
 	struct xfs_zone_alloc_ctx ac = { };
 	ssize_t			ret;
 
-	ret = xfs_zoned_write_space_reserve(ip, iocb, from, 0, &ac);
+	ret = xfs_zoned_write_space_reserve(ip->i_mount, iocb, from, 0, &ac);
 	if (ret < 0)
 		return ret;
 	ret = xfs_file_dio_write_aligned(ip, iocb, from,
 			&xfs_zoned_direct_write_iomap_ops,
 			&xfs_dio_zoned_write_ops, &ac);
-	xfs_zoned_space_unreserve(ip, &ac);
+	xfs_zoned_space_unreserve(ip->i_mount, &ac);
 	return ret;
 }
 
@@ -979,7 +979,8 @@ write_retry:
 
 	trace_xfs_file_buffered_write(iocb, from);
 	ret = iomap_file_buffered_write(iocb, from,
-			&xfs_buffered_write_iomap_ops, NULL);
+			&xfs_buffered_write_iomap_ops, &xfs_iomap_write_ops,
+			NULL);
 
 	/*
 	 * If we hit a space limit, try to free up some lingering preallocated
@@ -1032,7 +1033,7 @@ xfs_file_buffered_write_zoned(
 	struct xfs_zone_alloc_ctx ac = { };
 	ssize_t			ret;
 
-	ret = xfs_zoned_write_space_reserve(ip, iocb, from, XFS_ZR_GREEDY, &ac);
+	ret = xfs_zoned_write_space_reserve(mp, iocb, from, XFS_ZR_GREEDY, &ac);
 	if (ret < 0)
 		return ret;
 
@@ -1059,7 +1060,8 @@ xfs_file_buffered_write_zoned(
 retry:
 	trace_xfs_file_buffered_write(iocb, from);
 	ret = iomap_file_buffered_write(iocb, from,
-			&xfs_buffered_write_iomap_ops, &ac);
+			&xfs_buffered_write_iomap_ops, &xfs_iomap_write_ops,
+			&ac);
 	if (ret == -ENOSPC && !cleared_space) {
 		/*
 		 * Kick off writeback to convert delalloc space and release the
@@ -1073,7 +1075,7 @@ retry:
 out_unlock:
 	xfs_iunlock(ip, iolock);
 out_unreserve:
-	xfs_zoned_space_unreserve(ip, &ac);
+	xfs_zoned_space_unreserve(ip->i_mount, &ac);
 	if (ret > 0) {
 		XFS_STATS_ADD(mp, xs_write_bytes, ret);
 		ret = generic_write_sync(iocb, ret);
@@ -1099,9 +1101,6 @@ xfs_file_write_iter(
 	if (xfs_is_shutdown(ip->i_mount))
 		return -EIO;
 
-	if (IS_DAX(inode))
-		return xfs_file_dax_write(iocb, from);
-
 	if (iocb->ki_flags & IOCB_ATOMIC) {
 		if (ocount < xfs_get_atomic_write_min(ip))
 			return -EINVAL;
@@ -1113,6 +1112,9 @@ xfs_file_write_iter(
 		if (ret)
 			return ret;
 	}
+
+	if (IS_DAX(inode))
+		return xfs_file_dax_write(iocb, from);
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		/*
@@ -1414,11 +1416,11 @@ xfs_file_zoned_fallocate(
 	struct xfs_inode	*ip = XFS_I(file_inode(file));
 	int			error;
 
-	error = xfs_zoned_space_reserve(ip, 2, XFS_ZR_RESERVED, &ac);
+	error = xfs_zoned_space_reserve(ip->i_mount, 2, XFS_ZR_RESERVED, &ac);
 	if (error)
 		return error;
 	error = __xfs_file_fallocate(file, mode, offset, len, &ac);
-	xfs_zoned_space_unreserve(ip, &ac);
+	xfs_zoned_space_unreserve(ip->i_mount, &ac);
 	return error;
 }
 
@@ -1730,7 +1732,7 @@ xfs_dax_fault_locked(
 	bool			write_fault)
 {
 	vm_fault_t		ret;
-	pfn_t			pfn;
+	unsigned long		pfn;
 
 	if (!IS_ENABLED(CONFIG_FS_DAX)) {
 		ASSERT(0);
@@ -1828,12 +1830,12 @@ xfs_write_fault_zoned(
 	 * But as the overallocation is limited to less than a folio and will be
 	 * release instantly that's just fine.
 	 */
-	error = xfs_zoned_space_reserve(ip, XFS_B_TO_FSB(ip->i_mount, len), 0,
-			&ac);
+	error = xfs_zoned_space_reserve(ip->i_mount,
+			XFS_B_TO_FSB(ip->i_mount, len), 0, &ac);
 	if (error < 0)
 		return vmf_fs_error(error);
 	ret = __xfs_write_fault(vmf, order, &ac);
-	xfs_zoned_space_unreserve(ip, &ac);
+	xfs_zoned_space_unreserve(ip->i_mount, &ac);
 	return ret;
 }
 
@@ -1914,10 +1916,10 @@ static const struct vm_operations_struct xfs_file_vm_ops = {
 };
 
 STATIC int
-xfs_file_mmap(
-	struct file		*file,
-	struct vm_area_struct	*vma)
+xfs_file_mmap_prepare(
+	struct vm_area_desc	*desc)
 {
+	struct file		*file = desc->file;
 	struct inode		*inode = file_inode(file);
 	struct xfs_buftarg	*target = xfs_inode_buftarg(XFS_I(inode));
 
@@ -1925,13 +1927,14 @@ xfs_file_mmap(
 	 * We don't support synchronous mappings for non-DAX files and
 	 * for DAX files if underneath dax_device is not synchronous.
 	 */
-	if (!daxdev_mapping_supported(vma, target->bt_daxdev))
+	if (!daxdev_mapping_supported(desc->vm_flags, file_inode(file),
+				      target->bt_daxdev))
 		return -EOPNOTSUPP;
 
 	file_accessed(file);
-	vma->vm_ops = &xfs_file_vm_ops;
+	desc->vm_ops = &xfs_file_vm_ops;
 	if (IS_DAX(inode))
-		vm_flags_set(vma, VM_HUGEPAGE);
+		desc->vm_flags |= VM_HUGEPAGE;
 	return 0;
 }
 
@@ -1946,7 +1949,7 @@ const struct file_operations xfs_file_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= xfs_file_compat_ioctl,
 #endif
-	.mmap		= xfs_file_mmap,
+	.mmap_prepare	= xfs_file_mmap_prepare,
 	.open		= xfs_file_open,
 	.release	= xfs_file_release,
 	.fsync		= xfs_file_fsync,

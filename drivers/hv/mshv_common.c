@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <asm/mshyperv.h>
 #include <linux/resume_user_mode.h>
+#include <linux/export.h>
 
 #include "mshv.h"
 

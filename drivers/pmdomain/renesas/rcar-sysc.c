@@ -342,6 +342,7 @@ struct rcar_pm_domains {
 };
 
 static struct genpd_onecell_data *rcar_sysc_onecell_data;
+static struct device_node *rcar_sysc_onecell_np;
 
 static int __init rcar_sysc_pd_init(void)
 {
@@ -428,13 +429,29 @@ static int __init rcar_sysc_pd_init(void)
 		}
 	}
 
-	error = of_genpd_add_provider_onecell(np, &domains->onecell_data);
+	rcar_sysc_onecell_np = np;
+	return 0;
 
 out_put:
 	of_node_put(np);
 	return error;
 }
 early_initcall(rcar_sysc_pd_init);
+
+static int __init rcar_sysc_pd_init_provider(void)
+{
+	int error;
+
+	if (!rcar_sysc_onecell_np)
+		return -ENODEV;
+
+	error = of_genpd_add_provider_onecell(rcar_sysc_onecell_np,
+					      rcar_sysc_onecell_data);
+
+	of_node_put(rcar_sysc_onecell_np);
+	return error;
+}
+postcore_initcall(rcar_sysc_pd_init_provider);
 
 #ifdef CONFIG_ARCH_R8A7779
 static int rcar_sysc_power_cpu(unsigned int idx, bool on)

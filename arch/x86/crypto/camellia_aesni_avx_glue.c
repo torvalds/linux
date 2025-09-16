@@ -8,6 +8,7 @@
 #include <crypto/algapi.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/types.h>
 

@@ -248,7 +248,7 @@ struct btrfs_inode {
 		u64 new_delalloc_bytes;
 		/*
 		 * The offset of the last dir index key that was logged.
-		 * This is used only for directories.
+		 * This is used only for directories. Protected by 'log_mutex'.
 		 */
 		u64 last_dir_index_offset;
 	};
@@ -523,6 +523,19 @@ static inline void btrfs_update_inode_mapping_flags(struct btrfs_inode *inode)
 		mapping_clear_stable_writes(inode->vfs_inode.i_mapping);
 	else
 		mapping_set_stable_writes(inode->vfs_inode.i_mapping);
+}
+
+static inline void btrfs_set_inode_mapping_order(struct btrfs_inode *inode)
+{
+	/* Metadata inode should not reach here. */
+	ASSERT(is_data_inode(inode));
+
+	/* We only allow BITS_PER_LONGS blocks for each bitmap. */
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	mapping_set_folio_order_range(inode->vfs_inode.i_mapping, 0,
+			ilog2(((BITS_PER_LONG << inode->root->fs_info->sectorsize_bits)
+				>> PAGE_SHIFT)));
+#endif
 }
 
 /* Array of bytes with variable length, hexadecimal format 0x1234 */

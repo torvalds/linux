@@ -238,7 +238,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_REG_DMABUF_MR)(
 		return ret;
 
 	mr = pd->device->ops.reg_user_mr_dmabuf(pd, offset, length, iova, fd,
-						access_flags,
+						access_flags, NULL,
 						attrs);
 	if (IS_ERR(mr))
 		return PTR_ERR(mr);
@@ -262,6 +262,135 @@ static int UVERBS_HANDLER(UVERBS_METHOD_REG_DMABUF_MR)(
 		return ret;
 
 	ret = uverbs_copy_to(attrs, UVERBS_ATTR_REG_DMABUF_MR_RESP_RKEY,
+			     &mr->rkey, sizeof(mr->rkey));
+	return ret;
+}
+
+static int UVERBS_HANDLER(UVERBS_METHOD_REG_MR)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uobject *uobj =
+		uverbs_attr_get_uobject(attrs, UVERBS_ATTR_REG_MR_HANDLE);
+	struct ib_pd *pd =
+		uverbs_attr_get_obj(attrs, UVERBS_ATTR_REG_MR_PD_HANDLE);
+	u32 valid_access_flags = IB_ACCESS_SUPPORTED;
+	u64 length, iova, fd_offset = 0, addr = 0;
+	struct ib_device *ib_dev = pd->device;
+	struct ib_dmah *dmah = NULL;
+	bool has_fd_offset = false;
+	bool has_addr = false;
+	bool has_fd = false;
+	u32 access_flags;
+	struct ib_mr *mr;
+	int fd;
+	int ret;
+
+	ret = uverbs_copy_from(&iova, attrs, UVERBS_ATTR_REG_MR_IOVA);
+	if (ret)
+		return ret;
+
+	ret = uverbs_copy_from(&length, attrs, UVERBS_ATTR_REG_MR_LENGTH);
+	if (ret)
+		return ret;
+
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_REG_MR_ADDR)) {
+		ret = uverbs_copy_from(&addr, attrs,
+				       UVERBS_ATTR_REG_MR_ADDR);
+		if (ret)
+			return ret;
+		has_addr = true;
+	}
+
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_REG_MR_FD_OFFSET)) {
+		ret = uverbs_copy_from(&fd_offset, attrs,
+				       UVERBS_ATTR_REG_MR_FD_OFFSET);
+		if (ret)
+			return ret;
+		has_fd_offset = true;
+	}
+
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_REG_MR_FD)) {
+		ret = uverbs_get_raw_fd(&fd, attrs,
+					UVERBS_ATTR_REG_MR_FD);
+		if (ret)
+			return ret;
+		has_fd = true;
+	}
+
+	if (has_fd) {
+		if (!ib_dev->ops.reg_user_mr_dmabuf)
+			return -EOPNOTSUPP;
+
+		/* FD requires offset and can't come with addr */
+		if (!has_fd_offset || has_addr)
+			return -EINVAL;
+
+		if ((fd_offset & ~PAGE_MASK) != (iova & ~PAGE_MASK))
+			return -EINVAL;
+
+		valid_access_flags = IB_ACCESS_LOCAL_WRITE |
+				     IB_ACCESS_REMOTE_READ |
+				     IB_ACCESS_REMOTE_WRITE |
+				     IB_ACCESS_REMOTE_ATOMIC |
+				     IB_ACCESS_RELAXED_ORDERING;
+	} else {
+		if (!has_addr || has_fd_offset)
+			return -EINVAL;
+
+		if ((addr & ~PAGE_MASK) != (iova & ~PAGE_MASK))
+			return -EINVAL;
+	}
+
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_REG_MR_DMA_HANDLE)) {
+		dmah = uverbs_attr_get_obj(attrs,
+					   UVERBS_ATTR_REG_MR_DMA_HANDLE);
+		if (IS_ERR(dmah))
+			return PTR_ERR(dmah);
+	}
+
+	ret = uverbs_get_flags32(&access_flags, attrs,
+				 UVERBS_ATTR_REG_MR_ACCESS_FLAGS,
+				 valid_access_flags);
+	if (ret)
+		return ret;
+
+	ret = ib_check_mr_access(ib_dev, access_flags);
+	if (ret)
+		return ret;
+
+	if (has_fd)
+		mr = pd->device->ops.reg_user_mr_dmabuf(pd, fd_offset, length,
+							iova, fd, access_flags,
+							dmah, attrs);
+	else
+		mr = pd->device->ops.reg_user_mr(pd, addr, length, iova,
+						 access_flags, dmah, NULL);
+
+	if (IS_ERR(mr))
+		return PTR_ERR(mr);
+
+	mr->device = pd->device;
+	mr->pd = pd;
+	mr->type = IB_MR_TYPE_USER;
+	mr->uobject = uobj;
+	atomic_inc(&pd->usecnt);
+	if (dmah) {
+		mr->dmah = dmah;
+		atomic_inc(&dmah->usecnt);
+	}
+	rdma_restrack_new(&mr->res, RDMA_RESTRACK_MR);
+	rdma_restrack_set_name(&mr->res, NULL);
+	rdma_restrack_add(&mr->res);
+	uobj->object = mr;
+
+	uverbs_finalize_uobj_create(attrs, UVERBS_ATTR_REG_MR_HANDLE);
+
+	ret = uverbs_copy_to(attrs, UVERBS_ATTR_REG_MR_RESP_LKEY,
+			     &mr->lkey, sizeof(mr->lkey));
+	if (ret)
+		return ret;
+
+	ret = uverbs_copy_to(attrs, UVERBS_ATTR_REG_MR_RESP_RKEY,
 			     &mr->rkey, sizeof(mr->rkey));
 	return ret;
 }
@@ -362,6 +491,44 @@ DECLARE_UVERBS_NAMED_METHOD(
 			    UVERBS_ATTR_TYPE(u32),
 			    UA_MANDATORY));
 
+DECLARE_UVERBS_NAMED_METHOD(
+	UVERBS_METHOD_REG_MR,
+	UVERBS_ATTR_IDR(UVERBS_ATTR_REG_MR_HANDLE,
+			UVERBS_OBJECT_MR,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY),
+	UVERBS_ATTR_IDR(UVERBS_ATTR_REG_MR_PD_HANDLE,
+			UVERBS_OBJECT_PD,
+			UVERBS_ACCESS_READ,
+			UA_MANDATORY),
+	UVERBS_ATTR_IDR(UVERBS_ATTR_REG_MR_DMA_HANDLE,
+			UVERBS_OBJECT_DMAH,
+			UVERBS_ACCESS_READ,
+			UA_OPTIONAL),
+	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_REG_MR_IOVA,
+			   UVERBS_ATTR_TYPE(u64),
+			   UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_REG_MR_LENGTH,
+			   UVERBS_ATTR_TYPE(u64),
+			   UA_MANDATORY),
+	UVERBS_ATTR_FLAGS_IN(UVERBS_ATTR_REG_MR_ACCESS_FLAGS,
+			     enum ib_access_flags,
+			     UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_REG_MR_ADDR,
+			   UVERBS_ATTR_TYPE(u64),
+			   UA_OPTIONAL),
+	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_REG_MR_FD_OFFSET,
+			   UVERBS_ATTR_TYPE(u64),
+			   UA_OPTIONAL),
+	UVERBS_ATTR_RAW_FD(UVERBS_ATTR_REG_MR_FD,
+			   UA_OPTIONAL),
+	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_REG_MR_RESP_LKEY,
+			    UVERBS_ATTR_TYPE(u32),
+			    UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_REG_MR_RESP_RKEY,
+			    UVERBS_ATTR_TYPE(u32),
+			    UA_MANDATORY));
+
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	UVERBS_METHOD_MR_DESTROY,
 	UVERBS_ATTR_IDR(UVERBS_ATTR_DESTROY_MR_HANDLE,
@@ -376,7 +543,8 @@ DECLARE_UVERBS_NAMED_OBJECT(
 	&UVERBS_METHOD(UVERBS_METHOD_DM_MR_REG),
 	&UVERBS_METHOD(UVERBS_METHOD_MR_DESTROY),
 	&UVERBS_METHOD(UVERBS_METHOD_QUERY_MR),
-	&UVERBS_METHOD(UVERBS_METHOD_REG_DMABUF_MR));
+	&UVERBS_METHOD(UVERBS_METHOD_REG_DMABUF_MR),
+	&UVERBS_METHOD(UVERBS_METHOD_REG_MR));
 
 const struct uapi_definition uverbs_def_obj_mr[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_MR,

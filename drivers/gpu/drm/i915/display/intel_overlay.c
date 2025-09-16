@@ -31,6 +31,7 @@
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_object_frontbuffer.h"
 #include "gem/i915_gem_pm.h"
+
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_ring.h"
 
@@ -38,6 +39,7 @@
 #include "i915_reg.h"
 #include "intel_color_regs.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_frontbuffer.h"
 #include "intel_overlay.h"

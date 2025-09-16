@@ -57,6 +57,10 @@ enum rdma_restrack_type {
 	 */
 	RDMA_RESTRACK_SRQ,
 	/**
+	 * @RDMA_RESTRACK_DMAH: DMA handle
+	 */
+	RDMA_RESTRACK_DMAH,
+	/**
 	 * @RDMA_RESTRACK_MAX: Last entry, used for array dclarations
 	 */
 	RDMA_RESTRACK_MAX

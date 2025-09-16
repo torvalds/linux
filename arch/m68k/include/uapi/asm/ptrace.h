@@ -22,7 +22,7 @@
 #define PT_SR	   17
 #define PT_PC	   18
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /* this struct defines the way the registers are stored on the
    stack during a system call. */
@@ -81,5 +81,5 @@ struct switch_stack {
 #define PTRACE_GETFDPIC_EXEC	0
 #define PTRACE_GETFDPIC_INTERP	1
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _UAPI_M68K_PTRACE_H */

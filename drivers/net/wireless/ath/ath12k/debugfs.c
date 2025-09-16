@@ -52,7 +52,7 @@ ath12k_write_simulate_fw_crash(struct file *file,
 	struct ath12k_base *ab = file->private_data;
 	struct ath12k_pdev *pdev;
 	struct ath12k *ar = NULL;
-	char buf[32] = {0};
+	char buf[32] = {};
 	int i, ret;
 	ssize_t rc;
 
@@ -816,7 +816,7 @@ static ssize_t ath12k_write_extd_rx_stats(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct ath12k *ar = file->private_data;
-	struct htt_rx_ring_tlv_filter tlv_filter = {0};
+	struct htt_rx_ring_tlv_filter tlv_filter = {};
 	u32 ring_id, rx_filter = 0;
 	bool enable;
 	int ret, i;
@@ -1217,7 +1217,7 @@ void ath12k_debugfs_pdev_create(struct ath12k_base *ab)
 void ath12k_debugfs_soc_create(struct ath12k_base *ab)
 {
 	bool dput_needed;
-	char soc_name[64] = { 0 };
+	char soc_name[64] = {};
 	struct dentry *debugfs_ath12k;
 
 	debugfs_ath12k = debugfs_lookup("ath12k", NULL);
@@ -1470,7 +1470,7 @@ void ath12k_debugfs_register(struct ath12k *ar)
 	struct ath12k_base *ab = ar->ab;
 	struct ieee80211_hw *hw = ar->ah->hw;
 	char pdev_name[5];
-	char buf[100] = {0};
+	char buf[100] = {};
 
 	scnprintf(pdev_name, sizeof(pdev_name), "%s%d", "mac", ar->pdev_idx);
 

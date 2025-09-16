@@ -23,10 +23,9 @@
 #ifndef __LEGACY_DPM_H__
 #define __LEGACY_DPM_H__
 
-void amdgpu_dpm_print_class_info(u32 class, u32 class2);
-void amdgpu_dpm_print_cap_info(u32 caps);
-void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
-				struct amdgpu_ps *rps);
+void amdgpu_dpm_dbg_print_class_info(struct amdgpu_device *adev, u32 class, u32 class2);
+void amdgpu_dpm_dbg_print_cap_info(struct amdgpu_device *adev, u32 caps);
+void amdgpu_dpm_dbg_print_ps_status(struct amdgpu_device *adev, struct amdgpu_ps *rps);
 int amdgpu_get_platform_caps(struct amdgpu_device *adev);
 int amdgpu_parse_extended_power_table(struct amdgpu_device *adev);
 void amdgpu_free_extended_power_table(struct amdgpu_device *adev);

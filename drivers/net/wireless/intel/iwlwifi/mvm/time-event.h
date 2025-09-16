@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2019-2020, 2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2019-2020, 2023, 2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  */
 #ifndef __time_event_h__
@@ -124,6 +124,8 @@ void iwl_mvm_rx_roc_notif(struct iwl_mvm *mvm,
  * ROC request, it will issue a notification to the driver that it is on the
  * requested channel. Once the FW completes the ROC request it will issue
  * another notification to the driver.
+ *
+ * Return: negative error code or 0 on success
  */
 int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			  int duration, enum ieee80211_roc_type type);
@@ -179,6 +181,8 @@ void iwl_mvm_remove_csa_period(struct iwl_mvm *mvm,
  *
  * This function is used to schedule NoA time event and is used to perform
  * the channel switch flow.
+ *
+ * Return: negative error code or 0 on success
  */
 int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif,
@@ -188,7 +192,7 @@ int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
  * iwl_mvm_te_scheduled - check if the fw received the TE cmd
  * @te_data: the time event data that corresponds to that time event
  *
- * This function returns true iff this TE is added to the fw.
+ * Return: %true if this TE is added to the fw, %false otherwise
  */
 static inline bool
 iwl_mvm_te_scheduled(struct iwl_mvm_time_event_data *te_data)

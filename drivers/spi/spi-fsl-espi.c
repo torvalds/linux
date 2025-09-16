@@ -513,7 +513,6 @@ static int fsl_espi_setup(struct spi_device *spi)
 
 	fsl_espi_setup_transfer(spi, NULL);
 
-	pm_runtime_mark_last_busy(espi->dev);
 	pm_runtime_put_autosuspend(espi->dev);
 
 	return 0;
@@ -726,7 +725,6 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 
 	dev_info(dev, "irq = %u\n", irq);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;

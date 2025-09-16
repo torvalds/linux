@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <linux/pwm.h>
 #include <linux/of.h>
+#include <linux/reset.h>
 
 #include <asm/div64.h>
 
@@ -161,6 +162,7 @@ static int pwm_probe(struct platform_device *pdev)
 	struct pwm_chip *chip;
 	struct pxa_pwm_chip *pc;
 	struct device *dev = &pdev->dev;
+	struct reset_control *rst;
 	int ret = 0;
 
 	if (IS_ENABLED(CONFIG_OF) && id == NULL)
@@ -178,6 +180,10 @@ static int pwm_probe(struct platform_device *pdev)
 	pc->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(pc->clk))
 		return dev_err_probe(dev, PTR_ERR(pc->clk), "Failed to get clock\n");
+
+	rst = devm_reset_control_get_optional_exclusive_deasserted(dev, NULL);
+	if (IS_ERR(rst))
+		return PTR_ERR(rst);
 
 	chip->ops = &pxa_pwm_ops;
 

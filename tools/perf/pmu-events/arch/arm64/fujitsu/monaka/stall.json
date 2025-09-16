@@ -5,7 +5,7 @@
     },
     {
         "ArchStdEvent": "STALL_BACKEND",
-        "BriefDescription": "This event counts every cycle counted by the CPU_CYCLES event on that no operation was issued because the backend is unable to accept any operations."
+        "BriefDescription": "This event counts every cycle counted by the CPU_CYCLES event on that no operation was issued because the backend is unable to accept any operation."
     },
     {
         "ArchStdEvent": "STALL",
@@ -69,7 +69,7 @@
     },
     {
         "ArchStdEvent": "STALL_BACKEND_L2D",
-        "BriefDescription": "This event counts every cycle counted by STALL_BACKEND_MEMBOUND when there is a demand data miss in L2D cache."
+        "BriefDescription": "This event counts every cycle counted by STALL_BACKEND_MEMBOUND when there is a demand data miss in L2 cache."
     },
     {
         "ArchStdEvent": "STALL_BACKEND_CPUBOUND",

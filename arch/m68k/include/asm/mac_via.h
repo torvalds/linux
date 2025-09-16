@@ -250,7 +250,7 @@
 #define IER_SET_BIT(b) (0x80 | (1<<(b)) )
 #define IER_CLR_BIT(b) (0x7F & (1<<(b)) )
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 extern volatile __u8 *via1,*via2;
 extern int rbv_present,via_alt_mapping;
@@ -267,6 +267,6 @@ extern void via1_irq(struct irq_desc *desc);
 extern void via1_set_head(int);
 extern int via2_scsi_drq_pending(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_MAC_VIA_H_ */

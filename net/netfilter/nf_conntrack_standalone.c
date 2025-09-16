@@ -14,6 +14,7 @@
 #include <linux/sysctl.h>
 #endif
 
+#include <net/netfilter/nf_log.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
@@ -66,11 +67,6 @@ print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
 			   ntohs(tuple->src.u.udp.port),
 			   ntohs(tuple->dst.u.udp.port));
 
-		break;
-	case IPPROTO_DCCP:
-		seq_printf(s, "sport=%hu dport=%hu ",
-			   ntohs(tuple->src.u.dccp.port),
-			   ntohs(tuple->dst.u.dccp.port));
 		break;
 	case IPPROTO_SCTP:
 		seq_printf(s, "sport=%hu dport=%hu ",
@@ -279,7 +275,6 @@ static const char* l4proto_name(u16 proto)
 	case IPPROTO_ICMP: return "icmp";
 	case IPPROTO_TCP: return "tcp";
 	case IPPROTO_UDP: return "udp";
-	case IPPROTO_DCCP: return "dccp";
 	case IPPROTO_GRE: return "gre";
 	case IPPROTO_SCTP: return "sctp";
 	case IPPROTO_UDPLITE: return "udplite";
@@ -561,6 +556,29 @@ nf_conntrack_hash_sysctl(const struct ctl_table *table, int write,
 	return ret;
 }
 
+static int
+nf_conntrack_log_invalid_sysctl(const struct ctl_table *table, int write,
+				void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret, i;
+
+	ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
+	if (ret < 0 || !write)
+		return ret;
+
+	if (*(u8 *)table->data == 0)
+		return 0;
+
+	/* Load nf_log_syslog only if no logger is currently registered */
+	for (i = 0; i < NFPROTO_NUMPROTO; i++) {
+		if (nf_log_is_registered(i))
+			return 0;
+	}
+	request_module("%s", "nf_log_syslog");
+
+	return 0;
+}
+
 static struct ctl_table_header *nf_ct_netfilter_header;
 
 enum nf_ct_sysctl_index {
@@ -612,16 +630,6 @@ enum nf_ct_sysctl_index {
 	NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_SHUTDOWN_ACK_SENT,
 	NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_HEARTBEAT_SENT,
 #endif
-#ifdef CONFIG_NF_CT_PROTO_DCCP
-	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_REQUEST,
-	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_RESPOND,
-	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_PARTOPEN,
-	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_OPEN,
-	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_CLOSEREQ,
-	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_CLOSING,
-	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_TIMEWAIT,
-	NF_SYSCTL_CT_PROTO_DCCP_LOOSE,
-#endif
 #ifdef CONFIG_NF_CT_PROTO_GRE
 	NF_SYSCTL_CT_PROTO_TIMEOUT_GRE,
 	NF_SYSCTL_CT_PROTO_TIMEOUT_GRE_STREAM,
@@ -667,7 +675,7 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.data		= &init_net.ct.sysctl_log_invalid,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.proc_handler	= nf_conntrack_log_invalid_sysctl,
 	},
 	[NF_SYSCTL_CT_EXPECT_MAX] = {
 		.procname	= "nf_conntrack_expect_max",
@@ -895,58 +903,6 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 #endif
-#ifdef CONFIG_NF_CT_PROTO_DCCP
-	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_REQUEST] = {
-		.procname	= "nf_conntrack_dccp_timeout_request",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_RESPOND] = {
-		.procname	= "nf_conntrack_dccp_timeout_respond",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_PARTOPEN] = {
-		.procname	= "nf_conntrack_dccp_timeout_partopen",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_OPEN] = {
-		.procname	= "nf_conntrack_dccp_timeout_open",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_CLOSEREQ] = {
-		.procname	= "nf_conntrack_dccp_timeout_closereq",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_CLOSING] = {
-		.procname	= "nf_conntrack_dccp_timeout_closing",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_TIMEWAIT] = {
-		.procname	= "nf_conntrack_dccp_timeout_timewait",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	[NF_SYSCTL_CT_PROTO_DCCP_LOOSE] = {
-		.procname	= "nf_conntrack_dccp_loose",
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1 	= SYSCTL_ZERO,
-		.extra2 	= SYSCTL_ONE,
-	},
-#endif
 #ifdef CONFIG_NF_CT_PROTO_GRE
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_GRE] = {
 		.procname       = "nf_conntrack_gre_timeout",
@@ -1032,29 +988,6 @@ static void nf_conntrack_standalone_init_sctp_sysctl(struct net *net,
 #endif
 }
 
-static void nf_conntrack_standalone_init_dccp_sysctl(struct net *net,
-						     struct ctl_table *table)
-{
-#ifdef CONFIG_NF_CT_PROTO_DCCP
-	struct nf_dccp_net *dn = nf_dccp_pernet(net);
-
-#define XASSIGN(XNAME, dn) \
-	table[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_ ## XNAME].data = \
-			&(dn)->dccp_timeout[CT_DCCP_ ## XNAME]
-
-	XASSIGN(REQUEST, dn);
-	XASSIGN(RESPOND, dn);
-	XASSIGN(PARTOPEN, dn);
-	XASSIGN(OPEN, dn);
-	XASSIGN(CLOSEREQ, dn);
-	XASSIGN(CLOSING, dn);
-	XASSIGN(TIMEWAIT, dn);
-#undef XASSIGN
-
-	table[NF_SYSCTL_CT_PROTO_DCCP_LOOSE].data = &dn->dccp_loose;
-#endif
-}
-
 static void nf_conntrack_standalone_init_gre_sysctl(struct net *net,
 						    struct ctl_table *table)
 {
@@ -1100,7 +1033,6 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 
 	nf_conntrack_standalone_init_tcp_sysctl(net, table);
 	nf_conntrack_standalone_init_sctp_sysctl(net, table);
-	nf_conntrack_standalone_init_dccp_sysctl(net, table);
 	nf_conntrack_standalone_init_gre_sysctl(net, table);
 
 	/* Don't allow non-init_net ns to alter global sysctls */

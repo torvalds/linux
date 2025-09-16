@@ -57,9 +57,6 @@ struct atomisp_video_pipe {
 	/* Filled through atomisp_get_css_frame_info() on queue setup */
 	struct ia_css_frame_info frame_info;
 
-	/* Set from streamoff to disallow queuing further buffers in CSS */
-	bool stopping;
-
 	/*
 	 * irq_lock is used to protect video buffer state change operations and
 	 * also to make activeq and capq operations atomic.

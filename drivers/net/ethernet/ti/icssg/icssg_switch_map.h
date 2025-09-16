@@ -180,6 +180,9 @@
 /* Used to notify the FW of the current link speed */
 #define PORT_LINK_SPEED_OFFSET                             0x00A8
 
+/* 2k memory pointer reserved for default writes by PRU0*/
+#define DEFAULT_MSMC_Q_OFFSET                              0x00AC
+
 /* TAS gate mask for windows list0 */
 #define TAS_GATE_MASK_LIST0                                0x0100
 

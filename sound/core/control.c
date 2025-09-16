@@ -1435,7 +1435,7 @@ static int snd_ctl_elem_user_enum_info(struct snd_kcontrol *kcontrol,
 	names = ue->priv_data;
 	for (; item > 0; --item)
 		names += strlen(names) + 1;
-	strcpy(uinfo->value.enumerated.name, names);
+	strscpy(uinfo->value.enumerated.name, names);
 
 	return 0;
 }

@@ -6,6 +6,7 @@
 #include "hist.h"
 
 struct option;
+struct perf_env;
 
 extern regex_t parent_regex;
 extern const char *sort_order;
@@ -130,7 +131,7 @@ extern struct sort_entry sort_thread;
 
 struct evlist;
 struct tep_handle;
-int setup_sorting(struct evlist *evlist);
+int setup_sorting(struct evlist *evlist, struct perf_env *env);
 int setup_output_field(void);
 void reset_output_field(void);
 void sort__setup_elide(FILE *fp);
@@ -145,7 +146,7 @@ bool is_strict_order(const char *order);
 int hpp_dimension__add_output(unsigned col, bool implicit);
 void reset_dimensions(void);
 int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
-			struct evlist *evlist,
+			struct evlist *evlist, struct perf_env *env,
 			int level);
 int output_field_add(struct perf_hpp_list *list, const char *tok, int *level);
 int64_t

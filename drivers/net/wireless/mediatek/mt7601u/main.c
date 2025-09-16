@@ -78,7 +78,7 @@ static void mt7601u_remove_interface(struct ieee80211_hw *hw,
 	dev->wcid_mask[wcid / BITS_PER_LONG] &= ~BIT(wcid % BITS_PER_LONG);
 }
 
-static int mt7601u_config(struct ieee80211_hw *hw, u32 changed)
+static int mt7601u_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct mt7601u_dev *dev = hw->priv;
 	int ret = 0;
@@ -334,7 +334,8 @@ mt7601u_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return mt76_mac_wcid_set_key(dev, msta->wcid.idx, key);
 }
 
-static int mt7601u_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+static int mt7601u_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+				     u32 value)
 {
 	struct mt7601u_dev *dev = hw->priv;
 

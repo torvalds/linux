@@ -17,7 +17,6 @@ static DEFINE_STATIC_KEY_FALSE(scx_builtin_idle_enabled);
 /* Enable/disable per-node idle cpumasks */
 static DEFINE_STATIC_KEY_FALSE(scx_builtin_idle_per_node);
 
-#ifdef CONFIG_SMP
 /* Enable/disable LLC aware optimizations */
 static DEFINE_STATIC_KEY_FALSE(scx_selcpu_topo_llc);
 
@@ -75,7 +74,7 @@ static int scx_cpu_node_if_enabled(int cpu)
 	return cpu_to_node(cpu);
 }
 
-bool scx_idle_test_and_clear_cpu(int cpu)
+static bool scx_idle_test_and_clear_cpu(int cpu)
 {
 	int node = scx_cpu_node_if_enabled(cpu);
 	struct cpumask *idle_cpus = idle_cpumask(node)->cpu;
@@ -198,7 +197,7 @@ pick_idle_cpu_from_online_nodes(const struct cpumask *cpus_allowed, int node, u6
 /*
  * Find an idle CPU in the system, starting from @node.
  */
-s32 scx_pick_idle_cpu(const struct cpumask *cpus_allowed, int node, u64 flags)
+static s32 scx_pick_idle_cpu(const struct cpumask *cpus_allowed, int node, u64 flags)
 {
 	s32 cpu;
 
@@ -250,7 +249,7 @@ static struct cpumask *llc_span(s32 cpu)
 
 	sd = rcu_dereference(per_cpu(sd_llc, cpu));
 	if (!sd)
-		return 0;
+		return NULL;
 
 	return sched_domain_span(sd);
 }
@@ -794,7 +793,6 @@ static void reset_idle_masks(struct sched_ext_ops *ops)
 		cpumask_and(idle_cpumask(node)->smt, cpu_online_mask, node_mask);
 	}
 }
-#endif	/* CONFIG_SMP */
 
 void scx_idle_enable(struct sched_ext_ops *ops)
 {
@@ -808,9 +806,7 @@ void scx_idle_enable(struct sched_ext_ops *ops)
 	else
 		static_branch_disable_cpuslocked(&scx_builtin_idle_per_node);
 
-#ifdef CONFIG_SMP
 	reset_idle_masks(ops);
-#endif
 }
 
 void scx_idle_disable(void)
@@ -860,8 +856,8 @@ static bool check_builtin_idle_enabled(void)
 	return false;
 }
 
-s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
-			  const struct cpumask *allowed, u64 flags)
+static s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
+				 const struct cpumask *allowed, u64 flags)
 {
 	struct rq *rq;
 	struct rq_flags rf;
@@ -896,7 +892,6 @@ s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 	if (!rq)
 		lockdep_assert_held(&p->pi_lock);
 
-#ifdef CONFIG_SMP
 	/*
 	 * This may also be called from ops.enqueue(), so we need to handle
 	 * per-CPU tasks as well. For these tasks, we can skip all idle CPU
@@ -913,9 +908,7 @@ s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 		cpu = scx_select_cpu_dfl(p, prev_cpu, wake_flags,
 					 allowed ?: p->cpus_ptr, flags);
 	}
-#else
-	cpu = -EBUSY;
-#endif
+
 	if (scx_kf_allowed_if_unlocked())
 		task_rq_unlock(rq, p, &rf);
 
@@ -929,14 +922,10 @@ s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
  */
 __bpf_kfunc int scx_bpf_cpu_node(s32 cpu)
 {
-#ifdef CONFIG_NUMA
 	if (!kf_cpu_valid(cpu, NULL))
 		return NUMA_NO_NODE;
 
 	return cpu_to_node(cpu);
-#else
-	return 0;
-#endif
 }
 
 /**
@@ -1010,11 +999,7 @@ __bpf_kfunc const struct cpumask *scx_bpf_get_idle_cpumask_node(int node)
 	if (node < 0)
 		return cpu_none_mask;
 
-#ifdef CONFIG_SMP
 	return idle_cpumask(node)->cpu;
-#else
-	return cpu_none_mask;
-#endif
 }
 
 /**
@@ -1034,11 +1019,7 @@ __bpf_kfunc const struct cpumask *scx_bpf_get_idle_cpumask(void)
 	if (!check_builtin_idle_enabled())
 		return cpu_none_mask;
 
-#ifdef CONFIG_SMP
 	return idle_cpumask(NUMA_NO_NODE)->cpu;
-#else
-	return cpu_none_mask;
-#endif
 }
 
 /**
@@ -1057,14 +1038,10 @@ __bpf_kfunc const struct cpumask *scx_bpf_get_idle_smtmask_node(int node)
 	if (node < 0)
 		return cpu_none_mask;
 
-#ifdef CONFIG_SMP
 	if (sched_smt_active())
 		return idle_cpumask(node)->smt;
 	else
 		return idle_cpumask(node)->cpu;
-#else
-	return cpu_none_mask;
-#endif
 }
 
 /**
@@ -1085,14 +1062,10 @@ __bpf_kfunc const struct cpumask *scx_bpf_get_idle_smtmask(void)
 	if (!check_builtin_idle_enabled())
 		return cpu_none_mask;
 
-#ifdef CONFIG_SMP
 	if (sched_smt_active())
 		return idle_cpumask(NUMA_NO_NODE)->smt;
 	else
 		return idle_cpumask(NUMA_NO_NODE)->cpu;
-#else
-	return cpu_none_mask;
-#endif
 }
 
 /**
@@ -1125,10 +1098,10 @@ __bpf_kfunc bool scx_bpf_test_and_clear_cpu_idle(s32 cpu)
 	if (!check_builtin_idle_enabled())
 		return false;
 
-	if (kf_cpu_valid(cpu, NULL))
-		return scx_idle_test_and_clear_cpu(cpu);
-	else
+	if (!kf_cpu_valid(cpu, NULL))
 		return false;
+
+	return scx_idle_test_and_clear_cpu(cpu);
 }
 
 /**

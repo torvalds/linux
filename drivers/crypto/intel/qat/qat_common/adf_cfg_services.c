@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include "adf_cfg.h"
+#include "adf_cfg_common.h"
 #include "adf_cfg_services.h"
 #include "adf_cfg_strings.h"
 
@@ -15,13 +16,14 @@ static const char *const adf_cfg_services[] = {
 	[SVC_SYM] = ADF_CFG_SYM,
 	[SVC_DC] = ADF_CFG_DC,
 	[SVC_DCC] = ADF_CFG_DCC,
+	[SVC_DECOMP] = ADF_CFG_DECOMP,
 };
 
 /*
  * Ensure that the size of the array matches the number of services,
- * SVC_BASE_COUNT, that is used to size the bitmap.
+ * SVC_COUNT, that is used to size the bitmap.
  */
-static_assert(ARRAY_SIZE(adf_cfg_services) == SVC_BASE_COUNT);
+static_assert(ARRAY_SIZE(adf_cfg_services) == SVC_COUNT);
 
 /*
  * Ensure that the maximum number of concurrent services that can be
@@ -34,7 +36,7 @@ static_assert(ARRAY_SIZE(adf_cfg_services) >= MAX_NUM_CONCURR_SVC);
  * Ensure that the number of services fit a single unsigned long, as each
  * service is represented by a bit in the mask.
  */
-static_assert(BITS_PER_LONG >= SVC_BASE_COUNT);
+static_assert(BITS_PER_LONG >= SVC_COUNT);
 
 /*
  * Ensure that size of the concatenation of all service strings is smaller
@@ -43,6 +45,7 @@ static_assert(BITS_PER_LONG >= SVC_BASE_COUNT);
 static_assert(sizeof(ADF_CFG_SYM ADF_SERVICES_DELIMITER
 		     ADF_CFG_ASYM ADF_SERVICES_DELIMITER
 		     ADF_CFG_DC ADF_SERVICES_DELIMITER
+		     ADF_CFG_DECOMP ADF_SERVICES_DELIMITER
 		     ADF_CFG_DCC) < ADF_CFG_MAX_VAL_LEN_IN_BYTES);
 
 static int adf_service_string_to_mask(struct adf_accel_dev *accel_dev, const char *buf,
@@ -88,7 +91,7 @@ static int adf_service_mask_to_string(unsigned long mask, char *buf, size_t len)
 	if (len < ADF_CFG_MAX_VAL_LEN_IN_BYTES)
 		return -ENOSPC;
 
-	for_each_set_bit(bit, &mask, SVC_BASE_COUNT) {
+	for_each_set_bit(bit, &mask, SVC_COUNT) {
 		if (offset)
 			offset += scnprintf(buf + offset, len - offset,
 					    ADF_SERVICES_DELIMITER);
@@ -167,9 +170,43 @@ int adf_get_service_enabled(struct adf_accel_dev *accel_dev)
 	if (test_bit(SVC_DC, &mask))
 		return SVC_DC;
 
+	if (test_bit(SVC_DECOMP, &mask))
+		return SVC_DECOMP;
+
 	if (test_bit(SVC_DCC, &mask))
 		return SVC_DCC;
 
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(adf_get_service_enabled);
+
+enum adf_cfg_service_type adf_srv_to_cfg_svc_type(enum adf_base_services svc)
+{
+	switch (svc) {
+	case SVC_ASYM:
+		return ASYM;
+	case SVC_SYM:
+		return SYM;
+	case SVC_DC:
+		return COMP;
+	case SVC_DECOMP:
+		return DECOMP;
+	default:
+		return UNUSED;
+	}
+}
+
+bool adf_is_service_enabled(struct adf_accel_dev *accel_dev, enum adf_base_services svc)
+{
+	enum adf_cfg_service_type arb_srv = adf_srv_to_cfg_svc_type(svc);
+	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
+	u8 rps_per_bundle = hw_data->num_banks_per_vf;
+	int i;
+
+	for (i = 0; i < rps_per_bundle; i++) {
+		if (GET_SRV_TYPE(accel_dev, i) == arb_srv)
+			return true;
+	}
+
+	return false;
+}

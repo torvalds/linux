@@ -180,46 +180,6 @@ tcp_manip_pkt(struct sk_buff *skb,
 }
 
 static bool
-dccp_manip_pkt(struct sk_buff *skb,
-	       unsigned int iphdroff, unsigned int hdroff,
-	       const struct nf_conntrack_tuple *tuple,
-	       enum nf_nat_manip_type maniptype)
-{
-#ifdef CONFIG_NF_CT_PROTO_DCCP
-	struct dccp_hdr *hdr;
-	__be16 *portptr, oldport, newport;
-	int hdrsize = 8; /* DCCP connection tracking guarantees this much */
-
-	if (skb->len >= hdroff + sizeof(struct dccp_hdr))
-		hdrsize = sizeof(struct dccp_hdr);
-
-	if (skb_ensure_writable(skb, hdroff + hdrsize))
-		return false;
-
-	hdr = (struct dccp_hdr *)(skb->data + hdroff);
-
-	if (maniptype == NF_NAT_MANIP_SRC) {
-		newport = tuple->src.u.dccp.port;
-		portptr = &hdr->dccph_sport;
-	} else {
-		newport = tuple->dst.u.dccp.port;
-		portptr = &hdr->dccph_dport;
-	}
-
-	oldport = *portptr;
-	*portptr = newport;
-
-	if (hdrsize < sizeof(*hdr))
-		return true;
-
-	nf_csum_update(skb, iphdroff, &hdr->dccph_checksum, tuple, maniptype);
-	inet_proto_csum_replace2(&hdr->dccph_checksum, skb, oldport, newport,
-				 false);
-#endif
-	return true;
-}
-
-static bool
 icmp_manip_pkt(struct sk_buff *skb,
 	       unsigned int iphdroff, unsigned int hdroff,
 	       const struct nf_conntrack_tuple *tuple,
@@ -338,9 +298,6 @@ static bool l4proto_manip_pkt(struct sk_buff *skb,
 	case IPPROTO_ICMPV6:
 		return icmpv6_manip_pkt(skb, iphdroff, hdroff,
 					tuple, maniptype);
-	case IPPROTO_DCCP:
-		return dccp_manip_pkt(skb, iphdroff, hdroff,
-				      tuple, maniptype);
 	case IPPROTO_GRE:
 		return gre_manip_pkt(skb, iphdroff, hdroff,
 				     tuple, maniptype);

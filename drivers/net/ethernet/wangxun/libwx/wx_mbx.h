@@ -11,6 +11,20 @@
 #define WX_PXMAILBOX_ACK     BIT(1) /* Ack message recv'd from VF */
 #define WX_PXMAILBOX_PFU     BIT(3) /* PF owns the mailbox buffer */
 
+/* VF Registers */
+#define WX_VXMAILBOX         0x600
+#define WX_VXMAILBOX_REQ     BIT(0) /* Request for PF Ready bit */
+#define WX_VXMAILBOX_ACK     BIT(1) /* Ack PF message received */
+#define WX_VXMAILBOX_VFU     BIT(2) /* VF owns the mailbox buffer */
+#define WX_VXMAILBOX_PFU     BIT(3) /* PF owns the mailbox buffer */
+#define WX_VXMAILBOX_PFSTS   BIT(4) /* PF wrote a message in the MB */
+#define WX_VXMAILBOX_PFACK   BIT(5) /* PF ack the previous VF msg */
+#define WX_VXMAILBOX_RSTI    BIT(6) /* PF has reset indication */
+#define WX_VXMAILBOX_RSTD    BIT(7) /* PF has indicated reset done */
+#define WX_VXMAILBOX_R2C_BITS (WX_VXMAILBOX_RSTD | \
+	    WX_VXMAILBOX_PFSTS | WX_VXMAILBOX_PFACK)
+
+#define WX_VXMBMEM           0x00C00 /* 16*4B */
 #define WX_PXMBMEM(i)        (0x5000 + (64 * (i))) /* i=[0,63] */
 
 #define WX_VFLRE(i)          (0x4A0 + (4 * (i))) /* i=[0,1] */
@@ -73,5 +87,13 @@ int wx_read_mbx_pf(struct wx *wx, u32 *msg, u16 size, u16 vf);
 int wx_check_for_rst_pf(struct wx *wx, u16 mbx_id);
 int wx_check_for_msg_pf(struct wx *wx, u16 mbx_id);
 int wx_check_for_ack_pf(struct wx *wx, u16 mbx_id);
+
+int wx_read_posted_mbx(struct wx *wx, u32 *msg, u16 size);
+int wx_write_posted_mbx(struct wx *wx, u32 *msg, u16 size);
+int wx_check_for_rst_vf(struct wx *wx);
+int wx_check_for_msg_vf(struct wx *wx);
+int wx_read_mbx_vf(struct wx *wx, u32 *msg, u16 size);
+int wx_write_mbx_vf(struct wx *wx, u32 *msg, u16 size);
+int wx_init_mbx_params_vf(struct wx *wx);
 
 #endif /* _WX_MBX_H_ */

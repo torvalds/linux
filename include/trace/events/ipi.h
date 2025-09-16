@@ -7,34 +7,6 @@
 
 #include <linux/tracepoint.h>
 
-/**
- * ipi_raise - called when a smp cross call is made
- *
- * @mask: mask of recipient CPUs for the IPI
- * @reason: string identifying the IPI purpose
- *
- * It is necessary for @reason to be a static string declared with
- * __tracepoint_string.
- */
-TRACE_EVENT(ipi_raise,
-
-	TP_PROTO(const struct cpumask *mask, const char *reason),
-
-	TP_ARGS(mask, reason),
-
-	TP_STRUCT__entry(
-		__bitmask(target_cpus, nr_cpumask_bits)
-		__field(const char *, reason)
-	),
-
-	TP_fast_assign(
-		__assign_bitmask(target_cpus, cpumask_bits(mask), nr_cpumask_bits);
-		__entry->reason = reason;
-	),
-
-	TP_printk("target_mask=%s (%s)", __get_bitmask(target_cpus), __entry->reason)
-);
-
 TRACE_EVENT(ipi_send_cpu,
 
 	TP_PROTO(const unsigned int cpu, unsigned long callsite, void *callback),
@@ -77,6 +49,35 @@ TRACE_EVENT(ipi_send_cpumask,
 
 	TP_printk("cpumask=%s callsite=%pS callback=%pS",
 		  __get_cpumask(cpumask), __entry->callsite, __entry->callback)
+);
+
+#ifdef CONFIG_HAVE_EXTRA_IPI_TRACEPOINTS
+/**
+ * ipi_raise - called when a smp cross call is made
+ *
+ * @mask: mask of recipient CPUs for the IPI
+ * @reason: string identifying the IPI purpose
+ *
+ * It is necessary for @reason to be a static string declared with
+ * __tracepoint_string.
+ */
+TRACE_EVENT(ipi_raise,
+
+	TP_PROTO(const struct cpumask *mask, const char *reason),
+
+	TP_ARGS(mask, reason),
+
+	TP_STRUCT__entry(
+		__bitmask(target_cpus, nr_cpumask_bits)
+		__field(const char *, reason)
+	),
+
+	TP_fast_assign(
+		__assign_bitmask(target_cpus, cpumask_bits(mask), nr_cpumask_bits);
+		__entry->reason = reason;
+	),
+
+	TP_printk("target_mask=%s (%s)", __get_bitmask(target_cpus), __entry->reason)
 );
 
 DECLARE_EVENT_CLASS(ipi_handler,
@@ -127,6 +128,7 @@ DEFINE_EVENT(ipi_handler, ipi_exit,
 
 	TP_ARGS(reason)
 );
+#endif /* CONFIG_HAVE_EXTRA_IPI_TRACEPOINTS */
 
 #endif /* _TRACE_IPI_H */
 

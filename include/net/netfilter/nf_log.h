@@ -59,6 +59,9 @@ extern int sysctl_nf_log_all_netns;
 int nf_log_register(u_int8_t pf, struct nf_logger *logger);
 void nf_log_unregister(struct nf_logger *logger);
 
+/* Check if any logger is registered for a given protocol family. */
+bool nf_log_is_registered(u_int8_t pf);
+
 int nf_log_set(struct net *net, u_int8_t pf, const struct nf_logger *logger);
 void nf_log_unset(struct net *net, const struct nf_logger *logger);
 

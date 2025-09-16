@@ -3,7 +3,7 @@
  * ip30-power.c: Software powerdown and reset handling for IP30 architecture.
  *
  * Copyright (C) 2004-2007 Stanislaw Skowronek <skylark@unaligned.org>
- *               2014 Joshua Kinard <kumba@gentoo.org>
+ *               2014 Joshua Kinard <linux@kumba.dev>
  *               2009 Johannes Dickgreber <tanzy@gmx.de>
  */
 

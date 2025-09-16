@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include <linux/audit.h>
 #include <linux/types.h>
-#include <crypto/hash.h>
+#include <crypto/sha2.h>
 
 #include "ipe.h"
 #include "eval.h"
@@ -17,7 +17,7 @@
 
 #define ACTSTR(x) ((x) == IPE_ACTION_ALLOW ? "ALLOW" : "DENY")
 
-#define IPE_AUDIT_HASH_ALG "sha256"
+#define IPE_AUDIT_HASH_ALG "sha256" /* keep in sync with audit_policy() */
 
 #define AUDIT_POLICY_LOAD_FMT "policy_name=\"%s\" policy_version=%hu.%hu.%hu "\
 			      "policy_digest=" IPE_AUDIT_HASH_ALG ":"
@@ -182,37 +182,14 @@ static void audit_policy(struct audit_buffer *ab,
 			 const char *audit_format,
 			 const struct ipe_policy *const p)
 {
-	SHASH_DESC_ON_STACK(desc, tfm);
-	struct crypto_shash *tfm;
-	u8 *digest = NULL;
+	u8 digest[SHA256_DIGEST_SIZE];
 
-	tfm = crypto_alloc_shash(IPE_AUDIT_HASH_ALG, 0, 0);
-	if (IS_ERR(tfm))
-		return;
-
-	desc->tfm = tfm;
-
-	digest = kzalloc(crypto_shash_digestsize(tfm), GFP_KERNEL);
-	if (!digest)
-		goto out;
-
-	if (crypto_shash_init(desc))
-		goto out;
-
-	if (crypto_shash_update(desc, p->pkcs7, p->pkcs7len))
-		goto out;
-
-	if (crypto_shash_final(desc, digest))
-		goto out;
+	sha256(p->pkcs7, p->pkcs7len, digest);
 
 	audit_log_format(ab, audit_format, p->parsed->name,
 			 p->parsed->version.major, p->parsed->version.minor,
 			 p->parsed->version.rev);
-	audit_log_n_hex(ab, digest, crypto_shash_digestsize(tfm));
-
-out:
-	kfree(digest);
-	crypto_free_shash(tfm);
+	audit_log_n_hex(ab, digest, sizeof(digest));
 }
 
 /**

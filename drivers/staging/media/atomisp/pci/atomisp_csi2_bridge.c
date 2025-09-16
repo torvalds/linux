@@ -13,6 +13,7 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
+#include <linux/platform_data/x86/int3472.h>
 #include <linux/property.h>
 
 #include <media/ipu-bridge.h>
@@ -23,39 +24,6 @@
 #include "atomisp_internal.h"
 
 #define PMC_CLK_RATE_19_2MHZ			19200000
-
-/*
- * 79234640-9e10-4fea-a5c1-b5aa8b19756f
- * This _DSM GUID returns information about the GPIO lines mapped to a sensor.
- * Function number 1 returns a count of the GPIO lines that are mapped.
- * Subsequent functions return 32 bit ints encoding information about the GPIO.
- */
-static const guid_t intel_sensor_gpio_info_guid =
-	GUID_INIT(0x79234640, 0x9e10, 0x4fea,
-		  0xa5, 0xc1, 0xb5, 0xaa, 0x8b, 0x19, 0x75, 0x6f);
-
-#define INTEL_GPIO_DSM_TYPE_SHIFT			0
-#define INTEL_GPIO_DSM_TYPE_MASK			GENMASK(7, 0)
-#define INTEL_GPIO_DSM_PIN_SHIFT			8
-#define INTEL_GPIO_DSM_PIN_MASK				GENMASK(15, 8)
-#define INTEL_GPIO_DSM_SENSOR_ON_VAL_SHIFT		24
-#define INTEL_GPIO_DSM_SENSOR_ON_VAL_MASK		GENMASK(31, 24)
-
-#define INTEL_GPIO_DSM_TYPE(x) \
-	(((x) & INTEL_GPIO_DSM_TYPE_MASK) >> INTEL_GPIO_DSM_TYPE_SHIFT)
-#define INTEL_GPIO_DSM_PIN(x) \
-	(((x) & INTEL_GPIO_DSM_PIN_MASK) >> INTEL_GPIO_DSM_PIN_SHIFT)
-#define INTEL_GPIO_DSM_SENSOR_ON_VAL(x) \
-	(((x) & INTEL_GPIO_DSM_SENSOR_ON_VAL_MASK) >> INTEL_GPIO_DSM_SENSOR_ON_VAL_SHIFT)
-
-/*
- * 822ace8f-2814-4174-a56b-5f029fe079ee
- * This _DSM GUID returns a string from the sensor device, which acts as a
- * module identifier.
- */
-static const guid_t intel_sensor_module_guid =
-	GUID_INIT(0x822ace8f, 0x2814, 0x4174,
-		  0xa5, 0x6b, 0x5f, 0x02, 0x9f, 0xe0, 0x79, 0xee);
 
 /*
  * dc2f6c4f-045b-4f1d-97b9-882a6860a4be
@@ -323,195 +291,44 @@ static int atomisp_csi2_get_port(struct acpi_device *adev, int clock_num)
 	return gmin_cfg_get_int(adev, "CsiPort", port);
 }
 
-/* Note this always returns 1 to continue looping so that res_count is accurate */
-static int atomisp_csi2_handle_acpi_gpio_res(struct acpi_resource *ares, void *_data)
-{
-	struct atomisp_csi2_acpi_gpio_parsing_data *data = _data;
-	struct acpi_resource_gpio *agpio;
-	const char *name;
-	bool active_low;
-	unsigned int i;
-	u32 settings = 0;
-	u16 pin;
-
-	if (!acpi_gpio_get_io_resource(ares, &agpio))
-		return 1; /* Not a GPIO, continue the loop */
-
-	data->res_count++;
-
-	pin = agpio->pin_table[0];
-	for (i = 0; i < data->settings_count; i++) {
-		if (INTEL_GPIO_DSM_PIN(data->settings[i]) == pin) {
-			settings = data->settings[i];
-			break;
-		}
-	}
-
-	if (i == data->settings_count) {
-		acpi_handle_warn(data->adev->handle,
-				 "%s: Could not find DSM GPIO settings for pin %u\n",
-				 dev_name(&data->adev->dev), pin);
-		return 1;
-	}
-
-	switch (INTEL_GPIO_DSM_TYPE(settings)) {
-	case 0:
-		name = "reset-gpios";
-		break;
-	case 1:
-		name = "powerdown-gpios";
-		break;
-	default:
-		acpi_handle_warn(data->adev->handle, "%s: Unknown GPIO type 0x%02lx for pin %u\n",
-				 dev_name(&data->adev->dev),
-				 INTEL_GPIO_DSM_TYPE(settings), pin);
-		return 1;
-	}
-
-	/*
-	 * Both reset and power-down need to be logical false when the sensor
-	 * is on (sensor should not be in reset and not be powered-down). So
-	 * when the sensor-on-value (which is the physical pin value) is high,
-	 * then the signal is active-low.
-	 */
-	active_low = INTEL_GPIO_DSM_SENSOR_ON_VAL(settings);
-
-	i = data->map_count;
-	if (i == CSI2_MAX_ACPI_GPIOS)
-		return 1;
-
-	/* res_count is already incremented */
-	data->map->params[i].crs_entry_index = data->res_count - 1;
-	data->map->params[i].active_low = active_low;
-	data->map->mapping[i].name = name;
-	data->map->mapping[i].data = &data->map->params[i];
-	data->map->mapping[i].size = 1;
-	data->map_count++;
-
-	acpi_handle_info(data->adev->handle, "%s: %s crs %d %s pin %u active-%s\n",
-			 dev_name(&data->adev->dev), name,
-			 data->res_count - 1, agpio->resource_source.string_ptr,
-			 pin, active_low ? "low" : "high");
-
-	return 1;
-}
-
 /*
- * Helper function to create an ACPI GPIO lookup table for sensor reset and
- * powerdown signals on Intel Bay Trail (BYT) and Cherry Trail (CHT) devices,
- * including setting the correct polarity for the GPIO.
+ * Alloc and fill an int3472_discrete_device struct so that we can re-use
+ * the INT3472 sensor GPIO mapping code.
  *
- * This uses the "79234640-9e10-4fea-a5c1-b5aa8b19756f" DSM method directly
- * on the sensor device's ACPI node. This is different from later Intel
- * hardware which has a separate INT3472 acpi_device with this info.
- *
- * This function must be called before creating the sw-noded describing
- * the fwnode graph endpoint. And sensor drivers used on these devices
- * must return -EPROBE_DEFER when there is no endpoint description yet.
- * Together this guarantees that the GPIO lookups are in place before
- * the sensor driver tries to get GPIOs with gpiod_get().
- *
- * Note this code uses the same DSM GUID as the int3472_gpio_guid in
- * the INT3472 discrete.c code and there is some overlap, but there are
- * enough differences that it is difficult to share the code.
+ * This gets called from ipu_bridge_init() which runs only once per boot,
+ * the created faux int3472 device is leaked on purpose to keep the created
+ * GPIO mappings around permanently.
  */
 static int atomisp_csi2_add_gpio_mappings(struct acpi_device *adev)
 {
-	struct atomisp_csi2_acpi_gpio_parsing_data data = { };
-	LIST_HEAD(resource_list);
-	union acpi_object *obj;
-	unsigned int i, j;
+	struct int3472_discrete_device *int3472;
 	int ret;
 
-	obj = acpi_evaluate_dsm_typed(adev->handle, &intel_sensor_module_guid,
-				      0x00, 1, NULL, ACPI_TYPE_STRING);
-	if (obj) {
-		acpi_handle_info(adev->handle, "%s: Sensor module id: '%s'\n",
-				 dev_name(&adev->dev), obj->string.pointer);
-		ACPI_FREE(obj);
-	}
-
-	/*
-	 * First get the GPIO-settings count and then get count GPIO-settings
-	 * values. Note the order of these may differ from the order in which
-	 * the GPIOs are listed on the ACPI resources! So we first store them all
-	 * and then enumerate the ACPI resources and match them up by pin number.
-	 */
-	obj = acpi_evaluate_dsm_typed(adev->handle,
-				      &intel_sensor_gpio_info_guid, 0x00, 1,
-				      NULL, ACPI_TYPE_INTEGER);
-	if (!obj) {
-		acpi_handle_err(adev->handle, "%s: No _DSM entry for GPIO pin count\n",
-				dev_name(&adev->dev));
-		return -EIO;
-	}
-
-	data.settings_count = obj->integer.value;
-	ACPI_FREE(obj);
-
-	if (data.settings_count > CSI2_MAX_ACPI_GPIOS) {
-		acpi_handle_err(adev->handle, "%s: Too many GPIOs %u > %u\n",
-				dev_name(&adev->dev), data.settings_count,
-				CSI2_MAX_ACPI_GPIOS);
-		return -EOVERFLOW;
-	}
-
-	for (i = 0; i < data.settings_count; i++) {
-		/*
-		 * i + 2 because the index of this _DSM function is 1-based
-		 * and the first function is just a count.
-		 */
-		obj = acpi_evaluate_dsm_typed(adev->handle,
-					      &intel_sensor_gpio_info_guid,
-					      0x00, i + 2,
-					      NULL, ACPI_TYPE_INTEGER);
-		if (!obj) {
-			acpi_handle_err(adev->handle, "%s: No _DSM entry for pin %u\n",
-					dev_name(&adev->dev), i);
-			return -EIO;
-		}
-
-		data.settings[i] = obj->integer.value;
-		ACPI_FREE(obj);
-	}
-
-	/* Since we match up by pin-number the pin-numbers must be unique */
-	for (i = 0; i < data.settings_count; i++) {
-		for (j = i + 1; j < data.settings_count; j++) {
-			if (INTEL_GPIO_DSM_PIN(data.settings[i]) !=
-			    INTEL_GPIO_DSM_PIN(data.settings[j]))
-				continue;
-
-			acpi_handle_err(adev->handle, "%s: Duplicate pin number %lu\n",
-					dev_name(&adev->dev),
-					INTEL_GPIO_DSM_PIN(data.settings[i]));
-			return -EIO;
-		}
-	}
-
-	data.map = kzalloc(sizeof(*data.map), GFP_KERNEL);
-	if (!data.map)
+	/* Max num GPIOs we've seen plus a terminator */
+	int3472 = kzalloc(struct_size(int3472, gpios.table, INT3472_MAX_SENSOR_GPIOS + 1),
+			  GFP_KERNEL);
+	if (!int3472)
 		return -ENOMEM;
 
-	/* Now parse the ACPI resources and build the lookup table */
-	data.adev = adev;
-	ret = acpi_dev_get_resources(adev, &resource_list,
-				     atomisp_csi2_handle_acpi_gpio_res, &data);
-	if (ret < 0)
-		return ret;
+	/*
+	 * On atomisp the _DSM to get the GPIO type must be made on the sensor
+	 * adev, rather than on a separate INT3472 adev.
+	 */
+	int3472->adev = adev;
+	int3472->dev = &adev->dev;
+	int3472->sensor = adev;
 
-	acpi_dev_free_resource_list(&resource_list);
+	int3472->sensor_name = kasprintf(GFP_KERNEL, I2C_DEV_NAME_FORMAT, acpi_dev_name(adev));
+	if (!int3472->sensor_name) {
+		kfree(int3472);
+		return -ENOMEM;
+	}
 
-	if (data.map_count != data.settings_count ||
-	    data.res_count != data.settings_count)
-		acpi_handle_warn(adev->handle, "%s: ACPI GPIO resources vs DSM GPIO-info count mismatch (dsm: %d res: %d map %d\n",
-				 dev_name(&adev->dev), data.settings_count,
-				 data.res_count, data.map_count);
-
-	ret = acpi_dev_add_driver_gpios(adev, data.map->mapping);
-	if (ret)
-		acpi_handle_err(adev->handle, "%s: Error adding driver GPIOs: %d\n",
-				dev_name(&adev->dev), ret);
+	ret = int3472_discrete_parse_crs(int3472);
+	if (ret) {
+		int3472_discrete_cleanup(int3472);
+		kfree(int3472);
+	}
 
 	return ret;
 }

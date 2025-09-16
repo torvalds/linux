@@ -23,6 +23,7 @@
 
 #include <linux/backlight.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/of.h>
 
@@ -473,13 +474,51 @@ int of_drm_get_panel_orientation(const struct device_node *np,
 EXPORT_SYMBOL(of_drm_get_panel_orientation);
 #endif
 
+/* Find panel by fwnode. This should be identical to of_drm_find_panel(). */
+static struct drm_panel *find_panel_by_fwnode(const struct fwnode_handle *fwnode)
+{
+	struct drm_panel *panel;
+
+	if (!fwnode_device_is_available(fwnode))
+		return ERR_PTR(-ENODEV);
+
+	mutex_lock(&panel_lock);
+
+	list_for_each_entry(panel, &panel_list, list) {
+		if (dev_fwnode(panel->dev) == fwnode) {
+			mutex_unlock(&panel_lock);
+			return panel;
+		}
+	}
+
+	mutex_unlock(&panel_lock);
+
+	return ERR_PTR(-EPROBE_DEFER);
+}
+
+/* Find panel by follower device */
+static struct drm_panel *find_panel_by_dev(struct device *follower_dev)
+{
+	struct fwnode_handle *fwnode;
+	struct drm_panel *panel;
+
+	fwnode = fwnode_find_reference(dev_fwnode(follower_dev), "panel", 0);
+	if (IS_ERR(fwnode))
+		return ERR_PTR(-ENODEV);
+
+	panel = find_panel_by_fwnode(fwnode);
+	fwnode_handle_put(fwnode);
+
+	return panel;
+}
+
 /**
  * drm_is_panel_follower() - Check if the device is a panel follower
  * @dev: The 'struct device' to check
  *
  * This checks to see if a device needs to be power sequenced together with
  * a panel using the panel follower API.
- * At the moment panels can only be followed on device tree enabled systems.
+ *
  * The "panel" property of the follower points to the panel to be followed.
  *
  * Return: true if we should be power sequenced with a panel; false otherwise.
@@ -491,7 +530,7 @@ bool drm_is_panel_follower(struct device *dev)
 	 * don't bother trying to parse it here. We just need to know if the
 	 * property is there.
 	 */
-	return of_property_present(dev->of_node, "panel");
+	return device_property_present(dev, "panel");
 }
 EXPORT_SYMBOL(drm_is_panel_follower);
 
@@ -508,7 +547,6 @@ EXPORT_SYMBOL(drm_is_panel_follower);
  * If a follower is added to a panel that's already been turned on, the
  * follower's prepare callback is called right away.
  *
- * At the moment panels can only be followed on device tree enabled systems.
  * The "panel" property of the follower points to the panel to be followed.
  *
  * Return: 0 or an error code. Note that -ENODEV means that we detected that
@@ -518,16 +556,10 @@ EXPORT_SYMBOL(drm_is_panel_follower);
 int drm_panel_add_follower(struct device *follower_dev,
 			   struct drm_panel_follower *follower)
 {
-	struct device_node *panel_np;
 	struct drm_panel *panel;
 	int ret;
 
-	panel_np = of_parse_phandle(follower_dev->of_node, "panel", 0);
-	if (!panel_np)
-		return -ENODEV;
-
-	panel = of_drm_find_panel(panel_np);
-	of_node_put(panel_np);
+	panel = find_panel_by_dev(follower_dev);
 	if (IS_ERR(panel))
 		return PTR_ERR(panel);
 

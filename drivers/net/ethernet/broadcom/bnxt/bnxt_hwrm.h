@@ -10,7 +10,7 @@
 #ifndef BNXT_HWRM_H
 #define BNXT_HWRM_H
 
-#include "bnxt_hsi.h"
+#include <linux/bnxt/hsi.h>
 
 enum bnxt_hwrm_ctx_flags {
 	/* Update the HWRM_API_FLAGS right below for any new non-internal bit added here */

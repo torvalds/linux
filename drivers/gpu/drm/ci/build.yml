@@ -13,7 +13,7 @@
     - .build
     - .use-debian/arm64_build
   tags:
-    - aarch64
+    - $FDO_RUNNER_JOB_PRIORITY_TAG_AARCH64
   variables:
     DEFCONFIG: "arch/arm/configs/multi_v7_defconfig"
     KERNEL_IMAGE_NAME: "zImage"
@@ -24,7 +24,7 @@
     - .build
     - .use-debian/arm64_build
   tags:
-    - aarch64
+    - $FDO_RUNNER_JOB_PRIORITY_TAG_AARCH64
   variables:
     DEFCONFIG: "arch/arm64/configs/defconfig"
     KERNEL_IMAGE_NAME: "Image"
@@ -44,16 +44,22 @@
 
 igt:arm32:
   extends: .build:arm32
+  variables:
+    GIT_DEPTH: 10
   script:
     - FDO_CI_CONCURRENT=${FDO_CI_CONCURRENT} bash drivers/gpu/drm/ci/build-igt.sh
 
 igt:arm64:
   extends: .build:arm64
+  variables:
+    GIT_DEPTH: 10
   script:
     - FDO_CI_CONCURRENT=${FDO_CI_CONCURRENT} bash drivers/gpu/drm/ci/build-igt.sh
 
 igt:x86_64:
   extends: .build:x86_64
+  variables:
+    GIT_DEPTH: 10
   script:
     - FDO_CI_CONCURRENT=${FDO_CI_CONCURRENT} bash drivers/gpu/drm/ci/build-igt.sh
 

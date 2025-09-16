@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/brcm,iproc-sba.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom SBA RAID engine
+
+maintainers:
+  - Ray Jui <rjui@broadcom.com>
+  - Scott Branden <sbranden@broadcom.com>
+
+properties:
+  compatible:
+    enum:
+      - brcm,iproc-sba
+      - brcm,iproc-sba-v2
+
+  mboxes:
+    minItems: 1
+    maxItems: 8
+
+required:
+  - compatible
+  - mboxes
+
+additionalProperties: false
+
+examples:
+  - |
+    raid0 {
+      compatible = "brcm,iproc-sba-v2";
+      mboxes = <&raid_mbox 0 0x1 0xffff>,
+               <&raid_mbox 1 0x1 0xffff>,
+               <&raid_mbox 2 0x1 0xffff>,
+               <&raid_mbox 3 0x1 0xffff>,
+               <&raid_mbox 4 0x1 0xffff>,
+               <&raid_mbox 5 0x1 0xffff>,
+               <&raid_mbox 6 0x1 0xffff>,
+               <&raid_mbox 7 0x1 0xffff>;
+    };

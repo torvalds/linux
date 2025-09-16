@@ -78,6 +78,7 @@ struct cachestat;
 struct statmount;
 struct mnt_id_req;
 struct xattr_args;
+struct file_attr;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
@@ -371,6 +372,12 @@ asmlinkage long sys_removexattrat(int dfd, const char __user *path,
 asmlinkage long sys_lremovexattr(const char __user *path,
 				 const char __user *name);
 asmlinkage long sys_fremovexattr(int fd, const char __user *name);
+asmlinkage long sys_file_getattr(int dfd, const char __user *filename,
+				 struct file_attr __user *attr, size_t usize,
+				 unsigned int at_flags);
+asmlinkage long sys_file_setattr(int dfd, const char __user *filename,
+				 struct file_attr __user *attr, size_t usize,
+				 unsigned int at_flags);
 asmlinkage long sys_getcwd(char __user *buf, unsigned long size);
 asmlinkage long sys_eventfd2(unsigned int count, int flags);
 asmlinkage long sys_epoll_create1(int flags);

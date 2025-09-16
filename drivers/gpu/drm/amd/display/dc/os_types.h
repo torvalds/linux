@@ -31,6 +31,7 @@
 #include <linux/kgdb.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/vmalloc.h>
 
 #include <asm/byteorder.h>
 

@@ -678,7 +678,7 @@ static int line6_hwdep_init(struct usb_line6 *line6)
 	err = snd_hwdep_new(line6->card, "config", 0, &hwdep);
 	if (err < 0)
 		goto end;
-	strcpy(hwdep->name, "config");
+	strscpy(hwdep->name, "config");
 	hwdep->iface = SNDRV_HWDEP_IFACE_LINE6;
 	hwdep->ops = hwdep_ops;
 	hwdep->private_data = line6;
@@ -770,9 +770,9 @@ int line6_probe(struct usb_interface *interface,
 	line6->ifcdev = &interface->dev;
 	INIT_DELAYED_WORK(&line6->startup_work, line6_startup_work);
 
-	strcpy(card->id, properties->id);
-	strcpy(card->driver, driver_name);
-	strcpy(card->shortname, properties->name);
+	strscpy(card->id, properties->id);
+	strscpy(card->driver, driver_name);
+	strscpy(card->shortname, properties->name);
 	sprintf(card->longname, "Line 6 %s at USB %s", properties->name,
 		dev_name(line6->ifcdev));
 	card->private_free = line6_destruct;

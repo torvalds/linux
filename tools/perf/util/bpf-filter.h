@@ -5,6 +5,7 @@
 #include <linux/list.h>
 
 #include "bpf_skel/sample-filter.h"
+#include "util/debug.h"
 
 struct perf_bpf_filter_expr {
 	struct list_head list;
@@ -38,6 +39,8 @@ int perf_bpf_filter__unpin(void);
 static inline int perf_bpf_filter__parse(struct list_head *expr_head __maybe_unused,
 					 const char *str __maybe_unused)
 {
+	pr_err("Error: BPF filter is requested but perf is not built with BPF.\n"
+		"\tPlease make sure to build with libbpf and BPF skeleton.\n");
 	return -EOPNOTSUPP;
 }
 static inline int perf_bpf_filter__prepare(struct evsel *evsel __maybe_unused,

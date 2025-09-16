@@ -14,7 +14,7 @@ Description:	(RW) Reports the current state of the QAT device. Write to
 		It is possible to transition the device from up to down only
 		if the device is up and vice versa.
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat/cfg_services
 Date:		June 2022
@@ -23,24 +23,28 @@ Contact:	qat-linux@intel.com
 Description:	(RW) Reports the current configuration of the QAT device.
 		Write to the file to change the configured services.
 
-		The values are:
+		One or more services can be enabled per device.
+		Certain configurations are restricted to specific device types;
+		where applicable this is explicitly indicated, for example
+		(qat_6xxx) denotes applicability exclusively to that device series.
 
-		* sym;asym: the device is configured for running crypto
-		  services
-		* asym;sym: identical to sym;asym
-		* dc: the device is configured for running compression services
-		* dcc: identical to dc but enables the dc chaining feature,
-		  hash then compression. If this is not required chose dc
-		* sym: the device is configured for running symmetric crypto
-		  services
-		* asym: the device is configured for running asymmetric crypto
-		  services
-		* asym;dc: the device is configured for running asymmetric
-		  crypto services and compression services
-		* dc;asym: identical to asym;dc
-		* sym;dc: the device is configured for running symmetric crypto
-		  services and compression services
-		* dc;sym: identical to sym;dc
+		The available services include:
+
+		* sym: Configures the device for symmetric cryptographic operations.
+		* asym: Configures the device for asymmetric cryptographic operations.
+		* dc: Configures the device for compression and decompression
+		  operations.
+		* dcc: Similar to dc, but with the additional dc chaining feature
+		  enabled, cipher then compress (qat_6xxx), hash then compression.
+		  If this is not required choose dc.
+		* decomp: Configures the device for decompression operations (qat_6xxx).
+
+		Service combinations are permitted for all services except dcc.
+		On QAT GEN4 devices (qat_4xxx driver) a maximum of two services can be
+		combined and on QAT GEN6 devices (qat_6xxx driver ) a maximum of three
+		services can be combined.
+		The order of services is not significant. For instance, sym;asym is
+		functionally equivalent to asym;sym.
 
 		It is possible to set the configuration only if the device
 		is in the `down` state (see /sys/bus/pci/devices/<BDF>/qat/state)
@@ -59,7 +63,7 @@ Description:	(RW) Reports the current configuration of the QAT device.
 			# cat /sys/bus/pci/devices/<BDF>/qat/cfg_services
 			dc
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat/pm_idle_enabled
 Date:		June 2023
@@ -94,7 +98,7 @@ Description:	(RW) This configuration option provides a way to force the device i
 			# cat /sys/bus/pci/devices/<BDF>/qat/pm_idle_enabled
 			0
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat/rp2srv
 Date:		January 2024
@@ -126,7 +130,7 @@ Description:
 			# cat /sys/bus/pci/devices/<BDF>/qat/rp2srv
 			sym
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat/num_rps
 Date:		January 2024
@@ -140,7 +144,7 @@ Description:
 			# cat /sys/bus/pci/devices/<BDF>/qat/num_rps
 			64
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat/auto_reset
 Date:		May 2024
@@ -160,4 +164,4 @@ Description:	(RW) Reports the current state of the autoreset feature
 		* 0/Nn/off: auto reset disabled. If the device encounters an
 		  unrecoverable error, it will not be reset.
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is available for qat_4xxx and qat_6xxx devices.

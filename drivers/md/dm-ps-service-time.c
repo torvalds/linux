@@ -341,8 +341,10 @@ static int __init dm_st_init(void)
 {
 	int r = dm_register_path_selector(&st_ps);
 
-	if (r < 0)
+	if (r < 0) {
 		DMERR("register failed %d", r);
+		return r;
+	}
 
 	DMINFO("version " ST_VERSION " loaded");
 
@@ -351,10 +353,7 @@ static int __init dm_st_init(void)
 
 static void __exit dm_st_exit(void)
 {
-	int r = dm_unregister_path_selector(&st_ps);
-
-	if (r < 0)
-		DMERR("unregister failed %d", r);
+	dm_unregister_path_selector(&st_ps);
 }
 
 module_init(dm_st_init);

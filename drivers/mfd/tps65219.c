@@ -190,7 +190,7 @@ static const struct resource tps65219_regulator_resources[] = {
 
 static const struct mfd_cell tps65214_cells[] = {
 	MFD_CELL_RES("tps65214-regulator", tps65214_regulator_resources),
-	MFD_CELL_NAME("tps65215-gpio"),
+	MFD_CELL_NAME("tps65214-gpio"),
 };
 
 static const struct mfd_cell tps65215_cells[] = {
@@ -238,7 +238,7 @@ static unsigned int tps65214_bit4_offsets[] = { TPS65214_REG_INT_BUCK_3_POS };
 static unsigned int tps65214_bit5_offsets[] = { TPS65214_REG_INT_LDO_1_2_POS };
 static unsigned int tps65214_bit7_offsets[] = { TPS65214_REG_INT_PB_POS };
 
-static struct regmap_irq_sub_irq_map tps65219_sub_irq_offsets[] = {
+static const struct regmap_irq_sub_irq_map tps65219_sub_irq_offsets[] = {
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit0_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit1_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit2_offsets),
@@ -249,7 +249,7 @@ static struct regmap_irq_sub_irq_map tps65219_sub_irq_offsets[] = {
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit7_offsets),
 };
 
-static struct regmap_irq_sub_irq_map tps65215_sub_irq_offsets[] = {
+static const struct regmap_irq_sub_irq_map tps65215_sub_irq_offsets[] = {
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit0_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit1_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit2_offsets),
@@ -260,7 +260,7 @@ static struct regmap_irq_sub_irq_map tps65215_sub_irq_offsets[] = {
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit7_offsets),
 };
 
-static struct regmap_irq_sub_irq_map tps65214_sub_irq_offsets[] = {
+static const struct regmap_irq_sub_irq_map tps65214_sub_irq_offsets[] = {
 	REGMAP_IRQ_MAIN_REG_OFFSET(tps65214_bit0_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(tps65214_bit1_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(tps65214_bit2_offsets),
@@ -455,7 +455,7 @@ struct tps65219_chip_data {
 	int n_cells;
 };
 
-static struct tps65219_chip_data chip_info_table[] = {
+static const struct tps65219_chip_data chip_info_table[] = {
 	[TPS65214] = {
 		.irq_chip = &tps65214_irq_chip,
 		.cells = tps65214_cells,
@@ -476,7 +476,8 @@ static struct tps65219_chip_data chip_info_table[] = {
 static int tps65219_probe(struct i2c_client *client)
 {
 	struct tps65219 *tps;
-	struct tps65219_chip_data *pmic;
+	const struct tps65219_chip_data *pmic;
+	unsigned int chip_id;
 	bool pwr_button;
 	int ret;
 
@@ -487,8 +488,8 @@ static int tps65219_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, tps);
 
 	tps->dev = &client->dev;
-	tps->chip_id = (uintptr_t)i2c_get_match_data(client);
-	pmic = &chip_info_table[tps->chip_id];
+	chip_id = (uintptr_t)i2c_get_match_data(client);
+	pmic = &chip_info_table[chip_id];
 
 	tps->regmap = devm_regmap_init_i2c(client, &tps65219_regmap_config);
 	if (IS_ERR(tps->regmap)) {

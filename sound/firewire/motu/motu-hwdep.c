@@ -111,7 +111,7 @@ static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 		events = 0;
 	spin_unlock_irq(&motu->lock);
 
-	return events | EPOLLOUT;
+	return events;
 }
 
 static int hwdep_get_info(struct snd_motu *motu, void __user *arg)
@@ -290,7 +290,7 @@ int snd_motu_create_hwdep_device(struct snd_motu *motu)
 	if (err < 0)
 		return err;
 
-	strcpy(hwdep->name, "MOTU");
+	strscpy(hwdep->name, "MOTU");
 	hwdep->iface = SNDRV_HWDEP_IFACE_FW_MOTU;
 	hwdep->ops = ops;
 	hwdep->private_data = motu;

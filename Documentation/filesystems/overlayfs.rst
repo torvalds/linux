@@ -9,7 +9,7 @@ Overlay Filesystem
 This document describes a prototype for a new approach to providing
 overlay-filesystem functionality in Linux (sometimes referred to as
 union-filesystems).  An overlay-filesystem tries to present a
-filesystem which is the result over overlaying one filesystem on top
+filesystem which is the result of overlaying one filesystem on top
 of the other.
 
 
@@ -61,7 +61,7 @@ Inode properties
 |Configuration | Persistent | Uniform    | st_ino == d_ino | d_ino == i_ino |
 |              | st_ino     | st_dev     |                 | [*]            |
 +==============+=====+======+=====+======+========+========+========+=======+
-|              | dir | !dir | dir | !dir |  dir   +  !dir  |  dir   | !dir  |
+|              | dir | !dir | dir | !dir |  dir   |  !dir  |  dir   | !dir  |
 +--------------+-----+------+-----+------+--------+--------+--------+-------+
 | All layers   |  Y  |  Y   |  Y  |  Y   |  Y     |   Y    |  Y     |  Y    |
 | on same fs   |     |      |     |      |        |        |        |       |
@@ -425,7 +425,7 @@ of information from up to three different layers:
 The "lower data" file can be on any lower layer, except from the top most
 lower layer.
 
-Below the top most lower layer, any number of lower most layers may be defined
+Below the topmost lower layer, any number of lowermost layers may be defined
 as "data-only" lower layers, using double colon ("::") separators.
 A normal lower layer is not allowed to be below a data-only layer, so single
 colon separators are not allowed to the right of double colon ("::") separators.
@@ -445,8 +445,8 @@ to the absolute path of the "lower data" file in the "data-only" lower layer.
 
 Instead of explicitly enabling "metacopy=on" it is sufficient to specify at
 least one data-only layer to enable redirection of data to a data-only layer.
-In this case other forms of metacopy are rejected.  Note: this way data-only
-layers may be used toghether with "userxattr", in which case careful attention
+In this case other forms of metacopy are rejected.  Note: this way, data-only
+layers may be used together with "userxattr", in which case careful attention
 must be given to privileges needed to change the "user.overlay.redirect" xattr
 to prevent misuse.
 
@@ -515,7 +515,7 @@ supports these values:
     The metacopy digest is never generated or used. This is the
     default if verity option is not specified.
 - "on":
-    Whenever a metacopy files specifies an expected digest, the
+    Whenever a metacopy file specifies an expected digest, the
     corresponding data file must match the specified digest. When
     generating a metacopy file the verity digest will be set in it
     based on the source file (if it has one).
@@ -537,7 +537,7 @@ Using an upper layer path and/or a workdir path that are already used by
 another overlay mount is not allowed and may fail with EBUSY.  Using
 partially overlapping paths is not allowed and may fail with EBUSY.
 If files are accessed from two overlayfs mounts which share or overlap the
-upper layer and/or workdir path the behavior of the overlay is undefined,
+upper layer and/or workdir path, the behavior of the overlay is undefined,
 though it will not result in a crash or deadlock.
 
 Mounting an overlay using an upper layer path, where the upper layer path
@@ -778,7 +778,7 @@ controlled by the "uuid" mount option, which supports these values:
 - "auto": (default)
     UUID is taken from xattr "trusted.overlay.uuid" if it exists.
     Upgrade to "uuid=on" on first time mount of new overlay filesystem that
-    meets the prerequites.
+    meets the prerequisites.
     Downgrade to "uuid=null" for existing overlay filesystems that were never
     mounted with "uuid=on".
 
@@ -794,20 +794,20 @@ without significant effort.
 The advantage of mounting with the "volatile" option is that all forms of
 sync calls to the upper filesystem are omitted.
 
-In order to avoid a giving a false sense of safety, the syncfs (and fsync)
+In order to avoid giving a false sense of safety, the syncfs (and fsync)
 semantics of volatile mounts are slightly different than that of the rest of
 VFS.  If any writeback error occurs on the upperdir's filesystem after a
 volatile mount takes place, all sync functions will return an error.  Once this
 condition is reached, the filesystem will not recover, and every subsequent sync
-call will return an error, even if the upperdir has not experience a new error
+call will return an error, even if the upperdir has not experienced a new error
 since the last sync call.
 
 When overlay is mounted with "volatile" option, the directory
 "$workdir/work/incompat/volatile" is created.  During next mount, overlay
 checks for this directory and refuses to mount if present. This is a strong
-indicator that user should throw away upper and work directories and create
-fresh one. In very limited cases where the user knows that the system has
-not crashed and contents of upperdir are intact, The "volatile" directory
+indicator that the user should discard upper and work directories and create
+fresh ones. In very limited cases where the user knows that the system has
+not crashed and contents of upperdir are intact, the "volatile" directory
 can be removed.
 
 

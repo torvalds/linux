@@ -5,12 +5,11 @@
  * Copyright (C) 2015 Martin Willi
  */
 
-#include <linux/kernel.h>
-#include <linux/export.h>
-#include <linux/module.h>
-
 #include <crypto/algapi.h> // for crypto_xor_cpy
 #include <crypto/chacha.h>
+#include <linux/export.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 
 void chacha_crypt_generic(struct chacha_state *state, u8 *dst, const u8 *src,
 			  unsigned int bytes, int nrounds)

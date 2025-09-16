@@ -181,7 +181,7 @@ static const struct bin_attribute *const cxl_cdat_bin_attributes[] = {
 };
 
 static const struct attribute_group cxl_cdat_attribute_group = {
-	.bin_attrs_new = cxl_cdat_bin_attributes,
+	.bin_attrs = cxl_cdat_bin_attributes,
 	.is_bin_visible = cxl_port_bin_attr_is_visible,
 };
 

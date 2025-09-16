@@ -204,7 +204,7 @@ static void ice_config_health_events(struct ice_pf *pf, bool enable)
 	if (ret)
 		dev_err(ice_pf_to_dev(pf), "Failed to %s firmware health events, err %d aq_err %s\n",
 			str_enable_disable(enable), ret,
-			ice_aq_str(pf->hw.adminq.sq_last_status));
+			libie_aq_str(pf->hw.adminq.sq_last_status));
 }
 
 /**
@@ -217,10 +217,12 @@ static void ice_config_health_events(struct ice_pf *pf, bool enable)
 void ice_process_health_status_event(struct ice_pf *pf, struct ice_rq_event_info *event)
 {
 	const struct ice_aqc_health_status_elem *health_info;
+	const struct ice_aqc_get_health_status *cmd;
 	u16 count;
 
 	health_info = (struct ice_aqc_health_status_elem *)event->msg_buf;
-	count = le16_to_cpu(event->desc.params.get_health_status.health_status_count);
+	cmd = libie_aq_raw(&event->desc);
+	count = le16_to_cpu(cmd->health_status_count);
 
 	if (count > (event->buf_len / sizeof(*health_info))) {
 		dev_err(ice_pf_to_dev(pf), "Received a health status event with invalid element count\n");

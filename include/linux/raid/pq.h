@@ -11,8 +11,13 @@
 #ifdef __KERNEL__
 
 #include <linux/blkdev.h>
+#include <linux/mm.h>
 
-extern const char raid6_empty_zero_page[PAGE_SIZE];
+/* This should be const but the raid6 code is too convoluted for that. */
+static inline void *raid6_get_zero_page(void)
+{
+	return page_address(ZERO_PAGE(0));
+}
 
 #else /* ! __KERNEL__ */
 /* Used for testing in user space */
@@ -189,6 +194,11 @@ static inline uint32_t raid6_jiffies(void)
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
 	return tv.tv_sec*1000 + tv.tv_usec/1000;
+}
+
+static inline void *raid6_get_zero_page(void)
+{
+	return raid6_empty_zero_page;
 }
 
 #endif /* ! __KERNEL__ */

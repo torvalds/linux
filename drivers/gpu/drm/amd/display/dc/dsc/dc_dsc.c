@@ -30,6 +30,9 @@
 #include "rc_calc.h"
 #include "fixed31_32.h"
 
+#include "clk_mgr.h"
+#include "resource.h"
+
 #define DC_LOGGER \
 	dsc->ctx->logger
 
@@ -149,6 +152,11 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 }
 
 /* Forward Declerations */
+static unsigned int get_min_dsc_slice_count_for_odm(
+		const struct display_stream_compressor *dsc,
+		const struct dsc_enc_caps *dsc_enc_caps,
+		const struct dc_crtc_timing *timing);
+
 static bool decide_dsc_bandwidth_range(
 		const uint32_t min_bpp_x16,
 		const uint32_t max_bpp_x16,
@@ -183,6 +191,7 @@ static bool setup_dsc_config(
 		const struct dc_crtc_timing *timing,
 		const struct dc_dsc_config_options *options,
 		const enum dc_link_encoding_format link_encoding,
+		int min_slice_count,
 		struct dc_dsc_config *dsc_cfg);
 
 static bool dsc_buff_block_size_from_dpcd(int dpcd_buff_block_size, int *buff_block_size)
@@ -442,7 +451,6 @@ bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
 	return true;
 }
 
-
 /* If DSC is possbile, get DSC bandwidth range based on [min_bpp, max_bpp] target bitrate range and
  * timing's pixel clock and uncompressed bandwidth.
  * If DSC is not possible, leave '*range' untouched.
@@ -458,6 +466,7 @@ bool dc_dsc_compute_bandwidth_range(
 		struct dc_dsc_bw_range *range)
 {
 	bool is_dsc_possible = false;
+	unsigned int min_dsc_slice_count;
 	struct dsc_enc_caps dsc_enc_caps;
 	struct dsc_enc_caps dsc_common_caps;
 	struct dc_dsc_config config = {0};
@@ -469,12 +478,14 @@ bool dc_dsc_compute_bandwidth_range(
 
 	get_dsc_enc_caps(dsc, &dsc_enc_caps, timing->pix_clk_100hz);
 
+	min_dsc_slice_count = get_min_dsc_slice_count_for_odm(dsc, &dsc_enc_caps, timing);
+
 	is_dsc_possible = intersect_dsc_caps(dsc_sink_caps, &dsc_enc_caps,
 			timing->pixel_encoding, &dsc_common_caps);
 
 	if (is_dsc_possible)
 		is_dsc_possible = setup_dsc_config(dsc_sink_caps, &dsc_enc_caps, 0, timing,
-				&options, link_encoding, &config);
+				&options, link_encoding, min_dsc_slice_count, &config);
 
 	if (is_dsc_possible)
 		is_dsc_possible = decide_dsc_bandwidth_range(min_bpp_x16, max_bpp_x16,
@@ -525,20 +536,153 @@ void dc_dsc_dump_decoder_caps(const struct display_stream_compressor *dsc,
 	DC_LOG_DSC("\tis_dp %d", dsc_sink_caps->is_dp);
 }
 
+
+static void build_dsc_enc_combined_slice_caps(
+		const struct dsc_enc_caps *single_dsc_enc_caps,
+		struct dsc_enc_caps *dsc_enc_caps,
+		unsigned int max_odm_combine_factor)
+{
+	/* 1-16 slice configurations, single DSC */
+	dsc_enc_caps->slice_caps.raw |= single_dsc_enc_caps->slice_caps.raw;
+
+	/* 2x DSC's */
+	if (max_odm_combine_factor >= 2) {
+		/* 1 + 1 */
+		dsc_enc_caps->slice_caps.bits.NUM_SLICES_2 |= single_dsc_enc_caps->slice_caps.bits.NUM_SLICES_1;
+
+		/* 2 + 2 */
+		dsc_enc_caps->slice_caps.bits.NUM_SLICES_4 |= single_dsc_enc_caps->slice_caps.bits.NUM_SLICES_2;
+
+		/* 4 + 4 */
+		dsc_enc_caps->slice_caps.bits.NUM_SLICES_8 |= single_dsc_enc_caps->slice_caps.bits.NUM_SLICES_4;
+
+		/* 8 + 8 */
+		dsc_enc_caps->slice_caps.bits.NUM_SLICES_16 |= single_dsc_enc_caps->slice_caps.bits.NUM_SLICES_8;
+	}
+
+	/* 3x DSC's */
+	if (max_odm_combine_factor >= 3) {
+		/* 4 + 4 + 4 */
+		dsc_enc_caps->slice_caps.bits.NUM_SLICES_12 |= single_dsc_enc_caps->slice_caps.bits.NUM_SLICES_4;
+	}
+
+	/* 4x DSC's */
+	if (max_odm_combine_factor >= 4) {
+		/* 1 + 1 + 1 + 1 */
+		dsc_enc_caps->slice_caps.bits.NUM_SLICES_4 |= single_dsc_enc_caps->slice_caps.bits.NUM_SLICES_1;
+
+		/* 2 + 2 + 2 + 2 */
+		dsc_enc_caps->slice_caps.bits.NUM_SLICES_8 |= single_dsc_enc_caps->slice_caps.bits.NUM_SLICES_2;
+
+		/* 3 + 3 + 3 + 3 */
+		dsc_enc_caps->slice_caps.bits.NUM_SLICES_12 |= single_dsc_enc_caps->slice_caps.bits.NUM_SLICES_3;
+
+		/* 4 + 4 + 4 + 4 */
+		dsc_enc_caps->slice_caps.bits.NUM_SLICES_16 |= single_dsc_enc_caps->slice_caps.bits.NUM_SLICES_4;
+	}
+}
+
+static void build_dsc_enc_caps(
+		const struct display_stream_compressor *dsc,
+		struct dsc_enc_caps *dsc_enc_caps)
+{
+	unsigned int max_dscclk_khz;
+	unsigned int num_dsc;
+	unsigned int max_odm_combine_factor;
+	struct dsc_enc_caps single_dsc_enc_caps;
+
+	struct dc *dc;
+
+	if (!dsc || !dsc->ctx || !dsc->ctx->dc || !dsc->funcs->dsc_get_single_enc_caps)
+		return;
+
+	dc = dsc->ctx->dc;
+
+	if (!dc->clk_mgr || !dc->clk_mgr->funcs->get_max_clock_khz || !dc->res_pool || dc->debug.disable_dsc)
+		return;
+
+	/* get max DSCCLK from clk_mgr */
+	max_dscclk_khz = dc->clk_mgr->funcs->get_max_clock_khz(dc->clk_mgr, CLK_TYPE_DSCCLK);
+
+	dsc->funcs->dsc_get_single_enc_caps(&single_dsc_enc_caps, max_dscclk_khz);
+
+	/* global capabilities */
+	dsc_enc_caps->dsc_version = single_dsc_enc_caps.dsc_version;
+	dsc_enc_caps->lb_bit_depth = single_dsc_enc_caps.lb_bit_depth;
+	dsc_enc_caps->is_block_pred_supported = single_dsc_enc_caps.is_block_pred_supported;
+	dsc_enc_caps->max_slice_width = single_dsc_enc_caps.max_slice_width;
+	dsc_enc_caps->bpp_increment_div = single_dsc_enc_caps.bpp_increment_div;
+	dsc_enc_caps->color_formats.raw = single_dsc_enc_caps.color_formats.raw;
+	dsc_enc_caps->color_depth.raw = single_dsc_enc_caps.color_depth.raw;
+
+	/* expand per DSC capabilities to global */
+	max_odm_combine_factor = dc->caps.max_odm_combine_factor;
+	num_dsc = dc->res_pool->res_cap->num_dsc;
+	max_odm_combine_factor = min(max_odm_combine_factor, num_dsc);
+	dsc_enc_caps->max_total_throughput_mps =
+			single_dsc_enc_caps.max_total_throughput_mps *
+			max_odm_combine_factor;
+
+	/* check slice counts possible for with ODM combine */
+	build_dsc_enc_combined_slice_caps(&single_dsc_enc_caps, dsc_enc_caps, max_odm_combine_factor);
+}
+
+static inline uint32_t dsc_div_by_10_round_up(uint32_t value)
+{
+	return (value + 9) / 10;
+}
+
+static unsigned int get_min_dsc_slice_count_for_odm(
+		const struct display_stream_compressor *dsc,
+		const struct dsc_enc_caps *dsc_enc_caps,
+		const struct dc_crtc_timing *timing)
+{
+	unsigned int max_dispclk_khz;
+
+	/* get max pixel rate and combine caps */
+	max_dispclk_khz = dsc_enc_caps->max_total_throughput_mps * 1000;
+	if (dsc && dsc->ctx->dc) {
+		if (dsc->ctx->dc->clk_mgr &&
+			dsc->ctx->dc->clk_mgr->funcs->get_max_clock_khz) {
+			/* dispclk is available */
+			max_dispclk_khz = dsc->ctx->dc->clk_mgr->funcs->get_max_clock_khz(dsc->ctx->dc->clk_mgr, CLK_TYPE_DISPCLK);
+		}
+	}
+
+	/* validate parameters */
+	if (max_dispclk_khz == 0 || dsc_enc_caps->max_slice_width == 0)
+		return 1;
+
+	/* consider minimum odm slices required due to
+	 * 1) display pipe throughput (dispclk)
+	 * 2) max image width per slice
+	 */
+	return dc_fixpt_ceil(dc_fixpt_max(
+			dc_fixpt_div_int(dc_fixpt_from_int(dsc_div_by_10_round_up(timing->pix_clk_100hz)),
+			max_dispclk_khz), // throughput
+			dc_fixpt_div_int(dc_fixpt_from_int(timing->h_addressable + timing->h_border_left + timing->h_border_right),
+			dsc_enc_caps->max_slice_width))); // slice width
+}
+
 static void get_dsc_enc_caps(
 		const struct display_stream_compressor *dsc,
 		struct dsc_enc_caps *dsc_enc_caps,
 		int pixel_clock_100Hz)
 {
-	// This is a static HW query, so we can use any DSC
-
 	memset(dsc_enc_caps, 0, sizeof(struct dsc_enc_caps));
-	if (dsc) {
-		if (!dsc->ctx->dc->debug.disable_dsc)
-			dsc->funcs->dsc_get_enc_caps(dsc_enc_caps, pixel_clock_100Hz);
-		if (dsc->ctx->dc->debug.native422_support)
-			dsc_enc_caps->color_formats.bits.YCBCR_NATIVE_422 = 1;
+
+	if (!dsc || !dsc->ctx || !dsc->ctx->dc || dsc->ctx->dc->debug.disable_dsc)
+		return;
+
+	/* check if reported cap global or only for a single DCN DSC enc */
+	if (dsc->funcs->dsc_get_enc_caps) {
+		dsc->funcs->dsc_get_enc_caps(dsc_enc_caps, pixel_clock_100Hz);
+	} else {
+		build_dsc_enc_caps(dsc, dsc_enc_caps);
 	}
+
+	if (dsc->ctx->dc->debug.native422_support)
+		dsc_enc_caps->color_formats.bits.YCBCR_NATIVE_422 = 1;
 }
 
 /* Returns 'false' if no intersection was found for at least one capability.
@@ -619,11 +763,6 @@ static bool intersect_dsc_caps(
 	dsc_common_caps->edp_sink_max_bits_per_pixel = dsc_sink_caps->edp_max_bits_per_pixel;
 	dsc_common_caps->is_dp = dsc_sink_caps->is_dp;
 	return true;
-}
-
-static inline uint32_t dsc_div_by_10_round_up(uint32_t value)
-{
-	return (value + 9) / 10;
 }
 
 static uint32_t compute_bpp_x16_from_target_bandwidth(
@@ -910,11 +1049,11 @@ static bool setup_dsc_config(
 		const struct dc_crtc_timing *timing,
 		const struct dc_dsc_config_options *options,
 		const enum dc_link_encoding_format link_encoding,
+		int min_slices_h,
 		struct dc_dsc_config *dsc_cfg)
 {
 	struct dsc_enc_caps dsc_common_caps;
 	int max_slices_h = 0;
-	int min_slices_h = 0;
 	int num_slices_h = 0;
 	int pic_width;
 	int slice_width;
@@ -1018,12 +1157,9 @@ static bool setup_dsc_config(
 	if (!is_dsc_possible)
 		goto done;
 
-	min_slices_h = pic_width / dsc_common_caps.max_slice_width;
-	if (pic_width % dsc_common_caps.max_slice_width)
-		min_slices_h++;
-
 	min_slices_h = fit_num_slices_up(dsc_common_caps.slice_caps, min_slices_h);
 
+	/* increase minimum slice count to meet sink throughput limitations */
 	while (min_slices_h <= max_slices_h) {
 		int pix_clk_per_slice_khz = dsc_div_by_10_round_up(timing->pix_clk_100hz) / min_slices_h;
 		if (pix_clk_per_slice_khz <= sink_per_slice_throughput_mps * 1000)
@@ -1032,14 +1168,12 @@ static bool setup_dsc_config(
 		min_slices_h = inc_num_slices(dsc_common_caps.slice_caps, min_slices_h);
 	}
 
-	is_dsc_possible = (min_slices_h <= max_slices_h);
+	/* increase minimum slice count to meet divisibility requirements */
+	while (pic_width % min_slices_h != 0 && min_slices_h <= max_slices_h) {
+		min_slices_h = inc_num_slices(dsc_common_caps.slice_caps, min_slices_h);
+	}
 
-	if (pic_width % min_slices_h != 0)
-		min_slices_h = 0; // DSC TODO: Maybe try increasing the number of slices first?
-
-	if (min_slices_h == 0 && max_slices_h == 0)
-		is_dsc_possible = false;
-
+	is_dsc_possible = (min_slices_h <= max_slices_h) && max_slices_h != 0;
 	if (!is_dsc_possible)
 		goto done;
 
@@ -1162,12 +1296,19 @@ bool dc_dsc_compute_config(
 {
 	bool is_dsc_possible = false;
 	struct dsc_enc_caps dsc_enc_caps;
-
+	unsigned int min_dsc_slice_count;
 	get_dsc_enc_caps(dsc, &dsc_enc_caps, timing->pix_clk_100hz);
+
+	min_dsc_slice_count = get_min_dsc_slice_count_for_odm(dsc, &dsc_enc_caps, timing);
+
 	is_dsc_possible = setup_dsc_config(dsc_sink_caps,
 		&dsc_enc_caps,
 		target_bandwidth_kbps,
-		timing, options, link_encoding, dsc_cfg);
+		timing,
+		options,
+		link_encoding,
+		min_dsc_slice_count,
+		dsc_cfg);
 	return is_dsc_possible;
 }
 

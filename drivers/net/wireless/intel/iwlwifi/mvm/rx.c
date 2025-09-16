@@ -877,28 +877,28 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 	u32 rx_bytes[MAC_INDEX_AUX] = {};
 	int fw_link_id;
 
-	for (fw_link_id = 0; fw_link_id < ARRAY_SIZE(mvm->link_id_to_link_conf);
+	/* driver uses link ID == MAC ID */
+	for (fw_link_id = 0; fw_link_id < ARRAY_SIZE(mvm->vif_id_to_mac);
 	     fw_link_id++) {
 		struct iwl_stats_ntfy_per_link *link_stats;
-		struct ieee80211_bss_conf *bss_conf;
-		struct iwl_mvm_vif *mvmvif;
 		struct iwl_mvm_vif_link_info *link_info;
+		struct iwl_mvm_vif *mvmvif;
+		struct ieee80211_vif *vif;
 		int link_id;
 		int sig;
 
-		bss_conf = iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, fw_link_id,
-							       false);
-		if (!bss_conf)
+		vif = iwl_mvm_rcu_dereference_vif_id(mvm, fw_link_id, false);
+		if (!vif)
 			continue;
 
-		if (bss_conf->vif->type != NL80211_IFTYPE_STATION)
+		if (vif->type != NL80211_IFTYPE_STATION)
 			continue;
 
-		link_id = bss_conf->link_id;
+		link_id = vif->bss_conf.link_id;
 		if (link_id >= ARRAY_SIZE(mvmvif->link))
 			continue;
 
-		mvmvif = iwl_mvm_vif_from_mac80211(bss_conf->vif);
+		mvmvif = iwl_mvm_vif_from_mac80211(vif);
 		link_info = mvmvif->link[link_id];
 		if (!link_info)
 			continue;
@@ -916,8 +916,7 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 
 		if (link_info->phy_ctxt &&
 		    link_info->phy_ctxt->channel->band == NL80211_BAND_2GHZ)
-			iwl_mvm_bt_coex_update_link_esr(mvm, bss_conf->vif,
-							link_id);
+			iwl_mvm_bt_coex_update_link_esr(mvm, vif, link_id);
 
 		/* make sure that beacon statistics don't go backwards with TCM
 		 * request to clear statistics
@@ -927,8 +926,7 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 				mvmvif->link[link_id]->beacon_stats.num_beacons;
 
 		sig = -le32_to_cpu(link_stats->beacon_filter_average_energy);
-		iwl_mvm_update_link_sig(bss_conf->vif, sig, link_info,
-					bss_conf);
+		iwl_mvm_update_link_sig(vif, sig, link_info, &vif->bss_conf);
 
 		if (WARN_ONCE(mvmvif->id >= MAC_INDEX_AUX,
 			      "invalid mvmvif id: %d", mvmvif->id))

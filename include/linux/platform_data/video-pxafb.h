@@ -150,7 +150,6 @@ struct pxafb_mach_info {
 };
 
 void pxa_set_fb_info(struct device *, struct pxafb_mach_info *);
-unsigned long pxafb_get_hsync_time(struct device *dev);
 
 /* smartpanel related */
 #define SMART_CMD_A0			 (0x1 << 8)

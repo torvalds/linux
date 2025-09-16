@@ -814,23 +814,15 @@ struct hns_roce_v2_mpt_entry {
 
 #define V2_MPT_BYTE_8_LW_EN_S 7
 
-#define V2_MPT_BYTE_8_MW_CNT_S 8
-#define V2_MPT_BYTE_8_MW_CNT_M GENMASK(31, 8)
-
 #define V2_MPT_BYTE_12_FRE_S 0
 
 #define V2_MPT_BYTE_12_PA_S 1
-
-#define V2_MPT_BYTE_12_MR_MW_S 4
 
 #define V2_MPT_BYTE_12_BPD_S 5
 
 #define V2_MPT_BYTE_12_BQP_S 6
 
 #define V2_MPT_BYTE_12_INNER_PA_VLD_S 7
-
-#define V2_MPT_BYTE_12_MW_BIND_QPN_S 8
-#define V2_MPT_BYTE_12_MW_BIND_QPN_M GENMASK(31, 8)
 
 #define V2_MPT_BYTE_48_PBL_BA_H_S 0
 #define V2_MPT_BYTE_48_PBL_BA_H_M GENMASK(28, 0)
@@ -1168,7 +1160,8 @@ struct hns_roce_cfg_gmv_tb_b {
 #define GMV_TB_B_SMAC_H GMV_TB_B_FIELD_LOC(47, 32)
 #define GMV_TB_B_SGID_IDX GMV_TB_B_FIELD_LOC(71, 64)
 
-#define HNS_ROCE_QUERY_PF_CAPS_CMD_NUM 5
+#define HNS_ROCE_QUERY_PF_CAPS_CMD_NUM_HIP08 5
+#define HNS_ROCE_QUERY_PF_CAPS_CMD_NUM 6
 struct hns_roce_query_pf_caps_a {
 	u8 number_ports;
 	u8 local_ca_ack_delay;
@@ -1278,6 +1271,11 @@ struct hns_roce_query_pf_caps_e {
 	__le16 ceq_period;
 	__le16 aeq_max_cnt;
 	__le16 aeq_period;
+};
+
+struct hns_roce_query_pf_caps_f {
+	__le32 max_ack_req_msg_len;
+	__le32 rsv[5];
 };
 
 #define PF_CAPS_E_FIELD_LOC(h, l) \

@@ -231,6 +231,7 @@ struct rtw_pci {
 };
 
 extern const struct dev_pm_ops rtw_pm_ops;
+extern const struct pci_error_handlers rtw_pci_err_handler;
 
 int rtw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 void rtw_pci_remove(struct pci_dev *pdev);

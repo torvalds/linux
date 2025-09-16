@@ -147,7 +147,7 @@ static int rt722_sdca_mbq_size(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_sdw_mbq_cfg rt722_mbq_config = {
+static const struct regmap_sdw_mbq_cfg rt722_mbq_config = {
 	.mbq_size = rt722_sdca_mbq_size,
 };
 

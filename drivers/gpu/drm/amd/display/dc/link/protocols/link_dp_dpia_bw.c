@@ -35,6 +35,8 @@
 
 #define Kbps_TO_Gbps (1000 * 1000)
 
+#define MST_TIME_SLOT_COUNT 64
+
 // ------------------------------------------------------------------
 // PRIVATE FUNCTIONS
 // ------------------------------------------------------------------
@@ -160,78 +162,6 @@ static void retrieve_usb4_dp_bw_allocation_info(struct dc_link *link)
 		link->dpia_bw_alloc_config.nrd_max_lane_count);
 }
 
-static uint8_t get_lowest_dpia_index(struct dc_link *link)
-{
-	const struct dc *dc_struct = link->dc;
-	uint8_t idx = 0xFF;
-	int i;
-
-	for (i = 0; i < MAX_LINKS; ++i) {
-
-		if (!dc_struct->links[i] ||
-				dc_struct->links[i]->ep_type != DISPLAY_ENDPOINT_USB4_DPIA)
-			continue;
-
-		if (idx > dc_struct->links[i]->link_index) {
-			idx = dc_struct->links[i]->link_index;
-			break;
-		}
-	}
-
-	return idx;
-}
-
-/*
- * Get the maximum dp tunnel banwidth of host router
- *
- * @dc: pointer to the dc struct instance
- * @hr_index: host router index
- *
- * return: host router maximum dp tunnel bandwidth
- */
-static int get_host_router_total_dp_tunnel_bw(const struct dc *dc, uint8_t hr_index)
-{
-	uint8_t lowest_dpia_index = get_lowest_dpia_index(dc->links[0]);
-	uint8_t hr_index_temp = 0;
-	struct dc_link *link_dpia_primary, *link_dpia_secondary;
-	int total_bw = 0;
-
-	for (uint8_t i = 0; i < MAX_LINKS - 1; ++i) {
-
-		if (!dc->links[i] || dc->links[i]->ep_type != DISPLAY_ENDPOINT_USB4_DPIA)
-			continue;
-
-		hr_index_temp = (dc->links[i]->link_index - lowest_dpia_index) / 2;
-
-		if (hr_index_temp == hr_index) {
-			link_dpia_primary = dc->links[i];
-			link_dpia_secondary = dc->links[i + 1];
-
-			/**
-			 * If BW allocation enabled on both DPIAs, then
-			 * HR BW = Estimated(dpia_primary) + Allocated(dpia_secondary)
-			 * otherwise HR BW = Estimated(bw alloc enabled dpia)
-			 */
-			if ((link_dpia_primary->hpd_status &&
-				link_dpia_primary->dpia_bw_alloc_config.bw_alloc_enabled) &&
-				(link_dpia_secondary->hpd_status &&
-				link_dpia_secondary->dpia_bw_alloc_config.bw_alloc_enabled)) {
-					total_bw += link_dpia_primary->dpia_bw_alloc_config.estimated_bw +
-						link_dpia_secondary->dpia_bw_alloc_config.allocated_bw;
-			} else if (link_dpia_primary->hpd_status &&
-					link_dpia_primary->dpia_bw_alloc_config.bw_alloc_enabled) {
-				total_bw = link_dpia_primary->dpia_bw_alloc_config.estimated_bw;
-			} else if (link_dpia_secondary->hpd_status &&
-				link_dpia_secondary->dpia_bw_alloc_config.bw_alloc_enabled) {
-				total_bw += link_dpia_secondary->dpia_bw_alloc_config.estimated_bw;
-			}
-			break;
-		}
-	}
-
-	return total_bw;
-}
-
 /*
  * Cleanup function for when the dpia is unplugged to reset struct
  * and perform any required clean up
@@ -251,32 +181,40 @@ static void dpia_bw_alloc_unplug(struct dc_link *link)
 
 static void link_dpia_send_bw_alloc_request(struct dc_link *link, int req_bw)
 {
-	uint8_t requested_bw;
-	uint32_t temp;
+	uint8_t request_reg_val;
+	uint32_t temp, request_bw;
 
-	/* Error check whether request bw greater than allocated */
-	if (req_bw > link->dpia_bw_alloc_config.estimated_bw) {
-		DC_LOG_ERROR("%s: Request BW greater than estimated BW for link(%d)\n",
-			__func__, link->link_index);
-		req_bw = link->dpia_bw_alloc_config.estimated_bw;
+	if (link->dpia_bw_alloc_config.bw_granularity == 0) {
+		DC_LOG_ERROR("%s:  Link[%d]:  bw_granularity is zero!", __func__, link->link_index);
+		return;
 	}
 
 	temp = req_bw * link->dpia_bw_alloc_config.bw_granularity;
-	requested_bw = temp / Kbps_TO_Gbps;
+	request_reg_val = temp / Kbps_TO_Gbps;
 
 	/* Always make sure to add more to account for floating points */
 	if (temp % Kbps_TO_Gbps)
-		++requested_bw;
+		++request_reg_val;
 
-	/* Error check whether requested and allocated are equal */
-	req_bw = requested_bw * (Kbps_TO_Gbps / link->dpia_bw_alloc_config.bw_granularity);
-	if (req_bw && (req_bw == link->dpia_bw_alloc_config.allocated_bw)) {
-		DC_LOG_ERROR("%s: Request BW equals to allocated BW for link(%d)\n",
-			__func__, link->link_index);
+	request_bw = request_reg_val * (Kbps_TO_Gbps / link->dpia_bw_alloc_config.bw_granularity);
+
+	if (request_bw > link->dpia_bw_alloc_config.estimated_bw) {
+		DC_LOG_ERROR("%s:  Link[%d]:  Request BW (%d --> %d) > Estimated BW (%d)... Set to Estimated BW!",
+				__func__, link->link_index,
+				req_bw, request_bw, link->dpia_bw_alloc_config.estimated_bw);
+		req_bw = link->dpia_bw_alloc_config.estimated_bw;
+
+		temp = req_bw * link->dpia_bw_alloc_config.bw_granularity;
+		request_reg_val = temp / Kbps_TO_Gbps;
+		if (temp % Kbps_TO_Gbps)
+			++request_reg_val;
 	}
 
+	link->dpia_bw_alloc_config.allocated_bw = request_bw;
+	DC_LOG_DC("%s:  Link[%d]:  Request BW:  %d", __func__, link->link_index, request_bw);
+
 	core_link_write_dpcd(link, REQUESTED_BW,
-		&requested_bw,
+		&request_reg_val,
 		sizeof(uint8_t));
 }
 
@@ -304,14 +242,16 @@ bool link_dpia_enable_usb4_dp_bw_alloc_mode(struct dc_link *link)
 			link->dpia_bw_alloc_config.bw_alloc_enabled = true;
 			ret = true;
 
-			/*
-			 * During DP tunnel creation, CM preallocates BW and reduces estimated BW of other
-			 * DPIA. CM release preallocation only when allocation is complete. Do zero alloc
-			 * to make the CM to release preallocation and update estimated BW correctly for
-			 * all DPIAs per host router
-			 */
-			// TODO: Zero allocation can be removed once the MSFT CM fix has been released
-			link_dp_dpia_allocate_usb4_bandwidth_for_stream(link, 0);
+			if (link->dc->debug.dpia_debug.bits.enable_usb4_bw_zero_alloc_patch) {
+				/*
+				 * During DP tunnel creation, the CM preallocates BW
+				 * and reduces the estimated BW of other DPIAs.
+				 * The CM releases the preallocation only when the allocation is complete.
+				 * Perform a zero allocation to make the CM release the preallocation
+				 * and correctly update the estimated BW for all DPIAs per host router.
+				 */
+				link_dp_dpia_allocate_usb4_bandwidth_for_stream(link, 0);
+			}
 		} else
 			DC_LOG_DEBUG("%s:  link[%d] failed to enable DPTX BW allocation mode", __func__, link->link_index);
 	}
@@ -329,19 +269,17 @@ bool link_dpia_enable_usb4_dp_bw_alloc_mode(struct dc_link *link)
  */
 void link_dp_dpia_handle_bw_alloc_status(struct dc_link *link, uint8_t status)
 {
+	link->dpia_bw_alloc_config.estimated_bw = get_estimated_bw(link);
+
 	if (status & DP_TUNNELING_BW_REQUEST_SUCCEEDED) {
 		DC_LOG_DEBUG("%s: BW Allocation request succeeded on link(%d)",
 				__func__, link->link_index);
 	} else if (status & DP_TUNNELING_BW_REQUEST_FAILED) {
-		link->dpia_bw_alloc_config.estimated_bw = get_estimated_bw(link);
-
 		DC_LOG_DEBUG("%s: BW Allocation request failed on link(%d)  allocated/estimated BW=%d",
 				__func__, link->link_index, link->dpia_bw_alloc_config.estimated_bw);
 
 		link_dpia_send_bw_alloc_request(link, link->dpia_bw_alloc_config.estimated_bw);
 	} else if (status & DP_TUNNELING_ESTIMATED_BW_CHANGED) {
-		link->dpia_bw_alloc_config.estimated_bw = get_estimated_bw(link);
-
 		DC_LOG_DEBUG("%s: Estimated BW changed on link(%d)  new estimated BW=%d",
 				__func__, link->link_index, link->dpia_bw_alloc_config.estimated_bw);
 	}
@@ -374,9 +312,13 @@ void dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int pe
 
 void link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int req_bw)
 {
-	DC_LOG_DEBUG("%s: ENTER: link(%d), hpd_status(%d), current allocated_bw(%d), req_bw(%d)\n",
+	link->dpia_bw_alloc_config.estimated_bw = get_estimated_bw(link);
+
+	DC_LOG_DEBUG("%s: ENTER: link[%d] hpd(%d)  Allocated_BW: %d  Estimated_BW: %d  Req_BW: %d",
 		__func__, link->link_index, link->hpd_status,
-		link->dpia_bw_alloc_config.allocated_bw, req_bw);
+		link->dpia_bw_alloc_config.allocated_bw,
+		link->dpia_bw_alloc_config.estimated_bw,
+		req_bw);
 
 	if (link_dp_is_bw_alloc_available(link))
 		link_dpia_send_bw_alloc_request(link, req_bw);
@@ -384,73 +326,116 @@ void link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int r
 		DC_LOG_DEBUG("%s:  BW Allocation mode not available", __func__);
 }
 
-bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed_per_dpia, const unsigned int num_dpias)
+uint32_t link_dpia_get_dp_overhead(const struct dc_link *link)
 {
-	bool ret = true;
-	int bw_needed_per_hr[MAX_HR_NUM] = { 0, 0 }, host_router_total_dp_bw = 0;
-	uint8_t lowest_dpia_index, i, hr_index;
+	uint32_t link_dp_overhead = 0;
 
-	if (!num_dpias || num_dpias > MAX_DPIA_NUM)
-		return ret;
+	if ((link->type == dc_connection_mst_branch) &&
+				!link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED) {
+		/* For 8b/10b encoding: MTP is 64 time slots long, slot 0 is used for MTPH
+		 * MST overhead is 1/64 of link bandwidth (excluding any overhead)
+		 */
+		const struct dc_link_settings *link_cap = dc_link_get_link_cap(link);
 
-	lowest_dpia_index = get_lowest_dpia_index(link[0]);
-
-	/* get total Host Router BW with granularity for the given modes */
-	for (i = 0; i < num_dpias; ++i) {
-		int granularity_Gbps = 0;
-		int bw_granularity = 0;
-
-		if (!link[i]->dpia_bw_alloc_config.bw_alloc_enabled)
-			continue;
-
-		if (link[i]->link_index < lowest_dpia_index)
-			continue;
-
-		granularity_Gbps = (Kbps_TO_Gbps / link[i]->dpia_bw_alloc_config.bw_granularity);
-		bw_granularity = (bw_needed_per_dpia[i] / granularity_Gbps) * granularity_Gbps +
-				((bw_needed_per_dpia[i] % granularity_Gbps) ? granularity_Gbps : 0);
-
-		hr_index = (link[i]->link_index - lowest_dpia_index) / 2;
-		bw_needed_per_hr[hr_index] += bw_granularity;
+		if (link_cap) {
+			uint32_t link_bw_in_kbps = (uint32_t)link_cap->link_rate *
+					   (uint32_t)link_cap->lane_count *
+					   LINK_RATE_REF_FREQ_IN_KHZ * 8;
+			link_dp_overhead = (link_bw_in_kbps / MST_TIME_SLOT_COUNT)
+						+ ((link_bw_in_kbps % MST_TIME_SLOT_COUNT) ? 1 : 0);
+		}
 	}
 
-	/* validate against each Host Router max BW */
-	for (hr_index = 0; hr_index < MAX_HR_NUM; ++hr_index) {
-		if (bw_needed_per_hr[hr_index]) {
-			host_router_total_dp_bw = get_host_router_total_dp_tunnel_bw(link[0]->dc, hr_index);
-			if (bw_needed_per_hr[hr_index] > host_router_total_dp_bw) {
-				ret = false;
+	return link_dp_overhead;
+}
+
+/*
+ * Aggregates the DPIA bandwidth usage for the respective USB4 Router.
+ * And then validate if the required bandwidth is within the router's capacity.
+ *
+ * @dc_validation_dpia_set: pointer to the dc_validation_dpia_set
+ * @count: number of DPIA validation sets
+ *
+ * return: true if validation is succeeded
+ */
+bool link_dpia_validate_dp_tunnel_bandwidth(const struct dc_validation_dpia_set *dpia_link_sets, uint8_t count)
+{
+	uint32_t granularity_Gbps;
+	const struct dc_link *link;
+	uint32_t link_bw_granularity;
+	uint32_t link_required_bw;
+	struct usb4_router_validation_set router_sets[MAX_HOST_ROUTERS_NUM] = { 0 };
+	uint8_t i;
+	bool is_success = true;
+	uint8_t router_count = 0;
+
+	if ((dpia_link_sets == NULL) || (count == 0))
+		return is_success;
+
+	// Iterate through each DP tunneling link (DPIA).
+	// Aggregate its bandwidth requirements onto the respective USB4 router.
+	for (i = 0; i < count; i++) {
+		link = dpia_link_sets[i].link;
+		link_required_bw = dpia_link_sets[i].required_bw;
+		const struct dc_tunnel_settings *dp_tunnel_settings = dpia_link_sets[i].tunnel_settings;
+
+		if ((link == NULL) || (dp_tunnel_settings == NULL) || dp_tunnel_settings->bw_granularity == 0)
+			break;
+
+		if (link->type == dc_connection_mst_branch)
+			link_required_bw += link_dpia_get_dp_overhead(link);
+
+		granularity_Gbps = (Kbps_TO_Gbps / dp_tunnel_settings->bw_granularity);
+		link_bw_granularity = (link_required_bw / granularity_Gbps) * granularity_Gbps +
+				((link_required_bw % granularity_Gbps) ? granularity_Gbps : 0);
+
+		// Find or add the USB4 router associated with the current DPIA link
+		for (uint8_t j = 0; j < MAX_HOST_ROUTERS_NUM; j++) {
+			if (router_sets[j].is_valid == false) {
+				router_sets[j].is_valid = true;
+				router_sets[j].cm_id = dp_tunnel_settings->cm_id;
+				router_count++;
+			}
+
+			if (router_sets[j].cm_id == dp_tunnel_settings->cm_id) {
+				uint32_t remaining_bw =
+					dp_tunnel_settings->estimated_bw - dp_tunnel_settings->allocated_bw;
+
+				router_sets[j].allocated_bw += dp_tunnel_settings->allocated_bw;
+
+				if (remaining_bw > router_sets[j].remaining_bw)
+					router_sets[j].remaining_bw = remaining_bw;
+
+				// Get the max estimated BW within the same CM_ID
+				if (dp_tunnel_settings->estimated_bw > router_sets[j].estimated_bw)
+					router_sets[j].estimated_bw = dp_tunnel_settings->estimated_bw;
+
+				router_sets[j].required_bw += link_bw_granularity;
+				router_sets[j].dpia_count++;
 				break;
 			}
 		}
 	}
 
-	return ret;
-}
+	// Validate bandwidth for each unique router found.
+	for (i = 0; i < router_count; i++) {
+		uint32_t total_bw = 0;
 
-int link_dp_dpia_get_dp_overhead_in_dp_tunneling(struct dc_link *link)
-{
-	int dp_overhead = 0, link_mst_overhead = 0;
+		if (router_sets[i].is_valid == false)
+			break;
 
-	if (!link_dp_is_bw_alloc_available(link))
-		return dp_overhead;
+		// Determine the total available bandwidth for the current router based on aggregated data
+		if ((router_sets[i].dpia_count == 1) || (router_sets[i].allocated_bw == 0))
+			total_bw = router_sets[i].estimated_bw;
+		else
+			total_bw = router_sets[i].allocated_bw + router_sets[i].remaining_bw;
 
-	/* if its mst link, add MTPH overhead */
-	if ((link->type == dc_connection_mst_branch) &&
-		!link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED) {
-		/* For 8b/10b encoding: MTP is 64 time slots long, slot 0 is used for MTPH
-		 * MST overhead is 1/64 of link bandwidth (excluding any overhead)
-		 */
-		const struct dc_link_settings *link_cap =
-			dc_link_get_link_cap(link);
-		uint32_t link_bw_in_kbps = (uint32_t)link_cap->link_rate *
-					   (uint32_t)link_cap->lane_count *
-					   LINK_RATE_REF_FREQ_IN_KHZ * 8;
-		link_mst_overhead = (link_bw_in_kbps / 64) + ((link_bw_in_kbps % 64) ? 1 : 0);
+		if (router_sets[i].required_bw > total_bw) {
+			is_success = false;
+			break;
+		}
 	}
 
-	/* add all the overheads */
-	dp_overhead = link_mst_overhead;
-
-	return dp_overhead;
+	return is_success;
 }
+

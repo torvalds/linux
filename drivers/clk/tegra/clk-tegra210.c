@@ -255,7 +255,7 @@
 /* VIC register to handle during MBIST WAR */
 #define NV_PVIC_THI_SLCG_OVERRIDE_LOW 0x8c
 
-/* APE, DISPA and VIC base addesses needed for MBIST WAR */
+/* APE, DISPA and VIC base addresses needed for MBIST WAR */
 #define TEGRA210_AHUB_BASE  0x702d0000
 #define TEGRA210_DISPA_BASE 0x54200000
 #define TEGRA210_VIC_BASE  0x54340000

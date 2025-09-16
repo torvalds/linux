@@ -28,7 +28,9 @@
 #include <linux/kernel.h>
 #include <linux/string_helpers.h>
 
-#include "i915_drv.h"
+#include <drm/drm_print.h>
+
+#include "i915_utils.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
@@ -214,15 +216,14 @@ void vlv_dsi_pll_enable(struct intel_encoder *encoder,
 			const struct intel_crtc_state *config)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	drm_dbg_kms(display->drm, "\n");
 
-	vlv_cck_get(dev_priv);
+	vlv_cck_get(display->drm);
 
-	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, 0);
-	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_DIVIDER, config->dsi_pll.div);
-	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL,
+	vlv_cck_write(display->drm, CCK_REG_DSI_PLL_CONTROL, 0);
+	vlv_cck_write(display->drm, CCK_REG_DSI_PLL_DIVIDER, config->dsi_pll.div);
+	vlv_cck_write(display->drm, CCK_REG_DSI_PLL_CONTROL,
 		      config->dsi_pll.ctrl & ~DSI_PLL_VCO_EN);
 
 	/* wait at least 0.5 us after ungating before enabling VCO,
@@ -230,16 +231,16 @@ void vlv_dsi_pll_enable(struct intel_encoder *encoder,
 	 */
 	usleep_range(10, 50);
 
-	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, config->dsi_pll.ctrl);
+	vlv_cck_write(display->drm, CCK_REG_DSI_PLL_CONTROL, config->dsi_pll.ctrl);
 
-	if (wait_for(vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL) &
+	if (wait_for(vlv_cck_read(display->drm, CCK_REG_DSI_PLL_CONTROL) &
 						DSI_PLL_LOCK, 20)) {
 
-		vlv_cck_put(dev_priv);
+		vlv_cck_put(display->drm);
 		drm_err(display->drm, "DSI PLL lock failed\n");
 		return;
 	}
-	vlv_cck_put(dev_priv);
+	vlv_cck_put(display->drm);
 
 	drm_dbg_kms(display->drm, "DSI PLL locked\n");
 }
@@ -247,19 +248,18 @@ void vlv_dsi_pll_enable(struct intel_encoder *encoder,
 void vlv_dsi_pll_disable(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 tmp;
 
 	drm_dbg_kms(display->drm, "\n");
 
-	vlv_cck_get(dev_priv);
+	vlv_cck_get(display->drm);
 
-	tmp = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
+	tmp = vlv_cck_read(display->drm, CCK_REG_DSI_PLL_CONTROL);
 	tmp &= ~DSI_PLL_VCO_EN;
 	tmp |= DSI_PLL_LDO_GATE;
-	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, tmp);
+	vlv_cck_write(display->drm, CCK_REG_DSI_PLL_CONTROL, tmp);
 
-	vlv_cck_put(dev_priv);
+	vlv_cck_put(display->drm);
 }
 
 bool bxt_dsi_pll_is_enabled(struct intel_display *display)
@@ -323,15 +323,14 @@ u32 vlv_dsi_get_pclk(struct intel_encoder *encoder,
 		     struct intel_crtc_state *config)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 pll_ctl, pll_div;
 
 	drm_dbg_kms(display->drm, "\n");
 
-	vlv_cck_get(dev_priv);
-	pll_ctl = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
-	pll_div = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_DIVIDER);
-	vlv_cck_put(dev_priv);
+	vlv_cck_get(display->drm);
+	pll_ctl = vlv_cck_read(display->drm, CCK_REG_DSI_PLL_CONTROL);
+	pll_div = vlv_cck_read(display->drm, CCK_REG_DSI_PLL_DIVIDER);
+	vlv_cck_put(display->drm);
 
 	config->dsi_pll.ctrl = pll_ctl & ~DSI_PLL_LOCK;
 	config->dsi_pll.div = pll_div;
@@ -592,12 +591,11 @@ void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 
 static void assert_dsi_pll(struct intel_display *display, bool state)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	bool cur_state;
 
-	vlv_cck_get(i915);
-	cur_state = vlv_cck_read(i915, CCK_REG_DSI_PLL_CONTROL) & DSI_PLL_VCO_EN;
-	vlv_cck_put(i915);
+	vlv_cck_get(display->drm);
+	cur_state = vlv_cck_read(display->drm, CCK_REG_DSI_PLL_CONTROL) & DSI_PLL_VCO_EN;
+	vlv_cck_put(display->drm);
 
 	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
 				 "DSI PLL state assertion failure (expected %s, current %s)\n",

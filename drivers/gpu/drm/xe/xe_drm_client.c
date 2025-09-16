@@ -167,7 +167,7 @@ void xe_drm_client_remove_bo(struct xe_bo *bo)
 static void bo_meminfo(struct xe_bo *bo,
 		       struct drm_memory_stats stats[TTM_NUM_MEM_TYPES])
 {
-	u64 sz = bo->size;
+	u64 sz = xe_bo_size(bo);
 	u32 mem_type = bo->ttm.resource->mem_type;
 
 	xe_bo_assert_held(bo);

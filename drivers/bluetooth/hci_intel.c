@@ -1029,12 +1029,12 @@ static struct sk_buff *intel_dequeue(struct hci_uart *hu)
 		struct hci_command_hdr *cmd = (void *)skb->data;
 		__u16 opcode = le16_to_cpu(cmd->opcode);
 
-		/* When the 0xfc01 command is issued to boot into
-		 * the operational firmware, it will actually not
-		 * send a command complete event. To keep the flow
-		 * control working inject that event here.
+		/* When the BTINTEL_HCI_OP_RESET command is issued to boot into
+		 * the operational firmware, it will actually not send a command
+		 * complete event. To keep the flow control working inject that
+		 * event here.
 		 */
-		if (opcode == 0xfc01)
+		if (opcode == BTINTEL_HCI_OP_RESET)
 			inject_cmd_complete(hu->hdev, opcode);
 	}
 

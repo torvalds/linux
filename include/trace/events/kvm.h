@@ -82,95 +82,15 @@ TRACE_EVENT(kvm_set_irq,
 	TP_printk("gsi %u level %d source %d",
 		  __entry->gsi, __entry->level, __entry->irq_source_id)
 );
-#endif /* defined(CONFIG_HAVE_KVM_IRQCHIP) */
 
-#if defined(__KVM_HAVE_IOAPIC)
-#define kvm_deliver_mode		\
-	{0x0, "Fixed"},			\
-	{0x1, "LowPrio"},		\
-	{0x2, "SMI"},			\
-	{0x3, "Res3"},			\
-	{0x4, "NMI"},			\
-	{0x5, "INIT"},			\
-	{0x6, "SIPI"},			\
-	{0x7, "ExtINT"}
-
-TRACE_EVENT(kvm_ioapic_set_irq,
-	    TP_PROTO(__u64 e, int pin, bool coalesced),
-	    TP_ARGS(e, pin, coalesced),
-
-	TP_STRUCT__entry(
-		__field(	__u64,		e		)
-		__field(	int,		pin		)
-		__field(	bool,		coalesced	)
-	),
-
-	TP_fast_assign(
-		__entry->e		= e;
-		__entry->pin		= pin;
-		__entry->coalesced	= coalesced;
-	),
-
-	TP_printk("pin %u dst %x vec %u (%s|%s|%s%s)%s",
-		  __entry->pin, (u8)(__entry->e >> 56), (u8)__entry->e,
-		  __print_symbolic((__entry->e >> 8 & 0x7), kvm_deliver_mode),
-		  (__entry->e & (1<<11)) ? "logical" : "physical",
-		  (__entry->e & (1<<15)) ? "level" : "edge",
-		  (__entry->e & (1<<16)) ? "|masked" : "",
-		  __entry->coalesced ? " (coalesced)" : "")
-);
-
-TRACE_EVENT(kvm_ioapic_delayed_eoi_inj,
-	    TP_PROTO(__u64 e),
-	    TP_ARGS(e),
-
-	TP_STRUCT__entry(
-		__field(	__u64,		e		)
-	),
-
-	TP_fast_assign(
-		__entry->e		= e;
-	),
-
-	TP_printk("dst %x vec %u (%s|%s|%s%s)",
-		  (u8)(__entry->e >> 56), (u8)__entry->e,
-		  __print_symbolic((__entry->e >> 8 & 0x7), kvm_deliver_mode),
-		  (__entry->e & (1<<11)) ? "logical" : "physical",
-		  (__entry->e & (1<<15)) ? "level" : "edge",
-		  (__entry->e & (1<<16)) ? "|masked" : "")
-);
-
-TRACE_EVENT(kvm_msi_set_irq,
-	    TP_PROTO(__u64 address, __u64 data),
-	    TP_ARGS(address, data),
-
-	TP_STRUCT__entry(
-		__field(	__u64,		address		)
-		__field(	__u64,		data		)
-	),
-
-	TP_fast_assign(
-		__entry->address	= address;
-		__entry->data		= data;
-	),
-
-	TP_printk("dst %llx vec %u (%s|%s|%s%s)",
-		  (u8)(__entry->address >> 12) | ((__entry->address >> 32) & 0xffffff00),
-		  (u8)__entry->data,
-		  __print_symbolic((__entry->data >> 8 & 0x7), kvm_deliver_mode),
-		  (__entry->address & (1<<2)) ? "logical" : "physical",
-		  (__entry->data & (1<<15)) ? "level" : "edge",
-		  (__entry->address & (1<<3)) ? "|rh" : "")
-);
+#ifdef CONFIG_KVM_IOAPIC
 
 #define kvm_irqchips						\
 	{KVM_IRQCHIP_PIC_MASTER,	"PIC master"},		\
 	{KVM_IRQCHIP_PIC_SLAVE,		"PIC slave"},		\
 	{KVM_IRQCHIP_IOAPIC,		"IOAPIC"}
 
-#endif /* defined(__KVM_HAVE_IOAPIC) */
-
-#if defined(CONFIG_HAVE_KVM_IRQCHIP)
+#endif /* CONFIG_KVM_IOAPIC */
 
 #ifdef kvm_irqchips
 #define kvm_ack_irq_string "irqchip %s pin %u"
@@ -472,6 +392,33 @@ TRACE_EVENT(kvm_dirty_ring_exit,
 
 	TP_printk("vcpu %d", __entry->vcpu_id)
 );
+
+#ifdef CONFIG_KVM_GENERIC_MEMORY_ATTRIBUTES
+/*
+ * @start:	Starting address of guest memory range
+ * @end:	End address of guest memory range
+ * @attr:	The value of the attribute being set.
+ */
+TRACE_EVENT(kvm_vm_set_mem_attributes,
+	TP_PROTO(gfn_t start, gfn_t end, unsigned long attr),
+	TP_ARGS(start, end, attr),
+
+	TP_STRUCT__entry(
+		__field(gfn_t,		start)
+		__field(gfn_t,		end)
+		__field(unsigned long,	attr)
+	),
+
+	TP_fast_assign(
+		__entry->start		= start;
+		__entry->end		= end;
+		__entry->attr		= attr;
+	),
+
+	TP_printk("%#016llx -- %#016llx [0x%lx]",
+		  __entry->start, __entry->end, __entry->attr)
+);
+#endif /* CONFIG_KVM_GENERIC_MEMORY_ATTRIBUTES */
 
 TRACE_EVENT(kvm_unmap_hva_range,
 	TP_PROTO(unsigned long start, unsigned long end),

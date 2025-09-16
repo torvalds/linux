@@ -144,9 +144,9 @@ struct link_service {
 	uint32_t (*dp_link_bandwidth_kbps)(
 		const struct dc_link *link,
 		const struct dc_link_settings *link_settings);
-	bool (*validate_dpia_bandwidth)(
-			const struct dc_stream_state *stream,
-			const unsigned int num_streams);
+	enum dc_status (*validate_dp_tunnel_bandwidth)(
+		const struct dc *dc,
+		const struct dc_state *new_ctx);
 
 	uint32_t (*dp_required_hblank_size_bytes)(
 		const struct dc_link *link,

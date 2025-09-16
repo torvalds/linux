@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/export.h>
 #include <asm/mshyperv.h>
 
 #include "mshv_root.h"

@@ -298,9 +298,7 @@ static void stk1160_process_isoc(struct stk1160 *dev, struct urb *urb)
 static void stk1160_isoc_irq(struct urb *urb)
 {
 	int i, rc;
-	struct stk1160_urb *stk_urb = urb->context;
-	struct stk1160 *dev = stk_urb->dev;
-	struct device *dma_dev = stk1160_get_dmadev(dev);
+	struct stk1160 *dev = urb->context;
 
 	switch (urb->status) {
 	case 0:
@@ -315,10 +313,6 @@ static void stk1160_isoc_irq(struct urb *urb)
 		return;
 	}
 
-	invalidate_kernel_vmap_range(stk_urb->transfer_buffer,
-				     urb->transfer_buffer_length);
-	dma_sync_sgtable_for_cpu(dma_dev, stk_urb->sgt, DMA_FROM_DEVICE);
-
 	stk1160_process_isoc(dev, urb);
 
 	/* Reset urb buffers */
@@ -327,7 +321,6 @@ static void stk1160_isoc_irq(struct urb *urb)
 		urb->iso_frame_desc[i].actual_length = 0;
 	}
 
-	dma_sync_sgtable_for_device(dma_dev, stk_urb->sgt, DMA_FROM_DEVICE);
 	rc = usb_submit_urb(urb, GFP_ATOMIC);
 	if (rc)
 		stk1160_err("urb re-submit failed (%d)\n", rc);
@@ -365,11 +358,9 @@ void stk1160_cancel_isoc(struct stk1160 *dev)
 
 static void stk_free_urb(struct stk1160 *dev, struct stk1160_urb *stk_urb)
 {
-	struct device *dma_dev = stk1160_get_dmadev(dev);
-
-	dma_vunmap_noncontiguous(dma_dev, stk_urb->transfer_buffer);
-	dma_free_noncontiguous(dma_dev, stk_urb->urb->transfer_buffer_length,
-			       stk_urb->sgt, DMA_FROM_DEVICE);
+	usb_free_noncoherent(dev->udev, stk_urb->urb->transfer_buffer_length,
+			     stk_urb->transfer_buffer, DMA_FROM_DEVICE,
+			     stk_urb->sgt);
 	usb_free_urb(stk_urb->urb);
 
 	stk_urb->transfer_buffer = NULL;
@@ -410,32 +401,19 @@ void stk1160_uninit_isoc(struct stk1160 *dev)
 static int stk1160_fill_urb(struct stk1160 *dev, struct stk1160_urb *stk_urb,
 			    int sb_size, int max_packets)
 {
-	struct device *dma_dev = stk1160_get_dmadev(dev);
-
 	stk_urb->urb = usb_alloc_urb(max_packets, GFP_KERNEL);
 	if (!stk_urb->urb)
 		return -ENOMEM;
-	stk_urb->sgt = dma_alloc_noncontiguous(dma_dev, sb_size,
-					       DMA_FROM_DEVICE, GFP_KERNEL, 0);
 
-	/*
-	 * If the buffer allocation failed, we exit but return 0 since
-	 * we allow the driver working with less buffers
-	 */
-	if (!stk_urb->sgt)
+	stk_urb->transfer_buffer = usb_alloc_noncoherent(dev->udev, sb_size,
+							 GFP_KERNEL, &stk_urb->dma,
+							 DMA_FROM_DEVICE, &stk_urb->sgt);
+	if (!stk_urb->transfer_buffer)
 		goto free_urb;
 
-	stk_urb->transfer_buffer = dma_vmap_noncontiguous(dma_dev, sb_size,
-							  stk_urb->sgt);
-	if (!stk_urb->transfer_buffer)
-		goto free_sgt;
-
-	stk_urb->dma = stk_urb->sgt->sgl->dma_address;
 	stk_urb->dev = dev;
 	return 0;
-free_sgt:
-	dma_free_noncontiguous(dma_dev, sb_size, stk_urb->sgt, DMA_FROM_DEVICE);
-	stk_urb->sgt = NULL;
+
 free_urb:
 	usb_free_urb(stk_urb->urb);
 	stk_urb->urb = NULL;
@@ -494,12 +472,13 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 		urb->transfer_buffer = dev->isoc_ctl.urb_ctl[i].transfer_buffer;
 		urb->transfer_buffer_length = sb_size;
 		urb->complete = stk1160_isoc_irq;
-		urb->context = &dev->isoc_ctl.urb_ctl[i];
+		urb->context = dev;
 		urb->interval = 1;
 		urb->start_frame = 0;
 		urb->number_of_packets = max_packets;
 		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_dma = dev->isoc_ctl.urb_ctl[i].dma;
+		urb->sgt = dev->isoc_ctl.urb_ctl[i].sgt;
 
 		k = 0;
 		for (j = 0; j < max_packets; j++) {

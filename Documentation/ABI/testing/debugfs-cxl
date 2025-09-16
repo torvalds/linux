@@ -20,7 +20,7 @@ Description:
 		visible for devices supporting the capability.
 
 
-What:		/sys/kernel/debug/memX/clear_poison
+What:		/sys/kernel/debug/cxl/memX/clear_poison
 Date:		April, 2023
 KernelVersion:	v6.4
 Contact:	linux-cxl@vger.kernel.org

@@ -47,29 +47,31 @@ enum {
 	__LOCKF(USED_READ)
 };
 
+enum {
 #define LOCKDEP_STATE(__STATE)	LOCKF_ENABLED_##__STATE |
-static const unsigned long LOCKF_ENABLED_IRQ =
+	LOCKF_ENABLED_IRQ =
 #include "lockdep_states.h"
-	0;
+	0,
 #undef LOCKDEP_STATE
 
 #define LOCKDEP_STATE(__STATE)	LOCKF_USED_IN_##__STATE |
-static const unsigned long LOCKF_USED_IN_IRQ =
+	LOCKF_USED_IN_IRQ =
 #include "lockdep_states.h"
-	0;
+	0,
 #undef LOCKDEP_STATE
 
 #define LOCKDEP_STATE(__STATE)	LOCKF_ENABLED_##__STATE##_READ |
-static const unsigned long LOCKF_ENABLED_IRQ_READ =
+	LOCKF_ENABLED_IRQ_READ =
 #include "lockdep_states.h"
-	0;
+	0,
 #undef LOCKDEP_STATE
 
 #define LOCKDEP_STATE(__STATE)	LOCKF_USED_IN_##__STATE##_READ |
-static const unsigned long LOCKF_USED_IN_IRQ_READ =
+	LOCKF_USED_IN_IRQ_READ =
 #include "lockdep_states.h"
-	0;
+	0,
 #undef LOCKDEP_STATE
+};
 
 #define LOCKF_ENABLED_IRQ_ALL (LOCKF_ENABLED_IRQ | LOCKF_ENABLED_IRQ_READ)
 #define LOCKF_USED_IN_IRQ_ALL (LOCKF_USED_IN_IRQ | LOCKF_USED_IN_IRQ_READ)

@@ -155,6 +155,18 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sdw_machines[] = {
 };
 EXPORT_SYMBOL(snd_soc_acpi_amd_acp70_sdw_machines);
 
+struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sof_sdw_machines[] = {
+	{
+		.link_mask = BIT(0),
+		.links = acp70_rt722_only,
+		.drv_name = "amd_sof_sdw",
+		.sof_tplg_filename = "sof-acp_7_0-rt722-l0.tplg",
+		.fw_filename = "sof-acp_7_0.ri",
+	},
+	{},
+};
+EXPORT_SYMBOL(snd_soc_acpi_amd_acp70_sof_sdw_machines);
+
 MODULE_DESCRIPTION("AMD ACP7.0 & ACP7.1 tables and support for ACPI enumeration");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vijendar.Mukunda@amd.com");

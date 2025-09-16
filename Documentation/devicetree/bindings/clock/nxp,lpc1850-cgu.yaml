@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/nxp,lpc1850-cgu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP LPC1850 Clock Generation Unit (CGU)
+
+description: >
+  The CGU generates multiple independent clocks for the core and the
+  peripheral blocks of the LPC18xx. Each independent clock is called
+  a base clock and itself is one of the inputs to the two Clock
+  Control Units (CCUs) which control the branch clocks to the
+  individual peripherals.
+
+  The CGU selects the inputs to the clock generators from multiple
+  clock sources, controls the clock generation, and routes the outputs
+  of the clock generators through the clock source bus to the output
+  stages. Each output stage provides an independent clock source and
+  corresponds to one of the base clocks for the LPC18xx.
+
+  Above text taken from NXP LPC1850 User Manual.
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: nxp,lpc1850-cgu
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+    description: |
+      Which base clocks that are available on the CGU depends on the
+      specific LPC part. Base clocks are numbered from 0 to 27.
+
+      Number:         Name:                   Description:
+       0              BASE_SAFE_CLK           Base safe clock (always on) for WWDT
+       1              BASE_USB0_CLK           Base clock for USB0
+       2              BASE_PERIPH_CLK         Base clock for Cortex-M0SUB subsystem,
+                                        SPI, and SGPIO
+       3              BASE_USB1_CLK           Base clock for USB1
+       4              BASE_CPU_CLK            System base clock for ARM Cortex-M core
+                                        and APB peripheral blocks #0 and #2
+       5              BASE_SPIFI_CLK          Base clock for SPIFI
+       6              BASE_SPI_CLK            Base clock for SPI
+       7              BASE_PHY_RX_CLK         Base clock for Ethernet PHY Receive clock
+       8              BASE_PHY_TX_CLK         Base clock for Ethernet PHY Transmit clock
+       9              BASE_APB1_CLK           Base clock for APB peripheral block # 1
+      10              BASE_APB3_CLK           Base clock for APB peripheral block # 3
+      11              BASE_LCD_CLK            Base clock for LCD
+      12              BASE_ADCHS_CLK          Base clock for ADCHS
+      13              BASE_SDIO_CLK           Base clock for SD/MMC
+      14              BASE_SSP0_CLK           Base clock for SSP0
+      15              BASE_SSP1_CLK           Base clock for SSP1
+      16              BASE_UART0_CLK          Base clock for UART0
+      17              BASE_UART1_CLK          Base clock for UART1
+      18              BASE_UART2_CLK          Base clock for UART2
+      19              BASE_UART3_CLK          Base clock for UART3
+      20              BASE_OUT_CLK            Base clock for CLKOUT pin
+      24-21           -                       Reserved
+      25              BASE_AUDIO_CLK          Base clock for audio system (I2S)
+      26              BASE_CGU_OUT0_CLK       Base clock for CGU_OUT0 clock output
+      27              BASE_CGU_OUT1_CLK       Base clock for CGU_OUT1 clock output
+
+      BASE_PERIPH_CLK and BASE_SPI_CLK is only available on LPC43xx.
+      BASE_ADCHS_CLK is only available on LPC4370.
+
+  clocks:
+    maxItems: 5
+
+  clock-indices:
+    minItems: 1
+    maxItems: 28
+
+  clock-output-names:
+    minItems: 1
+    maxItems: 28
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@40050000 {
+        compatible = "nxp,lpc1850-cgu";
+        reg = <0x40050000 0x1000>;
+        #clock-cells = <1>;
+        clocks = <&xtal>, <&creg_clk 1>, <&enet_rx_clk>, <&enet_tx_clk>, <&gp_clkin>;
+    };
+

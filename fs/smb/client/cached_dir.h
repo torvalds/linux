@@ -14,7 +14,6 @@ struct cached_dirent {
 	char *name;
 	int namelen;
 	loff_t pos;
-
 	struct cifs_fattr fattr;
 };
 
@@ -39,6 +38,7 @@ struct cached_fid {
 	bool on_list:1;
 	bool file_all_info_is_valid:1;
 	unsigned long time; /* jiffies of when lease was taken */
+	unsigned long last_access_time; /* jiffies of when last accessed */
 	struct kref refcount;
 	struct cifs_fid fid;
 	spinlock_t fid_lock;
@@ -80,6 +80,6 @@ extern void drop_cached_dir_by_name(const unsigned int xid,
 				    struct cifs_sb_info *cifs_sb);
 extern void close_all_cached_dirs(struct cifs_sb_info *cifs_sb);
 extern void invalidate_all_cached_dirs(struct cifs_tcon *tcon);
-extern int cached_dir_lease_break(struct cifs_tcon *tcon, __u8 lease_key[16]);
+extern bool cached_dir_lease_break(struct cifs_tcon *tcon, __u8 lease_key[16]);
 
 #endif			/* _CACHED_DIR_H */

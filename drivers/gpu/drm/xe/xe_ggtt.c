@@ -5,6 +5,7 @@
 
 #include "xe_ggtt.h"
 
+#include <kunit/visibility.h>
 #include <linux/fault-inject.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/sizes.h>
@@ -22,12 +23,13 @@
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
-#include "xe_gt_sriov_vf.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
+#include "xe_res_cursor.h"
 #include "xe_sriov.h"
+#include "xe_tile_sriov_vf.h"
 #include "xe_wa.h"
 #include "xe_wopcm.h"
 
@@ -64,13 +66,9 @@
  * give us the correct placement for free.
  */
 
-static u64 xelp_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
-				   u16 pat_index)
+static u64 xelp_ggtt_pte_flags(struct xe_bo *bo, u16 pat_index)
 {
-	u64 pte;
-
-	pte = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
-	pte |= XE_PAGE_PRESENT;
+	u64 pte = XE_PAGE_PRESENT;
 
 	if (xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo))
 		pte |= XE_GGTT_PTE_DM;
@@ -78,13 +76,12 @@ static u64 xelp_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
 	return pte;
 }
 
-static u64 xelpg_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
-				    u16 pat_index)
+static u64 xelpg_ggtt_pte_flags(struct xe_bo *bo, u16 pat_index)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	u64 pte;
 
-	pte = xelp_ggtt_pte_encode_bo(bo, bo_offset, pat_index);
+	pte = xelp_ggtt_pte_flags(bo, pat_index);
 
 	xe_assert(xe, pat_index <= 3);
 
@@ -149,8 +146,9 @@ static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
 	xe_tile_assert(ggtt->tile, start < end);
 
 	if (ggtt->scratch)
-		scratch_pte = ggtt->pt_ops->pte_encode_bo(ggtt->scratch, 0,
-							  pat_index);
+		scratch_pte = xe_bo_addr(ggtt->scratch, 0, XE_PAGE_SIZE) |
+			      ggtt->pt_ops->pte_encode_flags(ggtt->scratch,
+							     pat_index);
 	else
 		scratch_pte = 0;
 
@@ -158,6 +156,22 @@ static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
 		ggtt->pt_ops->ggtt_set_pte(ggtt, start, scratch_pte);
 		start += XE_PAGE_SIZE;
 	}
+}
+
+/**
+ * xe_ggtt_alloc - Allocate a GGTT for a given &xe_tile
+ * @tile: &xe_tile
+ *
+ * Allocates a &xe_ggtt for a given tile.
+ *
+ * Return: &xe_ggtt on success, or NULL when out of memory.
+ */
+struct xe_ggtt *xe_ggtt_alloc(struct xe_tile *tile)
+{
+	struct xe_ggtt *ggtt = drmm_kzalloc(&tile_to_xe(tile)->drm, sizeof(*ggtt), GFP_KERNEL);
+	if (ggtt)
+		ggtt->tile = tile;
+	return ggtt;
 }
 
 static void ggtt_fini_early(struct drm_device *drm, void *arg)
@@ -176,6 +190,13 @@ static void ggtt_fini(void *arg)
 	ggtt->scratch = NULL;
 }
 
+#ifdef CONFIG_LOCKDEP
+void xe_ggtt_might_lock(struct xe_ggtt *ggtt)
+{
+	might_lock(&ggtt->lock);
+}
+#endif
+
 static void primelockdep(struct xe_ggtt *ggtt)
 {
 	if (!IS_ENABLED(CONFIG_LOCKDEP))
@@ -187,19 +208,35 @@ static void primelockdep(struct xe_ggtt *ggtt)
 }
 
 static const struct xe_ggtt_pt_ops xelp_pt_ops = {
-	.pte_encode_bo = xelp_ggtt_pte_encode_bo,
+	.pte_encode_flags = xelp_ggtt_pte_flags,
 	.ggtt_set_pte = xe_ggtt_set_pte,
 };
 
 static const struct xe_ggtt_pt_ops xelpg_pt_ops = {
-	.pte_encode_bo = xelpg_ggtt_pte_encode_bo,
+	.pte_encode_flags = xelpg_ggtt_pte_flags,
 	.ggtt_set_pte = xe_ggtt_set_pte,
 };
 
 static const struct xe_ggtt_pt_ops xelpg_pt_wa_ops = {
-	.pte_encode_bo = xelpg_ggtt_pte_encode_bo,
+	.pte_encode_flags = xelpg_ggtt_pte_flags,
 	.ggtt_set_pte = xe_ggtt_set_pte_and_flush,
 };
+
+static void __xe_ggtt_init_early(struct xe_ggtt *ggtt, u32 reserved)
+{
+	drm_mm_init(&ggtt->mm, reserved,
+		    ggtt->size - reserved);
+	mutex_init(&ggtt->lock);
+	primelockdep(ggtt);
+}
+
+int xe_ggtt_init_kunit(struct xe_ggtt *ggtt, u32 reserved, u32 size)
+{
+	ggtt->size = size;
+	__xe_ggtt_init_early(ggtt, reserved);
+	return 0;
+}
+EXPORT_SYMBOL_IF_KUNIT(xe_ggtt_init_kunit);
 
 static void dev_fini_ggtt(void *arg)
 {
@@ -226,7 +263,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	unsigned int gsm_size;
 	int err;
 
-	if (IS_SRIOV_VF(xe))
+	if (IS_SRIOV_VF(xe) || GRAPHICS_VERx100(xe) >= 1250)
 		gsm_size = SZ_8M; /* GGTT is expected to be 4GiB */
 	else
 		gsm_size = probe_gsm_size(pdev);
@@ -254,11 +291,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 		ggtt->pt_ops = &xelp_pt_ops;
 
 	ggtt->wq = alloc_workqueue("xe-ggtt-wq", 0, WQ_MEM_RECLAIM);
-
-	drm_mm_init(&ggtt->mm, xe_wopcm_size(xe),
-		    ggtt->size - xe_wopcm_size(xe));
-	mutex_init(&ggtt->lock);
-	primelockdep(ggtt);
+	__xe_ggtt_init_early(ggtt, xe_wopcm_size(xe));
 
 	err = drmm_add_action_or_reset(&xe->drm, ggtt_fini_early, ggtt);
 	if (err)
@@ -269,7 +302,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 		return err;
 
 	if (IS_SRIOV_VF(xe)) {
-		err = xe_gt_sriov_vf_prepare_ggtt(xe_tile_get_gt(ggtt->tile, 0));
+		err = xe_tile_sriov_vf_prepare_ggtt(ggtt->tile);
 		if (err)
 			return err;
 	}
@@ -388,7 +421,7 @@ int xe_ggtt_init(struct xe_ggtt *ggtt)
 		goto err;
 	}
 
-	xe_map_memset(xe, &ggtt->scratch->vmap, 0, 0, ggtt->scratch->size);
+	xe_map_memset(xe, &ggtt->scratch->vmap, 0, 0, xe_bo_size(ggtt->scratch));
 
 	xe_ggtt_initial_clear(ggtt);
 
@@ -440,16 +473,17 @@ static void xe_ggtt_dump_node(struct xe_ggtt *ggtt,
 }
 
 /**
- * xe_ggtt_node_insert_balloon - prevent allocation of specified GGTT addresses
+ * xe_ggtt_node_insert_balloon_locked - prevent allocation of specified GGTT addresses
  * @node: the &xe_ggtt_node to hold reserved GGTT node
  * @start: the starting GGTT address of the reserved region
  * @end: then end GGTT address of the reserved region
  *
- * Use xe_ggtt_node_remove_balloon() to release a reserved GGTT node.
+ * To be used in cases where ggtt->lock is already taken.
+ * Use xe_ggtt_node_remove_balloon_locked() to release a reserved GGTT node.
  *
  * Return: 0 on success or a negative error code on failure.
  */
-int xe_ggtt_node_insert_balloon(struct xe_ggtt_node *node, u64 start, u64 end)
+int xe_ggtt_node_insert_balloon_locked(struct xe_ggtt_node *node, u64 start, u64 end)
 {
 	struct xe_ggtt *ggtt = node->ggtt;
 	int err;
@@ -458,14 +492,13 @@ int xe_ggtt_node_insert_balloon(struct xe_ggtt_node *node, u64 start, u64 end)
 	xe_tile_assert(ggtt->tile, IS_ALIGNED(start, XE_PAGE_SIZE));
 	xe_tile_assert(ggtt->tile, IS_ALIGNED(end, XE_PAGE_SIZE));
 	xe_tile_assert(ggtt->tile, !drm_mm_node_allocated(&node->base));
+	lockdep_assert_held(&ggtt->lock);
 
 	node->base.color = 0;
 	node->base.start = start;
 	node->base.size = end - start;
 
-	mutex_lock(&ggtt->lock);
 	err = drm_mm_reserve_node(&ggtt->mm, &node->base);
-	mutex_unlock(&ggtt->lock);
 
 	if (xe_gt_WARN(ggtt->tile->primary_gt, err,
 		       "Failed to balloon GGTT %#llx-%#llx (%pe)\n",
@@ -477,27 +510,72 @@ int xe_ggtt_node_insert_balloon(struct xe_ggtt_node *node, u64 start, u64 end)
 }
 
 /**
- * xe_ggtt_node_remove_balloon - release a reserved GGTT region
+ * xe_ggtt_node_remove_balloon_locked - release a reserved GGTT region
  * @node: the &xe_ggtt_node with reserved GGTT region
  *
- * See xe_ggtt_node_insert_balloon() for details.
+ * To be used in cases where ggtt->lock is already taken.
+ * See xe_ggtt_node_insert_balloon_locked() for details.
  */
-void xe_ggtt_node_remove_balloon(struct xe_ggtt_node *node)
+void xe_ggtt_node_remove_balloon_locked(struct xe_ggtt_node *node)
 {
-	if (!node || !node->ggtt)
+	if (!xe_ggtt_node_allocated(node))
 		return;
 
-	if (!drm_mm_node_allocated(&node->base))
-		goto free_node;
+	lockdep_assert_held(&node->ggtt->lock);
 
 	xe_ggtt_dump_node(node->ggtt, &node->base, "remove-balloon");
 
-	mutex_lock(&node->ggtt->lock);
 	drm_mm_remove_node(&node->base);
-	mutex_unlock(&node->ggtt->lock);
+}
 
-free_node:
-	xe_ggtt_node_fini(node);
+static void xe_ggtt_assert_fit(struct xe_ggtt *ggtt, u64 start, u64 size)
+{
+	struct xe_tile *tile = ggtt->tile;
+	struct xe_device *xe = tile_to_xe(tile);
+	u64 __maybe_unused wopcm = xe_wopcm_size(xe);
+
+	xe_tile_assert(tile, start >= wopcm);
+	xe_tile_assert(tile, start + size < ggtt->size - wopcm);
+}
+
+/**
+ * xe_ggtt_shift_nodes_locked - Shift GGTT nodes to adjust for a change in usable address range.
+ * @ggtt: the &xe_ggtt struct instance
+ * @shift: change to the location of area provisioned for current VF
+ *
+ * This function moves all nodes from the GGTT VM, to a temp list. These nodes are expected
+ * to represent allocations in range formerly assigned to current VF, before the range changed.
+ * When the GGTT VM is completely clear of any nodes, they are re-added with shifted offsets.
+ *
+ * The function has no ability of failing - because it shifts existing nodes, without
+ * any additional processing. If the nodes were successfully existing at the old address,
+ * they will do the same at the new one. A fail inside this function would indicate that
+ * the list of nodes was either already damaged, or that the shift brings the address range
+ * outside of valid bounds. Both cases justify an assert rather than error code.
+ */
+void xe_ggtt_shift_nodes_locked(struct xe_ggtt *ggtt, s64 shift)
+{
+	struct xe_tile *tile __maybe_unused = ggtt->tile;
+	struct drm_mm_node *node, *tmpn;
+	LIST_HEAD(temp_list_head);
+
+	lockdep_assert_held(&ggtt->lock);
+
+	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG))
+		drm_mm_for_each_node_safe(node, tmpn, &ggtt->mm)
+			xe_ggtt_assert_fit(ggtt, node->start + shift, node->size);
+
+	drm_mm_for_each_node_safe(node, tmpn, &ggtt->mm) {
+		drm_mm_remove_node(node);
+		list_add(&node->node_list, &temp_list_head);
+	}
+
+	list_for_each_entry_safe(node, tmpn, &temp_list_head, node_list) {
+		list_del(&node->node_list);
+		node->start += shift;
+		drm_mm_reserve_node(&ggtt->mm, node);
+		xe_tile_assert(tile, drm_mm_node_allocated(node));
+	}
 }
 
 /**
@@ -548,12 +626,12 @@ int xe_ggtt_node_insert(struct xe_ggtt_node *node, u32 size, u32 align)
  * xe_ggtt_node_init - Initialize %xe_ggtt_node struct
  * @ggtt: the &xe_ggtt where the new node will later be inserted/reserved.
  *
- * This function will allocated the struct %xe_ggtt_node and return it's pointer.
+ * This function will allocate the struct %xe_ggtt_node and return its pointer.
  * This struct will then be freed after the node removal upon xe_ggtt_node_remove()
- * or xe_ggtt_node_remove_balloon().
+ * or xe_ggtt_node_remove_balloon_locked().
  * Having %xe_ggtt_node struct allocated doesn't mean that the node is already allocated
  * in GGTT. Only the xe_ggtt_node_insert(), xe_ggtt_node_insert_locked(),
- * xe_ggtt_node_insert_balloon() will ensure the node is inserted or reserved in GGTT.
+ * xe_ggtt_node_insert_balloon_locked() will ensure the node is inserted or reserved in GGTT.
  *
  * Return: A pointer to %xe_ggtt_node struct on success. An ERR_PTR otherwise.
  **/
@@ -575,7 +653,7 @@ struct xe_ggtt_node *xe_ggtt_node_init(struct xe_ggtt *ggtt)
  * @node: the &xe_ggtt_node to be freed
  *
  * If anything went wrong with either xe_ggtt_node_insert(), xe_ggtt_node_insert_locked(),
- * or xe_ggtt_node_insert_balloon(); and this @node is not going to be reused, then,
+ * or xe_ggtt_node_insert_balloon_locked(); and this @node is not going to be reused, then,
  * this function needs to be called to free the %xe_ggtt_node struct
  **/
 void xe_ggtt_node_fini(struct xe_ggtt_node *node)
@@ -600,24 +678,57 @@ bool xe_ggtt_node_allocated(const struct xe_ggtt_node *node)
 /**
  * xe_ggtt_map_bo - Map the BO into GGTT
  * @ggtt: the &xe_ggtt where node will be mapped
+ * @node: the &xe_ggtt_node where this BO is mapped
  * @bo: the &xe_bo to be mapped
+ * @pat_index: Which pat_index to use.
  */
-void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
+void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_ggtt_node *node,
+		    struct xe_bo *bo, u16 pat_index)
+{
+
+	u64 start, pte, end;
+	struct xe_res_cursor cur;
+
+	if (XE_WARN_ON(!node))
+		return;
+
+	start = node->base.start;
+	end = start + xe_bo_size(bo);
+
+	pte = ggtt->pt_ops->pte_encode_flags(bo, pat_index);
+	if (!xe_bo_is_vram(bo) && !xe_bo_is_stolen(bo)) {
+		xe_assert(xe_bo_device(bo), bo->ttm.ttm);
+
+		for (xe_res_first_sg(xe_bo_sg(bo), 0, xe_bo_size(bo), &cur);
+		     cur.remaining; xe_res_next(&cur, XE_PAGE_SIZE))
+			ggtt->pt_ops->ggtt_set_pte(ggtt, end - cur.remaining,
+						   pte | xe_res_dma(&cur));
+	} else {
+		/* Prepend GPU offset */
+		pte |= vram_region_gpu_offset(bo->ttm.resource);
+
+		for (xe_res_first(bo->ttm.resource, 0, xe_bo_size(bo), &cur);
+		     cur.remaining; xe_res_next(&cur, XE_PAGE_SIZE))
+			ggtt->pt_ops->ggtt_set_pte(ggtt, end - cur.remaining,
+						   pte + cur.start);
+	}
+}
+
+/**
+ * xe_ggtt_map_bo_unlocked - Restore a mapping of a BO into GGTT
+ * @ggtt: the &xe_ggtt where node will be mapped
+ * @bo: the &xe_bo to be mapped
+ *
+ * This is used to restore a GGTT mapping after suspend.
+ */
+void xe_ggtt_map_bo_unlocked(struct xe_ggtt *ggtt, struct xe_bo *bo)
 {
 	u16 cache_mode = bo->flags & XE_BO_FLAG_NEEDS_UC ? XE_CACHE_NONE : XE_CACHE_WB;
 	u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[cache_mode];
-	u64 start;
-	u64 offset, pte;
 
-	if (XE_WARN_ON(!bo->ggtt_node[ggtt->tile->id]))
-		return;
-
-	start = bo->ggtt_node[ggtt->tile->id]->base.start;
-
-	for (offset = 0; offset < bo->size; offset += XE_PAGE_SIZE) {
-		pte = ggtt->pt_ops->pte_encode_bo(bo, offset, pat_index);
-		ggtt->pt_ops->ggtt_set_pte(ggtt, start + offset, pte);
-	}
+	mutex_lock(&ggtt->lock);
+	xe_ggtt_map_bo(ggtt, bo->ggtt_node[ggtt->tile->id], bo, pat_index);
+	mutex_unlock(&ggtt->lock);
 }
 
 static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
@@ -632,7 +743,7 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 
 	if (XE_WARN_ON(bo->ggtt_node[tile_id])) {
 		/* Someone's already inserted this BO in the GGTT */
-		xe_tile_assert(ggtt->tile, bo->ggtt_node[tile_id]->base.size == bo->size);
+		xe_tile_assert(ggtt->tile, bo->ggtt_node[tile_id]->base.size == xe_bo_size(bo));
 		return 0;
 	}
 
@@ -651,12 +762,15 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 
 	mutex_lock(&ggtt->lock);
 	err = drm_mm_insert_node_in_range(&ggtt->mm, &bo->ggtt_node[tile_id]->base,
-					  bo->size, alignment, 0, start, end, 0);
+					  xe_bo_size(bo), alignment, 0, start, end, 0);
 	if (err) {
 		xe_ggtt_node_fini(bo->ggtt_node[tile_id]);
 		bo->ggtt_node[tile_id] = NULL;
 	} else {
-		xe_ggtt_map_bo(ggtt, bo);
+		u16 cache_mode = bo->flags & XE_BO_FLAG_NEEDS_UC ? XE_CACHE_NONE : XE_CACHE_WB;
+		u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[cache_mode];
+
+		xe_ggtt_map_bo(ggtt, bo->ggtt_node[tile_id], bo, pat_index);
 	}
 	mutex_unlock(&ggtt->lock);
 
@@ -709,7 +823,7 @@ void xe_ggtt_remove_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 		return;
 
 	/* This BO is not currently in the GGTT */
-	xe_tile_assert(ggtt->tile, bo->ggtt_node[tile_id]->base.size == bo->size);
+	xe_tile_assert(ggtt->tile, bo->ggtt_node[tile_id]->base.size == xe_bo_size(bo));
 
 	xe_ggtt_node_remove(bo->ggtt_node[tile_id],
 			    bo->flags & XE_BO_FLAG_GGTT_INVALIDATE);
@@ -851,4 +965,31 @@ u64 xe_ggtt_print_holes(struct xe_ggtt *ggtt, u64 alignment, struct drm_printer 
 	mutex_unlock(&ggtt->lock);
 
 	return total;
+}
+
+/**
+ * xe_ggtt_encode_pte_flags - Get PTE encoding flags for BO
+ * @ggtt: &xe_ggtt
+ * @bo: &xe_bo
+ * @pat_index: The pat_index for the PTE.
+ *
+ * This function returns the pte_flags for a given BO, without  address.
+ * It's used for DPT to fill a GGTT mapped BO with a linear lookup table.
+ */
+u64 xe_ggtt_encode_pte_flags(struct xe_ggtt *ggtt,
+			     struct xe_bo *bo, u16 pat_index)
+{
+	return ggtt->pt_ops->pte_encode_flags(bo, pat_index);
+}
+
+/**
+ * xe_ggtt_read_pte - Read a PTE from the GGTT
+ * @ggtt: &xe_ggtt
+ * @offset: the offset for which the mapping should be read.
+ *
+ * Used by testcases, and by display reading out an inherited bios FB.
+ */
+u64 xe_ggtt_read_pte(struct xe_ggtt *ggtt, u64 offset)
+{
+	return ioread64(ggtt->gsm + (offset / XE_PAGE_SIZE));
 }

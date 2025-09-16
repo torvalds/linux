@@ -270,26 +270,6 @@ static const unsigned int axg_aoclk_reset[] = {
 	[RESET_AO_IR_BLASTER]	= 23,
 };
 
-static struct clk_regmap *axg_aoclk_regmap[] = {
-	&axg_aoclk_remote,
-	&axg_aoclk_i2c_master,
-	&axg_aoclk_i2c_slave,
-	&axg_aoclk_uart1,
-	&axg_aoclk_uart2,
-	&axg_aoclk_ir_blaster,
-	&axg_aoclk_saradc,
-	&axg_aoclk_cts_oscin,
-	&axg_aoclk_32k_pre,
-	&axg_aoclk_32k_div,
-	&axg_aoclk_32k_sel,
-	&axg_aoclk_32k,
-	&axg_aoclk_cts_rtc_oscin,
-	&axg_aoclk_clk81,
-	&axg_aoclk_saradc_mux,
-	&axg_aoclk_saradc_div,
-	&axg_aoclk_saradc_gate,
-};
-
 static struct clk_hw *axg_aoclk_hw_clks[] = {
 	[CLKID_AO_REMOTE]	= &axg_aoclk_remote.hw,
 	[CLKID_AO_I2C_MASTER]	= &axg_aoclk_i2c_master.hw,
@@ -314,8 +294,6 @@ static const struct meson_aoclk_data axg_aoclkc_data = {
 	.reset_reg	= AO_RTI_GEN_CNTL_REG0,
 	.num_reset	= ARRAY_SIZE(axg_aoclk_reset),
 	.reset		= axg_aoclk_reset,
-	.num_clks	= ARRAY_SIZE(axg_aoclk_regmap),
-	.clks		= axg_aoclk_regmap,
 	.hw_clks	= {
 		.hws	= axg_aoclk_hw_clks,
 		.num	= ARRAY_SIZE(axg_aoclk_hw_clks),

@@ -497,7 +497,6 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 	int i, idx, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0, min = 0, max = 0;
 	SmuMetrics_t metrics;
-	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
 	bool cur_value_match_level = false;
 
 	memset(&metrics, 0, sizeof(metrics));
@@ -510,28 +509,24 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 
 	switch (clk_type) {
 	case SMU_OD_RANGE:
-		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
-			ret = smu_cmn_send_smc_msg_with_param(smu,
-						SMU_MSG_GetMinGfxclkFrequency,
-						0, &min);
-			if (ret)
-				return ret;
-			ret = smu_cmn_send_smc_msg_with_param(smu,
-						SMU_MSG_GetMaxGfxclkFrequency,
-						0, &max);
-			if (ret)
-				return ret;
-			size += sysfs_emit_at(buf, size, "OD_RANGE\nSCLK: %10uMhz %10uMhz\n", min, max);
-		}
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+					SMU_MSG_GetMinGfxclkFrequency,
+					0, &min);
+		if (ret)
+			return ret;
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+					SMU_MSG_GetMaxGfxclkFrequency,
+					0, &max);
+		if (ret)
+			return ret;
+		size += sysfs_emit_at(buf, size, "OD_RANGE\nSCLK: %10uMhz %10uMhz\n", min, max);
 		break;
 	case SMU_OD_SCLK:
-		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
-			min = (smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq;
-			max = (smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq;
-			size += sysfs_emit_at(buf, size, "OD_SCLK\n");
-			size += sysfs_emit_at(buf, size, "0:%10uMhz\n", min);
-			size += sysfs_emit_at(buf, size, "1:%10uMhz\n", max);
-		}
+		min = (smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq;
+		max = (smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq;
+		size += sysfs_emit_at(buf, size, "OD_SCLK\n");
+		size += sysfs_emit_at(buf, size, "0:%10uMhz\n", min);
+		size += sysfs_emit_at(buf, size, "1:%10uMhz\n", max);
 		break;
 	case SMU_GFXCLK:
 	case SMU_SCLK:

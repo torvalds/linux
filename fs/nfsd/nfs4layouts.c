@@ -65,7 +65,7 @@ nfsd4_alloc_devid_map(const struct svc_fh *fhp)
 		return;
 
 	map->fsid_type = fh->fh_fsid_type;
-	memcpy(&map->fsid, fh->fh_fsid, fsid_len);
+	memcpy(&map->fsid, fh_fsid(fh), fsid_len);
 
 	spin_lock(&nfsd_devid_lock);
 	if (fhp->fh_export->ex_devid_map)
@@ -75,7 +75,7 @@ nfsd4_alloc_devid_map(const struct svc_fh *fhp)
 		list_for_each_entry(old, &nfsd_devid_hash[i], hash) {
 			if (old->fsid_type != fh->fh_fsid_type)
 				continue;
-			if (memcmp(old->fsid, fh->fh_fsid,
+			if (memcmp(old->fsid, fh_fsid(fh),
 					key_len(old->fsid_type)))
 				continue;
 

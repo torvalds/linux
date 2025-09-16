@@ -510,7 +510,7 @@ static int snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
 		return -ENODEV;
 
 	/* prepare second id */
-	strcpy(cid, pdev->id[0].id);
+	strscpy(cid, pdev->id[0].id);
 	cid[5] = '1';
 	cdev = NULL;
 	list_for_each_entry(iter, &(pdev->protocol->devices), protocol_list) {

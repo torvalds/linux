@@ -14,6 +14,7 @@
  * NFSv4 delegation
  */
 struct nfs_delegation {
+	struct hlist_node hash;
 	struct list_head super_list;
 	const struct cred *cred;
 	struct inode *inode;
@@ -122,5 +123,7 @@ static inline int nfs_have_delegated_mtime(struct inode *inode)
 	return NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE,
 						 NFS_DELEGATION_FLAG_TIME);
 }
+
+int nfs4_delegation_hash_alloc(struct nfs_server *server);
 
 #endif

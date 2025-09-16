@@ -1224,9 +1224,6 @@ lookup_noperm_unlocked(), lookup_noperm_positive_unlocked().  They now
 take a qstr instead of separate name and length.  QSTR() can be used
 when strlen() is needed for the length.
 
-For try_lookup_noperm() a reference to the qstr is passed in case the
-hash might subsequently be needed.
-
 These function no longer do any permission checking - they previously
 checked that the caller has 'X' permission on the parent.  They must
 ONLY be used internally by a filesystem on itself when it knows that
@@ -1258,3 +1255,33 @@ iterator needed.  Instead of a cloned mount tree, the new interface returns
 an array of struct path, one for each mount collect_mounts() would've
 created.  These struct path point to locations in the caller's namespace
 that would be roots of the cloned mounts.
+
+---
+
+**mandatory**
+
+If your filesystem sets the default dentry_operations, use set_default_d_op()
+rather than manually setting sb->s_d_op.
+
+---
+
+**mandatory**
+
+d_set_d_op() is no longer exported (or public, for that matter); _if_
+your filesystem really needed that, make use of d_splice_alias_ops()
+to have them set.  Better yet, think hard whether you need different
+->d_op for different dentries - if not, just use set_default_d_op()
+at mount time and be done with that.  Currently procfs is the only
+thing that really needs ->d_op varying between dentries.
+
+---
+
+**highly recommended**
+
+The file operations mmap() callback is deprecated in favour of
+mmap_prepare(). This passes a pointer to a vm_area_desc to the callback
+rather than a VMA, as the VMA at this stage is not yet valid.
+
+The vm_area_desc provides the minimum required information for a filesystem
+to initialise state upon memory mapping of a file-backed region, and output
+parameters for the file system to set this state.

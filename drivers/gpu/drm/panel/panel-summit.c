@@ -68,9 +68,11 @@ static int summit_probe(struct mipi_dsi_device *dsi)
 	struct summit_data *s_data;
 	int ret;
 
-	s_data = devm_kzalloc(dev, sizeof(*s_data), GFP_KERNEL);
-	if (!s_data)
-		return -ENOMEM;
+	s_data = devm_drm_panel_alloc(dev, struct summit_data, panel,
+				      &summit_panel_funcs,
+				      DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(s_data))
+		return PTR_ERR(s_data);
 
 	mipi_dsi_set_drvdata(dsi, s_data);
 	s_data->dsi = dsi;
@@ -85,8 +87,6 @@ static int summit_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(s_data->bl))
 		return PTR_ERR(s_data->bl);
 
-	drm_panel_init(&s_data->panel, dev, &summit_panel_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 	drm_panel_add(&s_data->panel);
 
 	return mipi_dsi_attach(dsi);

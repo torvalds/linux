@@ -6,7 +6,7 @@ _DSD Device Properties Related to GPIO
 
 With the release of ACPI 5.1, the _DSD configuration object finally
 allows names to be given to GPIOs (and other things as well) returned
-by _CRS.  Previously, we were only able to use an integer index to find
+by _CRS. Previously we were only able to use an integer index to find
 the corresponding GPIO, which is pretty error prone (it depends on
 the _CRS output ordering, for example).
 
@@ -49,11 +49,11 @@ index
 pin
   Pin in the GpioIo()/GpioInt() resource. Typically this is zero.
 active_low
-  If 1, the GPIO is marked as active_low.
+  If 1, the GPIO is marked as active-low.
 
 Since ACPI GpioIo() resource does not have a field saying whether it is
-active low or high, the "active_low" argument can be used here.  Setting
-it to 1 marks the GPIO as active low.
+active-low or active-high, the "active_low" argument can be used here.
+Setting it to 1 marks the GPIO as active-low.
 
 Note, active_low in _DSD does not make sense for GpioInt() resource and
 must be 0. GpioInt() resource has its own means of defining it.
@@ -92,8 +92,8 @@ and polarity settings. The table below shows the expectations:
 |             | Low         | as low, assuming active                       |
 +-------------+-------------+-----------------------------------------------+
 
-That said, for our above example the both GPIOs, since the bias setting
-is explicit and _DSD is present, will be treated as active with a high
+That said, for our above example, since the bias setting is explicit and
+_DSD is present, both GPIOs will be treated as active with a high
 polarity and Linux will configure the pins in this state until a driver
 reprograms them differently.
 
@@ -231,8 +231,8 @@ In those cases ACPI device identification objects, _HID, _CID, _CLS, _SUB, _HRV,
 available to the driver can be used to identify the device and that is supposed
 to be sufficient to determine the meaning and purpose of all of the GPIO lines
 listed by the GpioIo()/GpioInt() resources returned by _CRS.  In other words,
-the driver is supposed to know what to use the GpioIo()/GpioInt() resources for
-once it has identified the device.  Having done that, it can simply assign names
+the driver is supposed to know what to use from the GpioIo()/GpioInt() resources
+for once it has identified the device. Having done that, it can simply assign names
 to the GPIO lines it is going to use and provide the GPIO subsystem with a
 mapping between those names and the ACPI GPIO resources corresponding to them.
 
@@ -252,9 +252,9 @@ question would look like this::
   static const struct acpi_gpio_params shutdown_gpio = { 0, 0, false };
 
   static const struct acpi_gpio_mapping bluetooth_acpi_gpios[] = {
-    { "reset-gpios", &reset_gpio, 1 },
-    { "shutdown-gpios", &shutdown_gpio, 1 },
-    { }
+      { "reset-gpios", &reset_gpio, 1 },
+      { "shutdown-gpios", &shutdown_gpio, 1 },
+      { }
   };
 
 Next, the mapping table needs to be passed as the second argument to
@@ -270,7 +270,7 @@ Using the _CRS fallback
 
 If a device does not have _DSD or the driver does not create ACPI GPIO
 mapping, the Linux GPIO framework refuses to return any GPIOs. This is
-because the driver does not know what it actually gets. For example if we
+because the driver does not know what it actually gets. For example, if we
 have a device like below::
 
   Device (BTH)
@@ -292,7 +292,7 @@ The driver might expect to get the right GPIO when it does::
 	...error handling...
 
 but since there is no way to know the mapping between "reset" and
-the GpioIo() in _CRS desc will hold ERR_PTR(-ENOENT).
+the GpioIo() in _CRS the desc will hold ERR_PTR(-ENOENT).
 
 The driver author can solve this by passing the mapping explicitly
 (this is the recommended way and it's documented in the above chapter).
@@ -318,14 +318,14 @@ Case 1::
   desc = gpiod_get(dev, "non-null-connection-id", flags);
   desc = gpiod_get_index(dev, "non-null-connection-id", index, flags);
 
+Case 1 assumes that corresponding ACPI device description must have
+defined device properties and will prevent from getting any GPIO resources
+otherwise.
+
 Case 2::
 
   desc = gpiod_get(dev, NULL, flags);
   desc = gpiod_get_index(dev, NULL, index, flags);
-
-Case 1 assumes that corresponding ACPI device description must have
-defined device properties and will prevent to getting any GPIO resources
-otherwise.
 
 Case 2 explicitly tells GPIO core to look for resources in _CRS.
 

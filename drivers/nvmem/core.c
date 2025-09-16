@@ -376,8 +376,8 @@ static const struct bin_attribute bin_attr_rw_nvmem = {
 		.name	= "nvmem",
 		.mode	= 0644,
 	},
-	.read_new	= bin_attr_nvmem_read,
-	.write_new	= bin_attr_nvmem_write,
+	.read	= bin_attr_nvmem_read,
+	.write	= bin_attr_nvmem_write,
 };
 
 static const struct bin_attribute *const nvmem_bin_attributes[] = {
@@ -386,7 +386,7 @@ static const struct bin_attribute *const nvmem_bin_attributes[] = {
 };
 
 static const struct attribute_group nvmem_bin_group = {
-	.bin_attrs_new	= nvmem_bin_attributes,
+	.bin_attrs	= nvmem_bin_attributes,
 	.attrs		= nvmem_attrs,
 	.is_bin_visible = nvmem_bin_attr_is_visible,
 	.bin_size	= nvmem_bin_attr_size,
@@ -402,8 +402,8 @@ static const struct bin_attribute bin_attr_nvmem_eeprom_compat = {
 	.attr	= {
 		.name	= "eeprom",
 	},
-	.read_new	= bin_attr_nvmem_read,
-	.write_new	= bin_attr_nvmem_write,
+	.read	= bin_attr_nvmem_read,
+	.write	= bin_attr_nvmem_write,
 };
 
 /*
@@ -492,7 +492,7 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 						    entry->bit_offset);
 		attrs[i].attr.mode = 0444 & nvmem_bin_attr_get_umode(nvmem);
 		attrs[i].size = entry->bytes;
-		attrs[i].read_new = &nvmem_cell_attr_read;
+		attrs[i].read = &nvmem_cell_attr_read;
 		attrs[i].private = entry;
 		if (!attrs[i].attr.name) {
 			ret = -ENOMEM;
@@ -503,7 +503,7 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 		i++;
 	}
 
-	group.bin_attrs_new = pattrs;
+	group.bin_attrs = pattrs;
 
 	ret = device_add_group(&nvmem->dev, &group);
 	if (ret)
@@ -544,7 +544,7 @@ static const struct device_type nvmem_provider_type = {
 	.release	= nvmem_release,
 };
 
-static struct bus_type nvmem_bus_type = {
+static const struct bus_type nvmem_bus_type = {
 	.name		= "nvmem",
 };
 
@@ -1263,7 +1263,7 @@ void nvmem_device_put(struct nvmem_device *nvmem)
 EXPORT_SYMBOL_GPL(nvmem_device_put);
 
 /**
- * devm_nvmem_device_get() - Get nvmem device of device form a given id
+ * devm_nvmem_device_get() - Get nvmem device of device from a given id
  *
  * @dev: Device that requests the nvmem device.
  * @id: name id for the requested nvmem device.
@@ -1491,7 +1491,7 @@ EXPORT_SYMBOL_GPL(of_nvmem_cell_get);
 #endif
 
 /**
- * nvmem_cell_get() - Get nvmem cell of device form a given cell name
+ * nvmem_cell_get() - Get nvmem cell of device from a given cell name
  *
  * @dev: Device that requests the nvmem cell.
  * @id: nvmem cell name to get (this corresponds with the name from the
@@ -1526,7 +1526,7 @@ static void devm_nvmem_cell_release(struct device *dev, void *res)
 }
 
 /**
- * devm_nvmem_cell_get() - Get nvmem cell of device form a given id
+ * devm_nvmem_cell_get() - Get nvmem cell of device from a given id
  *
  * @dev: Device that requests the nvmem cell.
  * @id: nvmem cell name id to get.
@@ -2194,6 +2194,6 @@ static void __exit nvmem_exit(void)
 subsys_initcall(nvmem_init);
 module_exit(nvmem_exit);
 
-MODULE_AUTHOR("Srinivas Kandagatla <srinivas.kandagatla@linaro.org");
-MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com");
+MODULE_AUTHOR("Srinivas Kandagatla <srinivas.kandagatla@linaro.org>");
+MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com>");
 MODULE_DESCRIPTION("nvmem Driver Core");

@@ -13,7 +13,7 @@ description: |
   Qualcomm global clock control module provides the clocks, resets and power
   domains on SM6350.
 
-  See also:: include/dt-bindings/clock/qcom,gcc-sm6350.h
+  See also: include/dt-bindings/clock/qcom,gcc-sm6350.h
 
 properties:
   compatible:

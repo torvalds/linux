@@ -195,6 +195,17 @@
 #define AT803X_MIN_DOWNSHIFT			2
 #define AT803X_MAX_DOWNSHIFT			9
 
+#define QCA808X_MMD7_CNT_CTRL			0x8029
+#define QCA808X_MMD7_CNT_CTRL_READ_CLEAR_EN	BIT(1)
+#define QCA808X_MMD7_CNT_CTRL_CRC_CHECK_EN	BIT(0)
+
+#define QCA808X_MMD7_CNT_RX_PKT_31_16		0x802a
+#define QCA808X_MMD7_CNT_RX_PKT_15_0		0x802b
+#define QCA808X_MMD7_CNT_RX_ERR_PKT		0x802c
+#define QCA808X_MMD7_CNT_TX_PKT_31_16		0x802d
+#define QCA808X_MMD7_CNT_TX_PKT_15_0		0x802e
+#define QCA808X_MMD7_CNT_TX_ERR_PKT		0x802f
+
 enum stat_access_type {
 	PHY,
 	MMD
@@ -210,6 +221,13 @@ struct at803x_hw_stat {
 struct at803x_ss_mask {
 	u16 speed_mask;
 	u8 speed_shift;
+};
+
+struct qcom_phy_hw_stats {
+	u64 rx_pkts;
+	u64 rx_err_pkts;
+	u64 tx_pkts;
+	u64 tx_err_pkts;
 };
 
 int at803x_debug_reg_read(struct phy_device *phydev, u16 reg);
@@ -246,3 +264,8 @@ int qca808x_led_reg_brightness_set(struct phy_device *phydev,
 int qca808x_led_reg_blink_set(struct phy_device *phydev, u16 reg,
 			      unsigned long *delay_on,
 			      unsigned long *delay_off);
+int qcom_phy_counter_config(struct phy_device *phydev);
+int qcom_phy_update_stats(struct phy_device *phydev,
+			  struct qcom_phy_hw_stats *hw_stats);
+void qcom_phy_get_stats(struct ethtool_phy_stats *stats,
+			struct qcom_phy_hw_stats hw_stats);

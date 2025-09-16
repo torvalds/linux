@@ -60,35 +60,32 @@ static inline struct xe_tile *xe_device_get_root_tile(struct xe_device *xe)
 	return &xe->tiles[0];
 }
 
+/*
+ * Highest GT/tile count for any platform.  Used only for memory allocation
+ * sizing.  Any logic looping over GTs or mapping userspace GT IDs into GT
+ * structures should use the per-platform xe->info.max_gt_per_tile instead.
+ */
 #define XE_MAX_GT_PER_TILE 2
-
-static inline struct xe_gt *xe_tile_get_gt(struct xe_tile *tile, u8 gt_id)
-{
-	if (drm_WARN_ON(&tile_to_xe(tile)->drm, gt_id >= XE_MAX_GT_PER_TILE))
-		gt_id = 0;
-
-	return gt_id ? tile->media_gt : tile->primary_gt;
-}
 
 static inline struct xe_gt *xe_device_get_gt(struct xe_device *xe, u8 gt_id)
 {
-	struct xe_tile *root_tile = xe_device_get_root_tile(xe);
+	struct xe_tile *tile;
 	struct xe_gt *gt;
 
-	/*
-	 * FIXME: This only works for now because multi-tile and standalone
-	 * media are mutually exclusive on the platforms we have today.
-	 *
-	 * id => GT mapping may change once we settle on how we want to handle
-	 * our UAPI.
-	 */
-	if (MEDIA_VER(xe) >= 13) {
-		gt = xe_tile_get_gt(root_tile, gt_id);
-	} else {
-		if (drm_WARN_ON(&xe->drm, gt_id >= XE_MAX_TILES_PER_DEVICE))
-			gt_id = 0;
+	if (gt_id >= xe->info.tile_count * xe->info.max_gt_per_tile)
+		return NULL;
 
-		gt = xe->tiles[gt_id].primary_gt;
+	tile = &xe->tiles[gt_id / xe->info.max_gt_per_tile];
+	switch (gt_id % xe->info.max_gt_per_tile) {
+	default:
+		xe_assert(xe, false);
+		fallthrough;
+	case 0:
+		gt = tile->primary_gt;
+		break;
+	case 1:
+		gt = tile->media_gt;
+		break;
 	}
 
 	if (!gt)
@@ -130,13 +127,13 @@ static inline bool xe_device_uc_enabled(struct xe_device *xe)
 	for ((id__) = 1; (id__) < (xe__)->info.tile_count; (id__)++) \
 		for_each_if((tile__) = &(xe__)->tiles[(id__)])
 
-/*
- * FIXME: This only works for now since multi-tile and standalone media
- * happen to be mutually exclusive.  Future platforms may change this...
- */
 #define for_each_gt(gt__, xe__, id__) \
-	for ((id__) = 0; (id__) < (xe__)->info.gt_count; (id__)++) \
+	for ((id__) = 0; (id__) < (xe__)->info.tile_count * (xe__)->info.max_gt_per_tile; (id__)++) \
 		for_each_if((gt__) = xe_device_get_gt((xe__), (id__)))
+
+#define for_each_gt_on_tile(gt__, tile__, id__) \
+	for_each_gt((gt__), (tile__)->xe, (id__)) \
+		for_each_if((gt__)->tile == (tile__))
 
 static inline struct xe_force_wake *gt_to_fw(struct xe_gt *gt)
 {
@@ -194,6 +191,8 @@ void xe_device_declare_wedged(struct xe_device *xe);
 
 struct xe_file *xe_file_get(struct xe_file *xef);
 void xe_file_put(struct xe_file *xef);
+
+int xe_is_injection_active(void);
 
 /*
  * Occasionally it is seen that the G2H worker starts running after a delay of more than

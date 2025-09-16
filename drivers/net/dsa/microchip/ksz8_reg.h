@@ -729,6 +729,55 @@
 #define PHY_POWER_SAVING_ENABLE		BIT(2)
 #define PHY_REMOTE_LOOPBACK		BIT(1)
 
+/* KSZ8463 specific registers. */
+#define P1MBCR				0x4C
+#define P1MBSR				0x4E
+#define PHY1ILR				0x50
+#define PHY1IHR				0x52
+#define P1ANAR				0x54
+#define P1ANLPR				0x56
+#define P2MBCR				0x58
+#define P2MBSR				0x5A
+#define PHY2ILR				0x5C
+#define PHY2IHR				0x5E
+#define P2ANAR				0x60
+#define P2ANLPR				0x62
+
+#define P1CR1				0x6C
+#define P1CR2				0x6E
+#define P1CR3				0x72
+#define P1CR4				0x7E
+#define P1SR				0x80
+
+#define KSZ8463_FLUSH_TABLE_CTRL	0xAD
+
+#define KSZ8463_FLUSH_DYN_MAC_TABLE	BIT(2)
+#define KSZ8463_FLUSH_STA_MAC_TABLE	BIT(1)
+
+#define KSZ8463_REG_SW_CTRL_9		0xAE
+
+#define KSZ8463_REG_CFG_CTRL		0xD8
+
+#define PORT_2_COPPER_MODE		BIT(7)
+#define PORT_1_COPPER_MODE		BIT(6)
+#define PORT_COPPER_MODE_S		6
+
+#define KSZ8463_REG_SW_RESET		0x126
+
+#define KSZ8463_GLOBAL_SOFTWARE_RESET	BIT(0)
+
+#define KSZ8463_PTP_CLK_CTRL		0x600
+
+#define PTP_CLK_ENABLE			BIT(1)
+
+#define KSZ8463_PTP_MSG_CONF1		0x620
+
+#define PTP_ENABLE			BIT(6)
+
+#define KSZ8463_REG_DSP_CTRL_6		0x734
+
+#define COPPER_RECEIVE_ADJUSTMENT	BIT(13)
+
 /* Chip resource */
 
 #define PRIO_QUEUES			4
@@ -784,7 +833,9 @@
 #define KSZ8795_MIB_TOTAL_TX_1		0x105
 
 #define KSZ8863_MIB_PACKET_DROPPED_TX_0 0x100
-#define KSZ8863_MIB_PACKET_DROPPED_RX_0 0x105
+#define KSZ8863_MIB_PACKET_DROPPED_RX_0 0x103
+
+#define KSZ8895_MIB_PACKET_DROPPED_RX_0 0x105
 
 #define MIB_PACKET_DROPPED		0x0000FFFF
 

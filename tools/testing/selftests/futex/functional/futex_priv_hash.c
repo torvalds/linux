@@ -26,14 +26,12 @@ static int counter;
 #ifndef PR_FUTEX_HASH
 #define PR_FUTEX_HASH			78
 # define PR_FUTEX_HASH_SET_SLOTS	1
-# define FH_FLAG_IMMUTABLE		(1ULL << 0)
 # define PR_FUTEX_HASH_GET_SLOTS	2
-# define PR_FUTEX_HASH_GET_IMMUTABLE	3
 #endif
 
-static int futex_hash_slots_set(unsigned int slots, int flags)
+static int futex_hash_slots_set(unsigned int slots)
 {
-	return prctl(PR_FUTEX_HASH, PR_FUTEX_HASH_SET_SLOTS, slots, flags);
+	return prctl(PR_FUTEX_HASH, PR_FUTEX_HASH_SET_SLOTS, slots, 0);
 }
 
 static int futex_hash_slots_get(void)
@@ -41,16 +39,11 @@ static int futex_hash_slots_get(void)
 	return prctl(PR_FUTEX_HASH, PR_FUTEX_HASH_GET_SLOTS);
 }
 
-static int futex_hash_immutable_get(void)
-{
-	return prctl(PR_FUTEX_HASH, PR_FUTEX_HASH_GET_IMMUTABLE);
-}
-
 static void futex_hash_slots_set_verify(int slots)
 {
 	int ret;
 
-	ret = futex_hash_slots_set(slots, 0);
+	ret = futex_hash_slots_set(slots);
 	if (ret != 0) {
 		ksft_test_result_fail("Failed to set slots to %d: %m\n", slots);
 		ksft_finished();
@@ -64,13 +57,13 @@ static void futex_hash_slots_set_verify(int slots)
 	ksft_test_result_pass("SET and GET slots %d passed\n", slots);
 }
 
-static void futex_hash_slots_set_must_fail(int slots, int flags)
+static void futex_hash_slots_set_must_fail(int slots)
 {
 	int ret;
 
-	ret = futex_hash_slots_set(slots, flags);
-	ksft_test_result(ret < 0, "futex_hash_slots_set(%d, %d)\n",
-			 slots, flags);
+	ret = futex_hash_slots_set(slots);
+	ksft_test_result(ret < 0, "futex_hash_slots_set(%d)\n",
+			 slots);
 }
 
 static void *thread_return_fn(void *arg)
@@ -111,6 +104,30 @@ static void join_max_threads(void)
 	}
 }
 
+#define SEC_IN_NSEC	1000000000
+#define MSEC_IN_NSEC	1000000
+
+static void futex_dummy_op(void)
+{
+	pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+	struct timespec timeout;
+	int ret;
+
+	pthread_mutex_lock(&lock);
+	clock_gettime(CLOCK_REALTIME, &timeout);
+	timeout.tv_nsec += 100 * MSEC_IN_NSEC;
+	if (timeout.tv_nsec >=  SEC_IN_NSEC) {
+		timeout.tv_nsec -= SEC_IN_NSEC;
+		timeout.tv_sec++;
+	}
+	ret = pthread_mutex_timedlock(&lock, &timeout);
+	if (ret == 0)
+		ksft_exit_fail_msg("Successfully locked an already locked mutex.\n");
+
+	if (ret != ETIMEDOUT)
+		ksft_exit_fail_msg("pthread_mutex_timedlock() did not timeout: %d.\n", ret);
+}
+
 static void usage(char *prog)
 {
 	printf("Usage: %s\n", prog);
@@ -128,17 +145,13 @@ int main(int argc, char *argv[])
 {
 	int futex_slots1, futex_slotsn, online_cpus;
 	pthread_mutexattr_t mutex_attr_pi;
-	int use_global_hash = 0;
-	int ret;
+	int ret, retry = 20;
 	int c;
 
-	while ((c = getopt(argc, argv, "cghv:")) != -1) {
+	while ((c = getopt(argc, argv, "chv:")) != -1) {
 		switch (c) {
 		case 'c':
 			log_color(1);
-			break;
-		case 'g':
-			use_global_hash = 1;
 			break;
 		case 'h':
 			usage(basename(argv[0]));
@@ -154,7 +167,7 @@ int main(int argc, char *argv[])
 	}
 
 	ksft_print_header();
-	ksft_set_plan(22);
+	ksft_set_plan(21);
 
 	ret = pthread_mutexattr_init(&mutex_attr_pi);
 	ret |= pthread_mutexattr_setprotocol(&mutex_attr_pi, PTHREAD_PRIO_INHERIT);
@@ -166,10 +179,6 @@ int main(int argc, char *argv[])
 	ret = futex_hash_slots_get();
 	if (ret != 0)
 		ksft_exit_fail_msg("futex_hash_slots_get() failed: %d, %m\n", ret);
-
-	ret = futex_hash_immutable_get();
-	if (ret != 0)
-		ksft_exit_fail_msg("futex_hash_immutable_get() failed: %d, %m\n", ret);
 
 	ksft_test_result_pass("Basic get slots and immutable status.\n");
 	ret = pthread_create(&threads[0], NULL, thread_return_fn, NULL);
@@ -208,8 +217,24 @@ int main(int argc, char *argv[])
 	 */
 	ksft_print_msg("Online CPUs: %d\n", online_cpus);
 	if (online_cpus > 16) {
+retry_getslots:
 		futex_slotsn = futex_hash_slots_get();
 		if (futex_slotsn < 0 || futex_slots1 == futex_slotsn) {
+			retry--;
+			/*
+			 * Auto scaling on thread creation can be slightly delayed
+			 * because it waits for a RCU grace period twice. The new
+			 * private hash is assigned upon the first futex operation
+			 * after grace period.
+			 * To cover all this for testing purposes the function
+			 * below will acquire a lock and acquire it again with a
+			 * 100ms timeout which must timeout. This ensures we
+			 * sleep for 100ms and issue a futex operation.
+			 */
+			if (retry > 0) {
+				futex_dummy_op();
+				goto retry_getslots;
+			}
 			ksft_print_msg("Expected increase of hash buckets but got: %d -> %d\n",
 				       futex_slots1, futex_slotsn);
 			ksft_exit_fail_msg(test_msg_auto_inc);
@@ -227,7 +252,7 @@ int main(int argc, char *argv[])
 	futex_hash_slots_set_verify(32);
 	futex_hash_slots_set_verify(16);
 
-	ret = futex_hash_slots_set(15, 0);
+	ret = futex_hash_slots_set(15);
 	ksft_test_result(ret < 0, "Use 15 slots\n");
 
 	futex_hash_slots_set_verify(2);
@@ -245,28 +270,23 @@ int main(int argc, char *argv[])
 	ksft_test_result(ret == 2, "No more auto-resize after manaul setting, got %d\n",
 			 ret);
 
-	futex_hash_slots_set_must_fail(1 << 29, 0);
+	futex_hash_slots_set_must_fail(1 << 29);
+	futex_hash_slots_set_verify(4);
 
 	/*
-	 * Once the private hash has been made immutable or global hash has been requested,
-	 * then this requested can not be undone.
+	 * Once the global hash has been requested, then this requested can not
+	 * be undone.
 	 */
-	if (use_global_hash) {
-		ret = futex_hash_slots_set(0, 0);
-		ksft_test_result(ret == 0, "Global hash request\n");
-	} else {
-		ret = futex_hash_slots_set(4, FH_FLAG_IMMUTABLE);
-		ksft_test_result(ret == 0, "Immutable resize to 4\n");
-	}
+	ret = futex_hash_slots_set(0);
+	ksft_test_result(ret == 0, "Global hash request\n");
 	if (ret != 0)
 		goto out;
 
-	futex_hash_slots_set_must_fail(4, 0);
-	futex_hash_slots_set_must_fail(4, FH_FLAG_IMMUTABLE);
-	futex_hash_slots_set_must_fail(8, 0);
-	futex_hash_slots_set_must_fail(8, FH_FLAG_IMMUTABLE);
-	futex_hash_slots_set_must_fail(0, FH_FLAG_IMMUTABLE);
-	futex_hash_slots_set_must_fail(6, FH_FLAG_IMMUTABLE);
+	futex_hash_slots_set_must_fail(4);
+	futex_hash_slots_set_must_fail(8);
+	futex_hash_slots_set_must_fail(8);
+	futex_hash_slots_set_must_fail(0);
+	futex_hash_slots_set_must_fail(6);
 
 	ret = pthread_barrier_init(&barrier_main, NULL, MAX_THREADS);
 	if (ret != 0) {
@@ -277,14 +297,7 @@ int main(int argc, char *argv[])
 	join_max_threads();
 
 	ret = futex_hash_slots_get();
-	if (use_global_hash) {
-		ksft_test_result(ret == 0, "Continue to use global hash\n");
-	} else {
-		ksft_test_result(ret == 4, "Continue to use the 4 hash buckets\n");
-	}
-
-	ret = futex_hash_immutable_get();
-	ksft_test_result(ret == 1, "Hash reports to be immutable\n");
+	ksft_test_result(ret == 0, "Continue to use global hash\n");
 
 out:
 	ksft_finished();

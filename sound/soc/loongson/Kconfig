@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "SoC Audio for Loongson CPUs"
+menu "Loongson"
 
 config SND_SOC_LOONGSON_CARD
 	tristate "Loongson Sound Card Driver"

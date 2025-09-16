@@ -38,12 +38,12 @@
 #ifndef _FP_EMU_H
 #define _FP_EMU_H
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #include <asm/asm-offsets.h>
 #endif
 #include <asm/math-emu.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define IS_INF(a) ((a)->exp == 0x7fff)
 #define IS_ZERO(a) ((a)->mant.m64 == 0)
@@ -124,7 +124,7 @@ extern const struct fp_ext fp_Inf;
 			: "a1", "d1", "d2", "memory");		\
 })
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 /*
  * set, reset or clear a bit in the fp status register
@@ -141,6 +141,6 @@ extern const struct fp_ext fp_Inf;
 	btst	#(\bit&7),(FPD_FPSR+3-(\bit/8),FPDATA)
 .endm
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _FP_EMU_H */

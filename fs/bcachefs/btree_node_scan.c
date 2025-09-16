@@ -168,14 +168,6 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 	if (BTREE_NODE_ID(bn) >= BTREE_ID_NR_MAX)
 		return;
 
-	bio_reset(bio, ca->disk_sb.bdev, REQ_OP_READ);
-	bio->bi_iter.bi_sector	= offset;
-	bch2_bio_map(bio, b->data, c->opts.btree_node_size);
-
-	submit_time = local_clock();
-	submit_bio_wait(bio);
-	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_read, submit_time, !bio->bi_status);
-
 	rcu_read_lock();
 	struct found_btree_node n = {
 		.btree_id	= BTREE_NODE_ID(bn),
@@ -191,6 +183,14 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 		.ptrs[0].gen	= bucket_gen_get(ca, sector_to_bucket(ca, offset)),
 	};
 	rcu_read_unlock();
+
+	bio_reset(bio, ca->disk_sb.bdev, REQ_OP_READ);
+	bio->bi_iter.bi_sector	= offset;
+	bch2_bio_map(bio, b->data, c->opts.btree_node_size);
+
+	submit_time = local_clock();
+	submit_bio_wait(bio);
+	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_read, submit_time, !bio->bi_status);
 
 	found_btree_node_to_key(&b->key, &n);
 

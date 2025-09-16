@@ -467,8 +467,6 @@ void dm_zone_endio(struct dm_io *io, struct bio *clone)
 			bdev_offset_from_zone_start(disk->part0,
 						    clone->bi_iter.bi_sector);
 	}
-
-	return;
 }
 
 static int dm_zone_need_reset_cb(struct blk_zone *zone, unsigned int idx,

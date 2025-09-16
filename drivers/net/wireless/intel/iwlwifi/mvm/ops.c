@@ -61,8 +61,10 @@ static int __init iwl_mvm_init(void)
 	}
 
 	ret = iwl_opmode_register("iwlmvm", &iwl_mvm_ops);
-	if (ret)
+	if (ret) {
 		pr_err("Unable to register MVM op_mode: %d\n", ret);
+		iwl_mvm_rate_control_unregister();
+	}
 
 	return ret;
 }
@@ -157,43 +159,6 @@ static void iwl_mvm_rx_esr_mode_notif(struct iwl_mvm *mvm,
 	else
 		iwl_mvm_block_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_FW,
 				  iwl_mvm_get_primary_link(vif));
-}
-
-static void iwl_mvm_rx_esr_trans_fail_notif(struct iwl_mvm *mvm,
-					    struct iwl_rx_cmd_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_esr_trans_fail_notif *notif = (void *)pkt->data;
-	struct ieee80211_vif *vif = iwl_mvm_get_bss_vif(mvm);
-	u8 fw_link_id = le32_to_cpu(notif->link_id);
-	struct ieee80211_bss_conf *bss_conf;
-
-	if (IS_ERR_OR_NULL(vif))
-		return;
-
-	IWL_DEBUG_INFO(mvm, "Failed to %s eSR on link %d, reason %d\n",
-		       le32_to_cpu(notif->activation) ? "enter" : "exit",
-		       le32_to_cpu(notif->link_id),
-		       le32_to_cpu(notif->err_code));
-
-	/* we couldn't go back to single link, disconnect */
-	if (!le32_to_cpu(notif->activation)) {
-		iwl_mvm_connection_loss(mvm, vif, "emlsr exit failed");
-		return;
-	}
-
-	bss_conf = iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, fw_link_id, false);
-	if (IWL_FW_CHECK(mvm, !bss_conf,
-			 "FW reported failure to activate EMLSR on a non-existing link: %d\n",
-			 fw_link_id))
-		return;
-
-	/*
-	 * We failed to activate the second link and enter EMLSR, we need to go
-	 * back to single link.
-	 */
-	iwl_mvm_exit_esr(mvm, vif, IWL_MVM_ESR_EXIT_FAIL_ENTRY,
-			 bss_conf->link_id);
 }
 
 static void iwl_mvm_rx_monitor_notif(struct iwl_mvm *mvm,
@@ -524,10 +489,11 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER_GRP(SCAN_GROUP, CHANNEL_SURVEY_NOTIF,
 		       iwl_mvm_rx_channel_survey_notif, RX_HANDLER_ASYNC_LOCKED,
 		       struct iwl_umac_scan_channel_survey_notif),
-	RX_HANDLER_GRP(MAC_CONF_GROUP, EMLSR_TRANS_FAIL_NOTIF,
-		       iwl_mvm_rx_esr_trans_fail_notif,
-		       RX_HANDLER_ASYNC_LOCKED_WIPHY,
-		       struct iwl_esr_trans_fail_notif),
+	RX_HANDLER_GRP(DATA_PATH_GROUP, BEACON_FILTER_IN_NOTIF,
+		       iwl_mvm_rx_beacon_filter_notif,
+		       RX_HANDLER_ASYNC_LOCKED,
+		       /* same size as v1 */
+		       struct iwl_beacon_filter_notif),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -658,7 +624,6 @@ static const struct iwl_hcmd_names iwl_mvm_mac_conf_names[] = {
 	HCMD_NAME(STA_REMOVE_CMD),
 	HCMD_NAME(STA_DISABLE_TX_CMD),
 	HCMD_NAME(ROC_CMD),
-	HCMD_NAME(EMLSR_TRANS_FAIL_NOTIF),
 	HCMD_NAME(ROC_NOTIF),
 	HCMD_NAME(CHANNEL_SWITCH_ERROR_NOTIF),
 	HCMD_NAME(MISSED_VAP_NOTIF),
@@ -699,6 +664,7 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 	HCMD_NAME(ESR_MODE_NOTIF),
 	HCMD_NAME(MONITOR_NOTIF),
 	HCMD_NAME(THERMAL_DUAL_CHAIN_REQUEST),
+	HCMD_NAME(BEACON_FILTER_IN_NOTIF),
 	HCMD_NAME(STA_PM_NOTIF),
 	HCMD_NAME(MU_GROUP_MGMT_NOTIF),
 	HCMD_NAME(RX_QUEUES_NOTIFICATION),
@@ -1395,8 +1361,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 		}
 	}
 
-	mvm->bios_enable_puncturing = iwl_uefi_get_puncturing(&mvm->fwrt);
-
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		/*
 		 * If we have the new TX/queue allocation API initialize them
@@ -2053,7 +2017,7 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode,
 
 	if (type == IWL_ERR_TYPE_CMD_QUEUE_FULL)
 		IWL_ERR(mvm, "Command queue full!\n");
-	else if (!test_bit(STATUS_TRANS_DEAD, &mvm->trans->status) &&
+	else if (!iwl_trans_is_dead(mvm->trans) &&
 		 !test_and_clear_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE,
 				     &mvm->status))
 		iwl_mvm_dump_nic_error_log(mvm);
@@ -2155,6 +2119,17 @@ static void iwl_op_mode_mvm_time_point(struct iwl_op_mode *op_mode,
 	iwl_dbg_tlv_time_point(&mvm->fwrt, tp_id, tp_data);
 }
 
+static void iwl_mvm_dump(struct iwl_op_mode *op_mode)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+	struct iwl_fw_runtime *fwrt = &mvm->fwrt;
+
+	if (!iwl_trans_fw_running(fwrt->trans))
+		return;
+
+	iwl_dbg_tlv_time_point(fwrt, IWL_FW_INI_TIME_POINT_USER_TRIGGER, NULL);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static void iwl_op_mode_mvm_device_powered_off(struct iwl_op_mode *op_mode)
 {
@@ -2217,4 +2192,5 @@ static const struct iwl_op_mode_ops iwl_mvm_ops_mq = {
 	IWL_MVM_COMMON_OPS,
 	.rx = iwl_mvm_rx_mq,
 	.rx_rss = iwl_mvm_rx_mq_rss,
+	.dump = iwl_mvm_dump,
 };

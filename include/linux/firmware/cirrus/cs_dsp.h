@@ -64,14 +64,12 @@ struct cs_dsp_region {
 
 /**
  * struct cs_dsp_alg_region - Describes a logical algorithm region in DSP address space
- * @list:	List node for internal use
  * @alg:	Algorithm id
  * @ver:	Expected algorithm version
  * @type:	Memory region type
  * @base:	Address of region
  */
 struct cs_dsp_alg_region {
-	struct list_head list;
 	unsigned int alg;
 	unsigned int ver;
 	int type;

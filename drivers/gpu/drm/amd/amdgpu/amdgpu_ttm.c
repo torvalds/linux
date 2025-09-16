@@ -299,7 +299,8 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 	struct amdgpu_bo *abo_src, *abo_dst;
 
 	if (!adev->mman.buffer_funcs_enabled) {
-		DRM_ERROR("Trying to move memory with ring turned off.\n");
+		dev_err(adev->dev,
+			"Trying to move memory with ring turned off.\n");
 		return -EINVAL;
 	}
 
@@ -934,7 +935,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_device *bdev,
 	if (gtt->userptr) {
 		r = amdgpu_ttm_tt_pin_userptr(bdev, ttm);
 		if (r) {
-			DRM_ERROR("failed to pin userptr\n");
+			dev_err(adev->dev, "failed to pin userptr\n");
 			return r;
 		}
 	} else if (ttm->page_flags & TTM_TT_FLAG_EXTERNAL) {
@@ -1060,7 +1061,7 @@ static void amdgpu_ttm_backend_unbind(struct ttm_device *bdev,
 	/* if the pages have userptr pinning then clear that first */
 	if (gtt->userptr) {
 		amdgpu_ttm_tt_unpin_userptr(bdev, ttm);
-	} else if (ttm->sg && gtt->gobj->import_attach) {
+	} else if (ttm->sg && drm_gem_is_imported(gtt->gobj)) {
 		struct dma_buf_attachment *attach;
 
 		attach = gtt->gobj->import_attach;
@@ -1781,7 +1782,7 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 						 &ctx->c2p_bo,
 						 NULL);
 		if (ret) {
-			DRM_ERROR("alloc c2p_bo failed(%d)!\n", ret);
+			dev_err(adev->dev, "alloc c2p_bo failed(%d)!\n", ret);
 			amdgpu_ttm_training_reserve_vram_fini(adev);
 			return ret;
 		}
@@ -1793,7 +1794,7 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 			adev, adev->gmc.real_vram_size - reserve_size,
 			reserve_size, &adev->mman.fw_reserved_memory, NULL);
 		if (ret) {
-			DRM_ERROR("alloc tmr failed(%d)!\n", ret);
+			dev_err(adev->dev, "alloc tmr failed(%d)!\n", ret);
 			amdgpu_bo_free_kernel(&adev->mman.fw_reserved_memory,
 					      NULL, NULL);
 			return ret;
@@ -1864,13 +1865,14 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 			       adev->need_swiotlb,
 			       dma_addressing_limited(adev->dev));
 	if (r) {
-		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
+		dev_err(adev->dev,
+			"failed initializing buffer object driver(%d).\n", r);
 		return r;
 	}
 
 	r = amdgpu_ttm_pools_init(adev);
 	if (r) {
-		DRM_ERROR("failed to init ttm pools(%d).\n", r);
+		dev_err(adev->dev, "failed to init ttm pools(%d).\n", r);
 		return r;
 	}
 	adev->mman.initialized = true;
@@ -1878,7 +1880,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	/* Initialize VRAM pool with all of VRAM divided into pages */
 	r = amdgpu_vram_mgr_init(adev);
 	if (r) {
-		DRM_ERROR("Failed initializing VRAM heap.\n");
+		dev_err(adev->dev, "Failed initializing VRAM heap.\n");
 		return r;
 	}
 
@@ -1958,7 +1960,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		DRM_DEBUG_DRIVER("Skipped stolen memory reservation\n");
 	}
 
-	DRM_INFO("amdgpu: %uM of VRAM memory ready\n",
+	dev_info(adev->dev, "amdgpu: %uM of VRAM memory ready\n",
 		 (unsigned int)(adev->gmc.real_vram_size / (1024 * 1024)));
 
 	/* Compute GTT size, either based on TTM limit
@@ -1981,10 +1983,10 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	/* Initialize GTT memory pool */
 	r = amdgpu_gtt_mgr_init(adev, gtt_size);
 	if (r) {
-		DRM_ERROR("Failed initializing GTT heap.\n");
+		dev_err(adev->dev, "Failed initializing GTT heap.\n");
 		return r;
 	}
-	DRM_INFO("amdgpu: %uM of GTT memory ready.\n",
+	dev_info(adev->dev, "amdgpu: %uM of GTT memory ready.\n",
 		 (unsigned int)(gtt_size / (1024 * 1024)));
 
 	if (adev->flags & AMD_IS_APU) {
@@ -1995,40 +1997,40 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	/* Initialize doorbell pool on PCI BAR */
 	r = amdgpu_ttm_init_on_chip(adev, AMDGPU_PL_DOORBELL, adev->doorbell.size / PAGE_SIZE);
 	if (r) {
-		DRM_ERROR("Failed initializing doorbell heap.\n");
+		dev_err(adev->dev, "Failed initializing doorbell heap.\n");
 		return r;
 	}
 
 	/* Create a boorbell page for kernel usages */
 	r = amdgpu_doorbell_create_kernel_doorbells(adev);
 	if (r) {
-		DRM_ERROR("Failed to initialize kernel doorbells.\n");
+		dev_err(adev->dev, "Failed to initialize kernel doorbells.\n");
 		return r;
 	}
 
 	/* Initialize preemptible memory pool */
 	r = amdgpu_preempt_mgr_init(adev);
 	if (r) {
-		DRM_ERROR("Failed initializing PREEMPT heap.\n");
+		dev_err(adev->dev, "Failed initializing PREEMPT heap.\n");
 		return r;
 	}
 
 	/* Initialize various on-chip memory pools */
 	r = amdgpu_ttm_init_on_chip(adev, AMDGPU_PL_GDS, adev->gds.gds_size);
 	if (r) {
-		DRM_ERROR("Failed initializing GDS heap.\n");
+		dev_err(adev->dev, "Failed initializing GDS heap.\n");
 		return r;
 	}
 
 	r = amdgpu_ttm_init_on_chip(adev, AMDGPU_PL_GWS, adev->gds.gws_size);
 	if (r) {
-		DRM_ERROR("Failed initializing gws heap.\n");
+		dev_err(adev->dev, "Failed initializing gws heap.\n");
 		return r;
 	}
 
 	r = amdgpu_ttm_init_on_chip(adev, AMDGPU_PL_OA, adev->gds.oa_size);
 	if (r) {
-		DRM_ERROR("Failed initializing oa heap.\n");
+		dev_err(adev->dev, "Failed initializing oa heap.\n");
 		return r;
 	}
 	if (amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
@@ -2060,6 +2062,8 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 		/* return the FW reserved memory back to VRAM */
 		amdgpu_bo_free_kernel(&adev->mman.fw_reserved_memory, NULL,
 				      NULL);
+		amdgpu_bo_free_kernel(&adev->mman.fw_reserved_memory_extend, NULL,
+				      NULL);
 		if (adev->mman.stolen_reserved_size)
 			amdgpu_bo_free_kernel(&adev->mman.stolen_reserved_memory,
 					      NULL, NULL);
@@ -2089,7 +2093,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	ttm_range_man_fini(&adev->mman.bdev, AMDGPU_PL_DOORBELL);
 	ttm_device_fini(&adev->mman.bdev);
 	adev->mman.initialized = false;
-	DRM_INFO("amdgpu: ttm finalized\n");
+	dev_info(adev->dev, "amdgpu: ttm finalized\n");
 }
 
 /**
@@ -2121,8 +2125,9 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 					  DRM_SCHED_PRIORITY_KERNEL, &sched,
 					  1, NULL);
 		if (r) {
-			DRM_ERROR("Failed setting up TTM BO move entity (%d)\n",
-				  r);
+			dev_err(adev->dev,
+				"Failed setting up TTM BO move entity (%d)\n",
+				r);
 			return;
 		}
 
@@ -2130,8 +2135,9 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 					  DRM_SCHED_PRIORITY_NORMAL, &sched,
 					  1, NULL);
 		if (r) {
-			DRM_ERROR("Failed setting up TTM BO move entity (%d)\n",
-				  r);
+			dev_err(adev->dev,
+				"Failed setting up TTM BO move entity (%d)\n",
+				r);
 			goto error_free_entity;
 		}
 	} else {
@@ -2202,7 +2208,8 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 	int r;
 
 	if (!direct_submit && !ring->sched.ready) {
-		DRM_ERROR("Trying to move memory with ring turned off.\n");
+		dev_err(adev->dev,
+			"Trying to move memory with ring turned off.\n");
 		return -EINVAL;
 	}
 
@@ -2237,7 +2244,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 
 error_free:
 	amdgpu_job_free(job);
-	DRM_ERROR("Error scheduling IBs (%d)\n", r);
+	dev_err(adev->dev, "Error scheduling IBs (%d)\n", r);
 	return r;
 }
 
@@ -2356,7 +2363,8 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 	int r;
 
 	if (!adev->mman.buffer_funcs_enabled) {
-		DRM_ERROR("Trying to clear memory with ring turned off.\n");
+		dev_err(adev->dev,
+			"Trying to clear memory with ring turned off.\n");
 		return -EINVAL;
 	}
 
@@ -2416,7 +2424,7 @@ int amdgpu_ttm_evict_resources(struct amdgpu_device *adev, int mem_type)
 		man = ttm_manager_type(&adev->mman.bdev, mem_type);
 		break;
 	default:
-		DRM_ERROR("Trying to evict invalid memory type\n");
+		dev_err(adev->dev, "Trying to evict invalid memory type\n");
 		return -EINVAL;
 	}
 

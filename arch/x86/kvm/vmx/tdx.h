@@ -8,6 +8,7 @@
 #ifdef CONFIG_KVM_INTEL_TDX
 #include "common.h"
 
+void tdx_hardware_setup(void);
 int tdx_bringup(void);
 void tdx_cleanup(void);
 

@@ -84,8 +84,11 @@ static int __report_module(struct addr_location *al, u64 ip,
 		char filename[PATH_MAX];
 
 		__symbol__join_symfs(filename, sizeof(filename), dso__long_name(dso));
-		mod = dwfl_report_elf(ui->dwfl, dso__short_name(dso), filename, -1,
-				      base, false);
+		/* Don't hang up on device files like /dev/dri/renderD128. */
+		if (is_regular_file(filename)) {
+			mod = dwfl_report_elf(ui->dwfl, dso__short_name(dso), filename, -1,
+					      base, false);
+		}
 	}
 	if (!mod) {
 		char filename[PATH_MAX];

@@ -2,7 +2,9 @@
 
 #include <drm/drm_exec.h>
 #include <drm/drm_gem.h>
+
 #include <linux/dma-resv.h>
+#include <linux/export.h>
 
 /**
  * DOC: Overview

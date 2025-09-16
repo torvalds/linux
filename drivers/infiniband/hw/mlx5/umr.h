@@ -94,9 +94,20 @@ struct mlx5r_umr_wqe {
 int mlx5r_umr_revoke_mr(struct mlx5_ib_mr *mr);
 int mlx5r_umr_rereg_pd_access(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 			      int access_flags);
-int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags);
+int mlx5r_umr_update_data_direct_ksm_pas_range(struct mlx5_ib_mr *mr,
+					       unsigned int flags,
+					       size_t start_block,
+					       size_t nblocks);
 int mlx5r_umr_update_data_direct_ksm_pas(struct mlx5_ib_mr *mr, unsigned int flags);
+int mlx5r_umr_update_mr_pas_range(struct mlx5_ib_mr *mr, unsigned int flags,
+				  size_t start_block, size_t nblocks);
+int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags);
 int mlx5r_umr_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 			 int page_shift, int flags);
+int mlx5r_umr_update_mr_page_shift(struct mlx5_ib_mr *mr,
+				   unsigned int page_shift,
+				   bool dd);
+int mlx5r_umr_dmabuf_update_pgsz(struct mlx5_ib_mr *mr, u32 xlt_flags,
+				 unsigned int page_shift);
 
 #endif /* _MLX5_IB_UMR_H */

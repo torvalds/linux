@@ -301,6 +301,16 @@
  */
 #define UBLK_F_PER_IO_DAEMON (1ULL << 13)
 
+/*
+ * If this feature is set, UBLK_U_IO_REGISTER_IO_BUF/UBLK_U_IO_UNREGISTER_IO_BUF
+ * can be issued for an I/O on any task. q_id and tag are also ignored in
+ * UBLK_U_IO_UNREGISTER_IO_BUF's ublksrv_io_cmd.
+ * If it is unset, zero-copy buffers can only be registered and unregistered by
+ * the I/O's daemon task. The q_id and tag of the registered buffer are required
+ * in UBLK_U_IO_UNREGISTER_IO_BUF's ublksrv_io_cmd.
+ */
+#define UBLK_F_BUF_REG_OFF_DAEMON (1ULL << 14)
+
 /* device state */
 #define UBLK_S_DEV_DEAD	0
 #define UBLK_S_DEV_LIVE	1

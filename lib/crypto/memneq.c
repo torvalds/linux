@@ -59,9 +59,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/unaligned.h>
 #include <crypto/algapi.h>
+#include <linux/export.h>
 #include <linux/module.h>
+#include <linux/unaligned.h>
 
 /* Generic path for arbitrary size */
 static inline unsigned long

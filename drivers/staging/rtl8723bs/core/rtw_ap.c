@@ -741,13 +741,8 @@ void start_bss_network(struct adapter *padapter)
 	if (p && ie_len) {
 		pht_info = (struct HT_info_element *)(p + 2);
 
-		if (cur_channel > 14) {
-			if ((pregpriv->bw_mode & 0xf0) > 0)
-				cbw40_enable = 1;
-		} else {
-			if ((pregpriv->bw_mode & 0x0f) > 0)
-				cbw40_enable = 1;
-		}
+		if ((pregpriv->bw_mode & 0x0f) > 0)
+			cbw40_enable = 1;
 
 		if ((cbw40_enable) &&	 (pht_info->infos[0] & BIT(2))) {
 			/* switch to the 40M Hz mode */

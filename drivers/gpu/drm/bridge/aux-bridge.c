@@ -5,6 +5,7 @@
  * Author: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
  */
 #include <linux/auxiliary_bus.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/of.h>
 
@@ -17,6 +18,7 @@ static void drm_aux_bridge_release(struct device *dev)
 {
 	struct auxiliary_device *adev = to_auxiliary_dev(dev);
 
+	of_node_put(dev->of_node);
 	ida_free(&drm_aux_bridge_ida, adev->id);
 
 	kfree(adev);
@@ -64,6 +66,7 @@ int drm_aux_bridge_register(struct device *parent)
 
 	ret = auxiliary_device_init(adev);
 	if (ret) {
+		of_node_put(adev->dev.of_node);
 		ida_free(&drm_aux_bridge_ida, adev->id);
 		kfree(adev);
 		return ret;
@@ -109,9 +112,10 @@ static int drm_aux_bridge_probe(struct auxiliary_device *auxdev,
 {
 	struct drm_aux_bridge_data *data;
 
-	data = devm_kzalloc(&auxdev->dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	data = devm_drm_bridge_alloc(&auxdev->dev, struct drm_aux_bridge_data,
+				     bridge, &drm_aux_bridge_funcs);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	data->dev = &auxdev->dev;
 	data->next_bridge = devm_drm_of_get_bridge(&auxdev->dev, auxdev->dev.of_node, 0, 0);
@@ -119,7 +123,6 @@ static int drm_aux_bridge_probe(struct auxiliary_device *auxdev,
 		return dev_err_probe(&auxdev->dev, PTR_ERR(data->next_bridge),
 				     "failed to acquire drm_bridge\n");
 
-	data->bridge.funcs = &drm_aux_bridge_funcs;
 	data->bridge.of_node = data->dev->of_node;
 
 	/* passthrough data, allow everything */

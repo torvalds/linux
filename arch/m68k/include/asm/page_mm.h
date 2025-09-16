@@ -2,7 +2,7 @@
 #ifndef _M68K_PAGE_MM_H
 #define _M68K_PAGE_MM_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/compiler.h>
 #include <asm/module.h>
@@ -144,6 +144,6 @@ extern int m68k_virt_to_node_shift;
 #define virt_addr_valid(kaddr)	((unsigned long)(kaddr) >= PAGE_OFFSET && (unsigned long)(kaddr) < (unsigned long)high_memory)
 #define pfn_valid(pfn)		virt_addr_valid(pfn_to_virt(pfn))
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _M68K_PAGE_MM_H */

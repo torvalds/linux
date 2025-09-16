@@ -2674,8 +2674,10 @@ static int resp_rsup_tmfs(struct scsi_cmnd *scp,
 
 static int resp_err_recov_pg(unsigned char *p, int pcontrol, int target)
 {	/* Read-Write Error Recovery page for mode_sense */
-	unsigned char err_recov_pg[] = {0x1, 0xa, 0xc0, 11, 240, 0, 0, 0,
-					5, 0, 0xff, 0xff};
+	static const unsigned char err_recov_pg[] = {
+		0x1, 0xa, 0xc0, 11, 240, 0, 0, 0,
+		5, 0, 0xff, 0xff
+	};
 
 	memcpy(p, err_recov_pg, sizeof(err_recov_pg));
 	if (1 == pcontrol)
@@ -2685,8 +2687,10 @@ static int resp_err_recov_pg(unsigned char *p, int pcontrol, int target)
 
 static int resp_disconnect_pg(unsigned char *p, int pcontrol, int target)
 { 	/* Disconnect-Reconnect page for mode_sense */
-	unsigned char disconnect_pg[] = {0x2, 0xe, 128, 128, 0, 10, 0, 0,
-					 0, 0, 0, 0, 0, 0, 0, 0};
+	static const unsigned char disconnect_pg[] = {
+		0x2, 0xe, 128, 128, 0, 10, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0
+	};
 
 	memcpy(p, disconnect_pg, sizeof(disconnect_pg));
 	if (1 == pcontrol)
@@ -2696,9 +2700,11 @@ static int resp_disconnect_pg(unsigned char *p, int pcontrol, int target)
 
 static int resp_format_pg(unsigned char *p, int pcontrol, int target)
 {       /* Format device page for mode_sense */
-	unsigned char format_pg[] = {0x3, 0x16, 0, 0, 0, 0, 0, 0,
-				     0, 0, 0, 0, 0, 0, 0, 0,
-				     0, 0, 0, 0, 0x40, 0, 0, 0};
+	static const unsigned char format_pg[] = {
+		0x3, 0x16, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0x40, 0, 0, 0
+	};
 
 	memcpy(p, format_pg, sizeof(format_pg));
 	put_unaligned_be16(sdebug_sectors_per, p + 10);
@@ -2716,10 +2722,14 @@ static unsigned char caching_pg[] = {0x8, 18, 0x14, 0, 0xff, 0xff, 0, 0,
 
 static int resp_caching_pg(unsigned char *p, int pcontrol, int target)
 { 	/* Caching page for mode_sense */
-	unsigned char ch_caching_pg[] = {/* 0x8, 18, */ 0x4, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-	unsigned char d_caching_pg[] = {0x8, 18, 0x14, 0, 0xff, 0xff, 0, 0,
-		0xff, 0xff, 0xff, 0xff, 0x80, 0x14, 0, 0,     0, 0, 0, 0};
+	static const unsigned char ch_caching_pg[] = {
+		/* 0x8, 18, */ 0x4, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	};
+	static const unsigned char d_caching_pg[] = {
+		0x8, 18, 0x14, 0, 0xff, 0xff, 0, 0,
+		0xff, 0xff, 0xff, 0xff, 0x80, 0x14, 0, 0, 0, 0, 0, 0
+	};
 
 	if (SDEBUG_OPT_N_WCE & sdebug_opts)
 		caching_pg[2] &= ~0x4;	/* set WCE=0 (default WCE=1) */
@@ -2738,8 +2748,10 @@ static int resp_ctrl_m_pg(unsigned char *p, int pcontrol, int target)
 { 	/* Control mode page for mode_sense */
 	unsigned char ch_ctrl_m_pg[] = {/* 0xa, 10, */ 0x6, 0, 0, 0, 0, 0,
 					0, 0, 0, 0};
-	unsigned char d_ctrl_m_pg[] = {0xa, 10, 2, 0, 0, 0, 0, 0,
-				     0, 0, 0x2, 0x4b};
+	static const unsigned char d_ctrl_m_pg[] = {
+		0xa, 10, 2, 0, 0, 0, 0, 0,
+		0, 0, 0x2, 0x4b
+	};
 
 	if (sdebug_dsense)
 		ctrl_m_pg[2] |= 0x4;
@@ -2794,10 +2806,14 @@ static int resp_grouping_m_pg(unsigned char *p, int pcontrol, int target)
 
 static int resp_iec_m_pg(unsigned char *p, int pcontrol, int target)
 {	/* Informational Exceptions control mode page for mode_sense */
-	unsigned char ch_iec_m_pg[] = {/* 0x1c, 0xa, */ 0x4, 0xf, 0, 0, 0, 0,
-				       0, 0, 0x0, 0x0};
-	unsigned char d_iec_m_pg[] = {0x1c, 0xa, 0x08, 0, 0, 0, 0, 0,
-				      0, 0, 0x0, 0x0};
+	static const unsigned char ch_iec_m_pg[] = {
+		/* 0x1c, 0xa, */ 0x4, 0xf, 0, 0, 0, 0,
+		0, 0, 0x0, 0x0
+	};
+	static const unsigned char d_iec_m_pg[] = {
+		0x1c, 0xa, 0x08, 0, 0, 0, 0, 0,
+		0, 0, 0x0, 0x0
+	};
 
 	memcpy(p, iec_m_pg, sizeof(iec_m_pg));
 	if (1 == pcontrol)
@@ -2809,8 +2825,9 @@ static int resp_iec_m_pg(unsigned char *p, int pcontrol, int target)
 
 static int resp_sas_sf_m_pg(unsigned char *p, int pcontrol, int target)
 {	/* SAS SSP mode page - short format for mode_sense */
-	unsigned char sas_sf_m_pg[] = {0x19, 0x6,
-		0x6, 0x0, 0x7, 0xd0, 0x0, 0x0};
+	static const unsigned char sas_sf_m_pg[] = {
+		0x19, 0x6, 0x6, 0x0, 0x7, 0xd0, 0x0, 0x0
+	};
 
 	memcpy(p, sas_sf_m_pg, sizeof(sas_sf_m_pg));
 	if (1 == pcontrol)
@@ -2854,9 +2871,10 @@ static int resp_sas_pcd_m_spg(unsigned char *p, int pcontrol, int target,
 
 static int resp_sas_sha_m_spg(unsigned char *p, int pcontrol)
 {	/* SAS SSP shared protocol specific port mode subpage */
-	unsigned char sas_sha_m_pg[] = {0x59, 0x2, 0, 0xc, 0, 0x6, 0x10, 0,
-		    0, 0, 0, 0, 0, 0, 0, 0,
-		};
+	static const unsigned char sas_sha_m_pg[] = {
+		0x59, 0x2, 0, 0xc, 0, 0x6, 0x10, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+	};
 
 	memcpy(p, sas_sha_m_pg, sizeof(sas_sha_m_pg));
 	if (1 == pcontrol)
@@ -2923,8 +2941,10 @@ static int process_medium_part_m_pg(struct sdebug_dev_info *devip,
 static int resp_compression_m_pg(unsigned char *p, int pcontrol, int target,
 	unsigned char dce)
 {	/* Compression page for mode_sense (tape) */
-	unsigned char compression_pg[] = {0x0f, 14, 0x40, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 00, 00};
+	static const unsigned char compression_pg[] = {
+		0x0f, 14, 0x40, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0
+	};
 
 	memcpy(p, compression_pg, sizeof(compression_pg));
 	if (dce)
@@ -3282,9 +3302,10 @@ bad_pcode:
 
 static int resp_temp_l_pg(unsigned char *arr)
 {
-	unsigned char temp_l_pg[] = {0x0, 0x0, 0x3, 0x2, 0x0, 38,
-				     0x0, 0x1, 0x3, 0x2, 0x0, 65,
-		};
+	static const unsigned char temp_l_pg[] = {
+		0x0, 0x0, 0x3, 0x2, 0x0, 38,
+		0x0, 0x1, 0x3, 0x2, 0x0, 65,
+	};
 
 	memcpy(arr, temp_l_pg, sizeof(temp_l_pg));
 	return sizeof(temp_l_pg);
@@ -3292,8 +3313,9 @@ static int resp_temp_l_pg(unsigned char *arr)
 
 static int resp_ie_l_pg(unsigned char *arr)
 {
-	unsigned char ie_l_pg[] = {0x0, 0x0, 0x3, 0x3, 0x0, 0x0, 38,
-		};
+	static const unsigned char ie_l_pg[] = {
+		0x0, 0x0, 0x3, 0x3, 0x0, 0x0, 38,
+	};
 
 	memcpy(arr, ie_l_pg, sizeof(ie_l_pg));
 	if (iec_m_pg[2] & 0x4) {	/* TEST bit set */
@@ -3305,11 +3327,12 @@ static int resp_ie_l_pg(unsigned char *arr)
 
 static int resp_env_rep_l_spg(unsigned char *arr)
 {
-	unsigned char env_rep_l_spg[] = {0x0, 0x0, 0x23, 0x8,
-					 0x0, 40, 72, 0xff, 45, 18, 0, 0,
-					 0x1, 0x0, 0x23, 0x8,
-					 0x0, 55, 72, 35, 55, 45, 0, 0,
-		};
+	static const unsigned char env_rep_l_spg[] = {
+		0x0, 0x0, 0x23, 0x8,
+		0x0, 40, 72, 0xff, 45, 18, 0, 0,
+		0x1, 0x0, 0x23, 0x8,
+		0x0, 55, 72, 35, 55, 45, 0, 0,
+	};
 
 	memcpy(arr, env_rep_l_spg, sizeof(env_rep_l_spg));
 	return sizeof(env_rep_l_spg);
@@ -8770,7 +8793,7 @@ static int sdebug_add_store(void)
 		dif_size = sdebug_store_sectors * sizeof(struct t10_pi_tuple);
 		sip->dif_storep = vmalloc(dif_size);
 
-		pr_info("dif_storep %u bytes @ %pK\n", dif_size,
+		pr_info("dif_storep %u bytes @ %p\n", dif_size,
 			sip->dif_storep);
 
 		if (!sip->dif_storep) {

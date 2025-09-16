@@ -99,7 +99,7 @@ static void __init clps711x_clk_init_dt(struct device_node *np)
 	 */
 	tmp &= ~(SYSCON1_TC1M | SYSCON1_TC1S);
 	/* Timer2 in prescale mode.
-	 * Value writen is automatically re-loaded when
+	 * Value written is automatically re-loaded when
 	 * the counter underflows.
 	 */
 	tmp |= SYSCON1_TC2M | SYSCON1_TC2S;

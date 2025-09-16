@@ -1314,7 +1314,7 @@ static int snd_rme32_create(struct rme32 *rme32)
 		return err;
 	rme32->spdif_pcm->private_data = rme32;
 	rme32->spdif_pcm->private_free = snd_rme32_free_spdif_pcm;
-	strcpy(rme32->spdif_pcm->name, "Digi32 IEC958");
+	strscpy(rme32->spdif_pcm->name, "Digi32 IEC958");
 	if (rme32->fullduplex_mode) {
 		snd_pcm_set_ops(rme32->spdif_pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				&snd_rme32_playback_spdif_fd_ops);
@@ -1344,7 +1344,7 @@ static int snd_rme32_create(struct rme32 *rme32)
 			return err;
 		rme32->adat_pcm->private_data = rme32;
 		rme32->adat_pcm->private_free = snd_rme32_free_adat_pcm;
-		strcpy(rme32->adat_pcm->name, "Digi32 ADAT");
+		strscpy(rme32->adat_pcm->name, "Digi32 ADAT");
 		if (rme32->fullduplex_mode) {
 			snd_pcm_set_ops(rme32->adat_pcm, SNDRV_PCM_STREAM_PLAYBACK, 
 					&snd_rme32_playback_adat_fd_ops);
@@ -1879,16 +1879,16 @@ __snd_rme32_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	if (err < 0)
 		return err;
 
-	strcpy(card->driver, "Digi32");
+	strscpy(card->driver, "Digi32");
 	switch (rme32->pci->device) {
 	case PCI_DEVICE_ID_RME_DIGI32:
-		strcpy(card->shortname, "RME Digi32");
+		strscpy(card->shortname, "RME Digi32");
 		break;
 	case PCI_DEVICE_ID_RME_DIGI32_8:
-		strcpy(card->shortname, "RME Digi32/8");
+		strscpy(card->shortname, "RME Digi32/8");
 		break;
 	case PCI_DEVICE_ID_RME_DIGI32_PRO:
-		strcpy(card->shortname, "RME Digi32 PRO");
+		strscpy(card->shortname, "RME Digi32 PRO");
 		break;
 	}
 	sprintf(card->longname, "%s (Rev. %d) at 0x%lx, irq %d",

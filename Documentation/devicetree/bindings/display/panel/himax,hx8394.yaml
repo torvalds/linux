@@ -17,12 +17,17 @@ description:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - hannstar,hsd060bhw4
-          - microchip,ac40t08a-mipi-panel
-          - powkiddy,x55-panel
-      - const: himax,hx8394
+    oneOf:
+      - items:
+          - enum:
+              - hannstar,hsd060bhw4
+              - microchip,ac40t08a-mipi-panel
+              - powkiddy,x55-panel
+          - const: himax,hx8394
+      - items:
+          - enum:
+              - huiling,hl055fhav028c
+          - const: himax,hx8399c
 
   reg:
     maxItems: 1

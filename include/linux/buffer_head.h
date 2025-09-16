@@ -262,14 +262,12 @@ int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
 		struct folio **foliop, get_block_t *get_block);
 int __block_write_begin(struct folio *folio, loff_t pos, unsigned len,
 		get_block_t *get_block);
-int block_write_end(struct file *, struct address_space *,
-				loff_t, unsigned len, unsigned copied,
-				struct folio *, void *);
-int generic_write_end(struct file *, struct address_space *,
+int block_write_end(loff_t pos, unsigned len, unsigned copied, struct folio *);
+int generic_write_end(const struct kiocb *, struct address_space *,
 				loff_t, unsigned len, unsigned copied,
 				struct folio *, void *);
 void folio_zero_new_buffers(struct folio *folio, size_t from, size_t to);
-int cont_write_begin(struct file *, struct address_space *, loff_t,
+int cont_write_begin(const struct kiocb *, struct address_space *, loff_t,
 			unsigned, struct folio **, void **,
 			get_block_t *, loff_t *);
 int generic_cont_expand_simple(struct inode *inode, loff_t size);

@@ -427,6 +427,32 @@ void get_hdr_visual_confirm_color(
 	}
 }
 
+/* Visual Confirm color definition for Smart Mux */
+void get_smartmux_visual_confirm_color(
+	struct dc *dc,
+	struct tg_color *color)
+{
+	uint32_t color_value = MAX_TG_COLOR_VALUE;
+
+	const struct tg_color sm_ver_colors[5] = {
+			{0, 0, 0},					/* SMUX_MUXCONTROL_UNSUPPORTED - Black */
+			{0, MAX_TG_COLOR_VALUE, 0},			/* SMUX_MUXCONTROL_v10 - Green */
+			{0, MAX_TG_COLOR_VALUE, MAX_TG_COLOR_VALUE},	/* SMUX_MUXCONTROL_v15 - Cyan */
+			{MAX_TG_COLOR_VALUE, MAX_TG_COLOR_VALUE, 0}, 	/* SMUX_MUXCONTROL_MDM - Yellow */
+			{MAX_TG_COLOR_VALUE, 0, MAX_TG_COLOR_VALUE}, 	/* SMUX_MUXCONTROL_vUNKNOWN - Magenta*/
+	};
+
+	if (dc->caps.is_apu) {
+		/* APU driving the eDP */
+		*color = sm_ver_colors[dc->config.smart_mux_version];
+	} else {
+		/* dGPU driving the eDP - red */
+		color->color_r_cr = color_value;
+		color->color_g_y = 0;
+		color->color_b_cb = 0;
+	}
+}
+
 /* Visual Confirm color definition for VABC */
 void get_vabc_visual_confirm_color(
 	struct pipe_ctx *pipe_ctx,

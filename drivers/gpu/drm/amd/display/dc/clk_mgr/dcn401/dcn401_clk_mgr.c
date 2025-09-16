@@ -22,8 +22,6 @@
 #include "dcn/dcn_4_1_0_offset.h"
 #include "dcn/dcn_4_1_0_sh_mask.h"
 
-#include "dml/dcn401/dcn401_fpu.h"
-
 #define DCN_BASE__INST0_SEG1                       0x000000C0
 
 #define mmCLK01_CLK0_CLK_PLL_REQ                        0x16E37
@@ -183,43 +181,36 @@ static void dcn401_init_single_clock(struct clk_mgr_internal *clk_mgr, PPCLK_e c
 
 static void dcn401_build_wm_range_table(struct clk_mgr *clk_mgr)
 {
-	/* legacy */
-	DC_FP_START();
-	dcn401_build_wm_range_table_fpu(clk_mgr);
-	DC_FP_END();
+	/* For min clocks use as reported by PM FW and report those as min */
+	uint16_t min_uclk_mhz = clk_mgr->bw_params->clk_table.entries[0].memclk_mhz;
+	uint16_t min_dcfclk_mhz	= clk_mgr->bw_params->clk_table.entries[0].dcfclk_mhz;
 
-	if (clk_mgr->ctx->dc->debug.using_dml21) {
-		/* For min clocks use as reported by PM FW and report those as min */
-		uint16_t min_uclk_mhz = clk_mgr->bw_params->clk_table.entries[0].memclk_mhz;
-		uint16_t min_dcfclk_mhz	= clk_mgr->bw_params->clk_table.entries[0].dcfclk_mhz;
+	/* Set A - Normal - default values */
+	clk_mgr->bw_params->wm_table.nv_entries[WM_A].valid = true;
+	clk_mgr->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.wm_type = WATERMARKS_CLOCK_RANGE;
+	clk_mgr->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.min_dcfclk = min_dcfclk_mhz;
+	clk_mgr->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.max_dcfclk = 0xFFFF;
+	clk_mgr->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.min_uclk = min_uclk_mhz;
+	clk_mgr->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.max_uclk = 0xFFFF;
 
-		/* Set A - Normal - default values */
-		clk_mgr->bw_params->wm_table.nv_entries[WM_A].valid = true;
-		clk_mgr->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.wm_type = WATERMARKS_CLOCK_RANGE;
-		clk_mgr->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.min_dcfclk = min_dcfclk_mhz;
-		clk_mgr->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.max_dcfclk = 0xFFFF;
-		clk_mgr->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.min_uclk = min_uclk_mhz;
-		clk_mgr->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.max_uclk = 0xFFFF;
+	/* Set B - Unused on dcn4 */
+	clk_mgr->bw_params->wm_table.nv_entries[WM_B].valid = false;
 
-		/* Set B - Unused on dcn4 */
-		clk_mgr->bw_params->wm_table.nv_entries[WM_B].valid = false;
-
-		/* Set 1A - Dummy P-State - P-State latency set to "dummy p-state" value */
-		/* 'DalDummyClockChangeLatencyNs' registry key option set to 0x7FFFFFFF can be used to disable Set C for dummy p-state */
-		if (clk_mgr->ctx->dc->bb_overrides.dummy_clock_change_latency_ns != 0x7FFFFFFF) {
-			clk_mgr->bw_params->wm_table.nv_entries[WM_1A].valid = true;
-			clk_mgr->bw_params->wm_table.nv_entries[WM_1A].pmfw_breakdown.wm_type = WATERMARKS_DUMMY_PSTATE;
-			clk_mgr->bw_params->wm_table.nv_entries[WM_1A].pmfw_breakdown.min_dcfclk = min_dcfclk_mhz;
-			clk_mgr->bw_params->wm_table.nv_entries[WM_1A].pmfw_breakdown.max_dcfclk = 0xFFFF;
-			clk_mgr->bw_params->wm_table.nv_entries[WM_1A].pmfw_breakdown.min_uclk = min_uclk_mhz;
-			clk_mgr->bw_params->wm_table.nv_entries[WM_1A].pmfw_breakdown.max_uclk = 0xFFFF;
-		} else {
-			clk_mgr->bw_params->wm_table.nv_entries[WM_1A].valid = false;
-		}
-
-		/* Set 1B - Unused on dcn4 */
-		clk_mgr->bw_params->wm_table.nv_entries[WM_1B].valid = false;
+	/* Set 1A - Dummy P-State - P-State latency set to "dummy p-state" value */
+	/* 'DalDummyClockChangeLatencyNs' registry key option set to 0x7FFFFFFF can be used to disable Set C for dummy p-state */
+	if (clk_mgr->ctx->dc->bb_overrides.dummy_clock_change_latency_ns != 0x7FFFFFFF) {
+		clk_mgr->bw_params->wm_table.nv_entries[WM_1A].valid = true;
+		clk_mgr->bw_params->wm_table.nv_entries[WM_1A].pmfw_breakdown.wm_type = WATERMARKS_DUMMY_PSTATE;
+		clk_mgr->bw_params->wm_table.nv_entries[WM_1A].pmfw_breakdown.min_dcfclk = min_dcfclk_mhz;
+		clk_mgr->bw_params->wm_table.nv_entries[WM_1A].pmfw_breakdown.max_dcfclk = 0xFFFF;
+		clk_mgr->bw_params->wm_table.nv_entries[WM_1A].pmfw_breakdown.min_uclk = min_uclk_mhz;
+		clk_mgr->bw_params->wm_table.nv_entries[WM_1A].pmfw_breakdown.max_uclk = 0xFFFF;
+	} else {
+		clk_mgr->bw_params->wm_table.nv_entries[WM_1A].valid = false;
 	}
+
+	/* Set 1B - Unused on dcn4 */
+	clk_mgr->bw_params->wm_table.nv_entries[WM_1B].valid = false;
 }
 
 void dcn401_init_clocks(struct clk_mgr *clk_mgr_base)
@@ -318,6 +309,25 @@ void dcn401_init_clocks(struct clk_mgr *clk_mgr_base)
 
 	/* WM range table */
 	dcn401_build_wm_range_table(clk_mgr_base);
+}
+
+bool dcn401_is_dc_mode_present(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+
+	return clk_mgr->smu_present && clk_mgr->dpm_present &&
+			((clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dcfclk_levels &&
+			clk_mgr_base->bw_params->dc_mode_limit.dcfclk_mhz) ||
+			(clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dispclk_levels &&
+			clk_mgr_base->bw_params->dc_mode_limit.dispclk_mhz) ||
+			(clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dtbclk_levels &&
+			clk_mgr_base->bw_params->dc_mode_limit.dtbclk_mhz) ||
+			(clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_fclk_levels &&
+			clk_mgr_base->bw_params->dc_mode_limit.fclk_mhz) ||
+			(clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels &&
+			clk_mgr_base->bw_params->dc_mode_limit.memclk_mhz) ||
+			(clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_socclk_levels &&
+			clk_mgr_base->bw_params->dc_mode_limit.socclk_mhz));
 }
 
 static void dcn401_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
@@ -1490,6 +1500,35 @@ static int dcn401_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
 	return 0;
 }
 
+unsigned int dcn401_get_max_clock_khz(struct clk_mgr *clk_mgr_base, enum clk_type clk_type)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+
+	unsigned int num_clk_levels;
+
+	switch (clk_type) {
+	case CLK_TYPE_DISPCLK:
+		num_clk_levels = clk_mgr->base.bw_params->clk_table.num_entries_per_clk.num_dispclk_levels;
+		return dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DISPCLK) ?
+				clk_mgr->base.bw_params->clk_table.entries[num_clk_levels - 1].dispclk_mhz * 1000 :
+				clk_mgr->base.boot_snapshot.dispclk;
+	case CLK_TYPE_DPPCLK:
+		num_clk_levels = clk_mgr->base.bw_params->clk_table.num_entries_per_clk.num_dppclk_levels;
+		return dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DPPCLK) ?
+				clk_mgr->base.bw_params->clk_table.entries[num_clk_levels - 1].dppclk_mhz * 1000 :
+				clk_mgr->base.boot_snapshot.dppclk;
+	case CLK_TYPE_DSCCLK:
+		num_clk_levels = clk_mgr->base.bw_params->clk_table.num_entries_per_clk.num_dispclk_levels;
+		return dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DISPCLK) ?
+				clk_mgr->base.bw_params->clk_table.entries[num_clk_levels - 1].dispclk_mhz * 1000 / 3 :
+				clk_mgr->base.boot_snapshot.dispclk / 3;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static struct clk_mgr_funcs dcn401_funcs = {
 		.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 		.get_dtb_ref_clk_frequency = dcn401_get_dtb_ref_freq_khz,
@@ -1505,6 +1544,8 @@ static struct clk_mgr_funcs dcn401_funcs = {
 		.get_dispclk_from_dentist = dcn401_get_dispclk_from_dentist,
 		.get_hard_min_memclk = dcn401_get_hard_min_memclk,
 		.get_hard_min_fclk = dcn401_get_hard_min_fclk,
+		.is_dc_mode_present = dcn401_is_dc_mode_present,
+		.get_max_clock_khz = dcn401_get_max_clock_khz,
 };
 
 struct clk_mgr_internal *dcn401_clk_mgr_construct(

@@ -21,33 +21,6 @@ struct telemetry_core_config {
 
 static struct telemetry_core_config telm_core_conf;
 
-static int telemetry_def_update_events(struct telemetry_evtconfig pss_evtconfig,
-				      struct telemetry_evtconfig ioss_evtconfig)
-{
-	return 0;
-}
-
-static int telemetry_def_set_sampling_period(u8 pss_period, u8 ioss_period)
-{
-	return 0;
-}
-
-static int telemetry_def_get_sampling_period(u8 *pss_min_period,
-					     u8 *pss_max_period,
-					     u8 *ioss_min_period,
-					     u8 *ioss_max_period)
-{
-	return 0;
-}
-
-static int telemetry_def_get_eventconfig(
-			struct telemetry_evtconfig *pss_evtconfig,
-			struct telemetry_evtconfig *ioss_evtconfig,
-			int pss_len, int ioss_len)
-{
-	return 0;
-}
-
 static int telemetry_def_get_trace_verbosity(enum telemetry_unit telem_unit,
 					     u32 *verbosity)
 {
@@ -75,143 +48,12 @@ static int telemetry_def_read_eventlog(enum telemetry_unit telem_unit,
 	return 0;
 }
 
-static int telemetry_def_add_events(u8 num_pss_evts, u8 num_ioss_evts,
-				    u32 *pss_evtmap, u32 *ioss_evtmap)
-{
-	return 0;
-}
-
-static int telemetry_def_reset_events(void)
-{
-	return 0;
-}
-
 static const struct telemetry_core_ops telm_defpltops = {
-	.set_sampling_period = telemetry_def_set_sampling_period,
-	.get_sampling_period = telemetry_def_get_sampling_period,
 	.get_trace_verbosity = telemetry_def_get_trace_verbosity,
 	.set_trace_verbosity = telemetry_def_set_trace_verbosity,
 	.raw_read_eventlog = telemetry_def_raw_read_eventlog,
-	.get_eventconfig = telemetry_def_get_eventconfig,
 	.read_eventlog = telemetry_def_read_eventlog,
-	.update_events = telemetry_def_update_events,
-	.reset_events = telemetry_def_reset_events,
-	.add_events = telemetry_def_add_events,
 };
-
-/**
- * telemetry_update_events() - Update telemetry Configuration
- * @pss_evtconfig: PSS related config. No change if num_evts = 0.
- * @ioss_evtconfig: IOSS related config. No change if num_evts = 0.
- *
- * This API updates the IOSS & PSS Telemetry configuration. Old config
- * is overwritten. Call telemetry_reset_events when logging is over
- * All sample period values should be in the form of:
- * bits[6:3] -> value; bits [0:2]-> Exponent; Period = (Value *16^Exponent)
- *
- * Return: 0 success, < 0 for failure
- */
-int telemetry_update_events(struct telemetry_evtconfig pss_evtconfig,
-			    struct telemetry_evtconfig ioss_evtconfig)
-{
-	return telm_core_conf.telem_ops->update_events(pss_evtconfig,
-						       ioss_evtconfig);
-}
-EXPORT_SYMBOL_GPL(telemetry_update_events);
-
-
-/**
- * telemetry_set_sampling_period() - Sets the IOSS & PSS sampling period
- * @pss_period:  placeholder for PSS Period to be set.
- *		 Set to 0 if not required to be updated
- * @ioss_period: placeholder for IOSS Period to be set
- *		 Set to 0 if not required to be updated
- *
- * All values should be in the form of:
- * bits[6:3] -> value; bits [0:2]-> Exponent; Period = (Value *16^Exponent)
- *
- * Return: 0 success, < 0 for failure
- */
-int telemetry_set_sampling_period(u8 pss_period, u8 ioss_period)
-{
-	return telm_core_conf.telem_ops->set_sampling_period(pss_period,
-							     ioss_period);
-}
-EXPORT_SYMBOL_GPL(telemetry_set_sampling_period);
-
-/**
- * telemetry_get_sampling_period() - Get IOSS & PSS min & max sampling period
- * @pss_min_period:  placeholder for PSS Min Period supported
- * @pss_max_period:  placeholder for PSS Max Period supported
- * @ioss_min_period: placeholder for IOSS Min Period supported
- * @ioss_max_period: placeholder for IOSS Max Period supported
- *
- * All values should be in the form of:
- * bits[6:3] -> value; bits [0:2]-> Exponent; Period = (Value *16^Exponent)
- *
- * Return: 0 success, < 0 for failure
- */
-int telemetry_get_sampling_period(u8 *pss_min_period, u8 *pss_max_period,
-				  u8 *ioss_min_period, u8 *ioss_max_period)
-{
-	return telm_core_conf.telem_ops->get_sampling_period(pss_min_period,
-							     pss_max_period,
-							     ioss_min_period,
-							     ioss_max_period);
-}
-EXPORT_SYMBOL_GPL(telemetry_get_sampling_period);
-
-
-/**
- * telemetry_reset_events() - Restore the IOSS & PSS configuration to default
- *
- * Return: 0 success, < 0 for failure
- */
-int telemetry_reset_events(void)
-{
-	return telm_core_conf.telem_ops->reset_events();
-}
-EXPORT_SYMBOL_GPL(telemetry_reset_events);
-
-/**
- * telemetry_get_eventconfig() - Returns the pss and ioss events enabled
- * @pss_evtconfig: Pointer to PSS related configuration.
- * @ioss_evtconfig: Pointer to IOSS related configuration.
- * @pss_len:	   Number of u32 elements allocated for pss_evtconfig array
- * @ioss_len:	   Number of u32 elements allocated for ioss_evtconfig array
- *
- * Return: 0 success, < 0 for failure
- */
-int telemetry_get_eventconfig(struct telemetry_evtconfig *pss_evtconfig,
-			      struct telemetry_evtconfig *ioss_evtconfig,
-			      int pss_len, int ioss_len)
-{
-	return telm_core_conf.telem_ops->get_eventconfig(pss_evtconfig,
-							 ioss_evtconfig,
-							 pss_len, ioss_len);
-}
-EXPORT_SYMBOL_GPL(telemetry_get_eventconfig);
-
-/**
- * telemetry_add_events() - Add IOSS & PSS configuration to existing settings.
- * @num_pss_evts:  Number of PSS Events (<29) in pss_evtmap. Can be 0.
- * @num_ioss_evts: Number of IOSS Events (<29) in ioss_evtmap. Can be 0.
- * @pss_evtmap:    Array of PSS Event-IDs to Enable
- * @ioss_evtmap:   Array of PSS Event-IDs to Enable
- *
- * Events are appended to Old Configuration. In case of total events > 28, it
- * returns error. Call telemetry_reset_events to reset after eventlog done
- *
- * Return: 0 success, < 0 for failure
- */
-int telemetry_add_events(u8 num_pss_evts, u8 num_ioss_evts,
-			 u32 *pss_evtmap, u32 *ioss_evtmap)
-{
-	return telm_core_conf.telem_ops->add_events(num_pss_evts,
-						    num_ioss_evts, pss_evtmap,
-						    ioss_evtmap);
-}
-EXPORT_SYMBOL_GPL(telemetry_add_events);
 
 /**
  * telemetry_read_events() - Fetches samples as specified by evtlog.telem_evt_id
@@ -229,25 +71,6 @@ int telemetry_read_events(enum telemetry_unit telem_unit,
 						       len, 0);
 }
 EXPORT_SYMBOL_GPL(telemetry_read_events);
-
-/**
- * telemetry_raw_read_events() - Fetch samples specified by evtlog.telem_evt_id
- * @telem_unit: Specify whether IOSS or PSS Read
- * @evtlog:	Array of telemetry_evtlog structs to fill data
- *		evtlog.telem_evt_id specifies the ids to read
- * @len:	Length of array of evtlog
- *
- * The caller must take care of locking in this case.
- *
- * Return: number of eventlogs read for success, < 0 for failure
- */
-int telemetry_raw_read_events(enum telemetry_unit telem_unit,
-			      struct telemetry_evtlog *evtlog, int len)
-{
-	return telm_core_conf.telem_ops->raw_read_eventlog(telem_unit, evtlog,
-							   len, 0);
-}
-EXPORT_SYMBOL_GPL(telemetry_raw_read_events);
 
 /**
  * telemetry_read_eventlog() - Fetch the Telemetry log from PSS or IOSS

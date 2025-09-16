@@ -95,6 +95,9 @@ struct xe_oa_unit {
 	/** @oa_unit_id: identifier for the OA unit */
 	u16 oa_unit_id;
 
+	/** @gt: gt associated with the OA unit */
+	struct xe_gt *gt;
+
 	/** @type: Type of OA unit - OAM, OAG etc. */
 	enum drm_xe_oa_unit_type type;
 
@@ -181,6 +184,9 @@ struct xe_oa_stream {
 
 	/** @gt: gt associated with the oa stream */
 	struct xe_gt *gt;
+
+	/** @oa_unit: oa unit for this stream */
+	struct xe_oa_unit *oa_unit;
 
 	/** @hwe: hardware engine associated with this oa stream */
 	struct xe_hw_engine *hwe;

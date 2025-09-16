@@ -22,6 +22,7 @@
 #include "xe_gt_sriov_pf_policy.h"
 #include "xe_gt_sriov_pf_service.h"
 #include "xe_pm.h"
+#include "xe_sriov_pf.h"
 
 /*
  *      /sys/kernel/debug/dri/0/
@@ -76,11 +77,6 @@ static const struct drm_info_list pf_info[] = {
 		"runtime_registers",
 		.show = xe_gt_debugfs_simple_show,
 		.data = xe_gt_sriov_pf_service_print_runtime,
-	},
-	{
-		"negotiated_versions",
-		.show = xe_gt_debugfs_simple_show,
-		.data = xe_gt_sriov_pf_service_print_version,
 	},
 	{
 		"adverse_events",
@@ -210,7 +206,8 @@ static int CONFIG##_set(void *data, u64 val)					\
 		return -EOVERFLOW;						\
 										\
 	xe_pm_runtime_get(xe);							\
-	err = xe_gt_sriov_pf_config_set_##CONFIG(gt, vfid, val);		\
+	err = xe_sriov_pf_wait_ready(xe) ?:					\
+	      xe_gt_sriov_pf_config_set_##CONFIG(gt, vfid, val);		\
 	xe_pm_runtime_put(xe);							\
 										\
 	return err;								\
@@ -305,10 +302,10 @@ static void pf_add_config_attrs(struct xe_gt *gt, struct dentry *parent, unsigne
 	xe_gt_assert(gt, gt == extract_gt(parent));
 	xe_gt_assert(gt, vfid == extract_vfid(parent));
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		debugfs_create_file_unsafe(vfid ? "ggtt_quota" : "ggtt_spare",
 					   0644, parent, parent, &ggtt_fops);
-		if (IS_DGFX(gt_to_xe(gt)))
+		if (xe_device_has_lmtt(gt_to_xe(gt)))
 			debugfs_create_file_unsafe(vfid ? "lmem_quota" : "lmem_spare",
 						   0644, parent, parent, &lmem_fops);
 	}
@@ -554,11 +551,11 @@ void xe_gt_sriov_pf_debugfs_register(struct xe_gt *gt, struct dentry *root)
 	pfdentry->d_inode->i_private = gt;
 
 	drm_debugfs_create_files(pf_info, ARRAY_SIZE(pf_info), pfdentry, minor);
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		drm_debugfs_create_files(pf_ggtt_info,
 					 ARRAY_SIZE(pf_ggtt_info),
 					 pfdentry, minor);
-		if (IS_DGFX(gt_to_xe(gt)))
+		if (xe_device_has_lmtt(gt_to_xe(gt)))
 			drm_debugfs_create_files(pf_lmem_info,
 						 ARRAY_SIZE(pf_lmem_info),
 						 pfdentry, minor);

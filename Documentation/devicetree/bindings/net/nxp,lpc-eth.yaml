@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/nxp,lpc-eth.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP LPC32xx SoC Ethernet Controller
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: nxp,lpc-eth
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  use-iram:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Use LPC32xx internal SRAM (IRAM) for DMA buffering
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    ethernet@31060000 {
+        compatible = "nxp,lpc-eth";
+        reg = <0x31060000 0x1000>;
+        interrupt-parent = <&mic>;
+        interrupts = <29 0>;
+        phy-mode = "rmii";
+        use-iram;
+    };

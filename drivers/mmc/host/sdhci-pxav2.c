@@ -258,7 +258,6 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 	struct sdhci_host *host = NULL;
 	const struct sdhci_pxa_variant *variant;
 
-	int ret;
 	struct clk *clk, *clk_core;
 
 	host = sdhci_pltfm_init(pdev, NULL, sizeof(*pxav2_host));
@@ -271,19 +270,14 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 	clk = devm_clk_get_optional_enabled(dev, "io");
 	if (!clk)
 		clk = devm_clk_get_enabled(dev, NULL);
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		dev_err_probe(dev, ret, "failed to get io clock\n");
-		goto free;
-	}
+	if (IS_ERR(clk))
+		return dev_err_probe(dev, PTR_ERR(clk), "failed to get io clock\n");
 	pltfm_host->clk = clk;
 
 	clk_core = devm_clk_get_optional_enabled(dev, "core");
-	if (IS_ERR(clk_core)) {
-		ret = PTR_ERR(clk_core);
-		dev_err_probe(dev, ret, "failed to enable core clock\n");
-		goto free;
-	}
+	if (IS_ERR(clk_core))
+		return dev_err_probe(dev, PTR_ERR(clk_core),
+				     "failed to enable core clock\n");
 
 	host->quirks = SDHCI_QUIRK_BROKEN_ADMA
 		| SDHCI_QUIRK_BROKEN_TIMEOUT_VAL
@@ -332,15 +326,7 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 		pxav2_host->pinctrl = NULL;
 	}
 
-	ret = sdhci_add_host(host);
-	if (ret)
-		goto free;
-
-	return 0;
-
-free:
-	sdhci_pltfm_free(pdev);
-	return ret;
+	return sdhci_add_host(host);
 }
 
 static struct platform_driver sdhci_pxav2_driver = {

@@ -56,6 +56,7 @@
 			d-cache-sets = <128>;
 			next-level-cache = <&l2_0>;
 			clocks = <&k3_clks 135 0>;
+			#cooling-cells = <2>;
 		};
 
 		cpu1: cpu@1 {
@@ -71,6 +72,7 @@
 			d-cache-sets = <128>;
 			next-level-cache = <&l2_0>;
 			clocks = <&k3_clks 136 0>;
+			#cooling-cells = <2>;
 		};
 
 		cpu2: cpu@2 {
@@ -86,6 +88,7 @@
 			d-cache-sets = <128>;
 			next-level-cache = <&l2_0>;
 			clocks = <&k3_clks 137 0>;
+			#cooling-cells = <2>;
 		};
 
 		cpu3: cpu@3 {
@@ -101,6 +104,7 @@
 			d-cache-sets = <128>;
 			next-level-cache = <&l2_0>;
 			clocks = <&k3_clks 138 0>;
+			#cooling-cells = <2>;
 		};
 	};
 

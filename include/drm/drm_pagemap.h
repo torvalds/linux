@@ -7,6 +7,7 @@
 #include <linux/types.h>
 
 struct drm_pagemap;
+struct drm_pagemap_zdd;
 struct device;
 
 /**
@@ -91,6 +92,35 @@ struct drm_pagemap_ops {
 			     struct device *dev,
 			     struct drm_pagemap_device_addr addr);
 
+	/**
+	 * @populate_mm: Populate part of the mm with @dpagemap memory,
+	 * migrating existing data.
+	 * @dpagemap: The struct drm_pagemap managing the memory.
+	 * @start: The virtual start address in @mm
+	 * @end: The virtual end address in @mm
+	 * @mm: Pointer to a live mm. The caller must have an mmget()
+	 * reference.
+	 *
+	 * The caller will have the mm lock at least in read mode.
+	 * Note that there is no guarantee that the memory is resident
+	 * after the function returns, it's best effort only.
+	 * When the mm is not using the memory anymore,
+	 * it will be released. The struct drm_pagemap might have a
+	 * mechanism in place to reclaim the memory and the data will
+	 * then be migrated. Typically to system memory.
+	 * The implementation should hold sufficient runtime power-
+	 * references while pages are used in an address space and
+	 * should ideally guard against hardware device unbind in
+	 * a way such that device pages are migrated back to system
+	 * followed by device page removal. The implementation should
+	 * return -ENODEV after device removal.
+	 *
+	 * Return: 0 if successful. Negative error code on error.
+	 */
+	int (*populate_mm)(struct drm_pagemap *dpagemap,
+			   unsigned long start, unsigned long end,
+			   struct mm_struct *mm,
+			   unsigned long timeslice_ms);
 };
 
 /**
@@ -103,5 +133,110 @@ struct drm_pagemap {
 	const struct drm_pagemap_ops *ops;
 	struct device *dev;
 };
+
+struct drm_pagemap_devmem;
+
+/**
+ * struct drm_pagemap_devmem_ops - Operations structure for GPU SVM device memory
+ *
+ * This structure defines the operations for GPU Shared Virtual Memory (SVM)
+ * device memory. These operations are provided by the GPU driver to manage device memory
+ * allocations and perform operations such as migration between device memory and system
+ * RAM.
+ */
+struct drm_pagemap_devmem_ops {
+	/**
+	 * @devmem_release: Release device memory allocation (optional)
+	 * @devmem_allocation: device memory allocation
+	 *
+	 * Release device memory allocation and drop a reference to device
+	 * memory allocation.
+	 */
+	void (*devmem_release)(struct drm_pagemap_devmem *devmem_allocation);
+
+	/**
+	 * @populate_devmem_pfn: Populate device memory PFN (required for migration)
+	 * @devmem_allocation: device memory allocation
+	 * @npages: Number of pages to populate
+	 * @pfn: Array of page frame numbers to populate
+	 *
+	 * Populate device memory page frame numbers (PFN).
+	 *
+	 * Return: 0 on success, a negative error code on failure.
+	 */
+	int (*populate_devmem_pfn)(struct drm_pagemap_devmem *devmem_allocation,
+				   unsigned long npages, unsigned long *pfn);
+
+	/**
+	 * @copy_to_devmem: Copy to device memory (required for migration)
+	 * @pages: Pointer to array of device memory pages (destination)
+	 * @dma_addr: Pointer to array of DMA addresses (source)
+	 * @npages: Number of pages to copy
+	 *
+	 * Copy pages to device memory.
+	 *
+	 * Return: 0 on success, a negative error code on failure.
+	 */
+	int (*copy_to_devmem)(struct page **pages,
+			      dma_addr_t *dma_addr,
+			      unsigned long npages);
+
+	/**
+	 * @copy_to_ram: Copy to system RAM (required for migration)
+	 * @pages: Pointer to array of device memory pages (source)
+	 * @dma_addr: Pointer to array of DMA addresses (destination)
+	 * @npages: Number of pages to copy
+	 *
+	 * Copy pages to system RAM.
+	 *
+	 * Return: 0 on success, a negative error code on failure.
+	 */
+	int (*copy_to_ram)(struct page **pages,
+			   dma_addr_t *dma_addr,
+			   unsigned long npages);
+};
+
+/**
+ * struct drm_pagemap_devmem - Structure representing a GPU SVM device memory allocation
+ *
+ * @dev: Pointer to the device structure which device memory allocation belongs to
+ * @mm: Pointer to the mm_struct for the address space
+ * @detached: device memory allocations is detached from device pages
+ * @ops: Pointer to the operations structure for GPU SVM device memory
+ * @dpagemap: The struct drm_pagemap of the pages this allocation belongs to.
+ * @size: Size of device memory allocation
+ * @timeslice_expiration: Timeslice expiration in jiffies
+ */
+struct drm_pagemap_devmem {
+	struct device *dev;
+	struct mm_struct *mm;
+	struct completion detached;
+	const struct drm_pagemap_devmem_ops *ops;
+	struct drm_pagemap *dpagemap;
+	size_t size;
+	u64 timeslice_expiration;
+};
+
+int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
+				  struct mm_struct *mm,
+				  unsigned long start, unsigned long end,
+				  unsigned long timeslice_ms,
+				  void *pgmap_owner);
+
+int drm_pagemap_evict_to_ram(struct drm_pagemap_devmem *devmem_allocation);
+
+const struct dev_pagemap_ops *drm_pagemap_pagemap_ops_get(void);
+
+struct drm_pagemap *drm_pagemap_page_to_dpagemap(struct page *page);
+
+void drm_pagemap_devmem_init(struct drm_pagemap_devmem *devmem_allocation,
+			     struct device *dev, struct mm_struct *mm,
+			     const struct drm_pagemap_devmem_ops *ops,
+			     struct drm_pagemap *dpagemap, size_t size);
+
+int drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
+			    unsigned long start, unsigned long end,
+			    struct mm_struct *mm,
+			    unsigned long timeslice_ms);
 
 #endif
