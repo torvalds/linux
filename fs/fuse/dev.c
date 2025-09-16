@@ -371,12 +371,32 @@ void fuse_dev_queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
 	}
 }
 
+static inline void fuse_request_assign_unique_locked(struct fuse_iqueue *fiq,
+						     struct fuse_req *req)
+{
+	if (req->in.h.opcode != FUSE_NOTIFY_REPLY)
+		req->in.h.unique = fuse_get_unique_locked(fiq);
+
+	/* tracepoint captures in.h.unique and in.h.len */
+	trace_fuse_request_send(req);
+}
+
+inline void fuse_request_assign_unique(struct fuse_iqueue *fiq,
+				       struct fuse_req *req)
+{
+	if (req->in.h.opcode != FUSE_NOTIFY_REPLY)
+		req->in.h.unique = fuse_get_unique(fiq);
+
+	/* tracepoint captures in.h.unique and in.h.len */
+	trace_fuse_request_send(req);
+}
+EXPORT_SYMBOL_GPL(fuse_request_assign_unique);
+
 static void fuse_dev_queue_req(struct fuse_iqueue *fiq, struct fuse_req *req)
 {
 	spin_lock(&fiq->lock);
 	if (fiq->connected) {
-		if (req->in.h.opcode != FUSE_NOTIFY_REPLY)
-			req->in.h.unique = fuse_get_unique_locked(fiq);
+		fuse_request_assign_unique_locked(fiq, req);
 		list_add_tail(&req->list, &fiq->pending);
 		fuse_dev_wake_and_unlock(fiq);
 	} else {
@@ -399,7 +419,6 @@ static void fuse_send_one(struct fuse_iqueue *fiq, struct fuse_req *req)
 	req->in.h.len = sizeof(struct fuse_in_header) +
 		fuse_len_args(req->args->in_numargs,
 			      (struct fuse_arg *) req->args->in_args);
-	trace_fuse_request_send(req);
 	fiq->ops->send_req(fiq, req);
 }
 
@@ -689,10 +708,10 @@ static bool fuse_request_queue_background_uring(struct fuse_conn *fc,
 {
 	struct fuse_iqueue *fiq = &fc->iq;
 
-	req->in.h.unique = fuse_get_unique(fiq);
 	req->in.h.len = sizeof(struct fuse_in_header) +
 		fuse_len_args(req->args->in_numargs,
 			      (struct fuse_arg *) req->args->in_args);
+	fuse_request_assign_unique(fiq, req);
 
 	return fuse_uring_queue_bq_req(req);
 }

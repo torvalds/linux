@@ -1261,6 +1261,11 @@ int fuse_simple_background(struct fuse_mount *fm, struct fuse_args *args,
 			   gfp_t gfp_flags);
 
 /**
+ * Assign a unique id to a fuse request
+ */
+void fuse_request_assign_unique(struct fuse_iqueue *fiq, struct fuse_req *req);
+
+/**
  * End a finished request
  */
 void fuse_request_end(struct fuse_req *req);
