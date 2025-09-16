@@ -977,6 +977,7 @@ void fuse_conn_init(struct fuse_conn *fc, struct fuse_mount *fm,
 	refcount_set(&fc->count, 1);
 	atomic_set(&fc->dev_count, 1);
 	atomic_set(&fc->epoch, 1);
+	INIT_WORK(&fc->epoch_work, fuse_epoch_work);
 	init_waitqueue_head(&fc->blocked_waitq);
 	fuse_iqueue_init(&fc->iq, fiq_ops, fiq_priv);
 	INIT_LIST_HEAD(&fc->bg_queue);
@@ -1029,6 +1030,7 @@ void fuse_conn_put(struct fuse_conn *fc)
 			fuse_dax_conn_free(fc);
 		if (fc->timeout.req_timeout)
 			cancel_delayed_work_sync(&fc->timeout.work);
+		cancel_work_sync(&fc->epoch_work);
 		if (fiq->ops->release)
 			fiq->ops->release(fiq);
 		put_pid_ns(fc->pid_ns);

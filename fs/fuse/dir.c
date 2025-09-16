@@ -189,6 +189,27 @@ static void fuse_dentry_tree_work(struct work_struct *work)
 				      secs_to_jiffies(inval_wq));
 }
 
+void fuse_epoch_work(struct work_struct *work)
+{
+	struct fuse_conn *fc = container_of(work, struct fuse_conn,
+					    epoch_work);
+	struct fuse_mount *fm;
+	struct inode *inode;
+
+	down_read(&fc->killsb);
+
+	inode = fuse_ilookup(fc, FUSE_ROOT_ID, &fm);
+	iput(inode);
+
+	if (fm) {
+		/* Remove all possible active references to cached inodes */
+		shrink_dcache_sb(fm->sb);
+	} else
+		pr_warn("Failed to get root inode");
+
+	up_read(&fc->killsb);
+}
+
 void fuse_dentry_tree_init(void)
 {
 	int i;

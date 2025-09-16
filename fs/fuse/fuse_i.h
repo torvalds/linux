@@ -649,6 +649,8 @@ struct fuse_conn {
 	/** Current epoch for up-to-date dentries */
 	atomic_t epoch;
 
+	struct work_struct epoch_work;
+
 	struct rcu_head rcu;
 
 	/** The user id for this mount */
@@ -1286,6 +1288,8 @@ void fuse_check_timeout(struct work_struct *work);
 
 void fuse_dentry_tree_init(void);
 void fuse_dentry_tree_cleanup(void);
+
+void fuse_epoch_work(struct work_struct *work);
 
 /**
  * Invalidate inode attributes
