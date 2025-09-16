@@ -844,7 +844,7 @@ struct extent_buffer *btrfs_read_node_slot(struct extent_buffer *parent,
 			     &check);
 	if (IS_ERR(eb))
 		return eb;
-	if (!extent_buffer_uptodate(eb)) {
+	if (unlikely(!extent_buffer_uptodate(eb))) {
 		free_extent_buffer(eb);
 		return ERR_PTR(-EIO);
 	}
@@ -1571,7 +1571,7 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	 * and give up so that our caller doesn't loop forever
 	 * on our EAGAINs.
 	 */
-	if (!extent_buffer_uptodate(tmp)) {
+	if (unlikely(!extent_buffer_uptodate(tmp))) {
 		ret = -EIO;
 		goto out;
 	}
@@ -1752,7 +1752,7 @@ out:
 	 * The root may have failed to write out at some point, and thus is no
 	 * longer valid, return an error in this case.
 	 */
-	if (!extent_buffer_uptodate(b)) {
+	if (unlikely(!extent_buffer_uptodate(b))) {
 		if (root_lock)
 			btrfs_tree_unlock_rw(b, root_lock);
 		free_extent_buffer(b);
@@ -2260,7 +2260,7 @@ int btrfs_search_old_slot(struct btrfs_root *root, const struct btrfs_key *key,
 
 again:
 	b = btrfs_get_old_root(root, time_seq);
-	if (!b) {
+	if (unlikely(!b)) {
 		ret = -EIO;
 		goto done;
 	}
