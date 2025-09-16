@@ -16,10 +16,10 @@ struct io_zcrx_mem {
 	unsigned long			nr_folios;
 	struct sg_table			page_sg_table;
 	unsigned long			account_pages;
+	struct sg_table			*sgt;
 
 	struct dma_buf_attachment	*attach;
 	struct dma_buf			*dmabuf;
-	struct sg_table			*sgt;
 };
 
 struct io_zcrx_area {
