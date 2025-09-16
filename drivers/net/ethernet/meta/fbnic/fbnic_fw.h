@@ -67,6 +67,14 @@ struct fbnic_fw_completion {
 	int result;
 	union {
 		struct {
+			u32 size;
+		} coredump_info;
+		struct {
+			u32 size;
+			u16 stride;
+			u8 *data[];
+		} coredump;
+		struct {
 			u32 offset;
 			u32 length;
 		} fw_update;
@@ -89,6 +97,12 @@ void fbnic_mbx_flush_tx(struct fbnic_dev *fbd);
 int fbnic_fw_xmit_ownership_msg(struct fbnic_dev *fbd, bool take_ownership);
 int fbnic_fw_init_heartbeat(struct fbnic_dev *fbd, bool poll);
 void fbnic_fw_check_heartbeat(struct fbnic_dev *fbd);
+int fbnic_fw_xmit_coredump_info_msg(struct fbnic_dev *fbd,
+				    struct fbnic_fw_completion *cmpl_data,
+				    bool force);
+int fbnic_fw_xmit_coredump_read_msg(struct fbnic_dev *fbd,
+				    struct fbnic_fw_completion *cmpl_data,
+				    u32 offset, u32 length);
 int fbnic_fw_xmit_fw_start_upgrade(struct fbnic_dev *fbd,
 				   struct fbnic_fw_completion *cmpl_data,
 				   unsigned int id, unsigned int len);
@@ -137,6 +151,10 @@ enum {
 	FBNIC_TLV_MSG_ID_OWNERSHIP_RESP			= 0x13,
 	FBNIC_TLV_MSG_ID_HEARTBEAT_REQ			= 0x14,
 	FBNIC_TLV_MSG_ID_HEARTBEAT_RESP			= 0x15,
+	FBNIC_TLV_MSG_ID_COREDUMP_GET_INFO_REQ		= 0x18,
+	FBNIC_TLV_MSG_ID_COREDUMP_GET_INFO_RESP		= 0x19,
+	FBNIC_TLV_MSG_ID_COREDUMP_READ_REQ		= 0x20,
+	FBNIC_TLV_MSG_ID_COREDUMP_READ_RESP		= 0x21,
 	FBNIC_TLV_MSG_ID_FW_START_UPGRADE_REQ		= 0x22,
 	FBNIC_TLV_MSG_ID_FW_START_UPGRADE_RESP		= 0x23,
 	FBNIC_TLV_MSG_ID_FW_WRITE_CHUNK_REQ		= 0x24,
@@ -208,6 +226,26 @@ enum {
 	FBNIC_FW_HEARTBEAT_UPTIME               = 0x0,
 	FBNIC_FW_HEARTBEAT_NUMBER_OF_MESSAGES   = 0x1,
 	FBNIC_FW_HEARTBEAT_MSG_MAX
+};
+
+enum {
+	FBNIC_FW_COREDUMP_REQ_INFO_CREATE	= 0x0,
+	FBNIC_FW_COREDUMP_REQ_INFO_MSG_MAX
+};
+
+enum {
+	FBNIC_FW_COREDUMP_INFO_AVAILABLE	= 0x0,
+	FBNIC_FW_COREDUMP_INFO_SIZE		= 0x1,
+	FBNIC_FW_COREDUMP_INFO_ERROR		= 0x2,
+	FBNIC_FW_COREDUMP_INFO_MSG_MAX
+};
+
+enum {
+	FBNIC_FW_COREDUMP_READ_OFFSET		= 0x0,
+	FBNIC_FW_COREDUMP_READ_LENGTH		= 0x1,
+	FBNIC_FW_COREDUMP_READ_DATA		= 0x2,
+	FBNIC_FW_COREDUMP_READ_ERROR		= 0x3,
+	FBNIC_FW_COREDUMP_READ_MSG_MAX
 };
 
 enum {

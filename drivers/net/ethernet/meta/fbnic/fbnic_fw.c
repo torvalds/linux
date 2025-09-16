@@ -793,6 +793,215 @@ void fbnic_fw_check_heartbeat(struct fbnic_dev *fbd)
 		dev_warn(fbd->dev, "Failed to send heartbeat message\n");
 }
 
+/**
+ * fbnic_fw_xmit_coredump_info_msg - Create and transmit a coredump info message
+ * @fbd: FBNIC device structure
+ * @cmpl_data: Structure to store info in
+ * @force: Force coredump event if one hasn't already occurred
+ *
+ * Return: zero on success, negative errno on failure
+ *
+ * Asks the FW for info related to coredump. If a coredump doesn't exist it
+ * can optionally force one if force is true.
+ */
+int fbnic_fw_xmit_coredump_info_msg(struct fbnic_dev *fbd,
+				    struct fbnic_fw_completion *cmpl_data,
+				    bool force)
+{
+	struct fbnic_tlv_msg *msg;
+	int err = 0;
+
+	msg = fbnic_tlv_msg_alloc(FBNIC_TLV_MSG_ID_COREDUMP_GET_INFO_REQ);
+	if (!msg)
+		return -ENOMEM;
+
+	if (force) {
+		err = fbnic_tlv_attr_put_flag(msg, FBNIC_FW_COREDUMP_REQ_INFO_CREATE);
+		if (err)
+			goto free_msg;
+	}
+
+	err = fbnic_mbx_map_req_w_cmpl(fbd, msg, cmpl_data);
+	if (err)
+		goto free_msg;
+
+	return 0;
+
+free_msg:
+	free_page((unsigned long)msg);
+	return err;
+}
+
+static const struct fbnic_tlv_index fbnic_coredump_info_resp_index[] = {
+	FBNIC_TLV_ATTR_FLAG(FBNIC_FW_COREDUMP_INFO_AVAILABLE),
+	FBNIC_TLV_ATTR_U32(FBNIC_FW_COREDUMP_INFO_SIZE),
+	FBNIC_TLV_ATTR_S32(FBNIC_FW_COREDUMP_INFO_ERROR),
+	FBNIC_TLV_ATTR_LAST
+};
+
+static int
+fbnic_fw_parse_coredump_info_resp(void *opaque, struct fbnic_tlv_msg **results)
+{
+	struct fbnic_fw_completion *cmpl_data;
+	struct fbnic_dev *fbd = opaque;
+	u32 msg_type;
+	s32 err;
+
+	/* Verify we have a completion pointer to provide with data */
+	msg_type = FBNIC_TLV_MSG_ID_COREDUMP_GET_INFO_RESP;
+	cmpl_data = fbnic_fw_get_cmpl_by_type(fbd, msg_type);
+	if (!cmpl_data)
+		return -ENOSPC;
+
+	err = fta_get_sint(results, FBNIC_FW_COREDUMP_INFO_ERROR);
+	if (err)
+		goto msg_err;
+
+	if (!results[FBNIC_FW_COREDUMP_INFO_AVAILABLE]) {
+		err = -ENOENT;
+		goto msg_err;
+	}
+
+	cmpl_data->u.coredump_info.size =
+		fta_get_uint(results, FBNIC_FW_COREDUMP_INFO_SIZE);
+
+msg_err:
+	cmpl_data->result = err;
+	complete(&cmpl_data->done);
+	fbnic_fw_put_cmpl(cmpl_data);
+
+	return err;
+}
+
+/**
+ * fbnic_fw_xmit_coredump_read_msg - Create and transmit a coredump read request
+ * @fbd: FBNIC device structure
+ * @cmpl_data: Completion struct to store coredump
+ * @offset: Offset into coredump requested
+ * @length: Length of section of cordeump to fetch
+ *
+ * Return: zero on success, negative errno on failure
+ *
+ * Asks the firmware to provide a section of the cordeump back in a message.
+ * The response will have an offset and size matching the values provided.
+ */
+int fbnic_fw_xmit_coredump_read_msg(struct fbnic_dev *fbd,
+				    struct fbnic_fw_completion *cmpl_data,
+				    u32 offset, u32 length)
+{
+	struct fbnic_tlv_msg *msg;
+	int err = 0;
+
+	msg = fbnic_tlv_msg_alloc(FBNIC_TLV_MSG_ID_COREDUMP_READ_REQ);
+	if (!msg)
+		return -ENOMEM;
+
+	if (offset) {
+		err = fbnic_tlv_attr_put_int(msg, FBNIC_FW_COREDUMP_READ_OFFSET,
+					     offset);
+		if (err)
+			goto free_message;
+	}
+
+	if (length) {
+		err = fbnic_tlv_attr_put_int(msg, FBNIC_FW_COREDUMP_READ_LENGTH,
+					     length);
+		if (err)
+			goto free_message;
+	}
+
+	err = fbnic_mbx_map_req_w_cmpl(fbd, msg, cmpl_data);
+	if (err)
+		goto free_message;
+
+	return 0;
+
+free_message:
+	free_page((unsigned long)msg);
+	return err;
+}
+
+static const struct fbnic_tlv_index fbnic_coredump_resp_index[] = {
+	FBNIC_TLV_ATTR_U32(FBNIC_FW_COREDUMP_READ_OFFSET),
+	FBNIC_TLV_ATTR_U32(FBNIC_FW_COREDUMP_READ_LENGTH),
+	FBNIC_TLV_ATTR_RAW_DATA(FBNIC_FW_COREDUMP_READ_DATA),
+	FBNIC_TLV_ATTR_S32(FBNIC_FW_COREDUMP_READ_ERROR),
+	FBNIC_TLV_ATTR_LAST
+};
+
+static int fbnic_fw_parse_coredump_resp(void *opaque,
+					struct fbnic_tlv_msg **results)
+{
+	struct fbnic_fw_completion *cmpl_data;
+	u32 index, last_offset, last_length;
+	struct fbnic_dev *fbd = opaque;
+	struct fbnic_tlv_msg *data_hdr;
+	u32 length, offset;
+	u32 msg_type;
+	s32 err;
+
+	/* Verify we have a completion pointer to provide with data */
+	msg_type = FBNIC_TLV_MSG_ID_COREDUMP_READ_RESP;
+	cmpl_data = fbnic_fw_get_cmpl_by_type(fbd, msg_type);
+	if (!cmpl_data)
+		return -ENOSPC;
+
+	err = fta_get_sint(results, FBNIC_FW_COREDUMP_READ_ERROR);
+	if (err)
+		goto msg_err;
+
+	data_hdr = results[FBNIC_FW_COREDUMP_READ_DATA];
+	if (!data_hdr) {
+		err = -ENODATA;
+		goto msg_err;
+	}
+
+	offset = fta_get_uint(results, FBNIC_FW_COREDUMP_READ_OFFSET);
+	length = fta_get_uint(results, FBNIC_FW_COREDUMP_READ_LENGTH);
+
+	if (length > le16_to_cpu(data_hdr->hdr.len) - sizeof(u32)) {
+		dev_err(fbd->dev, "length greater than size of message\n");
+		err = -EINVAL;
+		goto msg_err;
+	}
+
+	/* Only the last offset can have a length != stride */
+	last_length =
+		(cmpl_data->u.coredump.size % cmpl_data->u.coredump.stride) ? :
+		cmpl_data->u.coredump.stride;
+	last_offset = cmpl_data->u.coredump.size - last_length;
+
+	/* Verify offset and length */
+	if (offset % cmpl_data->u.coredump.stride || offset > last_offset) {
+		dev_err(fbd->dev, "offset %d out of range\n", offset);
+		err = -EINVAL;
+	} else if (length != ((offset == last_offset) ?
+			      last_length : cmpl_data->u.coredump.stride)) {
+		dev_err(fbd->dev, "length %d out of range for offset %d\n",
+			length, offset);
+		err = -EINVAL;
+	}
+	if (err)
+		goto msg_err;
+
+	/* If data pointer is NULL it is already filled, just skip the copy */
+	index = offset / cmpl_data->u.coredump.stride;
+	if (!cmpl_data->u.coredump.data[index])
+		goto msg_err;
+
+	/* Copy data and mark index filled by setting pointer to NULL */
+	memcpy(cmpl_data->u.coredump.data[index],
+	       fbnic_tlv_attr_get_value_ptr(data_hdr), length);
+	cmpl_data->u.coredump.data[index] = NULL;
+
+msg_err:
+	cmpl_data->result = err;
+	complete(&cmpl_data->done);
+	fbnic_fw_put_cmpl(cmpl_data);
+
+	return err;
+}
+
 int fbnic_fw_xmit_fw_start_upgrade(struct fbnic_dev *fbd,
 				   struct fbnic_fw_completion *cmpl_data,
 				   unsigned int id, unsigned int len)
@@ -1222,6 +1431,11 @@ static const struct fbnic_tlv_parser fbnic_fw_tlv_parser[] = {
 			 fbnic_fw_parse_ownership_resp),
 	FBNIC_TLV_PARSER(HEARTBEAT_RESP, fbnic_heartbeat_resp_index,
 			 fbnic_fw_parse_heartbeat_resp),
+	FBNIC_TLV_PARSER(COREDUMP_GET_INFO_RESP,
+			 fbnic_coredump_info_resp_index,
+			 fbnic_fw_parse_coredump_info_resp),
+	FBNIC_TLV_PARSER(COREDUMP_READ_RESP, fbnic_coredump_resp_index,
+			 fbnic_fw_parse_coredump_resp),
 	FBNIC_TLV_PARSER(FW_START_UPGRADE_RESP,
 			 fbnic_fw_start_upgrade_resp_index,
 			 fbnic_fw_parse_fw_start_upgrade_resp),
