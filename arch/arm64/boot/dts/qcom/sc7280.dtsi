@@ -5144,7 +5144,8 @@
 				reg = <0 0x0aea0000 0 0x200>,
 				      <0 0x0aea0200 0 0x200>,
 				      <0 0x0aea0400 0 0xc00>,
-				      <0 0x0aea1000 0 0x400>;
+				      <0 0x0aea1000 0 0x400>,
+				      <0 0x0aea1400 0 0x400>;
 
 				interrupt-parent = <&mdss>;
 				interrupts = <14>;
