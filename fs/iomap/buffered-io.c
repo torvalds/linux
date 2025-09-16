@@ -1396,6 +1396,9 @@ static int iomap_zero_iter(struct iomap_iter *iter, bool *did_zero,
 		/* warn about zeroing folios beyond eof that won't write back */
 		WARN_ON_ONCE(folio_pos(folio) > iter->inode->i_size);
 
+		trace_iomap_zero_iter(iter->inode, folio_pos(folio) + offset,
+				bytes);
+
 		folio_zero_range(folio, offset, bytes);
 		folio_mark_accessed(folio);
 
