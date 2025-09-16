@@ -431,8 +431,6 @@ struct msi_domain_info;
  *			function.
  * @domain_free_irqs:	Optional function to override the default free
  *			function.
- * @msi_post_free:	Optional function which is invoked after freeing
- *			all interrupts.
  * @msi_translate:	Optional translate callback to support the odd wire to
  *			MSI bridges, e.g. MBIGEN
  *
@@ -473,8 +471,6 @@ struct msi_domain_ops {
 					     struct device *dev, int nvec);
 	void		(*domain_free_irqs)(struct irq_domain *domain,
 					    struct device *dev);
-	void		(*msi_post_free)(struct irq_domain *domain,
-					 struct device *dev);
 	int		(*msi_translate)(struct irq_domain *domain, struct irq_fwspec *fwspec,
 					 irq_hw_number_t *hwirq, unsigned int *type);
 };
