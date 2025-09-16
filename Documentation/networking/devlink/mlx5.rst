@@ -62,6 +62,15 @@ Note: permanent parameters such as ``enable_sriov`` and ``total_vfs`` require FW
    echo 1 >/sys/bus/pci/rescan
    grep ^ /sys/bus/pci/devices/0000:01:00.0/sriov_*
 
+   * - ``num_doorbells``
+     - driverinit
+     - This controls the number of channel doorbells used by the netdev. In all
+       cases, an additional doorbell is allocated and used for non-channel
+       communication (e.g. for PTP, HWS, etc.). Supported values are:
+
+       - 0: No channel-specific doorbells, use the global one for everything.
+       - [1, max_num_channels]: Spread netdev channels equally across these
+         doorbells.
 
 The ``mlx5`` driver also implements the following driver-specific
 parameters.

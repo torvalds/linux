@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include "devlink.h"
 #include "en.h"
 #include "lib/crypto.h"
 
@@ -140,6 +141,18 @@ err_close_tises:
 	return err;
 }
 
+static unsigned int
+mlx5e_get_devlink_param_num_doorbells(struct mlx5_core_dev *dev)
+{
+	const u32 param_id = DEVLINK_PARAM_GENERIC_ID_NUM_DOORBELLS;
+	struct devlink *devlink = priv_to_devlink(dev);
+	union devlink_param_value val;
+	int err;
+
+	err = devl_param_driverinit_value_get(devlink, param_id, &val);
+	return err ? MLX5_DEFAULT_NUM_DOORBELLS : val.vu32;
+}
+
 int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises)
 {
 	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
@@ -164,7 +177,7 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises)
 		goto err_dealloc_transport_domain;
 	}
 
-	num_doorbells = min(MLX5_DEFAULT_NUM_DOORBELLS,
+	num_doorbells = min(mlx5e_get_devlink_param_num_doorbells(mdev),
 			    mlx5e_get_max_num_channels(mdev));
 	res->bfregs = kcalloc(num_doorbells, sizeof(*res->bfregs), GFP_KERNEL);
 	if (!res->bfregs) {
