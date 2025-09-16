@@ -1005,9 +1005,9 @@ properties:
           - enum:
               - qcom,sm8450-hdk
               - qcom,sm8450-qrd
+              - samsung,r0q
               - sony,pdx223
               - sony,pdx224
-              - samsung,r0q
           - const: qcom,sm8450
 
       - items:
