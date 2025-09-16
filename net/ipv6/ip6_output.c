@@ -1100,7 +1100,8 @@ static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
 	 *    sockets.
 	 * 2. oif also should be the same.
 	 */
-	if (ip6_rt_check(&rt->rt6i_dst, &fl6->daddr, np->daddr_cache) ||
+	if (ip6_rt_check(&rt->rt6i_dst, &fl6->daddr,
+			 np->daddr_cache ? &sk->sk_v6_daddr : NULL) ||
 #ifdef CONFIG_IPV6_SUBTREES
 	    ip6_rt_check(&rt->rt6i_src, &fl6->saddr,
 			 np->saddr_cache ? &np->saddr : NULL) ||

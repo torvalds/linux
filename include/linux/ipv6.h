@@ -219,7 +219,7 @@ struct ipv6_pinfo {
 #ifdef CONFIG_IPV6_SUBTREES
 	bool			saddr_cache;
 #endif
-	const struct in6_addr		*daddr_cache;
+	bool			daddr_cache;
 
 	__be32			flow_label;
 	__u32			frag_size;
