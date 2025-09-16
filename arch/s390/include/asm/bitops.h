@@ -130,7 +130,7 @@ static inline bool test_bit_inv(unsigned long nr,
  * where the most significant bit has bit number 0.
  * If no bit is set this function returns 64.
  */
-static __always_inline unsigned char __flogr(unsigned long word)
+static __always_inline __attribute_const__ unsigned long __flogr(unsigned long word)
 {
 	unsigned long bit;
 
@@ -167,9 +167,8 @@ static __always_inline unsigned char __flogr(unsigned long word)
 		union register_pair rp __uninitialized;
 
 		rp.even = word;
-		asm volatile(
-			"       flogr   %[rp],%[rp]\n"
-			: [rp] "+d" (rp.pair) : : "cc");
+		asm("flogr	%[rp],%[rp]"
+		    : [rp] "+d" (rp.pair) : : "cc");
 		bit = rp.even;
 		/*
 		 * The result of the flogr instruction is a value in the range
