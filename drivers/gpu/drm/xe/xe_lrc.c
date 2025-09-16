@@ -1281,8 +1281,10 @@ static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 static int
 setup_indirect_ctx(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 {
-	static struct bo_setup rcs_funcs[] = {
+	static const struct bo_setup rcs_funcs[] = {
 		{ .setup = setup_timestamp_wa },
+	};
+	static const struct bo_setup xcs_funcs[] = {
 	};
 	struct bo_setup_state state = {
 		.lrc = lrc,
@@ -1300,6 +1302,9 @@ setup_indirect_ctx(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 	    hwe->class == XE_ENGINE_CLASS_COMPUTE) {
 		state.funcs = rcs_funcs;
 		state.num_funcs = ARRAY_SIZE(rcs_funcs);
+	} else {
+		state.funcs = xcs_funcs;
+		state.num_funcs = ARRAY_SIZE(xcs_funcs);
 	}
 
 	if (xe_gt_WARN_ON(lrc->gt, !state.funcs))
@@ -1326,14 +1331,15 @@ setup_indirect_ctx(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 	finish_bo(&state);
 	kfree(state.buffer);
 
+	/*
+	 * Enable INDIRECT_CTX leaving INDIRECT_CTX_OFFSET at its default: it
+	 * varies per engine class, but the default is good enough
+	 */
 	xe_lrc_write_ctx_reg(lrc,
 			     CTX_CS_INDIRECT_CTX,
 			     (xe_bo_ggtt_addr(lrc->bo) + state.offset) |
 			     /* Size in CLs. */
 			     (state.written * sizeof(u32) / 64));
-	xe_lrc_write_ctx_reg(lrc,
-			     CTX_CS_INDIRECT_CTX_OFFSET,
-			     CTX_INDIRECT_CTX_OFFSET_DEFAULT);
 
 	return 0;
 }
