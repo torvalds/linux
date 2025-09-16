@@ -11,13 +11,14 @@ histograms work and how the individual pieces map to the data
 structures used to implement them in trace_events_hist.c and
 tracing_map.c.
 
-Note: All the ftrace histogram command examples assume the working
-      directory is the ftrace /tracing directory. For example::
+.. note::
+   All the ftrace histogram command examples assume the working
+   directory is the ftrace /tracing directory. For example::
 
 	# cd /sys/kernel/tracing
 
-Also, the histogram output displayed for those commands will be
-generally be truncated - only enough to make the point is displayed.
+   Also, the histogram output displayed for those commands will be
+   generally be truncated - only enough to make the point is displayed.
 
 'hist_debug' trace event files
 ==============================
