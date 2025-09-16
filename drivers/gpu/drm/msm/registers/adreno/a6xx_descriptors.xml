@@ -9,38 +9,6 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 
 <domain name="A6XX_TEX_SAMP" width="32">
 	<doc>Texture sampler dwords</doc>
-	<enum name="a6xx_tex_filter"> <!-- same as a4xx? -->
-		<value name="A6XX_TEX_NEAREST" value="0"/>
-		<value name="A6XX_TEX_LINEAR" value="1"/>
-		<value name="A6XX_TEX_ANISO" value="2"/>
-		<value name="A6XX_TEX_CUBIC" value="3"/> <!-- a650 only -->
-	</enum>
-	<enum name="a6xx_tex_clamp"> <!-- same as a4xx? -->
-		<value name="A6XX_TEX_REPEAT" value="0"/>
-		<value name="A6XX_TEX_CLAMP_TO_EDGE" value="1"/>
-		<value name="A6XX_TEX_MIRROR_REPEAT" value="2"/>
-		<value name="A6XX_TEX_CLAMP_TO_BORDER" value="3"/>
-		<value name="A6XX_TEX_MIRROR_CLAMP" value="4"/>
-	</enum>
-	<enum name="a6xx_tex_aniso"> <!-- same as a4xx? -->
-		<value name="A6XX_TEX_ANISO_1" value="0"/>
-		<value name="A6XX_TEX_ANISO_2" value="1"/>
-		<value name="A6XX_TEX_ANISO_4" value="2"/>
-		<value name="A6XX_TEX_ANISO_8" value="3"/>
-		<value name="A6XX_TEX_ANISO_16" value="4"/>
-	</enum>
-	<enum name="a6xx_reduction_mode">
-		<value name="A6XX_REDUCTION_MODE_AVERAGE" value="0"/>
-		<value name="A6XX_REDUCTION_MODE_MIN" value="1"/>
-		<value name="A6XX_REDUCTION_MODE_MAX" value="2"/>
-	</enum>
-	<enum name="a6xx_fast_border_color">
-		<!--                           R B G A -->
-		<value name="A6XX_BORDER_COLOR_0_0_0_0" value="0"/>
-		<value name="A6XX_BORDER_COLOR_0_0_0_1" value="1"/>
-		<value name="A6XX_BORDER_COLOR_1_1_1_0" value="2"/>
-		<value name="A6XX_BORDER_COLOR_1_1_1_1" value="3"/>
-	</enum>
 
 	<reg32 offset="0" name="0">
 		<bitfield name="MIPFILTER_LINEAR_NEAR" pos="0" type="boolean"/>
@@ -79,14 +47,6 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 
 <domain name="A6XX_TEX_CONST" width="32" varset="chip">
 	<doc>Texture constant dwords</doc>
-	<enum name="a6xx_tex_swiz"> <!-- same as a4xx? -->
-		<value name="A6XX_TEX_X" value="0"/>
-		<value name="A6XX_TEX_Y" value="1"/>
-		<value name="A6XX_TEX_Z" value="2"/>
-		<value name="A6XX_TEX_W" value="3"/>
-		<value name="A6XX_TEX_ZERO" value="4"/>
-		<value name="A6XX_TEX_ONE" value="5"/>
-	</enum>
 	<reg32 offset="0" name="0">
 		<bitfield name="TILE_MODE" low="0" high="1" type="a6xx_tile_mode"/>
 		<bitfield name="SRGB" pos="2" type="boolean"/>
