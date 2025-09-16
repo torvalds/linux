@@ -1449,7 +1449,7 @@ void dcn20_pipe_control_lock(
 		!flip_immediate)
 	    dcn20_setup_gsl_group_as_lock(dc, pipe, false);
 
-	if (pipe->stream && should_use_dmub_lock(pipe->stream->link)) {
+	if (pipe->stream && should_use_dmub_lock(dc, pipe->stream->link)) {
 		union dmub_hw_lock_flags hw_locks = { 0 };
 		struct dmub_hw_lock_inst_flags inst_flags = { 0 };
 
