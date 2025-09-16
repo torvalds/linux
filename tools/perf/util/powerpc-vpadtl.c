@@ -167,6 +167,44 @@ static void powerpc_vpadtl_dump_event(struct powerpc_vpadtl *vpa, unsigned char 
 	powerpc_vpadtl_dump(vpa, buf, len);
 }
 
+/*
+ * Generate perf sample for each entry in the dispatch trace log.
+ *   - sample ip is picked from srr0 field of powerpc_vpadtl_entry
+ *   - sample cpu is logical cpu.
+ *   - cpumode is set to PERF_RECORD_MISC_KERNEL
+ *   - Additionally save the details in raw_data of sample. This
+ *   is to print the relevant fields in perf_sample__fprintf_synth()
+ *   when called from builtin-script
+ */
+static int powerpc_vpadtl_sample(struct powerpc_vpadtl_entry *record,
+		struct powerpc_vpadtl *vpa, u64 save, int cpu)
+{
+	struct perf_sample sample;
+	union perf_event event;
+
+	sample.ip = be64_to_cpu(record->srr0);
+	sample.period = 1;
+	sample.cpu = cpu;
+	sample.id = vpa->sample_id;
+	sample.callchain = NULL;
+	sample.branch_stack = NULL;
+	memset(&event, 0, sizeof(event));
+	sample.cpumode = PERF_RECORD_MISC_KERNEL;
+	sample.time = save;
+	sample.raw_data = record;
+	sample.raw_size = sizeof(record);
+	event.sample.header.type = PERF_RECORD_SAMPLE;
+	event.sample.header.misc = sample.cpumode;
+	event.sample.header.size = sizeof(struct perf_event_header);
+
+	if (perf_session__deliver_synth_event(vpa->session, &event, &sample)) {
+		pr_debug("Failed to create sample for dtl entry\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 static int powerpc_vpadtl_get_buffer(struct powerpc_vpadtl_queue *vpaq)
 {
 	struct auxtrace_buffer *buffer = vpaq->buffer;
@@ -238,6 +276,141 @@ static int powerpc_vpadtl_decode(struct powerpc_vpadtl_queue *vpaq)
 	vpaq->buf_len = 0;
 
 	return 1;
+}
+
+static int powerpc_vpadtl_decode_all(struct powerpc_vpadtl_queue *vpaq)
+{
+	int ret;
+	unsigned char *buf;
+
+	if (!vpaq->buf_len || vpaq->pkt_len == vpaq->size) {
+		ret = powerpc_vpadtl_get_buffer(vpaq);
+		if (ret <= 0)
+			return ret;
+	}
+
+	if (vpaq->buffer) {
+		buf = vpaq->buffer->data;
+		buf += vpaq->pkt_len;
+		vpaq->dtl = (struct powerpc_vpadtl_entry *)buf;
+		if ((long long)be64_to_cpu(vpaq->dtl->timebase) <= 0) {
+			if (vpaq->pkt_len != dtl_entry_size && vpaq->buf_len) {
+				vpaq->pkt_len += dtl_entry_size;
+				vpaq->buf_len -= dtl_entry_size;
+			}
+			return -1;
+		}
+		vpaq->pkt_len += dtl_entry_size;
+		vpaq->buf_len -= dtl_entry_size;
+	} else {
+		return 0;
+	}
+
+	return 1;
+}
+
+static int powerpc_vpadtl_run_decoder(struct powerpc_vpadtl_queue *vpaq, u64 *timestamp)
+{
+	struct powerpc_vpadtl *vpa = vpaq->vpa;
+	struct powerpc_vpadtl_entry *record;
+	int ret;
+	unsigned long long vpaq_timestamp;
+
+	while (1) {
+		ret = powerpc_vpadtl_decode_all(vpaq);
+		if (!ret) {
+			pr_debug("All data in the queue has been processed.\n");
+			return 1;
+		}
+
+		/*
+		 * Error is detected when decoding VPA PMU trace. Continue to
+		 * the next trace data and find out more dtl entries.
+		 */
+		if (ret < 0)
+			continue;
+
+		record = vpaq->dtl;
+
+		vpaq_timestamp = powerpc_vpadtl_timestamp(vpaq);
+
+		/* Update timestamp for the last record */
+		if (vpaq_timestamp > vpaq->timestamp)
+			vpaq->timestamp = vpaq_timestamp;
+
+		/*
+		 * If the timestamp of the queue is later than timestamp of the
+		 * coming perf event, bail out so can allow the perf event to
+		 * be processed ahead.
+		 */
+		if (vpaq->timestamp >= *timestamp) {
+			*timestamp = vpaq->timestamp;
+			vpaq->pkt_len -= dtl_entry_size;
+			vpaq->buf_len += dtl_entry_size;
+			return 0;
+		}
+
+		ret = powerpc_vpadtl_sample(record, vpa, vpaq_timestamp, vpaq->cpu);
+		if (ret)
+			continue;
+	}
+	return 0;
+}
+
+/*
+ * For each of the PERF_RECORD_XX record, compare the timestamp
+ * of perf record with timestamp of top element in the auxtrace heap.
+ * Process the auxtrace queue if the timestamp of element from heap is
+ * lower than timestamp from entry in perf record.
+ *
+ * Update the timestamp of the auxtrace heap with the timestamp
+ * of last processed entry from the auxtrace buffer.
+ */
+static int powerpc_vpadtl_process_queues(struct powerpc_vpadtl *vpa, u64 timestamp)
+{
+	unsigned int queue_nr;
+	u64 ts;
+	int ret;
+
+	while (1) {
+		struct auxtrace_queue *queue;
+		struct powerpc_vpadtl_queue *vpaq;
+
+		if (!vpa->heap.heap_cnt)
+			return 0;
+
+		if (vpa->heap.heap_array[0].ordinal >= timestamp)
+			return 0;
+
+		queue_nr = vpa->heap.heap_array[0].queue_nr;
+		queue = &vpa->queues.queue_array[queue_nr];
+		vpaq = queue->priv;
+
+		auxtrace_heap__pop(&vpa->heap);
+
+		if (vpa->heap.heap_cnt) {
+			ts = vpa->heap.heap_array[0].ordinal + 1;
+			if (ts > timestamp)
+				ts = timestamp;
+		} else {
+			ts = timestamp;
+		}
+
+		ret = powerpc_vpadtl_run_decoder(vpaq, &ts);
+		if (ret < 0) {
+			auxtrace_heap__add(&vpa->heap, queue_nr, ts);
+			return ret;
+		}
+
+		if (!ret) {
+			ret = auxtrace_heap__add(&vpa->heap, queue_nr, ts);
+			if (ret < 0)
+				return ret;
+		} else {
+			vpaq->on_heap = false;
+		}
+	}
+	return 0;
 }
 
 static struct powerpc_vpadtl_queue *powerpc_vpadtl__alloc_queue(struct powerpc_vpadtl *vpa,
@@ -353,6 +526,8 @@ static int powerpc_vpadtl_process_event(struct perf_session *session,
 		err = powerpc_vpadtl__update_queues(vpa);
 		if (err)
 			return err;
+
+		err = powerpc_vpadtl_process_queues(vpa, sample->time);
 	}
 
 	return err;
