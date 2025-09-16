@@ -10,7 +10,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/errno.h>
-#include <linux/fpga/adi-axi-common.h>
+#include <linux/adi-axi-common.h>
 #include <linux/i3c/master.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
