@@ -152,6 +152,7 @@ static void set_device_defaults(struct xe_config_device *config)
 struct engine_info {
 	const char *cls;
 	u64 mask;
+	enum xe_engine_class engine_class;
 };
 
 /* Some helpful macros to aid on the sizing of buffer allocation when parsing */
@@ -159,12 +160,12 @@ struct engine_info {
 #define MAX_ENGINE_INSTANCE_CHARS 2
 
 static const struct engine_info engine_info[] = {
-	{ .cls = "rcs", .mask = XE_HW_ENGINE_RCS_MASK },
-	{ .cls = "bcs", .mask = XE_HW_ENGINE_BCS_MASK },
-	{ .cls = "vcs", .mask = XE_HW_ENGINE_VCS_MASK },
-	{ .cls = "vecs", .mask = XE_HW_ENGINE_VECS_MASK },
-	{ .cls = "ccs", .mask = XE_HW_ENGINE_CCS_MASK },
-	{ .cls = "gsccs", .mask = XE_HW_ENGINE_GSCCS_MASK },
+	{ .cls = "rcs", .mask = XE_HW_ENGINE_RCS_MASK, .engine_class = XE_ENGINE_CLASS_RENDER },
+	{ .cls = "bcs", .mask = XE_HW_ENGINE_BCS_MASK, .engine_class = XE_ENGINE_CLASS_COPY },
+	{ .cls = "vcs", .mask = XE_HW_ENGINE_VCS_MASK, .engine_class = XE_ENGINE_CLASS_VIDEO_DECODE },
+	{ .cls = "vecs", .mask = XE_HW_ENGINE_VECS_MASK, .engine_class = XE_ENGINE_CLASS_VIDEO_ENHANCE },
+	{ .cls = "ccs", .mask = XE_HW_ENGINE_CCS_MASK, .engine_class = XE_ENGINE_CLASS_COMPUTE },
+	{ .cls = "gsccs", .mask = XE_HW_ENGINE_GSCCS_MASK, .engine_class = XE_ENGINE_CLASS_OTHER },
 };
 
 static struct xe_config_group_device *to_xe_config_group_device(struct config_item *item)
@@ -253,7 +254,18 @@ static ssize_t engines_allowed_show(struct config_item *item, char *page)
 	return p - page;
 }
 
-static bool lookup_engine_mask(const char *pattern, u64 *mask)
+/*
+ * Lookup engine_info. If @mask is not NULL, reduce the mask according to the
+ * instance in @pattern.
+ *
+ * Examples of inputs:
+ * - lookup_engine_info("rcs0", &mask): return "rcs" entry from @engine_info and
+ *   mask == BIT_ULL(XE_HW_ENGINE_RCS0)
+ * - lookup_engine_info("rcs*", &mask): return "rcs" entry from @engine_info and
+ *   mask == XE_HW_ENGINE_RCS_MASK
+ * - lookup_engine_info("rcs", NULL): return "rcs" entry from @engine_info
+ */
+static const struct engine_info *lookup_engine_info(const char *pattern, u64 *mask)
 {
 	for (size_t i = 0; i < ARRAY_SIZE(engine_info); i++) {
 		u8 instance;
@@ -263,29 +275,33 @@ static bool lookup_engine_mask(const char *pattern, u64 *mask)
 			continue;
 
 		pattern += strlen(engine_info[i].cls);
+		if (!mask && !*pattern)
+			return &engine_info[i];
 
 		if (!strcmp(pattern, "*")) {
 			*mask = engine_info[i].mask;
-			return true;
+			return &engine_info[i];
 		}
 
 		if (kstrtou8(pattern, 10, &instance))
-			return false;
+			return NULL;
 
 		bit = __ffs64(engine_info[i].mask) + instance;
 		if (bit >= fls64(engine_info[i].mask))
-			return false;
+			return NULL;
 
 		*mask = BIT_ULL(bit);
-		return true;
+		return &engine_info[i];
 	}
 
-	return false;
+	return NULL;
 }
 
-static int parse_engine(const char *s, const char *end_chars, u64 *mask)
+static int parse_engine(const char *s, const char *end_chars, u64 *mask,
+			const struct engine_info **pinfo)
 {
 	char buf[MAX_ENGINE_CLASS_CHARS + MAX_ENGINE_INSTANCE_CHARS + 1];
+	const struct engine_info *info;
 	size_t len;
 
 	len = strcspn(s, end_chars);
@@ -295,8 +311,12 @@ static int parse_engine(const char *s, const char *end_chars, u64 *mask)
 	memcpy(buf, s, len);
 	buf[len] = '\0';
 
-	if (!lookup_engine_mask(buf, mask))
+	info = lookup_engine_info(buf, mask);
+	if (!info)
 		return -ENOENT;
+
+	if (pinfo)
+		*pinfo = info;
 
 	return len;
 }
@@ -309,7 +329,7 @@ static ssize_t engines_allowed_store(struct config_item *item, const char *page,
 	u64 mask, val = 0;
 
 	for (p = 0; p < len; p += patternlen + 1) {
-		patternlen = parse_engine(page + p, ",\n", &mask);
+		patternlen = parse_engine(page + p, ",\n", &mask, NULL);
 		if (patternlen < 0)
 			return -EINVAL;
 
