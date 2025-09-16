@@ -295,6 +295,11 @@ static inline void udp_lib_init_sock(struct sock *sk)
 	set_bit(SOCK_CUSTOM_SOCKOPT, &sk->sk_socket->flags);
 }
 
+static inline void udp_drops_inc(struct sock *sk)
+{
+	numa_drop_add(&udp_sk(sk)->drop_counters, 1);
+}
+
 /* hash routines shared between UDPv4/6 and UDP-Litev4/6 */
 static inline int udp_lib_hash(struct sock *sk)
 {
