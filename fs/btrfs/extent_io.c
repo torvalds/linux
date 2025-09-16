@@ -3226,29 +3226,30 @@ static struct extent_buffer *grab_extent_buffer(struct btrfs_fs_info *fs_info,
  */
 static bool check_eb_alignment(struct btrfs_fs_info *fs_info, u64 start)
 {
+	const u32 nodesize = fs_info->nodesize;
+
 	if (!IS_ALIGNED(start, fs_info->sectorsize)) {
 		btrfs_err(fs_info, "bad tree block start %llu", start);
 		return true;
 	}
 
-	if (fs_info->nodesize < PAGE_SIZE && !IS_ALIGNED(start, fs_info->nodesize)) {
+	if (nodesize < PAGE_SIZE && !IS_ALIGNED(start, nodesize)) {
 		btrfs_err(fs_info,
 		"tree block is not nodesize aligned, start %llu nodesize %u",
-			  start, fs_info->nodesize);
+			  start, nodesize);
 		return true;
 	}
-	if (fs_info->nodesize >= PAGE_SIZE &&
-	    !PAGE_ALIGNED(start)) {
+	if (nodesize >= PAGE_SIZE && !PAGE_ALIGNED(start)) {
 		btrfs_err(fs_info,
 		"tree block is not page aligned, start %llu nodesize %u",
-			  start, fs_info->nodesize);
+			  start, nodesize);
 		return true;
 	}
-	if (!IS_ALIGNED(start, fs_info->nodesize) &&
+	if (!IS_ALIGNED(start, nodesize) &&
 	    !test_and_set_bit(BTRFS_FS_UNALIGNED_TREE_BLOCK, &fs_info->flags)) {
 		btrfs_warn(fs_info,
 "tree block not nodesize aligned, start %llu nodesize %u, can be resolved by a full metadata balance",
-			      start, fs_info->nodesize);
+			      start, nodesize);
 	}
 	return false;
 }
