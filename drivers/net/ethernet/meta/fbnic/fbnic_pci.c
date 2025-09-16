@@ -167,6 +167,20 @@ void fbnic_down(struct fbnic_net *fbn)
 	fbnic_flush(fbn);
 }
 
+static int fbnic_fw_config_after_crash(struct fbnic_dev *fbd)
+{
+	if (fbnic_fw_xmit_ownership_msg(fbd, true)) {
+		dev_err(fbd->dev, "NIC failed to take ownership\n");
+
+		return -1;
+	}
+
+	fbnic_rpc_reset_valid_entries(fbd);
+	__fbnic_set_rx_mode(fbd);
+
+	return 0;
+}
+
 static void fbnic_health_check(struct fbnic_dev *fbd)
 {
 	struct fbnic_fw_mbx *tx_mbx = &fbd->mbx[FBNIC_IPC_MBX_TX_IDX];
@@ -182,13 +196,8 @@ static void fbnic_health_check(struct fbnic_dev *fbd)
 	if (tx_mbx->head != tx_mbx->tail)
 		return;
 
-	/* TBD: Need to add a more thorough recovery here.
-	 *	Specifically I need to verify what all the firmware will have
-	 *	changed since we had setup and it rebooted. May just need to
-	 *	perform a down/up. For now we will just reclaim ownership so
-	 *	the heartbeat can catch the next fault.
-	 */
-	fbnic_fw_xmit_ownership_msg(fbd, true);
+	if (fbnic_fw_config_after_crash(fbd))
+		dev_err(fbd->dev, "Firmware recovery failed after crash\n");
 }
 
 static void fbnic_service_task(struct work_struct *work)

@@ -191,6 +191,8 @@ void fbnic_dbg_fbd_exit(struct fbnic_dev *fbd);
 void fbnic_dbg_init(void);
 void fbnic_dbg_exit(void);
 
+void fbnic_rpc_reset_valid_entries(struct fbnic_dev *fbd);
+
 void fbnic_csr_get_regs(struct fbnic_dev *fbd, u32 *data, u32 *regs_version);
 int fbnic_csr_regs_len(struct fbnic_dev *fbd);
 
