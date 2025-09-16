@@ -24,6 +24,13 @@ enum tcp_ecn_mode {
 	TCP_ECN_IN_ACCECN_OUT_NOECN = 5,
 };
 
+/* AccECN option sending when AccECN has been successfully negotiated */
+enum tcp_accecn_option {
+	TCP_ACCECN_OPTION_DISABLED = 0,
+	TCP_ACCECN_OPTION_MINIMUM = 1,
+	TCP_ACCECN_OPTION_FULL = 2,
+};
+
 static inline void tcp_ecn_queue_cwr(struct tcp_sock *tp)
 {
 	/* Do not set CWR if in AccECN mode! */
@@ -169,6 +176,79 @@ static inline void tcp_accecn_third_ack(struct sock *sk,
 	}
 }
 
+/* Maps IP ECN field ECT/CE code point to AccECN option field number, given
+ * we are sending fields with Accurate ECN Order 1: ECT(1), CE, ECT(0).
+ */
+static inline u8 tcp_ecnfield_to_accecn_optfield(u8 ecnfield)
+{
+	switch (ecnfield & INET_ECN_MASK) {
+	case INET_ECN_NOT_ECT:
+		return 0;	/* AccECN does not send counts of NOT_ECT */
+	case INET_ECN_ECT_1:
+		return 1;
+	case INET_ECN_CE:
+		return 2;
+	case INET_ECN_ECT_0:
+		return 3;
+	}
+	return 0;
+}
+
+/* Maps IP ECN field ECT/CE code point to AccECN option field value offset.
+ * Some fields do not start from zero, to detect zeroing by middleboxes.
+ */
+static inline u32 tcp_accecn_field_init_offset(u8 ecnfield)
+{
+	switch (ecnfield & INET_ECN_MASK) {
+	case INET_ECN_NOT_ECT:
+		return 0;	/* AccECN does not send counts of NOT_ECT */
+	case INET_ECN_ECT_1:
+		return TCP_ACCECN_E1B_INIT_OFFSET;
+	case INET_ECN_CE:
+		return TCP_ACCECN_CEB_INIT_OFFSET;
+	case INET_ECN_ECT_0:
+		return TCP_ACCECN_E0B_INIT_OFFSET;
+	}
+	return 0;
+}
+
+/* Maps AccECN option field #nr to IP ECN field ECT/CE bits */
+static inline unsigned int tcp_accecn_optfield_to_ecnfield(unsigned int option,
+							   bool order)
+{
+	/* Based on Table 5 of the AccECN spec to map (option, order) to
+	 * the corresponding ECN conuters (ECT-1, ECT-0, or CE).
+	 */
+	static const u8 optfield_lookup[2][3] = {
+		/* order = 0: 1st field ECT-0, 2nd field CE, 3rd field ECT-1 */
+		{ INET_ECN_ECT_0, INET_ECN_CE, INET_ECN_ECT_1 },
+		/* order = 1: 1st field ECT-1, 2nd field CE, 3rd field ECT-0 */
+		{ INET_ECN_ECT_1, INET_ECN_CE, INET_ECN_ECT_0 }
+	};
+
+	return optfield_lookup[order][option % 3];
+}
+
+/* Handles AccECN option ECT and CE 24-bit byte counters update into
+ * the u32 value in tcp_sock. As we're processing TCP options, it is
+ * safe to access from - 1.
+ */
+static inline s32 tcp_update_ecn_bytes(u32 *cnt, const char *from,
+				       u32 init_offset)
+{
+	u32 truncated = (get_unaligned_be32(from - 1) - init_offset) &
+			0xFFFFFFU;
+	u32 delta = (truncated - *cnt) & 0xFFFFFFU;
+
+	/* If delta has the highest bit set (24th bit) indicating
+	 * negative, sign extend to correct an estimation using
+	 * sign_extend32(delta, 24 - 1)
+	 */
+	delta = sign_extend32(delta, 23);
+	*cnt += delta;
+	return (s32)delta;
+}
+
 /* Updates Accurate ECN received counters from the received IP ECN field */
 static inline void tcp_ecn_received_counters(struct sock *sk,
 					     const struct sk_buff *skb, u32 len)
@@ -192,8 +272,12 @@ static inline void tcp_ecn_received_counters(struct sock *sk,
 		tp->received_ce_pending = min(tp->received_ce_pending + pcount,
 					      0xfU);
 
-		if (len > 0)
+		if (len > 0) {
+			u8 minlen = tcp_ecnfield_to_accecn_optfield(ecnfield);
 			tp->received_ecn_bytes[ecnfield - 1] += len;
+			tp->accecn_minlen = max_t(u8, tp->accecn_minlen,
+						  minlen);
+		}
 	}
 }
 
@@ -263,6 +347,9 @@ static inline void tcp_accecn_init_counters(struct tcp_sock *tp)
 	tp->received_ce = 0;
 	tp->received_ce_pending = 0;
 	__tcp_accecn_init_bytes_counters(tp->received_ecn_bytes);
+	__tcp_accecn_init_bytes_counters(tp->delivered_ecn_bytes);
+	tp->accecn_minlen = 0;
+	tp->est_ecnfield = 0;
 }
 
 /* Used for make_synack to form the ACE flags */
