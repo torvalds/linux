@@ -577,11 +577,6 @@ struct sfp_upstream_ops {
 
 #if IS_ENABLED(CONFIG_SFP)
 const struct sfp_module_caps *sfp_get_module_caps(struct sfp_bus *bus);
-int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
-		   unsigned long *support);
-bool sfp_may_have_phy(struct sfp_bus *bus, const struct sfp_eeprom_id *id);
-void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
-		       unsigned long *support, unsigned long *interfaces);
 phy_interface_t sfp_select_interface(struct sfp_bus *bus,
 				     const unsigned long *link_modes);
 
@@ -605,26 +600,6 @@ static inline const struct sfp_module_caps *
 sfp_get_module_caps(struct sfp_bus *bus)
 {
 	return NULL;
-}
-
-static inline int sfp_parse_port(struct sfp_bus *bus,
-				 const struct sfp_eeprom_id *id,
-				 unsigned long *support)
-{
-	return PORT_OTHER;
-}
-
-static inline bool sfp_may_have_phy(struct sfp_bus *bus,
-				    const struct sfp_eeprom_id *id)
-{
-	return false;
-}
-
-static inline void sfp_parse_support(struct sfp_bus *bus,
-				     const struct sfp_eeprom_id *id,
-				     unsigned long *support,
-				     unsigned long *interfaces)
-{
 }
 
 static inline phy_interface_t sfp_select_interface(struct sfp_bus *bus,

@@ -39,27 +39,6 @@ const struct sfp_module_caps *sfp_get_module_caps(struct sfp_bus *bus)
 }
 EXPORT_SYMBOL_GPL(sfp_get_module_caps);
 
-/**
- * sfp_parse_port() - Parse the EEPROM base ID, setting the port type
- * @bus: a pointer to the &struct sfp_bus structure for the sfp module
- * @id: a pointer to the module's &struct sfp_eeprom_id
- * @support: optional pointer to an array of unsigned long for the
- *   ethtool support mask
- *
- * Parse the EEPROM identification given in @id, and return one of
- * %PORT_TP, %PORT_FIBRE or %PORT_OTHER. If @support is non-%NULL,
- * also set the ethtool %ETHTOOL_LINK_MODE_xxx_BIT corresponding with
- * the connector type.
- *
- * If the port type is not known, returns %PORT_OTHER.
- */
-int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
-		   unsigned long *support)
-{
-	return bus->caps.port;
-}
-EXPORT_SYMBOL_GPL(sfp_parse_port);
-
 static void sfp_module_parse_port(struct sfp_bus *bus,
 				  const struct sfp_eeprom_id *id)
 {
@@ -118,20 +97,6 @@ static void sfp_module_parse_port(struct sfp_bus *bus,
 	bus->caps.port = port;
 }
 
-/**
- * sfp_may_have_phy() - indicate whether the module may have a PHY
- * @bus: a pointer to the &struct sfp_bus structure for the sfp module
- * @id: a pointer to the module's &struct sfp_eeprom_id
- *
- * Parse the EEPROM identification given in @id, and return whether
- * this module may have a PHY.
- */
-bool sfp_may_have_phy(struct sfp_bus *bus, const struct sfp_eeprom_id *id)
-{
-	return bus->caps.may_have_phy;
-}
-EXPORT_SYMBOL_GPL(sfp_may_have_phy);
-
 static void sfp_module_parse_may_have_phy(struct sfp_bus *bus,
 					  const struct sfp_eeprom_id *id)
 {
@@ -153,25 +118,6 @@ static void sfp_module_parse_may_have_phy(struct sfp_bus *bus,
 
 	bus->caps.may_have_phy = false;
 }
-
-/**
- * sfp_parse_support() - Parse the eeprom id for supported link modes
- * @bus: a pointer to the &struct sfp_bus structure for the sfp module
- * @id: a pointer to the module's &struct sfp_eeprom_id
- * @support: pointer to an array of unsigned long for the ethtool support mask
- * @interfaces: pointer to an array of unsigned long for phy interface modes
- *		mask
- *
- * Parse the EEPROM identification information and derive the supported
- * ethtool link modes for the module.
- */
-void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
-		       unsigned long *support, unsigned long *interfaces)
-{
-	linkmode_or(support, support, bus->caps.link_modes);
-	phy_interface_copy(interfaces, bus->caps.interfaces);
-}
-EXPORT_SYMBOL_GPL(sfp_parse_support);
 
 static void sfp_module_parse_support(struct sfp_bus *bus,
 				     const struct sfp_eeprom_id *id)
