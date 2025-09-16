@@ -505,6 +505,8 @@ void mptcp_active_enable(struct sock *sk)
 
 		if (dst && dst->dev && (dst->dev->flags & IFF_LOOPBACK))
 			atomic_set(&pernet->active_disable_times, 0);
+
+		dst_release(dst);
 	}
 }
 
