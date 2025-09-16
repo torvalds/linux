@@ -2083,9 +2083,9 @@ static int shmem_replace_folio(struct folio **foliop, gfp_t gfp,
 				struct shmem_inode_info *info, pgoff_t index,
 				struct vm_area_struct *vma)
 {
+	struct swap_cluster_info *ci;
 	struct folio *new, *old = *foliop;
 	swp_entry_t entry = old->swap;
-	struct address_space *swap_mapping = swap_address_space(entry);
 	int nr_pages = folio_nr_pages(old);
 	int error = 0;
 
@@ -2116,12 +2116,12 @@ static int shmem_replace_folio(struct folio **foliop, gfp_t gfp,
 	new->swap = entry;
 	folio_set_swapcache(new);
 
-	xa_lock_irq(&swap_mapping->i_pages);
-	__swap_cache_replace_folio(old, new);
+	ci = swap_cluster_get_and_lock_irq(old);
+	__swap_cache_replace_folio(ci, old, new);
 	mem_cgroup_replace_folio(old, new);
 	shmem_update_stats(new, nr_pages);
 	shmem_update_stats(old, -nr_pages);
-	xa_unlock_irq(&swap_mapping->i_pages);
+	swap_cluster_unlock_irq(ci);
 
 	folio_add_lru(new);
 	*foliop = new;
