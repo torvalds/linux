@@ -9551,7 +9551,7 @@ static unsigned long tg_weight(struct task_group *tg)
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	return scale_load_down(tg->shares);
 #else
-	return sched_weight_from_cgroup(tg->scx_weight);
+	return sched_weight_from_cgroup(tg->scx.weight);
 #endif
 }
 
