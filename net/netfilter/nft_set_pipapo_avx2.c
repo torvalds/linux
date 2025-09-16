@@ -1292,7 +1292,7 @@ nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
 
 	m = rcu_dereference(priv->match);
 
-	e = pipapo_get_avx2(m, rp, NFT_GENMASK_ANY, get_jiffies_64());
+	e = pipapo_get_avx2(m, rp, 0, get_jiffies_64());
 	local_bh_enable();
 
 	return e ? &e->ext : NULL;
