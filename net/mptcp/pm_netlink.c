@@ -113,7 +113,7 @@ int mptcp_pm_parse_entry(struct nlattr *attr, struct genl_info *info,
 		return err;
 
 	if (tb[MPTCP_PM_ADDR_ATTR_IF_IDX]) {
-		u32 val = nla_get_s32(tb[MPTCP_PM_ADDR_ATTR_IF_IDX]);
+		s32 val = nla_get_s32(tb[MPTCP_PM_ADDR_ATTR_IF_IDX]);
 
 		entry->ifindex = val;
 	}
