@@ -27,6 +27,7 @@ struct fbnic_dev {
 	struct net_device *netdev;
 	struct dentry *dbg_fbd;
 	struct device *hwmon;
+	struct devlink_health_reporter *fw_reporter;
 
 	u32 __iomem *uc_addr0;
 	u32 __iomem *uc_addr4;
@@ -159,8 +160,12 @@ extern char fbnic_driver_name[];
 
 void fbnic_devlink_free(struct fbnic_dev *fbd);
 struct fbnic_dev *fbnic_devlink_alloc(struct pci_dev *pdev);
+int fbnic_devlink_health_create(struct fbnic_dev *fbd);
+void fbnic_devlink_health_destroy(struct fbnic_dev *fbd);
 void fbnic_devlink_register(struct fbnic_dev *fbd);
 void fbnic_devlink_unregister(struct fbnic_dev *fbd);
+void __printf(2, 3)
+fbnic_devlink_fw_report(struct fbnic_dev *fbd, const char *format, ...);
 
 int fbnic_fw_request_mbx(struct fbnic_dev *fbd);
 void fbnic_fw_free_mbx(struct fbnic_dev *fbd);

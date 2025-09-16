@@ -196,6 +196,8 @@ static void fbnic_health_check(struct fbnic_dev *fbd)
 	if (tx_mbx->head != tx_mbx->tail)
 		return;
 
+	fbnic_devlink_fw_report(fbd, "Firmware crashed detected!");
+
 	if (fbnic_fw_config_after_crash(fbd))
 		dev_err(fbd->dev, "Firmware recovery failed after crash\n");
 }
@@ -278,6 +280,10 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 	}
 
+	err = fbnic_devlink_health_create(fbd);
+	if (err)
+		goto free_fbd;
+
 	/* Populate driver with hardware-specific info and handlers */
 	fbd->max_num_queues = info->max_num_queues;
 
@@ -288,7 +294,7 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = fbnic_alloc_irqs(fbd);
 	if (err)
-		goto free_fbd;
+		goto err_destroy_health;
 
 	err = fbnic_mac_init(fbd);
 	if (err) {
@@ -357,6 +363,8 @@ init_failure_mode:
 	return 0;
 free_irqs:
 	fbnic_free_irqs(fbd);
+err_destroy_health:
+	fbnic_devlink_health_destroy(fbd);
 free_fbd:
 	fbnic_devlink_free(fbd);
 
@@ -391,6 +399,7 @@ static void fbnic_remove(struct pci_dev *pdev)
 	fbnic_fw_free_mbx(fbd);
 	fbnic_free_irqs(fbd);
 
+	fbnic_devlink_health_destroy(fbd);
 	fbnic_devlink_free(fbd);
 }
 
