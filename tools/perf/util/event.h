@@ -271,6 +271,9 @@ struct powerpc_vpadtl_entry {
 	u64     srr1;
 };
 
+extern const char *dispatch_reasons[11];
+extern const char *preempt_reasons[10];
+
 static inline void *perf_synth__raw_data(void *p)
 {
 	return p + 4;
