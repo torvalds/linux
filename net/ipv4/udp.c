@@ -1825,6 +1825,13 @@ void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len)
 	if (unlikely(READ_ONCE(udp_sk(sk)->peeking_with_offset)))
 		sk_peek_offset_bwd(sk, len);
 
+	if (!skb_shared(skb)) {
+		if (unlikely(udp_skb_has_head_state(skb)))
+			skb_release_head_state(skb);
+		skb_attempt_defer_free(skb);
+		return;
+	}
+
 	if (!skb_unref(skb))
 		return;
 
