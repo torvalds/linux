@@ -13,4 +13,11 @@ enum {
 
 #define VPADTL_AUXTRACE_PRIV_SIZE (VPADTL_AUXTRACE_PRIV_MAX * sizeof(u64))
 
+union perf_event;
+struct perf_session;
+struct perf_pmu;
+
+int powerpc_vpadtl_process_auxtrace_info(union perf_event *event,
+				  struct perf_session *session);
+
 #endif
