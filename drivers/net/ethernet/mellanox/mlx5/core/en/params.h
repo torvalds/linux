@@ -51,6 +51,7 @@ struct mlx5e_create_sq_param {
 	u32                         tisn;
 	u8                          tis_lst_sz;
 	u8                          min_inline_mode;
+	u32                         uar_page;
 };
 
 /* Striding RQ dynamic parameters */
