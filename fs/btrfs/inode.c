@@ -6805,7 +6805,6 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	struct fscrypt_name fname;
 	u64 index;
 	int ret;
-	int drop_inode = 0;
 
 	/* do not allow sys_link's with other subvols of the same device */
 	if (btrfs_root_id(root) != btrfs_root_id(BTRFS_I(inode)->root))
@@ -6837,44 +6836,44 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 
 	/* There are several dir indexes for this inode, clear the cache. */
 	BTRFS_I(inode)->dir_index = 0ULL;
-	inc_nlink(inode);
 	inode_inc_iversion(inode);
 	inode_set_ctime_current(inode);
-	ihold(inode);
 	set_bit(BTRFS_INODE_COPY_EVERYTHING, &BTRFS_I(inode)->runtime_flags);
 
 	ret = btrfs_add_link(trans, BTRFS_I(dir), BTRFS_I(inode),
 			     &fname.disk_name, 1, index);
+	if (ret)
+		goto fail;
 
+	/* Link added now we update the inode item with the new link count. */
+	inc_nlink(inode);
+	ret = btrfs_update_inode(trans, BTRFS_I(inode));
 	if (ret) {
-		drop_inode = 1;
-	} else {
-		struct dentry *parent = dentry->d_parent;
-
-		ret = btrfs_update_inode(trans, BTRFS_I(inode));
-		if (ret)
-			goto fail;
-		if (inode->i_nlink == 1) {
-			/*
-			 * If new hard link count is 1, it's a file created
-			 * with open(2) O_TMPFILE flag.
-			 */
-			ret = btrfs_orphan_del(trans, BTRFS_I(inode));
-			if (ret)
-				goto fail;
-		}
-		d_instantiate(dentry, inode);
-		btrfs_log_new_name(trans, old_dentry, NULL, 0, parent);
+		btrfs_abort_transaction(trans, ret);
+		goto fail;
 	}
+
+	if (inode->i_nlink == 1) {
+		/*
+		 * If the new hard link count is 1, it's a file created with the
+		 * open(2) O_TMPFILE flag.
+		 */
+		ret = btrfs_orphan_del(trans, BTRFS_I(inode));
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto fail;
+		}
+	}
+
+	/* Grab reference for the new dentry passed to d_instantiate(). */
+	ihold(inode);
+	d_instantiate(dentry, inode);
+	btrfs_log_new_name(trans, old_dentry, NULL, 0, dentry->d_parent);
 
 fail:
 	fscrypt_free_filename(&fname);
 	if (trans)
 		btrfs_end_transaction(trans);
-	if (drop_inode) {
-		inode_dec_link_count(inode);
-		iput(inode);
-	}
 	btrfs_btree_balance_dirty(fs_info);
 	return ret;
 }
@@ -7830,6 +7829,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->last_sub_trans = 0;
 	ei->logged_trans = 0;
 	ei->delalloc_bytes = 0;
+	/* new_delalloc_bytes and last_dir_index_offset are in a union. */
 	ei->new_delalloc_bytes = 0;
 	ei->defrag_bytes = 0;
 	ei->disk_i_size = 0;

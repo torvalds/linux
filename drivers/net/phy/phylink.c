@@ -1016,6 +1016,42 @@ static void phylink_pcs_an_restart(struct phylink *pl)
 		pl->pcs->ops->pcs_an_restart(pl->pcs);
 }
 
+enum inband_type {
+	INBAND_NONE,
+	INBAND_CISCO_SGMII,
+	INBAND_BASEX,
+};
+
+static enum inband_type phylink_get_inband_type(phy_interface_t interface)
+{
+	switch (interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_QSGMII:
+	case PHY_INTERFACE_MODE_QUSGMII:
+	case PHY_INTERFACE_MODE_USXGMII:
+	case PHY_INTERFACE_MODE_10G_QXGMII:
+		/* These protocols are designed for use with a PHY which
+		 * communicates its negotiation result back to the MAC via
+		 * inband communication. Note: there exist PHYs that run
+		 * with SGMII but do not send the inband data.
+		 */
+		return INBAND_CISCO_SGMII;
+
+	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
+		/* 1000base-X is designed for use media-side for Fibre
+		 * connections, and thus the Autoneg bit needs to be
+		 * taken into account. We also do this for 2500base-X
+		 * as well, but drivers may not support this, so may
+		 * need to override this.
+		 */
+		return INBAND_BASEX;
+
+	default:
+		return INBAND_NONE;
+	}
+}
+
 /**
  * phylink_pcs_neg_mode() - helper to determine PCS inband mode
  * @pl: a pointer to a &struct phylink returned from phylink_create()
@@ -1043,45 +1079,18 @@ static void phylink_pcs_neg_mode(struct phylink *pl, struct phylink_pcs *pcs,
 	unsigned int pcs_ib_caps = 0;
 	unsigned int phy_ib_caps = 0;
 	unsigned int neg_mode, mode;
-	enum {
-		INBAND_CISCO_SGMII,
-		INBAND_BASEX,
-	} type;
+	enum inband_type type;
+
+	type = phylink_get_inband_type(interface);
+	if (type == INBAND_NONE) {
+		pl->pcs_neg_mode = PHYLINK_PCS_NEG_NONE;
+		pl->act_link_an_mode = pl->req_link_an_mode;
+		return;
+	}
 
 	mode = pl->req_link_an_mode;
 
 	pl->phy_ib_mode = 0;
-
-	switch (interface) {
-	case PHY_INTERFACE_MODE_SGMII:
-	case PHY_INTERFACE_MODE_QSGMII:
-	case PHY_INTERFACE_MODE_QUSGMII:
-	case PHY_INTERFACE_MODE_USXGMII:
-	case PHY_INTERFACE_MODE_10G_QXGMII:
-		/* These protocols are designed for use with a PHY which
-		 * communicates its negotiation result back to the MAC via
-		 * inband communication. Note: there exist PHYs that run
-		 * with SGMII but do not send the inband data.
-		 */
-		type = INBAND_CISCO_SGMII;
-		break;
-
-	case PHY_INTERFACE_MODE_1000BASEX:
-	case PHY_INTERFACE_MODE_2500BASEX:
-		/* 1000base-X is designed for use media-side for Fibre
-		 * connections, and thus the Autoneg bit needs to be
-		 * taken into account. We also do this for 2500base-X
-		 * as well, but drivers may not support this, so may
-		 * need to override this.
-		 */
-		type = INBAND_BASEX;
-		break;
-
-	default:
-		pl->pcs_neg_mode = PHYLINK_PCS_NEG_NONE;
-		pl->act_link_an_mode = mode;
-		return;
-	}
 
 	if (pcs)
 		pcs_ib_caps = phylink_pcs_inband_caps(pcs, interface);
@@ -2132,9 +2141,6 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 		    __ETHTOOL_LINK_MODE_MASK_NBITS, pl->supported,
 		    __ETHTOOL_LINK_MODE_MASK_NBITS, phy->advertising);
 
-	if (phy_interrupt_is_valid(phy))
-		phy_request_interrupt(phy);
-
 	if (pl->config->mac_managed_pm)
 		phy->mac_managed_pm = true;
 
@@ -2150,6 +2156,9 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 		if (ret == -EOPNOTSUPP)
 			ret = 0;
 	}
+
+	if (ret == 0 && phy_interrupt_is_valid(phy))
+		phy_request_interrupt(phy);
 
 	return ret;
 }
@@ -3625,6 +3634,7 @@ static int phylink_sfp_config_optical(struct phylink *pl)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(support);
 	struct phylink_link_state config;
+	enum inband_type inband_type;
 	phy_interface_t interface;
 	int ret;
 
@@ -3670,6 +3680,23 @@ static int phylink_sfp_config_optical(struct phylink *pl)
 
 	phylink_dbg(pl, "optical SFP: chosen %s interface\n",
 		    phy_modes(interface));
+
+	inband_type = phylink_get_inband_type(interface);
+	if (inband_type == INBAND_NONE) {
+		/* If this is the sole interface, and there is no inband
+		 * support, clear the advertising mask and Autoneg bit in
+		 * the support mask. Otherwise, just clear the Autoneg bit
+		 * in the advertising mask.
+		 */
+		if (phy_interface_weight(pl->sfp_interfaces) == 1) {
+			linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+					   pl->sfp_support);
+			linkmode_zero(config.advertising);
+		} else {
+			linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+					   config.advertising);
+		}
+	}
 
 	if (!phylink_validate_pcs_inband_autoneg(pl, interface,
 						 config.advertising)) {

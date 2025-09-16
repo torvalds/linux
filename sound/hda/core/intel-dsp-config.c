@@ -116,6 +116,13 @@ static const struct config_entry config_table[] = {
 		.flags = FLAG_SST,
 		.device = PCI_DEVICE_ID_INTEL_HDA_FCL,
 	},
+#else /* AVS disabled; force to legacy as SOF doesn't work for SKL or KBL */
+	{
+		.device = PCI_DEVICE_ID_INTEL_HDA_SKL_LP,
+	},
+	{
+		.device = PCI_DEVICE_ID_INTEL_HDA_KBL_LP,
+	},
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
 	{
@@ -167,9 +174,9 @@ static const struct config_entry config_table[] = {
 
 /*
  * CoffeeLake, CannonLake, CometLake, IceLake, TigerLake, AlderLake,
- * RaptorLake use legacy HDAudio driver except for Google Chromebooks
- * and when DMICs are present. Two cases are required since Coreboot
- * does not expose NHLT tables.
+ * RaptorLake, MeteorLake use legacy HDAudio driver except for Google
+ * Chromebooks and when DMICs are present. Two cases are required since
+ * Coreboot does not expose NHLT tables.
  *
  * When the Chromebook quirk is not present, it's based on information
  * that no such device exists. When the quirk is present, it could be
@@ -516,6 +523,19 @@ static const struct config_entry config_table[] = {
 /* Meteor Lake */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_METEORLAKE)
 	/* Meteorlake-P */
+	{
+		.flags = FLAG_SOF,
+		.device = PCI_DEVICE_ID_INTEL_HDA_MTL,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
 	{
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = PCI_DEVICE_ID_INTEL_HDA_MTL,
