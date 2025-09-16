@@ -1022,27 +1022,28 @@ static void delayed_release(struct rcu_head *p)
 
 void fuse_conn_put(struct fuse_conn *fc)
 {
-	if (refcount_dec_and_test(&fc->count)) {
-		struct fuse_iqueue *fiq = &fc->iq;
-		struct fuse_sync_bucket *bucket;
+	struct fuse_iqueue *fiq = &fc->iq;
+	struct fuse_sync_bucket *bucket;
 
-		if (IS_ENABLED(CONFIG_FUSE_DAX))
-			fuse_dax_conn_free(fc);
-		if (fc->timeout.req_timeout)
-			cancel_delayed_work_sync(&fc->timeout.work);
-		cancel_work_sync(&fc->epoch_work);
-		if (fiq->ops->release)
-			fiq->ops->release(fiq);
-		put_pid_ns(fc->pid_ns);
-		bucket = rcu_dereference_protected(fc->curr_bucket, 1);
-		if (bucket) {
-			WARN_ON(atomic_read(&bucket->count) != 1);
-			kfree(bucket);
-		}
-		if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
-			fuse_backing_files_free(fc);
-		call_rcu(&fc->rcu, delayed_release);
+	if (!refcount_dec_and_test(&fc->count))
+		return;
+
+	if (IS_ENABLED(CONFIG_FUSE_DAX))
+		fuse_dax_conn_free(fc);
+	if (fc->timeout.req_timeout)
+		cancel_delayed_work_sync(&fc->timeout.work);
+	cancel_work_sync(&fc->epoch_work);
+	if (fiq->ops->release)
+		fiq->ops->release(fiq);
+	put_pid_ns(fc->pid_ns);
+	bucket = rcu_dereference_protected(fc->curr_bucket, 1);
+	if (bucket) {
+		WARN_ON(atomic_read(&bucket->count) != 1);
+		kfree(bucket);
 	}
+	if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
+		fuse_backing_files_free(fc);
+	call_rcu(&fc->rcu, delayed_release);
 }
 EXPORT_SYMBOL_GPL(fuse_conn_put);
 
