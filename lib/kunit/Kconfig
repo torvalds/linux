@@ -112,5 +112,9 @@ config KUNIT_UML_PCI
 	select UML_PCI
 	help
 	  Enables the PCI subsystem on UML for use by KUnit tests.
+	  Some KUnit tests require the PCI core which is not enabled by
+	  default on UML.
+
+	  If unsure, say N.
 
 endif # KUNIT
