@@ -141,6 +141,8 @@ extern const struct class ptp_class;
  * see ptp_chardev.c
  */
 
+void ptp_disable_all_events(struct ptp_clock *ptp);
+
 /* caller must hold pincfg_mux */
 int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 		    enum ptp_pin_function func, unsigned int chan);
