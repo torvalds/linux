@@ -26,11 +26,7 @@ int iio_pop_from_buffer(struct iio_buffer *buffer, void *data);
  * @data:		sample data
  * @timestamp:		timestamp for the sample data
  *
- * Pushes data to the IIO device's buffers. If timestamps are enabled for the
- * device the function will store the supplied timestamp as the last element in
- * the sample data buffer before pushing it to the device buffers. The sample
- * data buffer needs to be large enough to hold the additional timestamp
- * (usually the buffer should be indio->scan_bytes bytes large).
+ * DEPRECATED: Use iio_push_to_buffers_with_ts() instead.
  *
  * Returns 0 on success, a negative error code otherwise.
  */
