@@ -45,15 +45,18 @@ static inline struct io_zcrx_area *io_zcrx_iov_to_area(const struct net_iov *nio
 static inline struct page *io_zcrx_iov_page(const struct net_iov *niov)
 {
 	struct io_zcrx_area *area = io_zcrx_iov_to_area(niov);
+	unsigned niov_pages_shift;
 
 	lockdep_assert(!area->mem.is_dmabuf);
 
-	return area->mem.pages[net_iov_idx(niov)];
+	niov_pages_shift = area->ifq->niov_shift - PAGE_SHIFT;
+	return area->mem.pages[net_iov_idx(niov) << niov_pages_shift];
 }
 
 static int io_populate_area_dma(struct io_zcrx_ifq *ifq,
 				struct io_zcrx_area *area)
 {
+	unsigned niov_size = 1U << ifq->niov_shift;
 	struct sg_table *sgt = area->mem.sgt;
 	struct scatterlist *sg;
 	unsigned i, niov_idx = 0;
@@ -62,13 +65,16 @@ static int io_populate_area_dma(struct io_zcrx_ifq *ifq,
 		dma_addr_t dma = sg_dma_address(sg);
 		unsigned long sg_len = sg_dma_len(sg);
 
+		if (WARN_ON_ONCE(sg_len % niov_size))
+			return -EINVAL;
+
 		while (sg_len && niov_idx < area->nia.num_niovs) {
 			struct net_iov *niov = &area->nia.niovs[niov_idx];
 
 			if (net_mp_niov_set_dma_addr(niov, dma))
 				return -EFAULT;
-			sg_len -= PAGE_SIZE;
-			dma += PAGE_SIZE;
+			sg_len -= niov_size;
+			dma += niov_size;
 			niov_idx++;
 		}
 	}
@@ -284,18 +290,21 @@ static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 	return ret;
 }
 
-static void io_zcrx_sync_for_device(const struct page_pool *pool,
+static void io_zcrx_sync_for_device(struct page_pool *pool,
 				    struct net_iov *niov)
 {
 #if defined(CONFIG_HAS_DMA) && defined(CONFIG_DMA_NEED_SYNC)
 	dma_addr_t dma_addr;
 
+	unsigned niov_size;
+
 	if (!dma_dev_need_sync(pool->p.dev))
 		return;
 
+	niov_size = 1U << io_pp_to_ifq(pool)->niov_shift;
 	dma_addr = page_pool_get_dma_addr_netmem(net_iov_to_netmem(niov));
 	__dma_sync_single_for_device(pool->p.dev, dma_addr + pool->p.offset,
-				     PAGE_SIZE, pool->p.dma_dir);
+				     niov_size, pool->p.dma_dir);
 #endif
 }
 
@@ -413,7 +422,8 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	if (ret)
 		goto err;
 
-	nr_iovs = area->mem.size >> PAGE_SHIFT;
+	ifq->niov_shift = PAGE_SHIFT;
+	nr_iovs = area->mem.size >> ifq->niov_shift;
 	area->nia.num_niovs = nr_iovs;
 
 	ret = -ENOMEM;
@@ -764,7 +774,7 @@ static void io_zcrx_ring_refill(struct page_pool *pp,
 		unsigned niov_idx, area_idx;
 
 		area_idx = rqe->off >> IORING_ZCRX_AREA_SHIFT;
-		niov_idx = (rqe->off & ~IORING_ZCRX_AREA_MASK) >> PAGE_SHIFT;
+		niov_idx = (rqe->off & ~IORING_ZCRX_AREA_MASK) >> ifq->niov_shift;
 
 		if (unlikely(rqe->__pad || area_idx))
 			continue;
@@ -854,8 +864,8 @@ static int io_pp_zc_init(struct page_pool *pp)
 		return -EINVAL;
 	if (WARN_ON_ONCE(!pp->dma_map))
 		return -EOPNOTSUPP;
-	if (pp->p.order != 0)
-		return -EOPNOTSUPP;
+	if (pp->p.order + PAGE_SHIFT != ifq->niov_shift)
+		return -EINVAL;
 	if (pp->p.dma_dir != DMA_FROM_DEVICE)
 		return -EOPNOTSUPP;
 
@@ -930,7 +940,7 @@ static bool io_zcrx_queue_cqe(struct io_kiocb *req, struct net_iov *niov,
 		cqe->flags |= IORING_CQE_F_32;
 
 	area = io_zcrx_iov_to_area(niov);
-	offset = off + (net_iov_idx(niov) << PAGE_SHIFT);
+	offset = off + (net_iov_idx(niov) << ifq->niov_shift);
 	rcqe = (struct io_uring_zcrx_cqe *)(cqe + 1);
 	rcqe->off = offset + ((u64)area->area_id << IORING_ZCRX_AREA_SHIFT);
 	rcqe->__pad = 0;
