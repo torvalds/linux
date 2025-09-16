@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/arm,versatile-fpga-irq.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM Versatile FPGA IRQ Controller
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description:
+  One or more FPGA IRQ controllers can be synthesized in an ARM reference board
+  such as the Integrator or Versatile family. The output of these different
+  controllers are OR:ed together and fed to the CPU tile's IRQ input. Each
+  instance can handle up to 32 interrupts.
+
+properties:
+  compatible:
+    const: arm,versatile-fpga-irq
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+
+  reg:
+    maxItems: 1
+
+  clear-mask:
+    description: A mask written to clear all IRQs on the controller at boot.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  valid-mask:
+    description:
+      A bit mask determining which interrupts are valid; unused lines are set to 0.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  interrupts:
+    maxItems: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - interrupt-controller
+  - '#interrupt-cells'
+  - reg
+  - clear-mask
+  - valid-mask
+
+examples:
+  - |
+    interrupt-controller@14000000 {
+        compatible = "arm,versatile-fpga-irq";
+        #interrupt-cells = <1>;
+        interrupt-controller;
+        reg = <0x14000000 0x100>;
+        clear-mask = <0xffffffff>;
+        valid-mask = <0x003fffff>;
+    };

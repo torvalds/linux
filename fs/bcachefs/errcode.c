@@ -13,12 +13,13 @@ static const char * const bch2_errcode_strs[] = {
 	NULL
 };
 
-static unsigned bch2_errcode_parents[] = {
+static const unsigned bch2_errcode_parents[] = {
 #define x(class, err) [BCH_ERR_##err - BCH_ERR_START] = class,
 	BCH_ERRCODES()
 #undef x
 };
 
+__attribute__((const))
 const char *bch2_err_str(int err)
 {
 	const char *errstr;
@@ -36,6 +37,7 @@ const char *bch2_err_str(int err)
 	return errstr ?: "(Invalid error)";
 }
 
+__attribute__((const))
 bool __bch2_err_matches(int err, int class)
 {
 	err	= abs(err);

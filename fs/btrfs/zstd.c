@@ -24,7 +24,7 @@
 #include "super.h"
 
 #define ZSTD_BTRFS_MAX_WINDOWLOG 17
-#define ZSTD_BTRFS_MAX_INPUT (1 << ZSTD_BTRFS_MAX_WINDOWLOG)
+#define ZSTD_BTRFS_MAX_INPUT (1U << ZSTD_BTRFS_MAX_WINDOWLOG)
 #define ZSTD_BTRFS_DEFAULT_LEVEL 3
 #define ZSTD_BTRFS_MIN_LEVEL -15
 #define ZSTD_BTRFS_MAX_LEVEL 15
@@ -200,8 +200,7 @@ void zstd_init_workspace_manager(void)
 
 	ws = zstd_alloc_workspace(ZSTD_BTRFS_MAX_LEVEL);
 	if (IS_ERR(ws)) {
-		pr_warn(
-		"BTRFS: cannot preallocate zstd compression workspace\n");
+		btrfs_warn(NULL, "cannot preallocate zstd compression workspace");
 	} else {
 		set_bit(ZSTD_BTRFS_MAX_LEVEL - 1, &wsm.active_map);
 		list_add(ws, &wsm.idle_ws[ZSTD_BTRFS_MAX_LEVEL - 1]);
@@ -426,8 +425,8 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 	ret = btrfs_compress_filemap_get_folio(mapping, start, &in_folio);
 	if (ret < 0)
 		goto out;
-	cur_len = btrfs_calc_input_length(orig_end, start);
-	workspace->in_buf.src = kmap_local_folio(in_folio, offset_in_page(start));
+	cur_len = btrfs_calc_input_length(in_folio, orig_end, start);
+	workspace->in_buf.src = kmap_local_folio(in_folio, offset_in_folio(in_folio, start));
 	workspace->in_buf.pos = 0;
 	workspace->in_buf.size = cur_len;
 
@@ -511,9 +510,9 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 			ret = btrfs_compress_filemap_get_folio(mapping, start, &in_folio);
 			if (ret < 0)
 				goto out;
-			cur_len = btrfs_calc_input_length(orig_end, start);
+			cur_len = btrfs_calc_input_length(in_folio, orig_end, start);
 			workspace->in_buf.src = kmap_local_folio(in_folio,
-							 offset_in_page(start));
+							 offset_in_folio(in_folio, start));
 			workspace->in_buf.pos = 0;
 			workspace->in_buf.size = cur_len;
 		}

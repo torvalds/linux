@@ -30,7 +30,7 @@ SECTIONS
 		*(.data .data.* .gnu.linkonce.d.*)
 		*(.dynbss)
 		*(.bss .bss.* .gnu.linkonce.b.*)
-	}
+	}						:text
 
 	.note		: { *(.note.*) }		:text	:note
 
@@ -79,6 +79,9 @@ VERSION
 		__vdso_flush_icache;
 #ifndef COMPAT_VDSO
 		__vdso_riscv_hwprobe;
+#endif
+#if defined(CONFIG_VDSO_GETRANDOM) && !defined(COMPAT_VDSO)
+		__vdso_getrandom;
 #endif
 	local: *;
 	};

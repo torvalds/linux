@@ -24,7 +24,6 @@ void rtl92du_phy_set_poweron(struct ieee80211_hw *hw);
 bool rtl92du_phy_check_poweroff(struct ieee80211_hw *hw);
 void rtl92du_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t);
 void rtl92du_update_bbrf_configuration(struct ieee80211_hw *hw);
-void rtl92du_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta);
 void rtl92du_phy_iq_calibrate(struct ieee80211_hw *hw);
 void rtl92du_phy_reload_iqk_setting(struct ieee80211_hw *hw, u8 channel);
 void rtl92du_phy_init_pa_bias(struct ieee80211_hw *hw);

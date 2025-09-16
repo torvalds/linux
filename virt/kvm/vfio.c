@@ -175,7 +175,6 @@ static int kvm_vfio_file_add(struct kvm_device *dev, unsigned int fd)
 	kvf->file = get_file(filp);
 	list_add_tail(&kvf->node, &kv->file_list);
 
-	kvm_arch_start_assignment(dev->kvm);
 	kvm_vfio_file_set_kvm(kvf->file, dev->kvm);
 	kvm_vfio_update_coherency(dev);
 
@@ -205,7 +204,6 @@ static int kvm_vfio_file_del(struct kvm_device *dev, unsigned int fd)
 			continue;
 
 		list_del(&kvf->node);
-		kvm_arch_end_assignment(dev->kvm);
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 		kvm_spapr_tce_release_vfio_group(dev->kvm, kvf);
 #endif
@@ -336,7 +334,6 @@ static void kvm_vfio_release(struct kvm_device *dev)
 		fput(kvf->file);
 		list_del(&kvf->node);
 		kfree(kvf);
-		kvm_arch_end_assignment(dev->kvm);
 	}
 
 	kvm_vfio_update_coherency(dev);

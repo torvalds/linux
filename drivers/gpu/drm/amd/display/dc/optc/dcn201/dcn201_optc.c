@@ -129,7 +129,7 @@ static void optc201_get_optc_source(struct timing_generator *optc,
 	*num_of_src_opp = 1;
 }
 
-static struct timing_generator_funcs dcn201_tg_funcs = {
+static const struct timing_generator_funcs dcn201_tg_funcs = {
 		.validate_timing = optc201_validate_timing,
 		.program_timing = optc1_program_timing,
 		.setup_vertical_interrupt0 = optc1_setup_vertical_interrupt0,

@@ -28,6 +28,18 @@
 #define SLLC_VERSION			0x1cf0
 #define SLLC_EVENT_CNT0_L		0x1d00
 
+/* SLLC registers definition in v3 */
+#define SLLC_V3_INT_MASK		0x6834
+#define SLLC_V3_INT_STATUS		0x6838
+#define SLLC_V3_INT_CLEAR		0x683c
+#define SLLC_V3_VERSION			0x6c00
+#define SLLC_V3_PERF_CTRL		0x6d00
+#define SLLC_V3_SRCID_CTRL		0x6d04
+#define SLLC_V3_TGTID_CTRL		0x6d08
+#define SLLC_V3_EVENT_CTRL		0x6d14
+#define SLLC_V3_EVENT_TYPE0		0x6d18
+#define SLLC_V3_EVENT_CNT0_L		0x6e00
+
 #define SLLC_EVTYPE_MASK		0xff
 #define SLLC_PERF_CTRL_EN		BIT(0)
 #define SLLC_FILT_EN			BIT(1)
@@ -40,13 +52,37 @@
 #define SLLC_TGTID_MAX_SHIFT		12
 #define SLLC_SRCID_CMD_SHIFT		1
 #define SLLC_SRCID_MSK_SHIFT		12
-#define SLLC_NR_EVENTS			0x80
+
+#define SLLC_V3_TGTID_MIN_SHIFT		1
+#define SLLC_V3_TGTID_MAX_SHIFT		10
+#define SLLC_V3_SRCID_CMD_SHIFT		1
+#define SLLC_V3_SRCID_MSK_SHIFT		10
+
+#define SLLC_NR_EVENTS			0xff
+#define SLLC_EVENT_CNTn(cnt0, n)	((cnt0) + (n) * 8)
 
 HISI_PMU_EVENT_ATTR_EXTRACTOR(tgtid_min, config1, 10, 0);
 HISI_PMU_EVENT_ATTR_EXTRACTOR(tgtid_max, config1, 21, 11);
 HISI_PMU_EVENT_ATTR_EXTRACTOR(srcid_cmd, config1, 32, 22);
 HISI_PMU_EVENT_ATTR_EXTRACTOR(srcid_msk, config1, 43, 33);
 HISI_PMU_EVENT_ATTR_EXTRACTOR(tracetag_en, config1, 44, 44);
+
+struct hisi_sllc_pmu_regs {
+	u32 int_mask;
+	u32 int_clear;
+	u32 int_status;
+	u32 perf_ctrl;
+	u32 srcid_ctrl;
+	u32 srcid_cmd_shift;
+	u32 srcid_mask_shift;
+	u32 tgtid_ctrl;
+	u32 tgtid_min_shift;
+	u32 tgtid_max_shift;
+	u32 event_ctrl;
+	u32 event_type0;
+	u32 version;
+	u32 event_cnt0;
+};
 
 static bool tgtid_is_valid(u32 max, u32 min)
 {
@@ -56,96 +92,104 @@ static bool tgtid_is_valid(u32 max, u32 min)
 static void hisi_sllc_pmu_enable_tracetag(struct perf_event *event)
 {
 	struct hisi_pmu *sllc_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 	u32 tt_en = hisi_get_tracetag_en(event);
 
 	if (tt_en) {
 		u32 val;
 
-		val = readl(sllc_pmu->base + SLLC_PERF_CTRL);
+		val = readl(sllc_pmu->base + regs->perf_ctrl);
 		val |= SLLC_TRACETAG_EN | SLLC_FILT_EN;
-		writel(val, sllc_pmu->base + SLLC_PERF_CTRL);
+		writel(val, sllc_pmu->base + regs->perf_ctrl);
 	}
 }
 
 static void hisi_sllc_pmu_disable_tracetag(struct perf_event *event)
 {
 	struct hisi_pmu *sllc_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 	u32 tt_en = hisi_get_tracetag_en(event);
 
 	if (tt_en) {
 		u32 val;
 
-		val = readl(sllc_pmu->base + SLLC_PERF_CTRL);
+		val = readl(sllc_pmu->base + regs->perf_ctrl);
 		val &= ~(SLLC_TRACETAG_EN | SLLC_FILT_EN);
-		writel(val, sllc_pmu->base + SLLC_PERF_CTRL);
+		writel(val, sllc_pmu->base + regs->perf_ctrl);
 	}
 }
 
 static void hisi_sllc_pmu_config_tgtid(struct perf_event *event)
 {
 	struct hisi_pmu *sllc_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 	u32 min = hisi_get_tgtid_min(event);
 	u32 max = hisi_get_tgtid_max(event);
 
 	if (tgtid_is_valid(max, min)) {
-		u32 val = (max << SLLC_TGTID_MAX_SHIFT) | (min << SLLC_TGTID_MIN_SHIFT);
+		u32 val = (max << regs->tgtid_max_shift) |
+			  (min << regs->tgtid_min_shift);
 
-		writel(val, sllc_pmu->base + SLLC_TGTID_CTRL);
+		writel(val, sllc_pmu->base + regs->tgtid_ctrl);
 		/* Enable the tgtid */
-		val = readl(sllc_pmu->base + SLLC_PERF_CTRL);
+		val = readl(sllc_pmu->base + regs->perf_ctrl);
 		val |= SLLC_TGTID_EN | SLLC_FILT_EN;
-		writel(val, sllc_pmu->base + SLLC_PERF_CTRL);
+		writel(val, sllc_pmu->base + regs->perf_ctrl);
 	}
 }
 
 static void hisi_sllc_pmu_clear_tgtid(struct perf_event *event)
 {
 	struct hisi_pmu *sllc_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 	u32 min = hisi_get_tgtid_min(event);
 	u32 max = hisi_get_tgtid_max(event);
 
 	if (tgtid_is_valid(max, min)) {
 		u32 val;
 
-		writel(SLLC_TGTID_NONE, sllc_pmu->base + SLLC_TGTID_CTRL);
+		writel(SLLC_TGTID_NONE, sllc_pmu->base + regs->tgtid_ctrl);
 		/* Disable the tgtid */
-		val = readl(sllc_pmu->base + SLLC_PERF_CTRL);
+		val = readl(sllc_pmu->base + regs->perf_ctrl);
 		val &= ~(SLLC_TGTID_EN | SLLC_FILT_EN);
-		writel(val, sllc_pmu->base + SLLC_PERF_CTRL);
+		writel(val, sllc_pmu->base + regs->perf_ctrl);
 	}
 }
 
 static void hisi_sllc_pmu_config_srcid(struct perf_event *event)
 {
 	struct hisi_pmu *sllc_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 	u32 cmd = hisi_get_srcid_cmd(event);
 
 	if (cmd) {
 		u32 val, msk;
 
 		msk = hisi_get_srcid_msk(event);
-		val = (cmd << SLLC_SRCID_CMD_SHIFT) | (msk << SLLC_SRCID_MSK_SHIFT);
-		writel(val, sllc_pmu->base + SLLC_SRCID_CTRL);
+		val = (cmd << regs->srcid_cmd_shift) |
+		      (msk << regs->srcid_mask_shift);
+		writel(val, sllc_pmu->base + regs->srcid_ctrl);
 		/* Enable the srcid */
-		val = readl(sllc_pmu->base + SLLC_PERF_CTRL);
+		val = readl(sllc_pmu->base + regs->perf_ctrl);
 		val |= SLLC_SRCID_EN | SLLC_FILT_EN;
-		writel(val, sllc_pmu->base + SLLC_PERF_CTRL);
+		writel(val, sllc_pmu->base + regs->perf_ctrl);
 	}
 }
 
 static void hisi_sllc_pmu_clear_srcid(struct perf_event *event)
 {
 	struct hisi_pmu *sllc_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 	u32 cmd = hisi_get_srcid_cmd(event);
 
 	if (cmd) {
 		u32 val;
 
-		writel(SLLC_SRCID_NONE, sllc_pmu->base + SLLC_SRCID_CTRL);
+		writel(SLLC_SRCID_NONE, sllc_pmu->base + regs->srcid_ctrl);
 		/* Disable the srcid */
-		val = readl(sllc_pmu->base + SLLC_PERF_CTRL);
+		val = readl(sllc_pmu->base + regs->perf_ctrl);
 		val &= ~(SLLC_SRCID_EN | SLLC_FILT_EN);
-		writel(val, sllc_pmu->base + SLLC_PERF_CTRL);
+		writel(val, sllc_pmu->base + regs->perf_ctrl);
 	}
 }
 
@@ -167,29 +211,27 @@ static void hisi_sllc_pmu_clear_filter(struct perf_event *event)
 	}
 }
 
-static u32 hisi_sllc_pmu_get_counter_offset(int idx)
-{
-	return (SLLC_EVENT_CNT0_L + idx * 8);
-}
-
 static u64 hisi_sllc_pmu_read_counter(struct hisi_pmu *sllc_pmu,
 				      struct hw_perf_event *hwc)
 {
-	return readq(sllc_pmu->base +
-		     hisi_sllc_pmu_get_counter_offset(hwc->idx));
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
+
+	return readq(sllc_pmu->base + SLLC_EVENT_CNTn(regs->event_cnt0, hwc->idx));
 }
 
 static void hisi_sllc_pmu_write_counter(struct hisi_pmu *sllc_pmu,
 					struct hw_perf_event *hwc, u64 val)
 {
-	writeq(val, sllc_pmu->base +
-	       hisi_sllc_pmu_get_counter_offset(hwc->idx));
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
+
+	writeq(val, sllc_pmu->base + SLLC_EVENT_CNTn(regs->event_cnt0, hwc->idx));
 }
 
 static void hisi_sllc_pmu_write_evtype(struct hisi_pmu *sllc_pmu, int idx,
 				       u32 type)
 {
-	u32 reg, reg_idx, shift, val;
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
+	u32 reg, val;
 
 	/*
 	 * Select the appropriate event select register(SLLC_EVENT_TYPE0/1).
@@ -198,96 +240,98 @@ static void hisi_sllc_pmu_write_evtype(struct hisi_pmu *sllc_pmu, int idx,
 	 * SLLC_EVENT_TYPE0 is chosen. For the latter 4 hardware counters,
 	 * SLLC_EVENT_TYPE1 is chosen.
 	 */
-	reg = SLLC_EVENT_TYPE0 + (idx / 4) * 4;
-	reg_idx = idx % 4;
-	shift = 8 * reg_idx;
+	reg = regs->event_type0 + (idx / 4) * 4;
 
 	/* Write event code to SLLC_EVENT_TYPEx Register */
 	val = readl(sllc_pmu->base + reg);
-	val &= ~(SLLC_EVTYPE_MASK << shift);
-	val |= (type << shift);
+	val &= ~(SLLC_EVTYPE_MASK << HISI_PMU_EVTYPE_SHIFT(idx));
+	val |= (type << HISI_PMU_EVTYPE_SHIFT(idx));
 	writel(val, sllc_pmu->base + reg);
 }
 
 static void hisi_sllc_pmu_start_counters(struct hisi_pmu *sllc_pmu)
 {
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 	u32 val;
 
-	val = readl(sllc_pmu->base + SLLC_PERF_CTRL);
+	val = readl(sllc_pmu->base + regs->perf_ctrl);
 	val |= SLLC_PERF_CTRL_EN;
-	writel(val, sllc_pmu->base + SLLC_PERF_CTRL);
+	writel(val, sllc_pmu->base + regs->perf_ctrl);
 }
 
 static void hisi_sllc_pmu_stop_counters(struct hisi_pmu *sllc_pmu)
 {
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 	u32 val;
 
-	val = readl(sllc_pmu->base + SLLC_PERF_CTRL);
+	val = readl(sllc_pmu->base + regs->perf_ctrl);
 	val &= ~(SLLC_PERF_CTRL_EN);
-	writel(val, sllc_pmu->base + SLLC_PERF_CTRL);
+	writel(val, sllc_pmu->base + regs->perf_ctrl);
 }
 
 static void hisi_sllc_pmu_enable_counter(struct hisi_pmu *sllc_pmu,
 					 struct hw_perf_event *hwc)
 {
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 	u32 val;
 
-	val = readl(sllc_pmu->base + SLLC_EVENT_CTRL);
-	val |= 1 << hwc->idx;
-	writel(val, sllc_pmu->base + SLLC_EVENT_CTRL);
+	val = readl(sllc_pmu->base + regs->event_ctrl);
+	val |= BIT_ULL(hwc->idx);
+	writel(val, sllc_pmu->base + regs->event_ctrl);
 }
 
 static void hisi_sllc_pmu_disable_counter(struct hisi_pmu *sllc_pmu,
 					  struct hw_perf_event *hwc)
 {
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 	u32 val;
 
-	val = readl(sllc_pmu->base + SLLC_EVENT_CTRL);
-	val &= ~(1 << hwc->idx);
-	writel(val, sllc_pmu->base + SLLC_EVENT_CTRL);
+	val = readl(sllc_pmu->base + regs->event_ctrl);
+	val &= ~BIT_ULL(hwc->idx);
+	writel(val, sllc_pmu->base + regs->event_ctrl);
 }
 
 static void hisi_sllc_pmu_enable_counter_int(struct hisi_pmu *sllc_pmu,
 					     struct hw_perf_event *hwc)
 {
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 	u32 val;
 
-	val = readl(sllc_pmu->base + SLLC_INT_MASK);
-	/* Write 0 to enable interrupt */
-	val &= ~(1 << hwc->idx);
-	writel(val, sllc_pmu->base + SLLC_INT_MASK);
+	val = readl(sllc_pmu->base + regs->int_mask);
+	val &= ~BIT_ULL(hwc->idx);
+	writel(val, sllc_pmu->base + regs->int_mask);
 }
 
 static void hisi_sllc_pmu_disable_counter_int(struct hisi_pmu *sllc_pmu,
 					      struct hw_perf_event *hwc)
 {
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 	u32 val;
 
-	val = readl(sllc_pmu->base + SLLC_INT_MASK);
-	/* Write 1 to mask interrupt */
-	val |= 1 << hwc->idx;
-	writel(val, sllc_pmu->base + SLLC_INT_MASK);
+	val = readl(sllc_pmu->base + regs->int_mask);
+	val |= BIT_ULL(hwc->idx);
+	writel(val, sllc_pmu->base + regs->int_mask);
 }
 
 static u32 hisi_sllc_pmu_get_int_status(struct hisi_pmu *sllc_pmu)
 {
-	return readl(sllc_pmu->base + SLLC_INT_STATUS);
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
+
+	return readl(sllc_pmu->base + regs->int_status);
 }
 
 static void hisi_sllc_pmu_clear_int_status(struct hisi_pmu *sllc_pmu, int idx)
 {
-	writel(1 << idx, sllc_pmu->base + SLLC_INT_CLEAR);
-}
+	struct hisi_sllc_pmu_regs *regs = sllc_pmu->dev_info->private;
 
-static const struct acpi_device_id hisi_sllc_pmu_acpi_match[] = {
-	{ "HISI0263", },
-	{}
-};
-MODULE_DEVICE_TABLE(acpi, hisi_sllc_pmu_acpi_match);
+	writel(BIT_ULL(idx), sllc_pmu->base + regs->int_clear);
+}
 
 static int hisi_sllc_pmu_init_data(struct platform_device *pdev,
 				   struct hisi_pmu *sllc_pmu)
 {
+	struct hisi_sllc_pmu_regs *regs;
+
 	hisi_uncore_pmu_init_topology(sllc_pmu, &pdev->dev);
 
 	/*
@@ -304,13 +348,18 @@ static int hisi_sllc_pmu_init_data(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
+	sllc_pmu->dev_info = device_get_match_data(&pdev->dev);
+	if (!sllc_pmu->dev_info)
+		return -ENODEV;
+
 	sllc_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sllc_pmu->base)) {
 		dev_err(&pdev->dev, "ioremap failed for sllc_pmu resource.\n");
 		return PTR_ERR(sllc_pmu->base);
 	}
 
-	sllc_pmu->identifier = readl(sllc_pmu->base + SLLC_VERSION);
+	regs = sllc_pmu->dev_info->private;
+	sllc_pmu->identifier = readl(sllc_pmu->base + regs->version);
 
 	return 0;
 }
@@ -350,6 +399,48 @@ static const struct attribute_group *hisi_sllc_pmu_v2_attr_groups[] = {
 	&hisi_pmu_cpumask_attr_group,
 	&hisi_pmu_identifier_group,
 	NULL
+};
+
+static struct hisi_sllc_pmu_regs hisi_sllc_v2_pmu_regs = {
+	.int_mask = SLLC_INT_MASK,
+	.int_clear = SLLC_INT_CLEAR,
+	.int_status = SLLC_INT_STATUS,
+	.perf_ctrl = SLLC_PERF_CTRL,
+	.srcid_ctrl = SLLC_SRCID_CTRL,
+	.srcid_cmd_shift = SLLC_SRCID_CMD_SHIFT,
+	.srcid_mask_shift = SLLC_SRCID_MSK_SHIFT,
+	.tgtid_ctrl = SLLC_TGTID_CTRL,
+	.tgtid_min_shift = SLLC_TGTID_MIN_SHIFT,
+	.tgtid_max_shift = SLLC_TGTID_MAX_SHIFT,
+	.event_ctrl = SLLC_EVENT_CTRL,
+	.event_type0 = SLLC_EVENT_TYPE0,
+	.version = SLLC_VERSION,
+	.event_cnt0 = SLLC_EVENT_CNT0_L,
+};
+
+static const struct hisi_pmu_dev_info hisi_sllc_v2 = {
+	.private = &hisi_sllc_v2_pmu_regs,
+};
+
+static struct hisi_sllc_pmu_regs hisi_sllc_v3_pmu_regs = {
+	.int_mask = SLLC_V3_INT_MASK,
+	.int_clear = SLLC_V3_INT_CLEAR,
+	.int_status = SLLC_V3_INT_STATUS,
+	.perf_ctrl = SLLC_V3_PERF_CTRL,
+	.srcid_ctrl = SLLC_V3_SRCID_CTRL,
+	.srcid_cmd_shift = SLLC_V3_SRCID_CMD_SHIFT,
+	.srcid_mask_shift = SLLC_V3_SRCID_MSK_SHIFT,
+	.tgtid_ctrl = SLLC_V3_TGTID_CTRL,
+	.tgtid_min_shift = SLLC_V3_TGTID_MIN_SHIFT,
+	.tgtid_max_shift = SLLC_V3_TGTID_MAX_SHIFT,
+	.event_ctrl = SLLC_V3_EVENT_CTRL,
+	.event_type0 = SLLC_V3_EVENT_TYPE0,
+	.version = SLLC_V3_VERSION,
+	.event_cnt0 = SLLC_V3_EVENT_CNT0_L,
+};
+
+static const struct hisi_pmu_dev_info hisi_sllc_v3 = {
+	.private = &hisi_sllc_v3_pmu_regs,
 };
 
 static const struct hisi_uncore_ops hisi_uncore_sllc_ops = {
@@ -442,6 +533,13 @@ static void hisi_sllc_pmu_remove(struct platform_device *pdev)
 	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_SLLC_ONLINE,
 					    &sllc_pmu->node);
 }
+
+static const struct acpi_device_id hisi_sllc_pmu_acpi_match[] = {
+	{ "HISI0263", (kernel_ulong_t)&hisi_sllc_v2 },
+	{ "HISI0264", (kernel_ulong_t)&hisi_sllc_v3 },
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, hisi_sllc_pmu_acpi_match);
 
 static struct platform_driver hisi_sllc_pmu_driver = {
 	.driver = {

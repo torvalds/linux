@@ -982,7 +982,7 @@ static int snd_atiixp_pcm_new(struct atiixp_modem *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_atiixp_capture_ops);
 	pcm->dev_class = SNDRV_PCM_CLASS_MODEM;
 	pcm->private_data = chip;
-	strcpy(pcm->name, "ATI IXP MC97");
+	strscpy(pcm->name, "ATI IXP MC97");
 	chip->pcmdevs[ATI_PCMDEV_ANALOG] = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1174,11 +1174,10 @@ static int snd_atiixp_init(struct snd_card *card, struct pci_dev *pci)
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
-	err = pcim_iomap_regions(pci, 1 << 0, "ATI IXP MC97");
-	if (err < 0)
-		return err;
+	chip->remap_addr = pcim_iomap_region(pci, 0, "ATI IXP MC97");
+	if (IS_ERR(chip->remap_addr))
+		return PTR_ERR(chip->remap_addr);
 	chip->addr = pci_resource_start(pci, 0);
-	chip->remap_addr = pcim_iomap_table(pci)[0];
 
 	if (devm_request_irq(&pci->dev, pci->irq, snd_atiixp_interrupt,
 			     IRQF_SHARED, KBUILD_MODNAME, chip)) {
@@ -1207,8 +1206,8 @@ static int __snd_atiixp_probe(struct pci_dev *pci,
 		return err;
 	chip = card->private_data;
 
-	strcpy(card->driver, "ATIIXP-MODEM");
-	strcpy(card->shortname, "ATI IXP Modem");
+	strscpy(card->driver, "ATIIXP-MODEM");
+	strscpy(card->shortname, "ATI IXP Modem");
 	err = snd_atiixp_init(card, pci);
 	if (err < 0)
 		return err;

@@ -2312,7 +2312,7 @@ static int reset_hung_queues_sdma(struct device_queue_manager *dqm)
 				continue;
 
 			/* Reset engine and check. */
-			if (amdgpu_sdma_reset_engine(dqm->dev->adev, i) ||
+			if (amdgpu_sdma_reset_engine(dqm->dev->adev, i, false) ||
 			    dqm->dev->kfd2kgd->hqd_sdma_get_doorbell(dqm->dev->adev, i, j) ||
 			    !set_sdma_queue_as_reset(dqm, doorbell_off)) {
 				r = -ENOTRECOVERABLE;
@@ -2339,9 +2339,18 @@ reset_fail:
 
 static int reset_queues_on_hws_hang(struct device_queue_manager *dqm, bool is_sdma)
 {
+	struct amdgpu_device *adev = dqm->dev->adev;
+
 	while (halt_if_hws_hang)
 		schedule();
 
+	if (adev->debug_disable_gpu_ring_reset) {
+		dev_info_once(adev->dev,
+			      "%s queue hung, but ring reset disabled",
+			      is_sdma ? "sdma" : "compute");
+
+		return -EPERM;
+	}
 	if (!amdgpu_gpu_recovery)
 		return -ENOTRECOVERABLE;
 
@@ -2716,7 +2725,7 @@ static void get_queue_checkpoint_info(struct device_queue_manager *dqm,
 
 	dqm_lock(dqm);
 	mqd_mgr = dqm->mqd_mgrs[mqd_type];
-	*mqd_size = mqd_mgr->mqd_size;
+	*mqd_size = mqd_mgr->mqd_size * NUM_XCC(mqd_mgr->dev->xcc_mask);
 	*ctl_stack_size = 0;
 
 	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE && mqd_mgr->get_checkpoint_info)

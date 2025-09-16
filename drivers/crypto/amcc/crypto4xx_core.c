@@ -485,18 +485,6 @@ static void crypto4xx_copy_pkt_to_dst(struct crypto4xx_device *dev,
 	}
 }
 
-static void crypto4xx_copy_digest_to_dst(void *dst,
-					struct pd_uinfo *pd_uinfo,
-					struct crypto4xx_ctx *ctx)
-{
-	struct dynamic_sa_ctl *sa = (struct dynamic_sa_ctl *) ctx->sa_in;
-
-	if (sa->sa_command_0.bf.hash_alg == SA_HASH_ALG_SHA1) {
-		memcpy(dst, pd_uinfo->sr_va->save_digest,
-		       SA_HASH_ALG_SHA1_DIGEST_SIZE);
-	}
-}
-
 static void crypto4xx_ret_sg_desc(struct crypto4xx_device *dev,
 				  struct pd_uinfo *pd_uinfo)
 {
@@ -547,23 +535,6 @@ static void crypto4xx_cipher_done(struct crypto4xx_device *dev,
 	if (pd_uinfo->state & PD_ENTRY_BUSY)
 		skcipher_request_complete(req, -EINPROGRESS);
 	skcipher_request_complete(req, 0);
-}
-
-static void crypto4xx_ahash_done(struct crypto4xx_device *dev,
-				struct pd_uinfo *pd_uinfo)
-{
-	struct crypto4xx_ctx *ctx;
-	struct ahash_request *ahash_req;
-
-	ahash_req = ahash_request_cast(pd_uinfo->async_req);
-	ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(ahash_req));
-
-	crypto4xx_copy_digest_to_dst(ahash_req->result, pd_uinfo, ctx);
-	crypto4xx_ret_sg_desc(dev, pd_uinfo);
-
-	if (pd_uinfo->state & PD_ENTRY_BUSY)
-		ahash_request_complete(ahash_req, -EINPROGRESS);
-	ahash_request_complete(ahash_req, 0);
 }
 
 static void crypto4xx_aead_done(struct crypto4xx_device *dev,
@@ -642,9 +613,6 @@ static void crypto4xx_pd_done(struct crypto4xx_device *dev, u32 idx)
 	case CRYPTO_ALG_TYPE_AEAD:
 		crypto4xx_aead_done(dev, pd_uinfo, pd);
 		break;
-	case CRYPTO_ALG_TYPE_AHASH:
-		crypto4xx_ahash_done(dev, pd_uinfo);
-		break;
 	}
 }
 
@@ -676,7 +644,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		       struct scatterlist *src,
 		       struct scatterlist *dst,
 		       const unsigned int datalen,
-		       const __le32 *iv, const u32 iv_len,
+		       const void *iv, const u32 iv_len,
 		       const struct dynamic_sa_ctl *req_sa,
 		       const unsigned int sa_len,
 		       const unsigned int assoclen,
@@ -912,8 +880,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	}
 
 	pd->pd_ctl.w = PD_CTL_HOST_READY |
-		((crypto_tfm_alg_type(req->tfm) == CRYPTO_ALG_TYPE_AHASH) ||
-		 (crypto_tfm_alg_type(req->tfm) == CRYPTO_ALG_TYPE_AEAD) ?
+		((crypto_tfm_alg_type(req->tfm) == CRYPTO_ALG_TYPE_AEAD) ?
 			PD_CTL_HASH_FINAL : 0);
 	pd->pd_ctl_len.w = 0x00400000 | (assoclen + datalen);
 	pd_uinfo->state = PD_ENTRY_INUSE | (is_busy ? PD_ENTRY_BUSY : 0);
@@ -1019,10 +986,6 @@ static int crypto4xx_register_alg(struct crypto4xx_device *sec_dev,
 			rc = crypto_register_aead(&alg->alg.u.aead);
 			break;
 
-		case CRYPTO_ALG_TYPE_AHASH:
-			rc = crypto_register_ahash(&alg->alg.u.hash);
-			break;
-
 		case CRYPTO_ALG_TYPE_RNG:
 			rc = crypto_register_rng(&alg->alg.u.rng);
 			break;
@@ -1048,10 +1011,6 @@ static void crypto4xx_unregister_alg(struct crypto4xx_device *sec_dev)
 	list_for_each_entry_safe(alg, tmp, &sec_dev->alg_list, entry) {
 		list_del(&alg->entry);
 		switch (alg->alg.type) {
-		case CRYPTO_ALG_TYPE_AHASH:
-			crypto_unregister_ahash(&alg->alg.u.hash);
-			break;
-
 		case CRYPTO_ALG_TYPE_AEAD:
 			crypto_unregister_aead(&alg->alg.u.aead);
 			break;

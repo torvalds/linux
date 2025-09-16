@@ -1074,7 +1074,7 @@ struct ionic_rxq_sg_desc {
  *                    first IPv4 header.  If the receive packet
  *                    contains both a tunnel IPv4 header and a
  *                    transport IPv4 header, the device validates the
- *                    checksum for the both IPv4 headers.
+ *                    checksum for both IPv4 headers.
  *
  *                  IONIC_RXQ_COMP_CSUM_F_IP_BAD:
  *                    The IPv4 checksum calculated by the device did
@@ -2839,6 +2839,10 @@ union ionic_port_identity {
  * @status:          Port status data
  * @stats:           Port statistics data
  * @mgmt_stats:      Port management statistics data
+ * @sprom_epage:     Extended Transceiver sprom
+ * @sprom_page1:     Extended Transceiver sprom, page 1
+ * @sprom_page2:     Extended Transceiver sprom, page 2
+ * @sprom_page17:    Extended Transceiver sprom, page 17
  * @rsvd:            reserved byte(s)
  * @pb_stats:        uplink pb drop stats
  */
@@ -2849,8 +2853,17 @@ struct ionic_port_info {
 		struct ionic_port_stats      stats;
 		struct ionic_mgmt_port_stats mgmt_stats;
 	};
-	/* room for pb_stats to start at 2k offset */
-	u8                          rsvd[760];
+	union {
+		u8     sprom_epage[384];
+		struct {
+			u8 sprom_page1[128];
+			u8 sprom_page2[128];
+			u8 sprom_page17[128];
+		};
+	};
+	u8     rsvd[376];
+
+	/* pb_stats must start at 2k offset */
 	struct ionic_port_pb_stats  pb_stats;
 };
 

@@ -37,15 +37,20 @@
 		power-domains = <&pd IMX_SC_R_SERDES_1>;
 		status = "disabled";
 	};
-};
 
-&pcieb {
-	#interrupt-cells = <1>;
-	interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
-	interrupt-names = "msi";
-	interrupt-map = <0 0 0 1 &gic 0 47 4>,
-			 <0 0 0 2 &gic 0 48 4>,
-			 <0 0 0 3 &gic 0 49 4>,
-			 <0 0 0 4 &gic 0 50 4>;
-	interrupt-map-mask = <0 0 0 0x7>;
+	pcie0: pcie@5f010000 {
+		#interrupt-cells = <1>;
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "msi";
+		interrupt-map = <0 0 0 1 &gic 0 47 4>,
+				<0 0 0 2 &gic 0 48 4>,
+				<0 0 0 3 &gic 0 49 4>,
+				<0 0 0 4 &gic 0 50 4>;
+		interrupt-map-mask = <0 0 0 0x7>;
+	};
+
+	pcie0_ep: pcie-ep@5f010000 {
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "dma";
+	};
 };

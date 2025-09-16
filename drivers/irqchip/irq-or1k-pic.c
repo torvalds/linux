@@ -144,8 +144,8 @@ static int __init or1k_pic_init(struct device_node *node,
 	/* Disable all interrupts until explicitly requested */
 	mtspr(SPR_PICMR, (0UL));
 
-	root_domain = irq_domain_add_linear(node, 32, &or1k_irq_domain_ops,
-					    pic);
+	root_domain = irq_domain_create_linear(of_fwnode_handle(node), 32, &or1k_irq_domain_ops,
+					       pic);
 
 	set_handle_irq(or1k_pic_handle_irq);
 

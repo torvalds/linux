@@ -20,6 +20,9 @@ description: |
   virtio-iommu node doesn't have an "iommus" property, and is omitted from
   the iommu-map property of the root complex.
 
+allOf:
+  - $ref: /schemas/pci/pci-device.yaml#
+
 properties:
   # If compatible is present, it should contain the vendor and device ID
   # according to the PCI Bus Binding specification. Since PCI provides
@@ -33,12 +36,7 @@ properties:
           - const: pci1af4,1057
 
   reg:
-    description: |
-      PCI address of the IOMMU. As defined in the PCI Bus Binding
-      reference, the reg property is a five-cell address encoded as (phys.hi
-      phys.mid phys.lo size.hi size.lo). phys.hi should contain the device's
-      BDF as 0b00000000 bbbbbbbb dddddfff 00000000. The other cells should be
-      zero. See Documentation/devicetree/bindings/pci/pci.txt
+    maxItems: 1
 
   '#iommu-cells':
     const: 1

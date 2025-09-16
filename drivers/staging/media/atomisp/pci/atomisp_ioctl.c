@@ -386,11 +386,11 @@ static int atomisp_enum_input(struct file *file, void *fh,
 	if (index >= isp->input_cnt)
 		return -EINVAL;
 
-	if (!isp->inputs[index].camera)
+	if (!isp->inputs[index].sensor)
 		return -EINVAL;
 
 	memset(input, 0, sizeof(struct v4l2_input));
-	strscpy(input->name, isp->inputs[index].camera->name,
+	strscpy(input->name, isp->inputs[index].sensor->name,
 		sizeof(input->name));
 
 	input->type = V4L2_INPUT_TYPE_CAMERA;
@@ -433,7 +433,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	if (input >= isp->input_cnt)
 		return -EINVAL;
 
-	if (!isp->inputs[input].camera)
+	if (!isp->inputs[input].sensor)
 		return -EINVAL;
 
 	ret = atomisp_pipe_check(pipe, true);
@@ -539,14 +539,14 @@ static int atomisp_enum_framesizes(struct file *file, void *priv,
 	struct v4l2_subdev_state *act_sd_state;
 	int ret;
 
-	if (!input->camera)
+	if (!input->sensor)
 		return -EINVAL;
 
 	if (input->crop_support)
 		return atomisp_enum_framesizes_crop(isp, fsize);
 
-	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
-	ret = v4l2_subdev_call(input->camera, pad, enum_frame_size,
+	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->sensor);
+	ret = v4l2_subdev_call(input->sensor, pad, enum_frame_size,
 			       act_sd_state, &fse);
 	if (act_sd_state)
 		v4l2_subdev_unlock_state(act_sd_state);
@@ -577,11 +577,11 @@ static int atomisp_enum_frameintervals(struct file *file, void *priv,
 	struct v4l2_subdev_state *act_sd_state;
 	int ret;
 
-	if (!input->camera)
+	if (!input->sensor)
 		return -EINVAL;
 
-	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
-	ret = v4l2_subdev_call(input->camera, pad, enum_frame_interval,
+	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->sensor);
+	ret = v4l2_subdev_call(input->sensor, pad, enum_frame_interval,
 			       act_sd_state, &fie);
 	if (act_sd_state)
 		v4l2_subdev_unlock_state(act_sd_state);
@@ -609,11 +609,11 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 	unsigned int i, fi = 0;
 	int ret;
 
-	if (!input->camera)
+	if (!input->sensor)
 		return -EINVAL;
 
-	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
-	ret = v4l2_subdev_call(input->camera, pad, enum_mbus_code,
+	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->sensor);
+	ret = v4l2_subdev_call(input->sensor, pad, enum_mbus_code,
 			       act_sd_state, &code);
 	if (act_sd_state)
 		v4l2_subdev_unlock_state(act_sd_state);
@@ -856,6 +856,62 @@ static void atomisp_dma_burst_len_cfg(struct atomisp_sub_device *asd)
 		atomisp_css2_hw_store_32(DMA_BURST_SIZE_REG, 0x00);
 }
 
+static void atomisp_stop_stream(struct atomisp_video_pipe *pipe,
+				bool stop_sensor, enum vb2_buffer_state state)
+{
+	struct atomisp_sub_device *asd = pipe->asd;
+	struct atomisp_device *isp = asd->isp;
+	struct pci_dev *pdev = to_pci_dev(isp->dev);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&isp->lock, flags);
+	asd->streaming = false;
+	spin_unlock_irqrestore(&isp->lock, flags);
+
+	atomisp_clear_css_buffer_counters(asd);
+	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
+
+	atomisp_css_stop(asd, false);
+
+	atomisp_subdev_cleanup_pending_events(asd);
+
+	if (stop_sensor) {
+		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].csi_remote_source,
+				       video, s_stream, 0);
+		if (ret)
+			dev_warn(isp->dev, "Stopping sensor stream failed: %d\n", ret);
+	}
+
+	/* Disable the CSI interface on ANN B0/K0 */
+	if (isp->media_dev.hw_revision >= ((ATOMISP_HW_REVISION_ISP2401 <<
+					    ATOMISP_HW_REVISION_SHIFT) | ATOMISP_HW_STEPPING_B0)) {
+		pci_write_config_word(pdev, MRFLD_PCI_CSI_CONTROL,
+				      isp->saved_regs.csi_control & ~MRFLD_PCI_CSI_CONTROL_CSI_READY);
+	}
+
+	if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_LOW, false))
+		dev_warn(isp->dev, "DFS failed.\n");
+
+	/*
+	 * ISP work around, need to reset ISP to allow next stream on to work.
+	 * Streams have already been destroyed by atomisp_css_stop().
+	 * Disable PUNIT/ISP acknowledge/handshake - SRSE=3 and then reset.
+	 */
+	pci_write_config_dword(pdev, PCI_I_CONTROL,
+			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
+	atomisp_reset(isp);
+
+	atomisp_flush_video_pipe(pipe, state, false);
+
+	/* Streams were destroyed by atomisp_css_stop(), recreate them. */
+	ret = atomisp_create_pipes_stream(&isp->asd);
+	if (ret)
+		dev_warn(isp->dev, "Recreating streams failed: %d\n", ret);
+
+	media_pipeline_stop(&asd->video_out.vdev.entity.pads[0]);
+}
+
 int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct atomisp_video_pipe *pipe = vq_to_pipe(vq);
@@ -910,6 +966,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	ret = atomisp_css_start(asd);
 	if (ret) {
 		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
+		media_pipeline_stop(&asd->video_out.vdev.entity.pads[0]);
 		goto out_unlock;
 	}
 
@@ -945,15 +1002,11 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	/* stream on the sensor */
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].csi_remote_source,
 			       video, s_stream, 1);
 	if (ret) {
 		dev_err(isp->dev, "Starting sensor stream failed: %d\n", ret);
-		spin_lock_irqsave(&isp->lock, irqflags);
-		asd->streaming = false;
-		spin_unlock_irqrestore(&isp->lock, irqflags);
-		ret = -EINVAL;
-		goto out_unlock;
+		atomisp_stop_stream(pipe, false, VB2_BUF_STATE_QUEUED);
 	}
 
 out_unlock:
@@ -964,74 +1017,12 @@ out_unlock:
 void atomisp_stop_streaming(struct vb2_queue *vq)
 {
 	struct atomisp_video_pipe *pipe = vq_to_pipe(vq);
-	struct atomisp_sub_device *asd = pipe->asd;
-	struct atomisp_device *isp = asd->isp;
-	struct pci_dev *pdev = to_pci_dev(isp->dev);
-	unsigned long flags;
-	int ret;
+	struct atomisp_device *isp = pipe->asd->isp;
 
 	dev_dbg(isp->dev, "Stop stream\n");
 
 	mutex_lock(&isp->mutex);
-	/*
-	 * There is no guarantee that the buffers queued to / owned by the ISP
-	 * will properly be returned to the queue when stopping. Set a flag to
-	 * avoid new buffers getting queued and then wait for all the current
-	 * buffers to finish.
-	 */
-	pipe->stopping = true;
-	mutex_unlock(&isp->mutex);
-	/* wait max 1 second */
-	ret = wait_event_timeout(pipe->vb_queue.done_wq,
-				 atomisp_buffers_in_css(pipe) == 0, HZ);
-	mutex_lock(&isp->mutex);
-	pipe->stopping = false;
-	if (ret == 0)
-		dev_warn(isp->dev, "Warning timeout waiting for CSS to return buffers\n");
-
-	spin_lock_irqsave(&isp->lock, flags);
-	asd->streaming = false;
-	spin_unlock_irqrestore(&isp->lock, flags);
-
-	atomisp_clear_css_buffer_counters(asd);
-	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
-
-	atomisp_css_stop(asd, false);
-
-	atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_ERROR, true);
-
-	atomisp_subdev_cleanup_pending_events(asd);
-
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-			       video, s_stream, 0);
-	if (ret)
-		dev_warn(isp->dev, "Stopping sensor stream failed: %d\n", ret);
-
-	/* Disable the CSI interface on ANN B0/K0 */
-	if (isp->media_dev.hw_revision >= ((ATOMISP_HW_REVISION_ISP2401 <<
-					    ATOMISP_HW_REVISION_SHIFT) | ATOMISP_HW_STEPPING_B0)) {
-		pci_write_config_word(pdev, MRFLD_PCI_CSI_CONTROL,
-				      isp->saved_regs.csi_control & ~MRFLD_PCI_CSI_CONTROL_CSI_READY);
-	}
-
-	if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_LOW, false))
-		dev_warn(isp->dev, "DFS failed.\n");
-
-	/*
-	 * ISP work around, need to reset ISP to allow next stream on to work.
-	 * Streams have already been destroyed by atomisp_css_stop().
-	 * Disable PUNIT/ISP acknowledge/handshake - SRSE=3 and then reset.
-	 */
-	pci_write_config_dword(pdev, PCI_I_CONTROL,
-			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
-	atomisp_reset(isp);
-
-	/* Streams were destroyed by atomisp_css_stop(), recreate them. */
-	ret = atomisp_create_pipes_stream(&isp->asd);
-	if (ret)
-		dev_warn(isp->dev, "Recreating streams failed: %d\n", ret);
-
-	media_pipeline_stop(&asd->video_out.vdev.entity.pads[0]);
+	atomisp_stop_stream(pipe, true, VB2_BUF_STATE_ERROR);
 	mutex_unlock(&isp->mutex);
 }
 
@@ -1332,7 +1323,7 @@ static int atomisp_s_parm(struct file *file, void *fh,
 
 		fi.interval = parm->parm.capture.timeperframe;
 
-		rval = v4l2_subdev_call_state_active(isp->inputs[asd->input_curr].camera,
+		rval = v4l2_subdev_call_state_active(isp->inputs[asd->input_curr].csi_remote_source,
 						     pad, set_frame_interval, &fi);
 		if (!rval)
 			parm->parm.capture.timeperframe = fi.interval;

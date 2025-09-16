@@ -183,6 +183,7 @@ static void mctp_usb_in_complete(struct urb *urb)
 		struct mctp_usb_hdr *hdr;
 		u8 pkt_len; /* length of MCTP packet, no USB header */
 
+		skb_reset_mac_header(skb);
 		hdr = skb_pull_data(skb, sizeof(*hdr));
 		if (!hdr)
 			break;
@@ -256,6 +257,8 @@ static int mctp_usb_open(struct net_device *dev)
 	struct mctp_usb *mctp_usb = netdev_priv(dev);
 
 	WRITE_ONCE(mctp_usb->stopped, false);
+
+	netif_start_queue(dev);
 
 	return mctp_usb_rx_queue(mctp_usb, GFP_KERNEL);
 }

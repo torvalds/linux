@@ -181,24 +181,27 @@ static int plgpio_get_value(struct gpio_chip *chip, unsigned offset)
 	return is_plgpio_set(plgpio->regmap, offset, plgpio->regs.rdata);
 }
 
-static void plgpio_set_value(struct gpio_chip *chip, unsigned offset, int value)
+static int plgpio_set_value(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
 	struct plgpio *plgpio = gpiochip_get_data(chip);
 
 	if (offset >= chip->ngpio)
-		return;
+		return -EINVAL;
 
 	/* get correct offset for "offset" pin */
 	if (plgpio->p2o && (plgpio->p2o_regs & PTO_WDATA_REG)) {
 		offset = plgpio->p2o(offset);
 		if (offset == -1)
-			return;
+			return -EINVAL;
 	}
 
 	if (value)
 		plgpio_reg_set(plgpio->regmap, offset, plgpio->regs.wdata);
 	else
 		plgpio_reg_reset(plgpio->regmap, offset, plgpio->regs.wdata);
+
+	return 0;
 }
 
 static int plgpio_request(struct gpio_chip *chip, unsigned offset)

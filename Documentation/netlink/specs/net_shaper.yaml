@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+---
 name: net-shaper
 
 doc: |
@@ -243,7 +244,7 @@ operations:
         The set operation can't be used to create a @node scope shaper,
         use the @group operation instead.
       attribute-set: net-shaper
-      flags: [ admin-perm ]
+      flags: [admin-perm]
 
       do:
         pre: net-shaper-nl-pre-doit
@@ -274,7 +275,7 @@ operations:
         node with infinite bandwidth. The queue's implicit node
         feeds an implicit RR node at the root of the hierarchy.
       attribute-set: net-shaper
-      flags: [ admin-perm ]
+      flags: [admin-perm]
 
       do:
         pre: net-shaper-nl-pre-doit
@@ -305,7 +306,7 @@ operations:
         full identifier, comprising @binding and @handle, is provided
         as the reply.
       attribute-set: net-shaper
-      flags: [ admin-perm ]
+      flags: [admin-perm]
 
       do:
         pre: net-shaper-nl-pre-doit

@@ -1019,3 +1019,32 @@ void uverbs_finalize_object(struct ib_uobject *uobj,
 		WARN_ON(true);
 	}
 }
+
+/**
+ * rdma_uattrs_has_raw_cap() - Returns whether a rdma device linked to the
+ *			       uverbs attributes file has CAP_NET_RAW
+ *			       capability or not.
+ *
+ * @attrs:       Pointer to uverbs attributes
+ *
+ * Returns true if a rdma device's owning user namespace has CAP_NET_RAW
+ * capability, otherwise false.
+ */
+bool rdma_uattrs_has_raw_cap(const struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uverbs_file *ufile = attrs->ufile;
+	struct ib_ucontext *ucontext;
+	bool has_cap = false;
+	int srcu_key;
+
+	srcu_key = srcu_read_lock(&ufile->device->disassociate_srcu);
+	ucontext = ib_uverbs_get_ucontext_file(ufile);
+	if (IS_ERR(ucontext))
+		goto out;
+	has_cap = rdma_dev_has_raw_cap(ucontext->device);
+
+out:
+	srcu_read_unlock(&ufile->device->disassociate_srcu, srcu_key);
+	return has_cap;
+}
+EXPORT_SYMBOL(rdma_uattrs_has_raw_cap);

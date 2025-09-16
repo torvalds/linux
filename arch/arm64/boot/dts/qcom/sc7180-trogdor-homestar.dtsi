@@ -188,7 +188,7 @@ ap_ts_pen_1v8: &i2c4 {
 };
 
 &wifi {
-	qcom,ath10k-calibration-variant = "GO_HOMESTAR";
+	qcom,calibration-variant = "GO_HOMESTAR";
 };
 
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */

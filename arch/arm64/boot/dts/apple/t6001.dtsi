@@ -11,6 +11,7 @@
 #include <dt-bindings/interrupt-controller/apple-aic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/apple.h>
+#include <dt-bindings/spmi/spmi.h>
 
 #include "multi-die-cpp.h"
 
@@ -60,4 +61,8 @@
 				&cpu_p10 &cpu_p11 &cpu_p12 &cpu_p13>;
 		};
 	};
+};
+
+&gpu {
+	compatible = "apple,agx-g13c", "apple,agx-g13s";
 };

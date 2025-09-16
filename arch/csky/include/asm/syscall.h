@@ -59,6 +59,19 @@ syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
 	memcpy(args, &regs->a1, 5 * sizeof(args[0]));
 }
 
+static inline void
+syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
+		      const unsigned long *args)
+{
+	memcpy(&regs->a0, args, 6 * sizeof(regs->a0));
+	/*
+	 * Also copy the first argument into orig_a0
+	 * so that syscall_get_arguments() would return it
+	 * instead of the previous value.
+	 */
+	regs->orig_a0 = regs->a0;
+}
+
 static inline int
 syscall_get_arch(struct task_struct *task)
 {

@@ -502,6 +502,8 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *ssp, int idx)
 	 */
 	if (!did_gp)
 		smp_mb(); /* A */
+	else if (srcu_gp_is_expedited(ssp))
+		synchronize_rcu_expedited(); /* X */
 	else
 		synchronize_rcu(); /* X */
 
@@ -1589,7 +1591,7 @@ EXPORT_SYMBOL_GPL(start_poll_synchronize_srcu);
 bool poll_state_synchronize_srcu(struct srcu_struct *ssp, unsigned long cookie)
 {
 	if (cookie != SRCU_GET_STATE_COMPLETED &&
-	    !rcu_seq_done(&ssp->srcu_sup->srcu_gp_seq, cookie))
+	    !rcu_seq_done_exact(&ssp->srcu_sup->srcu_gp_seq, cookie))
 		return false;
 	// Ensure that the end of the SRCU grace period happens before
 	// any subsequent code that the caller might execute.

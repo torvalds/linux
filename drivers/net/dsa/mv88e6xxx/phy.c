@@ -182,7 +182,7 @@ static void mv88e6xxx_phy_ppu_reenable_work(struct work_struct *ugly)
 
 static void mv88e6xxx_phy_ppu_reenable_timer(struct timer_list *t)
 {
-	struct mv88e6xxx_chip *chip = from_timer(chip, t, ppu_timer);
+	struct mv88e6xxx_chip *chip = timer_container_of(chip, t, ppu_timer);
 
 	schedule_work(&chip->ppu_work);
 }

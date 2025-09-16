@@ -119,7 +119,6 @@
 #define SHA_FLAGS_SHA512		BIT(4)
 #define SHA_FLAGS_SHA512_224		BIT(5)
 #define SHA_FLAGS_SHA512_256		BIT(6)
-#define SHA_FLAGS_HMAC			BIT(8)
 #define SHA_FLAGS_FINUP			BIT(9)
 #define SHA_FLAGS_MASK			(0xff)
 
@@ -161,22 +160,18 @@ struct aspeed_engine_hash {
 	aspeed_hace_fn_t		dma_prepare;
 };
 
-struct aspeed_sha_hmac_ctx {
-	struct crypto_shash *shash;
-	u8 ipad[SHA512_BLOCK_SIZE];
-	u8 opad[SHA512_BLOCK_SIZE];
-};
-
 struct aspeed_sham_ctx {
 	struct aspeed_hace_dev		*hace_dev;
-	unsigned long			flags;	/* hmac flag */
-
-	struct aspeed_sha_hmac_ctx	base[];
 };
 
 struct aspeed_sham_reqctx {
+	/* DMA buffer written by hardware */
+	u8			digest[SHA512_DIGEST_SIZE] __aligned(64);
+
+	/* Software state sorted by size. */
+	u64			digcnt[2];
+
 	unsigned long		flags;		/* final update flag should no use*/
-	unsigned long		op;		/* final or update */
 	u32			cmd;		/* trigger cmd */
 
 	/* walk state */
@@ -188,17 +183,12 @@ struct aspeed_sham_reqctx {
 	size_t			digsize;
 	size_t			block_size;
 	size_t			ivsize;
-	const __be32		*sha_iv;
 
-	/* remain data buffer */
-	u8			buffer[SHA512_BLOCK_SIZE * 2];
 	dma_addr_t		buffer_dma_addr;
-	size_t			bufcnt;		/* buffer counter */
-
-	/* output buffer */
-	u8			digest[SHA512_DIGEST_SIZE] __aligned(64);
 	dma_addr_t		digest_dma_addr;
-	u64			digcnt[2];
+
+	/* This is DMA too but read-only for hardware. */
+	u8			buffer[SHA512_BLOCK_SIZE + 16];
 };
 
 struct aspeed_engine_crypto {

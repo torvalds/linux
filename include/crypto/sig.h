@@ -128,7 +128,7 @@ static inline void crypto_free_sig(struct crypto_sig *tfm)
 /**
  * crypto_sig_keysize() - Get key size
  *
- * Function returns the key size in bytes.
+ * Function returns the key size in bits.
  * Function assumes that the key is already set in the transformation. If this
  * function is called without a setkey or with a failed setkey, you may end up
  * in a NULL dereference.

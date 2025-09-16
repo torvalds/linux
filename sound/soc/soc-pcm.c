@@ -2510,17 +2510,6 @@ static int dpcm_fe_dai_prepare(struct snd_pcm_substream *substream)
 
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
 
-	/* there is no point preparing this FE if there are no BEs */
-	if (list_empty(&fe->dpcm[stream].be_clients)) {
-		/* dev_err_once() for visibility, dev_dbg() for debugging UCM profiles */
-		dev_err_once(fe->dev, "ASoC: no backend DAIs enabled for %s, possibly missing ALSA mixer-based routing or UCM profile\n",
-			     fe->dai_link->name);
-		dev_dbg(fe->dev, "ASoC: no backend DAIs enabled for %s\n",
-			fe->dai_link->name);
-		ret = -EINVAL;
-		goto out;
-	}
-
 	ret = dpcm_be_dai_prepare(fe, stream);
 	if (ret < 0)
 		goto out;
@@ -2776,11 +2765,23 @@ static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 	/* calculate valid and active FE <-> BE dpcms */
 	dpcm_add_paths(fe, stream, &list);
 
+	/* There is no point starting up this FE if there are no BEs. */
+	if (list_empty(&fe->dpcm[stream].be_clients)) {
+		/* dev_err_once() for visibility, dev_dbg() for debugging UCM profiles. */
+		dev_err_once(fe->dev, "ASoC: no backend DAIs enabled for %s, possibly missing ALSA mixer-based routing or UCM profile\n",
+			     fe->dai_link->name);
+		dev_dbg(fe->dev, "ASoC: no backend DAIs enabled for %s\n", fe->dai_link->name);
+
+		ret = -EINVAL;
+		goto put_path;
+	}
+
 	ret = dpcm_fe_dai_startup(fe_substream);
 	if (ret < 0)
 		dpcm_fe_dai_cleanup(fe_substream);
 
 	dpcm_clear_pending_state(fe, stream);
+put_path:
 	dpcm_path_put(&list);
 open_end:
 	snd_soc_dpcm_mutex_unlock(fe);

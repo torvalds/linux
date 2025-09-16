@@ -536,7 +536,7 @@
 		compatible = "pci17cb,1103";
 		reg = <0x10000 0x0 0x0 0x0 0x0>;
 
-		qcom,ath11k-calibration-variant = "MS_SP9_5G";
+		qcom,calibration-variant = "MS_SP9_5G";
 	};
 };
 

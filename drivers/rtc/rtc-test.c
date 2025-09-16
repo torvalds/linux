@@ -107,7 +107,7 @@ static const struct rtc_class_ops test_rtc_ops = {
 
 static void test_rtc_alarm_handler(struct timer_list *t)
 {
-	struct rtc_test_data *rtd = from_timer(rtd, t, alarm);
+	struct rtc_test_data *rtd = timer_container_of(rtd, t, alarm);
 
 	rtc_update_irq(rtd->rtc, 1, RTC_AF | RTC_IRQF);
 }

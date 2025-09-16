@@ -15,6 +15,7 @@
 #include <acpi/ghes.h>
 #include <asm/cpu.h>
 #include <asm/mce.h>
+#include <asm/msr.h>
 
 #include "apei/apei-internal.h"
 #include <ras/ras_event.h>
@@ -234,7 +235,7 @@ static int __init extlog_init(void)
 	u64 cap;
 	int rc;
 
-	if (rdmsrl_safe(MSR_IA32_MCG_CAP, &cap) ||
+	if (rdmsrq_safe(MSR_IA32_MCG_CAP, &cap) ||
 	    !(cap & MCG_ELOG_P) ||
 	    !extlog_get_l1addr())
 		return -ENODEV;

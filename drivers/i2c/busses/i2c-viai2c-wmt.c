@@ -44,16 +44,13 @@ static int wmt_i2c_reset_hardware(struct viai2c *i2c)
 	int err;
 
 	err = clk_prepare_enable(i2c->clk);
-	if (err) {
-		dev_err(i2c->dev, "failed to enable clock\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(i2c->dev, err, "failed to enable clock\n");
 
 	err = clk_set_rate(i2c->clk, 20000000);
 	if (err) {
-		dev_err(i2c->dev, "failed to set clock = 20Mhz\n");
 		clk_disable_unprepare(i2c->clk);
-		return err;
+		return dev_err_probe(i2c->dev, err, "failed to set clock = 20Mhz\n");
 	}
 
 	writew(0, i2c->base + VIAI2C_REG_CR);
@@ -121,10 +118,9 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 				"failed to request irq %i\n", i2c->irq);
 
 	i2c->clk = of_clk_get(np, 0);
-	if (IS_ERR(i2c->clk)) {
-		dev_err(&pdev->dev, "unable to request clock\n");
-		return PTR_ERR(i2c->clk);
-	}
+	if (IS_ERR(i2c->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2c->clk),
+				     "unable to request clock\n");
 
 	err = of_property_read_u32(np, "clock-frequency", &clk_rate);
 	if (!err && clk_rate == I2C_MAX_FAST_MODE_FREQ)
@@ -139,10 +135,8 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	adap->dev.of_node = pdev->dev.of_node;
 
 	err = wmt_i2c_reset_hardware(i2c);
-	if (err) {
-		dev_err(&pdev->dev, "error initializing hardware\n");
+	if (err)
 		return err;
-	}
 
 	err = i2c_add_adapter(adap);
 	if (err)

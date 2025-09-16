@@ -21,6 +21,7 @@
 #include <linux/zalloc.h>
 #include <sys/time.h>
 #include <sys/mman.h>
+#include <sys/prctl.h>
 #include <perf/cpumap.h>
 
 #include "../util/mutex.h"
@@ -50,9 +51,11 @@ struct worker {
 static struct bench_futex_parameters params = {
 	.nfutexes = 1024,
 	.runtime  = 10,
+	.nbuckets = -1,
 };
 
 static const struct option options[] = {
+	OPT_INTEGER( 'b', "buckets", &params.nbuckets, "Specify amount of hash buckets"),
 	OPT_UINTEGER('t', "threads", &params.nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('r', "runtime", &params.runtime, "Specify runtime (in seconds)"),
 	OPT_UINTEGER('f', "futexes", &params.nfutexes, "Specify amount of futexes per threads"),
@@ -118,6 +121,7 @@ static void print_summary(void)
 	printf("%sAveraged %ld operations/sec (+- %.2f%%), total secs = %d\n",
 	       !params.silent ? "\n" : "", avg, rel_stddev_stats(stddev, avg),
 	       (int)bench__runtime.tv_sec);
+	futex_print_nbuckets(&params);
 }
 
 int bench_futex_hash(int argc, const char **argv)
@@ -161,6 +165,7 @@ int bench_futex_hash(int argc, const char **argv)
 
 	if (!params.fshared)
 		futex_flag = FUTEX_PRIVATE_FLAG;
+	futex_set_nbuckets_param(&params);
 
 	printf("Run summary [PID %d]: %d threads, each operating on %d [%s] futexes for %d secs.\n\n",
 	       getpid(), params.nthreads, params.nfutexes, params.fshared ? "shared":"private", params.runtime);

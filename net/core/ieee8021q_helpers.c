@@ -7,6 +7,11 @@
 #include <net/dscp.h>
 #include <net/ieee8021q.h>
 
+/* verify that table covers all 8 traffic types */
+#define TT_MAP_SIZE_OK(tbl)                                 \
+	compiletime_assert(ARRAY_SIZE(tbl) == IEEE8021Q_TT_MAX, \
+			   #tbl " size mismatch")
+
 /* The following arrays map Traffic Types (TT) to traffic classes (TC) for
  * different number of queues as shown in the example provided by
  * IEEE 802.1Q-2022 in Annex I "I.3 Traffic type to traffic class mapping" and
@@ -101,51 +106,28 @@ int ieee8021q_tt_to_tc(enum ieee8021q_traffic_type tt, unsigned int num_queues)
 
 	switch (num_queues) {
 	case 8:
-		compiletime_assert(ARRAY_SIZE(ieee8021q_8queue_tt_tc_map) !=
-				   IEEE8021Q_TT_MAX - 1,
-				   "ieee8021q_8queue_tt_tc_map != max - 1");
+		TT_MAP_SIZE_OK(ieee8021q_8queue_tt_tc_map);
 		return ieee8021q_8queue_tt_tc_map[tt];
 	case 7:
-		compiletime_assert(ARRAY_SIZE(ieee8021q_7queue_tt_tc_map) !=
-				   IEEE8021Q_TT_MAX - 1,
-				   "ieee8021q_7queue_tt_tc_map != max - 1");
-
+		TT_MAP_SIZE_OK(ieee8021q_7queue_tt_tc_map);
 		return ieee8021q_7queue_tt_tc_map[tt];
 	case 6:
-		compiletime_assert(ARRAY_SIZE(ieee8021q_6queue_tt_tc_map) !=
-				   IEEE8021Q_TT_MAX - 1,
-				   "ieee8021q_6queue_tt_tc_map != max - 1");
-
+		TT_MAP_SIZE_OK(ieee8021q_6queue_tt_tc_map);
 		return ieee8021q_6queue_tt_tc_map[tt];
 	case 5:
-		compiletime_assert(ARRAY_SIZE(ieee8021q_5queue_tt_tc_map) !=
-				   IEEE8021Q_TT_MAX - 1,
-				   "ieee8021q_5queue_tt_tc_map != max - 1");
-
+		TT_MAP_SIZE_OK(ieee8021q_5queue_tt_tc_map);
 		return ieee8021q_5queue_tt_tc_map[tt];
 	case 4:
-		compiletime_assert(ARRAY_SIZE(ieee8021q_4queue_tt_tc_map) !=
-				   IEEE8021Q_TT_MAX - 1,
-				   "ieee8021q_4queue_tt_tc_map != max - 1");
-
+		TT_MAP_SIZE_OK(ieee8021q_4queue_tt_tc_map);
 		return ieee8021q_4queue_tt_tc_map[tt];
 	case 3:
-		compiletime_assert(ARRAY_SIZE(ieee8021q_3queue_tt_tc_map) !=
-				   IEEE8021Q_TT_MAX - 1,
-				   "ieee8021q_3queue_tt_tc_map != max - 1");
-
+		TT_MAP_SIZE_OK(ieee8021q_3queue_tt_tc_map);
 		return ieee8021q_3queue_tt_tc_map[tt];
 	case 2:
-		compiletime_assert(ARRAY_SIZE(ieee8021q_2queue_tt_tc_map) !=
-				   IEEE8021Q_TT_MAX - 1,
-				   "ieee8021q_2queue_tt_tc_map != max - 1");
-
+		TT_MAP_SIZE_OK(ieee8021q_2queue_tt_tc_map);
 		return ieee8021q_2queue_tt_tc_map[tt];
 	case 1:
-		compiletime_assert(ARRAY_SIZE(ieee8021q_1queue_tt_tc_map) !=
-				   IEEE8021Q_TT_MAX - 1,
-				   "ieee8021q_1queue_tt_tc_map != max - 1");
-
+		TT_MAP_SIZE_OK(ieee8021q_1queue_tt_tc_map);
 		return ieee8021q_1queue_tt_tc_map[tt];
 	}
 

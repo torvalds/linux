@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
+/*
+ * sc8280xp specific modifications required to boot in EL2.
+ */
+
+/dts-v1/;
+/plugin/;
+
+/* We can't and don't need to use zap shader in EL2 as linux can zap the gpu on it's own. */
+&gpu {
+	zap-shader {
+		status = "disabled";
+	};
+};
+
+/*
+ * When running under QHEE, this IOMMU is controlled by the firmware,
+ * however when we take ownership of it in EL2, we need to configure
+ * it properly to use PCIe.
+ */
+&pcie2a {
+	iommu-map = <0 &pcie_smmu 0x20000 0x10000>;
+};
+
+&pcie2b {
+	iommu-map = <0 &pcie_smmu 0x30000 0x10000>;
+};
+
+&pcie3a {
+	iommu-map = <0 &pcie_smmu 0x40000 0x10000>;
+};
+
+&pcie3b {
+	iommu-map = <0 &pcie_smmu 0x50000 0x10000>;
+};
+
+&pcie4 {
+	iommu-map = <0 &pcie_smmu 0x60000 0x10000>;
+};
+
+&pcie_smmu {
+	status = "okay";
+};

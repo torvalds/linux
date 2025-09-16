@@ -149,8 +149,7 @@ struct rxrpc_peer *rxrpc_lookup_peer_rcu(struct rxrpc_local *local,
  * assess the MTU size for the network interface through which this peer is
  * reached
  */
-static void rxrpc_assess_MTU_size(struct rxrpc_local *local,
-				  struct rxrpc_peer *peer)
+void rxrpc_assess_MTU_size(struct rxrpc_local *local, struct rxrpc_peer *peer)
 {
 	struct net *net = local->net;
 	struct dst_entry *dst;
@@ -277,8 +276,6 @@ static void rxrpc_init_peer(struct rxrpc_local *local, struct rxrpc_peer *peer,
 
 	peer->hdrsize += sizeof(struct rxrpc_wire_header);
 	peer->max_data = peer->if_mtu - peer->hdrsize;
-
-	rxrpc_assess_MTU_size(local, peer);
 }
 
 /*
@@ -297,6 +294,7 @@ static struct rxrpc_peer *rxrpc_create_peer(struct rxrpc_local *local,
 	if (peer) {
 		memcpy(&peer->srx, srx, sizeof(*srx));
 		rxrpc_init_peer(local, peer, hash_key);
+		rxrpc_assess_MTU_size(local, peer);
 	}
 
 	_leave(" = %p", peer);
@@ -475,6 +473,8 @@ void rxrpc_destroy_all_peers(struct rxrpc_net *rxnet)
  * @call: The call to query
  *
  * Get a record for the remote peer in a call.
+ *
+ * Return: The call's peer record.
  */
 struct rxrpc_peer *rxrpc_kernel_get_call_peer(struct socket *sock, struct rxrpc_call *call)
 {
@@ -486,7 +486,9 @@ EXPORT_SYMBOL(rxrpc_kernel_get_call_peer);
  * rxrpc_kernel_get_srtt - Get a call's peer smoothed RTT
  * @peer: The peer to query
  *
- * Get the call's peer smoothed RTT in uS or UINT_MAX if we have no samples.
+ * Get the call's peer smoothed RTT.
+ *
+ * Return: The RTT in uS or %UINT_MAX if we have no samples.
  */
 unsigned int rxrpc_kernel_get_srtt(const struct rxrpc_peer *peer)
 {
@@ -499,7 +501,10 @@ EXPORT_SYMBOL(rxrpc_kernel_get_srtt);
  * @peer: The peer to query
  *
  * Get a pointer to the address from a peer record.  The caller is responsible
- * for making sure that the address is not deallocated.
+ * for making sure that the address is not deallocated.  A fake address will be
+ * substituted if %peer in NULL.
+ *
+ * Return: The rxrpc address record or a fake record.
  */
 const struct sockaddr_rxrpc *rxrpc_kernel_remote_srx(const struct rxrpc_peer *peer)
 {
@@ -512,7 +517,10 @@ EXPORT_SYMBOL(rxrpc_kernel_remote_srx);
  * @peer: The peer to query
  *
  * Get a pointer to the transport address from a peer record.  The caller is
- * responsible for making sure that the address is not deallocated.
+ * responsible for making sure that the address is not deallocated.  A fake
+ * address will be substituted if %peer in NULL.
+ *
+ * Return: The transport address record or a fake record.
  */
 const struct sockaddr *rxrpc_kernel_remote_addr(const struct rxrpc_peer *peer)
 {
@@ -527,7 +535,9 @@ EXPORT_SYMBOL(rxrpc_kernel_remote_addr);
  * @app_data: The data to set
  *
  * Set the app-specific data on a peer.  AF_RXRPC makes no effort to retain
- * anything the data might refer to.  The previous app_data is returned.
+ * anything the data might refer to.
+ *
+ * Return: The previous app_data.
  */
 unsigned long rxrpc_kernel_set_peer_data(struct rxrpc_peer *peer, unsigned long app_data)
 {
@@ -540,6 +550,8 @@ EXPORT_SYMBOL(rxrpc_kernel_set_peer_data);
  * @peer: The peer to query
  *
  * Retrieve the app-specific data from a peer.
+ *
+ * Return: The peer's app data.
  */
 unsigned long rxrpc_kernel_get_peer_data(const struct rxrpc_peer *peer)
 {

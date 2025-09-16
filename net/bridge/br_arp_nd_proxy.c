@@ -160,6 +160,9 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 	if (br_opt_get(br, BROPT_NEIGH_SUPPRESS_ENABLED)) {
 		if (br_is_neigh_suppress_enabled(p, vid))
 			return;
+		if (is_unicast_ether_addr(eth_hdr(skb)->h_dest) &&
+		    parp->ar_op == htons(ARPOP_REQUEST))
+			return;
 		if (parp->ar_op != htons(ARPOP_RREQUEST) &&
 		    parp->ar_op != htons(ARPOP_RREPLY) &&
 		    (ipv4_is_zeronet(sip) || sip == tip)) {
@@ -408,6 +411,10 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 	BR_INPUT_SKB_CB(skb)->proxyarp_replied = 0;
 
 	if (br_is_neigh_suppress_enabled(p, vid))
+		return;
+
+	if (is_unicast_ether_addr(eth_hdr(skb)->h_dest) &&
+	    msg->icmph.icmp6_type == NDISC_NEIGHBOUR_SOLICITATION)
 		return;
 
 	if (msg->icmph.icmp6_type == NDISC_NEIGHBOUR_ADVERTISEMENT &&

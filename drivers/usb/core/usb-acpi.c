@@ -157,7 +157,7 @@ EXPORT_SYMBOL_GPL(usb_acpi_set_power_state);
  */
 static int usb_acpi_add_usb4_devlink(struct usb_device *udev)
 {
-	const struct device_link *link;
+	struct device_link *link;
 	struct usb_port *port_dev;
 	struct usb_hub *hub;
 
@@ -165,6 +165,8 @@ static int usb_acpi_add_usb4_devlink(struct usb_device *udev)
 		return 0;
 
 	hub = usb_hub_to_struct_hub(udev->parent);
+	if (!hub)
+		return 0;
 	port_dev = hub->ports[udev->portnum - 1];
 
 	struct fwnode_handle *nhi_fwnode __free(fwnode_handle) =
@@ -185,6 +187,8 @@ static int usb_acpi_add_usb4_devlink(struct usb_device *udev)
 
 	dev_dbg(&port_dev->dev, "Created device link from %s to %s\n",
 		dev_name(&port_dev->child->dev), dev_name(nhi_fwnode->dev));
+
+	udev->usb4_link = link;
 
 	return 0;
 }

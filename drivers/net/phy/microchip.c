@@ -332,7 +332,7 @@ static void lan88xx_link_change_notify(struct phy_device *phydev)
 	 * As workaround, set to 10 before setting to 100
 	 * at forced 100 F/H mode.
 	 */
-	if (!phydev->autoneg && phydev->speed == 100) {
+	if (phydev->state == PHY_NOLINK && !phydev->autoneg && phydev->speed == 100) {
 		/* disable phy interrupt */
 		temp = phy_read(phydev, LAN88XX_INT_MASK);
 		temp &= ~LAN88XX_INT_MASK_MDINTPIN_EN_;
@@ -474,6 +474,8 @@ static struct phy_driver microchip_phy_driver[] = {
 	/* This mask (0xfffffff2) is to differentiate from
 	 * LAN8742 (phy_id 0x0007c130 and 0x0007c131)
 	 * and allows future phy_id revisions.
+	 * These PHYs are integrated in LAN7800 and LAN7850 USB/Ethernet
+	 * controllers.
 	 */
 	.phy_id_mask	= 0xfffffff2,
 	.name		= "Microchip LAN88xx",
@@ -486,6 +488,7 @@ static struct phy_driver microchip_phy_driver[] = {
 	.config_init	= lan88xx_config_init,
 	.config_aneg	= lan88xx_config_aneg,
 	.link_change_notify = lan88xx_link_change_notify,
+	.soft_reset	= genphy_soft_reset,
 
 	/* Interrupt handling is broken, do not define related
 	 * functions to force polling.

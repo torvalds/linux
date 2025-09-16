@@ -84,7 +84,7 @@ static const struct of_device_id hmc5843_of_match[] = {
 	{ .compatible = "honeywell,hmc5883", .data = (void *)HMC5883_ID },
 	{ .compatible = "honeywell,hmc5883l", .data = (void *)HMC5883L_ID },
 	{ .compatible = "honeywell,hmc5983", .data = (void *)HMC5983_ID },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, hmc5843_of_match);
 

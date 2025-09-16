@@ -157,8 +157,8 @@ static void __end_buffer_read_notouch(struct buffer_head *bh, int uptodate)
  */
 void end_buffer_read_sync(struct buffer_head *bh, int uptodate)
 {
-	__end_buffer_read_notouch(bh, uptodate);
 	put_bh(bh);
+	__end_buffer_read_notouch(bh, uptodate);
 }
 EXPORT_SYMBOL(end_buffer_read_sync);
 
@@ -297,7 +297,6 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 
 still_busy:
 	spin_unlock_irqrestore(&first->b_uptodate_lock, flags);
-	return;
 }
 
 struct postprocess_bh_ctx {
@@ -422,7 +421,6 @@ static void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 
 still_busy:
 	spin_unlock_irqrestore(&first->b_uptodate_lock, flags);
-	return;
 }
 
 /*
@@ -1122,27 +1120,26 @@ static struct buffer_head *
 __getblk_slow(struct block_device *bdev, sector_t block,
 	     unsigned size, gfp_t gfp)
 {
-	/* Size must be multiple of hard sectorsize */
-	if (unlikely(size & (bdev_logical_block_size(bdev)-1) ||
-			(size < 512 || size > PAGE_SIZE))) {
-		printk(KERN_ERR "getblk(): invalid block size %d requested\n",
-					size);
-		printk(KERN_ERR "logical block size: %d\n",
-					bdev_logical_block_size(bdev));
+	bool blocking = gfpflags_allow_blocking(gfp);
 
-		dump_stack();
+	if (WARN_ON_ONCE(!IS_ALIGNED(size, bdev_logical_block_size(bdev)))) {
+		printk(KERN_ERR "getblk(): block size %d not aligned to logical block size %d\n",
+		       size, bdev_logical_block_size(bdev));
 		return NULL;
 	}
 
 	for (;;) {
 		struct buffer_head *bh;
 
-		bh = __find_get_block(bdev, block, size);
-		if (bh)
-			return bh;
-
 		if (!grow_buffers(bdev, block, size, gfp))
 			return NULL;
+
+		if (blocking)
+			bh = __find_get_block_nonatomic(bdev, block, size);
+		else
+			bh = __find_get_block(bdev, block, size);
+		if (bh)
+			return bh;
 	}
 }
 
@@ -1220,10 +1217,8 @@ void mark_buffer_write_io_error(struct buffer_head *bh)
 	/* FIXME: do we need to set this in both places? */
 	if (bh->b_folio && bh->b_folio->mapping)
 		mapping_set_error(bh->b_folio->mapping, -EIO);
-	if (bh->b_assoc_map) {
+	if (bh->b_assoc_map)
 		mapping_set_error(bh->b_assoc_map, -EIO);
-		errseq_set(&bh->b_assoc_map->host->i_sb->s_wb_err, -EIO);
-	}
 }
 EXPORT_SYMBOL(mark_buffer_write_io_error);
 
@@ -1613,8 +1608,8 @@ static void discard_buffer(struct buffer_head * bh)
 	bh->b_bdev = NULL;
 	b_state = READ_ONCE(bh->b_state);
 	do {
-	} while (!try_cmpxchg(&bh->b_state, &b_state,
-			      b_state & ~BUFFER_FLAGS_DISCARD));
+	} while (!try_cmpxchg_relaxed(&bh->b_state, &b_state,
+				      b_state & ~BUFFER_FLAGS_DISCARD));
 	unlock_buffer(bh);
 }
 
@@ -1679,7 +1674,6 @@ void block_invalidate_folio(struct folio *folio, size_t offset, size_t length)
 		filemap_release_folio(folio, 0);
 out:
 	folio_clear_mappedtodisk(folio);
-	return;
 }
 EXPORT_SYMBOL(block_invalidate_folio);
 
@@ -2271,9 +2265,8 @@ int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
 }
 EXPORT_SYMBOL(block_write_begin);
 
-int block_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct folio *folio, void *fsdata)
+int block_write_end(loff_t pos, unsigned len, unsigned copied,
+		struct folio *folio)
 {
 	size_t start = pos - folio_pos(folio);
 
@@ -2304,15 +2297,15 @@ int block_write_end(struct file *file, struct address_space *mapping,
 }
 EXPORT_SYMBOL(block_write_end);
 
-int generic_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct folio *folio, void *fsdata)
+int generic_write_end(const struct kiocb *iocb, struct address_space *mapping,
+		      loff_t pos, unsigned len, unsigned copied,
+		      struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	loff_t old_size = inode->i_size;
 	bool i_size_changed = false;
 
-	copied = block_write_end(file, mapping, pos, len, copied, folio, fsdata);
+	copied = block_write_end(pos, len, copied, folio);
 
 	/*
 	 * No need to use i_size_read() here, the i_size cannot change under us
@@ -2501,7 +2494,8 @@ out:
 }
 EXPORT_SYMBOL(generic_cont_expand_simple);
 
-static int cont_expand_zero(struct file *file, struct address_space *mapping,
+static int cont_expand_zero(const struct kiocb *iocb,
+			    struct address_space *mapping,
 			    loff_t pos, loff_t *bytes)
 {
 	struct inode *inode = mapping->host;
@@ -2525,12 +2519,12 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 		}
 		len = PAGE_SIZE - zerofrom;
 
-		err = aops->write_begin(file, mapping, curpos, len,
+		err = aops->write_begin(iocb, mapping, curpos, len,
 					    &folio, &fsdata);
 		if (err)
 			goto out;
 		folio_zero_range(folio, offset_in_folio(folio, curpos), len);
-		err = aops->write_end(file, mapping, curpos, len, len,
+		err = aops->write_end(iocb, mapping, curpos, len, len,
 						folio, fsdata);
 		if (err < 0)
 			goto out;
@@ -2558,12 +2552,12 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 		}
 		len = offset - zerofrom;
 
-		err = aops->write_begin(file, mapping, curpos, len,
+		err = aops->write_begin(iocb, mapping, curpos, len,
 					    &folio, &fsdata);
 		if (err)
 			goto out;
 		folio_zero_range(folio, offset_in_folio(folio, curpos), len);
-		err = aops->write_end(file, mapping, curpos, len, len,
+		err = aops->write_end(iocb, mapping, curpos, len, len,
 						folio, fsdata);
 		if (err < 0)
 			goto out;
@@ -2578,17 +2572,16 @@ out:
  * For moronic filesystems that do not allow holes in file.
  * We may have to extend the file.
  */
-int cont_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len,
-			struct folio **foliop, void **fsdata,
-			get_block_t *get_block, loff_t *bytes)
+int cont_write_begin(const struct kiocb *iocb, struct address_space *mapping,
+		     loff_t pos, unsigned len, struct folio **foliop,
+		     void **fsdata, get_block_t *get_block, loff_t *bytes)
 {
 	struct inode *inode = mapping->host;
 	unsigned int blocksize = i_blocksize(inode);
 	unsigned int zerofrom;
 	int err;
 
-	err = cont_expand_zero(file, mapping, pos, bytes);
+	err = cont_expand_zero(iocb, mapping, pos, bytes);
 	if (err)
 		return err;
 
@@ -2610,7 +2603,7 @@ EXPORT_SYMBOL(cont_write_begin);
  * holes and correct delalloc and unwritten extent mapping on filesystems that
  * support these features.
  *
- * We are not allowed to take the i_mutex here so we have to play games to
+ * We are not allowed to take the i_rwsem here so we have to play games to
  * protect against truncate races as the page could now be beyond EOF.  Because
  * truncate writes the inode size before removing pages, once we have the
  * page lock we can determine safely if the page is beyond EOF. If it is not
@@ -2730,7 +2723,7 @@ unlock:
 EXPORT_SYMBOL(block_truncate_page);
 
 /*
- * The generic ->writepage function for buffer-backed address_spaces
+ * The generic write folio function for buffer-backed address_spaces
  */
 int block_write_full_folio(struct folio *folio, struct writeback_control *wbc,
 		void *get_block)
@@ -2750,7 +2743,7 @@ int block_write_full_folio(struct folio *folio, struct writeback_control *wbc,
 
 	/*
 	 * The folio straddles i_size.  It must be zeroed out on each and every
-	 * writepage invocation because it may be mmapped.  "A file is mapped
+	 * writeback invocation because it may be mmapped.  "A file is mapped
 	 * in multiples of the page size.  For a file that is not a multiple of
 	 * the page size, the remaining memory is zeroed when mapped, and
 	 * writes to that region are not written out to the file."

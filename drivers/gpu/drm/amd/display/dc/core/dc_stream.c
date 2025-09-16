@@ -316,6 +316,9 @@ bool dc_stream_set_cursor_attributes(
 {
 	bool result = false;
 
+	if (!stream)
+		return false;
+
 	if (dc_stream_check_cursor_attributes(stream, stream->ctx->dc->current_state, attributes)) {
 		stream->cursor_attributes = *attributes;
 		result = true;
@@ -331,7 +334,10 @@ bool dc_stream_program_cursor_attributes(
 	struct dc  *dc;
 	bool reset_idle_optimizations = false;
 
-	dc = stream ? stream->ctx->dc : NULL;
+	if (!stream)
+		return false;
+
+	dc = stream->ctx->dc;
 
 	if (dc_stream_set_cursor_attributes(stream, attributes)) {
 		dc_z10_restore(dc);
@@ -853,6 +859,73 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 					stream->sink->edid_caps.display_name,
 					stream->signal);
 		}
+	}
+}
+
+/*
+*	dc_stream_get_3dlut()
+*	Requirements:
+*	1. Is stream already owns an RMCM instance, return it.
+*	2. If it doesn't and we don't need to allocate, return NULL.
+*	3. If there's a free RMCM instance, assign to stream and return it.
+*	4. If no free RMCM instances, return NULL.
+*/
+
+struct dc_rmcm_3dlut *dc_stream_get_3dlut_for_stream(
+	const struct dc *dc,
+	const struct dc_stream_state *stream,
+	bool allocate_one)
+{
+	unsigned int num_rmcm = dc->caps.color.mpc.num_rmcm_3dluts;
+
+	// see if one is allocated for this stream
+	for (int i = 0; i < num_rmcm; i++) {
+		if (dc->res_pool->rmcm_3dlut[i].isInUse &&
+			dc->res_pool->rmcm_3dlut[i].stream == stream)
+			return &dc->res_pool->rmcm_3dlut[i];
+	}
+
+	//case: not found one, and dont need to allocate
+	if (!allocate_one)
+		return NULL;
+
+	//see if there is an unused 3dlut, allocate
+	for (int i = 0; i < num_rmcm; i++) {
+		if (!dc->res_pool->rmcm_3dlut[i].isInUse) {
+			dc->res_pool->rmcm_3dlut[i].isInUse = true;
+			dc->res_pool->rmcm_3dlut[i].stream = stream;
+			return &dc->res_pool->rmcm_3dlut[i];
+		}
+	}
+
+	//dont have a 3dlut
+	return NULL;
+}
+
+
+void dc_stream_release_3dlut_for_stream(
+	const struct dc *dc,
+	const struct dc_stream_state *stream)
+{
+	struct dc_rmcm_3dlut *rmcm_3dlut =
+		dc_stream_get_3dlut_for_stream(dc, stream, false);
+
+	if (rmcm_3dlut) {
+		rmcm_3dlut->isInUse = false;
+		rmcm_3dlut->stream  = NULL;
+		rmcm_3dlut->protection_bits = 0;
+	}
+}
+
+
+void dc_stream_init_rmcm_3dlut(struct dc *dc)
+{
+	unsigned int num_rmcm = dc->caps.color.mpc.num_rmcm_3dluts;
+
+	for (int i = 0; i < num_rmcm; i++) {
+		dc->res_pool->rmcm_3dlut[i].isInUse = false;
+		dc->res_pool->rmcm_3dlut[i].stream = NULL;
+		dc->res_pool->rmcm_3dlut[i].protection_bits = 0;
 	}
 }
 

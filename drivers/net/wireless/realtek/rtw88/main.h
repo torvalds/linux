@@ -858,6 +858,7 @@ struct rtw_chip_ops {
 	int (*power_on)(struct rtw_dev *rtwdev);
 	void (*power_off)(struct rtw_dev *rtwdev);
 	int (*mac_init)(struct rtw_dev *rtwdev);
+	int (*mac_postinit)(struct rtw_dev *rtwdev);
 	int (*dump_fw_crash)(struct rtw_dev *rtwdev);
 	void (*shutdown)(struct rtw_dev *rtwdev);
 	int (*read_efuse)(struct rtw_dev *rtwdev, u8 *map);
@@ -873,11 +874,12 @@ struct rtw_chip_ops {
 	void (*set_tx_power_index)(struct rtw_dev *rtwdev);
 	int (*rsvd_page_dump)(struct rtw_dev *rtwdev, u8 *buf, u32 offset,
 			      u32 size);
-	int (*set_antenna)(struct rtw_dev *rtwdev,
+	int (*set_antenna)(struct rtw_dev *rtwdev, int radio_idx,
 			   u32 antenna_tx,
 			   u32 antenna_rx);
 	void (*cfg_ldo25)(struct rtw_dev *rtwdev, bool enable);
 	void (*efuse_grant)(struct rtw_dev *rtwdev, bool enable);
+	void (*set_ampdu_factor)(struct rtw_dev *rtwdev, u8 factor);
 	void (*false_alarm_statistics)(struct rtw_dev *rtwdev);
 	void (*phy_calibration)(struct rtw_dev *rtwdev);
 	void (*dpk_track)(struct rtw_dev *rtwdev);
@@ -1172,8 +1174,8 @@ struct rtw_pwr_track_tbl {
 };
 
 enum rtw_wlan_cpu {
-	RTW_WCPU_11AC,
-	RTW_WCPU_11N,
+	RTW_WCPU_3081,
+	RTW_WCPU_8051,
 };
 
 enum rtw_fw_fifo_sel {
@@ -1229,6 +1231,7 @@ struct rtw_chip_info {
 	u16 fw_fifo_addr[RTW_FW_FIFO_MAX];
 	const struct rtw_fwcd_segs *fwcd_segs;
 
+	bool amsdu_in_ampdu;
 	u8 usb_tx_agg_desc_num;
 	bool hw_feature_report;
 	u8 c2h_ra_report_size;
@@ -2164,14 +2167,14 @@ static inline void rtw_chip_efuse_grant_off(struct rtw_dev *rtwdev)
 		rtwdev->chip->ops->efuse_grant(rtwdev, false);
 }
 
-static inline bool rtw_chip_wcpu_11n(struct rtw_dev *rtwdev)
+static inline bool rtw_chip_wcpu_8051(struct rtw_dev *rtwdev)
 {
-	return rtwdev->chip->wlan_cpu == RTW_WCPU_11N;
+	return rtwdev->chip->wlan_cpu == RTW_WCPU_8051;
 }
 
-static inline bool rtw_chip_wcpu_11ac(struct rtw_dev *rtwdev)
+static inline bool rtw_chip_wcpu_3081(struct rtw_dev *rtwdev)
 {
-	return rtwdev->chip->wlan_cpu == RTW_WCPU_11AC;
+	return rtwdev->chip->wlan_cpu == RTW_WCPU_3081;
 }
 
 static inline bool rtw_chip_has_rx_ldpc(struct rtw_dev *rtwdev)
@@ -2272,4 +2275,6 @@ void rtw_update_channel(struct rtw_dev *rtwdev, u8 center_channel,
 void rtw_core_port_switch(struct rtw_dev *rtwdev, struct ieee80211_vif *vif);
 bool rtw_core_check_sta_active(struct rtw_dev *rtwdev);
 void rtw_core_enable_beacon(struct rtw_dev *rtwdev, bool enable);
+void rtw_set_ampdu_factor(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
+			  struct ieee80211_bss_conf *bss_conf);
 #endif

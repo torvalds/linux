@@ -399,7 +399,7 @@ static void ml_play_effects(struct ml_device *ml)
 
 static void ml_effect_timer(struct timer_list *t)
 {
-	struct ml_device *ml = from_timer(ml, t, timer);
+	struct ml_device *ml = timer_container_of(ml, t, timer);
 	struct input_dev *dev = ml->dev;
 
 	pr_debug("timer: updating effects\n");

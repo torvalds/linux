@@ -25,13 +25,14 @@ x86-specific Documentation
    shstk
    iommu
    intel_txt
+   amd-debugging
    amd-memory-encryption
    amd_hsmp
+   amd-hfi
    tdx
    pti
    mds
    microcode
-   resctrl
    tsx_async_abort
    buslock
    usb-legacy-support

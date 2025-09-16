@@ -11,12 +11,14 @@
 #include "gem/i915_gem_object.h"
 
 #include "i915_drv.h"
-#include "intel_atomic_plane.h"
+#include "i915_vma.h"
+#include "intel_display_core.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
+#include "intel_plane.h"
 
 static struct i915_vma *
 intel_fb_pin_to_dpt(const struct drm_framebuffer *fb,
@@ -150,7 +152,7 @@ intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
 	 * happy to scanout from anywhere within its global aperture.
 	 */
 	pinctl = 0;
-	if (HAS_GMCH(dev_priv))
+	if (HAS_GMCH(display))
 		pinctl |= PIN_MAPPABLE;
 
 	i915_gem_ww_ctx_init(&ww, true);
@@ -191,7 +193,7 @@ retry:
 		 * mode that matches the user configuration.
 		 */
 		ret = i915_vma_pin_fence(vma);
-		if (ret != 0 && DISPLAY_VER(dev_priv) < 4) {
+		if (ret != 0 && DISPLAY_VER(display) < 4) {
 			i915_vma_unpin(vma);
 			goto err_unpin;
 		}
@@ -259,6 +261,7 @@ intel_plane_fb_vtd_guard(const struct intel_plane_state *plane_state)
 int intel_plane_pin_fb(struct intel_plane_state *plane_state,
 		       const struct intel_plane_state *old_plane_state)
 {
+	struct intel_display *display = to_intel_display(plane_state);
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct intel_framebuffer *fb =
 		to_intel_framebuffer(plane_state->hw.fb);
@@ -276,17 +279,6 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state,
 
 		plane_state->ggtt_vma = vma;
 
-		/*
-		 * Pre-populate the dma address before we enter the vblank
-		 * evade critical section as i915_gem_object_get_dma_address()
-		 * will trigger might_sleep() even if it won't actually sleep,
-		 * which is the case when the fb has already been pinned.
-		 */
-		if (intel_plane_needs_physical(plane)) {
-			struct drm_i915_gem_object *obj = to_intel_bo(intel_fb_bo(&fb->base));
-
-			plane_state->phys_dma_addr = i915_gem_object_get_dma_address(obj, 0);
-		}
 	} else {
 		unsigned int alignment = intel_plane_fb_min_alignment(plane_state);
 
@@ -308,6 +300,28 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state,
 		plane_state->dpt_vma = vma;
 
 		WARN_ON(plane_state->ggtt_vma == plane_state->dpt_vma);
+
+		/*
+		 * The DPT object contains only one vma, and there is no VT-d
+		 * guard, so the VMA's offset within the DPT is always 0.
+		 */
+		drm_WARN_ON(display->drm, intel_dpt_offset(plane_state->dpt_vma));
+	}
+
+	/*
+	 * Pre-populate the dma address before we enter the vblank
+	 * evade critical section as i915_gem_object_get_dma_address()
+	 * will trigger might_sleep() even if it won't actually sleep,
+	 * which is the case when the fb has already been pinned.
+	 */
+	if (intel_plane_needs_physical(plane)) {
+		struct drm_i915_gem_object *obj = to_intel_bo(intel_fb_bo(&fb->base));
+
+		plane_state->surf = i915_gem_object_get_dma_address(obj, 0) +
+			plane->surf_offset(plane_state);
+	} else {
+		plane_state->surf = i915_ggtt_offset(plane_state->ggtt_vma) +
+			plane->surf_offset(plane_state);
 	}
 
 	return 0;
@@ -332,4 +346,9 @@ void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state)
 		if (vma)
 			intel_dpt_unpin_from_ggtt(fb->dpt_vm);
 	}
+}
+
+void intel_fb_get_map(struct i915_vma *vma, struct iosys_map *map)
+{
+	iosys_map_set_vaddr_iomem(map, i915_vma_get_iomap(vma));
 }

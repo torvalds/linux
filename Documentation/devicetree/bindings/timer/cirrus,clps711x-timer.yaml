@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/cirrus,clps711x-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cirrus Logic CLPS711X Timer Counter
+
+maintainers:
+  - Alexander Shiyan <shc_work@mail.ru>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - cirrus,ep7312-timer
+          - const: cirrus,ep7209-timer
+      - const: cirrus,ep7209-timer
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    timer@80000300 {
+        compatible = "cirrus,ep7312-timer", "cirrus,ep7209-timer";
+        reg = <0x80000300 0x4>;
+        interrupts = <8>;
+        clocks = <&clks 5>;
+    };

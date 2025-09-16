@@ -175,14 +175,9 @@ struct inet_hashinfo {
 	bool				pernet;
 } ____cacheline_aligned_in_smp;
 
-static inline struct inet_hashinfo *tcp_or_dccp_get_hashinfo(const struct sock *sk)
+static inline struct inet_hashinfo *tcp_get_hashinfo(const struct sock *sk)
 {
-#if IS_ENABLED(CONFIG_IP_DCCP)
-	return sk->sk_prot->h.hashinfo ? :
-		sock_net(sk)->ipv4.tcp_death_row.hashinfo;
-#else
 	return sock_net(sk)->ipv4.tcp_death_row.hashinfo;
-#endif
 }
 
 static inline struct inet_listen_hashbucket *
@@ -206,12 +201,6 @@ static inline spinlock_t *inet_ehash_lockp(
 }
 
 int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo);
-
-static inline void inet_hashinfo2_free_mod(struct inet_hashinfo *h)
-{
-	kfree(h->lhash2);
-	h->lhash2 = NULL;
-}
 
 static inline void inet_ehash_locks_free(struct inet_hashinfo *hashinfo)
 {
@@ -492,7 +481,7 @@ static inline struct sock *__inet_lookup_skb(struct inet_hashinfo *hashinfo,
 					     const int sdif,
 					     bool *refcounted)
 {
-	struct net *net = dev_net_rcu(skb_dst(skb)->dev);
+	struct net *net = skb_dst_dev_net_rcu(skb);
 	const struct iphdr *iph = ip_hdr(skb);
 	struct sock *sk;
 

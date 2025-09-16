@@ -165,6 +165,66 @@
 			interrupt-parent = <&eiointc>;
 		};
 
+		pwm@100a0000 {
+			compatible = "loongson,ls2k2000-pwm", "loongson,ls7a-pwm";
+			reg = <0x0 0x100a0000 0x0 0x10>;
+			interrupt-parent = <&pic>;
+			interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_MISC_CLK>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm@100a0100 {
+			compatible = "loongson,ls2k2000-pwm", "loongson,ls7a-pwm";
+			reg = <0x0 0x100a0100 0x0 0x10>;
+			interrupt-parent = <&pic>;
+			interrupts = <25 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_MISC_CLK>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm@100a0200 {
+			compatible = "loongson,ls2k2000-pwm", "loongson,ls7a-pwm";
+			reg = <0x0 0x100a0200 0x0 0x10>;
+			interrupt-parent = <&pic>;
+			interrupts = <26 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_MISC_CLK>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm@100a0300 {
+			compatible = "loongson,ls2k2000-pwm", "loongson,ls7a-pwm";
+			reg = <0x0 0x100a0300 0x0 0x10>;
+			interrupt-parent = <&pic>;
+			interrupts = <27 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_MISC_CLK>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm@100a0400 {
+			compatible = "loongson,ls2k2000-pwm", "loongson,ls7a-pwm";
+			reg = <0x0 0x100a0400 0x0 0x10>;
+			interrupt-parent = <&pic>;
+			interrupts = <38 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_MISC_CLK>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm@100a0500 {
+			compatible = "loongson,ls2k2000-pwm", "loongson,ls7a-pwm";
+			reg = <0x0 0x100a0500 0x0 0x10>;
+			interrupt-parent = <&pic>;
+			interrupts = <39 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_MISC_CLK>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		rtc0: rtc@100d0100 {
 			compatible = "loongson,ls2k2000-rtc", "loongson,ls7a-rtc";
 			reg = <0x0 0x100d0100 0x0 0x100>;
@@ -196,6 +256,24 @@
 			interrupt-parent = <&liointc>;
 			interrupts = <10 IRQ_TYPE_LEVEL_HIGH>;
 			no-loopback-test;
+			status = "disabled";
+		};
+
+		emmc: mmc@79990000 {
+			compatible = "loongson,ls2k2000-mmc";
+			reg = <0x0 0x79990000 0x0 0x1000>;
+			interrupt-parent = <&pic>;
+			interrupts = <51 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_EMMC_CLK>;
+			status = "disabled";
+		};
+
+		mmc@79991000 {
+			compatible = "loongson,ls2k2000-mmc";
+			reg = <0x0 0x79991000 0x0 0x1000>;
+			interrupt-parent = <&pic>;
+			interrupts = <50 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_EMMC_CLK>;
 			status = "disabled";
 		};
 

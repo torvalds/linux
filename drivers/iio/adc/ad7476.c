@@ -99,8 +99,8 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 	if (b_sent < 0)
 		goto done;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, st->data,
-		iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, st->data, sizeof(st->data),
+				    iio_get_time_ns(indio_dev));
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -435,6 +435,13 @@ static const struct spi_device_id ad7476_id[] = {
 	{ "ads7866", ID_ADS7866 },
 	{ "ads7867", ID_ADS7867 },
 	{ "ads7868", ID_ADS7868 },
+	/*
+	 * The ROHM BU79100G is identical to the TI's ADS7866 from the software
+	 * point of view. The binding document mandates the ADS7866 to be
+	 * marked as a fallback for the BU79100G, but we still need the SPI ID
+	 * here to make the module loading work.
+	 */
+	{ "bu79100g", ID_ADS7866 },
 	{ "ltc2314-14", ID_LTC2314_14 },
 	{ }
 };

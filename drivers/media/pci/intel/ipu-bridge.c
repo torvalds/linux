@@ -55,17 +55,23 @@ static const struct ipu_sensor_config ipu_supported_sensors[] = {
 	/* Himax HM2172 */
 	IPU_SENSOR_CONFIG("HIMX2172", 1, 384000000),
 	/* GalaxyCore GC0310 */
-	IPU_SENSOR_CONFIG("INT0310", 0),
+	IPU_SENSOR_CONFIG("INT0310", 1, 55692000),
 	/* Omnivision OV5693 */
 	IPU_SENSOR_CONFIG("INT33BE", 1, 419200000),
+	/* Onsemi MT9M114 */
+	IPU_SENSOR_CONFIG("INT33F0", 1, 384000000),
 	/* Omnivision OV2740 */
 	IPU_SENSOR_CONFIG("INT3474", 1, 180000000),
+	/* Omnivision OV5670 */
+	IPU_SENSOR_CONFIG("INT3479", 1, 422400000),
 	/* Omnivision OV8865 */
 	IPU_SENSOR_CONFIG("INT347A", 1, 360000000),
 	/* Omnivision OV7251 */
 	IPU_SENSOR_CONFIG("INT347E", 1, 319200000),
 	/* Hynix Hi-556 */
 	IPU_SENSOR_CONFIG("INT3537", 1, 437000000),
+	/* Lontium lt6911uxe */
+	IPU_SENSOR_CONFIG("INTC10C5", 0),
 	/* Omnivision OV01A10 / OV01A1S */
 	IPU_SENSOR_CONFIG("OVTI01A0", 1, 400000000),
 	IPU_SENSOR_CONFIG("OVTI01AS", 1, 400000000),
@@ -76,7 +82,7 @@ static const struct ipu_sensor_config ipu_supported_sensors[] = {
 	/* Omnivision OV08A10 */
 	IPU_SENSOR_CONFIG("OVTI08A1", 1, 500000000),
 	/* Omnivision OV08x40 */
-	IPU_SENSOR_CONFIG("OVTI08F4", 1, 400000000),
+	IPU_SENSOR_CONFIG("OVTI08F4", 3, 400000000, 749000000, 800000000),
 	/* Omnivision OV13B10 */
 	IPU_SENSOR_CONFIG("OVTI13B1", 1, 560000000),
 	IPU_SENSOR_CONFIG("OVTIDB10", 1, 560000000),
@@ -84,6 +90,8 @@ static const struct ipu_sensor_config ipu_supported_sensors[] = {
 	IPU_SENSOR_CONFIG("OVTI2680", 1, 331200000),
 	/* Omnivision OV8856 */
 	IPU_SENSOR_CONFIG("OVTI8856", 3, 180000000, 360000000, 720000000),
+	/* Toshiba T4KA3 */
+	IPU_SENSOR_CONFIG("XMCC0003", 1, 321468000),
 };
 
 static const struct ipu_property_names prop_names = {
@@ -807,7 +815,8 @@ int ipu_bridge_init(struct device *dev,
 		return 0;
 
 	if (!ipu_bridge_ivsc_is_ready())
-		return -EPROBE_DEFER;
+		return dev_err_probe(dev, -EPROBE_DEFER,
+				     "waiting for IVSC to become ready\n");
 
 	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)

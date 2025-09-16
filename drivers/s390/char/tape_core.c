@@ -14,6 +14,7 @@
 #define KMSG_COMPONENT "tape"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/init.h>	     // for kernel parameters
 #include <linux/kmod.h>	     // for requesting modules
@@ -821,7 +822,7 @@ tape_delayed_next_request(struct work_struct *work)
 
 static void tape_long_busy_timeout(struct timer_list *t)
 {
-	struct tape_device *device = from_timer(device, t, lb_timeout);
+	struct tape_device *device = timer_container_of(device, t, lb_timeout);
 	struct tape_request *request;
 
 	spin_lock_irq(get_ccwdev_lock(device->cdev));

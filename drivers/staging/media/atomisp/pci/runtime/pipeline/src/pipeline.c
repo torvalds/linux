@@ -198,7 +198,6 @@ int ia_css_pipeline_request_stop(struct ia_css_pipeline *pipeline)
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 			    "ia_css_pipeline_request_stop() enter: pipeline=%p\n",
 			    pipeline);
-	pipeline->stop_requested = true;
 
 	/* Send stop event to the sp*/
 	/* This needs improvement, stop on all the pipes available
@@ -663,7 +662,6 @@ static void pipeline_init_defaults(
 
 	pipeline->pipe_id = pipe_id;
 	pipeline->stages = NULL;
-	pipeline->stop_requested = false;
 	pipeline->current_stage = NULL;
 
 	memcpy(&pipeline->in_frame, &ia_css_default_frame,

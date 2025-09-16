@@ -98,7 +98,7 @@ static bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode)
 
 void ath_ps_full_sleep(struct timer_list *t)
 {
-	struct ath_softc *sc = from_timer(sc, t, sleep_timer);
+	struct ath_softc *sc = timer_container_of(sc, t, sleep_timer);
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	unsigned long flags;
 	bool reset;
@@ -1484,7 +1484,7 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 	ath_dbg(common, PS, "PowerSave disabled\n");
 }
 
-static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
+static int ath9k_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
@@ -2114,6 +2114,7 @@ static void ath9k_enable_dynack(struct ath_softc *sc)
 }
 
 static void ath9k_set_coverage_class(struct ieee80211_hw *hw,
+				     int radio_idx,
 				     s16 coverage_class)
 {
 	struct ath_softc *sc = hw->priv;
@@ -2338,7 +2339,8 @@ static bool validate_antenna_mask(struct ath_hw *ah, u32 val)
 	}
 }
 
-static int ath9k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+static int ath9k_set_antenna(struct ieee80211_hw *hw, int radio_idx,
+			     u32 tx_ant, u32 rx_ant)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
@@ -2367,7 +2369,8 @@ static int ath9k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	return 0;
 }
 
-static int ath9k_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
+static int ath9k_get_antenna(struct ieee80211_hw *hw, int radio_idx,
+			     u32 *tx_ant, u32 *rx_ant)
 {
 	struct ath_softc *sc = hw->priv;
 

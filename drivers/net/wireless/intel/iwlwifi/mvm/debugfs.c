@@ -1134,7 +1134,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 
 	if (count == 6 && !strcmp(buf, "nolog\n")) {
 		set_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE, &mvm->status);
-		set_bit(STATUS_SUPPRESS_CMD_ERROR_ONCE, &mvm->trans->status);
+		iwl_trans_suppress_cmd_error_once(mvm->trans);
 	}
 
 	/* take the return value to make compiler happy - it will fail anyway */
@@ -1277,7 +1277,7 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 		return -EIO;
 
 	/* supporting only MQ RX */
-	if (!mvm->trans->trans_cfg->mq_rx_supported)
+	if (!mvm->trans->mac_cfg->mq_rx_supported)
 		return -EOPNOTSUPP;
 
 	rxb._page = alloc_pages(GFP_ATOMIC, 0);
@@ -1468,7 +1468,7 @@ static ssize_t iwl_dbgfs_fw_dbg_clear_write(struct iwl_mvm *mvm,
 					    char *buf, size_t count,
 					    loff_t *ppos)
 {
-	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_9000)
+	if (mvm->trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_9000)
 		return -EOPNOTSUPP;
 
 	/*

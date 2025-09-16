@@ -507,7 +507,7 @@ static void corsair_void_status_work_handler(struct work_struct *work)
 	struct delayed_work *delayed_work;
 	int battery_ret;
 
-	delayed_work = container_of(work, struct delayed_work, work);
+	delayed_work = to_delayed_work(work);
 	drvdata = container_of(delayed_work, struct corsair_void_drvdata,
 			       delayed_status_work);
 
@@ -525,7 +525,7 @@ static void corsair_void_firmware_work_handler(struct work_struct *work)
 	struct delayed_work *delayed_work;
 	int firmware_ret;
 
-	delayed_work = container_of(work, struct delayed_work, work);
+	delayed_work = to_delayed_work(work);
 	drvdata = container_of(delayed_work, struct corsair_void_drvdata,
 			       delayed_firmware_work);
 

@@ -359,7 +359,7 @@ static void __x25_destroy_socket(struct sock *);
  */
 static void x25_destroy_timer(struct timer_list *t)
 {
-	struct sock *sk = from_timer(sk, t, sk_timer);
+	struct sock *sk = timer_container_of(sk, t, sk_timer);
 
 	x25_destroy_socket_from_timer(sk);
 }
@@ -891,7 +891,7 @@ static int x25_accept(struct socket *sock, struct socket *newsock,
 	if (sk->sk_state != TCP_LISTEN)
 		goto out2;
 
-	rc = x25_wait_for_data(sk, sk->sk_rcvtimeo);
+	rc = x25_wait_for_data(sk, READ_ONCE(sk->sk_rcvtimeo));
 	if (rc)
 		goto out2;
 	skb = skb_dequeue(&sk->sk_receive_queue);

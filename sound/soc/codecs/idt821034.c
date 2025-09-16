@@ -957,7 +957,8 @@ static const struct snd_soc_component_driver idt821034_component_driver = {
 #define IDT821034_GPIO_OFFSET_TO_SLIC_CHANNEL(_offset) (((_offset) / 5) % 4)
 #define IDT821034_GPIO_OFFSET_TO_SLIC_MASK(_offset)    BIT((_offset) % 5)
 
-static void idt821034_chip_gpio_set(struct gpio_chip *c, unsigned int offset, int val)
+static int idt821034_chip_gpio_set(struct gpio_chip *c, unsigned int offset,
+				   int val)
 {
 	u8 ch = IDT821034_GPIO_OFFSET_TO_SLIC_CHANNEL(offset);
 	u8 mask = IDT821034_GPIO_OFFSET_TO_SLIC_MASK(offset);
@@ -973,12 +974,14 @@ static void idt821034_chip_gpio_set(struct gpio_chip *c, unsigned int offset, in
 	else
 		slic_raw &= ~mask;
 	ret = idt821034_write_slic_raw(idt821034, ch, slic_raw);
-	if (ret) {
-		dev_err(&idt821034->spi->dev, "set gpio %d (%u, 0x%x) failed (%d)\n",
-			offset, ch, mask, ret);
-	}
 
 	mutex_unlock(&idt821034->mutex);
+
+	if (ret)
+		dev_err(&idt821034->spi->dev, "set gpio %d (%u, 0x%x) failed (%d)\n",
+			offset, ch, mask, ret);
+
+	return ret;
 }
 
 static int idt821034_chip_gpio_get(struct gpio_chip *c, unsigned int offset)
@@ -1054,7 +1057,9 @@ static int idt821034_chip_direction_output(struct gpio_chip *c, unsigned int off
 	u8 slic_conf;
 	int ret;
 
-	idt821034_chip_gpio_set(c, offset, val);
+	ret = idt821034_chip_gpio_set(c, offset, val);
+	if (ret)
+		return ret;
 
 	mutex_lock(&idt821034->mutex);
 
@@ -1062,7 +1067,7 @@ static int idt821034_chip_direction_output(struct gpio_chip *c, unsigned int off
 
 	ret = idt821034_set_slic_conf(idt821034, ch, slic_conf);
 	if (ret) {
-		dev_err(&idt821034->spi->dev, "dir in gpio %d (%u, 0x%x) failed (%d)\n",
+		dev_err(&idt821034->spi->dev, "dir out gpio %d (%u, 0x%x) failed (%d)\n",
 			offset, ch, mask, ret);
 	}
 

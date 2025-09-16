@@ -85,7 +85,7 @@ static int intel_hdcp_gsc_initialize_message(struct xe_device *xe,
 
 	cmd_in = xe_bo_ggtt_addr(bo);
 	cmd_out = cmd_in + PAGE_SIZE;
-	xe_map_memset(xe, &bo->vmap, 0, 0, bo->size);
+	xe_map_memset(xe, &bo->vmap, 0, 0, xe_bo_size(bo));
 
 	gsc_context->hdcp_bo = bo;
 	gsc_context->hdcp_cmd_in = cmd_in;

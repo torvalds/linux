@@ -316,7 +316,8 @@ static void call_rcu_tasks_generic_timer(struct timer_list *tlp)
 	unsigned long flags;
 	bool needwake = false;
 	struct rcu_tasks *rtp;
-	struct rcu_tasks_percpu *rtpcp = from_timer(rtpcp, tlp, lazy_timer);
+	struct rcu_tasks_percpu *rtpcp = timer_container_of(rtpcp, tlp,
+						            lazy_timer);
 
 	rtp = rtpcp->rtpp;
 	raw_spin_lock_irqsave_rcu_node(rtpcp, flags);

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config DRM_VMWGFX
 	tristate "DRM driver for VMware Virtual GPU"
-	depends on DRM && PCI && MMU
+	depends on DRM && PCI
 	depends on (X86 && HYPERVISOR_GUEST) || ARM64
 	select DRM_CLIENT_SELECTION
 	select DRM_TTM

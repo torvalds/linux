@@ -687,7 +687,7 @@ static irqreturn_t mxs_i2c_isr(int this_irq, void *dev_id)
 }
 
 static const struct i2c_algorithm mxs_i2c_algo = {
-	.master_xfer = mxs_i2c_xfer,
+	.xfer = mxs_i2c_xfer,
 	.functionality = mxs_i2c_func,
 };
 

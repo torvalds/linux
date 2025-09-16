@@ -292,7 +292,7 @@ static void restore_screen(void)
 			     "shrw %%cx ; "
 			     "jnc 1f ; "
 			     "stosw \n\t"
-			     "1: rep;stosl ; "
+			     "1: rep stosl ; "
 			     "popw %%es"
 			     : "+D" (dst), "+c" (npad)
 			     : "bdS" (video_segment),

@@ -99,7 +99,7 @@ struct perf_evsel {
 	 * cpu map for opening the event on, for example, the first CPU on a
 	 * socket for an uncore event.
 	 */
-	struct perf_cpu_map	*own_cpus;
+	struct perf_cpu_map	*pmu_cpus;
 	struct perf_thread_map	*threads;
 	struct xyarray		*fd;
 	struct xyarray		*mmap;
@@ -133,6 +133,7 @@ struct perf_evsel {
 
 void perf_evsel__init(struct perf_evsel *evsel, struct perf_event_attr *attr,
 		      int idx);
+void perf_evsel__exit(struct perf_evsel *evsel);
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 void perf_evsel__close_fd(struct perf_evsel *evsel);
 void perf_evsel__free_fd(struct perf_evsel *evsel);

@@ -9,7 +9,7 @@
 #ifndef _ASM_ARC_CURRENT_H
 #define _ASM_ARC_CURRENT_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #ifdef CONFIG_ARC_CURR_IN_REG
 
@@ -20,6 +20,6 @@ register struct task_struct *curr_arc asm("gp");
 #include <asm-generic/current.h>
 #endif /* ! CONFIG_ARC_CURR_IN_REG */
 
-#endif /* ! __ASSEMBLY__ */
+#endif /* ! __ASSEMBLER__ */
 
 #endif /* _ASM_ARC_CURRENT_H */

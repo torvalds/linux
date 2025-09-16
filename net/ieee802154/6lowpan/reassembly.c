@@ -44,7 +44,7 @@ static void lowpan_frag_init(struct inet_frag_queue *q, const void *a)
 
 static void lowpan_frag_expire(struct timer_list *t)
 {
-	struct inet_frag_queue *frag = from_timer(frag, t, timer);
+	struct inet_frag_queue *frag = timer_container_of(frag, t, timer);
 	struct frag_queue *fq;
 	int refs = 1;
 

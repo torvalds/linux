@@ -203,9 +203,10 @@ static int sprd_eic_direction_input(struct gpio_chip *chip, unsigned int offset)
 	return 0;
 }
 
-static void sprd_eic_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int sprd_eic_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	/* EICs are always input, nothing need to do here. */
+	return 0;
 }
 
 static int sprd_eic_set_debounce(struct gpio_chip *chip, unsigned int offset,

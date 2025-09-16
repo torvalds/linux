@@ -271,7 +271,7 @@ static const struct bios_settings bios_tbl[] __initconst = {
  * this struct is used to instruct thermal layer to use bang_bang instead of
  * default governor for acerhdf
  */
-static struct thermal_zone_params acerhdf_zone_params = {
+static const struct thermal_zone_params acerhdf_zone_params = {
 	.governor_name = "bang_bang",
 };
 
@@ -426,7 +426,7 @@ static int acerhdf_get_crit_temp(struct thermal_zone_device *thermal,
 }
 
 /* bind callback functions to thermalzone */
-static struct thermal_zone_device_ops acerhdf_dev_ops = {
+static const struct thermal_zone_device_ops acerhdf_dev_ops = {
 	.should_bind = acerhdf_should_bind,
 	.get_temp = acerhdf_get_ec_temp,
 	.change_mode = acerhdf_change_mode,

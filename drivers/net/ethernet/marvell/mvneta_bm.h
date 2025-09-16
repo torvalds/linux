@@ -115,7 +115,7 @@ struct mvneta_bm_pool {
 
 	/* Packet size */
 	int pkt_size;
-	/* Size of the buffer acces through DMA*/
+	/* Size of the buffer access through DMA */
 	u32 buf_size;
 
 	/* BPPE virtual base address */

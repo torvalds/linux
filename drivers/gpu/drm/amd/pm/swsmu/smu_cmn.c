@@ -86,6 +86,7 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 #define SMU_RESP_BUSY_OTHER     0xFC
 #define SMU_RESP_DEBUG_END      0xFB
 
+#define SMU_RESP_UNEXP (~0U)
 /**
  * __smu_cmn_poll_stat -- poll for a status from the SMU
  * @smu: a pointer to SMU context
@@ -171,6 +172,15 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 		dev_err_ratelimited(adev->dev,
 				    "SMU: I'm debugging!");
 		break;
+	case SMU_RESP_UNEXP:
+		if (amdgpu_device_bus_status_check(smu->adev)) {
+			/* print error immediately if device is off the bus */
+			dev_err(adev->dev,
+				"SMU: response:0x%08X for index:%d param:0x%08X message:%s?",
+				reg_c2pmsg_90, msg_index, param, message);
+			break;
+		}
+		fallthrough;
 	default:
 		dev_err_ratelimited(adev->dev,
 				    "SMU: response:0x%08X for index:%d param:0x%08X message:%s?",
@@ -246,11 +256,12 @@ static int __smu_cmn_ras_filter_msg(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t flags, resp;
-	bool fed_status;
+	bool fed_status, pri;
 
 	flags = __smu_cmn_get_msg_flags(smu, msg);
 	*poll = true;
 
+	pri = !!(flags & SMU_MSG_NO_PRECHECK);
 	/* When there is RAS fatal error, FW won't process non-RAS priority
 	 * messages. Don't allow any messages other than RAS priority messages.
 	 */
@@ -262,15 +273,18 @@ static int __smu_cmn_ras_filter_msg(struct smu_context *smu,
 				smu_get_message_name(smu, msg));
 			return -EACCES;
 		}
+	}
 
+	if (pri || fed_status) {
 		/* FW will ignore non-priority messages when a RAS fatal error
-		 * is detected. Hence it is possible that a previous message
-		 * wouldn't have got response. Allow to continue without polling
-		 * for response status for priority messages.
+		 * or reset condition is detected. Hence it is possible that a
+		 * previous message wouldn't have got response. Allow to
+		 * continue without polling for response status for priority
+		 * messages.
 		 */
 		resp = RREG32(smu->resp_reg);
 		dev_dbg(adev->dev,
-			"Sending RAS priority message %s response status: %x",
+			"Sending priority message %s response status: %x",
 			smu_get_message_name(smu, msg), resp);
 		if (resp == 0)
 			*poll = false;
@@ -1049,73 +1063,6 @@ int smu_cmn_get_combo_pptable(struct smu_context *smu)
 				    0,
 				    pptable,
 				    false);
-}
-
-void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
-{
-	struct metrics_table_header *header = (struct metrics_table_header *)table;
-	uint16_t structure_size;
-
-#define METRICS_VERSION(a, b)	((a << 16) | b)
-
-	switch (METRICS_VERSION(frev, crev)) {
-	case METRICS_VERSION(1, 0):
-		structure_size = sizeof(struct gpu_metrics_v1_0);
-		break;
-	case METRICS_VERSION(1, 1):
-		structure_size = sizeof(struct gpu_metrics_v1_1);
-		break;
-	case METRICS_VERSION(1, 2):
-		structure_size = sizeof(struct gpu_metrics_v1_2);
-		break;
-	case METRICS_VERSION(1, 3):
-		structure_size = sizeof(struct gpu_metrics_v1_3);
-		break;
-	case METRICS_VERSION(1, 4):
-		structure_size = sizeof(struct gpu_metrics_v1_4);
-		break;
-	case METRICS_VERSION(1, 5):
-		structure_size = sizeof(struct gpu_metrics_v1_5);
-		break;
-	case METRICS_VERSION(1, 6):
-		structure_size = sizeof(struct gpu_metrics_v1_6);
-		break;
-	case METRICS_VERSION(1, 7):
-		structure_size = sizeof(struct gpu_metrics_v1_7);
-		break;
-	case METRICS_VERSION(1, 8):
-		structure_size = sizeof(struct gpu_metrics_v1_8);
-		break;
-	case METRICS_VERSION(2, 0):
-		structure_size = sizeof(struct gpu_metrics_v2_0);
-		break;
-	case METRICS_VERSION(2, 1):
-		structure_size = sizeof(struct gpu_metrics_v2_1);
-		break;
-	case METRICS_VERSION(2, 2):
-		structure_size = sizeof(struct gpu_metrics_v2_2);
-		break;
-	case METRICS_VERSION(2, 3):
-		structure_size = sizeof(struct gpu_metrics_v2_3);
-		break;
-	case METRICS_VERSION(2, 4):
-		structure_size = sizeof(struct gpu_metrics_v2_4);
-		break;
-	case METRICS_VERSION(3, 0):
-		structure_size = sizeof(struct gpu_metrics_v3_0);
-		break;
-	default:
-		return;
-	}
-
-#undef METRICS_VERSION
-
-	memset(header, 0xFF, structure_size);
-
-	header->format_revision = frev;
-	header->content_revision = crev;
-	header->structure_size = structure_size;
-
 }
 
 int smu_cmn_set_mp1_state(struct smu_context *smu,

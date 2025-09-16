@@ -182,11 +182,39 @@ value and use PIO write (by setting SubIP write opcode) to do a write operation.
 
 THC also includes two GPIO pins, one for interrupt and the other for device reset control.
 
-Interrupt line can be configured to either level triggerred or edge triggerred by setting MMIO
+Interrupt line can be configured to either level triggered or edge triggered by setting MMIO
 Control register.
 
 Reset line is controlled by BIOS (or EFI) through ACPI _RST method, driver needs to call this
 device ACPI _RST method to reset touch IC during initialization.
+
+2.3 Max input size control
+--------------------------
+
+This is a new feature introduced in Panther Lake platform, THC hardware allows driver to set
+a max input size for RxDMA. After this max size gets set and enabled, for every input report
+packet reading, THC hardware sequencer will first read incoming input packet size, then compare
+input packet size with the given max size:
+
+- if input packet size <= max size, THC continues using input packet size to finish the reading
+- if input packet size > max size, there is potential input data crash risk during
+  transferring, THC will use max size instead of input packet size for reading
+
+This feature is used to avoid data corruption which will cause RxDMA buffer overrun issue for
+I2C bus, and enhance whole system stability.
+
+2.4 Interrupt delay
+-------------------
+
+Because of MCU performance limitation, some touch devices cannot de-assert interrupt pin
+immediately after input data is transferred, which cause an interrupt toggle delay. But THC
+always detects next interrupt immediately after last input interrupt is handled. In this
+case, the delayed interrupt de-assertion will be recognized as a new interrupt signal by THC,
+and causes THC to start an input report reading spuriously.
+
+In order to avoid this situation, THC introduced interrupt delay new feature in Panther Lake
+platform, where THC allows driver to set an interrupt delay. After this feature is enabled,
+THC will delay this given time for next interrupt detection.
 
 3. High level concept
 =====================
@@ -302,10 +330,10 @@ waiting for interrupt ready then read out the data from system memory.
 3.3.2 Software DMA channel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-THC supports a software triggerred RxDMA mode to read the touch data from touch IC. This SW RxDMA
+THC supports a software triggered RxDMA mode to read the touch data from touch IC. This SW RxDMA
 is the 3rd THC RxDMA engine with the similar functionalities as the existing two RxDMAs, the only
-difference is this SW RxDMA is triggerred by software, and RxDMA2 is triggerred by external Touch IC
-interrupt. It gives a flexiblity to software driver to use RxDMA read Touch IC data in any time.
+difference is this SW RxDMA is triggered by software, and RxDMA2 is triggered by external Touch IC
+interrupt. It gives a flexibility to software driver to use RxDMA read Touch IC data in any time.
 
 Before software starts a SW RxDMA, it shall stop the 1st and 2nd RxDMA, clear PRD read/write pointer
 and quiesce the device interrupt (THC_DEVINT_QUIESCE_HW_STS = 1), other operations are the same with

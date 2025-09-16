@@ -245,30 +245,21 @@ static int __net_init pfcp_net_init(struct net *net)
 	return 0;
 }
 
-static void __net_exit pfcp_net_exit(struct net *net)
+static void __net_exit pfcp_net_exit_rtnl(struct net *net,
+					  struct list_head *dev_to_kill)
 {
 	struct pfcp_net *pn = net_generic(net, pfcp_net_id);
 	struct pfcp_dev *pfcp, *pfcp_next;
-	struct net_device *dev;
-	LIST_HEAD(list);
-
-	rtnl_lock();
-	for_each_netdev(net, dev)
-		if (dev->rtnl_link_ops == &pfcp_link_ops)
-			pfcp_dellink(dev, &list);
 
 	list_for_each_entry_safe(pfcp, pfcp_next, &pn->pfcp_dev_list, list)
-		pfcp_dellink(pfcp->dev, &list);
-
-	unregister_netdevice_many(&list);
-	rtnl_unlock();
+		pfcp_dellink(pfcp->dev, dev_to_kill);
 }
 
 static struct pernet_operations pfcp_net_ops = {
-	.init	= pfcp_net_init,
-	.exit	= pfcp_net_exit,
-	.id	= &pfcp_net_id,
-	.size	= sizeof(struct pfcp_net),
+	.init = pfcp_net_init,
+	.exit_rtnl = pfcp_net_exit_rtnl,
+	.id = &pfcp_net_id,
+	.size = sizeof(struct pfcp_net),
 };
 
 static int __init pfcp_init(void)

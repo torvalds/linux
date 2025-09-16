@@ -33,7 +33,7 @@ struct heartbeat_trig_data {
 static void led_heartbeat_function(struct timer_list *t)
 {
 	struct heartbeat_trig_data *heartbeat_data =
-		from_timer(heartbeat_data, t, timer);
+		timer_container_of(heartbeat_data, t, timer);
 	struct led_classdev *led_cdev;
 	unsigned long brightness = LED_OFF;
 	unsigned long delay = 0;

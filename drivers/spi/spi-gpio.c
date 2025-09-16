@@ -46,7 +46,7 @@ struct spi_gpio {
 static inline struct spi_gpio *__pure
 spi_to_spi_gpio(const struct spi_device *spi)
 {
-	const struct spi_bitbang	*bang;
+	struct spi_bitbang		*bang;
 	struct spi_gpio			*spi_gpio;
 
 	bang = spi_controller_get_devdata(spi->controller);
@@ -104,7 +104,7 @@ static inline int getmiso(const struct spi_device *spi)
  */
 
 static u32 spi_gpio_txrx_word_mode0(struct spi_device *spi,
-		unsigned nsecs, u32 word, u8 bits, unsigned flags)
+		unsigned int nsecs, u32 word, u8 bits, unsigned int flags)
 {
 	if (unlikely(spi->mode & SPI_LSB_FIRST))
 		return bitbang_txrx_le_cpha0(spi, nsecs, 0, flags, word, bits);
@@ -113,7 +113,7 @@ static u32 spi_gpio_txrx_word_mode0(struct spi_device *spi,
 }
 
 static u32 spi_gpio_txrx_word_mode1(struct spi_device *spi,
-		unsigned nsecs, u32 word, u8 bits, unsigned flags)
+		unsigned int nsecs, u32 word, u8 bits, unsigned int flags)
 {
 	if (unlikely(spi->mode & SPI_LSB_FIRST))
 		return bitbang_txrx_le_cpha1(spi, nsecs, 0, flags, word, bits);
@@ -122,7 +122,7 @@ static u32 spi_gpio_txrx_word_mode1(struct spi_device *spi,
 }
 
 static u32 spi_gpio_txrx_word_mode2(struct spi_device *spi,
-		unsigned nsecs, u32 word, u8 bits, unsigned flags)
+		unsigned int nsecs, u32 word, u8 bits, unsigned int flags)
 {
 	if (unlikely(spi->mode & SPI_LSB_FIRST))
 		return bitbang_txrx_le_cpha0(spi, nsecs, 1, flags, word, bits);
@@ -131,7 +131,7 @@ static u32 spi_gpio_txrx_word_mode2(struct spi_device *spi,
 }
 
 static u32 spi_gpio_txrx_word_mode3(struct spi_device *spi,
-		unsigned nsecs, u32 word, u8 bits, unsigned flags)
+		unsigned int nsecs, u32 word, u8 bits, unsigned int flags)
 {
 	if (unlikely(spi->mode & SPI_LSB_FIRST))
 		return bitbang_txrx_le_cpha1(spi, nsecs, 1, flags, word, bits);
@@ -150,7 +150,7 @@ static u32 spi_gpio_txrx_word_mode3(struct spi_device *spi,
  */
 
 static u32 spi_gpio_spec_txrx_word_mode0(struct spi_device *spi,
-		unsigned nsecs, u32 word, u8 bits, unsigned flags)
+		unsigned int nsecs, u32 word, u8 bits, unsigned int flags)
 {
 	flags = spi->controller->flags;
 	if (unlikely(spi->mode & SPI_LSB_FIRST))
@@ -160,7 +160,7 @@ static u32 spi_gpio_spec_txrx_word_mode0(struct spi_device *spi,
 }
 
 static u32 spi_gpio_spec_txrx_word_mode1(struct spi_device *spi,
-		unsigned nsecs, u32 word, u8 bits, unsigned flags)
+		unsigned int nsecs, u32 word, u8 bits, unsigned int flags)
 {
 	flags = spi->controller->flags;
 	if (unlikely(spi->mode & SPI_LSB_FIRST))
@@ -170,7 +170,7 @@ static u32 spi_gpio_spec_txrx_word_mode1(struct spi_device *spi,
 }
 
 static u32 spi_gpio_spec_txrx_word_mode2(struct spi_device *spi,
-		unsigned nsecs, u32 word, u8 bits, unsigned flags)
+		unsigned int nsecs, u32 word, u8 bits, unsigned int flags)
 {
 	flags = spi->controller->flags;
 	if (unlikely(spi->mode & SPI_LSB_FIRST))
@@ -180,7 +180,7 @@ static u32 spi_gpio_spec_txrx_word_mode2(struct spi_device *spi,
 }
 
 static u32 spi_gpio_spec_txrx_word_mode3(struct spi_device *spi,
-		unsigned nsecs, u32 word, u8 bits, unsigned flags)
+		unsigned int nsecs, u32 word, u8 bits, unsigned int flags)
 {
 	flags = spi->controller->flags;
 	if (unlikely(spi->mode & SPI_LSB_FIRST))

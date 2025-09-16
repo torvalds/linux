@@ -449,6 +449,6 @@ the 32 bits.
 xbox-dvd (RC_PROTO_XBOX_DVD)
 ----------------------------
 
-This protocol is used by XBox DVD Remote, which was made for the original
-XBox. There is no in-kernel decoder or encoder for this protocol. The usb
+This protocol is used by Xbox DVD Remote, which was made for the original
+Xbox. There is no in-kernel decoder or encoder for this protocol. The usb
 device decodes the protocol. There is a BPF decoder available in v4l-utils.

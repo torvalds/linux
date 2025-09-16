@@ -6,7 +6,7 @@
 #ifndef _ASM_ARC_BUG_H
 #define _ASM_ARC_BUG_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/ptrace.h>
 
@@ -29,6 +29,6 @@ void die(const char *str, struct pt_regs *regs, unsigned long address);
 
 #include <asm-generic/bug.h>
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 #endif

@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/imx/fsl,imx6q-ipu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX IPUv3
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx51-ipu
+          - fsl,imx53-ipu
+          - fsl,imx6q-ipu
+      - items:
+          - const: fsl,imx6qp-ipu
+          - const: fsl,imx6q-ipu
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+
+  clocks:
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: bus
+      - const: di0
+      - const: di1
+
+  resets:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  fsl,prg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to prg node associated with this IPU instance
+
+  port@0:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+    description: CSI0
+
+  port@1:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+    description: CSI1
+
+  port@2:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+    description: DI0
+
+  port@3:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+    description: DI1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    display-controller@18000000 {
+        compatible = "fsl,imx53-ipu";
+        reg = <0x18000000 0x080000000>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        interrupts = <11 10>;
+        resets = <&src 2>;
+
+        port@2 {
+            reg = <2>;
+
+            endpoint {
+                remote-endpoint = <&display_in>;
+            };
+        };
+    };

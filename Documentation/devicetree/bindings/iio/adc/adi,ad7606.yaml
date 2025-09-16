@@ -45,6 +45,14 @@ properties:
   "#size-cells":
     const: 0
 
+  '#trigger-source-cells':
+    description: |
+      Cell indicates the output signal: 0 = BUSY, 1 = FIRSTDATA.
+
+      For convenience, macros for these values are available in
+      dt-bindings/iio/adc/adi,ad7606.h.
+    const: 1
+
   # According to the datasheet, "Data is clocked in from SDI on the falling
   # edge of SCLK, while data is clocked out on DOUTA on the rising edge of
   # SCLK".  Also, even if not stated textually in the datasheet, it is made
@@ -196,6 +204,15 @@ patternProperties:
           considered a bipolar differential channel. Otherwise it is bipolar
           single-ended.
 
+      adi,rfilter-ohms:
+        description:
+          For ADCs that supports gain calibration, this property must be set to
+          the value of the external RFilter resistor. Proper gain error
+          correction is applied based on this value.
+        default: 0
+        minimum: 0
+        maximum: 64512
+
     required:
       - reg
       - bipolar
@@ -214,12 +231,6 @@ allOf:
           - adi,conversion-start-gpios
       - required:
           - pwms
-
-  - oneOf:
-      - required:
-          - interrupts
-      - required:
-          - io-backends
 
   - if:
       properties:
@@ -247,6 +258,25 @@ allOf:
     then:
       properties:
         adi,oversampling-ratio-gpios: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad7605-4
+              - adi,ad7606-4
+              - adi,ad7606-6
+              - adi,ad7606-8
+              - adi,ad7607
+              - adi,ad7608
+              - adi,ad7609
+              - adi,ad7616
+    then:
+      patternProperties:
+        "^channel@[0-9a-f]+$":
+          properties:
+            adi,rfilter-ohms: false
 
   - if:
       properties:
@@ -390,6 +420,7 @@ examples:
                 reg = <8>;
                 diff-channels = <8 8>;
                 bipolar;
+                adi,rfilter-ohms = <2048>;
             };
 
         };

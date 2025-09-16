@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/nxp,lpc3220-udc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP LPC32xx SoC USB Device Controller (UDC)
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: nxp,lpc3220-udc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: USB Device Low Priority Interrupt
+      - description: USB Device High Priority Interrupt
+      - description: USB Device DMA Interrupt
+      - description: External USB Transceiver Interrupt (OTG ATX)
+
+  clocks:
+    maxItems: 1
+
+  transceiver:
+    description:
+      phandle of the associated ISP1301 device - this is necessary for
+      the UDC controller for connecting to the USB physical layer
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - transceiver
+
+additionalProperties: false
+
+examples:
+  - |
+    usbd@31020000 {
+        compatible = "nxp,lpc3220-udc";
+        reg = <0x31020000 0x300>;
+        interrupt-parent = <&mic>;
+        interrupts = <0x3d 0>, <0x3e 0>, <0x3c 0>, <0x3a 0>;
+        transceiver = <&isp1301>;
+    };

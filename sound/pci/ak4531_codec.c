@@ -389,7 +389,7 @@ int snd_ak4531_mixer(struct snd_card *card,
 		snd_ak4531_free(ak4531);
 		return err;
 	}
-	strcpy(card->mixername, "Asahi Kasei AK4531");
+	strscpy(card->mixername, "Asahi Kasei AK4531");
 	ak4531->write(ak4531, AK4531_RESET, 0x03);	/* no RST, PD */
 	udelay(100);
 	ak4531->write(ak4531, AK4531_CLOCK, 0x00);	/* CODEC ADC and CODEC DAC use {LR,B}CLK2 and run off LRCLK2 PLL */

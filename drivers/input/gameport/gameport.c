@@ -199,7 +199,8 @@ EXPORT_SYMBOL(gameport_stop_polling);
 
 static void gameport_run_poll_handler(struct timer_list *t)
 {
-	struct gameport *gameport = from_timer(gameport, t, poll_timer);
+	struct gameport *gameport = timer_container_of(gameport, t,
+						       poll_timer);
 
 	gameport->poll_handler(gameport);
 	if (gameport->poll_cnt)

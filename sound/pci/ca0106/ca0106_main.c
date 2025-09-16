@@ -1315,7 +1315,7 @@ static int snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
         }
 
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "CA0106");
+	strscpy(pcm->name, "CA0106");
 
 	for(substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; 
 	    substream; 
@@ -1593,7 +1593,7 @@ static int snd_ca0106_create(int dev, struct snd_card *card,
 
 	spin_lock_init(&chip->emu_lock);
 
-	err = pci_request_regions(pci, "snd_ca0106");
+	err = pcim_request_all_regions(pci, "snd_ca0106");
 	if (err < 0)
 		return err;
 	chip->port = pci_resource_start(pci, 0);
@@ -1617,8 +1617,8 @@ static int snd_ca0106_create(int dev, struct snd_card *card,
 	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &chip->model);
 	dev_info(card->dev, "Model %04x Rev %08x Serial %08x\n",
 	       chip->model, pci->revision, chip->serial);
-	strcpy(card->driver, "CA0106");
-	strcpy(card->shortname, "CA0106");
+	strscpy(card->driver, "CA0106");
+	strscpy(card->shortname, "CA0106");
 
 	for (c = ca0106_chip_details; c->serial; c++) {
 		if (subsystem[dev]) {

@@ -111,7 +111,11 @@ static int qcom_apcs_sdx55_clk_probe(struct platform_device *pdev)
 	 * driver, there seems to be no better place to do this. So do it here!
 	 */
 	cpu_dev = get_cpu_device(0);
-	dev_pm_domain_attach(cpu_dev, true);
+	ret = dev_pm_domain_attach(cpu_dev, PD_FLAG_ATTACH_POWER_ON);
+	if (ret) {
+		dev_err_probe(dev, ret, "can't get PM domain: %d\n", ret);
+		goto err;
+	}
 
 	return 0;
 

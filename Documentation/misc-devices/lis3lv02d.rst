@@ -22,10 +22,10 @@ sporting the feature officially called "HP Mobile Data Protection System 3D" or
 models (full list can be found in drivers/platform/x86/hp_accel.c) will have
 their axis automatically oriented on standard way (eg: you can directly play
 neverball). The accelerometer data is readable via
-/sys/devices/platform/lis3lv02d. Reported values are scaled
+/sys/devices/faux/lis3lv02d. Reported values are scaled
 to mg values (1/1000th of earth gravity).
 
-Sysfs attributes under /sys/devices/platform/lis3lv02d/:
+Sysfs attributes under /sys/devices/faux/lis3lv02d/:
 
 position
       - 3D position that the accelerometer reports. Format: "(x,y,z)"
@@ -85,7 +85,7 @@ the accelerometer are converted into a "standard" organisation of the axes
 If your laptop model is not recognized (cf "dmesg"), you can send an
 email to the maintainer to add it to the database.  When reporting a new
 laptop, please include the output of "dmidecode" plus the value of
-/sys/devices/platform/lis3lv02d/position in these four cases.
+/sys/devices/faux/lis3lv02d/position in these four cases.
 
 Q&A
 ---

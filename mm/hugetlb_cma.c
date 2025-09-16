@@ -66,7 +66,7 @@ hugetlb_cma_alloc_bootmem(struct hstate *h, int *nid, bool node_exact)
 		if (node_exact)
 			return NULL;
 
-		for_each_online_node(node) {
+		for_each_node_mask(node, hugetlb_bootmem_nodes) {
 			cma = hugetlb_cma[node];
 			if (!cma || node == *nid)
 				continue;
@@ -153,11 +153,13 @@ void __init hugetlb_cma_reserve(int order)
 	if (!hugetlb_cma_size)
 		return;
 
+	hugetlb_bootmem_set_nodes();
+
 	for (nid = 0; nid < MAX_NUMNODES; nid++) {
 		if (hugetlb_cma_size_in_node[nid] == 0)
 			continue;
 
-		if (!node_online(nid)) {
+		if (!node_isset(nid, hugetlb_bootmem_nodes)) {
 			pr_warn("hugetlb_cma: invalid node %d specified\n", nid);
 			hugetlb_cma_size -= hugetlb_cma_size_in_node[nid];
 			hugetlb_cma_size_in_node[nid] = 0;
@@ -190,13 +192,14 @@ void __init hugetlb_cma_reserve(int order)
 		 * If 3 GB area is requested on a machine with 4 numa nodes,
 		 * let's allocate 1 GB on first three nodes and ignore the last one.
 		 */
-		per_node = DIV_ROUND_UP(hugetlb_cma_size, nr_online_nodes);
+		per_node = DIV_ROUND_UP(hugetlb_cma_size,
+					nodes_weight(hugetlb_bootmem_nodes));
 		pr_info("hugetlb_cma: reserve %lu MiB, up to %lu MiB per node\n",
 			hugetlb_cma_size / SZ_1M, per_node / SZ_1M);
 	}
 
 	reserved = 0;
-	for_each_online_node(nid) {
+	for_each_node_mask(nid, hugetlb_bootmem_nodes) {
 		int res;
 		char name[CMA_MAX_NAME];
 

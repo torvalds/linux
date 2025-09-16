@@ -5,7 +5,7 @@
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
         "PEBS": "1",
-        "PublicDescription": "Counts the total number of instructions in which the instruction pointer (IP) of the processor is resteered due to a branch instruction and the branch instruction successfully retires.  All branch type instructions are accounted for.",
+        "PublicDescription": "Counts the total number of instructions in which the instruction pointer (IP) of the processor is resteered due to a branch instruction and the branch instruction successfully retires.  All branch type instructions are accounted for. Available PDIST counters: 0",
         "SampleAfterValue": "200003"
     },
     {
@@ -14,6 +14,7 @@
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.CALL",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of near CALL branch instructions retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xf9"
     },
@@ -23,6 +24,7 @@
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.FAR_BRANCH",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of far branch instructions retired, includes far jump, far call and return, and interrupt call and return. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xbf"
     },
@@ -32,6 +34,7 @@
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.IND_CALL",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of near indirect CALL branch instructions retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xfb"
     },
@@ -41,6 +44,7 @@
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.JCC",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of retired JCC (Jump on Conditional Code) branch instructions retired, includes both taken and not taken branches. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x7e"
     },
@@ -50,6 +54,7 @@
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.NON_RETURN_IND",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of near indirect JMP and near indirect CALL branch instructions retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xeb"
     },
@@ -59,6 +64,7 @@
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.REL_CALL",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of near relative CALL branch instructions retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xfd"
     },
@@ -68,6 +74,7 @@
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.RETURN",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of near RET branch instructions retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xf7"
     },
@@ -77,6 +84,7 @@
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.TAKEN_JCC",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of taken JCC (Jump on Conditional Code) branch instructions retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xfe"
     },
@@ -86,7 +94,7 @@
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
         "PEBS": "1",
-        "PublicDescription": "Counts the total number of mispredicted branch instructions retired.  All branch type instructions are accounted for.  Prediction of the branch target address enables the processor to begin executing instructions before the non-speculative execution path is known. The branch prediction unit (BPU) predicts the target address based on the instruction pointer (IP) of the branch and on the execution path through which execution reached this IP.    A branch misprediction occurs when the prediction is wrong, and results in discarding all instructions executed in the speculative path and re-fetching from the correct path.",
+        "PublicDescription": "Counts the total number of mispredicted branch instructions retired.  All branch type instructions are accounted for.  Prediction of the branch target address enables the processor to begin executing instructions before the non-speculative execution path is known. The branch prediction unit (BPU) predicts the target address based on the instruction pointer (IP) of the branch and on the execution path through which execution reached this IP.    A branch misprediction occurs when the prediction is wrong, and results in discarding all instructions executed in the speculative path and re-fetching from the correct path. Available PDIST counters: 0",
         "SampleAfterValue": "200003"
     },
     {
@@ -95,6 +103,7 @@
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.IND_CALL",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of mispredicted near indirect CALL branch instructions retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xfb"
     },
@@ -104,6 +113,7 @@
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.JCC",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of mispredicted JCC (Jump on Conditional Code) branch instructions retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x7e"
     },
@@ -113,6 +123,7 @@
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.NON_RETURN_IND",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of mispredicted near indirect JMP and near indirect CALL branch instructions retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xeb"
     },
@@ -122,6 +133,7 @@
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.RETURN",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of mispredicted near RET branch instructions retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xf7"
     },
@@ -131,6 +143,7 @@
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.TAKEN_JCC",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of mispredicted taken JCC (Jump on Conditional Code) branch instructions retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0xfe"
     },
@@ -206,7 +219,7 @@
         "Counter": "Fixed counter 0",
         "EventName": "INST_RETIRED.ANY",
         "PEBS": "1",
-        "PublicDescription": "Counts the total number of instructions that retired. For instructions that consist of multiple uops, this event counts the retirement of the last uop of the instruction. This event continues counting during hardware interrupts, traps, and inside interrupt handlers. This event uses fixed counter 0.",
+        "PublicDescription": "Counts the total number of instructions that retired. For instructions that consist of multiple uops, this event counts the retirement of the last uop of the instruction. This event continues counting during hardware interrupts, traps, and inside interrupt handlers. This event uses fixed counter 0. Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -216,7 +229,7 @@
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.ANY_P",
         "PEBS": "1",
-        "PublicDescription": "Counts the total number of instructions that retired. For instructions that consist of multiple uops, this event counts the retirement of the last uop of the instruction. This event continues counting during hardware interrupts, traps, and inside interrupt handlers. This event uses a programmable general purpose performance counter.",
+        "PublicDescription": "Counts the total number of instructions that retired. For instructions that consist of multiple uops, this event counts the retirement of the last uop of the instruction. This event continues counting during hardware interrupts, traps, and inside interrupt handlers. This event uses a programmable general purpose performance counter. Available PDIST counters: 0",
         "SampleAfterValue": "2000003"
     },
     {
@@ -225,6 +238,7 @@
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.4K_ALIAS",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of retired loads that are blocked because it initially appears to be store forward blocked, but subsequently is shown not to be blocked based on 4K alias check. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
     },
@@ -234,6 +248,7 @@
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.ALL",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of retired loads that are blocked for any of the following reasons:  DTLB miss, address alias, store forward or data unknown (includes memory disambiguation blocks and ESP consuming load blocks). Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x10"
     },
@@ -243,6 +258,7 @@
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.DATA_UNKNOWN",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of retired loads that are blocked because its address exactly matches an older store whose data is not ready. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
@@ -252,6 +268,7 @@
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.STORE_FORWARD",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of retired loads that are blocked because its address partially overlapped with an older store. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
@@ -464,6 +481,7 @@
         "EventCode": "0xc2",
         "EventName": "TOPDOWN_RETIRING.ALL",
         "PEBS": "1",
+        "PublicDescription": "Counts the total number of consumed retirement slots. Available PDIST counters: 0",
         "SampleAfterValue": "1000003"
     },
     {
@@ -480,6 +498,7 @@
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.ALL",
         "PEBS": "1",
+        "PublicDescription": "Counts the total number of uops retired. Available PDIST counters: 0",
         "SampleAfterValue": "2000003"
     },
     {
@@ -488,6 +507,7 @@
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.IDIV",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of integer divide uops retired. Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
@@ -497,7 +517,7 @@
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.MS",
         "PEBS": "1",
-        "PublicDescription": "Counts the number of uops that are from complex flows issued by the Microcode Sequencer (MS). This includes uops from flows due to complex instructions, faults, assists, and inserted flows.",
+        "PublicDescription": "Counts the number of uops that are from complex flows issued by the Microcode Sequencer (MS). This includes uops from flows due to complex instructions, faults, assists, and inserted flows. Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -507,6 +527,7 @@
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.X87",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of x87 uops retired, includes those in MS flows. Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     }

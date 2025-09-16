@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ9477 switch driver main logic
  *
- * Copyright (C) 2017-2024 Microchip Technology Inc.
+ * Copyright (C) 2017-2025 Microchip Technology Inc.
  */
 
 #include <linux/kernel.h>
@@ -159,6 +159,190 @@ static int ksz9477_wait_alu_sta_ready(struct ksz_device *dev)
 					REG_SW_ALU_STAT_CTRL__4,
 					val, !(val & ALU_STAT_START),
 					10, 1000);
+}
+
+static void port_sgmii_s(struct ksz_device *dev, uint port, u16 devid, u16 reg)
+{
+	u32 data;
+
+	data = (devid & MII_MMD_CTRL_DEVAD_MASK) << 16;
+	data |= reg;
+	ksz_pwrite32(dev, port, REG_PORT_SGMII_ADDR__4, data);
+}
+
+static void port_sgmii_r(struct ksz_device *dev, uint port, u16 devid, u16 reg,
+			 u16 *buf)
+{
+	port_sgmii_s(dev, port, devid, reg);
+	ksz_pread16(dev, port, REG_PORT_SGMII_DATA__4 + 2, buf);
+}
+
+static void port_sgmii_w(struct ksz_device *dev, uint port, u16 devid, u16 reg,
+			 u16 buf)
+{
+	port_sgmii_s(dev, port, devid, reg);
+	ksz_pwrite32(dev, port, REG_PORT_SGMII_DATA__4, buf);
+}
+
+static int ksz9477_pcs_read(struct mii_bus *bus, int phy, int mmd, int reg)
+{
+	struct ksz_device *dev = bus->priv;
+	int port = ksz_get_sgmii_port(dev);
+	u16 val;
+
+	port_sgmii_r(dev, port, mmd, reg, &val);
+
+	/* Simulate a value to activate special code in the XPCS driver if
+	 * supported.
+	 */
+	if (mmd == MDIO_MMD_PMAPMD) {
+		if (reg == MDIO_DEVID1)
+			val = 0x9477;
+		else if (reg == MDIO_DEVID2)
+			val = 0x22 << 10;
+	} else if (mmd == MDIO_MMD_VEND2) {
+		struct ksz_port *p = &dev->ports[port];
+
+		/* Need to update MII_BMCR register with the exact speed and
+		 * duplex mode when running in SGMII mode and this register is
+		 * used to detect connected speed in that mode.
+		 */
+		if (reg == MMD_SR_MII_AUTO_NEG_STATUS) {
+			int duplex, speed;
+
+			if (val & SR_MII_STAT_LINK_UP) {
+				speed = (val >> SR_MII_STAT_S) & SR_MII_STAT_M;
+				if (speed == SR_MII_STAT_1000_MBPS)
+					speed = SPEED_1000;
+				else if (speed == SR_MII_STAT_100_MBPS)
+					speed = SPEED_100;
+				else
+					speed = SPEED_10;
+
+				if (val & SR_MII_STAT_FULL_DUPLEX)
+					duplex = DUPLEX_FULL;
+				else
+					duplex = DUPLEX_HALF;
+
+				if (!p->phydev.link ||
+				    p->phydev.speed != speed ||
+				    p->phydev.duplex != duplex) {
+					u16 ctrl;
+
+					p->phydev.link = 1;
+					p->phydev.speed = speed;
+					p->phydev.duplex = duplex;
+					port_sgmii_r(dev, port, mmd, MII_BMCR,
+						     &ctrl);
+					ctrl &= BMCR_ANENABLE;
+					ctrl |= mii_bmcr_encode_fixed(speed,
+								      duplex);
+					port_sgmii_w(dev, port, mmd, MII_BMCR,
+						     ctrl);
+				}
+			} else {
+				p->phydev.link = 0;
+			}
+		} else if (reg == MII_BMSR) {
+			p->phydev.link = (val & BMSR_LSTATUS);
+		}
+	}
+
+	return val;
+}
+
+static int ksz9477_pcs_write(struct mii_bus *bus, int phy, int mmd, int reg,
+			     u16 val)
+{
+	struct ksz_device *dev = bus->priv;
+	int port = ksz_get_sgmii_port(dev);
+
+	if (mmd == MDIO_MMD_VEND2) {
+		struct ksz_port *p = &dev->ports[port];
+
+		if (reg == MMD_SR_MII_AUTO_NEG_CTRL) {
+			u16 sgmii_mode = SR_MII_PCS_SGMII << SR_MII_PCS_MODE_S;
+
+			/* Need these bits for 1000BASE-X mode to work with
+			 * AN on.
+			 */
+			if (!(val & sgmii_mode))
+				val |= SR_MII_SGMII_LINK_UP |
+				       SR_MII_TX_CFG_PHY_MASTER;
+
+			/* SGMII interrupt in the port cannot be masked, so
+			 * make sure interrupt is not enabled as it is not
+			 * handled.
+			 */
+			val &= ~SR_MII_AUTO_NEG_COMPLETE_INTR;
+		} else if (reg == MII_BMCR) {
+			/* The MII_ADVERTISE register needs to write once
+			 * before doing auto-negotiation for the correct
+			 * config_word to be sent out after reset.
+			 */
+			if ((val & BMCR_ANENABLE) && !p->sgmii_adv_write) {
+				u16 adv;
+
+				/* The SGMII port cannot disable flow control
+				 * so it is better to just advertise symmetric
+				 * pause.
+				 */
+				port_sgmii_r(dev, port, mmd, MII_ADVERTISE,
+					     &adv);
+				adv |= ADVERTISE_1000XPAUSE;
+				adv &= ~ADVERTISE_1000XPSE_ASYM;
+				port_sgmii_w(dev, port, mmd, MII_ADVERTISE,
+					     adv);
+				p->sgmii_adv_write = 1;
+			} else if (val & BMCR_RESET) {
+				p->sgmii_adv_write = 0;
+			}
+		} else if (reg == MII_ADVERTISE) {
+			/* XPCS driver writes to this register so there is no
+			 * need to update it for the errata.
+			 */
+			p->sgmii_adv_write = 1;
+		}
+	}
+	port_sgmii_w(dev, port, mmd, reg, val);
+
+	return 0;
+}
+
+int ksz9477_pcs_create(struct ksz_device *dev)
+{
+	/* This chip has a SGMII port. */
+	if (ksz_has_sgmii_port(dev)) {
+		int port = ksz_get_sgmii_port(dev);
+		struct ksz_port *p = &dev->ports[port];
+		struct phylink_pcs *pcs;
+		struct mii_bus *bus;
+		int ret;
+
+		bus = devm_mdiobus_alloc(dev->dev);
+		if (!bus)
+			return -ENOMEM;
+
+		bus->name = "ksz_pcs_mdio_bus";
+		snprintf(bus->id, MII_BUS_ID_SIZE, "%s-pcs",
+			 dev_name(dev->dev));
+		bus->read_c45 = &ksz9477_pcs_read;
+		bus->write_c45 = &ksz9477_pcs_write;
+		bus->parent = dev->dev;
+		bus->phy_mask = ~0;
+		bus->priv = dev;
+
+		ret = devm_mdiobus_register(dev->dev, bus);
+		if (ret)
+			return ret;
+
+		pcs = xpcs_create_pcs_mdiodev(bus, 0);
+		if (IS_ERR(pcs))
+			return PTR_ERR(pcs);
+		p->pcs = pcs;
+	}
+
+	return 0;
 }
 
 int ksz9477_reset_switch(struct ksz_device *dev)
@@ -978,6 +1162,14 @@ void ksz9477_get_caps(struct ksz_device *dev, int port,
 
 	if (dev->info->gbit_capable[port])
 		config->mac_capabilities |= MAC_1000FD;
+
+	if (ksz_is_sgmii_port(dev, port)) {
+		struct ksz_port *p = &dev->ports[port];
+
+		phy_interface_or(config->supported_interfaces,
+				 config->supported_interfaces,
+				 p->pcs->supported_interfaces);
+	}
 }
 
 int ksz9477_set_ageing_time(struct ksz_device *dev, unsigned int msecs)

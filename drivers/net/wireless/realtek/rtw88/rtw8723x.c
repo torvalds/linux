@@ -69,6 +69,9 @@ static void __rtw8723x_lck(struct rtw_dev *rtwdev)
 #define DBG_EFUSE_2BYTE(rtwdev, map, name)			\
 	rtw_dbg(rtwdev, RTW_DBG_EFUSE, # name "=0x%02x%02x\n",	\
 		(map)->name[0], (map)->name[1])
+#define DBG_EFUSE_FIX(rtwdev, name)					\
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "Fixed invalid EFUSE value: "	\
+		# name "=0x%x\n", rtwdev->efuse.name)
 
 static void rtw8723xe_efuse_debug(struct rtw_dev *rtwdev,
 				  struct rtw8723x_efuse *map)
@@ -238,10 +241,21 @@ static void rtw8723xs_efuse_parsing(struct rtw_efuse *efuse,
 	ether_addr_copy(efuse->addr, map->s.mac_addr);
 }
 
+/* Default power index table for RTL8703B/RTL8723D, used if EFUSE does
+ * not contain valid data. Replaces EFUSE data from offset 0x10 (start
+ * of txpwr_idx_table).
+ */
+static const u8 rtw8723x_txpwr_idx_table[] = {
+	0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0x2D,
+	0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0x02
+};
+
 static int __rtw8723x_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 {
 	struct rtw_efuse *efuse = &rtwdev->efuse;
+	u8 *pwr = (u8 *)efuse->txpwr_idx_table;
 	struct rtw8723x_efuse *map;
+	bool valid = false;
 	int i;
 
 	map = (struct rtw8723x_efuse *)log_map;
@@ -279,6 +293,51 @@ static int __rtw8723x_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 		return -EOPNOTSUPP;
 	}
 
+	/* If TX power index table in EFUSE is invalid, fall back to
+	 * built-in table.
+	 */
+	for (i = 0; i < ARRAY_SIZE(rtw8723x_txpwr_idx_table); i++)
+		if (pwr[i] != 0xff) {
+			valid = true;
+			break;
+		}
+	if (!valid) {
+		for (i = 0; i < ARRAY_SIZE(rtw8723x_txpwr_idx_table); i++)
+			pwr[i] = rtw8723x_txpwr_idx_table[i];
+		rtw_dbg(rtwdev, RTW_DBG_EFUSE,
+			"Replaced invalid EFUSE TX power index table.");
+		rtw8723x_debug_txpwr_limit(rtwdev,
+					   efuse->txpwr_idx_table, 2);
+	}
+
+	/* Override invalid antenna settings. */
+	if (efuse->bt_setting == 0xff) {
+		/* shared antenna */
+		efuse->bt_setting |= BIT(0);
+		/* RF path A */
+		efuse->bt_setting &= ~BIT(6);
+		DBG_EFUSE_FIX(rtwdev, bt_setting);
+	}
+
+	/* Override invalid board options: The coex code incorrectly
+	 * assumes that if bits 6 & 7 are set the board doesn't
+	 * support coex. Regd is also derived from rf_board_option and
+	 * should be 0 if there's no valid data.
+	 */
+	if (efuse->rf_board_option == 0xff) {
+		efuse->regd = 0;
+		efuse->rf_board_option &= GENMASK(5, 0);
+		DBG_EFUSE_FIX(rtwdev, rf_board_option);
+	}
+
+	/* Override invalid crystal cap setting, default comes from
+	 * vendor driver. Chip specific.
+	 */
+	if (efuse->crystal_cap == 0xff) {
+		efuse->crystal_cap = 0x20;
+		DBG_EFUSE_FIX(rtwdev, crystal_cap);
+	}
+
 	return 0;
 }
 
@@ -294,7 +353,6 @@ static int __rtw8723x_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 
 static int __rtw8723x_mac_init(struct rtw_dev *rtwdev)
 {
-	rtw_write8(rtwdev, REG_FWHW_TXQ_CTRL + 1, WLAN_TXQ_RPT_EN);
 	rtw_write32(rtwdev, REG_TCR, BIT_TCR_CFG);
 
 	rtw_write16(rtwdev, REG_RXFLTMAP0, WLAN_RX_FILTER0);
@@ -307,6 +365,13 @@ static int __rtw8723x_mac_init(struct rtw_dev *rtwdev)
 
 	rtw_write8(rtwdev, REG_MISC_CTRL, BIT_DIS_SECOND_CCA);
 	rtw_write8(rtwdev, REG_2ND_CCA_CTRL, 0);
+
+	return 0;
+}
+
+static int __rtw8723x_mac_postinit(struct rtw_dev *rtwdev)
+{
+	rtw_write8(rtwdev, REG_FWHW_TXQ_CTRL + 1, WLAN_TXQ_RPT_EN);
 
 	return 0;
 }
@@ -701,6 +766,7 @@ const struct rtw8723x_common rtw8723x_common = {
 	.lck = __rtw8723x_lck,
 	.read_efuse = __rtw8723x_read_efuse,
 	.mac_init = __rtw8723x_mac_init,
+	.mac_postinit = __rtw8723x_mac_postinit,
 	.cfg_ldo25 = __rtw8723x_cfg_ldo25,
 	.set_tx_power_index = __rtw8723x_set_tx_power_index,
 	.efuse_grant = __rtw8723x_efuse_grant,

@@ -115,7 +115,6 @@ u32                           lost_out                read_mostly         read_m
 u32                           sacked_out              read_mostly         read_mostly         tcp_left_out(tx);tcp_packets_in_flight(tx/rx);tcp_clean_rtx_queue(rx)
 struct hrtimer                pacing_timer
 struct hrtimer                compressed_ack_timer
-struct sk_buff*               lost_skb_hint           read_mostly                             tcp_clean_rtx_queue
 struct sk_buff*               retransmit_skb_hint     read_mostly                             tcp_clean_rtx_queue
 struct rb_root                out_of_order_queue                          read_mostly         tcp_data_queue,tcp_fast_path_check
 struct sk_buff*               ooo_last_skb
@@ -123,7 +122,6 @@ struct tcp_sack_block[1]      duplicate_sack
 struct tcp_sack_block[4]      selective_acks
 struct tcp_sack_block[4]      recv_sack_cache
 struct sk_buff*               highest_sack            read_write                              tcp_event_new_data_sent
-int                           lost_cnt_hint
 u32                           prior_ssthresh
 u32                           high_seq
 u32                           retrans_stamp

@@ -1,0 +1,8 @@
+What:		/sys/class/drm/.../boot_display
+Date:		January 2026
+Contact:	Linux DRI developers <dri-devel@vger.kernel.org>
+Description:
+		This file indicates that displays connected to the device were
+		used to display the boot sequence.  If a display connected to
+		the device was used to display the boot sequence the file will
+		be present and contain "1".

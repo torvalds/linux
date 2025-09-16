@@ -64,6 +64,8 @@ BEGIN {
 
 	modrm_expr = "^([CDEGMNPQRSUVW/][a-z]+|NTA|T[012])"
 	force64_expr = "\\([df]64\\)"
+	invalid64_expr = "\\(i64\\)"
+	only64_expr = "\\(o64\\)"
 	rex_expr = "^((REX(\\.[XRWB]+)+)|(REX$))"
 	rex2_expr = "\\(REX2\\)"
 	no_rex2_expr = "\\(!REX2\\)"
@@ -318,6 +320,11 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 		# check force(or default) 64bit
 		if (match(ext, force64_expr))
 			flags = add_flags(flags, "INAT_FORCE64")
+
+		# check invalid in 64-bit (and no only64)
+		if (match(ext, invalid64_expr) &&
+		    !match($0, only64_expr))
+			flags = add_flags(flags, "INAT_INV64")
 
 		# check REX2 not allowed
 		if (match(ext, no_rex2_expr))

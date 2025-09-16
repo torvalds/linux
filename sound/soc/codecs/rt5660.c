@@ -1315,14 +1315,17 @@ static int rt5660_i2c_probe(struct i2c_client *i2c)
 		regmap_update_bits(rt5660->regmap, RT5660_GPIO_CTRL1,
 			RT5660_GP1_PIN_MASK, RT5660_GP1_PIN_DMIC1_SCL);
 
-		if (rt5660->pdata.dmic1_data_pin == RT5660_DMIC1_DATA_GPIO2)
+		if (rt5660->pdata.dmic1_data_pin == RT5660_DMIC1_DATA_GPIO2) {
 			regmap_update_bits(rt5660->regmap, RT5660_DMIC_CTRL1,
 				RT5660_SEL_DMIC_DATA_MASK,
 				RT5660_SEL_DMIC_DATA_GPIO2);
-		else if (rt5660->pdata.dmic1_data_pin == RT5660_DMIC1_DATA_IN1P)
+			regmap_update_bits(rt5660->regmap, RT5660_GPIO_CTRL1,
+				RT5660_GP2_PIN_MASK, RT5660_GP2_PIN_DMIC1_SDA);
+		} else if (rt5660->pdata.dmic1_data_pin == RT5660_DMIC1_DATA_IN1P) {
 			regmap_update_bits(rt5660->regmap, RT5660_DMIC_CTRL1,
 				RT5660_SEL_DMIC_DATA_MASK,
 				RT5660_SEL_DMIC_DATA_IN1P);
+		}
 	}
 
 	return devm_snd_soc_register_component(&i2c->dev,

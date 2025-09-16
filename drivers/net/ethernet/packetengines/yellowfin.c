@@ -652,7 +652,7 @@ err_free_irq:
 
 static void yellowfin_timer(struct timer_list *t)
 {
-	struct yellowfin_private *yp = from_timer(yp, t, timer);
+	struct yellowfin_private *yp = timer_container_of(yp, t, timer);
 	struct net_device *dev = pci_get_drvdata(yp->pci_dev);
 	void __iomem *ioaddr = yp->base;
 	int next_tick = 60*HZ;

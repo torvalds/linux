@@ -692,6 +692,7 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u8 rev;
 	u32 ver;
 	int i, ret;
+	void __iomem *iomem;
 	struct pt3_board *pt3;
 	struct i2c_adapter *i2c;
 
@@ -702,10 +703,6 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		return -ENODEV;
 	pci_set_master(pdev);
-
-	ret = pcim_iomap_regions(pdev, BIT(0) | BIT(2), DRV_NAME);
-	if (ret < 0)
-		return ret;
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
@@ -719,8 +716,16 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, pt3);
 	pt3->pdev = pdev;
 	mutex_init(&pt3->lock);
-	pt3->regs[0] = pcim_iomap_table(pdev)[0];
-	pt3->regs[1] = pcim_iomap_table(pdev)[2];
+
+	iomem = pcim_iomap_region(pdev, 0, DRV_NAME);
+	if (IS_ERR(iomem))
+		return PTR_ERR(iomem);
+	pt3->regs[0] = iomem;
+
+	iomem = pcim_iomap_region(pdev, 2, DRV_NAME);
+	if (IS_ERR(iomem))
+		return PTR_ERR(iomem);
+	pt3->regs[1] = iomem;
 
 	ver = ioread32(pt3->regs[0] + REG_VERSION);
 	if ((ver >> 16) != 0x0301) {

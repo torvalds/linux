@@ -2,7 +2,7 @@
 /*
  * max8997.h - Driver for the Maxim 8997/8966
  *
- *  Copyright (C) 2009-2010 Samsung Electrnoics
+ *  Copyright (C) 2009-2010 Samsung Electronics
  *  MyungJoo Ham <myungjoo.ham@samsung.com>
  *
  * This driver is based on max8998.h

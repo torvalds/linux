@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include "tests.h"
 #include "debug.h"
+#include "env.h"
 #include "machine.h"
 #include "event.h"
 #include "../util/unwind.h"
@@ -15,7 +16,6 @@
 #include "symbol.h"
 #include "thread.h"
 #include "callchain.h"
-#include "util/synthetic-events.h"
 
 /* For bsearch. We try to unwind functions in shared object. */
 #include <stdlib.h>
@@ -36,24 +36,6 @@
 #define NO_TAIL_CALL_ATTRIBUTE
 #define NO_TAIL_CALL_BARRIER __asm__ __volatile__("" : : : "memory");
 #endif
-
-static int mmap_handler(const struct perf_tool *tool __maybe_unused,
-			union perf_event *event,
-			struct perf_sample *sample,
-			struct machine *machine)
-{
-	return machine__process_mmap2_event(machine, event, sample);
-}
-
-static int init_live_machine(struct machine *machine)
-{
-	union perf_event event;
-	pid_t pid = getpid();
-
-	memset(&event, 0, sizeof(event));
-	return perf_event__synthesize_mmap_events(NULL, &event, pid, pid,
-						  mmap_handler, machine, true);
-}
 
 /*
  * We need to keep these functions global, despite the
@@ -199,33 +181,31 @@ NO_TAIL_CALL_ATTRIBUTE noinline int test_dwarf_unwind__krava_1(struct thread *th
 noinline int test__dwarf_unwind(struct test_suite *test __maybe_unused,
 				int subtest __maybe_unused)
 {
+	struct perf_env host_env;
 	struct machine *machine;
 	struct thread *thread;
 	int err = -1;
-
-	machine = machine__new_host();
-	if (!machine) {
-		pr_err("Could not get machine\n");
-		return -1;
-	}
-
-	if (machine__create_kernel_maps(machine)) {
-		pr_err("Failed to create kernel maps\n");
-		return -1;
-	}
+	pid_t pid = getpid();
 
 	callchain_param.record_mode = CALLCHAIN_DWARF;
 	dwarf_callchain_users = true;
 
-	if (init_live_machine(machine)) {
-		pr_err("Could not init machine\n");
+	perf_env__init(&host_env);
+	machine = machine__new_live(&host_env, /*kernel_maps=*/true, pid);
+	if (!machine) {
+		pr_err("Could not get machine\n");
+		goto out;
+	}
+
+	if (machine__create_kernel_maps(machine)) {
+		pr_err("Failed to create kernel maps\n");
 		goto out;
 	}
 
 	if (verbose > 1)
 		machine__fprintf(machine, stderr);
 
-	thread = machine__find_thread(machine, getpid(), getpid());
+	thread = machine__find_thread(machine, pid, pid);
 	if (!thread) {
 		pr_err("Could not get thread\n");
 		goto out;
@@ -236,6 +216,7 @@ noinline int test__dwarf_unwind(struct test_suite *test __maybe_unused,
 
  out:
 	machine__delete(machine);
+	perf_env__exit(&host_env);
 	return err;
 }
 

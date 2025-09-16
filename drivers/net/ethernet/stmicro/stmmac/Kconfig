@@ -3,6 +3,7 @@ config STMMAC_ETH
 	tristate "STMicroelectronics Multi-Gigabit Ethernet driver"
 	depends on HAS_IOMEM && HAS_DMA
 	depends on PTP_1588_CLOCK_OPTIONAL
+	depends on ETHTOOL_NETLINK
 	select MII
 	select PCS_XPCS
 	select PAGE_POOL
@@ -130,6 +131,17 @@ config DWMAC_QCOM_ETHQOS
 
 	  This selects the Qualcomm ETHQOS glue layer support for the
 	  stmmac device driver.
+
+config DWMAC_RENESAS_GBETH
+	tristate "Renesas RZ/V2H(P) GBETH support"
+	default ARCH_RENESAS
+	depends on OF && (ARCH_RENESAS || COMPILE_TEST)
+	help
+	  Support for Gigabit Ethernet Interface (GBETH) on Renesas
+	  RZ/V2H(P) SoCs.
+
+	  This selects the Renesas RZ/V2H(P) Soc specific glue layer support
+	  for the stmmac device driver.
 
 config DWMAC_ROCKCHIP
 	tristate "Rockchip dwmac support"

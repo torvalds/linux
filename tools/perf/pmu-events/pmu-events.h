@@ -25,15 +25,21 @@ enum metric_event_groups {
 	 */
 	MetricNoGroupEvents = 1,
 	/**
-	 * @MetricNoGroupEventsNmi: Don't group events for the metric if the NMI
-	 *                          watchdog is enabled.
+	 * @MetricNoGroupEventsNmi:
+	 * Don't group events for the metric if the NMI watchdog is enabled.
 	 */
 	MetricNoGroupEventsNmi = 2,
 	/**
-	 * @MetricNoGroupEventsSmt: Don't group events for the metric if SMT is
-	 *                          enabled.
+	 * @MetricNoGroupEventsSmt:
+	 * Don't group events for the metric if SMT is enabled.
 	 */
 	MetricNoGroupEventsSmt = 3,
+	/**
+	 * @MetricNoGroupEventsThresholdAndNmi:
+	 * Don't group events for the metric thresholds and if the NMI watchdog
+	 * is enabled.
+	 */
+	MetricNoGroupEventsThresholdAndNmi = 4,
 };
 /*
  * Describe each PMU event. Each CPU has a table of PMU events.
@@ -47,6 +53,9 @@ struct pmu_event {
 	const char *long_desc;
 	const char *pmu;
 	const char *unit;
+	const char *retirement_latency_mean;
+	const char *retirement_latency_min;
+	const char *retirement_latency_max;
 	bool perpkg;
 	bool deprecated;
 };
@@ -71,6 +80,7 @@ struct pmu_events_table;
 struct pmu_metrics_table;
 
 #define PMU_EVENTS__NOT_FOUND -1000
+#define PMU_METRICS__NOT_FOUND -1000
 
 typedef int (*pmu_event_iter_fn)(const struct pmu_event *pe,
 				 const struct pmu_events_table *table,
@@ -85,11 +95,11 @@ int pmu_events_table__for_each_event(const struct pmu_events_table *table,
 				    pmu_event_iter_fn fn,
 				    void *data);
 /*
- * Search for table and entry matching with pmu__name_match. Each matching event
- * has fn called on it. 0 implies to success/continue the search while non-zero
- * means to terminate. The special value PMU_EVENTS__NOT_FOUND is used to
- * indicate no event was found in one of the tables which doesn't terminate the
- * search of all tables.
+ * Search for a table and entry matching with pmu__name_wildcard_match or any
+ * tables if pmu is NULL. Each matching event has fn called on it. 0 implies to
+ * success/continue the search while non-zero means to terminate. The special
+ * value PMU_EVENTS__NOT_FOUND is used to indicate no event was found in one of
+ * the tables which doesn't terminate the search of all tables.
  */
 int pmu_events_table__find_event(const struct pmu_events_table *table,
                                  struct perf_pmu *pmu,
@@ -101,6 +111,18 @@ size_t pmu_events_table__num_events(const struct pmu_events_table *table,
 
 int pmu_metrics_table__for_each_metric(const struct pmu_metrics_table *table, pmu_metric_iter_fn fn,
 				     void *data);
+/*
+ * Search for a table and entry matching with pmu__name_wildcard_match or any
+ * tables if pmu is NULL. Each matching metric has fn called on it. 0 implies to
+ * success/continue the search while non-zero means to terminate. The special
+ * value PMU_METRICS__NOT_FOUND is used to indicate no metric was found in one
+ * of the tables which doesn't terminate the search of all tables.
+ */
+int pmu_metrics_table__find_metric(const struct pmu_metrics_table *table,
+				   struct perf_pmu *pmu,
+				   const char *metric,
+				   pmu_metric_iter_fn fn,
+				   void *data);
 
 const struct pmu_events_table *perf_pmu__find_events_table(struct perf_pmu *pmu);
 const struct pmu_metrics_table *pmu_metrics_table__find(void);

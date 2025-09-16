@@ -125,8 +125,8 @@ static irqreturn_t mb1232_trigger_handler(int irq, void *p)
 	if (data->scan.distance < 0)
 		goto err;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
-					   pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+				    pf->timestamp);
 
 err:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -239,7 +239,7 @@ static const struct of_device_id of_mb1232_match[] = {
 	{ .compatible = "maxbotix,mb1242", },
 	{ .compatible = "maxbotix,mb7040", },
 	{ .compatible = "maxbotix,mb7137", },
-	{},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(of, of_mb1232_match);

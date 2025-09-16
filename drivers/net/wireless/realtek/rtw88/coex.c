@@ -309,7 +309,7 @@ static void rtw_coex_tdma_timer_base(struct rtw_dev *rtwdev, u8 type)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
-	u8 para[2] = {0};
+	u8 para[6] = {};
 	u8 times;
 	u16 tbtt_interval = coex_stat->wl_beacon_interval;
 
@@ -1501,28 +1501,28 @@ static u8 rtw_coex_algorithm(struct rtw_dev *rtwdev)
 		algorithm = COEX_ALGO_HFP;
 		break;
 	case           BPM_HID:
-	case BPM_HFP + BPM_HID:
+	case BPM_HFP | BPM_HID:
 		algorithm = COEX_ALGO_HID;
 		break;
-	case BPM_HFP           + BPM_A2DP:
-	case           BPM_HID + BPM_A2DP:
-	case BPM_HFP + BPM_HID + BPM_A2DP:
+	case BPM_HFP           | BPM_A2DP:
+	case           BPM_HID | BPM_A2DP:
+	case BPM_HFP | BPM_HID | BPM_A2DP:
 		algorithm = COEX_ALGO_A2DP_HID;
 		break;
-	case BPM_HFP                      + BPM_PAN:
-	case           BPM_HID            + BPM_PAN:
-	case BPM_HFP + BPM_HID            + BPM_PAN:
+	case BPM_HFP                      | BPM_PAN:
+	case           BPM_HID            | BPM_PAN:
+	case BPM_HFP | BPM_HID            | BPM_PAN:
 		algorithm = COEX_ALGO_PAN_HID;
 		break;
-	case BPM_HFP           + BPM_A2DP + BPM_PAN:
-	case           BPM_HID + BPM_A2DP + BPM_PAN:
-	case BPM_HFP + BPM_HID + BPM_A2DP + BPM_PAN:
+	case BPM_HFP           | BPM_A2DP | BPM_PAN:
+	case           BPM_HID | BPM_A2DP | BPM_PAN:
+	case BPM_HFP | BPM_HID | BPM_A2DP | BPM_PAN:
 		algorithm = COEX_ALGO_A2DP_PAN_HID;
 		break;
 	case                                BPM_PAN:
 		algorithm = COEX_ALGO_PAN;
 		break;
-	case                     BPM_A2DP + BPM_PAN:
+	case                     BPM_A2DP | BPM_PAN:
 		algorithm = COEX_ALGO_A2DP_PAN;
 		break;
 	case                     BPM_A2DP:

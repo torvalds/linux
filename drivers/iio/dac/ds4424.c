@@ -301,7 +301,7 @@ MODULE_DEVICE_TABLE(i2c, ds4424_id);
 static const struct of_device_id ds4424_of_match[] = {
 	{ .compatible = "maxim,ds4422" },
 	{ .compatible = "maxim,ds4424" },
-	{ },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(of, ds4424_of_match);

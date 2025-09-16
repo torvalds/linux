@@ -137,7 +137,7 @@ static const struct acpi_device_id max5487_acpi_match[] = {
 	{ "MAX5487", 10 },
 	{ "MAX5488", 50 },
 	{ "MAX5489", 100 },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, max5487_acpi_match);
 

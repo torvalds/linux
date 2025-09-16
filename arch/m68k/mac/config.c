@@ -15,7 +15,6 @@
 #include <linux/reboot.h>
 #include <linux/types.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/interrupt.h>
 /* keyb */
@@ -23,7 +22,6 @@
 #include <linux/delay.h>
 /* keyb */
 #include <linux/init.h>
-#include <linux/vt_kern.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/adb.h>
@@ -793,7 +791,7 @@ static void __init mac_identify(void)
 	}
 
 	macintosh_config = mac_data_table;
-	for (m = macintosh_config; m->ident != -1; m++) {
+	for (m = &mac_data_table[1]; m->ident != -1; m++) {
 		if (m->ident == model) {
 			macintosh_config = m;
 			break;

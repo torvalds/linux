@@ -135,7 +135,6 @@
 
 struct mobiveil_msi {			/* MSI information */
 	struct mutex lock;		/* protect bitmap variable */
-	struct irq_domain *msi_domain;
 	struct irq_domain *dev_domain;
 	phys_addr_t msi_pages_phys;
 	int num_of_vectors;
@@ -160,7 +159,7 @@ struct mobiveil_root_port {
 };
 
 struct mobiveil_pab_ops {
-	int (*link_up)(struct mobiveil_pcie *pcie);
+	bool (*link_up)(struct mobiveil_pcie *pcie);
 };
 
 struct mobiveil_pcie {

@@ -87,18 +87,6 @@ void qedi_dbg_notice(struct qedi_dbg_ctx *qedi, const char *func, u32 line,
 void qedi_dbg_info(struct qedi_dbg_ctx *qedi, const char *func, u32 line,
 		   u32 info, const char *fmt, ...);
 
-struct Scsi_Host;
-
-struct sysfs_bin_attrs {
-	char *name;
-	const struct bin_attribute *attr;
-};
-
-int qedi_create_sysfs_attr(struct Scsi_Host *shost,
-			   struct sysfs_bin_attrs *iter);
-void qedi_remove_sysfs_attr(struct Scsi_Host *shost,
-			    struct sysfs_bin_attrs *iter);
-
 /* DebugFS related code */
 struct qedi_list_of_funcs {
 	char *oper_str;

@@ -169,15 +169,6 @@ struct v4l2_jpeg_header {
 
 int v4l2_jpeg_parse_header(void *buf, size_t len, struct v4l2_jpeg_header *out);
 
-int v4l2_jpeg_parse_frame_header(void *buf, size_t len,
-				 struct v4l2_jpeg_frame_header *frame_header);
-int v4l2_jpeg_parse_scan_header(void *buf, size_t len,
-				struct v4l2_jpeg_scan_header *scan_header);
-int v4l2_jpeg_parse_quantization_tables(void *buf, size_t len, u8 precision,
-					struct v4l2_jpeg_reference *q_tables);
-int v4l2_jpeg_parse_huffman_tables(void *buf, size_t len,
-				   struct v4l2_jpeg_reference *huffman_tables);
-
 extern const u8 v4l2_jpeg_zigzag_scan_index[V4L2_JPEG_PIXELS_IN_BLOCK];
 extern const u8 v4l2_jpeg_ref_table_luma_qt[V4L2_JPEG_PIXELS_IN_BLOCK];
 extern const u8 v4l2_jpeg_ref_table_chroma_qt[V4L2_JPEG_PIXELS_IN_BLOCK];

@@ -41,7 +41,7 @@ static void bmg160_i2c_remove(struct i2c_client *client)
 
 static const struct acpi_device_id bmg160_acpi_match[] = {
 	{"BMG0160", 0},
-	{},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(acpi, bmg160_acpi_match);
@@ -50,7 +50,7 @@ static const struct i2c_device_id bmg160_i2c_id[] = {
 	{ "bmg160" },
 	{ "bmi055_gyro" },
 	{ "bmi088_gyro" },
-	{}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, bmg160_i2c_id);

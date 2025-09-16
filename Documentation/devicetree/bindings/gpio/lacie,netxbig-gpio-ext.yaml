@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/lacie,netxbig-gpio-ext.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NetxBig GPIO extension bus
+
+maintainers:
+  - Simon Guinot <simon.guinot@sequanux.org>
+
+description: >
+  GPIO extension bus found on some LaCie/Seagate boards
+  (Example: 2Big/5Big Network v2, 2Big NAS).
+
+properties:
+  compatible:
+    items:
+      - const: lacie,netxbig-gpio-ext
+
+  addr-gpios:
+    description: GPIOs representing the address register (LSB->MSB).
+    items:
+      - description: bit 0 (LSB)
+      - description: bit 1
+      - description: bit 2 (MSB)
+
+  data-gpios:
+    description: GPIOs representing the data register (LSB->MSB).
+    items:
+      - description: bit 0 (LSB)
+      - description: bit 1
+      - description: bit 2 (MSB)
+
+  enable-gpio:
+    description: Latches the new configuration (address, data) on raising edge.
+    maxItems: 1
+
+required:
+  - compatible
+  - addr-gpios
+  - data-gpios
+  - enable-gpio
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    gpio {
+        compatible = "lacie,netxbig-gpio-ext";
+        addr-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH
+                      &gpio1 16 GPIO_ACTIVE_HIGH
+                      &gpio1 17 GPIO_ACTIVE_HIGH>;
+        data-gpios = <&gpio1 12 GPIO_ACTIVE_HIGH
+                      &gpio1 13 GPIO_ACTIVE_HIGH
+                      &gpio1 14 GPIO_ACTIVE_HIGH>;
+        enable-gpio = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+    };

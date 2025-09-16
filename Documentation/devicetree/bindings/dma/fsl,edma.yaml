@@ -48,11 +48,11 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 64
+    maxItems: 65
 
   interrupt-names:
     minItems: 1
-    maxItems: 64
+    maxItems: 65
 
   "#dma-cells":
     description: |

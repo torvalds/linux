@@ -18,13 +18,16 @@ test_mode=system
 werror=1
 llvm=
 all_archs=(
-	i386 x86_64
+	i386 x86_64 x32
 	arm64 arm armthumb
-	mips32le mips32be
+	mips32le mips32be mipsn32le mipsn32be mips64le mips64be
 	ppc ppc64 ppc64le
 	riscv32 riscv64
 	s390x s390
 	loongarch
+	sparc32 sparc64
+	m68k
+	sh4
 )
 archs="${all_archs[@]}"
 
@@ -111,6 +114,8 @@ crosstool_arch() {
 	loongarch) echo loongarch64;;
 	mips*) echo mips;;
 	s390*) echo s390;;
+	sparc*) echo sparc64;;
+	x32*) echo x86_64;;
 	*) echo "$1";;
 	esac
 }
@@ -166,7 +171,7 @@ test_arch() {
 	if [ "$werror" -ne 0 ]; then
 		CFLAGS_EXTRA="$CFLAGS_EXTRA -Werror"
 	fi
-	MAKE=(make -j"${nproc}" XARCH="${arch}" CROSS_COMPILE="${cross_compile}" LLVM="${llvm}" O="${build_dir}")
+	MAKE=(make -f Makefile.nolibc -j"${nproc}" XARCH="${arch}" CROSS_COMPILE="${cross_compile}" LLVM="${llvm}" O="${build_dir}")
 
 	case "$test_mode" in
 		'system')
@@ -181,6 +186,14 @@ test_arch() {
 	esac
 	printf '%-15s' "$arch:"
 	if [ "$arch" = "s390" ] && ([ "$llvm" = "1" ] || [ "$test_mode" = "user" ]); then
+		echo "Unsupported configuration"
+		return
+	fi
+	if [ "$arch" = "m68k" -o "$arch" = "sh4" ] && [ "$llvm" = "1" ]; then
+		echo "Unsupported configuration"
+		return
+	fi
+	if [ "$arch" = "x32" ] && [ "$test_mode" = "user" ]; then
 		echo "Unsupported configuration"
 		return
 	fi

@@ -6,9 +6,9 @@
  */
 
 #include <crypto/algapi.h>
-#include <crypto/internal/simd.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/types.h>
 
@@ -69,10 +69,9 @@ static int cbc_decrypt(struct skcipher_request *req)
 
 static struct skcipher_alg camellia_algs[] = {
 	{
-		.base.cra_name		= "__ecb(camellia)",
-		.base.cra_driver_name	= "__ecb-camellia-aesni",
+		.base.cra_name		= "ecb(camellia)",
+		.base.cra_driver_name	= "ecb-camellia-aesni",
 		.base.cra_priority	= 400,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
 		.base.cra_blocksize	= CAMELLIA_BLOCK_SIZE,
 		.base.cra_ctxsize	= sizeof(struct camellia_ctx),
 		.base.cra_module	= THIS_MODULE,
@@ -82,10 +81,9 @@ static struct skcipher_alg camellia_algs[] = {
 		.encrypt		= ecb_encrypt,
 		.decrypt		= ecb_decrypt,
 	}, {
-		.base.cra_name		= "__cbc(camellia)",
-		.base.cra_driver_name	= "__cbc-camellia-aesni",
+		.base.cra_name		= "cbc(camellia)",
+		.base.cra_driver_name	= "cbc-camellia-aesni",
 		.base.cra_priority	= 400,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
 		.base.cra_blocksize	= CAMELLIA_BLOCK_SIZE,
 		.base.cra_ctxsize	= sizeof(struct camellia_ctx),
 		.base.cra_module	= THIS_MODULE,
@@ -97,8 +95,6 @@ static struct skcipher_alg camellia_algs[] = {
 		.decrypt		= cbc_decrypt,
 	}
 };
-
-static struct simd_skcipher_alg *camellia_simd_algs[ARRAY_SIZE(camellia_algs)];
 
 static int __init camellia_aesni_init(void)
 {
@@ -117,15 +113,13 @@ static int __init camellia_aesni_init(void)
 		return -ENODEV;
 	}
 
-	return simd_register_skciphers_compat(camellia_algs,
-					      ARRAY_SIZE(camellia_algs),
-					      camellia_simd_algs);
+	return crypto_register_skciphers(camellia_algs,
+					 ARRAY_SIZE(camellia_algs));
 }
 
 static void __exit camellia_aesni_fini(void)
 {
-	simd_unregister_skciphers(camellia_algs, ARRAY_SIZE(camellia_algs),
-				  camellia_simd_algs);
+	crypto_unregister_skciphers(camellia_algs, ARRAY_SIZE(camellia_algs));
 }
 
 module_init(camellia_aesni_init);

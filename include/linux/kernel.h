@@ -33,6 +33,7 @@
 #include <linux/sprintf.h>
 #include <linux/static_call_types.h>
 #include <linux/instruction_pointer.h>
+#include <linux/util_macros.h>
 #include <linux/wordpart.h>
 
 #include <asm/byteorder.h>
@@ -40,19 +41,6 @@
 #include <uapi/linux/kernel.h>
 
 #define STACK_MAGIC	0xdeadbeef
-
-/* generic data direction definitions */
-#define READ			0
-#define WRITE			1
-
-#define PTR_IF(cond, ptr)	((cond) ? (ptr) : NULL)
-
-#define u64_to_user_ptr(x) (		\
-{					\
-	typecheck(u64, (x));		\
-	(void __user *)(uintptr_t)(x);	\
-}					\
-)
 
 struct completion;
 struct user;
@@ -385,9 +373,9 @@ ftrace_vprintk(const char *fmt, va_list ap)
 static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 #endif /* CONFIG_TRACING */
 
-/* Rebuild everything on CONFIG_FTRACE_MCOUNT_RECORD */
-#ifdef CONFIG_FTRACE_MCOUNT_RECORD
-# define REBUILD_DUE_TO_FTRACE_MCOUNT_RECORD
+/* Rebuild everything on CONFIG_DYNAMIC_FTRACE */
+#ifdef CONFIG_DYNAMIC_FTRACE
+# define REBUILD_DUE_TO_DYNAMIC_FTRACE
 #endif
 
 /* Permissions on a sysfs file: you didn't miss the 0 prefix did you? */

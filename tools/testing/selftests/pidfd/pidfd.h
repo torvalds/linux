@@ -16,8 +16,21 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+/*
+ * Remove the userspace definitions of the following preprocessor symbols
+ * to avoid duplicate-definition warnings from the subsequent in-kernel
+ * definitions.
+ */
+#undef SCHED_NORMAL
+#undef SCHED_FLAG_KEEP_ALL
+#undef SCHED_FLAG_UTIL_CLAMP
+
 #include "../kselftest.h"
 #include "../clone3/clone3_selftests.h"
+
+#ifndef FD_PIDFS_ROOT
+#define FD_PIDFS_ROOT -10002
+#endif
 
 #ifndef P_PIDFD
 #define P_PIDFD 3
@@ -56,7 +69,7 @@
 #endif
 
 #ifndef PIDFD_SELF_THREAD_GROUP
-#define PIDFD_SELF_THREAD_GROUP		-20000 /* Current thread group leader. */
+#define PIDFD_SELF_THREAD_GROUP		-10001 /* Current thread group leader. */
 #endif
 
 #ifndef PIDFD_SELF
@@ -131,6 +144,26 @@
 #define PIDFD_INFO_EXIT			(1UL << 3) /* Always returned if available, even if not requested */
 #endif
 
+#ifndef PIDFD_INFO_COREDUMP
+#define PIDFD_INFO_COREDUMP	(1UL << 4)
+#endif
+
+#ifndef PIDFD_COREDUMPED
+#define PIDFD_COREDUMPED	(1U << 0) /* Did crash and... */
+#endif
+
+#ifndef PIDFD_COREDUMP_SKIP
+#define PIDFD_COREDUMP_SKIP	(1U << 1) /* coredumping generation was skipped. */
+#endif
+
+#ifndef PIDFD_COREDUMP_USER
+#define PIDFD_COREDUMP_USER	(1U << 2) /* coredump was done as the user. */
+#endif
+
+#ifndef PIDFD_COREDUMP_ROOT
+#define PIDFD_COREDUMP_ROOT	(1U << 3) /* coredump was done as root. */
+#endif
+
 #ifndef PIDFD_THREAD
 #define PIDFD_THREAD O_EXCL
 #endif
@@ -150,6 +183,8 @@ struct pidfd_info {
 	__u32 fsuid;
 	__u32 fsgid;
 	__s32 exit_code;
+	__u32 coredump_mask;
+	__u32 __spare1;
 };
 
 /*

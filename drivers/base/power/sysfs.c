@@ -611,15 +611,9 @@ static DEVICE_ATTR_RW(async);
 #endif /* CONFIG_PM_ADVANCED_DEBUG */
 
 static struct attribute *power_attrs[] = {
-#ifdef CONFIG_PM_ADVANCED_DEBUG
-#ifdef CONFIG_PM_SLEEP
+#if defined(CONFIG_PM_ADVANCED_DEBUG) && defined(CONFIG_PM_SLEEP)
 	&dev_attr_async.attr,
 #endif
-	&dev_attr_runtime_status.attr,
-	&dev_attr_runtime_usage.attr,
-	&dev_attr_runtime_active_kids.attr,
-	&dev_attr_runtime_enabled.attr,
-#endif /* CONFIG_PM_ADVANCED_DEBUG */
 	NULL,
 };
 static const struct attribute_group pm_attr_group = {
@@ -650,13 +644,16 @@ static const struct attribute_group pm_wakeup_attr_group = {
 };
 
 static struct attribute *runtime_attrs[] = {
-#ifndef CONFIG_PM_ADVANCED_DEBUG
 	&dev_attr_runtime_status.attr,
-#endif
 	&dev_attr_control.attr,
 	&dev_attr_runtime_suspended_time.attr,
 	&dev_attr_runtime_active_time.attr,
 	&dev_attr_autosuspend_delay_ms.attr,
+#ifdef CONFIG_PM_ADVANCED_DEBUG
+	&dev_attr_runtime_usage.attr,
+	&dev_attr_runtime_active_kids.attr,
+	&dev_attr_runtime_enabled.attr,
+#endif
 	NULL,
 };
 static const struct attribute_group pm_runtime_attr_group = {

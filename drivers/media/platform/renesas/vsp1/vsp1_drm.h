@@ -52,17 +52,19 @@ struct vsp1_drm_pipeline {
  * struct vsp1_drm - State for the API exposed to the DRM driver
  * @pipe: the VSP1 DRM pipeline used for display
  * @lock: protects the BRU and BRS allocation
- * @inputs: source crop rectangle, destination compose rectangle and z-order
- *	position for every input (indexed by RPF index)
+ * @inputs: source crop rectangle, destination compose rectangle, z-order
+ *	position and colorspace for every input (indexed by RPF index)
  */
 struct vsp1_drm {
 	struct vsp1_drm_pipeline pipe[VSP1_MAX_LIF];
 	struct mutex lock;
 
-	struct {
+	struct vsp1_drm_input {
 		struct v4l2_rect crop;
 		struct v4l2_rect compose;
 		unsigned int zpos;
+		enum v4l2_ycbcr_encoding ycbcr_enc;
+		enum v4l2_quantization quantization;
 	} inputs[VSP1_MAX_RPF];
 };
 

@@ -162,7 +162,7 @@ void __init sa11x0_init_irq_nodt(int irq_start, resource_size_t io_start)
 	 */
 	writel_relaxed(1, iobase + ICCR);
 
-	sa1100_normal_irqdomain = irq_domain_add_simple(NULL,
+	sa1100_normal_irqdomain = irq_domain_create_simple(NULL,
 			32, irq_start,
 			&sa1100_normal_irqdomain_ops, NULL);
 

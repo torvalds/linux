@@ -446,7 +446,7 @@ static int fnic_notify_set(struct fnic *fnic)
 
 static void fnic_notify_timer(struct timer_list *t)
 {
-	struct fnic *fnic = from_timer(fnic, t, notify_timer);
+	struct fnic *fnic = timer_container_of(fnic, t, notify_timer);
 
 	fnic_handle_link_event(fnic);
 	mod_timer(&fnic->notify_timer,

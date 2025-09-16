@@ -701,12 +701,11 @@ static int hx9023s_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = hx9023s_get_proximity(data, chan, val);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		return ret;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return hx9023s_get_samp_freq(data, val, val2);
@@ -954,8 +953,8 @@ static irqreturn_t hx9023s_trigger_handler(int irq, void *private)
 		data->buffer.channels[i++] = cpu_to_le16(data->ch_data[index].diff);
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->buffer,
-					   pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &data->buffer,
+				    sizeof(data->buffer), pf->timestamp);
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -1191,13 +1190,13 @@ static DEFINE_SIMPLE_DEV_PM_OPS(hx9023s_pm_ops, hx9023s_suspend,
 
 static const struct of_device_id hx9023s_of_match[] = {
 	{ .compatible = "tyhx,hx9023s" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, hx9023s_of_match);
 
 static const struct i2c_device_id hx9023s_id[] = {
 	{ "hx9023s" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hx9023s_id);
 

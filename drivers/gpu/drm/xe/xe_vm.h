@@ -26,7 +26,7 @@ struct xe_sync_entry;
 struct xe_svm_range;
 struct drm_exec;
 
-struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags);
+struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags, struct xe_file *xef);
 
 struct xe_vm *xe_vm_lookup(struct xe_file *xef, u32 id);
 int xe_vma_cmp_vma_cb(const void *key, const struct rb_node *node);
@@ -65,6 +65,8 @@ static inline bool xe_vm_is_closed_or_banned(struct xe_vm *vm)
 
 struct xe_vma *
 xe_vm_find_overlapping_vma(struct xe_vm *vm, u64 start, u64 range);
+
+bool xe_vma_has_default_mem_attrs(struct xe_vma *vma);
 
 /**
  * xe_vm_has_scratch() - Whether the vm is configured for scratch PTEs
@@ -169,6 +171,14 @@ static inline bool xe_vma_is_userptr(struct xe_vma *vma)
 		!xe_vma_is_cpu_addr_mirror(vma);
 }
 
+struct xe_vma *xe_vm_find_vma_by_addr(struct xe_vm *vm, u64 page_addr);
+
+int xe_vma_need_vram_for_atomic(struct xe_device *xe, struct xe_vma *vma, bool is_atomic);
+
+int xe_vm_alloc_madvise_vma(struct xe_vm *vm, uint64_t addr, uint64_t size);
+
+int xe_vm_alloc_cpu_addr_mirror_vma(struct xe_vm *vm, uint64_t addr, uint64_t size);
+
 /**
  * to_userptr_vma() - Return a pointer to an embedding userptr vma
  * @vma: Pointer to the embedded struct xe_vma
@@ -189,7 +199,7 @@ int xe_vm_destroy_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 int xe_vm_bind_ioctl(struct drm_device *dev, void *data,
 		     struct drm_file *file);
-
+int xe_vm_query_vmas_attrs_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
 void xe_vm_close_and_put(struct xe_vm *vm);
 
 static inline bool xe_vm_in_fault_mode(struct xe_vm *vm)
@@ -225,6 +235,9 @@ struct dma_fence *xe_vm_range_rebind(struct xe_vm *vm,
 				     u8 tile_mask);
 struct dma_fence *xe_vm_range_unbind(struct xe_vm *vm,
 				     struct xe_svm_range *range);
+
+int xe_vm_range_tilemask_tlb_inval(struct xe_vm *vm, u64 start,
+				   u64 end, u8 tile_mask);
 
 int xe_vm_invalidate_vma(struct xe_vma *vma);
 
@@ -268,6 +281,8 @@ struct dma_fence *xe_vm_bind_kernel_bo(struct xe_vm *vm, struct xe_bo *bo,
 				       struct xe_exec_queue *q, u64 addr,
 				       enum xe_cache_level cache_lvl);
 
+void xe_vm_resume_rebind_worker(struct xe_vm *vm);
+
 /**
  * xe_vm_resv() - Return's the vm's reservation object
  * @vm: The vm
@@ -300,6 +315,83 @@ struct xe_vm_snapshot *xe_vm_snapshot_capture(struct xe_vm *vm);
 void xe_vm_snapshot_capture_delayed(struct xe_vm_snapshot *snap);
 void xe_vm_snapshot_print(struct xe_vm_snapshot *snap, struct drm_printer *p);
 void xe_vm_snapshot_free(struct xe_vm_snapshot *snap);
+
+/**
+ * xe_vm_set_validating() - Register this task as currently making bos resident
+ * @allow_res_evict: Allow eviction of buffer objects bound to @vm when
+ * validating.
+ * @vm: Pointer to the vm or NULL.
+ *
+ * Register this task as currently making bos resident for the vm. Intended
+ * to avoid eviction by the same task of shared bos bound to the vm.
+ * Call with the vm's resv lock held.
+ */
+static inline void xe_vm_set_validating(struct xe_vm *vm, bool allow_res_evict)
+{
+	if (vm && !allow_res_evict) {
+		xe_vm_assert_held(vm);
+		/* Pairs with READ_ONCE in xe_vm_is_validating() */
+		WRITE_ONCE(vm->validating, current);
+	}
+}
+
+/**
+ * xe_vm_clear_validating() - Unregister this task as currently making bos resident
+ * @vm: Pointer to the vm or NULL
+ * @allow_res_evict: Eviction from @vm was allowed. Must be set to the same
+ * value as for xe_vm_set_validation().
+ *
+ * Register this task as currently making bos resident for the vm. Intended
+ * to avoid eviction by the same task of shared bos bound to the vm.
+ * Call with the vm's resv lock held.
+ */
+static inline void xe_vm_clear_validating(struct xe_vm *vm, bool allow_res_evict)
+{
+	if (vm && !allow_res_evict) {
+		/* Pairs with READ_ONCE in xe_vm_is_validating() */
+		WRITE_ONCE(vm->validating, NULL);
+	}
+}
+
+/**
+ * xe_vm_is_validating() - Whether bos bound to the vm are currently being made resident
+ * by the current task.
+ * @vm: Pointer to the vm.
+ *
+ * If this function returns %true, we should be in a vm resv locked region, since
+ * the current process is the same task that called xe_vm_set_validating().
+ * The function asserts that that's indeed the case.
+ *
+ * Return: %true if the task is currently making bos resident, %false otherwise.
+ */
+static inline bool xe_vm_is_validating(struct xe_vm *vm)
+{
+	/* Pairs with WRITE_ONCE in xe_vm_is_validating() */
+	if (READ_ONCE(vm->validating) == current) {
+		xe_vm_assert_held(vm);
+		return true;
+	}
+	return false;
+}
+
+/**
+ * xe_vm_has_valid_gpu_mapping() - Advisory helper to check if VMA or SVM range has
+ * a valid GPU mapping
+ * @tile: The tile which the GPU mapping belongs to
+ * @tile_present: Tile present mask
+ * @tile_invalidated: Tile invalidated mask
+ *
+ * The READ_ONCEs pair with WRITE_ONCEs in either the TLB invalidation paths
+ * (xe_vm.c, xe_svm.c) or the binding paths (xe_pt.c). These are not reliable
+ * without the notifier lock in userptr or SVM cases, and not reliable without
+ * the BO dma-resv lock in the BO case. As such, they should only be used in
+ * opportunistic cases (e.g., skipping a page fault fix or not skipping a TLB
+ * invalidation) where it is harmless.
+ *
+ * Return: True is there are valid GPU pages, False otherwise
+ */
+#define xe_vm_has_valid_gpu_mapping(tile, tile_present, tile_invalidated)	\
+	((READ_ONCE(tile_present) & ~READ_ONCE(tile_invalidated)) & BIT((tile)->id))
 
 #if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
 void xe_vma_userptr_force_invalidate(struct xe_userptr_vma *uvma);

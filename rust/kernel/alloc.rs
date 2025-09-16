@@ -94,10 +94,10 @@ pub mod flags {
     ///
     /// A lower watermark is applied to allow access to "atomic reserves". The current
     /// implementation doesn't support NMI and few other strict non-preemptive contexts (e.g.
-    /// raw_spin_lock). The same applies to [`GFP_NOWAIT`].
+    /// `raw_spin_lock`). The same applies to [`GFP_NOWAIT`].
     pub const GFP_ATOMIC: Flags = Flags(bindings::GFP_ATOMIC);
 
-    /// Typical for kernel-internal allocations. The caller requires ZONE_NORMAL or a lower zone
+    /// Typical for kernel-internal allocations. The caller requires `ZONE_NORMAL` or a lower zone
     /// for direct access but can direct reclaim.
     pub const GFP_KERNEL: Flags = Flags(bindings::GFP_KERNEL);
 

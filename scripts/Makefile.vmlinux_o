@@ -73,7 +73,7 @@ vmlinux.o: $(initcalls-lds) vmlinux.a $(KBUILD_VMLINUX_LIBS) FORCE
 
 targets += vmlinux.o
 
-# module.builtin.modinfo
+# modules.builtin.modinfo
 # ---------------------------------------------------------------------------
 
 OBJCOPYFLAGS_modules.builtin.modinfo := -j .modinfo -O binary
@@ -82,7 +82,7 @@ targets += modules.builtin.modinfo
 modules.builtin.modinfo: vmlinux.o FORCE
 	$(call if_changed,objcopy)
 
-# module.builtin
+# modules.builtin
 # ---------------------------------------------------------------------------
 
 # The second line aids cases where multiple modules share the same object.

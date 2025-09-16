@@ -14,6 +14,7 @@ LIBPERF_API void perf_thread_map__set_pid(struct perf_thread_map *map, int idx, 
 LIBPERF_API char *perf_thread_map__comm(struct perf_thread_map *map, int idx);
 LIBPERF_API int perf_thread_map__nr(struct perf_thread_map *threads);
 LIBPERF_API pid_t perf_thread_map__pid(struct perf_thread_map *map, int idx);
+LIBPERF_API int perf_thread_map__idx(struct perf_thread_map *map, pid_t pid);
 
 LIBPERF_API struct perf_thread_map *perf_thread_map__get(struct perf_thread_map *map);
 LIBPERF_API void perf_thread_map__put(struct perf_thread_map *map);

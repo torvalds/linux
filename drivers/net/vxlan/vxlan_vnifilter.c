@@ -40,11 +40,11 @@ static void vxlan_vs_add_del_vninode(struct vxlan_dev *vxlan,
 				     struct vxlan_vni_node *v,
 				     bool del)
 {
-	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
 	struct vxlan_dev_node *node;
 	struct vxlan_sock *vs;
 
-	spin_lock(&vn->sock_lock);
+	ASSERT_RTNL();
+
 	if (del) {
 		if (!hlist_unhashed(&v->hlist4.hlist))
 			hlist_del_init_rcu(&v->hlist4.hlist);
@@ -52,7 +52,7 @@ static void vxlan_vs_add_del_vninode(struct vxlan_dev *vxlan,
 		if (!hlist_unhashed(&v->hlist6.hlist))
 			hlist_del_init_rcu(&v->hlist6.hlist);
 #endif
-		goto out;
+		return;
 	}
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -67,23 +67,21 @@ static void vxlan_vs_add_del_vninode(struct vxlan_dev *vxlan,
 		node = &v->hlist4;
 		hlist_add_head_rcu(&node->hlist, vni_head(vs, v->vni));
 	}
-out:
-	spin_unlock(&vn->sock_lock);
 }
 
 void vxlan_vs_add_vnigrp(struct vxlan_dev *vxlan,
 			 struct vxlan_sock *vs,
 			 bool ipv6)
 {
-	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
 	struct vxlan_vni_group *vg = rtnl_dereference(vxlan->vnigrp);
 	struct vxlan_vni_node *v, *tmp;
 	struct vxlan_dev_node *node;
 
+	ASSERT_RTNL();
+
 	if (!vg)
 		return;
 
-	spin_lock(&vn->sock_lock);
 	list_for_each_entry_safe(v, tmp, &vg->vni_list, vlist) {
 #if IS_ENABLED(CONFIG_IPV6)
 		if (ipv6)
@@ -94,26 +92,24 @@ void vxlan_vs_add_vnigrp(struct vxlan_dev *vxlan,
 		node->vxlan = vxlan;
 		hlist_add_head_rcu(&node->hlist, vni_head(vs, v->vni));
 	}
-	spin_unlock(&vn->sock_lock);
 }
 
 void vxlan_vs_del_vnigrp(struct vxlan_dev *vxlan)
 {
 	struct vxlan_vni_group *vg = rtnl_dereference(vxlan->vnigrp);
-	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
 	struct vxlan_vni_node *v, *tmp;
+
+	ASSERT_RTNL();
 
 	if (!vg)
 		return;
 
-	spin_lock(&vn->sock_lock);
 	list_for_each_entry_safe(v, tmp, &vg->vni_list, vlist) {
 		hlist_del_init_rcu(&v->hlist4.hlist);
 #if IS_ENABLED(CONFIG_IPV6)
 		hlist_del_init_rcu(&v->hlist6.hlist);
 #endif
 	}
-	spin_unlock(&vn->sock_lock);
 }
 
 static void vxlan_vnifilter_stats_get(const struct vxlan_vni_node *vninode,
@@ -411,12 +407,11 @@ static int vxlan_vnifilter_dump(struct sk_buff *skb, struct netlink_callback *cb
 	struct tunnel_msg *tmsg;
 	struct net_device *dev;
 
-	if (cb->nlh->nlmsg_len < nlmsg_msg_size(sizeof(struct tunnel_msg))) {
+	tmsg = nlmsg_payload(cb->nlh, sizeof(*tmsg));
+	if (!tmsg) {
 		NL_SET_ERR_MSG(cb->extack, "Invalid msg length");
 		return -EINVAL;
 	}
-
-	tmsg = nlmsg_data(cb->nlh);
 
 	if (tmsg->flags & ~TUNNEL_MSG_VALID_USER_FLAGS) {
 		NL_SET_ERR_MSG(cb->extack, "Invalid tunnelmsg flags in ancillary header");
@@ -483,11 +478,9 @@ static int vxlan_update_default_fdb_entry(struct vxlan_dev *vxlan, __be32 vni,
 					  struct netlink_ext_ack *extack)
 {
 	struct vxlan_rdst *dst = &vxlan->default_dst;
-	u32 hash_index;
 	int err = 0;
 
-	hash_index = fdb_head_index(vxlan, all_zeros_mac, vni);
-	spin_lock_bh(&vxlan->hash_lock[hash_index]);
+	spin_lock_bh(&vxlan->hash_lock);
 	if (remote_ip && !vxlan_addr_any(remote_ip)) {
 		err = vxlan_fdb_update(vxlan, all_zeros_mac,
 				       remote_ip,
@@ -499,7 +492,7 @@ static int vxlan_update_default_fdb_entry(struct vxlan_dev *vxlan, __be32 vni,
 				       dst->remote_ifindex,
 				       NTF_SELF, 0, true, extack);
 		if (err) {
-			spin_unlock_bh(&vxlan->hash_lock[hash_index]);
+			spin_unlock_bh(&vxlan->hash_lock);
 			return err;
 		}
 	}
@@ -512,7 +505,7 @@ static int vxlan_update_default_fdb_entry(struct vxlan_dev *vxlan, __be32 vni,
 				   dst->remote_ifindex,
 				   true);
 	}
-	spin_unlock_bh(&vxlan->hash_lock[hash_index]);
+	spin_unlock_bh(&vxlan->hash_lock);
 
 	return err;
 }
@@ -628,10 +621,7 @@ static void vxlan_vni_delete_group(struct vxlan_dev *vxlan,
 	 */
 	if (!vxlan_addr_any(&vninode->remote_ip) ||
 	    !vxlan_addr_any(&dst->remote_ip)) {
-		u32 hash_index = fdb_head_index(vxlan, all_zeros_mac,
-						vninode->vni);
-
-		spin_lock_bh(&vxlan->hash_lock[hash_index]);
+		spin_lock_bh(&vxlan->hash_lock);
 		__vxlan_fdb_delete(vxlan, all_zeros_mac,
 				   (vxlan_addr_any(&vninode->remote_ip) ?
 				   dst->remote_ip : vninode->remote_ip),
@@ -639,7 +629,7 @@ static void vxlan_vni_delete_group(struct vxlan_dev *vxlan,
 				   vninode->vni, vninode->vni,
 				   dst->remote_ifindex,
 				   true);
-		spin_unlock_bh(&vxlan->hash_lock[hash_index]);
+		spin_unlock_bh(&vxlan->hash_lock);
 	}
 
 	if (vxlan->dev->flags & IFF_UP) {
@@ -981,15 +971,10 @@ static int vxlan_vnifilter_process(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!(vxlan->cfg.flags & VXLAN_F_VNIFILTER))
 		return -EOPNOTSUPP;
 
-	nlmsg_for_each_attr(attr, nlh, sizeof(*tmsg), rem) {
-		switch (nla_type(attr)) {
-		case VXLAN_VNIFILTER_ENTRY:
-			err = vxlan_process_vni_filter(vxlan, attr,
-						       nlh->nlmsg_type, extack);
-			break;
-		default:
-			continue;
-		}
+	nlmsg_for_each_attr_type(attr, VXLAN_VNIFILTER_ENTRY, nlh,
+				 sizeof(*tmsg), rem) {
+		err = vxlan_process_vni_filter(vxlan, attr, nlh->nlmsg_type,
+					       extack);
 		vnis++;
 		if (err)
 			break;

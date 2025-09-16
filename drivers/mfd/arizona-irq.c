@@ -152,7 +152,6 @@ static irqreturn_t arizona_irq_thread(int irq, void *data)
 		}
 	} while (poll);
 
-	pm_runtime_mark_last_busy(arizona->dev);
 	pm_runtime_put_autosuspend(arizona->dev);
 
 	return IRQ_HANDLED;
@@ -312,8 +311,7 @@ int arizona_irq_init(struct arizona *arizona)
 	flags |= arizona->pdata.irq_flags;
 
 	/* Allocate a virtual IRQ domain to distribute to the regmap domains */
-	arizona->virq = irq_domain_add_linear(NULL, 2, &arizona_domain_ops,
-					      arizona);
+	arizona->virq = irq_domain_create_linear(NULL, 2, &arizona_domain_ops, arizona);
 	if (!arizona->virq) {
 		dev_err(arizona->dev, "Failed to add core IRQ domain\n");
 		ret = -EINVAL;

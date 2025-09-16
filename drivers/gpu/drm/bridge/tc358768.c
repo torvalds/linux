@@ -1287,9 +1287,10 @@ static int tc358768_i2c_probe(struct i2c_client *client)
 	if (!np)
 		return -ENODEV;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
+	priv = devm_drm_bridge_alloc(dev, struct tc358768_priv, bridge,
+				     &tc358768_bridge_funcs);
+	if (IS_ERR(priv))
+		return PTR_ERR(priv);
 
 	dev_set_drvdata(dev, priv);
 	priv->dev = dev;
@@ -1321,7 +1322,6 @@ static int tc358768_i2c_probe(struct i2c_client *client)
 	priv->dsi_host.dev = dev;
 	priv->dsi_host.ops = &tc358768_dsi_host_ops;
 
-	priv->bridge.funcs = &tc358768_bridge_funcs;
 	priv->bridge.timings = &default_tc358768_timings;
 	priv->bridge.of_node = np;
 

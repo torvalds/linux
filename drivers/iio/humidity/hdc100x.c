@@ -13,6 +13,7 @@
  * https://www.ti.com/product/HDC1080/datasheet
  */
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -206,26 +207,20 @@ static int hdc100x_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW: {
 		int ret;
 
-		mutex_lock(&data->lock);
+		guard(mutex)(&data->lock);
 		if (chan->type == IIO_CURRENT) {
 			*val = hdc100x_get_heater_status(data);
-			ret = IIO_VAL_INT;
-		} else {
-			ret = iio_device_claim_direct_mode(indio_dev);
-			if (ret) {
-				mutex_unlock(&data->lock);
-				return ret;
-			}
-
-			ret = hdc100x_get_measurement(data, chan);
-			iio_device_release_direct_mode(indio_dev);
-			if (ret >= 0) {
-				*val = ret;
-				ret = IIO_VAL_INT;
-			}
+			return IIO_VAL_INT;
 		}
-		mutex_unlock(&data->lock);
-		return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+
+		ret = hdc100x_get_measurement(data, chan);
+		iio_device_release_direct(indio_dev);
+		if (ret < 0)
+			return ret;
+		*val = ret;
+		return IIO_VAL_INT;
 	}
 	case IIO_CHAN_INFO_INT_TIME:
 		*val = 0;
@@ -256,26 +251,23 @@ static int hdc100x_write_raw(struct iio_dev *indio_dev,
 			     int val, int val2, long mask)
 {
 	struct hdc100x_data *data = iio_priv(indio_dev);
-	int ret = -EINVAL;
 
 	switch (mask) {
-	case IIO_CHAN_INFO_INT_TIME:
+	case IIO_CHAN_INFO_INT_TIME: {
 		if (val != 0)
 			return -EINVAL;
 
-		mutex_lock(&data->lock);
-		ret = hdc100x_set_it_time(data, chan->address, val2);
-		mutex_unlock(&data->lock);
-		return ret;
-	case IIO_CHAN_INFO_RAW:
+		guard(mutex)(&data->lock);
+		return hdc100x_set_it_time(data, chan->address, val2);
+	}
+	case IIO_CHAN_INFO_RAW: {
 		if (chan->type != IIO_CURRENT || val2 != 0)
 			return -EINVAL;
 
-		mutex_lock(&data->lock);
-		ret = hdc100x_update_config(data, HDC100X_REG_CONFIG_HEATER_EN,
-					val ? HDC100X_REG_CONFIG_HEATER_EN : 0);
-		mutex_unlock(&data->lock);
-		return ret;
+		guard(mutex)(&data->lock);
+		return hdc100x_update_config(data, HDC100X_REG_CONFIG_HEATER_EN,
+					     val ? HDC100X_REG_CONFIG_HEATER_EN : 0);
+	}
 	default:
 		return -EINVAL;
 	}
@@ -284,27 +276,19 @@ static int hdc100x_write_raw(struct iio_dev *indio_dev,
 static int hdc100x_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct hdc100x_data *data = iio_priv(indio_dev);
-	int ret;
 
 	/* Buffer is enabled. First set ACQ Mode, then attach poll func */
-	mutex_lock(&data->lock);
-	ret = hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE,
-				    HDC100X_REG_CONFIG_ACQ_MODE);
-	mutex_unlock(&data->lock);
-
-	return ret;
+	guard(mutex)(&data->lock);
+	return hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE,
+				     HDC100X_REG_CONFIG_ACQ_MODE);
 }
 
 static int hdc100x_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct hdc100x_data *data = iio_priv(indio_dev);
-	int ret;
 
-	mutex_lock(&data->lock);
-	ret = hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE, 0);
-	mutex_unlock(&data->lock);
-
-	return ret;
+	guard(mutex)(&data->lock);
+	return hdc100x_update_config(data, HDC100X_REG_CONFIG_ACQ_MODE, 0);
 }
 
 static const struct iio_buffer_setup_ops hdc_buffer_setup_ops = {

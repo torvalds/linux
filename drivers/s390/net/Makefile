@@ -5,7 +5,6 @@
 
 ctcm-y += ctcm_main.o ctcm_fsms.o ctcm_mpc.o ctcm_sysfs.o ctcm_dbug.o
 obj-$(CONFIG_CTCM) += ctcm.o fsm.o
-obj-$(CONFIG_NETIUCV) += netiucv.o fsm.o
 obj-$(CONFIG_SMSGIUCV) += smsgiucv.o
 obj-$(CONFIG_SMSGIUCV_EVENT) += smsgiucv_app.o
 qeth-y += qeth_core_sys.o qeth_core_main.o qeth_core_mpc.o qeth_ethtool.o

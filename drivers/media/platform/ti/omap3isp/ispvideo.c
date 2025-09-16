@@ -480,29 +480,11 @@ static int isp_video_start_streaming(struct vb2_queue *queue,
 	return 0;
 }
 
-static void omap3isp_wait_prepare(struct vb2_queue *vq)
-{
-	struct isp_video_fh *vfh = vb2_get_drv_priv(vq);
-	struct isp_video *video = vfh->video;
-
-	mutex_unlock(&video->queue_lock);
-}
-
-static void omap3isp_wait_finish(struct vb2_queue *vq)
-{
-	struct isp_video_fh *vfh = vb2_get_drv_priv(vq);
-	struct isp_video *video = vfh->video;
-
-	mutex_lock(&video->queue_lock);
-}
-
 static const struct vb2_ops isp_video_queue_ops = {
 	.queue_setup = isp_video_queue_setup,
 	.buf_prepare = isp_video_buffer_prepare,
 	.buf_queue = isp_video_buffer_queue,
 	.start_streaming = isp_video_start_streaming,
-	.wait_prepare = omap3isp_wait_prepare,
-	.wait_finish = omap3isp_wait_finish,
 };
 
 /*
@@ -1338,6 +1320,7 @@ static int isp_video_open(struct file *file)
 	queue->buf_struct_size = sizeof(struct isp_buffer);
 	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	queue->dev = video->isp->dev;
+	queue->lock = &video->queue_lock;
 
 	ret = vb2_queue_init(&handle->queue);
 	if (ret < 0) {

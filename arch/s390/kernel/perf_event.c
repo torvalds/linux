@@ -12,7 +12,6 @@
 #include <linux/perf_event.h>
 #include <linux/kvm_host.h>
 #include <linux/percpu.h>
-#include <linux/export.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>

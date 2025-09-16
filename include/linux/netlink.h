@@ -63,7 +63,7 @@ netlink_kernel_create(struct net *net, int unit, struct netlink_kernel_cfg *cfg)
 }
 
 /* this can be increased when necessary - don't expose to userland */
-#define NETLINK_MAX_COOKIE_LEN	20
+#define NETLINK_MAX_COOKIE_LEN	8
 #define NETLINK_MAX_FMTMSG_LEN	80
 
 /**
@@ -212,6 +212,7 @@ static inline void nl_set_extack_cookie_u64(struct netlink_ext_ack *extack,
 {
 	if (!extack)
 		return;
+	BUILD_BUG_ON(sizeof(extack->cookie) < sizeof(cookie));
 	memcpy(extack->cookie, &cookie, sizeof(cookie));
 	extack->cookie_len = sizeof(cookie);
 }

@@ -21,6 +21,7 @@
 #define KMSG_COMPONENT "ctcm"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -179,7 +180,7 @@ void ctcmpc_dumpit(char *buf, int len)
 			ctcm_pr_debug("   %s (+%s) : %s  [%s]\n",
 					addr, boff, bhex, basc);
 			dup = 0;
-			strcpy(duphex, bhex);
+			strscpy(duphex, bhex);
 		} else
 			dup++;
 

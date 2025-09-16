@@ -356,11 +356,14 @@ static int bcm2835_gpio_get_direction(struct gpio_chip *chip, unsigned int offse
 	return GPIO_LINE_DIRECTION_IN;
 }
 
-static void bcm2835_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int bcm2835_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
 	struct bcm2835_pinctrl *pc = gpiochip_get_data(chip);
 
 	bcm2835_gpio_set_bit(pc, value ? GPSET0 : GPCLR0, offset);
+
+	return 0;
 }
 
 static int bcm2835_gpio_direction_output(struct gpio_chip *chip,

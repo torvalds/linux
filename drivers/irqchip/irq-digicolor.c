@@ -95,7 +95,7 @@ static int __init digicolor_of_init(struct device_node *node,
 	regmap_write(ucregs, UC_IRQ_CONTROL, 1);
 
 	digicolor_irq_domain =
-		irq_domain_add_linear(node, 64, &irq_generic_chip_ops, NULL);
+		irq_domain_create_linear(of_fwnode_handle(node), 64, &irq_generic_chip_ops, NULL);
 	if (!digicolor_irq_domain) {
 		pr_err("%pOF: unable to create IRQ domain\n", node);
 		return -ENOMEM;

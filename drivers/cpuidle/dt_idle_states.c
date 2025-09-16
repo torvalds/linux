@@ -98,7 +98,6 @@ static bool idle_state_valid(struct device_node *state_node, unsigned int idx,
 {
 	int cpu;
 	struct device_node *cpu_node, *curr_state_node;
-	bool valid = true;
 
 	/*
 	 * Compare idle state phandles for index idx on all CPUs in the
@@ -107,20 +106,17 @@ static bool idle_state_valid(struct device_node *state_node, unsigned int idx,
 	 * retrieved from. If a mismatch is found bail out straight
 	 * away since we certainly hit a firmware misconfiguration.
 	 */
-	for (cpu = cpumask_next(cpumask_first(cpumask), cpumask);
-	     cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpumask)) {
+	cpu = cpumask_first(cpumask) + 1;
+	for_each_cpu_from(cpu, cpumask) {
 		cpu_node = of_cpu_device_node_get(cpu);
 		curr_state_node = of_get_cpu_state_node(cpu_node, idx);
-		if (state_node != curr_state_node)
-			valid = false;
-
 		of_node_put(curr_state_node);
 		of_node_put(cpu_node);
-		if (!valid)
-			break;
+		if (state_node != curr_state_node)
+			return false;
 	}
 
-	return valid;
+	return true;
 }
 
 /**

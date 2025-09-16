@@ -14,38 +14,26 @@ description: |
   Qualcomm camera clock control module provides the clocks, resets and power
   domains on SM4450
 
-  See also:: include/dt-bindings/clock/qcom,sm4450-camcc.h
+  See also: include/dt-bindings/clock/qcom,sm4450-camcc.h
 
 properties:
   compatible:
     const: qcom,sm4450-camcc
-
-  reg:
-    maxItems: 1
 
   clocks:
     items:
       - description: Board XO source
       - description: Camera AHB clock source from GCC
 
-  '#clock-cells':
-    const: 1
-
-  '#reset-cells':
-    const: 1
-
-  '#power-domain-cells':
-    const: 1
-
 required:
   - compatible
-  - reg
   - clocks
-  - '#clock-cells'
-  - '#reset-cells'
   - '#power-domain-cells'
 
-additionalProperties: false
+allOf:
+  - $ref: qcom,gcc.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

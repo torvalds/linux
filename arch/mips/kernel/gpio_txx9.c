@@ -32,14 +32,16 @@ static void txx9_gpio_set_raw(unsigned int offset, int value)
 	__raw_writel(val, &txx9_pioptr->dout);
 }
 
-static void txx9_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			  int value)
+static int txx9_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			 int value)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&txx9_gpio_lock, flags);
 	txx9_gpio_set_raw(offset, value);
 	mmiowb();
 	spin_unlock_irqrestore(&txx9_gpio_lock, flags);
+
+	return 0;
 }
 
 static int txx9_gpio_dir_in(struct gpio_chip *chip, unsigned int offset)

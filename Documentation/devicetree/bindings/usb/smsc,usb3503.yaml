@@ -106,54 +106,54 @@ additionalProperties: false
 
 examples:
   - |
-      i2c {
-          #address-cells = <1>;
-          #size-cells = <0>;
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-          usb-hub@8 {
-              compatible = "smsc,usb3503";
-              reg = <0x08>;
-              connect-gpios = <&gpx3 0 1>;
-              disabled-ports = <2 3>;
-              intn-gpios = <&gpx3 4 1>;
-              reset-gpios = <&gpx3 5 1>;
-              initial-mode = <1>;
-              clocks = <&clks 80>;
-              clock-names = "refclk";
-          };
-      };
-
-  - |
-      i2c {
-          #address-cells = <1>;
-          #size-cells = <0>;
-
-          usb-hub@8 {
-              compatible = "smsc,usb3803";
-              reg = <0x08>;
-              connect-gpios = <&gpx3 0 1>;
-              disabled-ports = <2 3>;
-              intn-gpios = <&gpx3 4 1>;
-              reset-gpios = <&gpx3 5 1>;
-              bypass-gpios = <&gpx3 6 1>;
-              initial-mode = <3>;
-              clocks = <&clks 80>;
-              clock-names = "refclk";
-          };
-      };
+        usb-hub@8 {
+            compatible = "smsc,usb3503";
+            reg = <0x08>;
+            connect-gpios = <&gpx3 0 1>;
+            disabled-ports = <2 3>;
+            intn-gpios = <&gpx3 4 1>;
+            reset-gpios = <&gpx3 5 1>;
+            initial-mode = <1>;
+            clocks = <&clks 80>;
+            clock-names = "refclk";
+        };
+    };
 
   - |
-      #include <dt-bindings/gpio/gpio.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      usb-hub {
-          /* I2C is not connected */
-          compatible = "smsc,usb3503";
-          initial-mode = <1>; /* initialize in HUB mode */
-          disabled-ports = <1>;
-          intn-gpios = <&pio 7 5 GPIO_ACTIVE_HIGH>; /* PH5 */
-          reset-gpios = <&pio 4 16 GPIO_ACTIVE_LOW>; /* PE16 */
-          connect-gpios = <&pio 4 17 GPIO_ACTIVE_HIGH>; /* PE17 */
-          refclk-frequency = <19200000>;
-      };
+        usb-hub@8 {
+            compatible = "smsc,usb3803";
+            reg = <0x08>;
+            connect-gpios = <&gpx3 0 1>;
+            disabled-ports = <2 3>;
+            intn-gpios = <&gpx3 4 1>;
+            reset-gpios = <&gpx3 5 1>;
+            bypass-gpios = <&gpx3 6 1>;
+            initial-mode = <3>;
+            clocks = <&clks 80>;
+            clock-names = "refclk";
+        };
+    };
+
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    usb-hub {
+        /* I2C is not connected */
+        compatible = "smsc,usb3503";
+        initial-mode = <1>; /* initialize in HUB mode */
+        disabled-ports = <1>;
+        intn-gpios = <&pio 7 5 GPIO_ACTIVE_HIGH>; /* PH5 */
+        reset-gpios = <&pio 4 16 GPIO_ACTIVE_LOW>; /* PE16 */
+        connect-gpios = <&pio 4 17 GPIO_ACTIVE_HIGH>; /* PE17 */
+        refclk-frequency = <19200000>;
+    };
 
 ...

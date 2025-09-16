@@ -4378,7 +4378,8 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
 void
 lpfc_els_retry_delay(struct timer_list *t)
 {
-	struct lpfc_nodelist *ndlp = from_timer(ndlp, t, nlp_delayfunc);
+	struct lpfc_nodelist *ndlp = timer_container_of(ndlp, t,
+							nlp_delayfunc);
 	struct lpfc_vport *vport = ndlp->vport;
 	struct lpfc_hba   *phba = vport->phba;
 	unsigned long flags;
@@ -7860,6 +7861,13 @@ lpfc_rscn_recovery_check(struct lpfc_vport *vport)
 
 	/* Move all affected nodes by pending RSCNs to NPR state. */
 	list_for_each_entry_safe(ndlp, n, &vport->fc_nodes, nlp_listp) {
+		if (test_bit(FC_UNLOADING, &vport->load_flag)) {
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+					 "1000 %s Unloading set\n",
+					 __func__);
+			return 0;
+		}
+
 		if ((ndlp->nlp_state == NLP_STE_UNUSED_NODE) ||
 		    !lpfc_rscn_payload_check(vport, ndlp->nlp_DID))
 			continue;
@@ -8368,9 +8376,9 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	clear_bit(FC_PUBLIC_LOOP, &vport->fc_flag);
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "3311 Rcv Flogi PS x%x new PS x%x "
-			 "fc_flag x%lx new fc_flag x%lx\n",
+			 "fc_flag x%lx new fc_flag x%lx, hba_flag x%lx\n",
 			 port_state, vport->port_state,
-			 fc_flag, vport->fc_flag);
+			 fc_flag, vport->fc_flag, phba->hba_flag);
 
 	/*
 	 * We temporarily set fc_myDID to make it look like we are
@@ -9385,7 +9393,7 @@ out:
 void
 lpfc_els_timeout(struct timer_list *t)
 {
-	struct lpfc_vport *vport = from_timer(vport, t, els_tmofunc);
+	struct lpfc_vport *vport = timer_container_of(vport, t, els_tmofunc);
 	struct lpfc_hba   *phba = vport->phba;
 	uint32_t tmo_posted;
 	unsigned long iflag;
@@ -11594,7 +11602,8 @@ err:
 void
 lpfc_fabric_block_timeout(struct timer_list *t)
 {
-	struct lpfc_hba  *phba = from_timer(phba, t, fabric_block_timer);
+	struct lpfc_hba  *phba = timer_container_of(phba, t,
+						    fabric_block_timer);
 	unsigned long iflags;
 	uint32_t tmo_posted;
 

@@ -142,7 +142,7 @@ static const struct bin_attribute ofb_bin_attr = {
 		.name = "event_data",
 		.mode = S_IWUSR,
 	},
-	.write_new = sysfs_ofb_data_write,
+	.write = sysfs_ofb_data_write,
 };
 #endif
 

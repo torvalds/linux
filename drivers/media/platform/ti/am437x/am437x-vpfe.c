@@ -2030,7 +2030,7 @@ vpfe_s_selection(struct file *file, void *fh, struct v4l2_selection *s)
 	vpfe->fmt.fmt.pix.sizeimage = vpfe->fmt.fmt.pix.bytesperline *
 						vpfe->fmt.fmt.pix.height;
 
-	vpfe_dbg(1, vpfe, "cropped (%d,%d)/%dx%d of %dx%d\n",
+	vpfe_dbg(1, vpfe, "cropped (%d,%d)/%ux%u of %dx%d\n",
 		 r.left, r.top, r.width, r.height, cr.width, cr.height);
 
 	return 0;

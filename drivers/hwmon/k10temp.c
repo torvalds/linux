@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
-#include <asm/amd_node.h>
+#include <asm/amd/node.h>
 #include <asm/processor.h>
 
 MODULE_DESCRIPTION("AMD Family 10h+ CPU core temperature monitor");
@@ -501,6 +501,13 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		case 0xa0 ... 0xaf:
 			data->ccd_offset = 0x300;
 			k10temp_get_ccd_support(data, 12);
+			break;
+		}
+	} else if (boot_cpu_data.x86 == 0x1a) {
+		switch (boot_cpu_data.x86_model) {
+		case 0x40 ... 0x4f:	/* Zen5 Ryzen Desktop */
+			data->ccd_offset = 0x308;
+			k10temp_get_ccd_support(data, 8);
 			break;
 		}
 	}

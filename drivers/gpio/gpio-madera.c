@@ -87,23 +87,17 @@ static int madera_gpio_direction_out(struct gpio_chip *chip,
 				  MADERA_GP1_LVL_MASK, reg_val);
 }
 
-static void madera_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			    int value)
+static int madera_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	struct madera_gpio *madera_gpio = gpiochip_get_data(chip);
 	struct madera *madera = madera_gpio->madera;
 	unsigned int reg_offset = 2 * offset;
 	unsigned int reg_val = value ? MADERA_GP1_LVL : 0;
-	int ret;
 
-	ret = regmap_update_bits(madera->regmap,
-				 MADERA_GPIO1_CTRL_1 + reg_offset,
-				 MADERA_GP1_LVL_MASK, reg_val);
-
-	/* set() doesn't return an error so log a warning */
-	if (ret)
-		dev_warn(madera->dev, "Failed to write to 0x%x (%d)\n",
-			 MADERA_GPIO1_CTRL_1 + reg_offset, ret);
+	return regmap_update_bits(madera->regmap,
+				  MADERA_GPIO1_CTRL_1 + reg_offset,
+				  MADERA_GP1_LVL_MASK, reg_val);
 }
 
 static const struct gpio_chip madera_gpio_chip = {

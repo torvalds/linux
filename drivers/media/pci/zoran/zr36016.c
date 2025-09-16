@@ -216,7 +216,7 @@ static int zr36016_set_video(struct videocodec *codec, const struct tvnorm *norm
 	struct zr36016 *ptr = (struct zr36016 *)codec->data;
 	struct zoran *zr = videocodec_to_zoran(codec);
 
-	zrdev_dbg(zr, "%s: set_video %d.%d, %d/%d-%dx%d (0x%x) call\n",
+	zrdev_dbg(zr, "%s: set_video %d.%d, (%u,%u)/%ux%u (0x%x) call\n",
 		  ptr->name, norm->h_start, norm->v_start,
 		  cap->x, cap->y, cap->width, cap->height,
 		  cap->decimation);

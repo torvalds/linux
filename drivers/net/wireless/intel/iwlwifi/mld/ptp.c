@@ -21,7 +21,7 @@
 
 static int iwl_mld_get_systime(struct iwl_mld *mld, u32 *gp2)
 {
-	*gp2 = iwl_read_prph(mld->trans, mld->trans->cfg->gp2_reg_addr);
+	*gp2 = iwl_read_prph(mld->trans, mld->trans->mac_cfg->base->gp2_reg_addr);
 
 	if (*gp2 == 0x5a5a5a5a)
 		return -EINVAL;
@@ -299,18 +299,18 @@ void iwl_mld_ptp_init(struct iwl_mld *mld)
 			PTR_ERR(mld->ptp_data.ptp_clock));
 		mld->ptp_data.ptp_clock = NULL;
 	} else {
-		IWL_INFO(mld, "Registered PHC clock: %s, with index: %d\n",
-			 mld->ptp_data.ptp_clock_info.name,
-			 ptp_clock_index(mld->ptp_data.ptp_clock));
+		IWL_DEBUG_INFO(mld, "Registered PHC clock: %s, with index: %d\n",
+			       mld->ptp_data.ptp_clock_info.name,
+			       ptp_clock_index(mld->ptp_data.ptp_clock));
 	}
 }
 
 void iwl_mld_ptp_remove(struct iwl_mld *mld)
 {
 	if (mld->ptp_data.ptp_clock) {
-		IWL_INFO(mld, "Unregistering PHC clock: %s, with index: %d\n",
-			 mld->ptp_data.ptp_clock_info.name,
-			 ptp_clock_index(mld->ptp_data.ptp_clock));
+		IWL_DEBUG_INFO(mld, "Unregistering PHC clock: %s, with index: %d\n",
+			       mld->ptp_data.ptp_clock_info.name,
+			       ptp_clock_index(mld->ptp_data.ptp_clock));
 
 		ptp_clock_unregister(mld->ptp_data.ptp_clock);
 		mld->ptp_data.ptp_clock = NULL;

@@ -1114,11 +1114,29 @@ bool nft_pipapo_avx2_estimate(const struct nft_set_desc *desc, u32 features,
 }
 
 /**
+ * pipapo_resmap_init_avx2() - Initialise result map before first use
+ * @m:		Matching data, including mapping table
+ * @res_map:	Result map
+ *
+ * Like pipapo_resmap_init() but do not set start map bits covered by the first field.
+ */
+static inline void pipapo_resmap_init_avx2(const struct nft_pipapo_match *m, unsigned long *res_map)
+{
+	const struct nft_pipapo_field *f = m->f;
+	int i;
+
+	/* Starting map doesn't need to be set to all-ones for this implementation,
+	 * but we do need to zero the remaining bits, if any.
+	 */
+	for (i = f->bsize; i < m->bsize_max; i++)
+		res_map[i] = 0ul;
+}
+
+/**
  * nft_pipapo_avx2_lookup() - Lookup function for AVX2 implementation
  * @net:	Network namespace
  * @set:	nftables API set representation
  * @key:	nftables API element representation containing key data
- * @ext:	nftables API extension pointer, filled with matching reference
  *
  * For more details, see DOC: Theory of Operation in nft_set_pipapo.c.
  *
@@ -1127,26 +1145,27 @@ bool nft_pipapo_avx2_estimate(const struct nft_set_desc *desc, u32 features,
  *
  * Return: true on match, false otherwise.
  */
-bool nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
-			    const u32 *key, const struct nft_set_ext **ext)
+const struct nft_set_ext *
+nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
+		       const u32 *key)
 {
 	struct nft_pipapo *priv = nft_set_priv(set);
+	const struct nft_set_ext *ext = NULL;
 	struct nft_pipapo_scratch *scratch;
-	u8 genmask = nft_genmask_cur(net);
 	const struct nft_pipapo_match *m;
 	const struct nft_pipapo_field *f;
 	const u8 *rp = (const u8 *)key;
 	unsigned long *res, *fill;
 	bool map_index;
-	int i, ret = 0;
+	int i;
 
 	local_bh_disable();
 
 	if (unlikely(!irq_fpu_usable())) {
-		bool fallback_res = nft_pipapo_lookup(net, set, key, ext);
+		ext = nft_pipapo_lookup(net, set, key);
 
 		local_bh_enable();
-		return fallback_res;
+		return ext;
 	}
 
 	m = rcu_dereference(priv->match);
@@ -1163,7 +1182,7 @@ bool nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
 	if (unlikely(!scratch)) {
 		kernel_fpu_end();
 		local_bh_enable();
-		return false;
+		return NULL;
 	}
 
 	map_index = scratch->map_index;
@@ -1171,13 +1190,14 @@ bool nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
 	res  = scratch->map + (map_index ? m->bsize_max : 0);
 	fill = scratch->map + (map_index ? 0 : m->bsize_max);
 
-	/* Starting map doesn't need to be set for this implementation */
+	pipapo_resmap_init_avx2(m, res);
 
 	nft_pipapo_avx2_prepare();
 
 next_match:
 	nft_pipapo_for_each_field(f, i, m) {
 		bool last = i == m->field_count - 1, first = !i;
+		int ret = 0;
 
 #define NFT_SET_PIPAPO_AVX2_LOOKUP(b, n)				\
 		(ret = nft_pipapo_avx2_lookup_##b##b_##n(res, fill, f,	\
@@ -1225,13 +1245,12 @@ next_match:
 			goto out;
 
 		if (last) {
-			*ext = &f->mt[ret].e->ext;
-			if (unlikely(nft_set_elem_expired(*ext) ||
-				     !nft_set_elem_active(*ext, genmask))) {
-				ret = 0;
-				goto next_match;
-			}
+			const struct nft_set_ext *e = &f->mt[ret].e->ext;
 
+			if (unlikely(nft_set_elem_expired(e)))
+				goto next_match;
+
+			ext = e;
 			goto out;
 		}
 
@@ -1245,5 +1264,5 @@ out:
 	kernel_fpu_end();
 	local_bh_enable();
 
-	return ret >= 0;
+	return ext;
 }

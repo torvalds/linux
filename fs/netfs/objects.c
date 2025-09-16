@@ -10,6 +10,8 @@
 #include <linux/delay.h>
 #include "internal.h"
 
+static void netfs_free_request(struct work_struct *work);
+
 /*
  * Allocate an I/O request and initialise it.
  */
@@ -34,6 +36,7 @@ struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 	}
 
 	memset(rreq, 0, kmem_cache_size(cache));
+	INIT_WORK(&rreq->cleanup_work, netfs_free_request);
 	rreq->start	= start;
 	rreq->len	= len;
 	rreq->origin	= origin;
@@ -49,13 +52,14 @@ struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 	INIT_LIST_HEAD(&rreq->io_streams[0].subrequests);
 	INIT_LIST_HEAD(&rreq->io_streams[1].subrequests);
 	init_waitqueue_head(&rreq->waitq);
-	refcount_set(&rreq->ref, 1);
+	refcount_set(&rreq->ref, 2);
 
 	if (origin == NETFS_READAHEAD ||
 	    origin == NETFS_READPAGE ||
 	    origin == NETFS_READ_GAPS ||
 	    origin == NETFS_READ_SINGLE ||
 	    origin == NETFS_READ_FOR_WRITE ||
+	    origin == NETFS_UNBUFFERED_READ ||
 	    origin == NETFS_DIO_READ) {
 		INIT_WORK(&rreq->work, netfs_read_collection_worker);
 		rreq->io_streams[0].avail = true;
@@ -64,8 +68,6 @@ struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 	}
 
 	__set_bit(NETFS_RREQ_IN_PROGRESS, &rreq->flags);
-	if (file && file->f_flags & O_NONBLOCK)
-		__set_bit(NETFS_RREQ_NONBLOCK, &rreq->flags);
 	if (rreq->netfs_ops->init_request) {
 		ret = rreq->netfs_ops->init_request(rreq, file);
 		if (ret < 0) {
@@ -75,7 +77,7 @@ struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 	}
 
 	atomic_inc(&ctx->io_count);
-	trace_netfs_rreq_ref(rreq->debug_id, 1, netfs_rreq_trace_new);
+	trace_netfs_rreq_ref(rreq->debug_id, refcount_read(&rreq->ref), netfs_rreq_trace_new);
 	netfs_proc_add_rreq(rreq);
 	netfs_stat(&netfs_n_rh_rreq);
 	return rreq;
@@ -89,7 +91,7 @@ void netfs_get_request(struct netfs_io_request *rreq, enum netfs_rreq_ref_trace 
 	trace_netfs_rreq_ref(rreq->debug_id, r + 1, what);
 }
 
-void netfs_clear_subrequests(struct netfs_io_request *rreq, bool was_async)
+void netfs_clear_subrequests(struct netfs_io_request *rreq)
 {
 	struct netfs_io_subrequest *subreq;
 	struct netfs_io_stream *stream;
@@ -101,8 +103,7 @@ void netfs_clear_subrequests(struct netfs_io_request *rreq, bool was_async)
 			subreq = list_first_entry(&stream->subrequests,
 						  struct netfs_io_subrequest, rreq_link);
 			list_del(&subreq->rreq_link);
-			netfs_put_subrequest(subreq, was_async,
-					     netfs_sreq_trace_put_clear);
+			netfs_put_subrequest(subreq, netfs_sreq_trace_put_clear);
 		}
 	}
 }
@@ -118,13 +119,19 @@ static void netfs_free_request_rcu(struct rcu_head *rcu)
 static void netfs_free_request(struct work_struct *work)
 {
 	struct netfs_io_request *rreq =
-		container_of(work, struct netfs_io_request, work);
+		container_of(work, struct netfs_io_request, cleanup_work);
 	struct netfs_inode *ictx = netfs_inode(rreq->inode);
 	unsigned int i;
 
 	trace_netfs_rreq(rreq, netfs_rreq_trace_free);
+
+	/* Cancel/flush the result collection worker.  That does not carry a
+	 * ref of its own, so we must wait for it somewhere.
+	 */
+	cancel_work_sync(&rreq->work);
+
 	netfs_proc_del_rreq(rreq);
-	netfs_clear_subrequests(rreq, false);
+	netfs_clear_subrequests(rreq);
 	if (rreq->netfs_ops->free_request)
 		rreq->netfs_ops->free_request(rreq);
 	if (rreq->cache_resources.ops)
@@ -145,8 +152,7 @@ static void netfs_free_request(struct work_struct *work)
 	call_rcu(&rreq->rcu, netfs_free_request_rcu);
 }
 
-void netfs_put_request(struct netfs_io_request *rreq, bool was_async,
-		       enum netfs_rreq_ref_trace what)
+void netfs_put_request(struct netfs_io_request *rreq, enum netfs_rreq_ref_trace what)
 {
 	unsigned int debug_id;
 	bool dead;
@@ -156,15 +162,8 @@ void netfs_put_request(struct netfs_io_request *rreq, bool was_async,
 		debug_id = rreq->debug_id;
 		dead = __refcount_dec_and_test(&rreq->ref, &r);
 		trace_netfs_rreq_ref(debug_id, r - 1, what);
-		if (dead) {
-			if (was_async) {
-				rreq->work.func = netfs_free_request;
-				if (!queue_work(system_unbound_wq, &rreq->work))
-					WARN_ON(1);
-			} else {
-				netfs_free_request(&rreq->work);
-			}
-		}
+		if (dead)
+			WARN_ON(!queue_work(system_unbound_wq, &rreq->cleanup_work));
 	}
 }
 
@@ -206,8 +205,7 @@ void netfs_get_subrequest(struct netfs_io_subrequest *subreq,
 			     what);
 }
 
-static void netfs_free_subrequest(struct netfs_io_subrequest *subreq,
-				  bool was_async)
+static void netfs_free_subrequest(struct netfs_io_subrequest *subreq)
 {
 	struct netfs_io_request *rreq = subreq->rreq;
 
@@ -216,10 +214,10 @@ static void netfs_free_subrequest(struct netfs_io_subrequest *subreq,
 		rreq->netfs_ops->free_subrequest(subreq);
 	mempool_free(subreq, rreq->netfs_ops->subrequest_pool ?: &netfs_subrequest_pool);
 	netfs_stat_d(&netfs_n_rh_sreq);
-	netfs_put_request(rreq, was_async, netfs_rreq_trace_put_subreq);
+	netfs_put_request(rreq, netfs_rreq_trace_put_subreq);
 }
 
-void netfs_put_subrequest(struct netfs_io_subrequest *subreq, bool was_async,
+void netfs_put_subrequest(struct netfs_io_subrequest *subreq,
 			  enum netfs_sreq_ref_trace what)
 {
 	unsigned int debug_index = subreq->debug_index;
@@ -230,5 +228,5 @@ void netfs_put_subrequest(struct netfs_io_subrequest *subreq, bool was_async,
 	dead = __refcount_dec_and_test(&subreq->ref, &r);
 	trace_netfs_sreq_ref(debug_id, debug_index, r - 1, what);
 	if (dead)
-		netfs_free_subrequest(subreq, was_async);
+		netfs_free_subrequest(subreq);
 }

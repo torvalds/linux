@@ -216,24 +216,14 @@ int cache_get(struct cache *cache, unsigned long key);
 void cache_init(struct cache *cache);
 void cache_free(struct cache *cache);
 
-static inline void __cache_mark_expanded(struct cache *cache, uintptr_t addr)
-{
-	cache_set(cache, addr, 1);
-}
-
-static inline bool __cache_was_expanded(struct cache *cache, uintptr_t addr)
-{
-	return cache_get(cache, addr) == 1;
-}
-
 static inline void cache_mark_expanded(struct cache *cache, void *addr)
 {
-	__cache_mark_expanded(cache, (uintptr_t)addr);
+	cache_set(cache, (unsigned long)addr, 1);
 }
 
 static inline bool cache_was_expanded(struct cache *cache, void *addr)
 {
-	return __cache_was_expanded(cache, (uintptr_t)addr);
+	return cache_get(cache, (unsigned long)addr) == 1;
 }
 
 /*
@@ -287,10 +277,12 @@ void generate_symtypes_and_versions(FILE *file);
  * kabi.c
  */
 
+bool kabi_get_byte_size(const char *fqn, unsigned long *value);
 bool kabi_is_enumerator_ignored(const char *fqn, const char *field);
 bool kabi_get_enumerator_value(const char *fqn, const char *field,
 			       unsigned long *value);
 bool kabi_is_declonly(const char *fqn);
+bool kabi_get_type_string(const char *type, const char **str);
 
 void kabi_read_rules(int fd);
 void kabi_free(void);

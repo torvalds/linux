@@ -467,7 +467,8 @@ static int otx2_tc_parse_actions(struct otx2_nic *nic,
 			target = act->dev;
 			if (target->dev.parent) {
 				priv = netdev_priv(target);
-				if (rvu_get_pf(nic->pcifunc) != rvu_get_pf(priv->pcifunc)) {
+				if (rvu_get_pf(nic->pdev, nic->pcifunc) !=
+					rvu_get_pf(nic->pdev, priv->pcifunc)) {
 					NL_SET_ERR_MSG_MOD(extack,
 							   "can't redirect to other pf/vf");
 					return -EOPNOTSUPP;

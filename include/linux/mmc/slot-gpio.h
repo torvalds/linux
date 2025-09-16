@@ -24,7 +24,7 @@ int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
 int mmc_gpiod_set_cd_config(struct mmc_host *host, unsigned long config);
 int mmc_gpio_set_cd_wake(struct mmc_host *host, bool on);
 void mmc_gpiod_request_cd_irq(struct mmc_host *host);
-bool mmc_can_gpio_cd(struct mmc_host *host);
-bool mmc_can_gpio_ro(struct mmc_host *host);
+bool mmc_host_can_gpio_cd(struct mmc_host *host);
+bool mmc_host_can_gpio_ro(struct mmc_host *host);
 
 #endif

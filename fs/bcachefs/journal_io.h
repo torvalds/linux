@@ -9,6 +9,7 @@ void bch2_journal_pos_from_member_info_resume(struct bch_fs *);
 
 struct journal_ptr {
 	bool		csum_good;
+	struct bch_csum	csum;
 	u8		dev;
 	u32		bucket;
 	u32		bucket_offset;

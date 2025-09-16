@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/axis,artpec6-crypto.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Axis ARTPEC6 crypto engine with PDMA interface
+
+maintainers:
+  - Lars Persson <lars.persson@axis.com>
+
+properties:
+  compatible:
+    enum:
+      - axis,artpec6-crypto
+      - axis,artpec7-crypto
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    crypto@f4264000 {
+        compatible = "axis,artpec6-crypto";
+        reg = <0xf4264000 0x1000>;
+        interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+    };

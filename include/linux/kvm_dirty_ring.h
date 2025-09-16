@@ -32,7 +32,7 @@ struct kvm_dirty_ring {
  * If CONFIG_HAVE_HVM_DIRTY_RING not defined, kvm_dirty_ring.o should
  * not be included as well, so define these nop functions for the arch.
  */
-static inline u32 kvm_dirty_ring_get_rsvd_entries(void)
+static inline u32 kvm_dirty_ring_get_rsvd_entries(struct kvm *kvm)
 {
 	return 0;
 }
@@ -42,16 +42,17 @@ static inline bool kvm_use_dirty_bitmap(struct kvm *kvm)
 	return true;
 }
 
-static inline int kvm_dirty_ring_alloc(struct kvm_dirty_ring *ring,
+static inline int kvm_dirty_ring_alloc(struct kvm *kvm, struct kvm_dirty_ring *ring,
 				       int index, u32 size)
 {
 	return 0;
 }
 
 static inline int kvm_dirty_ring_reset(struct kvm *kvm,
-				       struct kvm_dirty_ring *ring)
+				       struct kvm_dirty_ring *ring,
+				       int *nr_entries_reset)
 {
-	return 0;
+	return -ENOENT;
 }
 
 static inline void kvm_dirty_ring_push(struct kvm_vcpu *vcpu,
@@ -71,22 +72,14 @@ static inline void kvm_dirty_ring_free(struct kvm_dirty_ring *ring)
 
 #else /* CONFIG_HAVE_KVM_DIRTY_RING */
 
-int kvm_cpu_dirty_log_size(void);
+int kvm_cpu_dirty_log_size(struct kvm *kvm);
 bool kvm_use_dirty_bitmap(struct kvm *kvm);
 bool kvm_arch_allow_write_without_running_vcpu(struct kvm *kvm);
-u32 kvm_dirty_ring_get_rsvd_entries(void);
-int kvm_dirty_ring_alloc(struct kvm_dirty_ring *ring, int index, u32 size);
-
-/*
- * called with kvm->slots_lock held, returns the number of
- * processed pages.
- */
-int kvm_dirty_ring_reset(struct kvm *kvm, struct kvm_dirty_ring *ring);
-
-/*
- * returns =0: successfully pushed
- *         <0: unable to push, need to wait
- */
+u32 kvm_dirty_ring_get_rsvd_entries(struct kvm *kvm);
+int kvm_dirty_ring_alloc(struct kvm *kvm, struct kvm_dirty_ring *ring,
+			 int index, u32 size);
+int kvm_dirty_ring_reset(struct kvm *kvm, struct kvm_dirty_ring *ring,
+			 int *nr_entries_reset);
 void kvm_dirty_ring_push(struct kvm_vcpu *vcpu, u32 slot, u64 offset);
 
 bool kvm_dirty_ring_check_request(struct kvm_vcpu *vcpu);

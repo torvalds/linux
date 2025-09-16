@@ -20,7 +20,7 @@
 	__HEAD
 
 _head:
-	.word	MZ_MAGIC		/* "MZ", MS-DOS header */
+	.word	IMAGE_DOS_SIGNATURE	/* "MZ", MS-DOS header */
 	.org	0x8
 	.dword	_kernel_entry		/* Kernel entry point (physical address) */
 	.dword	_kernel_asize		/* Kernel image effective size */

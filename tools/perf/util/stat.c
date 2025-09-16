@@ -526,7 +526,7 @@ static int evsel__merge_aggr_counters(struct evsel *evsel, struct evsel *alias)
 		struct perf_counts_values *aggr_counts_a = &ps_a->aggr[i].counts;
 		struct perf_counts_values *aggr_counts_b = &ps_b->aggr[i].counts;
 
-		/* NB: don't increase aggr.nr for aliases */
+		ps_a->aggr[i].nr += ps_b->aggr[i].nr;
 
 		aggr_counts_a->val += aggr_counts_b->val;
 		aggr_counts_a->ena += aggr_counts_b->ena;
@@ -534,35 +534,6 @@ static int evsel__merge_aggr_counters(struct evsel *evsel, struct evsel *alias)
 	}
 
 	return 0;
-}
-/*
- * Events should have the same name, scale, unit, cgroup but on different core
- * PMUs or on different but matching uncore PMUs.
- */
-static bool evsel__is_alias(struct evsel *evsel_a, struct evsel *evsel_b)
-{
-	if (strcmp(evsel__name(evsel_a), evsel__name(evsel_b)))
-		return false;
-
-	if (evsel_a->scale != evsel_b->scale)
-		return false;
-
-	if (evsel_a->cgrp != evsel_b->cgrp)
-		return false;
-
-	if (strcmp(evsel_a->unit, evsel_b->unit))
-		return false;
-
-	if (evsel__is_clock(evsel_a) != evsel__is_clock(evsel_b))
-		return false;
-
-	if (evsel_a->pmu == evsel_b->pmu || evsel_a->pmu == NULL || evsel_b->pmu == NULL)
-		return false;
-
-	if (evsel_a->pmu->is_core)
-		return evsel_b->pmu->is_core;
-
-	return perf_pmu__name_no_suffix_match(evsel_a->pmu, evsel_b->pmu->name);
 }
 
 static void evsel__merge_aliases(struct evsel *evsel)
@@ -572,10 +543,9 @@ static void evsel__merge_aliases(struct evsel *evsel)
 
 	alias = list_prepare_entry(evsel, &(evlist->core.entries), core.node);
 	list_for_each_entry_continue(alias, &evlist->core.entries, core.node) {
-		/* Merge the same events on different PMUs. */
-		if (evsel__is_alias(evsel, alias)) {
+		if (alias->first_wildcard_match == evsel) {
+			/* Merge the same events on different PMUs. */
 			evsel__merge_aggr_counters(evsel, alias);
-			alias->merged_stat = true;
 		}
 	}
 }
@@ -588,11 +558,7 @@ static bool evsel__should_merge_hybrid(const struct evsel *evsel,
 
 static void evsel__merge_stats(struct evsel *evsel, struct perf_stat_config *config)
 {
-	/* this evsel is already merged */
-	if (evsel->merged_stat)
-		return;
-
-	if (evsel->auto_merge_stats || evsel__should_merge_hybrid(evsel, config))
+	if (!evsel->pmu || !evsel->pmu->is_core || evsel__should_merge_hybrid(evsel, config))
 		evsel__merge_aliases(evsel);
 }
 
@@ -803,8 +769,6 @@ int create_perf_stat_counter(struct evsel *evsel,
 			attr->enable_on_exec = 1;
 	}
 
-	if (target__has_cpu(target) && !target__has_per_thread(target))
-		return evsel__open_per_cpu(evsel, evsel__cpus(evsel), cpu_map_idx);
-
-	return evsel__open_per_thread(evsel, evsel->core.threads);
+	return evsel__open_per_cpu_and_thread(evsel, evsel__cpus(evsel), cpu_map_idx,
+					      evsel->core.threads);
 }

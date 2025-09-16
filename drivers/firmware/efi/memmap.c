@@ -43,7 +43,8 @@ int __init __efi_memmap_init(struct efi_memory_map_data *data)
 		map.map = early_memremap(phys_map, data->size);
 
 	if (!map.map) {
-		pr_err("Could not map the memory map!\n");
+		pr_err("Could not map the memory map! phys_map=%pa, size=0x%lx\n",
+			&phys_map, data->size);
 		return -ENOMEM;
 	}
 

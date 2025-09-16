@@ -296,12 +296,19 @@ void __vgic_v3_activate_traps(struct vgic_v3_cpu_if *cpu_if)
 	}
 
 	/*
-	 * Prevent the guest from touching the ICC_SRE_EL1 system
-	 * register. Note that this may not have any effect, as
-	 * ICC_SRE_EL2.Enable being RAO/WI is a valid implementation.
+	 * GICv5 BET0 FEAT_GCIE_LEGACY doesn't include ICC_SRE_EL2. This is due
+	 * to be relaxed in a future spec release, at which point this in
+	 * condition can be dropped.
 	 */
-	write_gicreg(read_gicreg(ICC_SRE_EL2) & ~ICC_SRE_EL2_ENABLE,
-		     ICC_SRE_EL2);
+	if (!cpus_have_final_cap(ARM64_HAS_GICV5_CPUIF)) {
+		/*
+		 * Prevent the guest from touching the ICC_SRE_EL1 system
+		 * register. Note that this may not have any effect, as
+		 * ICC_SRE_EL2.Enable being RAO/WI is a valid implementation.
+		 */
+		write_gicreg(read_gicreg(ICC_SRE_EL2) & ~ICC_SRE_EL2_ENABLE,
+			     ICC_SRE_EL2);
+	}
 
 	/*
 	 * If we need to trap system registers, we must write
@@ -322,8 +329,14 @@ void __vgic_v3_deactivate_traps(struct vgic_v3_cpu_if *cpu_if)
 		cpu_if->vgic_vmcr = read_gicreg(ICH_VMCR_EL2);
 	}
 
-	val = read_gicreg(ICC_SRE_EL2);
-	write_gicreg(val | ICC_SRE_EL2_ENABLE, ICC_SRE_EL2);
+	/*
+	 * Can be dropped in the future when GICv5 spec is relaxed. See comment
+	 * above.
+	 */
+	if (!cpus_have_final_cap(ARM64_HAS_GICV5_CPUIF)) {
+		val = read_gicreg(ICC_SRE_EL2);
+		write_gicreg(val | ICC_SRE_EL2_ENABLE, ICC_SRE_EL2);
+	}
 
 	if (!cpu_if->vgic_sre) {
 		/* Make sure ENABLE is set at EL2 before setting SRE at EL1 */
@@ -423,29 +436,43 @@ void __vgic_v3_init_lrs(void)
  */
 u64 __vgic_v3_get_gic_config(void)
 {
-	u64 val, sre = read_gicreg(ICC_SRE_EL1);
+	u64 val, sre;
 	unsigned long flags = 0;
 
 	/*
+	 * In compat mode, we cannot access ICC_SRE_EL1 at any EL
+	 * other than EL1 itself; just return the
+	 * ICH_VTR_EL2. ICC_IDR0_EL1 is only implemented on a GICv5
+	 * system, so we first check if we have GICv5 support.
+	 */
+	if (cpus_have_final_cap(ARM64_HAS_GICV5_CPUIF))
+		return read_gicreg(ICH_VTR_EL2);
+
+	sre = read_gicreg(ICC_SRE_EL1);
+	/*
 	 * To check whether we have a MMIO-based (GICv2 compatible)
 	 * CPU interface, we need to disable the system register
-	 * view. To do that safely, we have to prevent any interrupt
-	 * from firing (which would be deadly).
+	 * view.
 	 *
-	 * Note that this only makes sense on VHE, as interrupts are
-	 * already masked for nVHE as part of the exception entry to
-	 * EL2.
-	 */
-	if (has_vhe())
-		flags = local_daif_save();
-
-	/*
 	 * Table 11-2 "Permitted ICC_SRE_ELx.SRE settings" indicates
 	 * that to be able to set ICC_SRE_EL1.SRE to 0, all the
 	 * interrupt overrides must be set. You've got to love this.
+	 *
+	 * As we always run VHE with HCR_xMO set, no extra xMO
+	 * manipulation is required in that case.
+	 *
+	 * To safely disable SRE, we have to prevent any interrupt
+	 * from firing (which would be deadly). This only makes sense
+	 * on VHE, as interrupts are already masked for nVHE as part
+	 * of the exception entry to EL2.
 	 */
-	sysreg_clear_set(hcr_el2, 0, HCR_AMO | HCR_FMO | HCR_IMO);
-	isb();
+	if (has_vhe()) {
+		flags = local_daif_save();
+	} else {
+		sysreg_clear_set_hcr(0, HCR_AMO | HCR_FMO | HCR_IMO);
+		isb();
+	}
+
 	write_gicreg(0, ICC_SRE_EL1);
 	isb();
 
@@ -453,16 +480,28 @@ u64 __vgic_v3_get_gic_config(void)
 
 	write_gicreg(sre, ICC_SRE_EL1);
 	isb();
-	sysreg_clear_set(hcr_el2, HCR_AMO | HCR_FMO | HCR_IMO, 0);
-	isb();
 
-	if (has_vhe())
+	if (has_vhe()) {
 		local_daif_restore(flags);
+	} else {
+		sysreg_clear_set_hcr(HCR_AMO | HCR_FMO | HCR_IMO, 0);
+		isb();
+	}
 
 	val  = (val & ICC_SRE_EL1_SRE) ? 0 : (1ULL << 63);
 	val |= read_gicreg(ICH_VTR_EL2);
 
 	return val;
+}
+
+static void __vgic_v3_compat_mode_enable(void)
+{
+	if (!cpus_have_final_cap(ARM64_HAS_GICV5_CPUIF))
+		return;
+
+	sysreg_clear_set_s(SYS_ICH_VCTLR_EL2, 0, ICH_VCTLR_EL2_V3);
+	/* Wait for V3 to become enabled */
+	isb();
 }
 
 static u64 __vgic_v3_read_vmcr(void)
@@ -484,6 +523,8 @@ void __vgic_v3_save_vmcr_aprs(struct vgic_v3_cpu_if *cpu_if)
 
 void __vgic_v3_restore_vmcr_aprs(struct vgic_v3_cpu_if *cpu_if)
 {
+	__vgic_v3_compat_mode_enable();
+
 	/*
 	 * If dealing with a GICv2 emulation on GICv3, VMCR_EL2.VFIQen
 	 * is dependent on ICC_SRE_EL1.SRE, and we have to perform the
@@ -1044,7 +1085,7 @@ static bool __vgic_v3_check_trap_forwarding(struct kvm_vcpu *vcpu,
 {
 	u64 ich_hcr;
 
-	if (!vcpu_has_nv(vcpu) || is_hyp_ctxt(vcpu))
+	if (!is_nested_ctxt(vcpu))
 		return false;
 
 	ich_hcr = __vcpu_sys_reg(vcpu, ICH_HCR_EL2);
@@ -1052,11 +1093,11 @@ static bool __vgic_v3_check_trap_forwarding(struct kvm_vcpu *vcpu,
 	switch (sysreg) {
 	case SYS_ICC_IGRPEN0_EL1:
 		if (is_read &&
-		    (__vcpu_sys_reg(vcpu, HFGRTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+		    (__vcpu_sys_reg(vcpu, HFGRTR_EL2) & HFGRTR_EL2_ICC_IGRPENn_EL1))
 			return true;
 
 		if (!is_read &&
-		    (__vcpu_sys_reg(vcpu, HFGWTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+		    (__vcpu_sys_reg(vcpu, HFGWTR_EL2) & HFGWTR_EL2_ICC_IGRPENn_EL1))
 			return true;
 
 		fallthrough;
@@ -1073,11 +1114,11 @@ static bool __vgic_v3_check_trap_forwarding(struct kvm_vcpu *vcpu,
 
 	case SYS_ICC_IGRPEN1_EL1:
 		if (is_read &&
-		    (__vcpu_sys_reg(vcpu, HFGRTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+		    (__vcpu_sys_reg(vcpu, HFGRTR_EL2) & HFGRTR_EL2_ICC_IGRPENn_EL1))
 			return true;
 
 		if (!is_read &&
-		    (__vcpu_sys_reg(vcpu, HFGWTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+		    (__vcpu_sys_reg(vcpu, HFGWTR_EL2) & HFGWTR_EL2_ICC_IGRPENn_EL1))
 			return true;
 
 		fallthrough;

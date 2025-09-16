@@ -18,6 +18,7 @@ properties:
       - ti,tas5719
       - ti,tas5721
       - ti,tas5733
+      - ti,tas5753
 
   reg:
     maxItems: 1
@@ -98,6 +99,7 @@ allOf:
           contains:
             enum:
               - ti,tas5721
+              - ti,tas5753
     then:
       properties:
         HPVDD-supply: false

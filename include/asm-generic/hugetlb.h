@@ -5,11 +5,6 @@
 #include <linux/swap.h>
 #include <linux/swapops.h>
 
-static inline pte_t mk_huge_pte(struct page *page, pgprot_t pgprot)
-{
-	return mk_pte(page, pgprot);
-}
-
 static inline unsigned long huge_pte_write(pte_t pte)
 {
 	return pte_write(pte);
@@ -71,15 +66,6 @@ static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
 }
 #endif
 
-#ifndef __HAVE_ARCH_HUGETLB_FREE_PGD_RANGE
-static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
-		unsigned long addr, unsigned long end,
-		unsigned long floor, unsigned long ceiling)
-{
-	free_pgd_range(tlb, addr, end, floor, ceiling);
-}
-#endif
-
 #ifndef __HAVE_ARCH_HUGE_SET_HUGE_PTE_AT
 static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		pte_t *ptep, pte_t pte, unsigned long sz)
@@ -116,14 +102,6 @@ static inline int huge_pte_none(pte_t pte)
 static inline int huge_pte_none_mostly(pte_t pte)
 {
 	return huge_pte_none(pte) || is_pte_marker(pte);
-}
-#endif
-
-#ifndef __HAVE_ARCH_PREPARE_HUGEPAGE_RANGE
-static inline int prepare_hugepage_range(struct file *file,
-		unsigned long addr, unsigned long len)
-{
-	return 0;
 }
 #endif
 

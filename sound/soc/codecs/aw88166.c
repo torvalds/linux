@@ -11,6 +11,7 @@
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/minmax.h>
 #include <linux/regmap.h>
 #include <sound/soc.h>
 #include "aw88166.h"
@@ -909,11 +910,7 @@ static int aw_dev_dsp_update_container(struct aw_device *aw_dev,
 		goto error_operation;
 
 	for (i = 0; i < len; i += AW88166_MAX_RAM_WRITE_BYTE_SIZE) {
-		if ((len - i) < AW88166_MAX_RAM_WRITE_BYTE_SIZE)
-			tmp_len = len - i;
-		else
-			tmp_len = AW88166_MAX_RAM_WRITE_BYTE_SIZE;
-
+		tmp_len = min(len - i, AW88166_MAX_RAM_WRITE_BYTE_SIZE);
 		ret = regmap_raw_write(aw_dev->regmap, AW88166_DSPMDAT_REG,
 					&data[i], tmp_len);
 		if (ret)
@@ -1481,7 +1478,7 @@ static int aw88166_profile_info(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
 	struct aw88166 *aw88166 = snd_soc_component_get_drvdata(codec);
-	char *prof_name, *name;
+	char *prof_name;
 	int count, ret;
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -1498,17 +1495,15 @@ static int aw88166_profile_info(struct snd_kcontrol *kcontrol,
 	if (uinfo->value.enumerated.item >= count)
 		uinfo->value.enumerated.item = count - 1;
 
-	name = uinfo->value.enumerated.name;
 	count = uinfo->value.enumerated.item;
 
 	ret = aw88166_dev_get_prof_name(aw88166->aw_pa, count, &prof_name);
 	if (ret) {
-		strscpy(uinfo->value.enumerated.name, "null",
-						strlen("null") + 1);
+		strscpy(uinfo->value.enumerated.name, "null");
 		return 0;
 	}
 
-	strscpy(name, prof_name, sizeof(uinfo->value.enumerated.name));
+	strscpy(uinfo->value.enumerated.name, prof_name);
 
 	return 0;
 }

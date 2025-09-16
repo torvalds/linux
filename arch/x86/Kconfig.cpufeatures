@@ -132,10 +132,6 @@ config X86_DISABLED_FEATURE_OSPKE
 	def_bool y
 	depends on !X86_INTEL_MEMORY_PROTECTION_KEYS
 
-config X86_DISABLED_FEATURE_LA57
-	def_bool y
-	depends on !X86_5LEVEL
-
 config X86_DISABLED_FEATURE_PTI
 	def_bool y
 	depends on !MITIGATION_PAGE_TABLE_ISOLATION

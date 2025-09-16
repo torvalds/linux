@@ -34,7 +34,7 @@ static int thunderx_spi_probe(struct pci_dev *pdev,
 	if (ret)
 		goto error;
 
-	ret = pci_request_regions(pdev, DRV_NAME);
+	ret = pcim_request_all_regions(pdev, DRV_NAME);
 	if (ret)
 		goto error;
 
@@ -78,7 +78,6 @@ static int thunderx_spi_probe(struct pci_dev *pdev,
 	return 0;
 
 error:
-	pci_release_regions(pdev);
 	spi_controller_put(host);
 	return ret;
 }
@@ -92,7 +91,6 @@ static void thunderx_spi_remove(struct pci_dev *pdev)
 	if (!p)
 		return;
 
-	pci_release_regions(pdev);
 	/* Put everything in a known state. */
 	writeq(0, p->register_base + OCTEON_SPI_CFG(p));
 }

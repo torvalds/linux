@@ -795,9 +795,8 @@ void mpi3mr_release_diag_bufs(struct mpi3mr_ioc *mrioc, u8 skip_rel_action)
  *
  * @hdb: HDB pointer
  * @type: Trigger type
- * @data: Trigger data
- * @force: Trigger overwrite flag
  * @trigger_data: Pointer to trigger data information
+ * @force: Trigger overwrite flag
  *
  * Updates trigger type and trigger data based on parameter
  * passed to this function
@@ -822,9 +821,8 @@ void mpi3mr_set_trigger_data_in_hdb(struct diag_buffer_desc *hdb,
  *
  * @mrioc: Adapter instance reference
  * @type: Trigger type
- * @data: Trigger data
- * @force: Trigger overwrite flag
  * @trigger_data: Pointer to trigger data information
+ * @force: Trigger overwrite flag
  *
  * Updates trigger type and trigger data based on parameter
  * passed to this function
@@ -3388,6 +3386,8 @@ static DEVICE_ATTR_RO(persistent_id);
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' sdev attribute, only works with SATA devices
+ *
+ * Returns: the number of characters written to @buf
  */
 static ssize_t
 sas_ncq_prio_supported_show(struct device *dev,
@@ -3406,6 +3406,8 @@ static DEVICE_ATTR_RO(sas_ncq_prio_supported);
  * @buf: the buffer returned
  *
  * A sysfs 'read/write' sdev attribute, only works with SATA devices
+ *
+ * Returns: the number of characters written to @buf
  */
 static ssize_t
 sas_ncq_prio_enable_show(struct device *dev,

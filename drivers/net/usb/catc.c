@@ -602,7 +602,7 @@ static void catc_stats_done(struct catc *catc, struct ctrl_queue *q)
 
 static void catc_stats_timer(struct timer_list *t)
 {
-	struct catc *catc = from_timer(catc, t, timer);
+	struct catc *catc = timer_container_of(catc, t, timer);
 	int i;
 
 	for (i = 0; i < 8; i++)

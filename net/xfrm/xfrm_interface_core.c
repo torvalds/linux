@@ -875,7 +875,7 @@ static int xfrmi_changelink(struct net_device *dev, struct nlattr *tb[],
 		return -EINVAL;
 	}
 
-	if (p.collect_md) {
+	if (p.collect_md || xi->p.collect_md) {
 		NL_SET_ERR_MSG(extack, "collect_md can't be changed");
 		return -EINVAL;
 	}
@@ -886,11 +886,6 @@ static int xfrmi_changelink(struct net_device *dev, struct nlattr *tb[],
 	} else {
 		if (xi->dev != dev)
 			return -EEXIST;
-		if (xi->p.collect_md) {
-			NL_SET_ERR_MSG(extack,
-				       "device can't be changed to collect_md");
-			return -EINVAL;
-		}
 	}
 
 	return xfrmi_update(xi, &p);
@@ -952,32 +947,28 @@ static struct rtnl_link_ops xfrmi_link_ops __read_mostly = {
 	.get_link_net	= xfrmi_get_link_net,
 };
 
-static void __net_exit xfrmi_exit_batch_rtnl(struct list_head *net_exit_list,
-					     struct list_head *dev_to_kill)
+static void __net_exit xfrmi_exit_rtnl(struct net *net,
+				       struct list_head *dev_to_kill)
 {
-	struct net *net;
+	struct xfrmi_net *xfrmn = net_generic(net, xfrmi_net_id);
+	struct xfrm_if __rcu **xip;
+	struct xfrm_if *xi;
+	int i;
 
-	ASSERT_RTNL();
-	list_for_each_entry(net, net_exit_list, exit_list) {
-		struct xfrmi_net *xfrmn = net_generic(net, xfrmi_net_id);
-		struct xfrm_if __rcu **xip;
-		struct xfrm_if *xi;
-		int i;
-
-		for (i = 0; i < XFRMI_HASH_SIZE; i++) {
-			for (xip = &xfrmn->xfrmi[i];
-			     (xi = rtnl_dereference(*xip)) != NULL;
-			     xip = &xi->next)
-				unregister_netdevice_queue(xi->dev, dev_to_kill);
-		}
-		xi = rtnl_dereference(xfrmn->collect_md_xfrmi);
-		if (xi)
+	for (i = 0; i < XFRMI_HASH_SIZE; i++) {
+		for (xip = &xfrmn->xfrmi[i];
+		     (xi = rtnl_net_dereference(net, *xip)) != NULL;
+		     xip = &xi->next)
 			unregister_netdevice_queue(xi->dev, dev_to_kill);
 	}
+
+	xi = rtnl_net_dereference(net, xfrmn->collect_md_xfrmi);
+	if (xi)
+		unregister_netdevice_queue(xi->dev, dev_to_kill);
 }
 
 static struct pernet_operations xfrmi_net_ops = {
-	.exit_batch_rtnl = xfrmi_exit_batch_rtnl,
+	.exit_rtnl = xfrmi_exit_rtnl,
 	.id   = &xfrmi_net_id,
 	.size = sizeof(struct xfrmi_net),
 };

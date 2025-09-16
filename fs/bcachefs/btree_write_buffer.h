@@ -89,6 +89,12 @@ static inline int bch2_journal_key_to_wb(struct bch_fs *c,
 			     struct journal_keys_to_wb *dst,
 			     enum btree_id btree, struct bkey_i *k)
 {
+	if (unlikely(!btree_type_uses_write_buffer(btree))) {
+		int ret = bch2_btree_write_buffer_insert_err(c, btree, k);
+		dump_stack();
+		return ret;
+	}
+
 	EBUG_ON(!dst->seq);
 
 	return k->k.type == KEY_TYPE_accounting
@@ -101,6 +107,7 @@ int bch2_journal_keys_to_write_buffer_end(struct bch_fs *, struct journal_keys_t
 
 int bch2_btree_write_buffer_resize(struct bch_fs *, size_t);
 void bch2_fs_btree_write_buffer_exit(struct bch_fs *);
+void bch2_fs_btree_write_buffer_init_early(struct bch_fs *);
 int bch2_fs_btree_write_buffer_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_BTREE_WRITE_BUFFER_H */

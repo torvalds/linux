@@ -6,12 +6,13 @@
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 #include "i915_drv.h"
-#include "intel_atomic_plane.h"
 #include "intel_crtc.h"
 #include "intel_display.h"
+#include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_frontbuffer.h"
+#include "intel_plane.h"
 #include "intel_plane_initial.h"
 
 void intel_plane_initial_vblank_wait(struct intel_crtc *crtc)
@@ -288,7 +289,8 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	mode_cmd.flags = DRM_MODE_FB_MODIFIERS;
 
 	if (intel_framebuffer_init(to_intel_framebuffer(fb),
-				   intel_bo_to_drm_bo(vma->obj), &mode_cmd)) {
+				   intel_bo_to_drm_bo(vma->obj),
+				   fb->format, &mode_cmd)) {
 		drm_dbg_kms(display->drm, "intel fb init failed\n");
 		goto err_vma;
 	}
@@ -357,6 +359,8 @@ valid_fb:
 	if (intel_plane_uses_fence(plane_state) &&
 	    i915_vma_pin_fence(vma) == 0 && vma->fence)
 		plane_state->flags |= PLANE_HAS_FENCE;
+
+	plane_state->surf = i915_ggtt_offset(plane_state->ggtt_vma);
 
 	plane_state->uapi.src_x = 0;
 	plane_state->uapi.src_y = 0;

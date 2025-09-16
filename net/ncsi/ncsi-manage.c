@@ -88,7 +88,7 @@ report:
 
 static void ncsi_channel_monitor(struct timer_list *t)
 {
-	struct ncsi_channel *nc = from_timer(nc, t, monitor.timer);
+	struct ncsi_channel *nc = timer_container_of(nc, t, monitor.timer);
 	struct ncsi_package *np = nc->package;
 	struct ncsi_dev_priv *ndp = np->ndp;
 	struct ncsi_channel_mode *ncm;
@@ -430,7 +430,7 @@ struct ncsi_dev *ncsi_find_dev(struct net_device *dev)
 
 static void ncsi_request_timeout(struct timer_list *t)
 {
-	struct ncsi_request *nr = from_timer(nr, t, timer);
+	struct ncsi_request *nr = timer_container_of(nr, t, timer);
 	struct ncsi_dev_priv *ndp = nr->ndp;
 	struct ncsi_cmd_pkt *cmd;
 	struct ncsi_package *np;

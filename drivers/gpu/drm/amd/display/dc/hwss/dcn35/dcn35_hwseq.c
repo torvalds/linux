@@ -113,6 +113,14 @@ static void enable_memory_low_power(struct dc *dc)
 }
 #endif
 
+static void print_pg_status(struct dc *dc, const char *debug_func, const char *debug_log)
+{
+	if (dc->debug.enable_pg_cntl_debug_logs && dc->res_pool->pg_cntl) {
+		if (dc->res_pool->pg_cntl->funcs->print_pg_status)
+			dc->res_pool->pg_cntl->funcs->print_pg_status(dc->res_pool->pg_cntl, debug_func, debug_log);
+	}
+}
+
 void dcn35_set_dmu_fgcg(struct dce_hwseq *hws, bool enable)
 {
 	REG_UPDATE_3(DMU_CLK_CNTL,
@@ -136,6 +144,8 @@ void dcn35_init_hw(struct dc *dc)
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 	uint32_t user_level = MAX_BACKLIGHT_LEVEL;
 	int i;
+
+	print_pg_status(dc, __func__, ": start");
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
@@ -200,10 +210,7 @@ void dcn35_init_hw(struct dc *dc)
 
 	/* we want to turn off all dp displays before doing detection */
 	dc->link_srv->blank_all_dp_displays(dc);
-/*
-	if (hws->funcs.enable_power_gating_plane)
-		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
-*/
+
 	if (res_pool->hubbub && res_pool->hubbub->funcs->dchubbub_init)
 		res_pool->hubbub->funcs->dchubbub_init(dc->res_pool->hubbub);
 	/* If taking control over from VBIOS, we may want to optimize our first
@@ -236,6 +243,8 @@ void dcn35_init_hw(struct dc *dc)
 		}
 
 		hws->funcs.init_pipes(dc, dc->current_state);
+		print_pg_status(dc, __func__, ": after init_pipes");
+
 		if (dc->res_pool->hubbub->funcs->allow_self_refresh_control &&
 			!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter)
 			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
@@ -312,6 +321,7 @@ void dcn35_init_hw(struct dc *dc)
 		if (dc->res_pool->pg_cntl->funcs->init_pg_status)
 			dc->res_pool->pg_cntl->funcs->init_pg_status(dc->res_pool->pg_cntl);
 	}
+	print_pg_status(dc, __func__, ": after init_pg_status");
 }
 
 static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
@@ -498,97 +508,6 @@ void dcn35_physymclk_root_clock_control(struct dce_hwseq *hws, unsigned int phy_
 		hws->ctx->dc->res_pool->dccg->funcs->set_physymclk_root_clock_gating(
 			hws->ctx->dc->res_pool->dccg, phy_inst, clock_on);
 	}
-}
-
-void dcn35_dsc_pg_control(
-		struct dce_hwseq *hws,
-		unsigned int dsc_inst,
-		bool power_on)
-{
-	uint32_t power_gate = power_on ? 0 : 1;
-	uint32_t pwr_status = power_on ? 0 : 2;
-	uint32_t org_ip_request_cntl = 0;
-
-	if (hws->ctx->dc->debug.disable_dsc_power_gate)
-		return;
-	if (hws->ctx->dc->debug.ignore_pg)
-		return;
-	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
-	if (org_ip_request_cntl == 0)
-		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
-
-	switch (dsc_inst) {
-	case 0: /* DSC0 */
-		REG_UPDATE(DOMAIN16_PG_CONFIG,
-				DOMAIN_POWER_GATE, power_gate);
-
-		REG_WAIT(DOMAIN16_PG_STATUS,
-				DOMAIN_PGFSM_PWR_STATUS, pwr_status,
-				1, 1000);
-		break;
-	case 1: /* DSC1 */
-		REG_UPDATE(DOMAIN17_PG_CONFIG,
-				DOMAIN_POWER_GATE, power_gate);
-
-		REG_WAIT(DOMAIN17_PG_STATUS,
-				DOMAIN_PGFSM_PWR_STATUS, pwr_status,
-				1, 1000);
-		break;
-	case 2: /* DSC2 */
-		REG_UPDATE(DOMAIN18_PG_CONFIG,
-				DOMAIN_POWER_GATE, power_gate);
-
-		REG_WAIT(DOMAIN18_PG_STATUS,
-				DOMAIN_PGFSM_PWR_STATUS, pwr_status,
-				1, 1000);
-		break;
-	case 3: /* DSC3 */
-		REG_UPDATE(DOMAIN19_PG_CONFIG,
-				DOMAIN_POWER_GATE, power_gate);
-
-		REG_WAIT(DOMAIN19_PG_STATUS,
-				DOMAIN_PGFSM_PWR_STATUS, pwr_status,
-				1, 1000);
-		break;
-	default:
-		BREAK_TO_DEBUGGER();
-		break;
-	}
-
-	if (org_ip_request_cntl == 0)
-		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
-}
-
-void dcn35_enable_power_gating_plane(struct dce_hwseq *hws, bool enable)
-{
-	bool force_on = true; /* disable power gating */
-	uint32_t org_ip_request_cntl = 0;
-
-	if (hws->ctx->dc->debug.disable_hubp_power_gate)
-		return;
-	if (hws->ctx->dc->debug.ignore_pg)
-		return;
-	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
-	if (org_ip_request_cntl == 0)
-		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
-	/* DCHUBP0/1/2/3/4/5 */
-	REG_UPDATE(DOMAIN0_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
-	REG_UPDATE(DOMAIN2_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
-	/* DPP0/1/2/3/4/5 */
-	REG_UPDATE(DOMAIN1_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
-	REG_UPDATE(DOMAIN3_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
-
-	force_on = true; /* disable power gating */
-	if (enable && !hws->ctx->dc->debug.disable_dsc_power_gate)
-		force_on = false;
-
-	/* DCS0/1/2/3/4 */
-	REG_UPDATE(DOMAIN16_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
-	REG_UPDATE(DOMAIN17_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
-	REG_UPDATE(DOMAIN18_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
-	REG_UPDATE(DOMAIN19_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
-
-
 }
 
 /* In headless boot cases, DIG may be turned
@@ -1047,6 +966,15 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 			if (dc->caps.sequential_ono) {
 				update_state->pg_pipe_res_update[PG_HUBP][pipe_ctx->stream_res.dsc->inst] = false;
 				update_state->pg_pipe_res_update[PG_DPP][pipe_ctx->stream_res.dsc->inst] = false;
+
+				/* All HUBP/DPP instances must be powered if the DSC inst != HUBP inst */
+				if (!pipe_ctx->top_pipe && pipe_ctx->plane_res.hubp &&
+				    pipe_ctx->plane_res.hubp->inst != pipe_ctx->stream_res.dsc->inst) {
+					for (j = 0; j < dc->res_pool->pipe_count; ++j) {
+						update_state->pg_pipe_res_update[PG_HUBP][j] = false;
+						update_state->pg_pipe_res_update[PG_DPP][j] = false;
+					}
+				}
 			}
 		}
 
@@ -1193,6 +1121,25 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 		update_state->pg_pipe_res_update[PG_HDMISTREAM][0] = true;
 
 	if (dc->caps.sequential_ono) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
+
+			if (new_pipe->stream_res.dsc && !new_pipe->top_pipe &&
+			    update_state->pg_pipe_res_update[PG_DSC][new_pipe->stream_res.dsc->inst]) {
+				update_state->pg_pipe_res_update[PG_HUBP][new_pipe->stream_res.dsc->inst] = true;
+				update_state->pg_pipe_res_update[PG_DPP][new_pipe->stream_res.dsc->inst] = true;
+
+				/* All HUBP/DPP instances must be powered if the DSC inst != HUBP inst */
+				if (new_pipe->plane_res.hubp &&
+				    new_pipe->plane_res.hubp->inst != new_pipe->stream_res.dsc->inst) {
+					for (j = 0; j < dc->res_pool->pipe_count; ++j) {
+						update_state->pg_pipe_res_update[PG_HUBP][j] = true;
+						update_state->pg_pipe_res_update[PG_DPP][j] = true;
+					}
+				}
+			}
+		}
+
 		for (i = dc->res_pool->pipe_count - 1; i >= 0; i--) {
 			if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
 			    update_state->pg_pipe_res_update[PG_DPP][i]) {
@@ -1425,6 +1372,8 @@ void dcn35_prepare_bandwidth(
 	}
 
 	dcn20_prepare_bandwidth(dc, context);
+
+	print_pg_status(dc, __func__, ": after rcg and power up");
 }
 
 void dcn35_optimize_bandwidth(
@@ -1432,6 +1381,8 @@ void dcn35_optimize_bandwidth(
 		struct dc_state *context)
 {
 	struct pg_block_update pg_update_state;
+
+	print_pg_status(dc, __func__, ": before rcg and power up");
 
 	dcn20_optimize_bandwidth(dc, context);
 
@@ -1444,6 +1395,8 @@ void dcn35_optimize_bandwidth(
 		if (dc->hwss.root_clock_control)
 			dc->hwss.root_clock_control(dc, &pg_update_state, false);
 	}
+
+	print_pg_status(dc, __func__, ": after rcg and power up");
 }
 
 void dcn35_set_drr(struct pipe_ctx **pipe_ctx,

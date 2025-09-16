@@ -33,8 +33,4 @@ void atomisp_stop_streaming(struct vb2_queue *vq);
 
 extern const struct v4l2_ioctl_ops atomisp_ioctl_ops;
 
-/* compat_ioctl for 32bit userland app and 64bit kernel */
-long atomisp_compat_ioctl32(struct file *file,
-			    unsigned int cmd, unsigned long arg);
-
 #endif /* __ATOMISP_IOCTL_H__ */

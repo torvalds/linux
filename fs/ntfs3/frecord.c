@@ -3003,8 +3003,7 @@ int ni_add_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
  * ni_rename - Remove one name and insert new name.
  */
 int ni_rename(struct ntfs_inode *dir_ni, struct ntfs_inode *new_dir_ni,
-	      struct ntfs_inode *ni, struct NTFS_DE *de, struct NTFS_DE *new_de,
-	      bool *is_bad)
+	      struct ntfs_inode *ni, struct NTFS_DE *de, struct NTFS_DE *new_de)
 {
 	int err;
 	struct NTFS_DE *de2 = NULL;
@@ -3027,8 +3026,8 @@ int ni_rename(struct ntfs_inode *dir_ni, struct ntfs_inode *new_dir_ni,
 	err = ni_add_name(new_dir_ni, ni, new_de);
 	if (!err) {
 		err = ni_remove_name(dir_ni, ni, de, &de2, &undo);
-		if (err && ni_remove_name(new_dir_ni, ni, new_de, &de2, &undo))
-			*is_bad = true;
+		WARN_ON(err && ni_remove_name(new_dir_ni, ni, new_de, &de2,
+			&undo));
 	}
 
 	/*
@@ -3119,11 +3118,21 @@ static bool ni_update_parent(struct ntfs_inode *ni, struct NTFS_DUP_INFO *dup,
 		}
 	}
 
-	/* TODO: Fill reparse info. */
-	dup->reparse = 0;
-	dup->ea_size = 0;
+	dup->extend_data = 0;
 
-	if (ni->ni_flags & NI_FLAG_EA) {
+	if (dup->fa & FILE_ATTRIBUTE_REPARSE_POINT) {
+		attr = ni_find_attr(ni, NULL, NULL, ATTR_REPARSE, NULL, 0, NULL,
+				    NULL);
+
+		if (attr) {
+			const struct REPARSE_POINT *rp;
+
+			rp = resident_data_ex(attr, sizeof(struct REPARSE_POINT));
+			/* If ATTR_REPARSE exists 'rp' can't be NULL. */
+			if (rp)
+				dup->extend_data = rp->ReparseTag;
+		}
+	} else if (ni->ni_flags & NI_FLAG_EA) {
 		attr = ni_find_attr(ni, attr, &le, ATTR_EA_INFO, NULL, 0, NULL,
 				    NULL);
 		if (attr) {
@@ -3132,7 +3141,7 @@ static bool ni_update_parent(struct ntfs_inode *ni, struct NTFS_DUP_INFO *dup,
 			info = resident_data_ex(attr, sizeof(struct EA_INFO));
 			/* If ATTR_EA_INFO exists 'info' can't be NULL. */
 			if (info)
-				dup->ea_size = info->size_pack;
+				dup->extend_data = info->size;
 		}
 	}
 
@@ -3198,6 +3207,10 @@ int ni_write_inode(struct inode *inode, int sync, const char *hint)
 
 	if (is_bad_inode(inode) || sb_rdonly(sb))
 		return 0;
+
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ni)))
+		return -EINVAL;
 
 	if (unlikely(ntfs3_forced_shutdown(sb)))
 		return -EIO;
@@ -3326,78 +3339,4 @@ out:
 		mark_inode_dirty_sync(inode);
 
 	return 0;
-}
-
-/*
- * ni_set_compress
- *
- * Helper for 'ntfs_fileattr_set'.
- * Changes compression for empty files and directories only.
- */
-int ni_set_compress(struct inode *inode, bool compr)
-{
-	int err;
-	struct ntfs_inode *ni = ntfs_i(inode);
-	struct ATTR_STD_INFO *std;
-	const char *bad_inode;
-
-	if (is_compressed(ni) == !!compr)
-		return 0;
-
-	if (is_sparsed(ni)) {
-		/* sparse and compress not compatible. */
-		return -EOPNOTSUPP;
-	}
-
-	if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode)) {
-		/*Skip other inodes. (symlink,fifo,...) */
-		return -EOPNOTSUPP;
-	}
-
-	bad_inode = NULL;
-
-	ni_lock(ni);
-
-	std = ni_std(ni);
-	if (!std) {
-		bad_inode = "no std";
-		goto out;
-	}
-
-	if (S_ISREG(inode->i_mode)) {
-		err = attr_set_compress(ni, compr);
-		if (err) {
-			if (err == -ENOENT) {
-				/* Fix on the fly? */
-				/* Each file must contain data attribute. */
-				bad_inode = "no data attribute";
-			}
-			goto out;
-		}
-	}
-
-	ni->std_fa = std->fa;
-	if (compr) {
-		std->fa &= ~FILE_ATTRIBUTE_SPARSE_FILE;
-		std->fa |= FILE_ATTRIBUTE_COMPRESSED;
-	} else {
-		std->fa &= ~FILE_ATTRIBUTE_COMPRESSED;
-	}
-
-	if (ni->std_fa != std->fa) {
-		ni->std_fa = std->fa;
-		ni->mi.dirty = true;
-	}
-	/* update duplicate information and directory entries in ni_write_inode.*/
-	ni->ni_flags |= NI_FLAG_UPDATE_PARENT;
-	err = 0;
-
-out:
-	ni_unlock(ni);
-	if (bad_inode) {
-		ntfs_bad_inode(inode, bad_inode);
-		err = -EINVAL;
-	}
-
-	return err;
 }

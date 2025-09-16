@@ -40,6 +40,12 @@ Build the Linux kernel as usual::
 	make ARCH=openrisc CROSS_COMPILE="or1k-linux-" defconfig
 	make ARCH=openrisc CROSS_COMPILE="or1k-linux-"
 
+If you want to embed initramfs in the kernel, also pass ``CONFIG_INITRAMFS_SOURCE``. For example::
+
+	make ARCH=openrisc CROSS_COMPILE="or1k-linux-" CONFIG_INITRAMFS_SOURCE="path/to/rootfs path/to/devnodes"
+
+For more information on this, please check Documentation/filesystems/ramfs-rootfs-initramfs.rst.
+
 3) Running on FPGA (optional)
 
 The OpenRISC community typically uses FuseSoC to manage building and programming

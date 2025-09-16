@@ -144,7 +144,7 @@ enum xlog_iclog_state {
 
 #define XLOG_COVER_OPS		5
 
-typedef struct xlog_ticket {
+struct xlog_ticket {
 	struct list_head	t_queue;	/* reserve/write queue */
 	struct task_struct	*t_task;	/* task that owns this ticket */
 	xlog_tid_t		t_tid;		/* transaction identifier */
@@ -155,7 +155,7 @@ typedef struct xlog_ticket {
 	char			t_cnt;		/* current unit count */
 	uint8_t			t_flags;	/* properties of reservation */
 	int			t_iclog_hdrs;	/* iclog hdrs in t_curr_res */
-} xlog_ticket_t;
+};
 
 /*
  * - A log record header is 512 bytes.  There is plenty of room to grow the
@@ -696,6 +696,19 @@ xlog_kvmalloc(
 	} while (!p);
 
 	return p;
+}
+
+/*
+ * Given a count of iovecs and space for a log item, compute the space we need
+ * in the log to store that data plus the log headers.
+ */
+static inline unsigned int
+xlog_item_space(
+	unsigned int	niovecs,
+	unsigned int	nbytes)
+{
+	nbytes += niovecs * (sizeof(uint64_t) + sizeof(struct xlog_op_header));
+	return round_up(nbytes, sizeof(uint64_t));
 }
 
 #endif	/* __XFS_LOG_PRIV_H__ */

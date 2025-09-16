@@ -1,0 +1,72 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver lt3074
+====================
+
+Supported chips:
+
+  * Analog Devices LT3074
+
+    Prefix: 'lt3074'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/lt3074.html
+
+Authors: Cedric Encarnacion <cedricjustine.encarnacion@analog.com>
+
+
+Description
+-----------
+
+This driver supports hardware monitoring for Analog Devices LT3074 Linear
+Regulator with PMBus interface.
+
+The LT3074 is a low voltage, ultra-low noise and ultra-fast transient
+response linear regulator with PMBus serial interface. PMBus telemetry
+feature provides information regarding the output voltage and current,
+input voltage, bias voltage and die temperature.
+
+The driver is a client driver to the core PMBus driver. Please see
+Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate
+the devices explicitly. Please see Documentation/i2c/instantiating-devices.rst
+for details.
+
+Platform data support
+---------------------
+
+The driver supports standard PMBus driver platform data.
+
+Sysfs entries
+-------------
+
+======================= =======================================================
+in1_label		"vin"
+in1_input		Measured input voltage
+in1_max			Input overvoltage warning limit
+in1_max_alarm		Input overvoltage warning status
+in1_min			Input undervoltage warning limit
+in1_min_alarm		Input undervoltage warning status
+in2_label		"vmon"
+in2_input		Measured bias voltage
+in2_max			Bias overvoltage warning limit
+in2_min			Bias undervoltage warning limit
+in3_label		"vout1"
+in3_input		Measured output voltage
+in3_max			Output overvoltage warning limit
+in3_max_alarm		Output overvoltage warning status
+in3_min			Output undervoltage warning limit
+in3_min_alarm		Output undervoltage warning status
+curr1_label		"iout1"
+curr1_input		Measured output current.
+curr1_crit		Output overcurrent fault limit
+curr1_crit_alarm	Output overcurrent fault status
+temp1_input		Measured temperature
+temp1_max		Maximum temperature limit
+temp1_max_alarm		Overtemperature warning status
+======================= =======================================================

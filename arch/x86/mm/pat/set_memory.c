@@ -889,7 +889,7 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 	/* change init_mm */
 	set_pte_atomic(kpte, pte);
 #ifdef CONFIG_X86_32
-	if (!SHARED_KERNEL_PMD) {
+	{
 		struct page *page;
 
 		list_for_each_entry(page, &pgd_list, lru) {
@@ -1257,6 +1257,9 @@ static int collapse_pmd_page(pmd_t *pmd, unsigned long addr,
 	pgprot_t pgprot;
 	int i = 0;
 
+	if (!cpu_feature_enabled(X86_FEATURE_PSE))
+		return 0;
+
 	addr &= PMD_MASK;
 	pte = pte_offset_kernel(pmd, addr);
 	first = *pte;
@@ -1293,7 +1296,7 @@ static int collapse_pmd_page(pmd_t *pmd, unsigned long addr,
 	/* Queue the page table to be freed after TLB flush */
 	list_add(&page_ptdesc(pmd_page(old_pmd))->pt_list, pgtables);
 
-	if (IS_ENABLED(CONFIG_X86_32) && !SHARED_KERNEL_PMD) {
+	if (IS_ENABLED(CONFIG_X86_32)) {
 		struct page *page;
 
 		/* Update all PGD tables to use the same large page */
@@ -2146,6 +2149,19 @@ static inline int cpa_clear_pages_array(struct page **pages, int numpages,
 {
 	return change_page_attr_set_clr(NULL, numpages, __pgprot(0), mask, 0,
 		CPA_PAGES_ARRAY, pages);
+}
+
+/*
+ * __set_memory_prot is an internal helper for callers that have been passed
+ * a pgprot_t value from upper layers and a reservation has already been taken.
+ * If you want to set the pgprot to a specific page protocol, use the
+ * set_memory_xx() functions.
+ */
+int __set_memory_prot(unsigned long addr, int numpages, pgprot_t prot)
+{
+	return change_page_attr_set_clr(&addr, numpages, prot,
+					__pgprot(~pgprot_val(prot)), 0, 0,
+					NULL);
 }
 
 int _set_memory_uc(unsigned long addr, int numpages)

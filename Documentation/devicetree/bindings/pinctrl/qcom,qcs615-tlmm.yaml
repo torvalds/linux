@@ -110,7 +110,7 @@ examples:
               <0x03c00000 0x300000>;
         reg-names = "east", "west", "south";
         interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
-        gpio-ranges = <&tlmm 0 0 123>;
+        gpio-ranges = <&tlmm 0 0 124>;
         gpio-controller;
         #gpio-cells = <2>;
         interrupt-controller;

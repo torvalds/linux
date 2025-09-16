@@ -580,9 +580,7 @@ xrep_rtrmap_find_rmaps(
 	 */
 	xchk_trans_cancel(sc);
 	xchk_rtgroup_unlock(&sc->sr);
-	error = xchk_trans_alloc_empty(sc);
-	if (error)
-		return error;
+	xchk_trans_alloc_empty(sc);
 
 	while ((error = xchk_iscan_iter(&rr->iscan, &ip)) == 1) {
 		error = xrep_rtrmap_scan_inode(rr, ip);
@@ -846,7 +844,6 @@ xrep_rtrmapbt_live_update(
 	struct xfs_mount		*mp;
 	struct xfs_btree_cur		*mcur;
 	struct xfs_trans		*tp;
-	void				*txcookie;
 	int				error;
 
 	rr = container_of(nb, struct xrep_rtrmap, rhook.rmap_hook.nb);
@@ -857,9 +854,7 @@ xrep_rtrmapbt_live_update(
 
 	trace_xrep_rmap_live_update(rtg_group(rr->sc->sr.rtg), action, p);
 
-	error = xrep_trans_alloc_hook_dummy(mp, &txcookie, &tp);
-	if (error)
-		goto out_abort;
+	tp = xfs_trans_alloc_empty(mp);
 
 	mutex_lock(&rr->lock);
 	mcur = xfs_rtrmapbt_mem_cursor(rr->sc->sr.rtg, tp, &rr->rtrmap_btree);
@@ -873,14 +868,13 @@ xrep_rtrmapbt_live_update(
 	if (error)
 		goto out_cancel;
 
-	xrep_trans_cancel_hook_dummy(&txcookie, tp);
+	xfs_trans_cancel(tp);
 	mutex_unlock(&rr->lock);
 	return NOTIFY_DONE;
 
 out_cancel:
 	xfbtree_trans_cancel(&rr->rtrmap_btree, tp);
-	xrep_trans_cancel_hook_dummy(&txcookie, tp);
-out_abort:
+	xfs_trans_cancel(tp);
 	xchk_iscan_abort(&rr->iscan);
 	mutex_unlock(&rr->lock);
 out_unlock:

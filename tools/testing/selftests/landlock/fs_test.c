@@ -1832,6 +1832,46 @@ TEST_F_FORK(layout1, release_inodes)
 	ASSERT_EQ(ENOENT, test_open(dir_s3d3, O_RDONLY));
 }
 
+/*
+ * This test checks that a rule on a directory used as a mount point does not
+ * grant access to the mount covering it.  It is a generalization of the bind
+ * mount case in layout3_fs.hostfs.release_inodes that tests hidden mount points.
+ */
+TEST_F_FORK(layout1, covered_rule)
+{
+	const struct rule layer1[] = {
+		{
+			.path = dir_s3d2,
+			.access = LANDLOCK_ACCESS_FS_READ_DIR,
+		},
+		{},
+	};
+	int ruleset_fd;
+
+	/* Unmount to simplify FIXTURE_TEARDOWN. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, umount(dir_s3d2));
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	/* Creates a ruleset with the future hidden directory. */
+	ruleset_fd =
+		create_ruleset(_metadata, LANDLOCK_ACCESS_FS_READ_DIR, layer1);
+	ASSERT_LE(0, ruleset_fd);
+
+	/* Covers with a new mount point. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, mount_opt(&mnt_tmp, dir_s3d2));
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	ASSERT_EQ(0, test_open(dir_s3d2, O_RDONLY));
+
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/* Checks that access to the new mount point is denied. */
+	ASSERT_EQ(EACCES, test_open(dir_s3d2, O_RDONLY));
+}
+
 enum relative_access {
 	REL_OPEN,
 	REL_CHDIR,

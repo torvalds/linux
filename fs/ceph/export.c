@@ -33,12 +33,19 @@ struct ceph_nfs_snapfh {
 	u32 hash;
 } __attribute__ ((packed));
 
+#define BYTES_PER_U32		(sizeof(u32))
+#define CEPH_FH_BASIC_SIZE \
+	(sizeof(struct ceph_nfs_fh) / BYTES_PER_U32)
+#define CEPH_FH_WITH_PARENT_SIZE \
+	(sizeof(struct ceph_nfs_confh) / BYTES_PER_U32)
+#define CEPH_FH_SNAPPED_INODE_SIZE \
+	(sizeof(struct ceph_nfs_snapfh) / BYTES_PER_U32)
+
 static int ceph_encode_snapfh(struct inode *inode, u32 *rawfh, int *max_len,
 			      struct inode *parent_inode)
 {
 	struct ceph_client *cl = ceph_inode_to_client(inode);
-	static const int snap_handle_length =
-		sizeof(struct ceph_nfs_snapfh) >> 2;
+	static const int snap_handle_length = CEPH_FH_SNAPPED_INODE_SIZE;
 	struct ceph_nfs_snapfh *sfh = (void *)rawfh;
 	u64 snapid = ceph_snap(inode);
 	int ret;
@@ -88,10 +95,8 @@ static int ceph_encode_fh(struct inode *inode, u32 *rawfh, int *max_len,
 			  struct inode *parent_inode)
 {
 	struct ceph_client *cl = ceph_inode_to_client(inode);
-	static const int handle_length =
-		sizeof(struct ceph_nfs_fh) >> 2;
-	static const int connected_handle_length =
-		sizeof(struct ceph_nfs_confh) >> 2;
+	static const int handle_length = CEPH_FH_BASIC_SIZE;
+	static const int connected_handle_length = CEPH_FH_WITH_PARENT_SIZE;
 	int type;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
@@ -308,7 +313,7 @@ static struct dentry *ceph_fh_to_dentry(struct super_block *sb,
 	if (fh_type != FILEID_INO32_GEN  &&
 	    fh_type != FILEID_INO32_GEN_PARENT)
 		return NULL;
-	if (fh_len < sizeof(*fh) / 4)
+	if (fh_len < sizeof(*fh) / BYTES_PER_U32)
 		return NULL;
 
 	doutc(fsc->client, "%llx\n", fh->ino);
@@ -427,7 +432,7 @@ static struct dentry *ceph_fh_to_parent(struct super_block *sb,
 
 	if (fh_type != FILEID_INO32_GEN_PARENT)
 		return NULL;
-	if (fh_len < sizeof(*cfh) / 4)
+	if (fh_len < sizeof(*cfh) / BYTES_PER_U32)
 		return NULL;
 
 	doutc(fsc->client, "%llx\n", cfh->parent_ino);

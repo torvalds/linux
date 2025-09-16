@@ -1668,8 +1668,8 @@ static int avs_widget_load(struct snd_soc_component *comp, int index,
 
 	/* See parse_link_formatted_string() for dynamic naming when(s). */
 	if (avs_mach_singular_tdm(mach, ssp_port)) {
-		/* size is based on possible %d -> SSP:TDM, where SSP and TDM < 10 + '\0' */
-		size_t size = strlen(dw->name) + 2;
+		/* size is based on possible %d -> SSP:TDM, where SSP and TDM < 16 + '\0' */
+		size_t size = strlen(dw->name) + 3;
 		char *buf;
 
 		tdm_slot = avs_mach_ssp_tdm(mach, ssp_port);

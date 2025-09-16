@@ -3,7 +3,7 @@
  *
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
  * Copyright(C) 2016        Intel Deutschland GmbH
- * Copyright(c) 2018, 2023  Intel Corporation
+ * Copyright(c) 2018, 2023, 2025 Intel Corporation
  *****************************************************************************/
 
 #ifndef __IWLWIFI_DEVICE_TRACE
@@ -54,11 +54,11 @@ static inline size_t iwl_rx_trace_len(const struct iwl_trans *trans,
 	struct ieee80211_hdr *hdr = NULL;
 	size_t hdr_offset;
 
-	if (cmd->cmd != trans->rx_mpdu_cmd)
+	if (cmd->cmd != trans->conf.rx_mpdu_cmd)
 		return len;
 
 	hdr_offset = sizeof(struct iwl_cmd_header) +
-		     trans->rx_mpdu_cmd_hdr_size;
+		     trans->conf.rx_mpdu_cmd_hdr_size;
 
 	if (out_hdr_offset)
 		*out_hdr_offset = hdr_offset;
@@ -67,7 +67,8 @@ static inline size_t iwl_rx_trace_len(const struct iwl_trans *trans,
 	if (!ieee80211_is_data(hdr->frame_control))
 		return len;
 	/* maybe try to identify EAPOL frames? */
-	return sizeof(__le32) + sizeof(*cmd) + trans->rx_mpdu_cmd_hdr_size +
+	return sizeof(__le32) + sizeof(*cmd) +
+		trans->conf.rx_mpdu_cmd_hdr_size +
 		ieee80211_hdrlen(hdr->frame_control);
 }
 

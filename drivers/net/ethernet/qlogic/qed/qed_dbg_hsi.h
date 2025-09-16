@@ -1305,37 +1305,6 @@ enum dbg_status qed_print_mcp_trace_results(struct qed_hwfn *p_hwfn,
 					    char *results_buf);
 
 /**
- * qed_print_mcp_trace_results_cont(): Prints MCP Trace results, and
- * keeps the MCP trace meta data allocated, to support continuous MCP Trace
- * parsing. After the continuous parsing ends, mcp_trace_free_meta_data should
- * be called to free the meta data.
- *
- * @p_hwfn: HW device data.
- * @dump_buf: MVP trace dump buffer, starting from the header.
- * @results_buf: Buffer for printing the mcp trace results.
- *
- * Return: Error if the parsing fails, ok otherwise.
- */
-enum dbg_status qed_print_mcp_trace_results_cont(struct qed_hwfn *p_hwfn,
-						 u32 *dump_buf,
-						 char *results_buf);
-
-/**
- * qed_print_mcp_trace_line(): Prints MCP Trace results for a single line
- *
- * @p_hwfn: HW device data.
- * @dump_buf: MCP trace dump buffer, starting from the header.
- * @num_dumped_bytes: Number of bytes that were dumped.
- * @results_buf: Buffer for printing the mcp trace results.
- *
- * Return: Error if the parsing fails, ok otherwise.
- */
-enum dbg_status qed_print_mcp_trace_line(struct qed_hwfn *p_hwfn,
-					 u8 *dump_buf,
-					 u32 num_dumped_bytes,
-					 char *results_buf);
-
-/**
  * qed_mcp_trace_free_meta_data(): Frees the MCP Trace meta data.
  * Should be called after continuous MCP Trace parsing.
  *

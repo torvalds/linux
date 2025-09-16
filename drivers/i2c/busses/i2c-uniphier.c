@@ -327,22 +327,16 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 	if (of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed))
 		bus_speed = I2C_MAX_STANDARD_MODE_FREQ;
 
-	if (!bus_speed || bus_speed > I2C_MAX_FAST_MODE_FREQ) {
-		dev_err(dev, "invalid clock-frequency %d\n", bus_speed);
-		return -EINVAL;
-	}
+	if (!bus_speed || bus_speed > I2C_MAX_FAST_MODE_FREQ)
+		return dev_err_probe(dev, -EINVAL, "invalid clock-frequency %d\n", bus_speed);
 
 	priv->clk = devm_clk_get_enabled(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "failed to enable clock\n");
-		return PTR_ERR(priv->clk);
-	}
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(dev, PTR_ERR(priv->clk), "failed to enable clock\n");
 
 	clk_rate = clk_get_rate(priv->clk);
-	if (!clk_rate) {
-		dev_err(dev, "input clock rate should not be zero\n");
-		return -EINVAL;
-	}
+	if (!clk_rate)
+		return dev_err_probe(dev, -EINVAL, "input clock rate should not be zero\n");
 
 	priv->clk_cycle = clk_rate / bus_speed;
 	init_completion(&priv->comp);
@@ -359,10 +353,8 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, irq, uniphier_i2c_interrupt, 0, pdev->name,
 			       priv);
-	if (ret) {
-		dev_err(dev, "failed to request irq %d\n", irq);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to request irq %d\n", irq);
 
 	return i2c_add_adapter(&priv->adap);
 }

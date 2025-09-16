@@ -15,6 +15,7 @@
 #include "../kselftest.h"
 #include <include/vdso/time64.h>
 #include "vm_util.h"
+#include "thp_settings.h"
 
 #define KSM_SYSFS_PATH "/sys/kernel/mm/ksm/"
 #define KSM_FP(s) (KSM_SYSFS_PATH s)
@@ -58,40 +59,12 @@ int debug;
 
 static int ksm_write_sysfs(const char *file_path, unsigned long val)
 {
-	FILE *f = fopen(file_path, "w");
-
-	if (!f) {
-		fprintf(stderr, "f %s\n", file_path);
-		perror("fopen");
-		return 1;
-	}
-	if (fprintf(f, "%lu", val) < 0) {
-		perror("fprintf");
-		fclose(f);
-		return 1;
-	}
-	fclose(f);
-
-	return 0;
+	return write_sysfs(file_path, val);
 }
 
 static int ksm_read_sysfs(const char *file_path, unsigned long *val)
 {
-	FILE *f = fopen(file_path, "r");
-
-	if (!f) {
-		fprintf(stderr, "f %s\n", file_path);
-		perror("fopen");
-		return 1;
-	}
-	if (fscanf(f, "%lu", val) != 1) {
-		perror("fscanf");
-		fclose(f);
-		return 1;
-	}
-	fclose(f);
-
-	return 0;
+	return read_sysfs(file_path, val);
 }
 
 static void ksm_print_sysfs(void)
@@ -554,6 +527,11 @@ static int ksm_merge_hugepages_time(int merge_type, int mapping, int prot,
 	struct timespec start_time, end_time;
 	unsigned long scan_time_ns;
 	int pagemap_fd, n_normal_pages, n_huge_pages;
+
+	if (!thp_is_enabled()) {
+		printf("Transparent Hugepages not available\n");
+		return KSFT_SKIP;
+	}
 
 	map_size *= MB;
 	size_t len = map_size;

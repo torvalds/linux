@@ -233,6 +233,22 @@ struct ib_uverbs_ex_query_device {
 	__u32 reserved;
 };
 
+enum ib_uverbs_odp_general_cap_bits {
+	IB_UVERBS_ODP_SUPPORT          = 1 << 0,
+	IB_UVERBS_ODP_SUPPORT_IMPLICIT = 1 << 1,
+};
+
+enum ib_uverbs_odp_transport_cap_bits {
+	IB_UVERBS_ODP_SUPPORT_SEND     = 1 << 0,
+	IB_UVERBS_ODP_SUPPORT_RECV     = 1 << 1,
+	IB_UVERBS_ODP_SUPPORT_WRITE    = 1 << 2,
+	IB_UVERBS_ODP_SUPPORT_READ     = 1 << 3,
+	IB_UVERBS_ODP_SUPPORT_ATOMIC   = 1 << 4,
+	IB_UVERBS_ODP_SUPPORT_SRQ_RECV = 1 << 5,
+	IB_UVERBS_ODP_SUPPORT_FLUSH    = 1 << 6,
+	IB_UVERBS_ODP_SUPPORT_ATOMIC_WRITE     = 1 << 7,
+};
+
 struct ib_uverbs_odp_caps {
 	__aligned_u64 general_caps;
 	struct {

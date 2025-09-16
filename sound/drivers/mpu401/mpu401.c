@@ -63,8 +63,8 @@ static int snd_mpu401_create(struct device *devptr, int dev,
 				0, &card);
 	if (err < 0)
 		return err;
-	strcpy(card->driver, "MPU-401 UART");
-	strcpy(card->shortname, card->driver);
+	strscpy(card->driver, "MPU-401 UART");
+	strscpy(card->shortname, card->driver);
 	sprintf(card->longname, "%s at %#lx, ", card->shortname, port[dev]);
 	if (irq[dev] >= 0) {
 		sprintf(card->longname + strlen(card->longname), "irq %d", irq[dev]);

@@ -231,7 +231,7 @@ nomem:
 void sctp_generate_t3_rtx_event(struct timer_list *t)
 {
 	struct sctp_transport *transport =
-		from_timer(transport, t, T3_rtx_timer);
+		timer_container_of(transport, t, T3_rtx_timer);
 	struct sctp_association *asoc = transport->asoc;
 	struct sock *sk = asoc->base.sk;
 	struct net *net = sock_net(sk);
@@ -308,7 +308,8 @@ out_unlock:
 static void sctp_generate_t1_cookie_event(struct timer_list *t)
 {
 	struct sctp_association *asoc =
-		from_timer(asoc, t, timers[SCTP_EVENT_TIMEOUT_T1_COOKIE]);
+		timer_container_of(asoc, t,
+				   timers[SCTP_EVENT_TIMEOUT_T1_COOKIE]);
 
 	sctp_generate_timeout_event(asoc, SCTP_EVENT_TIMEOUT_T1_COOKIE);
 }
@@ -316,7 +317,8 @@ static void sctp_generate_t1_cookie_event(struct timer_list *t)
 static void sctp_generate_t1_init_event(struct timer_list *t)
 {
 	struct sctp_association *asoc =
-		from_timer(asoc, t, timers[SCTP_EVENT_TIMEOUT_T1_INIT]);
+		timer_container_of(asoc, t,
+				   timers[SCTP_EVENT_TIMEOUT_T1_INIT]);
 
 	sctp_generate_timeout_event(asoc, SCTP_EVENT_TIMEOUT_T1_INIT);
 }
@@ -324,7 +326,8 @@ static void sctp_generate_t1_init_event(struct timer_list *t)
 static void sctp_generate_t2_shutdown_event(struct timer_list *t)
 {
 	struct sctp_association *asoc =
-		from_timer(asoc, t, timers[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN]);
+		timer_container_of(asoc, t,
+				   timers[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN]);
 
 	sctp_generate_timeout_event(asoc, SCTP_EVENT_TIMEOUT_T2_SHUTDOWN);
 }
@@ -332,7 +335,7 @@ static void sctp_generate_t2_shutdown_event(struct timer_list *t)
 static void sctp_generate_t4_rto_event(struct timer_list *t)
 {
 	struct sctp_association *asoc =
-		from_timer(asoc, t, timers[SCTP_EVENT_TIMEOUT_T4_RTO]);
+		timer_container_of(asoc, t, timers[SCTP_EVENT_TIMEOUT_T4_RTO]);
 
 	sctp_generate_timeout_event(asoc, SCTP_EVENT_TIMEOUT_T4_RTO);
 }
@@ -340,8 +343,8 @@ static void sctp_generate_t4_rto_event(struct timer_list *t)
 static void sctp_generate_t5_shutdown_guard_event(struct timer_list *t)
 {
 	struct sctp_association *asoc =
-		from_timer(asoc, t,
-			   timers[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]);
+		timer_container_of(asoc, t,
+				   timers[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]);
 
 	sctp_generate_timeout_event(asoc,
 				    SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD);
@@ -351,7 +354,8 @@ static void sctp_generate_t5_shutdown_guard_event(struct timer_list *t)
 static void sctp_generate_autoclose_event(struct timer_list *t)
 {
 	struct sctp_association *asoc =
-		from_timer(asoc, t, timers[SCTP_EVENT_TIMEOUT_AUTOCLOSE]);
+		timer_container_of(asoc, t,
+				   timers[SCTP_EVENT_TIMEOUT_AUTOCLOSE]);
 
 	sctp_generate_timeout_event(asoc, SCTP_EVENT_TIMEOUT_AUTOCLOSE);
 }
@@ -361,7 +365,8 @@ static void sctp_generate_autoclose_event(struct timer_list *t)
  */
 void sctp_generate_heartbeat_event(struct timer_list *t)
 {
-	struct sctp_transport *transport = from_timer(transport, t, hb_timer);
+	struct sctp_transport *transport = timer_container_of(transport, t,
+							      hb_timer);
 	struct sctp_association *asoc = transport->asoc;
 	struct sock *sk = asoc->base.sk;
 	struct net *net = sock_net(sk);
@@ -407,7 +412,7 @@ out_unlock:
 void sctp_generate_proto_unreach_event(struct timer_list *t)
 {
 	struct sctp_transport *transport =
-		from_timer(transport, t, proto_unreach_timer);
+		timer_container_of(transport, t, proto_unreach_timer);
 	struct sctp_association *asoc = transport->asoc;
 	struct sock *sk = asoc->base.sk;
 	struct net *net = sock_net(sk);
@@ -442,7 +447,7 @@ out_unlock:
 void sctp_generate_reconf_event(struct timer_list *t)
 {
 	struct sctp_transport *transport =
-		from_timer(transport, t, reconf_timer);
+		timer_container_of(transport, t, reconf_timer);
 	struct sctp_association *asoc = transport->asoc;
 	struct sock *sk = asoc->base.sk;
 	struct net *net = sock_net(sk);
@@ -478,7 +483,8 @@ out_unlock:
 /* Handle the timeout of the probe timer. */
 void sctp_generate_probe_event(struct timer_list *t)
 {
-	struct sctp_transport *transport = from_timer(transport, t, probe_timer);
+	struct sctp_transport *transport = timer_container_of(transport, t,
+							      probe_timer);
 	struct sctp_association *asoc = transport->asoc;
 	struct sock *sk = asoc->base.sk;
 	struct net *net = sock_net(sk);
@@ -511,7 +517,7 @@ out_unlock:
 static void sctp_generate_sack_event(struct timer_list *t)
 {
 	struct sctp_association *asoc =
-		from_timer(asoc, t, timers[SCTP_EVENT_TIMEOUT_SACK]);
+		timer_container_of(asoc, t, timers[SCTP_EVENT_TIMEOUT_SACK]);
 
 	sctp_generate_timeout_event(asoc, SCTP_EVENT_TIMEOUT_SACK);
 }

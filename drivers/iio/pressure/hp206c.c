@@ -396,13 +396,13 @@ static int hp206c_probe(struct i2c_client *client)
 
 static const struct i2c_device_id hp206c_id[] = {
 	{"hp206c"},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hp206c_id);
 
 static const struct acpi_device_id hp206c_acpi_match[] = {
 	{"HOP206C", 0},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, hp206c_acpi_match);
 

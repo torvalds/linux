@@ -228,7 +228,7 @@ int rtw89_pci_sync_skb_for_device_and_validate_rx_info(struct rtw89_dev *rtwdev,
 						       struct sk_buff *skb)
 {
 	struct rtw89_pci_rx_info *rx_info = RTW89_PCI_RX_SKB_CB(skb);
-	int rx_tag_retry = 100;
+	int rx_tag_retry = 1000;
 	int ret;
 
 	do {
@@ -2638,6 +2638,10 @@ static void rtw89_pci_set_dbg(struct rtw89_dev *rtwdev)
 	rtw89_write32_set(rtwdev, R_AX_PCIE_DBG_CTRL,
 			  B_AX_ASFF_FULL_NO_STK | B_AX_EN_STUCK_DBG);
 
+	rtw89_write32_mask(rtwdev, R_AX_PCIE_EXP_CTRL,
+			   B_AX_EN_STUCK_DBG | B_AX_ASFF_FULL_NO_STK,
+			   B_AX_EN_STUCK_DBG);
+
 	if (rtwdev->chip->chip_id == RTL8852A)
 		rtw89_write32_set(rtwdev, R_AX_PCIE_EXP_CTRL,
 				  B_AX_EN_CHKDSC_NO_RX_STUCK);
@@ -3105,17 +3109,26 @@ static bool rtw89_pci_is_dac_compatible_bridge(struct rtw89_dev *rtwdev)
 	return false;
 }
 
-static void rtw89_pci_cfg_dac(struct rtw89_dev *rtwdev)
+static int rtw89_pci_cfg_dac(struct rtw89_dev *rtwdev, bool force)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
+	int ret;
+	u8 val;
 
-	if (!rtwpci->enable_dac)
-		return;
+	if (!rtwpci->enable_dac && !force)
+		return 0;
 
 	if (!rtw89_pci_chip_is_manual_dac(rtwdev))
-		return;
+		return 0;
 
-	rtw89_pci_config_byte_set(rtwdev, RTW89_PCIE_L1_CTRL, RTW89_PCIE_BIT_EN_64BITS);
+	/* Configure DAC only via PCI config API, not DBI interfaces */
+	ret = pci_read_config_byte(pdev, RTW89_PCIE_L1_CTRL, &val);
+	if (ret)
+		return ret;
+
+	val |= RTW89_PCIE_BIT_EN_64BITS;
+	return pci_write_config_byte(pdev, RTW89_PCIE_L1_CTRL, val);
 }
 
 static int rtw89_pci_setup_mapping(struct rtw89_dev *rtwdev,
@@ -3133,13 +3146,16 @@ static int rtw89_pci_setup_mapping(struct rtw89_dev *rtwdev,
 	}
 
 	if (!rtw89_pci_is_dac_compatible_bridge(rtwdev))
-		goto no_dac;
+		goto try_dac_done;
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
 	if (!ret) {
-		rtwpci->enable_dac = true;
-		rtw89_pci_cfg_dac(rtwdev);
-	} else {
+		ret = rtw89_pci_cfg_dac(rtwdev, true);
+		if (!ret) {
+			rtwpci->enable_dac = true;
+			goto try_dac_done;
+		}
+
 		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
 			rtw89_err(rtwdev,
@@ -3147,7 +3163,7 @@ static int rtw89_pci_setup_mapping(struct rtw89_dev *rtwdev,
 			goto err_release_regions;
 		}
 	}
-no_dac:
+try_dac_done:
 
 	resource_len = pci_resource_len(pdev, bar_id);
 	rtwpci->mmap = pci_iomap(pdev, bar_id, resource_len);
@@ -4302,7 +4318,7 @@ static void rtw89_pci_l2_hci_ldo(struct rtw89_dev *rtwdev)
 void rtw89_pci_basic_cfg(struct rtw89_dev *rtwdev, bool resume)
 {
 	if (resume)
-		rtw89_pci_cfg_dac(rtwdev);
+		rtw89_pci_cfg_dac(rtwdev, false);
 
 	rtw89_pci_disable_eq(rtwdev);
 	rtw89_pci_filter_out(rtwdev);
@@ -4340,6 +4356,43 @@ static int __maybe_unused rtw89_pci_resume(struct device *dev)
 
 SIMPLE_DEV_PM_OPS(rtw89_pm_ops, rtw89_pci_suspend, rtw89_pci_resume);
 EXPORT_SYMBOL(rtw89_pm_ops);
+
+static pci_ers_result_t rtw89_pci_io_error_detected(struct pci_dev *pdev,
+						    pci_channel_state_t state)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+
+	netif_device_detach(netdev);
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t rtw89_pci_io_slot_reset(struct pci_dev *pdev)
+{
+	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct rtw89_dev *rtwdev = hw->priv;
+
+	rtw89_ser_notify(rtwdev, MAC_AX_ERR_ASSERTION);
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static void rtw89_pci_io_resume(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+
+	/* ack any pending wake events, disable PME */
+	pci_enable_wake(pdev, PCI_D0, 0);
+
+	netif_device_attach(netdev);
+}
+
+const struct pci_error_handlers rtw89_pci_err_handler = {
+	.error_detected = rtw89_pci_io_error_detected,
+	.slot_reset = rtw89_pci_io_slot_reset,
+	.resume = rtw89_pci_io_resume,
+};
+EXPORT_SYMBOL(rtw89_pci_err_handler);
 
 const struct rtw89_pci_gen_def rtw89_pci_gen_ax = {
 	.isr_rdu = B_AX_RDU_INT,
@@ -4437,6 +4490,7 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rtwdev->pci_info = info->bus.pci;
 	rtwdev->hci.ops = &rtw89_pci_ops;
 	rtwdev->hci.type = RTW89_HCI_TYPE_PCIE;
+	rtwdev->hci.dle_type = RTW89_HCI_DLE_TYPE_PCIE;
 	rtwdev->hci.rpwm_addr = pci_info->rpwm_addr;
 	rtwdev->hci.cpwm_addr = pci_info->cpwm_addr;
 

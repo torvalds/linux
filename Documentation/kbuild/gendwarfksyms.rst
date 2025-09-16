@@ -2,8 +2,8 @@
 DWARF module versioning
 =======================
 
-1. Introduction
-===============
+Introduction
+============
 
 When CONFIG_MODVERSIONS is enabled, symbol versions for modules
 are typically calculated from preprocessed source code using the
@@ -14,8 +14,8 @@ selected, **gendwarfksyms** is used instead to calculate symbol versions
 from the DWARF debugging information, which contains the necessary
 details about the final module ABI.
 
-1.1. Usage
-==========
+Usage
+-----
 
 gendwarfksyms accepts a list of object files on the command line, and a
 list of symbol names (one per line) in standard input::
@@ -33,8 +33,8 @@ list of symbol names (one per line) in standard input::
           -h, --help           Print this message
 
 
-2. Type information availability
-================================
+Type information availability
+=============================
 
 While symbols are typically exported in the same translation unit (TU)
 where they're defined, it's also perfectly fine for a TU to export
@@ -56,8 +56,8 @@ type for calculating symbol versions even if the symbol is defined
 elsewhere. The name of the symbol pointer is expected to start with
 `__gendwarfksyms_ptr_`, followed by the name of the exported symbol.
 
-3. Symtypes output format
-=========================
+Symtypes output format
+======================
 
 Similarly to genksyms, gendwarfksyms supports writing a symtypes
 file for each processed object that contain types for exported
@@ -85,8 +85,8 @@ produces C-style type strings, gendwarfksyms uses the same simple parsed
 DWARF format produced by **--dump-dies**, but with type references
 instead of fully expanded strings.
 
-4. Maintaining a stable kABI
-============================
+Maintaining a stable kABI
+=========================
 
 Distribution maintainers often need the ability to make ABI compatible
 changes to kernel data structures due to LTS updates or backports. Using
@@ -104,8 +104,8 @@ for source code annotation. Note that as these features are only used to
 transform the inputs for symbol versioning, the user is responsible for
 ensuring that their changes actually won't break the ABI.
 
-4.1. kABI rules
-===============
+kABI rules
+----------
 
 kABI rules allow distributions to fine-tune certain parts
 of gendwarfksyms output and thus control how symbol
@@ -125,22 +125,25 @@ the rules. The fields are as follows:
   qualified name of the DWARF Debugging Information Entry (DIE).
 - `value`: Provides rule-specific data.
 
-The following helper macro, for example, can be used to specify rules
+The following helper macros, for example, can be used to specify rules
 in the source code::
 
-	#define __KABI_RULE(hint, target, value)                             \
-		static const char __PASTE(__gendwarfksyms_rule_,             \
+	#define ___KABI_RULE(hint, target, value)			    \
+		static const char __PASTE(__gendwarfksyms_rule_,	     \
 					  __COUNTER__)[] __used __aligned(1) \
 			__section(".discard.gendwarfksyms.kabi_rules") =     \
-				"1\0" #hint "\0" #target "\0" #value
+				"1\0" #hint "\0" target "\0" value
+
+	#define __KABI_RULE(hint, target, value) \
+		___KABI_RULE(hint, #target, #value)
 
 
 Currently, only the rules discussed in this section are supported, but
 the format is extensible enough to allow further rules to be added as
 need arises.
 
-4.1.1. Managing definition visibility
-=====================================
+Managing definition visibility
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A declaration can change into a full definition when additional includes
 are pulled into the translation unit. This changes the versions of any
@@ -168,8 +171,8 @@ Example usage::
 
 	KABI_DECLONLY(s);
 
-4.1.2. Adding enumerators
-=========================
+Adding enumerators
+~~~~~~~~~~~~~~~~~~
 
 For enums, all enumerators and their values are included in calculating
 symbol versions, which becomes a problem if we later need to add more
@@ -223,8 +226,89 @@ Example usage::
 	KABI_ENUMERATOR_IGNORE(e, C);
 	KABI_ENUMERATOR_VALUE(e, LAST, 2);
 
-4.3. Adding structure members
-=============================
+Managing structure size changes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A data structure can be partially opaque to modules if its allocation is
+handled by the core kernel, and modules only need to access some of its
+members. In this situation, it's possible to append new members to the
+structure without breaking the ABI, as long as the layout for the original
+members remains unchanged.
+
+To append new members, we can hide them from symbol versioning as
+described in section :ref:`Hiding members <hiding_members>`, but we can't
+hide the increase in structure size. The `byte_size` rule allows us to
+override the structure size used for symbol versioning.
+
+The rule fields are expected to be as follows:
+
+- `type`: "byte_size"
+- `target`: The fully qualified name of the target data structure
+  (as shown in **--dump-dies** output).
+- `value`: A positive decimal number indicating the structure size
+  in bytes.
+
+Using the `__KABI_RULE` macro, this rule can be defined as::
+
+        #define KABI_BYTE_SIZE(fqn, value) \
+                __KABI_RULE(byte_size, fqn, value)
+
+Example usage::
+
+	struct s {
+                /* Unchanged original members */
+		unsigned long a;
+                void *p;
+
+                /* Appended new members */
+                KABI_IGNORE(0, unsigned long n);
+	};
+
+	KABI_BYTE_SIZE(s, 16);
+
+Overriding type strings
+~~~~~~~~~~~~~~~~~~~~~~~
+
+In rare situations where distributions must make significant changes to
+otherwise opaque data structures that have inadvertently been included
+in the published ABI, keeping symbol versions stable using the more
+targeted kABI rules can become tedious. The `type_string` rule allows us
+to override the full type string for a type or a symbol, and even add
+types for versioning that no longer exist in the kernel.
+
+The rule fields are expected to be as follows:
+
+- `type`: "type_string"
+- `target`: The fully qualified name of the target data structure
+  (as shown in **--dump-dies** output) or symbol.
+- `value`: A valid type string (as shown in **--symtypes**) output)
+  to use instead of the real type.
+
+Using the `__KABI_RULE` macro, this rule can be defined as::
+
+	#define KABI_TYPE_STRING(type, str) \
+		___KABI_RULE("type_string", type, str)
+
+Example usage::
+
+	/* Override type for a structure */
+	KABI_TYPE_STRING("s#s",
+		"structure_type s { "
+			"member base_type int byte_size(4) "
+				"encoding(5) n "
+			"data_member_location(0) "
+		"} byte_size(8)");
+
+	/* Override type for a symbol */
+	KABI_TYPE_STRING("my_symbol", "variable s#s");
+
+The `type_string` rule should be used only as a last resort if maintaining
+a stable symbol versions cannot be reasonably achieved using other
+means. Overriding a type string increases the risk of actual ABI breakages
+going unnoticed as it hides all changes to the type.
+
+Adding structure members
+------------------------
 
 Perhaps the most common ABI compatible change is adding a member to a
 kernel data structure. When changes to a structure are anticipated,
@@ -237,8 +321,8 @@ natural method. This section describes gendwarfksyms support for using
 reserved space in data structures and hiding members that don't change
 the ABI when calculating symbol versions.
 
-4.3.1. Reserving space and replacing members
-============================================
+Reserving space and replacing members
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Space is typically reserved for later use by appending integer types, or
 arrays, to the end of the data structure, but any type can be used. Each
@@ -276,8 +360,10 @@ The examples include `KABI_(RESERVE|USE|REPLACE)*` macros that help
 simplify the process and also ensure the replacement member is correctly
 aligned and its size won't exceed the reserved space.
 
-4.3.2. Hiding members
-=====================
+.. _hiding_members:
+
+Hiding members
+~~~~~~~~~~~~~~
 
 Predicting which structures will require changes during the support
 timeframe isn't always possible, in which case one might have to resort
@@ -305,4 +391,5 @@ member to a union where one of the fields has a name starting with
                 unsigned long b;
         };
 
-With **--stable**, both versions produce the same symbol version.
+With **--stable**, both versions produce the same symbol version. The
+examples include a `KABI_IGNORE` macro to simplify the code.

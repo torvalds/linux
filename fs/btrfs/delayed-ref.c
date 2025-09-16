@@ -331,12 +331,9 @@ static struct btrfs_delayed_ref_node* tree_insert(struct rb_root_cached *root,
 		struct btrfs_delayed_ref_node *ins)
 {
 	struct rb_node *node = &ins->ref_node;
-	struct rb_node *exist;
+	struct rb_node *exist = rb_find_add_cached(node, root, cmp_refs_node);
 
-	exist = rb_find_add_cached(node, root, cmp_refs_node);
-	if (exist)
-		return rb_entry(exist, struct btrfs_delayed_ref_node, ref_node);
-	return NULL;
+	return rb_entry_safe(exist, struct btrfs_delayed_ref_node, ref_node);
 }
 
 static struct btrfs_delayed_ref_head *find_first_ref_head(
@@ -931,7 +928,7 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 	if (action == BTRFS_ADD_DELAYED_EXTENT)
 		action = BTRFS_ADD_DELAYED_REF;
 
-	if (is_fstree(generic_ref->ref_root))
+	if (btrfs_is_fstree(generic_ref->ref_root))
 		seq = atomic64_read(&fs_info->tree_mod_seq);
 
 	refcount_set(&ref->refs, 1);
@@ -961,8 +958,8 @@ void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 mod_root,
 #endif
 	generic_ref->tree_ref.level = level;
 	generic_ref->type = BTRFS_REF_METADATA;
-	if (skip_qgroup || !(is_fstree(generic_ref->ref_root) &&
-			     (!mod_root || is_fstree(mod_root))))
+	if (skip_qgroup || !(btrfs_is_fstree(generic_ref->ref_root) &&
+			     (!mod_root || btrfs_is_fstree(mod_root))))
 		generic_ref->skip_qgroup = true;
 	else
 		generic_ref->skip_qgroup = false;
@@ -979,8 +976,8 @@ void btrfs_init_data_ref(struct btrfs_ref *generic_ref, u64 ino, u64 offset,
 	generic_ref->data_ref.objectid = ino;
 	generic_ref->data_ref.offset = offset;
 	generic_ref->type = BTRFS_REF_DATA;
-	if (skip_qgroup || !(is_fstree(generic_ref->ref_root) &&
-			     (!mod_root || is_fstree(mod_root))))
+	if (skip_qgroup || !(btrfs_is_fstree(generic_ref->ref_root) &&
+			     (!mod_root || btrfs_is_fstree(mod_root))))
 		generic_ref->skip_qgroup = true;
 	else
 		generic_ref->skip_qgroup = false;
@@ -1339,7 +1336,7 @@ int __init btrfs_delayed_ref_init(void)
 {
 	btrfs_delayed_ref_head_cachep = KMEM_CACHE(btrfs_delayed_ref_head, 0);
 	if (!btrfs_delayed_ref_head_cachep)
-		goto fail;
+		return -ENOMEM;
 
 	btrfs_delayed_ref_node_cachep = KMEM_CACHE(btrfs_delayed_ref_node, 0);
 	if (!btrfs_delayed_ref_node_cachep)

@@ -11,6 +11,7 @@
     {
         "BriefDescription": "Counts the total number of branch instructions retired for all branch types.",
         "Counter": "0,1,2,3,4,5,6,7",
+        "Errata": "SRF6, SRF7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
         "PublicDescription": "Counts the total number of instructions in which the instruction pointer (IP) of the processor is resteered due to a branch instruction and the branch instruction successfully retires.  All branch type instructions are accounted for.",
@@ -19,6 +20,7 @@
     {
         "BriefDescription": "Counts the number of retired JCC (Jump on Conditional Code) branch instructions retired, includes both taken and not taken branches.",
         "Counter": "0,1,2,3,4,5,6,7",
+        "Errata": "SRF7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.COND",
         "SampleAfterValue": "200003",
@@ -35,6 +37,7 @@
     {
         "BriefDescription": "Counts the number of far branch instructions retired, includes far jump, far call and return, and interrupt call and return.",
         "Counter": "0,1,2,3,4,5,6,7",
+        "Errata": "SRF7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.FAR_BRANCH",
         "SampleAfterValue": "200003",
@@ -43,6 +46,7 @@
     {
         "BriefDescription": "Counts the number of near indirect JMP and near indirect CALL branch instructions retired.",
         "Counter": "0,1,2,3,4,5,6,7",
+        "Errata": "SRF7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.INDIRECT",
         "SampleAfterValue": "200003",
@@ -51,6 +55,7 @@
     {
         "BriefDescription": "Counts the number of near indirect CALL branch instructions retired.",
         "Counter": "0,1,2,3,4,5,6,7",
+        "Errata": "SRF7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.INDIRECT_CALL",
         "SampleAfterValue": "200003",
@@ -68,6 +73,7 @@
         "BriefDescription": "This event is deprecated. Refer to new event BR_INST_RETIRED.INDIRECT_CALL",
         "Counter": "0,1,2,3,4,5,6,7",
         "Deprecated": "1",
+        "Errata": "SRF7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.IND_CALL",
         "SampleAfterValue": "200003",
@@ -76,6 +82,7 @@
     {
         "BriefDescription": "Counts the number of near CALL branch instructions retired.",
         "Counter": "0,1,2,3,4,5,6,7",
+        "Errata": "SRF6, SRF7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.NEAR_CALL",
         "SampleAfterValue": "200003",
@@ -92,6 +99,7 @@
     {
         "BriefDescription": "Counts the number of near taken branch instructions retired.",
         "Counter": "0,1,2,3,4,5,6,7",
+        "Errata": "SRF7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.NEAR_TAKEN",
         "SampleAfterValue": "200003",
@@ -225,6 +233,7 @@
         "BriefDescription": "Fixed Counter: Counts the number of instructions retired",
         "Counter": "Fixed counter 0",
         "EventName": "INST_RETIRED.ANY",
+        "PublicDescription": "Fixed Counter: Counts the number of instructions retired Available PDIST counters: 32",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -299,6 +308,14 @@
         "EventName": "MISC_RETIRED.LBR_INSERTS",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of issue slots in a UMWAIT or TPAUSE instruction where no uop issues due to the instruction putting the CPU into the C0.1 activity state.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x75",
+        "EventName": "SERIALIZATION.C01_MS_SCB",
+        "SampleAfterValue": "200003",
+        "UMask": "0x4"
     },
     {
         "BriefDescription": "Counts the number of issue slots that were not consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear. [This event is alias to TOPDOWN_BAD_SPECULATION.ALL_P]",

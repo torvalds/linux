@@ -59,18 +59,6 @@ struct telemetry_plt_config {
 };
 
 struct telemetry_core_ops {
-	int (*get_sampling_period)(u8 *pss_min_period, u8 *pss_max_period,
-				   u8 *ioss_min_period, u8 *ioss_max_period);
-
-	int (*get_eventconfig)(struct telemetry_evtconfig *pss_evtconfig,
-			       struct telemetry_evtconfig *ioss_evtconfig,
-			       int pss_len, int ioss_len);
-
-	int (*update_events)(struct telemetry_evtconfig pss_evtconfig,
-			     struct telemetry_evtconfig ioss_evtconfig);
-
-	int (*set_sampling_period)(u8 pss_period, u8 ioss_period);
-
 	int (*get_trace_verbosity)(enum telemetry_unit telem_unit,
 				   u32 *verbosity);
 
@@ -84,11 +72,6 @@ struct telemetry_core_ops {
 	int (*read_eventlog)(enum telemetry_unit telem_unit,
 			     struct telemetry_evtlog *evtlog,
 			     int len, int log_all_evts);
-
-	int (*add_events)(u8 num_pss_evts, u8 num_ioss_evts,
-			  u32 *pss_evtmap, u32 *ioss_evtmap);
-
-	int (*reset_events)(void);
 };
 
 int telemetry_set_pltdata(const struct telemetry_core_ops *ops,
@@ -101,34 +84,14 @@ struct telemetry_plt_config *telemetry_get_pltdata(void);
 int telemetry_get_evtname(enum telemetry_unit telem_unit,
 			  const char **name, int len);
 
-int telemetry_update_events(struct telemetry_evtconfig pss_evtconfig,
-			    struct telemetry_evtconfig ioss_evtconfig);
-
-int telemetry_add_events(u8 num_pss_evts, u8 num_ioss_evts,
-			 u32 *pss_evtmap, u32 *ioss_evtmap);
-
-int telemetry_reset_events(void);
-
-int telemetry_get_eventconfig(struct telemetry_evtconfig *pss_config,
-			      struct telemetry_evtconfig *ioss_config,
-			      int pss_len, int ioss_len);
-
 int telemetry_read_events(enum telemetry_unit telem_unit,
 			  struct telemetry_evtlog *evtlog, int len);
-
-int telemetry_raw_read_events(enum telemetry_unit telem_unit,
-			      struct telemetry_evtlog *evtlog, int len);
 
 int telemetry_read_eventlog(enum telemetry_unit telem_unit,
 			    struct telemetry_evtlog *evtlog, int len);
 
 int telemetry_raw_read_eventlog(enum telemetry_unit telem_unit,
 				struct telemetry_evtlog *evtlog, int len);
-
-int telemetry_get_sampling_period(u8 *pss_min_period, u8 *pss_max_period,
-				  u8 *ioss_min_period, u8 *ioss_max_period);
-
-int telemetry_set_sampling_period(u8 pss_period, u8 ioss_period);
 
 int telemetry_set_trace_verbosity(enum telemetry_unit telem_unit,
 				  u32 verbosity);

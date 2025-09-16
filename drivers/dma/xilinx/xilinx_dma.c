@@ -2909,6 +2909,8 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 		return -EINVAL;
 	}
 
+	xdev->common.directions |= chan->direction;
+
 	/* Request the interrupt */
 	chan->irq = of_irq_get(node, chan->tdest);
 	if (chan->irq < 0)
@@ -3114,6 +3116,8 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 			}
 		}
 	}
+
+	dma_set_max_seg_size(xdev->dev, xdev->max_buffer_len);
 
 	if (xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA) {
 		xdev->has_axistream_connected =

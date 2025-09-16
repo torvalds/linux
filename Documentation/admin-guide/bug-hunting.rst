@@ -196,7 +196,7 @@ will see the assembler code for the routine shown, but if your kernel has
 debug symbols the C code will also be available. (Debug symbols can be enabled
 in the kernel hacking menu of the menu configuration.) For example::
 
-    $ objdump -r -S -l --disassemble net/dccp/ipv4.o
+    $ objdump -r -S -l --disassemble net/ipv4/tcp.o
 
 .. note::
 

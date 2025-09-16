@@ -1014,8 +1014,8 @@ static void pch_gbe_set_mode(struct pch_gbe_adapter *adapter, u16 speed,
  */
 static void pch_gbe_watchdog(struct timer_list *t)
 {
-	struct pch_gbe_adapter *adapter = from_timer(adapter, t,
-						     watchdog_timer);
+	struct pch_gbe_adapter *adapter = timer_container_of(adapter, t,
+							     watchdog_timer);
 	struct net_device *netdev = adapter->netdev;
 	struct pch_gbe_hw *hw = &adapter->hw;
 

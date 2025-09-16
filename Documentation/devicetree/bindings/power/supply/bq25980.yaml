@@ -73,9 +73,7 @@ properties:
     description: |
       Indicates that the device state has changed.
 
-  monitored-battery:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description: phandle to the battery node being monitored
+  monitored-battery: true
 
 required:
   - compatible
@@ -87,28 +85,28 @@ unevaluatedProperties: false
 examples:
   - |
     bat: battery {
-      compatible = "simple-battery";
-      constant-charge-current-max-microamp = <4000000>;
-      constant-charge-voltage-max-microvolt = <8400000>;
-      precharge-current-microamp = <160000>;
-      charge-term-current-microamp = <160000>;
+        compatible = "simple-battery";
+        constant-charge-current-max-microamp = <4000000>;
+        constant-charge-voltage-max-microvolt = <8400000>;
+        precharge-current-microamp = <160000>;
+        charge-term-current-microamp = <160000>;
     };
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      bq25980: charger@65 {
-          compatible = "ti,bq25980";
-          reg = <0x65>;
-          interrupt-parent = <&gpio1>;
-          interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
-          ti,watchdog-timeout-ms = <0>;
-          ti,sc-ocp-limit-microamp = <2000000>;
-          ti,sc-ovp-limit-microvolt = <17800000>;
-          monitored-battery = <&bat>;
-      };
+        bq25980: charger@65 {
+            compatible = "ti,bq25980";
+            reg = <0x65>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
+            ti,watchdog-timeout-ms = <0>;
+            ti,sc-ocp-limit-microamp = <2000000>;
+            ti,sc-ovp-limit-microvolt = <17800000>;
+            monitored-battery = <&bat>;
+        };
     };
 
 ...

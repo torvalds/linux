@@ -11,10 +11,13 @@
 
 #include <linux/bits.h>
 #include <linux/types.h>
+#include <linux/hid.h>
 
 struct device;
 struct sdca_entity;
 struct sdca_function_desc;
+
+#define SDCA_NO_INTERRUPT -1
 
 /*
  * The addressing space for SDCA relies on 7 bits for Entities, so a
@@ -125,7 +128,7 @@ struct sdca_init_write {
  * macros.
  *
  * Short hand to specific a Control type statically for example:
- * SDAC_CTL_TYPE_S(IT, MIC_BIAS).
+ * SDCA_CTL_TYPE_S(IT, MIC_BIAS).
  */
 #define SDCA_CTL_TYPE_S(ent, sel) SDCA_CTL_TYPE(SDCA_ENTITY_TYPE_##ent, \
 						SDCA_CTL_##ent##_##sel)
@@ -169,6 +172,28 @@ enum sdca_ot_controls {
 };
 
 /**
+ * enum sdca_usage_range - Column definitions for Usage
+ */
+enum sdca_usage_range {
+	SDCA_USAGE_NUMBER				= 0,
+	SDCA_USAGE_CBN					= 1,
+	SDCA_USAGE_SAMPLE_RATE				= 2,
+	SDCA_USAGE_SAMPLE_WIDTH				= 3,
+	SDCA_USAGE_FULL_SCALE				= 4,
+	SDCA_USAGE_NOISE_FLOOR				= 5,
+	SDCA_USAGE_TAG					= 6,
+	SDCA_USAGE_NCOLS				= 7,
+};
+
+/**
+ * enum sdca_dataport_selector_range - Column definitions for DataPort_Selector
+ */
+enum sdca_dataport_selector_range {
+	SDCA_DATAPORT_SELECTOR_NCOLS			= 16,
+	SDCA_DATAPORT_SELECTOR_NROWS			= 4,
+};
+
+/**
  * enum sdca_mu_controls - SDCA Controls for Mixer Unit
  *
  * Control Selectors for Mixer Unit from SDCA specification v1.0
@@ -207,6 +232,16 @@ enum sdca_fu_controls {
 };
 
 /**
+ * enum sdca_volume_range - Column definitions for Q7.8dB volumes/gains
+ */
+enum sdca_volume_range {
+	SDCA_VOLUME_LINEAR_MIN				= 0,
+	SDCA_VOLUME_LINEAR_MAX				= 1,
+	SDCA_VOLUME_LINEAR_STEP				= 2,
+	SDCA_VOLUME_LINEAR_NCOLS			= 3,
+};
+
+/**
  * enum sdca_xu_controls - SDCA Controls for Extension Unit
  *
  * Control Selectors for Extension Unit from SDCA specification v1.0
@@ -237,6 +272,15 @@ enum sdca_cs_controls {
 };
 
 /**
+ * enum sdca_samplerateindex_range - Column definitions for SampleRateIndex
+ */
+enum sdca_samplerateindex_range {
+	SDCA_SAMPLERATEINDEX_INDEX			= 0,
+	SDCA_SAMPLERATEINDEX_RATE			= 1,
+	SDCA_SAMPLERATEINDEX_NCOLS			= 2,
+};
+
+/**
  * enum sdca_cx_controls - SDCA Controls for Clock Selector
  *
  * Control Selectors for Clock Selector from SDCA specification v1.0
@@ -258,6 +302,14 @@ enum sdca_pde_controls {
 };
 
 /**
+ * enum sdca_requested_ps_range - Column definitions for Requested PS
+ */
+enum sdca_requested_ps_range {
+	SDCA_REQUESTED_PS_STATE				= 0,
+	SDCA_REQUESTED_PS_NCOLS				= 1,
+};
+
+/**
  * enum sdca_ge_controls - SDCA Controls for Group Unit
  *
  * Control Selectors for Group Unit from SDCA specification v1.0
@@ -266,6 +318,24 @@ enum sdca_pde_controls {
 enum sdca_ge_controls {
 	SDCA_CTL_GE_SELECTED_MODE			= 0x01,
 	SDCA_CTL_GE_DETECTED_MODE			= 0x02,
+};
+
+/**
+ * enum sdca_selected_mode_range - Column definitions for Selected Mode
+ */
+enum sdca_selected_mode_range {
+	SDCA_SELECTED_MODE_INDEX			= 0,
+	SDCA_SELECTED_MODE_TERM_TYPE			= 1,
+	SDCA_SELECTED_MODE_NCOLS			= 2,
+};
+
+/**
+ * enum sdca_detected_mode_values - Predefined GE Detected Mode values
+ */
+enum sdca_detected_mode_values {
+	SDCA_DETECTED_MODE_JACK_UNPLUGGED		= 0,
+	SDCA_DETECTED_MODE_JACK_UNKNOWN			= 1,
+	SDCA_DETECTED_MODE_DETECTION_IN_PROGRESS	= 2,
 };
 
 /**
@@ -672,14 +742,14 @@ struct sdca_control_range {
  * struct sdca_control - information for one SDCA Control
  * @label: Name for the Control, from SDCA Specification v1.0, section 7.1.7.
  * @sel: Identifier used for addressing.
- * @value: Holds the Control value for constants and defaults.
  * @nbits: Number of bits used in the Control.
- * @interrupt_position: SCDA interrupt line that will alert to changes on this
- * Control.
+ * @values: Holds the Control value for constants and defaults.
  * @cn_list: A bitmask showing the valid Control Numbers within this Control,
  * Control Numbers typically represent channels.
- * @range: Buffer describing valid range of values for the Control.
+ * @interrupt_position: SCDA interrupt line that will alert to changes on this
+ * Control.
  * @type: Format of the data in the Control.
+ * @range: Buffer describing valid range of values for the Control.
  * @mode: Access mode of the Control.
  * @layers: Bitmask of access layers of the Control.
  * @deferrable: Indicates if the access to the Control can be deferred.
@@ -690,13 +760,13 @@ struct sdca_control {
 	const char *label;
 	int sel;
 
-	int value;
 	int nbits;
-	int interrupt_position;
+	int *values;
 	u64 cn_list;
+	int interrupt_position;
 
-	struct sdca_control_range range;
 	enum sdca_control_datatype type;
+	struct sdca_control_range range;
 	enum sdca_access_mode mode;
 	u8 layers;
 
@@ -772,6 +842,25 @@ enum sdca_terminal_type {
 	SDCA_TERM_TYPE_PRIVACY_SIGNALING		= 0x741,
 	SDCA_TERM_TYPE_PRIVACY_INDICATORS		= 0x747,
 };
+
+#define SDCA_TERM_TYPE_LINEIN_STEREO_NAME		"LineIn Stereo"
+#define SDCA_TERM_TYPE_LINEIN_FRONT_LR_NAME		"LineIn Front-LR"
+#define SDCA_TERM_TYPE_LINEIN_CENTER_LFE_NAME		"LineIn Center-LFE"
+#define SDCA_TERM_TYPE_LINEIN_SURROUND_LR_NAME		"LineIn Surround-LR"
+#define SDCA_TERM_TYPE_LINEIN_REAR_LR_NAME		"LineIn Rear-LR"
+#define SDCA_TERM_TYPE_LINEOUT_STEREO_NAME		"LineOut Stereo"
+#define SDCA_TERM_TYPE_LINEOUT_FRONT_LR_NAME		"LineOut Front-LR"
+#define SDCA_TERM_TYPE_LINEOUT_CENTER_LFE_NAME		"LineOut Center-LFE"
+#define SDCA_TERM_TYPE_LINEOUT_SURROUND_LR_NAME		"LineOut Surround-LR"
+#define SDCA_TERM_TYPE_LINEOUT_REAR_LR_NAME		"LineOut Rear-LR"
+#define SDCA_TERM_TYPE_MIC_JACK_NAME			"Microphone"
+#define SDCA_TERM_TYPE_STEREO_JACK_NAME			"Speaker Stereo"
+#define SDCA_TERM_TYPE_FRONT_LR_JACK_NAME		"Speaker Front-LR"
+#define SDCA_TERM_TYPE_CENTER_LFE_JACK_NAME		"Speaker Center-LFE"
+#define SDCA_TERM_TYPE_SURROUND_LR_JACK_NAME		"Speaker Surround-LR"
+#define SDCA_TERM_TYPE_REAR_LR_JACK_NAME		"Speaker Rear-LR"
+#define SDCA_TERM_TYPE_HEADPHONE_JACK_NAME		"Headphone"
+#define SDCA_TERM_TYPE_HEADSET_JACK_NAME		"Headset"
 
 /**
  * enum sdca_connector_type - SDCA Connector Types
@@ -972,6 +1061,32 @@ struct sdca_entity_ge {
 };
 
 /**
+ * struct sdca_entity_hide - information specific to HIDE Entities
+ * @hid: HID device structure
+ * @hidtx_ids: HIDTx Report ID
+ * @num_hidtx_ids: number of HIDTx Report ID
+ * @hidrx_ids: HIDRx Report ID
+ * @num_hidrx_ids: number of HIDRx Report ID
+ * @hide_reside_function_num: indicating which Audio Function Numbers within this Device
+ * @max_delay: the maximum time in microseconds allowed for the Device to change the ownership from Device to Host
+ * @af_number_list: which Audio Function Numbers within this Device are sending/receiving the messages in this HIDE
+ * @hid_desc: HID descriptor for the HIDE Entity
+ * @hid_report_desc: HID Report Descriptor for the HIDE Entity
+ */
+struct sdca_entity_hide {
+	struct hid_device *hid;
+	unsigned int *hidtx_ids;
+	int num_hidtx_ids;
+	unsigned int *hidrx_ids;
+	int num_hidrx_ids;
+	unsigned int hide_reside_function_num;
+	unsigned int max_delay;
+	unsigned int af_number_list[SDCA_MAX_FUNCTION_COUNT];
+	struct hid_descriptor hid_desc;
+	unsigned char *hid_report_desc;
+};
+
+/**
  * struct sdca_entity - information for one SDCA Entity
  * @label: String such as "OT 12".
  * @id: Identifier used for addressing.
@@ -986,6 +1101,7 @@ struct sdca_entity_ge {
  * @cs: Clock Source specific Entity properties.
  * @pde: Power Domain Entity specific Entity properties.
  * @ge: Group Entity specific Entity properties.
+ * @hide: HIDE Entity specific Entity properties.
  */
 struct sdca_entity {
 	const char *label;
@@ -1002,6 +1118,7 @@ struct sdca_entity {
 		struct sdca_entity_cs cs;
 		struct sdca_entity_pde pde;
 		struct sdca_entity_ge ge;
+		struct sdca_entity_hide hide;
 	};
 };
 
@@ -1160,6 +1277,15 @@ struct sdca_cluster {
 };
 
 /**
+ * enum sdca_cluster_range - SDCA Range column definitions for ClusterIndex
+ */
+enum sdca_cluster_range {
+	SDCA_CLUSTER_BYTEINDEX				= 0,
+	SDCA_CLUSTER_CLUSTERID				= 1,
+	SDCA_CLUSTER_NCOLS				= 2,
+};
+
+/**
  * struct sdca_function_data - top-level information for one SDCA function
  * @desc: Pointer to short descriptor from initial parsing.
  * @init_table: Pointer to a table of initialization writes.
@@ -1206,5 +1332,19 @@ static inline u32 sdca_range_search(struct sdca_control_range *range,
 int sdca_parse_function(struct device *dev,
 			struct sdca_function_desc *desc,
 			struct sdca_function_data *function);
+
+struct sdca_control *sdca_selector_find_control(struct device *dev,
+						struct sdca_entity *entity,
+						const int sel);
+struct sdca_control_range *sdca_control_find_range(struct device *dev,
+						   struct sdca_entity *entity,
+						   struct sdca_control *control,
+						   int cols, int rows);
+struct sdca_control_range *sdca_selector_find_range(struct device *dev,
+						    struct sdca_entity *entity,
+						    int sel, int cols, int rows);
+struct sdca_cluster *sdca_id_find_cluster(struct device *dev,
+					  struct sdca_function_data *function,
+					  const int id);
 
 #endif

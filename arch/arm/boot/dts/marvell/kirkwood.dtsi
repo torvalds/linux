@@ -263,7 +263,7 @@
 			status = "okay";
 		};
 
-		usb0: ehci@50000 {
+		usb0: usb@50000 {
 			compatible = "marvell,orion-ehci";
 			reg = <0x50000 0x1000>;
 			interrupts = <19>;

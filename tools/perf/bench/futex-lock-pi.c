@@ -41,10 +41,12 @@ static struct stats throughput_stats;
 static struct cond thread_parent, thread_worker;
 
 static struct bench_futex_parameters params = {
+	.nbuckets = -1,
 	.runtime  = 10,
 };
 
 static const struct option options[] = {
+	OPT_INTEGER( 'b', "buckets", &params.nbuckets, "Specify amount of hash buckets"),
 	OPT_UINTEGER('t', "threads", &params.nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('r', "runtime", &params.runtime, "Specify runtime (in seconds)"),
 	OPT_BOOLEAN( 'M', "multi",   &params.multi, "Use multiple futexes"),
@@ -67,6 +69,7 @@ static void print_summary(void)
 	printf("%sAveraged %ld operations/sec (+- %.2f%%), total secs = %d\n",
 	       !params.silent ? "\n" : "", avg, rel_stddev_stats(stddev, avg),
 	       (int)bench__runtime.tv_sec);
+	futex_print_nbuckets(&params);
 }
 
 static void toggle_done(int sig __maybe_unused,
@@ -203,6 +206,7 @@ int bench_futex_lock_pi(int argc, const char **argv)
 	mutex_init(&thread_lock);
 	cond_init(&thread_parent);
 	cond_init(&thread_worker);
+	futex_set_nbuckets_param(&params);
 
 	threads_starting = params.nthreads;
 	gettimeofday(&bench__start, NULL);

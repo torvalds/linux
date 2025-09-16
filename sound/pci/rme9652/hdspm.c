@@ -1943,7 +1943,7 @@ snd_hdspm_midi_input_trigger(struct snd_rawmidi_substream *substream, int up)
 
 static void snd_hdspm_midi_output_timer(struct timer_list *t)
 {
-	struct hdspm_midi *hmidi = from_timer(hmidi, t, timer);
+	struct hdspm_midi *hmidi = timer_container_of(hmidi, t, timer);
 	unsigned long flags;
 
 	snd_hdspm_midi_output_write(hmidi);
@@ -6355,7 +6355,7 @@ static int snd_hdspm_create_hwdep(struct snd_card *card,
 
 	hdspm->hwdep = hw;
 	hw->private_data = hdspm;
-	strcpy(hw->name, "HDSPM hwdep interface");
+	strscpy(hw->name, "HDSPM hwdep interface");
 
 	hw->ops.open = snd_hdspm_hwdep_dummy_op;
 	hw->ops.ioctl = snd_hdspm_hwdep_ioctl;
@@ -6412,7 +6412,7 @@ static int snd_hdspm_create_pcm(struct snd_card *card,
 
 	hdspm->pcm = pcm;
 	pcm->private_data = hdspm;
-	strcpy(pcm->name, hdspm->card_name);
+	strscpy(pcm->name, hdspm->card_name);
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 			&snd_hdspm_ops);
@@ -6512,8 +6512,8 @@ static int snd_hdspm_create(struct snd_card *card,
 	pci_read_config_word(hdspm->pci,
 			PCI_CLASS_REVISION, &hdspm->firmware_rev);
 
-	strcpy(card->mixername, "Xilinx FPGA");
-	strcpy(card->driver, "HDSPM");
+	strscpy(card->mixername, "Xilinx FPGA");
+	strscpy(card->driver, "HDSPM");
 
 	switch (hdspm->firmware_rev) {
 	case HDSPM_RAYDAT_REV:
@@ -6558,13 +6558,12 @@ static int snd_hdspm_create(struct snd_card *card,
 
 	pci_set_master(hdspm->pci);
 
-	err = pcim_iomap_regions(pci, 1 << 0, "hdspm");
-	if (err < 0)
-		return err;
+	hdspm->iobase = pcim_iomap_region(pci, 0, "hdspm");
+	if (IS_ERR(hdspm->iobase))
+		return PTR_ERR(hdspm->iobase);
 
 	hdspm->port = pci_resource_start(pci, 0);
 	io_extent = pci_resource_len(pci, 0);
-	hdspm->iobase = pcim_iomap_table(pci)[0];
 	dev_dbg(card->dev, "remapped region (0x%lx) 0x%lx-0x%lx\n",
 			(unsigned long)hdspm->iobase, hdspm->port,
 			hdspm->port + io_extent - 1);

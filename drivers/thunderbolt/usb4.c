@@ -403,12 +403,12 @@ bool usb4_switch_lane_bonding_possible(struct tb_switch *sw)
  * usb4_switch_set_wake() - Enabled/disable wake
  * @sw: USB4 router
  * @flags: Wakeup flags (%0 to disable)
+ * @runtime: Wake is being programmed during system runtime
  *
  * Enables/disables router to wake up from sleep.
  */
-int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags)
+int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags, bool runtime)
 {
-	struct usb4_port *usb4;
 	struct tb_port *port;
 	u64 route = tb_route(sw);
 	u32 val;
@@ -438,13 +438,11 @@ int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags)
 			val |= PORT_CS_19_WOU4;
 		} else {
 			bool configured = val & PORT_CS_19_PC;
-			usb4 = port->usb4;
+			bool wakeup = runtime || device_may_wakeup(&port->usb4->dev);
 
-			if (((flags & TB_WAKE_ON_CONNECT) |
-			      device_may_wakeup(&usb4->dev)) && !configured)
+			if ((flags & TB_WAKE_ON_CONNECT) && wakeup && !configured)
 				val |= PORT_CS_19_WOC;
-			if (((flags & TB_WAKE_ON_DISCONNECT) |
-			      device_may_wakeup(&usb4->dev)) && configured)
+			if ((flags & TB_WAKE_ON_DISCONNECT) && wakeup && configured)
 				val |= PORT_CS_19_WOD;
 			if ((flags & TB_WAKE_ON_USB4) && configured)
 				val |= PORT_CS_19_WOU4;
@@ -935,7 +933,15 @@ int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 	return status ? -EIO : 0;
 }
 
-static int usb4_port_idx(const struct tb_switch *sw, const struct tb_port *port)
+/**
+ * usb4_port_index() - Finds matching USB4 port index
+ * @sw: USB4 router
+ * @port: USB4 protocol or lane adapter
+ *
+ * Finds matching USB4 port index (starting from %0) that given @port goes
+ * through.
+ */
+int usb4_port_index(const struct tb_switch *sw, const struct tb_port *port)
 {
 	struct tb_port *p;
 	int usb4_idx = 0;
@@ -969,7 +975,7 @@ static int usb4_port_idx(const struct tb_switch *sw, const struct tb_port *port)
 struct tb_port *usb4_switch_map_pcie_down(struct tb_switch *sw,
 					  const struct tb_port *port)
 {
-	int usb4_idx = usb4_port_idx(sw, port);
+	int usb4_idx = usb4_port_index(sw, port);
 	struct tb_port *p;
 	int pcie_idx = 0;
 
@@ -1000,7 +1006,7 @@ struct tb_port *usb4_switch_map_pcie_down(struct tb_switch *sw,
 struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
 					  const struct tb_port *port)
 {
-	int usb4_idx = usb4_port_idx(sw, port);
+	int usb4_idx = usb4_port_index(sw, port);
 	struct tb_port *p;
 	int usb_idx = 0;
 

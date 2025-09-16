@@ -39,8 +39,8 @@
 #ifndef __BNXT_RE_HSI_H__
 #define __BNXT_RE_HSI_H__
 
-/* include bnxt_hsi.h from bnxt_en driver */
-#include "bnxt_hsi.h"
+/* include linux/bnxt/hsi.h */
+#include <linux/bnxt/hsi.h>
 
 /* tx_doorbell (size:32b/4B) */
 struct tx_doorbell {

@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/fsl,vf610-nfc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale's NAND flash controller (NFC)
+
+description:
+  This variant of the Freescale NAND flash controller (NFC) can be found on
+  Vybrid (vf610), MPC5125, MCF54418 and Kinetis K70.
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    enum:
+      - fsl,vf610-nfc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: nfc
+
+patternProperties:
+  "^nand@[a-f0-9]$":
+    type: object
+    $ref: raw-nand-chip.yaml
+
+    properties:
+      compatible:
+        const: fsl,vf610-nfc-nandcs
+
+      reg:
+        const: 0
+
+      nand-ecc-strength:
+        enum: [24, 32]
+
+      nand-ecc-step-size:
+        const: 2048
+
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+allOf:
+  - $ref: nand-controller.yaml
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/vf610-clock.h>
+
+    nand-controller@400e0000 {
+        compatible = "fsl,vf610-nfc";
+        reg = <0x400e0000 0x4000>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clks VF610_CLK_NFC>;
+        clock-names = "nfc";
+        assigned-clocks = <&clks VF610_CLK_NFC>;
+        assigned-clock-rates = <33000000>;
+
+        nand@0 {
+            compatible = "fsl,vf610-nfc-nandcs";
+            reg = <0>;
+            nand-bus-width = <8>;
+            nand-ecc-mode = "hw";
+            nand-ecc-strength = <32>;
+            nand-ecc-step-size = <2048>;
+            nand-on-flash-bbt;
+        };
+    };

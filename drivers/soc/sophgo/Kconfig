@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Sophgo SoC drivers
+#
+
+if ARCH_SOPHGO || COMPILE_TEST
+menu "Sophgo SoC drivers"
+
+config SOPHGO_CV1800_RTCSYS
+	tristate "Sophgo CV1800 RTC MFD"
+	select MFD_CORE
+	help
+	  If you say yes here you get support the RTC MFD driver for Sophgo
+	  CV1800 series SoC. The RTC module comprises a 32kHz oscillator,
+	  Power-on-Reset (PoR) sub-module, HW state machine to control chip
+	  power-on, power-off and reset. Furthermore, the 8051 subsystem is
+	  located within RTCSYS including associated SRAM block.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cv1800-rtcsys.
+
+config SOPHGO_SG2044_TOPSYS
+	tristate "Sophgo SG2044 TOP syscon driver"
+	select MFD_CORE
+	help
+	  This is the core driver for the Sophgo SG2044 TOP system
+	  controller device. This driver provide PLL clock device
+	  for the SoC.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sg2044-topsys.
+
+endmenu
+endif

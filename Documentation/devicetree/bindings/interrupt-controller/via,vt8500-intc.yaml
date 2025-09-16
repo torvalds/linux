@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/via,vt8500-intc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: VIA and WonderMedia SoCs Interrupt Controller
+
+description:
+  This is the interrupt controller used in single-core ARM SoCs made by
+  VIA and WonderMedia (up to and including WM8950). Each block handles
+  up to 64 interrupt sources (level or edge triggered) and can generate
+  up to 8 interrupts to its parent when used in a chained configuration.
+
+maintainers:
+  - Alexey Charkov <alchark@gmail.com>
+
+allOf:
+  - $ref: /schemas/interrupt-controller.yaml#
+
+properties:
+  compatible:
+    const: via,vt8500-intc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description:
+          Interrupt number raised by the IRQ0 output of this controller
+          Only used if this controller is chained
+      - description:
+          Interrupt number raised by the IRQ1 output of this controller
+          Only used if this controller is chained
+      - description:
+          Interrupt number raised by the IRQ2 output of this controller
+          Only used if this controller is chained
+      - description:
+          Interrupt number raised by the IRQ3 output of this controller
+          Only used if this controller is chained
+      - description:
+          Interrupt number raised by the IRQ4 output of this controller
+          Only used if this controller is chained
+      - description:
+          Interrupt number raised by the IRQ5 output of this controller
+          Only used if this controller is chained
+      - description:
+          Interrupt number raised by the IRQ6 output of this controller
+          Only used if this controller is chained
+      - description:
+          Interrupt number raised by the IRQ7 output of this controller
+          Only used if this controller is chained
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    interrupt-controller@d8140000 {
+        compatible = "via,vt8500-intc";
+        interrupt-controller;
+        reg = <0xd8140000 0x10000>;
+        #interrupt-cells = <1>;
+    };
+...

@@ -32,8 +32,10 @@ static inline int __pcistb_mio_inuser(
 		u64 len, u8 *status)
 {
 	int cc, exception;
+	bool sacf_flag;
 
 	exception = 1;
+	sacf_flag = enable_sacf_uaccess();
 	asm_inline volatile (
 		"	sacf	256\n"
 		"0:	.insn	rsy,0xeb00000000d4,%[len],%[ioaddr],%[src]\n"
@@ -44,6 +46,7 @@ static inline int __pcistb_mio_inuser(
 		: CC_OUT(cc, cc), [len] "+d" (len), [exc] "+d" (exception)
 		: [ioaddr] "a" (ioaddr), [src] "Q" (*((u8 __force *)src))
 		: CC_CLOBBER_LIST("memory"));
+	disable_sacf_uaccess(sacf_flag);
 	*status = len >> 24 & 0xff;
 	return exception ? -ENXIO : CC_TRANSFORM(cc);
 }
@@ -54,6 +57,7 @@ static inline int __pcistg_mio_inuser(
 {
 	union register_pair ioaddr_len = {.even = (u64 __force)ioaddr, .odd = ulen};
 	int cc, exception;
+	bool sacf_flag;
 	u64 val = 0;
 	u64 cnt = ulen;
 	u8 tmp;
@@ -64,6 +68,7 @@ static inline int __pcistg_mio_inuser(
 	 * address space. pcistg then uses the user mappings.
 	 */
 	exception = 1;
+	sacf_flag = enable_sacf_uaccess();
 	asm_inline volatile (
 		"	sacf	256\n"
 		"0:	llgc	%[tmp],0(%[src])\n"
@@ -81,6 +86,7 @@ static inline int __pcistg_mio_inuser(
 		  CC_OUT(cc, cc), [ioaddr_len] "+&d" (ioaddr_len.pair)
 		:
 		: CC_CLOBBER_LIST("memory"));
+	disable_sacf_uaccess(sacf_flag);
 	*status = ioaddr_len.odd >> 24 & 0xff;
 
 	cc = exception ? -ENXIO : CC_TRANSFORM(cc);
@@ -204,6 +210,7 @@ static inline int __pcilg_mio_inuser(
 		u64 ulen, u8 *status)
 {
 	union register_pair ioaddr_len = {.even = (u64 __force)ioaddr, .odd = ulen};
+	bool sacf_flag;
 	u64 cnt = ulen;
 	int shift = ulen * 8;
 	int cc, exception;
@@ -215,6 +222,7 @@ static inline int __pcilg_mio_inuser(
 	 * user address @dst
 	 */
 	exception = 1;
+	sacf_flag = enable_sacf_uaccess();
 	asm_inline volatile (
 		"	sacf	256\n"
 		"0:	.insn	rre,0xb9d60000,%[val],%[ioaddr_len]\n"
@@ -236,10 +244,10 @@ static inline int __pcilg_mio_inuser(
 		: [ioaddr_len] "+&d" (ioaddr_len.pair), [exc] "+d" (exception),
 		  CC_OUT(cc, cc), [val] "=d" (val),
 		  [dst] "+a" (dst), [cnt] "+d" (cnt), [tmp] "=d" (tmp),
-		  [shift] "+d" (shift)
+		  [shift] "+a" (shift)
 		:
 		: CC_CLOBBER_LIST("memory"));
-
+	disable_sacf_uaccess(sacf_flag);
 	cc = exception ? -ENXIO : CC_TRANSFORM(cc);
 	/* did we write everything to the user space buffer? */
 	if (!cc && cnt != 0)

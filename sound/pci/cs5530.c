@@ -91,11 +91,10 @@ static int snd_cs5530_create(struct snd_card *card,
 	chip->card = card;
 	chip->pci = pci;
 
-	err = pcim_iomap_regions(pci, 1 << 0, "CS5530");
-	if (err < 0)
-		return err;
+	mem = pcim_iomap_region(pci, 0, "CS5530");
+	if (IS_ERR(mem))
+		return PTR_ERR(mem);
 	chip->pci_base = pci_resource_start(pci, 0);
-	mem = pcim_iomap_table(pci)[0];
 	map = readw(mem + 0x18);
 
 	/* Map bits
@@ -208,8 +207,8 @@ static int snd_cs5530_probe(struct pci_dev *pci,
 	if (err < 0)
 		return err;
 
-	strcpy(card->driver, "CS5530");
-	strcpy(card->shortname, "CS5530 Audio");
+	strscpy(card->driver, "CS5530");
+	strscpy(card->shortname, "CS5530 Audio");
 	sprintf(card->longname, "%s at 0x%lx", card->shortname, chip->pci_base);
 
 	err = snd_card_register(card);

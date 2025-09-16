@@ -5,7 +5,7 @@ comment "S/390 block device drivers"
 config DCSSBLK
 	def_tristate m
 	prompt "DCSSBLK support"
-	depends on S390 && BLOCK
+	depends on S390 && BLOCK && (DAX || DAX=n)
 	help
 	  Support for dcss block device
 
@@ -14,7 +14,6 @@ config DCSSBLK_DAX
 	depends on DCSSBLK
 	# requires S390 ZONE_DEVICE support
 	depends on BROKEN
-	select DAX
 	prompt "DCSSBLK DAX support"
 	help
 	  Enable DAX operation for the dcss block device

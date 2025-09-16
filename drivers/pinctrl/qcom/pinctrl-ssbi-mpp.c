@@ -511,14 +511,15 @@ static int pm8xxx_mpp_get(struct gpio_chip *chip, unsigned offset)
 	return ret;
 }
 
-static void pm8xxx_mpp_set(struct gpio_chip *chip, unsigned offset, int value)
+static int pm8xxx_mpp_set(struct gpio_chip *chip, unsigned int offset,
+			  int value)
 {
 	struct pm8xxx_mpp *pctrl = gpiochip_get_data(chip);
 	struct pm8xxx_pin_data *pin = pctrl->desc.pins[offset].drv_data;
 
 	pin->output_value = !!value;
 
-	pm8xxx_mpp_update(pctrl, pin);
+	return pm8xxx_mpp_update(pctrl, pin);
 }
 
 static int pm8xxx_mpp_of_xlate(struct gpio_chip *chip,

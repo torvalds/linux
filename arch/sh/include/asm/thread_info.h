@@ -21,7 +21,7 @@
 #define FAULT_CODE_PROT		(1 << 3)	/* protection fault */
 #define FAULT_CODE_USER		(1 << 4)	/* user-mode access */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/processor.h>
 
 struct thread_info {
@@ -49,7 +49,7 @@ struct thread_info {
 /*
  * macros/functions for gaining access to the thread information structure
  */
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
@@ -86,7 +86,7 @@ static inline struct thread_info *current_thread_info(void)
 
 extern void init_thread_xstate(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /*
  * Thread information flags
@@ -144,7 +144,7 @@ extern void init_thread_xstate(void);
  */
 #define TS_USEDFPU		0x0002	/* FPU used by this task this quantum */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define TI_FLAG_FAULT_CODE_SHIFT	24
 
@@ -164,5 +164,5 @@ static inline unsigned int get_thread_fault_code(void)
 	return ti->flags >> TI_FLAG_FAULT_CODE_SHIFT;
 }
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 #endif /* __ASM_SH_THREAD_INFO_H */

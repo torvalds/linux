@@ -16,88 +16,8 @@ struct drm_gpusvm;
 struct drm_gpusvm_notifier;
 struct drm_gpusvm_ops;
 struct drm_gpusvm_range;
-struct drm_gpusvm_devmem;
 struct drm_pagemap;
-struct drm_pagemap_device_addr;
-
-/**
- * struct drm_gpusvm_devmem_ops - Operations structure for GPU SVM device memory
- *
- * This structure defines the operations for GPU Shared Virtual Memory (SVM)
- * device memory. These operations are provided by the GPU driver to manage device memory
- * allocations and perform operations such as migration between device memory and system
- * RAM.
- */
-struct drm_gpusvm_devmem_ops {
-	/**
-	 * @devmem_release: Release device memory allocation (optional)
-	 * @devmem_allocation: device memory allocation
-	 *
-	 * Release device memory allocation and drop a reference to device
-	 * memory allocation.
-	 */
-	void (*devmem_release)(struct drm_gpusvm_devmem *devmem_allocation);
-
-	/**
-	 * @populate_devmem_pfn: Populate device memory PFN (required for migration)
-	 * @devmem_allocation: device memory allocation
-	 * @npages: Number of pages to populate
-	 * @pfn: Array of page frame numbers to populate
-	 *
-	 * Populate device memory page frame numbers (PFN).
-	 *
-	 * Return: 0 on success, a negative error code on failure.
-	 */
-	int (*populate_devmem_pfn)(struct drm_gpusvm_devmem *devmem_allocation,
-				   unsigned long npages, unsigned long *pfn);
-
-	/**
-	 * @copy_to_devmem: Copy to device memory (required for migration)
-	 * @pages: Pointer to array of device memory pages (destination)
-	 * @dma_addr: Pointer to array of DMA addresses (source)
-	 * @npages: Number of pages to copy
-	 *
-	 * Copy pages to device memory.
-	 *
-	 * Return: 0 on success, a negative error code on failure.
-	 */
-	int (*copy_to_devmem)(struct page **pages,
-			      dma_addr_t *dma_addr,
-			      unsigned long npages);
-
-	/**
-	 * @copy_to_ram: Copy to system RAM (required for migration)
-	 * @pages: Pointer to array of device memory pages (source)
-	 * @dma_addr: Pointer to array of DMA addresses (destination)
-	 * @npages: Number of pages to copy
-	 *
-	 * Copy pages to system RAM.
-	 *
-	 * Return: 0 on success, a negative error code on failure.
-	 */
-	int (*copy_to_ram)(struct page **pages,
-			   dma_addr_t *dma_addr,
-			   unsigned long npages);
-};
-
-/**
- * struct drm_gpusvm_devmem - Structure representing a GPU SVM device memory allocation
- *
- * @dev: Pointer to the device structure which device memory allocation belongs to
- * @mm: Pointer to the mm_struct for the address space
- * @detached: device memory allocations is detached from device pages
- * @ops: Pointer to the operations structure for GPU SVM device memory
- * @dpagemap: The struct drm_pagemap of the pages this allocation belongs to.
- * @size: Size of device memory allocation
- */
-struct drm_gpusvm_devmem {
-	struct device *dev;
-	struct mm_struct *mm;
-	struct completion detached;
-	const struct drm_gpusvm_devmem_ops *ops;
-	struct drm_pagemap *dpagemap;
-	size_t size;
-};
+struct drm_pagemap_addr;
 
 /**
  * struct drm_gpusvm_ops - Operations structure for GPU SVM
@@ -186,6 +106,31 @@ struct drm_gpusvm_notifier {
 };
 
 /**
+ * struct drm_gpusvm_range_flags - Structure representing a GPU SVM range flags
+ *
+ * @migrate_devmem: Flag indicating whether the range can be migrated to device memory
+ * @unmapped: Flag indicating if the range has been unmapped
+ * @partial_unmap: Flag indicating if the range has been partially unmapped
+ * @has_devmem_pages: Flag indicating if the range has devmem pages
+ * @has_dma_mapping: Flag indicating if the range has a DMA mapping
+ * @__flags: Flags for range in u16 form (used for READ_ONCE)
+ */
+struct drm_gpusvm_range_flags {
+	union {
+		struct {
+			/* All flags below must be set upon creation */
+			u16 migrate_devmem : 1;
+			/* All flags below must be set / cleared under notifier lock */
+			u16 unmapped : 1;
+			u16 partial_unmap : 1;
+			u16 has_devmem_pages : 1;
+			u16 has_dma_mapping : 1;
+		};
+		u16 __flags;
+	};
+};
+
+/**
  * struct drm_gpusvm_range - Structure representing a GPU SVM range
  *
  * @gpusvm: Pointer to the GPU SVM structure
@@ -198,11 +143,6 @@ struct drm_gpusvm_notifier {
  * @dpagemap: The struct drm_pagemap of the device pages we're dma-mapping.
  *            Note this is assuming only one drm_pagemap per range is allowed.
  * @flags: Flags for range
- * @flags.migrate_devmem: Flag indicating whether the range can be migrated to device memory
- * @flags.unmapped: Flag indicating if the range has been unmapped
- * @flags.partial_unmap: Flag indicating if the range has been partially unmapped
- * @flags.has_devmem_pages: Flag indicating if the range has devmem pages
- * @flags.has_dma_mapping: Flag indicating if the range has a DMA mapping
  *
  * This structure represents a GPU SVM range used for tracking memory ranges
  * mapped in a DRM device.
@@ -214,17 +154,9 @@ struct drm_gpusvm_range {
 	struct interval_tree_node itree;
 	struct list_head entry;
 	unsigned long notifier_seq;
-	struct drm_pagemap_device_addr *dma_addr;
+	struct drm_pagemap_addr *dma_addr;
 	struct drm_pagemap *dpagemap;
-	struct {
-		/* All flags below must be set upon creation */
-		u16 migrate_devmem : 1;
-		/* All flags below must be set / cleared under notifier lock */
-		u16 unmapped : 1;
-		u16 partial_unmap : 1;
-		u16 has_devmem_pages : 1;
-		u16 has_dma_mapping : 1;
-	} flags;
+	struct drm_gpusvm_range_flags flags;
 };
 
 /**
@@ -283,17 +215,22 @@ struct drm_gpusvm {
  * @check_pages_threshold: Check CPU pages for present if chunk is less than or
  *                         equal to threshold. If not present, reduce chunk
  *                         size.
+ * @timeslice_ms: The timeslice MS which in minimum time a piece of memory
+ *		  remains with either exclusive GPU or CPU access.
  * @in_notifier: entering from a MMU notifier
  * @read_only: operating on read-only memory
  * @devmem_possible: possible to use device memory
+ * @devmem_only: use only device memory
  *
  * Context that is DRM GPUSVM is operating in (i.e. user arguments).
  */
 struct drm_gpusvm_ctx {
 	unsigned long check_pages_threshold;
+	unsigned long timeslice_ms;
 	unsigned int in_notifier :1;
 	unsigned int read_only :1;
 	unsigned int devmem_possible :1;
+	unsigned int devmem_only :1;
 };
 
 int drm_gpusvm_init(struct drm_gpusvm *gpusvm,
@@ -307,6 +244,11 @@ int drm_gpusvm_init(struct drm_gpusvm *gpusvm,
 void drm_gpusvm_fini(struct drm_gpusvm *gpusvm);
 
 void drm_gpusvm_free(struct drm_gpusvm *gpusvm);
+
+unsigned long
+drm_gpusvm_find_vma_start(struct drm_gpusvm *gpusvm,
+			  unsigned long start,
+			  unsigned long end);
 
 struct drm_gpusvm_range *
 drm_gpusvm_range_find_or_insert(struct drm_gpusvm *gpusvm,
@@ -337,17 +279,12 @@ void drm_gpusvm_range_unmap_pages(struct drm_gpusvm *gpusvm,
 				  struct drm_gpusvm_range *range,
 				  const struct drm_gpusvm_ctx *ctx);
 
-int drm_gpusvm_migrate_to_devmem(struct drm_gpusvm *gpusvm,
-				 struct drm_gpusvm_range *range,
-				 struct drm_gpusvm_devmem *devmem_allocation,
-				 const struct drm_gpusvm_ctx *ctx);
-
-int drm_gpusvm_evict_to_ram(struct drm_gpusvm_devmem *devmem_allocation);
-
-const struct dev_pagemap_ops *drm_gpusvm_pagemap_ops_get(void);
-
 bool drm_gpusvm_has_mapping(struct drm_gpusvm *gpusvm, unsigned long start,
 			    unsigned long end);
+
+struct drm_gpusvm_notifier *
+drm_gpusvm_notifier_find(struct drm_gpusvm *gpusvm, unsigned long start,
+			 unsigned long end);
 
 struct drm_gpusvm_range *
 drm_gpusvm_range_find(struct drm_gpusvm_notifier *notifier, unsigned long start,
@@ -355,11 +292,6 @@ drm_gpusvm_range_find(struct drm_gpusvm_notifier *notifier, unsigned long start,
 
 void drm_gpusvm_range_set_unmapped(struct drm_gpusvm_range *range,
 				   const struct mmu_notifier_range *mmu_range);
-
-void drm_gpusvm_devmem_init(struct drm_gpusvm_devmem *devmem_allocation,
-			    struct device *dev, struct mm_struct *mm,
-			    const struct drm_gpusvm_devmem_ops *ops,
-			    struct drm_pagemap *dpagemap, size_t size);
 
 #ifdef CONFIG_LOCKDEP
 /**
@@ -505,5 +437,71 @@ __drm_gpusvm_range_next(struct drm_gpusvm_range *range)
 	     drm_gpusvm_range_find((notifier__), (start__), (end__));	\
 	     (range__) && (drm_gpusvm_range_start(range__) < (end__));	\
 	     (range__) = __drm_gpusvm_range_next(range__))
+
+/**
+ * drm_gpusvm_for_each_range_safe() - Safely iterate over GPU SVM ranges in a notifier
+ * @range__: Iterator variable for the ranges
+ * @next__: Iterator variable for the ranges temporay storage
+ * @notifier__: Pointer to the GPU SVM notifier
+ * @start__: Start address of the range
+ * @end__: End address of the range
+ *
+ * This macro is used to iterate over GPU SVM ranges in a notifier while
+ * removing ranges from it.
+ */
+#define drm_gpusvm_for_each_range_safe(range__, next__, notifier__, start__, end__)	\
+	for ((range__) = drm_gpusvm_range_find((notifier__), (start__), (end__)),	\
+	     (next__) = __drm_gpusvm_range_next(range__);				\
+	     (range__) && (drm_gpusvm_range_start(range__) < (end__));			\
+	     (range__) = (next__), (next__) = __drm_gpusvm_range_next(range__))
+
+/**
+ * __drm_gpusvm_notifier_next() - get the next drm_gpusvm_notifier in the list
+ * @notifier: a pointer to the current drm_gpusvm_notifier
+ *
+ * Return: A pointer to the next drm_gpusvm_notifier if available, or NULL if
+ *         the current notifier is the last one or if the input notifier is
+ *         NULL.
+ */
+static inline struct drm_gpusvm_notifier *
+__drm_gpusvm_notifier_next(struct drm_gpusvm_notifier *notifier)
+{
+	if (notifier && !list_is_last(&notifier->entry,
+				      &notifier->gpusvm->notifier_list))
+		return list_next_entry(notifier, entry);
+
+	return NULL;
+}
+
+/**
+ * drm_gpusvm_for_each_notifier() - Iterate over GPU SVM notifiers in a gpusvm
+ * @notifier__: Iterator variable for the notifiers
+ * @gpusvm__: Pointer to the GPU SVM notifier
+ * @start__: Start address of the notifier
+ * @end__: End address of the notifier
+ *
+ * This macro is used to iterate over GPU SVM notifiers in a gpusvm.
+ */
+#define drm_gpusvm_for_each_notifier(notifier__, gpusvm__, start__, end__)		\
+	for ((notifier__) = drm_gpusvm_notifier_find((gpusvm__), (start__), (end__));	\
+	     (notifier__) && (drm_gpusvm_notifier_start(notifier__) < (end__));		\
+	     (notifier__) = __drm_gpusvm_notifier_next(notifier__))
+
+/**
+ * drm_gpusvm_for_each_notifier_safe() - Safely iterate over GPU SVM notifiers in a gpusvm
+ * @notifier__: Iterator variable for the notifiers
+ * @next__: Iterator variable for the notifiers temporay storage
+ * @gpusvm__: Pointer to the GPU SVM notifier
+ * @start__: Start address of the notifier
+ * @end__: End address of the notifier
+ *
+ * This macro is used to iterate over GPU SVM notifiers in a gpusvm while
+ * removing notifiers from it.
+ */
+#define drm_gpusvm_for_each_notifier_safe(notifier__, next__, gpusvm__, start__, end__)	\
+	for ((notifier__) = drm_gpusvm_notifier_find((gpusvm__), (start__), (end__)),	\
+	     (next__) = __drm_gpusvm_notifier_next(notifier__);				\
+	     (notifier__) && (drm_gpusvm_notifier_start(notifier__) < (end__));		\
+	     (notifier__) = (next__), (next__) = __drm_gpusvm_notifier_next(notifier__))
 
 #endif /* __DRM_GPUSVM_H__ */

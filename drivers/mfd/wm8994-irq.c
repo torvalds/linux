@@ -213,9 +213,7 @@ int wm8994_irq_init(struct wm8994 *wm8994)
 			return ret;
 		}
 
-		wm8994->edge_irq = irq_domain_add_linear(NULL, 1,
-							 &wm8994_edge_irq_ops,
-							 wm8994);
+		wm8994->edge_irq = irq_domain_create_linear(NULL, 1, &wm8994_edge_irq_ops, wm8994);
 
 		ret = regmap_add_irq_chip(wm8994->regmap,
 					  irq_create_mapping(wm8994->edge_irq,

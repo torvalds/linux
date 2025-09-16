@@ -18,7 +18,7 @@ static enum iavf_status iavf_alloc_adminq_asq_ring(struct iavf_hw *hw)
 	ret_code = iavf_allocate_dma_mem(hw, &hw->aq.asq.desc_buf,
 					 iavf_mem_atq_ring,
 					 (hw->aq.num_asq_entries *
-					 sizeof(struct iavf_aq_desc)),
+					 sizeof(struct libie_aq_desc)),
 					 IAVF_ADMINQ_DESC_ALIGNMENT);
 	if (ret_code)
 		return ret_code;
@@ -45,7 +45,7 @@ static enum iavf_status iavf_alloc_adminq_arq_ring(struct iavf_hw *hw)
 	ret_code = iavf_allocate_dma_mem(hw, &hw->aq.arq.desc_buf,
 					 iavf_mem_arq_ring,
 					 (hw->aq.num_arq_entries *
-					 sizeof(struct iavf_aq_desc)),
+					 sizeof(struct libie_aq_desc)),
 					 IAVF_ADMINQ_DESC_ALIGNMENT);
 
 	return ret_code;
@@ -81,7 +81,7 @@ static void iavf_free_adminq_arq(struct iavf_hw *hw)
  **/
 static enum iavf_status iavf_alloc_arq_bufs(struct iavf_hw *hw)
 {
-	struct iavf_aq_desc *desc;
+	struct libie_aq_desc *desc;
 	struct iavf_dma_mem *bi;
 	enum iavf_status ret_code;
 	int i;
@@ -111,9 +111,9 @@ static enum iavf_status iavf_alloc_arq_bufs(struct iavf_hw *hw)
 		/* now configure the descriptors for use */
 		desc = IAVF_ADMINQ_DESC(hw->aq.arq, i);
 
-		desc->flags = cpu_to_le16(IAVF_AQ_FLAG_BUF);
+		desc->flags = cpu_to_le16(LIBIE_AQ_FLAG_BUF);
 		if (hw->aq.arq_buf_size > IAVF_AQ_LARGE_BUF)
-			desc->flags |= cpu_to_le16(IAVF_AQ_FLAG_LB);
+			desc->flags |= cpu_to_le16(LIBIE_AQ_FLAG_LB);
 		desc->opcode = 0;
 		/* This is in accordance with Admin queue design, there is no
 		 * register for buffer size configuration
@@ -122,12 +122,12 @@ static enum iavf_status iavf_alloc_arq_bufs(struct iavf_hw *hw)
 		desc->retval = 0;
 		desc->cookie_high = 0;
 		desc->cookie_low = 0;
-		desc->params.external.addr_high =
+		desc->params.generic.addr_high =
 			cpu_to_le32(upper_32_bits(bi->pa));
-		desc->params.external.addr_low =
+		desc->params.generic.addr_low =
 			cpu_to_le32(lower_32_bits(bi->pa));
-		desc->params.external.param0 = 0;
-		desc->params.external.param1 = 0;
+		desc->params.generic.param0 = 0;
+		desc->params.generic.param1 = 0;
 	}
 
 alloc_arq_bufs:
@@ -558,8 +558,8 @@ static u16 iavf_clean_asq(struct iavf_hw *hw)
 	struct iavf_adminq_ring *asq = &hw->aq.asq;
 	struct iavf_asq_cmd_details *details;
 	u16 ntc = asq->next_to_clean;
-	struct iavf_aq_desc desc_cb;
-	struct iavf_aq_desc *desc;
+	struct libie_aq_desc desc_cb;
+	struct libie_aq_desc *desc;
 
 	desc = IAVF_ADMINQ_DESC(*asq, ntc);
 	details = IAVF_ADMINQ_DETAILS(*asq, ntc);
@@ -573,7 +573,7 @@ static u16 iavf_clean_asq(struct iavf_hw *hw)
 			desc_cb = *desc;
 			cb_func(hw, &desc_cb);
 		}
-		memset((void *)desc, 0, sizeof(struct iavf_aq_desc));
+		memset((void *)desc, 0, sizeof(struct libie_aq_desc));
 		memset((void *)details, 0,
 		       sizeof(struct iavf_asq_cmd_details));
 		ntc++;
@@ -615,14 +615,14 @@ bool iavf_asq_done(struct iavf_hw *hw)
  *  queue.  It runs the queue, cleans the queue, etc
  **/
 enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
-				       struct iavf_aq_desc *desc,
+				       struct libie_aq_desc *desc,
 				       void *buff, /* can be NULL */
 				       u16  buff_size,
 				       struct iavf_asq_cmd_details *cmd_details)
 {
 	struct iavf_dma_mem *dma_buff = NULL;
 	struct iavf_asq_cmd_details *details;
-	struct iavf_aq_desc *desc_on_ring;
+	struct libie_aq_desc *desc_on_ring;
 	bool cmd_completed = false;
 	enum iavf_status status = 0;
 	u16  retval = 0;
@@ -637,7 +637,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 		goto asq_send_command_error;
 	}
 
-	hw->aq.asq_last_status = IAVF_AQ_RC_OK;
+	hw->aq.asq_last_status = LIBIE_AQ_RC_OK;
 
 	val = rd32(hw, IAVF_VF_ATQH1);
 	if (val >= hw->aq.num_asq_entries) {
@@ -717,9 +717,9 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 		/* Update the address values in the desc with the pa value
 		 * for respective buffer
 		 */
-		desc_on_ring->params.external.addr_high =
+		desc_on_ring->params.generic.addr_high =
 				cpu_to_le32(upper_32_bits(dma_buff->pa));
-		desc_on_ring->params.external.addr_low =
+		desc_on_ring->params.generic.addr_low =
 				cpu_to_le32(lower_32_bits(dma_buff->pa));
 	}
 
@@ -766,13 +766,13 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 			retval &= 0xff;
 		}
 		cmd_completed = true;
-		if ((enum iavf_admin_queue_err)retval == IAVF_AQ_RC_OK)
+		if ((enum libie_aq_err)retval == LIBIE_AQ_RC_OK)
 			status = 0;
-		else if ((enum iavf_admin_queue_err)retval == IAVF_AQ_RC_EBUSY)
+		else if ((enum libie_aq_err)retval == LIBIE_AQ_RC_EBUSY)
 			status = IAVF_ERR_NOT_READY;
 		else
 			status = IAVF_ERR_ADMIN_QUEUE_ERROR;
-		hw->aq.asq_last_status = (enum iavf_admin_queue_err)retval;
+		hw->aq.asq_last_status = (enum libie_aq_err)retval;
 	}
 
 	iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
@@ -809,12 +809,12 @@ asq_send_command_error:
  *
  *  Fill the desc with default values
  **/
-void iavf_fill_default_direct_cmd_desc(struct iavf_aq_desc *desc, u16 opcode)
+void iavf_fill_default_direct_cmd_desc(struct libie_aq_desc *desc, u16 opcode)
 {
 	/* zero out the desc */
-	memset((void *)desc, 0, sizeof(struct iavf_aq_desc));
+	memset((void *)desc, 0, sizeof(struct libie_aq_desc));
 	desc->opcode = cpu_to_le16(opcode);
-	desc->flags = cpu_to_le16(IAVF_AQ_FLAG_SI);
+	desc->flags = cpu_to_le16(LIBIE_AQ_FLAG_SI);
 }
 
 /**
@@ -832,7 +832,7 @@ enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 					u16 *pending)
 {
 	u16 ntc = hw->aq.arq.next_to_clean;
-	struct iavf_aq_desc *desc;
+	struct libie_aq_desc *desc;
 	enum iavf_status ret_code = 0;
 	struct iavf_dma_mem *bi;
 	u16 desc_idx;
@@ -866,9 +866,9 @@ enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 	desc_idx = ntc;
 
 	hw->aq.arq_last_status =
-		(enum iavf_admin_queue_err)le16_to_cpu(desc->retval);
+		(enum libie_aq_err)le16_to_cpu(desc->retval);
 	flags = le16_to_cpu(desc->flags);
-	if (flags & IAVF_AQ_FLAG_ERR) {
+	if (flags & LIBIE_AQ_FLAG_ERR) {
 		ret_code = IAVF_ERR_ADMIN_QUEUE_ERROR;
 		iavf_debug(hw,
 			   IAVF_DEBUG_AQ_MESSAGE,
@@ -892,14 +892,14 @@ enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 	 * size
 	 */
 	bi = &hw->aq.arq.r.arq_bi[ntc];
-	memset((void *)desc, 0, sizeof(struct iavf_aq_desc));
+	memset((void *)desc, 0, sizeof(struct libie_aq_desc));
 
-	desc->flags = cpu_to_le16(IAVF_AQ_FLAG_BUF);
+	desc->flags = cpu_to_le16(LIBIE_AQ_FLAG_BUF);
 	if (hw->aq.arq_buf_size > IAVF_AQ_LARGE_BUF)
-		desc->flags |= cpu_to_le16(IAVF_AQ_FLAG_LB);
+		desc->flags |= cpu_to_le16(LIBIE_AQ_FLAG_LB);
 	desc->datalen = cpu_to_le16((u16)bi->size);
-	desc->params.external.addr_high = cpu_to_le32(upper_32_bits(bi->pa));
-	desc->params.external.addr_low = cpu_to_le32(lower_32_bits(bi->pa));
+	desc->params.generic.addr_high = cpu_to_le32(upper_32_bits(bi->pa));
+	desc->params.generic.addr_low = cpu_to_le32(lower_32_bits(bi->pa));
 
 	/* set tail = the last cleaned desc index. */
 	wr32(hw, IAVF_VF_ARQT1, ntc);

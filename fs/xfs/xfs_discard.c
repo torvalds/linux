@@ -103,24 +103,6 @@ xfs_discard_endio(
 	bio_put(bio);
 }
 
-static inline struct block_device *
-xfs_group_bdev(
-	const struct xfs_group	*xg)
-{
-	struct xfs_mount	*mp = xg->xg_mount;
-
-	switch (xg->xg_type) {
-	case XG_TYPE_AG:
-		return mp->m_ddev_targp->bt_bdev;
-	case XG_TYPE_RTG:
-		return mp->m_rtdev_targp->bt_bdev;
-	default:
-		ASSERT(0);
-		break;
-	}
-	return NULL;
-}
-
 /*
  * Walk the discard list and issue discards on all the busy extents in the
  * list. We plug and chain the bios so that we only need a single completion
@@ -138,11 +120,14 @@ xfs_discard_extents(
 
 	blk_start_plug(&plug);
 	list_for_each_entry(busyp, &extents->extent_list, list) {
-		trace_xfs_discard_extent(busyp->group, busyp->bno,
-				busyp->length);
+		struct xfs_group	*xg = busyp->group;
+		struct xfs_buftarg	*btp =
+			xfs_group_type_buftarg(xg->xg_mount, xg->xg_type);
 
-		error = __blkdev_issue_discard(xfs_group_bdev(busyp->group),
-				xfs_gbno_to_daddr(busyp->group, busyp->bno),
+		trace_xfs_discard_extent(xg, busyp->bno, busyp->length);
+
+		error = __blkdev_issue_discard(btp->bt_bdev,
+				xfs_gbno_to_daddr(xg, busyp->bno),
 				XFS_FSB_TO_BB(mp, busyp->length),
 				GFP_KERNEL, &bio);
 		if (error && error != -EOPNOTSUPP) {
@@ -167,6 +152,14 @@ xfs_discard_extents(
 	return error;
 }
 
+/*
+ * Care must be taken setting up the trim cursor as the perags may not have been
+ * initialised when the cursor is initialised. e.g. a clean mount which hasn't
+ * read in AGFs and the first operation run on the mounted fs is a trim. This
+ * can result in perag fields that aren't initialised until
+ * xfs_trim_gather_extents() calls xfs_alloc_read_agf() to lock down the AG for
+ * the free space search.
+ */
 struct xfs_trim_cur {
 	xfs_agblock_t	start;
 	xfs_extlen_t	count;
@@ -196,13 +189,19 @@ xfs_trim_gather_extents(
 	 */
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
-	error = xfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		return error;
+	tp = xfs_trans_alloc_empty(mp);
 
 	error = xfs_alloc_read_agf(pag, tp, 0, &agbp);
 	if (error)
 		goto out_trans_cancel;
+
+	/*
+	 * First time through tcur->count will not have been initialised as
+	 * pag->pagf_longest is not guaranteed to be valid before we read
+	 * the AGF buffer above.
+	 */
+	if (!tcur->count)
+		tcur->count = pag->pagf_longest;
 
 	if (tcur->by_bno) {
 		/* sub-AG discard request always starts at tcur->start */
@@ -350,7 +349,6 @@ xfs_trim_perag_extents(
 {
 	struct xfs_trim_cur	tcur = {
 		.start		= start,
-		.count		= pag->pagf_longest,
 		.end		= end,
 		.minlen		= minlen,
 	};
@@ -583,9 +581,7 @@ xfs_trim_rtextents(
 	struct xfs_trans	*tp;
 	int			error;
 
-	error = xfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		return error;
+	tp = xfs_trans_alloc_empty(mp);
 
 	/*
 	 * Walk the free ranges between low and high.  The query_range function
@@ -701,9 +697,7 @@ xfs_trim_rtgroup_extents(
 	struct xfs_trans	*tp;
 	int			error;
 
-	error = xfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		return error;
+	tp = xfs_trans_alloc_empty(mp);
 
 	/*
 	 * Walk the free ranges between low and high.  The query_range function

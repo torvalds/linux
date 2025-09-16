@@ -209,7 +209,8 @@ static void bu21029_touch_report(struct bu21029_ts_data *bu21029, const u8 *buf)
 
 static void bu21029_touch_release(struct timer_list *t)
 {
-	struct bu21029_ts_data *bu21029 = from_timer(bu21029, t, timer);
+	struct bu21029_ts_data *bu21029 = timer_container_of(bu21029, t,
+							     timer);
 
 	input_report_abs(bu21029->in_dev, ABS_PRESSURE, 0);
 	input_report_key(bu21029->in_dev, BTN_TOUCH, 0);

@@ -1044,7 +1044,7 @@ static irqreturn_t fza_interrupt(int irq, void *dev_id)
 
 static void fza_reset_timer(struct timer_list *t)
 {
-	struct fza_private *fp = from_timer(fp, t, reset_timer);
+	struct fza_private *fp = timer_container_of(fp, t, reset_timer);
 
 	if (!fp->timer_state) {
 		pr_err("%s: RESET timed out!\n", fp->name);

@@ -296,7 +296,7 @@ struct vxlan_dev {
 	struct vxlan_rdst default_dst;	/* default destination */
 
 	struct timer_list age_timer;
-	spinlock_t	  hash_lock[FDB_HASH_SIZE];
+	spinlock_t	  hash_lock;
 	unsigned int	  addrcnt;
 	struct gro_cells  gro_cells;
 
@@ -304,9 +304,10 @@ struct vxlan_dev {
 
 	struct vxlan_vni_group  __rcu *vnigrp;
 
-	struct hlist_head fdb_head[FDB_HASH_SIZE];
+	struct rhashtable fdb_hash_tbl;
 
 	struct rhashtable mdb_tbl;
+	struct hlist_head fdb_list;
 	struct hlist_head mdb_list;
 	unsigned int mdb_seq;
 };
@@ -331,6 +332,7 @@ struct vxlan_dev {
 #define VXLAN_F_VNIFILTER               0x20000
 #define VXLAN_F_MDB			0x40000
 #define VXLAN_F_LOCALBYPASS		0x80000
+#define VXLAN_F_MC_ROUTE		0x100000
 
 /* Flags that are used in the receive path. These flags must match in
  * order for a socket to be shareable
@@ -352,7 +354,9 @@ struct vxlan_dev {
 					 VXLAN_F_UDP_ZERO_CSUM6_RX |	\
 					 VXLAN_F_COLLECT_METADATA  |	\
 					 VXLAN_F_VNIFILTER         |    \
-					 VXLAN_F_LOCALBYPASS)
+					 VXLAN_F_LOCALBYPASS       |	\
+					 VXLAN_F_MC_ROUTE          |	\
+					 0)
 
 struct net_device *vxlan_dev_create(struct net *net, const char *name,
 				    u8 name_assign_type, struct vxlan_config *conf);

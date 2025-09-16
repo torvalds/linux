@@ -903,7 +903,7 @@ int snd_vx_mixer_new(struct vx_core *chip)
 	struct snd_card *card = chip->card;
 	char name[32];
 
-	strcpy(card->mixername, card->driver);
+	strscpy(card->mixername, card->driver);
 
 	/* output level controls */
 	for (i = 0; i < chip->hw->num_outs; i++) {

@@ -7,7 +7,7 @@ import gdb
 from linux import constants
 from linux import cpus
 from linux import utils
-from linux import radixtree
+from linux import mapletree
 
 irq_desc_type = utils.CachedType("struct irq_desc")
 
@@ -23,12 +23,12 @@ def irqd_is_level(desc):
 def show_irq_desc(prec, irq):
     text = ""
 
-    desc = radixtree.lookup(gdb.parse_and_eval("&irq_desc_tree"), irq)
+    desc = mapletree.mtree_load(gdb.parse_and_eval("&sparse_irqs"), irq)
     if desc is None:
         return text
 
-    desc = desc.cast(irq_desc_type.get_type())
-    if desc is None:
+    desc = desc.cast(irq_desc_type.get_type().pointer())
+    if desc == 0:
         return text
 
     if irq_settings_is_hidden(desc):
@@ -110,7 +110,7 @@ def x86_show_mce(prec, var, pfx, desc):
     pvar = gdb.parse_and_eval(var)
     text = "%*s: " % (prec, pfx)
     for cpu in cpus.each_online_cpu():
-        text += "%10u " % (cpus.per_cpu(pvar, cpu))
+        text += "%10u " % (cpus.per_cpu(pvar, cpu).dereference())
     text += "  %s\n" % (desc)
     return text
 
@@ -142,7 +142,7 @@ def x86_show_interupts(prec):
 
     if constants.LX_CONFIG_X86_MCE:
         text += x86_show_mce(prec, "&mce_exception_count", "MCE", "Machine check exceptions")
-        text == x86_show_mce(prec, "&mce_poll_count", "MCP", "Machine check polls")
+        text += x86_show_mce(prec, "&mce_poll_count", "MCP", "Machine check polls")
 
     text += show_irq_err_count(prec)
 
@@ -221,8 +221,8 @@ class LxInterruptList(gdb.Command):
             gdb.write("CPU%-8d" % cpu)
         gdb.write("\n")
 
-        if utils.gdb_eval_or_none("&irq_desc_tree") is None:
-            return
+        if utils.gdb_eval_or_none("&sparse_irqs") is None:
+            raise gdb.GdbError("Unable to find the sparse IRQ tree, is CONFIG_SPARSE_IRQ enabled?")
 
         for irq in range(nr_irqs):
             gdb.write(show_irq_desc(prec, irq))

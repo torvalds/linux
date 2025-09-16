@@ -17,6 +17,7 @@
 #include "context.h"
 #include "table.h"
 #include "send.h"
+#include "action_ste_pool.h"
 #include "rule.h"
 #include "cmd.h"
 #include "action.h"

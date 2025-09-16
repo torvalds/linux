@@ -1030,7 +1030,7 @@ macro_rules! __pin_data {
 ///
 /// This macro has multiple internal call configurations, these are always the very first ident:
 /// - nothing: this is the base case and called by the `{try_}{pin_}init!` macros.
-/// - `with_update_parsed`: when the `..Zeroable::zeroed()` syntax has been handled.
+/// - `with_update_parsed`: when the `..Zeroable::init_zeroed()` syntax has been handled.
 /// - `init_slot`: recursively creates the code that initializes all fields in `slot`.
 /// - `make_initializer`: recursively create the struct initializer that guarantees that every
 ///   field has been initialized exactly once.
@@ -1059,7 +1059,7 @@ macro_rules! __init_internal {
             @data($data, $($use_data)?),
             @has_data($has_data, $get_data),
             @construct_closure($construct_closure),
-            @zeroed(), // Nothing means default behavior.
+            @init_zeroed(), // Nothing means default behavior.
         )
     };
     (
@@ -1074,7 +1074,7 @@ macro_rules! __init_internal {
         @has_data($has_data:ident, $get_data:ident),
         // `pin_init_from_closure` or `init_from_closure`.
         @construct_closure($construct_closure:ident),
-        @munch_fields(..Zeroable::zeroed()),
+        @munch_fields(..Zeroable::init_zeroed()),
     ) => {
         $crate::__init_internal!(with_update_parsed:
             @this($($this)?),
@@ -1084,7 +1084,7 @@ macro_rules! __init_internal {
             @data($data, $($use_data)?),
             @has_data($has_data, $get_data),
             @construct_closure($construct_closure),
-            @zeroed(()), // `()` means zero all fields not mentioned.
+            @init_zeroed(()), // `()` means zero all fields not mentioned.
         )
     };
     (
@@ -1124,7 +1124,7 @@ macro_rules! __init_internal {
         @has_data($has_data:ident, $get_data:ident),
         // `pin_init_from_closure` or `init_from_closure`.
         @construct_closure($construct_closure:ident),
-        @zeroed($($init_zeroed:expr)?),
+        @init_zeroed($($init_zeroed:expr)?),
     ) => {{
         // We do not want to allow arbitrary returns, so we declare this type as the `Ok` return
         // type and shadow it later when we insert the arbitrary user code. That way there will be
@@ -1196,7 +1196,7 @@ macro_rules! __init_internal {
         @data($data:ident),
         @slot($slot:ident),
         @guards($($guards:ident,)*),
-        @munch_fields($(..Zeroable::zeroed())? $(,)?),
+        @munch_fields($(..Zeroable::init_zeroed())? $(,)?),
     ) => {
         // Endpoint of munching, no fields are left. If execution reaches this point, all fields
         // have been initialized. Therefore we can now dismiss the guards by forgetting them.
@@ -1300,11 +1300,11 @@ macro_rules! __init_internal {
     (make_initializer:
         @slot($slot:ident),
         @type_name($t:path),
-        @munch_fields(..Zeroable::zeroed() $(,)?),
+        @munch_fields(..Zeroable::init_zeroed() $(,)?),
         @acc($($acc:tt)*),
     ) => {
         // Endpoint, nothing more to munch, create the initializer. Since the users specified
-        // `..Zeroable::zeroed()`, the slot will already have been zeroed and all field that have
+        // `..Zeroable::init_zeroed()`, the slot will already have been zeroed and all field that have
         // not been overwritten are thus zero and initialized. We still check that all fields are
         // actually accessible by using the struct update syntax ourselves.
         // We are inside of a closure that is never executed and thus we can abuse `slot` to
@@ -1393,7 +1393,7 @@ macro_rules! __derive_zeroable {
         @body({
             $(
                 $(#[$($field_attr:tt)*])*
-                $field:ident : $field_ty:ty
+                $field_vis:vis $field:ident : $field_ty:ty
             ),* $(,)?
         }),
     ) => {
@@ -1411,5 +1411,94 @@ macro_rules! __derive_zeroable {
                 $(assert_zeroable::<$field_ty>();)*
             }
         };
+    };
+    (parse_input:
+        @sig(
+            $(#[$($struct_attr:tt)*])*
+            $vis:vis union $name:ident
+            $(where $($whr:tt)*)?
+        ),
+        @impl_generics($($impl_generics:tt)*),
+        @ty_generics($($ty_generics:tt)*),
+        @body({
+            $(
+                $(#[$($field_attr:tt)*])*
+                $field_vis:vis $field:ident : $field_ty:ty
+            ),* $(,)?
+        }),
+    ) => {
+        // SAFETY: Every field type implements `Zeroable` and padding bytes may be zero.
+        #[automatically_derived]
+        unsafe impl<$($impl_generics)*> $crate::Zeroable for $name<$($ty_generics)*>
+        where
+            $($($whr)*)?
+        {}
+        const _: () = {
+            fn assert_zeroable<T: ?::core::marker::Sized + $crate::Zeroable>() {}
+            fn ensure_zeroable<$($impl_generics)*>()
+                where $($($whr)*)?
+            {
+                $(assert_zeroable::<$field_ty>();)*
+            }
+        };
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __maybe_derive_zeroable {
+    (parse_input:
+        @sig(
+            $(#[$($struct_attr:tt)*])*
+            $vis:vis struct $name:ident
+            $(where $($whr:tt)*)?
+        ),
+        @impl_generics($($impl_generics:tt)*),
+        @ty_generics($($ty_generics:tt)*),
+        @body({
+            $(
+                $(#[$($field_attr:tt)*])*
+                $field_vis:vis $field:ident : $field_ty:ty
+            ),* $(,)?
+        }),
+    ) => {
+        // SAFETY: Every field type implements `Zeroable` and padding bytes may be zero.
+        #[automatically_derived]
+        unsafe impl<$($impl_generics)*> $crate::Zeroable for $name<$($ty_generics)*>
+        where
+            $(
+                // the `for<'__dummy>` HRTB makes this not error without the `trivial_bounds`
+                // feature <https://github.com/rust-lang/rust/issues/48214#issuecomment-2557829956>.
+                $field_ty: for<'__dummy> $crate::Zeroable,
+            )*
+            $($($whr)*)?
+        {}
+    };
+    (parse_input:
+        @sig(
+            $(#[$($struct_attr:tt)*])*
+            $vis:vis union $name:ident
+            $(where $($whr:tt)*)?
+        ),
+        @impl_generics($($impl_generics:tt)*),
+        @ty_generics($($ty_generics:tt)*),
+        @body({
+            $(
+                $(#[$($field_attr:tt)*])*
+                $field_vis:vis $field:ident : $field_ty:ty
+            ),* $(,)?
+        }),
+    ) => {
+        // SAFETY: Every field type implements `Zeroable` and padding bytes may be zero.
+        #[automatically_derived]
+        unsafe impl<$($impl_generics)*> $crate::Zeroable for $name<$($ty_generics)*>
+        where
+            $(
+                // the `for<'__dummy>` HRTB makes this not error without the `trivial_bounds`
+                // feature <https://github.com/rust-lang/rust/issues/48214#issuecomment-2557829956>.
+                $field_ty: for<'__dummy> $crate::Zeroable,
+            )*
+            $($($whr)*)?
+        {}
     };
 }

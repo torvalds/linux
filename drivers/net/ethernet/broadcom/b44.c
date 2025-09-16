@@ -575,7 +575,7 @@ static void b44_check_phy(struct b44 *bp)
 
 static void b44_timer(struct timer_list *t)
 {
-	struct b44 *bp = from_timer(bp, t, timer);
+	struct b44 *bp = timer_container_of(bp, t, timer);
 
 	spin_lock_irq(&bp->lock);
 
@@ -2570,7 +2570,7 @@ static int __init b44_init(void)
 	unsigned int dma_desc_align_size = dma_get_cache_alignment();
 	int err;
 
-	/* Setup paramaters for syncing RX/TX DMA descriptors */
+	/* Setup parameters for syncing RX/TX DMA descriptors */
 	dma_desc_sync_size = max_t(unsigned int, dma_desc_align_size, sizeof(struct dma_desc));
 
 	err = b44_pci_init();

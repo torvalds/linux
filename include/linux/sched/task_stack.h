@@ -53,7 +53,7 @@ static inline void setup_thread_stack(struct task_struct *p, struct task_struct 
  * When the stack grows up, this is the highest address.
  * Beyond that position, we corrupt data on the next page.
  */
-static inline unsigned long *end_of_stack(struct task_struct *p)
+static inline unsigned long *end_of_stack(const struct task_struct *p)
 {
 #ifdef CONFIG_STACK_GROWSUP
 	return (unsigned long *)((unsigned long)task_thread_info(p) + THREAD_SIZE) - 1;
@@ -106,7 +106,6 @@ static inline unsigned long stack_not_used(struct task_struct *p)
 #endif
 extern void set_task_stack_end_magic(struct task_struct *tsk);
 
-#ifndef __HAVE_ARCH_KSTACK_END
 static inline int kstack_end(void *addr)
 {
 	/* Reliable end of stack detection:
@@ -114,6 +113,5 @@ static inline int kstack_end(void *addr)
 	 */
 	return !(((unsigned long)addr+sizeof(void*)-1) & (THREAD_SIZE-sizeof(void*)));
 }
-#endif
 
 #endif /* _LINUX_SCHED_TASK_STACK_H */

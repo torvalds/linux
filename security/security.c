@@ -2181,7 +2181,7 @@ int security_inode_symlink(struct inode *dir, struct dentry *dentry,
 }
 
 /**
- * security_inode_mkdir() - Check if creation a new director is allowed
+ * security_inode_mkdir() - Check if creating a new directory is allowed
  * @dir: parent directory
  * @dentry: new directory
  * @mode: new directory mode
@@ -2620,6 +2620,36 @@ void security_inode_post_removexattr(struct dentry *dentry, const char *name)
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return;
 	call_void_hook(inode_post_removexattr, dentry, name);
+}
+
+/**
+ * security_inode_file_setattr() - check if setting fsxattr is allowed
+ * @dentry: file to set filesystem extended attributes on
+ * @fa: extended attributes to set on the inode
+ *
+ * Called when file_setattr() syscall or FS_IOC_FSSETXATTR ioctl() is called on
+ * inode
+ *
+ * Return: Returns 0 if permission is granted.
+ */
+int security_inode_file_setattr(struct dentry *dentry, struct file_kattr *fa)
+{
+	return call_int_hook(inode_file_setattr, dentry, fa);
+}
+
+/**
+ * security_inode_file_getattr() - check if retrieving fsxattr is allowed
+ * @dentry: file to retrieve filesystem extended attributes from
+ * @fa: extended attributes to get
+ *
+ * Called when file_getattr() syscall or FS_IOC_FSGETXATTR ioctl() is called on
+ * inode
+ *
+ * Return: Returns 0 if permission is granted.
+ */
+int security_inode_file_getattr(struct dentry *dentry, struct file_kattr *fa)
+{
+	return call_int_hook(inode_file_getattr, dentry, fa);
 }
 
 /**
@@ -4277,24 +4307,6 @@ int security_setprocattr(int lsmid, const char *name, void *value, size_t size)
 }
 
 /**
- * security_netlink_send() - Save info and check if netlink sending is allowed
- * @sk: sending socket
- * @skb: netlink message
- *
- * Save security information for a netlink message so that permission checking
- * can be performed when the message is processed.  The security information
- * can be saved using the eff_cap field of the netlink_skb_parms structure.
- * Also may be used to provide fine grained control over message transmission.
- *
- * Return: Returns 0 if the information was successfully saved and message is
- *         allowed to be transmitted.
- */
-int security_netlink_send(struct sock *sk, struct sk_buff *skb)
-{
-	return call_int_hook(netlink_send, sk, skb);
-}
-
-/**
  * security_ismaclabel() - Check if the named attribute is a MAC label
  * @name: full extended attribute name
  *
@@ -4483,6 +4495,24 @@ int security_watch_key(struct key *key)
 #endif /* CONFIG_KEY_NOTIFICATIONS */
 
 #ifdef CONFIG_SECURITY_NETWORK
+/**
+ * security_netlink_send() - Save info and check if netlink sending is allowed
+ * @sk: sending socket
+ * @skb: netlink message
+ *
+ * Save security information for a netlink message so that permission checking
+ * can be performed when the message is processed.  The security information
+ * can be saved using the eff_cap field of the netlink_skb_parms structure.
+ * Also may be used to provide fine grained control over message transmission.
+ *
+ * Return: Returns 0 if the information was successfully saved and message is
+ *         allowed to be transmitted.
+ */
+int security_netlink_send(struct sock *sk, struct sk_buff *skb)
+{
+	return call_int_hook(netlink_send, sk, skb);
+}
+
 /**
  * security_unix_stream_connect() - Check if a AF_UNIX stream is allowed
  * @sock: originating sock

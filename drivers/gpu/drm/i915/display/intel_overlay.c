@@ -31,6 +31,7 @@
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_object_frontbuffer.h"
 #include "gem/i915_gem_pm.h"
+
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_ring.h"
 
@@ -38,6 +39,7 @@
 #include "i915_reg.h"
 #include "intel_color_regs.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_frontbuffer.h"
 #include "intel_overlay.h"
@@ -215,10 +217,9 @@ static void i830_overlay_clock_gating(struct intel_display *display,
 
 	/* WA_OVERLAY_CLKGATE:alm */
 	if (enable)
-		intel_de_write(display, DSPCLK_GATE_D(display), 0);
+		intel_de_write(display, DSPCLK_GATE_D, 0);
 	else
-		intel_de_write(display, DSPCLK_GATE_D(display),
-			       OVRUNIT_CLOCK_GATE_DISABLE);
+		intel_de_write(display, DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
 
 	/* WA_DISABLE_L2CACHE_CLOCK_GATING:alm */
 	pci_bus_read_config_byte(pdev->bus,

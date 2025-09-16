@@ -14,7 +14,6 @@
 #include <linux/percpu.h>
 #include <linux/notifier.h>
 #include <linux/init.h>
-#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/perf_event.h>
 #include <asm/ctlreg.h>
@@ -266,7 +265,7 @@ static int paiext_event_valid(struct perf_event *event)
 		event->hw.config_base = offsetof(struct paiext_cb, acc);
 		return 0;
 	}
-	return -EINVAL;
+	return -ENOENT;
 }
 
 /* Might be called on different CPU than the one the event is intended for. */

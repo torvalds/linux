@@ -347,7 +347,7 @@ static const struct file_operations bt_bmc_fops = {
 
 static void poll_timer(struct timer_list *t)
 {
-	struct bt_bmc *bt_bmc = from_timer(bt_bmc, t, poll_timer);
+	struct bt_bmc *bt_bmc = timer_container_of(bt_bmc, t, poll_timer);
 
 	bt_bmc->poll_timer.expires += msecs_to_jiffies(500);
 	wake_up(&bt_bmc->queue);

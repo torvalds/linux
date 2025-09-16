@@ -1645,7 +1645,7 @@ static int snd_ali_pcm(struct snd_ali *codec, int device,
 	pcm->info_flags = 0;
 	pcm->dev_class = desc->class;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
-	strcpy(pcm->name, desc->name);
+	strscpy(pcm->name, desc->name);
 	codec->pcm[0] = pcm;
 	return 0;
 }
@@ -1688,7 +1688,7 @@ static int snd_ali_build_pcms(struct snd_ali *codec)
 static int snd_ali5451_spdif_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_ali *codec = kcontrol->private_data;
+	struct snd_ali *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int spdif_enable;
 
 	spdif_enable = ucontrol->value.integer.value[0] ? 1 : 0;
@@ -1716,7 +1716,7 @@ static int snd_ali5451_spdif_get(struct snd_kcontrol *kcontrol,
 static int snd_ali5451_spdif_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_ali *codec = kcontrol->private_data;
+	struct snd_ali *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int change = 0, spdif_enable = 0;
 
 	spdif_enable = ucontrol->value.integer.value[0] ? 1 : 0;
@@ -1989,7 +1989,7 @@ static int snd_ali_resources(struct snd_ali *codec)
 	int err;
 
 	dev_dbg(codec->card->dev, "resources allocation ...\n");
-	err = pci_request_regions(codec->pci, "ALI 5451");
+	err = pcim_request_all_regions(codec->pci, "ALI 5451");
 	if (err < 0)
 		return err;
 	codec->port = pci_resource_start(codec->pci, 0);
@@ -2133,8 +2133,8 @@ static int __snd_ali_probe(struct pci_dev *pci,
 
 	snd_ali_proc_init(codec);
 
-	strcpy(card->driver, "ALI5451");
-	strcpy(card->shortname, "ALI 5451");
+	strscpy(card->driver, "ALI5451");
+	strscpy(card->shortname, "ALI 5451");
 	
 	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname, codec->port, codec->irq);

@@ -758,11 +758,14 @@ xfs_inode_item_push(
 		 * completed and items removed from the AIL before the next push
 		 * attempt.
 		 */
+		trace_xfs_inode_push_stale(ip, _RET_IP_);
 		return XFS_ITEM_PINNED;
 	}
 
-	if (xfs_ipincount(ip) > 0 || xfs_buf_ispinned(bp))
+	if (xfs_ipincount(ip) > 0 || xfs_buf_ispinned(bp)) {
+		trace_xfs_inode_push_pinned(ip, _RET_IP_);
 		return XFS_ITEM_PINNED;
+	}
 
 	if (xfs_iflags_test(ip, XFS_IFLUSHING))
 		return XFS_ITEM_FLUSHING;
@@ -1179,12 +1182,12 @@ xfs_iflush_shutdown_abort(
  */
 int
 xfs_inode_item_format_convert(
-	struct xfs_log_iovec		*buf,
+	struct kvec			*buf,
 	struct xfs_inode_log_format	*in_f)
 {
-	struct xfs_inode_log_format_32	*in_f32 = buf->i_addr;
+	struct xfs_inode_log_format_32	*in_f32 = buf->iov_base;
 
-	if (buf->i_len != sizeof(*in_f32)) {
+	if (buf->iov_len != sizeof(*in_f32)) {
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, NULL);
 		return -EFSCORRUPTED;
 	}

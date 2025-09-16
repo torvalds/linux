@@ -223,12 +223,6 @@ static inline bool serial8250_clear_THRI(struct uart_8250_port *up)
 struct uart_8250_port *serial8250_setup_port(int index);
 struct uart_8250_port *serial8250_get_port(int line);
 
-void serial8250_rpm_get(struct uart_8250_port *p);
-void serial8250_rpm_put(struct uart_8250_port *p);
-
-void serial8250_rpm_get_tx(struct uart_8250_port *p);
-void serial8250_rpm_put_tx(struct uart_8250_port *p);
-
 int serial8250_em485_config(struct uart_port *port, struct ktermios *termios,
 			    struct serial_rs485 *rs485);
 void serial8250_em485_start_tx(struct uart_8250_port *p, bool toggle_ier);
@@ -324,8 +318,16 @@ static inline void serial8250_pnp_exit(void) { }
 
 #ifdef CONFIG_SERIAL_8250_RSA
 void univ8250_rsa_support(struct uart_ops *ops);
+void rsa_enable(struct uart_8250_port *up);
+void rsa_disable(struct uart_8250_port *up);
+void rsa_autoconfig(struct uart_8250_port *up);
+void rsa_reset(struct uart_8250_port *up);
 #else
 static inline void univ8250_rsa_support(struct uart_ops *ops) { }
+static inline void rsa_enable(struct uart_8250_port *up) {}
+static inline void rsa_disable(struct uart_8250_port *up) {}
+static inline void rsa_autoconfig(struct uart_8250_port *up) {}
+static inline void rsa_reset(struct uart_8250_port *up) {}
 #endif
 
 #ifdef CONFIG_SERIAL_8250_FINTEK

@@ -2067,7 +2067,7 @@ static void mt7615_mcu_set_txpower_sku(struct mt7615_phy *phy, u8 *sku)
 	};
 
 	tx_power = mt76_get_sar_power(mphy, mphy->chandef.chan, tx_power);
-	tx_power -= mt76_tx_power_nss_delta(n_chains);
+	tx_power -= mt76_tx_power_path_delta(n_chains);
 	tx_power = mt76_get_rate_power_limits(mphy, mphy->chandef.chan,
 					      &limits, tx_power);
 	mphy->txpower_cur = tx_power;
@@ -2084,8 +2084,8 @@ static void mt7615_mcu_set_txpower_sku(struct mt7615_phy *phy, u8 *sku)
 		int delta = 0;
 
 		if (i < n_chains - 1)
-			delta = mt76_tx_power_nss_delta(n_chains) -
-				mt76_tx_power_nss_delta(i + 1);
+			delta = mt76_tx_power_path_delta(n_chains) -
+				mt76_tx_power_path_delta(i + 1);
 		sku[MT_SKU_1SS_DELTA + i] = delta;
 	}
 }

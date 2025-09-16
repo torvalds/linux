@@ -480,23 +480,12 @@ int ib_send_cm_rej(struct ib_cm_id *cm_id,
 		   const void *private_data,
 		   u8 private_data_len);
 
-#define IB_CM_MRA_FLAG_DELAY 0x80  /* Send MRA only after a duplicate msg */
-
 /**
- * ib_send_cm_mra - Sends a message receipt acknowledgement to a connection
- *   message.
+ * ib_prepare_cm_mra - Prepares to send a message receipt acknowledgment to a
+     connection message in case duplicates are received.
  * @cm_id: Connection identifier associated with the connection message.
- * @service_timeout: The lower 5-bits specify the maximum time required for
- *   the sender to reply to the connection message.  The upper 3-bits
- *   specify additional control flags.
- * @private_data: Optional user-defined private data sent with the
- *   message receipt acknowledgement.
- * @private_data_len: Size of the private data buffer, in bytes.
  */
-int ib_send_cm_mra(struct ib_cm_id *cm_id,
-		   u8 service_timeout,
-		   const void *private_data,
-		   u8 private_data_len);
+int ib_prepare_cm_mra(struct ib_cm_id *cm_id);
 
 /**
  * ib_cm_init_qp_attr - Initializes the QP attributes for use in transitioning

@@ -82,8 +82,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	int len;
 	struct auth_domain *dom = NULL;
 	int err;
-	int fsidtype;
-	char *ep;
+	u8 fsidtype;
 	struct svc_expkey key;
 	struct svc_expkey *ek = NULL;
 
@@ -109,10 +108,9 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	err = -EINVAL;
 	if (qword_get(&mesg, buf, PAGE_SIZE) <= 0)
 		goto out;
-	fsidtype = simple_strtoul(buf, &ep, 10);
-	if (*ep)
+	if (kstrtou8(buf, 10, &fsidtype))
 		goto out;
-	dprintk("found fsidtype %d\n", fsidtype);
+	dprintk("found fsidtype %u\n", fsidtype);
 	if (key_len(fsidtype)==0) /* invalid type */
 		goto out;
 	if ((len=qword_get(&mesg, buf, PAGE_SIZE)) <= 0)
@@ -1124,7 +1122,8 @@ __be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp,
 		    test_bit(XPT_PEER_AUTH, &xprt->xpt_flags))
 			goto ok;
 	}
-	goto denied;
+	if (!may_bypass_gss)
+		goto denied;
 
 ok:
 	/* legacy gss-only clients are always OK: */

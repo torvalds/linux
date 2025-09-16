@@ -32,7 +32,7 @@ impl<T: DriverFile> File<T> {
     /// # Safety
     ///
     /// `raw_file` must be a valid pointer to an open `struct drm_file`, opened through `T::open`.
-    pub unsafe fn as_ref<'a>(ptr: *mut bindings::drm_file) -> &'a File<T> {
+    pub unsafe fn from_raw<'a>(ptr: *mut bindings::drm_file) -> &'a File<T> {
         // SAFETY: `raw_file` is valid by the safety requirements of this function.
         unsafe { &*ptr.cast() }
     }
@@ -61,10 +61,10 @@ impl<T: DriverFile> File<T> {
         // SAFETY: A callback from `struct drm_driver::open` guarantees that
         // - `raw_dev` is valid pointer to a `struct drm_device`,
         // - the corresponding `struct drm_device` has been registered.
-        let drm = unsafe { drm::Device::as_ref(raw_dev) };
+        let drm = unsafe { drm::Device::from_raw(raw_dev) };
 
         // SAFETY: `raw_file` is a valid pointer to a `struct drm_file`.
-        let file = unsafe { File::<T>::as_ref(raw_file) };
+        let file = unsafe { File::<T>::from_raw(raw_file) };
 
         let inner = match T::open(drm) {
             Err(e) => {
@@ -89,7 +89,7 @@ impl<T: DriverFile> File<T> {
         raw_file: *mut bindings::drm_file,
     ) {
         // SAFETY: This reference won't escape this function
-        let file = unsafe { File::<T>::as_ref(raw_file) };
+        let file = unsafe { File::<T>::from_raw(raw_file) };
 
         // SAFETY: `file.driver_priv` has been created in `open_callback` through `KBox::into_raw`.
         let _ = unsafe { KBox::from_raw(file.driver_priv()) };

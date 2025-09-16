@@ -267,6 +267,7 @@ static int mlx5_cmd_hws_create_flow_table(struct mlx5_flow_root_namespace *ns,
 
 	tbl_attr.type = MLX5HWS_TABLE_TYPE_FDB;
 	tbl_attr.level = ft_attr->level;
+	tbl_attr.uid = ft_attr->uid;
 	tbl = mlx5hws_table_create(ctx, &tbl_attr);
 	if (!tbl) {
 		mlx5_core_err(ns->dev, "Failed creating hws flow_table\n");
@@ -571,14 +572,12 @@ static void mlx5_fs_put_dest_action_sampler(struct mlx5_fs_hws_context *fs_ctx,
 static struct mlx5hws_action *
 mlx5_fs_create_action_dest_array(struct mlx5hws_context *ctx,
 				 struct mlx5hws_action_dest_attr *dests,
-				 u32 num_of_dests, bool ignore_flow_level,
-				 u32 flow_source)
+				 u32 num_of_dests, bool ignore_flow_level)
 {
 	u32 flags = MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED;
 
 	return mlx5hws_action_create_dest_array(ctx, num_of_dests, dests,
-						ignore_flow_level,
-						flow_source, flags);
+						ignore_flow_level, flags);
 }
 
 static struct mlx5hws_action *
@@ -966,6 +965,9 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 			switch (attr->type) {
 			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE:
 				dest_action = mlx5_fs_get_dest_action_ft(fs_ctx, dst);
+				if (dst->dest_attr.ft->flags &
+				    MLX5_FLOW_TABLE_UPLINK_VPORT)
+					dest_actions[num_dest_actions].is_wire_ft = true;
 				break;
 			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM:
 				dest_action = mlx5_fs_get_dest_action_table_num(fs_ctx,
@@ -1012,7 +1014,6 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 		}
 		(*ractions)[num_actions++].action = dest_actions->dest;
 	} else if (num_dest_actions > 1) {
-		u32 flow_source = fte->act_dests.flow_context.flow_source;
 		bool ignore_flow_level;
 
 		if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
@@ -1022,10 +1023,10 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 		}
 		ignore_flow_level =
 			!!(fte_action->flags & FLOW_ACT_IGNORE_FLOW_LEVEL);
-		tmp_action = mlx5_fs_create_action_dest_array(ctx, dest_actions,
-							      num_dest_actions,
-							      ignore_flow_level,
-							      flow_source);
+		tmp_action =
+			mlx5_fs_create_action_dest_array(ctx, dest_actions,
+							 num_dest_actions,
+							 ignore_flow_level);
 		if (!tmp_action) {
 			err = -EOPNOTSUPP;
 			goto free_actions;
@@ -1081,13 +1082,8 @@ static int mlx5_cmd_hws_create_fte(struct mlx5_flow_root_namespace *ns,
 	struct mlx5hws_bwc_rule *rule;
 	int err = 0;
 
-	if (mlx5_fs_cmd_is_fw_term_table(ft)) {
-		/* Packet reformat on terminamtion table not supported yet */
-		if (fte->act_dests.action.action &
-		    MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT)
-			return -EOPNOTSUPP;
+	if (mlx5_fs_cmd_is_fw_term_table(ft))
 		return mlx5_fs_cmd_get_fw_cmds()->create_fte(ns, ft, group, fte);
-	}
 
 	err = mlx5_fs_fte_get_hws_actions(ns, ft, group, fte, &ractions);
 	if (err)
@@ -1362,7 +1358,8 @@ mlx5_cmd_hws_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns,
 		pkt_reformat->fs_hws_action.pr_data = pr_data;
 	}
 
-	pkt_reformat->owner = MLX5_FLOW_RESOURCE_OWNER_SW;
+	mutex_init(&pkt_reformat->fs_hws_action.lock);
+	pkt_reformat->owner = MLX5_FLOW_RESOURCE_OWNER_HWS;
 	pkt_reformat->fs_hws_action.hws_action = hws_action;
 	return 0;
 
@@ -1379,6 +1376,15 @@ static void mlx5_cmd_hws_packet_reformat_dealloc(struct mlx5_flow_root_namespace
 	struct mlx5_core_dev *dev = ns->dev;
 	struct mlx5_fs_hws_pr *pr_data;
 	struct mlx5_fs_pool *pr_pool;
+
+	if (pkt_reformat->fs_hws_action.fw_reformat_id != 0) {
+		struct mlx5_pkt_reformat fw_pkt_reformat = { 0 };
+
+		fw_pkt_reformat.id = pkt_reformat->fs_hws_action.fw_reformat_id;
+		mlx5_fs_cmd_get_fw_cmds()->
+			packet_reformat_dealloc(ns, &fw_pkt_reformat);
+		pkt_reformat->fs_hws_action.fw_reformat_id = 0;
+	}
 
 	if (pkt_reformat->reformat_type == MLX5_REFORMAT_TYPE_REMOVE_HDR)
 		return;
@@ -1530,6 +1536,58 @@ static void mlx5_cmd_hws_modify_header_dealloc(struct mlx5_flow_root_namespace *
 	pool = modify_hdr->fs_hws_action.fs_pool;
 	mlx5_fs_hws_mh_pool_release_mh(pool, mh_data);
 	modify_hdr->fs_hws_action.mh_data = NULL;
+}
+
+int
+mlx5_fs_hws_action_get_pkt_reformat_id(struct mlx5_pkt_reformat *pkt_reformat,
+				       u32 *reformat_id)
+{
+	enum mlx5_flow_namespace_type ns_type = pkt_reformat->ns_type;
+	struct mutex *lock = &pkt_reformat->fs_hws_action.lock;
+	u32 *id = &pkt_reformat->fs_hws_action.fw_reformat_id;
+	struct mlx5_pkt_reformat fw_pkt_reformat = { 0 };
+	struct mlx5_pkt_reformat_params params = { 0 };
+	struct mlx5_flow_root_namespace *ns;
+	struct mlx5_core_dev *dev;
+	int ret;
+
+	mutex_lock(lock);
+
+	if (*id != 0) {
+		*reformat_id = *id;
+		ret = 0;
+		goto unlock;
+	}
+
+	dev = mlx5hws_action_get_dev(pkt_reformat->fs_hws_action.hws_action);
+	if (!dev) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	ns = mlx5_get_root_namespace(dev, ns_type);
+	if (!ns) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	params.type = pkt_reformat->reformat_type;
+	params.size = pkt_reformat->fs_hws_action.pr_data->data_size;
+	params.data = pkt_reformat->fs_hws_action.pr_data->data;
+
+	ret = mlx5_fs_cmd_get_fw_cmds()->
+		packet_reformat_alloc(ns, &params, ns_type, &fw_pkt_reformat);
+	if (ret)
+		goto unlock;
+
+	*id = fw_pkt_reformat.id;
+	*reformat_id = *id;
+	ret = 0;
+
+unlock:
+	mutex_unlock(lock);
+
+	return ret;
 }
 
 static int mlx5_cmd_hws_create_match_definer(struct mlx5_flow_root_namespace *ns,

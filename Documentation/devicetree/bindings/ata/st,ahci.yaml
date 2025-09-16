@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ata/st,ahci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics STi SATA controller
+
+maintainers:
+  - Patrice Chotard <patrice.chotard@foss.st.com>
+
+allOf:
+  - $ref: ahci-common.yaml#
+
+properties:
+  compatible:
+    const: st,ahci
+
+  interrupt-names:
+    items:
+      - const: hostc
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: ahci_clk
+
+  resets:
+    items:
+      - description: Power-down line
+      - description: Soft-reset line
+      - description: Power-reset line
+
+  reset-names:
+    items:
+      - const: pwr-dwn
+      - const: sw-rst
+      - const: pwr-rst
+
+required:
+  - compatible
+  - interrupt-names
+  - phys
+  - phy-names
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/phy/phy.h>
+    #include <dt-bindings/reset/stih407-resets.h>
+    #include <dt-bindings/clock/stih407-clks.h>
+
+    sata@9b20000 {
+        compatible    = "st,ahci";
+        reg           = <0x9b20000 0x1000>;
+        interrupts    = <GIC_SPI 159 IRQ_TYPE_NONE>;
+        interrupt-names = "hostc";
+        phys          = <&phy_port0 PHY_TYPE_SATA>;
+        phy-names     = "sata-phy";
+        resets        = <&powerdown STIH407_SATA0_POWERDOWN>,
+                         <&softreset STIH407_SATA0_SOFTRESET>,
+                         <&softreset STIH407_SATA0_PWR_SOFTRESET>;
+        reset-names   = "pwr-dwn", "sw-rst", "pwr-rst";
+        clocks        = <&clk_s_c0_flexgen CLK_ICN_REG>;
+        clock-names   = "ahci_clk";
+    };

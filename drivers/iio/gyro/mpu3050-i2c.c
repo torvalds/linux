@@ -95,7 +95,7 @@ static void mpu3050_i2c_remove(struct i2c_client *client)
  */
 static const struct i2c_device_id mpu3050_i2c_id[] = {
 	{ "mpu3050" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mpu3050_i2c_id);
 
@@ -103,7 +103,7 @@ static const struct of_device_id mpu3050_i2c_of_match[] = {
 	{ .compatible = "invensense,mpu3050", .data = "mpu3050" },
 	/* Deprecated vendor ID from the Input driver */
 	{ .compatible = "invn,mpu3050", .data = "mpu3050" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mpu3050_i2c_of_match);
 

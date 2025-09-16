@@ -22,11 +22,11 @@ static __always_inline const struct vdso_rng_data *__arch_get_vdso_u_rng_data(vo
 
 #endif /* CONFIG_GENERIC_VDSO_DATA_STORE */
 
-#ifndef __arch_update_vsyscall
-static __always_inline void __arch_update_vsyscall(struct vdso_time_data *vdata)
+#ifndef __arch_update_vdso_clock
+static __always_inline void __arch_update_vdso_clock(struct vdso_clock *vc)
 {
 }
-#endif /* __arch_update_vsyscall */
+#endif /* __arch_update_vdso_clock */
 
 #ifndef __arch_sync_vdso_time_data
 static __always_inline void __arch_sync_vdso_time_data(struct vdso_time_data *vdata)

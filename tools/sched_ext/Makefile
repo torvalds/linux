@@ -61,8 +61,8 @@ SCXOBJ_DIR := $(OBJ_DIR)/sched_ext
 BINDIR := $(OUTPUT_DIR)/bin
 BPFOBJ := $(BPFOBJ_DIR)/libbpf.a
 ifneq ($(CROSS_COMPILE),)
-HOST_BUILD_DIR		:= $(OBJ_DIR)/host
-HOST_OUTPUT_DIR	:= host-tools
+HOST_BUILD_DIR		:= $(OBJ_DIR)/host/obj
+HOST_OUTPUT_DIR	:= $(OBJ_DIR)/host
 HOST_INCLUDE_DIR	:= $(HOST_OUTPUT_DIR)/include
 else
 HOST_BUILD_DIR		:= $(OBJ_DIR)
@@ -98,7 +98,7 @@ ifneq ($(LLVM),)
 CFLAGS += -Wno-unused-command-line-argument
 endif
 
-LDFLAGS = -lelf -lz -lpthread
+LDFLAGS += -lelf -lz -lpthread
 
 IS_LITTLE_ENDIAN = $(shell $(CC) -dM -E - </dev/null |				\
 			grep 'define __BYTE_ORDER__ __ORDER_LITTLE_ENDIAN__')
@@ -136,14 +136,25 @@ $(MAKE_DIRS):
 $(BPFOBJ): $(wildcard $(BPFDIR)/*.[ch] $(BPFDIR)/Makefile)			\
 	   $(APIDIR)/linux/bpf.h						\
 	   | $(OBJ_DIR)/libbpf
-	$(Q)$(MAKE) $(submake_extras) -C $(BPFDIR) OUTPUT=$(OBJ_DIR)/libbpf/	\
+	$(Q)$(MAKE) $(submake_extras) CROSS_COMPILE=$(CROSS_COMPILE) 		\
+		    -C $(BPFDIR) OUTPUT=$(OBJ_DIR)/libbpf/			\
 		    EXTRA_CFLAGS='-g -O0 -fPIC'					\
+		    LDFLAGS="$(LDFLAGS)"					\
 		    DESTDIR=$(OUTPUT_DIR) prefix= all install_headers
+
+$(HOST_BPFOBJ): $(wildcard $(BPFDIR)/*.[ch] $(BPFDIR)/Makefile)		\
+	   $(APIDIR)/linux/bpf.h						\
+	   | $(HOST_BUILD_DIR)/libbpf
+	$(Q)$(MAKE) $(submake_extras) -C $(BPFDIR) 				\
+		    OUTPUT=$(HOST_BUILD_DIR)/libbpf/				\
+		    ARCH= CROSS_COMPILE= CC="$(HOSTCC)" LD=$(HOSTLD)		\
+		    EXTRA_CFLAGS='-g -O0 -fPIC'					\
+		    DESTDIR=$(HOST_OUTPUT_DIR) prefix= all install_headers
 
 $(DEFAULT_BPFTOOL): $(wildcard $(BPFTOOLDIR)/*.[ch] $(BPFTOOLDIR)/Makefile)	\
 		    $(HOST_BPFOBJ) | $(HOST_BUILD_DIR)/bpftool
 	$(Q)$(MAKE) $(submake_extras)  -C $(BPFTOOLDIR)				\
-		    ARCH= CROSS_COMPILE= CC=$(HOSTCC) LD=$(HOSTLD)		\
+		    ARCH= CROSS_COMPILE= CC="$(HOSTCC)" LD=$(HOSTLD)		\
 		    EXTRA_CFLAGS='-g -O0'					\
 		    OUTPUT=$(HOST_BUILD_DIR)/bpftool/				\
 		    LIBBPF_OUTPUT=$(HOST_BUILD_DIR)/libbpf/			\
@@ -185,7 +196,7 @@ $(addprefix $(BINDIR)/,$(c-sched-targets)): \
 		$(SCX_COMMON_DEPS)
 	$(eval sched=$(notdir $@))
 	$(CC) $(CFLAGS) -c $(sched).c -o $(SCXOBJ_DIR)/$(sched).o
-	$(CC) -o $@ $(SCXOBJ_DIR)/$(sched).o $(HOST_BPFOBJ) $(LDFLAGS)
+	$(CC) -o $@ $(SCXOBJ_DIR)/$(sched).o $(BPFOBJ) $(LDFLAGS)
 
 $(c-sched-targets): %: $(BINDIR)/%
 

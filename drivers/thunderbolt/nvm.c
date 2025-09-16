@@ -588,7 +588,7 @@ int tb_nvm_read_data(unsigned int address, void *buf, size_t size,
  * @size: Size of the buffer in bytes
  * @retries: Number of retries if the block write fails
  * @write_block: Function that writes block to the flash
- * @write_block_data: Data passwd to @write_block
+ * @write_block_data: Data passed to @write_block
  *
  * This is generic function that writes data to NVM or NVM like device.
  *

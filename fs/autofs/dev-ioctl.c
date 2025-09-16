@@ -459,7 +459,8 @@ static int autofs_dev_ioctl_timeout(struct file *fp,
 				"the parent autofs mount timeout which could "
 				"prevent shutdown\n");
 
-		dentry = try_lookup_one_len(param->path, base, path_len);
+		dentry = try_lookup_noperm(&QSTR_LEN(param->path, path_len),
+					   base);
 		if (IS_ERR_OR_NULL(dentry))
 			return dentry ? PTR_ERR(dentry) : -ENOENT;
 		ino = autofs_dentry_ino(dentry);

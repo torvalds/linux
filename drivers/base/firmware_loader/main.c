@@ -806,67 +806,21 @@ static void fw_abort_batch_reqs(struct firmware *fw)
 }
 
 #if defined(CONFIG_FW_LOADER_DEBUG)
-#include <crypto/hash.h>
 #include <crypto/sha2.h>
 
 static void fw_log_firmware_info(const struct firmware *fw, const char *name, struct device *device)
 {
-	struct shash_desc *shash;
-	struct crypto_shash *alg;
-	u8 *sha256buf;
-	char *outbuf;
+	u8 digest[SHA256_DIGEST_SIZE];
 
-	alg = crypto_alloc_shash("sha256", 0, 0);
-	if (IS_ERR(alg))
-		return;
-
-	sha256buf = kmalloc(SHA256_DIGEST_SIZE, GFP_KERNEL);
-	outbuf = kmalloc(SHA256_BLOCK_SIZE + 1, GFP_KERNEL);
-	shash = kmalloc(sizeof(*shash) + crypto_shash_descsize(alg), GFP_KERNEL);
-	if (!sha256buf || !outbuf || !shash)
-		goto out_free;
-
-	shash->tfm = alg;
-
-	if (crypto_shash_digest(shash, fw->data, fw->size, sha256buf) < 0)
-		goto out_free;
-
-	for (int i = 0; i < SHA256_DIGEST_SIZE; i++)
-		sprintf(&outbuf[i * 2], "%02x", sha256buf[i]);
-	outbuf[SHA256_BLOCK_SIZE] = 0;
-	dev_dbg(device, "Loaded FW: %s, sha256: %s\n", name, outbuf);
-
-out_free:
-	kfree(shash);
-	kfree(outbuf);
-	kfree(sha256buf);
-	crypto_free_shash(alg);
+	sha256(fw->data, fw->size, digest);
+	dev_dbg(device, "Loaded FW: %s, sha256: %*phN\n",
+		name, SHA256_DIGEST_SIZE, digest);
 }
 #else
 static void fw_log_firmware_info(const struct firmware *fw, const char *name,
 				 struct device *device)
 {}
 #endif
-
-/*
- * Reject firmware file names with ".." path components.
- * There are drivers that construct firmware file names from device-supplied
- * strings, and we don't want some device to be able to tell us "I would like to
- * be sent my firmware from ../../../etc/shadow, please".
- *
- * Search for ".." surrounded by either '/' or start/end of string.
- *
- * This intentionally only looks at the firmware name, not at the firmware base
- * directory or at symlink contents.
- */
-static bool name_contains_dotdot(const char *name)
-{
-	size_t name_len = strlen(name);
-
-	return strcmp(name, "..") == 0 || strncmp(name, "../", 3) == 0 ||
-	       strstr(name, "/../") != NULL ||
-	       (name_len >= 3 && strcmp(name+name_len-3, "/..") == 0);
-}
 
 /* called from request_firmware() and request_firmware_work_func() */
 static int
@@ -888,6 +842,17 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 		goto out;
 	}
 
+
+	/*
+	 * Reject firmware file names with ".." path components.
+	 * There are drivers that construct firmware file names from
+	 * device-supplied strings, and we don't want some device to be
+	 * able to tell us "I would like to be sent my firmware from
+	 * ../../../etc/shadow, please".
+	 *
+	 * This intentionally only looks at the firmware name, not at
+	 * the firmware base directory or at symlink contents.
+	 */
 	if (name_contains_dotdot(name)) {
 		dev_warn(device,
 			 "Firmware load for '%s' refused, path contains '..' component\n",

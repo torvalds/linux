@@ -76,6 +76,23 @@ config TURRIS_OMNIA_MCU_TRNG
 	  Say Y here to add support for the true random number generator
 	  provided by CZ.NIC's Turris Omnia MCU.
 
+config TURRIS_OMNIA_MCU_KEYCTL
+	bool "Turris Omnia MCU ECDSA message signing"
+	default y
+	depends on KEYS
+	depends on ASYMMETRIC_KEY_TYPE
+	depends on TURRIS_OMNIA_MCU_GPIO
+	select TURRIS_SIGNING_KEY
+	help
+	  Say Y here to add support for ECDSA message signing with board private
+	  key (if available on the MCU). This is exposed via the keyctl()
+	  syscall.
+
 endif # TURRIS_OMNIA_MCU
+
+config TURRIS_SIGNING_KEY
+	tristate
+	depends on KEYS
+	depends on ASYMMETRIC_KEY_TYPE
 
 endif # CZNIC_PLATFORMS

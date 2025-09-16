@@ -346,11 +346,10 @@ static struct ext4_dir_entry_tail *get_dirent_tail(struct inode *inode,
 
 static __le32 ext4_dirblock_csum(struct inode *inode, void *dirent, int size)
 {
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	__u32 csum;
 
-	csum = ext4_chksum(sbi, ei->i_csum_seed, (__u8 *)dirent, size);
+	csum = ext4_chksum(ei->i_csum_seed, (__u8 *)dirent, size);
 	return cpu_to_le32(csum);
 }
 
@@ -442,7 +441,6 @@ static struct dx_countlimit *get_dx_countlimit(struct inode *inode,
 static __le32 ext4_dx_csum(struct inode *inode, struct ext4_dir_entry *dirent,
 			   int count_offset, int count, struct dx_tail *t)
 {
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	__u32 csum;
 	int size;
@@ -450,9 +448,9 @@ static __le32 ext4_dx_csum(struct inode *inode, struct ext4_dir_entry *dirent,
 	int offset = offsetof(struct dx_tail, dt_checksum);
 
 	size = count_offset + (count * sizeof(struct dx_entry));
-	csum = ext4_chksum(sbi, ei->i_csum_seed, (__u8 *)dirent, size);
-	csum = ext4_chksum(sbi, csum, (__u8 *)t, offset);
-	csum = ext4_chksum(sbi, csum, (__u8 *)&dummy_csum, sizeof(dummy_csum));
+	csum = ext4_chksum(ei->i_csum_seed, (__u8 *)dirent, size);
+	csum = ext4_chksum(csum, (__u8 *)t, offset);
+	csum = ext4_chksum(csum, (__u8 *)&dummy_csum, sizeof(dummy_csum));
 
 	return cpu_to_le32(csum);
 }
@@ -2917,47 +2915,58 @@ err_unlock_inode:
 	return err;
 }
 
-struct ext4_dir_entry_2 *ext4_init_dot_dotdot(struct inode *inode,
-			  struct ext4_dir_entry_2 *de,
-			  int blocksize, int csum_size,
-			  unsigned int parent_ino, int dotdot_real_len)
+int ext4_init_dirblock(handle_t *handle, struct inode *inode,
+		       struct buffer_head *bh, unsigned int parent_ino,
+		       void *inline_buf, int inline_size)
 {
+	struct ext4_dir_entry_2 *de = (struct ext4_dir_entry_2 *) bh->b_data;
+	size_t			blocksize = bh->b_size;
+	int			csum_size = 0, header_size;
+
+	if (ext4_has_feature_metadata_csum(inode->i_sb))
+		csum_size = sizeof(struct ext4_dir_entry_tail);
+
 	de->inode = cpu_to_le32(inode->i_ino);
 	de->name_len = 1;
 	de->rec_len = ext4_rec_len_to_disk(ext4_dir_rec_len(de->name_len, NULL),
 					   blocksize);
-	strcpy(de->name, ".");
+	memcpy(de->name, ".", 2);
 	ext4_set_de_type(inode->i_sb, de, S_IFDIR);
 
 	de = ext4_next_entry(de, blocksize);
 	de->inode = cpu_to_le32(parent_ino);
 	de->name_len = 2;
-	if (!dotdot_real_len)
-		de->rec_len = ext4_rec_len_to_disk(blocksize -
-					(csum_size + ext4_dir_rec_len(1, NULL)),
-					blocksize);
-	else
+	memcpy(de->name, "..", 3);
+	ext4_set_de_type(inode->i_sb, de, S_IFDIR);
+	if (inline_buf) {
 		de->rec_len = ext4_rec_len_to_disk(
 					ext4_dir_rec_len(de->name_len, NULL),
 					blocksize);
-	strcpy(de->name, "..");
-	ext4_set_de_type(inode->i_sb, de, S_IFDIR);
+		de = ext4_next_entry(de, blocksize);
+		header_size = (char *)de - bh->b_data;
+		memcpy((void *)de, inline_buf, inline_size);
+		ext4_update_final_de(bh->b_data, inline_size + header_size,
+			blocksize - csum_size);
+	} else {
+		de->rec_len = ext4_rec_len_to_disk(blocksize -
+					(csum_size + ext4_dir_rec_len(1, NULL)),
+					blocksize);
+	}
 
-	return ext4_next_entry(de, blocksize);
+	if (csum_size)
+		ext4_initialize_dirent_tail(bh, blocksize);
+	BUFFER_TRACE(dir_block, "call ext4_handle_dirty_metadata");
+	set_buffer_uptodate(bh);
+	set_buffer_verified(bh);
+	return ext4_handle_dirty_dirblock(handle, inode, bh);
 }
 
 int ext4_init_new_dir(handle_t *handle, struct inode *dir,
 			     struct inode *inode)
 {
 	struct buffer_head *dir_block = NULL;
-	struct ext4_dir_entry_2 *de;
 	ext4_lblk_t block = 0;
-	unsigned int blocksize = dir->i_sb->s_blocksize;
-	int csum_size = 0;
 	int err;
-
-	if (ext4_has_feature_metadata_csum(dir->i_sb))
-		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	if (ext4_test_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA)) {
 		err = ext4_try_create_inline_dir(handle, dir, inode);
@@ -2967,21 +2976,12 @@ int ext4_init_new_dir(handle_t *handle, struct inode *dir,
 			goto out;
 	}
 
+	set_nlink(inode, 2);
 	inode->i_size = 0;
 	dir_block = ext4_append(handle, inode, &block);
 	if (IS_ERR(dir_block))
 		return PTR_ERR(dir_block);
-	de = (struct ext4_dir_entry_2 *)dir_block->b_data;
-	ext4_init_dot_dotdot(inode, de, blocksize, csum_size, dir->i_ino, 0);
-	set_nlink(inode, 2);
-	if (csum_size)
-		ext4_initialize_dirent_tail(dir_block, blocksize);
-
-	BUFFER_TRACE(dir_block, "call ext4_handle_dirty_metadata");
-	err = ext4_handle_dirty_dirblock(handle, inode, dir_block);
-	if (err)
-		goto out;
-	set_buffer_verified(dir_block);
+	err = ext4_init_dirblock(handle, inode, dir_block, dir->i_ino, NULL, 0);
 out:
 	brelse(dir_block);
 	return err;
@@ -3084,7 +3084,8 @@ bool ext4_empty_dir(struct inode *inode)
 	de = (struct ext4_dir_entry_2 *) bh->b_data;
 	if (ext4_check_dir_entry(inode, NULL, de, bh, bh->b_data, bh->b_size,
 				 0) ||
-	    le32_to_cpu(de->inode) != inode->i_ino || strcmp(".", de->name)) {
+	    le32_to_cpu(de->inode) != inode->i_ino || de->name_len != 1 ||
+	    de->name[0] != '.') {
 		ext4_warning_inode(inode, "directory missing '.'");
 		brelse(bh);
 		return false;
@@ -3093,7 +3094,8 @@ bool ext4_empty_dir(struct inode *inode)
 	de = ext4_next_entry(de, sb->s_blocksize);
 	if (ext4_check_dir_entry(inode, NULL, de, bh, bh->b_data, bh->b_size,
 				 offset) ||
-	    le32_to_cpu(de->inode) == 0 || strcmp("..", de->name)) {
+	    le32_to_cpu(de->inode) == 0 || de->name_len != 2 ||
+	    de->name[0] != '.' || de->name[1] != '.') {
 		ext4_warning_inode(inode, "directory missing '..'");
 		brelse(bh);
 		return false;
@@ -3534,7 +3536,7 @@ static struct buffer_head *ext4_get_first_dir_block(handle_t *handle,
 		if (ext4_check_dir_entry(inode, NULL, de, bh, bh->b_data,
 					 bh->b_size, 0) ||
 		    le32_to_cpu(de->inode) != inode->i_ino ||
-		    strcmp(".", de->name)) {
+		    de->name_len != 1 || de->name[0] != '.') {
 			EXT4_ERROR_INODE(inode, "directory missing '.'");
 			brelse(bh);
 			*retval = -EFSCORRUPTED;
@@ -3545,7 +3547,8 @@ static struct buffer_head *ext4_get_first_dir_block(handle_t *handle,
 		de = ext4_next_entry(de, inode->i_sb->s_blocksize);
 		if (ext4_check_dir_entry(inode, NULL, de, bh, bh->b_data,
 					 bh->b_size, offset) ||
-		    le32_to_cpu(de->inode) == 0 || strcmp("..", de->name)) {
+		    le32_to_cpu(de->inode) == 0 || de->name_len != 2 ||
+		    de->name[0] != '.' || de->name[1] != '.') {
 			EXT4_ERROR_INODE(inode, "directory missing '..'");
 			brelse(bh);
 			*retval = -EFSCORRUPTED;

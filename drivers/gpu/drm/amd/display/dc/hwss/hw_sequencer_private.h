@@ -49,6 +49,7 @@ struct hwseq_wa_state {
 	bool DEGVIDCN10_253_applied;
 	bool disallow_self_refresh_during_multi_plane_transition_applied;
 	unsigned int disallow_self_refresh_during_multi_plane_transition_applied_on_frame;
+	bool skip_blank_stream;
 };
 
 struct pipe_ctx;

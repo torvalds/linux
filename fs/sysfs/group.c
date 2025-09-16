@@ -21,7 +21,7 @@ static void remove_files(struct kernfs_node *parent,
 			 const struct attribute_group *grp)
 {
 	struct attribute *const *attr;
-	struct bin_attribute *const *bin_attr;
+	const struct bin_attribute *const *bin_attr;
 
 	if (grp->attrs)
 		for (attr = grp->attrs; *attr; attr++)
@@ -47,7 +47,7 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 			const struct attribute_group *grp, int update)
 {
 	struct attribute *const *attr;
-	struct bin_attribute *const *bin_attr;
+	const struct bin_attribute *const *bin_attr;
 	int error = 0, i;
 
 	if (grp->attrs) {
@@ -521,7 +521,7 @@ static int sysfs_group_attrs_change_owner(struct kernfs_node *grp_kn,
 	}
 
 	if (grp->bin_attrs) {
-		struct bin_attribute *const *bin_attr;
+		const struct bin_attribute *const *bin_attr;
 
 		for (bin_attr = grp->bin_attrs; *bin_attr; bin_attr++) {
 			kn = kernfs_find_and_get(grp_kn, (*bin_attr)->attr.name);

@@ -122,6 +122,9 @@ properties:
       - free-running
       - recovered
 
+  mac-termination-ohms:
+    enum: [43, 44, 46, 48, 50, 53, 55, 58, 61, 65, 69, 73, 78, 84, 91, 99]
+
 required:
   - reg
 
@@ -137,6 +140,7 @@ examples:
         rx-internal-delay-ps = <1>;
         tx-internal-delay-ps = <1>;
         ti,gpio2-clk-out = "xi";
+        mac-termination-ohms = <43>;
       };
     };
 

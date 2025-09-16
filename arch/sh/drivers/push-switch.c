@@ -25,7 +25,7 @@ static DEVICE_ATTR_RO(switch);
 
 static void switch_timer(struct timer_list *t)
 {
-	struct push_switch *psw = from_timer(psw, t, debounce);
+	struct push_switch *psw = timer_container_of(psw, t, debounce);
 
 	schedule_work(&psw->work);
 }

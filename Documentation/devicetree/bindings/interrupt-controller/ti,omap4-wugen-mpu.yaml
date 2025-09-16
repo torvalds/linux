@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/ti,omap4-wugen-mpu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI OMAP4 Wake-up Generator
+
+maintainers:
+  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+
+description: >
+  All TI OMAP4/5 (and their derivatives) are interrupt controllers that route
+  interrupts to the GIC, and also serve as wakeup sources. They are also
+  referred to as "WUGEN-MPU", hence the name of the binding.
+
+  Notes:
+
+    - Because this HW ultimately routes interrupts to the GIC, the interrupt
+      specifier must be that of the GIC.
+    - Only SPIs can use the WUGEN as an interrupt parent. SGIs and PPIs are
+      explicitly forbidden.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: ti,omap5-wugen-mpu
+          - const: ti,omap4-wugen-mpu
+      - const: ti,omap4-wugen-mpu
+
+  reg:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 3
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    interrupt-controller@48281000 {
+        compatible = "ti,omap5-wugen-mpu", "ti,omap4-wugen-mpu";
+        reg = <0x48281000 0x1000>;
+        interrupt-controller;
+        #interrupt-cells = <3>;
+    };

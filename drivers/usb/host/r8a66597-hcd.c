@@ -1720,7 +1720,8 @@ static void r8a66597_root_hub_control(struct r8a66597 *r8a66597, int port)
 
 static void r8a66597_interval_timer(struct timer_list *t)
 {
-	struct r8a66597_timers *timers = from_timer(timers, t, interval);
+	struct r8a66597_timers *timers = timer_container_of(timers, t,
+							    interval);
 	struct r8a66597 *r8a66597 = timers->r8a66597;
 	unsigned long flags;
 	u16 pipenum;
@@ -1744,7 +1745,7 @@ static void r8a66597_interval_timer(struct timer_list *t)
 
 static void r8a66597_td_timer(struct timer_list *t)
 {
-	struct r8a66597_timers *timers = from_timer(timers, t, td);
+	struct r8a66597_timers *timers = timer_container_of(timers, t, td);
 	struct r8a66597 *r8a66597 = timers->r8a66597;
 	unsigned long flags;
 	u16 pipenum;
@@ -1798,7 +1799,7 @@ static void r8a66597_td_timer(struct timer_list *t)
 
 static void r8a66597_timer(struct timer_list *t)
 {
-	struct r8a66597 *r8a66597 = from_timer(r8a66597, t, rh_timer);
+	struct r8a66597 *r8a66597 = timer_container_of(r8a66597, t, rh_timer);
 	unsigned long flags;
 	int port;
 

@@ -46,9 +46,11 @@ static inline bool __btree_path_put(struct btree_trans *trans, struct btree_path
 	return --path->ref == 0;
 }
 
-static inline void btree_path_set_dirty(struct btree_path *path,
+static inline void btree_path_set_dirty(struct btree_trans *trans,
+					struct btree_path *path,
 					enum btree_path_uptodate u)
 {
+	BUG_ON(path->should_be_locked && trans->locked && !trans->restarted);
 	path->uptodate = max_t(unsigned, path->uptodate, u);
 }
 
@@ -285,14 +287,23 @@ static inline int bch2_trans_mutex_lock(struct btree_trans *trans, struct mutex 
 		: __bch2_trans_mutex_lock(trans, lock);
 }
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-void bch2_trans_verify_paths(struct btree_trans *);
-void bch2_assert_pos_locked(struct btree_trans *, enum btree_id, struct bpos);
-#else
-static inline void bch2_trans_verify_paths(struct btree_trans *trans) {}
-static inline void bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id id,
-					  struct bpos pos) {}
-#endif
+/* Debug: */
+
+void __bch2_trans_verify_paths(struct btree_trans *);
+void __bch2_assert_pos_locked(struct btree_trans *, enum btree_id, struct bpos);
+
+static inline void bch2_trans_verify_paths(struct btree_trans *trans)
+{
+	if (static_branch_unlikely(&bch2_debug_check_iterators))
+		__bch2_trans_verify_paths(trans);
+}
+
+static inline void bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id btree,
+					  struct bpos pos)
+{
+	if (static_branch_unlikely(&bch2_debug_check_iterators))
+		__bch2_assert_pos_locked(trans, btree, pos);
+}
 
 void bch2_btree_path_fix_key_modified(struct btree_trans *trans,
 				      struct btree *, struct bkey_packed *);
@@ -543,17 +554,45 @@ void bch2_trans_copy_iter(struct btree_trans *, struct btree_iter *, struct btre
 
 void bch2_set_btree_iter_dontneed(struct btree_trans *, struct btree_iter *);
 
-void *__bch2_trans_kmalloc(struct btree_trans *, size_t);
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+void bch2_trans_kmalloc_trace_to_text(struct printbuf *,
+				      darray_trans_kmalloc_trace *);
+#endif
 
-/**
- * bch2_trans_kmalloc - allocate memory for use by the current transaction
- *
- * Must be called after bch2_trans_begin, which on second and further calls
- * frees all memory allocated in this transaction
- */
-static inline void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
+void *__bch2_trans_kmalloc(struct btree_trans *, size_t, unsigned long);
+
+static inline void bch2_trans_kmalloc_trace(struct btree_trans *trans, size_t size,
+					    unsigned long ip)
+{
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+	darray_push(&trans->trans_kmalloc_trace,
+		    ((struct trans_kmalloc_trace) { .ip = ip, .bytes = size }));
+#endif
+}
+
+static __always_inline void *bch2_trans_kmalloc_nomemzero_ip(struct btree_trans *trans, size_t size,
+						    unsigned long ip)
 {
 	size = roundup(size, 8);
+
+	bch2_trans_kmalloc_trace(trans, size, ip);
+
+	if (likely(trans->mem_top + size <= trans->mem_bytes)) {
+		void *p = trans->mem + trans->mem_top;
+
+		trans->mem_top += size;
+		return p;
+	} else {
+		return __bch2_trans_kmalloc(trans, size, ip);
+	}
+}
+
+static __always_inline void *bch2_trans_kmalloc_ip(struct btree_trans *trans, size_t size,
+					  unsigned long ip)
+{
+	size = roundup(size, 8);
+
+	bch2_trans_kmalloc_trace(trans, size, ip);
 
 	if (likely(trans->mem_top + size <= trans->mem_bytes)) {
 		void *p = trans->mem + trans->mem_top;
@@ -562,22 +601,24 @@ static inline void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 		memset(p, 0, size);
 		return p;
 	} else {
-		return __bch2_trans_kmalloc(trans, size);
+		return __bch2_trans_kmalloc(trans, size, ip);
 	}
 }
 
-static inline void *bch2_trans_kmalloc_nomemzero(struct btree_trans *trans, size_t size)
+/**
+ * bch2_trans_kmalloc - allocate memory for use by the current transaction
+ *
+ * Must be called after bch2_trans_begin, which on second and further calls
+ * frees all memory allocated in this transaction
+ */
+static __always_inline void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 {
-	size = round_up(size, 8);
+	return bch2_trans_kmalloc_ip(trans, size, _THIS_IP_);
+}
 
-	if (likely(trans->mem_top + size <= trans->mem_bytes)) {
-		void *p = trans->mem + trans->mem_top;
-
-		trans->mem_top += size;
-		return p;
-	} else {
-		return __bch2_trans_kmalloc(trans, size);
-	}
+static __always_inline void *bch2_trans_kmalloc_nomemzero(struct btree_trans *trans, size_t size)
+{
+	return bch2_trans_kmalloc_nomemzero_ip(trans, size, _THIS_IP_);
 }
 
 static inline struct bkey_s_c __bch2_bkey_get_iter(struct btree_trans *trans,
@@ -922,16 +963,6 @@ struct bkey_s_c bch2_btree_iter_peek_and_restart_outlined(struct btree_trans *,
 	_p;								\
 })
 
-#define bch2_trans_run(_c, _do)						\
-({									\
-	struct btree_trans *trans = bch2_trans_get(_c);			\
-	int _ret = (_do);						\
-	bch2_trans_put(trans);						\
-	_ret;								\
-})
-
-#define bch2_trans_do(_c, _do)	bch2_trans_run(_c, lockrestart_do(trans, _do))
-
 struct btree_trans *__bch2_trans_get(struct bch_fs *, unsigned);
 void bch2_trans_put(struct btree_trans *);
 
@@ -948,6 +979,27 @@ unsigned bch2_trans_get_fn_idx(const char *);
 		trans_fn_idx = bch2_trans_get_fn_idx(__func__);		\
 	__bch2_trans_get(_c, trans_fn_idx);				\
 })
+
+/*
+ * We don't use DEFINE_CLASS() because using a function for the constructor
+ * breaks bch2_trans_get()'s use of __func__
+ */
+typedef struct btree_trans * class_btree_trans_t;
+static inline void class_btree_trans_destructor(struct btree_trans **p)
+{
+	struct btree_trans *trans = *p;
+	bch2_trans_put(trans);
+}
+
+#define class_btree_trans_constructor(_c)	bch2_trans_get(_c)
+
+#define bch2_trans_run(_c, _do)						\
+({									\
+	CLASS(btree_trans, trans)(_c);					\
+	(_do);								\
+})
+
+#define bch2_trans_do(_c, _do)	bch2_trans_run(_c, lockrestart_do(trans, _do))
 
 void bch2_btree_trans_to_text(struct printbuf *, struct btree_trans *);
 

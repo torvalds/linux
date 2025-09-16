@@ -294,6 +294,23 @@ static const struct amdgpu_pcs_ras_field xgmi3x16_pcs_ras_fields[] = {
 	 SOC15_REG_FIELD(PCS_XGMI3X16_PCS_ERROR_STATUS, RxCMDPktErr)},
 };
 
+int amdgpu_xgmi_get_ext_link(struct amdgpu_device *adev, int link_num)
+{
+	int link_map_6_4_x[8] = { 0, 3, 1, 2, 7, 6, 4, 5 };
+
+	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
+	case IP_VERSION(6, 4, 0):
+	case IP_VERSION(6, 4, 1):
+		if (link_num < ARRAY_SIZE(link_map_6_4_x))
+			return link_map_6_4_x[link_num];
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
 static u32 xgmi_v6_4_get_link_status(struct amdgpu_device *adev, int global_link_num)
 {
 	const u32 smn_xgmi_6_4_pcs_state_hist1[2] = { 0x11a00070, 0x11b00070 };
@@ -1754,16 +1771,25 @@ void amdgpu_xgmi_early_init(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 0):
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
-		adev->gmc.xgmi.max_speed = XGMI_SPEED_25GT;
+		/* 25 GT/s */
+		adev->gmc.xgmi.max_speed = 25;
 		adev->gmc.xgmi.max_width = 16;
 		break;
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
 	case IP_VERSION(9, 5, 0):
-		adev->gmc.xgmi.max_speed = XGMI_SPEED_32GT;
+		/* 32 GT/s */
+		adev->gmc.xgmi.max_speed = 32;
 		adev->gmc.xgmi.max_width = 16;
 		break;
 	default:
 		break;
 	}
+}
+
+void amgpu_xgmi_set_max_speed_width(struct amdgpu_device *adev,
+				    uint16_t max_speed, uint8_t max_width)
+{
+	adev->gmc.xgmi.max_speed = max_speed;
+	adev->gmc.xgmi.max_width = max_width;
 }

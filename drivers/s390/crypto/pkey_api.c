@@ -12,6 +12,7 @@
 
 #include <linux/init.h>
 #include <linux/miscdevice.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 
 #include "zcrypt_api.h"
@@ -24,7 +25,8 @@
  */
 static int key2protkey(const struct pkey_apqn *apqns, size_t nr_apqns,
 		       const u8 *key, size_t keylen,
-		       u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+		       u8 *protkey, u32 *protkeylen, u32 *protkeytype,
+		       u32 xflags)
 {
 	int rc;
 
@@ -32,14 +34,14 @@ static int key2protkey(const struct pkey_apqn *apqns, size_t nr_apqns,
 	rc = pkey_handler_key_to_protkey(apqns, nr_apqns,
 					 key, keylen,
 					 protkey, protkeylen,
-					 protkeytype);
+					 protkeytype, xflags);
 
 	/* if this did not work, try the slowpath way */
 	if (rc == -ENODEV) {
 		rc = pkey_handler_slowpath_key_to_protkey(apqns, nr_apqns,
 							  key, keylen,
 							  protkey, protkeylen,
-							  protkeytype);
+							  protkeytype, xflags);
 		if (rc)
 			rc = -ENODEV;
 	}
@@ -52,16 +54,16 @@ static int key2protkey(const struct pkey_apqn *apqns, size_t nr_apqns,
  * In-Kernel function: Transform a key blob (of any type) into a protected key
  */
 int pkey_key2protkey(const u8 *key, u32 keylen,
-		     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+		     u8 *protkey, u32 *protkeylen, u32 *protkeytype, u32 xflags)
 {
 	int rc;
 
 	rc = key2protkey(NULL, 0, key, keylen,
-			 protkey, protkeylen, protkeytype);
+			 protkey, protkeylen, protkeytype, xflags);
 	if (rc == -ENODEV) {
 		pkey_handler_request_modules();
 		rc = key2protkey(NULL, 0, key, keylen,
-				 protkey, protkeylen, protkeytype);
+				 protkey, protkeylen, protkeytype, xflags);
 	}
 
 	return rc;
@@ -85,7 +87,7 @@ static void *_copy_apqns_from_user(void __user *uapqns, size_t nr_apqns)
 	if (!uapqns || nr_apqns == 0)
 		return NULL;
 
-	return memdup_user(uapqns, nr_apqns * sizeof(struct pkey_apqn));
+	return memdup_array_user(uapqns, nr_apqns, sizeof(struct pkey_apqn));
 }
 
 static int pkey_ioctl_genseck(struct pkey_genseck __user *ugs)
@@ -103,7 +105,7 @@ static int pkey_ioctl_genseck(struct pkey_genseck __user *ugs)
 	keybuflen = sizeof(kgs.seckey.seckey);
 	rc = pkey_handler_gen_key(&apqn, 1,
 				  kgs.keytype, PKEY_TYPE_CCA_DATA, 0, 0,
-				  kgs.seckey.seckey, &keybuflen, NULL);
+				  kgs.seckey.seckey, &keybuflen, NULL, 0);
 	pr_debug("gen_key()=%d\n", rc);
 	if (!rc && copy_to_user(ugs, &kgs, sizeof(kgs)))
 		rc = -EFAULT;
@@ -129,7 +131,7 @@ static int pkey_ioctl_clr2seck(struct pkey_clr2seck __user *ucs)
 				     kcs.keytype, PKEY_TYPE_CCA_DATA, 0, 0,
 				     kcs.clrkey.clrkey,
 				     pkey_keytype_aes_to_size(kcs.keytype),
-				     kcs.seckey.seckey, &keybuflen, NULL);
+				     kcs.seckey.seckey, &keybuflen, NULL, 0);
 	pr_debug("clr_to_key()=%d\n", rc);
 	if (!rc && copy_to_user(ucs, &kcs, sizeof(kcs)))
 		rc = -EFAULT;
@@ -154,7 +156,8 @@ static int pkey_ioctl_sec2protk(struct pkey_sec2protk __user *usp)
 					 ksp.seckey.seckey,
 					 sizeof(ksp.seckey.seckey),
 					 ksp.protkey.protkey,
-					 &ksp.protkey.len, &ksp.protkey.type);
+					 &ksp.protkey.len, &ksp.protkey.type,
+					 0);
 	pr_debug("key_to_protkey()=%d\n", rc);
 	if (!rc && copy_to_user(usp, &ksp, sizeof(ksp)))
 		rc = -EFAULT;
@@ -198,7 +201,7 @@ static int pkey_ioctl_clr2protk(struct pkey_clr2protk __user *ucp)
 	rc = key2protkey(NULL, 0,
 			 tmpbuf, sizeof(*t) + keylen,
 			 kcp.protkey.protkey,
-			 &kcp.protkey.len, &kcp.protkey.type);
+			 &kcp.protkey.len, &kcp.protkey.type, 0);
 	pr_debug("key2protkey()=%d\n", rc);
 
 	kfree_sensitive(tmpbuf);
@@ -228,12 +231,12 @@ static int pkey_ioctl_findcard(struct pkey_findcard __user *ufc)
 	rc = pkey_handler_apqns_for_key(kfc.seckey.seckey,
 					sizeof(kfc.seckey.seckey),
 					PKEY_FLAGS_MATCH_CUR_MKVP,
-					apqns, &nr_apqns);
+					apqns, &nr_apqns, 0);
 	if (rc == -ENODEV)
 		rc = pkey_handler_apqns_for_key(kfc.seckey.seckey,
 						sizeof(kfc.seckey.seckey),
 						PKEY_FLAGS_MATCH_ALT_MKVP,
-						apqns, &nr_apqns);
+						apqns, &nr_apqns, 0);
 	pr_debug("apqns_for_key()=%d\n", rc);
 	if (rc) {
 		kfree(apqns);
@@ -262,7 +265,7 @@ static int pkey_ioctl_skey2pkey(struct pkey_skey2pkey __user *usp)
 					 sizeof(ksp.seckey.seckey),
 					 ksp.protkey.protkey,
 					 &ksp.protkey.len,
-					 &ksp.protkey.type);
+					 &ksp.protkey.type, 0);
 	pr_debug("key_to_protkey()=%d\n", rc);
 	if (!rc && copy_to_user(usp, &ksp, sizeof(ksp)))
 		rc = -EFAULT;
@@ -285,7 +288,7 @@ static int pkey_ioctl_verifykey(struct pkey_verifykey __user *uvk)
 	rc = pkey_handler_verify_key(kvk.seckey.seckey,
 				     sizeof(kvk.seckey.seckey),
 				     &kvk.cardnr, &kvk.domain,
-				     &keytype, &keybitsize, &flags);
+				     &keytype, &keybitsize, &flags, 0);
 	pr_debug("verify_key()=%d\n", rc);
 	if (!rc && keytype != PKEY_TYPE_CCA_DATA)
 		rc = -EINVAL;
@@ -312,7 +315,7 @@ static int pkey_ioctl_genprotk(struct pkey_genprotk __user *ugp)
 	rc = pkey_handler_gen_key(NULL, 0, kgp.keytype,
 				  PKEY_TYPE_PROTKEY, 0, 0,
 				  kgp.protkey.protkey, &kgp.protkey.len,
-				  &kgp.protkey.type);
+				  &kgp.protkey.type, 0);
 	pr_debug("gen_key()=%d\n", rc);
 	if (!rc && copy_to_user(ugp, &kgp, sizeof(kgp)))
 		rc = -EFAULT;
@@ -354,7 +357,7 @@ static int pkey_ioctl_verifyprotk(struct pkey_verifyprotk __user *uvp)
 	memcpy(t->protkey, kvp.protkey.protkey, kvp.protkey.len);
 
 	rc = pkey_handler_verify_key(tmpbuf, sizeof(*t),
-				     NULL, NULL, NULL, NULL, NULL);
+				     NULL, NULL, NULL, NULL, NULL, 0);
 	pr_debug("verify_key()=%d\n", rc);
 
 	kfree_sensitive(tmpbuf);
@@ -377,7 +380,7 @@ static int pkey_ioctl_kblob2protk(struct pkey_kblob2pkey __user *utp)
 	ktp.protkey.len = sizeof(ktp.protkey.protkey);
 	rc = key2protkey(NULL, 0, kkey, ktp.keylen,
 			 ktp.protkey.protkey, &ktp.protkey.len,
-			 &ktp.protkey.type);
+			 &ktp.protkey.type, 0);
 	pr_debug("key2protkey()=%d\n", rc);
 	kfree_sensitive(kkey);
 	if (!rc && copy_to_user(utp, &ktp, sizeof(ktp)))
@@ -414,7 +417,7 @@ static int pkey_ioctl_genseck2(struct pkey_genseck2 __user *ugs)
 	}
 	rc = pkey_handler_gen_key(apqns, kgs.apqn_entries,
 				  u, kgs.type, kgs.size, kgs.keygenflags,
-				  kkey, &klen, NULL);
+				  kkey, &klen, NULL, 0);
 	pr_debug("gen_key()=%d\n", rc);
 	kfree(apqns);
 	if (rc) {
@@ -471,7 +474,7 @@ static int pkey_ioctl_clr2seck2(struct pkey_clr2seck2 __user *ucs)
 	rc = pkey_handler_clr_to_key(apqns, kcs.apqn_entries,
 				     u, kcs.type, kcs.size, kcs.keygenflags,
 				     kcs.clrkey.clrkey, kcs.size / 8,
-				     kkey, &klen, NULL);
+				     kkey, &klen, NULL, 0);
 	pr_debug("clr_to_key()=%d\n", rc);
 	kfree(apqns);
 	if (rc) {
@@ -514,7 +517,7 @@ static int pkey_ioctl_verifykey2(struct pkey_verifykey2 __user *uvk)
 
 	rc = pkey_handler_verify_key(kkey, kvk.keylen,
 				     &kvk.cardnr, &kvk.domain,
-				     &kvk.type, &kvk.size, &kvk.flags);
+				     &kvk.type, &kvk.size, &kvk.flags, 0);
 	pr_debug("verify_key()=%d\n", rc);
 
 	kfree_sensitive(kkey);
@@ -544,7 +547,7 @@ static int pkey_ioctl_kblob2protk2(struct pkey_kblob2pkey2 __user *utp)
 	ktp.protkey.len = sizeof(ktp.protkey.protkey);
 	rc = key2protkey(apqns, ktp.apqn_entries, kkey, ktp.keylen,
 			 ktp.protkey.protkey, &ktp.protkey.len,
-			 &ktp.protkey.type);
+			 &ktp.protkey.type, 0);
 	pr_debug("key2protkey()=%d\n", rc);
 	kfree(apqns);
 	kfree_sensitive(kkey);
@@ -579,7 +582,7 @@ static int pkey_ioctl_apqns4k(struct pkey_apqns4key __user *uak)
 		return PTR_ERR(kkey);
 	}
 	rc = pkey_handler_apqns_for_key(kkey, kak.keylen, kak.flags,
-					apqns, &nr_apqns);
+					apqns, &nr_apqns, 0);
 	pr_debug("apqns_for_key()=%d\n", rc);
 	kfree_sensitive(kkey);
 	if (rc && rc != -ENOSPC) {
@@ -626,7 +629,7 @@ static int pkey_ioctl_apqns4kt(struct pkey_apqns4keytype __user *uat)
 	}
 	rc = pkey_handler_apqns_for_keytype(kat.type,
 					    kat.cur_mkvp, kat.alt_mkvp,
-					    kat.flags, apqns, &nr_apqns);
+					    kat.flags, apqns, &nr_apqns, 0);
 	pr_debug("apqns_for_keytype()=%d\n", rc);
 	if (rc && rc != -ENOSPC) {
 		kfree(apqns);
@@ -678,7 +681,7 @@ static int pkey_ioctl_kblob2protk3(struct pkey_kblob2pkey3 __user *utp)
 		return -ENOMEM;
 	}
 	rc = key2protkey(apqns, ktp.apqn_entries, kkey, ktp.keylen,
-			 protkey, &protkeylen, &ktp.pkeytype);
+			 protkey, &protkeylen, &ktp.pkeytype, 0);
 	pr_debug("key2protkey()=%d\n", rc);
 	kfree(apqns);
 	kfree_sensitive(kkey);

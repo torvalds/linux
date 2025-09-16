@@ -19,9 +19,9 @@
 #include <linux/net_namespace.h>
 #include <linux/sched/task.h>
 #include <linux/uidgid.h>
-#include <linux/cookie.h>
 #include <linux/proc_fs.h>
 
+#include <net/aligned_data.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/net_namespace.h>
@@ -63,8 +63,6 @@ DECLARE_RWSEM(pernet_ops_rwsem);
 #define INITIAL_NET_GEN_PTRS	13 /* +1 for len +2 for rcu_head */
 
 static unsigned int max_gen_ptrs = INITIAL_NET_GEN_PTRS;
-
-DEFINE_COOKIE(net_cookie);
 
 static struct net_generic *net_alloc_generic(void)
 {
@@ -163,16 +161,45 @@ static void ops_pre_exit_list(const struct pernet_operations *ops,
 	}
 }
 
+static void ops_exit_rtnl_list(const struct list_head *ops_list,
+			       const struct pernet_operations *ops,
+			       struct list_head *net_exit_list)
+{
+	const struct pernet_operations *saved_ops = ops;
+	LIST_HEAD(dev_kill_list);
+	struct net *net;
+
+	rtnl_lock();
+
+	list_for_each_entry(net, net_exit_list, exit_list) {
+		__rtnl_net_lock(net);
+
+		ops = saved_ops;
+		list_for_each_entry_continue_reverse(ops, ops_list, list) {
+			if (ops->exit_rtnl)
+				ops->exit_rtnl(net, &dev_kill_list);
+		}
+
+		__rtnl_net_unlock(net);
+	}
+
+	unregister_netdevice_many(&dev_kill_list);
+
+	rtnl_unlock();
+}
+
 static void ops_exit_list(const struct pernet_operations *ops,
 			  struct list_head *net_exit_list)
 {
-	struct net *net;
 	if (ops->exit) {
+		struct net *net;
+
 		list_for_each_entry(net, net_exit_list, exit_list) {
 			ops->exit(net);
 			cond_resched();
 		}
 	}
+
 	if (ops->exit_batch)
 		ops->exit_batch(net_exit_list);
 }
@@ -186,6 +213,56 @@ static void ops_free_list(const struct pernet_operations *ops,
 		list_for_each_entry(net, net_exit_list, exit_list)
 			kfree(net_generic(net, *ops->id));
 	}
+}
+
+static void ops_undo_list(const struct list_head *ops_list,
+			  const struct pernet_operations *ops,
+			  struct list_head *net_exit_list,
+			  bool expedite_rcu)
+{
+	const struct pernet_operations *saved_ops;
+	bool hold_rtnl = false;
+
+	if (!ops)
+		ops = list_entry(ops_list, typeof(*ops), list);
+
+	saved_ops = ops;
+
+	list_for_each_entry_continue_reverse(ops, ops_list, list) {
+		hold_rtnl |= !!ops->exit_rtnl;
+		ops_pre_exit_list(ops, net_exit_list);
+	}
+
+	/* Another CPU might be rcu-iterating the list, wait for it.
+	 * This needs to be before calling the exit() notifiers, so the
+	 * rcu_barrier() after ops_undo_list() isn't sufficient alone.
+	 * Also the pre_exit() and exit() methods need this barrier.
+	 */
+	if (expedite_rcu)
+		synchronize_rcu_expedited();
+	else
+		synchronize_rcu();
+
+	if (hold_rtnl)
+		ops_exit_rtnl_list(ops_list, saved_ops, net_exit_list);
+
+	ops = saved_ops;
+	list_for_each_entry_continue_reverse(ops, ops_list, list)
+		ops_exit_list(ops, net_exit_list);
+
+	ops = saved_ops;
+	list_for_each_entry_continue_reverse(ops, ops_list, list)
+		ops_free_list(ops, net_exit_list);
+}
+
+static void ops_undo_single(struct pernet_operations *ops,
+			    struct list_head *net_exit_list)
+{
+	LIST_HEAD(ops_list);
+
+	list_add(&ops->list, &ops_list);
+	ops_undo_list(&ops_list, NULL, net_exit_list, false);
+	list_del(&ops->list);
 }
 
 /* should be called with nsid_lock held */
@@ -240,10 +317,10 @@ int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
 	if (refcount_read(&net->ns.count) == 0)
 		return NETNSA_NSID_NOT_ASSIGNED;
 
-	spin_lock_bh(&net->nsid_lock);
+	spin_lock(&net->nsid_lock);
 	id = __peernet2id(net, peer);
 	if (id >= 0) {
-		spin_unlock_bh(&net->nsid_lock);
+		spin_unlock(&net->nsid_lock);
 		return id;
 	}
 
@@ -253,12 +330,12 @@ int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
 	 * just been idr_remove()'d from there in cleanup_net().
 	 */
 	if (!maybe_get_net(peer)) {
-		spin_unlock_bh(&net->nsid_lock);
+		spin_unlock(&net->nsid_lock);
 		return NETNSA_NSID_NOT_ASSIGNED;
 	}
 
 	id = alloc_netid(net, peer, -1);
-	spin_unlock_bh(&net->nsid_lock);
+	spin_unlock(&net->nsid_lock);
 
 	put_net(peer);
 	if (id < 0)
@@ -324,8 +401,8 @@ static __net_init void preinit_net(struct net *net, struct user_namespace *user_
 {
 	refcount_set(&net->passive, 1);
 	refcount_set(&net->ns.count, 1);
-	ref_tracker_dir_init(&net->refcnt_tracker, 128, "net refcnt");
-	ref_tracker_dir_init(&net->notrefcnt_tracker, 128, "net notrefcnt");
+	ref_tracker_dir_init(&net->refcnt_tracker, 128, "net_refcnt");
+	ref_tracker_dir_init(&net->notrefcnt_tracker, 128, "net_notrefcnt");
 
 	get_random_bytes(&net->hash_mix, sizeof(u32));
 	net->dev_base_seq = 1;
@@ -351,14 +428,11 @@ static __net_init void preinit_net(struct net *net, struct user_namespace *user_
 static __net_init int setup_net(struct net *net)
 {
 	/* Must be called with pernet_ops_rwsem held */
-	const struct pernet_operations *ops, *saved_ops;
+	const struct pernet_operations *ops;
 	LIST_HEAD(net_exit_list);
-	LIST_HEAD(dev_kill_list);
 	int error = 0;
 
-	preempt_disable();
-	net->net_cookie = gen_cookie_next(&net_cookie);
-	preempt_enable();
+	net->net_cookie = atomic64_inc_return(&net_aligned_data.net_cookie);
 
 	list_for_each_entry(ops, &pernet_list, list) {
 		error = ops_init(ops, net);
@@ -376,29 +450,7 @@ out_undo:
 	 * for the pernet modules whose init functions did not fail.
 	 */
 	list_add(&net->exit_list, &net_exit_list);
-	saved_ops = ops;
-	list_for_each_entry_continue_reverse(ops, &pernet_list, list)
-		ops_pre_exit_list(ops, &net_exit_list);
-
-	synchronize_rcu();
-
-	ops = saved_ops;
-	rtnl_lock();
-	list_for_each_entry_continue_reverse(ops, &pernet_list, list) {
-		if (ops->exit_batch_rtnl)
-			ops->exit_batch_rtnl(&net_exit_list, &dev_kill_list);
-	}
-	unregister_netdevice_many(&dev_kill_list);
-	rtnl_unlock();
-
-	ops = saved_ops;
-	list_for_each_entry_continue_reverse(ops, &pernet_list, list)
-		ops_exit_list(ops, &net_exit_list);
-
-	ops = saved_ops;
-	list_for_each_entry_continue_reverse(ops, &pernet_list, list)
-		ops_free_list(ops, &net_exit_list);
-
+	ops_undo_list(&pernet_list, ops, &net_exit_list, false);
 	rcu_barrier();
 	goto out;
 }
@@ -572,20 +624,20 @@ static void unhash_nsid(struct net *net, struct net *last)
 	for_each_net(tmp) {
 		int id;
 
-		spin_lock_bh(&tmp->nsid_lock);
+		spin_lock(&tmp->nsid_lock);
 		id = __peernet2id(tmp, net);
 		if (id >= 0)
 			idr_remove(&tmp->netns_ids, id);
-		spin_unlock_bh(&tmp->nsid_lock);
+		spin_unlock(&tmp->nsid_lock);
 		if (id >= 0)
 			rtnl_net_notifyid(tmp, RTM_DELNSID, id, 0, NULL,
 					  GFP_KERNEL);
 		if (tmp == last)
 			break;
 	}
-	spin_lock_bh(&net->nsid_lock);
+	spin_lock(&net->nsid_lock);
 	idr_destroy(&net->netns_ids);
-	spin_unlock_bh(&net->nsid_lock);
+	spin_unlock(&net->nsid_lock);
 }
 
 static LLIST_HEAD(cleanup_list);
@@ -594,13 +646,11 @@ struct task_struct *cleanup_net_task;
 
 static void cleanup_net(struct work_struct *work)
 {
-	const struct pernet_operations *ops;
-	struct net *net, *tmp, *last;
 	struct llist_node *net_kill_list;
+	struct net *net, *tmp, *last;
 	LIST_HEAD(net_exit_list);
-	LIST_HEAD(dev_kill_list);
 
-	cleanup_net_task = current;
+	WRITE_ONCE(cleanup_net_task, current);
 
 	/* Atomically snapshot the list of namespaces to cleanup */
 	net_kill_list = llist_del_all(&cleanup_list);
@@ -629,33 +679,7 @@ static void cleanup_net(struct work_struct *work)
 		list_add_tail(&net->exit_list, &net_exit_list);
 	}
 
-	/* Run all of the network namespace pre_exit methods */
-	list_for_each_entry_reverse(ops, &pernet_list, list)
-		ops_pre_exit_list(ops, &net_exit_list);
-
-	/*
-	 * Another CPU might be rcu-iterating the list, wait for it.
-	 * This needs to be before calling the exit() notifiers, so
-	 * the rcu_barrier() below isn't sufficient alone.
-	 * Also the pre_exit() and exit() methods need this barrier.
-	 */
-	synchronize_rcu_expedited();
-
-	rtnl_lock();
-	list_for_each_entry_reverse(ops, &pernet_list, list) {
-		if (ops->exit_batch_rtnl)
-			ops->exit_batch_rtnl(&net_exit_list, &dev_kill_list);
-	}
-	unregister_netdevice_many(&dev_kill_list);
-	rtnl_unlock();
-
-	/* Run all of the network namespace exit methods */
-	list_for_each_entry_reverse(ops, &pernet_list, list)
-		ops_exit_list(ops, &net_exit_list);
-
-	/* Free the net generic variables */
-	list_for_each_entry_reverse(ops, &pernet_list, list)
-		ops_free_list(ops, &net_exit_list);
+	ops_undo_list(&pernet_list, NULL, &net_exit_list, true);
 
 	up_read(&pernet_ops_rwsem);
 
@@ -676,7 +700,7 @@ static void cleanup_net(struct work_struct *work)
 		put_user_ns(net->user_ns);
 		net_passive_dec(net);
 	}
-	cleanup_net_task = NULL;
+	WRITE_ONCE(cleanup_net_task, NULL);
 }
 
 /**
@@ -763,16 +787,50 @@ struct net *get_net_ns_by_pid(pid_t pid)
 }
 EXPORT_SYMBOL_GPL(get_net_ns_by_pid);
 
+#ifdef CONFIG_NET_NS_REFCNT_TRACKER
+static void net_ns_net_debugfs(struct net *net)
+{
+	ref_tracker_dir_symlink(&net->refcnt_tracker, "netns-%llx-%u-refcnt",
+				net->net_cookie, net->ns.inum);
+	ref_tracker_dir_symlink(&net->notrefcnt_tracker, "netns-%llx-%u-notrefcnt",
+				net->net_cookie, net->ns.inum);
+}
+
+static int __init init_net_debugfs(void)
+{
+	ref_tracker_dir_debugfs(&init_net.refcnt_tracker);
+	ref_tracker_dir_debugfs(&init_net.notrefcnt_tracker);
+	net_ns_net_debugfs(&init_net);
+	return 0;
+}
+late_initcall(init_net_debugfs);
+#else
+static void net_ns_net_debugfs(struct net *net)
+{
+}
+#endif
+
 static __net_init int net_ns_net_init(struct net *net)
 {
 #ifdef CONFIG_NET_NS
 	net->ns.ops = &netns_operations;
 #endif
-	return ns_alloc_inum(&net->ns);
+	net->ns.inum = PROC_NET_INIT_INO;
+	if (net != &init_net) {
+		int ret = ns_alloc_inum(&net->ns);
+		if (ret)
+			return ret;
+	}
+	net_ns_net_debugfs(net);
+	return 0;
 }
 
 static __net_exit void net_ns_net_exit(struct net *net)
 {
+	/*
+	 * Initial network namespace doesn't exit so we don't need any
+	 * special checks here.
+	 */
 	ns_free_inum(&net->ns);
 }
 
@@ -824,9 +882,9 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return PTR_ERR(peer);
 	}
 
-	spin_lock_bh(&net->nsid_lock);
+	spin_lock(&net->nsid_lock);
 	if (__peernet2id(net, peer) >= 0) {
-		spin_unlock_bh(&net->nsid_lock);
+		spin_unlock(&net->nsid_lock);
 		err = -EEXIST;
 		NL_SET_BAD_ATTR(extack, nla);
 		NL_SET_ERR_MSG(extack,
@@ -835,7 +893,7 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	err = alloc_netid(net, peer, nsid);
-	spin_unlock_bh(&net->nsid_lock);
+	spin_unlock(&net->nsid_lock);
 	if (err >= 0) {
 		rtnl_net_notifyid(net, RTM_NEWNSID, err, NETLINK_CB(skb).portid,
 				  nlh, GFP_KERNEL);
@@ -1239,31 +1297,13 @@ void __init net_ns_init(void)
 	rtnl_register_many(net_ns_rtnl_msg_handlers);
 }
 
-static void free_exit_list(struct pernet_operations *ops, struct list_head *net_exit_list)
-{
-	ops_pre_exit_list(ops, net_exit_list);
-	synchronize_rcu();
-
-	if (ops->exit_batch_rtnl) {
-		LIST_HEAD(dev_kill_list);
-
-		rtnl_lock();
-		ops->exit_batch_rtnl(net_exit_list, &dev_kill_list);
-		unregister_netdevice_many(&dev_kill_list);
-		rtnl_unlock();
-	}
-	ops_exit_list(ops, net_exit_list);
-
-	ops_free_list(ops, net_exit_list);
-}
-
 #ifdef CONFIG_NET_NS
 static int __register_pernet_operations(struct list_head *list,
 					struct pernet_operations *ops)
 {
+	LIST_HEAD(net_exit_list);
 	struct net *net;
 	int error;
-	LIST_HEAD(net_exit_list);
 
 	list_add_tail(&ops->list, list);
 	if (ops->init || ops->id) {
@@ -1282,21 +1322,21 @@ static int __register_pernet_operations(struct list_head *list,
 out_undo:
 	/* If I have an error cleanup all namespaces I initialized */
 	list_del(&ops->list);
-	free_exit_list(ops, &net_exit_list);
+	ops_undo_single(ops, &net_exit_list);
 	return error;
 }
 
 static void __unregister_pernet_operations(struct pernet_operations *ops)
 {
-	struct net *net;
 	LIST_HEAD(net_exit_list);
+	struct net *net;
 
-	list_del(&ops->list);
 	/* See comment in __register_pernet_operations() */
 	for_each_net(net)
 		list_add_tail(&net->exit_list, &net_exit_list);
 
-	free_exit_list(ops, &net_exit_list);
+	list_del(&ops->list);
+	ops_undo_single(ops, &net_exit_list);
 }
 
 #else
@@ -1318,8 +1358,9 @@ static void __unregister_pernet_operations(struct pernet_operations *ops)
 		list_del(&ops->list);
 	} else {
 		LIST_HEAD(net_exit_list);
+
 		list_add(&init_net.exit_list, &net_exit_list);
-		free_exit_list(ops, &net_exit_list);
+		ops_undo_single(ops, &net_exit_list);
 	}
 }
 

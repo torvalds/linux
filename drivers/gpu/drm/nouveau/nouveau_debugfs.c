@@ -314,14 +314,10 @@ nouveau_debugfs_fini(struct nouveau_drm *drm)
 	drm->debugfs = NULL;
 }
 
-int
+void
 nouveau_module_debugfs_init(void)
 {
 	nouveau_debugfs_root = debugfs_create_dir("nouveau", NULL);
-	if (IS_ERR(nouveau_debugfs_root))
-		return PTR_ERR(nouveau_debugfs_root);
-
-	return 0;
 }
 
 void

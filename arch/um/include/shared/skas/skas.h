@@ -8,7 +8,7 @@
 
 #include <sysdep/ptrace.h>
 
-extern int userspace_pid[];
+extern int using_seccomp;
 
 extern void new_thread_handler(void);
 extern void handle_syscall(struct uml_pt_regs *regs);

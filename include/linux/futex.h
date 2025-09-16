@@ -4,11 +4,11 @@
 
 #include <linux/sched.h>
 #include <linux/ktime.h>
+#include <linux/mm_types.h>
 
 #include <uapi/linux/futex.h>
 
 struct inode;
-struct mm_struct;
 struct task_struct;
 
 /*
@@ -34,6 +34,7 @@ union futex_key {
 		u64 i_seq;
 		unsigned long pgoff;
 		unsigned int offset;
+		/* unsigned int node; */
 	} shared;
 	struct {
 		union {
@@ -42,11 +43,13 @@ union futex_key {
 		};
 		unsigned long address;
 		unsigned int offset;
+		/* unsigned int node; */
 	} private;
 	struct {
 		u64 ptr;
 		unsigned long word;
 		unsigned int offset;
+		unsigned int node;	/* NOT hashed! */
 	} both;
 };
 
@@ -77,7 +80,20 @@ void futex_exec_release(struct task_struct *tsk);
 
 long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 	      u32 __user *uaddr2, u32 val2, u32 val3);
-#else
+int futex_hash_prctl(unsigned long arg2, unsigned long arg3, unsigned long arg4);
+
+#ifdef CONFIG_FUTEX_PRIVATE_HASH
+int futex_hash_allocate_default(void);
+void futex_hash_free(struct mm_struct *mm);
+int futex_mm_init(struct mm_struct *mm);
+
+#else /* !CONFIG_FUTEX_PRIVATE_HASH */
+static inline int futex_hash_allocate_default(void) { return 0; }
+static inline int futex_hash_free(struct mm_struct *mm) { return 0; }
+static inline int futex_mm_init(struct mm_struct *mm) { return 0; }
+#endif /* CONFIG_FUTEX_PRIVATE_HASH */
+
+#else /* !CONFIG_FUTEX */
 static inline void futex_init_task(struct task_struct *tsk) { }
 static inline void futex_exit_recursive(struct task_struct *tsk) { }
 static inline void futex_exit_release(struct task_struct *tsk) { }
@@ -88,6 +104,17 @@ static inline long do_futex(u32 __user *uaddr, int op, u32 val,
 {
 	return -EINVAL;
 }
+static inline int futex_hash_prctl(unsigned long arg2, unsigned long arg3, unsigned long arg4)
+{
+	return -EINVAL;
+}
+static inline int futex_hash_allocate_default(void)
+{
+	return 0;
+}
+static inline int futex_hash_free(struct mm_struct *mm) { return 0; }
+static inline int futex_mm_init(struct mm_struct *mm) { return 0; }
+
 #endif
 
 #endif

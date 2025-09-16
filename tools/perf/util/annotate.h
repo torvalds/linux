@@ -44,6 +44,7 @@ enum perf_disassembler {
 
 struct annotation_options {
 	bool hide_src_code,
+	     hide_src_code_on_title,
 	     use_offset,
 	     jump_arrows,
 	     print_lines,
@@ -293,6 +294,7 @@ struct annotated_source {
 	int			nr_entries;
 	int			nr_asm_entries;
 	int			max_jump_sources;
+	bool			tried_source;
 	u64			start;
 	struct {
 		u8		addr;

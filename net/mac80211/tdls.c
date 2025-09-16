@@ -382,8 +382,8 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 	if (WARN_ON_ONCE(!sband))
 		return;
 
-	ieee80211_put_srates_elem(skb, sband, 0, 0, 0, WLAN_EID_SUPP_RATES);
-	ieee80211_put_srates_elem(skb, sband, 0, 0, 0, WLAN_EID_EXT_SUPP_RATES);
+	ieee80211_put_srates_elem(skb, sband, 0, 0, WLAN_EID_SUPP_RATES);
+	ieee80211_put_srates_elem(skb, sband, 0, 0, WLAN_EID_EXT_SUPP_RATES);
 	ieee80211_tdls_add_supp_channels(sdata, skb);
 
 	/* add any custom IEs that go before Extended Capabilities */
@@ -1422,7 +1422,7 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 	if (!(wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS))
 		return -EOPNOTSUPP;
 
-	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+	if (sdata->vif.type != NL80211_IFTYPE_STATION || !sdata->vif.cfg.assoc)
 		return -EINVAL;
 
 	switch (oper) {

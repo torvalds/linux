@@ -176,6 +176,11 @@ check_per_socket()
 check_metric_only()
 {
 	echo -n "Checking json output: metric only "
+	if [ "$(uname -m)" = "s390x" ] && ! grep '^facilities' /proc/cpuinfo  | grep -qw 67
+	then
+		echo "[Skip] CPU-measurement counter facility not installed"
+		return
+	fi
 	perf stat -j --metric-only -e instructions,cycles -o "${stat_output}" true
 	$PYTHON $pythonchecker --metric-only --file "${stat_output}"
 	echo "[Success]"

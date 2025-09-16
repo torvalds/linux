@@ -4,17 +4,17 @@
 
 #ifdef CONFIG_64BIT
 	.set		.Lextra_characteristics, 0x0
-	.set		.Lpe_opt_magic, PE_OPT_MAGIC_PE32PLUS
+	.set		.Lpe_opt_magic, IMAGE_NT_OPTIONAL_HDR64_MAGIC
 #else
 	.set		.Lextra_characteristics, IMAGE_FILE_32BIT_MACHINE
-	.set		.Lpe_opt_magic, PE_OPT_MAGIC_PE32
+	.set		.Lpe_opt_magic, IMAGE_NT_OPTIONAL_HDR32_MAGIC
 #endif
 
 	.section	".head", "a"
 	.globl		__efistub_efi_zboot_header
 __efistub_efi_zboot_header:
 .Ldoshdr:
-	.long		MZ_MAGIC
+	.long		IMAGE_DOS_SIGNATURE
 	.ascii		"zimg"					// image type
 	.long		__efistub__gzdata_start - .Ldoshdr	// payload offset
 	.long		__efistub__gzdata_size - ZBOOT_SIZE_LEN	// payload size
@@ -25,7 +25,7 @@ __efistub_efi_zboot_header:
 	.long		.Lpehdr - .Ldoshdr			// PE header offset
 
 .Lpehdr:
-	.long		PE_MAGIC
+	.long		IMAGE_NT_SIGNATURE
 	.short		MACHINE_TYPE
 	.short		.Lsection_count
 	.long		0
@@ -63,7 +63,7 @@ __efistub_efi_zboot_header:
 	.long		.Lefi_header_end - .Ldoshdr
 	.long		0
 	.short		IMAGE_SUBSYSTEM_EFI_APPLICATION
-	.short		IMAGE_DLL_CHARACTERISTICS_NX_COMPAT
+	.short		IMAGE_DLLCHARACTERISTICS_NX_COMPAT
 #ifdef CONFIG_64BIT
 	.quad		0, 0, 0, 0
 #else
@@ -123,11 +123,29 @@ __efistub_efi_zboot_header:
 			IMAGE_SCN_MEM_READ | \
 			IMAGE_SCN_MEM_EXECUTE
 
+#ifdef CONFIG_EFI_SBAT
+	.ascii		".sbat\0\0\0"
+	.long		__sbat_size
+	.long		_sbat - .Ldoshdr
+	.long		__sbat_size
+	.long		_sbat - .Ldoshdr
+
+	.long		0, 0
+	.short		0, 0
+	.long		IMAGE_SCN_CNT_INITIALIZED_DATA | \
+			IMAGE_SCN_MEM_READ | \
+			IMAGE_SCN_MEM_DISCARDABLE
+
+	.pushsection ".sbat", "a", @progbits
+	.incbin CONFIG_EFI_SBAT_FILE
+	.popsection
+#endif
+
 	.ascii		".data\0\0\0"
 	.long		__data_size
-	.long		_etext - .Ldoshdr
+	.long		_data - .Ldoshdr
 	.long		__data_rawsize
-	.long		_etext - .Ldoshdr
+	.long		_data - .Ldoshdr
 
 	.long		0, 0
 	.short		0, 0

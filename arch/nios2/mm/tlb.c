@@ -144,10 +144,11 @@ static void flush_tlb_one(unsigned long addr)
 		if (((pteaddr >> 2) & 0xfffff) != (addr >> PAGE_SHIFT))
 			continue;
 
+		tlbmisc = RDCTL(CTL_TLBMISC);
 		pr_debug("Flush entry by writing way=%dl pid=%ld\n",
-			 way, (pid_misc >> TLBMISC_PID_SHIFT));
+			 way, ((tlbmisc >> TLBMISC_PID_SHIFT) & TLBMISC_PID_MASK));
 
-		tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
+		tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT) | (tlbmisc & TLBMISC_PID);
 		WRCTL(CTL_TLBMISC, tlbmisc);
 		WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
 		WRCTL(CTL_TLBACC, 0);
@@ -237,7 +238,8 @@ void flush_tlb_pid(unsigned long mmu_pid)
 			if (pid != mmu_pid)
 				continue;
 
-			tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
+			tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT) |
+				  (pid << TLBMISC_PID_SHIFT);
 			WRCTL(CTL_TLBMISC, tlbmisc);
 			WRCTL(CTL_TLBACC, 0);
 		}
@@ -272,15 +274,17 @@ void flush_tlb_all(void)
 	/* remember pid/way until we return */
 	get_misc_and_pid(&org_misc, &pid_misc);
 
-	/* Start at way 0, way is auto-incremented after each TLBACC write */
-	WRCTL(CTL_TLBMISC, TLBMISC_WE);
-
 	/* Map each TLB entry to physcal address 0 with no-access and a
 	   bad ptbase */
 	for (line = 0; line < cpuinfo.tlb_num_lines; line++) {
 		WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
-		for (way = 0; way < cpuinfo.tlb_num_ways; way++)
+		for (way = 0; way < cpuinfo.tlb_num_ways; way++) {
+			// Code such as replace_tlb_one_pid assumes that no duplicate entries exist
+			// for a single address across ways, so also use way as a dummy PID
+			WRCTL(CTL_TLBMISC, TLBMISC_WE | (way << TLBMISC_WAY_SHIFT) |
+					   (way << TLBMISC_PID_SHIFT));
 			WRCTL(CTL_TLBACC, 0);
+		}
 
 		addr += PAGE_SIZE;
 	}

@@ -238,16 +238,15 @@ static const struct regmap_bus cs35l56_regmap_bus_sdw = {
 	.val_format_endian_default = REGMAP_ENDIAN_BIG,
 };
 
-static int cs35l56_sdw_set_cal_index(struct cs35l56_private *cs35l56)
+static int cs35l56_sdw_get_unique_id(struct cs35l56_private *cs35l56)
 {
 	int ret;
 
-	/* SoundWire UniqueId is used to index the calibration array */
 	ret = sdw_read_no_pm(cs35l56->sdw_peripheral, SDW_SCP_DEVID_0);
 	if (ret < 0)
 		return ret;
 
-	cs35l56->base.cal_index = ret & 0xf;
+	cs35l56->sdw_unique_id = ret & 0xf;
 
 	return 0;
 }
@@ -259,11 +258,13 @@ static void cs35l56_sdw_init(struct sdw_slave *peripheral)
 
 	pm_runtime_get_noresume(cs35l56->base.dev);
 
-	if (cs35l56->base.cal_index < 0) {
-		ret = cs35l56_sdw_set_cal_index(cs35l56);
-		if (ret < 0)
-			goto out;
-	}
+	ret = cs35l56_sdw_get_unique_id(cs35l56);
+	if (ret)
+		goto out;
+
+	/* SoundWire UniqueId is used to index the calibration array */
+	if (cs35l56->base.cal_index < 0)
+		cs35l56->base.cal_index = cs35l56->sdw_unique_id;
 
 	ret = cs35l56_init(cs35l56);
 	if (ret < 0) {
@@ -282,7 +283,6 @@ static void cs35l56_sdw_init(struct sdw_slave *peripheral)
 	}
 
 out:
-	pm_runtime_mark_last_busy(cs35l56->base.dev);
 	pm_runtime_put_autosuspend(cs35l56->base.dev);
 }
 
@@ -509,6 +509,7 @@ static int cs35l56_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 {
 	struct device *dev = &peripheral->dev;
 	struct cs35l56_private *cs35l56;
+	const struct regmap_config *regmap_config;
 	int ret;
 
 	cs35l56 = devm_kzalloc(dev, sizeof(*cs35l56), GFP_KERNEL);
@@ -517,12 +518,27 @@ static int cs35l56_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 
 	cs35l56->base.dev = dev;
 	cs35l56->sdw_peripheral = peripheral;
+	cs35l56->sdw_link_num = peripheral->bus->link_id;
 	INIT_WORK(&cs35l56->sdw_irq_work, cs35l56_sdw_irq_work);
 
 	dev_set_drvdata(dev, cs35l56);
 
+	switch ((unsigned int)id->driver_data) {
+	case 0x3556:
+	case 0x3557:
+		regmap_config = &cs35l56_regmap_sdw;
+		cs35l56->base.fw_reg = &cs35l56_fw_reg;
+		break;
+	case 0x3563:
+		regmap_config = &cs35l63_regmap_sdw;
+		cs35l56->base.fw_reg = &cs35l63_fw_reg;
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	cs35l56->base.regmap = devm_regmap_init(dev, &cs35l56_regmap_bus_sdw,
-					   peripheral, &cs35l56_regmap_sdw);
+					   peripheral, regmap_config);
 	if (IS_ERR(cs35l56->base.regmap)) {
 		ret = PTR_ERR(cs35l56->base.regmap);
 		return dev_err_probe(dev, ret, "Failed to allocate register map\n");
@@ -562,8 +578,9 @@ static const struct dev_pm_ops cs35l56_sdw_pm = {
 };
 
 static const struct sdw_device_id cs35l56_sdw_id[] = {
-	SDW_SLAVE_ENTRY(0x01FA, 0x3556, 0),
-	SDW_SLAVE_ENTRY(0x01FA, 0x3557, 0),
+	SDW_SLAVE_ENTRY(0x01FA, 0x3556, 0x3556),
+	SDW_SLAVE_ENTRY(0x01FA, 0x3557, 0x3557),
+	SDW_SLAVE_ENTRY(0x01FA, 0x3563, 0x3563),
 	{},
 };
 MODULE_DEVICE_TABLE(sdw, cs35l56_sdw_id);

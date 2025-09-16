@@ -28,13 +28,16 @@
 #include <linux/acpi.h>
 #include <linux/debugfs.h>
 #include <linux/dmi.h>
+#include <linux/iopoll.h>
 #include <acpi/video.h>
 
 #include <drm/drm_edid.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
 
-#include "i915_drv.h"
 #include "intel_acpi.h"
 #include "intel_backlight.h"
+#include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_opregion.h"
 #include "intel_pci_config.h"
@@ -354,10 +357,12 @@ static int swsci(struct intel_display *display,
 	pci_write_config_word(pdev, SWSCI, swsci_val);
 
 	/* Poll for the result. */
-#define C (((scic = swsci->scic) & SWSCI_SCIC_INDICATOR) == 0)
-	if (wait_for(C, dslp)) {
+	ret = poll_timeout_us(scic = swsci->scic,
+			      (scic & SWSCI_SCIC_INDICATOR) == 0,
+			      1000, dslp * 1000, false);
+	if (ret) {
 		drm_dbg(display->drm, "SWSCI request timed out\n");
-		return -ETIMEDOUT;
+		return ret;
 	}
 
 	scic = (scic & SWSCI_SCIC_EXIT_STATUS_MASK) >>
@@ -664,11 +669,10 @@ bool intel_opregion_asle_present(struct intel_display *display)
 
 void intel_opregion_asle_intr(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_opregion *opregion = display->opregion;
 
 	if (opregion && opregion->asle)
-		queue_work(i915->unordered_wq, &opregion->asle_work);
+		queue_work(display->wq.unordered, &opregion->asle_work);
 }
 
 #define ACPI_EV_DISPLAY_SWITCH (1<<0)
@@ -1297,8 +1301,6 @@ DEFINE_SHOW_ATTRIBUTE(intel_opregion);
 
 void intel_opregion_debugfs_register(struct intel_display *display)
 {
-	struct drm_minor *minor = display->drm->primary;
-
-	debugfs_create_file("i915_opregion", 0444, minor->debugfs_root,
+	debugfs_create_file("i915_opregion", 0444, display->drm->debugfs_root,
 			    display, &intel_opregion_fops);
 }

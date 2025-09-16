@@ -268,15 +268,19 @@ static int p50_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	return ret;
 }
 
-static void p50_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
+static int p50_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
 {
 	struct p50_gpio *p50 = gpiochip_get_data(gc);
+	int ret;
 
 	mutex_lock(&p50->lock);
 
-	p50_send_mbox_cmd(p50, P50_MBOX_CMD_WRITE_GPIO, gpio_params[offset], value);
+	ret = p50_send_mbox_cmd(p50, P50_MBOX_CMD_WRITE_GPIO,
+				gpio_params[offset], value);
 
 	mutex_unlock(&p50->lock);
+
+	return ret;
 }
 
 static int p50_gpio_probe(struct platform_device *pdev)

@@ -4,6 +4,14 @@ menu "Intel AVS Machine drivers"
 
 comment "Available DSP configurations"
 
+config SND_SOC_INTEL_AVS_CARDNAME_OBSOLETE
+	bool "Use obsolete card names"
+	default n
+	help
+	  Use obsolete names for some of avs cards. This option should be
+	  used if your system depends on old card names, for example having
+	  not up to date UCM files.
+
 config SND_SOC_INTEL_AVS_MACH_DA7219
 	tristate "da7219 I2S board"
 	depends on I2C
@@ -144,6 +152,18 @@ config SND_SOC_INTEL_AVS_MACH_RT5514
 	   This adds support for ASoC machine driver with RT5514 I2S audio codec.
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
+
+config SND_SOC_INTEL_AVS_MACH_RT5640
+	tristate "rt5640 in I2S mode"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT5640
+	help
+	  This adds support for ASoC machine board connecting AVS with RT5640,
+	  components representing Intel AudioDSP and Realtek 5640 codec respectively.
+	  The codec chip is present on I2C bus and the streaming occurs over I2S
+	  interface.
+	  Say Y or m if you have such a device.
 
 config SND_SOC_INTEL_AVS_MACH_RT5663
 	tristate "rt5663 in I2S mode"

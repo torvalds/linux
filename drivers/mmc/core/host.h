@@ -39,22 +39,22 @@ static inline void mmc_retune_recheck(struct mmc_host *host)
 		host->retune_now = 1;
 }
 
-static inline int mmc_host_cmd23(struct mmc_host *host)
+static inline int mmc_host_can_cmd23(struct mmc_host *host)
 {
 	return host->caps & MMC_CAP_CMD23;
 }
 
-static inline bool mmc_host_done_complete(struct mmc_host *host)
+static inline bool mmc_host_can_done_complete(struct mmc_host *host)
 {
 	return host->caps & MMC_CAP_DONE_COMPLETE;
 }
 
-static inline int mmc_boot_partition_access(struct mmc_host *host)
+static inline int mmc_host_can_access_boot(struct mmc_host *host)
 {
 	return !(host->caps2 & MMC_CAP2_BOOTPART_NOACC);
 }
 
-static inline int mmc_host_uhs(struct mmc_host *host)
+static inline int mmc_host_can_uhs(struct mmc_host *host)
 {
 	return host->caps &
 		(MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |

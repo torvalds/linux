@@ -18,8 +18,6 @@ typedef union {
 } pte_t;
 #endif	/* !__ASSEMBLER__ */
 
-#define SHARED_KERNEL_PMD	0
-
 #define ARCH_PAGE_TABLE_SYNC_MASK	PGTBL_PMD_MODIFIED
 
 /*

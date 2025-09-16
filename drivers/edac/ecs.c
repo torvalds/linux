@@ -170,8 +170,10 @@ static int ecs_create_desc(struct device *ecs_dev, const struct attribute_group 
 		fru_ctx->dev_attr[ECS_RESET]		= EDAC_ECS_ATTR_WO(reset, fru);
 		fru_ctx->dev_attr[ECS_THRESHOLD]	= EDAC_ECS_ATTR_RW(threshold, fru);
 
-		for (i = 0; i < ECS_MAX_ATTRS; i++)
+		for (i = 0; i < ECS_MAX_ATTRS; i++) {
+			sysfs_attr_init(&fru_ctx->dev_attr[i].dev_attr.attr);
 			fru_ctx->ecs_attrs[i] = &fru_ctx->dev_attr[i].dev_attr.attr;
+		}
 
 		sprintf(fru_ctx->name, "%s%d", EDAC_ECS_FRU_NAME, fru);
 		group->name = fru_ctx->name;

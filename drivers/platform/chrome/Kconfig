@@ -155,13 +155,14 @@ config CROS_EC_LPC
 	  module will be called cros_ec_lpcs.
 
 config CROS_EC_PROTO
-	bool
+	tristate
 	help
 	  ChromeOS EC communication protocol helpers.
 
 config CROS_KBD_LED_BACKLIGHT
 	tristate "Backlight LED support for Chrome OS keyboards"
-	depends on LEDS_CLASS && (ACPI || CROS_EC || MFD_CROS_EC_DEV)
+	depends on LEDS_CLASS
+	depends on MFD_CROS_EC_DEV || (MFD_CROS_EC_DEV=n && ACPI)
 	help
 	  This option enables support for the keyboard backlight LEDs on
 	  select Chrome OS systems.
@@ -285,7 +286,7 @@ config CROS_USBPD_NOTIFY
 	default MFD_CROS_EC_DEV
 	help
 	  If you say Y here, you get support for Type-C PD event notifications
-	  from the ChromeOS EC. On ACPI platorms this driver will bind to the
+	  from the ChromeOS EC. On ACPI platforms this driver will bind to the
 	  GOOG0003 ACPI device, and on platforms which don't have this device it
 	  will get initialized on ECs which support the feature
 	  EC_FEATURE_USB_PD.

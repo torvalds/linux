@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_tx_h__
@@ -151,7 +151,7 @@ enum iwl_tx_cmd_sec_ctrl {
 #define IWL_LOW_RETRY_LIMIT			7
 
 /**
- * enum iwl_tx_offload_assist_flags_pos -  set %iwl_tx_cmd offload_assist values
+ * enum iwl_tx_offload_assist_flags_pos -  set %iwl_tx_cmd_v6 offload_assist values
  * @TX_CMD_OFFLD_IP_HDR: offset to start of IP header (in words)
  *	from mac header end. For normal case it is 4 words for SNAP.
  *	note: tx_cmd, mac header and pad are not counted in the offset.
@@ -181,8 +181,8 @@ enum iwl_tx_offload_assist_flags_pos {
 
 /* TODO: complete documentation for try_cnt and btkill_cnt */
 /**
- * struct iwl_tx_cmd - TX command struct to FW
- * ( TX_CMD = 0x1c )
+ * struct iwl_tx_cmd_v6_params - parameters of the TX
+ *
  * @len: in bytes of the payload, see below for details
  * @offload_assist: TX offload configuration
  * @tx_flags: combination of TX_CMD_FLG_*, see &enum iwl_tx_flags
@@ -205,8 +205,6 @@ enum iwl_tx_offload_assist_flags_pos {
  * @tid_tspec: TID/tspec
  * @pm_frame_timeout: PM TX frame timeout
  * @reserved4: reserved
- * @payload: payload (same as @hdr)
- * @hdr: 802.11 header (same as @payload)
  *
  * The byte count (both len and next_frame_len) includes MAC header
  * (24/26/30/32 bytes)
@@ -217,11 +215,8 @@ enum iwl_tx_offload_assist_flags_pos {
  * It does not include post-MAC padding, i.e.,
  * MIC (CCM) 8 bytes, ICV (WEP/TKIP/CKIP) 4 bytes, CRC 4 bytes.
  * Range of len: 14-2342 bytes.
- *
- * After the struct fields the MAC header is placed, plus any padding,
- * and then the actial payload.
  */
-struct iwl_tx_cmd {
+struct iwl_tx_cmd_v6_params {
 	__le16 len;
 	__le16 offload_assist;
 	__le32 tx_flags;
@@ -245,10 +240,20 @@ struct iwl_tx_cmd {
 	u8 tid_tspec;
 	__le16 pm_frame_timeout;
 	__le16 reserved4;
-	union {
-		DECLARE_FLEX_ARRAY(u8, payload);
-		DECLARE_FLEX_ARRAY(struct ieee80211_hdr, hdr);
-	};
+} __packed; /* TX_CMD_API_S_VER_6 */
+
+/**
+ * struct iwl_tx_cmd_v6 - TX command struct to FW
+ * ( TX_CMD = 0x1c )
+ * @params: parameters of the TX, see &struct iwl_tx_cmd_v6_tx_params
+ * @hdr: 802.11 header
+ *
+ * After &params, the MAC header is placed, plus any padding,
+ * and then the actual payload.
+ */
+struct iwl_tx_cmd_v6 {
+	struct iwl_tx_cmd_v6_params params;
+	struct ieee80211_hdr hdr[];
 } __packed; /* TX_CMD_API_S_VER_6 */
 
 struct iwl_dram_sec_info {
@@ -258,7 +263,7 @@ struct iwl_dram_sec_info {
 } __packed; /* DRAM_SEC_INFO_API_S_VER_1 */
 
 /**
- * struct iwl_tx_cmd_gen2 - TX command struct to FW for 22000 devices
+ * struct iwl_tx_cmd_v9 - TX command struct to FW for 22000 devices
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
  * @offload_assist: TX offload configuration
@@ -268,7 +273,7 @@ struct iwl_dram_sec_info {
  *	cleared. Combination of RATE_MCS_*
  * @hdr: 802.11 header
  */
-struct iwl_tx_cmd_gen2 {
+struct iwl_tx_cmd_v9 {
 	__le16 len;
 	__le16 offload_assist;
 	__le32 flags;
@@ -279,18 +284,18 @@ struct iwl_tx_cmd_gen2 {
 	       TX_CMD_API_S_VER_9 */
 
 /**
- * struct iwl_tx_cmd_gen3 - TX command struct to FW for AX210+ devices
+ * struct iwl_tx_cmd - TX command struct to FW for AX210+ devices
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
  * @flags: combination of &enum iwl_tx_cmd_flags
  * @offload_assist: TX offload configuration
  * @dram_info: FW internal DRAM storage
  * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
- *	cleared. Combination of RATE_MCS_*
+ *	cleared. Combination of RATE_MCS_*; format depends on version
  * @reserved: reserved
  * @hdr: 802.11 header
  */
-struct iwl_tx_cmd_gen3 {
+struct iwl_tx_cmd {
 	__le16 len;
 	__le16 flags;
 	__le32 offload_assist;
@@ -298,7 +303,9 @@ struct iwl_tx_cmd_gen3 {
 	__le32 rate_n_flags;
 	u8 reserved[8];
 	struct ieee80211_hdr hdr[];
-} __packed; /* TX_CMD_API_S_VER_8, TX_CMD_API_S_VER_10 */
+} __packed; /* TX_CMD_API_S_VER_10,
+	     * TX_CMD_API_S_VER_11
+	     */
 
 /*
  * TX response related data
@@ -549,7 +556,7 @@ struct iwl_tx_resp_v3 {
  * @failure_rts: num of failures due to unsuccessful RTS
  * @failure_frame: num failures due to no ACK (unused for agg)
  * @initial_rate: for non-agg: rate of the successful Tx. For agg: rate of the
- *	Tx of all the batch. RATE_MCS_*
+ *	Tx of all the batch. RATE_MCS_*; format depends on command version
  * @wireless_media_time: for non-agg: RTS + CTS + frame tx attempts time + ACK.
  *	for agg: RTS + CTS + aggregation tx time + block-ack time.
  *	in usec.
@@ -600,8 +607,10 @@ struct iwl_tx_resp {
 	__le16 reserved2;
 	struct agg_tx_status status;
 } __packed; /* TX_RSP_API_S_VER_6,
-	       TX_RSP_API_S_VER_7,
-	       TX_RSP_API_S_VER_8 */
+	     * TX_RSP_API_S_VER_7,
+	     * TX_RSP_API_S_VER_8,
+	     * TX_RSP_API_S_VER_9
+	     */
 
 /**
  * struct iwl_mvm_ba_notif - notifies about reception of BA
@@ -701,7 +710,8 @@ enum iwl_mvm_ba_resp_flags {
  * @rts_retry_cnt: RTS retry count
  * @reserved: reserved (for alignment)
  * @wireless_time: Wireless-media time
- * @tx_rate: the rate the aggregation was sent at
+ * @tx_rate: the rate the aggregation was sent at. Format depends on command
+ *	version.
  * @tfd_cnt: number of TFD-Q elements
  * @ra_tid_cnt: number of RATID-Q elements
  * @tfd: array of TFD queue status updates. See &iwl_compressed_ba_tfd
@@ -730,7 +740,8 @@ struct iwl_compressed_ba_notif {
 		DECLARE_FLEX_ARRAY(struct iwl_compressed_ba_tfd, tfd);
 	};
 } __packed; /* COMPRESSED_BA_RES_API_S_VER_4,
-	       COMPRESSED_BA_RES_API_S_VER_5 */
+	       COMPRESSED_BA_RES_API_S_VER_6,
+	       COMPRESSED_BA_RES_API_S_VER_7 */
 
 /**
  * struct iwl_mac_beacon_cmd_v6 - beacon template command
@@ -742,7 +753,7 @@ struct iwl_compressed_ba_notif {
  * @frame: the template of the beacon frame
  */
 struct iwl_mac_beacon_cmd_v6 {
-	struct iwl_tx_cmd tx;
+	struct iwl_tx_cmd_v6_params tx;
 	__le32 template_id;
 	__le32 tim_idx;
 	__le32 tim_size;
@@ -761,7 +772,7 @@ struct iwl_mac_beacon_cmd_v6 {
  * @frame: the template of the beacon frame
  */
 struct iwl_mac_beacon_cmd_v7 {
-	struct iwl_tx_cmd tx;
+	struct iwl_tx_cmd_v6_params tx;
 	__le32 template_id;
 	__le32 tim_idx;
 	__le32 tim_size;
@@ -858,7 +869,7 @@ struct iwl_extended_beacon_notif {
 
 /**
  * enum iwl_dump_control - dump (flush) control flags
- * @DUMP_TX_FIFO_FLUSH: Dump MSDUs until the the FIFO is empty
+ * @DUMP_TX_FIFO_FLUSH: Dump MSDUs until the FIFO is empty
  *	and the TFD queues are empty.
  */
 enum iwl_dump_control {

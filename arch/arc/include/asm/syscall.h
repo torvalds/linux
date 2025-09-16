@@ -24,6 +24,17 @@ syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 }
 
 static inline void
+syscall_set_nr(struct task_struct *task, struct pt_regs *regs, int nr)
+{
+	/*
+	 * Unlike syscall_get_nr(), syscall_set_nr() can be called only when
+	 * the target task is stopped for tracing on entering syscall, so
+	 * there is no need to have the same check syscall_get_nr() has.
+	 */
+	regs->r8 = nr;
+}
+
+static inline void
 syscall_rollback(struct task_struct *task, struct pt_regs *regs)
 {
 	regs->r0 = regs->orig_r0;
@@ -63,6 +74,20 @@ syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
 
 	while (n--) {
 		args[i++] = (*inside_ptregs);
+		inside_ptregs--;
+	}
+}
+
+static inline void
+syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
+		      unsigned long *args)
+{
+	unsigned long *inside_ptregs = &regs->r0;
+	unsigned int n = 6;
+	unsigned int i = 0;
+
+	while (n--) {
+		*inside_ptregs = args[i++];
 		inside_ptregs--;
 	}
 }

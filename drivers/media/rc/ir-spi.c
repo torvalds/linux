@@ -21,13 +21,12 @@
 #define IR_SPI_DRIVER_NAME		"ir-spi"
 
 #define IR_SPI_DEFAULT_FREQUENCY	38000
-#define IR_SPI_MAX_BUFSIZE		 4096
+#define IR_SPI_BITS_PER_PULSE		16
 
 struct ir_spi_data {
 	u32 freq;
 	bool negated;
 
-	u16 tx_buf[IR_SPI_MAX_BUFSIZE];
 	u16 pulse;
 	u16 space;
 
@@ -43,17 +42,23 @@ static int ir_spi_tx(struct rc_dev *dev, unsigned int *buffer, unsigned int coun
 	unsigned int len = 0;
 	struct ir_spi_data *idata = dev->priv;
 	struct spi_transfer xfer;
+	u16 *tx_buf;
 
 	/* convert the pulse/space signal to raw binary signal */
 	for (i = 0; i < count; i++) {
-		unsigned int periods;
+		buffer[i] = DIV_ROUND_CLOSEST_ULL((u64)buffer[i] * idata->freq,
+						  1000000);
+		len += buffer[i];
+	}
+
+	tx_buf = kmalloc_array(len, sizeof(*tx_buf), GFP_KERNEL);
+	if (!tx_buf)
+		return -ENOMEM;
+
+	len = 0;
+	for (i = 0; i < count; i++) {
 		int j;
 		u16 val;
-
-		periods = DIV_ROUND_CLOSEST(buffer[i] * idata->freq, 1000000);
-
-		if (len + periods >= IR_SPI_MAX_BUFSIZE)
-			return -EINVAL;
 
 		/*
 		 * The first value in buffer is a pulse, so that 0, 2, 4, ...
@@ -61,25 +66,29 @@ static int ir_spi_tx(struct rc_dev *dev, unsigned int *buffer, unsigned int coun
 		 * contain a space duration.
 		 */
 		val = (i % 2) ? idata->space : idata->pulse;
-		for (j = 0; j < periods; j++)
-			idata->tx_buf[len++] = val;
+		for (j = 0; j < buffer[i]; j++)
+			tx_buf[len++] = val;
 	}
 
 	memset(&xfer, 0, sizeof(xfer));
 
-	xfer.speed_hz = idata->freq * 16;
-	xfer.len = len * sizeof(*idata->tx_buf);
-	xfer.tx_buf = idata->tx_buf;
+	xfer.speed_hz = idata->freq * IR_SPI_BITS_PER_PULSE;
+	xfer.len = len * sizeof(*tx_buf);
+	xfer.tx_buf = tx_buf;
 
 	ret = regulator_enable(idata->regulator);
 	if (ret)
-		return ret;
+		goto err_free_tx_buf;
 
 	ret = spi_sync_transfer(idata->spi, &xfer, 1);
 	if (ret)
 		dev_err(&idata->spi->dev, "unable to deliver the signal\n");
 
 	regulator_disable(idata->regulator);
+
+err_free_tx_buf:
+
+	kfree(tx_buf);
 
 	return ret ? ret : count;
 }
@@ -89,6 +98,9 @@ static int ir_spi_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 	struct ir_spi_data *idata = dev->priv;
 
 	if (!carrier)
+		return -EINVAL;
+
+	if (carrier > idata->spi->max_speed_hz / IR_SPI_BITS_PER_PULSE)
 		return -EINVAL;
 
 	idata->freq = carrier;

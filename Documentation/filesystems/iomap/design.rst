@@ -167,7 +167,6 @@ structure below:
      struct dax_device   *dax_dev;
      void                *inline_data;
      void                *private;
-     const struct iomap_folio_ops *folio_ops;
      u64                 validity_cookie;
  };
 
@@ -243,12 +242,24 @@ The fields are as follows:
      regular file data.
      This is only useful for FIEMAP.
 
-   * **IOMAP_F_PRIVATE**: Starting with this value, the upper bits can
-     be set by the filesystem for its own purposes.
+   * **IOMAP_F_BOUNDARY**: This indicates I/O and its completion must not be
+     merged with any other I/O or completion. Filesystems must use this when
+     submitting I/O to devices that cannot handle I/O crossing certain LBAs
+     (e.g. ZNS devices). This flag applies only to buffered I/O writeback; all
+     other functions ignore it.
+
+   * **IOMAP_F_PRIVATE**: This flag is reserved for filesystem private use.
 
    * **IOMAP_F_ANON_WRITE**: Indicates that (write) I/O does not have a target
      block assigned to it yet and the file system will do that in the bio
      submission handler, splitting the I/O as needed.
+
+   * **IOMAP_F_ATOMIC_BIO**: This indicates write I/O must be submitted with the
+     ``REQ_ATOMIC`` flag set in the bio. Filesystems need to set this flag to
+     inform iomap that the write I/O operation requires torn-write protection
+     based on HW-offload mechanism. They must also ensure that mapping updates
+     upon the completion of the I/O must be performed in a single metadata
+     update.
 
    These flags can be set by iomap itself during file operations.
    The filesystem should supply an ``->iomap_end`` function if it needs
@@ -279,8 +290,6 @@ The fields are as follows:
  * ``private`` is a pointer to `filesystem-private information
    <https://lore.kernel.org/all/20180619164137.13720-7-hch@lst.de/>`_.
    This value will be passed unchanged to ``->iomap_end``.
-
- * ``folio_ops`` will be covered in the section on pagecache operations.
 
  * ``validity_cookie`` is a magic freshness value set by the filesystem
    that should be used to detect stale mappings.

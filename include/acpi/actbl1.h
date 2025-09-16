@@ -3,7 +3,7 @@
  *
  * Name: actbl1.h - Additional ACPI table definitions
  *
- * Copyright (C) 2000 - 2023, Intel Corp.
+ * Copyright (C) 2000 - 2025, Intel Corp.
  *
  *****************************************************************************/
 
@@ -153,6 +153,13 @@ struct acpi_aspt_acpi_mbox_regs {
 	u32 reserved1;
 	u64 cmd_resp_reg_addr;
 	u64 reserved2[2];
+};
+
+/* Larger subtable header (when Length can exceed 255) */
+
+struct acpi_subtbl_hdr_16 {
+	u16 type;
+	u16 length;
 };
 
 /*******************************************************************************
@@ -819,7 +826,8 @@ enum acpi_dmar_type {
 	ACPI_DMAR_TYPE_HARDWARE_AFFINITY = 3,
 	ACPI_DMAR_TYPE_NAMESPACE = 4,
 	ACPI_DMAR_TYPE_SATC = 5,
-	ACPI_DMAR_TYPE_RESERVED = 6	/* 6 and greater are reserved */
+	ACPI_DMAR_TYPE_SIDP = 6,
+	ACPI_DMAR_TYPE_RESERVED = 7	/* 7 and greater are reserved */
 };
 
 /* DMAR Device Scope structure */
@@ -827,7 +835,8 @@ enum acpi_dmar_type {
 struct acpi_dmar_device_scope {
 	u8 entry_type;
 	u8 length;
-	u16 reserved;
+	u8 flags;
+	u8 reserved;
 	u8 enumeration_id;
 	u8 bus;
 };
@@ -923,6 +932,15 @@ struct acpi_dmar_satc {
 	u8 reserved;
 	u16 segment;
 };
+
+/* 6: so_c Integrated Device Property Reporting Structure */
+
+struct acpi_dmar_sidp {
+	struct acpi_dmar_header header;
+	u16 reserved;
+	u16 segment;
+};
+
 /*******************************************************************************
  *
  * DRTM - Dynamic Root of Trust for Measurement table
@@ -1024,17 +1042,18 @@ struct acpi_einj_entry {
 /* Values for Action field above */
 
 enum acpi_einj_actions {
-	ACPI_EINJ_BEGIN_OPERATION = 0,
-	ACPI_EINJ_GET_TRIGGER_TABLE = 1,
-	ACPI_EINJ_SET_ERROR_TYPE = 2,
-	ACPI_EINJ_GET_ERROR_TYPE = 3,
-	ACPI_EINJ_END_OPERATION = 4,
-	ACPI_EINJ_EXECUTE_OPERATION = 5,
-	ACPI_EINJ_CHECK_BUSY_STATUS = 6,
-	ACPI_EINJ_GET_COMMAND_STATUS = 7,
-	ACPI_EINJ_SET_ERROR_TYPE_WITH_ADDRESS = 8,
-	ACPI_EINJ_GET_EXECUTE_TIMINGS = 9,
-	ACPI_EINJ_ACTION_RESERVED = 10,	/* 10 and greater are reserved */
+	ACPI_EINJ_BEGIN_OPERATION = 0x0,
+	ACPI_EINJ_GET_TRIGGER_TABLE = 0x1,
+	ACPI_EINJ_SET_ERROR_TYPE = 0x2,
+	ACPI_EINJ_GET_ERROR_TYPE = 0x3,
+	ACPI_EINJ_END_OPERATION = 0x4,
+	ACPI_EINJ_EXECUTE_OPERATION = 0x5,
+	ACPI_EINJ_CHECK_BUSY_STATUS = 0x6,
+	ACPI_EINJ_GET_COMMAND_STATUS = 0x7,
+	ACPI_EINJ_SET_ERROR_TYPE_WITH_ADDRESS = 0x8,
+	ACPI_EINJ_GET_EXECUTE_TIMINGS = 0x9,
+	ACPI_EINJV2_GET_ERROR_TYPE = 0x11,
+	ACPI_EINJ_ACTION_RESERVED = 0x12,	/* 0x12 and greater are reserved */
 	ACPI_EINJ_TRIGGER_ERROR = 0xFF	/* Except for this value */
 };
 

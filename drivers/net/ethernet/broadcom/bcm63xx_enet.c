@@ -286,7 +286,7 @@ static int bcm_enet_refill_rx(struct net_device *dev, bool napi_mode)
  */
 static void bcm_enet_refill_rx_timer(struct timer_list *t)
 {
-	struct bcm_enet_priv *priv = from_timer(priv, t, rx_timeout);
+	struct bcm_enet_priv *priv = timer_container_of(priv, t, rx_timeout);
 	struct net_device *dev = priv->net_dev;
 
 	spin_lock(&priv->rx_lock);
@@ -2001,7 +2001,7 @@ static inline int bcm_enet_port_is_rgmii(int portid)
  */
 static void swphy_poll_timer(struct timer_list *t)
 {
-	struct bcm_enet_priv *priv = from_timer(priv, t, swphy_poll);
+	struct bcm_enet_priv *priv = timer_container_of(priv, t, swphy_poll);
 	unsigned int i;
 
 	for (i = 0; i < priv->num_ports; i++) {

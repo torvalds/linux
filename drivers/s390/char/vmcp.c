@@ -19,7 +19,6 @@
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/cma.h>
 #include <linux/mm.h>

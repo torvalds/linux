@@ -448,7 +448,7 @@ MODULE_DEVICE_TABLE(i2c, opt4001_id);
 static const struct of_device_id opt4001_of_match[] = {
 	{ .compatible = "ti,opt4001-sot-5x3", .data = &opt4001_sot_5x3_info},
 	{ .compatible = "ti,opt4001-picostar", .data = &opt4001_picostar_info},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, opt4001_of_match);
 

@@ -5240,7 +5240,7 @@ static void beiscsi_eqd_update_work(struct work_struct *work)
 
 static void beiscsi_hw_tpe_check(struct timer_list *t)
 {
-	struct beiscsi_hba *phba = from_timer(phba, t, hw_check);
+	struct beiscsi_hba *phba = timer_container_of(phba, t, hw_check);
 	u32 wait;
 
 	/* if not TPE, do nothing */
@@ -5257,7 +5257,7 @@ static void beiscsi_hw_tpe_check(struct timer_list *t)
 
 static void beiscsi_hw_health_check(struct timer_list *t)
 {
-	struct beiscsi_hba *phba = from_timer(phba, t, hw_check);
+	struct beiscsi_hba *phba = timer_container_of(phba, t, hw_check);
 
 	beiscsi_detect_ue(phba);
 	if (beiscsi_detect_ue(phba)) {

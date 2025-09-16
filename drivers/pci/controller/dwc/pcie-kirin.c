@@ -586,16 +586,13 @@ static void kirin_pcie_write_dbi(struct dw_pcie *pci, void __iomem *base,
 	kirin_pcie_sideband_dbi_w_mode(kirin_pcie, false);
 }
 
-static int kirin_pcie_link_up(struct dw_pcie *pci)
+static bool kirin_pcie_link_up(struct dw_pcie *pci)
 {
 	struct kirin_pcie *kirin_pcie = to_kirin_pcie(pci);
 	u32 val;
 
 	regmap_read(kirin_pcie->apb, PCIE_APB_PHY_STATUS0, &val);
-	if ((val & PCIE_LINKUP_ENABLE) == PCIE_LINKUP_ENABLE)
-		return 1;
-
-	return 0;
+	return (val & PCIE_LINKUP_ENABLE) == PCIE_LINKUP_ENABLE;
 }
 
 static int kirin_pcie_start_link(struct dw_pcie *pci)

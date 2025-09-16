@@ -51,13 +51,12 @@ static int sunrise_regmap_read(void *context, const void *reg_buf,
 {
 	struct i2c_client *client = context;
 	struct sunrise_dev *sunrise = i2c_get_clientdata(client);
-	union i2c_smbus_data data;
+	union i2c_smbus_data data = { };
 	int ret;
 
 	if (reg_size != 1 || !val_size)
 		return -EINVAL;
 
-	memset(&data, 0, sizeof(data));
 	data.block[0] = val_size;
 
 	/*
@@ -88,14 +87,13 @@ static int sunrise_regmap_write(void *context, const void *val_buf, size_t count
 {
 	struct i2c_client *client = context;
 	struct sunrise_dev *sunrise = i2c_get_clientdata(client);
-	union i2c_smbus_data data;
+	union i2c_smbus_data data = { };
 
 	/* Discard reg address from values count. */
 	if (!count)
 		return -EINVAL;
 	count--;
 
-	memset(&data, 0, sizeof(data));
 	data.block[0] = count;
 	memcpy(&data.block[1], (u8 *)val_buf + 1, count);
 
@@ -373,7 +371,7 @@ static const struct iio_chan_spec_ext_info sunrise_concentration_ext_info[] = {
 		.read = iio_enum_available_read,
 		.private = (uintptr_t)&sunrise_error_statuses_enum,
 	},
-	{}
+	{ }
 };
 
 static const struct iio_chan_spec sunrise_channels[] = {
@@ -519,7 +517,7 @@ static int sunrise_probe(struct i2c_client *client)
 
 static const struct of_device_id sunrise_of_match[] = {
 	{ .compatible = "senseair,sunrise-006-0-0007" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, sunrise_of_match);
 

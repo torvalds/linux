@@ -850,7 +850,7 @@ static void check_media(struct net_device *dev)
 
 static void epic_timer(struct timer_list *t)
 {
-	struct epic_private *ep = from_timer(ep, t, timer);
+	struct epic_private *ep = timer_container_of(ep, t, timer);
 	struct net_device *dev = ep->mii.dev;
 	void __iomem *ioaddr = ep->ioaddr;
 	int next_tick = 5*HZ;

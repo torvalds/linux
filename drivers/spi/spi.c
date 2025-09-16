@@ -427,7 +427,7 @@ static int spi_probe(struct device *dev)
 	if (spi->irq < 0)
 		spi->irq = 0;
 
-	ret = dev_pm_domain_attach(dev, true);
+	ret = dev_pm_domain_attach(dev, PD_FLAG_ATTACH_POWER_ON);
 	if (ret)
 		return ret;
 
@@ -1076,10 +1076,8 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 	 * Avoid calling into the driver (or doing delays) if the chip select
 	 * isn't actually changing from the last time this was called.
 	 */
-	if (!force && ((enable && spi->controller->last_cs_index_mask == spi->cs_index_mask &&
-			spi_is_last_cs(spi)) ||
-		       (!enable && spi->controller->last_cs_index_mask == spi->cs_index_mask &&
-			!spi_is_last_cs(spi))) &&
+	if (!force && (enable == spi_is_last_cs(spi)) &&
+	    (spi->controller->last_cs_index_mask == spi->cs_index_mask) &&
 	    (spi->controller->last_cs_mode_high == (spi->mode & SPI_CS_HIGH)))
 		return;
 
@@ -1088,9 +1086,9 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 	spi->controller->last_cs_index_mask = spi->cs_index_mask;
 	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
 		spi->controller->last_cs[idx] = enable ? spi_get_chipselect(spi, 0) : SPI_INVALID_CS;
-	spi->controller->last_cs_mode_high = spi->mode & SPI_CS_HIGH;
 
-	if (spi->mode & SPI_CS_HIGH)
+	spi->controller->last_cs_mode_high = spi->mode & SPI_CS_HIGH;
+	if (spi->controller->last_cs_mode_high)
 		enable = !enable;
 
 	/*
@@ -1725,7 +1723,6 @@ EXPORT_SYMBOL_GPL(spi_finalize_current_transfer);
 static void spi_idle_runtime_pm(struct spi_controller *ctlr)
 {
 	if (ctlr->auto_runtime_pm) {
-		pm_runtime_mark_last_busy(ctlr->dev.parent);
 		pm_runtime_put_autosuspend(ctlr->dev.parent);
 	}
 }
@@ -3802,7 +3799,7 @@ int spi_split_transfers_maxwords(struct spi_controller *ctlr,
 		size_t maxsize;
 		int ret;
 
-		maxsize = maxwords * roundup_pow_of_two(BITS_TO_BYTES(xfer->bits_per_word));
+		maxsize = maxwords * spi_bpw_to_bytes(xfer->bits_per_word);
 		if (xfer->len > maxsize) {
 			ret = __spi_split_transfer_maxsize(ctlr, msg, &xfer,
 							   maxsize);
@@ -3858,7 +3855,6 @@ static int spi_set_cs_timing(struct spi_device *spi)
 			}
 
 			status = spi->controller->set_cs_timing(spi);
-			pm_runtime_mark_last_busy(parent);
 			pm_runtime_put_autosuspend(parent);
 		} else {
 			status = spi->controller->set_cs_timing(spi);
@@ -3993,7 +3989,6 @@ int spi_setup(struct spi_device *spi)
 		status = 0;
 
 		spi_set_cs(spi, false, true);
-		pm_runtime_mark_last_busy(spi->controller->dev.parent);
 		pm_runtime_put_autosuspend(spi->controller->dev.parent);
 	} else {
 		spi_set_cs(spi, false, true);
@@ -4096,6 +4091,13 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 		if (__spi_validate_bits_per_word(ctlr, xfer->bits_per_word))
 			return -EINVAL;
 
+		/* DDR mode is supported only if controller has dtr_caps=true.
+		 * default considered as SDR mode for SPI and QSPI controller.
+		 * Note: This is applicable only to QSPI controller.
+		 */
+		if (xfer->dtr_mode && !ctlr->dtr_caps)
+			return -EINVAL;
+
 		/*
 		 * SPI transfer length should be multiple of SPI word size
 		 * where SPI word size should be power-of-two multiple.
@@ -4133,10 +4135,13 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 				xfer->tx_nbits != SPI_NBITS_OCTAL)
 				return -EINVAL;
 			if ((xfer->tx_nbits == SPI_NBITS_DUAL) &&
-				!(spi->mode & (SPI_TX_DUAL | SPI_TX_QUAD)))
+				!(spi->mode & (SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL)))
 				return -EINVAL;
 			if ((xfer->tx_nbits == SPI_NBITS_QUAD) &&
-				!(spi->mode & SPI_TX_QUAD))
+				!(spi->mode & (SPI_TX_QUAD | SPI_TX_OCTAL)))
+				return -EINVAL;
+			if ((xfer->tx_nbits == SPI_NBITS_OCTAL) &&
+				!(spi->mode & SPI_TX_OCTAL))
 				return -EINVAL;
 		}
 		/* Check transfer rx_nbits */
@@ -4149,10 +4154,13 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 				xfer->rx_nbits != SPI_NBITS_OCTAL)
 				return -EINVAL;
 			if ((xfer->rx_nbits == SPI_NBITS_DUAL) &&
-				!(spi->mode & (SPI_RX_DUAL | SPI_RX_QUAD)))
+				!(spi->mode & (SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL)))
 				return -EINVAL;
 			if ((xfer->rx_nbits == SPI_NBITS_QUAD) &&
-				!(spi->mode & SPI_RX_QUAD))
+				!(spi->mode & (SPI_RX_QUAD | SPI_RX_OCTAL)))
+				return -EINVAL;
+			if ((xfer->rx_nbits == SPI_NBITS_OCTAL) &&
+				!(spi->mode & SPI_RX_OCTAL))
 				return -EINVAL;
 		}
 

@@ -142,7 +142,7 @@ static int send_inline_ipsec_inbound_msg(struct otx2_cptpf_dev *cptpf,
 	memset(req, 0, sizeof(*req));
 	req->hdr.id = MBOX_MSG_CPT_INLINE_IPSEC_CFG;
 	req->hdr.sig = OTX2_MBOX_REQ_SIG;
-	req->hdr.pcifunc = OTX2_CPT_RVU_PFFUNC(cptpf->pf_id, 0);
+	req->hdr.pcifunc = OTX2_CPT_RVU_PFFUNC(cptpf->pdev, cptpf->pf_id, 0);
 	req->dir = CPT_INLINE_INBOUND;
 	req->slot = slot;
 	req->sso_pf_func_ovrd = cptpf->sso_pf_func_ovrd;
@@ -184,7 +184,8 @@ static int rx_inline_ipsec_lf_cfg(struct otx2_cptpf_dev *cptpf, u8 egrp,
 		nix_req->gen_cfg.opcode = cpt_inline_rx_opcode(pdev);
 	nix_req->gen_cfg.param1 = req->param1;
 	nix_req->gen_cfg.param2 = req->param2;
-	nix_req->inst_qsel.cpt_pf_func = OTX2_CPT_RVU_PFFUNC(cptpf->pf_id, 0);
+	nix_req->inst_qsel.cpt_pf_func =
+		OTX2_CPT_RVU_PFFUNC(cptpf->pdev, cptpf->pf_id, 0);
 	nix_req->inst_qsel.cpt_slot = 0;
 	ret = otx2_cpt_send_mbox_msg(&cptpf->afpf_mbox, pdev);
 	if (ret)
@@ -264,8 +265,6 @@ static int handle_msg_rx_inline_ipsec_lf_cfg(struct otx2_cptpf_dev *cptpf,
 		return -ENOENT;
 	}
 
-	otx2_cptlf_set_dev_info(&cptpf->lfs, cptpf->pdev, cptpf->reg_base,
-				&cptpf->afpf_mbox, BLKADDR_CPT0);
 	cptpf->lfs.global_slot = 0;
 	cptpf->lfs.ctx_ilen_ovrd = cfg_req->ctx_ilen_valid;
 	cptpf->lfs.ctx_ilen = cfg_req->ctx_ilen;
@@ -278,9 +277,6 @@ static int handle_msg_rx_inline_ipsec_lf_cfg(struct otx2_cptpf_dev *cptpf,
 
 	if (cptpf->has_cpt1) {
 		cptpf->rsrc_req_blkaddr = BLKADDR_CPT1;
-		otx2_cptlf_set_dev_info(&cptpf->cpt1_lfs, cptpf->pdev,
-					cptpf->reg_base, &cptpf->afpf_mbox,
-					BLKADDR_CPT1);
 		cptpf->cpt1_lfs.global_slot = num_lfs;
 		cptpf->cpt1_lfs.ctx_ilen_ovrd = cfg_req->ctx_ilen_valid;
 		cptpf->cpt1_lfs.ctx_ilen = cfg_req->ctx_ilen;
@@ -397,9 +393,8 @@ void otx2_cptpf_vfpf_mbox_handler(struct work_struct *work)
 		msg = (struct mbox_msghdr *)(mdev->mbase + offset);
 
 		/* Set which VF sent this message based on mbox IRQ */
-		msg->pcifunc = ((u16)cptpf->pf_id << RVU_PFVF_PF_SHIFT) |
-				((vf->vf_id + 1) & RVU_PFVF_FUNC_MASK);
-
+		msg->pcifunc = rvu_make_pcifunc(cptpf->pdev, cptpf->pf_id,
+						(vf->vf_id + 1));
 		err = cptpf_handle_vf_req(cptpf, vf, msg,
 					  msg->next_msgoff - offset);
 		/*
@@ -474,8 +469,7 @@ static void process_afpf_mbox_msg(struct otx2_cptpf_dev *cptpf,
 
 	switch (msg->id) {
 	case MBOX_MSG_READY:
-		cptpf->pf_id = (msg->pcifunc >> RVU_PFVF_PF_SHIFT) &
-				RVU_PFVF_PF_MASK;
+		cptpf->pf_id = rvu_get_pf(cptpf->pdev, msg->pcifunc);
 		break;
 	case MBOX_MSG_MSIX_OFFSET:
 		rsp_msix = (struct msix_offset_rsp *) msg;
@@ -507,6 +501,7 @@ static void process_afpf_mbox_msg(struct otx2_cptpf_dev *cptpf,
 	case MBOX_MSG_CPT_INLINE_IPSEC_CFG:
 	case MBOX_MSG_NIX_INLINE_IPSEC_CFG:
 	case MBOX_MSG_CPT_LF_RESET:
+	case MBOX_MSG_LMTST_TBL_SETUP:
 		break;
 
 	default:

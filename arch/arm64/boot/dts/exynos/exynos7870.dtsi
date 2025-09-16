@@ -1,0 +1,713 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung Exynos7870 SoC device tree source
+ *
+ * Copyright (c) 2015 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2025 Kaustabh Chakraborty <kauschluss@disroot.org>
+ */
+
+#include <dt-bindings/clock/samsung,exynos7870-cmu.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	compatible = "samsung,exynos7870";
+	#address-cells = <2>;
+	#size-cells = <1>;
+
+	interrupt-parent = <&gic>;
+
+	aliases {
+		pinctrl0 = &pinctrl_alive;
+		pinctrl1 = &pinctrl_dispaud;
+		pinctrl2 = &pinctrl_ese;
+		pinctrl3 = &pinctrl_fsys;
+		pinctrl4 = &pinctrl_mif;
+		pinctrl5 = &pinctrl_nfc;
+		pinctrl6 = &pinctrl_top;
+		pinctrl7 = &pinctrl_touch;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+				core1 {
+					cpu = <&cpu1>;
+				};
+				core2 {
+					cpu = <&cpu2>;
+				};
+				core3 {
+					cpu = <&cpu3>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&cpu4>;
+				};
+				core1 {
+					cpu = <&cpu5>;
+				};
+				core2 {
+					cpu = <&cpu6>;
+				};
+				core3 {
+					cpu = <&cpu7>;
+				};
+			};
+		};
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0x0>;
+			enable-method = "psci";
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0x1>;
+			enable-method = "psci";
+		};
+
+		cpu2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0x2>;
+			enable-method = "psci";
+		};
+
+		cpu3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0x3>;
+			enable-method = "psci";
+		};
+
+		cpu4: cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0x100>;
+			enable-method = "psci";
+		};
+
+		cpu5: cpu@101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0x101>;
+			enable-method = "psci";
+		};
+
+		cpu6: cpu@102 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0x102>;
+			enable-method = "psci";
+		};
+
+		cpu7: cpu@103 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0x103>;
+			enable-method = "psci";
+		};
+	};
+
+	oscclk: oscclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+	};
+
+	psci {
+		compatible = "arm,psci";
+		method = "smc";
+		cpu_suspend = <0xc4000001>;
+		cpu_off = <0x84000002>;
+		cpu_on = <0xc4000003>;
+	};
+
+	soc: soc@0 {
+		compatible = "simple-bus";
+		ranges = <0x0 0x0 0x0 0x20000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		chipid@10100000 {
+			compatible = "samsung,exynos7870-chipid",
+				     "samsung,exynos4210-chipid";
+			reg = <0x10100000 0x100>;
+		};
+
+		cmu_peri: clock-controller@101f0000 {
+			compatible = "samsung,exynos7870-cmu-peri";
+			reg = <0x101f0000 0x1000>;
+			#clock-cells = <1>;
+
+			clock-names = "oscclk", "bus", "spi0", "spi1", "spi2",
+				      "spi3", "spi4", "uart0", "uart1", "uart2";
+			clocks = <&oscclk>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_BUS>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_SPI0>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_SPI1>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_SPI2>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_SPI3>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_SPI4>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_UART0>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_UART1>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_PERI_UART2>;
+		};
+
+		cmu_mif: clock-controller@10460000 {
+			compatible = "samsung,exynos7870-cmu-mif";
+			reg = <0x10460000 0x1000>;
+			#clock-cells = <1>;
+
+			clock-names = "oscclk";
+			clocks = <&oscclk>;
+		};
+
+		pmu_system_controller: system-controller@10480000 {
+			compatible = "samsung,exynos7870-pmu",
+				     "samsung,exynos7-pmu", "syscon";
+			reg = <0x10480000 0x10000>;
+
+			reboot-mode {
+				compatible = "syscon-reboot-mode";
+				offset = <0x080c>;
+				mode-bootloader = <0x1234567d>;
+				mode-download = <0x12345671>;
+				mode-recovery = <0x12345674>;
+			};
+		};
+
+		gic: interrupt-controller@104e1000 {
+			compatible = "arm,cortex-a15-gic";
+			reg = <0x104e1000 0x1000>,
+			      <0x104e2000 0x1000>,
+			      <0x104e4000 0x2000>,
+			      <0x104e6000 0x2000>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8) |
+						 IRQ_TYPE_LEVEL_HIGH)>;
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <3>;
+		};
+
+		hsi2c0: i2c@10510000 {
+			compatible = "samsung,exynos7870-hsi2c",
+				     "samsung,exynos7-hsi2c";
+			reg = <0x10510000 0x2000>;
+			interrupts = <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&hsi2c0_bus>;
+
+			clock-names = "hsi2c";
+			clocks = <&cmu_mif CLK_GOUT_MIF_HSI2C_IPCLK>;
+
+			status = "disabled";
+		};
+
+		pinctrl_mif: pinctrl@10530000 {
+			compatible = "samsung,exynos7870-pinctrl";
+			reg = <0x10530000 0x1000>;
+			interrupts = <GIC_SPI 392 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		gpu: gpu@11400000 {
+			compatible = "samsung,exynos7870-mali", "arm,mali-t830";
+			reg = <0x11400000 0x5000>;
+			interrupt-names = "job", "mmu", "gpu";
+			interrupts = <GIC_SPI 282 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 283 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 281 IRQ_TYPE_LEVEL_HIGH>;
+
+			clock-names = "core", "bus";
+			clocks = <&cmu_g3d CLK_GOUT_G3D_CLK>,
+				 <&cmu_g3d CLK_GOUT_G3D_ASYNCS_D0_CLK>;
+
+			status = "disabled";
+		};
+
+		cmu_g3d: clock-controller@11460000 {
+			compatible = "samsung,exynos7870-cmu-g3d";
+			reg = <0x11460000 0x1000>;
+			#clock-cells = <1>;
+
+			clock-names = "oscclk", "switch";
+			clocks = <&oscclk>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_G3D_SWITCH>;
+		};
+
+		cmu_mfcmscl: clock-controller@12cb0000 {
+			compatible = "samsung,exynos7870-cmu-mfcmscl";
+			reg = <0x12cb0000 0x1000>;
+			#clock-cells = <1>;
+
+			clock-names = "oscclk", "mfc", "mscl";
+			clocks = <&oscclk>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_MFCMSCL_MFC>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_MFCMSCL_MSCL>;
+		};
+
+		mmc0: mmc@13540000 {
+			compatible = "samsung,exynos7870-dw-mshc-smu";
+			reg = <0x13540000 0x2000>;
+			interrupts = <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>;
+
+			clock-names = "biu", "ciu";
+			clocks = <&cmu_fsys CLK_GOUT_FSYS_MMC0_ACLK>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_FSYS_MMC0>;
+
+			status = "disabled";
+		};
+
+		mmc1: mmc@13550000 {
+			compatible = "samsung,exynos7870-dw-mshc-smu";
+			reg = <0x13550000 0x2000>;
+			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
+
+			clock-names = "biu", "ciu";
+			clocks = <&cmu_fsys CLK_GOUT_FSYS_MMC1_ACLK>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_FSYS_MMC1>;
+
+			status = "disabled";
+		};
+
+		mmc2: mmc@13560000 {
+			compatible = "samsung,exynos7870-dw-mshc-smu";
+			reg = <0x13560000 0x2000>;
+			interrupts = <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>;
+
+			clock-names = "biu", "ciu";
+			clocks = <&cmu_fsys CLK_GOUT_FSYS_MMC2_ACLK>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_FSYS_MMC2>;
+
+			status = "disabled";
+		};
+
+		usbdrd_phy: phy@135c0000 {
+			compatible = "samsung,exynos7870-usbdrd-phy";
+			reg = <0x135c0000 0x100>;
+			#phy-cells = <1>;
+
+			clock-names = "phy", "ref";
+			clocks = <&cmu_fsys CLK_GOUT_FSYS_MUX_USB20DRD_PHYCLOCK_USER>,
+				 <&cmu_fsys CLK_GOUT_FSYS_MUX_USB_PLL>;
+
+			samsung,pmu-syscon = <&pmu_system_controller>;
+		};
+
+		usbdrd: usb@13600000 {
+			compatible = "samsung,exynos7870-dwusb3";
+			ranges = <0x0 0x13600000 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			clock-names = "bus_early", "ref", "ctrl";
+			clocks = <&cmu_fsys CLK_GOUT_FSYS_USB20DRD_ACLK_HSDRD>,
+				 <&cmu_fsys CLK_GOUT_FSYS_USB20DRD_HSDRD_REF_CLK>,
+				 <&cmu_fsys CLK_GOUT_FSYS_USB20DRD_HCLK_USB20_CTRL>;
+
+			status = "disabled";
+
+			usb@0 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0x10000>;
+				interrupts = <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
+
+				phy-names = "usb2-phy";
+				phys = <&usbdrd_phy 0>;
+
+				usb-role-switch;
+				snps,usb2-gadget-lpm-disable;
+			};
+		};
+
+		cmu_fsys: clock-controller@13730000 {
+			compatible = "samsung,exynos7870-cmu-fsys";
+			reg = <0x13730000 0x1000>;
+			#clock-cells = <1>;
+
+			clock-names = "oscclk", "bus", "usb20drd";
+			clocks = <&oscclk>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_FSYS_BUS>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_FSYS_USB20DRD_REFCLK>;
+		};
+
+		pinctrl_fsys: pinctrl@13750000 {
+			compatible = "samsung,exynos7870-pinctrl";
+			reg = <0x13750000 0x1000>;
+			interrupts = <GIC_SPI 250 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		serial0: serial@13800000 {
+			compatible = "samsung,exynos7870-uart",
+				     "samsung,exynos8895-uart";
+			reg = <0x13800000 0x100>;
+			interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_bus>;
+
+			clock-names = "uart", "clk_uart_baud0";
+			clocks = <&cmu_peri CLK_GOUT_PERI_UART0_PCLK>,
+				 <&cmu_peri CLK_GOUT_PERI_UART0_EXT_UCLK>;
+
+			samsung,uart-fifosize = <16>;
+
+			status = "disabled";
+		};
+
+		serial1: serial@13810000 {
+			compatible = "samsung,exynos7870-uart",
+				     "samsung,exynos8895-uart";
+			reg = <0x13810000 0x100>;
+			interrupts = <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1_bus>;
+
+			clock-names = "uart", "clk_uart_baud0";
+			clocks = <&cmu_peri CLK_GOUT_PERI_UART1_PCLK>,
+				 <&cmu_peri CLK_GOUT_PERI_UART1_EXT_UCLK>;
+
+			samsung,uart-fifosize = <256>;
+
+			status = "disabled";
+		};
+
+		serial2: serial@13820000 {
+			compatible = "samsung,exynos7870-uart",
+				     "samsung,exynos8895-uart";
+			reg = <0x13820000 0x100>;
+			interrupts = <GIC_SPI 423 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart2_bus>;
+
+			clock-names = "uart", "clk_uart_baud0";
+			clocks = <&cmu_peri CLK_GOUT_PERI_UART2_PCLK>,
+				 <&cmu_peri CLK_GOUT_PERI_UART2_EXT_UCLK>;
+
+			samsung,uart-fifosize = <256>;
+
+			status = "disabled";
+		};
+
+		i2c0: i2c@13830000 {
+			compatible = "samsung,exynos7870-i2c",
+				     "samsung,s3c2440-i2c";
+			reg = <0x13830000 0x100>;
+			interrupts = <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c0_bus>;
+
+			clock-names = "i2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_I2C0_PCLK>;
+
+			status = "disabled";
+		};
+
+		i2c1: i2c@13840000 {
+			compatible = "samsung,exynos7870-i2c",
+				     "samsung,s3c2440-i2c";
+			reg = <0x13840000 0x100>;
+			interrupts = <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c1_bus>;
+
+			clock-names = "i2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_I2C1_PCLK>;
+
+			status = "disabled";
+		};
+
+		i2c2: i2c@13850000 {
+			compatible = "samsung,exynos7870-i2c",
+				     "samsung,s3c2440-i2c";
+			reg = <0x13850000 0x100>;
+			interrupts = <GIC_SPI 426 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c2_bus>;
+
+			clock-names = "i2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_I2C2_PCLK>;
+
+			status = "disabled";
+		};
+
+		i2c3: i2c@13860000 {
+			compatible = "samsung,exynos7870-i2c",
+				     "samsung,s3c2440-i2c";
+			reg = <0x13860000 0x100>;
+			interrupts = <GIC_SPI 427 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c3_bus>;
+
+			clock-names = "i2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_I2C3_PCLK>;
+
+			status = "disabled";
+		};
+
+		i2c4: i2c@13870000 {
+			compatible = "samsung,exynos7870-i2c",
+				     "samsung,s3c2440-i2c";
+			reg = <0x13870000 0x100>;
+			interrupts = <GIC_SPI 428 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c4_bus>;
+
+			clock-names = "i2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_I2C4_PCLK>;
+
+			status = "disabled";
+		};
+
+		i2c5: i2c@13880000 {
+			compatible = "samsung,exynos7870-i2c",
+				     "samsung,s3c2440-i2c";
+			reg = <0x13880000 0x100>;
+			interrupts = <GIC_SPI 429 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c5_bus>;
+
+			clock-names = "i2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_I2C5_PCLK>;
+
+			status = "disabled";
+		};
+
+		i2c6: i2c@13890000 {
+			compatible = "samsung,exynos7870-i2c",
+				     "samsung,s3c2440-i2c";
+			reg = <0x13890000 0x100>;
+			interrupts = <GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c6_bus>;
+
+			clock-names = "i2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_I2C6_PCLK>;
+
+			status = "disabled";
+		};
+
+		hsi2c1: i2c@138a0000 {
+			compatible = "samsung,exynos7870-hsi2c",
+				     "samsung,exynos7-hsi2c";
+			reg = <0x138a0000 0x1000>;
+			interrupts = <GIC_SPI 449 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&hsi2c1_bus>;
+
+			clock-names = "hsi2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_HSI2C1_IPCLK>;
+
+			status = "disabled";
+		};
+
+		hsi2c2: i2c@138b0000 {
+			compatible = "samsung,exynos7870-hsi2c",
+				     "samsung,exynos7-hsi2c";
+			reg = <0x138b0000 0x1000>;
+			interrupts = <GIC_SPI 450 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&hsi2c2_bus>;
+
+			clock-names = "hsi2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_HSI2C2_IPCLK>;
+
+			status = "disabled";
+		};
+
+		hsi2c3: i2c@138c0000 {
+			compatible = "samsung,exynos7870-hsi2c",
+				     "samsung,exynos7-hsi2c";
+			reg = <0x138c0000 0x1000>;
+			interrupts = <GIC_SPI 451 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&hsi2c3_bus>;
+
+			clock-names = "hsi2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_HSI2C3_IPCLK>;
+
+			status = "disabled";
+		};
+
+		i2c7: i2c@138d0000 {
+			compatible = "samsung,exynos7870-i2c",
+				     "samsung,s3c2440-i2c";
+			reg = <0x138d0000 0x100>;
+			interrupts = <GIC_SPI 453 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c7_bus>;
+
+			clock-names = "i2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_I2C7_PCLK>;
+
+			status = "disabled";
+		};
+
+		i2c8: i2c@138e0000 {
+			compatible = "samsung,exynos7870-i2c",
+				     "samsung,s3c2440-i2c";
+			reg = <0x138e0000 0x100>;
+			interrupts = <GIC_SPI 454 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c8_bus>;
+
+			clock-names = "i2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_I2C8_PCLK>;
+
+			status = "disabled";
+		};
+
+		hsi2c4: i2c@138f0000 {
+			compatible = "samsung,exynos7870-hsi2c",
+				     "samsung,exynos7-hsi2c";
+			reg = <0x138f0000 0x1000>;
+			interrupts = <GIC_SPI 456 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&hsi2c4_bus>;
+
+			clock-names = "hsi2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_HSI2C4_IPCLK>;
+
+			status = "disabled";
+		};
+
+		hsi2c5: i2c@13950000 {
+			compatible = "samsung,exynos7870-hsi2c",
+				     "samsung,exynos7-hsi2c";
+			reg = <0x13950000 0x1000>;
+			interrupts = <GIC_SPI 457 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&hsi2c5_bus>;
+
+			clock-names = "hsi2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_HSI2C5_IPCLK>;
+
+			status = "disabled";
+		};
+
+		hsi2c6: i2c@13960000 {
+			compatible = "samsung,exynos7870-hsi2c",
+				     "samsung,exynos7-hsi2c";
+			reg = <0x13960000 0x1000>;
+			interrupts = <GIC_SPI 458 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&hsi2c6_bus>;
+
+			clock-names = "hsi2c";
+			clocks = <&cmu_peri CLK_GOUT_PERI_HSI2C6_IPCLK>;
+
+			status = "disabled";
+		};
+
+		pinctrl_top: pinctrl@139b0000 {
+			compatible = "samsung,exynos7870-pinctrl";
+			reg = <0x139b0000 0x1000>;
+			interrupts = <GIC_SPI 438 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pinctrl_nfc: pinctrl@139c0000 {
+			compatible = "samsung,exynos7870-pinctrl";
+			reg = <0x139c0000 0x1000>;
+			interrupts = <GIC_SPI 439 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pinctrl_touch: pinctrl@139d0000 {
+			compatible = "samsung,exynos7870-pinctrl";
+			reg = <0x139d0000 0x1000>;
+			interrupts = <GIC_SPI 440 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pinctrl_ese: pinctrl@139e0000 {
+			compatible = "samsung,exynos7870-pinctrl";
+			reg = <0x139e0000 0x1000>;
+			interrupts = <GIC_SPI 441 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pinctrl_alive: pinctrl@139f0000 {
+			compatible = "samsung,exynos7870-pinctrl";
+			reg = <0x139f0000 0x1000>;
+
+			wakeup-interrupt-controller {
+				compatible = "samsung,exynos7870-wakeup-eint",
+					     "samsung,exynos7-wakeup-eint";
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		cmu_isp: clock-controller@144d0000 {
+			compatible = "samsung,exynos7870-cmu-isp";
+			reg = <0x144d0000 0x1000>;
+			#clock-cells = <1>;
+
+			clock-names = "oscclk", "cam", "isp", "vra";
+			clocks = <&oscclk>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_ISP_CAM>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_ISP_ISP>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_ISP_VRA>;
+		};
+
+		pinctrl_dispaud: pinctrl@148c0000 {
+			compatible = "samsung,exynos7870-pinctrl";
+			reg = <0x148c0000 0x1000>;
+			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		cmu_dispaud: clock-controller@148d0000 {
+			compatible = "samsung,exynos7870-cmu-dispaud";
+			reg = <0x148d0000 0x1000>;
+			#clock-cells = <1>;
+
+			clock-names = "oscclk", "bus", "decon_eclk", "decon_vclk";
+			clocks = <&oscclk>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_DISPAUD_BUS>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_DISPAUD_DECON_ECLK>,
+				 <&cmu_mif CLK_GOUT_MIF_CMU_DISPAUD_DECON_VCLK>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
+
+		/*
+		 * Non-updatable, broken stock Samsung bootloader does not
+		 * configure CNTFRQ_EL0
+		 */
+		clock-frequency = <26000000>;
+	};
+};
+
+#include "exynos7870-pinctrl.dtsi"
+#include "arm/samsung/exynos-syscon-restart.dtsi"

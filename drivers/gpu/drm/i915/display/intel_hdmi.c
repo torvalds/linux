@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 #include <linux/hdmi.h>
 #include <linux/i2c.h>
+#include <linux/iopoll.h>
 #include <linux/slab.h>
 #include <linux/string_helpers.h>
 
@@ -41,11 +42,9 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/intel/intel_lpe_audio.h>
-
 #include <media/cec-notifier.h>
 
 #include "g4x_hdmi.h"
-#include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
@@ -54,6 +53,7 @@
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display_driver.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_gmbus.h"
@@ -61,6 +61,7 @@
 #include "intel_hdcp_regs.h"
 #include "intel_hdcp_shim.h"
 #include "intel_hdmi.h"
+#include "intel_link_bw.h"
 #include "intel_lspcon.h"
 #include "intel_panel.h"
 #include "intel_pfit.h"
@@ -1583,9 +1584,9 @@ bool intel_hdmi_hdcp_check_link_once(struct intel_digital_port *dig_port,
 	intel_de_write(display, HDCP_RPRIME(display, cpu_transcoder, port), ri.reg);
 
 	/* Wait for Ri prime match */
-	if (wait_for((intel_de_read(display, HDCP_STATUS(display, cpu_transcoder, port)) &
-		      (HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC)) ==
-		     (HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC), 1)) {
+	ret = intel_de_wait_for_set(display, HDCP_STATUS(display, cpu_transcoder, port),
+				    HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC, 1);
+	if (ret) {
 		drm_dbg_kms(display->drm, "Ri' mismatch detected (%x)\n",
 			    intel_de_read(display, HDCP_STATUS(display, cpu_transcoder,
 							       port)));
@@ -1690,11 +1691,10 @@ intel_hdmi_hdcp2_wait_for_msg(struct intel_digital_port *dig_port,
 	if (timeout < 0)
 		return timeout;
 
-	ret = __wait_for(ret = hdcp2_detect_msg_availability(dig_port,
-							     msg_id, &msg_ready,
-							     &msg_sz),
-			 !ret && msg_ready && msg_sz, timeout * 1000,
-			 1000, 5 * 1000);
+	ret = poll_timeout_us(ret = hdcp2_detect_msg_availability(dig_port, msg_id,
+								  &msg_ready, &msg_sz),
+			      !ret && msg_ready && msg_sz,
+			      4000, timeout * 1000, false);
 	if (ret)
 		drm_dbg_kms(display->drm,
 			    "msg_id: %d, ret: %d, timeout: %d\n",
@@ -2054,6 +2054,10 @@ intel_hdmi_mode_valid(struct drm_connector *_connector,
 	else
 		sink_format = INTEL_OUTPUT_FORMAT_RGB;
 
+	status = intel_pfit_mode_valid(display, mode, sink_format, 0);
+	if (status != MODE_OK)
+		return status;
+
 	status = intel_hdmi_mode_clock_valid(&connector->base, clock, has_hdmi_sink, sink_format);
 	if (status != MODE_OK) {
 		if (ycbcr_420_only ||
@@ -2341,6 +2345,9 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		pipe_config->pixel_multiplier = 2;
+
+	if (!intel_link_bw_compute_pipe_bpp(pipe_config))
+		return -EINVAL;
 
 	pipe_config->has_audio =
 		intel_hdmi_has_audio(encoder, pipe_config, conn_state) &&

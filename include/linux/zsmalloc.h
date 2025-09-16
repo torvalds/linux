@@ -26,7 +26,8 @@ struct zs_pool;
 struct zs_pool *zs_create_pool(const char *name);
 void zs_destroy_pool(struct zs_pool *pool);
 
-unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t flags);
+unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t flags,
+			const int nid);
 void zs_free(struct zs_pool *pool, unsigned long obj);
 
 size_t zs_huge_class_size(struct zs_pool *pool);
@@ -44,5 +45,7 @@ void zs_obj_read_end(struct zs_pool *pool, unsigned long handle,
 		     void *handle_mem);
 void zs_obj_write(struct zs_pool *pool, unsigned long handle,
 		  void *handle_mem, size_t mem_len);
+
+extern const struct movable_operations zsmalloc_mops;
 
 #endif

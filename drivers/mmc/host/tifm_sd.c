@@ -777,7 +777,7 @@ static void tifm_sd_end_cmd(struct work_struct *t)
 
 static void tifm_sd_abort(struct timer_list *t)
 {
-	struct tifm_sd *host = from_timer(host, t, timer);
+	struct tifm_sd *host = timer_container_of(host, t, timer);
 
 	pr_err("%s : card failed to respond for a long period of time "
 	       "(%x, %x)\n",
@@ -947,7 +947,7 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 		return rc;
 	}
 
-	mmc = mmc_alloc_host(sizeof(struct tifm_sd), &sock->dev);
+	mmc = devm_mmc_alloc_host(&sock->dev, sizeof(*host));
 	if (!mmc)
 		return -ENOMEM;
 
@@ -982,10 +982,7 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 
 	if (!rc)
 		rc = mmc_add_host(mmc);
-	if (!rc)
-		return 0;
 
-	mmc_free_host(mmc);
 	return rc;
 }
 
@@ -1015,8 +1012,6 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 	spin_unlock_irqrestore(&sock->lock, flags);
 	mmc_remove_host(mmc);
 	dev_dbg(&sock->dev, "after remove\n");
-
-	mmc_free_host(mmc);
 }
 
 #ifdef CONFIG_PM

@@ -1605,6 +1605,6 @@ static ssize_t pccard_store_cis(struct file *filp, struct kobject *kobj,
 const struct bin_attribute pccard_cis_attr = {
 	.attr = { .name = "cis", .mode = S_IRUGO | S_IWUSR },
 	.size = 0x200,
-	.read_new = pccard_show_cis,
-	.write_new = pccard_store_cis,
+	.read = pccard_show_cis,
+	.write = pccard_store_cis,
 };

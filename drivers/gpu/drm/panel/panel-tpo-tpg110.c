@@ -405,9 +405,11 @@ static int tpg110_probe(struct spi_device *spi)
 	struct tpg110 *tpg;
 	int ret;
 
-	tpg = devm_kzalloc(dev, sizeof(*tpg), GFP_KERNEL);
-	if (!tpg)
-		return -ENOMEM;
+	tpg = devm_drm_panel_alloc(dev, struct tpg110, panel,
+				   &tpg110_drm_funcs, DRM_MODE_CONNECTOR_DPI);
+	if (IS_ERR(tpg))
+		return PTR_ERR(tpg);
+
 	tpg->dev = dev;
 
 	/* We get the physical display dimensions from the DT */
@@ -437,9 +439,6 @@ static int tpg110_probe(struct spi_device *spi)
 	ret = tpg110_startup(tpg);
 	if (ret)
 		return ret;
-
-	drm_panel_init(&tpg->panel, dev, &tpg110_drm_funcs,
-		       DRM_MODE_CONNECTOR_DPI);
 
 	ret = drm_panel_of_backlight(&tpg->panel);
 	if (ret)

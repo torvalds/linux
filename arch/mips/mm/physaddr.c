@@ -30,7 +30,7 @@ static inline bool __debug_virt_addr_valid(unsigned long x)
 phys_addr_t __virt_to_phys(volatile const void *x)
 {
 	WARN(!__debug_virt_addr_valid((unsigned long)x),
-	     "virt_to_phys used for non-linear address: %pK (%pS)\n",
+	     "virt_to_phys used for non-linear address: %p (%pS)\n",
 	     x, x);
 
 	return __virt_to_phys_nodebug(x);

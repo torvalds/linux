@@ -105,7 +105,7 @@ static int loongson_gpio_get_direction(struct gpio_chip *chip, unsigned int pin)
 	return GPIO_LINE_DIRECTION_OUT;
 }
 
-static void loongson_gpio_set(struct gpio_chip *chip, unsigned int pin, int value)
+static int loongson_gpio_set(struct gpio_chip *chip, unsigned int pin, int value)
 {
 	unsigned long flags;
 	struct loongson_gpio_chip *lgpio = to_loongson_gpio_chip(chip);
@@ -113,6 +113,8 @@ static void loongson_gpio_set(struct gpio_chip *chip, unsigned int pin, int valu
 	spin_lock_irqsave(&lgpio->lock, flags);
 	loongson_commit_level(lgpio, pin, value);
 	spin_unlock_irqrestore(&lgpio->lock, flags);
+
+	return 0;
 }
 
 static int loongson_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
@@ -220,6 +222,7 @@ static const struct loongson_gpio_chip_data loongson_gpio_ls2k2000_data0 = {
 	.conf_offset = 0x0,
 	.in_offset = 0xc,
 	.out_offset = 0x8,
+	.inten_offset = 0x14,
 };
 
 static const struct loongson_gpio_chip_data loongson_gpio_ls2k2000_data1 = {
@@ -228,6 +231,7 @@ static const struct loongson_gpio_chip_data loongson_gpio_ls2k2000_data1 = {
 	.conf_offset = 0x0,
 	.in_offset = 0x20,
 	.out_offset = 0x10,
+	.inten_offset = 0x30,
 };
 
 static const struct loongson_gpio_chip_data loongson_gpio_ls2k2000_data2 = {
@@ -244,6 +248,7 @@ static const struct loongson_gpio_chip_data loongson_gpio_ls3a5000_data = {
 	.conf_offset = 0x0,
 	.in_offset = 0xc,
 	.out_offset = 0x8,
+	.inten_offset = 0x14,
 };
 
 static const struct loongson_gpio_chip_data loongson_gpio_ls7a_data = {
@@ -252,6 +257,7 @@ static const struct loongson_gpio_chip_data loongson_gpio_ls7a_data = {
 	.conf_offset = 0x800,
 	.in_offset = 0xa00,
 	.out_offset = 0x900,
+	.inten_offset = 0xb00,
 };
 
 /* LS7A2000 chipset GPIO */
@@ -261,12 +267,13 @@ static const struct loongson_gpio_chip_data loongson_gpio_ls7a2000_data0 = {
 	.conf_offset = 0x800,
 	.in_offset = 0xa00,
 	.out_offset = 0x900,
+	.inten_offset = 0xb00,
 };
 
 /* LS7A2000 ACPI GPIO */
 static const struct loongson_gpio_chip_data loongson_gpio_ls7a2000_data1 = {
 	.label = "ls7a2000_gpio",
-	.mode = BYTE_CTRL_MODE,
+	.mode = BIT_CTRL_MODE,
 	.conf_offset = 0x4,
 	.in_offset = 0x8,
 	.out_offset = 0x0,
@@ -279,6 +286,7 @@ static const struct loongson_gpio_chip_data loongson_gpio_ls3a6000_data = {
 	.conf_offset = 0x0,
 	.in_offset = 0xc,
 	.out_offset = 0x8,
+	.inten_offset = 0x14,
 };
 
 static const struct of_device_id loongson_gpio_of_match[] = {

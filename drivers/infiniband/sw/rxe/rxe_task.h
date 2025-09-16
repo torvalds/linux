@@ -47,8 +47,6 @@ int rxe_init_task(struct rxe_task *task, struct rxe_qp *qp,
 /* cleanup task */
 void rxe_cleanup_task(struct rxe_task *task);
 
-void rxe_run_task(struct rxe_task *task);
-
 void rxe_sched_task(struct rxe_task *task);
 
 /* keep a task from scheduling */

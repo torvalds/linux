@@ -9,6 +9,7 @@
 
 #include <asm/current.h>
 #include <linux/anon_inodes.h>
+#include <linux/bitops.h>
 #include <linux/build_bug.h>
 #include <linux/capability.h>
 #include <linux/cleanup.h>
@@ -302,7 +303,6 @@ static int get_path_from_fd(const s32 fd, struct path *const path)
 	if ((fd_file(f)->f_op == &ruleset_fops) ||
 	    (fd_file(f)->f_path.mnt->mnt_flags & MNT_INTERNAL) ||
 	    (fd_file(f)->f_path.dentry->d_sb->s_flags & SB_NOUSER) ||
-	    d_is_negative(fd_file(f)->f_path.dentry) ||
 	    IS_PRIVATE(d_backing_inode(fd_file(f)->f_path.dentry)))
 		return -EBADFD;
 
@@ -563,7 +563,7 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 	new_llcred->domain = new_dom;
 
 #ifdef CONFIG_AUDIT
-	new_llcred->domain_exec |= 1 << (new_dom->num_layers - 1);
+	new_llcred->domain_exec |= BIT(new_dom->num_layers - 1);
 #endif /* CONFIG_AUDIT */
 
 	return commit_creds(new_cred);

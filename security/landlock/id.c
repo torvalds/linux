@@ -7,6 +7,7 @@
 
 #include <kunit/test.h>
 #include <linux/atomic.h>
+#include <linux/bitops.h>
 #include <linux/random.h>
 #include <linux/spinlock.h>
 
@@ -25,7 +26,7 @@ static void __init init_id(atomic64_t *const counter, const u32 random_32bits)
 	 * Ensures sure 64-bit values are always used by user space (or may
 	 * fail with -EOVERFLOW), and makes this testable.
 	 */
-	init = 1ULL << 32;
+	init = BIT_ULL(32);
 
 	/*
 	 * Makes a large (2^32) boot-time value to limit ID collision in logs
@@ -105,7 +106,7 @@ static u64 get_id_range(size_t number_of_ids, atomic64_t *const counter,
 	 * to get a new ID (e.g. a full landlock_restrict_self() call), and the
 	 * cost of draining all available IDs during the system's uptime.
 	 */
-	random_4bits = random_4bits % (1 << 4);
+	random_4bits &= 0b1111;
 	step = number_of_ids + random_4bits;
 
 	/* It is safe to cast a signed atomic to an unsigned value. */
@@ -118,6 +119,12 @@ static u64 get_id_range(size_t number_of_ids, atomic64_t *const counter,
 
 #ifdef CONFIG_SECURITY_LANDLOCK_KUNIT_TEST
 
+static u8 get_random_u8_positive(void)
+{
+	/* max() evaluates its arguments once. */
+	return max(1, get_random_u8());
+}
+
 static void test_range1_rand0(struct kunit *const test)
 {
 	atomic64_t counter;
@@ -126,9 +133,10 @@ static void test_range1_rand0(struct kunit *const test)
 	init = get_random_u32();
 	atomic64_set(&counter, init);
 	KUNIT_EXPECT_EQ(test, get_id_range(1, &counter, 0), init);
-	KUNIT_EXPECT_EQ(
-		test, get_id_range(get_random_u8(), &counter, get_random_u8()),
-		init + 1);
+	KUNIT_EXPECT_EQ(test,
+			get_id_range(get_random_u8_positive(), &counter,
+				     get_random_u8()),
+			init + 1);
 }
 
 static void test_range1_rand1(struct kunit *const test)
@@ -139,9 +147,24 @@ static void test_range1_rand1(struct kunit *const test)
 	init = get_random_u32();
 	atomic64_set(&counter, init);
 	KUNIT_EXPECT_EQ(test, get_id_range(1, &counter, 1), init);
-	KUNIT_EXPECT_EQ(
-		test, get_id_range(get_random_u8(), &counter, get_random_u8()),
-		init + 2);
+	KUNIT_EXPECT_EQ(test,
+			get_id_range(get_random_u8_positive(), &counter,
+				     get_random_u8()),
+			init + 2);
+}
+
+static void test_range1_rand15(struct kunit *const test)
+{
+	atomic64_t counter;
+	u64 init;
+
+	init = get_random_u32();
+	atomic64_set(&counter, init);
+	KUNIT_EXPECT_EQ(test, get_id_range(1, &counter, 15), init);
+	KUNIT_EXPECT_EQ(test,
+			get_id_range(get_random_u8_positive(), &counter,
+				     get_random_u8()),
+			init + 16);
 }
 
 static void test_range1_rand16(struct kunit *const test)
@@ -152,9 +175,10 @@ static void test_range1_rand16(struct kunit *const test)
 	init = get_random_u32();
 	atomic64_set(&counter, init);
 	KUNIT_EXPECT_EQ(test, get_id_range(1, &counter, 16), init);
-	KUNIT_EXPECT_EQ(
-		test, get_id_range(get_random_u8(), &counter, get_random_u8()),
-		init + 1);
+	KUNIT_EXPECT_EQ(test,
+			get_id_range(get_random_u8_positive(), &counter,
+				     get_random_u8()),
+			init + 1);
 }
 
 static void test_range2_rand0(struct kunit *const test)
@@ -165,9 +189,10 @@ static void test_range2_rand0(struct kunit *const test)
 	init = get_random_u32();
 	atomic64_set(&counter, init);
 	KUNIT_EXPECT_EQ(test, get_id_range(2, &counter, 0), init);
-	KUNIT_EXPECT_EQ(
-		test, get_id_range(get_random_u8(), &counter, get_random_u8()),
-		init + 2);
+	KUNIT_EXPECT_EQ(test,
+			get_id_range(get_random_u8_positive(), &counter,
+				     get_random_u8()),
+			init + 2);
 }
 
 static void test_range2_rand1(struct kunit *const test)
@@ -178,9 +203,10 @@ static void test_range2_rand1(struct kunit *const test)
 	init = get_random_u32();
 	atomic64_set(&counter, init);
 	KUNIT_EXPECT_EQ(test, get_id_range(2, &counter, 1), init);
-	KUNIT_EXPECT_EQ(
-		test, get_id_range(get_random_u8(), &counter, get_random_u8()),
-		init + 3);
+	KUNIT_EXPECT_EQ(test,
+			get_id_range(get_random_u8_positive(), &counter,
+				     get_random_u8()),
+			init + 3);
 }
 
 static void test_range2_rand2(struct kunit *const test)
@@ -191,9 +217,24 @@ static void test_range2_rand2(struct kunit *const test)
 	init = get_random_u32();
 	atomic64_set(&counter, init);
 	KUNIT_EXPECT_EQ(test, get_id_range(2, &counter, 2), init);
-	KUNIT_EXPECT_EQ(
-		test, get_id_range(get_random_u8(), &counter, get_random_u8()),
-		init + 4);
+	KUNIT_EXPECT_EQ(test,
+			get_id_range(get_random_u8_positive(), &counter,
+				     get_random_u8()),
+			init + 4);
+}
+
+static void test_range2_rand15(struct kunit *const test)
+{
+	atomic64_t counter;
+	u64 init;
+
+	init = get_random_u32();
+	atomic64_set(&counter, init);
+	KUNIT_EXPECT_EQ(test, get_id_range(2, &counter, 15), init);
+	KUNIT_EXPECT_EQ(test,
+			get_id_range(get_random_u8_positive(), &counter,
+				     get_random_u8()),
+			init + 17);
 }
 
 static void test_range2_rand16(struct kunit *const test)
@@ -204,9 +245,10 @@ static void test_range2_rand16(struct kunit *const test)
 	init = get_random_u32();
 	atomic64_set(&counter, init);
 	KUNIT_EXPECT_EQ(test, get_id_range(2, &counter, 16), init);
-	KUNIT_EXPECT_EQ(
-		test, get_id_range(get_random_u8(), &counter, get_random_u8()),
-		init + 2);
+	KUNIT_EXPECT_EQ(test,
+			get_id_range(get_random_u8_positive(), &counter,
+				     get_random_u8()),
+			init + 2);
 }
 
 #endif /* CONFIG_SECURITY_LANDLOCK_KUNIT_TEST */
@@ -232,10 +274,12 @@ static struct kunit_case __refdata test_cases[] = {
 	KUNIT_CASE(test_init_once),
 	KUNIT_CASE(test_range1_rand0),
 	KUNIT_CASE(test_range1_rand1),
+	KUNIT_CASE(test_range1_rand15),
 	KUNIT_CASE(test_range1_rand16),
 	KUNIT_CASE(test_range2_rand0),
 	KUNIT_CASE(test_range2_rand1),
 	KUNIT_CASE(test_range2_rand2),
+	KUNIT_CASE(test_range2_rand15),
 	KUNIT_CASE(test_range2_rand16),
 	{}
 	/* clang-format on */

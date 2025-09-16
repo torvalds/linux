@@ -82,7 +82,7 @@ static const struct iio_chan_spec atlas_hum_ezo_channels[] = {
 	},
 };
 
-static struct atlas_ezo_device atlas_ezo_devices[] = {
+static const struct atlas_ezo_device atlas_ezo_devices[] = {
 	[ATLAS_CO2_EZO] = {
 		.channels = atlas_co2_ezo_channels,
 		.num_channels = 1,
@@ -189,7 +189,7 @@ static const struct i2c_device_id atlas_ezo_id[] = {
 	{ "atlas-co2-ezo", (kernel_ulong_t)&atlas_ezo_devices[ATLAS_CO2_EZO] },
 	{ "atlas-o2-ezo", (kernel_ulong_t)&atlas_ezo_devices[ATLAS_O2_EZO] },
 	{ "atlas-hum-ezo", (kernel_ulong_t)&atlas_ezo_devices[ATLAS_HUM_EZO] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, atlas_ezo_id);
 
@@ -197,7 +197,7 @@ static const struct of_device_id atlas_ezo_dt_ids[] = {
 	{ .compatible = "atlas,co2-ezo", .data = &atlas_ezo_devices[ATLAS_CO2_EZO], },
 	{ .compatible = "atlas,o2-ezo", .data = &atlas_ezo_devices[ATLAS_O2_EZO], },
 	{ .compatible = "atlas,hum-ezo", .data = &atlas_ezo_devices[ATLAS_HUM_EZO], },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, atlas_ezo_dt_ids);
 

@@ -230,7 +230,7 @@ int max8998_irq_init(struct max8998_dev *max8998)
 	max8998_write_reg(max8998->i2c, MAX8998_REG_STATUSM1, 0xff);
 	max8998_write_reg(max8998->i2c, MAX8998_REG_STATUSM2, 0xff);
 
-	domain = irq_domain_add_simple(NULL, MAX8998_IRQ_NR,
+	domain = irq_domain_create_simple(NULL, MAX8998_IRQ_NR,
 			max8998->irq_base, &max8998_irq_domain_ops, max8998);
 	if (!domain) {
 		dev_err(max8998->dev, "could not create irq domain\n");

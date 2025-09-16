@@ -53,9 +53,8 @@ void set_ptes(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 #define MAX_PTRS_PER_PGD PTRS_PER_PGD
 #endif
 
-/* Keep these as a macros to avoid include dependency mess */
+/* Keep this as a macro to avoid include dependency mess */
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
-#define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
 
 static inline unsigned long pte_pfn(pte_t pte)
 {

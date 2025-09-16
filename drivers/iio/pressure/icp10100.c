@@ -343,9 +343,8 @@ static int icp10100_read_raw_measures(struct iio_dev *indio_dev,
 	uint32_t pressure_mPa;
 	int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	ret = icp10100_get_measures(st, &raw_pressure, &raw_temp);
 	if (ret)
@@ -370,7 +369,7 @@ static int icp10100_read_raw_measures(struct iio_dev *indio_dev,
 	}
 
 error_release:
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 	return ret;
 }
 
@@ -439,7 +438,6 @@ static int icp10100_write_raw(struct iio_dev *indio_dev,
 {
 	struct icp10100_state *st = iio_priv(indio_dev);
 	unsigned int mode;
-	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
@@ -449,13 +447,12 @@ static int icp10100_write_raw(struct iio_dev *indio_dev,
 		mode = ilog2(val);
 		if (mode >= ICP10100_MODE_NB)
 			return -EINVAL;
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 		mutex_lock(&st->lock);
 		st->mode = mode;
 		mutex_unlock(&st->lock);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		return 0;
 	default:
 		return -EINVAL;

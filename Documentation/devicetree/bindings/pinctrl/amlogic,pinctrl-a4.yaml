@@ -14,7 +14,19 @@ allOf:
 
 properties:
   compatible:
-    const: amlogic,pinctrl-a4
+    oneOf:
+      - enum:
+          - amlogic,pinctrl-a4
+          - amlogic,pinctrl-s6
+          - amlogic,pinctrl-s7
+      - items:
+          - enum:
+              - amlogic,pinctrl-a5
+          - const: amlogic,pinctrl-a4
+      - items:
+          - enum:
+              - amlogic,pinctrl-s7d
+          - const: amlogic,pinctrl-s7
 
   "#address-cells":
     const: 2
@@ -65,6 +77,7 @@ patternProperties:
     patternProperties:
       "^group-[0-9a-z-]+$":
         type: object
+        unevaluatedProperties: false
         allOf:
           - $ref: /schemas/pinctrl/pincfg-node.yaml
           - $ref: /schemas/pinctrl/pinmux-node.yaml

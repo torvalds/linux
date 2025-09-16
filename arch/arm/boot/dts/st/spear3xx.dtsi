@@ -46,7 +46,7 @@
 			status = "disabled";
 		};
 
-		gmac: eth@e0800000 {
+		gmac: ethernet@e0800000 {
 			compatible = "snps,dwmac-3.40a";
 			reg = <0xe0800000 0x8000>;
 			interrupts = <23 22>;
@@ -73,21 +73,21 @@
 			status = "disabled";
 		};
 
-		ehci@e1800000 {
+		usb@e1800000 {
 			compatible = "st,spear600-ehci", "usb-ehci";
 			reg = <0xe1800000 0x1000>;
 			interrupts = <26>;
 			status = "disabled";
 		};
 
-		ohci@e1900000 {
+		usb@e1900000 {
 			compatible = "st,spear600-ohci", "usb-ohci";
 			reg = <0xe1900000 0x1000>;
 			interrupts = <25>;
 			status = "disabled";
 		};
 
-		ohci@e2100000 {
+		usb@e2100000 {
 			compatible = "st,spear600-ohci", "usb-ohci";
 			reg = <0xe2100000 0x1000>;
 			interrupts = <27>;

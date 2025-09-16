@@ -112,6 +112,7 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 
 	if (unlikely(!io_alloc_req(ctx, &notif)))
 		return NULL;
+	notif->ctx = ctx;
 	notif->opcode = IORING_OP_NOP;
 	notif->flags = 0;
 	notif->file = NULL;

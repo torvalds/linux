@@ -33,7 +33,7 @@ int __fbnic_open(struct fbnic_net *fbn)
 		dev_warn(fbd->dev,
 			 "Error %d sending host ownership message to the firmware\n",
 			 err);
-		goto free_resources;
+		goto err_reset_queues;
 	}
 
 	err = fbnic_time_start(fbn);
@@ -44,18 +44,23 @@ int __fbnic_open(struct fbnic_net *fbn)
 	if (err)
 		goto time_stop;
 
-	err = fbnic_pcs_irq_enable(fbd);
+	err = fbnic_pcs_request_irq(fbd);
 	if (err)
 		goto time_stop;
+
 	/* Pull the BMC config and initialize the RPC */
 	fbnic_bmc_rpc_init(fbd);
 	fbnic_rss_reinit(fbd, fbn);
+
+	phylink_resume(fbn->phylink);
 
 	return 0;
 time_stop:
 	fbnic_time_stop(fbn);
 release_ownership:
 	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
+err_reset_queues:
+	fbnic_reset_netif_queues(fbn);
 free_resources:
 	fbnic_free_resources(fbn);
 free_napi_vectors:
@@ -81,8 +86,10 @@ static int fbnic_stop(struct net_device *netdev)
 {
 	struct fbnic_net *fbn = netdev_priv(netdev);
 
+	phylink_suspend(fbn->phylink, fbnic_bmc_present(fbn->fbd));
+
 	fbnic_down(fbn);
-	fbnic_pcs_irq_disable(fbn->fbd);
+	fbnic_pcs_free_irq(fbn->fbd);
 
 	fbnic_time_stop(fbn);
 	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
@@ -403,17 +410,29 @@ static int fbnic_hwtstamp_set(struct net_device *netdev,
 static void fbnic_get_stats64(struct net_device *dev,
 			      struct rtnl_link_stats64 *stats64)
 {
+	u64 rx_bytes, rx_packets, rx_dropped = 0, rx_errors = 0;
 	u64 tx_bytes, tx_packets, tx_dropped = 0;
-	u64 rx_bytes, rx_packets, rx_dropped = 0;
 	struct fbnic_net *fbn = netdev_priv(dev);
+	struct fbnic_dev *fbd = fbn->fbd;
 	struct fbnic_queue_stats *stats;
+	u64 rx_over = 0, rx_missed = 0;
 	unsigned int start, i;
+
+	fbnic_get_hw_stats(fbd);
 
 	stats = &fbn->tx_stats;
 
 	tx_bytes = stats->bytes;
 	tx_packets = stats->packets;
 	tx_dropped = stats->dropped;
+
+	/* Record drops from Tx HW Datapath */
+	spin_lock(&fbd->hw_stats_lock);
+	tx_dropped += fbd->hw_stats.tmi.drop.frames.value +
+		      fbd->hw_stats.tti.cm_drop.frames.value +
+		      fbd->hw_stats.tti.frame_drop.frames.value +
+		      fbd->hw_stats.tti.tbi_drop.frames.value;
+	spin_unlock(&fbd->hw_stats_lock);
 
 	stats64->tx_bytes = tx_bytes;
 	stats64->tx_packets = tx_packets;
@@ -444,9 +463,34 @@ static void fbnic_get_stats64(struct net_device *dev,
 	rx_packets = stats->packets;
 	rx_dropped = stats->dropped;
 
+	spin_lock(&fbd->hw_stats_lock);
+	/* Record drops for the host FIFOs.
+	 * 4: network to Host,	6: BMC to Host
+	 * Exclude the BMC and MC FIFOs as those stats may contain drops
+	 * due to unrelated items such as TCAM misses. They are still
+	 * accessible through the ethtool stats.
+	 */
+	i = FBNIC_RXB_FIFO_HOST;
+	rx_missed += fbd->hw_stats.rxb.fifo[i].drop.frames.value;
+	i = FBNIC_RXB_FIFO_BMC_TO_HOST;
+	rx_missed += fbd->hw_stats.rxb.fifo[i].drop.frames.value;
+
+	for (i = 0; i < fbd->max_num_queues; i++) {
+		/* Report packets dropped due to CQ/BDQ being full/empty */
+		rx_over += fbd->hw_stats.hw_q[i].rde_pkt_cq_drop.value;
+		rx_over += fbd->hw_stats.hw_q[i].rde_pkt_bdq_drop.value;
+
+		/* Report packets with errors */
+		rx_errors += fbd->hw_stats.hw_q[i].rde_pkt_err.value;
+	}
+	spin_unlock(&fbd->hw_stats_lock);
+
 	stats64->rx_bytes = rx_bytes;
 	stats64->rx_packets = rx_packets;
 	stats64->rx_dropped = rx_dropped;
+	stats64->rx_over_errors = rx_over;
+	stats64->rx_errors = rx_errors;
+	stats64->rx_missed_errors = rx_missed;
 
 	for (i = 0; i < fbn->num_rx_queues; i++) {
 		struct fbnic_ring *rxr = fbn->rx[i];
@@ -486,6 +530,7 @@ static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,
 {
 	struct fbnic_net *fbn = netdev_priv(dev);
 	struct fbnic_ring *rxr = fbn->rx[idx];
+	struct fbnic_dev *fbd = fbn->fbd;
 	struct fbnic_queue_stats *stats;
 	u64 bytes, packets, alloc_fail;
 	u64 csum_complete, csum_none;
@@ -509,6 +554,15 @@ static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,
 	rx->alloc_fail = alloc_fail;
 	rx->csum_complete = csum_complete;
 	rx->csum_none = csum_none;
+
+	fbnic_get_hw_q_stats(fbd, fbd->hw_stats.hw_q);
+
+	spin_lock(&fbd->hw_stats_lock);
+	rx->hw_drop_overruns = fbd->hw_stats.hw_q[idx].rde_pkt_cq_drop.value +
+			       fbd->hw_stats.hw_q[idx].rde_pkt_bdq_drop.value;
+	rx->hw_drops = fbd->hw_stats.hw_q[idx].rde_pkt_err.value +
+		       rx->hw_drop_overruns;
+	spin_unlock(&fbd->hw_stats_lock);
 }
 
 static void fbnic_get_queue_stats_tx(struct net_device *dev, int idx,
@@ -690,8 +744,6 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 	 */
 	netdev->ethtool->wol_enabled = true;
 
-	fbn->fec = FBNIC_FEC_AUTO | FBNIC_FEC_RS;
-	fbn->link_mode = FBNIC_LINK_AUTO | FBNIC_LINK_50R2;
 	netif_carrier_off(netdev);
 
 	netif_tx_stop_all_queues(netdev);

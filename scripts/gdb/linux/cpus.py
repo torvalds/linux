@@ -141,7 +141,7 @@ LxCpus()
 class PerCpu(gdb.Function):
     """Return per-cpu variable.
 
-$lx_per_cpu("VAR"[, CPU]): Return the per-cpu variable called VAR for the
+$lx_per_cpu(VAR[, CPU]): Return the per-cpu variable called VAR for the
 given CPU number. If CPU is omitted, the CPU of the current context is used.
 Note that VAR has to be quoted as string."""
 
@@ -158,7 +158,7 @@ PerCpu()
 class PerCpuPtr(gdb.Function):
     """Return per-cpu pointer.
 
-$lx_per_cpu_ptr("VAR"[, CPU]): Return the per-cpu pointer called VAR for the
+$lx_per_cpu_ptr(VAR[, CPU]): Return the per-cpu pointer called VAR for the
 given CPU number. If CPU is omitted, the CPU of the current context is used.
 Note that VAR has to be quoted as string."""
 

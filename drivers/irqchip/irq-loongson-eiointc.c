@@ -554,7 +554,7 @@ static int __init eiointc_of_init(struct device_node *of_node,
 		priv->vec_count = VEC_COUNT;
 
 	priv->node = 0;
-	priv->domain_handle = of_node_to_fwnode(of_node);
+	priv->domain_handle = of_fwnode_handle(of_node);
 
 	ret = eiointc_init(priv, parent_irq, 0);
 	if (ret < 0)

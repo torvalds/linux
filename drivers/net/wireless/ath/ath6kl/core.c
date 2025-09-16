@@ -91,7 +91,7 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 
 	/*
 	 * Turn on power to get hardware (target) version and leave power
-	 * on delibrately as we will boot the hardware anyway within few
+	 * on deliberately as we will boot the hardware anyway within few
 	 * seconds.
 	 */
 	ret = ath6kl_hif_power_on(ar);

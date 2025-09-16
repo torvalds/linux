@@ -275,7 +275,7 @@ static irqreturn_t altera_uart_interrupt(int irq, void *data)
 
 static void altera_uart_timer(struct timer_list *t)
 {
-	struct altera_uart *pp = from_timer(pp, t, tmr);
+	struct altera_uart *pp = timer_container_of(pp, t, tmr);
 	struct uart_port *port = &pp->port;
 
 	altera_uart_interrupt(0, port);

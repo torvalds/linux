@@ -26,6 +26,12 @@ syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 }
 
 static inline void
+syscall_set_nr(struct task_struct *task, struct pt_regs *regs, int nr)
+{
+	regs->orig_gpr11 = nr;
+}
+
+static inline void
 syscall_rollback(struct task_struct *task, struct pt_regs *regs)
 {
 	regs->gpr[11] = regs->orig_gpr11;
@@ -55,6 +61,13 @@ syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
 		      unsigned long *args)
 {
 	memcpy(args, &regs->gpr[3], 6 * sizeof(args[0]));
+}
+
+static inline void
+syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
+		      const unsigned long *args)
+{
+	memcpy(&regs->gpr[3], args, 6 * sizeof(args[0]));
 }
 
 static inline int syscall_get_arch(struct task_struct *task)

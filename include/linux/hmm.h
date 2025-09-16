@@ -23,6 +23,10 @@ struct mmu_interval_notifier;
  * HMM_PFN_WRITE - if the page memory can be written to (requires HMM_PFN_VALID)
  * HMM_PFN_ERROR - accessing the pfn is impossible and the device should
  *                 fail. ie poisoned memory, special pages, no vma, etc
+ * HMM_PFN_P2PDMA - P2P page
+ * HMM_PFN_P2PDMA_BUS - Bus mapped P2P transfer
+ * HMM_PFN_DMA_MAPPED - Flag preserved on input-to-output transformation
+ *                      to mark that page is already DMA mapped
  *
  * On input:
  * 0                 - Return the current state of the page, do not fault it.
@@ -36,13 +40,21 @@ enum hmm_pfn_flags {
 	HMM_PFN_VALID = 1UL << (BITS_PER_LONG - 1),
 	HMM_PFN_WRITE = 1UL << (BITS_PER_LONG - 2),
 	HMM_PFN_ERROR = 1UL << (BITS_PER_LONG - 3),
-	HMM_PFN_ORDER_SHIFT = (BITS_PER_LONG - 8),
+	/*
+	 * Sticky flags, carried from input to output,
+	 * don't forget to update HMM_PFN_INOUT_FLAGS
+	 */
+	HMM_PFN_DMA_MAPPED = 1UL << (BITS_PER_LONG - 4),
+	HMM_PFN_P2PDMA     = 1UL << (BITS_PER_LONG - 5),
+	HMM_PFN_P2PDMA_BUS = 1UL << (BITS_PER_LONG - 6),
+
+	HMM_PFN_ORDER_SHIFT = (BITS_PER_LONG - 11),
 
 	/* Input flags */
 	HMM_PFN_REQ_FAULT = HMM_PFN_VALID,
 	HMM_PFN_REQ_WRITE = HMM_PFN_WRITE,
 
-	HMM_PFN_FLAGS = 0xFFUL << HMM_PFN_ORDER_SHIFT,
+	HMM_PFN_FLAGS = ~((1UL << HMM_PFN_ORDER_SHIFT) - 1),
 };
 
 /*
@@ -55,6 +67,14 @@ enum hmm_pfn_flags {
 static inline struct page *hmm_pfn_to_page(unsigned long hmm_pfn)
 {
 	return pfn_to_page(hmm_pfn & ~HMM_PFN_FLAGS);
+}
+
+/*
+ * hmm_pfn_to_phys() - return physical address pointed to by a device entry
+ */
+static inline phys_addr_t hmm_pfn_to_phys(unsigned long hmm_pfn)
+{
+	return __pfn_to_phys(hmm_pfn & ~HMM_PFN_FLAGS);
 }
 
 /*

@@ -7,30 +7,7 @@
 #define _XE_GT_SRIOV_VF_TYPES_H_
 
 #include <linux/types.h>
-
-/**
- * struct xe_gt_sriov_vf_guc_version - GuC ABI version details.
- */
-struct xe_gt_sriov_vf_guc_version {
-	/** @branch: branch version. */
-	u8 branch;
-	/** @major: major version. */
-	u8 major;
-	/** @minor: minor version. */
-	u8 minor;
-	/** @patch: patch version. */
-	u8 patch;
-};
-
-/**
- * struct xe_gt_sriov_vf_relay_version - PF ABI version details.
- */
-struct xe_gt_sriov_vf_relay_version {
-	/** @major: major version. */
-	u16 major;
-	/** @minor: minor version. */
-	u16 minor;
-};
+#include "xe_uc_fw_types.h"
 
 /**
  * struct xe_gt_sriov_vf_selfconfig - VF configuration data.
@@ -40,6 +17,8 @@ struct xe_gt_sriov_vf_selfconfig {
 	u64 ggtt_base;
 	/** @ggtt_size: assigned size of the GGTT region. */
 	u64 ggtt_size;
+	/** @ggtt_shift: difference in ggtt_base on last migration */
+	s64 ggtt_shift;
 	/** @lmem_size: assigned size of the LMEM. */
 	u64 lmem_size;
 	/** @num_ctxs: assigned number of GuC submission context IDs. */
@@ -71,12 +50,12 @@ struct xe_gt_sriov_vf_runtime {
  * struct xe_gt_sriov_vf - GT level VF virtualization data.
  */
 struct xe_gt_sriov_vf {
+	/** @wanted_guc_version: minimum wanted GuC ABI version. */
+	struct xe_uc_fw_version wanted_guc_version;
 	/** @guc_version: negotiated GuC ABI version. */
-	struct xe_gt_sriov_vf_guc_version guc_version;
+	struct xe_uc_fw_version guc_version;
 	/** @self_config: resource configurations. */
 	struct xe_gt_sriov_vf_selfconfig self_config;
-	/** @pf_version: negotiated VF/PF ABI version. */
-	struct xe_gt_sriov_vf_relay_version pf_version;
 	/** @runtime: runtime data retrieved from the PF. */
 	struct xe_gt_sriov_vf_runtime runtime;
 };

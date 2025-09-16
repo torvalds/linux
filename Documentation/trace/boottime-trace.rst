@@ -198,8 +198,8 @@ Most of the subsystems and architecture dependent drivers will be initialized
 after that (arch_initcall or subsys_initcall). Thus, you can trace those with
 boot-time tracing.
 If you want to trace events before core_initcall, you can use the options
-starting with ``kernel``. Some of them will be enabled eariler than the initcall
-processing (for example,. ``kernel.ftrace=function`` and ``kernel.trace_event``
+starting with ``kernel``. Some of them will be enabled earlier than the initcall
+processing (for example, ``kernel.ftrace=function`` and ``kernel.trace_event``
 will start before the initcall.)
 
 

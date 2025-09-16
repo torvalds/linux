@@ -432,7 +432,7 @@ static int solo_sysfs_init(struct solo_dev *solo_dev)
 	sysfs_attr_init(&sdram_attr->attr);
 	sdram_attr->attr.name = "sdram";
 	sdram_attr->attr.mode = 0440;
-	sdram_attr->read_new = sdram_show;
+	sdram_attr->read = sdram_show;
 	sdram_attr->size = solo_dev->sdram_size;
 
 	if (device_create_bin_file(dev, sdram_attr)) {
@@ -477,10 +477,10 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_write_config_byte(pdev, 0x40, 0x00);
 	pci_write_config_byte(pdev, 0x41, 0x00);
 
-	ret = pcim_iomap_regions(pdev, BIT(0), SOLO6X10_NAME);
+	solo_dev->reg_base = pcim_iomap_region(pdev, 0, SOLO6X10_NAME);
+	ret = PTR_ERR_OR_ZERO(solo_dev->reg_base);
 	if (ret)
 		goto fail_probe;
-	solo_dev->reg_base = pcim_iomap_table(pdev)[0];
 
 	chip_id = solo_reg_read(solo_dev, SOLO_CHIP_OPTION) &
 				SOLO_CHIP_ID_MASK;

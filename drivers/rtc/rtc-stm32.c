@@ -393,7 +393,7 @@ static const struct pinmux_ops stm32_rtc_pinmux_ops = {
 	.strict			= true,
 };
 
-static struct pinctrl_desc stm32_rtc_pdesc = {
+static const struct pinctrl_desc stm32_rtc_pdesc = {
 	.name = DRIVER_NAME,
 	.pins = stm32_rtc_pinctrl_pins,
 	.npins = ARRAY_SIZE(stm32_rtc_pinctrl_pins),
@@ -1283,7 +1283,6 @@ static struct platform_driver stm32_rtc_driver = {
 
 module_platform_driver(stm32_rtc_driver);
 
-MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_AUTHOR("Amelie Delaunay <amelie.delaunay@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics STM32 Real Time Clock driver");
 MODULE_LICENSE("GPL v2");

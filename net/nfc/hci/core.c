@@ -441,7 +441,7 @@ exit_noskb:
 
 static void nfc_hci_cmd_timeout(struct timer_list *t)
 {
-	struct nfc_hci_dev *hdev = from_timer(hdev, t, cmd_timer);
+	struct nfc_hci_dev *hdev = timer_container_of(hdev, t, cmd_timer);
 
 	schedule_work(&hdev->msg_tx_work);
 }

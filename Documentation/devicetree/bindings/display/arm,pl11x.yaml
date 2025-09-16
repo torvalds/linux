@@ -78,6 +78,9 @@ properties:
       If not present, the memory interface is fast enough to handle all
       possible video modes.
 
+  resets:
+    maxItems: 1
+
   port:
     $ref: /schemas/graph.yaml#/$defs/port-base
     additionalProperties: false

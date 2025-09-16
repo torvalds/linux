@@ -114,3 +114,7 @@
 		reg = <0>;
 	};
 };
+
+&wifi {
+	status = "okay";
+};

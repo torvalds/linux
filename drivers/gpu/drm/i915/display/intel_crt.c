@@ -34,8 +34,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_irq.h"
-#include "i915_reg.h"
 #include "intel_connector.h"
 #include "intel_crt.h"
 #include "intel_crt_regs.h"
@@ -44,6 +42,7 @@
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_driver.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
 #include "intel_fdi_regs.h"
@@ -51,6 +50,7 @@
 #include "intel_gmbus.h"
 #include "intel_hotplug.h"
 #include "intel_hotplug_irq.h"
+#include "intel_link_bw.h"
 #include "intel_load_detect.h"
 #include "intel_pch_display.h"
 #include "intel_pch_refclk.h"
@@ -422,7 +422,7 @@ static int pch_crt_compute_config(struct intel_encoder *encoder,
 		return -EINVAL;
 
 	crtc_state->has_pch_encoder = true;
-	if (!intel_fdi_compute_pipe_bpp(crtc_state))
+	if (!intel_link_bw_compute_pipe_bpp(crtc_state))
 		return -EINVAL;
 
 	crtc_state->output_format = INTEL_OUTPUT_FORMAT_RGB;
@@ -447,7 +447,7 @@ static int hsw_crt_compute_config(struct intel_encoder *encoder,
 		return -EINVAL;
 
 	crtc_state->has_pch_encoder = true;
-	if (!intel_fdi_compute_pipe_bpp(crtc_state))
+	if (!intel_link_bw_compute_pipe_bpp(crtc_state))
 		return -EINVAL;
 
 	crtc_state->output_format = INTEL_OUTPUT_FORMAT_RGB;

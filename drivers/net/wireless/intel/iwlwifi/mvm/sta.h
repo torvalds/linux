@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2016 Intel Deutschland GmbH
  */
@@ -214,7 +214,7 @@ struct iwl_mvm_vif;
  */
 
 /**
- * enum iwl_mvm_agg_state
+ * enum iwl_mvm_agg_state - aggregation session state
  *
  * The state machine of the BA agreement establishment / tear down.
  * These states relate to a specific RA / TID.
@@ -225,8 +225,6 @@ struct iwl_mvm_vif;
  * @IWL_AGG_ON: aggregation session is up
  * @IWL_EMPTYING_HW_QUEUE_ADDBA: establishing a BA session - waiting for the
  *	HW queue to be empty from packets for this RA /TID.
- * @IWL_EMPTYING_HW_QUEUE_DELBA: tearing down a BA session - waiting for the
- *	HW queue to be empty from packets for this RA /TID.
  */
 enum iwl_mvm_agg_state {
 	IWL_AGG_OFF = 0,
@@ -234,7 +232,6 @@ enum iwl_mvm_agg_state {
 	IWL_AGG_STARTING,
 	IWL_AGG_ON,
 	IWL_EMPTYING_HW_QUEUE_ADDBA,
-	IWL_EMPTYING_HW_QUEUE_DELBA,
 };
 
 /**
@@ -262,7 +259,7 @@ struct iwl_mvm_tid_data {
 	u16 seq_number;
 	u16 next_reclaimed;
 	/* The rest is Tx AGG related */
-	u32 rate_n_flags;
+	__le32 rate_n_flags;
 	u8 lq_color;
 	bool amsdu_in_ampdu_allowed;
 	enum iwl_mvm_agg_state state;
@@ -486,6 +483,7 @@ struct iwl_mvm_int_sta {
  *	about. Otherwise (if this is a new STA), this should be false.
  * @flags: if update==true, this marks what is being changed via ORs of values
  *	from enum iwl_sta_modify_flag. Otherwise, this is ignored.
+ * Return: negative error code or 0 on success
  */
 int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			   bool update, unsigned int flags);

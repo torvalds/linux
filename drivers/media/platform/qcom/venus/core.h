@@ -28,6 +28,8 @@
 #define VIDC_RESETS_NUM_MAX		2
 #define VIDC_MAX_HIER_CODING_LAYER 6
 
+#define VENUS_MAX_FPS			240
+
 extern int venus_fw_debug;
 
 struct freq_tbl {
@@ -172,6 +174,7 @@ struct venus_format {
  * @venus_ver:	the venus firmware version
  * @dump_core:	a flag indicating that a core dump is required
  * @ocs:	OF changeset pointer
+ * @hwmode_dev:	a flag indicating that HW_CTRL_TRIGGER is used in clock driver
  */
 struct venus_core {
 	void __iomem *base;
@@ -235,6 +238,7 @@ struct venus_core {
 	} venus_ver;
 	unsigned long dump_core;
 	struct of_changeset *ocs;
+	bool hwmode_dev;
 };
 
 struct vdec_controls {

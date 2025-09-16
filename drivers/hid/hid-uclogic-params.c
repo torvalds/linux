@@ -103,6 +103,8 @@ static void uclogic_params_frame_hid_dbg(
 		frame->touch_flip_at);
 	hid_dbg(hdev, "\t\t.bitmap_dial_byte = %u\n",
 		frame->bitmap_dial_byte);
+	hid_dbg(hdev, "\t\t.bitmap_second_dial_destination_byte = %u\n",
+			frame->bitmap_second_dial_destination_byte);
 }
 
 /**
@@ -1341,7 +1343,7 @@ static int uclogic_params_ugee_v2_init_event_hooks(struct hid_device *hdev,
 						   struct uclogic_params *p)
 {
 	struct uclogic_raw_event_hook *event_hook;
-	__u8 reconnect_event[] = {
+	static const __u8 reconnect_event[] = {
 		/* Event received on wireless tablet reconnection */
 		0x02, 0xF8, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
@@ -1523,6 +1525,126 @@ output:
 	memcpy(params, &p, sizeof(*params));
 	memset(&p, 0, sizeof(p));
 	rc = 0;
+cleanup:
+	kfree(str_desc);
+	uclogic_params_cleanup(&p);
+	return rc;
+}
+
+/*
+ * uclogic_params_init_ugee_xppen_pro_22r() - Initializes a UGEE XP-Pen Pro 22R tablet device.
+ *
+ * @hdev:	The HID device of the tablet interface to initialize and get
+ *		parameters from. Cannot be NULL.
+ * @params:	Parameters to fill in (to be cleaned with
+ *		uclogic_params_cleanup()). Not modified in case of error.
+ *		Cannot be NULL.
+ *
+ * Returns:
+ *	Zero, if successful. A negative errno code on error.
+ */
+static int uclogic_params_init_ugee_xppen_pro_22r(struct uclogic_params *params,
+						  struct hid_device *hdev,
+						  const u8 rdesc_frame_arr[],
+						  const size_t rdesc_frame_size)
+{
+	int rc = 0;
+	struct usb_interface *iface;
+	__u8 bInterfaceNumber;
+	const int str_desc_len = 12;
+	u8 *str_desc = NULL;
+	__u8 *rdesc_pen = NULL;
+	s32 desc_params[UCLOGIC_RDESC_PH_ID_NUM];
+	enum uclogic_params_frame_type frame_type;
+	/* The resulting parameters (noop) */
+	struct uclogic_params p = {0, };
+
+	if (!hdev || !params) {
+		rc = -EINVAL;
+		goto cleanup;
+	}
+
+	iface = to_usb_interface(hdev->dev.parent);
+	bInterfaceNumber = iface->cur_altsetting->desc.bInterfaceNumber;
+
+	/* Ignore non-pen interfaces */
+	if (bInterfaceNumber != 2) {
+		rc = -EINVAL;
+		uclogic_params_init_invalid(&p);
+		goto cleanup;
+	}
+
+	/*
+	 * Initialize the interface by sending magic data.
+	 * This magic data is the same as other UGEE v2 tablets.
+	 */
+	rc = uclogic_probe_interface(hdev,
+				     uclogic_ugee_v2_probe_arr,
+				     uclogic_ugee_v2_probe_size,
+				     uclogic_ugee_v2_probe_endpoint);
+	if (rc) {
+		uclogic_params_init_invalid(&p);
+		goto cleanup;
+	}
+
+	/**
+	 * Read the string descriptor containing pen and frame parameters.
+	 * These are slightly different than typical UGEE v2 devices.
+	 */
+	rc = uclogic_params_get_str_desc(&str_desc, hdev, 100, str_desc_len);
+	if (rc != str_desc_len) {
+		rc = (rc < 0) ? rc : -EINVAL;
+		hid_err(hdev, "failed retrieving pen and frame parameters: %d\n", rc);
+		uclogic_params_init_invalid(&p);
+		goto cleanup;
+	}
+
+	rc = uclogic_params_parse_ugee_v2_desc(str_desc, str_desc_len,
+					       desc_params,
+					       ARRAY_SIZE(desc_params),
+					       &frame_type);
+	if (rc)
+		goto cleanup;
+
+	// str_desc doesn't report the correct amount of buttons, so manually fix it
+	desc_params[UCLOGIC_RDESC_FRAME_PH_ID_UM] = 20;
+
+	kfree(str_desc);
+	str_desc = NULL;
+
+	/* Initialize the pen interface */
+	rdesc_pen = uclogic_rdesc_template_apply(
+				uclogic_rdesc_ugee_v2_pen_template_arr,
+				uclogic_rdesc_ugee_v2_pen_template_size,
+				desc_params, ARRAY_SIZE(desc_params));
+	if (!rdesc_pen) {
+		rc = -ENOMEM;
+		goto cleanup;
+	}
+
+	p.pen.desc_ptr = rdesc_pen;
+	p.pen.desc_size = uclogic_rdesc_ugee_v2_pen_template_size;
+	p.pen.id = 0x02;
+	p.pen.subreport_list[0].value = 0xf0;
+	p.pen.subreport_list[0].id = UCLOGIC_RDESC_V1_FRAME_ID;
+
+	/* Initialize the frame interface */
+	rc = uclogic_params_frame_init_with_desc(
+		&p.frame_list[0],
+		rdesc_frame_arr,
+		rdesc_frame_size,
+		UCLOGIC_RDESC_V1_FRAME_ID);
+	if (rc < 0) {
+		hid_err(hdev, "initializing frame params failed: %d\n", rc);
+		goto cleanup;
+	}
+
+	p.frame_list[0].bitmap_dial_byte = 7;
+	p.frame_list[0].bitmap_second_dial_destination_byte = 8;
+
+	/* Output parameters */
+	memcpy(params, &p, sizeof(*params));
+	memset(&p, 0, sizeof(p));
 cleanup:
 	kfree(str_desc);
 	uclogic_params_cleanup(&p);
@@ -1844,6 +1966,16 @@ int uclogic_params_init(struct uclogic_params *params,
 			hid_warn(hdev, "pen parameters not found");
 			uclogic_params_init_invalid(&p);
 		}
+
+		break;
+	case VID_PID(USB_VENDOR_ID_UGEE,
+			USB_DEVICE_ID_UGEE_XPPEN_TABLET_22R_PRO):
+		rc = uclogic_params_init_ugee_xppen_pro_22r(&p,
+			hdev,
+			uclogic_rdesc_xppen_artist_22r_pro_frame_arr,
+			uclogic_rdesc_xppen_artist_22r_pro_frame_size);
+		if (rc != 0)
+			goto cleanup;
 
 		break;
 	}

@@ -294,7 +294,6 @@ static int ad4851_scale_fill(struct iio_dev *indio_dev)
 }
 
 static int ad4851_set_oversampling_ratio(struct iio_dev *indio_dev,
-					 const struct iio_chan_spec *chan,
 					 unsigned int osr)
 {
 	struct ad4851_state *st = iio_priv(indio_dev);
@@ -321,7 +320,8 @@ static int ad4851_set_oversampling_ratio(struct iio_dev *indio_dev,
 			return ret;
 	}
 
-	ret = iio_backend_oversampling_ratio_set(st->back, osr);
+	/* Channel is ignored by the backend being used here */
+	ret = iio_backend_oversampling_ratio_set(st->back, 0, osr);
 	if (ret)
 		return ret;
 
@@ -444,10 +444,12 @@ static int ad4851_setup(struct ad4851_state *st)
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, AD4851_REG_INTERFACE_CONFIG_A,
-			   AD4851_SDO_ENABLE);
-	if (ret)
-		return ret;
+	if (!(st->spi->mode & SPI_3WIRE)) {
+		ret = regmap_write(st->regmap, AD4851_REG_INTERFACE_CONFIG_A,
+				   AD4851_SDO_ENABLE);
+		if (ret)
+			return ret;
+	}
 
 	ret = regmap_read(st->regmap, AD4851_REG_PRODUCT_ID_L, &product_id);
 	if (ret)
@@ -831,7 +833,7 @@ static int ad4851_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBBIAS:
 		return ad4851_set_calibbias(st, chan->channel, val);
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-		return ad4851_set_oversampling_ratio(indio_dev, chan, val);
+		return ad4851_set_oversampling_ratio(indio_dev, val);
 	default:
 		return -EINVAL;
 	}
@@ -1034,7 +1036,7 @@ static int ad4858_parse_channels(struct iio_dev *indio_dev)
 	struct device *dev = &st->spi->dev;
 	struct iio_chan_spec *ad4851_channels;
 	const struct iio_chan_spec ad4851_chan = AD4858_IIO_CHANNEL;
-	int ret;
+	int ret, i = 0;
 
 	ret = ad4851_parse_channels_common(indio_dev, &ad4851_channels,
 					   ad4851_chan);
@@ -1042,15 +1044,15 @@ static int ad4858_parse_channels(struct iio_dev *indio_dev)
 		return ret;
 
 	device_for_each_child_node_scoped(dev, child) {
-		ad4851_channels->has_ext_scan_type = 1;
+		ad4851_channels[i].has_ext_scan_type = 1;
 		if (fwnode_property_read_bool(child, "bipolar")) {
-			ad4851_channels->ext_scan_type = ad4851_scan_type_20_b;
-			ad4851_channels->num_ext_scan_type = ARRAY_SIZE(ad4851_scan_type_20_b);
+			ad4851_channels[i].ext_scan_type = ad4851_scan_type_20_b;
+			ad4851_channels[i].num_ext_scan_type = ARRAY_SIZE(ad4851_scan_type_20_b);
 		} else {
-			ad4851_channels->ext_scan_type = ad4851_scan_type_20_u;
-			ad4851_channels->num_ext_scan_type = ARRAY_SIZE(ad4851_scan_type_20_u);
+			ad4851_channels[i].ext_scan_type = ad4851_scan_type_20_u;
+			ad4851_channels[i].num_ext_scan_type = ARRAY_SIZE(ad4851_scan_type_20_u);
 		}
-		ad4851_channels++;
+		i++;
 	}
 
 	indio_dev->channels = ad4851_channels;

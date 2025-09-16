@@ -28,7 +28,7 @@ static unsigned long ramfs_nommu_get_unmapped_area(struct file *file,
 						   unsigned long len,
 						   unsigned long pgoff,
 						   unsigned long flags);
-static int ramfs_nommu_mmap(struct file *file, struct vm_area_struct *vma);
+static int ramfs_nommu_mmap_prepare(struct vm_area_desc *desc);
 
 static unsigned ramfs_mmap_capabilities(struct file *file)
 {
@@ -38,7 +38,7 @@ static unsigned ramfs_mmap_capabilities(struct file *file)
 
 const struct file_operations ramfs_file_operations = {
 	.mmap_capabilities	= ramfs_mmap_capabilities,
-	.mmap			= ramfs_nommu_mmap,
+	.mmap_prepare		= ramfs_nommu_mmap_prepare,
 	.get_unmapped_area	= ramfs_nommu_get_unmapped_area,
 	.read_iter		= generic_file_read_iter,
 	.write_iter		= generic_file_write_iter,
@@ -262,12 +262,12 @@ out:
 /*
  * set up a mapping for shared memory segments
  */
-static int ramfs_nommu_mmap(struct file *file, struct vm_area_struct *vma)
+static int ramfs_nommu_mmap_prepare(struct vm_area_desc *desc)
 {
-	if (!is_nommu_shared_mapping(vma->vm_flags))
+	if (!is_nommu_shared_mapping(desc->vm_flags))
 		return -ENOSYS;
 
-	file_accessed(file);
-	vma->vm_ops = &generic_file_vm_ops;
+	file_accessed(desc->file);
+	desc->vm_ops = &generic_file_vm_ops;
 	return 0;
 }

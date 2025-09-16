@@ -62,9 +62,9 @@ static int gw_pld_output8(struct gpio_chip *gc, unsigned offset, int value)
 	return i2c_smbus_write_byte(gw->client, gw->out);
 }
 
-static void gw_pld_set8(struct gpio_chip *gc, unsigned offset, int value)
+static int gw_pld_set8(struct gpio_chip *gc, unsigned int offset, int value)
 {
-	gw_pld_output8(gc, offset, value);
+	return gw_pld_output8(gc, offset, value);
 }
 
 static int gw_pld_probe(struct i2c_client *client)

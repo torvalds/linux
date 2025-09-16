@@ -20,7 +20,7 @@
 #include <stdarg.h>
 #include <linux/mount.h>
 
-#include "../filesystems/overlayfs/wrappers.h"
+#include "../filesystems/wrappers.h"
 #include "../kselftest_harness.h"
 
 #ifndef CLONE_NEWNS
@@ -107,43 +107,23 @@
 	#endif
 #endif
 
-#ifndef __NR_open_tree
+#ifndef __NR_open_tree_attr
 	#if defined __alpha__
-		#define __NR_open_tree 538
+		#define __NR_open_tree_attr 577
 	#elif defined _MIPS_SIM
 		#if _MIPS_SIM == _MIPS_SIM_ABI32	/* o32 */
-			#define __NR_open_tree 4428
+			#define __NR_open_tree_attr (467 + 4000)
 		#endif
 		#if _MIPS_SIM == _MIPS_SIM_NABI32	/* n32 */
-			#define __NR_open_tree 6428
+			#define __NR_open_tree_attr (467 + 6000)
 		#endif
 		#if _MIPS_SIM == _MIPS_SIM_ABI64	/* n64 */
-			#define __NR_open_tree 5428
+			#define __NR_open_tree_attr (467 + 5000)
 		#endif
 	#elif defined __ia64__
-		#define __NR_open_tree (428 + 1024)
+		#define __NR_open_tree_attr (467 + 1024)
 	#else
-		#define __NR_open_tree 428
-	#endif
-#endif
-
-#ifndef __NR_move_mount
-	#if defined __alpha__
-		#define __NR_move_mount 539
-	#elif defined _MIPS_SIM
-		#if _MIPS_SIM == _MIPS_SIM_ABI32	/* o32 */
-			#define __NR_move_mount 4429
-		#endif
-		#if _MIPS_SIM == _MIPS_SIM_NABI32	/* n32 */
-			#define __NR_move_mount 6429
-		#endif
-		#if _MIPS_SIM == _MIPS_SIM_ABI64	/* n64 */
-			#define __NR_move_mount 5429
-		#endif
-	#elif defined __ia64__
-		#define __NR_move_mount (428 + 1024)
-	#else
-		#define __NR_move_mount 429
+		#define __NR_open_tree_attr 467
 	#endif
 #endif
 
@@ -161,21 +141,10 @@ static inline int sys_mount_setattr(int dfd, const char *path, unsigned int flag
 	return syscall(__NR_mount_setattr, dfd, path, flags, attr, size);
 }
 
-#ifndef OPEN_TREE_CLONE
-#define OPEN_TREE_CLONE 1
-#endif
-
-#ifndef OPEN_TREE_CLOEXEC
-#define OPEN_TREE_CLOEXEC O_CLOEXEC
-#endif
-
-#ifndef AT_RECURSIVE
-#define AT_RECURSIVE 0x8000 /* Apply to the entire subtree */
-#endif
-
-static inline int sys_open_tree(int dfd, const char *filename, unsigned int flags)
+static inline int sys_open_tree_attr(int dfd, const char *path, unsigned int flags,
+				     struct mount_attr *attr, size_t size)
 {
-	return syscall(__NR_open_tree, dfd, filename, flags);
+	return syscall(__NR_open_tree_attr, dfd, path, flags, attr, size);
 }
 
 static ssize_t write_nointr(int fd, const void *buf, size_t count)
@@ -1076,7 +1045,7 @@ FIXTURE_SETUP(mount_setattr_idmapped)
 	ASSERT_EQ(mkdir("/mnt/D", 0777), 0);
 	img_fd = openat(-EBADF, "/mnt/C/ext4.img", O_CREAT | O_WRONLY, 0600);
 	ASSERT_GE(img_fd, 0);
-	ASSERT_EQ(ftruncate(img_fd, 1024 * 2048), 0);
+	ASSERT_EQ(ftruncate(img_fd, 2147483648 /* 2 GB */), 0);
 	ASSERT_EQ(system("mkfs.ext4 -q /mnt/C/ext4.img"), 0);
 	ASSERT_EQ(system("mount -o loop -t ext4 /mnt/C/ext4.img /mnt/D/"), 0);
 	ASSERT_EQ(close(img_fd), 0);
@@ -1279,6 +1248,12 @@ TEST_F(mount_setattr_idmapped, attached_mount_inside_current_mount_namespace)
 	attr.userns_fd	= get_userns_fd(0, 10000, 10000);
 	ASSERT_GE(attr.userns_fd, 0);
 	ASSERT_NE(sys_mount_setattr(open_tree_fd, "", AT_EMPTY_PATH, &attr, sizeof(attr)), 0);
+	/*
+	 * Make sure that open_tree_attr() without OPEN_TREE_CLONE is not a way
+	 * to bypass this mount_setattr() restriction.
+	 */
+	ASSERT_LT(sys_open_tree_attr(open_tree_fd, "", AT_EMPTY_PATH, &attr, sizeof(attr)), 0);
+
 	ASSERT_EQ(close(attr.userns_fd), 0);
 	ASSERT_EQ(close(open_tree_fd), 0);
 }
@@ -1312,6 +1287,12 @@ TEST_F(mount_setattr_idmapped, attached_mount_outside_current_mount_namespace)
 	ASSERT_GE(attr.userns_fd, 0);
 	ASSERT_NE(sys_mount_setattr(open_tree_fd, "", AT_EMPTY_PATH, &attr,
 				    sizeof(attr)), 0);
+	/*
+	 * Make sure that open_tree_attr() without OPEN_TREE_CLONE is not a way
+	 * to bypass this mount_setattr() restriction.
+	 */
+	ASSERT_LT(sys_open_tree_attr(open_tree_fd, "", AT_EMPTY_PATH, &attr, sizeof(attr)), 0);
+
 	ASSERT_EQ(close(attr.userns_fd), 0);
 	ASSERT_EQ(close(open_tree_fd), 0);
 }
@@ -1378,6 +1359,19 @@ TEST_F(mount_setattr_idmapped, detached_mount_outside_current_mount_namespace)
 	ASSERT_EQ(close(open_tree_fd), 0);
 }
 
+static bool expected_uid_gid(int dfd, const char *path, int flags,
+			     uid_t expected_uid, gid_t expected_gid)
+{
+	int ret;
+	struct stat st;
+
+	ret = fstatat(dfd, path, &st, flags);
+	if (ret < 0)
+		return false;
+
+	return st.st_uid == expected_uid && st.st_gid == expected_gid;
+}
+
 /**
  * Validate that currently changing the idmapping of an idmapped mount fails.
  */
@@ -1387,6 +1381,8 @@ TEST_F(mount_setattr_idmapped, change_idmapping)
 	struct mount_attr attr = {
 		.attr_set = MOUNT_ATTR_IDMAP,
 	};
+
+	ASSERT_TRUE(expected_uid_gid(-EBADF, "/mnt/D", 0, 0, 0));
 
 	if (!mount_setattr_supported())
 		SKIP(return, "mount_setattr syscall not supported");
@@ -1405,25 +1401,23 @@ TEST_F(mount_setattr_idmapped, change_idmapping)
 				    AT_EMPTY_PATH, &attr, sizeof(attr)), 0);
 	ASSERT_EQ(close(attr.userns_fd), 0);
 
+	EXPECT_FALSE(expected_uid_gid(open_tree_fd, ".", 0, 0, 0));
+	EXPECT_TRUE(expected_uid_gid(open_tree_fd, ".", 0, 10000, 10000));
+
 	/* Change idmapping on a detached mount that is already idmapped. */
 	attr.userns_fd	= get_userns_fd(0, 20000, 10000);
 	ASSERT_GE(attr.userns_fd, 0);
 	ASSERT_NE(sys_mount_setattr(open_tree_fd, "", AT_EMPTY_PATH, &attr, sizeof(attr)), 0);
+	/*
+	 * Make sure that open_tree_attr() without OPEN_TREE_CLONE is not a way
+	 * to bypass this mount_setattr() restriction.
+	 */
+	EXPECT_LT(sys_open_tree_attr(open_tree_fd, "", AT_EMPTY_PATH, &attr, sizeof(attr)), 0);
+	EXPECT_FALSE(expected_uid_gid(open_tree_fd, ".", 0, 20000, 20000));
+	EXPECT_TRUE(expected_uid_gid(open_tree_fd, ".", 0, 10000, 10000));
+
 	ASSERT_EQ(close(attr.userns_fd), 0);
 	ASSERT_EQ(close(open_tree_fd), 0);
-}
-
-static bool expected_uid_gid(int dfd, const char *path, int flags,
-			     uid_t expected_uid, gid_t expected_gid)
-{
-	int ret;
-	struct stat st;
-
-	ret = fstatat(dfd, path, &st, flags);
-	if (ret < 0)
-		return false;
-
-	return st.st_uid == expected_uid && st.st_gid == expected_gid;
 }
 
 TEST_F(mount_setattr_idmapped, idmap_mount_tree_invalid)
@@ -2136,24 +2130,9 @@ TEST_F(mount_setattr, detached_tree_propagation)
 	 * means that the device information will be different for any
 	 * statx() that was taken from /mnt/A before the mount compared
 	 * to one after the mount.
-	 *
-	 * Since we already now that the device information between the
-	 * stx1 and stx2 samples are identical we also now that stx2 and
-	 * stx3 device information will necessarily differ.
 	 */
 	ASSERT_NE(stx1.stx_dev_minor, stx3.stx_dev_minor);
-
-	/*
-	 * If mount propagation worked correctly then the tmpfs mount
-	 * that was created after the mount namespace was unshared will
-	 * have propagated onto /mnt/A in the detached mount tree.
-	 *
-	 * Verify that the device information for stx3 and stx4 are
-	 * identical. It is already established that stx3 is different
-	 * from both stx1 and stx2 sampled before the tmpfs mount was
-	 * done so if stx3 and stx4 are identical the proof is done.
-	 */
-	ASSERT_EQ(stx3.stx_dev_minor, stx4.stx_dev_minor);
+	ASSERT_EQ(stx1.stx_dev_minor, stx4.stx_dev_minor);
 
 	EXPECT_EQ(close(fd_tree), 0);
 }

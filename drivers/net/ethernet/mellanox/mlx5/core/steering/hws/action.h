@@ -118,6 +118,12 @@ struct mlx5hws_action_template {
 	u8 only_term;
 };
 
+struct mlx5hws_range_action_table {
+	struct mlx5hws_pool *pool;
+	u32 rtc_0_id;
+	u32 rtc_1_id;
+};
+
 struct mlx5hws_action {
 	u8 type;
 	u8 flags;
@@ -130,7 +136,7 @@ struct mlx5hws_action {
 					u32 pat_id;
 					u32 arg_id;
 					__be64 single_action;
-					u32 nope_locations;
+					u32 nop_locations;
 					u8 num_of_patterns;
 					u8 single_action_type;
 					u8 num_of_actions;
@@ -186,7 +192,7 @@ struct mlx5hws_action {
 					size_t size;
 				} remove_header;
 				struct {
-					struct mlx5hws_matcher_action_ste *table_ste;
+					struct mlx5hws_range_action_table *table_ste;
 					struct mlx5hws_action *hit_ft_action;
 					struct mlx5hws_definer *definer;
 				} range;

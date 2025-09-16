@@ -29,7 +29,12 @@ static inline bool hbg_fifo_is_full(struct hbg_priv *priv, enum hbg_dir dir)
 
 static inline u32 hbg_get_queue_used_num(struct hbg_ring *ring)
 {
-	return (ring->ntu + ring->len - ring->ntc) % ring->len;
+	u32 len = READ_ONCE(ring->len);
+
+	if (!len)
+		return 0;
+
+	return (READ_ONCE(ring->ntu) + len - READ_ONCE(ring->ntc)) % len;
 }
 
 netdev_tx_t hbg_net_start_xmit(struct sk_buff *skb, struct net_device *netdev);

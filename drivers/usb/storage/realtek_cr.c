@@ -252,7 +252,7 @@ static int rts51x_bulk_transport(struct us_data *us, u8 lun,
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
-	residue = bcs->Residue;
+	residue = le32_to_cpu(bcs->Residue);
 	if (bcs->Tag != us->tag)
 		return USB_STOR_TRANSPORT_ERROR;
 
@@ -748,13 +748,14 @@ static void rts51x_modi_suspend_timer(struct rts51x_chip *chip)
 
 	usb_stor_dbg(us, "state:%d\n", rts51x_get_stat(chip));
 
-	chip->timer_expires = jiffies + msecs_to_jiffies(1000*ss_delay);
+	chip->timer_expires = jiffies + secs_to_jiffies(ss_delay);
 	mod_timer(&chip->rts51x_suspend_timer, chip->timer_expires);
 }
 
 static void rts51x_suspend_timer_fn(struct timer_list *t)
 {
-	struct rts51x_chip *chip = from_timer(chip, t, rts51x_suspend_timer);
+	struct rts51x_chip *chip = timer_container_of(chip, t,
+						      rts51x_suspend_timer);
 	struct us_data *us = chip->us;
 
 	switch (rts51x_get_stat(chip)) {

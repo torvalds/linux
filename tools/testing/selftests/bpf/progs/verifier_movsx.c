@@ -245,7 +245,13 @@ l0_%=:							\
 SEC("socket")
 __description("MOV32SX, S8, var_off not u32_max, positive after s8 extension")
 __success __retval(0)
-__failure_unpriv __msg_unpriv("frame pointer is read only")
+__success_unpriv
+#ifdef SPEC_V1
+__xlated_unpriv("w0 = 0")
+__xlated_unpriv("exit")
+__xlated_unpriv("nospec") /* inserted to prevent `frame pointer is read only` */
+__xlated_unpriv("goto pc-1")
+#endif
 __naked void mov64sx_s32_varoff_2(void)
 {
 	asm volatile ("					\
@@ -267,7 +273,13 @@ l0_%=:							\
 SEC("socket")
 __description("MOV32SX, S8, var_off not u32_max, negative after s8 extension")
 __success __retval(0)
-__failure_unpriv __msg_unpriv("frame pointer is read only")
+__success_unpriv
+#ifdef SPEC_V1
+__xlated_unpriv("w0 = 0")
+__xlated_unpriv("exit")
+__xlated_unpriv("nospec") /* inserted to prevent `frame pointer is read only` */
+__xlated_unpriv("goto pc-1")
+#endif
 __naked void mov64sx_s32_varoff_3(void)
 {
 	asm volatile ("					\

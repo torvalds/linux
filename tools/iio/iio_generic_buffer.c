@@ -335,7 +335,7 @@ static const struct option longopts[] = {
 	{ "device-num",		1, 0, 'N' },
 	{ "trigger-name",	1, 0, 't' },
 	{ "trigger-num",	1, 0, 'T' },
-	{ },
+	{ }
 };
 
 int main(int argc, char **argv)

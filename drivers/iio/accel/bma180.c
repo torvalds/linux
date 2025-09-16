@@ -29,9 +29,6 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
-#define BMA180_DRV_NAME "bma180"
-#define BMA180_IRQ_NAME "bma180_event"
-
 enum chip_ids {
 	BMA023,
 	BMA150,
@@ -887,7 +884,7 @@ static irqreturn_t bma180_trigger_handler(int irq, void *p)
 
 	mutex_unlock(&data->mutex);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan, time_ns);
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan), time_ns);
 err:
 	iio_trigger_notify_done(indio_dev->trig);
 

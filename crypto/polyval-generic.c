@@ -44,15 +44,15 @@
  *
  */
 
-#include <linux/unaligned.h>
-#include <crypto/algapi.h>
 #include <crypto/gf128mul.h>
-#include <crypto/polyval.h>
 #include <crypto/internal/hash.h>
-#include <linux/crypto.h>
-#include <linux/init.h>
+#include <crypto/polyval.h>
+#include <crypto/utils.h>
+#include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string.h>
+#include <linux/unaligned.h>
 
 struct polyval_tfm_ctx {
 	struct gf128mul_4k *gf128;
@@ -63,7 +63,6 @@ struct polyval_desc_ctx {
 		u8 buffer[POLYVAL_BLOCK_SIZE];
 		be128 buffer128;
 	};
-	u32 bytes;
 };
 
 static void copy_and_reverse(u8 dst[POLYVAL_BLOCK_SIZE],
@@ -75,46 +74,6 @@ static void copy_and_reverse(u8 dst[POLYVAL_BLOCK_SIZE],
 	put_unaligned(swab64(a), (u64 *)&dst[8]);
 	put_unaligned(swab64(b), (u64 *)&dst[0]);
 }
-
-/*
- * Performs multiplication in the POLYVAL field using the GHASH field as a
- * subroutine.  This function is used as a fallback for hardware accelerated
- * implementations when simd registers are unavailable.
- *
- * Note: This function is not used for polyval-generic, instead we use the 4k
- * lookup table implementation for finite field multiplication.
- */
-void polyval_mul_non4k(u8 *op1, const u8 *op2)
-{
-	be128 a, b;
-
-	// Assume one argument is in Montgomery form and one is not.
-	copy_and_reverse((u8 *)&a, op1);
-	copy_and_reverse((u8 *)&b, op2);
-	gf128mul_x_lle(&a, &a);
-	gf128mul_lle(&a, &b);
-	copy_and_reverse(op1, (u8 *)&a);
-}
-EXPORT_SYMBOL_GPL(polyval_mul_non4k);
-
-/*
- * Perform a POLYVAL update using non4k multiplication.  This function is used
- * as a fallback for hardware accelerated implementations when simd registers
- * are unavailable.
- *
- * Note: This function is not used for polyval-generic, instead we use the 4k
- * lookup table implementation of finite field multiplication.
- */
-void polyval_update_non4k(const u8 *key, const u8 *in,
-			  size_t nblocks, u8 *accumulator)
-{
-	while (nblocks--) {
-		crypto_xor(accumulator, in, POLYVAL_BLOCK_SIZE);
-		polyval_mul_non4k(accumulator, key);
-		in += POLYVAL_BLOCK_SIZE;
-	}
-}
-EXPORT_SYMBOL_GPL(polyval_update_non4k);
 
 static int polyval_setkey(struct crypto_shash *tfm,
 			  const u8 *key, unsigned int keylen)
@@ -154,56 +113,53 @@ static int polyval_update(struct shash_desc *desc,
 {
 	struct polyval_desc_ctx *dctx = shash_desc_ctx(desc);
 	const struct polyval_tfm_ctx *ctx = crypto_shash_ctx(desc->tfm);
-	u8 *pos;
 	u8 tmp[POLYVAL_BLOCK_SIZE];
-	int n;
 
-	if (dctx->bytes) {
-		n = min(srclen, dctx->bytes);
-		pos = dctx->buffer + dctx->bytes - 1;
-
-		dctx->bytes -= n;
-		srclen -= n;
-
-		while (n--)
-			*pos-- ^= *src++;
-
-		if (!dctx->bytes)
-			gf128mul_4k_lle(&dctx->buffer128, ctx->gf128);
-	}
-
-	while (srclen >= POLYVAL_BLOCK_SIZE) {
+	do {
 		copy_and_reverse(tmp, src);
 		crypto_xor(dctx->buffer, tmp, POLYVAL_BLOCK_SIZE);
 		gf128mul_4k_lle(&dctx->buffer128, ctx->gf128);
 		src += POLYVAL_BLOCK_SIZE;
 		srclen -= POLYVAL_BLOCK_SIZE;
-	}
+	} while (srclen >= POLYVAL_BLOCK_SIZE);
 
-	if (srclen) {
-		dctx->bytes = POLYVAL_BLOCK_SIZE - srclen;
-		pos = dctx->buffer + POLYVAL_BLOCK_SIZE - 1;
-		while (srclen--)
-			*pos-- ^= *src++;
-	}
-
-	return 0;
+	return srclen;
 }
 
-static int polyval_final(struct shash_desc *desc, u8 *dst)
+static int polyval_finup(struct shash_desc *desc, const u8 *src,
+			 unsigned int len, u8 *dst)
 {
 	struct polyval_desc_ctx *dctx = shash_desc_ctx(desc);
-	const struct polyval_tfm_ctx *ctx = crypto_shash_ctx(desc->tfm);
 
-	if (dctx->bytes)
-		gf128mul_4k_lle(&dctx->buffer128, ctx->gf128);
+	if (len) {
+		u8 tmp[POLYVAL_BLOCK_SIZE] = {};
+
+		memcpy(tmp, src, len);
+		polyval_update(desc, tmp, POLYVAL_BLOCK_SIZE);
+	}
 	copy_and_reverse(dst, dctx->buffer);
 	return 0;
 }
 
-static void polyval_exit_tfm(struct crypto_tfm *tfm)
+static int polyval_export(struct shash_desc *desc, void *out)
 {
-	struct polyval_tfm_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct polyval_desc_ctx *dctx = shash_desc_ctx(desc);
+
+	copy_and_reverse(out, dctx->buffer);
+	return 0;
+}
+
+static int polyval_import(struct shash_desc *desc, const void *in)
+{
+	struct polyval_desc_ctx *dctx = shash_desc_ctx(desc);
+
+	copy_and_reverse(dctx->buffer, in);
+	return 0;
+}
+
+static void polyval_exit_tfm(struct crypto_shash *tfm)
+{
+	struct polyval_tfm_ctx *ctx = crypto_shash_ctx(tfm);
 
 	gf128mul_free_4k(ctx->gf128);
 }
@@ -212,17 +168,21 @@ static struct shash_alg polyval_alg = {
 	.digestsize	= POLYVAL_DIGEST_SIZE,
 	.init		= polyval_init,
 	.update		= polyval_update,
-	.final		= polyval_final,
+	.finup		= polyval_finup,
 	.setkey		= polyval_setkey,
+	.export		= polyval_export,
+	.import		= polyval_import,
+	.exit_tfm	= polyval_exit_tfm,
+	.statesize	= sizeof(struct polyval_desc_ctx),
 	.descsize	= sizeof(struct polyval_desc_ctx),
 	.base		= {
 		.cra_name		= "polyval",
 		.cra_driver_name	= "polyval-generic",
 		.cra_priority		= 100,
+		.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY,
 		.cra_blocksize		= POLYVAL_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct polyval_tfm_ctx),
 		.cra_module		= THIS_MODULE,
-		.cra_exit		= polyval_exit_tfm,
 	},
 };
 
@@ -236,7 +196,7 @@ static void __exit polyval_mod_exit(void)
 	crypto_unregister_shash(&polyval_alg);
 }
 
-subsys_initcall(polyval_mod_init);
+module_init(polyval_mod_init);
 module_exit(polyval_mod_exit);
 
 MODULE_LICENSE("GPL");

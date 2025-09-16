@@ -905,8 +905,7 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 
 	return 0;
 err_free_status_page_and_wr_log:
-	if (c4iw_wr_log && rdev->wr_log)
-		kfree(rdev->wr_log);
+	kfree(rdev->wr_log);
 	free_page((unsigned long)rdev->status_page);
 destroy_ocqp_pool:
 	c4iw_ocqp_pool_destroy(rdev);

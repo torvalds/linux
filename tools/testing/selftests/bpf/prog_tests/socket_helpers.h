@@ -3,6 +3,7 @@
 #ifndef __SOCKET_HELPERS__
 #define __SOCKET_HELPERS__
 
+#include <sys/un.h>
 #include <linux/vm_sockets.h>
 
 /* include/linux/net.h */
@@ -169,6 +170,15 @@ static inline void init_addr_loopback6(struct sockaddr_storage *ss,
 	*len = sizeof(*addr6);
 }
 
+static inline void init_addr_loopback_unix(struct sockaddr_storage *ss,
+					   socklen_t *len)
+{
+	struct sockaddr_un *addr = memset(ss, 0, sizeof(*ss));
+
+	addr->sun_family = AF_UNIX;
+	*len = sizeof(sa_family_t);
+}
+
 static inline void init_addr_loopback_vsock(struct sockaddr_storage *ss,
 					    socklen_t *len)
 {
@@ -189,6 +199,9 @@ static inline void init_addr_loopback(int family, struct sockaddr_storage *ss,
 		return;
 	case AF_INET6:
 		init_addr_loopback6(ss, len);
+		return;
+	case AF_UNIX:
+		init_addr_loopback_unix(ss, len);
 		return;
 	case AF_VSOCK:
 		init_addr_loopback_vsock(ss, len);
@@ -315,20 +328,26 @@ static inline int create_pair(int family, int sotype, int *p0, int *p1)
 {
 	__close_fd int s, c = -1, p = -1;
 	struct sockaddr_storage addr;
-	socklen_t len = sizeof(addr);
+	socklen_t len;
 	int err;
 
 	s = socket_loopback(family, sotype);
 	if (s < 0)
 		return s;
 
-	err = xgetsockname(s, sockaddr(&addr), &len);
-	if (err)
-		return err;
-
 	c = xsocket(family, sotype, 0);
 	if (c < 0)
 		return c;
+
+	init_addr_loopback(family, &addr, &len);
+	err = xbind(c, sockaddr(&addr), len);
+	if (err)
+		return err;
+
+	len = sizeof(addr);
+	err = xgetsockname(s, sockaddr(&addr), &len);
+	if (err)
+		return err;
 
 	err = connect(c, sockaddr(&addr), len);
 	if (err) {
@@ -389,6 +408,61 @@ static inline int create_socket_pairs(int family, int sotype, int *c0, int *c1,
 	}
 
 	return err;
+}
+
+static inline const char *socket_kind_to_str(int sock_fd)
+{
+	socklen_t opt_len;
+	int domain, type;
+
+	opt_len = sizeof(domain);
+	if (getsockopt(sock_fd, SOL_SOCKET, SO_DOMAIN, &domain, &opt_len))
+		FAIL_ERRNO("getsockopt(SO_DOMAIN)");
+
+	opt_len = sizeof(type);
+	if (getsockopt(sock_fd, SOL_SOCKET, SO_TYPE, &type, &opt_len))
+		FAIL_ERRNO("getsockopt(SO_TYPE)");
+
+	switch (domain) {
+	case AF_INET:
+		switch (type) {
+		case SOCK_STREAM:
+			return "tcp4";
+		case SOCK_DGRAM:
+			return "udp4";
+		}
+		break;
+	case AF_INET6:
+		switch (type) {
+		case SOCK_STREAM:
+			return "tcp6";
+		case SOCK_DGRAM:
+			return "udp6";
+		}
+		break;
+	case AF_UNIX:
+		switch (type) {
+		case SOCK_STREAM:
+			return "u_str";
+		case SOCK_DGRAM:
+			return "u_dgr";
+		case SOCK_SEQPACKET:
+			return "u_seq";
+		}
+		break;
+	case AF_VSOCK:
+		switch (type) {
+		case SOCK_STREAM:
+			return "v_str";
+		case SOCK_DGRAM:
+			return "v_dgr";
+		case SOCK_SEQPACKET:
+			return "v_seq";
+		}
+		break;
+	}
+
+	return "???";
 }
 
 #endif // __SOCKET_HELPERS__

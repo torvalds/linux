@@ -2327,7 +2327,7 @@ DEF_SCSI_QCMD(fas216_noqueue_command)
  */
 static void fas216_eh_timer(struct timer_list *t)
 {
-	FAS216_Info *info = from_timer(info, t, eh_timer);
+	FAS216_Info *info = timer_container_of(info, t, eh_timer);
 
 	fas216_log(info, LOG_ERROR, "error handling timed out\n");
 

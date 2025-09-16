@@ -631,7 +631,7 @@ static const struct i2c_device_id ad7150_id[] = {
 	{ "ad7150", AD7150 },
 	{ "ad7151", AD7151 },
 	{ "ad7156", AD7150 },
-	{}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, ad7150_id);
@@ -640,7 +640,7 @@ static const struct of_device_id ad7150_of_match[] = {
 	{ "adi,ad7150" },
 	{ "adi,ad7151" },
 	{ "adi,ad7156" },
-	{}
+	{ }
 };
 static struct i2c_driver ad7150_driver = {
 	.driver = {

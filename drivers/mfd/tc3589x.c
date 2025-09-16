@@ -234,9 +234,9 @@ static const struct irq_domain_ops tc3589x_irq_ops = {
 
 static int tc3589x_irq_init(struct tc3589x *tc3589x, struct device_node *np)
 {
-	tc3589x->domain = irq_domain_add_simple(
-		np, TC3589x_NR_INTERNAL_IRQS, 0,
-		&tc3589x_irq_ops, tc3589x);
+	tc3589x->domain = irq_domain_create_simple(of_fwnode_handle(np),
+						   TC3589x_NR_INTERNAL_IRQS, 0,
+						   &tc3589x_irq_ops, tc3589x);
 
 	if (!tc3589x->domain) {
 		dev_err(tc3589x->dev, "Failed to create irqdomain\n");

@@ -123,10 +123,12 @@ static int mcfgpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	return __mcfgpio_direction_output(offset, value);
 }
 
-static void mcfgpio_set_value(struct gpio_chip *chip, unsigned offset,
-			      int value)
+static int mcfgpio_set_value(struct gpio_chip *chip, unsigned int offset,
+			     int value)
 {
 	__mcfgpio_set_value(offset, value);
+
+	return 0;
 }
 
 static int mcfgpio_request(struct gpio_chip *chip, unsigned offset)

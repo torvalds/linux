@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/st,spear-spics-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ST Microelectronics SPEAr SPI CS GPIO Controller
+
+maintainers:
+  - Viresh Kumar <vireshk@kernel.org>
+
+description: >
+  SPEAr platform provides a provision to control chipselects of ARM PL022 Prime
+  Cell spi controller through its system registers, which otherwise remains
+  under PL022 control. If chipselect remain under PL022 control then they would
+  be released as soon as transfer is over and TxFIFO becomes empty. This is not
+  desired by some of the device protocols above spi which expect (multiple)
+  transfers without releasing their chipselects.
+
+  Chipselects can be controlled by software by turning them as GPIOs. SPEAr
+  provides another interface through system registers through which software can
+  directly control each PL022 chipselect. Hence, it is natural for SPEAr to
+  export the control of this interface as gpio.
+
+properties:
+  compatible:
+    const: st,spear-spics-gpio
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  st-spics,peripcfg-reg:
+    description: Offset of the peripcfg register.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  st-spics,sw-enable-bit:
+    description: Bit offset to enable software chipselect control.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  st-spics,cs-value-bit:
+    description: Bit offset to drive chipselect low or high.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  st-spics,cs-enable-mask:
+    description: Bitmask selecting which chipselects to enable.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  st-spics,cs-enable-shift:
+    description: Bit shift for programming chipselect number.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+  - st-spics,peripcfg-reg
+  - st-spics,sw-enable-bit
+  - st-spics,cs-value-bit
+  - st-spics,cs-enable-mask
+  - st-spics,cs-enable-shift
+
+additionalProperties: false
+
+examples:
+  - |
+    gpio@e0700000 {
+        compatible = "st,spear-spics-gpio";
+        reg = <0xe0700000 0x1000>;
+        st-spics,peripcfg-reg = <0x3b0>;
+        st-spics,sw-enable-bit = <12>;
+        st-spics,cs-value-bit = <11>;
+        st-spics,cs-enable-mask = <3>;
+        st-spics,cs-enable-shift = <8>;
+        gpio-controller;
+        #gpio-cells = <2>;
+    };

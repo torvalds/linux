@@ -146,7 +146,7 @@ void ieee80211_ocb_work(struct ieee80211_sub_if_data *sdata)
 static void ieee80211_ocb_housekeeping_timer(struct timer_list *t)
 {
 	struct ieee80211_sub_if_data *sdata =
-		from_timer(sdata, t, u.ocb.housekeeping_timer);
+		timer_container_of(sdata, t, u.ocb.housekeeping_timer);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_ocb *ifocb = &sdata->u.ocb;
 

@@ -53,7 +53,9 @@ enum dml2_output_type_and_rate__rate {
 	dml2_output_rate_hdmi_rate_6x4 = 9,
 	dml2_output_rate_hdmi_rate_8x4 = 10,
 	dml2_output_rate_hdmi_rate_10x4 = 11,
-	dml2_output_rate_hdmi_rate_12x4 = 12
+	dml2_output_rate_hdmi_rate_12x4 = 12,
+	dml2_output_rate_hdmi_rate_16x4 = 13,
+	dml2_output_rate_hdmi_rate_20x4 = 14
 };
 
 struct dml2_pmo_options {
@@ -279,7 +281,10 @@ struct dml2_per_stream_programming {
 	} phantom_stream;
 
 	union dmub_cmd_fams2_config fams2_base_params;
-	union dmub_cmd_fams2_config fams2_sub_params;
+	union {
+		union dmub_cmd_fams2_config fams2_sub_params;
+		union dmub_fams2_stream_static_sub_state_v2 fams2_sub_params_v2;
+	};
 };
 
 //-----------------
@@ -412,6 +417,8 @@ struct dml2_display_cfg_programming {
 
 	struct {
 		bool supported_in_blank; // Changing to configurations where this is false requires stutter to be disabled during the transition
+		uint8_t base_percent_efficiency; //LP1
+		uint8_t low_power_percent_efficiency; //LP2
 	} stutter;
 
 	struct {
@@ -674,9 +681,14 @@ struct dml2_display_cfg_programming {
 		// unlimited # of mcache
 		struct dml2_mcache_surface_allocation non_optimized_mcache_allocation[DML2_MAX_PLANES];
 
+		bool failed_prefetch;
+		bool failed_uclk_pstate;
 		bool failed_mcache_validation;
 		bool failed_dpmm;
 		bool failed_mode_programming;
+		bool failed_mode_programming_dcfclk;
+		bool failed_mode_programming_prefetch;
+		bool failed_mode_programming_flip;
 		bool failed_map_watermarks;
 	} informative;
 };

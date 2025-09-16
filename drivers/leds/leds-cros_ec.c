@@ -60,30 +60,17 @@ static inline struct cros_ec_led_priv *cros_ec_led_cdev_to_priv(struct led_class
 union cros_ec_led_cmd_data {
 	struct ec_params_led_control req;
 	struct ec_response_led_control resp;
-} __packed;
+};
 
 static int cros_ec_led_send_cmd(struct cros_ec_device *cros_ec,
 				union cros_ec_led_cmd_data *arg)
 {
 	int ret;
-	struct {
-		struct cros_ec_command msg;
-		union cros_ec_led_cmd_data data;
-	} __packed buf = {
-		.msg = {
-			.version = 1,
-			.command = EC_CMD_LED_CONTROL,
-			.insize  = sizeof(arg->resp),
-			.outsize = sizeof(arg->req),
-		},
-		.data.req = arg->req
-	};
 
-	ret = cros_ec_cmd_xfer_status(cros_ec, &buf.msg);
+	ret = cros_ec_cmd(cros_ec, 1, EC_CMD_LED_CONTROL, &arg->req,
+			  sizeof(arg->req), &arg->resp, sizeof(arg->resp));
 	if (ret < 0)
 		return ret;
-
-	arg->resp = buf.data.resp;
 
 	return 0;
 }

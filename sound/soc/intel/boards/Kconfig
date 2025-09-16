@@ -11,7 +11,7 @@ menuconfig SND_SOC_INTEL_MACH
 	 kernel: saying N will just cause the configurator to skip all
 	 the questions about Intel ASoC machine drivers.
 
-if SND_SOC_INTEL_MACH
+if SND_SOC_INTEL_MACH && (SND_SOC_SOF_INTEL_COMMON || !SND_SOC_SOF_INTEL_COMMON)
 
 config SND_SOC_INTEL_USER_FRIENDLY_LONG_NAMES
 	bool "Use more user friendly long card names"
@@ -42,6 +42,7 @@ config SND_SOC_INTEL_SOF_NUVOTON_COMMON
 	tristate
 
 config SND_SOC_INTEL_SOF_BOARD_HELPERS
+	select SND_SOC_ACPI_INTEL_MATCH
 	tristate
 
 if SND_SOC_INTEL_CATPT
@@ -251,14 +252,6 @@ config SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH
 	  If unsure select "N".
 
 endif ## SND_SST_ATOM_HIFI2_PLATFORM
-
-config SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
-	tristate
-	select SND_SOC_DA7219
-	select SND_SOC_MAX98357A
-	select SND_SOC_DMIC
-	select SND_SOC_HDAC_HDMI
-	select SND_SOC_INTEL_HDA_DSP_COMMON
 
 if SND_SOC_SOF_APOLLOLAKE
 

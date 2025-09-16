@@ -72,7 +72,7 @@ static struct tgfx {
 
 static void tgfx_timer(struct timer_list *t)
 {
-	struct tgfx *tgfx = from_timer(tgfx, t, timer);
+	struct tgfx *tgfx = timer_container_of(tgfx, t, timer);
 	struct input_dev *dev;
 	int data1, data2, i;
 

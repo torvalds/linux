@@ -215,7 +215,7 @@ enum hw_register_bits {
 
 	/* MVS_Px_INT_STAT, MVS_Px_INT_MASK (per-phy events) */
 	PHYEV_DEC_ERR		= (1U << 24),	/* Phy Decoding Error */
-	PHYEV_DCDR_ERR		= (1U << 23),	/* STP Deocder Error */
+	PHYEV_DCDR_ERR		= (1U << 23),	/* STP Decoder Error */
 	PHYEV_CRC_ERR		= (1U << 22),	/* STP CRC Error */
 	PHYEV_UNASSOC_FIS	= (1U << 19),	/* unassociated FIS rx'd */
 	PHYEV_AN		= (1U << 18),	/* SATA async notification */
@@ -347,7 +347,7 @@ enum sas_cmd_port_registers {
 	CMD_SATA_PORT_MEM_CTL0	= 0x158, /* SATA Port Memory Control 0 */
 	CMD_SATA_PORT_MEM_CTL1	= 0x15c, /* SATA Port Memory Control 1 */
 	CMD_XOR_MEM_BIST_CTL	= 0x160, /* XOR Memory BIST Control */
-	CMD_XOR_MEM_BIST_STAT	= 0x164, /* XOR Memroy BIST Status */
+	CMD_XOR_MEM_BIST_STAT	= 0x164, /* XOR Memory BIST Status */
 	CMD_DMA_MEM_BIST_CTL	= 0x168, /* DMA Memory BIST Control */
 	CMD_DMA_MEM_BIST_STAT	= 0x16c, /* DMA Memory BIST Status */
 	CMD_PORT_MEM_BIST_CTL	= 0x170, /* Port Memory BIST Control */

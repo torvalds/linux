@@ -14,6 +14,7 @@
 #define KMSG_COMPONENT "tape"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/export.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/bio.h>
@@ -35,7 +36,8 @@
 static void
 tape_std_assign_timeout(struct timer_list *t)
 {
-	struct tape_request *	request = from_timer(request, t, timer);
+	struct tape_request *	request = timer_container_of(request, t,
+								  timer);
 	struct tape_device *	device = request->device;
 	int rc;
 

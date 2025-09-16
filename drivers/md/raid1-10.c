@@ -283,7 +283,7 @@ static inline int raid1_check_read_range(struct md_rdev *rdev,
 static inline bool raid1_should_read_first(struct mddev *mddev,
 					   sector_t this_sector, int len)
 {
-	if ((mddev->recovery_cp < this_sector + len))
+	if ((mddev->resync_offset < this_sector + len))
 		return true;
 
 	if (mddev_is_clustered(mddev) &&
@@ -292,4 +292,14 @@ static inline bool raid1_should_read_first(struct mddev *mddev,
 		return true;
 
 	return false;
+}
+
+/*
+ * bio with REQ_RAHEAD or REQ_NOWAIT can fail at anytime, before such IO is
+ * submitted to the underlying disks, hence don't record badblocks or retry
+ * in this case.
+ */
+static inline bool raid1_should_handle_error(struct bio *bio)
+{
+	return !(bio->bi_opf & (REQ_RAHEAD | REQ_NOWAIT));
 }

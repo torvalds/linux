@@ -14,6 +14,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/compiler.h>
+#include <linux/export.h>
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/hrtimer.h>
@@ -40,6 +41,7 @@
 #include <asm/machine.h>
 #include <asm/stp.h>
 #include <asm/gmap.h>
+#include <asm/gmap_helpers.h>
 #include <asm/nmi.h>
 #include <asm/isc.h>
 #include <asm/sclp.h>
@@ -52,7 +54,6 @@
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "pci.h"
-#include "gmap.h"
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -2674,7 +2675,9 @@ static int kvm_s390_handle_pv(struct kvm *kvm, struct kvm_pv_cmd *cmd)
 		if (r)
 			break;
 
-		r = s390_disable_cow_sharing();
+		mmap_write_lock(kvm->mm);
+		r = gmap_helper_disable_cow_sharing();
+		mmap_write_unlock(kvm->mm);
 		if (r)
 			break;
 
@@ -4973,7 +4976,7 @@ static int vcpu_post_run_handle_fault(struct kvm_vcpu *vcpu)
 		 * previous protected guest. The old pages need to be destroyed
 		 * so the new guest can use them.
 		 */
-		if (gmap_destroy_page(vcpu->arch.gmap, gaddr)) {
+		if (kvm_s390_pv_destroy_page(vcpu->kvm, gaddr)) {
 			/*
 			 * Either KVM messed up the secure guest mapping or the
 			 * same page is mapped into multiple secure guests.
@@ -4995,7 +4998,7 @@ static int vcpu_post_run_handle_fault(struct kvm_vcpu *vcpu)
 		 * guest has not been imported yet. Try to import the page into
 		 * the protected guest.
 		 */
-		rc = gmap_convert_to_secure(vcpu->arch.gmap, gaddr);
+		rc = kvm_s390_pv_convert_to_secure(vcpu->kvm, gaddr);
 		if (rc == -EINVAL)
 			send_sig(SIGSEGV, current, 0);
 		if (rc != -ENXIO)
@@ -5060,6 +5063,30 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 	return vcpu_post_run_handle_fault(vcpu);
 }
 
+int noinstr kvm_s390_enter_exit_sie(struct kvm_s390_sie_block *scb,
+				    u64 *gprs, unsigned long gasce)
+{
+	int ret;
+
+	guest_state_enter_irqoff();
+
+	/*
+	 * The guest_state_{enter,exit}_irqoff() functions inform lockdep and
+	 * tracing that entry to the guest will enable host IRQs, and exit from
+	 * the guest will disable host IRQs.
+	 *
+	 * We must not use lockdep/tracing/RCU in this critical section, so we
+	 * use the low-level arch_local_irq_*() helpers to enable/disable IRQs.
+	 */
+	arch_local_irq_enable();
+	ret = sie64a(scb, gprs, gasce);
+	arch_local_irq_disable();
+
+	guest_state_exit_irqoff();
+
+	return ret;
+}
+
 #define PSW_INT_MASK (PSW_MASK_EXT | PSW_MASK_IO | PSW_MASK_MCHECK)
 static int __vcpu_run(struct kvm_vcpu *vcpu)
 {
@@ -5080,20 +5107,27 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		kvm_vcpu_srcu_read_unlock(vcpu);
 		/*
 		 * As PF_VCPU will be used in fault handler, between
-		 * guest_enter and guest_exit should be no uaccess.
+		 * guest_timing_enter_irqoff and guest_timing_exit_irqoff
+		 * should be no uaccess.
 		 */
-		local_irq_disable();
-		guest_enter_irqoff();
-		__disable_cpu_timer_accounting(vcpu);
-		local_irq_enable();
 		if (kvm_s390_pv_cpu_is_protected(vcpu)) {
 			memcpy(sie_page->pv_grregs,
 			       vcpu->run->s.regs.gprs,
 			       sizeof(sie_page->pv_grregs));
 		}
-		exit_reason = sie64a(vcpu->arch.sie_block,
-				     vcpu->run->s.regs.gprs,
-				     vcpu->arch.gmap->asce);
+
+		local_irq_disable();
+		guest_timing_enter_irqoff();
+		__disable_cpu_timer_accounting(vcpu);
+
+		exit_reason = kvm_s390_enter_exit_sie(vcpu->arch.sie_block,
+						      vcpu->run->s.regs.gprs,
+						      vcpu->arch.gmap->asce);
+
+		__enable_cpu_timer_accounting(vcpu);
+		guest_timing_exit_irqoff();
+		local_irq_enable();
+
 		if (kvm_s390_pv_cpu_is_protected(vcpu)) {
 			memcpy(vcpu->run->s.regs.gprs,
 			       sie_page->pv_grregs,
@@ -5109,10 +5143,6 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 				vcpu->arch.sie_block->gpsw.mask &= ~PSW_INT_MASK;
 			}
 		}
-		local_irq_disable();
-		__enable_cpu_timer_accounting(vcpu);
-		guest_exit_irqoff();
-		local_irq_enable();
 		kvm_vcpu_srcu_read_lock(vcpu);
 
 		rc = vcpu_post_run(vcpu, exit_reason);

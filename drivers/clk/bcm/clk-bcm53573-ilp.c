@@ -59,7 +59,7 @@ static unsigned long bcm53573_ilp_recalc_rate(struct clk_hw *hw,
 	/*
 	 * At minimum we should loop for a bit to let hardware do the
 	 * measurement. This isn't very accurate however, so for a better
-	 * precision lets try getting 20 different values for and use average.
+	 * precision let's try getting 20 different values and use average.
 	 */
 	while (num < 20) {
 		regmap_read(regmap, PMU_XTAL_FREQ_RATIO, &cur_val);

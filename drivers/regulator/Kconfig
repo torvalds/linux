@@ -122,6 +122,17 @@ config REGULATOR_AD5398
 	  This driver supports AD5398 and AD5821 current regulator chips.
 	  If building into module, its name is ad5398.ko.
 
+config REGULATOR_ADP5055
+	tristate "Analog Devices ADP5055 Triple Buck Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver controls an Analog Devices ADP5055 with triple buck
+	  regulators using an I2C interface.
+
+	  Say M here if you want to include support for the regulator as a
+	  module.
+
 config REGULATOR_ANATOP
 	tristate "Freescale i.MX on-chip ANATOP LDO regulators"
 	depends on ARCH_MXC || COMPILE_TEST
@@ -1142,6 +1153,17 @@ config REGULATOR_RASPBERRYPI_TOUCHSCREEN_ATTINY
 	  touchscreen unit. The regulator is used to enable power to the
 	  TC358762, display and to control backlight.
 
+config REGULATOR_RASPBERRYPI_TOUCHSCREEN_V2
+	tristate "Raspberry Pi 7-inch touchscreen panel V2 regulator"
+	depends on GPIOLIB
+	depends on I2C && OF
+	select GPIO_REGMAP
+	select REGMAP_I2C
+	help
+	  This driver supports regulator on the V2 Raspberry Pi touchscreen
+	  unit. The regulator is used to enable power to the display and to
+	  control backlight PWM.
+
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"
 	depends on MFD_RC5T583
@@ -1181,7 +1203,7 @@ config REGULATOR_RT4801
 	  The device supports two regulators (DSVP/DSVN).
 
 config REGULATOR_RT4803
-	tristate "Richtek RT4803 boost regualtor"
+	tristate "Richtek RT4803 boost regulator"
 	depends on I2C
 	select REGMAP_I2C
 	help
@@ -1579,10 +1601,16 @@ config REGULATOR_TPS65219
 	tristate "TI TPS65219 Power regulators"
 	depends on MFD_TPS65219 && OF
 	help
-	  This driver supports TPS65219 voltage regulator chips.
+	  This driver supports TPS65219, TPS65215, and TPS65214 voltage
+	  regulator chips.
 	  TPS65219 series of PMICs have 3 single phase BUCKs & 4 LDOs
-	  voltage regulators. It supports software based voltage control
-	  for different voltage domains.
+	  voltage regulators.
+	  TPS65215 PMIC has 3 single phase BUCKs & 2 LDOs.
+	  TPS65214 PMIC has 3 synchronous stepdown DC-DC converters & 2
+	  LDOs. One LDO supports a maximum output current of 300 mA and the
+	  other a maximum of 500 mA
+	  All 3 PMICs support software based voltage control for different
+	  voltage domains.
 
 config REGULATOR_TPS6594
 	tristate "TI TPS6594 Power regulators"

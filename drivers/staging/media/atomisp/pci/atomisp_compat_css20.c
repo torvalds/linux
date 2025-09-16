@@ -387,7 +387,7 @@ static int __destroy_stream(struct atomisp_sub_device *asd,
 	}
 
 	if (stream_env->stream_state == CSS_STREAM_STARTED) {
-		timeout = jiffies + msecs_to_jiffies(40);
+		timeout = jiffies + msecs_to_jiffies(200);
 		while (1) {
 			if (ia_css_stream_has_stopped(stream_env->stream))
 				break;
@@ -1845,7 +1845,7 @@ static enum ia_css_pipe_mode __pipe_id_to_pipe_mode(
 {
 	struct atomisp_device *isp = asd->isp;
 	struct camera_mipi_info *mipi_info = atomisp_to_sensor_mipi_info(
-		isp->inputs[asd->input_curr].camera);
+		isp->inputs[asd->input_curr].sensor);
 
 	switch (pipe_id) {
 	case IA_CSS_PIPE_ID_COPY:

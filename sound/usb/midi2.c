@@ -1058,7 +1058,8 @@ static void set_fallback_rawmidi_names(struct snd_usb_midi2_interface *umidi)
 			fill_ump_ep_name(ump, dev, dev->descriptor.iProduct);
 		/* fill fallback name */
 		if (!*ump->info.name)
-			sprintf(ump->info.name, "USB MIDI %d", rmidi->index);
+			scnprintf(ump->info.name, sizeof(ump->info.name),
+				  "USB MIDI %d", rmidi->index);
 		/* copy as rawmidi name if not set */
 		if (!*ump->core.name)
 			strscpy(ump->core.name, ump->info.name,

@@ -70,39 +70,6 @@ void sst_set_fw_state_locked(
 }
 
 /*
- * sst_wait_interruptible - wait on event
- *
- * @sst_drv_ctx: Driver context
- * @block: Driver block to wait on
- *
- * This function waits without a timeout (and is interruptable) for a
- * given block event
- */
-int sst_wait_interruptible(struct intel_sst_drv *sst_drv_ctx,
-				struct sst_block *block)
-{
-	int retval = 0;
-
-	if (!wait_event_interruptible(sst_drv_ctx->wait_queue,
-				block->condition)) {
-		/* event wake */
-		if (block->ret_code < 0) {
-			dev_err(sst_drv_ctx->dev,
-				"stream failed %d\n", block->ret_code);
-			retval = -EBUSY;
-		} else {
-			dev_dbg(sst_drv_ctx->dev, "event up\n");
-			retval = 0;
-		}
-	} else {
-		dev_err(sst_drv_ctx->dev, "signal interrupted\n");
-		retval = -EINTR;
-	}
-	return retval;
-
-}
-
-/*
  * sst_wait_timeout - wait on event for timeout
  *
  * @sst_drv_ctx: Driver context
@@ -292,7 +259,6 @@ int sst_pm_runtime_put(struct intel_sst_drv *sst_drv)
 {
 	int ret;
 
-	pm_runtime_mark_last_busy(sst_drv->dev);
 	ret = pm_runtime_put_autosuspend(sst_drv->dev);
 	if (ret < 0)
 		return ret;

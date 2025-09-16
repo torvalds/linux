@@ -53,7 +53,8 @@ int tms9914_take_control(struct gpib_board *board, struct tms9914_priv *priv, in
 }
 EXPORT_SYMBOL_GPL(tms9914_take_control);
 
-/* The agilent 82350B has a buggy implementation of tcs which interferes with the
+/*
+ * The agilent 82350B has a buggy implementation of tcs which interferes with the
  * operation of tca.  It appears to be based on the controller state machine
  * described in the TI 9900 TMS9914A data manual published in 1982.  This
  * manual describes tcs as putting the controller into a CWAS
@@ -66,7 +67,8 @@ EXPORT_SYMBOL_GPL(tms9914_take_control);
  * The rest of the tms9914 based drivers still use tms9914_take_control
  * directly (which does issue tcs).
  */
-int tms9914_take_control_workaround(struct gpib_board *board, struct tms9914_priv *priv, int synchronous)
+int tms9914_take_control_workaround(struct gpib_board *board,
+				    struct tms9914_priv *priv, int synchronous)
 {
 	if (synchronous)
 		return -ETIMEDOUT;
@@ -116,8 +118,8 @@ void tms9914_remote_enable(struct gpib_board *board, struct tms9914_priv *priv, 
 }
 EXPORT_SYMBOL_GPL(tms9914_remote_enable);
 
-void tms9914_request_system_control(struct gpib_board *board, struct tms9914_priv *priv,
-				    int request_control)
+int tms9914_request_system_control(struct gpib_board *board, struct tms9914_priv *priv,
+				   int request_control)
 {
 	if (request_control) {
 		write_byte(priv, AUX_RQC, AUXCR);
@@ -125,6 +127,7 @@ void tms9914_request_system_control(struct gpib_board *board, struct tms9914_pri
 		clear_bit(CIC_NUM, &board->status);
 		write_byte(priv, AUX_RLC, AUXCR);
 	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(tms9914_request_system_control);
 
@@ -192,7 +195,7 @@ void tms9914_release_holdoff(struct tms9914_priv *priv)
 }
 EXPORT_SYMBOL_GPL(tms9914_release_holdoff);
 
-int tms9914_enable_eos(struct gpib_board *board, struct tms9914_priv *priv, uint8_t eos_byte,
+int tms9914_enable_eos(struct gpib_board *board, struct tms9914_priv *priv, u8 eos_byte,
 		       int compare_8_bits)
 {
 	priv->eos = eos_byte;
@@ -209,7 +212,7 @@ void tms9914_disable_eos(struct gpib_board *board, struct tms9914_priv *priv)
 }
 EXPORT_SYMBOL(tms9914_disable_eos);
 
-int tms9914_parallel_poll(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *result)
+int tms9914_parallel_poll(struct gpib_board *board, struct tms9914_priv *priv, u8 *result)
 {
 	// execute parallel poll
 	write_byte(priv, AUX_CS | AUX_RPP, AUXCR);
@@ -235,7 +238,7 @@ static void set_ppoll_reg(struct tms9914_priv *priv, int enable,
 }
 
 void tms9914_parallel_poll_configure(struct gpib_board *board,
-				     struct tms9914_priv *priv, uint8_t config)
+				     struct tms9914_priv *priv, u8 config)
 {
 	priv->ppoll_enable = (config & PPC_DISABLE) == 0;
 	priv->ppoll_line = (config & PPC_DIO_MASK) + 1;
@@ -251,7 +254,8 @@ void tms9914_parallel_poll_response(struct gpib_board *board,
 }
 EXPORT_SYMBOL(tms9914_parallel_poll_response);
 
-void tms9914_serial_poll_response(struct gpib_board *board, struct tms9914_priv *priv, uint8_t status)
+void tms9914_serial_poll_response(struct gpib_board *board,
+				  struct tms9914_priv *priv, u8 status)
 {
 	unsigned long flags;
 
@@ -266,7 +270,7 @@ void tms9914_serial_poll_response(struct gpib_board *board, struct tms9914_priv 
 }
 EXPORT_SYMBOL(tms9914_serial_poll_response);
 
-uint8_t tms9914_serial_poll_status(struct gpib_board *board, struct tms9914_priv *priv)
+u8 tms9914_serial_poll_status(struct gpib_board *board, struct tms9914_priv *priv)
 {
 	u8 status;
 	unsigned long flags;
@@ -279,7 +283,8 @@ uint8_t tms9914_serial_poll_status(struct gpib_board *board, struct tms9914_priv
 }
 EXPORT_SYMBOL(tms9914_serial_poll_status);
 
-int tms9914_primary_address(struct gpib_board *board, struct tms9914_priv *priv, unsigned int address)
+int tms9914_primary_address(struct gpib_board *board,
+			    struct tms9914_priv *priv, unsigned int address)
 {
 	// put primary address in address0
 	write_byte(priv, address & ADDRESS_MASK, ADR);
@@ -321,7 +326,8 @@ static void update_talker_state(struct tms9914_priv *priv, unsigned int address_
 		if (address_status_bits & HR_ATN)
 			priv->talker_state = talker_addressed;
 		else
-			/* this could also be serial_poll_active, but the tms9914 provides no
+			/*
+			 * this could also be serial_poll_active, but the tms9914 provides no
 			 * way to distinguish, so we'll assume talker_active
 			 */
 			priv->talker_state = talker_active;
@@ -416,7 +422,7 @@ int tms9914_line_status(const struct gpib_board *board, struct tms9914_priv *pri
 }
 EXPORT_SYMBOL(tms9914_line_status);
 
-static int check_for_eos(struct tms9914_priv *priv, uint8_t byte)
+static int check_for_eos(struct tms9914_priv *priv, u8 byte)
 {
 	static const u8 seven_bit_compare_mask = 0x7f;
 
@@ -449,7 +455,8 @@ static int wait_for_read_byte(struct gpib_board *board, struct tms9914_priv *pri
 	return 0;
 }
 
-static inline uint8_t tms9914_read_data_in(struct gpib_board *board, struct tms9914_priv *priv, int *end)
+static inline u8 tms9914_read_data_in(struct gpib_board *board,
+				      struct tms9914_priv *priv, int *end)
 {
 	unsigned long flags;
 	u8 data;
@@ -480,7 +487,7 @@ static inline uint8_t tms9914_read_data_in(struct gpib_board *board, struct tms9
 	return data;
 }
 
-static int pio_read(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *buffer,
+static int pio_read(struct gpib_board *board, struct tms9914_priv *priv, u8 *buffer,
 		    size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -501,7 +508,7 @@ static int pio_read(struct gpib_board *board, struct tms9914_priv *priv, uint8_t
 	return retval;
 }
 
-int tms9914_read(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *buffer,
+int tms9914_read(struct gpib_board *board, struct tms9914_priv *priv, u8 *buffer,
 		 size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -561,7 +568,7 @@ static int pio_write_wait(struct gpib_board *board, struct tms9914_priv *priv)
 	return 0;
 }
 
-static int pio_write(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *buffer,
+static int pio_write(struct gpib_board *board, struct tms9914_priv *priv, u8 *buffer,
 		     size_t length, size_t *bytes_written)
 {
 	ssize_t retval = 0;
@@ -585,8 +592,8 @@ static int pio_write(struct gpib_board *board, struct tms9914_priv *priv, uint8_
 	return length;
 }
 
-int tms9914_write(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *buffer, size_t length,
-		  int send_eoi, size_t *bytes_written)
+int tms9914_write(struct gpib_board *board, struct tms9914_priv *priv,
+		  u8 *buffer, size_t length, int send_eoi, size_t *bytes_written)
 {
 	ssize_t retval = 0;
 
@@ -620,7 +627,8 @@ int tms9914_write(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *
 }
 EXPORT_SYMBOL(tms9914_write);
 
-static void check_my_address_state(struct gpib_board *board, struct tms9914_priv *priv, int cmd_byte)
+static void check_my_address_state(struct gpib_board *board,
+				   struct tms9914_priv *priv, int cmd_byte)
 {
 	if (cmd_byte == MLA(board->pad)) {
 		priv->primary_listen_addressed = 1;
@@ -655,7 +663,7 @@ static void check_my_address_state(struct gpib_board *board, struct tms9914_priv
 	}
 }
 
-int tms9914_command(struct gpib_board *board, struct tms9914_priv *priv,  uint8_t *buffer,
+int tms9914_command(struct gpib_board *board, struct tms9914_priv *priv,  u8 *buffer,
 		    size_t length, size_t *bytes_written)
 {
 	int retval = 0;
@@ -736,9 +744,10 @@ irqreturn_t tms9914_interrupt_have_status(struct gpib_board *board, struct tms99
 		unsigned short command_byte = read_byte(priv, CPTR) & gpib_command_mask;
 
 		switch (command_byte) {
-		case PPConfig:
+		case PP_CONFIG:
 			priv->ppoll_configure_state = 1;
-			/* AUX_PTS generates another UNC interrupt on the next command byte
+			/*
+			 * AUX_PTS generates another UNC interrupt on the next command byte
 			 * if it is in the secondary address group (such as PPE and PPD).
 			 */
 			write_byte(priv, AUX_PTS, AUXCR);
@@ -764,7 +773,7 @@ irqreturn_t tms9914_interrupt_have_status(struct gpib_board *board, struct tms99
 			break;
 		}
 
-		if (in_primary_command_group(command_byte) && command_byte != PPConfig)
+		if (in_primary_command_group(command_byte) && command_byte != PP_CONFIG)
 			priv->ppoll_configure_state = 0;
 	}
 
@@ -774,18 +783,18 @@ irqreturn_t tms9914_interrupt_have_status(struct gpib_board *board, struct tms99
 	}
 
 	if (status1 & HR_IFC) {
-		push_gpib_event(board, EventIFC);
+		push_gpib_event(board, EVENT_IFC);
 		clear_bit(CIC_NUM, &board->status);
 	}
 
 	if (status1 & HR_GET) {
-		push_gpib_event(board, EventDevTrg);
+		push_gpib_event(board, EVENT_DEV_TRG);
 		// clear dac holdoff
 		write_byte(priv, AUX_VAL, AUXCR);
 	}
 
 	if (status1 & HR_DCAS) {
-		push_gpib_event(board, EventDevClr);
+		push_gpib_event(board, EVENT_DEV_CLR);
 		// clear dac holdoff
 		write_byte(priv, AUX_VAL, AUXCR);
 		set_bit(DEV_CLEAR_BN, &priv->state);
@@ -859,14 +868,14 @@ EXPORT_SYMBOL_GPL(tms9914_online);
 
 #ifdef CONFIG_HAS_IOPORT
 // wrapper for inb
-uint8_t tms9914_ioport_read_byte(struct tms9914_priv *priv, unsigned int register_num)
+u8 tms9914_ioport_read_byte(struct tms9914_priv *priv, unsigned int register_num)
 {
 	return inb(priv->iobase + register_num * priv->offset);
 }
 EXPORT_SYMBOL_GPL(tms9914_ioport_read_byte);
 
 // wrapper for outb
-void tms9914_ioport_write_byte(struct tms9914_priv *priv, uint8_t data, unsigned int register_num)
+void tms9914_ioport_write_byte(struct tms9914_priv *priv, u8 data, unsigned int register_num)
 {
 	outb(data, priv->iobase + register_num * priv->offset);
 	if (register_num == AUXCR)
@@ -876,14 +885,14 @@ EXPORT_SYMBOL_GPL(tms9914_ioport_write_byte);
 #endif
 
 // wrapper for readb
-uint8_t tms9914_iomem_read_byte(struct tms9914_priv *priv, unsigned int register_num)
+u8 tms9914_iomem_read_byte(struct tms9914_priv *priv, unsigned int register_num)
 {
 	return readb(priv->mmiobase + register_num * priv->offset);
 }
 EXPORT_SYMBOL_GPL(tms9914_iomem_read_byte);
 
 // wrapper for writeb
-void tms9914_iomem_write_byte(struct tms9914_priv *priv, uint8_t data, unsigned int register_num)
+void tms9914_iomem_write_byte(struct tms9914_priv *priv, u8 data, unsigned int register_num)
 {
 	writeb(data, priv->mmiobase + register_num * priv->offset);
 	if (register_num == AUXCR)

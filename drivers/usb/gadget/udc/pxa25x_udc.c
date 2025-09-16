@@ -1574,7 +1574,7 @@ static inline void clear_ep_state (struct pxa25x_udc *dev)
 
 static void udc_watchdog(struct timer_list *t)
 {
-	struct pxa25x_udc	*dev = from_timer(dev, t, timer);
+	struct pxa25x_udc	*dev = timer_container_of(dev, t, timer);
 
 	local_irq_disable();
 	if (dev->ep0state == EP0_STALL
@@ -2348,15 +2348,14 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 	dev->transceiver = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
 
 	if (gpio_is_valid(dev->mach->gpio_pullup)) {
-		retval = devm_gpio_request(&pdev->dev, dev->mach->gpio_pullup,
-					   "pca25x_udc GPIO PULLUP");
+		retval = devm_gpio_request_one(&pdev->dev, dev->mach->gpio_pullup,
+					       GPIOF_OUT_INIT_LOW, "pca25x_udc GPIO PULLUP");
 		if (retval) {
 			dev_dbg(&pdev->dev,
 				"can't get pullup gpio %d, err: %d\n",
 				dev->mach->gpio_pullup, retval);
 			goto err;
 		}
-		gpio_direction_output(dev->mach->gpio_pullup, 0);
 	}
 
 	timer_setup(&dev->timer, udc_watchdog, 0);

@@ -1,0 +1,300 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/* Copyright (C) 2025 Toradex */
+
+/dts-v1/;
+
+#include <dt-bindings/pwm/pwm.h>
+
+#include "imx8mp-toradex-smarc.dtsi"
+
+/ {
+	model = "Toradex SMARC iMX8M Plus on Toradex SMARC Development Board";
+	compatible = "toradex,smarc-imx8mp-dev",
+		     "toradex,smarc-imx8mp",
+		     "fsl,imx8mp";
+
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "J64";
+		type = "a";
+
+		port {
+			native_hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_tx_out>;
+			};
+		};
+	};
+
+	reg_carrier_1p8v: regulator-carrier-1p8v {
+		compatible = "regulator-fixed";
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "On-carrier 1V8";
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,bitclock-master = <&codec_dai>;
+		simple-audio-card,format = "i2s";
+		simple-audio-card,frame-master = <&codec_dai>;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "tdx-smarc-wm8904";
+		simple-audio-card,routing =
+			"Headphone Jack", "HPOUTL",
+			"Headphone Jack", "HPOUTR",
+			"IN2L", "Line In Jack",
+			"IN2R", "Line In Jack",
+			"Microphone Jack", "MICBIAS",
+			"IN1L", "Microphone Jack";
+		simple-audio-card,widgets =
+			"Microphone", "Microphone Jack",
+			"Headphone", "Headphone Jack",
+			"Line", "Line In Jack";
+
+		codec_dai: simple-audio-card,codec {
+			clocks = <&audio_blk_ctrl IMX8MP_CLK_AUDIOMIX_SAI1_MCLK1>;
+			sound-dai = <&wm8904_1a>;
+		};
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai1>;
+		};
+	};
+};
+
+&aud2htx {
+	status = "okay";
+};
+
+/* SMARC SPI0 */
+&ecspi1 {
+	status = "okay";
+};
+
+/* SMARC GBE0 */
+&eqos {
+	status = "okay";
+};
+
+/* SMARC GBE1 */
+&fec {
+	status = "okay";
+};
+
+/* SMARC CAN1 */
+&flexcan1 {
+	status = "okay";
+};
+
+/* SMARC CAN0 */
+&flexcan2 {
+	status = "okay";
+};
+
+&gpio1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio7>,
+		    <&pinctrl_gpio8>,
+		    <&pinctrl_gpio9>,
+		    <&pinctrl_gpio10>,
+		    <&pinctrl_gpio11>,
+		    <&pinctrl_gpio12>,
+		    <&pinctrl_gpio13>;
+};
+
+&gpio4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio4>, <&pinctrl_gpio6>;
+};
+
+&hdmi_pvi {
+	status = "okay";
+};
+
+/* SMARC HDMI */
+&hdmi_tx {
+	status = "okay";
+
+	ports {
+		port@1 {
+			hdmi_tx_out: endpoint {
+				remote-endpoint = <&native_hdmi_connector_in>;
+			};
+		};
+	};
+};
+
+&hdmi_tx_phy {
+	status = "okay";
+};
+
+/* SMARC I2C_LCD */
+&i2c2 {
+	status = "okay";
+
+	i2c-mux@70 {
+		compatible = "nxp,pca9543";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* I2C on DSI Connector Pins 4/6 */
+		i2c_dsi_0: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		/* I2C on DSI Connector Pins 52/54 */
+		i2c_dsi_1: i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+};
+
+/* SMARC I2C_CAM0 */
+&i2c3 {
+	status = "okay";
+};
+
+/* SMARC I2C_GP */
+&i2c4 {
+	/* Audio Codec */
+	wm8904_1a: audio-codec@1a {
+		compatible = "wlf,wm8904";
+		reg = <0x1a>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sai1>, <&pinctrl_sai1_mclk>;
+		#sound-dai-cells = <0>;
+		clocks = <&audio_blk_ctrl IMX8MP_CLK_AUDIOMIX_SAI1_MCLK1>;
+		clock-names = "mclk";
+		AVDD-supply = <&reg_carrier_1p8v>;
+		CPVDD-supply = <&reg_carrier_1p8v>;
+		DBVDD-supply = <&reg_carrier_1p8v>;
+		DCVDD-supply = <&reg_carrier_1p8v>;
+		MICVDD-supply = <&reg_carrier_1p8v>;
+	};
+
+	/* On-Carrier Temperature Sensor */
+	temperature-sensor@4f {
+		compatible = "ti,tmp1075";
+		reg = <0x4f>;
+	};
+
+	/* On-Carrier EEPROM */
+	eeprom@57 {
+		compatible = "st,24c02", "atmel,24c02";
+		reg = <0x57>;
+		pagesize = <16>;
+	};
+};
+
+/* SMARC I2C_CAM1 */
+&i2c5 {
+	status = "okay";
+};
+
+/* SMARC I2C_PM */
+&i2c6 {
+	clock-frequency = <100000>;
+	status = "okay";
+
+	/* Fan controller */
+	fan_controller: fan@18 {
+		compatible = "ti,amc6821";
+		reg = <0x18>;
+		#pwm-cells = <2>;
+
+		fan {
+			cooling-levels = <255>;
+			pwms = <&fan_controller 40000 PWM_POLARITY_INVERTED>;
+		};
+	};
+
+	/* Current measurement into module VDD */
+	hwmon@40 {
+		compatible = "ti,ina226";
+		reg = <0x40>;
+		shunt-resistor = <5000>;
+	};
+};
+
+&lcdif3 {
+	status = "okay";
+};
+
+/* SMARC PCIE_A, M2 Key B */
+&pcie {
+	status = "okay";
+};
+
+&pcie_phy {
+	status = "okay";
+};
+
+/* SMARC LCD1_BKLT_PWM */
+&pwm1 {
+	status = "okay";
+};
+
+/* SMARC LCD0_BKLT_PWM */
+&pwm2 {
+	status = "okay";
+};
+
+/* SMARC I2S0 */
+&sai1 {
+	assigned-clocks = <&clk IMX8MP_CLK_SAI1>;
+	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
+	assigned-clock-rates = <24576000>;
+	fsl,sai-mclk-direction-output;
+	status = "okay";
+};
+
+/* SMARC HDMI Audio */
+&sound_hdmi {
+	status = "okay";
+};
+
+/* SMARC SER0, RS485. Optional M.2 KEY E */
+&uart1 {
+	linux,rs485-enabled-at-boot-time;
+	rs485-rts-active-low;
+	rs485-rx-during-tx;
+	status = "okay";
+};
+
+/* SMARC SER2 */
+&uart2 {
+	status = "okay";
+};
+
+/* SMARC SER1, used as the Linux Console */
+&uart4 {
+	status = "okay";
+};
+
+/* SMARC USB0 */
+&usb3_0 {
+	status = "okay";
+};
+
+/* SMARC USB1..4 */
+&usb3_1 {
+	status = "okay";
+};
+
+&usb3_phy0 {
+	status = "okay";
+};
+
+&usb3_phy1 {
+	status = "okay";
+};
+
+/* SMARC SDIO */
+&usdhc2 {
+	status = "okay";
+};

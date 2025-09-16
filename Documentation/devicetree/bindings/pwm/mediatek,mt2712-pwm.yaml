@@ -18,6 +18,7 @@ properties:
       - enum:
           - mediatek,mt2712-pwm
           - mediatek,mt6795-pwm
+          - mediatek,mt6991-pwm
           - mediatek,mt7622-pwm
           - mediatek,mt7623-pwm
           - mediatek,mt7628-pwm
@@ -32,6 +33,10 @@ properties:
           - enum:
               - mediatek,mt8195-pwm
           - const: mediatek,mt8183-pwm
+      - items:
+          - enum:
+              - mediatek,mt8196-pwm
+          - const: mediatek,mt6991-pwm
 
   reg:
     maxItems: 1

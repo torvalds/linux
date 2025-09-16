@@ -912,7 +912,7 @@ out:
 	return err;
 }
 
-int kvm_handle_mm_fault(struct kvm_vcpu *vcpu, unsigned long gpa, bool write)
+int kvm_handle_mm_fault(struct kvm_vcpu *vcpu, unsigned long gpa, bool write, int ecode)
 {
 	int ret;
 
@@ -921,8 +921,17 @@ int kvm_handle_mm_fault(struct kvm_vcpu *vcpu, unsigned long gpa, bool write)
 		return ret;
 
 	/* Invalidate this entry in the TLB */
-	vcpu->arch.flush_gpa = gpa;
-	kvm_make_request(KVM_REQ_TLB_FLUSH_GPA, vcpu);
+	if (!cpu_has_ptw || (ecode == EXCCODE_TLBM)) {
+		/*
+		 * With HW PTW, invalid TLB is not added when page fault. But
+		 * for EXCCODE_TLBM exception, stale TLB may exist because of
+		 * the last read access.
+		 *
+		 * With SW PTW, invalid TLB is added in TLB refill exception.
+		 */
+		vcpu->arch.flush_gpa = gpa;
+		kvm_make_request(KVM_REQ_TLB_FLUSH_GPA, vcpu);
+	}
 
 	return 0;
 }

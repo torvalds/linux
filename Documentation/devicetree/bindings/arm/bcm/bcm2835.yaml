@@ -52,6 +52,7 @@ properties:
       - description: BCM2837 based Boards
         items:
           - enum:
+              - raspberrypi,2-model-b-rev2
               - raspberrypi,3-model-a-plus
               - raspberrypi,3-model-b
               - raspberrypi,3-model-b-plus

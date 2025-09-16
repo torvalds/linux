@@ -870,23 +870,30 @@ static int ocelot_set_features(struct net_device *dev,
 
 static int ocelot_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
+	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+}
+
+static int ocelot_port_hwtstamp_get(struct net_device *dev,
+				    struct kernel_hwtstamp_config *cfg)
+{
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot *ocelot = priv->port.ocelot;
 	int port = priv->port.index;
 
-	/* If the attached PHY device isn't capable of timestamping operations,
-	 * use our own (when possible).
-	 */
-	if (!phy_has_hwtstamp(dev->phydev) && ocelot->ptp) {
-		switch (cmd) {
-		case SIOCSHWTSTAMP:
-			return ocelot_hwstamp_set(ocelot, port, ifr);
-		case SIOCGHWTSTAMP:
-			return ocelot_hwstamp_get(ocelot, port, ifr);
-		}
-	}
+	ocelot_hwstamp_get(ocelot, port, cfg);
 
-	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+	return 0;
+}
+
+static int ocelot_port_hwtstamp_set(struct net_device *dev,
+				    struct kernel_hwtstamp_config *cfg,
+				    struct netlink_ext_ack *extack)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->port.index;
+
+	return ocelot_hwstamp_set(ocelot, port, cfg, extack);
 }
 
 static int ocelot_change_mtu(struct net_device *dev, int new_mtu)
@@ -917,6 +924,8 @@ static const struct net_device_ops ocelot_port_netdev_ops = {
 	.ndo_set_features		= ocelot_set_features,
 	.ndo_setup_tc			= ocelot_setup_tc,
 	.ndo_eth_ioctl			= ocelot_ioctl,
+	.ndo_hwtstamp_get		= ocelot_port_hwtstamp_get,
+	.ndo_hwtstamp_set		= ocelot_port_hwtstamp_set,
 };
 
 struct net_device *ocelot_port_to_netdev(struct ocelot *ocelot, int port)

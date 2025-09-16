@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2019, 2025 Intel Corporation
  *****************************************************************************/
 
 #include <linux/units.h>
@@ -55,6 +55,7 @@ static void iwl1000_nic_config(struct iwl_priv *priv)
  * iwl_beacon_time_mask_low - mask of lower 32 bit of beacon time
  * @priv: pointer to iwl_priv data structure
  * @tsf_bits: number of bits need to shift for masking)
+ * Return: low 32 bits of beacon time mask
  */
 static inline u32 iwl_beacon_time_mask_low(struct iwl_priv *priv,
 					   u16 tsf_bits)
@@ -66,6 +67,7 @@ static inline u32 iwl_beacon_time_mask_low(struct iwl_priv *priv,
  * iwl_beacon_time_mask_high - mask of higher 32 bit of beacon time
  * @priv: pointer to iwl_priv data structure
  * @tsf_bits: number of bits need to shift for masking)
+ * Return: high 32 bits of beacon time mask
  */
 static inline u32 iwl_beacon_time_mask_high(struct iwl_priv *priv,
 					    u16 tsf_bits)
@@ -481,7 +483,7 @@ static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 /* NIC configuration for 6000 series */
 static void iwl6000_nic_config(struct iwl_priv *priv)
 {
-	switch (priv->trans->trans_cfg->device_family) {
+	switch (priv->trans->mac_cfg->device_family) {
 	case IWL_DEVICE_FAMILY_6005:
 	case IWL_DEVICE_FAMILY_6030:
 	case IWL_DEVICE_FAMILY_6000:

@@ -971,7 +971,7 @@ static const struct input_device_id *input_match_device(struct input_handler *ha
 {
 	const struct input_device_id *id;
 
-	for (id = handler->id_table; id->flags || id->driver_info; id++) {
+	for (id = handler->id_table; id->flags; id++) {
 		if (input_match_device_id(dev, id) &&
 		    (!handler->match || handler->match(handler, dev))) {
 			return id;
@@ -2249,7 +2249,7 @@ static void devm_input_device_unregister(struct device *dev, void *res)
  */
 static void input_repeat_key(struct timer_list *t)
 {
-	struct input_dev *dev = from_timer(dev, t, timer);
+	struct input_dev *dev = timer_container_of(dev, t, timer);
 
 	guard(spinlock_irqsave)(&dev->event_lock);
 

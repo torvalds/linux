@@ -96,10 +96,11 @@ static void cs_dsp_mock_bin_add_name_or_info(struct cs_dsp_mock_bin_builder *bui
 
 	if (info_len % 4) {
 		/* Create a padded string with length a multiple of 4 */
+		size_t copy_len = info_len;
 		info_len = round_up(info_len, 4);
 		tmp = kunit_kzalloc(builder->test_priv->test, info_len, GFP_KERNEL);
 		KUNIT_ASSERT_NOT_ERR_OR_NULL(builder->test_priv->test, tmp);
-		memcpy(tmp, info, info_len);
+		memcpy(tmp, info, copy_len);
 		info = tmp;
 	}
 
@@ -175,6 +176,9 @@ struct cs_dsp_mock_bin_builder *cs_dsp_mock_bin_init(struct cs_dsp_test *priv,
 {
 	struct cs_dsp_mock_bin_builder *builder;
 	struct wmfw_coeff_hdr *hdr;
+
+	KUNIT_ASSERT_LE(priv->test, format_version, 0xff);
+	KUNIT_ASSERT_LE(priv->test, fw_version, 0xffffff);
 
 	builder = kunit_kzalloc(priv->test, sizeof(*builder), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(priv->test, builder);

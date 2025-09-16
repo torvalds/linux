@@ -1,0 +1,1428 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2025 Toradex
+ *
+ * Common dtsi for Verdin AM62P SoM
+ *
+ * https://www.toradex.com/computer-on-modules/verdin-arm-family/ti-am62p
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/net/ti-dp83867.h>
+
+/ {
+	aliases {
+		can0 = &main_mcan0;
+		can1 = &mcu_mcan0;
+		eeprom0 = &som_eeprom;
+		ethernet0 = &cpsw_port1;
+		ethernet1 = &cpsw_port2;
+		i2c0 = &wkup_i2c0;
+		i2c1 = &main_i2c0;
+		i2c2 = &main_i2c1;
+		i2c3 = &mcu_i2c0;
+		i2c4 = &main_i2c3;
+		mmc0 = &sdhci0;
+		mmc1 = &sdhci1;
+		mmc2 = &sdhci2;
+		rtc0 = &som_rtc_i2c;
+		rtc1 = &wkup_rtc0;
+		serial0 = &main_uart1;
+		serial1 = &wkup_uart0;
+		serial2 = &main_uart0;
+		serial3 = &mcu_uart0;
+		serial4 = &main_uart6;
+		usb0 = &usb0;
+		usb1 = &usb1;
+	};
+
+	chosen {
+		stdout-path = "serial2:115200n8";
+	};
+
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb0_id>;
+		id-gpios = <&main_gpio0 31 GPIO_ACTIVE_HIGH>;
+		label = "USB_1";
+		self-powered;
+		vbus-supply = <&reg_usb0_vbus>;
+
+		port {
+			usb_dr_connector: endpoint {
+				remote-endpoint = <&usb0_ep>;
+			};
+		};
+	};
+
+	verdin_gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ctrl_wake1_mico>;
+		status = "disabled";
+
+		key-wakeup {
+			debounce-interval = <10>;
+			/* Verdin CTRL_WAKE1_MICO# (SODIMM 252) */
+			gpios = <&main_gpio0 1 GPIO_ACTIVE_LOW>;
+			label = "Wake-Up";
+			linux,code = <KEY_WAKEUP>;
+			wakeup-source;
+		};
+	};
+
+	memory@80000000 {
+		/* 2G RAM */
+		reg = <0x00000000 0x80000000 0x00000000 0x80000000>;
+		device_type = "memory";
+	};
+
+	opp-table {
+		/* Add 1.4GHz OPP. Requires VDD_CORE to be at 0.85V */
+		opp-1400000000 {
+			opp-hz = /bits/ 64 <1400000000>;
+			opp-supported-hw = <0x01 0x0004>;
+			clock-latency-ns = <6000000>;
+		};
+	};
+
+	reg_force_sleep_moci: regulator-force-sleep-moci {
+		compatible = "regulator-fixed";
+		/* Verdin CTRL_SLEEP_MOCI# (SODIMM 256) */
+		gpios = <&som_gpio_expander 0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-name = "CTRL_SLEEP_MOCI#";
+	};
+
+	/* Verdin SD_1 Power Supply */
+	reg_sd1_vmmc: regulator-sdhci1-vmmc {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sd1_pwr_en>;
+		/* Verdin SD_1_PWR_EN (SODIMM 76) */
+		gpios = <&main_gpio0 47 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		off-on-delay-us = <100000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "+V3.3_SD";
+		startup-delay-us = <2000>;
+	};
+
+	reg_sd1_vqmmc: regulator-sdhci1-vqmmc {
+		compatible = "regulator-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sd_vsel>;
+		/* PMIC_VSEL_SD */
+		gpios = <&main_gpio0 21 GPIO_ACTIVE_HIGH>;
+		regulator-name = "LDO1-VSEL-SD (PMIC)";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		states = <1800000 0x0>,
+			 <3300000 0x1>;
+		vin-supply = <&reg_sd_3v3_1v8>;
+	};
+
+	reg_usb0_vbus: regulator-usb0-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb0_en>;
+		/* Verdin USB_1_EN (SODIMM 155) */
+		gpios = <&main_gpio1 50 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "USB_1_EN";
+	};
+
+	/* Module Power Supply */
+	reg_vsodimm: regulator-vsodimm {
+		compatible = "regulator-fixed";
+		regulator-name = "+V_SODIMM";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		secure_tfa_ddr: tfa@9e780000 {
+			reg = <0x00 0x9e780000 0x00 0x80000>;
+			no-map;
+		};
+
+		secure_ddr: optee@9e800000 {
+			reg = <0x00 0x9e800000 0x00 0x01800000>; /* for OP-TEE */
+			no-map;
+		};
+
+		wkup_r5fss0_core0_memory_region: r5f-dma-memory@9c900000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00 0x9c900000 0x00 0x01e00000>;
+			no-map;
+		};
+	};
+};
+
+&main_pmx0 {
+	/* Verdin PWM_3_DSI */
+	pinctrl_epwm0_b: main-epwm0b-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01b8, PIN_OUTPUT, 2) /* (E20) SPI0_CS1.EHRPWM0_B */ /* SODIMM 19 */
+		>;
+	};
+
+	/* Verdin PWM_2 */
+	pinctrl_epwm2_a: main-epwm2a-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0124, PIN_OUTPUT, 4) /* (J25) MMC2_SDCD.EHRPWM2_A */ /* SODIMM 16 */
+		>;
+	};
+
+	/* Verdin PWM_1 */
+	pinctrl_epwm2_b: main-epwm2b-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0128, PIN_OUTPUT, 4) /* (K25) MMC2_SDWP.EHRPWM2_B */ /* SODIMM 15 */
+		>;
+	};
+
+	/* Verdin QSPI_1_CLK as GPIO (conflict with Verdin QSPI_1 interface) */
+	pinctrl_qspi1_clk_gpio: main-gpio0-0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0000, PIN_INPUT, 7) /* (P23) OSPI0_CLK.GPIO0_0 */ /* SODIMM 52 */
+		>;
+	};
+
+	/* Verdin CTRL_WAKE1_MICO# */
+	pinctrl_ctrl_wake1_mico: main-gpio0-1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0004, PIN_INPUT, 7) /* (N23) OSPI0_LBCLKO.GPIO0_1 */ /* SODIMM 252 */
+		>;
+	};
+
+	/* Verdin QSPI_1_DQS as GPIO (conflict with Verdin QSPI_1 interface) */
+	pinctrl_qspi1_dqs_gpio: main-gpio0-2-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0008, PIN_INPUT, 7) /* (P22) OSPI0_DQS.GPIO0_2 */ /* SODIMM 66 */
+		>;
+	};
+
+	/* Verdin QSPI_1_IO0 as GPIO (conflict with Verdin QSPI_1 interface) */
+	pinctrl_qspi1_io0_gpio: main-gpio0-3-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x000c, PIN_INPUT, 7) /* (L25) OSPI0_D0.GPIO0_3 */ /* SODIMM 56 */
+		>;
+	};
+
+	/* Verdin QSPI_1_IO1 as GPIO (conflict with Verdin QSPI_1 interface) */
+	pinctrl_qspi1_io1_gpio: main-gpio0-4-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0010, PIN_INPUT, 7) /* (N24) OSPI0_D1.GPIO0_4 */ /* SODIMM 58 */
+		>;
+	};
+
+	/* Verdin QSPI_1_IO2 as GPIO (conflict with Verdin QSPI_1 interface) */
+	pinctrl_qspi1_io2_gpio: main-gpio0-5-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0014, PIN_INPUT, 7) /* (N25) OSPI0_D2.GPIO0_5 */ /* SODIMM 60 */
+		>;
+	};
+
+	/* Verdin QSPI_1_IO3 as GPIO (conflict with Verdin QSPI_1 interface) */
+	pinctrl_qspi1_io3_gpio: main-gpio0-6-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0018, PIN_INPUT, 7) /* (M24) OSPI0_D3.GPIO0_6 */ /* SODIMM 62 */
+		>;
+	};
+
+	/* Verdin QSPI_1_CS# as GPIO (conflict with Verdin QSPI_1 interface) */
+	pinctrl_qspi1_cs_gpio: main-gpio0-11-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x002c, PIN_INPUT, 7) /* (M25) OSPI0_CSn0.GPIO0_11 */ /* SODIMM 54 */
+		>;
+	};
+
+	/* Verdin QSPI_1_CS2# as GPIO (conflict with Verdin QSPI_1 interface) */
+	pinctrl_qspi1_cs2_gpio: main-gpio0-12-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0030, PIN_INPUT, 7) /* (L24) OSPI0_CSn1.GPIO0_12 */ /* SODIMM 64 */
+		>;
+	};
+
+	/* Verdin MSP_37 as GPIO */
+	pinctrl_msp37_gpio: main-gpio0-13-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0034, PIN_INPUT, 7) /* (L22) OSPI0_CSn2.GPIO0_13 */ /* SODIMM 174 - WiFi_W_WKUP_HOST# */
+		>;
+	};
+
+	/* Verdin PCIE_1_RESET# */
+	pinctrl_pcie_1_reset: main-gpio0-14-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0038, PIN_INPUT, 7) /* (L23) OSPI0_CSn3.GPIO0_14 */ /* SODIMM 244 */
+		>;
+	};
+
+	pinctrl_sd_vsel: main-gpio0-21-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0054, PIN_INPUT, 7) /* (V24) GPMC0_AD6.GPIO0_21 */ /* PMIC_SD_VSEL */
+		>;
+	};
+
+	pinctrl_tpm_extint: main-gpio0-25-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0064, PIN_INPUT, 7) /* (AA25) GPMC0_AD10.GPIO0_25 */ /* TPM_EXTINT# */
+		>;
+	};
+
+	pinctrl_wifi_wkup_bt: main-gpio0-29-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0074, PIN_INPUT, 7) /* (AB24) GPMC0_AD14.GPIO0_29 */ /* WiFi_WKUP_BT# */
+		>;
+	};
+
+	pinctrl_wifi_wkup_wlan: main-gpio0-30-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0078, PIN_INPUT, 7) /* (AC24) GPMC0_AD15.GPIO0_30 */ /* WiFi_WKUP_WLAN# */
+		>;
+	};
+
+	/* Verdin USB_1_ID */
+	pinctrl_usb0_id: main-gpio0-31-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x007c, PIN_INPUT, 7) /* (Y25) GPMC0_CLK.GPIO0_31 */ /* SODIMM 161 */
+		>;
+	};
+
+	/* Verdin USB_1_OC# */
+	pinctrl_usb1_oc: main-gpio0-32-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0084, PIN_INPUT, 7) /* (R25) GPMC0_ADVn_ALE.GPIO0_32 */ /* SODIMM 157 */
+		>;
+	};
+
+	/* Verdin I2S_2_D_IN as GPIO (conflict with Verdin I2S_2 interface) */
+	pinctrl_i2s_2_d_in_gpio: main-gpio0-33-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0088, PIN_INPUT, 7) /* (R24) GPMC0_OEn_REn.GPIO0_33 */ /* SODIMM 48 */
+		>;
+	};
+
+	/* Verdin I2S_2_D_OUT as GPIO (conflict with Verdin I2S_2 interface) */
+	pinctrl_i2s_2_d_out_gpio: main-gpio0-34-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x008c, PIN_INPUT, 7) /* (T25) GPMC0_WEn.GPIO0_34 */ /* SODIMM 46 */
+		>;
+	};
+
+	/* Verdin I2S_2_BCLK as GPIO (conflict with Verdin I2S_2 interface) */
+	pinctrl_i2s_2_bclk_gpio: main-gpio0-35-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0090, PIN_INPUT, 7) /* (U24) GPMC0_BE0n_CLE.GPIO0_35 */ /* SODIMM 42 */
+		>;
+	};
+
+	pinctrl_eth_int: main-gpio0-36-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0094, PIN_INPUT, 7) /* (T24) GPMC0_BE1n.GPIO0_36 */ /* ETH_INT# */
+		>;
+	};
+
+	/* Verdin I2S_2_SYNC as GPIO (conflict with Verdin I2S_2 interface) */
+	pinctrl_i2s_2_sync_gpio: main-gpio0-37-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0098, PIN_INPUT, 7) /* (AA24) GPMC0_WAIT0.GPIO0_37 */ /* SODIMM 44 */
+		>;
+	};
+
+	/* Verdin DSI_1_INT# */
+	pinctrl_dsi1_int: main-gpio0-38-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x009c, PIN_INPUT, 7) /* (AD24) GPMC0_WAIT1.GPIO0_38 */ /* SODIMM 17 */
+		>;
+	};
+
+	/* Verdin DSI_1_BLK_EN# */
+	pinctrl_dsi1_bkl_en: main-gpio0-39-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00a0, PIN_INPUT, 7) /* (P24) GPMC0_WPn.GPIO0_39 */ /* SODIMM 21 */
+		>;
+	};
+
+	/* Verdin USB_2_OC# */
+	pinctrl_usb2_oc: main-gpio0-41-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00a8, PIN_INPUT, 7) /* (T23) GPMC0_CSn0.GPIO0_41 */ /* SODIMM 187 */
+		>;
+	};
+
+	/* Verdin ETH_2_RGMII_INT# */
+	pinctrl_eth2_rgmii_int: main-gpio0-42-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00ac, PIN_INPUT, 7) /* (U23) GPMC0_CSn1.GPIO0_42 */ /* SODIMM 189 */
+		>;
+	};
+
+	/* Verdin SD_1_PWR_EN */
+	pinctrl_sd1_pwr_en: main-gpio0-47-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00c0, PIN_INPUT, 7) /* (AA23) VOUT0_DATA2.GPIO0_47 */ /* SODIMM 76 */
+		>;
+	};
+
+	/* Verdin GPIO_5 */
+	pinctrl_gpio_5: main-gpio0-49-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00c8, PIN_INPUT, 7) /* (AB23) VOUT0_DATA4.GPIO0_49 */ /* SODIMM 216 */
+		>;
+	};
+
+	/* Verdin GPIO_6 */
+	pinctrl_gpio_6: main-gpio0-50-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00cc, PIN_INPUT, 7) /* (AD23) VOUT0_DATA5.GPIO0_50 */ /* SODIMM 218 */
+		>;
+	};
+
+	/* Verdin GPIO_7 */
+	pinctrl_gpio_7: main-gpio0-51-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00d0, PIN_INPUT, 7) /* (AC23) VOUT0_DATA6.GPIO0_51 */ /* SODIMM 220 */
+		>;
+	};
+
+	/* Verdin GPIO_8 */
+	pinctrl_gpio_8: main-gpio0-52-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00d4, PIN_INPUT, 7) /* (AE23) VOUT0_DATA7.GPIO0_52 */ /* SODIMM 222 */
+		>;
+	};
+
+	/* Verdin MSP_36 as GPIO */
+	pinctrl_msp36_gpio: main-gpio0-57-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00e8, PIN_INPUT, 7) /* (AD21) VOUT0_DATA12.GPIO0_57 */ /* SODIMM 172 - WiFi_BT_WKUP_HOST#  */
+		>;
+	};
+
+	pinctrl_wifi_sd_int: main-gpio0-59-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00f0, PIN_INPUT, 7) /* (AA20) VOUT0_DATA14.GPIO0_59 */ /* WIFI_SD_INT */
+		>;
+	};
+
+	pinctrl_wifi_spi_cs: main-gpio0-60-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00f4, PIN_INPUT, 7) /* (Y20) VOUT0_DATA15.GPIO0_60 */ /* WIFI_SPI_CS# */
+		>;
+	};
+
+	/* Verdin PWM_3_DSI as GPIO */
+	pinctrl_pwm3_dsi_gpio: main-gpio1-16-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01b8, PIN_INPUT, 7) /* (E20) SPI0_CS1.GPIO1_16 */ /* SODIMM 19 */
+		>;
+	};
+
+	/* Verdin SD_1_CD# */
+	pinctrl_sd1_cd: main-gpio1-48-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0240, PIN_INPUT_PULLUP, 7) /* (D23) MMC1_SDCD.GPIO1_48 */ /* SODIMM 84 */
+		>;
+	};
+
+	/* Verdin MSP_29 as GPIO */
+	pinctl_msp29_gpio: main-gpio1-49-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0244, PIN_INPUT, 7) /* (D24) MMC1_SDWP.GPIO1_49 */ /* SODIMM 154 */
+		>;
+	};
+
+	/* Verdin USB_1_EN */
+	pinctrl_usb0_en: main-gpio1-50-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0254, PIN_INPUT, 7) /* (G22) USB0_DRVVBUS.GPIO1_50 */ /* SODIMM 155 */
+		>;
+	};
+
+	/* Verdin I2C_1 */
+	pinctrl_main_i2c0: main-i2c0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01e0, PIN_INPUT_PULLUP, 0) /* (B25) I2C0_SCL */ /* SODIMM 14 */
+			AM62PX_IOPAD(0x01e4, PIN_INPUT_PULLUP, 0) /* (A24) I2C0_SDA */ /* SODIMM 12 */
+		>;
+	};
+
+	/* Verdin I2C_2_DSI */
+	pinctrl_main_i2c1: main-i2c1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01e8, PIN_INPUT_PULLUP, 0) /* (C24) I2C1_SCL */ /* SODIMM 55 */
+			AM62PX_IOPAD(0x01ec, PIN_INPUT_PULLUP, 0) /* (B24) I2C1_SDA */ /* SODIMM 53 */
+		>;
+	};
+
+	/* Verdin I2C_4_CSI */
+	pinctrl_main_i2c3: main-i2c3-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01d0, PIN_INPUT_PULLUP, 2) /* (A23) UART0_CTSn.I2C3_SCL */ /* SODIMM 95 */
+			AM62PX_IOPAD(0x01d4, PIN_INPUT_PULLUP, 2) /* (C22) UART0_RTSn.I2C3_SDA */ /* SODIMM 93 */
+		>;
+	};
+
+	/* Verdin CAN_1 */
+	pinctrl_main_mcan0: main-mcan0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01dc, PIN_INPUT, 0)  /* (F20) MCAN0_RX */ /* SODIMM 22 */
+			AM62PX_IOPAD(0x01d8, PIN_OUTPUT, 0) /* (B23) MCAN0_TX */ /* SODIMM 20 */
+		>;
+	};
+
+	/* Verdin MSP_3/MSP_8 as CAN */
+	pinctrl_main_mcan1: main-mcan1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00b4, PIN_INPUT, 5)  /* (U25) GPMC0_CSn3.MCAN1_RX */ /* SODIMM 92  */
+			AM62PX_IOPAD(0x00b0, PIN_OUTPUT, 5) /* (T22) GPMC0_CSn2.MCAN1_TX */ /* SODIMM 104 */
+		>;
+	};
+
+	/* Verdin SD_1 */
+	pinctrl_sdhci1: main-mmc1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x023c, PIN_INPUT,  0) /* (H20) MMC1_CMD  */ /* SODIMM 74 */
+			AM62PX_IOPAD(0x0234, PIN_OUTPUT, 0) /* (J24) MMC1_CLK  */ /* SODIMM 78 */
+			AM62PX_IOPAD(0x0230, PIN_INPUT,  0) /* (H21) MMC1_DAT0 */ /* SODIMM 80 */
+			AM62PX_IOPAD(0x022c, PIN_INPUT,  0) /* (H23) MMC1_DAT1 */ /* SODIMM 82 */
+			AM62PX_IOPAD(0x0228, PIN_INPUT,  0) /* (H22) MMC1_DAT2 */ /* SODIMM 70 */
+			AM62PX_IOPAD(0x0224, PIN_INPUT,  0) /* (H25) MMC1_DAT3 */ /* SODIMM 72 */
+		>;
+	};
+
+	/* On-module Wi-Fi on WB SKUs, module-specific SDIO otherwise */
+	pinctrl_sdhci2: main-mmc2-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0120, PIN_INPUT,  0) /* (K24) MMC2_CMD  */ /* SODIMM 160, WiFi_SDIO_CMD   */
+			AM62PX_IOPAD(0x0118, PIN_OUTPUT, 0) /* (K21) MMC2_CLK  */ /* SODIMM 156, WiFi_SDIO_CLK   */
+			AM62PX_IOPAD(0x011C, PIN_INPUT,  0) /* () MMC2_CLKLB   */
+			AM62PX_IOPAD(0x0114, PIN_INPUT,  0) /* (K23) MMC2_DAT0 */ /* SODIMM 162, WiFi_SDIO_DATA0 */
+			AM62PX_IOPAD(0x0110, PIN_INPUT,  0) /* (K22) MMC2_DAT1 */ /* SODIMM 164, WiFi_SDIO_DATA1 */
+			AM62PX_IOPAD(0x010c, PIN_INPUT,  0) /* (L20) MMC2_DAT2 */ /* SODIMM 166, WiFi_SDIO_DATA2 */
+			AM62PX_IOPAD(0x0108, PIN_INPUT,  0) /* (L21) MMC2_DAT3 */ /* SODIMM 168, WiFi_SDIO_DATA3 */
+		>;
+	};
+
+	/* Verdin QSPI_1 */
+	pinctrl_ospi0: main-ospi0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0000, PIN_OUTPUT, 0) /* (P23) OSPI0_CLK  */ /* SODIMM 52 */
+			AM62PX_IOPAD(0x002c, PIN_OUTPUT, 0) /* (M25) OSPI0_CSn0 */ /* SODIMM 54 */
+			AM62PX_IOPAD(0x0030, PIN_OUTPUT, 0) /* (L24) OSPI0_CSn1 */ /* SODIMM 64 */
+			AM62PX_IOPAD(0x000c, PIN_INPUT,  0) /* (L25) OSPI0_D0   */ /* SODIMM 56 */
+			AM62PX_IOPAD(0x0010, PIN_INPUT,  0) /* (N24) OSPI0_D1   */ /* SODIMM 58 */
+			AM62PX_IOPAD(0x0014, PIN_INPUT,  0) /* (N25) OSPI0_D2   */ /* SODIMM 60 */
+			AM62PX_IOPAD(0x0018, PIN_INPUT,  0) /* (M24) OSPI0_D3   */ /* SODIMM 62 */
+			AM62PX_IOPAD(0x0008, PIN_INPUT,  0) /* (P22) OSPI0_DQS  */ /* SODIMM 66 */
+		>;
+	};
+
+	/* Verdin ETH_1 RGMII (On-module PHY) */
+	pinctrl_rgmii1: main-rgmii1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x014c, PIN_INPUT, 0) /* (B15) RGMII1_RD0    */ /* RGMII_RXD0   */
+			AM62PX_IOPAD(0x0150, PIN_INPUT, 0) /* (B16) RGMII1_RD1    */ /* RGMII_RXD1   */
+			AM62PX_IOPAD(0x0154, PIN_INPUT, 0) /* (A14) RGMII1_RD2    */ /* RGMII_RXD2   */
+			AM62PX_IOPAD(0x0158, PIN_INPUT, 0) /* (B14) RGMII1_RD3    */ /* RGMII_RXD3   */
+			AM62PX_IOPAD(0x0148, PIN_INPUT, 0) /* (A16) RGMII1_RXC    */ /* RGMII_RXC    */
+			AM62PX_IOPAD(0x0144, PIN_INPUT, 0) /* (A15) RGMII1_RX_CTL */ /* RGMII_RX_CTL */
+			AM62PX_IOPAD(0x0134, PIN_INPUT, 0) /* (A18) RGMII1_TD0    */ /* RGMII_TXD0   */
+			AM62PX_IOPAD(0x0138, PIN_INPUT, 0) /* (C17) RGMII1_TD1    */ /* RGMII_TXD1   */
+			AM62PX_IOPAD(0x013c, PIN_INPUT, 0) /* (A17) RGMII1_TD2    */ /* RGMII_TXD2   */
+			AM62PX_IOPAD(0x0140, PIN_INPUT, 0) /* (C16) RGMII1_TD3    */ /* RGMII_TXD3   */
+			AM62PX_IOPAD(0x0130, PIN_INPUT, 0) /* (B17) RGMII1_TXC    */ /* RGMII_TXC    */
+			AM62PX_IOPAD(0x012c, PIN_INPUT, 0) /* (B18) RGMII1_TX_CTL */ /* RGMII_TX_CTL */
+		>;
+	};
+
+	/* Verdin ETH_2 RGMII */
+	pinctrl_rgmii2: main-rgmii2-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0184, PIN_INPUT, 0) /* (E19) RGMII2_RD0    */ /* SODIMM 201 */
+			AM62PX_IOPAD(0x0188, PIN_INPUT, 0) /* (E16) RGMII2_RD1    */ /* SODIMM 203 */
+			AM62PX_IOPAD(0x018c, PIN_INPUT, 0) /* (E17) RGMII2_RD2    */ /* SODIMM 205 */
+			AM62PX_IOPAD(0x0190, PIN_INPUT, 0) /* (C19) RGMII2_RD3    */ /* SODIMM 207 */
+			AM62PX_IOPAD(0x0180, PIN_INPUT, 0) /* (D19) RGMII2_RXC    */ /* SODIMM 197 */
+			AM62PX_IOPAD(0x017c, PIN_INPUT, 0) /* (F19) RGMII2_RX_CTL */ /* SODIMM 199 */
+			AM62PX_IOPAD(0x016c, PIN_INPUT, 0) /* (B19) RGMII2_TD0    */ /* SODIMM 221 */
+			AM62PX_IOPAD(0x0170, PIN_INPUT, 0) /* (A21) RGMII2_TD1    */ /* SODIMM 219 */
+			AM62PX_IOPAD(0x0174, PIN_INPUT, 0) /* (D17) RGMII2_TD2    */ /* SODIMM 217 */
+			AM62PX_IOPAD(0x0178, PIN_INPUT, 0) /* (A19) RGMII2_TD3    */ /* SODIMM 215 */
+			AM62PX_IOPAD(0x0168, PIN_INPUT, 0) /* (D16) RGMII2_TXC    */ /* SODIMM 213 */
+			AM62PX_IOPAD(0x0164, PIN_INPUT, 0) /* (A20) RGMII2_TX_CTL */ /* SODIMM 211 */
+		>;
+	};
+
+	/* TPM SPI, Optional Module Specific SPI */
+	pinctrl_main_spi0: main-spi0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01bc, PIN_INPUT,  0) /* (B21) SPI0_CLK */ /* TPM_SPI_CLK  - SODIMM 148 */
+			AM62PX_IOPAD(0x01c0, PIN_OUTPUT, 0) /* (B20) SPI0_D0  */ /* TPM_SPI_MOSI - SODIMM 150 */
+			AM62PX_IOPAD(0x01c4, PIN_INPUT,  0) /* (C21) SPI0_D1  */ /* TPM_SPI_MISO - SODIMM 152 */
+			AM62PX_IOPAD(0x01b4, PIN_INPUT,  0) /* (D20) SPI0_CS0 */ /* TPM_SPI_CS */
+		>;
+	};
+
+	/* Verdin SPI_1 */
+	pinctrl_main_spi1: main-spi1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0020, PIN_INPUT,  1) /* (N22) OSPI0_D5.SPI1_CLK */ /* SODIMM 196 */
+			AM62PX_IOPAD(0x0024, PIN_OUTPUT, 1) /* (P21) OSPI0_D6.SPI1_D0  */ /* SODIMM 200 */
+			AM62PX_IOPAD(0x0028, PIN_INPUT,  1) /* (N20) OSPI0_D7.SPI1_D1  */ /* SODIMM 198 */
+		>;
+	};
+
+	/* Verdin SPI_1_CS */
+	pinctrl_main_spi1_cs0: main-spi1-cs0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x001c, PIN_OUTPUT, 1) /* (N21) OSPI0_D4.SPI1_CS0 */ /* SODIMM 202 */
+		>;
+	};
+
+	/* Verdin I2S_1 MCLK */
+	pinctrl_i2s1_mclk: main-system-audio-ext-reflock0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00c4, PIN_OUTPUT, 5) /* (Y23) VOUT0_DATA3.AUDIO_EXT_REFCLK0 */ /* SODIMM 38 */
+		>;
+	};
+
+	pinctrl_eth_clock: main-system-clkout0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01f0, PIN_OUTPUT_PULLUP, 5) /* (C25) EXT_REFCLK1.CLKOUT0 */ /* ETH_25MHz_CLK */
+		>;
+	};
+
+	pinctrl_pmic_extint: main-system-extint-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01f4, PIN_INPUT, 0) /* (C23) EXTINTn */ /* PMIC_EXTINT# */
+		>;
+	};
+
+	/* Verdin UART_3, used as the Linux console */
+	pinctrl_uart0: main-uart0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x1c8, PIN_INPUT,  0) /* (A22) UART0_RXD */ /* SODIMM 147 */
+			AM62PX_IOPAD(0x1cc, PIN_OUTPUT, 0) /* (B22) UART0_TXD */ /* SODIMM 149 */
+		>;
+	};
+
+	/* Verdin UART_1 */
+	pinctrl_uart1: main-uart1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01ac, PIN_INPUT,  2) /* (G23) MCASP0_AFSR.UART1_RXD  */ /* SODIMM 129 */
+			AM62PX_IOPAD(0x01b0, PIN_OUTPUT, 2) /* (G20) MCASP0_ACLKR.UART1_TXD */ /* SODIMM 131 */
+			AM62PX_IOPAD(0x0194, PIN_INPUT,  2) /* (D25) MCASP0_AXR3.UART1_CTSn */ /* SODIMM 135 */
+			AM62PX_IOPAD(0x0198, PIN_OUTPUT, 2) /* (E25) MCASP0_AXR2.UART1_RTSn */ /* SODIMM 133 */
+		>;
+	};
+
+	/* Verdin MSP 41, 42, 44 and 45 as UART */
+	pinctrl_uart2: main-uart2-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00b8, PIN_INPUT,  4) /* (AE24) VOUT0_DATA0.UART2_RXD */ /* SODIMM 192 */
+			AM62PX_IOPAD(0x00bc, PIN_OUTPUT, 4) /* (W23) VOUT0_DATA1.UART2_TXD  */ /* SODIMM 190 */
+			AM62PX_IOPAD(0x0104, PIN_INPUT,  4) /* (Y21) VOUT0_PCLK.UART2_CTSn  */ /* SODIMM 184 */
+			AM62PX_IOPAD(0x0100, PIN_OUTPUT, 4) /* (W20) VOUT0_VSYNC.UART2_RTSn */ /* SODIMM 186 */
+		>;
+	};
+
+	/* Bluetooth on WB SKUs */
+	pinctrl_uart6: main-uart6-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x00d8, PIN_INPUT,  4) /* (AE22) VOUT0_DATA8.UART6_RXD   */ /* WiFi_UART_RXD */
+			AM62PX_IOPAD(0x00dc, PIN_OUTPUT, 4) /* (AC22) VOUT0_DATA9.UART6_TXD   */ /* WiFi_UART_TXD */
+			AM62PX_IOPAD(0x00e4, PIN_INPUT,  4) /* (AE21) VOUT0_DATA11.UART6_CTSn */ /* WiFi_UART_CTS */
+			AM62PX_IOPAD(0x00e0, PIN_OUTPUT, 4) /* (W22)  VOUT0_DATA10.UART6_RTSn */ /* WiFi_UART_RTS */
+		>;
+	};
+
+	/* Verdin USB_2_EN */
+	pinctrl_usb1: main-usb1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0258, PIN_OUTPUT, 0) /* (G21) USB1_DRVVBUS */ /* SODIMM 185 */
+		>;
+	};
+
+	/* Verdin I2S_1 */
+	pinctrl_mcasp0: mcasp0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x01a4, PIN_INPUT, 0) /* (F24) MCASP0_ACLKX */ /* SODIMM 30 */
+			AM62PX_IOPAD(0x01a8, PIN_INPUT, 0) /* (F25) MCASP0_AFSX  */ /* SODIMM 32 */
+			AM62PX_IOPAD(0x01a0, PIN_INPUT, 0) /* (F23) MCASP0_AXR0  */ /* SODIMM 34 */
+			AM62PX_IOPAD(0x019c, PIN_INPUT, 0) /* (E24) MCASP0_AXR1  */ /* SODIMM 36 */
+		>;
+	};
+
+	/* Verdin I2S_2 */
+	pinctrl_mcasp1: mcasp1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0090, PIN_INPUT, 2) /* (U24)  GPMC0_BE0n_CLE.MCASP1_ACLKX */ /* SODIMM 42 */
+			AM62PX_IOPAD(0x0098, PIN_INPUT, 2) /* (AA24) GPMC0_WAIT0.MCASP1_AFSX     */ /* SODIMM 44 */
+			AM62PX_IOPAD(0x008c, PIN_INPUT, 2) /* (T25)  GPMC0_WEn.MCASP1_AXR0       */ /* SODIMM 46 */
+			AM62PX_IOPAD(0x0088, PIN_INPUT, 2) /* (R24)  GPMC0_OEn_REn.MCASP1_AXR1   */ /* SODIMM 48 */
+		>;
+	};
+
+	/* MDIO, shared by Verdin ETH_1 (On-module PHY) and Verdin ETH_2_RGMII */
+	pinctrl_mdio: mdio0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x0160, PIN_OUTPUT, 0) /* (F17) MDIO0_MDC  */ /* SODIMM 193 */
+			AM62PX_IOPAD(0x015c, PIN_INPUT,  0) /* (F16) MDIO0_MDIO */ /* SODIMM 191 */
+		>;
+	};
+};
+
+&mcu_pmx0 {
+	/* Verdin GPIO_1 */
+	pinctrl_gpio_1: mcu-gpio0-1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x0004, PIN_INPUT, 7) /* (E10) MCU_SPI0_CS1.MCU_GPIO0_1 */ /* SODIMM 206 */
+		>;
+	};
+
+	/* Verdin GPIO_2 */
+	pinctrl_gpio_2: mcu-gpio0-2-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x0008, PIN_INPUT, 7) /* (C10) MCU_SPI0_CLK.MCU_GPIO0_2 */ /* SODIMM 208 */
+		>;
+	};
+
+	/* Verdin GPIO_3 */
+	pinctrl_gpio_3: mcu-gpio0-3-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x000c, PIN_INPUT, 7) /* (B11) MCU_SPI0_D0.MCU_GPIO0_3 */ /* SODIMM 210 */
+		>;
+	};
+
+	/* Verdin GPIO_4 */
+	pinctrl_gpio_4: mcu-gpio0-4-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x0010, PIN_INPUT, 7) /* (D10) MCU_SPI0_D1.MCU_GPIO0_4 */ /* SODIMM 212 */
+		>;
+	};
+
+	/* Verdin I2C_3_HDMI */
+	pinctrl_mcu_i2c0: mcu-i2c0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x0044, PIN_INPUT_PULLUP, 0) /* (E11) MCU_I2C0_SCL */ /* SODIMM 59 */
+			AM62PX_MCU_IOPAD(0x0048, PIN_INPUT_PULLUP, 0) /* (D11) MCU_I2C0_SDA */ /* SODIMM 57 */
+		>;
+	};
+
+	/* Verdin CAN_2 */
+	pinctrl_mcu_mcan0: mcu-mcan0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x0038, PIN_INPUT,  0) /* (D6) MCU_MCAN0_RX */ /* SODIMM 22 */
+			AM62PX_MCU_IOPAD(0x0034, PIN_OUTPUT, 0) /* (E8) MCU_MCAN0_TX */ /* SODIMM 20 */
+		>;
+	};
+
+	/* Verdin MSP_13/MSP_18 as CAN */
+	pinctrl_mcu_mcan1: mcu-mcan1-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x0040, PIN_INPUT,  0) /* (E7) MCU_MCAN1_RX */ /* SODIMM 116 */
+			AM62PX_MCU_IOPAD(0x003c, PIN_OUTPUT, 0) /* (F8) MCU_MCAN1_TX */ /* SODIMM 128 */
+		>;
+	};
+
+	/* Verdin UART_4 */
+	pinctrl_mcu_uart0: mcu-uart0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x0014, PIN_INPUT,  0) /* (B6) MCU_UART0_RXD */ /* SODIMM 151 */
+			AM62PX_MCU_IOPAD(0x0018, PIN_OUTPUT, 0) /* (C8) MCU_UART0_TXD */ /* SODIMM 153 */
+		>;
+	};
+
+	/* On-module I2C - PMIC_I2C */
+	pinctrl_wkup_i2c0: wkup-i2c0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x004c, PIN_INPUT, 0) /* (A13) WKUP_I2C0_SCL */ /* PMIC_I2C_SCL */
+			AM62PX_MCU_IOPAD(0x0050, PIN_INPUT, 0) /* (C11) WKUP_I2C0_SDA */ /* PMIC_I2C_SDA */
+		>;
+	};
+
+	/* Verdin CSI_1_MCLK */
+	pinctrl_wkup_clkout0: wkup-system-clkout0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x0084, PIN_OUTPUT, 0) /* (F13) WKUP_CLKOUT0 */ /* SODIMM 91 */
+		>;
+	};
+
+	/* Verdin UART_2 */
+	pinctrl_wkup_uart0: wkup-uart0-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_MCU_IOPAD(0x002c, PIN_INPUT,  0) /* (C7) WKUP_UART0_CTSn */ /* SODIMM 143 */
+			AM62PX_MCU_IOPAD(0x0030, PIN_OUTPUT, 0) /* (C6) WKUP_UART0_RTSn */ /* SODIMM 141 */
+			AM62PX_MCU_IOPAD(0x0024, PIN_INPUT,  0) /* (D8) WKUP_UART0_RXD  */ /* SODIMM 137 */
+			AM62PX_MCU_IOPAD(0x0028, PIN_OUTPUT, 0) /* (D7) WKUP_UART0_TXD  */ /* SODIMM 139 */
+		>;
+	};
+};
+
+/* Verdin I2S_1_MCLK */
+&audio_refclk0 {
+	assigned-clock-rates = <25000000>;
+};
+
+&cpsw3g {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii1>;
+	status = "disabled";
+};
+
+/* MDIO, shared by Verdin ETH_1 (On-module PHY) and Verdin ETH_2_RGMII */
+&cpsw3g_mdio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mdio>, <&pinctrl_eth_clock>;
+	assigned-clocks = <&k3_clks 157 36>;
+	assigned-clock-parents = <&k3_clks 157 38>;
+	assigned-clock-rates = <25000000>;
+	status = "disabled";
+
+	som_eth_phy: ethernet-phy@0 {
+		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_eth_int>;
+		interrupt-parent = <&main_gpio0>;
+		interrupts = <36 IRQ_TYPE_EDGE_FALLING>;
+		ti,clk-output-sel = <DP83867_CLK_O_SEL_OFF>;
+		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
+		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+	};
+};
+
+/* Verdin ETH_1 (On-module PHY) */
+&cpsw_port1 {
+	phy-handle = <&som_eth_phy>;
+	phy-mode = "rgmii-rxid";
+	status = "disabled";
+};
+
+/* Verdin ETH_2_RGMII */
+&cpsw_port2 {
+	status = "disabled";
+};
+
+/* Verdin PWM_3_DSI */
+&epwm0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_epwm0_b>;
+	status = "disabled";
+};
+
+/* Verdin PWM_1, PWM_2 */
+&epwm2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_epwm2_a>, <&pinctrl_epwm2_b>;
+	status = "disabled";
+};
+
+&mailbox0_cluster0 {
+	status = "okay";
+
+	mbox_r5_0: mbox-r5-0 {
+		ti,mbox-rx = <0 0 0>;
+		ti,mbox-tx = <1 0 0>;
+	};
+};
+
+&mailbox0_cluster1 {
+	status = "okay";
+
+	mbox_mcu_r5_0: mbox-mcu-r5-0 {
+		ti,mbox-rx = <0 0 0>;
+		ti,mbox-tx = <1 0 0>;
+	};
+};
+
+&main0_alert {
+	temperature = <95000>;
+};
+
+&main0_crit {
+	temperature = <105000>;
+};
+
+&main1_alert {
+	temperature = <95000>;
+};
+
+&main1_crit {
+	temperature = <105000>;
+};
+
+&main2_alert {
+	temperature = <95000>;
+};
+
+&main2_crit {
+	temperature = <105000>;
+};
+
+&main_gpio0 {
+	gpio-line-names =
+		"SODIMM_52",
+		"SODIMM_252",
+		"SODIMM_66",
+		"SODIMM_56",
+		"SODIMM_58",
+		"SODIMM_60",
+		"SODIMM_62",
+		"",
+		"",
+		"",
+		"", /* 10 */
+		"SODIMM_54",
+		"SODIMM_64",
+		"SODIMM_174",
+		"SODIMM_244",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 20 */
+		"PMIC_SD_VSEL",
+		"",
+		"",
+		"",
+		"TPM_EXTINT#",
+		"",
+		"",
+		"",
+		"WiFi_WKUP_BT#",
+		"WiFi_WKUP_WLAN#", /* 30 */
+		"SODIMM_161",
+		"SODIMM_157",
+		"",
+		"",
+		"",
+		"ETH_INT#",
+		"",
+		"SODIMM_17",
+		"SODIMM_21",
+		"", /* 40 */
+		"SODIMM_187",
+		"SODIMM_189",
+		"",
+		"",
+		"",
+		"",
+		"SODIMM_76",
+		"",
+		"SODIMM_216",
+		"SODIMM_218", /* 50 */
+		"SODIMM_220",
+		"SODIMM_222",
+		"",
+		"",
+		"",
+		"",
+		"SODIMM_172",
+		"",
+		"WIFI_SD_INT",
+		"WIFI_SPI_CS#", /* 60 */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 70 */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 80 */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 90 */
+		"";
+
+	verdin_pcie_1_reset_hog: pcie-1-reset-hog {
+		gpio-hog;
+		/* Verdin PCIE_1_RESET# (SODIMM 244) */
+		gpios = <14 GPIO_ACTIVE_LOW>;
+		line-name = "PCIE_1_RESET#";
+		output-low;
+		status = "disabled";
+	};
+};
+
+&main_gpio1 {
+	gpio-line-names =
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 10 */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 20 */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 30 */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 40 */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"SODIMM_84",
+		"SODIMM_154",
+		"SODIMM_155", /* 50 */
+		"";
+};
+
+/* Verdin I2C_1 */
+&main_i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_main_i2c0>;
+	status = "disabled";
+};
+
+/* Verdin I2C_2_DSI */
+&main_i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_main_i2c1>;
+	status = "disabled";
+};
+
+/* Verdin I2C_4_CSI */
+&main_i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_main_i2c3>;
+	status = "disabled";
+};
+
+/* Verdin CAN_1 */
+&main_mcan0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_main_mcan0>;
+	status = "disabled";
+};
+
+/* TPM SPI, optional SPI on module specific pins */
+&main_spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_main_spi0>;
+	ti,pindir-d0-out-d1-in;
+	status = "okay";
+
+	tpm@0 {
+		compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
+		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tpm_extint>;
+		interrupt-parent = <&main_gpio0>;
+		interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+		spi-max-frequency = <18500000>;
+	};
+};
+
+/* Verdin SPI_1 */
+&main_spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_main_spi1>, <&pinctrl_main_spi1_cs0>;
+	ti,pindir-d0-out-d1-in;
+	status = "disabled";
+};
+
+/* Verdin UART_3, used as the Linux console */
+&main_uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart0>;
+	status = "disabled";
+};
+
+/* Verdin UART_1 */
+&main_uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	uart-has-rtscts;
+	status = "disabled";
+};
+
+/* Verdin I2S_1 */
+&mcasp0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mcasp0>;
+	op-mode = <0>; /* I2S mode */
+	serial-dir = <  /* 0: INACTIVE, 1: TX, 2: RX */
+	       1 2 0 0
+	       0 0 0 0
+	       0 0 0 0
+	       0 0 0 0
+	>;
+	tdm-slots = <2>;
+	rx-num-evt = <0>;
+	tx-num-evt = <0>;
+	#sound-dai-cells = <0>;
+	status = "disabled";
+};
+
+/* Verdin I2S_2 */
+&mcasp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mcasp1>;
+	op-mode = <0>; /* I2S mode */
+	serial-dir = <  /* 0: INACTIVE, 1: TX, 2: RX */
+	       1 2 0 0
+	       0 0 0 0
+	       0 0 0 0
+	       0 0 0 0
+	>;
+	tdm-slots = <2>;
+	rx-num-evt = <0>;
+	tx-num-evt = <0>;
+	#sound-dai-cells = <0>;
+	status = "disabled";
+};
+
+&mcu_gpio0 {
+	gpio-line-names =
+		"",
+		"SODIMM_206",
+		"SODIMM_208",
+		"SODIMM_210",
+		"SODIMM_212",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 10 */
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"", /* 20 */
+		"",
+		"",
+		"";
+};
+
+/* Verdin I2C_3_HDMI */
+&mcu_i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mcu_i2c0>;
+	status = "disabled";
+};
+
+/* Verdin CAN_2 */
+&mcu_mcan0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mcu_mcan0>;
+	status = "disabled";
+};
+
+/* Verdin UART_4 */
+&mcu_uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mcu_uart0>;
+	status = "disabled";
+};
+
+/* Verdin QSPI_1 */
+&ospi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ospi0>;
+	status = "disabled";
+};
+
+/* On-module eMMC */
+&sdhci0 {
+	no-mmc-hs400;
+	non-removable;
+	ti,driver-strength-ohm = <50>;
+	status = "okay";
+};
+
+/* Verdin SD_1 */
+&sdhci1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sdhci1>, <&pinctrl_sd1_cd>;
+	cd-gpios = <&main_gpio1 48 GPIO_ACTIVE_LOW>;
+	disable-wp;
+	vmmc-supply = <&reg_sd1_vmmc>;
+	vqmmc-supply = <&reg_sd1_vqmmc>;
+	ti,fails-without-test-cd;
+	status = "disabled";
+};
+
+/* Verdin USB_1 */
+&usbss0 {
+	ti,vbus-divider;
+	status = "disabled";
+};
+
+&usb0 {
+	adp-disable;
+	usb-role-switch;
+	status = "disabled";
+
+	port {
+		usb0_ep: endpoint {
+			remote-endpoint = <&usb_dr_connector>;
+		};
+	};
+};
+
+/* Verdin USB_2 */
+&usbss1 {
+	ti,vbus-divider;
+	status = "disabled";
+};
+
+&usb1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb1>;
+	dr_mode = "host";
+	status = "disabled";
+};
+
+/* On-module I2C - PMIC_I2C */
+&wkup_i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wkup_i2c0>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	som_gpio_expander: gpio@21 {
+		compatible = "nxp,pcal6408";
+		reg = <0x21>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		gpio-line-names = "SODIMM_256";
+	};
+
+	pmic@30 {
+		compatible = "ti,tps65219";
+		reg = <0x30>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pmic_extint>;
+		interrupt-parent = <&gic500>;
+		interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
+
+		buck1-supply = <&reg_vsodimm>;
+		buck2-supply = <&reg_vsodimm>;
+		buck3-supply = <&reg_vsodimm>;
+		ldo1-supply = <&reg_3v3>;
+		ldo2-supply = <&reg_1v8>;
+		ldo3-supply = <&reg_3v3>;
+		ldo4-supply = <&reg_3v3>;
+		system-power-controller;
+		ti,power-button;
+
+		regulators {
+			reg_3v3: buck1 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <3300000>;
+				regulator-min-microvolt = <3300000>;
+				regulator-name = "+V3.3 (PMIC BUCK1)";
+			};
+
+			reg_1v8: buck2 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-name = "+V1.8 (PMIC BUCK2)"; /* On-module and SODIMM 214 */
+			};
+
+			buck3 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <1100000>;
+				regulator-min-microvolt = <1100000>;
+				regulator-name = "+VDD_DDR (PMIC BUCK3)";
+			};
+
+			reg_sd_3v3_1v8: ldo1 {
+				regulator-allow-bypass;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <3300000>;
+				regulator-min-microvolt = <3300000>;
+				regulator-name = "+V3.3_1.8_SD (PMIC LDO1)";
+			};
+
+			ldo2 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <850000>;
+				regulator-min-microvolt = <850000>;
+				regulator-name = "+V_PMIC_LDO2 (PMIC LDO4)"; // +VDDR_CORE
+			};
+
+			ldo3 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-name = "+V1.8A (PMIC LDO3)";
+			};
+
+			ldo4 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-max-microvolt = <2500000>;
+				regulator-min-microvolt = <2500000>;
+				regulator-name = "+V2.5_ETH (PMIC LDO4)";
+			};
+		};
+	};
+
+	som_rtc_i2c: rtc@32 {
+		compatible = "epson,rx8130";
+		reg = <0x32>;
+	};
+
+	temperature-sensor@48 {
+		compatible = "ti,tmp1075";
+		reg = <0x48>;
+	};
+
+	som_adc: adc@49 {
+		compatible = "ti,tla2024";
+		reg = <0x49>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#io-channel-cells = <1>;
+
+		/* Verdin (ADC_4 - ADC_3) */
+		channel@0 {
+			reg = <0>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin (ADC_4 - ADC_1) */
+		channel@1 {
+			reg = <1>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin (ADC_3 - ADC_1) */
+		channel@2 {
+			reg = <2>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin (ADC_2 - ADC_1) */
+		channel@3 {
+			reg = <3>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin ADC_4 */
+		channel@4 {
+			reg = <4>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin ADC_3 */
+		channel@5 {
+			reg = <5>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin ADC_2 */
+		channel@6 {
+			reg = <6>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin ADC_1 */
+		channel@7 {
+			reg = <7>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+	};
+
+	som_eeprom: eeprom@50 {
+		compatible = "st,24c02", "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+/* Verdin UART_2 */
+&wkup_uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wkup_uart0>;
+	uart-has-rtscts;
+	status = "disabled";
+};

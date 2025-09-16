@@ -31,8 +31,6 @@ struct nouveau_channel {
 		u64 addr;
 	} push;
 
-	/* TODO: this will be reworked in the near future */
-	bool accel_done;
 	void *fence;
 	struct {
 		int max;

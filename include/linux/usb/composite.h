@@ -237,7 +237,7 @@ struct usb_function {
 	/* internals */
 	struct list_head		list;
 	DECLARE_BITMAP(endpoints, 32);
-	const struct usb_function_instance *fi;
+	struct usb_function_instance *fi;
 
 	unsigned int		bind_deactivated:1;
 };
@@ -338,9 +338,6 @@ struct usb_configuration {
 int usb_add_config(struct usb_composite_dev *,
 		struct usb_configuration *,
 		int (*)(struct usb_configuration *));
-
-void usb_remove_config(struct usb_composite_dev *,
-		struct usb_configuration *);
 
 /* predefined index for usb_composite_driver */
 enum {

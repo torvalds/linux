@@ -49,6 +49,7 @@ struct io_imu_folio_data {
 	unsigned int	nr_pages_mid;
 	unsigned int	folio_shift;
 	unsigned int	nr_folios;
+	unsigned long	first_folio_page_idx;
 };
 
 bool io_rsrc_cache_init(struct io_ring_ctx *ctx);
@@ -83,7 +84,7 @@ int io_register_rsrc_update(struct io_ring_ctx *ctx, void __user *arg,
 			    unsigned size, unsigned type);
 int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 			unsigned int size, unsigned int type);
-int io_buffer_validate(struct iovec *iov);
+int io_validate_user_buf_range(u64 uaddr, u64 ulen);
 
 bool io_check_coalesce_buffer(struct page **page_array, int nr_pages,
 			      struct io_imu_folio_data *data);
@@ -115,36 +116,12 @@ static inline bool io_reset_rsrc_node(struct io_ring_ctx *ctx,
 	return true;
 }
 
-static inline void io_req_put_rsrc_nodes(struct io_kiocb *req)
-{
-	if (req->file_node) {
-		io_put_rsrc_node(req->ctx, req->file_node);
-		req->file_node = NULL;
-	}
-	if (req->flags & REQ_F_BUF_NODE) {
-		io_put_rsrc_node(req->ctx, req->buf_node);
-		req->buf_node = NULL;
-	}
-}
-
-static inline void io_req_assign_rsrc_node(struct io_rsrc_node **dst_node,
-					   struct io_rsrc_node *node)
-{
-	node->refs++;
-	*dst_node = node;
-}
-
-static inline void io_req_assign_buf_node(struct io_kiocb *req,
-					  struct io_rsrc_node *node)
-{
-	io_req_assign_rsrc_node(&req->buf_node, node);
-	req->flags |= REQ_F_BUF_NODE;
-}
-
 int io_files_update(struct io_kiocb *req, unsigned int issue_flags);
 int io_files_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 
 int __io_account_mem(struct user_struct *user, unsigned long nr_pages);
+int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages);
+void io_unaccount_mem(struct io_ring_ctx *ctx, unsigned long nr_pages);
 
 static inline void __io_unaccount_mem(struct user_struct *user,
 				      unsigned long nr_pages)

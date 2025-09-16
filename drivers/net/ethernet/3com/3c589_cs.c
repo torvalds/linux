@@ -685,7 +685,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 
 static void media_check(struct timer_list *t)
 {
-	struct el3_private *lp = from_timer(lp, t, media);
+	struct el3_private *lp = timer_container_of(lp, t, media);
 	struct net_device *dev = lp->p_dev->priv;
 	unsigned int ioaddr = dev->base_addr;
 	u16 media, errs;

@@ -13,10 +13,6 @@
 #include "maps.h"
 #include "symbol.h"
 #include "symsrc.h"
-#include "demangle-cxx.h"
-#include "demangle-ocaml.h"
-#include "demangle-java.h"
-#include "demangle-rust.h"
 #include "machine.h"
 #include "vdso.h"
 #include "debug.h"
@@ -277,62 +273,6 @@ static int elf_read_program_header(Elf *elf, u64 vaddr, GElf_Phdr *phdr)
 
 	/* Not found any valid program header */
 	return -1;
-}
-
-static bool want_demangle(bool is_kernel_sym)
-{
-	return is_kernel_sym ? symbol_conf.demangle_kernel : symbol_conf.demangle;
-}
-
-/*
- * Demangle C++ function signature, typically replaced by demangle-cxx.cpp
- * version.
- */
-#ifndef HAVE_CXA_DEMANGLE_SUPPORT
-char *cxx_demangle_sym(const char *str __maybe_unused, bool params __maybe_unused,
-		       bool modifiers __maybe_unused)
-{
-#ifdef HAVE_LIBBFD_SUPPORT
-	int flags = (params ? DMGL_PARAMS : 0) | (modifiers ? DMGL_ANSI : 0);
-
-	return bfd_demangle(NULL, str, flags);
-#elif defined(HAVE_CPLUS_DEMANGLE_SUPPORT)
-	int flags = (params ? DMGL_PARAMS : 0) | (modifiers ? DMGL_ANSI : 0);
-
-	return cplus_demangle(str, flags);
-#else
-	return NULL;
-#endif
-}
-#endif /* !HAVE_CXA_DEMANGLE_SUPPORT */
-
-static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
-{
-	char *demangled = NULL;
-
-	/*
-	 * We need to figure out if the object was created from C++ sources
-	 * DWARF DW_compile_unit has this, but we don't always have access
-	 * to it...
-	 */
-	if (!want_demangle(dso__kernel(dso) || kmodule))
-		return demangled;
-
-	demangled = cxx_demangle_sym(elf_name, verbose > 0, verbose > 0);
-	if (demangled == NULL) {
-		demangled = ocaml_demangle_sym(elf_name);
-		if (demangled == NULL) {
-			demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
-		}
-	}
-	else if (rust_is_mangled(demangled))
-		/*
-		    * Input to Rust demangling is the BFD-demangled
-		    * name which it Rust-demangles in place.
-		    */
-		rust_demangle_sym(demangled);
-
-	return demangled;
 }
 
 struct rel_info {
@@ -620,7 +560,7 @@ static bool get_plt_got_name(GElf_Shdr *shdr, size_t i,
 	/* Get the associated symbol */
 	gelf_getsym(di->dynsym_data, vr->sym_idx, &sym);
 	sym_name = elf_sym__name(&sym, di->dynstr_data);
-	demangled = demangle_sym(di->dso, 0, sym_name);
+	demangled = dso__demangle_sym(di->dso, /*kmodule=*/0, sym_name);
 	if (demangled != NULL)
 		sym_name = demangled;
 
@@ -818,7 +758,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 		gelf_getsym(syms, get_rel_symidx(&ri, idx), &sym);
 
 		elf_name = elf_sym__name(&sym, symstrs);
-		demangled = demangle_sym(dso, 0, elf_name);
+		demangled = dso__demangle_sym(dso, /*kmodule=*/0, elf_name);
 		if (demangled)
 			elf_name = demangled;
 		if (*elf_name)
@@ -845,11 +785,6 @@ out_elf_end:
 	pr_debug("%s: problems reading %s PLT info.\n",
 		 __func__, dso__long_name(dso));
 	return 0;
-}
-
-char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
-{
-	return demangle_sym(dso, kmodule, elf_name);
 }
 
 /*
@@ -938,13 +873,17 @@ out:
 
 #ifdef HAVE_LIBBFD_BUILDID_SUPPORT
 
-static int read_build_id(const char *filename, struct build_id *bid)
+static int read_build_id(const char *filename, struct build_id *bid, bool block)
 {
 	size_t size = sizeof(bid->data);
-	int err = -1;
+	int err = -1, fd;
 	bfd *abfd;
 
-	abfd = bfd_openr(filename, NULL);
+	fd = open(filename, block ? O_RDONLY : (O_RDONLY | O_NONBLOCK));
+	if (fd < 0)
+		return -1;
+
+	abfd = bfd_fdopenr(filename, /*target=*/NULL, fd);
 	if (!abfd)
 		return -1;
 
@@ -967,7 +906,7 @@ out_close:
 
 #else // HAVE_LIBBFD_BUILDID_SUPPORT
 
-static int read_build_id(const char *filename, struct build_id *bid)
+static int read_build_id(const char *filename, struct build_id *bid, bool block)
 {
 	size_t size = sizeof(bid->data);
 	int fd, err = -1;
@@ -976,7 +915,7 @@ static int read_build_id(const char *filename, struct build_id *bid)
 	if (size < BUILD_ID_SIZE)
 		goto out;
 
-	fd = open(filename, O_RDONLY);
+	fd = open(filename, block ? O_RDONLY : (O_RDONLY | O_NONBLOCK));
 	if (fd < 0)
 		goto out;
 
@@ -999,7 +938,7 @@ out:
 
 #endif // HAVE_LIBBFD_BUILDID_SUPPORT
 
-int filename__read_build_id(const char *filename, struct build_id *bid)
+int filename__read_build_id(const char *filename, struct build_id *bid, bool block)
 {
 	struct kmod_path m = { .name = NULL, };
 	char path[PATH_MAX];
@@ -1023,9 +962,10 @@ int filename__read_build_id(const char *filename, struct build_id *bid)
 		}
 		close(fd);
 		filename = path;
+		block = true;
 	}
 
-	err = read_build_id(filename, bid);
+	err = read_build_id(filename, bid, block);
 
 	if (m.comp)
 		unlink(filename);
@@ -1733,6 +1673,12 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 				continue;
 		}
 
+		/* Reject RISCV ELF "mapping symbols" */
+		if (ehdr.e_machine == EM_RISCV) {
+			if (elf_name[0] == '$' && strchr("dx", elf_name[1]))
+				continue;
+		}
+
 		if (runtime_ss->opdsec && sym.st_shndx == runtime_ss->opdidx) {
 			u32 offset = sym.st_value - syms_ss->opdshdr.sh_addr;
 			u64 *opd = opddata->d_buf + offset;
@@ -1840,7 +1786,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 			}
 		}
 
-		demangled = demangle_sym(dso, kmodule, elf_name);
+		demangled = dso__demangle_sym(dso, kmodule, elf_name);
 		if (demangled != NULL)
 			elf_name = demangled;
 

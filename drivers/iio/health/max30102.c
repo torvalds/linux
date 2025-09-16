@@ -25,7 +25,6 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
 
-#define MAX30102_REGMAP_NAME	"max30102_regmap"
 #define MAX30102_DRV_NAME	"max30102"
 #define MAX30102_PART_NUMBER	0x15
 
@@ -112,7 +111,7 @@ struct max30102_data {
 };
 
 static const struct regmap_config max30102_regmap_config = {
-	.name = MAX30102_REGMAP_NAME,
+	.name = "max30102_regmap",
 
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -484,11 +483,11 @@ any_mode_retry:
 			 * things cannot concurrently change. And we just keep
 			 * trying until we get one of the modes...
 			 */
-			if (iio_device_claim_direct_mode(indio_dev))
+			if (!iio_device_claim_direct(indio_dev))
 				goto any_mode_retry;
 
 			ret = max30102_get_temp(data, val, true);
-			iio_device_release_direct_mode(indio_dev);
+			iio_device_release_direct(indio_dev);
 		} else {
 			ret = max30102_get_temp(data, val, false);
 			iio_device_release_buffer_mode(indio_dev);
@@ -615,7 +614,7 @@ static const struct i2c_device_id max30102_id[] = {
 	{ "max30101", max30105 },
 	{ "max30102", max30102 },
 	{ "max30105", max30105 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max30102_id);
 

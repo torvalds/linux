@@ -292,12 +292,6 @@ static inline void zero_user_segment(struct page *page,
 	zero_user_segments(page, start, end, 0, 0);
 }
 
-static inline void zero_user(struct page *page,
-	unsigned start, unsigned size)
-{
-	zero_user_segments(page, start, start + size, 0, 0);
-}
-
 #ifndef __HAVE_ARCH_COPY_USER_HIGHPAGE
 
 static inline void copy_user_highpage(struct page *to, struct page *from,
@@ -404,6 +398,33 @@ static inline void memcpy_page(struct page *dst_page, size_t dst_off,
 	kunmap_local(dst);
 }
 
+static inline void memcpy_folio(struct folio *dst_folio, size_t dst_off,
+		struct folio *src_folio, size_t src_off, size_t len)
+{
+	VM_BUG_ON(dst_off + len > folio_size(dst_folio));
+	VM_BUG_ON(src_off + len > folio_size(src_folio));
+
+	do {
+		char *dst = kmap_local_folio(dst_folio, dst_off);
+		const char *src = kmap_local_folio(src_folio, src_off);
+		size_t chunk = len;
+
+		if (folio_test_highmem(dst_folio) &&
+		    chunk > PAGE_SIZE - offset_in_page(dst_off))
+			chunk = PAGE_SIZE - offset_in_page(dst_off);
+		if (folio_test_highmem(src_folio) &&
+		    chunk > PAGE_SIZE - offset_in_page(src_off))
+			chunk = PAGE_SIZE - offset_in_page(src_off);
+		memcpy(dst, src, chunk);
+		kunmap_local(src);
+		kunmap_local(dst);
+
+		dst_off += chunk;
+		src_off += chunk;
+		len -= chunk;
+	} while (len > 0);
+}
+
 static inline void memset_page(struct page *page, size_t offset, int val,
 			       size_t len)
 {
@@ -461,7 +482,7 @@ static inline void memcpy_from_folio(char *to, struct folio *folio,
 		const char *from = kmap_local_folio(folio, offset);
 		size_t chunk = len;
 
-		if (folio_test_highmem(folio) &&
+		if (folio_test_partial_kmap(folio) &&
 		    chunk > PAGE_SIZE - offset_in_page(offset))
 			chunk = PAGE_SIZE - offset_in_page(offset);
 		memcpy(to, from, chunk);
@@ -489,7 +510,7 @@ static inline void memcpy_to_folio(struct folio *folio, size_t offset,
 		char *to = kmap_local_folio(folio, offset);
 		size_t chunk = len;
 
-		if (folio_test_highmem(folio) &&
+		if (folio_test_partial_kmap(folio) &&
 		    chunk > PAGE_SIZE - offset_in_page(offset))
 			chunk = PAGE_SIZE - offset_in_page(offset);
 		memcpy(to, from, chunk);
@@ -522,7 +543,7 @@ static inline __must_check void *folio_zero_tail(struct folio *folio,
 {
 	size_t len = folio_size(folio) - offset;
 
-	if (folio_test_highmem(folio)) {
+	if (folio_test_partial_kmap(folio)) {
 		size_t max = PAGE_SIZE - offset_in_page(offset);
 
 		while (len > max) {
@@ -560,7 +581,7 @@ static inline void folio_fill_tail(struct folio *folio, size_t offset,
 
 	VM_BUG_ON(offset + len > folio_size(folio));
 
-	if (folio_test_highmem(folio)) {
+	if (folio_test_partial_kmap(folio)) {
 		size_t max = PAGE_SIZE - offset_in_page(offset);
 
 		while (len > max) {
@@ -597,7 +618,7 @@ static inline size_t memcpy_from_file_folio(char *to, struct folio *folio,
 	size_t offset = offset_in_folio(folio, pos);
 	char *from = kmap_local_folio(folio, offset);
 
-	if (folio_test_highmem(folio)) {
+	if (folio_test_partial_kmap(folio)) {
 		offset = offset_in_page(offset);
 		len = min_t(size_t, len, PAGE_SIZE - offset);
 	} else
@@ -661,10 +682,4 @@ static inline void folio_release_kmap(struct folio *folio, void *addr)
 	kunmap_local(addr);
 	folio_put(folio);
 }
-
-static inline void unmap_and_put_page(struct page *page, void *addr)
-{
-	folio_release_kmap(page_folio(page), addr);
-}
-
 #endif /* _LINUX_HIGHMEM_H */

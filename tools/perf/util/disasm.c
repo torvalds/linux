@@ -1218,7 +1218,7 @@ int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, s
 		char *build_id_msg = NULL;
 
 		if (dso__has_build_id(dso)) {
-			build_id__sprintf(dso__bid(dso), bf + 15);
+			build_id__snprintf(dso__bid(dso), bf + 15, sizeof(bf) - 15);
 			build_id_msg = bf;
 		}
 		scnprintf(buf, buflen,
@@ -2282,6 +2282,13 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 			if (err == 0)
 				goto out_remove_tmp;
 		}
+	}
+
+	/* FIXME: LLVM and CAPSTONE should support source code */
+	if (options->annotate_src && !options->hide_src_code) {
+		err = symbol__disassemble_objdump(symfs_filename, sym, args);
+		if (err == 0)
+			goto out_remove_tmp;
 	}
 
 	err = -1;

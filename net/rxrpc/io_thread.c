@@ -97,6 +97,20 @@ bool rxrpc_direct_abort(struct sk_buff *skb, enum rxrpc_abort_reason why,
 	return false;
 }
 
+/*
+ * Directly produce a connection abort from a packet.
+ */
+bool rxrpc_direct_conn_abort(struct sk_buff *skb, enum rxrpc_abort_reason why,
+			     s32 abort_code, int err)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+
+	trace_rxrpc_abort(0, why, sp->hdr.cid, 0, sp->hdr.seq, abort_code, err);
+	skb->mark = RXRPC_SKB_MARK_REJECT_CONN_ABORT;
+	skb->priority = abort_code;
+	return false;
+}
+
 static bool rxrpc_bad_message(struct sk_buff *skb, enum rxrpc_abort_reason why)
 {
 	return rxrpc_direct_abort(skb, why, RX_PROTOCOL_ERROR, -EBADMSG);
@@ -489,8 +503,8 @@ int rxrpc_io_thread(void *data)
 				rxrpc_free_skb(skb, rxrpc_skb_put_error_report);
 				break;
 			case RXRPC_SKB_MARK_SERVICE_CONN_SECURED:
-				rxrpc_input_conn_event(sp->conn, skb);
-				rxrpc_put_connection(sp->conn, rxrpc_conn_put_poke);
+				rxrpc_input_conn_event(sp->poke_conn, skb);
+				rxrpc_put_connection(sp->poke_conn, rxrpc_conn_put_poke);
 				rxrpc_free_skb(skb, rxrpc_skb_put_conn_secured);
 				break;
 			default:
@@ -501,9 +515,11 @@ int rxrpc_io_thread(void *data)
 		}
 
 		/* Deal with connections that want immediate attention. */
-		spin_lock_irq(&local->lock);
-		list_splice_tail_init(&local->conn_attend_q, &conn_attend_q);
-		spin_unlock_irq(&local->lock);
+		if (!list_empty_careful(&local->conn_attend_q)) {
+			spin_lock_irq(&local->lock);
+			list_splice_tail_init(&local->conn_attend_q, &conn_attend_q);
+			spin_unlock_irq(&local->lock);
+		}
 
 		while ((conn = list_first_entry_or_null(&conn_attend_q,
 							struct rxrpc_connection,

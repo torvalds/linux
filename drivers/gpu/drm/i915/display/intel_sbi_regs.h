@@ -1,0 +1,65 @@
+/* SPDX-License-Identifier: MIT */
+/* Copyright © 2025 Intel Corporation */
+
+#ifndef __INTEL_SBI_REGS_H__
+#define __INTEL_SBI_REGS_H__
+
+#include "intel_display_reg_defs.h"
+
+/*
+ * Sideband Interface (SBI) is programmed indirectly, via SBI_ADDR, which
+ * contains the register offset; and SBI_DATA, which contains the payload.
+ */
+#define SBI_ADDR			_MMIO(0xC6000)
+#define   SBI_ADDR_MASK			REG_GENMASK(31, 16)
+#define   SBI_ADDR_VALUE(addr)		REG_FIELD_PREP(SBI_ADDR_MASK, (addr))
+
+#define SBI_DATA			_MMIO(0xC6004)
+
+#define SBI_CTL_STAT			_MMIO(0xC6008)
+#define   SBI_CTL_DEST_MASK		REG_GENMASK(16, 16)
+#define   SBI_CTL_DEST_ICLK		REG_FIELD_PREP(SBI_CTL_DEST_MASK, 0)
+#define   SBI_CTL_DEST_MPHY		REG_FIELD_PREP(SBI_CTL_DEST_MASK, 1)
+#define   SBI_CTL_OP_MASK		REG_GENMASK(15, 8)
+#define   SBI_CTL_OP_IORD		REG_FIELD_PREP(SBI_CTL_OP_MASK, 2)
+#define   SBI_CTL_OP_IOWR		REG_FIELD_PREP(SBI_CTL_OP_MASK, 3)
+#define   SBI_CTL_OP_CRRD		REG_FIELD_PREP(SBI_CTL_OP_MASK, 6)
+#define   SBI_CTL_OP_CRWR		REG_FIELD_PREP(SBI_CTL_OP_MASK, 7)
+#define   SBI_CTL_OP_WR			REG_BIT(8)
+#define   SBI_RESPONSE_MASK		REG_GENMASK(2, 1)
+#define   SBI_RESPONSE_FAIL		REG_FIELD_PREP(SBI_RESPONSE_MASK, 1)
+#define   SBI_RESPONSE_SUCCESS		REG_FIELD_PREP(SBI_RESPONSE_MASK, 0)
+#define   SBI_STATUS_MASK		REG_GENMASK(0, 0)
+#define   SBI_STATUS_BUSY		REG_FIELD_PREP(SBI_STATUS_MASK, 1)
+#define   SBI_STATUS_READY		REG_FIELD_PREP(SBI_STATUS_MASK, 0)
+
+/* SBI offsets */
+#define SBI_SSCDIVINTPHASE			0x0200
+
+#define SBI_SSCDIVINTPHASE6			0x0600
+#define   SBI_SSCDIVINTPHASE_DIVSEL_SHIFT	1
+#define   SBI_SSCDIVINTPHASE_DIVSEL_MASK	(0x7f << 1)
+#define   SBI_SSCDIVINTPHASE_DIVSEL(x)		((x) << 1)
+#define   SBI_SSCDIVINTPHASE_INCVAL_SHIFT	8
+#define   SBI_SSCDIVINTPHASE_INCVAL_MASK	(0x7f << 8)
+#define   SBI_SSCDIVINTPHASE_INCVAL(x)		((x) << 8)
+#define   SBI_SSCDIVINTPHASE_DIR(x)		((x) << 15)
+#define   SBI_SSCDIVINTPHASE_PROPAGATE		(1 << 0)
+
+#define SBI_SSCDITHPHASE			0x0204
+#define SBI_SSCCTL				0x020c
+#define SBI_SSCCTL6				0x060C
+#define   SBI_SSCCTL_PATHALT			(1 << 3)
+#define   SBI_SSCCTL_DISABLE			(1 << 0)
+
+#define SBI_SSCAUXDIV6				0x0610
+#define   SBI_SSCAUXDIV_FINALDIV2SEL_SHIFT	4
+#define   SBI_SSCAUXDIV_FINALDIV2SEL_MASK	(1 << 4)
+#define   SBI_SSCAUXDIV_FINALDIV2SEL(x)		((x) << 4)
+
+#define SBI_DBUFF0				0x2a00
+
+#define SBI_GEN0				0x1f00
+#define   SBI_GEN0_CFG_BUFFENABLE_DISABLE	(1 << 0)
+
+#endif /* __INTEL_SBI_REGS_H__ */

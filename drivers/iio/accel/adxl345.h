@@ -69,11 +69,10 @@
  * BW_RATE bits - Bandwidth and output data rate. The default value is
  * 0x0A, which translates to a 100 Hz output data rate
  */
-#define ADXL345_BW_RATE			GENMASK(3, 0)
+#define ADXL345_BW_RATE_MSK		GENMASK(3, 0)
 #define ADXL345_BW_LOW_POWER		BIT(4)
 #define ADXL345_BASE_RATE_NANO_HZ	97656250LL
 
-#define ADXL345_POWER_CTL_STANDBY	0x00
 #define ADXL345_POWER_CTL_WAKEUP	GENMASK(1, 0)
 #define ADXL345_POWER_CTL_SLEEP	BIT(2)
 #define ADXL345_POWER_CTL_MEASURE	BIT(3)
@@ -110,6 +109,10 @@
  * ~480mm/s**2 per LSB.
  */
 #define ADXL375_USCALE	480000
+
+struct regmap;
+
+bool adxl345_is_volatile_reg(struct device *dev, unsigned int reg);
 
 struct adxl345_chip_info {
 	const char *name;

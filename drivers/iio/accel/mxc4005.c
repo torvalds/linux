@@ -19,8 +19,6 @@
 #include <linux/iio/trigger_consumer.h>
 
 #define MXC4005_DRV_NAME		"mxc4005"
-#define MXC4005_IRQ_NAME		"mxc4005_event"
-#define MXC4005_REGMAP_NAME		"mxc4005_regmap"
 
 #define MXC4005_REG_XOUT_UPPER		0x03
 #define MXC4005_REG_XOUT_LOWER		0x04
@@ -138,7 +136,7 @@ static bool mxc4005_is_writeable_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config mxc4005_regmap_config = {
-	.name = MXC4005_REGMAP_NAME,
+	.name = "mxc4005_regmap",
 
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -335,8 +333,8 @@ static irqreturn_t mxc4005_trigger_handler(int irq, void *private)
 	if (ret < 0)
 		goto err;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
-					   pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+				    pf->timestamp);
 
 err:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -493,7 +491,7 @@ static int mxc4005_probe(struct i2c_client *client)
 						NULL,
 						IRQF_TRIGGER_FALLING |
 						IRQF_ONESHOT,
-						MXC4005_IRQ_NAME,
+						"mxc4005_event",
 						data->dready_trig);
 		if (ret) {
 			dev_err(&client->dev,
@@ -573,14 +571,14 @@ static const struct acpi_device_id mxc4005_acpi_match[] = {
 	{"MXC4005",	0},
 	{"MXC6655",	0},
 	{"MDA6655",	0},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, mxc4005_acpi_match);
 
 static const struct of_device_id mxc4005_of_match[] = {
 	{ .compatible = "memsic,mxc4005", },
 	{ .compatible = "memsic,mxc6655", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mxc4005_of_match);
 

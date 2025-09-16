@@ -1077,13 +1077,12 @@ static int smk_open_net4addr(struct inode *inode, struct file *file)
 }
 
 /**
- * smk_net4addr_insert
+ * smk_net4addr_insert - insert a new entry into the net4addrs list
  * @new : netlabel to insert
  *
- * This helper insert netlabel in the smack_net4addrs list
+ * This helper inserts netlabel in the smack_net4addrs list
  * sorted by netmask length (longest to smallest)
- * locked by &smk_net4addr_lock in smk_write_net4addr
- *
+ * locked by &smk_net4addr_lock in smk_write_net4addr.
  */
 static void smk_net4addr_insert(struct smk_net4addr *new)
 {
@@ -1340,13 +1339,12 @@ static int smk_open_net6addr(struct inode *inode, struct file *file)
 }
 
 /**
- * smk_net6addr_insert
+ * smk_net6addr_insert - insert a new entry into the net6addrs list
  * @new : entry to insert
  *
  * This inserts an entry in the smack_net6addrs list
  * sorted by netmask length (longest to smallest)
- * locked by &smk_net6addr_lock in smk_write_net6addr
- *
+ * locked by &smk_net6addr_lock in smk_write_net6addr.
  */
 static void smk_net6addr_insert(struct smk_net6addr *new)
 {

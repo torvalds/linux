@@ -193,7 +193,7 @@ static void ath_mci_ftp_adjust(struct ath_softc *sc)
  */
 static void ath_btcoex_period_timer(struct timer_list *t)
 {
-	struct ath_softc *sc = from_timer(sc, t, btcoex.period_timer);
+	struct ath_softc *sc = timer_container_of(sc, t, btcoex.period_timer);
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_btcoex *btcoex = &sc->btcoex;
 	enum ath_stomp_type stomp_type;
@@ -254,7 +254,8 @@ skip_hw_wakeup:
  */
 static void ath_btcoex_no_stomp_timer(struct timer_list *t)
 {
-	struct ath_softc *sc = from_timer(sc, t, btcoex.no_stomp_timer);
+	struct ath_softc *sc = timer_container_of(sc, t,
+						  btcoex.no_stomp_timer);
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_btcoex *btcoex = &sc->btcoex;
 

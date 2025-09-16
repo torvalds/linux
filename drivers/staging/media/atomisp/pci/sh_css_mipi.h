@@ -14,8 +14,6 @@
 void
 mipi_init(void);
 
-bool mipi_is_free(void);
-
 int
 allocate_mipi_frames(struct ia_css_pipe *pipe, struct ia_css_stream_info *info);
 

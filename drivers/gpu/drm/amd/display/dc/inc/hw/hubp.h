@@ -89,7 +89,7 @@ enum hubp_3dlut_fl_addressing_mode {
 enum hubp_3dlut_fl_width {
 	hubp_3dlut_fl_width_17 = 17,
 	hubp_3dlut_fl_width_33 = 33,
-	hubp_3dlut_fl_width_transformed = 4916
+	hubp_3dlut_fl_width_transformed    = 4916, //mpc default
 };
 
 enum hubp_3dlut_fl_crossbar_bit_slice {
@@ -97,6 +97,22 @@ enum hubp_3dlut_fl_crossbar_bit_slice {
 	hubp_3dlut_fl_crossbar_bit_slice_16_31 = 1,
 	hubp_3dlut_fl_crossbar_bit_slice_32_47 = 2,
 	hubp_3dlut_fl_crossbar_bit_slice_48_63 = 3
+};
+
+struct hubp_fl_3dlut_config {
+	bool enabled;
+	enum hubp_3dlut_fl_width width;
+	enum hubp_3dlut_fl_mode mode;
+	enum hubp_3dlut_fl_format format;
+	uint16_t bias;
+	uint16_t scale;
+	struct dc_plane_address address;
+	enum hubp_3dlut_fl_addressing_mode addr_mode;
+	enum dc_cm2_gpu_mem_layout layout;
+	uint8_t protection_bits;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_y_g;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cb_b;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cr_r;
 };
 
 struct hubp {
@@ -282,13 +298,16 @@ struct hubp_funcs {
 	void (*hubp_enable_3dlut_fl)(struct hubp *hubp, bool enable);
 	void (*hubp_program_3dlut_fl_addressing_mode)(struct hubp *hubp, enum hubp_3dlut_fl_addressing_mode addr_mode);
 	void (*hubp_program_3dlut_fl_width)(struct hubp *hubp, enum hubp_3dlut_fl_width width);
-	void (*hubp_program_3dlut_fl_tmz_protected)(struct hubp *hubp, bool protection_enabled);
+	void (*hubp_program_3dlut_fl_tmz_protected)(struct hubp *hubp, uint8_t protection_bits);
 	void (*hubp_program_3dlut_fl_crossbar)(struct hubp *hubp,
 			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_y_g,
 			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cb_b,
 			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cr_r);
 	int (*hubp_get_3dlut_fl_done)(struct hubp *hubp);
+	void (*hubp_program_3dlut_fl_config)(struct hubp *hubp, struct hubp_fl_3dlut_config *cfg);
 	void (*hubp_clear_tiling)(struct hubp *hubp);
+	uint32_t (*hubp_get_current_read_line)(struct hubp *hubp);
+	uint32_t (*hubp_get_det_config_error)(struct hubp *hubp);
 };
 
 #endif

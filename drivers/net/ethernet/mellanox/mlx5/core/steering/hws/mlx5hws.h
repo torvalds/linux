@@ -75,6 +75,7 @@ struct mlx5hws_context_attr {
 struct mlx5hws_table_attr {
 	enum mlx5hws_table_type type;
 	u32 level;
+	u16 uid;
 };
 
 enum mlx5hws_matcher_flow_src {
@@ -93,6 +94,23 @@ enum mlx5hws_matcher_distribute_mode {
 	MLX5HWS_MATCHER_DISTRIBUTE_BY_LINEAR = 0x1,
 };
 
+enum mlx5hws_matcher_size_type {
+	MLX5HWS_MATCHER_SIZE_TYPE_RX,
+	MLX5HWS_MATCHER_SIZE_TYPE_TX,
+	MLX5HWS_MATCHER_SIZE_TYPE_MAX,
+};
+
+union mlx5hws_matcher_size {
+	struct {
+		u8 sz_row_log;
+		u8 sz_col_log;
+	} table;
+
+	struct {
+		u8 num_log;
+	} rule;
+};
+
 struct mlx5hws_matcher_attr {
 	/* Processing priority inside table */
 	u32 priority;
@@ -107,18 +125,11 @@ struct mlx5hws_matcher_attr {
 	enum mlx5hws_matcher_distribute_mode distribute_mode;
 	/* Define whether the created matcher supports resizing into a bigger matcher */
 	bool resizable;
-	union {
-		struct {
-			u8 sz_row_log;
-			u8 sz_col_log;
-		} table;
-
-		struct {
-			u8 num_log;
-		} rule;
-	};
+	union mlx5hws_matcher_size size[MLX5HWS_MATCHER_SIZE_TYPE_MAX];
 	/* Optional AT attach configuration - Max number of additional AT */
 	u8 max_num_of_at_attach;
+	/* Optional end FT (miss FT ID) for match RTC (for isolated matcher) */
+	u32 isolated_matcher_end_ft_id;
 };
 
 struct mlx5hws_rule_attr {
@@ -211,6 +222,7 @@ struct mlx5hws_action_dest_attr {
 	struct mlx5hws_action *dest;
 	/* Optional reformat action */
 	struct mlx5hws_action *reformat;
+	bool is_wire_ft;
 };
 
 /**
@@ -502,6 +514,15 @@ enum mlx5hws_action_type
 mlx5hws_action_get_type(struct mlx5hws_action *action);
 
 /**
+ * mlx5hws_action_get_dev - Get mlx5 core device.
+ *
+ * @action: The action to get the device from.
+ *
+ * Return: mlx5 core device.
+ */
+struct mlx5_core_dev *mlx5hws_action_get_dev(struct mlx5hws_action *action);
+
+/**
  * mlx5hws_action_create_dest_drop - Create a direct rule drop action.
  *
  * @ctx: The context in which the new action will be created.
@@ -715,18 +736,14 @@ mlx5hws_action_create_push_vlan(struct mlx5hws_context *ctx, u32 flags);
  * @dests: The destination array. Each contains a destination action and can
  *	   have additional actions.
  * @ignore_flow_level: Whether to turn on 'ignore_flow_level' for this dest.
- * @flow_source: Source port of the traffic for this actions.
  * @flags: Action creation flags (enum mlx5hws_action_flags).
  *
  * Return: pointer to mlx5hws_action on success NULL otherwise.
  */
 struct mlx5hws_action *
-mlx5hws_action_create_dest_array(struct mlx5hws_context *ctx,
-				 size_t num_dest,
+mlx5hws_action_create_dest_array(struct mlx5hws_context *ctx, size_t num_dest,
 				 struct mlx5hws_action_dest_attr *dests,
-				 bool ignore_flow_level,
-				 u32 flow_source,
-				 u32 flags);
+				 bool ignore_flow_level, u32 flags);
 
 /**
  * mlx5hws_action_create_insert_header - Create insert header action.

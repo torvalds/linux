@@ -735,7 +735,7 @@ static const struct pinmux_ops tb10x_pinmux_ops = {
 	.set_mux = tb10x_pctl_set_mux,
 };
 
-static struct pinctrl_desc tb10x_pindesc = {
+static const struct pinctrl_desc tb10x_pindesc = {
 	.name = "TB10x",
 	.pins = tb10x_pins,
 	.npins = ARRAY_SIZE(tb10x_pins),
@@ -823,7 +823,7 @@ static struct platform_driver tb10x_pinctrl_pdrv = {
 	.remove  = tb10x_pinctrl_remove,
 	.driver  = {
 		.name  = "tb10x_pinctrl",
-		.of_match_table = of_match_ptr(tb10x_pinctrl_dt_ids),
+		.of_match_table = tb10x_pinctrl_dt_ids,
 	}
 };
 

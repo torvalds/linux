@@ -13,6 +13,31 @@
 #include "reg.h"
 #include "util.h"
 
+static int rtw89_fw_receive_lps_h2c_check(struct rtw89_dev *rtwdev, u8 macid)
+{
+	struct rtw89_mac_c2h_info c2h_info = {};
+	u16 c2hreg_macid;
+	u32 c2hreg_ret;
+	int ret;
+
+	if (!RTW89_CHK_FW_FEATURE(LPS_DACK_BY_C2H_REG, &rtwdev->fw))
+		return 0;
+
+	c2h_info.id = RTW89_FWCMD_C2HREG_FUNC_PS_LEAVE_ACK;
+	ret = rtw89_fw_msg_reg(rtwdev, NULL, &c2h_info);
+	if (ret)
+		return ret;
+
+	c2hreg_macid = u32_get_bits(c2h_info.u.c2hreg[0],
+				    RTW89_C2HREG_PS_LEAVE_ACK_MACID);
+	c2hreg_ret = u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_PS_LEAVE_ACK_RET);
+
+	if (macid != c2hreg_macid || c2hreg_ret)
+		rtw89_warn(rtwdev, "rtw89: check lps h2c received by firmware fail\n");
+
+	return 0;
+}
+
 static int rtw89_fw_leave_lps_check(struct rtw89_dev *rtwdev, u8 macid)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
@@ -106,7 +131,8 @@ static void __rtw89_leave_lps(struct rtw89_dev *rtwdev,
 	};
 
 	rtw89_fw_h2c_lps_parm(rtwdev, &lps_param);
-	rtw89_fw_leave_lps_check(rtwdev, 0);
+	rtw89_fw_receive_lps_h2c_check(rtwdev, rtwvif_link->mac_id);
+	rtw89_fw_leave_lps_check(rtwdev, rtwvif_link->mac_id);
 	rtw89_btc_ntfy_radio_state(rtwdev, BTC_RFCTRL_WL_ON);
 	rtw89_chip_digital_pwr_comp(rtwdev, rtwvif_link->phy_idx);
 }
@@ -136,6 +162,8 @@ void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		if (rtwvif_link->wifi_role == RTW89_WIFI_ROLE_P2P_CLIENT)
 			can_ps_mode = false;
 	}
+
+	rtw89_fw_h2c_rf_ps_info(rtwdev, rtwvif);
 
 	if (RTW89_CHK_FW_FEATURE(LPS_CH_INFO, &rtwdev->fw))
 		rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif);
@@ -236,12 +264,22 @@ static void rtw89_tsf32_toggle(struct rtw89_dev *rtwdev,
 		rtw89_fw_h2c_tsf32_toggle(rtwdev, rtwvif_link, false);
 }
 
-static void rtw89_p2p_disable_all_noa(struct rtw89_dev *rtwdev,
-				      struct rtw89_vif_link *rtwvif_link,
-				      struct ieee80211_bss_conf *bss_conf)
+void rtw89_p2p_disable_all_noa(struct rtw89_dev *rtwdev,
+			       struct rtw89_vif_link *rtwvif_link,
+			       struct ieee80211_bss_conf *bss_conf)
 {
 	enum rtw89_p2pps_action act;
+	u8 oppps_ctwindow;
 	u8 noa_id;
+
+	rcu_read_lock();
+
+	if (!bss_conf)
+		bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+
+	oppps_ctwindow = bss_conf->p2p_noa_attr.oppps_ctwindow;
+
+	rcu_read_unlock();
 
 	if (rtwvif_link->last_noa_nr == 0)
 		return;
@@ -252,8 +290,8 @@ static void rtw89_p2p_disable_all_noa(struct rtw89_dev *rtwdev,
 		else
 			act = RTW89_P2P_ACT_REMOVE;
 		rtw89_tsf32_toggle(rtwdev, rtwvif_link, act);
-		rtw89_fw_h2c_p2p_act(rtwdev, rtwvif_link, bss_conf,
-				     NULL, act, noa_id);
+		rtw89_fw_h2c_p2p_act(rtwdev, rtwvif_link, NULL,
+				     act, noa_id, oppps_ctwindow);
 	}
 }
 
@@ -275,8 +313,8 @@ static void rtw89_p2p_update_noa(struct rtw89_dev *rtwdev,
 		else
 			act = RTW89_P2P_ACT_UPDATE;
 		rtw89_tsf32_toggle(rtwdev, rtwvif_link, act);
-		rtw89_fw_h2c_p2p_act(rtwdev, rtwvif_link, bss_conf,
-				     desc, act, noa_id);
+		rtw89_fw_h2c_p2p_act(rtwdev, rtwvif_link, desc, act, noa_id,
+				     bss_conf->p2p_noa_attr.oppps_ctwindow);
 	}
 	rtwvif_link->last_noa_nr = noa_id;
 }
@@ -381,4 +419,151 @@ u8 rtw89_p2p_noa_fetch(struct rtw89_vif_link *rtwvif_link, void **data)
 	*data = ie;
 	tail = ie->noa_desc + setter->noa_count;
 	return tail - *data;
+}
+
+static void rtw89_ps_noa_once_set_work(struct wiphy *wiphy, struct wiphy_work *work)
+{
+	struct rtw89_ps_noa_once_handler *noa_once =
+		container_of(work, struct rtw89_ps_noa_once_handler, set_work.work);
+
+	lockdep_assert_wiphy(wiphy);
+
+	noa_once->in_duration = true;
+}
+
+static void rtw89_ps_noa_once_clr_work(struct wiphy *wiphy, struct wiphy_work *work)
+{
+	struct rtw89_ps_noa_once_handler *noa_once =
+		container_of(work, struct rtw89_ps_noa_once_handler, clr_work.work);
+	struct rtw89_vif_link *rtwvif_link =
+		container_of(noa_once, struct rtw89_vif_link, noa_once);
+	struct rtw89_dev *rtwdev = rtwvif_link->rtwvif->rtwdev;
+
+	lockdep_assert_wiphy(wiphy);
+
+	rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, rtwvif_link, true);
+	noa_once->in_duration = false;
+}
+
+void rtw89_p2p_noa_once_init(struct rtw89_vif_link *rtwvif_link)
+{
+	struct rtw89_ps_noa_once_handler *noa_once = &rtwvif_link->noa_once;
+
+	noa_once->in_duration = false;
+	noa_once->tsf_begin = 0;
+	noa_once->tsf_end = 0;
+
+	wiphy_delayed_work_init(&noa_once->set_work, rtw89_ps_noa_once_set_work);
+	wiphy_delayed_work_init(&noa_once->clr_work, rtw89_ps_noa_once_clr_work);
+}
+
+static void rtw89_p2p_noa_once_cancel(struct rtw89_vif_link *rtwvif_link)
+{
+	struct rtw89_ps_noa_once_handler *noa_once = &rtwvif_link->noa_once;
+	struct rtw89_dev *rtwdev = rtwvif_link->rtwvif->rtwdev;
+	struct wiphy *wiphy = rtwdev->hw->wiphy;
+
+	wiphy_delayed_work_cancel(wiphy, &noa_once->set_work);
+	wiphy_delayed_work_cancel(wiphy, &noa_once->clr_work);
+}
+
+void rtw89_p2p_noa_once_deinit(struct rtw89_vif_link *rtwvif_link)
+{
+	rtw89_p2p_noa_once_cancel(rtwvif_link);
+	rtw89_p2p_noa_once_init(rtwvif_link);
+}
+
+void rtw89_p2p_noa_once_recalc(struct rtw89_vif_link *rtwvif_link)
+{
+	struct rtw89_ps_noa_once_handler *noa_once = &rtwvif_link->noa_once;
+	struct rtw89_dev *rtwdev = rtwvif_link->rtwvif->rtwdev;
+	const struct ieee80211_p2p_noa_desc *noa_desc;
+	struct wiphy *wiphy = rtwdev->hw->wiphy;
+	struct ieee80211_bss_conf *bss_conf;
+	u64 tsf_begin = U64_MAX, tsf_end;
+	u64 set_delay_us = 0;
+	u64 clr_delay_us = 0;
+	u32 start_time;
+	u32 interval;
+	u32 duration;
+	u64 tsf;
+	int ret;
+	int i;
+
+	lockdep_assert_wiphy(wiphy);
+
+	ret = rtw89_mac_port_get_tsf(rtwdev, rtwvif_link, &tsf);
+	if (ret) {
+		rtw89_warn(rtwdev, "%s: failed to get tsf\n", __func__);
+		return;
+	}
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+
+	for (i = 0; i < ARRAY_SIZE(bss_conf->p2p_noa_attr.desc); i++) {
+		bool first = tsf_begin == U64_MAX;
+		u64 tmp;
+
+		noa_desc = &bss_conf->p2p_noa_attr.desc[i];
+		if (noa_desc->count == 0 || noa_desc->count == 255)
+			continue;
+
+		start_time = le32_to_cpu(noa_desc->start_time);
+		interval = le32_to_cpu(noa_desc->interval);
+		duration = le32_to_cpu(noa_desc->duration);
+
+		if (unlikely(duration == 0 ||
+			     (noa_desc->count > 1 && interval == 0)))
+			continue;
+
+		tmp = start_time + interval * (noa_desc->count - 1) + duration;
+		tmp = (tsf & GENMASK_ULL(63, 32)) + tmp;
+		if (unlikely(tmp <= tsf))
+			continue;
+		tsf_end = first ? tmp : max(tsf_end, tmp);
+
+		tmp = (tsf & GENMASK_ULL(63, 32)) | start_time;
+		tsf_begin = first ? tmp : min(tsf_begin, tmp);
+	}
+
+	rcu_read_unlock();
+
+	if (tsf_begin == U64_MAX)
+		return;
+
+	rtw89_p2p_noa_once_cancel(rtwvif_link);
+
+	if (noa_once->tsf_end > tsf) {
+		tsf_begin = min(tsf_begin, noa_once->tsf_begin);
+		tsf_end = max(tsf_end, noa_once->tsf_end);
+	}
+
+	clr_delay_us = min_t(u64, tsf_end - tsf, UINT_MAX);
+
+	if (tsf_begin <= tsf) {
+		noa_once->in_duration = true;
+		goto out;
+	}
+
+	set_delay_us = tsf_begin - tsf;
+	if (unlikely(set_delay_us > UINT_MAX)) {
+		rtw89_warn(rtwdev, "%s: unhandled begin\n", __func__);
+		set_delay_us = 0;
+		clr_delay_us = 0;
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, rtwvif_link, true);
+		noa_once->in_duration = false;
+	}
+
+out:
+	if (set_delay_us)
+		wiphy_delayed_work_queue(wiphy, &noa_once->set_work,
+					 usecs_to_jiffies(set_delay_us));
+	if (clr_delay_us)
+		wiphy_delayed_work_queue(wiphy, &noa_once->clr_work,
+					 usecs_to_jiffies(clr_delay_us));
+
+	noa_once->tsf_begin = tsf_begin;
+	noa_once->tsf_end = tsf_end;
 }

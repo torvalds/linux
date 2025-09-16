@@ -55,6 +55,7 @@ enum uverbs_default_objects {
 	UVERBS_OBJECT_DM,
 	UVERBS_OBJECT_COUNTERS,
 	UVERBS_OBJECT_ASYNC_EVENT,
+	UVERBS_OBJECT_DMAH,
 };
 
 enum {
@@ -105,6 +106,10 @@ enum uverbs_attrs_create_cq_cmd_attr_ids {
 	UVERBS_ATTR_CREATE_CQ_FLAGS,
 	UVERBS_ATTR_CREATE_CQ_RESP_CQE,
 	UVERBS_ATTR_CREATE_CQ_EVENT_FD,
+	UVERBS_ATTR_CREATE_CQ_BUFFER_VA,
+	UVERBS_ATTR_CREATE_CQ_BUFFER_LENGTH,
+	UVERBS_ATTR_CREATE_CQ_BUFFER_FD,
+	UVERBS_ATTR_CREATE_CQ_BUFFER_OFFSET,
 };
 
 enum uverbs_attrs_destroy_cq_cmd_attr_ids {
@@ -236,6 +241,22 @@ enum uverbs_methods_dm {
 	UVERBS_METHOD_DM_FREE,
 };
 
+enum uverbs_attrs_alloc_dmah_cmd_attr_ids {
+	UVERBS_ATTR_ALLOC_DMAH_HANDLE,
+	UVERBS_ATTR_ALLOC_DMAH_CPU_ID,
+	UVERBS_ATTR_ALLOC_DMAH_TPH_MEM_TYPE,
+	UVERBS_ATTR_ALLOC_DMAH_PH,
+};
+
+enum uverbs_attrs_free_dmah_cmd_attr_ids {
+	UVERBS_ATTR_FREE_DMA_HANDLE,
+};
+
+enum uverbs_methods_dmah {
+	UVERBS_METHOD_DMAH_ALLOC,
+	UVERBS_METHOD_DMAH_FREE,
+};
+
 enum uverbs_attrs_reg_dm_mr_cmd_attr_ids {
 	UVERBS_ATTR_REG_DM_MR_HANDLE,
 	UVERBS_ATTR_REG_DM_MR_OFFSET,
@@ -253,6 +274,7 @@ enum uverbs_methods_mr {
 	UVERBS_METHOD_ADVISE_MR,
 	UVERBS_METHOD_QUERY_MR,
 	UVERBS_METHOD_REG_DMABUF_MR,
+	UVERBS_METHOD_REG_MR,
 };
 
 enum uverbs_attrs_mr_destroy_ids {
@@ -284,6 +306,20 @@ enum uverbs_attrs_reg_dmabuf_mr_cmd_attr_ids {
 	UVERBS_ATTR_REG_DMABUF_MR_ACCESS_FLAGS,
 	UVERBS_ATTR_REG_DMABUF_MR_RESP_LKEY,
 	UVERBS_ATTR_REG_DMABUF_MR_RESP_RKEY,
+};
+
+enum uverbs_attrs_reg_mr_cmd_attr_ids {
+	UVERBS_ATTR_REG_MR_HANDLE,
+	UVERBS_ATTR_REG_MR_PD_HANDLE,
+	UVERBS_ATTR_REG_MR_DMA_HANDLE,
+	UVERBS_ATTR_REG_MR_IOVA,
+	UVERBS_ATTR_REG_MR_ADDR,
+	UVERBS_ATTR_REG_MR_LENGTH,
+	UVERBS_ATTR_REG_MR_ACCESS_FLAGS,
+	UVERBS_ATTR_REG_MR_FD,
+	UVERBS_ATTR_REG_MR_FD_OFFSET,
+	UVERBS_ATTR_REG_MR_RESP_LKEY,
+	UVERBS_ATTR_REG_MR_RESP_RKEY,
 };
 
 enum uverbs_attrs_create_counters_cmd_attr_ids {

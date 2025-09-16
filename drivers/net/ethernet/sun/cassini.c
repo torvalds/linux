@@ -4021,7 +4021,7 @@ done:
 
 static void cas_link_timer(struct timer_list *t)
 {
-	struct cas *cp = from_timer(cp, t, link_timer);
+	struct cas *cp = timer_container_of(cp, t, link_timer);
 	int mask, pending = 0, reset = 0;
 	unsigned long flags;
 

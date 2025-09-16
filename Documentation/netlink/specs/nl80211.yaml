@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: nl80211
 protocol: genetlink-legacy
 
@@ -204,71 +204,6 @@ definitions:
       - sched-scan-random-mac-addr
       - no-random-mac-addr
   -
-    name: ieee80211-mcs-info
-    type: struct
-    members:
-      -
-        name: rx-mask
-        type: binary
-        len: 10
-      -
-        name: rx-highest
-        type: u16
-        byte-order: little-endian
-      -
-        name: tx-params
-        type: u8
-      -
-        name: reserved
-        type: binary
-        len: 3
-  -
-    name: ieee80211-vht-mcs-info
-    type: struct
-    members:
-      -
-        name: rx-mcs-map
-        type: u16
-        byte-order: little-endian
-      -
-        name: rx-highest
-        type: u16
-        byte-order: little-endian
-      -
-        name: tx-mcs-map
-        type: u16
-        byte-order: little-endian
-      -
-        name: tx-highest
-        type: u16
-        byte-order: little-endian
-  -
-    name: ieee80211-ht-cap
-    type: struct
-    members:
-      -
-        name: cap-info
-        type: u16
-        byte-order: little-endian
-      -
-        name: ampdu-params-info
-        type: u8
-      -
-        name: mcs
-        type: binary
-        struct: ieee80211-mcs-info
-      -
-        name: extended-ht-cap-info
-        type: u16
-        byte-order: little-endian
-      -
-        name: tx-bf-cap-info
-        type: u32
-        byte-order: little-endian
-      -
-        name: antenna-selection-info
-        type: u8
-  -
     name: channel-type
     type: enum
     entries:
@@ -350,7 +285,7 @@ attribute-sets:
         type: u16
       -
         name: sta-flags
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: sta-listen-interval
         type: u16
@@ -362,14 +297,14 @@ attribute-sets:
         type: u32
       -
         name: sta-info
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: wiphy-bands
         type: nest
         nested-attributes: wiphy-bands
       -
         name: mntr-flags
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: mesh-id
         type: binary
@@ -382,7 +317,7 @@ attribute-sets:
         display-hint: mac
       -
         name: mpath-info
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: bss-cts-prot
         type: u8
@@ -404,16 +339,16 @@ attribute-sets:
         type: binary
       -
         name: reg-rules
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: mesh-config
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: bss-basic-rates
         type: binary
       -
         name: wiphy-txq-params
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: wiphy-freq
         type: u32
@@ -435,16 +370,16 @@ attribute-sets:
         type: u8
       -
         name: scan-frequencies
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: scan-ssids
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: generation
         type: u32
       -
         name: bss
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: reg-initiator
         type: u8
@@ -481,10 +416,10 @@ attribute-sets:
         display-hint: hex
       -
         name: freq-before
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: freq-after
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: freq-fixed
         type: flag
@@ -548,10 +483,10 @@ attribute-sets:
         type: binary
       -
         name: key
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: keys
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: pid
         type: u32
@@ -560,7 +495,7 @@ attribute-sets:
         type: u8
       -
         name: survey-info
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: pmkid
         type: binary
@@ -578,7 +513,7 @@ attribute-sets:
         type: u8
       -
         name: tx-rates
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: frame-match
         type: binary
@@ -590,7 +525,7 @@ attribute-sets:
         type: u32
       -
         name: cqm
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: local-state-change
         type: flag
@@ -640,13 +575,13 @@ attribute-sets:
         type: u16
       -
         name: key-default-types
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: max-remain-on-channel-duration
         type: u32
       -
         name: mesh-setup
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: wiphy-antenna-avail-tx
         type: u32
@@ -661,7 +596,7 @@ attribute-sets:
         type: u8
       -
         name: wowlan-triggers
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: wowlan-triggers-supported
         type: nest
@@ -680,7 +615,7 @@ attribute-sets:
         nested-attributes: supported-iftypes
       -
         name: rekey-data
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: max-num-sched-scan-ssids
         type: u8
@@ -689,7 +624,7 @@ attribute-sets:
         type: u16
       -
         name: scan-supp-rates
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: hidden-ssid
         type: u32
@@ -701,7 +636,7 @@ attribute-sets:
         type: binary
       -
         name: sta-wme
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: support-ap-uapsd
         type: flag
@@ -710,13 +645,13 @@ attribute-sets:
         type: flag
       -
         name: sched-scan-match
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: max-match-sets
         type: u8
       -
         name: pmksa-candidate
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: tx-no-cck-rate
         type: flag
@@ -745,7 +680,7 @@ attribute-sets:
         name: feature-flags
         type: u32
         enum: feature-flags
-        enum-as-flags: True
+        enum-as-flags: true
       -
         name: probe-resp-offload
         type: u32
@@ -761,7 +696,6 @@ attribute-sets:
       -
         name: ht-capability-mask
         type: binary
-        struct: ieee80211-ht-cap
       -
         name: noack-map
         type: u16
@@ -815,7 +749,7 @@ attribute-sets:
         type: u32
       -
         name: mac-addrs
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: mac-acl-max
         type: u32
@@ -864,7 +798,7 @@ attribute-sets:
         type: u16
       -
         name: coalesce-rule
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: ch-switch-count
         type: u32
@@ -873,7 +807,7 @@ attribute-sets:
         type: flag
       -
         name: csa-ies
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: cntdwn-offs-beacon
         type: binary
@@ -995,13 +929,13 @@ attribute-sets:
         type: u32
       -
         name: sched-scan-plans
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: pbss
         type: flag
       -
         name: bss-select
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: sta-support-p2p-ps
         type: u8
@@ -1010,7 +944,7 @@ attribute-sets:
         type: binary
       -
         name: iftype-ext-capa
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: mu-mimo-group-data
         type: binary
@@ -1041,10 +975,10 @@ attribute-sets:
         type: u32
       -
         name: nan-func
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: nan-match
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: fils-kek
         type: binary
@@ -1133,16 +1067,16 @@ attribute-sets:
         type: binary
       -
         name: ftm-responder
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: ftm-responder-stats
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: timeout
         type: u32
       -
         name: peer-measurements
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: airtime-weight
         type: u16
@@ -1160,7 +1094,7 @@ attribute-sets:
         type: flag
       -
         name: he-obss-pd
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: wiphy-edmg-channels
         type: u8
@@ -1172,13 +1106,13 @@ attribute-sets:
         type: u16
       -
         name: he-bss-color
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: iftype-akm-suites
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: tid-config
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: control-port-no-preauth
         type: flag
@@ -1199,16 +1133,16 @@ attribute-sets:
         type: u32
       -
         name: scan-freq-khz
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: he-6ghz-capability
         type: binary
       -
         name: fils-discovery
-        type: binary # TOOD: nest
+        type: binary  # TOOD: nest
       -
         name: unsol-bcast-probe-resp
-        type: binary # TOOD: nest
+        type: binary  # TOOD: nest
       -
         name: s1g-capability
         type: binary
@@ -1239,13 +1173,13 @@ attribute-sets:
         type: u8
       -
         name: color-change-elems
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: mbssid-config
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: mbssid-elems
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: radar-background
         type: flag
@@ -1260,7 +1194,7 @@ attribute-sets:
         type: flag
       -
         name: mlo-links
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: mlo-link-id
         type: u8
@@ -1300,7 +1234,7 @@ attribute-sets:
         type: flag
       -
         name: ema-rnr-elems
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: mlo-link-disabled
         type: flag
@@ -1318,10 +1252,10 @@ attribute-sets:
         type: flag
       -
         name: wiphy-radios
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: wiphy-interface-combinations
-        type: binary # TODO: nest
+        type: binary  # TODO: nest
       -
         name: vif-radio-mask
         type: u32
@@ -1382,7 +1316,6 @@ attribute-sets:
       -
         name: ht-mcs-set
         type: binary
-        struct: ieee80211-mcs-info
       -
         name: ht-capa
         type: u16
@@ -1395,7 +1328,6 @@ attribute-sets:
       -
         name: vht-mcs-set
         type: binary
-        struct: ieee80211-vht-mcs-info
       -
         name: vht-capa
         type: u32
@@ -1867,8 +1799,9 @@ operations:
     -
       name: get-wiphy
       doc: |
-        Get information about a wiphy or dump a list of all wiphys. Requests to dump get-wiphy
-        should unconditionally include the split-wiphy-dump flag in the request.
+        Get information about a wiphy or dump a list of all wiphys. Requests to
+        dump get-wiphy should unconditionally include the split-wiphy-dump flag
+        in the request.
       attribute-set: nl80211-attrs
       do:
         request:

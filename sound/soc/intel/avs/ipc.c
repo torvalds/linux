@@ -141,7 +141,6 @@ static void avs_dsp_recovery(struct avs_dev *adev)
 	if (ret < 0)
 		dev_err(adev->dev, "dsp reboot failed: %d\n", ret);
 
-	pm_runtime_mark_last_busy(adev->dev);
 	pm_runtime_enable(adev->dev);
 	pm_request_autosuspend(adev->dev);
 
@@ -169,7 +168,9 @@ static void avs_dsp_exception_caught(struct avs_dev *adev, union avs_notify_msg 
 
 	dev_crit(adev->dev, "communication severed, rebooting dsp..\n");
 
-	cancel_delayed_work_sync(&ipc->d0ix_work);
+	/* Avoid deadlock as the exception may be the response to SET_D0IX. */
+	if (current_work() != &ipc->d0ix_work.work)
+		cancel_delayed_work_sync(&ipc->d0ix_work);
 	ipc->in_d0ix = false;
 	/* Re-enabled on recovery completion. */
 	pm_runtime_disable(adev->dev);

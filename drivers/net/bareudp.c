@@ -362,8 +362,8 @@ static int bareudp_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	udp_tunnel_xmit_skb(rt, sock->sk, skb, saddr, info->key.u.ipv4.dst,
 			    tos, ttl, df, sport, bareudp->port,
 			    !net_eq(bareudp->net, dev_net(bareudp->dev)),
-			    !test_bit(IP_TUNNEL_CSUM_BIT,
-				      info->key.tun_flags));
+			    !test_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags),
+			    0);
 	return 0;
 
 free_dst:
@@ -431,7 +431,8 @@ static int bareudp6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			     &saddr, &daddr, prio, ttl,
 			     info->key.label, sport, bareudp->port,
 			     !test_bit(IP_TUNNEL_CSUM_BIT,
-				       info->key.tun_flags));
+				       info->key.tun_flags),
+			     0);
 	return 0;
 
 free_dst:
@@ -777,27 +778,19 @@ static __net_init int bareudp_init_net(struct net *net)
 	return 0;
 }
 
-static void bareudp_destroy_tunnels(struct net *net, struct list_head *head)
+static void __net_exit bareudp_exit_rtnl_net(struct net *net,
+					     struct list_head *dev_kill_list)
 {
 	struct bareudp_net *bn = net_generic(net, bareudp_net_id);
 	struct bareudp_dev *bareudp, *next;
 
 	list_for_each_entry_safe(bareudp, next, &bn->bareudp_list, next)
-		unregister_netdevice_queue(bareudp->dev, head);
-}
-
-static void __net_exit bareudp_exit_batch_rtnl(struct list_head *net_list,
-					       struct list_head *dev_kill_list)
-{
-	struct net *net;
-
-	list_for_each_entry(net, net_list, exit_list)
-		bareudp_destroy_tunnels(net, dev_kill_list);
+		bareudp_dellink(bareudp->dev, dev_kill_list);
 }
 
 static struct pernet_operations bareudp_net_ops = {
 	.init = bareudp_init_net,
-	.exit_batch_rtnl = bareudp_exit_batch_rtnl,
+	.exit_rtnl = bareudp_exit_rtnl_net,
 	.id   = &bareudp_net_id,
 	.size = sizeof(struct bareudp_net),
 };

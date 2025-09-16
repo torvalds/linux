@@ -38,36 +38,16 @@ properties:
     minItems: 7
     maxItems: 13
 
-  '#clock-cells':
-    const: 1
-
-  '#reset-cells':
-    const: 1
-
-  '#power-domain-cells':
-    const: 1
-
-  reg:
-    maxItems: 1
-
-  protected-clocks:
-    description:
-      Protected clock specifier list as per common clock binding
-
   vdd-gfx-supply:
     description:
       Regulator supply for the GPU_GX GDSC
 
 required:
   - compatible
-  - reg
-  - '#clock-cells'
-  - '#reset-cells'
   - '#power-domain-cells'
 
-additionalProperties: false
-
 allOf:
+  - $ref: qcom,gcc.yaml#
   - if:
       properties:
         compatible:
@@ -350,6 +330,8 @@ allOf:
             - const: dsi1pllbyte
             - const: dp_link_2x_clk_divsel_five
             - const: dp_vco_divided_clk_src_mux
+
+unevaluatedProperties: false
 
 examples:
   # Example for MMCC for MSM8960:

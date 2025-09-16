@@ -92,6 +92,16 @@ static const struct devlink_param devlink_param_generic[] = {
 		.name = DEVLINK_PARAM_GENERIC_EVENT_EQ_SIZE_NAME,
 		.type = DEVLINK_PARAM_GENERIC_EVENT_EQ_SIZE_TYPE,
 	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_ENABLE_PHC,
+		.name = DEVLINK_PARAM_GENERIC_ENABLE_PHC_NAME,
+		.type = DEVLINK_PARAM_GENERIC_ENABLE_PHC_TYPE,
+	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_CLOCK_ID,
+		.name = DEVLINK_PARAM_GENERIC_CLOCK_ID_NAME,
+		.type = DEVLINK_PARAM_GENERIC_CLOCK_ID_TYPE,
+	},
 };
 
 static int devlink_param_generic_verify(const struct devlink_param *param)
@@ -167,25 +177,6 @@ static int devlink_param_set(struct devlink *devlink,
 }
 
 static int
-devlink_param_type_to_nla_type(enum devlink_param_type param_type)
-{
-	switch (param_type) {
-	case DEVLINK_PARAM_TYPE_U8:
-		return NLA_U8;
-	case DEVLINK_PARAM_TYPE_U16:
-		return NLA_U16;
-	case DEVLINK_PARAM_TYPE_U32:
-		return NLA_U32;
-	case DEVLINK_PARAM_TYPE_STRING:
-		return NLA_STRING;
-	case DEVLINK_PARAM_TYPE_BOOL:
-		return NLA_FLAG;
-	default:
-		return -EINVAL;
-	}
-}
-
-static int
 devlink_nl_param_value_fill_one(struct sk_buff *msg,
 				enum devlink_param_type type,
 				enum devlink_param_cmode cmode,
@@ -212,6 +203,11 @@ devlink_nl_param_value_fill_one(struct sk_buff *msg,
 		break;
 	case DEVLINK_PARAM_TYPE_U32:
 		if (nla_put_u32(msg, DEVLINK_ATTR_PARAM_VALUE_DATA, val.vu32))
+			goto value_nest_cancel;
+		break;
+	case DEVLINK_PARAM_TYPE_U64:
+		if (devlink_nl_put_u64(msg, DEVLINK_ATTR_PARAM_VALUE_DATA,
+				       val.vu64))
 			goto value_nest_cancel;
 		break;
 	case DEVLINK_PARAM_TYPE_STRING:
@@ -247,7 +243,6 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 	struct devlink_param_gset_ctx ctx;
 	struct nlattr *param_values_list;
 	struct nlattr *param_attr;
-	int nla_type;
 	void *hdr;
 	int err;
 	int i;
@@ -293,11 +288,7 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 		goto param_nest_cancel;
 	if (param->generic && nla_put_flag(msg, DEVLINK_ATTR_PARAM_GENERIC))
 		goto param_nest_cancel;
-
-	nla_type = devlink_param_type_to_nla_type(param->type);
-	if (nla_type < 0)
-		goto param_nest_cancel;
-	if (nla_put_u8(msg, DEVLINK_ATTR_PARAM_TYPE, nla_type))
+	if (nla_put_u8(msg, DEVLINK_ATTR_PARAM_TYPE, param->type))
 		goto param_nest_cancel;
 
 	param_values_list = nla_nest_start_noflag(msg,
@@ -419,25 +410,7 @@ devlink_param_type_get_from_info(struct genl_info *info,
 	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_PARAM_TYPE))
 		return -EINVAL;
 
-	switch (nla_get_u8(info->attrs[DEVLINK_ATTR_PARAM_TYPE])) {
-	case NLA_U8:
-		*param_type = DEVLINK_PARAM_TYPE_U8;
-		break;
-	case NLA_U16:
-		*param_type = DEVLINK_PARAM_TYPE_U16;
-		break;
-	case NLA_U32:
-		*param_type = DEVLINK_PARAM_TYPE_U32;
-		break;
-	case NLA_STRING:
-		*param_type = DEVLINK_PARAM_TYPE_STRING;
-		break;
-	case NLA_FLAG:
-		*param_type = DEVLINK_PARAM_TYPE_BOOL;
-		break;
-	default:
-		return -EINVAL;
-	}
+	*param_type = nla_get_u8(info->attrs[DEVLINK_ATTR_PARAM_TYPE]);
 
 	return 0;
 }
@@ -470,6 +443,11 @@ devlink_param_value_get_from_info(const struct devlink_param *param,
 		if (nla_len(param_data) != sizeof(u32))
 			return -EINVAL;
 		value->vu32 = nla_get_u32(param_data);
+		break;
+	case DEVLINK_PARAM_TYPE_U64:
+		if (nla_len(param_data) != sizeof(u64))
+			return -EINVAL;
+		value->vu64 = nla_get_u64(param_data);
 		break;
 	case DEVLINK_PARAM_TYPE_STRING:
 		len = strnlen(nla_data(param_data), nla_len(param_data));

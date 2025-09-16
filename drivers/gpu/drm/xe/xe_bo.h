@@ -12,6 +12,7 @@
 #include "xe_macros.h"
 #include "xe_vm_types.h"
 #include "xe_vm.h"
+#include "xe_vram_types.h"
 
 #define XE_DEFAULT_GTT_SIZE_MB          3072ULL /* 3GB by default */
 
@@ -23,8 +24,9 @@
 #define XE_BO_FLAG_VRAM_MASK		(XE_BO_FLAG_VRAM0 | XE_BO_FLAG_VRAM1)
 /* -- */
 #define XE_BO_FLAG_STOLEN		BIT(4)
+#define XE_BO_FLAG_VRAM(vram)		(XE_BO_FLAG_VRAM0 << ((vram)->id))
 #define XE_BO_FLAG_VRAM_IF_DGFX(tile)	(IS_DGFX(tile_to_xe(tile)) ? \
-					 XE_BO_FLAG_VRAM0 << (tile)->id : \
+					 XE_BO_FLAG_VRAM((tile)->mem.vram) : \
 					 XE_BO_FLAG_SYSTEM)
 #define XE_BO_FLAG_GGTT			BIT(5)
 #define XE_BO_FLAG_IGNORE_MIN_PAGE_SIZE BIT(6)
@@ -118,9 +120,6 @@ struct xe_bo *xe_bo_create_pin_map_at_aligned(struct xe_device *xe,
 					      size_t size, u64 offset,
 					      enum ttm_bo_type type, u32 flags,
 					      u64 alignment);
-struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_tile *tile,
-				     const void *data, size_t size,
-				     enum ttm_bo_type type, u32 flags);
 struct xe_bo *xe_managed_bo_create_pin_map(struct xe_device *xe, struct xe_tile *tile,
 					   size_t size, u32 flags);
 struct xe_bo *xe_managed_bo_create_from_data(struct xe_device *xe, struct xe_tile *tile,
@@ -201,7 +200,7 @@ static inline void xe_bo_unlock_vm_held(struct xe_bo *bo)
 	}
 }
 
-int xe_bo_pin_external(struct xe_bo *bo);
+int xe_bo_pin_external(struct xe_bo *bo, bool in_place);
 int xe_bo_pin(struct xe_bo *bo);
 void xe_bo_unpin_external(struct xe_bo *bo);
 void xe_bo_unpin(struct xe_bo *bo);
@@ -238,6 +237,19 @@ xe_bo_main_addr(struct xe_bo *bo, size_t page_size)
 	return xe_bo_addr(bo, 0, page_size);
 }
 
+/**
+ * xe_bo_size() - Xe BO size
+ * @bo: The bo object.
+ *
+ * Simple helper to return Xe BO's size.
+ *
+ * Return: Xe BO's size
+ */
+static inline size_t xe_bo_size(struct xe_bo *bo)
+{
+	return bo->ttm.base.size;
+}
+
 static inline u32
 __xe_bo_ggtt_addr(struct xe_bo *bo, u8 tile_id)
 {
@@ -246,7 +258,7 @@ __xe_bo_ggtt_addr(struct xe_bo *bo, u8 tile_id)
 	if (XE_WARN_ON(!ggtt_node))
 		return 0;
 
-	XE_WARN_ON(ggtt_node->base.size > bo->size);
+	XE_WARN_ON(ggtt_node->base.size > xe_bo_size(bo));
 	XE_WARN_ON(ggtt_node->base.start + ggtt_node->base.size > (1ull << 32));
 	return ggtt_node->base.start;
 }
@@ -300,7 +312,7 @@ bool xe_bo_needs_ccs_pages(struct xe_bo *bo);
 
 static inline size_t xe_bo_ccs_pages_start(struct xe_bo *bo)
 {
-	return PAGE_ALIGN(bo->ttm.base.size);
+	return PAGE_ALIGN(xe_bo_size(bo));
 }
 
 static inline bool xe_bo_has_pages(struct xe_bo *bo)

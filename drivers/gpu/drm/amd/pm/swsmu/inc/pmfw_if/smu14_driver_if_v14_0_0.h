@@ -106,6 +106,7 @@ typedef struct {
 #define NUM_FCLK_DPM_LEVELS       8
 #define NUM_MEM_PSTATE_LEVELS     4
 
+#define  ISP_ALL_TILES_MASK       0x7FF
 
 typedef struct {
   uint32_t UClk;

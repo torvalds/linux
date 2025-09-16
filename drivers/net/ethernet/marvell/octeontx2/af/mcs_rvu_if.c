@@ -97,7 +97,7 @@ int mcs_add_intr_wq_entry(struct mcs *mcs, struct mcs_intr_event *event)
 	if (pcifunc & RVU_PFVF_FUNC_MASK)
 		pfvf = &mcs->vf[rvu_get_hwvf(rvu, pcifunc)];
 	else
-		pfvf = &mcs->pf[rvu_get_pf(pcifunc)];
+		pfvf = &mcs->pf[rvu_get_pf(rvu->pdev, pcifunc)];
 
 	event->intr_mask &= pfvf->intr_mask;
 
@@ -123,7 +123,7 @@ static int mcs_notify_pfvf(struct mcs_intr_event *event, struct rvu *rvu)
 	struct mcs_intr_info *req;
 	int pf;
 
-	pf = rvu_get_pf(event->pcifunc);
+	pf = rvu_get_pf(rvu->pdev, event->pcifunc);
 
 	mutex_lock(&rvu->mbox_lock);
 
@@ -142,6 +142,8 @@ static int mcs_notify_pfvf(struct mcs_intr_event *event, struct rvu *rvu)
 	otx2_mbox_wait_for_zero(&rvu->afpf_wq_info.mbox_up, pf);
 
 	otx2_mbox_msg_send_up(&rvu->afpf_wq_info.mbox_up, pf);
+
+	otx2_mbox_wait_for_rsp(&rvu->afpf_wq_info.mbox_up, pf);
 
 	mutex_unlock(&rvu->mbox_lock);
 
@@ -191,7 +193,7 @@ int rvu_mbox_handler_mcs_intr_cfg(struct rvu *rvu,
 	if (pcifunc & RVU_PFVF_FUNC_MASK)
 		pfvf = &mcs->vf[rvu_get_hwvf(rvu, pcifunc)];
 	else
-		pfvf = &mcs->pf[rvu_get_pf(pcifunc)];
+		pfvf = &mcs->pf[rvu_get_pf(rvu->pdev, pcifunc)];
 
 	mcs->pf_map[0] = pcifunc;
 	pfvf->intr_mask = req->intr_mask;

@@ -16,30 +16,6 @@ properties:
   label:
     description: Human readable label on a port of a box.
 
-  local-mac-address:
-    description:
-      Specifies the MAC address that was assigned to the network device.
-    $ref: /schemas/types.yaml#/definitions/uint8-array
-    minItems: 6
-    maxItems: 6
-
-  mac-address:
-    description:
-      Specifies the MAC address that was last used by the boot
-      program; should be used in cases where the MAC address assigned
-      to the device by the boot program is different from the
-      local-mac-address property.
-    $ref: /schemas/types.yaml#/definitions/uint8-array
-    minItems: 6
-    maxItems: 6
-
-  max-frame-size:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    description:
-      Maximum transfer unit (IEEE defined MTU), rather than the
-      maximum frame size (there\'s contradiction in the Devicetree
-      Specification).
-
   max-speed:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
@@ -63,6 +39,7 @@ properties:
       # MAC.
       - internal
       - mii
+      - mii-lite
       - gmii
       - sgmii
       - psgmii
@@ -74,19 +51,17 @@ properties:
       - rev-rmii
       - moca
 
-      # RX and TX delays are added by the MAC when required
+      # RX and TX delays are provided by the PCB. See below
       - rgmii
 
-      # RGMII with internal RX and TX delays provided by the PHY,
-      # the MAC should not add the RX or TX delays in this case
+      # RX and TX delays are not provided by the PCB. This is the most
+      # frequent case. See below
       - rgmii-id
 
-      # RGMII with internal RX delay provided by the PHY, the MAC
-      # should not add an RX delay in this case
+      # TX delay is provided by the PCB. See below
       - rgmii-rxid
 
-      # RGMII with internal TX delay provided by the PHY, the MAC
-      # should not add an TX delay in this case
+      # RX delay is provided by the PCB. See below
       - rgmii-txid
       - rtbi
       - smii
@@ -197,7 +172,7 @@ properties:
             description:
               Link speed.
             $ref: /schemas/types.yaml#/definitions/uint32
-            enum: [10, 100, 1000, 2500, 10000]
+            enum: [10, 100, 1000, 2500, 5000, 10000]
 
           full-duplex:
             $ref: /schemas/types.yaml#/definitions/flag
@@ -262,6 +237,7 @@ dependencies:
   pcs-handle-names: [pcs-handle]
 
 allOf:
+  - $ref: /schemas/net/network-class.yaml#
   - if:
       properties:
         phy-mode:
@@ -286,4 +262,89 @@ allOf:
 
 additionalProperties: true
 
+# Informative
+# ===========
+#
+# 'phy-modes' & 'phy-connection-type' properties 'rgmii', 'rgmii-id',
+# 'rgmii-rxid', and 'rgmii-txid' are frequently used wrongly by
+# developers. This informative section clarifies their usage.
+#
+# The RGMII specification requires a 2ns delay between the data and
+# clock signals on the RGMII bus. How this delay is implemented is not
+# specified.
+#
+# One option is to make the clock traces on the PCB longer than the
+# data traces. A sufficiently difference in length can provide the 2ns
+# delay. If both the RX and TX delays are implemented in this manner,
+# 'rgmii' should be used, so indicating the PCB adds the delays.
+#
+# If the PCB does not add these delays via extra long traces,
+# 'rgmii-id' should be used. Here, 'id' refers to 'internal delay',
+# where either the MAC or PHY adds the delay.
+#
+# If only one of the two delays are implemented via extra long clock
+# lines, either 'rgmii-rxid' or 'rgmii-txid' should be used,
+# indicating the MAC or PHY should implement one of the delays
+# internally, while the PCB implements the other delay.
+#
+# Device Tree describes hardware, and in this case, it describes the
+# PCB between the MAC and the PHY, if the PCB implements delays or
+# not.
+#
+# In practice, very few PCBs make use of extra long clock lines. Hence
+# any RGMII phy mode other than 'rgmii-id' is probably wrong, and is
+# unlikely to be accepted during review without details provided in
+# the commit description and comments in the .dts file.
+#
+# When the PCB does not implement the delays, the MAC or PHY must.  As
+# such, this is software configuration, and so not described in Device
+# Tree.
+#
+# The following describes how Linux implements the configuration of
+# the MAC and PHY to add these delays when the PCB does not. As stated
+# above, developers often get this wrong, and the aim of this section
+# is reduce the frequency of these errors by Linux developers. Other
+# users of the Device Tree may implement it differently, and still be
+# consistent with both the normative and informative description
+# above.
+#
+# By default in Linux, when using phylib/phylink, the MAC is expected
+# to read the 'phy-mode' from Device Tree, not implement any delays,
+# and pass the value to the PHY. The PHY will then implement delays as
+# specified by the 'phy-mode'. The PHY should always be reconfigured
+# to implement the needed delays, replacing any setting performed by
+# strapping or the bootloader, etc.
+#
+# Experience to date is that all PHYs which implement RGMII also
+# implement the ability to add or not add the needed delays. Hence
+# this default is expected to work in all cases. Ignoring this default
+# is likely to be questioned by Reviews, and require a strong argument
+# to be accepted.
+#
+# There are a small number of cases where the MAC has hard coded
+# delays which cannot be disabled. The 'phy-mode' only describes the
+# PCB.  The inability to disable the delays in the MAC does not change
+# the meaning of 'phy-mode'. It does however mean that a 'phy-mode' of
+# 'rgmii' is now invalid, it cannot be supported, since both the PCB
+# and the MAC and PHY adding delays cannot result in a functional
+# link. Thus the MAC should report a fatal error for any modes which
+# cannot be supported. When the MAC implements the delay, it must
+# ensure that the PHY does not also implement the same delay. So it
+# must modify the phy-mode it passes to the PHY, removing the delay it
+# has added. Failure to remove the delay will result in a
+# non-functioning link.
+#
+# Sometimes there is a need to fine tune the delays. Often the MAC or
+# PHY can perform this fine tuning. In the MAC node, the Device Tree
+# properties 'rx-internal-delay-ps' and 'tx-internal-delay-ps' should
+# be used to indicate fine tuning performed by the MAC. The values
+# expected here are small. A value of 2000ps, i.e 2ns, and a phy-mode
+# of 'rgmii' will not be accepted by Reviewers.
+#
+# If the PHY is to perform fine tuning, the properties
+# 'rx-internal-delay-ps' and 'tx-internal-delay-ps' in the PHY node
+# should be used. When the PHY is implementing delays, e.g. 'rgmii-id'
+# these properties should have a value near to 2000ps. If the PCB is
+# implementing delays, e.g. 'rgmii', a small value can be used to fine
+# tune the delay added by the PCB.
 ...

@@ -46,8 +46,6 @@
 #define STK3310_PS_MAX_VAL			0xFFFF
 
 #define STK3310_DRIVER_NAME			"stk3310"
-#define STK3310_REGMAP_NAME			"stk3310_regmap"
-#define STK3310_EVENT				"stk3310_event"
 
 #define STK3310_SCALE_AVAILABLE			"6.4 1.6 0.4 0.1"
 
@@ -165,7 +163,7 @@ static const struct iio_chan_spec_ext_info stk3310_ext_info[] = {
 		.shared = IIO_SEPARATE,
 		.read = stk3310_read_near_level,
 	},
-	{ /* sentinel */ }
+	{ }
 };
 
 static const struct iio_chan_spec stk3310_channels[] = {
@@ -527,7 +525,7 @@ static bool stk3310_is_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config stk3310_regmap_config = {
-	.name = STK3310_REGMAP_NAME,
+	.name = "stk3310_regmap",
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = STK3310_MAX_REG,
@@ -643,7 +641,7 @@ static int stk3310_probe(struct i2c_client *client)
 						stk3310_irq_event_handler,
 						IRQF_TRIGGER_FALLING |
 						IRQF_ONESHOT,
-						STK3310_EVENT, indio_dev);
+						"stk3310_event", indio_dev);
 		if (ret < 0) {
 			dev_err(&client->dev, "request irq %d failed\n",
 				client->irq);
@@ -703,7 +701,7 @@ static const struct i2c_device_id stk3310_i2c_id[] = {
 	{ "STK3310" },
 	{ "STK3311" },
 	{ "STK3335" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, stk3310_i2c_id);
 
@@ -711,7 +709,7 @@ static const struct acpi_device_id stk3310_acpi_id[] = {
 	{"STK3013", 0},
 	{"STK3310", 0},
 	{"STK3311", 0},
-	{}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(acpi, stk3310_acpi_id);
@@ -721,7 +719,7 @@ static const struct of_device_id stk3310_of_match[] = {
 	{ .compatible = "sensortek,stk3310", },
 	{ .compatible = "sensortek,stk3311", },
 	{ .compatible = "sensortek,stk3335", },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, stk3310_of_match);
 

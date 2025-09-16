@@ -19,13 +19,13 @@
 
 #include "ubsan.h"
 
-#ifdef CONFIG_UBSAN_TRAP
+#if defined(CONFIG_UBSAN_TRAP) || defined(CONFIG_UBSAN_KVM_EL2)
 /*
  * Only include matches for UBSAN checks that are actually compiled in.
  * The mappings of struct SanitizerKind (the -fsanitize=xxx args) to
  * enum SanitizerHandler (the traps) in Clang is in clang/lib/CodeGen/.
  */
-const char *report_ubsan_failure(struct pt_regs *regs, u32 check_type)
+const char *report_ubsan_failure(u32 check_type)
 {
 	switch (check_type) {
 #ifdef CONFIG_UBSAN_BOUNDS
@@ -97,7 +97,9 @@ const char *report_ubsan_failure(struct pt_regs *regs, u32 check_type)
 	}
 }
 
-#else
+#endif
+
+#ifndef CONFIG_UBSAN_TRAP
 static const char * const type_check_kinds[] = {
 	"load of",
 	"store to",
@@ -331,18 +333,18 @@ EXPORT_SYMBOL(__ubsan_handle_implicit_conversion);
 void __ubsan_handle_divrem_overflow(void *_data, void *lhs, void *rhs)
 {
 	struct overflow_data *data = _data;
-	char rhs_val_str[VALUE_LENGTH];
+	char lhs_val_str[VALUE_LENGTH];
 
 	if (suppress_report(&data->location))
 		return;
 
 	ubsan_prologue(&data->location, "division-overflow");
 
-	val_to_string(rhs_val_str, sizeof(rhs_val_str), data->type, rhs);
+	val_to_string(lhs_val_str, sizeof(lhs_val_str), data->type, lhs);
 
 	if (type_is_signed(data->type) && get_signed_val(data->type, rhs) == -1)
 		pr_err("division of %s by -1 cannot be represented in type %s\n",
-			rhs_val_str, data->type->type_name);
+			lhs_val_str, data->type->type_name);
 	else
 		pr_err("division by zero\n");
 

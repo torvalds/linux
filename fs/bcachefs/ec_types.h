@@ -4,9 +4,10 @@
 
 #include "bcachefs_format.h"
 
-struct bch_replicas_padded {
+union bch_replicas_padded {
+	u8				bytes[struct_size_t(struct bch_replicas_entry_v1,
+							    devs, BCH_BKEY_PTRS_MAX)];
 	struct bch_replicas_entry_v1	e;
-	u8				pad[BCH_BKEY_PTRS_MAX];
 };
 
 struct stripe {
@@ -28,7 +29,7 @@ struct gc_stripe {
 	u16			block_sectors[BCH_BKEY_PTRS_MAX];
 	struct bch_extent_ptr	ptrs[BCH_BKEY_PTRS_MAX];
 
-	struct bch_replicas_padded r;
+	union bch_replicas_padded r;
 };
 
 #endif /* _BCACHEFS_EC_TYPES_H */

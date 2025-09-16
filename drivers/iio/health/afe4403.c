@@ -405,13 +405,13 @@ static const struct regmap_config afe4403_regmap_config = {
 	.val_bits = 24,
 
 	.max_register = AFE440X_PDNCYCLEENDC,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_table = &afe4403_volatile_table,
 };
 
 static const struct of_device_id afe4403_of_match[] = {
 	{ .compatible = "ti,afe4403", },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, afe4403_of_match);
 
@@ -574,7 +574,7 @@ static int afe4403_probe(struct spi_device *spi)
 
 static const struct spi_device_id afe4403_ids[] = {
 	{ "afe4403", 0 },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, afe4403_ids);
 

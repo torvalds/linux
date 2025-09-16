@@ -62,15 +62,6 @@ enum _dmae_cmd_crc_mask {
 void qed_gtt_init(struct qed_hwfn *p_hwfn);
 
 /**
- * qed_ptt_invalidate(): Forces all ptt entries to be re-configured
- *
- * @p_hwfn: HW device data.
- *
- * Return: Void.
- */
-void qed_ptt_invalidate(struct qed_hwfn *p_hwfn);
-
-/**
  * qed_ptt_pool_alloc(): Allocate and initialize PTT pool.
  *
  * @p_hwfn: HW device data.

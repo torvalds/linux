@@ -66,6 +66,9 @@ static const unsigned short normal_i2c[] = {
 #define SPD5118_EEPROM_BASE		0x80
 #define SPD5118_EEPROM_SIZE		(SPD5118_PAGE_SIZE * SPD5118_NUM_PAGES)
 
+#define PAGE_ADDR0(page)		(((page) & BIT(0)) << 6)
+#define PAGE_ADDR1_4(page)		(((page) & GENMASK(4, 1)) >> 1)
+
 /* Temperature unit in millicelsius */
 #define SPD5118_TEMP_UNIT		(MILLIDEGREE_PER_DEGREE / 4)
 /* Representable temperature range in millicelsius */
@@ -75,6 +78,7 @@ static const unsigned short normal_i2c[] = {
 struct spd5118_data {
 	struct regmap *regmap;
 	struct mutex nvmem_lock;
+	bool is_16bit;
 };
 
 /* hwmon */
@@ -305,51 +309,6 @@ static bool spd5118_vendor_valid(u8 bank, u8 id)
 	return id && id != 0x7f;
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
-static int spd5118_detect(struct i2c_client *client, struct i2c_board_info *info)
-{
-	struct i2c_adapter *adapter = client->adapter;
-	int regval;
-
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
-				     I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
-
-	regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
-	if (regval != 0x5118)
-		return -ENODEV;
-
-	regval = i2c_smbus_read_word_data(client, SPD5118_REG_VENDOR);
-	if (regval < 0 || !spd5118_vendor_valid(regval & 0xff, regval >> 8))
-		return -ENODEV;
-
-	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_CAPABILITY);
-	if (regval < 0)
-		return -ENODEV;
-	if (!(regval & SPD5118_CAP_TS_SUPPORT) || (regval & 0xfc))
-		return -ENODEV;
-
-	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_TEMP_CLR);
-	if (regval)
-		return -ENODEV;
-	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_ERROR_CLR);
-	if (regval)
-		return -ENODEV;
-
-	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_REVISION);
-	if (regval < 0 || (regval & 0xc1))
-		return -ENODEV;
-
-	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_TEMP_CONFIG);
-	if (regval < 0)
-		return -ENODEV;
-	if (regval & ~SPD5118_TS_DISABLE)
-		return -ENODEV;
-
-	strscpy(info->type, "spd5118", I2C_NAME_SIZE);
-	return 0;
-}
-
 static const struct hwmon_channel_info *spd5118_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ),
@@ -376,11 +335,12 @@ static const struct hwmon_chip_info spd5118_chip_info = {
 
 /* nvmem */
 
-static ssize_t spd5118_nvmem_read_page(struct regmap *regmap, char *buf,
+static ssize_t spd5118_nvmem_read_page(struct spd5118_data *data, char *buf,
 				       unsigned int offset, size_t count)
 {
-	int addr = (offset >> SPD5118_PAGE_SHIFT) * 0x100 + SPD5118_EEPROM_BASE;
-	int err;
+	int page = offset >> SPD5118_PAGE_SHIFT;
+	struct regmap *regmap = data->regmap;
+	int err, addr;
 
 	offset &= SPD5118_PAGE_MASK;
 
@@ -388,6 +348,12 @@ static ssize_t spd5118_nvmem_read_page(struct regmap *regmap, char *buf,
 	if (offset + count > SPD5118_PAGE_SIZE)
 		count = SPD5118_PAGE_SIZE - offset;
 
+	if (data->is_16bit) {
+		addr = SPD5118_EEPROM_BASE | PAGE_ADDR0(page) |
+		  (PAGE_ADDR1_4(page) << 8);
+	} else {
+		addr = page * 0x100 + SPD5118_EEPROM_BASE;
+	}
 	err = regmap_bulk_read(regmap, addr + offset, buf, count);
 	if (err)
 		return err;
@@ -410,7 +376,7 @@ static int spd5118_nvmem_read(void *priv, unsigned int off, void *val, size_t co
 	mutex_lock(&data->nvmem_lock);
 
 	while (count) {
-		ret = spd5118_nvmem_read_page(data->regmap, buf, off, count);
+		ret = spd5118_nvmem_read_page(data, buf, off, count);
 		if (ret < 0) {
 			mutex_unlock(&data->nvmem_lock);
 			return ret;
@@ -483,7 +449,7 @@ static bool spd5118_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static const struct regmap_range_cfg spd5118_regmap_range_cfg[] = {
+static const struct regmap_range_cfg spd5118_i2c_regmap_range_cfg[] = {
 	{
 	.selector_reg   = SPD5118_REG_I2C_LEGACY_MODE,
 	.selector_mask  = SPD5118_LEGACY_PAGE_MASK,
@@ -495,7 +461,7 @@ static const struct regmap_range_cfg spd5118_regmap_range_cfg[] = {
 	},
 };
 
-static const struct regmap_config spd5118_regmap_config = {
+static const struct regmap_config spd5118_regmap8_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x7ff,
@@ -503,88 +469,75 @@ static const struct regmap_config spd5118_regmap_config = {
 	.volatile_reg = spd5118_volatile_reg,
 	.cache_type = REGCACHE_MAPLE,
 
-	.ranges = spd5118_regmap_range_cfg,
-	.num_ranges = ARRAY_SIZE(spd5118_regmap_range_cfg),
+	.ranges = spd5118_i2c_regmap_range_cfg,
+	.num_ranges = ARRAY_SIZE(spd5118_i2c_regmap_range_cfg),
 };
 
-static int spd5118_init(struct i2c_client *client)
+static const struct regmap_config spd5118_regmap16_config = {
+	.reg_bits = 16,
+	.val_bits = 8,
+	.max_register = 0x7ff,
+	.writeable_reg = spd5118_writeable_reg,
+	.volatile_reg = spd5118_volatile_reg,
+	.cache_type = REGCACHE_MAPLE,
+};
+
+static int spd5118_suspend(struct device *dev)
 {
-	struct i2c_adapter *adapter = client->adapter;
-	int err, regval, mode;
-
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
-				     I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
-
-	regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
-	if (regval < 0 || (regval && regval != 0x5118))
-		return -ENODEV;
+	struct spd5118_data *data = dev_get_drvdata(dev);
+	struct regmap *regmap = data->regmap;
+	u32 regval;
+	int err;
 
 	/*
-	 * If the device type registers return 0, it is possible that the chip
-	 * has a non-zero page selected and takes the specification literally,
-	 * i.e. disables access to volatile registers besides the page register
-	 * if the page is not 0. Try to identify such chips.
+	 * Make sure the configuration register in the regmap cache is current
+	 * before bypassing it.
 	 */
-	if (!regval) {
-		/* Vendor ID registers must also be 0 */
-		regval = i2c_smbus_read_word_data(client, SPD5118_REG_VENDOR);
-		if (regval)
-			return -ENODEV;
+	err = regmap_read(regmap, SPD5118_REG_TEMP_CONFIG, &regval);
+	if (err < 0)
+		return err;
 
-		/* The selected page in MR11 must not be 0 */
-		mode = i2c_smbus_read_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE);
-		if (mode < 0 || (mode & ~SPD5118_LEGACY_MODE_MASK) ||
-		    !(mode & SPD5118_LEGACY_PAGE_MASK))
-			return -ENODEV;
+	regcache_cache_bypass(regmap, true);
+	regmap_update_bits(regmap, SPD5118_REG_TEMP_CONFIG, SPD5118_TS_DISABLE,
+			   SPD5118_TS_DISABLE);
+	regcache_cache_bypass(regmap, false);
 
-		err = i2c_smbus_write_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE,
-						mode & SPD5118_LEGACY_MODE_ADDR);
-		if (err)
-			return -ENODEV;
+	regcache_cache_only(regmap, true);
+	regcache_mark_dirty(regmap);
 
-		/*
-		 * If the device type registers are still bad after selecting
-		 * page 0, this is not a SPD5118 device. Restore original
-		 * legacy mode register value and abort.
-		 */
-		regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
-		if (regval != 0x5118) {
-			i2c_smbus_write_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE, mode);
-			return -ENODEV;
-		}
-	}
-
-	/* We are reasonably sure that this is really a SPD5118 hub controller */
 	return 0;
 }
 
-static int spd5118_probe(struct i2c_client *client)
+static int spd5118_resume(struct device *dev)
 {
-	struct device *dev = &client->dev;
-	unsigned int regval, revision, vendor, bank;
+	struct spd5118_data *data = dev_get_drvdata(dev);
+	struct regmap *regmap = data->regmap;
+
+	regcache_cache_only(regmap, false);
+	return regcache_sync(regmap);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(spd5118_pm_ops, spd5118_suspend, spd5118_resume);
+
+static int spd5118_common_probe(struct device *dev, struct regmap *regmap,
+				bool is_16bit)
+{
+	unsigned int capability, revision, vendor, bank;
 	struct spd5118_data *data;
 	struct device *hwmon_dev;
-	struct regmap *regmap;
 	int err;
-
-	err = spd5118_init(client);
-	if (err)
-		return err;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	regmap = devm_regmap_init_i2c(client, &spd5118_regmap_config);
-	if (IS_ERR(regmap))
-		return dev_err_probe(dev, PTR_ERR(regmap), "regmap init failed\n");
-
-	err = regmap_read(regmap, SPD5118_REG_CAPABILITY, &regval);
+	err = regmap_read(regmap, SPD5118_REG_CAPABILITY, &capability);
 	if (err)
 		return err;
-	if (!(regval & SPD5118_CAP_TS_SUPPORT))
+	if (!(capability & SPD5118_CAP_TS_SUPPORT))
 		return -ENODEV;
+
+	data->is_16bit = is_16bit;
 
 	err = regmap_read(regmap, SPD5118_REG_REVISION, &revision);
 	if (err)
@@ -627,48 +580,176 @@ static int spd5118_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int spd5118_suspend(struct device *dev)
+/* I2C */
+
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int spd5118_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
-	struct spd5118_data *data = dev_get_drvdata(dev);
-	struct regmap *regmap = data->regmap;
-	u32 regval;
-	int err;
+	struct i2c_adapter *adapter = client->adapter;
+	int regval;
 
-	/*
-	 * Make sure the configuration register in the regmap cache is current
-	 * before bypassing it.
-	 */
-	err = regmap_read(regmap, SPD5118_REG_TEMP_CONFIG, &regval);
-	if (err < 0)
-		return err;
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
+				     I2C_FUNC_SMBUS_WORD_DATA))
+		return -ENODEV;
 
-	regcache_cache_bypass(regmap, true);
-	regmap_update_bits(regmap, SPD5118_REG_TEMP_CONFIG, SPD5118_TS_DISABLE,
-			   SPD5118_TS_DISABLE);
-	regcache_cache_bypass(regmap, false);
+	regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
+	if (regval != 0x5118)
+		return -ENODEV;
 
-	regcache_cache_only(regmap, true);
-	regcache_mark_dirty(regmap);
+	regval = i2c_smbus_read_word_data(client, SPD5118_REG_VENDOR);
+	if (regval < 0 || !spd5118_vendor_valid(regval & 0xff, regval >> 8))
+		return -ENODEV;
 
+	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_CAPABILITY);
+	if (regval < 0)
+		return -ENODEV;
+	if (!(regval & SPD5118_CAP_TS_SUPPORT) || (regval & 0xfc))
+		return -ENODEV;
+
+	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_TEMP_CLR);
+	if (regval)
+		return -ENODEV;
+	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_ERROR_CLR);
+	if (regval)
+		return -ENODEV;
+
+	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_REVISION);
+	if (regval < 0 || (regval & 0xc1))
+		return -ENODEV;
+
+	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_TEMP_CONFIG);
+	if (regval < 0)
+		return -ENODEV;
+	if (regval & ~SPD5118_TS_DISABLE)
+		return -ENODEV;
+
+	strscpy(info->type, "spd5118", I2C_NAME_SIZE);
 	return 0;
 }
 
-static int spd5118_resume(struct device *dev)
+static int spd5118_i2c_init(struct i2c_client *client)
 {
-	struct spd5118_data *data = dev_get_drvdata(dev);
-	struct regmap *regmap = data->regmap;
+	struct i2c_adapter *adapter = client->adapter;
+	int err, regval, mode;
 
-	regcache_cache_only(regmap, false);
-	return regcache_sync(regmap);
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
+				     I2C_FUNC_SMBUS_WORD_DATA))
+		return -ENODEV;
+
+	regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
+	if (regval < 0 || (regval && regval != 0x5118))
+		return -ENODEV;
+
+	/*
+	 * If the device type registers return 0, it is possible that the chip
+	 * has a non-zero page selected and takes the specification literally,
+	 * i.e. disables access to volatile registers besides the page register
+	 * if the page is not 0. The Renesas/ITD SPD5118 Hub Controller is known
+	 * to show this behavior. Try to identify such chips.
+	 */
+	if (!regval) {
+		/* Vendor ID registers must also be 0 */
+		regval = i2c_smbus_read_word_data(client, SPD5118_REG_VENDOR);
+		if (regval)
+			return -ENODEV;
+
+		/* The selected page in MR11 must not be 0 */
+		mode = i2c_smbus_read_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE);
+		if (mode < 0 || (mode & ~SPD5118_LEGACY_MODE_MASK) ||
+		    !(mode & SPD5118_LEGACY_PAGE_MASK))
+			return -ENODEV;
+
+		err = i2c_smbus_write_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE,
+						mode & SPD5118_LEGACY_MODE_ADDR);
+		if (err)
+			return -ENODEV;
+
+		/*
+		 * If the device type registers are still bad after selecting
+		 * page 0, this is not a SPD5118 device. Restore original
+		 * legacy mode register value and abort.
+		 */
+		regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
+		if (regval != 0x5118) {
+			i2c_smbus_write_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE, mode);
+			return -ENODEV;
+		}
+	}
+
+	/* We are reasonably sure that this is really a SPD5118 hub controller */
+	return 0;
 }
 
-static DEFINE_SIMPLE_DEV_PM_OPS(spd5118_pm_ops, spd5118_suspend, spd5118_resume);
+/*
+ * 16-bit addressing note:
+ *
+ * If I2C_FUNC_I2C is not supported by an I2C adapter driver, regmap uses
+ * SMBus operations as alternative. To simulate a read operation with a 16-bit
+ * address, it writes the address using i2c_smbus_write_byte_data(), followed
+ * by one or more calls to i2c_smbus_read_byte() to read the data.
+ * Per spd5118 standard, a read operation after writing the address must start
+ * with <Sr> (Repeat Start). However, a SMBus read byte operation starts with
+ * <S> (Start). This resets the register address in the spd5118 chip. As result,
+ * i2c_smbus_read_byte() always returns data from register address 0x00.
+ *
+ * A working alternative to access chips with 16-bit register addresses in the
+ * absence of I2C_FUNC_I2C support is not known.
+ *
+ * For this reason, 16-bit addressing can only be supported with I2C if the
+ * adapter supports I2C_FUNC_I2C.
+ *
+ * For I2C, the addressing mode selected by the BIOS must not be changed.
+ * Experiments show that at least some PC BIOS versions will not change the
+ * addressing mode on a soft reboot and end up in setup, claiming that some
+ * configuration change happened. This will happen again after a power cycle,
+ * which does reset the addressing mode. To prevent this from happening,
+ * detect if 16-bit addressing is enabled and always use the currently
+ * configured addressing mode.
+ */
 
-static const struct i2c_device_id spd5118_id[] = {
+static int spd5118_i2c_probe(struct i2c_client *client)
+{
+	const struct regmap_config *config;
+	struct device *dev = &client->dev;
+	struct regmap *regmap;
+	int err, mode;
+	bool is_16bit;
+
+	err = spd5118_i2c_init(client);
+	if (err)
+		return err;
+
+	mode = i2c_smbus_read_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE);
+	if (mode < 0)
+		return mode;
+
+	is_16bit = mode & SPD5118_LEGACY_MODE_ADDR;
+	if (is_16bit) {
+		/*
+		 * See 16-bit addressing note above explaining why it is
+		 * necessary to check for I2C_FUNC_I2C support here.
+		 */
+		if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+			dev_err(dev, "Adapter does not support 16-bit register addresses\n");
+			return -ENODEV;
+		}
+		config = &spd5118_regmap16_config;
+	} else {
+		config = &spd5118_regmap8_config;
+	}
+
+	regmap = devm_regmap_init_i2c(client, config);
+	if (IS_ERR(regmap))
+		return dev_err_probe(dev, PTR_ERR(regmap), "regmap init failed\n");
+
+	return spd5118_common_probe(dev, regmap, is_16bit);
+}
+
+static const struct i2c_device_id spd5118_i2c_id[] = {
 	{ "spd5118" },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, spd5118_id);
+MODULE_DEVICE_TABLE(i2c, spd5118_i2c_id);
 
 static const struct of_device_id spd5118_of_ids[] = {
 	{ .compatible = "jedec,spd5118", },
@@ -676,20 +757,20 @@ static const struct of_device_id spd5118_of_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, spd5118_of_ids);
 
-static struct i2c_driver spd5118_driver = {
+static struct i2c_driver spd5118_i2c_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "spd5118",
 		.of_match_table = spd5118_of_ids,
 		.pm = pm_sleep_ptr(&spd5118_pm_ops),
 	},
-	.probe		= spd5118_probe,
-	.id_table	= spd5118_id,
+	.probe		= spd5118_i2c_probe,
+	.id_table	= spd5118_i2c_id,
 	.detect		= IS_ENABLED(CONFIG_SENSORS_SPD5118_DETECT) ? spd5118_detect : NULL,
 	.address_list	= IS_ENABLED(CONFIG_SENSORS_SPD5118_DETECT) ? normal_i2c : NULL,
 };
 
-module_i2c_driver(spd5118_driver);
+module_i2c_driver(spd5118_i2c_driver);
 
 MODULE_AUTHOR("René Rebe <rene@exactcode.de>");
 MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");

@@ -33,18 +33,22 @@ static const struct sof_amd_acp_desc acp70_chip_info = {
 	.ext_intr_cntl = ACP70_EXTERNAL_INTR_CNTL,
 	.ext_intr_stat	= ACP70_EXT_INTR_STAT,
 	.ext_intr_stat1	= ACP70_EXT_INTR_STAT1,
+	.acp_error_stat = ACP70_ERROR_STATUS,
 	.dsp_intr_base	= ACP70_DSP_SW_INTR_BASE,
 	.acp_sw0_i2s_err_reason = ACP7X_SW0_I2S_ERROR_REASON,
 	.sram_pte_offset = ACP70_SRAM_PTE_OFFSET,
 	.hw_semaphore_offset = ACP70_AXI2DAGB_SEM_0,
 	.fusion_dsp_offset = ACP70_DSP_FUSION_RUNSTALL,
 	.probe_reg_offset = ACP70_FUTURE_REG_ACLK_0,
+	.sdw_max_link_count = ACP70_SDW_MAX_MANAGER_COUNT,
+	.sdw_acpi_dev_addr = SDW_ACPI_ADDR_ACP70,
 	.reg_start_addr = ACP70_REG_START,
 	.reg_end_addr = ACP70_REG_END,
 };
 
 static const struct sof_dev_desc acp70_desc = {
 	.machines		= snd_soc_acpi_amd_acp70_sof_machines,
+	.alt_machines           = snd_soc_acpi_amd_acp70_sof_sdw_machines,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
 	.resindex_imr_base	= -1,
@@ -70,8 +74,14 @@ static int acp70_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_
 {
 	unsigned int flag;
 
-	if (pci->revision != ACP70_PCI_ID)
+	switch (pci->revision) {
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
+	case ACP72_PCI_ID:
+			break;
+	default:
 		return -ENODEV;
+	}
 
 	flag = snd_amd_acp_find_config(pci);
 	if (flag != FLAG_AMD_SOF && flag != FLAG_AMD_SOF_ONLY_DMIC)

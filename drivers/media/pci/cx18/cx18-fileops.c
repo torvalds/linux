@@ -371,7 +371,7 @@ static size_t cx18_copy_mdl_to_user(struct cx18_stream *s,
 		mdl->curr_buf = list_first_entry(&mdl->buf_list,
 						 struct cx18_buffer, list);
 
-	if (list_entry_is_past_end(mdl->curr_buf, &mdl->buf_list, list)) {
+	if (list_entry_is_head(mdl->curr_buf, &mdl->buf_list, list)) {
 		/*
 		 * For some reason we've exhausted the buffers, but the MDL
 		 * object still said some data was unread.
@@ -628,7 +628,7 @@ __poll_t cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 
 void cx18_vb_timeout(struct timer_list *t)
 {
-	struct cx18_stream *s = from_timer(s, t, vb_timeout);
+	struct cx18_stream *s = timer_container_of(s, t, vb_timeout);
 
 	/*
 	 * Return all of the buffers in error state, so the vbi/vid inode

@@ -993,7 +993,7 @@ static int usbatm_heavy_init(struct usbatm_data *instance)
 
 static void usbatm_tasklet_schedule(struct timer_list *t)
 {
-	struct usbatm_channel *channel = from_timer(channel, t, delay);
+	struct usbatm_channel *channel = timer_container_of(channel, t, delay);
 
 	tasklet_schedule(&channel->tasklet);
 }

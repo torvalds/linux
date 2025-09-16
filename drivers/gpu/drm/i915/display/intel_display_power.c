@@ -3,11 +3,15 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <linux/iopoll.h>
 #include <linux/string_helpers.h>
+
+#include "soc/intel_dram.h"
 
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_backlight_regs.h"
 #include "intel_cdclk.h"
 #include "intel_clock_gating.h"
@@ -16,6 +20,7 @@
 #include "intel_display_power.h"
 #include "intel_display_power_map.h"
 #include "intel_display_power_well.h"
+#include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dmc.h"
@@ -1169,7 +1174,7 @@ static void icl_mbus_init(struct intel_display *display)
 	if (DISPLAY_VER(display) == 12)
 		abox_regs |= BIT(0);
 
-	for_each_set_bit(i, &abox_regs, sizeof(abox_regs))
+	for_each_set_bit(i, &abox_regs, BITS_PER_TYPE(abox_regs))
 		intel_de_rmw(display, MBUS_ABOX_CTL(i), mask, val);
 }
 
@@ -1254,10 +1259,8 @@ static u32 hsw_read_dcomp(struct intel_display *display)
 
 static void hsw_write_dcomp(struct intel_display *display, u32 val)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	if (display->platform.haswell) {
-		if (snb_pcode_write(&dev_priv->uncore, GEN6_PCODE_WRITE_D_COMP, val))
+		if (intel_pcode_write(display->drm, GEN6_PCODE_WRITE_D_COMP, val))
 			drm_dbg_kms(display->drm, "Failed to write to D_COMP\n");
 	} else {
 		intel_de_write(display, D_COMP_BDW, val);
@@ -1277,6 +1280,7 @@ static void hsw_disable_lcpll(struct intel_display *display,
 			      bool switch_to_fclk, bool allow_power_down)
 {
 	u32 val;
+	int ret;
 
 	assert_can_disable_lcpll(display);
 
@@ -1286,8 +1290,10 @@ static void hsw_disable_lcpll(struct intel_display *display,
 		val |= LCPLL_CD_SOURCE_FCLK;
 		intel_de_write(display, LCPLL_CTL, val);
 
-		if (wait_for_us(intel_de_read(display, LCPLL_CTL) &
-				LCPLL_CD_SOURCE_FCLK_DONE, 1))
+		ret = intel_de_wait_custom(display, LCPLL_CTL,
+					   LCPLL_CD_SOURCE_FCLK_DONE, LCPLL_CD_SOURCE_FCLK_DONE,
+					   1, 0, NULL);
+		if (ret)
 			drm_err(display->drm, "Switching to FCLK failed\n");
 
 		val = intel_de_read(display, LCPLL_CTL);
@@ -1305,8 +1311,10 @@ static void hsw_disable_lcpll(struct intel_display *display,
 	hsw_write_dcomp(display, val);
 	ndelay(100);
 
-	if (wait_for((hsw_read_dcomp(display) &
-		      D_COMP_RCOMP_IN_PROGRESS) == 0, 1))
+	ret = poll_timeout_us(val = hsw_read_dcomp(display),
+			      (val & D_COMP_RCOMP_IN_PROGRESS) == 0,
+			      100, 1000, false);
+	if (ret)
 		drm_err(display->drm, "D_COMP RCOMP still in progress\n");
 
 	if (allow_power_down) {
@@ -1323,6 +1331,7 @@ static void hsw_restore_lcpll(struct intel_display *display)
 {
 	struct drm_i915_private __maybe_unused *dev_priv = to_i915(display->drm);
 	u32 val;
+	int ret;
 
 	val = intel_de_read(display, LCPLL_CTL);
 
@@ -1357,8 +1366,10 @@ static void hsw_restore_lcpll(struct intel_display *display)
 	if (val & LCPLL_CD_SOURCE_FCLK) {
 		intel_de_rmw(display, LCPLL_CTL, LCPLL_CD_SOURCE_FCLK, 0);
 
-		if (wait_for_us((intel_de_read(display, LCPLL_CTL) &
-				 LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
+		ret = intel_de_wait_custom(display, LCPLL_CTL,
+					   LCPLL_CD_SOURCE_FCLK_DONE, 0,
+					   1, 0, NULL);
+		if (ret)
 			drm_err(display->drm,
 				"Switching back to LCPLL failed\n");
 	}
@@ -1604,9 +1615,7 @@ static const struct buddy_page_mask wa_1409767108_buddy_page_masks[] = {
 
 static void tgl_bw_buddy_init(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-	enum intel_dram_type type = dev_priv->dram_info.type;
-	u8 num_channels = dev_priv->dram_info.num_channels;
+	const struct dram_info *dram_info = intel_dram_info(display->drm);
 	const struct buddy_page_mask *table;
 	unsigned long abox_mask = DISPLAY_INFO(display)->abox_mask;
 	int config, i;
@@ -1623,18 +1632,18 @@ static void tgl_bw_buddy_init(struct intel_display *display)
 		table = tgl_buddy_page_masks;
 
 	for (config = 0; table[config].page_mask != 0; config++)
-		if (table[config].num_channels == num_channels &&
-		    table[config].type == type)
+		if (table[config].num_channels == dram_info->num_channels &&
+		    table[config].type == dram_info->type)
 			break;
 
 	if (table[config].page_mask == 0) {
 		drm_dbg_kms(display->drm,
 			    "Unknown memory configuration; disabling address buddy logic.\n");
-		for_each_set_bit(i, &abox_mask, sizeof(abox_mask))
+		for_each_set_bit(i, &abox_mask, BITS_PER_TYPE(abox_mask))
 			intel_de_write(display, BW_BUDDY_CTL(i),
 				       BW_BUDDY_DISABLE);
 	} else {
-		for_each_set_bit(i, &abox_mask, sizeof(abox_mask)) {
+		for_each_set_bit(i, &abox_mask, BITS_PER_TYPE(abox_mask)) {
 			intel_de_write(display, BW_BUDDY_PAGE_MASK(i),
 				       table[config].page_mask);
 
@@ -1883,12 +1892,11 @@ static void vlv_cmnlane_wa(struct intel_display *display)
 
 static bool vlv_punit_is_power_gated(struct intel_display *display, u32 reg0)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	bool ret;
 
-	vlv_punit_get(dev_priv);
-	ret = (vlv_punit_read(dev_priv, reg0) & SSPM0_SSC_MASK) == SSPM0_SSC_PWR_GATE;
-	vlv_punit_put(dev_priv);
+	vlv_punit_get(display->drm);
+	ret = (vlv_punit_read(display->drm, reg0) & SSPM0_SSC_MASK) == SSPM0_SSC_PWR_GATE;
+	vlv_punit_put(display->drm);
 
 	return ret;
 }
@@ -2157,8 +2165,6 @@ void intel_power_domains_resume(struct intel_display *display)
 		power_domains->init_wakeref =
 			intel_display_power_get(display, POWER_DOMAIN_INIT);
 	}
-
-	intel_power_domains_verify_state(display);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)

@@ -165,7 +165,7 @@ static int aspeed_scu_ic_of_init_common(struct aspeed_scu_ic *scu_ic,
 		goto err;
 	}
 
-	scu_ic->irq_domain = irq_domain_add_linear(node, scu_ic->num_irqs,
+	scu_ic->irq_domain = irq_domain_create_linear(of_fwnode_handle(node), scu_ic->num_irqs,
 						   &aspeed_scu_ic_domain_ops,
 						   scu_ic);
 	if (!scu_ic->irq_domain) {

@@ -115,14 +115,6 @@ static void sctp_control_set_owner_w(struct sctp_chunk *chunk)
 	skb->destructor = sctp_control_release_owner;
 }
 
-/* What was the inbound interface for this chunk? */
-int sctp_chunk_iif(const struct sctp_chunk *chunk)
-{
-	struct sk_buff *skb = chunk->skb;
-
-	return SCTP_INPUT_CB(skb)->af->skb_iif(skb);
-}
-
 /* RFC 2960 3.3.2 Initiation (INIT) (1)
  *
  * Note 2: The ECN capable field is reserved for future use of

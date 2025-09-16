@@ -37,3 +37,22 @@ config CLK_SOPHGO_SG2042_RPGATE
 	  This clock IP depends on SG2042 Clock Generator because it uses
 	  clock from Clock Generator IP as input.
 	  This driver provides Gate function for RP.
+
+config CLK_SOPHGO_SG2044
+	tristate "Sophgo SG2044 clock controller support"
+	depends on ARCH_SOPHGO || COMPILE_TEST
+	help
+	  This driver supports the clock controller on the Sophgo SG2044
+	  SoC. This controller requires mulitple PLL clock as input.
+	  This clock control provides PLL clocks and common clock function
+	  for various IPs on the SoC.
+
+config CLK_SOPHGO_SG2044_PLL
+	tristate "Sophgo SG2044 PLL clock controller support"
+	depends on ARCH_SOPHGO || COMPILE_TEST
+	select MFD_SYSCON
+	select REGMAP_MMIO
+	help
+	  This driver supports the PLL clock controller on the Sophgo
+	  SG2044 SoC. This controller requires 25M oscillator as input.
+	  This clock control provides PLL clocks on the SoC.

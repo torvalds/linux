@@ -19,10 +19,23 @@ struct fbnic_fw_mbx {
 };
 
 // FW_VER_MAX_SIZE must match ETHTOOL_FWVERS_LEN
-#define FBNIC_FW_VER_MAX_SIZE	                32
+#define FBNIC_FW_VER_MAX_SIZE			32
 // Formatted version is in the format XX.YY.ZZ_RRR_COMMIT
 #define FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE	(FBNIC_FW_VER_MAX_SIZE - 13)
-#define FBNIC_FW_LOG_MAX_SIZE	                256
+#define FBNIC_FW_LOG_VERSION			1
+#define FBNIC_FW_LOG_MAX_SIZE			256
+/*
+ * The max amount of logs which can fit in a single mailbox message. Firmware
+ * assumes each mailbox message is 4096B. The amount of messages supported is
+ * calculated as 4096 minus headers for message, arrays, and length minus the
+ * size of length divided by headers for each array plus the maximum LOG size,
+ * and the size of MSEC and INDEX. Put another way:
+ *
+ * MAX_LOG_HISTORY = ((4096 - TLV_HDR_SZ * 5 - LENGTH_SZ)
+ *                    / (FBNIC_FW_LOG_MAX_SIZE + TLV_HDR_SZ * 3 + MSEC_SZ
+ *                       + INDEX_SZ))
+ */
+#define FBNIC_FW_MAX_LOG_HISTORY		14
 
 struct fbnic_fw_ver {
 	u32 version;
@@ -42,6 +55,7 @@ struct fbnic_fw_cap {
 	u8	all_multi	: 1;
 	u8	link_speed;
 	u8	link_fec;
+	u32	anti_rollback_version;
 };
 
 struct fbnic_fw_completion {
@@ -51,6 +65,10 @@ struct fbnic_fw_completion {
 	int result;
 	union {
 		struct {
+			u32 offset;
+			u32 length;
+		} fw_update;
+		struct {
 			s32 millivolts;
 			s32 millidegrees;
 		} tsene;
@@ -59,17 +77,27 @@ struct fbnic_fw_completion {
 
 void fbnic_mbx_init(struct fbnic_dev *fbd);
 void fbnic_mbx_clean(struct fbnic_dev *fbd);
+int fbnic_mbx_set_cmpl(struct fbnic_dev *fbd,
+		       struct fbnic_fw_completion *cmpl_data);
+void fbnic_mbx_clear_cmpl(struct fbnic_dev *fbd,
+			  struct fbnic_fw_completion *cmpl_data);
 void fbnic_mbx_poll(struct fbnic_dev *fbd);
 int fbnic_mbx_poll_tx_ready(struct fbnic_dev *fbd);
 void fbnic_mbx_flush_tx(struct fbnic_dev *fbd);
 int fbnic_fw_xmit_ownership_msg(struct fbnic_dev *fbd, bool take_ownership);
 int fbnic_fw_init_heartbeat(struct fbnic_dev *fbd, bool poll);
 void fbnic_fw_check_heartbeat(struct fbnic_dev *fbd);
+int fbnic_fw_xmit_fw_start_upgrade(struct fbnic_dev *fbd,
+				   struct fbnic_fw_completion *cmpl_data,
+				   unsigned int id, unsigned int len);
+int fbnic_fw_xmit_fw_write_chunk(struct fbnic_dev *fbd,
+				 const u8 *data, u32 offset, u16 length,
+				 int cancel_error);
 int fbnic_fw_xmit_tsene_read_msg(struct fbnic_dev *fbd,
 				 struct fbnic_fw_completion *cmpl_data);
-void fbnic_fw_init_cmpl(struct fbnic_fw_completion *cmpl_data,
-			u32 msg_type);
-void fbnic_fw_clear_compl(struct fbnic_dev *fbd);
+int fbnic_fw_xmit_send_logs(struct fbnic_dev *fbd, bool enable,
+			    bool send_log_history);
+struct fbnic_fw_completion *fbnic_fw_alloc_cmpl(u32 msg_type);
 void fbnic_fw_put_cmpl(struct fbnic_fw_completion *cmpl_data);
 
 #define fbnic_mk_full_fw_ver_str(_rev_id, _delim, _commit, _str, _str_sz) \
@@ -86,6 +114,15 @@ do {									\
 #define fbnic_mk_fw_ver_str(_rev_id, _str) \
 	fbnic_mk_full_fw_ver_str(_rev_id, "", "", _str, sizeof(_str))
 
+enum {
+	QSPI_SECTION_CMRT			= 0,
+	QSPI_SECTION_CONTROL_FW			= 1,
+	QSPI_SECTION_UCODE			= 2,
+	QSPI_SECTION_OPTION_ROM			= 3,
+	QSPI_SECTION_USER			= 4,
+	QSPI_SECTION_INVALID,
+};
+
 #define FW_HEARTBEAT_PERIOD		(10 * HZ)
 
 enum {
@@ -95,8 +132,17 @@ enum {
 	FBNIC_TLV_MSG_ID_OWNERSHIP_RESP			= 0x13,
 	FBNIC_TLV_MSG_ID_HEARTBEAT_REQ			= 0x14,
 	FBNIC_TLV_MSG_ID_HEARTBEAT_RESP			= 0x15,
+	FBNIC_TLV_MSG_ID_FW_START_UPGRADE_REQ		= 0x22,
+	FBNIC_TLV_MSG_ID_FW_START_UPGRADE_RESP		= 0x23,
+	FBNIC_TLV_MSG_ID_FW_WRITE_CHUNK_REQ		= 0x24,
+	FBNIC_TLV_MSG_ID_FW_WRITE_CHUNK_RESP		= 0x25,
+	FBNIC_TLV_MSG_ID_FW_FINISH_UPGRADE_REQ		= 0x28,
+	FBNIC_TLV_MSG_ID_FW_FINISH_UPGRADE_RESP		= 0x29,
 	FBNIC_TLV_MSG_ID_TSENE_READ_REQ			= 0x3C,
 	FBNIC_TLV_MSG_ID_TSENE_READ_RESP		= 0x3D,
+	FBNIC_TLV_MSG_ID_LOG_SEND_LOGS_REQ		= 0x43,
+	FBNIC_TLV_MSG_ID_LOG_MSG_REQ			= 0x44,
+	FBNIC_TLV_MSG_ID_LOG_MSG_RESP			= 0x45,
 };
 
 #define FBNIC_FW_CAP_RESP_VERSION_MAJOR		CSR_GENMASK(31, 24)
@@ -122,14 +168,15 @@ enum {
 	FBNIC_FW_CAP_RESP_STORED_CMRT_COMMIT_STR	= 0x10,
 	FBNIC_FW_CAP_RESP_UEFI_VERSION			= 0x11,
 	FBNIC_FW_CAP_RESP_UEFI_COMMIT_STR		= 0x12,
+	FBNIC_FW_CAP_RESP_ANTI_ROLLBACK_VERSION		= 0x15,
 	FBNIC_FW_CAP_RESP_MSG_MAX
 };
 
 enum {
-	FBNIC_FW_LINK_SPEED_25R1		= 1,
-	FBNIC_FW_LINK_SPEED_50R2		= 2,
-	FBNIC_FW_LINK_SPEED_50R1		= 3,
-	FBNIC_FW_LINK_SPEED_100R2		= 4,
+	FBNIC_FW_LINK_MODE_25CR			= 1,
+	FBNIC_FW_LINK_MODE_50CR2		= 2,
+	FBNIC_FW_LINK_MODE_50CR			= 3,
+	FBNIC_FW_LINK_MODE_100CR2		= 4,
 };
 
 enum {
@@ -149,4 +196,43 @@ enum {
 	FBNIC_FW_OWNERSHIP_FLAG			= 0x0,
 	FBNIC_FW_OWNERSHIP_MSG_MAX
 };
+
+enum {
+	FBNIC_FW_START_UPGRADE_ERROR		= 0x0,
+	FBNIC_FW_START_UPGRADE_SECTION		= 0x1,
+	FBNIC_FW_START_UPGRADE_IMAGE_LENGTH	= 0x2,
+	FBNIC_FW_START_UPGRADE_MSG_MAX
+};
+
+enum {
+	FBNIC_FW_WRITE_CHUNK_OFFSET		= 0x0,
+	FBNIC_FW_WRITE_CHUNK_LENGTH		= 0x1,
+	FBNIC_FW_WRITE_CHUNK_DATA		= 0x2,
+	FBNIC_FW_WRITE_CHUNK_ERROR		= 0x3,
+	FBNIC_FW_WRITE_CHUNK_MSG_MAX
+};
+
+enum {
+	FBNIC_FW_FINISH_UPGRADE_ERROR		= 0x0,
+	FBNIC_FW_FINISH_UPGRADE_MSG_MAX
+};
+
+enum {
+	FBNIC_SEND_LOGS				= 0x0,
+	FBNIC_SEND_LOGS_VERSION			= 0x1,
+	FBNIC_SEND_LOGS_HISTORY			= 0x2,
+	FBNIC_SEND_LOGS_MSG_MAX
+};
+
+enum {
+	FBNIC_FW_LOG_MSEC			= 0x0,
+	FBNIC_FW_LOG_INDEX			= 0x1,
+	FBNIC_FW_LOG_MSG			= 0x2,
+	FBNIC_FW_LOG_LENGTH			= 0x3,
+	FBNIC_FW_LOG_MSEC_ARRAY			= 0x4,
+	FBNIC_FW_LOG_INDEX_ARRAY		= 0x5,
+	FBNIC_FW_LOG_MSG_ARRAY			= 0x6,
+	FBNIC_FW_LOG_MSG_MAX
+};
+
 #endif /* _FBNIC_FW_H_ */

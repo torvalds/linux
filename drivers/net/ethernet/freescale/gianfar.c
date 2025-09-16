@@ -97,6 +97,7 @@
 #include <linux/phy_fixed.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <linux/property.h>
 
 #include "gianfar.h"
 
@@ -571,18 +572,6 @@ static int gfar_parse_group(struct device_node *np,
 	return 0;
 }
 
-static int gfar_of_group_count(struct device_node *np)
-{
-	struct device_node *child;
-	int num = 0;
-
-	for_each_available_child_of_node(np, child)
-		if (of_node_name_eq(child, "queue-group"))
-			num++;
-
-	return num;
-}
-
 /* Reads the controller's registers to determine what interface
  * connects it to the PHY.
  */
@@ -654,8 +643,10 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 		num_rx_qs = 1;
 	} else { /* MQ_MG_MODE */
 		/* get the actual number of supported groups */
-		unsigned int num_grps = gfar_of_group_count(np);
+		unsigned int num_grps;
 
+		num_grps = device_get_named_child_node_count(&ofdev->dev,
+							     "queue-group");
 		if (num_grps == 0 || num_grps > MAXGROUPS) {
 			dev_err(&ofdev->dev, "Invalid # of int groups(%d)\n",
 				num_grps);
@@ -2061,15 +2052,13 @@ static void gfar_timeout(struct net_device *dev, unsigned int txqueue)
 	schedule_work(&priv->reset_task);
 }
 
-static int gfar_hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
+static int gfar_hwtstamp_set(struct net_device *netdev,
+			     struct kernel_hwtstamp_config *config,
+			     struct netlink_ext_ack *extack)
 {
-	struct hwtstamp_config config;
 	struct gfar_private *priv = netdev_priv(netdev);
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	switch (config.tx_type) {
+	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		priv->hwts_tx_en = 0;
 		break;
@@ -2082,7 +2071,7 @@ static int gfar_hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
 		return -ERANGE;
 	}
 
-	switch (config.rx_filter) {
+	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		if (priv->hwts_rx_en) {
 			priv->hwts_rx_en = 0;
@@ -2096,44 +2085,23 @@ static int gfar_hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
 			priv->hwts_rx_en = 1;
 			reset_gfar(netdev);
 		}
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	}
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
-		-EFAULT : 0;
+	return 0;
 }
 
-static int gfar_hwtstamp_get(struct net_device *netdev, struct ifreq *ifr)
+static int gfar_hwtstamp_get(struct net_device *netdev,
+			     struct kernel_hwtstamp_config *config)
 {
-	struct hwtstamp_config config;
 	struct gfar_private *priv = netdev_priv(netdev);
 
-	config.flags = 0;
-	config.tx_type = priv->hwts_tx_en ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
-	config.rx_filter = (priv->hwts_rx_en ?
-			    HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE);
+	config->tx_type = priv->hwts_tx_en ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	config->rx_filter = priv->hwts_rx_en ? HWTSTAMP_FILTER_ALL :
+			    HWTSTAMP_FILTER_NONE;
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
-		-EFAULT : 0;
-}
-
-static int gfar_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	if (cmd == SIOCSHWTSTAMP)
-		return gfar_hwtstamp_set(dev, rq);
-	if (cmd == SIOCGHWTSTAMP)
-		return gfar_hwtstamp_get(dev, rq);
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_mii_ioctl(phydev, rq, cmd);
+	return 0;
 }
 
 /* Interrupt Handler for Transmit complete */
@@ -3174,7 +3142,7 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_set_features = gfar_set_features,
 	.ndo_set_rx_mode = gfar_set_multi,
 	.ndo_tx_timeout = gfar_timeout,
-	.ndo_eth_ioctl = gfar_ioctl,
+	.ndo_eth_ioctl = phy_do_ioctl_running,
 	.ndo_get_stats64 = gfar_get_stats64,
 	.ndo_change_carrier = fixed_phy_change_carrier,
 	.ndo_set_mac_address = gfar_set_mac_addr,
@@ -3182,6 +3150,8 @@ static const struct net_device_ops gfar_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = gfar_netpoll,
 #endif
+	.ndo_hwtstamp_get = gfar_hwtstamp_get,
+	.ndo_hwtstamp_set = gfar_hwtstamp_set,
 };
 
 /* Set up the ethernet device structure, private data,

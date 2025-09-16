@@ -244,7 +244,7 @@ struct hellcreek_port_hwtstamp {
 	struct sk_buff *tx_skb;
 
 	/* Current timestamp configuration */
-	struct hwtstamp_config tstamp_config;
+	struct kernel_hwtstamp_config tstamp_config;
 };
 
 struct hellcreek_port {

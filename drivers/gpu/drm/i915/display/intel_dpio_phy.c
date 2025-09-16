@@ -21,13 +21,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <drm/drm_print.h>
+
 #include "bxt_dpio_phy_regs.h"
-#include "i915_drv.h"
-#include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_power_well.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dpio_phy.h"
@@ -426,7 +428,7 @@ static void _bxt_dpio_phy_init(struct intel_display *display, enum dpio_phy phy)
 	 * use 1ms due to occasional timeouts observed with that.
 	 */
 	if (intel_de_wait_fw(display, BXT_PORT_CL1CM_DW0(phy),
-			     PHY_RESERVED | PHY_POWER_GOOD, PHY_POWER_GOOD, 1))
+			     PHY_RESERVED | PHY_POWER_GOOD, PHY_POWER_GOOD, 1, NULL))
 		drm_err(display->drm, "timeout during PHY%d power on\n",
 			phy);
 
@@ -715,53 +717,53 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 			      u32 deemph_reg_value, u32 margin_reg_value,
 			      bool uniq_trans_scale)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
 	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 	u32 val;
 	int i;
 
-	vlv_dpio_get(dev_priv);
+	vlv_dpio_get(display->drm);
 
 	/* Clear calc init */
-	val = vlv_dpio_read(dev_priv, phy, VLV_PCS01_DW10(ch));
+	val = vlv_dpio_read(display->drm, phy, VLV_PCS01_DW10(ch));
 	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
 	val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
 	val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
-	vlv_dpio_write(dev_priv, phy, VLV_PCS01_DW10(ch), val);
+	vlv_dpio_write(display->drm, phy, VLV_PCS01_DW10(ch), val);
 
 	if (crtc_state->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, phy, VLV_PCS23_DW10(ch));
+		val = vlv_dpio_read(display->drm, phy, VLV_PCS23_DW10(ch));
 		val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
 		val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
 		val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
-		vlv_dpio_write(dev_priv, phy, VLV_PCS23_DW10(ch), val);
+		vlv_dpio_write(display->drm, phy, VLV_PCS23_DW10(ch), val);
 	}
 
-	val = vlv_dpio_read(dev_priv, phy, VLV_PCS01_DW9(ch));
+	val = vlv_dpio_read(display->drm, phy, VLV_PCS01_DW9(ch));
 	val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
 	val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
-	vlv_dpio_write(dev_priv, phy, VLV_PCS01_DW9(ch), val);
+	vlv_dpio_write(display->drm, phy, VLV_PCS01_DW9(ch), val);
 
 	if (crtc_state->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, phy, VLV_PCS23_DW9(ch));
+		val = vlv_dpio_read(display->drm, phy, VLV_PCS23_DW9(ch));
 		val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
 		val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
-		vlv_dpio_write(dev_priv, phy, VLV_PCS23_DW9(ch), val);
+		vlv_dpio_write(display->drm, phy, VLV_PCS23_DW9(ch), val);
 	}
 
 	/* Program swing deemph */
 	for (i = 0; i < crtc_state->lane_count; i++) {
-		val = vlv_dpio_read(dev_priv, phy, CHV_TX_DW4(ch, i));
+		val = vlv_dpio_read(display->drm, phy, CHV_TX_DW4(ch, i));
 		val &= ~DPIO_SWING_DEEMPH9P5_MASK;
 		val |= DPIO_SWING_DEEMPH9P5(deemph_reg_value);
-		vlv_dpio_write(dev_priv, phy, CHV_TX_DW4(ch, i), val);
+		vlv_dpio_write(display->drm, phy, CHV_TX_DW4(ch, i), val);
 	}
 
 	/* Program swing margin */
 	for (i = 0; i < crtc_state->lane_count; i++) {
-		val = vlv_dpio_read(dev_priv, phy, CHV_TX_DW2(ch, i));
+		val = vlv_dpio_read(display->drm, phy, CHV_TX_DW2(ch, i));
 
 		val &= ~DPIO_SWING_MARGIN000_MASK;
 		val |= DPIO_SWING_MARGIN000(margin_reg_value);
@@ -774,7 +776,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 		val &= ~DPIO_UNIQ_TRANS_SCALE_MASK;
 		val |= DPIO_UNIQ_TRANS_SCALE(0x9a);
 
-		vlv_dpio_write(dev_priv, phy, CHV_TX_DW2(ch, i), val);
+		vlv_dpio_write(display->drm, phy, CHV_TX_DW2(ch, i), val);
 	}
 
 	/*
@@ -784,70 +786,70 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 	 * 27 for ch0 and ch1.
 	 */
 	for (i = 0; i < crtc_state->lane_count; i++) {
-		val = vlv_dpio_read(dev_priv, phy, CHV_TX_DW3(ch, i));
+		val = vlv_dpio_read(display->drm, phy, CHV_TX_DW3(ch, i));
 		if (uniq_trans_scale)
 			val |= DPIO_TX_UNIQ_TRANS_SCALE_EN;
 		else
 			val &= ~DPIO_TX_UNIQ_TRANS_SCALE_EN;
-		vlv_dpio_write(dev_priv, phy, CHV_TX_DW3(ch, i), val);
+		vlv_dpio_write(display->drm, phy, CHV_TX_DW3(ch, i), val);
 	}
 
 	/* Start swing calculation */
-	val = vlv_dpio_read(dev_priv, phy, VLV_PCS01_DW10(ch));
+	val = vlv_dpio_read(display->drm, phy, VLV_PCS01_DW10(ch));
 	val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
-	vlv_dpio_write(dev_priv, phy, VLV_PCS01_DW10(ch), val);
+	vlv_dpio_write(display->drm, phy, VLV_PCS01_DW10(ch), val);
 
 	if (crtc_state->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, phy, VLV_PCS23_DW10(ch));
+		val = vlv_dpio_read(display->drm, phy, VLV_PCS23_DW10(ch));
 		val |= DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3;
-		vlv_dpio_write(dev_priv, phy, VLV_PCS23_DW10(ch), val);
+		vlv_dpio_write(display->drm, phy, VLV_PCS23_DW10(ch), val);
 	}
 
-	vlv_dpio_put(dev_priv);
+	vlv_dpio_put(display->drm);
 }
 
 static void __chv_data_lane_soft_reset(struct intel_encoder *encoder,
 				       const struct intel_crtc_state *crtc_state,
 				       bool reset)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
 	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 	u32 val;
 
-	val = vlv_dpio_read(dev_priv, phy, VLV_PCS01_DW0(ch));
+	val = vlv_dpio_read(display->drm, phy, VLV_PCS01_DW0(ch));
 	if (reset)
 		val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
 	else
 		val |= DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET;
-	vlv_dpio_write(dev_priv, phy, VLV_PCS01_DW0(ch), val);
+	vlv_dpio_write(display->drm, phy, VLV_PCS01_DW0(ch), val);
 
 	if (crtc_state->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, phy, VLV_PCS23_DW0(ch));
+		val = vlv_dpio_read(display->drm, phy, VLV_PCS23_DW0(ch));
 		if (reset)
 			val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
 		else
 			val |= DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET;
-		vlv_dpio_write(dev_priv, phy, VLV_PCS23_DW0(ch), val);
+		vlv_dpio_write(display->drm, phy, VLV_PCS23_DW0(ch), val);
 	}
 
-	val = vlv_dpio_read(dev_priv, phy, VLV_PCS01_DW1(ch));
+	val = vlv_dpio_read(display->drm, phy, VLV_PCS01_DW1(ch));
 	val |= CHV_PCS_REQ_SOFTRESET_EN;
 	if (reset)
 		val &= ~DPIO_PCS_CLK_SOFT_RESET;
 	else
 		val |= DPIO_PCS_CLK_SOFT_RESET;
-	vlv_dpio_write(dev_priv, phy, VLV_PCS01_DW1(ch), val);
+	vlv_dpio_write(display->drm, phy, VLV_PCS01_DW1(ch), val);
 
 	if (crtc_state->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, phy, VLV_PCS23_DW1(ch));
+		val = vlv_dpio_read(display->drm, phy, VLV_PCS23_DW1(ch));
 		val |= CHV_PCS_REQ_SOFTRESET_EN;
 		if (reset)
 			val &= ~DPIO_PCS_CLK_SOFT_RESET;
 		else
 			val |= DPIO_PCS_CLK_SOFT_RESET;
-		vlv_dpio_write(dev_priv, phy, VLV_PCS23_DW1(ch), val);
+		vlv_dpio_write(display->drm, phy, VLV_PCS23_DW1(ch), val);
 	}
 }
 
@@ -855,11 +857,11 @@ void chv_data_lane_soft_reset(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state,
 			      bool reset)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 
-	vlv_dpio_get(i915);
+	vlv_dpio_get(display->drm);
 	__chv_data_lane_soft_reset(encoder, crtc_state, reset);
-	vlv_dpio_put(i915);
+	vlv_dpio_put(display->drm);
 }
 
 void chv_phy_pre_pll_enable(struct intel_encoder *encoder,
@@ -867,7 +869,6 @@ void chv_phy_pre_pll_enable(struct intel_encoder *encoder,
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
 	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
@@ -886,47 +887,47 @@ void chv_phy_pre_pll_enable(struct intel_encoder *encoder,
 
 	chv_phy_powergate_lanes(encoder, true, lane_mask);
 
-	vlv_dpio_get(dev_priv);
+	vlv_dpio_get(display->drm);
 
 	/* Assert data lane reset */
 	__chv_data_lane_soft_reset(encoder, crtc_state, true);
 
 	/* program left/right clock distribution */
 	if (pipe != PIPE_B) {
-		val = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW5_CH0);
+		val = vlv_dpio_read(display->drm, phy, CHV_CMN_DW5_CH0);
 		val &= ~(CHV_BUFLEFTENA1_MASK | CHV_BUFRIGHTENA1_MASK);
 		if (ch == DPIO_CH0)
 			val |= CHV_BUFLEFTENA1_FORCE;
 		if (ch == DPIO_CH1)
 			val |= CHV_BUFRIGHTENA1_FORCE;
-		vlv_dpio_write(dev_priv, phy, CHV_CMN_DW5_CH0, val);
+		vlv_dpio_write(display->drm, phy, CHV_CMN_DW5_CH0, val);
 	} else {
-		val = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW1_CH1);
+		val = vlv_dpio_read(display->drm, phy, CHV_CMN_DW1_CH1);
 		val &= ~(CHV_BUFLEFTENA2_MASK | CHV_BUFRIGHTENA2_MASK);
 		if (ch == DPIO_CH0)
 			val |= CHV_BUFLEFTENA2_FORCE;
 		if (ch == DPIO_CH1)
 			val |= CHV_BUFRIGHTENA2_FORCE;
-		vlv_dpio_write(dev_priv, phy, CHV_CMN_DW1_CH1, val);
+		vlv_dpio_write(display->drm, phy, CHV_CMN_DW1_CH1, val);
 	}
 
 	/* program clock channel usage */
-	val = vlv_dpio_read(dev_priv, phy, VLV_PCS01_DW8(ch));
+	val = vlv_dpio_read(display->drm, phy, VLV_PCS01_DW8(ch));
 	val |= DPIO_PCS_USEDCLKCHANNEL_OVRRIDE;
 	if (pipe == PIPE_B)
 		val |= DPIO_PCS_USEDCLKCHANNEL;
 	else
 		val &= ~DPIO_PCS_USEDCLKCHANNEL;
-	vlv_dpio_write(dev_priv, phy, VLV_PCS01_DW8(ch), val);
+	vlv_dpio_write(display->drm, phy, VLV_PCS01_DW8(ch), val);
 
 	if (crtc_state->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, phy, VLV_PCS23_DW8(ch));
+		val = vlv_dpio_read(display->drm, phy, VLV_PCS23_DW8(ch));
 		val |= DPIO_PCS_USEDCLKCHANNEL_OVRRIDE;
 		if (pipe == PIPE_B)
 			val |= DPIO_PCS_USEDCLKCHANNEL;
 		else
 			val &= ~DPIO_PCS_USEDCLKCHANNEL;
-		vlv_dpio_write(dev_priv, phy, VLV_PCS23_DW8(ch), val);
+		vlv_dpio_write(display->drm, phy, VLV_PCS23_DW8(ch), val);
 	}
 
 	/*
@@ -934,38 +935,38 @@ void chv_phy_pre_pll_enable(struct intel_encoder *encoder,
 	 * matches the pipe, but here we need to
 	 * pick the CL based on the port.
 	 */
-	val = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW19(ch));
+	val = vlv_dpio_read(display->drm, phy, CHV_CMN_DW19(ch));
 	if (pipe == PIPE_B)
 		val |= CHV_CMN_USEDCLKCHANNEL;
 	else
 		val &= ~CHV_CMN_USEDCLKCHANNEL;
-	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW19(ch), val);
+	vlv_dpio_write(display->drm, phy, CHV_CMN_DW19(ch), val);
 
-	vlv_dpio_put(dev_priv);
+	vlv_dpio_put(display->drm);
 }
 
 void chv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
 	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 	int data, i, stagger;
 	u32 val;
 
-	vlv_dpio_get(dev_priv);
+	vlv_dpio_get(display->drm);
 
 	/* allow hardware to manage TX FIFO reset source */
-	val = vlv_dpio_read(dev_priv, phy, VLV_PCS01_DW11(ch));
+	val = vlv_dpio_read(display->drm, phy, VLV_PCS01_DW11(ch));
 	val &= ~DPIO_LANEDESKEW_STRAP_OVRD;
-	vlv_dpio_write(dev_priv, phy, VLV_PCS01_DW11(ch), val);
+	vlv_dpio_write(display->drm, phy, VLV_PCS01_DW11(ch), val);
 
 	if (crtc_state->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, phy, VLV_PCS23_DW11(ch));
+		val = vlv_dpio_read(display->drm, phy, VLV_PCS23_DW11(ch));
 		val &= ~DPIO_LANEDESKEW_STRAP_OVRD;
-		vlv_dpio_write(dev_priv, phy, VLV_PCS23_DW11(ch), val);
+		vlv_dpio_write(display->drm, phy, VLV_PCS23_DW11(ch), val);
 	}
 
 	/* Program Tx lane latency optimal setting*/
@@ -975,7 +976,7 @@ void chv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 			data = 0;
 		else
 			data = (i == 1) ? 0 : DPIO_UPAR;
-		vlv_dpio_write(dev_priv, phy, CHV_TX_DW14(ch, i), data);
+		vlv_dpio_write(display->drm, phy, CHV_TX_DW14(ch, i), data);
 	}
 
 	/* Data lane stagger programming */
@@ -990,17 +991,17 @@ void chv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	else
 		stagger = 0x2;
 
-	val = vlv_dpio_read(dev_priv, phy, VLV_PCS01_DW11(ch));
+	val = vlv_dpio_read(display->drm, phy, VLV_PCS01_DW11(ch));
 	val |= DPIO_TX2_STAGGER_MASK(0x1f);
-	vlv_dpio_write(dev_priv, phy, VLV_PCS01_DW11(ch), val);
+	vlv_dpio_write(display->drm, phy, VLV_PCS01_DW11(ch), val);
 
 	if (crtc_state->lane_count > 2) {
-		val = vlv_dpio_read(dev_priv, phy, VLV_PCS23_DW11(ch));
+		val = vlv_dpio_read(display->drm, phy, VLV_PCS23_DW11(ch));
 		val |= DPIO_TX2_STAGGER_MASK(0x1f);
-		vlv_dpio_write(dev_priv, phy, VLV_PCS23_DW11(ch), val);
+		vlv_dpio_write(display->drm, phy, VLV_PCS23_DW11(ch), val);
 	}
 
-	vlv_dpio_write(dev_priv, phy, VLV_PCS01_DW12(ch),
+	vlv_dpio_write(display->drm, phy, VLV_PCS01_DW12(ch),
 		       DPIO_LANESTAGGER_STRAP(stagger) |
 		       DPIO_LANESTAGGER_STRAP_OVRD |
 		       DPIO_TX1_STAGGER_MASK(0x1f) |
@@ -1008,7 +1009,7 @@ void chv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 		       DPIO_TX2_STAGGER_MULT(0));
 
 	if (crtc_state->lane_count > 2) {
-		vlv_dpio_write(dev_priv, phy, VLV_PCS23_DW12(ch),
+		vlv_dpio_write(display->drm, phy, VLV_PCS23_DW12(ch),
 			       DPIO_LANESTAGGER_STRAP(stagger) |
 			       DPIO_LANESTAGGER_STRAP_OVRD |
 			       DPIO_TX1_STAGGER_MASK(0x1f) |
@@ -1019,7 +1020,7 @@ void chv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	/* Deassert data lane reset */
 	__chv_data_lane_soft_reset(encoder, crtc_state, false);
 
-	vlv_dpio_put(dev_priv);
+	vlv_dpio_put(display->drm);
 }
 
 void chv_phy_release_cl2_override(struct intel_encoder *encoder)
@@ -1036,25 +1037,25 @@ void chv_phy_release_cl2_override(struct intel_encoder *encoder)
 void chv_phy_post_pll_disable(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *old_crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	enum dpio_phy phy = vlv_dig_port_to_phy(enc_to_dig_port(encoder));
 	enum pipe pipe = to_intel_crtc(old_crtc_state->uapi.crtc)->pipe;
 	u32 val;
 
-	vlv_dpio_get(dev_priv);
+	vlv_dpio_get(display->drm);
 
 	/* disable left/right clock distribution */
 	if (pipe != PIPE_B) {
-		val = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW5_CH0);
+		val = vlv_dpio_read(display->drm, phy, CHV_CMN_DW5_CH0);
 		val &= ~(CHV_BUFLEFTENA1_MASK | CHV_BUFRIGHTENA1_MASK);
-		vlv_dpio_write(dev_priv, phy, CHV_CMN_DW5_CH0, val);
+		vlv_dpio_write(display->drm, phy, CHV_CMN_DW5_CH0, val);
 	} else {
-		val = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW1_CH1);
+		val = vlv_dpio_read(display->drm, phy, CHV_CMN_DW1_CH1);
 		val &= ~(CHV_BUFLEFTENA2_MASK | CHV_BUFRIGHTENA2_MASK);
-		vlv_dpio_write(dev_priv, phy, CHV_CMN_DW1_CH1, val);
+		vlv_dpio_write(display->drm, phy, CHV_CMN_DW1_CH1, val);
 	}
 
-	vlv_dpio_put(dev_priv);
+	vlv_dpio_put(display->drm);
 
 	/*
 	 * Leave the power down bit cleared for at least one
@@ -1073,97 +1074,97 @@ void vlv_set_phy_signal_level(struct intel_encoder *encoder,
 			      u32 demph_reg_value, u32 preemph_reg_value,
 			      u32 uniqtranscale_reg_value, u32 tx3_demph)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
 	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 
-	vlv_dpio_get(dev_priv);
+	vlv_dpio_get(display->drm);
 
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW5_GRP(ch), 0x00000000);
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW4_GRP(ch), demph_reg_value);
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW2_GRP(ch),
-			 uniqtranscale_reg_value);
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW3_GRP(ch), 0x0C782040);
+	vlv_dpio_write(display->drm, phy, VLV_TX_DW5_GRP(ch), 0x00000000);
+	vlv_dpio_write(display->drm, phy, VLV_TX_DW4_GRP(ch), demph_reg_value);
+	vlv_dpio_write(display->drm, phy, VLV_TX_DW2_GRP(ch),
+		       uniqtranscale_reg_value);
+	vlv_dpio_write(display->drm, phy, VLV_TX_DW3_GRP(ch), 0x0C782040);
 
 	if (tx3_demph)
-		vlv_dpio_write(dev_priv, phy, VLV_TX_DW4(ch, 3), tx3_demph);
+		vlv_dpio_write(display->drm, phy, VLV_TX_DW4(ch, 3), tx3_demph);
 
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW11_GRP(ch), 0x00030000);
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW9_GRP(ch), preemph_reg_value);
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW5_GRP(ch), DPIO_TX_OCALINIT_EN);
+	vlv_dpio_write(display->drm, phy, VLV_PCS_DW11_GRP(ch), 0x00030000);
+	vlv_dpio_write(display->drm, phy, VLV_PCS_DW9_GRP(ch), preemph_reg_value);
+	vlv_dpio_write(display->drm, phy, VLV_TX_DW5_GRP(ch), DPIO_TX_OCALINIT_EN);
 
-	vlv_dpio_put(dev_priv);
+	vlv_dpio_put(display->drm);
 }
 
 void vlv_phy_pre_pll_enable(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
 	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 
 	/* Program Tx lane resets to default */
-	vlv_dpio_get(dev_priv);
+	vlv_dpio_get(display->drm);
 
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW0_GRP(ch),
+	vlv_dpio_write(display->drm, phy, VLV_PCS_DW0_GRP(ch),
 		       DPIO_PCS_TX_LANE2_RESET |
 		       DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW1_GRP(ch),
+	vlv_dpio_write(display->drm, phy, VLV_PCS_DW1_GRP(ch),
 		       DPIO_PCS_CLK_CRI_RXEB_EIOS_EN |
 		       DPIO_PCS_CLK_CRI_RXDIGFILTSG_EN |
 		       DPIO_PCS_CLK_DATAWIDTH_8_10 |
 		       DPIO_PCS_CLK_SOFT_RESET);
 
 	/* Fix up inter-pair skew failure */
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW12_GRP(ch), 0x00750f00);
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW11_GRP(ch), 0x00001500);
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW14_GRP(ch), 0x40400000);
+	vlv_dpio_write(display->drm, phy, VLV_PCS_DW12_GRP(ch), 0x00750f00);
+	vlv_dpio_write(display->drm, phy, VLV_TX_DW11_GRP(ch), 0x00001500);
+	vlv_dpio_write(display->drm, phy, VLV_TX_DW14_GRP(ch), 0x40400000);
 
-	vlv_dpio_put(dev_priv);
+	vlv_dpio_put(display->drm);
 }
 
 void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
 	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 	enum pipe pipe = crtc->pipe;
 	u32 val;
 
-	vlv_dpio_get(dev_priv);
+	vlv_dpio_get(display->drm);
 
 	/* Enable clock channels for this port */
 	val = DPIO_PCS_USEDCLKCHANNEL_OVRRIDE;
 	if (pipe == PIPE_B)
 		val |= DPIO_PCS_USEDCLKCHANNEL;
 	val |= 0xc4;
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW8_GRP(ch), val);
+	vlv_dpio_write(display->drm, phy, VLV_PCS_DW8_GRP(ch), val);
 
 	/* Program lane clock */
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW14_GRP(ch), 0x00760018);
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW23_GRP(ch), 0x00400888);
+	vlv_dpio_write(display->drm, phy, VLV_PCS_DW14_GRP(ch), 0x00760018);
+	vlv_dpio_write(display->drm, phy, VLV_PCS_DW23_GRP(ch), 0x00400888);
 
-	vlv_dpio_put(dev_priv);
+	vlv_dpio_put(display->drm);
 }
 
 void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 			 const struct intel_crtc_state *old_crtc_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
 	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 
-	vlv_dpio_get(dev_priv);
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW0_GRP(ch), 0x00000000);
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW1_GRP(ch), 0x00e00060);
-	vlv_dpio_put(dev_priv);
+	vlv_dpio_get(display->drm);
+	vlv_dpio_write(display->drm, phy, VLV_PCS_DW0_GRP(ch), 0x00000000);
+	vlv_dpio_write(display->drm, phy, VLV_PCS_DW1_GRP(ch), 0x00e00060);
+	vlv_dpio_put(display->drm);
 }
 
 void vlv_wait_port_ready(struct intel_encoder *encoder,

@@ -408,7 +408,7 @@ static int armada_get_temp_legacy(struct thermal_zone_device *thermal,
 	return ret;
 }
 
-static struct thermal_zone_device_ops legacy_ops = {
+static const struct thermal_zone_device_ops legacy_ops = {
 	.get_temp = armada_get_temp_legacy,
 };
 

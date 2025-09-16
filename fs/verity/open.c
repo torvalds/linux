@@ -7,6 +7,7 @@
 
 #include "fsverity_private.h"
 
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 
@@ -42,18 +43,18 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	memset(params, 0, sizeof(*params));
 
 	hash_alg = fsverity_get_hash_alg(inode, hash_algorithm);
-	if (IS_ERR(hash_alg))
-		return PTR_ERR(hash_alg);
+	if (!hash_alg)
+		return -EINVAL;
 	params->hash_alg = hash_alg;
 	params->digest_size = hash_alg->digest_size;
 
-	params->hashstate = fsverity_prepare_hash_state(hash_alg, salt,
-							salt_size);
-	if (IS_ERR(params->hashstate)) {
-		err = PTR_ERR(params->hashstate);
-		params->hashstate = NULL;
-		fsverity_err(inode, "Error %d preparing hash state", err);
-		goto out_err;
+	if (salt_size) {
+		params->hashstate =
+			fsverity_prepare_hash_state(hash_alg, salt, salt_size);
+		if (!params->hashstate) {
+			err = -ENOMEM;
+			goto out_err;
+		}
 	}
 
 	/*
@@ -158,18 +159,15 @@ out_err:
  * Compute the file digest by hashing the fsverity_descriptor excluding the
  * builtin signature and with the sig_size field set to 0.
  */
-static int compute_file_digest(const struct fsverity_hash_alg *hash_alg,
-			       struct fsverity_descriptor *desc,
-			       u8 *file_digest)
+static void compute_file_digest(const struct fsverity_hash_alg *hash_alg,
+				struct fsverity_descriptor *desc,
+				u8 *file_digest)
 {
 	__le32 sig_size = desc->sig_size;
-	int err;
 
 	desc->sig_size = 0;
-	err = fsverity_hash_buffer(hash_alg, desc, sizeof(*desc), file_digest);
+	fsverity_hash_buffer(hash_alg, desc, sizeof(*desc), file_digest);
 	desc->sig_size = sig_size;
-
-	return err;
 }
 
 /*
@@ -201,12 +199,7 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 
 	memcpy(vi->root_hash, desc->root_hash, vi->tree_params.digest_size);
 
-	err = compute_file_digest(vi->tree_params.hash_alg, desc,
-				  vi->file_digest);
-	if (err) {
-		fsverity_err(inode, "Error %d computing file digest", err);
-		goto fail;
-	}
+	compute_file_digest(vi->tree_params.hash_alg, desc, vi->file_digest);
 
 	err = fsverity_verify_signature(vi, desc->signature,
 					le32_to_cpu(desc->sig_size));

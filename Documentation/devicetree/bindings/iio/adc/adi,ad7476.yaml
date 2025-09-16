@@ -17,35 +17,40 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - adi,ad7091
-      - adi,ad7091r
-      - adi,ad7273
-      - adi,ad7274
-      - adi,ad7276
-      - adi,ad7277
-      - adi,ad7278
-      - adi,ad7466
-      - adi,ad7467
-      - adi,ad7468
-      - adi,ad7475
-      - adi,ad7476
-      - adi,ad7476a
-      - adi,ad7477
-      - adi,ad7477a
-      - adi,ad7478
-      - adi,ad7478a
-      - adi,ad7495
-      - adi,ad7910
-      - adi,ad7920
-      - adi,ad7940
-      - ti,adc081s
-      - ti,adc101s
-      - ti,adc121s
-      - ti,ads7866
-      - ti,ads7867
-      - ti,ads7868
-      - lltc,ltc2314-14
+    oneOf:
+      - items:
+          - enum:
+              - adi,ad7091
+              - adi,ad7091r
+              - adi,ad7273
+              - adi,ad7274
+              - adi,ad7276
+              - adi,ad7277
+              - adi,ad7278
+              - adi,ad7466
+              - adi,ad7467
+              - adi,ad7468
+              - adi,ad7475
+              - adi,ad7476
+              - adi,ad7476a
+              - adi,ad7477
+              - adi,ad7477a
+              - adi,ad7478
+              - adi,ad7478a
+              - adi,ad7495
+              - adi,ad7910
+              - adi,ad7920
+              - adi,ad7940
+              - ti,adc081s
+              - ti,adc101s
+              - ti,adc121s
+              - ti,ads7866
+              - ti,ads7867
+              - ti,ads7868
+              - lltc,ltc2314-14
+      - items:
+          - const: rohm,bu79100g
+          - const: ti,ads7866
 
   reg:
     maxItems: 1

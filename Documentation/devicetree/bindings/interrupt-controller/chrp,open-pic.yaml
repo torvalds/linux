@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/chrp,open-pic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Open PIC Interrupt Controller
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+description:
+  This binding specifies what properties must be available in the device tree
+  representation of an Open PIC compliant interrupt controller.  This binding is
+  based on the binding defined for Open PIC in [1] and is a superset of that
+  binding.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: fsl,mpic
+          - const: chrp,open-pic
+      - const: chrp,open-pic
+
+  device_type:
+    const: open-pci
+    deprecated: true
+
+  reg:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#address-cells':
+    const: 0
+
+  '#interrupt-cells':
+    const: 2
+
+  pic-no-reset:
+    description: Indicates the PIC shall not be reset during runtime initialization.
+    type: boolean
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#address-cells'
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    interrupt-controller@40000 {
+        compatible = "chrp,open-pic";
+        reg = <0x40000 0x40000>;
+        interrupt-controller;
+        #address-cells = <0>;
+        #interrupt-cells = <2>;
+        pic-no-reset;
+    };

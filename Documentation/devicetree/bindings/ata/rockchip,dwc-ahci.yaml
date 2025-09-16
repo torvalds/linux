@@ -20,6 +20,7 @@ select:
       contains:
         enum:
           - rockchip,rk3568-dwc-ahci
+          - rockchip,rk3576-dwc-ahci
           - rockchip,rk3588-dwc-ahci
   required:
     - compatible
@@ -29,6 +30,7 @@ properties:
     items:
       - enum:
           - rockchip,rk3568-dwc-ahci
+          - rockchip,rk3576-dwc-ahci
           - rockchip,rk3588-dwc-ahci
       - const: snps,dwc-ahci
 
@@ -83,6 +85,7 @@ allOf:
           contains:
             enum:
               - rockchip,rk3568-dwc-ahci
+              - rockchip,rk3576-dwc-ahci
     then:
       properties:
         clocks:

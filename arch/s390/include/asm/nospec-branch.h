@@ -2,7 +2,7 @@
 #ifndef _ASM_S390_EXPOLINE_H
 #define _ASM_S390_EXPOLINE_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 #include <asm/facility.h>
@@ -26,8 +26,6 @@ static inline bool nospec_uses_trampoline(void)
 	return __is_defined(CC_USING_EXPOLINE) && !nospec_disable;
 }
 
-#ifdef CONFIG_EXPOLINE_EXTERN
-
 void __s390_indirect_jump_r1(void);
 void __s390_indirect_jump_r2(void);
 void __s390_indirect_jump_r3(void);
@@ -44,8 +42,6 @@ void __s390_indirect_jump_r13(void);
 void __s390_indirect_jump_r14(void);
 void __s390_indirect_jump_r15(void);
 
-#endif
-
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_S390_EXPOLINE_H */

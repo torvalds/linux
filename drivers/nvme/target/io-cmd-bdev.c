@@ -46,6 +46,10 @@ void nvmet_bdev_set_limits(struct block_device *bdev, struct nvme_id_ns *id)
 	id->npda = id->npdg;
 	/* NOWS = Namespace Optimal Write Size */
 	id->nows = to0based(bdev_io_opt(bdev) / bdev_logical_block_size(bdev));
+
+	/* Set WZDS and DRB if device supports unmapped write zeroes */
+	if (bdev_write_zeroes_unmap_sectors(bdev))
+		id->dlfeat = (1 << 3) | 0x1;
 }
 
 void nvmet_bdev_ns_disable(struct nvmet_ns *ns)
@@ -65,7 +69,7 @@ static void nvmet_bdev_ns_enable_integrity(struct nvmet_ns *ns)
 		return;
 
 	if (bi->csum_type == BLK_INTEGRITY_CSUM_CRC) {
-		ns->metadata_size = bi->tuple_size;
+		ns->metadata_size = bi->metadata_size;
 		if (bi->flags & BLK_INTEGRITY_REF_TAG)
 			ns->pi_type = NVME_NS_DPS_PI_TYPE1;
 		else
@@ -133,7 +137,7 @@ u16 blk_to_nvme_status(struct nvmet_req *req, blk_status_t blk_sts)
 	 * Right now there exists M : 1 mapping between block layer error
 	 * to the NVMe status code (see nvme_error_status()). For consistency,
 	 * when we reverse map we use most appropriate NVMe Status code from
-	 * the group of the NVMe staus codes used in the nvme_error_status().
+	 * the group of the NVMe status codes used in the nvme_error_status().
 	 */
 	switch (blk_sts) {
 	case BLK_STS_NOSPC:
@@ -145,15 +149,8 @@ u16 blk_to_nvme_status(struct nvmet_req *req, blk_status_t blk_sts)
 		req->error_loc = offsetof(struct nvme_rw_command, slba);
 		break;
 	case BLK_STS_NOTSUPP:
+		status = NVME_SC_INVALID_OPCODE | NVME_STATUS_DNR;
 		req->error_loc = offsetof(struct nvme_common_command, opcode);
-		switch (req->cmd->common.opcode) {
-		case nvme_cmd_dsm:
-		case nvme_cmd_write_zeroes:
-			status = NVME_SC_ONCS_NOT_SUPPORTED | NVME_STATUS_DNR;
-			break;
-		default:
-			status = NVME_SC_INVALID_OPCODE | NVME_STATUS_DNR;
-		}
 		break;
 	case BLK_STS_MEDIUM:
 		status = NVME_SC_ACCESS_DENIED;

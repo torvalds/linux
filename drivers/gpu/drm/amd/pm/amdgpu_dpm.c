@@ -98,6 +98,7 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev,
 	case AMD_IP_BLOCK_TYPE_GMC:
 	case AMD_IP_BLOCK_TYPE_ACP:
 	case AMD_IP_BLOCK_TYPE_VPE:
+	case AMD_IP_BLOCK_TYPE_ISP:
 		if (pp_funcs && pp_funcs->set_powergating_by_smu)
 			ret = (pp_funcs->set_powergating_by_smu(
 				(adev)->powerplay.pp_handle, block_type, gate, 0));
@@ -763,10 +764,6 @@ int amdgpu_dpm_send_rma_reason(struct amdgpu_device *adev)
 	ret = smu_send_rma_reason(smu);
 	mutex_unlock(&adev->pm.mutex);
 
-	if (adev->cper.enabled)
-		if (amdgpu_cper_generate_bp_threshold_record(adev))
-			dev_warn(adev->dev, "fail to generate bad page threshold cper records\n");
-
 	return ret;
 }
 
@@ -823,6 +820,21 @@ int amdgpu_dpm_reset_vcn(struct amdgpu_device *adev, uint32_t inst_mask)
 	return ret;
 }
 
+bool amdgpu_dpm_reset_vcn_is_supported(struct amdgpu_device *adev)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	bool ret;
+
+	if (!is_support_sw_smu(adev))
+		return false;
+
+	mutex_lock(&adev->pm.mutex);
+	ret = smu_reset_vcn_is_supported(smu);
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
+}
+
 int amdgpu_dpm_get_dpm_freq_range(struct amdgpu_device *adev,
 				  enum pp_clock_type type,
 				  uint32_t *min,
@@ -852,22 +864,16 @@ int amdgpu_dpm_set_soft_freq_range(struct amdgpu_device *adev,
 				   uint32_t max)
 {
 	struct smu_context *smu = adev->powerplay.pp_handle;
-	int ret = 0;
-
-	if (type != PP_SCLK)
-		return -EINVAL;
 
 	if (!is_support_sw_smu(adev))
 		return -EOPNOTSUPP;
 
-	mutex_lock(&adev->pm.mutex);
-	ret = smu_set_soft_freq_range(smu,
-				      SMU_SCLK,
+	guard(mutex)(&adev->pm.mutex);
+
+	return smu_set_soft_freq_range(smu,
+				      type,
 				      min,
 				      max);
-	mutex_unlock(&adev->pm.mutex);
-
-	return ret;
 }
 
 int amdgpu_dpm_write_watermarks_table(struct amdgpu_device *adev)
@@ -1697,6 +1703,28 @@ int amdgpu_dpm_is_overdrive_supported(struct amdgpu_device *adev)
 	}
 }
 
+int amdgpu_dpm_is_overdrive_enabled(struct amdgpu_device *adev)
+{
+	if (is_support_sw_smu(adev)) {
+		struct smu_context *smu = adev->powerplay.pp_handle;
+
+		return smu->od_enabled;
+	} else {
+		struct pp_hwmgr *hwmgr;
+
+		/*
+		 * dpm on some legacy asics don't carry od_enabled member
+		 * as its pp_handle is casted directly from adev.
+		 */
+		if (amdgpu_dpm_is_legacy_dpm(adev))
+			return false;
+
+		hwmgr = (struct pp_hwmgr *)adev->powerplay.pp_handle;
+
+		return hwmgr->od_enabled;
+	}
+}
+
 int amdgpu_dpm_set_pp_table(struct amdgpu_device *adev,
 			    const char *buf,
 			    size_t size)
@@ -2015,6 +2043,98 @@ int amdgpu_dpm_get_dpm_clock_table(struct amdgpu_device *adev,
 	mutex_lock(&adev->pm.mutex);
 	ret = pp_funcs->get_dpm_clock_table(adev->powerplay.pp_handle,
 					    clock_table);
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
+}
+
+/**
+ * amdgpu_dpm_get_temp_metrics - Retrieve metrics for a specific compute
+ * partition
+ * @adev: Pointer to the device.
+ * @type: Identifier for the temperature type metrics to be fetched.
+ * @table: Pointer to a buffer where the metrics will be stored. If NULL, the
+ * function returns the size of the metrics structure.
+ *
+ * This function retrieves metrics for a specific temperature type, If the
+ * table parameter is NULL, the function returns the size of the metrics
+ * structure without populating it.
+ *
+ * Return: Size of the metrics structure on success, or a negative error code on failure.
+ */
+ssize_t amdgpu_dpm_get_temp_metrics(struct amdgpu_device *adev,
+				    enum smu_temp_metric_type type, void *table)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret;
+
+	if (!pp_funcs->get_temp_metrics ||
+	    !amdgpu_dpm_is_temp_metrics_supported(adev, type))
+		return -EOPNOTSUPP;
+
+	mutex_lock(&adev->pm.mutex);
+	ret = pp_funcs->get_temp_metrics(adev->powerplay.pp_handle, type, table);
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
+}
+
+/**
+ * amdgpu_dpm_is_temp_metrics_supported - Return if specific temperature metrics support
+ * is available
+ * @adev: Pointer to the device.
+ * @type: Identifier for the temperature type metrics to be fetched.
+ *
+ * This function returns metrics if specific temperature metrics type is supported or not.
+ *
+ * Return: True in case of metrics type supported else false.
+ */
+bool amdgpu_dpm_is_temp_metrics_supported(struct amdgpu_device *adev,
+					  enum smu_temp_metric_type type)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	bool support_temp_metrics = false;
+
+	if (!pp_funcs->temp_metrics_is_supported)
+		return support_temp_metrics;
+
+	if (is_support_sw_smu(adev)) {
+		mutex_lock(&adev->pm.mutex);
+		support_temp_metrics =
+			pp_funcs->temp_metrics_is_supported(adev->powerplay.pp_handle, type);
+		mutex_unlock(&adev->pm.mutex);
+	}
+
+	return support_temp_metrics;
+}
+
+/**
+ * amdgpu_dpm_get_xcp_metrics - Retrieve metrics for a specific compute
+ * partition
+ * @adev: Pointer to the device.
+ * @xcp_id: Identifier of the XCP for which metrics are to be retrieved.
+ * @table: Pointer to a buffer where the metrics will be stored. If NULL, the
+ * function returns the size of the metrics structure.
+ *
+ * This function retrieves metrics for a specific XCP, including details such as
+ * VCN/JPEG activity, clock frequencies, and other performance metrics. If the
+ * table parameter is NULL, the function returns the size of the metrics
+ * structure without populating it.
+ *
+ * Return: Size of the metrics structure on success, or a negative error code on failure.
+ */
+ssize_t amdgpu_dpm_get_xcp_metrics(struct amdgpu_device *adev, int xcp_id,
+				   void *table)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret = 0;
+
+	if (!pp_funcs->get_xcp_metrics)
+		return 0;
+
+	mutex_lock(&adev->pm.mutex);
+	ret = pp_funcs->get_xcp_metrics(adev->powerplay.pp_handle, xcp_id,
+					table);
 	mutex_unlock(&adev->pm.mutex);
 
 	return ret;

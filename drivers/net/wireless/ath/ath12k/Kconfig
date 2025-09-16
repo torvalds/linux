@@ -7,13 +7,21 @@ config ATH12K
 	select MHI_BUS
 	select QRTR
 	select QRTR_MHI
-	select PCI_PWRCTL_PWRSEQ if HAVE_PWRCTL
+	select PCI_PWRCTRL_PWRSEQ if HAVE_PWRCTRL
 	help
 	  Enable support for Qualcomm Technologies Wi-Fi 7 (IEEE
 	  802.11be) family of chipsets, for example WCN7850 and
 	  QCN9274.
 
 	  If you choose to build a module, it'll be called ath12k.
+
+config ATH12K_AHB
+	bool "QTI ath12k AHB support"
+	depends on ATH12K && REMOTEPROC
+	select QCOM_MDT_LOADER
+	select QCOM_SCM
+	help
+	  Enable support for Ath12k AHB bus chipsets, example IPQ5332.
 
 config ATH12K_DEBUG
 	bool "ath12k debugging"

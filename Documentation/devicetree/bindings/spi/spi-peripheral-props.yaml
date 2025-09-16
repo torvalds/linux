@@ -8,12 +8,13 @@ title: Peripheral-specific properties for a SPI bus.
 
 description:
   Many SPI controllers need to add properties to peripheral devices. They could
-  be common properties like spi-max-frequency, spi-cpha, etc. or they could be
-  controller specific like delay in clock or data lines, etc. These properties
-  need to be defined in the peripheral node because they are per-peripheral and
-  there can be multiple peripherals attached to a controller. All those
-  properties are listed here. The controller specific properties should go in
-  their own separate schema that should be referenced from here.
+  be common properties like spi-max-frequency, spi-cs-high, etc. or they could
+  be controller specific like delay in clock or data lines, etc. These
+  properties need to be defined in the peripheral node because they are
+  per-peripheral and there can be multiple peripherals attached to a
+  controller. All those properties are listed here. The controller specific
+  properties should go in their own separate schema that should be referenced
+  from here.
 
 maintainers:
   - Mark Brown <broonie@kernel.org>
@@ -114,6 +115,7 @@ properties:
     maxItems: 4
 
   st,spi-midi-ns:
+    deprecated: true
     description: |
       Only for STM32H7, (Master Inter-Data Idleness) minimum time
       delay in nanoseconds inserted between two consecutive data frames.

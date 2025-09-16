@@ -125,7 +125,7 @@ struct enic_rfs_fltr_node *htbl_fltr_search(struct enic *enic, u16 fltr_id)
 #ifdef CONFIG_RFS_ACCEL
 void enic_flow_may_expire(struct timer_list *t)
 {
-	struct enic *enic = from_timer(enic, t, rfs_h.rfs_may_expire);
+	struct enic *enic = timer_container_of(enic, t, rfs_h.rfs_may_expire);
 	bool res;
 	int j;
 

@@ -82,6 +82,7 @@
 #define INAT_NO_REX2	(1 << (INAT_FLAG_OFFS + 8))
 #define INAT_REX2_VARIANT	(1 << (INAT_FLAG_OFFS + 9))
 #define INAT_EVEX_SCALABLE	(1 << (INAT_FLAG_OFFS + 10))
+#define INAT_INV64	(1 << (INAT_FLAG_OFFS + 11))
 /* Attribute making macros for attribute tables */
 #define INAT_MAKE_PREFIX(pfx)	(pfx << INAT_PFX_OFFS)
 #define INAT_MAKE_ESCAPE(esc)	(esc << INAT_ESC_OFFS)
@@ -241,5 +242,10 @@ static inline int inat_must_evex(insn_attr_t attr)
 static inline int inat_evex_scalable(insn_attr_t attr)
 {
 	return attr & INAT_EVEX_SCALABLE;
+}
+
+static inline int inat_is_invalid64(insn_attr_t attr)
+{
+	return attr & INAT_INV64;
 }
 #endif

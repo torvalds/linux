@@ -41,6 +41,12 @@
 
 #define ENA_MAX_ADMIN_POLL_US 5000
 
+/* PHC definitions */
+#define ENA_PHC_DEFAULT_EXPIRE_TIMEOUT_USEC 10
+#define ENA_PHC_DEFAULT_BLOCK_TIMEOUT_USEC 1000
+#define ENA_PHC_REQ_ID_OFFSET 0xDEAD
+#define ENA_PHC_ERROR_FLAGS (ENA_ADMIN_PHC_ERROR_FLAG_TIMESTAMP)
+
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
@@ -1639,6 +1645,267 @@ void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling)
 
 	writel(mask_value, ena_dev->reg_bar + ENA_REGS_INTR_MASK_OFF);
 	ena_dev->admin_queue.polling = polling;
+}
+
+bool ena_com_phc_supported(struct ena_com_dev *ena_dev)
+{
+	return ena_com_check_supported_feature_id(ena_dev, ENA_ADMIN_PHC_CONFIG);
+}
+
+int ena_com_phc_init(struct ena_com_dev *ena_dev)
+{
+	struct ena_com_phc_info *phc = &ena_dev->phc;
+
+	memset(phc, 0x0, sizeof(*phc));
+
+	/* Allocate shared mem used PHC timestamp retrieved from device */
+	phc->virt_addr = dma_alloc_coherent(ena_dev->dmadev,
+					    sizeof(*phc->virt_addr),
+					    &phc->phys_addr,
+					    GFP_KERNEL);
+	if (unlikely(!phc->virt_addr))
+		return -ENOMEM;
+
+	spin_lock_init(&phc->lock);
+
+	phc->virt_addr->req_id = 0;
+	phc->virt_addr->timestamp = 0;
+
+	return 0;
+}
+
+int ena_com_phc_config(struct ena_com_dev *ena_dev)
+{
+	struct ena_com_phc_info *phc = &ena_dev->phc;
+	struct ena_admin_get_feat_resp get_feat_resp;
+	struct ena_admin_set_feat_resp set_feat_resp;
+	struct ena_admin_set_feat_cmd set_feat_cmd;
+	int ret = 0;
+
+	/* Get device PHC default configuration */
+	ret = ena_com_get_feature(ena_dev,
+				  &get_feat_resp,
+				  ENA_ADMIN_PHC_CONFIG,
+				  0);
+	if (unlikely(ret)) {
+		netdev_err(ena_dev->net_device,
+			   "Failed to get PHC feature configuration, error: %d\n",
+			   ret);
+		return ret;
+	}
+
+	/* Supporting only readless PHC retrieval */
+	if (get_feat_resp.u.phc.type != ENA_ADMIN_PHC_TYPE_READLESS) {
+		netdev_err(ena_dev->net_device,
+			   "Unsupported PHC type, error: %d\n",
+			   -EOPNOTSUPP);
+		return -EOPNOTSUPP;
+	}
+
+	/* Update PHC doorbell offset according to device value,
+	 * used to write req_id to PHC bar
+	 */
+	phc->doorbell_offset = get_feat_resp.u.phc.doorbell_offset;
+
+	/* Update PHC expire timeout according to device
+	 * or default driver value
+	 */
+	phc->expire_timeout_usec = (get_feat_resp.u.phc.expire_timeout_usec) ?
+				    get_feat_resp.u.phc.expire_timeout_usec :
+				    ENA_PHC_DEFAULT_EXPIRE_TIMEOUT_USEC;
+
+	/* Update PHC block timeout according to device
+	 * or default driver value
+	 */
+	phc->block_timeout_usec = (get_feat_resp.u.phc.block_timeout_usec) ?
+				   get_feat_resp.u.phc.block_timeout_usec :
+				   ENA_PHC_DEFAULT_BLOCK_TIMEOUT_USEC;
+
+	/* Sanity check - expire timeout must not exceed block timeout */
+	if (phc->expire_timeout_usec > phc->block_timeout_usec)
+		phc->expire_timeout_usec = phc->block_timeout_usec;
+
+	/* Prepare PHC feature command */
+	memset(&set_feat_cmd, 0x0, sizeof(set_feat_cmd));
+	set_feat_cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
+	set_feat_cmd.feat_common.feature_id = ENA_ADMIN_PHC_CONFIG;
+	set_feat_cmd.u.phc.output_length = sizeof(*phc->virt_addr);
+	ret = ena_com_mem_addr_set(ena_dev,
+				   &set_feat_cmd.u.phc.output_address,
+				   phc->phys_addr);
+	if (unlikely(ret)) {
+		netdev_err(ena_dev->net_device,
+			   "Failed setting PHC output address, error: %d\n",
+			   ret);
+		return ret;
+	}
+
+	/* Send PHC feature command to the device */
+	ret = ena_com_execute_admin_command(&ena_dev->admin_queue,
+					    (struct ena_admin_aq_entry *)&set_feat_cmd,
+					    sizeof(set_feat_cmd),
+					    (struct ena_admin_acq_entry *)&set_feat_resp,
+					    sizeof(set_feat_resp));
+
+	if (unlikely(ret)) {
+		netdev_err(ena_dev->net_device,
+			   "Failed to enable PHC, error: %d\n",
+			   ret);
+		return ret;
+	}
+
+	phc->active = true;
+	netdev_dbg(ena_dev->net_device, "PHC is active in the device\n");
+
+	return ret;
+}
+
+void ena_com_phc_destroy(struct ena_com_dev *ena_dev)
+{
+	struct ena_com_phc_info *phc = &ena_dev->phc;
+	unsigned long flags = 0;
+
+	/* In case PHC is not supported by the device, silently exiting */
+	if (!phc->virt_addr)
+		return;
+
+	spin_lock_irqsave(&phc->lock, flags);
+	phc->active = false;
+	spin_unlock_irqrestore(&phc->lock, flags);
+
+	dma_free_coherent(ena_dev->dmadev,
+			  sizeof(*phc->virt_addr),
+			  phc->virt_addr,
+			  phc->phys_addr);
+	phc->virt_addr = NULL;
+}
+
+int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
+{
+	volatile struct ena_admin_phc_resp *resp = ena_dev->phc.virt_addr;
+	const ktime_t zero_system_time = ktime_set(0, 0);
+	struct ena_com_phc_info *phc = &ena_dev->phc;
+	ktime_t expire_time;
+	ktime_t block_time;
+	unsigned long flags = 0;
+	int ret = 0;
+
+	if (!phc->active) {
+		netdev_err(ena_dev->net_device, "PHC feature is not active in the device\n");
+		return -EOPNOTSUPP;
+	}
+
+	spin_lock_irqsave(&phc->lock, flags);
+
+	/* Check if PHC is in blocked state */
+	if (unlikely(ktime_compare(phc->system_time, zero_system_time))) {
+		/* Check if blocking time expired */
+		block_time = ktime_add_us(phc->system_time, phc->block_timeout_usec);
+		if (!ktime_after(ktime_get(), block_time)) {
+			/* PHC is still in blocked state, skip PHC request */
+			phc->stats.phc_skp++;
+			ret = -EBUSY;
+			goto skip;
+		}
+
+		/* PHC is in active state, update statistics according
+		 * to req_id and error_flags
+		 */
+		if (READ_ONCE(resp->req_id) != phc->req_id) {
+			/* Device didn't update req_id during blocking time,
+			 * this indicates on a device error
+			 */
+			netdev_err(ena_dev->net_device,
+				   "PHC get time request 0x%x failed (device error)\n",
+				   phc->req_id);
+			phc->stats.phc_err_dv++;
+		} else if (resp->error_flags & ENA_PHC_ERROR_FLAGS) {
+			/* Device updated req_id during blocking time but got
+			 * a PHC error, this occurs if device:
+			 * - exceeded the get time request limit
+			 * - received an invalid timestamp
+			 */
+			netdev_err(ena_dev->net_device,
+				   "PHC get time request 0x%x failed (error 0x%x)\n",
+				   phc->req_id,
+				   resp->error_flags);
+			phc->stats.phc_err_ts += !!(resp->error_flags &
+				ENA_ADMIN_PHC_ERROR_FLAG_TIMESTAMP);
+		} else {
+			/* Device updated req_id during blocking time
+			 * with valid timestamp
+			 */
+			phc->stats.phc_exp++;
+		}
+	}
+
+	/* Setting relative timeouts */
+	phc->system_time = ktime_get();
+	block_time = ktime_add_us(phc->system_time, phc->block_timeout_usec);
+	expire_time = ktime_add_us(phc->system_time, phc->expire_timeout_usec);
+
+	/* We expect the device to return this req_id once
+	 * the new PHC timestamp is updated
+	 */
+	phc->req_id++;
+
+	/* Initialize PHC shared memory with different req_id value
+	 * to be able to identify once the device changes it to req_id
+	 */
+	resp->req_id = phc->req_id + ENA_PHC_REQ_ID_OFFSET;
+
+	/* Writing req_id to PHC bar */
+	writel(phc->req_id, ena_dev->reg_bar + phc->doorbell_offset);
+
+	/* Stalling until the device updates req_id */
+	while (1) {
+		if (unlikely(ktime_after(ktime_get(), expire_time))) {
+			/* Gave up waiting for updated req_id, PHC enters into
+			 * blocked state until passing blocking time,
+			 * during this time any get PHC timestamp will fail with
+			 * device busy error
+			 */
+			ret = -EBUSY;
+			break;
+		}
+
+		/* Check if req_id was updated by the device */
+		if (READ_ONCE(resp->req_id) != phc->req_id) {
+			/* req_id was not updated by the device yet,
+			 * check again on next loop
+			 */
+			continue;
+		}
+
+		/* req_id was updated by the device which indicates that
+		 * PHC timestamp and error_flags are updated too,
+		 * checking errors before retrieving timestamp
+		 */
+		if (unlikely(resp->error_flags & ENA_PHC_ERROR_FLAGS)) {
+			/* Retrieved invalid PHC timestamp, PHC enters into
+			 * blocked state until passing blocking time,
+			 * during this time any get PHC timestamp requests
+			 * will fail with device busy error
+			 */
+			ret = -EBUSY;
+			break;
+		}
+
+		/* PHC timestamp value is returned to the caller */
+		*timestamp = resp->timestamp;
+
+		/* Update statistic on valid PHC timestamp retrieval */
+		phc->stats.phc_cnt++;
+
+		/* This indicates PHC state is active */
+		phc->system_time = zero_system_time;
+		break;
+	}
+
+skip:
+	spin_unlock_irqrestore(&phc->lock, flags);
+
+	return ret;
 }
 
 int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)

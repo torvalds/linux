@@ -1167,7 +1167,6 @@ static void omap_sham_finish_req(struct ahash_request *req, int err)
 	dd->flags &= ~(BIT(FLAGS_FINAL) | BIT(FLAGS_CPU) |
 			BIT(FLAGS_DMA_READY) | BIT(FLAGS_OUTPUT_READY));
 
-	pm_runtime_mark_last_busy(dd->dev);
 	pm_runtime_put_autosuspend(dd->dev);
 
 	ctx->offset = 0;
@@ -2039,10 +2038,7 @@ static struct attribute *omap_sham_attrs[] = {
 	&dev_attr_fallback.attr,
 	NULL,
 };
-
-static const struct attribute_group omap_sham_attr_group = {
-	.attrs = omap_sham_attrs,
-};
+ATTRIBUTE_GROUPS(omap_sham);
 
 static int omap_sham_probe(struct platform_device *pdev)
 {
@@ -2158,12 +2154,6 @@ static int omap_sham_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = sysfs_create_group(&dev->kobj, &omap_sham_attr_group);
-	if (err) {
-		dev_err(dev, "could not create sysfs device attrs\n");
-		goto err_algs;
-	}
-
 	return 0;
 
 err_algs:
@@ -2210,8 +2200,6 @@ static void omap_sham_remove(struct platform_device *pdev)
 
 	if (!dd->polling_mode)
 		dma_release_channel(dd->dma_lch);
-
-	sysfs_remove_group(&dd->dev->kobj, &omap_sham_attr_group);
 }
 
 static struct platform_driver omap_sham_driver = {
@@ -2220,6 +2208,7 @@ static struct platform_driver omap_sham_driver = {
 	.driver	= {
 		.name	= "omap-sham",
 		.of_match_table	= omap_sham_of_match,
+		.dev_groups = omap_sham_groups,
 	},
 };
 

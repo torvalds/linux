@@ -162,7 +162,7 @@ static int __init realtek_rtl_of_init(struct device_node *node, struct device_no
 	else if (!parent_irq)
 		return -ENODEV;
 
-	domain = irq_domain_add_linear(node, RTL_ICTL_NUM_INPUTS, &irq_domain_ops, NULL);
+	domain = irq_domain_create_linear(of_fwnode_handle(node), RTL_ICTL_NUM_INPUTS, &irq_domain_ops, NULL);
 	if (!domain)
 		return -ENOMEM;
 

@@ -220,8 +220,7 @@ void __init omap1_init_irq(void)
 	omap_l2_irq = irq_base;
 	omap_l2_irq -= NR_IRQS_LEGACY;
 
-	domain = irq_domain_add_legacy(NULL, nr_irqs, irq_base, 0,
-				       &irq_domain_simple_ops, NULL);
+	domain = irq_domain_create_legacy(NULL, nr_irqs, irq_base, 0, &irq_domain_simple_ops, NULL);
 
 	pr_info("Total of %lu interrupts in %i interrupt banks\n",
 		nr_irqs, irq_bank_count);

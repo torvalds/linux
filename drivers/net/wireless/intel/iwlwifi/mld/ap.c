@@ -11,6 +11,7 @@
 #include "tx.h"
 #include "power.h"
 #include "key.h"
+#include "phy.h"
 #include "iwl-utils.h"
 
 #include "fw/api/sta.h"
@@ -269,6 +270,7 @@ int iwl_mld_start_ap_ibss(struct ieee80211_hw *hw,
 {
 	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	struct ieee80211_chanctx_conf *ctx;
 	int ret;
 
 	if (vif->type == NL80211_IFTYPE_AP)
@@ -292,9 +294,20 @@ int iwl_mld_start_ap_ibss(struct ieee80211_hw *hw,
 	if (ret)
 		return ret;
 
+	mld_vif->ap_ibss_active = true;
+
+	if (vif->p2p && mld->p2p_device_vif) {
+		ret = iwl_mld_mac_fw_action(mld, mld->p2p_device_vif,
+					    FW_CTXT_ACTION_MODIFY);
+		if (ret) {
+			mld_vif->ap_ibss_active = false;
+			goto rm_mcast;
+		}
+	}
+
 	ret = iwl_mld_add_bcast_sta(mld, vif, link);
 	if (ret)
-		goto rm_mcast;
+		goto update_p2p_dev;
 
 	/* Those keys were configured by the upper layers before starting the
 	 * AP. Now that it is started and the bcast and mcast sta were added to
@@ -308,15 +321,21 @@ int iwl_mld_start_ap_ibss(struct ieee80211_hw *hw,
 		iwl_mld_vif_update_low_latency(mld, vif, true,
 					       LOW_LATENCY_VIF_TYPE);
 
-	mld_vif->ap_ibss_active = true;
-
-	if (vif->p2p && mld->p2p_device_vif)
-		return iwl_mld_mac_fw_action(mld, mld->p2p_device_vif,
-					     FW_CTXT_ACTION_MODIFY);
+	/* When the channel context was added, the link is not yet active, so
+	 * min_def is always used. Update the PHY again here in case def should
+	 * actually be used.
+	 */
+	ctx = wiphy_dereference(mld->wiphy, link->chanctx_conf);
+	iwl_mld_update_phy_chandef(mld, ctx);
 
 	return 0;
 rm_bcast:
 	iwl_mld_remove_bcast_sta(mld, vif, link);
+update_p2p_dev:
+	mld_vif->ap_ibss_active = false;
+	if (vif->p2p && mld->p2p_device_vif)
+		iwl_mld_mac_fw_action(mld, mld->p2p_device_vif,
+				      FW_CTXT_ACTION_MODIFY);
 rm_mcast:
 	iwl_mld_remove_mcast_sta(mld, vif, link);
 	return ret;

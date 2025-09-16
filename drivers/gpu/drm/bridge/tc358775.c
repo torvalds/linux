@@ -659,9 +659,10 @@ static int tc_probe(struct i2c_client *client)
 	struct tc_data *tc;
 	int ret;
 
-	tc = devm_kzalloc(dev, sizeof(*tc), GFP_KERNEL);
-	if (!tc)
-		return -ENOMEM;
+	tc = devm_drm_bridge_alloc(dev, struct tc_data, bridge,
+				   &tc_bridge_funcs);
+	if (IS_ERR(tc))
+		return PTR_ERR(tc);
 
 	tc->dev = dev;
 	tc->i2c = client;
@@ -701,7 +702,6 @@ static int tc_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	tc->bridge.funcs = &tc_bridge_funcs;
 	tc->bridge.of_node = dev->of_node;
 	tc->bridge.pre_enable_prev_first = true;
 	drm_bridge_add(&tc->bridge);

@@ -20,12 +20,14 @@
  * Special Publication 800-38E and IEEE P1619/D16.
  */
 
-#include <linux/pagemap.h>
+#include <crypto/skcipher.h>
+#include <linux/export.h>
 #include <linux/mempool.h>
 #include <linux/module.h>
-#include <linux/scatterlist.h>
+#include <linux/pagemap.h>
 #include <linux/ratelimit.h>
-#include <crypto/skcipher.h>
+#include <linux/scatterlist.h>
+
 #include "fscrypt_private.h"
 
 static unsigned int num_prealloc_crypto_pages = 32;
@@ -108,15 +110,13 @@ void fscrypt_generate_iv(union fscrypt_iv *iv, u64 index,
 int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
 			    fscrypt_direction_t rw, u64 index,
 			    struct page *src_page, struct page *dest_page,
-			    unsigned int len, unsigned int offs,
-			    gfp_t gfp_flags)
+			    unsigned int len, unsigned int offs)
 {
+	struct crypto_sync_skcipher *tfm = ci->ci_enc_key.tfm;
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
 	union fscrypt_iv iv;
-	struct skcipher_request *req = NULL;
-	DECLARE_CRYPTO_WAIT(wait);
 	struct scatterlist dst, src;
-	struct crypto_skcipher *tfm = ci->ci_enc_key.tfm;
-	int res = 0;
+	int err;
 
 	if (WARN_ON_ONCE(len <= 0))
 		return -EINVAL;
@@ -125,31 +125,23 @@ int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
 
 	fscrypt_generate_iv(&iv, index, ci);
 
-	req = skcipher_request_alloc(tfm, gfp_flags);
-	if (!req)
-		return -ENOMEM;
-
 	skcipher_request_set_callback(
 		req, CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
-		crypto_req_done, &wait);
-
+		NULL, NULL);
 	sg_init_table(&dst, 1);
 	sg_set_page(&dst, dest_page, len, offs);
 	sg_init_table(&src, 1);
 	sg_set_page(&src, src_page, len, offs);
 	skcipher_request_set_crypt(req, &src, &dst, len, &iv);
 	if (rw == FS_DECRYPT)
-		res = crypto_wait_req(crypto_skcipher_decrypt(req), &wait);
+		err = crypto_skcipher_decrypt(req);
 	else
-		res = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
-	skcipher_request_free(req);
-	if (res) {
+		err = crypto_skcipher_encrypt(req);
+	if (err)
 		fscrypt_err(ci->ci_inode,
 			    "%scryption failed for data unit %llu: %d",
-			    (rw == FS_DECRYPT ? "De" : "En"), index, res);
-		return res;
-	}
-	return 0;
+			    (rw == FS_DECRYPT ? "De" : "En"), index, err);
+	return err;
 }
 
 /**
@@ -204,7 +196,7 @@ struct page *fscrypt_encrypt_pagecache_blocks(struct folio *folio,
 	for (i = offs; i < offs + len; i += du_size, index++) {
 		err = fscrypt_crypt_data_unit(ci, FS_ENCRYPT, index,
 					      &folio->page, ciphertext_page,
-					      du_size, i, gfp_flags);
+					      du_size, i);
 		if (err) {
 			fscrypt_free_bounce_page(ciphertext_page);
 			return ERR_PTR(err);
@@ -225,7 +217,6 @@ EXPORT_SYMBOL(fscrypt_encrypt_pagecache_blocks);
  * @offs:      Byte offset within @page at which the block to encrypt begins
  * @lblk_num:  Filesystem logical block number of the block, i.e. the 0-based
  *		number of the block within the file
- * @gfp_flags: Memory allocation flags
  *
  * Encrypt a possibly-compressed filesystem block that is located in an
  * arbitrary page, not necessarily in the original pagecache page.  The @inode
@@ -237,13 +228,12 @@ EXPORT_SYMBOL(fscrypt_encrypt_pagecache_blocks);
  */
 int fscrypt_encrypt_block_inplace(const struct inode *inode, struct page *page,
 				  unsigned int len, unsigned int offs,
-				  u64 lblk_num, gfp_t gfp_flags)
+				  u64 lblk_num)
 {
 	if (WARN_ON_ONCE(inode->i_sb->s_cop->supports_subblock_data_units))
 		return -EOPNOTSUPP;
 	return fscrypt_crypt_data_unit(inode->i_crypt_info, FS_ENCRYPT,
-				       lblk_num, page, page, len, offs,
-				       gfp_flags);
+				       lblk_num, page, page, len, offs);
 }
 EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
 
@@ -283,8 +273,7 @@ int fscrypt_decrypt_pagecache_blocks(struct folio *folio, size_t len,
 		struct page *page = folio_page(folio, i >> PAGE_SHIFT);
 
 		err = fscrypt_crypt_data_unit(ci, FS_DECRYPT, index, page,
-					      page, du_size, i & ~PAGE_MASK,
-					      GFP_NOFS);
+					      page, du_size, i & ~PAGE_MASK);
 		if (err)
 			return err;
 	}
@@ -317,8 +306,7 @@ int fscrypt_decrypt_block_inplace(const struct inode *inode, struct page *page,
 	if (WARN_ON_ONCE(inode->i_sb->s_cop->supports_subblock_data_units))
 		return -EOPNOTSUPP;
 	return fscrypt_crypt_data_unit(inode->i_crypt_info, FS_DECRYPT,
-				       lblk_num, page, page, len, offs,
-				       GFP_NOFS);
+				       lblk_num, page, page, len, offs);
 }
 EXPORT_SYMBOL(fscrypt_decrypt_block_inplace);
 

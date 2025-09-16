@@ -204,8 +204,10 @@ static int __init davinci_cp_intc_do_init(struct resource *res, unsigned int num
 		return irq_base;
 	}
 
-	davinci_cp_intc_irq_domain = irq_domain_add_legacy(node, num_irqs, irq_base, 0,
-							   &davinci_cp_intc_irq_domain_ops, NULL);
+	davinci_cp_intc_irq_domain = irq_domain_create_legacy(of_fwnode_handle(node), num_irqs,
+							      irq_base, 0,
+							      &davinci_cp_intc_irq_domain_ops,
+							      NULL);
 
 	if (!davinci_cp_intc_irq_domain) {
 		pr_err("%s: unable to create an interrupt domain\n", __func__);

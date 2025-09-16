@@ -32,7 +32,7 @@ functions in the relay interface code - please see that for details.
 Semantics
 =========
 
-Each relay channel has one buffer per CPU, each buffer has one or more
+Each relay channel has one buffer per CPU; each buffer has one or more
 sub-buffers.  Messages are written to the first sub-buffer until it is
 too full to contain a new message, in which case it is written to
 the next (if available).  Messages are never split across sub-buffers.
@@ -40,7 +40,7 @@ At this point, userspace can be notified so it empties the first
 sub-buffer, while the kernel continues writing to the next.
 
 When notified that a sub-buffer is full, the kernel knows how many
-bytes of it are padding i.e. unused space occurring because a complete
+bytes of it are padding, i.e., unused space occurring because a complete
 message couldn't fit into a sub-buffer.  Userspace can use this
 knowledge to copy only valid data.
 
@@ -71,7 +71,7 @@ klog and relay-apps example code
 ================================
 
 The relay interface itself is ready to use, but to make things easier,
-a couple simple utility functions and a set of examples are provided.
+a couple of simple utility functions and a set of examples are provided.
 
 The relay-apps example tarball, available on the relay sourceforge
 site, contains a set of self-contained examples, each consisting of a
@@ -91,7 +91,7 @@ registered will data actually be logged (see the klog and kleak
 examples for details).
 
 It is of course possible to use the relay interface from scratch,
-i.e. without using any of the relay-apps example code or klog, but
+i.e., without using any of the relay-apps example code or klog, but
 you'll have to implement communication between userspace and kernel,
 allowing both to convey the state of buffers (full, empty, amount of
 padding).  The read() interface both removes padding and internally
@@ -119,7 +119,7 @@ mmap()      results in channel buffer being mapped into the caller's
 	    must map the entire file, which is NRBUF * SUBBUFSIZE.
 
 read()      read the contents of a channel buffer.  The bytes read are
-	    'consumed' by the reader, i.e. they won't be available
+	    'consumed' by the reader, i.e., they won't be available
 	    again to subsequent reads.  If the channel is being used
 	    in no-overwrite mode (the default), it can be read at any
 	    time even if there's an active kernel writer.  If the
@@ -138,7 +138,7 @@ poll()      POLLIN/POLLRDNORM/POLLERR supported.  User applications are
 	    notified when sub-buffer boundaries are crossed.
 
 close()     decrements the channel buffer's refcount.  When the refcount
-	    reaches 0, i.e. when no process or kernel client has the
+	    reaches 0, i.e., when no process or kernel client has the
 	    buffer open, the channel buffer is freed.
 =========== ============================================================
 
@@ -149,7 +149,7 @@ host filesystem must be mounted.  For example::
 
 .. Note::
 
-	the host filesystem doesn't need to be mounted for kernel
+	The host filesystem doesn't need to be mounted for kernel
 	clients to create or use channels - it only needs to be
 	mounted when user space applications need access to the buffer
 	data.
@@ -301,16 +301,6 @@ user-defined data with a channel, and is immediately available
 (including in create_buf_file()) via chan->private_data or
 buf->chan->private_data.
 
-Buffer-only channels
---------------------
-
-These channels have no files associated and can be created with
-relay_open(NULL, NULL, ...). Such channels are useful in scenarios such
-as when doing early tracing in the kernel, before the VFS is up. In these
-cases, one may open a buffer-only channel and then call
-relay_late_setup_files() when the kernel is ready to handle files,
-to expose the buffered data to the userspace.
-
 Channel 'modes'
 ---------------
 
@@ -325,7 +315,7 @@ section, as it pertains mainly to mmap() implementations.
 In 'overwrite' mode, also known as 'flight recorder' mode, writes
 continuously cycle around the buffer and will never fail, but will
 unconditionally overwrite old data regardless of whether it's actually
-been consumed.  In no-overwrite mode, writes will fail, i.e. data will
+been consumed.  In no-overwrite mode, writes will fail, i.e., data will
 be lost, if the number of unconsumed sub-buffers equals the total
 number of sub-buffers in the channel.  It should be clear that if
 there is no consumer or if the consumer can't consume sub-buffers fast
@@ -344,7 +334,7 @@ initialize the next sub-buffer if appropriate 2) finalize the previous
 sub-buffer if appropriate and 3) return a boolean value indicating
 whether or not to actually move on to the next sub-buffer.
 
-To implement 'no-overwrite' mode, the userspace client would provide
+To implement 'no-overwrite' mode, the userspace client provides
 an implementation of the subbuf_start() callback something like the
 following::
 
@@ -364,9 +354,9 @@ following::
 	    return 1;
     }
 
-If the current buffer is full, i.e. all sub-buffers remain unconsumed,
+If the current buffer is full, i.e., all sub-buffers remain unconsumed,
 the callback returns 0 to indicate that the buffer switch should not
-occur yet, i.e. until the consumer has had a chance to read the
+occur yet, i.e., until the consumer has had a chance to read the
 current set of ready sub-buffers.  For the relay_buf_full() function
 to make sense, the consumer is responsible for notifying the relay
 interface when sub-buffers have been consumed via
@@ -400,7 +390,7 @@ consulted.
 
 The default subbuf_start() implementation, used if the client doesn't
 define any callbacks, or doesn't define the subbuf_start() callback,
-implements the simplest possible 'no-overwrite' mode, i.e. it does
+implements the simplest possible 'no-overwrite' mode, i.e., it does
 nothing but return 0.
 
 Header information can be reserved at the beginning of each sub-buffer
@@ -467,7 +457,7 @@ rather than open and close a new channel for each use.  relay_reset()
 can be used for this purpose - it resets a channel to its initial
 state without reallocating channel buffer memory or destroying
 existing mappings.  It should however only be called when it's safe to
-do so, i.e. when the channel isn't currently being written to.
+do so, i.e., when the channel isn't currently being written to.
 
 Finally, there are a couple of utility callbacks that can be used for
 different purposes.  buf_mapped() is called whenever a channel buffer

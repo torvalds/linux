@@ -411,7 +411,8 @@ static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 static int dm_prepare_ioctl(struct mapped_device *md, int *srcu_idx,
-			    struct block_device **bdev)
+			    struct block_device **bdev, unsigned int cmd,
+			    unsigned long arg, bool *forward)
 {
 	struct dm_target *ti;
 	struct dm_table *map;
@@ -434,8 +435,8 @@ retry:
 	if (dm_suspended_md(md))
 		return -EAGAIN;
 
-	r = ti->type->prepare_ioctl(ti, bdev);
-	if (r == -ENOTCONN && !fatal_signal_pending(current)) {
+	r = ti->type->prepare_ioctl(ti, bdev, cmd, arg, forward);
+	if (r == -ENOTCONN && *forward && !fatal_signal_pending(current)) {
 		dm_put_live_table(md, *srcu_idx);
 		fsleep(10000);
 		goto retry;
@@ -454,9 +455,10 @@ static int dm_blk_ioctl(struct block_device *bdev, blk_mode_t mode,
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	int r, srcu_idx;
+	bool forward = true;
 
-	r = dm_prepare_ioctl(md, &srcu_idx, &bdev);
-	if (r < 0)
+	r = dm_prepare_ioctl(md, &srcu_idx, &bdev, cmd, arg, &forward);
+	if (!forward || r < 0)
 		goto out;
 
 	if (r > 0) {
@@ -1022,10 +1024,8 @@ static void dm_wq_requeue_work(struct work_struct *work)
  *
  * 2) io->orig_bio points to new cloned bio which matches the requeued dm_io.
  */
-static void dm_io_complete(struct dm_io *io)
+static inline void dm_io_complete(struct dm_io *io)
 {
-	bool first_requeue;
-
 	/*
 	 * Only dm_io that has been split needs two stage requeue, otherwise
 	 * we may run into long bio clone chain during suspend and OOM could
@@ -1034,12 +1034,7 @@ static void dm_io_complete(struct dm_io *io)
 	 * Also flush data dm_io won't be marked as DM_IO_WAS_SPLIT, so they
 	 * also aren't handled via the first stage requeue.
 	 */
-	if (dm_io_flagged(io, DM_IO_WAS_SPLIT))
-		first_requeue = true;
-	else
-		first_requeue = false;
-
-	__dm_io_complete(io, first_requeue);
+	__dm_io_complete(io, dm_io_flagged(io, DM_IO_WAS_SPLIT));
 }
 
 /*
@@ -1082,22 +1077,6 @@ static inline struct queue_limits *dm_get_queue_limits(struct mapped_device *md)
 	return &md->queue->limits;
 }
 
-void disable_discard(struct mapped_device *md)
-{
-	struct queue_limits *limits = dm_get_queue_limits(md);
-
-	/* device doesn't really support DISCARD, disable it */
-	limits->max_hw_discard_sectors = 0;
-}
-
-void disable_write_zeroes(struct mapped_device *md)
-{
-	struct queue_limits *limits = dm_get_queue_limits(md);
-
-	/* device doesn't really support WRITE ZEROES, disable it */
-	limits->max_write_zeroes_sectors = 0;
-}
-
 static bool swap_bios_limit(struct dm_target *ti, struct bio *bio)
 {
 	return unlikely((bio->bi_opf & REQ_SWAP) != 0) && unlikely(ti->limit_swap_bios);
@@ -1115,10 +1094,10 @@ static void clone_endio(struct bio *bio)
 	if (unlikely(error == BLK_STS_TARGET)) {
 		if (bio_op(bio) == REQ_OP_DISCARD &&
 		    !bdev_max_discard_sectors(bio->bi_bdev))
-			disable_discard(md);
+			blk_queue_disable_discard(md->queue);
 		else if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
 			 !bdev_write_zeroes_sectors(bio->bi_bdev))
-			disable_write_zeroes(md);
+			blk_queue_disable_write_zeroes(md->queue);
 	}
 
 	if (static_branch_unlikely(&zoned_enabled) &&
@@ -1232,7 +1211,7 @@ static struct dm_target *dm_dax_get_live_target(struct mapped_device *md,
 
 static long dm_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 		long nr_pages, enum dax_access_mode mode, void **kaddr,
-		pfn_t *pfn)
+		unsigned long *pfn)
 {
 	struct mapped_device *md = dax_get_private(dax_dev);
 	sector_t sector = pgoff * PAGE_SECTORS;
@@ -1307,8 +1286,9 @@ out:
 /*
  * A target may call dm_accept_partial_bio only from the map routine.  It is
  * allowed for all bio types except REQ_PREFLUSH, REQ_OP_ZONE_* zone management
- * operations, REQ_OP_ZONE_APPEND (zone append writes) and any bio serviced by
- * __send_duplicate_bios().
+ * operations, zone append writes (native with REQ_OP_ZONE_APPEND or emulated
+ * with write BIOs flagged with BIO_EMULATES_ZONE_APPEND) and any bio serviced
+ * by __send_duplicate_bios().
  *
  * dm_accept_partial_bio informs the dm that the target only wants to process
  * additional n_sectors sectors of the bio and the rest of the data should be
@@ -1341,10 +1321,18 @@ void dm_accept_partial_bio(struct bio *bio, unsigned int n_sectors)
 	unsigned int bio_sectors = bio_sectors(bio);
 
 	BUG_ON(dm_tio_flagged(tio, DM_TIO_IS_DUPLICATE_BIO));
-	BUG_ON(op_is_zone_mgmt(bio_op(bio)));
-	BUG_ON(bio_op(bio) == REQ_OP_ZONE_APPEND);
 	BUG_ON(bio_sectors > *tio->len_ptr);
 	BUG_ON(n_sectors > bio_sectors);
+
+	if (static_branch_unlikely(&zoned_enabled) &&
+	    unlikely(bdev_is_zoned(bio->bi_bdev))) {
+		enum req_op op = bio_op(bio);
+
+		BUG_ON(op_is_zone_mgmt(op));
+		BUG_ON(op == REQ_OP_WRITE);
+		BUG_ON(op == REQ_OP_WRITE_ZEROES);
+		BUG_ON(op == REQ_OP_ZONE_APPEND);
+	}
 
 	*tio->len_ptr -= bio_sectors - n_sectors;
 	bio->bi_iter.bi_size = n_sectors << SECTOR_SHIFT;
@@ -1790,19 +1778,35 @@ static void init_clone_info(struct clone_info *ci, struct dm_io *io,
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
-static inline bool dm_zone_bio_needs_split(struct mapped_device *md,
-					   struct bio *bio)
+static inline bool dm_zone_bio_needs_split(struct bio *bio)
 {
 	/*
-	 * For mapped device that need zone append emulation, we must
-	 * split any large BIO that straddles zone boundaries.
+	 * Special case the zone operations that cannot or should not be split.
 	 */
-	return dm_emulate_zone_append(md) && bio_straddles_zones(bio) &&
-		!bio_flagged(bio, BIO_ZONE_WRITE_PLUGGING);
+	switch (bio_op(bio)) {
+	case REQ_OP_ZONE_APPEND:
+	case REQ_OP_ZONE_FINISH:
+	case REQ_OP_ZONE_RESET:
+	case REQ_OP_ZONE_RESET_ALL:
+		return false;
+	default:
+		break;
+	}
+
+	/*
+	 * When mapped devices use the block layer zone write plugging, we must
+	 * split any large BIO to the mapped device limits to not submit BIOs
+	 * that span zone boundaries and to avoid potential deadlocks with
+	 * queue freeze operations.
+	 */
+	return bio_needs_zone_write_plugging(bio) || bio_straddles_zones(bio);
 }
+
 static inline bool dm_zone_plug_bio(struct mapped_device *md, struct bio *bio)
 {
-	return dm_emulate_zone_append(md) && blk_zone_plug_bio(bio, 0);
+	if (!bio_needs_zone_write_plugging(bio))
+		return false;
+	return blk_zone_plug_bio(bio, 0);
 }
 
 static blk_status_t __send_zone_reset_all_emulated(struct clone_info *ci,
@@ -1918,8 +1922,7 @@ static blk_status_t __send_zone_reset_all(struct clone_info *ci)
 }
 
 #else
-static inline bool dm_zone_bio_needs_split(struct mapped_device *md,
-					   struct bio *bio)
+static inline bool dm_zone_bio_needs_split(struct bio *bio)
 {
 	return false;
 }
@@ -1946,9 +1949,7 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 
 	is_abnormal = is_abnormal_io(bio);
 	if (static_branch_unlikely(&zoned_enabled)) {
-		/* Special case REQ_OP_ZONE_RESET_ALL as it cannot be split. */
-		need_split = (bio_op(bio) != REQ_OP_ZONE_RESET_ALL) &&
-			(is_abnormal || dm_zone_bio_needs_split(md, bio));
+		need_split = is_abnormal || dm_zone_bio_needs_split(bio);
 	} else {
 		need_split = is_abnormal;
 	}
@@ -2421,20 +2422,34 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 			       struct queue_limits *limits)
 {
 	struct dm_table *old_map;
-	sector_t size;
+	sector_t size, old_size;
 	int ret;
 
 	lockdep_assert_held(&md->suspend_lock);
 
 	size = dm_table_get_size(t);
 
+	old_size = dm_get_size(md);
+
+	if (!dm_table_supports_size_change(t, old_size, size)) {
+		old_map = ERR_PTR(-EINVAL);
+		goto out;
+	}
+
+	set_capacity(md->disk, size);
+
+	ret = dm_table_set_restrictions(t, md->queue, limits);
+	if (ret) {
+		set_capacity(md->disk, old_size);
+		old_map = ERR_PTR(ret);
+		goto out;
+	}
+
 	/*
 	 * Wipe any geometry if the size of the table changed.
 	 */
-	if (size != dm_get_size(md))
+	if (size != old_size)
 		memset(&md->geometry, 0, sizeof(md->geometry));
-
-	set_capacity(md->disk, size);
 
 	dm_table_event_callback(t, event_callback, md);
 
@@ -2453,10 +2468,10 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 		 * requests in the queue may refer to bio from the old bioset,
 		 * so you must walk through the queue to unprep.
 		 */
-		if (!md->mempools) {
+		if (!md->mempools)
 			md->mempools = t->mempools;
-			t->mempools = NULL;
-		}
+		else
+			dm_free_md_mempools(t->mempools);
 	} else {
 		/*
 		 * The md may already have mempools that need changing.
@@ -2465,14 +2480,8 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 		 */
 		dm_free_md_mempools(md->mempools);
 		md->mempools = t->mempools;
-		t->mempools = NULL;
 	}
-
-	ret = dm_table_set_restrictions(t, md->queue, limits);
-	if (ret) {
-		old_map = ERR_PTR(ret);
-		goto out;
-	}
+	t->mempools = NULL;
 
 	old_map = rcu_dereference_protected(md->map, lockdep_is_held(&md->suspend_lock));
 	rcu_assign_pointer(md->map, (void *)t);
@@ -3638,10 +3647,13 @@ static int dm_pr_clear(struct block_device *bdev, u64 key)
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	const struct pr_ops *ops;
 	int r, srcu_idx;
+	bool forward = true;
 
-	r = dm_prepare_ioctl(md, &srcu_idx, &bdev);
+	/* Not a real ioctl, but targets must not interpret non-DM ioctls */
+	r = dm_prepare_ioctl(md, &srcu_idx, &bdev, 0, 0, &forward);
 	if (r < 0)
 		goto out;
+	WARN_ON_ONCE(!forward);
 
 	ops = bdev->bd_disk->fops->pr_ops;
 	if (ops && ops->pr_clear)

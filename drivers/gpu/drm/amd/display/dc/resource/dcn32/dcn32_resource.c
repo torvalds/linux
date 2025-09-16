@@ -1742,7 +1742,7 @@ void dcn32_add_phantom_pipes(struct dc *dc, struct dc_state *context,
 	}
 }
 
-static bool dml1_validate(struct dc *dc, struct dc_state *context, bool fast_validate)
+static bool dml1_validate(struct dc *dc, struct dc_state *context, enum dc_validate_mode validate_mode)
 {
 	bool out = false;
 
@@ -1767,7 +1767,7 @@ static bool dml1_validate(struct dc *dc, struct dc_state *context, bool fast_val
 		goto validate_fail;
 
 	DC_FP_START();
-	out = dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate);
+	out = dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, validate_mode);
 	DC_FP_END();
 
 	if (pipe_cnt == 0)
@@ -1778,7 +1778,7 @@ static bool dml1_validate(struct dc *dc, struct dc_state *context, bool fast_val
 
 	BW_VAL_TRACE_END_VOLTAGE_LEVEL();
 
-	if (fast_validate) {
+	if (validate_mode != DC_VALIDATE_MODE_AND_PROGRAMMING) {
 		BW_VAL_TRACE_SKIP(fast);
 		goto validate_out;
 	}
@@ -1809,7 +1809,7 @@ validate_out:
 
 enum dc_status dcn32_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
-		bool fast_validate)
+		enum dc_validate_mode validate_mode)
 {
 	unsigned int i;
 	enum dc_status status;
@@ -1827,11 +1827,11 @@ enum dc_status dcn32_validate_bandwidth(struct dc *dc,
 	if (dc->debug.using_dml2)
 		status = dml2_validate(dc, context,
 				context->power_source == DC_POWER_SOURCE_DC ? context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2,
-				fast_validate) ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
+				validate_mode) ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 	else
-		status = dml1_validate(dc, context, fast_validate) ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
+		status = dml1_validate(dc, context, validate_mode) ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 
-	if (!fast_validate && status == DC_OK && dc_state_is_subvp_in_use(context)) {
+	if (validate_mode == DC_VALIDATE_MODE_AND_PROGRAMMING && status == DC_OK && dc_state_is_subvp_in_use(context)) {
 		/* check new stream configuration still supports cursor if subvp used */
 		for (i = 0; i < context->stream_count; i++) {
 			stream = context->streams[i];
@@ -1846,14 +1846,14 @@ enum dc_status dcn32_validate_bandwidth(struct dc *dc,
 		};
 	}
 
-	if (!fast_validate && status == DC_FAIL_HW_CURSOR_SUPPORT) {
+	if (validate_mode == DC_VALIDATE_MODE_AND_PROGRAMMING && status == DC_FAIL_HW_CURSOR_SUPPORT) {
 		/* attempt to validate again with subvp disabled due to cursor */
 		if (dc->debug.using_dml2)
 			status = dml2_validate(dc, context,
 					context->power_source == DC_POWER_SOURCE_DC ? context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2,
-					fast_validate) ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
+					validate_mode) ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 		else
-			status = dml1_validate(dc, context, fast_validate) ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
+			status = dml1_validate(dc, context, validate_mode) ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 	}
 
 	return status;
@@ -1862,7 +1862,7 @@ enum dc_status dcn32_validate_bandwidth(struct dc *dc,
 int dcn32_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes,
-	bool fast_validate)
+	enum dc_validate_mode validate_mode)
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
@@ -1878,7 +1878,7 @@ int dcn32_populate_dml_pipes_from_context(
 	int num_subvp_none = 0;
 	int odm_slice_count;
 
-	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
+	dcn20_populate_dml_pipes_from_context(dc, context, pipes, validate_mode);
 
 	/* For single display subvp, look for subvp main so if we have phantom
 	 *  pipe, we can set odm policy to match main pipe
@@ -1960,7 +1960,7 @@ int dcn32_populate_dml_pipes_from_context(
 		/* Only populate DML input with subvp info for full updates.
 		 * This is just a workaround -- needs a proper fix.
 		 */
-		if (!fast_validate) {
+		if (validate_mode == DC_VALIDATE_MODE_AND_PROGRAMMING) {
 			switch (dc_state_get_pipe_subvp_type(context, pipe)) {
 			case SUBVP_MAIN:
 				pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_sub_viewport;
@@ -2061,21 +2061,15 @@ void dcn32_calculate_wm_and_dlg(struct dc *dc, struct dc_state *context,
 
 static void dcn32_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
-	struct dml2_configuration_options *dml2_opt = &dc->dml2_tmp;
-
-	memcpy(dml2_opt, &dc->dml2_options, sizeof(dc->dml2_options));
-
 	DC_FP_START();
 
 	dcn32_update_bw_bounding_box_fpu(dc, bw_params);
 
-	dml2_opt->use_clock_dc_limits = false;
 	if (dc->debug.using_dml2 && dc->current_state && dc->current_state->bw_ctx.dml2)
-		dml2_reinit(dc, dml2_opt, &dc->current_state->bw_ctx.dml2);
+		dml2_reinit(dc, &dc->dml2_options, &dc->current_state->bw_ctx.dml2);
 
-	dml2_opt->use_clock_dc_limits = true;
 	if (dc->debug.using_dml2 && dc->current_state && dc->current_state->bw_ctx.dml2_dc_power_source)
-		dml2_reinit(dc, dml2_opt, &dc->current_state->bw_ctx.dml2_dc_power_source);
+		dml2_reinit(dc, &dc->dml2_dc_power_options, &dc->current_state->bw_ctx.dml2_dc_power_source);
 
 	DC_FP_END();
 }
@@ -2257,7 +2251,7 @@ static bool dcn32_resource_construct(
 	dc->caps.color.dpp.gamma_corr = 1;
 	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
 
-	dc->caps.color.dpp.hw_3d_lut = 1;
+	dc->caps.color.dpp.hw_3d_lut = 0;
 	dc->caps.color.dpp.ogam_ram = 0;  // no OGAM in DPP since DCN1
 	// no OGAM ROM on DCN2 and later ASICs
 	dc->caps.color.dpp.ogam_rom_caps.srgb = 0;
@@ -2276,6 +2270,7 @@ static bool dcn32_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+	dc->caps.color.mpc.preblend = true;
 
 	/* Use pipe context based otg sync logic */
 	dc->config.use_pipe_ctx_sync_logic = true;
@@ -2505,6 +2500,8 @@ static bool dcn32_resource_construct(
 	for (i = 0; i < dc->caps.max_planes; ++i)
 		dc->caps.planes[i] = plane_cap;
 
+	dc->caps.max_odm_combine_factor = 4;
+
 	dc->cap_funcs = cap_funcs;
 
 	if (dc->ctx->dc_bios->fw_info.oem_i2c_present) {
@@ -2519,7 +2516,6 @@ static bool dcn32_resource_construct(
 	}
 
 	dc->dml2_options.dcn_pipe_count = pool->base.pipe_count;
-	dc->dml2_options.use_native_pstate_optimization = false;
 	dc->dml2_options.use_native_soc_bb_construction = true;
 	dc->dml2_options.minimize_dispclk_using_odm = true;
 
@@ -2550,6 +2546,10 @@ static bool dcn32_resource_construct(
 
 	if (ASICREV_IS_GC_11_0_3(dc->ctx->asic_id.hw_internal_rev) && (dc->config.sdpif_request_limit_words_per_umc == 0))
 		dc->config.sdpif_request_limit_words_per_umc = 16;
+
+	/* init DC limited DML2 options */
+	memcpy(&dc->dml2_dc_power_options, &dc->dml2_options, sizeof(struct dml2_configuration_options));
+	dc->dml2_dc_power_options.use_clock_dc_limits = true;
 
 	return true;
 

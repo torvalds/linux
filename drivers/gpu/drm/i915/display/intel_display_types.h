@@ -37,6 +37,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_panel.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank_work.h>
 #include <drm/intel/i915_hdcp_interface.h>
@@ -49,14 +50,15 @@
 #include "intel_display_limits.h"
 #include "intel_display_power.h"
 #include "intel_dpll_mgr.h"
+#include "intel_dsi_vbt_defs.h"
 #include "intel_wm_types.h"
 
 struct cec_notifier;
 struct drm_printer;
-struct __intel_global_objs_state;
 struct intel_connector;
 struct intel_ddi_buf_trans;
 struct intel_fbc;
+struct intel_global_objs_state;
 struct intel_hdcp_shim;
 struct intel_tc_port;
 
@@ -145,6 +147,8 @@ struct intel_framebuffer {
 
 	unsigned int min_alignment;
 	unsigned int vtd_guard;
+
+	unsigned int (*panic_tiling)(unsigned int x, unsigned int y, unsigned int width);
 };
 
 enum intel_hotplug_state {
@@ -384,6 +388,9 @@ struct intel_vbt_panel_data {
 };
 
 struct intel_panel {
+	/* Simple drm_panel */
+	struct drm_panel *base;
+
 	/* Fixed EDID for eDP and LVDS. May hold ERR_PTR for invalid EDID. */
 	const struct drm_edid *fixed_edid;
 
@@ -550,6 +557,10 @@ struct intel_connector {
 		struct intel_dp *dp;
 	} mst;
 
+	struct {
+		int force_bpp_x16;
+	} link;
+
 	/* Work struct to schedule a uevent on link train failure */
 	struct work_struct modeset_retry_work;
 
@@ -583,7 +594,7 @@ struct intel_atomic_state {
 
 	struct ref_tracker *wakeref;
 
-	struct __intel_global_objs_state *global_objs;
+	struct intel_global_objs_state *global_objs;
 	int num_global_objs;
 
 	/* Internal commit, as opposed to userspace/client initiated one */
@@ -591,7 +602,7 @@ struct intel_atomic_state {
 
 	bool dpll_set, modeset;
 
-	struct intel_shared_dpll_state shared_dpll[I915_NUM_PLLS];
+	struct intel_dpll_state dpll_state[I915_NUM_PLLS];
 
 	struct intel_dp_tunnel_inherited_state *inherited_dp_tunnels;
 
@@ -632,7 +643,6 @@ struct intel_plane_state {
 #define PLANE_HAS_FENCE BIT(0)
 
 	struct intel_fb_view view;
-	u32 phys_dma_addr; /* for cursor_needs_physical */
 
 	/* for legacy cursor fb unpin */
 	struct drm_vblank_work unpin_work;
@@ -654,6 +664,9 @@ struct intel_plane_state {
 
 	/* chroma upsampler control register */
 	u32 cus_ctl;
+
+	/* surface address register */
+	u32 surf;
 
 	/*
 	 * scaler_id
@@ -931,10 +944,6 @@ struct intel_csc_matrix {
 	u16 postoff[3];
 };
 
-void intel_io_mmio_fw_write(void *ctx, i915_reg_t reg, u32 val);
-
-typedef void (*intel_io_reg_write)(void *ctx, i915_reg_t reg, u32 val);
-
 struct intel_crtc_state {
 	/*
 	 * uapi (drm) state. This is the software state shown to userspace.
@@ -1075,8 +1084,8 @@ struct intel_crtc_state {
 	 * haswell. */
 	struct dpll dpll;
 
-	/* Selected dpll when shared or NULL. */
-	struct intel_shared_dpll *shared_dpll;
+	/* Selected dpll or NULL. */
+	struct intel_dpll *intel_dpll;
 
 	/* Actual register state of the dpll, for shared dpll cross-checking. */
 	struct intel_dpll_hw_state dpll_hw_state;
@@ -1086,7 +1095,7 @@ struct intel_crtc_state {
 	 * setting shared_dpll and dpll_hw_state to one of these reserved ones.
 	 */
 	struct icl_port_dpll {
-		struct intel_shared_dpll *pll;
+		struct intel_dpll *pll;
 		struct intel_dpll_hw_state hw_state;
 	} icl_port_dplls[ICL_PORT_DPLL_COUNT];
 
@@ -1112,6 +1121,7 @@ struct intel_crtc_state {
 	bool req_psr2_sdp_prior_scanline;
 	bool has_panel_replay;
 	bool wm_level_disabled;
+	bool pkg_c_latency_used;
 	u32 dc3co_exitline;
 	u16 su_y_granularity;
 	u8 active_non_psr_pipes;
@@ -1293,8 +1303,9 @@ struct intel_crtc_state {
 	enum transcoder mst_master_transcoder;
 
 	/* For DSB based pipe updates */
-	struct intel_dsb *dsb_color_vblank, *dsb_commit;
+	struct intel_dsb *dsb_color, *dsb_commit;
 	bool use_dsb;
+	bool use_flipq;
 
 	u32 psr2_man_track_ctl;
 
@@ -1361,6 +1372,21 @@ struct intel_pipe_crc {
 	enum intel_pipe_crc_source source;
 };
 
+enum intel_flipq_id {
+	INTEL_FLIPQ_PLANE_1,
+	INTEL_FLIPQ_PLANE_2,
+	INTEL_FLIPQ_PLANE_3,
+	INTEL_FLIPQ_GENERAL,
+	INTEL_FLIPQ_FAST,
+	MAX_INTEL_FLIPQ,
+};
+
+struct intel_flipq {
+	u32 start_mmioaddr;
+	enum intel_flipq_id flipq_id;
+	u8 tail;
+};
+
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
@@ -1387,10 +1413,14 @@ struct intel_crtc {
 	struct drm_pending_vblank_event *flip_done_event;
 	/* armed event for DSB based updates */
 	struct drm_pending_vblank_event *dsb_event;
+	/* armed event for flip queue based updates */
+	struct drm_pending_vblank_event *flipq_event;
 
 	/* Access to these should be protected by display->irq.lock. */
 	bool cpu_fifo_underrun_disabled;
 	bool pch_fifo_underrun_disabled;
+
+	struct intel_flipq flipq[MAX_INTEL_FLIPQ];
 
 	/* per-pipe watermark state */
 	struct {
@@ -1504,6 +1534,7 @@ struct intel_plane {
 	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
 	int (*check_plane)(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state);
+	u32 (*surf_offset)(const struct intel_plane_state *plane_state);
 	int (*min_cdclk)(const struct intel_crtc_state *crtc_state,
 			 const struct intel_plane_state *plane_state);
 	void (*async_flip)(struct intel_dsb *dsb,
@@ -1513,6 +1544,8 @@ struct intel_plane {
 			   bool async_flip);
 	void (*enable_flip_done)(struct intel_plane *plane);
 	void (*disable_flip_done)(struct intel_plane *plane);
+	/* For drm_panic */
+	void (*disable_tiling)(struct intel_plane *plane);
 };
 
 #define to_intel_atomic_state(x) container_of(x, struct intel_atomic_state, base)
@@ -1651,6 +1684,7 @@ struct intel_psr {
 	u8 entry_setup_frames;
 
 	bool link_ok;
+	bool pkg_c_latency_used;
 
 	u8 active_non_psr_pipes;
 };
@@ -1665,7 +1699,9 @@ struct intel_dp {
 	bool use_max_params;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	u8 psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
-	u8 pr_dpcd;
+	u8 pr_dpcd[DP_PANEL_REPLAY_CAP_SIZE];
+#define INTEL_PR_DPCD_INDEX(pr_dpcd_register)	((pr_dpcd_register) - DP_PANEL_REPLAY_CAP_SUPPORT)
+
 	u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
 	u8 lttpr_common_caps[DP_LTTPR_COMMON_CAP_SIZE];

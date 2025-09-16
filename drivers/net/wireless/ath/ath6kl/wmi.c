@@ -1078,7 +1078,7 @@ static int ath6kl_wmi_tkip_micerr_event_rx(struct wmi *wmi, u8 *datap, int len,
 
 void ath6kl_wmi_sscan_timer(struct timer_list *t)
 {
-	struct ath6kl_vif *vif = from_timer(vif, t, sched_scan_timer);
+	struct ath6kl_vif *vif = timer_container_of(vif, t, sched_scan_timer);
 
 	cfg80211_sched_scan_results(vif->ar->wiphy, 0);
 }
@@ -2601,7 +2601,7 @@ int ath6kl_wmi_create_pstream_cmd(struct wmi *wmi, u8 if_idx,
 	}
 
 	/*
-	 * Indicate activty change to driver layer only if this is the
+	 * Indicate activity change to driver layer only if this is the
 	 * first TSID to get created in this AC explicitly or an implicit
 	 * fat pipe is getting created.
 	 */

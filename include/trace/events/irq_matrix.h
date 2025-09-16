@@ -138,14 +138,6 @@ DEFINE_EVENT(irq_matrix_global_update, irq_matrix_assign_system,
 	TP_ARGS(bit, matrix)
 );
 
-DEFINE_EVENT(irq_matrix_cpu, irq_matrix_alloc_reserved,
-
-	TP_PROTO(int bit, unsigned int cpu,
-		 struct irq_matrix *matrix, struct cpumap *cmap),
-
-	TP_ARGS(bit, cpu, matrix, cmap)
-);
-
 DEFINE_EVENT(irq_matrix_cpu, irq_matrix_reserve_managed,
 
 	TP_PROTO(int bit, unsigned int cpu,

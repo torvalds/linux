@@ -9,15 +9,6 @@
 
 #define BITMAP_MAGIC 0x6d746962
 
-typedef __u16 bitmap_counter_t;
-#define COUNTER_BITS 16
-#define COUNTER_BIT_SHIFT 4
-#define COUNTER_BYTE_SHIFT (COUNTER_BIT_SHIFT - 3)
-
-#define NEEDED_MASK ((bitmap_counter_t) (1 << (COUNTER_BITS - 1)))
-#define RESYNC_MASK ((bitmap_counter_t) (1 << (COUNTER_BITS - 2)))
-#define COUNTER_MAX ((bitmap_counter_t) RESYNC_MASK - 1)
-
 /* use these for bitmap->flags and bitmap->sb->state bit-fields */
 enum bitmap_state {
 	BITMAP_STALE	   = 1,  /* the bitmap file is out of date or had -EIO */
@@ -72,7 +63,7 @@ struct md_bitmap_stats {
 
 struct bitmap_operations {
 	bool (*enabled)(struct mddev *mddev);
-	int (*create)(struct mddev *mddev, int slot);
+	int (*create)(struct mddev *mddev);
 	int (*resize)(struct mddev *mddev, sector_t blocks, int chunksize,
 		      bool init);
 
@@ -89,10 +80,10 @@ struct bitmap_operations {
 	void (*end_behind_write)(struct mddev *mddev);
 	void (*wait_behind_writes)(struct mddev *mddev);
 
-	int (*startwrite)(struct mddev *mddev, sector_t offset,
+	void (*start_write)(struct mddev *mddev, sector_t offset,
+			    unsigned long sectors);
+	void (*end_write)(struct mddev *mddev, sector_t offset,
 			  unsigned long sectors);
-	void (*endwrite)(struct mddev *mddev, sector_t offset,
-			 unsigned long sectors);
 	bool (*start_sync)(struct mddev *mddev, sector_t offset,
 			   sector_t *blocks, bool degraded);
 	void (*end_sync)(struct mddev *mddev, sector_t offset, sector_t *blocks);

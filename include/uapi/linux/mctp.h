@@ -37,6 +37,14 @@ struct sockaddr_mctp_ext {
 	__u8			smctp_haddr[MAX_ADDR_LEN];
 };
 
+/* A "fully qualified" MCTP address, which includes the system-local network ID,
+ * required to uniquely resolve a routable EID.
+ */
+struct mctp_fq_addr {
+	unsigned int	net;
+	mctp_eid_t	eid;
+};
+
 #define MCTP_NET_ANY		0x0
 
 #define MCTP_ADDR_NULL		0x00

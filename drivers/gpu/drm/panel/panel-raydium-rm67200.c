@@ -36,12 +36,14 @@ static inline struct raydium_rm67200 *to_raydium_rm67200(struct drm_panel *panel
 
 static void raydium_rm67200_reset(struct raydium_rm67200 *ctx)
 {
-	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
-	msleep(60);
-	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
-	msleep(60);
-	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
-	msleep(60);
+	if (ctx->reset_gpio) {
+		gpiod_set_value_cansleep(ctx->reset_gpio, 0);
+		msleep(60);
+		gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+		msleep(60);
+		gpiod_set_value_cansleep(ctx->reset_gpio, 0);
+		msleep(60);
+	}
 }
 
 static void raydium_rm67200_write(struct mipi_dsi_multi_context *ctx,
@@ -318,6 +320,7 @@ static void w552793baa_setup(struct mipi_dsi_multi_context *ctx)
 static int raydium_rm67200_prepare(struct drm_panel *panel)
 {
 	struct raydium_rm67200 *ctx = to_raydium_rm67200(panel);
+	struct mipi_dsi_multi_context mctx = { .dsi = ctx->dsi };
 	int ret;
 
 	ret = regulator_bulk_enable(ctx->num_supplies, ctx->supplies);
@@ -327,6 +330,12 @@ static int raydium_rm67200_prepare(struct drm_panel *panel)
 	raydium_rm67200_reset(ctx);
 
 	msleep(60);
+
+	ctx->panel_info->panel_setup(&mctx);
+	mipi_dsi_dcs_exit_sleep_mode_multi(&mctx);
+	mipi_dsi_msleep(&mctx, 120);
+	mipi_dsi_dcs_set_display_on_multi(&mctx);
+	mipi_dsi_msleep(&mctx, 30);
 
 	return 0;
 }
@@ -341,20 +350,6 @@ static int raydium_rm67200_unprepare(struct drm_panel *panel)
 	msleep(60);
 
 	return 0;
-}
-
-static int raydium_rm67200_enable(struct drm_panel *panel)
-{
-	struct raydium_rm67200 *rm67200 = to_raydium_rm67200(panel);
-	struct mipi_dsi_multi_context ctx = { .dsi = rm67200->dsi };
-
-	rm67200->panel_info->panel_setup(&ctx);
-	mipi_dsi_dcs_exit_sleep_mode_multi(&ctx);
-	mipi_dsi_msleep(&ctx, 120);
-	mipi_dsi_dcs_set_display_on_multi(&ctx);
-	mipi_dsi_msleep(&ctx, 30);
-
-	return ctx.accum_err;
 }
 
 static int raydium_rm67200_disable(struct drm_panel *panel)
@@ -381,7 +376,6 @@ static const struct drm_panel_funcs raydium_rm67200_funcs = {
 	.prepare = raydium_rm67200_prepare,
 	.unprepare = raydium_rm67200_unprepare,
 	.get_modes = raydium_rm67200_get_modes,
-	.enable = raydium_rm67200_enable,
 	.disable = raydium_rm67200_disable,
 };
 
@@ -391,9 +385,11 @@ static int raydium_rm67200_probe(struct mipi_dsi_device *dsi)
 	struct raydium_rm67200 *ctx;
 	int ret = 0;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_panel_alloc(dev, struct raydium_rm67200, panel,
+				   &raydium_rm67200_funcs,
+				   DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	ctx->panel_info = device_get_match_data(dev);
 	if (!ctx->panel_info)
@@ -407,7 +403,7 @@ static int raydium_rm67200_probe(struct mipi_dsi_device *dsi)
 	if (ret < 0)
 		return ret;
 
-	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio))
 		return dev_err_probe(dev, PTR_ERR(ctx->reset_gpio),
 				     "Failed to get reset-gpios\n");
@@ -420,9 +416,6 @@ static int raydium_rm67200_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_MODE_LPM;
 	ctx->panel.prepare_prev_first = true;
-
-	drm_panel_init(&ctx->panel, dev, &raydium_rm67200_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 
 	ret = drm_panel_of_backlight(&ctx->panel);
 	if (ret)
@@ -471,6 +464,7 @@ static const struct raydium_rm67200_panel_info w552793baa_info = {
 		.vtotal = 1952,
 		.width_mm = 68, /* 68.04mm */
 		.height_mm = 121, /* 120.96mm */
+		.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 		.type = DRM_MODE_TYPE_DRIVER,
 	},
 	.regulators = w552793baa_regulators,

@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * Transmit and frame generation functions.
  */
@@ -26,6 +26,7 @@
 #include <net/codel_impl.h>
 #include <linux/unaligned.h>
 #include <net/fq_impl.h>
+#include <net/sock.h>
 #include <net/gso.h>
 
 #include "ieee80211_i.h"
@@ -49,18 +50,10 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_chanctx_conf *chanctx_conf;
-	u32 rate_flags = 0;
 
 	/* assume HW handles this */
 	if (tx->rate.flags & (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS))
 		return 0;
-
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(tx->sdata->vif.bss_conf.chanctx_conf);
-	if (chanctx_conf)
-		rate_flags = ieee80211_chandef_rate_flags(&chanctx_conf->def);
-	rcu_read_unlock();
 
 	/* uh huh? */
 	if (WARN_ON_ONCE(tx->rate.idx < 0))
@@ -137,9 +130,6 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 
 		if (r->bitrate > txrate->bitrate)
 			break;
-
-		if ((rate_flags & r->flags) != rate_flags)
-			continue;
 
 		if (tx->sdata->vif.bss_conf.basic_rates & BIT(i))
 			rate = r->bitrate;
@@ -621,6 +611,12 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		tx->key = key;
 	else
 		tx->key = NULL;
+
+	if (info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) {
+		if (tx->key && tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)
+			info->control.hw_key = &tx->key->conf;
+		return TX_CONTINUE;
+	}
 
 	if (tx->key) {
 		bool skip_hw = false;
@@ -1183,7 +1179,8 @@ void ieee80211_aggr_check(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (!sta ||
-	    (!sta->sta.valid_links && !sta->sta.deflink.ht_cap.ht_supported) ||
+	    (!sta->sta.valid_links && !sta->sta.deflink.ht_cap.ht_supported &&
+	     !sta->sta.deflink.s1g_cap.s1g) ||
 	    !sta->sta.wme || skb_get_queue_mapping(skb) == IEEE80211_AC_VO ||
 	    skb->protocol == sdata->control_port_protocol)
 		return;
@@ -1402,15 +1399,8 @@ static struct sk_buff *fq_tin_dequeue_func(struct fq *fq,
 
 	local = container_of(fq, struct ieee80211_local, fq);
 	txqi = container_of(tin, struct txq_info, tin);
+	cparams = &local->cparams;
 	cstats = &txqi->cstats;
-
-	if (txqi->txq.sta) {
-		struct sta_info *sta = container_of(txqi->txq.sta,
-						    struct sta_info, sta);
-		cparams = &sta->cparams;
-	} else {
-		cparams = &local->cparams;
-	}
 
 	if (flow == &tin->default_flow)
 		cvars = &txqi->def_cvars;
@@ -1445,7 +1435,7 @@ static void ieee80211_txq_enqueue(struct ieee80211_local *local,
 {
 	struct fq *fq = &local->fq;
 	struct fq_tin *tin = &txqi->tin;
-	u32 flow_idx = fq_flow_idx(fq, skb);
+	u32 flow_idx;
 
 	ieee80211_set_skb_enqueue_time(skb);
 
@@ -1461,6 +1451,7 @@ static void ieee80211_txq_enqueue(struct ieee80211_local *local,
 			IEEE80211_TX_INTCFL_NEED_TXPROCESSING;
 		__skb_queue_tail(&txqi->frags, skb);
 	} else {
+		flow_idx = fq_flow_idx(fq, skb);
 		fq_tin_enqueue(fq, tin, flow_idx, skb,
 			       fq_skb_free_func);
 	}
@@ -1558,7 +1549,7 @@ void ieee80211_txq_purge(struct ieee80211_local *local,
 	spin_unlock_bh(&local->active_txq_lock[txqi->txq.ac]);
 }
 
-void ieee80211_txq_set_params(struct ieee80211_local *local)
+void ieee80211_txq_set_params(struct ieee80211_local *local, int radio_idx)
 {
 	if (local->hw.wiphy->txq_limit)
 		local->fq.limit = local->hw.wiphy->txq_limit;
@@ -1622,7 +1613,7 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 	for (i = 0; i < fq->flows_cnt; i++)
 		codel_vars_init(&local->cvars[i]);
 
-	ieee80211_txq_set_params(local);
+	ieee80211_txq_set_params(local, -1);
 
 	return 0;
 }
@@ -2876,8 +2867,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (unlikely(!multicast &&
-		     ((skb->sk &&
-		       skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS) ||
+		     (sk_requests_wifi_status(skb->sk) ||
 		      ctrl_flags & IEEE80211_TX_CTL_REQ_TX_STATUS)))
 		info_id = ieee80211_store_ack_skb(local, skb, &info_flags,
 						  cookie);
@@ -3774,7 +3764,7 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 		return false;
 
 	/* don't handle TX status request here either */
-	if (skb->sk && skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS)
+	if (sk_requests_wifi_status(skb->sk))
 		return false;
 
 	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
@@ -3894,6 +3884,7 @@ begin:
 	 * The key can be removed while the packet was queued, so need to call
 	 * this here to get the current key.
 	 */
+	info->control.hw_key = NULL;
 	r = ieee80211_tx_h_select_key(&tx);
 	if (r != TX_CONTINUE) {
 		ieee80211_free_txskb(&local->hw, skb);
@@ -4116,7 +4107,9 @@ void __ieee80211_schedule_txq(struct ieee80211_hw *hw,
 
 	spin_lock_bh(&local->active_txq_lock[txq->ac]);
 
-	has_queue = force || txq_has_queue(txq);
+	has_queue = force ||
+		    (!test_bit(IEEE80211_TXQ_STOP, &txqi->flags) &&
+		     txq_has_queue(txq));
 	if (list_empty(&txqi->schedule_order) &&
 	    (has_queue || ieee80211_txq_keep_active(txqi))) {
 		/* If airtime accounting is active, always enqueue STAs at the
@@ -4526,8 +4519,10 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 						     IEEE80211_TX_CTRL_MLO_LINK_UNSPEC,
 						     NULL);
 	} else if (ieee80211_vif_is_mld(&sdata->vif) &&
-		   sdata->vif.type == NL80211_IFTYPE_AP &&
-		   !ieee80211_hw_check(&sdata->local->hw, MLO_MCAST_MULTI_LINK_TX)) {
+		   ((sdata->vif.type == NL80211_IFTYPE_AP &&
+		     !ieee80211_hw_check(&sdata->local->hw, MLO_MCAST_MULTI_LINK_TX)) ||
+		    (sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
+		     !sdata->wdev.use_4addr))) {
 		ieee80211_mlo_multicast_tx(dev, skb);
 	} else {
 normal:
@@ -4664,8 +4659,7 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 			memcpy(IEEE80211_SKB_CB(seg), info, sizeof(*info));
 	}
 
-	if (unlikely(skb->sk &&
-		     skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS)) {
+	if (unlikely(sk_requests_wifi_status(skb->sk))) {
 		info->status_data = ieee80211_store_ack_skb(local, skb,
 							    &info->flags, NULL);
 		if (info->status_data)
@@ -5033,12 +5027,25 @@ static void ieee80211_set_beacon_cntdwn(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-static u8 __ieee80211_beacon_update_cntdwn(struct beacon_data *beacon)
+static u8 __ieee80211_beacon_update_cntdwn(struct ieee80211_link_data *link,
+					   struct beacon_data *beacon)
 {
-	beacon->cntdwn_current_counter--;
+	if (beacon->cntdwn_current_counter == 1) {
+		/*
+		 * Channel switch handling is done by a worker thread while
+		 * beacons get pulled from hardware timers. It's therefore
+		 * possible that software threads are slow enough to not be
+		 * able to complete CSA handling in a single beacon interval,
+		 * in which case we get here. There isn't much to do about
+		 * it, other than letting the user know that the AP isn't
+		 * behaving correctly.
+		 */
+		link_err_once(link,
+			      "beacon TX faster than countdown (channel/color switch) completion\n");
+		return 0;
+	}
 
-	/* the counter should never reach 0 */
-	WARN_ON_ONCE(!beacon->cntdwn_current_counter);
+	beacon->cntdwn_current_counter--;
 
 	return beacon->cntdwn_current_counter;
 }
@@ -5069,7 +5076,7 @@ u8 ieee80211_beacon_update_cntdwn(struct ieee80211_vif *vif, unsigned int link_i
 	if (!beacon)
 		goto unlock;
 
-	count = __ieee80211_beacon_update_cntdwn(beacon);
+	count = __ieee80211_beacon_update_cntdwn(link, beacon);
 
 unlock:
 	rcu_read_unlock();
@@ -5293,14 +5300,14 @@ ieee80211_beacon_add_mbssid(struct sk_buff *skb, struct beacon_data *beacon,
 }
 
 static struct sk_buff *
-ieee80211_beacon_get_ap(struct ieee80211_hw *hw,
-			struct ieee80211_vif *vif,
-			struct ieee80211_link_data *link,
-			struct ieee80211_mutable_offsets *offs,
-			bool is_template,
-			struct beacon_data *beacon,
-			struct ieee80211_chanctx_conf *chanctx_conf,
-			u8 ema_index)
+__ieee80211_beacon_get_ap(struct ieee80211_hw *hw,
+			  struct ieee80211_vif *vif,
+			  struct ieee80211_link_data *link,
+			  struct ieee80211_mutable_offsets *offs,
+			  bool is_template,
+			  struct beacon_data *beacon,
+			  struct ieee80211_chanctx_conf *chanctx_conf,
+			  u8 ema_index)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
@@ -5361,6 +5368,71 @@ ieee80211_beacon_get_ap(struct ieee80211_hw *hw,
 	return skb;
 }
 
+static bool ieee80211_s1g_need_long_beacon(struct ieee80211_sub_if_data *sdata,
+					   struct ieee80211_link_data *link)
+{
+	struct ps_data *ps = &sdata->u.ap.ps;
+
+	if (ps->sb_count == 0)
+		ps->sb_count = link->conf->s1g_long_beacon_period - 1;
+	else
+		ps->sb_count--;
+
+	return ps->sb_count == 0;
+}
+
+static struct sk_buff *
+ieee80211_s1g_short_beacon_get(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct ieee80211_link_data *link,
+			       struct ieee80211_chanctx_conf *chanctx_conf,
+			       struct s1g_short_beacon_data *sb,
+			       bool is_template)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_if_ap *ap = &sdata->u.ap;
+	struct sk_buff *skb;
+
+	skb = dev_alloc_skb(local->tx_headroom + sb->short_head_len +
+			    sb->short_tail_len + 256 +
+			    local->hw.extra_beacon_tailroom);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, local->tx_headroom);
+	skb_put_data(skb, sb->short_head, sb->short_head_len);
+
+	ieee80211_beacon_add_tim(sdata, link, &ap->ps, skb, is_template);
+
+	if (sb->short_tail)
+		skb_put_data(skb, sb->short_tail, sb->short_tail_len);
+
+	ieee80211_beacon_get_finish(hw, vif, link, NULL, NULL, skb,
+				    chanctx_conf, 0);
+	return skb;
+}
+
+static struct sk_buff *
+ieee80211_beacon_get_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			struct ieee80211_link_data *link,
+			struct ieee80211_mutable_offsets *offs,
+			bool is_template, struct beacon_data *beacon,
+			struct ieee80211_chanctx_conf *chanctx_conf,
+			u8 ema_index, struct s1g_short_beacon_data *s1g_sb)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	if (!sdata->vif.cfg.s1g || !s1g_sb ||
+	    ieee80211_s1g_need_long_beacon(sdata, link))
+		return __ieee80211_beacon_get_ap(hw, vif, link, offs,
+						 is_template, beacon,
+						 chanctx_conf, ema_index);
+
+	return ieee80211_s1g_short_beacon_get(hw, vif, link, chanctx_conf,
+					      s1g_sb, is_template);
+}
+
 static struct ieee80211_ema_beacons *
 ieee80211_beacon_get_ap_ema_list(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
@@ -5384,7 +5456,7 @@ ieee80211_beacon_get_ap_ema_list(struct ieee80211_hw *hw,
 			ieee80211_beacon_get_ap(hw, vif, link,
 						&ema->bcn[ema->cnt].offs,
 						is_template, beacon,
-						chanctx_conf, ema->cnt);
+						chanctx_conf, ema->cnt, NULL);
 		if (!ema->bcn[ema->cnt].skb)
 			break;
 	}
@@ -5413,6 +5485,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 	struct ieee80211_sub_if_data *sdata = NULL;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_link_data *link;
+	struct s1g_short_beacon_data *s1g_short_bcn = NULL;
 
 	rcu_read_lock();
 
@@ -5434,6 +5507,13 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		if (!beacon)
 			goto out;
 
+		if (vif->cfg.s1g && link->u.ap.s1g_short_beacon) {
+			s1g_short_bcn =
+				rcu_dereference(link->u.ap.s1g_short_beacon);
+			if (!s1g_short_bcn)
+				goto out;
+		}
+
 		if (ema_beacons) {
 			*ema_beacons =
 				ieee80211_beacon_get_ap_ema_list(hw, vif, link,
@@ -5454,8 +5534,8 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 
 			skb = ieee80211_beacon_get_ap(hw, vif, link, offs,
 						      is_template, beacon,
-						      chanctx_conf,
-						      ema_index);
+						      chanctx_conf, ema_index,
+						      s1g_short_bcn);
 		}
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
@@ -5467,7 +5547,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 
 		if (beacon->cntdwn_counter_offsets[0]) {
 			if (!is_template)
-				__ieee80211_beacon_update_cntdwn(beacon);
+				__ieee80211_beacon_update_cntdwn(link, beacon);
 
 			ieee80211_set_beacon_cntdwn(sdata, beacon, link);
 		}
@@ -5499,7 +5579,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 				 * for now we leave it consistent with overall
 				 * mac80211's behavior.
 				 */
-				__ieee80211_beacon_update_cntdwn(beacon);
+				__ieee80211_beacon_update_cntdwn(link, beacon);
 
 			ieee80211_set_beacon_cntdwn(sdata, beacon, link);
 		}

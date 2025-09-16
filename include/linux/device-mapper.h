@@ -93,7 +93,14 @@ typedef void (*dm_status_fn) (struct dm_target *ti, status_type_t status_type,
 typedef int (*dm_message_fn) (struct dm_target *ti, unsigned int argc, char **argv,
 			      char *result, unsigned int maxlen);
 
-typedef int (*dm_prepare_ioctl_fn) (struct dm_target *ti, struct block_device **bdev);
+/*
+ * Called with *forward == true. If it remains true, the ioctl should be
+ * forwarded to bdev. If it is reset to false, the target already fully handled
+ * the ioctl and the return value is the return value for the whole ioctl.
+ */
+typedef int (*dm_prepare_ioctl_fn) (struct dm_target *ti, struct block_device **bdev,
+				    unsigned int cmd, unsigned long arg,
+				    bool *forward);
 
 #ifdef CONFIG_BLK_DEV_ZONED
 typedef int (*dm_report_zones_fn) (struct dm_target *ti,
@@ -149,7 +156,7 @@ typedef int (*dm_busy_fn) (struct dm_target *ti);
  */
 typedef long (*dm_dax_direct_access_fn) (struct dm_target *ti, pgoff_t pgoff,
 		long nr_pages, enum dax_access_mode node, void **kaddr,
-		pfn_t *pfn);
+		unsigned long *pfn);
 typedef int (*dm_dax_zero_page_range_fn)(struct dm_target *ti, pgoff_t pgoff,
 		size_t nr_pages);
 

@@ -9,7 +9,9 @@
 #include <linux/debugfs.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
+#include <linux/genalloc.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -154,6 +156,9 @@
 /* STM32H7_SPI_I2SCFGR bit fields */
 #define STM32H7_SPI_I2SCFGR_I2SMOD	BIT(0)
 
+/* STM32MP25_SPICFG2 bit fields */
+#define STM32MP25_SPI_CFG2_RDIOM	BIT(13)
+
 /* STM32MP25 SPI registers bit fields */
 #define STM32MP25_SPI_HWCFGR1			0x3F0
 
@@ -222,6 +227,7 @@ struct stm32_spi_reg {
  * @rx: SPI RX data register
  * @tx: SPI TX data register
  * @fullcfg: SPI full or limited feature set register
+ * @rdy_en: SPI ready feature register
  */
 struct stm32_spi_regspec {
 	const struct stm32_spi_reg en;
@@ -235,6 +241,7 @@ struct stm32_spi_regspec {
 	const struct stm32_spi_reg rx;
 	const struct stm32_spi_reg tx;
 	const struct stm32_spi_reg fullcfg;
+	const struct stm32_spi_reg rdy_en;
 };
 
 struct stm32_spi;
@@ -276,7 +283,7 @@ struct stm32_spi_cfg {
 	int (*config)(struct stm32_spi *spi);
 	void (*set_bpw)(struct stm32_spi *spi);
 	int (*set_mode)(struct stm32_spi *spi, unsigned int comm_type);
-	void (*set_data_idleness)(struct stm32_spi *spi, u32 length);
+	void (*set_data_idleness)(struct stm32_spi *spi, struct spi_transfer *xfer);
 	int (*set_number_of_data)(struct stm32_spi *spi, u32 length);
 	void (*write_tx)(struct stm32_spi *spi);
 	void (*read_rx)(struct stm32_spi *spi);
@@ -323,6 +330,11 @@ struct stm32_spi_cfg {
  * @dma_rx: dma channel for RX transfer
  * @phys_addr: SPI registers physical base address
  * @device_mode: the controller is configured as SPI device
+ * @sram_pool: SRAM pool for DMA transfers
+ * @sram_rx_buf_size: size of SRAM buffer for RX transfer
+ * @sram_rx_buf: SRAM buffer for RX transfer
+ * @sram_dma_rx_buf: SRAM buffer physical address for RX transfer
+ * @mdma_rx: MDMA channel for RX transfer
  */
 struct stm32_spi {
 	struct device *dev;
@@ -357,6 +369,12 @@ struct stm32_spi {
 	dma_addr_t phys_addr;
 
 	bool device_mode;
+
+	struct gen_pool *sram_pool;
+	size_t sram_rx_buf_size;
+	void *sram_rx_buf;
+	dma_addr_t sram_dma_rx_buf;
+	struct dma_chan *mdma_rx;
 };
 
 static const struct stm32_spi_regspec stm32fx_spi_regspec = {
@@ -415,6 +433,8 @@ static const struct stm32_spi_regspec stm32mp25_spi_regspec = {
 	.tx = { STM32H7_SPI_TXDR },
 
 	.fullcfg = { STM32MP25_SPI_HWCFGR1, STM32MP25_SPI_HWCFGR1_FULLCFG },
+
+	.rdy_en = { STM32H7_SPI_CFG2, STM32MP25_SPI_CFG2_RDIOM },
 };
 
 static inline void stm32_spi_set_bits(struct stm32_spi *spi,
@@ -878,8 +898,11 @@ static void stm32h7_spi_disable(struct stm32_spi *spi)
 
 	if (spi->cur_usedma && spi->dma_tx)
 		dmaengine_terminate_async(spi->dma_tx);
-	if (spi->cur_usedma && spi->dma_rx)
+	if (spi->cur_usedma && spi->dma_rx) {
 		dmaengine_terminate_async(spi->dma_rx);
+		if (spi->mdma_rx)
+			dmaengine_terminate_async(spi->mdma_rx);
+	}
 
 	stm32_spi_clr_bits(spi, STM32H7_SPI_CR1, STM32H7_SPI_CR1_SPE);
 
@@ -1091,10 +1114,13 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 	}
 
 	if (sr & STM32H7_SPI_SR_EOT) {
+		dev_dbg(spi->dev, "End of transfer\n");
 		if (!spi->cur_usedma && (spi->rx_buf && (spi->rx_len > 0)))
 			stm32h7_spi_read_rxfifo(spi);
 		if (!spi->cur_usedma ||
-		    (spi->cur_comm == SPI_SIMPLEX_TX || spi->cur_comm == SPI_3WIRE_TX))
+		    (spi->cur_comm == SPI_SIMPLEX_TX || spi->cur_comm == SPI_3WIRE_TX) ||
+		    (spi->mdma_rx && (spi->cur_comm == SPI_SIMPLEX_RX ||
+		     spi->cur_comm == SPI_FULL_DUPLEX)))
 			end = true;
 	}
 
@@ -1111,6 +1137,11 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 	spin_unlock_irqrestore(&spi->lock, flags);
 
 	if (end) {
+		if (spi->cur_usedma && spi->mdma_rx) {
+			dmaengine_pause(spi->dma_rx);
+			/* Wait for callback */
+			return IRQ_HANDLED;
+		}
 		stm32h7_spi_disable(spi);
 		spi_finalize_current_transfer(ctrl);
 	}
@@ -1172,15 +1203,21 @@ static int stm32_spi_prepare_msg(struct spi_controller *ctrl,
 	else
 		clrb |= spi->cfg->regs->cs_high.mask;
 
-	dev_dbg(spi->dev, "cpol=%d cpha=%d lsb_first=%d cs_high=%d\n",
+	if (spi_dev->mode & SPI_READY)
+		setb |= spi->cfg->regs->rdy_en.mask;
+	else
+		clrb |= spi->cfg->regs->rdy_en.mask;
+
+	dev_dbg(spi->dev, "cpol=%d cpha=%d lsb_first=%d cs_high=%d rdy=%d\n",
 		!!(spi_dev->mode & SPI_CPOL),
 		!!(spi_dev->mode & SPI_CPHA),
 		!!(spi_dev->mode & SPI_LSB_FIRST),
-		!!(spi_dev->mode & SPI_CS_HIGH));
+		!!(spi_dev->mode & SPI_CS_HIGH),
+		!!(spi_dev->mode & SPI_READY));
 
 	spin_lock_irqsave(&spi->lock, flags);
 
-	/* CPOL, CPHA and LSB FIRST bits have common register */
+	/* CPOL, CPHA, LSB FIRST, CS_HIGH and RDY_EN bits have common register */
 	if (clrb || setb)
 		writel_relaxed(
 			(readl_relaxed(spi->base + spi->cfg->regs->cpol.reg) &
@@ -1410,6 +1447,8 @@ static void stm32h7_spi_transfer_one_dma_start(struct stm32_spi *spi)
 	/* Enable the interrupts */
 	if (spi->cur_comm == SPI_SIMPLEX_TX || spi->cur_comm == SPI_3WIRE_TX)
 		ier |= STM32H7_SPI_IER_EOTIE | STM32H7_SPI_IER_TXTFIE;
+	if (spi->mdma_rx && (spi->cur_comm == SPI_SIMPLEX_RX || spi->cur_comm == SPI_FULL_DUPLEX))
+		ier |= STM32H7_SPI_IER_EOTIE;
 
 	stm32_spi_set_bits(spi, STM32H7_SPI_IER, ier);
 
@@ -1417,6 +1456,121 @@ static void stm32h7_spi_transfer_one_dma_start(struct stm32_spi *spi)
 
 	if (STM32_SPI_HOST_MODE(spi))
 		stm32_spi_set_bits(spi, STM32H7_SPI_CR1, STM32H7_SPI_CR1_CSTART);
+}
+
+/**
+ * stm32_spi_prepare_rx_dma_mdma_chaining - Prepare RX DMA and MDMA chaining
+ * @spi: pointer to the spi controller data structure
+ * @xfer: pointer to the spi transfer
+ * @rx_dma_conf: pointer to the DMA configuration for RX channel
+ * @rx_dma_desc: pointer to the RX DMA descriptor
+ * @rx_mdma_desc: pointer to the RX MDMA descriptor
+ *
+ * It must return 0 if the chaining is possible or an error code if not.
+ */
+static int stm32_spi_prepare_rx_dma_mdma_chaining(struct stm32_spi *spi,
+						  struct spi_transfer *xfer,
+						  struct dma_slave_config *rx_dma_conf,
+						  struct dma_async_tx_descriptor **rx_dma_desc,
+						  struct dma_async_tx_descriptor **rx_mdma_desc)
+{
+	struct dma_async_tx_descriptor *_mdma_desc = *rx_mdma_desc;
+	struct dma_async_tx_descriptor *_dma_desc = *rx_dma_desc;
+	struct dma_slave_config rx_mdma_conf = {0};
+	u32 sram_period, nents = 0, spi_s_len;
+	struct sg_table dma_sgt, mdma_sgt;
+	struct scatterlist *spi_s, *s;
+	dma_addr_t dma_buf;
+	int i, ret;
+
+	sram_period = spi->sram_rx_buf_size / 2;
+
+	/* Configure MDMA RX channel */
+	rx_mdma_conf.direction = rx_dma_conf->direction;
+	rx_mdma_conf.src_addr = spi->sram_dma_rx_buf;
+	rx_mdma_conf.peripheral_config = rx_dma_conf->peripheral_config;
+	rx_mdma_conf.peripheral_size = rx_dma_conf->peripheral_size;
+	dmaengine_slave_config(spi->mdma_rx, &rx_mdma_conf);
+
+	/* Count the number of entries needed */
+	for_each_sg(xfer->rx_sg.sgl, spi_s, xfer->rx_sg.nents, i)
+		if (sg_dma_len(spi_s) > sram_period)
+			nents += DIV_ROUND_UP(sg_dma_len(spi_s), sram_period);
+		else
+			nents++;
+
+	/* Prepare DMA slave_sg DBM transfer DEV_TO_MEM (RX>MEM=SRAM) */
+	ret = sg_alloc_table(&dma_sgt, nents, GFP_ATOMIC);
+	if (ret)
+		return ret;
+
+	spi_s = xfer->rx_sg.sgl;
+	spi_s_len = sg_dma_len(spi_s);
+	dma_buf = spi->sram_dma_rx_buf;
+	for_each_sg(dma_sgt.sgl, s, dma_sgt.nents, i) {
+		size_t bytes = min_t(size_t, spi_s_len, sram_period);
+
+		sg_dma_len(s) = bytes;
+		sg_dma_address(s) = dma_buf;
+		spi_s_len -= bytes;
+
+		if (!spi_s_len && sg_next(spi_s)) {
+			spi_s = sg_next(spi_s);
+			spi_s_len = sg_dma_len(spi_s);
+			dma_buf = spi->sram_dma_rx_buf;
+		} else { /* DMA configured in DBM: it will swap between the SRAM periods */
+			if (i & 1)
+				dma_buf += sram_period;
+			else
+				dma_buf = spi->sram_dma_rx_buf;
+		}
+	}
+
+	_dma_desc = dmaengine_prep_slave_sg(spi->dma_rx, dma_sgt.sgl,
+					    dma_sgt.nents, rx_dma_conf->direction,
+					    DMA_PREP_INTERRUPT);
+	sg_free_table(&dma_sgt);
+
+	if (!_dma_desc)
+		return -EINVAL;
+
+	/* Prepare MDMA slave_sg transfer MEM_TO_MEM (SRAM>DDR) */
+	ret = sg_alloc_table(&mdma_sgt, nents, GFP_ATOMIC);
+	if (ret) {
+		_dma_desc = NULL;
+		return ret;
+	}
+
+	spi_s = xfer->rx_sg.sgl;
+	spi_s_len = sg_dma_len(spi_s);
+	dma_buf = sg_dma_address(spi_s);
+	for_each_sg(mdma_sgt.sgl, s, mdma_sgt.nents, i) {
+		size_t bytes = min_t(size_t, spi_s_len, sram_period);
+
+		sg_dma_len(s) = bytes;
+		sg_dma_address(s) = dma_buf;
+		spi_s_len -= bytes;
+
+		if (!spi_s_len && sg_next(spi_s)) {
+			spi_s = sg_next(spi_s);
+			spi_s_len = sg_dma_len(spi_s);
+			dma_buf = sg_dma_address(spi_s);
+		} else {
+			dma_buf += bytes;
+		}
+	}
+
+	_mdma_desc = dmaengine_prep_slave_sg(spi->mdma_rx, mdma_sgt.sgl,
+					     mdma_sgt.nents, rx_mdma_conf.direction,
+					     DMA_PREP_INTERRUPT);
+	sg_free_table(&mdma_sgt);
+
+	if (!_mdma_desc) {
+		_dma_desc = NULL;
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /**
@@ -1430,38 +1584,43 @@ static void stm32h7_spi_transfer_one_dma_start(struct stm32_spi *spi)
 static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 				      struct spi_transfer *xfer)
 {
+	struct dma_async_tx_descriptor *rx_mdma_desc = NULL, *rx_dma_desc = NULL;
+	struct dma_async_tx_descriptor *tx_dma_desc = NULL;
 	struct dma_slave_config tx_dma_conf, rx_dma_conf;
-	struct dma_async_tx_descriptor *tx_dma_desc, *rx_dma_desc;
 	unsigned long flags;
+	int ret = 0;
 
 	spin_lock_irqsave(&spi->lock, flags);
 
-	rx_dma_desc = NULL;
 	if (spi->rx_buf && spi->dma_rx) {
 		stm32_spi_dma_config(spi, spi->dma_rx, &rx_dma_conf, DMA_DEV_TO_MEM);
-		dmaengine_slave_config(spi->dma_rx, &rx_dma_conf);
+		if (spi->mdma_rx) {
+			rx_dma_conf.peripheral_size = 1;
+			dmaengine_slave_config(spi->dma_rx, &rx_dma_conf);
 
-		/* Enable Rx DMA request */
-		stm32_spi_set_bits(spi, spi->cfg->regs->dma_rx_en.reg,
-				   spi->cfg->regs->dma_rx_en.mask);
-
-		rx_dma_desc = dmaengine_prep_slave_sg(
-					spi->dma_rx, xfer->rx_sg.sgl,
-					xfer->rx_sg.nents,
-					rx_dma_conf.direction,
-					DMA_PREP_INTERRUPT);
+			ret = stm32_spi_prepare_rx_dma_mdma_chaining(spi, xfer, &rx_dma_conf,
+								     &rx_dma_desc, &rx_mdma_desc);
+			if (ret) { /* RX DMA MDMA chaining not possible, fallback to DMA only */
+				rx_dma_conf.peripheral_config = 0;
+				rx_dma_desc = NULL;
+			}
+		}
+		if (!rx_dma_desc) {
+			dmaengine_slave_config(spi->dma_rx, &rx_dma_conf);
+			rx_dma_desc = dmaengine_prep_slave_sg(spi->dma_rx, xfer->rx_sg.sgl,
+							      xfer->rx_sg.nents,
+							      rx_dma_conf.direction,
+							      DMA_PREP_INTERRUPT);
+		}
 	}
 
-	tx_dma_desc = NULL;
 	if (spi->tx_buf && spi->dma_tx) {
 		stm32_spi_dma_config(spi, spi->dma_tx, &tx_dma_conf, DMA_MEM_TO_DEV);
 		dmaengine_slave_config(spi->dma_tx, &tx_dma_conf);
-
-		tx_dma_desc = dmaengine_prep_slave_sg(
-					spi->dma_tx, xfer->tx_sg.sgl,
-					xfer->tx_sg.nents,
-					tx_dma_conf.direction,
-					DMA_PREP_INTERRUPT);
+		tx_dma_desc = dmaengine_prep_slave_sg(spi->dma_tx, xfer->tx_sg.sgl,
+						      xfer->tx_sg.nents,
+						      tx_dma_conf.direction,
+						      DMA_PREP_INTERRUPT);
 	}
 
 	if ((spi->tx_buf && spi->dma_tx && !tx_dma_desc) ||
@@ -1472,9 +1631,25 @@ static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 		goto dma_desc_error;
 
 	if (rx_dma_desc) {
-		rx_dma_desc->callback = spi->cfg->dma_rx_cb;
-		rx_dma_desc->callback_param = spi;
+		if (rx_mdma_desc) {
+			rx_mdma_desc->callback = spi->cfg->dma_rx_cb;
+			rx_mdma_desc->callback_param = spi;
+		} else {
+			rx_dma_desc->callback = spi->cfg->dma_rx_cb;
+			rx_dma_desc->callback_param = spi;
+		}
 
+		/* Enable Rx DMA request */
+		stm32_spi_set_bits(spi, spi->cfg->regs->dma_rx_en.reg,
+				   spi->cfg->regs->dma_rx_en.mask);
+		if (rx_mdma_desc) {
+			if (dma_submit_error(dmaengine_submit(rx_mdma_desc))) {
+				dev_err(spi->dev, "Rx MDMA submit failed\n");
+				goto dma_desc_error;
+			}
+			/* Enable Rx MDMA channel */
+			dma_async_issue_pending(spi->mdma_rx);
+		}
 		if (dma_submit_error(dmaengine_submit(rx_dma_desc))) {
 			dev_err(spi->dev, "Rx DMA submit failed\n");
 			goto dma_desc_error;
@@ -1509,6 +1684,8 @@ static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 	return 1;
 
 dma_submit_error:
+	if (spi->mdma_rx)
+		dmaengine_terminate_sync(spi->mdma_rx);
 	if (spi->dma_rx)
 		dmaengine_terminate_sync(spi->dma_rx);
 
@@ -1519,6 +1696,9 @@ dma_desc_error:
 	spin_unlock_irqrestore(&spi->lock, flags);
 
 	dev_info(spi->dev, "DMA issue: fall back to irq transfer\n");
+
+	if (spi->sram_rx_buf)
+		memset(spi->sram_rx_buf, 0, spi->sram_rx_buf_size);
 
 	spi->cur_usedma = false;
 	return spi->cfg->transfer_one_irq(spi);
@@ -1702,11 +1882,26 @@ static int stm32h7_spi_set_mode(struct stm32_spi *spi, unsigned int comm_type)
  * stm32h7_spi_data_idleness - configure minimum time delay inserted between two
  *			       consecutive data frames in host mode
  * @spi: pointer to the spi controller data structure
- * @len: transfer len
+ * @xfer: pointer to spi transfer
  */
-static void stm32h7_spi_data_idleness(struct stm32_spi *spi, u32 len)
+static void stm32h7_spi_data_idleness(struct stm32_spi *spi, struct spi_transfer *xfer)
 {
 	u32 cfg2_clrb = 0, cfg2_setb = 0;
+	u32 len = xfer->len;
+	u32 spi_delay_ns;
+
+	spi_delay_ns = spi_delay_to_ns(&xfer->word_delay, xfer);
+
+	if (spi->cur_midi != 0) {
+		dev_warn(spi->dev, "st,spi-midi-ns DT property is deprecated\n");
+		if (spi_delay_ns) {
+			dev_warn(spi->dev, "Overriding st,spi-midi-ns with word_delay_ns %d\n",
+				 spi_delay_ns);
+			spi->cur_midi = spi_delay_ns;
+		}
+	} else {
+		spi->cur_midi = spi_delay_ns;
+	}
 
 	cfg2_clrb |= STM32H7_SPI_CFG2_MIDI;
 	if ((len > 1) && (spi->cur_midi > 0)) {
@@ -1768,6 +1963,13 @@ static int stm32_spi_transfer_one_setup(struct stm32_spi *spi,
 	spi->cur_bpw = transfer->bits_per_word;
 	spi->cfg->set_bpw(spi);
 
+	if (spi_dev->mode & SPI_READY && spi->cur_bpw < 8) {
+		writel_relaxed(readl_relaxed(spi->base + spi->cfg->regs->rdy_en.reg) &
+				~spi->cfg->regs->rdy_en.mask,
+					spi->base + spi->cfg->regs->rdy_en.reg);
+		dev_dbg(spi->dev, "RDY logic disabled as bits per word < 8\n");
+	}
+
 	/* Update spi->cur_speed with real clock speed */
 	if (STM32_SPI_HOST_MODE(spi)) {
 		mbr = stm32_spi_prepare_mbr(spi, transfer->speed_hz,
@@ -1790,7 +1992,7 @@ static int stm32_spi_transfer_one_setup(struct stm32_spi *spi,
 	spi->cur_comm = comm_type;
 
 	if (STM32_SPI_HOST_MODE(spi) && spi->cfg->set_data_idleness)
-		spi->cfg->set_data_idleness(spi, transfer->len);
+		spi->cfg->set_data_idleness(spi, transfer);
 
 	if (spi->cur_bpw <= 8)
 		nb_words = transfer->len;
@@ -1870,6 +2072,9 @@ static int stm32_spi_unprepare_msg(struct spi_controller *ctrl,
 	struct stm32_spi *spi = spi_controller_get_devdata(ctrl);
 
 	spi->cfg->disable(spi);
+
+	if (spi->sram_rx_buf)
+		memset(spi->sram_rx_buf, 0, spi->sram_rx_buf_size);
 
 	return 0;
 }
@@ -2069,9 +2274,15 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct reset_control *rst;
 	struct device_node *np = pdev->dev.of_node;
+	const struct stm32_spi_cfg *cfg;
 	bool device_mode;
 	int ret;
-	const struct stm32_spi_cfg *cfg = of_device_get_match_data(&pdev->dev);
+
+	cfg = of_device_get_match_data(&pdev->dev);
+	if (!cfg) {
+		dev_err(&pdev->dev, "Failed to get match data for platform\n");
+		return -ENODEV;
+	}
 
 	device_mode = of_property_read_bool(np, "spi-slave");
 	if (!cfg->has_device_mode && device_mode) {
@@ -2179,7 +2390,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	ctrl->auto_runtime_pm = true;
 	ctrl->bus_num = pdev->id;
 	ctrl->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LSB_FIRST |
-			  SPI_3WIRE;
+			  SPI_3WIRE | SPI_READY;
 	ctrl->bits_per_word_mask = spi->cfg->get_bpw_mask(spi);
 	ctrl->max_speed_hz = spi->clk_rate / spi->cfg->baud_rate_div_min;
 	ctrl->min_speed_hz = spi->clk_rate / spi->cfg->baud_rate_div_max;
@@ -2219,6 +2430,33 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	if (spi->dma_tx || spi->dma_rx)
 		ctrl->can_dma = stm32_spi_can_dma;
 
+	spi->sram_pool = of_gen_pool_get(pdev->dev.of_node, "sram", 0);
+	if (spi->sram_pool) {
+		spi->sram_rx_buf_size = gen_pool_size(spi->sram_pool);
+		dev_info(&pdev->dev, "SRAM pool: %zu KiB for RX DMA/MDMA chaining\n",
+			 spi->sram_rx_buf_size / 1024);
+		spi->sram_rx_buf = gen_pool_dma_zalloc(spi->sram_pool, spi->sram_rx_buf_size,
+						       &spi->sram_dma_rx_buf);
+		if (!spi->sram_rx_buf) {
+			dev_err(&pdev->dev, "failed to allocate SRAM buffer\n");
+		} else {
+			spi->mdma_rx = dma_request_chan(spi->dev, "rxm2m");
+			if (IS_ERR(spi->mdma_rx)) {
+				ret = PTR_ERR(spi->mdma_rx);
+				spi->mdma_rx = NULL;
+				if (ret == -EPROBE_DEFER) {
+					goto err_pool_free;
+				} else {
+					gen_pool_free(spi->sram_pool,
+						      (unsigned long)spi->sram_rx_buf,
+						      spi->sram_rx_buf_size);
+					dev_warn(&pdev->dev,
+						 "failed to request rx mdma channel, DMA only\n");
+				}
+			}
+		}
+	}
+
 	pm_runtime_set_autosuspend_delay(&pdev->dev,
 					 STM32_SPI_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -2233,7 +2471,6 @@ static int stm32_spi_probe(struct platform_device *pdev)
 		goto err_pm_disable;
 	}
 
-	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
 
 	dev_info(&pdev->dev, "driver initialized (%s mode)\n",
@@ -2246,6 +2483,13 @@ err_pm_disable:
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
+
+	if (spi->mdma_rx)
+		dma_release_channel(spi->mdma_rx);
+err_pool_free:
+	if (spi->sram_pool)
+		gen_pool_free(spi->sram_pool, (unsigned long)spi->sram_rx_buf,
+			      spi->sram_rx_buf_size);
 err_dma_release:
 	if (spi->dma_tx)
 		dma_release_channel(spi->dma_tx);
@@ -2276,6 +2520,11 @@ static void stm32_spi_remove(struct platform_device *pdev)
 		dma_release_channel(ctrl->dma_tx);
 	if (ctrl->dma_rx)
 		dma_release_channel(ctrl->dma_rx);
+	if (spi->mdma_rx)
+		dma_release_channel(spi->mdma_rx);
+	if (spi->sram_rx_buf)
+		gen_pool_free(spi->sram_pool, (unsigned long)spi->sram_rx_buf,
+			      spi->sram_rx_buf_size);
 
 	clk_disable_unprepare(spi->clk);
 
@@ -2342,7 +2591,6 @@ static int __maybe_unused stm32_spi_resume(struct device *dev)
 
 	spi->cfg->config(spi);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;

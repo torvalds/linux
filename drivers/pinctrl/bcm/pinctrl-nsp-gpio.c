@@ -310,7 +310,7 @@ static int nsp_gpio_get_direction(struct gpio_chip *gc, unsigned gpio)
 	return !val;
 }
 
-static void nsp_gpio_set(struct gpio_chip *gc, unsigned gpio, int val)
+static int nsp_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct nsp_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
@@ -320,6 +320,8 @@ static void nsp_gpio_set(struct gpio_chip *gc, unsigned gpio, int val)
 	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev, "gpio:%u set, value:%d\n", gpio, val);
+
+	return 0;
 }
 
 static int nsp_gpio_get(struct gpio_chip *gc, unsigned gpio)

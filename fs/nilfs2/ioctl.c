@@ -118,7 +118,7 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
  *
  * Return: always 0 as success.
  */
-int nilfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+int nilfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 
@@ -136,7 +136,7 @@ int nilfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
  * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_fileattr_set(struct mnt_idmap *idmap,
-		       struct dentry *dentry, struct fileattr *fa)
+		       struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	struct nilfs_transaction_info ti;

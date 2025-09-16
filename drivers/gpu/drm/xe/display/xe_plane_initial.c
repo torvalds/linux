@@ -10,16 +10,19 @@
 #include "xe_ggtt.h"
 #include "xe_mmio.h"
 
-#include "i915_reg.h"
-#include "intel_atomic_plane.h"
+#include "i915_vma.h"
 #include "intel_crtc.h"
 #include "intel_display.h"
+#include "intel_display_core.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
+#include "intel_plane.h"
 #include "intel_plane_initial.h"
 #include "xe_bo.h"
+#include "xe_vram_types.h"
 #include "xe_wa.h"
 
 #include <generated/xe_wa_oob.h>
@@ -87,12 +90,8 @@ initial_plane_bo(struct xe_device *xe,
 
 	base = round_down(plane_config->base, page_size);
 	if (IS_DGFX(xe)) {
-		u64 __iomem *gte = tile0->mem.ggtt->gsm;
-		u64 pte;
+		u64 pte = xe_ggtt_read_pte(tile0->mem.ggtt, base);
 
-		gte += base / XE_PAGE_SIZE;
-
-		pte = ioread64(gte);
 		if (!(pte & XE_GGTT_PTE_DM)) {
 			drm_err(&xe->drm,
 				"Initial plane programming missing DM bit\n");
@@ -106,7 +105,7 @@ initial_plane_bo(struct xe_device *xe,
 		 * We don't currently expect this to ever be placed in the
 		 * stolen portion.
 		 */
-		if (phys_base >= tile0->mem.vram.usable_size) {
+		if (phys_base >= xe_vram_region_usable_size(tile0->mem.vram)) {
 			drm_err(&xe->drm,
 				"Initial plane programming using invalid range, phys_base=%pa\n",
 				&phys_base);
@@ -124,7 +123,7 @@ initial_plane_bo(struct xe_device *xe,
 		phys_base = base;
 		flags |= XE_BO_FLAG_STOLEN;
 
-		if (XE_WA(xe_root_mmio_gt(xe), 22019338487_display))
+		if (XE_GT_WA(xe_root_mmio_gt(xe), 22019338487_display))
 			return NULL;
 
 		/*
@@ -187,7 +186,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 		return false;
 
 	if (intel_framebuffer_init(to_intel_framebuffer(fb),
-				   &bo->ttm.base, &mode_cmd)) {
+				   &bo->ttm.base, fb->format, &mode_cmd)) {
 		drm_dbg_kms(&xe->drm, "intel fb init failed\n");
 		goto err_bo;
 	}
@@ -237,6 +236,9 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 		goto nofb;
 
 	plane_state->ggtt_vma = vma;
+
+	plane_state->surf = i915_ggtt_offset(plane_state->ggtt_vma);
+
 	plane_state->uapi.src_x = 0;
 	plane_state->uapi.src_y = 0;
 	plane_state->uapi.src_w = fb->width << 16;

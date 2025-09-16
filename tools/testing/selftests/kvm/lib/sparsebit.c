@@ -116,7 +116,7 @@
  *
  *   + A node with all mask bits set only occurs when the last bit
  *     described by the previous node is not equal to this nodes
- *     starting index - 1.  All such occurences of this condition are
+ *     starting index - 1.  All such occurrences of this condition are
  *     avoided by moving the setting of the nodes mask bits into
  *     the previous nodes num_after setting.
  *
@@ -592,7 +592,7 @@ static struct node *node_split(struct sparsebit *s, sparsebit_idx_t idx)
  *
  *   + A node with all mask bits set only occurs when the last bit
  *     described by the previous node is not equal to this nodes
- *     starting index - 1.  All such occurences of this condition are
+ *     starting index - 1.  All such occurrences of this condition are
  *     avoided by moving the setting of the nodes mask bits into
  *     the previous nodes num_after setting.
  */

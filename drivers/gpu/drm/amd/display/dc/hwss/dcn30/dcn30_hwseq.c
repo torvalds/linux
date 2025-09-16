@@ -74,6 +74,7 @@ void dcn30_log_color_state(struct dc *dc,
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
+	bool is_gamut_remap_available = false;
 	int i;
 
 	DTN_INFO("DPP:  DGAM ROM  DGAM ROM type  DGAM LUT  SHAPER mode"
@@ -88,16 +89,16 @@ void dcn30_log_color_state(struct dc *dc,
 		struct dcn_dpp_state s = {0};
 
 		dpp->funcs->dpp_read_state(dpp, &s);
-		dpp->funcs->dpp_get_gamut_remap(dpp, &s.gamut_remap);
+
+		if (dpp->funcs->dpp_get_gamut_remap) {
+			dpp->funcs->dpp_get_gamut_remap(dpp, &s.gamut_remap);
+			is_gamut_remap_available = true;
+		}
 
 		if (!s.is_enabled)
 			continue;
 
-		DTN_INFO("[%2d]:  %7x  %13s  %8s  %11s  %10s  %15s  %10s  %9s"
-			 "  %12s  "
-			 "%010lld %010lld %010lld %010lld "
-			 "%010lld %010lld %010lld %010lld "
-			 "%010lld %010lld %010lld %010lld",
+		DTN_INFO("[%2d]:  %7x  %13s  %8s  %11s  %10s  %15s  %10s  %9s",
 			dpp->inst,
 			s.pre_dgam_mode,
 			(s.pre_dgam_select == 0) ? "sRGB" :
@@ -121,7 +122,14 @@ void dcn30_log_color_state(struct dc *dc,
 			(s.lut3d_size == 0) ? "17x17x17" : "9x9x9",
 			(s.rgam_lut_mode == 0) ? "Bypass" :
 			 ((s.rgam_lut_mode == 1) ? "RAM A" :
-						   "RAM B"),
+						   "RAM B"));
+
+		if (is_gamut_remap_available) {
+			DTN_INFO("  %12s  "
+				 "%010lld %010lld %010lld %010lld "
+				 "%010lld %010lld %010lld %010lld "
+				 "%010lld %010lld %010lld %010lld",
+
 			(s.gamut_remap.gamut_adjust_type == 0) ? "Bypass" :
 				((s.gamut_remap.gamut_adjust_type == 1) ? "HW" :
 									  "SW"),
@@ -137,6 +145,8 @@ void dcn30_log_color_state(struct dc *dc,
 			s.gamut_remap.temperature_matrix[9].value,
 			s.gamut_remap.temperature_matrix[10].value,
 			s.gamut_remap.temperature_matrix[11].value);
+		}
+
 		DTN_INFO("\n");
 	}
 	DTN_INFO("\n");
@@ -1217,4 +1227,52 @@ void dcn30_wait_for_all_pending_updates(const struct pipe_ctx *pipe_ctx)
 			udelay(1);
 		}
 	}
+}
+
+void dcn30_get_underflow_debug_data(const struct dc *dc,
+	struct timing_generator *tg,
+	struct dc_underflow_debug_data *out_data)
+{
+	struct hubbub *hubbub = dc->res_pool->hubbub;
+
+	if (tg) {
+		uint32_t v_blank_start = 0, v_blank_end = 0;
+
+		out_data->otg_inst = tg->inst;
+
+		tg->funcs->get_scanoutpos(tg,
+					  &v_blank_start,
+					  &v_blank_end,
+					  &out_data->h_position,
+					  &out_data->v_position);
+
+		out_data->otg_frame_count = tg->funcs->get_frame_count(tg);
+
+		out_data->otg_underflow = tg->funcs->is_optc_underflow_occurred(tg);
+	}
+
+	for (int i = 0; i < MAX_PIPES; i++) {
+		struct hubp *hubp = dc->res_pool->hubps[i];
+
+		if (hubp) {
+			if (hubp->funcs->hubp_get_underflow_status)
+				out_data->hubps[i].hubp_underflow = hubp->funcs->hubp_get_underflow_status(hubp);
+
+			if (hubp->funcs->hubp_in_blank)
+				out_data->hubps[i].hubp_in_blank = hubp->funcs->hubp_in_blank(hubp);
+
+			if (hubp->funcs->hubp_get_current_read_line)
+				out_data->hubps[i].hubp_readline = hubp->funcs->hubp_get_current_read_line(hubp);
+
+			if (hubp->funcs->hubp_get_det_config_error)
+				out_data->hubps[i].det_config_error = hubp->funcs->hubp_get_det_config_error(hubp);
+		}
+	}
+
+	if (hubbub->funcs->get_det_sizes)
+		hubbub->funcs->get_det_sizes(hubbub, out_data->curr_det_sizes, out_data->target_det_sizes);
+
+	if (hubbub->funcs->compbuf_config_error)
+		out_data->compbuf_config_error = hubbub->funcs->compbuf_config_error(hubbub);
+
 }

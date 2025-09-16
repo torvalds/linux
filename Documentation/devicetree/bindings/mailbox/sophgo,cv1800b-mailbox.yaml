@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mailbox/sophgo,cv1800b-mailbox.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sophgo CV1800/SG2000 mailbox controller
+
+maintainers:
+  - Yuntao Dai <d1581209858@live.com>
+  - Junhui Liu <junhui.liu@pigmoral.tech>
+
+description:
+  Mailboxes integrated in Sophgo CV1800/SG2000 SoCs have 8 channels, each
+  shipping an 8-byte FIFO. Any processor can write to an arbitrary channel
+  and raise interrupts to receivers. Sending messages to itself is also
+  supported.
+
+properties:
+  compatible:
+    const: sophgo,cv1800b-mailbox
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  "#mbox-cells":
+    const: 2
+    description: |
+      <&phandle channel target>
+      phandle : Label name of mailbox controller
+      channel : 0-7, Channel index
+      target  : 0-3, Target processor ID
+
+      Sophgo CV1800/SG2000 SoCs include the following processors, numbered as:
+      <0> Cortex-A53 (Only available on CV181X/SG200X)
+      <1> C906B
+      <2> C906L
+      <3> 8051
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - "#mbox-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    mailbox@1900000 {
+        compatible = "sophgo,cv1800b-mailbox";
+        reg = <0x01900000 0x1000>;
+        interrupts = <101 IRQ_TYPE_LEVEL_HIGH>;
+        #mbox-cells = <2>;
+    };

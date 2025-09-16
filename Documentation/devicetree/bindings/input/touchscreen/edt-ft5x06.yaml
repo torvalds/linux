@@ -43,6 +43,7 @@ properties:
       - focaltech,ft5452
       - focaltech,ft6236
       - focaltech,ft8201
+      - focaltech,ft8716
       - focaltech,ft8719
 
   reg:
@@ -103,16 +104,9 @@ properties:
     minimum: 0
     maximum: 255
 
-  touchscreen-size-x: true
-  touchscreen-size-y: true
-  touchscreen-fuzz-x: true
-  touchscreen-fuzz-y: true
-  touchscreen-inverted-x: true
-  touchscreen-inverted-y: true
-  touchscreen-swapped-x-y: true
   interrupt-controller: true
 
-additionalProperties: false
+unevaluatedProperties: false
 
 required:
   - compatible

@@ -897,9 +897,7 @@ static irqreturn_t msa311_buffer_thread(int irq, void *p)
 	struct {
 		__le16 channels[MSA311_SI_Z + 1];
 		aligned_s64 ts;
-	} buf;
-
-	memset(&buf, 0, sizeof(buf));
+	} buf = { };
 
 	mutex_lock(&msa311->lock);
 
@@ -919,8 +917,8 @@ static irqreturn_t msa311_buffer_thread(int irq, void *p)
 
 	mutex_unlock(&msa311->lock);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &buf,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &buf, sizeof(buf),
+				    iio_get_time_ns(indio_dev));
 
 notify_done:
 	iio_trigger_notify_done(indio_dev->trig);

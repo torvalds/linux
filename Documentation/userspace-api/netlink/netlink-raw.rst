@@ -62,7 +62,7 @@ Sub-messages
 ------------
 
 Several raw netlink families such as
-:doc:`rt_link<../../networking/netlink_spec/rt_link>` and
+:doc:`rt-link<../../networking/netlink_spec/rt-link>` and
 :doc:`tc<../../networking/netlink_spec/tc>` use attribute nesting as an
 abstraction to carry module specific information.
 

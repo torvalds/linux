@@ -180,12 +180,26 @@ config CRYPTO_PAES_S390
 	depends on PKEY
 	select CRYPTO_ALGAPI
 	select CRYPTO_SKCIPHER
+	select CRYPTO_ENGINE
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  AES cipher algorithms for use with protected key.
 
 	  Select this option if you want to use the paes cipher
 	  for example to use protected key encrypted devices.
+
+config CRYPTO_PHMAC_S390
+	tristate "PHMAC cipher algorithms"
+	depends on S390
+	depends on PKEY
+	select CRYPTO_HASH
+	select CRYPTO_ENGINE
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  protected key HMAC support for SHA224, SHA256, SHA384 and SHA512.
+
+	  Select this option if you want to use the phmac digests
+	  for example to use dm-integrity with secure/protected keys.
 
 config S390_PRNG
 	tristate "Pseudo random number generator device driver"
@@ -529,13 +543,6 @@ source "drivers/crypto/cavium/cpt/Kconfig"
 source "drivers/crypto/cavium/nitrox/Kconfig"
 source "drivers/crypto/marvell/Kconfig"
 source "drivers/crypto/intel/Kconfig"
-
-config CRYPTO_DEV_CAVIUM_ZIP
-	tristate "Cavium ZIP driver"
-	depends on PCI && 64BIT && (ARM64 || COMPILE_TEST)
-	help
-	  Select this option if you want to enable compression/decompression
-	  acceleration on Cavium's ARM based SoCs
 
 config CRYPTO_DEV_QCE
 	tristate "Qualcomm crypto engine accelerator"

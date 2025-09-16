@@ -23,8 +23,6 @@
 #include <linux/iio/triggered_buffer.h>
 
 #define VCNL4035_DRV_NAME	"vcnl4035"
-#define VCNL4035_IRQ_NAME	"vcnl4035_event"
-#define VCNL4035_REGMAP_NAME	"vcnl4035_regmap"
 
 /* Device registers */
 #define VCNL4035_ALS_CONF	0x00
@@ -156,6 +154,31 @@ static int vcnl4035_set_pm_runtime_state(struct vcnl4035_data *data, bool on)
 	return ret;
 }
 
+static int vcnl4035_read_info_raw(struct iio_dev *indio_dev,
+				  struct iio_chan_spec const *chan, int *val)
+{
+	struct vcnl4035_data *data = iio_priv(indio_dev);
+	int ret;
+	int raw_data;
+	unsigned int reg;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	if (chan->channel)
+		reg = VCNL4035_ALS_DATA;
+	else
+		reg = VCNL4035_WHITE_DATA;
+	ret = regmap_read(data->regmap, reg, &raw_data);
+	iio_device_release_direct(indio_dev);
+	if (ret)
+		return ret;
+
+	*val = raw_data;
+
+	return IIO_VAL_INT;
+}
+
 /*
  *	Device IT	INT Time (ms)	Scale (lux/step)
  *	000		50		0.064
@@ -175,28 +198,13 @@ static int vcnl4035_read_raw(struct iio_dev *indio_dev,
 {
 	struct vcnl4035_data *data = iio_priv(indio_dev);
 	int ret;
-	int raw_data;
-	unsigned int reg;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		ret = vcnl4035_set_pm_runtime_state(data, true);
 		if  (ret < 0)
 			return ret;
-
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (!ret) {
-			if (chan->channel)
-				reg = VCNL4035_ALS_DATA;
-			else
-				reg = VCNL4035_WHITE_DATA;
-			ret = regmap_read(data->regmap, reg, &raw_data);
-			iio_device_release_direct_mode(indio_dev);
-			if (!ret) {
-				*val = raw_data;
-				ret = IIO_VAL_INT;
-			}
-		}
+		ret = vcnl4035_read_info_raw(indio_dev, chan, val);
 		vcnl4035_set_pm_runtime_state(data, false);
 		return ret;
 	case IIO_CHAN_INFO_INT_TIME:
@@ -493,7 +501,7 @@ static bool vcnl4035_is_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config vcnl4035_regmap_config = {
-	.name		= VCNL4035_REGMAP_NAME,
+	.name		= "vcnl4035_regmap",
 	.reg_bits	= 8,
 	.val_bits	= 16,
 	.max_register	= VCNL4035_DEV_ID,
@@ -535,7 +543,7 @@ static int vcnl4035_probe_trigger(struct iio_dev *indio_dev)
 	ret = devm_request_threaded_irq(&data->client->dev, data->client->irq,
 			NULL, vcnl4035_drdy_irq_thread,
 			IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-			VCNL4035_IRQ_NAME, indio_dev);
+			"vcnl4035_event", indio_dev);
 	if (ret < 0)
 		dev_err(&data->client->dev, "request irq %d for trigger0 failed\n",
 				data->client->irq);

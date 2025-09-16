@@ -22,25 +22,6 @@ static void guest_code(void)
 {
 }
 
-static bool smt_possible(void)
-{
-	char buf[16];
-	FILE *f;
-	bool res = true;
-
-	f = fopen("/sys/devices/system/cpu/smt/control", "r");
-	if (f) {
-		if (fread(buf, sizeof(*buf), sizeof(buf), f) > 0) {
-			if (!strncmp(buf, "forceoff", 8) ||
-			    !strncmp(buf, "notsupported", 12))
-				res = false;
-		}
-		fclose(f);
-	}
-
-	return res;
-}
-
 static void test_hv_cpuid(struct kvm_vcpu *vcpu, bool evmcs_expected)
 {
 	const bool has_irqchip = !vcpu || vcpu->vm->has_irqchip;
@@ -93,7 +74,7 @@ static void test_hv_cpuid(struct kvm_vcpu *vcpu, bool evmcs_expected)
 		case 0x40000004:
 			test_val = entry->eax & (1UL << 18);
 
-			TEST_ASSERT(!!test_val == !smt_possible(),
+			TEST_ASSERT(!!test_val == !is_smt_possible(),
 				    "NoNonArchitecturalCoreSharing bit"
 				    " doesn't reflect SMT setting");
 

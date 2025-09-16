@@ -1189,13 +1189,16 @@ static int max310x_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return !!((val >> 4) & (1 << (offset % 4)));
 }
 
-static void max310x_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int max310x_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
 	struct max310x_port *s = gpiochip_get_data(chip);
 	struct uart_port *port = &s->p[offset / 4].port;
 
 	max310x_port_update(port, MAX310X_GPIODATA_REG, 1 << (offset % 4),
 			    value ? 1 << (offset % 4) : 0);
+
+	return 0;
 }
 
 static int max310x_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)

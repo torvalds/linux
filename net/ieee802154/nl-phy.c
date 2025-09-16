@@ -224,10 +224,10 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 	dev_hold(dev);
 
 	if (info->attrs[IEEE802154_ATTR_HW_ADDR]) {
-		struct sockaddr addr;
+		struct sockaddr_storage addr;
 
-		addr.sa_family = ARPHRD_IEEE802154;
-		nla_memcpy(&addr.sa_data, info->attrs[IEEE802154_ATTR_HW_ADDR],
+		addr.ss_family = ARPHRD_IEEE802154;
+		nla_memcpy(&addr.__data, info->attrs[IEEE802154_ATTR_HW_ADDR],
 			   IEEE802154_ADDR_LEN);
 
 		/* strangely enough, some callbacks (inetdev_event) from

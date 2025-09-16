@@ -22,7 +22,7 @@
 
 #define __read_mostly __section(".data..read_mostly")
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 struct cache_info {
 	unsigned int ways;		/* Number of cache ways */
 	unsigned int sets;		/* Number of cache sets */
@@ -48,5 +48,5 @@ struct cache_info {
 
 	unsigned long flags;
 };
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_SH_CACHE_H */

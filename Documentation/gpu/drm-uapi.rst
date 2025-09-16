@@ -418,13 +418,12 @@ needed.
 Recovery
 --------
 
-Current implementation defines three recovery methods, out of which, drivers
+Current implementation defines four recovery methods, out of which, drivers
 can use any one, multiple or none. Method(s) of choice will be sent in the
 uevent environment as ``WEDGED=<method1>[,..,<methodN>]`` in order of less to
-more side-effects. If driver is unsure about recovery or method is unknown
-(like soft/hard system reboot, firmware flashing, physical device replacement
-or any other procedure which can't be attempted on the fly), ``WEDGED=unknown``
-will be sent instead.
+more side-effects. See the section `Vendor Specific Recovery`_
+for ``WEDGED=vendor-specific``. If driver is unsure about recovery or
+method is unknown, ``WEDGED=unknown`` will be sent instead.
 
 Userspace consumers can parse this event and attempt recovery as per the
 following expectations.
@@ -435,6 +434,7 @@ following expectations.
     none            optional telemetry collection
     rebind          unbind + bind driver
     bus-reset       unbind + bus reset/re-enumeration + bind
+    vendor-specific vendor specific recovery method
     unknown         consumer policy
     =============== ========================================
 
@@ -446,6 +446,52 @@ telemetry information (devcoredump, syslog). This is useful because the first
 hang is usually the most critical one which can result in consequential hangs or
 complete wedging.
 
+
+Vendor Specific Recovery
+------------------------
+
+When ``WEDGED=vendor-specific`` is sent, it indicates that the device requires
+a recovery procedure specific to the hardware vendor and is not one of the
+standardized approaches.
+
+``WEDGED=vendor-specific`` may be used to indicate different cases within a
+single vendor driver, each requiring a distinct recovery procedure.
+In such scenarios, the vendor driver must provide comprehensive documentation
+that describes each case, include additional hints to identify specific case and
+outline the corresponding recovery procedure. The documentation includes:
+
+Case - A list of all cases that sends the ``WEDGED=vendor-specific`` recovery method.
+
+Hints - Additional Information to assist the userspace consumer in identifying and
+differentiating between different cases. This can be exposed through sysfs, debugfs,
+traces, dmesg etc.
+
+Recovery Procedure - Clear instructions and guidance for recovering each case.
+This may include userspace scripts, tools needed for the recovery procedure.
+
+It is the responsibility of the admin/userspace consumer to identify the case and
+verify additional identification hints before attempting a recovery procedure.
+
+Example: If the device uses the Xe driver, then userspace consumer should refer to
+:ref:`Xe Device Wedging <xe-device-wedging>` for the detailed documentation.
+
+Task information
+----------------
+
+The information about which application (if any) was involved in the device
+wedging is useful for userspace if they want to notify the user about what
+happened (e.g. the compositor display a message to the user "The <task name>
+caused a graphical error and the system recovered") or to implement policies
+(e.g. the daemon may "ban" an task that keeps resetting the device). If the task
+information is available, the uevent will display as ``PID=<pid>`` and
+``TASK=<task name>``. Otherwise, ``PID`` and ``TASK`` will not appear in the
+event string.
+
+The reliability of this information is driver and hardware specific, and should
+be taken with a caution regarding it's precision. To have a big picture of what
+really happened, the devcoredump file provides much more detailed information
+about the device state and about the event.
+
 Consumer prerequisites
 ----------------------
 
@@ -455,8 +501,12 @@ erroring out, all device memory should be unmapped and file descriptors should
 be closed to prevent leaks or undefined behaviour. The idea here is to clear the
 device of all user context beforehand and set the stage for a clean recovery.
 
-Example
--------
+For ``WEDGED=vendor-specific`` recovery method, it is the responsibility of the
+consumer to check the driver documentation and the usecase before attempting
+a recovery.
+
+Example - rebind
+----------------
 
 Udev rule::
 
@@ -693,3 +743,22 @@ dma-buf interoperability
 
 Please see Documentation/userspace-api/dma-buf-alloc-exchange.rst for
 information on how dma-buf is integrated and exposed within DRM.
+
+
+Trace events
+============
+
+See Documentation/trace/tracepoints.rst for information about using
+Linux Kernel Tracepoints.
+In the DRM subsystem, some events are considered stable uAPI to avoid
+breaking tools (e.g.: GPUVis, umr) relying on them. Stable means that fields
+cannot be removed, nor their formatting updated. Adding new fields is
+possible, under the normal uAPI requirements.
+
+Stable uAPI events
+------------------
+
+From ``drivers/gpu/drm/scheduler/gpu_scheduler_trace.h``
+
+.. kernel-doc::  drivers/gpu/drm/scheduler/gpu_scheduler_trace.h
+   :doc: uAPI trace events

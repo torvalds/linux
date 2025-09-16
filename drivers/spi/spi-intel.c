@@ -189,6 +189,11 @@ struct intel_spi_mem_op {
 static bool writeable;
 module_param(writeable, bool, 0);
 MODULE_PARM_DESC(writeable, "Enable write access to SPI flash chip (default=0)");
+static bool ignore_protection_status;
+module_param(ignore_protection_status, bool, 0);
+MODULE_PARM_DESC(
+	ignore_protection_status,
+	"Do not block SPI flash chip write access even if it is write-protected (default=0)");
 
 static void intel_spi_dump_regs(struct intel_spi *ispi)
 {
@@ -1248,13 +1253,15 @@ static void intel_spi_fill_partition(struct intel_spi *ispi,
 			continue;
 
 		/*
-		 * If any of the regions have protection bits set, make the
-		 * whole partition read-only to be on the safe side.
+		 * If any of the regions have protection bits set and
+		 * the ignore protection status parameter is not set,
+		 * make the whole partition read-only to be on the safe side.
 		 *
 		 * Also if the user did not ask the chip to be writeable
 		 * mask the bit too.
 		 */
-		if (!writeable || intel_spi_is_protected(ispi, base, limit)) {
+		if (!writeable || (!ignore_protection_status &&
+				   intel_spi_is_protected(ispi, base, limit))) {
 			part->mask_flags |= MTD_WRITEABLE;
 			ispi->protected = true;
 		}
@@ -1467,13 +1474,13 @@ EXPORT_SYMBOL_GPL(intel_spi_groups);
 /**
  * intel_spi_probe() - Probe the Intel SPI flash controller
  * @dev: Pointer to the parent device
- * @mem: MMIO resource
+ * @base: iomapped MMIO resource
  * @info: Platform specific information
  *
  * Probes Intel SPI flash controller and creates the flash chip device.
  * Returns %0 on success and negative errno in case of failure.
  */
-int intel_spi_probe(struct device *dev, struct resource *mem,
+int intel_spi_probe(struct device *dev, void __iomem *base,
 		    const struct intel_spi_boardinfo *info)
 {
 	struct spi_controller *host;
@@ -1488,10 +1495,7 @@ int intel_spi_probe(struct device *dev, struct resource *mem,
 
 	ispi = spi_controller_get_devdata(host);
 
-	ispi->base = devm_ioremap_resource(dev, mem);
-	if (IS_ERR(ispi->base))
-		return PTR_ERR(ispi->base);
-
+	ispi->base = base;
 	ispi->dev = dev;
 	ispi->host = host;
 	ispi->info = info;

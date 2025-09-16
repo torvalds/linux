@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/qca,ath79-pll.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Atheros ATH79 PLL controller
+
+maintainers:
+  - Alban Bedel <albeu@free.fr>
+  - Antony Pavlov <antonynpavlov@gmail.com>
+
+description: >
+  The PLL controller provides the 3 main clocks of the SoC: CPU, DDR and AHB.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: qca,ar9132-pll
+          - const: qca,ar9130-pll
+      - items:
+          - enum:
+              - qca,ar7100-pll
+              - qca,ar7240-pll
+              - qca,ar9130-pll
+              - qca,ar9330-pll
+              - qca,ar9340-pll
+              - qca,qca9530-pll
+              - qca,qca9550-pll
+              - qca,qca9560-pll
+
+  reg:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: ref
+
+  clocks:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  clock-output-names:
+    items:
+      - const: cpu
+      - const: ddr
+      - const: ahb
+
+required:
+  - compatible
+  - reg
+  - clock-names
+  - clocks
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@18050000 {
+        compatible = "qca,ar9132-pll", "qca,ar9130-pll";
+        reg = <0x18050000 0x20>;
+        clock-names = "ref";
+        clocks = <&extosc>;
+        #clock-cells = <1>;
+        clock-output-names = "cpu", "ddr", "ahb";
+    };

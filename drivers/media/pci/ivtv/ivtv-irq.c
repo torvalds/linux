@@ -1064,7 +1064,7 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 
 void ivtv_unfinished_dma(struct timer_list *t)
 {
-	struct ivtv *itv = from_timer(itv, t, dma_timer);
+	struct ivtv *itv = timer_container_of(itv, t, dma_timer);
 
 	if (!test_bit(IVTV_F_I_DMA, &itv->i_flags))
 		return;

@@ -96,6 +96,7 @@ int mlx5hws_arg_write_inline_arg_data(struct mlx5hws_context *ctx,
 				      u8 *arg_data,
 				      size_t data_size);
 
-void mlx5hws_pat_calc_nope(__be64 *pattern, size_t num_actions, size_t max_actions,
-			   size_t *new_size, u32 *nope_location, __be64 *new_pat);
+int mlx5hws_pat_calc_nop(__be64 *pattern, size_t num_actions,
+			 size_t max_actions, size_t *new_size,
+			 u32 *nop_locations, __be64 *new_pat);
 #endif /* MLX5HWS_PAT_ARG_H_ */

@@ -352,7 +352,7 @@ static void snd_wavefront_midi_input_trigger(struct snd_rawmidi_substream *subst
 
 static void snd_wavefront_midi_output_timer(struct timer_list *t)
 {
-	snd_wavefront_midi_t *midi = from_timer(midi, t, timer);
+	snd_wavefront_midi_t *midi = timer_container_of(midi, t, timer);
 	snd_wavefront_card_t *card = midi->timer_card;
 	unsigned long flags;
 	

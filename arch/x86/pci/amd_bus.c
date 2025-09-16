@@ -5,7 +5,7 @@
 #include <linux/cpu.h>
 #include <linux/range.h>
 
-#include <asm/amd_nb.h>
+#include <asm/amd/nb.h>
 #include <asm/pci_x86.h>
 
 #include <asm/pci-direct.h>
@@ -202,7 +202,7 @@ static int __init early_root_info_init(void)
 
 	/* need to take out [0, TOM) for RAM*/
 	address = MSR_K8_TOP_MEM1;
-	rdmsrl(address, val);
+	rdmsrq(address, val);
 	end = (val & 0xffffff800000ULL);
 	printk(KERN_INFO "TOM: %016llx aka %lldM\n", end, end>>20);
 	if (end < (1ULL<<32))
@@ -293,12 +293,12 @@ static int __init early_root_info_init(void)
 	/* need to take out [4G, TOM2) for RAM*/
 	/* SYS_CFG */
 	address = MSR_AMD64_SYSCFG;
-	rdmsrl(address, val);
+	rdmsrq(address, val);
 	/* TOP_MEM2 is enabled? */
 	if (val & (1<<21)) {
 		/* TOP_MEM2 */
 		address = MSR_K8_TOP_MEM2;
-		rdmsrl(address, val);
+		rdmsrq(address, val);
 		end = (val & 0xffffff800000ULL);
 		printk(KERN_INFO "TOM2: %016llx aka %lldM\n", end, end>>20);
 		subtract_range(range, RANGE_NUM, 1ULL<<32, end);
@@ -341,10 +341,10 @@ static int amd_bus_cpu_online(unsigned int cpu)
 {
 	u64 reg;
 
-	rdmsrl(MSR_AMD64_NB_CFG, reg);
+	rdmsrq(MSR_AMD64_NB_CFG, reg);
 	if (!(reg & ENABLE_CF8_EXT_CFG)) {
 		reg |= ENABLE_CF8_EXT_CFG;
-		wrmsrl(MSR_AMD64_NB_CFG, reg);
+		wrmsrq(MSR_AMD64_NB_CFG, reg);
 	}
 	return 0;
 }

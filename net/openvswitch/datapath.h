@@ -13,6 +13,7 @@
 #include <linux/skbuff.h>
 #include <linux/u64_stats_sync.h>
 #include <net/ip_tunnels.h>
+#include <net/mpls.h>
 
 #include "conntrack.h"
 #include "flow.h"
@@ -120,6 +121,8 @@ struct datapath {
  * @cutlen: The number of bytes from the packet end to be removed.
  * @probability: The sampling probability that was applied to this skb; 0 means
  * no sampling has occurred; U32_MAX means 100% probability.
+ * @upcall_pid: Netlink socket PID to use for sending this packet to userspace;
+ * 0 means "not set" and default per-CPU or per-vport dispatch should be used.
  */
 struct ovs_skb_cb {
 	struct vport		*input_vport;
@@ -127,6 +130,7 @@ struct ovs_skb_cb {
 	u16			acts_origlen;
 	u32			cutlen;
 	u32			probability;
+	u32			upcall_pid;
 };
 #define OVS_CB(skb) ((struct ovs_skb_cb *)(skb)->cb)
 
@@ -172,6 +176,55 @@ struct ovs_net {
 #endif
 	bool xt_label;
 };
+
+#define MAX_L2_LEN	(VLAN_ETH_HLEN + 3 * MPLS_HLEN)
+struct ovs_frag_data {
+	unsigned long dst;
+	struct vport *vport;
+	struct ovs_skb_cb cb;
+	__be16 inner_protocol;
+	u16 network_offset;	/* valid only for MPLS */
+	u16 vlan_tci;
+	__be16 vlan_proto;
+	unsigned int l2_len;
+	u8 mac_proto;
+	u8 l2_data[MAX_L2_LEN];
+};
+
+struct deferred_action {
+	struct sk_buff *skb;
+	const struct nlattr *actions;
+	int actions_len;
+
+	/* Store pkt_key clone when creating deferred action. */
+	struct sw_flow_key pkt_key;
+};
+
+#define DEFERRED_ACTION_FIFO_SIZE 10
+#define OVS_RECURSION_LIMIT 5
+#define OVS_DEFERRED_ACTION_THRESHOLD (OVS_RECURSION_LIMIT - 2)
+
+struct action_fifo {
+	int head;
+	int tail;
+	/* Deferred action fifo queue storage. */
+	struct deferred_action fifo[DEFERRED_ACTION_FIFO_SIZE];
+};
+
+struct action_flow_keys {
+	struct sw_flow_key key[OVS_DEFERRED_ACTION_THRESHOLD];
+};
+
+struct ovs_pcpu_storage {
+	struct action_fifo action_fifos;
+	struct action_flow_keys flow_keys;
+	struct ovs_frag_data frag_data;
+	int exec_level;
+	struct task_struct *owner;
+	local_lock_t bh_lock;
+};
+
+extern struct ovs_pcpu_storage __percpu *ovs_pcpu_storage;
 
 /**
  * enum ovs_pkt_hash_types - hash info to include with a packet
@@ -280,9 +333,6 @@ int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			const struct sw_flow_actions *, struct sw_flow_key *);
 
 void ovs_dp_notify_wq(struct work_struct *work);
-
-int action_fifos_init(void);
-void action_fifos_exit(void);
 
 /* 'KEY' must not have any bits set outside of the 'MASK' */
 #define OVS_MASKED(OLD, KEY, MASK) ((KEY) | ((OLD) & ~(MASK)))

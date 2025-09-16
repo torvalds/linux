@@ -37,9 +37,16 @@ arbitrary strings that ACPI provides with the meter.  The measures/ directory
 contains symlinks to the devices that this meter measures.
 
 Some computers have the ability to enforce a power cap in hardware.  If this is
-the case, the `power[1-*]_cap` and related sysfs files will appear.  When the
-average power consumption exceeds the cap, an ACPI event will be broadcast on
-the netlink event socket and a poll notification will be sent to the
+the case, the `power[1-*]_cap` and related sysfs files will appear.
+For information on enabling the power cap feature, refer to the description
+of the "force_on_cap" option in the "Module Parameters" chapter.
+To use the power cap feature properly, you need to set appropriate value
+(in microWatts) to the `power[1-*]_cap` sysfs files.
+The value must be within the range between the minimum value at `power[1-]_cap_min`
+and the maximum value at `power[1-]_cap_max (both in microWatts)`.
+
+When the average power consumption exceeds the cap, an ACPI event will be
+broadcast on the netlink event socket and a poll notification will be sent to the
 appropriate `power[1-*]_alarm` file to indicate that capping has begun, and the
 hardware has taken action to reduce power consumption.  Most likely this will
 result in reduced performance.
@@ -52,3 +59,19 @@ follows:
 `power[1-*]_cap` will be notified if the firmware changes the power cap.
 `power[1-*]_interval` will be notified if the firmware changes the averaging
 interval.
+
+Module Parameters
+-----------------
+
+* force_cap_on: bool
+                        Forcefully enable the power capping feature to specify
+                        the upper limit of the system's power consumption.
+
+                        By default, the driver's power capping feature is only
+                        enabled on IBM products.
+                        Therefore, on other systems that support power capping,
+                        you will need to use the option to enable it.
+
+                        Note: power capping is potentially unsafe feature.
+                        Please check the platform specifications to make sure
+                        that capping is supported before using this option.

@@ -6,6 +6,7 @@
  *
  */
 
+#include <linux/export.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/timer/stm32-timer-trigger.h>
@@ -711,7 +712,7 @@ static const struct iio_chan_spec_ext_info stm32_trigger_count_info[] = {
 	IIO_ENUM_AVAILABLE("enable_mode", IIO_SHARED_BY_TYPE, &stm32_enable_mode_enum),
 	IIO_ENUM("trigger_mode", IIO_SEPARATE, &stm32_trigger_mode_enum),
 	IIO_ENUM_AVAILABLE("trigger_mode", IIO_SHARED_BY_TYPE, &stm32_trigger_mode_enum),
-	{}
+	{ }
 };
 
 static const struct iio_chan_spec stm32_trigger_channel = {
@@ -921,7 +922,7 @@ static const struct of_device_id stm32_trig_of_match[] = {
 		.compatible = "st,stm32mp25-timer-trigger",
 		.data = (void *)&stm32mp25_timer_trg_cfg,
 	},
-	{ /* end node */ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, stm32_trig_of_match);
 

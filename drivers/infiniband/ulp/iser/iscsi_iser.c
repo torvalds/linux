@@ -267,11 +267,7 @@ static int iscsi_iser_task_init(struct iscsi_task *task)
 static int iscsi_iser_mtask_xmit(struct iscsi_conn *conn,
 				 struct iscsi_task *task)
 {
-	int error = 0;
-
 	iser_dbg("mtask xmit [cid %d itt 0x%x]\n", conn->id, task->itt);
-
-	error = iser_send_control(conn, task);
 
 	/* since iser xmits control with zero copy, tasks can not be recycled
 	 * right after sending them.
@@ -279,7 +275,7 @@ static int iscsi_iser_mtask_xmit(struct iscsi_conn *conn,
 	 * - if yes, the task is recycled at iscsi_complete_pdu
 	 * - if no,  the task is recycled at iser_snd_completion
 	 */
-	return error;
+	return iser_send_control(conn, task);
 }
 
 static int iscsi_iser_task_xmit_unsol_data(struct iscsi_conn *conn,

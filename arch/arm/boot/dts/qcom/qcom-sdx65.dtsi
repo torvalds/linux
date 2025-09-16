@@ -58,7 +58,7 @@
 			enable-method = "psci";
 			clocks = <&apcs>;
 			power-domains = <&rpmhpd SDX65_CX_AO>;
-			power-domain-names = "rpmhpd";
+			power-domain-names = "perf";
 			operating-points-v2 = <&cpu_opp_table>;
 		};
 	};

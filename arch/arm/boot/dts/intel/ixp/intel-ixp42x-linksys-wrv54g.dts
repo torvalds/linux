@@ -72,10 +72,55 @@
 		cs-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 
-		switch@0 {
+		ethernet-switch@0 {
 			compatible = "micrel,ks8995";
 			reg = <0>;
 			spi-max-frequency = <50000000>;
+
+			/*
+			 * The PHYs are accessed over the external MDIO
+			 * bus and not internally through the switch control
+			 * registers.
+			 */
+			ethernet-ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ethernet-port@0 {
+					reg = <0>;
+					label = "1";
+					phy-mode = "mii";
+					phy-handle = <&phy1>;
+				};
+				ethernet-port@1 {
+					reg = <1>;
+					label = "2";
+					phy-mode = "mii";
+					phy-handle = <&phy2>;
+				};
+				ethernet-port@2 {
+					reg = <2>;
+					label = "3";
+					phy-mode = "mii";
+					phy-handle = <&phy3>;
+				};
+				ethernet-port@3 {
+					reg = <3>;
+					label = "4";
+					phy-mode = "mii";
+					phy-handle = <&phy4>;
+				};
+				ethernet-port@4 {
+					reg = <4>;
+					ethernet = <&ethb>;
+					phy-mode = "mii";
+					fixed-link {
+						speed = <100>;
+						full-duplex;
+					};
+				};
+
+			};
 		};
 	};
 
@@ -135,40 +180,59 @@
 		};
 
 		/*
-		 * EthB - connected to the KS8995 switch ports 1-4
-		 * FIXME: the boardfile defines .phy_mask = 0x1e for this port to enable output to
-		 * all four switch ports, also using an out of tree multiphy patch.
-		 * Do we need a new binding and property for this?
+		 * EthB connects to the KS8995 CPU port and faces ports 1-4
+		 * through the switch fabric.
+		 *
+		 * To complicate things, the MDIO channel is also only
+		 * accessible through EthB, but used independently for PHY
+		 * control.
 		 */
-		ethernet@c8009000 {
+		ethb: ethernet@c8009000 {
 			status = "okay";
 			queue-rx = <&qmgr 3>;
 			queue-txready = <&qmgr 20>;
-			phy-mode = "rgmii";
-			phy-handle = <&phy4>;
+			phy-mode = "mii";
+			fixed-link {
+				speed = <100>;
+				full-duplex;
+			};
 
 			mdio {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				/* Should be ports 1-4 on the KS8995 switch */
+				/*
+				 * LAN ports 1-4 on the KS8995 switch
+				 * and PHY5 for WAN need to be accessed
+				 * through this external MDIO channel.
+				 */
+				phy1: ethernet-phy@1 {
+					reg = <1>;
+				};
+				phy2: ethernet-phy@2 {
+					reg = <2>;
+				};
+				phy3: ethernet-phy@3 {
+					reg = <3>;
+				};
 				phy4: ethernet-phy@4 {
 					reg = <4>;
 				};
-
-				/* Should be port 5 on the KS8995 switch */
 				phy5: ethernet-phy@5 {
 					reg = <5>;
 				};
 			};
 		};
 
-		/* EthC - connected to KS8995 switch port 5 */
-		ethernet@c800a000 {
+		/*
+		 * EthC connects to MII-P5 on the KS8995 bypassing
+		 * all of the switch logic and facing PHY5
+		 */
+		ethc: ethernet@c800a000 {
 			status = "okay";
 			queue-rx = <&qmgr 4>;
 			queue-txready = <&qmgr 21>;
-			phy-mode = "rgmii";
+			phy-mode = "mii";
 			phy-handle = <&phy5>;
 		};
 	};

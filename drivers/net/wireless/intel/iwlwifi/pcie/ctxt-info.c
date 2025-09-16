@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 #include "iwl-trans.h"
 #include "iwl-fh.h"
 #include "iwl-context-info.h"
-#include "internal.h"
+#include "gen1_2/internal.h"
 #include "iwl-prph.h"
 
 static void *_iwl_pcie_ctxt_info_dma_alloc_coherent(struct iwl_trans *trans,
@@ -83,7 +83,7 @@ void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans)
 
 int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 			 const struct fw_img *fw,
-			 struct iwl_context_info_dram *ctxt_dram)
+			 struct iwl_context_info_dram_nonfseq *ctxt_dram)
 {
 	struct iwl_self_init_dram *dram = &trans->init_dram;
 	int i, ret, lmac_cnt, umac_cnt, paging_cnt;
@@ -161,12 +161,12 @@ int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 }
 
 int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
-			    const struct fw_img *fw)
+			    const struct fw_img *img)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_context_info *ctxt_info;
 	struct iwl_context_info_rbd_cfg *rx_cfg;
-	u32 control_flags = 0, rb_size;
+	u32 control_flags = 0, rb_size, cb_size;
 	dma_addr_t phys;
 	int ret;
 
@@ -180,11 +180,11 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	ctxt_info->version.version = 0;
 	ctxt_info->version.mac_id =
-		cpu_to_le16((u16)trans->hw_rev);
+		cpu_to_le16((u16)trans->info.hw_rev);
 	/* size is in DWs */
 	ctxt_info->version.size = cpu_to_le16(sizeof(*ctxt_info) / 4);
 
-	switch (trans_pcie->rx_buf_size) {
+	switch (trans->conf.rx_buf_size) {
 	case IWL_AMSDU_2K:
 		rb_size = IWL_CTXT_INFO_RB_SIZE_2K;
 		break;
@@ -202,11 +202,12 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 		rb_size = IWL_CTXT_INFO_RB_SIZE_4K;
 	}
 
-	WARN_ON(RX_QUEUE_CB_SIZE(trans->cfg->num_rbds) > 12);
+	cb_size = RX_QUEUE_CB_SIZE(iwl_trans_get_num_rbds(trans));
+	if (WARN_ON(cb_size > 12))
+		cb_size = 12;
+
 	control_flags = IWL_CTXT_INFO_TFD_FORMAT_LONG;
-	control_flags |=
-		u32_encode_bits(RX_QUEUE_CB_SIZE(trans->cfg->num_rbds),
-				IWL_CTXT_INFO_RB_CB_SIZE);
+	control_flags |= u32_encode_bits(cb_size, IWL_CTXT_INFO_RB_CB_SIZE);
 	control_flags |= u32_encode_bits(rb_size, IWL_CTXT_INFO_RB_SIZE);
 	ctxt_info->control.control_flags = cpu_to_le32(control_flags);
 
@@ -218,12 +219,12 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	/* initialize TX command queue */
 	ctxt_info->hcmd_cfg.cmd_queue_addr =
-		cpu_to_le64(trans_pcie->txqs.txq[trans_pcie->txqs.cmd.q_id]->dma_addr);
+		cpu_to_le64(trans_pcie->txqs.txq[trans->conf.cmd_queue]->dma_addr);
 	ctxt_info->hcmd_cfg.cmd_queue_size =
 		TFD_QUEUE_CB_SIZE(IWL_CMD_QUEUE_SIZE);
 
 	/* allocate ucode sections in dram and set addresses */
-	ret = iwl_pcie_init_fw_sec(trans, fw, &ctxt_info->dram);
+	ret = iwl_pcie_init_fw_sec(trans, img, &ctxt_info->dram);
 	if (ret) {
 		dma_free_coherent(trans->dev, sizeof(*trans_pcie->ctxt_info),
 				  ctxt_info, trans_pcie->ctxt_info_dma_addr);
@@ -232,7 +233,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	trans_pcie->ctxt_info = ctxt_info;
 
-	iwl_enable_fw_load_int_ctx_info(trans);
+	iwl_enable_fw_load_int_ctx_info(trans, false);
 
 	/* Configure debug, if exists */
 	if (iwl_pcie_dbg_on(trans))

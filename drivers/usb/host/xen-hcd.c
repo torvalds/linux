@@ -1258,7 +1258,7 @@ static void xenhcd_disconnect(struct xenbus_device *dev)
 
 static void xenhcd_watchdog(struct timer_list *timer)
 {
-	struct xenhcd_info *info = from_timer(info, timer, watchdog);
+	struct xenhcd_info *info = timer_container_of(info, timer, watchdog);
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->lock, flags);

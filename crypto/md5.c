@@ -17,11 +17,9 @@
  */
 #include <crypto/internal/hash.h>
 #include <crypto/md5.h>
-#include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <linux/types.h>
-#include <asm/byteorder.h>
 
 const u8 md5_zero_message_hash[MD5_DIGEST_SIZE] = {
 	0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
@@ -120,10 +118,11 @@ static void md5_transform(__u32 *hash, __u32 const *in)
 	hash[3] += d;
 }
 
-static inline void md5_transform_helper(struct md5_state *ctx)
+static inline void md5_transform_helper(struct md5_state *ctx,
+					u32 block[MD5_BLOCK_WORDS])
 {
-	le32_to_cpu_array(ctx->block, sizeof(ctx->block) / sizeof(u32));
-	md5_transform(ctx->hash, ctx->block);
+	le32_to_cpu_array(block, MD5_BLOCK_WORDS);
+	md5_transform(ctx->hash, block);
 }
 
 static int md5_init(struct shash_desc *desc)
@@ -142,76 +141,53 @@ static int md5_init(struct shash_desc *desc)
 static int md5_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 {
 	struct md5_state *mctx = shash_desc_ctx(desc);
-	const u32 avail = sizeof(mctx->block) - (mctx->byte_count & 0x3f);
+	u32 block[MD5_BLOCK_WORDS];
 
 	mctx->byte_count += len;
-
-	if (avail > len) {
-		memcpy((char *)mctx->block + (sizeof(mctx->block) - avail),
-		       data, len);
-		return 0;
-	}
-
-	memcpy((char *)mctx->block + (sizeof(mctx->block) - avail),
-	       data, avail);
-
-	md5_transform_helper(mctx);
-	data += avail;
-	len -= avail;
-
-	while (len >= sizeof(mctx->block)) {
-		memcpy(mctx->block, data, sizeof(mctx->block));
-		md5_transform_helper(mctx);
-		data += sizeof(mctx->block);
-		len -= sizeof(mctx->block);
-	}
-
-	memcpy(mctx->block, data, len);
-
-	return 0;
+	do {
+		memcpy(block, data, sizeof(block));
+		md5_transform_helper(mctx, block);
+		data += sizeof(block);
+		len -= sizeof(block);
+	} while (len >= sizeof(block));
+	memzero_explicit(block, sizeof(block));
+	mctx->byte_count -= len;
+	return len;
 }
 
-static int md5_final(struct shash_desc *desc, u8 *out)
+static int md5_finup(struct shash_desc *desc, const u8 *data, unsigned int len,
+		     u8 *out)
 {
 	struct md5_state *mctx = shash_desc_ctx(desc);
-	const unsigned int offset = mctx->byte_count & 0x3f;
-	char *p = (char *)mctx->block + offset;
-	int padding = 56 - (offset + 1);
+	u32 block[MD5_BLOCK_WORDS];
+	unsigned int offset;
+	int padding;
+	char *p;
+
+	memcpy(block, data, len);
+
+	offset = len;
+	p = (char *)block + offset;
+	padding = 56 - (offset + 1);
 
 	*p++ = 0x80;
 	if (padding < 0) {
 		memset(p, 0x00, padding + sizeof (u64));
-		md5_transform_helper(mctx);
-		p = (char *)mctx->block;
+		md5_transform_helper(mctx, block);
+		p = (char *)block;
 		padding = 56;
 	}
 
 	memset(p, 0, padding);
-	mctx->block[14] = mctx->byte_count << 3;
-	mctx->block[15] = mctx->byte_count >> 29;
-	le32_to_cpu_array(mctx->block, (sizeof(mctx->block) -
-	                  sizeof(u64)) / sizeof(u32));
-	md5_transform(mctx->hash, mctx->block);
+	mctx->byte_count += len;
+	block[14] = mctx->byte_count << 3;
+	block[15] = mctx->byte_count >> 29;
+	le32_to_cpu_array(block, (sizeof(block) - sizeof(u64)) / sizeof(u32));
+	md5_transform(mctx->hash, block);
+	memzero_explicit(block, sizeof(block));
 	cpu_to_le32_array(mctx->hash, sizeof(mctx->hash) / sizeof(u32));
 	memcpy(out, mctx->hash, sizeof(mctx->hash));
-	memset(mctx, 0, sizeof(*mctx));
 
-	return 0;
-}
-
-static int md5_export(struct shash_desc *desc, void *out)
-{
-	struct md5_state *ctx = shash_desc_ctx(desc);
-
-	memcpy(out, ctx, sizeof(*ctx));
-	return 0;
-}
-
-static int md5_import(struct shash_desc *desc, const void *in)
-{
-	struct md5_state *ctx = shash_desc_ctx(desc);
-
-	memcpy(ctx, in, sizeof(*ctx));
 	return 0;
 }
 
@@ -219,14 +195,12 @@ static struct shash_alg alg = {
 	.digestsize	=	MD5_DIGEST_SIZE,
 	.init		=	md5_init,
 	.update		=	md5_update,
-	.final		=	md5_final,
-	.export		=	md5_export,
-	.import		=	md5_import,
-	.descsize	=	sizeof(struct md5_state),
-	.statesize	=	sizeof(struct md5_state),
+	.finup		=	md5_finup,
+	.descsize	=	MD5_STATE_SIZE,
 	.base		=	{
 		.cra_name	 =	"md5",
 		.cra_driver_name =	"md5-generic",
+		.cra_flags	 =	CRYPTO_AHASH_ALG_BLOCK_ONLY,
 		.cra_blocksize	 =	MD5_HMAC_BLOCK_SIZE,
 		.cra_module	 =	THIS_MODULE,
 	}
@@ -242,7 +216,7 @@ static void __exit md5_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-subsys_initcall(md5_mod_init);
+module_init(md5_mod_init);
 module_exit(md5_mod_fini);
 
 MODULE_LICENSE("GPL");

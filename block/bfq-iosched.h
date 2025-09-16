@@ -427,9 +427,6 @@ struct bfq_iocq_bfqq_data {
 	 */
 	bool saved_IO_bound;
 
-	u64 saved_io_start_time;
-	u64 saved_tot_idle_time;
-
 	/*
 	 * Same purpose as the previous fields for the values of the
 	 * field keeping the queue's belonging to a large burst
@@ -450,6 +447,9 @@ struct bfq_iocq_bfqq_data {
 	 */
 	unsigned int saved_weight;
 
+	u64 saved_io_start_time;
+	u64 saved_tot_idle_time;
+
 	/*
 	 * Similar to previous fields: save wr information.
 	 */
@@ -457,13 +457,13 @@ struct bfq_iocq_bfqq_data {
 	unsigned long saved_last_wr_start_finish;
 	unsigned long saved_service_from_wr;
 	unsigned long saved_wr_start_at_switch_to_srt;
-	unsigned int saved_wr_cur_max_time;
 	struct bfq_ttime saved_ttime;
+	unsigned int saved_wr_cur_max_time;
 
 	/* Save also injection state */
-	u64 saved_last_serv_time_ns;
 	unsigned int saved_inject_limit;
 	unsigned long saved_decrease_time_jif;
+	u64 saved_last_serv_time_ns;
 
 	/* candidate queue for a stable merge (due to close creation time) */
 	struct bfq_queue *stable_merge_bfqq;
@@ -813,8 +813,7 @@ struct bfq_data {
 	 * Depth limits used in bfq_limit_depth (see comments on the
 	 * function)
 	 */
-	unsigned int word_depths[2][2];
-	unsigned int full_depth_shift;
+	unsigned int async_depths[2][2];
 
 	/*
 	 * Number of independent actuators. This is equal to 1 in

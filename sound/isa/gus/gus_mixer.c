@@ -152,7 +152,7 @@ int snd_gf1_new_mixer(struct snd_gus_card * gus)
 	if (gus->ics_flag)
 		snd_component_add(card, "ICS2101");
 	if (card->mixername[0] == '\0') {
-		strcpy(card->mixername, gus->ics_flag ? "GF1,ICS2101" : "GF1");
+		strscpy(card->mixername, gus->ics_flag ? "GF1,ICS2101" : "GF1");
 	} else {
 		if (gus->ics_flag)
 			strcat(card->mixername, ",ICS2101");

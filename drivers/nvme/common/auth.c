@@ -242,7 +242,7 @@ struct nvme_dhchap_key *nvme_auth_transform_key(
 {
 	const char *hmac_name;
 	struct crypto_shash *key_tfm;
-	struct shash_desc *shash;
+	SHASH_DESC_ON_STACK(shash, key_tfm);
 	struct nvme_dhchap_key *transformed_key;
 	int ret, key_len;
 
@@ -267,19 +267,11 @@ struct nvme_dhchap_key *nvme_auth_transform_key(
 	if (IS_ERR(key_tfm))
 		return ERR_CAST(key_tfm);
 
-	shash = kmalloc(sizeof(struct shash_desc) +
-			crypto_shash_descsize(key_tfm),
-			GFP_KERNEL);
-	if (!shash) {
-		ret = -ENOMEM;
-		goto out_free_key;
-	}
-
 	key_len = crypto_shash_digestsize(key_tfm);
 	transformed_key = nvme_auth_alloc_key(key_len, key->hash);
 	if (!transformed_key) {
 		ret = -ENOMEM;
-		goto out_free_shash;
+		goto out_free_key;
 	}
 
 	shash->tfm = key_tfm;
@@ -299,15 +291,12 @@ struct nvme_dhchap_key *nvme_auth_transform_key(
 	if (ret < 0)
 		goto out_free_transformed_key;
 
-	kfree(shash);
 	crypto_free_shash(key_tfm);
 
 	return transformed_key;
 
 out_free_transformed_key:
 	nvme_auth_free_key(transformed_key);
-out_free_shash:
-	kfree(shash);
 out_free_key:
 	crypto_free_shash(key_tfm);
 
@@ -482,7 +471,7 @@ EXPORT_SYMBOL_GPL(nvme_auth_generate_key);
  * @c1: Value of challenge C1
  * @c2: Value of challenge C2
  * @hash_len: Hash length of the hash algorithm
- * @ret_psk: Pointer too the resulting generated PSK
+ * @ret_psk: Pointer to the resulting generated PSK
  * @ret_len: length of @ret_psk
  *
  * Generate a PSK for TLS as specified in NVMe base specification, section
@@ -770,8 +759,8 @@ int nvme_auth_derive_tls_psk(int hmac_id, u8 *psk, size_t psk_len,
 		goto out_free_prk;
 
 	/*
-	 * 2 addtional bytes for the length field from HDKF-Expand-Label,
-	 * 2 addtional bytes for the HMAC ID, and one byte for the space
+	 * 2 additional bytes for the length field from HDKF-Expand-Label,
+	 * 2 additional bytes for the HMAC ID, and one byte for the space
 	 * separator.
 	 */
 	info_len = strlen(psk_digest) + strlen(psk_prefix) + 5;

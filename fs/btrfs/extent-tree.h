@@ -97,7 +97,7 @@ enum btrfs_inline_ref_type {
 };
 
 int btrfs_get_extent_inline_ref_type(const struct extent_buffer *eb,
-				     struct btrfs_extent_inline_ref *iref,
+				     const struct btrfs_extent_inline_ref *iref,
 				     enum btrfs_inline_ref_type is_data);
 u64 hash_extent_data_ref(u64 root_objectid, u64 owner, u64 offset);
 
@@ -149,8 +149,8 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_ref *ref);
 
 u64 btrfs_get_extent_owner_root(struct btrfs_fs_info *fs_info,
 				struct extent_buffer *leaf, int slot);
-int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
-			       u64 start, u64 len, int delalloc);
+int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len,
+			       bool is_delalloc);
 int btrfs_pin_reserved_extent(struct btrfs_trans_handle *trans,
 			      const struct extent_buffer *eb);
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans);

@@ -171,6 +171,9 @@ int em_dev_update_perf_domain(struct device *dev,
 int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 				const struct em_data_callback *cb,
 				const cpumask_t *cpus, bool microwatts);
+int em_dev_register_pd_no_update(struct device *dev, unsigned int nr_states,
+				 const struct em_data_callback *cb,
+				 const cpumask_t *cpus, bool microwatts);
 void em_dev_unregister_perf_domain(struct device *dev);
 struct em_perf_table *em_table_alloc(struct em_perf_domain *pd);
 void em_table_free(struct em_perf_table *table);
@@ -179,6 +182,7 @@ int em_dev_compute_costs(struct device *dev, struct em_perf_state *table,
 int em_dev_update_chip_binning(struct device *dev);
 int em_update_performance_limits(struct em_perf_domain *pd,
 		unsigned long freq_min_khz, unsigned long freq_max_khz);
+void em_adjust_cpu_capacity(unsigned int cpu);
 void em_rebuild_sched_domains(void);
 
 /**
@@ -349,6 +353,13 @@ int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 {
 	return -EINVAL;
 }
+static inline
+int em_dev_register_pd_no_update(struct device *dev, unsigned int nr_states,
+				 const struct em_data_callback *cb,
+				 const cpumask_t *cpus, bool microwatts)
+{
+	return -EINVAL;
+}
 static inline void em_dev_unregister_perf_domain(struct device *dev)
 {
 }
@@ -403,6 +414,7 @@ int em_update_performance_limits(struct em_perf_domain *pd,
 {
 	return -EINVAL;
 }
+static inline void em_adjust_cpu_capacity(unsigned int cpu) {}
 static inline void em_rebuild_sched_domains(void) {}
 #endif
 

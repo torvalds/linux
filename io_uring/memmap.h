@@ -4,7 +4,9 @@
 #define IORING_MAP_OFF_PARAM_REGION		0x20000000ULL
 #define IORING_MAP_OFF_ZCRX_REGION		0x30000000ULL
 
-struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages);
+#define IORING_OFF_ZCRX_SHIFT		16
+
+struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages);
 
 #ifndef CONFIG_MMU
 unsigned int io_uring_nommu_mmap_capabilities(struct file *file);

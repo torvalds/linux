@@ -199,7 +199,7 @@ static const struct of_device_id ad5272_dt_ids[] = {
 	{ .compatible = "adi,ad5272-100", .data = (void *)AD5272_100 },
 	{ .compatible = "adi,ad5274-020", .data = (void *)AD5274_020 },
 	{ .compatible = "adi,ad5274-100", .data = (void *)AD5274_100 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad5272_dt_ids);
 
@@ -209,7 +209,7 @@ static const struct i2c_device_id ad5272_id[] = {
 	{ "ad5272-100", AD5272_100 },
 	{ "ad5274-020", AD5274_020 },
 	{ "ad5274-100", AD5274_100 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad5272_id);
 

@@ -22,6 +22,7 @@
 #include <linux/iopoll.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -1547,7 +1548,7 @@ static void tegra_pcie_msi_irq(struct irq_desc *desc)
 			unsigned int index = i * 32 + offset;
 			int ret;
 
-			ret = generic_handle_domain_irq(msi->domain->parent, index);
+			ret = generic_handle_domain_irq(msi->domain, index);
 			if (ret) {
 				/*
 				 * that's weird who triggered this?
@@ -1564,30 +1565,6 @@ static void tegra_pcie_msi_irq(struct irq_desc *desc)
 
 	chained_irq_exit(chip, desc);
 }
-
-static void tegra_msi_top_irq_ack(struct irq_data *d)
-{
-	irq_chip_ack_parent(d);
-}
-
-static void tegra_msi_top_irq_mask(struct irq_data *d)
-{
-	pci_msi_mask_irq(d);
-	irq_chip_mask_parent(d);
-}
-
-static void tegra_msi_top_irq_unmask(struct irq_data *d)
-{
-	pci_msi_unmask_irq(d);
-	irq_chip_unmask_parent(d);
-}
-
-static struct irq_chip tegra_msi_top_chip = {
-	.name		= "Tegra PCIe MSI",
-	.irq_ack	= tegra_msi_top_irq_ack,
-	.irq_mask	= tegra_msi_top_irq_mask,
-	.irq_unmask	= tegra_msi_top_irq_unmask,
-};
 
 static void tegra_msi_irq_ack(struct irq_data *d)
 {
@@ -1690,42 +1667,40 @@ static const struct irq_domain_ops tegra_msi_domain_ops = {
 	.free = tegra_msi_domain_free,
 };
 
-static struct msi_domain_info tegra_msi_info = {
-	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_NO_AFFINITY | MSI_FLAG_PCI_MSIX,
-	.chip	= &tegra_msi_top_chip,
+static const struct msi_parent_ops tegra_msi_parent_ops = {
+	.supported_flags	= (MSI_GENERIC_FLAGS_MASK	|
+				   MSI_FLAG_PCI_MSIX),
+	.required_flags		= (MSI_FLAG_USE_DEF_DOM_OPS	|
+				   MSI_FLAG_USE_DEF_CHIP_OPS	|
+				   MSI_FLAG_PCI_MSI_MASK_PARENT	|
+				   MSI_FLAG_NO_AFFINITY),
+	.chip_flags		= MSI_CHIP_FLAG_SET_ACK,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
 };
 
 static int tegra_allocate_domains(struct tegra_msi *msi)
 {
 	struct tegra_pcie *pcie = msi_to_pcie(msi);
 	struct fwnode_handle *fwnode = dev_fwnode(pcie->dev);
-	struct irq_domain *parent;
+	struct irq_domain_info info = {
+		.fwnode		= fwnode,
+		.ops		= &tegra_msi_domain_ops,
+		.size		= INT_PCI_MSI_NR,
+		.host_data	= msi,
+	};
 
-	parent = irq_domain_create_linear(fwnode, INT_PCI_MSI_NR,
-					  &tegra_msi_domain_ops, msi);
-	if (!parent) {
-		dev_err(pcie->dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
-	}
-	irq_domain_update_bus_token(parent, DOMAIN_BUS_NEXUS);
-
-	msi->domain = pci_msi_create_irq_domain(fwnode, &tegra_msi_info, parent);
+	msi->domain = msi_create_parent_irq_domain(&info, &tegra_msi_parent_ops);
 	if (!msi->domain) {
 		dev_err(pcie->dev, "failed to create MSI domain\n");
-		irq_domain_remove(parent);
 		return -ENOMEM;
 	}
-
 	return 0;
 }
 
 static void tegra_free_domains(struct tegra_msi *msi)
 {
-	struct irq_domain *parent = msi->domain->parent;
-
 	irq_domain_remove(msi->domain);
-	irq_domain_remove(parent);
 }
 
 static int tegra_pcie_msi_setup(struct tegra_pcie *pcie)

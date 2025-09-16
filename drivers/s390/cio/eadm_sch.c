@@ -11,6 +11,7 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
@@ -98,7 +99,7 @@ static int eadm_subchannel_clear(struct subchannel *sch)
 
 static void eadm_subchannel_timeout(struct timer_list *t)
 {
-	struct eadm_private *private = from_timer(private, t, timer);
+	struct eadm_private *private = timer_container_of(private, t, timer);
 	struct subchannel *sch = private->sch;
 
 	spin_lock_irq(&sch->lock);

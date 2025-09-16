@@ -45,8 +45,7 @@ struct xe_pt_ops {
 	u64 (*pte_encode_addr)(struct xe_device *xe, u64 addr,
 			       u16 pat_index,
 			       u32 pt_level, bool devmem, u64 flags);
-	u64 (*pde_encode_bo)(struct xe_bo *bo, u64 bo_offset,
-			     u16 pat_index);
+	u64 (*pde_encode_bo)(struct xe_bo *bo, u64 bo_offset);
 };
 
 struct xe_pt_entry {

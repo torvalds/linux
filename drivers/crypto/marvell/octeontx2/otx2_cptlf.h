@@ -105,18 +105,27 @@ struct cpt_hw_ops {
 			      gfp_t gfp);
 };
 
+#define LMTLINE_SIZE  128
+#define LMTLINE_ALIGN 128
+struct otx2_lmt_info {
+	void *base;
+	dma_addr_t iova;
+	u32 size;
+	u8 align;
+};
+
 struct otx2_cptlfs_info {
 	/* Registers start address of VF/PF LFs are attached to */
 	void __iomem *reg_base;
-#define LMTLINE_SIZE  128
-	void __iomem *lmt_base;
+	struct otx2_lmt_info lmt_info;
 	struct pci_dev *pdev;   /* Device LFs are attached to */
 	struct otx2_cptlf_info lf[OTX2_CPT_MAX_LFS_NUM];
 	struct otx2_mbox *mbox;
 	struct cpt_hw_ops *ops;
 	u8 are_lfs_attached;	/* Whether CPT LFs are attached */
 	u8 lfs_num;		/* Number of CPT LFs */
-	u8 kcrypto_eng_grp_num;	/* Kernel crypto engine group number */
+	u8 kcrypto_se_eng_grp_num; /* Crypto symmetric engine group number */
+	u8 kcrypto_ae_eng_grp_num; /* Crypto asymmetric engine group number */
 	u8 kvf_limits;          /* Kernel crypto limits */
 	atomic_t state;         /* LF's state. started/reset */
 	int blkaddr;            /* CPT blkaddr: BLKADDR_CPT0/BLKADDR_CPT1 */

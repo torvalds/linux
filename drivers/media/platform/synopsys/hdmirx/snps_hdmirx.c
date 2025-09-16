@@ -114,7 +114,7 @@ struct hdmirx_stream {
 	spinlock_t vbq_lock; /* to lock video buffer queue */
 	bool stopping;
 	wait_queue_head_t wq_stopped;
-	u32 frame_idx;
+	u32 sequence;
 	u32 line_flag_int_cnt;
 	u32 irq_stat;
 };
@@ -1540,7 +1540,7 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	int line_flag;
 
 	mutex_lock(&hdmirx_dev->stream_lock);
-	stream->frame_idx = 0;
+	stream->sequence = 0;
 	stream->line_flag_int_cnt = 0;
 	stream->curr_buf = NULL;
 	stream->next_buf = NULL;
@@ -1948,7 +1948,7 @@ static void dma_idle_int_handler(struct snps_hdmirx_dev *hdmirx_dev,
 
 			if (vb_done) {
 				vb_done->vb2_buf.timestamp = ktime_get_ns();
-				vb_done->sequence = stream->frame_idx;
+				vb_done->sequence = stream->sequence;
 
 				if (bt->interlaced)
 					vb_done->field = V4L2_FIELD_INTERLACED_TB;
@@ -1956,10 +1956,6 @@ static void dma_idle_int_handler(struct snps_hdmirx_dev *hdmirx_dev,
 					vb_done->field = V4L2_FIELD_NONE;
 
 				hdmirx_vb_done(stream, vb_done);
-				stream->frame_idx++;
-				if (stream->frame_idx == 30)
-					v4l2_dbg(1, debug, v4l2_dev,
-						 "rcv frames\n");
 			}
 
 			stream->curr_buf = NULL;
@@ -1971,6 +1967,10 @@ static void dma_idle_int_handler(struct snps_hdmirx_dev *hdmirx_dev,
 			v4l2_dbg(3, debug, v4l2_dev,
 				 "%s: next_buf NULL, skip vb_done\n", __func__);
 		}
+
+		stream->sequence++;
+		if (stream->sequence == 30)
+			v4l2_dbg(1, debug, v4l2_dev, "rcv frames\n");
 	}
 
 DMA_IDLE_OUT:

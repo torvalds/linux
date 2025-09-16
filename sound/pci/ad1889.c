@@ -605,7 +605,7 @@ snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device)
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, chip->card->shortname);
+	strscpy(pcm->name, chip->card->shortname);
 	
 	chip->pcm = pcm;
 	chip->psubs = NULL;
@@ -810,12 +810,11 @@ snd_ad1889_create(struct snd_card *card, struct pci_dev *pci)
 	chip->irq = -1;
 
 	/* (1) PCI resource allocation */
-	err = pcim_iomap_regions(pci, 1 << 0, card->driver);
-	if (err < 0)
-		return err;
+	chip->iobase = pcim_iomap_region(pci, 0, card->driver);
+	if (IS_ERR(chip->iobase))
+		return PTR_ERR(chip->iobase);
 
 	chip->bar = pci_resource_start(pci, 0);
-	chip->iobase = pcim_iomap_table(pci)[0];
 	
 	pci_set_master(pci);
 
@@ -867,8 +866,8 @@ __snd_ad1889_probe(struct pci_dev *pci,
 		return err;
 	chip = card->private_data;
 
-	strcpy(card->driver, "AD1889");
-	strcpy(card->shortname, "Analog Devices AD1889");
+	strscpy(card->driver, "AD1889");
+	strscpy(card->shortname, "Analog Devices AD1889");
 
 	/* (3) */
 	err = snd_ad1889_create(card, pci);

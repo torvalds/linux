@@ -108,8 +108,8 @@ struct extent_map_tree {
 
 struct btrfs_inode;
 
-static inline void extent_map_set_compression(struct extent_map *em,
-					      enum btrfs_compression_type type)
+static inline void btrfs_extent_map_set_compression(struct extent_map *em,
+						    enum btrfs_compression_type type)
 {
 	if (type == BTRFS_COMPRESS_ZLIB)
 		em->flags |= EXTENT_FLAG_COMPRESS_ZLIB;
@@ -119,7 +119,8 @@ static inline void extent_map_set_compression(struct extent_map *em,
 		em->flags |= EXTENT_FLAG_COMPRESS_ZSTD;
 }
 
-static inline enum btrfs_compression_type extent_map_compression(const struct extent_map *em)
+static inline enum btrfs_compression_type btrfs_extent_map_compression(
+						       const struct extent_map *em)
 {
 	if (em->flags & EXTENT_FLAG_COMPRESS_ZLIB)
 		return BTRFS_COMPRESS_ZLIB;
@@ -137,50 +138,50 @@ static inline enum btrfs_compression_type extent_map_compression(const struct ex
  * More efficient way to determine if extent is compressed, instead of using
  * 'extent_map_compression() != BTRFS_COMPRESS_NONE'.
  */
-static inline bool extent_map_is_compressed(const struct extent_map *em)
+static inline bool btrfs_extent_map_is_compressed(const struct extent_map *em)
 {
 	return (em->flags & (EXTENT_FLAG_COMPRESS_ZLIB |
 			     EXTENT_FLAG_COMPRESS_LZO |
 			     EXTENT_FLAG_COMPRESS_ZSTD)) != 0;
 }
 
-static inline int extent_map_in_tree(const struct extent_map *em)
+static inline int btrfs_extent_map_in_tree(const struct extent_map *em)
 {
 	return !RB_EMPTY_NODE(&em->rb_node);
 }
 
-static inline u64 extent_map_block_start(const struct extent_map *em)
+static inline u64 btrfs_extent_map_block_start(const struct extent_map *em)
 {
 	if (em->disk_bytenr < EXTENT_MAP_LAST_BYTE) {
-		if (extent_map_is_compressed(em))
+		if (btrfs_extent_map_is_compressed(em))
 			return em->disk_bytenr;
 		return em->disk_bytenr + em->offset;
 	}
 	return em->disk_bytenr;
 }
 
-static inline u64 extent_map_end(const struct extent_map *em)
+static inline u64 btrfs_extent_map_end(const struct extent_map *em)
 {
 	if (em->start + em->len < em->start)
 		return (u64)-1;
 	return em->start + em->len;
 }
 
-void extent_map_tree_init(struct extent_map_tree *tree);
-struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
-					 u64 start, u64 len);
-void remove_extent_mapping(struct btrfs_inode *inode, struct extent_map *em);
-int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
-		     u64 new_logical);
+void btrfs_extent_map_tree_init(struct extent_map_tree *tree);
+struct extent_map *btrfs_lookup_extent_mapping(struct extent_map_tree *tree,
+					       u64 start, u64 len);
+void btrfs_remove_extent_mapping(struct btrfs_inode *inode, struct extent_map *em);
+int btrfs_split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
+			   u64 new_logical);
 
-struct extent_map *alloc_extent_map(void);
-void free_extent_map(struct extent_map *em);
-int __init extent_map_init(void);
-void __cold extent_map_exit(void);
-int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen);
-void clear_em_logging(struct btrfs_inode *inode, struct extent_map *em);
-struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
-					 u64 start, u64 len);
+struct extent_map *btrfs_alloc_extent_map(void);
+void btrfs_free_extent_map(struct extent_map *em);
+int __init btrfs_extent_map_init(void);
+void __cold btrfs_extent_map_exit(void);
+int btrfs_unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen);
+void btrfs_clear_em_logging(struct btrfs_inode *inode, struct extent_map *em);
+struct extent_map *btrfs_search_extent_mapping(struct extent_map_tree *tree,
+					       u64 start, u64 len);
 int btrfs_add_extent_mapping(struct btrfs_inode *inode,
 			     struct extent_map **em_in, u64 start, u64 len);
 void btrfs_drop_extent_map_range(struct btrfs_inode *inode,

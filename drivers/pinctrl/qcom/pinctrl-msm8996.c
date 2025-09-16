@@ -1920,7 +1920,6 @@ static struct platform_driver msm8996_pinctrl_driver = {
 		.of_match_table = msm8996_pinctrl_of_match,
 	},
 	.probe = msm8996_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
 };
 
 static int __init msm8996_pinctrl_init(void)

@@ -13,7 +13,6 @@
 #include <linux/percpu.h>
 #include <linux/notifier.h>
 #include <linux/init.h>
-#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/perf_event.h>
 #include <asm/ctlreg.h>
@@ -286,10 +285,10 @@ static int paicrypt_event_init(struct perf_event *event)
 	/* PAI crypto PMU registered as PERF_TYPE_RAW, check event type */
 	if (a->type != PERF_TYPE_RAW && event->pmu->type != a->type)
 		return -ENOENT;
-	/* PAI crypto event must be in valid range */
+	/* PAI crypto event must be in valid range, try others if not */
 	if (a->config < PAI_CRYPTO_BASE ||
 	    a->config > PAI_CRYPTO_BASE + paicrypt_cnt)
-		return -EINVAL;
+		return -ENOENT;
 	/* Allow only CRYPTO_ALL for sampling */
 	if (a->sample_period && a->config != PAI_CRYPTO_BASE)
 		return -EINVAL;
@@ -696,7 +695,7 @@ static const char * const paicrypt_ctrnames[] = {
 	[111] = "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_AES_256",
 	[112] = "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_ENCRYPTED_AES_128",
 	[113] = "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_ENCRYPTED_AES_192",
-	[114] = "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_ENCRYPTED_AES_256A",
+	[114] = "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_ENCRYPTED_AES_256",
 	[115] = "PCC_COMPUTE_XTS_PARAMETER_USING_AES_128",
 	[116] = "PCC_COMPUTE_XTS_PARAMETER_USING_AES_256",
 	[117] = "PCC_COMPUTE_XTS_PARAMETER_USING_ENCRYPTED_AES_128",

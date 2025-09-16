@@ -1,4 +1,4 @@
-What:		/sys/bus/wmi/devices/44FADEB1-B204-40F2-8581-394BBDC1B651/firmware_update_request
+What:		/sys/bus/wmi/devices/44FADEB1-B204-40F2-8581-394BBDC1B651[-X]/firmware_update_request
 Date:		April 2020
 KernelVersion:	5.7
 Contact:	"Jithu Joseph" <jithu.joseph@intel.com>

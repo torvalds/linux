@@ -56,7 +56,7 @@ static bool ixgbe_should_retry_aci_send_cmd_execute(u16 opcode)
  * Admin Command failed with error Y.
  */
 static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
-				      struct ixgbe_aci_desc *desc,
+				      struct libie_aq_desc *desc,
 				      void *buf, u16 buf_size)
 {
 	u16 opcode, buf_tail_size = buf_size % 4;
@@ -64,7 +64,7 @@ static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
 	u32 hicr, i, buf_tail = 0;
 	bool valid_buf = false;
 
-	hw->aci.last_status = IXGBE_ACI_RC_OK;
+	hw->aci.last_status = LIBIE_AQ_RC_OK;
 
 	/* It's necessary to check if mechanism is enabled */
 	hicr = IXGBE_READ_REG(hw, IXGBE_PF_HICR);
@@ -73,7 +73,7 @@ static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
 		return -EIO;
 
 	if (hicr & IXGBE_PF_HICR_C) {
-		hw->aci.last_status = IXGBE_ACI_RC_EBUSY;
+		hw->aci.last_status = LIBIE_AQ_RC_EBUSY;
 		return -EBUSY;
 	}
 
@@ -83,9 +83,9 @@ static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
 		return -EINVAL;
 
 	if (buf)
-		desc->flags |= cpu_to_le16(IXGBE_ACI_FLAG_BUF);
+		desc->flags |= cpu_to_le16(LIBIE_AQ_FLAG_BUF);
 
-	if (desc->flags & cpu_to_le16(IXGBE_ACI_FLAG_BUF)) {
+	if (desc->flags & cpu_to_le16(LIBIE_AQ_FLAG_BUF)) {
 		if ((buf && !buf_size) ||
 		    (!buf && buf_size))
 			return -EINVAL;
@@ -98,12 +98,12 @@ static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
 			memcpy(&buf_tail, buf + buf_size - buf_tail_size,
 			       buf_tail_size);
 
-		if (((buf_size + 3) & ~0x3) > IXGBE_ACI_LG_BUF)
-			desc->flags |= cpu_to_le16(IXGBE_ACI_FLAG_LB);
+		if (((buf_size + 3) & ~0x3) > LIBIE_AQ_LG_BUF)
+			desc->flags |= cpu_to_le16(LIBIE_AQ_FLAG_LB);
 
 		desc->datalen = cpu_to_le16(buf_size);
 
-		if (desc->flags & cpu_to_le16(IXGBE_ACI_FLAG_RD)) {
+		if (desc->flags & cpu_to_le16(LIBIE_AQ_FLAG_RD)) {
 			for (i = 0; i < buf_size / 4; i++)
 				IXGBE_WRITE_REG(hw, IXGBE_PF_HIBA(i), ((u32 *)buf)[i]);
 			if (buf_tail_size)
@@ -174,7 +174,7 @@ static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
 		return -EIO;
 
 	if (desc->retval) {
-		hw->aci.last_status = (enum ixgbe_aci_err)
+		hw->aci.last_status = (enum libie_aq_err)
 			le16_to_cpu(desc->retval);
 		return -EIO;
 	}
@@ -207,12 +207,12 @@ static int ixgbe_aci_send_cmd_execute(struct ixgbe_hw *hw,
  *
  * Return: the exit code of the operation.
  */
-int ixgbe_aci_send_cmd(struct ixgbe_hw *hw, struct ixgbe_aci_desc *desc,
+int ixgbe_aci_send_cmd(struct ixgbe_hw *hw, struct libie_aq_desc *desc,
 		       void *buf, u16 buf_size)
 {
 	u16 opcode = le16_to_cpu(desc->opcode);
-	struct ixgbe_aci_desc desc_cpy;
-	enum ixgbe_aci_err last_status;
+	struct libie_aq_desc desc_cpy;
+	enum libie_aq_err last_status;
 	u8 idx = 0, *buf_cpy = NULL;
 	bool is_cmd_for_retry;
 	unsigned long timeout;
@@ -237,7 +237,7 @@ int ixgbe_aci_send_cmd(struct ixgbe_hw *hw, struct ixgbe_aci_desc *desc,
 		mutex_unlock(&hw->aci.lock);
 
 		if (!is_cmd_for_retry || !err ||
-		    last_status != IXGBE_ACI_RC_EBUSY)
+		    last_status != LIBIE_AQ_RC_EBUSY)
 			break;
 
 		if (buf)
@@ -286,7 +286,7 @@ bool ixgbe_aci_check_event_pending(struct ixgbe_hw *hw)
 int ixgbe_aci_get_event(struct ixgbe_hw *hw, struct ixgbe_aci_event *e,
 			bool *pending)
 {
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 	int err;
 
 	if (!e || (!e->msg_buf && e->buf_len))
@@ -335,12 +335,46 @@ aci_get_event_exit:
  * Helper function to fill the descriptor desc with default values
  * and the provided opcode.
  */
-void ixgbe_fill_dflt_direct_cmd_desc(struct ixgbe_aci_desc *desc, u16 opcode)
+void ixgbe_fill_dflt_direct_cmd_desc(struct libie_aq_desc *desc, u16 opcode)
 {
 	/* Zero out the desc. */
 	memset(desc, 0, sizeof(*desc));
 	desc->opcode = cpu_to_le16(opcode);
-	desc->flags = cpu_to_le16(IXGBE_ACI_FLAG_SI);
+	desc->flags = cpu_to_le16(LIBIE_AQ_FLAG_SI);
+}
+
+/**
+ * ixgbe_aci_get_fw_ver - Get the firmware version
+ * @hw: pointer to the HW struct
+ *
+ * Get the firmware version using ACI command (0x0001).
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_aci_get_fw_ver(struct ixgbe_hw *hw)
+{
+	struct libie_aqc_get_ver *resp;
+	struct libie_aq_desc desc;
+	int err;
+
+	resp = &desc.params.get_ver;
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_get_ver);
+
+	err = ixgbe_aci_send_cmd(hw, &desc, NULL, 0);
+	if (!err) {
+		hw->fw_branch = resp->fw_branch;
+		hw->fw_maj_ver = resp->fw_major;
+		hw->fw_min_ver = resp->fw_minor;
+		hw->fw_patch = resp->fw_patch;
+		hw->fw_build = le32_to_cpu(resp->fw_build);
+		hw->api_branch = resp->api_branch;
+		hw->api_maj_ver = resp->api_major;
+		hw->api_min_ver = resp->api_minor;
+		hw->api_patch = resp->api_patch;
+	}
+
+	return err;
 }
 
 /**
@@ -359,12 +393,12 @@ void ixgbe_fill_dflt_direct_cmd_desc(struct ixgbe_aci_desc *desc, u16 opcode)
  *
  * Return: the exit code of the operation.
  */
-static int ixgbe_aci_req_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res,
-			     enum ixgbe_aci_res_access_type access,
+static int ixgbe_aci_req_res(struct ixgbe_hw *hw, enum libie_aq_res_id res,
+			     enum libie_aq_res_access_type access,
 			     u8 sdp_number, u32 *timeout)
 {
-	struct ixgbe_aci_cmd_req_res *cmd_resp;
-	struct ixgbe_aci_desc desc;
+	struct libie_aqc_req_res *cmd_resp;
+	struct libie_aq_desc desc;
 	int err;
 
 	cmd_resp = &desc.params.res_owner;
@@ -383,7 +417,7 @@ static int ixgbe_aci_req_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res,
 	 * with a busy return value and the timeout field indicates the maximum
 	 * time the current owner of the resource has to free it.
 	 */
-	if (!err || hw->aci.last_status == IXGBE_ACI_RC_EBUSY)
+	if (!err || hw->aci.last_status == LIBIE_AQ_RC_EBUSY)
 		*timeout = le32_to_cpu(cmd_resp->timeout);
 
 	return err;
@@ -399,11 +433,11 @@ static int ixgbe_aci_req_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res,
  *
  * Return: the exit code of the operation.
  */
-static int ixgbe_aci_release_res(struct ixgbe_hw *hw,
-				 enum ixgbe_aci_res_ids res, u8 sdp_number)
+static int ixgbe_aci_release_res(struct ixgbe_hw *hw, enum libie_aq_res_id res,
+				 u8 sdp_number)
 {
-	struct ixgbe_aci_cmd_req_res *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aqc_req_res *cmd;
+	struct libie_aq_desc desc;
 
 	cmd = &desc.params.res_owner;
 
@@ -431,8 +465,8 @@ static int ixgbe_aci_release_res(struct ixgbe_hw *hw,
  *
  * Return: the exit code of the operation.
  */
-int ixgbe_acquire_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res,
-		      enum ixgbe_aci_res_access_type access, u32 timeout)
+int ixgbe_acquire_res(struct ixgbe_hw *hw, enum libie_aq_res_id res,
+		      enum libie_aq_res_access_type access, u32 timeout)
 {
 #define IXGBE_RES_POLLING_DELAY_MS	10
 	u32 delay = IXGBE_RES_POLLING_DELAY_MS;
@@ -480,7 +514,7 @@ int ixgbe_acquire_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res,
  *
  * Release a common resource using ixgbe_aci_release_res.
  */
-void ixgbe_release_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res)
+void ixgbe_release_res(struct ixgbe_hw *hw, enum libie_aq_res_id res)
 {
 	u32 total_delay = 0;
 	int err;
@@ -513,7 +547,7 @@ void ixgbe_release_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res)
  */
 static bool ixgbe_parse_e610_caps(struct ixgbe_hw *hw,
 				  struct ixgbe_hw_caps *caps,
-				  struct ixgbe_aci_cmd_list_caps_elem *elem,
+				  struct libie_aqc_list_caps_elem *elem,
 				  const char *prefix)
 {
 	u32 logical_id = le32_to_cpu(elem->logical_id);
@@ -522,53 +556,67 @@ static bool ixgbe_parse_e610_caps(struct ixgbe_hw *hw,
 	u16 cap = le16_to_cpu(elem->cap);
 
 	switch (cap) {
-	case IXGBE_ACI_CAPS_VALID_FUNCTIONS:
+	case LIBIE_AQC_CAPS_VALID_FUNCTIONS:
 		caps->valid_functions = number;
 		break;
-	case IXGBE_ACI_CAPS_SRIOV:
+	case LIBIE_AQC_CAPS_SRIOV:
 		caps->sr_iov_1_1 = (number == 1);
 		break;
-	case IXGBE_ACI_CAPS_VMDQ:
+	case LIBIE_AQC_CAPS_VMDQ:
 		caps->vmdq = (number == 1);
 		break;
-	case IXGBE_ACI_CAPS_DCB:
+	case LIBIE_AQC_CAPS_DCB:
 		caps->dcb = (number == 1);
 		caps->active_tc_bitmap = logical_id;
 		caps->maxtc = phys_id;
 		break;
-	case IXGBE_ACI_CAPS_RSS:
+	case LIBIE_AQC_CAPS_RSS:
 		caps->rss_table_size = number;
 		caps->rss_table_entry_width = logical_id;
 		break;
-	case IXGBE_ACI_CAPS_RXQS:
+	case LIBIE_AQC_CAPS_RXQS:
 		caps->num_rxq = number;
 		caps->rxq_first_id = phys_id;
 		break;
-	case IXGBE_ACI_CAPS_TXQS:
+	case LIBIE_AQC_CAPS_TXQS:
 		caps->num_txq = number;
 		caps->txq_first_id = phys_id;
 		break;
-	case IXGBE_ACI_CAPS_MSIX:
+	case LIBIE_AQC_CAPS_MSIX:
 		caps->num_msix_vectors = number;
 		caps->msix_vector_first_id = phys_id;
 		break;
-	case IXGBE_ACI_CAPS_NVM_VER:
+	case LIBIE_AQC_CAPS_NVM_VER:
 		break;
-	case IXGBE_ACI_CAPS_MAX_MTU:
+	case LIBIE_AQC_CAPS_PENDING_NVM_VER:
+		caps->nvm_update_pending_nvm = true;
+		break;
+	case LIBIE_AQC_CAPS_PENDING_OROM_VER:
+		caps->nvm_update_pending_orom = true;
+		break;
+	case LIBIE_AQC_CAPS_PENDING_NET_VER:
+		caps->nvm_update_pending_netlist = true;
+		break;
+	case LIBIE_AQC_CAPS_NVM_MGMT:
+		caps->nvm_unified_update =
+			(number & IXGBE_NVM_MGMT_UNIFIED_UPD_SUPPORT) ?
+			true : false;
+		break;
+	case LIBIE_AQC_CAPS_MAX_MTU:
 		caps->max_mtu = number;
 		break;
-	case IXGBE_ACI_CAPS_PCIE_RESET_AVOIDANCE:
+	case LIBIE_AQC_CAPS_PCIE_RESET_AVOIDANCE:
 		caps->pcie_reset_avoidance = (number > 0);
 		break;
-	case IXGBE_ACI_CAPS_POST_UPDATE_RESET_RESTRICT:
+	case LIBIE_AQC_CAPS_POST_UPDATE_RESET_RESTRICT:
 		caps->reset_restrict_support = (number == 1);
 		break;
-	case IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG0:
-	case IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG1:
-	case IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG2:
-	case IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG3:
+	case LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG0:
+	case LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG1:
+	case LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG2:
+	case LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG3:
 	{
-		u8 index = cap - IXGBE_ACI_CAPS_EXT_TOPO_DEV_IMG0;
+		u8 index = cap - LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG0;
 
 		caps->ext_topo_dev_img_ver_high[index] = number;
 		caps->ext_topo_dev_img_ver_low[index] = logical_id;
@@ -589,62 +637,62 @@ static bool ixgbe_parse_e610_caps(struct ixgbe_hw *hw,
 }
 
 /**
- * ixgbe_parse_valid_functions_cap - Parse IXGBE_ACI_CAPS_VALID_FUNCTIONS caps
+ * ixgbe_parse_valid_functions_cap - Parse LIBIE_AQC_CAPS_VALID_FUNCTIONS caps
  * @hw: pointer to the HW struct
  * @dev_p: pointer to device capabilities structure
  * @cap: capability element to parse
  *
- * Parse IXGBE_ACI_CAPS_VALID_FUNCTIONS for device capabilities.
+ * Parse LIBIE_AQC_CAPS_VALID_FUNCTIONS for device capabilities.
  */
 static void
 ixgbe_parse_valid_functions_cap(struct ixgbe_hw *hw,
 				struct ixgbe_hw_dev_caps *dev_p,
-				struct ixgbe_aci_cmd_list_caps_elem *cap)
+				struct libie_aqc_list_caps_elem *cap)
 {
 	dev_p->num_funcs = hweight32(le32_to_cpu(cap->number));
 }
 
 /**
- * ixgbe_parse_vf_dev_caps - Parse IXGBE_ACI_CAPS_VF device caps
+ * ixgbe_parse_vf_dev_caps - Parse LIBIE_AQC_CAPS_VF device caps
  * @hw: pointer to the HW struct
  * @dev_p: pointer to device capabilities structure
  * @cap: capability element to parse
  *
- * Parse IXGBE_ACI_CAPS_VF for device capabilities.
+ * Parse LIBIE_AQC_CAPS_VF for device capabilities.
  */
 static void ixgbe_parse_vf_dev_caps(struct ixgbe_hw *hw,
 				    struct ixgbe_hw_dev_caps *dev_p,
-				    struct ixgbe_aci_cmd_list_caps_elem *cap)
+				    struct libie_aqc_list_caps_elem *cap)
 {
 	dev_p->num_vfs_exposed = le32_to_cpu(cap->number);
 }
 
 /**
- * ixgbe_parse_vsi_dev_caps - Parse IXGBE_ACI_CAPS_VSI device caps
+ * ixgbe_parse_vsi_dev_caps - Parse LIBIE_AQC_CAPS_VSI device caps
  * @hw: pointer to the HW struct
  * @dev_p: pointer to device capabilities structure
  * @cap: capability element to parse
  *
- * Parse IXGBE_ACI_CAPS_VSI for device capabilities.
+ * Parse LIBIE_AQC_CAPS_VSI for device capabilities.
  */
 static void ixgbe_parse_vsi_dev_caps(struct ixgbe_hw *hw,
 				     struct ixgbe_hw_dev_caps *dev_p,
-				     struct ixgbe_aci_cmd_list_caps_elem *cap)
+				     struct libie_aqc_list_caps_elem *cap)
 {
 	dev_p->num_vsi_allocd_to_host = le32_to_cpu(cap->number);
 }
 
 /**
- * ixgbe_parse_fdir_dev_caps - Parse IXGBE_ACI_CAPS_FD device caps
+ * ixgbe_parse_fdir_dev_caps - Parse LIBIE_AQC_CAPS_FD device caps
  * @hw: pointer to the HW struct
  * @dev_p: pointer to device capabilities structure
  * @cap: capability element to parse
  *
- * Parse IXGBE_ACI_CAPS_FD for device capabilities.
+ * Parse LIBIE_AQC_CAPS_FD for device capabilities.
  */
 static void ixgbe_parse_fdir_dev_caps(struct ixgbe_hw *hw,
 				      struct ixgbe_hw_dev_caps *dev_p,
-				      struct ixgbe_aci_cmd_list_caps_elem *cap)
+				      struct libie_aqc_list_caps_elem *cap)
 {
 	dev_p->num_flow_director_fltr = le32_to_cpu(cap->number);
 }
@@ -667,10 +715,10 @@ static void ixgbe_parse_dev_caps(struct ixgbe_hw *hw,
 				 struct ixgbe_hw_dev_caps *dev_p,
 				 void *buf, u32 cap_count)
 {
-	struct ixgbe_aci_cmd_list_caps_elem *cap_resp;
+	struct libie_aqc_list_caps_elem *cap_resp;
 	u32 i;
 
-	cap_resp = (struct ixgbe_aci_cmd_list_caps_elem *)buf;
+	cap_resp = (struct libie_aqc_list_caps_elem *)buf;
 
 	memset(dev_p, 0, sizeof(*dev_p));
 
@@ -681,17 +729,17 @@ static void ixgbe_parse_dev_caps(struct ixgbe_hw *hw,
 				      "dev caps");
 
 		switch (cap) {
-		case IXGBE_ACI_CAPS_VALID_FUNCTIONS:
+		case LIBIE_AQC_CAPS_VALID_FUNCTIONS:
 			ixgbe_parse_valid_functions_cap(hw, dev_p,
 							&cap_resp[i]);
 			break;
-		case IXGBE_ACI_CAPS_VF:
+		case LIBIE_AQC_CAPS_VF:
 			ixgbe_parse_vf_dev_caps(hw, dev_p, &cap_resp[i]);
 			break;
-		case IXGBE_ACI_CAPS_VSI:
+		case LIBIE_AQC_CAPS_VSI:
 			ixgbe_parse_vsi_dev_caps(hw, dev_p, &cap_resp[i]);
 			break;
-		case  IXGBE_ACI_CAPS_FD:
+		case  LIBIE_AQC_CAPS_FD:
 			ixgbe_parse_fdir_dev_caps(hw, dev_p, &cap_resp[i]);
 			break;
 		default:
@@ -702,16 +750,16 @@ static void ixgbe_parse_dev_caps(struct ixgbe_hw *hw,
 }
 
 /**
- * ixgbe_parse_vf_func_caps - Parse IXGBE_ACI_CAPS_VF function caps
+ * ixgbe_parse_vf_func_caps - Parse LIBIE_AQC_CAPS_VF function caps
  * @hw: pointer to the HW struct
  * @func_p: pointer to function capabilities structure
  * @cap: pointer to the capability element to parse
  *
- * Extract function capabilities for IXGBE_ACI_CAPS_VF.
+ * Extract function capabilities for LIBIE_AQC_CAPS_VF.
  */
 static void ixgbe_parse_vf_func_caps(struct ixgbe_hw *hw,
 				     struct ixgbe_hw_func_caps *func_p,
-				     struct ixgbe_aci_cmd_list_caps_elem *cap)
+				     struct libie_aqc_list_caps_elem *cap)
 {
 	func_p->num_allocd_vfs = le32_to_cpu(cap->number);
 	func_p->vf_base_id = le32_to_cpu(cap->logical_id);
@@ -738,16 +786,16 @@ static u32 ixgbe_get_num_per_func(struct ixgbe_hw *hw, u32 max)
 }
 
 /**
- * ixgbe_parse_vsi_func_caps - Parse IXGBE_ACI_CAPS_VSI function caps
+ * ixgbe_parse_vsi_func_caps - Parse LIBIE_AQC_CAPS_VSI function caps
  * @hw: pointer to the HW struct
  * @func_p: pointer to function capabilities structure
  * @cap: pointer to the capability element to parse
  *
- * Extract function capabilities for IXGBE_ACI_CAPS_VSI.
+ * Extract function capabilities for LIBIE_AQC_CAPS_VSI.
  */
 static void ixgbe_parse_vsi_func_caps(struct ixgbe_hw *hw,
 				      struct ixgbe_hw_func_caps *func_p,
-				      struct ixgbe_aci_cmd_list_caps_elem *cap)
+				      struct libie_aqc_list_caps_elem *cap)
 {
 	func_p->guar_num_vsi = ixgbe_get_num_per_func(hw, IXGBE_MAX_VSI);
 }
@@ -770,10 +818,10 @@ static void ixgbe_parse_func_caps(struct ixgbe_hw *hw,
 				  struct ixgbe_hw_func_caps *func_p,
 				  void *buf, u32 cap_count)
 {
-	struct ixgbe_aci_cmd_list_caps_elem *cap_resp;
+	struct libie_aqc_list_caps_elem *cap_resp;
 	u32 i;
 
-	cap_resp = (struct ixgbe_aci_cmd_list_caps_elem *)buf;
+	cap_resp = (struct libie_aqc_list_caps_elem *)buf;
 
 	memset(func_p, 0, sizeof(*func_p));
 
@@ -784,10 +832,10 @@ static void ixgbe_parse_func_caps(struct ixgbe_hw *hw,
 				      &cap_resp[i], "func caps");
 
 		switch (cap) {
-		case IXGBE_ACI_CAPS_VF:
+		case LIBIE_AQC_CAPS_VF:
 			ixgbe_parse_vf_func_caps(hw, func_p, &cap_resp[i]);
 			break;
-		case IXGBE_ACI_CAPS_VSI:
+		case LIBIE_AQC_CAPS_VSI:
 			ixgbe_parse_vsi_func_caps(hw, func_p, &cap_resp[i]);
 			break;
 		default:
@@ -821,8 +869,8 @@ static void ixgbe_parse_func_caps(struct ixgbe_hw *hw,
 int ixgbe_aci_list_caps(struct ixgbe_hw *hw, void *buf, u16 buf_size,
 			u32 *cap_count, enum ixgbe_aci_opc opc)
 {
-	struct ixgbe_aci_cmd_list_caps *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aqc_list_caps *cmd;
+	struct libie_aq_desc desc;
 	int err;
 
 	cmd = &desc.params.get_cap;
@@ -866,7 +914,7 @@ int ixgbe_discover_dev_caps(struct ixgbe_hw *hw,
 	 * possible size that firmware can return.
 	 */
 	cap_count = IXGBE_ACI_MAX_BUFFER_SIZE /
-		    sizeof(struct ixgbe_aci_cmd_list_caps_elem);
+		    sizeof(struct libie_aqc_list_caps_elem);
 
 	err = ixgbe_aci_list_caps(hw, cbuf, IXGBE_ACI_MAX_BUFFER_SIZE,
 				  &cap_count,
@@ -905,7 +953,7 @@ int ixgbe_discover_func_caps(struct ixgbe_hw *hw,
 	 * possible size that firmware can return.
 	 */
 	cap_count = IXGBE_ACI_MAX_BUFFER_SIZE /
-		    sizeof(struct ixgbe_aci_cmd_list_caps_elem);
+		    sizeof(struct libie_aqc_list_caps_elem);
 
 	err = ixgbe_aci_list_caps(hw, cbuf, IXGBE_ACI_MAX_BUFFER_SIZE,
 				  &cap_count,
@@ -948,9 +996,9 @@ int ixgbe_get_caps(struct ixgbe_hw *hw)
 int ixgbe_aci_disable_rxen(struct ixgbe_hw *hw)
 {
 	struct ixgbe_aci_cmd_disable_rxen *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.disable_rxen;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_disable_rxen);
 
@@ -976,10 +1024,10 @@ int ixgbe_aci_get_phy_caps(struct ixgbe_hw *hw, bool qual_mods, u8 report_mode,
 {
 	struct ixgbe_aci_cmd_get_phy_caps *cmd;
 	u16 pcaps_size = sizeof(*pcaps);
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 	int err;
 
-	cmd = &desc.params.get_phy;
+	cmd = libie_aq_raw(&desc);
 
 	if (!pcaps || (report_mode & ~IXGBE_ACI_REPORT_MODE_M))
 		return -EINVAL;
@@ -1043,18 +1091,20 @@ void ixgbe_copy_phy_caps_to_cfg(struct ixgbe_aci_cmd_get_phy_caps_data *caps,
 int ixgbe_aci_set_phy_cfg(struct ixgbe_hw *hw,
 			  struct ixgbe_aci_cmd_set_phy_cfg_data *cfg)
 {
-	struct ixgbe_aci_desc desc;
+	struct ixgbe_aci_cmd_set_phy_cfg *cmd;
+	struct libie_aq_desc desc;
 	int err;
 
 	if (!cfg)
 		return -EINVAL;
 
+	cmd = libie_aq_raw(&desc);
 	/* Ensure that only valid bits of cfg->caps can be turned on. */
 	cfg->caps &= IXGBE_ACI_PHY_ENA_VALID_MASK;
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_set_phy_cfg);
-	desc.params.set_phy.lport_num = hw->bus.func;
-	desc.flags |= cpu_to_le16(IXGBE_ACI_FLAG_RD);
+	cmd->lport_num = hw->bus.func;
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	err = ixgbe_aci_send_cmd(hw, &desc, cfg, sizeof(*cfg));
 	if (!err)
@@ -1075,9 +1125,9 @@ int ixgbe_aci_set_phy_cfg(struct ixgbe_hw *hw,
 int ixgbe_aci_set_link_restart_an(struct ixgbe_hw *hw, bool ena_link)
 {
 	struct ixgbe_aci_cmd_restart_an *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.restart_an;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_restart_an);
 
@@ -1103,9 +1153,9 @@ int ixgbe_aci_set_link_restart_an(struct ixgbe_hw *hw, bool ena_link)
 static bool ixgbe_is_media_cage_present(struct ixgbe_hw *hw)
 {
 	struct ixgbe_aci_cmd_get_link_topo *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.get_link_topo;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_get_link_topo);
 
@@ -1298,7 +1348,7 @@ int ixgbe_aci_get_link_info(struct ixgbe_hw *hw, bool ena_lse,
 	struct ixgbe_aci_cmd_get_link_status *resp;
 	struct ixgbe_link_status *li_old, *li;
 	struct ixgbe_fc_info *hw_fc_info;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 	bool tx_pause, rx_pause;
 	u8 cmd_flags;
 	int err;
@@ -1312,7 +1362,7 @@ int ixgbe_aci_get_link_info(struct ixgbe_hw *hw, bool ena_lse,
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_get_link_status);
 	cmd_flags = (ena_lse) ? IXGBE_ACI_LSE_ENA : IXGBE_ACI_LSE_DIS;
-	resp = &desc.params.get_link_status;
+	resp = libie_aq_raw(&desc);
 	resp->cmd_flags = cpu_to_le16(cmd_flags);
 	resp->lport_num = hw->bus.func;
 
@@ -1375,9 +1425,9 @@ int ixgbe_aci_get_link_info(struct ixgbe_hw *hw, bool ena_lse,
 int ixgbe_aci_set_event_mask(struct ixgbe_hw *hw, u8 port_num, u16 mask)
 {
 	struct ixgbe_aci_cmd_set_event_mask *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.set_event_mask;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_set_event_mask);
 
@@ -1408,6 +1458,61 @@ int ixgbe_configure_lse(struct ixgbe_hw *hw, bool activate, u16 mask)
 
 	/* Enabling link status events generation by fw. */
 	return ixgbe_aci_get_link_info(hw, activate, NULL);
+}
+
+/**
+ * ixgbe_start_hw_e610 - Prepare hardware for Tx/Rx
+ * @hw: pointer to hardware structure
+ *
+ * Get firmware version and start the hardware using the generic
+ * start_hw() and ixgbe_start_hw_gen2() functions.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_start_hw_e610(struct ixgbe_hw *hw)
+{
+	int err;
+
+	err = ixgbe_aci_get_fw_ver(hw);
+	if (err)
+		return err;
+
+	err = ixgbe_start_hw_generic(hw);
+	if (err)
+		return err;
+
+	ixgbe_start_hw_gen2(hw);
+
+	return 0;
+}
+
+/**
+ * ixgbe_aci_set_port_id_led - set LED value for the given port
+ * @hw: pointer to the HW struct
+ * @orig_mode: set LED original mode
+ *
+ * Set LED value for the given port (0x06E9)
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_aci_set_port_id_led(struct ixgbe_hw *hw, bool orig_mode)
+{
+	struct ixgbe_aci_cmd_set_port_id_led *cmd;
+	struct libie_aq_desc desc;
+
+	cmd = libie_aq_raw(&desc);
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_set_port_id_led);
+
+	cmd->lport_num = (u8)hw->bus.func;
+	cmd->lport_num_valid = IXGBE_ACI_PORT_ID_PORT_NUM_VALID;
+
+	if (orig_mode)
+		cmd->ident_mode = IXGBE_ACI_PORT_IDENT_LED_ORIG;
+	else
+		cmd->ident_mode = IXGBE_ACI_PORT_IDENT_LED_BLINK;
+
+	return ixgbe_aci_send_cmd(hw, &desc, NULL, 0);
 }
 
 /**
@@ -1740,6 +1845,38 @@ void ixgbe_disable_rx_e610(struct ixgbe_hw *hw)
 			IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, rxctrl);
 		}
 	}
+}
+
+/**
+ * ixgbe_fw_recovery_mode_e610 - Check FW NVM recovery mode
+ * @hw: pointer to hardware structure
+ *
+ * Check FW NVM recovery mode by reading the value of
+ * the dedicated register.
+ *
+ * Return: true if FW is in recovery mode, otherwise false.
+ */
+static bool ixgbe_fw_recovery_mode_e610(struct ixgbe_hw *hw)
+{
+	u32 fwsm = IXGBE_READ_REG(hw, IXGBE_GL_MNG_FWSM);
+
+	return !!(fwsm & IXGBE_GL_MNG_FWSM_RECOVERY_M);
+}
+
+/**
+ * ixgbe_fw_rollback_mode_e610 - Check FW NVM rollback mode
+ * @hw: pointer to hardware structure
+ *
+ * Check FW NVM rollback mode by reading the value of
+ * the dedicated register.
+ *
+ * Return: true if FW is in rollback mode, otherwise false.
+ */
+static bool ixgbe_fw_rollback_mode_e610(struct ixgbe_hw *hw)
+{
+	u32 fwsm = IXGBE_READ_REG(hw, IXGBE_GL_MNG_FWSM);
+
+	return !!(fwsm & IXGBE_GL_MNG_FWSM_ROLLBACK_M);
 }
 
 /**
@@ -2125,19 +2262,20 @@ int ixgbe_aci_get_netlist_node(struct ixgbe_hw *hw,
 			       struct ixgbe_aci_cmd_get_link_topo *cmd,
 			       u8 *node_part_number, u16 *node_handle)
 {
-	struct ixgbe_aci_desc desc;
+	struct ixgbe_aci_cmd_get_link_topo *resp;
+	struct libie_aq_desc desc;
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_get_link_topo);
-	desc.params.get_link_topo = *cmd;
+	resp = libie_aq_raw(&desc);
+	*resp = *cmd;
 
 	if (ixgbe_aci_send_cmd(hw, &desc, NULL, 0))
 		return -EOPNOTSUPP;
 
 	if (node_handle)
-		*node_handle =
-			le16_to_cpu(desc.params.get_link_topo.addr.handle);
+		*node_handle = le16_to_cpu(resp->addr.handle);
 	if (node_part_number)
-		*node_part_number = desc.params.get_link_topo.node_part_num;
+		*node_part_number = resp->node_part_num;
 
 	return 0;
 }
@@ -2151,8 +2289,7 @@ int ixgbe_aci_get_netlist_node(struct ixgbe_hw *hw,
  *
  * Return: the exit code of the operation.
  */
-int ixgbe_acquire_nvm(struct ixgbe_hw *hw,
-		      enum ixgbe_aci_res_access_type access)
+int ixgbe_acquire_nvm(struct ixgbe_hw *hw, enum libie_aq_res_access_type access)
 {
 	u32 fla;
 
@@ -2161,7 +2298,7 @@ int ixgbe_acquire_nvm(struct ixgbe_hw *hw,
 	if ((fla & IXGBE_GLNVM_FLA_LOCKED_M) == 0)
 		return 0;
 
-	return ixgbe_acquire_res(hw, IXGBE_NVM_RES_ID, access,
+	return ixgbe_acquire_res(hw, LIBIE_AQC_RES_ID_NVM, access,
 				 IXGBE_NVM_TIMEOUT);
 }
 
@@ -2180,7 +2317,7 @@ void ixgbe_release_nvm(struct ixgbe_hw *hw)
 	if ((fla & IXGBE_GLNVM_FLA_LOCKED_M) == 0)
 		return;
 
-	ixgbe_release_res(hw, IXGBE_NVM_RES_ID);
+	ixgbe_release_res(hw, LIBIE_AQC_RES_ID_NVM);
 }
 
 /**
@@ -2202,12 +2339,12 @@ int ixgbe_aci_read_nvm(struct ixgbe_hw *hw, u16 module_typeid, u32 offset,
 		       bool read_shadow_ram)
 {
 	struct ixgbe_aci_cmd_nvm *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 
 	if (offset > IXGBE_ACI_NVM_MAX_OFFSET)
 		return -EINVAL;
 
-	cmd = &desc.params.nvm;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_read);
 
@@ -2226,6 +2363,131 @@ int ixgbe_aci_read_nvm(struct ixgbe_hw *hw, u16 module_typeid, u32 offset,
 }
 
 /**
+ * ixgbe_aci_erase_nvm - erase NVM sector
+ * @hw: pointer to the HW struct
+ * @module_typeid: module pointer location in words from the NVM beginning
+ *
+ * Erase the NVM sector using the ACI command (0x0702).
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_aci_erase_nvm(struct ixgbe_hw *hw, u16 module_typeid)
+{
+	struct ixgbe_aci_cmd_nvm *cmd;
+	struct libie_aq_desc desc;
+	__le16 len;
+	int err;
+
+	/* Read a length value from SR, so module_typeid is equal to 0,
+	 * calculate offset where module size is placed from bytes to words
+	 * set last command and read from SR values to true.
+	 */
+	err = ixgbe_aci_read_nvm(hw, 0, 2 * module_typeid + 2, 2, &len, true,
+				 true);
+	if (err)
+		return err;
+
+	cmd = libie_aq_raw(&desc);
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_erase);
+
+	cmd->module_typeid = cpu_to_le16(module_typeid);
+	cmd->length = len;
+	cmd->offset_low = 0;
+	cmd->offset_high = 0;
+
+	return ixgbe_aci_send_cmd(hw, &desc, NULL, 0);
+}
+
+/**
+ * ixgbe_aci_update_nvm - update NVM
+ * @hw: pointer to the HW struct
+ * @module_typeid: module pointer location in words from the NVM beginning
+ * @offset: byte offset from the module beginning
+ * @length: length of the section to be written (in bytes from the offset)
+ * @data: command buffer (size [bytes] = length)
+ * @last_command: tells if this is the last command in a series
+ * @command_flags: command parameters
+ *
+ * Update the NVM using the ACI command (0x0703).
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_aci_update_nvm(struct ixgbe_hw *hw, u16 module_typeid,
+			 u32 offset, u16 length, void *data,
+			 bool last_command, u8 command_flags)
+{
+	struct ixgbe_aci_cmd_nvm *cmd;
+	struct libie_aq_desc desc;
+
+	cmd = libie_aq_raw(&desc);
+
+	/* In offset the highest byte must be zeroed. */
+	if (offset & 0xFF000000)
+		return -EINVAL;
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_write);
+
+	cmd->cmd_flags |= command_flags;
+
+	/* If this is the last command in a series, set the proper flag. */
+	if (last_command)
+		cmd->cmd_flags |= IXGBE_ACI_NVM_LAST_CMD;
+	cmd->module_typeid = cpu_to_le16(module_typeid);
+	cmd->offset_low = cpu_to_le16(offset & 0xFFFF);
+	cmd->offset_high = FIELD_GET(IXGBE_ACI_NVM_OFFSET_HI_U_MASK, offset);
+	cmd->length = cpu_to_le16(length);
+
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
+
+	return ixgbe_aci_send_cmd(hw, &desc, data, length);
+}
+
+/**
+ * ixgbe_nvm_write_activate - NVM activate write
+ * @hw: pointer to the HW struct
+ * @cmd_flags: flags for write activate command
+ * @response_flags: response indicators from firmware
+ *
+ * Update the control word with the required banks' validity bits
+ * and dumps the Shadow RAM to flash using ACI command (0x0707).
+ *
+ * cmd_flags controls which banks to activate, the preservation level to use
+ * when activating the NVM bank, and whether an EMP reset is required for
+ * activation.
+ *
+ * Note that the 16bit cmd_flags value is split between two separate 1 byte
+ * flag values in the descriptor.
+ *
+ * On successful return of the firmware command, the response_flags variable
+ * is updated with the flags reported by firmware indicating certain status,
+ * such as whether EMP reset is enabled.
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_nvm_write_activate(struct ixgbe_hw *hw, u16 cmd_flags,
+			     u8 *response_flags)
+{
+	struct ixgbe_aci_cmd_nvm *cmd;
+	struct libie_aq_desc desc;
+	s32 err;
+
+	cmd = libie_aq_raw(&desc);
+	ixgbe_fill_dflt_direct_cmd_desc(&desc,
+					ixgbe_aci_opc_nvm_write_activate);
+
+	cmd->cmd_flags = (u8)(cmd_flags & 0xFF);
+	cmd->offset_high = (u8)FIELD_GET(IXGBE_ACI_NVM_OFFSET_HI_A_MASK,
+					 cmd_flags);
+
+	err = ixgbe_aci_send_cmd(hw, &desc, NULL, 0);
+	if (!err && response_flags)
+		*response_flags = cmd->cmd_flags;
+
+	return err;
+}
+
+/**
  * ixgbe_nvm_validate_checksum - validate checksum
  * @hw: pointer to the HW struct
  *
@@ -2238,14 +2500,14 @@ int ixgbe_aci_read_nvm(struct ixgbe_hw *hw, u16 module_typeid, u32 offset,
 int ixgbe_nvm_validate_checksum(struct ixgbe_hw *hw)
 {
 	struct ixgbe_aci_cmd_nvm_checksum *cmd;
-	struct ixgbe_aci_desc desc;
+	struct libie_aq_desc desc;
 	int err;
 
-	err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
 	if (err)
 		return err;
 
-	cmd = &desc.params.nvm_checksum;
+	cmd = libie_aq_raw(&desc);
 
 	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_checksum);
 	cmd->flags = IXGBE_ACI_NVM_CHECKSUM_VERIFY;
@@ -2261,6 +2523,955 @@ int ixgbe_nvm_validate_checksum(struct ixgbe_hw *hw)
 
 		err = -EIO;
 		netdev_err(adapter->netdev, "Invalid Shadow Ram checksum");
+	}
+
+	return err;
+}
+
+/**
+ * ixgbe_discover_flash_size - Discover the available flash size
+ * @hw: pointer to the HW struct
+ *
+ * The device flash could be up to 16MB in size. However, it is possible that
+ * the actual size is smaller. Use bisection to determine the accessible size
+ * of flash memory.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_discover_flash_size(struct ixgbe_hw *hw)
+{
+	u32 min_size = 0, max_size = IXGBE_ACI_NVM_MAX_OFFSET + 1;
+	int err;
+
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
+	if (err)
+		return err;
+
+	while ((max_size - min_size) > 1) {
+		u32 offset = (max_size + min_size) / 2;
+		u32 len = 1;
+		u8 data;
+
+		err = ixgbe_read_flat_nvm(hw, offset, &len, &data, false);
+		if (err == -EIO &&
+		    hw->aci.last_status == LIBIE_AQ_RC_EINVAL) {
+			err = 0;
+			max_size = offset;
+		} else if (!err) {
+			min_size = offset;
+		} else {
+			/* an unexpected error occurred */
+			goto err_read_flat_nvm;
+		}
+	}
+
+	hw->flash.flash_size = max_size;
+
+err_read_flat_nvm:
+	ixgbe_release_nvm(hw);
+
+	return err;
+}
+
+/**
+ * ixgbe_read_sr_base_address - Read the value of a Shadow RAM pointer word
+ * @hw: pointer to the HW structure
+ * @offset: the word offset of the Shadow RAM word to read
+ * @pointer: pointer value read from Shadow RAM
+ *
+ * Read the given Shadow RAM word, and convert it to a pointer value specified
+ * in bytes. This function assumes the specified offset is a valid pointer
+ * word.
+ *
+ * Each pointer word specifies whether it is stored in word size or 4KB
+ * sector size by using the highest bit. The reported pointer value will be in
+ * bytes, intended for flat NVM reads.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_sr_base_address(struct ixgbe_hw *hw, u16 offset,
+				      u32 *pointer)
+{
+	u16 value;
+	int err;
+
+	err = ixgbe_read_ee_aci_e610(hw, offset, &value);
+	if (err)
+		return err;
+
+	/* Determine if the pointer is in 4KB or word units */
+	if (value & IXGBE_SR_NVM_PTR_4KB_UNITS)
+		*pointer = (value & ~IXGBE_SR_NVM_PTR_4KB_UNITS) * SZ_4K;
+	else
+		*pointer = value * sizeof(u16);
+
+	return 0;
+}
+
+/**
+ * ixgbe_read_sr_area_size - Read an area size from a Shadow RAM word
+ * @hw: pointer to the HW structure
+ * @offset: the word offset of the Shadow RAM to read
+ * @size: size value read from the Shadow RAM
+ *
+ * Read the given Shadow RAM word, and convert it to an area size value
+ * specified in bytes. This function assumes the specified offset is a valid
+ * area size word.
+ *
+ * Each area size word is specified in 4KB sector units. This function reports
+ * the size in bytes, intended for flat NVM reads.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_sr_area_size(struct ixgbe_hw *hw, u16 offset, u32 *size)
+{
+	u16 value;
+	int err;
+
+	err = ixgbe_read_ee_aci_e610(hw, offset, &value);
+	if (err)
+		return err;
+
+	/* Area sizes are always specified in 4KB units */
+	*size = value * SZ_4K;
+
+	return 0;
+}
+
+/**
+ * ixgbe_determine_active_flash_banks - Discover active bank for each module
+ * @hw: pointer to the HW struct
+ *
+ * Read the Shadow RAM control word and determine which banks are active for
+ * the NVM, OROM, and Netlist modules. Also read and calculate the associated
+ * pointer and size. These values are then cached into the ixgbe_flash_info
+ * structure for later use in order to calculate the correct offset to read
+ * from the active module.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_determine_active_flash_banks(struct ixgbe_hw *hw)
+{
+	struct ixgbe_bank_info *banks = &hw->flash.banks;
+	u16 ctrl_word;
+	int err;
+
+	err = ixgbe_read_ee_aci_e610(hw, IXGBE_E610_SR_NVM_CTRL_WORD,
+				     &ctrl_word);
+	if (err)
+		return err;
+
+	if (FIELD_GET(IXGBE_SR_CTRL_WORD_1_M, ctrl_word) !=
+	    IXGBE_SR_CTRL_WORD_VALID)
+		return -ENODATA;
+
+	if (!(ctrl_word & IXGBE_SR_CTRL_WORD_NVM_BANK))
+		banks->nvm_bank = IXGBE_1ST_FLASH_BANK;
+	else
+		banks->nvm_bank = IXGBE_2ND_FLASH_BANK;
+
+	if (!(ctrl_word & IXGBE_SR_CTRL_WORD_OROM_BANK))
+		banks->orom_bank = IXGBE_1ST_FLASH_BANK;
+	else
+		banks->orom_bank = IXGBE_2ND_FLASH_BANK;
+
+	if (!(ctrl_word & IXGBE_SR_CTRL_WORD_NETLIST_BANK))
+		banks->netlist_bank = IXGBE_1ST_FLASH_BANK;
+	else
+		banks->netlist_bank = IXGBE_2ND_FLASH_BANK;
+
+	err = ixgbe_read_sr_base_address(hw, IXGBE_E610_SR_1ST_NVM_BANK_PTR,
+					 &banks->nvm_ptr);
+	if (err)
+		return err;
+
+	err = ixgbe_read_sr_area_size(hw, IXGBE_E610_SR_NVM_BANK_SIZE,
+				      &banks->nvm_size);
+	if (err)
+		return err;
+
+	err = ixgbe_read_sr_base_address(hw, IXGBE_E610_SR_1ST_OROM_BANK_PTR,
+					 &banks->orom_ptr);
+	if (err)
+		return err;
+
+	err = ixgbe_read_sr_area_size(hw, IXGBE_E610_SR_OROM_BANK_SIZE,
+				      &banks->orom_size);
+	if (err)
+		return err;
+
+	err = ixgbe_read_sr_base_address(hw, IXGBE_E610_SR_NETLIST_BANK_PTR,
+					 &banks->netlist_ptr);
+	if (err)
+		return err;
+
+	err = ixgbe_read_sr_area_size(hw, IXGBE_E610_SR_NETLIST_BANK_SIZE,
+				      &banks->netlist_size);
+
+	return err;
+}
+
+/**
+ * ixgbe_get_flash_bank_offset - Get offset into requested flash bank
+ * @hw: pointer to the HW structure
+ * @bank: whether to read from the active or inactive flash bank
+ * @module: the module to read from
+ *
+ * Based on the module, lookup the module offset from the beginning of the
+ * flash.
+ *
+ * Return: the flash offset. Note that a value of zero is invalid and must be
+ * treated as an error.
+ */
+static int ixgbe_get_flash_bank_offset(struct ixgbe_hw *hw,
+				       enum ixgbe_bank_select bank,
+				       u16 module)
+{
+	struct ixgbe_bank_info *banks = &hw->flash.banks;
+	enum ixgbe_flash_bank active_bank;
+	bool second_bank_active;
+	u32 offset, size;
+
+	switch (module) {
+	case IXGBE_E610_SR_1ST_NVM_BANK_PTR:
+		offset = banks->nvm_ptr;
+		size = banks->nvm_size;
+		active_bank = banks->nvm_bank;
+		break;
+	case IXGBE_E610_SR_1ST_OROM_BANK_PTR:
+		offset = banks->orom_ptr;
+		size = banks->orom_size;
+		active_bank = banks->orom_bank;
+		break;
+	case IXGBE_E610_SR_NETLIST_BANK_PTR:
+		offset = banks->netlist_ptr;
+		size = banks->netlist_size;
+		active_bank = banks->netlist_bank;
+		break;
+	default:
+		return 0;
+	}
+
+	switch (active_bank) {
+	case IXGBE_1ST_FLASH_BANK:
+		second_bank_active = false;
+		break;
+	case IXGBE_2ND_FLASH_BANK:
+		second_bank_active = true;
+		break;
+	default:
+		return 0;
+	}
+
+	/* The second flash bank is stored immediately following the first
+	 * bank. Based on whether the 1st or 2nd bank is active, and whether
+	 * we want the active or inactive bank, calculate the desired offset.
+	 */
+	switch (bank) {
+	case IXGBE_ACTIVE_FLASH_BANK:
+		return offset + (second_bank_active ? size : 0);
+	case IXGBE_INACTIVE_FLASH_BANK:
+		return offset + (second_bank_active ? 0 : size);
+	}
+
+	return 0;
+}
+
+/**
+ * ixgbe_read_flash_module - Read a word from one of the main NVM modules
+ * @hw: pointer to the HW structure
+ * @bank: which bank of the module to read
+ * @module: the module to read
+ * @offset: the offset into the module in bytes
+ * @data: storage for the word read from the flash
+ * @length: bytes of data to read
+ *
+ * Read data from the specified flash module. The bank parameter indicates
+ * whether or not to read from the active bank or the inactive bank of that
+ * module.
+ *
+ * The word will be read using flat NVM access, and relies on the
+ * hw->flash.banks data being setup by ixgbe_determine_active_flash_banks()
+ * during initialization.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_flash_module(struct ixgbe_hw *hw,
+				   enum ixgbe_bank_select bank,
+				   u16 module, u32 offset, u8 *data, u32 length)
+{
+	u32 start;
+	int err;
+
+	start = ixgbe_get_flash_bank_offset(hw, bank, module);
+	if (!start)
+		return -EINVAL;
+
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
+	if (err)
+		return err;
+
+	err = ixgbe_read_flat_nvm(hw, start + offset, &length, data, false);
+
+	ixgbe_release_nvm(hw);
+
+	return err;
+}
+
+/**
+ * ixgbe_read_nvm_module - Read from the active main NVM module
+ * @hw: pointer to the HW structure
+ * @bank: whether to read from active or inactive NVM module
+ * @offset: offset into the NVM module to read, in words
+ * @data: storage for returned word value
+ *
+ * Read the specified word from the active NVM module. This includes the CSS
+ * header at the start of the NVM module.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_nvm_module(struct ixgbe_hw *hw,
+				 enum ixgbe_bank_select bank,
+				 u32 offset, u16 *data)
+{
+	__le16 data_local;
+	int err;
+
+	err = ixgbe_read_flash_module(hw, bank, IXGBE_E610_SR_1ST_NVM_BANK_PTR,
+				      offset * sizeof(data_local),
+				      (u8 *)&data_local,
+				      sizeof(data_local));
+	if (!err)
+		*data = le16_to_cpu(data_local);
+
+	return err;
+}
+
+/**
+ * ixgbe_read_netlist_module - Read data from the netlist module area
+ * @hw: pointer to the HW structure
+ * @bank: whether to read from the active or inactive module
+ * @offset: offset into the netlist to read from
+ * @data: storage for returned word value
+ *
+ * Read a word from the specified netlist bank.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_netlist_module(struct ixgbe_hw *hw,
+				     enum ixgbe_bank_select bank,
+				     u32 offset, u16 *data)
+{
+	__le16 data_local;
+	int err;
+
+	err = ixgbe_read_flash_module(hw, bank, IXGBE_E610_SR_NETLIST_BANK_PTR,
+				      offset * sizeof(data_local),
+				      (u8 *)&data_local, sizeof(data_local));
+	if (!err)
+		*data = le16_to_cpu(data_local);
+
+	return err;
+}
+
+/**
+ * ixgbe_read_orom_module - Read from the active Option ROM module
+ * @hw: pointer to the HW structure
+ * @bank: whether to read from active or inactive OROM module
+ * @offset: offset into the OROM module to read, in words
+ * @data: storage for returned word value
+ *
+ * Read the specified word from the active Option ROM module of the flash.
+ * Note that unlike the NVM module, the CSS data is stored at the end of the
+ * module instead of at the beginning.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_orom_module(struct ixgbe_hw *hw,
+				  enum ixgbe_bank_select bank,
+				  u32 offset, u16 *data)
+{
+	__le16 data_local;
+	int err;
+
+	err = ixgbe_read_flash_module(hw, bank, IXGBE_E610_SR_1ST_OROM_BANK_PTR,
+				      offset * sizeof(data_local),
+				      (u8 *)&data_local, sizeof(data_local));
+	if (!err)
+		*data = le16_to_cpu(data_local);
+
+	return err;
+}
+
+/**
+ * ixgbe_get_nvm_css_hdr_len - Read the CSS header length
+ * @hw: pointer to the HW struct
+ * @bank: whether to read from the active or inactive flash bank
+ * @hdr_len: storage for header length in words
+ *
+ * Read the CSS header length from the NVM CSS header and add the
+ * Authentication header size, and then convert to words.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_get_nvm_css_hdr_len(struct ixgbe_hw *hw,
+				     enum ixgbe_bank_select bank,
+				     u32 *hdr_len)
+{
+	u16 hdr_len_l, hdr_len_h;
+	u32 hdr_len_dword;
+	int err;
+
+	err = ixgbe_read_nvm_module(hw, bank, IXGBE_NVM_CSS_HDR_LEN_L,
+				    &hdr_len_l);
+	if (err)
+		return err;
+
+	err = ixgbe_read_nvm_module(hw, bank, IXGBE_NVM_CSS_HDR_LEN_H,
+				    &hdr_len_h);
+	if (err)
+		return err;
+
+	/* CSS header length is in DWORD, so convert to words and add
+	 * authentication header size.
+	 */
+	hdr_len_dword = (hdr_len_h << 16) | hdr_len_l;
+	*hdr_len = hdr_len_dword * 2 + IXGBE_NVM_AUTH_HEADER_LEN;
+
+	return 0;
+}
+
+/**
+ * ixgbe_read_nvm_sr_copy - Read a word from the Shadow RAM copy
+ * @hw: pointer to the HW structure
+ * @bank: whether to read from the active or inactive NVM module
+ * @offset: offset into the Shadow RAM copy to read, in words
+ * @data: storage for returned word value
+ *
+ * Read the specified word from the copy of the Shadow RAM found in the
+ * specified NVM module.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_nvm_sr_copy(struct ixgbe_hw *hw,
+				  enum ixgbe_bank_select bank,
+				  u32 offset, u16 *data)
+{
+	u32 hdr_len;
+	int err;
+
+	err = ixgbe_get_nvm_css_hdr_len(hw, bank, &hdr_len);
+	if (err)
+		return err;
+
+	hdr_len = round_up(hdr_len, IXGBE_HDR_LEN_ROUNDUP);
+
+	return ixgbe_read_nvm_module(hw, bank, hdr_len + offset, data);
+}
+
+/**
+ * ixgbe_get_nvm_srev - Read the security revision from the NVM CSS header
+ * @hw: pointer to the HW struct
+ * @bank: whether to read from the active or inactive flash bank
+ * @srev: storage for security revision
+ *
+ * Read the security revision out of the CSS header of the active NVM module
+ * bank.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_get_nvm_srev(struct ixgbe_hw *hw,
+			      enum ixgbe_bank_select bank, u32 *srev)
+{
+	u16 srev_l, srev_h;
+	int err;
+
+	err = ixgbe_read_nvm_module(hw, bank, IXGBE_NVM_CSS_SREV_L, &srev_l);
+	if (err)
+		return err;
+
+	err = ixgbe_read_nvm_module(hw, bank, IXGBE_NVM_CSS_SREV_H, &srev_h);
+	if (err)
+		return err;
+
+	*srev = (srev_h << 16) | srev_l;
+
+	return 0;
+}
+
+/**
+ * ixgbe_get_orom_civd_data - Get the combo version information from Option ROM
+ * @hw: pointer to the HW struct
+ * @bank: whether to read from the active or inactive flash module
+ * @civd: storage for the Option ROM CIVD data.
+ *
+ * Searches through the Option ROM flash contents to locate the CIVD data for
+ * the image.
+ *
+ * Return: the exit code of the operation.
+ */
+static int
+ixgbe_get_orom_civd_data(struct ixgbe_hw *hw, enum ixgbe_bank_select bank,
+			 struct ixgbe_orom_civd_info *civd)
+{
+	struct ixgbe_orom_civd_info tmp;
+	u32 offset;
+	int err;
+
+	/* The CIVD section is located in the Option ROM aligned to 512 bytes.
+	 * The first 4 bytes must contain the ASCII characters "$CIV".
+	 * A simple modulo 256 sum of all of the bytes of the structure must
+	 * equal 0.
+	 */
+	for (offset = 0; (offset + SZ_512) <= hw->flash.banks.orom_size;
+	     offset += SZ_512) {
+		u8 sum = 0;
+		u32 i;
+
+		err = ixgbe_read_flash_module(hw, bank,
+					      IXGBE_E610_SR_1ST_OROM_BANK_PTR,
+					      offset,
+					      (u8 *)&tmp, sizeof(tmp));
+		if (err)
+			return err;
+
+		/* Skip forward until we find a matching signature */
+		if (memcmp(IXGBE_OROM_CIV_SIGNATURE, tmp.signature,
+			   sizeof(tmp.signature)))
+			continue;
+
+		/* Verify that the simple checksum is zero */
+		for (i = 0; i < sizeof(tmp); i++)
+			sum += ((u8 *)&tmp)[i];
+
+		if (sum)
+			return -EDOM;
+
+		*civd = tmp;
+		return 0;
+	}
+
+	return -ENODATA;
+}
+
+/**
+ * ixgbe_get_orom_srev - Read the security revision from the OROM CSS header
+ * @hw: pointer to the HW struct
+ * @bank: whether to read from active or inactive flash module
+ * @srev: storage for security revision
+ *
+ * Read the security revision out of the CSS header of the active OROM module
+ * bank.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_get_orom_srev(struct ixgbe_hw *hw,
+			       enum ixgbe_bank_select bank,
+			       u32 *srev)
+{
+	u32 orom_size_word = hw->flash.banks.orom_size / 2;
+	u32 css_start, hdr_len;
+	u16 srev_l, srev_h;
+	int err;
+
+	err = ixgbe_get_nvm_css_hdr_len(hw, bank, &hdr_len);
+	if (err)
+		return err;
+
+	if (orom_size_word < hdr_len)
+		return -EINVAL;
+
+	/* Calculate how far into the Option ROM the CSS header starts. Note
+	 * that ixgbe_read_orom_module takes a word offset.
+	 */
+	css_start = orom_size_word - hdr_len;
+	err = ixgbe_read_orom_module(hw, bank,
+				     css_start + IXGBE_NVM_CSS_SREV_L,
+				     &srev_l);
+	if (err)
+		return err;
+
+	err = ixgbe_read_orom_module(hw, bank,
+				     css_start + IXGBE_NVM_CSS_SREV_H,
+				     &srev_h);
+	if (err)
+		return err;
+
+	*srev = srev_h << 16 | srev_l;
+
+	return 0;
+}
+
+/**
+ * ixgbe_get_orom_ver_info - Read Option ROM version information
+ * @hw: pointer to the HW struct
+ * @bank: whether to read from the active or inactive flash module
+ * @orom: pointer to Option ROM info structure
+ *
+ * Read Option ROM version and security revision from the Option ROM flash
+ * section.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_get_orom_ver_info(struct ixgbe_hw *hw,
+				   enum ixgbe_bank_select bank,
+				   struct ixgbe_orom_info *orom)
+{
+	struct ixgbe_orom_civd_info civd;
+	u32 combo_ver;
+	int err;
+
+	err = ixgbe_get_orom_civd_data(hw, bank, &civd);
+	if (err)
+		return err;
+
+	combo_ver = get_unaligned_le32(&civd.combo_ver);
+
+	orom->major = (u8)FIELD_GET(IXGBE_OROM_VER_MASK, combo_ver);
+	orom->patch = (u8)FIELD_GET(IXGBE_OROM_VER_PATCH_MASK, combo_ver);
+	orom->build = (u16)FIELD_GET(IXGBE_OROM_VER_BUILD_MASK, combo_ver);
+
+	return ixgbe_get_orom_srev(hw, bank, &orom->srev);
+}
+
+/**
+ * ixgbe_get_inactive_orom_ver - Read Option ROM version from the inactive bank
+ * @hw: pointer to the HW structure
+ * @orom: storage for Option ROM version information
+ *
+ * Read the Option ROM version and security revision data for the inactive
+ * section of flash. Used to access version data for a pending update that has
+ * not yet been activated.
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_get_inactive_orom_ver(struct ixgbe_hw *hw,
+				struct ixgbe_orom_info *orom)
+{
+	return ixgbe_get_orom_ver_info(hw, IXGBE_INACTIVE_FLASH_BANK, orom);
+}
+
+/**
+ * ixgbe_get_nvm_ver_info - Read NVM version information
+ * @hw: pointer to the HW struct
+ * @bank: whether to read from the active or inactive flash bank
+ * @nvm: pointer to NVM info structure
+ *
+ * Read the NVM EETRACK ID and map version of the main NVM image bank, filling
+ * in the nvm info structure.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_get_nvm_ver_info(struct ixgbe_hw *hw,
+				  enum ixgbe_bank_select bank,
+				  struct ixgbe_nvm_info *nvm)
+{
+	u16 eetrack_lo, eetrack_hi, ver;
+	int err;
+
+	err = ixgbe_read_nvm_sr_copy(hw, bank,
+				     IXGBE_E610_SR_NVM_DEV_STARTER_VER, &ver);
+	if (err)
+		return err;
+
+	nvm->major = FIELD_GET(IXGBE_E610_NVM_VER_HI_MASK, ver);
+	nvm->minor = FIELD_GET(IXGBE_E610_NVM_VER_LO_MASK, ver);
+
+	err = ixgbe_read_nvm_sr_copy(hw, bank, IXGBE_E610_SR_NVM_EETRACK_LO,
+				     &eetrack_lo);
+	if (err)
+		return err;
+
+	err = ixgbe_read_nvm_sr_copy(hw, bank, IXGBE_E610_SR_NVM_EETRACK_HI,
+				     &eetrack_hi);
+	if (err)
+		return err;
+
+	nvm->eetrack = (eetrack_hi << 16) | eetrack_lo;
+
+	ixgbe_get_nvm_srev(hw, bank, &nvm->srev);
+
+	return 0;
+}
+
+/**
+ * ixgbe_get_inactive_nvm_ver - Read Option ROM version from the inactive bank
+ * @hw: pointer to the HW structure
+ * @nvm: storage for Option ROM version information
+ *
+ * Read the NVM EETRACK ID, Map version, and security revision of the
+ * inactive NVM bank. Used to access version data for a pending update that
+ * has not yet been activated.
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_get_inactive_nvm_ver(struct ixgbe_hw *hw, struct ixgbe_nvm_info *nvm)
+{
+	return ixgbe_get_nvm_ver_info(hw, IXGBE_INACTIVE_FLASH_BANK, nvm);
+}
+
+/**
+ * ixgbe_get_active_nvm_ver - Read Option ROM version from the active bank
+ * @hw: pointer to the HW structure
+ * @nvm: storage for Option ROM version information
+ *
+ * Reads the NVM EETRACK ID, Map version, and security revision of the
+ * active NVM bank.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_get_active_nvm_ver(struct ixgbe_hw *hw,
+				    struct ixgbe_nvm_info *nvm)
+{
+	return ixgbe_get_nvm_ver_info(hw, IXGBE_ACTIVE_FLASH_BANK, nvm);
+}
+
+/**
+ * ixgbe_get_netlist_info - Read the netlist version information
+ * @hw: pointer to the HW struct
+ * @bank: whether to read from the active or inactive flash bank
+ * @netlist: pointer to netlist version info structure
+ *
+ * Get the netlist version information from the requested bank. Reads the Link
+ * Topology section to find the Netlist ID block and extract the relevant
+ * information into the netlist version structure.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_get_netlist_info(struct ixgbe_hw *hw,
+				  enum ixgbe_bank_select bank,
+				  struct ixgbe_netlist_info *netlist)
+{
+	u16 module_id, length, node_count, i;
+	u16 *id_blk;
+	int err;
+
+	err = ixgbe_read_netlist_module(hw, bank, IXGBE_NETLIST_TYPE_OFFSET,
+					&module_id);
+	if (err)
+		return err;
+
+	if (module_id != IXGBE_NETLIST_LINK_TOPO_MOD_ID)
+		return -EIO;
+
+	err = ixgbe_read_netlist_module(hw, bank, IXGBE_LINK_TOPO_MODULE_LEN,
+					&length);
+	if (err)
+		return err;
+
+	/* Sanity check that we have at least enough words to store the
+	 * netlist ID block.
+	 */
+	if (length < IXGBE_NETLIST_ID_BLK_SIZE)
+		return -EIO;
+
+	err = ixgbe_read_netlist_module(hw, bank, IXGBE_LINK_TOPO_NODE_COUNT,
+					&node_count);
+	if (err)
+		return err;
+
+	node_count &= IXGBE_LINK_TOPO_NODE_COUNT_M;
+
+	id_blk = kcalloc(IXGBE_NETLIST_ID_BLK_SIZE, sizeof(*id_blk), GFP_KERNEL);
+	if (!id_blk)
+		return -ENOMEM;
+
+	/* Read out the entire Netlist ID Block at once. */
+	err = ixgbe_read_flash_module(hw, bank, IXGBE_E610_SR_NETLIST_BANK_PTR,
+				      IXGBE_NETLIST_ID_BLK_OFFSET(node_count) *
+				      sizeof(*id_blk), (u8 *)id_blk,
+				      IXGBE_NETLIST_ID_BLK_SIZE *
+				      sizeof(*id_blk));
+	if (err)
+		goto free_id_blk;
+
+	for (i = 0; i < IXGBE_NETLIST_ID_BLK_SIZE; i++)
+		id_blk[i] = le16_to_cpu(((__le16 *)id_blk)[i]);
+
+	netlist->major = id_blk[IXGBE_NETLIST_ID_BLK_MAJOR_VER_HIGH] << 16 |
+			 id_blk[IXGBE_NETLIST_ID_BLK_MAJOR_VER_LOW];
+	netlist->minor = id_blk[IXGBE_NETLIST_ID_BLK_MINOR_VER_HIGH] << 16 |
+			 id_blk[IXGBE_NETLIST_ID_BLK_MINOR_VER_LOW];
+	netlist->type = id_blk[IXGBE_NETLIST_ID_BLK_TYPE_HIGH] << 16 |
+			id_blk[IXGBE_NETLIST_ID_BLK_TYPE_LOW];
+	netlist->rev = id_blk[IXGBE_NETLIST_ID_BLK_REV_HIGH] << 16 |
+		       id_blk[IXGBE_NETLIST_ID_BLK_REV_LOW];
+	netlist->cust_ver = id_blk[IXGBE_NETLIST_ID_BLK_CUST_VER];
+	/* Read the left most 4 bytes of SHA */
+	netlist->hash = id_blk[IXGBE_NETLIST_ID_BLK_SHA_HASH_WORD(15)] << 16 |
+			id_blk[IXGBE_NETLIST_ID_BLK_SHA_HASH_WORD(14)];
+
+free_id_blk:
+	kfree(id_blk);
+	return err;
+}
+
+/**
+ * ixgbe_get_inactive_netlist_ver - Read netlist version from the inactive bank
+ * @hw: pointer to the HW struct
+ * @netlist: pointer to netlist version info structure
+ *
+ * Read the netlist version data from the inactive netlist bank. Used to
+ * extract version data of a pending flash update in order to display the
+ * version data.
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_get_inactive_netlist_ver(struct ixgbe_hw *hw,
+				   struct ixgbe_netlist_info *netlist)
+{
+	return ixgbe_get_netlist_info(hw, IXGBE_INACTIVE_FLASH_BANK, netlist);
+}
+
+/**
+ * ixgbe_get_flash_data - get flash data
+ * @hw: pointer to the HW struct
+ *
+ * Read and populate flash data such as Shadow RAM size,
+ * max_timeout and blank_nvm_mode
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_get_flash_data(struct ixgbe_hw *hw)
+{
+	struct ixgbe_flash_info *flash = &hw->flash;
+	u32 fla, gens_stat;
+	u8 sr_size;
+	int err;
+
+	/* The SR size is stored regardless of the NVM programming mode
+	 * as the blank mode may be used in the factory line.
+	 */
+	gens_stat = IXGBE_READ_REG(hw, GLNVM_GENS);
+	sr_size = FIELD_GET(GLNVM_GENS_SR_SIZE_M, gens_stat);
+
+	/* Switching to words (sr_size contains power of 2) */
+	flash->sr_words = BIT(sr_size) * (SZ_1K / sizeof(u16));
+
+	/* Check if we are in the normal or blank NVM programming mode */
+	fla = IXGBE_READ_REG(hw, IXGBE_GLNVM_FLA);
+	if (fla & IXGBE_GLNVM_FLA_LOCKED_M) {
+		flash->blank_nvm_mode = false;
+	} else {
+		flash->blank_nvm_mode = true;
+		return -EIO;
+	}
+
+	err = ixgbe_discover_flash_size(hw);
+	if (err)
+		return err;
+
+	err = ixgbe_determine_active_flash_banks(hw);
+	if (err)
+		return err;
+
+	err = ixgbe_get_nvm_ver_info(hw, IXGBE_ACTIVE_FLASH_BANK,
+				     &flash->nvm);
+	if (err)
+		return err;
+
+	err = ixgbe_get_orom_ver_info(hw, IXGBE_ACTIVE_FLASH_BANK,
+				      &flash->orom);
+	if (err)
+		return err;
+
+	err = ixgbe_get_netlist_info(hw, IXGBE_ACTIVE_FLASH_BANK,
+				     &flash->netlist);
+	return err;
+}
+
+/**
+ * ixgbe_aci_nvm_update_empr - update NVM using EMPR
+ * @hw: pointer to the HW struct
+ *
+ * Force EMP reset using ACI command (0x0709). This command allows SW to
+ * request an EMPR to activate new FW.
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_aci_nvm_update_empr(struct ixgbe_hw *hw)
+{
+	struct libie_aq_desc desc;
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_update_empr);
+
+	return ixgbe_aci_send_cmd(hw, &desc, NULL, 0);
+}
+
+/* ixgbe_nvm_set_pkg_data - NVM set package data
+ * @hw: pointer to the HW struct
+ * @del_pkg_data_flag: If is set then the current pkg_data store by FW
+ *		       is deleted.
+ *		       If bit is set to 1, then buffer should be size 0.
+ * @data: pointer to buffer
+ * @length: length of the buffer
+ *
+ * Set package data using ACI command (0x070A).
+ * This command is equivalent to the reception of
+ * a PLDM FW Update GetPackageData cmd. This command should be sent
+ * as part of the NVM update as the first cmd in the flow.
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_nvm_set_pkg_data(struct ixgbe_hw *hw, bool del_pkg_data_flag,
+			   u8 *data, u16 length)
+{
+	struct ixgbe_aci_cmd_nvm_pkg_data *cmd;
+	struct libie_aq_desc desc;
+
+	if (length != 0 && !data)
+		return -EINVAL;
+
+	cmd = libie_aq_raw(&desc);
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_pkg_data);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
+
+	if (del_pkg_data_flag)
+		cmd->cmd_flags |= IXGBE_ACI_NVM_PKG_DELETE;
+
+	return ixgbe_aci_send_cmd(hw, &desc, data, length);
+}
+
+/* ixgbe_nvm_pass_component_tbl - NVM pass component table
+ * @hw: pointer to the HW struct
+ * @data: pointer to buffer
+ * @length: length of the buffer
+ * @transfer_flag: parameter for determining stage of the update
+ * @comp_response: a pointer to the response from the 0x070B ACI.
+ * @comp_response_code: a pointer to the response code from the 0x070B ACI.
+ *
+ * Pass component table using ACI command (0x070B). This command is equivalent
+ * to the reception of a PLDM FW Update PassComponentTable cmd.
+ * This command should be sent once per component. It can be only sent after
+ * Set Package Data cmd and before actual update. FW will assume these
+ * commands are going to be sent until the TransferFlag is set to End or
+ * StartAndEnd.
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_nvm_pass_component_tbl(struct ixgbe_hw *hw, u8 *data, u16 length,
+				 u8 transfer_flag, u8 *comp_response,
+				 u8 *comp_response_code)
+{
+	struct ixgbe_aci_cmd_nvm_pass_comp_tbl *cmd;
+	struct libie_aq_desc desc;
+	int err;
+
+	if (!data || !comp_response || !comp_response_code)
+		return -EINVAL;
+
+	cmd = libie_aq_raw(&desc);
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc,
+					ixgbe_aci_opc_nvm_pass_component_tbl);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
+
+	cmd->transfer_flag = transfer_flag;
+	err = ixgbe_aci_send_cmd(hw, &desc, data, length);
+	if (!err) {
+		*comp_response = cmd->component_response;
+		*comp_response_code = cmd->component_response_code;
 	}
 
 	return err;
@@ -2408,7 +3619,7 @@ int ixgbe_read_ee_aci_e610(struct ixgbe_hw *hw, u16 offset, u16 *data)
 			return err;
 	}
 
-	err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
 	if (err)
 		return err;
 
@@ -2441,7 +3652,7 @@ int ixgbe_read_ee_aci_buffer_e610(struct ixgbe_hw *hw, u16 offset,
 			return err;
 	}
 
-	err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+	err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
 	if (err)
 		return err;
 
@@ -2481,11 +3692,11 @@ int ixgbe_validate_eeprom_checksum_e610(struct ixgbe_hw *hw, u16 *checksum_val)
 	if (checksum_val) {
 		u16 tmp_checksum;
 
-		err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+		err = ixgbe_acquire_nvm(hw, LIBIE_AQC_RES_ACCESS_READ);
 		if (err)
 			return err;
 
-		err = ixgbe_read_sr_word_aci(hw, E610_SR_SW_CHECKSUM_WORD,
+		err = ixgbe_read_sr_word_aci(hw, IXGBE_E610_SR_SW_CHECKSUM_WORD,
 					     &tmp_checksum);
 		ixgbe_release_nvm(hw);
 
@@ -2580,9 +3791,129 @@ reset_hw_out:
 	return err;
 }
 
+/**
+ * ixgbe_get_pfa_module_tlv - Read sub module TLV from NVM PFA
+ * @hw: pointer to hardware structure
+ * @module_tlv: pointer to module TLV to return
+ * @module_tlv_len: pointer to module TLV length to return
+ * @module_type: module type requested
+ *
+ * Find the requested sub module TLV type from the Preserved Field
+ * Area (PFA) and returns the TLV pointer and length. The caller can
+ * use these to read the variable length TLV value.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_get_pfa_module_tlv(struct ixgbe_hw *hw, u16 *module_tlv,
+				    u16 *module_tlv_len, u16 module_type)
+{
+	u16 pfa_len, pfa_ptr, pfa_end_ptr;
+	u16 next_tlv;
+	int err;
+
+	err = ixgbe_read_ee_aci_e610(hw, IXGBE_E610_SR_PFA_PTR, &pfa_ptr);
+	if (err)
+		return err;
+
+	err = ixgbe_read_ee_aci_e610(hw, pfa_ptr, &pfa_len);
+	if (err)
+		return err;
+
+	/* Starting with first TLV after PFA length, iterate through the list
+	 * of TLVs to find the requested one.
+	 */
+	next_tlv = pfa_ptr + 1;
+	pfa_end_ptr = pfa_ptr + pfa_len;
+	while (next_tlv < pfa_end_ptr) {
+		u16 tlv_sub_module_type, tlv_len;
+
+		/* Read TLV type */
+		err = ixgbe_read_ee_aci_e610(hw, next_tlv,
+					     &tlv_sub_module_type);
+		if (err)
+			break;
+
+		/* Read TLV length */
+		err = ixgbe_read_ee_aci_e610(hw, next_tlv + 1, &tlv_len);
+		if (err)
+			break;
+
+		if (tlv_sub_module_type == module_type) {
+			if (tlv_len) {
+				*module_tlv = next_tlv;
+				*module_tlv_len = tlv_len;
+				return 0;
+			}
+			return -EIO;
+		}
+		/* Check next TLV, i.e. current TLV pointer + length + 2 words
+		 * (for current TLV's type and length).
+		 */
+		next_tlv = next_tlv + tlv_len + 2;
+	}
+	/* Module does not exist */
+	return -ENODATA;
+}
+
+/**
+ * ixgbe_read_pba_string_e610 - Read PBA string from NVM
+ * @hw: pointer to hardware structure
+ * @pba_num: stores the part number string from the NVM
+ * @pba_num_size: part number string buffer length
+ *
+ * Read the part number string from the NVM.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_pba_string_e610(struct ixgbe_hw *hw, u8 *pba_num,
+				      u32 pba_num_size)
+{
+	u16 pba_tlv, pba_tlv_len;
+	u16 pba_word, pba_size;
+	int err;
+
+	*pba_num = '\0';
+
+	err = ixgbe_get_pfa_module_tlv(hw, &pba_tlv, &pba_tlv_len,
+				       IXGBE_E610_SR_PBA_BLOCK_PTR);
+	if (err)
+		return err;
+
+	/* pba_size is the next word */
+	err = ixgbe_read_ee_aci_e610(hw, (pba_tlv + 2), &pba_size);
+	if (err)
+		return err;
+
+	if (pba_tlv_len < pba_size)
+		return -EINVAL;
+
+	/* Subtract one to get PBA word count (PBA Size word is included in
+	 * total size).
+	 */
+	pba_size--;
+
+	if (pba_num_size < (((u32)pba_size * 2) + 1))
+		return -EINVAL;
+
+	for (u16 i = 0; i < pba_size; i++) {
+		err = ixgbe_read_ee_aci_e610(hw, (pba_tlv + 2 + 1) + i,
+					     &pba_word);
+		if (err)
+			return err;
+
+		pba_num[(i * 2)] = FIELD_GET(IXGBE_E610_SR_PBA_BLOCK_MASK,
+					     pba_word);
+		pba_num[(i * 2) + 1] = pba_word & 0xFF;
+	}
+
+	pba_num[(pba_size * 2)] = '\0';
+
+	return err;
+}
+
 static const struct ixgbe_mac_operations mac_ops_e610 = {
 	.init_hw			= ixgbe_init_hw_generic,
-	.start_hw			= ixgbe_start_hw_X540,
+	.start_hw			= ixgbe_start_hw_e610,
 	.clear_hw_cntrs			= ixgbe_clear_hw_cntrs_generic,
 	.enable_rx_dma			= ixgbe_enable_rx_dma_generic,
 	.get_mac_addr			= ixgbe_get_mac_addr_generic,
@@ -2621,8 +3952,12 @@ static const struct ixgbe_mac_operations mac_ops_e610 = {
 	.led_off			= ixgbe_led_off_generic,
 	.init_led_link_act		= ixgbe_init_led_link_act_generic,
 	.reset_hw			= ixgbe_reset_hw_e610,
+	.get_fw_ver                     = ixgbe_aci_get_fw_ver,
 	.get_media_type			= ixgbe_get_media_type_e610,
 	.setup_link			= ixgbe_setup_link_e610,
+	.fw_recovery_mode		= ixgbe_fw_recovery_mode_e610,
+	.fw_rollback_mode		= ixgbe_fw_rollback_mode_e610,
+	.get_nvm_ver			= ixgbe_get_active_nvm_ver,
 	.get_link_capabilities		= ixgbe_get_link_capabilities_e610,
 	.get_bus_info			= ixgbe_get_bus_info_generic,
 	.acquire_swfw_sync		= ixgbe_acquire_swfw_sync_X540,
@@ -2632,6 +3967,10 @@ static const struct ixgbe_mac_operations mac_ops_e610 = {
 	.prot_autoc_write		= prot_autoc_write_generic,
 	.setup_fc			= ixgbe_setup_fc_e610,
 	.fc_autoneg			= ixgbe_fc_autoneg_e610,
+	.enable_mdd			= ixgbe_enable_mdd_x550,
+	.disable_mdd			= ixgbe_disable_mdd_x550,
+	.restore_mdd_vf			= ixgbe_restore_mdd_vf_x550,
+	.handle_mdd			= ixgbe_handle_mdd_x550,
 };
 
 static const struct ixgbe_phy_operations phy_ops_e610 = {
@@ -2647,6 +3986,8 @@ static const struct ixgbe_eeprom_operations eeprom_ops_e610 = {
 	.read				= ixgbe_read_ee_aci_e610,
 	.read_buffer			= ixgbe_read_ee_aci_buffer_e610,
 	.validate_checksum		= ixgbe_validate_eeprom_checksum_e610,
+	.read_pba_string		= ixgbe_read_pba_string_e610,
+	.init_params			= ixgbe_init_eeprom_params_e610,
 };
 
 const struct ixgbe_info ixgbe_e610_info = {

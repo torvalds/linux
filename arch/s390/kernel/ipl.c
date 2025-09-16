@@ -270,7 +270,7 @@ static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
 {									\
 	if (len >= sizeof(_value))					\
 		return -E2BIG;						\
-	len = strscpy(_value, buf, sizeof(_value));			\
+	len = strscpy(_value, buf);					\
 	if ((ssize_t)len < 0)						\
 		return len;						\
 	strim(_value);							\
@@ -596,7 +596,7 @@ static struct attribute *ipl_fcp_attrs[] = {
 
 static const struct attribute_group ipl_fcp_attr_group = {
 	.attrs = ipl_fcp_attrs,
-	.bin_attrs_new = ipl_fcp_bin_attrs,
+	.bin_attrs = ipl_fcp_bin_attrs,
 };
 
 static struct attribute *ipl_nvme_attrs[] = {
@@ -610,7 +610,7 @@ static struct attribute *ipl_nvme_attrs[] = {
 
 static const struct attribute_group ipl_nvme_attr_group = {
 	.attrs = ipl_nvme_attrs,
-	.bin_attrs_new = ipl_nvme_bin_attrs,
+	.bin_attrs = ipl_nvme_bin_attrs,
 };
 
 static struct attribute *ipl_eckd_attrs[] = {
@@ -623,7 +623,7 @@ static struct attribute *ipl_eckd_attrs[] = {
 
 static const struct attribute_group ipl_eckd_attr_group = {
 	.attrs = ipl_eckd_attrs,
-	.bin_attrs_new = ipl_eckd_bin_attrs,
+	.bin_attrs = ipl_eckd_bin_attrs,
 };
 
 /* CCW ipl device attributes */
@@ -920,7 +920,7 @@ static struct attribute *reipl_fcp_attrs[] = {
 
 static const struct attribute_group reipl_fcp_attr_group = {
 	.attrs = reipl_fcp_attrs,
-	.bin_attrs_new = reipl_fcp_bin_attrs,
+	.bin_attrs = reipl_fcp_bin_attrs,
 };
 
 static struct kobj_attribute sys_reipl_fcp_clear_attr =
@@ -958,7 +958,7 @@ static struct attribute *reipl_nvme_attrs[] = {
 
 static const struct attribute_group reipl_nvme_attr_group = {
 	.attrs = reipl_nvme_attrs,
-	.bin_attrs_new = reipl_nvme_bin_attrs
+	.bin_attrs = reipl_nvme_bin_attrs
 };
 
 static ssize_t reipl_nvme_clear_show(struct kobject *kobj,
@@ -1051,7 +1051,7 @@ static struct attribute *reipl_eckd_attrs[] = {
 
 static const struct attribute_group reipl_eckd_attr_group = {
 	.attrs = reipl_eckd_attrs,
-	.bin_attrs_new = reipl_eckd_bin_attrs
+	.bin_attrs = reipl_eckd_bin_attrs
 };
 
 static ssize_t reipl_eckd_clear_show(struct kobject *kobj,
@@ -1596,7 +1596,7 @@ static const struct bin_attribute *const dump_fcp_bin_attrs[] = {
 static const struct attribute_group dump_fcp_attr_group = {
 	.name  = IPL_FCP_STR,
 	.attrs = dump_fcp_attrs,
-	.bin_attrs_new = dump_fcp_bin_attrs,
+	.bin_attrs = dump_fcp_bin_attrs,
 };
 
 /* NVME dump device attributes */
@@ -1630,7 +1630,7 @@ static const struct bin_attribute *const dump_nvme_bin_attrs[] = {
 static const struct attribute_group dump_nvme_attr_group = {
 	.name  = IPL_NVME_STR,
 	.attrs = dump_nvme_attrs,
-	.bin_attrs_new = dump_nvme_bin_attrs,
+	.bin_attrs = dump_nvme_bin_attrs,
 };
 
 /* ECKD dump device attributes */
@@ -1664,7 +1664,7 @@ static const struct bin_attribute *const dump_eckd_bin_attrs[] = {
 static const struct attribute_group dump_eckd_attr_group = {
 	.name  = IPL_ECKD_STR,
 	.attrs = dump_eckd_attrs,
-	.bin_attrs_new = dump_eckd_bin_attrs,
+	.bin_attrs = dump_eckd_bin_attrs,
 };
 
 /* CCW dump device attributes */
@@ -2249,26 +2249,28 @@ static int __init s390_ipl_init(void)
 
 __initcall(s390_ipl_init);
 
-static void __init strncpy_skip_quote(char *dst, char *src, int n)
+static void __init strscpy_skip_quote(char *dst, char *src, int n)
 {
 	int sx, dx;
 
-	dx = 0;
-	for (sx = 0; src[sx] != 0; sx++) {
+	if (!n)
+		return;
+	for (sx = 0, dx = 0; src[sx]; sx++) {
 		if (src[sx] == '"')
 			continue;
-		dst[dx++] = src[sx];
-		if (dx >= n)
+		dst[dx] = src[sx];
+		if (dx + 1 == n)
 			break;
+		dx++;
 	}
+	dst[dx] = '\0';
 }
 
 static int __init vmcmd_on_reboot_setup(char *str)
 {
 	if (!machine_is_vm())
 		return 1;
-	strncpy_skip_quote(vmcmd_on_reboot, str, VMCMD_MAX_SIZE);
-	vmcmd_on_reboot[VMCMD_MAX_SIZE] = 0;
+	strscpy_skip_quote(vmcmd_on_reboot, str, sizeof(vmcmd_on_reboot));
 	on_reboot_trigger.action = &vmcmd_action;
 	return 1;
 }
@@ -2278,8 +2280,7 @@ static int __init vmcmd_on_panic_setup(char *str)
 {
 	if (!machine_is_vm())
 		return 1;
-	strncpy_skip_quote(vmcmd_on_panic, str, VMCMD_MAX_SIZE);
-	vmcmd_on_panic[VMCMD_MAX_SIZE] = 0;
+	strscpy_skip_quote(vmcmd_on_panic, str, sizeof(vmcmd_on_panic));
 	on_panic_trigger.action = &vmcmd_action;
 	return 1;
 }
@@ -2289,8 +2290,7 @@ static int __init vmcmd_on_halt_setup(char *str)
 {
 	if (!machine_is_vm())
 		return 1;
-	strncpy_skip_quote(vmcmd_on_halt, str, VMCMD_MAX_SIZE);
-	vmcmd_on_halt[VMCMD_MAX_SIZE] = 0;
+	strscpy_skip_quote(vmcmd_on_halt, str, sizeof(vmcmd_on_halt));
 	on_halt_trigger.action = &vmcmd_action;
 	return 1;
 }
@@ -2300,8 +2300,7 @@ static int __init vmcmd_on_poff_setup(char *str)
 {
 	if (!machine_is_vm())
 		return 1;
-	strncpy_skip_quote(vmcmd_on_poff, str, VMCMD_MAX_SIZE);
-	vmcmd_on_poff[VMCMD_MAX_SIZE] = 0;
+	strscpy_skip_quote(vmcmd_on_poff, str, sizeof(vmcmd_on_poff));
 	on_poff_trigger.action = &vmcmd_action;
 	return 1;
 }

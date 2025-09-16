@@ -39,6 +39,7 @@ static void jpeg_v5_0_1_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void jpeg_v5_0_1_set_irq_funcs(struct amdgpu_device *adev);
 static int jpeg_v5_0_1_set_powergating_state(struct amdgpu_ip_block *ip_block,
 					     enum amd_powergating_state state);
+static void jpeg_v5_0_1_set_ras_funcs(struct amdgpu_device *adev);
 static void jpeg_v5_0_1_dec_ring_set_wptr(struct amdgpu_ring *ring);
 
 static int amdgpu_ih_srcid_jpeg[] = {
@@ -120,6 +121,7 @@ static int jpeg_v5_0_1_early_init(struct amdgpu_ip_block *ip_block)
 	adev->jpeg.num_jpeg_rings = AMDGPU_MAX_JPEG_RINGS;
 	jpeg_v5_0_1_set_dec_ring_funcs(adev);
 	jpeg_v5_0_1_set_irq_funcs(adev);
+	jpeg_v5_0_1_set_ras_funcs(adev);
 
 	return 0;
 }
@@ -144,6 +146,17 @@ static int jpeg_v5_0_1_sw_init(struct amdgpu_ip_block *ip_block)
 		if (r)
 			return r;
 	}
+	/* JPEG DJPEG POISON EVENT */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN,
+			VCN_5_0__SRCID_DJPEG0_POISON, &adev->jpeg.inst->ras_poison_irq);
+	if (r)
+		return r;
+
+	/* JPEG EJPEG POISON EVENT */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN,
+			VCN_5_0__SRCID_EJPEG0_POISON, &adev->jpeg.inst->ras_poison_irq);
+	if (r)
+		return r;
 
 	r = amdgpu_jpeg_sw_init(adev);
 	if (r)
@@ -183,18 +196,25 @@ static int jpeg_v5_0_1_sw_init(struct amdgpu_ip_block *ip_block)
 		}
 	}
 
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__JPEG)) {
+		r = amdgpu_jpeg_ras_sw_init(adev);
+		if (r) {
+			dev_err(adev->dev, "Failed to initialize jpeg ras block!\n");
+			return r;
+		}
+	}
+
 	r = amdgpu_jpeg_reg_dump_init(adev, jpeg_reg_list_5_0_1, ARRAY_SIZE(jpeg_reg_list_5_0_1));
 	if (r)
 		return r;
 
-	if (!amdgpu_sriov_vf(adev)) {
-		adev->jpeg.supported_reset = AMDGPU_RESET_TYPE_PER_QUEUE;
-		r = amdgpu_jpeg_sysfs_reset_mask_init(adev);
-		if (r)
-			return r;
-	}
+	adev->jpeg.supported_reset =
+		amdgpu_get_soft_full_reset_mask(&adev->jpeg.inst[0].ring_dec[0]);
+	if (!amdgpu_sriov_vf(adev))
+		adev->jpeg.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
+	r = amdgpu_jpeg_sysfs_reset_mask_init(adev);
 
-	return 0;
+	return r;
 }
 
 /**
@@ -213,8 +233,7 @@ static int jpeg_v5_0_1_sw_fini(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	if (!amdgpu_sriov_vf(adev))
-		amdgpu_jpeg_sysfs_reset_mask_fini(adev);
+	amdgpu_jpeg_sysfs_reset_mask_fini(adev);
 
 	r = amdgpu_jpeg_sw_fini(adev);
 
@@ -295,6 +314,9 @@ static int jpeg_v5_0_1_hw_fini(struct amdgpu_ip_block *ip_block)
 		if (adev->jpeg.cur_state != AMD_PG_STATE_GATE)
 			ret = jpeg_v5_0_1_set_powergating_state(ip_block, AMD_PG_STATE_GATE);
 	}
+
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__JPEG) && !amdgpu_sriov_vf(adev))
+		amdgpu_irq_put(adev, &adev->jpeg.inst->ras_poison_irq, 0);
 
 	return ret;
 }
@@ -675,7 +697,7 @@ static int jpeg_v5_0_1_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 					     enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = ip_block->adev;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	bool enable = state == AMD_CG_STATE_GATE;
 
 	int i;
 
@@ -722,6 +744,16 @@ static int jpeg_v5_0_1_set_interrupt_state(struct amdgpu_device *adev,
 {
 	return 0;
 }
+
+static int jpeg_v5_0_1_set_ras_interrupt_state(struct amdgpu_device *adev,
+					struct amdgpu_irq_src *source,
+					unsigned int type,
+					enum amdgpu_interrupt_state state)
+{
+	return 0;
+}
+
+
 
 static int jpeg_v5_0_1_process_interrupt(struct amdgpu_device *adev,
 					 struct amdgpu_irq_src *source,
@@ -808,14 +840,14 @@ static void jpeg_v5_0_1_core_stall_reset(struct amdgpu_ring *ring)
 	WREG32_SOC15(JPEG, jpeg_inst, regJPEG_CORE_RST_CTRL, 0x00);
 }
 
-static int jpeg_v5_0_1_ring_reset(struct amdgpu_ring *ring, unsigned int vmid)
+static int jpeg_v5_0_1_ring_reset(struct amdgpu_ring *ring,
+				  unsigned int vmid,
+				  struct amdgpu_fence *timedout_fence)
 {
-	if (amdgpu_sriov_vf(ring->adev))
-		return -EOPNOTSUPP;
-
+	amdgpu_ring_reset_helper_begin(ring, timedout_fence);
 	jpeg_v5_0_1_core_stall_reset(ring);
 	jpeg_v5_0_1_init_jrbc(ring);
-	return amdgpu_ring_test_helper(ring);
+	return amdgpu_ring_reset_helper_end(ring, timedout_fence);
 }
 
 static const struct amd_ip_funcs jpeg_v5_0_1_ip_funcs = {
@@ -892,6 +924,11 @@ static const struct amdgpu_irq_src_funcs jpeg_v5_0_1_irq_funcs = {
 	.process = jpeg_v5_0_1_process_interrupt,
 };
 
+static const struct amdgpu_irq_src_funcs jpeg_v5_0_1_ras_irq_funcs = {
+	.set = jpeg_v5_0_1_set_ras_interrupt_state,
+	.process = amdgpu_jpeg_process_poison_irq,
+};
+
 static void jpeg_v5_0_1_set_irq_funcs(struct amdgpu_device *adev)
 {
 	int i;
@@ -900,6 +937,10 @@ static void jpeg_v5_0_1_set_irq_funcs(struct amdgpu_device *adev)
 		adev->jpeg.inst->irq.num_types += adev->jpeg.num_jpeg_rings;
 
 	adev->jpeg.inst->irq.funcs = &jpeg_v5_0_1_irq_funcs;
+
+	adev->jpeg.inst->ras_poison_irq.num_types = 1;
+	adev->jpeg.inst->ras_poison_irq.funcs = &jpeg_v5_0_1_ras_irq_funcs;
+
 }
 
 const struct amdgpu_ip_block_version jpeg_v5_0_1_ip_block = {
@@ -909,3 +950,151 @@ const struct amdgpu_ip_block_version jpeg_v5_0_1_ip_block = {
 	.rev = 1,
 	.funcs = &jpeg_v5_0_1_ip_funcs,
 };
+
+static uint32_t jpeg_v5_0_1_query_poison_by_instance(struct amdgpu_device *adev,
+		uint32_t instance, uint32_t sub_block)
+{
+	uint32_t poison_stat = 0, reg_value = 0;
+
+	switch (sub_block) {
+	case AMDGPU_JPEG_V5_0_1_JPEG0:
+		reg_value = RREG32_SOC15(JPEG, instance, regUVD_RAS_JPEG0_STATUS);
+		poison_stat = REG_GET_FIELD(reg_value, UVD_RAS_JPEG0_STATUS, POISONED_PF);
+		break;
+	case AMDGPU_JPEG_V5_0_1_JPEG1:
+		reg_value = RREG32_SOC15(JPEG, instance, regUVD_RAS_JPEG1_STATUS);
+		poison_stat = REG_GET_FIELD(reg_value, UVD_RAS_JPEG1_STATUS, POISONED_PF);
+		break;
+	default:
+		break;
+	}
+
+	if (poison_stat)
+		dev_info(adev->dev, "Poison detected in JPEG%d sub_block%d\n",
+			instance, sub_block);
+
+	return poison_stat;
+}
+
+static bool jpeg_v5_0_1_query_ras_poison_status(struct amdgpu_device *adev)
+{
+	uint32_t inst = 0, sub = 0, poison_stat = 0;
+
+	for (inst = 0; inst < adev->jpeg.num_jpeg_inst; inst++)
+		for (sub = 0; sub < AMDGPU_JPEG_V5_0_1_MAX_SUB_BLOCK; sub++)
+			poison_stat +=
+			jpeg_v5_0_1_query_poison_by_instance(adev, inst, sub);
+
+	return !!poison_stat;
+}
+
+static const struct amdgpu_ras_block_hw_ops jpeg_v5_0_1_ras_hw_ops = {
+	.query_poison_status = jpeg_v5_0_1_query_ras_poison_status,
+};
+
+static int jpeg_v5_0_1_aca_bank_parser(struct aca_handle *handle, struct aca_bank *bank,
+				      enum aca_smu_type type, void *data)
+{
+	struct aca_bank_info info;
+	u64 misc0;
+	int ret;
+
+	ret = aca_bank_info_decode(bank, &info);
+	if (ret)
+		return ret;
+
+	misc0 = bank->regs[ACA_REG_IDX_MISC0];
+	switch (type) {
+	case ACA_SMU_TYPE_UE:
+		bank->aca_err_type = ACA_ERROR_TYPE_UE;
+		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_UE,
+						     1ULL);
+		break;
+	case ACA_SMU_TYPE_CE:
+		bank->aca_err_type = ACA_ERROR_TYPE_CE;
+		ret = aca_error_cache_log_bank_error(handle, &info, bank->aca_err_type,
+						     ACA_REG__MISC0__ERRCNT(misc0));
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+/* reference to smu driver if header file */
+static int jpeg_v5_0_1_err_codes[] = {
+	16, 17, 18, 19, 20, 21, 22, 23, /* JPEG[0-9][S|D] */
+	24, 25, 26, 27, 28, 29, 30, 31,
+	48, 49, 50, 51,
+};
+
+static bool jpeg_v5_0_1_aca_bank_is_valid(struct aca_handle *handle, struct aca_bank *bank,
+					 enum aca_smu_type type, void *data)
+{
+	u32 instlo;
+
+	instlo = ACA_REG__IPID__INSTANCEIDLO(bank->regs[ACA_REG_IDX_IPID]);
+	instlo &= GENMASK(31, 1);
+
+	if (instlo != mmSMNAID_AID0_MCA_SMU)
+		return false;
+
+	if (aca_bank_check_error_codes(handle->adev, bank,
+				       jpeg_v5_0_1_err_codes,
+				       ARRAY_SIZE(jpeg_v5_0_1_err_codes)))
+		return false;
+
+	return true;
+}
+
+static const struct aca_bank_ops jpeg_v5_0_1_aca_bank_ops = {
+	.aca_bank_parser = jpeg_v5_0_1_aca_bank_parser,
+	.aca_bank_is_valid = jpeg_v5_0_1_aca_bank_is_valid,
+};
+
+static const struct aca_info jpeg_v5_0_1_aca_info = {
+	.hwip = ACA_HWIP_TYPE_SMU,
+	.mask = ACA_ERROR_UE_MASK,
+	.bank_ops = &jpeg_v5_0_1_aca_bank_ops,
+};
+
+static int jpeg_v5_0_1_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
+{
+	int r;
+
+	r = amdgpu_ras_block_late_init(adev, ras_block);
+	if (r)
+		return r;
+
+	r = amdgpu_ras_bind_aca(adev, AMDGPU_RAS_BLOCK__JPEG,
+				&jpeg_v5_0_1_aca_info, NULL);
+	if (r)
+		goto late_fini;
+
+	if (amdgpu_ras_is_supported(adev, ras_block->block) &&
+		adev->jpeg.inst->ras_poison_irq.funcs) {
+		r = amdgpu_irq_get(adev, &adev->jpeg.inst->ras_poison_irq, 0);
+		if (r)
+			goto late_fini;
+	}
+
+	return 0;
+
+late_fini:
+	amdgpu_ras_block_late_fini(adev, ras_block);
+
+	return r;
+}
+
+static struct amdgpu_jpeg_ras jpeg_v5_0_1_ras = {
+	.ras_block = {
+		.hw_ops = &jpeg_v5_0_1_ras_hw_ops,
+		.ras_late_init = jpeg_v5_0_1_ras_late_init,
+	},
+};
+
+static void jpeg_v5_0_1_set_ras_funcs(struct amdgpu_device *adev)
+{
+	adev->jpeg.ras = &jpeg_v5_0_1_ras;
+}

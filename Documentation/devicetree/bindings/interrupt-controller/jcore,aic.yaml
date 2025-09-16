@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright 2018 Linaro Ltd.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/jcore,aic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: J-Core Advanced Interrupt Controller
+
+maintainers:
+  - Rich Felker <dalias@libc.org>
+
+properties:
+  compatible:
+    enum:
+      - jcore,aic1
+      - jcore,aic2
+
+  reg:
+    description: Memory region(s) for configuration. For SMP, there should be one
+      region per CPU, indexed by the sequential, zero-based hardware CPU number.
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    aic: interrupt-controller@200 {
+        compatible = "jcore,aic2";
+        reg = <0x200 0x30>, <0x500 0x30>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
+    };

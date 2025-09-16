@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/*
+ * Copyright (c) 2018-2025 TQ-Systems GmbH <linux@ew.tq-group.com>,
+ * D-82229 Seefeld, Germany.
+ * Author: Alexander Stein
+ */
+
+#include "imx8qxp.dtsi"
+#include "tqma8xxs.dtsi"
+
+/ {
+	model = "TQ-Systems i.MX8QXP TQMa8XQPS";
+	compatible = "tq,imx8qxp-tqma8xqps", "fsl,imx8qxp";
+};

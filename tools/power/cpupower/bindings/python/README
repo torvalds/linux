@@ -5,18 +5,21 @@ libcpupower (aside from the libcpupower object files).
 requirements
 ------------
 
-* You need the object files in the libcpupower directory compiled by
-cpupower's makefile.
+* If you are building completely from upstream; please install libcpupower by
+running `make install-lib` within the cpupower directory. This installs the
+libcpupower.so file and symlinks needed. Otherwise, please make sure a symlink
+to libcpupower.so exists in your library path from your distribution's
+packages.
 * The SWIG program must be installed.
-* The Python's development libraries installed.
+* The Python's development libraries must be installed.
 
 Please check that your version of SWIG is compatible with the version of Python
 installed on your machine by checking the SWIG changelog on their website.
 https://swig.org/
 
 Note that while SWIG itself is GPL v3+ licensed; the resulting output,
-the bindings code: is permissively licensed + the license of libcpupower's .o
-files. For these bindings that means GPL v2.
+the bindings code: is permissively licensed + the license of libcpupower's
+library files. For these bindings that means GPL v2.
 
 Please see https://swig.org/legal.html and the discussion [1] for more details.
 

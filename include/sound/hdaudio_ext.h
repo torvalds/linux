@@ -22,6 +22,7 @@ void snd_hdac_ext_bus_ppcap_enable(struct hdac_bus *chip, bool enable);
 void snd_hdac_ext_bus_ppcap_int_enable(struct hdac_bus *chip, bool enable);
 
 int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_bus *bus);
+struct hdac_ext_link *snd_hdac_ext_bus_get_hlink_by_id(struct hdac_bus *bus, u32 id);
 struct hdac_ext_link *snd_hdac_ext_bus_get_hlink_by_addr(struct hdac_bus *bus, int addr);
 struct hdac_ext_link *snd_hdac_ext_bus_get_hlink_by_name(struct hdac_bus *bus,
 							 const char *codec_name);
@@ -97,11 +98,16 @@ struct hdac_ext_link {
 	void __iomem *ml_addr; /* link output stream reg pointer */
 	u32 lcaps;   /* link capablities */
 	u16 lsdiid;  /* link sdi identifier */
+	u32 id;
+	u8 slcount;
 
 	int ref_count;
 
 	struct list_head list;
 };
+
+#define hdac_ext_link_alt(link)		((link)->lcaps & AZX_ML_HDA_LCAP_ALT)
+#define hdac_ext_link_ofls(link)	((link)->lcaps & AZX_ML_HDA_LCAP_OFLS)
 
 int snd_hdac_ext_bus_link_power_up(struct hdac_ext_link *hlink);
 int snd_hdac_ext_bus_link_power_down(struct hdac_ext_link *hlink);

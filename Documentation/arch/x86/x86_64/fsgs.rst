@@ -130,7 +130,7 @@ instructions. Clang 5 supports them as well.
 
   =================== ===========================
   _readfsbase_u64()   Read the FS base register
-  _readfsbase_u64()   Read the GS base register
+  _readgsbase_u64()   Read the GS base register
   _writefsbase_u64()  Write the FS base register
   _writegsbase_u64()  Write the GS base register
   =================== ===========================

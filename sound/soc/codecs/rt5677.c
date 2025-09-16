@@ -4725,13 +4725,14 @@ static int rt5677_update_gpio_bits(struct rt5677_priv *rt5677, unsigned offset, 
 }
 
 #ifdef CONFIG_GPIOLIB
-static void rt5677_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int rt5677_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	struct rt5677_priv *rt5677 = gpiochip_get_data(chip);
 	int level = value ? RT5677_GPIOx_OUT_HI : RT5677_GPIOx_OUT_LO;
 	int m = RT5677_GPIOx_OUT_MASK;
 
-	rt5677_update_gpio_bits(rt5677, offset, m, level);
+	return rt5677_update_gpio_bits(rt5677, offset, m, level);
 }
 
 static int rt5677_gpio_direction_out(struct gpio_chip *chip,

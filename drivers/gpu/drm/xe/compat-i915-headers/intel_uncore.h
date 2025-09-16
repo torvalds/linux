@@ -24,13 +24,6 @@ static inline struct xe_mmio *__compat_uncore_to_mmio(struct intel_uncore *uncor
 	return xe_root_tile_mmio(xe);
 }
 
-static inline struct xe_tile *__compat_uncore_to_tile(struct intel_uncore *uncore)
-{
-	struct xe_device *xe = container_of(uncore, struct xe_device, uncore);
-
-	return xe_device_get_root_tile(xe);
-}
-
 static inline u32 intel_uncore_read(struct intel_uncore *uncore,
 				    i915_reg_t i915_reg)
 {
@@ -110,12 +103,13 @@ static inline int intel_wait_for_register(struct intel_uncore *uncore,
 
 static inline int intel_wait_for_register_fw(struct intel_uncore *uncore,
 					     i915_reg_t i915_reg, u32 mask,
-					     u32 value, unsigned int timeout)
+					     u32 value, unsigned int timeout,
+					     u32 *out_value)
 {
 	struct xe_reg reg = XE_REG(i915_mmio_reg_offset(i915_reg));
 
 	return xe_mmio_wait32(__compat_uncore_to_mmio(uncore), reg, mask, value,
-			      timeout * USEC_PER_MSEC, NULL, false);
+			      timeout * USEC_PER_MSEC, out_value, false);
 }
 
 static inline int

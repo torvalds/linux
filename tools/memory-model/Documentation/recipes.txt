@@ -61,6 +61,10 @@ usual) some things to be careful of:
 Locking
 -------
 
+[!] Note:
+	locking.txt expands on this section, providing more detail on
+	locklessly accessing lock-protected shared variables.
+
 Locking is well-known and straightforward, at least if you don't think
 about it too hard.  And the basic rule is indeed quite simple: Any CPU that
 has acquired a given lock sees any changes previously seen or made by any

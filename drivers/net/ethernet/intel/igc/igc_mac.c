@@ -127,7 +127,7 @@ s32 igc_setup_link(struct igc_hw *hw)
 		goto out;
 
 	/* If requested flow control is set to default, set flow control
-	 * to the both 'rx' and 'tx' pause frames.
+	 * to both 'rx' and 'tx' pause frames.
 	 */
 	if (hw->fc.requested_mode == igc_fc_default)
 		hw->fc.requested_mode = igc_fc_full;

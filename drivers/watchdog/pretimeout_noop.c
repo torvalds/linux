@@ -11,7 +11,7 @@
 
 /**
  * pretimeout_noop - No operation on watchdog pretimeout event
- * @wdd - watchdog_device
+ * @wdd: watchdog_device
  *
  * This function prints a message about pretimeout to kernel log.
  */

@@ -10,7 +10,7 @@ Written by Simon.Derr@bull.net
 
 - Portions Copyright (c) 2004-2006 Silicon Graphics, Inc.
 - Modified by Paul Jackson <pj@sgi.com>
-- Modified by Christoph Lameter <cl@linux.com>
+- Modified by Christoph Lameter <cl@gentwo.org>
 - Modified by Paul Menage <menage@google.com>
 - Modified by Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>
 

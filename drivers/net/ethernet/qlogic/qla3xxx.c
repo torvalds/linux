@@ -1501,7 +1501,7 @@ static int ql_finish_auto_neg(struct ql3_adapter *qdev)
 				     "Remote error detected. Calling ql_port_start()\n");
 			/*
 			 * ql_port_start() is shared code and needs
-			 * to lock the PHY on it's own.
+			 * to lock the PHY on its own.
 			 */
 			ql_sem_unlock(qdev, QL_PHY_GIO_SEM_MASK);
 			if (ql_port_start(qdev))	/* Restart port */
@@ -3735,7 +3735,7 @@ static void ql_get_board_info(struct ql3_adapter *qdev)
 
 static void ql3xxx_timer(struct timer_list *t)
 {
-	struct ql3_adapter *qdev = from_timer(qdev, t, adapter_timer);
+	struct ql3_adapter *qdev = timer_container_of(qdev, t, adapter_timer);
 	queue_delayed_work(qdev->workqueue, &qdev->link_state_work, 0);
 }
 

@@ -127,7 +127,7 @@ typedef enum {
   VOLTAGE_GUARDBAND_COUNT
 } GFX_GUARDBAND_e;
 
-#define SMU_METRICS_TABLE_VERSION 0x10
+#define SMU_METRICS_TABLE_VERSION 0x11
 
 // Unified metrics table for smu_v13_0_6
 typedef struct __attribute__((packed, aligned(4))) {
@@ -463,6 +463,8 @@ typedef struct __attribute__((packed, aligned(4))) {
 typedef struct {
   // Telemetry
   uint32_t InputTelemetryVoltageInmV;
+  // General info
+  uint32_t pldmVersion[2];
 } StaticMetricsTable_t;
 #pragma pack(pop)
 

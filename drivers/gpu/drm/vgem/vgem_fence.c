@@ -61,7 +61,7 @@ static const struct dma_fence_ops vgem_fence_ops = {
 
 static void vgem_fence_timeout(struct timer_list *t)
 {
-	struct vgem_fence *fence = from_timer(fence, t, timer);
+	struct vgem_fence *fence = timer_container_of(fence, t, timer);
 
 	dma_fence_signal(&fence->base);
 }

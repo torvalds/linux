@@ -115,7 +115,7 @@ properties:
             above for new bindings.
           oneOf:
             - description: See native 'dbi' clock for details
-              enum: [ pcie, pcie_apb_sys, aclk_dbi ]
+              enum: [ pcie, pcie_apb_sys, aclk_dbi, reg ]
             - description: See native 'mstr/slv' clock for details
               enum: [ pcie_bus, pcie_inbound_axi, pcie_aclk, aclk_mst, aclk_slv ]
             - description: See native 'pipe' clock for details
@@ -201,6 +201,7 @@ properties:
           oneOf:
             - pattern: '^pcie(-?phy[0-9]*)?$'
             - pattern: '^p2u-[0-7]$'
+            - pattern: '^cp[01]-pcie[0-2]-x[124](-lane[0-3])?-phy$'  # marvell,armada8k-pcie
 
   reset-gpio:
     deprecated: true

@@ -771,15 +771,17 @@ static void iwl_mvm_cancel_session_protection(struct iwl_mvm *mvm,
 
 static void iwl_mvm_roc_rm_cmd(struct iwl_mvm *mvm, u32 activity)
 {
-	struct iwl_roc_req_v5 roc_cmd = {
+	struct iwl_roc_req roc_cmd = {
 		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
 		.activity = cpu_to_le32(activity),
 	};
+	u8 ver = iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(MAC_CONF_GROUP, ROC_CMD), 0);
+	u16 cmd_len = ver < 6 ? sizeof(struct iwl_roc_req_v5) : sizeof(roc_cmd);
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(MAC_CONF_GROUP, ROC_CMD), 0,
-				   sizeof(roc_cmd), &roc_cmd);
+				   cmd_len, &roc_cmd);
 	if (ret)
 		IWL_ERR(mvm, "Couldn't send the ROC_CMD: %d\n", ret);
 }
@@ -956,39 +958,18 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_session_prot_notif *notif = (void *)pkt->data;
-	unsigned int ver =
-		iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
-					SESSION_PROTECTION_NOTIF, 2);
 	int id = le32_to_cpu(notif->mac_link_id);
 	struct ieee80211_vif *vif;
 	struct iwl_mvm_vif *mvmvif;
-	unsigned int notif_link_id;
 
 	rcu_read_lock();
 
-	if (ver <= 2) {
-		vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, true);
-	} else {
-		struct ieee80211_bss_conf *link_conf =
-			iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, id, true);
-
-		if (!link_conf)
-			goto out_unlock;
-
-		notif_link_id = link_conf->link_id;
-		vif = link_conf->vif;
-	}
-
+	/* note we use link ID == MAC ID */
+	vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, true);
 	if (!vif)
 		goto out_unlock;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	if (WARN(ver > 2 && mvmvif->time_event_data.link_id >= 0 &&
-		 mvmvif->time_event_data.link_id != notif_link_id,
-		 "SESSION_PROTECTION_NOTIF was received for link %u, while the current time event is on link %u\n",
-		 notif_link_id, mvmvif->time_event_data.link_id))
-		goto out_unlock;
 
 	/* The vif is not a P2P_DEVICE, maintain its time_event_data */
 	if (vif->type != NL80211_IFTYPE_P2P_DEVICE) {
@@ -1102,11 +1083,13 @@ int iwl_mvm_roc_add_cmd(struct iwl_mvm *mvm,
 {
 	int res;
 	u32 duration_tu, delay;
-	struct iwl_roc_req_v5 roc_req = {
+	struct iwl_roc_req roc_req = {
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
 		.activity = cpu_to_le32(activity),
 		.sta_id = cpu_to_le32(mvm->aux_sta.sta_id),
 	};
+	u8 ver = iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(MAC_CONF_GROUP, ROC_CMD), 0);
+	u16 cmd_len = ver < 6 ? sizeof(struct iwl_roc_req_v5) : sizeof(roc_req);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1136,7 +1119,7 @@ int iwl_mvm_roc_add_cmd(struct iwl_mvm *mvm,
 	memcpy(roc_req.node_addr, vif->addr, ETH_ALEN);
 
 	res = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(MAC_CONF_GROUP, ROC_CMD),
-				   0, sizeof(roc_req), &roc_req);
+				   0, cmd_len, &roc_req);
 	if (!res)
 		mvmvif->roc_activity = activity;
 

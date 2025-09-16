@@ -791,7 +791,7 @@ static int spmmc_get_cd(struct mmc_host *mmc)
 {
 	int ret = 0;
 
-	if (mmc_can_gpio_cd(mmc))
+	if (mmc_host_can_gpio_cd(mmc))
 		ret = mmc_gpio_get_cd(mmc);
 
 	if (ret < 0)

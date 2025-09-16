@@ -704,8 +704,7 @@ static int xhci_enter_test_mode(struct xhci_hcd *xhci,
 		if (!xhci->devs[i])
 			continue;
 
-		retval = xhci_disable_slot(xhci, i);
-		xhci_free_virt_device(xhci, i);
+		retval = xhci_disable_and_free_slot(xhci, i);
 		if (retval)
 			xhci_err(xhci, "Failed to disable slot %d, %d. Enter test mode anyway\n",
 				 i, retval);
@@ -1907,7 +1906,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 			 * prevent port event interrupts from interfering
 			 * with usb2 port resume process
 			 */
-			xhci_disable_interrupter(xhci->interrupters[0]);
+			xhci_disable_interrupter(xhci, xhci->interrupters[0]);
 			disabled_irq = true;
 		}
 	}

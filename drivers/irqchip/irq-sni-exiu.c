@@ -249,12 +249,12 @@ static int __init exiu_dt_init(struct device_node *node,
 		return -ENXIO;
 	}
 
-	data = exiu_init(of_node_to_fwnode(node), &res);
+	data = exiu_init(of_fwnode_handle(node), &res);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, NUM_IRQS, node,
-					  &exiu_domain_ops, data);
+	domain = irq_domain_create_hierarchy(parent_domain, 0, NUM_IRQS, of_fwnode_handle(node),
+					     &exiu_domain_ops, data);
 	if (!domain) {
 		pr_err("%pOF: failed to allocate domain\n", node);
 		goto out_unmap;

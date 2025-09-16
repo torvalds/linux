@@ -12,6 +12,10 @@
 
 #include "kselftest.h"
 
+#ifndef AT_HWCAP3
+#define AT_HWCAP3 29
+#endif
+
 static int set_tagged_addr_ctrl(int val)
 {
 	int ret;
@@ -60,11 +64,16 @@ void check_basic_read(void)
 /*
  * Attempt to set a specified combination of modes.
  */
-void set_mode_test(const char *name, int hwcap2, int mask)
+void set_mode_test(const char *name, int hwcap2, int hwcap3, int mask)
 {
 	int ret;
 
 	if ((getauxval(AT_HWCAP2) & hwcap2) != hwcap2) {
+		ksft_test_result_skip("%s\n", name);
+		return;
+	}
+
+	if ((getauxval(AT_HWCAP3) & hwcap3) != hwcap3) {
 		ksft_test_result_skip("%s\n", name);
 		return;
 	}
@@ -81,7 +90,7 @@ void set_mode_test(const char *name, int hwcap2, int mask)
 		return;
 	}
 
-	if ((ret & PR_MTE_TCF_MASK) == mask) {
+	if ((ret & (PR_MTE_TCF_MASK | PR_MTE_STORE_ONLY)) == mask) {
 		ksft_test_result_pass("%s\n", name);
 	} else {
 		ksft_print_msg("Got %x, expected %x\n",
@@ -93,12 +102,16 @@ void set_mode_test(const char *name, int hwcap2, int mask)
 struct mte_mode {
 	int mask;
 	int hwcap2;
+	int hwcap3;
 	const char *name;
 } mte_modes[] = {
-	{ PR_MTE_TCF_NONE,  0,          "NONE"  },
-	{ PR_MTE_TCF_SYNC,  HWCAP2_MTE, "SYNC"  },
-	{ PR_MTE_TCF_ASYNC, HWCAP2_MTE, "ASYNC" },
-	{ PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC,  HWCAP2_MTE, "SYNC+ASYNC"  },
+	{ PR_MTE_TCF_NONE,                                        0,          0,                     "NONE"  },
+	{ PR_MTE_TCF_SYNC,                                        HWCAP2_MTE, 0,                     "SYNC"  },
+	{ PR_MTE_TCF_ASYNC,                                       HWCAP2_MTE, 0,                     "ASYNC" },
+	{ PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC,                     HWCAP2_MTE, 0,                     "SYNC+ASYNC"  },
+	{ PR_MTE_TCF_SYNC | PR_MTE_STORE_ONLY,                    HWCAP2_MTE, HWCAP3_MTE_STORE_ONLY, "SYNC+STONLY" },
+	{ PR_MTE_TCF_ASYNC | PR_MTE_STORE_ONLY,                   HWCAP2_MTE, HWCAP3_MTE_STORE_ONLY, "ASYNC+STONLY" },
+	{ PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC | PR_MTE_STORE_ONLY, HWCAP2_MTE, HWCAP3_MTE_STORE_ONLY, "SYNC+ASYNC+STONLY" },
 };
 
 int main(void)
@@ -106,11 +119,11 @@ int main(void)
 	int i;
 
 	ksft_print_header();
-	ksft_set_plan(5);
+	ksft_set_plan(ARRAY_SIZE(mte_modes));
 
 	check_basic_read();
 	for (i = 0; i < ARRAY_SIZE(mte_modes); i++)
-		set_mode_test(mte_modes[i].name, mte_modes[i].hwcap2,
+		set_mode_test(mte_modes[i].name, mte_modes[i].hwcap2, mte_modes[i].hwcap3,
 			      mte_modes[i].mask);
 
 	ksft_print_cnts();

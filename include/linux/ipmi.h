@@ -93,7 +93,8 @@ struct ipmi_user_hndl {
 
 	/*
 	 * Called when the interface detects a watchdog pre-timeout.  If
-	 * this is NULL, it will be ignored for the user.
+	 * this is NULL, it will be ignored for the user.  Note that you
+	 * can't do any IPMI calls from here, it's called with locks held.
 	 */
 	void (*ipmi_watchdog_pretimeout)(void *handler_data);
 
@@ -342,5 +343,15 @@ extern int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data);
 
 /* Helper function for computing the IPMB checksum of some data. */
 unsigned char ipmb_checksum(unsigned char *data, int size);
+
+/*
+ * For things that must send messages at panic time, like the IPMI watchdog
+ * driver that extends the reset time on a panic, use this to send messages
+ * from panic context.  Note that this puts the driver into a mode that
+ * only works at panic time, so only use it then.
+ */
+void ipmi_panic_request_and_wait(struct ipmi_user *user,
+				 struct ipmi_addr *addr,
+				 struct kernel_ipmi_msg *msg);
 
 #endif /* __LINUX_IPMI_H */

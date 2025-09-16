@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+# Kconfig for the kernel's cyclic redundancy check (CRC) library code
+
+config CRC4
+	tristate
+	help
+	  The CRC4 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc4.h>.
+
+config CRC7
+	tristate
+	help
+	  The CRC7 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc7.h>.
+
+config CRC8
+	tristate
+	help
+	  The CRC8 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc8.h>.
+
+config CRC16
+	tristate
+	help
+	  The CRC16 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc16.h>.
+
+config CRC_CCITT
+	tristate
+	help
+	  The CRC-CCITT library functions.  Select this if your module uses any
+	  of the functions from <linux/crc-ccitt.h>.
+
+config CRC_ITU_T
+	tristate
+	help
+	  The CRC-ITU-T library functions.  Select this if your module uses
+	  any of the functions from <linux/crc-itu-t.h>.
+
+config CRC_T10DIF
+	tristate
+	help
+	  The CRC-T10DIF library functions.  Select this if your module uses
+	  any of the functions from <linux/crc-t10dif.h>.
+
+config CRC_T10DIF_ARCH
+	bool
+	depends on CRC_T10DIF && CRC_OPTIMIZATIONS
+	default y if ARM && KERNEL_MODE_NEON
+	default y if ARM64 && KERNEL_MODE_NEON
+	default y if PPC64 && ALTIVEC
+	default y if RISCV && RISCV_ISA_ZBC
+	default y if X86
+
+config CRC32
+	tristate
+	select BITREVERSE
+	help
+	  The CRC32 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc32.h> or <linux/crc32c.h>.
+
+config CRC32_ARCH
+	bool
+	depends on CRC32 && CRC_OPTIMIZATIONS
+	default y if ARM && KERNEL_MODE_NEON
+	default y if ARM64
+	default y if LOONGARCH
+	default y if MIPS && CPU_MIPSR6
+	default y if PPC64 && ALTIVEC
+	default y if RISCV && RISCV_ISA_ZBC
+	default y if S390
+	default y if SPARC64
+	default y if X86
+
+config CRC64
+	tristate
+	help
+	  The CRC64 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc64.h>.
+
+config CRC64_ARCH
+	bool
+	depends on CRC64 && CRC_OPTIMIZATIONS
+	default y if RISCV && RISCV_ISA_ZBC && 64BIT
+	default y if X86_64
+
+config CRC_OPTIMIZATIONS
+	bool "Enable optimized CRC implementations" if EXPERT
+	depends on !UML
+	default y
+	help
+	  Disabling this option reduces code size slightly by disabling the
+	  architecture-optimized implementations of any CRC variants that are
+	  enabled.  CRC checksumming performance may get much slower.
+
+	  Keep this enabled unless you're really trying to minimize the size of
+	  the kernel.
+
+config CRC_KUNIT_TEST
+	tristate "KUnit tests for CRC functions" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	select CRC7
+	select CRC16
+	select CRC_T10DIF
+	select CRC32
+	select CRC64
+	help
+	  Unit tests for the CRC library functions.
+
+	  This is intended to help people writing architecture-specific
+	  optimized versions.  If unsure, say N.
+
+config CRC_BENCHMARK
+	bool "Benchmark for the CRC functions"
+	depends on CRC_KUNIT_TEST
+	help
+	  Include benchmarks in the KUnit test suite for the CRC functions.

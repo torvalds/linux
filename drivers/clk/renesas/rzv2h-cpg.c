@@ -25,6 +25,7 @@
 #include <linux/pm_domain.h>
 #include <linux/refcount.h>
 #include <linux/reset-controller.h>
+#include <linux/string_choices.h>
 
 #include <dt-bindings/clock/renesas-cpg-mssr.h>
 
@@ -44,10 +45,18 @@
 #define CPG_BUS_1_MSTOP		(0xd00)
 #define CPG_BUS_MSTOP(m)	(CPG_BUS_1_MSTOP + ((m) - 1) * 4)
 
-#define KDIV(val)		((s16)FIELD_GET(GENMASK(31, 16), (val)))
-#define MDIV(val)		FIELD_GET(GENMASK(15, 6), (val))
-#define PDIV(val)		FIELD_GET(GENMASK(5, 0), (val))
-#define SDIV(val)		FIELD_GET(GENMASK(2, 0), (val))
+#define CPG_PLL_STBY(x)		((x))
+#define CPG_PLL_STBY_RESETB	BIT(0)
+#define CPG_PLL_STBY_RESETB_WEN	BIT(16)
+#define CPG_PLL_CLK1(x)		((x) + 0x004)
+#define CPG_PLL_CLK1_KDIV(x)	((s16)FIELD_GET(GENMASK(31, 16), (x)))
+#define CPG_PLL_CLK1_MDIV(x)	FIELD_GET(GENMASK(15, 6), (x))
+#define CPG_PLL_CLK1_PDIV(x)	FIELD_GET(GENMASK(5, 0), (x))
+#define CPG_PLL_CLK2(x)		((x) + 0x008)
+#define CPG_PLL_CLK2_SDIV(x)	FIELD_GET(GENMASK(2, 0), (x))
+#define CPG_PLL_MON(x)		((x) + 0x010)
+#define CPG_PLL_MON_RESETB	BIT(0)
+#define CPG_PLL_MON_LOCK	BIT(4)
 
 #define DDIV_DIVCTL_WEN(shift)		BIT((shift) + 16)
 
@@ -68,6 +77,7 @@
  * @resets: Array of resets
  * @num_resets: Number of Module Resets in info->resets[]
  * @last_dt_core_clk: ID of the last Core Clock exported to DT
+ * @ff_mod_status_ops: Fixed Factor Module Status Clock operations
  * @mstop_count: Array of mstop values
  * @rcdev: Reset controller entity
  */
@@ -83,6 +93,8 @@ struct rzv2h_cpg_priv {
 	unsigned int num_resets;
 	unsigned int last_dt_core_clk;
 
+	struct clk_ops *ff_mod_status_ops;
+
 	atomic_t *mstop_count;
 
 	struct reset_controller_dev rcdev;
@@ -92,10 +104,8 @@ struct rzv2h_cpg_priv {
 
 struct pll_clk {
 	struct rzv2h_cpg_priv *priv;
-	void __iomem *base;
 	struct clk_hw hw;
-	unsigned int conf;
-	unsigned int type;
+	struct pll pll;
 };
 
 #define to_pll(_hw)	container_of(_hw, struct pll_clk, hw)
@@ -110,7 +120,8 @@ struct pll_clk {
  * @on_index: register offset
  * @on_bit: ON/MON bit
  * @mon_index: monitor register offset
- * @mon_bit: montor bit
+ * @mon_bit: monitor bit
+ * @ext_clk_mux_index: mux index for external clock source, or -1 if internal
  */
 struct mod_clock {
 	struct rzv2h_cpg_priv *priv;
@@ -121,6 +132,7 @@ struct mod_clock {
 	u8 on_bit;
 	s8 mon_index;
 	u8 mon_bit;
+	s8 ext_clk_mux_index;
 };
 
 #define to_mod_clock(_hw) container_of(_hw, struct mod_clock, hw)
@@ -140,27 +152,94 @@ struct ddiv_clk {
 
 #define to_ddiv_clock(_div) container_of(_div, struct ddiv_clk, div)
 
+/**
+ * struct rzv2h_ff_mod_status_clk - Fixed Factor Module Status Clock
+ *
+ * @priv: CPG private data
+ * @conf: fixed mod configuration
+ * @fix: fixed factor clock
+ */
+struct rzv2h_ff_mod_status_clk {
+	struct rzv2h_cpg_priv *priv;
+	struct fixed_mod_conf conf;
+	struct clk_fixed_factor fix;
+};
+
+#define to_rzv2h_ff_mod_status_clk(_hw) \
+	container_of(_hw, struct rzv2h_ff_mod_status_clk, fix.hw)
+
+static int rzv2h_cpg_pll_clk_is_enabled(struct clk_hw *hw)
+{
+	struct pll_clk *pll_clk = to_pll(hw);
+	struct rzv2h_cpg_priv *priv = pll_clk->priv;
+	u32 val = readl(priv->base + CPG_PLL_MON(pll_clk->pll.offset));
+
+	/* Ensure both RESETB and LOCK bits are set */
+	return (val & (CPG_PLL_MON_RESETB | CPG_PLL_MON_LOCK)) ==
+	       (CPG_PLL_MON_RESETB | CPG_PLL_MON_LOCK);
+}
+
+static int rzv2h_cpg_pll_clk_enable(struct clk_hw *hw)
+{
+	struct pll_clk *pll_clk = to_pll(hw);
+	struct rzv2h_cpg_priv *priv = pll_clk->priv;
+	struct pll pll = pll_clk->pll;
+	u32 stby_offset;
+	u32 mon_offset;
+	u32 val;
+	int ret;
+
+	if (rzv2h_cpg_pll_clk_is_enabled(hw))
+		return 0;
+
+	stby_offset = CPG_PLL_STBY(pll.offset);
+	mon_offset = CPG_PLL_MON(pll.offset);
+
+	writel(CPG_PLL_STBY_RESETB_WEN | CPG_PLL_STBY_RESETB,
+	       priv->base + stby_offset);
+
+	/*
+	 * Ensure PLL enters into normal mode
+	 *
+	 * Note: There is no HW information about the worst case latency.
+	 *
+	 * Since this latency might depend on external crystal or PLL rate,
+	 * use a "super" safe timeout value.
+	 */
+	ret = readl_poll_timeout_atomic(priv->base + mon_offset, val,
+			(val & (CPG_PLL_MON_RESETB | CPG_PLL_MON_LOCK)) ==
+			(CPG_PLL_MON_RESETB | CPG_PLL_MON_LOCK), 200, 2000);
+	if (ret)
+		dev_err(priv->dev, "Failed to enable PLL 0x%x/%pC\n",
+			stby_offset, hw->clk);
+
+	return ret;
+}
+
 static unsigned long rzv2h_cpg_pll_clk_recalc_rate(struct clk_hw *hw,
 						   unsigned long parent_rate)
 {
 	struct pll_clk *pll_clk = to_pll(hw);
 	struct rzv2h_cpg_priv *priv = pll_clk->priv;
+	struct pll pll = pll_clk->pll;
 	unsigned int clk1, clk2;
 	u64 rate;
 
-	if (!PLL_CLK_ACCESS(pll_clk->conf))
+	if (!pll.has_clkn)
 		return 0;
 
-	clk1 = readl(priv->base + PLL_CLK1_OFFSET(pll_clk->conf));
-	clk2 = readl(priv->base + PLL_CLK2_OFFSET(pll_clk->conf));
+	clk1 = readl(priv->base + CPG_PLL_CLK1(pll.offset));
+	clk2 = readl(priv->base + CPG_PLL_CLK2(pll.offset));
 
-	rate = mul_u64_u32_shr(parent_rate, (MDIV(clk1) << 16) + KDIV(clk1),
-			       16 + SDIV(clk2));
+	rate = mul_u64_u32_shr(parent_rate, (CPG_PLL_CLK1_MDIV(clk1) << 16) +
+			       CPG_PLL_CLK1_KDIV(clk1), 16 + CPG_PLL_CLK2_SDIV(clk2));
 
-	return DIV_ROUND_CLOSEST_ULL(rate, PDIV(clk1));
+	return DIV_ROUND_CLOSEST_ULL(rate, CPG_PLL_CLK1_PDIV(clk1));
 }
 
 static const struct clk_ops rzv2h_cpg_pll_ops = {
+	.is_enabled = rzv2h_cpg_pll_clk_is_enabled,
+	.enable = rzv2h_cpg_pll_clk_enable,
 	.recalc_rate = rzv2h_cpg_pll_clk_recalc_rate,
 };
 
@@ -169,7 +248,6 @@ rzv2h_cpg_pll_clk_register(const struct cpg_core_clk *core,
 			   struct rzv2h_cpg_priv *priv,
 			   const struct clk_ops *ops)
 {
-	void __iomem *base = priv->base;
 	struct device *dev = priv->dev;
 	struct clk_init_data init;
 	const struct clk *parent;
@@ -193,10 +271,8 @@ rzv2h_cpg_pll_clk_register(const struct cpg_core_clk *core,
 	init.num_parents = 1;
 
 	pll_clk->hw.init = &init;
-	pll_clk->conf = core->cfg.conf;
-	pll_clk->base = base;
+	pll_clk->pll = core->cfg.pll;
 	pll_clk->priv = priv;
-	pll_clk->type = core->type;
 
 	ret = devm_clk_hw_register(dev, &pll_clk->hw);
 	if (ret)
@@ -241,6 +317,9 @@ static inline int rzv2h_cpg_wait_ddiv_clk_update_done(void __iomem *base, u8 mon
 	u32 bitmask = BIT(mon);
 	u32 val;
 
+	if (mon == CSDIV_NO_MON)
+		return 0;
+
 	return readl_poll_timeout_atomic(base + CPG_CLKSTATUS0, val, !(val & bitmask), 10, 200);
 }
 
@@ -272,12 +351,6 @@ static int rzv2h_ddiv_set_rate(struct clk_hw *hw, unsigned long rate,
 	writel(val, divider->reg);
 
 	ret = rzv2h_cpg_wait_ddiv_clk_update_done(priv->base, ddiv->mon);
-	if (ret)
-		goto ddiv_timeout;
-
-	spin_unlock_irqrestore(divider->lock, flags);
-
-	return 0;
 
 ddiv_timeout:
 	spin_unlock_irqrestore(divider->lock, flags);
@@ -320,9 +393,13 @@ rzv2h_cpg_ddiv_clk_register(const struct cpg_core_clk *core,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = core->name;
-	init.ops = &rzv2h_ddiv_clk_divider_ops;
+	if (cfg_ddiv.no_rmw)
+		init.ops = &clk_divider_ops;
+	else
+		init.ops = &rzv2h_ddiv_clk_divider_ops;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
+	init.flags = CLK_SET_RATE_PARENT;
 
 	ddiv->priv = priv;
 	ddiv->mon = cfg_ddiv.monbit;
@@ -340,6 +417,83 @@ rzv2h_cpg_ddiv_clk_register(const struct cpg_core_clk *core,
 		return ERR_PTR(ret);
 
 	return div->hw.clk;
+}
+
+static struct clk * __init
+rzv2h_cpg_mux_clk_register(const struct cpg_core_clk *core,
+			   struct rzv2h_cpg_priv *priv)
+{
+	struct smuxed mux = core->cfg.smux;
+	const struct clk_hw *clk_hw;
+
+	clk_hw = devm_clk_hw_register_mux(priv->dev, core->name,
+					  core->parent_names, core->num_parents,
+					  core->flag, priv->base + mux.offset,
+					  mux.shift, mux.width,
+					  core->mux_flags, &priv->rmw_lock);
+	if (IS_ERR(clk_hw))
+		return ERR_CAST(clk_hw);
+
+	return clk_hw->clk;
+}
+
+static int
+rzv2h_clk_ff_mod_status_is_enabled(struct clk_hw *hw)
+{
+	struct rzv2h_ff_mod_status_clk *fix = to_rzv2h_ff_mod_status_clk(hw);
+	struct rzv2h_cpg_priv *priv = fix->priv;
+	u32 offset = GET_CLK_MON_OFFSET(fix->conf.mon_index);
+	u32 bitmask = BIT(fix->conf.mon_bit);
+	u32 val;
+
+	val = readl(priv->base + offset);
+	return !!(val & bitmask);
+}
+
+static struct clk * __init
+rzv2h_cpg_fixed_mod_status_clk_register(const struct cpg_core_clk *core,
+					struct rzv2h_cpg_priv *priv)
+{
+	struct rzv2h_ff_mod_status_clk *clk_hw_data;
+	struct clk_init_data init = { };
+	struct clk_fixed_factor *fix;
+	const struct clk *parent;
+	const char *parent_name;
+	int ret;
+
+	WARN_DEBUG(core->parent >= priv->num_core_clks);
+	parent = priv->clks[core->parent];
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	parent_name = __clk_get_name(parent);
+	parent = priv->clks[core->parent];
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	clk_hw_data = devm_kzalloc(priv->dev, sizeof(*clk_hw_data), GFP_KERNEL);
+	if (!clk_hw_data)
+		return ERR_PTR(-ENOMEM);
+
+	clk_hw_data->priv = priv;
+	clk_hw_data->conf = core->cfg.fixed_mod;
+
+	init.name = core->name;
+	init.ops = priv->ff_mod_status_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	fix = &clk_hw_data->fix;
+	fix->hw.init = &init;
+	fix->mult = core->mult;
+	fix->div = core->div;
+
+	ret = devm_clk_hw_register(priv->dev, &clk_hw_data->fix.hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return clk_hw_data->fix.hw.clk;
 }
 
 static struct clk
@@ -420,11 +574,28 @@ rzv2h_cpg_register_core_clk(const struct cpg_core_clk *core,
 		else
 			clk = clk_hw->clk;
 		break;
+	case CLK_TYPE_FF_MOD_STATUS:
+		if (!priv->ff_mod_status_ops) {
+			priv->ff_mod_status_ops =
+				devm_kzalloc(dev, sizeof(*priv->ff_mod_status_ops), GFP_KERNEL);
+			if (!priv->ff_mod_status_ops) {
+				clk = ERR_PTR(-ENOMEM);
+				goto fail;
+			}
+			memcpy(priv->ff_mod_status_ops, &clk_fixed_factor_ops,
+			       sizeof(const struct clk_ops));
+			priv->ff_mod_status_ops->is_enabled = rzv2h_clk_ff_mod_status_is_enabled;
+		}
+		clk = rzv2h_cpg_fixed_mod_status_clk_register(core, priv);
+		break;
 	case CLK_TYPE_PLL:
 		clk = rzv2h_cpg_pll_clk_register(core, priv, &rzv2h_cpg_pll_ops);
 		break;
 	case CLK_TYPE_DDIV:
 		clk = rzv2h_cpg_ddiv_clk_register(core, priv);
+		break;
+	case CLK_TYPE_SMUX:
+		clk = rzv2h_cpg_mux_clk_register(core, priv);
 		break;
 	default:
 		goto fail;
@@ -484,20 +655,46 @@ static void rzv2h_mod_clock_mstop_disable(struct rzv2h_cpg_priv *priv,
 	spin_unlock_irqrestore(&priv->rmw_lock, flags);
 }
 
+static int rzv2h_parent_clk_mux_to_index(struct clk_hw *hw)
+{
+	struct clk_hw *parent_hw;
+	struct clk *parent_clk;
+	struct clk_mux *mux;
+	u32 val;
+
+	/* This will always succeed, so no need to check for IS_ERR() */
+	parent_clk = clk_get_parent(hw->clk);
+
+	parent_hw = __clk_get_hw(parent_clk);
+	mux = to_clk_mux(parent_hw);
+
+	val = readl(mux->reg) >> mux->shift;
+	val &= mux->mask;
+	return clk_mux_val_to_index(parent_hw, mux->table, 0, val);
+}
+
 static int rzv2h_mod_clock_is_enabled(struct clk_hw *hw)
 {
 	struct mod_clock *clock = to_mod_clock(hw);
 	struct rzv2h_cpg_priv *priv = clock->priv;
+	int mon_index = clock->mon_index;
 	u32 bitmask;
 	u32 offset;
 
-	if (clock->mon_index >= 0) {
-		offset = GET_CLK_MON_OFFSET(clock->mon_index);
+	if (clock->ext_clk_mux_index >= 0 &&
+	    rzv2h_parent_clk_mux_to_index(hw) == clock->ext_clk_mux_index)
+		mon_index = -1;
+
+	if (mon_index >= 0) {
+		offset = GET_CLK_MON_OFFSET(mon_index);
 		bitmask = BIT(clock->mon_bit);
-	} else {
-		offset = GET_CLK_ON_OFFSET(clock->on_index);
-		bitmask = BIT(clock->on_bit);
+
+		if (!(readl(priv->base + offset) & bitmask))
+			return 0;
 	}
+
+	offset = GET_CLK_ON_OFFSET(clock->on_index);
+	bitmask = BIT(clock->on_bit);
 
 	return readl(priv->base + offset) & bitmask;
 }
@@ -514,7 +711,7 @@ static int rzv2h_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	int error;
 
 	dev_dbg(dev, "CLK_ON 0x%x/%pC %s\n", reg, hw->clk,
-		enable ? "ON" : "OFF");
+		str_on_off(enable));
 
 	if (enabled == enable)
 		return 0;
@@ -605,6 +802,7 @@ rzv2h_cpg_register_mod_clk(const struct rzv2h_mod_clk *mod,
 	clock->mon_index = mod->mon_index;
 	clock->mon_bit = mod->mon_bit;
 	clock->no_pm = mod->no_pm;
+	clock->ext_clk_mux_index = mod->ext_clk_mux_index;
 	clock->priv = priv;
 	clock->hw.init = &init;
 	clock->mstop_data = mod->mstop_data;
@@ -658,8 +856,8 @@ fail:
 		mod->name, PTR_ERR(clk));
 }
 
-static int rzv2h_cpg_assert(struct reset_controller_dev *rcdev,
-			    unsigned long id)
+static int __rzv2h_cpg_assert(struct reset_controller_dev *rcdev,
+			      unsigned long id, bool assert)
 {
 	struct rzv2h_cpg_priv *priv = rcdev_to_priv(rcdev);
 	unsigned int reg = GET_RST_OFFSET(priv->resets[id].reset_index);
@@ -667,35 +865,31 @@ static int rzv2h_cpg_assert(struct reset_controller_dev *rcdev,
 	u8 monbit = priv->resets[id].mon_bit;
 	u32 value = mask << 16;
 
-	dev_dbg(rcdev->dev, "assert id:%ld offset:0x%x\n", id, reg);
+	dev_dbg(rcdev->dev, "%s id:%ld offset:0x%x\n",
+		assert ? "assert" : "deassert", id, reg);
 
+	if (!assert)
+		value |= mask;
 	writel(value, priv->base + reg);
 
 	reg = GET_RST_MON_OFFSET(priv->resets[id].mon_index);
 	mask = BIT(monbit);
 
 	return readl_poll_timeout_atomic(priv->base + reg, value,
-					 value & mask, 10, 200);
+					 assert ? (value & mask) : !(value & mask),
+					 10, 200);
+}
+
+static int rzv2h_cpg_assert(struct reset_controller_dev *rcdev,
+			    unsigned long id)
+{
+	return __rzv2h_cpg_assert(rcdev, id, true);
 }
 
 static int rzv2h_cpg_deassert(struct reset_controller_dev *rcdev,
 			      unsigned long id)
 {
-	struct rzv2h_cpg_priv *priv = rcdev_to_priv(rcdev);
-	unsigned int reg = GET_RST_OFFSET(priv->resets[id].reset_index);
-	u32 mask = BIT(priv->resets[id].reset_bit);
-	u8 monbit = priv->resets[id].mon_bit;
-	u32 value = (mask << 16) | mask;
-
-	dev_dbg(rcdev->dev, "deassert id:%ld offset:0x%x\n", id, reg);
-
-	writel(value, priv->base + reg);
-
-	reg = GET_RST_MON_OFFSET(priv->resets[id].mon_index);
-	mask = BIT(monbit);
-
-	return readl_poll_timeout_atomic(priv->base + reg, value,
-					 !(value & mask), 10, 200);
+	return __rzv2h_cpg_assert(rcdev, id, false);
 }
 
 static int rzv2h_cpg_reset(struct reset_controller_dev *rcdev,
@@ -926,8 +1120,8 @@ static int __init rzv2h_cpg_probe(struct platform_device *pdev)
 	/* Adjust for CPG_BUS_m_MSTOP starting from m = 1 */
 	priv->mstop_count -= 16;
 
-	priv->resets = devm_kmemdup(dev, info->resets, sizeof(*info->resets) *
-				    info->num_resets, GFP_KERNEL);
+	priv->resets = devm_kmemdup_array(dev, info->resets, info->num_resets,
+					  sizeof(*info->resets), GFP_KERNEL);
 	if (!priv->resets)
 		return -ENOMEM;
 
@@ -967,16 +1161,22 @@ static int __init rzv2h_cpg_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id rzv2h_cpg_match[] = {
-#ifdef CONFIG_CLK_R9A09G057
-	{
-		.compatible = "renesas,r9a09g057-cpg",
-		.data = &r9a09g057_cpg_info,
-	},
-#endif
 #ifdef CONFIG_CLK_R9A09G047
 	{
 		.compatible = "renesas,r9a09g047-cpg",
 		.data = &r9a09g047_cpg_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R9A09G056
+	{
+		.compatible = "renesas,r9a09g056-cpg",
+		.data = &r9a09g056_cpg_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R9A09G057
+	{
+		.compatible = "renesas,r9a09g057-cpg",
+		.data = &r9a09g057_cpg_info,
 	},
 #endif
 	{ /* sentinel */ }

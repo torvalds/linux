@@ -336,8 +336,7 @@ prestera_counter_block_get_by_idx(struct prestera_counter *counter, u32 idx)
 
 static void prestera_counter_stats_work(struct work_struct *work)
 {
-	struct delayed_work *dl_work =
-		container_of(work, struct delayed_work, work);
+	struct delayed_work *dl_work = to_delayed_work(work);
 	struct prestera_counter *counter =
 		container_of(dl_work, struct prestera_counter, stats_dw);
 	struct prestera_counter_block *block;

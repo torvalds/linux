@@ -4,6 +4,7 @@
  */
 
 #include <linux/bsearch.h>
+#include <linux/falloc.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/sort.h>
@@ -383,11 +384,11 @@ static void inconsistent_snapshot_error(struct send_ctx *sctx,
 		result_string = "updated";
 		break;
 	case BTRFS_COMPARE_TREE_SAME:
-		ASSERT(0);
+		DEBUG_WARN("no change between trees");
 		result_string = "unchanged";
 		break;
 	default:
-		ASSERT(0);
+		DEBUG_WARN("unexpected comparison result %d", result);
 		result_string = "unexpected";
 	}
 
@@ -758,7 +759,7 @@ static int send_header(struct send_ctx *sctx)
 {
 	struct btrfs_stream_header hdr;
 
-	strcpy(hdr.magic, BTRFS_SEND_STREAM_MAGIC);
+	strscpy(hdr.magic, BTRFS_SEND_STREAM_MAGIC);
 	hdr.version = cpu_to_le32(sctx->proto);
 	return write_buf(sctx->send_filp, &hdr, sizeof(hdr),
 					&sctx->send_off);
@@ -816,10 +817,7 @@ static int send_cmd(struct send_ctx *sctx)
 static int send_rename(struct send_ctx *sctx,
 		     struct fs_path *from, struct fs_path *to)
 {
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret;
-
-	btrfs_debug(fs_info, "send_rename %s -> %s", from->start, to->start);
 
 	ret = begin_cmd(sctx, BTRFS_SEND_C_RENAME);
 	if (ret < 0)
@@ -840,10 +838,7 @@ tlv_put_failure:
 static int send_link(struct send_ctx *sctx,
 		     struct fs_path *path, struct fs_path *lnk)
 {
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret;
-
-	btrfs_debug(fs_info, "send_link %s -> %s", path->start, lnk->start);
 
 	ret = begin_cmd(sctx, BTRFS_SEND_C_LINK);
 	if (ret < 0)
@@ -863,10 +858,7 @@ tlv_put_failure:
  */
 static int send_unlink(struct send_ctx *sctx, struct fs_path *path)
 {
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret;
-
-	btrfs_debug(fs_info, "send_unlink %s", path->start);
 
 	ret = begin_cmd(sctx, BTRFS_SEND_C_UNLINK);
 	if (ret < 0)
@@ -885,10 +877,7 @@ tlv_put_failure:
  */
 static int send_rmdir(struct send_ctx *sctx, struct fs_path *path)
 {
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret;
-
-	btrfs_debug(fs_info, "send_rmdir %s", path->start);
 
 	ret = begin_cmd(sctx, BTRFS_SEND_C_RMDIR);
 	if (ret < 0)
@@ -1573,7 +1562,6 @@ static int find_extent_clone(struct send_ctx *sctx,
 	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret;
 	int extent_type;
-	u64 logical;
 	u64 disk_byte;
 	u64 num_bytes;
 	struct btrfs_file_extent_item *fi;
@@ -1604,7 +1592,6 @@ static int find_extent_clone(struct send_ctx *sctx,
 
 	compressed = btrfs_file_extent_compression(eb, fi);
 	num_bytes = btrfs_file_extent_num_bytes(eb, fi);
-	logical = disk_byte + btrfs_file_extent_offset(eb, fi);
 
 	/*
 	 * Setup the clone roots.
@@ -1686,14 +1673,8 @@ static int find_extent_clone(struct send_ctx *sctx,
 	}
 	up_read(&fs_info->commit_root_sem);
 
-	btrfs_debug(fs_info,
-		    "find_extent_clone: data_offset=%llu, ino=%llu, num_bytes=%llu, logical=%llu",
-		    data_offset, ino, num_bytes, logical);
-
-	if (!backref_ctx.found) {
-		btrfs_debug(fs_info, "no clones found");
+	if (!backref_ctx.found)
 		return -ENOENT;
-	}
 
 	cur_clone_root = NULL;
 	for (i = 0; i < sctx->clone_roots_cnt; i++) {
@@ -1824,7 +1805,7 @@ static int gen_unique_name(struct send_ctx *sctx,
 				ino, gen, idx);
 		ASSERT(len < sizeof(tmp));
 		tmp_name.name = tmp;
-		tmp_name.len = strlen(tmp);
+		tmp_name.len = len;
 
 		di = btrfs_lookup_dir_item(NULL, sctx->send_root,
 				path, BTRFS_FIRST_FREE_OBJECTID,
@@ -1863,7 +1844,7 @@ static int gen_unique_name(struct send_ctx *sctx,
 		break;
 	}
 
-	ret = fs_path_add(dest, tmp, strlen(tmp));
+	ret = fs_path_add(dest, tmp, len);
 
 out:
 	btrfs_free_path(path);
@@ -2631,11 +2612,8 @@ static void free_path_for_command(const struct send_ctx *sctx, struct fs_path *p
 
 static int send_truncate(struct send_ctx *sctx, u64 ino, u64 gen, u64 size)
 {
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret = 0;
 	struct fs_path *p;
-
-	btrfs_debug(fs_info, "send_truncate %llu size=%llu", ino, size);
 
 	p = get_path_for_command(sctx, ino, gen);
 	if (IS_ERR(p))
@@ -2658,11 +2636,8 @@ out:
 
 static int send_chmod(struct send_ctx *sctx, u64 ino, u64 gen, u64 mode)
 {
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret = 0;
 	struct fs_path *p;
-
-	btrfs_debug(fs_info, "send_chmod %llu mode=%llu", ino, mode);
 
 	p = get_path_for_command(sctx, ino, gen);
 	if (IS_ERR(p))
@@ -2685,14 +2660,11 @@ out:
 
 static int send_fileattr(struct send_ctx *sctx, u64 ino, u64 gen, u64 fileattr)
 {
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret = 0;
 	struct fs_path *p;
 
 	if (sctx->proto < 2)
 		return 0;
-
-	btrfs_debug(fs_info, "send_fileattr %llu fileattr=%llu", ino, fileattr);
 
 	p = get_path_for_command(sctx, ino, gen);
 	if (IS_ERR(p))
@@ -2715,12 +2687,8 @@ out:
 
 static int send_chown(struct send_ctx *sctx, u64 ino, u64 gen, u64 uid, u64 gid)
 {
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret = 0;
 	struct fs_path *p;
-
-	btrfs_debug(fs_info, "send_chown %llu uid=%llu, gid=%llu",
-		    ino, uid, gid);
 
 	p = get_path_for_command(sctx, ino, gen);
 	if (IS_ERR(p))
@@ -2744,7 +2712,6 @@ out:
 
 static int send_utimes(struct send_ctx *sctx, u64 ino, u64 gen)
 {
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret = 0;
 	struct fs_path *p = NULL;
 	struct btrfs_inode_item *ii;
@@ -2752,8 +2719,6 @@ static int send_utimes(struct send_ctx *sctx, u64 ino, u64 gen)
 	struct extent_buffer *eb;
 	struct btrfs_key key;
 	int slot;
-
-	btrfs_debug(fs_info, "send_utimes %llu", ino);
 
 	p = get_path_for_command(sctx, ino, gen);
 	if (IS_ERR(p))
@@ -2861,7 +2826,6 @@ static int trim_dir_utimes_cache(struct send_ctx *sctx)
  */
 static int send_create_inode(struct send_ctx *sctx, u64 ino)
 {
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret = 0;
 	struct fs_path *p;
 	int cmd;
@@ -2869,8 +2833,6 @@ static int send_create_inode(struct send_ctx *sctx, u64 ino)
 	u64 gen;
 	u64 mode;
 	u64 rdev;
-
-	btrfs_debug(fs_info, "send_create_inode %llu", ino);
 
 	p = fs_path_alloc();
 	if (!p)
@@ -3098,7 +3060,7 @@ static void __free_recorded_refs(struct list_head *head)
 	struct recorded_ref *cur;
 
 	while (!list_empty(head)) {
-		cur = list_entry(head->next, struct recorded_ref, list);
+		cur = list_first_entry(head, struct recorded_ref, list);
 		recorded_ref_free(cur);
 	}
 }
@@ -4224,8 +4186,6 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 	bool orphanized_dir = false;
 	bool orphanized_ancestor = false;
 
-	btrfs_debug(fs_info, "process_recorded_refs %llu", sctx->cur_ino);
-
 	/*
 	 * This should never happen as the root dir always has the same ref
 	 * which is always '..'
@@ -4560,8 +4520,7 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 		/*
 		 * We have a moved dir. Add the old parent to check_dirs
 		 */
-		cur = list_entry(sctx->deleted_refs.next, struct recorded_ref,
-				list);
+		cur = list_first_entry(&sctx->deleted_refs, struct recorded_ref, list);
 		ret = dup_ref(cur, &check_dirs);
 		if (ret < 0)
 			goto out;
@@ -4670,7 +4629,6 @@ static int rbtree_ref_comp(const void *k, const struct rb_node *node)
 {
 	const struct recorded_ref *data = k;
 	const struct recorded_ref *ref = rb_entry(node, struct recorded_ref, node);
-	int result;
 
 	if (data->dir > ref->dir)
 		return 1;
@@ -4684,12 +4642,7 @@ static int rbtree_ref_comp(const void *k, const struct rb_node *node)
 		return 1;
 	if (data->name_len < ref->name_len)
 		return -1;
-	result = strcmp(data->name, ref->name);
-	if (result > 0)
-		return 1;
-	if (result < 0)
-		return -1;
-	return 0;
+	return strcmp(data->name, ref->name);
 }
 
 static bool rbtree_ref_less(struct rb_node *node, const struct rb_node *parent)
@@ -5263,10 +5216,9 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 {
 	struct btrfs_root *root = sctx->send_root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct folio *folio;
-	pgoff_t index = offset >> PAGE_SHIFT;
-	pgoff_t last_index;
-	unsigned pg_offset = offset_in_page(offset);
+	u64 cur = offset;
+	const u64 end = offset + len;
+	const pgoff_t last_index = ((end - 1) >> PAGE_SHIFT);
 	struct address_space *mapping = sctx->cur_inode->i_mapping;
 	int ret;
 
@@ -5274,13 +5226,12 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 	if (ret)
 		return ret;
 
-	last_index = (offset + len - 1) >> PAGE_SHIFT;
+	while (cur < end) {
+		pgoff_t index = (cur >> PAGE_SHIFT);
+		unsigned int cur_len;
+		unsigned int pg_offset;
+		struct folio *folio;
 
-	while (index <= last_index) {
-		unsigned cur_len = min_t(unsigned, len,
-					 PAGE_SIZE - pg_offset);
-
-again:
 		folio = filemap_lock_folio(mapping, index);
 		if (IS_ERR(folio)) {
 			page_cache_sync_readahead(mapping,
@@ -5293,8 +5244,8 @@ again:
 				break;
 			}
 		}
-
-		WARN_ON(folio_order(folio));
+		pg_offset = offset_in_folio(folio, cur);
+		cur_len = min_t(unsigned int, end - cur, folio_size(folio) - pg_offset);
 
 		if (folio_test_readahead(folio))
 			page_cache_async_readahead(mapping, &sctx->ra, NULL, folio,
@@ -5316,7 +5267,7 @@ again:
 			if (folio->mapping != mapping) {
 				folio_unlock(folio);
 				folio_put(folio);
-				goto again;
+				continue;
 			}
 		}
 
@@ -5324,9 +5275,7 @@ again:
 				  pg_offset, cur_len);
 		folio_unlock(folio);
 		folio_put(folio);
-		index++;
-		pg_offset = 0;
-		len -= cur_len;
+		cur += cur_len;
 		sctx->send_size += cur_len;
 	}
 
@@ -5339,11 +5288,8 @@ again:
  */
 static int send_write(struct send_ctx *sctx, u64 offset, u32 len)
 {
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret = 0;
 	struct fs_path *p;
-
-	btrfs_debug(fs_info, "send_write offset=%llu, len=%d", offset, len);
 
 	p = get_cur_inode_path(sctx);
 	if (IS_ERR(p))
@@ -5376,11 +5322,6 @@ static int send_clone(struct send_ctx *sctx,
 	struct fs_path *p;
 	struct fs_path *cur_inode_path;
 	u64 gen;
-
-	btrfs_debug(sctx->send_root->fs_info,
-		    "send_clone offset=%llu, len=%d, clone_root=%llu, clone_inode=%llu, clone_offset=%llu",
-		    offset, len, btrfs_root_id(clone_root->root),
-		    clone_root->ino, clone_root->offset);
 
 	cur_inode_path = get_cur_inode_path(sctx);
 	if (IS_ERR(cur_inode_path))
@@ -5465,12 +5406,44 @@ tlv_put_failure:
 	return ret;
 }
 
+static int send_fallocate(struct send_ctx *sctx, u32 mode, u64 offset, u64 len)
+{
+	struct fs_path *path;
+	int ret;
+
+	path = get_cur_inode_path(sctx);
+	if (IS_ERR(path))
+		return PTR_ERR(path);
+
+	ret = begin_cmd(sctx, BTRFS_SEND_C_FALLOCATE);
+	if (ret < 0)
+		return ret;
+
+	TLV_PUT_PATH(sctx, BTRFS_SEND_A_PATH, path);
+	TLV_PUT_U32(sctx, BTRFS_SEND_A_FALLOCATE_MODE, mode);
+	TLV_PUT_U64(sctx, BTRFS_SEND_A_FILE_OFFSET, offset);
+	TLV_PUT_U64(sctx, BTRFS_SEND_A_SIZE, len);
+
+	ret = send_cmd(sctx);
+
+tlv_put_failure:
+	return ret;
+}
+
 static int send_hole(struct send_ctx *sctx, u64 end)
 {
 	struct fs_path *p = NULL;
 	u64 read_size = max_send_read_size(sctx);
 	u64 offset = sctx->cur_inode_last_extent;
 	int ret = 0;
+
+	/*
+	 * Starting with send stream v2 we have fallocate and can use it to
+	 * punch holes instead of sending writes full of zeroes.
+	 */
+	if (proto_cmd_ok(sctx, BTRFS_SEND_C_FALLOCATE))
+		return send_fallocate(sctx, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+				      offset, end - offset);
 
 	/*
 	 * A hole that starts at EOF or beyond it. Since we do not yet support

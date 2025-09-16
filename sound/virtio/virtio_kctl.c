@@ -47,7 +47,7 @@ static const unsigned int g_v2a_mask_map[] = {
 static int virtsnd_kctl_info(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_info *uinfo)
 {
-	struct virtio_snd *snd = kcontrol->private_data;
+	struct virtio_snd *snd = snd_kcontrol_chip(kcontrol);
 	struct virtio_kctl *kctl = &snd->kctls[kcontrol->private_value];
 	struct virtio_snd_ctl_info *kinfo =
 		&snd->kctl_infos[kcontrol->private_value];
@@ -102,7 +102,7 @@ static int virtsnd_kctl_info(struct snd_kcontrol *kcontrol,
 static int virtsnd_kctl_get(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *uvalue)
 {
-	struct virtio_snd *snd = kcontrol->private_data;
+	struct virtio_snd *snd = snd_kcontrol_chip(kcontrol);
 	struct virtio_snd_ctl_info *kinfo =
 		&snd->kctl_infos[kcontrol->private_value];
 	unsigned int type = le32_to_cpu(kinfo->type);
@@ -175,7 +175,7 @@ on_failure:
 static int virtsnd_kctl_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *uvalue)
 {
-	struct virtio_snd *snd = kcontrol->private_data;
+	struct virtio_snd *snd = snd_kcontrol_chip(kcontrol);
 	struct virtio_snd_ctl_info *kinfo =
 		&snd->kctl_infos[kcontrol->private_value];
 	unsigned int type = le32_to_cpu(kinfo->type);
@@ -239,7 +239,7 @@ static int virtsnd_kctl_put(struct snd_kcontrol *kcontrol,
 static int virtsnd_kctl_tlv_op(struct snd_kcontrol *kcontrol, int op_flag,
 			       unsigned int size, unsigned int __user *utlv)
 {
-	struct virtio_snd *snd = kcontrol->private_data;
+	struct virtio_snd *snd = snd_kcontrol_chip(kcontrol);
 	struct virtio_snd_msg *msg;
 	struct virtio_snd_ctl_hdr *hdr;
 	unsigned int *tlv;

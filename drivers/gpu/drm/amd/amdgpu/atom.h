@@ -37,6 +37,7 @@ struct drm_device;
 #define ATOM_ROM_MAGIC		"ATOM"
 #define ATOM_ROM_MAGIC_PTR	4
 
+#define ATOM_ROM_CFG_PTR 0xC
 #define ATOM_ROM_MSG_PTR	0x10
 #define ATOM_ROM_CMD_PTR	0x1E
 #define ATOM_ROM_DATA_PTR	0x20
@@ -151,6 +152,7 @@ struct atom_context {
 	uint32_t version;
 	uint8_t vbios_ver_str[STRLEN_NORMAL];
 	uint8_t date[STRLEN_NORMAL];
+	uint8_t build_num[STRLEN_NORMAL];
 };
 
 extern int amdgpu_atom_debug;

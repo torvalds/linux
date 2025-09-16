@@ -8,7 +8,7 @@
 
 #include "rockchip_canfd.h"
 
-static u64 rkcanfd_timestamp_read(const struct cyclecounter *cc)
+static u64 rkcanfd_timestamp_read(struct cyclecounter *cc)
 {
 	const struct rkcanfd_priv *priv = container_of(cc, struct rkcanfd_priv, cc);
 
@@ -39,7 +39,7 @@ static void rkcanfd_timestamp_work(struct work_struct *work)
 
 void rkcanfd_timestamp_init(struct rkcanfd_priv *priv)
 {
-	const struct can_bittiming *dbt = &priv->can.data_bittiming;
+	const struct can_bittiming *dbt = &priv->can.fd.data_bittiming;
 	const struct can_bittiming *bt = &priv->can.bittiming;
 	struct cyclecounter *cc = &priv->cc;
 	u32 bitrate, div, reg, rate;

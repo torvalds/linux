@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Microchip switch driver common header
  *
- * Copyright (C) 2017-2024 Microchip Technology Inc.
+ * Copyright (C) 2017-2025 Microchip Technology Inc.
  */
 
 #ifndef __KSZ_COMMON_H
@@ -10,6 +10,7 @@
 #include <linux/etherdevice.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/pcs/pcs-xpcs.h>
 #include <linux/phy.h>
 #include <linux/regmap.h>
 #include <net/dsa.h>
@@ -93,6 +94,7 @@ struct ksz_chip_data {
 	bool internal_phy[KSZ_MAX_NUM_PORTS];
 	bool gbit_capable[KSZ_MAX_NUM_PORTS];
 	bool ptp_capable;
+	u8 sgmii_port;
 	const struct regmap_access_table *wr_table;
 	const struct regmap_access_table *rd_table;
 };
@@ -132,6 +134,7 @@ struct ksz_port {
 	u32 force:1;
 	u32 read:1;			/* read MIB counters in background */
 	u32 freeze:1;			/* MIB counter freeze is enabled */
+	u32 sgmii_adv_write:1;
 
 	struct ksz_port_mib mib;
 	phy_interface_t interface;
@@ -141,8 +144,9 @@ struct ksz_port {
 	void *acl_priv;
 	struct ksz_irq pirq;
 	u8 num;
+	struct phylink_pcs *pcs;
 #if IS_ENABLED(CONFIG_NET_DSA_MICROCHIP_KSZ_PTP)
-	struct hwtstamp_config tstamp_config;
+	struct kernel_hwtstamp_config tstamp_config;
 	bool hwts_tx_en;
 	bool hwts_rx_en;
 	struct ksz_irq ptpirq;
@@ -218,6 +222,7 @@ struct ksz_device {
 
 /* List of supported models */
 enum ksz_model {
+	KSZ8463,
 	KSZ8563,
 	KSZ8567,
 	KSZ8795,
@@ -440,6 +445,8 @@ struct ksz_dev_ops {
 	int (*reset)(struct ksz_device *dev);
 	int (*init)(struct ksz_device *dev);
 	void (*exit)(struct ksz_device *dev);
+
+	int (*pcs_create)(struct ksz_device *dev);
 };
 
 struct ksz_device *ksz_switch_alloc(struct device *base, void *priv);
@@ -476,6 +483,11 @@ static inline struct regmap *ksz_regmap_16(struct ksz_device *dev)
 static inline struct regmap *ksz_regmap_32(struct ksz_device *dev)
 {
 	return dev->regmap[KSZ_REGMAP_32];
+}
+
+static inline bool ksz_is_ksz8463(struct ksz_device *dev)
+{
+	return dev->chip_id == KSZ8463_CHIP_ID;
 }
 
 static inline int ksz_read8(struct ksz_device *dev, u32 reg, u8 *val)
@@ -703,12 +715,13 @@ static inline bool ksz_is_8895_family(struct ksz_device *dev)
 static inline bool is_ksz8(struct ksz_device *dev)
 {
 	return ksz_is_ksz87xx(dev) || ksz_is_ksz88x3(dev) ||
-	       ksz_is_8895_family(dev);
+	       ksz_is_8895_family(dev) || ksz_is_ksz8463(dev);
 }
 
 static inline bool is_ksz88xx(struct ksz_device *dev)
 {
-	return ksz_is_ksz88x3(dev) || ksz_is_8895_family(dev);
+	return ksz_is_ksz88x3(dev) || ksz_is_8895_family(dev) ||
+	       ksz_is_ksz8463(dev);
 }
 
 static inline bool is_ksz9477(struct ksz_device *dev)
@@ -731,6 +744,21 @@ static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
 		dev->chip_id == LAN9372_CHIP_ID) && port == KSZ_PORT_4;
 }
 
+static inline int ksz_get_sgmii_port(struct ksz_device *dev)
+{
+	return dev->info->sgmii_port - 1;
+}
+
+static inline bool ksz_has_sgmii_port(struct ksz_device *dev)
+{
+	return dev->info->sgmii_port > 0;
+}
+
+static inline bool ksz_is_sgmii_port(struct ksz_device *dev, int port)
+{
+	return dev->info->sgmii_port == port + 1;
+}
+
 /* STP State Defines */
 #define PORT_TX_ENABLE			BIT(2)
 #define PORT_RX_ENABLE			BIT(1)
@@ -740,6 +768,7 @@ static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
 #define REG_CHIP_ID0			0x00
 
 #define SW_FAMILY_ID_M			GENMASK(15, 8)
+#define KSZ84_FAMILY_ID			0x84
 #define KSZ87_FAMILY_ID			0x87
 #define KSZ88_FAMILY_ID			0x88
 #define KSZ8895_FAMILY_ID		0x95
@@ -836,6 +865,25 @@ static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
 #define SW_HI_SPEED_DRIVE_STRENGTH_S	4
 #define SW_LO_SPEED_DRIVE_STRENGTH_S	0
 
+/* TXQ Split Control Register for per-port, per-queue configuration.
+ * Register 0xAF is TXQ Split for Q3 on Port 1.
+ * Register offset formula: 0xAF + (port * 4) + (3 - queue)
+ *   where: port = 0..2, queue = 0..3
+ */
+#define KSZ8873_TXQ_SPLIT_CTRL_REG(port, queue) \
+	(0xAF + ((port) * 4) + (3 - (queue)))
+
+/* Bit 7 selects between:
+ *   0 = Strict priority mode (highest-priority queue first)
+ *   1 = Weighted Fair Queuing (WFQ) mode:
+ *       Queue weights: Q3:Q2:Q1:Q0 = 8:4:2:1
+ *       If any queues are empty, weight is redistributed.
+ *
+ * Note: This is referred to as "Weighted Fair Queuing" (WFQ) in KSZ8863/8873
+ * documentation, and as "Weighted Round Robin" (WRR) in KSZ9477 family docs.
+ */
+#define KSZ8873_TXQ_WFQ_ENABLE		BIT(7)
+
 #define KSZ9477_REG_PORT_OUT_RATE_0	0x0420
 #define KSZ9477_OUT_RATE_NO_LIMIT	0
 
@@ -897,6 +945,31 @@ static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
 		[KSZ_REGMAP_8] = KSZ_REGMAP_ENTRY(8, swp, (regbits), (regpad), (regalign)), \
 		[KSZ_REGMAP_16] = KSZ_REGMAP_ENTRY(16, swp, (regbits), (regpad), (regalign)), \
 		[KSZ_REGMAP_32] = KSZ_REGMAP_ENTRY(32, swp, (regbits), (regpad), (regalign)), \
+	}
+
+#define KSZ8463_REGMAP_ENTRY(width, regbits, regpad, regalign)		\
+	{								\
+		.name = #width,						\
+		.val_bits = (width),					\
+		.reg_stride = (width / 8),				\
+		.reg_bits = (regbits) + (regalign),			\
+		.pad_bits = (regpad),					\
+		.read = ksz8463_spi_read,				\
+		.write = ksz8463_spi_write,				\
+		.max_register = BIT(regbits) - 1,			\
+		.cache_type = REGCACHE_NONE,				\
+		.zero_flag_mask = 1,					\
+		.use_single_read = 1,					\
+		.use_single_write = 1,					\
+		.lock = ksz_regmap_lock,				\
+		.unlock = ksz_regmap_unlock,				\
+	}
+
+#define KSZ8463_REGMAP_TABLE(ksz, regbits, regpad, regalign)		\
+	static const struct regmap_config ksz##_regmap_config[] = {	\
+		[KSZ_REGMAP_8] = KSZ8463_REGMAP_ENTRY(8, (regbits), (regpad), (regalign)), \
+		[KSZ_REGMAP_16] = KSZ8463_REGMAP_ENTRY(16, (regbits), (regpad), (regalign)), \
+		[KSZ_REGMAP_32] = KSZ8463_REGMAP_ENTRY(32, (regbits), (regpad), (regalign)), \
 	}
 
 #endif

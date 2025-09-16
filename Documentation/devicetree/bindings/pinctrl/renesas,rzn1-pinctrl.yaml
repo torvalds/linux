@@ -13,9 +13,7 @@ maintainers:
 properties:
   compatible:
     items:
-      - enum:
-          - renesas,r9a06g032-pinctrl # RZ/N1D
-          - renesas,r9a06g033-pinctrl # RZ/N1S
+      - const: renesas,r9a06g032-pinctrl # RZ/N1D
       - const: renesas,rzn1-pinctrl   # Generic RZ/N1
 
   reg:

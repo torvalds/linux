@@ -407,6 +407,7 @@ err:
 		regs->verdict.code = NFT_BREAK;
 }
 
+#ifdef CONFIG_NFT_EXTHDR_DCCP
 static void nft_exthdr_dccp_eval(const struct nft_expr *expr,
 				 struct nft_regs *regs,
 				 const struct nft_pktinfo *pkt)
@@ -482,6 +483,7 @@ static void nft_exthdr_dccp_eval(const struct nft_expr *expr,
 err:
 	*dest = 0;
 }
+#endif
 
 static const struct nla_policy nft_exthdr_policy[NFTA_EXTHDR_MAX + 1] = {
 	[NFTA_EXTHDR_DREG]		= { .type = NLA_U32 },
@@ -634,6 +636,7 @@ static int nft_exthdr_ipv4_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
+#ifdef CONFIG_NFT_EXTHDR_DCCP
 static int nft_exthdr_dccp_init(const struct nft_ctx *ctx,
 				const struct nft_expr *expr,
 				const struct nlattr * const tb[])
@@ -649,6 +652,7 @@ static int nft_exthdr_dccp_init(const struct nft_ctx *ctx,
 
 	return 0;
 }
+#endif
 
 static int nft_exthdr_dump_common(struct sk_buff *skb, const struct nft_exthdr *priv)
 {
@@ -779,6 +783,7 @@ static const struct nft_expr_ops nft_exthdr_sctp_ops = {
 	.reduce		= nft_exthdr_reduce,
 };
 
+#ifdef CONFIG_NFT_EXTHDR_DCCP
 static const struct nft_expr_ops nft_exthdr_dccp_ops = {
 	.type		= &nft_exthdr_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_exthdr)),
@@ -787,6 +792,7 @@ static const struct nft_expr_ops nft_exthdr_dccp_ops = {
 	.dump		= nft_exthdr_dump,
 	.reduce		= nft_exthdr_reduce,
 };
+#endif
 
 static const struct nft_expr_ops *
 nft_exthdr_select_ops(const struct nft_ctx *ctx,
@@ -822,10 +828,12 @@ nft_exthdr_select_ops(const struct nft_ctx *ctx,
 		if (tb[NFTA_EXTHDR_DREG])
 			return &nft_exthdr_sctp_ops;
 		break;
+#ifdef CONFIG_NFT_EXTHDR_DCCP
 	case NFT_EXTHDR_OP_DCCP:
 		if (tb[NFTA_EXTHDR_DREG])
 			return &nft_exthdr_dccp_ops;
 		break;
+#endif
 	}
 
 	return ERR_PTR(-EOPNOTSUPP);

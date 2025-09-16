@@ -6,6 +6,7 @@
 #include <asm/boot_data.h>
 #include <asm/extmem.h>
 #include <asm/sections.h>
+#include <asm/diag288.h>
 #include <asm/maccess.h>
 #include <asm/machine.h>
 #include <asm/sysinfo.h>
@@ -69,6 +70,20 @@ static void detect_machine_type(void)
 		set_machine_feature(MFEATURE_KVM);
 	else if (!memcmp(vmms->vm[0].cpi, "\xa9\x61\xe5\xd4", 4))
 		set_machine_feature(MFEATURE_VM);
+}
+
+static void detect_diag288(void)
+{
+	/* "BEGIN" in EBCDIC character set */
+	static const char cmd[] = "\xc2\xc5\xc7\xc9\xd5";
+	unsigned long action, len;
+
+	action = machine_is_vm() ? (unsigned long)cmd : LPARWDT_RESTART;
+	len = machine_is_vm() ? sizeof(cmd) : 0;
+	if (__diag288(WDT_FUNC_INIT, MIN_INTERVAL, action, len))
+		return;
+	__diag288(WDT_FUNC_CANCEL, 0, 0, 0);
+	set_machine_feature(MFEATURE_DIAG288);
 }
 
 static void detect_diag9c(void)
@@ -369,7 +384,7 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 		kernel_start = round_down(kernel_end - kernel_size, THREAD_SIZE);
 		boot_debug("Randomization range: 0x%016lx-0x%016lx\n", vmax - kaslr_len, vmax);
 		boot_debug("kernel image:        0x%016lx-0x%016lx (kaslr)\n", kernel_start,
-			   kernel_size + kernel_size);
+			   kernel_start + kernel_size);
 	} else if (vmax < __NO_KASLR_END_KERNEL || vsize > __NO_KASLR_END_KERNEL) {
 		kernel_start = round_down(vmax - kernel_size, THREAD_SIZE);
 		boot_debug("kernel image:        0x%016lx-0x%016lx (constrained)\n", kernel_start,
@@ -519,6 +534,8 @@ void startup_kernel(void)
 	detect_facilities();
 	detect_diag9c();
 	detect_machine_type();
+	/* detect_diag288() needs machine type */
+	detect_diag288();
 	cmma_init();
 	sanitize_prot_virt_host();
 	max_physmem_end = detect_max_physmem_end();
@@ -625,5 +642,5 @@ void startup_kernel(void)
 	psw.addr = __kaslr_offset + vmlinux.entry;
 	psw.mask = PSW_KERNEL_BITS;
 	boot_debug("Starting kernel at:  0x%016lx\n", psw.addr);
-	__load_psw(psw);
+	jump_to_kernel(&psw);
 }

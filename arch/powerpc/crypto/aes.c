@@ -7,15 +7,15 @@
  * Author: Marcelo Henrique Cerri <mhcerri@br.ibm.com>
  */
 
-#include <linux/types.h>
-#include <linux/err.h>
-#include <linux/crypto.h>
-#include <linux/delay.h>
 #include <asm/simd.h>
 #include <asm/switch_to.h>
 #include <crypto/aes.h>
 #include <crypto/internal/cipher.h>
 #include <crypto/internal/simd.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/uaccess.h>
 
 #include "aesp8-ppc.h"
 

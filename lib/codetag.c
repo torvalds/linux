@@ -11,8 +11,14 @@ struct codetag_type {
 	struct list_head link;
 	unsigned int count;
 	struct idr mod_idr;
-	struct rw_semaphore mod_lock; /* protects mod_idr */
+	/*
+	 * protects mod_idr, next_mod_seq,
+	 * iter->mod_seq and cmod->mod_seq
+	 */
+	struct rw_semaphore mod_lock;
 	struct codetag_type_desc desc;
+	/* generates unique sequence number for module load */
+	unsigned long next_mod_seq;
 };
 
 struct codetag_range {
@@ -23,6 +29,7 @@ struct codetag_range {
 struct codetag_module {
 	struct module *mod;
 	struct codetag_range range;
+	unsigned long mod_seq;
 };
 
 static DEFINE_MUTEX(codetag_lock);
@@ -48,6 +55,7 @@ struct codetag_iterator codetag_get_ct_iter(struct codetag_type *cttype)
 		.cmod = NULL,
 		.mod_id = 0,
 		.ct = NULL,
+		.mod_seq = 0,
 	};
 
 	return iter;
@@ -91,11 +99,13 @@ struct codetag *codetag_next_ct(struct codetag_iterator *iter)
 		if (!cmod)
 			break;
 
-		if (cmod != iter->cmod) {
+		if (!iter->cmod || iter->mod_seq != cmod->mod_seq) {
 			iter->cmod = cmod;
+			iter->mod_seq = cmod->mod_seq;
 			ct = get_first_module_ct(cmod);
-		} else
+		} else {
 			ct = get_next_module_ct(iter);
+		}
 
 		if (ct)
 			break;
@@ -167,6 +177,7 @@ static int codetag_module_init(struct codetag_type *cttype, struct module *mod)
 {
 	struct codetag_range range;
 	struct codetag_module *cmod;
+	int mod_id;
 	int err;
 
 	range = get_section_range(mod, cttype->desc.section);
@@ -190,11 +201,21 @@ static int codetag_module_init(struct codetag_type *cttype, struct module *mod)
 	cmod->range = range;
 
 	down_write(&cttype->mod_lock);
-	err = idr_alloc(&cttype->mod_idr, cmod, 0, 0, GFP_KERNEL);
-	if (err >= 0) {
-		cttype->count += range_size(cttype, &range);
-		if (cttype->desc.module_load)
-			cttype->desc.module_load(cttype, cmod);
+	cmod->mod_seq = ++cttype->next_mod_seq;
+	mod_id = idr_alloc(&cttype->mod_idr, cmod, 0, 0, GFP_KERNEL);
+	if (mod_id >= 0) {
+		if (cttype->desc.module_load) {
+			err = cttype->desc.module_load(mod, range.start, range.stop);
+			if (!err)
+				cttype->count += range_size(cttype, &range);
+			else
+				idr_remove(&cttype->mod_idr, mod_id);
+		} else {
+			cttype->count += range_size(cttype, &range);
+			err = 0;
+		}
+	} else {
+		err = mod_id;
 	}
 	up_write(&cttype->mod_lock);
 
@@ -295,17 +316,23 @@ void codetag_module_replaced(struct module *mod, struct module *new_mod)
 	mutex_unlock(&codetag_lock);
 }
 
-void codetag_load_module(struct module *mod)
+int codetag_load_module(struct module *mod)
 {
 	struct codetag_type *cttype;
+	int ret = 0;
 
 	if (!mod)
-		return;
+		return 0;
 
 	mutex_lock(&codetag_lock);
-	list_for_each_entry(cttype, &codetag_types, link)
-		codetag_module_init(cttype, mod);
+	list_for_each_entry(cttype, &codetag_types, link) {
+		ret = codetag_module_init(cttype, mod);
+		if (ret)
+			break;
+	}
 	mutex_unlock(&codetag_lock);
+
+	return ret;
 }
 
 void codetag_unload_module(struct module *mod)
@@ -333,7 +360,8 @@ void codetag_unload_module(struct module *mod)
 		}
 		if (found) {
 			if (cttype->desc.module_unload)
-				cttype->desc.module_unload(cttype, cmod);
+				cttype->desc.module_unload(cmod->mod,
+					cmod->range.start, cmod->range.stop);
 
 			cttype->count -= range_size(cttype, &cmod->range);
 			idr_remove(&cttype->mod_idr, mod_id);

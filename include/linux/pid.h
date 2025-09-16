@@ -47,19 +47,23 @@
 
 #define RESERVED_PIDS 300
 
+struct pidfs_attr;
+
 struct upid {
 	int nr;
 	struct pid_namespace *ns;
 };
 
-struct pid
-{
+struct pid {
 	refcount_t count;
 	unsigned int level;
 	spinlock_t lock;
-	struct dentry *stashed;
-	u64 ino;
-	struct rb_node pidfs_node;
+	struct {
+		u64 ino;
+		struct rb_node pidfs_node;
+		struct dentry *stashed;
+		struct pidfs_attr *attr;
+	};
 	/* lists of tasks that use this pid */
 	struct hlist_head tasks[PIDTYPE_MAX];
 	struct hlist_head inodes;
@@ -77,7 +81,7 @@ struct file;
 struct pid *pidfd_pid(const struct file *file);
 struct pid *pidfd_get_pid(unsigned int fd, unsigned int *flags);
 struct task_struct *pidfd_get_task(int pidfd, unsigned int *flags);
-int pidfd_prepare(struct pid *pid, unsigned int flags, struct file **ret);
+int pidfd_prepare(struct pid *pid, unsigned int flags, struct file **ret_file);
 void do_notify_pidfd(struct task_struct *task);
 
 static inline struct pid *get_pid(struct pid *pid)

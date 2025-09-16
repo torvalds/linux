@@ -422,7 +422,8 @@ int __ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
  */
 static void sta_addba_resp_timer_expired(struct timer_list *t)
 {
-	struct tid_ampdu_tx *tid_tx = from_timer(tid_tx, t, addba_resp_timer);
+	struct tid_ampdu_tx *tid_tx = timer_container_of(tid_tx, t,
+							 addba_resp_timer);
 	struct sta_info *sta = tid_tx->sta;
 	u8 tid = tid_tx->tid;
 
@@ -574,7 +575,8 @@ EXPORT_SYMBOL(ieee80211_refresh_tx_agg_session_timer);
  */
 static void sta_tx_agg_session_timer_expired(struct timer_list *t)
 {
-	struct tid_ampdu_tx *tid_tx = from_timer(tid_tx, t, session_timer);
+	struct tid_ampdu_tx *tid_tx = timer_container_of(tid_tx, t,
+							 session_timer);
 	struct sta_info *sta = tid_tx->sta;
 	u8 tid = tid_tx->tid;
 	unsigned long timeout;
@@ -614,7 +616,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	    !pubsta->deflink.ht_cap.ht_supported &&
 	    !pubsta->deflink.vht_cap.vht_supported &&
 	    !pubsta->deflink.he_cap.has_he &&
-	    !pubsta->deflink.eht_cap.has_eht)
+	    !pubsta->deflink.eht_cap.has_eht &&
+	    !pubsta->deflink.s1g_cap.s1g)
 		return -EINVAL;
 
 	if (WARN_ON_ONCE(!local->ops->ampdu_action))

@@ -1240,7 +1240,7 @@ static void wiimote_schedule(struct wiimote_data *wdata)
 
 static void wiimote_init_timeout(struct timer_list *t)
 {
-	struct wiimote_data *wdata = from_timer(wdata, t, timer);
+	struct wiimote_data *wdata = timer_container_of(wdata, t, timer);
 
 	wiimote_schedule(wdata);
 }

@@ -4586,10 +4586,6 @@ void rtl8821ae_phy_lc_calibrate(struct ieee80211_hw *hw)
 {
 }
 
-void rtl8821ae_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta)
-{
-}
-
 void rtl8821ae_phy_set_rfpath_switch(struct ieee80211_hw *hw, bool bmain)
 {
 	_rtl8821ae_phy_set_rfpath_switch(hw, bmain);

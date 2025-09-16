@@ -95,6 +95,8 @@ config KVM_SW_PROTECTED_VM
 config KVM_INTEL
 	tristate "KVM for Intel (and compatible) processors support"
 	depends on KVM && IA32_FEAT_CTL
+	select KVM_GENERIC_PRIVATE_MEM if INTEL_TDX_HOST
+	select KVM_GENERIC_MEMORY_ATTRIBUTES if INTEL_TDX_HOST
 	help
 	  Provides support for KVM on processors equipped with Intel's VT
 	  extensions, a.k.a. Virtual Machine Extensions (VMX).
@@ -129,6 +131,16 @@ config X86_SGX_KVM
 
 	  If unsure, say N.
 
+config KVM_INTEL_TDX
+	bool "Intel Trust Domain Extensions (TDX) support"
+	default y
+	depends on INTEL_TDX_HOST
+	help
+	  Provides support for launching Intel Trust Domain Extensions (TDX)
+	  confidential VMs on Intel processors.
+
+	  If unsure, say N.
+
 config KVM_AMD
 	tristate "KVM for AMD processors support"
 	depends on KVM && (CPU_SUP_AMD || CPU_SUP_HYGON)
@@ -153,6 +165,16 @@ config KVM_AMD_SEV
 	  Encrypted Virtualization (SEV), Secure Encrypted Virtualization with
 	  Encrypted State (SEV-ES), and Secure Encrypted Virtualization with
 	  Secure Nested Paging (SEV-SNP) technologies on AMD processors.
+
+config KVM_IOAPIC
+	bool "I/O APIC, PIC, and PIT emulation"
+	default y
+	depends on KVM
+	help
+	  Provides support for KVM to emulate an I/O APIC, PIC, and PIT, i.e.
+	  for full in-kernel APIC emulation.
+
+	  If unsure, say Y.
 
 config KVM_SMM
 	bool "System Management Mode emulation"

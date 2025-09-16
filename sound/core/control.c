@@ -1405,7 +1405,7 @@ static bool check_user_elem_overflow(struct snd_card *card, ssize_t add)
 static int snd_ctl_elem_user_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
 {
-	struct user_element *ue = kcontrol->private_data;
+	struct user_element *ue = snd_kcontrol_chip(kcontrol);
 	unsigned int offset;
 
 	offset = snd_ctl_get_ioff(kcontrol, &uinfo->id);
@@ -1418,7 +1418,7 @@ static int snd_ctl_elem_user_info(struct snd_kcontrol *kcontrol,
 static int snd_ctl_elem_user_enum_info(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
-	struct user_element *ue = kcontrol->private_data;
+	struct user_element *ue = snd_kcontrol_chip(kcontrol);
 	const char *names;
 	unsigned int item;
 	unsigned int offset;
@@ -1435,7 +1435,7 @@ static int snd_ctl_elem_user_enum_info(struct snd_kcontrol *kcontrol,
 	names = ue->priv_data;
 	for (; item > 0; --item)
 		names += strlen(names) + 1;
-	strcpy(uinfo->value.enumerated.name, names);
+	strscpy(uinfo->value.enumerated.name, names);
 
 	return 0;
 }
@@ -1443,7 +1443,7 @@ static int snd_ctl_elem_user_enum_info(struct snd_kcontrol *kcontrol,
 static int snd_ctl_elem_user_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct user_element *ue = kcontrol->private_data;
+	struct user_element *ue = snd_kcontrol_chip(kcontrol);
 	unsigned int size = ue->elem_data_size;
 	char *src = ue->elem_data +
 			snd_ctl_get_ioff(kcontrol, &ucontrol->id) * size;
@@ -1456,7 +1456,7 @@ static int snd_ctl_elem_user_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	int err, change;
-	struct user_element *ue = kcontrol->private_data;
+	struct user_element *ue = snd_kcontrol_chip(kcontrol);
 	unsigned int size = ue->elem_data_size;
 	char *dst = ue->elem_data +
 			snd_ctl_get_ioff(kcontrol, &ucontrol->id) * size;
@@ -1475,7 +1475,7 @@ static int snd_ctl_elem_user_put(struct snd_kcontrol *kcontrol,
 static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 			    unsigned int size)
 {
-	struct user_element *ue = kctl->private_data;
+	struct user_element *ue = snd_kcontrol_chip(kctl);
 	unsigned int *container;
 	unsigned int mask = 0;
 	int i;
@@ -1528,7 +1528,7 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 static int read_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 			 unsigned int size)
 {
-	struct user_element *ue = kctl->private_data;
+	struct user_element *ue = snd_kcontrol_chip(kctl);
 
 	if (ue->tlv_data_size == 0 || ue->tlv_data == NULL)
 		return -ENXIO;
@@ -1598,7 +1598,7 @@ static size_t compute_user_elem_size(size_t size, unsigned int count)
 
 static void snd_ctl_elem_user_free(struct snd_kcontrol *kcontrol)
 {
-	struct user_element *ue = kcontrol->private_data;
+	struct user_element *ue = snd_kcontrol_chip(kcontrol);
 
 	// decrement the allocation size.
 	ue->card->user_ctl_alloc_size -= compute_user_elem_size(ue->elem_data_size, kcontrol->count);

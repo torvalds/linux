@@ -215,8 +215,8 @@ static ssize_t write_hw(struct file *file, struct kobject *kobj,
 		.attr	= \
 		{ .name = __stringify(_name), .mode  = S_IRUSR | S_IWUSR }, \
 		.size	= 0, \
-		.read_new	= read_ ## _name, \
-		.write_new	= write_ ## _name }
+		.read	= read_ ## _name, \
+		.write	= write_ ## _name }
 
 ESAS2R_RW_BIN_ATTR(fw);
 ESAS2R_RW_BIN_ATTR(fs);
@@ -227,7 +227,7 @@ ESAS2R_RW_BIN_ATTR(live_nvram);
 const struct bin_attribute bin_attr_default_nvram = {
 	.attr	= { .name = "default_nvram", .mode = S_IRUGO },
 	.size	= 0,
-	.read_new	= read_default_nvram,
+	.read	= read_default_nvram,
 	.write	= NULL
 };
 
@@ -1585,7 +1585,7 @@ void esas2r_kickoff_timer(struct esas2r_adapter *a)
 
 static void esas2r_timer_callback(struct timer_list *t)
 {
-	struct esas2r_adapter *a = from_timer(a, t, timer);
+	struct esas2r_adapter *a = timer_container_of(a, t, timer);
 
 	set_bit(AF2_TIMER_TICK, &a->flags2);
 

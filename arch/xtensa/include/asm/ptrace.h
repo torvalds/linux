@@ -41,7 +41,7 @@
 
 #define NO_SYSCALL (-1)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/coprocessor.h>
 #include <asm/core.h>
@@ -72,13 +72,10 @@ struct pt_regs {
 	/* Additional configurable registers that are used by the compiler. */
 	xtregs_opt_t xtregs_opt;
 
-	/* Make sure the areg field is 16 bytes aligned. */
-	int align[0] __attribute__ ((aligned(16)));
-
 	/* current register frame.
 	 * Note: The ESF for kernel exceptions ends after 16 registers!
 	 */
-	unsigned long areg[XCHAL_NUM_AREGS];
+	unsigned long areg[XCHAL_NUM_AREGS] __aligned(16);
 };
 
 # define arch_has_single_step()	(1)
@@ -109,11 +106,11 @@ static inline unsigned long regs_return_value(struct pt_regs *regs)
 int do_syscall_trace_enter(struct pt_regs *regs);
 void do_syscall_trace_leave(struct pt_regs *regs);
 
-#else	/* __ASSEMBLY__ */
+#else	/* __ASSEMBLER__ */
 
 # include <asm/asm-offsets.h>
 #define PT_REGS_OFFSET	  (KERNEL_STACK_SIZE - PT_USER_SIZE)
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 #endif	/* _XTENSA_PTRACE_H */

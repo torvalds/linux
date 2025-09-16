@@ -31,6 +31,11 @@ bool in_irq_stack(unsigned long stack, struct stack_info *info);
 bool in_task_stack(unsigned long stack, struct task_struct *task, struct stack_info *info);
 int get_stack_info(unsigned long stack, struct task_struct *task, struct stack_info *info);
 
+static __always_inline bool on_thread_stack(void)
+{
+	return !(((unsigned long)(current->stack) ^ current_stack_pointer) & ~(THREAD_SIZE - 1));
+}
+
 #define STR_LONG_L    __stringify(LONG_L)
 #define STR_LONG_S    __stringify(LONG_S)
 #define STR_LONGSIZE  __stringify(LONGSIZE)

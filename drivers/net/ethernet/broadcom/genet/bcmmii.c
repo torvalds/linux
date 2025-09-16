@@ -169,10 +169,15 @@ void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 
 			reg &= ~EXT_GPHY_RESET;
 		} else {
-			reg |= EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN |
-			       EXT_GPHY_RESET | EXT_CFG_IDDQ_GLOBAL_PWR;
+			reg |= EXT_GPHY_RESET;
 			bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
 			mdelay(1);
+
+			reg |= EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN |
+			       EXT_CFG_IDDQ_GLOBAL_PWR;
+			bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
+			mdelay(1);
+
 			reg |= EXT_CK25_DIS;
 		}
 		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
@@ -625,7 +630,7 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 			.asym_pause = 0,
 		};
 
-		phydev = fixed_phy_register(PHY_POLL, &fphy_status, NULL);
+		phydev = fixed_phy_register(&fphy_status, NULL);
 		if (IS_ERR(phydev)) {
 			dev_err(kdev, "failed to register fixed PHY device\n");
 			return PTR_ERR(phydev);

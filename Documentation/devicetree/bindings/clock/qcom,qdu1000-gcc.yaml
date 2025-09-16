@@ -14,7 +14,7 @@ description: |
   Qualcomm global clock control module which supports the clocks, resets and
   power domains on QDU1000 and QRU1000
 
-  See also:: include/dt-bindings/clock/qcom,qdu1000-gcc.h
+  See also: include/dt-bindings/clock/qcom,qdu1000-gcc.h
 
 properties:
   compatible:

@@ -139,6 +139,7 @@ struct btree {
 };
 
 #define BCH_BTREE_CACHE_NOT_FREED_REASONS()	\
+	x(cache_reserve)			\
 	x(lock_intent)				\
 	x(lock_write)				\
 	x(dirty)				\
@@ -257,9 +258,6 @@ struct btree_node_iter {
  *
  * BTREE_TRIGGER_insert - @new is entering the btree
  * BTREE_TRIGGER_overwrite - @old is leaving the btree
- *
- * BTREE_TRIGGER_bucket_invalidate - signal from bucket invalidate path to alloc
- * trigger
  */
 #define BTREE_TRIGGER_FLAGS()			\
 	x(norun)				\
@@ -269,8 +267,7 @@ struct btree_node_iter {
 	x(gc)					\
 	x(insert)				\
 	x(overwrite)				\
-	x(is_root)				\
-	x(bucket_invalidate)
+	x(is_root)
 
 enum {
 #define x(n) BTREE_ITER_FLAG_BIT_##n,
@@ -477,6 +474,18 @@ struct btree_trans_paths {
 	struct btree_path	paths[];
 };
 
+struct trans_kmalloc_trace {
+	unsigned long		ip;
+	size_t			bytes;
+};
+typedef DARRAY(struct trans_kmalloc_trace) darray_trans_kmalloc_trace;
+
+struct btree_trans_subbuf {
+	u16			base;
+	u16			u64s;
+	u16			size;;
+};
+
 struct btree_trans {
 	struct bch_fs		*c;
 
@@ -488,6 +497,10 @@ struct btree_trans {
 	void			*mem;
 	unsigned		mem_top;
 	unsigned		mem_bytes;
+	unsigned		realloc_bytes_required;
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+	darray_trans_kmalloc_trace trans_kmalloc_trace;
+#endif
 
 	btree_path_idx_t	nr_sorted;
 	btree_path_idx_t	nr_paths;
@@ -528,9 +541,8 @@ struct btree_trans {
 	int			srcu_idx;
 
 	/* update path: */
-	u16			journal_entries_u64s;
-	u16			journal_entries_size;
-	struct jset_entry	*journal_entries;
+	struct btree_trans_subbuf journal_entries;
+	struct btree_trans_subbuf accounting;
 
 	struct btree_trans_commit_hook *hooks;
 	struct journal_entry_pin *journal_pin;
@@ -543,6 +555,8 @@ struct btree_trans {
 
 	unsigned		journal_u64s;
 	unsigned		extra_disk_res; /* XXX kill */
+
+	__BKEY_PADDED(btree_path_down, BKEY_BTREE_PTR_VAL_U64s_MAX);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
@@ -604,6 +618,9 @@ enum btree_write_type {
 	x(dying)							\
 	x(fake)								\
 	x(need_rewrite)							\
+	x(need_rewrite_error)						\
+	x(need_rewrite_degraded)					\
+	x(need_rewrite_ptr_written_zero)				\
 	x(never_write)							\
 	x(pinned)
 
@@ -628,6 +645,32 @@ static inline void clear_btree_node_ ## flag(struct btree *b)		\
 BTREE_FLAGS()
 #undef x
 
+#define BTREE_NODE_REWRITE_REASON()					\
+	x(none)								\
+	x(unknown)							\
+	x(error)							\
+	x(degraded)							\
+	x(ptr_written_zero)
+
+enum btree_node_rewrite_reason {
+#define x(n)	BTREE_NODE_REWRITE_##n,
+	BTREE_NODE_REWRITE_REASON()
+#undef x
+};
+
+static inline enum btree_node_rewrite_reason btree_node_rewrite_reason(struct btree *b)
+{
+	if (btree_node_need_rewrite_ptr_written_zero(b))
+		return BTREE_NODE_REWRITE_ptr_written_zero;
+	if (btree_node_need_rewrite_degraded(b))
+		return BTREE_NODE_REWRITE_degraded;
+	if (btree_node_need_rewrite_error(b))
+		return BTREE_NODE_REWRITE_error;
+	if (btree_node_need_rewrite(b))
+		return BTREE_NODE_REWRITE_unknown;
+	return BTREE_NODE_REWRITE_none;
+}
+
 static inline struct btree_write *btree_current_write(struct btree *b)
 {
 	return b->writes + btree_node_write_idx(b);
@@ -647,13 +690,13 @@ static inline struct bset_tree *bset_tree_last(struct btree *b)
 static inline void *
 __btree_node_offset_to_ptr(const struct btree *b, u16 offset)
 {
-	return (void *) ((u64 *) b->data + 1 + offset);
+	return (void *) ((u64 *) b->data + offset);
 }
 
 static inline u16
 __btree_node_ptr_to_offset(const struct btree *b, const void *p)
 {
-	u16 ret = (u64 *) p - 1 - (u64 *) b->data;
+	u16 ret = (u64 *) p - (u64 *) b->data;
 
 	EBUG_ON(__btree_node_offset_to_ptr(b, ret) != p);
 	return ret;

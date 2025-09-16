@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2022  Realtek Corporation
  */
 
+#include "chan.h"
 #include "coex.h"
 #include "debug.h"
 #include "mac.h"
@@ -1145,19 +1146,19 @@ static void _lok_res_table(struct rtw89_dev *rtwdev, u8 path, u8 ibias)
 
 static bool _lok_finetune_check(struct rtw89_dev *rtwdev, u8 path)
 {
+	struct rtw89_rfk_mcc_info_data *rfk_mcc = rtwdev->rfk_mcc.data;
 	struct rtw89_iqk_info *iqk_info = &rtwdev->iqk;
+	u8 ch = rfk_mcc->table_idx;
 	bool is_fail1, is_fail2;
 	u32 vbuff_i;
 	u32 vbuff_q;
 	u32 core_i;
 	u32 core_q;
 	u32 tmp;
-	u8 ch;
 
 	tmp = rtw89_read_rf(rtwdev, path, RR_TXMO, RFREG_MASK);
 	core_i = FIELD_GET(RR_TXMO_COI, tmp);
 	core_q = FIELD_GET(RR_TXMO_COQ, tmp);
-	ch = (iqk_info->iqk_times / 2) % RTW89_IQK_CHS_NR;
 
 	if (core_i < 0x2 || core_i > 0x1d || core_q < 0x2 || core_q > 0x1d)
 		is_fail1 = true;
@@ -1386,26 +1387,11 @@ static void _iqk_get_ch_info(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy, u
 			     enum rtw89_chanctx_idx chanctx_idx)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, chanctx_idx);
+	struct rtw89_rfk_mcc_info_data *rfk_mcc = rtwdev->rfk_mcc.data;
 	struct rtw89_iqk_info *iqk_info = &rtwdev->iqk;
+	u8 idx = rfk_mcc->table_idx;
 	u32 reg_rf18;
 	u32 reg_35c;
-	u8 idx;
-	u8 get_empty_table = false;
-
-	for (idx = 0; idx < RTW89_IQK_CHS_NR; idx++) {
-		if (iqk_info->iqk_mcc_ch[idx][path] == 0) {
-			get_empty_table = true;
-			break;
-		}
-	}
-	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] (1)idx = %x\n", idx);
-
-	if (!get_empty_table) {
-		idx = iqk_info->iqk_table_idx[path] + 1;
-		if (idx > 1)
-			idx = 0;
-	}
-	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] (2)idx = %x\n", idx);
 
 	reg_rf18 = rtw89_read_rf(rtwdev, path, RR_CFGCH, RFREG_MASK);
 	reg_35c = rtw89_phy_read32_mask(rtwdev, R_CIRST, B_CIRST_SYN);
@@ -1506,11 +1492,10 @@ static void _iqk_afebb_restore(struct rtw89_dev *rtwdev,
 
 static void _iqk_preset(struct rtw89_dev *rtwdev, u8 path)
 {
-	struct rtw89_iqk_info *iqk_info = &rtwdev->iqk;
-	u8 idx;
+	struct rtw89_rfk_mcc_info_data *rfk_mcc = rtwdev->rfk_mcc.data;
+	u8 idx = rfk_mcc->table_idx;
 
-	idx = iqk_info->iqk_table_idx[path];
-	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] (3)idx = %x\n", idx);
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] idx = %x\n", idx);
 
 	rtw89_phy_write32_mask(rtwdev, R_COEF_SEL + (path << 8), B_COEF_SEL_IQC, idx);
 	rtw89_phy_write32_mask(rtwdev, R_CFIR_LUT + (path << 8), B_CFIR_LUT_G3, idx);
@@ -4178,4 +4163,50 @@ void rtw8852b_set_channel_rf(struct rtw89_dev *rtwdev,
 {
 	rtw8852b_ctrl_bw_ch(rtwdev, phy_idx, chan->channel, chan->band_type,
 			    chan->band_width);
+}
+
+void rtw8852b_mcc_get_ch_info(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_chan *chan = rtw89_mgnt_chan_get(rtwdev, 0);
+	struct rtw89_rfk_mcc_info_data *rfk_mcc = rtwdev->rfk_mcc.data;
+	struct rtw89_rfk_chan_desc desc[__RTW89_RFK_CHS_NR_V0] = {};
+	u8 idx;
+
+	for (idx = 0; idx < ARRAY_SIZE(desc); idx++) {
+		struct rtw89_rfk_chan_desc *p = &desc[idx];
+
+		p->ch = rfk_mcc->ch[idx];
+
+		p->has_band = true;
+		p->band = rfk_mcc->band[idx];
+	}
+
+	idx = rtw89_rfk_chan_lookup(rtwdev, desc, ARRAY_SIZE(desc), chan);
+
+	rfk_mcc->ch[idx] = chan->channel;
+	rfk_mcc->band[idx] = chan->band_type;
+	rfk_mcc->table_idx = idx;
+}
+
+void rtw8852b_rfk_chanctx_cb(struct rtw89_dev *rtwdev,
+			     enum rtw89_chanctx_state state)
+{
+	struct rtw89_dpk_info *dpk = &rtwdev->dpk;
+	u8 path;
+
+	switch (state) {
+	case RTW89_CHANCTX_STATE_MCC_START:
+		dpk->is_dpk_enable = false;
+		for (path = 0; path < RTW8852B_DPK_RF_PATH; path++)
+			_dpk_onoff(rtwdev, path, false);
+		break;
+	case RTW89_CHANCTX_STATE_MCC_STOP:
+		dpk->is_dpk_enable = true;
+		for (path = 0; path < RTW8852B_DPK_RF_PATH; path++)
+			_dpk_onoff(rtwdev, path, false);
+		rtw8852b_dpk(rtwdev, RTW89_PHY_0, RTW89_CHANCTX_0);
+		break;
+	default:
+		break;
+	}
 }

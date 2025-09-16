@@ -2,6 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014, 2020, 2023 Intel Corporation. All rights reserved.
+ * Copyright (C) 2025 Intel Corporation
  *****************************************************************************/
 /*
  * Please use this file (dev.h) for driver implementation definitions.
@@ -103,7 +104,7 @@ struct iwl_qos_info {
 };
 
 /**
- * enum iwl_agg_state
+ * enum iwl_agg_state - aggregation state
  *
  * The state machine of the BA agreement establishment / tear down.
  * These states relate to a specific RA / TID.
@@ -518,7 +519,7 @@ enum iwl_scan_type {
 };
 
 /**
- * struct iwl_hw_params
+ * struct iwl_hw_params - HW parameters
  *
  * Holds the module parameters
  *
@@ -627,7 +628,7 @@ struct iwl_priv {
 
 	struct iwl_trans *trans;
 	struct device *dev;		/* for debug prints only */
-	const struct iwl_cfg *cfg;
+	const struct iwl_rf_cfg *cfg;
 	const struct iwl_fw *fw;
 	const struct iwl_dvm_cfg *lib;
 	unsigned long status;

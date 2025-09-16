@@ -636,24 +636,18 @@ svc_destroy(struct svc_serv **servp)
 EXPORT_SYMBOL_GPL(svc_destroy);
 
 static bool
-svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
+svc_init_buffer(struct svc_rqst *rqstp, const struct svc_serv *serv, int node)
 {
-	unsigned long pages, ret;
+	rqstp->rq_maxpages = svc_serv_maxpages(serv);
 
-	/* bc_xprt uses fore channel allocated buffers */
-	if (svc_is_backchannel(rqstp))
-		return true;
+	/* rq_pages' last entry is NULL for historical reasons. */
+	rqstp->rq_pages = kcalloc_node(rqstp->rq_maxpages + 1,
+				       sizeof(struct page *),
+				       GFP_KERNEL, node);
+	if (!rqstp->rq_pages)
+		return false;
 
-	pages = size / PAGE_SIZE + 1; /* extra page as we hold both request and reply.
-				       * We assume one is at most one page
-				       */
-	WARN_ON_ONCE(pages > RPCSVC_MAXPAGES);
-	if (pages > RPCSVC_MAXPAGES)
-		pages = RPCSVC_MAXPAGES;
-
-	ret = alloc_pages_bulk_node(GFP_KERNEL, node, pages,
-				    rqstp->rq_pages);
-	return ret == pages;
+	return true;
 }
 
 /*
@@ -662,17 +656,19 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
 static void
 svc_release_buffer(struct svc_rqst *rqstp)
 {
-	unsigned int i;
+	unsigned long i;
 
-	for (i = 0; i < ARRAY_SIZE(rqstp->rq_pages); i++)
+	for (i = 0; i < rqstp->rq_maxpages; i++)
 		if (rqstp->rq_pages[i])
 			put_page(rqstp->rq_pages[i]);
+	kfree(rqstp->rq_pages);
 }
 
 static void
 svc_rqst_free(struct svc_rqst *rqstp)
 {
 	folio_batch_release(&rqstp->rq_fbatch);
+	kfree(rqstp->rq_bvec);
 	svc_release_buffer(rqstp);
 	if (rqstp->rq_scratch_page)
 		put_page(rqstp->rq_scratch_page);
@@ -708,7 +704,13 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 	if (!rqstp->rq_resp)
 		goto out_enomem;
 
-	if (!svc_init_buffer(rqstp, serv->sv_max_mesg, node))
+	if (!svc_init_buffer(rqstp, serv, node))
+		goto out_enomem;
+
+	rqstp->rq_bvec = kcalloc_node(rqstp->rq_maxpages,
+				      sizeof(struct bio_vec),
+				      GFP_KERNEL, node);
+	if (!rqstp->rq_bvec)
 		goto out_enomem;
 
 	rqstp->rq_err = -EAGAIN; /* No error yet */
@@ -749,14 +751,16 @@ void svc_pool_wake_idle_thread(struct svc_pool *pool)
 		WRITE_ONCE(rqstp->rq_qtime, ktime_get());
 		if (!task_is_running(rqstp->rq_task)) {
 			wake_up_process(rqstp->rq_task);
-			trace_svc_wake_up(rqstp->rq_task->pid);
+			trace_svc_pool_thread_wake(pool, rqstp->rq_task->pid);
 			percpu_counter_inc(&pool->sp_threads_woken);
+		} else {
+			trace_svc_pool_thread_running(pool, rqstp->rq_task->pid);
 		}
 		rcu_read_unlock();
 		return;
 	}
 	rcu_read_unlock();
-
+	trace_svc_pool_thread_noidle(pool, 0);
 }
 EXPORT_SYMBOL_GPL(svc_pool_wake_idle_thread);
 
@@ -900,7 +904,7 @@ EXPORT_SYMBOL_GPL(svc_set_num_threads);
 bool svc_rqst_replace_page(struct svc_rqst *rqstp, struct page *page)
 {
 	struct page **begin = rqstp->rq_pages;
-	struct page **end = &rqstp->rq_pages[RPCSVC_MAXPAGES];
+	struct page **end = &rqstp->rq_pages[rqstp->rq_maxpages];
 
 	if (unlikely(rqstp->rq_next_page < begin || rqstp->rq_next_page > end)) {
 		trace_svc_replace_page_err(rqstp);
@@ -1330,6 +1334,9 @@ svc_process_common(struct svc_rqst *rqstp)
 	int			pr, rc;
 	__be32			*p;
 
+	/* Reset the accept_stat for the RPC */
+	rqstp->rq_accept_statp = NULL;
+
 	/* Will be turned off only when NFSv4 Sessions are used */
 	set_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
 	clear_bit(RQ_DROPME, &rqstp->rq_flags);
@@ -1369,9 +1376,8 @@ svc_process_common(struct svc_rqst *rqstp)
 	case SVC_OK:
 		break;
 	case SVC_GARBAGE:
-		goto err_garbage_args;
-	case SVC_SYSERR:
-		goto err_system_err;
+		rqstp->rq_auth_stat = rpc_autherr_badcred;
+		goto err_bad_auth;
 	case SVC_DENIED:
 		goto err_bad_auth;
 	case SVC_CLOSE:
@@ -1382,7 +1388,8 @@ svc_process_common(struct svc_rqst *rqstp)
 		goto sendit;
 	default:
 		pr_warn_once("Unexpected svc_auth_status (%d)\n", auth_res);
-		goto err_system_err;
+		rqstp->rq_auth_stat = rpc_autherr_failed;
+		goto err_bad_auth;
 	}
 
 	if (progp == NULL)
@@ -1508,20 +1515,6 @@ err_bad_proc:
 	if (serv->sv_stats)
 		serv->sv_stats->rpcbadfmt++;
 	*rqstp->rq_accept_statp = rpc_proc_unavail;
-	goto sendit;
-
-err_garbage_args:
-	svc_printk(rqstp, "failed to decode RPC header\n");
-
-	if (serv->sv_stats)
-		serv->sv_stats->rpcbadfmt++;
-	*rqstp->rq_accept_statp = rpc_garbage_args;
-	goto sendit;
-
-err_system_err:
-	if (serv->sv_stats)
-		serv->sv_stats->rpcbadfmt++;
-	*rqstp->rq_accept_statp = rpc_system_err;
 	goto sendit;
 }
 
@@ -1712,46 +1705,6 @@ int svc_encode_result_payload(struct svc_rqst *rqstp, unsigned int offset,
 							   length);
 }
 EXPORT_SYMBOL_GPL(svc_encode_result_payload);
-
-/**
- * svc_fill_write_vector - Construct data argument for VFS write call
- * @rqstp: svc_rqst to operate on
- * @payload: xdr_buf containing only the write data payload
- *
- * Fills in rqstp::rq_vec, and returns the number of elements.
- */
-unsigned int svc_fill_write_vector(struct svc_rqst *rqstp,
-				   struct xdr_buf *payload)
-{
-	struct page **pages = payload->pages;
-	struct kvec *first = payload->head;
-	struct kvec *vec = rqstp->rq_vec;
-	size_t total = payload->len;
-	unsigned int i;
-
-	/* Some types of transport can present the write payload
-	 * entirely in rq_arg.pages. In this case, @first is empty.
-	 */
-	i = 0;
-	if (first->iov_len) {
-		vec[i].iov_base = first->iov_base;
-		vec[i].iov_len = min_t(size_t, total, first->iov_len);
-		total -= vec[i].iov_len;
-		++i;
-	}
-
-	while (total) {
-		vec[i].iov_base = page_address(*pages);
-		vec[i].iov_len = min_t(size_t, total, PAGE_SIZE);
-		total -= vec[i].iov_len;
-		++i;
-		++pages;
-	}
-
-	WARN_ON_ONCE(i > ARRAY_SIZE(rqstp->rq_vec));
-	return i;
-}
-EXPORT_SYMBOL_GPL(svc_fill_write_vector);
 
 /**
  * svc_fill_symlink_pathname - Construct pathname argument for VFS symlink call

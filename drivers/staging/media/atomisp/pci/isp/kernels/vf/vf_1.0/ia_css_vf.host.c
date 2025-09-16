@@ -91,8 +91,7 @@ configure_kernel(
 	unsigned int vf_log_ds = 0;
 
 	/* First compute value */
-	if (vf_info)
-	{
+	if (vf_info) {
 		err = sh_css_vf_downscale_log2(out_info, vf_info, &vf_log_ds);
 		if (err)
 			return err;
@@ -114,7 +113,7 @@ configure_dma(
 }
 
 int ia_css_vf_configure(const struct ia_css_binary *binary,
-		        const struct ia_css_frame_info *out_info,
+			const struct ia_css_frame_info *out_info,
 			struct ia_css_frame_info *vf_info,
 			unsigned int *downscale_log2)
 {

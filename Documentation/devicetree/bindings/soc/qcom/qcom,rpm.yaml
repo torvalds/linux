@@ -36,6 +36,13 @@ properties:
       - const: err
       - const: wakeup
 
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: ram
+
   qcom,ipc:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
@@ -45,6 +52,14 @@ properties:
           - description: u32 representing the ipc bit within the register
     description:
       Three entries specifying the outgoing ipc bit used for signaling the RPM.
+
+  clock-controller:
+    type: object
+    additionalProperties: true
+    properties:
+      compatible:
+        contains:
+          const: qcom,rpmcc
 
 patternProperties:
   "^regulators(-[01])?$":

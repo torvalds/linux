@@ -6,6 +6,7 @@
  * Author: Jassi Brar <jassisinghbrar@gmail.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -24,15 +25,12 @@ static DEFINE_MUTEX(con_mutex);
 static int add_to_rbuf(struct mbox_chan *chan, void *mssg)
 {
 	int idx;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chan->lock, flags);
+	guard(spinlock_irqsave)(&chan->lock);
 
 	/* See if there is any space left */
-	if (chan->msg_count == MBOX_TX_QUEUE_LEN) {
-		spin_unlock_irqrestore(&chan->lock, flags);
+	if (chan->msg_count == MBOX_TX_QUEUE_LEN)
 		return -ENOBUFS;
-	}
 
 	idx = chan->msg_free;
 	chan->msg_data[idx] = mssg;
@@ -43,60 +41,53 @@ static int add_to_rbuf(struct mbox_chan *chan, void *mssg)
 	else
 		chan->msg_free++;
 
-	spin_unlock_irqrestore(&chan->lock, flags);
-
 	return idx;
 }
 
 static void msg_submit(struct mbox_chan *chan)
 {
 	unsigned count, idx;
-	unsigned long flags;
 	void *data;
 	int err = -EBUSY;
 
-	spin_lock_irqsave(&chan->lock, flags);
+	scoped_guard(spinlock_irqsave, &chan->lock) {
+		if (!chan->msg_count || chan->active_req)
+			break;
 
-	if (!chan->msg_count || chan->active_req)
-		goto exit;
+		count = chan->msg_count;
+		idx = chan->msg_free;
+		if (idx >= count)
+			idx -= count;
+		else
+			idx += MBOX_TX_QUEUE_LEN - count;
 
-	count = chan->msg_count;
-	idx = chan->msg_free;
-	if (idx >= count)
-		idx -= count;
-	else
-		idx += MBOX_TX_QUEUE_LEN - count;
+		data = chan->msg_data[idx];
 
-	data = chan->msg_data[idx];
-
-	if (chan->cl->tx_prepare)
-		chan->cl->tx_prepare(chan->cl, data);
-	/* Try to submit a message to the MBOX controller */
-	err = chan->mbox->ops->send_data(chan, data);
-	if (!err) {
-		chan->active_req = data;
-		chan->msg_count--;
+		if (chan->cl->tx_prepare)
+			chan->cl->tx_prepare(chan->cl, data);
+		/* Try to submit a message to the MBOX controller */
+		err = chan->mbox->ops->send_data(chan, data);
+		if (!err) {
+			chan->active_req = data;
+			chan->msg_count--;
+		}
 	}
-exit:
-	spin_unlock_irqrestore(&chan->lock, flags);
 
 	if (!err && (chan->txdone_method & TXDONE_BY_POLL)) {
 		/* kick start the timer immediately to avoid delays */
-		spin_lock_irqsave(&chan->mbox->poll_hrt_lock, flags);
-		hrtimer_start(&chan->mbox->poll_hrt, 0, HRTIMER_MODE_REL);
-		spin_unlock_irqrestore(&chan->mbox->poll_hrt_lock, flags);
+		scoped_guard(spinlock_irqsave, &chan->mbox->poll_hrt_lock)
+			hrtimer_start(&chan->mbox->poll_hrt, 0, HRTIMER_MODE_REL);
 	}
 }
 
 static void tx_tick(struct mbox_chan *chan, int r)
 {
-	unsigned long flags;
 	void *mssg;
 
-	spin_lock_irqsave(&chan->lock, flags);
-	mssg = chan->active_req;
-	chan->active_req = NULL;
-	spin_unlock_irqrestore(&chan->lock, flags);
+	scoped_guard(spinlock_irqsave, &chan->lock) {
+		mssg = chan->active_req;
+		chan->active_req = NULL;
+	}
 
 	/* Submit next message */
 	msg_submit(chan);
@@ -118,7 +109,6 @@ static enum hrtimer_restart txdone_hrtimer(struct hrtimer *hrtimer)
 		container_of(hrtimer, struct mbox_controller, poll_hrt);
 	bool txdone, resched = false;
 	int i;
-	unsigned long flags;
 
 	for (i = 0; i < mbox->num_chans; i++) {
 		struct mbox_chan *chan = &mbox->chans[i];
@@ -133,10 +123,10 @@ static enum hrtimer_restart txdone_hrtimer(struct hrtimer *hrtimer)
 	}
 
 	if (resched) {
-		spin_lock_irqsave(&mbox->poll_hrt_lock, flags);
-		if (!hrtimer_is_queued(hrtimer))
-			hrtimer_forward_now(hrtimer, ms_to_ktime(mbox->txpoll_period));
-		spin_unlock_irqrestore(&mbox->poll_hrt_lock, flags);
+		scoped_guard(spinlock_irqsave, &mbox->poll_hrt_lock) {
+			if (!hrtimer_is_queued(hrtimer))
+				hrtimer_forward_now(hrtimer, ms_to_ktime(mbox->txpoll_period));
+		}
 
 		return HRTIMER_RESTART;
 	}
@@ -318,25 +308,23 @@ EXPORT_SYMBOL_GPL(mbox_flush);
 static int __mbox_bind_client(struct mbox_chan *chan, struct mbox_client *cl)
 {
 	struct device *dev = cl->dev;
-	unsigned long flags;
 	int ret;
 
 	if (chan->cl || !try_module_get(chan->mbox->dev->driver->owner)) {
-		dev_dbg(dev, "%s: mailbox not free\n", __func__);
+		dev_err(dev, "%s: mailbox not free\n", __func__);
 		return -EBUSY;
 	}
 
-	spin_lock_irqsave(&chan->lock, flags);
-	chan->msg_free = 0;
-	chan->msg_count = 0;
-	chan->active_req = NULL;
-	chan->cl = cl;
-	init_completion(&chan->tx_complete);
+	scoped_guard(spinlock_irqsave, &chan->lock) {
+		chan->msg_free = 0;
+		chan->msg_count = 0;
+		chan->active_req = NULL;
+		chan->cl = cl;
+		init_completion(&chan->tx_complete);
 
-	if (chan->txdone_method	== TXDONE_BY_POLL && cl->knows_txdone)
-		chan->txdone_method = TXDONE_BY_ACK;
-
-	spin_unlock_irqrestore(&chan->lock, flags);
+		if (chan->txdone_method	== TXDONE_BY_POLL && cl->knows_txdone)
+			chan->txdone_method = TXDONE_BY_ACK;
+	}
 
 	if (chan->mbox->ops->startup) {
 		ret = chan->mbox->ops->startup(chan);
@@ -370,13 +358,9 @@ static int __mbox_bind_client(struct mbox_chan *chan, struct mbox_client *cl)
  */
 int mbox_bind_client(struct mbox_chan *chan, struct mbox_client *cl)
 {
-	int ret;
+	guard(mutex)(&con_mutex);
 
-	mutex_lock(&con_mutex);
-	ret = __mbox_bind_client(chan, cl);
-	mutex_unlock(&con_mutex);
-
-	return ret;
+	return __mbox_bind_client(chan, cl);
 }
 EXPORT_SYMBOL_GPL(mbox_bind_client);
 
@@ -413,32 +397,29 @@ struct mbox_chan *mbox_request_channel(struct mbox_client *cl, int index)
 	ret = of_parse_phandle_with_args(dev->of_node, "mboxes", "#mbox-cells",
 					 index, &spec);
 	if (ret) {
-		dev_dbg(dev, "%s: can't parse \"mboxes\" property\n", __func__);
+		dev_err(dev, "%s: can't parse \"mboxes\" property\n", __func__);
 		return ERR_PTR(ret);
 	}
 
-	mutex_lock(&con_mutex);
+	scoped_guard(mutex, &con_mutex) {
+		chan = ERR_PTR(-EPROBE_DEFER);
+		list_for_each_entry(mbox, &mbox_cons, node)
+			if (mbox->dev->of_node == spec.np) {
+				chan = mbox->of_xlate(mbox, &spec);
+				if (!IS_ERR(chan))
+					break;
+			}
 
-	chan = ERR_PTR(-EPROBE_DEFER);
-	list_for_each_entry(mbox, &mbox_cons, node)
-		if (mbox->dev->of_node == spec.np) {
-			chan = mbox->of_xlate(mbox, &spec);
-			if (!IS_ERR(chan))
-				break;
-		}
+		of_node_put(spec.np);
 
-	of_node_put(spec.np);
+		if (IS_ERR(chan))
+			return chan;
 
-	if (IS_ERR(chan)) {
-		mutex_unlock(&con_mutex);
-		return chan;
+		ret = __mbox_bind_client(chan, cl);
+		if (ret)
+			chan = ERR_PTR(ret);
 	}
 
-	ret = __mbox_bind_client(chan, cl);
-	if (ret)
-		chan = ERR_PTR(ret);
-
-	mutex_unlock(&con_mutex);
 	return chan;
 }
 EXPORT_SYMBOL_GPL(mbox_request_channel);
@@ -458,7 +439,7 @@ struct mbox_chan *mbox_request_channel_byname(struct mbox_client *cl,
 	if (index < 0) {
 		dev_err(cl->dev, "%s() could not locate channel named \"%s\"\n",
 			__func__, name);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(index);
 	}
 	return mbox_request_channel(cl, index);
 }
@@ -471,8 +452,6 @@ EXPORT_SYMBOL_GPL(mbox_request_channel_byname);
  */
 void mbox_free_channel(struct mbox_chan *chan)
 {
-	unsigned long flags;
-
 	if (!chan || !chan->cl)
 		return;
 
@@ -480,14 +459,14 @@ void mbox_free_channel(struct mbox_chan *chan)
 		chan->mbox->ops->shutdown(chan);
 
 	/* The queued TX requests are simply aborted, no callbacks are made */
-	spin_lock_irqsave(&chan->lock, flags);
-	chan->cl = NULL;
-	chan->active_req = NULL;
-	if (chan->txdone_method == TXDONE_BY_ACK)
-		chan->txdone_method = TXDONE_BY_POLL;
+	scoped_guard(spinlock_irqsave, &chan->lock) {
+		chan->cl = NULL;
+		chan->active_req = NULL;
+		if (chan->txdone_method == TXDONE_BY_ACK)
+			chan->txdone_method = TXDONE_BY_POLL;
+	}
 
 	module_put(chan->mbox->dev->driver->owner);
-	spin_unlock_irqrestore(&chan->lock, flags);
 }
 EXPORT_SYMBOL_GPL(mbox_free_channel);
 
@@ -547,9 +526,8 @@ int mbox_controller_register(struct mbox_controller *mbox)
 	if (!mbox->of_xlate)
 		mbox->of_xlate = of_mbox_index_xlate;
 
-	mutex_lock(&con_mutex);
-	list_add_tail(&mbox->node, &mbox_cons);
-	mutex_unlock(&con_mutex);
+	scoped_guard(mutex, &con_mutex)
+		list_add_tail(&mbox->node, &mbox_cons);
 
 	return 0;
 }
@@ -566,17 +544,15 @@ void mbox_controller_unregister(struct mbox_controller *mbox)
 	if (!mbox)
 		return;
 
-	mutex_lock(&con_mutex);
+	scoped_guard(mutex, &con_mutex) {
+		list_del(&mbox->node);
 
-	list_del(&mbox->node);
+		for (i = 0; i < mbox->num_chans; i++)
+			mbox_free_channel(&mbox->chans[i]);
 
-	for (i = 0; i < mbox->num_chans; i++)
-		mbox_free_channel(&mbox->chans[i]);
-
-	if (mbox->txdone_poll)
-		hrtimer_cancel(&mbox->poll_hrt);
-
-	mutex_unlock(&con_mutex);
+		if (mbox->txdone_poll)
+			hrtimer_cancel(&mbox->poll_hrt);
+	}
 }
 EXPORT_SYMBOL_GPL(mbox_controller_unregister);
 
@@ -585,16 +561,6 @@ static void __devm_mbox_controller_unregister(struct device *dev, void *res)
 	struct mbox_controller **mbox = res;
 
 	mbox_controller_unregister(*mbox);
-}
-
-static int devm_mbox_controller_match(struct device *dev, void *res, void *data)
-{
-	struct mbox_controller **mbox = res;
-
-	if (WARN_ON(!mbox || !*mbox))
-		return 0;
-
-	return *mbox == data;
 }
 
 /**
@@ -632,20 +598,3 @@ int devm_mbox_controller_register(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devm_mbox_controller_register);
-
-/**
- * devm_mbox_controller_unregister() - managed mbox_controller_unregister()
- * @dev: device owning the mailbox controller being unregistered
- * @mbox: mailbox controller being unregistered
- *
- * This function unregisters the mailbox controller and removes the device-
- * managed resource that was set up to automatically unregister the mailbox
- * controller on driver probe failure or driver removal. It's typically not
- * necessary to call this function.
- */
-void devm_mbox_controller_unregister(struct device *dev, struct mbox_controller *mbox)
-{
-	WARN_ON(devres_release(dev, __devm_mbox_controller_unregister,
-			       devm_mbox_controller_match, mbox));
-}
-EXPORT_SYMBOL_GPL(devm_mbox_controller_unregister);

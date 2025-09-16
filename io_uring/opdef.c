@@ -216,6 +216,7 @@ const struct io_issue_def io_issue_defs[] = {
 	},
 	[IORING_OP_FALLOCATE] = {
 		.needs_file		= 1,
+		.hash_reg_file          = 1,
 		.prep			= io_fallocate_prep,
 		.issue			= io_fallocate,
 	},
@@ -333,13 +334,13 @@ const struct io_issue_def io_issue_defs[] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
 		.prep			= io_provide_buffers_prep,
-		.issue			= io_provide_buffers,
+		.issue			= io_manage_buffers_legacy,
 	},
 	[IORING_OP_REMOVE_BUFFERS] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
 		.prep			= io_remove_buffers_prep,
-		.issue			= io_remove_buffers,
+		.issue			= io_manage_buffers_legacy,
 	},
 	[IORING_OP_TEE] = {
 		.needs_file		= 1,
@@ -569,6 +570,10 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_prep_writev_fixed,
 		.issue			= io_write,
 	},
+	[IORING_OP_PIPE] = {
+		.prep			= io_pipe_prep,
+		.issue			= io_pipe,
+	},
 };
 
 const struct io_cold_def io_cold_defs[] = {
@@ -755,6 +760,7 @@ const struct io_cold_def io_cold_defs[] = {
 	},
 	[IORING_OP_URING_CMD] = {
 		.name			= "URING_CMD",
+		.sqe_copy		= io_uring_cmd_sqe_copy,
 		.cleanup		= io_uring_cmd_cleanup,
 	},
 	[IORING_OP_SEND_ZC] = {
@@ -814,6 +820,9 @@ const struct io_cold_def io_cold_defs[] = {
 		.name			= "WRITEV_FIXED",
 		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
+	},
+	[IORING_OP_PIPE] = {
+		.name			= "PIPE",
 	},
 };
 

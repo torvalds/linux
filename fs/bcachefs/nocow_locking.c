@@ -133,12 +133,10 @@ void bch2_fs_nocow_locking_exit(struct bch_fs *c)
 			BUG_ON(atomic_read(&l->l[j]));
 }
 
-int bch2_fs_nocow_locking_init(struct bch_fs *c)
+void bch2_fs_nocow_locking_init_early(struct bch_fs *c)
 {
 	struct bucket_nocow_lock_table *t = &c->nocow_locks;
 
 	for (struct nocow_lock_bucket *l = t->l; l < t->l + ARRAY_SIZE(t->l); l++)
 		spin_lock_init(&l->lock);
-
-	return 0;
 }

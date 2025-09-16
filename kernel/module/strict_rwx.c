@@ -87,8 +87,9 @@ int module_enable_data_nx(const struct module *mod)
 	return 0;
 }
 
-int module_enforce_rwx_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
-				char *secstrings, struct module *mod)
+int module_enforce_rwx_sections(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
+				const char *secstrings,
+				const struct module *mod)
 {
 	const unsigned long shf_wx = SHF_WRITE | SHF_EXECINSTR;
 	int i;
@@ -105,4 +106,46 @@ int module_enforce_rwx_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 	}
 
 	return 0;
+}
+
+static const char *const ro_after_init[] = {
+	/*
+	 * Section .data..ro_after_init holds data explicitly annotated by
+	 * __ro_after_init.
+	 */
+	".data..ro_after_init",
+
+	/*
+	 * Section __jump_table holds data structures that are never modified,
+	 * with the exception of entries that refer to code in the __init
+	 * section, which are marked as such at module load time.
+	 */
+	"__jump_table",
+
+#ifdef CONFIG_HAVE_STATIC_CALL_INLINE
+	/*
+	 * Section .static_call_sites holds data structures that need to be
+	 * sorted and processed at module load time but are never modified
+	 * afterwards.
+	 */
+	".static_call_sites",
+#endif
+};
+
+void module_mark_ro_after_init(const Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
+			       const char *secstrings)
+{
+	int i, j;
+
+	for (i = 1; i < hdr->e_shnum; i++) {
+		Elf_Shdr *shdr = &sechdrs[i];
+
+		for (j = 0; j < ARRAY_SIZE(ro_after_init); j++) {
+			if (strcmp(secstrings + shdr->sh_name,
+				   ro_after_init[j]) == 0) {
+				shdr->sh_flags |= SHF_RO_AFTER_INIT;
+				break;
+			}
+		}
+	}
 }

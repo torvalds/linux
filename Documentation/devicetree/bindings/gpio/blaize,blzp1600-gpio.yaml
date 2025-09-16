@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/blaize,blzp1600-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Blaize BLZP1600 GPIO controller
+
+description:
+  Blaize BLZP1600 GPIO controller is an implementation of the VeriSilicon
+  APB GPIO v0.2 IP block. It has 32 ports each of which are intended to be
+  represented as child nodes with the generic GPIO-controller properties
+  as described in this binding's file.
+
+maintainers:
+  - Nikolaos Pasaloukos <nikolaos.pasaloukos@blaize.com>
+  - James Cowgill <james.cowgill@blaize.com>
+  - Matt Redfearn <matt.redfearn@blaize.com>
+  - Neil Jones <neil.jones@blaize.com>
+
+properties:
+  $nodename:
+    pattern: "^gpio@[0-9a-f]+$"
+
+  compatible:
+    enum:
+      - blaize,blzp1600-gpio
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  ngpios:
+    default: 32
+    minimum: 1
+    maximum: 32
+
+  interrupts:
+    maxItems: 1
+
+  gpio-line-names: true
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+
+dependencies:
+  interrupt-controller: [ interrupts ]
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    gpio: gpio@4c0000 {
+      compatible = "blaize,blzp1600-gpio";
+      reg = <0x004c0000 0x1000>;
+      gpio-controller;
+      #gpio-cells = <2>;
+      ngpios = <32>;
+      interrupt-controller;
+      #interrupt-cells = <2>;
+      interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+    };
+...

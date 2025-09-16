@@ -63,7 +63,7 @@ examples:
             compatible = "vertexcom,mse1021";
             reg = <0>;
             interrupt-parent = <&gpio>;
-            interrupts = <23 IRQ_TYPE_EDGE_RISING>;
+            interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
             spi-cpha;
             spi-cpol;
             spi-max-frequency = <7142857>;

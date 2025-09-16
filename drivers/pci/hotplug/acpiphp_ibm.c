@@ -98,7 +98,7 @@ static struct bin_attribute ibm_apci_table_attr __ro_after_init = {
 		    .name = "apci_table",
 		    .mode = S_IRUGO,
 	    },
-	    .read_new = ibm_read_apci_table,
+	    .read = ibm_read_apci_table,
 	    .write = NULL,
 };
 static struct acpiphp_attention_info ibm_attention_info =

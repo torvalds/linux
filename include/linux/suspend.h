@@ -298,6 +298,11 @@ static inline void s2idle_set_ops(const struct platform_s2idle_ops *ops) {}
 static inline void s2idle_wake(void) {}
 #endif /* !CONFIG_SUSPEND */
 
+static inline bool pm_suspend_in_progress(void)
+{
+	return pm_suspend_target_state != PM_SUSPEND_ON;
+}
+
 /* struct pbe is used for creating lists of pages that should be restored
  * atomically during the resume from disk, because the page frames they have
  * occupied before the suspend are in use.
@@ -441,6 +446,8 @@ extern int unregister_pm_notifier(struct notifier_block *nb);
 extern void ksys_sync_helper(void);
 extern void pm_report_hw_sleep_time(u64 t);
 extern void pm_report_max_hw_sleep(u64 t);
+void pm_restrict_gfp_mask(void);
+void pm_restore_gfp_mask(void);
 
 #define pm_notifier(fn, pri) {				\
 	static struct notifier_block fn##_nb =			\
@@ -470,6 +477,9 @@ extern void pm_print_active_wakeup_sources(void);
 extern unsigned int lock_system_sleep(void);
 extern void unlock_system_sleep(unsigned int);
 
+extern bool pm_sleep_transition_in_progress(void);
+bool pm_hibernate_is_recovering(void);
+
 #else /* !CONFIG_PM_SLEEP */
 
 static inline int register_pm_notifier(struct notifier_block *nb)
@@ -485,6 +495,9 @@ static inline int unregister_pm_notifier(struct notifier_block *nb)
 static inline void pm_report_hw_sleep_time(u64 t) {};
 static inline void pm_report_max_hw_sleep(u64 t) {};
 
+static inline void pm_restrict_gfp_mask(void) {}
+static inline void pm_restore_gfp_mask(void) {}
+
 static inline void ksys_sync_helper(void) {}
 
 #define pm_notifier(fn, pri)	do { (void)(fn); } while (0)
@@ -497,6 +510,9 @@ static inline void pm_system_irq_wakeup(unsigned int irq_number) {}
 
 static inline unsigned int lock_system_sleep(void) { return 0; }
 static inline void unlock_system_sleep(unsigned int flags) {}
+
+static inline bool pm_sleep_transition_in_progress(void) { return false; }
+static inline bool pm_hibernate_is_recovering(void) { return false; }
 
 #endif /* !CONFIG_PM_SLEEP */
 

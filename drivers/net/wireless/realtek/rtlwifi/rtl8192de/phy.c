@@ -2055,11 +2055,6 @@ void rtl92d_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t)
 	RTPRINT(rtlpriv, FINIT, INIT_IQK,  "LCK:Finish!!!\n");
 }
 
-void rtl92d_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta)
-{
-	return;
-}
-
 static bool _rtl92d_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 		u32 cmdtableidx, u32 cmdtablesz, enum swchnlcmd_id cmdid,
 		u32 para1, u32 para2, u32 msdelay)

@@ -200,7 +200,7 @@ static int snd_echo_midi_output_open(struct snd_rawmidi_substream *substream)
 
 static void snd_echo_midi_output_write(struct timer_list *t)
 {
-	struct echoaudio *chip = from_timer(chip, t, timer);
+	struct echoaudio *chip = timer_container_of(chip, t, timer);
 	unsigned long flags;
 	int bytes, sent, time;
 	unsigned char buf[MIDI_OUT_BUFFER_SIZE - 1];
@@ -311,7 +311,7 @@ static int snd_echo_midi_create(struct snd_card *card,
 	if (err < 0)
 		return err;
 
-	strcpy(chip->rmidi->name, card->shortname);
+	strscpy(chip->rmidi->name, card->shortname);
 	chip->rmidi->private_data = chip;
 
 	snd_rawmidi_set_ops(chip->rmidi, SNDRV_RAWMIDI_STREAM_INPUT,

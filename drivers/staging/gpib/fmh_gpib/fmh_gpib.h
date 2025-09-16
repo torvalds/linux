@@ -124,13 +124,13 @@ static const unsigned int fifo_data_mask = 0x00ff;
 static const unsigned int fifo_xfer_counter_mask = 0x0fff;
 static const unsigned int fifo_max_burst_length_mask = 0x00ff;
 
-static inline uint8_t gpib_cs_read_byte(struct nec7210_priv *nec_priv,
-					unsigned int register_num)
+static inline u8 gpib_cs_read_byte(struct nec7210_priv *nec_priv,
+				   unsigned int register_num)
 {
 	return readb(nec_priv->mmiobase + register_num * nec_priv->offset);
 }
 
-static inline void gpib_cs_write_byte(struct nec7210_priv *nec_priv, uint8_t data,
+static inline void gpib_cs_write_byte(struct nec7210_priv *nec_priv, u8 data,
 				      unsigned int register_num)
 {
 	writeb(data, nec_priv->mmiobase + register_num * nec_priv->offset);

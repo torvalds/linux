@@ -25,7 +25,11 @@
 )]
 
 #[allow(dead_code)]
+#[allow(clippy::cast_lossless)]
+#[allow(clippy::ptr_as_ptr)]
+#[allow(clippy::ref_as_ptr)]
 #[allow(clippy::undocumented_unsafe_blocks)]
+#[cfg_attr(CONFIG_RUSTC_HAS_UNNECESSARY_TRANSMUTES, allow(unnecessary_transmutes))]
 mod bindings_raw {
     // Manual definition for blocklisted types.
     type __kernel_size_t = usize;

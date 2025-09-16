@@ -541,9 +541,9 @@ static int ext4_orphan_file_block_csum_verify(struct super_block *sb,
 		return 1;
 
 	ot = ext4_orphan_block_tail(sb, bh);
-	calculated = ext4_chksum(EXT4_SB(sb), oi->of_csum_seed,
-				 (__u8 *)&dsk_block_nr, sizeof(dsk_block_nr));
-	calculated = ext4_chksum(EXT4_SB(sb), calculated, (__u8 *)bh->b_data,
+	calculated = ext4_chksum(oi->of_csum_seed, (__u8 *)&dsk_block_nr,
+				 sizeof(dsk_block_nr));
+	calculated = ext4_chksum(calculated, (__u8 *)bh->b_data,
 				 inodes_per_ob * sizeof(__u32));
 	return le32_to_cpu(ot->ob_checksum) == calculated;
 }
@@ -560,10 +560,9 @@ void ext4_orphan_file_block_trigger(struct jbd2_buffer_trigger_type *triggers,
 	struct ext4_orphan_block_tail *ot;
 	__le64 dsk_block_nr = cpu_to_le64(bh->b_blocknr);
 
-	csum = ext4_chksum(EXT4_SB(sb), oi->of_csum_seed,
-			   (__u8 *)&dsk_block_nr, sizeof(dsk_block_nr));
-	csum = ext4_chksum(EXT4_SB(sb), csum, (__u8 *)data,
-			   inodes_per_ob * sizeof(__u32));
+	csum = ext4_chksum(oi->of_csum_seed, (__u8 *)&dsk_block_nr,
+			   sizeof(dsk_block_nr));
+	csum = ext4_chksum(csum, (__u8 *)data, inodes_per_ob * sizeof(__u32));
 	ot = ext4_orphan_block_tail(sb, bh);
 	ot->ob_checksum = cpu_to_le32(csum);
 }
@@ -590,8 +589,9 @@ int ext4_init_orphan_info(struct super_block *sb)
 	}
 	oi->of_blocks = inode->i_size >> sb->s_blocksize_bits;
 	oi->of_csum_seed = EXT4_I(inode)->i_csum_seed;
-	oi->of_binfo = kmalloc(oi->of_blocks*sizeof(struct ext4_orphan_block),
-			       GFP_KERNEL);
+	oi->of_binfo = kmalloc_array(oi->of_blocks,
+				     sizeof(struct ext4_orphan_block),
+				     GFP_KERNEL);
 	if (!oi->of_binfo) {
 		ret = -ENOMEM;
 		goto out_put;

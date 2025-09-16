@@ -1398,8 +1398,8 @@ static u32 xiic_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm xiic_algorithm = {
-	.master_xfer = xiic_xfer,
-	.master_xfer_atomic = xiic_xfer_atomic,
+	.xfer = xiic_xfer,
+	.xfer_atomic = xiic_xfer_atomic,
 	.functionality = xiic_func,
 };
 
@@ -1489,7 +1489,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 					pdev->name, i2c);
 
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot claim IRQ\n");
+		dev_err_probe(&pdev->dev, ret, "Cannot claim IRQ\n");
 		goto err_pm_disable;
 	}
 
@@ -1510,7 +1510,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 
 	ret = xiic_reinit(i2c);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot xiic_reinit\n");
+		dev_err_probe(&pdev->dev, ret, "Cannot xiic_reinit\n");
 		goto err_pm_disable;
 	}
 

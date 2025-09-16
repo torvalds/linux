@@ -14,11 +14,6 @@
 #include <asm/cmpxchg.h>
 #include <asm/fence.h>
 
-#define nop()		__asm__ __volatile__ ("nop")
-#define __nops(n)	".rept	" #n "\nnop\n.endr\n"
-#define nops(n)		__asm__ __volatile__ (__nops(n))
-
-
 /* These barriers need to enforce ordering on both devices or memory. */
 #define __mb()		RISCV_FENCE(iorw, iorw)
 #define __rmb()		RISCV_FENCE(ir, ir)

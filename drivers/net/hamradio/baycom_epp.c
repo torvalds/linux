@@ -1074,7 +1074,7 @@ static int baycom_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 		return 0;
 
 	case HDLCDRVCTL_DRIVERNAME:
-		strscpy_pad(hi.data.drivername, "baycom_epp", sizeof(hi.data.drivername));
+		strscpy_pad(hi.data.drivername, "baycom_epp");
 		break;
 		
 	case HDLCDRVCTL_GETMODE:
@@ -1091,8 +1091,7 @@ static int baycom_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 		return baycom_setmode(bc, hi.data.modename);
 
 	case HDLCDRVCTL_MODELIST:
-		strscpy_pad(hi.data.modename, "intclk,extclk,intmodem,extmodem,divider=x",
-			sizeof(hi.data.modename));
+		strscpy_pad(hi.data.modename, "intclk,extclk,intmodem,extmodem,divider=x");
 		break;
 
 	case HDLCDRVCTL_MODEMPARMASK:

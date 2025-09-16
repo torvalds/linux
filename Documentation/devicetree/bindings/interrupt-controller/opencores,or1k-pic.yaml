@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/opencores,or1k-pic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: OpenRISC 1000 Programmable Interrupt Controller
+
+maintainers:
+  - Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>
+
+properties:
+  compatible:
+    enum:
+      - opencores,or1k-pic-level
+      - opencores,or1k-pic-edge
+      - opencores,or1200-pic
+      - opencores,or1k-pic
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+
+required:
+  - compatible
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    interrupt-controller {
+        compatible = "opencores,or1k-pic-level";
+        interrupt-controller;
+        #interrupt-cells = <1>;
+    };

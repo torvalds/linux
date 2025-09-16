@@ -395,13 +395,13 @@ static int adis16460_probe(struct spi_device *spi)
 
 static const struct spi_device_id adis16460_ids[] = {
 	{ "adis16460", 0 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, adis16460_ids);
 
 static const struct of_device_id adis16460_of_match[] = {
 	{ .compatible = "adi,adis16460" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, adis16460_of_match);
 

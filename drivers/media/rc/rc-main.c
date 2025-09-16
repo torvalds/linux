@@ -674,7 +674,7 @@ EXPORT_SYMBOL_GPL(rc_keyup);
  */
 static void ir_timer_keyup(struct timer_list *t)
 {
-	struct rc_dev *dev = from_timer(dev, t, timer_keyup);
+	struct rc_dev *dev = timer_container_of(dev, t, timer_keyup);
 	unsigned long flags;
 
 	/*
@@ -703,7 +703,7 @@ static void ir_timer_keyup(struct timer_list *t)
  */
 static void ir_timer_repeat(struct timer_list *t)
 {
-	struct rc_dev *dev = from_timer(dev, t, timer_repeat);
+	struct rc_dev *dev = timer_container_of(dev, t, timer_repeat);
 	struct input_dev *input = dev->input_dev;
 	unsigned long flags;
 

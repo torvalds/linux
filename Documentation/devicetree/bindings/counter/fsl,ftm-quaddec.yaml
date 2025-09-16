@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/counter/fsl,ftm-quaddec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: FlexTimer Quadrature decoder counter
+
+description:
+  Exposes a simple counter for the quadrature decoder mode.
+
+maintainers:
+  - Frank Li <Frank.li@nxp.com>
+
+properties:
+  compatible:
+    const: fsl,ftm-quaddec
+
+  reg:
+    maxItems: 1
+
+  big-endian: true
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    counter@29d0000 {
+       compatible = "fsl,ftm-quaddec";
+       reg = <0x29d0000 0x10000>;
+       big-endian;
+    };

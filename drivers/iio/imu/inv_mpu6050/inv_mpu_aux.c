@@ -14,6 +14,8 @@
 /*
  * i2c master auxiliary bus transfer function.
  * Requires the i2c operations to be correctly setup before.
+ * Disables SLV0 and checks for NACK status internally.
+ * Assumes that only SLV0 is used for transfers.
  */
 static int inv_mpu_i2c_master_xfer(const struct inv_mpu6050_state *st)
 {
@@ -23,6 +25,7 @@ static int inv_mpu_i2c_master_xfer(const struct inv_mpu6050_state *st)
 	uint8_t d;
 	unsigned int user_ctrl;
 	int ret;
+	unsigned int status;
 
 	/* set sample rate */
 	d = INV_MPU6050_FIFO_RATE_TO_DIVIDER(freq);
@@ -51,12 +54,27 @@ static int inv_mpu_i2c_master_xfer(const struct inv_mpu6050_state *st)
 	if (ret)
 		goto error_restore_rate;
 
+	/* disable i2c slave */
+	ret = regmap_write(st->map, INV_MPU6050_REG_I2C_SLV_CTRL(0), 0);
+	if (ret)
+		goto error_disable_i2c;
+
+	/* check i2c status */
+	ret = regmap_read(st->map, INV_MPU6050_REG_I2C_MST_STATUS, &status);
+	if (ret)
+		return ret;
+
+	if (status & INV_MPU6050_BIT_I2C_SLV0_NACK)
+		return -EIO;
+
 	return 0;
 
 error_stop_i2c:
 	regmap_write(st->map, st->reg->user_ctrl, st->chip_config.user_ctrl);
 error_restore_rate:
 	regmap_write(st->map, st->reg->sample_rate_div, st->chip_config.divider);
+error_disable_i2c:
+	regmap_write(st->map, INV_MPU6050_REG_I2C_SLV_CTRL(0), 0);
 	return ret;
 }
 
@@ -117,7 +135,6 @@ int inv_mpu_aux_init(const struct inv_mpu6050_state *st)
 int inv_mpu_aux_read(const struct inv_mpu6050_state *st, uint8_t addr,
 		     uint8_t reg, uint8_t *val, size_t size)
 {
-	unsigned int status;
 	int ret;
 
 	if (size > 0x0F)
@@ -136,30 +153,14 @@ int inv_mpu_aux_read(const struct inv_mpu6050_state *st, uint8_t addr,
 	if (ret)
 		return ret;
 
-	/* do i2c xfer */
+	/* do i2c xfer, disable i2c slave and check status*/
 	ret = inv_mpu_i2c_master_xfer(st);
 	if (ret)
-		goto error_disable_i2c;
-
-	/* disable i2c slave */
-	ret = regmap_write(st->map, INV_MPU6050_REG_I2C_SLV_CTRL(0), 0);
-	if (ret)
-		goto error_disable_i2c;
-
-	/* check i2c status */
-	ret = regmap_read(st->map, INV_MPU6050_REG_I2C_MST_STATUS, &status);
-	if (ret)
 		return ret;
-	if (status & INV_MPU6050_BIT_I2C_SLV0_NACK)
-		return -EIO;
 
 	/* read data in registers */
 	return regmap_bulk_read(st->map, INV_MPU6050_REG_EXT_SENS_DATA,
 				val, size);
-
-error_disable_i2c:
-	regmap_write(st->map, INV_MPU6050_REG_I2C_SLV_CTRL(0), 0);
-	return ret;
 }
 
 /**
@@ -174,7 +175,6 @@ error_disable_i2c:
 int inv_mpu_aux_write(const struct inv_mpu6050_state *st, uint8_t addr,
 		      uint8_t reg, uint8_t val)
 {
-	unsigned int status;
 	int ret;
 
 	/* setup i2c SLV0 control: i2c addr, register, value, enable + size */
@@ -192,26 +192,10 @@ int inv_mpu_aux_write(const struct inv_mpu6050_state *st, uint8_t addr,
 	if (ret)
 		return ret;
 
-	/* do i2c xfer */
+	/* do i2c xfer, disable i2c slave and check status*/
 	ret = inv_mpu_i2c_master_xfer(st);
 	if (ret)
-		goto error_disable_i2c;
-
-	/* disable i2c slave */
-	ret = regmap_write(st->map, INV_MPU6050_REG_I2C_SLV_CTRL(0), 0);
-	if (ret)
-		goto error_disable_i2c;
-
-	/* check i2c status */
-	ret = regmap_read(st->map, INV_MPU6050_REG_I2C_MST_STATUS, &status);
-	if (ret)
 		return ret;
-	if (status & INV_MPU6050_BIT_I2C_SLV0_NACK)
-		return -EIO;
 
 	return 0;
-
-error_disable_i2c:
-	regmap_write(st->map, INV_MPU6050_REG_I2C_SLV_CTRL(0), 0);
-	return ret;
 }

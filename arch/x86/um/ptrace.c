@@ -25,7 +25,8 @@ static inline unsigned short twd_i387_to_fxsr(unsigned short twd)
 	return tmp;
 }
 
-static inline unsigned long twd_fxsr_to_i387(struct user_fxsr_struct *fxsave)
+static inline unsigned long
+twd_fxsr_to_i387(const struct user_fxsr_struct *fxsave)
 {
 	struct _fpxreg *st = NULL;
 	unsigned long twd = (unsigned long) fxsave->twd;
@@ -69,12 +70,16 @@ static inline unsigned long twd_fxsr_to_i387(struct user_fxsr_struct *fxsave)
 	return ret;
 }
 
-/* Get/set the old 32bit i387 registers (pre-FPX) */
-static int fpregs_legacy_get(struct task_struct *target,
-			     const struct user_regset *regset,
-			     struct membuf to)
+/*
+ * Get/set the old 32bit i387 registers (pre-FPX)
+ *
+ * We provide simple wrappers for mcontext.c, they are only defined locally
+ * because mcontext.c is userspace facing and needs to a different definition
+ * of the structures.
+ */
+static int _um_i387_from_fxsr(struct membuf to,
+			      const struct user_fxsr_struct *fxsave)
 {
-	struct user_fxsr_struct *fxsave = (void *)target->thread.regs.regs.fp;
 	int i;
 
 	membuf_store(&to, (unsigned long)fxsave->cwd | 0xffff0000ul);
@@ -91,23 +96,36 @@ static int fpregs_legacy_get(struct task_struct *target,
 	return 0;
 }
 
-static int fpregs_legacy_set(struct task_struct *target,
+int um_i387_from_fxsr(struct user_i387_struct *i387,
+		      const struct user_fxsr_struct *fxsave);
+
+int um_i387_from_fxsr(struct user_i387_struct *i387,
+		      const struct user_fxsr_struct *fxsave)
+{
+	struct membuf to = {
+		.p = i387,
+		.left = sizeof(*i387),
+	};
+
+	return _um_i387_from_fxsr(to, fxsave);
+}
+
+static int fpregs_legacy_get(struct task_struct *target,
 			     const struct user_regset *regset,
-			     unsigned int pos, unsigned int count,
-			     const void *kbuf, const void __user *ubuf)
+			     struct membuf to)
 {
 	struct user_fxsr_struct *fxsave = (void *)target->thread.regs.regs.fp;
-	const struct user_i387_struct *from;
-	struct user_i387_struct buf;
-	int i;
 
-	if (ubuf) {
-		if (copy_from_user(&buf, ubuf, sizeof(buf)))
-			return -EFAULT;
-		from = &buf;
-	} else {
-		from = kbuf;
-	}
+	return _um_i387_from_fxsr(to, fxsave);
+}
+
+int um_fxsr_from_i387(struct user_fxsr_struct *fxsave,
+		      const struct user_i387_struct *from);
+
+int um_fxsr_from_i387(struct user_fxsr_struct *fxsave,
+		      const struct user_i387_struct *from)
+{
+	int i;
 
 	fxsave->cwd = (unsigned short)(from->cwd & 0xffff);
 	fxsave->swd = (unsigned short)(from->swd & 0xffff);
@@ -124,6 +142,26 @@ static int fpregs_legacy_set(struct task_struct *target,
 	}
 
 	return 0;
+}
+
+static int fpregs_legacy_set(struct task_struct *target,
+			     const struct user_regset *regset,
+			     unsigned int pos, unsigned int count,
+			     const void *kbuf, const void __user *ubuf)
+{
+	struct user_fxsr_struct *fxsave = (void *)target->thread.regs.regs.fp;
+	const struct user_i387_struct *from;
+	struct user_i387_struct buf;
+
+	if (ubuf) {
+		if (copy_from_user(&buf, ubuf, sizeof(buf)))
+			return -EFAULT;
+		from = &buf;
+	} else {
+		from = kbuf;
+	}
+
+	return um_fxsr_from_i387(fxsave, from);
 }
 #endif
 
@@ -198,7 +236,7 @@ static int generic_fpregs_set(struct task_struct *target,
 
 static struct user_regset uml_regsets[] __ro_after_init = {
 	[REGSET_GENERAL] = {
-		.core_note_type	= NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n		= sizeof(struct user_regs_struct) / sizeof(long),
 		.size		= sizeof(long),
 		.align		= sizeof(long),
@@ -208,7 +246,7 @@ static struct user_regset uml_regsets[] __ro_after_init = {
 #ifdef CONFIG_X86_32
 	/* Old FP registers, they are needed in signal frames */
 	[REGSET_FP_LEGACY] = {
-		.core_note_type	= NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n		= sizeof(struct user_i387_ia32_struct) / sizeof(long),
 		.size		= sizeof(long),
 		.align		= sizeof(long),
@@ -219,10 +257,10 @@ static struct user_regset uml_regsets[] __ro_after_init = {
 #endif
 	[REGSET_FP] = {
 #ifdef CONFIG_X86_32
-		.core_note_type	= NT_PRXFPREG,
+		USER_REGSET_NOTE_TYPE(PRXFPREG),
 		.n		= sizeof(struct user32_fxsr_struct) / sizeof(long),
 #else
-		.core_note_type	= NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n		= sizeof(struct user_i387_struct) / sizeof(long),
 #endif
 		.size		= sizeof(long),
@@ -232,7 +270,7 @@ static struct user_regset uml_regsets[] __ro_after_init = {
 		.set		= generic_fpregs_set,
 	},
 	[REGSET_XSTATE] = {
-		.core_note_type	= NT_X86_XSTATE,
+		USER_REGSET_NOTE_TYPE(X86_XSTATE),
 		.size		= sizeof(long),
 		.align		= sizeof(long),
 		.active		= generic_fpregs_active,

@@ -933,18 +933,25 @@ void tcf_idrinfo_destroy(const struct tc_action_ops *ops,
 			 struct tcf_idrinfo *idrinfo)
 {
 	struct idr *idr = &idrinfo->action_idr;
+	bool mutex_taken = false;
 	struct tc_action *p;
-	int ret;
 	unsigned long id = 1;
 	unsigned long tmp;
+	int ret;
 
 	idr_for_each_entry_ul(idr, p, tmp, id) {
+		if (tc_act_in_hw(p) && !mutex_taken) {
+			rtnl_lock();
+			mutex_taken = true;
+		}
 		ret = __tcf_idr_release(p, false, true);
 		if (ret == ACT_P_DELETED)
 			module_put(ops->owner);
 		else if (ret < 0)
 			return;
 	}
+	if (mutex_taken)
+		rtnl_unlock();
 	idr_destroy(&idrinfo->action_idr);
 }
 EXPORT_SYMBOL(tcf_idrinfo_destroy);
@@ -1461,16 +1468,28 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		    struct netlink_ext_ack *extack)
 {
 	struct tc_action_ops *ops[TCA_ACT_MAX_PRIO] = {};
-	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
+	struct nlattr *tb[TCA_ACT_MAX_PRIO + 2];
 	struct tc_action *act;
 	size_t sz = 0;
 	int err;
 	int i;
 
-	err = nla_parse_nested_deprecated(tb, TCA_ACT_MAX_PRIO, nla, NULL,
+	err = nla_parse_nested_deprecated(tb, TCA_ACT_MAX_PRIO + 1, nla, NULL,
 					  extack);
 	if (err < 0)
 		return err;
+
+	/* The nested attributes are parsed as types, but they are really an
+	 * array of actions. So we parse one more than we can handle, and return
+	 * an error if the last one is set (as that indicates that the request
+	 * contained more than the maximum number of actions).
+	 */
+	if (tb[TCA_ACT_MAX_PRIO + 1]) {
+		NL_SET_ERR_MSG_FMT(extack,
+				   "Only %d actions supported per filter",
+				   TCA_ACT_MAX_PRIO);
+		return -EINVAL;
+	}
 
 	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {
 		struct tc_action_ops *a_o;

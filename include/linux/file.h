@@ -59,7 +59,7 @@ static inline struct fd CLONED_FD(struct file *f)
 
 static inline void fdput(struct fd fd)
 {
-	if (fd.word & FDPUT_FPUT)
+	if (unlikely(fd.word & FDPUT_FPUT))
 		fput(fd_file(fd));
 }
 

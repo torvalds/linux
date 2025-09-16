@@ -14,8 +14,8 @@
 
 /* This is set once at boot time and not changed thereafter */
 
-static unsigned long exec_regs[MAX_REG_NR];
-static unsigned long *exec_fp_regs;
+unsigned long exec_regs[MAX_REG_NR];
+unsigned long *exec_fp_regs;
 
 int init_pid_registers(int pid)
 {

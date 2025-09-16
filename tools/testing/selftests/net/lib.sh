@@ -217,6 +217,8 @@ setup_ns()
 			return $ksft_skip
 		fi
 		ip -n "${!ns_name}" link set lo up
+		ip netns exec "${!ns_name}" sysctl -wq net.ipv4.conf.all.rp_filter=0
+		ip netns exec "${!ns_name}" sysctl -wq net.ipv4.conf.default.rp_filter=0
 		ns_list+=("${!ns_name}")
 	done
 	NS_LIST+=("${ns_list[@]}")
@@ -236,6 +238,29 @@ create_netdevsim() {
     ip -netns $ns link set dev nsim$id up
 
     echo nsim$id
+}
+
+create_netdevsim_port() {
+    local nsim_id="$1"
+    local ns="$2"
+    local port_id="$3"
+    local perm_addr="$4"
+    local orig_dev
+    local new_dev
+    local nsim_path
+
+    nsim_path="/sys/bus/netdevsim/devices/netdevsim$nsim_id"
+
+    echo "$port_id $perm_addr" | ip netns exec "$ns" tee "$nsim_path"/new_port > /dev/null || return 1
+
+    orig_dev=$(ip netns exec "$ns" find "$nsim_path"/net/ -maxdepth 1 -name 'e*' | tail -n 1)
+    orig_dev=$(basename "$orig_dev")
+    new_dev="nsim${nsim_id}p$port_id"
+
+    ip -netns "$ns" link set dev "$orig_dev" name "$new_dev"
+    ip -netns "$ns" link set dev "$new_dev" up
+
+    echo "$new_dev"
 }
 
 # Remove netdevsim with given id.
@@ -270,6 +295,30 @@ tc_rule_handle_stats_get()
 		  .options.actions[0].stats$selector"
 }
 
+# attach a qdisc with two children match/no-match and a flower filter to match
+tc_set_flower_counter() {
+	local -r ns=$1
+	local -r ipver=$2
+	local -r dev=$3
+	local -r flower_expr=$4
+
+	tc -n $ns qdisc add dev $dev root handle 1: prio bands 2 \
+			priomap 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+	tc -n $ns qdisc add dev $dev parent 1:1 handle 11: pfifo
+	tc -n $ns qdisc add dev $dev parent 1:2 handle 12: pfifo
+
+	tc -n $ns filter add dev $dev parent 1: protocol ipv$ipver \
+			flower $flower_expr classid 1:2
+}
+
+tc_get_flower_counter() {
+	local -r ns=$1
+	local -r dev=$2
+
+	tc -n $ns -j -s qdisc show dev $dev handle 12: | jq .[0].packets
+}
+
 ret_set_ksft_status()
 {
 	local ksft_status=$1; shift
@@ -286,7 +335,7 @@ log_test_result()
 	local test_name=$1; shift
 	local opt_str=$1; shift
 	local result=$1; shift
-	local retmsg=$1; shift
+	local retmsg=$1
 
 	printf "TEST: %-60s  [%s]\n" "$test_name $opt_str" "$result"
 	if [[ $retmsg ]]; then
@@ -521,13 +570,19 @@ ip_link_set_addr()
 	defer ip link set dev "$name" address "$old_addr"
 }
 
-ip_link_is_up()
+ip_link_has_flag()
 {
 	local name=$1; shift
+	local flag=$1; shift
 
 	local state=$(ip -j link show "$name" |
-		      jq -r '(.[].flags[] | select(. == "UP")) // "DOWN"')
-	[[ $state == "UP" ]]
+		      jq --arg flag "$flag" 'any(.[].flags.[]; . == $flag)')
+	[[ $state == true ]]
+}
+
+ip_link_is_up()
+{
+	ip_link_has_flag "$1" UP
 }
 
 ip_link_set_up()
@@ -568,4 +623,25 @@ bridge_vlan_add()
 {
 	bridge vlan add "$@"
 	defer bridge vlan del "$@"
+}
+
+wait_local_port_listen()
+{
+	local listener_ns="${1}"
+	local port="${2}"
+	local protocol="${3}"
+	local pattern
+	local i
+
+	pattern=":$(printf "%04X" "${port}") "
+
+	# for tcp protocol additionally check the socket state
+	[ ${protocol} = "tcp" ] && pattern="${pattern}0A"
+	for i in $(seq 10); do
+		if ip netns exec "${listener_ns}" awk '{print $2" "$4}' \
+		   /proc/net/"${protocol}"* | grep -q "${pattern}"; then
+			break
+		fi
+		sleep 0.1
+	done
 }

@@ -30,7 +30,7 @@
 
 #define DRV_NAME		"fnic"
 #define DRV_DESCRIPTION		"Cisco FCoE HBA Driver"
-#define DRV_VERSION		"1.8.0.0"
+#define DRV_VERSION		"1.8.0.2"
 #define PFX			DRV_NAME ": "
 #define DFX                     DRV_NAME "%d: "
 
@@ -322,8 +322,6 @@ enum fnic_state {
 	FNIC_IN_ETH_MODE,
 	FNIC_IN_ETH_TRANS_FC_MODE,
 };
-
-struct mempool;
 
 enum fnic_role_e {
 	FNIC_ROLE_FCP_INITIATOR = 0,

@@ -23,7 +23,7 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB library code for NEC uPD7210");
 
-int nec7210_enable_eos(struct gpib_board *board, struct nec7210_priv *priv, uint8_t eos_byte,
+int nec7210_enable_eos(struct gpib_board *board, struct nec7210_priv *priv, u8 eos_byte,
 		       int compare_8_bits)
 {
 	write_byte(priv, eos_byte, EOSR);
@@ -44,7 +44,7 @@ void nec7210_disable_eos(struct gpib_board *board, struct nec7210_priv *priv)
 }
 EXPORT_SYMBOL(nec7210_disable_eos);
 
-int nec7210_parallel_poll(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *result)
+int nec7210_parallel_poll(struct gpib_board *board, struct nec7210_priv *priv, u8 *result)
 {
 	int ret;
 
@@ -79,14 +79,15 @@ void nec7210_parallel_poll_response(struct gpib_board *board, struct nec7210_pri
 		write_byte(priv, AUX_CPPF, AUXMR);
 }
 EXPORT_SYMBOL(nec7210_parallel_poll_response);
-/* This is really only adequate for chips that do a 488.2 style reqt/reqf
+/*
+ * This is really only adequate for chips that do a 488.2 style reqt/reqf
  * based on bit 6 of the SPMR (see chapter 11.3.3 of 488.2). For simpler chips that simply
  * set rsv directly based on bit 6, we either need to do more hardware setup to expose
  * the 488.2 capability (for example with NI chips), or we need to implement the
  * 488.2 set srv state machine in the driver (if that is even viable).
  */
 void nec7210_serial_poll_response(struct gpib_board *board,
-				  struct nec7210_priv *priv, uint8_t status)
+				  struct nec7210_priv *priv, u8 status)
 {
 	unsigned long flags;
 
@@ -103,7 +104,7 @@ void nec7210_serial_poll_response(struct gpib_board *board,
 }
 EXPORT_SYMBOL(nec7210_serial_poll_response);
 
-uint8_t nec7210_serial_poll_status(struct gpib_board *board, struct nec7210_priv *priv)
+u8 nec7210_serial_poll_status(struct gpib_board *board, struct nec7210_priv *priv)
 {
 	return read_byte(priv, SPSR);
 }
@@ -202,7 +203,8 @@ unsigned int nec7210_update_status_nolock(struct gpib_board *board, struct nec72
 		set_bit(SPOLL_NUM, &board->status);
 	}
 
-	/* we rely on the interrupt handler to set the
+	/*
+	 * we rely on the interrupt handler to set the
 	 * rest of the status bits
 	 */
 
@@ -251,7 +253,7 @@ void nec7210_set_handshake_mode(struct gpib_board *board, struct nec7210_priv *p
 }
 EXPORT_SYMBOL(nec7210_set_handshake_mode);
 
-uint8_t nec7210_read_data_in(struct gpib_board *board, struct nec7210_priv *priv, int *end)
+u8 nec7210_read_data_in(struct gpib_board *board, struct nec7210_priv *priv, int *end)
 {
 	unsigned long flags;
 	u8 data;
@@ -330,14 +332,15 @@ int nec7210_go_to_standby(struct gpib_board *board, struct nec7210_priv *priv)
 }
 EXPORT_SYMBOL(nec7210_go_to_standby);
 
-void nec7210_request_system_control(struct gpib_board *board, struct nec7210_priv *priv,
-				    int request_control)
+int nec7210_request_system_control(struct gpib_board *board, struct nec7210_priv *priv,
+				   int request_control)
 {
 	if (request_control == 0) {
 		write_byte(priv, AUX_CREN, AUXMR);
 		write_byte(priv, AUX_CIFC, AUXMR);
 		write_byte(priv, AUX_DSC, AUXMR);
 	}
+	return 0;
 }
 EXPORT_SYMBOL(nec7210_request_system_control);
 
@@ -415,7 +418,7 @@ static inline short nec7210_atn_has_changed(struct gpib_board *board, struct nec
 	return -1;
 }
 
-int nec7210_command(struct gpib_board *board, struct nec7210_priv *priv, uint8_t
+int nec7210_command(struct gpib_board *board, struct nec7210_priv *priv, u8
 		    *buffer, size_t length, size_t *bytes_written)
 {
 	int retval = 0;
@@ -464,7 +467,7 @@ int nec7210_command(struct gpib_board *board, struct nec7210_priv *priv, uint8_t
 }
 EXPORT_SYMBOL(nec7210_command);
 
-static int pio_read(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+static int pio_read(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 		    size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -482,7 +485,8 @@ static int pio_read(struct gpib_board *board, struct nec7210_priv *priv, uint8_t
 		}
 		if (test_bit(READ_READY_BN, &priv->state)) {
 			if (*bytes_read == 0)	{
-				/* We set the handshake mode here because we know
+				/*
+				 * We set the handshake mode here because we know
 				 * no new bytes will arrive (it has already arrived
 				 * and is awaiting being read out of the chip) while we are changing
 				 * modes.  This ensures we can reliably keep track
@@ -568,7 +572,7 @@ static ssize_t __dma_read(struct gpib_board *board, struct nec7210_priv *priv, s
 	return retval ? retval : count;
 }
 
-static ssize_t dma_read(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+static ssize_t dma_read(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 			size_t length)
 {
 	size_t remain = length;
@@ -595,7 +599,7 @@ static ssize_t dma_read(struct gpib_board *board, struct nec7210_priv *priv, uin
 }
 #endif
 
-int nec7210_read(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+int nec7210_read(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 		 size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -642,7 +646,7 @@ static int pio_write_wait(struct gpib_board *board, struct nec7210_priv *priv,
 	return 0;
 }
 
-static int pio_write(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+static int pio_write(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 		     size_t length, size_t *bytes_written)
 {
 	size_t last_count = 0;
@@ -662,7 +666,8 @@ static int pio_write(struct gpib_board *board, struct nec7210_priv *priv, uint8_
 		if (retval == -EIO) {
 			/* resend last byte on bus error */
 			*bytes_written = last_count;
-			/* we can get unrecoverable bus errors,
+			/*
+			 * we can get unrecoverable bus errors,
 			 * so give up after a while
 			 */
 			bus_error_count++;
@@ -742,7 +747,7 @@ static ssize_t __dma_write(struct gpib_board *board, struct nec7210_priv *priv, 
 	return retval ? retval : length;
 }
 
-static ssize_t dma_write(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+static ssize_t dma_write(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 			 size_t length)
 {
 	size_t remain = length;
@@ -767,7 +772,7 @@ static ssize_t dma_write(struct gpib_board *board, struct nec7210_priv *priv, ui
 }
 #endif
 int nec7210_write(struct gpib_board *board, struct nec7210_priv *priv,
-		  uint8_t *buffer, size_t length, int send_eoi,
+		  u8 *buffer, size_t length, int send_eoi,
 		  size_t *bytes_written)
 {
 	int retval = 0;
@@ -805,7 +810,8 @@ int nec7210_write(struct gpib_board *board, struct nec7210_priv *priv,
 	if (send_eoi) {
 		size_t num_bytes;
 
-		/* We need to wait to make sure we will immediately be able to write the data byte
+		/*
+		 * We need to wait to make sure we will immediately be able to write the data byte
 		 * into the chip before sending the associated AUX_SEOI command.  This is really
 		 * only needed for length==1 since otherwise the earlier calls to pio_write
 		 * will have dont the wait already.
@@ -827,7 +833,7 @@ int nec7210_write(struct gpib_board *board, struct nec7210_priv *priv,
 EXPORT_SYMBOL(nec7210_write);
 
 /*
- *  interrupt service routine
+ * interrupt service routine
  */
 irqreturn_t nec7210_interrupt(struct gpib_board *board, struct nec7210_priv *priv)
 {
@@ -932,13 +938,13 @@ irqreturn_t nec7210_interrupt_have_status(struct gpib_board *board,
 
 		// ignore device clear events if we are controller in charge
 		if ((address_status_bits & HR_CIC) == 0) {
-			push_gpib_event(board, EventDevClr);
+			push_gpib_event(board, EVENT_DEV_CLR);
 			set_bit(DEV_CLEAR_BN, &priv->state);
 		}
 	}
 
 	if (status1 & HR_DET)
-		push_gpib_event(board, EventDevTrg);
+		push_gpib_event(board, EVENT_DEV_TRG);
 
 	// Addressing status has changed
 	if (status2 & HR_ADSC)
@@ -1012,16 +1018,17 @@ EXPORT_SYMBOL(nec7210_board_online);
 
 #ifdef CONFIG_HAS_IOPORT
 /* wrappers for io */
-uint8_t nec7210_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num)
+u8 nec7210_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num)
 {
 	return inb(priv->iobase + register_num * priv->offset);
 }
 EXPORT_SYMBOL(nec7210_ioport_read_byte);
 
-void nec7210_ioport_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned int register_num)
+void nec7210_ioport_write_byte(struct nec7210_priv *priv, u8 data, unsigned int register_num)
 {
 	if (register_num == AUXMR)
-		/* locking makes absolutely sure noone accesses the
+		/*
+		 * locking makes absolutely sure noone accesses the
 		 * AUXMR register faster than once per microsecond
 		 */
 		nec7210_locking_ioport_write_byte(priv, data, register_num);
@@ -1031,7 +1038,7 @@ void nec7210_ioport_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned
 EXPORT_SYMBOL(nec7210_ioport_write_byte);
 
 /* locking variants of io wrappers, for chips that page-in registers */
-uint8_t nec7210_locking_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num)
+u8 nec7210_locking_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num)
 {
 	u8 retval;
 	unsigned long flags;
@@ -1043,7 +1050,7 @@ uint8_t nec7210_locking_ioport_read_byte(struct nec7210_priv *priv, unsigned int
 }
 EXPORT_SYMBOL(nec7210_locking_ioport_read_byte);
 
-void nec7210_locking_ioport_write_byte(struct nec7210_priv *priv, uint8_t data,
+void nec7210_locking_ioport_write_byte(struct nec7210_priv *priv, u8 data,
 				       unsigned int register_num)
 {
 	unsigned long flags;
@@ -1057,16 +1064,17 @@ void nec7210_locking_ioport_write_byte(struct nec7210_priv *priv, uint8_t data,
 EXPORT_SYMBOL(nec7210_locking_ioport_write_byte);
 #endif
 
-uint8_t nec7210_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num)
+u8 nec7210_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num)
 {
 	return readb(priv->mmiobase + register_num * priv->offset);
 }
 EXPORT_SYMBOL(nec7210_iomem_read_byte);
 
-void nec7210_iomem_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned int register_num)
+void nec7210_iomem_write_byte(struct nec7210_priv *priv, u8 data, unsigned int register_num)
 {
 	if (register_num == AUXMR)
-		/* locking makes absolutely sure noone accesses the
+		/*
+		 * locking makes absolutely sure noone accesses the
 		 * AUXMR register faster than once per microsecond
 		 */
 		nec7210_locking_iomem_write_byte(priv, data, register_num);
@@ -1075,7 +1083,7 @@ void nec7210_iomem_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned 
 }
 EXPORT_SYMBOL(nec7210_iomem_write_byte);
 
-uint8_t nec7210_locking_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num)
+u8 nec7210_locking_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num)
 {
 	u8 retval;
 	unsigned long flags;
@@ -1087,7 +1095,7 @@ uint8_t nec7210_locking_iomem_read_byte(struct nec7210_priv *priv, unsigned int 
 }
 EXPORT_SYMBOL(nec7210_locking_iomem_read_byte);
 
-void nec7210_locking_iomem_write_byte(struct nec7210_priv *priv, uint8_t data,
+void nec7210_locking_iomem_write_byte(struct nec7210_priv *priv, u8 data,
 				      unsigned int register_num)
 {
 	unsigned long flags;

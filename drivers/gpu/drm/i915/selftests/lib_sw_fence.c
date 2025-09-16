@@ -55,7 +55,7 @@ void onstack_fence_fini(struct i915_sw_fence *fence)
 
 static void timed_fence_wake(struct timer_list *t)
 {
-	struct timed_fence *tf = from_timer(tf, t, timer);
+	struct timed_fence *tf = timer_container_of(tf, t, timer);
 
 	i915_sw_fence_commit(&tf->fence);
 }
@@ -77,7 +77,7 @@ void timed_fence_fini(struct timed_fence *tf)
 	if (timer_delete_sync(&tf->timer))
 		i915_sw_fence_commit(&tf->fence);
 
-	destroy_timer_on_stack(&tf->timer);
+	timer_destroy_on_stack(&tf->timer);
 	i915_sw_fence_fini(&tf->fence);
 }
 

@@ -44,12 +44,12 @@ static inline unsigned int brs_to(int idx)
 static __always_inline void set_debug_extn_cfg(u64 val)
 {
 	/* bits[4:3] must always be set to 11b */
-	__wrmsr(MSR_AMD_DBG_EXTN_CFG, val | 3ULL << 3, val >> 32);
+	native_wrmsrq(MSR_AMD_DBG_EXTN_CFG, val | 3ULL << 3);
 }
 
 static __always_inline u64 get_debug_extn_cfg(void)
 {
-	return __rdmsr(MSR_AMD_DBG_EXTN_CFG);
+	return native_rdmsrq(MSR_AMD_DBG_EXTN_CFG);
 }
 
 static bool __init amd_brs_detect(void)
@@ -187,7 +187,7 @@ void amd_brs_reset(void)
 	/*
 	 * Mark first entry as poisoned
 	 */
-	wrmsrl(brs_to(0), BRS_POISON);
+	wrmsrq(brs_to(0), BRS_POISON);
 }
 
 int __init amd_brs_init(void)
@@ -325,7 +325,7 @@ void amd_brs_drain(void)
 		u32 brs_idx = tos - i;
 		u64 from, to;
 
-		rdmsrl(brs_to(brs_idx), to);
+		rdmsrq(brs_to(brs_idx), to);
 
 		/* Entry does not belong to us (as marked by kernel) */
 		if (to == BRS_POISON)
@@ -341,7 +341,7 @@ void amd_brs_drain(void)
 		if (!amd_brs_match_plm(event, to))
 			continue;
 
-		rdmsrl(brs_from(brs_idx), from);
+		rdmsrq(brs_from(brs_idx), from);
 
 		perf_clear_branch_entry_bitfields(br+nr);
 
@@ -371,7 +371,7 @@ static void amd_brs_poison_buffer(void)
 	idx = amd_brs_get_tos(&cfg);
 
 	/* Poison target of entry */
-	wrmsrl(brs_to(idx), BRS_POISON);
+	wrmsrq(brs_to(idx), BRS_POISON);
 }
 
 /*

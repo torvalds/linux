@@ -26,6 +26,9 @@
 
 extern const struct amdgpu_ip_block_version jpeg_v5_0_1_ip_block;
 
+#define regUVD_JRBC0_UVD_JRBC_SCRATCH0_INTERNAL_OFFSET			0x4094
+#define regUVD_JRBC_EXTERNAL_MCM_ADDR_INTERNAL_OFFSET			0x1bffe
+
 #define regUVD_JRBC0_UVD_JRBC_RB_WPTR                                                         0x0640
 #define regUVD_JRBC0_UVD_JRBC_RB_WPTR_BASE_IDX                                                1
 #define regUVD_JRBC0_UVD_JRBC_STATUS                                                          0x0649
@@ -97,5 +100,12 @@ extern const struct amdgpu_ip_block_version jpeg_v5_0_1_ip_block;
 
 #define regVCN_RRMT_CNTL                          0x0940
 #define regVCN_RRMT_CNTL_BASE_IDX                 1
+
+enum amdgpu_jpeg_v5_0_1_sub_block {
+	AMDGPU_JPEG_V5_0_1_JPEG0 = 0,
+	AMDGPU_JPEG_V5_0_1_JPEG1,
+
+	AMDGPU_JPEG_V5_0_1_MAX_SUB_BLOCK,
+};
 
 #endif /* __JPEG_V5_0_1_H__ */

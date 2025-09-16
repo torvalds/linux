@@ -1025,7 +1025,7 @@ static inline int hamachi_tx(struct net_device *dev)
 
 static void hamachi_timer(struct timer_list *t)
 {
-	struct hamachi_private *hmp = from_timer(hmp, t, timer);
+	struct hamachi_private *hmp = timer_container_of(hmp, t, timer);
 	struct net_device *dev = hmp->mii_if.dev;
 	void __iomem *ioaddr = hmp->base;
 	int next_tick = 10*HZ;

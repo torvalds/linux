@@ -3,7 +3,7 @@
  *
  * Module Name: exconvrt - Object conversion routines
  *
- * Copyright (C) 2000 - 2023, Intel Corp.
+ * Copyright (C) 2000 - 2025, Intel Corp.
  *
  *****************************************************************************/
 
@@ -226,8 +226,8 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
 		/* Copy the string to the buffer */
 
 		new_buf = return_desc->buffer.pointer;
-		strncpy((char *)new_buf, (char *)obj_desc->string.pointer,
-			obj_desc->string.length);
+		memcpy((char *)new_buf, (char *)obj_desc->string.pointer,
+		       obj_desc->string.length);
 		break;
 
 	default:

@@ -265,17 +265,33 @@ static int cptvf_lf_init(struct otx2_cptvf_dev *cptvf)
 	u8 eng_grp_msk;
 
 	/* Get engine group number for symmetric crypto */
-	cptvf->lfs.kcrypto_eng_grp_num = OTX2_CPT_INVALID_CRYPTO_ENG_GRP;
+	cptvf->lfs.kcrypto_se_eng_grp_num = OTX2_CPT_INVALID_CRYPTO_ENG_GRP;
 	ret = otx2_cptvf_send_eng_grp_num_msg(cptvf, OTX2_CPT_SE_TYPES);
 	if (ret)
 		return ret;
 
-	if (cptvf->lfs.kcrypto_eng_grp_num == OTX2_CPT_INVALID_CRYPTO_ENG_GRP) {
-		dev_err(dev, "Engine group for kernel crypto not available\n");
-		ret = -ENOENT;
-		return ret;
+	if (cptvf->lfs.kcrypto_se_eng_grp_num ==
+		OTX2_CPT_INVALID_CRYPTO_ENG_GRP) {
+		dev_err(dev,
+			"Symmetric Engine group for crypto not available\n");
+		return -ENOENT;
 	}
-	eng_grp_msk = 1 << cptvf->lfs.kcrypto_eng_grp_num;
+
+	/* Get engine group number for asymmetric crypto */
+	cptvf->lfs.kcrypto_ae_eng_grp_num = OTX2_CPT_INVALID_CRYPTO_ENG_GRP;
+	ret = otx2_cptvf_send_eng_grp_num_msg(cptvf, OTX2_CPT_AE_TYPES);
+	if (ret)
+		return ret;
+
+	if (cptvf->lfs.kcrypto_ae_eng_grp_num ==
+		OTX2_CPT_INVALID_CRYPTO_ENG_GRP) {
+		dev_err(dev,
+			"Asymmetric Engine group for crypto not available\n");
+		return -ENOENT;
+	}
+
+	eng_grp_msk = BIT(cptvf->lfs.kcrypto_se_eng_grp_num) |
+		      BIT(cptvf->lfs.kcrypto_ae_eng_grp_num);
 
 	ret = otx2_cptvf_send_kvf_limits_msg(cptvf);
 	if (ret)
@@ -283,8 +299,6 @@ static int cptvf_lf_init(struct otx2_cptvf_dev *cptvf)
 
 	lfs_num = cptvf->lfs.kvf_limits;
 
-	otx2_cptlf_set_dev_info(lfs, cptvf->pdev, cptvf->reg_base,
-				&cptvf->pfvf_mbox, cptvf->blkaddr);
 	ret = otx2_cptlf_init(lfs, eng_grp_msk, OTX2_CPT_QUEUE_HI_PRIO,
 			      lfs_num);
 	if (ret)
@@ -378,10 +392,6 @@ static int otx2_cptvf_probe(struct pci_dev *pdev,
 
 	otx2_cpt_set_hw_caps(pdev, &cptvf->cap_flag);
 
-	ret = cn10k_cptvf_lmtst_init(cptvf);
-	if (ret)
-		goto clear_drvdata;
-
 	/* Initialize PF<=>VF mailbox */
 	ret = cptvf_pfvf_mbox_init(cptvf);
 	if (ret)
@@ -396,6 +406,9 @@ static int otx2_cptvf_probe(struct pci_dev *pdev,
 
 	cptvf_hw_ops_get(cptvf);
 
+	otx2_cptlf_set_dev_info(&cptvf->lfs, cptvf->pdev, cptvf->reg_base,
+				&cptvf->pfvf_mbox, cptvf->blkaddr);
+
 	ret = otx2_cptvf_send_caps_msg(cptvf);
 	if (ret) {
 		dev_err(&pdev->dev, "Couldn't get CPT engine capabilities.\n");
@@ -404,13 +417,19 @@ static int otx2_cptvf_probe(struct pci_dev *pdev,
 	if (cptvf->eng_caps[OTX2_CPT_SE_TYPES] & BIT_ULL(35))
 		cptvf->lfs.ops->cpt_sg_info_create = cn10k_sgv2_info_create;
 
-	/* Initialize CPT LFs */
-	ret = cptvf_lf_init(cptvf);
+	ret = cn10k_cptvf_lmtst_init(cptvf);
 	if (ret)
 		goto unregister_interrupts;
 
+	/* Initialize CPT LFs */
+	ret = cptvf_lf_init(cptvf);
+	if (ret)
+		goto free_lmtst;
+
 	return 0;
 
+free_lmtst:
+	cn10k_cpt_lmtst_free(pdev, &cptvf->lfs);
 unregister_interrupts:
 	cptvf_disable_pfvf_mbox_intrs(cptvf);
 destroy_pfvf_mbox:
@@ -434,6 +453,8 @@ static void otx2_cptvf_remove(struct pci_dev *pdev)
 	cptvf_disable_pfvf_mbox_intrs(cptvf);
 	/* Destroy PF-VF mbox */
 	cptvf_pfvf_mbox_destroy(cptvf);
+	/* Free LMTST memory */
+	cn10k_cpt_lmtst_free(pdev, &cptvf->lfs);
 	pci_set_drvdata(pdev, NULL);
 }
 

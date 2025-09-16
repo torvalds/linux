@@ -86,7 +86,6 @@ struct auth_domain {
 
 enum svc_auth_status {
 	SVC_GARBAGE = 1,
-	SVC_SYSERR,
 	SVC_VALID,
 	SVC_NEGATIVE,
 	SVC_OK,

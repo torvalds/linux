@@ -641,7 +641,14 @@ static int vidioc_query_dv_timings(struct file *file, void *fh,
 static int vidioc_enum_dv_timings(struct file *file, void *fh,
 				  struct v4l2_enum_dv_timings *timings)
 {
-	return v4l2_enum_dv_timings_cap(timings, &video_timings_cap, NULL, NULL);
+	struct mgb4_vin_dev *vindev = video_drvdata(file);
+
+	if (timings->index != 0)
+		return -EINVAL;
+	if (get_timings(vindev, &timings->timings) < 0)
+		return -ENODATA;
+
+	return 0;
 }
 
 static int vidioc_dv_timings_cap(struct file *file, void *fh,
@@ -749,14 +756,14 @@ static void signal_change(struct work_struct *work)
 	u32 width = resolution >> 16;
 	u32 height = resolution & 0xFFFF;
 
+	static const struct v4l2_event ev = {
+		.type = V4L2_EVENT_SOURCE_CHANGE,
+		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
+	};
+
+	v4l2_event_queue(&vindev->vdev, &ev);
+
 	if (timings->width != width || timings->height != height) {
-		static const struct v4l2_event ev = {
-			.type = V4L2_EVENT_SOURCE_CHANGE,
-			.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
-		};
-
-		v4l2_event_queue(&vindev->vdev, &ev);
-
 		if (vb2_is_streaming(&vindev->queue))
 			vb2_queue_error(&vindev->queue);
 	}

@@ -6,7 +6,6 @@
  **************************************************************************/
 
 #include <linux/fb.h>
-#include <linux/pfn_t.h>
 
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
@@ -33,7 +32,7 @@ static vm_fault_t psb_fbdev_vm_fault(struct vm_fault *vmf)
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	for (i = 0; i < page_num; ++i) {
-		err = vmf_insert_mixed(vma, address, __pfn_to_pfn_t(pfn, PFN_DEV));
+		err = vmf_insert_mixed(vma, address, pfn);
 		if (unlikely(err & VM_FAULT_ERROR))
 			break;
 		address += PAGE_SIZE;
@@ -121,7 +120,6 @@ static void psb_fbdev_fb_destroy(struct fb_info *info)
 	drm_fb_helper_fini(fb_helper);
 
 	drm_framebuffer_unregister_private(fb);
-	fb->obj[0] = NULL;
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
 
@@ -203,7 +201,10 @@ int psb_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 		return PTR_ERR(backing);
 	obj = &backing->base;
 
-	fb = psb_framebuffer_create(dev, &mode_cmd, obj);
+	fb = psb_framebuffer_create(dev,
+				    drm_get_format_info(dev, mode_cmd.pixel_format,
+							mode_cmd.modifier[0]),
+				    &mode_cmd, obj);
 	if (IS_ERR(fb)) {
 		ret = PTR_ERR(fb);
 		goto err_drm_gem_object_put;
@@ -243,7 +244,6 @@ int psb_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 
 err_drm_framebuffer_unregister_private:
 	drm_framebuffer_unregister_private(fb);
-	fb->obj[0] = NULL;
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
 err_drm_gem_object_put:

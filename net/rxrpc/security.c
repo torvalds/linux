@@ -20,6 +20,9 @@ static const struct rxrpc_security *rxrpc_security_types[] = {
 #ifdef CONFIG_RXKAD
 	[RXRPC_SECURITY_RXKAD]	= &rxkad,
 #endif
+#ifdef CONFIG_RXGK
+	[RXRPC_SECURITY_YFS_RXGK] = &rxgk_yfs,
+#endif
 };
 
 int __init rxrpc_init_security(void)
@@ -137,15 +140,15 @@ const struct rxrpc_security *rxrpc_get_incoming_security(struct rxrpc_sock *rx,
 
 	sec = rxrpc_security_lookup(sp->hdr.securityIndex);
 	if (!sec) {
-		rxrpc_direct_abort(skb, rxrpc_abort_unsupported_security,
-				   RX_INVALID_OPERATION, -EKEYREJECTED);
+		rxrpc_direct_conn_abort(skb, rxrpc_abort_unsupported_security,
+					RX_INVALID_OPERATION, -EKEYREJECTED);
 		return NULL;
 	}
 
 	if (sp->hdr.securityIndex != RXRPC_SECURITY_NONE &&
 	    !rx->securities) {
-		rxrpc_direct_abort(skb, rxrpc_abort_no_service_key,
-				   sec->no_key_abort, -EKEYREJECTED);
+		rxrpc_direct_conn_abort(skb, rxrpc_abort_no_service_key,
+					sec->no_key_abort, -EKEYREJECTED);
 		return NULL;
 	}
 

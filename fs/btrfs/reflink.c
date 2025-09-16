@@ -46,11 +46,9 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		btrfs_end_transaction(trans);
-		goto out;
+		return ret;
 	}
-	ret = btrfs_end_transaction(trans);
-out:
-	return ret;
+	return btrfs_end_transaction(trans);
 }
 
 static int copy_inline_to_page(struct btrfs_inode *inode,
@@ -87,7 +85,7 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 					FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
 					btrfs_alloc_write_mask(mapping));
 	if (IS_ERR(folio)) {
-		ret = -ENOMEM;
+		ret = PTR_ERR(folio);
 		goto out_unlock;
 	}
 
@@ -95,9 +93,8 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	if (ret < 0)
 		goto out_unlock;
 
-	clear_extent_bit(&inode->io_tree, file_offset, range_end,
-			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
-			 NULL);
+	btrfs_clear_extent_bit(&inode->io_tree, file_offset, range_end,
+			       EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG, NULL);
 	ret = btrfs_set_extent_delalloc(inode, file_offset, range_end, 0, NULL);
 	if (ret)
 		goto out_unlock;
@@ -271,11 +268,15 @@ copy_inline_extent:
 	drop_args.end = aligned_end;
 	drop_args.drop_cache = true;
 	ret = btrfs_drop_extents(trans, root, inode, &drop_args);
-	if (ret)
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 	ret = btrfs_insert_empty_item(trans, root, path, new_key, size);
-	if (ret)
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 
 	write_extent_buffer(path->nodes[0], inline_data,
 			    btrfs_item_ptr_offset(path->nodes[0],
@@ -284,6 +285,8 @@ copy_inline_extent:
 	btrfs_update_inode_bytes(inode, datal, drop_args.bytes_found);
 	btrfs_set_inode_full_sync(inode);
 	ret = btrfs_inode_set_file_extent_range(inode, 0, aligned_end);
+	if (ret)
+		btrfs_abort_transaction(trans, ret);
 out:
 	if (!ret && !trans) {
 		/*
@@ -298,10 +301,8 @@ out:
 			trans = NULL;
 		}
 	}
-	if (ret && trans) {
-		btrfs_abort_transaction(trans, ret);
+	if (ret && trans)
 		btrfs_end_transaction(trans);
-	}
 	if (!ret)
 		*trans_out = trans;
 
@@ -646,10 +647,10 @@ static int btrfs_extent_same_range(struct btrfs_inode *src, u64 loff, u64 len,
 	 * because we have already locked the inode's i_mmap_lock in exclusive
 	 * mode.
 	 */
-	lock_extent(&dst->io_tree, dst_loff, end, &cached_state);
+	btrfs_lock_extent(&dst->io_tree, dst_loff, end, &cached_state);
 	ret = btrfs_clone(&src->vfs_inode, &dst->vfs_inode, loff, len,
 			  ALIGN(len, bs), dst_loff, 1);
-	unlock_extent(&dst->io_tree, dst_loff, end, &cached_state);
+	btrfs_unlock_extent(&dst->io_tree, dst_loff, end, &cached_state);
 
 	btrfs_btree_balance_dirty(fs_info);
 
@@ -749,9 +750,9 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	 * mode.
 	 */
 	end = destoff + len - 1;
-	lock_extent(&BTRFS_I(inode)->io_tree, destoff, end, &cached_state);
+	btrfs_lock_extent(&BTRFS_I(inode)->io_tree, destoff, end, &cached_state);
 	ret = btrfs_clone(src, inode, off, olen, len, destoff, 0);
-	unlock_extent(&BTRFS_I(inode)->io_tree, destoff, end, &cached_state);
+	btrfs_unlock_extent(&BTRFS_I(inode)->io_tree, destoff, end, &cached_state);
 
 	/*
 	 * We may have copied an inline extent into a page of the destination

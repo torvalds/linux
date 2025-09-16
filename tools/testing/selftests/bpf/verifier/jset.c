@@ -78,12 +78,11 @@
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 1),
 	BPF_JMP_IMM(BPF_JSET, BPF_REG_0, 1, 1),
+	/* unpriv: nospec (inserted to prevent "R9 !read_ok") */
 	BPF_LDX_MEM(BPF_B, BPF_REG_8, BPF_REG_9, 0),
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SOCKET_FILTER,
-	.errstr_unpriv = "R9 !read_ok",
-	.result_unpriv = REJECT,
 	.retval = 1,
 	.result = ACCEPT,
 },
@@ -136,13 +135,12 @@
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_prandom_u32),
 	BPF_ALU64_IMM(BPF_OR, BPF_REG_0, 2),
 	BPF_JMP_IMM(BPF_JSET, BPF_REG_0, 3, 1),
+	/* unpriv: nospec (inserted to prevent "R9 !read_ok") */
 	BPF_LDX_MEM(BPF_B, BPF_REG_8, BPF_REG_9, 0),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SOCKET_FILTER,
-	.errstr_unpriv = "R9 !read_ok",
-	.result_unpriv = REJECT,
 	.result = ACCEPT,
 },
 {
@@ -154,16 +152,16 @@
 	BPF_ALU64_IMM(BPF_AND, BPF_REG_1, 0xff),
 	BPF_JMP_IMM(BPF_JSET, BPF_REG_1, 0xf0, 3),
 	BPF_JMP_IMM(BPF_JLT, BPF_REG_1, 0x10, 1),
+	/* unpriv: nospec (inserted to prevent "R9 !read_ok") */
 	BPF_LDX_MEM(BPF_B, BPF_REG_8, BPF_REG_9, 0),
 	BPF_EXIT_INSN(),
 	BPF_JMP_IMM(BPF_JSET, BPF_REG_1, 0x10, 1),
 	BPF_EXIT_INSN(),
 	BPF_JMP_IMM(BPF_JGE, BPF_REG_1, 0x10, 1),
+	/* unpriv: nospec (inserted to prevent "R9 !read_ok") */
 	BPF_LDX_MEM(BPF_B, BPF_REG_8, BPF_REG_9, 0),
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SOCKET_FILTER,
-	.errstr_unpriv = "R9 !read_ok",
-	.result_unpriv = REJECT,
 	.result = ACCEPT,
 },

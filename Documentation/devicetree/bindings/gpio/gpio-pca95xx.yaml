@@ -17,6 +17,9 @@ properties:
   compatible:
     oneOf:
       - items:
+          - const: toradex,ecgpiol16
+          - const: nxp,pcal6416
+      - items:
           - const: diodes,pi4ioe5v6534q
           - const: nxp,pcal6534
       - items:
@@ -65,6 +68,7 @@ properties:
               - ti,pca9536
               - ti,tca6408
               - ti,tca6416
+              - ti,tca6418
               - ti,tca6424
               - ti,tca9535
               - ti,tca9538
@@ -132,6 +136,7 @@ allOf:
               - maxim,max7325
               - maxim,max7326
               - maxim,max7327
+              - toradex,ecgpiol16
     then:
       properties:
         reset-gpios: false

@@ -1505,7 +1505,6 @@ static struct platform_driver sc7280_pinctrl_driver = {
 		.of_match_table = sc7280_pinctrl_of_match,
 	},
 	.probe = sc7280_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
 };
 
 static int __init sc7280_pinctrl_init(void)

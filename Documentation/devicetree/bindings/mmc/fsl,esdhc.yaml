@@ -24,6 +24,7 @@ properties:
           - fsl,t1040-esdhc
           - fsl,t4240-esdhc
           - fsl,ls1012a-esdhc
+          - fsl,ls1021a-esdhc
           - fsl,ls1028a-esdhc
           - fsl,ls1088a-esdhc
           - fsl,ls1043a-esdhc

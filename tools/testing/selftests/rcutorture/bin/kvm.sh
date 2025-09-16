@@ -199,7 +199,7 @@ do
 		fi
 		;;
 	--kconfig|--kconfigs)
-		checkarg --kconfig "(Kconfig options)" $# "$2" '^\(#CHECK#\)\?CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\|"[^"]*"\)\( \(#CHECK#\)\?CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\|"[^"]*"\)\)*$' '^error$'
+		checkarg --kconfig "(Kconfig options)" $# "$2" '^\(#CHECK#\)\?CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\|"[^"]*"\)\( \+\(#CHECK#\)\?CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\|"[^"]*"\)\)* *$' '^error$'
 		TORTURE_KCONFIG_ARG="`echo "$TORTURE_KCONFIG_ARG $2" | sed -e 's/^ *//' -e 's/ *$//'`"
 		shift
 		;;
@@ -442,18 +442,7 @@ echo $scriptname $args
 touch $resdir/$ds/log
 echo $scriptname $args >> $resdir/$ds/log
 echo ${TORTURE_SUITE} > $resdir/$ds/torture_suite
-echo Build directory: `pwd` > $resdir/$ds/testid.txt
-if test -d .git
-then
-	echo Current commit: `git rev-parse HEAD` >> $resdir/$ds/testid.txt
-	echo >> $resdir/$ds/testid.txt
-	echo ' ---' Output of "'"git status"'": >> $resdir/$ds/testid.txt
-	git status >> $resdir/$ds/testid.txt
-	echo >> $resdir/$ds/testid.txt
-	echo >> $resdir/$ds/testid.txt
-	echo ' ---' Output of "'"git diff HEAD"'": >> $resdir/$ds/testid.txt
-	git diff HEAD >> $resdir/$ds/testid.txt
-fi
+mktestid.sh $resdir/$ds
 ___EOF___
 kvm-assign-cpus.sh /sys/devices/system/node > $T/cpuarray.awk
 kvm-get-cpus-script.sh $T/cpuarray.awk $T/dumpbatches.awk

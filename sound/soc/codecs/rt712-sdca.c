@@ -479,7 +479,6 @@ static int rt712_sdca_set_jack_detect(struct snd_soc_component *component,
 
 	rt712_sdca_jack_init(rt712);
 
-	pm_runtime_mark_last_busy(component->dev);
 	pm_runtime_put_autosuspend(component->dev);
 
 	return 0;
@@ -1065,12 +1064,8 @@ static int rt712_sdca_dmic_set_gain_get(struct snd_kcontrol *kcontrol,
 
 		if (!adc_vol_flag) /* boost gain */
 			ctl = regvalue / 0x0a00;
-		else { /* ADC gain */
-			if (adc_vol_flag)
-				ctl = p->max - (((0x1e00 - regvalue) & 0xffff) / interval_offset);
-			else
-				ctl = p->max - (((0 - regvalue) & 0xffff) / interval_offset);
-		}
+		else /* ADC gain */
+			ctl = p->max - (((0x1e00 - regvalue) & 0xffff) / interval_offset);
 
 		ucontrol->value.integer.value[i] = ctl;
 	}
@@ -1929,7 +1924,6 @@ int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	dev_dbg(&slave->dev, "%s hw_init complete\n", __func__);
 
 suspend:
-	pm_runtime_mark_last_busy(&slave->dev);
 	pm_runtime_put_autosuspend(&slave->dev);
 
 	return 0;

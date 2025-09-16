@@ -562,7 +562,8 @@ jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 
 static void jr3_pci_poll_dev(struct timer_list *t)
 {
-	struct jr3_pci_dev_private *devpriv = from_timer(devpriv, t, timer);
+	struct jr3_pci_dev_private *devpriv = timer_container_of(devpriv, t,
+								 timer);
 	struct comedi_device *dev = devpriv->dev;
 	struct jr3_pci_subdev_private *spriv;
 	struct comedi_subdevice *s;

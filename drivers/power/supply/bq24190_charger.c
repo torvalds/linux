@@ -207,6 +207,7 @@ enum bq24190_chip {
 	BQ24190,
 	BQ24192,
 	BQ24192i,
+	BQ24193,
 	BQ24196,
 	BQ24296,
 	BQ24297,
@@ -503,7 +504,6 @@ static ssize_t bq24190_sysfs_show(struct device *dev,
 	else
 		count = sysfs_emit(buf, "%hhx\n", v);
 
-	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
 
 	return count;
@@ -534,7 +534,6 @@ static ssize_t bq24190_sysfs_store(struct device *dev,
 	if (ret)
 		count = ret;
 
-	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
 
 	return count;
@@ -561,7 +560,6 @@ static int bq24190_set_otg_vbus(struct bq24190_dev_info *bdi, bool enable)
 	else
 		ret = bq24190_charger_set_charge_type(bdi, &val);
 
-	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
 
 	return ret;
@@ -604,7 +602,6 @@ static int bq24296_set_otg_vbus(struct bq24190_dev_info *bdi, bool enable)
 	}
 
 out:
-	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
 
 	return ret;
@@ -637,7 +634,6 @@ static int bq24190_vbus_is_enabled(struct regulator_dev *dev)
 				BQ24190_REG_POC_CHG_CONFIG_MASK,
 				BQ24190_REG_POC_CHG_CONFIG_SHIFT, &val);
 
-	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
 
 	if (ret)
@@ -674,7 +670,6 @@ static int bq24296_vbus_is_enabled(struct regulator_dev *dev)
 				BQ24296_REG_POC_OTG_CONFIG_MASK,
 				BQ24296_REG_POC_OTG_CONFIG_SHIFT, &val);
 
-	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
 
 	if (ret)
@@ -1375,7 +1370,6 @@ static int bq24190_charger_get_property(struct power_supply *psy,
 		ret = -ENODATA;
 	}
 
-	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
 
 	return ret;
@@ -1418,7 +1412,6 @@ static int bq24190_charger_set_property(struct power_supply *psy,
 		ret = -EINVAL;
 	}
 
-	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
 
 	return ret;
@@ -1681,7 +1674,6 @@ static int bq24190_battery_get_property(struct power_supply *psy,
 		ret = -ENODATA;
 	}
 
-	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
 
 	return ret;
@@ -1712,7 +1704,6 @@ static int bq24190_battery_set_property(struct power_supply *psy,
 		ret = -EINVAL;
 	}
 
-	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
 
 	return ret;
@@ -1860,7 +1851,6 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 		return IRQ_NONE;
 	}
 	bq24190_check_status(bdi);
-	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
 	bdi->irq_event = false;
 
@@ -1982,6 +1972,8 @@ static int bq24190_get_config(struct bq24190_dev_info *bdi)
 		v = info->constant_charge_voltage_max_uv;
 		if (v >= bq24190_cvc_vreg_values[0] && v <= bdi->vreg_max)
 			bdi->vreg = bdi->vreg_max = v;
+
+		power_supply_put_battery_info(bdi->charger, info);
 	}
 
 	return 0;
@@ -2011,6 +2003,17 @@ static const struct bq24190_chip_info bq24190_chip_info_tbl[] = {
 		.set_otg_vbus = bq24190_set_otg_vbus,
 	},
 	[BQ24192i] = {
+		.ichg_array_size = ARRAY_SIZE(bq24190_ccc_ichg_values),
+#ifdef CONFIG_REGULATOR
+		.vbus_desc = &bq24190_vbus_desc,
+#endif
+		.check_chip = bq24190_check_chip,
+		.set_chg_config = bq24190_battery_set_chg_config,
+		.ntc_fault_mask = BQ24190_REG_F_NTC_FAULT_MASK,
+		.get_ntc_status = bq24190_charger_get_ntc_status,
+		.set_otg_vbus = bq24190_set_otg_vbus,
+	},
+	[BQ24193] = {
 		.ichg_array_size = ARRAY_SIZE(bq24190_ccc_ichg_values),
 #ifdef CONFIG_REGULATOR
 		.vbus_desc = &bq24190_vbus_desc,
@@ -2174,7 +2177,6 @@ static int bq24190_probe(struct i2c_client *client)
 
 	enable_irq_wake(client->irq);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
@@ -2261,7 +2263,6 @@ static __maybe_unused int bq24190_pm_suspend(struct device *dev)
 	bq24190_register_reset(bdi);
 
 	if (error >= 0) {
-		pm_runtime_mark_last_busy(bdi->dev);
 		pm_runtime_put_autosuspend(bdi->dev);
 	}
 
@@ -2286,7 +2287,6 @@ static __maybe_unused int bq24190_pm_resume(struct device *dev)
 	bq24190_read(bdi, BQ24190_REG_SS, &bdi->ss_reg);
 
 	if (error >= 0) {
-		pm_runtime_mark_last_busy(bdi->dev);
 		pm_runtime_put_autosuspend(bdi->dev);
 	}
 
@@ -2308,6 +2308,7 @@ static const struct i2c_device_id bq24190_i2c_ids[] = {
 	{ "bq24190", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24190] },
 	{ "bq24192", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24192] },
 	{ "bq24192i", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24192i] },
+	{ "bq24193", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24193] },
 	{ "bq24196", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24196] },
 	{ "bq24296", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24296] },
 	{ "bq24297", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24297] },
@@ -2319,6 +2320,7 @@ static const struct of_device_id bq24190_of_match[] = {
 	{ .compatible = "ti,bq24190", .data = &bq24190_chip_info_tbl[BQ24190] },
 	{ .compatible = "ti,bq24192", .data = &bq24190_chip_info_tbl[BQ24192] },
 	{ .compatible = "ti,bq24192i", .data = &bq24190_chip_info_tbl[BQ24192i] },
+	{ .compatible = "ti,bq24193", .data = &bq24190_chip_info_tbl[BQ24193] },
 	{ .compatible = "ti,bq24196", .data = &bq24190_chip_info_tbl[BQ24196] },
 	{ .compatible = "ti,bq24296", .data = &bq24190_chip_info_tbl[BQ24296] },
 	{ .compatible = "ti,bq24297", .data = &bq24190_chip_info_tbl[BQ24297] },

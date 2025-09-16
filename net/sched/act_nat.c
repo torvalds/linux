@@ -91,6 +91,7 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	nparm->new_addr = parm->new_addr;
 	nparm->mask = parm->mask;
 	nparm->flags = parm->flags;
+	nparm->action = parm->action;
 
 	p = to_tcf_nat(*a);
 
@@ -130,16 +131,15 @@ TC_INDIRECT_SCOPE int tcf_nat_act(struct sk_buff *skb,
 	tcf_lastuse_update(&p->tcf_tm);
 	tcf_action_update_bstats(&p->common, skb);
 
-	action = READ_ONCE(p->tcf_action);
-
 	parms = rcu_dereference_bh(p->parms);
+	action = parms->action;
+	if (unlikely(action == TC_ACT_SHOT))
+		goto drop;
+
 	old_addr = parms->old_addr;
 	new_addr = parms->new_addr;
 	mask = parms->mask;
 	egress = parms->flags & TCA_NAT_FLAG_EGRESS;
-
-	if (unlikely(action == TC_ACT_SHOT))
-		goto drop;
 
 	noff = skb_network_offset(skb);
 	if (!pskb_may_pull(skb, sizeof(*iph) + noff))
@@ -268,21 +268,20 @@ static int tcf_nat_dump(struct sk_buff *skb, struct tc_action *a,
 			int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
-	struct tcf_nat *p = to_tcf_nat(a);
+	const struct tcf_nat *p = to_tcf_nat(a);
+	const struct tcf_nat_parms *parms;
 	struct tc_nat opt = {
 		.index    = p->tcf_index,
 		.refcnt   = refcount_read(&p->tcf_refcnt) - ref,
 		.bindcnt  = atomic_read(&p->tcf_bindcnt) - bind,
 	};
-	struct tcf_nat_parms *parms;
 	struct tcf_t t;
 
-	spin_lock_bh(&p->tcf_lock);
+	rcu_read_lock();
 
-	opt.action = p->tcf_action;
+	parms = rcu_dereference(p->parms);
 
-	parms = rcu_dereference_protected(p->parms, lockdep_is_held(&p->tcf_lock));
-
+	opt.action = parms->action;
 	opt.old_addr = parms->old_addr;
 	opt.new_addr = parms->new_addr;
 	opt.mask = parms->mask;
@@ -294,12 +293,12 @@ static int tcf_nat_dump(struct sk_buff *skb, struct tc_action *a,
 	tcf_tm_dump(&t, &p->tcf_tm);
 	if (nla_put_64bit(skb, TCA_NAT_TM, sizeof(t), &t, TCA_NAT_PAD))
 		goto nla_put_failure;
-	spin_unlock_bh(&p->tcf_lock);
+	rcu_read_unlock();
 
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock_bh(&p->tcf_lock);
+	rcu_read_unlock();
 	nlmsg_trim(skb, b);
 	return -1;
 }

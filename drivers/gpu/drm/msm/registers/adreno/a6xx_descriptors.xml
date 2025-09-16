@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database xmlns="http://nouveau.freedesktop.org/"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
+<import file="freedreno_copyright.xml"/>
+<import file="adreno/adreno_common.xml"/>
+<import file="adreno/adreno_pm4.xml"/>
+<import file="adreno/a6xx_enums.xml"/>
+
+<domain name="A6XX_TEX_SAMP" width="32">
+	<doc>Texture sampler dwords</doc>
+
+	<reg32 offset="0" name="0">
+		<bitfield name="MIPFILTER_LINEAR_NEAR" pos="0" type="boolean"/>
+		<bitfield name="XY_MAG" low="1" high="2" type="a6xx_tex_filter"/>
+		<bitfield name="XY_MIN" low="3" high="4" type="a6xx_tex_filter"/>
+		<bitfield name="WRAP_S" low="5" high="7" type="a6xx_tex_clamp"/>
+		<bitfield name="WRAP_T" low="8" high="10" type="a6xx_tex_clamp"/>
+		<bitfield name="WRAP_R" low="11" high="13" type="a6xx_tex_clamp"/>
+		<bitfield name="ANISO" low="14" high="16" type="a6xx_tex_aniso"/>
+		<bitfield name="LOD_BIAS" low="19" high="31" type="fixed" radix="8"/><!-- no idea how many bits for real -->
+	</reg32>
+	<reg32 offset="1" name="1">
+		<bitfield name="CLAMPENABLE" pos="0" type="boolean">
+			<doc>
+				clamp result to [0, 1] if the format is unorm or
+				[-1, 1] if the format is snorm, *after*
+				filtering. Has no effect for other formats.
+			</doc>
+		</bitfield>
+		<bitfield name="COMPARE_FUNC" low="1" high="3" type="adreno_compare_func"/>
+		<bitfield name="CUBEMAPSEAMLESSFILTOFF" pos="4" type="boolean"/>
+		<bitfield name="UNNORM_COORDS" pos="5" type="boolean"/>
+		<bitfield name="MIPFILTER_LINEAR_FAR" pos="6" type="boolean"/>
+		<bitfield name="MAX_LOD" low="8" high="19" type="ufixed" radix="8"/>
+		<bitfield name="MIN_LOD" low="20" high="31" type="ufixed" radix="8"/>
+	</reg32>
+	<reg32 offset="2" name="2">
+		<bitfield name="REDUCTION_MODE" low="0" high="1" type="a6xx_reduction_mode"/>
+		<bitfield name="FASTBORDERCOLOR" low="2" high="3" type="a6xx_fast_border_color"/>
+		<bitfield name="FASTBORDERCOLOREN" pos="4" type="boolean"/>
+		<bitfield name="CHROMA_LINEAR" pos="5" type="boolean"/>
+		<bitfield name="BCOLOR" low="7" high="31"/>
+	</reg32>
+	<reg32 offset="3" name="3"/>
+</domain>
+
+<domain name="A6XX_TEX_CONST" width="32" varset="chip">
+	<doc>Texture constant dwords</doc>
+	<reg32 offset="0" name="0">
+		<bitfield name="TILE_MODE" low="0" high="1" type="a6xx_tile_mode"/>
+		<bitfield name="SRGB" pos="2" type="boolean"/>
+		<bitfield name="SWIZ_X" low="4" high="6" type="a6xx_tex_swiz"/>
+		<bitfield name="SWIZ_Y" low="7" high="9" type="a6xx_tex_swiz"/>
+		<bitfield name="SWIZ_Z" low="10" high="12" type="a6xx_tex_swiz"/>
+		<bitfield name="SWIZ_W" low="13" high="15" type="a6xx_tex_swiz"/>
+		<bitfield name="MIPLVLS" low="16" high="19" type="uint"/>
+		<!-- overlaps with MIPLVLS -->
+		<bitfield name="CHROMA_MIDPOINT_X" pos="16" type="boolean"/>
+		<bitfield name="CHROMA_MIDPOINT_Y" pos="18" type="boolean"/>
+		<bitfield name="SAMPLES" low="20" high="21" type="a3xx_msaa_samples"/>
+		<bitfield name="FMT" low="22" high="29" type="a6xx_format"/>
+		<!--
+			Why is the swap needed in addition to SWIZ_*? The swap
+			is performed before border color replacement, while the
+			swizzle is applied after after it.
+		-->
+		<bitfield name="SWAP" low="30" high="31" type="a3xx_color_swap"/>
+	</reg32>
+	<reg32 offset="1" name="1">
+		<bitfield name="WIDTH" low="0" high="14" type="uint"/>
+		<bitfield name="HEIGHT" low="15" high="29" type="uint"/>
+		<bitfield name="MUTABLEEN" pos="31" type="boolean" variants="A7XX-"/>
+	</reg32>
+	<reg32 offset="2" name="2">
+		<!--
+			These fields overlap PITCH, and are used instead of
+			PITCH/PITCHALIGN when TYPE is A6XX_TEX_BUFFER.
+		 -->
+		<doc> probably for D3D structured UAVs, normally set to 1 </doc>
+		<bitfield name="STRUCTSIZETEXELS" low="4" high="15" type="uint"/>
+		<bitfield name="STARTOFFSETTEXELS" low="16" high="21" type="uint"/>
+
+		<!-- minimum pitch (for mipmap levels): log2(pitchalign / 64) -->
+		<bitfield name="PITCHALIGN" low="0" high="3" type="uint"/>
+		<doc>Pitch in bytes (so actually stride)</doc>
+		<bitfield name="PITCH" low="7" high="28" type="uint"/>
+		<bitfield name="TYPE" low="29" high="31" type="a6xx_tex_type"/>
+	</reg32>
+	<reg32 offset="3" name="3">
+		<!--
+		ARRAY_PITCH is basically LAYERSZ for the first mipmap level, and
+		for 3d textures (laid out mipmap level first) MIN_LAYERSZ is the
+		layer size at the point that it stops being reduced moving to
+		higher (smaller) mipmap levels
+		 -->
+		<bitfield name="ARRAY_PITCH" low="0" high="22" shr="12" type="uint"/>
+		<bitfield name="MIN_LAYERSZ" low="23" high="26" shr="12"/>
+		<!--
+		by default levels with w < 16 are linear
+		TILE_ALL makes all levels have tiling
+		seems required when using UBWC, since all levels have UBWC (can possibly be disabled?)
+		 -->
+		<bitfield name="TILE_ALL" pos="27" type="boolean"/>
+		<bitfield name="FLAG" pos="28" type="boolean"/>
+	</reg32>
+	<!-- for 2-3 plane format, BASE is flag buffer address (if enabled)
+	     the address of the non-flag base buffer is determined automatically,
+	     and must follow the flag buffer
+	 -->
+	<reg32 offset="4" name="4">
+		<bitfield name="BASE_LO" low="5" high="31" shr="5"/>
+	</reg32>
+	<reg32 offset="5" name="5">
+		<bitfield name="BASE_HI" low="0" high="16"/>
+		<bitfield name="DEPTH" low="17" high="29" type="uint"/>
+	</reg32>
+	<reg32 offset="6" name="6">
+		<!-- overlaps with PLANE_PITCH -->
+		<bitfield name="MIN_LOD_CLAMP" low="0" high="11" type="ufixed" radix="8"/>
+		<!-- pitch for plane 2 / plane 3 -->
+		<bitfield name="PLANE_PITCH" low="8" high="31" type="uint"/>
+	</reg32>
+	<!-- 7/8 is plane 2 address for planar formats -->
+	<reg32 offset="7" name="7">
+		<bitfield name="FLAG_LO" low="5" high="31" shr="5"/>
+	</reg32>
+	<reg32 offset="8" name="8">
+		<bitfield name="FLAG_HI" low="0" high="16"/>
+	</reg32>
+	<!-- 9/10 is plane 3 address for planar formats -->
+	<reg32 offset="9" name="9">
+		<bitfield name="FLAG_BUFFER_ARRAY_PITCH" low="0" high="16" shr="4" type="uint"/>
+	</reg32>
+	<reg32 offset="10" name="10">
+		<bitfield name="FLAG_BUFFER_PITCH" low="0" high="6" shr="6" type="uint"/>
+		<!-- log2 size of the first level, required for mipmapping -->
+		<bitfield name="FLAG_BUFFER_LOGW" low="8" high="11" type="uint"/>
+		<bitfield name="FLAG_BUFFER_LOGH" low="12" high="15" type="uint"/>
+	</reg32>
+	<reg32 offset="11" name="11"/>
+	<reg32 offset="12" name="12"/>
+	<reg32 offset="13" name="13"/>
+	<reg32 offset="14" name="14"/>
+	<reg32 offset="15" name="15"/>
+</domain>
+
+<domain name="A6XX_UBO" width="32">
+	<reg32 offset="0" name="0">
+		<bitfield name="BASE_LO" low="0" high="31"/>
+	</reg32>
+	<reg32 offset="1" name="1">
+		<bitfield name="BASE_HI" low="0" high="16"/>
+		<bitfield name="SIZE" low="17" high="31"/> <!-- size in vec4 (4xDWORD) units -->
+	</reg32>
+</domain>
+
+</database>

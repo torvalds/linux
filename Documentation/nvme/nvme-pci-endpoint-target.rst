@@ -6,21 +6,21 @@ NVMe PCI Endpoint Function Target
 
 :Author: Damien Le Moal <dlemoal@kernel.org>
 
-The NVMe PCI endpoint function target driver implements a NVMe PCIe controller
-using a NVMe fabrics target controller configured with the PCI transport type.
+The NVMe PCI endpoint function target driver implements an NVMe PCIe controller
+using an NVMe fabrics target controller configured with the PCI transport type.
 
 Overview
 ========
 
-The NVMe PCI endpoint function target driver allows exposing a NVMe target
+The NVMe PCI endpoint function target driver allows exposing an NVMe target
 controller over a PCIe link, thus implementing an NVMe PCIe device similar to a
 regular M.2 SSD. The target controller is created in the same manner as when
 using NVMe over fabrics: the controller represents the interface to an NVMe
 subsystem using a port. The port transfer type must be configured to be
 "pci". The subsystem can be configured to have namespaces backed by regular
 files or block devices, or can use NVMe passthrough to expose to the PCI host an
-existing physical NVMe device or a NVMe fabrics host controller (e.g. a NVMe TCP
-host controller).
+existing physical NVMe device or an NVMe fabrics host controller (e.g. a NVMe
+TCP host controller).
 
 The NVMe PCI endpoint function target driver relies as much as possible on the
 NVMe target core code to parse and execute NVMe commands submitted by the PCIe
@@ -181,10 +181,10 @@ Creating an NVMe endpoint device is a two step process. First, an NVMe target
 subsystem and port must be defined. Second, the NVMe PCI endpoint device must
 be setup and bound to the subsystem and port created.
 
-Creating a NVMe Subsystem and Port
-----------------------------------
+Creating an NVMe Subsystem and Port
+-----------------------------------
 
-Details about how to configure a NVMe target subsystem and port are outside the
+Details about how to configure an NVMe target subsystem and port are outside the
 scope of this document. The following only provides a simple example of a port
 and subsystem with a single namespace backed by a null_blk device.
 
@@ -234,8 +234,8 @@ Finally, create the target port and link it to the subsystem::
         # ln -s /sys/kernel/config/nvmet/subsystems/nvmepf.0.nqn \
                 /sys/kernel/config/nvmet/ports/1/subsystems/nvmepf.0.nqn
 
-Creating a NVMe PCI Endpoint Device
------------------------------------
+Creating an NVMe PCI Endpoint Device
+------------------------------------
 
 With the NVMe target subsystem and port ready for use, the NVMe PCI endpoint
 device can now be created and enabled. The NVMe PCI endpoint target driver
@@ -303,7 +303,7 @@ device controller::
 
         nvmet_pci_epf nvmet_pci_epf.0: Enabling controller
 
-On the host side, the NVMe PCI endpoint function target device will is
+On the host side, the NVMe PCI endpoint function target device is
 discoverable as a PCI device, with the vendor ID and device ID as configured::
 
         # lspci -n

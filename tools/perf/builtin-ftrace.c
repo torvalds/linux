@@ -19,6 +19,7 @@
 #include <ctype.h>
 #include <linux/capability.h>
 #include <linux/string.h>
+#include <sys/stat.h>
 
 #include "debug.h"
 #include <subcmd/pager.h>
@@ -44,6 +45,8 @@ static volatile sig_atomic_t workload_exec_errno;
 static volatile sig_atomic_t done;
 
 static struct stats latency_stats;  /* for tracepoints */
+
+static char tracing_instance[PATH_MAX];	/* Trace instance directory */
 
 static void sig_handler(int sig __maybe_unused)
 {
@@ -100,6 +103,34 @@ static bool is_ftrace_supported(void)
 	return supported;
 }
 
+/*
+ * Wrapper to test if a file in directory .../tracing/instances/XXX
+ * exists. If so return the .../tracing/instances/XXX file for use.
+ * Otherwise the file exists only in directory .../tracing and
+ * is applicable to all instances, for example file available_filter_functions.
+ * Return that file name in this case.
+ *
+ * This functions works similar to get_tracing_file() and expects its caller
+ * to free the returned file name.
+ *
+ * The global variable tracing_instance is set in init_tracing_instance()
+ * called at the  beginning to a process specific tracing subdirectory.
+ */
+static char *get_tracing_instance_file(const char *name)
+{
+	char *file;
+
+	if (asprintf(&file, "%s/%s", tracing_instance, name) < 0)
+		return NULL;
+
+	if (!access(file, F_OK))
+		return file;
+
+	free(file);
+	file = get_tracing_file(name);
+	return file;
+}
+
 static int __write_tracing_file(const char *name, const char *val, bool append)
 {
 	char *file;
@@ -109,7 +140,7 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 	char errbuf[512];
 	char *val_copy;
 
-	file = get_tracing_file(name);
+	file = get_tracing_instance_file(name);
 	if (!file) {
 		pr_debug("cannot get tracing file: %s\n", name);
 		return -1;
@@ -167,7 +198,7 @@ static int read_tracing_file_to_stdout(const char *name)
 	int fd;
 	int ret = -1;
 
-	file = get_tracing_file(name);
+	file = get_tracing_instance_file(name);
 	if (!file) {
 		pr_debug("cannot get tracing file: %s\n", name);
 		return -1;
@@ -209,7 +240,7 @@ static int read_tracing_file_by_line(const char *name,
 	char *file;
 	FILE *fp;
 
-	file = get_tracing_file(name);
+	file = get_tracing_instance_file(name);
 	if (!file) {
 		pr_debug("cannot get tracing file: %s\n", name);
 		return -1;
@@ -270,6 +301,10 @@ static void reset_tracing_options(struct perf_ftrace *ftrace __maybe_unused)
 	write_tracing_option_file("funcgraph-proc", "0");
 	write_tracing_option_file("funcgraph-abstime", "0");
 	write_tracing_option_file("funcgraph-tail", "0");
+	write_tracing_option_file("funcgraph-args", "0");
+	write_tracing_option_file("funcgraph-retval", "0");
+	write_tracing_option_file("funcgraph-retval-hex", "0");
+	write_tracing_option_file("funcgraph-retaddr", "0");
 	write_tracing_option_file("latency-format", "0");
 	write_tracing_option_file("irq-info", "0");
 }
@@ -297,6 +332,39 @@ static int reset_tracing_files(struct perf_ftrace *ftrace __maybe_unused)
 	reset_tracing_filters();
 	reset_tracing_options(ftrace);
 	return 0;
+}
+
+/* Remove .../tracing/instances/XXX subdirectory created with
+ * init_tracing_instance().
+ */
+static void exit_tracing_instance(void)
+{
+	if (rmdir(tracing_instance))
+		pr_err("failed to delete tracing/instances directory\n");
+}
+
+/* Create subdirectory within .../tracing/instances/XXX to have session
+ * or process specific setup. To delete this setup, simply remove the
+ * subdirectory.
+ */
+static int init_tracing_instance(void)
+{
+	char dirname[] = "instances/perf-ftrace-XXXXXX";
+	char *path;
+
+	path = get_tracing_file(dirname);
+	if (!path)
+		goto error;
+	strncpy(tracing_instance, path, sizeof(tracing_instance) - 1);
+	put_tracing_file(path);
+	path = mkdtemp(tracing_instance);
+	if (!path)
+		goto error;
+	return 0;
+
+error:
+	pr_err("failed to create tracing/instances directory\n");
+	return -1;
 }
 
 static int set_tracing_pid(struct perf_ftrace *ftrace)
@@ -478,6 +546,41 @@ static int set_tracing_sleep_time(struct perf_ftrace *ftrace)
 	return 0;
 }
 
+static int set_tracing_funcgraph_args(struct perf_ftrace *ftrace)
+{
+	if (ftrace->graph_args) {
+		if (write_tracing_option_file("funcgraph-args", "1") < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+static int set_tracing_funcgraph_retval(struct perf_ftrace *ftrace)
+{
+	if (ftrace->graph_retval || ftrace->graph_retval_hex) {
+		if (write_tracing_option_file("funcgraph-retval", "1") < 0)
+			return -1;
+	}
+
+	if (ftrace->graph_retval_hex) {
+		if (write_tracing_option_file("funcgraph-retval-hex", "1") < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+static int set_tracing_funcgraph_retaddr(struct perf_ftrace *ftrace)
+{
+	if (ftrace->graph_retaddr) {
+		if (write_tracing_option_file("funcgraph-retaddr", "1") < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
 static int set_tracing_funcgraph_irqs(struct perf_ftrace *ftrace)
 {
 	if (!ftrace->graph_noirqs)
@@ -578,6 +681,21 @@ static int set_tracing_options(struct perf_ftrace *ftrace)
 		return -1;
 	}
 
+	if (set_tracing_funcgraph_args(ftrace) < 0) {
+		pr_err("failed to set tracing option funcgraph-args\n");
+		return -1;
+	}
+
+	if (set_tracing_funcgraph_retval(ftrace) < 0) {
+		pr_err("failed to set tracing option funcgraph-retval\n");
+		return -1;
+	}
+
+	if (set_tracing_funcgraph_retaddr(ftrace) < 0) {
+		pr_err("failed to set tracing option funcgraph-retaddr\n");
+		return -1;
+	}
+
 	if (set_tracing_funcgraph_irqs(ftrace) < 0) {
 		pr_err("failed to set tracing option funcgraph-irqs\n");
 		return -1;
@@ -629,14 +747,17 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace)
 
 	select_tracer(ftrace);
 
+	if (init_tracing_instance() < 0)
+		goto out;
+
 	if (reset_tracing_files(ftrace) < 0) {
 		pr_err("failed to reset ftrace\n");
-		goto out;
+		goto out_reset;
 	}
 
 	/* reset ftrace buffer */
 	if (write_tracing_file("trace", "0") < 0)
-		goto out;
+		goto out_reset;
 
 	if (set_tracing_options(ftrace) < 0)
 		goto out_reset;
@@ -648,7 +769,7 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace)
 
 	setup_pager();
 
-	trace_file = get_tracing_file("trace_pipe");
+	trace_file = get_tracing_instance_file("trace_pipe");
 	if (!trace_file) {
 		pr_err("failed to open trace_pipe\n");
 		goto out_reset;
@@ -723,7 +844,7 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace)
 out_close_fd:
 	close(trace_fd);
 out_reset:
-	reset_tracing_files(ftrace);
+	exit_tracing_instance();
 out:
 	return (done && !workload_exec_errno) ? 0 : -1;
 }
@@ -924,6 +1045,9 @@ static int prepare_func_latency(struct perf_ftrace *ftrace)
 	if (ftrace->target.use_bpf)
 		return perf_ftrace__latency_prepare_bpf(ftrace);
 
+	if (init_tracing_instance() < 0)
+		return -1;
+
 	if (reset_tracing_files(ftrace) < 0) {
 		pr_err("failed to reset ftrace\n");
 		return -1;
@@ -942,7 +1066,7 @@ static int prepare_func_latency(struct perf_ftrace *ftrace)
 		return -1;
 	}
 
-	trace_file = get_tracing_file("trace_pipe");
+	trace_file = get_tracing_instance_file("trace_pipe");
 	if (!trace_file) {
 		pr_err("failed to open trace_pipe\n");
 		return -1;
@@ -993,7 +1117,7 @@ static int cleanup_func_latency(struct perf_ftrace *ftrace)
 	if (ftrace->target.use_bpf)
 		return perf_ftrace__latency_cleanup_bpf(ftrace);
 
-	reset_tracing_files(ftrace);
+	exit_tracing_instance();
 	return 0;
 }
 
@@ -1304,17 +1428,20 @@ static int __cmd_profile(struct perf_ftrace *ftrace)
 		goto out;
 	}
 
+	if (init_tracing_instance() < 0)
+		goto out;
+
 	if (reset_tracing_files(ftrace) < 0) {
 		pr_err("failed to reset ftrace\n");
-		goto out;
+		goto out_reset;
 	}
 
 	/* reset ftrace buffer */
 	if (write_tracing_file("trace", "0") < 0)
-		goto out;
+		goto out_reset;
 
 	if (set_tracing_options(ftrace) < 0)
-		return -1;
+		goto out_reset;
 
 	if (write_tracing_file("current_tracer", ftrace->tracer) < 0) {
 		pr_err("failed to set current_tracer to %s\n", ftrace->tracer);
@@ -1323,7 +1450,7 @@ static int __cmd_profile(struct perf_ftrace *ftrace)
 
 	setup_pager();
 
-	trace_file = get_tracing_file("trace_pipe");
+	trace_file = get_tracing_instance_file("trace_pipe");
 	if (!trace_file) {
 		pr_err("failed to open trace_pipe\n");
 		goto out_reset;
@@ -1385,7 +1512,7 @@ out_free_line:
 out_close_fd:
 	close(trace_fd);
 out_reset:
-	reset_tracing_files(ftrace);
+	exit_tracing_instance();
 out:
 	return (done && !workload_exec_errno) ? 0 : -1;
 }
@@ -1476,6 +1603,33 @@ static void delete_filter_func(struct list_head *head)
 	}
 }
 
+static int parse_filter_event(const struct option *opt, const char *str,
+			     int unset __maybe_unused)
+{
+	struct list_head *head = opt->value;
+	struct filter_entry *entry;
+	char *s, *p;
+	int ret = -ENOMEM;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -ENOMEM;
+
+	while ((p = strsep(&s, ",")) != NULL) {
+		entry = malloc(sizeof(*entry) + strlen(p) + 1);
+		if (entry == NULL)
+			goto out;
+
+		strcpy(entry->name, p);
+		list_add_tail(&entry->list, head);
+	}
+	ret = 0;
+
+out:
+	free(s);
+	return ret;
+}
+
 static int parse_buffer_size(const struct option *opt,
 			     const char *str, int unset)
 {
@@ -1534,6 +1688,10 @@ static int parse_graph_tracer_opts(const struct option *opt,
 	int ret;
 	struct perf_ftrace *ftrace = (struct perf_ftrace *) opt->value;
 	struct sublevel_option graph_tracer_opts[] = {
+		{ .name = "args",		.value_ptr = &ftrace->graph_args },
+		{ .name = "retval",		.value_ptr = &ftrace->graph_retval },
+		{ .name = "retval-hex",		.value_ptr = &ftrace->graph_retval_hex },
+		{ .name = "retaddr",		.value_ptr = &ftrace->graph_retaddr },
 		{ .name = "nosleep-time",	.value_ptr = &ftrace->graph_nosleep_time },
 		{ .name = "noirqs",		.value_ptr = &ftrace->graph_noirqs },
 		{ .name = "verbose",		.value_ptr = &ftrace->graph_verbose },
@@ -1590,7 +1748,6 @@ int cmd_ftrace(int argc, const char **argv)
 	int (*cmd_func)(struct perf_ftrace *) = NULL;
 	struct perf_ftrace ftrace = {
 		.tracer = DEFAULT_TRACER,
-		.target = { .uid = UINT_MAX, },
 	};
 	const struct option common_options[] = {
 	OPT_STRING('p', "pid", &ftrace.target.pid, "pid",
@@ -1626,7 +1783,7 @@ int cmd_ftrace(int argc, const char **argv)
 	OPT_CALLBACK('g', "nograph-funcs", &ftrace.nograph_funcs, "func",
 		     "Set nograph filter on given functions", parse_filter_func),
 	OPT_CALLBACK(0, "graph-opts", &ftrace, "options",
-		     "Graph tracer options, available options: nosleep-time,noirqs,verbose,thresh=<n>,depth=<n>",
+		     "Graph tracer options, available options: args,retval,retval-hex,retaddr,nosleep-time,noirqs,verbose,thresh=<n>,depth=<n>",
 		     parse_graph_tracer_opts),
 	OPT_CALLBACK('m', "buffer-size", &ftrace.percpu_buffer_size, "size",
 		     "Size of per cpu buffer, needs to use a B, K, M or G suffix.", parse_buffer_size),
@@ -1639,6 +1796,8 @@ int cmd_ftrace(int argc, const char **argv)
 	const struct option latency_options[] = {
 	OPT_CALLBACK('T', "trace-funcs", &ftrace.filters, "func",
 		     "Show latency of given function", parse_filter_func),
+	OPT_CALLBACK('e', "events", &ftrace.event_pair, "event1,event2",
+		     "Show latency between the two events", parse_filter_event),
 #ifdef HAVE_BPF_SKEL
 	OPT_BOOLEAN('b', "use-bpf", &ftrace.target.use_bpf,
 		    "Use BPF to measure function latency"),
@@ -1691,6 +1850,7 @@ int cmd_ftrace(int argc, const char **argv)
 	INIT_LIST_HEAD(&ftrace.notrace);
 	INIT_LIST_HEAD(&ftrace.graph_funcs);
 	INIT_LIST_HEAD(&ftrace.nograph_funcs);
+	INIT_LIST_HEAD(&ftrace.event_pair);
 
 	signal(SIGINT, sig_handler);
 	signal(SIGUSR1, sig_handler);
@@ -1745,9 +1905,24 @@ int cmd_ftrace(int argc, const char **argv)
 		cmd_func = __cmd_ftrace;
 		break;
 	case PERF_FTRACE_LATENCY:
-		if (list_empty(&ftrace.filters)) {
-			pr_err("Should provide a function to measure\n");
+		if (list_empty(&ftrace.filters) && list_empty(&ftrace.event_pair)) {
+			pr_err("Should provide a function or events to measure\n");
 			parse_options_usage(ftrace_usage, options, "T", 1);
+			parse_options_usage(NULL, options, "e", 1);
+			ret = -EINVAL;
+			goto out_delete_filters;
+		}
+		if (!list_empty(&ftrace.filters) && !list_empty(&ftrace.event_pair)) {
+			pr_err("Please specify either of function or events\n");
+			parse_options_usage(ftrace_usage, options, "T", 1);
+			parse_options_usage(NULL, options, "e", 1);
+			ret = -EINVAL;
+			goto out_delete_filters;
+		}
+		if (!list_empty(&ftrace.event_pair) && !ftrace.target.use_bpf) {
+			pr_err("Event processing needs BPF\n");
+			parse_options_usage(ftrace_usage, options, "b", 1);
+			parse_options_usage(NULL, options, "e", 1);
 			ret = -EINVAL;
 			goto out_delete_filters;
 		}
@@ -1838,6 +2013,7 @@ out_delete_filters:
 	delete_filter_func(&ftrace.notrace);
 	delete_filter_func(&ftrace.graph_funcs);
 	delete_filter_func(&ftrace.nograph_funcs);
+	delete_filter_func(&ftrace.event_pair);
 
 	return ret;
 }

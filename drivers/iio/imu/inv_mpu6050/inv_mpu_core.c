@@ -755,13 +755,12 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 		mutex_lock(&st->lock);
 		ret = inv_mpu6050_read_channel_data(indio_dev, chan, val);
 		mutex_unlock(&st->lock);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		return ret;
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
@@ -895,9 +894,8 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 	 * we should only update scale when the chip is disabled, i.e.
 	 * not running
 	 */
-	result = iio_device_claim_direct_mode(indio_dev);
-	if (result)
-		return result;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	mutex_lock(&st->lock);
 	result = pm_runtime_resume_and_get(pdev);
@@ -944,7 +942,7 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 	pm_runtime_put_autosuspend(pdev);
 error_write_raw_unlock:
 	mutex_unlock(&st->lock);
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 
 	return result;
 }
@@ -1384,7 +1382,7 @@ inv_fifo_rate_show(struct device *dev, struct device_attribute *attr,
 	fifo_rate = INV_MPU6050_DIVIDER_TO_FIFO_RATE(st->chip_config.divider);
 	mutex_unlock(&st->lock);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", fifo_rate);
+	return sysfs_emit(buf, "%u\n", fifo_rate);
 }
 
 /*
@@ -1411,8 +1409,7 @@ static ssize_t inv_attr_show(struct device *dev, struct device_attribute *attr,
 	case ATTR_ACCL_MATRIX:
 		m = st->plat_data.orientation;
 
-		return scnprintf(buf, PAGE_SIZE,
-			"%d, %d, %d; %d, %d, %d; %d, %d, %d\n",
+		return sysfs_emit(buf, "%d, %d, %d; %d, %d, %d; %d, %d, %d\n",
 			m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8]);
 	default:
 		return -EINVAL;

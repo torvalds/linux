@@ -188,6 +188,7 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
 
 		index++;
 	}
+	acpi_ex_trace_args(params, index);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%u args passed to method\n", index));
 	return_ACPI_STATUS(AE_OK);

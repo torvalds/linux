@@ -217,7 +217,7 @@ int dso__read_binary_type_filename(const struct dso *dso,
 			break;
 		}
 
-		build_id__sprintf(dso__bid_const(dso), build_id_hex);
+		build_id__snprintf(dso__bid(dso), build_id_hex, sizeof(build_id_hex));
 		len = __symbol__join_symfs(filename, size, "/usr/lib/debug/.build-id/");
 		snprintf(filename + len, size - len, "%.2s/%s.debug",
 			 build_id_hex, build_id_hex + 2);
@@ -1349,6 +1349,16 @@ struct dso *machine__findnew_kernel(struct machine *machine, const char *name,
 	return dso;
 }
 
+static void __dso__set_long_name_id(struct dso *dso, const char *name, bool name_allocated)
+{
+	if (dso__long_name_allocated(dso))
+		free((char *)dso__long_name(dso));
+
+	RC_CHK_ACCESS(dso)->long_name = name;
+	RC_CHK_ACCESS(dso)->long_name_len = strlen(name);
+	dso__set_long_name_allocated(dso, name_allocated);
+}
+
 static void dso__set_long_name_id(struct dso *dso, const char *name, bool name_allocated)
 {
 	struct dsos *dsos = dso__dsos(dso);
@@ -1362,81 +1372,86 @@ static void dso__set_long_name_id(struct dso *dso, const char *name, bool name_a
 		 * renaming the dso.
 		 */
 		down_write(&dsos->lock);
-	}
-
-	if (dso__long_name_allocated(dso))
-		free((char *)dso__long_name(dso));
-
-	RC_CHK_ACCESS(dso)->long_name = name;
-	RC_CHK_ACCESS(dso)->long_name_len = strlen(name);
-	dso__set_long_name_allocated(dso, name_allocated);
-
-	if (dsos) {
+		__dso__set_long_name_id(dso, name, name_allocated);
 		dsos->sorted = false;
 		up_write(&dsos->lock);
+	} else {
+		__dso__set_long_name_id(dso, name, name_allocated);
 	}
 }
 
 static int __dso_id__cmp(const struct dso_id *a, const struct dso_id *b)
 {
-	if (a->maj > b->maj) return -1;
-	if (a->maj < b->maj) return 1;
+	if (a->mmap2_valid && b->mmap2_valid) {
+		if (a->maj > b->maj) return -1;
+		if (a->maj < b->maj) return 1;
 
-	if (a->min > b->min) return -1;
-	if (a->min < b->min) return 1;
+		if (a->min > b->min) return -1;
+		if (a->min < b->min) return 1;
 
-	if (a->ino > b->ino) return -1;
-	if (a->ino < b->ino) return 1;
-
-	/*
-	 * Synthesized MMAP events have zero ino_generation, avoid comparing
-	 * them with MMAP events with actual ino_generation.
-	 *
-	 * I found it harmful because the mismatch resulted in a new
-	 * dso that did not have a build ID whereas the original dso did have a
-	 * build ID. The build ID was essential because the object was not found
-	 * otherwise. - Adrian
-	 */
-	if (a->ino_generation && b->ino_generation) {
+		if (a->ino > b->ino) return -1;
+		if (a->ino < b->ino) return 1;
+	}
+	if (a->mmap2_ino_generation_valid && b->mmap2_ino_generation_valid) {
 		if (a->ino_generation > b->ino_generation) return -1;
 		if (a->ino_generation < b->ino_generation) return 1;
 	}
-
+	if (build_id__is_defined(&a->build_id) && build_id__is_defined(&b->build_id)) {
+		if (a->build_id.size != b->build_id.size)
+			return a->build_id.size < b->build_id.size ? -1 : 1;
+		return memcmp(a->build_id.data, b->build_id.data, a->build_id.size);
+	}
 	return 0;
 }
 
-bool dso_id__empty(const struct dso_id *id)
-{
-	if (!id)
-		return true;
+const struct dso_id dso_id_empty = {
+	{
+		.maj = 0,
+		.min = 0,
+		.ino = 0,
+		.ino_generation = 0,
+	},
+	.mmap2_valid = false,
+	.mmap2_ino_generation_valid = false,
+	{
+		.size = 0,
+	}
+};
 
-	return !id->maj && !id->min && !id->ino && !id->ino_generation;
-}
-
-void __dso__inject_id(struct dso *dso, const struct dso_id *id)
+void __dso__improve_id(struct dso *dso, const struct dso_id *id)
 {
 	struct dsos *dsos = dso__dsos(dso);
 	struct dso_id *dso_id = dso__id(dso);
+	bool changed = false;
 
 	/* dsos write lock held by caller. */
 
-	dso_id->maj = id->maj;
-	dso_id->min = id->min;
-	dso_id->ino = id->ino;
-	dso_id->ino_generation = id->ino_generation;
-
-	if (dsos)
+	if (id->mmap2_valid && !dso_id->mmap2_valid) {
+		dso_id->maj = id->maj;
+		dso_id->min = id->min;
+		dso_id->ino = id->ino;
+		dso_id->mmap2_valid = true;
+		changed = true;
+	}
+	if (id->mmap2_ino_generation_valid && !dso_id->mmap2_ino_generation_valid) {
+		dso_id->ino_generation = id->ino_generation;
+		dso_id->mmap2_ino_generation_valid = true;
+		changed = true;
+	}
+	if (build_id__is_defined(&id->build_id) && !build_id__is_defined(&dso_id->build_id)) {
+		dso_id->build_id = id->build_id;
+		changed = true;
+	}
+	if (changed && dsos)
 		dsos->sorted = false;
 }
 
 int dso_id__cmp(const struct dso_id *a, const struct dso_id *b)
 {
-	/*
-	 * The second is always dso->id, so zeroes if not set, assume passing
-	 * NULL for a means a zeroed id
-	 */
-	if (dso_id__empty(a) || dso_id__empty(b))
+	if (a == &dso_id_empty || b == &dso_id_empty) {
+		/* There is no valid data to compare so the comparison always returns identical. */
 		return 0;
+	}
 
 	return __dso_id__cmp(a, b);
 }
@@ -1449,6 +1464,16 @@ int dso__cmp_id(struct dso *a, struct dso *b)
 void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated)
 {
 	dso__set_long_name_id(dso, name, name_allocated);
+}
+
+static void __dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
+{
+	if (dso__short_name_allocated(dso))
+		free((char *)dso__short_name(dso));
+
+	RC_CHK_ACCESS(dso)->short_name		  = name;
+	RC_CHK_ACCESS(dso)->short_name_len	  = strlen(name);
+	dso__set_short_name_allocated(dso, name_allocated);
 }
 
 void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
@@ -1464,17 +1489,11 @@ void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated)
 		 * renaming the dso.
 		 */
 		down_write(&dsos->lock);
-	}
-	if (dso__short_name_allocated(dso))
-		free((char *)dso__short_name(dso));
-
-	RC_CHK_ACCESS(dso)->short_name		  = name;
-	RC_CHK_ACCESS(dso)->short_name_len	  = strlen(name);
-	dso__set_short_name_allocated(dso, name_allocated);
-
-	if (dsos) {
+		__dso__set_short_name(dso, name, name_allocated);
 		dsos->sorted = false;
 		up_write(&dsos->lock);
+	} else {
+		__dso__set_short_name(dso, name, name_allocated);
 	}
 }
 
@@ -1533,7 +1552,6 @@ struct dso *dso__new_id(const char *name, const struct dso_id *id)
 		dso->loaded = 0;
 		dso->rel = 0;
 		dso->sorted_by_name = 0;
-		dso->has_build_id = 0;
 		dso->has_srcline = 1;
 		dso->a2l_fails = 1;
 		dso->kernel = DSO_SPACE__USER;
@@ -1605,6 +1623,10 @@ struct dso *dso__get(struct dso *dso)
 
 void dso__put(struct dso *dso)
 {
+#ifdef REFCNT_CHECKING
+	if (dso && dso__data(dso) && refcount_read(&RC_CHK_ACCESS(dso)->refcnt) == 2)
+		dso__data_close(dso);
+#endif
 	if (dso && refcount_dec_and_test(&RC_CHK_ACCESS(dso)->refcnt))
 		dso__delete(dso);
 	else
@@ -1638,15 +1660,14 @@ int dso__swap_init(struct dso *dso, unsigned char eidata)
 	return 0;
 }
 
-void dso__set_build_id(struct dso *dso, struct build_id *bid)
+void dso__set_build_id(struct dso *dso, const struct build_id *bid)
 {
-	RC_CHK_ACCESS(dso)->bid = *bid;
-	RC_CHK_ACCESS(dso)->has_build_id = 1;
+	dso__id(dso)->build_id = *bid;
 }
 
-bool dso__build_id_equal(const struct dso *dso, struct build_id *bid)
+bool dso__build_id_equal(const struct dso *dso, const struct build_id *bid)
 {
-	const struct build_id *dso_bid = dso__bid_const(dso);
+	const struct build_id *dso_bid = dso__bid(dso);
 
 	if (dso_bid->size > bid->size && dso_bid->size == BUILD_ID_SIZE) {
 		/*
@@ -1665,18 +1686,20 @@ bool dso__build_id_equal(const struct dso *dso, struct build_id *bid)
 void dso__read_running_kernel_build_id(struct dso *dso, struct machine *machine)
 {
 	char path[PATH_MAX];
+	struct build_id bid = { .size = 0, };
 
 	if (machine__is_default_guest(machine))
 		return;
 	sprintf(path, "%s/sys/kernel/notes", machine->root_dir);
-	if (sysfs__read_build_id(path, dso__bid(dso)) == 0)
-		dso__set_has_build_id(dso);
+	sysfs__read_build_id(path, &bid);
+	dso__set_build_id(dso, &bid);
 }
 
 int dso__kernel_module_get_build_id(struct dso *dso,
 				    const char *root_dir)
 {
 	char filename[PATH_MAX];
+	struct build_id bid = { .size = 0, };
 	/*
 	 * kernel module short names are of the form "[module]" and
 	 * we need just "module" here.
@@ -1687,9 +1710,8 @@ int dso__kernel_module_get_build_id(struct dso *dso,
 		 "%s/sys/module/%.*s/notes/.note.gnu.build-id",
 		 root_dir, (int)strlen(name) - 1, name);
 
-	if (sysfs__read_build_id(filename, dso__bid(dso)) == 0)
-		dso__set_has_build_id(dso);
-
+	sysfs__read_build_id(filename, &bid);
+	dso__set_build_id(dso, &bid);
 	return 0;
 }
 
@@ -1697,7 +1719,7 @@ static size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
 {
 	char sbuild_id[SBUILD_ID_SIZE];
 
-	build_id__sprintf(dso__bid(dso), sbuild_id);
+	build_id__snprintf(dso__bid(dso), sbuild_id, sizeof(sbuild_id));
 	return fprintf(fp, "%s", sbuild_id);
 }
 

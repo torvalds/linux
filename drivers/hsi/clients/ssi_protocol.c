@@ -453,7 +453,7 @@ static void ssip_error(struct hsi_client *cl)
 
 static void ssip_keep_alive(struct timer_list *t)
 {
-	struct ssi_protocol *ssi = from_timer(ssi, t, keep_alive);
+	struct ssi_protocol *ssi = timer_container_of(ssi, t, keep_alive);
 	struct hsi_client *cl = ssi->cl;
 
 	dev_dbg(&cl->device, "Keep alive kick in: m(%d) r(%d) s(%d)\n",
@@ -480,7 +480,7 @@ static void ssip_keep_alive(struct timer_list *t)
 
 static void ssip_rx_wd(struct timer_list *t)
 {
-	struct ssi_protocol *ssi = from_timer(ssi, t, rx_wd);
+	struct ssi_protocol *ssi = timer_container_of(ssi, t, rx_wd);
 	struct hsi_client *cl = ssi->cl;
 
 	dev_err(&cl->device, "Watchdog triggered\n");
@@ -489,7 +489,7 @@ static void ssip_rx_wd(struct timer_list *t)
 
 static void ssip_tx_wd(struct timer_list *t)
 {
-	struct ssi_protocol *ssi = from_timer(ssi, t, tx_wd);
+	struct ssi_protocol *ssi = timer_container_of(ssi, t, tx_wd);
 	struct hsi_client *cl = ssi->cl;
 
 	dev_err(&cl->device, "Watchdog triggered\n");

@@ -16,7 +16,7 @@
 #include <asm/core.h>
 #include <asm/types.h>
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 # include <variant/tie-asm.h>
 
 .macro	xchal_sa_start  a b
@@ -69,7 +69,7 @@
 
 
 
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 
 /*
  * XTENSA_HAVE_COPROCESSOR(x) returns 1 if coprocessor x is configured.
@@ -87,7 +87,7 @@
 #define XTENSA_HAVE_IO_PORTS						\
 	XCHAL_CP_PORT_MASK
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * Additional registers.
@@ -151,5 +151,5 @@ void local_coprocessors_flush_release_all(void);
 
 #endif	/* XTENSA_HAVE_COPROCESSORS */
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 #endif	/* _XTENSA_COPROCESSOR_H */

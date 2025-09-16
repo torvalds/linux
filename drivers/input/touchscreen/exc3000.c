@@ -105,7 +105,7 @@ static void exc3000_report_slots(struct input_dev *input,
 
 static void exc3000_timer(struct timer_list *t)
 {
-	struct exc3000_data *data = from_timer(data, t, timer);
+	struct exc3000_data *data = timer_container_of(data, t, timer);
 
 	input_mt_sync_frame(data->input);
 	input_sync(data->input);

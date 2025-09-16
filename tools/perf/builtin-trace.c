@@ -20,9 +20,6 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 #include <bpf/btf.h>
-#ifdef HAVE_BPF_SKEL
-#include "bpf_skel/augmented_raw_syscalls.skel.h"
-#endif
 #endif
 #include "util/bpf_map.h"
 #include "util/rlimit.h"
@@ -55,6 +52,7 @@
 #include "util/thread_map.h"
 #include "util/stat.h"
 #include "util/tool.h"
+#include "util/trace.h"
 #include "util/util.h"
 #include "trace/beauty/beauty.h"
 #include "trace-event.h"
@@ -141,13 +139,8 @@ struct syscall_fmt {
 	bool	   hexret;
 };
 
-enum summary_mode {
-	SUMMARY__NONE = 0,
-	SUMMARY__BY_TOTAL,
-	SUMMARY__BY_THREAD,
-};
-
 struct trace {
+	struct perf_env		host_env;
 	struct perf_tool	tool;
 	struct {
 		/** Sorted sycall numbers used by the trace. */
@@ -160,9 +153,6 @@ struct trace {
 				*bpf_output;
 		}		events;
 	} syscalls;
-#ifdef HAVE_BPF_SKEL
-	struct augmented_raw_syscalls_bpf *skel;
-#endif
 #ifdef HAVE_LIBBPF_SUPPORT
 	struct btf		*btf;
 #endif
@@ -205,7 +195,7 @@ struct trace {
 	} stats;
 	unsigned int		max_stack;
 	unsigned int		min_stack;
-	enum summary_mode	summary_mode;
+	enum trace_summary_mode	summary_mode;
 	int			raw_augmented_syscalls_args_size;
 	bool			raw_augmented_syscalls;
 	bool			fd_path_disabled;
@@ -234,12 +224,14 @@ struct trace {
 	bool			force;
 	bool			vfs_getname;
 	bool			force_btf;
+	bool			summary_bpf;
 	int			trace_pgfaults;
 	char			*perfconfig_events;
 	struct {
 		struct ordered_events	data;
 		u64			last;
 	} oe;
+	const char		*uid_str;
 };
 
 static void trace__load_vmlinux_btf(struct trace *trace __maybe_unused)
@@ -1127,12 +1119,14 @@ static bool syscall_arg__strtoul_btf_type(char *bf __maybe_unused, size_t size _
 #define STRARRAY(name, array) \
 	  { .scnprintf	= SCA_STRARRAY, \
 	    .strtoul	= STUL_STRARRAY, \
-	    .parm	= &strarray__##array, }
+	    .parm	= &strarray__##array, \
+	    .show_zero	= true, }
 
 #define STRARRAY_FLAGS(name, array) \
 	  { .scnprintf	= SCA_STRARRAY_FLAGS, \
 	    .strtoul	= STUL_STRARRAY_FLAGS, \
-	    .parm	= &strarray__##array, }
+	    .parm	= &strarray__##array, \
+	    .show_zero	= true, }
 
 #include "trace/beauty/eventfd.c"
 #include "trace/beauty/futex_op.c"
@@ -1352,7 +1346,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* olddirfd */ },
 		   [2] = { .scnprintf = SCA_FDAT, /* newdirfd */ },
 		   [4] = { .scnprintf = SCA_RENAMEAT2_FLAGS, /* flags */ }, }, },
-	{ .name	    = "rseq",	    .errpid = true,
+	{ .name	    = "rseq",
 	  .arg = { [0] = { .from_user = true /* rseq */, }, }, },
 	{ .name	    = "rt_sigaction",
 	  .arg = { [0] = { .scnprintf = SCA_SIGNUM, /* sig */ }, }, },
@@ -1376,7 +1370,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 	{ .name	    = "sendto",
 	  .arg = { [3] = { .scnprintf = SCA_MSG_FLAGS, /* flags */ },
 		   [4] = SCA_SOCKADDR_FROM_USER(addr), }, },
-	{ .name	    = "set_robust_list",	    .errpid = true,
+	{ .name	    = "set_robust_list",
 	  .arg = { [0] = { .from_user = true /* head */, }, }, },
 	{ .name	    = "set_tid_address", .errpid = true, },
 	{ .name	    = "setitimer",
@@ -1657,7 +1651,7 @@ static const size_t trace__entry_str_size = 2048;
 
 static void thread_trace__free_files(struct thread_trace *ttrace)
 {
-	for (int i = 0; i < ttrace->files.max; ++i) {
+	for (int i = 0; i <= ttrace->files.max; ++i) {
 		struct file *file = ttrace->files.table + i;
 		zfree(&file->pathname);
 	}
@@ -1703,6 +1697,7 @@ static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pat
 
 	if (file != NULL) {
 		struct stat st;
+
 		if (stat(pathname, &st) == 0)
 			file->dev_maj = major(st.st_rdev);
 		file->pathname = strdup(pathname);
@@ -1983,17 +1978,24 @@ static char *trace__machine__resolve_kernel_addr(void *vmachine, unsigned long l
 	return machine__resolve_kernel_addr(vmachine, addrp, modp);
 }
 
-static int trace__symbols_init(struct trace *trace, struct evlist *evlist)
+static int trace__symbols_init(struct trace *trace, int argc, const char **argv,
+			       struct evlist *evlist)
 {
 	int err = symbol__init(NULL);
 
 	if (err)
 		return err;
 
-	trace->host = machine__new_host();
-	if (trace->host == NULL)
-		return -ENOMEM;
+	perf_env__init(&trace->host_env);
+	err = perf_env__set_cmdline(&trace->host_env, argc, argv);
+	if (err)
+		goto out;
 
+	trace->host = machine__new_host(&trace->host_env);
+	if (trace->host == NULL) {
+		err = -ENOMEM;
+		goto out;
+	}
 	thread__set_priv_destructor(thread_trace__delete);
 
 	err = trace_event__register_resolver(trace->host, trace__machine__resolve_kernel_addr);
@@ -2004,9 +2006,10 @@ static int trace__symbols_init(struct trace *trace, struct evlist *evlist)
 					    evlist->core.threads, trace__tool_process,
 					    true, false, 1);
 out:
-	if (err)
+	if (err) {
+		perf_env__exit(&trace->host_env);
 		symbol__exit();
-
+	}
 	return err;
 }
 
@@ -2015,6 +2018,7 @@ static void trace__symbols__exit(struct trace *trace)
 	machine__exit(trace->host);
 	trace->host = NULL;
 
+	perf_env__exit(&trace->host_env);
 	symbol__exit();
 }
 
@@ -2614,6 +2618,9 @@ static void thread__update_stats(struct thread *thread, struct thread_trace *ttr
 	struct syscall_stats *stats = NULL;
 	u64 duration = 0;
 
+	if (trace->summary_bpf)
+		return;
+
 	if (trace->summary_mode == SUMMARY__BY_TOTAL)
 		syscall_stats = trace->syscall_stats;
 
@@ -2842,7 +2849,7 @@ static int trace__fprintf_sys_enter(struct trace *trace, struct evsel *evsel,
 	e_machine = thread__e_machine(thread, trace->host);
 	sc = trace__syscall_info(trace, evsel, e_machine, id);
 	if (sc == NULL)
-		return -1;
+		goto out_put;
 	ttrace = thread__trace(thread, trace);
 	/*
 	 * We need to get ttrace just to make sure it is there when syscall__scnprintf_args()
@@ -2889,13 +2896,6 @@ static int trace__fprintf_callchain(struct trace *trace, struct perf_sample *sam
 				        EVSEL__PRINT_UNKNOWN_AS_ADDR;
 
 	return sample__fprintf_callchain(sample, 38, print_opts, get_tls_callchain_cursor(), symbol_conf.bt_stop_list, trace->output);
-}
-
-static const char *errno_to_name(struct evsel *evsel, int err)
-{
-	struct perf_env *env = evsel__env(evsel);
-
-	return perf_env__arch_strerrno(env, err);
 }
 
 static int trace__sys_exit(struct trace *trace, struct evsel *evsel,
@@ -2983,8 +2983,9 @@ signed_print:
 	} else if (ret < 0) {
 errno_print: {
 		char bf[STRERR_BUFSIZE];
-		const char *emsg = str_error_r(-ret, bf, sizeof(bf)),
-			   *e = errno_to_name(evsel, -ret);
+		struct perf_env *env = evsel__env(evsel) ?: &trace->host_env;
+		const char *emsg = str_error_r(-ret, bf, sizeof(bf));
+		const char *e = perf_env__arch_strerrno(env, err);
 
 		fprintf(trace->output, "-1 %s (%s)", e, emsg);
 	}
@@ -3005,8 +3006,8 @@ errno_print: {
 	else if (sc->fmt->errpid) {
 		struct thread *child = machine__find_thread(trace->host, ret, ret);
 
+		fprintf(trace->output, "%ld", ret);
 		if (child != NULL) {
-			fprintf(trace->output, "%ld", ret);
 			if (thread__comm_set(child))
 				fprintf(trace->output, " (%s)", thread__comm_str(child));
 			thread__put(child);
@@ -3700,7 +3701,10 @@ out_enomem:
 	goto out;
 }
 
-#ifdef HAVE_BPF_SKEL
+#ifdef HAVE_LIBBPF_SUPPORT
+
+static struct bpf_program *unaugmented_prog;
+
 static int syscall_arg_fmt__cache_btf_struct(struct syscall_arg_fmt *arg_fmt, struct btf *btf, char *type)
 {
        int id;
@@ -3718,26 +3722,8 @@ static int syscall_arg_fmt__cache_btf_struct(struct syscall_arg_fmt *arg_fmt, st
        return 0;
 }
 
-static struct bpf_program *trace__find_bpf_program_by_title(struct trace *trace, const char *name)
-{
-	struct bpf_program *pos, *prog = NULL;
-	const char *sec_name;
-
-	if (trace->skel->obj == NULL)
-		return NULL;
-
-	bpf_object__for_each_program(pos, trace->skel->obj) {
-		sec_name = bpf_program__section_name(pos);
-		if (sec_name && !strcmp(sec_name, name)) {
-			prog = pos;
-			break;
-		}
-	}
-
-	return prog;
-}
-
-static struct bpf_program *trace__find_syscall_bpf_prog(struct trace *trace, struct syscall *sc,
+static struct bpf_program *trace__find_syscall_bpf_prog(struct trace *trace __maybe_unused,
+							struct syscall *sc,
 							const char *prog_name, const char *type)
 {
 	struct bpf_program *prog;
@@ -3745,19 +3731,19 @@ static struct bpf_program *trace__find_syscall_bpf_prog(struct trace *trace, str
 	if (prog_name == NULL) {
 		char default_prog_name[256];
 		scnprintf(default_prog_name, sizeof(default_prog_name), "tp/syscalls/sys_%s_%s", type, sc->name);
-		prog = trace__find_bpf_program_by_title(trace, default_prog_name);
+		prog = augmented_syscalls__find_by_title(default_prog_name);
 		if (prog != NULL)
 			goto out_found;
 		if (sc->fmt && sc->fmt->alias) {
 			scnprintf(default_prog_name, sizeof(default_prog_name), "tp/syscalls/sys_%s_%s", type, sc->fmt->alias);
-			prog = trace__find_bpf_program_by_title(trace, default_prog_name);
+			prog = augmented_syscalls__find_by_title(default_prog_name);
 			if (prog != NULL)
 				goto out_found;
 		}
 		goto out_unaugmented;
 	}
 
-	prog = trace__find_bpf_program_by_title(trace, prog_name);
+	prog = augmented_syscalls__find_by_title(prog_name);
 
 	if (prog != NULL) {
 out_found:
@@ -3767,7 +3753,7 @@ out_found:
 	pr_debug("Couldn't find BPF prog \"%s\" to associate with syscalls:sys_%s_%s, not augmenting it\n",
 		 prog_name, type, sc->name);
 out_unaugmented:
-	return trace->skel->progs.syscall_unaugmented;
+	return unaugmented_prog;
 }
 
 static void trace__init_syscall_bpf_progs(struct trace *trace, int e_machine, int id)
@@ -3784,13 +3770,13 @@ static void trace__init_syscall_bpf_progs(struct trace *trace, int e_machine, in
 static int trace__bpf_prog_sys_enter_fd(struct trace *trace, int e_machine, int id)
 {
 	struct syscall *sc = trace__syscall_info(trace, NULL, e_machine, id);
-	return sc ? bpf_program__fd(sc->bpf_prog.sys_enter) : bpf_program__fd(trace->skel->progs.syscall_unaugmented);
+	return sc ? bpf_program__fd(sc->bpf_prog.sys_enter) : bpf_program__fd(unaugmented_prog);
 }
 
 static int trace__bpf_prog_sys_exit_fd(struct trace *trace, int e_machine, int id)
 {
 	struct syscall *sc = trace__syscall_info(trace, NULL, e_machine, id);
-	return sc ? bpf_program__fd(sc->bpf_prog.sys_exit) : bpf_program__fd(trace->skel->progs.syscall_unaugmented);
+	return sc ? bpf_program__fd(sc->bpf_prog.sys_exit) : bpf_program__fd(unaugmented_prog);
 }
 
 static int trace__bpf_sys_enter_beauty_map(struct trace *trace, int e_machine, int key, unsigned int *beauty_array)
@@ -3900,7 +3886,7 @@ try_to_find_pair:
 		bool is_candidate = false;
 
 		if (pair == NULL || pair->id == sc->id ||
-		    pair->bpf_prog.sys_enter == trace->skel->progs.syscall_unaugmented)
+		    pair->bpf_prog.sys_enter == unaugmented_prog)
 			continue;
 
 		for (field = sc->args, candidate_field = pair->args;
@@ -3966,7 +3952,7 @@ try_to_find_pair:
 		 */
 		if (pair_prog == NULL) {
 			pair_prog = trace__find_syscall_bpf_prog(trace, pair, pair->fmt ? pair->fmt->bpf_prog_name.sys_enter : NULL, "enter");
-			if (pair_prog == trace->skel->progs.syscall_unaugmented)
+			if (pair_prog == unaugmented_prog)
 				goto next_candidate;
 		}
 
@@ -3982,11 +3968,16 @@ try_to_find_pair:
 
 static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace, int e_machine)
 {
-	int map_enter_fd = bpf_map__fd(trace->skel->maps.syscalls_sys_enter);
-	int map_exit_fd  = bpf_map__fd(trace->skel->maps.syscalls_sys_exit);
-	int beauty_map_fd = bpf_map__fd(trace->skel->maps.beauty_map_enter);
+	int map_enter_fd;
+	int map_exit_fd;
+	int beauty_map_fd;
 	int err = 0;
 	unsigned int beauty_array[6];
+
+	if (augmented_syscalls__get_map_fds(&map_enter_fd, &map_exit_fd, &beauty_map_fd) < 0)
+		return -1;
+
+	unaugmented_prog = augmented_syscalls__unaugmented();
 
 	for (int i = 0, num_idx = syscalltbl__num_idx(e_machine); i < num_idx; ++i) {
 		int prog_fd, key = syscalltbl__id_at_idx(e_machine, i);
@@ -4057,7 +4048,7 @@ static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace, int e_m
 		 * For now we're just reusing the sys_enter prog, and if it
 		 * already has an augmenter, we don't need to find one.
 		 */
-		if (sc->bpf_prog.sys_enter != trace->skel->progs.syscall_unaugmented)
+		if (sc->bpf_prog.sys_enter != unaugmented_prog)
 			continue;
 
 		/*
@@ -4082,31 +4073,19 @@ static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace, int e_m
 
 	return err;
 }
-#endif // HAVE_BPF_SKEL
+#else // !HAVE_LIBBPF_SUPPORT
+static int trace__init_syscalls_bpf_prog_array_maps(struct trace *trace __maybe_unused,
+						    int e_machine __maybe_unused)
+{
+	return -1;
+}
+#endif // HAVE_LIBBPF_SUPPORT
 
 static int trace__set_ev_qualifier_filter(struct trace *trace)
 {
 	if (trace->syscalls.events.sys_enter)
 		return trace__set_ev_qualifier_tp_filter(trace);
 	return 0;
-}
-
-static int bpf_map__set_filter_pids(struct bpf_map *map __maybe_unused,
-				    size_t npids __maybe_unused, pid_t *pids __maybe_unused)
-{
-	int err = 0;
-#ifdef HAVE_LIBBPF_SUPPORT
-	bool value = true;
-	int map_fd = bpf_map__fd(map);
-	size_t i;
-
-	for (i = 0; i < npids; ++i) {
-		err = bpf_map_update_elem(map_fd, &pids[i], &value, BPF_ANY);
-		if (err)
-			break;
-	}
-#endif
-	return err;
 }
 
 static int trace__set_filter_loop_pids(struct trace *trace)
@@ -4128,14 +4107,17 @@ static int trace__set_filter_loop_pids(struct trace *trace)
 		if (!strcmp(thread__comm_str(parent), "sshd") ||
 		    strstarts(thread__comm_str(parent), "gnome-terminal")) {
 			pids[nr++] = thread__tid(parent);
+			thread__put(parent);
 			break;
 		}
+		thread__put(thread);
 		thread = parent;
 	}
+	thread__put(thread);
 
 	err = evlist__append_tp_filter_pids(trace->evlist, nr, pids);
-	if (!err && trace->filter_pids.map)
-		err = bpf_map__set_filter_pids(trace->filter_pids.map, nr, pids);
+	if (!err)
+		err = augmented_syscalls__set_filter_pids(nr, pids);
 
 	return err;
 }
@@ -4152,8 +4134,8 @@ static int trace__set_filter_pids(struct trace *trace)
 	if (trace->filter_pids.nr > 0) {
 		err = evlist__append_tp_filter_pids(trace->evlist, trace->filter_pids.nr,
 						    trace->filter_pids.entries);
-		if (!err && trace->filter_pids.map) {
-			err = bpf_map__set_filter_pids(trace->filter_pids.map, trace->filter_pids.nr,
+		if (!err) {
+			err = augmented_syscalls__set_filter_pids(trace->filter_pids.nr,
 						       trace->filter_pids.entries);
 		}
 	} else if (perf_thread_map__pid(trace->evlist->core.threads, 0) == -1) {
@@ -4377,6 +4359,14 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	trace->live = true;
 
+	if (trace->summary_bpf) {
+		if (trace_prepare_bpf_summary(trace->summary_mode) < 0)
+			goto out_delete_evlist;
+
+		if (trace->summary_only)
+			goto create_maps;
+	}
+
 	if (!trace->raw_augmented_syscalls) {
 		if (trace->trace_syscalls && trace__add_syscall_newtp(trace))
 			goto out_error_raw_syscalls;
@@ -4401,8 +4391,8 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		evlist__add(evlist, pgfault_min);
 	}
 
-	/* Enable ignoring missing threads when -u/-p option is defined. */
-	trace->opts.ignore_missing_thread = trace->opts.target.uid != UINT_MAX || trace->opts.target.pid;
+	/* Enable ignoring missing threads when -p option is defined. */
+	trace->opts.ignore_missing_thread = trace->opts.target.pid;
 
 	if (trace->sched &&
 	    evlist__add_newtp(evlist, "sched", "sched_stat_runtime", trace__sched_stat_runtime))
@@ -4435,19 +4425,20 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (trace->cgroup)
 		evlist__set_default_cgroup(trace->evlist, trace->cgroup);
 
+create_maps:
 	err = evlist__create_maps(evlist, &trace->opts.target);
 	if (err < 0) {
 		fprintf(trace->output, "Problems parsing the target to trace, check your options!\n");
 		goto out_delete_evlist;
 	}
 
-	err = trace__symbols_init(trace, evlist);
+	err = trace__symbols_init(trace, argc, argv, evlist);
 	if (err < 0) {
 		fprintf(trace->output, "Problems initializing symbol libraries!\n");
 		goto out_delete_evlist;
 	}
 
-	if (trace->summary_mode == SUMMARY__BY_TOTAL) {
+	if (trace->summary_mode == SUMMARY__BY_TOTAL && !trace->summary_bpf) {
 		trace->syscall_stats = alloc_syscall_stats();
 		if (trace->syscall_stats == NULL)
 			goto out_delete_evlist;
@@ -4467,41 +4458,18 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	err = evlist__open(evlist);
 	if (err < 0)
 		goto out_error_open;
-#ifdef HAVE_BPF_SKEL
-	if (trace->syscalls.events.bpf_output) {
-		struct perf_cpu cpu;
 
-		/*
-		 * Set up the __augmented_syscalls__ BPF map to hold for each
-		 * CPU the bpf-output event's file descriptor.
-		 */
-		perf_cpu_map__for_each_cpu(cpu, i, trace->syscalls.events.bpf_output->core.cpus) {
-			int mycpu = cpu.cpu;
+	augmented_syscalls__setup_bpf_output();
 
-			bpf_map__update_elem(trace->skel->maps.__augmented_syscalls__,
-					&mycpu, sizeof(mycpu),
-					xyarray__entry(trace->syscalls.events.bpf_output->core.fd,
-						       mycpu, 0),
-					sizeof(__u32), BPF_ANY);
-		}
-	}
-
-	if (trace->skel)
-		trace->filter_pids.map = trace->skel->maps.pids_filtered;
-#endif
 	err = trace__set_filter_pids(trace);
 	if (err < 0)
 		goto out_error_mem;
 
-#ifdef HAVE_BPF_SKEL
-	if (trace->skel && trace->skel->progs.sys_enter) {
-		/*
-		 * TODO: Initialize for all host binary machine types, not just
-		 * those matching the perf binary.
-		 */
-		trace__init_syscalls_bpf_prog_array_maps(trace, EM_HOST);
-	}
-#endif
+	/*
+	 * TODO: Initialize for all host binary machine types, not just
+	 * those matching the perf binary.
+	 */
+	trace__init_syscalls_bpf_prog_array_maps(trace, EM_HOST);
 
 	if (trace->ev_qualifier_ids.nr > 0) {
 		err = trace__set_ev_qualifier_filter(trace);
@@ -4535,9 +4503,11 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_apply_filters;
 
-	err = evlist__mmap(evlist, trace->opts.mmap_pages);
-	if (err < 0)
-		goto out_error_mmap;
+	if (!trace->summary_only || !trace->summary_bpf) {
+		err = evlist__mmap(evlist, trace->opts.mmap_pages);
+		if (err < 0)
+			goto out_error_mmap;
+	}
 
 	if (!target__none(&trace->opts.target) && !trace->opts.target.initial_delay)
 		evlist__enable(evlist);
@@ -4549,6 +4519,9 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		usleep(trace->opts.target.initial_delay * 1000);
 		evlist__enable(evlist);
 	}
+
+	if (trace->summary_bpf)
+		trace_start_bpf_summary();
 
 	trace->multiple_threads = perf_thread_map__pid(evlist->core.threads, 0) == -1 ||
 		perf_thread_map__nr(evlist->core.threads) > 1 ||
@@ -4617,12 +4590,17 @@ out_disable:
 
 	evlist__disable(evlist);
 
+	if (trace->summary_bpf)
+		trace_end_bpf_summary();
+
 	if (trace->sort_events)
 		ordered_events__flush(&trace->oe.data, OE_FLUSH__FINAL);
 
 	if (!err) {
 		if (trace->summary) {
-			if (trace->summary_mode == SUMMARY__BY_TOTAL)
+			if (trace->summary_bpf)
+				trace_print_bpf_summary(trace->output);
+			else if (trace->summary_mode == SUMMARY__BY_TOTAL)
 				trace__fprintf_total_summary(trace, trace->output);
 			else
 				trace__fprintf_thread_summary(trace, trace->output);
@@ -4638,6 +4616,7 @@ out_disable:
 	}
 
 out_delete_evlist:
+	trace_cleanup_bpf_summary();
 	delete_syscall_stats(trace->syscall_stats);
 	trace__symbols__exit(trace);
 	evlist__free_syscall_tp_fields(evlist);
@@ -4726,7 +4705,7 @@ static int trace__replay(struct trace *trace)
 	if (trace->opts.target.tid)
 		symbol_conf.tid_list_str = strdup(trace->opts.target.tid);
 
-	if (symbol__init(&session->header.env) < 0)
+	if (symbol__init(perf_session__env(session)) < 0)
 		goto out;
 
 	trace->host = &session->machines.host;
@@ -5279,6 +5258,8 @@ static int trace__parse_summary_mode(const struct option *opt, const char *str,
 		trace->summary_mode = SUMMARY__BY_THREAD;
 	} else if (!strcmp(str, "total")) {
 		trace->summary_mode = SUMMARY__BY_TOTAL;
+	} else if (!strcmp(str, "cgroup")) {
+		trace->summary_mode = SUMMARY__BY_CGROUP;
 	} else {
 		pr_err("Unknown summary mode: %s\n", str);
 		return -1;
@@ -5333,6 +5314,7 @@ out:
 
 static void trace__exit(struct trace *trace)
 {
+	thread__zput(trace->current);
 	strlist__delete(trace->ev_qualifier);
 	zfree(&trace->ev_qualifier_ids.entries);
 	if (trace->syscalls.table) {
@@ -5343,23 +5325,12 @@ static void trace__exit(struct trace *trace)
 	zfree(&trace->perfconfig_events);
 	evlist__delete(trace->evlist);
 	trace->evlist = NULL;
+	ordered_events__free(&trace->oe.data);
 #ifdef HAVE_LIBBPF_SUPPORT
 	btf__free(trace->btf);
 	trace->btf = NULL;
 #endif
 }
-
-#ifdef HAVE_BPF_SKEL
-static int bpf__setup_bpf_output(struct evlist *evlist)
-{
-	int err = parse_event(evlist, "bpf-output/no-inherit=1,name=__augmented_syscalls__/");
-
-	if (err)
-		pr_debug("ERROR: failed to create the \"__augmented_syscalls__\" bpf-output event\n");
-
-	return err;
-}
-#endif
 
 int cmd_trace(int argc, const char **argv)
 {
@@ -5373,7 +5344,6 @@ int cmd_trace(int argc, const char **argv)
 	struct trace trace = {
 		.opts = {
 			.target = {
-				.uid	   = UINT_MAX,
 				.uses_mmap = true,
 			},
 			.user_freq     = UINT_MAX,
@@ -5420,8 +5390,7 @@ int cmd_trace(int argc, const char **argv)
 		    "child tasks do not inherit counters"),
 	OPT_CALLBACK('m', "mmap-pages", &trace.opts.mmap_pages, "pages",
 		     "number of mmap data pages", evlist__parse_mmap_pages),
-	OPT_STRING('u', "uid", &trace.opts.target.uid_str, "user",
-		   "user to profile"),
+	OPT_STRING('u', "uid", &trace.uid_str, "user", "user to profile"),
 	OPT_CALLBACK(0, "duration", &trace, "float",
 		     "show only events with duration > N.M ms",
 		     trace__set_duration),
@@ -5438,7 +5407,7 @@ int cmd_trace(int argc, const char **argv)
 	OPT_BOOLEAN(0, "errno-summary", &trace.errno_summary,
 		    "Show errno stats per syscall, use with -s or -S"),
 	OPT_CALLBACK(0, "summary-mode", &trace, "mode",
-		     "How to show summary: select thread (default) or total",
+		     "How to show summary: select thread (default), total or cgroup",
 		     trace__parse_summary_mode),
 	OPT_CALLBACK_DEFAULT('F', "pf", &trace.trace_pgfaults, "all|maj|min",
 		     "Trace pagefaults", parse_pagefaults, "maj"),
@@ -5473,6 +5442,7 @@ int cmd_trace(int argc, const char **argv)
 		     "start"),
 	OPT_BOOLEAN(0, "force-btf", &trace.force_btf, "Prefer btf_dump general pretty printer"
 		       "to customized ones"),
+	OPT_BOOLEAN(0, "bpf-summary", &trace.summary_bpf, "Summary syscall stats in BPF"),
 	OPTS_EVSWITCH(&trace.evswitch),
 	OPT_END()
 	};
@@ -5492,6 +5462,9 @@ int cmd_trace(int argc, const char **argv)
 	sigchld_act.sa_flags = SA_SIGINFO;
 	sigchld_act.sa_sigaction = sighandler_chld;
 	sigaction(SIGCHLD, &sigchld_act, NULL);
+
+	ordered_events__init(&trace.oe.data, ordered_events__deliver_event, &trace);
+	ordered_events__set_copy_on_queue(&trace.oe.data, true);
 
 	trace.evlist = evlist__new();
 
@@ -5555,7 +5528,6 @@ int cmd_trace(int argc, const char **argv)
 				       "cgroup monitoring only available in system-wide mode");
 	}
 
-#ifdef HAVE_BPF_SKEL
 	if (!trace.trace_syscalls)
 		goto skip_augmentation;
 
@@ -5564,42 +5536,27 @@ int cmd_trace(int argc, const char **argv)
 		goto skip_augmentation;
 	}
 
-	trace.skel = augmented_raw_syscalls_bpf__open();
-	if (!trace.skel) {
-		pr_debug("Failed to open augmented syscalls BPF skeleton");
-	} else {
-		/*
-		 * Disable attaching the BPF programs except for sys_enter and
-		 * sys_exit that tail call into this as necessary.
-		 */
-		struct bpf_program *prog;
-
-		bpf_object__for_each_program(prog, trace.skel->obj) {
-			if (prog != trace.skel->progs.sys_enter && prog != trace.skel->progs.sys_exit)
-				bpf_program__set_autoattach(prog, /*autoattach=*/false);
+	if (trace.summary_bpf) {
+		if (!trace.opts.target.system_wide) {
+			/* TODO: Add filters in the BPF to support other targets. */
+			pr_err("Error: --bpf-summary only works for system-wide mode.\n");
+			goto out;
 		}
-
-		err = augmented_raw_syscalls_bpf__load(trace.skel);
-
-		if (err < 0) {
-			libbpf_strerror(err, bf, sizeof(bf));
-			pr_debug("Failed to load augmented syscalls BPF skeleton: %s\n", bf);
-		} else {
-			augmented_raw_syscalls_bpf__attach(trace.skel);
-			trace__add_syscall_newtp(&trace);
-		}
+		if (trace.summary_only)
+			goto skip_augmentation;
 	}
 
-	err = bpf__setup_bpf_output(trace.evlist);
-	if (err) {
-		libbpf_strerror(err, bf, sizeof(bf));
-		pr_err("ERROR: Setup BPF output event failed: %s\n", bf);
-		goto out;
-	}
-	trace.syscalls.events.bpf_output = evlist__last(trace.evlist);
-	assert(evsel__name_is(trace.syscalls.events.bpf_output, "__augmented_syscalls__"));
+	err = augmented_syscalls__prepare();
+	if (err < 0)
+		goto skip_augmentation;
+
+	trace__add_syscall_newtp(&trace);
+
+	err = augmented_syscalls__create_bpf_output(trace.evlist);
+	if (err == 0)
+		trace.syscalls.events.bpf_output = evlist__last(trace.evlist);
+
 skip_augmentation:
-#endif
 	err = -1;
 
 	if (trace.trace_pgfaults) {
@@ -5639,11 +5596,6 @@ skip_augmentation:
 
 		if (use_btf)
 			trace__load_vmlinux_btf(&trace);
-	}
-
-	if (trace.sort_events) {
-		ordered_events__init(&trace.oe.data, ordered_events__deliver_event, &trace);
-		ordered_events__set_copy_on_queue(&trace.oe.data, true);
 	}
 
 	/*
@@ -5741,6 +5693,12 @@ init_augmented_syscall_tp:
 		symbol_conf.keep_exited_threads = true;
 		if (trace.summary_mode == SUMMARY__NONE)
 			trace.summary_mode = SUMMARY__BY_THREAD;
+
+		if (!trace.summary_bpf && trace.summary_mode == SUMMARY__BY_CGROUP) {
+			pr_err("Error: --summary-mode=cgroup only works with --bpf-summary\n");
+			err = -EINVAL;
+			goto out;
+		}
 	}
 
 	if (output_name != NULL) {
@@ -5762,11 +5720,19 @@ init_augmented_syscall_tp:
 		goto out_close;
 	}
 
-	err = target__parse_uid(&trace.opts.target);
-	if (err) {
-		target__strerror(&trace.opts.target, err, bf, sizeof(bf));
-		fprintf(trace.output, "%s", bf);
-		goto out_close;
+	if (trace.uid_str) {
+		uid_t uid = parse_uid(trace.uid_str);
+
+		if (uid == UINT_MAX) {
+			ui__error("Invalid User: %s", trace.uid_str);
+			err = -EINVAL;
+			goto out_close;
+		}
+		err = parse_uid_filter(trace.evlist, uid);
+		if (err)
+			goto out_close;
+
+		trace.opts.target.system_wide = true;
 	}
 
 	if (!argc && target__none(&trace.opts.target))
@@ -5782,8 +5748,6 @@ out_close:
 		fclose(trace.output);
 out:
 	trace__exit(&trace);
-#ifdef HAVE_BPF_SKEL
-	augmented_raw_syscalls_bpf__destroy(trace.skel);
-#endif
+	augmented_syscalls__cleanup();
 	return err;
 }

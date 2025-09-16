@@ -21,8 +21,10 @@
 #include <poll.h>
 #include <signal.h>
 #include <sys/ioctl.h>
-#include <linux/sockios.h>
 #include <linux/time64.h>
+#include <pthread.h>
+#include <fcntl.h>
+#include <linux/sockios.h>
 
 #include "vsock_test_zerocopy.h"
 #include "timeout.h"
@@ -1058,18 +1060,39 @@ static void sigpipe(int signo)
 	have_sigpipe = 1;
 }
 
+#define SEND_SLEEP_USEC (10 * 1000)
+
 static void test_stream_check_sigpipe(int fd)
 {
 	ssize_t res;
 
 	have_sigpipe = 0;
 
-	res = send(fd, "A", 1, 0);
-	if (res != -1) {
-		fprintf(stderr, "expected send(2) failure, got %zi\n", res);
+	/* When the other peer calls shutdown(SHUT_RD), there is a chance that
+	 * the send() call could occur before the message carrying the close
+	 * information arrives over the transport. In such cases, the send()
+	 * might still succeed. To avoid this race, let's retry the send() call
+	 * a few times, ensuring the test is more reliable.
+	 */
+	timeout_begin(TIMEOUT);
+	while(1) {
+		res = send(fd, "A", 1, 0);
+		if (res == -1 && errno != EINTR)
+			break;
+
+		/* Sleep a little before trying again to avoid flooding the
+		 * other peer and filling its receive buffer, causing
+		 * false-negative.
+		 */
+		timeout_usleep(SEND_SLEEP_USEC);
+		timeout_check("send");
+	}
+	timeout_end();
+
+	if (errno != EPIPE) {
+		fprintf(stderr, "unexpected send(2) errno %d\n", errno);
 		exit(EXIT_FAILURE);
 	}
-
 	if (!have_sigpipe) {
 		fprintf(stderr, "SIGPIPE expected\n");
 		exit(EXIT_FAILURE);
@@ -1077,12 +1100,21 @@ static void test_stream_check_sigpipe(int fd)
 
 	have_sigpipe = 0;
 
-	res = send(fd, "A", 1, MSG_NOSIGNAL);
-	if (res != -1) {
-		fprintf(stderr, "expected send(2) failure, got %zi\n", res);
+	timeout_begin(TIMEOUT);
+	while(1) {
+		res = send(fd, "A", 1, MSG_NOSIGNAL);
+		if (res == -1 && errno != EINTR)
+			break;
+
+		timeout_usleep(SEND_SLEEP_USEC);
+		timeout_check("send");
+	}
+	timeout_end();
+
+	if (errno != EPIPE) {
+		fprintf(stderr, "unexpected send(2) errno %d\n", errno);
 		exit(EXIT_FAILURE);
 	}
-
 	if (have_sigpipe) {
 		fprintf(stderr, "SIGPIPE not expected\n");
 		exit(EXIT_FAILURE);
@@ -1250,7 +1282,7 @@ static void test_unsent_bytes_server(const struct test_opts *opts, int type)
 static void test_unsent_bytes_client(const struct test_opts *opts, int type)
 {
 	unsigned char buf[MSG_BUF_IOCTL_LEN];
-	int ret, fd, sock_bytes_unsent;
+	int fd;
 
 	fd = vsock_connect(opts->peer_cid, opts->peer_port, type);
 	if (fd < 0) {
@@ -1264,21 +1296,63 @@ static void test_unsent_bytes_client(const struct test_opts *opts, int type)
 	send_buf(fd, buf, sizeof(buf), 0, sizeof(buf));
 	control_expectln("RECEIVED");
 
-	ret = ioctl(fd, SIOCOUTQ, &sock_bytes_unsent);
-	if (ret < 0) {
-		if (errno == EOPNOTSUPP) {
-			fprintf(stderr, "Test skipped, SIOCOUTQ not supported.\n");
-		} else {
-			perror("ioctl");
-			exit(EXIT_FAILURE);
-		}
-	} else if (ret == 0 && sock_bytes_unsent != 0) {
-		fprintf(stderr,
-			"Unexpected 'SIOCOUTQ' value, expected 0, got %i\n",
-			sock_bytes_unsent);
+	/* SIOCOUTQ isn't guaranteed to instantly track sent data. Even though
+	 * the "RECEIVED" message means that the other side has received the
+	 * data, there can be a delay in our kernel before updating the "unsent
+	 * bytes" counter. vsock_wait_sent() will repeat SIOCOUTQ until it
+	 * returns 0.
+	 */
+	if (!vsock_wait_sent(fd))
+		fprintf(stderr, "Test skipped, SIOCOUTQ not supported.\n");
+
+	close(fd);
+}
+
+static void test_unread_bytes_server(const struct test_opts *opts, int type)
+{
+	unsigned char buf[MSG_BUF_IOCTL_LEN];
+	int client_fd;
+
+	client_fd = vsock_accept(VMADDR_CID_ANY, opts->peer_port, NULL, type);
+	if (client_fd < 0) {
+		perror("accept");
 		exit(EXIT_FAILURE);
 	}
 
+	for (int i = 0; i < sizeof(buf); i++)
+		buf[i] = rand() & 0xFF;
+
+	send_buf(client_fd, buf, sizeof(buf), 0, sizeof(buf));
+	control_writeln("SENT");
+
+	close(client_fd);
+}
+
+static void test_unread_bytes_client(const struct test_opts *opts, int type)
+{
+	unsigned char buf[MSG_BUF_IOCTL_LEN];
+	int fd;
+
+	fd = vsock_connect(opts->peer_cid, opts->peer_port, type);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("SENT");
+	/* The data has arrived but has not been read. The expected is
+	 * MSG_BUF_IOCTL_LEN.
+	 */
+	if (!vsock_ioctl_int(fd, SIOCINQ, MSG_BUF_IOCTL_LEN)) {
+		fprintf(stderr, "Test skipped, SIOCINQ not supported.\n");
+		goto out;
+	}
+
+	recv_buf(fd, buf, sizeof(buf), 0, sizeof(buf));
+	/* All data has been consumed, so the expected is 0. */
+	vsock_ioctl_int(fd, SIOCINQ, 0);
+
+out:
 	close(fd);
 }
 
@@ -1300,6 +1374,26 @@ static void test_seqpacket_unsent_bytes_client(const struct test_opts *opts)
 static void test_seqpacket_unsent_bytes_server(const struct test_opts *opts)
 {
 	test_unsent_bytes_server(opts, SOCK_SEQPACKET);
+}
+
+static void test_stream_unread_bytes_client(const struct test_opts *opts)
+{
+	test_unread_bytes_client(opts, SOCK_STREAM);
+}
+
+static void test_stream_unread_bytes_server(const struct test_opts *opts)
+{
+	test_unread_bytes_server(opts, SOCK_STREAM);
+}
+
+static void test_seqpacket_unread_bytes_client(const struct test_opts *opts)
+{
+	test_unread_bytes_client(opts, SOCK_SEQPACKET);
+}
+
+static void test_seqpacket_unread_bytes_server(const struct test_opts *opts)
+{
+	test_unread_bytes_server(opts, SOCK_SEQPACKET);
 }
 
 #define RCVLOWAT_CREDIT_UPD_BUF_SIZE	(1024 * 128)
@@ -1695,16 +1789,27 @@ static void test_stream_msgzcopy_leak_zcskb_server(const struct test_opts *opts)
 
 #define MAX_PORT_RETRIES	24	/* net/vmw_vsock/af_vsock.c */
 
-/* Test attempts to trigger a transport release for an unbound socket. This can
- * lead to a reference count mishandling.
- */
-static void test_stream_transport_uaf_client(const struct test_opts *opts)
+static bool test_stream_transport_uaf(int cid)
 {
 	int sockets[MAX_PORT_RETRIES];
 	struct sockaddr_vm addr;
-	int fd, i, alen;
+	socklen_t alen;
+	int fd, i, c;
+	bool ret;
 
-	fd = vsock_bind(VMADDR_CID_ANY, VMADDR_PORT_ANY, SOCK_STREAM);
+	/* Probe for a transport by attempting a local CID bind. Unavailable
+	 * transport (or more specifically: an unsupported transport/CID
+	 * combination) results in EADDRNOTAVAIL, other errnos are fatal.
+	 */
+	fd = vsock_bind_try(cid, VMADDR_PORT_ANY, SOCK_STREAM);
+	if (fd < 0) {
+		if (errno != EADDRNOTAVAIL) {
+			perror("Unexpected bind() errno");
+			exit(EXIT_FAILURE);
+		}
+
+		return false;
+	}
 
 	alen = sizeof(addr);
 	if (getsockname(fd, (struct sockaddr *)&addr, &alen)) {
@@ -1712,38 +1817,83 @@ static void test_stream_transport_uaf_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
+	/* Drain the autobind pool; see __vsock_bind_connectible(). */
 	for (i = 0; i < MAX_PORT_RETRIES; ++i)
-		sockets[i] = vsock_bind(VMADDR_CID_ANY, ++addr.svm_port,
-					SOCK_STREAM);
+		sockets[i] = vsock_bind(cid, ++addr.svm_port, SOCK_STREAM);
 
 	close(fd);
-	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
+
+	/* Setting SOCK_NONBLOCK makes connect() return soon after
+	 * (re-)assigning the transport. We are not connecting to anything
+	 * anyway, so there is no point entering the main loop in
+	 * vsock_connect(); waiting for timeout, checking for signals, etc.
+	 */
+	fd = socket(AF_VSOCK, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	if (fd < 0) {
 		perror("socket");
 		exit(EXIT_FAILURE);
 	}
 
-	if (!vsock_connect_fd(fd, addr.svm_cid, addr.svm_port)) {
-		perror("Unexpected connect() #1 success");
+	/* Assign transport, while failing to autobind. Autobind pool was
+	 * drained, so EADDRNOTAVAIL coming from __vsock_bind_connectible() is
+	 * expected.
+	 *
+	 * One exception is ENODEV which is thrown by vsock_assign_transport(),
+	 * i.e. before vsock_auto_bind(), when the only transport loaded is
+	 * vhost.
+	 */
+	if (!connect(fd, (struct sockaddr *)&addr, alen)) {
+		fprintf(stderr, "Unexpected connect() success\n");
+		exit(EXIT_FAILURE);
+	}
+	if (errno == ENODEV && cid == VMADDR_CID_HOST) {
+		ret = false;
+		goto cleanup;
+	}
+	if (errno != EADDRNOTAVAIL) {
+		perror("Unexpected connect() errno");
 		exit(EXIT_FAILURE);
 	}
 
-	/* Vulnerable system may crash now. */
-	if (!vsock_connect_fd(fd, VMADDR_CID_HOST, VMADDR_PORT_ANY)) {
-		perror("Unexpected connect() #2 success");
-		exit(EXIT_FAILURE);
+	/* Reassign transport, triggering old transport release and
+	 * (potentially) unbinding of an unbound socket.
+	 *
+	 * Vulnerable system may crash now.
+	 */
+	for (c = VMADDR_CID_HYPERVISOR; c <= VMADDR_CID_HOST + 1; ++c) {
+		if (c != cid) {
+			addr.svm_cid = c;
+			(void)connect(fd, (struct sockaddr *)&addr, alen);
+		}
 	}
 
+	ret = true;
+cleanup:
 	close(fd);
 	while (i--)
 		close(sockets[i]);
 
-	control_writeln("DONE");
+	return ret;
 }
 
-static void test_stream_transport_uaf_server(const struct test_opts *opts)
+/* Test attempts to trigger a transport release for an unbound socket. This can
+ * lead to a reference count mishandling.
+ */
+static void test_stream_transport_uaf_client(const struct test_opts *opts)
 {
-	control_expectln("DONE");
+	bool tested = false;
+	int cid, tr;
+
+	for (cid = VMADDR_CID_HYPERVISOR; cid <= VMADDR_CID_HOST + 1; ++cid)
+		tested |= test_stream_transport_uaf(cid);
+
+	tr = get_transports();
+	if (!tr)
+		fprintf(stderr, "No transports detected\n");
+	else if (tr == TRANSPORT_VIRTIO)
+		fprintf(stderr, "Setup unsupported: sole virtio transport\n");
+	else if (!tested)
+		fprintf(stderr, "No transports tested\n");
 }
 
 static void test_stream_connect_retry_client(const struct test_opts *opts)
@@ -1788,12 +1938,182 @@ static void test_stream_connect_retry_server(const struct test_opts *opts)
 	close(fd);
 }
 
+#define TRANSPORT_CHANGE_TIMEOUT 2 /* seconds */
+
+static void *test_stream_transport_change_thread(void *vargp)
+{
+	pid_t *pid = (pid_t *)vargp;
+	int ret;
+
+	ret = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+	if (ret) {
+		fprintf(stderr, "pthread_setcanceltype: %d\n", ret);
+		exit(EXIT_FAILURE);
+	}
+
+	while (true) {
+		if (kill(*pid, SIGUSR1) < 0) {
+			perror("kill");
+			exit(EXIT_FAILURE);
+		}
+	}
+	return NULL;
+}
+
+static void test_transport_change_signal_handler(int signal)
+{
+	/* We need a custom handler for SIGUSR1 as the default one terminates the process. */
+}
+
+static void test_stream_transport_change_client(const struct test_opts *opts)
+{
+	__sighandler_t old_handler;
+	pid_t pid = getpid();
+	pthread_t thread_id;
+	time_t tout;
+	int ret, tr;
+
+	tr = get_transports();
+
+	/* Print a warning if there is a G2H transport loaded.
+	 * This is on a best effort basis because VMCI can be either G2H and H2G, and there is
+	 * no easy way to understand it.
+	 * The bug we are testing only appears when G2H transports are not loaded.
+	 * This is because `vsock_assign_transport`, when using CID 0, assigns a G2H transport
+	 * to vsk->transport. If none is available it is set to NULL, causing the null-ptr-deref.
+	 */
+	if (tr & TRANSPORTS_G2H)
+		fprintf(stderr, "G2H Transport detected. This test will not fail.\n");
+
+	old_handler = signal(SIGUSR1, test_transport_change_signal_handler);
+	if (old_handler == SIG_ERR) {
+		perror("signal");
+		exit(EXIT_FAILURE);
+	}
+
+	ret = pthread_create(&thread_id, NULL, test_stream_transport_change_thread, &pid);
+	if (ret) {
+		fprintf(stderr, "pthread_create: %d\n", ret);
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("LISTENING");
+
+	tout = current_nsec() + TRANSPORT_CHANGE_TIMEOUT * NSEC_PER_SEC;
+	do {
+		struct sockaddr_vm sa = {
+			.svm_family = AF_VSOCK,
+			.svm_cid = opts->peer_cid,
+			.svm_port = opts->peer_port,
+		};
+		bool send_control = false;
+		int s;
+
+		s = socket(AF_VSOCK, SOCK_STREAM, 0);
+		if (s < 0) {
+			perror("socket");
+			exit(EXIT_FAILURE);
+		}
+
+		ret = connect(s, (struct sockaddr *)&sa, sizeof(sa));
+		/* The connect can fail due to signals coming from the thread,
+		 * or because the receiver connection queue is full.
+		 * Ignoring also the latter case because there is no way
+		 * of synchronizing client's connect and server's accept when
+		 * connect(s) are constantly being interrupted by signals.
+		 */
+		if (ret == -1 && (errno != EINTR && errno != ECONNRESET)) {
+			perror("connect");
+			exit(EXIT_FAILURE);
+		}
+
+		/* Notify the server if the connect() is successful or the
+		 * receiver connection queue is full, so it will do accept()
+		 * to drain it.
+		 */
+		if (!ret || errno == ECONNRESET)
+			send_control = true;
+
+		/* Set CID to 0 cause a transport change. */
+		sa.svm_cid = 0;
+
+		/* There is a case where this will not fail:
+		 * if the previous connect() is interrupted while the
+		 * connection request is already sent, this second
+		 * connect() will wait for the response.
+		 */
+		ret = connect(s, (struct sockaddr *)&sa, sizeof(sa));
+		if (!ret || errno == ECONNRESET)
+			send_control = true;
+
+		close(s);
+
+		if (send_control)
+			control_writeulong(CONTROL_CONTINUE);
+
+	} while (current_nsec() < tout);
+
+	control_writeulong(CONTROL_DONE);
+
+	ret = pthread_cancel(thread_id);
+	if (ret) {
+		fprintf(stderr, "pthread_cancel: %d\n", ret);
+		exit(EXIT_FAILURE);
+	}
+
+	ret = pthread_join(thread_id, NULL);
+	if (ret) {
+		fprintf(stderr, "pthread_join: %d\n", ret);
+		exit(EXIT_FAILURE);
+	}
+
+	if (signal(SIGUSR1, old_handler) == SIG_ERR) {
+		perror("signal");
+		exit(EXIT_FAILURE);
+	}
+}
+
+static void test_stream_transport_change_server(const struct test_opts *opts)
+{
+	int s = vsock_stream_listen(VMADDR_CID_ANY, opts->peer_port);
+
+	/* Set the socket to be nonblocking because connects that have been interrupted
+	 * (EINTR) can fill the receiver's accept queue anyway, leading to connect failure.
+	 * As of today (6.15) in such situation there is no way to understand, from the
+	 * client side, if the connection has been queued in the server or not.
+	 */
+	if (fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK) < 0) {
+		perror("fcntl");
+		exit(EXIT_FAILURE);
+	}
+	control_writeln("LISTENING");
+
+	while (control_readulong() == CONTROL_CONTINUE) {
+		/* Must accept the connection, otherwise the `listen`
+		 * queue will fill up and new connections will fail.
+		 * There can be more than one queued connection,
+		 * clear them all.
+		 */
+		while (true) {
+			int client = accept(s, NULL, NULL);
+
+			if (client < 0) {
+				if (errno == EAGAIN)
+					break;
+
+				perror("accept");
+				exit(EXIT_FAILURE);
+			}
+
+			close(client);
+		}
+	}
+
+	close(s);
+}
+
 static void test_stream_linger_client(const struct test_opts *opts)
 {
-	struct linger optval = {
-		.l_onoff = 1,
-		.l_linger = 1
-	};
 	int fd;
 
 	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
@@ -1802,11 +2122,7 @@ static void test_stream_linger_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &optval, sizeof(optval))) {
-		perror("setsockopt(SO_LINGER)");
-		exit(EXIT_FAILURE);
-	}
-
+	enable_so_linger(fd, 1);
 	close(fd);
 }
 
@@ -1821,6 +2137,53 @@ static void test_stream_linger_server(const struct test_opts *opts)
 	}
 
 	vsock_wait_remote_close(fd);
+	close(fd);
+}
+
+/* Half of the default to not risk timing out the control channel */
+#define LINGER_TIMEOUT	(TIMEOUT / 2)
+
+static void test_stream_nolinger_client(const struct test_opts *opts)
+{
+	bool waited;
+	time_t ns;
+	int fd;
+
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	enable_so_linger(fd, LINGER_TIMEOUT);
+	send_byte(fd, 1, 0); /* Left unread to expose incorrect behaviour. */
+	waited = vsock_wait_sent(fd);
+
+	ns = current_nsec();
+	close(fd);
+	ns = current_nsec() - ns;
+
+	if (!waited) {
+		fprintf(stderr, "Test skipped, SIOCOUTQ not supported.\n");
+	} else if (DIV_ROUND_UP(ns, NSEC_PER_SEC) >= LINGER_TIMEOUT) {
+		fprintf(stderr, "Unexpected lingering\n");
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("DONE");
+}
+
+static void test_stream_nolinger_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("DONE");
 	close(fd);
 }
 
@@ -1972,7 +2335,6 @@ static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM transport release use-after-free",
 		.run_client = test_stream_transport_uaf_client,
-		.run_server = test_stream_transport_uaf_server,
 	},
 	{
 		.name = "SOCK_STREAM retry failed connect()",
@@ -1983,6 +2345,26 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_STREAM SO_LINGER null-ptr-deref",
 		.run_client = test_stream_linger_client,
 		.run_server = test_stream_linger_server,
+	},
+	{
+		.name = "SOCK_STREAM SO_LINGER close() on unread",
+		.run_client = test_stream_nolinger_client,
+		.run_server = test_stream_nolinger_server,
+	},
+	{
+		.name = "SOCK_STREAM transport change null-ptr-deref",
+		.run_client = test_stream_transport_change_client,
+		.run_server = test_stream_transport_change_server,
+	},
+	{
+		.name = "SOCK_STREAM ioctl(SIOCINQ) functionality",
+		.run_client = test_stream_unread_bytes_client,
+		.run_server = test_stream_unread_bytes_server,
+	},
+	{
+		.name = "SOCK_SEQPACKET ioctl(SIOCINQ) functionality",
+		.run_client = test_seqpacket_unread_bytes_client,
+		.run_server = test_seqpacket_unread_bytes_server,
 	},
 	{},
 };

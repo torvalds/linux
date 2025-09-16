@@ -7,12 +7,18 @@
 
 #include "xe_assert.h"
 #include "xe_device.h"
+#include "xe_gt.h"
 #include "xe_gt_sriov_printk.h"
 #include "xe_gt_sriov_vf.h"
+#include "xe_guc_ct.h"
+#include "xe_guc_submit.h"
+#include "xe_irq.h"
+#include "xe_lrc.h"
 #include "xe_pm.h"
 #include "xe_sriov.h"
 #include "xe_sriov_printk.h"
 #include "xe_sriov_vf.h"
+#include "xe_tile_sriov_vf.h"
 
 /**
  * DOC: VF restore procedure in PF KMD and VF KMD
@@ -121,6 +127,15 @@
  *      |                               |                               |
  */
 
+static bool vf_migration_supported(struct xe_device *xe)
+{
+	/*
+	 * TODO: Add conditions to allow specific platforms, when they're
+	 * supported at production quality.
+	 */
+	return IS_ENABLED(CONFIG_DRM_XE_DEBUG);
+}
+
 static void migration_worker_func(struct work_struct *w);
 
 /**
@@ -130,85 +145,186 @@ static void migration_worker_func(struct work_struct *w);
 void xe_sriov_vf_init_early(struct xe_device *xe)
 {
 	INIT_WORK(&xe->sriov.vf.migration.worker, migration_worker_func);
+
+	if (!vf_migration_supported(xe))
+		xe_sriov_info(xe, "migration not supported by this module version\n");
 }
 
 /**
- * vf_post_migration_requery_guc - Re-query GuC for current VF provisioning.
+ * vf_post_migration_shutdown - Stop the driver activities after VF migration.
  * @xe: the &xe_device struct instance
  *
- * After migration, we need to re-query all VF configuration to make sure
- * they match previous provisioning. Note that most of VF provisioning
- * shall be the same, except GGTT range, since GGTT is not virtualized per-VF.
+ * After this VM is migrated and assigned to a new VF, it is running on a new
+ * hardware, and therefore many hardware-dependent states and related structures
+ * require fixups. Without fixups, the hardware cannot do any work, and therefore
+ * all GPU pipelines are stalled.
+ * Stop some of kernel activities to make the fixup process faster.
+ */
+static void vf_post_migration_shutdown(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int ret = 0;
+
+	for_each_gt(gt, xe, id) {
+		xe_guc_submit_pause(&gt->uc.guc);
+		ret |= xe_guc_submit_reset_block(&gt->uc.guc);
+	}
+
+	if (ret)
+		drm_info(&xe->drm, "migration recovery encountered ongoing reset\n");
+}
+
+/**
+ * vf_post_migration_kickstart - Re-start the driver activities under new hardware.
+ * @xe: the &xe_device struct instance
+ *
+ * After we have finished with all post-migration fixups, restart the driver
+ * activities to continue feeding the GPU with workloads.
+ */
+static void vf_post_migration_kickstart(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+
+	/*
+	 * Make sure interrupts on the new HW are properly set. The GuC IRQ
+	 * must be working at this point, since the recovery did started,
+	 * but the rest was not enabled using the procedure from spec.
+	 */
+	xe_irq_resume(xe);
+
+	for_each_gt(gt, xe, id) {
+		xe_guc_submit_reset_unblock(&gt->uc.guc);
+		xe_guc_submit_unpause(&gt->uc.guc);
+	}
+}
+
+static bool gt_vf_post_migration_needed(struct xe_gt *gt)
+{
+	return test_bit(gt->info.id, &gt_to_xe(gt)->sriov.vf.migration.gt_flags);
+}
+
+/*
+ * Notify GuCs marked in flags about resource fixups apply finished.
+ * @xe: the &xe_device struct instance
+ * @gt_flags: flags marking to which GTs the notification shall be sent
+ */
+static int vf_post_migration_notify_resfix_done(struct xe_device *xe, unsigned long gt_flags)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int err = 0;
+
+	for_each_gt(gt, xe, id) {
+		if (!test_bit(id, &gt_flags))
+			continue;
+		/* skip asking GuC for RESFIX exit if new recovery request arrived */
+		if (gt_vf_post_migration_needed(gt))
+			continue;
+		err = xe_gt_sriov_vf_notify_resfix_done(gt);
+		if (err)
+			break;
+		clear_bit(id, &gt_flags);
+	}
+
+	if (gt_flags && !err)
+		drm_dbg(&xe->drm, "another recovery imminent, skipped some notifications\n");
+	return err;
+}
+
+static int vf_get_next_migrated_gt_id(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+
+	for_each_gt(gt, xe, id) {
+		if (test_and_clear_bit(id, &xe->sriov.vf.migration.gt_flags))
+			return id;
+	}
+	return -1;
+}
+
+static size_t post_migration_scratch_size(struct xe_device *xe)
+{
+	return max(xe_lrc_reg_size(xe), LRC_WA_BB_SIZE);
+}
+
+/**
+ * Perform post-migration fixups on a single GT.
+ *
+ * After migration, GuC needs to be re-queried for VF configuration to check
+ * if it matches previous provisioning. Most of VF provisioning shall be the
+ * same, except GGTT range, since GGTT is not virtualized per-VF. If GGTT
+ * range has changed, we have to perform fixups - shift all GGTT references
+ * used anywhere within the driver. After the fixups in this function succeed,
+ * it is allowed to ask the GuC bound to this GT to continue normal operation.
  *
  * Returns: 0 if the operation completed successfully, or a negative error
  * code otherwise.
  */
-static int vf_post_migration_requery_guc(struct xe_device *xe)
+static int gt_vf_post_migration_fixups(struct xe_gt *gt)
 {
-	struct xe_gt *gt;
-	unsigned int id;
-	int err, ret = 0;
+	s64 shift;
+	void *buf;
+	int err;
 
-	for_each_gt(gt, xe, id) {
-		err = xe_gt_sriov_vf_query_config(gt);
-		ret = ret ?: err;
+	buf = kmalloc(post_migration_scratch_size(gt_to_xe(gt)), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	err = xe_gt_sriov_vf_query_config(gt);
+	if (err)
+		goto out;
+
+	shift = xe_gt_sriov_vf_ggtt_shift(gt);
+	if (shift) {
+		xe_tile_sriov_vf_fixup_ggtt_nodes(gt_to_tile(gt), shift);
+		xe_gt_sriov_vf_default_lrcs_hwsp_rebase(gt);
+		err = xe_guc_contexts_hwsp_rebase(&gt->uc.guc, buf);
+		if (err)
+			goto out;
+		xe_guc_jobs_ring_rebase(&gt->uc.guc);
+		xe_guc_ct_fixup_messages_with_ggtt(&gt->uc.guc.ct, shift);
 	}
 
-	return ret;
-}
-
-/*
- * vf_post_migration_imminent - Check if post-restore recovery is coming.
- * @xe: the &xe_device struct instance
- *
- * Return: True if migration recovery worker will soon be running. Any worker currently
- * executing does not affect the result.
- */
-static bool vf_post_migration_imminent(struct xe_device *xe)
-{
-	return xe->sriov.vf.migration.gt_flags != 0 ||
-	work_pending(&xe->sriov.vf.migration.worker);
-}
-
-/*
- * Notify all GuCs about resource fixups apply finished.
- */
-static void vf_post_migration_notify_resfix_done(struct xe_device *xe)
-{
-	struct xe_gt *gt;
-	unsigned int id;
-
-	for_each_gt(gt, xe, id) {
-		if (vf_post_migration_imminent(xe))
-			goto skip;
-		xe_gt_sriov_vf_notify_resfix_done(gt);
-	}
-	return;
-
-skip:
-	drm_dbg(&xe->drm, "another recovery imminent, skipping notifications\n");
+out:
+	kfree(buf);
+	return err;
 }
 
 static void vf_post_migration_recovery(struct xe_device *xe)
 {
-	int err;
+	unsigned long fixed_gts = 0;
+	int id, err;
 
 	drm_dbg(&xe->drm, "migration recovery in progress\n");
 	xe_pm_runtime_get(xe);
-	err = vf_post_migration_requery_guc(xe);
-	if (vf_post_migration_imminent(xe))
-		goto defer;
-	if (unlikely(err))
+	vf_post_migration_shutdown(xe);
+
+	if (!vf_migration_supported(xe)) {
+		xe_sriov_err(xe, "migration not supported by this module version\n");
+		err = -ENOTRECOVERABLE;
+		goto fail;
+	}
+
+	while (id = vf_get_next_migrated_gt_id(xe), id >= 0) {
+		struct xe_gt *gt = xe_device_get_gt(xe, id);
+
+		err = gt_vf_post_migration_fixups(gt);
+		if (err)
+			goto fail;
+
+		set_bit(id, &fixed_gts);
+	}
+
+	vf_post_migration_kickstart(xe);
+	err = vf_post_migration_notify_resfix_done(xe, fixed_gts);
+	if (err)
 		goto fail;
 
-	/* FIXME: add the recovery steps */
-	vf_post_migration_notify_resfix_done(xe);
 	xe_pm_runtime_put(xe);
 	drm_notice(&xe->drm, "migration recovery ended\n");
-	return;
-defer:
-	xe_pm_runtime_put(xe);
-	drm_dbg(&xe->drm, "migration recovery deferred\n");
 	return;
 fail:
 	xe_pm_runtime_put(xe);
@@ -224,18 +340,23 @@ static void migration_worker_func(struct work_struct *w)
 	vf_post_migration_recovery(xe);
 }
 
-static bool vf_ready_to_recovery_on_all_gts(struct xe_device *xe)
+/*
+ * Check if post-restore recovery is coming on any of GTs.
+ * @xe: the &xe_device struct instance
+ *
+ * Return: True if migration recovery worker will soon be running. Any worker currently
+ * executing does not affect the result.
+ */
+static bool vf_ready_to_recovery_on_any_gts(struct xe_device *xe)
 {
 	struct xe_gt *gt;
 	unsigned int id;
 
 	for_each_gt(gt, xe, id) {
-		if (!test_bit(id, &xe->sriov.vf.migration.gt_flags)) {
-			xe_gt_sriov_dbg_verbose(gt, "still not ready to recover\n");
-			return false;
-		}
+		if (test_bit(id, &xe->sriov.vf.migration.gt_flags))
+			return true;
 	}
-	return true;
+	return false;
 }
 
 /**
@@ -250,12 +371,8 @@ void xe_sriov_vf_start_migration_recovery(struct xe_device *xe)
 
 	xe_assert(xe, IS_SRIOV_VF(xe));
 
-	if (!vf_ready_to_recovery_on_all_gts(xe))
+	if (!vf_ready_to_recovery_on_any_gts(xe))
 		return;
-
-	WRITE_ONCE(xe->sriov.vf.migration.gt_flags, 0);
-	/* Ensure other threads see that no flags are set now. */
-	smp_mb();
 
 	started = queue_work(xe->sriov.wq, &xe->sriov.vf.migration.worker);
 	drm_info(&xe->drm, "VF migration recovery %s\n", started ?

@@ -745,7 +745,7 @@ static int vl6180_probe(struct i2c_client *client)
 
 static const struct of_device_id vl6180_of_match[] = {
 	{ .compatible = "st,vl6180", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, vl6180_of_match);
 

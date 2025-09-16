@@ -195,6 +195,7 @@ union cpuid10_edx {
  */
 #define ARCH_PERFMON_EXT_LEAF			0x00000023
 #define ARCH_PERFMON_NUM_COUNTER_LEAF		0x1
+#define ARCH_PERFMON_ACR_LEAF			0x2
 
 union cpuid35_eax {
 	struct {

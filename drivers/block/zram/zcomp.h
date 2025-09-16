@@ -5,7 +5,11 @@
 
 #include <linux/mutex.h>
 
-#define ZCOMP_PARAM_NO_LEVEL	INT_MIN
+#define ZCOMP_PARAM_NOT_SET	INT_MIN
+
+struct deflate_params {
+	s32 winbits;
+};
 
 /*
  * Immutable driver (backend) parameters. The driver may attach private
@@ -17,6 +21,9 @@ struct zcomp_params {
 	void *dict;
 	size_t dict_sz;
 	s32 level;
+	union {
+		struct deflate_params deflate;
+	};
 
 	void *drv_data;
 };
@@ -72,7 +79,7 @@ struct zcomp {
 
 int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node);
 int zcomp_cpu_dead(unsigned int cpu, struct hlist_node *node);
-ssize_t zcomp_available_show(const char *comp, char *buf);
+ssize_t zcomp_available_show(const char *comp, char *buf, ssize_t at);
 bool zcomp_available_algorithm(const char *comp);
 
 struct zcomp *zcomp_create(const char *alg, struct zcomp_params *params);

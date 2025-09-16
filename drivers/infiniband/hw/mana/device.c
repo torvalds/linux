@@ -65,6 +65,10 @@ static const struct ib_device_ops mana_ib_stats_ops = {
 	.get_hw_stats = mana_ib_get_hw_stats,
 };
 
+static const struct ib_device_ops mana_ib_device_stats_ops = {
+	.alloc_hw_device_stats = mana_ib_alloc_hw_device_stats,
+};
+
 static int mana_ib_netdev_event(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {
@@ -73,131 +77,131 @@ static int mana_ib_netdev_event(struct notifier_block *this,
 	struct gdma_context *gc = dev->gdma_dev->gdma_context;
 	struct mana_context *mc = gc->mana.driver_data;
 	struct net_device *ndev;
+	int i;
 
 	/* Only process events from our parent device */
-	if (event_dev != mc->ports[0])
-		return NOTIFY_DONE;
+	for (i = 0; i < dev->ib_dev.phys_port_cnt; i++)
+		if (event_dev == mc->ports[i]) {
+			switch (event) {
+			case NETDEV_CHANGEUPPER:
+				ndev = mana_get_primary_netdev(mc, i, &dev->dev_tracker);
+				/*
+				 * RDMA core will setup GID based on updated netdev.
+				 * It's not possible to race with the core as rtnl lock is being
+				 * held.
+				 */
+				ib_device_set_netdev(&dev->ib_dev, ndev, i + 1);
 
-	switch (event) {
-	case NETDEV_CHANGEUPPER:
-		ndev = mana_get_primary_netdev(mc, 0, &dev->dev_tracker);
-		/*
-		 * RDMA core will setup GID based on updated netdev.
-		 * It's not possible to race with the core as rtnl lock is being
-		 * held.
-		 */
-		ib_device_set_netdev(&dev->ib_dev, ndev, 1);
+				/* mana_get_primary_netdev() returns ndev with refcount held */
+				if (ndev)
+					netdev_put(ndev, &dev->dev_tracker);
 
-		/* mana_get_primary_netdev() returns ndev with refcount held */
-		netdev_put(ndev, &dev->dev_tracker);
-
-		return NOTIFY_OK;
-	default:
-		return NOTIFY_DONE;
-	}
+				return NOTIFY_OK;
+			default:
+				return NOTIFY_DONE;
+			}
+		}
+	return NOTIFY_DONE;
 }
 
 static int mana_ib_probe(struct auxiliary_device *adev,
 			 const struct auxiliary_device_id *id)
 {
 	struct mana_adev *madev = container_of(adev, struct mana_adev, adev);
+	struct gdma_context *gc = madev->mdev->gdma_context;
+	struct mana_context *mc = gc->mana.driver_data;
 	struct gdma_dev *mdev = madev->mdev;
 	struct net_device *ndev;
-	struct mana_context *mc;
 	struct mana_ib_dev *dev;
 	u8 mac_addr[ETH_ALEN];
-	int ret;
-
-	mc = mdev->driver_data;
+	int ret, i;
 
 	dev = ib_alloc_device(mana_ib_dev, ib_dev);
 	if (!dev)
 		return -ENOMEM;
 
 	ib_set_device_ops(&dev->ib_dev, &mana_ib_dev_ops);
+	dev->ib_dev.node_type = RDMA_NODE_IB_CA;
+	dev->ib_dev.num_comp_vectors = gc->max_num_queues;
+	dev->ib_dev.dev.parent = gc->dev;
+	dev->gdma_dev = mdev;
+	xa_init_flags(&dev->qp_table_wq, XA_FLAGS_LOCK_IRQ);
 
-	dev->ib_dev.phys_port_cnt = mc->num_ports;
+	if (mana_ib_is_rnic(dev)) {
+		dev->ib_dev.phys_port_cnt = 1;
+		addrconf_addr_eui48((u8 *)&dev->ib_dev.node_guid, mc->ports[0]->dev_addr);
+		ret = mana_ib_gd_query_adapter_caps(dev);
+		if (ret) {
+			ibdev_err(&dev->ib_dev, "Failed to query device caps, ret %d", ret);
+			goto free_ib_device;
+		}
+
+		ib_set_device_ops(&dev->ib_dev, &mana_ib_stats_ops);
+		if (dev->adapter_caps.feature_flags & MANA_IB_FEATURE_DEV_COUNTERS_SUPPORT)
+			ib_set_device_ops(&dev->ib_dev, &mana_ib_device_stats_ops);
+
+		ret = mana_ib_create_eqs(dev);
+		if (ret) {
+			ibdev_err(&dev->ib_dev, "Failed to create EQs, ret %d", ret);
+			goto free_ib_device;
+		}
+
+		ret = mana_ib_gd_create_rnic_adapter(dev);
+		if (ret)
+			goto destroy_eqs;
+
+		if (dev->adapter_caps.feature_flags & MANA_IB_FEATURE_MULTI_PORTS_SUPPORT)
+			dev->ib_dev.phys_port_cnt = mc->num_ports;
+
+		for (i = 0; i < dev->ib_dev.phys_port_cnt; i++) {
+			ndev = mana_get_primary_netdev(mc, i, &dev->dev_tracker);
+			if (!ndev) {
+				ret = -ENODEV;
+				ibdev_err(&dev->ib_dev,
+					  "Failed to get netdev for IB port %d", i + 1);
+				goto destroy_rnic;
+			}
+			ether_addr_copy(mac_addr, ndev->dev_addr);
+			ret = ib_device_set_netdev(&dev->ib_dev, ndev, i + 1);
+			/* mana_get_primary_netdev() returns ndev with refcount held */
+			netdev_put(ndev, &dev->dev_tracker);
+			if (ret) {
+				ibdev_err(&dev->ib_dev, "Failed to set ib netdev, ret %d", ret);
+				goto destroy_rnic;
+			}
+			ret = mana_ib_gd_config_mac(dev, ADDR_OP_ADD, mac_addr);
+			if (ret) {
+				ibdev_err(&dev->ib_dev, "Failed to add Mac address, ret %d", ret);
+				goto destroy_rnic;
+			}
+		}
+		dev->nb.notifier_call = mana_ib_netdev_event;
+		ret = register_netdevice_notifier(&dev->nb);
+		if (ret) {
+			ibdev_err(&dev->ib_dev, "Failed to register net notifier, %d", ret);
+			goto destroy_rnic;
+		}
+	} else {
+		dev->ib_dev.phys_port_cnt = mc->num_ports;
+		ret = mana_eth_query_adapter_caps(dev);
+		if (ret) {
+			ibdev_err(&dev->ib_dev, "Failed to query ETH device caps, ret %d", ret);
+			goto free_ib_device;
+		}
+	}
+
+	dev->av_pool = dma_pool_create("mana_ib_av", gc->dev, MANA_AV_BUFFER_SIZE,
+				       MANA_AV_BUFFER_SIZE, 0);
+	if (!dev->av_pool) {
+		ret = -ENOMEM;
+		goto deregister_net_notifier;
+	}
 
 	ibdev_dbg(&dev->ib_dev, "mdev=%p id=%d num_ports=%d\n", mdev,
 		  mdev->dev_id.as_uint32, dev->ib_dev.phys_port_cnt);
 
-	dev->ib_dev.node_type = RDMA_NODE_IB_CA;
-
-	/*
-	 * num_comp_vectors needs to set to the max MSIX index
-	 * when interrupts and event queues are implemented
-	 */
-	dev->ib_dev.num_comp_vectors = mdev->gdma_context->max_num_queues;
-	dev->ib_dev.dev.parent = mdev->gdma_context->dev;
-
-	ndev = mana_get_primary_netdev(mc, 0, &dev->dev_tracker);
-	if (!ndev) {
-		ret = -ENODEV;
-		ibdev_err(&dev->ib_dev, "Failed to get netdev for IB port 1");
-		goto free_ib_device;
-	}
-	ether_addr_copy(mac_addr, ndev->dev_addr);
-	addrconf_addr_eui48((u8 *)&dev->ib_dev.node_guid, ndev->dev_addr);
-	ret = ib_device_set_netdev(&dev->ib_dev, ndev, 1);
-	/* mana_get_primary_netdev() returns ndev with refcount held */
-	netdev_put(ndev, &dev->dev_tracker);
-	if (ret) {
-		ibdev_err(&dev->ib_dev, "Failed to set ib netdev, ret %d", ret);
-		goto free_ib_device;
-	}
-
-	ret = mana_gd_register_device(&mdev->gdma_context->mana_ib);
-	if (ret) {
-		ibdev_err(&dev->ib_dev, "Failed to register device, ret %d",
-			  ret);
-		goto free_ib_device;
-	}
-	dev->gdma_dev = &mdev->gdma_context->mana_ib;
-
-	dev->nb.notifier_call = mana_ib_netdev_event;
-	ret = register_netdevice_notifier(&dev->nb);
-	if (ret) {
-		ibdev_err(&dev->ib_dev, "Failed to register net notifier, %d",
-			  ret);
-		goto deregister_device;
-	}
-
-	ret = mana_ib_gd_query_adapter_caps(dev);
-	if (ret) {
-		ibdev_err(&dev->ib_dev, "Failed to query device caps, ret %d",
-			  ret);
-		goto deregister_net_notifier;
-	}
-
-	ib_set_device_ops(&dev->ib_dev, &mana_ib_stats_ops);
-
-	ret = mana_ib_create_eqs(dev);
-	if (ret) {
-		ibdev_err(&dev->ib_dev, "Failed to create EQs, ret %d", ret);
-		goto deregister_net_notifier;
-	}
-
-	ret = mana_ib_gd_create_rnic_adapter(dev);
-	if (ret)
-		goto destroy_eqs;
-
-	xa_init_flags(&dev->qp_table_wq, XA_FLAGS_LOCK_IRQ);
-	ret = mana_ib_gd_config_mac(dev, ADDR_OP_ADD, mac_addr);
-	if (ret) {
-		ibdev_err(&dev->ib_dev, "Failed to add Mac address, ret %d",
-			  ret);
-		goto destroy_rnic;
-	}
-
-	dev->av_pool = dma_pool_create("mana_ib_av", mdev->gdma_context->dev,
-				       MANA_AV_BUFFER_SIZE, MANA_AV_BUFFER_SIZE, 0);
-	if (!dev->av_pool) {
-		ret = -ENOMEM;
-		goto destroy_rnic;
-	}
-
-	ret = ib_register_device(&dev->ib_dev, "mana_%d",
-				 mdev->gdma_context->dev);
+	ret = ib_register_device(&dev->ib_dev, mana_ib_is_rnic(dev) ? "mana_%d" : "manae_%d",
+				 gc->dev);
 	if (ret)
 		goto deallocate_pool;
 
@@ -207,16 +211,17 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 
 deallocate_pool:
 	dma_pool_destroy(dev->av_pool);
-destroy_rnic:
-	xa_destroy(&dev->qp_table_wq);
-	mana_ib_gd_destroy_rnic_adapter(dev);
-destroy_eqs:
-	mana_ib_destroy_eqs(dev);
 deregister_net_notifier:
-	unregister_netdevice_notifier(&dev->nb);
-deregister_device:
-	mana_gd_deregister_device(dev->gdma_dev);
+	if (mana_ib_is_rnic(dev))
+		unregister_netdevice_notifier(&dev->nb);
+destroy_rnic:
+	if (mana_ib_is_rnic(dev))
+		mana_ib_gd_destroy_rnic_adapter(dev);
+destroy_eqs:
+	if (mana_ib_is_rnic(dev))
+		mana_ib_destroy_eqs(dev);
 free_ib_device:
+	xa_destroy(&dev->qp_table_wq);
 	ib_dealloc_device(&dev->ib_dev);
 	return ret;
 }
@@ -227,25 +232,24 @@ static void mana_ib_remove(struct auxiliary_device *adev)
 
 	ib_unregister_device(&dev->ib_dev);
 	dma_pool_destroy(dev->av_pool);
+	if (mana_ib_is_rnic(dev)) {
+		unregister_netdevice_notifier(&dev->nb);
+		mana_ib_gd_destroy_rnic_adapter(dev);
+		mana_ib_destroy_eqs(dev);
+	}
 	xa_destroy(&dev->qp_table_wq);
-	mana_ib_gd_destroy_rnic_adapter(dev);
-	mana_ib_destroy_eqs(dev);
-	unregister_netdevice_notifier(&dev->nb);
-	mana_gd_deregister_device(dev->gdma_dev);
 	ib_dealloc_device(&dev->ib_dev);
 }
 
 static const struct auxiliary_device_id mana_id_table[] = {
-	{
-		.name = "mana.rdma",
-	},
+	{ .name = "mana.rdma", },
+	{ .name = "mana.eth", },
 	{},
 };
 
 MODULE_DEVICE_TABLE(auxiliary, mana_id_table);
 
 static struct auxiliary_driver mana_driver = {
-	.name = "rdma",
 	.probe = mana_ib_probe,
 	.remove = mana_ib_remove,
 	.id_table = mana_id_table,

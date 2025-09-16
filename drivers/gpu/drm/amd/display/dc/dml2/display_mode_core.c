@@ -10189,7 +10189,7 @@ dml_uint_t dml_mode_support_ex(struct dml_mode_support_ex_params_st *in_out_para
 	result = mode_support_pwr_states(&in_out_params->out_lowest_state_idx,
 		in_out_params->mode_lib,
 		in_out_params->in_display_cfg,
-		0,
+		in_out_params->in_start_state_idx,
 		in_out_params->mode_lib->states.num_states - 1);
 
 	if (result)

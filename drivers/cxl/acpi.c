@@ -11,8 +11,6 @@
 #include "cxlpci.h"
 #include "cxl.h"
 
-#define CXL_RCRB_SIZE	SZ_8K
-
 struct cxl_cxims_data {
 	int nr_maps;
 	u64 xormaps[] __counted_by(nr_maps);
@@ -337,6 +335,63 @@ static int add_or_reset_cxl_resource(struct resource *parent, struct resource *r
 	return rc;
 }
 
+static int cxl_acpi_set_cache_size(struct cxl_root_decoder *cxlrd)
+{
+	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
+	struct range *hpa = &cxld->hpa_range;
+	resource_size_t size = range_len(hpa);
+	resource_size_t start = hpa->start;
+	resource_size_t cache_size;
+	struct resource res;
+	int nid, rc;
+
+	res = DEFINE_RES(start, size, 0);
+	nid = phys_to_target_node(start);
+
+	rc = hmat_get_extended_linear_cache_size(&res, nid, &cache_size);
+	if (rc)
+		return rc;
+
+	/*
+	 * The cache range is expected to be within the CFMWS.
+	 * Currently there is only support cache_size == cxl_size. CXL
+	 * size is then half of the total CFMWS window size.
+	 */
+	size = size >> 1;
+	if (cache_size && size != cache_size) {
+		dev_warn(&cxld->dev,
+			 "Extended Linear Cache size %pa != CXL size %pa. No Support!",
+			 &cache_size, &size);
+		return -ENXIO;
+	}
+
+	cxlrd->cache_size = cache_size;
+
+	return 0;
+}
+
+static void cxl_setup_extended_linear_cache(struct cxl_root_decoder *cxlrd)
+{
+	int rc;
+
+	rc = cxl_acpi_set_cache_size(cxlrd);
+	if (!rc)
+		return;
+
+	if (rc != -EOPNOTSUPP) {
+		/*
+		 * Failing to support extended linear cache region resize does not
+		 * prevent the region from functioning. Only causes cxl list showing
+		 * incorrect region size.
+		 */
+		dev_warn(cxlrd->cxlsd.cxld.dev.parent,
+			 "Extended linear cache calculation failed rc:%d\n", rc);
+	}
+
+	/* Ignoring return code */
+	cxlrd->cache_size = 0;
+}
+
 DEFINE_FREE(put_cxlrd, struct cxl_root_decoder *,
 	    if (!IS_ERR_OR_NULL(_T)) put_device(&_T->cxlsd.cxld.dev))
 DEFINE_FREE(del_cxl_resource, struct resource *, if (_T) del_cxl_resource(_T))
@@ -396,6 +451,8 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 		ig = CXL_DECODER_MIN_GRANULARITY;
 	cxld->interleave_granularity = ig;
 
+	cxl_setup_extended_linear_cache(cxlrd);
+
 	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_XOR) {
 		if (ways != 1 && ways != 3) {
 			cxims_ctx = (struct cxl_cxims_context) {
@@ -421,7 +478,15 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 	rc = cxl_decoder_add(cxld, target_map);
 	if (rc)
 		return rc;
-	return cxl_root_decoder_autoremove(dev, no_free_ptr(cxlrd));
+
+	rc = cxl_root_decoder_autoremove(dev, no_free_ptr(cxlrd));
+	if (rc)
+		return rc;
+
+	dev_dbg(root_port->dev.parent, "%s added to %s\n",
+		dev_name(&cxld->dev), dev_name(&root_port->dev));
+
+	return 0;
 }
 
 static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
@@ -479,7 +544,11 @@ static int cxl_get_chbs_iter(union acpi_subtable_headers *header, void *arg,
 	chbs = (struct acpi_cedt_chbs *) header;
 
 	if (chbs->cxl_version == ACPI_CEDT_CHBS_VERSION_CXL11 &&
-	    chbs->length != CXL_RCRB_SIZE)
+	    chbs->length != ACPI_CEDT_CHBS_LENGTH_CXL11)
+		return 0;
+
+	if (chbs->cxl_version == ACPI_CEDT_CHBS_VERSION_CXL20 &&
+	    chbs->length != ACPI_CEDT_CHBS_LENGTH_CXL20)
 		return 0;
 
 	if (!chbs->base)
@@ -739,10 +808,10 @@ static void remove_cxl_resources(void *data)
  * expanding its boundaries to ensure that any conflicting resources become
  * children. If a window is expanded it may then conflict with a another window
  * entry and require the window to be truncated or trimmed. Consider this
- * situation:
+ * situation::
  *
- * |-- "CXL Window 0" --||----- "CXL Window 1" -----|
- * |--------------- "System RAM" -------------|
+ *	|-- "CXL Window 0" --||----- "CXL Window 1" -----|
+ *	|--------------- "System RAM" -------------|
  *
  * ...where platform firmware has established as System RAM resource across 2
  * windows, but has left some portion of window 1 for dynamic CXL region

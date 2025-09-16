@@ -342,15 +342,6 @@ static struct qcom_icc_node qnm_snoc_sf = {
 	.links = { QCS615_SLAVE_LLCC },
 };
 
-static struct qcom_icc_node ipa_core_master = {
-	.name = "ipa_core_master",
-	.id = QCS615_MASTER_IPA_CORE,
-	.channels = 1,
-	.buswidth = 8,
-	.num_links = 1,
-	.links = { QCS615_SLAVE_IPA_CORE },
-};
-
 static struct qcom_icc_node llcc_mc = {
 	.name = "llcc_mc",
 	.id = QCS615_MASTER_LLCC,
@@ -942,14 +933,6 @@ static struct qcom_icc_node srvc_gemnoc = {
 	.num_links = 0,
 };
 
-static struct qcom_icc_node ipa_core_slave = {
-	.name = "ipa_core_slave",
-	.id = QCS615_SLAVE_IPA_CORE,
-	.channels = 1,
-	.buswidth = 8,
-	.num_links = 0,
-};
-
 static struct qcom_icc_node ebi = {
 	.name = "ebi",
 	.id = QCS615_SLAVE_EBI1,
@@ -1113,12 +1096,6 @@ static struct qcom_icc_bcm bcm_cn1 = {
 		   &qhs_sdc1, &qhs_sdc2 },
 };
 
-static struct qcom_icc_bcm bcm_ip0 = {
-	.name = "IP0",
-	.num_nodes = 1,
-	.nodes = { &ipa_core_slave },
-};
-
 static struct qcom_icc_bcm bcm_mc0 = {
 	.name = "MC0",
 	.keepalive = true,
@@ -1260,7 +1237,6 @@ static struct qcom_icc_bcm * const aggre1_noc_bcms[] = {
 	&bcm_qup0,
 	&bcm_sn3,
 	&bcm_sn14,
-	&bcm_ip0,
 };
 
 static struct qcom_icc_node * const aggre1_noc_nodes[] = {
@@ -1411,22 +1387,6 @@ static const struct qcom_icc_desc qcs615_gem_noc = {
 	.num_bcms = ARRAY_SIZE(gem_noc_bcms),
 };
 
-static struct qcom_icc_bcm * const ipa_virt_bcms[] = {
-	&bcm_ip0,
-};
-
-static struct qcom_icc_node * const ipa_virt_nodes[] = {
-	[MASTER_IPA_CORE] = &ipa_core_master,
-	[SLAVE_IPA_CORE] = &ipa_core_slave,
-};
-
-static const struct qcom_icc_desc qcs615_ipa_virt = {
-	.nodes = ipa_virt_nodes,
-	.num_nodes = ARRAY_SIZE(ipa_virt_nodes),
-	.bcms = ipa_virt_bcms,
-	.num_bcms = ARRAY_SIZE(ipa_virt_bcms),
-};
-
 static struct qcom_icc_bcm * const mc_virt_bcms[] = {
 	&bcm_acv,
 	&bcm_mc0,
@@ -1525,8 +1485,6 @@ static const struct of_device_id qnoc_of_match[] = {
 	  .data = &qcs615_dc_noc},
 	{ .compatible = "qcom,qcs615-gem-noc",
 	  .data = &qcs615_gem_noc},
-	{ .compatible = "qcom,qcs615-ipa-virt",
-	  .data = &qcs615_ipa_virt},
 	{ .compatible = "qcom,qcs615-mc-virt",
 	  .data = &qcs615_mc_virt},
 	{ .compatible = "qcom,qcs615-mmss-noc",

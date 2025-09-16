@@ -219,7 +219,7 @@ int wx_nway_reset(struct net_device *netdev)
 {
 	struct wx *wx = netdev_priv(netdev);
 
-	if (wx->mac.type == wx_mac_aml)
+	if (wx->mac.type == wx_mac_aml40)
 		return -EOPNOTSUPP;
 
 	return phylink_ethtool_nway_reset(wx->phylink);
@@ -231,9 +231,6 @@ int wx_get_link_ksettings(struct net_device *netdev,
 {
 	struct wx *wx = netdev_priv(netdev);
 
-	if (wx->mac.type == wx_mac_aml)
-		return -EOPNOTSUPP;
-
 	return phylink_ethtool_ksettings_get(wx->phylink, cmd);
 }
 EXPORT_SYMBOL(wx_get_link_ksettings);
@@ -243,7 +240,7 @@ int wx_set_link_ksettings(struct net_device *netdev,
 {
 	struct wx *wx = netdev_priv(netdev);
 
-	if (wx->mac.type == wx_mac_aml)
+	if (wx->mac.type == wx_mac_aml40)
 		return -EOPNOTSUPP;
 
 	return phylink_ethtool_ksettings_set(wx->phylink, cmd);
@@ -255,7 +252,7 @@ void wx_get_pauseparam(struct net_device *netdev,
 {
 	struct wx *wx = netdev_priv(netdev);
 
-	if (wx->mac.type == wx_mac_aml)
+	if (wx->mac.type == wx_mac_aml40)
 		return;
 
 	phylink_ethtool_get_pauseparam(wx->phylink, pause);
@@ -267,7 +264,7 @@ int wx_set_pauseparam(struct net_device *netdev,
 {
 	struct wx *wx = netdev_priv(netdev);
 
-	if (wx->mac.type == wx_mac_aml)
+	if (wx->mac.type == wx_mac_aml40)
 		return -EOPNOTSUPP;
 
 	return phylink_ethtool_set_pauseparam(wx->phylink, pause);
@@ -345,6 +342,7 @@ int wx_set_coalesce(struct net_device *netdev,
 		max_eitr = WX_SP_MAX_EITR;
 		break;
 	case wx_mac_aml:
+	case wx_mac_aml40:
 		max_eitr = WX_AML_MAX_EITR;
 		break;
 	default:
@@ -375,6 +373,7 @@ int wx_set_coalesce(struct net_device *netdev,
 		switch (wx->mac.type) {
 		case wx_mac_sp:
 		case wx_mac_aml:
+		case wx_mac_aml40:
 			tx_itr_param = WX_12K_ITR;
 			break;
 		default:
@@ -413,15 +412,10 @@ static unsigned int wx_max_channels(struct wx *wx)
 		max_combined = 1;
 	} else {
 		/* support up to max allowed queues with RSS */
-		switch (wx->mac.type) {
-		case wx_mac_sp:
-		case wx_mac_aml:
+		if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags))
 			max_combined = 63;
-			break;
-		default:
+		else
 			max_combined = 8;
-			break;
-		}
 	}
 
 	return max_combined;

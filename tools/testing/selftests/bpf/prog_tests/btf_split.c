@@ -12,10 +12,11 @@ static void btf_dump_printf(void *ctx, const char *fmt, va_list args)
 	vfprintf(ctx, fmt, args);
 }
 
-void test_btf_split() {
+static void __test_btf_split(bool multi)
+{
 	struct btf_dump *d = NULL;
 	const struct btf_type *t;
-	struct btf *btf1, *btf2;
+	struct btf *btf1, *btf2, *btf3 = NULL;
 	int str_off, i, err;
 
 	btf1 = btf__new_empty();
@@ -63,14 +64,46 @@ void test_btf_split() {
 	ASSERT_EQ(btf_vlen(t), 3, "split_struct_vlen");
 	ASSERT_STREQ(btf__str_by_offset(btf2, t->name_off), "s2", "split_struct_name");
 
+	if (multi) {
+		btf3 = btf__new_empty_split(btf2);
+		if (!ASSERT_OK_PTR(btf3, "multi_split_btf"))
+			goto cleanup;
+	} else {
+		btf3 = btf2;
+	}
+
+	btf__add_union(btf3, "u1", 16);			/* [5] union u1 {	*/
+	btf__add_field(btf3, "f1", 4, 0, 0);		/*	struct s2 f1;	*/
+	btf__add_field(btf3, "uf2", 1, 0, 0);		/*	int f2;		*/
+							/* } */
+
+	if (multi) {
+		t = btf__type_by_id(btf2, 5);
+		ASSERT_NULL(t, "multisplit_type_in_first_split");
+	}
+
+	t = btf__type_by_id(btf3, 5);
+	if (!ASSERT_OK_PTR(t, "split_union_type"))
+		goto cleanup;
+	ASSERT_EQ(btf_is_union(t), true, "split_union_kind");
+	ASSERT_EQ(btf_vlen(t), 2, "split_union_vlen");
+	ASSERT_STREQ(btf__str_by_offset(btf3, t->name_off), "u1", "split_union_name");
+	ASSERT_EQ(btf__type_cnt(btf3), 6, "split_type_cnt");
+
+	t = btf__type_by_id(btf3, 1);
+	if (!ASSERT_OK_PTR(t, "split_base_type"))
+		goto cleanup;
+	ASSERT_EQ(btf_is_int(t), true, "split_base_int");
+	ASSERT_STREQ(btf__str_by_offset(btf3, t->name_off), "int", "split_base_type_name");
+
 	/* BTF-to-C dump of split BTF */
 	dump_buf_file = open_memstream(&dump_buf, &dump_buf_sz);
 	if (!ASSERT_OK_PTR(dump_buf_file, "dump_memstream"))
 		return;
-	d = btf_dump__new(btf2, btf_dump_printf, dump_buf_file, NULL);
+	d = btf_dump__new(btf3, btf_dump_printf, dump_buf_file, NULL);
 	if (!ASSERT_OK_PTR(d, "btf_dump__new"))
 		goto cleanup;
-	for (i = 1; i < btf__type_cnt(btf2); i++) {
+	for (i = 1; i < btf__type_cnt(btf3); i++) {
 		err = btf_dump__dump_type(d, i);
 		ASSERT_OK(err, "dump_type_ok");
 	}
@@ -79,12 +112,15 @@ void test_btf_split() {
 	ASSERT_STREQ(dump_buf,
 "struct s1 {\n"
 "	int f1;\n"
-"};\n"
-"\n"
+"};\n\n"
 "struct s2 {\n"
 "	struct s1 f1;\n"
 "	int f2;\n"
 "	int *f3;\n"
+"};\n\n"
+"union u1 {\n"
+"	struct s2 f1;\n"
+"	int uf2;\n"
 "};\n\n", "c_dump");
 
 cleanup:
@@ -94,4 +130,14 @@ cleanup:
 	btf_dump__free(d);
 	btf__free(btf1);
 	btf__free(btf2);
+	if (btf2 != btf3)
+		btf__free(btf3);
+}
+
+void test_btf_split(void)
+{
+	if (test__start_subtest("single_split"))
+		__test_btf_split(false);
+	if (test__start_subtest("multi_split"))
+		__test_btf_split(true);
 }

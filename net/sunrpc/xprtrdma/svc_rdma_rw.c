@@ -765,7 +765,7 @@ static int svc_rdma_build_read_segment(struct svc_rqst *rqstp,
 		}
 		len -= seg_len;
 
-		if (len && ((head->rc_curpage + 1) > ARRAY_SIZE(rqstp->rq_pages)))
+		if (len && ((head->rc_curpage + 1) > rqstp->rq_maxpages))
 			goto out_overrun;
 	}
 

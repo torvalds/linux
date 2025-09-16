@@ -46,10 +46,7 @@ void __init setup_cpuinfo(void)
 	cpuinfo.cpu_clock_freq = fcpu(cpu, "clock-frequency");
 
 	str = of_get_property(cpu, "altr,implementation", &len);
-	if (str)
-		strscpy(cpuinfo.cpu_impl, str, sizeof(cpuinfo.cpu_impl));
-	else
-		strcpy(cpuinfo.cpu_impl, "<unknown>");
+	strscpy(cpuinfo.cpu_impl, str ?: "<unknown>");
 
 	cpuinfo.has_div = of_property_read_bool(cpu, "altr,has-div");
 	cpuinfo.has_mul = of_property_read_bool(cpu, "altr,has-mul");

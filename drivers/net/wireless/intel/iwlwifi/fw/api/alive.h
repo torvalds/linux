@@ -82,21 +82,6 @@ struct iwl_alive_ntf_v3 {
 	struct iwl_umac_alive umac_data;
 } __packed; /* UCODE_ALIVE_NTFY_API_S_VER_3 */
 
-struct iwl_alive_ntf_v4 {
-	__le16 status;
-	__le16 flags;
-	struct iwl_lmac_alive lmac_data[2];
-	struct iwl_umac_alive umac_data;
-} __packed; /* UCODE_ALIVE_NTFY_API_S_VER_4 */
-
-struct iwl_alive_ntf_v5 {
-	__le16 status;
-	__le16 flags;
-	struct iwl_lmac_alive lmac_data[2];
-	struct iwl_umac_alive umac_data;
-	struct iwl_sku_id sku_id;
-} __packed; /* UCODE_ALIVE_NTFY_API_S_VER_5 */
-
 struct iwl_imr_alive_info {
 	__le64 base_addr;
 	__le32 size;
@@ -111,6 +96,16 @@ struct iwl_alive_ntf_v6 {
 	struct iwl_sku_id sku_id;
 	struct iwl_imr_alive_info imr;
 } __packed; /* UCODE_ALIVE_NTFY_API_S_VER_6 */
+
+struct iwl_alive_ntf {
+	__le16 status;
+	__le16 flags;
+	struct iwl_lmac_alive lmac_data[2];
+	struct iwl_umac_alive umac_data;
+	struct iwl_sku_id sku_id;
+	struct iwl_imr_alive_info imr;
+	__le64 platform_id;
+} __packed; /* UCODE_ALIVE_NTFY_API_S_VER_8 */
 
 /**
  * enum iwl_extended_cfg_flags - commands driver may send before

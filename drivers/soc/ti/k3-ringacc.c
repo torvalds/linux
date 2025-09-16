@@ -1291,7 +1291,7 @@ struct k3_ringacc *of_k3_ringacc_get_by_phandle(struct device_node *np,
 
 	mutex_lock(&k3_ringacc_list_lock);
 	list_for_each_entry(entry, &k3_ringacc_list, list)
-		if (entry->dev->of_node == ringacc_np) {
+		if (device_match_of_node(entry->dev, ringacc_np)) {
 			ringacc = entry;
 			break;
 		}

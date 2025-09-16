@@ -29,14 +29,17 @@
 #include "vsp1_hgo.h"
 #include "vsp1_hgt.h"
 #include "vsp1_hsit.h"
+#include "vsp1_iif.h"
 #include "vsp1_lif.h"
 #include "vsp1_lut.h"
 #include "vsp1_pipe.h"
+#include "vsp1_regs.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_sru.h"
 #include "vsp1_uds.h"
 #include "vsp1_uif.h"
 #include "vsp1_video.h"
+#include "vsp1_vspx.h"
 
 /* -----------------------------------------------------------------------------
  * Interrupt Handling
@@ -302,22 +305,6 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&vsp1->clu->entity.list_dev, &vsp1->entities);
 	}
 
-	vsp1->hsi = vsp1_hsit_create(vsp1, true);
-	if (IS_ERR(vsp1->hsi)) {
-		ret = PTR_ERR(vsp1->hsi);
-		goto done;
-	}
-
-	list_add_tail(&vsp1->hsi->entity.list_dev, &vsp1->entities);
-
-	vsp1->hst = vsp1_hsit_create(vsp1, false);
-	if (IS_ERR(vsp1->hst)) {
-		ret = PTR_ERR(vsp1->hst);
-		goto done;
-	}
-
-	list_add_tail(&vsp1->hst->entity.list_dev, &vsp1->entities);
-
 	if (vsp1_feature(vsp1, VSP1_HAS_HGO) && vsp1->info->uapi) {
 		vsp1->hgo = vsp1_hgo_create(vsp1);
 		if (IS_ERR(vsp1->hgo)) {
@@ -338,6 +325,34 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 		list_add_tail(&vsp1->hgt->histo.entity.list_dev,
 			      &vsp1->entities);
+	}
+
+	if (vsp1_feature(vsp1, VSP1_HAS_IIF)) {
+		vsp1->iif = vsp1_iif_create(vsp1);
+		if (IS_ERR(vsp1->iif)) {
+			ret = PTR_ERR(vsp1->iif);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->iif->entity.list_dev, &vsp1->entities);
+	}
+
+	if (vsp1_feature(vsp1, VSP1_HAS_HSIT)) {
+		vsp1->hsi = vsp1_hsit_create(vsp1, true);
+		if (IS_ERR(vsp1->hsi)) {
+			ret = PTR_ERR(vsp1->hsi);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->hsi->entity.list_dev, &vsp1->entities);
+
+		vsp1->hst = vsp1_hsit_create(vsp1, false);
+		if (IS_ERR(vsp1->hst)) {
+			ret = PTR_ERR(vsp1->hst);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->hst->entity.list_dev, &vsp1->entities);
 	}
 
 	/*
@@ -477,7 +492,10 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 		ret = media_device_register(mdev);
 	} else {
-		ret = vsp1_drm_init(vsp1);
+		if (vsp1->info->version == VI6_IP_VERSION_MODEL_VSPX_GEN4)
+			ret = vsp1_vspx_init(vsp1);
+		else
+			ret = vsp1_drm_init(vsp1);
 	}
 
 done:
@@ -489,7 +507,9 @@ done:
 
 int vsp1_reset_wpf(struct vsp1_device *vsp1, unsigned int index)
 {
+	u32 version = vsp1->version & VI6_IP_VERSION_MODEL_MASK;
 	unsigned int timeout;
+	int ret = 0;
 	u32 status;
 
 	status = vsp1_read(vsp1, VI6_STATUS);
@@ -510,7 +530,11 @@ int vsp1_reset_wpf(struct vsp1_device *vsp1, unsigned int index)
 		return -ETIMEDOUT;
 	}
 
-	return 0;
+	if (version == VI6_IP_VERSION_MODEL_VSPD_GEN3 ||
+	    version == VI6_IP_VERSION_MODEL_VSPD_GEN4)
+		ret = rcar_fcp_soft_reset(vsp1->fcp);
+
+	return ret;
 }
 
 static int vsp1_device_init(struct vsp1_device *vsp1)
@@ -683,8 +707,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.model = "VSP1-S",
 		.gen = 2,
 		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_HGO
-			  | VSP1_HAS_HGT | VSP1_HAS_LUT | VSP1_HAS_SRU
-			  | VSP1_HAS_WPF_VFLIP,
+			  | VSP1_HAS_HGT | VSP1_HAS_HSIT | VSP1_HAS_LUT
+			  | VSP1_HAS_SRU | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 5,
 		.uds_count = 3,
 		.wpf_count = 4,
@@ -694,7 +718,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPR_H2,
 		.model = "VSP1-R",
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_SRU | VSP1_HAS_WPF_VFLIP,
+		.features = VSP1_HAS_BRU | VSP1_HAS_HSIT | VSP1_HAS_SRU
+			   | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 5,
 		.uds_count = 3,
 		.wpf_count = 4,
@@ -704,7 +729,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPD_GEN2,
 		.model = "VSP1-D",
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_HGO | VSP1_HAS_LUT,
+		.features = VSP1_HAS_BRU | VSP1_HAS_HGO | VSP1_HAS_HSIT
+			  | VSP1_HAS_LUT,
 		.lif_count = 1,
 		.rpf_count = 4,
 		.uds_count = 1,
@@ -716,8 +742,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.model = "VSP1-S",
 		.gen = 2,
 		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_HGO
-			  | VSP1_HAS_HGT | VSP1_HAS_LUT | VSP1_HAS_SRU
-			  | VSP1_HAS_WPF_VFLIP,
+			  | VSP1_HAS_HGT | VSP1_HAS_HSIT | VSP1_HAS_LUT
+			  | VSP1_HAS_SRU | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 5,
 		.uds_count = 1,
 		.wpf_count = 4,
@@ -727,8 +753,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPS_V2H,
 		.model = "VSP1V-S",
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_LUT
-			  | VSP1_HAS_SRU | VSP1_HAS_WPF_VFLIP,
+		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_HSIT
+			  | VSP1_HAS_LUT | VSP1_HAS_SRU | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 4,
 		.uds_count = 1,
 		.wpf_count = 4,
@@ -738,7 +764,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPD_V2H,
 		.model = "VSP1V-D",
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_LUT,
+		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_HSIT
+			  | VSP1_HAS_LUT,
 		.lif_count = 1,
 		.rpf_count = 4,
 		.uds_count = 1,
@@ -750,8 +777,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.model = "VSP2-I",
 		.gen = 3,
 		.features = VSP1_HAS_CLU | VSP1_HAS_HGO | VSP1_HAS_HGT
-			  | VSP1_HAS_LUT | VSP1_HAS_SRU | VSP1_HAS_WPF_HFLIP
-			  | VSP1_HAS_WPF_VFLIP,
+			  | VSP1_HAS_HSIT | VSP1_HAS_LUT | VSP1_HAS_SRU
+			  | VSP1_HAS_WPF_HFLIP | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 1,
 		.uds_count = 1,
 		.wpf_count = 1,
@@ -835,6 +862,13 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uif_count = 2,
 		.wpf_count = 1,
 		.num_bru_inputs = 5,
+	}, {
+		.version = VI6_IP_VERSION_MODEL_VSPX_GEN4,
+		.model = "VSP2-X",
+		.gen = 4,
+		.features = VSP1_HAS_IIF,
+		.rpf_count = 2,
+		.wpf_count = 1,
 	},
 };
 

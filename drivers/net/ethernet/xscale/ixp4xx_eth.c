@@ -394,16 +394,20 @@ static void ixp_tx_timestamp(struct port *port, struct sk_buff *skb)
 	__raw_writel(TX_SNAPSHOT_LOCKED, &regs->channel[ch].ch_event);
 }
 
-static int hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
+static int ixp4xx_hwtstamp_set(struct net_device *netdev,
+			       struct kernel_hwtstamp_config *cfg,
+			       struct netlink_ext_ack *extack)
 {
-	struct hwtstamp_config cfg;
 	struct ixp46x_ts_regs *regs;
 	struct port *port = netdev_priv(netdev);
 	int ret;
 	int ch;
 
-	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
-		return -EFAULT;
+	if (!cpu_is_ixp46x())
+		return -EOPNOTSUPP;
+
+	if (!netif_running(netdev))
+		return -EINVAL;
 
 	ret = ixp46x_ptp_find(&port->timesync_regs, &port->phc_index);
 	if (ret)
@@ -412,10 +416,10 @@ static int hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
 	ch = PORT2CHANNEL(port);
 	regs = port->timesync_regs;
 
-	if (cfg.tx_type != HWTSTAMP_TX_OFF && cfg.tx_type != HWTSTAMP_TX_ON)
+	if (cfg->tx_type != HWTSTAMP_TX_OFF && cfg->tx_type != HWTSTAMP_TX_ON)
 		return -ERANGE;
 
-	switch (cfg.rx_filter) {
+	switch (cfg->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		port->hwts_rx_en = 0;
 		break;
@@ -431,39 +435,45 @@ static int hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
 		return -ERANGE;
 	}
 
-	port->hwts_tx_en = cfg.tx_type == HWTSTAMP_TX_ON;
+	port->hwts_tx_en = cfg->tx_type == HWTSTAMP_TX_ON;
 
 	/* Clear out any old time stamps. */
 	__raw_writel(TX_SNAPSHOT_LOCKED | RX_SNAPSHOT_LOCKED,
 		     &regs->channel[ch].ch_event);
 
-	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+	return 0;
 }
 
-static int hwtstamp_get(struct net_device *netdev, struct ifreq *ifr)
+static int ixp4xx_hwtstamp_get(struct net_device *netdev,
+			       struct kernel_hwtstamp_config *cfg)
 {
-	struct hwtstamp_config cfg;
 	struct port *port = netdev_priv(netdev);
 
-	cfg.flags = 0;
-	cfg.tx_type = port->hwts_tx_en ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	if (!cpu_is_ixp46x())
+		return -EOPNOTSUPP;
+
+	if (!netif_running(netdev))
+		return -EINVAL;
+
+	cfg->flags = 0;
+	cfg->tx_type = port->hwts_tx_en ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
 
 	switch (port->hwts_rx_en) {
 	case 0:
-		cfg.rx_filter = HWTSTAMP_FILTER_NONE;
+		cfg->rx_filter = HWTSTAMP_FILTER_NONE;
 		break;
 	case PTP_SLAVE_MODE:
-		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_SYNC;
+		cfg->rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_SYNC;
 		break;
 	case PTP_MASTER_MODE:
-		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ;
+		cfg->rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ;
 		break;
 	default:
 		WARN_ON_ONCE(1);
 		return -ERANGE;
 	}
 
-	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+	return 0;
 }
 
 static int ixp4xx_mdio_cmd(struct mii_bus *bus, int phy_id, int location,
@@ -985,21 +995,6 @@ static void eth_set_mcast_list(struct net_device *dev)
 }
 
 
-static int eth_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
-{
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	if (cpu_is_ixp46x()) {
-		if (cmd == SIOCSHWTSTAMP)
-			return hwtstamp_set(dev, req);
-		if (cmd == SIOCGHWTSTAMP)
-			return hwtstamp_get(dev, req);
-	}
-
-	return phy_mii_ioctl(dev->phydev, req, cmd);
-}
-
 /* ethtool support */
 
 static void ixp4xx_get_drvinfo(struct net_device *dev,
@@ -1433,9 +1428,11 @@ static const struct net_device_ops ixp4xx_netdev_ops = {
 	.ndo_change_mtu = ixp4xx_eth_change_mtu,
 	.ndo_start_xmit = eth_xmit,
 	.ndo_set_rx_mode = eth_set_mcast_list,
-	.ndo_eth_ioctl = eth_ioctl,
+	.ndo_eth_ioctl = phy_do_ioctl_running,
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
+	.ndo_hwtstamp_get = ixp4xx_hwtstamp_get,
+	.ndo_hwtstamp_set = ixp4xx_hwtstamp_set,
 };
 
 static struct eth_plat_info *ixp4xx_of_get_platdata(struct device *dev)

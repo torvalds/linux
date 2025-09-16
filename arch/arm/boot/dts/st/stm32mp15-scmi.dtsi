@@ -4,11 +4,15 @@
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
 
+#include <dt-bindings/regulator/st,stm32mp15-regulator.h>
+
 / {
 	firmware {
 		optee: optee {
 			compatible = "linaro,optee-tz";
 			method = "smc";
+			interrupt-parent = <&intc>;
+			interrupts = <GIC_PPI 15 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>;
 		};
 
 		scmi: scmi {
@@ -35,21 +39,21 @@
 					#size-cells = <0>;
 
 					scmi_reg11: regulator@0 {
-						reg = <0>;
+						reg = <VOLTD_SCMI_REG11>;
 						regulator-name = "reg11";
 						regulator-min-microvolt = <1100000>;
 						regulator-max-microvolt = <1100000>;
 					};
 
 					scmi_reg18: regulator@1 {
-						reg = <1>;
+						reg = <VOLTD_SCMI_REG18>;
 						regulator-name = "reg18";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 					};
 
 					scmi_usb33: regulator@2 {
-						reg = <2>;
+						reg = <VOLTD_SCMI_USB33>;
 						regulator-name = "usb33";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;

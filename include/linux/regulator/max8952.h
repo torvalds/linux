@@ -2,7 +2,7 @@
 /*
  * max8952.h - Voltage regulation for the Maxim 8952
  *
- *  Copyright (C) 2010 Samsung Electrnoics
+ *  Copyright (C) 2010 Samsung Electronics
  *  MyungJoo Ham <myungjoo.ham@samsung.com>
  */
 

@@ -12,7 +12,7 @@ long long __ashlti3(long long a, int b);
 #ifdef CONFIG_RISCV_ISA_V
 
 #ifdef CONFIG_MMU
-asmlinkage int enter_vector_usercopy(void *dst, void *src, size_t n);
+asmlinkage int enter_vector_usercopy(void *dst, void *src, size_t n, bool enable_sum);
 #endif /* CONFIG_MMU  */
 
 void xor_regs_2_(unsigned long bytes, unsigned long *__restrict p1,
@@ -52,6 +52,8 @@ DECLARE_DO_ERROR_INFO(do_trap_ecall_s);
 DECLARE_DO_ERROR_INFO(do_trap_ecall_m);
 DECLARE_DO_ERROR_INFO(do_trap_break);
 
+asmlinkage void ret_from_fork_kernel(void *fn_arg, int (*fn)(void *), struct pt_regs *regs);
+asmlinkage void ret_from_fork_user(struct pt_regs *regs);
 asmlinkage void handle_bad_stack(struct pt_regs *regs);
 asmlinkage void do_page_fault(struct pt_regs *regs);
 asmlinkage void do_irq(struct pt_regs *regs);

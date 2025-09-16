@@ -1235,7 +1235,7 @@ static int lm90_update_alarms(struct lm90_data *data, bool force)
 
 static void lm90_alert_work(struct work_struct *__work)
 {
-	struct delayed_work *delayed_work = container_of(__work, struct delayed_work, work);
+	struct delayed_work *delayed_work = to_delayed_work(__work);
 	struct lm90_data *data = container_of(delayed_work, struct lm90_data, alert_work);
 
 	/* Nothing to do if alerts are enabled */

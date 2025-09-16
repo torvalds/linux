@@ -42,6 +42,7 @@ static unsigned int threads_starting;
 static int futex_flag = 0;
 
 static struct bench_futex_parameters params = {
+	.nbuckets = -1,
 	/*
 	 * How many wakeups to do at a time.
 	 * Default to 1 in order to make the kernel work more.
@@ -50,6 +51,7 @@ static struct bench_futex_parameters params = {
 };
 
 static const struct option options[] = {
+	OPT_INTEGER( 'b', "buckets", &params.nbuckets, "Specify amount of hash buckets"),
 	OPT_UINTEGER('t', "threads", &params.nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('w', "nwakes",  &params.nwakes, "Specify amount of threads to wake at once"),
 	OPT_BOOLEAN( 's', "silent",  &params.silent, "Silent mode: do not display data/details"),
@@ -93,6 +95,7 @@ static void print_summary(void)
 	       params.nthreads,
 	       waketime_avg / USEC_PER_MSEC,
 	       rel_stddev_stats(waketime_stddev, waketime_avg));
+	futex_print_nbuckets(&params);
 }
 
 static void block_threads(pthread_t *w, struct perf_cpu_map *cpu)

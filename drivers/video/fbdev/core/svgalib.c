@@ -10,6 +10,7 @@
  * Some parts are based on David Boucher's viafb (http://davesdomain.org.uk/viafb/)
  */
 
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -18,7 +19,6 @@
 #include <linux/svga.h>
 #include <asm/types.h>
 #include <asm/io.h>
-
 
 /* Write a CRT register value spread across multiple registers */
 void svga_wcrt_multi(void __iomem *regbase, const struct vga_regset *regset, u32 value)
@@ -31,12 +31,13 @@ void svga_wcrt_multi(void __iomem *regbase, const struct vga_regset *regset, u32
 		while (bitnum <= regset->highbit) {
 			bitval = 1 << bitnum;
 			regval = regval & ~bitval;
-			if (value & 1) regval = regval | bitval;
-			bitnum ++;
+			if (value & 1)
+				regval = regval | bitval;
+			bitnum++;
 			value = value >> 1;
 		}
 		vga_wcrt(regbase, regset->regnum, regval);
-		regset ++;
+		regset++;
 	}
 }
 
@@ -51,12 +52,13 @@ void svga_wseq_multi(void __iomem *regbase, const struct vga_regset *regset, u32
 		while (bitnum <= regset->highbit) {
 			bitval = 1 << bitnum;
 			regval = regval & ~bitval;
-			if (value & 1) regval = regval | bitval;
-			bitnum ++;
+			if (value & 1)
+				regval = regval | bitval;
+			bitnum++;
 			value = value >> 1;
 		}
 		vga_wseq(regbase, regset->regnum, regval);
-		regset ++;
+		regset++;
 	}
 }
 
@@ -66,14 +68,12 @@ static unsigned int svga_regset_size(const struct vga_regset *regset)
 
 	while (regset->regnum != VGA_REGSET_END_VAL) {
 		count += regset->highbit - regset->lowbit + 1;
-		regset ++;
+		regset++;
 	}
 	return 1 << count;
 }
 
-
 /* ------------------------------------------------------------------------- */
-
 
 /* Set graphics controller registers to sane values */
 void svga_set_default_gfx_regs(void __iomem *regbase)
@@ -102,7 +102,7 @@ void svga_set_default_atc_regs(void __iomem *regbase)
 	vga_w(regbase, VGA_ATT_W, 0x00);
 
 	/* All standard ATC registers (AR00 - AR14) */
-	for (count = 0; count <= 0xF; count ++)
+	for (count = 0; count <= 0xF; count++)
 		svga_wattr(regbase, count, count);
 
 	svga_wattr(regbase, VGA_ATC_MODE, 0x01);
@@ -187,9 +187,7 @@ void svga_dump_var(struct fb_var_screeninfo *var, int node)
 }
 #endif  /*  0  */
 
-
 /* ------------------------------------------------------------------------- */
-
 
 void svga_settile(struct fb_info *info, struct fb_tilemap *map)
 {
@@ -229,7 +227,7 @@ void svga_tilecopy(struct fb_info *info, struct fb_tilearea *area)
 	    ((area->sy == area->dy) && (area->sx > area->dx))) {
 		src = fb + area->sx * colstride + area->sy * rowstride;
 		dst = fb + area->dx * colstride + area->dy * rowstride;
-	    } else {
+	} else {
 		src = fb + (area->sx + area->width - 1) * colstride
 			 + (area->sy + area->height - 1) * rowstride;
 		dst = fb + (area->dx + area->width - 1) * colstride
@@ -237,7 +235,7 @@ void svga_tilecopy(struct fb_info *info, struct fb_tilearea *area)
 
 		colstride = -colstride;
 		rowstride = -rowstride;
-	    }
+	}
 
 	for (dy = 0; dy < area->height; dy++) {
 		u16 __iomem *src2 = src;
@@ -284,19 +282,19 @@ void svga_tileblit(struct fb_info *info, struct fb_tileblit *blit)
 	u8 __iomem *fb = (u8 __iomem *)info->screen_base;
 	fb += blit->sx * colstride + blit->sy * rowstride;
 
-	i=0;
-	for (dy=0; dy < blit->height; dy ++) {
+	i = 0;
+	for (dy = 0; dy < blit->height; dy++) {
 		u8 __iomem *fb2 = fb;
-		for (dx = 0; dx < blit->width; dx ++) {
+		for (dx = 0; dx < blit->width; dx++) {
 			fb_writeb(blit->indices[i], fb2);
 			fb_writeb(attr, fb2 + 1);
 			fb2 += colstride;
-			i ++;
-			if (i == blit->length) return;
+			i++;
+			if (i == blit->length)
+				return;
 		}
 		fb += rowstride;
 	}
-
 }
 
 /* Set cursor in text (tileblit) mode */
@@ -308,15 +306,15 @@ void svga_tilecursor(void __iomem *regbase, struct fb_info *info, struct fb_tile
 		+ (cursor->sy + (info->var.yoffset / 16))
 		   * (info->var.xres_virtual / 8);
 
-	if (! cursor -> mode)
+	if (!cursor->mode)
 		return;
 
 	svga_wcrt_mask(regbase, 0x0A, 0x20, 0x20); /* disable cursor */
 
-	if (cursor -> shape == FB_TILE_CURSOR_NONE)
+	if (cursor->shape == FB_TILE_CURSOR_NONE)
 		return;
 
-	switch (cursor -> shape) {
+	switch (cursor->shape) {
 	case FB_TILE_CURSOR_UNDERLINE:
 		cs = 0x0d;
 		break;
@@ -374,7 +372,6 @@ EXPORT_SYMBOL(svga_get_caps);
 
 /* ------------------------------------------------------------------------- */
 
-
 /*
  *  Compute PLL settings (M, N, R)
  *  F_VCO = (F_BASE * M) / N
@@ -385,7 +382,7 @@ int svga_compute_pll(const struct svga_pll *pll, u32 f_wanted, u16 *m, u16 *n, u
 	u16 am, an, ar;
 	u32 f_vco, f_current, delta_current, delta_best;
 
-	pr_debug("fb%d: ideal frequency: %d kHz\n", node, (unsigned int) f_wanted);
+	pr_debug("fb%d: ideal frequency: %d kHz\n", node, (unsigned int)f_wanted);
 
 	ar = pll->r_max;
 	f_vco = f_wanted << ar;
@@ -416,7 +413,7 @@ int svga_compute_pll(const struct svga_pll *pll, u32 f_wanted, u16 *m, u16 *n, u
 
 	while ((am <= pll->m_max) && (an <= pll->n_max)) {
 		f_current = (pll->f_base * am) / an;
-		delta_current = abs_diff (f_current, f_vco);
+		delta_current = abs_diff(f_current, f_vco);
 
 		if (delta_current < delta_best) {
 			delta_best = delta_current;
@@ -424,58 +421,55 @@ int svga_compute_pll(const struct svga_pll *pll, u32 f_wanted, u16 *m, u16 *n, u
 			*n = an;
 		}
 
-		if (f_current <= f_vco) {
-			am ++;
-		} else {
-			an ++;
-		}
+		if (f_current <= f_vco)
+			am++;
+		else
+			an++;
 	}
 
 	f_current = (pll->f_base * *m) / *n;
-	pr_debug("fb%d: found frequency: %d kHz (VCO %d kHz)\n", node, (int) (f_current >> ar), (int) f_current);
-	pr_debug("fb%d: m = %d n = %d r = %d\n", node, (unsigned int) *m, (unsigned int) *n, (unsigned int) *r);
+	pr_debug("fb%d: found frequency: %d kHz (VCO %d kHz)\n", node, (int)(f_current >> ar), (int)f_current);
+	pr_debug("fb%d: m = %d n = %d r = %d\n", node, (unsigned int)*m, (unsigned int)*n, (unsigned int)*r);
 	return 0;
 }
 
-
 /* ------------------------------------------------------------------------- */
-
 
 /* Check CRT timing values */
 int svga_check_timings(const struct svga_timing_regs *tm, struct fb_var_screeninfo *var, int node)
 {
 	u32 value;
 
-	var->xres         = (var->xres+7)&~7;
-	var->left_margin  = (var->left_margin+7)&~7;
-	var->right_margin = (var->right_margin+7)&~7;
-	var->hsync_len    = (var->hsync_len+7)&~7;
+	var->xres         = (var->xres + 7) & ~7;
+	var->left_margin  = (var->left_margin + 7) & ~7;
+	var->right_margin = (var->right_margin + 7) & ~7;
+	var->hsync_len    = (var->hsync_len + 7) & ~7;
 
 	/* Check horizontal total */
 	value = var->xres + var->left_margin + var->right_margin + var->hsync_len;
-	if (((value / 8) - 5) >= svga_regset_size (tm->h_total_regs))
+	if (((value / 8) - 5) >= svga_regset_size(tm->h_total_regs))
 		return -EINVAL;
 
 	/* Check horizontal display and blank start */
 	value = var->xres;
-	if (((value / 8) - 1) >= svga_regset_size (tm->h_display_regs))
+	if (((value / 8) - 1) >= svga_regset_size(tm->h_display_regs))
 		return -EINVAL;
-	if (((value / 8) - 1) >= svga_regset_size (tm->h_blank_start_regs))
+	if (((value / 8) - 1) >= svga_regset_size(tm->h_blank_start_regs))
 		return -EINVAL;
 
 	/* Check horizontal sync start */
 	value = var->xres + var->right_margin;
-	if (((value / 8) - 1) >= svga_regset_size (tm->h_sync_start_regs))
+	if (((value / 8) - 1) >= svga_regset_size(tm->h_sync_start_regs))
 		return -EINVAL;
 
 	/* Check horizontal blank end (or length) */
 	value = var->left_margin + var->right_margin + var->hsync_len;
-	if ((value == 0) || ((value / 8) >= svga_regset_size (tm->h_blank_end_regs)))
+	if ((value == 0) || ((value / 8) >= svga_regset_size(tm->h_blank_end_regs)))
 		return -EINVAL;
 
 	/* Check horizontal sync end (or length) */
 	value = var->hsync_len;
-	if ((value == 0) || ((value / 8) >= svga_regset_size (tm->h_sync_end_regs)))
+	if ((value == 0) || ((value / 8) >= svga_regset_size(tm->h_sync_end_regs)))
 		return -EINVAL;
 
 	/* Check vertical total */
@@ -497,12 +491,12 @@ int svga_check_timings(const struct svga_timing_regs *tm, struct fb_var_screenin
 
 	/* Check vertical blank end (or length) */
 	value = var->upper_margin + var->lower_margin + var->vsync_len;
-	if ((value == 0) || (value >= svga_regset_size (tm->v_blank_end_regs)))
+	if ((value == 0) || (value >= svga_regset_size(tm->v_blank_end_regs)))
 		return -EINVAL;
 
 	/* Check vertical sync end  (or length) */
 	value = var->vsync_len;
-	if ((value == 0) || (value >= svga_regset_size (tm->v_sync_end_regs)))
+	if ((value == 0) || (value >= svga_regset_size(tm->v_sync_end_regs)))
 		return -EINVAL;
 
 	return 0;
@@ -596,9 +590,7 @@ void svga_set_timings(void __iomem *regbase, const struct svga_timing_regs *tm,
 	vga_w(regbase, VGA_MIS_W, regval);
 }
 
-
 /* ------------------------------------------------------------------------- */
-
 
 static inline int match_format(const struct svga_fb_format *frm,
 			       struct fb_var_screeninfo *var)
@@ -606,8 +598,7 @@ static inline int match_format(const struct svga_fb_format *frm,
 	int i = 0;
 	int stored = -EINVAL;
 
-	while (frm->bits_per_pixel != SVGA_FORMAT_END_VAL)
-	{
+	while (frm->bits_per_pixel != SVGA_FORMAT_END_VAL) {
 		if ((var->bits_per_pixel == frm->bits_per_pixel) &&
 		    (var->red.length     <= frm->red.length)     &&
 		    (var->green.length   <= frm->green.length)   &&
@@ -646,7 +637,6 @@ int svga_match_format(const struct svga_fb_format *frm,
 
 	return i;
 }
-
 
 EXPORT_SYMBOL(svga_wcrt_multi);
 EXPORT_SYMBOL(svga_wseq_multi);

@@ -262,6 +262,19 @@ struct snd_soc_dai_link_component snd_soc_dummy_dlc = {
 };
 EXPORT_SYMBOL_GPL(snd_soc_dummy_dlc);
 
+int snd_soc_dlc_is_dummy(struct snd_soc_dai_link_component *dlc)
+{
+	if (dlc == &snd_soc_dummy_dlc)
+		return true;
+
+	if ((dlc->name     && strcmp(dlc->name,     snd_soc_dummy_dlc.name)     == 0) ||
+	    (dlc->dai_name && strcmp(dlc->dai_name, snd_soc_dummy_dlc.dai_name) == 0))
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dlc_is_dummy);
+
 static int snd_soc_dummy_probe(struct faux_device *fdev)
 {
 	int ret;

@@ -14,9 +14,10 @@
 #include "xe_pci_test.h"
 #include "xe_pci_types.h"
 
-static void check_graphics_ip(const struct xe_graphics_desc *graphics)
+static void check_graphics_ip(struct kunit *test)
 {
-	struct kunit *test = kunit_get_current_test();
+	const struct xe_ip *param = test->param_value;
+	const struct xe_graphics_desc *graphics = param->desc;
 	u64 mask = graphics->hw_engine_mask;
 
 	/* RCS, CCS, and BCS engines are allowed on the graphics IP */
@@ -28,9 +29,10 @@ static void check_graphics_ip(const struct xe_graphics_desc *graphics)
 	KUNIT_ASSERT_EQ(test, mask, 0);
 }
 
-static void check_media_ip(const struct xe_media_desc *media)
+static void check_media_ip(struct kunit *test)
 {
-	struct kunit *test = kunit_get_current_test();
+	const struct xe_ip *param = test->param_value;
+	const struct xe_media_desc *media = param->desc;
 	u64 mask = media->hw_engine_mask;
 
 	/* VCS, VECS and GSCCS engines are allowed on the media IP */
@@ -42,19 +44,21 @@ static void check_media_ip(const struct xe_media_desc *media)
 	KUNIT_ASSERT_EQ(test, mask, 0);
 }
 
-static void xe_gmdid_graphics_ip(struct kunit *test)
+static void check_platform_gt_count(struct kunit *test)
 {
-	xe_call_for_each_graphics_ip(check_graphics_ip);
-}
+	const struct pci_device_id *pci = test->param_value;
+	const struct xe_device_desc *desc =
+		(const struct xe_device_desc *)pci->driver_data;
+	int max_gt = desc->max_gt_per_tile;
 
-static void xe_gmdid_media_ip(struct kunit *test)
-{
-	xe_call_for_each_media_ip(check_media_ip);
+	KUNIT_ASSERT_GT(test, max_gt, 0);
+	KUNIT_ASSERT_LE(test, max_gt, XE_MAX_GT_PER_TILE);
 }
 
 static struct kunit_case xe_pci_tests[] = {
-	KUNIT_CASE(xe_gmdid_graphics_ip),
-	KUNIT_CASE(xe_gmdid_media_ip),
+	KUNIT_CASE_PARAM(check_graphics_ip, xe_pci_graphics_ip_gen_param),
+	KUNIT_CASE_PARAM(check_media_ip, xe_pci_media_ip_gen_param),
+	KUNIT_CASE_PARAM(check_platform_gt_count, xe_pci_id_gen_param),
 	{}
 };
 

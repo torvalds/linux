@@ -659,7 +659,7 @@ exit:
 /* timer to simulate tx done interrupt */
 static void ene_tx_irqsim(struct timer_list *t)
 {
-	struct ene_device *dev = from_timer(dev, t, tx_sim_timer);
+	struct ene_device *dev = timer_container_of(dev, t, tx_sim_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->hw_lock, flags);

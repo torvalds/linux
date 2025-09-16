@@ -252,6 +252,7 @@ TRACE_EVENT(non_standard_event,
 		  __print_hex(__get_dynamic_array(buf), __entry->len))
 );
 
+#ifdef CONFIG_PCIEAER
 /*
  * PCIe AER Trace event
  *
@@ -337,6 +338,7 @@ TRACE_EVENT(aer_event,
 			__print_array(__entry->tlp_header, PCIE_STD_MAX_TLP_HEADERLOG, 4) :
 			"Not available")
 );
+#endif /* CONFIG_PCIEAER */
 
 /*
  * memory-failure recovery action result event

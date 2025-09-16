@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include <linux/audit.h>
 #include <linux/types.h>
-#include <crypto/hash.h>
+#include <crypto/sha2.h>
 
 #include "ipe.h"
 #include "eval.h"
@@ -17,10 +17,12 @@
 
 #define ACTSTR(x) ((x) == IPE_ACTION_ALLOW ? "ALLOW" : "DENY")
 
-#define IPE_AUDIT_HASH_ALG "sha256"
+#define IPE_AUDIT_HASH_ALG "sha256" /* keep in sync with audit_policy() */
 
 #define AUDIT_POLICY_LOAD_FMT "policy_name=\"%s\" policy_version=%hu.%hu.%hu "\
 			      "policy_digest=" IPE_AUDIT_HASH_ALG ":"
+#define AUDIT_POLICY_LOAD_NULL_FMT "policy_name=? policy_version=? "\
+				   "policy_digest=?"
 #define AUDIT_OLD_ACTIVE_POLICY_FMT "old_active_pol_name=\"%s\" "\
 				    "old_active_pol_version=%hu.%hu.%hu "\
 				    "old_policy_digest=" IPE_AUDIT_HASH_ALG ":"
@@ -180,37 +182,14 @@ static void audit_policy(struct audit_buffer *ab,
 			 const char *audit_format,
 			 const struct ipe_policy *const p)
 {
-	SHASH_DESC_ON_STACK(desc, tfm);
-	struct crypto_shash *tfm;
-	u8 *digest = NULL;
+	u8 digest[SHA256_DIGEST_SIZE];
 
-	tfm = crypto_alloc_shash(IPE_AUDIT_HASH_ALG, 0, 0);
-	if (IS_ERR(tfm))
-		return;
-
-	desc->tfm = tfm;
-
-	digest = kzalloc(crypto_shash_digestsize(tfm), GFP_KERNEL);
-	if (!digest)
-		goto out;
-
-	if (crypto_shash_init(desc))
-		goto out;
-
-	if (crypto_shash_update(desc, p->pkcs7, p->pkcs7len))
-		goto out;
-
-	if (crypto_shash_final(desc, digest))
-		goto out;
+	sha256(p->pkcs7, p->pkcs7len, digest);
 
 	audit_log_format(ab, audit_format, p->parsed->name,
 			 p->parsed->version.major, p->parsed->version.minor,
 			 p->parsed->version.rev);
-	audit_log_n_hex(ab, digest, crypto_shash_digestsize(tfm));
-
-out:
-	kfree(digest);
-	crypto_free_shash(tfm);
+	audit_log_n_hex(ab, digest, sizeof(digest));
 }
 
 /**
@@ -248,22 +227,29 @@ void ipe_audit_policy_activation(const struct ipe_policy *const op,
 }
 
 /**
- * ipe_audit_policy_load() - Audit a policy being loaded into the kernel.
- * @p: Supplies a pointer to the policy to audit.
+ * ipe_audit_policy_load() - Audit a policy loading event.
+ * @p: Supplies a pointer to the policy to audit or an error pointer.
  */
 void ipe_audit_policy_load(const struct ipe_policy *const p)
 {
 	struct audit_buffer *ab;
+	int err = 0;
 
 	ab = audit_log_start(audit_context(), GFP_KERNEL,
 			     AUDIT_IPE_POLICY_LOAD);
 	if (!ab)
 		return;
 
-	audit_policy(ab, AUDIT_POLICY_LOAD_FMT, p);
-	audit_log_format(ab, " auid=%u ses=%u lsm=ipe res=1",
+	if (!IS_ERR(p)) {
+		audit_policy(ab, AUDIT_POLICY_LOAD_FMT, p);
+	} else {
+		audit_log_format(ab, AUDIT_POLICY_LOAD_NULL_FMT);
+		err = PTR_ERR(p);
+	}
+
+	audit_log_format(ab, " auid=%u ses=%u lsm=ipe res=%d errno=%d",
 			 from_kuid(&init_user_ns, audit_get_loginuid(current)),
-			 audit_get_sessionid(current));
+			 audit_get_sessionid(current), !err, err);
 
 	audit_log_end(ab);
 }

@@ -29,13 +29,13 @@ you probably needn't concern yourself with pcmciautils.
 ====================== ===============  ========================================
         Program        Minimal version       Command to check the version
 ====================== ===============  ========================================
-GNU C                  5.1              gcc --version
+GNU C                  8.1              gcc --version
 Clang/LLVM (optional)  13.0.1           clang --version
 Rust (optional)        1.78.0           rustc --version
 bindgen (optional)     0.65.1           bindgen --version
 GNU make               4.0              make --version
 bash                   4.2              bash --version
-binutils               2.25             ld -v
+binutils               2.30             ld -v
 flex                   2.5.35           flex --version
 bison                  2.0              bison --version
 pahole                 1.16             pahole --version
@@ -43,7 +43,6 @@ util-linux             2.10o            mount --version
 kmod                   13               depmod -V
 e2fsprogs              1.41.4           e2fsck -V
 jfsutils               1.1.3            fsck.jfs -V
-reiserfsprogs          3.6.3            reiserfsck -V
 xfsprogs               2.6.0            xfs_db -V
 squashfs-tools         4.0              mksquashfs -version
 btrfs-progs            0.18             btrfs --version
@@ -116,7 +115,7 @@ Bash 4.2 or newer is needed.
 Binutils
 --------
 
-Binutils 2.25 or newer is needed to build the kernel.
+Binutils 2.30 or newer is needed to build the kernel.
 
 pkg-config
 ----------
@@ -261,14 +260,6 @@ The following utilities are available:
 - ``mkfs.jfs`` - create a JFS formatted partition.
 
 - other file system utilities are also available in this package.
-
-Reiserfsprogs
--------------
-
-The reiserfsprogs package should be used for reiserfs-3.6.x
-(Linux kernels 2.4.x). It is a combined package and contains working
-versions of ``mkreiserfs``, ``resize_reiserfs``, ``debugreiserfs`` and
-``reiserfsck``. These utils work on both i386 and alpha platforms.
 
 Xfsprogs
 --------
@@ -492,11 +483,6 @@ JFSutils
 --------
 
 - <https://jfs.sourceforge.net/>
-
-Reiserfsprogs
--------------
-
-- <https://git.kernel.org/pub/scm/linux/kernel/git/jeffm/reiserfsprogs.git/>
 
 Xfsprogs
 --------

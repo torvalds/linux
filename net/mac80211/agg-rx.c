@@ -143,7 +143,8 @@ EXPORT_SYMBOL(ieee80211_stop_rx_ba_session);
  */
 static void sta_rx_agg_session_timer_expired(struct timer_list *t)
 {
-	struct tid_ampdu_rx *tid_rx = from_timer(tid_rx, t, session_timer);
+	struct tid_ampdu_rx *tid_rx = timer_container_of(tid_rx, t,
+							 session_timer);
 	struct sta_info *sta = tid_rx->sta;
 	u8 tid = tid_rx->tid;
 	unsigned long timeout;
@@ -163,7 +164,8 @@ static void sta_rx_agg_session_timer_expired(struct timer_list *t)
 
 static void sta_rx_agg_reorder_timer_expired(struct timer_list *t)
 {
-	struct tid_ampdu_rx *tid_rx = from_timer(tid_rx, t, reorder_timer);
+	struct tid_ampdu_rx *tid_rx = timer_container_of(tid_rx, t,
+							 reorder_timer);
 
 	rcu_read_lock();
 	ieee80211_release_reorder_timeout(tid_rx->sta, tid_rx->tid);
@@ -297,7 +299,8 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 
 	if (!sta->sta.valid_links &&
 	    !sta->sta.deflink.ht_cap.ht_supported &&
-	    !sta->sta.deflink.he_cap.has_he) {
+	    !sta->sta.deflink.he_cap.has_he &&
+	    !sta->sta.deflink.s1g_cap.s1g) {
 		ht_dbg(sta->sdata,
 		       "STA %pM erroneously requests BA session on tid %d w/o HT\n",
 		       sta->sta.addr, tid);
@@ -325,7 +328,8 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	/* XXX: check own ht delayed BA capability?? */
 	if (((ba_policy != 1) &&
 	     (sta->sta.valid_links ||
-	      !(sta->sta.deflink.ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA))) ||
+	      !(sta->sta.deflink.ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA) ||
+	      !(sta->sta.deflink.s1g_cap.cap[3] & S1G_CAP3_HT_DELAYED_BA))) ||
 	    (buf_size > max_buf_size)) {
 		status = WLAN_STATUS_INVALID_QOS_PARAM;
 		ht_dbg_ratelimited(sta->sdata,

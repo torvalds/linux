@@ -396,13 +396,13 @@ static int nfsd_startup_net(struct net *net, const struct cred *cred)
 	if (ret)
 		goto out_filecache;
 
+#ifdef CONFIG_NFSD_V4_2_INTER_SSC
+	nfsd4_ssc_init_umount_work(nn);
+#endif
 	ret = nfs4_state_start_net(net);
 	if (ret)
 		goto out_reply_cache;
 
-#ifdef CONFIG_NFSD_V4_2_INTER_SSC
-	nfsd4_ssc_init_umount_work(nn);
-#endif
 	nn->nfsd_net_up = true;
 	return 0;
 
@@ -582,7 +582,7 @@ static int nfsd_get_default_max_blksize(void)
 	 */
 	target >>= 12;
 
-	ret = NFSSVC_MAXBLKSIZE;
+	ret = NFSSVC_DEFBLKSIZE;
 	while (ret > target && ret >= 8*1024*2)
 		ret /= 2;
 	return ret;

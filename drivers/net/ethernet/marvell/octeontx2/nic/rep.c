@@ -244,10 +244,10 @@ static int rvu_rep_devlink_port_register(struct rep_dev *rep)
 
 	if (!(rep->pcifunc & RVU_PFVF_FUNC_MASK)) {
 		attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
-		attrs.phys.port_number = rvu_get_pf(rep->pcifunc);
+		attrs.phys.port_number = rvu_get_pf(priv->pdev, rep->pcifunc);
 	} else {
 		attrs.flavour = DEVLINK_PORT_FLAVOUR_PCI_VF;
-		attrs.pci_vf.pf = rvu_get_pf(rep->pcifunc);
+		attrs.pci_vf.pf = rvu_get_pf(priv->pdev, rep->pcifunc);
 		attrs.pci_vf.vf = rep->pcifunc & RVU_PFVF_FUNC_MASK;
 	}
 
@@ -371,7 +371,8 @@ static void rvu_rep_get_stats(struct work_struct *work)
 	stats->rx_mcast_frames = rsp->rx.mcast;
 	stats->tx_bytes = rsp->tx.octs;
 	stats->tx_frames = rsp->tx.ucast + rsp->tx.bcast + rsp->tx.mcast;
-	stats->tx_drops = rsp->tx.drop;
+	stats->tx_drops = rsp->tx.drop +
+			  (unsigned long)atomic_long_read(&stats->tx_discards);
 exit:
 	mutex_unlock(&priv->mbox.lock);
 }
@@ -418,6 +419,16 @@ static netdev_tx_t rvu_rep_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct otx2_nic *pf = rep->mdev;
 	struct otx2_snd_queue *sq;
 	struct netdev_queue *txq;
+	struct rep_stats *stats;
+
+	/* Check for minimum and maximum packet length */
+	if (skb->len <= ETH_HLEN ||
+	    (!skb_shinfo(skb)->gso_size && skb->len > pf->tx_max_pktlen)) {
+		stats = &rep->stats;
+		atomic_long_inc(&stats->tx_discards);
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
 
 	sq = &pf->qset.sq[rep->rep_id];
 	txq = netdev_get_tx_queue(dev, 0);
@@ -672,7 +683,8 @@ int rvu_rep_create(struct otx2_nic *priv, struct netlink_ext_ack *extack)
 		rep->pcifunc = pcifunc;
 
 		snprintf(ndev->name, sizeof(ndev->name), "Rpf%dvf%d",
-			 rvu_get_pf(pcifunc), (pcifunc & RVU_PFVF_FUNC_MASK));
+			 rvu_get_pf(priv->pdev, pcifunc),
+			 (pcifunc & RVU_PFVF_FUNC_MASK));
 
 		ndev->hw_features = (NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
 			       NETIF_F_IPV6_CSUM | NETIF_F_RXHASH |
@@ -765,7 +777,7 @@ static int rvu_rep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return err;
 	}
 
-	err = pci_request_regions(pdev, DRV_NAME);
+	err = pcim_request_all_regions(pdev, DRV_NAME);
 	if (err) {
 		dev_err(dev, "PCI request regions failed 0x%x\n", err);
 		return err;
@@ -774,7 +786,7 @@ static int rvu_rep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
 	if (err) {
 		dev_err(dev, "DMA mask config failed, abort\n");
-		goto err_release_regions;
+		goto err_set_drv_data;
 	}
 
 	pci_set_master(pdev);
@@ -782,7 +794,7 @@ static int rvu_rep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		err = -ENOMEM;
-		goto err_release_regions;
+		goto err_set_drv_data;
 	}
 
 	pci_set_drvdata(pdev, priv);
@@ -799,7 +811,7 @@ static int rvu_rep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	err = otx2_init_rsrc(pdev, priv);
 	if (err)
-		goto err_release_regions;
+		goto err_set_drv_data;
 
 	priv->iommu_domain = iommu_get_domain_for_dev(dev);
 
@@ -822,9 +834,8 @@ err_detach_rsrc:
 	otx2_disable_mbox_intr(priv);
 	otx2_pfaf_mbox_destroy(priv);
 	pci_free_irq_vectors(pdev);
-err_release_regions:
+err_set_drv_data:
 	pci_set_drvdata(pdev, NULL);
-	pci_release_regions(pdev);
 	return err;
 }
 
@@ -844,7 +855,6 @@ static void rvu_rep_remove(struct pci_dev *pdev)
 	otx2_pfaf_mbox_destroy(priv);
 	pci_free_irq_vectors(priv->pdev);
 	pci_set_drvdata(pdev, NULL);
-	pci_release_regions(pdev);
 }
 
 static struct pci_driver rvu_rep_driver = {

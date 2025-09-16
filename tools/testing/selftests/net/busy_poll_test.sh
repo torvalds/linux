@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
-source net_helper.sh
+source lib.sh
 
 NSIM_SV_ID=$((256 + RANDOM % 256))
 NSIM_SV_SYS=/sys/bus/netdevsim/devices/netdevsim$NSIM_SV_ID

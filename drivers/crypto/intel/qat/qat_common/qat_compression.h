@@ -20,7 +20,6 @@ struct qat_compression_instance {
 	atomic_t refctr;
 	struct qat_instance_backlog backlog;
 	struct adf_dc_data *dc_data;
-	void (*build_deflate_ctx)(void *ctx);
 };
 
 static inline bool adf_hw_dev_has_compression(struct adf_accel_dev *accel_dev)

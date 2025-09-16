@@ -1652,7 +1652,7 @@ regs_fail:
 
 static void tsi108_timed_checker(struct timer_list *t)
 {
-	struct tsi108_prv_data *data = from_timer(data, t, timer);
+	struct tsi108_prv_data *data = timer_container_of(data, t, timer);
 	struct net_device *dev = data->dev;
 
 	tsi108_check_phy(dev);

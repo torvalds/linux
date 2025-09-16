@@ -427,7 +427,7 @@ static int igmpv3_sendpack(struct sk_buff *skb)
 
 	pig->csum = ip_compute_csum(igmp_hdr(skb), igmplen);
 
-	return ip_local_out(dev_net(skb_dst(skb)->dev), skb->sk, skb);
+	return ip_local_out(skb_dst_dev_net(skb), skb->sk, skb);
 }
 
 static int grec_size(struct ip_mc_list *pmc, int type, int gdel, int sdel)
@@ -801,7 +801,7 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 
 static void igmp_gq_timer_expire(struct timer_list *t)
 {
-	struct in_device *in_dev = from_timer(in_dev, t, mr_gq_timer);
+	struct in_device *in_dev = timer_container_of(in_dev, t, mr_gq_timer);
 
 	in_dev->mr_gq_running = 0;
 	igmpv3_send_report(in_dev, NULL);
@@ -810,7 +810,7 @@ static void igmp_gq_timer_expire(struct timer_list *t)
 
 static void igmp_ifc_timer_expire(struct timer_list *t)
 {
-	struct in_device *in_dev = from_timer(in_dev, t, mr_ifc_timer);
+	struct in_device *in_dev = timer_container_of(in_dev, t, mr_ifc_timer);
 	u32 mr_ifc_count;
 
 	igmpv3_send_cr(in_dev);
@@ -840,7 +840,7 @@ static void igmp_ifc_event(struct in_device *in_dev)
 
 static void igmp_timer_expire(struct timer_list *t)
 {
-	struct ip_mc_list *im = from_timer(im, t, timer);
+	struct ip_mc_list *im = timer_container_of(im, t, timer);
 	struct in_device *in_dev = im->interface;
 
 	spin_lock(&im->lock);

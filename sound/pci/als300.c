@@ -546,7 +546,7 @@ static int snd_als300_new_pcm(struct snd_als300 *chip)
 	if (err < 0)
 		return err;
 	pcm->private_data = chip;
-	strcpy(pcm->name, "ALS300");
+	strscpy(pcm->name, "ALS300");
 	chip->pcm = pcm;
 
 	/* set operators */
@@ -617,7 +617,7 @@ static int snd_als300_create(struct snd_card *card,
 	chip->chip_type = chip_type;
 	spin_lock_init(&chip->reg_lock);
 
-	err = pci_request_regions(pci, "ALS300");
+	err = pcim_request_all_regions(pci, "ALS300");
 	if (err < 0)
 		return err;
 
@@ -705,7 +705,7 @@ static int snd_als300_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto error;
 
-	strcpy(card->driver, "ALS300");
+	strscpy(card->driver, "ALS300");
 	if (chip->chip_type == DEVICE_ALS300_PLUS)
 		/* don't know much about ALS300+ yet
 		 * print revision number for now */

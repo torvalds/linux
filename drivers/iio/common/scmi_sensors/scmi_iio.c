@@ -351,12 +351,11 @@ static int scmi_iio_read_raw(struct iio_dev *iio_dev,
 		ret = scmi_iio_get_odr_val(iio_dev, val, val2);
 		return ret ? ret : IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(iio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(iio_dev))
+			return -EBUSY;
 
 		ret = scmi_iio_read_channel_data(iio_dev, ch, val, val2);
-		iio_device_release_direct_mode(iio_dev);
+		iio_device_release_direct(iio_dev);
 		return ret;
 	default:
 		return -EINVAL;
@@ -418,7 +417,7 @@ static const struct iio_chan_spec_ext_info scmi_iio_ext_info[] = {
 		.read = scmi_iio_get_raw_available,
 		.shared = IIO_SHARED_BY_TYPE,
 	},
-	{},
+	{ }
 };
 
 static void scmi_iio_set_timestamp_channel(struct iio_chan_spec *iio_chan,
@@ -705,7 +704,7 @@ static int scmi_iio_dev_probe(struct scmi_device *sdev)
 
 static const struct scmi_device_id scmi_id_table[] = {
 	{ SCMI_PROTOCOL_SENSOR, "iiodev" },
-	{},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(scmi, scmi_id_table);

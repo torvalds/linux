@@ -192,14 +192,14 @@ rtw_cfg80211_default_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	},
 };
 
-static int rtw_ieee80211_channel_to_frequency(int chan, int band)
+int rtw_ieee80211_channel_to_frequency(int chan)
 {
-	if (band == NL80211_BAND_2GHZ) {
-		if (chan == 14)
-			return 2484;
-		else if (chan < 14)
-			return 2407 + chan * 5;
-	}
+	/* NL80211_BAND_2GHZ */
+	if (chan == 14)
+		return 2484;
+
+	if (chan < 14)
+		return 2407 + chan * 5;
 
 	return 0; /* not supported */
 }
@@ -266,7 +266,7 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 	/* spin_unlock_bh(&pwdev_priv->scan_req_lock); */
 
 	channel = pnetwork->network.configuration.ds_config;
-	freq = rtw_ieee80211_channel_to_frequency(channel, NL80211_BAND_2GHZ);
+	freq = rtw_ieee80211_channel_to_frequency(channel);
 
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
@@ -340,7 +340,7 @@ int rtw_cfg80211_check_bss(struct adapter *padapter)
 	if (!(pnetwork) || !(padapter->rtw_wdev))
 		return false;
 
-	freq = rtw_ieee80211_channel_to_frequency(pnetwork->configuration.ds_config, NL80211_BAND_2GHZ);
+	freq = rtw_ieee80211_channel_to_frequency(pnetwork->configuration.ds_config);
 
 	notify_channel = ieee80211_get_channel(padapter->rtw_wdev->wiphy, freq);
 	bss = cfg80211_get_bss(padapter->rtw_wdev->wiphy, notify_channel,
@@ -440,7 +440,7 @@ check_bss:
 		u16 channel = cur_network->network.configuration.ds_config;
 		struct cfg80211_roam_info roam_info = {};
 
-		freq = rtw_ieee80211_channel_to_frequency(channel, NL80211_BAND_2GHZ);
+		freq = rtw_ieee80211_channel_to_frequency(channel);
 
 		notify_channel = ieee80211_get_channel(wiphy, freq);
 
@@ -1298,7 +1298,8 @@ exit:
 	return ret;
 }
 
-static int cfg80211_rtw_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+static int cfg80211_rtw_set_wiphy_params(struct wiphy *wiphy, int radio_idx,
+					 u32 changed)
 {
 	return 0;
 }
@@ -1795,7 +1796,7 @@ static int cfg80211_rtw_disconnect(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 static int cfg80211_rtw_set_txpower(struct wiphy *wiphy,
-				    struct wireless_dev *wdev,
+				    struct wireless_dev *wdev, int radio_idx,
 				    enum nl80211_tx_power_setting type, int mbm)
 {
 	return 0;
@@ -1803,6 +1804,7 @@ static int cfg80211_rtw_set_txpower(struct wiphy *wiphy,
 
 static int cfg80211_rtw_get_txpower(struct wiphy *wiphy,
 				    struct wireless_dev *wdev,
+				    int radio_idx,
 				    unsigned int link_id, int *dbm)
 {
 	*dbm = (12);
@@ -1976,7 +1978,7 @@ static int cfg80211_rtw_get_channel(struct wiphy *wiphy, struct wireless_dev *wd
 	if (!channel)
 		return -ENODATA;
 
-	freq = rtw_ieee80211_channel_to_frequency(channel, NL80211_BAND_2GHZ);
+	freq = rtw_ieee80211_channel_to_frequency(channel);
 
 	chan = ieee80211_get_channel(adapter->rtw_wdev->wiphy, freq);
 
@@ -2456,7 +2458,7 @@ void rtw_cfg80211_rx_action(struct adapter *adapter, u8 *frame, uint frame_len, 
 
 	rtw_action_frame_parse(frame, frame_len, &category, &action);
 
-	freq = rtw_ieee80211_channel_to_frequency(channel, NL80211_BAND_2GHZ);
+	freq = rtw_ieee80211_channel_to_frequency(channel);
 
 	rtw_cfg80211_rx_mgmt(adapter, freq, 0, frame, frame_len, GFP_ATOMIC);
 }

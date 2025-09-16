@@ -113,17 +113,6 @@ mkdir -p install/modules/
 INSTALL_MOD_PATH=install/modules/ make modules_install
 
 if [[ ${DEBIAN_ARCH} = "arm64" ]]; then
-    make Image.lzma
-    mkimage \
-        -f auto \
-        -A arm \
-        -O linux \
-        -d arch/arm64/boot/Image.lzma \
-        -C lzma\
-        -b arch/arm64/boot/dts/qcom/sdm845-cheza-r3.dtb \
-        /kernel/cheza-kernel
-    KERNEL_IMAGE_NAME+=" cheza-kernel"
-
     # Make a gzipped copy of the Image for db410c.
     gzip -k /kernel/Image
     KERNEL_IMAGE_NAME+=" Image.gz"
@@ -148,13 +137,13 @@ if [[ "$UPLOAD_TO_MINIO" = "1" ]]; then
 
     ls -l "${S3_JWT_FILE}"
     for f in $FILES_TO_UPLOAD; do
-        s3_upload /kernel/$f \
-                https://${PIPELINE_ARTIFACTS_BASE}/${DEBIAN_ARCH}/
+        ci-fairy s3cp --token-file "${S3_JWT_FILE}" /kernel/$f \
+                https://${PIPELINE_ARTIFACTS_BASE}/${DEBIAN_ARCH}/$f
     done
 
     S3_ARTIFACT_NAME="kernel-files.tar.zst"
     tar --zstd -cf $S3_ARTIFACT_NAME install
-    s3_upload ${S3_ARTIFACT_NAME} https://${PIPELINE_ARTIFACTS_BASE}/${DEBIAN_ARCH}/
+    ci-fairy s3cp --token-file "${S3_JWT_FILE}" ${S3_ARTIFACT_NAME} https://${PIPELINE_ARTIFACTS_BASE}/${DEBIAN_ARCH}/${S3_ARTIFACT_NAME}
 
     echo "Download vmlinux.xz from https://${PIPELINE_ARTIFACTS_BASE}/${DEBIAN_ARCH}/vmlinux.xz"
 fi

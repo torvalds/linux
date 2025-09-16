@@ -27,6 +27,10 @@ properties:
           - mediatek,mt8195-mdp3-aal
       - items:
           - enum:
+              - mediatek,mt8188-mdp3-aal
+          - const: mediatek,mt8195-mdp3-aal
+      - items:
+          - enum:
               - mediatek,mt2712-disp-aal
               - mediatek,mt6795-disp-aal
           - const: mediatek,mt8173-disp-aal

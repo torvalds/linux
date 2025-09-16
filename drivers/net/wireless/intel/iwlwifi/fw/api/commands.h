@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2022, 2024 Intel Corporation
+ * Copyright (C) 2018-2022, 2024-2025 Intel Corporation
  */
 #ifndef __iwl_fw_api_commands_h__
 #define __iwl_fw_api_commands_h__
@@ -145,8 +145,8 @@ enum iwl_legacy_cmds {
 	REMOVE_STA = 0x19,
 
 	/**
-	 * @TX_CMD: uses &struct iwl_tx_cmd or &struct iwl_tx_cmd_gen2 or
-	 *	&struct iwl_tx_cmd_gen3,
+	 * @TX_CMD: uses &struct iwl_tx_cmd_v6 or &struct iwl_tx_cmd_v9 or
+	 *	&struct iwl_tx_cmd,
 	 *	response in &struct iwl_tx_resp or
 	 *	&struct iwl_tx_resp_v3
 	 */
@@ -573,9 +573,8 @@ enum iwl_legacy_cmds {
 	WOWLAN_KEK_KCK_MATERIAL = 0xe4,
 
 	/**
-	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status_v6,
-	 *	&struct iwl_wowlan_status_v7, &struct iwl_wowlan_status_v9 or
-	 *	&struct iwl_wowlan_status_v12
+	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status_v6 or
+	 *	&struct iwl_wowlan_status_v7
 	 */
 	WOWLAN_GET_STATUSES = 0xe5,
 

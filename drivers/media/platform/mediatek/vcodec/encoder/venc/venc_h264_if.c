@@ -515,7 +515,7 @@ static int h264_encode_frame(struct venc_h264_inst *inst,
 	struct venc_frame_info frame_info;
 	struct mtk_vcodec_enc_ctx *ctx = inst->ctx;
 
-	mtk_venc_debug(ctx, "frm_cnt = %d\n ", inst->frm_cnt);
+	mtk_venc_debug(ctx, "frm_cnt = %d\n", inst->frm_cnt);
 
 	if (MTK_ENC_IOVA_IS_34BIT(ctx)) {
 		gop_size = inst->vsi_34->config.gop_size;

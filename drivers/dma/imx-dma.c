@@ -337,7 +337,8 @@ static void imxdma_disable_hw(struct imxdma_channel *imxdmac)
 
 static void imxdma_watchdog(struct timer_list *t)
 {
-	struct imxdma_channel *imxdmac = from_timer(imxdmac, t, watchdog);
+	struct imxdma_channel *imxdmac = timer_container_of(imxdmac, t,
+							    watchdog);
 	struct imxdma_engine *imxdma = imxdmac->imxdma;
 	int channel = imxdmac->channel;
 

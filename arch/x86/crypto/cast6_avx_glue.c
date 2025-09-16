@@ -14,7 +14,6 @@
 #include <linux/err.h>
 #include <crypto/algapi.h>
 #include <crypto/cast6.h>
-#include <crypto/internal/simd.h>
 
 #include "ecb_cbc_helpers.h"
 
@@ -64,10 +63,9 @@ static int cbc_decrypt(struct skcipher_request *req)
 
 static struct skcipher_alg cast6_algs[] = {
 	{
-		.base.cra_name		= "__ecb(cast6)",
-		.base.cra_driver_name	= "__ecb-cast6-avx",
+		.base.cra_name		= "ecb(cast6)",
+		.base.cra_driver_name	= "ecb-cast6-avx",
 		.base.cra_priority	= 200,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
 		.base.cra_blocksize	= CAST6_BLOCK_SIZE,
 		.base.cra_ctxsize	= sizeof(struct cast6_ctx),
 		.base.cra_module	= THIS_MODULE,
@@ -77,10 +75,9 @@ static struct skcipher_alg cast6_algs[] = {
 		.encrypt		= ecb_encrypt,
 		.decrypt		= ecb_decrypt,
 	}, {
-		.base.cra_name		= "__cbc(cast6)",
-		.base.cra_driver_name	= "__cbc-cast6-avx",
+		.base.cra_name		= "cbc(cast6)",
+		.base.cra_driver_name	= "cbc-cast6-avx",
 		.base.cra_priority	= 200,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
 		.base.cra_blocksize	= CAST6_BLOCK_SIZE,
 		.base.cra_ctxsize	= sizeof(struct cast6_ctx),
 		.base.cra_module	= THIS_MODULE,
@@ -93,8 +90,6 @@ static struct skcipher_alg cast6_algs[] = {
 	},
 };
 
-static struct simd_skcipher_alg *cast6_simd_algs[ARRAY_SIZE(cast6_algs)];
-
 static int __init cast6_init(void)
 {
 	const char *feature_name;
@@ -105,15 +100,12 @@ static int __init cast6_init(void)
 		return -ENODEV;
 	}
 
-	return simd_register_skciphers_compat(cast6_algs,
-					      ARRAY_SIZE(cast6_algs),
-					      cast6_simd_algs);
+	return crypto_register_skciphers(cast6_algs, ARRAY_SIZE(cast6_algs));
 }
 
 static void __exit cast6_exit(void)
 {
-	simd_unregister_skciphers(cast6_algs, ARRAY_SIZE(cast6_algs),
-				  cast6_simd_algs);
+	crypto_unregister_skciphers(cast6_algs, ARRAY_SIZE(cast6_algs));
 }
 
 module_init(cast6_init);

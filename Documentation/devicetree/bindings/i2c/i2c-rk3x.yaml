@@ -37,6 +37,7 @@ properties:
               - rockchip,px30-i2c
               - rockchip,rk3308-i2c
               - rockchip,rk3328-i2c
+              - rockchip,rk3528-i2c
               - rockchip,rk3562-i2c
               - rockchip,rk3568-i2c
               - rockchip,rk3576-i2c
@@ -103,6 +104,9 @@ properties:
       Number of nanoseconds the SDA signal takes to fall
       (t(f) in the I2C specification). If not specified we will use the SCL
       value since they are the same in nearly all cases.
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible

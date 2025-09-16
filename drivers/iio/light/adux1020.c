@@ -23,7 +23,6 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
 
-#define ADUX1020_REGMAP_NAME		"adux1020_regmap"
 #define ADUX1020_DRV_NAME		"adux1020"
 
 /* System registers */
@@ -114,7 +113,7 @@ static const struct adux1020_mode_data adux1020_modes[] = {
 };
 
 static const struct regmap_config adux1020_regmap_config = {
-	.name = ADUX1020_REGMAP_NAME,
+	.name = "adux1020_regmap",
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = 0x6F,
@@ -820,7 +819,7 @@ static int adux1020_probe(struct i2c_client *client)
 
 static const struct i2c_device_id adux1020_id[] = {
 	{ "adux1020" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adux1020_id);
 

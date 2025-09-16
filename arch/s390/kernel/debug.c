@@ -251,7 +251,7 @@ static debug_info_t *debug_info_alloc(const char *name, int pages_per_area,
 	rc->level	   = level;
 	rc->buf_size	   = buf_size;
 	rc->entry_size	   = sizeof(debug_entry_t) + buf_size;
-	strscpy(rc->name, name, sizeof(rc->name));
+	strscpy(rc->name, name);
 	memset(rc->views, 0, DEBUG_MAX_VIEWS * sizeof(struct debug_view *));
 	memset(rc->debugfs_entries, 0, DEBUG_MAX_VIEWS * sizeof(struct dentry *));
 	refcount_set(&(rc->ref_count), 0);
@@ -1677,7 +1677,7 @@ EXPORT_SYMBOL(debug_dflt_header_fn);
 
 /*
  * prints debug data sprintf-formatted:
- * debug_sprinf_event/exception calls must be used together with this view
+ * debug_sprintf_event/exception calls must be used together with this view
  */
 
 #define DEBUG_SPRINTF_MAX_ARGS 10

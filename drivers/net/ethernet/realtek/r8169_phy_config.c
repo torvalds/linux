@@ -50,6 +50,15 @@ static void r8168g_phy_param(struct phy_device *phydev, u16 parm,
 	phy_restore_page(phydev, oldpage, 0);
 }
 
+static void rtl8125_phy_param(struct phy_device *phydev, u16 parm,
+			      u16 mask, u16 val)
+{
+	phy_lock_mdio_bus(phydev);
+	__phy_write_mmd(phydev, MDIO_MMD_VEND2, 0xb87c, parm);
+	__phy_modify_mmd(phydev, MDIO_MMD_VEND2, 0xb87e, mask, val);
+	phy_unlock_mdio_bus(phydev);
+}
+
 struct phy_reg {
 	u16 reg;
 	u16 val;
@@ -1004,12 +1013,8 @@ static void rtl8125a_2_hw_phy_config(struct rtl8169_private *tp,
 	phy_write_paged(phydev, 0xac5, 0x16, 0x01ff);
 	phy_modify_paged(phydev, 0xac8, 0x15, 0x00f0, 0x0030);
 
-	phy_write(phydev, 0x1f, 0x0b87);
-	phy_write(phydev, 0x16, 0x80a2);
-	phy_write(phydev, 0x17, 0x0153);
-	phy_write(phydev, 0x16, 0x809c);
-	phy_write(phydev, 0x17, 0x0153);
-	phy_write(phydev, 0x1f, 0x0000);
+	rtl8125_phy_param(phydev, 0x80a2, 0xffff, 0x0153);
+	rtl8125_phy_param(phydev, 0x809c, 0xffff, 0x0153);
 
 	phy_write(phydev, 0x1f, 0x0a43);
 	phy_write(phydev, 0x13, 0x81B3);
@@ -1061,14 +1066,9 @@ static void rtl8125b_hw_phy_config(struct rtl8169_private *tp,
 	phy_modify_paged(phydev, 0xac4, 0x13, 0x00f0, 0x0090);
 	phy_modify_paged(phydev, 0xad3, 0x10, 0x0003, 0x0001);
 
-	phy_write(phydev, 0x1f, 0x0b87);
-	phy_write(phydev, 0x16, 0x80f5);
-	phy_write(phydev, 0x17, 0x760e);
-	phy_write(phydev, 0x16, 0x8107);
-	phy_write(phydev, 0x17, 0x360e);
-	phy_write(phydev, 0x16, 0x8551);
-	phy_modify(phydev, 0x17, 0xff00, 0x0800);
-	phy_write(phydev, 0x1f, 0x0000);
+	rtl8125_phy_param(phydev, 0x80f5, 0xffff, 0x760e);
+	rtl8125_phy_param(phydev, 0x8107, 0xffff, 0x360e);
+	rtl8125_phy_param(phydev, 0x8551, 0xff00, 0x0800);
 
 	phy_modify_paged(phydev, 0xbf0, 0x10, 0xe000, 0xa000);
 	phy_modify_paged(phydev, 0xbf4, 0x13, 0x0f00, 0x0300);
@@ -1110,12 +1110,8 @@ static void rtl8125bp_hw_phy_config(struct rtl8169_private *tp,
 
 	r8168g_phy_param(phydev, 0x8010, 0x0800, 0x0000);
 
-	phy_write(phydev, 0x1f, 0x0b87);
-	phy_write(phydev, 0x16, 0x8088);
-	phy_modify(phydev, 0x17, 0xff00, 0x9000);
-	phy_write(phydev, 0x16, 0x808f);
-	phy_modify(phydev, 0x17, 0xff00, 0x9000);
-	phy_write(phydev, 0x1f, 0x0000);
+	rtl8125_phy_param(phydev, 0x8088, 0xff00, 0x9000);
+	rtl8125_phy_param(phydev, 0x808f, 0xff00, 0x9000);
 
 	r8168g_phy_param(phydev, 0x8174, 0x2000, 0x1800);
 
@@ -1129,6 +1125,171 @@ static void rtl8126a_hw_phy_config(struct rtl8169_private *tp,
 {
 	r8169_apply_firmware(tp);
 	rtl8168g_enable_gphy_10m(phydev);
+	rtl8125_legacy_force_mode(phydev);
+	rtl8168g_disable_aldps(phydev);
+	rtl8125_common_config_eee_phy(phydev);
+}
+
+static void rtl8127a_1_hw_phy_config(struct rtl8169_private *tp,
+				     struct phy_device *phydev)
+{
+	r8169_apply_firmware(tp);
+	rtl8168g_enable_gphy_10m(phydev);
+
+	r8168g_phy_param(phydev, 0x8415, 0xff00, 0x9300);
+	r8168g_phy_param(phydev, 0x81a3, 0xff00, 0x0f00);
+	r8168g_phy_param(phydev, 0x81ae, 0xff00, 0x0f00);
+	r8168g_phy_param(phydev, 0x81b9, 0xff00, 0xb900);
+	rtl8125_phy_param(phydev, 0x83b0, 0x0e00, 0x0000);
+	rtl8125_phy_param(phydev, 0x83C5, 0x0e00, 0x0000);
+	rtl8125_phy_param(phydev, 0x83da, 0x0e00, 0x0000);
+	rtl8125_phy_param(phydev, 0x83ef, 0x0e00, 0x0000);
+	phy_modify_paged(phydev, 0x0bf3, 0x14, 0x01f0, 0x0160);
+	phy_modify_paged(phydev, 0x0bf3, 0x15, 0x001f, 0x0014);
+	phy_modify_paged(phydev, 0x0bf2, 0x14, 0x6000, 0x0000);
+	phy_modify_paged(phydev, 0x0bf2, 0x16, 0xc000, 0x0000);
+	phy_modify_paged(phydev, 0x0bf2, 0x14, 0x1fff, 0x0187);
+	phy_modify_paged(phydev, 0x0bf2, 0x15, 0x003f, 0x0003);
+
+	r8168g_phy_param(phydev, 0x8173, 0xffff, 0x8620);
+	r8168g_phy_param(phydev, 0x8175, 0xffff, 0x8671);
+	r8168g_phy_param(phydev, 0x817c, 0x0000, 0x2000);
+	r8168g_phy_param(phydev, 0x8187, 0x0000, 0x2000);
+	r8168g_phy_param(phydev, 0x8192, 0x0000, 0x2000);
+	r8168g_phy_param(phydev, 0x819d, 0x0000, 0x2000);
+	r8168g_phy_param(phydev, 0x81a8, 0x2000, 0x0000);
+	r8168g_phy_param(phydev, 0x81b3, 0x2000, 0x0000);
+	r8168g_phy_param(phydev, 0x81be, 0x0000, 0x2000);
+	r8168g_phy_param(phydev, 0x817d, 0xff00, 0xa600);
+	r8168g_phy_param(phydev, 0x8188, 0xff00, 0xa600);
+	r8168g_phy_param(phydev, 0x8193, 0xff00, 0xa600);
+	r8168g_phy_param(phydev, 0x819e, 0xff00, 0xa600);
+	r8168g_phy_param(phydev, 0x81a9, 0xff00, 0x1400);
+	r8168g_phy_param(phydev, 0x81b4, 0xff00, 0x1400);
+	r8168g_phy_param(phydev, 0x81bf, 0xff00, 0xa600);
+
+	phy_modify_paged(phydev, 0x0aea, 0x15, 0x0028, 0x0000);
+
+	rtl8125_phy_param(phydev, 0x84f0, 0xffff, 0x201c);
+	rtl8125_phy_param(phydev, 0x84f2, 0xffff, 0x3117);
+
+	phy_write_paged(phydev, 0x0aec, 0x13, 0x0000);
+	phy_write_paged(phydev, 0x0ae2, 0x10, 0xffff);
+	phy_write_paged(phydev, 0x0aec, 0x17, 0xffff);
+	phy_write_paged(phydev, 0x0aed, 0x11, 0xffff);
+	phy_write_paged(phydev, 0x0aec, 0x14, 0x0000);
+	phy_modify_paged(phydev, 0x0aed, 0x10, 0x0001, 0x0000);
+	phy_write_paged(phydev, 0x0adb, 0x14, 0x0150);
+	rtl8125_phy_param(phydev, 0x8197, 0xff00, 0x5000);
+	rtl8125_phy_param(phydev, 0x8231, 0xff00, 0x5000);
+	rtl8125_phy_param(phydev, 0x82cb, 0xff00, 0x5000);
+	rtl8125_phy_param(phydev, 0x82cd, 0xff00, 0x5700);
+	rtl8125_phy_param(phydev, 0x8233, 0xff00, 0x5700);
+	rtl8125_phy_param(phydev, 0x8199, 0xff00, 0x5700);
+
+	rtl8125_phy_param(phydev, 0x815a, 0xffff, 0x0150);
+	rtl8125_phy_param(phydev, 0x81f4, 0xffff, 0x0150);
+	rtl8125_phy_param(phydev, 0x828e, 0xffff, 0x0150);
+	rtl8125_phy_param(phydev, 0x81b1, 0xffff, 0x0000);
+	rtl8125_phy_param(phydev, 0x824b, 0xffff, 0x0000);
+	rtl8125_phy_param(phydev, 0x82e5, 0xffff, 0x0000);
+
+	rtl8125_phy_param(phydev, 0x84f7, 0xff00, 0x2800);
+	phy_modify_paged(phydev, 0x0aec, 0x11, 0x0000, 0x1000);
+	rtl8125_phy_param(phydev, 0x81b3, 0xff00, 0xad00);
+	rtl8125_phy_param(phydev, 0x824d, 0xff00, 0xad00);
+	rtl8125_phy_param(phydev, 0x82e7, 0xff00, 0xad00);
+	phy_modify_paged(phydev, 0x0ae4, 0x17, 0x000f, 0x0001);
+	rtl8125_phy_param(phydev, 0x82ce, 0xf000, 0x4000);
+
+	rtl8125_phy_param(phydev, 0x84ac, 0xffff, 0x0000);
+	rtl8125_phy_param(phydev, 0x84ae, 0xffff, 0x0000);
+	rtl8125_phy_param(phydev, 0x84b0, 0xffff, 0xf818);
+	rtl8125_phy_param(phydev, 0x84b2, 0xff00, 0x6000);
+
+	rtl8125_phy_param(phydev, 0x8ffc, 0xffff, 0x6008);
+	rtl8125_phy_param(phydev, 0x8ffe, 0xffff, 0xf450);
+
+	rtl8125_phy_param(phydev, 0x8015, 0x0000, 0x0200);
+	rtl8125_phy_param(phydev, 0x8016, 0x0800, 0x0000);
+	rtl8125_phy_param(phydev, 0x8fe6, 0xff00, 0x0800);
+	rtl8125_phy_param(phydev, 0x8fe4, 0xffff, 0x2114);
+
+	rtl8125_phy_param(phydev, 0x8647, 0xffff, 0xa7b1);
+	rtl8125_phy_param(phydev, 0x8649, 0xffff, 0xbbca);
+	rtl8125_phy_param(phydev, 0x864b, 0xff00, 0xdc00);
+
+	rtl8125_phy_param(phydev, 0x8154, 0xc000, 0x4000);
+	rtl8125_phy_param(phydev, 0x8158, 0xc000, 0x0000);
+
+	rtl8125_phy_param(phydev, 0x826c, 0xffff, 0xffff);
+	rtl8125_phy_param(phydev, 0x826e, 0xffff, 0xffff);
+
+	rtl8125_phy_param(phydev, 0x8872, 0xff00, 0x0e00);
+	r8168g_phy_param(phydev, 0x8012, 0x0000, 0x0800);
+	r8168g_phy_param(phydev, 0x8012, 0x0000, 0x4000);
+	phy_modify_paged(phydev, 0x0b57, 0x13, 0x0000, 0x0001);
+	r8168g_phy_param(phydev, 0x834a, 0xff00, 0x0700);
+	rtl8125_phy_param(phydev, 0x8217, 0x3f00, 0x2a00);
+	r8168g_phy_param(phydev, 0x81b1, 0xff00, 0x0b00);
+	rtl8125_phy_param(phydev, 0x8fed, 0xff00, 0x4e00);
+
+	rtl8125_phy_param(phydev, 0x88ac, 0xff00, 0x2300);
+	phy_modify_paged(phydev, 0x0bf0, 0x16, 0x0000, 0x3800);
+	rtl8125_phy_param(phydev, 0x88de, 0xff00, 0x0000);
+	rtl8125_phy_param(phydev, 0x80b4, 0xffff, 0x5195);
+
+	r8168g_phy_param(phydev, 0x8370, 0xffff, 0x8671);
+	r8168g_phy_param(phydev, 0x8372, 0xffff, 0x86c8);
+
+	r8168g_phy_param(phydev, 0x8401, 0xffff, 0x86c8);
+	r8168g_phy_param(phydev, 0x8403, 0xffff, 0x86da);
+	r8168g_phy_param(phydev, 0x8406, 0x1800, 0x1000);
+	r8168g_phy_param(phydev, 0x8408, 0x1800, 0x1000);
+	r8168g_phy_param(phydev, 0x840a, 0x1800, 0x1000);
+	r8168g_phy_param(phydev, 0x840c, 0x1800, 0x1000);
+	r8168g_phy_param(phydev, 0x840e, 0x1800, 0x1000);
+	r8168g_phy_param(phydev, 0x8410, 0x1800, 0x1000);
+	r8168g_phy_param(phydev, 0x8412, 0x1800, 0x1000);
+	r8168g_phy_param(phydev, 0x8414, 0x1800, 0x1000);
+	r8168g_phy_param(phydev, 0x8416, 0x1800, 0x1000);
+
+	r8168g_phy_param(phydev, 0x82bd, 0xffff, 0x1f40);
+
+	phy_modify_paged(phydev, 0x0bfb, 0x12, 0x07ff, 0x0328);
+	phy_write_paged(phydev, 0x0bfb, 0x13, 0x3e14);
+
+	r8168g_phy_param(phydev, 0x81c4, 0xffff, 0x003b);
+	r8168g_phy_param(phydev, 0x81c6, 0xffff, 0x0086);
+	r8168g_phy_param(phydev, 0x81c8, 0xffff, 0x00b7);
+	r8168g_phy_param(phydev, 0x81ca, 0xffff, 0x00db);
+	r8168g_phy_param(phydev, 0x81cc, 0xffff, 0x00fe);
+	r8168g_phy_param(phydev, 0x81ce, 0xffff, 0x00fe);
+	r8168g_phy_param(phydev, 0x81d0, 0xffff, 0x00fe);
+	r8168g_phy_param(phydev, 0x81d2, 0xffff, 0x00fe);
+	r8168g_phy_param(phydev, 0x81d4, 0xffff, 0x00c3);
+	r8168g_phy_param(phydev, 0x81d6, 0xffff, 0x0078);
+	r8168g_phy_param(phydev, 0x81d8, 0xffff, 0x0047);
+	r8168g_phy_param(phydev, 0x81da, 0xffff, 0x0023);
+
+	rtl8125_phy_param(phydev, 0x88d7, 0xffff, 0x01a0);
+	rtl8125_phy_param(phydev, 0x88d9, 0xffff, 0x01a0);
+	rtl8125_phy_param(phydev, 0x8ffa, 0xffff, 0x002a);
+
+	rtl8125_phy_param(phydev, 0x8fee, 0xffff, 0xffdf);
+	rtl8125_phy_param(phydev, 0x8ff0, 0xffff, 0xffff);
+	rtl8125_phy_param(phydev, 0x8ff2, 0xffff, 0x0a4a);
+	rtl8125_phy_param(phydev, 0x8ff4, 0xffff, 0xaa5a);
+	rtl8125_phy_param(phydev, 0x8ff6, 0xffff, 0x0a4a);
+
+	rtl8125_phy_param(phydev, 0x8ff8, 0xffff, 0xaa5a);
+	rtl8125_phy_param(phydev, 0x88d5, 0xff00, 0x0200);
+
+	r8168g_phy_param(phydev, 0x84bb, 0xff00, 0x0a00);
+	r8168g_phy_param(phydev, 0x84c0, 0xff00, 0x1600);
+
+	phy_modify_paged(phydev, 0x0a43, 0x10, 0x0000, 0x0003);
+
 	rtl8125_legacy_force_mode(phydev);
 	rtl8168g_disable_aldps(phydev);
 	rtl8125_common_config_eee_phy(phydev);
@@ -1180,14 +1341,12 @@ void r8169_hw_phy_config(struct rtl8169_private *tp, struct phy_device *phydev,
 		[RTL_GIGA_MAC_VER_48] = rtl8168h_2_hw_phy_config,
 		[RTL_GIGA_MAC_VER_51] = rtl8168ep_2_hw_phy_config,
 		[RTL_GIGA_MAC_VER_52] = rtl8117_hw_phy_config,
-		[RTL_GIGA_MAC_VER_53] = rtl8117_hw_phy_config,
 		[RTL_GIGA_MAC_VER_61] = rtl8125a_2_hw_phy_config,
 		[RTL_GIGA_MAC_VER_63] = rtl8125b_hw_phy_config,
 		[RTL_GIGA_MAC_VER_64] = rtl8125d_hw_phy_config,
-		[RTL_GIGA_MAC_VER_65] = rtl8125d_hw_phy_config,
 		[RTL_GIGA_MAC_VER_66] = rtl8125bp_hw_phy_config,
 		[RTL_GIGA_MAC_VER_70] = rtl8126a_hw_phy_config,
-		[RTL_GIGA_MAC_VER_71] = rtl8126a_hw_phy_config,
+		[RTL_GIGA_MAC_VER_80] = rtl8127a_1_hw_phy_config,
 	};
 
 	if (phy_configs[ver])

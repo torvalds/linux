@@ -22,42 +22,36 @@
 
 static inline u64 __vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg)
 {
-	u64 val;
-
-	if (unlikely(vcpu_has_nv(vcpu)))
+	if (has_vhe())
 		return vcpu_read_sys_reg(vcpu, reg);
-	else if (__vcpu_read_sys_reg_from_cpu(reg, &val))
-		return val;
 
 	return __vcpu_sys_reg(vcpu, reg);
 }
 
 static inline void __vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg)
 {
-	if (unlikely(vcpu_has_nv(vcpu)))
+	if (has_vhe())
 		vcpu_write_sys_reg(vcpu, val, reg);
-	else if (!__vcpu_write_sys_reg_to_cpu(val, reg))
-		__vcpu_sys_reg(vcpu, reg) = val;
+	else
+		__vcpu_assign_sys_reg(vcpu, reg, val);
 }
 
 static void __vcpu_write_spsr(struct kvm_vcpu *vcpu, unsigned long target_mode,
 			      u64 val)
 {
-	if (unlikely(vcpu_has_nv(vcpu))) {
+	if (has_vhe()) {
 		if (target_mode == PSR_MODE_EL1h)
 			vcpu_write_sys_reg(vcpu, val, SPSR_EL1);
 		else
 			vcpu_write_sys_reg(vcpu, val, SPSR_EL2);
-	} else if (has_vhe()) {
-		write_sysreg_el1(val, SYS_SPSR);
 	} else {
-		__vcpu_sys_reg(vcpu, SPSR_EL1) = val;
+		__vcpu_assign_sys_reg(vcpu, SPSR_EL1, val);
 	}
 }
 
 static void __vcpu_write_spsr_abt(struct kvm_vcpu *vcpu, u64 val)
 {
-	if (has_vhe())
+	if (has_vhe() && vcpu_get_flag(vcpu, SYSREGS_ON_CPU))
 		write_sysreg(val, spsr_abt);
 	else
 		vcpu->arch.ctxt.spsr_abt = val;
@@ -65,7 +59,7 @@ static void __vcpu_write_spsr_abt(struct kvm_vcpu *vcpu, u64 val)
 
 static void __vcpu_write_spsr_und(struct kvm_vcpu *vcpu, u64 val)
 {
-	if (has_vhe())
+	if (has_vhe() && vcpu_get_flag(vcpu, SYSREGS_ON_CPU))
 		write_sysreg(val, spsr_und);
 	else
 		vcpu->arch.ctxt.spsr_und = val;
@@ -339,6 +333,10 @@ static void kvm_inject_exception(struct kvm_vcpu *vcpu)
 			enter_exception64(vcpu, PSR_MODE_EL1h, except_type_sync);
 			break;
 
+		case unpack_vcpu_flag(EXCEPT_AA64_EL1_SERR):
+			enter_exception64(vcpu, PSR_MODE_EL1h, except_type_serror);
+			break;
+
 		case unpack_vcpu_flag(EXCEPT_AA64_EL2_SYNC):
 			enter_exception64(vcpu, PSR_MODE_EL2h, except_type_sync);
 			break;
@@ -347,9 +345,13 @@ static void kvm_inject_exception(struct kvm_vcpu *vcpu)
 			enter_exception64(vcpu, PSR_MODE_EL2h, except_type_irq);
 			break;
 
+		case unpack_vcpu_flag(EXCEPT_AA64_EL2_SERR):
+			enter_exception64(vcpu, PSR_MODE_EL2h, except_type_serror);
+			break;
+
 		default:
 			/*
-			 * Only EL1_SYNC and EL2_{SYNC,IRQ} makes
+			 * Only EL1_{SYNC,SERR} and EL2_{SYNC,IRQ,SERR} makes
 			 * sense so far. Everything else gets silently
 			 * ignored.
 			 */

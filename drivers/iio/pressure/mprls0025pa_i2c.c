@@ -44,10 +44,7 @@ static int mpr_i2c_write(struct mpr_data *data, const u8 cmd, const u8 unused)
 {
 	int ret;
 	struct i2c_client *client = to_i2c_client(data->dev);
-	u8 wdata[MPR_PKT_SYNC_LEN];
-
-	memset(wdata, 0, sizeof(wdata));
-	wdata[0] = cmd;
+	u8 wdata[MPR_PKT_SYNC_LEN] = { cmd };
 
 	ret = i2c_master_send(client, wdata, MPR_PKT_SYNC_LEN);
 	if (ret < 0)
@@ -74,13 +71,13 @@ static int mpr_i2c_probe(struct i2c_client *client)
 
 static const struct of_device_id mpr_i2c_match[] = {
 	{ .compatible = "honeywell,mprls0025pa" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mpr_i2c_match);
 
 static const struct i2c_device_id mpr_i2c_id[] = {
 	{ "mprls0025pa" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mpr_i2c_id);
 

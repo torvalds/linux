@@ -155,7 +155,7 @@ static unsigned long sg2042_pll_recalc_rate(unsigned int reg_value,
 
 	numerator = (u64)parent_rate * ctrl_table.fbdiv;
 	denominator = ctrl_table.refdiv * ctrl_table.postdiv1 * ctrl_table.postdiv2;
-	do_div(numerator, denominator);
+	numerator =  div64_u64(numerator, denominator);
 	return numerator;
 }
 
@@ -212,7 +212,7 @@ static int sg2042_pll_get_postdiv_1_2(unsigned long rate,
 	tmp0 *= fbdiv;
 
 	/* ((prate/REFDIV) x FBDIV)/rate and result save to tmp0 */
-	do_div(tmp0, rate);
+	tmp0 = div64_ul(tmp0, rate);
 
 	/* tmp0 is POSTDIV1*POSTDIV2, now we calculate div1 and div2 value */
 	if (tmp0 <= 7) {

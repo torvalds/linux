@@ -1,3 +1,4 @@
+//SPDX-License-Identifier: MIT
 /*
  * Copyright 2018 Advanced Micro Devices, Inc.
  *
@@ -724,6 +725,32 @@ TRACE_EVENT(dcn_optc_lock_unlock_state,
 		      __entry->vupdate_width,
 		      __entry->vready_offset
 	    )
+);
+
+TRACE_EVENT(amdgpu_dm_brightness,
+	TP_PROTO(void *function, u32 user_brightness, u32 converted_brightness, bool aux, bool ac),
+	TP_ARGS(function, user_brightness, converted_brightness, aux, ac),
+	TP_STRUCT__entry(
+		__field(void *, function)
+		__field(u32, user_brightness)
+		__field(u32, converted_brightness)
+		__field(bool, aux)
+		__field(bool, ac)
+	),
+	TP_fast_assign(
+		__entry->function = function;
+		__entry->user_brightness = user_brightness;
+		__entry->converted_brightness = converted_brightness;
+		__entry->aux = aux;
+		__entry->ac = ac;
+	),
+	TP_printk("%ps: brightness requested=%u converted=%u aux=%s power=%s",
+		  (void *)__entry->function,
+		  (u32)__entry->user_brightness,
+		  (u32)__entry->converted_brightness,
+		  (__entry->aux) ? "true" : "false",
+		  (__entry->ac) ? "AC" : "DC"
+	)
 );
 
 #endif /* _AMDGPU_DM_TRACE_H_ */

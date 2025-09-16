@@ -168,25 +168,7 @@ DEFINE_EVENT(xdp_redirect_template, xdp_redirect_err,
 #define _trace_xdp_redirect_map_err(dev, xdp, to, map_type, map_id, index, err) \
 	 trace_xdp_redirect_err(dev, xdp, to, err, map_type, map_id, index)
 
-/* not used anymore, but kept around so as not to break old programs */
-DEFINE_EVENT(xdp_redirect_template, xdp_redirect_map,
-	TP_PROTO(const struct net_device *dev,
-		 const struct bpf_prog *xdp,
-		 const void *tgt, int err,
-		 enum bpf_map_type map_type,
-		 u32 map_id, u32 index),
-	TP_ARGS(dev, xdp, tgt, err, map_type, map_id, index)
-);
-
-DEFINE_EVENT(xdp_redirect_template, xdp_redirect_map_err,
-	TP_PROTO(const struct net_device *dev,
-		 const struct bpf_prog *xdp,
-		 const void *tgt, int err,
-		 enum bpf_map_type map_type,
-		 u32 map_id, u32 index),
-	TP_ARGS(dev, xdp, tgt, err, map_type, map_id, index)
-);
-
+#ifdef CONFIG_BPF_SYSCALL
 TRACE_EVENT(xdp_cpumap_kthread,
 
 	TP_PROTO(int map_id, unsigned int processed,  unsigned int drops,
@@ -300,6 +282,7 @@ TRACE_EVENT(xdp_devmap_xmit,
 		  __entry->sent, __entry->drops,
 		  __entry->err)
 );
+#endif /* CONFIG_BPF_SYSCALL */
 
 /* Expect users already include <net/xdp.h>, but not xdp_priv.h */
 #include <net/xdp_priv.h>
@@ -376,32 +359,6 @@ TRACE_EVENT(mem_connect,
 		  __print_symbolic(__entry->mem_type, __MEM_TYPE_SYM_TAB),
 		  __entry->allocator,
 		  __entry->ifindex
-	)
-);
-
-TRACE_EVENT(mem_return_failed,
-
-	TP_PROTO(const struct xdp_mem_info *mem,
-		 const struct page *page),
-
-	TP_ARGS(mem, page),
-
-	TP_STRUCT__entry(
-		__field(const struct page *,	page)
-		__field(u32,		mem_id)
-		__field(u32,		mem_type)
-	),
-
-	TP_fast_assign(
-		__entry->page		= page;
-		__entry->mem_id		= mem->id;
-		__entry->mem_type	= mem->type;
-	),
-
-	TP_printk("mem_id=%d mem_type=%s page=%p",
-		  __entry->mem_id,
-		  __print_symbolic(__entry->mem_type, __MEM_TYPE_SYM_TAB),
-		  __entry->page
 	)
 );
 

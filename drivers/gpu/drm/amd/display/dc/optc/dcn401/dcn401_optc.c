@@ -226,6 +226,11 @@ bool optc401_disable_crtc(struct timing_generator *optc)
 	REG_UPDATE(CONTROL,
 			VTG0_ENABLE, 0);
 
+	// wait until CRTC_CURRENT_MASTER_EN_STATE == 0
+	REG_WAIT(OTG_CONTROL,
+			 OTG_CURRENT_MASTER_EN_STATE,
+			 0, 10, 15000);
+
 	/* CRTC disabled, so disable  clock. */
 	REG_WAIT(OTG_CLOCK_CONTROL,
 			OTG_BUSY, 0,
@@ -459,7 +464,7 @@ bool optc401_wait_update_lock_status(struct timing_generator *tg, bool locked)
 	return true;
 }
 
-static struct timing_generator_funcs dcn401_tg_funcs = {
+static const struct timing_generator_funcs dcn401_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
 		.setup_vertical_interrupt0 = optc1_setup_vertical_interrupt0,

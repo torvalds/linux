@@ -26,6 +26,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <media/videobuf2-vmalloc.h>
+#include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("Virtual device for mem2mem framework testing");
 MODULE_AUTHOR("Pawel Osciak, <pawel@osciak.com>");
@@ -41,6 +42,10 @@ MODULE_PARM_DESC(debug, "debug level");
 static unsigned int default_transtime = 40; /* Max 25 fps */
 module_param(default_transtime, uint, 0644);
 MODULE_PARM_DESC(default_transtime, "default transaction time in ms");
+
+static unsigned int multiplanar = 1;
+module_param(multiplanar, uint, 0644);
+MODULE_PARM_DESC(multiplanar, "1 (default) creates a single planar device, 2 creates multiplanar device.");
 
 #define MIN_W 32
 #define MIN_H 32
@@ -134,7 +139,8 @@ static struct vim2m_fmt formats[] = {
 struct vim2m_q_data {
 	unsigned int		width;
 	unsigned int		height;
-	unsigned int		sizeimage;
+	unsigned int            num_mem_planes;
+	unsigned int		sizeimage[VIDEO_MAX_PLANES];
 	unsigned int		sequence;
 	struct vim2m_fmt	*fmt;
 };
@@ -193,6 +199,7 @@ struct vim2m_dev {
 	struct mutex		dev_mutex;
 
 	struct v4l2_m2m_dev	*m2m_dev;
+	bool			multiplanar;
 };
 
 struct vim2m_ctx {
@@ -237,8 +244,10 @@ static struct vim2m_q_data *get_q_data(struct vim2m_ctx *ctx,
 {
 	switch (type) {
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		return &ctx->q_data[V4L2_M2M_SRC];
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 		return &ctx->q_data[V4L2_M2M_DST];
 	default:
 		return NULL;
@@ -249,8 +258,10 @@ static const char *type_name(enum v4l2_buf_type type)
 {
 	switch (type) {
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		return "Output";
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 		return "Capture";
 	default:
 		return "Invalid";
@@ -720,6 +731,7 @@ static int vidioc_g_fmt(struct vim2m_ctx *ctx, struct v4l2_format *f)
 {
 	struct vb2_queue *vq;
 	struct vim2m_q_data *q_data;
+	int ret;
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
 	if (!vq)
@@ -729,12 +741,12 @@ static int vidioc_g_fmt(struct vim2m_ctx *ctx, struct v4l2_format *f)
 	if (!q_data)
 		return -EINVAL;
 
-	f->fmt.pix.width	= q_data->width;
-	f->fmt.pix.height	= q_data->height;
+	ret = v4l2_fill_pixfmt(&f->fmt.pix, q_data->fmt->fourcc,
+			       q_data->width, q_data->height);
+	if (ret)
+		return ret;
+
 	f->fmt.pix.field	= V4L2_FIELD_NONE;
-	f->fmt.pix.pixelformat	= q_data->fmt->fourcc;
-	f->fmt.pix.bytesperline	= (q_data->width * q_data->fmt->depth) >> 3;
-	f->fmt.pix.sizeimage	= q_data->sizeimage;
 	f->fmt.pix.colorspace	= ctx->colorspace;
 	f->fmt.pix.xfer_func	= ctx->xfer_func;
 	f->fmt.pix.ycbcr_enc	= ctx->ycbcr_enc;
@@ -743,43 +755,102 @@ static int vidioc_g_fmt(struct vim2m_ctx *ctx, struct v4l2_format *f)
 	return 0;
 }
 
+static int vidioc_g_fmt_mplane(struct vim2m_ctx *ctx, struct v4l2_format *f)
+{
+	struct vb2_queue *vq;
+	struct vim2m_q_data *q_data;
+	int ret;
+
+	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
+	if (!vq)
+		return -EINVAL;
+
+	q_data = get_q_data(ctx, f->type);
+	if (!q_data)
+		return -EINVAL;
+
+	ret = v4l2_fill_pixfmt_mp(&f->fmt.pix_mp, q_data->fmt->fourcc,
+				  q_data->width, q_data->height);
+	if (ret)
+		return ret;
+
+	f->fmt.pix_mp.field	   = V4L2_FIELD_NONE;
+	f->fmt.pix_mp.colorspace   = ctx->colorspace;
+	f->fmt.pix_mp.xfer_func	   = ctx->xfer_func;
+	f->fmt.pix_mp.ycbcr_enc	   = ctx->ycbcr_enc;
+	f->fmt.pix_mp.quantization = ctx->quant;
+
+	return 0;
+}
+
 static int vidioc_g_fmt_vid_out(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
+	struct vim2m_dev *dev = video_drvdata(file);
+
+	if (dev->multiplanar)
+		return -ENOTTY;
+
 	return vidioc_g_fmt(file2ctx(file), f);
 }
 
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
+	struct vim2m_dev *dev = video_drvdata(file);
+
+	if (dev->multiplanar)
+		return -ENOTTY;
+
 	return vidioc_g_fmt(file2ctx(file), f);
 }
 
-static int vidioc_try_fmt(struct v4l2_format *f, struct vim2m_fmt *fmt)
+static int vidioc_g_fmt_vid_out_mplane(struct file *file, void *priv,
+				       struct v4l2_format *f)
 {
-	int walign, halign;
-	/*
-	 * V4L2 specification specifies the driver corrects the
-	 * format struct if any of the dimensions is unsupported
-	 */
-	if (f->fmt.pix.height < MIN_H)
-		f->fmt.pix.height = MIN_H;
-	else if (f->fmt.pix.height > MAX_H)
-		f->fmt.pix.height = MAX_H;
+	struct vim2m_dev *dev = video_drvdata(file);
 
-	if (f->fmt.pix.width < MIN_W)
-		f->fmt.pix.width = MIN_W;
-	else if (f->fmt.pix.width > MAX_W)
-		f->fmt.pix.width = MAX_W;
+	if (!dev->multiplanar)
+		return -ENOTTY;
 
-	get_alignment(f->fmt.pix.pixelformat, &walign, &halign);
-	f->fmt.pix.width &= ~(walign - 1);
-	f->fmt.pix.height &= ~(halign - 1);
-	f->fmt.pix.bytesperline = (f->fmt.pix.width * fmt->depth) >> 3;
-	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
+	return vidioc_g_fmt_mplane(file2ctx(file), f);
+}
+
+static int vidioc_g_fmt_vid_cap_mplane(struct file *file, void *priv,
+				       struct v4l2_format *f)
+{
+	struct vim2m_dev *dev = video_drvdata(file);
+
+	if (!dev->multiplanar)
+		return -ENOTTY;
+
+	return vidioc_g_fmt_mplane(file2ctx(file), f);
+}
+
+static int vidioc_try_fmt(struct v4l2_format *f, bool is_mplane)
+{
+	int walign, halign, ret;
+	int width = (is_mplane) ? f->fmt.pix_mp.width : f->fmt.pix.width;
+	int height = (is_mplane) ? f->fmt.pix_mp.height : f->fmt.pix.height;
+	u32 pixfmt = (is_mplane) ? f->fmt.pix_mp.pixelformat :
+		f->fmt.pix.pixelformat;
+
+	width = clamp(width, MIN_W, MAX_W);
+	height = clamp(height, MIN_H, MAX_H);
+
+	get_alignment(pixfmt, &walign, &halign);
+	width = ALIGN(width, walign);
+	height = ALIGN(height, halign);
+
 	f->fmt.pix.field = V4L2_FIELD_NONE;
 
-	return 0;
+	if (is_mplane) {
+		ret = v4l2_fill_pixfmt_mp(&f->fmt.pix_mp, pixfmt, width,
+					  height);
+	} else {
+		ret = v4l2_fill_pixfmt(&f->fmt.pix, pixfmt,  width, height);
+	}
+	return ret;
 }
 
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
@@ -787,6 +858,10 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct vim2m_fmt *fmt;
 	struct vim2m_ctx *ctx = file2ctx(file);
+	struct vim2m_dev *dev = video_drvdata(file);
+
+	if (dev->multiplanar)
+		return -ENOTTY;
 
 	fmt = find_format(f->fmt.pix.pixelformat);
 	if (!fmt) {
@@ -804,7 +879,36 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.ycbcr_enc = ctx->ycbcr_enc;
 	f->fmt.pix.quantization = ctx->quant;
 
-	return vidioc_try_fmt(f, fmt);
+	return vidioc_try_fmt(f, false);
+}
+
+static int vidioc_try_fmt_vid_cap_mplane(struct file *file, void *priv,
+					 struct v4l2_format *f)
+{
+	struct vim2m_fmt *fmt;
+	struct vim2m_ctx *ctx = file2ctx(file);
+	struct vim2m_dev *dev = video_drvdata(file);
+
+	if (!dev->multiplanar)
+		return -ENOTTY;
+
+	fmt = find_format(f->fmt.pix_mp.pixelformat);
+	if (!fmt) {
+		f->fmt.pix_mp.pixelformat = formats[0].fourcc;
+		fmt = find_format(f->fmt.pix_mp.pixelformat);
+	}
+	if (!(fmt->types & MEM2MEM_CAPTURE)) {
+		v4l2_err(&ctx->dev->v4l2_dev,
+			 "Fourcc format (0x%08x) invalid.\n",
+			 f->fmt.pix.pixelformat);
+		return -EINVAL;
+	}
+	f->fmt.pix_mp.colorspace = ctx->colorspace;
+	f->fmt.pix_mp.xfer_func = ctx->xfer_func;
+	f->fmt.pix_mp.ycbcr_enc = ctx->ycbcr_enc;
+	f->fmt.pix_mp.quantization = ctx->quant;
+
+	return vidioc_try_fmt(f, true);
 }
 
 static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
@@ -812,6 +916,10 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 {
 	struct vim2m_fmt *fmt;
 	struct vim2m_ctx *ctx = file2ctx(file);
+	struct vim2m_dev *dev = video_drvdata(file);
+
+	if (dev->multiplanar)
+		return -ENOTTY;
 
 	fmt = find_format(f->fmt.pix.pixelformat);
 	if (!fmt) {
@@ -827,13 +935,45 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 	if (!f->fmt.pix.colorspace)
 		f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
 
-	return vidioc_try_fmt(f, fmt);
+	return vidioc_try_fmt(f, false);
+}
+
+static int vidioc_try_fmt_vid_out_mplane(struct file *file, void *priv,
+					 struct v4l2_format *f)
+{
+	struct vim2m_fmt *fmt;
+	struct vim2m_ctx *ctx = file2ctx(file);
+	struct vim2m_dev *dev = video_drvdata(file);
+
+	if (!dev->multiplanar)
+		return -ENOTTY;
+
+	fmt = find_format(f->fmt.pix_mp.pixelformat);
+	if (!fmt) {
+		f->fmt.pix_mp.pixelformat = formats[0].fourcc;
+		fmt = find_format(f->fmt.pix_mp.pixelformat);
+	}
+	if (!(fmt->types & MEM2MEM_OUTPUT)) {
+		v4l2_err(&ctx->dev->v4l2_dev,
+			 "Fourcc format (0x%08x) invalid.\n",
+			 f->fmt.pix_mp.pixelformat);
+		return -EINVAL;
+	}
+	if (!f->fmt.pix_mp.colorspace)
+		f->fmt.pix_mp.colorspace = V4L2_COLORSPACE_REC709;
+
+	return vidioc_try_fmt(f, true);
 }
 
 static int vidioc_s_fmt(struct vim2m_ctx *ctx, struct v4l2_format *f)
 {
 	struct vim2m_q_data *q_data;
 	struct vb2_queue *vq;
+	unsigned int i;
+	bool is_mplane = ctx->dev->multiplanar;
+	u32 pixfmt = (is_mplane) ? f->fmt.pix_mp.pixelformat : f->fmt.pix.pixelformat;
+	u32 width = (is_mplane) ? f->fmt.pix_mp.width : f->fmt.pix.width;
+	u32 height = (is_mplane) ? f->fmt.pix_mp.height : f->fmt.pix.height;
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
 	if (!vq)
@@ -848,11 +988,17 @@ static int vidioc_s_fmt(struct vim2m_ctx *ctx, struct v4l2_format *f)
 		return -EBUSY;
 	}
 
-	q_data->fmt		= find_format(f->fmt.pix.pixelformat);
-	q_data->width		= f->fmt.pix.width;
-	q_data->height		= f->fmt.pix.height;
-	q_data->sizeimage	= q_data->width * q_data->height
-				* q_data->fmt->depth >> 3;
+	q_data->fmt		= find_format(pixfmt);
+	q_data->width		= width;
+	q_data->height		= height;
+	if (is_mplane) {
+		q_data->num_mem_planes = f->fmt.pix_mp.num_planes;
+		for (i = 0; i < f->fmt.pix_mp.num_planes; i++)
+			q_data->sizeimage[i] = f->fmt.pix_mp.plane_fmt[i].sizeimage;
+	} else {
+		q_data->sizeimage[0] = f->fmt.pix.sizeimage;
+		q_data->num_mem_planes = 1;
+	}
 
 	dprintk(ctx->dev, 1,
 		"Format for type %s: %dx%d (%d bpp), fmt: %c%c%c%c\n",
@@ -870,8 +1016,28 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	int ret;
+	struct vim2m_dev *dev = video_drvdata(file);
+
+	if (dev->multiplanar)
+		return -ENOTTY;
 
 	ret = vidioc_try_fmt_vid_cap(file, priv, f);
+	if (ret)
+		return ret;
+
+	return vidioc_s_fmt(file2ctx(file), f);
+}
+
+static int vidioc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
+				       struct v4l2_format *f)
+{
+	int ret;
+	struct vim2m_dev *dev = video_drvdata(file);
+
+	if (!dev->multiplanar)
+		return -ENOTTY;
+
+	ret = vidioc_try_fmt_vid_cap_mplane(file, priv, f);
 	if (ret)
 		return ret;
 
@@ -882,7 +1048,11 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct vim2m_ctx *ctx = file2ctx(file);
+	struct vim2m_dev *dev = video_drvdata(file);
 	int ret;
+
+	if (dev->multiplanar)
+		return -ENOTTY;
 
 	ret = vidioc_try_fmt_vid_out(file, priv, f);
 	if (ret)
@@ -894,6 +1064,30 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 		ctx->xfer_func = f->fmt.pix.xfer_func;
 		ctx->ycbcr_enc = f->fmt.pix.ycbcr_enc;
 		ctx->quant = f->fmt.pix.quantization;
+	}
+	return ret;
+}
+
+static int vidioc_s_fmt_vid_out_mplane(struct file *file, void *priv,
+				       struct v4l2_format *f)
+{
+	struct vim2m_ctx *ctx = file2ctx(file);
+	struct vim2m_dev *dev = video_drvdata(file);
+	int ret;
+
+	if (!dev->multiplanar)
+		return -ENOTTY;
+
+	ret = vidioc_try_fmt_vid_out_mplane(file, priv, f);
+	if (ret)
+		return ret;
+
+	ret = vidioc_s_fmt(file2ctx(file), f);
+	if (!ret) {
+		ctx->colorspace = f->fmt.pix_mp.colorspace;
+		ctx->xfer_func = f->fmt.pix_mp.xfer_func;
+		ctx->ycbcr_enc = f->fmt.pix_mp.ycbcr_enc;
+		ctx->quant = f->fmt.pix_mp.quantization;
 	}
 	return ret;
 }
@@ -948,11 +1142,17 @@ static const struct v4l2_ioctl_ops vim2m_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap	= vidioc_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap	= vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap	= vidioc_s_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap_mplane = vidioc_g_fmt_vid_cap_mplane,
+	.vidioc_try_fmt_vid_cap_mplane = vidioc_try_fmt_vid_cap_mplane,
+	.vidioc_s_fmt_vid_cap_mplane	= vidioc_s_fmt_vid_cap_mplane,
 
 	.vidioc_enum_fmt_vid_out = vidioc_enum_fmt_vid_out,
 	.vidioc_g_fmt_vid_out	= vidioc_g_fmt_vid_out,
 	.vidioc_try_fmt_vid_out	= vidioc_try_fmt_vid_out,
 	.vidioc_s_fmt_vid_out	= vidioc_s_fmt_vid_out,
+	.vidioc_g_fmt_vid_out_mplane = vidioc_g_fmt_vid_out_mplane,
+	.vidioc_try_fmt_vid_out_mplane = vidioc_try_fmt_vid_out_mplane,
+	.vidioc_s_fmt_vid_out_mplane	= vidioc_s_fmt_vid_out_mplane,
 
 	.vidioc_reqbufs		= v4l2_m2m_ioctl_reqbufs,
 	.vidioc_querybuf	= v4l2_m2m_ioctl_querybuf,
@@ -981,23 +1181,32 @@ static int vim2m_queue_setup(struct vb2_queue *vq,
 {
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(vq);
 	struct vim2m_q_data *q_data;
-	unsigned int size, count = *nbuffers;
+	unsigned int size, p, count = *nbuffers;
 
 	q_data = get_q_data(ctx, vq->type);
 	if (!q_data)
 		return -EINVAL;
 
-	size = q_data->width * q_data->height * q_data->fmt->depth >> 3;
+	size = 0;
+	for (p = 0; p < q_data->num_mem_planes; p++)
+		size += q_data->sizeimage[p];
 
 	while (size * count > MEM2MEM_VID_MEM_LIMIT)
 		(count)--;
 	*nbuffers = count;
 
-	if (*nplanes)
-		return sizes[0] < size ? -EINVAL : 0;
-
-	*nplanes = 1;
-	sizes[0] = size;
+	if (*nplanes) {
+		if (*nplanes != q_data->num_mem_planes)
+			return -EINVAL;
+		for (p = 0; p < q_data->num_mem_planes; p++) {
+			if (sizes[p] < q_data->sizeimage[p])
+				return -EINVAL;
+		}
+	} else {
+		*nplanes = q_data->num_mem_planes;
+		for (p = 0; p < q_data->num_mem_planes; p++)
+			sizes[p] = q_data->sizeimage[p];
+	}
 
 	dprintk(ctx->dev, 1, "%s: get %d buffer(s) of size %d each.\n",
 		type_name(vq->type), count, size);
@@ -1024,21 +1233,24 @@ static int vim2m_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct vim2m_q_data *q_data;
+	unsigned int p;
 
 	dprintk(ctx->dev, 2, "type: %s\n", type_name(vb->vb2_queue->type));
 
 	q_data = get_q_data(ctx, vb->vb2_queue->type);
 	if (!q_data)
 		return -EINVAL;
-	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
-		dprintk(ctx->dev, 1,
-			"%s data will not fit into plane (%lu < %lu)\n",
-			__func__, vb2_plane_size(vb, 0),
-			(long)q_data->sizeimage);
-		return -EINVAL;
-	}
 
-	vb2_set_plane_payload(vb, 0, q_data->sizeimage);
+	for (p = 0; p < q_data->num_mem_planes; p++) {
+		if (vb2_plane_size(vb, p) < q_data->sizeimage[p]) {
+			dprintk(ctx->dev, 1,
+				"%s data will not fit into plane (%lu < %lu)\n",
+				__func__, vb2_plane_size(vb, p),
+				(long)q_data->sizeimage[p]);
+			return -EINVAL;
+		}
+		vb2_set_plane_payload(vb, p, q_data->sizeimage[p]);
+	}
 
 	return 0;
 }
@@ -1109,7 +1321,8 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	struct vim2m_ctx *ctx = priv;
 	int ret;
 
-	src_vq->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+	src_vq->type = (ctx->dev->multiplanar) ? V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE :
+		V4L2_BUF_TYPE_VIDEO_OUTPUT;
 	src_vq->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	src_vq->drv_priv = ctx;
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
@@ -1123,7 +1336,8 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	if (ret)
 		return ret;
 
-	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	dst_vq->type = (ctx->dev->multiplanar) ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE :
+		V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	dst_vq->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	dst_vq->drv_priv = ctx;
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
@@ -1197,10 +1411,11 @@ static int vim2m_open(struct file *file)
 	ctx->q_data[V4L2_M2M_SRC].fmt = &formats[0];
 	ctx->q_data[V4L2_M2M_SRC].width = 640;
 	ctx->q_data[V4L2_M2M_SRC].height = 480;
-	ctx->q_data[V4L2_M2M_SRC].sizeimage =
+	ctx->q_data[V4L2_M2M_SRC].sizeimage[0] =
 		ctx->q_data[V4L2_M2M_SRC].width *
 		ctx->q_data[V4L2_M2M_SRC].height *
 		(ctx->q_data[V4L2_M2M_SRC].fmt->depth >> 3);
+	ctx->q_data[V4L2_M2M_SRC].num_mem_planes = 1;
 	ctx->q_data[V4L2_M2M_DST] = ctx->q_data[V4L2_M2M_SRC];
 	ctx->colorspace = V4L2_COLORSPACE_REC709;
 
@@ -1277,7 +1492,7 @@ static const struct video_device vim2m_videodev = {
 	.ioctl_ops	= &vim2m_ioctl_ops,
 	.minor		= -1,
 	.release	= vim2m_device_release,
-	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
+	.device_caps	= V4L2_CAP_STREAMING,
 };
 
 static const struct v4l2_m2m_ops m2m_ops = {
@@ -1308,10 +1523,14 @@ static int vim2m_probe(struct platform_device *pdev)
 	atomic_set(&dev->num_inst, 0);
 	mutex_init(&dev->dev_mutex);
 
+	dev->multiplanar = (multiplanar == 2);
+
 	dev->vfd = vim2m_videodev;
 	vfd = &dev->vfd;
 	vfd->lock = &dev->dev_mutex;
 	vfd->v4l2_dev = &dev->v4l2_dev;
+	vfd->device_caps |= (dev->multiplanar) ? V4L2_CAP_VIDEO_M2M_MPLANE :
+		V4L2_CAP_VIDEO_M2M;
 
 	video_set_drvdata(vfd, dev);
 	platform_set_drvdata(pdev, dev);

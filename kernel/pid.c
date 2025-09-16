@@ -100,6 +100,7 @@ void put_pid(struct pid *pid)
 
 	ns = pid->numbers[pid->level].ns;
 	if (refcount_dec_and_test(&pid->count)) {
+		pidfs_free_pid(pid);
 		kmem_cache_free(ns->pid_cachep, pid);
 		put_pid_ns(ns);
 	}
@@ -358,11 +359,6 @@ static void __change_pid(struct pid **pids, struct task_struct *task,
 
 	hlist_del_rcu(&task->pid_links[type]);
 	*pid_ptr = new;
-
-	if (type == PIDTYPE_PID) {
-		WARN_ON_ONCE(pid_has_task(pid, PIDTYPE_PID));
-		wake_up_all(&pid->wait_pidfd);
-	}
 
 	for (tmp = PIDTYPE_MAX; --tmp >= 0; )
 		if (pid_has_task(pid, tmp))
@@ -717,6 +713,29 @@ static struct ctl_table_root pid_table_root = {
 	.set_ownership	= pid_table_root_set_ownership,
 };
 
+static int proc_do_cad_pid(const struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos)
+{
+	struct pid *new_pid;
+	pid_t tmp_pid;
+	int r;
+	struct ctl_table tmp_table = *table;
+
+	tmp_pid = pid_vnr(cad_pid);
+	tmp_table.data = &tmp_pid;
+
+	r = proc_dointvec(&tmp_table, write, buffer, lenp, ppos);
+	if (r || !write)
+		return r;
+
+	new_pid = find_get_pid(tmp_pid);
+	if (!new_pid)
+		return -ESRCH;
+
+	put_pid(xchg(&cad_pid, new_pid));
+	return 0;
+}
+
 static const struct ctl_table pid_table[] = {
 	{
 		.procname	= "pid_max",
@@ -727,6 +746,14 @@ static const struct ctl_table pid_table[] = {
 		.extra1		= &pid_max_min,
 		.extra2		= &pid_max_max,
 	},
+#ifdef CONFIG_PROC_SYSCTL
+	{
+		.procname	= "cad_pid",
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= proc_do_cad_pid,
+	},
+#endif
 };
 #endif
 

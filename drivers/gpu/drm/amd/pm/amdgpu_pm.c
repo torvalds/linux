@@ -110,9 +110,10 @@ static int amdgpu_pm_dev_state_check(struct amdgpu_device *adev, bool runpm)
 	bool runpm_check = runpm ? adev->in_runpm : false;
 
 	if (amdgpu_in_reset(adev))
-		return -EPERM;
+		return -EBUSY;
+
 	if (adev->in_suspend && !runpm_check)
-		return -EPERM;
+		return -EBUSY;
 
 	return 0;
 }
@@ -1398,6 +1399,8 @@ static ssize_t amdgpu_set_pp_power_profile_mode(struct device *dev,
 			if (ret)
 				return -EINVAL;
 			parameter_size++;
+			if (!tmp_str)
+				break;
 			while (isspace(*tmp_str))
 				tmp_str++;
 		}
@@ -1606,7 +1609,6 @@ static ssize_t amdgpu_set_thermal_throttling_logging(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	long throttling_logging_interval;
-	unsigned long flags;
 	int ret = 0;
 
 	ret = kstrtol(buf, 0, &throttling_logging_interval);
@@ -1617,18 +1619,12 @@ static ssize_t amdgpu_set_thermal_throttling_logging(struct device *dev,
 		return -EINVAL;
 
 	if (throttling_logging_interval > 0) {
-		raw_spin_lock_irqsave(&adev->throttling_logging_rs.lock, flags);
 		/*
 		 * Reset the ratelimit timer internals.
 		 * This can effectively restart the timer.
 		 */
-		adev->throttling_logging_rs.interval =
-			(throttling_logging_interval - 1) * HZ;
-		adev->throttling_logging_rs.begin = 0;
-		adev->throttling_logging_rs.printed = 0;
-		adev->throttling_logging_rs.missed = 0;
-		raw_spin_unlock_irqrestore(&adev->throttling_logging_rs.lock, flags);
-
+		ratelimit_state_reset_interval(&adev->throttling_logging_rs,
+					       (throttling_logging_interval - 1) * HZ);
 		atomic_set(&adev->throttling_logging_enabled, 1);
 	} else {
 		atomic_set(&adev->throttling_logging_enabled, 0);
@@ -1897,7 +1893,7 @@ out:
 static int ss_power_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
 				uint32_t mask, enum amdgpu_device_attr_states *states)
 {
-	if (!amdgpu_device_supports_smart_shift(adev_to_drm(adev)))
+	if (!amdgpu_device_supports_smart_shift(adev))
 		*states = ATTR_STATE_UNSUPPORTED;
 
 	return 0;
@@ -1908,7 +1904,7 @@ static int ss_bias_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 {
 	uint32_t ss_power;
 
-	if (!amdgpu_device_supports_smart_shift(adev_to_drm(adev)))
+	if (!amdgpu_device_supports_smart_shift(adev))
 		*states = ATTR_STATE_UNSUPPORTED;
 	else if (amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
 		 (void *)&ss_power))
@@ -2077,6 +2073,134 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
 
 	return 0;
 }
+
+/**
+ * DOC: board
+ *
+ * Certain SOCs can support various board attributes reporting. This is useful
+ * for user application to monitor various board reated attributes.
+ *
+ * The amdgpu driver provides a sysfs API for reporting board attributes. Presently,
+ * only two types of attributes are reported, baseboard temperature and
+ * gpu board temperature. Both of them are reported as binary files.
+ *
+ * * .. code-block:: console
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/baseboard_temp
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/gpuboard_temp
+ *
+ */
+
+/**
+ * DOC: baseboard_temp
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current baseboard
+ * temperature metrics data. The file baseboard_temp is used for this.
+ * Reading the file will dump all the current baseboard temperature  metrics data.
+ */
+static ssize_t amdgpu_get_baseboard_temp_metrics(struct device *dev,
+						 struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	ssize_t size;
+	int ret;
+
+	ret = amdgpu_pm_get_access_if_active(adev);
+	if (ret)
+		return ret;
+
+	size = amdgpu_dpm_get_temp_metrics(adev, SMU_TEMP_METRIC_BASEBOARD, NULL);
+	if (size <= 0)
+		goto out;
+	if (size >= PAGE_SIZE) {
+		ret = -ENOSPC;
+		goto out;
+	}
+
+	amdgpu_dpm_get_temp_metrics(adev, SMU_TEMP_METRIC_BASEBOARD, buf);
+
+out:
+	amdgpu_pm_put_access(adev);
+
+	if (ret)
+		return ret;
+
+	return size;
+}
+
+/**
+ * DOC: gpuboard_temp
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current gpuboard
+ * temperature metrics data. The file gpuboard_temp is used for this.
+ * Reading the file will dump all the current gpuboard temperature  metrics data.
+ */
+static ssize_t amdgpu_get_gpuboard_temp_metrics(struct device *dev,
+						struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	ssize_t size;
+	int ret;
+
+	ret = amdgpu_pm_get_access_if_active(adev);
+	if (ret)
+		return ret;
+
+	size = amdgpu_dpm_get_temp_metrics(adev, SMU_TEMP_METRIC_GPUBOARD, NULL);
+	if (size <= 0)
+		goto out;
+	if (size >= PAGE_SIZE) {
+		ret = -ENOSPC;
+		goto out;
+	}
+
+	amdgpu_dpm_get_temp_metrics(adev, SMU_TEMP_METRIC_GPUBOARD, buf);
+
+out:
+	amdgpu_pm_put_access(adev);
+
+	if (ret)
+		return ret;
+
+	return size;
+}
+
+static DEVICE_ATTR(baseboard_temp, 0444, amdgpu_get_baseboard_temp_metrics, NULL);
+static DEVICE_ATTR(gpuboard_temp, 0444, amdgpu_get_gpuboard_temp_metrics, NULL);
+
+static struct attribute *board_attrs[] = {
+	&dev_attr_baseboard_temp.attr,
+	&dev_attr_gpuboard_temp.attr,
+	NULL
+};
+
+static umode_t amdgpu_board_attr_visible(struct kobject *kobj, struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	if (attr == &dev_attr_baseboard_temp.attr) {
+		if (!amdgpu_dpm_is_temp_metrics_supported(adev, SMU_TEMP_METRIC_BASEBOARD))
+			return 0;
+	}
+
+	if (attr == &dev_attr_gpuboard_temp.attr) {
+		if (!amdgpu_dpm_is_temp_metrics_supported(adev, SMU_TEMP_METRIC_GPUBOARD))
+			return 0;
+	}
+
+	return attr->mode;
+}
+
+const struct attribute_group amdgpu_board_attr_group = {
+	.name = "board",
+	.attrs = board_attrs,
+	.is_visible = amdgpu_board_attr_visible,
+};
 
 /* pm policy attributes */
 struct amdgpu_pm_policy_attr {
@@ -3463,14 +3587,16 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		effective_mode &= ~S_IWUSR;
 
 	/* not implemented yet for APUs other than GC 10.3.1 (vangogh) and 9.4.3 */
-	if (((adev->family == AMDGPU_FAMILY_SI) ||
-	     ((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(10, 3, 1)) &&
-	      (gc_ver != IP_VERSION(9, 4, 3) && gc_ver != IP_VERSION(9, 4, 4)))) &&
-	    (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
-	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr ||
-	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr ||
-	     attr == &sensor_dev_attr_power1_cap_default.dev_attr.attr))
-		return 0;
+	if (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
+	    attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr ||
+	    attr == &sensor_dev_attr_power1_cap.dev_attr.attr ||
+	    attr == &sensor_dev_attr_power1_cap_default.dev_attr.attr) {
+		if (adev->family == AMDGPU_FAMILY_SI ||
+		    ((adev->flags & AMD_IS_APU) && gc_ver != IP_VERSION(10, 3, 1) &&
+		     (gc_ver != IP_VERSION(9, 4, 3) && gc_ver != IP_VERSION(9, 4, 4))) ||
+		    (amdgpu_sriov_vf(adev) && gc_ver == IP_VERSION(11, 0, 3)))
+			return 0;
+	}
 
 	/* not implemented yet for APUs having < GC 9.3.0 (Renoir) */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
@@ -3651,6 +3777,9 @@ static int parse_input_od_command_lines(const char *buf,
 		if (ret)
 			return -EINVAL;
 		parameter_size++;
+
+		if (!tmp_str)
+			break;
 
 		while (isspace(*tmp_str))
 			tmp_str++;
@@ -4459,6 +4588,13 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 	    -EOPNOTSUPP) {
 		ret = devm_device_add_group(adev->dev,
 					    &amdgpu_pm_policy_attr_group);
+		if (ret)
+			goto err_out0;
+	}
+
+	if (amdgpu_dpm_is_temp_metrics_supported(adev, SMU_TEMP_METRIC_GPUBOARD)) {
+		ret = devm_device_add_group(adev->dev,
+					    &amdgpu_board_attr_group);
 		if (ret)
 			goto err_out0;
 	}

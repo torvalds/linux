@@ -8,6 +8,7 @@ config DRM_DISPLAY_DP_AUX_BUS
 config DRM_DISPLAY_HELPER
 	tristate
 	depends on DRM
+	select CEC_CORE if DRM_DISPLAY_DP_AUX_CEC || DRM_DISPLAY_HDMI_CEC_HELPER || CEC_NOTIFIER
 	help
 	  DRM helpers for display adapters.
 
@@ -16,6 +17,7 @@ if DRM_DISPLAY_HELPER
 config DRM_BRIDGE_CONNECTOR
 	bool
 	select DRM_DISPLAY_HDMI_AUDIO_HELPER
+	select DRM_DISPLAY_HDMI_CEC_HELPER
 	select DRM_DISPLAY_HDMI_STATE_HELPER
 	help
 	  DRM connector implementation terminating DRM bridge chains.
@@ -23,7 +25,6 @@ config DRM_BRIDGE_CONNECTOR
 config DRM_DISPLAY_DP_AUX_CEC
 	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
 	select DRM_DISPLAY_DP_HELPER
-	select CEC_CORE
 	help
 	  Choose this option if you want to enable HDMI CEC support for
 	  DisplayPort/USB-C to HDMI adapters.
@@ -81,6 +82,16 @@ config DRM_DISPLAY_HDMI_AUDIO_HELPER
 	help
 	  DRM display helpers for HDMI Audio functionality (generic HDMI Codec
 	  implementation).
+
+config DRM_DISPLAY_HDMI_CEC_HELPER
+	bool
+	help
+	  DRM display helpers for HDMI CEC implementation.
+
+config DRM_DISPLAY_HDMI_CEC_NOTIFIER_HELPER
+	def_bool CEC_NOTIFIER
+	help
+	  DRM display helpers for HDMI CEC notifiers implementation.
 
 config DRM_DISPLAY_HDMI_HELPER
 	bool

@@ -99,7 +99,7 @@ static const struct iio_enum vf610_conversion_mode = {
 static const struct iio_chan_spec_ext_info vf610_ext_info[] = {
 	IIO_ENUM("conversion_mode", IIO_SHARED_BY_DIR,
 		&vf610_conversion_mode),
-	{},
+	{ }
 };
 
 #define VF610_DAC_CHAN(_chan_type) { \
@@ -166,7 +166,7 @@ static const struct iio_info vf610_dac_iio_info = {
 
 static const struct of_device_id vf610_dac_match[] = {
 	{ .compatible = "fsl,vf610-dac", },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, vf610_dac_match);
 
@@ -178,10 +178,8 @@ static int vf610_dac_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev,
 					sizeof(struct vf610_dac));
-	if (!indio_dev) {
-		dev_err(&pdev->dev, "Failed allocating iio device\n");
+	if (!indio_dev)
 		return -ENOMEM;
-	}
 
 	info = iio_priv(indio_dev);
 	info->dev = &pdev->dev;
@@ -190,12 +188,10 @@ static int vf610_dac_probe(struct platform_device *pdev)
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
 
-	info->clk = devm_clk_get(&pdev->dev, "dac");
-	if (IS_ERR(info->clk)) {
-		dev_err(&pdev->dev, "Failed getting clock, err = %ld\n",
-			PTR_ERR(info->clk));
-		return PTR_ERR(info->clk);
-	}
+	info->clk = devm_clk_get_enabled(&pdev->dev, "dac");
+	if (IS_ERR(info->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(info->clk),
+				     "Failed getting clock\n");
 
 	platform_set_drvdata(pdev, indio_dev);
 
@@ -206,13 +202,6 @@ static int vf610_dac_probe(struct platform_device *pdev)
 	indio_dev->num_channels = ARRAY_SIZE(vf610_dac_iio_channels);
 
 	mutex_init(&info->lock);
-
-	ret = clk_prepare_enable(info->clk);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Could not prepare or enable the clock\n");
-		return ret;
-	}
 
 	vf610_dac_init(info);
 
@@ -226,7 +215,6 @@ static int vf610_dac_probe(struct platform_device *pdev)
 
 error_iio_device_register:
 	vf610_dac_exit(info);
-	clk_disable_unprepare(info->clk);
 
 	return ret;
 }
@@ -238,7 +226,6 @@ static void vf610_dac_remove(struct platform_device *pdev)
 
 	iio_device_unregister(indio_dev);
 	vf610_dac_exit(info);
-	clk_disable_unprepare(info->clk);
 }
 
 static int vf610_dac_suspend(struct device *dev)

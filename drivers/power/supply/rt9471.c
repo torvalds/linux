@@ -192,12 +192,12 @@ static const struct reg_field rt9471_reg_fields[F_MAX_FIELDS] = {
 };
 
 static const struct linear_range rt9471_chg_ranges[RT9471_MAX_RANGES] = {
-	[RT9471_RANGE_AICR] = { .min = 50000,	.min_sel = 1, .max_sel = 63, .step = 50000 },
-	[RT9471_RANGE_MIVR] = { .min = 3900000,	.min_sel = 0, .max_sel = 15, .step = 100000 },
-	[RT9471_RANGE_IPRE] = { .min = 50000,	.min_sel = 0, .max_sel = 15, .step = 50000 },
-	[RT9471_RANGE_VCHG] = { .min = 3900000,	.min_sel = 0, .max_sel = 80, .step = 10000 },
-	[RT9471_RANGE_ICHG] = { .min = 0,	.min_sel = 0, .max_sel = 63, .step = 50000 },
-	[RT9471_RANGE_IEOC] = { .min = 50000,	.min_sel = 0, .max_sel = 15, .step = 50000 },
+	[RT9471_RANGE_AICR] = LINEAR_RANGE(50000,	1, 63, 50000),
+	[RT9471_RANGE_MIVR] = LINEAR_RANGE(3900000,	0, 15, 100000),
+	[RT9471_RANGE_IPRE] = LINEAR_RANGE(50000,	0, 15, 50000),
+	[RT9471_RANGE_VCHG] = LINEAR_RANGE(3900000,	0, 80, 10000),
+	[RT9471_RANGE_ICHG] = LINEAR_RANGE(0,		0, 63, 50000),
+	[RT9471_RANGE_IEOC] = LINEAR_RANGE(50000,	0, 15, 50000),
 };
 
 static int rt9471_set_value_by_field_range(struct rt9471_chip *chip,

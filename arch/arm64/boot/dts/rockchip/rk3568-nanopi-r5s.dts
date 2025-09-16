@@ -17,36 +17,56 @@
 		ethernet0 = &gmac0;
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&gpio4_a0_k1_pin>;
+		pinctrl-names = "default";
+
+		button-reset {
+			debounce-interval = <50>;
+			gpios = <&gpio4 RK_PA0 GPIO_ACTIVE_LOW>;
+			label = "RESET";
+			linux,code = <KEY_RESTART>;
+		};
+	};
+
 	gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&lan1_led_pin>, <&lan2_led_pin>, <&power_led_pin>, <&wan_led_pin>;
+		pinctrl-0 = <&lan1_led_pin>, <&lan2_led_pin>, <&sys_led_pin>, <&wan_led_pin>;
 
 		led-lan1 {
 			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
 			function = LED_FUNCTION_LAN;
 			function-enumerator = <1>;
 			gpios = <&gpio3 RK_PD6 GPIO_ACTIVE_HIGH>;
+			label = "LAN-1";
 		};
 
 		led-lan2 {
 			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
 			function = LED_FUNCTION_LAN;
 			function-enumerator = <2>;
 			gpios = <&gpio3 RK_PD7 GPIO_ACTIVE_HIGH>;
+			label = "LAN-2";
 		};
 
-		power_led: led-power {
+		power_led: led-sys {
 			color = <LED_COLOR_ID_RED>;
 			function = LED_FUNCTION_POWER;
-			linux,default-trigger = "heartbeat";
 			gpios = <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
+			label = "SYS";
+			linux,default-trigger = "heartbeat";
 		};
 
 		led-wan {
 			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
 			function = LED_FUNCTION_WAN;
 			gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
+			label = "WAN";
 		};
 	};
 };
@@ -58,6 +78,7 @@
 	clock_in_out = "output";
 	phy-handle = <&rgmii_phy0>;
 	phy-mode = "rgmii";
+	phy-supply = <&vcc_3v3>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac0_miim
 		     &gmac0_tx_bus2
@@ -116,6 +137,12 @@
 		};
 	};
 
+	gpio-keys {
+		gpio4_a0_k1_pin: gpio4-a0-k1-pin {
+			rockchip,pins = <4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	gpio-leds {
 		lan1_led_pin: lan1-led-pin {
 			rockchip,pins = <3 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -125,7 +152,7 @@
 			rockchip,pins = <3 RK_PD7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		power_led_pin: power-led-pin {
+		sys_led_pin: sys-led-pin {
 			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 

@@ -51,7 +51,7 @@
 					 ALT_TYPE_SPEC << ALT_TYPE_SHIFT	| \
 					 (facility) << ALT_DATA_SHIFT)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 #include <linux/stddef.h>
@@ -183,7 +183,7 @@ static inline void apply_alternatives(struct alt_instr *start, struct alt_instr 
 /* Use this macro if clobbers are needed without inputs. */
 #define ASM_NO_INPUT_CLOBBER(clobber...) : clobber
 
-#else  /* __ASSEMBLY__ */
+#else  /* __ASSEMBLER__ */
 
 /*
  * Issue one struct alt_instr descriptor entry (need to put it into
@@ -233,6 +233,6 @@ static inline void apply_alternatives(struct alt_instr *start, struct alt_instr 
 	.popsection
 .endm
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_S390_ALTERNATIVE_H */

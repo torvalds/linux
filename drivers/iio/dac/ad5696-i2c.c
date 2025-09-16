@@ -82,7 +82,7 @@ static const struct i2c_device_id ad5686_i2c_id[] = {
 	{"ad5695r", ID_AD5695R},
 	{"ad5696", ID_AD5696},
 	{"ad5696r", ID_AD5696R},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad5686_i2c_id);
 
@@ -101,7 +101,7 @@ static const struct of_device_id ad5686_of_match[] = {
 	{ .compatible = "adi,ad5695r" },
 	{ .compatible = "adi,ad5696" },
 	{ .compatible = "adi,ad5696r" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad5686_of_match);
 

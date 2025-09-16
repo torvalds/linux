@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "SoC Audio support for Renesas SoCs"
+menu "Renesas"
 	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 
 config SND_SOC_PCM_SH7760
@@ -45,6 +45,13 @@ config SND_SOC_RCAR
 	select REGMAP_MMIO
 	help
 	  This option enables R-Car SRU/SCU/SSIU/SSI sound support
+
+config SND_SOC_MSIOF
+	tristate "R-Car series MSIOF support"
+	depends on OF
+	select SND_DMAENGINE_PCM
+	help
+	  This option enables R-Car MSIOF sound support
 
 config SND_SOC_RZ
 	tristate "RZ/G2L series SSIF-2 support"

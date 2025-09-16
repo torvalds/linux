@@ -27,6 +27,8 @@ properties:
 
   vdrive-supply: true
 
+  vrefin-supply: true
+
   reset-gpios:
     maxItems: 1
 

@@ -195,13 +195,14 @@
 #define ADV7511_I2S_IEC958_DIRECT		3
 
 #define ADV7511_PACKET(p, x)	    ((p) * 0x20 + (x))
-#define ADV7511_PACKET_SDP(x)	    ADV7511_PACKET(0, x)
+#define ADV7511_PACKET_SPD(x)	    ADV7511_PACKET(0, x)
 #define ADV7511_PACKET_MPEG(x)	    ADV7511_PACKET(1, x)
 #define ADV7511_PACKET_ACP(x)	    ADV7511_PACKET(2, x)
 #define ADV7511_PACKET_ISRC1(x)	    ADV7511_PACKET(3, x)
 #define ADV7511_PACKET_ISRC2(x)	    ADV7511_PACKET(4, x)
 #define ADV7511_PACKET_GM(x)	    ADV7511_PACKET(5, x)
-#define ADV7511_PACKET_SPARE(x)	    ADV7511_PACKET(6, x)
+#define ADV7511_PACKET_SPARE1(x)    ADV7511_PACKET(6, x)
+#define ADV7511_PACKET_SPARE2(x)    ADV7511_PACKET(7, x)
 
 #define ADV7511_REG_CEC_TX_FRAME_HDR	0x00
 #define ADV7511_REG_CEC_TX_FRAME_DATA0	0x01
@@ -313,16 +314,11 @@ enum adv7511_csc_scaling {
  * @csc_enable:			Whether to enable color space conversion
  * @csc_scaling_factor:		Color space conversion scaling factor
  * @csc_coefficents:		Color space conversion coefficents
- * @hdmi_mode:			Whether to use HDMI or DVI output mode
- * @avi_infoframe:		HDMI infoframe
  */
 struct adv7511_video_config {
 	bool csc_enable;
 	enum adv7511_csc_scaling csc_scaling_factor;
 	const uint16_t *csc_coefficents;
-
-	bool hdmi_mode;
-	struct hdmi_avi_infoframe avi_infoframe;
 };
 
 enum adv7511_type {
@@ -337,6 +333,7 @@ struct adv7511_chip_info {
 	enum adv7511_type type;
 	unsigned int max_mode_clock_khz;
 	unsigned int max_lane_freq_khz;
+	const char *name;
 	const char * const *supply_names;
 	unsigned int num_supplies;
 	unsigned int reg_cec_offset;
@@ -352,6 +349,7 @@ struct adv7511 {
 	struct i2c_client *i2c_cec;
 
 	struct regmap *regmap;
+	struct regmap *regmap_packet;
 	struct regmap *regmap_cec;
 	enum drm_connector_status status;
 	bool powered;
@@ -371,7 +369,7 @@ struct adv7511 {
 	struct work_struct hpd_work;
 
 	struct drm_bridge bridge;
-	struct drm_connector connector;
+	struct drm_connector *cec_connector;
 
 	bool embedded_sync;
 	enum adv7511_sync_polarity vsync_polarity;
@@ -389,9 +387,7 @@ struct adv7511 {
 	bool use_timing_gen;
 
 	const struct adv7511_chip_info *info;
-	struct platform_device *audio_pdev;
 
-	struct cec_adapter *cec_adap;
 	u8   cec_addr[ADV7511_MAX_ADDRS];
 	u8   cec_valid_addrs;
 	bool cec_enabled_adap;
@@ -399,20 +395,29 @@ struct adv7511 {
 	u32 cec_clk_freq;
 };
 
+static inline struct adv7511 *bridge_to_adv7511(struct drm_bridge *bridge)
+{
+	return container_of(bridge, struct adv7511, bridge);
+}
+
 #ifdef CONFIG_DRM_I2C_ADV7511_CEC
-int adv7511_cec_init(struct device *dev, struct adv7511 *adv7511);
+int adv7511_cec_init(struct drm_bridge *bridge,
+		     struct drm_connector *connector);
+int adv7511_cec_enable(struct drm_bridge *bridge, bool enable);
+int adv7511_cec_log_addr(struct drm_bridge *bridge, u8 addr);
+int adv7511_cec_transmit(struct drm_bridge *bridge, u8 attempts,
+			 u32 signal_free_time, struct cec_msg *msg);
 int adv7511_cec_irq_process(struct adv7511 *adv7511, unsigned int irq1);
 #else
-static inline int adv7511_cec_init(struct device *dev, struct adv7511 *adv7511)
-{
-	regmap_write(adv7511->regmap, ADV7511_REG_CEC_CTRL,
-		     ADV7511_CEC_CTRL_POWER_DOWN);
-	return 0;
-}
+#define adv7511_cec_init NULL
+#define adv7511_cec_enable NULL
+#define adv7511_cec_log_addr NULL
+#define adv7511_cec_transmit NULL
 #endif
 
 void adv7533_dsi_power_on(struct adv7511 *adv);
 void adv7533_dsi_power_off(struct adv7511 *adv);
+void adv7533_dsi_config_timing_gen(struct adv7511 *adv);
 enum drm_mode_status adv7533_mode_valid(struct adv7511 *adv,
 					const struct drm_display_mode *mode);
 int adv7533_patch_registers(struct adv7511 *adv);
@@ -421,16 +426,18 @@ int adv7533_attach_dsi(struct adv7511 *adv);
 int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv);
 
 #ifdef CONFIG_DRM_I2C_ADV7511_AUDIO
-int adv7511_audio_init(struct device *dev, struct adv7511 *adv7511);
-void adv7511_audio_exit(struct adv7511 *adv7511);
+int adv7511_hdmi_audio_startup(struct drm_bridge *bridge,
+			       struct drm_connector *connector);
+void adv7511_hdmi_audio_shutdown(struct drm_bridge *bridge,
+				 struct drm_connector *connector);
+int adv7511_hdmi_audio_prepare(struct drm_bridge *bridge,
+			       struct drm_connector *connector,
+			       struct hdmi_codec_daifmt *fmt,
+			       struct hdmi_codec_params *hparms);
 #else /*CONFIG_DRM_I2C_ADV7511_AUDIO */
-static inline int adv7511_audio_init(struct device *dev, struct adv7511 *adv7511)
-{
-	return 0;
-}
-static inline void adv7511_audio_exit(struct adv7511 *adv7511)
-{
-}
+#define adv7511_hdmi_audio_startup NULL
+#define adv7511_hdmi_audio_shutdown NULL
+#define adv7511_hdmi_audio_prepare NULL
 #endif /* CONFIG_DRM_I2C_ADV7511_AUDIO */
 
 #endif /* __DRM_I2C_ADV7511_H__ */

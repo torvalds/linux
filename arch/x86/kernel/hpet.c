@@ -7,11 +7,12 @@
 #include <linux/cpu.h>
 #include <linux/irq.h>
 
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 #include <asm/irq_remapping.h>
 #include <asm/hpet.h>
 #include <asm/time.h>
 #include <asm/mwait.h>
+#include <asm/msr.h>
 
 #undef  pr_fmt
 #define pr_fmt(fmt) "hpet: " fmt
@@ -970,7 +971,7 @@ static bool __init hpet_is_pc10_damaged(void)
 		return false;
 
 	/* Check whether PC10 is enabled in PKG C-state limit */
-	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, pcfg);
+	rdmsrq(MSR_PKG_CST_CONFIG_CONTROL, pcfg);
 	if ((pcfg & 0xF) < 8)
 		return false;
 

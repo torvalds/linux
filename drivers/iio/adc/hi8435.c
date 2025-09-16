@@ -19,8 +19,6 @@
 #include <linux/spi/spi.h>
 #include <linux/gpio/consumer.h>
 
-#define DRV_NAME "hi8435"
-
 /* Register offsets for HI-8435 */
 #define HI8435_CTRL_REG		0x02
 #define HI8435_PSEN_REG		0x04
@@ -351,7 +349,7 @@ static const struct iio_enum hi8435_sensing_mode = {
 static const struct iio_chan_spec_ext_info hi8435_ext_info[] = {
 	IIO_ENUM("sensing_mode", IIO_SEPARATE, &hi8435_sensing_mode),
 	IIO_ENUM_AVAILABLE("sensing_mode", IIO_SHARED_BY_TYPE, &hi8435_sensing_mode),
-	{},
+	{ }
 };
 
 #define HI8435_VOLTAGE_CHANNEL(num)			\
@@ -536,7 +534,7 @@ MODULE_DEVICE_TABLE(spi, hi8435_id);
 
 static struct spi_driver hi8435_driver = {
 	.driver	= {
-		.name		= DRV_NAME,
+		.name		= "hi8435",
 		.of_match_table	= hi8435_dt_ids,
 	},
 	.probe		= hi8435_probe,

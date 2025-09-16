@@ -40,7 +40,7 @@ int hellcreek_get_ts_info(struct dsa_switch *ds, int port,
  * the user requested what is actually available or not
  */
 static int hellcreek_set_hwtstamp_config(struct hellcreek *hellcreek, int port,
-					 struct hwtstamp_config *config)
+					 struct kernel_hwtstamp_config *config)
 {
 	struct hellcreek_port_hwtstamp *ps =
 		&hellcreek->ports[port].port_hwtstamp;
@@ -110,41 +110,35 @@ static int hellcreek_set_hwtstamp_config(struct hellcreek *hellcreek, int port,
 }
 
 int hellcreek_port_hwtstamp_set(struct dsa_switch *ds, int port,
-				struct ifreq *ifr)
+				struct kernel_hwtstamp_config *config,
+				struct netlink_ext_ack *extack)
 {
 	struct hellcreek *hellcreek = ds->priv;
 	struct hellcreek_port_hwtstamp *ps;
-	struct hwtstamp_config config;
 	int err;
 
 	ps = &hellcreek->ports[port].port_hwtstamp;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	err = hellcreek_set_hwtstamp_config(hellcreek, port, &config);
+	err = hellcreek_set_hwtstamp_config(hellcreek, port, config);
 	if (err)
 		return err;
 
 	/* Save the chosen configuration to be returned later */
-	memcpy(&ps->tstamp_config, &config, sizeof(config));
+	ps->tstamp_config = *config;
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
-		-EFAULT : 0;
+	return 0;
 }
 
 int hellcreek_port_hwtstamp_get(struct dsa_switch *ds, int port,
-				struct ifreq *ifr)
+				struct kernel_hwtstamp_config *config)
 {
 	struct hellcreek *hellcreek = ds->priv;
 	struct hellcreek_port_hwtstamp *ps;
-	struct hwtstamp_config *config;
 
 	ps = &hellcreek->ports[port].port_hwtstamp;
-	config = &ps->tstamp_config;
+	*config = ps->tstamp_config;
 
-	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
-		-EFAULT : 0;
+	return 0;
 }
 
 /* Returns a pointer to the PTP header if the caller should time stamp, or NULL

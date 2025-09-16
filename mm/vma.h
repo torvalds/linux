@@ -19,6 +19,8 @@ struct vma_prepare {
 	struct vm_area_struct *insert;
 	struct vm_area_struct *remove;
 	struct vm_area_struct *remove2;
+
+	bool skip_vma_uprobe :1;
 };
 
 struct unlink_vma_file_batch {
@@ -96,7 +98,7 @@ struct vma_merge_struct {
 	unsigned long end;
 	pgoff_t pgoff;
 
-	unsigned long flags;
+	vm_flags_t vm_flags;
 	struct file *file;
 	struct anon_vma *anon_vma;
 	struct mempolicy *policy;
@@ -119,6 +121,11 @@ struct vma_merge_struct {
 	 * execute the merge, returning NULL.
 	 */
 	bool give_up_on_oom :1;
+
+	/*
+	 * If set, skip uprobe_mmap upon merged vma.
+	 */
+	bool skip_vma_uprobe :1;
 
 	/* Internal flags set during merge process: */
 
@@ -157,13 +164,13 @@ static inline pgoff_t vma_pgoff_offset(struct vm_area_struct *vma,
 	return vma->vm_pgoff + PHYS_PFN(addr - vma->vm_start);
 }
 
-#define VMG_STATE(name, mm_, vmi_, start_, end_, flags_, pgoff_)	\
+#define VMG_STATE(name, mm_, vmi_, start_, end_, vm_flags_, pgoff_)	\
 	struct vma_merge_struct name = {				\
 		.mm = mm_,						\
 		.vmi = vmi_,						\
 		.start = start_,					\
 		.end = end_,						\
-		.flags = flags_,					\
+		.vm_flags = vm_flags_,					\
 		.pgoff = pgoff_,					\
 		.state = VMA_MERGE_START,				\
 	}
@@ -177,7 +184,7 @@ static inline pgoff_t vma_pgoff_offset(struct vm_area_struct *vma,
 		.next = NULL,					\
 		.start = start_,				\
 		.end = end_,					\
-		.flags = vma_->vm_flags,			\
+		.vm_flags = vma_->vm_flags,			\
 		.pgoff = vma_pgoff_offset(vma_, start_),	\
 		.file = vma_->vm_file,				\
 		.anon_vma = vma_->anon_vma,			\
@@ -215,6 +222,53 @@ static inline int vma_iter_store_gfp(struct vma_iterator *vmi,
 	return 0;
 }
 
+
+/*
+ * Temporary helper functions for file systems which wrap an invocation of
+ * f_op->mmap() but which might have an underlying file system which implements
+ * f_op->mmap_prepare().
+ */
+
+static inline struct vm_area_desc *vma_to_desc(struct vm_area_struct *vma,
+		struct vm_area_desc *desc)
+{
+	desc->mm = vma->vm_mm;
+	desc->start = vma->vm_start;
+	desc->end = vma->vm_end;
+
+	desc->pgoff = vma->vm_pgoff;
+	desc->file = vma->vm_file;
+	desc->vm_flags = vma->vm_flags;
+	desc->page_prot = vma->vm_page_prot;
+
+	desc->vm_ops = NULL;
+	desc->private_data = NULL;
+
+	return desc;
+}
+
+static inline void set_vma_from_desc(struct vm_area_struct *vma,
+		struct vm_area_desc *desc)
+{
+	/*
+	 * Since we're invoking .mmap_prepare() despite having a partially
+	 * established VMA, we must take care to handle setting fields
+	 * correctly.
+	 */
+
+	/* Mutable fields. Populated with initial state. */
+	vma->vm_pgoff = desc->pgoff;
+	if (vma->vm_file != desc->file)
+		vma_set_file(vma, desc->file);
+	if (vma->vm_flags != desc->vm_flags)
+		vm_flags_set(vma, desc->vm_flags);
+	vma->vm_page_prot = desc->page_prot;
+
+	/* User-defined fields. */
+	vma->vm_ops = desc->vm_ops;
+	vma->vm_private_data = desc->private_data;
+}
+
 int
 do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		    struct mm_struct *mm, unsigned long start,
@@ -234,17 +288,16 @@ __must_check struct vm_area_struct
 *vma_modify_flags(struct vma_iterator *vmi,
 		struct vm_area_struct *prev, struct vm_area_struct *vma,
 		unsigned long start, unsigned long end,
-		unsigned long new_flags);
+		vm_flags_t vm_flags);
 
-/* We are about to modify the VMA's flags and/or anon_name. */
+/* We are about to modify the VMA's anon_name. */
 __must_check struct vm_area_struct
-*vma_modify_flags_name(struct vma_iterator *vmi,
-		       struct vm_area_struct *prev,
-		       struct vm_area_struct *vma,
-		       unsigned long start,
-		       unsigned long end,
-		       unsigned long new_flags,
-		       struct anon_vma_name *new_name);
+*vma_modify_name(struct vma_iterator *vmi,
+		 struct vm_area_struct *prev,
+		 struct vm_area_struct *vma,
+		 unsigned long start,
+		 unsigned long end,
+		 struct anon_vma_name *new_name);
 
 /* We are about to modify the VMA's memory policy. */
 __must_check struct vm_area_struct
@@ -260,7 +313,7 @@ __must_check struct vm_area_struct
 		       struct vm_area_struct *prev,
 		       struct vm_area_struct *vma,
 		       unsigned long start, unsigned long end,
-		       unsigned long new_flags,
+		       vm_flags_t vm_flags,
 		       struct vm_userfaultfd_ctx new_ctx,
 		       bool give_up_on_oom);
 
@@ -321,7 +374,7 @@ static inline bool vma_wants_manual_pte_write_upgrade(struct vm_area_struct *vma
 }
 
 #ifdef CONFIG_MMU
-static inline pgprot_t vm_pgprot_modify(pgprot_t oldprot, unsigned long vm_flags)
+static inline pgprot_t vm_pgprot_modify(pgprot_t oldprot, vm_flags_t vm_flags)
 {
 	return pgprot_modify(oldprot, vm_get_page_prot(vm_flags));
 }
@@ -506,38 +559,15 @@ struct vm_area_struct *vma_iter_next_rewind(struct vma_iterator *vmi,
 }
 
 #ifdef CONFIG_64BIT
-
 static inline bool vma_is_sealed(struct vm_area_struct *vma)
 {
 	return (vma->vm_flags & VM_SEALED);
 }
-
-/*
- * check if a vma is sealed for modification.
- * return true, if modification is allowed.
- */
-static inline bool can_modify_vma(struct vm_area_struct *vma)
-{
-	if (unlikely(vma_is_sealed(vma)))
-		return false;
-
-	return true;
-}
-
-bool can_modify_vma_madv(struct vm_area_struct *vma, int behavior);
-
 #else
-
-static inline bool can_modify_vma(struct vm_area_struct *vma)
+static inline bool vma_is_sealed(struct vm_area_struct *vma)
 {
-	return true;
+	return false;
 }
-
-static inline bool can_modify_vma_madv(struct vm_area_struct *vma, int behavior)
-{
-	return true;
-}
-
 #endif
 
 #if defined(CONFIG_STACK_GROWSUP)
@@ -547,5 +577,20 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address);
 int expand_downwards(struct vm_area_struct *vma, unsigned long address);
 
 int __vm_munmap(unsigned long start, size_t len, bool unlock);
+
+int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma);
+
+/* vma_init.h, shared between CONFIG_MMU and nommu. */
+void __init vma_state_init(void);
+struct vm_area_struct *vm_area_alloc(struct mm_struct *mm);
+struct vm_area_struct *vm_area_dup(struct vm_area_struct *orig);
+void vm_area_free(struct vm_area_struct *vma);
+
+/* vma_exec.c */
+#ifdef CONFIG_MMU
+int create_init_stack_vma(struct mm_struct *mm, struct vm_area_struct **vmap,
+			  unsigned long *top_mem_p);
+int relocate_vma_down(struct vm_area_struct *vma, unsigned long shift);
+#endif
 
 #endif	/* __MM_VMA_H */

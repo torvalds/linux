@@ -9,6 +9,7 @@
 #include "i915_utils.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dp_aux.h"
 #include "intel_gmbus.h"
@@ -1024,7 +1025,7 @@ static void mtp_tc_hpd_enable_detection(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 
-	intel_de_rmw(display, SHOTPLUG_CTL_DDI,
+	intel_de_rmw(display, SHOTPLUG_CTL_TC,
 		     mtp_tc_hotplug_mask(encoder->hpd_pin),
 		     mtp_tc_hotplug_enables(encoder));
 }

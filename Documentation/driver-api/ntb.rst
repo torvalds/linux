@@ -35,7 +35,7 @@ anyone who has written a pci driver.
 NTB Typical client driver implementation
 ----------------------------------------
 
-Primary purpose of NTB is to share some peace of memory between at least two
+Primary purpose of NTB is to share some piece of memory between at least two
 systems. So the NTB device features like Scratchpad/Message registers are
 mainly used to perform the proper memory window initialization. Typically
 there are two types of memory window interfaces supported by the NTB API:

@@ -21,11 +21,6 @@
 #define VMEMMAP_SIZE	0	/* 1, For FLATMEM; 2, For SPARSEMEM without VMEMMAP. */
 #endif
 
-#ifdef CONFIG_MEMORY_HOTPLUG
-int memory_add_physaddr_to_nid(u64 addr);
-#define memory_add_physaddr_to_nid memory_add_physaddr_to_nid
-#endif
-
 #define INIT_MEMBLOCK_RESERVED_REGIONS	(INIT_MEMBLOCK_REGIONS + NR_CPUS)
 
 #endif /* _LOONGARCH_SPARSEMEM_H */

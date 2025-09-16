@@ -11,6 +11,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/firmware/imx/svc/misc.h>
 #include <linux/mfd/syscon.h>
+#include <linux/reset.h>
 
 #include "imx-common.h"
 
@@ -22,13 +23,6 @@
 #define IMX8M_DAP_DEBUG_SIZE (64 * 1024)
 #define IMX8M_DAP_PWRCTL (0x4000 + 0x3020)
 #define IMX8M_PWRCTL_CORERESET BIT(16)
-
-#define AudioDSP_REG0 0x100
-#define AudioDSP_REG1 0x104
-#define AudioDSP_REG2 0x108
-#define AudioDSP_REG3 0x10c
-
-#define AudioDSP_REG2_RUNSTALL  BIT(5)
 
 /* imx8ulp macros */
 #define FSL_SIP_HIFI_XRDC       0xc200000e
@@ -43,7 +37,21 @@
 struct imx8m_chip_data {
 	void __iomem *dap;
 	struct regmap *regmap;
+	struct reset_control *run_stall;
 };
+
+static int imx8_shutdown(struct snd_sof_dev *sdev)
+{
+	/*
+	 * Force the DSP to stall. After the firmware image is loaded,
+	 * the stall will be removed during run() by a matching
+	 * imx_sc_pm_cpu_start() call.
+	 */
+	imx_sc_pm_cpu_start(get_chip_pdata(sdev), IMX_SC_R_DSP, false,
+			    RESET_VECTOR_VADDR);
+
+	return 0;
+}
 
 /*
  * DSP control.
@@ -137,8 +145,7 @@ static int imx8m_reset(struct snd_sof_dev *sdev)
 	/* keep reset asserted for 10 cycles */
 	usleep_range(1, 2);
 
-	regmap_update_bits(chip->regmap, AudioDSP_REG2,
-			   AudioDSP_REG2_RUNSTALL, AudioDSP_REG2_RUNSTALL);
+	reset_control_assert(chip->run_stall);
 
 	/* take the DSP out of reset and keep stalled for FW loading */
 	pwrctl = readl(chip->dap + IMX8M_DAP_PWRCTL);
@@ -152,9 +159,7 @@ static int imx8m_run(struct snd_sof_dev *sdev)
 {
 	struct imx8m_chip_data *chip = get_chip_pdata(sdev);
 
-	regmap_update_bits(chip->regmap, AudioDSP_REG2, AudioDSP_REG2_RUNSTALL, 0);
-
-	return 0;
+	return reset_control_deassert(chip->run_stall);
 }
 
 static int imx8m_probe(struct snd_sof_dev *sdev)
@@ -174,10 +179,10 @@ static int imx8m_probe(struct snd_sof_dev *sdev)
 		return dev_err_probe(sdev->dev, -ENODEV,
 				     "failed to ioremap DAP\n");
 
-	chip->regmap = syscon_regmap_lookup_by_phandle(sdev->dev->of_node, "fsl,dsp-ctrl");
-	if (IS_ERR(chip->regmap))
-		return dev_err_probe(sdev->dev, PTR_ERR(chip->regmap),
-				     "failed to fetch dsp ctrl regmap\n");
+	chip->run_stall = devm_reset_control_get_exclusive(sdev->dev, "runstall");
+	if (IS_ERR(chip->run_stall))
+		return dev_err_probe(sdev->dev, PTR_ERR(chip->run_stall),
+				     "failed to get dsp runstall reset control\n");
 
 	common->chip_pdata = chip;
 
@@ -289,11 +294,13 @@ static int imx8_ops_init(struct snd_sof_dev *sdev)
 static const struct imx_chip_ops imx8_chip_ops = {
 	.probe = imx8_probe,
 	.core_kick = imx8_run,
+	.core_shutdown = imx8_shutdown,
 };
 
 static const struct imx_chip_ops imx8x_chip_ops = {
 	.probe = imx8_probe,
 	.core_kick = imx8x_run,
+	.core_shutdown = imx8_shutdown,
 };
 
 static const struct imx_chip_ops imx8m_chip_ops = {

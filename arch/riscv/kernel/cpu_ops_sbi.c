@@ -18,10 +18,10 @@ const struct cpu_operations cpu_ops_sbi;
 
 /*
  * Ordered booting via HSM brings one cpu at a time. However, cpu hotplug can
- * be invoked from multiple threads in parallel. Define a per cpu data
+ * be invoked from multiple threads in parallel. Define an array of boot data
  * to handle that.
  */
-static DEFINE_PER_CPU(struct sbi_hart_boot_data, boot_data);
+static struct sbi_hart_boot_data boot_data[NR_CPUS];
 
 static int sbi_hsm_hart_start(unsigned long hartid, unsigned long saddr,
 			      unsigned long priv)
@@ -67,7 +67,7 @@ static int sbi_cpu_start(unsigned int cpuid, struct task_struct *tidle)
 	unsigned long boot_addr = __pa_symbol(secondary_start_sbi);
 	unsigned long hartid = cpuid_to_hartid_map(cpuid);
 	unsigned long hsm_data;
-	struct sbi_hart_boot_data *bdata = &per_cpu(boot_data, cpuid);
+	struct sbi_hart_boot_data *bdata = &boot_data[cpuid];
 
 	/* Make sure tidle is updated */
 	smp_mb();

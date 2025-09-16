@@ -1699,7 +1699,8 @@ static bool net_timeout_reached(struct drbd_request *net_req,
 
 void request_timer_fn(struct timer_list *t)
 {
-	struct drbd_device *device = from_timer(device, t, request_timer);
+	struct drbd_device *device = timer_container_of(device, t,
+							request_timer);
 	struct drbd_connection *connection = first_peer_device(device)->connection;
 	struct drbd_request *req_read, *req_write, *req_peer; /* oldest request */
 	struct net_conf *nc;

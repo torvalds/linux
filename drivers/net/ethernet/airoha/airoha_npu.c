@@ -12,6 +12,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/regmap.h>
 
+#include "airoha_eth.h"
 #include "airoha_npu.h"
 
 #define NPU_EN7581_FIRMWARE_DATA		"airoha/en7581_npu_data.bin"
@@ -72,6 +73,7 @@ enum {
 	PPE_FUNC_SET_WAIT_HWNAT_INIT,
 	PPE_FUNC_SET_WAIT_HWNAT_DEINIT,
 	PPE_FUNC_SET_WAIT_API,
+	PPE_FUNC_SET_WAIT_FLOW_STATS_SETUP,
 };
 
 enum {
@@ -104,15 +106,21 @@ struct ppe_mbox_data {
 			u8 xpon_hal_api;
 			u8 wan_xsi;
 			u8 ct_joyme4;
-			int ppe_type;
-			int wan_mode;
-			int wan_sel;
+			u8 max_packet;
+			u8 rsv[3];
+			u32 ppe_type;
+			u32 wan_mode;
+			u32 wan_sel;
 		} init_info;
 		struct {
-			int func_id;
+			u32 func_id;
 			u32 size;
 			u32 data;
 		} set_info;
+		struct {
+			u32 npu_stats_addr;
+			u32 foe_stats_addr;
+		} stats_info;
 	};
 };
 
@@ -122,17 +130,12 @@ static int airoha_npu_send_msg(struct airoha_npu *npu, int func_id,
 	u16 core = 0; /* FIXME */
 	u32 val, offset = core << 4;
 	dma_addr_t dma_addr;
-	void *addr;
 	int ret;
 
-	addr = kmemdup(p, size, GFP_ATOMIC);
-	if (!addr)
-		return -ENOMEM;
-
-	dma_addr = dma_map_single(npu->dev, addr, size, DMA_TO_DEVICE);
+	dma_addr = dma_map_single(npu->dev, p, size, DMA_TO_DEVICE);
 	ret = dma_mapping_error(npu->dev, dma_addr);
 	if (ret)
-		goto out;
+		return ret;
 
 	spin_lock_bh(&npu->cores[core].lock);
 
@@ -153,14 +156,12 @@ static int airoha_npu_send_msg(struct airoha_npu *npu, int func_id,
 	spin_unlock_bh(&npu->cores[core].lock);
 
 	dma_unmap_single(npu->dev, dma_addr, size, DMA_TO_DEVICE);
-out:
-	kfree(addr);
 
 	return ret;
 }
 
 static int airoha_npu_run_firmware(struct device *dev, void __iomem *base,
-				   struct reserved_mem *rmem)
+				   struct resource *res)
 {
 	const struct firmware *fw;
 	void __iomem *addr;
@@ -177,9 +178,9 @@ static int airoha_npu_run_firmware(struct device *dev, void __iomem *base,
 		goto out;
 	}
 
-	addr = devm_ioremap(dev, rmem->base, rmem->size);
-	if (!addr) {
-		ret = -ENOMEM;
+	addr = devm_ioremap_resource(dev, res);
+	if (IS_ERR(addr)) {
+		ret = PTR_ERR(addr);
 		goto out;
 	}
 
@@ -259,79 +260,137 @@ static irqreturn_t airoha_npu_wdt_handler(int irq, void *core_instance)
 
 static int airoha_npu_ppe_init(struct airoha_npu *npu)
 {
-	struct ppe_mbox_data ppe_data = {
-		.func_type = NPU_OP_SET,
-		.func_id = PPE_FUNC_SET_WAIT_HWNAT_INIT,
-		.init_info = {
-			.ppe_type = PPE_TYPE_L2B_IPV4_IPV6,
-			.wan_mode = QDMA_WAN_ETHER,
-		},
-	};
+	struct ppe_mbox_data *ppe_data;
+	int err;
 
-	return airoha_npu_send_msg(npu, NPU_FUNC_PPE, &ppe_data,
-				   sizeof(struct ppe_mbox_data));
+	ppe_data = kzalloc(sizeof(*ppe_data), GFP_KERNEL);
+	if (!ppe_data)
+		return -ENOMEM;
+
+	ppe_data->func_type = NPU_OP_SET;
+	ppe_data->func_id = PPE_FUNC_SET_WAIT_HWNAT_INIT;
+	ppe_data->init_info.ppe_type = PPE_TYPE_L2B_IPV4_IPV6;
+	ppe_data->init_info.wan_mode = QDMA_WAN_ETHER;
+
+	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, ppe_data,
+				  sizeof(*ppe_data));
+	kfree(ppe_data);
+
+	return err;
 }
 
 static int airoha_npu_ppe_deinit(struct airoha_npu *npu)
 {
-	struct ppe_mbox_data ppe_data = {
-		.func_type = NPU_OP_SET,
-		.func_id = PPE_FUNC_SET_WAIT_HWNAT_DEINIT,
-	};
+	struct ppe_mbox_data *ppe_data;
+	int err;
 
-	return airoha_npu_send_msg(npu, NPU_FUNC_PPE, &ppe_data,
-				   sizeof(struct ppe_mbox_data));
+	ppe_data = kzalloc(sizeof(*ppe_data), GFP_KERNEL);
+	if (!ppe_data)
+		return -ENOMEM;
+
+	ppe_data->func_type = NPU_OP_SET;
+	ppe_data->func_id = PPE_FUNC_SET_WAIT_HWNAT_DEINIT;
+
+	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, ppe_data,
+				  sizeof(*ppe_data));
+	kfree(ppe_data);
+
+	return err;
 }
 
 static int airoha_npu_ppe_flush_sram_entries(struct airoha_npu *npu,
 					     dma_addr_t foe_addr,
 					     int sram_num_entries)
 {
-	struct ppe_mbox_data ppe_data = {
-		.func_type = NPU_OP_SET,
-		.func_id = PPE_FUNC_SET_WAIT_API,
-		.set_info = {
-			.func_id = PPE_SRAM_RESET_VAL,
-			.data = foe_addr,
-			.size = sram_num_entries,
-		},
-	};
+	struct ppe_mbox_data *ppe_data;
+	int err;
 
-	return airoha_npu_send_msg(npu, NPU_FUNC_PPE, &ppe_data,
-				   sizeof(struct ppe_mbox_data));
+	ppe_data = kzalloc(sizeof(*ppe_data), GFP_KERNEL);
+	if (!ppe_data)
+		return -ENOMEM;
+
+	ppe_data->func_type = NPU_OP_SET;
+	ppe_data->func_id = PPE_FUNC_SET_WAIT_API;
+	ppe_data->set_info.func_id = PPE_SRAM_RESET_VAL;
+	ppe_data->set_info.data = foe_addr;
+	ppe_data->set_info.size = sram_num_entries;
+
+	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, ppe_data,
+				  sizeof(*ppe_data));
+	kfree(ppe_data);
+
+	return err;
 }
 
 static int airoha_npu_foe_commit_entry(struct airoha_npu *npu,
 				       dma_addr_t foe_addr,
 				       u32 entry_size, u32 hash, bool ppe2)
 {
-	struct ppe_mbox_data ppe_data = {
-		.func_type = NPU_OP_SET,
-		.func_id = PPE_FUNC_SET_WAIT_API,
-		.set_info = {
-			.data = foe_addr,
-			.size = entry_size,
-		},
-	};
+	struct ppe_mbox_data *ppe_data;
 	int err;
 
-	ppe_data.set_info.func_id = ppe2 ? PPE2_SRAM_SET_ENTRY
-					 : PPE_SRAM_SET_ENTRY;
+	ppe_data = kzalloc(sizeof(*ppe_data), GFP_ATOMIC);
+	if (!ppe_data)
+		return -ENOMEM;
 
-	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, &ppe_data,
-				  sizeof(struct ppe_mbox_data));
+	ppe_data->func_type = NPU_OP_SET;
+	ppe_data->func_id = PPE_FUNC_SET_WAIT_API;
+	ppe_data->set_info.data = foe_addr;
+	ppe_data->set_info.size = entry_size;
+	ppe_data->set_info.func_id = ppe2 ? PPE2_SRAM_SET_ENTRY
+					  : PPE_SRAM_SET_ENTRY;
+
+	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, ppe_data,
+				  sizeof(*ppe_data));
 	if (err)
-		return err;
+		goto out;
 
-	ppe_data.set_info.func_id = PPE_SRAM_SET_VAL;
-	ppe_data.set_info.data = hash;
-	ppe_data.set_info.size = sizeof(u32);
+	ppe_data->set_info.func_id = PPE_SRAM_SET_VAL;
+	ppe_data->set_info.data = hash;
+	ppe_data->set_info.size = sizeof(u32);
 
-	return airoha_npu_send_msg(npu, NPU_FUNC_PPE, &ppe_data,
-				   sizeof(struct ppe_mbox_data));
+	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, ppe_data,
+				  sizeof(*ppe_data));
+out:
+	kfree(ppe_data);
+
+	return err;
 }
 
-struct airoha_npu *airoha_npu_get(struct device *dev)
+static int airoha_npu_stats_setup(struct airoha_npu *npu,
+				  dma_addr_t foe_stats_addr)
+{
+	int err, size = PPE_STATS_NUM_ENTRIES * sizeof(*npu->stats);
+	struct ppe_mbox_data *ppe_data;
+
+	if (!size) /* flow stats are disabled */
+		return 0;
+
+	ppe_data = kzalloc(sizeof(*ppe_data), GFP_ATOMIC);
+	if (!ppe_data)
+		return -ENOMEM;
+
+	ppe_data->func_type = NPU_OP_SET;
+	ppe_data->func_id = PPE_FUNC_SET_WAIT_FLOW_STATS_SETUP;
+	ppe_data->stats_info.foe_stats_addr = foe_stats_addr;
+
+	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, ppe_data,
+				  sizeof(*ppe_data));
+	if (err)
+		goto out;
+
+	npu->stats = devm_ioremap(npu->dev,
+				  ppe_data->stats_info.npu_stats_addr,
+				  size);
+	if (!npu->stats)
+		err = -ENOMEM;
+out:
+	kfree(ppe_data);
+
+	return err;
+}
+
+struct airoha_npu *airoha_npu_get(struct device *dev, dma_addr_t *stats_addr)
 {
 	struct platform_device *pdev;
 	struct device_node *np;
@@ -342,12 +401,13 @@ struct airoha_npu *airoha_npu_get(struct device *dev)
 		return ERR_PTR(-ENODEV);
 
 	pdev = of_find_device_by_node(np);
-	of_node_put(np);
 
 	if (!pdev) {
 		dev_err(dev, "cannot find device node %s\n", np->name);
+		of_node_put(np);
 		return ERR_PTR(-ENODEV);
 	}
+	of_node_put(np);
 
 	if (!try_module_get(THIS_MODULE)) {
 		dev_err(dev, "failed to get the device driver module\n");
@@ -367,6 +427,17 @@ struct airoha_npu *airoha_npu_get(struct device *dev)
 			dev_name(dev));
 		npu = ERR_PTR(-EINVAL);
 		goto error_module_put;
+	}
+
+	if (stats_addr) {
+		int err;
+
+		err = airoha_npu_stats_setup(npu, *stats_addr);
+		if (err) {
+			dev_err(dev, "failed to allocate npu stats buffer\n");
+			npu = ERR_PTR(err);
+			goto error_module_put;
+		}
 	}
 
 	return npu;
@@ -404,9 +475,8 @@ static const struct regmap_config regmap_config = {
 static int airoha_npu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct reserved_mem *rmem;
 	struct airoha_npu *npu;
-	struct device_node *np;
+	struct resource res;
 	void __iomem *base;
 	int i, irq, err;
 
@@ -428,15 +498,9 @@ static int airoha_npu_probe(struct platform_device *pdev)
 	if (IS_ERR(npu->regmap))
 		return PTR_ERR(npu->regmap);
 
-	np = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!np)
-		return -ENODEV;
-
-	rmem = of_reserved_mem_lookup(np);
-	of_node_put(np);
-
-	if (!rmem)
-		return -ENODEV;
+	err = of_reserved_mem_region_to_resource(dev->of_node, 0, &res);
+	if (err)
+		return err;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -469,12 +533,12 @@ static int airoha_npu_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	err = airoha_npu_run_firmware(dev, base, rmem);
+	err = airoha_npu_run_firmware(dev, base, &res);
 	if (err)
 		return dev_err_probe(dev, err, "failed to run npu firmware\n");
 
 	regmap_write(npu->regmap, REG_CR_NPU_MIB(10),
-		     rmem->base + NPU_EN7581_FIRMWARE_RV32_MAX_SIZE);
+		     res.start + NPU_EN7581_FIRMWARE_RV32_MAX_SIZE);
 	regmap_write(npu->regmap, REG_CR_NPU_MIB(11), 0x40000); /* SRAM 256K */
 	regmap_write(npu->regmap, REG_CR_NPU_MIB(12), 0);
 	regmap_write(npu->regmap, REG_CR_NPU_MIB(21), 1);
@@ -482,7 +546,7 @@ static int airoha_npu_probe(struct platform_device *pdev)
 
 	/* setting booting address */
 	for (i = 0; i < NPU_NUM_CORES; i++)
-		regmap_write(npu->regmap, REG_CR_BOOT_BASE(i), rmem->base);
+		regmap_write(npu->regmap, REG_CR_BOOT_BASE(i), res.start);
 	usleep_range(1000, 2000);
 
 	/* enable NPU cores */
@@ -515,6 +579,8 @@ static struct platform_driver airoha_npu_driver = {
 };
 module_platform_driver(airoha_npu_driver);
 
+MODULE_FIRMWARE(NPU_EN7581_FIRMWARE_DATA);
+MODULE_FIRMWARE(NPU_EN7581_FIRMWARE_RV32);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 MODULE_DESCRIPTION("Airoha Network Processor Unit driver");

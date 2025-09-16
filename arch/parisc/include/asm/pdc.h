@@ -4,7 +4,7 @@
 
 #include <uapi/asm/pdc.h>
 
-#if !defined(__ASSEMBLY__)
+#if !defined(__ASSEMBLER__)
 
 extern int parisc_narrow_firmware;
 
@@ -109,5 +109,5 @@ static inline char * os_id_to_string(u16 os_id) {
 	}
 }
 
-#endif /* !defined(__ASSEMBLY__) */
+#endif /* !defined(__ASSEMBLER__) */
 #endif /* _PARISC_PDC_H */

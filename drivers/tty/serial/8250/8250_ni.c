@@ -10,14 +10,18 @@
  * Copyright 2012-2023 National Instruments Corporation
  */
 
-#include <linux/acpi.h>
 #include <linux/bitfield.h>
+#include <linux/bits.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/init.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/property.h>
-#include <linux/clk.h>
+#include <linux/serial_core.h>
+#include <linux/types.h>
 
 #include "8250.h"
 
@@ -90,10 +94,10 @@ static int ni16550_disable_transceivers(struct uart_port *port)
 {
 	u8 pcr;
 
-	pcr = port->serial_in(port, NI16550_PCR_OFFSET);
+	pcr = serial_port_in(port, NI16550_PCR_OFFSET);
 	pcr &= ~NI16550_PCR_TXVR_ENABLE_BIT;
 	dev_dbg(port->dev, "disable transceivers: write pcr: 0x%02x\n", pcr);
-	port->serial_out(port, NI16550_PCR_OFFSET, pcr);
+	serial_port_out(port, NI16550_PCR_OFFSET, pcr);
 
 	return 0;
 }
@@ -105,7 +109,7 @@ static int ni16550_rs485_config(struct uart_port *port,
 	struct uart_8250_port *up = container_of(port, struct uart_8250_port, port);
 	u8 pcr;
 
-	pcr = serial_in(up, NI16550_PCR_OFFSET);
+	pcr = serial_port_in(port, NI16550_PCR_OFFSET);
 	pcr &= ~NI16550_PCR_WIRE_MODE_MASK;
 
 	if ((rs485->flags & SER_RS485_MODE_RS422) ||
@@ -120,7 +124,7 @@ static int ni16550_rs485_config(struct uart_port *port,
 	}
 
 	dev_dbg(port->dev, "config rs485: write pcr: 0x%02x, acr: %02x\n", pcr, up->acr);
-	serial_out(up, NI16550_PCR_OFFSET, pcr);
+	serial_port_out(port, NI16550_PCR_OFFSET, pcr);
 	serial_icr_write(up, UART_ACR, up->acr);
 
 	return 0;
@@ -224,31 +228,26 @@ static int ni16550_get_regs(struct platform_device *pdev,
 {
 	struct resource *regs;
 
-	regs = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (regs) {
+	regs = platform_get_mem_or_io(pdev, 0);
+	if (!regs)
+		return dev_err_probe(&pdev->dev, -EINVAL, "no registers defined\n");
+
+	switch (resource_type(regs)) {
+	case IORESOURCE_IO:
 		port->iotype = UPIO_PORT;
 		port->iobase = regs->start;
 
 		return 0;
-	}
-
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (regs) {
+	case IORESOURCE_MEM:
 		port->iotype = UPIO_MEM;
 		port->mapbase = regs->start;
 		port->mapsize = resource_size(regs);
 		port->flags |= UPF_IOREMAP;
 
-		port->membase = devm_ioremap(&pdev->dev, port->mapbase,
-					     port->mapsize);
-		if (!port->membase)
-			return -ENOMEM;
-
 		return 0;
+	default:
+		return -EINVAL;
 	}
-
-	dev_err(&pdev->dev, "no registers defined\n");
-	return -EINVAL;
 }
 
 /*
@@ -276,86 +275,80 @@ static void ni16550_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 static int ni16550_probe(struct platform_device *pdev)
 {
+	struct uart_8250_port *uart __free(kfree) = NULL;
 	const struct ni16550_device_info *info;
 	struct device *dev = &pdev->dev;
-	struct uart_8250_port uart = {};
 	unsigned int txfifosz, rxfifosz;
-	unsigned int prescaler = 0;
 	struct ni16550_data *data;
+	unsigned int prescaler;
 	const char *portmode;
 	bool rs232_property;
 	int ret;
-	int irq;
+
+	uart = kzalloc(sizeof(*uart), GFP_KERNEL);
+	if (!uart)
+		return -ENOMEM;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	spin_lock_init(&uart.port.lock);
+	spin_lock_init(&uart->port.lock);
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	ret = ni16550_get_regs(pdev, &uart.port);
+	ret = ni16550_get_regs(pdev, &uart->port);
 	if (ret < 0)
 		return ret;
 
 	/* early setup so that serial_in()/serial_out() work */
-	serial8250_set_defaults(&uart);
+	serial8250_set_defaults(uart);
 
 	info = device_get_match_data(dev);
 
-	uart.port.dev		= dev;
-	uart.port.irq		= irq;
-	uart.port.irqflags	= IRQF_SHARED;
-	uart.port.flags		= UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF
-					| UPF_FIXED_PORT | UPF_FIXED_TYPE;
-	uart.port.startup	= ni16550_port_startup;
-	uart.port.shutdown	= ni16550_port_shutdown;
+	uart->port.dev		= dev;
+	uart->port.flags	= UPF_BOOT_AUTOCONF | UPF_FIXED_PORT | UPF_FIXED_TYPE;
+	uart->port.startup	= ni16550_port_startup;
+	uart->port.shutdown	= ni16550_port_shutdown;
 
 	/*
 	 * Hardware instantiation of FIFO sizes are held in registers.
 	 */
-	txfifosz = ni16550_read_fifo_size(&uart, NI16550_TFS_OFFSET);
-	rxfifosz = ni16550_read_fifo_size(&uart, NI16550_RFS_OFFSET);
+	txfifosz = ni16550_read_fifo_size(uart, NI16550_TFS_OFFSET);
+	rxfifosz = ni16550_read_fifo_size(uart, NI16550_RFS_OFFSET);
 
 	dev_dbg(dev, "NI 16550 has TX FIFO size %u, RX FIFO size %u\n",
 		txfifosz, rxfifosz);
 
-	uart.port.type		= PORT_16550A;
-	uart.port.fifosize	= txfifosz;
-	uart.tx_loadsz		= txfifosz;
-	uart.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10;
-	uart.capabilities	= UART_CAP_FIFO | UART_CAP_AFE | UART_CAP_EFR;
+	uart->port.type		= PORT_16550A;
+	uart->port.fifosize	= txfifosz;
+	uart->tx_loadsz		= txfifosz;
+	uart->fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10;
+	uart->capabilities	= UART_CAP_FIFO | UART_CAP_AFE | UART_CAP_EFR;
 
 	/*
 	 * Declaration of the base clock frequency can come from one of:
 	 * - static declaration in this driver (for older ACPI IDs)
-	 * - a "clock-frquency" ACPI
+	 * - a "clock-frequency" ACPI
 	 */
-	if (info->uartclk)
-		uart.port.uartclk = info->uartclk;
-	if (device_property_read_u32(dev, "clock-frequency",
-				     &uart.port.uartclk)) {
+	uart->port.uartclk = info->uartclk;
+
+	ret = uart_read_port_properties(&uart->port);
+	if (ret)
+		return ret;
+
+	if (!uart->port.uartclk) {
 		data->clk = devm_clk_get_enabled(dev, NULL);
 		if (!IS_ERR(data->clk))
-			uart.port.uartclk = clk_get_rate(data->clk);
+			uart->port.uartclk = clk_get_rate(data->clk);
 	}
 
-	if (!uart.port.uartclk) {
-		dev_err(dev, "unable to determine clock frequency!\n");
-		ret = -ENODEV;
-		goto err;
-	}
+	if (!uart->port.uartclk)
+		return dev_err_probe(dev, -ENODEV, "unable to determine clock frequency!\n");
 
-	if (info->prescaler)
-		prescaler = info->prescaler;
+	prescaler = info->prescaler;
 	device_property_read_u32(dev, "clock-prescaler", &prescaler);
-
-	if (prescaler != 0) {
-		uart.port.set_mctrl = ni16550_set_mctrl;
-		ni16550_config_prescaler(&uart, (u8)prescaler);
+	if (prescaler) {
+		uart->port.set_mctrl = ni16550_set_mctrl;
+		ni16550_config_prescaler(uart, (u8)prescaler);
 	}
 
 	/*
@@ -373,7 +366,7 @@ static int ni16550_probe(struct platform_device *pdev)
 		dev_dbg(dev, "port is in %s mode (via device property)\n",
 			rs232_property ? "RS-232" : "RS-485");
 	} else if (info->flags & NI_HAS_PMR) {
-		rs232_property = is_pmr_rs232_mode(&uart);
+		rs232_property = is_pmr_rs232_mode(uart);
 
 		dev_dbg(dev, "port is in %s mode (via PMR)\n",
 			rs232_property ? "RS-232" : "RS-485");
@@ -388,19 +381,16 @@ static int ni16550_probe(struct platform_device *pdev)
 		 * Neither the 'transceiver' property nor the PMR indicate
 		 * that this is an RS-232 port, so it must be an RS-485 one.
 		 */
-		ni16550_rs485_setup(&uart.port);
+		ni16550_rs485_setup(&uart->port);
 	}
 
-	ret = serial8250_register_8250_port(&uart);
+	ret = serial8250_register_8250_port(uart);
 	if (ret < 0)
-		goto err;
+		return ret;
 	data->line = ret;
 
 	platform_set_drvdata(pdev, data);
 	return 0;
-
-err:
-	return ret;
 }
 
 static void ni16550_remove(struct platform_device *pdev)
@@ -410,7 +400,6 @@ static void ni16550_remove(struct platform_device *pdev)
 	serial8250_unregister_port(data->line);
 }
 
-#ifdef CONFIG_ACPI
 /* NI 16550 RS-485 Interface */
 static const struct ni16550_device_info nic7750 = {
 	.uartclk = 33333333,
@@ -435,20 +424,20 @@ static const struct ni16550_device_info nic7a69 = {
 	.uartclk = 29629629,
 	.prescaler = 0x09,
 };
+
 static const struct acpi_device_id ni16550_acpi_match[] = {
 	{ "NIC7750",	(kernel_ulong_t)&nic7750 },
 	{ "NIC7772",	(kernel_ulong_t)&nic7772 },
 	{ "NIC792B",	(kernel_ulong_t)&nic792b },
 	{ "NIC7A69",	(kernel_ulong_t)&nic7a69 },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ni16550_acpi_match);
-#endif
 
 static struct platform_driver ni16550_driver = {
 	.driver = {
 		.name = "ni16550",
-		.acpi_match_table = ACPI_PTR(ni16550_acpi_match),
+		.acpi_match_table = ni16550_acpi_match,
 	},
 	.probe = ni16550_probe,
 	.remove = ni16550_remove,

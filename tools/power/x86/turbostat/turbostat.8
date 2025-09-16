@@ -47,10 +47,11 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 		MSRs are read as 64-bits, u32 truncates the displayed value to 32-bits.
 		default: u64
 
-	format: {\fBraw\fP | \fBdelta\fP | \fBpercent\fP}
+	format: {\fBraw\fP | \fBdelta\fP | \fBpercent\fP | \fBaverage\fP}
 		'raw' shows the MSR contents in hex.
 		'delta' shows the difference in values during the measurement interval.
 		'percent' shows the delta as a percentage of the cycles elapsed.
+		'average' similar to raw, but also averaged for node/package summaries (or when using -S).
 		default: delta
 
 	name: "name_string"
@@ -100,7 +101,7 @@ The column name "all" can be used to enable all disabled-by-default built-in cou
 .PP
 \fB--show column\fP show only the specified built-in columns.  May be invoked multiple times, or with a comma-separated list of column names.
 .PP
-\fB--show CATEGORY --hide CATEGORY\fP  Show and hide also accept a single CATEGORY of columns: "all", "topology", "idle", "frequency", "power", "cpuidle", "hwidle", "swidle", "other".  "idle" (enabled by default), includes "hwidle" and "idle_pct".  "cpuidle" (default disabled) includes cpuidle software invocation counters.  "swidle" includes "cpuidle" plus "idle_pct".  "hwidle" includes only hardware based idle residency counters.  Older versions of turbostat used the term "sysfs" for what is now "swidle".
+\fB--show CATEGORY --hide CATEGORY\fP  Show and hide also accept a single CATEGORY of columns: "all", "topology", "idle", "frequency", "power", "cpuidle", "hwidle", "swidle", "other".  "idle" (enabled by default), includes "hwidle" and "pct_idle".  "cpuidle" (default disabled) includes cpuidle software invocation counters.  "swidle" includes "cpuidle" plus "pct_idle".  "hwidle" includes only hardware based idle residency counters.  Older versions of turbostat used the term "sysfs" for what is now "swidle".
 .PP
 \fB--Dump\fP displays the raw counter values.
 .PP
@@ -186,6 +187,14 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .PP
 \fBSAMAMHz\fP Instantaneous snapshot of what sysfs presents at the end of the measurement interval. From /sys/class/drm/card0/gt/gt1/rps_act_freq_mhz or /sys/class/drm/card0/device/tile0/gtN/freq0/act_freq depending on the graphics driver being used.
 .PP
+\fBTotl%C0\fP Weighted percentage of time that CPUs are busy. If N CPUs are busy during an interval, the percentage is N * 100%.
+.PP
+\fBAny%C0\fP Percentage of time that at least one CPU is busy.
+.PP
+\fBGFX%C0\fP Percentage of time that at least one GFX compute engine is busy.
+.PP
+\fBCPUGFX%\fP Percentage of time that at least one CPU is busy at the same time as at least one Graphics compute enginer is busy.
+.PP
 \fBPkg%pc2, Pkg%pc3, Pkg%pc6, Pkg%pc7\fP percentage residency in hardware package idle states.  These numbers are from hardware residency counters.
 .PP
 \fBPkgWatt\fP Watts consumed by the whole package.
@@ -204,8 +213,8 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .PP
 \fBUncMHz\fP per-package uncore MHz, instantaneous sample.
 .PP
-\fBUMHz1.0\fP per-package uncore MHz for domain=1 and fabric_cluster=0, instantaneous sample.  System summary is the average of all packages.
-Intel Granite Rapids systems use domains 0-2 for CPUs, and 3-4 for IO, with cluster always 0.
+\fBUMHz1.0\fP per-package uncore MHz for pm_domain=1 and fabric_cluster=0, instantaneous sample.  System summary is the average of all packages.
+Intel Granite Rapids systems use pm_domains 0-2 for CPUs, and 3-4 for IO, with cluster always 0.
 For the "--show" and "--hide" options, use "UncMHz" to operate on all UMHz*.* as a group.
 .SH TOO MUCH INFORMATION EXAMPLE
 By default, turbostat dumps all possible information -- a system configuration header, followed by columns for all counters.

@@ -162,6 +162,11 @@ struct dc_link_settings {
 struct dc_tunnel_settings {
 	bool should_enable_dp_tunneling;
 	bool should_use_dp_bw_allocation;
+	uint8_t cm_id;
+	uint8_t group_id;
+	uint32_t bw_granularity;
+	uint32_t estimated_bw;
+	uint32_t allocated_bw;
 };
 
 union dc_dp_ffe_preset {
@@ -957,11 +962,21 @@ union usb4_driver_bw_cap {
 	uint8_t raw;
 };
 
+/* DPCD[0xE0021] DP_IN_ADAPTER_TUNNEL_INFORMATION register. */
+union dpia_tunnel_info {
+	struct {
+		uint8_t group_id :3;
+		uint8_t rsvd :5;
+	} bits;
+	uint8_t raw;
+};
+
 /* DP Tunneling over USB4 */
 struct dpcd_usb4_dp_tunneling_info {
 	union dp_tun_cap_support dp_tun_cap;
 	union dpia_info dpia_info;
 	union usb4_driver_bw_cap driver_bw_cap;
+	union dpia_tunnel_info dpia_tunnel_info;
 	uint8_t usb4_driver_id;
 	uint8_t usb4_topology_id[DPCD_USB4_TOPOLOGY_ID_LEN];
 };
@@ -1006,7 +1021,8 @@ union dp_128b_132b_supported_lttpr_link_rates {
 union dp_alpm_lttpr_cap {
 	struct {
 		uint8_t AUX_LESS_ALPM_SUPPORTED	:1;
-		uint8_t RESERVED				:7;
+		uint8_t ASSR_SUPPORTED			:1;
+		uint8_t RESERVED			:6;
 	} bits;
 	uint8_t raw;
 };
@@ -1104,10 +1120,11 @@ union dp_128b_132b_training_aux_rd_interval {
 
 union edp_alpm_caps {
 	struct {
-		uint8_t AUX_WAKE_ALPM_CAP       :1;
-		uint8_t PM_STATE_2A_SUPPORT     :1;
-		uint8_t AUX_LESS_ALPM_CAP       :1;
-		uint8_t RESERVED                :5;
+		uint8_t AUX_WAKE_ALPM_CAP                               :1;
+		uint8_t PM_STATE_2A_SUPPORT                             :1;
+		uint8_t AUX_LESS_ALPM_CAP                               :1;
+		uint8_t AUX_LESS_ALPM_ML_PHY_SLEEP_STATUS_SUPPORTED     :1;
+		uint8_t RESERVED                                        :4;
 	} bits;
 	uint8_t raw;
 };
@@ -1172,8 +1189,8 @@ struct dc_lttpr_caps {
 	union dp_128b_132b_supported_lttpr_link_rates supported_128b_132b_rates;
 	union dp_alpm_lttpr_cap alpm;
 	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
-	uint8_t lttpr_ieee_oui[3];
-	uint8_t lttpr_device_id[6];
+	uint8_t lttpr_ieee_oui[3]; // Always read from closest LTTPR to host
+	uint8_t lttpr_device_id[6]; // Always read from closest LTTPR to host
 };
 
 struct dc_dongle_dfp_cap_ext {
@@ -1267,6 +1284,7 @@ struct dpcd_caps {
 	union dp_receive_port0_cap receive_port0_cap;
 	/* Indicates the number of SST links supported by MSO (Multi-Stream Output) */
 	uint8_t mso_cap_sst_links_supported;
+	uint8_t dp_edp_general_cap_2;
 };
 
 union dpcd_sink_ext_caps {
@@ -1332,7 +1350,9 @@ union dpcd_alpm_configuration {
 	struct {
 		unsigned char ENABLE                    : 1;
 		unsigned char IRQ_HPD_ENABLE            : 1;
-		unsigned char RESERVED                  : 6;
+		unsigned char ALPM_MODE_SEL             : 1;
+		unsigned char ACDS_PERIOD_DURATION      : 1;
+		unsigned char RESERVED                  : 4;
 	} bits;
 	unsigned char raw;
 };

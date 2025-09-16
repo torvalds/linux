@@ -37,10 +37,8 @@ static int __init sbi_cppc_init(void)
 {
 	if (sbi_spec_version >= sbi_mk_version(2, 0) &&
 	    sbi_probe_extension(SBI_EXT_CPPC) > 0) {
-		pr_info("SBI CPPC extension detected\n");
 		cppc_ext_present = true;
 	} else {
-		pr_info("SBI CPPC extension NOT detected!!\n");
 		cppc_ext_present = false;
 	}
 
@@ -121,7 +119,7 @@ int cpc_read_ffh(int cpu, struct cpc_reg *reg, u64 *val)
 
 		*val = data.ret.value;
 
-		return (data.ret.error) ? sbi_err_map_linux_errno(data.ret.error) : 0;
+		return data.ret.error;
 	}
 
 	return -EINVAL;
@@ -150,7 +148,7 @@ int cpc_write_ffh(int cpu, struct cpc_reg *reg, u64 val)
 
 		smp_call_function_single(cpu, cppc_ffh_csr_write, &data, 1);
 
-		return (data.ret.error) ? sbi_err_map_linux_errno(data.ret.error) : 0;
+		return data.ret.error;
 	}
 
 	return -EINVAL;

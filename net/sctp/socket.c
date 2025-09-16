@@ -5627,7 +5627,8 @@ static int sctp_getsockopt_autoclose(struct sock *sk, int len, char __user *optv
 }
 
 /* Helper routine to branch off an association to a new socket.  */
-int sctp_do_peeloff(struct sock *sk, sctp_assoc_t id, struct socket **sockp)
+static int sctp_do_peeloff(struct sock *sk, sctp_assoc_t id,
+		struct socket **sockp)
 {
 	struct sctp_association *asoc = sctp_id2assoc(sk, id);
 	struct sctp_sock *sp = sctp_sk(sk);
@@ -5675,7 +5676,6 @@ int sctp_do_peeloff(struct sock *sk, sctp_assoc_t id, struct socket **sockp)
 
 	return err;
 }
-EXPORT_SYMBOL(sctp_do_peeloff);
 
 static int sctp_getsockopt_peeloff_common(struct sock *sk, sctp_peeloff_arg_t *peeloff,
 					  struct file **newfile, unsigned flags)
@@ -8321,7 +8321,7 @@ static int sctp_hash(struct sock *sk)
 
 static void sctp_unhash(struct sock *sk)
 {
-	/* STUB */
+	sock_rps_delete_flow(sk);
 }
 
 /* Check if port is acceptable.  Possibly find first available port.
@@ -8345,8 +8345,8 @@ static int sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 	bool reuse = (sk->sk_reuse || sp->reuse);
 	struct sctp_bind_hashbucket *head; /* hash list */
 	struct net *net = sock_net(sk);
-	kuid_t uid = sock_i_uid(sk);
 	struct sctp_bind_bucket *pp;
+	kuid_t uid = sk_uid(sk);
 	unsigned short snum;
 	int ret;
 
@@ -8444,7 +8444,7 @@ pp_found:
 			    (reuse && (sk2->sk_reuse || sp2->reuse) &&
 			     sk2->sk_state != SCTP_SS_LISTENING) ||
 			    (sk->sk_reuseport && sk2->sk_reuseport &&
-			     uid_eq(uid, sock_i_uid(sk2))))
+			     uid_eq(uid, sk_uid(sk2))))
 				continue;
 
 			if ((!sk->sk_bound_dev_if || !bound_dev_if2 ||
@@ -9100,7 +9100,8 @@ static void __sctp_write_space(struct sctp_association *asoc)
 		wq = rcu_dereference(sk->sk_wq);
 		if (wq) {
 			if (waitqueue_active(&wq->wait))
-				wake_up_interruptible(&wq->wait);
+				wake_up_interruptible_poll(&wq->wait, EPOLLOUT |
+						EPOLLWRNORM | EPOLLWRBAND);
 
 			/* Note that we try to include the Async I/O support
 			 * here by modeling from the current TCP/UDP code.
@@ -9491,8 +9492,8 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 	newsk->sk_sndbuf = sk->sk_sndbuf;
 	newsk->sk_rcvbuf = sk->sk_rcvbuf;
 	newsk->sk_lingertime = sk->sk_lingertime;
-	newsk->sk_rcvtimeo = sk->sk_rcvtimeo;
-	newsk->sk_sndtimeo = sk->sk_sndtimeo;
+	newsk->sk_rcvtimeo = READ_ONCE(sk->sk_rcvtimeo);
+	newsk->sk_sndtimeo = READ_ONCE(sk->sk_sndtimeo);
 	newsk->sk_rxhash = sk->sk_rxhash;
 
 	newinet = inet_sk(newsk);

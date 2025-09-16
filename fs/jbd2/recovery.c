@@ -185,7 +185,7 @@ static int jbd2_descriptor_block_csum_verify(journal_t *j, void *buf)
 		j->j_blocksize - sizeof(struct jbd2_journal_block_tail));
 	provided = tail->t_checksum;
 	tail->t_checksum = 0;
-	calculated = jbd2_chksum(j, j->j_csum_seed, buf, j->j_blocksize);
+	calculated = jbd2_chksum(j->j_csum_seed, buf, j->j_blocksize);
 	tail->t_checksum = provided;
 
 	return provided == cpu_to_be32(calculated);
@@ -440,7 +440,7 @@ static int jbd2_commit_block_csum_verify(journal_t *j, void *buf)
 	h = buf;
 	provided = h->h_chksum[0];
 	h->h_chksum[0] = 0;
-	calculated = jbd2_chksum(j, j->j_csum_seed, buf, j->j_blocksize);
+	calculated = jbd2_chksum(j->j_csum_seed, buf, j->j_blocksize);
 	h->h_chksum[0] = provided;
 
 	return provided == cpu_to_be32(calculated);
@@ -461,7 +461,7 @@ static bool jbd2_commit_block_csum_verify_partial(journal_t *j, void *buf)
 	h = tmpbuf;
 	provided = h->h_chksum[0];
 	h->h_chksum[0] = 0;
-	calculated = jbd2_chksum(j, j->j_csum_seed, tmpbuf, j->j_blocksize);
+	calculated = jbd2_chksum(j->j_csum_seed, tmpbuf, j->j_blocksize);
 	kfree(tmpbuf);
 
 	return provided == cpu_to_be32(calculated);
@@ -478,8 +478,8 @@ static int jbd2_block_tag_csum_verify(journal_t *j, journal_block_tag_t *tag,
 		return 1;
 
 	seq = cpu_to_be32(sequence);
-	csum32 = jbd2_chksum(j, j->j_csum_seed, (__u8 *)&seq, sizeof(seq));
-	csum32 = jbd2_chksum(j, csum32, buf, j->j_blocksize);
+	csum32 = jbd2_chksum(j->j_csum_seed, (__u8 *)&seq, sizeof(seq));
+	csum32 = jbd2_chksum(csum32, buf, j->j_blocksize);
 
 	if (jbd2_has_feature_csum3(j))
 		return tag3->t_checksum == cpu_to_be32(csum32);

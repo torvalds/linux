@@ -11,7 +11,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 
-#include "irq-msi-lib.h"
+#include <linux/irqchip/irq-msi-lib.h>
 
 #define MIP_INT_RAISE		0x00
 #define MIP_INT_CLEAR		0x10
@@ -172,17 +172,17 @@ static const struct msi_parent_ops mip_msi_parent_ops = {
 
 static int mip_init_domains(struct mip_priv *mip, struct device_node *np)
 {
-	struct irq_domain *middle;
+	struct irq_domain_info info = {
+		.fwnode		= of_fwnode_handle(np),
+		.ops		= &mip_middle_domain_ops,
+		.host_data	= mip,
+		.size		= mip->num_msis,
+		.parent		= mip->parent,
+		.dev		= mip->dev,
+	};
 
-	middle = irq_domain_add_hierarchy(mip->parent, 0, mip->num_msis, np,
-					  &mip_middle_domain_ops, mip);
-	if (!middle)
+	if (!msi_create_parent_irq_domain(&info, &mip_msi_parent_ops))
 		return -ENOMEM;
-
-	irq_domain_update_bus_token(middle, DOMAIN_BUS_GENERIC_MSI);
-	middle->dev = mip->dev;
-	middle->flags |= IRQ_DOMAIN_FLAG_MSI_PARENT;
-	middle->msi_parent_ops = &mip_msi_parent_ops;
 
 	/*
 	 * All MSI-X unmasked for the host, masked for the VPU, and edge-triggered.

@@ -23,7 +23,7 @@
 #include "amd.h"
 #include "acp-mach.h"
 
-#include <asm/amd_node.h>
+#include <asm/amd/node.h>
 
 #define DRV_NAME "acp_asoc_acp70"
 
@@ -136,6 +136,7 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 	switch (chip->acp_rev) {
 	case ACP70_PCI_ID:
 	case ACP71_PCI_ID:
+	case ACP72_PCI_ID:
 		break;
 	default:
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);

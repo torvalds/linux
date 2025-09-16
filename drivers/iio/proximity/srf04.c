@@ -240,7 +240,7 @@ static const struct of_device_id of_srf04_match[] = {
 	{ .compatible = "maxbotix,mb1020", .data = &mb_lv_cfg },
 	{ .compatible = "maxbotix,mb1030", .data = &mb_lv_cfg },
 	{ .compatible = "maxbotix,mb1040", .data = &mb_lv_cfg },
-	{},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(of, of_srf04_match);

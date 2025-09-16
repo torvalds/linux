@@ -754,7 +754,7 @@ static int ice_dcbnl_setapp(struct net_device *netdev, struct dcb_app *app)
 	if (!ice_is_feature_supported(pf, ICE_F_DSCP))
 		return -EOPNOTSUPP;
 
-	if (app->protocol >= ICE_DSCP_NUM_VAL) {
+	if (app->protocol >= DSCP_MAX) {
 		netdev_err(netdev, "DSCP value 0x%04X out of range\n",
 			   app->protocol);
 		return -EINVAL;
@@ -931,7 +931,7 @@ static int ice_dcbnl_delapp(struct net_device *netdev, struct dcb_app *app)
 	/* if the last DSCP mapping just got deleted, need to switch
 	 * to L2 VLAN QoS mode
 	 */
-	if (bitmap_empty(new_cfg->dscp_mapped, ICE_DSCP_NUM_VAL) &&
+	if (bitmap_empty(new_cfg->dscp_mapped, DSCP_MAX) &&
 	    new_cfg->pfc_mode == ICE_QOS_MODE_DSCP) {
 		ret = ice_aq_set_pfc_mode(&pf->hw,
 					  ICE_AQC_PFC_VLAN_BASED_PFC,

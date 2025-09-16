@@ -65,7 +65,7 @@ void dc_stat_get_dmub_notification(const struct dc *dc, struct dmub_notification
 	    notify->type == DMUB_NOTIFICATION_DPIA_NOTIFICATION ||
 	    notify->type == DMUB_NOTIFICATION_SET_CONFIG_REPLY) {
 		notify->link_index =
-			get_link_index_from_dpia_port_index(dc, notify->link_index);
+			get_link_index_from_dpia_port_index(dc, notify->instance);
 	}
 }
 

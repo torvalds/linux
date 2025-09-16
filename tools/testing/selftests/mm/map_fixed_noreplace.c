@@ -96,7 +96,7 @@ int main(void)
 		ksft_exit_fail_msg("Error:1: mmap() succeeded when it shouldn't have\n");
 	}
 	ksft_print_msg("mmap() @ 0x%lx-0x%lx p=%p result=%m\n", addr, addr + size, p);
-	ksft_test_result_pass("mmap() 5*PAGE_SIZE at base\n");
+	ksft_test_result_pass("Second mmap() 5*PAGE_SIZE at base\n");
 
 	/*
 	 * Second mapping contained within first:

@@ -212,7 +212,6 @@ void __iomem *__wrap_devm_ioremap(struct device *dev,
 void *__wrap_devm_memremap(struct device *dev, resource_size_t offset,
 		size_t size, unsigned long flags);
 void *__wrap_devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap);
-pfn_t __wrap_phys_to_pfn_t(phys_addr_t addr, unsigned long flags);
 void *__wrap_memremap(resource_size_t offset, size_t size,
 		unsigned long flags);
 void __wrap_devm_memunmap(struct device *dev, void *addr);

@@ -1373,7 +1373,6 @@ static void stm32_hash_unprepare_request(struct ahash_request *req)
 		*preg++ = stm32_hash_read(hdev, HASH_CSR(i));
 
 pm_runtime:
-	pm_runtime_mark_last_busy(hdev->dev);
 	pm_runtime_put_autosuspend(hdev->dev);
 }
 

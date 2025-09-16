@@ -2146,6 +2146,16 @@
         "Unit": "MCHBM"
     },
     {
+        "BriefDescription": "ECC Correctable Errors",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x09",
+        "EventName": "UNC_MCHBM_ECC_CORRECTABLE_ERRORS",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PublicDescription": "ECC Correctable Errors.  Counts the number of ECC errors detected and corrected by the iMC on this channel.  This counter is only useful with ECC devices.  This count will increment one time for each correction regardless of the number of bits corrected.  The iMC can correct up to 4 bit errors in independent channel mode and 8 bit errors in lockstep mode.",
+        "Unit": "MCHBM"
+    },
+    {
         "BriefDescription": "HBM Precharge All Commands",
         "Counter": "0,1,2,3",
         "EventCode": "0x44",
@@ -2757,6 +2767,16 @@
         "PerPkg": "1",
         "PublicDescription": "DRAM Precharge All Commands : Counts the number of times that the precharge all command was sent.",
         "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "ECC Correctable Errors",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x09",
+        "EventName": "UNC_M_ECC_CORRECTABLE_ERRORS",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PublicDescription": "ECC Correctable Errors : Counts the number of ECC errors detected and corrected by the iMC on this channel.  This counter is only useful with ECC DRAM devices.  This count will increment one time for each correction regardless of the number of bits corrected.  The iMC can correct up to 4 bit errors in independent channel mode and 8 bit errors in lockstep mode.",
         "Unit": "iMC"
     },
     {

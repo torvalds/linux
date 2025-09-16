@@ -306,7 +306,6 @@ void
 pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo)
 {
 	struct inode *inode;
-	unsigned long i_state;
 
 	if (!lo)
 		return;
@@ -317,12 +316,11 @@ pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo)
 		if (!list_empty(&lo->plh_segs))
 			WARN_ONCE(1, "NFS: BUG unfreed layout segments.\n");
 		pnfs_detach_layout_hdr(lo);
-		i_state = inode->i_state;
+		/* Notify pnfs_destroy_layout_final() that we're done */
+		if (inode->i_state & (I_FREEING | I_CLEAR))
+			wake_up_var_locked(lo, &inode->i_lock);
 		spin_unlock(&inode->i_lock);
 		pnfs_free_layout_hdr(lo);
-		/* Notify pnfs_destroy_layout_final() that we're done */
-		if (i_state & (I_FREEING | I_CLEAR))
-			wake_up_var(lo);
 	}
 }
 
@@ -745,6 +743,14 @@ pnfs_mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
 	return remaining;
 }
 
+static void pnfs_reset_return_info(struct pnfs_layout_hdr *lo)
+{
+	struct pnfs_layout_segment *lseg;
+
+	list_for_each_entry(lseg, &lo->plh_return_segs, pls_list)
+		pnfs_set_plh_return_info(lo, lseg->pls_range.iomode, 0);
+}
+
 static void
 pnfs_free_returned_lsegs(struct pnfs_layout_hdr *lo,
 		struct list_head *free_me,
@@ -801,23 +807,17 @@ void pnfs_destroy_layout(struct nfs_inode *nfsi)
 }
 EXPORT_SYMBOL_GPL(pnfs_destroy_layout);
 
-static bool pnfs_layout_removed(struct nfs_inode *nfsi,
-				struct pnfs_layout_hdr *lo)
-{
-	bool ret;
-
-	spin_lock(&nfsi->vfs_inode.i_lock);
-	ret = nfsi->layout != lo;
-	spin_unlock(&nfsi->vfs_inode.i_lock);
-	return ret;
-}
-
 void pnfs_destroy_layout_final(struct nfs_inode *nfsi)
 {
 	struct pnfs_layout_hdr *lo = __pnfs_destroy_layout(nfsi);
+	struct inode *inode = &nfsi->vfs_inode;
 
-	if (lo)
-		wait_var_event(lo, pnfs_layout_removed(nfsi, lo));
+	if (lo) {
+		spin_lock(&inode->i_lock);
+		wait_var_event_spinlock(lo, nfsi->layout != lo,
+					&inode->i_lock);
+		spin_unlock(&inode->i_lock);
+	}
 }
 
 static bool
@@ -1246,21 +1246,15 @@ static void pnfs_clear_layoutcommit(struct inode *inode,
 static void
 pnfs_layoutreturn_retry_later_locked(struct pnfs_layout_hdr *lo,
 				     const nfs4_stateid *arg_stateid,
-				     const struct pnfs_layout_range *range)
+				     const struct pnfs_layout_range *range,
+				     struct list_head *freeme)
 {
-	const struct pnfs_layout_segment *lseg;
-	u32 seq = be32_to_cpu(arg_stateid->seqid);
-
 	if (pnfs_layout_is_valid(lo) &&
-	    nfs4_stateid_match_other(&lo->plh_stateid, arg_stateid)) {
-		list_for_each_entry(lseg, &lo->plh_return_segs, pls_list) {
-			if (pnfs_seqid_is_newer(lseg->pls_seq, seq) ||
-			    !pnfs_should_free_range(&lseg->pls_range, range))
-				continue;
-			pnfs_set_plh_return_info(lo, range->iomode, seq);
-			break;
-		}
-	}
+	    nfs4_stateid_match_other(&lo->plh_stateid, arg_stateid))
+		pnfs_reset_return_info(lo);
+	else
+		pnfs_mark_layout_stateid_invalid(lo, freeme);
+	pnfs_clear_layoutreturn_waitbit(lo);
 }
 
 void pnfs_layoutreturn_retry_later(struct pnfs_layout_hdr *lo,
@@ -1268,11 +1262,12 @@ void pnfs_layoutreturn_retry_later(struct pnfs_layout_hdr *lo,
 				   const struct pnfs_layout_range *range)
 {
 	struct inode *inode = lo->plh_inode;
+	LIST_HEAD(freeme);
 
 	spin_lock(&inode->i_lock);
-	pnfs_layoutreturn_retry_later_locked(lo, arg_stateid, range);
-	pnfs_clear_layoutreturn_waitbit(lo);
+	pnfs_layoutreturn_retry_later_locked(lo, arg_stateid, range, &freeme);
 	spin_unlock(&inode->i_lock);
+	pnfs_free_lseg_list(&freeme);
 }
 
 void pnfs_layoutreturn_free_lsegs(struct pnfs_layout_hdr *lo,
@@ -1292,6 +1287,7 @@ void pnfs_layoutreturn_free_lsegs(struct pnfs_layout_hdr *lo,
 		pnfs_mark_matching_lsegs_invalid(lo, &freeme, range, seq);
 		pnfs_free_returned_lsegs(lo, &freeme, range, seq);
 		pnfs_set_layout_stateid(lo, stateid, NULL, true);
+		pnfs_reset_return_info(lo);
 	} else
 		pnfs_mark_layout_stateid_invalid(lo, &freeme);
 out_unlock:
@@ -1661,6 +1657,18 @@ int pnfs_roc_done(struct rpc_task *task, struct nfs4_layoutreturn_args **argpp,
 		/* Was there an RPC level error? If not, retry */
 		if (task->tk_rpc_status == 0)
 			break;
+		/*
+		 * Is there a fatal network level error?
+		 * If so release the layout, but flag the error.
+		 */
+		if ((task->tk_rpc_status == -ENETDOWN ||
+		     task->tk_rpc_status == -ENETUNREACH) &&
+		    task->tk_flags & RPC_TASK_NETUNREACH_FATAL) {
+			*ret = 0;
+			(*respp)->lrs_present = 0;
+			retval = -EIO;
+			break;
+		}
 		/* If the call was not sent, let caller handle it */
 		if (!RPC_WAS_SENT(task))
 			return 0;
@@ -1695,6 +1703,7 @@ void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 	struct inode *inode = args->inode;
 	const nfs4_stateid *res_stateid = NULL;
 	struct nfs4_xdr_opaque_data *ld_private = args->ld_private;
+	LIST_HEAD(freeme);
 
 	switch (ret) {
 	case -NFS4ERR_BADSESSION:
@@ -1703,9 +1712,9 @@ void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 	case -NFS4ERR_NOMATCHING_LAYOUT:
 		spin_lock(&inode->i_lock);
 		pnfs_layoutreturn_retry_later_locked(lo, &args->stateid,
-						     &args->range);
-		pnfs_clear_layoutreturn_waitbit(lo);
+						     &args->range, &freeme);
 		spin_unlock(&inode->i_lock);
+		pnfs_free_lseg_list(&freeme);
 		break;
 	case 0:
 		if (res->lrs_present)
@@ -2042,8 +2051,10 @@ static void nfs_layoutget_begin(struct pnfs_layout_hdr *lo)
 static void nfs_layoutget_end(struct pnfs_layout_hdr *lo)
 {
 	if (atomic_dec_and_test(&lo->plh_outstanding) &&
-	    test_and_clear_bit(NFS_LAYOUT_DRAIN, &lo->plh_flags))
+	    test_and_clear_bit(NFS_LAYOUT_DRAIN, &lo->plh_flags)) {
+		smp_mb__after_atomic();
 		wake_up_bit(&lo->plh_flags, NFS_LAYOUT_DRAIN);
+	}
 }
 
 static bool pnfs_is_first_layoutget(struct pnfs_layout_hdr *lo)
@@ -3321,6 +3332,7 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	struct nfs_inode *nfsi = NFS_I(inode);
 	loff_t end_pos;
 	int status;
+	bool mark_as_dirty = false;
 
 	if (!pnfs_layoutcommit_outstanding(inode))
 		return 0;
@@ -3372,19 +3384,23 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	if (ld->prepare_layoutcommit) {
 		status = ld->prepare_layoutcommit(&data->args);
 		if (status) {
-			put_cred(data->cred);
+			if (status != -ENOSPC)
+				put_cred(data->cred);
 			spin_lock(&inode->i_lock);
 			set_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags);
 			if (end_pos > nfsi->layout->plh_lwb)
 				nfsi->layout->plh_lwb = end_pos;
-			goto out_unlock;
+			if (status != -ENOSPC)
+				goto out_unlock;
+			spin_unlock(&inode->i_lock);
+			mark_as_dirty = true;
 		}
 	}
 
 
 	status = nfs4_proc_layoutcommit(data, sync);
 out:
-	if (status)
+	if (status || mark_as_dirty)
 		mark_inode_dirty_sync(inode);
 	dprintk("<-- %s status %d\n", __func__, status);
 	return status;

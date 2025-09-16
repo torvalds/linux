@@ -69,6 +69,7 @@ static int list_menu__run(struct ui_browser *menu)
 			key = -1;
 			break;
 		default:
+			ui_browser__warn_unhandled_hotkey(menu, key, 0, ", use 'h'/'?'/F1 to see actions");
 			continue;
 		}
 
@@ -92,16 +93,14 @@ static int ui__list_menu(int argc, char * const argv[])
 	return list_menu__run(&menu);
 }
 
-int tui__header_window(struct perf_env *env)
+int tui__header_window(struct perf_session *session)
 {
 	int i, argc = 0;
 	char **argv;
-	struct perf_session *session;
 	char *ptr, *pos;
 	size_t size;
 	FILE *fp = open_memstream(&ptr, &size);
 
-	session = container_of(env, struct perf_session, header.env);
 	perf_header__fprintf_info(session, fp, true);
 	fclose(fp);
 

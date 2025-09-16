@@ -160,12 +160,11 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci)
 	// (1) PCI resource allocation
 	// Get MMIO area
 	//
-	err = pcim_iomap_regions(pci, 1 << 0, CARD_NAME_SHORT);
-	if (err)
-		return err;
+	chip->mmio = pcim_iomap_region(pci, 0, KBUILD_MODNAME);
+	if (IS_ERR(chip->mmio))
+		return PTR_ERR(chip->mmio);
 
 	chip->io = pci_resource_start(pci, 0);
-	chip->mmio = pcim_iomap_table(pci)[0];
 
 	/* Init audio core.
 	 * This must be done before we do request_irq otherwise we can get spurious
@@ -221,7 +220,7 @@ __snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	snd_vortex_workaround(pci, pcifix[dev]);
 
 	// Card details needed in snd_vortex_midi
-	strcpy(card->driver, CARD_NAME_SHORT);
+	strscpy(card->driver, CARD_NAME_SHORT);
 	sprintf(card->shortname, "Aureal Vortex %s", CARD_NAME_SHORT);
 	sprintf(card->longname, "%s at 0x%lx irq %i",
 		card->shortname, chip->io, chip->irq);
@@ -271,7 +270,7 @@ __snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		snd_vortex_synth_arg_t *arg;
 
 		arg = SNDRV_SEQ_DEVICE_ARGPTR(wave);
-		strcpy(wave->name, "Aureal Synth");
+		strscpy(wave->name, "Aureal Synth");
 		arg->hwptr = vortex;
 		arg->index = 1;
 		arg->seq_ports = seq_ports[dev];

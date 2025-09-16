@@ -420,25 +420,6 @@ static void rtsx_pci_add_sg_tbl(struct rtsx_pcr *pcr,
 	pcr->sgi++;
 }
 
-int rtsx_pci_transfer_data(struct rtsx_pcr *pcr, struct scatterlist *sglist,
-		int num_sg, bool read, int timeout)
-{
-	int err = 0, count;
-
-	pcr_dbg(pcr, "--> %s: num_sg = %d\n", __func__, num_sg);
-	count = rtsx_pci_dma_map_sg(pcr, sglist, num_sg, read);
-	if (count < 1)
-		return -EINVAL;
-	pcr_dbg(pcr, "DMA mapping count: %d\n", count);
-
-	err = rtsx_pci_dma_transfer(pcr, sglist, count, read, timeout);
-
-	rtsx_pci_dma_unmap_sg(pcr, sglist, num_sg, read);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(rtsx_pci_transfer_data);
-
 int rtsx_pci_dma_map_sg(struct rtsx_pcr *pcr, struct scatterlist *sglist,
 		int num_sg, bool read)
 {
@@ -1197,33 +1178,6 @@ void rtsx_pci_disable_oobs_polling(struct rtsx_pcr *pcr)
 
 }
 
-int rtsx_sd_power_off_card3v3(struct rtsx_pcr *pcr)
-{
-	rtsx_pci_write_register(pcr, CARD_CLK_EN, SD_CLK_EN |
-		MS_CLK_EN | SD40_CLK_EN, 0);
-	rtsx_pci_write_register(pcr, CARD_OE, SD_OUTPUT_EN, 0);
-	rtsx_pci_card_power_off(pcr, RTSX_SD_CARD);
-
-	msleep(50);
-
-	rtsx_pci_card_pull_ctl_disable(pcr, RTSX_SD_CARD);
-
-	return 0;
-}
-
-int rtsx_ms_power_off_card3v3(struct rtsx_pcr *pcr)
-{
-	rtsx_pci_write_register(pcr, CARD_CLK_EN, SD_CLK_EN |
-		MS_CLK_EN | SD40_CLK_EN, 0);
-
-	rtsx_pci_card_pull_ctl_disable(pcr, RTSX_MS_CARD);
-
-	rtsx_pci_write_register(pcr, CARD_OE, MS_OUTPUT_EN, 0);
-	rtsx_pci_card_power_off(pcr, RTSX_MS_CARD);
-
-	return 0;
-}
-
 static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 {
 	struct pci_dev *pdev = pcr->pci;
@@ -1282,7 +1236,7 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	else if (PCI_PID(pcr) == PID_5228)
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL2, 0xFF,
 			RTS5228_SSC_DEPTH_2M);
-	else if (is_version(pcr, 0x5264, IC_VER_A))
+	else if (is_version(pcr, PID_5264, RTS5264_IC_VER_A))
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, 0);
 	else if (PCI_PID(pcr) == PID_5264)
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL2, 0xFF,

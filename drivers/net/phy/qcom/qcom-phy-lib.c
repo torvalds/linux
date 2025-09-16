@@ -115,6 +115,31 @@ int at803x_set_wol(struct phy_device *phydev,
 }
 EXPORT_SYMBOL_GPL(at803x_set_wol);
 
+int at8031_set_wol(struct phy_device *phydev,
+		   struct ethtool_wolinfo *wol)
+{
+	int ret;
+
+	/* First setup MAC address and enable WOL interrupt */
+	ret = at803x_set_wol(phydev, wol);
+	if (ret)
+		return ret;
+
+	if (wol->wolopts & WAKE_MAGIC)
+		/* Enable WOL function for 1588 */
+		ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
+				     AT803X_PHY_MMD3_WOL_CTRL,
+				     0, AT803X_WOL_EN);
+	else
+		/* Disable WoL function for 1588 */
+		ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
+				     AT803X_PHY_MMD3_WOL_CTRL,
+				     AT803X_WOL_EN, 0);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(at8031_set_wol);
+
 void at803x_get_wol(struct phy_device *phydev,
 		    struct ethtool_wolinfo *wol)
 {
@@ -674,3 +699,78 @@ int qca808x_led_reg_blink_set(struct phy_device *phydev, u16 reg,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qca808x_led_reg_blink_set);
+
+/* Enable CRC checking for both received and transmitted frames to ensure
+ * accurate counter recording. The hardware supports a 32-bit counter,
+ * configure the counter to clear after it is read to facilitate the
+ * implementation of a 64-bit software counter
+ */
+int qcom_phy_counter_config(struct phy_device *phydev)
+{
+	return phy_set_bits_mmd(phydev, MDIO_MMD_AN, QCA808X_MMD7_CNT_CTRL,
+				QCA808X_MMD7_CNT_CTRL_CRC_CHECK_EN |
+				QCA808X_MMD7_CNT_CTRL_READ_CLEAR_EN);
+}
+EXPORT_SYMBOL_GPL(qcom_phy_counter_config);
+
+int qcom_phy_update_stats(struct phy_device *phydev,
+			  struct qcom_phy_hw_stats *hw_stats)
+{
+	int ret;
+	u32 cnt;
+
+	/* PHY 32-bit counter for RX packets. */
+	ret = phy_read_mmd(phydev, MDIO_MMD_AN, QCA808X_MMD7_CNT_RX_PKT_15_0);
+	if (ret < 0)
+		return ret;
+
+	cnt = ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_AN, QCA808X_MMD7_CNT_RX_PKT_31_16);
+	if (ret < 0)
+		return ret;
+
+	cnt |= ret << 16;
+	hw_stats->rx_pkts += cnt;
+
+	/* PHY 16-bit counter for RX CRC error packets. */
+	ret = phy_read_mmd(phydev, MDIO_MMD_AN, QCA808X_MMD7_CNT_RX_ERR_PKT);
+	if (ret < 0)
+		return ret;
+
+	hw_stats->rx_err_pkts += ret;
+
+	/* PHY 32-bit counter for TX packets. */
+	ret = phy_read_mmd(phydev, MDIO_MMD_AN, QCA808X_MMD7_CNT_TX_PKT_15_0);
+	if (ret < 0)
+		return ret;
+
+	cnt = ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_AN, QCA808X_MMD7_CNT_TX_PKT_31_16);
+	if (ret < 0)
+		return ret;
+
+	cnt |= ret << 16;
+	hw_stats->tx_pkts += cnt;
+
+	/* PHY 16-bit counter for TX CRC error packets. */
+	ret = phy_read_mmd(phydev, MDIO_MMD_AN, QCA808X_MMD7_CNT_TX_ERR_PKT);
+	if (ret < 0)
+		return ret;
+
+	hw_stats->tx_err_pkts += ret;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qcom_phy_update_stats);
+
+void qcom_phy_get_stats(struct ethtool_phy_stats *stats,
+			struct qcom_phy_hw_stats hw_stats)
+{
+	stats->tx_packets = hw_stats.tx_pkts;
+	stats->tx_errors = hw_stats.tx_err_pkts;
+	stats->rx_packets = hw_stats.rx_pkts;
+	stats->rx_errors = hw_stats.rx_err_pkts;
+}
+EXPORT_SYMBOL_GPL(qcom_phy_get_stats);

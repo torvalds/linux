@@ -107,9 +107,8 @@ static int __init aic_irq_of_init(struct device_node *node,
 	if (ret < 0)
 		return ret;
 
-	domain = irq_domain_add_legacy(node, dom_sz - min_irq, min_irq, min_irq,
-				       &jcore_aic_irqdomain_ops,
-				       &jcore_aic);
+	domain = irq_domain_create_legacy(of_fwnode_handle(node), dom_sz - min_irq, min_irq,
+					  min_irq, &jcore_aic_irqdomain_ops, &jcore_aic);
 	if (!domain)
 		return -ENOMEM;
 

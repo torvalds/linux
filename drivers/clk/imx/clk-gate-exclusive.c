@@ -18,7 +18,7 @@
  *	gate clock
  *
  * The imx exclusive gate clock is a subclass of basic clk_gate
- * with an addtional mask to indicate which other gate bits in the same
+ * with an additional mask to indicate which other gate bits in the same
  * register is mutually exclusive to this gate clock.
  */
 struct clk_gate_exclusive {

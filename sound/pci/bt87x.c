@@ -672,7 +672,7 @@ static int snd_bt87x_pcm(struct snd_bt87x *chip, int device, char *name)
 	if (err < 0)
 		return err;
 	pcm->private_data = chip;
-	strcpy(pcm->name, name);
+	strscpy(pcm->name, name);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_bt87x_pcm_ops);
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 				       &chip->pci->dev,
@@ -696,10 +696,9 @@ static int snd_bt87x_create(struct snd_card *card,
 	chip->irq = -1;
 	spin_lock_init(&chip->reg_lock);
 
-	err = pcim_iomap_regions(pci, 1 << 0, "Bt87x audio");
-	if (err < 0)
-		return err;
-	chip->mmio = pcim_iomap_table(pci)[0];
+	chip->mmio = pcim_iomap_region(pci, 0, "Bt87x audio");
+	if (IS_ERR(chip->mmio))
+		return PTR_ERR(chip->mmio);
 
 	chip->reg_control = CTL_A_PWRDN | CTL_DA_ES2 |
 			    CTL_PKTP_16 | (15 << CTL_DA_SDR_SHIFT);
@@ -873,12 +872,12 @@ static int __snd_bt87x_probe(struct pci_dev *pci,
 		   chip->board.no_analog ? "no " : "",
 		   chip->board.no_digital ? "no " : "", chip->board.dig_rate);
 
-	strcpy(card->driver, "Bt87x");
+	strscpy(card->driver, "Bt87x");
 	sprintf(card->shortname, "Brooktree Bt%x", pci->device);
 	sprintf(card->longname, "%s at %#llx, irq %i",
 		card->shortname, (unsigned long long)pci_resource_start(pci, 0),
 		chip->irq);
-	strcpy(card->mixername, "Bt87x");
+	strscpy(card->mixername, "Bt87x");
 
 	err = snd_card_register(card);
 	if (err < 0)

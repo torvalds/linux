@@ -200,26 +200,6 @@ struct device *tty_port_register_device_attr_serdev(struct tty_port *port,
 EXPORT_SYMBOL_GPL(tty_port_register_device_attr_serdev);
 
 /**
- * tty_port_register_device_serdev - register tty or serdev device
- * @port: tty_port of the device
- * @driver: tty_driver for this device
- * @index: index of the tty
- * @host: serial port hardware controller device
- * @parent: parent if exists, otherwise NULL
- *
- * Register a serdev or tty device depending on if the parent device has any
- * defined serdev clients or not.
- */
-struct device *tty_port_register_device_serdev(struct tty_port *port,
-		struct tty_driver *driver, unsigned index,
-		struct device *host, struct device *parent)
-{
-	return tty_port_register_device_attr_serdev(port, driver, index,
-			host, parent, NULL, NULL);
-}
-EXPORT_SYMBOL_GPL(tty_port_register_device_serdev);
-
-/**
  * tty_port_unregister_device - deregister a tty or serdev device
  * @port: tty_port of the device
  * @driver: tty_driver for this device
@@ -411,20 +391,19 @@ void tty_port_hangup(struct tty_port *port)
 }
 EXPORT_SYMBOL(tty_port_hangup);
 
-/**
- * tty_port_tty_hangup - helper to hang up a tty
- * @port: tty port
- * @check_clocal: hang only ttys with %CLOCAL unset?
- */
-void tty_port_tty_hangup(struct tty_port *port, bool check_clocal)
+void __tty_port_tty_hangup(struct tty_port *port, bool check_clocal, bool async)
 {
 	struct tty_struct *tty = tty_port_tty_get(port);
 
-	if (tty && (!check_clocal || !C_CLOCAL(tty)))
-		tty_hangup(tty);
+	if (tty && (!check_clocal || !C_CLOCAL(tty))) {
+		if (async)
+			tty_hangup(tty);
+		else
+			tty_vhangup(tty);
+	}
 	tty_kref_put(tty);
 }
-EXPORT_SYMBOL_GPL(tty_port_tty_hangup);
+EXPORT_SYMBOL_GPL(__tty_port_tty_hangup);
 
 /**
  * tty_port_tty_wakeup - helper to wake up a tty

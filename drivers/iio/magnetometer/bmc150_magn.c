@@ -28,9 +28,6 @@
 
 #include "bmc150_magn.h"
 
-#define BMC150_MAGN_DRV_NAME			"bmc150_magn"
-#define BMC150_MAGN_IRQ_NAME			"bmc150_magn_event"
-
 #define BMC150_MAGN_REG_CHIP_ID			0x40
 #define BMC150_MAGN_CHIP_ID_VAL			0x32
 
@@ -678,8 +675,8 @@ static irqreturn_t bmc150_magn_trigger_handler(int irq, void *p)
 	if (ret < 0)
 		goto err;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
-					   pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+				    pf->timestamp);
 
 err:
 	mutex_unlock(&data->mutex);
@@ -918,7 +915,7 @@ int bmc150_magn_probe(struct device *dev, struct regmap *regmap,
 					   iio_trigger_generic_data_rdy_poll,
 					   NULL,
 					   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					   BMC150_MAGN_IRQ_NAME,
+					   "bmc150_magn_event",
 					   data->dready_trig);
 		if (ret < 0) {
 			dev_err(dev, "request irq %d failed\n", irq);

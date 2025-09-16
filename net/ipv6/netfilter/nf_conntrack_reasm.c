@@ -133,7 +133,7 @@ static inline u8 ip6_frag_ecn(const struct ipv6hdr *ipv6h)
 
 static void nf_ct_frag6_expire(struct timer_list *t)
 {
-	struct inet_frag_queue *frag = from_timer(frag, t, timer);
+	struct inet_frag_queue *frag = timer_container_of(frag, t, timer);
 	struct frag_queue *fq;
 
 	fq = container_of(frag, struct frag_queue, q);

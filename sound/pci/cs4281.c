@@ -950,7 +950,7 @@ static int snd_cs4281_pcm(struct cs4281 *chip, int device)
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "CS4281");
+	strscpy(pcm->name, "CS4281");
 	chip->pcm = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
@@ -1302,14 +1302,15 @@ static int snd_cs4281_create(struct snd_card *card,
 	}
 	chip->dual_codec = dual_codec;
 
-	err = pcim_iomap_regions(pci, 0x03, "CS4281"); /* 2 BARs */
-	if (err < 0)
-		return err;
+	chip->ba0 = pcim_iomap_region(pci, 0, "CS4281");
+	if (IS_ERR(chip->ba0))
+		return PTR_ERR(chip->ba0);
 	chip->ba0_addr = pci_resource_start(pci, 0);
-	chip->ba1_addr = pci_resource_start(pci, 1);
 
-	chip->ba0 = pcim_iomap_table(pci)[0];
-	chip->ba1 = pcim_iomap_table(pci)[1];
+	chip->ba1 = pcim_iomap_region(pci, 1, "CS4281");
+	if (IS_ERR(chip->ba1))
+		return PTR_ERR(chip->ba1);
+	chip->ba1_addr = pci_resource_start(pci, 1);
 	
 	if (devm_request_irq(&pci->dev, pci->irq, snd_cs4281_interrupt,
 			     IRQF_SHARED, KBUILD_MODNAME, chip)) {
@@ -1714,7 +1715,7 @@ static int snd_cs4281_midi(struct cs4281 *chip, int device)
 	err = snd_rawmidi_new(chip->card, "CS4281", device, 1, 1, &rmidi);
 	if (err < 0)
 		return err;
-	strcpy(rmidi->name, "CS4281");
+	strscpy(rmidi->name, "CS4281");
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT, &snd_cs4281_midi_output);
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT, &snd_cs4281_midi_input);
 	rmidi->info_flags |= SNDRV_RAWMIDI_INFO_OUTPUT | SNDRV_RAWMIDI_INFO_INPUT | SNDRV_RAWMIDI_INFO_DUPLEX;
@@ -1869,8 +1870,8 @@ static int __snd_cs4281_probe(struct pci_dev *pci,
 	if (err < 0)
 		return err;
 	snd_cs4281_create_gameport(chip);
-	strcpy(card->driver, "CS4281");
-	strcpy(card->shortname, "Cirrus Logic CS4281");
+	strscpy(card->driver, "CS4281");
+	strscpy(card->shortname, "Cirrus Logic CS4281");
 	sprintf(card->longname, "%s at 0x%lx, irq %d",
 		card->shortname,
 		chip->ba0_addr,

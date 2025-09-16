@@ -922,58 +922,60 @@ static const struct pt_regs_offset regoffset_table[] = {
  */
 int regs_query_register_offset(const char *name)
 {
-        const struct pt_regs_offset *roff;
-        for (roff = regoffset_table; roff->name != NULL; roff++)
-                if (!strcmp(roff->name, name))
-                        return roff->offset;
-        return -EINVAL;
+	const struct pt_regs_offset *roff;
+
+	for (roff = regoffset_table; roff->name != NULL; roff++)
+		if (!strcmp(roff->name, name))
+			return roff->offset;
+
+	return -EINVAL;
 }
 
 #if defined(CONFIG_32BIT) || defined(CONFIG_MIPS32_O32)
 
 static const struct user_regset mips_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type	= NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n		= ELF_NGREG,
 		.size		= sizeof(unsigned int),
 		.align		= sizeof(unsigned int),
-		.regset_get		= gpr32_get,
+		.regset_get	= gpr32_get,
 		.set		= gpr32_set,
 	},
 	[REGSET_DSP] = {
-		.core_note_type	= NT_MIPS_DSP,
+		USER_REGSET_NOTE_TYPE(MIPS_DSP),
 		.n		= NUM_DSP_REGS + 1,
 		.size		= sizeof(u32),
 		.align		= sizeof(u32),
-		.regset_get		= dsp32_get,
+		.regset_get	= dsp32_get,
 		.set		= dsp32_set,
 		.active		= dsp_active,
 	},
 #ifdef CONFIG_MIPS_FP_SUPPORT
 	[REGSET_FPR] = {
-		.core_note_type	= NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n		= ELF_NFPREG,
 		.size		= sizeof(elf_fpreg_t),
 		.align		= sizeof(elf_fpreg_t),
-		.regset_get		= fpr_get,
+		.regset_get	= fpr_get,
 		.set		= fpr_set,
 	},
 	[REGSET_FP_MODE] = {
-		.core_note_type	= NT_MIPS_FP_MODE,
+		USER_REGSET_NOTE_TYPE(MIPS_FP_MODE),
 		.n		= 1,
 		.size		= sizeof(int),
 		.align		= sizeof(int),
-		.regset_get		= fp_mode_get,
+		.regset_get	= fp_mode_get,
 		.set		= fp_mode_set,
 	},
 #endif
 #ifdef CONFIG_CPU_HAS_MSA
 	[REGSET_MSA] = {
-		.core_note_type	= NT_MIPS_MSA,
+		USER_REGSET_NOTE_TYPE(MIPS_MSA),
 		.n		= NUM_FPU_REGS + 1,
 		.size		= 16,
 		.align		= 16,
-		.regset_get		= msa_get,
+		.regset_get	= msa_get,
 		.set		= msa_set,
 	},
 #endif
@@ -993,47 +995,47 @@ static const struct user_regset_view user_mips_view = {
 
 static const struct user_regset mips64_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type	= NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n		= ELF_NGREG,
 		.size		= sizeof(unsigned long),
 		.align		= sizeof(unsigned long),
-		.regset_get		= gpr64_get,
+		.regset_get	= gpr64_get,
 		.set		= gpr64_set,
 	},
 	[REGSET_DSP] = {
-		.core_note_type	= NT_MIPS_DSP,
+		USER_REGSET_NOTE_TYPE(MIPS_DSP),
 		.n		= NUM_DSP_REGS + 1,
 		.size		= sizeof(u64),
 		.align		= sizeof(u64),
-		.regset_get		= dsp64_get,
+		.regset_get	= dsp64_get,
 		.set		= dsp64_set,
 		.active		= dsp_active,
 	},
 #ifdef CONFIG_MIPS_FP_SUPPORT
 	[REGSET_FP_MODE] = {
-		.core_note_type	= NT_MIPS_FP_MODE,
+		USER_REGSET_NOTE_TYPE(MIPS_FP_MODE),
 		.n		= 1,
 		.size		= sizeof(int),
 		.align		= sizeof(int),
-		.regset_get		= fp_mode_get,
+		.regset_get	= fp_mode_get,
 		.set		= fp_mode_set,
 	},
 	[REGSET_FPR] = {
-		.core_note_type	= NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n		= ELF_NFPREG,
 		.size		= sizeof(elf_fpreg_t),
 		.align		= sizeof(elf_fpreg_t),
-		.regset_get		= fpr_get,
+		.regset_get	= fpr_get,
 		.set		= fpr_set,
 	},
 #endif
 #ifdef CONFIG_CPU_HAS_MSA
 	[REGSET_MSA] = {
-		.core_note_type	= NT_MIPS_MSA,
+		USER_REGSET_NOTE_TYPE(MIPS_MSA),
 		.n		= NUM_FPU_REGS + 1,
 		.size		= 16,
 		.align		= 16,
-		.regset_get		= msa_get,
+		.regset_get	= msa_get,
 		.set		= msa_set,
 	},
 #endif
@@ -1351,7 +1353,7 @@ asmlinkage long syscall_trace_enter(struct pt_regs *regs)
  */
 asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 {
-        /*
+	/*
 	 * We may come here right after calling schedule_user()
 	 * or do_notify_resume(), in which case we can be in RCU
 	 * user mode.

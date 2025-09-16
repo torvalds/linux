@@ -180,7 +180,7 @@ static void __init combiner_init(void __iomem *combiner_base,
 	if (!combiner_data)
 		return;
 
-	combiner_irq_domain = irq_domain_add_linear(np, nr_irq,
+	combiner_irq_domain = irq_domain_create_linear(of_fwnode_handle(np), nr_irq,
 				&combiner_irq_domain_ops, combiner_data);
 	if (WARN_ON(!combiner_irq_domain)) {
 		pr_warn("%s: irq domain init failed\n", __func__);

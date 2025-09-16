@@ -12,7 +12,7 @@
 #define PIDFD_THREAD	O_EXCL
 #ifdef __KERNEL__
 #include <linux/sched.h>
-#define PIDFD_CLONE CLONE_PIDFD
+#define PIDFD_STALE CLONE_PIDFD
 #endif
 
 /* Flags for pidfd_send_signal(). */
@@ -25,23 +25,22 @@
 #define PIDFD_INFO_CREDS		(1UL << 1) /* Always returned, even if not requested */
 #define PIDFD_INFO_CGROUPID		(1UL << 2) /* Always returned if available, even if not requested */
 #define PIDFD_INFO_EXIT			(1UL << 3) /* Only returned if requested. */
+#define PIDFD_INFO_COREDUMP		(1UL << 4) /* Only returned if requested. */
 
 #define PIDFD_INFO_SIZE_VER0		64 /* sizeof first published struct */
 
 /*
- * The concept of process and threads in userland and the kernel is a confusing
- * one - within the kernel every thread is a 'task' with its own individual PID,
- * however from userland's point of view threads are grouped by a single PID,
- * which is that of the 'thread group leader', typically the first thread
- * spawned.
+ * Values for @coredump_mask in pidfd_info.
+ * Only valid if PIDFD_INFO_COREDUMP is set in @mask.
  *
- * To cut the Gideon knot, for internal kernel usage, we refer to
- * PIDFD_SELF_THREAD to refer to the current thread (or task from a kernel
- * perspective), and PIDFD_SELF_THREAD_GROUP to refer to the current thread
- * group leader...
+ * Note, the @PIDFD_COREDUMP_ROOT flag indicates that the generated
+ * coredump should be treated as sensitive and access should only be
+ * granted to privileged users.
  */
-#define PIDFD_SELF_THREAD		-10000 /* Current thread. */
-#define PIDFD_SELF_THREAD_GROUP		-20000 /* Current thread group leader. */
+#define PIDFD_COREDUMPED	(1U << 0) /* Did crash and... */
+#define PIDFD_COREDUMP_SKIP	(1U << 1) /* coredumping generation was skipped. */
+#define PIDFD_COREDUMP_USER	(1U << 2) /* coredump was done as the user. */
+#define PIDFD_COREDUMP_ROOT	(1U << 3) /* coredump was done as root. */
 
 /*
  * ...and for userland we make life simpler - PIDFD_SELF refers to the current
@@ -92,6 +91,8 @@ struct pidfd_info {
 	__u32 fsuid;
 	__u32 fsgid;
 	__s32 exit_code;
+	__u32 coredump_mask;
+	__u32 __spare1;
 };
 
 #define PIDFS_IOCTL_MAGIC 0xFF

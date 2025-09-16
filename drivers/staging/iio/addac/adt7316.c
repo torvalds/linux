@@ -1794,7 +1794,7 @@ static int adt7316_setup_irq(struct iio_dev *indio_dev)
 	struct adt7316_chip_info *chip = iio_priv(indio_dev);
 	int irq_type, ret;
 
-	irq_type = irqd_get_trigger_type(irq_get_irq_data(chip->bus.irq));
+	irq_type = irq_get_trigger_type(chip->bus.irq);
 
 	switch (irq_type) {
 	case IRQF_TRIGGER_HIGH:

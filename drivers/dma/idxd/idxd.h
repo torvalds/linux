@@ -19,7 +19,6 @@
 
 #define IDXD_DRIVER_VERSION	"1.00"
 
-extern struct kmem_cache *idxd_desc_pool;
 extern bool tc_override;
 
 struct idxd_wq;
@@ -171,7 +170,6 @@ struct idxd_cdev {
 
 #define DRIVER_NAME_SIZE		128
 
-#define IDXD_ALLOCATED_BATCH_SIZE	128U
 #define WQ_NAME_SIZE   1024
 #define WQ_TYPE_SIZE   10
 

@@ -65,4 +65,16 @@ __naked void ctx_access_u32_pointer_reject_8(void)
 "	::: __clobber_all);
 }
 
+SEC("fentry/bpf_fentry_test10")
+__description("btf_ctx_access const void pointer accept")
+__success __retval(0)
+__naked void ctx_access_const_void_pointer_accept(void)
+{
+	asm volatile ("					\
+	r2 = *(u64 *)(r1 + 0);		/* load 1st argument value (const void pointer) */\
+	r0 = 0;						\
+	exit;						\
+"	::: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

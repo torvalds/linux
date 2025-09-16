@@ -206,7 +206,7 @@ static const struct of_device_id mcp4821_of_table[] = {
 	MCP4821_COMPATIBLE("microchip,mcp4812", ID_MCP4812),
 	MCP4821_COMPATIBLE("microchip,mcp4821", ID_MCP4821),
 	MCP4821_COMPATIBLE("microchip,mcp4822", ID_MCP4822),
-	{ /* Sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mcp4821_of_table);
 
@@ -217,7 +217,7 @@ static const struct spi_device_id mcp4821_id_table[] = {
 	{ "mcp4812", (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4812]},
 	{ "mcp4821", (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4821]},
 	{ "mcp4822", (kernel_ulong_t)&mcp4821_chip_info_table[ID_MCP4822]},
-	{ /* Sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, mcp4821_id_table);
 

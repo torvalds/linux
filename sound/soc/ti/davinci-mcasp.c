@@ -2157,8 +2157,8 @@ static int davinci_mcasp_gpio_direction_out(struct gpio_chip *chip,
 	return 0;
 }
 
-static void davinci_mcasp_gpio_set(struct gpio_chip *chip, unsigned offset,
-				  int value)
+static int davinci_mcasp_gpio_set(struct gpio_chip *chip, unsigned int offset,
+				 int value)
 {
 	struct davinci_mcasp *mcasp = gpiochip_get_data(chip);
 
@@ -2166,6 +2166,8 @@ static void davinci_mcasp_gpio_set(struct gpio_chip *chip, unsigned offset,
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_PDOUT_REG, BIT(offset));
 	else
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_PDOUT_REG, BIT(offset));
+
+	return 0;
 }
 
 static int davinci_mcasp_gpio_direction_in(struct gpio_chip *chip,

@@ -97,11 +97,11 @@ FTRACE_ENTRY_PACKED(fgraph_retaddr_entry, fgraph_retaddr_ent_entry,
 	F_STRUCT(
 		__field_struct(	struct fgraph_retaddr_ent,	graph_ent	)
 		__field_packed(	unsigned long,	graph_ent,	func		)
-		__field_packed(	int,		graph_ent,	depth		)
+		__field_packed(	unsigned int,	graph_ent,	depth		)
 		__field_packed(	unsigned long,	graph_ent,	retaddr		)
 	),
 
-	F_printk("--> %ps (%d) <- %ps", (void *)__entry->func, __entry->depth,
+	F_printk("--> %ps (%u) <- %ps", (void *)__entry->func, __entry->depth,
 		(void *)__entry->retaddr)
 );
 
@@ -124,13 +124,13 @@ FTRACE_ENTRY_PACKED(funcgraph_exit, ftrace_graph_ret_entry,
 		__field_struct(	struct ftrace_graph_ret,	ret	)
 		__field_packed(	unsigned long,	ret,		func	)
 		__field_packed(	unsigned long,	ret,		retval	)
-		__field_packed(	int,		ret,		depth	)
+		__field_packed(	unsigned int,	ret,		depth	)
 		__field_packed(	unsigned int,	ret,		overrun	)
 		__field(unsigned long long,	calltime		)
 		__field(unsigned long long,	rettime			)
 	),
 
-	F_printk("<-- %ps (%d) (start: %llx  end: %llx) over: %d retval: %lx",
+	F_printk("<-- %ps (%u) (start: %llx  end: %llx) over: %u retval: %lx",
 		 (void *)__entry->func, __entry->depth,
 		 __entry->calltime, __entry->rettime,
 		 __entry->depth, __entry->retval)
@@ -146,13 +146,13 @@ FTRACE_ENTRY_PACKED(funcgraph_exit, ftrace_graph_ret_entry,
 	F_STRUCT(
 		__field_struct(	struct ftrace_graph_ret,	ret	)
 		__field_packed(	unsigned long,	ret,		func	)
-		__field_packed(	int,		ret,		depth	)
+		__field_packed(	unsigned int,	ret,		depth	)
 		__field_packed(	unsigned int,	ret,		overrun	)
 		__field(unsigned long long,	calltime		)
 		__field(unsigned long long,	rettime			)
 	),
 
-	F_printk("<-- %ps (%d) (start: %llx  end: %llx) over: %d",
+	F_printk("<-- %ps (%u) (start: %llx  end: %llx) over: %u",
 		 (void *)__entry->func, __entry->depth,
 		 __entry->calltime, __entry->rettime,
 		 __entry->depth)

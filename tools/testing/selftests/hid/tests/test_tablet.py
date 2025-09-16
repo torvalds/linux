@@ -10,6 +10,7 @@ from . import base
 import copy
 from enum import Enum
 from hidtools.util import BusType
+from .base import HidBpf
 import libevdev
 import logging
 import pytest
@@ -1228,9 +1229,9 @@ class Huion_Kamvas_Pro_19_256c_006b(PenDigitizer):
         pen.current_state = state
 
     def call_input_event(self, report):
-        if report[0] == 0x0a:
+        if report[0] == 0x0A:
             # ensures the original second Eraser usage is null
-            report[1] &= 0xdf
+            report[1] &= 0xDF
 
             # ensures the original last bit is equal to bit 6 (In Range)
             if report[1] & 0x40:
@@ -1472,7 +1473,7 @@ class TestGoodix_27c6_0e00(BaseTest.TestTablet):
 
 
 class TestXPPen_ArtistPro16Gen2_28bd_095b(BaseTest.TestTablet):
-    hid_bpfs = [("XPPen__ArtistPro16Gen2.bpf.o", True)]
+    hid_bpfs = [HidBpf("XPPen__ArtistPro16Gen2.bpf.o", True)]
 
     def create_device(self):
         dev = XPPen_ArtistPro16Gen2_28bd_095b(
@@ -1484,7 +1485,7 @@ class TestXPPen_ArtistPro16Gen2_28bd_095b(BaseTest.TestTablet):
 
 
 class TestXPPen_Artist24_28bd_093a(BaseTest.TestTablet):
-    hid_bpfs = [("XPPen__Artist24.bpf.o", True)]
+    hid_bpfs = [HidBpf("XPPen__Artist24.bpf.o", True)]
 
     def create_device(self):
         return XPPen_Artist24_28bd_093a(
@@ -1495,7 +1496,7 @@ class TestXPPen_Artist24_28bd_093a(BaseTest.TestTablet):
 
 
 class TestHuion_Kamvas_Pro_19_256c_006b(BaseTest.TestTablet):
-    hid_bpfs = [("Huion__Kamvas-Pro-19.bpf.o", True)]
+    hid_bpfs = [HidBpf("Huion__Kamvas-Pro-19.bpf.o", True)]
 
     def create_device(self):
         return Huion_Kamvas_Pro_19_256c_006b(

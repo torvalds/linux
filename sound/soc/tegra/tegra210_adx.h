@@ -1,8 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * tegra210_adx.h - Definitions for Tegra210 ADX driver
+/* SPDX-License-Identifier: GPL-2.0-only
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025 NVIDIA CORPORATION. All rights reserved.
  *
- * Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+ * tegra210_adx.h - Definitions for Tegra210 ADX driver
  *
  */
 
@@ -36,6 +35,10 @@
 #define TEGRA210_ADX_CFG_RAM_CTRL	0xb8
 #define TEGRA210_ADX_CFG_RAM_DATA	0xbc
 
+#define TEGRA264_ADX_CYA		0xb8
+#define TEGRA264_ADX_CFG_RAM_CTRL	0xc0
+#define TEGRA264_ADX_CFG_RAM_DATA	0xc4
+
 /* Fields in TEGRA210_ADX_ENABLE */
 #define TEGRA210_ADX_ENABLE_SHIFT			0
 
@@ -62,11 +65,32 @@
 #define TEGRA210_ADX_MAP_STREAM_NUMBER_SHIFT	6
 #define TEGRA210_ADX_MAP_WORD_NUMBER_SHIFT	2
 #define TEGRA210_ADX_MAP_BYTE_NUMBER_SHIFT	0
+#define TEGRA210_ADX_BYTE_MASK_COUNT		2
+#define TEGRA210_ADX_MAX_CHANNEL		16
+#define TEGRA210_ADX_CYA_OFFSET			0
+
+#define TEGRA264_ADX_RAM_DEPTH			32
+#define TEGRA264_ADX_BYTE_MASK_COUNT		4
+#define TEGRA264_ADX_MAX_CHANNEL		32
+#define TEGRA264_ADX_CYA_OFFSET			8
+
+#define TEGRA_ADX_IN_DAI_ID			4
+
+struct tegra210_adx_soc_data {
+	const struct regmap_config *regmap_conf;
+	const struct snd_kcontrol_new *controls;
+	unsigned int num_controls;
+	unsigned int max_ch;
+	unsigned int ram_depth;
+	unsigned int byte_mask_size;
+	unsigned int cya_offset;
+};
 
 struct tegra210_adx {
 	struct regmap *regmap;
-	unsigned int map[TEGRA210_ADX_RAM_DEPTH];
-	unsigned int byte_mask[2];
+	unsigned int *map;
+	unsigned int *byte_mask;
+	const struct tegra210_adx_soc_data *soc_data;
 };
 
 #endif

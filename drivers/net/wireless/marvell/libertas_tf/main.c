@@ -126,7 +126,7 @@ static void lbtf_cmd_work(struct work_struct *work)
  */
 static void command_timer_fn(struct timer_list *t)
 {
-	struct lbtf_private *priv = from_timer(priv, t, command_timer);
+	struct lbtf_private *priv = timer_container_of(priv, t, command_timer);
 	unsigned long flags;
 	lbtf_deb_enter(LBTF_DEB_CMD);
 
@@ -337,7 +337,7 @@ static void lbtf_op_remove_interface(struct ieee80211_hw *hw,
 	lbtf_deb_leave(LBTF_DEB_MACOPS);
 }
 
-static int lbtf_op_config(struct ieee80211_hw *hw, u32 changed)
+static int lbtf_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct lbtf_private *priv = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;

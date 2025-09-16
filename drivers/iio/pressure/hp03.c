@@ -273,7 +273,7 @@ MODULE_DEVICE_TABLE(i2c, hp03_id);
 
 static const struct of_device_id hp03_of_match[] = {
 	{ .compatible = "hoperf,hp03" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, hp03_of_match);
 

@@ -12,7 +12,7 @@ from .remote import Remote
 
 class NetDrvEnvBase:
     """
-    Base class for a NIC / host envirnoments
+    Base class for a NIC / host environments
 
     Attributes:
       test_dir: Path to the source directory of the test
@@ -259,7 +259,7 @@ class NetDrvEpEnv(NetDrvEnvBase):
             if not self._require_cmd(comm, "local"):
                 raise KsftSkipEx("Test requires command: " + comm)
         if remote:
-            if not self._require_cmd(comm, "remote"):
+            if not self._require_cmd(comm, "remote", host=self.remote):
                 raise KsftSkipEx("Test requires (remote) command: " + comm)
 
     def wait_hw_stats_settle(self):

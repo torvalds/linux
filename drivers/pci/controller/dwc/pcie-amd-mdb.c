@@ -290,8 +290,8 @@ static int amd_mdb_pcie_init_irq_domains(struct amd_mdb_pcie *pcie,
 		return -ENODEV;
 	}
 
-	pcie->mdb_domain = irq_domain_add_linear(pcie_intc_node, 32,
-						 &event_domain_ops, pcie);
+	pcie->mdb_domain = irq_domain_create_linear(of_fwnode_handle(pcie_intc_node), 32,
+						    &event_domain_ops, pcie);
 	if (!pcie->mdb_domain) {
 		err = -ENOMEM;
 		dev_err(dev, "Failed to add MDB domain\n");
@@ -300,8 +300,8 @@ static int amd_mdb_pcie_init_irq_domains(struct amd_mdb_pcie *pcie,
 
 	irq_domain_update_bus_token(pcie->mdb_domain, DOMAIN_BUS_NEXUS);
 
-	pcie->intx_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
-						  &amd_intx_domain_ops, pcie);
+	pcie->intx_domain = irq_domain_create_linear(of_fwnode_handle(pcie_intc_node),
+						     PCI_NUM_INTX, &amd_intx_domain_ops, pcie);
 	if (!pcie->intx_domain) {
 		err = -ENOMEM;
 		dev_err(dev, "Failed to add INTx domain\n");

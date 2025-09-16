@@ -1032,7 +1032,7 @@ static int ad9523_probe(struct spi_device *spi)
 
 static const struct spi_device_id ad9523_id[] = {
 	{"ad9523-1", 9523},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad9523_id);
 

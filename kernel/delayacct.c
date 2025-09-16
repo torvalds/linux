@@ -14,6 +14,15 @@
 #include <linux/delayacct.h>
 #include <linux/module.h>
 
+#define UPDATE_DELAY(type) \
+do { \
+	d->type##_delay_max = tsk->delays->type##_delay_max; \
+	d->type##_delay_min = tsk->delays->type##_delay_min; \
+	tmp = d->type##_delay_total + tsk->delays->type##_delay; \
+	d->type##_delay_total = (tmp < d->type##_delay_total) ? 0 : tmp; \
+	d->type##_count += tsk->delays->type##_count; \
+} while (0)
+
 DEFINE_STATIC_KEY_FALSE(delayacct_key);
 int delayacct_on __read_mostly;	/* Delay accounting turned on/off */
 struct kmem_cache *delayacct_cache;
@@ -173,41 +182,13 @@ int delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 
 	/* zero XXX_total, non-zero XXX_count implies XXX stat overflowed */
 	raw_spin_lock_irqsave(&tsk->delays->lock, flags);
-	d->blkio_delay_max = tsk->delays->blkio_delay_max;
-	d->blkio_delay_min = tsk->delays->blkio_delay_min;
-	tmp = d->blkio_delay_total + tsk->delays->blkio_delay;
-	d->blkio_delay_total = (tmp < d->blkio_delay_total) ? 0 : tmp;
-	d->swapin_delay_max = tsk->delays->swapin_delay_max;
-	d->swapin_delay_min = tsk->delays->swapin_delay_min;
-	tmp = d->swapin_delay_total + tsk->delays->swapin_delay;
-	d->swapin_delay_total = (tmp < d->swapin_delay_total) ? 0 : tmp;
-	d->freepages_delay_max = tsk->delays->freepages_delay_max;
-	d->freepages_delay_min = tsk->delays->freepages_delay_min;
-	tmp = d->freepages_delay_total + tsk->delays->freepages_delay;
-	d->freepages_delay_total = (tmp < d->freepages_delay_total) ? 0 : tmp;
-	d->thrashing_delay_max = tsk->delays->thrashing_delay_max;
-	d->thrashing_delay_min = tsk->delays->thrashing_delay_min;
-	tmp = d->thrashing_delay_total + tsk->delays->thrashing_delay;
-	d->thrashing_delay_total = (tmp < d->thrashing_delay_total) ? 0 : tmp;
-	d->compact_delay_max = tsk->delays->compact_delay_max;
-	d->compact_delay_min = tsk->delays->compact_delay_min;
-	tmp = d->compact_delay_total + tsk->delays->compact_delay;
-	d->compact_delay_total = (tmp < d->compact_delay_total) ? 0 : tmp;
-	d->wpcopy_delay_max = tsk->delays->wpcopy_delay_max;
-	d->wpcopy_delay_min = tsk->delays->wpcopy_delay_min;
-	tmp = d->wpcopy_delay_total + tsk->delays->wpcopy_delay;
-	d->wpcopy_delay_total = (tmp < d->wpcopy_delay_total) ? 0 : tmp;
-	d->irq_delay_max = tsk->delays->irq_delay_max;
-	d->irq_delay_min = tsk->delays->irq_delay_min;
-	tmp = d->irq_delay_total + tsk->delays->irq_delay;
-	d->irq_delay_total = (tmp < d->irq_delay_total) ? 0 : tmp;
-	d->blkio_count += tsk->delays->blkio_count;
-	d->swapin_count += tsk->delays->swapin_count;
-	d->freepages_count += tsk->delays->freepages_count;
-	d->thrashing_count += tsk->delays->thrashing_count;
-	d->compact_count += tsk->delays->compact_count;
-	d->wpcopy_count += tsk->delays->wpcopy_count;
-	d->irq_count += tsk->delays->irq_count;
+	UPDATE_DELAY(blkio);
+	UPDATE_DELAY(swapin);
+	UPDATE_DELAY(freepages);
+	UPDATE_DELAY(thrashing);
+	UPDATE_DELAY(compact);
+	UPDATE_DELAY(wpcopy);
+	UPDATE_DELAY(irq);
 	raw_spin_unlock_irqrestore(&tsk->delays->lock, flags);
 
 	return 0;

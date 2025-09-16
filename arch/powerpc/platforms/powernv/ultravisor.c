@@ -40,7 +40,7 @@ static ssize_t uv_msglog_read(struct file *file, struct kobject *kobj,
 
 static struct bin_attribute uv_msglog_attr __ro_after_init = {
 	.attr = {.name = "msglog", .mode = 0400},
-	.read_new = uv_msglog_read
+	.read = uv_msglog_read
 };
 
 static int __init uv_init(void)

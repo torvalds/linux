@@ -70,17 +70,16 @@ int vfs_path_parent_lookup(struct filename *filename, unsigned int flags,
 int vfs_path_lookup(struct dentry *, struct vfsmount *, const char *,
 		    unsigned int, struct path *);
 
-extern struct dentry *try_lookup_one_len(const char *, struct dentry *, int);
-extern struct dentry *lookup_one_len(const char *, struct dentry *, int);
-extern struct dentry *lookup_one_len_unlocked(const char *, struct dentry *, int);
-extern struct dentry *lookup_positive_unlocked(const char *, struct dentry *, int);
-struct dentry *lookup_one(struct mnt_idmap *, const char *, struct dentry *, int);
+extern struct dentry *try_lookup_noperm(struct qstr *, struct dentry *);
+extern struct dentry *lookup_noperm(struct qstr *, struct dentry *);
+extern struct dentry *lookup_noperm_unlocked(struct qstr *, struct dentry *);
+extern struct dentry *lookup_noperm_positive_unlocked(struct qstr *, struct dentry *);
+struct dentry *lookup_one(struct mnt_idmap *, struct qstr *, struct dentry *);
 struct dentry *lookup_one_unlocked(struct mnt_idmap *idmap,
-				   const char *name, struct dentry *base,
-				   int len);
+				   struct qstr *name, struct dentry *base);
 struct dentry *lookup_one_positive_unlocked(struct mnt_idmap *idmap,
-					    const char *name,
-					    struct dentry *base, int len);
+					    struct qstr *name,
+					    struct dentry *base);
 
 extern int follow_down_one(struct path *);
 extern int follow_down(struct path *path, unsigned int flags);

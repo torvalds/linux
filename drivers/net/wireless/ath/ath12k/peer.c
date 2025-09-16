@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
 #include "peer.h"
 #include "debug.h"
 
-static struct ath12k_ml_peer *ath12k_peer_ml_find(struct ath12k_hw *ah, const u8 *addr)
+struct ath12k_ml_peer *ath12k_peer_ml_find(struct ath12k_hw *ah, const u8 *addr)
 {
 	struct ath12k_ml_peer *ml_peer;
 
@@ -99,6 +99,9 @@ struct ath12k_peer *ath12k_peer_find_by_id(struct ath12k_base *ab,
 	struct ath12k_peer *peer;
 
 	lockdep_assert_held(&ab->base_lock);
+
+	if (peer_id == HAL_INVALID_PEERID)
+		return NULL;
 
 	if (peer_id & ATH12K_PEER_ML_ID_VALID)
 		return ath12k_peer_find_by_ml_id(ab, peer_id);
@@ -382,6 +385,9 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 		arvif->ast_hash = peer->ast_hash;
 		arvif->ast_idx = peer->hw_peer_id;
 	}
+
+	if (vif->type == NL80211_IFTYPE_AP)
+		peer->ucast_ra_only = true;
 
 	if (sta) {
 		ahsta = ath12k_sta_to_ahsta(sta);

@@ -126,8 +126,8 @@ static int __init ls1x_intc_of_init(struct device_node *node,
 	}
 
 	/* Set up an IRQ domain */
-	priv->domain = irq_domain_add_linear(node, 32, &irq_generic_chip_ops,
-					     NULL);
+	priv->domain = irq_domain_create_linear(of_fwnode_handle(node), 32, &irq_generic_chip_ops,
+						NULL);
 	if (!priv->domain) {
 		pr_err("ls1x-irq: cannot add IRQ domain\n");
 		err = -ENOMEM;

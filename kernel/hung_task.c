@@ -22,6 +22,8 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/sysctl.h>
+#include <linux/hung_task.h>
+#include <linux/rwsem.h>
 
 #include <trace/events/sched.h>
 
@@ -98,30 +100,82 @@ static struct notifier_block panic_block = {
 static void debug_show_blocker(struct task_struct *task)
 {
 	struct task_struct *g, *t;
-	unsigned long owner;
-	struct mutex *lock;
+	unsigned long owner, blocker, blocker_type;
+	const char *rwsem_blocked_by, *rwsem_blocked_as;
 
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held(), "No rcu lock held");
 
-	lock = READ_ONCE(task->blocker_mutex);
-	if (!lock)
+	blocker = READ_ONCE(task->blocker);
+	if (!blocker)
 		return;
 
-	owner = mutex_get_owner(lock);
+	blocker_type = hung_task_get_blocker_type(blocker);
+
+	switch (blocker_type) {
+	case BLOCKER_TYPE_MUTEX:
+		owner = mutex_get_owner(hung_task_blocker_to_lock(blocker));
+		break;
+	case BLOCKER_TYPE_SEM:
+		owner = sem_last_holder(hung_task_blocker_to_lock(blocker));
+		break;
+	case BLOCKER_TYPE_RWSEM_READER:
+	case BLOCKER_TYPE_RWSEM_WRITER:
+		owner = (unsigned long)rwsem_owner(
+					hung_task_blocker_to_lock(blocker));
+		rwsem_blocked_as = (blocker_type == BLOCKER_TYPE_RWSEM_READER) ?
+					"reader" : "writer";
+		rwsem_blocked_by = is_rwsem_reader_owned(
+					hung_task_blocker_to_lock(blocker)) ?
+					"reader" : "writer";
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+
 	if (unlikely(!owner)) {
-		pr_err("INFO: task %s:%d is blocked on a mutex, but the owner is not found.\n",
-			task->comm, task->pid);
+		switch (blocker_type) {
+		case BLOCKER_TYPE_MUTEX:
+			pr_err("INFO: task %s:%d is blocked on a mutex, but the owner is not found.\n",
+			       task->comm, task->pid);
+			break;
+		case BLOCKER_TYPE_SEM:
+			pr_err("INFO: task %s:%d is blocked on a semaphore, but the last holder is not found.\n",
+			       task->comm, task->pid);
+			break;
+		case BLOCKER_TYPE_RWSEM_READER:
+		case BLOCKER_TYPE_RWSEM_WRITER:
+			pr_err("INFO: task %s:%d is blocked on an rw-semaphore, but the owner is not found.\n",
+			       task->comm, task->pid);
+			break;
+		}
 		return;
 	}
 
 	/* Ensure the owner information is correct. */
 	for_each_process_thread(g, t) {
-		if ((unsigned long)t == owner) {
+		if ((unsigned long)t != owner)
+			continue;
+
+		switch (blocker_type) {
+		case BLOCKER_TYPE_MUTEX:
 			pr_err("INFO: task %s:%d is blocked on a mutex likely owned by task %s:%d.\n",
-				task->comm, task->pid, t->comm, t->pid);
-			sched_show_task(t);
-			return;
+			       task->comm, task->pid, t->comm, t->pid);
+			break;
+		case BLOCKER_TYPE_SEM:
+			pr_err("INFO: task %s:%d blocked on a semaphore likely last held by task %s:%d\n",
+			       task->comm, task->pid, t->comm, t->pid);
+			break;
+		case BLOCKER_TYPE_RWSEM_READER:
+		case BLOCKER_TYPE_RWSEM_WRITER:
+			pr_err("INFO: task %s:%d <%s> blocked on an rw-semaphore likely owned by task %s:%d <%s>\n",
+			       task->comm, task->pid, rwsem_blocked_as, t->comm,
+			       t->pid, rwsem_blocked_by);
+			break;
 		}
+		sched_show_task(t);
+		return;
 	}
 }
 #else

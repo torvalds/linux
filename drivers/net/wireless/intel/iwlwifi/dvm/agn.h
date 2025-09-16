@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2021, 2024 Intel Corporation
+ * Copyright (C) 2005-2014, 2021, 2024-2025 Intel Corporation
  */
 #ifndef __iwl_agn_h__
 #define __iwl_agn_h__
@@ -88,7 +88,7 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 int iwlagn_set_pan_params(struct iwl_priv *priv);
 int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
-int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed);
+int iwlagn_mac_config(struct ieee80211_hw *hw, int radio_idx, u32 changed);
 void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *bss_conf,
@@ -388,7 +388,7 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
 /**
  * iwl_parse_eeprom_data - parse EEPROM data and return values
  *
- * @trans: ransport we're parsing for, for debug only
+ * @trans: transport we're parsing for, for debug only
  * @cfg: device configuration for parsing and overrides
  * @eeprom: the EEPROM data
  * @eeprom_size: length of the EEPROM data
@@ -397,9 +397,11 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
  * returns a (newly allocated) struct containing all the
  * relevant values for driver use. The struct must be freed
  * later with iwl_free_nvm_data().
+ *
+ * Return: the parsed NVM data
  */
 struct iwl_nvm_data *
-iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 		      const u8 *eeprom, size_t eeprom_size);
 
 int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size);

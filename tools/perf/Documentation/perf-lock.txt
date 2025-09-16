@@ -216,6 +216,21 @@ CONTENTION OPTIONS
 --cgroup-filter=<value>::
 	Show lock contention only in the given cgroups (comma separated list).
 
+-J::
+--inject-delay=<time@function>::
+	Add delays to the given lock.  It's added to the contention-end part so
+	that the (new) owner of the lock will be delayed.  But by slowing down
+	the owner, the waiters will also be delayed as well.  This is working
+	only with -b/--use-bpf.
+
+	The 'time' is specified in nsec but it can have a unit suffix.  Available
+	units are "ms", "us" and "ns".  Currently it accepts up to 10ms of delays
+	for safety reasons.
+
+	Note that it will busy-wait after it gets the lock. Delaying locks can
+	have significant consequences including potential kernel crashes.  Please
+	use it at your own risk.
+
 
 SEE ALSO
 --------

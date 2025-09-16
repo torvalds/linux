@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Check open filename arg using perf trace + vfs_getname (exclusive)
 
 # Uses the 'perf test shell' library to add probe:vfs_getname to the system
@@ -25,9 +25,14 @@ trace_open_vfs_getname() {
 	grep -E " +[0-9]+\.[0-9]+ +\( +[0-9]+\.[0-9]+ ms\): +touch/[0-9]+ open(at)?\((dfd: +CWD, +)?filename: +\"?${file}\"?, +flags: CREAT\|NOCTTY\|NONBLOCK\|WRONLY, +mode: +IRUGO\|IWUGO\) += +[0-9]+$"
 }
 
-
-add_probe_vfs_getname || skip_if_no_debuginfo
+add_probe_vfs_getname
 err=$?
+
+if [ $err -eq 1 ] ; then
+        skip_if_no_debuginfo
+        err=$?
+fi
+
 if [ $err -ne 0 ] ; then
 	exit $err
 fi

@@ -580,9 +580,9 @@ static int meson_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
 					      gpio, value);
 }
 
-static void meson_gpio_set(struct gpio_chip *chip, unsigned gpio, int value)
+static int meson_gpio_set(struct gpio_chip *chip, unsigned int gpio, int value)
 {
-	meson_pinconf_set_drive(gpiochip_get_data(chip), gpio, value);
+	return meson_pinconf_set_drive(gpiochip_get_data(chip), gpio, value);
 }
 
 static int meson_gpio_get(struct gpio_chip *chip, unsigned gpio)

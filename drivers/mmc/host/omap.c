@@ -639,7 +639,8 @@ static void mmc_omap_abort_command(struct work_struct *work)
 static void
 mmc_omap_cmd_timer(struct timer_list *t)
 {
-	struct mmc_omap_host *host = from_timer(host, t, cmd_abort_timer);
+	struct mmc_omap_host *host = timer_container_of(host, t,
+							cmd_abort_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&host->slot_lock, flags);
@@ -655,7 +656,7 @@ mmc_omap_cmd_timer(struct timer_list *t)
 static void
 mmc_omap_clk_timer(struct timer_list *t)
 {
-	struct mmc_omap_host *host = from_timer(host, t, clk_timer);
+	struct mmc_omap_host *host = timer_container_of(host, t, clk_timer);
 
 	mmc_omap_fclk_enable(host, 0);
 }
@@ -879,7 +880,7 @@ void omap_mmc_notify_cover_event(struct device *dev, int num, int is_closed)
 
 static void mmc_omap_cover_timer(struct timer_list *t)
 {
-	struct mmc_omap_slot *slot = from_timer(slot, t, cover_timer);
+	struct mmc_omap_slot *slot = timer_container_of(slot, t, cover_timer);
 	queue_work(system_bh_wq, &slot->cover_bh_work);
 }
 
@@ -1258,7 +1259,7 @@ static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 	struct mmc_host *mmc;
 	int r;
 
-	mmc = mmc_alloc_host(sizeof(struct mmc_omap_slot), host->dev);
+	mmc = devm_mmc_alloc_host(host->dev, sizeof(*slot));
 	if (mmc == NULL)
 		return -ENOMEM;
 
@@ -1272,25 +1273,21 @@ static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 	/* Check for some optional GPIO controls */
 	slot->vsd = devm_gpiod_get_index_optional(host->dev, "vsd",
 						  id, GPIOD_OUT_LOW);
-	if (IS_ERR(slot->vsd)) {
-		r = dev_err_probe(host->dev, PTR_ERR(slot->vsd),
+	if (IS_ERR(slot->vsd))
+		return dev_err_probe(host->dev, PTR_ERR(slot->vsd),
 				     "error looking up VSD GPIO\n");
-		goto err_free_host;
-	}
+
 	slot->vio = devm_gpiod_get_index_optional(host->dev, "vio",
 						  id, GPIOD_OUT_LOW);
-	if (IS_ERR(slot->vio)) {
-		r = dev_err_probe(host->dev, PTR_ERR(slot->vio),
+	if (IS_ERR(slot->vio))
+		return dev_err_probe(host->dev, PTR_ERR(slot->vio),
 				     "error looking up VIO GPIO\n");
-		goto err_free_host;
-	}
+
 	slot->cover = devm_gpiod_get_index_optional(host->dev, "cover",
 						    id, GPIOD_IN);
-	if (IS_ERR(slot->cover)) {
-		r = dev_err_probe(host->dev, PTR_ERR(slot->cover),
+	if (IS_ERR(slot->cover))
+		return dev_err_probe(host->dev, PTR_ERR(slot->cover),
 				     "error looking up cover switch GPIO\n");
-		goto err_free_host;
-	}
 
 	host->slots[id] = slot;
 
@@ -1350,8 +1347,6 @@ err_remove_slot_name:
 		device_remove_file(&mmc->class_dev, &dev_attr_slot_name);
 err_remove_host:
 	mmc_remove_host(mmc);
-err_free_host:
-	mmc_free_host(mmc);
 	return r;
 }
 
@@ -1369,7 +1364,6 @@ static void mmc_omap_remove_slot(struct mmc_omap_slot *slot)
 	flush_workqueue(slot->host->mmc_omap_wq);
 
 	mmc_remove_host(mmc);
-	mmc_free_host(mmc);
 }
 
 static int mmc_omap_probe(struct platform_device *pdev)

@@ -1072,6 +1072,7 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 	pr_warn_ratelimited("SELinux: %s (%d) wrote to /sys/fs/selinux/user!"
 		" This will not be supported in the future; please update your"
 		" userspace.\n", current->comm, current->pid);
+	ssleep(5);
 
 	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__COMPUTE_USER,
@@ -2097,8 +2098,6 @@ err:
 	pr_err("SELinux: %s:  failed while creating inodes\n",
 		__func__);
 
-	selinux_fs_info_free(sb);
-
 	return ret;
 }
 
@@ -2158,8 +2157,8 @@ static int __init init_sel_fs(void)
 		return err;
 	}
 
-	selinux_null.dentry = d_hash_and_lookup(selinux_null.mnt->mnt_root,
-						&null_name);
+	selinux_null.dentry = try_lookup_noperm(&null_name,
+						  selinux_null.mnt->mnt_root);
 	if (IS_ERR(selinux_null.dentry)) {
 		pr_err("selinuxfs:  could not lookup null!\n");
 		err = PTR_ERR(selinux_null.dentry);

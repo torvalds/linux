@@ -12,7 +12,7 @@
 struct drm_printer;
 struct xe_device;
 
-#if IS_ENABLED(CONFIG_DRM_XE_LARGE_GUC_BUFFER)
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
 #define CRASH_BUFFER_SIZE       SZ_1M
 #define DEBUG_BUFFER_SIZE       SZ_8M
 #define CAPTURE_BUFFER_SIZE     SZ_2M

@@ -421,7 +421,7 @@ static int bpf_iter_link_pin_kernel(struct dentry *parent,
 	int ret;
 
 	inode_lock(parent->d_inode);
-	dentry = lookup_one_len(name, parent, strlen(name));
+	dentry = lookup_noperm(&QSTR(name), parent);
 	if (IS_ERR(dentry)) {
 		inode_unlock(parent->d_inode);
 		return PTR_ERR(dentry);

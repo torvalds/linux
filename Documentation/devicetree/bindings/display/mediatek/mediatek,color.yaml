@@ -29,6 +29,10 @@ properties:
           - mediatek,mt8195-mdp3-color
       - items:
           - enum:
+              - mediatek,mt8188-mdp3-color
+          - const: mediatek,mt8195-mdp3-color
+      - items:
+          - enum:
               - mediatek,mt7623-disp-color
               - mediatek,mt2712-disp-color
           - const: mediatek,mt2701-disp-color

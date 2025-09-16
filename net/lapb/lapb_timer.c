@@ -74,7 +74,7 @@ int lapb_t1timer_running(struct lapb_cb *lapb)
 
 static void lapb_t2timer_expiry(struct timer_list *t)
 {
-	struct lapb_cb *lapb = from_timer(lapb, t, t2timer);
+	struct lapb_cb *lapb = timer_container_of(lapb, t, t2timer);
 
 	spin_lock_bh(&lapb->lock);
 	if (timer_pending(&lapb->t2timer)) /* A new timer has been set up */
@@ -94,7 +94,7 @@ out:
 
 static void lapb_t1timer_expiry(struct timer_list *t)
 {
-	struct lapb_cb *lapb = from_timer(lapb, t, t1timer);
+	struct lapb_cb *lapb = timer_container_of(lapb, t, t1timer);
 
 	spin_lock_bh(&lapb->lock);
 	if (timer_pending(&lapb->t1timer)) /* A new timer has been set up */

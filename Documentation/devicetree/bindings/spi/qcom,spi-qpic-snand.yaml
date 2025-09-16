@@ -21,8 +21,12 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - qcom,ipq9574-snand
+    oneOf:
+      - items:
+          - enum:
+              - qcom,ipq5018-snand
+          - const: qcom,ipq9574-snand
+      - const: qcom,ipq9574-snand
 
   reg:
     maxItems: 1

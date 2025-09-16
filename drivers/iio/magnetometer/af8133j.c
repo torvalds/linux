@@ -361,16 +361,15 @@ static irqreturn_t af8133j_trigger_handler(int irq, void *p)
 	struct {
 		__le16 values[3];
 		aligned_s64 timestamp;
-	} sample;
+	} sample = { };
 	int ret;
-
-	memset(&sample, 0, sizeof(sample));
 
 	ret = af8133j_read_measurement(data, sample.values);
 	if (ret)
 		goto out_done;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &sample, timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &sample, sizeof(sample),
+				    timestamp);
 
 out_done:
 	iio_trigger_notify_done(indio_dev->trig);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2020-2024 Intel Corporation
+ * Copyright(c) 2020-2025 Intel Corporation
  */
 
 #include "iwl-drv.h"
@@ -11,6 +11,7 @@
 #include "fw/api/nvm-reg.h"
 #include "fw/api/alive.h"
 #include "fw/uefi.h"
+#include "fw/img.h"
 
 #define IWL_PNVM_REDUCED_CAP_BIT BIT(25)
 
@@ -96,8 +97,8 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 				     "Got IWL_UCODE_TLV_HW_TYPE mac_type 0x%0x rf_id 0x%0x\n",
 				     mac_type, rf_id);
 
-			if (mac_type == CSR_HW_REV_TYPE(trans->hw_rev) &&
-			    rf_id == CSR_HW_RFID_TYPE(trans->hw_rf_id))
+			if (mac_type == CSR_HW_REV_TYPE(trans->info.hw_rev) &&
+			    rf_id == CSR_HW_RFID_TYPE(trans->info.hw_rf_id))
 				hw_match = true;
 			break;
 		case IWL_UCODE_TLV_SEC_RT: {
@@ -152,8 +153,8 @@ done:
 	if (!hw_match) {
 		IWL_DEBUG_FW(trans,
 			     "HW mismatch, skipping PNVM section (need mac_type 0x%x rf_id 0x%x)\n",
-			     CSR_HW_REV_TYPE(trans->hw_rev),
-			     CSR_HW_RFID_TYPE(trans->hw_rf_id));
+			     CSR_HW_REV_TYPE(trans->info.hw_rev),
+			     CSR_HW_RFID_TYPE(trans->info.hw_rf_id));
 		return -ENOENT;
 	}
 
@@ -167,7 +168,8 @@ done:
 
 static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 			  size_t len,
-			  struct iwl_pnvm_image *pnvm_data)
+			  struct iwl_pnvm_image *pnvm_data,
+			  __le32 sku_id[3])
 {
 	const struct iwl_ucode_tlv *tlv;
 
@@ -190,23 +192,23 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 		}
 
 		if (tlv_type == IWL_UCODE_TLV_PNVM_SKU) {
-			const struct iwl_sku_id *sku_id =
+			const struct iwl_sku_id *tlv_sku_id =
 				(const void *)(data + sizeof(*tlv));
 
 			IWL_DEBUG_FW(trans,
 				     "Got IWL_UCODE_TLV_PNVM_SKU len %d\n",
 				     tlv_len);
 			IWL_DEBUG_FW(trans, "sku_id 0x%0x 0x%0x 0x%0x\n",
-				     le32_to_cpu(sku_id->data[0]),
-				     le32_to_cpu(sku_id->data[1]),
-				     le32_to_cpu(sku_id->data[2]));
+				     le32_to_cpu(tlv_sku_id->data[0]),
+				     le32_to_cpu(tlv_sku_id->data[1]),
+				     le32_to_cpu(tlv_sku_id->data[2]));
 
 			data += sizeof(*tlv) + ALIGN(tlv_len, 4);
 			len -= ALIGN(tlv_len, 4);
 
 			trans->reduced_cap_sku = false;
-			rf_type = CSR_HW_RFID_TYPE(trans->hw_rf_id);
-			if ((trans->sku_id[0] & IWL_PNVM_REDUCED_CAP_BIT) &&
+			rf_type = CSR_HW_RFID_TYPE(trans->info.hw_rf_id);
+			if ((sku_id[0] & cpu_to_le32(IWL_PNVM_REDUCED_CAP_BIT)) &&
 			    rf_type == IWL_CFG_RF_TYPE_FM)
 				trans->reduced_cap_sku = true;
 
@@ -214,9 +216,9 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 				     "Reduced SKU device %d\n",
 				     trans->reduced_cap_sku);
 
-			if (trans->sku_id[0] == le32_to_cpu(sku_id->data[0]) &&
-			    trans->sku_id[1] == le32_to_cpu(sku_id->data[1]) &&
-			    trans->sku_id[2] == le32_to_cpu(sku_id->data[2])) {
+			if (sku_id[0] == tlv_sku_id->data[0] &&
+			    sku_id[1] == tlv_sku_id->data[1] &&
+			    sku_id[2] == tlv_sku_id->data[2]) {
 				int ret;
 
 				ret = iwl_pnvm_handle_section(trans, data, len,
@@ -263,13 +265,14 @@ static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 	return 0;
 }
 
-static u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len)
+static const u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len,
+				    __le32 sku_id[3], const struct iwl_fw *fw)
 {
 	struct pnvm_sku_package *package;
 	u8 *image = NULL;
 
 	/* Get PNVM from BIOS for non-Intel SKU */
-	if (trans_p->sku_id[2]) {
+	if (sku_id[2]) {
 		package = iwl_uefi_get_pnvm(trans_p, len);
 		if (!IS_ERR_OR_NULL(package)) {
 			if (*len >= sizeof(*package)) {
@@ -288,17 +291,25 @@ static u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len)
 		}
 	}
 
+	if (fw->pnvm_data) {
+		*len = fw->pnvm_size;
+
+		return fw->pnvm_data;
+	}
+
 	/* If it's not available, or for Intel SKU, try from the filesystem */
 	if (iwl_pnvm_get_from_fs(trans_p, &image, len))
 		return NULL;
 	return image;
 }
 
-static void iwl_pnvm_load_pnvm_to_trans(struct iwl_trans *trans,
-					const struct iwl_ucode_capabilities *capa)
+static void
+iwl_pnvm_load_pnvm_to_trans(struct iwl_trans *trans,
+			    const struct iwl_fw *fw,
+			    __le32 sku_id[3])
 {
 	struct iwl_pnvm_image *pnvm_data = NULL;
-	u8 *data = NULL;
+	const u8 *data = NULL;
 	size_t length;
 	int ret;
 
@@ -309,7 +320,7 @@ static void iwl_pnvm_load_pnvm_to_trans(struct iwl_trans *trans,
 	if (trans->pnvm_loaded)
 		goto set;
 
-	data = iwl_get_pnvm_image(trans, &length);
+	data = iwl_get_pnvm_image(trans, &length, sku_id, fw);
 	if (!data) {
 		trans->fail_to_parse_pnvm_image = true;
 		return;
@@ -319,27 +330,30 @@ static void iwl_pnvm_load_pnvm_to_trans(struct iwl_trans *trans,
 	if (!pnvm_data)
 		goto free;
 
-	ret = iwl_pnvm_parse(trans, data, length, pnvm_data);
+	ret = iwl_pnvm_parse(trans, data, length, pnvm_data, sku_id);
 	if (ret) {
 		trans->fail_to_parse_pnvm_image = true;
 		goto free;
 	}
 
-	ret = iwl_trans_load_pnvm(trans, pnvm_data, capa);
+	ret = iwl_trans_load_pnvm(trans, pnvm_data, &fw->ucode_capa);
 	if (ret)
 		goto free;
-	IWL_INFO(trans, "loaded PNVM version %08x\n", pnvm_data->version);
+	IWL_DEBUG_INFO(trans, "loaded PNVM version %08x\n", pnvm_data->version);
 
 set:
-	iwl_trans_set_pnvm(trans, capa);
+	iwl_trans_set_pnvm(trans, &fw->ucode_capa);
 free:
-	kvfree(data);
+	/* free only if it was allocated, i.e. not just embedded PNVM data */
+	if (data != fw->pnvm_data)
+		kvfree(data);
 	kfree(pnvm_data);
 }
 
 static void
 iwl_pnvm_load_reduce_power_to_trans(struct iwl_trans *trans,
-				    const struct iwl_ucode_capabilities *capa)
+				    const struct iwl_ucode_capabilities *capa,
+				    __le32 sku_id[3])
 {
 	struct iwl_pnvm_image *pnvm_data = NULL;
 	u8 *data = NULL;
@@ -362,7 +376,8 @@ iwl_pnvm_load_reduce_power_to_trans(struct iwl_trans *trans,
 	if (!pnvm_data)
 		goto free;
 
-	ret = iwl_uefi_reduce_power_parse(trans, data, length, pnvm_data);
+	ret = iwl_uefi_reduce_power_parse(trans, data, length, pnvm_data,
+					  sku_id);
 	if (ret) {
 		trans->failed_to_load_reduce_power_image = true;
 		goto free;
@@ -386,18 +401,18 @@ free:
 
 int iwl_pnvm_load(struct iwl_trans *trans,
 		  struct iwl_notif_wait_data *notif_wait,
-		  const struct iwl_ucode_capabilities *capa)
+		  const struct iwl_fw *fw, __le32 sku_id[3])
 {
 	struct iwl_notification_wait pnvm_wait;
 	static const u16 ntf_cmds[] = { WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						PNVM_INIT_COMPLETE_NTFY) };
 
 	/* if the SKU_ID is empty, there's nothing to do */
-	if (!trans->sku_id[0] && !trans->sku_id[1] && !trans->sku_id[2])
+	if (!sku_id[0] && !sku_id[1] && !sku_id[2])
 		return 0;
 
-	iwl_pnvm_load_pnvm_to_trans(trans, capa);
-	iwl_pnvm_load_reduce_power_to_trans(trans, capa);
+	iwl_pnvm_load_pnvm_to_trans(trans, fw, sku_id);
+	iwl_pnvm_load_reduce_power_to_trans(trans, &fw->ucode_capa, sku_id);
 
 	iwl_init_notification_wait(notif_wait, &pnvm_wait,
 				   ntf_cmds, ARRAY_SIZE(ntf_cmds),

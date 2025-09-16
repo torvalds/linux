@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/pwm.h>
 #include <linux/regulator/consumer.h>
@@ -31,6 +32,10 @@
 #include <linux/iio/trigger_consumer.h>
 
 #include "ad7606.h"
+
+#define AD7606_CALIB_GAIN_MIN	0
+#define AD7606_CALIB_GAIN_STEP	1024
+#define AD7606_CALIB_GAIN_MAX	(63 * AD7606_CALIB_GAIN_STEP)
 
 /*
  * Scales are computed as 5000/32768 and 10000/32768 respectively,
@@ -94,121 +99,51 @@ static const unsigned int ad7616_oversampling_avail[8] = {
 	1, 2, 4, 8, 16, 32, 64, 128,
 };
 
-static const struct iio_chan_spec ad7605_channels[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(4),
-	AD7605_CHANNEL(0),
-	AD7605_CHANNEL(1),
-	AD7605_CHANNEL(2),
-	AD7605_CHANNEL(3),
+static const int ad7606_calib_offset_avail[3] = {
+	-128, 1, 127,
 };
 
-static const struct iio_chan_spec ad7606_channels_16bit[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(8),
-	AD7606_CHANNEL(0, 16),
-	AD7606_CHANNEL(1, 16),
-	AD7606_CHANNEL(2, 16),
-	AD7606_CHANNEL(3, 16),
-	AD7606_CHANNEL(4, 16),
-	AD7606_CHANNEL(5, 16),
-	AD7606_CHANNEL(6, 16),
-	AD7606_CHANNEL(7, 16),
+static const int ad7606c_18bit_calib_offset_avail[3] = {
+	-512, 4, 508,
 };
 
-static const struct iio_chan_spec ad7606_channels_18bit[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(8),
-	AD7606_CHANNEL(0, 18),
-	AD7606_CHANNEL(1, 18),
-	AD7606_CHANNEL(2, 18),
-	AD7606_CHANNEL(3, 18),
-	AD7606_CHANNEL(4, 18),
-	AD7606_CHANNEL(5, 18),
-	AD7606_CHANNEL(6, 18),
-	AD7606_CHANNEL(7, 18),
+static const int ad7606b_calib_phase_avail[][2] = {
+	{ 0, 0 }, { 0, 1250 }, { 0, 318750 },
 };
 
-static const struct iio_chan_spec ad7607_channels[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(8),
-	AD7606_CHANNEL(0, 14),
-	AD7606_CHANNEL(1, 14),
-	AD7606_CHANNEL(2, 14),
-	AD7606_CHANNEL(3, 14),
-	AD7606_CHANNEL(4, 14),
-	AD7606_CHANNEL(5, 14),
-	AD7606_CHANNEL(6, 14),
-	AD7606_CHANNEL(7, 14),
-};
-
-static const struct iio_chan_spec ad7608_channels[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(8),
-	AD7606_CHANNEL(0, 18),
-	AD7606_CHANNEL(1, 18),
-	AD7606_CHANNEL(2, 18),
-	AD7606_CHANNEL(3, 18),
-	AD7606_CHANNEL(4, 18),
-	AD7606_CHANNEL(5, 18),
-	AD7606_CHANNEL(6, 18),
-	AD7606_CHANNEL(7, 18),
-};
-
-/*
- * The current assumption that this driver makes for AD7616, is that it's
- * working in Hardware Mode with Serial, Burst and Sequencer modes activated.
- * To activate them, following pins must be pulled high:
- *	-SER/PAR
- *	-SEQEN
- * And following pins must be pulled low:
- *	-WR/BURST
- *	-DB4/SER1W
- */
-static const struct iio_chan_spec ad7616_channels[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(16),
-	AD7606_CHANNEL(0, 16),
-	AD7606_CHANNEL(1, 16),
-	AD7606_CHANNEL(2, 16),
-	AD7606_CHANNEL(3, 16),
-	AD7606_CHANNEL(4, 16),
-	AD7606_CHANNEL(5, 16),
-	AD7606_CHANNEL(6, 16),
-	AD7606_CHANNEL(7, 16),
-	AD7606_CHANNEL(8, 16),
-	AD7606_CHANNEL(9, 16),
-	AD7606_CHANNEL(10, 16),
-	AD7606_CHANNEL(11, 16),
-	AD7606_CHANNEL(12, 16),
-	AD7606_CHANNEL(13, 16),
-	AD7606_CHANNEL(14, 16),
-	AD7606_CHANNEL(15, 16),
+static const int ad7606c_calib_phase_avail[][2] = {
+	{ 0, 0 }, { 0, 1000 }, { 0, 255000 },
 };
 
 static int ad7606c_18bit_chan_scale_setup(struct iio_dev *indio_dev,
-					  struct iio_chan_spec *chan, int ch);
+					  struct iio_chan_spec *chan);
 static int ad7606c_16bit_chan_scale_setup(struct iio_dev *indio_dev,
-					  struct iio_chan_spec *chan, int ch);
+					  struct iio_chan_spec *chan);
 static int ad7606_16bit_chan_scale_setup(struct iio_dev *indio_dev,
-					 struct iio_chan_spec *chan, int ch);
+					 struct iio_chan_spec *chan);
 static int ad7607_chan_scale_setup(struct iio_dev *indio_dev,
-				   struct iio_chan_spec *chan, int ch);
+				   struct iio_chan_spec *chan);
 static int ad7608_chan_scale_setup(struct iio_dev *indio_dev,
-				   struct iio_chan_spec *chan, int ch);
+				   struct iio_chan_spec *chan);
 static int ad7609_chan_scale_setup(struct iio_dev *indio_dev,
-				   struct iio_chan_spec *chan, int ch);
+				   struct iio_chan_spec *chan);
 static int ad7616_sw_mode_setup(struct iio_dev *indio_dev);
 static int ad7606b_sw_mode_setup(struct iio_dev *indio_dev);
 
 const struct ad7606_chip_info ad7605_4_info = {
-	.channels = ad7605_channels,
+	.max_samplerate = 300 * KILO,
 	.name = "ad7605-4",
+	.bits = 16,
 	.num_adc_channels = 4,
-	.num_channels = 5,
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 };
 EXPORT_SYMBOL_NS_GPL(ad7605_4_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606_8_info = {
-	.channels = ad7606_channels_16bit,
+	.max_samplerate = 200 * KILO,
 	.name = "ad7606-8",
+	.bits = 16,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
@@ -216,108 +151,125 @@ const struct ad7606_chip_info ad7606_8_info = {
 EXPORT_SYMBOL_NS_GPL(ad7606_8_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606_6_info = {
-	.channels = ad7606_channels_16bit,
+	.max_samplerate = 200 * KILO,
 	.name = "ad7606-6",
+	.bits = 16,
 	.num_adc_channels = 6,
-	.num_channels = 7,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7606_6_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606_4_info = {
-	.channels = ad7606_channels_16bit,
+	.max_samplerate = 200 * KILO,
 	.name = "ad7606-4",
+	.bits = 16,
 	.num_adc_channels = 4,
-	.num_channels = 5,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7606_4_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606b_info = {
-	.channels = ad7606_channels_16bit,
 	.max_samplerate = 800 * KILO,
 	.name = "ad7606b",
+	.bits = 16,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 	.sw_setup_cb = ad7606b_sw_mode_setup,
+	.offload_storagebits = 32,
+	.calib_gain_avail = true,
+	.calib_offset_avail = ad7606_calib_offset_avail,
+	.calib_phase_avail = ad7606b_calib_phase_avail,
 };
 EXPORT_SYMBOL_NS_GPL(ad7606b_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606c_16_info = {
-	.channels = ad7606_channels_16bit,
+	.max_samplerate = 1 * MEGA,
 	.name = "ad7606c16",
+	.bits = 16,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606c_16bit_chan_scale_setup,
 	.sw_setup_cb = ad7606b_sw_mode_setup,
+	.offload_storagebits = 32,
+	.calib_gain_avail = true,
+	.calib_offset_avail = ad7606_calib_offset_avail,
+	.calib_phase_avail = ad7606c_calib_phase_avail,
 };
 EXPORT_SYMBOL_NS_GPL(ad7606c_16_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7607_info = {
-	.channels = ad7607_channels,
+	.max_samplerate = 200 * KILO,
 	.name = "ad7607",
+	.bits = 14,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7607_chan_scale_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7607_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7608_info = {
-	.channels = ad7608_channels,
+	.max_samplerate = 200 * KILO,
 	.name = "ad7608",
+	.bits = 18,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7608_chan_scale_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7608_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7609_info = {
-	.channels = ad7608_channels,
+	.max_samplerate = 200 * KILO,
 	.name = "ad7609",
+	.bits = 18,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7609_chan_scale_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7609_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606c_18_info = {
-	.channels = ad7606_channels_18bit,
+	.max_samplerate = 1 * MEGA,
 	.name = "ad7606c18",
+	.bits = 18,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606c_18bit_chan_scale_setup,
 	.sw_setup_cb = ad7606b_sw_mode_setup,
+	.offload_storagebits = 32,
+	.calib_gain_avail = true,
+	.calib_offset_avail = ad7606c_18bit_calib_offset_avail,
+	.calib_phase_avail = ad7606c_calib_phase_avail,
 };
 EXPORT_SYMBOL_NS_GPL(ad7606c_18_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7616_info = {
-	.channels = ad7616_channels,
+	.max_samplerate = 1 * MEGA,
 	.init_delay_ms = 15,
 	.name = "ad7616",
+	.bits = 16,
 	.num_adc_channels = 16,
-	.num_channels = 17,
 	.oversampling_avail = ad7616_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7616_oversampling_avail),
 	.os_req_reset = true,
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 	.sw_setup_cb = ad7616_sw_mode_setup,
+	.offload_storagebits = 16,
 };
 EXPORT_SYMBOL_NS_GPL(ad7616_info, "IIO_AD7606");
 
@@ -335,24 +287,24 @@ int ad7606_reset(struct ad7606_state *st)
 EXPORT_SYMBOL_NS_GPL(ad7606_reset, "IIO_AD7606");
 
 static int ad7606_16bit_chan_scale_setup(struct iio_dev *indio_dev,
-					 struct iio_chan_spec *chan, int ch)
+					 struct iio_chan_spec *chan)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	struct ad7606_chan_scale *cs = &st->chan_scales[ch];
+	struct ad7606_chan_info *ci = &st->chan_info[chan->scan_index];
 
 	if (!st->sw_mode_en) {
 		/* tied to logic low, analog input range is +/- 5V */
-		cs->range = 0;
-		cs->scale_avail = ad7606_16bit_hw_scale_avail;
-		cs->num_scales = ARRAY_SIZE(ad7606_16bit_hw_scale_avail);
+		ci->range = 0;
+		ci->scale_avail = ad7606_16bit_hw_scale_avail;
+		ci->num_scales = ARRAY_SIZE(ad7606_16bit_hw_scale_avail);
 		return 0;
 	}
 
 	/* Scale of 0.076293 is only available in sw mode */
 	/* After reset, in software mode, ±10 V is set by default */
-	cs->range = 2;
-	cs->scale_avail = ad7606_16bit_sw_scale_avail;
-	cs->num_scales = ARRAY_SIZE(ad7606_16bit_sw_scale_avail);
+	ci->range = 2;
+	ci->scale_avail = ad7606_16bit_sw_scale_avail;
+	ci->num_scales = ARRAY_SIZE(ad7606_16bit_sw_scale_avail);
 
 	return 0;
 }
@@ -361,8 +313,8 @@ static int ad7606_get_chan_config(struct iio_dev *indio_dev, int ch,
 				  bool *bipolar, bool *differential)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
+	struct ad7606_chan_info *ci;
 	unsigned int num_channels = st->chip_info->num_adc_channels;
-	unsigned int offset = indio_dev->num_channels - st->chip_info->num_adc_channels;
 	struct device *dev = st->dev;
 	int ret;
 
@@ -375,15 +327,13 @@ static int ad7606_get_chan_config(struct iio_dev *indio_dev, int ch,
 
 		ret = fwnode_property_read_u32(child, "reg", &reg);
 		if (ret)
-			continue;
+			return ret;
 
 		/* channel number (here) is from 1 to num_channels */
-		if (reg < offset || reg > num_channels) {
-			dev_warn(dev,
-				 "Invalid channel number (ignoring): %d\n", reg);
-			continue;
-		}
+		if (reg < 1 || reg > num_channels)
+			return -EINVAL;
 
+		/* Loop until we are in the right channel. */
 		if (reg != (ch + 1))
 			continue;
 
@@ -407,6 +357,14 @@ static int ad7606_get_chan_config(struct iio_dev *indio_dev, int ch,
 			return -EINVAL;
 		}
 
+		ci = &st->chan_info[reg - 1];
+
+		ci->r_gain = 0;
+		ret = fwnode_property_read_u32(child, "adi,rfilter-ohms",
+					       &ci->r_gain);
+		if (ret == 0 && ci->r_gain > AD7606_CALIB_GAIN_MAX)
+			return -EINVAL;
+
 		return 0;
 	}
 
@@ -414,31 +372,32 @@ static int ad7606_get_chan_config(struct iio_dev *indio_dev, int ch,
 }
 
 static int ad7606c_18bit_chan_scale_setup(struct iio_dev *indio_dev,
-					  struct iio_chan_spec *chan, int ch)
+					  struct iio_chan_spec *chan)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	struct ad7606_chan_scale *cs = &st->chan_scales[ch];
+	struct ad7606_chan_info *ci = &st->chan_info[chan->scan_index];
 	bool bipolar, differential;
 	int ret;
 
 	if (!st->sw_mode_en) {
-		cs->range = 0;
-		cs->scale_avail = ad7606_18bit_hw_scale_avail;
-		cs->num_scales = ARRAY_SIZE(ad7606_18bit_hw_scale_avail);
+		ci->range = 0;
+		ci->scale_avail = ad7606_18bit_hw_scale_avail;
+		ci->num_scales = ARRAY_SIZE(ad7606_18bit_hw_scale_avail);
 		return 0;
 	}
 
-	ret = ad7606_get_chan_config(indio_dev, ch, &bipolar, &differential);
+	ret = ad7606_get_chan_config(indio_dev, chan->scan_index, &bipolar,
+				     &differential);
 	if (ret)
 		return ret;
 
 	if (differential) {
-		cs->scale_avail = ad7606c_18bit_differential_bipolar_scale_avail;
-		cs->num_scales =
+		ci->scale_avail = ad7606c_18bit_differential_bipolar_scale_avail;
+		ci->num_scales =
 			ARRAY_SIZE(ad7606c_18bit_differential_bipolar_scale_avail);
 		/* Bipolar differential ranges start at 8 (b1000) */
-		cs->reg_offset = 8;
-		cs->range = 1;
+		ci->reg_offset = 8;
+		ci->range = 1;
 		chan->differential = 1;
 		chan->channel2 = chan->channel;
 
@@ -448,54 +407,55 @@ static int ad7606c_18bit_chan_scale_setup(struct iio_dev *indio_dev,
 	chan->differential = 0;
 
 	if (bipolar) {
-		cs->scale_avail = ad7606c_18bit_single_ended_bipolar_scale_avail;
-		cs->num_scales =
+		ci->scale_avail = ad7606c_18bit_single_ended_bipolar_scale_avail;
+		ci->num_scales =
 			ARRAY_SIZE(ad7606c_18bit_single_ended_bipolar_scale_avail);
 		/* Bipolar single-ended ranges start at 0 (b0000) */
-		cs->reg_offset = 0;
-		cs->range = 3;
+		ci->reg_offset = 0;
+		ci->range = 3;
 		chan->scan_type.sign = 's';
 
 		return 0;
 	}
 
-	cs->scale_avail = ad7606c_18bit_single_ended_unipolar_scale_avail;
-	cs->num_scales =
+	ci->scale_avail = ad7606c_18bit_single_ended_unipolar_scale_avail;
+	ci->num_scales =
 		ARRAY_SIZE(ad7606c_18bit_single_ended_unipolar_scale_avail);
 	/* Unipolar single-ended ranges start at 5 (b0101) */
-	cs->reg_offset = 5;
-	cs->range = 1;
+	ci->reg_offset = 5;
+	ci->range = 1;
 	chan->scan_type.sign = 'u';
 
 	return 0;
 }
 
 static int ad7606c_16bit_chan_scale_setup(struct iio_dev *indio_dev,
-					  struct iio_chan_spec *chan, int ch)
+					  struct iio_chan_spec *chan)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	struct ad7606_chan_scale *cs = &st->chan_scales[ch];
+	struct ad7606_chan_info *ci = &st->chan_info[chan->scan_index];
 	bool bipolar, differential;
 	int ret;
 
 	if (!st->sw_mode_en) {
-		cs->range = 0;
-		cs->scale_avail = ad7606_16bit_hw_scale_avail;
-		cs->num_scales = ARRAY_SIZE(ad7606_16bit_hw_scale_avail);
+		ci->range = 0;
+		ci->scale_avail = ad7606_16bit_hw_scale_avail;
+		ci->num_scales = ARRAY_SIZE(ad7606_16bit_hw_scale_avail);
 		return 0;
 	}
 
-	ret = ad7606_get_chan_config(indio_dev, ch, &bipolar, &differential);
+	ret = ad7606_get_chan_config(indio_dev, chan->scan_index, &bipolar,
+				     &differential);
 	if (ret)
 		return ret;
 
 	if (differential) {
-		cs->scale_avail = ad7606c_16bit_differential_bipolar_scale_avail;
-		cs->num_scales =
+		ci->scale_avail = ad7606c_16bit_differential_bipolar_scale_avail;
+		ci->num_scales =
 			ARRAY_SIZE(ad7606c_16bit_differential_bipolar_scale_avail);
 		/* Bipolar differential ranges start at 8 (b1000) */
-		cs->reg_offset = 8;
-		cs->range = 1;
+		ci->reg_offset = 8;
+		ci->range = 1;
 		chan->differential = 1;
 		chan->channel2 = chan->channel;
 		chan->scan_type.sign = 's';
@@ -506,61 +466,61 @@ static int ad7606c_16bit_chan_scale_setup(struct iio_dev *indio_dev,
 	chan->differential = 0;
 
 	if (bipolar) {
-		cs->scale_avail = ad7606c_16bit_single_ended_bipolar_scale_avail;
-		cs->num_scales =
+		ci->scale_avail = ad7606c_16bit_single_ended_bipolar_scale_avail;
+		ci->num_scales =
 			ARRAY_SIZE(ad7606c_16bit_single_ended_bipolar_scale_avail);
 		/* Bipolar single-ended ranges start at 0 (b0000) */
-		cs->reg_offset = 0;
-		cs->range = 3;
+		ci->reg_offset = 0;
+		ci->range = 3;
 		chan->scan_type.sign = 's';
 
 		return 0;
 	}
 
-	cs->scale_avail = ad7606c_16bit_single_ended_unipolar_scale_avail;
-	cs->num_scales =
+	ci->scale_avail = ad7606c_16bit_single_ended_unipolar_scale_avail;
+	ci->num_scales =
 		ARRAY_SIZE(ad7606c_16bit_single_ended_unipolar_scale_avail);
 	/* Unipolar single-ended ranges start at 5 (b0101) */
-	cs->reg_offset = 5;
-	cs->range = 1;
+	ci->reg_offset = 5;
+	ci->range = 1;
 	chan->scan_type.sign = 'u';
 
 	return 0;
 }
 
 static int ad7607_chan_scale_setup(struct iio_dev *indio_dev,
-				   struct iio_chan_spec *chan, int ch)
+				   struct iio_chan_spec *chan)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	struct ad7606_chan_scale *cs = &st->chan_scales[ch];
+	struct ad7606_chan_info *ci = &st->chan_info[chan->scan_index];
 
-	cs->range = 0;
-	cs->scale_avail = ad7607_hw_scale_avail;
-	cs->num_scales = ARRAY_SIZE(ad7607_hw_scale_avail);
+	ci->range = 0;
+	ci->scale_avail = ad7607_hw_scale_avail;
+	ci->num_scales = ARRAY_SIZE(ad7607_hw_scale_avail);
 	return 0;
 }
 
 static int ad7608_chan_scale_setup(struct iio_dev *indio_dev,
-				   struct iio_chan_spec *chan, int ch)
+				   struct iio_chan_spec *chan)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	struct ad7606_chan_scale *cs = &st->chan_scales[ch];
+	struct ad7606_chan_info *ci = &st->chan_info[chan->scan_index];
 
-	cs->range = 0;
-	cs->scale_avail = ad7606_18bit_hw_scale_avail;
-	cs->num_scales = ARRAY_SIZE(ad7606_18bit_hw_scale_avail);
+	ci->range = 0;
+	ci->scale_avail = ad7606_18bit_hw_scale_avail;
+	ci->num_scales = ARRAY_SIZE(ad7606_18bit_hw_scale_avail);
 	return 0;
 }
 
 static int ad7609_chan_scale_setup(struct iio_dev *indio_dev,
-				   struct iio_chan_spec *chan, int ch)
+				   struct iio_chan_spec *chan)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	struct ad7606_chan_scale *cs = &st->chan_scales[ch];
+	struct ad7606_chan_info *ci = &st->chan_info[chan->scan_index];
 
-	cs->range = 0;
-	cs->scale_avail = ad7609_hw_scale_avail;
-	cs->num_scales = ARRAY_SIZE(ad7609_hw_scale_avail);
+	ci->range = 0;
+	ci->scale_avail = ad7609_hw_scale_avail;
+	ci->num_scales = ARRAY_SIZE(ad7609_hw_scale_avail);
 	return 0;
 }
 
@@ -599,7 +559,7 @@ static int ad7606_pwm_set_high(struct ad7606_state *st)
 	return ret;
 }
 
-static int ad7606_pwm_set_low(struct ad7606_state *st)
+int ad7606_pwm_set_low(struct ad7606_state *st)
 {
 	struct pwm_state cnvst_pwm_state;
 	int ret;
@@ -612,8 +572,9 @@ static int ad7606_pwm_set_low(struct ad7606_state *st)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS_GPL(ad7606_pwm_set_low, "IIO_AD7606");
 
-static int ad7606_pwm_set_swing(struct ad7606_state *st)
+int ad7606_pwm_set_swing(struct ad7606_state *st)
 {
 	struct pwm_state cnvst_pwm_state;
 
@@ -623,6 +584,7 @@ static int ad7606_pwm_set_swing(struct ad7606_state *st)
 
 	return pwm_apply_might_sleep(st->cnvst_pwm, &cnvst_pwm_state);
 }
+EXPORT_SYMBOL_NS_GPL(ad7606_pwm_set_swing, "IIO_AD7606");
 
 static bool ad7606_pwm_is_swinging(struct ad7606_state *st)
 {
@@ -679,8 +641,8 @@ static irqreturn_t ad7606_trigger_handler(int irq, void *p)
 	if (ret)
 		goto error_ret;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &st->data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &st->data, sizeof(st->data),
+				    iio_get_time_ns(indio_dev));
 error_ret:
 	iio_trigger_notify_done(indio_dev->trig);
 	/* The rising edge of the CONVST signal starts a new conversion. */
@@ -693,8 +655,8 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch,
 			      int *val)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	unsigned int realbits = st->chip_info->channels[1].scan_type.realbits;
 	const struct iio_chan_spec *chan;
+	unsigned int realbits;
 	int ret;
 
 	if (st->gpio_convst) {
@@ -711,7 +673,7 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch,
 	 * will not happen because IIO_CHAN_INFO_RAW is not supported for the backend.
 	 * TODO: Add support for reading a single value when the backend is used.
 	 */
-	if (!st->back) {
+	if (st->trig) {
 		ret = wait_for_completion_timeout(&st->completion,
 						  msecs_to_jiffies(1000));
 		if (!ret) {
@@ -719,25 +681,30 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch,
 			goto error_ret;
 		}
 	} else {
-		fsleep(1);
+		/*
+		 * If the BUSY interrupt is not available, wait enough time for
+		 * the longest possible conversion (max for the whole family is
+		 * around 350us).
+		 */
+		fsleep(400);
 	}
 
 	ret = ad7606_read_samples(st);
 	if (ret)
 		goto error_ret;
 
-	chan = &indio_dev->channels[ch + 1];
-	if (chan->scan_type.sign == 'u') {
-		if (realbits > 16)
-			*val = st->data.buf32[ch];
-		else
-			*val = st->data.buf16[ch];
-	} else {
-		if (realbits > 16)
-			*val = sign_extend32(st->data.buf32[ch], realbits - 1);
-		else
-			*val = sign_extend32(st->data.buf16[ch], realbits - 1);
-	}
+	chan = &indio_dev->channels[ch];
+	realbits = chan->scan_type.realbits;
+
+	if (realbits > 16)
+		*val = st->data.buf32[ch];
+	else
+		*val = st->data.buf16[ch];
+
+	*val &= GENMASK(realbits - 1, 0);
+
+	if (chan->scan_type.sign == 's')
+		*val = sign_extend32(*val, realbits - 1);
 
 error_ret:
 	if (!st->gpio_convst) {
@@ -750,6 +717,40 @@ error_ret:
 	return ret;
 }
 
+static int ad7606_get_calib_offset(struct ad7606_state *st, int ch, int *val)
+{
+	int ret;
+
+	ret = st->bops->reg_read(st, AD7606_CALIB_OFFSET(ch));
+	if (ret < 0)
+		return ret;
+
+	*val = st->chip_info->calib_offset_avail[0] +
+	       ret * st->chip_info->calib_offset_avail[1];
+
+	return 0;
+}
+
+static int ad7606_get_calib_phase(struct ad7606_state *st, int ch, int *val,
+				  int *val2)
+{
+	int ret;
+
+	ret = st->bops->reg_read(st, AD7606_CALIB_PHASE(ch));
+	if (ret < 0)
+		return ret;
+
+	*val = 0;
+
+	/*
+	 * ad7606b: phase delay from 0 to 318.75 μs in steps of 1.25 μs.
+	 * ad7606c-16/18: phase delay from 0 µs to 255 µs in steps of 1 µs.
+	 */
+	*val2 = ret * st->chip_info->calib_phase_avail[1][1];
+
+	return 0;
+}
+
 static int ad7606_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val,
@@ -758,36 +759,48 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 {
 	int ret, ch = 0;
 	struct ad7606_state *st = iio_priv(indio_dev);
-	struct ad7606_chan_scale *cs;
+	struct ad7606_chan_info *ci;
 	struct pwm_state cnvst_pwm_state;
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
 		if (!iio_device_claim_direct(indio_dev))
 			return -EBUSY;
-		ret = ad7606_scan_direct(indio_dev, chan->address, val);
+		ret = ad7606_scan_direct(indio_dev, chan->scan_index, val);
 		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		if (st->sw_mode_en)
-			ch = chan->address;
-		cs = &st->chan_scales[ch];
-		*val = cs->scale_avail[cs->range][0];
-		*val2 = cs->scale_avail[cs->range][1];
+			ch = chan->scan_index;
+		ci = &st->chan_info[ch];
+		*val = ci->scale_avail[ci->range][0];
+		*val2 = ci->scale_avail[ci->range][1];
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		*val = st->oversampling;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		/*
-		 * TODO: return the real frequency intead of the requested one once
-		 * pwm_get_state_hw comes upstream.
-		 */
 		pwm_get_state(st->cnvst_pwm, &cnvst_pwm_state);
 		*val = DIV_ROUND_CLOSEST_ULL(NSEC_PER_SEC, cnvst_pwm_state.period);
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_CALIBBIAS:
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		ret = ad7606_get_calib_offset(st, chan->scan_index, val);
+		iio_device_release_direct(indio_dev);
+		if (ret)
+			return ret;
+		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_CONVDELAY:
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		ret = ad7606_get_calib_phase(st, chan->scan_index, val, val2);
+		iio_device_release_direct(indio_dev);
+		if (ret)
+			return ret;
+		return IIO_VAL_INT_PLUS_NANO;
 	}
 	return -EINVAL;
 }
@@ -798,12 +811,12 @@ static ssize_t in_voltage_scale_available_show(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
-	struct ad7606_chan_scale *cs = &st->chan_scales[0];
-	const unsigned int (*vals)[2] = cs->scale_avail;
+	struct ad7606_chan_info *ci = &st->chan_info[0];
+	const unsigned int (*vals)[2] = ci->scale_avail;
 	unsigned int i;
 	size_t len = 0;
 
-	for (i = 0; i < cs->num_scales; i++)
+	for (i = 0; i < ci->num_scales; i++)
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%u.%06u ",
 				 vals[i][0], vals[i][1]);
 	buf[len - 1] = '\n';
@@ -838,6 +851,64 @@ static int ad7606_write_os_hw(struct iio_dev *indio_dev, int val)
 	return 0;
 }
 
+static int ad7606_set_calib_offset(struct ad7606_state *st, int ch, int val)
+{
+	int start_val, step_val, stop_val;
+	int offset;
+
+	start_val = st->chip_info->calib_offset_avail[0];
+	step_val = st->chip_info->calib_offset_avail[1];
+	stop_val = st->chip_info->calib_offset_avail[2];
+
+	if (val < start_val || val > stop_val)
+		return -EINVAL;
+
+	offset = (val - start_val) / step_val;
+
+	return st->bops->reg_write(st, AD7606_CALIB_OFFSET(ch), offset);
+}
+
+static int ad7606_set_calib_phase(struct ad7606_state *st, int ch, int val,
+				  int val2)
+{
+	int wreg, start_ns, step_ns, stop_ns;
+
+	if (val != 0)
+		return -EINVAL;
+
+	start_ns = st->chip_info->calib_phase_avail[0][1];
+	step_ns = st->chip_info->calib_phase_avail[1][1];
+	stop_ns = st->chip_info->calib_phase_avail[2][1];
+
+	/*
+	 * ad7606b: phase delay from 0 to 318.75 μs in steps of 1.25 μs.
+	 * ad7606c-16/18: phase delay from 0 µs to 255 µs in steps of 1 µs.
+	 */
+	if (val2 < start_ns || val2 > stop_ns)
+		return -EINVAL;
+
+	wreg = val2 / step_ns;
+
+	return st->bops->reg_write(st, AD7606_CALIB_PHASE(ch), wreg);
+}
+
+static int ad7606_write_raw_get_fmt(struct iio_dev *indio_dev,
+				    struct iio_chan_spec const *chan, long info)
+{
+	switch (info) {
+	case IIO_CHAN_INFO_SCALE:
+		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+	case IIO_CHAN_INFO_CALIBBIAS:
+		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_CONVDELAY:
+		return IIO_VAL_INT_PLUS_NANO;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int ad7606_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int val,
@@ -846,7 +917,7 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 	unsigned int scale_avail_uv[AD760X_MAX_SCALES];
-	struct ad7606_chan_scale *cs;
+	struct ad7606_chan_info *ci;
 	int i, ret, ch = 0;
 
 	guard(mutex)(&st->lock);
@@ -854,22 +925,22 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		if (st->sw_mode_en)
-			ch = chan->address;
-		cs = &st->chan_scales[ch];
-		for (i = 0; i < cs->num_scales; i++) {
-			scale_avail_uv[i] = cs->scale_avail[i][0] * MICRO +
-					    cs->scale_avail[i][1];
+			ch = chan->scan_index;
+		ci = &st->chan_info[ch];
+		for (i = 0; i < ci->num_scales; i++) {
+			scale_avail_uv[i] = ci->scale_avail[i][0] * MICRO +
+					    ci->scale_avail[i][1];
 		}
 		val = (val * MICRO) + val2;
-		i = find_closest(val, scale_avail_uv, cs->num_scales);
+		i = find_closest(val, scale_avail_uv, ci->num_scales);
 
 		if (!iio_device_claim_direct(indio_dev))
 			return -EBUSY;
-		ret = st->write_scale(indio_dev, ch, i + cs->reg_offset);
+		ret = st->write_scale(indio_dev, ch, i + ci->reg_offset);
 		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
-		cs->range = i;
+		ci->range = i;
 
 		return 0;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
@@ -891,6 +962,18 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 		if (val < 0 && val2 != 0)
 			return -EINVAL;
 		return ad7606_set_sampling_freq(st, val);
+	case IIO_CHAN_INFO_CALIBBIAS:
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		ret = ad7606_set_calib_offset(st, chan->scan_index, val);
+		iio_device_release_direct(indio_dev);
+		return ret;
+	case IIO_CHAN_INFO_CONVDELAY:
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		ret = ad7606_set_calib_phase(st, chan->scan_index, val, val2);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	default:
 		return -EINVAL;
 	}
@@ -1048,7 +1131,7 @@ static int ad7606_read_avail(struct iio_dev *indio_dev,
 			     long info)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	struct ad7606_chan_scale *cs;
+	struct ad7606_chan_info *ci;
 	unsigned int ch = 0;
 
 	switch (info) {
@@ -1061,14 +1144,22 @@ static int ad7606_read_avail(struct iio_dev *indio_dev,
 
 	case IIO_CHAN_INFO_SCALE:
 		if (st->sw_mode_en)
-			ch = chan->address;
+			ch = chan->scan_index;
 
-		cs = &st->chan_scales[ch];
-		*vals = (int *)cs->scale_avail;
-		*length = cs->num_scales * 2;
+		ci = &st->chan_info[ch];
+		*vals = (int *)ci->scale_avail;
+		*length = ci->num_scales * 2;
 		*type = IIO_VAL_INT_PLUS_MICRO;
 
 		return IIO_AVAIL_LIST;
+	case IIO_CHAN_INFO_CALIBBIAS:
+		*vals = st->chip_info->calib_offset_avail;
+		*type = IIO_VAL_INT;
+		return IIO_AVAIL_RANGE;
+	case IIO_CHAN_INFO_CONVDELAY:
+		*vals = (const int *)st->chip_info->calib_phase_avail;
+		*type = IIO_VAL_INT_PLUS_NANO;
+		return IIO_AVAIL_RANGE;
 	}
 	return -EINVAL;
 }
@@ -1131,6 +1222,7 @@ static const struct iio_info ad7606_info_sw_mode = {
 	.read_raw = &ad7606_read_raw,
 	.write_raw = &ad7606_write_raw,
 	.read_avail = &ad7606_read_avail,
+	.write_raw_get_fmt = ad7606_write_raw_get_fmt,
 	.debugfs_reg_access = &ad7606_reg_access,
 	.validate_trigger = &ad7606_validate_trigger,
 	.update_scan_mode = &ad7606_update_scan_mode,
@@ -1236,9 +1328,11 @@ static int ad7616_sw_mode_setup(struct iio_dev *indio_dev)
 	st->write_scale = ad7616_write_scale_sw;
 	st->write_os = &ad7616_write_os_sw;
 
-	ret = st->bops->sw_mode_config(indio_dev);
-	if (ret)
-		return ret;
+	if (st->bops->sw_mode_config) {
+		ret = st->bops->sw_mode_config(indio_dev);
+		if (ret)
+			return ret;
+	}
 
 	/* Activate Burst mode and SEQEN MODE */
 	return ad7606_write_mask(st, AD7616_CONFIGURATION_REGISTER,
@@ -1268,31 +1362,122 @@ static int ad7606b_sw_mode_setup(struct iio_dev *indio_dev)
 	st->write_scale = ad7606_write_scale_sw;
 	st->write_os = &ad7606_write_os_sw;
 
+	if (!st->bops->sw_mode_config)
+		return 0;
+
 	return st->bops->sw_mode_config(indio_dev);
 }
 
-static int ad7606_chan_scales_setup(struct iio_dev *indio_dev)
+static int ad7606_set_gain_calib(struct ad7606_state *st)
 {
-	struct ad7606_state *st = iio_priv(indio_dev);
-	unsigned int offset = indio_dev->num_channels - st->chip_info->num_adc_channels;
-	struct iio_chan_spec *chans;
-	size_t size;
-	int ch, ret;
+	struct ad7606_chan_info *ci;
+	int i, ret;
 
-	/* Clone IIO channels, since some may be differential */
-	size = indio_dev->num_channels * sizeof(*indio_dev->channels);
-	chans = devm_kzalloc(st->dev, size, GFP_KERNEL);
-	if (!chans)
-		return -ENOMEM;
-
-	memcpy(chans, indio_dev->channels, size);
-	indio_dev->channels = chans;
-
-	for (ch = 0; ch < st->chip_info->num_adc_channels; ch++) {
-		ret = st->chip_info->scale_setup_cb(indio_dev, &chans[ch + offset], ch);
+	for (i = 0; i < st->chip_info->num_adc_channels; i++) {
+		ci = &st->chan_info[i];
+		ret = st->bops->reg_write(st, AD7606_CALIB_GAIN(i),
+					  DIV_ROUND_CLOSEST(ci->r_gain,
+						AD7606_CALIB_GAIN_STEP));
 		if (ret)
 			return ret;
 	}
+
+	return 0;
+}
+
+static int ad7606_probe_channels(struct iio_dev *indio_dev)
+{
+	struct ad7606_state *st = iio_priv(indio_dev);
+	struct device *dev = indio_dev->dev.parent;
+	struct iio_chan_spec *channels;
+	bool slow_bus;
+	int ret, i;
+
+	slow_bus = !(st->bops->iio_backend_config || st->offload_en);
+	indio_dev->num_channels = st->chip_info->num_adc_channels;
+
+	/* Slow buses also get 1 more channel for soft timestamp */
+	if (slow_bus)
+		indio_dev->num_channels++;
+
+	channels = devm_kcalloc(dev, indio_dev->num_channels, sizeof(*channels),
+				GFP_KERNEL);
+	if (!channels)
+		return -ENOMEM;
+
+	for (i = 0; i < st->chip_info->num_adc_channels; i++) {
+		struct iio_chan_spec *chan = &channels[i];
+
+		chan->type = IIO_VOLTAGE;
+		chan->indexed = 1;
+		chan->channel = i;
+		chan->scan_index = i;
+		chan->scan_type.sign = 's';
+		chan->scan_type.realbits = st->chip_info->bits;
+		/*
+		 * If in SPI offload mode, storagebits are set based
+		 * on the spi-engine hw implementation.
+		 */
+		chan->scan_type.storagebits = st->offload_en ?
+			st->chip_info->offload_storagebits :
+			(st->chip_info->bits > 16 ? 32 : 16);
+
+		chan->scan_type.endianness = IIO_CPU;
+
+		if (indio_dev->modes & INDIO_DIRECT_MODE)
+			chan->info_mask_separate |= BIT(IIO_CHAN_INFO_RAW);
+
+		if (st->sw_mode_en) {
+			chan->info_mask_separate |= BIT(IIO_CHAN_INFO_SCALE);
+			chan->info_mask_separate_available |=
+				BIT(IIO_CHAN_INFO_SCALE);
+
+			if (st->chip_info->calib_offset_avail) {
+				chan->info_mask_separate |=
+					BIT(IIO_CHAN_INFO_CALIBBIAS) |
+					BIT(IIO_CHAN_INFO_CONVDELAY);
+				chan->info_mask_separate_available |=
+					BIT(IIO_CHAN_INFO_CALIBBIAS) |
+					BIT(IIO_CHAN_INFO_CONVDELAY);
+			}
+
+			/*
+			 * All chips with software mode support oversampling,
+			 * so we skip the oversampling_available check. And the
+			 * shared_by_type instead of shared_by_all on slow
+			 * buses is for backward compatibility.
+			 */
+			if (slow_bus)
+				chan->info_mask_shared_by_type |=
+					BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
+			else
+				chan->info_mask_shared_by_all |=
+					BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
+
+			chan->info_mask_shared_by_all_available |=
+				BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
+		} else {
+			chan->info_mask_shared_by_type |=
+				BIT(IIO_CHAN_INFO_SCALE);
+
+			if (st->chip_info->oversampling_avail)
+				chan->info_mask_shared_by_all |=
+					BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
+		}
+
+		if (!slow_bus)
+			chan->info_mask_shared_by_all |=
+				BIT(IIO_CHAN_INFO_SAMP_FREQ);
+
+		ret = st->chip_info->scale_setup_cb(indio_dev, chan);
+		if (ret)
+			return ret;
+	}
+
+	if (slow_bus)
+		channels[i] = (struct iio_chan_spec)IIO_CHAN_SOFT_TIMESTAMP(i);
+
+	indio_dev->channels = channels;
 
 	return 0;
 }
@@ -1317,16 +1502,34 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	st = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
 
+	ret = devm_mutex_init(dev, &st->lock);
+	if (ret)
+		return ret;
+
 	st->dev = dev;
-	mutex_init(&st->lock);
 	st->bops = bops;
 	st->base_address = base_address;
 	st->oversampling = 1;
+	st->sw_mode_en = device_property_read_bool(dev, "adi,sw-mode");
+
+	if (st->sw_mode_en && !chip_info->sw_setup_cb)
+		return dev_err_probe(dev, -EINVAL,
+			"Software mode is not supported for this chip\n");
 
 	ret = devm_regulator_get_enable(dev, "avcc");
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "Failed to enable specified AVcc supply\n");
+
+	ret = devm_regulator_get_enable(dev, "vdrive");
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to enable Vdrive supply\n");
+
+	ret = devm_regulator_get_enable_optional(dev, "refin");
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(dev, ret,
+				     "Failed to enable REFIN supply\n");
 
 	st->chip_info = chip_info;
 
@@ -1350,10 +1553,21 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		else
 			indio_dev->info = &ad7606_info_no_os_or_range;
 	}
-	indio_dev->modes = INDIO_DIRECT_MODE;
+
+	/* AXI ADC backend doesn't support single read. */
+	indio_dev->modes = st->bops->iio_backend_config ? 0 : INDIO_DIRECT_MODE;
 	indio_dev->name = chip_info->name;
-	indio_dev->channels = st->chip_info->channels;
-	indio_dev->num_channels = st->chip_info->num_channels;
+
+	/* Using spi-engine with offload support ? */
+	if (st->bops->offload_config) {
+		ret = st->bops->offload_config(dev, indio_dev);
+		if (ret)
+			return ret;
+	}
+
+	ret = ad7606_probe_channels(indio_dev);
+	if (ret)
+		return ret;
 
 	ret = ad7606_reset(st);
 	if (ret)
@@ -1366,7 +1580,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	}
 
 	/* If convst pin is not defined, setup PWM. */
-	if (!st->gpio_convst) {
+	if (!st->gpio_convst || st->offload_en) {
 		st->cnvst_pwm = devm_pwm_get(dev, NULL);
 		if (IS_ERR(st->cnvst_pwm))
 			return PTR_ERR(st->cnvst_pwm);
@@ -1396,8 +1610,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		 * If there is a backend, the PWM should not overpass the maximum sampling
 		 * frequency the chip supports.
 		 */
-		ret = ad7606_set_sampling_freq(st,
-					       chip_info->max_samplerate ? : 2 * KILO);
+		ret = ad7606_set_sampling_freq(st, chip_info->max_samplerate);
 		if (ret)
 			return ret;
 
@@ -1406,8 +1619,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 			return ret;
 
 		indio_dev->setup_ops = &ad7606_backend_buffer_ops;
-	} else {
-
+	} else if (!st->offload_en) {
 		/* Reserve the PWM use only for backend (force gpio_convst definition) */
 		if (!st->gpio_convst)
 			return dev_err_probe(dev, -EINVAL,
@@ -1445,16 +1657,17 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	st->write_scale = ad7606_write_scale_hw;
 	st->write_os = ad7606_write_os_hw;
 
-	st->sw_mode_en = st->chip_info->sw_setup_cb &&
-			 device_property_present(st->dev, "adi,sw-mode");
-	if (st->sw_mode_en) {
+	/* Offload needs 1 DOUT line, applying this setting in sw_setup_cb. */
+	if (st->sw_mode_en || st->offload_en) {
 		indio_dev->info = &ad7606_info_sw_mode;
 		st->chip_info->sw_setup_cb(indio_dev);
 	}
 
-	ret = ad7606_chan_scales_setup(indio_dev);
-	if (ret)
-		return ret;
+	if (st->sw_mode_en && st->chip_info->calib_gain_avail) {
+		ret = ad7606_set_gain_calib(st);
+		if (ret)
+			return ret;
+	}
 
 	return devm_iio_device_register(dev, indio_dev);
 }
@@ -1481,7 +1694,7 @@ static int ad7606_resume(struct device *dev)
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	if (st->gpio_standby) {
-		gpiod_set_value(st->gpio_range, st->chan_scales[0].range);
+		gpiod_set_value(st->gpio_range, st->chan_info[0].range);
 		gpiod_set_value(st->gpio_standby, 1);
 		ad7606_reset(st);
 	}

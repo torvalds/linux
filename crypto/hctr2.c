@@ -570,7 +570,7 @@ static void __exit hctr2_module_exit(void)
 					   ARRAY_SIZE(hctr2_tmpls));
 }
 
-subsys_initcall(hctr2_module_init);
+module_init(hctr2_module_init);
 module_exit(hctr2_module_exit);
 
 MODULE_DESCRIPTION("HCTR2 length-preserving encryption mode");

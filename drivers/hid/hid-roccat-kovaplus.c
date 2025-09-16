@@ -196,8 +196,8 @@ KOVAPLUS_SYSFS_RW(thingy, THINGY); \
 static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = KOVAPLUS_SIZE_ ## THINGY, \
-	.read_new = kovaplus_sysfs_read_ ## thingy, \
-	.write_new = kovaplus_sysfs_write_ ## thingy \
+	.read = kovaplus_sysfs_read_ ## thingy, \
+	.write = kovaplus_sysfs_write_ ## thingy \
 }
 
 #define KOVAPLUS_BIN_ATTRIBUTE_W(thingy, THINGY) \
@@ -205,7 +205,7 @@ KOVAPLUS_SYSFS_W(thingy, THINGY); \
 static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0220 }, \
 	.size = KOVAPLUS_SIZE_ ## THINGY, \
-	.write_new = kovaplus_sysfs_write_ ## thingy \
+	.write = kovaplus_sysfs_write_ ## thingy \
 }
 KOVAPLUS_BIN_ATTRIBUTE_W(control, CONTROL);
 KOVAPLUS_BIN_ATTRIBUTE_RW(info, INFO);
@@ -252,13 +252,13 @@ static ssize_t kovaplus_sysfs_read_profilex_buttons(struct file *fp,
 static const struct bin_attribute bin_attr_profile##number##_settings = {	\
 	.attr = { .name = "profile" #number "_settings", .mode = 0440 },	\
 	.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,				\
-	.read_new = kovaplus_sysfs_read_profilex_settings,			\
+	.read = kovaplus_sysfs_read_profilex_settings,			\
 	.private = &profile_numbers[number-1],				\
 };									\
 static const struct bin_attribute bin_attr_profile##number##_buttons = {	\
 	.attr = { .name = "profile" #number "_buttons", .mode = 0440 },	\
 	.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,				\
-	.read_new = kovaplus_sysfs_read_profilex_buttons,			\
+	.read = kovaplus_sysfs_read_profilex_buttons,			\
 	.private = &profile_numbers[number-1],				\
 };
 PROFILE_ATTR(1);
@@ -399,7 +399,7 @@ static const struct bin_attribute *const kovaplus_bin_attributes[] = {
 
 static const struct attribute_group kovaplus_group = {
 	.attrs = kovaplus_attrs,
-	.bin_attrs_new = kovaplus_bin_attributes,
+	.bin_attrs = kovaplus_bin_attributes,
 };
 
 static const struct attribute_group *kovaplus_groups[] = {

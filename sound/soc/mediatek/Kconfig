@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menu "Mediatek"
+
 config SND_SOC_MEDIATEK
 	tristate
 	select REGMAP_MMIO
@@ -228,6 +230,7 @@ config SND_SOC_MT8188
 config SND_SOC_MT8188_MT6359
 	tristate "ASoC Audio driver for MT8188 with MT6359 and I2S codecs"
 	depends on SND_SOC_MT8188 && MTK_PMIC_WRAP
+	depends on SND_SOC_MT6359_ACCDET || !SND_SOC_MT6359_ACCDET
 	depends on I2C
 	select SND_SOC_MT6359
 	select SND_SOC_HDMI_CODEC
@@ -318,3 +321,5 @@ config SND_SOC_MT8365_MT6357
 	  boards with the MT6357 PMIC codec.
 	  Select Y if you have such device.
 	  If unsure select "N".
+
+endmenu

@@ -10,6 +10,8 @@
 #include "kvm_emulate.h"
 #include "cpuid.h"
 
+#define KVM_MAX_MCE_BANKS 32
+
 struct kvm_caps {
 	/* control of guest tsc rate supported? */
 	bool has_tsc_control;
@@ -32,6 +34,9 @@ struct kvm_caps {
 	u64 supported_xcr0;
 	u64 supported_xss;
 	u64 supported_perf_cap;
+
+	u64 supported_quirks;
+	u64 inapplicable_quirks;
 };
 
 struct kvm_host_values {
@@ -49,6 +54,28 @@ struct kvm_host_values {
 };
 
 void kvm_spurious_fault(void);
+
+#define SIZE_OF_MEMSLOTS_HASHTABLE \
+	(sizeof(((struct kvm_memslots *)0)->id_hash) * 2 * KVM_MAX_NR_ADDRESS_SPACES)
+
+/* Sanity check the size of the memslot hash tables. */
+static_assert(SIZE_OF_MEMSLOTS_HASHTABLE ==
+	      (1024 * (1 + IS_ENABLED(CONFIG_X86_64)) * (1 + IS_ENABLED(CONFIG_KVM_SMM))));
+
+/*
+ * Assert that "struct kvm_{svm,vmx,tdx}" is an order-0 or order-1 allocation.
+ * Spilling over to an order-2 allocation isn't fundamentally problematic, but
+ * isn't expected to happen in the foreseeable future (O(years)).  Assert that
+ * the size is an order-0 allocation when ignoring the memslot hash tables, to
+ * help detect and debug unexpected size increases.
+ */
+#define KVM_SANITY_CHECK_VM_STRUCT_SIZE(x)						\
+do {											\
+	BUILD_BUG_ON(get_order(sizeof(struct x) - SIZE_OF_MEMSLOTS_HASHTABLE) &&	\
+		     !IS_ENABLED(CONFIG_DEBUG_KERNEL) && !IS_ENABLED(CONFIG_KASAN));	\
+	BUILD_BUG_ON(get_order(sizeof(struct x)) > 1 &&					\
+		     !IS_ENABLED(CONFIG_DEBUG_KERNEL) && !IS_ENABLED(CONFIG_KASAN));	\
+} while (0)
 
 #define KVM_NESTED_VMENTER_CONSISTENCY_CHECK(consistency_check)		\
 ({									\
@@ -114,6 +141,24 @@ int kvm_check_nested_events(struct kvm_vcpu *vcpu);
 static inline void kvm_leave_nested(struct kvm_vcpu *vcpu)
 {
 	kvm_x86_ops.nested_ops->leave_nested(vcpu);
+}
+
+/*
+ * If IBRS is advertised to the vCPU, KVM must flush the indirect branch
+ * predictors when transitioning from L2 to L1, as L1 expects hardware (KVM in
+ * this case) to provide separate predictor modes.  Bare metal isolates the host
+ * from the guest, but doesn't isolate different guests from one another (in
+ * this case L1 and L2). The exception is if bare metal supports same mode IBRS,
+ * which offers protection within the same mode, and hence protects L1 from L2.
+ */
+static inline void kvm_nested_vmexit_handle_ibrs(struct kvm_vcpu *vcpu)
+{
+	if (cpu_feature_enabled(X86_FEATURE_AMD_IBRS_SAME_MODE))
+		return;
+
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_SPEC_CTRL) ||
+	    guest_cpu_cap_has(vcpu, X86_FEATURE_AMD_IBRS))
+		indirect_branch_prediction_barrier();
 }
 
 static inline bool kvm_vcpu_has_run(struct kvm_vcpu *vcpu)
@@ -476,24 +521,34 @@ static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
 	    __rem;						\
 	 })
 
+static inline void kvm_disable_exits(struct kvm *kvm, u64 mask)
+{
+	kvm->arch.disabled_exits |= mask;
+}
+
 static inline bool kvm_mwait_in_guest(struct kvm *kvm)
 {
-	return kvm->arch.mwait_in_guest;
+	return kvm->arch.disabled_exits & KVM_X86_DISABLE_EXITS_MWAIT;
 }
 
 static inline bool kvm_hlt_in_guest(struct kvm *kvm)
 {
-	return kvm->arch.hlt_in_guest;
+	return kvm->arch.disabled_exits & KVM_X86_DISABLE_EXITS_HLT;
 }
 
 static inline bool kvm_pause_in_guest(struct kvm *kvm)
 {
-	return kvm->arch.pause_in_guest;
+	return kvm->arch.disabled_exits & KVM_X86_DISABLE_EXITS_PAUSE;
 }
 
 static inline bool kvm_cstate_in_guest(struct kvm *kvm)
 {
-	return kvm->arch.cstate_in_guest;
+	return kvm->arch.disabled_exits & KVM_X86_DISABLE_EXITS_CSTATE;
+}
+
+static inline bool kvm_aperfmperf_in_guest(struct kvm *kvm)
+{
+	return kvm->arch.disabled_exits & KVM_X86_DISABLE_EXITS_APERFMPERF;
 }
 
 static inline bool kvm_notify_vmexit_enabled(struct kvm *kvm)
@@ -629,25 +684,17 @@ static inline bool user_exit_on_hypercall(struct kvm *kvm, unsigned long hc_nr)
 	return kvm->arch.hypercall_exit_enabled & BIT(hc_nr);
 }
 
-int ____kvm_emulate_hypercall(struct kvm_vcpu *vcpu, unsigned long nr,
-			      unsigned long a0, unsigned long a1,
-			      unsigned long a2, unsigned long a3,
-			      int op_64_bit, int cpl,
+int ____kvm_emulate_hypercall(struct kvm_vcpu *vcpu, int cpl,
 			      int (*complete_hypercall)(struct kvm_vcpu *));
 
-#define __kvm_emulate_hypercall(_vcpu, nr, a0, a1, a2, a3, op_64_bit, cpl, complete_hypercall)	\
-({												\
-	int __ret;										\
-												\
-	__ret = ____kvm_emulate_hypercall(_vcpu,						\
-					  kvm_##nr##_read(_vcpu), kvm_##a0##_read(_vcpu),	\
-					  kvm_##a1##_read(_vcpu), kvm_##a2##_read(_vcpu),	\
-					  kvm_##a3##_read(_vcpu), op_64_bit, cpl,		\
-					  complete_hypercall);					\
-												\
-	if (__ret > 0)										\
-		__ret = complete_hypercall(_vcpu);						\
-	__ret;											\
+#define __kvm_emulate_hypercall(_vcpu, cpl, complete_hypercall)			\
+({										\
+	int __ret;								\
+	__ret = ____kvm_emulate_hypercall(_vcpu, cpl, complete_hypercall);	\
+										\
+	if (__ret > 0)								\
+		__ret = complete_hypercall(_vcpu);				\
+	__ret;									\
 })
 
 int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);

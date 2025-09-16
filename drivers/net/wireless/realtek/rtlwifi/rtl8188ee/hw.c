@@ -237,8 +237,8 @@ static void _rtl88ee_set_fw_ps_rf_off_low_power(struct ieee80211_hw *hw)
 
 void rtl88ee_fw_clk_off_timer_callback(struct timer_list *t)
 {
-	struct rtl_priv *rtlpriv = from_timer(rtlpriv, t,
-					      works.fw_clockoff_timer);
+	struct rtl_priv *rtlpriv = timer_container_of(rtlpriv, t,
+						      works.fw_clockoff_timer);
 	struct ieee80211_hw *hw = rtlpriv->hw;
 
 	_rtl88ee_set_fw_ps_rf_off_low_power(hw);
@@ -1738,9 +1738,9 @@ static void read_power_value_fromprom(struct ieee80211_hw *hw,
 	}
 }
 
-static void _rtl88ee_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
-						 bool autoload_fail,
-						 u8 *hwinfo)
+static noinline_for_stack void
+_rtl88ee_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
+				     bool autoload_fail, u8 *hwinfo)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));

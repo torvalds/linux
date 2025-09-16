@@ -1723,7 +1723,7 @@ static inline int tid_geq(tid_t x, tid_t y)
 	return (difference >= 0);
 }
 
-extern int jbd2_journal_blocks_per_page(struct inode *inode);
+extern int jbd2_journal_blocks_per_folio(struct inode *inode);
 extern size_t journal_tag_bytes(journal_t *journal);
 
 static inline int jbd2_journal_has_csum_v2or3(journal_t *journal)
@@ -1766,8 +1766,7 @@ static inline unsigned long jbd2_log_space_left(journal_t *journal)
 #define BJ_Reserved	4	/* Buffer is reserved for access by journal */
 #define BJ_Types	5
 
-static inline u32 jbd2_chksum(journal_t *journal, u32 crc,
-			      const void *address, unsigned int length)
+static inline u32 jbd2_chksum(u32 crc, const void *address, unsigned int length)
 {
 	return crc32c(crc, address, length);
 }

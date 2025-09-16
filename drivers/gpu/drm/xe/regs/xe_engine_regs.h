@@ -43,6 +43,10 @@
 #define XEHPC_BCS8_RING_BASE			0x3ee000
 #define GSCCS_RING_BASE				0x11a000
 
+#define ENGINE_ID(base)				XE_REG((base) + 0x8c)
+#define   ENGINE_INSTANCE_ID			REG_GENMASK(9, 4)
+#define   ENGINE_CLASS_ID			REG_GENMASK(2, 0)
+
 #define RING_TAIL(base)				XE_REG((base) + 0x30)
 #define   TAIL_ADDR				REG_GENMASK(20, 3)
 
@@ -107,6 +111,9 @@
 #define   PPHWSP_CSB_AND_TIMESTAMP_REPORT_DIS	REG_BIT(14)
 #define   CS_PRIORITY_MEM_READ			REG_BIT(7)
 
+#define CS_DEBUG_MODE2(base)			XE_REG((base) + 0xd8, XE_REG_OPTION_MASKED)
+#define   INSTRUCTION_STATE_CACHE_INVALIDATE	REG_BIT(6)
+
 #define FF_SLICE_CS_CHICKEN1(base)		XE_REG((base) + 0xe0, XE_REG_OPTION_MASKED)
 #define   FFSC_PERCTX_PREEMPT_CTRL		REG_BIT(14)
 
@@ -154,6 +161,7 @@
 #define   STOP_RING				REG_BIT(8)
 
 #define RING_CTX_TIMESTAMP(base)		XE_REG((base) + 0x3a8)
+#define RING_CTX_TIMESTAMP_UDW(base)		XE_REG((base) + 0x3ac)
 #define CSBE_DEBUG_STATUS(base)			XE_REG((base) + 0x3fc)
 
 #define RING_FORCE_TO_NONPRIV(base, i)		XE_REG(((base) + 0x4d0) + (i) * 4)

@@ -394,6 +394,7 @@ static void ucsi_ccg_update_get_current_cam_cmd(struct ucsi_ccg *uc, u8 *data)
 }
 
 static bool ucsi_ccg_update_altmodes(struct ucsi *ucsi,
+				     u8 recipient,
 				     struct ucsi_altmode *orig,
 				     struct ucsi_altmode *updated)
 {
@@ -401,6 +402,9 @@ static bool ucsi_ccg_update_altmodes(struct ucsi *ucsi,
 	struct ucsi_ccg_altmode *alt, *new_alt;
 	int i, j, k = 0;
 	bool found = false;
+
+	if (recipient != UCSI_RECIPIENT_CON)
+		return false;
 
 	alt = uc->orig;
 	new_alt = uc->updated;
@@ -1482,6 +1486,8 @@ static int ucsi_ccg_probe(struct i2c_client *client)
 		goto out_free_irq;
 
 	i2c_set_clientdata(client, uc);
+
+	device_disable_async_suspend(uc->dev);
 
 	pm_runtime_set_active(uc->dev);
 	pm_runtime_enable(uc->dev);

@@ -133,7 +133,7 @@ static int __init sun4i_of_init(struct device_node *node,
 	/* Configure the external interrupt source type */
 	writel(0x00, irq_ic_data->irq_base + SUN4I_IRQ_NMI_CTRL_REG);
 
-	irq_ic_data->irq_domain = irq_domain_add_linear(node, 3 * 32,
+	irq_ic_data->irq_domain = irq_domain_create_linear(of_fwnode_handle(node), 3 * 32,
 						 &sun4i_irq_ops, NULL);
 	if (!irq_ic_data->irq_domain)
 		panic("%pOF: unable to create IRQ domain\n", node);

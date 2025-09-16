@@ -324,6 +324,11 @@ int insn_get_opcode(struct insn *insn)
 	}
 
 	insn->attr = inat_get_opcode_attribute(op);
+	if (insn->x86_64 && inat_is_invalid64(insn->attr)) {
+		/* This instruction is invalid, like UD2. Stop decoding. */
+		insn->attr &= INAT_INV64;
+	}
+
 	while (inat_is_escape(insn->attr)) {
 		/* Get escaped opcode */
 		op = get_next(insn_byte_t, insn);
@@ -337,6 +342,7 @@ int insn_get_opcode(struct insn *insn)
 		insn->attr = 0;
 		return -EINVAL;
 	}
+
 end:
 	opcode->got = 1;
 	return 0;
@@ -658,7 +664,6 @@ int insn_get_immediate(struct insn *insn)
 	}
 
 	if (!inat_has_immediate(insn->attr))
-		/* no immediates */
 		goto done;
 
 	switch (inat_immediate_size(insn->attr)) {

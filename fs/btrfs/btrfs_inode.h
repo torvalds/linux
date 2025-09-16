@@ -248,7 +248,7 @@ struct btrfs_inode {
 		u64 new_delalloc_bytes;
 		/*
 		 * The offset of the last dir index key that was logged.
-		 * This is used only for directories.
+		 * This is used only for directories. Protected by 'log_mutex'.
 		 */
 		u64 last_dir_index_offset;
 	};
@@ -525,12 +525,25 @@ static inline void btrfs_update_inode_mapping_flags(struct btrfs_inode *inode)
 		mapping_set_stable_writes(inode->vfs_inode.i_mapping);
 }
 
+static inline void btrfs_set_inode_mapping_order(struct btrfs_inode *inode)
+{
+	/* Metadata inode should not reach here. */
+	ASSERT(is_data_inode(inode));
+
+	/* We only allow BITS_PER_LONGS blocks for each bitmap. */
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	mapping_set_folio_order_range(inode->vfs_inode.i_mapping, 0,
+			ilog2(((BITS_PER_LONG << inode->root->fs_info->sectorsize_bits)
+				>> PAGE_SHIFT)));
+#endif
+}
+
 /* Array of bytes with variable length, hexadecimal format 0x1234 */
 #define CSUM_FMT				"0x%*phN"
 #define CSUM_FMT_VALUE(size, bytes)		size, bytes
 
-int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, struct page *page,
-			    u32 pgoff, u8 *csum, const u8 * const csum_expected);
+int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, void *kaddr, u8 *csum,
+			    const u8 * const csum_expected);
 bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 			u32 bio_offset, struct bio_vec *bv);
 noinline int can_nocow_extent(struct btrfs_inode *inode, u64 offset, u64 *len,
@@ -547,8 +560,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 		   struct btrfs_inode *parent_inode, struct btrfs_inode *inode,
 		   const struct fscrypt_str *name, int add_backref, u64 index);
 int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry);
-int btrfs_truncate_block(struct btrfs_inode *inode, loff_t from, loff_t len,
-			 int front);
+int btrfs_truncate_block(struct btrfs_inode *inode, u64 offset, u64 start, u64 end);
 
 int btrfs_start_delalloc_snapshot(struct btrfs_root *root, bool in_reclaim_context);
 int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, long nr,

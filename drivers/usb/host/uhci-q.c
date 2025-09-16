@@ -91,7 +91,7 @@ static void uhci_urbp_wants_fsbr(struct uhci_hcd *uhci, struct urb_priv *urbp)
 
 static void uhci_fsbr_timeout(struct timer_list *t)
 {
-	struct uhci_hcd *uhci = from_timer(uhci, t, fsbr_timer);
+	struct uhci_hcd *uhci = timer_container_of(uhci, t, fsbr_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&uhci->lock, flags);

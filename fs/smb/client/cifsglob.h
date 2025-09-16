@@ -87,7 +87,7 @@
 #define SMB_INTERFACE_POLL_INTERVAL	600
 
 /* maximum number of PDUs in one compound */
-#define MAX_COMPOUND 7
+#define MAX_COMPOUND 10
 
 /*
  * Default number of credits to keep available for SMB3.
@@ -556,7 +556,7 @@ struct smb_version_operations {
 	void (*set_oplock_level)(struct cifsInodeInfo *cinode, __u32 oplock, __u16 epoch,
 				 bool *purge_cache);
 	/* create lease context buffer for CREATE request */
-	char * (*create_lease_buf)(u8 *lease_key, u8 oplock);
+	char * (*create_lease_buf)(u8 *lease_key, u8 oplock, u8 *parent_lease_key, __le32 le_flags);
 	/* parse lease context buffer and return oplock/epoch info */
 	__u8 (*parse_lease_buf)(void *buf, __u16 *epoch, char *lkey);
 	ssize_t (*copychunk_range)(const unsigned int,
@@ -627,12 +627,14 @@ struct smb_version_operations {
 	bool (*is_network_name_deleted)(char *buf, struct TCP_Server_Info *srv);
 	struct reparse_data_buffer * (*get_reparse_point_buffer)(const struct kvec *rsp_iov,
 								 u32 *plen);
-	int (*create_reparse_symlink)(const unsigned int xid,
-				      struct inode *inode,
-				      struct dentry *dentry,
-				      struct cifs_tcon *tcon,
-				      const char *full_path,
-				      const char *symname);
+	struct inode * (*create_reparse_inode)(struct cifs_open_info_data *data,
+					       struct super_block *sb,
+					       const unsigned int xid,
+					       struct cifs_tcon *tcon,
+					       const char *full_path,
+					       bool directory,
+					       struct kvec *reparse_iov,
+					       struct kvec *xattr_iov);
 };
 
 struct smb_version_values {
@@ -709,6 +711,7 @@ inc_rfc1001_len(void *buf, int count)
 struct TCP_Server_Info {
 	struct list_head tcp_ses_list;
 	struct list_head smb_ses_list;
+	struct list_head rlist; /* reconnect list */
 	spinlock_t srv_lock;  /* protect anything here that is not protected */
 	__u64 conn_id; /* connection identifier (useful for debugging) */
 	int srv_count; /* reference counter */
@@ -729,7 +732,8 @@ struct TCP_Server_Info {
 #endif
 	wait_queue_head_t response_q;
 	wait_queue_head_t request_q; /* if more than maxmpx to srvr must block*/
-	spinlock_t mid_lock;  /* protect mid queue and it's entries */
+	spinlock_t mid_queue_lock;  /* protect mid queue */
+	spinlock_t mid_counter_lock;
 	struct list_head pending_mid_q;
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
@@ -767,14 +771,16 @@ struct TCP_Server_Info {
 	/* SMB_COM_WRITE_RAW or SMB_COM_READ_RAW. */
 	unsigned int capabilities; /* selective disabling of caps by smb sess */
 	int timeAdj;  /* Adjust for difference in server time zone in sec */
-	__u64 CurrentMid;         /* multiplex id - rotating counter, protected by GlobalMid_Lock */
+	__u64 current_mid;	/* multiplex id - rotating counter, protected by mid_counter_lock */
 	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlm, ntlmv2 etc */
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* for signing, protected by srv_mutex */
 	__u32 reconnect_instance; /* incremented on each reconnect */
+	__le32 session_key_id; /* retrieved from negotiate response and send in session setup request */
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
+	unsigned long neg_start; /* when negotiate started (jiffies) */
 	struct cifs_secmech secmech; /* crypto sec mech functs, descriptors */
 #define	CIFS_NEGFLAVOR_UNENCAP	1	/* wct == 17, but no ext_sec */
 #define	CIFS_NEGFLAVOR_EXTENDED	2	/* wct == 17, ext_sec bit set */
@@ -1084,6 +1090,7 @@ struct cifs_chan {
 };
 
 #define CIFS_SES_FLAG_SCALE_CHANNELS (0x1)
+#define CIFS_SES_FLAGS_PENDING_QUERY_INTERFACES (0x2)
 
 /*
  * Session structure.  One of these for each uid session with a particular host
@@ -1300,6 +1307,7 @@ struct cifs_tcon {
 	bool use_persistent:1; /* use persistent instead of durable handles */
 	bool no_lease:1;    /* Do not request leases on files or directories */
 	bool use_witness:1; /* use witness protocol */
+	bool dummy:1; /* dummy tcon used for reconnecting channels */
 	__le32 capabilities;
 	__u32 share_flags;
 	__u32 maximal_access;
@@ -1441,6 +1449,7 @@ struct cifs_open_parms {
 	bool reconnect:1;
 	bool replay:1; /* indicates that this open is for a replay */
 	struct kvec *ea_cctx;
+	__le32 lease_flags;
 };
 
 struct cifs_fid {
@@ -1448,6 +1457,7 @@ struct cifs_fid {
 	__u64 persistent_fid;	/* persist file id for smb2 */
 	__u64 volatile_fid;	/* volatile file id for smb2 */
 	__u8 lease_key[SMB2_LEASE_KEY_SIZE];	/* lease key for smb2 */
+	__u8 parent_lease_key[SMB2_LEASE_KEY_SIZE];
 	__u8 create_guid[16];
 	__u32 access;
 	struct cifs_pending_open *pending_open;
@@ -1720,9 +1730,11 @@ struct mid_q_entry {
 	unsigned int resp_buf_size;
 	int mid_state;	/* wish this were enum but can not pass to wait_event */
 	int mid_rc;		/* rc for MID_RC */
-	unsigned int mid_flags;
 	__le16 command;		/* smb command code */
 	unsigned int optype;	/* operation type */
+	spinlock_t mid_lock;
+	bool wait_cancelled:1;  /* Cancelled while waiting for response */
+	bool deleted_from_q:1;  /* Whether Mid has been dequeued frem pending_mid_q */
 	bool large_buf:1;	/* if valid response, is pointer to large buf */
 	bool multiRsp:1;	/* multiple trans2 responses for one request  */
 	bool multiEnd:1;	/* both received */
@@ -1870,9 +1882,12 @@ static inline bool is_replayable_error(int error)
 
 
 /* cifs_get_writable_file() flags */
-#define FIND_WR_ANY         0
-#define FIND_WR_FSUID_ONLY  1
-#define FIND_WR_WITH_DELETE 2
+enum cifs_writable_file_flags {
+	FIND_WR_ANY			= 0U,
+	FIND_WR_FSUID_ONLY		= (1U << 0),
+	FIND_WR_WITH_DELETE		= (1U << 1),
+	FIND_WR_NO_PENDING_DELETE	= (1U << 2),
+};
 
 #define   MID_FREE 0
 #define   MID_REQUEST_ALLOCATED 1
@@ -1883,10 +1898,6 @@ static inline bool is_replayable_error(int error)
 #define   MID_SHUTDOWN		 0x20
 #define   MID_RESPONSE_READY 0x40 /* ready for other process handle the rsp */
 #define   MID_RC             0x80 /* mid_rc contains custom rc */
-
-/* Flags */
-#define   MID_WAIT_CANCELLED	 1 /* Cancelled while waiting for response */
-#define   MID_DELETED            2 /* Mid has been dequeued/deleted */
 
 /* Types of response buffer returned from SendReceive2 */
 #define   CIFS_NO_BUFFER        0    /* Response buffer not returned */
@@ -1988,8 +1999,7 @@ require use of the stronger protocol */
  * TCP_Server_Info->		TCP_Server_Info			cifs_get_tcp_session
  * reconnect_mutex
  * TCP_Server_Info->srv_mutex	TCP_Server_Info			cifs_get_tcp_session
- * cifs_ses->session_mutex		cifs_ses		sesInfoAlloc
- *				cifs_tcon
+ * cifs_ses->session_mutex	cifs_ses			sesInfoAlloc
  * cifs_tcon->open_file_lock	cifs_tcon->openFileList		tconInfoAlloc
  *				cifs_tcon->pending_opens
  * cifs_tcon->stat_lock		cifs_tcon->bytes_read		tconInfoAlloc
@@ -1999,33 +2009,40 @@ require use of the stronger protocol */
  *				GlobalCurrentXid
  *				GlobalTotalActiveXid
  * TCP_Server_Info->srv_lock	(anything in struct not protected by another lock and can change)
- * TCP_Server_Info->mid_lock	TCP_Server_Info->pending_mid_q	cifs_get_tcp_session
- *				->CurrentMid
- *				(any changes in mid_q_entry fields)
+ * TCP_Server_Info->mid_queue_lock	TCP_Server_Info->pending_mid_q	cifs_get_tcp_session
+ *				mid_q_entry->deleted_from_q
+ * TCP_Server_Info->mid_counter_lock    TCP_Server_Info->current_mid    cifs_get_tcp_session
  * TCP_Server_Info->req_lock	TCP_Server_Info->in_flight	cifs_get_tcp_session
  *				->credits
  *				->echo_credits
  *				->oplock_credits
  *				->reconnect_instance
  * cifs_ses->ses_lock		(anything that is not protected by another lock and can change)
+ *								sesInfoAlloc
  * cifs_ses->iface_lock		cifs_ses->iface_list		sesInfoAlloc
  *				->iface_count
  *				->iface_last_update
- * cifs_ses->chan_lock		cifs_ses->chans
+ * cifs_ses->chan_lock		cifs_ses->chans			sesInfoAlloc
  *				->chans_need_reconnect
  *				->chans_in_reconnect
  * cifs_tcon->tc_lock		(anything that is not protected by another lock and can change)
+ *								tcon_info_alloc
  * inode->i_rwsem, taken by fs/netfs/locking.c e.g. should be taken before cifsInodeInfo locks
  * cifsInodeInfo->open_file_lock	cifsInodeInfo->openFileList	cifs_alloc_inode
  * cifsInodeInfo->writers_lock	cifsInodeInfo->writers		cifsInodeInfo_alloc
  * cifsInodeInfo->lock_sem	cifsInodeInfo->llist		cifs_init_once
  *				->can_cache_brlcks
  * cifsInodeInfo->deferred_lock	cifsInodeInfo->deferred_closes	cifsInodeInfo_alloc
- * cached_fids->cfid_list_lock	cifs_tcon->cfids->entries	 init_cached_dirs
- * cifsFileInfo->fh_mutex		cifsFileInfo			cifs_new_fileinfo
+ * cached_fids->cfid_list_lock	cifs_tcon->cfids->entries	init_cached_dirs
+ * cached_fid->fid_lock		(anything that is not protected by another lock and can change)
+ *								init_cached_dir
+ * cifsFileInfo->fh_mutex	cifsFileInfo			cifs_new_fileinfo
  * cifsFileInfo->file_info_lock	cifsFileInfo->count		cifs_new_fileinfo
  *				->invalidHandle			initiate_cifs_search
  *				->oplock_break_cancelled
+ * mid_q_entry->mid_lock	mid_q_entry->callback           alloc_mid
+ *								smb2_mid_entry_alloc
+ *				(Any fields of mid_q_entry that will need protection)
  ****************************************************************************/
 
 #ifdef DECLARE_GLOBALS_HERE
@@ -2329,6 +2346,8 @@ struct smb2_compound_vars {
 	struct kvec qi_iov;
 	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
 	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
+	struct kvec unlink_iov[SMB2_SET_INFO_IOV_SIZE];
+	struct kvec rename_iov[SMB2_SET_INFO_IOV_SIZE];
 	struct kvec close_iov;
 	struct smb2_file_rename_info_hdr rename_info;
 	struct smb2_file_link_info_hdr link_info;
@@ -2364,5 +2383,27 @@ static inline bool cifs_netbios_name(const char *name, size_t namelen)
 	}
 	return ret;
 }
+
+/*
+ * Execute mid callback atomically - ensures callback runs exactly once
+ * and prevents sleeping in atomic context.
+ */
+static inline void mid_execute_callback(struct mid_q_entry *mid)
+{
+	void (*callback)(struct mid_q_entry *mid);
+
+	spin_lock(&mid->mid_lock);
+	callback = mid->callback;
+	mid->callback = NULL;  /* Mark as executed, */
+	spin_unlock(&mid->mid_lock);
+
+	if (callback)
+		callback(mid);
+}
+
+#define CIFS_REPARSE_SUPPORT(tcon) \
+	((tcon)->posix_extensions || \
+	 (le32_to_cpu((tcon)->fsAttrInfo.Attributes) & \
+	  FILE_SUPPORTS_REPARSE_POINTS))
 
 #endif	/* _CIFS_GLOB_H */

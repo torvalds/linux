@@ -55,8 +55,8 @@ struct xe_res_cursor {
 	u32 mem_type;
 	/** @sgl: Scatterlist for cursor */
 	struct scatterlist *sgl;
-	/** @dma_addr: Current element in a struct drm_pagemap_device_addr array */
-	const struct drm_pagemap_device_addr *dma_addr;
+	/** @dma_addr: Current element in a struct drm_pagemap_addr array */
+	const struct drm_pagemap_addr *dma_addr;
 	/** @mm: Buddy allocator for VRAM cursor */
 	struct drm_buddy *mm;
 	/**
@@ -170,7 +170,7 @@ static inline void __xe_res_sg_next(struct xe_res_cursor *cur)
  */
 static inline void __xe_res_dma_next(struct xe_res_cursor *cur)
 {
-	const struct drm_pagemap_device_addr *addr = cur->dma_addr;
+	const struct drm_pagemap_addr *addr = cur->dma_addr;
 	u64 start = cur->start;
 
 	while (start >= cur->dma_seg_size) {
@@ -222,14 +222,14 @@ static inline void xe_res_first_sg(const struct sg_table *sg,
 /**
  * xe_res_first_dma - initialize a xe_res_cursor with dma_addr array
  *
- * @dma_addr: struct drm_pagemap_device_addr array to walk
+ * @dma_addr: struct drm_pagemap_addr array to walk
  * @start: Start of the range
  * @size: Size of the range
  * @cur: cursor object to initialize
  *
  * Start walking over the range of allocations between @start and @size.
  */
-static inline void xe_res_first_dma(const struct drm_pagemap_device_addr *dma_addr,
+static inline void xe_res_first_dma(const struct drm_pagemap_addr *dma_addr,
 				    u64 start, u64 size,
 				    struct xe_res_cursor *cur)
 {

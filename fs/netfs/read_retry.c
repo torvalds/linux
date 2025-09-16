@@ -173,7 +173,7 @@ static void netfs_retry_read_subrequests(struct netfs_io_request *rreq)
 						      &stream->subrequests, rreq_link) {
 				trace_netfs_sreq(subreq, netfs_sreq_trace_superfluous);
 				list_del(&subreq->rreq_link);
-				netfs_put_subrequest(subreq, false, netfs_sreq_trace_put_done);
+				netfs_put_subrequest(subreq, netfs_sreq_trace_put_done);
 				if (subreq == to)
 					break;
 			}
@@ -257,35 +257,15 @@ abandon:
  */
 void netfs_retry_reads(struct netfs_io_request *rreq)
 {
-	struct netfs_io_subrequest *subreq;
 	struct netfs_io_stream *stream = &rreq->io_streams[0];
-	DEFINE_WAIT(myself);
 
 	netfs_stat(&netfs_n_rh_retry_read_req);
-
-	set_bit(NETFS_RREQ_RETRYING, &rreq->flags);
 
 	/* Wait for all outstanding I/O to quiesce before performing retries as
 	 * we may need to renegotiate the I/O sizes.
 	 */
-	list_for_each_entry(subreq, &stream->subrequests, rreq_link) {
-		if (!test_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags))
-			continue;
-
-		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_queue);
-		for (;;) {
-			prepare_to_wait(&rreq->waitq, &myself, TASK_UNINTERRUPTIBLE);
-
-			if (!test_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags))
-				break;
-
-			trace_netfs_sreq(subreq, netfs_sreq_trace_wait_for);
-			schedule();
-			trace_netfs_rreq(rreq, netfs_rreq_trace_woke_queue);
-		}
-
-		finish_wait(&rreq->waitq, &myself);
-	}
+	set_bit(NETFS_RREQ_RETRYING, &rreq->flags);
+	netfs_wait_for_in_progress_stream(rreq, stream);
 	clear_bit(NETFS_RREQ_RETRYING, &rreq->flags);
 
 	trace_netfs_rreq(rreq, netfs_rreq_trace_resubmit);

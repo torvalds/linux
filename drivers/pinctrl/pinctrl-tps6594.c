@@ -226,6 +226,10 @@ static const char *const tps65224_nerr_mcu_func_group_names[] = {
 	"GPIO5",
 };
 
+static const char *const tps652g1_cs_spi_func_group_names[] = {
+	"GPIO1",
+};
+
 struct tps6594_pinctrl_function {
 	struct pinfunction pinfunction;
 	u8 muxval;
@@ -287,6 +291,18 @@ static const struct tps6594_pinctrl_function tps65224_pinctrl_functions[] = {
 	FUNCTION(tps65224, nerr_mcu, TPS65224_PINCTRL_NERR_MCU_FUNCTION),
 };
 
+static const struct tps6594_pinctrl_function tps652g1_pinctrl_functions[] = {
+	FUNCTION(tps65224, gpio, TPS6594_PINCTRL_GPIO_FUNCTION),
+	FUNCTION(tps65224, sda_i2c2_sdo_spi, TPS65224_PINCTRL_SDA_I2C2_SDO_SPI_FUNCTION),
+	FUNCTION(tps65224, nsleep2, TPS65224_PINCTRL_NSLEEP2_FUNCTION),
+	FUNCTION(tps65224, nint, TPS65224_PINCTRL_NINT_FUNCTION),
+	FUNCTION(tps652g1, cs_spi, TPS65224_PINCTRL_SCL_I2C2_CS_SPI_FUNCTION),
+	FUNCTION(tps65224, nsleep1, TPS65224_PINCTRL_NSLEEP1_FUNCTION),
+	FUNCTION(tps65224, pb, TPS65224_PINCTRL_PB_FUNCTION),
+	FUNCTION(tps65224, wkup, TPS65224_PINCTRL_WKUP_FUNCTION),
+	FUNCTION(tps65224, syncclkin, TPS65224_PINCTRL_SYNCCLKIN_FUNCTION),
+};
+
 struct tps6594_pinctrl {
 	struct tps6594 *tps;
 	struct gpio_regmap *gpio_regmap;
@@ -298,6 +314,16 @@ struct tps6594_pinctrl {
 	u8 mux_sel_mask;
 	unsigned int remap_cnt;
 	struct muxval_remap *remap;
+};
+
+static struct tps6594_pinctrl tps652g1_template_pinctrl = {
+	.funcs = tps652g1_pinctrl_functions,
+	.func_cnt = ARRAY_SIZE(tps652g1_pinctrl_functions),
+	.pins = tps65224_pins,
+	.num_pins = ARRAY_SIZE(tps65224_pins),
+	.mux_sel_mask = TPS65224_MASK_GPIO_SEL,
+	.remap = tps65224_muxval_remap,
+	.remap_cnt = ARRAY_SIZE(tps65224_muxval_remap),
 };
 
 static struct tps6594_pinctrl tps65224_template_pinctrl = {
@@ -475,6 +501,15 @@ static int tps6594_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	switch (tps->chip_id) {
+	case TPS652G1:
+		pctrl_desc->pins = tps65224_pins;
+		pctrl_desc->npins = ARRAY_SIZE(tps65224_pins);
+
+		*pinctrl = tps652g1_template_pinctrl;
+
+		config.ngpio = ARRAY_SIZE(tps65224_gpio_func_group_names);
+		config.ngpio_per_reg = TPS65224_NGPIO_PER_REG;
+		break;
 	case TPS65224:
 		pctrl_desc->pins = tps65224_pins;
 		pctrl_desc->npins = ARRAY_SIZE(tps65224_pins);

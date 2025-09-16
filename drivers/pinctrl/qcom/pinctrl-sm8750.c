@@ -1711,7 +1711,6 @@ static struct platform_driver sm8750_tlmm_driver = {
 		.of_match_table = sm8750_tlmm_of_match,
 	},
 	.probe = sm8750_tlmm_probe,
-	.remove = msm_pinctrl_remove,
 };
 
 static int __init sm8750_tlmm_init(void)

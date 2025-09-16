@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/img,pistachio-gptimer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Pistachio general-purpose timer
+
+maintainers:
+  - Ezequiel Garcia <ezequiel.garcia@imgtec.com>
+
+properties:
+  compatible:
+    const: img,pistachio-gptimer
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: Timer0 interrupt
+      - description: Timer1 interrupt
+      - description: Timer2 interrupt
+      - description: Timer3 interrupt
+
+  clocks:
+    items:
+      - description: Fast counter clock
+      - description: Slow counter clock
+      - description: Interface clock
+
+  clock-names:
+    items:
+      - const: fast
+      - const: slow
+      - const: sys
+
+  img,cr-periph:
+    description: Peripheral control syscon phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - img,cr-periph
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/mips-gic.h>
+    #include <dt-bindings/clock/pistachio-clk.h>
+
+    timer@18102000 {
+        compatible = "img,pistachio-gptimer";
+        reg = <0x18102000 0x100>;
+        interrupts = <GIC_SHARED 60 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SHARED 61 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SHARED 62 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SHARED 63 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clk_periph PERIPH_CLK_COUNTER_FAST>,
+                 <&clk_periph PERIPH_CLK_COUNTER_SLOW>,
+                 <&cr_periph SYS_CLK_TIMER>;
+        clock-names = "fast", "slow", "sys";
+        img,cr-periph = <&cr_periph>;
+    };

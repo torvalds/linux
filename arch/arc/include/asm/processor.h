@@ -11,7 +11,7 @@
 #ifndef __ASM_ARC_PROCESSOR_H
 #define __ASM_ARC_PROCESSOR_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/ptrace.h>
 #include <asm/dsp.h>
@@ -66,7 +66,7 @@ extern void start_thread(struct pt_regs * regs, unsigned long pc,
 
 extern unsigned int __get_wchan(struct task_struct *p);
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 /*
  * Default System Memory Map on ARC

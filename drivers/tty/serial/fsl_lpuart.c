@@ -318,27 +318,27 @@ static const struct lpuart_soc_data ls1028a_data = {
 	.rx_watermark = 0,
 };
 
-static struct lpuart_soc_data imx7ulp_data = {
+static const struct lpuart_soc_data imx7ulp_data = {
 	.devtype = IMX7ULP_LPUART,
 	.iotype = UPIO_MEM32,
 	.reg_off = IMX_REG_OFF,
 	.rx_watermark = 1,
 };
 
-static struct lpuart_soc_data imx8ulp_data = {
+static const struct lpuart_soc_data imx8ulp_data = {
 	.devtype = IMX8ULP_LPUART,
 	.iotype = UPIO_MEM32,
 	.reg_off = IMX_REG_OFF,
 	.rx_watermark = 3,
 };
 
-static struct lpuart_soc_data imx8qxp_data = {
+static const struct lpuart_soc_data imx8qxp_data = {
 	.devtype = IMX8QXP_LPUART,
 	.iotype = UPIO_MEM32,
 	.reg_off = IMX_REG_OFF,
 	.rx_watermark = 7, /* A lower watermark is ideal for low baud rates. */
 };
-static struct lpuart_soc_data imxrt1050_data = {
+static const struct lpuart_soc_data imxrt1050_data = {
 	.devtype = IMXRT1050_LPUART,
 	.iotype = UPIO_MEM32,
 	.reg_off = IMX_REG_OFF,
@@ -402,6 +402,8 @@ static inline void lpuart32_write(struct uart_port *port, u32 val,
 		break;
 	case UPIO_MEM32BE:
 		iowrite32be(val, port->membase + off);
+		break;
+	default:
 		break;
 	}
 }
@@ -563,8 +565,9 @@ static dma_addr_t lpuart_dma_datareg_addr(struct lpuart_port *sport)
 		return sport->port.mapbase + UARTDATA;
 	case UPIO_MEM32BE:
 		return sport->port.mapbase + UARTDATA + sizeof(u32) - 1;
+	default:
+		return sport->port.mapbase + UARTDR;
 	}
-	return sport->port.mapbase + UARTDR;
 }
 
 static int lpuart_dma_tx_request(struct uart_port *port)
@@ -1304,7 +1307,7 @@ static irqreturn_t lpuart32_int(int irq, void *dev_id)
  */
 static void lpuart_timer_func(struct timer_list *t)
 {
-	struct lpuart_port *sport = from_timer(sport, t, lpuart_timer);
+	struct lpuart_port *sport = timer_container_of(sport, t, lpuart_timer);
 	enum dma_status dmastat;
 	struct dma_chan *chan = sport->dma_rx_chan;
 	struct circ_buf *ring = &sport->rx_ring;

@@ -168,7 +168,8 @@ il3945_rate_scale_flush_wins(struct il3945_rs_sta *rs_sta)
 static void
 il3945_bg_rate_scale_flush(struct timer_list *t)
 {
-	struct il3945_rs_sta *rs_sta = from_timer(rs_sta, t, rate_scale_flush);
+	struct il3945_rs_sta *rs_sta = timer_container_of(rs_sta, t,
+							  rate_scale_flush);
 	struct il_priv *il __maybe_unused = rs_sta->il;
 	int unflushed = 0;
 	unsigned long flags;

@@ -15,6 +15,9 @@ to start learning about RCU:
 |	2014 Big API Table           https://lwn.net/Articles/609973/
 | 6.	The RCU API, 2019 Edition    https://lwn.net/Articles/777036/
 |	2019 Big API Table           https://lwn.net/Articles/777165/
+| 7.	The RCU API, 2024 Edition    https://lwn.net/Articles/988638/
+|       2024 Background Information  https://lwn.net/Articles/988641/
+|	2024 Big API Table           https://lwn.net/Articles/988666/
 
 For those preferring video:
 

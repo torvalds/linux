@@ -96,7 +96,6 @@ config BNX2
 config CNIC
 	tristate "QLogic CNIC support"
 	depends on PCI && (IPV6 || IPV6=n)
-	depends on MMU
 	select BNX2
 	select UIO
 	help
@@ -123,6 +122,7 @@ config TIGON3
 	tristate "Broadcom Tigon3 support"
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
+	select CRC32
 	select PHYLIB
 	help
 	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
@@ -252,6 +252,15 @@ config BNXT_HWMON
 	help
 	  Say Y if you want to expose the thermal sensor data on NetXtreme-C/E
 	  devices, via the hwmon sysfs interface.
+
+config BNGE
+	tristate "Broadcom Ethernet device support"
+	depends on PCI
+	select NET_DEVLINK
+	help
+	  This driver supports Broadcom 50/100/200/400/800 gigabit Ethernet cards.
+	  The module will be called bng_en. To compile this driver as a module,
+	  choose M here.
 
 config BCMASP
 	tristate "Broadcom ASP 2.0 Ethernet support"

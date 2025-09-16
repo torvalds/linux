@@ -153,8 +153,8 @@ KONEPLUS_SYSFS_RW(thingy, THINGY); \
 static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = KONEPLUS_SIZE_ ## THINGY, \
-	.read_new = koneplus_sysfs_read_ ## thingy, \
-	.write_new = koneplus_sysfs_write_ ## thingy \
+	.read = koneplus_sysfs_read_ ## thingy, \
+	.write = koneplus_sysfs_write_ ## thingy \
 }
 
 #define KONEPLUS_BIN_ATTRIBUTE_R(thingy, THINGY) \
@@ -162,7 +162,7 @@ KONEPLUS_SYSFS_R(thingy, THINGY); \
 static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0440 }, \
 	.size = KONEPLUS_SIZE_ ## THINGY, \
-	.read_new = koneplus_sysfs_read_ ## thingy, \
+	.read = koneplus_sysfs_read_ ## thingy, \
 }
 
 #define KONEPLUS_BIN_ATTRIBUTE_W(thingy, THINGY) \
@@ -170,7 +170,7 @@ KONEPLUS_SYSFS_W(thingy, THINGY); \
 static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0220 }, \
 	.size = KONEPLUS_SIZE_ ## THINGY, \
-	.write_new = koneplus_sysfs_write_ ## thingy \
+	.write = koneplus_sysfs_write_ ## thingy \
 }
 KONEPLUS_BIN_ATTRIBUTE_W(control, CONTROL);
 KONEPLUS_BIN_ATTRIBUTE_W(talk, TALK);
@@ -222,13 +222,13 @@ static ssize_t koneplus_sysfs_read_profilex_buttons(struct file *fp,
 static const struct bin_attribute bin_attr_profile##number##_settings = {	\
 	.attr = { .name = "profile" #number "_settings", .mode = 0440 },	\
 	.size = KONEPLUS_SIZE_PROFILE_SETTINGS,				\
-	.read_new = koneplus_sysfs_read_profilex_settings,		\
+	.read = koneplus_sysfs_read_profilex_settings,		\
 	.private = &profile_numbers[number-1],				\
 };									\
 static const struct bin_attribute bin_attr_profile##number##_buttons = {	\
 	.attr = { .name = "profile" #number "_buttons", .mode = 0440 },	\
 	.size = KONEPLUS_SIZE_PROFILE_BUTTONS,				\
-	.read_new = koneplus_sysfs_read_profilex_buttons,		\
+	.read = koneplus_sysfs_read_profilex_buttons,		\
 	.private = &profile_numbers[number-1],				\
 };
 PROFILE_ATTR(1);
@@ -346,7 +346,7 @@ static const struct bin_attribute *const koneplus_bin_attributes[] = {
 
 static const struct attribute_group koneplus_group = {
 	.attrs = koneplus_attrs,
-	.bin_attrs_new = koneplus_bin_attributes,
+	.bin_attrs = koneplus_bin_attributes,
 };
 
 static const struct attribute_group *koneplus_groups[] = {

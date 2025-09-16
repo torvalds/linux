@@ -231,7 +231,11 @@ DECLARE_EVENT_CLASS(cgroup_rstat,
 		  __entry->cpu, __entry->contended)
 );
 
-/* Related to global: cgroup_rstat_lock */
+/*
+ * Related to locks:
+ * global rstat_base_lock for base stats
+ * cgroup_subsys::rstat_ss_lock for subsystem stats
+ */
 DEFINE_EVENT(cgroup_rstat, cgroup_rstat_lock_contended,
 
 	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
@@ -247,49 +251,6 @@ DEFINE_EVENT(cgroup_rstat, cgroup_rstat_locked,
 );
 
 DEFINE_EVENT(cgroup_rstat, cgroup_rstat_unlock,
-
-	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
-
-	TP_ARGS(cgrp, cpu, contended)
-);
-
-/* Related to per CPU: cgroup_rstat_cpu_lock */
-DEFINE_EVENT(cgroup_rstat, cgroup_rstat_cpu_lock_contended,
-
-	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
-
-	TP_ARGS(cgrp, cpu, contended)
-);
-
-DEFINE_EVENT(cgroup_rstat, cgroup_rstat_cpu_lock_contended_fastpath,
-
-	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
-
-	TP_ARGS(cgrp, cpu, contended)
-);
-
-DEFINE_EVENT(cgroup_rstat, cgroup_rstat_cpu_locked,
-
-	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
-
-	TP_ARGS(cgrp, cpu, contended)
-);
-
-DEFINE_EVENT(cgroup_rstat, cgroup_rstat_cpu_locked_fastpath,
-
-	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
-
-	TP_ARGS(cgrp, cpu, contended)
-);
-
-DEFINE_EVENT(cgroup_rstat, cgroup_rstat_cpu_unlock,
-
-	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
-
-	TP_ARGS(cgrp, cpu, contended)
-);
-
-DEFINE_EVENT(cgroup_rstat, cgroup_rstat_cpu_unlock_fastpath,
 
 	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
 

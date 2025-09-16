@@ -489,7 +489,7 @@ int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
 	cmd_params->irq_addr = cpu_to_le64(irq_cfg->paddr);
 	cmd_params->irq_num = cpu_to_le32(irq_cfg->irq_num);
 	cmd_params->obj_id = cpu_to_le32(obj_id);
-	strscpy_pad(cmd_params->obj_type, obj_type, 16);
+	strscpy(cmd_params->obj_type, obj_type);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -561,7 +561,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 	cmd_params = (struct dprc_cmd_get_obj_region *)cmd.params;
 	cmd_params->obj_id = cpu_to_le32(obj_id);
 	cmd_params->region_index = region_index;
-	strscpy_pad(cmd_params->obj_type, obj_type, 16);
+	strscpy(cmd_params->obj_type, obj_type);
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);

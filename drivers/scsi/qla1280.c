@@ -721,7 +721,7 @@ enum action {
 
 static void qla1280_mailbox_timeout(struct timer_list *t)
 {
-	struct scsi_qla_host *ha = from_timer(ha, t, mailbox_timer);
+	struct scsi_qla_host *ha = timer_container_of(ha, t, mailbox_timer);
 	struct device_reg __iomem *reg;
 	reg = ha->iobase;
 

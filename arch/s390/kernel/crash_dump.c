@@ -7,6 +7,7 @@
  */
 
 #include <linux/crash_dump.h>
+#include <linux/export.h>
 #include <asm/lowcore.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -354,7 +355,7 @@ static void *nt_prpsinfo(void *ptr)
 
 	memset(&prpsinfo, 0, sizeof(prpsinfo));
 	prpsinfo.pr_sname = 'R';
-	strcpy(prpsinfo.pr_fname, "vmlinux");
+	strscpy(prpsinfo.pr_fname, "vmlinux");
 	return nt_init(ptr, PRPSINFO, prpsinfo);
 }
 

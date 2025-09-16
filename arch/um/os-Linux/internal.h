@@ -2,6 +2,9 @@
 #ifndef __UM_OS_LINUX_INTERNAL_H
 #define __UM_OS_LINUX_INTERNAL_H
 
+#include <mm_id.h>
+#include <stub-data.h>
+
 /*
  * elf_aux.c
  */
@@ -16,5 +19,5 @@ void check_tmpexec(void);
  * skas/process.c
  */
 void wait_stub_done(int pid);
-
+void wait_stub_done_seccomp(struct mm_id *mm_idp, int running, int wait_sigsys);
 #endif /* __UM_OS_LINUX_INTERNAL_H */

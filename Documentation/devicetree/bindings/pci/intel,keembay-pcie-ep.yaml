@@ -53,17 +53,17 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interrupt-controller/irq.h>
     pcie-ep@37000000 {
-          compatible = "intel,keembay-pcie-ep";
-          reg = <0x37000000 0x00001000>,
-                <0x37100000 0x00001000>,
-                <0x37300000 0x00001000>,
-                <0x36000000 0x01000000>,
-                <0x37800000 0x00000200>;
-          reg-names = "dbi", "dbi2", "atu", "addr_space", "apb";
-          interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
-                       <GIC_SPI 108 IRQ_TYPE_EDGE_RISING>,
-                       <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
-                       <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
-          interrupt-names = "pcie", "pcie_ev", "pcie_err", "pcie_mem_access";
-          num-lanes = <2>;
+        compatible = "intel,keembay-pcie-ep";
+        reg = <0x37000000 0x00001000>,
+              <0x37100000 0x00001000>,
+              <0x37300000 0x00001000>,
+              <0x36000000 0x01000000>,
+              <0x37800000 0x00000200>;
+        reg-names = "dbi", "dbi2", "atu", "addr_space", "apb";
+        interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 108 IRQ_TYPE_EDGE_RISING>,
+                     <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "pcie", "pcie_ev", "pcie_err", "pcie_mem_access";
+        num-lanes = <2>;
     };

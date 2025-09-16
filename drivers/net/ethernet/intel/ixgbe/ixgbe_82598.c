@@ -45,7 +45,7 @@ static void ixgbe_set_pcie_completion_timeout(struct ixgbe_hw *hw)
 		goto out;
 
 	/*
-	 * if capababilities version is type 1 we can write the
+	 * if capabilities version is type 1 we can write the
 	 * timeout of 10ms to 250ms through the GCR register
 	 */
 	if (!(gcr & IXGBE_GCR_CAP_VER2)) {
@@ -751,7 +751,7 @@ mac_reset_top:
 	/*
 	 * Store the original AUTOC value if it has not been
 	 * stored off yet.  Otherwise restore the stored original
-	 * AUTOC value since the reset operation sets back to deaults.
+	 * AUTOC value since the reset operation sets back to defaults.
 	 */
 	autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	if (hw->mac.orig_link_settings_stored == false) {
@@ -1169,6 +1169,7 @@ static const struct ixgbe_eeprom_operations eeprom_ops_82598 = {
 	.calc_checksum          = &ixgbe_calc_eeprom_checksum_generic,
 	.validate_checksum	= &ixgbe_validate_eeprom_checksum_generic,
 	.update_checksum	= &ixgbe_update_eeprom_checksum_generic,
+	.read_pba_string        = &ixgbe_read_pba_string_generic,
 };
 
 static const struct ixgbe_phy_operations phy_ops_82598 = {

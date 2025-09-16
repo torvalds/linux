@@ -9,12 +9,13 @@
  */
 
 #include <crypto/internal/blake2s.h>
-#include <linux/types.h>
-#include <linux/string.h>
+#include <linux/bug.h>
+#include <linux/export.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/bug.h>
+#include <linux/string.h>
+#include <linux/types.h>
 
 static inline void blake2s_set_lastblock(struct blake2s_state *state)
 {
@@ -60,7 +61,7 @@ EXPORT_SYMBOL(blake2s_final);
 
 static int __init blake2s_mod_init(void)
 {
-	if (!IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS) &&
+	if (IS_ENABLED(CONFIG_CRYPTO_SELFTESTS) &&
 	    WARN_ON(!blake2s_selftest()))
 		return -ENODEV;
 	return 0;

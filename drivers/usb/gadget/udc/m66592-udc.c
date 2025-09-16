@@ -359,7 +359,7 @@ static void m66592_ep_setting(struct m66592 *m66592, struct m66592_ep *ep,
 	ep->pipenum = pipenum;
 	ep->ep.maxpacket = usb_endpoint_maxp(desc);
 	m66592->pipenum2ep[pipenum] = ep;
-	m66592->epaddr2ep[desc->bEndpointAddress&USB_ENDPOINT_NUMBER_MASK] = ep;
+	m66592->epaddr2ep[usb_endpoint_num(desc)] = ep;
 	INIT_LIST_HEAD(&ep->queue);
 }
 
@@ -391,7 +391,7 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 
 	BUG_ON(ep->pipenum);
 
-	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_BULK:
 		if (m66592->bulk >= M66592_MAX_NUM_BULK) {
 			if (m66592->isochronous >= M66592_MAX_NUM_ISOC) {
@@ -433,7 +433,7 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 	}
 	ep->type = info.type;
 
-	info.epnum = desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
+	info.epnum = usb_endpoint_num(desc);
 	info.maxpacket = usb_endpoint_maxp(desc);
 	info.interval = desc->bInterval;
 	if (desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
@@ -1261,7 +1261,7 @@ static irqreturn_t m66592_irq(int irq, void *_m66592)
 
 static void m66592_timer(struct timer_list *t)
 {
-	struct m66592 *m66592 = from_timer(m66592, t, timer);
+	struct m66592 *m66592 = timer_container_of(m66592, t, timer);
 	unsigned long flags;
 	u16 tmp;
 

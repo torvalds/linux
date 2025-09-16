@@ -599,7 +599,7 @@ static void mrp_join_timer_arm(struct mrp_applicant *app)
 
 static void mrp_join_timer(struct timer_list *t)
 {
-	struct mrp_applicant *app = from_timer(app, t, join_timer);
+	struct mrp_applicant *app = timer_container_of(app, t, join_timer);
 
 	spin_lock(&app->lock);
 	mrp_mad_event(app, MRP_EVENT_TX);
@@ -621,7 +621,7 @@ static void mrp_periodic_timer_arm(struct mrp_applicant *app)
 
 static void mrp_periodic_timer(struct timer_list *t)
 {
-	struct mrp_applicant *app = from_timer(app, t, periodic_timer);
+	struct mrp_applicant *app = timer_container_of(app, t, periodic_timer);
 
 	spin_lock(&app->lock);
 	if (likely(app->active)) {
