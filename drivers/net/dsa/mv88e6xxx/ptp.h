@@ -44,13 +44,7 @@
 #define MV88E6352_TAI_TIME_LO			0x0e
 #define MV88E6352_TAI_TIME_HI			0x0f
 
-/* Offset 0x00: Ether Type */
-#define MV88E6XXX_PTP_GC_ETYPE			0x00
-
 /* 6165 Global Control Registers */
-/* Offset 0x00: Ether Type */
-#define MV88E6XXX_PTP_GC_ETYPE			0x00
-
 /* Offset 0x01: Message ID */
 #define MV88E6XXX_PTP_GC_MESSAGE_ID		0x01
 
