@@ -612,7 +612,7 @@ struct mlx5_priv {
 	struct mlx5_ft_pool		*ft_pool;
 
 	struct mlx5_bfreg_data		bfregs;
-	struct mlx5_uars_page	       *uar;
+	struct mlx5_sq_bfreg bfreg;
 #ifdef CONFIG_MLX5_SF
 	struct mlx5_vhca_state_notifier *vhca_state_notifier;
 	struct mlx5_sf_dev_table *sf_dev_table;
@@ -658,7 +658,6 @@ struct mlx5e_resources {
 		u32                        pdn;
 		struct mlx5_td             td;
 		u32			   mkey;
-		struct mlx5_sq_bfreg       bfreg;
 #define MLX5_MAX_NUM_TC 8
 		u32                        tisn[MLX5_MAX_PORTS][MLX5_MAX_NUM_TC];
 		bool			   tisn_valid;

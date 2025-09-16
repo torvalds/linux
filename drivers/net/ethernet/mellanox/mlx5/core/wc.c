@@ -94,7 +94,7 @@ static int create_wc_cq(struct mlx5_wc_cq *cq, void *cqc_data)
 
 	MLX5_SET(cqc,   cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
 	MLX5_SET(cqc,   cqc, c_eqn_or_apu_element, eqn);
-	MLX5_SET(cqc,   cqc, uar_page,      mdev->priv.uar->index);
+	MLX5_SET(cqc,   cqc, uar_page,      mdev->priv.bfreg.up->index);
 	MLX5_SET(cqc,   cqc, log_page_size, cq->wq_ctrl.buf.page_shift -
 					    MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET64(cqc, cqc, dbr_addr,      cq->wq_ctrl.db.dma);
@@ -116,7 +116,7 @@ static int mlx5_wc_create_cq(struct mlx5_core_dev *mdev, struct mlx5_wc_cq *cq)
 		return -ENOMEM;
 
 	MLX5_SET(cqc, cqc, log_cq_size, TEST_WC_LOG_CQ_SZ);
-	MLX5_SET(cqc, cqc, uar_page, mdev->priv.uar->index);
+	MLX5_SET(cqc, cqc, uar_page, mdev->priv.bfreg.up->index);
 	if (MLX5_CAP_GEN(mdev, cqe_128_always) && cache_line_size() >= 128)
 		MLX5_SET(cqc, cqc, cqe_sz, CQE_STRIDE_128_PAD);
 

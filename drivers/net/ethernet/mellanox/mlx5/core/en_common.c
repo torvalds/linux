@@ -163,17 +163,11 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises)
 		goto err_dealloc_transport_domain;
 	}
 
-	err = mlx5_alloc_bfreg(mdev, &res->bfreg, false, false);
-	if (err) {
-		mlx5_core_err(mdev, "alloc bfreg failed, %d\n", err);
-		goto err_destroy_mkey;
-	}
-
 	if (create_tises) {
 		err = mlx5e_create_tises(mdev, res->tisn);
 		if (err) {
 			mlx5_core_err(mdev, "alloc tises failed, %d\n", err);
-			goto err_destroy_bfreg;
+			goto err_destroy_mkey;
 		}
 		res->tisn_valid = true;
 	}
@@ -190,8 +184,6 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises)
 
 	return 0;
 
-err_destroy_bfreg:
-	mlx5_free_bfreg(mdev, &res->bfreg);
 err_destroy_mkey:
 	mlx5_core_destroy_mkey(mdev, res->mkey);
 err_dealloc_transport_domain:
@@ -209,7 +201,6 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 	mdev->mlx5e_res.dek_priv = NULL;
 	if (res->tisn_valid)
 		mlx5e_destroy_tises(mdev, res->tisn);
-	mlx5_free_bfreg(mdev, &res->bfreg);
 	mlx5_core_destroy_mkey(mdev, res->mkey);
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 	mlx5_core_dealloc_pd(mdev, res->pdn);

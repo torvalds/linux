@@ -810,7 +810,7 @@ static void mlx5e_build_common_cq_param(struct mlx5_core_dev *mdev,
 {
 	void *cqc = param->cqc;
 
-	MLX5_SET(cqc, cqc, uar_page, mdev->priv.uar->index);
+	MLX5_SET(cqc, cqc, uar_page, mdev->priv.bfreg.up->index);
 	if (MLX5_CAP_GEN(mdev, cqe_128_always) && cache_line_size() >= 128)
 		MLX5_SET(cqc, cqc, cqe_sz, CQE_STRIDE_128_PAD);
 }

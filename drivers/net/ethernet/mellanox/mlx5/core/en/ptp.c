@@ -334,7 +334,7 @@ static int mlx5e_ptp_alloc_txqsq(struct mlx5e_ptp *c, int txq_ix,
 	sq->mdev      = mdev;
 	sq->ch_ix     = MLX5E_PTP_CHANNEL_IX;
 	sq->txq_ix    = txq_ix;
-	sq->uar_map   = mdev->mlx5e_res.hw_objs.bfreg.map;
+	sq->uar_map   = mdev->priv.bfreg.map;
 	sq->min_inline_mode = params->tx_min_inline_mode;
 	sq->hw_mtu    = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	sq->stats     = &c->priv->ptp_stats.sq[tc];
