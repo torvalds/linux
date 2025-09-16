@@ -2752,7 +2752,16 @@ void mlx5e_trigger_napi_sched(struct napi_struct *napi)
 
 static void mlx5e_channel_pick_doorbell(struct mlx5e_channel *c)
 {
-	c->bfreg = &c->mdev->priv.bfreg;
+	struct mlx5e_hw_objs *hw_objs = &c->mdev->mlx5e_res.hw_objs;
+
+	/* No dedicated Ethernet doorbells, use the global one. */
+	if (hw_objs->num_bfregs == 0) {
+		c->bfreg = &c->mdev->priv.bfreg;
+		return;
+	}
+
+	/* Round-robin between doorbells. */
+	c->bfreg = hw_objs->bfregs + c->vec_ix % hw_objs->num_bfregs;
 }
 
 static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,

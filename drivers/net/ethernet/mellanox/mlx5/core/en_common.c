@@ -143,6 +143,7 @@ err_close_tises:
 int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises)
 {
 	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
+	unsigned int num_doorbells, i;
 	int err;
 
 	err = mlx5_core_alloc_pd(mdev, &res->pdn);
@@ -163,11 +164,30 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises)
 		goto err_dealloc_transport_domain;
 	}
 
+	num_doorbells = min(MLX5_DEFAULT_NUM_DOORBELLS,
+			    mlx5e_get_max_num_channels(mdev));
+	res->bfregs = kcalloc(num_doorbells, sizeof(*res->bfregs), GFP_KERNEL);
+	if (!res->bfregs) {
+		err = -ENOMEM;
+		goto err_destroy_mkey;
+	}
+
+	for (i = 0; i < num_doorbells; i++) {
+		err = mlx5_alloc_bfreg(mdev, res->bfregs + i, false, false);
+		if (err) {
+			mlx5_core_warn(mdev,
+				       "could only allocate %d/%d doorbells, err %d.\n",
+				       i, num_doorbells, err);
+			break;
+		}
+	}
+	res->num_bfregs = i;
+
 	if (create_tises) {
 		err = mlx5e_create_tises(mdev, res->tisn);
 		if (err) {
 			mlx5_core_err(mdev, "alloc tises failed, %d\n", err);
-			goto err_destroy_mkey;
+			goto err_destroy_bfregs;
 		}
 		res->tisn_valid = true;
 	}
@@ -184,6 +204,10 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises)
 
 	return 0;
 
+err_destroy_bfregs:
+	for (i = 0; i < res->num_bfregs; i++)
+		mlx5_free_bfreg(mdev, res->bfregs + i);
+	kfree(res->bfregs);
 err_destroy_mkey:
 	mlx5_core_destroy_mkey(mdev, res->mkey);
 err_dealloc_transport_domain:
@@ -201,6 +225,9 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 	mdev->mlx5e_res.dek_priv = NULL;
 	if (res->tisn_valid)
 		mlx5e_destroy_tises(mdev, res->tisn);
+	for (unsigned int i = 0; i < res->num_bfregs; i++)
+		mlx5_free_bfreg(mdev, res->bfregs + i);
+	kfree(res->bfregs);
 	mlx5_core_destroy_mkey(mdev, res->mkey);
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 	mlx5_core_dealloc_pd(mdev, res->pdn);
