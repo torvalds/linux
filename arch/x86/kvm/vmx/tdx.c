@@ -2749,9 +2749,11 @@ err_out:
 
 static int tdx_td_init(struct kvm *kvm, struct kvm_tdx_cmd *cmd)
 {
+	struct kvm_tdx_init_vm __user *user_data = u64_to_user_ptr(cmd->data);
 	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
 	struct kvm_tdx_init_vm *init_vm;
 	struct td_params *td_params = NULL;
+	u32 nr_user_entries;
 	int ret;
 
 	BUILD_BUG_ON(sizeof(*init_vm) != 256 + sizeof_field(struct kvm_tdx_init_vm, cpuid));
@@ -2763,28 +2765,16 @@ static int tdx_td_init(struct kvm *kvm, struct kvm_tdx_cmd *cmd)
 	if (cmd->flags)
 		return -EINVAL;
 
-	init_vm = kmalloc(sizeof(*init_vm) +
-			  sizeof(init_vm->cpuid.entries[0]) * KVM_MAX_CPUID_ENTRIES,
-			  GFP_KERNEL);
-	if (!init_vm)
-		return -ENOMEM;
+	if (get_user(nr_user_entries, &user_data->cpuid.nent))
+		return -EFAULT;
 
-	if (copy_from_user(init_vm, u64_to_user_ptr(cmd->data), sizeof(*init_vm))) {
-		ret = -EFAULT;
-		goto out;
-	}
+	if (nr_user_entries > KVM_MAX_CPUID_ENTRIES)
+		return -E2BIG;
 
-	if (init_vm->cpuid.nent > KVM_MAX_CPUID_ENTRIES) {
-		ret = -E2BIG;
-		goto out;
-	}
-
-	if (copy_from_user(init_vm->cpuid.entries,
-			   u64_to_user_ptr(cmd->data) + sizeof(*init_vm),
-			   flex_array_size(init_vm, cpuid.entries, init_vm->cpuid.nent))) {
-		ret = -EFAULT;
-		goto out;
-	}
+	init_vm = memdup_user(user_data,
+			      struct_size(user_data, cpuid.entries, nr_user_entries));
+	if (IS_ERR(init_vm))
+		return PTR_ERR(init_vm);
 
 	if (memchr_inv(init_vm->reserved, 0, sizeof(init_vm->reserved))) {
 		ret = -EINVAL;
