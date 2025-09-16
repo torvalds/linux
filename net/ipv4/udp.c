@@ -1753,12 +1753,15 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 	if (rmem > (rcvbuf >> 1)) {
 		skb_condense(skb);
 		size = skb->truesize;
+		rmem = atomic_add_return(size, &sk->sk_rmem_alloc);
+		if (rmem > rcvbuf)
+			goto uncharge_drop;
 		busy = busylock_acquire(sk);
+	} else {
+		atomic_add(size, &sk->sk_rmem_alloc);
 	}
 
 	udp_set_dev_scratch(skb);
-
-	atomic_add(size, &sk->sk_rmem_alloc);
 
 	spin_lock(&list->lock);
 	err = udp_rmem_schedule(sk, size);
