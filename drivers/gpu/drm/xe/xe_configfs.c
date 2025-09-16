@@ -126,13 +126,21 @@
  * not intended for normal execution and will taint the kernel with TAINT_TEST
  * when used.
  *
- * Currently this is implemented only for post context restore. Examples:
+ * Currently this is implemented only for post and mid context restore.
+ * Examples:
  *
- * #. Execute a LRI command to write 0xDEADBEEF to register 0x4f10::
+ * #. Execute a LRI command to write 0xDEADBEEF to register 0x4f10 after the
+ *    normal context restore::
  *
  *	# echo 'rcs cmd 11000001 4F100 DEADBEEF' \
  *		> /sys/kernel/config/xe/0000:03:00.0/ctx_restore_post_bb
  *
+ * #. Execute a LRI command to write 0xDEADBEEF to register 0x4f10 at the
+ *    beginning of the context restore::
+ *
+ *	# echo 'rcs cmd 11000001 4F100 DEADBEEF' \
+ *		> /sys/kernel/config/xe/0000:03:00.0/ctx_restore_mid_bb
+
  * #. Load certain values in a couple of registers (it can be used as a simpler
  *    alternative to the `cmd`) action::
  *
@@ -146,7 +154,7 @@
  *       When using multiple lines, make sure to use a command that is
  *       implemented with a single write syscall, like HEREDOC.
  *
- * This attribute can only be set before binding to the device.
+ * These attributes can only be set before binding to the device.
  *
  * Remove devices
  * ==============
@@ -168,6 +176,7 @@ struct xe_config_group_device {
 	struct xe_config_device {
 		u64 engines_allowed;
 		struct wa_bb ctx_restore_post_bb[XE_ENGINE_CLASS_MAX];
+		struct wa_bb ctx_restore_mid_bb[XE_ENGINE_CLASS_MAX];
 		bool survivability_mode;
 		bool enable_psmi;
 	} config;
@@ -467,6 +476,13 @@ static ssize_t wa_bb_show(struct xe_config_group_device *dev,
 	return p - data;
 }
 
+static ssize_t ctx_restore_mid_bb_show(struct config_item *item, char *page)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
+
+	return wa_bb_show(dev, dev->config.ctx_restore_mid_bb, page, SZ_4K);
+}
+
 static ssize_t ctx_restore_post_bb_show(struct config_item *item, char *page)
 {
 	struct xe_config_group_device *dev = to_xe_config_group_device(item);
@@ -623,6 +639,14 @@ static ssize_t wa_bb_store(struct wa_bb wa_bb[static XE_ENGINE_CLASS_MAX],
 	return len;
 }
 
+static ssize_t ctx_restore_mid_bb_store(struct config_item *item,
+					const char *data, size_t sz)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
+
+	return wa_bb_store(dev->config.ctx_restore_mid_bb, dev, data, sz);
+}
+
 static ssize_t ctx_restore_post_bb_store(struct config_item *item,
 					 const char *data, size_t sz)
 {
@@ -631,12 +655,14 @@ static ssize_t ctx_restore_post_bb_store(struct config_item *item,
 	return wa_bb_store(dev->config.ctx_restore_post_bb, dev, data, sz);
 }
 
+CONFIGFS_ATTR(, ctx_restore_mid_bb);
 CONFIGFS_ATTR(, ctx_restore_post_bb);
 CONFIGFS_ATTR(, enable_psmi);
 CONFIGFS_ATTR(, engines_allowed);
 CONFIGFS_ATTR(, survivability_mode);
 
 static struct configfs_attribute *xe_config_device_attrs[] = {
+	&attr_ctx_restore_mid_bb,
 	&attr_ctx_restore_post_bb,
 	&attr_enable_psmi,
 	&attr_engines_allowed,
@@ -909,7 +935,19 @@ u32 xe_configfs_get_ctx_restore_mid_bb(struct pci_dev *pdev,
 				       enum xe_engine_class class,
 				       const u32 **cs)
 {
-	return 0;
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
+	u32 len;
+
+	if (!dev)
+		return 0;
+
+	if (cs)
+		*cs = dev->config.ctx_restore_mid_bb[class].cs;
+
+	len = dev->config.ctx_restore_mid_bb[class].len;
+	config_group_put(&dev->group);
+
+	return len;
 }
 
 /**
