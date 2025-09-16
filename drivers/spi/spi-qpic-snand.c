@@ -1542,15 +1542,15 @@ static int qcom_spi_probe(struct platform_device *pdev)
 
 	snandc->props = dev_data;
 
-	snandc->core_clk = devm_clk_get(dev, "core");
+	snandc->core_clk = devm_clk_get_enabled(dev, "core");
 	if (IS_ERR(snandc->core_clk))
 		return PTR_ERR(snandc->core_clk);
 
-	snandc->aon_clk = devm_clk_get(dev, "aon");
+	snandc->aon_clk = devm_clk_get_enabled(dev, "aon");
 	if (IS_ERR(snandc->aon_clk))
 		return PTR_ERR(snandc->aon_clk);
 
-	snandc->qspi->iomacro_clk = devm_clk_get(dev, "iom");
+	snandc->qspi->iomacro_clk = devm_clk_get_enabled(dev, "iom");
 	if (IS_ERR(snandc->qspi->iomacro_clk))
 		return PTR_ERR(snandc->qspi->iomacro_clk);
 
@@ -1563,18 +1563,6 @@ static int qcom_spi_probe(struct platform_device *pdev)
 					    DMA_BIDIRECTIONAL, 0);
 	if (dma_mapping_error(dev, snandc->base_dma))
 		return -ENXIO;
-
-	ret = clk_prepare_enable(snandc->core_clk);
-	if (ret)
-		goto err_dis_core_clk;
-
-	ret = clk_prepare_enable(snandc->aon_clk);
-	if (ret)
-		goto err_dis_aon_clk;
-
-	ret = clk_prepare_enable(snandc->qspi->iomacro_clk);
-	if (ret)
-		goto err_dis_iom_clk;
 
 	ret = qcom_nandc_alloc(snandc);
 	if (ret)
@@ -1616,12 +1604,6 @@ err_register_controller:
 err_spi_init:
 	qcom_nandc_unalloc(snandc);
 err_snand_alloc:
-	clk_disable_unprepare(snandc->qspi->iomacro_clk);
-err_dis_iom_clk:
-	clk_disable_unprepare(snandc->aon_clk);
-err_dis_aon_clk:
-	clk_disable_unprepare(snandc->core_clk);
-err_dis_core_clk:
 	dma_unmap_resource(dev, res->start, resource_size(res),
 			   DMA_BIDIRECTIONAL, 0);
 	return ret;
@@ -1636,11 +1618,6 @@ static void qcom_spi_remove(struct platform_device *pdev)
 	spi_unregister_controller(ctlr);
 	nand_ecc_unregister_on_host_hw_engine(&snandc->qspi->ecc_eng);
 	qcom_nandc_unalloc(snandc);
-
-	clk_disable_unprepare(snandc->aon_clk);
-	clk_disable_unprepare(snandc->core_clk);
-	clk_disable_unprepare(snandc->qspi->iomacro_clk);
-
 	dma_unmap_resource(&pdev->dev, snandc->base_dma, resource_size(res),
 			   DMA_BIDIRECTIONAL, 0);
 }
