@@ -3086,7 +3086,7 @@ int btrfs_leaf_free_space(const struct extent_buffer *leaf)
 	int ret;
 
 	ret = BTRFS_LEAF_DATA_SIZE(fs_info) - leaf_space_used(leaf, 0, nritems);
-	if (ret < 0) {
+	if (unlikely(ret < 0)) {
 		btrfs_crit(fs_info,
 			   "leaf free space ret %d, leaf data size %lu, used %d nritems %d",
 			   ret,
@@ -4075,7 +4075,7 @@ void btrfs_truncate_item(struct btrfs_trans_handle *trans,
 	btrfs_set_item_size(leaf, slot, new_size);
 	btrfs_mark_buffer_dirty(trans, leaf);
 
-	if (btrfs_leaf_free_space(leaf) < 0) {
+	if (unlikely(btrfs_leaf_free_space(leaf) < 0)) {
 		btrfs_print_leaf(leaf);
 		BUG();
 	}
@@ -4108,7 +4108,7 @@ void btrfs_extend_item(struct btrfs_trans_handle *trans,
 	old_data = btrfs_item_data_end(leaf, slot);
 
 	BUG_ON(slot < 0);
-	if (slot >= nritems) {
+	if (unlikely(slot >= nritems)) {
 		btrfs_print_leaf(leaf);
 		btrfs_crit(leaf->fs_info, "slot %d too large, nritems %d",
 			   slot, nritems);
@@ -4135,7 +4135,7 @@ void btrfs_extend_item(struct btrfs_trans_handle *trans,
 	btrfs_set_item_size(leaf, slot, old_size + data_size);
 	btrfs_mark_buffer_dirty(trans, leaf);
 
-	if (btrfs_leaf_free_space(leaf) < 0) {
+	if (unlikely(btrfs_leaf_free_space(leaf) < 0)) {
 		btrfs_print_leaf(leaf);
 		BUG();
 	}
@@ -4183,7 +4183,7 @@ static void setup_items_for_insert(struct btrfs_trans_handle *trans,
 	data_end = leaf_data_end(leaf);
 	total_size = batch->total_data_size + (batch->nr * sizeof(struct btrfs_item));
 
-	if (btrfs_leaf_free_space(leaf) < total_size) {
+	if (unlikely(btrfs_leaf_free_space(leaf) < total_size)) {
 		btrfs_print_leaf(leaf);
 		btrfs_crit(fs_info, "not enough freespace need %u have %d",
 			   total_size, btrfs_leaf_free_space(leaf));
@@ -4193,7 +4193,7 @@ static void setup_items_for_insert(struct btrfs_trans_handle *trans,
 	if (slot != nritems) {
 		unsigned int old_data = btrfs_item_data_end(leaf, slot);
 
-		if (old_data < data_end) {
+		if (unlikely(old_data < data_end)) {
 			btrfs_print_leaf(leaf);
 			btrfs_crit(fs_info,
 		"item at slot %d with data offset %u beyond data end of leaf %u",
@@ -4232,7 +4232,7 @@ static void setup_items_for_insert(struct btrfs_trans_handle *trans,
 	btrfs_set_header_nritems(leaf, nritems + batch->nr);
 	btrfs_mark_buffer_dirty(trans, leaf);
 
-	if (btrfs_leaf_free_space(leaf) < 0) {
+	if (unlikely(btrfs_leaf_free_space(leaf) < 0)) {
 		btrfs_print_leaf(leaf);
 		BUG();
 	}
