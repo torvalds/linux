@@ -91,12 +91,18 @@ int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 		return -EOPNOTSUPP;
 	}
 
-	/* Disable whatever function was previously assigned. */
+	/* Disable whichever pin was previously assigned to this function and
+	 * channel.
+	 */
 	if (pin1) {
 		ptp_disable_pinfunc(info, func, chan);
 		pin1->func = PTP_PF_NONE;
 		pin1->chan = 0;
 	}
+
+	/* Disable whatever function was previously assigned to the requested
+	 * pin.
+	 */
 	ptp_disable_pinfunc(info, pin2->func, pin2->chan);
 	pin2->func = func;
 	pin2->chan = chan;
