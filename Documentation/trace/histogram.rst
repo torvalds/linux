@@ -209,8 +209,8 @@ Documentation written by Tom Zanussi
 
   For some error conditions encountered when invoking a hist trigger
   command, extended error information is available via the
-  tracing/error_log file.  See Error Conditions in
-  :file:`Documentation/trace/ftrace.rst` for details.
+  tracing/error_log file.  See "Error conditions" section in
+  Documentation/trace/ftrace.rst for details.
 
 2.3. 'hist' trigger examples
 ----------------------------
