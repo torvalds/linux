@@ -169,6 +169,11 @@ static inline bool phy_interface_empty(const unsigned long *intf)
 	return bitmap_empty(intf, PHY_INTERFACE_MODE_MAX);
 }
 
+static inline void phy_interface_copy(unsigned long *d, const unsigned long *s)
+{
+	bitmap_copy(d, s, PHY_INTERFACE_MODE_MAX);
+}
+
 static inline unsigned int phy_interface_weight(const unsigned long *intf)
 {
 	return bitmap_weight(intf, PHY_INTERFACE_MODE_MAX);
