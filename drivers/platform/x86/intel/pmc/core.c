@@ -1244,7 +1244,7 @@ void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev)
 		for (mode = 0; mode < LPM_MAX_NUM_MODES; mode++)
 			pri_order[mode_order[mode]] = mode;
 	else
-		dev_warn(&pmcdev->pdev->dev,
+		dev_dbg(&pmcdev->pdev->dev,
 			 "Assuming a default substate order for this platform\n");
 
 	/*
