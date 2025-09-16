@@ -787,7 +787,7 @@ static void io_zcrx_ring_refill(struct page_pool *pp,
 			continue;
 
 		netmem = net_iov_to_netmem(niov);
-		if (page_pool_unref_netmem(netmem, 1) != 0)
+		if (!page_pool_unref_and_test(netmem))
 			continue;
 
 		if (unlikely(niov->pp != pp)) {
