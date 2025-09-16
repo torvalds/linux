@@ -720,7 +720,11 @@ class TypeMultiAttr(Type):
             return 'struct ynl_string *'
         elif self.attr['type'] in scalars:
             scalar_pfx = '__' if ri.ku_space == 'user' else ''
-            return scalar_pfx + self.attr['type']
+            if self.is_auto_scalar:
+                name = self.type[0] + '64'
+            else:
+                name = self.attr['type']
+            return scalar_pfx + name
         else:
             raise Exception(f"Sub-type {self.attr['type']} not supported yet")
 
