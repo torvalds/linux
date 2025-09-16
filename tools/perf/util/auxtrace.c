@@ -1390,6 +1390,7 @@ int perf_event__process_auxtrace_info(struct perf_session *session,
 	case PERF_AUXTRACE_HISI_PTT:
 		err = hisi_ptt_process_auxtrace_info(event, session);
 		break;
+	case PERF_AUXTRACE_VPA_DTL:
 	case PERF_AUXTRACE_UNKNOWN:
 	default:
 		return -EINVAL;
