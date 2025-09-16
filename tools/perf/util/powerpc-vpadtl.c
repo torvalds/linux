@@ -13,6 +13,8 @@
 #include "machine.h"
 #include "debug.h"
 #include "powerpc-vpadtl.h"
+#include "sample.h"
+#include "tool.h"
 
 /*
  * Structure to save the auxtrace queue
@@ -41,6 +43,14 @@ struct powerpc_vpadtl_queue {
 	struct auxtrace_buffer	*buffer;
 	struct thread		*thread;
 	bool			on_heap;
+	struct powerpc_vpadtl_entry	*dtl;
+	u64			timestamp;
+	unsigned long		pkt_len;
+	unsigned long		buf_len;
+	u64			boot_tb;
+	u64			tb_freq;
+	unsigned int		tb_buffer;
+	unsigned int		size;
 	bool			done;
 	pid_t			pid;
 	pid_t			tid;
@@ -119,6 +129,32 @@ static void powerpc_vpadtl_dump(struct powerpc_vpadtl *vpa __maybe_unused,
 	}
 }
 
+static unsigned long long powerpc_vpadtl_timestamp(struct powerpc_vpadtl_queue *vpaq)
+{
+	struct powerpc_vpadtl_entry *record = vpaq->dtl;
+	unsigned long long timestamp = 0;
+	unsigned long long boot_tb;
+	unsigned long long diff;
+	double result, div;
+	double boot_freq;
+	/*
+	 * Formula used to get timestamp that can be co-related with
+	 * other perf events:
+	 * ((timbase from DTL entry - boot time) / frequency) * 1000000000
+	 */
+	if (record->timebase) {
+		boot_tb = vpaq->boot_tb;
+		boot_freq = vpaq->tb_freq;
+		diff = be64_to_cpu(record->timebase) - boot_tb;
+		div = diff / boot_freq;
+		result = div;
+		result = result * 1000000000;
+		timestamp = result;
+	}
+
+	return timestamp;
+}
+
 static struct powerpc_vpadtl *session_to_vpa(struct perf_session *session)
 {
 	return container_of(session->auxtrace, struct powerpc_vpadtl, auxtrace);
@@ -131,12 +167,195 @@ static void powerpc_vpadtl_dump_event(struct powerpc_vpadtl *vpa, unsigned char 
 	powerpc_vpadtl_dump(vpa, buf, len);
 }
 
-static int powerpc_vpadtl_process_event(struct perf_session *session __maybe_unused,
-				 union perf_event *event __maybe_unused,
-				 struct perf_sample *sample __maybe_unused,
-				 const struct perf_tool *tool __maybe_unused)
+static int powerpc_vpadtl_get_buffer(struct powerpc_vpadtl_queue *vpaq)
 {
+	struct auxtrace_buffer *buffer = vpaq->buffer;
+	struct auxtrace_queues *queues = &vpaq->vpa->queues;
+	struct auxtrace_queue *queue;
+
+	queue = &queues->queue_array[vpaq->queue_nr];
+	buffer = auxtrace_buffer__next(queue, buffer);
+
+	if (!buffer)
+		return 0;
+
+	vpaq->buffer = buffer;
+	vpaq->size = buffer->size;
+
+	/* If the aux_buffer doesn't have data associated, try to load it */
+	if (!buffer->data) {
+		/* get the file desc associated with the perf data file */
+		int fd = perf_data__fd(vpaq->vpa->session->data);
+
+		buffer->data = auxtrace_buffer__get_data(buffer, fd);
+		if (!buffer->data)
+			return -ENOMEM;
+	}
+
+	vpaq->buf_len = buffer->size;
+
+	if (buffer->size % dtl_entry_size)
+		vpaq->buf_len = buffer->size - (buffer->size % dtl_entry_size);
+
+	if (vpaq->tb_buffer != buffer->buffer_nr) {
+		vpaq->pkt_len = 0;
+		vpaq->tb_buffer = 0;
+	}
+
+	return 1;
+}
+
+/*
+ * The first entry in the queue for VPA DTL PMU has the boot timebase,
+ * frequency details which are needed to get timestamp which is required to
+ * correlate with other events. Save the boot_tb and tb_freq as part of
+ * powerpc_vpadtl_queue. The very next entry is the actual trace data to
+ * be returned.
+ */
+static int powerpc_vpadtl_decode(struct powerpc_vpadtl_queue *vpaq)
+{
+	int ret;
+	char *buf;
+	struct boottb_freq *boottb;
+
+	ret = powerpc_vpadtl_get_buffer(vpaq);
+	if (ret <= 0)
+		return ret;
+
+	boottb = (struct boottb_freq *)vpaq->buffer->data;
+	if (boottb->timebase == 0) {
+		vpaq->boot_tb = boottb->boot_tb;
+		vpaq->tb_freq = boottb->tb_freq;
+		vpaq->pkt_len += dtl_entry_size;
+	}
+
+	buf = vpaq->buffer->data;
+	buf += vpaq->pkt_len;
+	vpaq->dtl = (struct powerpc_vpadtl_entry *)buf;
+
+	vpaq->tb_buffer = vpaq->buffer->buffer_nr;
+	vpaq->buffer = NULL;
+	vpaq->buf_len = 0;
+
+	return 1;
+}
+
+static struct powerpc_vpadtl_queue *powerpc_vpadtl__alloc_queue(struct powerpc_vpadtl *vpa,
+						unsigned int queue_nr)
+{
+	struct powerpc_vpadtl_queue *vpaq;
+
+	vpaq = zalloc(sizeof(*vpaq));
+	if (!vpaq)
+		return NULL;
+
+	vpaq->vpa = vpa;
+	vpaq->queue_nr = queue_nr;
+
+	return vpaq;
+}
+
+/*
+ * When the Dispatch Trace Log data is collected along with other events
+ * like sched tracepoint events, it needs to be correlated and present
+ * interleaved along with these events. Perf events can be collected
+ * parallely across the CPUs.
+ *
+ * An auxtrace_queue is created for each CPU. Data within each queue is in
+ * increasing order of timestamp. Allocate and setup auxtrace queues here.
+ * All auxtrace queues is maintained in auxtrace heap in the increasing order
+ * of timestamp. So always the lowest timestamp (entries to be processed first)
+ * is on top of the heap.
+ *
+ * To add to auxtrace heap, fetch the timestamp from first DTL entry
+ * for each of the queue.
+ */
+static int powerpc_vpadtl__setup_queue(struct powerpc_vpadtl *vpa,
+		struct auxtrace_queue *queue,
+		unsigned int queue_nr)
+{
+	struct powerpc_vpadtl_queue *vpaq = queue->priv;
+
+	if (list_empty(&queue->head) || vpaq)
+		return 0;
+
+	vpaq = powerpc_vpadtl__alloc_queue(vpa, queue_nr);
+	if (!vpaq)
+		return -ENOMEM;
+
+	queue->priv = vpaq;
+
+	if (queue->cpu != -1)
+		vpaq->cpu = queue->cpu;
+
+	if (!vpaq->on_heap) {
+		int ret;
+retry:
+		ret = powerpc_vpadtl_decode(vpaq);
+		if (!ret)
+			return 0;
+
+		if (ret < 0)
+			goto retry;
+
+		vpaq->timestamp = powerpc_vpadtl_timestamp(vpaq);
+
+		ret = auxtrace_heap__add(&vpa->heap, queue_nr, vpaq->timestamp);
+		if (ret)
+			return ret;
+		vpaq->on_heap = true;
+	}
+
 	return 0;
+}
+
+static int powerpc_vpadtl__setup_queues(struct powerpc_vpadtl *vpa)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < vpa->queues.nr_queues; i++) {
+		ret = powerpc_vpadtl__setup_queue(vpa, &vpa->queues.queue_array[i], i);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int powerpc_vpadtl__update_queues(struct powerpc_vpadtl *vpa)
+{
+	if (vpa->queues.new_data) {
+		vpa->queues.new_data = false;
+		return powerpc_vpadtl__setup_queues(vpa);
+	}
+
+	return 0;
+}
+
+static int powerpc_vpadtl_process_event(struct perf_session *session,
+				 union perf_event *event __maybe_unused,
+				 struct perf_sample *sample,
+				 const struct perf_tool *tool)
+{
+	struct powerpc_vpadtl *vpa = session_to_vpa(session);
+	int err = 0;
+
+	if (dump_trace)
+		return 0;
+
+	if (!tool->ordered_events) {
+		pr_err("VPA requires ordered events\n");
+		return -EINVAL;
+	}
+
+	if (sample->time) {
+		err = powerpc_vpadtl__update_queues(vpa);
+		if (err)
+			return err;
+	}
+
+	return err;
 }
 
 /*
