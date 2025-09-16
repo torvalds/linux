@@ -84,6 +84,10 @@ struct fbnic_dev {
 	/* Local copy of hardware statistics */
 	struct fbnic_hw_stats hw_stats;
 
+	/* Firmware time since boot in milliseconds */
+	u64 firmware_time;
+	u64 prev_firmware_time;
+
 	struct fbnic_fw_log fw_log;
 };
 

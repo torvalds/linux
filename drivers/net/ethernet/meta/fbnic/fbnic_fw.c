@@ -495,6 +495,11 @@ int fbnic_fw_xmit_ownership_msg(struct fbnic_dev *fbd, bool take_ownership)
 
 	fbd->last_heartbeat_request = req_time;
 
+	/* Set prev_firmware_time to 0 to avoid triggering firmware crash
+	 * detection until we receive the second uptime in a heartbeat resp.
+	 */
+	fbd->prev_firmware_time = 0;
+
 	/* Set heartbeat detection based on if we are taking ownership */
 	fbd->fw_heartbeat_enabled = take_ownership;
 
@@ -660,6 +665,7 @@ static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 }
 
 static const struct fbnic_tlv_index fbnic_ownership_resp_index[] = {
+	FBNIC_TLV_ATTR_U64(FBNIC_FW_OWNERSHIP_TIME),
 	FBNIC_TLV_ATTR_LAST
 };
 
@@ -671,10 +677,14 @@ static int fbnic_fw_parse_ownership_resp(void *opaque,
 	/* Count the ownership response as a heartbeat reply */
 	fbd->last_heartbeat_response = jiffies;
 
+	/* Capture firmware time for logging and firmware crash check */
+	fbd->firmware_time = fta_get_uint(results, FBNIC_FW_OWNERSHIP_TIME);
+
 	return 0;
 }
 
 static const struct fbnic_tlv_index fbnic_heartbeat_resp_index[] = {
+	FBNIC_TLV_ATTR_U64(FBNIC_FW_HEARTBEAT_UPTIME),
 	FBNIC_TLV_ATTR_LAST
 };
 
@@ -684,6 +694,9 @@ static int fbnic_fw_parse_heartbeat_resp(void *opaque,
 	struct fbnic_dev *fbd = (struct fbnic_dev *)opaque;
 
 	fbd->last_heartbeat_response = jiffies;
+
+	/* Capture firmware time for logging and firmware crash check */
+	fbd->firmware_time = fta_get_uint(results, FBNIC_FW_HEARTBEAT_UPTIME);
 
 	return 0;
 }
@@ -706,6 +719,7 @@ static int fbnic_fw_xmit_heartbeat_message(struct fbnic_dev *fbd)
 		goto free_message;
 
 	fbd->last_heartbeat_request = req_time;
+	fbd->prev_firmware_time = fbd->firmware_time;
 
 	return err;
 
@@ -766,7 +780,8 @@ void fbnic_fw_check_heartbeat(struct fbnic_dev *fbd)
 		return;
 
 	/* Was the last heartbeat response long time ago? */
-	if (!fbnic_fw_heartbeat_current(fbd)) {
+	if (!fbnic_fw_heartbeat_current(fbd) ||
+	    fbd->firmware_time < fbd->prev_firmware_time) {
 		dev_warn(fbd->dev,
 			 "Firmware did not respond to heartbeat message\n");
 		fbd->fw_heartbeat_enabled = false;
