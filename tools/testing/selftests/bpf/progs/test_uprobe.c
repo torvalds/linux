@@ -82,4 +82,18 @@ int BPF_UPROBE(test_regs_change)
 	ctx->si  = regs.si;
 	return 0;
 }
+
+unsigned long ip;
+
+SEC("uprobe")
+int BPF_UPROBE(test_regs_change_ip)
+{
+	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+
+	if (pid != my_pid)
+		return 0;
+
+	ctx->ip = ip;
+	return 0;
+}
 #endif

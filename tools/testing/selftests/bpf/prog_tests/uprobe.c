@@ -190,10 +190,52 @@ cleanup:
 	test_uprobe__destroy(skel);
 }
 
+static noinline unsigned long uprobe_regs_change_ip_1(void)
+{
+	return 0xc0ffee;
+}
+
+static noinline unsigned long uprobe_regs_change_ip_2(void)
+{
+	return 0xdeadbeef;
+}
+
+static void regs_ip(void)
+{
+	LIBBPF_OPTS(bpf_uprobe_opts, uprobe_opts);
+	struct test_uprobe *skel;
+	unsigned long ret;
+
+	skel = test_uprobe__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		return;
+
+	skel->bss->my_pid = getpid();
+	skel->bss->ip = (unsigned long) uprobe_regs_change_ip_2;
+
+	uprobe_opts.func_name = "uprobe_regs_change_ip_1";
+	skel->links.test_regs_change_ip = bpf_program__attach_uprobe_opts(
+						skel->progs.test_regs_change_ip,
+						-1,
+						"/proc/self/exe",
+						0 /* offset */,
+						&uprobe_opts);
+	if (!ASSERT_OK_PTR(skel->links.test_regs_change_ip, "bpf_program__attach_uprobe_opts"))
+		goto cleanup;
+
+	ret = uprobe_regs_change_ip_1();
+	ASSERT_EQ(ret, 0xdeadbeef, "ret");
+
+cleanup:
+	test_uprobe__destroy(skel);
+}
+
 static void test_uprobe_regs_change(void)
 {
 	if (test__start_subtest("regs_change_common"))
 		regs_common();
+	if (test__start_subtest("regs_change_ip"))
+		regs_ip();
 }
 #else
 static void test_uprobe_regs_change(void) { }
