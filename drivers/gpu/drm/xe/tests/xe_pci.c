@@ -204,6 +204,27 @@ static void xe_ip_kunit_desc(const struct xe_ip *param, char *desc)
 		 param->verx100 / 100, param->verx100 % 100, param->name);
 }
 
+/*
+ * Pre-GMDID Graphics and Media IPs definitions.
+ *
+ * Mimic the way GMDID IPs are declared so the same
+ * param generator can be used for both
+ */
+static const struct xe_ip pre_gmdid_graphics_ips[] = {
+	graphics_ip_xelp,
+	graphics_ip_xelpp,
+	graphics_ip_xehpg,
+	graphics_ip_xehpc,
+};
+
+static const struct xe_ip pre_gmdid_media_ips[] = {
+	media_ip_xem,
+	media_ip_xehpm,
+};
+
+KUNIT_ARRAY_PARAM(pre_gmdid_graphics_ip, pre_gmdid_graphics_ips, xe_ip_kunit_desc);
+KUNIT_ARRAY_PARAM(pre_gmdid_media_ip, pre_gmdid_media_ips, xe_ip_kunit_desc);
+
 KUNIT_ARRAY_PARAM(graphics_ip, graphics_ips, xe_ip_kunit_desc);
 KUNIT_ARRAY_PARAM(media_ip, media_ips, xe_ip_kunit_desc);
 
@@ -232,6 +253,13 @@ KUNIT_ARRAY_PARAM(pci_id, pciidlist, xe_pci_id_kunit_desc);
  */
 const void *xe_pci_graphics_ip_gen_param(const void *prev, char *desc)
 {
+	const void *next = pre_gmdid_graphics_ip_gen_params(prev, desc);
+
+	if (next)
+		return next;
+	if (is_insidevar(prev, pre_gmdid_graphics_ips))
+		prev = NULL;
+
 	return graphics_ip_gen_params(prev, desc);
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_pci_graphics_ip_gen_param);
@@ -249,6 +277,13 @@ EXPORT_SYMBOL_IF_KUNIT(xe_pci_graphics_ip_gen_param);
  */
 const void *xe_pci_media_ip_gen_param(const void *prev, char *desc)
 {
+	const void *next = pre_gmdid_media_ip_gen_params(prev, desc);
+
+	if (next)
+		return next;
+	if (is_insidevar(prev, pre_gmdid_media_ips))
+		prev = NULL;
+
 	return media_ip_gen_params(prev, desc);
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_pci_media_ip_gen_param);
