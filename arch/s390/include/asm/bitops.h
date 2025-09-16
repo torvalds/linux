@@ -132,9 +132,10 @@ static inline bool test_bit_inv(unsigned long nr,
  */
 static __always_inline unsigned char __flogr(unsigned long word)
 {
-	if (__builtin_constant_p(word)) {
-		unsigned long bit = 0;
+	unsigned long bit;
 
+	if (__builtin_constant_p(word)) {
+		bit = 0;
 		if (!word)
 			return 64;
 		if (!(word & 0xffffffff00000000UL)) {
@@ -169,7 +170,14 @@ static __always_inline unsigned char __flogr(unsigned long word)
 		asm volatile(
 			"       flogr   %[rp],%[rp]\n"
 			: [rp] "+d" (rp.pair) : : "cc");
-		return rp.even & 127;
+		bit = rp.even;
+		/*
+		 * The result of the flogr instruction is a value in the range
+		 * of 0..64. Let the compiler know that the AND operation can
+		 * be optimized away.
+		 */
+		__assume(bit <= 64);
+		return bit & 127;
 	}
 }
 
