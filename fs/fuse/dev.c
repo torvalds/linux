@@ -25,7 +25,6 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 
-#define CREATE_TRACE_POINTS
 #include "fuse_trace.h"
 
 MODULE_ALIAS_MISCDEV(FUSE_MINOR);
