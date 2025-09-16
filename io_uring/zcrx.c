@@ -756,14 +756,12 @@ static void io_zcrx_ring_refill(struct page_pool *pp,
 	unsigned int mask = ifq->rq_entries - 1;
 	unsigned int entries;
 
-	spin_lock_bh(&ifq->rq_lock);
+	guard(spinlock_bh)(&ifq->rq_lock);
 
 	entries = io_zcrx_rqring_entries(ifq);
 	entries = min_t(unsigned, entries, PP_ALLOC_CACHE_REFILL - pp->alloc.count);
-	if (unlikely(!entries)) {
-		spin_unlock_bh(&ifq->rq_lock);
+	if (unlikely(!entries))
 		return;
-	}
 
 	do {
 		struct io_uring_zcrx_rqe *rqe = io_zcrx_get_rqe(ifq, mask);
@@ -801,7 +799,6 @@ static void io_zcrx_ring_refill(struct page_pool *pp,
 	} while (--entries);
 
 	smp_store_release(&ifq->rq_ring->head, ifq->cached_rq_head);
-	spin_unlock_bh(&ifq->rq_lock);
 }
 
 static void io_zcrx_refill_slow(struct page_pool *pp, struct io_zcrx_ifq *ifq)
