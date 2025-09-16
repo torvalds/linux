@@ -1849,6 +1849,7 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 		    !sb_set_blocksize(sb, PAGE_SIZE))
 			goto err;
 #endif
+		fc->sync_fs = 1;
 	} else {
 		sb->s_blocksize = PAGE_SIZE;
 		sb->s_blocksize_bits = PAGE_SHIFT;
