@@ -289,6 +289,10 @@ class YnlDocGenerator:
         for entry in entries:
             lines.append(self.fmt.rst_section(namespace, 'attribute-set',
                                               entry["name"]))
+
+            if "doc" in entry:
+                lines.append(self.fmt.rst_paragraph(entry["doc"], 0) + "\n")
+
             for attr in entry["attributes"]:
                 if LINE_STR in attr:
                     lines.append(self.fmt.rst_lineno(attr[LINE_STR]))
