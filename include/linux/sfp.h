@@ -576,6 +576,7 @@ struct sfp_upstream_ops {
 };
 
 #if IS_ENABLED(CONFIG_SFP)
+const struct sfp_module_caps *sfp_get_module_caps(struct sfp_bus *bus);
 int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		   unsigned long *support);
 bool sfp_may_have_phy(struct sfp_bus *bus, const struct sfp_eeprom_id *id);
@@ -600,6 +601,12 @@ int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
 void sfp_bus_del_upstream(struct sfp_bus *bus);
 const char *sfp_get_name(struct sfp_bus *bus);
 #else
+static inline const struct sfp_module_caps *
+sfp_get_module_caps(struct sfp_bus *bus)
+{
+	return NULL;
+}
+
 static inline int sfp_parse_port(struct sfp_bus *bus,
 				 const struct sfp_eeprom_id *id,
 				 unsigned long *support)
