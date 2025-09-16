@@ -52,7 +52,7 @@ static int __init init_dlm(void)
 	if (error)
 		goto out_user;
 
-	dlm_wq = alloc_workqueue("dlm_wq", 0, 0);
+	dlm_wq = alloc_workqueue("dlm_wq", WQ_PERCPU, 0);
 	if (!dlm_wq) {
 		error = -ENOMEM;
 		goto out_plock;
