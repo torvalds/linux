@@ -37,6 +37,8 @@ struct fbnic_xmit_cb {
 
 #define FBNIC_XMIT_CB(__skb) ((struct fbnic_xmit_cb *)((__skb)->cb))
 
+#define FBNIC_XMIT_NOUNMAP	((void *)1)
+
 static u32 __iomem *fbnic_ring_csr_base(const struct fbnic_ring *ring)
 {
 	unsigned long csr_base = (unsigned long)ring->doorbell;
@@ -315,6 +317,7 @@ fbnic_tx_map(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 	unsigned int tail = ring->tail, first;
 	unsigned int size, data_len;
 	skb_frag_t *frag;
+	bool is_net_iov;
 	dma_addr_t dma;
 	__le64 *twd;
 
@@ -330,6 +333,7 @@ fbnic_tx_map(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 	if (size > FIELD_MAX(FBNIC_TWD_LEN_MASK))
 		goto dma_error;
 
+	is_net_iov = false;
 	dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
 
 	for (frag = &skb_shinfo(skb)->frags[0];; frag++) {
@@ -342,6 +346,8 @@ fbnic_tx_map(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 				   FIELD_PREP(FBNIC_TWD_LEN_MASK, size) |
 				   FIELD_PREP(FBNIC_TWD_TYPE_MASK,
 					      FBNIC_TWD_TYPE_AL));
+		if (is_net_iov)
+			ring->tx_buf[tail] = FBNIC_XMIT_NOUNMAP;
 
 		tail++;
 		tail &= ring->size_mask;
@@ -355,6 +361,7 @@ fbnic_tx_map(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 		if (size > FIELD_MAX(FBNIC_TWD_LEN_MASK))
 			goto dma_error;
 
+		is_net_iov = skb_frag_is_net_iov(frag);
 		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
 	}
 
@@ -390,6 +397,8 @@ dma_error:
 		twd = &ring->desc[tail];
 		if (tail == first)
 			fbnic_unmap_single_twd(dev, twd);
+		else if (ring->tx_buf[tail] == FBNIC_XMIT_NOUNMAP)
+			ring->tx_buf[tail] = NULL;
 		else
 			fbnic_unmap_page_twd(dev, twd);
 	}
@@ -574,7 +583,11 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 		desc_cnt--;
 
 		while (desc_cnt--) {
-			fbnic_unmap_page_twd(nv->dev, &ring->desc[head]);
+			if (ring->tx_buf[head] != FBNIC_XMIT_NOUNMAP)
+				fbnic_unmap_page_twd(nv->dev,
+						     &ring->desc[head]);
+			else
+				ring->tx_buf[head] = NULL;
 			head++;
 			head &= ring->size_mask;
 		}
