@@ -465,6 +465,7 @@ static void recover_worker(struct kthread_work *work)
 	struct msm_gem_submit *submit;
 	struct msm_ringbuffer *cur_ring = gpu->funcs->active_ring(gpu);
 	char *comm = NULL, *cmd = NULL;
+	struct task_struct *task;
 	int i;
 
 	mutex_lock(&gpu->lock);
@@ -482,16 +483,20 @@ static void recover_worker(struct kthread_work *work)
 
 	/* Increment the fault counts */
 	submit->queue->faults++;
-	if (submit->vm) {
+
+	task = get_pid_task(submit->pid, PIDTYPE_PID);
+	if (!task)
+		gpu->global_faults++;
+	else {
 		struct msm_gem_vm *vm = to_msm_vm(submit->vm);
 
 		vm->faults++;
 
 		/*
 		 * If userspace has opted-in to VM_BIND (and therefore userspace
-		 * management of the VM), faults mark the VM as unusuable.  This
+		 * management of the VM), faults mark the VM as unusable. This
 		 * matches vulkan expectations (vulkan is the main target for
-		 * VM_BIND)
+		 * VM_BIND).
 		 */
 		if (!vm->managed)
 			msm_gem_vm_unusable(submit->vm);
@@ -553,8 +558,15 @@ static void recover_worker(struct kthread_work *work)
 			unsigned long flags;
 
 			spin_lock_irqsave(&ring->submit_lock, flags);
-			list_for_each_entry(submit, &ring->submits, node)
+			list_for_each_entry(submit, &ring->submits, node) {
+				/*
+				 * If the submit uses an unusable vm make sure
+				 * we don't actually run it
+				 */
+				if (to_msm_vm(submit->vm)->unusable)
+					submit->nr_cmds = 0;
 				gpu->funcs->submit(gpu, submit);
+			}
 			spin_unlock_irqrestore(&ring->submit_lock, flags);
 		}
 	}

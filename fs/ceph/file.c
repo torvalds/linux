@@ -368,8 +368,6 @@ int ceph_open(struct inode *inode, struct file *file)
 	int flags, fmode, wanted;
 	struct dentry *dentry;
 	char *path;
-	int pathlen;
-	u64 pathbase;
 	bool do_sync = false;
 	int mask = MAY_READ;
 
@@ -399,14 +397,15 @@ int ceph_open(struct inode *inode, struct file *file)
 	if (!dentry) {
 		do_sync = true;
 	} else {
-		path = ceph_mdsc_build_path(mdsc, dentry, &pathlen, &pathbase, 0);
+		struct ceph_path_info path_info;
+		path = ceph_mdsc_build_path(mdsc, dentry, &path_info, 0);
 		if (IS_ERR(path)) {
 			do_sync = true;
 			err = 0;
 		} else {
 			err = ceph_mds_check_access(mdsc, path, mask);
 		}
-		ceph_mdsc_free_path(path, pathlen);
+		ceph_mdsc_free_path_info(&path_info);
 		dput(dentry);
 
 		/* For none EACCES cases will let the MDS do the mds auth check */
@@ -614,15 +613,13 @@ static void ceph_async_create_cb(struct ceph_mds_client *mdsc,
 	mapping_set_error(req->r_parent->i_mapping, result);
 
 	if (result) {
-		int pathlen = 0;
-		u64 base = 0;
-		char *path = ceph_mdsc_build_path(mdsc, req->r_dentry, &pathlen,
-						  &base, 0);
+		struct ceph_path_info path_info = {0};
+		char *path = ceph_mdsc_build_path(mdsc, req->r_dentry, &path_info, 0);
 
 		pr_warn_client(cl,
 			"async create failure path=(%llx)%s result=%d!\n",
-			base, IS_ERR(path) ? "<<bad>>" : path, result);
-		ceph_mdsc_free_path(path, pathlen);
+			path_info.vino.ino, IS_ERR(path) ? "<<bad>>" : path, result);
+		ceph_mdsc_free_path_info(&path_info);
 
 		ceph_dir_clear_complete(req->r_parent);
 		if (!d_unhashed(dentry))
@@ -791,8 +788,6 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	int mask;
 	int err;
 	char *path;
-	int pathlen;
-	u64 pathbase;
 
 	doutc(cl, "%p %llx.%llx dentry %p '%pd' %s flags %d mode 0%o\n",
 	      dir, ceph_vinop(dir), dentry, dentry,
@@ -814,7 +809,8 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (!dn) {
 		try_async = false;
 	} else {
-		path = ceph_mdsc_build_path(mdsc, dn, &pathlen, &pathbase, 0);
+		struct ceph_path_info path_info;
+		path = ceph_mdsc_build_path(mdsc, dn, &path_info, 0);
 		if (IS_ERR(path)) {
 			try_async = false;
 			err = 0;
@@ -826,7 +822,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 				mask |= MAY_WRITE;
 			err = ceph_mds_check_access(mdsc, path, mask);
 		}
-		ceph_mdsc_free_path(path, pathlen);
+		ceph_mdsc_free_path_info(&path_info);
 		dput(dn);
 
 		/* For none EACCES cases will let the MDS do the mds auth check */
