@@ -283,24 +283,34 @@ static bool lookup_engine_mask(const char *pattern, u64 *mask)
 	return false;
 }
 
+static int parse_engine(const char *s, const char *end_chars, u64 *mask)
+{
+	char buf[MAX_ENGINE_CLASS_CHARS + MAX_ENGINE_INSTANCE_CHARS + 1];
+	size_t len;
+
+	len = strcspn(s, end_chars);
+	if (len >= sizeof(buf))
+		return -EINVAL;
+
+	memcpy(buf, s, len);
+	buf[len] = '\0';
+
+	if (!lookup_engine_mask(buf, mask))
+		return -ENOENT;
+
+	return len;
+}
+
 static ssize_t engines_allowed_store(struct config_item *item, const char *page,
 				     size_t len)
 {
 	struct xe_config_group_device *dev = to_xe_config_group_device(item);
-	size_t patternlen, p;
+	ssize_t patternlen, p;
 	u64 mask, val = 0;
 
 	for (p = 0; p < len; p += patternlen + 1) {
-		char buf[MAX_ENGINE_CLASS_CHARS + MAX_ENGINE_INSTANCE_CHARS + 1];
-
-		patternlen = strcspn(page + p, ",\n");
-		if (patternlen >= sizeof(buf))
-			return -EINVAL;
-
-		memcpy(buf, page + p, patternlen);
-		buf[patternlen] = '\0';
-
-		if (!lookup_engine_mask(buf, &mask))
+		patternlen = parse_engine(page + p, ",\n", &mask);
+		if (patternlen < 0)
 			return -EINVAL;
 
 		val |= mask;
