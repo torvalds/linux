@@ -656,20 +656,13 @@ static int ad7124_prepare_read(struct ad7124_state *st, int address)
 			       AD7124_CHANNEL_ENABLE);
 }
 
-static int __ad7124_set_channel(struct ad_sigma_delta *sd, unsigned int channel)
-{
-	struct ad7124_state *st = container_of(sd, struct ad7124_state, sd);
-
-	return ad7124_prepare_read(st, channel);
-}
-
 static int ad7124_set_channel(struct ad_sigma_delta *sd, unsigned int channel)
 {
 	struct ad7124_state *st = container_of(sd, struct ad7124_state, sd);
 	int ret;
 
 	mutex_lock(&st->cfgs_lock);
-	ret = __ad7124_set_channel(sd, channel);
+	ret = ad7124_prepare_read(st, channel);
 	mutex_unlock(&st->cfgs_lock);
 
 	return ret;
@@ -964,7 +957,7 @@ static int ad7124_update_scan_mode(struct iio_dev *indio_dev,
 	for (i = 0; i < st->num_channels; i++) {
 		bit_set = test_bit(i, scan_mask);
 		if (bit_set)
-			ret = __ad7124_set_channel(&st->sd, i);
+			ret = ad7124_prepare_read(st, i);
 		else
 			ret = ad7124_spi_write_mask(st, AD7124_CHANNEL(i), AD7124_CHANNEL_ENABLE,
 						    0, 2);
