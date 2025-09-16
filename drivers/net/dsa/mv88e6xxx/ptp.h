@@ -66,7 +66,6 @@
 
 #ifdef CONFIG_NET_DSA_MV88E6XXX_PTP
 
-long mv88e6xxx_hwtstamp_work(struct ptp_clock_info *ptp);
 int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip);
 
@@ -78,11 +77,6 @@ extern const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops;
 extern const struct mv88e6xxx_ptp_ops mv88e6390_ptp_ops;
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_PTP */
-
-static inline long mv88e6xxx_hwtstamp_work(struct ptp_clock_info *ptp)
-{
-	return -1;
-}
 
 static inline int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip)
 {
