@@ -352,7 +352,7 @@ static int io_allocate_rbuf_ring(struct io_zcrx_ifq *ifq,
 	void *ptr;
 	int ret;
 
-	off = sizeof(struct io_uring);
+	off = ALIGN(sizeof(struct io_uring), L1_CACHE_BYTES);
 	size = off + sizeof(struct io_uring_zcrx_rqe) * reg->rq_entries;
 	if (size > rd->size)
 		return -EINVAL;
@@ -367,6 +367,10 @@ static int io_allocate_rbuf_ring(struct io_zcrx_ifq *ifq,
 	ptr = io_region_get_ptr(&ifq->region);
 	ifq->rq_ring = (struct io_uring *)ptr;
 	ifq->rqes = (struct io_uring_zcrx_rqe *)(ptr + off);
+
+	reg->offsets.head = offsetof(struct io_uring, head);
+	reg->offsets.tail = offsetof(struct io_uring, tail);
+	reg->offsets.rqes = off;
 	return 0;
 }
 
@@ -618,9 +622,6 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 		goto err;
 	ifq->if_rxq = reg.if_rxq;
 
-	reg.offsets.rqes = sizeof(struct io_uring);
-	reg.offsets.head = offsetof(struct io_uring, head);
-	reg.offsets.tail = offsetof(struct io_uring, tail);
 	reg.zcrx_id = id;
 
 	scoped_guard(mutex, &ctx->mmap_lock) {
