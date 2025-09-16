@@ -197,6 +197,7 @@ static void fbnic_health_check(struct fbnic_dev *fbd)
 		return;
 
 	fbnic_devlink_fw_report(fbd, "Firmware crashed detected!");
+	fbnic_devlink_otp_check(fbd, "error detected after firmware recovery");
 
 	if (fbnic_fw_config_after_crash(fbd))
 		dev_err(fbd->dev, "Firmware recovery failed after crash\n");
@@ -321,6 +322,7 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 err);
 
 	fbnic_devlink_register(fbd);
+	fbnic_devlink_otp_check(fbd, "error detected during probe");
 	fbnic_dbg_fbd_init(fbd);
 
 	/* Capture snapshot of hardware stats so netdev can calculate delta */
@@ -473,6 +475,9 @@ static int __fbnic_pm_resume(struct device *dev)
 	 * log entries.
 	 */
 	fbnic_fw_log_enable(fbd, list_empty(&fbd->fw_log.entries));
+
+	/* Since the FW should be up, check if it reported OTP errors */
+	fbnic_devlink_otp_check(fbd, "error detected after PM resume");
 
 	/* No netdev means there isn't a network interface to bring up */
 	if (fbnic_init_failure(fbd))

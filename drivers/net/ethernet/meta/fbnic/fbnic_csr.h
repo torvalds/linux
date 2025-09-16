@@ -1178,4 +1178,22 @@ enum {
 #define FBNIC_IPC_MBX_DESC_FW_CMPL	DESC_BIT(1)
 #define FBNIC_IPC_MBX_DESC_HOST_CMPL	DESC_BIT(0)
 
+/* OTP Registers
+ * These registers are accessible via bar4 offset and are written by CMRT
+ * on boot. For the write status, the register is broken up in half with OTP
+ * Write Data Status occupying the top 16 bits and the ECC status occupying the
+ * bottom 16 bits.
+ */
+#define FBNIC_NS_OTP_STATUS		0x0021d
+#define FBNIC_NS_OTP_WRITE_STATUS	0x0021e
+
+#define FBNIC_NS_OTP_WRITE_DATA_STATUS_MASK	CSR_GENMASK(31, 16)
+#define FBNIC_NS_OTP_WRITE_ECC_STATUS_MASK	CSR_GENMASK(15, 0)
+
+#define FBNIC_REGS_VERSION			CSR_GENMASK(31, 16)
+#define FBNIC_REGS_HW_TYPE			CSR_GENMASK(15, 8)
+enum{
+	FBNIC_CSR_VERSION_V1_0_ASIC = 1,
+};
+
 #endif /* _FBNIC_CSR_H_ */

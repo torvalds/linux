@@ -81,6 +81,13 @@ happened since power cycle - a snapshot of the FW memory. Diagnose callback
 shows FW uptime based on the most recently received heartbeat message
 (the crashes are detected by checking if uptime goes down).
 
+otp reporter
+~~~~~~~~~~~~
+
+OTP memory ("fuses") are used for secure boot and anti-rollback
+protection. The OTP memory is ECC protected, ECC errors indicate
+either manufacturing defect or part deteriorating with age.
+
 Statistics
 ----------
 

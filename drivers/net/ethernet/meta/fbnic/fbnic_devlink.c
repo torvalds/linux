@@ -534,6 +534,60 @@ static const struct devlink_health_reporter_ops fbnic_fw_ops = {
 	.diagnose = fbnic_fw_reporter_diagnose,
 };
 
+static u32 fbnic_read_otp_status(struct fbnic_dev *fbd)
+{
+	return fbnic_fw_rd32(fbd, FBNIC_NS_OTP_STATUS);
+}
+
+static int
+fbnic_otp_reporter_dump(struct devlink_health_reporter *reporter,
+			struct devlink_fmsg *fmsg, void *priv_ctx,
+			struct netlink_ext_ack *extack)
+{
+	struct fbnic_dev *fbd = devlink_health_reporter_priv(reporter);
+	u32 otp_status, otp_write_status, m;
+
+	otp_status = fbnic_read_otp_status(fbd);
+	otp_write_status = fbnic_fw_rd32(fbd, FBNIC_NS_OTP_WRITE_STATUS);
+
+	/* Dump OTP status */
+	devlink_fmsg_pair_nest_start(fmsg, "OTP");
+	devlink_fmsg_obj_nest_start(fmsg);
+
+	devlink_fmsg_u32_pair_put(fmsg, "Status", otp_status);
+
+	/* Extract OTP Write Data status */
+	m = FBNIC_NS_OTP_WRITE_DATA_STATUS_MASK;
+	devlink_fmsg_u32_pair_put(fmsg, "Data",
+				  FIELD_GET(m, otp_write_status));
+
+	/* Extract OTP Write ECC status */
+	m = FBNIC_NS_OTP_WRITE_ECC_STATUS_MASK;
+	devlink_fmsg_u32_pair_put(fmsg, "ECC",
+				  FIELD_GET(m, otp_write_status));
+
+	devlink_fmsg_obj_nest_end(fmsg);
+	devlink_fmsg_pair_nest_end(fmsg);
+
+	return 0;
+}
+
+void fbnic_devlink_otp_check(struct fbnic_dev *fbd, const char *msg)
+{
+	/* Check if there is anything to report */
+	if (!fbnic_read_otp_status(fbd))
+		return;
+
+	devlink_health_report(fbd->otp_reporter, msg, fbd);
+	if (fbnic_fw_log_ready(fbd))
+		fbnic_fw_log_write(fbd, 0, fbd->firmware_time, msg);
+}
+
+static const struct devlink_health_reporter_ops fbnic_otp_ops = {
+	.name = "otp",
+	.dump = fbnic_otp_reporter_dump,
+};
+
 int fbnic_devlink_health_create(struct fbnic_dev *fbd)
 {
 	fbd->fw_reporter = devlink_health_reporter_create(priv_to_devlink(fbd),
@@ -545,11 +599,22 @@ int fbnic_devlink_health_create(struct fbnic_dev *fbd)
 		return PTR_ERR(fbd->fw_reporter);
 	}
 
+	fbd->otp_reporter = devlink_health_reporter_create(priv_to_devlink(fbd),
+							   &fbnic_otp_ops, fbd);
+	if (IS_ERR(fbd->otp_reporter)) {
+		devlink_health_reporter_destroy(fbd->fw_reporter);
+		dev_warn(fbd->dev,
+			 "Failed to create OTP fault reporter: %pe\n",
+			 fbd->otp_reporter);
+		return PTR_ERR(fbd->otp_reporter);
+	}
+
 	return 0;
 }
 
 void fbnic_devlink_health_destroy(struct fbnic_dev *fbd)
 {
+	devlink_health_reporter_destroy(fbd->otp_reporter);
 	devlink_health_reporter_destroy(fbd->fw_reporter);
 }
 
