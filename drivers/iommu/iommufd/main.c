@@ -550,16 +550,23 @@ static int iommufd_fops_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (vma->vm_flags & VM_EXEC)
 		return -EPERM;
 
+	mtree_lock(&ictx->mt_mmap);
 	/* vma->vm_pgoff carries a page-shifted start position to an immap */
 	immap = mtree_load(&ictx->mt_mmap, vma->vm_pgoff << PAGE_SHIFT);
-	if (!immap)
+	if (!immap || !refcount_inc_not_zero(&immap->owner->users)) {
+		mtree_unlock(&ictx->mt_mmap);
 		return -ENXIO;
+	}
+	mtree_unlock(&ictx->mt_mmap);
+
 	/*
 	 * mtree_load() returns the immap for any contained mmio_addr, so only
 	 * allow the exact immap thing to be mapped
 	 */
-	if (vma->vm_pgoff != immap->vm_pgoff || length != immap->length)
-		return -ENXIO;
+	if (vma->vm_pgoff != immap->vm_pgoff || length != immap->length) {
+		rc = -ENXIO;
+		goto err_refcount;
+	}
 
 	vma->vm_pgoff = 0;
 	vma->vm_private_data = immap;
@@ -570,10 +577,11 @@ static int iommufd_fops_mmap(struct file *filp, struct vm_area_struct *vma)
 				immap->mmio_addr >> PAGE_SHIFT, length,
 				vma->vm_page_prot);
 	if (rc)
-		return rc;
+		goto err_refcount;
+	return 0;
 
-	/* vm_ops.open won't be called for mmap itself. */
-	refcount_inc(&immap->owner->users);
+err_refcount:
+	refcount_dec(&immap->owner->users);
 	return rc;
 }
 
