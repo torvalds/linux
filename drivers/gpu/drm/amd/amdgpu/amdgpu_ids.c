@@ -594,11 +594,6 @@ void amdgpu_vmid_mgr_init(struct amdgpu_device *adev)
 			list_add_tail(&id_mgr->ids[j].list, &id_mgr->ids_lru);
 		}
 	}
-	/* alloc a default reserved vmid to enforce isolation */
-	for (i = 0; i < (adev->xcp_mgr ? adev->xcp_mgr->num_xcps : 1); i++) {
-		if (adev->enforce_isolation[i] != AMDGPU_ENFORCE_ISOLATION_DISABLE)
-			amdgpu_vmid_alloc_reserved(adev, AMDGPU_GFXHUB(i));
-	}
 }
 
 /**
