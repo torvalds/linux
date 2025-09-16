@@ -373,9 +373,8 @@ static void sfp_init_module(struct sfp_bus *bus,
 	sfp_module_parse_port(bus, id);
 	sfp_module_parse_may_have_phy(bus, id);
 
-	if (quirk && quirk->modes)
-		quirk->modes(id, bus->caps.link_modes,
-			     bus->caps.interfaces);
+	if (quirk && quirk->support)
+		quirk->support(id, &bus->caps);
 }
 
 /**

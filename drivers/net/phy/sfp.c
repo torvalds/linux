@@ -440,45 +440,44 @@ static void sfp_fixup_rollball_cc(struct sfp *sfp)
 }
 
 static void sfp_quirk_2500basex(const struct sfp_eeprom_id *id,
-				unsigned long *modes,
-				unsigned long *interfaces)
+				struct sfp_module_caps *caps)
 {
-	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseX_Full_BIT, modes);
-	__set_bit(PHY_INTERFACE_MODE_2500BASEX, interfaces);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
+			 caps->link_modes);
+	__set_bit(PHY_INTERFACE_MODE_2500BASEX, caps->interfaces);
 }
 
 static void sfp_quirk_disable_autoneg(const struct sfp_eeprom_id *id,
-				      unsigned long *modes,
-				      unsigned long *interfaces)
+				      struct sfp_module_caps *caps)
 {
-	linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, modes);
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, caps->link_modes);
 }
 
 static void sfp_quirk_oem_2_5g(const struct sfp_eeprom_id *id,
-			       unsigned long *modes,
-			       unsigned long *interfaces)
+			       struct sfp_module_caps *caps)
 {
 	/* Copper 2.5G SFP */
-	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, modes);
-	__set_bit(PHY_INTERFACE_MODE_2500BASEX, interfaces);
-	sfp_quirk_disable_autoneg(id, modes, interfaces);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 caps->link_modes);
+	__set_bit(PHY_INTERFACE_MODE_2500BASEX, caps->interfaces);
+	sfp_quirk_disable_autoneg(id, caps);
 }
 
 static void sfp_quirk_ubnt_uf_instant(const struct sfp_eeprom_id *id,
-				      unsigned long *modes,
-				      unsigned long *interfaces)
+				      struct sfp_module_caps *caps)
 {
 	/* Ubiquiti U-Fiber Instant module claims that support all transceiver
 	 * types including 10G Ethernet which is not truth. So clear all claimed
 	 * modes and set only one mode which module supports: 1000baseX_Full.
 	 */
-	linkmode_zero(modes);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT, modes);
+	linkmode_zero(caps->link_modes);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+			 caps->link_modes);
 }
 
-#define SFP_QUIRK(_v, _p, _m, _f) \
-	{ .vendor = _v, .part = _p, .modes = _m, .fixup = _f, }
-#define SFP_QUIRK_M(_v, _p, _m) SFP_QUIRK(_v, _p, _m, NULL)
+#define SFP_QUIRK(_v, _p, _s, _f) \
+	{ .vendor = _v, .part = _p, .support = _s, .fixup = _f, }
+#define SFP_QUIRK_S(_v, _p, _s) SFP_QUIRK(_v, _p, _s, NULL)
 #define SFP_QUIRK_F(_v, _p, _f) SFP_QUIRK(_v, _p, NULL, _f)
 
 static const struct sfp_quirk sfp_quirks[] = {
@@ -514,7 +513,7 @@ static const struct sfp_quirk sfp_quirks[] = {
 
 	// HG MXPD-483II-F 2.5G supports 2500Base-X, but incorrectly reports
 	// 2600MBd in their EERPOM
-	SFP_QUIRK_M("HG GENUINE", "MXPD-483II", sfp_quirk_2500basex),
+	SFP_QUIRK_S("HG GENUINE", "MXPD-483II", sfp_quirk_2500basex),
 
 	// Huawei MA5671A can operate at 2500base-X, but report 1.2GBd NRZ in
 	// their EEPROM
@@ -523,9 +522,9 @@ static const struct sfp_quirk sfp_quirks[] = {
 
 	// Lantech 8330-262D-E can operate at 2500base-X, but incorrectly report
 	// 2500MBd NRZ in their EEPROM
-	SFP_QUIRK_M("Lantech", "8330-262D-E", sfp_quirk_2500basex),
+	SFP_QUIRK_S("Lantech", "8330-262D-E", sfp_quirk_2500basex),
 
-	SFP_QUIRK_M("UBNT", "UF-INSTANT", sfp_quirk_ubnt_uf_instant),
+	SFP_QUIRK_S("UBNT", "UF-INSTANT", sfp_quirk_ubnt_uf_instant),
 
 	// Walsun HXSX-ATR[CI]-1 don't identify as copper, and use the
 	// Rollball protocol to talk to the PHY.
@@ -538,9 +537,9 @@ static const struct sfp_quirk sfp_quirks[] = {
 	SFP_QUIRK_F("OEM", "SFP-GE-T", sfp_fixup_ignore_tx_fault),
 
 	SFP_QUIRK_F("OEM", "SFP-10G-T", sfp_fixup_rollball_cc),
-	SFP_QUIRK_M("OEM", "SFP-2.5G-T", sfp_quirk_oem_2_5g),
-	SFP_QUIRK_M("OEM", "SFP-2.5G-BX10-D", sfp_quirk_2500basex),
-	SFP_QUIRK_M("OEM", "SFP-2.5G-BX10-U", sfp_quirk_2500basex),
+	SFP_QUIRK_S("OEM", "SFP-2.5G-T", sfp_quirk_oem_2_5g),
+	SFP_QUIRK_S("OEM", "SFP-2.5G-BX10-D", sfp_quirk_2500basex),
+	SFP_QUIRK_S("OEM", "SFP-2.5G-BX10-U", sfp_quirk_2500basex),
 	SFP_QUIRK_F("OEM", "RTSFP-10", sfp_fixup_rollball_cc),
 	SFP_QUIRK_F("OEM", "RTSFP-10G", sfp_fixup_rollball_cc),
 	SFP_QUIRK_F("Turris", "RTSFP-2.5G", sfp_fixup_rollball),
