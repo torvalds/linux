@@ -53,7 +53,7 @@ static inline struct page *io_zcrx_iov_page(const struct net_iov *niov)
 
 static int io_populate_area_dma(struct io_zcrx_ifq *ifq,
 				struct io_zcrx_area *area,
-				struct sg_table *sgt, unsigned long off)
+				struct sg_table *sgt)
 {
 	struct scatterlist *sg;
 	unsigned i, niov_idx = 0;
@@ -61,11 +61,6 @@ static int io_populate_area_dma(struct io_zcrx_ifq *ifq,
 	for_each_sgtable_dma_sg(sgt, sg, i) {
 		dma_addr_t dma = sg_dma_address(sg);
 		unsigned long sg_len = sg_dma_len(sg);
-		unsigned long sg_off = min(sg_len, off);
-
-		off -= sg_off;
-		sg_len -= sg_off;
-		dma += sg_off;
 
 		while (sg_len && niov_idx < area->nia.num_niovs) {
 			struct net_iov *niov = &area->nia.niovs[niov_idx];
@@ -149,7 +144,6 @@ static int io_import_dmabuf(struct io_zcrx_ifq *ifq,
 		goto err;
 	}
 
-	mem->dmabuf_offset = off;
 	mem->size = len;
 	return 0;
 err:
@@ -269,7 +263,6 @@ static void io_zcrx_unmap_area(struct io_zcrx_ifq *ifq,
 
 static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 {
-	unsigned long offset;
 	struct sg_table *sgt;
 	int ret;
 
@@ -283,13 +276,11 @@ static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 		if (ret < 0)
 			return ret;
 		sgt = &area->mem.page_sg_table;
-		offset = 0;
 	} else {
 		sgt = area->mem.sgt;
-		offset = area->mem.dmabuf_offset;
 	}
 
-	ret = io_populate_area_dma(ifq, area, sgt, offset);
+	ret = io_populate_area_dma(ifq, area, sgt);
 	if (ret == 0)
 		area->is_mapped = true;
 	return ret;

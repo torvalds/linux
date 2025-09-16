@@ -20,7 +20,6 @@ struct io_zcrx_mem {
 	struct dma_buf_attachment	*attach;
 	struct dma_buf			*dmabuf;
 	struct sg_table			*sgt;
-	unsigned long			dmabuf_offset;
 };
 
 struct io_zcrx_area {
