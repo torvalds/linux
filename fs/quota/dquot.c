@@ -881,7 +881,7 @@ void dqput(struct dquot *dquot)
 	put_releasing_dquots(dquot);
 	atomic_dec(&dquot->dq_count);
 	spin_unlock(&dq_list_lock);
-	queue_delayed_work(system_unbound_wq, &quota_release_work, 1);
+	queue_delayed_work(system_dfl_wq, &quota_release_work, 1);
 }
 EXPORT_SYMBOL(dqput);
 

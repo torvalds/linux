@@ -163,7 +163,7 @@ void netfs_put_request(struct netfs_io_request *rreq, enum netfs_rreq_ref_trace 
 		dead = __refcount_dec_and_test(&rreq->ref, &r);
 		trace_netfs_rreq_ref(debug_id, r - 1, what);
 		if (dead)
-			WARN_ON(!queue_work(system_unbound_wq, &rreq->cleanup_work));
+			WARN_ON(!queue_work(system_dfl_wq, &rreq->cleanup_work));
 	}
 }
 

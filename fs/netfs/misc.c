@@ -321,7 +321,7 @@ void netfs_wake_collector(struct netfs_io_request *rreq)
 {
 	if (test_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &rreq->flags) &&
 	    !test_bit(NETFS_RREQ_RETRYING, &rreq->flags)) {
-		queue_work(system_unbound_wq, &rreq->work);
+		queue_work(system_dfl_wq, &rreq->work);
 	} else {
 		trace_netfs_rreq(rreq, netfs_rreq_trace_wake_queue);
 		wake_up(&rreq->waitq);
