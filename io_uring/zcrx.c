@@ -397,8 +397,16 @@ static void io_zcrx_free_area(struct io_zcrx_area *area)
 
 #define IO_ZCRX_AREA_SUPPORTED_FLAGS	(IORING_ZCRX_AREA_DMABUF)
 
+static int io_zcrx_append_area(struct io_zcrx_ifq *ifq,
+				struct io_zcrx_area *area)
+{
+	if (ifq->area)
+		return -EINVAL;
+	ifq->area = area;
+	return 0;
+}
+
 static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
-			       struct io_zcrx_area **res,
 			       struct io_uring_zcrx_area_reg *area_reg)
 {
 	struct io_zcrx_area *area;
@@ -455,8 +463,10 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	area->area_id = 0;
 	area_reg->rq_area_token = (u64)area->area_id << IORING_ZCRX_AREA_SHIFT;
 	spin_lock_init(&area->freelist_lock);
-	*res = area;
-	return 0;
+
+	ret = io_zcrx_append_area(ifq, area);
+	if (!ret)
+		return 0;
 err:
 	if (area)
 		io_zcrx_free_area(area);
@@ -610,7 +620,7 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 	}
 	get_device(ifq->dev);
 
-	ret = io_zcrx_create_area(ifq, &ifq->area, &area);
+	ret = io_zcrx_create_area(ifq, &area);
 	if (ret)
 		goto err;
 
