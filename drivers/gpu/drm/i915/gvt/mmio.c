@@ -49,7 +49,7 @@
  * @gpa: guest physical address
  *
  * Returns:
- * Zero on success, negative error code if failed
+ * The MMIO offset of the given GPA
  */
 int intel_vgpu_gpa_to_mmio_offset(struct intel_vgpu *vgpu, u64 gpa)
 {
