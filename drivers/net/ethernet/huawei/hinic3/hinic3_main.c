@@ -12,6 +12,7 @@
 #include "hinic3_nic_cfg.h"
 #include "hinic3_nic_dev.h"
 #include "hinic3_nic_io.h"
+#include "hinic3_rss.h"
 #include "hinic3_rx.h"
 #include "hinic3_tx.h"
 
@@ -134,6 +135,8 @@ static int hinic3_sw_init(struct net_device *netdev)
 	nic_dev->q_params.sq_depth = HINIC3_SQ_DEPTH;
 	nic_dev->q_params.rq_depth = HINIC3_RQ_DEPTH;
 
+	hinic3_try_to_enable_rss(netdev);
+
 	/* VF driver always uses random MAC address. During VM migration to a
 	 * new device, the new device should learn the VMs old MAC rather than
 	 * provide its own MAC. The product design assumes that every VF is
@@ -145,7 +148,7 @@ static int hinic3_sw_init(struct net_device *netdev)
 			     hinic3_global_func_id(hwdev));
 	if (err) {
 		dev_err(hwdev->dev, "Failed to set default MAC\n");
-		return err;
+		goto err_clear_rss_config;
 	}
 
 	err = hinic3_alloc_txrxqs(netdev);
@@ -159,6 +162,8 @@ static int hinic3_sw_init(struct net_device *netdev)
 err_del_mac:
 	hinic3_del_mac(hwdev, netdev->dev_addr, 0,
 		       hinic3_global_func_id(hwdev));
+err_clear_rss_config:
+	hinic3_clear_rss_config(netdev);
 
 	return err;
 }
@@ -170,6 +175,7 @@ static void hinic3_sw_uninit(struct net_device *netdev)
 	hinic3_free_txrxqs(netdev);
 	hinic3_del_mac(nic_dev->hwdev, netdev->dev_addr, 0,
 		       hinic3_global_func_id(nic_dev->hwdev));
+	hinic3_clear_rss_config(netdev);
 }
 
 static void hinic3_assign_netdev_ops(struct net_device *netdev)

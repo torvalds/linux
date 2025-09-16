@@ -73,6 +73,11 @@ struct hinic3_nic_dev {
 	struct hinic3_txq               *txqs;
 	struct hinic3_rxq               *rxqs;
 
+	enum hinic3_rss_hash_type       rss_hash_type;
+	struct hinic3_rss_type          rss_type;
+	u8                              *rss_hkey;
+	u16                             *rss_indir;
+
 	u16                             num_qp_irq;
 	struct msix_entry               *qps_msix_entries;
 

@@ -56,10 +56,103 @@ struct l2nic_cmd_update_mac {
 	u8                   new_mac[ETH_ALEN];
 };
 
+struct l2nic_cmd_set_ci_attr {
+	struct mgmt_msg_head msg_head;
+	u16                  func_idx;
+	u8                   dma_attr_off;
+	u8                   pending_limit;
+	u8                   coalescing_time;
+	u8                   intr_en;
+	u16                  intr_idx;
+	u32                  l2nic_sqn;
+	u32                  rsvd;
+	u64                  ci_addr;
+};
+
+struct l2nic_cmd_clear_qp_resource {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u16                  rsvd1;
+};
+
 struct l2nic_cmd_force_pkt_drop {
 	struct mgmt_msg_head msg_head;
 	u8                   port;
 	u8                   rsvd1[3];
+};
+
+struct l2nic_cmd_set_vport_state {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u16                  rsvd1;
+	/* 0--disable, 1--enable */
+	u8                   state;
+	u8                   rsvd2[3];
+};
+
+struct l2nic_cmd_set_dcb_state {
+	struct mgmt_msg_head head;
+	u16                  func_id;
+	/* 0 - get dcb state, 1 - set dcb state */
+	u8                   op_code;
+	/* 0 - disable, 1 - enable dcb */
+	u8                   state;
+	/* 0 - disable, 1 - enable dcb */
+	u8                   port_state;
+	u8                   rsvd[7];
+};
+
+#define L2NIC_RSS_TYPE_VALID_MASK         BIT(23)
+#define L2NIC_RSS_TYPE_TCP_IPV6_EXT_MASK  BIT(24)
+#define L2NIC_RSS_TYPE_IPV6_EXT_MASK      BIT(25)
+#define L2NIC_RSS_TYPE_TCP_IPV6_MASK      BIT(26)
+#define L2NIC_RSS_TYPE_IPV6_MASK          BIT(27)
+#define L2NIC_RSS_TYPE_TCP_IPV4_MASK      BIT(28)
+#define L2NIC_RSS_TYPE_IPV4_MASK          BIT(29)
+#define L2NIC_RSS_TYPE_UDP_IPV6_MASK      BIT(30)
+#define L2NIC_RSS_TYPE_UDP_IPV4_MASK      BIT(31)
+#define L2NIC_RSS_TYPE_SET(val, member)  \
+	FIELD_PREP(L2NIC_RSS_TYPE_##member##_MASK, val)
+#define L2NIC_RSS_TYPE_GET(val, member)  \
+	FIELD_GET(L2NIC_RSS_TYPE_##member##_MASK, val)
+
+#define L2NIC_RSS_INDIR_SIZE  256
+#define L2NIC_RSS_KEY_SIZE    40
+
+/* IEEE 802.1Qaz std */
+#define L2NIC_DCB_COS_MAX     0x8
+
+struct l2nic_cmd_set_rss_ctx_tbl {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u16                  rsvd1;
+	u32                  context;
+};
+
+struct l2nic_cmd_cfg_rss_engine {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u8                   opcode;
+	u8                   hash_engine;
+	u8                   rsvd1[4];
+};
+
+struct l2nic_cmd_cfg_rss_hash_key {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u8                   opcode;
+	u8                   rsvd1;
+	u8                   key[L2NIC_RSS_KEY_SIZE];
+};
+
+struct l2nic_cmd_cfg_rss {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u8                   rss_en;
+	u8                   rq_priority_number;
+	u8                   prio_tc[L2NIC_DCB_COS_MAX];
+	u16                  num_qps;
+	u16                  rsvd1;
 };
 
 /* Commands between NIC to fw */
@@ -80,6 +173,32 @@ enum l2nic_cmd {
 	L2NIC_CMD_QOS_DCB_STATE       = 110,
 	L2NIC_CMD_FORCE_PKT_DROP      = 113,
 	L2NIC_CMD_MAX                 = 256,
+};
+
+struct l2nic_cmd_rss_set_indir_tbl {
+	__le32 rsvd[4];
+	__le16 entry[L2NIC_RSS_INDIR_SIZE];
+};
+
+/* NIC CMDQ MODE */
+enum l2nic_ucode_cmd {
+	L2NIC_UCODE_CMD_MODIFY_QUEUE_CTX  = 0,
+	L2NIC_UCODE_CMD_CLEAN_QUEUE_CTX   = 1,
+	L2NIC_UCODE_CMD_SET_RSS_INDIR_TBL = 4,
+};
+
+/* hilink mac group command */
+enum mag_cmd {
+	MAG_CMD_GET_LINK_STATUS = 7,
+};
+
+/* firmware also use this cmd report link event to driver */
+struct mag_cmd_get_link_status {
+	struct mgmt_msg_head head;
+	u8                   port_id;
+	/* 0:link down  1:link up */
+	u8                   status;
+	u8                   rsvd0[2];
 };
 
 enum hinic3_nic_feature_cap {
