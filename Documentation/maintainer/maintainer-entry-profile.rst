@@ -59,6 +59,7 @@ week) that patches might be considered for merging and when patches need to
 wait for the next -rc. At a minimum:
 
 - Last -rc for new feature submissions:
+
   New feature submissions targeting the next merge window should have
   their first posting for consideration before this point. Patches that
   are submitted after this point should be clear that they are targeting
@@ -68,6 +69,7 @@ wait for the next -rc. At a minimum:
   submissions should appear before -rc5.
 
 - Last -rc to merge features: Deadline for merge decisions
+
   Indicate to contributors the point at which an as yet un-applied patch
   set will need to wait for the NEXT+1 merge window. Of course there is no
   obligation to ever accept any given patchset, but if the review has not
