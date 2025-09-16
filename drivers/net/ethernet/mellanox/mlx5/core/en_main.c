@@ -2238,7 +2238,7 @@ static int mlx5e_alloc_cq(struct mlx5_core_dev *mdev,
 	param->eq_ix            = ccp->ix;
 
 	err = mlx5e_alloc_cq_common(mdev, ccp->netdev, ccp->wq,
-				    mdev->priv.bfreg.up, param, cq);
+				    ccp->uar, param, cq);
 
 	cq->napi     = ccp->napi;
 	cq->ch_stats = ccp->ch_stats;
