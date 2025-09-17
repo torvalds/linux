@@ -190,8 +190,8 @@ struct plat_stmmacenet_data {
 	int bus_id;
 	int phy_addr;
 	/* MAC ----- optional PCS ----- SerDes ----- optional PHY ----- Media
-	 *                          ^            ^
-	 *                    mac_interface phy_interface
+	 *                                       ^
+	 *                                  phy_interface
 	 *
 	 * The Synopsys dwmac core only covers the MAC and an optional
 	 * integrated PCS. Where the integrated PCS is used with a SerDes,
@@ -208,12 +208,7 @@ struct plat_stmmacenet_data {
 	 * is used, this counts as "the rest of the SoC" in the above
 	 * paragraph.
 	 *
-	 * Thus, mac_interface is of little use inside the stmmac code;
-	 * please do not use unless there is a definite requirement, and
-	 * make sure to gain review feedback first.
-	 */
-	phy_interface_t mac_interface;
-	/* phy_interface is the PHY-side interface - the interface used by
+	 * phy_interface is the PHY-side interface - the interface used by
 	 * an attached PHY or SFP etc. This is equivalent to the interface
 	 * that phylink uses.
 	 */

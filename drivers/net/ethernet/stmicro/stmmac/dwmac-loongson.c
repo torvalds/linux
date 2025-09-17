@@ -98,8 +98,6 @@ static void loongson_default_data(struct pci_dev *pdev,
 	/* Set default value for multicast hash bins */
 	plat->multicast_filter_bins = 256;
 
-	plat->mac_interface = PHY_INTERFACE_MODE_NA;
-
 	/* Set default value for unicast filter entries */
 	plat->unicast_filter_entries = 1;
 
