@@ -58,7 +58,7 @@ void pr_debug_type_name(Dwarf_Die *die, enum type_state_kind kind)
 	case TSR_KIND_CONST:
 		pr_info(" constant\n");
 		return;
-	case TSR_KIND_POINTER:
+	case TSR_KIND_PERCPU_POINTER:
 		pr_info(" pointer");
 		/* it also prints the type info */
 		break;
@@ -591,7 +591,7 @@ void set_stack_state(struct type_state_stack *stack, int offset, u8 kind,
 	switch (tag) {
 	case DW_TAG_structure_type:
 	case DW_TAG_union_type:
-		stack->compound = (kind != TSR_KIND_POINTER);
+		stack->compound = (kind != TSR_KIND_PERCPU_POINTER);
 		break;
 	default:
 		stack->compound = false;
@@ -1116,7 +1116,7 @@ again:
 		return PERF_TMR_OK;
 	}
 
-	if (state->regs[reg].kind == TSR_KIND_POINTER) {
+	if (state->regs[reg].kind == TSR_KIND_PERCPU_POINTER) {
 		pr_debug_dtp("percpu ptr");
 
 		/*
