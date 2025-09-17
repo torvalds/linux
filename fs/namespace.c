@@ -6008,27 +6008,32 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 	return ret;
 }
 
+struct mnt_namespace init_mnt_ns = {
+	.ns.inum	= PROC_MNT_INIT_INO,
+	.ns.ops		= &mntns_operations,
+	.user_ns	= &init_user_ns,
+	.ns.count	= REFCOUNT_INIT(1),
+	.passive	= REFCOUNT_INIT(1),
+	.mounts		= RB_ROOT,
+	.poll		= __WAIT_QUEUE_HEAD_INITIALIZER(init_mnt_ns.poll),
+};
+
 static void __init init_mount_tree(void)
 {
 	struct vfsmount *mnt;
 	struct mount *m;
-	struct mnt_namespace *ns;
 	struct path root;
 
 	mnt = vfs_kern_mount(&rootfs_fs_type, 0, "rootfs", NULL);
 	if (IS_ERR(mnt))
 		panic("Can't create rootfs");
 
-	ns = alloc_mnt_ns(&init_user_ns, true);
-	if (IS_ERR(ns))
-		panic("Can't allocate initial namespace");
-	ns->ns.inum = PROC_MNT_INIT_INO;
 	m = real_mount(mnt);
-	ns->root = m;
-	ns->nr_mounts = 1;
-	mnt_add_to_ns(ns, m);
-	init_task.nsproxy->mnt_ns = ns;
-	get_mnt_ns(ns);
+	init_mnt_ns.root = m;
+	init_mnt_ns.nr_mounts = 1;
+	mnt_add_to_ns(&init_mnt_ns, m);
+	init_task.nsproxy->mnt_ns = &init_mnt_ns;
+	get_mnt_ns(&init_mnt_ns);
 
 	root.mnt = mnt;
 	root.dentry = mnt->mnt_root;
@@ -6036,7 +6041,7 @@ static void __init init_mount_tree(void)
 	set_fs_pwd(current->fs, &root);
 	set_fs_root(current->fs, &root);
 
-	ns_tree_add(ns);
+	ns_tree_add(&init_mnt_ns);
 }
 
 void __init mnt_init(void)
