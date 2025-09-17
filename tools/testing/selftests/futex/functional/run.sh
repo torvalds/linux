@@ -51,7 +51,7 @@ echo
 ./futex_wait_private_mapped_file
 
 echo
-./futex_wait $COLOR
+./futex_wait
 
 echo
 ./futex_requeue $COLOR
