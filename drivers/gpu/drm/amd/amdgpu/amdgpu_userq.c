@@ -977,7 +977,10 @@ int amdgpu_userq_suspend(struct amdgpu_device *adev)
 		cancel_delayed_work_sync(&uqm->resume_work);
 		mutex_lock(&uqm->userq_mutex);
 		idr_for_each_entry(&uqm->userq_idr, queue, queue_id) {
-			r = amdgpu_userq_unmap_helper(uqm, queue);
+			if (adev->in_s0ix)
+				r = amdgpu_userq_preempt_helper(uqm, queue);
+			else
+				r = amdgpu_userq_unmap_helper(uqm, queue);
 			if (r)
 				ret = r;
 		}
@@ -1002,7 +1005,10 @@ int amdgpu_userq_resume(struct amdgpu_device *adev)
 	list_for_each_entry_safe(uqm, tmp, &adev->userq_mgr_list, list) {
 		mutex_lock(&uqm->userq_mutex);
 		idr_for_each_entry(&uqm->userq_idr, queue, queue_id) {
-			r = amdgpu_userq_map_helper(uqm, queue);
+			if (adev->in_s0ix)
+				r = amdgpu_userq_restore_helper(uqm, queue);
+			else
+				r = amdgpu_userq_map_helper(uqm, queue);
 			if (r)
 				ret = r;
 		}
