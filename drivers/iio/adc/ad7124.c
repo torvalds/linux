@@ -708,7 +708,7 @@ static int ad7124_disable_all(struct ad_sigma_delta *sd)
 	int ret;
 	int i;
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < AD7124_MAX_CHANNELS; i++) {
 		ret = ad7124_disable_one(sd, i);
 		if (ret < 0)
 			return ret;
