@@ -859,7 +859,7 @@ static int add_missing_keys(struct btrfs_fs_info *fs_info,
 			free_pref(ref);
 			return PTR_ERR(eb);
 		}
-		if (!extent_buffer_uptodate(eb)) {
+		if (unlikely(!extent_buffer_uptodate(eb))) {
 			free_pref(ref);
 			free_extent_buffer(eb);
 			return -EIO;
@@ -1614,7 +1614,7 @@ again:
 					ret = PTR_ERR(eb);
 					goto out;
 				}
-				if (!extent_buffer_uptodate(eb)) {
+				if (unlikely(!extent_buffer_uptodate(eb))) {
 					free_extent_buffer(eb);
 					ret = -EIO;
 					goto out;

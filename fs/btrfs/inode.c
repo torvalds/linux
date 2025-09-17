@@ -3104,7 +3104,7 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 	if (!freespace_inode)
 		btrfs_lockdep_acquire(fs_info, btrfs_ordered_extent);
 
-	if (test_bit(BTRFS_ORDERED_IOERR, &ordered_extent->flags)) {
+	if (unlikely(test_bit(BTRFS_ORDERED_IOERR, &ordered_extent->flags))) {
 		ret = -EIO;
 		goto out;
 	}
@@ -3370,7 +3370,7 @@ int btrfs_check_block_csum(struct btrfs_fs_info *fs_info, phys_addr_t paddr, u8 
 			   const u8 * const csum_expected)
 {
 	btrfs_calculate_block_csum(fs_info, paddr, csum);
-	if (memcmp(csum, csum_expected, fs_info->csum_size))
+	if (unlikely(memcmp(csum, csum_expected, fs_info->csum_size) != 0))
 		return -EIO;
 	return 0;
 }
@@ -4842,7 +4842,7 @@ again:
 			folio_put(folio);
 			goto again;
 		}
-		if (!folio_test_uptodate(folio)) {
+		if (unlikely(!folio_test_uptodate(folio))) {
 			ret = -EIO;
 			goto out_unlock;
 		}
@@ -4986,7 +4986,7 @@ again:
 			folio_put(folio);
 			goto again;
 		}
-		if (!folio_test_uptodate(folio)) {
+		if (unlikely(!folio_test_uptodate(folio))) {
 			ret = -EIO;
 			goto out_unlock;
 		}
@@ -7179,7 +7179,7 @@ not_found:
 insert:
 	ret = 0;
 	btrfs_release_path(path);
-	if (em->start > start || btrfs_extent_map_end(em) <= start) {
+	if (unlikely(em->start > start || btrfs_extent_map_end(em) <= start)) {
 		btrfs_err(fs_info,
 			  "bad extent! em: [%llu %llu] passed [%llu %llu]",
 			  em->start, em->len, start, len);
@@ -9298,7 +9298,7 @@ static ssize_t btrfs_encoded_read_inline(
 	ret = btrfs_lookup_file_extent(NULL, root, path, btrfs_ino(inode),
 				       extent_start, 0);
 	if (ret) {
-		if (ret > 0) {
+		if (unlikely(ret > 0)) {
 			/* The extent item disappeared? */
 			return -EIO;
 		}

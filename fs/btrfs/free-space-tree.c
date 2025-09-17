@@ -137,12 +137,12 @@ static int btrfs_search_prev_slot(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		return ret;
 
-	if (ret == 0) {
+	if (unlikely(ret == 0)) {
 		DEBUG_WARN();
 		return -EIO;
 	}
 
-	if (p->slots[0] == 0) {
+	if (unlikely(p->slots[0] == 0)) {
 		DEBUG_WARN("no previous slot found");
 		return -EIO;
 	}
@@ -293,7 +293,7 @@ int btrfs_convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 	expected_extent_count = btrfs_free_space_extent_count(leaf, info);
 	btrfs_release_path(path);
 
-	if (extent_count != expected_extent_count) {
+	if (unlikely(extent_count != expected_extent_count)) {
 		btrfs_err(fs_info,
 			  "incorrect extent count for %llu; counted %u, expected %u",
 			  block_group->start, extent_count,
@@ -465,7 +465,7 @@ int btrfs_convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 		start_bit = find_next_bit_le(bitmap, nrbits, end_bit);
 	}
 
-	if (extent_count != expected_extent_count) {
+	if (unlikely(extent_count != expected_extent_count)) {
 		btrfs_err(fs_info,
 			  "incorrect extent count for %llu; counted %u, expected %u",
 			  block_group->start, extent_count,
@@ -1611,7 +1611,7 @@ static int load_free_space_bitmaps(struct btrfs_caching_control *caching_ctl,
 		extent_count++;
 	}
 
-	if (extent_count != expected_extent_count) {
+	if (unlikely(extent_count != expected_extent_count)) {
 		btrfs_err(fs_info,
 			  "incorrect extent count for %llu; counted %u, expected %u",
 			  block_group->start, extent_count,
@@ -1672,7 +1672,7 @@ static int load_free_space_extents(struct btrfs_caching_control *caching_ctl,
 		extent_count++;
 	}
 
-	if (extent_count != expected_extent_count) {
+	if (unlikely(extent_count != expected_extent_count)) {
 		btrfs_err(fs_info,
 			  "incorrect extent count for %llu; counted %u, expected %u",
 			  block_group->start, extent_count,

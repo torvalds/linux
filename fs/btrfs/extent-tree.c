@@ -5638,7 +5638,7 @@ static int maybe_drop_reference(struct btrfs_trans_handle *trans, struct btrfs_r
 		ref.parent = path->nodes[level]->start;
 	} else {
 		ASSERT(btrfs_root_id(root) == btrfs_header_owner(path->nodes[level]));
-		if (btrfs_root_id(root) != btrfs_header_owner(path->nodes[level])) {
+		if (unlikely(btrfs_root_id(root) != btrfs_header_owner(path->nodes[level]))) {
 			btrfs_err(root->fs_info, "mismatched block owner");
 			return -EIO;
 		}
@@ -5774,7 +5774,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 
 	level--;
 	ASSERT(level == btrfs_header_level(next));
-	if (level != btrfs_header_level(next)) {
+	if (unlikely(level != btrfs_header_level(next))) {
 		btrfs_err(root->fs_info, "mismatched level");
 		ret = -EIO;
 		goto out_unlock;

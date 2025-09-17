@@ -3880,7 +3880,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int mirror_num,
 		return ret;
 
 	wait_on_bit_io(&eb->bflags, EXTENT_BUFFER_READING, TASK_UNINTERRUPTIBLE);
-	if (!test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))
+	if (unlikely(!test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags)))
 		return -EIO;
 	return 0;
 }

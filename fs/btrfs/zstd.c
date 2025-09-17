@@ -654,7 +654,7 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		if (workspace->in_buf.pos == workspace->in_buf.size) {
 			kunmap_local(workspace->in_buf.src);
 			folio_in_index++;
-			if (folio_in_index >= total_folios_in) {
+			if (unlikely(folio_in_index >= total_folios_in)) {
 				workspace->in_buf.src = NULL;
 				ret = -EIO;
 				goto done;

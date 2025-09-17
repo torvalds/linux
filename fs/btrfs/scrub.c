@@ -1987,7 +1987,7 @@ static int flush_scrub_stripes(struct scrub_ctx *sctx)
 		 * metadata, we should immediately abort.
 		 */
 		for (int i = 0; i < nr_stripes; i++) {
-			if (stripe_has_metadata_error(&sctx->stripes[i])) {
+			if (unlikely(stripe_has_metadata_error(&sctx->stripes[i]))) {
 				ret = -EIO;
 				goto out;
 			}
@@ -2181,7 +2181,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 		 * As we may hit an empty data stripe while it's missing.
 		 */
 		bitmap_and(&error, &error, &has_extent, stripe->nr_sectors);
-		if (!bitmap_empty(&error, stripe->nr_sectors)) {
+		if (unlikely(!bitmap_empty(&error, stripe->nr_sectors))) {
 			btrfs_err(fs_info,
 "scrub: unrepaired sectors detected, full stripe %llu data stripe %u errors %*pbl",
 				  full_stripe_start, i, stripe->nr_sectors,
@@ -2875,8 +2875,8 @@ skip_unfreeze:
 		btrfs_put_block_group(cache);
 		if (ret)
 			break;
-		if (sctx->is_dev_replace &&
-		    atomic64_read(&dev_replace->num_write_errors) > 0) {
+		if (unlikely(sctx->is_dev_replace &&
+			     atomic64_read(&dev_replace->num_write_errors) > 0)) {
 			ret = -EIO;
 			break;
 		}
@@ -2904,7 +2904,7 @@ static int scrub_one_super(struct scrub_ctx *sctx, struct btrfs_device *dev,
 	if (ret < 0)
 		return ret;
 	ret = btrfs_check_super_csum(fs_info, sb);
-	if (ret != 0) {
+	if (unlikely(ret != 0)) {
 		btrfs_err_rl(fs_info,
 		  "scrub: super block at physical %llu devid %llu has bad csum",
 			physical, dev->devid);
@@ -3080,8 +3080,8 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	}
 
 	mutex_lock(&fs_info->scrub_lock);
-	if (!test_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &dev->dev_state) ||
-	    test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &dev->dev_state)) {
+	if (unlikely(!test_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &dev->dev_state) ||
+		     test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &dev->dev_state))) {
 		mutex_unlock(&fs_info->scrub_lock);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		ret = -EIO;

@@ -291,7 +291,7 @@ int zlib_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 		ret = zlib_deflate(&workspace->strm, Z_FINISH);
 		if (ret == Z_STREAM_END)
 			break;
-		if (ret != Z_OK && ret != Z_BUF_ERROR) {
+		if (unlikely(ret != Z_OK && ret != Z_BUF_ERROR)) {
 			zlib_deflateEnd(&workspace->strm);
 			ret = -EIO;
 			goto out;

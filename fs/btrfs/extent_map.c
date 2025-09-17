@@ -1057,7 +1057,7 @@ int btrfs_split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pr
 	btrfs_lock_extent(&inode->io_tree, start, start + len - 1, NULL);
 	write_lock(&em_tree->lock);
 	em = btrfs_lookup_extent_mapping(em_tree, start, len);
-	if (!em) {
+	if (unlikely(!em)) {
 		ret = -EIO;
 		goto out_unlock;
 	}

@@ -1167,7 +1167,7 @@ static int rbio_add_io_sector(struct btrfs_raid_bio *rbio,
 		/* Check if we have reached tolerance early. */
 		found_errors = get_rbio_veritical_errors(rbio, sector_nr,
 							 NULL, NULL);
-		if (found_errors > rbio->bioc->max_errors)
+		if (unlikely(found_errors > rbio->bioc->max_errors))
 			return -EIO;
 		return 0;
 	}
@@ -1847,7 +1847,7 @@ static int recover_vertical(struct btrfs_raid_bio *rbio, int sector_nr,
 	if (!found_errors)
 		return 0;
 
-	if (found_errors > rbio->bioc->max_errors)
+	if (unlikely(found_errors > rbio->bioc->max_errors))
 		return -EIO;
 
 	/*
@@ -2399,7 +2399,7 @@ static void rmw_rbio(struct btrfs_raid_bio *rbio)
 		int found_errors;
 
 		found_errors = get_rbio_veritical_errors(rbio, sectornr, NULL, NULL);
-		if (found_errors > rbio->bioc->max_errors) {
+		if (unlikely(found_errors > rbio->bioc->max_errors)) {
 			ret = -EIO;
 			break;
 		}
@@ -2688,7 +2688,7 @@ static int recover_scrub_rbio(struct btrfs_raid_bio *rbio)
 
 		found_errors = get_rbio_veritical_errors(rbio, sector_nr,
 							 &faila, &failb);
-		if (found_errors > rbio->bioc->max_errors) {
+		if (unlikely(found_errors > rbio->bioc->max_errors)) {
 			ret = -EIO;
 			goto out;
 		}
@@ -2712,7 +2712,7 @@ static int recover_scrub_rbio(struct btrfs_raid_bio *rbio)
 		 * data, so the capability of the repair is declined.  (In the
 		 * case of RAID5, we can not repair anything.)
 		 */
-		if (dfail > rbio->bioc->max_errors - 1) {
+		if (unlikely(dfail > rbio->bioc->max_errors - 1)) {
 			ret = -EIO;
 			goto out;
 		}
@@ -2729,7 +2729,7 @@ static int recover_scrub_rbio(struct btrfs_raid_bio *rbio)
 		 * scrubbing parity, luckily, use the other one to repair the
 		 * data, or we can not repair the data stripe.
 		 */
-		if (failp != rbio->scrubp) {
+		if (unlikely(failp != rbio->scrubp)) {
 			ret = -EIO;
 			goto out;
 		}
@@ -2820,7 +2820,7 @@ static void scrub_rbio(struct btrfs_raid_bio *rbio)
 		int found_errors;
 
 		found_errors = get_rbio_veritical_errors(rbio, sector_nr, NULL, NULL);
-		if (found_errors > rbio->bioc->max_errors) {
+		if (unlikely(found_errors > rbio->bioc->max_errors)) {
 			ret = -EIO;
 			break;
 		}

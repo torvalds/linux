@@ -815,7 +815,7 @@ static int prepare_uptodate_folio(struct inode *inode, struct folio *folio, u64 
 	if (ret)
 		return ret;
 	folio_lock(folio);
-	if (!folio_test_uptodate(folio)) {
+	if (unlikely(!folio_test_uptodate(folio))) {
 		folio_unlock(folio);
 		return -EIO;
 	}

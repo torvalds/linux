@@ -849,8 +849,8 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 	if (ret < 0)
 		goto out_counter_dec;
 
-	if (!smap.dev->bdev ||
-	    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &smap.dev->dev_state)) {
+	if (unlikely(!smap.dev->bdev ||
+		     !test_bit(BTRFS_DEV_STATE_WRITEABLE, &smap.dev->dev_state))) {
 		ret = -EIO;
 		goto out_counter_dec;
 	}

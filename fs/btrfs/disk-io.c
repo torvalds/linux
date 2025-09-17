@@ -370,21 +370,21 @@ int btrfs_validate_extent_buffer(struct extent_buffer *eb,
 	ASSERT(check);
 
 	found_start = btrfs_header_bytenr(eb);
-	if (found_start != eb->start) {
+	if (unlikely(found_start != eb->start)) {
 		btrfs_err_rl(fs_info,
 			"bad tree block start, mirror %u want %llu have %llu",
 			     eb->read_mirror, eb->start, found_start);
 		ret = -EIO;
 		goto out;
 	}
-	if (check_tree_block_fsid(eb)) {
+	if (unlikely(check_tree_block_fsid(eb))) {
 		btrfs_err_rl(fs_info, "bad fsid on logical %llu mirror %u",
 			     eb->start, eb->read_mirror);
 		ret = -EIO;
 		goto out;
 	}
 	found_level = btrfs_header_level(eb);
-	if (found_level >= BTRFS_MAX_LEVEL) {
+	if (unlikely(found_level >= BTRFS_MAX_LEVEL)) {
 		btrfs_err(fs_info,
 			"bad tree block level, mirror %u level %d on logical %llu",
 			eb->read_mirror, btrfs_header_level(eb), eb->start);
@@ -410,7 +410,7 @@ int btrfs_validate_extent_buffer(struct extent_buffer *eb,
 		}
 	}
 
-	if (found_level != check->level) {
+	if (unlikely(found_level != check->level)) {
 		btrfs_err(fs_info,
 		"level verify failed on logical %llu mirror %u wanted %u found %u",
 			  eb->start, eb->read_mirror, check->level, found_level);
@@ -1046,7 +1046,7 @@ static struct btrfs_root *read_tree_root_path(struct btrfs_root *tree_root,
 		root->node = NULL;
 		goto fail;
 	}
-	if (!btrfs_buffer_uptodate(root->node, generation, false)) {
+	if (unlikely(!btrfs_buffer_uptodate(root->node, generation, false))) {
 		ret = -EIO;
 		goto fail;
 	}
@@ -2058,7 +2058,7 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 	u64 bytenr = btrfs_super_log_root(disk_super);
 	int level = btrfs_super_log_root_level(disk_super);
 
-	if (fs_devices->rw_devices == 0) {
+	if (unlikely(fs_devices->rw_devices == 0)) {
 		btrfs_warn(fs_info, "log replay required on RO media");
 		return -EIO;
 	}
@@ -2079,7 +2079,7 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 		btrfs_put_root(log_tree_root);
 		return ret;
 	}
-	if (!extent_buffer_uptodate(log_tree_root->node)) {
+	if (unlikely(!extent_buffer_uptodate(log_tree_root->node))) {
 		btrfs_err(fs_info, "failed to read log tree");
 		btrfs_put_root(log_tree_root);
 		return -EIO;
@@ -2641,7 +2641,7 @@ static int load_super_root(struct btrfs_root *root, u64 bytenr, u64 gen, int lev
 		root->node = NULL;
 		return ret;
 	}
-	if (!extent_buffer_uptodate(root->node)) {
+	if (unlikely(!extent_buffer_uptodate(root->node))) {
 		free_extent_buffer(root->node);
 		root->node = NULL;
 		return -EIO;
@@ -3469,7 +3469,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	 * below in btrfs_init_dev_replace().
 	 */
 	btrfs_free_extra_devids(fs_devices);
-	if (!fs_devices->latest_dev->bdev) {
+	if (unlikely(!fs_devices->latest_dev->bdev)) {
 		btrfs_err(fs_info, "failed to read devices");
 		ret = -EIO;
 		goto fail_tree_roots;
@@ -3963,7 +3963,7 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 	 * Checks last_flush_error of disks in order to determine the device
 	 * state.
 	 */
-	if (errors_wait && !btrfs_check_rw_degradable(info, NULL))
+	if (unlikely(errors_wait && !btrfs_check_rw_degradable(info, NULL)))
 		return -EIO;
 
 	return 0;
@@ -4076,7 +4076,7 @@ int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 		if (ret)
 			total_errors++;
 	}
-	if (total_errors > max_errors) {
+	if (unlikely(total_errors > max_errors)) {
 		btrfs_err(fs_info, "%d errors while writing supers",
 			  total_errors);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
@@ -4101,7 +4101,7 @@ int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 			total_errors++;
 	}
 	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-	if (total_errors > max_errors) {
+	if (unlikely(total_errors > max_errors)) {
 		btrfs_handle_fs_error(fs_info, -EIO,
 				      "%d errors while writing supers",
 				      total_errors);
