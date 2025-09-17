@@ -87,7 +87,7 @@
 #define SMB_INTERFACE_POLL_INTERVAL	600
 
 /* maximum number of PDUs in one compound */
-#define MAX_COMPOUND 7
+#define MAX_COMPOUND 10
 
 /*
  * Default number of credits to keep available for SMB3.
@@ -1882,9 +1882,12 @@ static inline bool is_replayable_error(int error)
 
 
 /* cifs_get_writable_file() flags */
-#define FIND_WR_ANY         0
-#define FIND_WR_FSUID_ONLY  1
-#define FIND_WR_WITH_DELETE 2
+enum cifs_writable_file_flags {
+	FIND_WR_ANY			= 0U,
+	FIND_WR_FSUID_ONLY		= (1U << 0),
+	FIND_WR_WITH_DELETE		= (1U << 1),
+	FIND_WR_NO_PENDING_DELETE	= (1U << 2),
+};
 
 #define   MID_FREE 0
 #define   MID_REQUEST_ALLOCATED 1
@@ -2343,6 +2346,8 @@ struct smb2_compound_vars {
 	struct kvec qi_iov;
 	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
 	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
+	struct kvec unlink_iov[SMB2_SET_INFO_IOV_SIZE];
+	struct kvec rename_iov[SMB2_SET_INFO_IOV_SIZE];
 	struct kvec close_iov;
 	struct smb2_file_rename_info_hdr rename_info;
 	struct smb2_file_link_info_hdr link_info;
