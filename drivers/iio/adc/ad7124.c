@@ -1486,7 +1486,10 @@ static int ad7124_setup(struct ad7124_state *st)
 	st->adc_control &= ~AD7124_ADC_CONTROL_MODE;
 	st->adc_control |= FIELD_PREP(AD7124_ADC_CONTROL_MODE, AD_SD_MODE_IDLE);
 
-	mutex_init(&st->cfgs_lock);
+	ret = devm_mutex_init(dev, &st->cfgs_lock);
+	if (ret)
+		return ret;
+
 	INIT_KFIFO(st->live_cfgs_fifo);
 	for (i = 0; i < st->num_channels; i++) {
 		struct ad7124_channel_config *cfg = &st->channels[i].cfg;
