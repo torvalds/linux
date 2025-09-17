@@ -28,6 +28,7 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/quirks.h>
 #include <linux/workqueue.h>
+#include <linux/minmax.h>
 #include <linux/mutex.h>
 #include <linux/random.h>
 #include <linux/pm_qos.h>
@@ -277,10 +278,7 @@ static void usb_set_lpm_pel(struct usb_device *udev,
 	 * device and the parent hub into U0.  The exit latency is the bigger of
 	 * the device exit latency or the hub exit latency.
 	 */
-	if (udev_exit_latency > hub_exit_latency)
-		first_link_pel = udev_exit_latency * 1000;
-	else
-		first_link_pel = hub_exit_latency * 1000;
+	first_link_pel = max(udev_exit_latency, hub_exit_latency) * 1000;
 
 	/*
 	 * When the hub starts to receive the LFPS, there is a slight delay for
@@ -294,10 +292,7 @@ static void usb_set_lpm_pel(struct usb_device *udev,
 	 * According to figure C-7 in the USB 3.0 spec, the PEL for this device
 	 * is the greater of the two exit latencies.
 	 */
-	if (first_link_pel > hub_pel)
-		udev_lpm_params->pel = first_link_pel;
-	else
-		udev_lpm_params->pel = hub_pel;
+	udev_lpm_params->pel = max(first_link_pel, hub_pel);
 }
 
 /*
