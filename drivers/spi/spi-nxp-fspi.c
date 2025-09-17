@@ -767,6 +767,8 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	 */
 	if (rate > 100000000)
 		nxp_fspi_dll_calibration(f);
+	else
+		nxp_fspi_dll_override(f);
 
 	f->selected = spi_get_chipselect(spi, 0);
 }
