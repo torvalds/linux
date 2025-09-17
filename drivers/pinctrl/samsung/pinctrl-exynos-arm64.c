@@ -2023,3 +2023,52 @@ const struct samsung_pinctrl_of_match_data artpec8_of_data __initconst = {
 	.ctrl		= artpec8_pin_ctrl,
 	.num_ctrl	= ARRAY_SIZE(artpec8_pin_ctrl),
 };
+
+/* pin banks of artpec9 pin-controller (FSYS0) */
+static const struct samsung_pin_bank_data artpec9_pin_banks0[] __initconst = {
+	ARTPEC_PIN_BANK_EINTG(8, 0x000, "gpf0", 0x00),
+	ARTPEC_PIN_BANK_EINTG(8, 0x020, "gpf1", 0x04),
+	ARTPEC_PIN_BANK_EINTG(8, 0x040, "gpe0", 0x08),
+	ARTPEC_PIN_BANK_EINTG(8, 0x060, "gpe1", 0x0c),
+	ARTPEC_PIN_BANK_EINTG(8, 0x080, "gpe2", 0x10),
+	ARTPEC_PIN_BANK_EINTG(8, 0x0a0, "gpe3", 0x14),
+	ARTPEC_PIN_BANK_EINTG(2, 0x0c0, "gpe4", 0x18),
+	ARTPEC_PIN_BANK_EINTG(8, 0x0e0, "gps0", 0x1c),
+	ARTPEC_PIN_BANK_EINTG(8, 0x100, "gps1", 0x20),
+	ARTPEC_PIN_BANK_EINTG(5, 0x120, "gpi0", 0x24),
+};
+
+/* pin banks of artpec9 pin-controller (FSYS1) */
+static const struct samsung_pin_bank_data artpec9_pin_banks1[] __initconst = {
+	ARTPEC_PIN_BANK_EINTG(2, 0x000, "gpu0", 0x00),
+};
+
+/* pin banks of artpec9 pin-controller (PERIC) */
+static const struct samsung_pin_bank_data artpec9_pin_banks2[] __initconst = {
+	ARTPEC_PIN_BANK_EINTG(8, 0x000, "gpa0", 0x00),
+	ARTPEC_PIN_BANK_EINTG(8, 0x020, "gpa1", 0x04),
+};
+
+static const struct samsung_pin_ctrl artpec9_pin_ctrl[] __initconst = {
+	{
+		/* pin-controller instance 0 FSYS0 data */
+		.pin_banks	= artpec9_pin_banks0,
+		.nr_banks	= ARRAY_SIZE(artpec9_pin_banks0),
+		.eint_gpio_init	= exynos_eint_gpio_init,
+	}, {
+		/* pin-controller instance 1 FSYS1 data */
+		.pin_banks	= artpec9_pin_banks1,
+		.nr_banks	= ARRAY_SIZE(artpec9_pin_banks1),
+		.eint_gpio_init	= exynos_eint_gpio_init,
+	}, {
+		/* pin-controller instance 2 PERIC data */
+		.pin_banks	= artpec9_pin_banks2,
+		.nr_banks	= ARRAY_SIZE(artpec9_pin_banks2),
+		.eint_gpio_init	= exynos_eint_gpio_init,
+	},
+};
+
+const struct samsung_pinctrl_of_match_data artpec9_of_data __initconst = {
+	.ctrl		= artpec9_pin_ctrl,
+	.num_ctrl	= ARRAY_SIZE(artpec9_pin_ctrl),
+};

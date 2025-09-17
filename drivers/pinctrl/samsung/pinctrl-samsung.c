@@ -1484,6 +1484,8 @@ static const struct of_device_id samsung_pinctrl_dt_match[] = {
 #ifdef CONFIG_PINCTRL_EXYNOS_ARM64
 	{ .compatible = "axis,artpec8-pinctrl",
 		.data = &artpec8_of_data },
+	{ .compatible = "axis,artpec9-pinctrl",
+		.data = &artpec9_of_data },
 	{ .compatible = "google,gs101-pinctrl",
 		.data = &gs101_of_data },
 	{ .compatible = "samsung,exynos2200-pinctrl",
