@@ -14,6 +14,7 @@ config NF_DEFRAG_IPV4
 config IP_NF_IPTABLES_LEGACY
 	tristate "Legacy IP tables support"
 	depends on NETFILTER_XTABLES_LEGACY
+	depends on NETFILTER_XTABLES
 	default	m if NETFILTER_XTABLES_LEGACY
 	help
 	  iptables is a legacy packet classifier.
@@ -326,6 +327,7 @@ endif # IP_NF_IPTABLES
 config IP_NF_ARPTABLES
 	tristate "Legacy ARPTABLES support"
 	depends on NETFILTER_XTABLES_LEGACY
+	depends on NETFILTER_XTABLES
 	default	n
 	help
 	  arptables is a legacy packet classifier.
@@ -343,6 +345,7 @@ config IP_NF_ARPFILTER
 	select IP_NF_ARPTABLES
 	select NETFILTER_FAMILY_ARP
 	depends on NETFILTER_XTABLES_LEGACY
+	depends on NETFILTER_XTABLES
 	help
 	  ARP packet filtering defines a table `filter', which has a series of
 	  rules for simple ARP packet filtering at local input and

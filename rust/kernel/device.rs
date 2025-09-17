@@ -15,23 +15,130 @@ use crate::c_str;
 
 pub mod property;
 
-/// A reference-counted device.
+/// The core representation of a device in the kernel's driver model.
 ///
-/// This structure represents the Rust abstraction for a C `struct device`. This implementation
-/// abstracts the usage of an already existing C `struct device` within Rust code that we get
-/// passed from the C side.
+/// This structure represents the Rust abstraction for a C `struct device`. A [`Device`] can either
+/// exist as temporary reference (see also [`Device::from_raw`]), which is only valid within a
+/// certain scope or as [`ARef<Device>`], owning a dedicated reference count.
 ///
-/// An instance of this abstraction can be obtained temporarily or permanent.
+/// # Device Types
 ///
-/// A temporary one is bound to the lifetime of the C `struct device` pointer used for creation.
-/// A permanent instance is always reference-counted and hence not restricted by any lifetime
-/// boundaries.
+/// A [`Device`] can represent either a bus device or a class device.
 ///
-/// For subsystems it is recommended to create a permanent instance to wrap into a subsystem
-/// specific device structure (e.g. `pci::Device`). This is useful for passing it to drivers in
-/// `T::probe()`, such that a driver can store the `ARef<Device>` (equivalent to storing a
-/// `struct device` pointer in a C driver) for arbitrary purposes, e.g. allocating DMA coherent
-/// memory.
+/// ## Bus Devices
+///
+/// A bus device is a [`Device`] that is associated with a physical or virtual bus. Examples of
+/// buses include PCI, USB, I2C, and SPI. Devices attached to a bus are registered with a specific
+/// bus type, which facilitates matching devices with appropriate drivers based on IDs or other
+/// identifying information. Bus devices are visible in sysfs under `/sys/bus/<bus-name>/devices/`.
+///
+/// ## Class Devices
+///
+/// A class device is a [`Device`] that is associated with a logical category of functionality
+/// rather than a physical bus. Examples of classes include block devices, network interfaces, sound
+/// cards, and input devices. Class devices are grouped under a common class and exposed to
+/// userspace via entries in `/sys/class/<class-name>/`.
+///
+/// # Device Context
+///
+/// [`Device`] references are generic over a [`DeviceContext`], which represents the type state of
+/// a [`Device`].
+///
+/// As the name indicates, this type state represents the context of the scope the [`Device`]
+/// reference is valid in. For instance, the [`Bound`] context guarantees that the [`Device`] is
+/// bound to a driver for the entire duration of the existence of a [`Device<Bound>`] reference.
+///
+/// Other [`DeviceContext`] types besides [`Bound`] are [`Normal`], [`Core`] and [`CoreInternal`].
+///
+/// Unless selected otherwise [`Device`] defaults to the [`Normal`] [`DeviceContext`], which by
+/// itself has no additional requirements.
+///
+/// It is always up to the caller of [`Device::from_raw`] to select the correct [`DeviceContext`]
+/// type for the corresponding scope the [`Device`] reference is created in.
+///
+/// All [`DeviceContext`] types other than [`Normal`] are intended to be used with
+/// [bus devices](#bus-devices) only.
+///
+/// # Implementing Bus Devices
+///
+/// This section provides a guideline to implement bus specific devices, such as [`pci::Device`] or
+/// [`platform::Device`].
+///
+/// A bus specific device should be defined as follows.
+///
+/// ```ignore
+/// #[repr(transparent)]
+/// pub struct Device<Ctx: device::DeviceContext = device::Normal>(
+///     Opaque<bindings::bus_device_type>,
+///     PhantomData<Ctx>,
+/// );
+/// ```
+///
+/// Since devices are reference counted, [`AlwaysRefCounted`] should be implemented for `Device`
+/// (i.e. `Device<Normal>`). Note that [`AlwaysRefCounted`] must not be implemented for any other
+/// [`DeviceContext`], since all other device context types are only valid within a certain scope.
+///
+/// In order to be able to implement the [`DeviceContext`] dereference hierarchy, bus device
+/// implementations should call the [`impl_device_context_deref`] macro as shown below.
+///
+/// ```ignore
+/// // SAFETY: `Device` is a transparent wrapper of a type that doesn't depend on `Device`'s
+/// // generic argument.
+/// kernel::impl_device_context_deref!(unsafe { Device });
+/// ```
+///
+/// In order to convert from a any [`Device<Ctx>`] to [`ARef<Device>`], bus devices can implement
+/// the following macro call.
+///
+/// ```ignore
+/// kernel::impl_device_context_into_aref!(Device);
+/// ```
+///
+/// Bus devices should also implement the following [`AsRef`] implementation, such that users can
+/// easily derive a generic [`Device`] reference.
+///
+/// ```ignore
+/// impl<Ctx: device::DeviceContext> AsRef<device::Device<Ctx>> for Device<Ctx> {
+///     fn as_ref(&self) -> &device::Device<Ctx> {
+///         ...
+///     }
+/// }
+/// ```
+///
+/// # Implementing Class Devices
+///
+/// Class device implementations require less infrastructure and depend slightly more on the
+/// specific subsystem.
+///
+/// An example implementation for a class device could look like this.
+///
+/// ```ignore
+/// #[repr(C)]
+/// pub struct Device<T: class::Driver> {
+///     dev: Opaque<bindings::class_device_type>,
+///     data: T::Data,
+/// }
+/// ```
+///
+/// This class device uses the sub-classing pattern to embed the driver's private data within the
+/// allocation of the class device. For this to be possible the class device is generic over the
+/// class specific `Driver` trait implementation.
+///
+/// Just like any device, class devices are reference counted and should hence implement
+/// [`AlwaysRefCounted`] for `Device`.
+///
+/// Class devices should also implement the following [`AsRef`] implementation, such that users can
+/// easily derive a generic [`Device`] reference.
+///
+/// ```ignore
+/// impl<T: class::Driver> AsRef<device::Device> for Device<T> {
+///     fn as_ref(&self) -> &device::Device {
+///         ...
+///     }
+/// }
+/// ```
+///
+/// An example for a class device implementation is [`drm::Device`].
 ///
 /// # Invariants
 ///
@@ -42,6 +149,12 @@ pub mod property;
 ///
 /// `bindings::device::release` is valid to be called from any thread, hence `ARef<Device>` can be
 /// dropped from any thread.
+///
+/// [`AlwaysRefCounted`]: kernel::types::AlwaysRefCounted
+/// [`drm::Device`]: kernel::drm::Device
+/// [`impl_device_context_deref`]: kernel::impl_device_context_deref
+/// [`pci::Device`]: kernel::pci::Device
+/// [`platform::Device`]: kernel::platform::Device
 #[repr(transparent)]
 pub struct Device<Ctx: DeviceContext = Normal>(Opaque<bindings::device>, PhantomData<Ctx>);
 
@@ -311,28 +424,75 @@ unsafe impl Send for Device {}
 // synchronization in `struct device`.
 unsafe impl Sync for Device {}
 
-/// Marker trait for the context of a bus specific device.
+/// Marker trait for the context or scope of a bus specific device.
 ///
-/// Some functions of a bus specific device should only be called from a certain context, i.e. bus
-/// callbacks, such as `probe()`.
+/// [`DeviceContext`] is a marker trait for types representing the context of a bus specific
+/// [`Device`].
 ///
-/// This is the marker trait for structures representing the context of a bus specific device.
+/// The specific device context types are: [`CoreInternal`], [`Core`], [`Bound`] and [`Normal`].
+///
+/// [`DeviceContext`] types are hierarchical, which means that there is a strict hierarchy that
+/// defines which [`DeviceContext`] type can be derived from another. For instance, any
+/// [`Device<Core>`] can dereference to a [`Device<Bound>`].
+///
+/// The following enumeration illustrates the dereference hierarchy of [`DeviceContext`] types.
+///
+/// - [`CoreInternal`] => [`Core`] => [`Bound`] => [`Normal`]
+///
+/// Bus devices can automatically implement the dereference hierarchy by using
+/// [`impl_device_context_deref`].
+///
+/// Note that the guarantee for a [`Device`] reference to have a certain [`DeviceContext`] comes
+/// from the specific scope the [`Device`] reference is valid in.
+///
+/// [`impl_device_context_deref`]: kernel::impl_device_context_deref
 pub trait DeviceContext: private::Sealed {}
 
-/// The [`Normal`] context is the context of a bus specific device when it is not an argument of
-/// any bus callback.
+/// The [`Normal`] context is the default [`DeviceContext`] of any [`Device`].
+///
+/// The normal context does not indicate any specific context. Any `Device<Ctx>` is also a valid
+/// [`Device<Normal>`]. It is the only [`DeviceContext`] for which it is valid to implement
+/// [`AlwaysRefCounted`] for.
+///
+/// [`AlwaysRefCounted`]: kernel::types::AlwaysRefCounted
 pub struct Normal;
 
-/// The [`Core`] context is the context of a bus specific device when it is supplied as argument of
-/// any of the bus callbacks, such as `probe()`.
+/// The [`Core`] context is the context of a bus specific device when it appears as argument of
+/// any bus specific callback, such as `probe()`.
+///
+/// The core context indicates that the [`Device<Core>`] reference's scope is limited to the bus
+/// callback it appears in. It is intended to be used for synchronization purposes. Bus device
+/// implementations can implement methods for [`Device<Core>`], such that they can only be called
+/// from bus callbacks.
 pub struct Core;
 
-/// Semantically the same as [`Core`] but reserved for internal usage of the corresponding bus
+/// Semantically the same as [`Core`], but reserved for internal usage of the corresponding bus
 /// abstraction.
+///
+/// The internal core context is intended to be used in exactly the same way as the [`Core`]
+/// context, with the difference that this [`DeviceContext`] is internal to the corresponding bus
+/// abstraction.
+///
+/// This context mainly exists to share generic [`Device`] infrastructure that should only be called
+/// from bus callbacks with bus abstractions, but without making them accessible for drivers.
 pub struct CoreInternal;
 
-/// The [`Bound`] context is the context of a bus specific device reference when it is guaranteed to
-/// be bound for the duration of its lifetime.
+/// The [`Bound`] context is the [`DeviceContext`] of a bus specific device when it is guaranteed to
+/// be bound to a driver.
+///
+/// The bound context indicates that for the entire duration of the lifetime of a [`Device<Bound>`]
+/// reference, the [`Device`] is guaranteed to be bound to a driver.
+///
+/// Some APIs, such as [`dma::CoherentAllocation`] or [`Devres`] rely on the [`Device`] to be bound,
+/// which can be proven with the [`Bound`] device context.
+///
+/// Any abstraction that can guarantee a scope where the corresponding bus device is bound, should
+/// provide a [`Device<Bound>`] reference to its users for this scope. This allows users to benefit
+/// from optimizations for accessing device resources, see also [`Devres::access`].
+///
+/// [`Devres`]: kernel::devres::Devres
+/// [`Devres::access`]: kernel::devres::Devres::access
+/// [`dma::CoherentAllocation`]: kernel::dma::CoherentAllocation
 pub struct Bound;
 
 mod private {

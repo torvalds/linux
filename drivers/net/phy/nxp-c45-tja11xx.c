@@ -1965,24 +1965,27 @@ static int nxp_c45_macsec_ability(struct phy_device *phydev)
 	return macsec_ability;
 }
 
+static bool tja11xx_phy_id_compare(struct phy_device *phydev,
+				   const struct phy_driver *phydrv)
+{
+	u32 id = phydev->is_c45 ? phydev->c45_ids.device_ids[MDIO_MMD_PMAPMD] :
+				  phydev->phy_id;
+
+	return phy_id_compare(id, phydrv->phy_id, phydrv->phy_id_mask);
+}
+
 static int tja11xx_no_macsec_match_phy_device(struct phy_device *phydev,
 					      const struct phy_driver *phydrv)
 {
-	if (!phy_id_compare(phydev->phy_id, phydrv->phy_id,
-			    phydrv->phy_id_mask))
-		return 0;
-
-	return !nxp_c45_macsec_ability(phydev);
+	return tja11xx_phy_id_compare(phydev, phydrv) &&
+	       !nxp_c45_macsec_ability(phydev);
 }
 
 static int tja11xx_macsec_match_phy_device(struct phy_device *phydev,
 					   const struct phy_driver *phydrv)
 {
-	if (!phy_id_compare(phydev->phy_id, phydrv->phy_id,
-			    phydrv->phy_id_mask))
-		return 0;
-
-	return nxp_c45_macsec_ability(phydev);
+	return tja11xx_phy_id_compare(phydev, phydrv) &&
+	       nxp_c45_macsec_ability(phydev);
 }
 
 static const struct nxp_c45_regmap tja1120_regmap = {
