@@ -653,3 +653,16 @@ void wfi(void)
 {
 	asm volatile("wfi");
 }
+
+static bool request_mte;
+
+void test_wants_mte(void)
+{
+	request_mte = true;
+}
+
+void kvm_arch_vm_post_create(struct kvm_vm *vm)
+{
+	if (request_mte && vm_check_cap(vm, KVM_CAP_ARM_MTE))
+		vm_enable_cap(vm, KVM_CAP_ARM_MTE, 0);
+}

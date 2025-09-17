@@ -15,8 +15,6 @@
 #include "test_util.h"
 #include <linux/bitfield.h>
 
-bool have_cap_arm_mte;
-
 enum ftr_type {
 	FTR_EXACT,			/* Use a predefined safe value */
 	FTR_LOWER_SAFE,			/* Smaller value is safe */
@@ -568,7 +566,9 @@ static void test_user_set_mte_reg(struct kvm_vcpu *vcpu)
 	uint64_t mte_frac;
 	int idx, err;
 
-	if (!have_cap_arm_mte) {
+	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1));
+	mte = FIELD_GET(ID_AA64PFR1_EL1_MTE, val);
+	if (!mte) {
 		ksft_test_result_skip("MTE capability not supported, nothing to test\n");
 		return;
 	}
@@ -593,9 +593,6 @@ static void test_user_set_mte_reg(struct kvm_vcpu *vcpu)
 	 * from unsupported (0xF) to supported (0).
 	 *
 	 */
-	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1));
-
-	mte = FIELD_GET(ID_AA64PFR1_EL1_MTE, val);
 	mte_frac = FIELD_GET(ID_AA64PFR1_EL1_MTE_frac, val);
 	if (mte != ID_AA64PFR1_EL1_MTE_MTE2 ||
 	    mte_frac != ID_AA64PFR1_EL1_MTE_frac_NI) {
@@ -750,14 +747,6 @@ static void test_reset_preserves_id_regs(struct kvm_vcpu *vcpu)
 	ksft_test_result_pass("%s\n", __func__);
 }
 
-void kvm_arch_vm_post_create(struct kvm_vm *vm)
-{
-	if (vm_check_cap(vm, KVM_CAP_ARM_MTE)) {
-		vm_enable_cap(vm, KVM_CAP_ARM_MTE, 0);
-		have_cap_arm_mte = true;
-	}
-}
-
 int main(void)
 {
 	struct kvm_vcpu *vcpu;
@@ -768,6 +757,8 @@ int main(void)
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_ARM_SUPPORTED_REG_MASK_RANGES));
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_ARM_WRITABLE_IMP_ID_REGS));
+
+	test_wants_mte();
 
 	vm = vm_create(1);
 	vm_enable_cap(vm, KVM_CAP_ARM_WRITABLE_IMP_ID_REGS, 0);

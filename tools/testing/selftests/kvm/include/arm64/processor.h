@@ -300,4 +300,6 @@ void smccc_smc(uint32_t function_id, uint64_t arg0, uint64_t arg1,
 /* Execute a Wait For Interrupt instruction. */
 void wfi(void);
 
+void test_wants_mte(void);
+
 #endif /* SELFTEST_KVM_PROCESSOR_H */
