@@ -2388,6 +2388,37 @@ static int parse_cpuset_cpulist(const char *buf, struct cpumask *out_mask)
 }
 
 /**
+ * validate_partition - Validate a cpuset partition configuration
+ * @cs: The cpuset to validate
+ * @trialcs: The trial cpuset containing proposed configuration changes
+ *
+ * If any validation check fails, the appropriate error code is set in the
+ * cpuset's prs_err field.
+ *
+ * Return: PRS error code (0 if valid, non-zero error code if invalid)
+ */
+static enum prs_errcode validate_partition(struct cpuset *cs, struct cpuset *trialcs)
+{
+	struct cpuset *parent = parent_cs(cs);
+
+	if (cs_is_member(trialcs))
+		return PERR_NONE;
+
+	if (cpumask_empty(trialcs->effective_xcpus))
+		return PERR_INVCPUS;
+
+	if (prstate_housekeeping_conflict(trialcs->partition_root_state,
+					  trialcs->effective_xcpus))
+		return PERR_HKEEPING;
+
+	if (tasks_nocpu_error(parent, cs, trialcs->effective_xcpus))
+		return PERR_NOCPUS;
+
+	return PERR_NONE;
+}
+
+
+/**
  * update_cpumask - update the cpus_allowed mask of a cpuset and all tasks in it
  * @cs: the cpuset to consider
  * @trialcs: trial cpuset
@@ -2402,6 +2433,7 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	bool invalidate = false;
 	bool force = false;
 	int old_prs = cs->partition_root_state;
+	enum prs_errcode prs_err;
 
 	retval = parse_cpuset_cpulist(buf, trialcs->cpus_allowed);
 	if (retval < 0)
@@ -2416,18 +2448,10 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 
 	compute_trialcs_excpus(trialcs, cs);
 
-	if (old_prs) {
-		if (is_partition_valid(cs) &&
-		    cpumask_empty(trialcs->effective_xcpus)) {
-			invalidate = true;
-			cs->prs_err = PERR_INVCPUS;
-		} else if (prstate_housekeeping_conflict(old_prs, trialcs->effective_xcpus)) {
-			invalidate = true;
-			cs->prs_err = PERR_HKEEPING;
-		} else if (tasks_nocpu_error(parent, cs, trialcs->effective_xcpus)) {
-			invalidate = true;
-			cs->prs_err = PERR_NOCPUS;
-		}
+	prs_err = validate_partition(cs, trialcs);
+	if (prs_err) {
+		invalidate = true;
+		cs->prs_err = prs_err;
 	}
 
 	/*
