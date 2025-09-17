@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/kconfig.h>
 #include <linux/kernel.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
@@ -446,7 +447,6 @@ static int i8k_set_fan(const struct dell_smm_data *data, u8 fan, int speed)
 	if (disallow_fan_support)
 		return -EINVAL;
 
-	speed = (speed < 0) ? 0 : ((speed > data->i8k_fan_max) ? data->i8k_fan_max : speed);
 	regs.ebx = fan | (speed << 8);
 
 	return dell_smm_call(data->ops, &regs);
@@ -636,6 +636,8 @@ static long i8k_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 		if (copy_from_user(&speed, argp + 1, sizeof(int)))
 			return -EFAULT;
+
+		speed = clamp_val(speed, 0, data->i8k_fan_max);
 
 		mutex_lock(&data->i8k_mutex);
 		err = i8k_set_fan(data, val, speed);
