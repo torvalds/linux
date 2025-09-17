@@ -8,6 +8,13 @@
 #include "vlv_clock.h"
 #include "vlv_sideband.h"
 
+/*
+ * FIXME: The caching of hpll_freq and czclk_freq relies on the first calls
+ * occurring at a time when they can actually be read. This appears to be the
+ * case, but is somewhat fragile. Make the initialization explicit at a point
+ * where they can be reliably read.
+ */
+
 /* returns HPLL frequency in kHz */
 int vlv_clock_get_hpll_vco(struct drm_device *drm)
 {
