@@ -39,6 +39,8 @@ struct objtool_file {
 	struct pv_state *pv_ops;
 };
 
+char *top_level_dir(const char *file);
+
 struct objtool_file *objtool_open_read(const char *_objname);
 
 int objtool_pv_add(struct objtool_file *file, int idx, struct symbol *func);

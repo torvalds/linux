@@ -18,6 +18,7 @@
 #include <objtool/checksum_types.h>
 #include <arch/elf.h>
 
+#define SEC_NAME_LEN		1024
 #define SYM_NAME_LEN		512
 
 #define bswap_if_needed(elf, val) __bswap_if_needed(&elf->ehdr, val)
@@ -53,10 +54,12 @@ struct section {
 	bool _changed, text, rodata, noinstr, init, truncate;
 	struct reloc *relocs;
 	unsigned long nr_alloc_relocs;
+	struct section *twin;
 };
 
 struct symbol {
 	struct list_head list;
+	struct list_head global_list;
 	struct rb_node node;
 	struct elf_hash_node hash;
 	struct elf_hash_node name_hash;
@@ -83,10 +86,13 @@ struct symbol {
 	u8 cold		     : 1;
 	u8 prefix	     : 1;
 	u8 debug_checksum    : 1;
+	u8 changed	     : 1;
+	u8 included	     : 1;
 	struct list_head pv_target;
 	struct reloc *relocs;
 	struct section *group_sec;
 	struct checksum csum;
+	struct symbol *twin, *clone;
 };
 
 struct reloc {
@@ -104,6 +110,7 @@ struct elf {
 	const char *name, *tmp_name;
 	unsigned int num_files;
 	struct list_head sections;
+	struct list_head symbols;
 	unsigned long num_relocs;
 
 	int symbol_bits;
@@ -179,6 +186,7 @@ struct section *find_section_by_name(const struct elf *elf, const char *name);
 struct symbol *find_func_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_name(const struct elf *elf, const char *name);
+struct symbol *find_global_symbol_by_name(const struct elf *elf, const char *name);
 struct symbol *find_symbol_containing(const struct section *sec, unsigned long offset);
 int find_symbol_hole_containing(const struct section *sec, unsigned long offset);
 struct reloc *find_reloc_by_dest(const struct elf *elf, struct section *sec, unsigned long offset);
@@ -448,22 +456,48 @@ static inline void set_sym_next_reloc(struct reloc *reloc, struct reloc *next)
 #define sec_for_each_sym(sec, sym)					\
 	list_for_each_entry(sym, &sec->symbol_list, list)
 
+#define sec_prev_sym(sym)						\
+	sym->sec && sym->list.prev != &sym->sec->symbol_list ?		\
+	list_prev_entry(sym, list) : NULL
+
 #define for_each_sym(elf, sym)						\
-	for (struct section *__sec, *__fake = (struct section *)1;	\
-	     __fake; __fake = NULL)					\
-		for_each_sec(elf, __sec)				\
-			sec_for_each_sym(__sec, sym)
+	list_for_each_entry(sym, &elf->symbols, global_list)
+
+#define for_each_sym_continue(elf, sym)					\
+	list_for_each_entry_continue(sym, &elf->symbols, global_list)
+
+#define rsec_next_reloc(rsec, reloc)					\
+	reloc_idx(reloc) < sec_num_entries(rsec) - 1 ? reloc + 1 : NULL
 
 #define for_each_reloc(rsec, reloc)					\
-	for (int __i = 0, __fake = 1; __fake; __fake = 0)		\
-		for (reloc = rsec->relocs;				\
-		     __i < sec_num_entries(rsec);			\
-		     __i++, reloc++)
+	for (reloc = rsec->relocs; reloc; reloc = rsec_next_reloc(rsec, reloc))
 
 #define for_each_reloc_from(rsec, reloc)				\
-	for (int __i = reloc_idx(reloc);				\
-	     __i < sec_num_entries(rsec);				\
-	     __i++, reloc++)
+	for (; reloc; reloc = rsec_next_reloc(rsec, reloc))
+
+#define for_each_reloc_continue(rsec, reloc)				\
+	for (reloc = rsec_next_reloc(rsec, reloc); reloc;		\
+	     reloc = rsec_next_reloc(rsec, reloc))
+
+#define sym_for_each_reloc(elf, sym, reloc)				\
+	for (reloc = find_reloc_by_dest_range(elf, sym->sec,		\
+					      sym->offset, sym->len);	\
+	     reloc && reloc_offset(reloc) <  sym->offset + sym->len;	\
+	     reloc = rsec_next_reloc(sym->sec->rsec, reloc))
+
+static inline struct symbol *get_func_prefix(struct symbol *func)
+{
+	struct symbol *prev;
+
+	if (!is_func_sym(func))
+		return NULL;
+
+	prev = sec_prev_sym(func);
+	if (prev && is_prefix_func(prev))
+		return prev;
+
+	return NULL;
+}
 
 #define OFFSET_STRIDE_BITS	4
 #define OFFSET_STRIDE		(1UL << OFFSET_STRIDE_BITS)

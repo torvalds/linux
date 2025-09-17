@@ -53,4 +53,6 @@ int objtool_run(int argc, const char **argv);
 
 int make_backup(void);
 
+int cmd_klp(int argc, const char **argv);
+
 #endif /* _BUILTIN_H */

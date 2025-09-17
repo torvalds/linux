@@ -186,20 +186,6 @@ static bool is_sibling_call(struct instruction *insn)
 }
 
 /*
- * Checks if a string ends with another.
- */
-static bool str_ends_with(const char *s, const char *sub)
-{
-	const int slen = strlen(s);
-	const int sublen = strlen(sub);
-
-	if (sublen > slen)
-		return 0;
-
-	return !memcmp(s + slen - sublen, sub, sublen);
-}
-
-/*
  * Checks if a function is a Rust "noreturn" one.
  */
 static bool is_rust_noreturn(const struct symbol *func)

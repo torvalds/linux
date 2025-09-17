@@ -288,6 +288,18 @@ struct symbol *find_symbol_by_name(const struct elf *elf, const char *name)
 	return NULL;
 }
 
+struct symbol *find_global_symbol_by_name(const struct elf *elf, const char *name)
+{
+	struct symbol *sym;
+
+	elf_hash_for_each_possible(symbol_name, sym, name_hash, str_hash(name)) {
+		if (!strcmp(sym->name, name) && !is_local_sym(sym))
+			return sym;
+	}
+
+	return NULL;
+}
+
 struct reloc *find_reloc_by_dest_range(const struct elf *elf, struct section *sec,
 				     unsigned long offset, unsigned int len)
 {
@@ -475,6 +487,8 @@ static int elf_add_symbol(struct elf *elf, struct symbol *sym)
 	else
 		entry = &sym->sec->symbol_list;
 	list_add(&sym->list, entry);
+
+	list_add_tail(&sym->global_list, &elf->symbols);
 	elf_hash_add(symbol, &sym->hash, sym->idx);
 	elf_hash_add(symbol_name, &sym->name_hash, str_hash(sym->name));
 
@@ -531,6 +545,9 @@ static int read_symbols(struct elf *elf)
 		ERROR_GLIBC("calloc");
 		return -1;
 	}
+
+	INIT_LIST_HEAD(&elf->symbols);
+
 	for (i = 0; i < symbols_nr; i++) {
 		sym = &elf->symbol_data[i];
 
@@ -639,7 +656,7 @@ static int mark_group_syms(struct elf *elf)
 		return -1;
 	}
 
-	list_for_each_entry(sec, &elf->sections, list) {
+	for_each_sec(elf, sec) {
 		if (sec->sh.sh_type == SHT_GROUP &&
 		    sec->sh.sh_link == symtab->idx) {
 			sym = find_symbol_by_index(elf, sec->sh.sh_info);
@@ -1223,6 +1240,8 @@ struct elf *elf_create_file(GElf_Ehdr *ehdr, const char *name)
 		ERROR_ELF("gelf_update_ehdr");
 		return NULL;
 	}
+
+	INIT_LIST_HEAD(&elf->symbols);
 
 	if (!elf_alloc_hash(section,		1000) ||
 	    !elf_alloc_hash(section_name,	1000) ||
