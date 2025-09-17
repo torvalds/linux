@@ -293,12 +293,8 @@ static void bm_work(struct work_struct *work)
 	int expected_gap_count, generation, grace;
 	bool do_reset = false;
 
-	spin_lock_irq(&card->lock);
-
-	if (card->local_node == NULL) {
-		spin_unlock_irq(&card->lock);
+	if (card->local_node == NULL)
 		return;
-	}
 
 	generation = card->generation;
 
@@ -354,8 +350,6 @@ static void bm_work(struct work_struct *work)
 			goto pick_me;
 		}
 
-		spin_unlock_irq(&card->lock);
-
 		rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
 				irm_id, generation, SCODE_100,
 				CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
@@ -365,21 +359,20 @@ static void bm_work(struct work_struct *work)
 		if (rcode == RCODE_GENERATION)
 			return;
 
-		spin_lock_irq(&card->lock);
-
 		if (rcode == RCODE_COMPLETE) {
 			int bm_id = be32_to_cpu(data[0]);
 
 			if (generation == card->generation) {
-				if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
-					card->bm_node_id = 0xffc0 & bm_id;
-				else
-					card->bm_node_id = local_id;
+				// Used by cdev layer for "struct fw_cdev_event_bus_reset".
+				scoped_guard(spinlock, &card->lock) {
+					if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
+						card->bm_node_id = 0xffc0 & bm_id;
+					else
+						card->bm_node_id = local_id;
+				}
 			}
 
 			if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED) {
-				spin_unlock_irq(&card->lock);
-
 				// Somebody else is BM.  Only act as IRM.
 				if (local_id == irm_id)
 					allocate_broadcast_channel(card, generation);
@@ -393,7 +386,6 @@ static void bm_work(struct work_struct *work)
 			 * some local problem.  Let's try again later and hope
 			 * that the problem has gone away by then.
 			 */
-			spin_unlock_irq(&card->lock);
 			fw_schedule_bm_work(card, msecs_to_jiffies(125));
 			return;
 		}
@@ -415,7 +407,6 @@ static void bm_work(struct work_struct *work)
 		 * We weren't BM in the last generation, and the last
 		 * bus reset is less than 125ms ago.  Reschedule this job.
 		 */
-		spin_unlock_irq(&card->lock);
 		fw_schedule_bm_work(card, msecs_to_jiffies(125));
 		return;
 	}
@@ -458,7 +449,6 @@ static void bm_work(struct work_struct *work)
 			if (!root_device_is_running) {
 				// If we haven't probed this device yet, bail out now
 				// and let's try again once that's done.
-				spin_unlock_irq(&card->lock);
 				return;
 			} else if (root_device->cmc) {
 				// We will send out a force root packet for this
@@ -495,8 +485,6 @@ static void bm_work(struct work_struct *work)
 	if (do_reset) {
 		int card_gap_count = card->gap_count;
 
-		spin_unlock_irq(&card->lock);
-
 		fw_notice(card, "phy config: new root=%x, gap_count=%d\n",
 			  new_root_id, expected_gap_count);
 		fw_send_phy_config(card, new_root_id, generation, expected_gap_count);
@@ -516,8 +504,6 @@ static void bm_work(struct work_struct *work)
 		/* Will allocate broadcast channel after the reset. */
 	} else {
 		struct fw_device *root_device = fw_node_get_device(root_node);
-
-		spin_unlock_irq(&card->lock);
 
 		if (root_device && root_device->cmc) {
 			// Make sure that the cycle master sends cycle start packets.
