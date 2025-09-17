@@ -170,6 +170,11 @@ static inline bool is_partition_invalid(const struct cpuset *cs)
 	return cs->partition_root_state < 0;
 }
 
+static inline bool cs_is_member(const struct cpuset *cs)
+{
+	return cs->partition_root_state == PRS_MEMBER;
+}
+
 /*
  * Callers should hold callback_lock to modify partition_root_state.
  */
@@ -1479,7 +1484,13 @@ static int compute_trialcs_excpus(struct cpuset *trialcs, struct cpuset *cs)
 	struct cpuset *parent = parent_cs(trialcs);
 	struct cpumask *excpus = trialcs->effective_xcpus;
 
-	cpumask_and(excpus, user_xcpus(trialcs), parent->effective_xcpus);
+	/* trialcs is member, cpuset.cpus has no impact to excpus */
+	if (cs_is_member(cs))
+		cpumask_and(excpus, trialcs->exclusive_cpus,
+				parent->effective_xcpus);
+	else
+		cpumask_and(excpus, user_xcpus(trialcs), parent->effective_xcpus);
+
 	return rm_siblings_excl_cpus(parent, cs, excpus);
 }
 
@@ -2349,6 +2360,19 @@ static void update_sibling_cpumasks(struct cpuset *parent, struct cpuset *cs,
 	rcu_read_unlock();
 }
 
+static int parse_cpuset_cpulist(const char *buf, struct cpumask *out_mask)
+{
+	int retval;
+
+	retval = cpulist_parse(buf, out_mask);
+	if (retval < 0)
+		return retval;
+	if (!cpumask_subset(out_mask, top_cpuset.cpus_allowed))
+		return -EINVAL;
+
+	return 0;
+}
+
 /**
  * update_cpumask - update the cpus_allowed mask of a cpuset and all tasks in it
  * @cs: the cpuset to consider
@@ -2365,34 +2389,9 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	bool force = false;
 	int old_prs = cs->partition_root_state;
 
-	/*
-	 * An empty cpus_allowed is ok only if the cpuset has no tasks.
-	 * Since cpulist_parse() fails on an empty mask, we special case
-	 * that parsing.  The validate_change() call ensures that cpusets
-	 * with tasks have cpus.
-	 */
-	if (!*buf) {
-		cpumask_clear(trialcs->cpus_allowed);
-		if (cpumask_empty(trialcs->exclusive_cpus))
-			cpumask_clear(trialcs->effective_xcpus);
-	} else {
-		retval = cpulist_parse(buf, trialcs->cpus_allowed);
-		if (retval < 0)
-			return retval;
-
-		if (!cpumask_subset(trialcs->cpus_allowed,
-				    top_cpuset.cpus_allowed))
-			return -EINVAL;
-
-		/*
-		 * When exclusive_cpus isn't explicitly set, it is constrained
-		 * by cpus_allowed and parent's effective_xcpus. Otherwise,
-		 * trialcs->effective_xcpus is used as a temporary cpumask
-		 * for checking validity of the partition root.
-		 */
-		if (!cpumask_empty(trialcs->exclusive_cpus) || is_partition_valid(cs))
-			compute_trialcs_excpus(trialcs, cs);
-	}
+	retval = parse_cpuset_cpulist(buf, trialcs->cpus_allowed);
+	if (retval < 0)
+		return retval;
 
 	/* Nothing to do if the cpus didn't change */
 	if (cpumask_equal(cs->cpus_allowed, trialcs->cpus_allowed))
@@ -2400,6 +2399,8 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 
 	if (alloc_tmpmasks(&tmp))
 		return -ENOMEM;
+
+	compute_trialcs_excpus(trialcs, cs);
 
 	if (old_prs) {
 		if (is_partition_valid(cs) &&
