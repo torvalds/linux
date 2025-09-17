@@ -1442,7 +1442,9 @@ struct ext4_super_block {
 	__le16  s_encoding;		/* Filename charset encoding */
 	__le16  s_encoding_flags;	/* Filename charset encoding flags */
 	__le32  s_orphan_file_inum;	/* Inode for tracking orphan inodes */
-	__le32	s_reserved[94];		/* Padding to the end of the block */
+	__le16	s_def_resuid_hi;
+	__le16	s_def_resgid_hi;
+	__le32	s_reserved[93];		/* Padding to the end of the block */
 	__le32	s_checksum;		/* crc32c(superblock) */
 };
 
@@ -1810,6 +1812,18 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 	return ino == EXT4_ROOT_INO ||
 		(ino >= EXT4_FIRST_INO(sb) &&
 		 ino <= le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count));
+}
+
+static inline int ext4_get_resuid(struct ext4_super_block *es)
+{
+	return le16_to_cpu(es->s_def_resuid) |
+		le16_to_cpu(es->s_def_resuid_hi) << 16;
+}
+
+static inline int ext4_get_resgid(struct ext4_super_block *es)
+{
+	return le16_to_cpu(es->s_def_resgid) |
+		le16_to_cpu(es->s_def_resgid_hi) << 16;
 }
 
 /*
