@@ -1057,6 +1057,12 @@ attribute-sets:
       -
         name: netns-immutable
         type: u8
+      -
+        name: headroom
+        type: u16
+      -
+        name: tailroom
+        type: u16
   -
     name: prop-list-link-attrs
     subset-of: link-attrs
