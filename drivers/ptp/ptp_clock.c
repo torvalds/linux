@@ -498,8 +498,20 @@ int ptp_clock_unregister(struct ptp_clock *ptp)
 		device_for_each_child(&ptp->dev, NULL, unregister_vclock);
 	}
 
+	/* Get the device to stop posix_clock_unregister() doing the last put
+	 * and freeing the structure(s)
+	 */
+	get_device(&ptp->dev);
+
+	/* Wake up any userspace waiting for an event. */
 	ptp->defunct = 1;
 	wake_up_interruptible(&ptp->tsev_wq);
+
+	/* Tear down the POSIX clock, which removes the user interface. */
+	posix_clock_unregister(&ptp->clock);
+
+	/* Disable all sources of event generation. */
+	ptp_disable_all_events(ptp);
 
 	if (ptp->kworker) {
 		kthread_cancel_delayed_work_sync(&ptp->aux_work);
@@ -510,7 +522,8 @@ int ptp_clock_unregister(struct ptp_clock *ptp)
 	if (ptp->pps_source)
 		pps_unregister_source(ptp->pps_source);
 
-	posix_clock_unregister(&ptp->clock);
+	/* The final put, normally here, will invoke ptp_clock_release(). */
+	put_device(&ptp->dev);
 
 	return 0;
 }
