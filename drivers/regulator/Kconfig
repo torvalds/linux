@@ -779,7 +779,8 @@ config REGULATOR_MAX77826
 
 config REGULATOR_MAX77838
 	tristate "Maxim 77838 regulator"
-	depends on REGMAP_I2C
+	depends on I2C
+	select REGMAP_I2C
 	help
 	  This driver controls a Maxim 77838 regulator via I2C bus.
 	  The regulator include 4 LDOs and a BUCK regulator. It's
