@@ -1842,12 +1842,15 @@ void blk_throtl_exit(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
 
-	if (!blk_throtl_activated(q))
+	/*
+	 * blkg_destroy_all() already deactivate throtl policy, just check and
+	 * free throtl data.
+	 */
+	if (!q->td)
 		return;
 
 	timer_delete_sync(&q->td->service_queue.pending_timer);
 	throtl_shutdown_wq(q);
-	blkcg_deactivate_policy(disk, &blkcg_policy_throtl);
 	kfree(q->td);
 }
 
