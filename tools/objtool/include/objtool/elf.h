@@ -181,9 +181,9 @@ static inline unsigned int elf_text_rela_type(struct elf *elf)
 	return elf_addr_size(elf) == 4 ? R_TEXT32 : R_TEXT64;
 }
 
-static inline bool sym_has_sec(struct symbol *sym)
+static inline bool is_undef_sym(struct symbol *sym)
 {
-	return sym->sec->idx;
+	return !sym->sec->idx;
 }
 
 static inline bool is_null_sym(struct symbol *sym)
