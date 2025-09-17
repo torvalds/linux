@@ -617,12 +617,12 @@ Note that the address you give here is the I2C address, not the IPMI
 address.  So if you want your MC address to be 0x60, you put 0x30
 here.  See the I2C driver info for more details.
 
-Command bridging to other IPMB busses through this interface does not
+Command bridging to other IPMB buses through this interface does not
 work.  The receive message queue is not implemented, by design.  There
 is only one receive message queue on a BMC, and that is meant for the
 host drivers, not something on the IPMB bus.
 
-A BMC may have multiple IPMB busses, which bus your device sits on
+A BMC may have multiple IPMB buses, which bus your device sits on
 depends on how the system is wired.  You can fetch the channels with
 "ipmitool channel info <n>" where <n> is the channel, with the
 channels being 0-7 and try the IPMB channels.

@@ -4,7 +4,7 @@ Platform Devices and Drivers
 
 See <linux/platform_device.h> for the driver model interface to the
 platform bus:  platform_device, and platform_driver.  This pseudo-bus
-is used to connect devices on busses with minimal infrastructure,
+is used to connect devices on buses with minimal infrastructure,
 like those used to integrate peripherals on many system-on-chip
 processors, or some "legacy" PC interconnects; as opposed to large
 formally specified ones like PCI or USB.

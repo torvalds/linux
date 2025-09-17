@@ -16,7 +16,7 @@ Bus-Independent Device Accesses
 Introduction
 ============
 
-Linux provides an API which abstracts performing IO across all busses
+Linux provides an API which abstracts performing IO across all buses
 and devices, allowing device drivers to be written independently of bus
 type.
 
@@ -71,7 +71,7 @@ can be compiler optimised, you can use __readb() and friends to
 indicate the relaxed ordering. Use this with care.
 
 While the basic functions are defined to be synchronous with respect to
-each other and ordered with respect to each other the busses the devices
+each other and ordered with respect to each other the buses the devices
 sit on may themselves have asynchronicity. In particular many authors
 are burned by the fact that PCI bus writes are posted asynchronously. A
 driver author must issue a read from the same device to ensure that
