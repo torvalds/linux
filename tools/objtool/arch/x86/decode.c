@@ -68,6 +68,17 @@ bool arch_callee_saved_reg(unsigned char reg)
 	}
 }
 
+/* Undo the effects of __pa_symbol() if necessary */
+static unsigned long phys_to_virt(unsigned long pa)
+{
+	s64 va = pa;
+
+	if (va > 0)
+		va &= ~(0x80000000);
+
+	return va;
+}
+
 s64 arch_insn_adjusted_addend(struct instruction *insn, struct reloc *reloc)
 {
 	s64 addend = reloc_addend(reloc);
@@ -75,7 +86,7 @@ s64 arch_insn_adjusted_addend(struct instruction *insn, struct reloc *reloc)
 	if (arch_pc_relative_reloc(reloc))
 		addend += insn->offset + insn->len - reloc_offset(reloc);
 
-	return addend;
+	return phys_to_virt(addend);
 }
 
 unsigned long arch_jump_destination(struct instruction *insn)
