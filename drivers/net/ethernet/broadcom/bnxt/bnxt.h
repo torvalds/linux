@@ -2426,6 +2426,8 @@ struct bnxt {
 	u8			max_q;
 	u8			num_tc;
 
+	u16			max_pfcwd_tmo_ms;
+
 	u8			tph_mode;
 
 	unsigned int		current_interval;

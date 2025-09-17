@@ -6751,6 +6751,46 @@ struct hwrm_queue_dscp2pri_cfg_output {
 	u8	valid;
 };
 
+/* hwrm_queue_pfcwd_timeout_qcaps_input (size:128b/16B) */
+struct hwrm_queue_pfcwd_timeout_qcaps_input {
+	__le16	req_type;
+	__le16	cmpl_ring;
+	__le16	seq_id;
+	__le16	target_id;
+	__le64	resp_addr;
+};
+
+/* hwrm_queue_pfcwd_timeout_qcaps_output (size:128b/16B) */
+struct hwrm_queue_pfcwd_timeout_qcaps_output {
+	__le16	error_code;
+	__le16	req_type;
+	__le16	seq_id;
+	__le16	resp_len;
+	__le16	max_pfcwd_timeout;
+	u8	unused_0[5];
+	u8	valid;
+};
+
+/* hwrm_queue_pfcwd_timeout_qcfg_input (size:128b/16B) */
+struct hwrm_queue_pfcwd_timeout_qcfg_input {
+	__le16	req_type;
+	__le16	cmpl_ring;
+	__le16	seq_id;
+	__le16	target_id;
+	__le64	resp_addr;
+};
+
+/* hwrm_queue_pfcwd_timeout_qcfg_output (size:128b/16B) */
+struct hwrm_queue_pfcwd_timeout_qcfg_output {
+	__le16	error_code;
+	__le16	req_type;
+	__le16	seq_id;
+	__le16	resp_len;
+	__le16	pfcwd_timeout_value;
+	u8	unused_0[5];
+	u8	valid;
+};
+
 /* hwrm_vnic_alloc_input (size:192b/24B) */
 struct hwrm_vnic_alloc_input {
 	__le16	req_type;
