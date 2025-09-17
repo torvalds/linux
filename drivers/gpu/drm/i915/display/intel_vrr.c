@@ -119,6 +119,20 @@ static int intel_vrr_vmin_flipline(const struct intel_crtc_state *crtc_state)
 	return crtc_state->vrr.vmin + intel_vrr_flipline_offset(display);
 }
 
+static int intel_vrr_guardband_to_pipeline_full(const struct intel_crtc_state *crtc_state,
+						int guardband)
+{
+	/* hardware imposes one extra scanline somewhere */
+	return guardband - crtc_state->framestart_delay - 1;
+}
+
+static int intel_vrr_pipeline_full_to_guardband(const struct intel_crtc_state *crtc_state,
+						int pipeline_full)
+{
+	/* hardware imposes one extra scanline somewhere */
+	return pipeline_full + crtc_state->framestart_delay + 1;
+}
+
 /*
  * Without VRR registers get latched at:
  *  vblank_start
@@ -142,8 +156,8 @@ static int intel_vrr_vblank_exit_length(const struct intel_crtc_state *crtc_stat
 	if (DISPLAY_VER(display) >= 13)
 		return crtc_state->vrr.guardband;
 	else
-		/* hardware imposes one extra scanline somewhere */
-		return crtc_state->vrr.pipeline_full + crtc_state->framestart_delay + 1;
+		return intel_vrr_pipeline_full_to_guardband(crtc_state,
+							    crtc_state->vrr.pipeline_full);
 }
 
 int intel_vrr_vmin_vtotal(const struct intel_crtc_state *crtc_state)
@@ -417,18 +431,18 @@ void intel_vrr_compute_config_late(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+	int guardband;
 
 	if (!intel_vrr_possible(crtc_state))
 		return;
 
+	guardband = crtc_state->vrr.vmin - adjusted_mode->crtc_vblank_start;
+
 	if (DISPLAY_VER(display) >= 13) {
-		crtc_state->vrr.guardband =
-			crtc_state->vrr.vmin - adjusted_mode->crtc_vblank_start;
+		crtc_state->vrr.guardband = guardband;
 	} else {
-		/* hardware imposes one extra scanline somewhere */
 		crtc_state->vrr.pipeline_full =
-			min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vblank_start -
-			    crtc_state->framestart_delay - 1);
+			min(255, intel_vrr_guardband_to_pipeline_full(crtc_state, guardband));
 
 		/*
 		 * vmin/vmax/flipline also need to be adjusted by
