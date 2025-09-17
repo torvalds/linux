@@ -2417,6 +2417,42 @@ static enum prs_errcode validate_partition(struct cpuset *cs, struct cpuset *tri
 	return PERR_NONE;
 }
 
+static int cpus_allowed_validate_change(struct cpuset *cs, struct cpuset *trialcs,
+					struct tmpmasks *tmp)
+{
+	int retval;
+	struct cpuset *parent = parent_cs(cs);
+
+	retval = validate_change(cs, trialcs);
+
+	if ((retval == -EINVAL) && cpuset_v2()) {
+		struct cgroup_subsys_state *css;
+		struct cpuset *cp;
+
+		/*
+		 * The -EINVAL error code indicates that partition sibling
+		 * CPU exclusivity rule has been violated. We still allow
+		 * the cpumask change to proceed while invalidating the
+		 * partition. However, any conflicting sibling partitions
+		 * have to be marked as invalid too.
+		 */
+		trialcs->prs_err = PERR_NOTEXCL;
+		rcu_read_lock();
+		cpuset_for_each_child(cp, css, parent) {
+			struct cpumask *xcpus = user_xcpus(trialcs);
+
+			if (is_partition_valid(cp) &&
+			    cpumask_intersects(xcpus, cp->effective_xcpus)) {
+				rcu_read_unlock();
+				update_parent_effective_cpumask(cp, partcmd_invalidate, NULL, tmp);
+				rcu_read_lock();
+			}
+		}
+		rcu_read_unlock();
+		retval = 0;
+	}
+	return retval;
+}
 
 /**
  * update_cpumask - update the cpus_allowed mask of a cpuset and all tasks in it
@@ -2429,8 +2465,6 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 {
 	int retval;
 	struct tmpmasks tmp;
-	struct cpuset *parent = parent_cs(cs);
-	bool invalidate = false;
 	bool force = false;
 	int old_prs = cs->partition_root_state;
 	enum prs_errcode prs_err;
@@ -2447,12 +2481,10 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 		return -ENOMEM;
 
 	compute_trialcs_excpus(trialcs, cs);
+	trialcs->prs_err = PERR_NONE;
 
-	prs_err = validate_partition(cs, trialcs);
-	if (prs_err) {
-		invalidate = true;
-		cs->prs_err = prs_err;
-	}
+	if (cpus_allowed_validate_change(cs, trialcs, &tmp) < 0)
+		goto out_free;
 
 	/*
 	 * Check all the descendants in update_cpumasks_hier() if
@@ -2460,40 +2492,14 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	 */
 	force = !cpumask_equal(cs->effective_xcpus, trialcs->effective_xcpus);
 
-	retval = validate_change(cs, trialcs);
-
-	if ((retval == -EINVAL) && cpuset_v2()) {
-		struct cgroup_subsys_state *css;
-		struct cpuset *cp;
-
-		/*
-		 * The -EINVAL error code indicates that partition sibling
-		 * CPU exclusivity rule has been violated. We still allow
-		 * the cpumask change to proceed while invalidating the
-		 * partition. However, any conflicting sibling partitions
-		 * have to be marked as invalid too.
-		 */
-		invalidate = true;
-		rcu_read_lock();
-		cpuset_for_each_child(cp, css, parent) {
-			struct cpumask *xcpus = user_xcpus(trialcs);
-
-			if (is_partition_valid(cp) &&
-			    cpumask_intersects(xcpus, cp->effective_xcpus)) {
-				rcu_read_unlock();
-				update_parent_effective_cpumask(cp, partcmd_invalidate, NULL, &tmp);
-				rcu_read_lock();
-			}
-		}
-		rcu_read_unlock();
-		retval = 0;
+	prs_err = validate_partition(cs, trialcs);
+	if (prs_err) {
+		trialcs->prs_err = prs_err;
+		cs->prs_err = prs_err;
 	}
 
-	if (retval < 0)
-		goto out_free;
-
 	if (is_partition_valid(cs) ||
-	   (is_partition_invalid(cs) && !invalidate)) {
+	   (is_partition_invalid(cs) && !trialcs->prs_err)) {
 		struct cpumask *xcpus = trialcs->effective_xcpus;
 
 		if (cpumask_empty(xcpus) && is_partition_invalid(cs))
@@ -2504,7 +2510,7 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 		 */
 		if (is_remote_partition(cs))
 			remote_cpus_update(cs, NULL, xcpus, &tmp);
-		else if (invalidate)
+		else if (trialcs->prs_err)
 			update_parent_effective_cpumask(cs, partcmd_invalidate,
 							NULL, &tmp);
 		else
