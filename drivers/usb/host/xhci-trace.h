@@ -550,7 +550,7 @@ DECLARE_EVENT_CLASS(xhci_log_portsc,
 	),
 	TP_fast_assign(
 		__entry->busnum = port->rhub->hcd->self.busnum;
-		__entry->portnum = port->hcd_portnum;
+		__entry->portnum = port->hcd_portnum + 1;
 		__entry->portsc = portsc;
 	),
 	TP_printk("port %d-%d: %s",
