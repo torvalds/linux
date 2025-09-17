@@ -6771,6 +6771,27 @@ struct hwrm_queue_pfcwd_timeout_qcaps_output {
 	u8	valid;
 };
 
+/* hwrm_queue_pfcwd_timeout_cfg_input (size:192b/24B) */
+struct hwrm_queue_pfcwd_timeout_cfg_input {
+	__le16	req_type;
+	__le16	cmpl_ring;
+	__le16	seq_id;
+	__le16	target_id;
+	__le64	resp_addr;
+	__le16	pfcwd_timeout_value;
+	u8	unused_0[6];
+};
+
+/* hwrm_queue_pfcwd_timeout_cfg_output (size:128b/16B) */
+struct hwrm_queue_pfcwd_timeout_cfg_output {
+	__le16	error_code;
+	__le16	req_type;
+	__le16	seq_id;
+	__le16	resp_len;
+	u8	unused_0[7];
+	u8	valid;
+};
+
 /* hwrm_queue_pfcwd_timeout_qcfg_input (size:128b/16B) */
 struct hwrm_queue_pfcwd_timeout_qcfg_input {
 	__le16	req_type;
