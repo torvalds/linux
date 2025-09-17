@@ -210,6 +210,7 @@ int snd_seq_fifo_poll_wait(struct snd_seq_fifo *f, struct file *file,
 			   poll_table *wait)
 {
 	poll_wait(file, &f->input_sleep, wait);
+	guard(spinlock_irq)(&f->lock);
 	return (f->cells > 0);
 }
 
