@@ -18,3 +18,8 @@ int __ns_common_init(struct ns_common *ns, const struct proc_ns_operations *ops,
 	}
 	return proc_alloc_inum(&ns->inum);
 }
+
+void __ns_common_free(struct ns_common *ns)
+{
+	proc_free_inum(ns->inum);
+}

@@ -97,7 +97,7 @@ fail_mq:
 
 fail_put:
 	put_user_ns(ns->user_ns);
-	ns_free_inum(&ns->ns);
+	ns_common_free(ns);
 fail_free:
 	kfree(ns);
 fail_dec:
@@ -161,7 +161,7 @@ static void free_ipc_ns(struct ipc_namespace *ns)
 
 	dec_ipc_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
-	ns_free_inum(&ns->ns);
+	ns_common_free(ns);
 	kfree(ns);
 }
 

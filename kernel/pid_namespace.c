@@ -127,7 +127,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	return ns;
 
 out_free_inum:
-	ns_free_inum(&ns->ns);
+	ns_common_free(ns);
 out_free_idr:
 	idr_destroy(&ns->idr);
 	kmem_cache_free(pid_ns_cachep, ns);
@@ -152,7 +152,7 @@ static void destroy_pid_namespace(struct pid_namespace *ns)
 	ns_tree_remove(ns);
 	unregister_pidns_sysctls(ns);
 
-	ns_free_inum(&ns->ns);
+	ns_common_free(ns);
 
 	idr_destroy(&ns->idr);
 	call_rcu(&ns->rcu, delayed_free_pidns);

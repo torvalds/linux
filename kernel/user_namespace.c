@@ -165,7 +165,7 @@ fail_keyring:
 #ifdef CONFIG_PERSISTENT_KEYRINGS
 	key_put(ns->persistent_keyring_register);
 #endif
-	ns_free_inum(&ns->ns);
+	ns_common_free(ns);
 fail_free:
 	kmem_cache_free(user_ns_cachep, ns);
 fail_dec:
@@ -220,7 +220,7 @@ static void free_user_ns(struct work_struct *work)
 #endif
 		retire_userns_sysctls(ns);
 		key_free_user_ns(ns);
-		ns_free_inum(&ns->ns);
+		ns_common_free(ns);
 		/* Concurrent nstree traversal depends on a grace period. */
 		kfree_rcu(ns, ns.ns_rcu);
 		dec_user_namespaces(ucounts);

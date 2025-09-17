@@ -40,7 +40,7 @@ void free_cgroup_ns(struct cgroup_namespace *ns)
 	put_css_set(ns->root_cset);
 	dec_cgroup_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
-	ns_free_inum(&ns->ns);
+	ns_common_free(ns);
 	/* Concurrent nstree traversal depends on a grace period. */
 	kfree_rcu(ns, ns.ns_rcu);
 }
