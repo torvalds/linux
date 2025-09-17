@@ -30,6 +30,7 @@
    mptcp-sysctl
    skbuff
    generic-hdlc
+   timestamping
 
 Todolist:
 
@@ -138,7 +139,6 @@ Todolist:
 *   tcp_ao
 *   tcp-thin
 *   team
-*   timestamping
 *   tipc
 *   tproxy
 *   tuntap
