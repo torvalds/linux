@@ -303,4 +303,58 @@ void wfi(void);
 void test_wants_mte(void);
 void test_disable_default_vgic(void);
 
+static bool vcpu_has_el2(struct kvm_vcpu *vcpu)
+{
+	return vcpu->init.features[0] & BIT(KVM_ARM_VCPU_HAS_EL2);
+}
+
+#define MAPPED_EL2_SYSREG(el2, el1)		\
+	case SYS_##el1:				\
+		if (vcpu_has_el2(vcpu))		\
+			alias = SYS_##el2;	\
+		break
+
+
+static __always_inline u64 ctxt_reg_alias(struct kvm_vcpu *vcpu, u32 encoding)
+{
+	u32 alias = encoding;
+
+	BUILD_BUG_ON(!__builtin_constant_p(encoding));
+
+	switch (encoding) {
+	MAPPED_EL2_SYSREG(SCTLR_EL2,		SCTLR_EL1);
+	MAPPED_EL2_SYSREG(CPTR_EL2,		CPACR_EL1);
+	MAPPED_EL2_SYSREG(TTBR0_EL2,		TTBR0_EL1);
+	MAPPED_EL2_SYSREG(TTBR1_EL2,		TTBR1_EL1);
+	MAPPED_EL2_SYSREG(TCR_EL2,		TCR_EL1);
+	MAPPED_EL2_SYSREG(VBAR_EL2,		VBAR_EL1);
+	MAPPED_EL2_SYSREG(AFSR0_EL2,		AFSR0_EL1);
+	MAPPED_EL2_SYSREG(AFSR1_EL2,		AFSR1_EL1);
+	MAPPED_EL2_SYSREG(ESR_EL2,		ESR_EL1);
+	MAPPED_EL2_SYSREG(FAR_EL2,		FAR_EL1);
+	MAPPED_EL2_SYSREG(MAIR_EL2,		MAIR_EL1);
+	MAPPED_EL2_SYSREG(TCR2_EL2,		TCR2_EL1);
+	MAPPED_EL2_SYSREG(PIR_EL2,		PIR_EL1);
+	MAPPED_EL2_SYSREG(PIRE0_EL2,		PIRE0_EL1);
+	MAPPED_EL2_SYSREG(POR_EL2,		POR_EL1);
+	MAPPED_EL2_SYSREG(AMAIR_EL2,		AMAIR_EL1);
+	MAPPED_EL2_SYSREG(ELR_EL2,		ELR_EL1);
+	MAPPED_EL2_SYSREG(SPSR_EL2,		SPSR_EL1);
+	MAPPED_EL2_SYSREG(ZCR_EL2,		ZCR_EL1);
+	MAPPED_EL2_SYSREG(CONTEXTIDR_EL2,	CONTEXTIDR_EL1);
+	MAPPED_EL2_SYSREG(SCTLR2_EL2,		SCTLR2_EL1);
+	MAPPED_EL2_SYSREG(CNTHCTL_EL2,		CNTKCTL_EL1);
+	case SYS_SP_EL1:
+		if (!vcpu_has_el2(vcpu))
+			return ARM64_CORE_REG(sp_el1);
+
+		alias = SYS_SP_EL2;
+		break;
+	default:
+		BUILD_BUG();
+	}
+
+	return KVM_ARM64_SYS_REG(alias);
+}
+
 #endif /* SELFTEST_KVM_PROCESSOR_H */

@@ -517,7 +517,7 @@ static void run_access_test(uint64_t pmcr_n)
 	vcpu = vpmu_vm.vcpu;
 
 	/* Save the initial sp to restore them later to run the guest again */
-	sp = vcpu_get_reg(vcpu, ARM64_CORE_REG(sp_el1));
+	sp = vcpu_get_reg(vcpu, ctxt_reg_alias(vcpu, SYS_SP_EL1));
 
 	run_vcpu(vcpu, pmcr_n);
 
@@ -529,7 +529,7 @@ static void run_access_test(uint64_t pmcr_n)
 	init.features[0] |= (1 << KVM_ARM_VCPU_PMU_V3);
 	aarch64_vcpu_setup(vcpu, &init);
 	vcpu_init_descriptor_tables(vcpu);
-	vcpu_set_reg(vcpu, ARM64_CORE_REG(sp_el1), sp);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_SP_EL1), sp);
 	vcpu_set_reg(vcpu, ARM64_CORE_REG(regs.pc), (uint64_t)guest_code);
 
 	run_vcpu(vcpu, pmcr_n);

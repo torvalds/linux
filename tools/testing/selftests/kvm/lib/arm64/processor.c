@@ -283,15 +283,16 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 	}
 
 	vcpu_ioctl(vcpu, KVM_ARM_VCPU_INIT, init);
+	vcpu->init = *init;
 
 	/*
 	 * Enable FP/ASIMD to avoid trapping when accessing Q0-Q15
 	 * registers, which the variable argument list macros do.
 	 */
-	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_CPACR_EL1), 3 << 20);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_CPACR_EL1), 3 << 20);
 
-	sctlr_el1 = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_SCTLR_EL1));
-	tcr_el1 = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TCR_EL1));
+	sctlr_el1 = vcpu_get_reg(vcpu, ctxt_reg_alias(vcpu, SYS_SCTLR_EL1));
+	tcr_el1 = vcpu_get_reg(vcpu, ctxt_reg_alias(vcpu, SYS_TCR_EL1));
 
 	/* Configure base granule size */
 	switch (vm->mode) {
@@ -358,10 +359,10 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 	if (use_lpa2_pte_format(vm))
 		tcr_el1 |= TCR_DS;
 
-	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_SCTLR_EL1), sctlr_el1);
-	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TCR_EL1), tcr_el1);
-	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_MAIR_EL1), DEFAULT_MAIR_EL1);
-	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TTBR0_EL1), ttbr0_el1);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_SCTLR_EL1), sctlr_el1);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_TCR_EL1), tcr_el1);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_MAIR_EL1), DEFAULT_MAIR_EL1);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_TTBR0_EL1), ttbr0_el1);
 	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TPIDR_EL1), vcpu->id);
 }
 
@@ -396,7 +397,7 @@ static struct kvm_vcpu *__aarch64_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 
 	aarch64_vcpu_setup(vcpu, init);
 
-	vcpu_set_reg(vcpu, ARM64_CORE_REG(sp_el1), stack_vaddr + stack_size);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_SP_EL1), stack_vaddr + stack_size);
 	return vcpu;
 }
 
@@ -466,7 +467,7 @@ void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu)
 {
 	extern char vectors;
 
-	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_VBAR_EL1), (uint64_t)&vectors);
+	vcpu_set_reg(vcpu, ctxt_reg_alias(vcpu, SYS_VBAR_EL1), (uint64_t)&vectors);
 }
 
 void route_exception(struct ex_regs *regs, int vector)
