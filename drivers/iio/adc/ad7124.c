@@ -631,14 +631,6 @@ static int ad7124_push_config(struct ad7124_state *st, struct ad7124_channel_con
 	return ad7124_write_config(st, cfg, free_cfg_slot);
 }
 
-static int ad7124_enable_channel(struct ad7124_state *st, struct ad7124_channel *ch)
-{
-	ch->cfg.live = true;
-	return ad_sd_write_reg(&st->sd, AD7124_CHANNEL(ch->nr), 2, ch->ain |
-			       FIELD_PREP(AD7124_CHANNEL_SETUP, ch->cfg.cfg_slot) |
-			       AD7124_CHANNEL_ENABLE);
-}
-
 static int ad7124_prepare_read(struct ad7124_state *st, int address)
 {
 	struct ad7124_channel_config *cfg = &st->channels[address].cfg;
@@ -658,7 +650,11 @@ static int ad7124_prepare_read(struct ad7124_state *st, int address)
 	}
 
 	/* point channel to the config slot and enable */
-	return ad7124_enable_channel(st, &st->channels[address]);
+	cfg->live = true;
+	return ad_sd_write_reg(&st->sd, AD7124_CHANNEL(address), 2,
+			       st->channels[address].ain |
+			       FIELD_PREP(AD7124_CHANNEL_SETUP, cfg->cfg_slot) |
+			       AD7124_CHANNEL_ENABLE);
 }
 
 static int __ad7124_set_channel(struct ad_sigma_delta *sd, unsigned int channel)
@@ -1559,7 +1555,7 @@ static int __ad7124_calibrate_all(struct ad7124_state *st, struct iio_dev *indio
 			 * after full-scale calibration because the next
 			 * ad_sd_calibrate() call overwrites this via
 			 * ad_sigma_delta_set_channel() -> ad7124_set_channel()
-			 * ... -> ad7124_enable_channel().
+			 * -> ad7124_prepare_read().
 			 */
 			ret = ad_sd_read_reg(&st->sd, AD7124_GAIN(st->channels[i].cfg.cfg_slot), 3,
 					     &st->channels[i].cfg.calibration_gain);
