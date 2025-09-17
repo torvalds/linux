@@ -40,6 +40,7 @@ static const char	*chunk_size_str	= "0";
 static unsigned int	nr_loops	= 1;
 static bool		use_cycles;
 static int		cycles_fd;
+static unsigned int	seed;
 
 static const struct option bench_common_options[] = {
 	OPT_STRING('s', "size", &size_str, "1MB",
@@ -81,6 +82,7 @@ struct bench_params {
 	size_t		chunk_size;
 	unsigned int	nr_loops;
 	unsigned int	page_shift;
+	unsigned int	seed;
 };
 
 struct bench_mem_info {
@@ -98,6 +100,7 @@ typedef void (*mem_fini_t)(struct bench_mem_info *, struct bench_params *,
 			   void **, void **);
 typedef void *(*memcpy_t)(void *, const void *, size_t);
 typedef void *(*memset_t)(void *, int, size_t);
+typedef void (*mmap_op_t)(void *, size_t, unsigned int, bool);
 
 struct function {
 	const char *name;
@@ -108,6 +111,7 @@ struct function {
 		union {
 			memcpy_t memcpy;
 			memset_t memset;
+			mmap_op_t mmap_op;
 		};
 	} fn;
 };
@@ -158,6 +162,14 @@ static union bench_clock clock_diff(union bench_clock *s, union bench_clock *e)
 		timersub(&e->tv, &s->tv, &t.tv);
 
 	return t;
+}
+
+static void clock_accum(union bench_clock *a, union bench_clock *b)
+{
+	if (use_cycles)
+		a->cycles += b->cycles;
+	else
+		timeradd(&a->tv, &b->tv, &a->tv);
 }
 
 static double timeval2double(struct timeval *ts)
@@ -270,6 +282,8 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 		return 1;
 	}
 	p.page_shift = ilog2(page_size);
+
+	p.seed = seed;
 
 	if (!strncmp(function_str, "all", 3)) {
 		for (i = 0; info->functions[i].name; i++)
@@ -461,6 +475,88 @@ int bench_mem_memset(int argc, const char **argv)
 		.do_op			= do_memset,
 		.usage			= bench_mem_memset_usage,
 		.options		= bench_mem_options,
+	};
+
+	return bench_mem_common(argc, argv, &info);
+}
+
+static void mmap_page_touch(void *dst, size_t size, unsigned int page_shift, bool random)
+{
+	unsigned long npages = size / (1 << page_shift);
+	unsigned long offset = 0, r = 0;
+
+	for (unsigned long i = 0; i < npages; i++) {
+		if (random)
+			r = rand() % (1 << page_shift);
+
+		*((char *)dst + offset + r) = *(char *)(dst + offset + r) + i;
+		offset += 1 << page_shift;
+	}
+}
+
+static int do_mmap(const struct function *r, struct bench_params *p,
+		  void *src __maybe_unused, void *dst __maybe_unused,
+		  union bench_clock *accum)
+{
+	union bench_clock start, end, diff;
+	mmap_op_t fn = r->fn.mmap_op;
+	bool populate = strcmp(r->name, "populate") == 0;
+
+	if (p->seed)
+		srand(p->seed);
+
+	for (unsigned int i = 0; i < p->nr_loops; i++) {
+		clock_get(&start);
+		dst = bench_mmap(p->size, populate, p->page_shift);
+		if (!dst)
+			goto out;
+
+		fn(dst, p->size, p->page_shift, p->seed);
+		clock_get(&end);
+		diff = clock_diff(&start, &end);
+		clock_accum(accum, &diff);
+
+		bench_munmap(dst, p->size);
+	}
+
+	return 0;
+out:
+	printf("# Memory allocation failed - maybe size (%s) %s?\n", size_str,
+			p->page_shift != PAGE_SHIFT_4KB ? "has insufficient hugepages" : "is too large");
+	return -1;
+}
+
+static const char * const bench_mem_mmap_usage[] = {
+	"perf bench mem mmap <options>",
+	NULL
+};
+
+static const struct function mmap_functions[] = {
+	{ .name		= "demand",
+	  .desc		= "Demand loaded mmap()",
+	  .fn.mmap_op	= mmap_page_touch },
+
+	{ .name		= "populate",
+	  .desc		= "Eagerly populated mmap()",
+	  .fn.mmap_op	= mmap_page_touch },
+
+	{ .name = NULL, }
+};
+
+int bench_mem_mmap(int argc, const char **argv)
+{
+	static const struct option bench_mmap_options[] = {
+		OPT_UINTEGER('r', "randomize", &seed,
+			    "Seed to randomize page access offset."),
+		OPT_PARENT(bench_common_options),
+		OPT_END()
+	};
+
+	struct bench_mem_info info = {
+		.functions		= mmap_functions,
+		.do_op			= do_mmap,
+		.usage			= bench_mem_mmap_usage,
+		.options		= bench_mmap_options,
 	};
 
 	return bench_mem_common(argc, argv, &info);
