@@ -16156,7 +16156,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	struct bnxt *bp = netdev_priv(dev);
 
 	if (BNXT_PF(bp))
-		bnxt_sriov_disable(bp);
+		__bnxt_sriov_disable(bp);
 
 	bnxt_rdma_aux_device_del(bp);
 

@@ -919,7 +919,7 @@ err_out1:
 	return rc;
 }
 
-void bnxt_sriov_disable(struct bnxt *bp)
+void __bnxt_sriov_disable(struct bnxt *bp)
 {
 	u16 num_vfs = pci_num_vf(bp->pdev);
 
@@ -943,6 +943,14 @@ void bnxt_sriov_disable(struct bnxt *bp)
 	devl_unlock(bp->dl);
 
 	bnxt_free_vf_resources(bp);
+}
+
+static void bnxt_sriov_disable(struct bnxt *bp)
+{
+	if (!pci_num_vf(bp->pdev))
+		return;
+
+	__bnxt_sriov_disable(bp);
 
 	/* Reclaim all resources for the PF. */
 	rtnl_lock();
@@ -1321,7 +1329,7 @@ int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs, bool reset)
 	return 0;
 }
 
-void bnxt_sriov_disable(struct bnxt *bp)
+void __bnxt_sriov_disable(struct bnxt *bp)
 {
 }
 
