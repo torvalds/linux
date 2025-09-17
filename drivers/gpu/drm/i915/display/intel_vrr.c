@@ -263,7 +263,7 @@ void intel_vrr_compute_vrr_timings(struct intel_crtc_state *crtc_state)
  * Vtotal value.
  */
 static
-int intel_vrr_fixed_rr_vtotal(const struct intel_crtc_state *crtc_state)
+int intel_vrr_fixed_rr_hw_vtotal(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	int crtc_vtotal = crtc_state->hw.adjusted_mode.crtc_vtotal;
@@ -276,24 +276,24 @@ int intel_vrr_fixed_rr_vtotal(const struct intel_crtc_state *crtc_state)
 }
 
 static
-int intel_vrr_fixed_rr_vmax(const struct intel_crtc_state *crtc_state)
+int intel_vrr_fixed_rr_hw_vmax(const struct intel_crtc_state *crtc_state)
 {
-	return intel_vrr_fixed_rr_vtotal(crtc_state);
+	return intel_vrr_fixed_rr_hw_vtotal(crtc_state);
 }
 
 static
-int intel_vrr_fixed_rr_vmin(const struct intel_crtc_state *crtc_state)
+int intel_vrr_fixed_rr_hw_vmin(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	return intel_vrr_fixed_rr_vtotal(crtc_state) -
+	return intel_vrr_fixed_rr_hw_vtotal(crtc_state) -
 		intel_vrr_flipline_offset(display);
 }
 
 static
-int intel_vrr_fixed_rr_flipline(const struct intel_crtc_state *crtc_state)
+int intel_vrr_fixed_rr_hw_flipline(const struct intel_crtc_state *crtc_state)
 {
-	return intel_vrr_fixed_rr_vtotal(crtc_state);
+	return intel_vrr_fixed_rr_hw_vtotal(crtc_state);
 }
 
 void intel_vrr_set_fixed_rr_timings(const struct intel_crtc_state *crtc_state)
@@ -305,11 +305,11 @@ void intel_vrr_set_fixed_rr_timings(const struct intel_crtc_state *crtc_state)
 		return;
 
 	intel_de_write(display, TRANS_VRR_VMIN(display, cpu_transcoder),
-		       intel_vrr_fixed_rr_vmin(crtc_state) - 1);
+		       intel_vrr_fixed_rr_hw_vmin(crtc_state) - 1);
 	intel_de_write(display, TRANS_VRR_VMAX(display, cpu_transcoder),
-		       intel_vrr_fixed_rr_vmax(crtc_state) - 1);
+		       intel_vrr_fixed_rr_hw_vmax(crtc_state) - 1);
 	intel_de_write(display, TRANS_VRR_FLIPLINE(display, cpu_transcoder),
-		       intel_vrr_fixed_rr_flipline(crtc_state) - 1);
+		       intel_vrr_fixed_rr_hw_flipline(crtc_state) - 1);
 }
 
 static
