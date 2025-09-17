@@ -2507,6 +2507,44 @@ static void mark_rodata(struct objtool_file *file)
 	file->rodata = found;
 }
 
+static void mark_holes(struct objtool_file *file)
+{
+	struct instruction *insn;
+	bool in_hole = false;
+
+	if (!opts.link)
+		return;
+
+	/*
+	 * Whole archive runs might encounter dead code from weak symbols.
+	 * This is where the linker will have dropped the weak symbol in
+	 * favour of a regular symbol, but leaves the code in place.
+	 */
+	for_each_insn(file, insn) {
+		if (insn->sym || !find_symbol_hole_containing(insn->sec, insn->offset)) {
+			in_hole = false;
+			continue;
+		}
+
+		/* Skip function padding and pfx code */
+		if (!in_hole && insn->type == INSN_NOP)
+			continue;
+
+		in_hole = true;
+		insn->hole = 1;
+
+		/*
+		 * If this hole jumps to a .cold function, mark it ignore.
+		 */
+		if (insn->jump_dest) {
+			struct symbol *dest_func = insn_func(insn->jump_dest);
+
+			if (dest_func && dest_func->cold)
+				dest_func->ignore = true;
+		}
+	}
+}
+
 static int decode_sections(struct objtool_file *file)
 {
 	mark_rodata(file);
@@ -2559,6 +2597,9 @@ static int decode_sections(struct objtool_file *file)
 
 	if (read_unwind_hints(file))
 		return -1;
+
+	/* Must be after add_jump_destinations() */
+	mark_holes(file);
 
 	/*
 	 * Must be after add_call_destinations() such that it can override
@@ -4021,7 +4062,8 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 	struct instruction *prev_insn;
 	int i;
 
-	if (insn->type == INSN_NOP || insn->type == INSN_TRAP || (func && func->ignore))
+	if (insn->type == INSN_NOP || insn->type == INSN_TRAP ||
+	    insn->hole || (func && func->ignore))
 		return true;
 
 	/*
@@ -4031,46 +4073,6 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 	if (!strcmp(insn->sec->name, ".altinstr_replacement") ||
 	    !strcmp(insn->sec->name, ".altinstr_aux"))
 		return true;
-
-	/*
-	 * Whole archive runs might encounter dead code from weak symbols.
-	 * This is where the linker will have dropped the weak symbol in
-	 * favour of a regular symbol, but leaves the code in place.
-	 *
-	 * In this case we'll find a piece of code (whole function) that is not
-	 * covered by a !section symbol. Ignore them.
-	 */
-	if (opts.link && !func) {
-		int size = find_symbol_hole_containing(insn->sec, insn->offset);
-		unsigned long end = insn->offset + size;
-
-		if (!size) /* not a hole */
-			return false;
-
-		if (size < 0) /* hole until the end */
-			return true;
-
-		sec_for_each_insn_continue(file, insn) {
-			/*
-			 * If we reach a visited instruction at or before the
-			 * end of the hole, ignore the unreachable.
-			 */
-			if (insn->visited)
-				return true;
-
-			if (insn->offset >= end)
-				break;
-
-			/*
-			 * If this hole jumps to a .cold function, mark it ignore too.
-			 */
-			if (insn->jump_dest && insn_func(insn->jump_dest) &&
-			    insn_func(insn->jump_dest)->cold)
-				insn_func(insn->jump_dest)->ignore = true;
-		}
-
-		return false;
-	}
 
 	if (!func)
 		return false;
