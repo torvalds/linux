@@ -606,53 +606,30 @@ static ssize_t target_stat_tgt_port_port_index_show(struct config_item *item,
 	return ret;
 }
 
-static ssize_t target_stat_tgt_port_in_cmds_show(struct config_item *item,
-		char *page)
-{
-	struct se_lun *lun = to_stat_tgt_port(item);
-	struct se_device *dev;
-	ssize_t ret = -ENODEV;
-
-	rcu_read_lock();
-	dev = rcu_dereference(lun->lun_se_dev);
-	if (dev)
-		ret = snprintf(page, PAGE_SIZE, "%lu\n",
-			       atomic_long_read(&lun->lun_stats.cmd_pdus));
-	rcu_read_unlock();
-	return ret;
+#define tgt_port_show_per_cpu_stat(prefix, field, shift)		\
+per_cpu_stat_snprintf(scsi_port_stats, prefix, field, shift);		\
+static ssize_t								\
+target_stat_##prefix##_show(struct config_item *item, char *page)	\
+{									\
+	struct se_lun *lun = to_stat_tgt_port(item);			\
+	struct se_device *dev;						\
+	int ret;							\
+									\
+	rcu_read_lock();						\
+	dev = rcu_dereference(lun->lun_se_dev);				\
+	if (!dev) {							\
+		rcu_read_unlock();					\
+		return -ENODEV;						\
+	}								\
+									\
+	ret = per_cpu_stat_##prefix##_snprintf(lun->lun_stats, page);	\
+	rcu_read_unlock();						\
+	return ret;							\
 }
 
-static ssize_t target_stat_tgt_port_write_mbytes_show(struct config_item *item,
-		char *page)
-{
-	struct se_lun *lun = to_stat_tgt_port(item);
-	struct se_device *dev;
-	ssize_t ret = -ENODEV;
-
-	rcu_read_lock();
-	dev = rcu_dereference(lun->lun_se_dev);
-	if (dev)
-		ret = snprintf(page, PAGE_SIZE, "%u\n",
-			(u32)(atomic_long_read(&lun->lun_stats.rx_data_octets) >> 20));
-	rcu_read_unlock();
-	return ret;
-}
-
-static ssize_t target_stat_tgt_port_read_mbytes_show(struct config_item *item,
-		char *page)
-{
-	struct se_lun *lun = to_stat_tgt_port(item);
-	struct se_device *dev;
-	ssize_t ret = -ENODEV;
-
-	rcu_read_lock();
-	dev = rcu_dereference(lun->lun_se_dev);
-	if (dev)
-		ret = snprintf(page, PAGE_SIZE, "%u\n",
-				(u32)(atomic_long_read(&lun->lun_stats.tx_data_octets) >> 20));
-	rcu_read_unlock();
-	return ret;
-}
+tgt_port_show_per_cpu_stat(tgt_port_in_cmds, cmd_pdus, 0);
+tgt_port_show_per_cpu_stat(tgt_port_write_mbytes, rx_data_octets, 20);
+tgt_port_show_per_cpu_stat(tgt_port_read_mbytes, tx_data_octets, 20);
 
 static ssize_t target_stat_tgt_port_hs_in_cmds_show(struct config_item *item,
 		char *page)
