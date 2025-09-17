@@ -9,6 +9,16 @@
 
 struct device;
 
+#define GPIO_GENERIC_BIG_ENDIAN			BIT(0)
+#define GPIO_GENERIC_UNREADABLE_REG_SET		BIT(1) /* reg_set is unreadable */
+#define GPIO_GENERIC_UNREADABLE_REG_DIR		BIT(2) /* reg_dir is unreadable */
+#define GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER	BIT(3)
+#define GPIO_GENERIC_READ_OUTPUT_REG_SET	BIT(4) /* reg_set stores output value */
+#define GPIO_GENERIC_NO_OUTPUT			BIT(5) /* only input */
+#define GPIO_GENERIC_NO_SET_ON_INPUT		BIT(6)
+#define GPIO_GENERIC_PINCTRL_BACKEND		BIT(7) /* Call pinctrl direction setters */
+#define GPIO_GENERIC_NO_INPUT			BIT(8) /* only output */
+
 /**
  * struct gpio_generic_chip_config - Generic GPIO chip configuration data
  * @dev: Parent device of the new GPIO chip (compulsory).
