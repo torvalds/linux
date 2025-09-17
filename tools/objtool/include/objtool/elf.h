@@ -117,9 +117,14 @@ struct elf {
 struct elf *elf_open_read(const char *name, int flags);
 
 struct section *elf_create_section(struct elf *elf, const char *name,
-				   size_t entsize, unsigned int nr);
+				   size_t size, size_t entsize,
+				   unsigned int type, unsigned int align,
+				   unsigned int flags);
 struct section *elf_create_section_pair(struct elf *elf, const char *name,
 					size_t entsize, unsigned int nr,
+					unsigned int reloc_nr);
+
+struct section *elf_create_rela_section(struct elf *elf, struct section *sec,
 					unsigned int reloc_nr);
 
 struct symbol *elf_create_symbol(struct elf *elf, const char *name,
