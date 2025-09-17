@@ -20,7 +20,7 @@ set -o nounset
 # This helps keep execution in pipes so pipefail+errexit can catch errors.
 shopt -s lastpipe
 
-unset SKIP_CLEANUP XTRACE
+unset DEBUG_CLONE SKIP_CLEANUP XTRACE
 
 REPLACE=1
 SHORT_CIRCUIT=0
@@ -120,6 +120,7 @@ Options:
    -v, --verbose		Pass V=1 to kernel/module builds
 
 Advanced Options:
+   -d, --debug			Show symbol/reloc cloning decisions
    -S, --short-circuit=STEP	Start at build step (requires prior --keep-tmp)
 				   1|orig	Build original kernel (default)
 				   2|patched	Build patched kernel
@@ -140,8 +141,8 @@ process_args() {
 	local long
 	local args
 
-	short="hj:o:vS:T"
-	long="help,jobs:,output:,no-replace,verbose,short-circuit:,keep-tmp"
+	short="hj:o:vdS:T"
+	long="help,jobs:,output:,no-replace,verbose,debug,short-circuit:,keep-tmp"
 
 	args=$(getopt --options "$short" --longoptions "$long" -- "$@") || {
 		echo; usage; exit
@@ -172,6 +173,11 @@ process_args() {
 				;;
 			-v | --verbose)
 				VERBOSE="V=1"
+				shift
+				;;
+			-d | --debug)
+				DEBUG_CLONE=1
+				keep_tmp=1
 				shift
 				;;
 			-S | --short-circuit)
@@ -596,12 +602,15 @@ copy_patched_objects() {
 diff_objects() {
 	local log="$KLP_DIFF_LOG"
 	local files=()
+	local opts=()
 
 	rm -rf "$DIFF_DIR"
 	mkdir -p "$DIFF_DIR"
 
 	find "$PATCHED_DIR" -type f -name "*.o" | mapfile -t files
 	[[ ${#files[@]} -eq 0 ]] && die "no changes detected"
+
+	[[ -v DEBUG_CLONE ]] && opts=("--debug")
 
 	# Diff all changed objects
 	for file in "${files[@]}"; do
@@ -616,6 +625,7 @@ diff_objects() {
 		cmd=("$SRC/tools/objtool/objtool")
 		cmd+=("klp")
 		cmd+=("diff")
+		(( ${#opts[@]} > 0 )) && cmd+=("${opts[@]}")
 		cmd+=("$orig_file")
 		cmd+=("$patched_file")
 		cmd+=("$out_file")
