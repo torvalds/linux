@@ -28,7 +28,7 @@ static int tpm_loongson_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	return cmd_ret->data_len;
 }
 
-static int tpm_loongson_send(struct tpm_chip *chip, u8 *buf, size_t count)
+static int tpm_loongson_send(struct tpm_chip *chip, u8 *buf, size_t bufsiz, size_t count)
 {
 	struct loongson_se_engine *tpm_engine = dev_get_drvdata(&chip->dev);
 	struct tpm_loongson_cmd *cmd = tpm_engine->command;
