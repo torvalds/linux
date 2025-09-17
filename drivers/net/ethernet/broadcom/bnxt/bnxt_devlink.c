@@ -1074,15 +1074,8 @@ static int __bnxt_hwrm_nvm_req(struct bnxt *bp,
 static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 			     union devlink_param_value *val)
 {
-	struct hwrm_nvm_get_variable_input *req = msg;
 	const struct bnxt_dl_nvm_param *nvm_param;
 	int i;
-
-	/* Get/Set NVM CFG parameter is supported only on PFs */
-	if (BNXT_VF(bp)) {
-		hwrm_req_drop(bp, req);
-		return -EPERM;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(nvm_params); i++) {
 		nvm_param = &nvm_params[i];
