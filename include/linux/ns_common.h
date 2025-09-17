@@ -31,6 +31,9 @@ struct ns_common {
 	};
 };
 
+int ns_common_init(struct ns_common *ns, const struct proc_ns_operations *ops,
+		   bool alloc_inum);
+
 #define to_ns_common(__ns)                              \
 	_Generic((__ns),                                \
 		struct cgroup_namespace *: &(__ns)->ns, \
