@@ -96,7 +96,8 @@ static inline unsigned long __sym_last(struct symbol *s)
 }
 
 INTERVAL_TREE_DEFINE(struct symbol, node, unsigned long, __subtree_last,
-		     __sym_start, __sym_last, static, __sym)
+		     __sym_start, __sym_last, static inline __maybe_unused,
+		     __sym)
 
 #define __sym_for_each(_iter, _tree, _start, _end)			\
 	for (_iter = __sym_iter_first((_tree), (_start), (_end));	\
@@ -440,13 +441,6 @@ static void elf_add_symbol(struct elf *elf, struct symbol *sym)
 	list_add(&sym->list, entry);
 	elf_hash_add(symbol, &sym->hash, sym->idx);
 	elf_hash_add(symbol_name, &sym->name_hash, str_hash(sym->name));
-
-	/*
-	 * Don't store empty STT_NOTYPE symbols in the rbtree.  They
-	 * can exist within a function, confusing the sorting.
-	 */
-	if (!sym->len)
-		__sym_remove(sym, &sym->sec->symbol_tree);
 }
 
 static int read_symbols(struct elf *elf)
