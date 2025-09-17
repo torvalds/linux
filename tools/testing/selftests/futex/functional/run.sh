@@ -44,7 +44,7 @@ echo
 ./futex_wait_timeout
 
 echo
-./futex_wait_wouldblock $COLOR
+./futex_wait_wouldblock
 
 echo
 ./futex_wait_uninitialized_heap $COLOR
