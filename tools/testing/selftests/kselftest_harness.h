@@ -1091,7 +1091,7 @@ static int test_harness_argv_check(int argc, char **argv)
 {
 	int opt;
 
-	while ((opt = getopt(argc, argv, "hlF:f:V:v:t:T:r:")) != -1) {
+	while ((opt = getopt(argc, argv, "dhlF:f:V:v:t:T:r:")) != -1) {
 		switch (opt) {
 		case 'f':
 		case 'F':
@@ -1104,12 +1104,16 @@ static int test_harness_argv_check(int argc, char **argv)
 		case 'l':
 			test_harness_list_tests();
 			return KSFT_SKIP;
+		case 'd':
+			ksft_debug_enabled = true;
+			break;
 		case 'h':
 		default:
 			fprintf(stderr,
-				"Usage: %s [-h|-l] [-t|-T|-v|-V|-f|-F|-r name]\n"
+				"Usage: %s [-h|-l|-d] [-t|-T|-v|-V|-f|-F|-r name]\n"
 				"\t-h       print help\n"
 				"\t-l       list all tests\n"
+				"\t-d       enable debug prints\n"
 				"\n"
 				"\t-t name  include test\n"
 				"\t-T name  exclude test\n"
@@ -1142,8 +1146,9 @@ static bool test_enabled(int argc, char **argv,
 	int opt;
 
 	optind = 1;
-	while ((opt = getopt(argc, argv, "F:f:V:v:t:T:r:")) != -1) {
-		has_positive |= islower(opt);
+	while ((opt = getopt(argc, argv, "dF:f:V:v:t:T:r:")) != -1) {
+		if (opt != 'd')
+			has_positive |= islower(opt);
 
 		switch (tolower(opt)) {
 		case 't':
