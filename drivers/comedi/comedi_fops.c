@@ -2284,15 +2284,10 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 		rc = check_insnlist_len(dev, insnlist.n_insns);
 		if (rc)
 			break;
-		insns = kcalloc(insnlist.n_insns, sizeof(*insns), GFP_KERNEL);
-		if (!insns) {
-			rc = -ENOMEM;
-			break;
-		}
-		if (copy_from_user(insns, insnlist.insns,
-				   sizeof(*insns) * insnlist.n_insns)) {
-			rc = -EFAULT;
-			kfree(insns);
+		insns = memdup_array_user(insnlist.insns, insnlist.n_insns,
+					  sizeof(*insns));
+		if (IS_ERR(insns)) {
+			rc = PTR_ERR(insns);
 			break;
 		}
 		rc = do_insnlist_ioctl(dev, insns, insnlist.n_insns, file);
