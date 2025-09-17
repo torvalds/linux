@@ -61,7 +61,7 @@ void dmub_hw_lock_mgr_inbox0_cmd(struct dc_dmub_srv *dmub_srv,
 	dc_dmub_srv_wait_for_inbox0_ack(dmub_srv);
 }
 
-bool should_use_dmub_lock(const struct dc *dc, const struct dc_link *link)
+bool should_use_dmub_inbox1_lock(const struct dc *dc, const struct dc_link *link)
 {
 	/* ASIC doesn't support DMUB */
 	if (!dc->ctx->dmub_srv)

@@ -2245,7 +2245,7 @@ void dcn10_cursor_lock(struct dc *dc, struct pipe_ctx *pipe, bool lock)
 	if (lock)
 		delay_cursor_until_vupdate(dc, pipe);
 
-	if (pipe->stream && should_use_dmub_lock(dc, pipe->stream->link)) {
+	if (pipe->stream && should_use_dmub_inbox1_lock(dc, pipe->stream->link)) {
 		union dmub_hw_lock_flags hw_locks = { 0 };
 		struct dmub_hw_lock_inst_flags inst_flags = { 0 };
 
