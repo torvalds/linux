@@ -4103,6 +4103,8 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns, bool a
 		return ERR_PTR(-ENOMEM);
 	}
 
+	if (anon)
+		new_ns->ns.inum = MNT_NS_ANON_INO;
 	ret = ns_common_init(&new_ns->ns, &mntns_operations, !anon);
 	if (ret) {
 		kfree(new_ns);
