@@ -27,7 +27,7 @@ static vm_paddr_t gpa_base;
 
 static struct kvm_vm *vm;
 static struct kvm_vcpu **vcpus;
-static int gic_fd, its_fd;
+static int its_fd;
 
 static struct test_data {
 	bool		request_vcpus_stop;
@@ -214,7 +214,6 @@ static void setup_test_data(void)
 
 static void setup_gic(void)
 {
-	gic_fd = vgic_v3_setup(vm, test_data.nr_cpus, 64);
 	its_fd = vgic_its_setup(vm);
 }
 
@@ -353,7 +352,6 @@ static void setup_vm(void)
 static void destroy_vm(void)
 {
 	close(its_fd);
-	close(gic_fd);
 	kvm_vm_free(vm);
 	free(vcpus);
 }

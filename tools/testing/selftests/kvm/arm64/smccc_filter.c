@@ -73,6 +73,7 @@ static struct kvm_vm *setup_vm(struct kvm_vcpu **vcpu)
 	init.features[0] |= (1 << KVM_ARM_VCPU_PSCI_0_2);
 
 	*vcpu = aarch64_vcpu_add(vm, 0, &init, guest_main);
+	kvm_arch_vm_finalize_vcpus(vm);
 	return vm;
 }
 

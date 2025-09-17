@@ -28,7 +28,6 @@
 struct vpmu_vm {
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu;
-	int gic_fd;
 };
 
 static struct vpmu_vm vpmu_vm;
@@ -435,7 +434,8 @@ static void create_vpmu_vm(void *guest_code)
 	init.features[0] |= (1 << KVM_ARM_VCPU_PMU_V3);
 	vpmu_vm.vcpu = aarch64_vcpu_add(vpmu_vm.vm, 0, &init, guest_code);
 	vcpu_init_descriptor_tables(vpmu_vm.vcpu);
-	vpmu_vm.gic_fd = vgic_v3_setup(vpmu_vm.vm, 1, 64);
+
+	kvm_arch_vm_finalize_vcpus(vpmu_vm.vm);
 
 	/* Make sure that PMUv3 support is indicated in the ID register */
 	dfr0 = vcpu_get_reg(vpmu_vm.vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64DFR0_EL1));
@@ -451,7 +451,6 @@ static void create_vpmu_vm(void *guest_code)
 
 static void destroy_vpmu_vm(void)
 {
-	close(vpmu_vm.gic_fd);
 	kvm_vm_free(vpmu_vm.vm);
 }
 

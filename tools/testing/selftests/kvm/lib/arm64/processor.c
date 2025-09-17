@@ -12,6 +12,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 #include "ucall_common.h"
+#include "vgic.h"
 
 #include <linux/bitfield.h>
 #include <linux/sizes.h>
@@ -655,14 +656,37 @@ void wfi(void)
 }
 
 static bool request_mte;
+static bool request_vgic = true;
 
 void test_wants_mte(void)
 {
 	request_mte = true;
 }
 
-void kvm_arch_vm_post_create(struct kvm_vm *vm)
+void test_disable_default_vgic(void)
+{
+	request_vgic = false;
+}
+
+void kvm_arch_vm_post_create(struct kvm_vm *vm, unsigned int nr_vcpus)
 {
 	if (request_mte && vm_check_cap(vm, KVM_CAP_ARM_MTE))
 		vm_enable_cap(vm, KVM_CAP_ARM_MTE, 0);
+
+	if (request_vgic && kvm_supports_vgic_v3()) {
+		vm->arch.gic_fd = __vgic_v3_setup(vm, nr_vcpus, 64);
+		vm->arch.has_gic = true;
+	}
+}
+
+void kvm_arch_vm_finalize_vcpus(struct kvm_vm *vm)
+{
+	if (vm->arch.has_gic)
+		__vgic_v3_init(vm->arch.gic_fd);
+}
+
+void kvm_arch_vm_release(struct kvm_vm *vm)
+{
+	if (vm->arch.has_gic)
+		close(vm->arch.gic_fd);
 }

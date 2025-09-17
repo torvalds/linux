@@ -95,6 +95,7 @@ static struct kvm_vm *setup_vm(void *guest_code, struct kvm_vcpu **source,
 	*source = aarch64_vcpu_add(vm, 0, &init, guest_code);
 	*target = aarch64_vcpu_add(vm, 1, &init, guest_code);
 
+	kvm_arch_vm_finalize_vcpus(vm);
 	return vm;
 }
 

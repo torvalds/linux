@@ -301,5 +301,6 @@ void smccc_smc(uint32_t function_id, uint64_t arg0, uint64_t arg1,
 void wfi(void);
 
 void test_wants_mte(void);
+void test_disable_default_vgic(void);
 
 #endif /* SELFTEST_KVM_PROCESSOR_H */

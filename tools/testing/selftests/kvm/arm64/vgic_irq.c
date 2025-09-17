@@ -802,6 +802,7 @@ int main(int argc, char **argv)
 	bool eoi_split = false;
 
 	TEST_REQUIRE(kvm_supports_vgic_v3());
+	test_disable_default_vgic();
 
 	while ((opt = getopt(argc, argv, "hn:e:l:")) != -1) {
 		switch (opt) {
