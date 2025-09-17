@@ -1313,16 +1313,20 @@ bool edp_pr_enable(struct dc_link *link, bool enable)
 	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
 		return false;
 
-	//for sending PR enable commands to DMUB
-	memset(&cmd, 0, sizeof(cmd));
+	if (link->replay_settings.replay_allow_active != enable) {
+		//for sending PR enable commands to DMUB
+		memset(&cmd, 0, sizeof(cmd));
 
-	cmd.pr_enable.header.type = DMUB_CMD__PR;
-	cmd.pr_enable.header.sub_type = DMUB_CMD__PR_ENABLE;
-	cmd.pr_enable.header.payload_bytes = sizeof(struct dmub_cmd_pr_enable_data);
-	cmd.pr_enable.data.panel_inst = panel_inst;
-	cmd.pr_enable.data.enable = enable ? 1 : 0;
+		cmd.pr_enable.header.type = DMUB_CMD__PR;
+		cmd.pr_enable.header.sub_type = DMUB_CMD__PR_ENABLE;
+		cmd.pr_enable.header.payload_bytes = sizeof(struct dmub_cmd_pr_enable_data);
+		cmd.pr_enable.data.panel_inst = panel_inst;
+		cmd.pr_enable.data.enable = enable ? 1 : 0;
 
-	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+		dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+
+		link->replay_settings.replay_allow_active = enable;
+	}
 	return true;
 }
 
