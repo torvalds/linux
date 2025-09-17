@@ -19,6 +19,7 @@ static inline void checksum_update(struct symbol *func,
 				   const void *data, size_t size)
 {
 	XXH3_64bits_update(func->csum.state, data, size);
+	dbg_checksum(func, insn, XXH3_64bits_digest(func->csum.state));
 }
 
 static inline void checksum_finish(struct symbol *func)

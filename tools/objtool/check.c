@@ -3580,6 +3580,44 @@ static bool skip_alt_group(struct instruction *insn)
 	return alt_insn->type == INSN_CLAC || alt_insn->type == INSN_STAC;
 }
 
+static int checksum_debug_init(struct objtool_file *file)
+{
+	char *dup, *s;
+
+	if (!opts.debug_checksum)
+		return 0;
+
+	dup = strdup(opts.debug_checksum);
+	if (!dup) {
+		ERROR_GLIBC("strdup");
+		return -1;
+	}
+
+	s = dup;
+	while (*s) {
+		struct symbol *func;
+		char *comma;
+
+		comma = strchr(s, ',');
+		if (comma)
+			*comma = '\0';
+
+		func = find_symbol_by_name(file->elf, s);
+		if (!func || !is_func_sym(func))
+			WARN("--debug-checksum: can't find '%s'", s);
+		else
+			func->debug_checksum = 1;
+
+		if (!comma)
+			break;
+
+		s = comma + 1;
+	}
+
+	free(dup);
+	return 0;
+}
+
 static void checksum_update_insn(struct objtool_file *file, struct symbol *func,
 				 struct instruction *insn)
 {
@@ -4817,6 +4855,10 @@ int check(struct objtool_file *file)
 
 	cfi_hash_add(&init_cfi);
 	cfi_hash_add(&func_cfi);
+
+	ret = checksum_debug_init(file);
+	if (ret)
+		goto out;
 
 	ret = decode_sections(file);
 	if (ret)
