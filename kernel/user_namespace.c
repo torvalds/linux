@@ -126,7 +126,7 @@ int create_user_ns(struct cred *new)
 
 	ns->parent_could_setfcap = cap_raised(new->cap_effective, CAP_SETFCAP);
 
-	ret = ns_common_init(&ns->ns, &userns_operations, true);
+	ret = ns_common_init(ns, &userns_operations);
 	if (ret)
 		goto fail_free;
 

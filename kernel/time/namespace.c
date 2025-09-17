@@ -97,7 +97,7 @@ static struct time_namespace *clone_time_ns(struct user_namespace *user_ns,
 	if (!ns->vvar_page)
 		goto fail_free;
 
-	err = ns_common_init(&ns->ns, &timens_operations, true);
+	err = ns_common_init(ns, &timens_operations);
 	if (err)
 		goto fail_free_page;
 

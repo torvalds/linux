@@ -409,7 +409,7 @@ static __net_init int preinit_net(struct net *net, struct user_namespace *user_n
 	ns_ops = NULL;
 #endif
 
-	ret = ns_common_init(&net->ns, ns_ops, true);
+	ret = ns_common_init(net, ns_ops);
 	if (ret)
 		return ret;
 

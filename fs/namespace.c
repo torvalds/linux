@@ -4104,8 +4104,9 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns, bool a
 	}
 
 	if (anon)
-		new_ns->ns.inum = MNT_NS_ANON_INO;
-	ret = ns_common_init(&new_ns->ns, &mntns_operations, !anon);
+		ret = ns_common_init_inum(new_ns, &mntns_operations, MNT_NS_ANON_INO);
+	else
+		ret = ns_common_init(new_ns, &mntns_operations);
 	if (ret) {
 		kfree(new_ns);
 		dec_mnt_namespaces(ucounts);

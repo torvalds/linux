@@ -62,7 +62,7 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 	if (ns == NULL)
 		goto fail_dec;
 
-	err = ns_common_init(&ns->ns, &ipcns_operations, true);
+	err = ns_common_init(ns, &ipcns_operations);
 	if (err)
 		goto fail_free;
 

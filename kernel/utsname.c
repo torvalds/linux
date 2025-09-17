@@ -50,7 +50,7 @@ static struct uts_namespace *clone_uts_ns(struct user_namespace *user_ns,
 	if (!ns)
 		goto fail_dec;
 
-	err = ns_common_init(&ns->ns, &utsns_operations, true);
+	err = ns_common_init(ns, &utsns_operations);
 	if (err)
 		goto fail_free;
 

@@ -16,6 +16,15 @@ struct time_namespace;
 struct user_namespace;
 struct uts_namespace;
 
+extern struct cgroup_namespace init_cgroup_ns;
+extern struct ipc_namespace init_ipc_ns;
+extern struct mnt_namespace init_mnt_ns;
+extern struct net init_net;
+extern struct pid_namespace init_pid_ns;
+extern struct time_namespace init_time_ns;
+extern struct user_namespace init_user_ns;
+extern struct uts_namespace init_uts_ns;
+
 struct ns_common {
 	struct dentry *stashed;
 	const struct proc_ns_operations *ops;
@@ -31,8 +40,7 @@ struct ns_common {
 	};
 };
 
-int ns_common_init(struct ns_common *ns, const struct proc_ns_operations *ops,
-		   bool alloc_inum);
+int __ns_common_init(struct ns_common *ns, const struct proc_ns_operations *ops, int inum);
 
 #define to_ns_common(__ns)                              \
 	_Generic((__ns),                                \
@@ -44,5 +52,32 @@ int ns_common_init(struct ns_common *ns, const struct proc_ns_operations *ops,
 		struct time_namespace *:   &(__ns)->ns, \
 		struct user_namespace *:   &(__ns)->ns, \
 		struct uts_namespace *:    &(__ns)->ns)
+
+#define ns_init_inum(__ns)                                     \
+	_Generic((__ns),                                       \
+		struct cgroup_namespace *: CGROUP_NS_INIT_INO, \
+		struct ipc_namespace *:    IPC_NS_INIT_INO,    \
+		struct mnt_namespace *:    MNT_NS_INIT_INO,    \
+		struct net *:              NET_NS_INIT_INO,    \
+		struct pid_namespace *:    PID_NS_INIT_INO,    \
+		struct time_namespace *:   TIME_NS_INIT_INO,   \
+		struct user_namespace *:   USER_NS_INIT_INO,   \
+		struct uts_namespace *:    UTS_NS_INIT_INO)
+
+#define ns_init_ns(__ns)                                    \
+	_Generic((__ns),                                    \
+		struct cgroup_namespace *: &init_cgroup_ns, \
+		struct ipc_namespace *:    &init_ipc_ns,    \
+		struct mnt_namespace *:    &init_mnt_ns,     \
+		struct net *:              &init_net,       \
+		struct pid_namespace *:    &init_pid_ns,    \
+		struct time_namespace *:   &init_time_ns,   \
+		struct user_namespace *:   &init_user_ns,   \
+		struct uts_namespace *:    &init_uts_ns)
+
+#define ns_common_init(__ns, __ops) \
+	__ns_common_init(to_ns_common(__ns), __ops, (((__ns) == ns_init_ns(__ns)) ? ns_init_inum(__ns) : 0))
+
+#define ns_common_init_inum(__ns, __ops, __inum) __ns_common_init(to_ns_common(__ns), __ops, __inum)
 
 #endif

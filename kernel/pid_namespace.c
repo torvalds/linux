@@ -103,7 +103,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	if (ns->pid_cachep == NULL)
 		goto out_free_idr;
 
-	err = ns_common_init(&ns->ns, &pidns_operations, true);
+	err = ns_common_init(ns, &pidns_operations);
 	if (err)
 		goto out_free_idr;
 
