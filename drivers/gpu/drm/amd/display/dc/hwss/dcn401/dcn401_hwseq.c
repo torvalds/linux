@@ -1404,9 +1404,9 @@ void dcn401_prepare_bandwidth(struct dc *dc,
 	}
 
 	if (dc->debug.fams2_config.bits.enable) {
-		dcn401_fams2_global_control_lock(dc, context, true);
+		dcn401_dmub_hw_control_lock(dc, context, true);
 		dcn401_fams2_update_config(dc, context, false);
-		dcn401_fams2_global_control_lock(dc, context, false);
+		dcn401_dmub_hw_control_lock(dc, context, false);
 	}
 
 	if (p_state_change_support != context->bw_ctx.bw.dcn.clk.p_state_change_support) {
@@ -1425,9 +1425,9 @@ void dcn401_optimize_bandwidth(
 
 	/* enable fams2 if needed */
 	if (dc->debug.fams2_config.bits.enable) {
-		dcn401_fams2_global_control_lock(dc, context, true);
+		dcn401_dmub_hw_control_lock(dc, context, true);
 		dcn401_fams2_update_config(dc, context, true);
-		dcn401_fams2_global_control_lock(dc, context, false);
+		dcn401_dmub_hw_control_lock(dc, context, false);
 	}
 
 	/* program dchubbub watermarks */
@@ -1466,7 +1466,7 @@ void dcn401_optimize_bandwidth(
 	}
 }
 
-void dcn401_fams2_global_control_lock(struct dc *dc,
+void dcn401_dmub_hw_control_lock(struct dc *dc,
 		struct dc_state *context,
 		bool lock)
 {
@@ -1483,12 +1483,12 @@ void dcn401_fams2_global_control_lock(struct dc *dc,
 	dmub_hw_lock_mgr_inbox0_cmd(dc->ctx->dmub_srv, hw_lock_cmd);
 }
 
-void dcn401_fams2_global_control_lock_fast(union block_sequence_params *params)
+void dcn401_dmub_hw_control_lock_fast(union block_sequence_params *params)
 {
-	struct dc *dc = params->fams2_global_control_lock_fast_params.dc;
-	bool lock = params->fams2_global_control_lock_fast_params.lock;
+	struct dc *dc = params->dmub_hw_control_lock_fast_params.dc;
+	bool lock = params->dmub_hw_control_lock_fast_params.lock;
 
-	if (params->fams2_global_control_lock_fast_params.is_required) {
+	if (params->dmub_hw_control_lock_fast_params.is_required) {
 		union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
 
 		hw_lock_cmd.bits.command_code = DMUB_INBOX0_CMD__HW_LOCK;

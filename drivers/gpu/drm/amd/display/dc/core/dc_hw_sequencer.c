@@ -755,11 +755,11 @@ void hwss_build_fast_sequence(struct dc *dc,
 		block_sequence[*num_steps].func = DMUB_SUBVP_PIPE_CONTROL_LOCK_FAST;
 		(*num_steps)++;
 	}
-	if (dc->hwss.fams2_global_control_lock_fast) {
-		block_sequence[*num_steps].params.fams2_global_control_lock_fast_params.dc = dc;
-		block_sequence[*num_steps].params.fams2_global_control_lock_fast_params.lock = true;
-		block_sequence[*num_steps].params.fams2_global_control_lock_fast_params.is_required = dc_state_is_fams2_in_use(dc, context);
-		block_sequence[*num_steps].func = DMUB_FAMS2_GLOBAL_CONTROL_LOCK_FAST;
+	if (dc->hwss.dmub_hw_control_lock_fast) {
+		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.dc = dc;
+		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.lock = true;
+		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.is_required = dc_state_is_fams2_in_use(dc, context);
+		block_sequence[*num_steps].func = DMUB_HW_CONTROL_LOCK_FAST;
 		(*num_steps)++;
 	}
 	if (dc->hwss.pipe_control_lock) {
@@ -894,11 +894,11 @@ void hwss_build_fast_sequence(struct dc *dc,
 		block_sequence[*num_steps].func = DMUB_SUBVP_PIPE_CONTROL_LOCK_FAST;
 		(*num_steps)++;
 	}
-	if (dc->hwss.fams2_global_control_lock_fast) {
-		block_sequence[*num_steps].params.fams2_global_control_lock_fast_params.dc = dc;
-		block_sequence[*num_steps].params.fams2_global_control_lock_fast_params.lock = false;
-		block_sequence[*num_steps].params.fams2_global_control_lock_fast_params.is_required = dc_state_is_fams2_in_use(dc, context);
-		block_sequence[*num_steps].func = DMUB_FAMS2_GLOBAL_CONTROL_LOCK_FAST;
+	if (dc->hwss.dmub_hw_control_lock_fast) {
+		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.dc = dc;
+		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.lock = false;
+		block_sequence[*num_steps].params.dmub_hw_control_lock_fast_params.is_required = dc_state_is_fams2_in_use(dc, context);
+		block_sequence[*num_steps].func = DMUB_HW_CONTROL_LOCK_FAST;
 		(*num_steps)++;
 	}
 
@@ -1001,8 +1001,8 @@ void hwss_execute_sequence(struct dc *dc,
 					params->wait_for_dcc_meta_propagation_params.dc,
 					params->wait_for_dcc_meta_propagation_params.top_pipe_to_program);
 			break;
-		case DMUB_FAMS2_GLOBAL_CONTROL_LOCK_FAST:
-			dc->hwss.fams2_global_control_lock_fast(params);
+		case DMUB_HW_CONTROL_LOCK_FAST:
+			dc->hwss.dmub_hw_control_lock_fast(params);
 			break;
 		default:
 			ASSERT(false);

@@ -148,7 +148,7 @@ struct wait_for_dcc_meta_propagation_params {
 	const struct pipe_ctx *top_pipe_to_program;
 };
 
-struct fams2_global_control_lock_fast_params {
+struct dmub_hw_control_lock_fast_params {
 	struct dc *dc;
 	bool is_required;
 	bool lock;
@@ -173,7 +173,7 @@ union block_sequence_params {
 	struct set_ocsc_default_params set_ocsc_default_params;
 	struct subvp_save_surf_addr subvp_save_surf_addr;
 	struct wait_for_dcc_meta_propagation_params wait_for_dcc_meta_propagation_params;
-	struct fams2_global_control_lock_fast_params fams2_global_control_lock_fast_params;
+	struct dmub_hw_control_lock_fast_params dmub_hw_control_lock_fast_params;
 };
 
 enum block_sequence_func {
@@ -195,7 +195,7 @@ enum block_sequence_func {
 	MPC_SET_OCSC_DEFAULT,
 	DMUB_SUBVP_SAVE_SURF_ADDR,
 	HUBP_WAIT_FOR_DCC_META_PROP,
-	DMUB_FAMS2_GLOBAL_CONTROL_LOCK_FAST,
+	DMUB_HW_CONTROL_LOCK_FAST,
 	/* This must be the last value in this enum, add new ones above */
 	HWSS_BLOCK_SEQUENCE_FUNC_COUNT
 };
@@ -452,13 +452,13 @@ struct hw_sequencer_funcs {
 			const struct dc_state *new_ctx);
 	void (*wait_for_dcc_meta_propagation)(const struct dc *dc,
 		const struct pipe_ctx *top_pipe_to_program);
-	void (*fams2_global_control_lock)(struct dc *dc,
+	void (*dmub_hw_control_lock)(struct dc *dc,
 			struct dc_state *context,
 			bool lock);
 	void (*fams2_update_config)(struct dc *dc,
 			struct dc_state *context,
 			bool enable);
-	void (*fams2_global_control_lock_fast)(union block_sequence_params *params);
+	void (*dmub_hw_control_lock_fast)(union block_sequence_params *params);
 	void (*set_long_vtotal)(struct pipe_ctx **pipe_ctx, int num_pipes, uint32_t v_total_min, uint32_t v_total_max);
 	void (*program_outstanding_updates)(struct dc *dc,
 			struct dc_state *context);
