@@ -409,7 +409,7 @@ static __net_init int preinit_net(struct net *net, struct user_namespace *user_n
 	ns_ops = NULL;
 #endif
 
-	ret = ns_common_init(&net->ns, ns_ops, false);
+	ret = ns_common_init(&net->ns, ns_ops, true);
 	if (ret)
 		return ret;
 
@@ -590,6 +590,7 @@ struct net *copy_net_ns(unsigned long flags,
 
 	if (rv < 0) {
 put_userns:
+		ns_free_inum(&net->ns);
 #ifdef CONFIG_KEYS
 		key_remove_domain(net->key_domain);
 #endif
@@ -712,6 +713,7 @@ static void cleanup_net(struct work_struct *work)
 	/* Finally it is safe to free my network namespace structure */
 	list_for_each_entry_safe(net, tmp, &net_exit_list, exit_list) {
 		list_del_init(&net->exit_list);
+		ns_free_inum(&net->ns);
 		dec_net_namespaces(net->ucounts);
 #ifdef CONFIG_KEYS
 		key_remove_domain(net->key_domain);
@@ -831,31 +833,12 @@ static void net_ns_net_debugfs(struct net *net)
 
 static __net_init int net_ns_net_init(struct net *net)
 {
-	int ret = 0;
-
-	if (net == &init_net)
-		net->ns.inum = PROC_NET_INIT_INO;
-	else
-		ret = proc_alloc_inum(&to_ns_common(net)->inum);
-	if (ret)
-		return ret;
-
 	net_ns_net_debugfs(net);
 	return 0;
 }
 
-static __net_exit void net_ns_net_exit(struct net *net)
-{
-	/*
-	 * Initial network namespace doesn't exit so we don't need any
-	 * special checks here.
-	 */
-	ns_free_inum(&net->ns);
-}
-
 static struct pernet_operations __net_initdata net_ns_ops = {
 	.init = net_ns_net_init,
-	.exit = net_ns_net_exit,
 };
 
 static const struct nla_policy rtnl_net_policy[NETNSA_MAX + 1] = {
