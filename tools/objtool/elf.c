@@ -942,23 +942,6 @@ struct symbol *elf_create_section_symbol(struct elf *elf, struct section *sec)
 	return sym;
 }
 
-struct symbol *
-elf_create_prefix_symbol(struct elf *elf, struct symbol *orig, size_t size)
-{
-	size_t namelen = strlen(orig->name) + sizeof("__pfx_");
-	char name[SYM_NAME_LEN];
-	unsigned long offset;
-
-	snprintf(name, namelen, "__pfx_%s", orig->name);
-
-	offset = orig->sym.st_value - size;
-
-	return elf_create_symbol(elf, name, orig->sec,
-				 GELF_ST_BIND(orig->sym.st_info),
-				 GELF_ST_TYPE(orig->sym.st_info),
-				 offset, size);
-}
-
 struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 			     unsigned int reloc_idx, unsigned long offset,
 			     struct symbol *sym, s64 addend, unsigned int type)

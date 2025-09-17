@@ -148,8 +148,6 @@ struct symbol *elf_create_symbol(struct elf *elf, const char *name,
 				 unsigned int type, unsigned long offset,
 				 size_t size);
 struct symbol *elf_create_section_symbol(struct elf *elf, struct section *sec);
-struct symbol *elf_create_prefix_symbol(struct elf *elf, struct symbol *orig,
-					size_t size);
 
 void *elf_add_data(struct elf *elf, struct section *sec, const void *data,
 		   size_t size);

@@ -15,6 +15,7 @@
 #include <objtool/special.h>
 #include <objtool/warn.h>
 #include <objtool/checksum.h>
+#include <objtool/util.h>
 
 #include <linux/objtool_types.h>
 #include <linux/hashtable.h>
@@ -4233,14 +4234,43 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 	return false;
 }
 
-static int add_prefix_symbol(struct objtool_file *file, struct symbol *func)
+/*
+ * For FineIBT or kCFI, a certain number of bytes preceding the function may be
+ * NOPs.  Those NOPs may be rewritten at runtime and executed, so give them a
+ * proper function name: __pfx_<func>.
+ *
+ * The NOPs may not exist for the following cases:
+ *
+ *   - compiler cloned functions (*.cold, *.part0, etc)
+ *   - asm functions created with inline asm or without SYM_FUNC_START()
+ *
+ * So return 0 if the NOPs are missing or the function already has a prefix
+ * symbol.
+ */
+static int create_prefix_symbol(struct objtool_file *file, struct symbol *func)
 {
 	struct instruction *insn, *prev;
+	char name[SYM_NAME_LEN];
 	struct cfi_state *cfi;
 
-	insn = find_insn(file, func->sec, func->offset);
-	if (!insn)
+	if (!is_func_sym(func) || is_prefix_func(func) ||
+	    func->cold || func->static_call_tramp)
+		return 0;
+
+	if ((strlen(func->name) + sizeof("__pfx_") > SYM_NAME_LEN)) {
+		WARN("%s: symbol name too long, can't create __pfx_ symbol",
+		      func->name);
+		return 0;
+	}
+
+	if (snprintf_check(name, SYM_NAME_LEN, "__pfx_%s", func->name))
 		return -1;
+
+	insn = find_insn(file, func->sec, func->offset);
+	if (!insn) {
+		WARN("%s: can't find starting instruction", func->name);
+		return -1;
+	}
 
 	for (prev = prev_insn_same_sec(file, insn);
 	     prev;
@@ -4248,22 +4278,27 @@ static int add_prefix_symbol(struct objtool_file *file, struct symbol *func)
 		u64 offset;
 
 		if (prev->type != INSN_NOP)
-			return -1;
+			return 0;
 
 		offset = func->offset - prev->offset;
 
 		if (offset > opts.prefix)
-			return -1;
+			return 0;
 
 		if (offset < opts.prefix)
 			continue;
 
-		elf_create_prefix_symbol(file->elf, func, opts.prefix);
+		if (!elf_create_symbol(file->elf, name, func->sec,
+				       GELF_ST_BIND(func->sym.st_info),
+				       GELF_ST_TYPE(func->sym.st_info),
+				       prev->offset, opts.prefix))
+			return -1;
+
 		break;
 	}
 
 	if (!prev)
-		return -1;
+		return 0;
 
 	if (!insn->cfi) {
 		/*
@@ -4281,7 +4316,7 @@ static int add_prefix_symbol(struct objtool_file *file, struct symbol *func)
 	return 0;
 }
 
-static int add_prefix_symbols(struct objtool_file *file)
+static int create_prefix_symbols(struct objtool_file *file)
 {
 	struct section *sec;
 	struct symbol *func;
@@ -4291,10 +4326,8 @@ static int add_prefix_symbols(struct objtool_file *file)
 			continue;
 
 		sec_for_each_sym(sec, func) {
-			if (!is_func_sym(func))
-				continue;
-
-			add_prefix_symbol(file, func);
+			if (create_prefix_symbol(file, func))
+				return -1;
 		}
 	}
 
@@ -4921,7 +4954,7 @@ int check(struct objtool_file *file)
 	}
 
 	if (opts.prefix) {
-		ret = add_prefix_symbols(file);
+		ret = create_prefix_symbols(file);
 		if (ret)
 			goto out;
 	}
