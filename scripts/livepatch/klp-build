@@ -20,7 +20,7 @@ set -o nounset
 # This helps keep execution in pipes so pipefail+errexit can catch errors.
 shopt -s lastpipe
 
-unset DEBUG_CLONE SKIP_CLEANUP XTRACE
+unset DEBUG_CLONE DIFF_CHECKSUM SKIP_CLEANUP XTRACE
 
 REPLACE=1
 SHORT_CIRCUIT=0
@@ -114,6 +114,7 @@ Usage: $SCRIPT [OPTIONS] PATCH_FILE(s)
 Generate a livepatch module.
 
 Options:
+   -f, --show-first-changed	Show address of first changed instruction
    -j, --jobs=<jobs>		Build jobs to run simultaneously [default: $JOBS]
    -o, --output=<file.ko>	Output file [default: livepatch-<patch-name>.ko]
        --no-replace		Disable livepatch atomic replace
@@ -141,8 +142,8 @@ process_args() {
 	local long
 	local args
 
-	short="hj:o:vdS:T"
-	long="help,jobs:,output:,no-replace,verbose,debug,short-circuit:,keep-tmp"
+	short="hfj:o:vdS:T"
+	long="help,show-first-changed,jobs:,output:,no-replace,verbose,debug,short-circuit:,keep-tmp"
 
 	args=$(getopt --options "$short" --longoptions "$long" -- "$@") || {
 		echo; usage; exit
@@ -154,6 +155,10 @@ process_args() {
 			-h | --help)
 				usage
 				exit 0
+				;;
+			-f | --show-first-changed)
+				DIFF_CHECKSUM=1
+				shift
 				;;
 			-j | --jobs)
 				JOBS="$2"
@@ -618,6 +623,7 @@ diff_objects() {
 		local orig_file="$rel_file"
 		local patched_file="$PATCHED_DIR/$rel_file"
 		local out_file="$DIFF_DIR/$rel_file"
+		local filter=()
 		local cmd=()
 
 		mkdir -p "$(dirname "$out_file")"
@@ -630,13 +636,77 @@ diff_objects() {
 		cmd+=("$patched_file")
 		cmd+=("$out_file")
 
+		if [[ -v DIFF_CHECKSUM ]]; then
+			filter=("grep0")
+			filter+=("-Ev")
+			filter+=("DEBUG: .*checksum: ")
+		else
+			filter=("cat")
+		fi
+
 		(
 			cd "$ORIG_DIR"
 			"${cmd[@]}"							\
 				1> >(tee -a "$log")					\
-				2> >(tee -a "$log" >&2) ||				\
+				2> >(tee -a "$log" | "${filter[@]}" >&2) ||		\
 				die "objtool klp diff failed"
 		)
+	done
+}
+
+# For each changed object, run objtool with --debug-checksum to get the
+# per-instruction checksums, and then diff those to find the first changed
+# instruction for each function.
+diff_checksums() {
+	local orig_log="$ORIG_DIR/checksum.log"
+	local patched_log="$PATCHED_DIR/checksum.log"
+	local -A funcs
+	local cmd=()
+	local line
+	local file
+	local func
+
+	gawk '/\.o: changed function: / {
+		sub(/:$/, "", $1)
+		print $1, $NF
+	}' "$KLP_DIFF_LOG" | mapfile -t lines
+
+	for line in "${lines[@]}"; do
+		read -r file func <<< "$line"
+		if [[ ! -v funcs["$file"] ]]; then
+			funcs["$file"]="$func"
+		else
+			funcs["$file"]+=" $func"
+		fi
+	done
+
+	cmd=("$SRC/tools/objtool/objtool")
+	cmd+=("--checksum")
+	cmd+=("--link")
+	cmd+=("--dry-run")
+
+	for file in "${!funcs[@]}"; do
+		local opt="--debug-checksum=${funcs[$file]// /,}"
+
+		(
+			cd "$ORIG_DIR"
+			"${cmd[@]}" "$opt" "$file" &> "$orig_log" || \
+				( cat "$orig_log" >&2; die "objtool --debug-checksum failed" )
+
+			cd "$PATCHED_DIR"
+			"${cmd[@]}" "$opt" "$file" &> "$patched_log" ||	\
+				( cat "$patched_log" >&2; die "objtool --debug-checksum failed" )
+		)
+
+		for func in ${funcs[$file]}; do
+			diff <( grep0 -E "^DEBUG: .*checksum: $func " "$orig_log"    | sed "s|$ORIG_DIR/||")	\
+			     <( grep0 -E "^DEBUG: .*checksum: $func " "$patched_log" | sed "s|$PATCHED_DIR/||")	\
+				| gawk '/^< DEBUG: / {
+					gsub(/:/, "")
+					printf "%s: %s: %s\n", $3, $5, $6
+					exit
+			}' || true
+		done
 	done
 }
 
@@ -743,6 +813,10 @@ fi
 if (( SHORT_CIRCUIT <= 3 )); then
 	status "Diffing objects"
 	diff_objects
+	if [[ -v DIFF_CHECKSUM ]]; then
+		status "Finding first changed instructions"
+		diff_checksums
+	fi
 fi
 
 if (( SHORT_CIRCUIT <= 4 )); then
