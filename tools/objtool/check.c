@@ -430,7 +430,6 @@ static int decode_instructions(struct objtool_file *file)
 	struct symbol *func;
 	unsigned long offset;
 	struct instruction *insn;
-	int ret;
 
 	for_each_sec(file, sec) {
 		struct instruction *insns = NULL;
@@ -479,11 +478,8 @@ static int decode_instructions(struct objtool_file *file)
 			insn->offset = offset;
 			insn->prev_len = prev_len;
 
-			ret = arch_decode_instruction(file, sec, offset,
-						      sec->sh.sh_size - offset,
-						      insn);
-			if (ret)
-				return ret;
+			if (arch_decode_instruction(file, sec, offset, sec->sh.sh_size - offset, insn))
+				return -1;
 
 			prev_len = insn->len;
 
@@ -599,7 +595,7 @@ static int init_pv_ops(struct objtool_file *file)
 	};
 	const char *pv_ops;
 	struct symbol *sym;
-	int idx, nr, ret;
+	int idx, nr;
 
 	if (!opts.noinstr)
 		return 0;
@@ -621,9 +617,8 @@ static int init_pv_ops(struct objtool_file *file)
 		INIT_LIST_HEAD(&file->pv_ops[idx].targets);
 
 	for (idx = 0; (pv_ops = pv_ops_tables[idx]); idx++) {
-		ret = add_pv_ops(file, pv_ops);
-		if (ret)
-			return ret;
+		if (add_pv_ops(file, pv_ops))
+			return -1;
 	}
 
 	return 0;
@@ -1484,7 +1479,6 @@ static int add_jump_destinations(struct objtool_file *file)
 	struct reloc *reloc;
 	struct section *dest_sec;
 	unsigned long dest_off;
-	int ret;
 
 	for_each_insn(file, insn) {
 		struct symbol *func = insn_func(insn);
@@ -1507,9 +1501,8 @@ static int add_jump_destinations(struct objtool_file *file)
 			dest_sec = reloc->sym->sec;
 			dest_off = arch_dest_reloc_offset(reloc_addend(reloc));
 		} else if (reloc->sym->retpoline_thunk) {
-			ret = add_retpoline_call(file, insn);
-			if (ret)
-				return ret;
+			if (add_retpoline_call(file, insn))
+				return -1;
 			continue;
 		} else if (reloc->sym->return_thunk) {
 			add_return_call(file, insn, true);
@@ -1519,9 +1512,8 @@ static int add_jump_destinations(struct objtool_file *file)
 			 * External sibling call or internal sibling call with
 			 * STT_FUNC reloc.
 			 */
-			ret = add_call_dest(file, insn, reloc->sym, true);
-			if (ret)
-				return ret;
+			if (add_call_dest(file, insn, reloc->sym, true))
+				return -1;
 			continue;
 		} else if (reloc->sym->sec->idx) {
 			dest_sec = reloc->sym->sec;
@@ -1570,9 +1562,8 @@ static int add_jump_destinations(struct objtool_file *file)
 		 */
 		if (jump_dest->sym && jump_dest->offset == jump_dest->sym->offset) {
 			if (jump_dest->sym->retpoline_thunk) {
-				ret = add_retpoline_call(file, insn);
-				if (ret)
-					return ret;
+				if (add_retpoline_call(file, insn))
+					return -1;
 				continue;
 			}
 			if (jump_dest->sym->return_thunk) {
@@ -1613,9 +1604,8 @@ static int add_jump_destinations(struct objtool_file *file)
 			 * Internal sibling call without reloc or with
 			 * STT_SECTION reloc.
 			 */
-			ret = add_call_dest(file, insn, insn_func(jump_dest), true);
-			if (ret)
-				return ret;
+			if (add_call_dest(file, insn, insn_func(jump_dest), true))
+				return -1;
 			continue;
 		}
 
@@ -1645,7 +1635,6 @@ static int add_call_destinations(struct objtool_file *file)
 	unsigned long dest_off;
 	struct symbol *dest;
 	struct reloc *reloc;
-	int ret;
 
 	for_each_insn(file, insn) {
 		struct symbol *func = insn_func(insn);
@@ -1657,9 +1646,8 @@ static int add_call_destinations(struct objtool_file *file)
 			dest_off = arch_jump_destination(insn);
 			dest = find_call_destination(insn->sec, dest_off);
 
-			ret = add_call_dest(file, insn, dest, false);
-			if (ret)
-				return ret;
+			if (add_call_dest(file, insn, dest, false))
+				return -1;
 
 			if (func && func->ignore)
 				continue;
@@ -1683,19 +1671,16 @@ static int add_call_destinations(struct objtool_file *file)
 				return -1;
 			}
 
-			ret = add_call_dest(file, insn, dest, false);
-			if (ret)
-				return ret;
+			if (add_call_dest(file, insn, dest, false))
+				return -1;
 
 		} else if (reloc->sym->retpoline_thunk) {
-			ret = add_retpoline_call(file, insn);
-			if (ret)
-				return ret;
+			if (add_retpoline_call(file, insn))
+				return -1;
 
 		} else {
-			ret = add_call_dest(file, insn, reloc->sym, false);
-			if (ret)
-				return ret;
+			if (add_call_dest(file, insn, reloc->sym, false))
+				return -1;
 		}
 	}
 
@@ -1912,7 +1897,6 @@ static int add_special_section_alts(struct objtool_file *file)
 	struct instruction *orig_insn, *new_insn;
 	struct special_alt *special_alt, *tmp;
 	struct alternative *alt;
-	int ret;
 
 	if (special_get_alts(file->elf, &special_alts))
 		return -1;
@@ -1944,16 +1928,12 @@ static int add_special_section_alts(struct objtool_file *file)
 				continue;
 			}
 
-			ret = handle_group_alt(file, special_alt, orig_insn,
-					       &new_insn);
-			if (ret)
-				return ret;
+			if (handle_group_alt(file, special_alt, orig_insn, &new_insn))
+				return -1;
 
 		} else if (special_alt->jump_or_nop) {
-			ret = handle_jump_alt(file, special_alt, orig_insn,
-					      &new_insn);
-			if (ret)
-				return ret;
+			if (handle_jump_alt(file, special_alt, orig_insn, &new_insn))
+				return -1;
 		}
 
 		alt = calloc(1, sizeof(*alt));
@@ -2141,15 +2121,13 @@ static int add_func_jump_tables(struct objtool_file *file,
 				  struct symbol *func)
 {
 	struct instruction *insn;
-	int ret;
 
 	func_for_each_insn(file, func, insn) {
 		if (!insn_jump_table(insn))
 			continue;
 
-		ret = add_jump_table(file, insn);
-		if (ret)
-			return ret;
+		if (add_jump_table(file, insn))
+			return -1;
 	}
 
 	return 0;
@@ -2163,7 +2141,6 @@ static int add_func_jump_tables(struct objtool_file *file,
 static int add_jump_table_alts(struct objtool_file *file)
 {
 	struct symbol *func;
-	int ret;
 
 	if (!file->rodata)
 		return 0;
@@ -2173,9 +2150,8 @@ static int add_jump_table_alts(struct objtool_file *file)
 			continue;
 
 		mark_func_jump_tables(file, func);
-		ret = add_func_jump_tables(file, func);
-		if (ret)
-			return ret;
+		if (add_func_jump_tables(file, func))
+			return -1;
 	}
 
 	return 0;
@@ -2299,7 +2275,7 @@ static int read_annotate(struct objtool_file *file,
 	struct instruction *insn;
 	struct reloc *reloc;
 	uint64_t offset;
-	int type, ret;
+	int type;
 
 	sec = find_section_by_name(file->elf, ".discard.annotate_insn");
 	if (!sec)
@@ -2329,9 +2305,8 @@ static int read_annotate(struct objtool_file *file,
 			return -1;
 		}
 
-		ret = func(file, type, insn);
-		if (ret < 0)
-			return ret;
+		if (func(file, type, insn))
+			return -1;
 	}
 
 	return 0;
@@ -2530,34 +2505,27 @@ static void mark_rodata(struct objtool_file *file)
 
 static int decode_sections(struct objtool_file *file)
 {
-	int ret;
-
 	mark_rodata(file);
 
-	ret = init_pv_ops(file);
-	if (ret)
-		return ret;
+	if (init_pv_ops(file))
+		return -1;
 
 	/*
 	 * Must be before add_{jump_call}_destination.
 	 */
-	ret = classify_symbols(file);
-	if (ret)
-		return ret;
+	if (classify_symbols(file))
+		return -1;
 
-	ret = decode_instructions(file);
-	if (ret)
-		return ret;
+	if (decode_instructions(file))
+		return -1;
 
-	ret = add_ignores(file);
-	if (ret)
-		return ret;
+	if (add_ignores(file))
+		return -1;
 
 	add_uaccess_safe(file);
 
-	ret = read_annotate(file, __annotate_early);
-	if (ret)
-		return ret;
+	if (read_annotate(file, __annotate_early))
+		return -1;
 
 	/*
 	 * Must be before add_jump_destinations(), which depends on 'func'
@@ -2565,42 +2533,35 @@ static int decode_sections(struct objtool_file *file)
 	 */
 	if (opts.stackval || opts.orc || opts.uaccess || opts.noinstr ||
 	    opts.hack_jump_label) {
-		ret = add_special_section_alts(file);
-		if (ret)
-			return ret;
+		if (add_special_section_alts(file))
+			return -1;
 	}
 
-	ret = add_jump_destinations(file);
-	if (ret)
-		return ret;
+	if (add_jump_destinations(file))
+		return -1;
 
 	/*
 	 * Must be before add_call_destination(); it changes INSN_CALL to
 	 * INSN_JUMP.
 	 */
-	ret = read_annotate(file, __annotate_ifc);
-	if (ret)
-		return ret;
+	if (read_annotate(file, __annotate_ifc))
+		return -1;
 
-	ret = add_call_destinations(file);
-	if (ret)
-		return ret;
+	if (add_call_destinations(file))
+		return -1;
 
-	ret = add_jump_table_alts(file);
-	if (ret)
-		return ret;
+	if (add_jump_table_alts(file))
+		return -1;
 
-	ret = read_unwind_hints(file);
-	if (ret)
-		return ret;
+	if (read_unwind_hints(file))
+		return -1;
 
 	/*
 	 * Must be after add_call_destinations() such that it can override
 	 * dead_end_function() marks.
 	 */
-	ret = read_annotate(file, __annotate_late);
-	if (ret)
-		return ret;
+	if (read_annotate(file, __annotate_late))
+		return -1;
 
 	return 0;
 }

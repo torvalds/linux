@@ -133,7 +133,7 @@ int special_get_alts(struct elf *elf, struct list_head *alts)
 	struct section *sec;
 	unsigned int nr_entries;
 	struct special_alt *alt;
-	int idx, ret;
+	int idx;
 
 	INIT_LIST_HEAD(alts);
 
@@ -157,11 +157,8 @@ int special_get_alts(struct elf *elf, struct list_head *alts)
 			}
 			memset(alt, 0, sizeof(*alt));
 
-			ret = get_alt_entry(elf, entry, sec, idx, alt);
-			if (ret > 0)
-				continue;
-			if (ret < 0)
-				return ret;
+			if (get_alt_entry(elf, entry, sec, idx, alt))
+				return -1;
 
 			list_add_tail(&alt->list, alts);
 		}
