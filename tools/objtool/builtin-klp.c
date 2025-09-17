@@ -14,6 +14,7 @@ struct subcmd {
 
 static struct subcmd subcmds[] = {
 	{ "diff",		"Generate binary diff of two object files",		cmd_klp_diff, },
+	{ "post-link",		"Finalize klp symbols/relocs after module linking",	cmd_klp_post_link, },
 };
 
 static void cmd_klp_usage(void)

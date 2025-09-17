@@ -2,6 +2,9 @@
 #ifndef _OBJTOOL_KLP_H
 #define _OBJTOOL_KLP_H
 
+#define SHF_RELA_LIVEPATCH	0x00100000
+#define SHN_LIVEPATCH		0xff20
+
 /*
  * __klp_objects and __klp_funcs are created by klp diff and used by the patch
  * module init code to build the klp_patch, klp_object and klp_func structs
@@ -27,5 +30,6 @@ struct klp_reloc {
 };
 
 int cmd_klp_diff(int argc, const char **argv);
+int cmd_klp_post_link(int argc, const char **argv);
 
 #endif /* _OBJTOOL_KLP_H */
