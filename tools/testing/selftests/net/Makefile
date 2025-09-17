@@ -122,6 +122,7 @@ TEST_PROGS += broadcast_pmtu.sh
 TEST_PROGS += ipv6_force_forwarding.sh
 TEST_GEN_PROGS += ipv6_fragmentation
 TEST_PROGS += route_hint.sh
+TEST_GEN_PROGS += tcp_port_share
 
 # YNL files, must be before "include ..lib.mk"
 YNL_GEN_FILES := busy_poller
