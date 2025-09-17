@@ -187,13 +187,16 @@ xfs_inode_item_precommit(
 	}
 
 	/*
-	 * Record the specific change for fdatasync optimisation. This allows
-	 * fdatasync to skip log forces for inodes that are only timestamp
-	 * dirty. Once we've processed the XFS_ILOG_IVERSION flag, convert it
-	 * to XFS_ILOG_CORE so that the actual on-disk dirty tracking
-	 * (ili_fields) correctly tracks that the version has changed.
+	 * Store the dirty flags back into the inode item as this state is used
+	 * later on in xfs_inode_item_committing() to determine whether the
+	 * transaction is relevant to fsync state or not.
 	 */
-	iip->ili_fsync_fields |= (flags & ~XFS_ILOG_IVERSION);
+	iip->ili_dirty_flags = flags;
+
+	/*
+	 * Convert the flags on-disk fields that have been modified in the
+	 * transaction so that ili_fields tracks the changes correctly.
+	 */
 	if (flags & XFS_ILOG_IVERSION)
 		flags = ((flags & ~XFS_ILOG_IVERSION) | XFS_ILOG_CORE);
 
@@ -207,12 +210,6 @@ xfs_inode_item_precommit(
 	spin_unlock(&iip->ili_lock);
 
 	xfs_inode_item_precommit_check(ip);
-
-	/*
-	 * We are done with the log item transaction dirty state, so clear it so
-	 * that it doesn't pollute future transactions.
-	 */
-	iip->ili_dirty_flags = 0;
 	return 0;
 }
 
@@ -722,13 +719,24 @@ xfs_inode_item_unpin(
 	struct xfs_log_item	*lip,
 	int			remove)
 {
-	struct xfs_inode	*ip = INODE_ITEM(lip)->ili_inode;
+	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
+	struct xfs_inode	*ip = iip->ili_inode;
 
 	trace_xfs_inode_unpin(ip, _RET_IP_);
 	ASSERT(lip->li_buf || xfs_iflags_test(ip, XFS_ISTALE));
 	ASSERT(atomic_read(&ip->i_pincount) > 0);
-	if (atomic_dec_and_test(&ip->i_pincount))
+
+	/*
+	 * If this is the last unpin, then the inode no longer needs a journal
+	 * flush to persist it. Hence we can clear the commit sequence numbers
+	 * as a fsync/fdatasync operation on the inode at this point is a no-op.
+	 */
+	if (atomic_dec_and_lock(&ip->i_pincount, &iip->ili_lock)) {
+		iip->ili_commit_seq = 0;
+		iip->ili_datasync_seq = 0;
+		spin_unlock(&iip->ili_lock);
 		wake_up_bit(&ip->i_flags, __XFS_IPINNED_BIT);
+	}
 }
 
 STATIC uint
@@ -851,12 +859,45 @@ xfs_inode_item_committed(
 	return lsn;
 }
 
+/*
+ * The modification is now complete, so before we unlock the inode we need to
+ * update the commit sequence numbers for data integrity journal flushes. We
+ * always record the commit sequence number (ili_commit_seq) so that anything
+ * that needs a full journal sync will capture all of this modification.
+ *
+ * We then
+ * check if the changes will impact a datasync (O_DSYNC) journal flush. If the
+ * changes will require a datasync flush, then we also record the sequence in
+ * ili_datasync_seq.
+ *
+ * These commit sequence numbers will get cleared atomically with the inode being
+ * unpinned (i.e. pin count goes to zero), and so it will only be set when the
+ * inode is dirty in the journal. This removes the need for checking if the
+ * inode is pinned to determine if a journal flush is necessary, and hence
+ * removes the need for holding the ILOCK_SHARED in xfs_file_fsync() to
+ * serialise pin counts against commit sequence number updates.
+ *
+ */
 STATIC void
 xfs_inode_item_committing(
 	struct xfs_log_item	*lip,
 	xfs_csn_t		seq)
 {
-	INODE_ITEM(lip)->ili_commit_seq = seq;
+	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
+
+	spin_lock(&iip->ili_lock);
+	iip->ili_commit_seq = seq;
+	if (iip->ili_dirty_flags & ~(XFS_ILOG_IVERSION | XFS_ILOG_TIMESTAMP))
+		iip->ili_datasync_seq = seq;
+	spin_unlock(&iip->ili_lock);
+
+	/*
+	 * Clear the per-transaction dirty flags now that we have finished
+	 * recording the transaction's inode modifications in the CIL and are
+	 * about to release and (maybe) unlock the inode.
+	 */
+	iip->ili_dirty_flags = 0;
+
 	return xfs_inode_item_release(lip);
 }
 
@@ -1048,7 +1089,6 @@ xfs_iflush_abort_clean(
 {
 	iip->ili_last_fields = 0;
 	iip->ili_fields = 0;
-	iip->ili_fsync_fields = 0;
 	iip->ili_flush_lsn = 0;
 	iip->ili_item.li_buf = NULL;
 	list_del_init(&iip->ili_item.li_bio_list);
