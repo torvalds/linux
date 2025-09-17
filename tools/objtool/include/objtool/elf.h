@@ -15,6 +15,7 @@
 #include <linux/jhash.h>
 
 #include <objtool/endianness.h>
+#include <objtool/checksum_types.h>
 #include <arch/elf.h>
 
 #define SYM_NAME_LEN		512
@@ -61,7 +62,7 @@ struct symbol {
 	struct elf_hash_node name_hash;
 	GElf_Sym sym;
 	struct section *sec;
-	const char *name;
+	const char *name, *demangled_name;
 	unsigned int idx, len;
 	unsigned long offset;
 	unsigned long __subtree_last;
@@ -84,6 +85,7 @@ struct symbol {
 	struct list_head pv_target;
 	struct reloc *relocs;
 	struct section *group_sec;
+	struct checksum csum;
 };
 
 struct reloc {
