@@ -38,6 +38,8 @@ static const char * const klp_diff_usage[] = {
 };
 
 static const struct option klp_diff_options[] = {
+	OPT_GROUP("Options:"),
+	OPT_BOOLEAN('d', "debug", &debug, "enable debug output"),
 	OPT_END(),
 };
 
@@ -46,6 +48,38 @@ static DEFINE_HASHTABLE(exports, 15);
 static inline u32 str_hash(const char *str)
 {
 	return jhash(str, strlen(str), 0);
+}
+
+static char *escape_str(const char *orig)
+{
+	size_t len = 0;
+	const char *a;
+	char *b, *new;
+
+	for (a = orig; *a; a++) {
+		switch (*a) {
+		case '\001': len += 5; break;
+		case '\n':
+		case '\t':   len += 2; break;
+		default: len++;
+		}
+	}
+
+	new = malloc(len + 1);
+	if (!new)
+		return NULL;
+
+	for (a = orig, b = new; *a; a++) {
+		switch (*a) {
+		case '\001': memcpy(b, "<SOH>", 5); b += 5; break;
+		case '\n': *b++ = '\\'; *b++ = 'n'; break;
+		case '\t': *b++ = '\\'; *b++ = 't'; break;
+		default:   *b++ = *a;
+		}
+	}
+
+	*b = '\0';
+	return new;
 }
 
 static int read_exports(void)
@@ -528,6 +562,28 @@ sym_created:
 	return out_sym;
 }
 
+static const char *sym_type(struct symbol *sym)
+{
+	switch (sym->type) {
+	case STT_NOTYPE:  return "NOTYPE";
+	case STT_OBJECT:  return "OBJECT";
+	case STT_FUNC:    return "FUNC";
+	case STT_SECTION: return "SECTION";
+	case STT_FILE:    return "FILE";
+	default:	  return "UNKNOWN";
+	}
+}
+
+static const char *sym_bind(struct symbol *sym)
+{
+	switch (sym->bind) {
+	case STB_LOCAL:   return "LOCAL";
+	case STB_GLOBAL:  return "GLOBAL";
+	case STB_WEAK:    return "WEAK";
+	default:	  return "UNKNOWN";
+	}
+}
+
 /*
  * Copy a symbol to the output object, optionally including its data and
  * relocations.
@@ -539,6 +595,8 @@ static struct symbol *clone_symbol(struct elfs *e, struct symbol *patched_sym,
 
 	if (patched_sym->clone)
 		return patched_sym->clone;
+
+	dbg_indent("%s%s", patched_sym->name, data_too ? " [+DATA]" : "");
 
 	/* Make sure the prefix gets cloned first */
 	if (is_func_sym(patched_sym) && data_too) {
@@ -902,6 +960,8 @@ static int clone_reloc_klp(struct elfs *e, struct reloc *patched_reloc,
 
 	klp_sym = find_symbol_by_name(e->out, sym_name);
 	if (!klp_sym) {
+		__dbg_indent("%s", sym_name);
+
 		/* STB_WEAK: avoid modpost undefined symbol warnings */
 		klp_sym = elf_create_symbol(e->out, sym_name, NULL,
 					    STB_WEAK, patched_sym->type, 0, 0);
@@ -950,6 +1010,17 @@ static int clone_reloc_klp(struct elfs *e, struct reloc *patched_reloc,
 	return 0;
 }
 
+#define dbg_clone_reloc(sec, offset, patched_sym, addend, export, klp)			\
+	dbg_indent("%s+0x%lx: %s%s0x%lx [%s%s%s%s%s%s]",				\
+		   sec->name, offset, patched_sym->name,				\
+		   addend >= 0 ? "+" : "-", labs(addend),				\
+		   sym_type(patched_sym),						\
+		   patched_sym->type == STT_SECTION ? "" : " ",				\
+		   patched_sym->type == STT_SECTION ? "" : sym_bind(patched_sym),	\
+		   is_undef_sym(patched_sym) ? " UNDEF" : "",				\
+		   export ? " EXPORTED" : "",						\
+		   klp ? " KLP" : "")
+
 /* Copy a reloc and its symbol to the output object */
 static int clone_reloc(struct elfs *e, struct reloc *patched_reloc,
 			struct section *sec, unsigned long offset)
@@ -968,6 +1039,8 @@ static int clone_reloc(struct elfs *e, struct reloc *patched_reloc,
 	}
 
 	klp = klp_reloc_needed(patched_reloc);
+
+	dbg_clone_reloc(sec, offset, patched_sym, addend, export, klp);
 
 	if (klp) {
 		if (clone_reloc_klp(e, patched_reloc, sec, offset, export))
@@ -999,6 +1072,8 @@ static int clone_reloc(struct elfs *e, struct reloc *patched_reloc,
 	 */
 	if (is_string_sec(patched_sym->sec)) {
 		const char *str = patched_sym->sec->data->d_buf + addend;
+
+		__dbg_indent("\"%s\"", escape_str(str));
 
 		addend = elf_add_string(e->out, out_sym->sec, str);
 		if (addend == -1)
