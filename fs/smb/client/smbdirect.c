@@ -27,10 +27,6 @@ static int smbd_post_send(struct smbdirect_socket *sc,
 			  struct smbdirect_send_batch *batch,
 			  struct smbdirect_send_io *request);
 
-static int smbd_post_recv(
-		struct smbdirect_socket *sc,
-		struct smbdirect_recv_io *response);
-
 static int smbd_post_send_empty(struct smbdirect_socket *sc);
 
 static void destroy_mr_list(struct smbdirect_socket *sc);
@@ -424,7 +420,7 @@ static void smbd_post_send_credits(struct work_struct *work)
 				break;
 
 			response->first_segment = false;
-			rc = smbd_post_recv(sc, response);
+			rc = smbdirect_connection_post_recv_io(response);
 			if (rc) {
 				log_rdma_recv(ERR,
 					"post_recv failed rc=%d\n", rc);
@@ -1304,44 +1300,6 @@ static int smbd_post_send_full_iter(struct smbdirect_socket *sc,
 	return rc;
 }
 
-/*
- * Post a receive request to the transport
- * The remote peer can only send data when a receive request is posted
- * The interaction is controlled by send/receive credit system
- */
-static int smbd_post_recv(
-		struct smbdirect_socket *sc, struct smbdirect_recv_io *response)
-{
-	struct smbdirect_socket_parameters *sp = &sc->parameters;
-	struct ib_recv_wr recv_wr;
-	int rc = -EIO;
-
-	response->sge.addr = ib_dma_map_single(
-				sc->ib.dev, response->packet,
-				sp->max_recv_size, DMA_FROM_DEVICE);
-	if (ib_dma_mapping_error(sc->ib.dev, response->sge.addr))
-		return rc;
-
-	response->sge.length = sp->max_recv_size;
-	response->sge.lkey = sc->ib.pd->local_dma_lkey;
-
-	recv_wr.wr_cqe = &response->cqe;
-	recv_wr.next = NULL;
-	recv_wr.sg_list = &response->sge;
-	recv_wr.num_sge = 1;
-
-	rc = ib_post_recv(sc->ib.qp, &recv_wr, NULL);
-	if (rc) {
-		ib_dma_unmap_single(sc->ib.dev, response->sge.addr,
-				    response->sge.length, DMA_FROM_DEVICE);
-		response->sge.length = 0;
-		smbdirect_socket_schedule_cleanup(sc, rc);
-		log_rdma_recv(ERR, "ib_post_recv failed rc=%d\n", rc);
-	}
-
-	return rc;
-}
-
 /* Perform SMBD negotiate according to [MS-SMBD] 3.1.5.2 */
 static int smbd_negotiate(struct smbdirect_socket *sc)
 {
@@ -1353,7 +1311,7 @@ static int smbd_negotiate(struct smbdirect_socket *sc)
 	sc->status = SMBDIRECT_SOCKET_NEGOTIATE_RUNNING;
 
 	sc->recv_io.expected = SMBDIRECT_EXPECT_NEGOTIATE_REP;
-	rc = smbd_post_recv(sc, response);
+	rc = smbdirect_connection_post_recv_io(response);
 	log_rdma_event(INFO, "smbd_post_recv rc=%d iov.addr=0x%llx iov.length=%u iov.lkey=0x%x\n",
 		       rc, response->sge.addr,
 		       response->sge.length, response->sge.lkey);
