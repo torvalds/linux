@@ -241,10 +241,12 @@ static struct symbol *next_file_symbol(struct elf *elf, struct symbol *sym)
 static bool is_uncorrelated_static_local(struct symbol *sym)
 {
 	static const char * const vars[] = {
-		"__key.",
-		"__warned.",
 		"__already_done.",
 		"__func__.",
+		"__key.",
+		"__warned.",
+		"_entry.",
+		"_entry_ptr.",
 		"_rs.",
 		"descriptor.",
 		"CSWTCH.",
