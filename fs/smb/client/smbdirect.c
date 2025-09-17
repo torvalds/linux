@@ -1325,8 +1325,6 @@ static int smbd_post_recv(
 	response->sge.length = sp->max_recv_size;
 	response->sge.lkey = sc->ib.pd->local_dma_lkey;
 
-	response->cqe.done = recv_done;
-
 	recv_wr.wr_cqe = &response->cqe;
 	recv_wr.next = NULL;
 	recv_wr.sg_list = &response->sge;
@@ -1534,6 +1532,7 @@ static struct smbd_connection *_smbd_get_connection(
 	__be32 ird_ord_hdr[2];
 	char wq_name[80];
 	struct workqueue_struct *workqueue;
+	struct smbdirect_recv_io *recv_io;
 
 	/*
 	 * Create the initial parameters
@@ -1637,6 +1636,9 @@ static struct smbd_connection *_smbd_get_connection(
 		log_rdma_event(ERR, "cache allocation failed\n");
 		goto allocate_cache_failed;
 	}
+
+	list_for_each_entry(recv_io, &sc->recv_io.free.list, list)
+		recv_io->cqe.done = recv_done;
 
 	INIT_WORK(&sc->idle.immediate_work, send_immediate_empty_message);
 	/*
