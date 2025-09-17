@@ -30,6 +30,7 @@ struct opts {
 
 	/* options: */
 	bool backtrace;
+	bool backup;
 	bool dryrun;
 	bool link;
 	bool mnop;
@@ -48,6 +49,6 @@ int cmd_parse_options(int argc, const char **argv, const char * const usage[]);
 
 int objtool_run(int argc, const char **argv);
 
-void print_args(void);
+int make_backup(void);
 
 #endif /* _BUILTIN_H */

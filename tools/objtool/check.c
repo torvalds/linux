@@ -4824,9 +4824,11 @@ out:
 	if (opts.verbose) {
 		if (opts.werror && warnings)
 			WARN("%d warning(s) upgraded to errors", warnings);
-		print_args();
 		disas_warned_funcs(file);
 	}
+
+	if (opts.backup && make_backup())
+		return 1;
 
 	return ret;
 }
