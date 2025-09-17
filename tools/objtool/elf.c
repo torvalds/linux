@@ -492,14 +492,14 @@ static int read_symbols(struct elf *elf)
 		if (!gelf_getsymshndx(symtab->data, shndx_data, i, &sym->sym,
 				      &shndx)) {
 			ERROR_ELF("gelf_getsymshndx");
-			goto err;
+			return -1;
 		}
 
 		sym->name = elf_strptr(elf->elf, symtab->sh.sh_link,
 				       sym->sym.st_name);
 		if (!sym->name) {
 			ERROR_ELF("elf_strptr");
-			goto err;
+			return -1;
 		}
 
 		if ((sym->sym.st_shndx > SHN_UNDEF &&
@@ -511,7 +511,7 @@ static int read_symbols(struct elf *elf)
 			sym->sec = find_section_by_index(elf, shndx);
 			if (!sym->sec) {
 				ERROR("couldn't find section for symbol %s", sym->name);
-				goto err;
+				return -1;
 			}
 			if (GELF_ST_TYPE(sym->sym.st_info) == STT_SECTION) {
 				sym->name = sym->sec->name;
@@ -581,10 +581,6 @@ static int read_symbols(struct elf *elf)
 	}
 
 	return 0;
-
-err:
-	free(sym);
-	return -1;
 }
 
 static int mark_group_syms(struct elf *elf)
