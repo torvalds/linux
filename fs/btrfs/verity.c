@@ -676,11 +676,11 @@ int btrfs_get_verity_descriptor(struct inode *inode, void *buf, size_t buf_size)
 	if (ret < 0)
 		return ret;
 
-	if (item.reserved[0] != 0 || item.reserved[1] != 0)
+	if (unlikely(item.reserved[0] != 0 || item.reserved[1] != 0))
 		return -EUCLEAN;
 
 	true_size = btrfs_stack_verity_descriptor_size(&item);
-	if (true_size > INT_MAX)
+	if (unlikely(true_size > INT_MAX))
 		return -EUCLEAN;
 
 	if (buf_size == 0)

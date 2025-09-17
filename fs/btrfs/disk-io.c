@@ -404,7 +404,7 @@ int btrfs_validate_extent_buffer(struct extent_buffer *eb,
 			      CSUM_FMT_VALUE(csum_size, result),
 			      btrfs_header_level(eb),
 			      ignore_csum ? ", ignored" : "");
-		if (!ignore_csum) {
+		if (unlikely(!ignore_csum)) {
 			ret = -EUCLEAN;
 			goto out;
 		}
@@ -1055,10 +1055,10 @@ static struct btrfs_root *read_tree_root_path(struct btrfs_root *tree_root,
 	 * For real fs, and not log/reloc trees, root owner must
 	 * match its root node owner
 	 */
-	if (!btrfs_is_testing(fs_info) &&
-	    btrfs_root_id(root) != BTRFS_TREE_LOG_OBJECTID &&
-	    btrfs_root_id(root) != BTRFS_TREE_RELOC_OBJECTID &&
-	    btrfs_root_id(root) != btrfs_header_owner(root->node)) {
+	if (unlikely(!btrfs_is_testing(fs_info) &&
+		     btrfs_root_id(root) != BTRFS_TREE_LOG_OBJECTID &&
+		     btrfs_root_id(root) != BTRFS_TREE_RELOC_OBJECTID &&
+		     btrfs_root_id(root) != btrfs_header_owner(root->node))) {
 		btrfs_crit(fs_info,
 "root=%llu block=%llu, tree root owner mismatch, have %llu expect %llu",
 			   btrfs_root_id(root), root->node->start,
@@ -2324,7 +2324,7 @@ static int validate_sys_chunk_array(const struct btrfs_fs_info *fs_info,
 	const u32 sectorsize = btrfs_super_sectorsize(sb);
 	u32 sys_array_size = btrfs_super_sys_array_size(sb);
 
-	if (sys_array_size > BTRFS_SYSTEM_CHUNK_ARRAY_SIZE) {
+	if (unlikely(sys_array_size > BTRFS_SYSTEM_CHUNK_ARRAY_SIZE)) {
 		btrfs_err(fs_info, "system chunk array too big %u > %u",
 			  sys_array_size, BTRFS_SYSTEM_CHUNK_ARRAY_SIZE);
 		return -EUCLEAN;
@@ -2342,12 +2342,12 @@ static int validate_sys_chunk_array(const struct btrfs_fs_info *fs_info,
 		disk_key = (struct btrfs_disk_key *)(sb->sys_chunk_array + cur);
 		len = sizeof(*disk_key);
 
-		if (cur + len > sys_array_size)
+		if (unlikely(cur + len > sys_array_size))
 			goto short_read;
 		cur += len;
 
 		btrfs_disk_key_to_cpu(&key, disk_key);
-		if (key.type != BTRFS_CHUNK_ITEM_KEY) {
+		if (unlikely(key.type != BTRFS_CHUNK_ITEM_KEY)) {
 			btrfs_err(fs_info,
 			    "unexpected item type %u in sys_array at offset %u",
 				  key.type, cur);
@@ -2355,10 +2355,10 @@ static int validate_sys_chunk_array(const struct btrfs_fs_info *fs_info,
 		}
 		chunk = (struct btrfs_chunk *)(sb->sys_chunk_array + cur);
 		num_stripes = btrfs_stack_chunk_num_stripes(chunk);
-		if (cur + btrfs_chunk_item_size(num_stripes) > sys_array_size)
+		if (unlikely(cur + btrfs_chunk_item_size(num_stripes) > sys_array_size))
 			goto short_read;
 		type = btrfs_stack_chunk_type(chunk);
-		if (!(type & BTRFS_BLOCK_GROUP_SYSTEM)) {
+		if (unlikely(!(type & BTRFS_BLOCK_GROUP_SYSTEM))) {
 			btrfs_err(fs_info,
 			"invalid chunk type %llu in sys_array at offset %u",
 				  type, cur);
@@ -2605,13 +2605,13 @@ static int btrfs_validate_write_super(struct btrfs_fs_info *fs_info,
 	ret = btrfs_validate_super(fs_info, sb, -1);
 	if (ret < 0)
 		goto out;
-	if (!btrfs_supported_super_csum(btrfs_super_csum_type(sb))) {
+	if (unlikely(!btrfs_supported_super_csum(btrfs_super_csum_type(sb)))) {
 		ret = -EUCLEAN;
 		btrfs_err(fs_info, "invalid csum type, has %u want %u",
 			  btrfs_super_csum_type(sb), BTRFS_CSUM_TYPE_CRC32);
 		goto out;
 	}
-	if (btrfs_super_incompat_flags(sb) & ~BTRFS_FEATURE_INCOMPAT_SUPP) {
+	if (unlikely(btrfs_super_incompat_flags(sb) & ~BTRFS_FEATURE_INCOMPAT_SUPP)) {
 		ret = -EUCLEAN;
 		btrfs_err(fs_info,
 		"invalid incompat flags, has 0x%llx valid mask 0x%llx",
@@ -4065,7 +4065,7 @@ int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 		btrfs_set_super_flags(sb, flags | BTRFS_HEADER_FLAG_WRITTEN);
 
 		ret = btrfs_validate_write_super(fs_info, sb);
-		if (ret < 0) {
+		if (unlikely(ret < 0)) {
 			mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 			btrfs_handle_fs_error(fs_info, -EUCLEAN,
 				"unexpected superblock corruption detected");
@@ -4881,7 +4881,7 @@ int btrfs_init_root_free_objectid(struct btrfs_root *root)
 	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
 	if (ret < 0)
 		return ret;
-	if (ret == 0) {
+	if (unlikely(ret == 0)) {
 		/*
 		 * Key with offset -1 found, there would have to exist a root
 		 * with such id, but this is out of valid range.

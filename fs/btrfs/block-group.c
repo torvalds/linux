@@ -2071,7 +2071,7 @@ static int read_bg_from_eb(struct btrfs_fs_info *fs_info, const struct btrfs_key
 		return -ENOENT;
 	}
 
-	if (map->start != key->objectid || map->chunk_len != key->offset) {
+	if (unlikely(map->start != key->objectid || map->chunk_len != key->offset)) {
 		btrfs_err(fs_info,
 			"block group %llu len %llu mismatch with chunk %llu len %llu",
 			  key->objectid, key->offset, map->start, map->chunk_len);
@@ -2084,7 +2084,7 @@ static int read_bg_from_eb(struct btrfs_fs_info *fs_info, const struct btrfs_key
 	flags = btrfs_stack_block_group_flags(&bg) &
 		BTRFS_BLOCK_GROUP_TYPE_MASK;
 
-	if (flags != (map->type & BTRFS_BLOCK_GROUP_TYPE_MASK)) {
+	if (unlikely(flags != (map->type & BTRFS_BLOCK_GROUP_TYPE_MASK))) {
 		btrfs_err(fs_info,
 "block group %llu len %llu type flags 0x%llx mismatch with chunk type flags 0x%llx",
 			  key->objectid, key->offset, flags,
@@ -2245,7 +2245,7 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 			return ret;
 
 		/* Shouldn't have super stripes in sequential zones */
-		if (zoned && nr) {
+		if (unlikely(zoned && nr)) {
 			kfree(logical);
 			btrfs_err(fs_info,
 			"zoned: block group %llu must not contain super block",
@@ -2336,7 +2336,7 @@ static int check_chunk_block_group_mappings(struct btrfs_fs_info *fs_info)
 			break;
 
 		bg = btrfs_lookup_block_group(fs_info, map->start);
-		if (!bg) {
+		if (unlikely(!bg)) {
 			btrfs_err(fs_info,
 	"chunk start=%llu len=%llu doesn't have corresponding block group",
 				     map->start, map->chunk_len);
@@ -2344,9 +2344,9 @@ static int check_chunk_block_group_mappings(struct btrfs_fs_info *fs_info)
 			btrfs_free_chunk_map(map);
 			break;
 		}
-		if (bg->start != map->start || bg->length != map->chunk_len ||
-		    (bg->flags & BTRFS_BLOCK_GROUP_TYPE_MASK) !=
-		    (map->type & BTRFS_BLOCK_GROUP_TYPE_MASK)) {
+		if (unlikely(bg->start != map->start || bg->length != map->chunk_len ||
+			     (bg->flags & BTRFS_BLOCK_GROUP_TYPE_MASK) !=
+			     (map->type & BTRFS_BLOCK_GROUP_TYPE_MASK))) {
 			btrfs_err(fs_info,
 "chunk start=%llu len=%llu flags=0x%llx doesn't match block group start=%llu len=%llu flags=0x%llx",
 				map->start, map->chunk_len,

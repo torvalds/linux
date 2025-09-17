@@ -1911,7 +1911,7 @@ static noinline int find_next_devid(struct btrfs_fs_info *fs_info,
 	if (ret < 0)
 		goto error;
 
-	if (ret == 0) {
+	if (unlikely(ret == 0)) {
 		/* Corruption */
 		btrfs_err(fs_info, "corrupted chunk tree devid -1 matched");
 		ret = -EUCLEAN;
@@ -3049,7 +3049,7 @@ static int btrfs_free_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret < 0)
 		goto out;
-	else if (ret > 0) { /* Logic error or corruption */
+	else if (unlikely(ret > 0)) { /* Logic error or corruption */
 		btrfs_err(fs_info, "failed to lookup chunk %llu when freeing",
 			  chunk_offset);
 		btrfs_abort_transaction(trans, -ENOENT);
@@ -3527,7 +3527,7 @@ again:
 			mutex_unlock(&fs_info->reclaim_bgs_lock);
 			goto error;
 		}
-		if (ret == 0) {
+		if (unlikely(ret == 0)) {
 			/*
 			 * On the first search we would find chunk tree with
 			 * offset -1, which is not possible. On subsequent
@@ -7932,7 +7932,7 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 	int i;
 
 	map = btrfs_find_chunk_map(fs_info, chunk_offset, 1);
-	if (!map) {
+	if (unlikely(!map)) {
 		btrfs_err(fs_info,
 "dev extent physical offset %llu on devid %llu doesn't have corresponding chunk",
 			  physical_offset, devid);
@@ -7941,7 +7941,7 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 	}
 
 	stripe_len = btrfs_calc_stripe_length(map);
-	if (physical_len != stripe_len) {
+	if (unlikely(physical_len != stripe_len)) {
 		btrfs_err(fs_info,
 "dev extent physical offset %llu on devid %llu length doesn't match chunk %llu, have %llu expect %llu",
 			  physical_offset, devid, map->start, physical_len,
@@ -7961,8 +7961,8 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 			   devid, physical_offset, physical_len);
 
 	for (i = 0; i < map->num_stripes; i++) {
-		if (map->stripes[i].dev->devid == devid &&
-		    map->stripes[i].physical == physical_offset) {
+		if (unlikely(map->stripes[i].dev->devid == devid &&
+			     map->stripes[i].physical == physical_offset)) {
 			found = true;
 			if (map->verified_stripes >= map->num_stripes) {
 				btrfs_err(fs_info,
@@ -7975,7 +7975,7 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 			break;
 		}
 	}
-	if (!found) {
+	if (unlikely(!found)) {
 		btrfs_err(fs_info,
 	"dev extent physical offset %llu devid %llu has no corresponding chunk",
 			physical_offset, devid);
@@ -7984,13 +7984,13 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 
 	/* Make sure no dev extent is beyond device boundary */
 	dev = btrfs_find_device(fs_info->fs_devices, &args);
-	if (!dev) {
+	if (unlikely(!dev)) {
 		btrfs_err(fs_info, "failed to find devid %llu", devid);
 		ret = -EUCLEAN;
 		goto out;
 	}
 
-	if (physical_offset + physical_len > dev->disk_total_bytes) {
+	if (unlikely(physical_offset + physical_len > dev->disk_total_bytes)) {
 		btrfs_err(fs_info,
 "dev extent devid %llu physical offset %llu len %llu is beyond device boundary %llu",
 			  devid, physical_offset, physical_len,
@@ -8002,8 +8002,8 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 	if (dev->zone_info) {
 		u64 zone_size = dev->zone_info->zone_size;
 
-		if (!IS_ALIGNED(physical_offset, zone_size) ||
-		    !IS_ALIGNED(physical_len, zone_size)) {
+		if (unlikely(!IS_ALIGNED(physical_offset, zone_size) ||
+			     !IS_ALIGNED(physical_len, zone_size))) {
 			btrfs_err(fs_info,
 "zoned: dev extent devid %llu physical offset %llu len %llu is not aligned to device zone",
 				  devid, physical_offset, physical_len);
@@ -8027,7 +8027,7 @@ static int verify_chunk_dev_extent_mapping(struct btrfs_fs_info *fs_info)
 		struct btrfs_chunk_map *map;
 
 		map = rb_entry(node, struct btrfs_chunk_map, rb_node);
-		if (map->num_stripes != map->verified_stripes) {
+		if (unlikely(map->num_stripes != map->verified_stripes)) {
 			btrfs_err(fs_info,
 			"chunk %llu has missing dev extent, have %d expect %d",
 				  map->start, map->verified_stripes, map->num_stripes);
@@ -8087,7 +8087,7 @@ int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info)
 		if (ret < 0)
 			goto out;
 		/* No dev extents at all? Not good */
-		if (ret > 0) {
+		if (unlikely(ret > 0)) {
 			ret = -EUCLEAN;
 			goto out;
 		}
@@ -8112,7 +8112,7 @@ int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info)
 		physical_len = btrfs_dev_extent_length(leaf, dext);
 
 		/* Check if this dev extent overlaps with the previous one */
-		if (devid == prev_devid && physical_offset < prev_dev_ext_end) {
+		if (unlikely(devid == prev_devid && physical_offset < prev_dev_ext_end)) {
 			btrfs_err(fs_info,
 "dev extent devid %llu physical offset %llu overlap with previous dev extent end %llu",
 				  devid, physical_offset, prev_dev_ext_end);

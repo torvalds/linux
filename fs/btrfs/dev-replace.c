@@ -98,7 +98,7 @@ no_valid_dev_replace_entry_found:
 		 * We don't have a replace item or it's corrupted.  If there is
 		 * a replace target, fail the mount.
 		 */
-		if (btrfs_find_device(fs_info->fs_devices, &args)) {
+		if (unlikely(btrfs_find_device(fs_info->fs_devices, &args))) {
 			btrfs_err(fs_info,
 			"found replace target device without a valid replace item");
 			return -EUCLEAN;
@@ -158,7 +158,7 @@ no_valid_dev_replace_entry_found:
 		 * We don't have an active replace item but if there is a
 		 * replace target, fail the mount.
 		 */
-		if (btrfs_find_device(fs_info->fs_devices, &args)) {
+		if (unlikely(btrfs_find_device(fs_info->fs_devices, &args))) {
 			btrfs_err(fs_info,
 "replace without active item, run 'device scan --forget' on the target device");
 			ret = -EUCLEAN;

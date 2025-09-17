@@ -2325,14 +2325,14 @@ static int check_dev_super(struct btrfs_device *dev)
 
 	/* Verify the checksum. */
 	csum_type = btrfs_super_csum_type(sb);
-	if (csum_type != btrfs_super_csum_type(fs_info->super_copy)) {
+	if (unlikely(csum_type != btrfs_super_csum_type(fs_info->super_copy))) {
 		btrfs_err(fs_info, "csum type changed, has %u expect %u",
 			  csum_type, btrfs_super_csum_type(fs_info->super_copy));
 		ret = -EUCLEAN;
 		goto out;
 	}
 
-	if (btrfs_check_super_csum(fs_info, sb)) {
+	if (unlikely(btrfs_check_super_csum(fs_info, sb))) {
 		btrfs_err(fs_info, "csum for on-disk super block no longer matches");
 		ret = -EUCLEAN;
 		goto out;
@@ -2344,7 +2344,7 @@ static int check_dev_super(struct btrfs_device *dev)
 		goto out;
 
 	last_trans = btrfs_get_last_trans_committed(fs_info);
-	if (btrfs_super_generation(sb) != last_trans) {
+	if (unlikely(btrfs_super_generation(sb) != last_trans)) {
 		btrfs_err(fs_info, "transid mismatch, has %llu expect %llu",
 			  btrfs_super_generation(sb), last_trans);
 		ret = -EUCLEAN;

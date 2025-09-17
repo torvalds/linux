@@ -1953,7 +1953,7 @@ static int record_reloc_root_in_trans(struct btrfs_trans_handle *trans,
 		DEBUG_WARN("error %ld reading root for reloc root", PTR_ERR(root));
 		return PTR_ERR(root);
 	}
-	if (root->reloc_root != reloc_root) {
+	if (unlikely(root->reloc_root != reloc_root)) {
 		DEBUG_WARN("unexpected reloc root found");
 		btrfs_err(fs_info,
 			  "root %llu has two reloc roots associated with it",
@@ -2024,7 +2024,7 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 	if (!root)
 		return ERR_PTR(-ENOENT);
 
-	if (next->new_bytenr) {
+	if (unlikely(next->new_bytenr)) {
 		/*
 		 * We just created the reloc root, so we shouldn't have
 		 * ->new_bytenr set yet. If it is then we have multiple roots
@@ -2083,7 +2083,7 @@ struct btrfs_root *select_one_root(struct btrfs_backref_node *node)
 		 * This can occur if we have incomplete extent refs leading all
 		 * the way up a particular path, in this case return -EUCLEAN.
 		 */
-		if (!root)
+		if (unlikely(!root))
 			return ERR_PTR(-EUCLEAN);
 
 		/* No other choice for non-shareable tree */
@@ -2512,7 +2512,7 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 			 * normal user in the case of corruption.
 			 */
 			ASSERT(node->new_bytenr == 0);
-			if (node->new_bytenr) {
+			if (unlikely(node->new_bytenr)) {
 				btrfs_err(root->fs_info,
 				  "bytenr %llu has improper references to it",
 					  node->bytenr);

@@ -2426,9 +2426,9 @@ static int qgroup_trace_new_subtree_blocks(struct btrfs_trans_handle* trans,
 	int i;
 
 	/* Level sanity check */
-	if (cur_level < 0 || cur_level >= BTRFS_MAX_LEVEL - 1 ||
-	    root_level < 0 || root_level >= BTRFS_MAX_LEVEL - 1 ||
-	    root_level < cur_level) {
+	if (unlikely(cur_level < 0 || cur_level >= BTRFS_MAX_LEVEL - 1 ||
+		     root_level < 0 || root_level >= BTRFS_MAX_LEVEL - 1 ||
+		     root_level < cur_level)) {
 		btrfs_err_rl(fs_info,
 			"%s: bad levels, cur_level=%d root_level=%d",
 			__func__, cur_level, root_level);
@@ -2444,7 +2444,7 @@ static int qgroup_trace_new_subtree_blocks(struct btrfs_trans_handle* trans,
 		 * dst_path->nodes[root_level] must be initialized before
 		 * calling this function.
 		 */
-		if (cur_level == root_level) {
+		if (unlikely(cur_level == root_level)) {
 			btrfs_err_rl(fs_info,
 	"%s: dst_path->nodes[%d] not initialized, root_level=%d cur_level=%d",
 				__func__, root_level, root_level, cur_level);
@@ -2530,7 +2530,7 @@ static int qgroup_trace_subtree_swap(struct btrfs_trans_handle *trans,
 		return 0;
 
 	/* Wrong parameter order */
-	if (btrfs_header_generation(src_eb) > btrfs_header_generation(dst_eb)) {
+	if (unlikely(btrfs_header_generation(src_eb) > btrfs_header_generation(dst_eb))) {
 		btrfs_err_rl(fs_info,
 		"%s: bad parameter order, src_gen=%llu dst_gen=%llu", __func__,
 			     btrfs_header_generation(src_eb),
@@ -4710,8 +4710,8 @@ int btrfs_qgroup_add_swapped_blocks(struct btrfs_root *subvol_root,
 	if (!btrfs_qgroup_full_accounting(fs_info))
 		return 0;
 
-	if (btrfs_node_ptr_generation(subvol_parent, subvol_slot) >
-	    btrfs_node_ptr_generation(reloc_parent, reloc_slot)) {
+	if (unlikely(btrfs_node_ptr_generation(subvol_parent, subvol_slot) >
+		     btrfs_node_ptr_generation(reloc_parent, reloc_slot))) {
 		btrfs_err_rl(fs_info,
 		"%s: bad parameter order, subvol_gen=%llu reloc_gen=%llu",
 			__func__,

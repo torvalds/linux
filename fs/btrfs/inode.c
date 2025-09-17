@@ -4551,7 +4551,7 @@ static noinline int may_destroy_subvol(struct btrfs_root *root)
 	ret = btrfs_search_slot(NULL, fs_info->tree_root, &key, path, 0, 0);
 	if (ret < 0)
 		return ret;
-	if (ret == 0) {
+	if (unlikely(ret == 0)) {
 		/*
 		 * Key with offset -1 found, there would have to exist a root
 		 * with such id, but this is out of valid range.
@@ -5626,8 +5626,8 @@ static int btrfs_inode_by_name(struct btrfs_inode *dir, struct dentry *dentry,
 	}
 
 	btrfs_dir_item_key_to_cpu(path->nodes[0], di, location);
-	if (location->type != BTRFS_INODE_ITEM_KEY &&
-	    location->type != BTRFS_ROOT_ITEM_KEY) {
+	if (unlikely(location->type != BTRFS_INODE_ITEM_KEY &&
+		     location->type != BTRFS_ROOT_ITEM_KEY)) {
 		ret = -EUCLEAN;
 		btrfs_warn(root->fs_info,
 "%s gets something invalid in DIR_ITEM (name %s, directory ino %llu, location(%llu %u %llu))",
@@ -5918,7 +5918,7 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 			return ERR_CAST(inode);
 
 		/* Do extra check against inode mode with di_type */
-		if (btrfs_inode_type(inode) != di_type) {
+		if (unlikely(btrfs_inode_type(inode) != di_type)) {
 			btrfs_crit(fs_info,
 "inode mode mismatch with dir: inode mode=0%o btrfs type=%u dir type=%u",
 				  inode->vfs_inode.i_mode, btrfs_inode_type(inode),
@@ -7102,7 +7102,7 @@ struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 	if (extent_type == BTRFS_FILE_EXTENT_REG ||
 	    extent_type == BTRFS_FILE_EXTENT_PREALLOC) {
 		/* Only regular file could have regular/prealloc extent */
-		if (!S_ISREG(inode->vfs_inode.i_mode)) {
+		if (unlikely(!S_ISREG(inode->vfs_inode.i_mode))) {
 			ret = -EUCLEAN;
 			btrfs_crit(fs_info,
 		"regular/prealloc extent found for non-regular inode %llu",

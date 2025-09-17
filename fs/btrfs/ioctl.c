@@ -2133,7 +2133,7 @@ static int btrfs_ioctl_get_subvol_info(struct inode *inode, void __user *argp)
 			ret = btrfs_next_leaf(fs_info->tree_root, path);
 			if (ret < 0) {
 				goto out;
-			} else if (ret > 0) {
+			} else if (unlikely(ret > 0)) {
 				ret = -EUCLEAN;
 				goto out;
 			}
@@ -2216,7 +2216,7 @@ static int btrfs_ioctl_get_subvol_rootref(struct btrfs_root *root,
 		ret = btrfs_next_leaf(root, path);
 		if (ret < 0) {
 			goto out;
-		} else if (ret > 0) {
+		} else if (unlikely(ret > 0)) {
 			ret = -EUCLEAN;
 			goto out;
 		}
@@ -2245,7 +2245,7 @@ static int btrfs_ioctl_get_subvol_rootref(struct btrfs_root *root,
 		ret = btrfs_next_item(root, path);
 		if (ret < 0) {
 			goto out;
-		} else if (ret > 0) {
+		} else if (unlikely(ret > 0)) {
 			ret = -EUCLEAN;
 			goto out;
 		}

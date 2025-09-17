@@ -1499,7 +1499,7 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 			 * being cached, read from scrub, or have multiple
 			 * parents (shared tree blocks).
 			 */
-			if (btrfs_verify_level_key(tmp, &check)) {
+			if (unlikely(btrfs_verify_level_key(tmp, &check))) {
 				ret = -EUCLEAN;
 				goto out;
 			}
@@ -2731,7 +2731,7 @@ static int push_node_left(struct btrfs_trans_handle *trans,
 		push_items = min(src_nritems - 8, push_items);
 
 	/* dst is the left eb, src is the middle eb */
-	if (check_sibling_keys(dst, src)) {
+	if (unlikely(check_sibling_keys(dst, src))) {
 		ret = -EUCLEAN;
 		btrfs_abort_transaction(trans, ret);
 		return ret;
@@ -2805,7 +2805,7 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
 		push_items = max_push;
 
 	/* dst is the right eb, src is the middle eb */
-	if (check_sibling_keys(src, dst)) {
+	if (unlikely(check_sibling_keys(src, dst))) {
 		ret = -EUCLEAN;
 		btrfs_abort_transaction(trans, ret);
 		return ret;
@@ -3287,7 +3287,7 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (left_nritems == 0)
 		goto out_unlock;
 
-	if (check_sibling_keys(left, right)) {
+	if (unlikely(check_sibling_keys(left, right))) {
 		ret = -EUCLEAN;
 		btrfs_abort_transaction(trans, ret);
 		btrfs_tree_unlock(right);
@@ -3503,7 +3503,7 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 		goto out;
 	}
 
-	if (check_sibling_keys(left, right)) {
+	if (unlikely(check_sibling_keys(left, right))) {
 		ret = -EUCLEAN;
 		btrfs_abort_transaction(trans, ret);
 		goto out;

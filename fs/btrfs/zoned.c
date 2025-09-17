@@ -315,7 +315,7 @@ static int calculate_emulated_zone_size(struct btrfs_fs_info *fs_info)
 		if (ret < 0)
 			return ret;
 		/* No dev extents at all? Not good */
-		if (ret > 0)
+		if (unlikely(ret > 0))
 			return -EUCLEAN;
 	}
 
@@ -550,7 +550,7 @@ validate:
 		if (ret)
 			goto out;
 
-		if (nr_zones != BTRFS_NR_SB_LOG_ZONES) {
+		if (unlikely(nr_zones != BTRFS_NR_SB_LOG_ZONES)) {
 			btrfs_err(device->fs_info,
 	"zoned: failed to read super block log zone info at devid %llu zone %u",
 					 device->devid, sb_zone);
@@ -568,7 +568,7 @@ validate:
 
 		ret = sb_write_pointer(device->bdev,
 				       &zone_info->sb_zones[sb_pos], &sb_wp);
-		if (ret != -ENOENT && ret) {
+		if (unlikely(ret != -ENOENT && ret)) {
 			btrfs_err(device->fs_info,
 			"zoned: super block log zone corrupted devid %llu zone %u",
 					 device->devid, sb_zone);
@@ -1253,7 +1253,7 @@ static int calculate_alloc_pointer(struct btrfs_block_group *cache,
 	root = btrfs_extent_root(fs_info, key.objectid);
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	/* We should not find the exact match */
-	if (!ret)
+	if (unlikely(!ret))
 		ret = -EUCLEAN;
 	if (ret < 0)
 		return ret;
@@ -1274,8 +1274,8 @@ static int calculate_alloc_pointer(struct btrfs_block_group *cache,
 	else
 		length = fs_info->nodesize;
 
-	if (!(found_key.objectid >= cache->start &&
-	       found_key.objectid + length <= cache->start + cache->length)) {
+	if (unlikely(!(found_key.objectid >= cache->start &&
+		       found_key.objectid + length <= cache->start + cache->length))) {
 		return -EUCLEAN;
 	}
 	*offset_ret = found_key.objectid + length - cache->start;
@@ -2145,7 +2145,7 @@ int btrfs_sync_zone_write_pointer(struct btrfs_device *tgt_dev, u64 logical,
 	if (physical_pos == wp)
 		return 0;
 
-	if (physical_pos > wp)
+	if (unlikely(physical_pos > wp))
 		return -EUCLEAN;
 
 	length = wp - physical_pos;

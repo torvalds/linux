@@ -7229,7 +7229,7 @@ static int search_key_again(const struct send_ctx *sctx,
 	 */
 	ret = btrfs_search_slot(NULL, root, key, path, 0, 0);
 	ASSERT(ret <= 0);
-	if (ret > 0) {
+	if (unlikely(ret > 0)) {
 		btrfs_print_tree(path->nodes[path->lowest_level], false);
 		btrfs_err(root->fs_info,
 "send: key (%llu %u %llu) not found in %s root %llu, lowest_level %d, slot %d",
