@@ -4354,13 +4354,33 @@ static int get_mac(struct crypto_shash **shash, struct crypto_ahash **ahash,
 	int r;
 
 	if (a->alg_string) {
+		if (shash) {
+			*shash = crypto_alloc_shash(a->alg_string, 0, CRYPTO_ALG_ALLOCATES_MEMORY);
+			if (IS_ERR(*shash)) {
+				*shash = NULL;
+				goto try_ahash;
+			}
+			if (a->key) {
+				r = crypto_shash_setkey(*shash, a->key, a->key_size);
+				if (r) {
+					*error = error_key;
+					return r;
+				}
+			} else if (crypto_shash_get_flags(*shash) & CRYPTO_TFM_NEED_KEY) {
+				*error = error_key;
+				return -ENOKEY;
+			}
+			return 0;
+		}
+try_ahash:
 		if (ahash) {
 			*ahash = crypto_alloc_ahash(a->alg_string, 0, CRYPTO_ALG_ALLOCATES_MEMORY);
 			if (IS_ERR(*ahash)) {
+				*error = error_alg;
+				r = PTR_ERR(*ahash);
 				*ahash = NULL;
-				goto try_shash;
+				return r;
 			}
-
 			if (a->key) {
 				r = crypto_ahash_setkey(*ahash, a->key, a->key_size);
 				if (r) {
@@ -4371,29 +4391,10 @@ static int get_mac(struct crypto_shash **shash, struct crypto_ahash **ahash,
 				*error = error_key;
 				return -ENOKEY;
 			}
-
 			return 0;
 		}
-
-try_shash:
-		*shash = crypto_alloc_shash(a->alg_string, 0, CRYPTO_ALG_ALLOCATES_MEMORY);
-		if (IS_ERR(*shash)) {
-			*error = error_alg;
-			r = PTR_ERR(*shash);
-			*shash = NULL;
-			return r;
-		}
-
-		if (a->key) {
-			r = crypto_shash_setkey(*shash, a->key, a->key_size);
-			if (r) {
-				*error = error_key;
-				return r;
-			}
-		} else if (crypto_shash_get_flags(*shash) & CRYPTO_TFM_NEED_KEY) {
-			*error = error_key;
-			return -ENOKEY;
-		}
+		*error = error_alg;
+		return -ENOENT;
 	}
 
 	return 0;
