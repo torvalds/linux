@@ -28,7 +28,7 @@ struct objtool_file {
 	struct list_head mcount_loc_list;
 	struct list_head endbr_list;
 	struct list_head call_list;
-	bool ignore_unreachables, hints, rodata;
+	bool ignore_unreachables, hints, rodata, klp;
 
 	unsigned int nr_endbr;
 	unsigned int nr_endbr_int;

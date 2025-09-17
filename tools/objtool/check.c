@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2017 Josh Poimboeuf <jpoimboe@redhat.com>
  */
 
+#define _GNU_SOURCE /* memmem() */
 #include <string.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -611,6 +612,20 @@ static int init_pv_ops(struct objtool_file *file)
 	return 0;
 }
 
+static bool is_livepatch_module(struct objtool_file *file)
+{
+	struct section *sec;
+
+	if (!opts.module)
+		return false;
+
+	sec = find_section_by_name(file->elf, ".modinfo");
+	if (!sec)
+		return false;
+
+	return memmem(sec->data->d_buf, sec_size(sec), "\0livepatch=Y", 12);
+}
+
 static int create_static_call_sections(struct objtool_file *file)
 {
 	struct static_call_site *site;
@@ -622,7 +637,14 @@ static int create_static_call_sections(struct objtool_file *file)
 
 	sec = find_section_by_name(file->elf, ".static_call_sites");
 	if (sec) {
-		WARN("file already has .static_call_sites section, skipping");
+		/*
+		 * Livepatch modules may have already extracted the static call
+		 * site entries to take advantage of vmlinux static call
+		 * privileges.
+		 */
+		if (!file->klp)
+			WARN("file already has .static_call_sites section, skipping");
+
 		return 0;
 	}
 
@@ -666,7 +688,7 @@ static int create_static_call_sections(struct objtool_file *file)
 
 		key_sym = find_symbol_by_name(file->elf, tmp);
 		if (!key_sym) {
-			if (!opts.module) {
+			if (!opts.module || file->klp) {
 				ERROR("static_call: can't find static_call_key symbol: %s", tmp);
 				return -1;
 			}
@@ -885,7 +907,13 @@ static int create_mcount_loc_sections(struct objtool_file *file)
 
 	sec = find_section_by_name(file->elf, "__mcount_loc");
 	if (sec) {
-		WARN("file already has __mcount_loc section, skipping");
+		/*
+		 * Livepatch modules have already extracted their __mcount_loc
+		 * entries to cover the !CONFIG_FTRACE_MCOUNT_USE_OBJTOOL case.
+		 */
+		if (!file->klp)
+			WARN("file already has __mcount_loc section, skipping");
+
 		return 0;
 	}
 
@@ -2569,6 +2597,8 @@ static bool validate_branch_enabled(void)
 
 static int decode_sections(struct objtool_file *file)
 {
+	file->klp = is_livepatch_module(file);
+
 	mark_rodata(file);
 
 	if (init_pv_ops(file))
@@ -4244,6 +4274,9 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
  *   - compiler cloned functions (*.cold, *.part0, etc)
  *   - asm functions created with inline asm or without SYM_FUNC_START()
  *
+ * Also, the function may already have a prefix from a previous objtool run
+ * (livepatch extracted functions, or manually running objtool multiple times).
+ *
  * So return 0 if the NOPs are missing or the function already has a prefix
  * symbol.
  */
@@ -4265,6 +4298,14 @@ static int create_prefix_symbol(struct objtool_file *file, struct symbol *func)
 
 	if (snprintf_check(name, SYM_NAME_LEN, "__pfx_%s", func->name))
 		return -1;
+
+	if (file->klp) {
+		struct symbol *pfx;
+
+		pfx = find_symbol_by_offset(func->sec, func->offset - opts.prefix);
+		if (pfx && is_prefix_func(pfx) && !strcmp(pfx->name, name))
+			return 0;
+	}
 
 	insn = find_insn(file, func->sec, func->offset);
 	if (!insn) {
@@ -4618,6 +4659,7 @@ static int validate_ibt(struct objtool_file *file)
 		    !strncmp(sec->name, ".debug", 6)			||
 		    !strcmp(sec->name, ".altinstructions")		||
 		    !strcmp(sec->name, ".ibt_endbr_seal")		||
+		    !strcmp(sec->name, ".kcfi_traps")			||
 		    !strcmp(sec->name, ".orc_unwind_ip")		||
 		    !strcmp(sec->name, ".retpoline_sites")		||
 		    !strcmp(sec->name, ".smp_locks")			||
@@ -4627,12 +4669,12 @@ static int validate_ibt(struct objtool_file *file)
 		    !strcmp(sec->name, "__bug_table")			||
 		    !strcmp(sec->name, "__ex_table")			||
 		    !strcmp(sec->name, "__jump_table")			||
+		    !strcmp(sec->name, "__klp_funcs")			||
 		    !strcmp(sec->name, "__mcount_loc")			||
-		    !strcmp(sec->name, ".kcfi_traps")			||
 		    !strcmp(sec->name, ".llvm.call-graph-profile")	||
 		    !strcmp(sec->name, ".llvm_bb_addr_map")		||
 		    !strcmp(sec->name, "__tracepoints")			||
-		    strstr(sec->name, "__patchable_function_entries"))
+		    !strcmp(sec->name, "__patchable_function_entries"))
 			continue;
 
 		for_each_reloc(sec->rsec, reloc)
