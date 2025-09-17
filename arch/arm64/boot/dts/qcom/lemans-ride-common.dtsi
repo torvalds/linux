@@ -997,12 +997,9 @@
 &usb_0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb0_en_state>;
+	dr_mode = "peripheral";
 
 	status = "okay";
-};
-
-&usb_0_dwc3 {
-	dr_mode = "peripheral";
 };
 
 &usb_0_hsphy {
@@ -1023,12 +1020,9 @@
 &usb_1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb1_en_state>;
+	dr_mode = "host";
 
 	status = "okay";
-};
-
-&usb_1_dwc3 {
-	dr_mode = "host";
 };
 
 &usb_1_hsphy {
@@ -1049,12 +1043,9 @@
 &usb_2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb2_en_state>;
+	dr_mode = "host";
 
 	status = "okay";
-};
-
-&usb_2_dwc3 {
-	dr_mode = "host";
 };
 
 &usb_2_hsphy {
