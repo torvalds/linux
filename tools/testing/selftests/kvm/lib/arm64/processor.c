@@ -267,11 +267,23 @@ void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	}
 }
 
+bool vm_supports_el2(struct kvm_vm *vm)
+{
+	const char *value = getenv("NV");
+
+	if (value && *value == '0')
+		return false;
+
+	return vm_check_cap(vm, KVM_CAP_ARM_EL2) && vm->arch.has_gic;
+}
+
 void kvm_get_default_vcpu_target(struct kvm_vm *vm, struct kvm_vcpu_init *init)
 {
 	struct kvm_vcpu_init preferred = {};
 
 	vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &preferred);
+	if (vm_supports_el2(vm))
+		preferred.features[0] |= BIT(KVM_ARM_VCPU_HAS_EL2);
 
 	*init = preferred;
 }

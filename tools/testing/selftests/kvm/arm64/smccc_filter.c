@@ -22,8 +22,20 @@ enum smccc_conduit {
 	SMC_INSN,
 };
 
+static bool test_runs_at_el2(void)
+{
+	struct kvm_vm *vm = vm_create(1);
+	struct kvm_vcpu_init init;
+
+	kvm_get_default_vcpu_target(vm, &init);
+	kvm_vm_free(vm);
+
+	return init.features[0] & BIT(KVM_ARM_VCPU_HAS_EL2);
+}
+
 #define for_each_conduit(conduit)					\
-	for (conduit = HVC_INSN; conduit <= SMC_INSN; conduit++)
+	for (conduit = test_runs_at_el2() ? SMC_INSN : HVC_INSN;	\
+	     conduit <= SMC_INSN; conduit++)
 
 static void guest_main(uint32_t func_id, enum smccc_conduit conduit)
 {

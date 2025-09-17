@@ -303,6 +303,7 @@ void wfi(void);
 void test_wants_mte(void);
 void test_disable_default_vgic(void);
 
+bool vm_supports_el2(struct kvm_vm *vm);
 static bool vcpu_has_el2(struct kvm_vcpu *vcpu)
 {
 	return vcpu->init.features[0] & BIT(KVM_ARM_VCPU_HAS_EL2);
