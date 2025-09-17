@@ -177,10 +177,15 @@ Suite for evaluating performance of simple memory copy in various ways.
 
 Options of *memcpy*
 ^^^^^^^^^^^^^^^^^^^
--l::
+-s::
 --size::
 Specify size of memory to copy (default: 1MB).
 Available units are B, KB, MB, GB and TB (case insensitive).
+
+-p::
+--page::
+Specify page-size for mapping memory buffers (default: 4KB).
+Available values are 4KB, 2MB, 1GB (case insensitive).
 
 -f::
 --function::
@@ -201,10 +206,15 @@ Suite for evaluating performance of simple memory set in various ways.
 
 Options of *memset*
 ^^^^^^^^^^^^^^^^^^^
--l::
+-s::
 --size::
 Specify size of memory to set (default: 1MB).
 Available units are B, KB, MB, GB and TB (case insensitive).
+
+-p::
+--page::
+Specify page-size for mapping memory buffers (default: 4KB).
+Available values are 4KB, 2MB, 1GB (case insensitive).
 
 -f::
 --function::
