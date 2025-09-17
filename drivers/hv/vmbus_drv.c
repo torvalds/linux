@@ -1742,7 +1742,7 @@ static ssize_t target_cpu_store(struct vmbus_channel *channel,
 	u32 target_cpu;
 	ssize_t ret;
 
-	if (sscanf(buf, "%uu", &target_cpu) != 1)
+	if (sscanf(buf, "%u", &target_cpu) != 1)
 		return -EIO;
 
 	cpus_read_lock();
