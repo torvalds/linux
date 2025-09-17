@@ -2,15 +2,23 @@
 
 use crate::{
     driver::Bar0,
-    falcon::{Falcon, FalconEngine},
-    regs,
+    falcon::{Falcon, FalconEngine, PFalcon2Base, PFalconBase},
+    regs::{self, macros::RegisterBase},
 };
 
 /// Type specifying the `Gsp` falcon engine. Cannot be instantiated.
 pub(crate) struct Gsp(());
 
-impl FalconEngine for Gsp {
+impl RegisterBase<PFalconBase> for Gsp {
     const BASE: usize = 0x00110000;
+}
+
+impl RegisterBase<PFalcon2Base> for Gsp {
+    const BASE: usize = 0x00111000;
+}
+
+impl FalconEngine for Gsp {
+    const ID: Self = Gsp(());
 }
 
 impl Falcon<Gsp> {
@@ -19,6 +27,6 @@ impl Falcon<Gsp> {
     pub(crate) fn clear_swgen0_intr(&self, bar: &Bar0) {
         regs::NV_PFALCON_FALCON_IRQSCLR::default()
             .set_swgen0(true)
-            .write(bar, Gsp::BASE);
+            .write(bar, &Gsp::ID);
     }
 }

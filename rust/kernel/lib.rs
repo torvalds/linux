@@ -18,6 +18,7 @@
 //
 // Stable since Rust 1.79.0.
 #![feature(inline_const)]
+#![feature(pointer_is_aligned)]
 //
 // Stable since Rust 1.81.0.
 #![feature(lint_reasons)]
@@ -113,6 +114,7 @@ pub mod print;
 pub mod rbtree;
 pub mod regulator;
 pub mod revocable;
+pub mod scatterlist;
 pub mod security;
 pub mod seq_file;
 pub mod sizes;
