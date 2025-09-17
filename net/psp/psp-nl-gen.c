@@ -10,6 +10,12 @@
 
 #include <uapi/linux/psp.h>
 
+/* Common nested types */
+const struct nla_policy psp_keys_nl_policy[PSP_A_KEYS_SPI + 1] = {
+	[PSP_A_KEYS_KEY] = { .type = NLA_BINARY, },
+	[PSP_A_KEYS_SPI] = { .type = NLA_U32, },
+};
+
 /* PSP_CMD_DEV_GET - do */
 static const struct nla_policy psp_dev_get_nl_policy[PSP_A_DEV_ID + 1] = {
 	[PSP_A_DEV_ID] = NLA_POLICY_MIN(NLA_U32, 1),
@@ -24,6 +30,21 @@ static const struct nla_policy psp_dev_set_nl_policy[PSP_A_DEV_PSP_VERSIONS_ENA 
 /* PSP_CMD_KEY_ROTATE - do */
 static const struct nla_policy psp_key_rotate_nl_policy[PSP_A_DEV_ID + 1] = {
 	[PSP_A_DEV_ID] = NLA_POLICY_MIN(NLA_U32, 1),
+};
+
+/* PSP_CMD_RX_ASSOC - do */
+static const struct nla_policy psp_rx_assoc_nl_policy[PSP_A_ASSOC_SOCK_FD + 1] = {
+	[PSP_A_ASSOC_DEV_ID] = NLA_POLICY_MIN(NLA_U32, 1),
+	[PSP_A_ASSOC_VERSION] = NLA_POLICY_MAX(NLA_U32, 3),
+	[PSP_A_ASSOC_SOCK_FD] = { .type = NLA_U32, },
+};
+
+/* PSP_CMD_TX_ASSOC - do */
+static const struct nla_policy psp_tx_assoc_nl_policy[PSP_A_ASSOC_SOCK_FD + 1] = {
+	[PSP_A_ASSOC_DEV_ID] = NLA_POLICY_MIN(NLA_U32, 1),
+	[PSP_A_ASSOC_VERSION] = NLA_POLICY_MAX(NLA_U32, 3),
+	[PSP_A_ASSOC_TX_KEY] = NLA_POLICY_NESTED(psp_keys_nl_policy),
+	[PSP_A_ASSOC_SOCK_FD] = { .type = NLA_U32, },
 };
 
 /* Ops table for psp */
@@ -58,6 +79,24 @@ static const struct genl_split_ops psp_nl_ops[] = {
 		.post_doit	= psp_device_unlock,
 		.policy		= psp_key_rotate_nl_policy,
 		.maxattr	= PSP_A_DEV_ID,
+		.flags		= GENL_CMD_CAP_DO,
+	},
+	{
+		.cmd		= PSP_CMD_RX_ASSOC,
+		.pre_doit	= psp_assoc_device_get_locked,
+		.doit		= psp_nl_rx_assoc_doit,
+		.post_doit	= psp_device_unlock,
+		.policy		= psp_rx_assoc_nl_policy,
+		.maxattr	= PSP_A_ASSOC_SOCK_FD,
+		.flags		= GENL_CMD_CAP_DO,
+	},
+	{
+		.cmd		= PSP_CMD_TX_ASSOC,
+		.pre_doit	= psp_assoc_device_get_locked,
+		.doit		= psp_nl_tx_assoc_doit,
+		.post_doit	= psp_device_unlock,
+		.policy		= psp_tx_assoc_nl_policy,
+		.maxattr	= PSP_A_ASSOC_SOCK_FD,
 		.flags		= GENL_CMD_CAP_DO,
 	},
 };

@@ -55,7 +55,10 @@ psp_dev_create(struct net_device *netdev,
 
 	if (WARN_ON(!psd_caps->versions ||
 		    !psd_ops->set_config ||
-		    !psd_ops->key_rotate))
+		    !psd_ops->key_rotate ||
+		    !psd_ops->rx_spi_alloc ||
+		    !psd_ops->tx_key_add ||
+		    !psd_ops->tx_key_del))
 		return ERR_PTR(-EINVAL);
 
 	psd = kzalloc(sizeof(*psd), GFP_KERNEL);
@@ -68,6 +71,7 @@ psp_dev_create(struct net_device *netdev,
 	psd->drv_priv = priv_ptr;
 
 	mutex_init(&psd->lock);
+	INIT_LIST_HEAD(&psd->active_assocs);
 	refcount_set(&psd->refcnt, 1);
 
 	mutex_lock(&psp_devs_lock);
@@ -107,6 +111,8 @@ void psp_dev_destroy(struct psp_dev *psd)
  */
 void psp_dev_unregister(struct psp_dev *psd)
 {
+	struct psp_assoc *pas, *next;
+
 	mutex_lock(&psp_devs_lock);
 	mutex_lock(&psd->lock);
 
@@ -119,6 +125,9 @@ void psp_dev_unregister(struct psp_dev *psd)
 	xa_store(&psp_devs, psd->id, NULL, GFP_KERNEL);
 	mutex_unlock(&psp_devs_lock);
 
+	list_for_each_entry_safe(pas, next, &psd->active_assocs, assocs_list)
+		psp_dev_tx_key_del(psd, pas);
+
 	rcu_assign_pointer(psd->main_netdev->psp_dev, NULL);
 
 	psd->ops = NULL;
@@ -129,6 +138,21 @@ void psp_dev_unregister(struct psp_dev *psd)
 	psp_dev_put(psd);
 }
 EXPORT_SYMBOL(psp_dev_unregister);
+
+unsigned int psp_key_size(u32 version)
+{
+	switch (version) {
+	case PSP_VERSION_HDR0_AES_GCM_128:
+	case PSP_VERSION_HDR0_AES_GMAC_128:
+		return 16;
+	case PSP_VERSION_HDR0_AES_GCM_256:
+	case PSP_VERSION_HDR0_AES_GMAC_256:
+		return 32;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(psp_key_size);
 
 static int __init psp_init(void)
 {

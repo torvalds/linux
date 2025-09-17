@@ -38,6 +38,44 @@ attribute-sets:
         type: u32
         enum: version
         enum-as-flags: true
+  -
+    name: assoc
+    attributes:
+      -
+        name: dev-id
+        doc: PSP device ID.
+        type: u32
+        checks:
+          min: 1
+      -
+        name: version
+        doc: |
+          PSP versions (AEAD and protocol version) used by this association,
+          dictates the size of the key.
+        type: u32
+        enum: version
+      -
+        name: rx-key
+        type: nest
+        nested-attributes: keys
+      -
+        name: tx-key
+        type: nest
+        nested-attributes: keys
+      -
+        name: sock-fd
+        doc: Sockets which should be bound to the association immediately.
+        type: u32
+  -
+    name: keys
+    attributes:
+      -
+        name: key
+        type: binary
+      -
+        name: spi
+        doc: Security Parameters Index (SPI) of the association.
+        type: u32
 
 operations:
   list:
@@ -106,6 +144,38 @@ operations:
       doc: Notification about device key getting rotated.
       notify: key-rotate
       mcgrp: use
+
+    -
+      name: rx-assoc
+      doc: Allocate a new Rx key + SPI pair, associate it with a socket.
+      attribute-set: assoc
+      do:
+        request:
+          attributes:
+            - dev-id
+            - version
+            - sock-fd
+        reply:
+          attributes:
+            - dev-id
+            - rx-key
+        pre: psp-assoc-device-get-locked
+        post: psp-device-unlock
+    -
+      name: tx-assoc
+      doc: Add a PSP Tx association.
+      attribute-set: assoc
+      do:
+        request:
+          attributes:
+            - dev-id
+            - version
+            - tx-key
+            - sock-fd
+        reply:
+          attributes: []
+        pre: psp-assoc-device-get-locked
+        post: psp-device-unlock
 
 mcast-groups:
   list:

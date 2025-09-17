@@ -79,9 +79,12 @@ void
 psp_device_unlock(const struct genl_split_ops *ops, struct sk_buff *skb,
 		  struct genl_info *info)
 {
+	struct socket *socket = info->user_ptr[1];
 	struct psp_dev *psd = info->user_ptr[0];
 
 	mutex_unlock(&psd->lock);
+	if (socket)
+		sockfd_put(socket);
 }
 
 static int
@@ -258,6 +261,235 @@ int psp_nl_key_rotate_doit(struct sk_buff *skb, struct genl_info *info)
 err_free_ntf:
 	nlmsg_free(ntf);
 err_free_rsp:
+	nlmsg_free(rsp);
+	return err;
+}
+
+/* Key etc. */
+
+int psp_assoc_device_get_locked(const struct genl_split_ops *ops,
+				struct sk_buff *skb, struct genl_info *info)
+{
+	struct socket *socket;
+	struct psp_dev *psd;
+	struct nlattr *id;
+	int fd, err;
+
+	if (GENL_REQ_ATTR_CHECK(info, PSP_A_ASSOC_SOCK_FD))
+		return -EINVAL;
+
+	fd = nla_get_u32(info->attrs[PSP_A_ASSOC_SOCK_FD]);
+	socket = sockfd_lookup(fd, &err);
+	if (!socket)
+		return err;
+
+	if (!sk_is_tcp(socket->sk)) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    info->attrs[PSP_A_ASSOC_SOCK_FD],
+				    "Unsupported socket family and type");
+		err = -EOPNOTSUPP;
+		goto err_sock_put;
+	}
+
+	psd = psp_dev_get_for_sock(socket->sk);
+	if (psd) {
+		err = psp_dev_check_access(psd, genl_info_net(info));
+		if (err) {
+			psp_dev_put(psd);
+			psd = NULL;
+		}
+	}
+
+	if (!psd && GENL_REQ_ATTR_CHECK(info, PSP_A_ASSOC_DEV_ID)) {
+		err = -EINVAL;
+		goto err_sock_put;
+	}
+
+	id = info->attrs[PSP_A_ASSOC_DEV_ID];
+	if (psd) {
+		mutex_lock(&psd->lock);
+		if (id && psd->id != nla_get_u32(id)) {
+			mutex_unlock(&psd->lock);
+			NL_SET_ERR_MSG_ATTR(info->extack, id,
+					    "Device id vs socket mismatch");
+			err = -EINVAL;
+			goto err_psd_put;
+		}
+
+		psp_dev_put(psd);
+	} else {
+		psd = psp_device_get_and_lock(genl_info_net(info), id);
+		if (IS_ERR(psd)) {
+			err = PTR_ERR(psd);
+			goto err_sock_put;
+		}
+	}
+
+	info->user_ptr[0] = psd;
+	info->user_ptr[1] = socket;
+
+	return 0;
+
+err_psd_put:
+	psp_dev_put(psd);
+err_sock_put:
+	sockfd_put(socket);
+	return err;
+}
+
+static int
+psp_nl_parse_key(struct genl_info *info, u32 attr, struct psp_key_parsed *key,
+		 unsigned int key_sz)
+{
+	struct nlattr *nest = info->attrs[attr];
+	struct nlattr *tb[PSP_A_KEYS_SPI + 1];
+	u32 spi;
+	int err;
+
+	err = nla_parse_nested(tb, ARRAY_SIZE(tb) - 1, nest,
+			       psp_keys_nl_policy, info->extack);
+	if (err)
+		return err;
+
+	if (NL_REQ_ATTR_CHECK(info->extack, nest, tb, PSP_A_KEYS_KEY) ||
+	    NL_REQ_ATTR_CHECK(info->extack, nest, tb, PSP_A_KEYS_SPI))
+		return -EINVAL;
+
+	if (nla_len(tb[PSP_A_KEYS_KEY]) != key_sz) {
+		NL_SET_ERR_MSG_ATTR(info->extack, tb[PSP_A_KEYS_KEY],
+				    "incorrect key length");
+		return -EINVAL;
+	}
+
+	spi = nla_get_u32(tb[PSP_A_KEYS_SPI]);
+	if (!(spi & PSP_SPI_KEY_ID)) {
+		NL_SET_ERR_MSG_ATTR(info->extack, tb[PSP_A_KEYS_KEY],
+				    "invalid SPI: lower 31b must be non-zero");
+		return -EINVAL;
+	}
+
+	key->spi = cpu_to_be32(spi);
+	memcpy(key->key, nla_data(tb[PSP_A_KEYS_KEY]), key_sz);
+
+	return 0;
+}
+
+static int
+psp_nl_put_key(struct sk_buff *skb, u32 attr, u32 version,
+	       struct psp_key_parsed *key)
+{
+	int key_sz = psp_key_size(version);
+	void *nest;
+
+	nest = nla_nest_start(skb, attr);
+
+	if (nla_put_u32(skb, PSP_A_KEYS_SPI, be32_to_cpu(key->spi)) ||
+	    nla_put(skb, PSP_A_KEYS_KEY, key_sz, key->key)) {
+		nla_nest_cancel(skb, nest);
+		return -EMSGSIZE;
+	}
+
+	nla_nest_end(skb, nest);
+
+	return 0;
+}
+
+int psp_nl_rx_assoc_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct socket *socket = info->user_ptr[1];
+	struct psp_dev *psd = info->user_ptr[0];
+	struct psp_key_parsed key;
+	struct psp_assoc *pas;
+	struct sk_buff *rsp;
+	u32 version;
+	int err;
+
+	if (GENL_REQ_ATTR_CHECK(info, PSP_A_ASSOC_VERSION))
+		return -EINVAL;
+
+	version = nla_get_u32(info->attrs[PSP_A_ASSOC_VERSION]);
+	if (!(psd->caps->versions & (1 << version))) {
+		NL_SET_BAD_ATTR(info->extack, info->attrs[PSP_A_ASSOC_VERSION]);
+		return -EOPNOTSUPP;
+	}
+
+	rsp = psp_nl_reply_new(info);
+	if (!rsp)
+		return -ENOMEM;
+
+	pas = psp_assoc_create(psd);
+	if (!pas) {
+		err = -ENOMEM;
+		goto err_free_rsp;
+	}
+	pas->version = version;
+
+	err = psd->ops->rx_spi_alloc(psd, version, &key, info->extack);
+	if (err)
+		goto err_free_pas;
+
+	if (nla_put_u32(rsp, PSP_A_ASSOC_DEV_ID, psd->id) ||
+	    psp_nl_put_key(rsp, PSP_A_ASSOC_RX_KEY, version, &key)) {
+		err = -EMSGSIZE;
+		goto err_free_pas;
+	}
+
+	err = psp_sock_assoc_set_rx(socket->sk, pas, &key, info->extack);
+	if (err) {
+		NL_SET_BAD_ATTR(info->extack, info->attrs[PSP_A_ASSOC_SOCK_FD]);
+		goto err_free_pas;
+	}
+	psp_assoc_put(pas);
+
+	return psp_nl_reply_send(rsp, info);
+
+err_free_pas:
+	psp_assoc_put(pas);
+err_free_rsp:
+	nlmsg_free(rsp);
+	return err;
+}
+
+int psp_nl_tx_assoc_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct socket *socket = info->user_ptr[1];
+	struct psp_dev *psd = info->user_ptr[0];
+	struct psp_key_parsed key;
+	struct sk_buff *rsp;
+	unsigned int key_sz;
+	u32 version;
+	int err;
+
+	if (GENL_REQ_ATTR_CHECK(info, PSP_A_ASSOC_VERSION) ||
+	    GENL_REQ_ATTR_CHECK(info, PSP_A_ASSOC_TX_KEY))
+		return -EINVAL;
+
+	version = nla_get_u32(info->attrs[PSP_A_ASSOC_VERSION]);
+	if (!(psd->caps->versions & (1 << version))) {
+		NL_SET_BAD_ATTR(info->extack, info->attrs[PSP_A_ASSOC_VERSION]);
+		return -EOPNOTSUPP;
+	}
+
+	key_sz = psp_key_size(version);
+	if (!key_sz)
+		return -EINVAL;
+
+	err = psp_nl_parse_key(info, PSP_A_ASSOC_TX_KEY, &key, key_sz);
+	if (err < 0)
+		return err;
+
+	rsp = psp_nl_reply_new(info);
+	if (!rsp)
+		return -ENOMEM;
+
+	err = psp_sock_assoc_set_tx(socket->sk, psd, version, &key,
+				    info->extack);
+	if (err)
+		goto err_free_msg;
+
+	return psp_nl_reply_send(rsp, info);
+
+err_free_msg:
 	nlmsg_free(rsp);
 	return err;
 }
