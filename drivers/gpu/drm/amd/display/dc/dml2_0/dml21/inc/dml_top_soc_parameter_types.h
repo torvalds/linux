@@ -89,8 +89,8 @@ struct dml2_soc_qos_parameters {
 
 struct dml2_soc_power_management_parameters {
 	double dram_clk_change_blackout_us;
-	double dram_clk_change_read_only_us;
-	double dram_clk_change_write_only_us;
+	double dram_clk_change_read_only_us; // deprecated
+	double dram_clk_change_write_only_us; // deprecated
 	double fclk_change_blackout_us;
 	double g7_ppt_blackout_us;
 	double g7_temperature_read_blackout_us;

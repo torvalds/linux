@@ -1962,9 +1962,6 @@ static void reset_display_configuration(struct display_configuation_with_meta *d
 
 	for (stream_index = 0; stream_index < display_config->display_config.num_streams; stream_index++) {
 		display_config->stage3.stream_svp_meta[stream_index].valid = false;
-
-		display_config->display_config.stream_descriptors[stream_index].overrides.minimize_active_latency_hiding = false;
-		display_config->display_config.overrides.best_effort_min_active_latency_hiding_us = 0;
 	}
 
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
@@ -1997,7 +1994,6 @@ static void setup_planes_for_drr_by_mask(struct display_configuation_with_meta *
 			plane->overrides.uclk_pstate_change_strategy = dml2_uclk_pstate_change_strategy_force_drr;
 
 			display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_fw_drr;
-
 		}
 	}
 }
@@ -2063,7 +2059,6 @@ static void setup_planes_for_vblank_by_mask(struct display_configuation_with_met
 					plane->overrides.reserved_vblank_time_ns);
 
 			display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_vblank;
-
 		}
 	}
 }
@@ -2078,6 +2073,7 @@ static void setup_planes_for_vblank_drr_by_mask(struct display_configuation_with
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
 		if (is_bit_set_in_bitfield(plane_mask, plane_index)) {
 			plane = &display_config->display_config.plane_descriptors[plane_index];
+
 			plane->overrides.reserved_vblank_time_ns = (long)(pmo->soc_bb->power_management_parameters.dram_clk_change_blackout_us * 1000);
 
 			display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_fw_vblank_drr;

@@ -423,7 +423,6 @@ struct dml2_stream_parameters {
 		bool disable_dynamic_odm;
 		bool disable_subvp;
 		int minimum_vblank_idle_requirement_us;
-		bool minimize_active_latency_hiding;
 
 		struct {
 			struct {
@@ -489,7 +488,6 @@ struct dml2_display_cfg {
 		bool synchronize_ddr_displays_for_uclk_pstate_change;
 		bool max_outstanding_when_urgent_expected_disable;
 		bool enable_subvp_implicit_pmo; //enables PMO to switch pipe uclk strategy to subvp, and generate phantom programming
-		unsigned int best_effort_min_active_latency_hiding_us;
 		bool all_streams_blanked;
 	} overrides;
 };
