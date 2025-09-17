@@ -170,7 +170,7 @@ struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset)
 	struct symbol *iter;
 
 	__sym_for_each(iter, tree, offset, offset) {
-		if (iter->offset == offset && iter->type != STT_SECTION)
+		if (iter->offset == offset && !is_sec_sym(iter))
 			return iter;
 	}
 
@@ -183,7 +183,7 @@ struct symbol *find_func_by_offset(struct section *sec, unsigned long offset)
 	struct symbol *iter;
 
 	__sym_for_each(iter, tree, offset, offset) {
-		if (iter->offset == offset && iter->type == STT_FUNC)
+		if (iter->offset == offset && is_func_sym(iter))
 			return iter;
 	}
 
@@ -264,7 +264,7 @@ struct symbol *find_func_containing(struct section *sec, unsigned long offset)
 	struct symbol *iter;
 
 	__sym_for_each(iter, tree, offset, offset) {
-		if (iter->type == STT_FUNC)
+		if (is_func_sym(iter))
 			return iter;
 	}
 
@@ -373,14 +373,14 @@ static int read_sections(struct elf *elf)
 			return -1;
 		}
 
-		if (sec->sh.sh_size != 0 && !is_dwarf_section(sec)) {
+		if (sec_size(sec) != 0 && !is_dwarf_section(sec)) {
 			sec->data = elf_getdata(s, NULL);
 			if (!sec->data) {
 				ERROR_ELF("elf_getdata");
 				return -1;
 			}
 			if (sec->data->d_off != 0 ||
-			    sec->data->d_size != sec->sh.sh_size) {
+			    sec->data->d_size != sec_size(sec)) {
 				ERROR("unexpected data attributes for %s", sec->name);
 				return -1;
 			}
@@ -420,7 +420,7 @@ static void elf_add_symbol(struct elf *elf, struct symbol *sym)
 	sym->type = GELF_ST_TYPE(sym->sym.st_info);
 	sym->bind = GELF_ST_BIND(sym->sym.st_info);
 
-	if (sym->type == STT_FILE)
+	if (is_file_sym(sym))
 		elf->num_files++;
 
 	sym->offset = sym->sym.st_value;
@@ -527,7 +527,7 @@ static int read_symbols(struct elf *elf)
 		sec_for_each_sym(sec, sym) {
 			char *pname;
 			size_t pnamelen;
-			if (sym->type != STT_FUNC)
+			if (!is_func_sym(sym))
 				continue;
 
 			if (sym->pfunc == NULL)
@@ -929,7 +929,7 @@ struct reloc *elf_init_reloc_text_sym(struct elf *elf, struct section *sec,
 	struct symbol *sym = insn_sec->sym;
 	int addend = insn_off;
 
-	if (!(insn_sec->sh.sh_flags & SHF_EXECINSTR)) {
+	if (!is_text_sec(insn_sec)) {
 		ERROR("bad call to %s() for data symbol %s", __func__, sym->name);
 		return NULL;
 	}
@@ -958,7 +958,7 @@ struct reloc *elf_init_reloc_data_sym(struct elf *elf, struct section *sec,
 				      struct symbol *sym,
 				      s64 addend)
 {
-	if (sym->sec && (sec->sh.sh_flags & SHF_EXECINSTR)) {
+	if (is_text_sec(sec)) {
 		ERROR("bad call to %s() for text symbol %s", __func__, sym->name);
 		return NULL;
 	}
@@ -1287,7 +1287,7 @@ int elf_write_insn(struct elf *elf, struct section *sec,
  */
 static int elf_truncate_section(struct elf *elf, struct section *sec)
 {
-	u64 size = sec->sh.sh_size;
+	u64 size = sec_size(sec);
 	bool truncated = false;
 	Elf_Data *data = NULL;
 	Elf_Scn *s;
