@@ -1212,22 +1212,20 @@ static noinline_for_stack int ethtool_get_rxrings(struct net_device *dev,
 						  u32 cmd,
 						  void __user *useraddr)
 {
-	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct ethtool_rxnfc info;
 	size_t info_size;
 	int ret;
-
-	if (!ops->get_rxnfc)
-		return -EOPNOTSUPP;
 
 	info_size = sizeof(info);
 	ret = ethtool_rxnfc_copy_struct(cmd, &info, &info_size, useraddr);
 	if (ret)
 		return ret;
 
-	ret = ops->get_rxnfc(dev, &info, NULL);
+	ret = ethtool_get_rx_ring_count(dev);
 	if (ret < 0)
 		return ret;
+
+	info.data = ret;
 
 	return ethtool_rxnfc_copy_to_user(useraddr, &info, info_size, NULL);
 }
