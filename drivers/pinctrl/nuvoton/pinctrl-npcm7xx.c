@@ -1842,7 +1842,7 @@ static int npcm7xx_gpio_of(struct npcm7xx_pinctrl *pctrl)
 			.dat = pctrl->gpio_bank[id].base + NPCM7XX_GP_N_DIN,
 			.set = pctrl->gpio_bank[id].base + NPCM7XX_GP_N_DOUT,
 			.dirin = pctrl->gpio_bank[id].base + NPCM7XX_GP_N_IEM,
-			.flags = BGPIOF_READ_OUTPUT_REG_SET,
+			.flags = GPIO_GENERIC_READ_OUTPUT_REG_SET,
 		};
 
 		ret = gpio_generic_chip_init(&pctrl->gpio_bank[id].chip, &config);

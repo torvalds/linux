@@ -197,7 +197,8 @@ static int spacemit_gpio_add_bank(struct spacemit_gpio *sg,
 		.clr = clr,
 		.dirout = dirout,
 		.dirin = dirin,
-		.flags = BGPIOF_UNREADABLE_REG_SET | BGPIOF_UNREADABLE_REG_DIR,
+		.flags = GPIO_GENERIC_UNREADABLE_REG_SET |
+			 GPIO_GENERIC_UNREADABLE_REG_DIR,
 	};
 
 	/* This registers 32 GPIO lines per bank */

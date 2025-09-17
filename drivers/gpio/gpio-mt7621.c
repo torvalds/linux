@@ -242,7 +242,7 @@ mediatek_gpio_bank_probe(struct device *dev, int bank)
 		.set = set,
 		.clr = ctrl,
 		.dirout = diro,
-		.flags = BGPIOF_NO_SET_ON_INPUT,
+		.flags = GPIO_GENERIC_NO_SET_ON_INPUT,
 	};
 
 	ret = gpio_generic_chip_init(&rg->chip, &config);

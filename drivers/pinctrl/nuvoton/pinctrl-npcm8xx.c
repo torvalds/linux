@@ -2335,7 +2335,7 @@ static int npcm8xx_gpio_fw(struct npcm8xx_pinctrl *pctrl)
 			.dat = pctrl->gpio_bank[id].base + NPCM8XX_GP_N_DIN,
 			.set = pctrl->gpio_bank[id].base + NPCM8XX_GP_N_DOUT,
 			.dirin = pctrl->gpio_bank[id].base + NPCM8XX_GP_N_IEM,
-			.flags = BGPIOF_READ_OUTPUT_REG_SET,
+			.flags = GPIO_GENERIC_READ_OUTPUT_REG_SET,
 		};
 
 		ret = gpio_generic_chip_init(&pctrl->gpio_bank[id].chip, &config);

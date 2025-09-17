@@ -223,7 +223,7 @@ static int sifive_gpio_probe(struct platform_device *pdev)
 		.set = chip->base + SIFIVE_GPIO_OUTPUT_VAL,
 		.dirout = chip->base + SIFIVE_GPIO_OUTPUT_EN,
 		.dirin = chip->base + SIFIVE_GPIO_INPUT_EN,
-		.flags = BGPIOF_READ_OUTPUT_REG_SET,
+		.flags = GPIO_GENERIC_READ_OUTPUT_REG_SET,
 	};
 
 	ret = gpio_generic_chip_init(&chip->gen_gc, &config);

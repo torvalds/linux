@@ -554,7 +554,7 @@ static int bgpio_setup_io(struct gpio_generic_chip *chip,
 		chip->reg_set = cfg->set;
 		gc->set = bgpio_set_set;
 		gc->set_multiple = bgpio_set_multiple_set;
-	} else if (cfg->flags & BGPIOF_NO_OUTPUT) {
+	} else if (cfg->flags & GPIO_GENERIC_NO_OUTPUT) {
 		gc->set = bgpio_set_none;
 		gc->set_multiple = NULL;
 	} else {
@@ -562,8 +562,8 @@ static int bgpio_setup_io(struct gpio_generic_chip *chip,
 		gc->set_multiple = bgpio_set_multiple;
 	}
 
-	if (!(cfg->flags & BGPIOF_UNREADABLE_REG_SET) &&
-	    (cfg->flags & BGPIOF_READ_OUTPUT_REG_SET)) {
+	if (!(cfg->flags & GPIO_GENERIC_UNREADABLE_REG_SET) &&
+	    (cfg->flags & GPIO_GENERIC_READ_OUTPUT_REG_SET)) {
 		gc->get = bgpio_get_set;
 		if (!chip->be_bits)
 			gc->get_multiple = bgpio_get_set_multiple;
@@ -593,19 +593,19 @@ static int bgpio_setup_direction(struct gpio_generic_chip *chip,
 	if (cfg->dirout || cfg->dirin) {
 		chip->reg_dir_out = cfg->dirout;
 		chip->reg_dir_in = cfg->dirin;
-		if (cfg->flags & BGPIOF_NO_SET_ON_INPUT)
+		if (cfg->flags & GPIO_GENERIC_NO_SET_ON_INPUT)
 			gc->direction_output = bgpio_dir_out_dir_first;
 		else
 			gc->direction_output = bgpio_dir_out_val_first;
 		gc->direction_input = bgpio_dir_in;
 		gc->get_direction = bgpio_get_dir;
 	} else {
-		if (cfg->flags & BGPIOF_NO_OUTPUT)
+		if (cfg->flags & GPIO_GENERIC_NO_OUTPUT)
 			gc->direction_output = bgpio_dir_out_err;
 		else
 			gc->direction_output = bgpio_simple_dir_out;
 
-		if (cfg->flags & BGPIOF_NO_INPUT)
+		if (cfg->flags & GPIO_GENERIC_NO_INPUT)
 			gc->direction_input = bgpio_dir_in_err;
 		else
 			gc->direction_input = bgpio_simple_dir_in;
@@ -654,7 +654,7 @@ int gpio_generic_chip_init(struct gpio_generic_chip *chip,
 	gc->label = dev_name(dev);
 	gc->base = -1;
 	gc->request = bgpio_request;
-	chip->be_bits = !!(flags & BGPIOF_BIG_ENDIAN);
+	chip->be_bits = !!(flags & GPIO_GENERIC_BIG_ENDIAN);
 
 	ret = gpiochip_get_ngpios(gc, dev);
 	if (ret)
@@ -665,7 +665,7 @@ int gpio_generic_chip_init(struct gpio_generic_chip *chip,
 		return ret;
 
 	ret = bgpio_setup_accessors(dev, chip,
-				    flags & BGPIOF_BIG_ENDIAN_BYTE_ORDER);
+				    flags & GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER);
 	if (ret)
 		return ret;
 
@@ -673,7 +673,7 @@ int gpio_generic_chip_init(struct gpio_generic_chip *chip,
 	if (ret)
 		return ret;
 
-	if (flags & BGPIOF_PINCTRL_BACKEND) {
+	if (flags & GPIO_GENERIC_PINCTRL_BACKEND) {
 		chip->pinctrl = true;
 		/* Currently this callback is only used for pincontrol */
 		gc->free = gpiochip_generic_free;
@@ -681,17 +681,17 @@ int gpio_generic_chip_init(struct gpio_generic_chip *chip,
 
 	chip->sdata = chip->read_reg(chip->reg_dat);
 	if (gc->set == bgpio_set_set &&
-			!(flags & BGPIOF_UNREADABLE_REG_SET))
+			!(flags & GPIO_GENERIC_UNREADABLE_REG_SET))
 		chip->sdata = chip->read_reg(chip->reg_set);
 
-	if (flags & BGPIOF_UNREADABLE_REG_DIR)
+	if (flags & GPIO_GENERIC_UNREADABLE_REG_DIR)
 		chip->dir_unreadable = true;
 
 	/*
 	 * Inspect hardware to find initial direction setting.
 	 */
 	if ((chip->reg_dir_out || chip->reg_dir_in) &&
-	    !(flags & BGPIOF_UNREADABLE_REG_DIR)) {
+	    !(flags & GPIO_GENERIC_UNREADABLE_REG_DIR)) {
 		if (chip->reg_dir_out)
 			chip->sdir = chip->read_reg(chip->reg_dir_out);
 		else if (chip->reg_dir_in)
@@ -787,10 +787,10 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (device_is_big_endian(dev))
-		flags |= BGPIOF_BIG_ENDIAN_BYTE_ORDER;
+		flags |= GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER;
 
 	if (device_property_read_bool(dev, "no-output"))
-		flags |= BGPIOF_NO_OUTPUT;
+		flags |= GPIO_GENERIC_NO_OUTPUT;
 
 	config = (struct gpio_generic_chip_config) {
 		.dev = dev,

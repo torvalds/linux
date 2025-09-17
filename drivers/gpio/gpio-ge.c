@@ -73,7 +73,7 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 		.dat = regs + GEF_GPIO_IN,
 		.set = regs + GEF_GPIO_OUT,
 		.dirin = regs + GEF_GPIO_DIRECT,
-		.flags = BGPIOF_BIG_ENDIAN_BYTE_ORDER,
+		.flags = GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER,
 	};
 
 	ret = gpio_generic_chip_init(chip, &config);

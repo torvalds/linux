@@ -648,7 +648,7 @@ static int stm32_hdp_probe(struct platform_device *pdev)
 		.dat = hdp->base + HDP_GPOVAL,
 		.set = hdp->base + HDP_GPOSET,
 		.clr = hdp->base + HDP_GPOCLR,
-		.flags = BGPIOF_NO_INPUT,
+		.flags = GPIO_GENERIC_NO_INPUT,
 	};
 
 	err = gpio_generic_chip_init(&hdp->gpio_chip, &config);

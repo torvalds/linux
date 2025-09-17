@@ -300,7 +300,8 @@ static int hisi_gpio_probe(struct platform_device *pdev)
 		.clr = hisi_gpio->reg_base + HISI_GPIO_SWPORT_DR_CLR_WX,
 		.dirout = hisi_gpio->reg_base + HISI_GPIO_SWPORT_DDR_SET_WX,
 		.dirin = hisi_gpio->reg_base + HISI_GPIO_SWPORT_DDR_CLR_WX,
-		.flags = BGPIOF_NO_SET_ON_INPUT | BGPIOF_UNREADABLE_REG_DIR,
+		.flags = GPIO_GENERIC_NO_SET_ON_INPUT |
+			 GPIO_GENERIC_UNREADABLE_REG_DIR,
 	};
 
 	ret = gpio_generic_chip_init(&hisi_gpio->chip, &config);

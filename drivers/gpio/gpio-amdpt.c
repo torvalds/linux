@@ -94,7 +94,7 @@ static int pt_gpio_probe(struct platform_device *pdev)
 		.dat = pt_gpio->reg_base + PT_INPUTDATA_REG,
 		.set = pt_gpio->reg_base + PT_OUTPUTDATA_REG,
 		.dirout = pt_gpio->reg_base + PT_DIRECTION_REG,
-		.flags = BGPIOF_READ_OUTPUT_REG_SET,
+		.flags = GPIO_GENERIC_READ_OUTPUT_REG_SET,
 	};
 
 	ret = gpio_generic_chip_init(&pt_gpio->chip, &config);

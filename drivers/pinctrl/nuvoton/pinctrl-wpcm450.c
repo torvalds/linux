@@ -1061,7 +1061,7 @@ static int wpcm450_gpio_register(struct platform_device *pdev,
 			set = pctrl->gpio_base + bank->dataout;
 			dirout = pctrl->gpio_base + bank->cfg0;
 		} else {
-			flags = BGPIOF_NO_OUTPUT;
+			flags = GPIO_GENERIC_NO_OUTPUT;
 		}
 
 		config = (typeof(config)){

@@ -350,13 +350,13 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 		.sz = 4,
 		.dat = mpc8xxx_gc->regs + GPIO_DAT,
 		.dirout = mpc8xxx_gc->regs + GPIO_DIR,
-		.flags = BGPIOF_BIG_ENDIAN
+		.flags = GPIO_GENERIC_BIG_ENDIAN
 	};
 
 	if (device_property_read_bool(dev, "little-endian")) {
 		dev_dbg(dev, "GPIO registers are LITTLE endian\n");
 	} else {
-		config.flags |= BGPIOF_BIG_ENDIAN_BYTE_ORDER;
+		config.flags |= GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER;
 		dev_dbg(dev, "GPIO registers are BIG endian\n");
 	}
 

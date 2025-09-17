@@ -289,7 +289,7 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	 * for big endian.
 	 */
 #if defined(CONFIG_CPU_BIG_ENDIAN)
-	flags = BGPIOF_BIG_ENDIAN_BYTE_ORDER;
+	flags = GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER;
 #else
 	flags = 0;
 #endif

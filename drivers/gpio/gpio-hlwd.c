@@ -253,7 +253,7 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 		.dat = hlwd->regs + HW_GPIOB_IN,
 		.set = hlwd->regs + HW_GPIOB_OUT,
 		.dirout = hlwd->regs + HW_GPIOB_DIR,
-		.flags = BGPIOF_BIG_ENDIAN_BYTE_ORDER,
+		.flags = GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER,
 	};
 
 	res = gpio_generic_chip_init(&hlwd->gpioc, &config);

@@ -630,7 +630,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 	 * else leave I/O in little endian mode.
 	 */
 #if defined(CONFIG_MIPS) && defined(__BIG_ENDIAN)
-	flags = BGPIOF_BIG_ENDIAN_BYTE_ORDER;
+	flags = GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER;
 #endif
 
 	of_property_for_each_u32(np, "brcm,gpio-bank-widths", bank_width) {

@@ -395,7 +395,7 @@ static int realtek_gpio_probe(struct platform_device *pdev)
 		ctrl->bank_write = realtek_gpio_bank_write;
 		ctrl->line_imr_pos = realtek_gpio_line_imr_pos;
 	} else {
-		gen_gc_flags = BGPIOF_BIG_ENDIAN_BYTE_ORDER;
+		gen_gc_flags = GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER;
 		ctrl->bank_read = realtek_gpio_bank_read_swapped;
 		ctrl->bank_write = realtek_gpio_bank_write_swapped;
 		ctrl->line_imr_pos = realtek_gpio_line_imr_pos_swapped;

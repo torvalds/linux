@@ -359,7 +359,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 		.dat = regs + GRGPIO_DATA,
 		.set = regs + GRGPIO_OUTPUT,
 		.dirout = regs + GRGPIO_DIR,
-		.flags = BGPIOF_BIG_ENDIAN_BYTE_ORDER,
+		.flags = GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER,
 	};
 
 	gc = &priv->chip.gc;

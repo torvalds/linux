@@ -296,14 +296,14 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	}
 
 	gc = &port->chip.gc;
-	flags = BGPIOF_PINCTRL_BACKEND;
+	flags = GPIO_GENERIC_PINCTRL_BACKEND;
 	/*
 	 * We only read the output register for current value on output
 	 * lines if the direction register is available so we can switch
 	 * direction.
 	 */
 	if (port->sdata->have_paddr)
-		flags |= BGPIOF_READ_OUTPUT_REG_SET;
+		flags |= GPIO_GENERIC_READ_OUTPUT_REG_SET;
 
 	config = (struct gpio_generic_chip_config) {
 		.dev = dev,
