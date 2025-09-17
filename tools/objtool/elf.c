@@ -22,6 +22,8 @@
 #include <objtool/warn.h>
 
 #define ALIGN_UP(x, align_to) (((x) + ((align_to)-1)) & ~((align_to)-1))
+#define ALIGN_UP_POW2(x) (1U << ((8 * sizeof(x)) - __builtin_clz((x) - 1U)))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 static inline u32 str_hash(const char *str)
 {
@@ -899,10 +901,9 @@ elf_create_prefix_symbol(struct elf *elf, struct symbol *orig, size_t size)
 				 offset, size);
 }
 
-static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
-				    unsigned int reloc_idx,
-				    unsigned long offset, struct symbol *sym,
-				    s64 addend, unsigned int type)
+struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
+			     unsigned int reloc_idx, unsigned long offset,
+			     struct symbol *sym, s64 addend, unsigned int type)
 {
 	struct reloc *reloc, empty = { 0 };
 
@@ -1004,12 +1005,16 @@ static int read_relocs(struct elf *elf)
 
 		rsec->base->rsec = rsec;
 
-		nr_reloc = 0;
+		/* nr_alloc_relocs=0: libelf owns d_buf */
+		rsec->nr_alloc_relocs = 0;
+
 		rsec->relocs = calloc(sec_num_entries(rsec), sizeof(*reloc));
 		if (!rsec->relocs) {
 			ERROR_GLIBC("calloc");
 			return -1;
 		}
+
+		nr_reloc = 0;
 		for (i = 0; i < sec_num_entries(rsec); i++) {
 			reloc = &rsec->relocs[i];
 
@@ -1258,8 +1263,116 @@ add:
 	return sec;
 }
 
+static int elf_alloc_reloc(struct elf *elf, struct section *rsec)
+{
+	struct reloc *old_relocs, *old_relocs_end, *new_relocs;
+	unsigned int nr_relocs_old = sec_num_entries(rsec);
+	unsigned int nr_relocs_new = nr_relocs_old + 1;
+	unsigned long nr_alloc;
+	struct symbol *sym;
+
+	if (!rsec->data) {
+		rsec->data = elf_newdata(elf_getscn(elf->elf, rsec->idx));
+		if (!rsec->data) {
+			ERROR_ELF("elf_newdata");
+			return -1;
+		}
+
+		rsec->data->d_align = 1;
+		rsec->data->d_type = ELF_T_RELA;
+		rsec->data->d_buf = NULL;
+	}
+
+	rsec->data->d_size = nr_relocs_new * elf_rela_size(elf);
+	rsec->sh.sh_size   = rsec->data->d_size;
+
+	nr_alloc = MAX(64, ALIGN_UP_POW2(nr_relocs_new));
+	if (nr_alloc <= rsec->nr_alloc_relocs)
+		return 0;
+
+	if (rsec->data->d_buf && !rsec->nr_alloc_relocs) {
+		void *orig_buf = rsec->data->d_buf;
+
+		/*
+		 * The original d_buf is owned by libelf so it can't be
+		 * realloced.
+		 */
+		rsec->data->d_buf = malloc(nr_alloc * elf_rela_size(elf));
+		if (!rsec->data->d_buf) {
+			ERROR_GLIBC("malloc");
+			return -1;
+		}
+		memcpy(rsec->data->d_buf, orig_buf,
+		       nr_relocs_old * elf_rela_size(elf));
+	} else {
+		rsec->data->d_buf = realloc(rsec->data->d_buf,
+					    nr_alloc * elf_rela_size(elf));
+		if (!rsec->data->d_buf) {
+			ERROR_GLIBC("realloc");
+			return -1;
+		}
+	}
+
+	rsec->nr_alloc_relocs = nr_alloc;
+
+	old_relocs = rsec->relocs;
+	new_relocs = calloc(nr_alloc, sizeof(struct reloc));
+	if (!new_relocs) {
+		ERROR_GLIBC("calloc");
+		return -1;
+	}
+
+	if (!old_relocs)
+		goto done;
+
+	/*
+	 * The struct reloc's address has changed.  Update all the symbols and
+	 * relocs which reference it.
+	 */
+
+	old_relocs_end = &old_relocs[nr_relocs_old];
+	for_each_sym(elf, sym) {
+		struct reloc *reloc;
+
+		reloc = sym->relocs;
+		if (!reloc)
+			continue;
+
+		if (reloc >= old_relocs && reloc < old_relocs_end)
+			sym->relocs = &new_relocs[reloc - old_relocs];
+
+		while (1) {
+			struct reloc *next_reloc = sym_next_reloc(reloc);
+
+			if (!next_reloc)
+				break;
+
+			if (next_reloc >= old_relocs && next_reloc < old_relocs_end)
+				set_sym_next_reloc(reloc, &new_relocs[next_reloc - old_relocs]);
+
+			reloc = next_reloc;
+		}
+	}
+
+	memcpy(new_relocs, old_relocs, nr_relocs_old * sizeof(struct reloc));
+
+	for (int i = 0; i < nr_relocs_old; i++) {
+		struct reloc *old = &old_relocs[i];
+		struct reloc *new = &new_relocs[i];
+		u32 key = reloc_hash(old);
+
+		elf_hash_del(reloc, &old->hash, key);
+		elf_hash_add(reloc, &new->hash, key);
+	}
+
+	free(old_relocs);
+done:
+	rsec->relocs = new_relocs;
+	return 0;
+}
+
 struct section *elf_create_rela_section(struct elf *elf, struct section *sec,
-					unsigned int reloc_nr)
+					unsigned int nr_relocs)
 {
 	struct section *rsec;
 	char *rsec_name;
@@ -1272,24 +1385,26 @@ struct section *elf_create_rela_section(struct elf *elf, struct section *sec,
 	strcpy(rsec_name, ".rela");
 	strcat(rsec_name, sec->name);
 
-	rsec = elf_create_section(elf, rsec_name, reloc_nr * elf_rela_size(elf),
+	rsec = elf_create_section(elf, rsec_name, nr_relocs * elf_rela_size(elf),
 				  elf_rela_size(elf), SHT_RELA, elf_addr_size(elf),
 				  SHF_INFO_LINK);
 	free(rsec_name);
 	if (!rsec)
 		return NULL;
 
-	rsec->sh.sh_link = find_section_by_name(elf, ".symtab")->idx;
-	rsec->sh.sh_info = sec->idx;
-
-	if (reloc_nr) {
+	if (nr_relocs) {
 		rsec->data->d_type = ELF_T_RELA;
-		rsec->relocs = calloc(sec_num_entries(rsec), sizeof(struct reloc));
+
+		rsec->nr_alloc_relocs = nr_relocs;
+		rsec->relocs = calloc(nr_relocs, sizeof(struct reloc));
 		if (!rsec->relocs) {
 			ERROR_GLIBC("calloc");
 			return NULL;
 		}
 	}
+
+	rsec->sh.sh_link = find_section_by_name(elf, ".symtab")->idx;
+	rsec->sh.sh_info = sec->idx;
 
 	sec->rsec = rsec;
 	rsec->base = sec;
@@ -1297,9 +1412,36 @@ struct section *elf_create_rela_section(struct elf *elf, struct section *sec,
 	return rsec;
 }
 
+struct reloc *elf_create_reloc(struct elf *elf, struct section *sec,
+			       unsigned long offset,
+			       struct symbol *sym, s64 addend,
+			       unsigned int type)
+{
+	struct section *rsec = sec->rsec;
+
+	if (!rsec) {
+		rsec = elf_create_rela_section(elf, sec, 0);
+		if (!rsec)
+			return NULL;
+	}
+
+	if (find_reloc_by_dest(elf, sec, offset)) {
+		ERROR_FUNC(sec, offset, "duplicate reloc");
+		return NULL;
+	}
+
+	if (elf_alloc_reloc(elf, rsec))
+		return NULL;
+
+	mark_sec_changed(elf, rsec, true);
+
+	return elf_init_reloc(elf, rsec, sec_num_entries(rsec) - 1, offset, sym,
+			      addend, type);
+}
+
 struct section *elf_create_section_pair(struct elf *elf, const char *name,
 					size_t entsize, unsigned int nr,
-					unsigned int reloc_nr)
+					unsigned int nr_relocs)
 {
 	struct section *sec;
 
@@ -1308,7 +1450,7 @@ struct section *elf_create_section_pair(struct elf *elf, const char *name,
 	if (!sec)
 		return NULL;
 
-	if (!elf_create_rela_section(elf, sec, reloc_nr))
+	if (!elf_create_rela_section(elf, sec, nr_relocs))
 		return NULL;
 
 	return sec;

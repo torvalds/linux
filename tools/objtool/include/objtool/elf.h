@@ -47,6 +47,7 @@ struct section {
 	int idx;
 	bool _changed, text, rodata, noinstr, init, truncate;
 	struct reloc *relocs;
+	unsigned long nr_alloc_relocs;
 };
 
 struct symbol {
@@ -139,6 +140,14 @@ void *elf_add_data(struct elf *elf, struct section *sec, const void *data,
 		   size_t size);
 
 unsigned int elf_add_string(struct elf *elf, struct section *strtab, const char *str);
+
+struct reloc *elf_create_reloc(struct elf *elf, struct section *sec,
+			       unsigned long offset, struct symbol *sym,
+			       s64 addend, unsigned int type);
+
+struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
+			     unsigned int reloc_idx, unsigned long offset,
+			     struct symbol *sym, s64 addend, unsigned int type);
 
 struct reloc *elf_init_reloc_text_sym(struct elf *elf, struct section *sec,
 				      unsigned long offset,
