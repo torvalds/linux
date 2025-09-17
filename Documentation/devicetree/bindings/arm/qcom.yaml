@@ -1071,6 +1071,12 @@ properties:
 
       - items:
           - enum:
+              - qcom,hamoa-iot-evk
+          - const: qcom,hamoa-iot-som
+          - const: qcom,x1e80100
+
+      - items:
+          - enum:
               - asus,zenbook-a14-ux3407qa
               - hp,omnibook-x14-fe1
               - lenovo,thinkbook-16
