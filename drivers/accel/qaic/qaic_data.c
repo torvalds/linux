@@ -18,6 +18,7 @@
 #include <linux/scatterlist.h>
 #include <linux/spinlock.h>
 #include <linux/srcu.h>
+#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
@@ -984,16 +985,10 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 
 	user_data = u64_to_user_ptr(args->data);
 
-	slice_ent = kzalloc(arg_size, GFP_KERNEL);
-	if (!slice_ent) {
-		ret = -EINVAL;
+	slice_ent = memdup_user(user_data, arg_size);
+	if (IS_ERR(slice_ent)) {
+		ret = PTR_ERR(slice_ent);
 		goto unlock_dev_srcu;
-	}
-
-	ret = copy_from_user(slice_ent, user_data, arg_size);
-	if (ret) {
-		ret = -EFAULT;
-		goto free_slice_ent;
 	}
 
 	obj = drm_gem_object_lookup(file_priv, args->hdr.handle);
