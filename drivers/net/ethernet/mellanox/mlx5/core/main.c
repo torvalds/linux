@@ -973,27 +973,6 @@ static void mlx5_pci_close(struct mlx5_core_dev *dev)
 	mlx5_pci_disable_device(dev);
 }
 
-static void mlx5_register_hca_devcom_comp(struct mlx5_core_dev *dev)
-{
-	/* This component is use to sync adding core_dev to lag_dev and to sync
-	 * changes of mlx5_adev_devices between LAG layer and other layers.
-	 */
-	if (!mlx5_lag_is_supported(dev))
-		return;
-
-	dev->priv.hca_devcom_comp =
-		mlx5_devcom_register_component(dev->priv.devc, MLX5_DEVCOM_HCA_PORTS,
-					       mlx5_query_nic_system_image_guid(dev),
-					       NULL, dev);
-	if (IS_ERR(dev->priv.hca_devcom_comp))
-		mlx5_core_err(dev, "Failed to register devcom HCA component\n");
-}
-
-static void mlx5_unregister_hca_devcom_comp(struct mlx5_core_dev *dev)
-{
-	mlx5_devcom_unregister_component(dev->priv.hca_devcom_comp);
-}
-
 static int mlx5_init_once(struct mlx5_core_dev *dev)
 {
 	int err;
@@ -1002,7 +981,6 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 	if (IS_ERR(dev->priv.devc))
 		mlx5_core_warn(dev, "failed to register devcom device %ld\n",
 			       PTR_ERR(dev->priv.devc));
-	mlx5_register_hca_devcom_comp(dev);
 
 	err = mlx5_query_board_id(dev);
 	if (err) {
@@ -1140,7 +1118,6 @@ err_eq_cleanup:
 err_irq_cleanup:
 	mlx5_irq_table_cleanup(dev);
 err_devcom:
-	mlx5_unregister_hca_devcom_comp(dev);
 	mlx5_devcom_unregister_device(dev->priv.devc);
 
 	return err;
@@ -1171,7 +1148,6 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_events_cleanup(dev);
 	mlx5_eq_table_cleanup(dev);
 	mlx5_irq_table_cleanup(dev);
-	mlx5_unregister_hca_devcom_comp(dev);
 	mlx5_devcom_unregister_device(dev->priv.devc);
 }
 

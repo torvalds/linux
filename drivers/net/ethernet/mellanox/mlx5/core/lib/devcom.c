@@ -4,6 +4,7 @@
 #include <linux/mlx5/vport.h>
 #include <linux/list.h>
 #include "lib/devcom.h"
+#include "lib/mlx5.h"
 #include "mlx5_core.h"
 
 static LIST_HEAD(devcom_dev_list);
@@ -22,11 +23,17 @@ struct mlx5_devcom_dev {
 	struct kref ref;
 };
 
+struct mlx5_devcom_key {
+	u32 flags;
+	union mlx5_devcom_match_key key;
+	possible_net_t net;
+};
+
 struct mlx5_devcom_comp {
 	struct list_head comp_list;
 	enum mlx5_devcom_component id;
-	u64 key;
 	struct list_head comp_dev_list_head;
+	struct mlx5_devcom_key key;
 	mlx5_devcom_event_handler_t handler;
 	struct kref ref;
 	bool ready;
@@ -108,7 +115,8 @@ void mlx5_devcom_unregister_device(struct mlx5_devcom_dev *devc)
 }
 
 static struct mlx5_devcom_comp *
-mlx5_devcom_comp_alloc(u64 id, u64 key, mlx5_devcom_event_handler_t handler)
+mlx5_devcom_comp_alloc(u64 id, const struct mlx5_devcom_match_attr *attr,
+		       mlx5_devcom_event_handler_t handler)
 {
 	struct mlx5_devcom_comp *comp;
 
@@ -117,7 +125,10 @@ mlx5_devcom_comp_alloc(u64 id, u64 key, mlx5_devcom_event_handler_t handler)
 		return ERR_PTR(-ENOMEM);
 
 	comp->id = id;
-	comp->key = key;
+	comp->key.key = attr->key;
+	comp->key.flags = attr->flags;
+	if (attr->flags & MLX5_DEVCOM_MATCH_FLAGS_NS)
+		write_pnet(&comp->key.net, attr->net);
 	comp->handler = handler;
 	init_rwsem(&comp->sem);
 	lockdep_register_key(&comp->lock_key);
@@ -180,21 +191,34 @@ devcom_free_comp_dev(struct mlx5_devcom_comp_dev *devcom)
 static bool
 devcom_component_equal(struct mlx5_devcom_comp *devcom,
 		       enum mlx5_devcom_component id,
-		       u64 key)
+		       const struct mlx5_devcom_match_attr *attr)
 {
-	return devcom->id == id && devcom->key == key;
+	if (devcom->id != id)
+		return false;
+
+	if (devcom->key.flags != attr->flags)
+		return false;
+
+	if (memcmp(&devcom->key.key, &attr->key, sizeof(devcom->key.key)))
+		return false;
+
+	if (devcom->key.flags & MLX5_DEVCOM_MATCH_FLAGS_NS &&
+	    !net_eq(read_pnet(&devcom->key.net), attr->net))
+		return false;
+
+	return true;
 }
 
 static struct mlx5_devcom_comp *
 devcom_component_get(struct mlx5_devcom_dev *devc,
 		     enum mlx5_devcom_component id,
-		     u64 key,
+		     const struct mlx5_devcom_match_attr *attr,
 		     mlx5_devcom_event_handler_t handler)
 {
 	struct mlx5_devcom_comp *comp;
 
 	devcom_for_each_component(comp) {
-		if (devcom_component_equal(comp, id, key)) {
+		if (devcom_component_equal(comp, id, attr)) {
 			if (handler == comp->handler) {
 				kref_get(&comp->ref);
 				return comp;
@@ -212,7 +236,7 @@ devcom_component_get(struct mlx5_devcom_dev *devc,
 struct mlx5_devcom_comp_dev *
 mlx5_devcom_register_component(struct mlx5_devcom_dev *devc,
 			       enum mlx5_devcom_component id,
-			       u64 key,
+			       const struct mlx5_devcom_match_attr *attr,
 			       mlx5_devcom_event_handler_t handler,
 			       void *data)
 {
@@ -223,14 +247,14 @@ mlx5_devcom_register_component(struct mlx5_devcom_dev *devc,
 		return ERR_PTR(-EINVAL);
 
 	mutex_lock(&comp_list_lock);
-	comp = devcom_component_get(devc, id, key, handler);
+	comp = devcom_component_get(devc, id, attr, handler);
 	if (IS_ERR(comp)) {
 		devcom = ERR_PTR(-EINVAL);
 		goto out_unlock;
 	}
 
 	if (!comp) {
-		comp = mlx5_devcom_comp_alloc(id, key, handler);
+		comp = mlx5_devcom_comp_alloc(id, attr, handler);
 		if (IS_ERR(comp)) {
 			devcom = ERR_CAST(comp);
 			goto out_unlock;
