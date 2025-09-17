@@ -13,9 +13,13 @@
 #include <linux/hashtable.h>
 #include <linux/rbtree.h>
 #include <linux/jhash.h>
+
+#include <objtool/endianness.h>
 #include <arch/elf.h>
 
 #define SYM_NAME_LEN		512
+
+#define bswap_if_needed(elf, val) __bswap_if_needed(&elf->ehdr, val)
 
 #ifdef LIBELF_USE_DEPRECATED
 # define elf_getshdrnum    elf_getshnum
@@ -399,6 +403,15 @@ static inline void set_reloc_type(struct elf *elf, struct reloc *reloc, unsigned
 	__set_reloc_field(reloc, r_info, info);
 
 	mark_sec_changed(elf, reloc->sec, true);
+}
+
+static inline unsigned int annotype(struct elf *elf, struct section *sec,
+				    struct reloc *reloc)
+{
+	unsigned int type;
+
+	type = *(u32 *)(sec->data->d_buf + (reloc_idx(reloc) * 8) + 4);
+	return bswap_if_needed(elf, type);
 }
 
 #define RELOC_JUMP_TABLE_BIT 1UL

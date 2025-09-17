@@ -12,7 +12,6 @@
 #include <objtool/check.h>
 #include <objtool/orc.h>
 #include <objtool/warn.h>
-#include <objtool/endianness.h>
 
 struct orc_list_entry {
 	struct list_head list;

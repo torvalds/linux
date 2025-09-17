@@ -7,7 +7,6 @@
 #include <objtool/arch.h>
 #include <objtool/warn.h>
 #include <objtool/builtin.h>
-#include <objtool/endianness.h>
 
 int arch_ftrace_match(const char *name)
 {

@@ -15,7 +15,6 @@
 #include <objtool/builtin.h>
 #include <objtool/special.h>
 #include <objtool/warn.h>
-#include <objtool/endianness.h>
 
 struct special_entry {
 	const char *sec;
