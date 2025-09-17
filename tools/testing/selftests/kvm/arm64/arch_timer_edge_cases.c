@@ -924,10 +924,8 @@ static void test_run(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 
 static void test_init_timer_irq(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 {
-	vcpu_device_attr_get(vcpu, KVM_ARM_VCPU_TIMER_CTRL,
-			     KVM_ARM_VCPU_TIMER_IRQ_PTIMER, &ptimer_irq);
-	vcpu_device_attr_get(vcpu, KVM_ARM_VCPU_TIMER_CTRL,
-			     KVM_ARM_VCPU_TIMER_IRQ_VTIMER, &vtimer_irq);
+	ptimer_irq = vcpu_get_ptimer_irq(vcpu);
+	vtimer_irq = vcpu_get_vtimer_irq(vcpu);
 
 	sync_global_to_guest(vm, ptimer_irq);
 	sync_global_to_guest(vm, vtimer_irq);
