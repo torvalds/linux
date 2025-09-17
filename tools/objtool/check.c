@@ -1575,7 +1575,9 @@ static int add_jump_destinations(struct objtool_file *file)
 		/*
 		 * Cross-function jump.
 		 */
-		if (func && insn_func(jump_dest) && func != insn_func(jump_dest)) {
+
+		if (func && insn_func(jump_dest) && !func->cold &&
+		    insn_func(jump_dest)->cold) {
 
 			/*
 			 * For GCC 8+, create parent/child links for any cold
@@ -1592,11 +1594,8 @@ static int add_jump_destinations(struct objtool_file *file)
 			 * case where the parent function's only reference to a
 			 * subfunction is through a jump table.
 			 */
-			if (!strstr(func->name, ".cold") &&
-			    strstr(insn_func(jump_dest)->name, ".cold")) {
-				func->cfunc = insn_func(jump_dest);
-				insn_func(jump_dest)->pfunc = func;
-			}
+			func->cfunc = insn_func(jump_dest);
+			insn_func(jump_dest)->pfunc = func;
 		}
 
 		if (jump_is_sibling_call(file, insn, jump_dest)) {
@@ -4066,9 +4065,8 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 			 * If this hole jumps to a .cold function, mark it ignore too.
 			 */
 			if (insn->jump_dest && insn_func(insn->jump_dest) &&
-			    strstr(insn_func(insn->jump_dest)->name, ".cold")) {
+			    insn_func(insn->jump_dest)->cold)
 				insn_func(insn->jump_dest)->ignore = true;
-			}
 		}
 
 		return false;

@@ -441,6 +441,10 @@ static void elf_add_symbol(struct elf *elf, struct symbol *sym)
 	list_add(&sym->list, entry);
 	elf_hash_add(symbol, &sym->hash, sym->idx);
 	elf_hash_add(symbol_name, &sym->name_hash, str_hash(sym->name));
+
+	if (is_func_sym(sym) && strstr(sym->name, ".cold"))
+		sym->cold = 1;
+	sym->pfunc = sym->cfunc = sym;
 }
 
 static int read_symbols(struct elf *elf)
@@ -527,18 +531,15 @@ static int read_symbols(struct elf *elf)
 		sec_for_each_sym(sec, sym) {
 			char *pname;
 			size_t pnamelen;
-			if (!is_func_sym(sym))
+
+			if (!sym->cold)
 				continue;
-
-			if (sym->pfunc == NULL)
-				sym->pfunc = sym;
-
-			if (sym->cfunc == NULL)
-				sym->cfunc = sym;
 
 			coldstr = strstr(sym->name, ".cold");
-			if (!coldstr)
-				continue;
+			if (!coldstr) {
+				ERROR("%s(): cold subfunction without \".cold\"?", sym->name);
+				return -1;
+			}
 
 			pnamelen = coldstr - sym->name;
 			pname = strndup(sym->name, pnamelen);
