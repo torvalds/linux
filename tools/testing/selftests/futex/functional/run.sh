@@ -57,7 +57,7 @@ echo
 ./futex_requeue
 
 echo
-./futex_waitv $COLOR
+./futex_waitv
 
 echo
 ./futex_priv_hash $COLOR
