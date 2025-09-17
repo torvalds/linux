@@ -3891,6 +3891,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	intel_joiner_get_config(pipe_config);
 	intel_dsc_get_config(pipe_config);
 
+	/* intel_vrr_get_config() depends on .framestart_delay */
 	if (!transcoder_is_dsi(pipe_config->cpu_transcoder)) {
 		tmp = intel_de_read(display, CHICKEN_TRANS(display, pipe_config->cpu_transcoder));
 

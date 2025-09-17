@@ -151,13 +151,7 @@ static int intel_vrr_pipeline_full_to_guardband(const struct intel_crtc_state *c
  */
 static int intel_vrr_vblank_exit_length(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = to_intel_display(crtc_state);
-
-	if (DISPLAY_VER(display) >= 13)
-		return crtc_state->vrr.guardband;
-	else
-		return intel_vrr_pipeline_full_to_guardband(crtc_state,
-							    crtc_state->vrr.pipeline_full);
+	return crtc_state->vrr.guardband;
 }
 
 int intel_vrr_vmin_vtotal(const struct intel_crtc_state *crtc_state)
@@ -431,18 +425,22 @@ void intel_vrr_compute_config_late(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
-	int guardband;
 
 	if (!intel_vrr_possible(crtc_state))
 		return;
 
-	guardband = crtc_state->vrr.vmin - adjusted_mode->crtc_vblank_start;
+	crtc_state->vrr.guardband =
+		crtc_state->vrr.vmin - adjusted_mode->crtc_vblank_start;
 
-	if (DISPLAY_VER(display) >= 13) {
-		crtc_state->vrr.guardband = guardband;
-	} else {
+	if (DISPLAY_VER(display) < 13) {
+		/* FIXME handle the limit in a proper way */
+		crtc_state->vrr.guardband =
+			min(crtc_state->vrr.guardband,
+			    intel_vrr_pipeline_full_to_guardband(crtc_state, 255));
+
 		crtc_state->vrr.pipeline_full =
-			min(255, intel_vrr_guardband_to_pipeline_full(crtc_state, guardband));
+			intel_vrr_guardband_to_pipeline_full(crtc_state,
+							     crtc_state->vrr.guardband);
 
 		/*
 		 * vmin/vmax/flipline also need to be adjusted by
@@ -734,13 +732,19 @@ void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 					     TRANS_CMRR_M_HI(display, cpu_transcoder));
 	}
 
-	if (DISPLAY_VER(display) >= 13)
+	if (DISPLAY_VER(display) >= 13) {
 		crtc_state->vrr.guardband =
 			REG_FIELD_GET(XELPD_VRR_CTL_VRR_GUARDBAND_MASK, trans_vrr_ctl);
-	else
-		if (trans_vrr_ctl & VRR_CTL_PIPELINE_FULL_OVERRIDE)
+	} else {
+		if (trans_vrr_ctl & VRR_CTL_PIPELINE_FULL_OVERRIDE) {
 			crtc_state->vrr.pipeline_full =
 				REG_FIELD_GET(VRR_CTL_PIPELINE_FULL_MASK, trans_vrr_ctl);
+
+			crtc_state->vrr.guardband =
+				intel_vrr_pipeline_full_to_guardband(crtc_state,
+								     crtc_state->vrr.pipeline_full);
+		}
+	}
 
 	if (trans_vrr_ctl & VRR_CTL_FLIP_LINE_EN) {
 		crtc_state->vrr.flipline = intel_de_read(display,
