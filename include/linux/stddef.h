@@ -108,7 +108,7 @@ enum {
 	union {									\
 		TYPE NAME;							\
 		struct {							\
-			unsigned char __offset_to_##FAM[offsetof(TYPE, FAM)];	\
+			unsigned char __offset_to_FAM[offsetof(TYPE, FAM)];	\
 			MEMBERS							\
 		};								\
 	}
