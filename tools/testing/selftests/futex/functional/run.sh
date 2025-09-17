@@ -60,7 +60,7 @@ echo
 ./futex_waitv
 
 echo
-./futex_priv_hash $COLOR
+./futex_priv_hash
 
 echo
 ./futex_numa_mpol $COLOR
