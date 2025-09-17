@@ -541,6 +541,13 @@ static void bnxt_hwrm_roce_sriov_cfg(struct bnxt *bp, int num_vfs)
 	if (rc)
 		goto err;
 
+	/* In case of VF Dynamic resource allocation, driver will provision
+	 * maximum resources to all the VFs. FW will dynamically allocate
+	 * resources to VFs on the fly, so always divide the resources by 1.
+	 */
+	if (BNXT_ROCE_VF_DYN_ALLOC_CAP(bp))
+		num_vfs = 1;
+
 	cfg_req->fid = cpu_to_le16(0xffff);
 	cfg_req->enables2 =
 		cpu_to_le32(FUNC_CFG_REQ_ENABLES2_ROCE_MAX_AV_PER_VF |
