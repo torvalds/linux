@@ -41,7 +41,7 @@ echo
 ./futex_requeue_pi_signal_restart
 
 echo
-./futex_wait_timeout $COLOR
+./futex_wait_timeout
 
 echo
 ./futex_wait_wouldblock $COLOR
