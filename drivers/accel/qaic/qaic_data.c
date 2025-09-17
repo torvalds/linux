@@ -1295,8 +1295,6 @@ static int __qaic_execute_bo_ioctl(struct drm_device *dev, void *data, struct dr
 	int usr_rcu_id, qdev_rcu_id;
 	struct qaic_device *qdev;
 	struct qaic_user *usr;
-	u8 __user *user_data;
-	unsigned long n;
 	u64 received_ts;
 	u32 queue_level;
 	u64 submit_ts;
@@ -1309,20 +1307,12 @@ static int __qaic_execute_bo_ioctl(struct drm_device *dev, void *data, struct dr
 	received_ts = ktime_get_ns();
 
 	size = is_partial ? sizeof(struct qaic_partial_execute_entry) : sizeof(*exec);
-	n = (unsigned long)size * args->hdr.count;
-	if (args->hdr.count == 0 || n / args->hdr.count != size)
+	if (args->hdr.count == 0)
 		return -EINVAL;
 
-	user_data = u64_to_user_ptr(args->data);
-
-	exec = kcalloc(args->hdr.count, size, GFP_KERNEL);
-	if (!exec)
-		return -ENOMEM;
-
-	if (copy_from_user(exec, user_data, n)) {
-		ret = -EFAULT;
-		goto free_exec;
-	}
+	exec = memdup_array_user(u64_to_user_ptr(args->data), args->hdr.count, size);
+	if (IS_ERR(exec))
+		return PTR_ERR(exec);
 
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
@@ -1383,7 +1373,6 @@ unlock_dev_srcu:
 	srcu_read_unlock(&qdev->dev_lock, qdev_rcu_id);
 unlock_usr_srcu:
 	srcu_read_unlock(&usr->qddev_lock, usr_rcu_id);
-free_exec:
 	kfree(exec);
 	return ret;
 }
@@ -1736,7 +1725,8 @@ int qaic_perf_stats_bo_ioctl(struct drm_device *dev, void *data, struct drm_file
 	struct qaic_device *qdev;
 	struct qaic_user *usr;
 	struct qaic_bo *bo;
-	int ret, i;
+	int ret = 0;
+	int i;
 
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
@@ -1757,16 +1747,10 @@ int qaic_perf_stats_bo_ioctl(struct drm_device *dev, void *data, struct drm_file
 		goto unlock_dev_srcu;
 	}
 
-	ent = kcalloc(args->hdr.count, sizeof(*ent), GFP_KERNEL);
-	if (!ent) {
-		ret = -EINVAL;
+	ent = memdup_array_user(u64_to_user_ptr(args->data), args->hdr.count, sizeof(*ent));
+	if (IS_ERR(ent)) {
+		ret = PTR_ERR(ent);
 		goto unlock_dev_srcu;
-	}
-
-	ret = copy_from_user(ent, u64_to_user_ptr(args->data), args->hdr.count * sizeof(*ent));
-	if (ret) {
-		ret = -EFAULT;
-		goto free_ent;
 	}
 
 	for (i = 0; i < args->hdr.count; i++) {
