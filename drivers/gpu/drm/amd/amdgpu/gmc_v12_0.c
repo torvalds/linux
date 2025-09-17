@@ -521,6 +521,7 @@ static void gmc_v12_0_get_vm_pte(struct amdgpu_device *adev,
 		*flags &= ~AMDGPU_PTE_NOALLOC;
 
 	if (vm_flags & AMDGPU_VM_PAGE_PRT) {
+		*flags |= AMDGPU_PTE_PRT_GFX12;
 		*flags |= AMDGPU_PTE_SNOOPED;
 		*flags |= AMDGPU_PTE_SYSTEM;
 		*flags |= AMDGPU_PTE_IS_PTE;
