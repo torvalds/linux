@@ -329,5 +329,5 @@ int objtool_run(int argc, const char **argv)
 	if (!opts.dryrun && file->elf->changed && elf_write(file->elf))
 		return 1;
 
-	return 0;
+	return elf_close(file->elf);
 }
