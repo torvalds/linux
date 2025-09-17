@@ -1688,6 +1688,16 @@ failed:
 	get_random_bytes(result, ic->tag_size);
 }
 
+static void *integrity_kmap(struct dm_integrity_c *ic, struct page *p)
+{
+	return kmap_local_page(p);
+}
+
+static void integrity_kunmap(struct dm_integrity_c *ic, const void *ptr)
+{
+	kunmap_local(ptr);
+}
+
 static noinline void integrity_recheck(struct dm_integrity_io *dio, char *checksum)
 {
 	struct bio *bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
@@ -1838,7 +1848,7 @@ static void integrity_metadata(struct work_struct *w)
 			char *mem, *checksums_ptr;
 
 again:
-			mem = kmap_local_page(bv_copy.bv_page);
+			mem = integrity_kmap(ic, bv_copy.bv_page);
 			pos = 0;
 			checksums_ptr = checksums;
 			do {
@@ -1848,7 +1858,7 @@ again:
 				pos += ic->sectors_per_block << SECTOR_SHIFT;
 				sector += ic->sectors_per_block;
 			} while (pos < bv_copy.bv_len && sectors_to_process && checksums != checksums_onstack);
-			kunmap_local(mem);
+			integrity_kunmap(ic, mem);
 
 			r = dm_integrity_rw_tag(ic, checksums, &dio->metadata_block, &dio->metadata_offset,
 						checksums_ptr - checksums, dio->op == REQ_OP_READ ? TAG_CMP : TAG_WRITE);
@@ -2072,19 +2082,6 @@ retry_kmap:
 					js++;
 					mem_ptr += 1 << SECTOR_SHIFT;
 				} while (++s < ic->sectors_per_block);
-#ifdef INTERNAL_VERIFY
-				if (ic->internal_hash) {
-					char checksums_onstack[MAX_T(size_t, HASH_MAX_DIGESTSIZE, MAX_TAG_SIZE)];
-
-					integrity_sector_checksum(ic, logical_sector, mem + bv.bv_offset, checksums_onstack);
-					if (unlikely(crypto_memneq(checksums_onstack, journal_entry_tag(ic, je), ic->tag_size))) {
-						DMERR_LIMIT("Checksum failed when reading from journal, at sector 0x%llx",
-							    logical_sector);
-						dm_audit_log_bio(DM_MSG_PREFIX, "journal-checksum",
-								 bio, logical_sector, 0);
-					}
-				}
-#endif
 			}
 
 			if (!ic->internal_hash) {
@@ -2506,11 +2503,11 @@ skip_spinlock:
 		unsigned pos = 0;
 		while (dio->bio_details.bi_iter.bi_size) {
 			struct bio_vec bv = bio_iter_iovec(bio, dio->bio_details.bi_iter);
-			const char *mem = kmap_local_page(bv.bv_page);
+			const char *mem = integrity_kmap(ic, bv.bv_page);
 			if (ic->tag_size < ic->tuple_size)
 				memset(dio->integrity_payload + pos + ic->tag_size, 0, ic->tuple_size - ic->tuple_size);
 			integrity_sector_checksum(ic, dio->bio_details.bi_iter.bi_sector, mem + bv.bv_offset, dio->integrity_payload + pos);
-			kunmap_local(mem);
+			integrity_kunmap(ic, mem);
 			pos += ic->tuple_size;
 			bio_advance_iter_single(bio, &dio->bio_details.bi_iter, ic->sectors_per_block << SECTOR_SHIFT);
 		}
@@ -2626,17 +2623,17 @@ static int dm_integrity_end_io(struct dm_target *ti, struct bio *bio, blk_status
 			while (dio->bio_details.bi_iter.bi_size) {
 				char digest[HASH_MAX_DIGESTSIZE];
 				struct bio_vec bv = bio_iter_iovec(bio, dio->bio_details.bi_iter);
-				char *mem = kmap_local_page(bv.bv_page);
+				char *mem = integrity_kmap(ic, bv.bv_page);
 				integrity_sector_checksum(ic, dio->bio_details.bi_iter.bi_sector, mem + bv.bv_offset, digest);
 				if (unlikely(crypto_memneq(digest, dio->integrity_payload + pos,
 						min(ic->internal_hash_digestsize, ic->tag_size)))) {
-					kunmap_local(mem);
+					integrity_kunmap(ic, mem);
 					dm_integrity_free_payload(dio);
 					INIT_WORK(&dio->work, dm_integrity_inline_recheck);
 					queue_work(ic->offload_wq, &dio->work);
 					return DM_ENDIO_INCOMPLETE;
 				}
-				kunmap_local(mem);
+				integrity_kunmap(ic, mem);
 				pos += ic->tuple_size;
 				bio_advance_iter_single(bio, &dio->bio_details.bi_iter, ic->sectors_per_block << SECTOR_SHIFT);
 			}
