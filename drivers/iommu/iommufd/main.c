@@ -122,6 +122,10 @@ void iommufd_object_abort(struct iommufd_ctx *ictx, struct iommufd_object *obj)
 	old = xas_store(&xas, NULL);
 	xa_unlock(&ictx->objects);
 	WARN_ON(old != XA_ZERO_ENTRY);
+
+	if (WARN_ON(!refcount_dec_and_test(&obj->users)))
+		return;
+
 	kfree(obj);
 }
 
