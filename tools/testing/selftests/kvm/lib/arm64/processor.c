@@ -267,19 +267,24 @@ void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	}
 }
 
+void kvm_get_default_vcpu_target(struct kvm_vm *vm, struct kvm_vcpu_init *init)
+{
+	struct kvm_vcpu_init preferred = {};
+
+	vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &preferred);
+
+	*init = preferred;
+}
+
 void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 {
 	struct kvm_vcpu_init default_init = { .target = -1, };
 	struct kvm_vm *vm = vcpu->vm;
 	uint64_t sctlr_el1, tcr_el1, ttbr0_el1;
 
-	if (!init)
+	if (!init) {
+		kvm_get_default_vcpu_target(vm, &default_init);
 		init = &default_init;
-
-	if (init->target == -1) {
-		struct kvm_vcpu_init preferred;
-		vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &preferred);
-		init->target = preferred.target;
 	}
 
 	vcpu_ioctl(vcpu, KVM_ARM_VCPU_INIT, init);

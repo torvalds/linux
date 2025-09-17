@@ -357,4 +357,6 @@ static __always_inline u64 ctxt_reg_alias(struct kvm_vcpu *vcpu, u32 encoding)
 	return KVM_ARM64_SYS_REG(alias);
 }
 
+void kvm_get_default_vcpu_target(struct kvm_vm *vm, struct kvm_vcpu_init *init);
+
 #endif /* SELFTEST_KVM_PROCESSOR_H */

@@ -64,7 +64,7 @@ static struct kvm_vm *setup_vm(struct kvm_vcpu **vcpu)
 	struct kvm_vm *vm;
 
 	vm = vm_create(1);
-	vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &init);
+	kvm_get_default_vcpu_target(vm, &init);
 
 	/*
 	 * Enable in-kernel emulation of PSCI to ensure that calls are denied
