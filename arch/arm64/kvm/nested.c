@@ -1797,8 +1797,25 @@ void kvm_nested_sync_hwstate(struct kvm_vcpu *vcpu)
 		kvm_inject_serror_esr(vcpu, vcpu_get_vsesr(vcpu));
 }
 
+/*
+ * KVM unconditionally sets most of these traps anyway but use an allowlist
+ * to document the guest hypervisor traps that may take precedence and guard
+ * against future changes to the non-nested trap configuration.
+ */
+#define NV_MDCR_GUEST_INCLUDE	(MDCR_EL2_TDE	|	\
+				 MDCR_EL2_TDA	|	\
+				 MDCR_EL2_TDRA	|	\
+				 MDCR_EL2_TTRF	|	\
+				 MDCR_EL2_TPMS	|	\
+				 MDCR_EL2_TPM	|	\
+				 MDCR_EL2_TPMCR	|	\
+				 MDCR_EL2_TDCC	|	\
+				 MDCR_EL2_TDOSA)
+
 void kvm_nested_setup_mdcr_el2(struct kvm_vcpu *vcpu)
 {
+	u64 guest_mdcr = __vcpu_sys_reg(vcpu, MDCR_EL2);
+
 	/*
 	 * In yet another example where FEAT_NV2 is fscking broken, accesses
 	 * to MDSCR_EL1 are redirected to the VNCR despite having an effect
@@ -1806,4 +1823,6 @@ void kvm_nested_setup_mdcr_el2(struct kvm_vcpu *vcpu)
 	 */
 	if (is_hyp_ctxt(vcpu))
 		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDA;
+	else
+		vcpu->arch.mdcr_el2 |= (guest_mdcr & NV_MDCR_GUEST_INCLUDE);
 }
