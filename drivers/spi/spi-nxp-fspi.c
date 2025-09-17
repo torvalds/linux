@@ -675,6 +675,17 @@ static void nxp_fspi_dll_calibration(struct nxp_fspi *f)
 }
 
 /*
+ * Config the DLL register to default value, enable the target clock delay
+ * line delay cell override mode, and use 1 fixed delay cell in DLL delay
+ * chain, this is the suggested setting when clock rate < 100MHz.
+ */
+static void nxp_fspi_dll_override(struct nxp_fspi *f)
+{
+	fspi_writel(f, FSPI_DLLACR_OVRDEN, f->iobase + FSPI_DLLACR);
+	fspi_writel(f, FSPI_DLLBCR_OVRDEN, f->iobase + FSPI_DLLBCR);
+}
+
+/*
  * In FlexSPI controller, flash access is based on value of FSPI_FLSHXXCR0
  * register and start base address of the target device.
  *
@@ -1071,13 +1082,7 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 	/* Disable the module */
 	fspi_writel(f, FSPI_MCR0_MDIS, base + FSPI_MCR0);
 
-	/*
-	 * Config the DLL register to default value, enable the target clock delay
-	 * line delay cell override mode, and use 1 fixed delay cell in DLL delay
-	 * chain, this is the suggested setting when clock rate < 100MHz.
-	 */
-	fspi_writel(f, FSPI_DLLACR_OVRDEN, base + FSPI_DLLACR);
-	fspi_writel(f, FSPI_DLLBCR_OVRDEN, base + FSPI_DLLBCR);
+	nxp_fspi_dll_override(f);
 
 	/* enable module */
 	fspi_writel(f, FSPI_MCR0_AHB_TIMEOUT(0xFF) |
