@@ -36,6 +36,7 @@ properties:
   compatible:
     enum:
       - axis,artpec8-pinctrl
+      - axis,artpec9-pinctrl
       - google,gs101-pinctrl
       - samsung,s3c64xx-pinctrl
       - samsung,s5pv210-pinctrl
