@@ -56,6 +56,9 @@ static void kvm_arm_setup_mdcr_el2(struct kvm_vcpu *vcpu)
 	if (!kvm_guest_owns_debug_regs(vcpu))
 		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDA;
 
+	if (vcpu_has_nv(vcpu))
+		kvm_nested_setup_mdcr_el2(vcpu);
+
 	/* Write MDCR_EL2 directly if we're already at EL2 */
 	if (has_vhe())
 		write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);

@@ -1796,3 +1796,14 @@ void kvm_nested_sync_hwstate(struct kvm_vcpu *vcpu)
 	if (unlikely(vcpu_test_and_clear_flag(vcpu, NESTED_SERROR_PENDING)))
 		kvm_inject_serror_esr(vcpu, vcpu_get_vsesr(vcpu));
 }
+
+void kvm_nested_setup_mdcr_el2(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * In yet another example where FEAT_NV2 is fscking broken, accesses
+	 * to MDSCR_EL1 are redirected to the VNCR despite having an effect
+	 * at EL2. Use a big hammer to apply sanity.
+	 */
+	if (is_hyp_ctxt(vcpu))
+		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDA;
+}
