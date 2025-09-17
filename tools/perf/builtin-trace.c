@@ -4441,7 +4441,7 @@ create_maps:
 
 	if (trace->summary_mode == SUMMARY__BY_TOTAL && !trace->summary_bpf) {
 		trace->syscall_stats = alloc_syscall_stats();
-		if (trace->syscall_stats == NULL)
+		if (IS_ERR(trace->syscall_stats))
 			goto out_delete_evlist;
 	}
 
@@ -4749,7 +4749,7 @@ static int trace__replay(struct trace *trace)
 
 	if (trace->summary_mode == SUMMARY__BY_TOTAL) {
 		trace->syscall_stats = alloc_syscall_stats();
-		if (trace->syscall_stats == NULL)
+		if (IS_ERR(trace->syscall_stats))
 			goto out;
 	}
 
