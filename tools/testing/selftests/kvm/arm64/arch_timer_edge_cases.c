@@ -952,7 +952,6 @@ static void test_vm_create(struct kvm_vm **vm, struct kvm_vcpu **vcpu,
 
 	test_init_timer_irq(*vm, *vcpu);
 	gic_fd = vgic_v3_setup(*vm, 1, 64);
-	__TEST_REQUIRE(gic_fd >= 0, "Failed to create vgic-v3");
 
 	sync_global_to_guest(*vm, test_args);
 	sync_global_to_guest(*vm, CVAL_MAX);
@@ -1041,6 +1040,8 @@ int main(int argc, char *argv[])
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
+
+	TEST_REQUIRE(kvm_supports_vgic_v3());
 
 	if (!parse_args(argc, argv))
 		exit(KSFT_SKIP);

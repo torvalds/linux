@@ -16,6 +16,7 @@
 	((uint64_t)(flags) << 12) | \
 	index)
 
+bool kvm_supports_vgic_v3(void);
 int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs);
 
 #define VGIC_MAX_RESERVED	1023

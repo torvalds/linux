@@ -15,6 +15,17 @@
 #include "gic.h"
 #include "gic_v3.h"
 
+bool kvm_supports_vgic_v3(void)
+{
+	struct kvm_vm *vm = vm_create_barebones();
+	int r;
+
+	r = __kvm_test_create_device(vm, KVM_DEV_TYPE_ARM_VGIC_V3);
+	kvm_vm_free(vm);
+
+	return !r;
+}
+
 /*
  * vGIC-v3 default host setup
  *

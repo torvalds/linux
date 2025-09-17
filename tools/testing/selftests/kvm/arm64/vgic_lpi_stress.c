@@ -215,8 +215,6 @@ static void setup_test_data(void)
 static void setup_gic(void)
 {
 	gic_fd = vgic_v3_setup(vm, test_data.nr_cpus, 64);
-	__TEST_REQUIRE(gic_fd >= 0, "Failed to create GICv3");
-
 	its_fd = vgic_its_setup(vm);
 }
 
@@ -373,6 +371,8 @@ int main(int argc, char **argv)
 {
 	u32 nr_threads;
 	int c;
+
+	TEST_REQUIRE(kvm_supports_vgic_v3());
 
 	while ((c = getopt(argc, argv, "hv:d:e:i:")) != -1) {
 		switch (c) {
