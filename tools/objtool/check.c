@@ -3568,10 +3568,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 
 		if (func && insn_func(insn) && func != insn_func(insn)->pfunc) {
 			/* Ignore KCFI type preambles, which always fall through */
-			if (!strncmp(func->name, "__cfi_", 6) ||
-			    !strncmp(func->name, "__pfx_", 6) ||
-			    !strncmp(func->name, "__pi___cfi_", 11) ||
-			    !strncmp(func->name, "__pi___pfx_", 11))
+			if (is_prefix_func(func))
 				return 0;
 
 			if (file->ignore_unreachables)
