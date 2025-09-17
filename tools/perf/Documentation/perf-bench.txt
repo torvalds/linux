@@ -187,6 +187,11 @@ Available units are B, KB, MB, GB and TB (case insensitive).
 Specify page-size for mapping memory buffers (default: 4KB).
 Available values are 4KB, 2MB, 1GB (case insensitive).
 
+-k::
+--chunk::
+Specify the chunk-size for each invocation. (default: 0, or full-extent)
+Available units are B, KB, MB, GB and TB (case insensitive).
+
 -f::
 --function::
 Specify function to copy (default: default).
@@ -215,6 +220,11 @@ Available units are B, KB, MB, GB and TB (case insensitive).
 --page::
 Specify page-size for mapping memory buffers (default: 4KB).
 Available values are 4KB, 2MB, 1GB (case insensitive).
+
+-k::
+--chunk::
+Specify the chunk-size for each invocation. (default: 0, or full-extent)
+Available units are B, KB, MB, GB and TB (case insensitive).
 
 -f::
 --function::
