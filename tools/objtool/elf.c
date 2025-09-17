@@ -18,9 +18,10 @@
 #include <errno.h>
 #include <linux/interval_tree_generic.h>
 #include <objtool/builtin.h>
-
 #include <objtool/elf.h>
 #include <objtool/warn.h>
+
+#define ALIGN_UP(x, align_to) (((x) + ((align_to)-1)) & ~((align_to)-1))
 
 static inline u32 str_hash(const char *str)
 {
@@ -763,8 +764,6 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 	return 0;
 }
 
-static int elf_add_string(struct elf *elf, struct section *strtab, const char *str);
-
 struct symbol *elf_create_symbol(struct elf *elf, const char *name,
 				 struct section *sec, unsigned int bind,
 				 unsigned int type, unsigned long offset,
@@ -1100,11 +1099,9 @@ err:
 	return NULL;
 }
 
-static int elf_add_string(struct elf *elf, struct section *strtab, const char *str)
+unsigned int elf_add_string(struct elf *elf, struct section *strtab, const char *str)
 {
-	Elf_Data *data;
-	Elf_Scn *s;
-	int len;
+	unsigned int offset;
 
 	if (!strtab)
 		strtab = find_section_by_name(elf, ".strtab");
@@ -1113,28 +1110,59 @@ static int elf_add_string(struct elf *elf, struct section *strtab, const char *s
 		return -1;
 	}
 
-	s = elf_getscn(elf->elf, strtab->idx);
+	if (!strtab->sh.sh_addralign) {
+		ERROR("'%s': invalid sh_addralign", strtab->name);
+		return -1;
+	}
+
+	offset = ALIGN_UP(strtab->sh.sh_size, strtab->sh.sh_addralign);
+
+	if (!elf_add_data(elf, strtab, str, strlen(str) + 1))
+		return -1;
+
+	return offset;
+}
+
+void *elf_add_data(struct elf *elf, struct section *sec, const void *data, size_t size)
+{
+	unsigned long offset;
+	Elf_Scn *s;
+
+	if (!sec->sh.sh_addralign) {
+		ERROR("'%s': invalid sh_addralign", sec->name);
+		return NULL;
+	}
+
+	s = elf_getscn(elf->elf, sec->idx);
 	if (!s) {
 		ERROR_ELF("elf_getscn");
-		return -1;
+		return NULL;
 	}
 
-	data = elf_newdata(s);
-	if (!data) {
+	sec->data = elf_newdata(s);
+	if (!sec->data) {
 		ERROR_ELF("elf_newdata");
-		return -1;
+		return NULL;
 	}
 
-	data->d_buf = strdup(str);
-	data->d_size = strlen(str) + 1;
-	data->d_align = 1;
+	sec->data->d_buf = calloc(1, size);
+	if (!sec->data->d_buf) {
+		ERROR_GLIBC("calloc");
+		return NULL;
+	}
 
-	len = strtab->sh.sh_size;
-	strtab->sh.sh_size += data->d_size;
+	if (data)
+		memcpy(sec->data->d_buf, data, size);
 
-	mark_sec_changed(elf, strtab, true);
+	sec->data->d_size = size;
+	sec->data->d_align = 1;
 
-	return len;
+	offset = ALIGN_UP(sec->sh.sh_size, sec->sh.sh_addralign);
+	sec->sh.sh_size = offset + size;
+
+	mark_sec_changed(elf, sec, true);
+
+	return sec->data->d_buf;
 }
 
 struct section *elf_create_section(struct elf *elf, const char *name,
