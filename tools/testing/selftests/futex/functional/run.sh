@@ -48,7 +48,7 @@ echo
 
 echo
 ./futex_wait_uninitialized_heap
-./futex_wait_private_mapped_file $COLOR
+./futex_wait_private_mapped_file
 
 echo
 ./futex_wait $COLOR
