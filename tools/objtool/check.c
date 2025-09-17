@@ -461,7 +461,7 @@ static int decode_instructions(struct objtool_file *file)
 
 		for (offset = 0; offset < sec->sh.sh_size; offset += insn->len) {
 			if (!insns || idx == INSN_CHUNK_MAX) {
-				insns = calloc(sizeof(*insn), INSN_CHUNK_SIZE);
+				insns = calloc(INSN_CHUNK_SIZE, sizeof(*insn));
 				if (!insns) {
 					ERROR_GLIBC("calloc");
 					return -1;
@@ -607,7 +607,7 @@ static int init_pv_ops(struct objtool_file *file)
 		return 0;
 
 	nr = sym->len / sizeof(unsigned long);
-	file->pv_ops = calloc(sizeof(struct pv_state), nr);
+	file->pv_ops = calloc(nr, sizeof(struct pv_state));
 	if (!file->pv_ops) {
 		ERROR_GLIBC("calloc");
 		return -1;
