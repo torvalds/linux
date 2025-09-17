@@ -160,12 +160,12 @@ void dec_dl_tasks_cs(struct task_struct *p)
 	cs->nr_deadline_tasks--;
 }
 
-static inline int is_partition_valid(const struct cpuset *cs)
+static inline bool is_partition_valid(const struct cpuset *cs)
 {
 	return cs->partition_root_state > 0;
 }
 
-static inline int is_partition_invalid(const struct cpuset *cs)
+static inline bool is_partition_invalid(const struct cpuset *cs)
 {
 	return cs->partition_root_state < 0;
 }
