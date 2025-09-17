@@ -1069,7 +1069,7 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 	}
 
 	path = btrfs_alloc_path();
-	if (!path) {
+	if (unlikely(!path)) {
 		ret = -ENOMEM;
 		btrfs_abort_transaction(trans, ret);
 		goto out_free_root;
@@ -1081,7 +1081,7 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 
 	ret = btrfs_insert_empty_item(trans, quota_root, path, &key,
 				      sizeof(*ptr));
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_free_path;
 	}
@@ -1111,7 +1111,7 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 	ret = btrfs_search_slot_for_read(tree_root, &key, path, 1, 0);
 	if (ret > 0)
 		goto out_add_root;
-	if (ret < 0) {
+	if (unlikely(ret < 0)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_free_path;
 	}
@@ -1129,7 +1129,7 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 			/* We should not have a stray @prealloc pointer. */
 			ASSERT(prealloc == NULL);
 			prealloc = kzalloc(sizeof(*prealloc), GFP_NOFS);
-			if (!prealloc) {
+			if (unlikely(!prealloc)) {
 				ret = -ENOMEM;
 				btrfs_abort_transaction(trans, ret);
 				goto out_free_path;
@@ -1137,7 +1137,7 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 
 			ret = add_qgroup_item(trans, quota_root,
 					      found_key.offset);
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				goto out_free_path;
 			}
@@ -1145,13 +1145,13 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 			qgroup = add_qgroup_rb(fs_info, prealloc, found_key.offset);
 			prealloc = NULL;
 			ret = btrfs_sysfs_add_one_qgroup(fs_info, qgroup);
-			if (ret < 0) {
+			if (unlikely(ret < 0)) {
 				btrfs_abort_transaction(trans, ret);
 				goto out_free_path;
 			}
 			ret = btrfs_search_slot_for_read(tree_root, &found_key,
 							 path, 1, 0);
-			if (ret < 0) {
+			if (unlikely(ret < 0)) {
 				btrfs_abort_transaction(trans, ret);
 				goto out_free_path;
 			}
@@ -1165,7 +1165,7 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 			}
 		}
 		ret = btrfs_next_item(tree_root, path);
-		if (ret < 0) {
+		if (unlikely(ret < 0)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_free_path;
 		}
@@ -1176,7 +1176,7 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 out_add_root:
 	btrfs_release_path(path);
 	ret = add_qgroup_item(trans, quota_root, BTRFS_FS_TREE_OBJECTID);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_free_path;
 	}
@@ -1190,7 +1190,7 @@ out_add_root:
 	qgroup = add_qgroup_rb(fs_info, prealloc, BTRFS_FS_TREE_OBJECTID);
 	prealloc = NULL;
 	ret = btrfs_sysfs_add_one_qgroup(fs_info, qgroup);
-	if (ret < 0) {
+	if (unlikely(ret < 0)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_free_path;
 	}
@@ -1376,13 +1376,13 @@ int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 	btrfs_free_qgroup_config(fs_info);
 
 	ret = btrfs_clean_quota_tree(trans, quota_root);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
 	ret = btrfs_del_root(trans, &quota_root->root_key);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}

@@ -634,7 +634,7 @@ static noinline int __cow_file_range_inline(struct btrfs_inode *inode,
 	drop_args.replace_extent = true;
 	drop_args.extent_item_size = btrfs_file_extent_calc_inline_size(data_len);
 	ret = btrfs_drop_extents(trans, root, inode, &drop_args);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -642,7 +642,7 @@ static noinline int __cow_file_range_inline(struct btrfs_inode *inode,
 	ret = insert_inline_extent(trans, path, inode, drop_args.extent_inserted,
 				   size, compressed_size, compress_type,
 				   compressed_folio, update_i_size);
-	if (ret && ret != -ENOSPC) {
+	if (unlikely(ret && ret != -ENOSPC)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	} else if (ret == -ENOSPC) {
@@ -652,7 +652,7 @@ static noinline int __cow_file_range_inline(struct btrfs_inode *inode,
 
 	btrfs_update_inode_bytes(inode, size, drop_args.bytes_found);
 	ret = btrfs_update_inode(trans, inode);
-	if (ret && ret != -ENOSPC) {
+	if (unlikely(ret && ret != -ENOSPC)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	} else if (ret == -ENOSPC) {
@@ -3150,7 +3150,7 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 	trans->block_rsv = &inode->block_rsv;
 
 	ret = btrfs_insert_raid_extent(trans, ordered_extent);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -3158,7 +3158,7 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags)) {
 		/* Logic error */
 		ASSERT(list_empty(&ordered_extent->list));
-		if (!list_empty(&ordered_extent->list)) {
+		if (unlikely(!list_empty(&ordered_extent->list))) {
 			ret = -EINVAL;
 			btrfs_abort_transaction(trans, ret);
 			goto out;
@@ -3166,7 +3166,7 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 
 		btrfs_inode_safe_disk_i_size_write(inode, 0);
 		ret = btrfs_update_inode_fallback(trans, inode);
-		if (ret) {
+		if (unlikely(ret)) {
 			/* -ENOMEM or corruption */
 			btrfs_abort_transaction(trans, ret);
 		}
@@ -3193,20 +3193,20 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 						ordered_extent->disk_num_bytes);
 		}
 	}
-	if (ret < 0) {
+	if (unlikely(ret < 0)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
 	ret = btrfs_unpin_extent_cache(inode, ordered_extent->file_offset,
 				       ordered_extent->num_bytes, trans->transid);
-	if (ret < 0) {
+	if (unlikely(ret < 0)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
 	ret = add_pending_csums(trans, &ordered_extent->list);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -3224,7 +3224,7 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 
 	btrfs_inode_safe_disk_i_size_write(inode, 0);
 	ret = btrfs_update_inode_fallback(trans, inode);
-	if (ret) { /* -ENOMEM or corruption */
+	if (unlikely(ret)) { /* -ENOMEM or corruption */
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -3539,7 +3539,7 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans,
 	int ret;
 
 	ret = btrfs_insert_orphan_item(trans, inode->root, btrfs_ino(inode));
-	if (ret && ret != -EEXIST) {
+	if (unlikely(ret && ret != -EEXIST)) {
 		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
@@ -4288,7 +4288,7 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 	}
 
 	ret = btrfs_del_inode_ref(trans, root, name, ino, dir_ino, &index);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_crit(fs_info,
 	   "failed to delete reference to %.*s, root %llu inode %llu parent %llu",
 			   name->len, name->name, btrfs_root_id(root), ino, dir_ino);
@@ -4300,7 +4300,7 @@ skip_backref:
 		rename_ctx->index = index;
 
 	ret = btrfs_delete_delayed_dir_index(trans, dir, index);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
@@ -4455,7 +4455,7 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	btrfs_dir_item_key_to_cpu(leaf, di, &key);
 	WARN_ON(key.type != BTRFS_ROOT_ITEM_KEY || key.objectid != objectid);
 	ret = btrfs_delete_one_dir_name(trans, root, path, di);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -4486,14 +4486,14 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 		ret = btrfs_del_root_ref(trans, objectid,
 					 btrfs_root_id(root), dir_ino,
 					 &index, &fname.disk_name);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 	}
 
 	ret = btrfs_delete_delayed_dir_index(trans, dir, index);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -4665,13 +4665,13 @@ int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry)
 	btrfs_record_snapshot_destroy(trans, dir);
 
 	ret = btrfs_unlink_subvol(trans, dir, dentry);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_end_trans;
 	}
 
 	ret = btrfs_record_root_in_trans(trans, dest);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_end_trans;
 	}
@@ -4685,7 +4685,7 @@ int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry)
 		ret = btrfs_insert_orphan_item(trans,
 					fs_info->tree_root,
 					btrfs_root_id(dest));
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_end_trans;
 		}
@@ -4693,7 +4693,7 @@ int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry)
 
 	ret = btrfs_uuid_tree_remove(trans, dest->root_item.uuid,
 				     BTRFS_UUID_KEY_SUBVOL, btrfs_root_id(dest));
-	if (ret && ret != -ENOENT) {
+	if (unlikely(ret && ret != -ENOENT)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_end_trans;
 	}
@@ -4702,7 +4702,7 @@ int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry)
 					  dest->root_item.received_uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 					  btrfs_root_id(dest));
-		if (ret && ret != -ENOENT) {
+		if (unlikely(ret && ret != -ENOENT)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_end_trans;
 		}
@@ -5106,7 +5106,7 @@ static int maybe_insert_hole(struct btrfs_inode *inode, u64 offset, u64 len)
 	drop_args.drop_cache = true;
 
 	ret = btrfs_drop_extents(trans, root, inode, &drop_args);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		btrfs_end_transaction(trans);
 		return ret;
@@ -6559,7 +6559,7 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 	batch.total_data_size = sizes[0] + (args->orphan ? 0 : sizes[1]);
 	batch.nr = args->orphan ? 1 : 2;
 	ret = btrfs_insert_empty_items(trans, root, path, &batch);
-	if (ret != 0) {
+	if (unlikely(ret != 0)) {
 		btrfs_abort_transaction(trans, ret);
 		goto discard;
 	}
@@ -6636,7 +6636,7 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 	 */
 	if (!args->subvol) {
 		ret = btrfs_init_inode_security(trans, args);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto discard;
 		}
@@ -6656,14 +6656,14 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 
 	if (args->orphan) {
 		ret = btrfs_orphan_add(trans, BTRFS_I(inode));
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto discard;
 		}
 	} else {
 		ret = btrfs_add_link(trans, BTRFS_I(dir), BTRFS_I(inode), name,
 				     0, BTRFS_I(inode)->dir_index);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto discard;
 		}
@@ -6727,7 +6727,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 				    btrfs_inode_type(inode), index);
 	if (ret == -EEXIST || ret == -EOVERFLOW)
 		goto fail_dir_item;
-	else if (ret) {
+	else if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
@@ -6883,7 +6883,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	/* Link added now we update the inode item with the new link count. */
 	inc_nlink(inode);
 	ret = btrfs_update_inode(trans, BTRFS_I(inode));
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
@@ -6894,7 +6894,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		 * open(2) O_TMPFILE flag.
 		 */
 		ret = btrfs_orphan_del(trans, BTRFS_I(inode));
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto fail;
 		}
@@ -8208,7 +8208,7 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 					     btrfs_ino(BTRFS_I(old_dir)),
 					     new_idx);
 		if (ret) {
-			if (need_abort)
+			if (unlikely(need_abort))
 				btrfs_abort_transaction(trans, ret);
 			goto out_fail;
 		}
@@ -8256,7 +8256,7 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	/* src is a subvolume */
 	if (old_ino == BTRFS_FIRST_FREE_OBJECTID) {
 		ret = btrfs_unlink_subvol(trans, BTRFS_I(old_dir), old_dentry);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_fail;
 		}
@@ -8264,12 +8264,12 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(old_dir),
 					   BTRFS_I(old_dentry->d_inode),
 					   old_name, &old_rename_ctx);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_fail;
 		}
 		ret = btrfs_update_inode(trans, BTRFS_I(old_inode));
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_fail;
 		}
@@ -8278,7 +8278,7 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	/* dest is a subvolume */
 	if (new_ino == BTRFS_FIRST_FREE_OBJECTID) {
 		ret = btrfs_unlink_subvol(trans, BTRFS_I(new_dir), new_dentry);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_fail;
 		}
@@ -8286,12 +8286,12 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(new_dir),
 					   BTRFS_I(new_dentry->d_inode),
 					   new_name, &new_rename_ctx);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_fail;
 		}
 		ret = btrfs_update_inode(trans, BTRFS_I(new_inode));
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_fail;
 		}
@@ -8299,14 +8299,14 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 
 	ret = btrfs_add_link(trans, BTRFS_I(new_dir), BTRFS_I(old_inode),
 			     new_name, 0, old_idx);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_fail;
 	}
 
 	ret = btrfs_add_link(trans, BTRFS_I(old_dir), BTRFS_I(new_inode),
 			     old_name, 0, new_idx);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_fail;
 	}
@@ -8547,7 +8547,7 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 
 	if (unlikely(old_ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		ret = btrfs_unlink_subvol(trans, BTRFS_I(old_dir), old_dentry);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_fail;
 		}
@@ -8555,12 +8555,12 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(old_dir),
 					   BTRFS_I(d_inode(old_dentry)),
 					   &old_fname.disk_name, &rename_ctx);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_fail;
 		}
 		ret = btrfs_update_inode(trans, BTRFS_I(old_inode));
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_fail;
 		}
@@ -8571,7 +8571,7 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 		if (unlikely(btrfs_ino(BTRFS_I(new_inode)) ==
 			     BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
 			ret = btrfs_unlink_subvol(trans, BTRFS_I(new_dir), new_dentry);
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				goto out_fail;
 			}
@@ -8580,7 +8580,7 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 			ret = btrfs_unlink_inode(trans, BTRFS_I(new_dir),
 						 BTRFS_I(d_inode(new_dentry)),
 						 &new_fname.disk_name);
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				goto out_fail;
 			}
@@ -8588,7 +8588,7 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 		if (new_inode->i_nlink == 0) {
 			ret = btrfs_orphan_add(trans,
 					BTRFS_I(d_inode(new_dentry)));
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				goto out_fail;
 			}
@@ -8597,7 +8597,7 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 
 	ret = btrfs_add_link(trans, BTRFS_I(new_dir), BTRFS_I(old_inode),
 			     &new_fname.disk_name, 0, index);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_fail;
 	}
@@ -8611,7 +8611,7 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 
 	if (flags & RENAME_WHITEOUT) {
 		ret = btrfs_create_new_inode(trans, &whiteout_args);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_fail;
 		} else {
@@ -8905,7 +8905,7 @@ static int btrfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		goto out;
 
 	path = btrfs_alloc_path();
-	if (!path) {
+	if (unlikely(!path)) {
 		ret = -ENOMEM;
 		btrfs_abort_transaction(trans, ret);
 		discard_new_inode(inode);
@@ -8917,7 +8917,7 @@ static int btrfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	key.offset = 0;
 	datasize = btrfs_file_extent_calc_inline_size(name_len);
 	ret = btrfs_insert_empty_item(trans, root, path, &key, datasize);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		btrfs_free_path(path);
 		discard_new_inode(inode);
@@ -9130,7 +9130,7 @@ next:
 
 		ret = btrfs_update_inode(trans, BTRFS_I(inode));
 
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			if (own_trans)
 				btrfs_end_transaction(trans);

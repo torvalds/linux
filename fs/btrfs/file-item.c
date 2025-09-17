@@ -1011,7 +1011,7 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 			 * item changed size or key
 			 */
 			ret = btrfs_split_item(trans, root, path, &key, offset);
-			if (ret && ret != -EAGAIN) {
+			if (unlikely(ret && ret != -EAGAIN)) {
 				btrfs_abort_transaction(trans, ret);
 				break;
 			}

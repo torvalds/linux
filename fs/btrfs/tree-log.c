@@ -439,7 +439,7 @@ static int process_one_buffer(struct extent_buffer *eb,
 		};
 
 		ret = btrfs_read_extent_buffer(eb, &check);
-		if (ret) {
+		if (unlikely(ret)) {
 			if (trans)
 				btrfs_abort_transaction(trans, ret);
 			else
@@ -451,7 +451,7 @@ static int process_one_buffer(struct extent_buffer *eb,
 	if (wc->pin) {
 		ASSERT(trans != NULL);
 		ret = btrfs_pin_extent_for_log_replay(trans, eb);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			return ret;
 		}
@@ -3570,7 +3570,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	btrfs_set_super_log_root_level(fs_info->super_for_commit, log_root_level);
 	ret = write_all_supers(fs_info, 1);
 	mutex_unlock(&fs_info->tree_log_mutex);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_set_log_full_commit(trans);
 		btrfs_abort_transaction(trans, ret);
 		goto out_wake_log_root;
@@ -7630,7 +7630,7 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 
 	ret = walk_log_tree(&wc);
 	wc.log = NULL;
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto error;
 	}
@@ -7645,7 +7645,7 @@ again:
 
 		ret = btrfs_search_slot(NULL, log_root_tree, &key, path, 0, 0);
 
-		if (ret < 0) {
+		if (unlikely(ret < 0)) {
 			btrfs_abort_transaction(trans, ret);
 			goto error;
 		}
@@ -7672,7 +7672,7 @@ again:
 		if (IS_ERR(wc.root)) {
 			ret = PTR_ERR(wc.root);
 			wc.root = NULL;
-			if (ret != -ENOENT) {
+			if (unlikely(ret != -ENOENT)) {
 				btrfs_abort_transaction(trans, ret);
 				goto error;
 			}
@@ -7689,7 +7689,7 @@ again:
 			 * each subsequent pass.
 			 */
 			ret = btrfs_pin_extent_for_log_replay(trans, wc.log->node);
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				goto error;
 			}
@@ -7698,13 +7698,13 @@ again:
 
 		wc.root->log_root = wc.log;
 		ret = btrfs_record_root_in_trans(trans, wc.root);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto next;
 		}
 
 		ret = walk_log_tree(&wc);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto next;
 		}
@@ -7715,7 +7715,7 @@ again:
 			wc.subvol_path = path;
 			ret = fixup_inode_link_counts(&wc);
 			wc.subvol_path = NULL;
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				goto next;
 			}
@@ -7728,7 +7728,7 @@ again:
 			 * could only happen during mount.
 			 */
 			ret = btrfs_init_root_free_objectid(root);
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				goto next;
 			}

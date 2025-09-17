@@ -1038,7 +1038,7 @@ static int __btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
 		 * transaction, because we could leave the inode with the
 		 * improper counts behind.
 		 */
-		if (ret != -ENOENT)
+		if (unlikely(ret != -ENOENT))
 			btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -1066,7 +1066,7 @@ static int __btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
 
 		btrfs_release_path(path);
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
-		if (ret < 0) {
+		if (unlikely(ret < 0)) {
 			btrfs_abort_transaction(trans, ret);
 			goto err_out;
 		}
@@ -1175,7 +1175,7 @@ static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans, int nr)
 	while (curr_node && (!count || nr--)) {
 		ret = __btrfs_commit_inode_delayed_items(trans, path,
 							 curr_node);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}

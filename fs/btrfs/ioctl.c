@@ -376,13 +376,13 @@ int btrfs_fileattr_set(struct mnt_idmap *idmap,
 	if (comp) {
 		ret = btrfs_set_prop(trans, inode, "btrfs.compression",
 				     comp, strlen(comp), 0);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_end_trans;
 		}
 	} else {
 		ret = btrfs_set_prop(trans, inode, "btrfs.compression", NULL, 0, 0);
-		if (ret && ret != -ENODATA) {
+		if (unlikely(ret && ret != -ENODATA)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_end_trans;
 		}
@@ -633,7 +633,7 @@ static noinline int create_subvol(struct mnt_idmap *idmap,
 		btrfs_clear_buffer_dirty(trans, leaf);
 		btrfs_tree_unlock(leaf);
 		ret2 = btrfs_free_tree_block(trans, objectid, leaf, 0, 1);
-		if (ret2 < 0)
+		if (unlikely(ret2 < 0))
 			btrfs_abort_transaction(trans, ret2);
 		free_extent_buffer(leaf);
 		goto out;
@@ -654,14 +654,14 @@ static noinline int create_subvol(struct mnt_idmap *idmap,
 	/* ... and new_root is owned by new_inode_args.inode now. */
 
 	ret = btrfs_record_root_in_trans(trans, new_root);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
 	ret = btrfs_uuid_tree_add(trans, root_item->uuid,
 				  BTRFS_UUID_KEY_SUBVOL, objectid);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -669,7 +669,7 @@ static noinline int create_subvol(struct mnt_idmap *idmap,
 	btrfs_record_new_subvolume(trans, BTRFS_I(dir));
 
 	ret = btrfs_create_new_inode(trans, &new_inode_args);
-	if (ret) {
+	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
@@ -4008,7 +4008,7 @@ static long _btrfs_ioctl_set_received_subvol(struct file *file,
 		ret = btrfs_uuid_tree_remove(trans, root_item->received_uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 					  btrfs_root_id(root));
-		if (ret && ret != -ENOENT) {
+		if (unlikely(ret && ret != -ENOENT)) {
 		        btrfs_abort_transaction(trans, ret);
 		        btrfs_end_transaction(trans);
 		        goto out;
@@ -4032,7 +4032,7 @@ static long _btrfs_ioctl_set_received_subvol(struct file *file,
 		ret = btrfs_uuid_tree_add(trans, sa->uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 					  btrfs_root_id(root));
-		if (ret < 0 && ret != -EEXIST) {
+		if (unlikely(ret < 0 && ret != -EEXIST)) {
 			btrfs_abort_transaction(trans, ret);
 			btrfs_end_transaction(trans);
 			goto out;
