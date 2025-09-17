@@ -359,4 +359,17 @@ static __always_inline u64 ctxt_reg_alias(struct kvm_vcpu *vcpu, u32 encoding)
 
 void kvm_get_default_vcpu_target(struct kvm_vm *vm, struct kvm_vcpu_init *init);
 
+static inline unsigned int get_current_el(void)
+{
+	return (read_sysreg(CurrentEL) >> 2) & 0x3;
+}
+
+#define do_smccc(...)				\
+do {						\
+	if (get_current_el() == 2)		\
+		smccc_smc(__VA_ARGS__);		\
+	else					\
+		smccc_hvc(__VA_ARGS__);		\
+} while (0)
+
 #endif /* SELFTEST_KVM_PROCESSOR_H */
