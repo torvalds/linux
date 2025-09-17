@@ -35,7 +35,7 @@ echo
 ./futex_requeue_pi
 
 echo
-./futex_requeue_pi_mismatched_ops $COLOR
+./futex_requeue_pi_mismatched_ops
 
 echo
 ./futex_requeue_pi_signal_restart $COLOR
