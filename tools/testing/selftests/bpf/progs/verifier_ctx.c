@@ -5,8 +5,6 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-#define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *)0)->MEMBER))
-
 SEC("tc")
 __description("context stores via BPF_ATOMIC")
 __failure __msg("BPF_ATOMIC stores into R1 ctx is not allowed")

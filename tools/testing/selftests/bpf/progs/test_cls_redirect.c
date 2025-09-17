@@ -22,6 +22,7 @@
 
 #include "bpf_compiler.h"
 #include "test_cls_redirect.h"
+#include "bpf_misc.h"
 
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
 
@@ -30,9 +31,6 @@
 #else
 #define INLINING __always_inline
 #endif
-
-#define offsetofend(TYPE, MEMBER) \
-	(offsetof(TYPE, MEMBER) + sizeof((((TYPE *)0)->MEMBER)))
 
 #define IP_OFFSET_MASK (0x1FFF)
 #define IP_MF (0x2000)

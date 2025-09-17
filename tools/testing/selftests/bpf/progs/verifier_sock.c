@@ -5,10 +5,6 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-#define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *)0)->MEMBER))
-#define offsetofend(TYPE, MEMBER) \
-	(offsetof(TYPE, MEMBER)	+ sizeof_field(TYPE, MEMBER))
-
 struct {
 	__uint(type, BPF_MAP_TYPE_REUSEPORT_SOCKARRAY);
 	__uint(max_entries, 1);

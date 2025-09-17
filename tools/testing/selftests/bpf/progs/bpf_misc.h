@@ -167,6 +167,10 @@
 #define __imm_ptr(name) [name]"r"(&name)
 #define __imm_insn(name, expr) [name]"i"(*(long *)&(expr))
 
+#define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *)0)->MEMBER))
+#define offsetofend(TYPE, MEMBER) \
+	(offsetof(TYPE, MEMBER) + sizeof_field(TYPE, MEMBER))
+
 /* Magic constants used with __retval() */
 #define POINTER_VALUE	0xbadcafe
 #define TEST_DATA_LEN	64
