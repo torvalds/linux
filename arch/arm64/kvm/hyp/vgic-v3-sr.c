@@ -295,12 +295,8 @@ void __vgic_v3_activate_traps(struct vgic_v3_cpu_if *cpu_if)
 		}
 	}
 
-	/*
-	 * GICv5 BET0 FEAT_GCIE_LEGACY doesn't include ICC_SRE_EL2. This is due
-	 * to be relaxed in a future spec release, at which point this in
-	 * condition can be dropped.
-	 */
-	if (!cpus_have_final_cap(ARM64_HAS_GICV5_CPUIF)) {
+	/* Only disable SRE if the host implements the GICv2 interface */
+	if (static_branch_unlikely(&vgic_v3_has_v2_compat)) {
 		/*
 		 * Prevent the guest from touching the ICC_SRE_EL1 system
 		 * register. Note that this may not have any effect, as
@@ -329,19 +325,16 @@ void __vgic_v3_deactivate_traps(struct vgic_v3_cpu_if *cpu_if)
 		cpu_if->vgic_vmcr = read_gicreg(ICH_VMCR_EL2);
 	}
 
-	/*
-	 * Can be dropped in the future when GICv5 spec is relaxed. See comment
-	 * above.
-	 */
-	if (!cpus_have_final_cap(ARM64_HAS_GICV5_CPUIF)) {
+	/* Only restore SRE if the host implements the GICv2 interface */
+	if (static_branch_unlikely(&vgic_v3_has_v2_compat)) {
 		val = read_gicreg(ICC_SRE_EL2);
 		write_gicreg(val | ICC_SRE_EL2_ENABLE, ICC_SRE_EL2);
-	}
 
-	if (!cpu_if->vgic_sre) {
-		/* Make sure ENABLE is set at EL2 before setting SRE at EL1 */
-		isb();
-		write_gicreg(1, ICC_SRE_EL1);
+		if (!cpu_if->vgic_sre) {
+			/* Make sure ENABLE is set at EL2 before setting SRE at EL1 */
+			isb();
+			write_gicreg(1, ICC_SRE_EL1);
+		}
 	}
 
 	/*

@@ -588,6 +588,7 @@ int vgic_v3_map_resources(struct kvm *kvm)
 }
 
 DEFINE_STATIC_KEY_FALSE(vgic_v3_cpuif_trap);
+DEFINE_STATIC_KEY_FALSE(vgic_v3_has_v2_compat);
 
 static int __init early_group0_trap_cfg(char *buf)
 {
@@ -696,6 +697,13 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 
 	if (kvm_vgic_global_state.vcpu_base == 0)
 		kvm_info("disabling GICv2 emulation\n");
+
+	/*
+	 * Flip the static branch if the HW supports v2, even if we're
+	 * not using it (such as in protected mode).
+	 */
+	if (has_v2)
+		static_branch_enable(&vgic_v3_has_v2_compat);
 
 	if (cpus_have_final_cap(ARM64_WORKAROUND_CAVIUM_30115)) {
 		group0_trap = true;
