@@ -54,7 +54,7 @@ echo
 ./futex_wait
 
 echo
-./futex_requeue $COLOR
+./futex_requeue
 
 echo
 ./futex_waitv $COLOR
