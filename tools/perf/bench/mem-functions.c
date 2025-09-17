@@ -51,6 +51,11 @@ static const struct option options[] = {
 	OPT_END()
 };
 
+union bench_clock {
+	u64		cycles;
+	struct timeval	tv;
+};
+
 typedef void *(*memcpy_t)(void *, const void *, size_t);
 typedef void *(*memset_t)(void *, int, size_t);
 
@@ -91,6 +96,26 @@ static u64 get_cycles(void)
 	return clk;
 }
 
+static void clock_get(union bench_clock *t)
+{
+	if (use_cycles)
+		t->cycles = get_cycles();
+	else
+		BUG_ON(gettimeofday(&t->tv, NULL));
+}
+
+static union bench_clock clock_diff(union bench_clock *s, union bench_clock *e)
+{
+	union bench_clock t;
+
+	if (use_cycles)
+		t.cycles = e->cycles - s->cycles;
+	else
+		timersub(&e->tv, &s->tv, &t.tv);
+
+	return t;
+}
+
 static double timeval2double(struct timeval *ts)
 {
 	return (double)ts->tv_sec + (double)ts->tv_usec / (double)USEC_PER_SEC;
@@ -109,8 +134,7 @@ static double timeval2double(struct timeval *ts)
 
 struct bench_mem_info {
 	const struct function *functions;
-	u64 (*do_cycles)(const struct function *r, size_t size, void *src, void *dst);
-	double (*do_gettimeofday)(const struct function *r, size_t size, void *src, void *dst);
+	union bench_clock (*do_op)(const struct function *r, size_t size, void *src, void *dst);
 	const char *const *usage;
 	bool alloc_src;
 };
@@ -119,7 +143,7 @@ static void __bench_mem_function(struct bench_mem_info *info, int r_idx, size_t 
 {
 	const struct function *r = &info->functions[r_idx];
 	double result_bps = 0.0;
-	u64 result_cycles = 0;
+	union bench_clock rt = { 0 };
 	void *src = NULL, *dst = zalloc(size);
 
 	printf("# function '%s' (%s)\n", r->name, r->desc);
@@ -136,25 +160,23 @@ static void __bench_mem_function(struct bench_mem_info *info, int r_idx, size_t 
 	if (bench_format == BENCH_FORMAT_DEFAULT)
 		printf("# Copying %s bytes ...\n\n", size_str);
 
-	if (use_cycles) {
-		result_cycles = info->do_cycles(r, size, src, dst);
-	} else {
-		result_bps = info->do_gettimeofday(r, size, src, dst);
-	}
+	rt = info->do_op(r, size, src, dst);
 
 	switch (bench_format) {
 	case BENCH_FORMAT_DEFAULT:
 		if (use_cycles) {
-			printf(" %14lf cycles/byte\n", (double)result_cycles/size_total);
+			printf(" %14lf cycles/byte\n", (double)rt.cycles/size_total);
 		} else {
+			result_bps = size_total/timeval2double(&rt.tv);
 			print_bps(result_bps);
 		}
 		break;
 
 	case BENCH_FORMAT_SIMPLE:
 		if (use_cycles) {
-			printf("%lf\n", (double)result_cycles/size_total);
+			printf("%lf\n", (double)rt.cycles/size_total);
 		} else {
+			result_bps = size_total/timeval2double(&rt.tv);
 			printf("%lf\n", result_bps);
 		}
 		break;
@@ -235,38 +257,21 @@ static void memcpy_prefault(memcpy_t fn, size_t size, void *src, void *dst)
 	fn(dst, src, size);
 }
 
-static u64 do_memcpy_cycles(const struct function *r, size_t size, void *src, void *dst)
+static union bench_clock do_memcpy(const struct function *r, size_t size,
+				   void *src, void *dst)
 {
-	u64 cycle_start = 0ULL, cycle_end = 0ULL;
+	union bench_clock start, end;
 	memcpy_t fn = r->fn.memcpy;
 	int i;
 
 	memcpy_prefault(fn, size, src, dst);
 
-	cycle_start = get_cycles();
+	clock_get(&start);
 	for (i = 0; i < nr_loops; ++i)
 		fn(dst, src, size);
-	cycle_end = get_cycles();
+	clock_get(&end);
 
-	return cycle_end - cycle_start;
-}
-
-static double do_memcpy_gettimeofday(const struct function *r, size_t size, void *src, void *dst)
-{
-	struct timeval tv_start, tv_end, tv_diff;
-	memcpy_t fn = r->fn.memcpy;
-	int i;
-
-	memcpy_prefault(fn, size, src, dst);
-
-	BUG_ON(gettimeofday(&tv_start, NULL));
-	for (i = 0; i < nr_loops; ++i)
-		fn(dst, src, size);
-	BUG_ON(gettimeofday(&tv_end, NULL));
-
-	timersub(&tv_end, &tv_start, &tv_diff);
-
-	return (double)(((double)size * nr_loops) / timeval2double(&tv_diff));
+	return clock_diff(&start, &end);
 }
 
 struct function memcpy_functions[] = {
@@ -292,8 +297,7 @@ int bench_mem_memcpy(int argc, const char **argv)
 {
 	struct bench_mem_info info = {
 		.functions		= memcpy_functions,
-		.do_cycles		= do_memcpy_cycles,
-		.do_gettimeofday	= do_memcpy_gettimeofday,
+		.do_op			= do_memcpy,
 		.usage			= bench_mem_memcpy_usage,
 		.alloc_src              = true,
 	};
@@ -301,9 +305,10 @@ int bench_mem_memcpy(int argc, const char **argv)
 	return bench_mem_common(argc, argv, &info);
 }
 
-static u64 do_memset_cycles(const struct function *r, size_t size, void *src __maybe_unused, void *dst)
+static union bench_clock do_memset(const struct function *r, size_t size,
+				   void *src __maybe_unused, void *dst)
 {
-	u64 cycle_start = 0ULL, cycle_end = 0ULL;
+	union bench_clock start, end;
 	memset_t fn = r->fn.memset;
 	int i;
 
@@ -313,34 +318,12 @@ static u64 do_memset_cycles(const struct function *r, size_t size, void *src __m
 	 */
 	fn(dst, -1, size);
 
-	cycle_start = get_cycles();
+	clock_get(&start);
 	for (i = 0; i < nr_loops; ++i)
 		fn(dst, i, size);
-	cycle_end = get_cycles();
+	clock_get(&end);
 
-	return cycle_end - cycle_start;
-}
-
-static double do_memset_gettimeofday(const struct function *r, size_t size, void *src __maybe_unused, void *dst)
-{
-	struct timeval tv_start, tv_end, tv_diff;
-	memset_t fn = r->fn.memset;
-	int i;
-
-	/*
-	 * We prefault the freshly allocated memory range here,
-	 * to not measure page fault overhead:
-	 */
-	fn(dst, -1, size);
-
-	BUG_ON(gettimeofday(&tv_start, NULL));
-	for (i = 0; i < nr_loops; ++i)
-		fn(dst, i, size);
-	BUG_ON(gettimeofday(&tv_end, NULL));
-
-	timersub(&tv_end, &tv_start, &tv_diff);
-
-	return (double)(((double)size * nr_loops) / timeval2double(&tv_diff));
+	return clock_diff(&start, &end);
 }
 
 static const char * const bench_mem_memset_usage[] = {
@@ -366,8 +349,7 @@ int bench_mem_memset(int argc, const char **argv)
 {
 	struct bench_mem_info info = {
 		.functions		= memset_functions,
-		.do_cycles		= do_memset_cycles,
-		.do_gettimeofday	= do_memset_gettimeofday,
+		.do_op			= do_memset,
 		.usage			= bench_mem_memset_usage,
 	};
 
