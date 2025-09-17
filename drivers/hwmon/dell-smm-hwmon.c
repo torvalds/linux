@@ -764,6 +764,13 @@ static int dell_smm_get_cur_state(struct thermal_cooling_device *dev, unsigned l
 	if (ret < 0)
 		return ret;
 
+	/*
+	 * A fan state bigger than i8k_fan_max might indicate that
+	 * the fan is currently in automatic mode.
+	 */
+	if (ret > cdata->data->i8k_fan_max)
+		return -ENODATA;
+
 	*state = ret;
 
 	return 0;
@@ -851,7 +858,14 @@ static umode_t dell_smm_is_visible(const void *drvdata, enum hwmon_sensor_types 
 
 			break;
 		case hwmon_pwm_enable:
-			if (auto_fan)
+			if (auto_fan) {
+				/*
+				 * The setting affects all fans, so only create a
+				 * single attribute.
+				 */
+				if (channel != 1)
+					return 0;
+
 				/*
 				 * There is no command for retrieve the current status
 				 * from BIOS, and userspace/firmware itself can change
@@ -859,6 +873,10 @@ static umode_t dell_smm_is_visible(const void *drvdata, enum hwmon_sensor_types 
 				 * Thus we can only provide write-only access for now.
 				 */
 				return 0200;
+			}
+
+			if (data->fan[channel] && data->i8k_fan_max < I8K_FAN_AUTO)
+				return 0644;
 
 			break;
 		default:
@@ -928,13 +946,27 @@ static int dell_smm_read(struct device *dev, enum hwmon_sensor_types type, u32 a
 		}
 		break;
 	case hwmon_pwm:
+		ret = i8k_get_fan_status(data, channel);
+		if (ret < 0)
+			return ret;
+
 		switch (attr) {
 		case hwmon_pwm_input:
-			ret = i8k_get_fan_status(data, channel);
-			if (ret < 0)
-				return ret;
+			/*
+			 * A fan state bigger than i8k_fan_max might indicate that
+			 * the fan is currently in automatic mode.
+			 */
+			if (ret > data->i8k_fan_max)
+				return -ENODATA;
 
 			*val = clamp_val(ret * data->i8k_pwm_mult, 0, 255);
+
+			return 0;
+		case hwmon_pwm_enable:
+			if (ret == I8K_FAN_AUTO)
+				*val = 2;
+			else
+				*val = 1;
 
 			return 0;
 		default:
@@ -1022,16 +1054,32 @@ static int dell_smm_write(struct device *dev, enum hwmon_sensor_types type, u32 
 
 			return 0;
 		case hwmon_pwm_enable:
-			if (!val)
-				return -EINVAL;
-
-			if (val == 1)
+			switch (val) {
+			case 1:
 				enable = false;
-			else
+				break;
+			case 2:
 				enable = true;
+				break;
+			default:
+				return -EINVAL;
+			}
 
 			mutex_lock(&data->i8k_mutex);
-			err = i8k_enable_fan_auto_mode(data, enable);
+			if (auto_fan) {
+				err = i8k_enable_fan_auto_mode(data, enable);
+			} else {
+				/*
+				 * When putting the fan into manual control mode we have to ensure
+				 * that the device does not overheat until the userspace fan control
+				 * software takes over. Because of this we set the fan speed to
+				 * i8k_fan_max when disabling automatic fan control.
+				 */
+				if (enable)
+					err = i8k_set_fan(data, channel, I8K_FAN_AUTO);
+				else
+					err = i8k_set_fan(data, channel, data->i8k_fan_max);
+			}
 			mutex_unlock(&data->i8k_mutex);
 
 			if (err < 0)
@@ -1082,9 +1130,9 @@ static const struct hwmon_channel_info * const dell_smm_info[] = {
 			   ),
 	HWMON_CHANNEL_INFO(pwm,
 			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-			   HWMON_PWM_INPUT,
-			   HWMON_PWM_INPUT,
-			   HWMON_PWM_INPUT
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE
 			   ),
 	NULL
 };
