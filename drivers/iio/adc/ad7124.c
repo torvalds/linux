@@ -10,6 +10,7 @@
 #include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -223,6 +224,7 @@ struct ad7124_state {
 	 */
 	unsigned int gain_default;
 	DECLARE_KFIFO(live_cfgs_fifo, struct ad7124_channel_config *, AD7124_MAX_CONFIGS);
+	bool enable_single_cycle;
 };
 
 static const struct ad7124_chip_info ad7124_4_chip_info = {
@@ -560,13 +562,15 @@ static int ad7124_write_config(struct ad7124_state *st, struct ad7124_channel_co
 	 * sampling frequency even when only one channel is enabled in a
 	 * buffered read. If it was not set, the N in ad7124_set_channel_odr()
 	 * would be 1 and we would get a faster sampling frequency than what
-	 * was requested.
+	 * was requested. It may only be disabled through debugfs for testing
+	 * purposes.
 	 */
 	return ad_sd_write_reg(&st->sd, AD7124_FILTER(cfg->cfg_slot), 3,
 			       FIELD_PREP(AD7124_FILTER_FILTER, filter) |
 			       FIELD_PREP(AD7124_FILTER_REJ60, rej60) |
 			       FIELD_PREP(AD7124_FILTER_POST_FILTER, post) |
-			       AD7124_FILTER_SINGLE_CYCLE |
+			       FIELD_PREP(AD7124_FILTER_SINGLE_CYCLE,
+					  st->enable_single_cycle) |
 			       FIELD_PREP(AD7124_FILTER_FS, cfg->odr_sel_bits));
 }
 
@@ -1609,6 +1613,18 @@ static void ad7124_reg_disable(void *r)
 	regulator_disable(r);
 }
 
+static void ad7124_debugfs_init(struct iio_dev *indio_dev)
+{
+	struct dentry *dentry = iio_get_debugfs_dentry(indio_dev);
+	struct ad7124_state *st = iio_priv(indio_dev);
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
+
+	debugfs_create_bool("enable_single_cycle", 0644, dentry,
+			    &st->enable_single_cycle);
+}
+
 static int ad7124_probe(struct spi_device *spi)
 {
 	const struct ad7124_chip_info *info;
@@ -1628,6 +1644,9 @@ static int ad7124_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 
 	st->chip_info = info;
+
+	/* Only disabled for debug/testing purposes. */
+	st->enable_single_cycle = true;
 
 	indio_dev->name = st->chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -1685,6 +1704,8 @@ static int ad7124_probe(struct spi_device *spi)
 	ret = devm_iio_device_register(&spi->dev, indio_dev);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to register iio device\n");
+
+	ad7124_debugfs_init(indio_dev);
 
 	return 0;
 }
