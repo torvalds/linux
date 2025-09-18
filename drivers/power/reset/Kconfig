@@ -225,6 +225,13 @@ config POWER_RESET_ST
 	help
 	  Reset support for STMicroelectronics boards.
 
+config POWER_RESET_TH1520_AON
+	tristate "T-Head TH1520 AON firmware poweroff and reset driver"
+	depends on TH1520_PM_DOMAINS
+	help
+	  This driver supports power-off and reset operations for T-Head
+	  TH1520 SoCs running the AON firmware.
+
 config POWER_RESET_TORADEX_EC
 	tristate "Toradex Embedded Controller power-off and reset driver"
 	depends on ARCH_MXC || COMPILE_TEST
