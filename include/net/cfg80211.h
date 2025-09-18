@@ -6819,16 +6819,6 @@ ieee80211_channel_to_khz(const struct ieee80211_channel *chan)
 }
 
 /**
- * ieee80211_s1g_channel_width - get allowed channel width from @chan
- *
- * Only allowed for band NL80211_BAND_S1GHZ
- * @chan: channel
- * Return: The allowed channel width for this center_freq
- */
-enum nl80211_chan_width
-ieee80211_s1g_channel_width(const struct ieee80211_channel *chan);
-
-/**
  * ieee80211_channel_to_freq_khz - convert channel number to frequency
  * @chan: channel number
  * @band: band, necessary due to channel number overlap
