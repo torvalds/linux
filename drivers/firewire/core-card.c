@@ -279,6 +279,102 @@ void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 		fw_card_put(card);
 }
 
+enum bm_contention_outcome {
+	// The bus management contention window is not expired.
+	BM_CONTENTION_OUTCOME_WITHIN_WINDOW = 0,
+	// The IRM node has link off.
+	BM_CONTENTION_OUTCOME_IRM_HAS_LINK_OFF,
+	// The IRM node complies IEEE 1394:1994 only.
+	BM_CONTENTION_OUTCOME_IRM_COMPLIES_1394_1995_ONLY,
+	// Another bus reset, BM work has been rescheduled.
+	BM_CONTENTION_OUTCOME_AT_NEW_GENERATION,
+	// We have been unable to send the lock request to IRM node due to some local problem.
+	BM_CONTENTION_OUTCOME_LOCAL_PROBLEM_AT_TRANSACTION,
+	// The lock request failed, maybe the IRM isn't really IRM capable after all.
+	BM_CONTENTION_OUTCOME_IRM_IS_NOT_CAPABLE_FOR_IRM,
+	// Somebody else is BM.
+	BM_CONTENTION_OUTCOME_IRM_HOLDS_ANOTHER_NODE_AS_BM,
+	// The local node succeeds after contending for bus manager.
+	BM_CONTENTION_OUTCOME_IRM_HOLDS_LOCAL_NODE_AS_BM,
+};
+
+static enum bm_contention_outcome contend_for_bm(struct fw_card *card)
+{
+	int generation = card->generation;
+	int local_id = card->local_node->node_id;
+	__be32 data[2] = {
+		cpu_to_be32(BUS_MANAGER_ID_NOT_REGISTERED),
+		cpu_to_be32(local_id),
+	};
+	bool grace = time_is_before_jiffies64(card->reset_jiffies + msecs_to_jiffies(125));
+	bool irm_is_1394_1995_only = false;
+	bool keep_this_irm = false;
+	struct fw_node *irm_node;
+	struct fw_device *irm_device;
+	int rcode;
+
+	if (!grace) {
+		if (!is_next_generation(generation, card->bm_generation) || card->bm_abdicate)
+			return BM_CONTENTION_OUTCOME_WITHIN_WINDOW;
+	}
+
+	irm_node = card->irm_node;
+	if (!irm_node->link_on) {
+		fw_notice(card, "IRM has link off, making local node (%02x) root\n", local_id);
+		return BM_CONTENTION_OUTCOME_IRM_HAS_LINK_OFF;
+	}
+
+	irm_device = fw_node_get_device(irm_node);
+	if (irm_device && irm_device->config_rom) {
+		irm_is_1394_1995_only = (irm_device->config_rom[2] & 0x000000f0) == 0;
+
+		// Canon MV5i works unreliably if it is not root node.
+		keep_this_irm = irm_device->config_rom[3] >> 8 == CANON_OUI;
+	}
+
+	if (irm_is_1394_1995_only && !keep_this_irm) {
+		fw_notice(card, "IRM is not 1394a compliant, making local node (%02x) root\n",
+			  local_id);
+		return BM_CONTENTION_OUTCOME_IRM_COMPLIES_1394_1995_ONLY;
+	}
+
+	rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP, irm_node->node_id, generation,
+				   SCODE_100, CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID, data,
+				   sizeof(data));
+
+	switch (rcode) {
+	case RCODE_GENERATION:
+		return BM_CONTENTION_OUTCOME_AT_NEW_GENERATION;
+	case RCODE_SEND_ERROR:
+		return BM_CONTENTION_OUTCOME_LOCAL_PROBLEM_AT_TRANSACTION;
+	case RCODE_COMPLETE:
+	{
+		int bm_id = be32_to_cpu(data[0]);
+
+		// Used by cdev layer for "struct fw_cdev_event_bus_reset".
+		scoped_guard(spinlock, &card->lock) {
+			if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
+				card->bm_node_id = 0xffc0 & bm_id;
+			else
+				card->bm_node_id = local_id;
+		}
+
+		if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
+			return BM_CONTENTION_OUTCOME_IRM_HOLDS_ANOTHER_NODE_AS_BM;
+		else
+			return BM_CONTENTION_OUTCOME_IRM_HOLDS_LOCAL_NODE_AS_BM;
+	}
+	default:
+		if (!keep_this_irm) {
+			fw_notice(card, "BM lock failed (%s), making local node (%02x) root\n",
+				  fw_rcode_string(rcode), local_id);
+			return BM_CONTENTION_OUTCOME_IRM_COMPLIES_1394_1995_ONLY;
+		} else {
+			return BM_CONTENTION_OUTCOME_IRM_IS_NOT_CAPABLE_FOR_IRM;
+		}
+	}
+}
+
 DEFINE_FREE(node_unref, struct fw_node *, if (_T) fw_node_put(_T))
 DEFINE_FREE(card_unref, struct fw_card *, if (_T) fw_card_put(_T))
 
@@ -305,105 +401,40 @@ static void bm_work(struct work_struct *work)
 	local_id = card->local_node->node_id;
 
 	if (card->bm_generation != generation) {
-		bool grace = time_is_before_jiffies64(card->reset_jiffies + msecs_to_jiffies(125));
+		enum bm_contention_outcome result = contend_for_bm(card);
 
-		if (grace ||
-		    (is_next_generation(generation, card->bm_generation) && !card->bm_abdicate)) {
-			// This first step is to figure out who is IRM and
-			// then try to become bus manager.  If the IRM is not
-			// well defined (e.g. does not have an active link
-			// layer or does not responds to our lock request, we
-			// will have to do a little vigilante bus management.
-			// In that case, we do a goto into the gap count logic
-			// so that when we do the reset, we still optimize the
-			// gap count.  That could well save a reset in the
-			// next generation.
-			__be32 data[2] = {
-				cpu_to_be32(BUS_MANAGER_ID_NOT_REGISTERED),
-				cpu_to_be32(local_id),
-			};
-			struct fw_device *irm_device = fw_node_get_device(card->irm_node);
-			bool irm_is_1394_1995_only = false;
-			bool keep_this_irm = false;
-			int rcode;
-
-			if (!card->irm_node->link_on) {
-				new_root_id = local_id;
-				fw_notice(card, "%s, making local node (%02x) root\n",
-					  "IRM has link off", new_root_id);
-				goto pick_me;
-			}
-
-			if (irm_device && irm_device->config_rom) {
-				irm_is_1394_1995_only = (irm_device->config_rom[2] & 0x000000f0) == 0;
-
-				// Canon MV5i works unreliably if it is not root node.
-				keep_this_irm = irm_device->config_rom[3] >> 8 == CANON_OUI;
-			}
-
-			if (irm_is_1394_1995_only && !keep_this_irm) {
-				new_root_id = local_id;
-				fw_notice(card, "%s, making local node (%02x) root\n",
-					  "IRM is not 1394a compliant", new_root_id);
-				goto pick_me;
-			}
-
-			rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
-					irm_id, generation, SCODE_100,
-					CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
-					data, sizeof(data));
-
-			switch (rcode) {
-			case RCODE_GENERATION:
-				// Another bus reset, BM work has been rescheduled.
-				return;
-			case RCODE_SEND_ERROR:
-				// We have been unable to send the lock request due to
-				// some local problem.  Let's try again later and hope
-				// that the problem has gone away by then.
-				fw_schedule_bm_work(card, msecs_to_jiffies(125));
-				return;
-			case RCODE_COMPLETE:
-			{
-				int bm_id = be32_to_cpu(data[0]);
-
-				// Used by cdev layer for "struct fw_cdev_event_bus_reset".
-				scoped_guard(spinlock, &card->lock) {
-					if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
-						card->bm_node_id = 0xffc0 & bm_id;
-					else
-						card->bm_node_id = local_id;
-				}
-
-				if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED) {
-					// Somebody else is BM.  Only act as IRM.
-					if (local_id == irm_id)
-						allocate_broadcast_channel(card, generation);
-					return;
-				}
-				break;
-			}
-			default:
-				if (!keep_this_irm) {
-					// The lock request failed, maybe the IRM
-					// isn't really IRM capable after all. Let's
-					// do a bus reset and pick the local node as
-					// root, and thus, IRM.
-					new_root_id = local_id;
-					fw_notice(card, "BM lock failed (%s), making local node (%02x) root\n",
-						  fw_rcode_string(rcode), new_root_id);
-					goto pick_me;
-				}
-				break;
-			}
-
-			// A node contends for bus manager in this generation.
-			card->bm_generation = generation;
-		} else {
-			// We weren't BM in the last generation, and the last
-			// bus reset is less than 125ms ago.  Reschedule this job.
+		switch (result) {
+		case BM_CONTENTION_OUTCOME_WITHIN_WINDOW:
 			fw_schedule_bm_work(card, msecs_to_jiffies(125));
 			return;
+		case BM_CONTENTION_OUTCOME_IRM_HAS_LINK_OFF:
+			new_root_id = local_id;
+			goto pick_me;
+		case BM_CONTENTION_OUTCOME_IRM_COMPLIES_1394_1995_ONLY:
+			new_root_id = local_id;
+			goto pick_me;
+		case BM_CONTENTION_OUTCOME_AT_NEW_GENERATION:
+			// BM work has been rescheduled.
+			return;
+		case BM_CONTENTION_OUTCOME_LOCAL_PROBLEM_AT_TRANSACTION:
+			// Let's try again later and hope that the local problem has gone away by
+			// then.
+			fw_schedule_bm_work(card, msecs_to_jiffies(125));
+			return;
+		case BM_CONTENTION_OUTCOME_IRM_IS_NOT_CAPABLE_FOR_IRM:
+			// Let's do a bus reset and pick the local node as root, and thus, IRM.
+			new_root_id = local_id;
+			goto pick_me;
+		case BM_CONTENTION_OUTCOME_IRM_HOLDS_ANOTHER_NODE_AS_BM:
+			if (local_id == irm_id) {
+				// Only acts as IRM.
+				allocate_broadcast_channel(card, generation);
+			}
+			fallthrough;
+		case BM_CONTENTION_OUTCOME_IRM_HOLDS_LOCAL_NODE_AS_BM:
+		default:
+			card->bm_generation = generation;
+			break;
 		}
 	}
 
