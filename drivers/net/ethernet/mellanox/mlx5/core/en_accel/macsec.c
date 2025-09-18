@@ -1676,7 +1676,7 @@ void mlx5e_macsec_tx_build_eseg(struct mlx5e_macsec *macsec,
 	if (!fs_id)
 		return;
 
-	eseg->flow_table_metadata = cpu_to_be32(MLX5_ETH_WQE_FT_META_MACSEC | fs_id << 2);
+	eseg->flow_table_metadata = cpu_to_be32(MLX5_MACSEC_TX_METADATA(fs_id));
 }
 
 void mlx5e_macsec_offload_handle_rx_skb(struct net_device *netdev,
