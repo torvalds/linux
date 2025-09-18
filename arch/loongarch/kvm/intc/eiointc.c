@@ -467,19 +467,17 @@ static int kvm_eiointc_ctrl_access(struct kvm_device *dev,
 
 static int kvm_eiointc_regs_access(struct kvm_device *dev,
 					struct kvm_device_attr *attr,
-					bool is_write)
+					bool is_write, int *data)
 {
 	int addr, cpu, offset, ret = 0;
 	unsigned long flags;
 	void *p = NULL;
-	void __user *data;
 	struct loongarch_eiointc *s;
 
 	s = dev->kvm->arch.eiointc;
 	addr = attr->attr;
 	cpu = addr >> 16;
 	addr &= 0xffff;
-	data = (void __user *)attr->addr;
 	switch (addr) {
 	case EIOINTC_NODETYPE_START ... EIOINTC_NODETYPE_END:
 		offset = (addr - EIOINTC_NODETYPE_START) / 4;
@@ -518,13 +516,10 @@ static int kvm_eiointc_regs_access(struct kvm_device *dev,
 	}
 
 	spin_lock_irqsave(&s->lock, flags);
-	if (is_write) {
-		if (copy_from_user(p, data, 4))
-			ret = -EFAULT;
-	} else {
-		if (copy_to_user(data, p, 4))
-			ret = -EFAULT;
-	}
+	if (is_write)
+		memcpy(p, data, 4);
+	else
+		memcpy(data, p, 4);
 	spin_unlock_irqrestore(&s->lock, flags);
 
 	return ret;
@@ -581,9 +576,18 @@ static int kvm_eiointc_sw_status_access(struct kvm_device *dev,
 static int kvm_eiointc_get_attr(struct kvm_device *dev,
 				struct kvm_device_attr *attr)
 {
+	int ret, data;
+
 	switch (attr->group) {
 	case KVM_DEV_LOONGARCH_EXTIOI_GRP_REGS:
-		return kvm_eiointc_regs_access(dev, attr, false);
+		ret = kvm_eiointc_regs_access(dev, attr, false, &data);
+		if (ret)
+			return ret;
+
+		if (copy_to_user((void __user *)attr->addr, &data, 4))
+			ret = -EFAULT;
+
+		return ret;
 	case KVM_DEV_LOONGARCH_EXTIOI_GRP_SW_STATUS:
 		return kvm_eiointc_sw_status_access(dev, attr, false);
 	default:
@@ -594,11 +598,16 @@ static int kvm_eiointc_get_attr(struct kvm_device *dev,
 static int kvm_eiointc_set_attr(struct kvm_device *dev,
 				struct kvm_device_attr *attr)
 {
+	int data;
+
 	switch (attr->group) {
 	case KVM_DEV_LOONGARCH_EXTIOI_GRP_CTRL:
 		return kvm_eiointc_ctrl_access(dev, attr);
 	case KVM_DEV_LOONGARCH_EXTIOI_GRP_REGS:
-		return kvm_eiointc_regs_access(dev, attr, true);
+		if (copy_from_user(&data, (void __user *)attr->addr, 4))
+			return -EFAULT;
+
+		return kvm_eiointc_regs_access(dev, attr, true, &data);
 	case KVM_DEV_LOONGARCH_EXTIOI_GRP_SW_STATUS:
 		return kvm_eiointc_sw_status_access(dev, attr, true);
 	default:
