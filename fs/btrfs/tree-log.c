@@ -732,7 +732,6 @@ static noinline int replay_one_extent(struct walk_control *wc)
 	struct btrfs_key ins;
 	struct btrfs_file_extent_item *item;
 	struct btrfs_inode *inode = NULL;
-	unsigned long size;
 	int ret = 0;
 
 	item = btrfs_item_ptr(wc->log_leaf, wc->log_slot, struct btrfs_file_extent_item);
@@ -745,10 +744,8 @@ static noinline int replay_one_extent(struct walk_control *wc)
 		if (btrfs_file_extent_disk_bytenr(wc->log_leaf, item) != 0)
 			nbytes = btrfs_file_extent_num_bytes(wc->log_leaf, item);
 	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
-		size = btrfs_file_extent_ram_bytes(wc->log_leaf, item);
 		nbytes = btrfs_file_extent_ram_bytes(wc->log_leaf, item);
-		extent_end = ALIGN(start + size,
-				   fs_info->sectorsize);
+		extent_end = ALIGN(start + nbytes, fs_info->sectorsize);
 	} else {
 		btrfs_abort_log_replay(wc, -EUCLEAN,
 		       "unexpected extent type=%d root=%llu inode=%llu offset=%llu",
