@@ -57,7 +57,8 @@ enum file_state {
 
 /* MEI device states */
 enum mei_dev_state {
-	MEI_DEV_INITIALIZING = 0,
+	MEI_DEV_UNINITIALIZED = 0,
+	MEI_DEV_INITIALIZING,
 	MEI_DEV_INIT_CLIENTS,
 	MEI_DEV_ENABLED,
 	MEI_DEV_RESETTING,

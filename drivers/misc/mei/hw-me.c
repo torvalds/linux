@@ -1373,9 +1373,20 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	/*  check if we need to start the dev */
 	if (!mei_host_is_ready(dev)) {
 		if (mei_hw_is_ready(dev)) {
-			dev_dbg(&dev->dev, "we need to start the dev.\n");
-			dev->recvd_hw_ready = true;
-			wake_up(&dev->wait_hw_ready);
+			/* synchronized by dev mutex */
+			if (waitqueue_active(&dev->wait_hw_ready)) {
+				dev_dbg(&dev->dev, "we need to start the dev.\n");
+				dev->recvd_hw_ready = true;
+				wake_up(&dev->wait_hw_ready);
+			} else if (dev->dev_state != MEI_DEV_UNINITIALIZED &&
+				   dev->dev_state != MEI_DEV_POWERING_DOWN &&
+				   dev->dev_state != MEI_DEV_POWER_DOWN) {
+				dev_dbg(&dev->dev, "Force link reset.\n");
+				schedule_work(&dev->reset_work);
+			} else {
+				dev_dbg(&dev->dev, "Ignore this interrupt in state = %d\n",
+					dev->dev_state);
+			}
 		} else {
 			dev_dbg(&dev->dev, "Spurious Interrupt\n");
 		}

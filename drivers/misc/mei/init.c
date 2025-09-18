@@ -399,7 +399,7 @@ void mei_device_init(struct mei_device *dev,
 	init_waitqueue_head(&dev->wait_hw_ready);
 	init_waitqueue_head(&dev->wait_pg);
 	init_waitqueue_head(&dev->wait_hbm_start);
-	dev->dev_state = MEI_DEV_INITIALIZING;
+	dev->dev_state = MEI_DEV_UNINITIALIZED;
 	dev->reset_count = 0;
 
 	INIT_LIST_HEAD(&dev->write_list);
