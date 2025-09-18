@@ -11,20 +11,17 @@
 
 struct psp_dev *psp_dev_get_for_sock(struct sock *sk)
 {
+	struct psp_dev *psd = NULL;
 	struct dst_entry *dst;
-	struct psp_dev *psd;
-
-	dst = sk_dst_get(sk);
-	if (!dst)
-		return NULL;
 
 	rcu_read_lock();
-	psd = rcu_dereference(dst->dev->psp_dev);
-	if (psd && !psp_dev_tryget(psd))
-		psd = NULL;
+	dst = __sk_dst_get(sk);
+	if (dst) {
+		psd = rcu_dereference(dst_dev_rcu(dst)->psp_dev);
+		if (psd && !psp_dev_tryget(psd))
+			psd = NULL;
+	}
 	rcu_read_unlock();
-
-	dst_release(dst);
 
 	return psd;
 }
