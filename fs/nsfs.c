@@ -492,7 +492,7 @@ static struct dentry *nsfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 		VFS_WARN_ON_ONCE(ns->ops->type != fid->ns_type);
 		VFS_WARN_ON_ONCE(ns->inum != fid->ns_inum);
 
-		if (!refcount_inc_not_zero(&ns->count))
+		if (!__ns_ref_get(ns))
 			return NULL;
 	}
 
