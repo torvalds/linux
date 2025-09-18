@@ -485,7 +485,11 @@ struct intel_display {
 		 * bitfield.
 		 */
 		u32 ilk_de_imr_mask;
-		u32 de_irq_mask[I915_MAX_PIPES];
+		/*
+		 * Cached value of BDW+ DE pipe IMR to avoid reads in updating
+		 * the bitfield.
+		 */
+		u32 de_pipe_imr_mask[I915_MAX_PIPES];
 		u32 pipestat_irq_mask[I915_MAX_PIPES];
 	} irq;
 
