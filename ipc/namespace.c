@@ -199,7 +199,7 @@ static void free_ipc(struct work_struct *unused)
  */
 void put_ipc_ns(struct ipc_namespace *ns)
 {
-	if (refcount_dec_and_lock(&ns->ns.count, &mq_lock)) {
+	if (ns_ref_put_and_lock(ns, &mq_lock)) {
 		mq_clear_sbinfo(ns);
 		spin_unlock(&mq_lock);
 
