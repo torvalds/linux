@@ -400,58 +400,6 @@ static bool process_negotiation_response(
 	return true;
 }
 
-static void smbd_post_send_credits(struct work_struct *work)
-{
-	int rc;
-	struct smbdirect_recv_io *response;
-	struct smbdirect_socket *sc =
-		container_of(work, struct smbdirect_socket, recv_io.posted.refill_work);
-	int posted = 0;
-
-	if (sc->status != SMBDIRECT_SOCKET_CONNECTED) {
-		return;
-	}
-
-	if (sc->recv_io.credits.target >
-		atomic_read(&sc->recv_io.credits.count)) {
-		while (true) {
-			response = smbdirect_connection_get_recv_io(sc);
-			if (!response)
-				break;
-
-			response->first_segment = false;
-			rc = smbdirect_connection_post_recv_io(response);
-			if (rc) {
-				log_rdma_recv(ERR,
-					"post_recv failed rc=%d\n", rc);
-				smbdirect_connection_put_recv_io(response);
-				break;
-			}
-
-			atomic_inc(&sc->recv_io.posted.count);
-			posted += 1;
-		}
-	}
-
-	atomic_add(posted, &sc->recv_io.credits.available);
-
-	/*
-	 * If the last send credit is waiting for credits
-	 * it can grant we need to wake it up
-	 */
-	if (posted &&
-	    atomic_read(&sc->send_io.bcredits.count) == 0 &&
-	    atomic_read(&sc->send_io.credits.count) == 0)
-		wake_up(&sc->send_io.credits.wait_queue);
-
-	/* Promptly send an immediate packet as defined in [MS-SMBD] 3.1.1.1 */
-	if (atomic_read(&sc->recv_io.credits.count) <
-		sc->recv_io.credits.target - 1) {
-		log_keep_alive(INFO, "schedule send of an empty message\n");
-		queue_work(sc->workqueue, &sc->idle.immediate_work);
-	}
-}
-
 /* Called from softirq, when recv is done */
 static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 {
@@ -1607,7 +1555,7 @@ static struct smbd_connection *_smbd_get_connection(
 	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
 			 msecs_to_jiffies(sp->negotiate_timeout_msec));
 
-	INIT_WORK(&sc->recv_io.posted.refill_work, smbd_post_send_credits);
+	INIT_WORK(&sc->recv_io.posted.refill_work, smbdirect_connection_recv_io_refill_work);
 
 	rc = smbd_negotiate(sc);
 	if (rc) {
