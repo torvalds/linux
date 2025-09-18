@@ -285,7 +285,6 @@ class AncillaryMethods:
         cur_ver = sys.version_info[:3]
         if cur_ver >= MIN_PYTHON_VERSION:
             ver = ver_str(cur_ver)
-            print(f"Python version: {ver}")
 
             # This could be useful for debugging purposes
             if SphinxDependencyChecker.which("docutils"):
