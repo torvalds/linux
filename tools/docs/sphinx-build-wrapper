@@ -96,14 +96,6 @@ class SphinxBuilder:
     with the Kernel.
     """
 
-    def is_rust_enabled(self):
-        """Check if rust is enabled at .config"""
-        config_path = os.path.join(self.srctree, ".config")
-        if os.path.isfile(config_path):
-            with open(config_path, "r", encoding="utf-8") as f:
-                return "CONFIG_RUST=y" in f.read()
-        return False
-
     def get_path(self, path, use_cwd=False, abs_path=False):
         """
         Ancillary routine to handle patches the right way, as shell does.
@@ -218,8 +210,6 @@ class SphinxBuilder:
                                                       "scripts/kernel-doc.py"))
         self.builddir = self.get_path(builddir, use_cwd=True, abs_path=True)
 
-        self.config_rust = self.is_rust_enabled()
-
         #
         # Get directory locations for LaTeX build toolchain
         #
@@ -274,7 +264,7 @@ class SphinxBuilder:
 
             return subprocess.call(cmd, *args, **pwargs)
 
-    def handle_html(self, css, output_dir):
+    def handle_html(self, css, output_dir, rustdoc):
         """
         Extra steps for HTML and epub output.
 
@@ -282,20 +272,34 @@ class SphinxBuilder:
         copied to the output _static directory
         """
 
-        if not css:
-            return
+        if css:
+            css = os.path.expanduser(css)
+            if not css.startswith("/"):
+                css = os.path.join(self.srctree, css)
 
-        css = os.path.expanduser(css)
-        if not css.startswith("/"):
-            css = os.path.join(self.srctree, css)
+            static_dir = os.path.join(output_dir, "_static")
+            os.makedirs(static_dir, exist_ok=True)
 
-        static_dir = os.path.join(output_dir, "_static")
-        os.makedirs(static_dir, exist_ok=True)
+            try:
+                shutil.copy2(css, static_dir)
+            except (OSError, IOError) as e:
+                print(f"Warning: Failed to copy CSS: {e}", file=sys.stderr)
 
-        try:
-            shutil.copy2(css, static_dir)
-        except (OSError, IOError) as e:
-            print(f"Warning: Failed to copy CSS: {e}", file=sys.stderr)
+        if rustdoc:
+            if "MAKE" in self.env:
+                cmd = [self.env["MAKE"]]
+            else:
+                cmd = ["make", "LLVM=1"]
+
+            cmd += [ "rustdoc"]
+            if self.verbose:
+                print(" ".join(cmd))
+
+            try:
+                subprocess.run(cmd, check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"Ignored errors when building rustdoc: {e}. Is RUST enabled?",
+                      file=sys.stderr)
 
     def build_pdf_file(self, latex_cmd, from_dir, path):
         """Builds a single pdf file using latex_cmd"""
@@ -576,7 +580,7 @@ class SphinxBuilder:
         shutil.rmtree(self.builddir, ignore_errors=True)
 
     def build(self, target, sphinxdirs=None, conf="conf.py",
-              theme=None, css=None, paper=None, deny_vf=None):
+              theme=None, css=None, paper=None, deny_vf=None, rustdoc=False):
         """
         Build documentation using Sphinx. This is the core function of this
         module. It prepares all arguments required by sphinx-build.
@@ -623,7 +627,7 @@ class SphinxBuilder:
 
             args.extend(["-D", f"latex_elements.papersize={paper}paper"])
 
-        if self.config_rust:
+        if rustdoc:
             args.extend(["-t", "rustdoc"])
 
         if conf:
@@ -699,7 +703,7 @@ class SphinxBuilder:
             # Ensure that each html/epub output will have needed static files
             #
             if target in ["htmldocs", "epubdocs"]:
-                self.handle_html(css, output_dir)
+                self.handle_html(css, output_dir, rustdoc)
 
         #
         # Step 2: Some targets (PDF and info) require an extra step once
@@ -756,6 +760,9 @@ def main():
     parser.add_argument('--deny-vf',
                         help="Configuration to deny variable fonts on pdf builds")
 
+    parser.add_argument('--rustdoc', action="store_true",
+                        help="Enable rustdoc build. Requires CONFIG_RUST")
+
     parser.add_argument("-v", "--verbose", action='store_true',
                         help="place build in verbose mode")
 
@@ -775,7 +782,7 @@ def main():
 
     builder.build(args.target, sphinxdirs=args.sphinxdirs, conf=args.conf,
                   theme=args.theme, css=args.css, paper=args.paper,
-                  deny_vf=args.deny_vf)
+                  rustdoc=args.rustdoc, deny_vf=args.deny_vf)
 
 if __name__ == "__main__":
     main()

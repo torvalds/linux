@@ -23,6 +23,7 @@ SPHINXOPTS    =
 SPHINXDIRS    = .
 DOCS_THEME    =
 DOCS_CSS      =
+RUSTDOC       =
 SPHINX_CONF   = conf.py
 PAPER         =
 BUILDDIR      = $(obj)/output
@@ -42,6 +43,10 @@ FONTS_CONF_DENY_VF ?= $(HOME)/deny-vf
 # User-friendly check for sphinx-build
 HAVE_SPHINX := $(shell if which $(SPHINXBUILD) >/dev/null 2>&1; then echo 1; else echo 0; fi)
 
+ifeq ($(CONFIG_RUST),y)
+	RUSTDOC="--rustdoc"
+endif
+
 ifeq ($(HAVE_SPHINX),0)
 
 .DEFAULT:
@@ -53,10 +58,10 @@ ifeq ($(HAVE_SPHINX),0)
 else # HAVE_SPHINX
 
 # Common documentation targets
-mandocs infodocs texinfodocs latexdocs epubdocs xmldocs pdfdocs linkcheckdocs:
+htmldocs mandocs infodocs texinfodocs latexdocs epubdocs xmldocs pdfdocs linkcheckdocs:
 	$(Q)@$(srctree)/tools/docs/sphinx-pre-install --version-check
-	+$(Q)$(PYTHON3) $(BUILD_WRAPPER) $@ \
-		--sphinxdirs="$(SPHINXDIRS)" --conf="$(SPHINX_CONF)" \
+	+$(Q)$(PYTHON3) $(BUILD_WRAPPER) $@ $(RUSTDOC)\
+		--sphinxdirs="$(SPHINXDIRS)" --conf="$(SPHINX_CONF)" $(RUSTDOC)\
 		--builddir="$(BUILDDIR)" --deny-vf=$(FONTS_CONF_DENY_VF) \
 		--theme=$(DOCS_THEME) --css=$(DOCS_CSS) --paper=$(PAPER)
 
@@ -69,25 +74,6 @@ endif
 
 htmldocs-redirects: $(srctree)/Documentation/.renames.txt
 	@tools/docs/gen-redirects.py --output $(BUILDDIR) < $<
-
-# HTML main logic is identical to other targets. However, if rust is enabled,
-# an extra step at the end is required to generate rustdoc.
-htmldocs:
-	$(Q)@$(srctree)/tools/docs/sphinx-pre-install --version-check
-	+$(Q)$(PYTHON3) $(BUILD_WRAPPER) $@ \
-		--sphinxdirs="$(SPHINXDIRS)" --conf="$(SPHINX_CONF)" \
-		--builddir="$(BUILDDIR)" \
-		--theme=$(DOCS_THEME) --css=$(DOCS_CSS) --paper=$(PAPER)
-# If Rust support is available and .config exists, add rustdoc generated contents.
-# If there are any, the errors from this make rustdoc will be displayed but
-# won't stop the execution of htmldocs
-
-ifneq ($(wildcard $(srctree)/.config),)
-ifeq ($(CONFIG_RUST),y)
-	$(Q)$(MAKE) rustdoc || true
-endif
-endif
-
 endif # HAVE_SPHINX
 
 # The following targets are independent of HAVE_SPHINX, and the rules should
