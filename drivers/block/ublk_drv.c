@@ -2527,10 +2527,10 @@ static struct request *ublk_check_and_get_req(struct kiocb *iocb,
 		return ERR_PTR(-EINVAL);
 
 	ubq = ublk_get_queue(ub, q_id);
-	if (!ublk_support_user_copy(ubq))
+	if (!ublk_dev_support_user_copy(ub))
 		return ERR_PTR(-EACCES);
 
-	if (tag >= ubq->q_depth)
+	if (tag >= ub->dev_info.queue_depth)
 		return ERR_PTR(-EINVAL);
 
 	*io = &ubq->ios[tag];
