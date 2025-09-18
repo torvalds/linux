@@ -94,7 +94,7 @@ do {								\
 
 #define __WARN_FLAGS(flags)					\
 do {								\
-	__auto_type __flags = BUGFLAG_WARNING|(flags);		\
+	enum{ __flags = BUGFLAG_WARNING|(flags)};		    \
 	instrumentation_begin();				\
 	_BUG_FLAGS(ASM_UD2, __flags, ARCH_WARN_REACHABLE);	\
 	instrumentation_end();					\
