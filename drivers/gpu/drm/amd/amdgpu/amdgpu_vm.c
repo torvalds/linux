@@ -486,6 +486,7 @@ int amdgpu_vm_lock_pd(struct amdgpu_vm *vm, struct drm_exec *exec,
 
 /**
  * amdgpu_vm_lock_done_list - lock all BOs on the done list
+ * @vm: vm providing the BOs
  * @exec: drm execution context
  * @num_fences: number of extra fences to reserve
  *
