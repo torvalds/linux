@@ -2243,17 +2243,17 @@ out:
 	return ret;
 }
 
-static int ublk_check_commit_and_fetch(const struct ublk_queue *ubq,
+static int ublk_check_commit_and_fetch(const struct ublk_device *ub,
 				       struct ublk_io *io, __u64 buf_addr)
 {
 	struct request *req = io->req;
 
-	if (ublk_need_map_io(ubq)) {
+	if (ublk_dev_need_map_io(ub)) {
 		/*
 		 * COMMIT_AND_FETCH_REQ has to provide IO buffer if
 		 * NEED GET DATA is not enabled or it is Read IO.
 		 */
-		if (!buf_addr && (!ublk_need_get_data(ubq) ||
+		if (!buf_addr && (!ublk_dev_need_get_data(ub) ||
 					req_op(req) == REQ_OP_READ))
 			return -EINVAL;
 	} else if (req_op(req) != REQ_OP_ZONE_APPEND && buf_addr) {
@@ -2381,7 +2381,7 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 		return ublk_daemon_register_io_buf(cmd, ub, q_id, tag, io, addr,
 						   issue_flags);
 	case UBLK_IO_COMMIT_AND_FETCH_REQ:
-		ret = ublk_check_commit_and_fetch(ubq, io, addr);
+		ret = ublk_check_commit_and_fetch(ub, io, addr);
 		if (ret)
 			goto out;
 		io->res = result;
