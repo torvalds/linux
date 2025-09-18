@@ -140,7 +140,7 @@ int smc_ism_get_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 
 	if (!vlanid)			/* No valid vlan id */
 		return -EINVAL;
-	if (!smcd->ops->add_vlan_id)
+	if (!smcd->dibs->ops->add_vlan_id)
 		return -EOPNOTSUPP;
 
 	/* create new vlan entry, in case we need it */
@@ -163,7 +163,7 @@ int smc_ism_get_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 	/* no existing entry found.
 	 * add new entry to device; might fail, e.g., if HW limit reached
 	 */
-	if (smcd->ops->add_vlan_id(smcd, vlanid)) {
+	if (smcd->dibs->ops->add_vlan_id(smcd->dibs, vlanid)) {
 		kfree(new_vlan);
 		rc = -EIO;
 		goto out;
@@ -187,7 +187,7 @@ int smc_ism_put_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 
 	if (!vlanid)			/* No valid vlan id */
 		return -EINVAL;
-	if (!smcd->ops->del_vlan_id)
+	if (!smcd->dibs->ops->del_vlan_id)
 		return -EOPNOTSUPP;
 
 	spin_lock_irqsave(&smcd->lock, flags);
@@ -205,7 +205,7 @@ int smc_ism_put_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 	}
 
 	/* Found and the last reference just gone */
-	if (smcd->ops->del_vlan_id(smcd, vlanid))
+	if (smcd->dibs->ops->del_vlan_id(smcd->dibs, vlanid))
 		rc = -EIO;
 	list_del(&vlan->list);
 	kfree(vlan);
@@ -539,8 +539,12 @@ static void smcd_register_dev(struct dibs_dev *dibs)
 	if (smc_pnetid_by_dev_port(dibs->dev.parent, 0, smcd->pnetid))
 		smc_pnetid_by_table_smcd(smcd);
 
-	if (smc_ism_is_loopback(dibs) || smcd->ops->supports_v2())
+	if (smc_ism_is_loopback(dibs) ||
+	    (dibs->ops->add_vlan_id &&
+	     !dibs->ops->add_vlan_id(dibs, ISM_RESERVED_VLANID))) {
 		smc_ism_set_v2_capable();
+	}
+
 	mutex_lock(&smcd_dev_list.mutex);
 	/* sort list:
 	 * - devices without pnetid before devices with pnetid;

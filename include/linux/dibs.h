@@ -133,6 +133,25 @@ struct dibs_dev_ops {
 	 * Return: 2 byte dibs fabric id
 	 */
 	u16 (*get_fabric_id)(struct dibs_dev *dev);
+	/**
+	 * add_vlan_id() - add dibs device to vlan (optional, deprecated)
+	 * @dev: dibs device
+	 * @vlan_id: vlan id
+	 *
+	 * In order to write into a vlan-tagged dmb, the remote device needs
+	 * to belong to the this vlan. A device can belong to more than 1 vlan.
+	 * Any device can access an untagged dmb.
+	 * Deprecated, only supported for backwards compatibility.
+	 * Return: zero on success
+	 */
+	int (*add_vlan_id)(struct dibs_dev *dev, u64 vlan_id);
+	/**
+	 * del_vlan_id() - remove dibs device from vlan (optional, deprecated)
+	 * @dev: dibs device
+	 * @vlan_id: vlan id
+	 * Return: zero on success
+	 */
+	int (*del_vlan_id)(struct dibs_dev *dev, u64 vlan_id);
 };
 
 struct dibs_dev {

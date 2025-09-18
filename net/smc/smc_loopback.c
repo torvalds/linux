@@ -20,7 +20,6 @@
 #include "smc_ism.h"
 #include "smc_loopback.h"
 
-#define SMC_LO_V2_CAPABLE	0x1 /* loopback-ism acts as ISMv2 */
 #define SMC_LO_SUPPORT_NOCOPY	0x1
 #define SMC_DMA_ADDR_INVALID	(~(dma_addr_t)0)
 
@@ -242,10 +241,6 @@ static const struct smcd_ops lo_ops = {
 	.support_dmb_nocopy = smc_lo_support_dmb_nocopy,
 	.attach_dmb = smc_lo_attach_dmb,
 	.detach_dmb = smc_lo_detach_dmb,
-	.add_vlan_id		= NULL,
-	.del_vlan_id		= NULL,
-	.set_vlan_required	= NULL,
-	.reset_vlan_required	= NULL,
 	.signal_event		= NULL,
 	.move_data = smc_lo_move_data,
 };

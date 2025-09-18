@@ -36,7 +36,6 @@ static struct ism_client *clients[MAX_CLIENTS];	/* use an array rather than */
 						/* a list for fast mapping  */
 static u8 max_client;
 static DEFINE_MUTEX(clients_lock);
-static bool ism_v2_capable;
 struct ism_dev_list {
 	struct list_head list;
 	struct mutex mutex; /* protects ism device list */
@@ -409,8 +408,9 @@ out:
 }
 EXPORT_SYMBOL_GPL(ism_unregister_dmb);
 
-static int ism_add_vlan_id(struct ism_dev *ism, u64 vlan_id)
+static int ism_add_vlan_id(struct dibs_dev *dibs, u64 vlan_id)
 {
+	struct ism_dev *ism = dibs->drv_priv;
 	union ism_set_vlan_id cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -422,8 +422,9 @@ static int ism_add_vlan_id(struct ism_dev *ism, u64 vlan_id)
 	return ism_cmd(ism, &cmd);
 }
 
-static int ism_del_vlan_id(struct ism_dev *ism, u64 vlan_id)
+static int ism_del_vlan_id(struct dibs_dev *dibs, u64 vlan_id)
 {
+	struct ism_dev *ism = dibs->drv_priv;
 	union ism_set_vlan_id cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -536,6 +537,8 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 
 static const struct dibs_dev_ops ism_ops = {
 	.get_fabric_id = ism_get_chid,
+	.add_vlan_id = ism_add_vlan_id,
+	.del_vlan_id = ism_del_vlan_id,
 };
 
 static int ism_dev_init(struct ism_dev *ism)
@@ -564,12 +567,6 @@ static int ism_dev_init(struct ism_dev *ism)
 	ret = register_ieq(ism);
 	if (ret)
 		goto unreg_sba;
-
-	if (!ism_add_vlan_id(ism, ISM_RESERVED_VLANID))
-		/* hardware is V2 capable */
-		ism_v2_capable = true;
-	else
-		ism_v2_capable = false;
 
 	mutex_lock(&ism_dev_list.mutex);
 	mutex_lock(&clients_lock);
@@ -611,8 +608,6 @@ static void ism_dev_exit(struct ism_dev *ism)
 
 	mutex_lock(&ism_dev_list.mutex);
 
-	if (ism_v2_capable)
-		ism_del_vlan_id(ism, ISM_RESERVED_VLANID);
 	unregister_ieq(ism);
 	unregister_sba(ism);
 	free_irq(pci_irq_vector(pdev, 0), ism);
@@ -786,26 +781,6 @@ static int smcd_unregister_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb)
 	return ism_unregister_dmb(smcd->priv, (struct ism_dmb *)dmb);
 }
 
-static int smcd_add_vlan_id(struct smcd_dev *smcd, u64 vlan_id)
-{
-	return ism_add_vlan_id(smcd->priv, vlan_id);
-}
-
-static int smcd_del_vlan_id(struct smcd_dev *smcd, u64 vlan_id)
-{
-	return ism_del_vlan_id(smcd->priv, vlan_id);
-}
-
-static int smcd_set_vlan_required(struct smcd_dev *smcd)
-{
-	return ism_cmd_simple(smcd->priv, ISM_SET_VLAN);
-}
-
-static int smcd_reset_vlan_required(struct smcd_dev *smcd)
-{
-	return ism_cmd_simple(smcd->priv, ISM_RESET_VLAN);
-}
-
 static int ism_signal_ieq(struct ism_dev *ism, u64 rgid, u32 trigger_irq,
 			  u32 event_code, u64 info)
 {
@@ -837,22 +812,12 @@ static int smcd_move(struct smcd_dev *smcd, u64 dmb_tok, unsigned int idx,
 	return ism_move(smcd->priv, dmb_tok, idx, sf, offset, data, size);
 }
 
-static int smcd_supports_v2(void)
-{
-	return ism_v2_capable;
-}
-
 static const struct smcd_ops ism_smcd_ops = {
 	.query_remote_gid = smcd_query_rgid,
 	.register_dmb = smcd_register_dmb,
 	.unregister_dmb = smcd_unregister_dmb,
-	.add_vlan_id = smcd_add_vlan_id,
-	.del_vlan_id = smcd_del_vlan_id,
-	.set_vlan_required = smcd_set_vlan_required,
-	.reset_vlan_required = smcd_reset_vlan_required,
 	.signal_event = smcd_signal_ieq,
 	.move_data = smcd_move,
-	.supports_v2 = smcd_supports_v2,
 };
 
 const struct smcd_ops *ism_get_smcd_ops(void)
