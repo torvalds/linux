@@ -77,8 +77,12 @@ static void smc_ism_create_system_eid(void)
 int smc_ism_cantalk(struct smcd_gid *peer_gid, unsigned short vlan_id,
 		    struct smcd_dev *smcd)
 {
-	return smcd->ops->query_remote_gid(smcd, peer_gid, vlan_id ? 1 : 0,
-					   vlan_id);
+	struct dibs_dev *dibs = smcd->dibs;
+	uuid_t ism_rgid;
+
+	copy_to_dibsgid(&ism_rgid, peer_gid);
+	return dibs->ops->query_remote_gid(dibs, &ism_rgid, vlan_id ? 1 : 0,
+					  vlan_id);
 }
 
 void smc_ism_get_system_eid(u8 **eid)

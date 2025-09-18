@@ -25,18 +25,6 @@
 
 static struct smc_lo_dev *lo_dev;
 
-static int smc_lo_query_rgid(struct smcd_dev *smcd, struct smcd_gid *rgid,
-			     u32 vid_valid, u32 vid)
-{
-	uuid_t temp;
-
-	copy_to_dibsgid(&temp, rgid);
-	/* rgid should be the same as lgid */
-	if (!uuid_equal(&temp, &smcd->dibs->gid))
-		return -ENETUNREACH;
-	return 0;
-}
-
 static int smc_lo_register_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb,
 			       void *client_priv)
 {
@@ -235,7 +223,6 @@ static int smc_lo_move_data(struct smcd_dev *smcd, u64 dmb_tok,
 }
 
 static const struct smcd_ops lo_ops = {
-	.query_remote_gid = smc_lo_query_rgid,
 	.register_dmb = smc_lo_register_dmb,
 	.unregister_dmb = smc_lo_unregister_dmb,
 	.support_dmb_nocopy = smc_lo_support_dmb_nocopy,

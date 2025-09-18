@@ -24,8 +24,18 @@ static u16 dibs_lo_get_fabric_id(struct dibs_dev *dibs)
 	return DIBS_LOOPBACK_FABRIC;
 }
 
+static int dibs_lo_query_rgid(struct dibs_dev *dibs, const uuid_t *rgid,
+			      u32 vid_valid, u32 vid)
+{
+	/* rgid should be the same as lgid */
+	if (!uuid_equal(rgid, &dibs->gid))
+		return -ENETUNREACH;
+	return 0;
+}
+
 static const struct dibs_dev_ops dibs_lo_ops = {
 	.get_fabric_id = dibs_lo_get_fabric_id,
+	.query_remote_gid = dibs_lo_query_rgid,
 };
 
 static int dibs_lo_dev_probe(void)

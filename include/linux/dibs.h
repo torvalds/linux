@@ -134,6 +134,20 @@ struct dibs_dev_ops {
 	 */
 	u16 (*get_fabric_id)(struct dibs_dev *dev);
 	/**
+	 * query_remote_gid()
+	 * @dev: local dibs device
+	 * @rgid: gid of remote dibs device
+	 * @vid_valid: if zero, vid will be ignored;
+	 *	       deprecated, ignored if device does not support vlan
+	 * @vid: VLAN id; deprecated, ignored if device does not support vlan
+	 *
+	 * Query whether a remote dibs device is reachable via this local device
+	 * and this vlan id.
+	 * Return: 0 if remote gid is reachable.
+	 */
+	int (*query_remote_gid)(struct dibs_dev *dev, const uuid_t *rgid,
+				u32 vid_valid, u32 vid);
+	/**
 	 * add_vlan_id() - add dibs device to vlan (optional, deprecated)
 	 * @dev: dibs device
 	 * @vlan_id: vlan id
