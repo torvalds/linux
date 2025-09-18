@@ -375,7 +375,7 @@ static struct device_attribute *cmm_attrs[] = {
 static DEVICE_ULONG_ATTR(simulate_loan_target_kb, 0644,
 			 simulate_loan_target_kb);
 
-static struct bus_type cmm_subsys = {
+static const struct bus_type cmm_subsys = {
 	.name = "cmm",
 	.dev_name = "cmm",
 };
