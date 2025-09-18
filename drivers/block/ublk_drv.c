@@ -2081,11 +2081,11 @@ ublk_fill_io_cmd(struct ublk_io *io, struct io_uring_cmd *cmd)
 }
 
 static inline int
-ublk_config_io_buf(const struct ublk_queue *ubq, struct ublk_io *io,
+ublk_config_io_buf(const struct ublk_device *ub, struct ublk_io *io,
 		   struct io_uring_cmd *cmd, unsigned long buf_addr,
 		   u16 *buf_idx)
 {
-	if (ublk_support_auto_buf_reg(ubq))
+	if (ublk_dev_support_auto_buf_reg(ub))
 		return ublk_handle_auto_buf_reg(io, cmd, buf_idx);
 
 	io->addr = buf_addr;
@@ -2233,7 +2233,7 @@ static int ublk_fetch(struct io_uring_cmd *cmd, struct ublk_queue *ubq,
 	WARN_ON_ONCE(io->flags & UBLK_IO_FLAG_OWNED_BY_SRV);
 
 	ublk_fill_io_cmd(io, cmd);
-	ret = ublk_config_io_buf(ubq, io, cmd, buf_addr, NULL);
+	ret = ublk_config_io_buf(ub, io, cmd, buf_addr, NULL);
 	if (ret)
 		goto out;
 
@@ -2387,7 +2387,7 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 			goto out;
 		io->res = result;
 		req = ublk_fill_io_cmd(io, cmd);
-		ret = ublk_config_io_buf(ubq, io, cmd, addr, &buf_idx);
+		ret = ublk_config_io_buf(ub, io, cmd, addr, &buf_idx);
 		compl = ublk_need_complete_req(ubq, io);
 
 		/* can't touch 'ublk_io' any more */
@@ -2408,7 +2408,7 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 		 * request
 		 */
 		req = ublk_fill_io_cmd(io, cmd);
-		ret = ublk_config_io_buf(ubq, io, cmd, addr, NULL);
+		ret = ublk_config_io_buf(ub, io, cmd, addr, NULL);
 		WARN_ON_ONCE(ret);
 		if (likely(ublk_get_data(ubq, io, req))) {
 			__ublk_prep_compl_io_cmd(io, req);
