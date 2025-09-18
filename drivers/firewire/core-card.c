@@ -388,6 +388,7 @@ static void bm_work(struct work_struct *work)
 	int root_id, new_root_id, irm_id, local_id;
 	int expected_gap_count, generation;
 	bool do_reset = false;
+	bool stand_for_root = false;
 
 	if (card->local_node == NULL)
 		return;
@@ -408,11 +409,11 @@ static void bm_work(struct work_struct *work)
 			fw_schedule_bm_work(card, msecs_to_jiffies(125));
 			return;
 		case BM_CONTENTION_OUTCOME_IRM_HAS_LINK_OFF:
-			new_root_id = local_id;
-			goto pick_me;
+			stand_for_root = true;
+			break;
 		case BM_CONTENTION_OUTCOME_IRM_COMPLIES_1394_1995_ONLY:
-			new_root_id = local_id;
-			goto pick_me;
+			stand_for_root = true;
+			break;
 		case BM_CONTENTION_OUTCOME_AT_NEW_GENERATION:
 			// BM work has been rescheduled.
 			return;
@@ -423,8 +424,8 @@ static void bm_work(struct work_struct *work)
 			return;
 		case BM_CONTENTION_OUTCOME_IRM_IS_NOT_CAPABLE_FOR_IRM:
 			// Let's do a bus reset and pick the local node as root, and thus, IRM.
-			new_root_id = local_id;
-			goto pick_me;
+			stand_for_root = true;
+			break;
 		case BM_CONTENTION_OUTCOME_IRM_HOLDS_ANOTHER_NODE_AS_BM:
 			if (local_id == irm_id) {
 				// Only acts as IRM.
@@ -438,56 +439,56 @@ static void bm_work(struct work_struct *work)
 		}
 	}
 
-	/*
-	 * We're bus manager for this generation, so next step is to
-	 * make sure we have an active cycle master and do gap count
-	 * optimization.
-	 */
-	if (card->gap_count == GAP_COUNT_MISMATCHED) {
-		/*
-		 * If self IDs have inconsistent gap counts, do a
-		 * bus reset ASAP. The config rom read might never
-		 * complete, so don't wait for it. However, still
-		 * send a PHY configuration packet prior to the
-		 * bus reset. The PHY configuration packet might
-		 * fail, but 1394-2008 8.4.5.2 explicitly permits
-		 * it in this case, so it should be safe to try.
-		 */
-		new_root_id = local_id;
-		/*
-		 * We must always send a bus reset if the gap count
-		 * is inconsistent, so bypass the 5-reset limit.
-		 */
-		card->bm_retries = 0;
-	} else {
-		// Now investigate root node.
-		struct fw_device *root_device = fw_node_get_device(root_node);
+	// We're bus manager for this generation, so next step is to make sure we have an active
+	// cycle master and do gap count optimization.
+	if (!stand_for_root) {
+		if (card->gap_count == GAP_COUNT_MISMATCHED) {
+			// If self IDs have inconsistent gap counts, do a
+			// bus reset ASAP. The config rom read might never
+			// complete, so don't wait for it. However, still
+			// send a PHY configuration packet prior to the
+			// bus reset. The PHY configuration packet might
+			// fail, but 1394-2008 8.4.5.2 explicitly permits
+			// it in this case, so it should be safe to try.
+			stand_for_root = true;
 
-		if (root_device == NULL) {
-			// Either link_on is false, or we failed to read the
-			// config rom.  In either case, pick another root.
-			new_root_id = local_id;
+			// We must always send a bus reset if the gap count
+			// is inconsistent, so bypass the 5-reset limit.
+			card->bm_retries = 0;
 		} else {
-			bool root_device_is_running =
-				atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
+			// Now investigate root node.
+			struct fw_device *root_device = fw_node_get_device(root_node);
 
-			if (!root_device_is_running) {
-				// If we haven't probed this device yet, bail out now
-				// and let's try again once that's done.
-				return;
-			} else if (root_device->cmc) {
-				// We will send out a force root packet for this
-				// node as part of the gap count optimization.
-				new_root_id = root_id;
+			if (root_device == NULL) {
+				// Either link_on is false, or we failed to read the
+				// config rom.  In either case, pick another root.
+				stand_for_root = true;
 			} else {
-				// Current root has an active link layer and we
-				// successfully read the config rom, but it's not
-				// cycle master capable.
-				new_root_id = local_id;
+				bool root_device_is_running =
+					atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
+
+				if (!root_device_is_running) {
+					// If we haven't probed this device yet, bail out now
+					// and let's try again once that's done.
+					return;
+				} else if (!root_device->cmc) {
+					// Current root has an active link layer and we
+					// successfully read the config rom, but it's not
+					// cycle master capable.
+					stand_for_root = true;
+				}
 			}
 		}
 	}
- pick_me:
+
+	if (stand_for_root) {
+		new_root_id = local_id;
+	} else {
+		// We will send out a force root packet for this node as part of the gap count
+		// optimization on behalf of the node.
+		new_root_id = root_id;
+	}
+
 	/*
 	 * Pick a gap count from 1394a table E-1.  The table doesn't cover
 	 * the typically much larger 1394b beta repeater delays though.
