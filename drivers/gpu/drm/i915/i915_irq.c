@@ -897,7 +897,7 @@ static void i915_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen2_error_reset(uncore, GEN2_ERROR_REGS);
 	gen2_irq_reset(uncore, GEN2_IRQ_REGS);
-	dev_priv->irq_mask = ~0u;
+	dev_priv->gen2_imr_mask = ~0u;
 }
 
 static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -908,7 +908,7 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen2_error_init(uncore, GEN2_ERROR_REGS, ~i9xx_error_mask(dev_priv));
 
-	dev_priv->irq_mask =
+	dev_priv->gen2_imr_mask =
 		~(I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
 		  I915_MASTER_ERROR_INTERRUPT);
@@ -920,16 +920,16 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 		I915_USER_INTERRUPT;
 
 	if (DISPLAY_VER(display) >= 3) {
-		dev_priv->irq_mask &= ~I915_ASLE_INTERRUPT;
+		dev_priv->gen2_imr_mask &= ~I915_ASLE_INTERRUPT;
 		enable_mask |= I915_ASLE_INTERRUPT;
 	}
 
 	if (HAS_HOTPLUG(display)) {
-		dev_priv->irq_mask &= ~I915_DISPLAY_PORT_INTERRUPT;
+		dev_priv->gen2_imr_mask &= ~I915_DISPLAY_PORT_INTERRUPT;
 		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
 	}
 
-	gen2_irq_init(uncore, GEN2_IRQ_REGS, dev_priv->irq_mask, enable_mask);
+	gen2_irq_init(uncore, GEN2_IRQ_REGS, dev_priv->gen2_imr_mask, enable_mask);
 
 	i915_display_irq_postinstall(display);
 }
@@ -999,7 +999,7 @@ static void i965_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen2_error_reset(uncore, GEN2_ERROR_REGS);
 	gen2_irq_reset(uncore, GEN2_IRQ_REGS);
-	dev_priv->irq_mask = ~0u;
+	dev_priv->gen2_imr_mask = ~0u;
 }
 
 static u32 i965_error_mask(struct drm_i915_private *i915)
@@ -1029,7 +1029,7 @@ static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen2_error_init(uncore, GEN2_ERROR_REGS, ~i965_error_mask(dev_priv));
 
-	dev_priv->irq_mask =
+	dev_priv->gen2_imr_mask =
 		~(I915_ASLE_INTERRUPT |
 		  I915_DISPLAY_PORT_INTERRUPT |
 		  I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
@@ -1047,7 +1047,7 @@ static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
 	if (IS_G4X(dev_priv))
 		enable_mask |= I915_BSD_USER_INTERRUPT;
 
-	gen2_irq_init(uncore, GEN2_IRQ_REGS, dev_priv->irq_mask, enable_mask);
+	gen2_irq_init(uncore, GEN2_IRQ_REGS, dev_priv->gen2_imr_mask, enable_mask);
 
 	i965_display_irq_postinstall(display);
 }

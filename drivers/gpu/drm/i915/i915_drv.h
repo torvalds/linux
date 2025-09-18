@@ -234,8 +234,8 @@ struct drm_i915_private {
 	/* Sideband mailbox protection */
 	struct mutex sb_lock;
 
-	/** Cached value of IMR to avoid reads in updating the bitfield */
-	u32 irq_mask;
+	/* Cached value of gen 2-4 IMR to avoid reads in updating the bitfield */
+	u32 gen2_imr_mask;
 
 	bool preserve_bios_swizzle;
 
