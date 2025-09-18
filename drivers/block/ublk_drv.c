@@ -662,9 +662,19 @@ static inline bool ublk_support_zero_copy(const struct ublk_queue *ubq)
 	return ubq->flags & UBLK_F_SUPPORT_ZERO_COPY;
 }
 
+static inline bool ublk_dev_support_zero_copy(const struct ublk_device *ub)
+{
+	return ub->dev_info.flags & UBLK_F_SUPPORT_ZERO_COPY;
+}
+
 static inline bool ublk_support_auto_buf_reg(const struct ublk_queue *ubq)
 {
 	return ubq->flags & UBLK_F_AUTO_BUF_REG;
+}
+
+static inline bool ublk_dev_support_auto_buf_reg(const struct ublk_device *ub)
+{
+	return ub->dev_info.flags & UBLK_F_AUTO_BUF_REG;
 }
 
 static inline bool ublk_support_user_copy(const struct ublk_queue *ubq)
@@ -672,10 +682,22 @@ static inline bool ublk_support_user_copy(const struct ublk_queue *ubq)
 	return ubq->flags & UBLK_F_USER_COPY;
 }
 
+static inline bool ublk_dev_support_user_copy(const struct ublk_device *ub)
+{
+	return ub->dev_info.flags & UBLK_F_USER_COPY;
+}
+
 static inline bool ublk_need_map_io(const struct ublk_queue *ubq)
 {
 	return !ublk_support_user_copy(ubq) && !ublk_support_zero_copy(ubq) &&
 		!ublk_support_auto_buf_reg(ubq);
+}
+
+static inline bool ublk_dev_need_map_io(const struct ublk_device *ub)
+{
+	return !ublk_dev_support_user_copy(ub) &&
+	       !ublk_dev_support_zero_copy(ub) &&
+	       !ublk_dev_support_auto_buf_reg(ub);
 }
 
 static inline bool ublk_need_req_ref(const struct ublk_queue *ubq)
@@ -693,6 +715,13 @@ static inline bool ublk_need_req_ref(const struct ublk_queue *ubq)
 	 */
 	return ublk_support_user_copy(ubq) || ublk_support_zero_copy(ubq) ||
 		ublk_support_auto_buf_reg(ubq);
+}
+
+static inline bool ublk_dev_need_req_ref(const struct ublk_device *ub)
+{
+	return ublk_dev_support_user_copy(ub) ||
+	       ublk_dev_support_zero_copy(ub) ||
+	       ublk_dev_support_auto_buf_reg(ub);
 }
 
 static inline void ublk_init_req_ref(const struct ublk_queue *ubq,
@@ -724,6 +753,11 @@ static inline bool ublk_sub_req_ref(struct ublk_io *io)
 static inline bool ublk_need_get_data(const struct ublk_queue *ubq)
 {
 	return ubq->flags & UBLK_F_NEED_GET_DATA;
+}
+
+static inline bool ublk_dev_need_get_data(const struct ublk_device *ub)
+{
+	return ub->dev_info.flags & UBLK_F_NEED_GET_DATA;
 }
 
 /* Called in slow path only, keep it noinline for trace purpose */
