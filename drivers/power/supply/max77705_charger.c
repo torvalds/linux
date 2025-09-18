@@ -74,8 +74,7 @@ static int max77705_charger_enable(struct max77705_charger_data *chg)
 {
 	int rv;
 
-	rv = regmap_update_bits(chg->regmap, MAX77705_CHG_REG_CNFG_09,
-				MAX77705_CHG_EN_MASK, MAX77705_CHG_EN_MASK);
+	rv = regmap_field_write(chg->rfield[MAX77705_CHG_EN], 1);
 	if (rv)
 		dev_err(chg->dev, "unable to enable the charger: %d\n", rv);
 
@@ -87,10 +86,7 @@ static void max77705_charger_disable(void *data)
 	struct max77705_charger_data *chg = data;
 	int rv;
 
-	rv = regmap_update_bits(chg->regmap,
-				MAX77705_CHG_REG_CNFG_09,
-				MAX77705_CHG_EN_MASK,
-				MAX77705_CHG_DISABLE);
+	rv = regmap_field_write(chg->rfield[MAX77705_CHG_EN], MAX77705_CHG_DISABLE);
 	if (rv)
 		dev_err(chg->dev, "unable to disable the charger: %d\n", rv);
 }
@@ -134,10 +130,10 @@ static int max77705_check_battery(struct max77705_charger_data *chg, int *val)
 static int max77705_get_charge_type(struct max77705_charger_data *chg, int *val)
 {
 	struct regmap *regmap = chg->regmap;
-	unsigned int reg_data;
+	unsigned int reg_data, chg_en;
 
-	regmap_read(regmap, MAX77705_CHG_REG_CNFG_09, &reg_data);
-	if (!MAX77705_CHARGER_CHG_CHARGING(reg_data)) {
+	regmap_field_read(chg->rfield[MAX77705_CHG_EN], &chg_en);
+	if (!chg_en) {
 		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
 		return 0;
 	}
@@ -162,10 +158,10 @@ static int max77705_get_charge_type(struct max77705_charger_data *chg, int *val)
 static int max77705_get_status(struct max77705_charger_data *chg, int *val)
 {
 	struct regmap *regmap = chg->regmap;
-	unsigned int reg_data;
+	unsigned int reg_data, chg_en;
 
-	regmap_read(regmap, MAX77705_CHG_REG_CNFG_09, &reg_data);
-	if (!MAX77705_CHARGER_CHG_CHARGING(reg_data)) {
+	regmap_field_read(chg->rfield[MAX77705_CHG_EN], &chg_en);
+	if (!chg_en) {
 		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
 		return 0;
 	}
@@ -295,16 +291,11 @@ static int max77705_get_input_current(struct max77705_charger_data *chg,
 {
 	unsigned int reg_data;
 	int get_current = 0;
-	struct regmap *regmap = chg->regmap;
 
-	regmap_read(regmap, MAX77705_CHG_REG_CNFG_09, &reg_data);
-
-	reg_data &= MAX77705_CHG_CHGIN_LIM_MASK;
+	regmap_field_read(chg->rfield[MAX77705_CHG_CHGIN_LIM], &reg_data);
 
 	if (reg_data <= 3)
 		get_current = MAX77705_CURRENT_CHGIN_MIN;
-	else if (reg_data >= MAX77705_CHG_CHGIN_LIM_MASK)
-		get_current = MAX77705_CURRENT_CHGIN_MAX;
 	else
 		get_current = (reg_data + 1) * MAX77705_CURRENT_CHGIN_STEP;
 
@@ -317,10 +308,8 @@ static int max77705_get_charge_current(struct max77705_charger_data *chg,
 					int *val)
 {
 	unsigned int reg_data;
-	struct regmap *regmap = chg->regmap;
 
-	regmap_read(regmap, MAX77705_CHG_REG_CNFG_02, &reg_data);
-	reg_data &= MAX77705_CHG_CC;
+	regmap_field_read(chg->rfield[MAX77705_CHG_CC_LIM], &reg_data);
 
 	*val = reg_data <= 0x2 ? MAX77705_CURRENT_CHGIN_MIN : reg_data * MAX77705_CURRENT_CHG_STEP;
 
@@ -332,7 +321,6 @@ static int max77705_set_float_voltage(struct max77705_charger_data *chg,
 {
 	int float_voltage_mv;
 	unsigned int reg_data = 0;
-	struct regmap *regmap = chg->regmap;
 
 	float_voltage_mv = float_voltage / 1000;
 	reg_data = float_voltage_mv <= 4000 ? 0x0 :
@@ -340,9 +328,7 @@ static int max77705_set_float_voltage(struct max77705_charger_data *chg,
 		(float_voltage_mv <= 4200) ? (float_voltage_mv - 4000) / 50 :
 		(((float_voltage_mv - 4200) / 10) + 0x04);
 
-	return regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_04,
-				MAX77705_CHG_CV_PRM_MASK,
-				(reg_data << MAX77705_CHG_CV_PRM_SHIFT));
+	return regmap_field_write(chg->rfield[MAX77705_CHG_CV_PRM], reg_data);
 }
 
 static int max77705_get_float_voltage(struct max77705_charger_data *chg,
@@ -350,10 +336,8 @@ static int max77705_get_float_voltage(struct max77705_charger_data *chg,
 {
 	unsigned int reg_data = 0;
 	int voltage_mv;
-	struct regmap *regmap = chg->regmap;
 
-	regmap_read(regmap, MAX77705_CHG_REG_CNFG_04, &reg_data);
-	reg_data &= MAX77705_CHG_PRM_MASK;
+	regmap_field_read(chg->rfield[MAX77705_CHG_CV_PRM], &reg_data);
 	voltage_mv = reg_data <= 0x04 ? reg_data * 50 + 4000 :
 					(reg_data - 4) * 10 + 4200;
 	*val = voltage_mv * 1000;
@@ -418,7 +402,6 @@ static void max77705_chgin_isr_work(struct work_struct *work)
 
 static void max77705_charger_initialize(struct max77705_charger_data *chg)
 {
-	u8 reg_data;
 	struct power_supply_battery_info *info;
 	struct regmap *regmap = chg->regmap;
 
@@ -429,45 +412,31 @@ static void max77705_charger_initialize(struct max77705_charger_data *chg)
 
 	/* unlock charger setting protect */
 	/* slowest LX slope */
-	reg_data = MAX77705_CHGPROT_MASK | MAX77705_SLOWEST_LX_SLOPE;
-	regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_06, reg_data,
-						reg_data);
+	regmap_field_write(chg->rfield[MAX77705_CHGPROT], MAX77705_CHGPROT_UNLOCKED);
+	regmap_field_write(chg->rfield[MAX77705_LX_SLOPE], MAX77705_SLOWEST_LX_SLOPE);
 
 	/* fast charge timer disable */
 	/* restart threshold disable */
 	/* pre-qual charge disable */
-	reg_data = (MAX77705_FCHGTIME_DISABLE << MAX77705_FCHGTIME_SHIFT) |
-			(MAX77705_CHG_RSTRT_DISABLE << MAX77705_CHG_RSTRT_SHIFT) |
-			(MAX77705_CHG_PQEN_DISABLE << MAX77705_PQEN_SHIFT);
-	regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_01,
-						(MAX77705_FCHGTIME_MASK |
-						MAX77705_CHG_RSTRT_MASK |
-						MAX77705_PQEN_MASK),
-						reg_data);
+	regmap_field_write(chg->rfield[MAX77705_FCHGTIME], MAX77705_FCHGTIME_DISABLE);
+	regmap_field_write(chg->rfield[MAX77705_CHG_RSTRT], MAX77705_CHG_RSTRT_DISABLE);
+	regmap_field_write(chg->rfield[MAX77705_CHG_PQEN], MAX77705_CHG_PQEN_DISABLE);
 
-	/* OTG off(UNO on), boost off */
-	regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_00,
-				MAX77705_OTG_CTRL, 0);
+	regmap_field_write(chg->rfield[MAX77705_MODE],
+			MAX77705_CHG_MASK | MAX77705_BUCK_MASK);
 
 	/* charge current 450mA(default) */
 	/* otg current limit 900mA */
-	regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_02,
-				MAX77705_OTG_ILIM_MASK,
-				MAX77705_OTG_ILIM_900 << MAX77705_OTG_ILIM_SHIFT);
+	regmap_field_write(chg->rfield[MAX77705_OTG_ILIM], MAX77705_OTG_ILIM_900);
 
 	/* BAT to SYS OCP 4.80A */
-	regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_05,
-				MAX77705_REG_B2SOVRC_MASK,
-				MAX77705_B2SOVRC_4_8A << MAX77705_REG_B2SOVRC_SHIFT);
+	regmap_field_write(chg->rfield[MAX77705_REG_B2SOVRC], MAX77705_B2SOVRC_4_8A);
+
 	/* top off current 150mA */
 	/* top off timer 30min */
-	reg_data = (MAX77705_TO_ITH_150MA << MAX77705_TO_ITH_SHIFT) |
-			(MAX77705_TO_TIME_30M << MAX77705_TO_TIME_SHIFT) |
-			(MAX77705_SYS_TRACK_DISABLE << MAX77705_SYS_TRACK_DIS_SHIFT);
-	regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_03,
-			   (MAX77705_TO_ITH_MASK |
-			   MAX77705_TO_TIME_MASK |
-			   MAX77705_SYS_TRACK_DIS_MASK), reg_data);
+	regmap_field_write(chg->rfield[MAX77705_TO], MAX77705_TO_ITH_150MA);
+	regmap_field_write(chg->rfield[MAX77705_TO_TIME], MAX77705_TO_TIME_30M);
+	regmap_field_write(chg->rfield[MAX77705_SYS_TRACK], MAX77705_SYS_TRACK_DISABLE);
 
 	/* cv voltage 4.2V or 4.35V */
 	/* MINVSYS 3.6V(default) */
@@ -478,25 +447,21 @@ static void max77705_charger_initialize(struct max77705_charger_data *chg)
 		max77705_set_float_voltage(chg, info->voltage_max_design_uv);
 	}
 
-	regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_12,
-				MAX77705_VCHGIN_REG_MASK, MAX77705_VCHGIN_4_5);
-	regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_12,
-				MAX77705_WCIN_REG_MASK, MAX77705_WCIN_4_5);
+	regmap_field_write(chg->rfield[MAX77705_VCHGIN], MAX77705_VCHGIN_4_5);
+	regmap_field_write(chg->rfield[MAX77705_WCIN], MAX77705_WCIN_4_5);
 
 	/* Watchdog timer */
 	regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_00,
 				MAX77705_WDTEN_MASK, 0);
 
 	/* VBYPSET=5.0V */
-	regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_11, MAX77705_VBYPSET_MASK, 0);
+	regmap_field_write(chg->rfield[MAX77705_VBYPSET], 0);
 
 	/* Switching Frequency : 1.5MHz */
-	regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_08, MAX77705_REG_FSW_MASK,
-				(MAX77705_CHG_FSW_1_5MHz << MAX77705_REG_FSW_SHIFT));
+	regmap_field_write(chg->rfield[MAX77705_REG_FSW], MAX77705_CHG_FSW_1_5MHz);
 
 	/* Auto skip mode */
-	regmap_update_bits(regmap, MAX77705_CHG_REG_CNFG_12, MAX77705_REG_DISKIP_MASK,
-				(MAX77705_AUTO_SKIP << MAX77705_REG_DISKIP_SHIFT));
+	regmap_field_write(chg->rfield[MAX77705_REG_DISKIP], MAX77705_AUTO_SKIP);
 }
 
 static int max77705_charger_probe(struct i2c_client *i2c)
@@ -519,6 +484,14 @@ static int max77705_charger_probe(struct i2c_client *i2c)
 	chg->regmap = devm_regmap_init_i2c(i2c, &max77705_chg_regmap_config);
 	if (IS_ERR(chg->regmap))
 		return PTR_ERR(chg->regmap);
+
+	for (int i = 0; i < MAX77705_N_REGMAP_FIELDS; i++) {
+		chg->rfield[i] = devm_regmap_field_alloc(dev, chg->regmap,
+							 max77705_reg_field[i]);
+		if (IS_ERR(chg->rfield[i]))
+			return dev_err_probe(dev, PTR_ERR(chg->rfield[i]),
+					     "cannot allocate regmap field\n");
+	}
 
 	ret = regmap_update_bits(chg->regmap,
 				MAX77705_CHG_REG_INT_MASK,
