@@ -2333,7 +2333,7 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 
 	ubq = ublk_get_queue(ub, q_id);
 
-	if (tag >= ubq->q_depth)
+	if (tag >= ub->dev_info.queue_depth)
 		goto out;
 
 	io = &ubq->ios[tag];
