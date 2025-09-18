@@ -7430,7 +7430,7 @@ S:	Supported
 F:	Documentation/devicetree/bindings/dpll/dpll-device.yaml
 F:	Documentation/devicetree/bindings/dpll/dpll-pin.yaml
 F:	Documentation/driver-api/dpll.rst
-F:	drivers/dpll/*
+F:	drivers/dpll/
 F:	include/linux/dpll.h
 F:	include/uapi/linux/dpll.h
 
@@ -24259,7 +24259,7 @@ F:	Documentation/devicetree/bindings/input/allwinner,sun4i-a10-lradc-keys.yaml
 F:	drivers/input/keyboard/sun4i-lradc-keys.c
 
 SUNDANCE NETWORK DRIVER
-M:	Denis Kirjanov <dkirjanov@suse.de>
+M:	Denis Kirjanov <kirjanov@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/dlink/sundance.c
