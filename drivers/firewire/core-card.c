@@ -355,11 +355,18 @@ static void bm_work(struct work_struct *work)
 				CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
 				data, sizeof(data));
 
-		// Another bus reset, BM work has been rescheduled.
-		if (rcode == RCODE_GENERATION)
+		switch (rcode) {
+		case RCODE_GENERATION:
+			// Another bus reset, BM work has been rescheduled.
 			return;
-
-		if (rcode == RCODE_COMPLETE) {
+		case RCODE_SEND_ERROR:
+			// We have been unable to send the lock request due to
+			// some local problem.  Let's try again later and hope
+			// that the problem has gone away by then.
+			fw_schedule_bm_work(card, msecs_to_jiffies(125));
+			return;
+		case RCODE_COMPLETE:
+		{
 			int bm_id = be32_to_cpu(data[0]);
 
 			// Used by cdev layer for "struct fw_cdev_event_bus_reset".
@@ -376,29 +383,20 @@ static void bm_work(struct work_struct *work)
 					allocate_broadcast_channel(card, generation);
 				return;
 			}
+			break;
 		}
-
-		if (rcode == RCODE_SEND_ERROR) {
-			/*
-			 * We have been unable to send the lock request due to
-			 * some local problem.  Let's try again later and hope
-			 * that the problem has gone away by then.
-			 */
-			fw_schedule_bm_work(card, msecs_to_jiffies(125));
-			return;
-		}
-
-		if (rcode != RCODE_COMPLETE && !keep_this_irm) {
-			/*
-			 * The lock request failed, maybe the IRM
-			 * isn't really IRM capable after all. Let's
-			 * do a bus reset and pick the local node as
-			 * root, and thus, IRM.
-			 */
-			new_root_id = local_id;
-			fw_notice(card, "BM lock failed (%s), making local node (%02x) root\n",
-				  fw_rcode_string(rcode), new_root_id);
-			goto pick_me;
+		default:
+			if (!keep_this_irm) {
+				// The lock request failed, maybe the IRM
+				// isn't really IRM capable after all. Let's
+				// do a bus reset and pick the local node as
+				// root, and thus, IRM.
+				new_root_id = local_id;
+				fw_notice(card, "BM lock failed (%s), making local node (%02x) root\n",
+					  fw_rcode_string(rcode), new_root_id);
+				goto pick_me;
+			}
+			break;
 		}
 	} else if (card->bm_generation != generation) {
 		/*
