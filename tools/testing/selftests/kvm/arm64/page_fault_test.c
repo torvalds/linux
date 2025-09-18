@@ -95,14 +95,14 @@ static bool guest_check_lse(void)
 	uint64_t isar0 = read_sysreg(id_aa64isar0_el1);
 	uint64_t atomic;
 
-	atomic = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64ISAR0_EL1_ATOMIC), isar0);
+	atomic = FIELD_GET(ID_AA64ISAR0_EL1_ATOMIC, isar0);
 	return atomic >= 2;
 }
 
 static bool guest_check_dc_zva(void)
 {
 	uint64_t dczid = read_sysreg(dczid_el0);
-	uint64_t dzp = FIELD_GET(ARM64_FEATURE_MASK(DCZID_EL0_DZP), dczid);
+	uint64_t dzp = FIELD_GET(DCZID_EL0_DZP, dczid);
 
 	return dzp == 0;
 }
@@ -195,7 +195,7 @@ static bool guest_set_ha(void)
 	uint64_t hadbs, tcr;
 
 	/* Skip if HA is not supported. */
-	hadbs = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR1_EL1_HAFDBS), mmfr1);
+	hadbs = FIELD_GET(ID_AA64MMFR1_EL1_HAFDBS, mmfr1);
 	if (hadbs == 0)
 		return false;
 

@@ -80,17 +80,17 @@
 	flexcan1_phy: can-phy0 {
 		compatible = "nxp,tjr1443";
 		#phy-cells = <0>;
-		max-bitrate = <1000000>;
+		max-bitrate = <8000000>;
 		enable-gpios = <&i2c6_pcal6416 6 GPIO_ACTIVE_HIGH>;
-		standby-gpios = <&i2c6_pcal6416 5 GPIO_ACTIVE_HIGH>;
+		standby-gpios = <&i2c6_pcal6416 5 GPIO_ACTIVE_LOW>;
 	};
 
 	flexcan2_phy: can-phy1 {
 		compatible = "nxp,tjr1443";
 		#phy-cells = <0>;
-		max-bitrate = <1000000>;
-		enable-gpios = <&i2c6_pcal6416 4 GPIO_ACTIVE_HIGH>;
-		standby-gpios = <&i2c6_pcal6416 3 GPIO_ACTIVE_HIGH>;
+		max-bitrate = <8000000>;
+		enable-gpios = <&i2c4_gpio_expander_21 4 GPIO_ACTIVE_HIGH>;
+		standby-gpios = <&i2c4_gpio_expander_21 3 GPIO_ACTIVE_LOW>;
 	};
 
 	reg_vref_1v8: regulator-1p8v {
