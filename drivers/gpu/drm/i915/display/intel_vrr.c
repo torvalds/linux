@@ -106,7 +106,7 @@ int intel_vrr_vblank_delay(const struct intel_crtc_state *crtc_state)
 		intel_vrr_extra_vblank_delay(display);
 }
 
-static int intel_vrr_flipline_offset(struct intel_display *display)
+static int intel_vrr_vmin_flipline_offset(struct intel_display *display)
 {
 	/*
 	 * ICL/TGL hardware imposes flipline>=vmin+1
@@ -288,7 +288,7 @@ int intel_vrr_fixed_rr_hw_vmin(const struct intel_crtc_state *crtc_state)
 	struct intel_display *display = to_intel_display(crtc_state);
 
 	return intel_vrr_fixed_rr_hw_vtotal(crtc_state) -
-		intel_vrr_flipline_offset(display);
+		intel_vrr_vmin_flipline_offset(display);
 }
 
 static
@@ -599,7 +599,7 @@ static int intel_vrr_hw_vmin(const struct intel_crtc_state *crtc_state)
 	struct intel_display *display = to_intel_display(crtc_state);
 
 	return intel_vrr_hw_value(crtc_state, crtc_state->vrr.vmin) -
-		intel_vrr_flipline_offset(display);
+		intel_vrr_vmin_flipline_offset(display);
 }
 
 static int intel_vrr_hw_vmax(const struct intel_crtc_state *crtc_state)
@@ -765,7 +765,7 @@ void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 			crtc_state->vrr.vmax += intel_vrr_real_vblank_delay(crtc_state);
 			crtc_state->vrr.vmin += intel_vrr_real_vblank_delay(crtc_state);
 
-			crtc_state->vrr.vmin += intel_vrr_flipline_offset(display);
+			crtc_state->vrr.vmin += intel_vrr_vmin_flipline_offset(display);
 		}
 
 		/*
