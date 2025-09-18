@@ -12,11 +12,21 @@ Detect problematic Noto CJK variable fonts.
 or more details, see lib/latex_fonts.py.
 """
 
+import argparse
 import sys
 
 from lib.latex_fonts import LatexFontChecker
 
-msg = LatexFontChecker().check()
+checker = LatexFontChecker()
+
+parser=argparse.ArgumentParser(description=checker.description(),
+                               formatter_class=argparse.RawTextHelpFormatter)
+parser.add_argument("--deny-vf",
+                    help="XDG_CONFIG_HOME dir containing fontconfig/fonts.conf file")
+
+args=parser.parse_args()
+
+msg = LatexFontChecker(args.deny_vf).check()
 if msg:
     print(msg)
 
