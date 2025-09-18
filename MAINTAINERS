@@ -22052,6 +22052,7 @@ F:	drivers/infiniband/ulp/rtrs/
 
 RUNTIME VERIFICATION (RV)
 M:	Steven Rostedt <rostedt@goodmis.org>
+M:	Gabriele Monaco <gmonaco@redhat.com>
 L:	linux-trace-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/trace/rv/
