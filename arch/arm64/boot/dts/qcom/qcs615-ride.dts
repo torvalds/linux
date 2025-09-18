@@ -398,6 +398,7 @@
 		pins = "gpio98";
 		function = "gpio";
 		bias-pull-down;
+		drive-strength = <16>;
 		output-low;
 	};
 };
