@@ -215,7 +215,6 @@ static inline int get_buf_page_count(void *buf, int size)
 		(uintptr_t)buf / PAGE_SIZE;
 }
 
-static void smb_direct_post_recv_credits(struct work_struct *work);
 static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 				     struct smbdirect_send_batch *send_ctx,
 				     struct kvec *iov, int niov,
@@ -776,49 +775,6 @@ read_rfc1002_done:
 		return -EINTR;
 
 	goto again;
-}
-
-static void smb_direct_post_recv_credits(struct work_struct *work)
-{
-	struct smbdirect_socket *sc =
-		container_of(work, struct smbdirect_socket, recv_io.posted.refill_work);
-	struct smbdirect_recv_io *recvmsg;
-	int credits = 0;
-	int ret;
-
-	if (atomic_read(&sc->recv_io.credits.count) < sc->recv_io.credits.target) {
-		while (true) {
-			recvmsg = smbdirect_connection_get_recv_io(sc);
-			if (!recvmsg)
-				break;
-
-			recvmsg->first_segment = false;
-
-			ret = smbdirect_connection_post_recv_io(recvmsg);
-			if (ret) {
-				pr_err("Can't post recv: %d\n", ret);
-				smbdirect_connection_put_recv_io(recvmsg);
-				break;
-			}
-			credits++;
-
-			atomic_inc(&sc->recv_io.posted.count);
-		}
-	}
-
-	atomic_add(credits, &sc->recv_io.credits.available);
-
-	/*
-	 * If the last send credit is waiting for credits
-	 * it can grant we need to wake it up
-	 */
-	if (credits &&
-	    atomic_read(&sc->send_io.bcredits.count) == 0 &&
-	    atomic_read(&sc->send_io.credits.count) == 0)
-		wake_up(&sc->send_io.credits.wait_queue);
-
-	if (credits)
-		queue_work(sc->workqueue, &sc->idle.immediate_work);
 }
 
 static int manage_credits_prior_sending(struct smbdirect_socket *sc)
@@ -1986,24 +1942,24 @@ put:
 
 	/*
 	 * We negotiated with success, so we need to refill the recv queue.
-	 * We do that with sc->idle.immediate_work still being disabled
-	 * via smbdirect_socket_init(), so that queue_work(sc->workqueue,
-	 * &sc->idle.immediate_work) in smb_direct_post_recv_credits()
-	 * is a no-op.
 	 *
 	 * The message that grants the credits to the client is
 	 * the negotiate response.
 	 */
-	INIT_WORK(&sc->recv_io.posted.refill_work, smb_direct_post_recv_credits);
-	smb_direct_post_recv_credits(&sc->recv_io.posted.refill_work);
-	if (unlikely(sc->first_error))
-		return sc->first_error;
-	INIT_WORK(&sc->idle.immediate_work, smb_direct_send_immediate_work);
+	ret = smbdirect_connection_recv_io_refill(sc);
+	if (ret < 0)
+		return ret;
+	ret = 0;
 
 respond:
 	ret = smb_direct_send_negotiate_response(sc, ret);
+	if (ret)
+		return ret;
 
-	return ret;
+	INIT_WORK(&sc->recv_io.posted.refill_work, smbdirect_connection_recv_io_refill_work);
+	INIT_WORK(&sc->idle.immediate_work, smb_direct_send_immediate_work);
+
+	return 0;
 }
 
 static int smb_direct_connect(struct smbdirect_socket *sc)
