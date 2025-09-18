@@ -526,7 +526,6 @@ static inline int rza1_pinmux_get_swio(unsigned int port,
 	const struct rza1_swio_pin *swio_pin;
 	unsigned int i;
 
-
 	for (i = 0; i < table->npins; ++i) {
 		swio_pin = &table->pins[i];
 		if (swio_pin->port == port && swio_pin->pin == pin &&
