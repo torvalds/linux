@@ -740,15 +740,10 @@ static noinline int replay_one_extent(struct walk_control *wc)
 
 	if (found_type == BTRFS_FILE_EXTENT_REG ||
 	    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
-		nbytes = btrfs_file_extent_num_bytes(wc->log_leaf, item);
-		extent_end = start + nbytes;
-
-		/*
-		 * We don't add to the inodes nbytes if we are prealloc or a
-		 * hole.
-		 */
-		if (btrfs_file_extent_disk_bytenr(wc->log_leaf, item) == 0)
-			nbytes = 0;
+		extent_end = start + btrfs_file_extent_num_bytes(wc->log_leaf, item);
+		/* Holes don't take up space. */
+		if (btrfs_file_extent_disk_bytenr(wc->log_leaf, item) != 0)
+			nbytes = btrfs_file_extent_num_bytes(wc->log_leaf, item);
 	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
 		size = btrfs_file_extent_ram_bytes(wc->log_leaf, item);
 		nbytes = btrfs_file_extent_ram_bytes(wc->log_leaf, item);
