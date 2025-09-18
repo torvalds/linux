@@ -48,32 +48,43 @@ static void xe_dma_buf_detach(struct dma_buf *dmabuf,
 
 static int xe_dma_buf_pin(struct dma_buf_attachment *attach)
 {
-	struct drm_gem_object *obj = attach->dmabuf->priv;
+	struct dma_buf *dmabuf = attach->dmabuf;
+	struct drm_gem_object *obj = dmabuf->priv;
 	struct xe_bo *bo = gem_to_xe_bo(obj);
 	struct xe_device *xe = xe_bo_device(bo);
 	struct drm_exec *exec = XE_VALIDATION_UNSUPPORTED;
+	bool allow_vram = true;
 	int ret;
 
-	/*
-	 * For now only support pinning in TT memory, for two reasons:
-	 * 1) Avoid pinning in a placement not accessible to some importers.
-	 * 2) Pinning in VRAM requires PIN accounting which is a to-do.
-	 */
-	if (xe_bo_is_pinned(bo) && !xe_bo_is_mem_type(bo, XE_PL_TT)) {
+	if (!IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY)) {
+		allow_vram = false;
+	} else {
+		list_for_each_entry(attach, &dmabuf->attachments, node) {
+			if (!attach->peer2peer) {
+				allow_vram = false;
+				break;
+			}
+		}
+	}
+
+	if (xe_bo_is_pinned(bo) && !xe_bo_is_mem_type(bo, XE_PL_TT) &&
+	    !(xe_bo_is_vram(bo) && allow_vram)) {
 		drm_dbg(&xe->drm, "Can't migrate pinned bo for dma-buf pin.\n");
 		return -EINVAL;
 	}
 
-	ret = xe_bo_migrate(bo, XE_PL_TT, NULL, exec);
-	if (ret) {
-		if (ret != -EINTR && ret != -ERESTARTSYS)
-			drm_dbg(&xe->drm,
-				"Failed migrating dma-buf to TT memory: %pe\n",
-				ERR_PTR(ret));
-		return ret;
+	if (!allow_vram) {
+		ret = xe_bo_migrate(bo, XE_PL_TT, NULL, exec);
+		if (ret) {
+			if (ret != -EINTR && ret != -ERESTARTSYS)
+				drm_dbg(&xe->drm,
+					"Failed migrating dma-buf to TT memory: %pe\n",
+					ERR_PTR(ret));
+			return ret;
+		}
 	}
 
-	ret = xe_bo_pin_external(bo, true, exec);
+	ret = xe_bo_pin_external(bo, !allow_vram, exec);
 	xe_assert(xe, !ret);
 
 	return 0;

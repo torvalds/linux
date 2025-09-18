@@ -31,6 +31,7 @@ static void check_residency(struct kunit *test, struct xe_bo *exported,
 			    struct drm_exec *exec)
 {
 	struct dma_buf_test_params *params = to_dma_buf_test_params(test->priv);
+	struct dma_buf_attachment *attach;
 	u32 mem_type;
 	int ret;
 
@@ -46,7 +47,7 @@ static void check_residency(struct kunit *test, struct xe_bo *exported,
 		mem_type = XE_PL_TT;
 	else if (params->force_different_devices && !is_dynamic(params) &&
 		 (params->mem_mask & XE_BO_FLAG_SYSTEM))
-		/* Pin migrated to TT */
+		/* Pin migrated to TT on non-dynamic attachments. */
 		mem_type = XE_PL_TT;
 
 	if (!xe_bo_is_mem_type(exported, mem_type)) {
@@ -87,6 +88,18 @@ static void check_residency(struct kunit *test, struct xe_bo *exported,
 	}
 
 	KUNIT_EXPECT_TRUE(test, xe_bo_is_mem_type(exported, mem_type));
+
+	/* Check that we can pin without migrating. */
+	attach = list_first_entry_or_null(&dmabuf->attachments, typeof(*attach), node);
+	if (attach) {
+		int err = dma_buf_pin(attach);
+
+		if (!err) {
+			KUNIT_EXPECT_TRUE(test, xe_bo_is_mem_type(exported, mem_type));
+			dma_buf_unpin(attach);
+		}
+		KUNIT_EXPECT_EQ(test, err, 0);
+	}
 
 	if (params->force_different_devices)
 		KUNIT_EXPECT_TRUE(test, xe_bo_is_mem_type(imported, XE_PL_TT));
@@ -150,7 +163,7 @@ static void xe_test_dmabuf_import_same_driver(struct xe_device *xe)
 			xe_bo_lock(import_bo, false);
 			err = xe_bo_validate(import_bo, NULL, false, exec);
 
-			/* Pinning in VRAM is not allowed. */
+			/* Pinning in VRAM is not allowed for non-dynamic attachments */
 			if (!is_dynamic(params) &&
 			    params->force_different_devices &&
 			    !(params->mem_mask & XE_BO_FLAG_SYSTEM))
