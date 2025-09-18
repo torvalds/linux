@@ -334,7 +334,7 @@ static int mlx5e_ptp_alloc_txqsq(struct mlx5e_ptp *c, int txq_ix,
 	sq->mdev      = mdev;
 	sq->ch_ix     = MLX5E_PTP_CHANNEL_IX;
 	sq->txq_ix    = txq_ix;
-	sq->uar_map   = mdev->mlx5e_res.hw_objs.bfreg.map;
+	sq->uar_map   = c->bfreg->map;
 	sq->min_inline_mode = params->tx_min_inline_mode;
 	sq->hw_mtu    = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	sq->stats     = &c->priv->ptp_stats.sq[tc];
@@ -486,6 +486,7 @@ static int mlx5e_ptp_open_txqsq(struct mlx5e_ptp *c, u32 tisn,
 	csp.wq_ctrl         = &txqsq->wq_ctrl;
 	csp.min_inline_mode = txqsq->min_inline_mode;
 	csp.ts_cqe_to_dest_cqn = ptpsq->ts_cq.mcq.cqn;
+	csp.uar_page = c->bfreg->index;
 
 	err = mlx5e_create_sq_rdy(c->mdev, sqp, &csp, 0, &txqsq->sqn);
 	if (err)
@@ -577,6 +578,7 @@ static int mlx5e_ptp_open_tx_cqs(struct mlx5e_ptp *c,
 	ccp.ch_stats = c->stats;
 	ccp.napi     = &c->napi;
 	ccp.ix       = MLX5E_PTP_CHANNEL_IX;
+	ccp.uar      = c->bfreg->up;
 
 	cq_param = &cparams->txq_sq_param.cqp;
 
@@ -626,6 +628,7 @@ static int mlx5e_ptp_open_rx_cq(struct mlx5e_ptp *c,
 	ccp.ch_stats = c->stats;
 	ccp.napi     = &c->napi;
 	ccp.ix       = MLX5E_PTP_CHANNEL_IX;
+	ccp.uar      = c->bfreg->up;
 
 	cq_param = &cparams->rq_param.cqp;
 
@@ -900,6 +903,7 @@ int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	c->num_tc   = mlx5e_get_dcb_num_tc(params);
 	c->stats    = &priv->ptp_stats.ch;
 	c->lag_port = lag_port;
+	c->bfreg    = &mdev->priv.bfreg;
 
 	err = mlx5e_ptp_set_state(c, params);
 	if (err)

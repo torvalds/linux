@@ -1316,10 +1316,9 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 {
 	int err;
 
-	dev->priv.uar = mlx5_get_uars_page(dev);
-	if (IS_ERR(dev->priv.uar)) {
-		mlx5_core_err(dev, "Failed allocating uar, aborting\n");
-		err = PTR_ERR(dev->priv.uar);
+	err = mlx5_alloc_bfreg(dev, &dev->priv.bfreg, false, false);
+	if (err) {
+		mlx5_core_err(dev, "Failed allocating bfreg, %d\n", err);
 		return err;
 	}
 
@@ -1430,7 +1429,7 @@ err_eq_table:
 err_irq_table:
 	mlx5_pagealloc_stop(dev);
 	mlx5_events_stop(dev);
-	mlx5_put_uars_page(dev, dev->priv.uar);
+	mlx5_free_bfreg(dev, &dev->priv.bfreg);
 	return err;
 }
 
@@ -1455,7 +1454,7 @@ static void mlx5_unload(struct mlx5_core_dev *dev)
 	mlx5_irq_table_destroy(dev);
 	mlx5_pagealloc_stop(dev);
 	mlx5_events_stop(dev);
-	mlx5_put_uars_page(dev, dev->priv.uar);
+	mlx5_free_bfreg(dev, &dev->priv.bfreg);
 }
 
 int mlx5_init_one_devl_locked(struct mlx5_core_dev *dev)

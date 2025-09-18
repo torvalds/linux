@@ -611,6 +611,7 @@ void mlx5e_build_create_cq_param(struct mlx5e_create_cq_param *ccp, struct mlx5e
 		.ch_stats = c->stats,
 		.node = cpu_to_node(c->cpu),
 		.ix = c->vec_ix,
+		.uar = c->bfreg->up,
 	};
 }
 
@@ -810,7 +811,7 @@ static void mlx5e_build_common_cq_param(struct mlx5_core_dev *mdev,
 {
 	void *cqc = param->cqc;
 
-	MLX5_SET(cqc, cqc, uar_page, mdev->priv.uar->index);
+	MLX5_SET(cqc, cqc, uar_page, mdev->priv.bfreg.up->index);
 	if (MLX5_CAP_GEN(mdev, cqe_128_always) && cache_line_size() >= 128)
 		MLX5_SET(cqc, cqc, cqe_sz, CQE_STRIDE_128_PAD);
 }
@@ -1229,7 +1230,6 @@ static void mlx5e_build_async_icosq_param(struct mlx5_core_dev *mdev,
 
 void mlx5e_build_xdpsq_param(struct mlx5_core_dev *mdev,
 			     struct mlx5e_params *params,
-			     struct mlx5e_xsk_param *xsk,
 			     struct mlx5e_sq_param *param)
 {
 	void *sqc = param->sqc;
@@ -1256,7 +1256,7 @@ int mlx5e_build_channel_param(struct mlx5_core_dev *mdev,
 	async_icosq_log_wq_sz = mlx5e_build_async_icosq_log_wq_sz(mdev);
 
 	mlx5e_build_sq_param(mdev, params, &cparam->txq_sq);
-	mlx5e_build_xdpsq_param(mdev, params, NULL, &cparam->xdp_sq);
+	mlx5e_build_xdpsq_param(mdev, params, &cparam->xdp_sq);
 	mlx5e_build_icosq_param(mdev, icosq_log_wq_sz, &cparam->icosq);
 	mlx5e_build_async_icosq_param(mdev, async_icosq_log_wq_sz, &cparam->async_icosq);
 
