@@ -529,7 +529,7 @@ static blk_status_t ublk_setup_iod_zoned(struct ublk_queue *ubq,
 
 #endif
 
-static inline void __ublk_complete_rq(struct request *req);
+static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io);
 
 static dev_t ublk_chr_devt;
 static const struct class ublk_chr_class = {
@@ -738,7 +738,7 @@ static inline bool ublk_get_req_ref(struct ublk_io *io)
 static inline void ublk_put_req_ref(struct ublk_io *io, struct request *req)
 {
 	if (refcount_dec_and_test(&io->ref))
-		__ublk_complete_rq(req);
+		__ublk_complete_rq(req, io);
 }
 
 static inline bool ublk_sub_req_ref(struct ublk_io *io)
@@ -1146,10 +1146,9 @@ static inline struct ublk_uring_cmd_pdu *ublk_get_uring_cmd_pdu(
 }
 
 /* todo: handle partial completion */
-static inline void __ublk_complete_rq(struct request *req)
+static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io)
 {
 	struct ublk_queue *ubq = req->mq_hctx->driver_data;
-	struct ublk_io *io = &ubq->ios[req->tag];
 	unsigned int unmapped_bytes;
 	blk_status_t res = BLK_STS_OK;
 
@@ -1750,7 +1749,7 @@ static void __ublk_fail_req(struct ublk_device *ub, struct ublk_io *io,
 		blk_mq_requeue_request(req, false);
 	else {
 		io->res = -EIO;
-		__ublk_complete_rq(req);
+		__ublk_complete_rq(req, io);
 	}
 }
 
@@ -2395,7 +2394,7 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 		if (req_op(req) == REQ_OP_ZONE_APPEND)
 			req->__sector = addr;
 		if (compl)
-			__ublk_complete_rq(req);
+			__ublk_complete_rq(req, io);
 
 		if (ret)
 			goto out;
