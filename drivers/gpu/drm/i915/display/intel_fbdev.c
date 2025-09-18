@@ -227,13 +227,38 @@ __intel_fbdev_fb_alloc(struct intel_display *display,
 		       struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_mode_fb_cmd2 mode_cmd = {};
-	struct intel_framebuffer *fb;
+	struct drm_framebuffer *fb;
+	struct drm_gem_object *obj;
+	int size;
 
 	intel_fbdev_fill_mode_cmd(sizes, &mode_cmd);
 
-	fb = intel_fbdev_fb_alloc(display->drm, &mode_cmd);
+	size = mode_cmd.pitches[0] * mode_cmd.height;
+	size = PAGE_ALIGN(size);
 
-	return fb;
+	obj = intel_fbdev_fb_bo_create(display->drm, size);
+	if (IS_ERR(obj)) {
+		fb = ERR_CAST(obj);
+		goto err;
+	}
+
+	fb = intel_framebuffer_create(obj,
+				      drm_get_format_info(display->drm,
+							  mode_cmd.pixel_format,
+							  mode_cmd.modifier[0]),
+				      &mode_cmd);
+	if (IS_ERR(fb)) {
+		intel_fbdev_fb_bo_destroy(obj);
+		goto err;
+	}
+
+	drm_gem_object_put(obj);
+
+	return to_intel_framebuffer(fb);
+
+err:
+	return ERR_CAST(fb);
+
 }
 
 int intel_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
