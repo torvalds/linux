@@ -98,7 +98,7 @@ struct psp_dev_caps {
 
 	/**
 	 * @assoc_drv_spc: size of driver-specific state in Tx assoc
-	 * Determines the size of struct psp_assoc::drv_spc
+	 * Determines the size of struct psp_assoc::drv_data
 	 */
 	u32 assoc_drv_spc;
 };
