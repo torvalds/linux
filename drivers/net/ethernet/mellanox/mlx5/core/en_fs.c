@@ -916,7 +916,8 @@ static void mlx5e_set_inner_ttc_params(struct mlx5e_flow_steering *fs,
 
 void mlx5e_set_ttc_params(struct mlx5e_flow_steering *fs,
 			  struct mlx5e_rx_res *rx_res,
-			  struct ttc_params *ttc_params, bool tunnel)
+			  struct ttc_params *ttc_params, bool tunnel,
+			  bool ipsec_rss)
 
 {
 	struct mlx5_flow_table_attr *ft_attr = &ttc_params->ft_attr;
@@ -926,6 +927,9 @@ void mlx5e_set_ttc_params(struct mlx5e_flow_steering *fs,
 	ttc_params->ns_type = MLX5_FLOW_NAMESPACE_KERNEL;
 	ft_attr->level = MLX5E_TTC_FT_LEVEL;
 	ft_attr->prio = MLX5E_NIC_PRIO;
+
+	ttc_params->ipsec_rss = ipsec_rss &&
+		MLX5_CAP_NIC_RX_FT_FIELD_SUPPORT_2(fs->mdev, ipsec_next_header);
 
 	for (tt = 0; tt < MLX5_NUM_TT; tt++) {
 		ttc_params->dests[tt].type = MLX5_FLOW_DESTINATION_TYPE_TIR;
@@ -1293,7 +1297,7 @@ int mlx5e_create_ttc_table(struct mlx5e_flow_steering *fs,
 {
 	struct ttc_params ttc_params = {};
 
-	mlx5e_set_ttc_params(fs, rx_res, &ttc_params, true);
+	mlx5e_set_ttc_params(fs, rx_res, &ttc_params, true, true);
 	fs->ttc = mlx5_create_ttc_table(fs->mdev, &ttc_params);
 	return PTR_ERR_OR_ZERO(fs->ttc);
 }

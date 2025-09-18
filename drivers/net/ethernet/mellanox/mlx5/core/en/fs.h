@@ -132,7 +132,8 @@ struct mlx5e_ptp_fs;
 
 void mlx5e_set_ttc_params(struct mlx5e_flow_steering *fs,
 			  struct mlx5e_rx_res *rx_res,
-			  struct ttc_params *ttc_params, bool tunnel);
+			  struct ttc_params *ttc_params, bool tunnel,
+			  bool ipsec_rss);
 
 void mlx5e_destroy_ttc_table(struct mlx5e_flow_steering *fs);
 int mlx5e_create_ttc_table(struct mlx5e_flow_steering  *fs,

@@ -9,7 +9,7 @@
 #include "mlx5_core.h"
 #include "lib/fs_ttc.h"
 
-#define MLX5_TTC_MAX_NUM_GROUPS		4
+#define MLX5_TTC_MAX_NUM_GROUPS		5
 #define MLX5_TTC_GROUP_TCPUDP_SIZE	(MLX5_TT_IPV6_UDP + 1)
 
 struct mlx5_fs_ttc_groups {
@@ -31,6 +31,7 @@ static int mlx5_fs_ttc_table_size(const struct mlx5_fs_ttc_groups *groups)
 /* L3/L4 traffic type classifier */
 struct mlx5_ttc_table {
 	int num_groups;
+	const struct mlx5_fs_ttc_groups *groups;
 	struct mlx5_flow_table *t;
 	struct mlx5_flow_group **g;
 	struct mlx5_ttc_rule rules[MLX5_NUM_TT];
@@ -163,6 +164,8 @@ static struct mlx5_etype_proto ttc_tunnel_rules[] = {
 enum TTC_GROUP_TYPE {
 	TTC_GROUPS_DEFAULT = 0,
 	TTC_GROUPS_USE_L4_TYPE = 1,
+	TTC_GROUPS_DEFAULT_ESP = 2,
+	TTC_GROUPS_USE_L4_TYPE_ESP = 3,
 };
 
 static const struct mlx5_fs_ttc_groups ttc_groups[] = {
@@ -180,6 +183,27 @@ static const struct mlx5_fs_ttc_groups ttc_groups[] = {
 		.group_size = {
 			MLX5_TTC_GROUP_TCPUDP_SIZE,
 			BIT(3) + MLX5_NUM_TUNNEL_TT - MLX5_TTC_GROUP_TCPUDP_SIZE,
+			BIT(1),
+			BIT(0),
+		},
+	},
+	[TTC_GROUPS_DEFAULT_ESP] = {
+		.num_groups = 4,
+		.group_size = {
+			MLX5_TTC_GROUP_TCPUDP_SIZE + BIT(1) +
+			MLX5_NUM_TUNNEL_TT,
+			BIT(1), /* ESP */
+			BIT(1),
+			BIT(0),
+		},
+	},
+	[TTC_GROUPS_USE_L4_TYPE_ESP] = {
+		.use_l4_type = true,
+		.num_groups = 5,
+		.group_size = {
+			MLX5_TTC_GROUP_TCPUDP_SIZE,
+			BIT(1) + MLX5_NUM_TUNNEL_TT,
+			BIT(1), /* ESP */
 			BIT(1),
 			BIT(0),
 		},
@@ -206,6 +230,23 @@ static const struct mlx5_fs_ttc_groups inner_ttc_groups[] = {
 		},
 	},
 };
+
+static const struct mlx5_fs_ttc_groups *
+mlx5_ttc_get_fs_groups(bool use_l4_type, bool ipsec_rss)
+{
+	if (!ipsec_rss)
+		return use_l4_type ? &ttc_groups[TTC_GROUPS_USE_L4_TYPE] :
+				     &ttc_groups[TTC_GROUPS_DEFAULT];
+
+	return use_l4_type ? &ttc_groups[TTC_GROUPS_USE_L4_TYPE_ESP] :
+			     &ttc_groups[TTC_GROUPS_DEFAULT_ESP];
+}
+
+bool mlx5_ttc_has_esp_flow_group(struct mlx5_ttc_table *ttc)
+{
+	return ttc->groups == &ttc_groups[TTC_GROUPS_DEFAULT_ESP] ||
+	       ttc->groups == &ttc_groups[TTC_GROUPS_USE_L4_TYPE_ESP];
+}
 
 u8 mlx5_get_proto_by_tunnel_type(enum mlx5_tunnel_types tt)
 {
@@ -279,7 +320,7 @@ static void mlx5_fs_ttc_set_match_proto(void *headers_c, void *headers_v,
 static struct mlx5_flow_handle *
 mlx5_generate_ttc_rule(struct mlx5_core_dev *dev, struct mlx5_flow_table *ft,
 		       struct mlx5_flow_destination *dest, u16 etype, u8 proto,
-		       bool use_l4_type)
+		       bool use_l4_type, bool ipsec_rss)
 {
 	int match_ipv_outer =
 		MLX5_CAP_FLOWTABLE_NIC_RX(dev,
@@ -316,6 +357,14 @@ mlx5_generate_ttc_rule(struct mlx5_core_dev *dev, struct mlx5_flow_table *ft,
 		MLX5_SET(fte_match_param, spec->match_value, outer_headers.ethertype, etype);
 	}
 
+	if (ipsec_rss && proto == IPPROTO_ESP) {
+		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
+				 misc_parameters_2.ipsec_next_header);
+		MLX5_SET(fte_match_param, spec->match_value,
+			 misc_parameters_2.ipsec_next_header, 0);
+		spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS_2;
+	}
+
 	rule = mlx5_add_flow_rules(ft, spec, &flow_act, dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -347,7 +396,8 @@ static int mlx5_generate_ttc_table_rules(struct mlx5_core_dev *dev,
 		rule->rule = mlx5_generate_ttc_rule(dev, ft, &params->dests[tt],
 						    ttc_rules[tt].etype,
 						    ttc_rules[tt].proto,
-						    use_l4_type);
+						    use_l4_type,
+						    params->ipsec_rss);
 		if (IS_ERR(rule->rule)) {
 			err = PTR_ERR(rule->rule);
 			rule->rule = NULL;
@@ -370,7 +420,7 @@ static int mlx5_generate_ttc_table_rules(struct mlx5_core_dev *dev,
 						    &params->tunnel_dests[tt],
 						    ttc_tunnel_rules[tt].etype,
 						    ttc_tunnel_rules[tt].proto,
-						    use_l4_type);
+						    use_l4_type, false);
 		if (IS_ERR(trules[tt])) {
 			err = PTR_ERR(trules[tt]);
 			trules[tt] = NULL;
@@ -385,10 +435,38 @@ del_rules:
 	return err;
 }
 
-static int mlx5_create_ttc_table_groups(struct mlx5_ttc_table *ttc,
-					bool use_ipv,
-					const struct mlx5_fs_ttc_groups *groups)
+static int mlx5_create_ttc_table_ipsec_groups(struct mlx5_ttc_table *ttc,
+					      u32 *in, int *next_ix)
 {
+	u8 *mc = MLX5_ADDR_OF(create_flow_group_in, in, match_criteria);
+	const struct mlx5_fs_ttc_groups *groups = ttc->groups;
+	int ix = *next_ix;
+
+	/* undecrypted ESP group */
+	MLX5_SET_CFG(in, match_criteria_enable,
+		     MLX5_MATCH_OUTER_HEADERS | MLX5_MATCH_MISC_PARAMETERS_2);
+	MLX5_SET_TO_ONES(fte_match_param, mc,
+			 misc_parameters_2.ipsec_next_header);
+	MLX5_SET_CFG(in, start_flow_index, ix);
+	ix += groups->group_size[ttc->num_groups];
+	MLX5_SET_CFG(in, end_flow_index, ix - 1);
+	ttc->g[ttc->num_groups] = mlx5_create_flow_group(ttc->t, in);
+	if (IS_ERR(ttc->g[ttc->num_groups]))
+		goto err;
+	ttc->num_groups++;
+
+	*next_ix = ix;
+
+	return 0;
+
+err:
+	return PTR_ERR(ttc->g[ttc->num_groups]);
+}
+
+static int mlx5_create_ttc_table_groups(struct mlx5_ttc_table *ttc,
+					bool use_ipv)
+{
+	const struct mlx5_fs_ttc_groups *groups = ttc->groups;
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	int ix = 0;
 	u32 *in;
@@ -436,8 +514,18 @@ static int mlx5_create_ttc_table_groups(struct mlx5_ttc_table *ttc,
 		goto err;
 	ttc->num_groups++;
 
+	if (mlx5_ttc_has_esp_flow_group(ttc)) {
+		err = mlx5_create_ttc_table_ipsec_groups(ttc, in, &ix);
+		if (err)
+			goto err;
+
+		MLX5_SET(fte_match_param, mc,
+			 misc_parameters_2.ipsec_next_header, 0);
+	}
+
 	/* L3 Group */
 	MLX5_SET(fte_match_param, mc, outer_headers.ip_protocol, 0);
+	MLX5_SET_CFG(in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
 	MLX5_SET_CFG(in, start_flow_index, ix);
 	ix += groups->group_size[ttc->num_groups];
 	MLX5_SET_CFG(in, end_flow_index, ix - 1);
@@ -709,7 +797,6 @@ struct mlx5_ttc_table *mlx5_create_ttc_table(struct mlx5_core_dev *dev,
 	bool match_ipv_outer =
 		MLX5_CAP_FLOWTABLE_NIC_RX(dev,
 					  ft_field_support.outer_ip_version);
-	const struct mlx5_fs_ttc_groups *groups;
 	struct mlx5_flow_namespace *ns;
 	struct mlx5_ttc_table *ttc;
 	bool use_l4_type;
@@ -738,11 +825,10 @@ struct mlx5_ttc_table *mlx5_create_ttc_table(struct mlx5_core_dev *dev,
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	groups = use_l4_type ? &ttc_groups[TTC_GROUPS_USE_L4_TYPE] :
-			       &ttc_groups[TTC_GROUPS_DEFAULT];
+	ttc->groups = mlx5_ttc_get_fs_groups(use_l4_type, params->ipsec_rss);
 
 	WARN_ON_ONCE(params->ft_attr.max_fte);
-	params->ft_attr.max_fte = mlx5_fs_ttc_table_size(groups);
+	params->ft_attr.max_fte = mlx5_fs_ttc_table_size(ttc->groups);
 	ttc->t = mlx5_create_flow_table(ns, &params->ft_attr);
 	if (IS_ERR(ttc->t)) {
 		err = PTR_ERR(ttc->t);
@@ -750,7 +836,7 @@ struct mlx5_ttc_table *mlx5_create_ttc_table(struct mlx5_core_dev *dev,
 		return ERR_PTR(err);
 	}
 
-	err = mlx5_create_ttc_table_groups(ttc, match_ipv_outer, groups);
+	err = mlx5_create_ttc_table_groups(ttc, match_ipv_outer);
 	if (err)
 		goto destroy_ft;
 

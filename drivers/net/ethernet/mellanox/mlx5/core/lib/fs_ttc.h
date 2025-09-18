@@ -47,6 +47,7 @@ struct ttc_params {
 	bool   inner_ttc;
 	DECLARE_BITMAP(ignore_tunnel_dests, MLX5_NUM_TUNNEL_TT);
 	struct mlx5_flow_destination tunnel_dests[MLX5_NUM_TUNNEL_TT];
+	bool ipsec_rss;
 };
 
 const char *mlx5_ttc_get_name(enum mlx5_traffic_types tt);
@@ -69,5 +70,7 @@ int mlx5_ttc_fwd_default_dest(struct mlx5_ttc_table *ttc,
 
 bool mlx5_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev);
 u8 mlx5_get_proto_by_tunnel_type(enum mlx5_tunnel_types tt);
+
+bool mlx5_ttc_has_esp_flow_group(struct mlx5_ttc_table *ttc);
 
 #endif /* __MLX5_FS_TTC_H__ */
