@@ -1821,7 +1821,6 @@ static int invoke_tx_handlers_early(struct ieee80211_tx_data *tx)
  txh_done:
 	if (unlikely(res == TX_DROP)) {
 		tx->sdata->tx_handlers_drop++;
-		I802_DEBUG_INC(tx->local->tx_handlers_drop);
 		if (tx->skb)
 			ieee80211_free_txskb(&tx->local->hw, tx->skb);
 		else
@@ -1866,7 +1865,6 @@ static int invoke_tx_handlers_late(struct ieee80211_tx_data *tx)
  txh_done:
 	if (unlikely(res == TX_DROP)) {
 		tx->sdata->tx_handlers_drop++;
-		I802_DEBUG_INC(tx->local->tx_handlers_drop);
 		if (tx->skb)
 			ieee80211_free_txskb(&tx->local->hw, tx->skb);
 		else

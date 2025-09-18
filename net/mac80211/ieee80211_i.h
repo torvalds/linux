@@ -1610,7 +1610,6 @@ struct ieee80211_local {
 	u32 dot11TransmittedFrameCount;
 
 	/* TX/RX handler statistics */
-	unsigned int tx_handlers_drop;
 	unsigned int tx_handlers_queued;
 	unsigned int tx_handlers_drop_wep;
 	unsigned int tx_handlers_drop_not_assoc;
