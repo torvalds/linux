@@ -931,6 +931,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_S1G_SHORT_BEACON] =
 		NLA_POLICY_NESTED(nl80211_s1g_short_beacon),
 	[NL80211_ATTR_BSS_PARAM] = { .type = NLA_FLAG },
+	[NL80211_ATTR_S1G_PRIMARY_2MHZ] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -1318,6 +1319,15 @@ static int nl80211_msg_put_channel(struct sk_buff *msg, struct wiphy *wiphy,
 		if ((chan->flags & IEEE80211_CHAN_ALLOW_20MHZ_ACTIVITY) &&
 		    nla_put_flag(msg,
 				 NL80211_FREQUENCY_ATTR_ALLOW_20MHZ_ACTIVITY))
+			goto nla_put_failure;
+		if ((chan->flags & IEEE80211_CHAN_NO_4MHZ) &&
+		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_4MHZ))
+			goto nla_put_failure;
+		if ((chan->flags & IEEE80211_CHAN_NO_8MHZ) &&
+		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_8MHZ))
+			goto nla_put_failure;
+		if ((chan->flags & IEEE80211_CHAN_NO_16MHZ) &&
+		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_16MHZ))
 			goto nla_put_failure;
 	}
 
@@ -3541,6 +3551,7 @@ static int _nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 	chandef->center_freq1 = KHZ_TO_MHZ(control_freq);
 	chandef->freq1_offset = control_freq % 1000;
 	chandef->center_freq2 = 0;
+	chandef->s1g_primary_2mhz = false;
 
 	if (!chandef->chan) {
 		NL_SET_ERR_MSG_ATTR(extack, attrs[NL80211_ATTR_WIPHY_FREQ],
@@ -3584,27 +3595,20 @@ static int _nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 			return -EINVAL;
 		}
 	} else if (attrs[NL80211_ATTR_CHANNEL_WIDTH]) {
-		chandef->width =
-			nla_get_u32(attrs[NL80211_ATTR_CHANNEL_WIDTH]);
-		if (chandef->chan->band == NL80211_BAND_S1GHZ) {
-			/* User input error for channel width doesn't match channel  */
-			if (chandef->width != ieee80211_s1g_channel_width(chandef->chan)) {
-				NL_SET_ERR_MSG_ATTR(extack,
-						    attrs[NL80211_ATTR_CHANNEL_WIDTH],
-						    "bad channel width");
-				return -EINVAL;
-			}
-		}
+		chandef->width = nla_get_u32(attrs[NL80211_ATTR_CHANNEL_WIDTH]);
 		if (attrs[NL80211_ATTR_CENTER_FREQ1]) {
 			chandef->center_freq1 =
 				nla_get_u32(attrs[NL80211_ATTR_CENTER_FREQ1]);
-			chandef->freq1_offset =
-				nla_get_u32_default(attrs[NL80211_ATTR_CENTER_FREQ1_OFFSET],
-						    0);
+			chandef->freq1_offset = nla_get_u32_default(
+				attrs[NL80211_ATTR_CENTER_FREQ1_OFFSET], 0);
 		}
+
 		if (attrs[NL80211_ATTR_CENTER_FREQ2])
 			chandef->center_freq2 =
 				nla_get_u32(attrs[NL80211_ATTR_CENTER_FREQ2]);
+
+		chandef->s1g_primary_2mhz = nla_get_flag(
+			attrs[NL80211_ATTR_S1G_PRIMARY_2MHZ]);
 	}
 
 	if (info->attrs[NL80211_ATTR_WIPHY_EDMG_CHANNELS]) {
@@ -10455,8 +10459,9 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 				goto out_free;
 			}
 
-			/* ignore disabled channels */
+			/* Ignore disabled / no primary channels */
 			if (chan->flags & IEEE80211_CHAN_DISABLED ||
+			    chan->flags & IEEE80211_CHAN_S1G_NO_PRIMARY ||
 			    !cfg80211_wdev_channel_allowed(wdev, chan))
 				continue;
 
@@ -10478,6 +10483,8 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 				chan = &wiphy->bands[band]->channels[j];
 
 				if (chan->flags & IEEE80211_CHAN_DISABLED ||
+				    chan->flags &
+					    IEEE80211_CHAN_S1G_NO_PRIMARY ||
 				    !cfg80211_wdev_channel_allowed(wdev, chan))
 					continue;
 
