@@ -458,7 +458,6 @@ static int mlx5_devlink_total_vfs_set(struct devlink *devlink, u32 id,
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	u32 mnvda[MLX5_ST_SZ_DW(mnvda_reg)];
-	bool per_pf_support;
 	void *data;
 	int err;
 
@@ -474,9 +473,7 @@ static int mlx5_devlink_total_vfs_set(struct devlink *devlink, u32 id,
 		return -EOPNOTSUPP;
 	}
 
-	per_pf_support = MLX5_GET(nv_global_pci_cap, data,
-				  per_pf_total_vf_supported);
-	if (!per_pf_support) {
+	if (!MLX5_GET(nv_global_pci_cap, data, per_pf_total_vf_supported)) {
 		/* We don't allow global SRIOV setting on per PF devlink */
 		NL_SET_ERR_MSG_MOD(extack,
 				   "SRIOV is not per PF on this device");
@@ -489,14 +486,8 @@ static int mlx5_devlink_total_vfs_set(struct devlink *devlink, u32 id,
 		return err;
 
 	MLX5_SET(nv_global_pci_conf, data, sriov_valid, 1);
-	MLX5_SET(nv_global_pci_conf, data, per_pf_total_vf, per_pf_support);
+	MLX5_SET(nv_global_pci_conf, data, per_pf_total_vf, 1);
 
-	if (!per_pf_support) {
-		MLX5_SET(nv_global_pci_conf, data, total_vfs, ctx->val.vu32);
-		return mlx5_nv_param_write(dev, mnvda, sizeof(mnvda));
-	}
-
-	/* SRIOV is per PF */
 	err = mlx5_nv_param_write(dev, mnvda, sizeof(mnvda));
 	if (err)
 		return err;
