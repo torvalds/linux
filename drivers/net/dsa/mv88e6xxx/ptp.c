@@ -144,7 +144,7 @@ static u64 mv88e6352_ptp_clock_read(struct cyclecounter *cc)
 	u16 phc_time[2];
 	int err;
 
-	err = mv88e6xxx_tai_read(chip, MV88E6XXX_TAI_TIME_LO, phc_time,
+	err = mv88e6xxx_tai_read(chip, MV88E6352_TAI_TIME_LO, phc_time,
 				 ARRAY_SIZE(phc_time));
 	if (err)
 		return 0;
@@ -158,7 +158,7 @@ static u64 mv88e6165_ptp_clock_read(struct cyclecounter *cc)
 	u16 phc_time[2];
 	int err;
 
-	err = mv88e6xxx_tai_read(chip, MV88E6XXX_PTP_GC_TIME_LO, phc_time,
+	err = mv88e6xxx_tai_read(chip, MV88E6165_PTP_GC_TIME_LO, phc_time,
 				 ARRAY_SIZE(phc_time));
 	if (err)
 		return 0;
@@ -176,17 +176,17 @@ static int mv88e6352_config_eventcap(struct mv88e6xxx_chip *chip, int rising)
 	u16 evcap_config;
 	int err;
 
-	evcap_config = MV88E6XXX_TAI_CFG_CAP_OVERWRITE |
-		       MV88E6XXX_TAI_CFG_CAP_CTR_START;
+	evcap_config = MV88E6352_TAI_CFG_CAP_OVERWRITE |
+		       MV88E6352_TAI_CFG_CAP_CTR_START;
 	if (!rising)
-		evcap_config |= MV88E6XXX_TAI_CFG_EVREQ_FALLING;
+		evcap_config |= MV88E6352_TAI_CFG_EVREQ_FALLING;
 
-	err = mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_CFG, evcap_config);
+	err = mv88e6xxx_tai_write(chip, MV88E6352_TAI_CFG, evcap_config);
 	if (err)
 		return err;
 
 	/* Write the capture config; this also clears the capture counter */
-	return mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_EVENT_STATUS, 0);
+	return mv88e6xxx_tai_write(chip, MV88E6352_TAI_EVENT_STATUS, 0);
 }
 
 static void mv88e6352_tai_event_work(struct work_struct *ugly)
@@ -199,7 +199,7 @@ static void mv88e6352_tai_event_work(struct work_struct *ugly)
 	int err;
 
 	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_tai_read(chip, MV88E6XXX_TAI_EVENT_STATUS,
+	err = mv88e6xxx_tai_read(chip, MV88E6352_TAI_EVENT_STATUS,
 				 status, ARRAY_SIZE(status));
 	mv88e6xxx_reg_unlock(chip);
 
@@ -207,19 +207,19 @@ static void mv88e6352_tai_event_work(struct work_struct *ugly)
 		dev_err(chip->dev, "failed to read TAI status register\n");
 		return;
 	}
-	if (status[0] & MV88E6XXX_TAI_EVENT_STATUS_ERROR) {
+	if (status[0] & MV88E6352_TAI_EVENT_STATUS_ERROR) {
 		dev_warn(chip->dev, "missed event capture\n");
 		return;
 	}
-	if (!(status[0] & MV88E6XXX_TAI_EVENT_STATUS_VALID))
+	if (!(status[0] & MV88E6352_TAI_EVENT_STATUS_VALID))
 		goto out;
 
 	raw_ts = ((u32)status[2] << 16) | status[1];
 
 	/* Clear the valid bit so the next timestamp can come in */
-	status[0] &= ~MV88E6XXX_TAI_EVENT_STATUS_VALID;
+	status[0] &= ~MV88E6352_TAI_EVENT_STATUS_VALID;
 	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_EVENT_STATUS, status[0]);
+	err = mv88e6xxx_tai_write(chip, MV88E6352_TAI_EVENT_STATUS, status[0]);
 	mv88e6xxx_reg_unlock(chip);
 	if (err) {
 		dev_err(chip->dev, "failed to write TAI status register\n");
