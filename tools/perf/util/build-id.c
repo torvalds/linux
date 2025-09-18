@@ -86,6 +86,13 @@ int build_id__snprintf(const struct build_id *build_id, char *bf, size_t bf_size
 {
 	size_t offs = 0;
 
+	if (build_id->size == 0) {
+		/* Ensure bf is always \0 terminated. */
+		if (bf_size > 0)
+			bf[0] = '\0';
+		return 0;
+	}
+
 	for (size_t i = 0; i < build_id->size && offs < bf_size; ++i)
 		offs += snprintf(bf + offs, bf_size - offs, "%02x", build_id->data[i]);
 
