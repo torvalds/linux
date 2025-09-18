@@ -1,5 +1,17 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+.. include:: ../disclaimer-zh_CN.rst
+
+:Original: Documentation/filesystems/gfs2-glocks.rst
+
+:翻译:
+
+ 邵明寅 Shao Mingyin <shao.mingyin@zte.com.cn>
+
+:校译:
+
+ 杨涛 yang tao <yang.tao172@zte.com.cn>
+
 ==================
 Glock 内部加锁规则
 ==================
