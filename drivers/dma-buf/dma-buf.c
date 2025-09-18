@@ -1141,8 +1141,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 	}
 	mangle_sg_table(sg_table);
 
-#ifdef CONFIG_DMA_API_DEBUG
-	{
+	if (IS_ENABLED(CONFIG_DMA_API_DEBUG)) {
 		struct scatterlist *sg;
 		u64 addr;
 		int len;
@@ -1154,10 +1153,10 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 			if (!PAGE_ALIGNED(addr) || !PAGE_ALIGNED(len)) {
 				pr_debug("%s: addr %llx or len %x is not page aligned!\n",
 					 __func__, addr, len);
+				break;
 			}
 		}
 	}
-#endif /* CONFIG_DMA_API_DEBUG */
 	return sg_table;
 
 error_unmap:
