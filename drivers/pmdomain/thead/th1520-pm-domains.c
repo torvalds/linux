@@ -173,6 +173,16 @@ static int th1520_pd_pwrseq_gpu_init(struct device *dev)
 					adev);
 }
 
+static int th1520_pd_reboot_init(struct device *dev,
+				 struct th1520_aon_chan *aon_chan)
+{
+	struct auxiliary_device *adev;
+
+	adev = devm_auxiliary_device_create(dev, "reboot", aon_chan);
+
+	return PTR_ERR_OR_ZERO(adev);
+}
+
 static int th1520_pd_probe(struct platform_device *pdev)
 {
 	struct generic_pm_domain **domains;
@@ -232,6 +242,10 @@ static int th1520_pd_probe(struct platform_device *pdev)
 		goto err_clean_genpd;
 
 	ret = th1520_pd_pwrseq_gpu_init(dev);
+	if (ret)
+		goto err_clean_provider;
+
+	ret = th1520_pd_reboot_init(dev, aon_chan);
 	if (ret)
 		goto err_clean_provider;
 
