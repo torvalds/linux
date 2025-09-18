@@ -145,7 +145,7 @@ void __kprobes
 simulate_br_blr(u32 opcode, long addr, struct pt_regs *regs)
 {
 	int xn = (opcode >> 5) & 0x1f;
-	int b_target = get_x_reg(regs, xn);
+	u64 b_target = get_x_reg(regs, xn);
 
 	if (((opcode >> 21) & 0x3) == 1)
 		if (update_lr(regs, addr + 4))
@@ -160,7 +160,7 @@ simulate_ret(u32 opcode, long addr, struct pt_regs *regs)
 	u64 ret_addr;
 	int err = 0;
 	int xn = (opcode >> 5) & 0x1f;
-	unsigned long r_target = get_x_reg(regs, xn);
+	u64 r_target = get_x_reg(regs, xn);
 
 	if (user_mode(regs) && task_gcs_el0_enabled(current)) {
 		ret_addr = pop_user_gcs(&err);
