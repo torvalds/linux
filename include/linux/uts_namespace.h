@@ -25,7 +25,7 @@ static inline struct uts_namespace *to_uts_ns(struct ns_common *ns)
 
 static inline void get_uts_ns(struct uts_namespace *ns)
 {
-	refcount_inc(&ns->ns.count);
+	ns_ref_inc(ns);
 }
 
 extern struct uts_namespace *copy_utsname(unsigned long flags,
@@ -34,7 +34,7 @@ extern void free_uts_ns(struct uts_namespace *ns);
 
 static inline void put_uts_ns(struct uts_namespace *ns)
 {
-	if (refcount_dec_and_test(&ns->ns.count))
+	if (ns_ref_put(ns))
 		free_uts_ns(ns);
 }
 
