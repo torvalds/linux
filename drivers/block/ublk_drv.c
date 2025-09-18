@@ -250,8 +250,7 @@ static void ublk_io_release(void *priv);
 static void ublk_stop_dev_unlocked(struct ublk_device *ub);
 static void ublk_abort_queue(struct ublk_device *ub, struct ublk_queue *ubq);
 static inline struct request *__ublk_check_and_get_req(struct ublk_device *ub,
-		const struct ublk_queue *ubq, struct ublk_io *io,
-		size_t offset);
+		u16 q_id, u16 tag, struct ublk_io *io, size_t offset);
 static inline unsigned int ublk_req_build_flags(struct request *req);
 
 static inline struct ublksrv_io_desc *
@@ -2126,7 +2125,7 @@ static void ublk_io_release(void *priv)
 
 static int ublk_register_io_buf(struct io_uring_cmd *cmd,
 				struct ublk_device *ub,
-				const struct ublk_queue *ubq,
+				u16 q_id, u16 tag,
 				struct ublk_io *io,
 				unsigned int index, unsigned int issue_flags)
 {
@@ -2136,7 +2135,7 @@ static int ublk_register_io_buf(struct io_uring_cmd *cmd,
 	if (!ublk_dev_support_zero_copy(ub))
 		return -EINVAL;
 
-	req = __ublk_check_and_get_req(ub, ubq, io, 0);
+	req = __ublk_check_and_get_req(ub, q_id, tag, io, 0);
 	if (!req)
 		return -EINVAL;
 
@@ -2153,7 +2152,7 @@ static int ublk_register_io_buf(struct io_uring_cmd *cmd,
 static int
 ublk_daemon_register_io_buf(struct io_uring_cmd *cmd,
 			    struct ublk_device *ub,
-			    const struct ublk_queue *ubq, struct ublk_io *io,
+			    u16 q_id, u16 tag, struct ublk_io *io,
 			    unsigned index, unsigned issue_flags)
 {
 	unsigned new_registered_buffers;
@@ -2166,7 +2165,7 @@ ublk_daemon_register_io_buf(struct io_uring_cmd *cmd,
 	 */
 	new_registered_buffers = io->task_registered_buffers + 1;
 	if (unlikely(new_registered_buffers >= UBLK_REFCOUNT_INIT))
-		return ublk_register_io_buf(cmd, ub, ubq, io, index,
+		return ublk_register_io_buf(cmd, ub, q_id, tag, io, index,
 					    issue_flags);
 
 	if (!ublk_dev_support_zero_copy(ub) || !ublk_rq_has_data(req))
@@ -2358,8 +2357,8 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 		 * so can be handled on any task
 		 */
 		if (_IOC_NR(cmd_op) == UBLK_IO_REGISTER_IO_BUF)
-			return ublk_register_io_buf(cmd, ub, ubq, io, addr,
-						    issue_flags);
+			return ublk_register_io_buf(cmd, ub, q_id, tag, io,
+						    addr, issue_flags);
 
 		goto out;
 	}
@@ -2380,7 +2379,7 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 
 	switch (_IOC_NR(cmd_op)) {
 	case UBLK_IO_REGISTER_IO_BUF:
-		return ublk_daemon_register_io_buf(cmd, ub, ubq, io, addr,
+		return ublk_daemon_register_io_buf(cmd, ub, q_id, tag, io, addr,
 						   issue_flags);
 	case UBLK_IO_COMMIT_AND_FETCH_REQ:
 		ret = ublk_check_commit_and_fetch(ubq, io, addr);
@@ -2429,16 +2428,15 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 }
 
 static inline struct request *__ublk_check_and_get_req(struct ublk_device *ub,
-		const struct ublk_queue *ubq, struct ublk_io *io, size_t offset)
+		u16 q_id, u16 tag, struct ublk_io *io, size_t offset)
 {
-	unsigned tag = io - ubq->ios;
 	struct request *req;
 
 	/*
 	 * can't use io->req in case of concurrent UBLK_IO_COMMIT_AND_FETCH_REQ,
 	 * which would overwrite it with io->cmd
 	 */
-	req = blk_mq_tag_to_rq(ub->tag_set.tags[ubq->q_id], tag);
+	req = blk_mq_tag_to_rq(ub->tag_set.tags[q_id], tag);
 	if (!req)
 		return NULL;
 
@@ -2536,7 +2534,7 @@ static struct request *ublk_check_and_get_req(struct kiocb *iocb,
 		return ERR_PTR(-EINVAL);
 
 	*io = &ubq->ios[tag];
-	req = __ublk_check_and_get_req(ub, ubq, *io, buf_off);
+	req = __ublk_check_and_get_req(ub, q_id, tag, *io, buf_off);
 	if (!req)
 		return ERR_PTR(-EINVAL);
 
