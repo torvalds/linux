@@ -228,7 +228,8 @@ EXPORT_SYMBOL(psp_dev_encapsulate);
  * Presently it accepts only already-authenticated packets and does not
  * support optional fields, such as virtualization cookies. The caller should
  * ensure that skb->data is pointing to the mac header, and that skb->mac_len
- * is set.
+ * is set. This function does not currently adjust skb->csum (CHECKSUM_COMPLETE
+ * is not supported).
  */
 int psp_dev_rcv(struct sk_buff *skb, u16 dev_id, u8 generation, bool strip_icv)
 {
