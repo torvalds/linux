@@ -2148,16 +2148,29 @@ static int set_id_aa64pfr1_el1(struct kvm_vcpu *vcpu,
 	return set_id_reg(vcpu, rd, user_val);
 }
 
+/*
+ * Allow userspace to de-feature a stage-2 translation granule but prevent it
+ * from claiming the impossible.
+ */
+#define tgran2_val_allowed(tg, safe, user)			\
+({								\
+	u8 __s = SYS_FIELD_GET(ID_AA64MMFR0_EL1, tg, safe);	\
+	u8 __u = SYS_FIELD_GET(ID_AA64MMFR0_EL1, tg, user);	\
+								\
+	__s == __u || __u == ID_AA64MMFR0_EL1_##tg##_NI;	\
+})
+
 static int set_id_aa64mmfr0_el1(struct kvm_vcpu *vcpu,
 				const struct sys_reg_desc *rd, u64 user_val)
 {
 	u64 sanitized_val = kvm_read_sanitised_id_reg(vcpu, rd);
-	u64 tgran2_mask = ID_AA64MMFR0_EL1_TGRAN4_2_MASK |
-			  ID_AA64MMFR0_EL1_TGRAN16_2_MASK |
-			  ID_AA64MMFR0_EL1_TGRAN64_2_MASK;
 
-	if (vcpu_has_nv(vcpu) &&
-	    ((sanitized_val & tgran2_mask) != (user_val & tgran2_mask)))
+	if (!vcpu_has_nv(vcpu))
+		return set_id_reg(vcpu, rd, user_val);
+
+	if (!tgran2_val_allowed(TGRAN4_2, sanitized_val, user_val) ||
+	    !tgran2_val_allowed(TGRAN16_2, sanitized_val, user_val) ||
+	    !tgran2_val_allowed(TGRAN64_2, sanitized_val, user_val))
 		return -EINVAL;
 
 	return set_id_reg(vcpu, rd, user_val);
