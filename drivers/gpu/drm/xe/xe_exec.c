@@ -16,6 +16,7 @@
 #include "xe_exec_queue.h"
 #include "xe_hw_engine_group.h"
 #include "xe_macros.h"
+#include "xe_pm.h"
 #include "xe_ring_ops_types.h"
 #include "xe_sched_job.h"
 #include "xe_sync.h"
@@ -247,7 +248,7 @@ retry:
 	 * on task freezing during suspend / hibernate, the call will
 	 * return -ERESTARTSYS and the IOCTL will be rerun.
 	 */
-	err = wait_for_completion_interruptible(&xe->pm_block);
+	err = xe_pm_block_on_suspend(xe);
 	if (err)
 		goto err_unlock_list;
 

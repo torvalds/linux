@@ -466,6 +466,8 @@ static void preempt_rebind_work_func(struct work_struct *w)
 retry:
 	if (!try_wait_for_completion(&vm->xe->pm_block) && vm_suspend_rebind_worker(vm)) {
 		up_write(&vm->lock);
+		/* We don't actually block but don't make progress. */
+		xe_pm_might_block_on_suspend();
 		return;
 	}
 
