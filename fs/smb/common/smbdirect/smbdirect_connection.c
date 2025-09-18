@@ -694,6 +694,100 @@ static int smbdirect_connection_post_recv_io(struct smbdirect_recv_io *msg)
 	return ret;
 }
 
+__maybe_unused /* this is temporary while this file is included in others */
+static void smbdirect_connection_recv_io_refill_work(struct work_struct *work)
+{
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, recv_io.posted.refill_work);
+	int missing;
+	int posted = 0;
+
+	if (unlikely(sc->first_error))
+		return;
+
+	/*
+	 * Find out how much smbdirect_recv_io buffers we should post.
+	 *
+	 * Note that sc->recv_io.credits.target is the value
+	 * from the peer and it can in theory change over time,
+	 * but it is forced to be at least 1 and at max
+	 * sp->recv_credit_max.
+	 *
+	 * So it can happen that missing will be lower than 0,
+	 * which means the peer has recently lowered its desired
+	 * target, while be already granted a higher number of credits.
+	 *
+	 * Note 'posted' is the number of smbdirect_recv_io buffers
+	 * posted within this function, while sc->recv_io.posted.count
+	 * is the overall value of posted smbdirect_recv_io buffers.
+	 *
+	 * We try to post as much buffers as missing, but
+	 * this is limited if a lot of smbdirect_recv_io buffers
+	 * are still in the sc->recv_io.reassembly.list instead of
+	 * the sc->recv_io.free.list.
+	 *
+	 */
+	missing = (int)sc->recv_io.credits.target - atomic_read(&sc->recv_io.posted.count);
+	while (posted < missing) {
+		struct smbdirect_recv_io *recv_io;
+		int ret;
+
+		/*
+		 * It's ok if smbdirect_connection_get_recv_io()
+		 * returns NULL, it means smbdirect_recv_io structures
+		 * are still be in the reassembly.list.
+		 */
+		recv_io = smbdirect_connection_get_recv_io(sc);
+		if (!recv_io)
+			break;
+
+		recv_io->first_segment = false;
+
+		ret = smbdirect_connection_post_recv_io(recv_io);
+		if (ret) {
+			smbdirect_log_rdma_recv(sc, SMBDIRECT_LOG_ERR,
+				"smbdirect_connection_post_recv_io failed rc=%d (%1pe)\n",
+				ret, SMBDIRECT_DEBUG_ERR_PTR(ret));
+			smbdirect_connection_put_recv_io(recv_io);
+			return;
+		}
+
+		atomic_inc(&sc->recv_io.posted.count);
+		posted += 1;
+	}
+
+	/* If nothing was posted we're done */
+	if (posted == 0)
+		return;
+
+	atomic_add(posted, &sc->recv_io.credits.available);
+
+	/*
+	 * If we posted at least one smbdirect_recv_io buffer,
+	 * we need to inform the peer about it and grant
+	 * additional credits.
+	 *
+	 * However there is one case where we don't want to
+	 * do that.
+	 *
+	 * If only a single credit was missing before
+	 * reaching the requested target, we should not
+	 * post an immediate send, as that would cause
+	 * endless ping pong once a keep alive exchange
+	 * is started.
+	 *
+	 * However if sc->recv_io.credits.target is only 1,
+	 * the peer has no credit left and we need to
+	 * grant the credit anyway.
+	 */
+	if (missing == 1 && sc->recv_io.credits.target != 1)
+		return;
+
+	smbdirect_log_keep_alive(sc, SMBDIRECT_LOG_INFO,
+		"schedule send of an empty message\n");
+	queue_work(sc->workqueue, &sc->idle.immediate_work);
+}
+
 static bool smbdirect_map_sges_single_page(struct smbdirect_map_sges *state,
 					   struct page *page, size_t off, size_t len)
 {
