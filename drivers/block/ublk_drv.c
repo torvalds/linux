@@ -762,11 +762,9 @@ static inline int __ublk_queue_cmd_buf_size(int depth)
 	return round_up(depth * sizeof(struct ublksrv_io_desc), PAGE_SIZE);
 }
 
-static inline int ublk_queue_cmd_buf_size(struct ublk_device *ub, int q_id)
+static inline int ublk_queue_cmd_buf_size(struct ublk_device *ub)
 {
-	struct ublk_queue *ubq = ublk_get_queue(ub, q_id);
-
-	return __ublk_queue_cmd_buf_size(ubq->q_depth);
+	return __ublk_queue_cmd_buf_size(ub->dev_info.queue_depth);
 }
 
 static int ublk_max_cmd_buf_size(void)
@@ -1703,7 +1701,7 @@ static int ublk_ch_mmap(struct file *filp, struct vm_area_struct *vma)
 			__func__, q_id, current->pid, vma->vm_start,
 			phys_off, (unsigned long)sz);
 
-	if (sz != ublk_queue_cmd_buf_size(ub, q_id))
+	if (sz != ublk_queue_cmd_buf_size(ub))
 		return -EINVAL;
 
 	pfn = virt_to_phys(ublk_queue_cmd_buf(ub, q_id)) >> PAGE_SHIFT;
@@ -2565,7 +2563,7 @@ static const struct file_operations ublk_ch_fops = {
 
 static void ublk_deinit_queue(struct ublk_device *ub, int q_id)
 {
-	int size = ublk_queue_cmd_buf_size(ub, q_id);
+	int size = ublk_queue_cmd_buf_size(ub);
 	struct ublk_queue *ubq = ublk_get_queue(ub, q_id);
 	int i;
 
@@ -2592,7 +2590,7 @@ static int ublk_init_queue(struct ublk_device *ub, int q_id)
 	ubq->flags = ub->dev_info.flags;
 	ubq->q_id = q_id;
 	ubq->q_depth = ub->dev_info.queue_depth;
-	size = ublk_queue_cmd_buf_size(ub, q_id);
+	size = ublk_queue_cmd_buf_size(ub);
 
 	ptr = (void *) __get_free_pages(gfp_flags, get_order(size));
 	if (!ptr)
