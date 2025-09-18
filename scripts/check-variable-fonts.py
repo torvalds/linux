@@ -1,6 +1,8 @@
-#!/bin/sh
+#!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
 # Copyright (C) Akira Yokosawa, 2024
+#
+# Ported to Python by (c) Mauro Carvalho Chehab, 2025
 #
 # For "make pdfdocs", reports of build errors of translations.pdf started
 # arriving early 2024 [1, 2].  It turned out that Fedora and openSUSE
@@ -87,29 +89,77 @@
 #     Denylisting should be less invasive, as it is effective only while
 #     XeLaTeX runs in "make pdfdocs".
 
-# Default per-user fontconfig path (overridden by env variable)
-: ${FONTS_CONF_DENY_VF:=$HOME/deny-vf}
+import os
+import re
+import subprocess
+import sys
+import textwrap
 
-export XDG_CONFIG_HOME=${FONTS_CONF_DENY_VF}
+class LatexFontChecker:
+    """
+    Detect problems with CJK variable fonts that affect PDF builds for
+    translations.
+    """
 
-notocjkvffonts=`fc-list : file family variable | \
-		grep 'variable=True' | \
-		grep -E -e 'Noto (Sans|Sans Mono|Serif) CJK' | \
-		sed -e 's/^/    /' -e 's/: Noto S.*$//' | sort | uniq`
+    def __init__(self):
+        deny_vf = os.environ.get('FONTS_CONF_DENY_VF', "~/deny-vf")
 
-if [ "x$notocjkvffonts" != "x" ] ; then
-	echo '============================================================================='
-	echo 'XeTeX is confused by "variable font" files listed below:'
-	echo "$notocjkvffonts"
-	echo
-	echo 'For CJK pages in PDF, they need to be hidden from XeTeX by denylisting.'
-	echo 'Or, CJK pages can be skipped by uninstalling texlive-xecjk.'
-	echo
-	echo 'For more info on denylisting, other options, and variable font, see header'
-	echo 'comments of scripts/check-variable-fonts.sh.'
-	echo '============================================================================='
-fi
+        self.environ = os.environ.copy()
+        self.environ['XDG_CONFIG_HOME'] = os.path.expanduser(deny_vf)
 
-# As this script is invoked from Makefile's error path, always error exit
-# regardless of whether any variable font is discovered or not.
-exit 1
+        self.re_cjk = re.compile(r"([^:]+):\s*Noto\s+(Sans|Sans Mono|Serif) CJK")
+
+    def get_noto_cjk_vf_fonts(self):
+        """Get Noto CJK fonts"""
+
+        cjk_fonts = set()
+        cmd = ["fc-list", ":", "file", "family", "variable"]
+        try:
+            result = subprocess.run(cmd,stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    universal_newlines=True,
+                                    env=self.environ,
+                                    check=True)
+
+        except subprocess.CalledProcessError as exc:
+            sys.exit(f"Error running fc-list: {repr(exc)}")
+
+        for line in result.stdout.splitlines():
+            if 'variable=True' not in line:
+                continue
+
+            match = self.re_cjk.search(line)
+            if match:
+                cjk_fonts.add(match.group(1))
+
+        return sorted(cjk_fonts)
+
+    def check(self):
+        """Check for problems with CJK fonts"""
+
+        fonts = textwrap.indent("\n".join(self.get_noto_cjk_vf_fonts()), "    ")
+        if not fonts:
+            return None
+
+        rel_file = os.path.relpath(__file__, os.getcwd())
+
+        msg = "=" * 77 + "\n"
+        msg += 'XeTeX is confused by "variable font" files listed below:\n'
+        msg += fonts + "\n"
+        msg += textwrap.dedent(f"""
+                For CJK pages in PDF, they need to be hidden from XeTeX by denylisting.
+                Or, CJK pages can be skipped by uninstalling texlive-xecjk.
+
+                For more info on denylisting, other options, and variable font, see header
+                comments of {rel_file}.
+            """)
+        msg += "=" * 77
+
+        return msg
+
+if __name__ == "__main__":
+    msg = LatexFontChecker().check()
+    if msg:
+        print(msg)
+
+    sys.exit(1)
