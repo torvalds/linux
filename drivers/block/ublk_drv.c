@@ -2190,14 +2190,14 @@ static int ublk_unregister_io_buf(struct io_uring_cmd *cmd,
 	return io_buffer_unregister_bvec(cmd, index, issue_flags);
 }
 
-static int ublk_check_fetch_buf(const struct ublk_queue *ubq, __u64 buf_addr)
+static int ublk_check_fetch_buf(const struct ublk_device *ub, __u64 buf_addr)
 {
-	if (ublk_need_map_io(ubq)) {
+	if (ublk_dev_need_map_io(ub)) {
 		/*
 		 * FETCH_RQ has to provide IO buffer if NEED GET
 		 * DATA is not enabled
 		 */
-		if (!buf_addr && !ublk_need_get_data(ubq))
+		if (!buf_addr && !ublk_dev_need_get_data(ub))
 			return -EINVAL;
 	} else if (buf_addr) {
 		/* User copy requires addr to be unset */
@@ -2340,7 +2340,7 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 	io = &ubq->ios[tag];
 	/* UBLK_IO_FETCH_REQ can be handled on any task, which sets io->task */
 	if (unlikely(_IOC_NR(cmd_op) == UBLK_IO_FETCH_REQ)) {
-		ret = ublk_check_fetch_buf(ubq, addr);
+		ret = ublk_check_fetch_buf(ub, addr);
 		if (ret)
 			goto out;
 		ret = ublk_fetch(cmd, ubq, io, addr);
