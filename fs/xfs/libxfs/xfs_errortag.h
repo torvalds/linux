@@ -4,14 +4,22 @@
  * Copyright (C) 2017 Oracle.
  * All Rights Reserved.
  */
-#ifndef __XFS_ERRORTAG_H_
+#if !defined(__XFS_ERRORTAG_H_) || defined(XFS_ERRTAG)
 #define __XFS_ERRORTAG_H_
 
 /*
- * error injection tags - the labels can be anything you want
- * but each tag should have its own unique number
+ * There are two ways to use this header file.  The first way is to #include it
+ * bare, which will define all the XFS_ERRTAG_* error injection knobs for use
+ * with the XFS_TEST_ERROR macro.  The second way is to enclose the #include
+ * with a #define for an XFS_ERRTAG macro, in which case the header will define
+ " an XFS_ERRTAGS macro that expands to invoke that XFS_ERRTAG macro for each
+ * defined error injection knob.
  */
 
+/*
+ * These are the actual error injection tags.  The numbers should be consecutive
+ * because arrays are sized based on the maximum.
+ */
 #define XFS_ERRTAG_NOERROR				0
 #define XFS_ERRTAG_IFLUSH_1				1
 #define XFS_ERRTAG_IFLUSH_2				2
@@ -71,49 +79,61 @@
  * Random factors for above tags, 1 means always, 2 means 1/2 time, etc.
  */
 #define XFS_RANDOM_DEFAULT				100
-#define XFS_RANDOM_IFLUSH_1				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_2				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_3				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_4				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_5				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_6				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_DA_READ_BUF				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_BTREE_CHECK_LBLOCK			(XFS_RANDOM_DEFAULT/4)
-#define XFS_RANDOM_BTREE_CHECK_SBLOCK			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_ALLOC_READ_AGF			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IALLOC_READ_AGI			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_ITOBP_INOTOBP			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IUNLINK				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IUNLINK_REMOVE			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_DIR_INO_VALIDATE			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_BULKSTAT_READ_CHUNK			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IODONE_IOERR				(XFS_RANDOM_DEFAULT/10)
-#define XFS_RANDOM_STRATREAD_IOERR			(XFS_RANDOM_DEFAULT/10)
-#define XFS_RANDOM_STRATCMPL_IOERR			(XFS_RANDOM_DEFAULT/10)
-#define XFS_RANDOM_DIOWRITE_IOERR			(XFS_RANDOM_DEFAULT/10)
-#define XFS_RANDOM_BMAPIFORMAT				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_FREE_EXTENT				1
-#define XFS_RANDOM_RMAP_FINISH_ONE			1
-#define XFS_RANDOM_REFCOUNT_CONTINUE_UPDATE		1
-#define XFS_RANDOM_REFCOUNT_FINISH_ONE			1
-#define XFS_RANDOM_BMAP_FINISH_ONE			1
-#define XFS_RANDOM_AG_RESV_CRITICAL			4
-#define XFS_RANDOM_LOG_BAD_CRC				1
-#define XFS_RANDOM_LOG_ITEM_PIN				1
-#define XFS_RANDOM_BUF_LRU_REF				2
-#define XFS_RANDOM_FORCE_SCRUB_REPAIR			1
-#define XFS_RANDOM_FORCE_SUMMARY_RECALC			1
-#define XFS_RANDOM_IUNLINK_FALLBACK			(XFS_RANDOM_DEFAULT/10)
-#define XFS_RANDOM_BUF_IOERROR				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_REDUCE_MAX_IEXTENTS			1
-#define XFS_RANDOM_BMAP_ALLOC_MINLEN_EXTENT		1
-#define XFS_RANDOM_AG_RESV_FAIL				1
-#define XFS_RANDOM_LARP					1
-#define XFS_RANDOM_DA_LEAF_SPLIT			1
-#define XFS_RANDOM_ATTR_LEAF_TO_NODE			1
-#define XFS_RANDOM_WB_DELAY_MS				3000
-#define XFS_RANDOM_WRITE_DELAY_MS			3000
-#define XFS_RANDOM_EXCHMAPS_FINISH_ONE			1
-#define XFS_RANDOM_METAFILE_RESV_CRITICAL		4
+
+/*
+ * Table of errror injection knobs.  The parameters to the XFS_ERRTAG macro are:
+ *   1. The XFS_ERRTAG_ flag but without the prefix;
+ *   2. The name of the sysfs knob; and
+ *   3. The default value for the knob.
+ */
+#ifdef XFS_ERRTAG
+# undef XFS_ERRTAGS
+# define XFS_ERRTAGS \
+XFS_ERRTAG(NOERROR,		noerror,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(IFLUSH_1,		iflush1,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(IFLUSH_2,		iflush2,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(IFLUSH_3,		iflush3,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(IFLUSH_4,		iflush4,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(IFLUSH_5,		iflush5,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(IFLUSH_6,		iflush6,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(DA_READ_BUF,		dareadbuf,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(BTREE_CHECK_LBLOCK,	btree_chk_lblk,		XFS_RANDOM_DEFAULT/4) \
+XFS_ERRTAG(BTREE_CHECK_SBLOCK,	btree_chk_sblk,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(ALLOC_READ_AGF,	readagf,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(IALLOC_READ_AGI,	readagi,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(ITOBP_INOTOBP,	itobp,			XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(IUNLINK,		iunlink,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(IUNLINK_REMOVE,	iunlinkrm,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(DIR_INO_VALIDATE,	dirinovalid,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(BULKSTAT_READ_CHUNK,	bulkstat,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(IODONE_IOERR,	logiodone,		XFS_RANDOM_DEFAULT/10) \
+XFS_ERRTAG(STRATREAD_IOERR,	stratread,		XFS_RANDOM_DEFAULT/10) \
+XFS_ERRTAG(STRATCMPL_IOERR,	stratcmpl,		XFS_RANDOM_DEFAULT/10) \
+XFS_ERRTAG(DIOWRITE_IOERR,	diowrite,		XFS_RANDOM_DEFAULT/10) \
+XFS_ERRTAG(BMAPIFORMAT,		bmapifmt,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(FREE_EXTENT,		free_extent,		1) \
+XFS_ERRTAG(RMAP_FINISH_ONE,	rmap_finish_one,	1) \
+XFS_ERRTAG(REFCOUNT_CONTINUE_UPDATE, refcount_continue_update, 1) \
+XFS_ERRTAG(REFCOUNT_FINISH_ONE,	refcount_finish_one,	1) \
+XFS_ERRTAG(BMAP_FINISH_ONE,	bmap_finish_one,	1) \
+XFS_ERRTAG(AG_RESV_CRITICAL,	ag_resv_critical,	4) \
+XFS_ERRTAG(LOG_BAD_CRC,		log_bad_crc,		1) \
+XFS_ERRTAG(LOG_ITEM_PIN,	log_item_pin,		1) \
+XFS_ERRTAG(BUF_LRU_REF,		buf_lru_ref,		2) \
+XFS_ERRTAG(FORCE_SCRUB_REPAIR,	force_repair,		1) \
+XFS_ERRTAG(FORCE_SUMMARY_RECALC, bad_summary,		1) \
+XFS_ERRTAG(IUNLINK_FALLBACK,	iunlink_fallback,	XFS_RANDOM_DEFAULT/10) \
+XFS_ERRTAG(BUF_IOERROR,		buf_ioerror,		XFS_RANDOM_DEFAULT) \
+XFS_ERRTAG(REDUCE_MAX_IEXTENTS,	reduce_max_iextents,	1) \
+XFS_ERRTAG(BMAP_ALLOC_MINLEN_EXTENT, bmap_alloc_minlen_extent, 1) \
+XFS_ERRTAG(AG_RESV_FAIL,	ag_resv_fail,		1) \
+XFS_ERRTAG(LARP,		larp,			1) \
+XFS_ERRTAG(DA_LEAF_SPLIT,	da_leaf_split,		1) \
+XFS_ERRTAG(ATTR_LEAF_TO_NODE,	attr_leaf_to_node,	1) \
+XFS_ERRTAG(WB_DELAY_MS,		wb_delay_ms,		3000) \
+XFS_ERRTAG(WRITE_DELAY_MS,	write_delay_ms,		3000) \
+XFS_ERRTAG(EXCHMAPS_FINISH_ONE,	exchmaps_finish_one,	1) \
+XFS_ERRTAG(METAFILE_RESV_CRITICAL, metafile_resv_crit,	4)
+#endif /* XFS_ERRTAG */
 
 #endif /* __XFS_ERRORTAG_H_ */
