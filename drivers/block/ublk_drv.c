@@ -2495,9 +2495,6 @@ static struct request *ublk_check_and_get_req(struct kiocb *iocb,
 		return ERR_PTR(-EINVAL);
 
 	ubq = ublk_get_queue(ub, q_id);
-	if (!ubq)
-		return ERR_PTR(-EINVAL);
-
 	if (!ublk_support_user_copy(ubq))
 		return ERR_PTR(-EACCES);
 
