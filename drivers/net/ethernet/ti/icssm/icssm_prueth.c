@@ -1390,7 +1390,8 @@ static int icssm_prueth_probe(struct platform_device *pdev)
 	prueth->mii_rt = syscon_regmap_lookup_by_phandle(np, "ti,mii-rt");
 	if (IS_ERR(prueth->mii_rt)) {
 		dev_err(dev, "couldn't get mii-rt syscon regmap\n");
-		return -ENODEV;
+		ret = PTR_ERR(prueth->mii_rt);
+		goto put_eth;
 	}
 
 	if (eth0_node) {
@@ -1398,7 +1399,7 @@ static int icssm_prueth_probe(struct platform_device *pdev)
 		if (IS_ERR(prueth->pru0)) {
 			ret = PTR_ERR(prueth->pru0);
 			dev_err_probe(dev, ret, "unable to get PRU0");
-			goto put_pru;
+			goto put_eth;
 		}
 	}
 
@@ -1407,7 +1408,7 @@ static int icssm_prueth_probe(struct platform_device *pdev)
 		if (IS_ERR(prueth->pru1)) {
 			ret = PTR_ERR(prueth->pru1);
 			dev_err_probe(dev, ret, "unable to get PRU1");
-			goto put_pru;
+			goto put_pru0;
 		}
 	}
 
@@ -1415,7 +1416,7 @@ static int icssm_prueth_probe(struct platform_device *pdev)
 	if (IS_ERR(pruss)) {
 		ret = PTR_ERR(pruss);
 		dev_err(dev, "unable to get pruss handle\n");
-		goto put_pru;
+		goto put_pru1;
 	}
 	prueth->pruss = pruss;
 
@@ -1569,18 +1570,15 @@ put_mem:
 	}
 	pruss_put(prueth->pruss);
 
-put_pru:
-	if (eth1_node) {
-		if (prueth->pru1)
-			pru_rproc_put(prueth->pru1);
-		of_node_put(eth1_node);
-	}
-
-	if (eth0_node) {
-		if (prueth->pru0)
-			pru_rproc_put(prueth->pru0);
-		of_node_put(eth0_node);
-	}
+put_pru1:
+	if (eth1_node)
+		pru_rproc_put(prueth->pru1);
+put_pru0:
+	if (eth0_node)
+		pru_rproc_put(prueth->pru0);
+put_eth:
+	of_node_put(eth1_node);
+	of_node_put(eth0_node);
 
 	return ret;
 }
