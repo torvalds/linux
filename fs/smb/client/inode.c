@@ -2003,8 +2003,21 @@ retry_std_delete:
 		goto psx_del_no_retry;
 	}
 
-	if (sillyrename || (server->vals->protocol_id > SMB10_PROT_ID &&
-			    d_is_positive(dentry) && d_count(dentry) > 2))
+	/* For SMB2+, if the file is open, we always perform a silly rename.
+	 *
+	 * We check for d_count() right after calling
+	 * cifs_close_deferred_file_under_dentry() to make sure that the
+	 * dentry's refcount gets dropped in case the file had any deferred
+	 * close.
+	 */
+	if (!sillyrename && server->vals->protocol_id > SMB10_PROT_ID) {
+		spin_lock(&dentry->d_lock);
+		if (d_count(dentry) > 1)
+			sillyrename = true;
+		spin_unlock(&dentry->d_lock);
+	}
+
+	if (sillyrename)
 		rc = -EBUSY;
 	else
 		rc = server->ops->unlink(xid, tcon, full_path, cifs_sb, dentry);
