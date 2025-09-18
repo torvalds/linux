@@ -136,6 +136,7 @@ struct reg_feat_map_desc {
 #define FEAT_AA32EL0		ID_AA64PFR0_EL1, EL0, AARCH32
 #define FEAT_AA32EL1		ID_AA64PFR0_EL1, EL1, AARCH32
 #define FEAT_AA64EL1		ID_AA64PFR0_EL1, EL1, IMP
+#define FEAT_AA64EL2		ID_AA64PFR0_EL1, EL2, IMP
 #define FEAT_AA64EL3		ID_AA64PFR0_EL1, EL3, IMP
 #define FEAT_AIE		ID_AA64MMFR3_EL1, AIE, IMP
 #define FEAT_S2POE		ID_AA64MMFR3_EL1, S2POE, IMP
@@ -1005,6 +1006,9 @@ static const struct reg_bits_to_feat_map hcr_feat_map[] = {
 	NEEDS_FEAT_FIXED(HCR_EL2_E2H, compute_hcr_e2h),
 };
 
+static const DECLARE_FEAT_MAP(hcr_desc, HCR_EL2,
+			      hcr_feat_map, FEAT_AA64EL2);
+
 static const struct reg_bits_to_feat_map sctlr2_feat_map[] = {
 	NEEDS_FEAT(SCTLR2_EL1_NMEA	|
 		   SCTLR2_EL1_EASE,
@@ -1187,8 +1191,7 @@ void __init check_feature_map(void)
 	check_reg_desc(&hdfgrtr2_desc);
 	check_reg_desc(&hdfgwtr2_desc);
 	check_reg_desc(&hcrx_desc);
-	check_feat_map(hcr_feat_map, ARRAY_SIZE(hcr_feat_map),
-		       HCR_EL2_RES0, "HCR_EL2");
+	check_reg_desc(&hcr_desc);
 	check_feat_map(sctlr2_feat_map, ARRAY_SIZE(sctlr2_feat_map),
 		       SCTLR2_EL1_RES0, "SCTLR2_EL1");
 	check_feat_map(tcr2_el2_feat_map, ARRAY_SIZE(tcr2_el2_feat_map),
@@ -1278,15 +1281,13 @@ static u64 compute_reg_res0_bits(struct kvm *kvm,
 	return res0;
 }
 
-static u64 compute_fixed_bits(struct kvm *kvm,
-			      const struct reg_bits_to_feat_map *map,
-			      int map_size,
-			      u64 *fixed_bits,
-			      unsigned long require,
-			      unsigned long exclude)
+static u64 compute_reg_fixed_bits(struct kvm *kvm,
+				  const struct reg_feat_map_desc *r,
+				  u64 *fixed_bits, unsigned long require,
+				  unsigned long exclude)
 {
-	return __compute_fixed_bits(kvm, map, map_size, fixed_bits,
-				    require | FIXED_VALUE, exclude);
+	return __compute_fixed_bits(kvm, r->bit_feat_map, r->bit_feat_map_sz,
+				    fixed_bits, require | FIXED_VALUE, exclude);
 }
 
 void compute_fgu(struct kvm *kvm, enum fgt_group_id fgt)
@@ -1391,12 +1392,9 @@ void get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg, u64 *res0, u64 *r
 		*res1 = __HCRX_EL2_RES1;
 		break;
 	case HCR_EL2:
-		mask = compute_fixed_bits(kvm, hcr_feat_map,
-					  ARRAY_SIZE(hcr_feat_map), &fixed,
-					  0, 0);
-		*res0 = compute_res0_bits(kvm, hcr_feat_map,
-					  ARRAY_SIZE(hcr_feat_map), 0, 0);
-		*res0 |= HCR_EL2_RES0 | (mask & ~fixed);
+		mask = compute_reg_fixed_bits(kvm, &hcr_desc, &fixed, 0, 0);
+		*res0 = compute_reg_res0_bits(kvm, &hcr_desc, 0, 0);
+		*res0 |= (mask & ~fixed);
 		*res1 = HCR_EL2_RES1 | (mask & fixed);
 		break;
 	case SCTLR2_EL1:
