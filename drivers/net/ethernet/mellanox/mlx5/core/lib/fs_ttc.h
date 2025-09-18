@@ -18,6 +18,14 @@ enum mlx5_traffic_types {
 	MLX5_TT_IPV4,
 	MLX5_TT_IPV6,
 	MLX5_TT_ANY,
+	MLX5_TT_DECRYPTED_ESP_OUTER_IPV4_TCP,
+	MLX5_TT_DECRYPTED_ESP_OUTER_IPV6_TCP,
+	MLX5_TT_DECRYPTED_ESP_OUTER_IPV4_UDP,
+	MLX5_TT_DECRYPTED_ESP_OUTER_IPV6_UDP,
+	MLX5_TT_DECRYPTED_ESP_INNER_IPV4_TCP,
+	MLX5_TT_DECRYPTED_ESP_INNER_IPV6_TCP,
+	MLX5_TT_DECRYPTED_ESP_INNER_IPV4_UDP,
+	MLX5_TT_DECRYPTED_ESP_INNER_IPV6_UDP,
 	MLX5_NUM_TT,
 	MLX5_NUM_INDIR_TIRS = MLX5_TT_ANY,
 };
@@ -72,5 +80,10 @@ bool mlx5_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev);
 u8 mlx5_get_proto_by_tunnel_type(enum mlx5_tunnel_types tt);
 
 bool mlx5_ttc_has_esp_flow_group(struct mlx5_ttc_table *ttc);
+static inline bool mlx5_ttc_is_decrypted_esp_tt(enum mlx5_traffic_types tt)
+{
+	return tt >= MLX5_TT_DECRYPTED_ESP_OUTER_IPV4_TCP &&
+	       tt <= MLX5_TT_DECRYPTED_ESP_INNER_IPV6_UDP;
+}
 
 #endif /* __MLX5_FS_TTC_H__ */

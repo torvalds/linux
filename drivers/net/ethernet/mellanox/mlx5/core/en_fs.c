@@ -905,6 +905,9 @@ static void mlx5e_set_inner_ttc_params(struct mlx5e_flow_steering *fs,
 	ft_attr->prio = MLX5E_NIC_PRIO;
 
 	for (tt = 0; tt < MLX5_NUM_TT; tt++) {
+		if (mlx5_ttc_is_decrypted_esp_tt(tt))
+			continue;
+
 		ttc_params->dests[tt].type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 		ttc_params->dests[tt].tir_num =
 			tt == MLX5_TT_ANY ?
@@ -912,6 +915,13 @@ static void mlx5e_set_inner_ttc_params(struct mlx5e_flow_steering *fs,
 				mlx5e_rx_res_get_tirn_rss_inner(rx_res,
 								tt);
 	}
+}
+
+static bool mlx5e_ipsec_rss_supported(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_NIC_RX_FT_FIELD_SUPPORT_2(mdev, ipsec_next_header) &&
+	       MLX5_CAP_NIC_RX_FT_FIELD_SUPPORT_2(mdev, outer_l4_type_ext) &&
+	       MLX5_CAP_NIC_RX_FT_FIELD_SUPPORT_2(mdev, inner_l4_type_ext);
 }
 
 void mlx5e_set_ttc_params(struct mlx5e_flow_steering *fs,
@@ -929,9 +939,12 @@ void mlx5e_set_ttc_params(struct mlx5e_flow_steering *fs,
 	ft_attr->prio = MLX5E_NIC_PRIO;
 
 	ttc_params->ipsec_rss = ipsec_rss &&
-		MLX5_CAP_NIC_RX_FT_FIELD_SUPPORT_2(fs->mdev, ipsec_next_header);
+				mlx5e_ipsec_rss_supported(fs->mdev);
 
 	for (tt = 0; tt < MLX5_NUM_TT; tt++) {
+		if (mlx5_ttc_is_decrypted_esp_tt(tt))
+			continue;
+
 		ttc_params->dests[tt].type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 		ttc_params->dests[tt].tir_num =
 			tt == MLX5_TT_ANY ?

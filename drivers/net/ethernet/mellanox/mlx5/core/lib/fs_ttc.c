@@ -9,7 +9,7 @@
 #include "mlx5_core.h"
 #include "lib/fs_ttc.h"
 
-#define MLX5_TTC_MAX_NUM_GROUPS		5
+#define MLX5_TTC_MAX_NUM_GROUPS		7
 #define MLX5_TTC_GROUP_TCPUDP_SIZE	(MLX5_TT_IPV6_UDP + 1)
 
 struct mlx5_fs_ttc_groups {
@@ -188,10 +188,12 @@ static const struct mlx5_fs_ttc_groups ttc_groups[] = {
 		},
 	},
 	[TTC_GROUPS_DEFAULT_ESP] = {
-		.num_groups = 4,
+		.num_groups = 6,
 		.group_size = {
 			MLX5_TTC_GROUP_TCPUDP_SIZE + BIT(1) +
 			MLX5_NUM_TUNNEL_TT,
+			BIT(2), /* decrypted outer L4 */
+			BIT(2), /* decrypted inner L4 */
 			BIT(1), /* ESP */
 			BIT(1),
 			BIT(0),
@@ -199,10 +201,12 @@ static const struct mlx5_fs_ttc_groups ttc_groups[] = {
 	},
 	[TTC_GROUPS_USE_L4_TYPE_ESP] = {
 		.use_l4_type = true,
-		.num_groups = 5,
+		.num_groups = 7,
 		.group_size = {
 			MLX5_TTC_GROUP_TCPUDP_SIZE,
 			BIT(1) + MLX5_NUM_TUNNEL_TT,
+			BIT(2), /* decrypted outer L4 */
+			BIT(2), /* decrypted inner L4 */
 			BIT(1), /* ESP */
 			BIT(1),
 			BIT(0),
@@ -391,6 +395,9 @@ static int mlx5_generate_ttc_table_rules(struct mlx5_core_dev *dev,
 	for (tt = 0; tt < MLX5_NUM_TT; tt++) {
 		struct mlx5_ttc_rule *rule = &rules[tt];
 
+		if (mlx5_ttc_is_decrypted_esp_tt(tt))
+			continue;
+
 		if (test_bit(tt, params->ignore_dests))
 			continue;
 		rule->rule = mlx5_generate_ttc_rule(dev, ft, &params->dests[tt],
@@ -436,15 +443,55 @@ del_rules:
 }
 
 static int mlx5_create_ttc_table_ipsec_groups(struct mlx5_ttc_table *ttc,
+					      bool use_ipv,
 					      u32 *in, int *next_ix)
 {
 	u8 *mc = MLX5_ADDR_OF(create_flow_group_in, in, match_criteria);
 	const struct mlx5_fs_ttc_groups *groups = ttc->groups;
 	int ix = *next_ix;
 
+	MLX5_SET(fte_match_param, mc, outer_headers.ip_protocol, 0);
+
+	/* decrypted ESP outer group */
+	MLX5_SET_CFG(in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
+	MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.l4_type_ext);
+	MLX5_SET_CFG(in, start_flow_index, ix);
+	ix += groups->group_size[ttc->num_groups];
+	MLX5_SET_CFG(in, end_flow_index, ix - 1);
+	ttc->g[ttc->num_groups] = mlx5_create_flow_group(ttc->t, in);
+	if (IS_ERR(ttc->g[ttc->num_groups]))
+		goto err;
+	ttc->num_groups++;
+
+	MLX5_SET(fte_match_param, mc, outer_headers.l4_type_ext, 0);
+
+	/* decrypted ESP inner group */
+	MLX5_SET_CFG(in, match_criteria_enable, MLX5_MATCH_INNER_HEADERS);
+	if (use_ipv)
+		MLX5_SET(fte_match_param, mc, outer_headers.ip_version, 0);
+	else
+		MLX5_SET(fte_match_param, mc, outer_headers.ethertype, 0);
+	MLX5_SET_TO_ONES(fte_match_param, mc, inner_headers.ip_version);
+	MLX5_SET_TO_ONES(fte_match_param, mc, inner_headers.l4_type_ext);
+	MLX5_SET_CFG(in, start_flow_index, ix);
+	ix += groups->group_size[ttc->num_groups];
+	MLX5_SET_CFG(in, end_flow_index, ix - 1);
+	ttc->g[ttc->num_groups] = mlx5_create_flow_group(ttc->t, in);
+	if (IS_ERR(ttc->g[ttc->num_groups]))
+		goto err;
+	ttc->num_groups++;
+
+	MLX5_SET(fte_match_param, mc, inner_headers.ip_version, 0);
+	MLX5_SET(fte_match_param, mc, inner_headers.l4_type_ext, 0);
+
 	/* undecrypted ESP group */
 	MLX5_SET_CFG(in, match_criteria_enable,
 		     MLX5_MATCH_OUTER_HEADERS | MLX5_MATCH_MISC_PARAMETERS_2);
+	if (use_ipv)
+		MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.ip_version);
+	else
+		MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.ethertype);
+	MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.ip_protocol);
 	MLX5_SET_TO_ONES(fte_match_param, mc,
 			 misc_parameters_2.ipsec_next_header);
 	MLX5_SET_CFG(in, start_flow_index, ix);
@@ -515,7 +562,7 @@ static int mlx5_create_ttc_table_groups(struct mlx5_ttc_table *ttc,
 	ttc->num_groups++;
 
 	if (mlx5_ttc_has_esp_flow_group(ttc)) {
-		err = mlx5_create_ttc_table_ipsec_groups(ttc, in, &ix);
+		err = mlx5_create_ttc_table_ipsec_groups(ttc, use_ipv, in, &ix);
 		if (err)
 			goto err;
 
@@ -614,6 +661,9 @@ static int mlx5_generate_inner_ttc_table_rules(struct mlx5_core_dev *dev,
 
 	for (tt = 0; tt < MLX5_NUM_TT; tt++) {
 		struct mlx5_ttc_rule *rule = &rules[tt];
+
+		if (mlx5_ttc_is_decrypted_esp_tt(tt))
+			continue;
 
 		if (test_bit(tt, params->ignore_dests))
 			continue;

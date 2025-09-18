@@ -57,7 +57,7 @@ struct mlx5e_l2_table {
 	bool                       promisc_enabled;
 };
 
-#define MLX5E_NUM_INDIR_TIRS (MLX5_NUM_TT - 1)
+#define MLX5E_NUM_INDIR_TIRS (MLX5_NUM_INDIR_TIRS)
 
 #define MLX5_HASH_IP		(MLX5_HASH_FIELD_SEL_SRC_IP   |\
 				 MLX5_HASH_FIELD_SEL_DST_IP)
