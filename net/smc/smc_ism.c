@@ -15,7 +15,6 @@
 #include "smc.h"
 #include "smc_core.h"
 #include "smc_ism.h"
-#include "smc_loopback.h"
 #include "smc_pnet.h"
 #include "smc_netlink.h"
 #include "linux/ism.h"
@@ -33,18 +32,19 @@ static void smcd_register_dev(struct dibs_dev *dibs);
 static void smcd_unregister_dev(struct dibs_dev *dibs);
 #if IS_ENABLED(CONFIG_ISM)
 static void smcd_handle_event(struct ism_dev *ism, struct ism_event *event);
-static void smcd_handle_irq(struct ism_dev *ism, unsigned int dmbno,
-			    u16 dmbemask);
 
 static struct ism_client smc_ism_client = {
 	.name = "SMC-D",
 	.handle_event = smcd_handle_event,
-	.handle_irq = smcd_handle_irq,
 };
 #endif
+static void smcd_handle_irq(struct dibs_dev *dibs, unsigned int dmbno,
+			    u16 dmbemask);
+
 static struct dibs_client_ops smc_client_ops = {
 	.add_dev = smcd_register_dev,
 	.del_dev = smcd_unregister_dev,
+	.handle_irq = smcd_handle_irq,
 };
 
 static struct dibs_client smc_dibs_client = {
@@ -221,18 +221,19 @@ out:
 void smc_ism_unregister_dmb(struct smcd_dev *smcd,
 			    struct smc_buf_desc *dmb_desc)
 {
-	struct smcd_dmb dmb;
+	struct dibs_dmb dmb;
 
 	if (!dmb_desc->dma_addr)
 		return;
 
 	memset(&dmb, 0, sizeof(dmb));
 	dmb.dmb_tok = dmb_desc->token;
-	dmb.sba_idx = dmb_desc->sba_idx;
+	dmb.idx = dmb_desc->sba_idx;
 	dmb.cpu_addr = dmb_desc->cpu_addr;
 	dmb.dma_addr = dmb_desc->dma_addr;
 	dmb.dmb_len = dmb_desc->len;
-	smcd->ops->unregister_dmb(smcd, &dmb);
+
+	smcd->dibs->ops->unregister_dmb(smcd->dibs, &dmb);
 
 	return;
 }
@@ -240,17 +241,20 @@ void smc_ism_unregister_dmb(struct smcd_dev *smcd,
 int smc_ism_register_dmb(struct smc_link_group *lgr, int dmb_len,
 			 struct smc_buf_desc *dmb_desc)
 {
-	struct smcd_dmb dmb;
+	struct dibs_dev *dibs;
+	struct dibs_dmb dmb;
 	int rc;
 
 	memset(&dmb, 0, sizeof(dmb));
 	dmb.dmb_len = dmb_len;
-	dmb.sba_idx = dmb_desc->sba_idx;
+	dmb.idx = dmb_desc->sba_idx;
 	dmb.vlan_id = lgr->vlan_id;
-	dmb.rgid = lgr->peer_gid.gid;
-	rc = lgr->smcd->ops->register_dmb(lgr->smcd, &dmb, lgr->smcd->client);
+	copy_to_dibsgid(&dmb.rgid, &lgr->peer_gid);
+
+	dibs = lgr->smcd->dibs;
+	rc = dibs->ops->register_dmb(dibs, &dmb, &smc_dibs_client);
 	if (!rc) {
-		dmb_desc->sba_idx = dmb.sba_idx;
+		dmb_desc->sba_idx = dmb.idx;
 		dmb_desc->token = dmb.dmb_tok;
 		dmb_desc->cpu_addr = dmb.cpu_addr;
 		dmb_desc->dma_addr = dmb.dma_addr;
@@ -265,24 +269,24 @@ bool smc_ism_support_dmb_nocopy(struct smcd_dev *smcd)
 	 * merging sndbuf with peer DMB to avoid
 	 * data copies between them.
 	 */
-	return (smcd->ops->support_dmb_nocopy &&
-		smcd->ops->support_dmb_nocopy(smcd));
+	return (smcd->dibs->ops->support_mmapped_rdmb &&
+		smcd->dibs->ops->support_mmapped_rdmb(smcd->dibs));
 }
 
 int smc_ism_attach_dmb(struct smcd_dev *dev, u64 token,
 		       struct smc_buf_desc *dmb_desc)
 {
-	struct smcd_dmb dmb;
+	struct dibs_dmb dmb;
 	int rc = 0;
 
-	if (!dev->ops->attach_dmb)
+	if (!dev->dibs->ops->attach_dmb)
 		return -EINVAL;
 
 	memset(&dmb, 0, sizeof(dmb));
 	dmb.dmb_tok = token;
-	rc = dev->ops->attach_dmb(dev, &dmb);
+	rc = dev->dibs->ops->attach_dmb(dev->dibs, &dmb);
 	if (!rc) {
-		dmb_desc->sba_idx = dmb.sba_idx;
+		dmb_desc->sba_idx = dmb.idx;
 		dmb_desc->token = dmb.dmb_tok;
 		dmb_desc->cpu_addr = dmb.cpu_addr;
 		dmb_desc->dma_addr = dmb.dma_addr;
@@ -294,10 +298,10 @@ int smc_ism_attach_dmb(struct smcd_dev *dev, u64 token,
 
 int smc_ism_detach_dmb(struct smcd_dev *dev, u64 token)
 {
-	if (!dev->ops->detach_dmb)
+	if (!dev->dibs->ops->detach_dmb)
 		return -EINVAL;
 
-	return dev->ops->detach_dmb(dev, token);
+	return dev->dibs->ops->detach_dmb(dev->dibs, token);
 }
 
 static int smc_nl_handle_smcd_dev(struct smcd_dev *smcd,
@@ -503,26 +507,20 @@ static void smcd_register_dev(struct dibs_dev *dibs)
 {
 	struct smcd_dev *smcd, *fentry;
 	const struct smcd_ops *ops;
-	struct smc_lo_dev *smc_lo;
 	struct ism_dev *ism;
+	int max_dmbs;
+
+	max_dmbs = dibs->ops->max_dmbs();
 
 	if (smc_ism_is_loopback(dibs)) {
-		if (smc_loopback_init(&smc_lo))
-			return;
-	}
-
-	if (smc_ism_is_loopback(dibs)) {
-		ops = smc_lo_get_smcd_ops();
-		smcd = smcd_alloc_dev(dev_name(&dibs->dev), ops,
-				      SMC_LO_MAX_DMBS);
+		ops = NULL;
 	} else {
 		ism = dibs->drv_priv;
 #if IS_ENABLED(CONFIG_ISM)
 		ops = ism_get_smcd_ops();
 #endif
-		smcd = smcd_alloc_dev(dev_name(&dibs->dev), ops,
-				      ISM_NR_DMBS);
 	}
+	smcd = smcd_alloc_dev(dev_name(&dibs->dev), ops, max_dmbs);
 	if (!smcd)
 		return;
 
@@ -530,13 +528,11 @@ static void smcd_register_dev(struct dibs_dev *dibs)
 	dibs_set_priv(dibs, &smc_dibs_client, smcd);
 
 	if (smc_ism_is_loopback(dibs)) {
-		smcd->priv = smc_lo;
-		smc_lo->smcd = smcd;
+		smcd->priv = NULL;
 	} else {
 		smcd->priv = ism;
 #if IS_ENABLED(CONFIG_ISM)
 		ism_set_priv(ism, &smc_ism_client, smcd);
-		smcd->client = &smc_ism_client;
 #endif
 	}
 
@@ -590,8 +586,6 @@ static void smcd_unregister_dev(struct dibs_dev *dibs)
 	list_del_init(&smcd->list);
 	mutex_unlock(&smcd_dev_list.mutex);
 	destroy_workqueue(smcd->event_wq);
-	if (smc_ism_is_loopback(dibs))
-		smc_loopback_exit();
 	kfree(smcd->conn);
 	kfree(smcd);
 }
@@ -624,6 +618,7 @@ static void smcd_handle_event(struct ism_dev *ism, struct ism_event *event)
 	wrk->event = *event;
 	queue_work(smcd->event_wq, &wrk->work);
 }
+#endif
 
 /* SMCD Device interrupt handler. Called from ISM device interrupt handler.
  * Parameters are the ism device pointer, DMB number, and the DMBE bitmask.
@@ -632,10 +627,10 @@ static void smcd_handle_event(struct ism_dev *ism, struct ism_event *event)
  * Context:
  * - Function called in IRQ context from ISM device driver IRQ handler.
  */
-static void smcd_handle_irq(struct ism_dev *ism, unsigned int dmbno,
+static void smcd_handle_irq(struct dibs_dev *dibs, unsigned int dmbno,
 			    u16 dmbemask)
 {
-	struct smcd_dev *smcd = ism_get_priv(ism, &smc_ism_client);
+	struct smcd_dev *smcd = dibs_get_priv(dibs, &smc_dibs_client);
 	struct smc_connection *conn = NULL;
 	unsigned long flags;
 
@@ -645,7 +640,6 @@ static void smcd_handle_irq(struct ism_dev *ism, unsigned int dmbno,
 		tasklet_schedule(&conn->rx_tsklet);
 	spin_unlock_irqrestore(&smcd->lock, flags);
 }
-#endif
 
 int smc_ism_signal_shutdown(struct smc_link_group *lgr)
 {

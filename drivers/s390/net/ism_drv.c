@@ -98,14 +98,6 @@ int ism_unregister_client(struct ism_client *client)
 		spin_lock_irqsave(&ism->lock, flags);
 		/* Stop forwarding IRQs and events */
 		ism->subs[client->id] = NULL;
-		for (int i = 0; i < ISM_NR_DMBS; ++i) {
-			if (ism->sba_client_arr[i] == client->id) {
-				WARN(1, "%s: attempt to unregister '%s' with registered dmb(s)\n",
-				     __func__, client->name);
-				rc = -EBUSY;
-				goto err_reg_dmb;
-			}
-		}
 		spin_unlock_irqrestore(&ism->lock, flags);
 	}
 	mutex_unlock(&ism_dev_list.mutex);
@@ -115,11 +107,6 @@ int ism_unregister_client(struct ism_client *client)
 	if (client->id + 1 == max_client)
 		max_client--;
 	mutex_unlock(&clients_lock);
-	return rc;
-
-err_reg_dmb:
-	spin_unlock_irqrestore(&ism->lock, flags);
-	mutex_unlock(&ism_dev_list.mutex);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(ism_unregister_client);
@@ -308,15 +295,20 @@ static int ism_query_rgid(struct dibs_dev *dibs, const uuid_t *rgid,
 	return ism_cmd(ism, &cmd);
 }
 
-static void ism_free_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
+static int ism_max_dmbs(void)
 {
-	clear_bit(dmb->sba_idx, ism->sba_bitmap);
+	return ISM_NR_DMBS;
+}
+
+static void ism_free_dmb(struct ism_dev *ism, struct dibs_dmb *dmb)
+{
+	clear_bit(dmb->idx, ism->sba_bitmap);
 	dma_unmap_page(&ism->pdev->dev, dmb->dma_addr, dmb->dmb_len,
 		       DMA_FROM_DEVICE);
 	folio_put(virt_to_folio(dmb->cpu_addr));
 }
 
-static int ism_alloc_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
+static int ism_alloc_dmb(struct ism_dev *ism, struct dibs_dmb *dmb)
 {
 	struct folio *folio;
 	unsigned long bit;
@@ -325,16 +317,16 @@ static int ism_alloc_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 	if (PAGE_ALIGN(dmb->dmb_len) > dma_get_max_seg_size(&ism->pdev->dev))
 		return -EINVAL;
 
-	if (!dmb->sba_idx) {
+	if (!dmb->idx) {
 		bit = find_next_zero_bit(ism->sba_bitmap, ISM_NR_DMBS,
 					 ISM_DMB_BIT_OFFSET);
 		if (bit == ISM_NR_DMBS)
 			return -ENOSPC;
 
-		dmb->sba_idx = bit;
+		dmb->idx = bit;
 	}
-	if (dmb->sba_idx < ISM_DMB_BIT_OFFSET ||
-	    test_and_set_bit(dmb->sba_idx, ism->sba_bitmap))
+	if (dmb->idx < ISM_DMB_BIT_OFFSET ||
+	    test_and_set_bit(dmb->idx, ism->sba_bitmap))
 		return -EINVAL;
 
 	folio = folio_alloc(GFP_KERNEL | __GFP_NOWARN | __GFP_NOMEMALLOC |
@@ -359,13 +351,14 @@ static int ism_alloc_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 out_free:
 	kfree(dmb->cpu_addr);
 out_bit:
-	clear_bit(dmb->sba_idx, ism->sba_bitmap);
+	clear_bit(dmb->idx, ism->sba_bitmap);
 	return rc;
 }
 
-int ism_register_dmb(struct ism_dev *ism, struct ism_dmb *dmb,
-		     struct ism_client *client)
+static int ism_register_dmb(struct dibs_dev *dibs, struct dibs_dmb *dmb,
+			    struct dibs_client *client)
 {
+	struct ism_dev *ism = dibs->drv_priv;
 	union ism_reg_dmb cmd;
 	unsigned long flags;
 	int ret;
@@ -380,10 +373,10 @@ int ism_register_dmb(struct ism_dev *ism, struct ism_dmb *dmb,
 
 	cmd.request.dmb = dmb->dma_addr;
 	cmd.request.dmb_len = dmb->dmb_len;
-	cmd.request.sba_idx = dmb->sba_idx;
+	cmd.request.sba_idx = dmb->idx;
 	cmd.request.vlan_valid = dmb->vlan_valid;
 	cmd.request.vlan_id = dmb->vlan_id;
-	cmd.request.rgid = dmb->rgid;
+	memcpy(&cmd.request.rgid, &dmb->rgid, sizeof(u64));
 
 	ret = ism_cmd(ism, &cmd);
 	if (ret) {
@@ -391,16 +384,16 @@ int ism_register_dmb(struct ism_dev *ism, struct ism_dmb *dmb,
 		goto out;
 	}
 	dmb->dmb_tok = cmd.response.dmb_tok;
-	spin_lock_irqsave(&ism->lock, flags);
-	ism->sba_client_arr[dmb->sba_idx - ISM_DMB_BIT_OFFSET] = client->id;
-	spin_unlock_irqrestore(&ism->lock, flags);
+	spin_lock_irqsave(&dibs->lock, flags);
+	dibs->dmb_clientid_arr[dmb->idx - ISM_DMB_BIT_OFFSET] = client->id;
+	spin_unlock_irqrestore(&dibs->lock, flags);
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ism_register_dmb);
 
-int ism_unregister_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
+static int ism_unregister_dmb(struct dibs_dev *dibs, struct dibs_dmb *dmb)
 {
+	struct ism_dev *ism = dibs->drv_priv;
 	union ism_unreg_dmb cmd;
 	unsigned long flags;
 	int ret;
@@ -411,9 +404,9 @@ int ism_unregister_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 
 	cmd.request.dmb_tok = dmb->dmb_tok;
 
-	spin_lock_irqsave(&ism->lock, flags);
-	ism->sba_client_arr[dmb->sba_idx - ISM_DMB_BIT_OFFSET] = NO_CLIENT;
-	spin_unlock_irqrestore(&ism->lock, flags);
+	spin_lock_irqsave(&dibs->lock, flags);
+	dibs->dmb_clientid_arr[dmb->idx - ISM_DMB_BIT_OFFSET] = NO_DIBS_CLIENT;
+	spin_unlock_irqrestore(&dibs->lock, flags);
 
 	ret = ism_cmd(ism, &cmd);
 	if (ret && ret != ISM_ERROR)
@@ -423,7 +416,6 @@ int ism_unregister_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ism_unregister_dmb);
 
 static int ism_add_vlan_id(struct dibs_dev *dibs, u64 vlan_id)
 {
@@ -459,9 +451,11 @@ static unsigned int max_bytes(unsigned int start, unsigned int len,
 	return min(boundary - (start & (boundary - 1)), len);
 }
 
-int ism_move(struct ism_dev *ism, u64 dmb_tok, unsigned int idx, bool sf,
-	     unsigned int offset, void *data, unsigned int size)
+static int ism_move(struct dibs_dev *dibs, u64 dmb_tok, unsigned int idx,
+		    bool sf, unsigned int offset, void *data,
+		    unsigned int size)
 {
+	struct ism_dev *ism = dibs->drv_priv;
 	unsigned int bytes;
 	u64 dmb_req;
 	int ret;
@@ -482,7 +476,6 @@ int ism_move(struct ism_dev *ism, u64 dmb_tok, unsigned int idx, bool sf,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ism_move);
 
 static u16 ism_get_chid(struct dibs_dev *dibs)
 {
@@ -518,14 +511,17 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 {
 	struct ism_dev *ism = data;
 	unsigned long bit, end;
+	struct dibs_dev *dibs;
 	unsigned long *bv;
 	u16 dmbemask;
 	u8 client_id;
 
+	dibs = ism->dibs;
+
 	bv = (void *) &ism->sba->dmb_bits[ISM_DMB_WORD_OFFSET];
 	end = sizeof(ism->sba->dmb_bits) * BITS_PER_BYTE - ISM_DMB_BIT_OFFSET;
 
-	spin_lock(&ism->lock);
+	spin_lock(&dibs->lock);
 	ism->sba->s = 0;
 	barrier();
 	for (bit = 0;;) {
@@ -537,10 +533,13 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 		dmbemask = ism->sba->dmbe_mask[bit + ISM_DMB_BIT_OFFSET];
 		ism->sba->dmbe_mask[bit + ISM_DMB_BIT_OFFSET] = 0;
 		barrier();
-		client_id = ism->sba_client_arr[bit];
-		if (unlikely(client_id == NO_CLIENT || !ism->subs[client_id]))
+		client_id = dibs->dmb_clientid_arr[bit];
+		if (unlikely(client_id == NO_DIBS_CLIENT ||
+			     !dibs->subs[client_id]))
 			continue;
-		ism->subs[client_id]->handle_irq(ism, bit + ISM_DMB_BIT_OFFSET, dmbemask);
+		dibs->subs[client_id]->ops->handle_irq(dibs,
+						       bit + ISM_DMB_BIT_OFFSET,
+						       dmbemask);
 	}
 
 	if (ism->sba->e) {
@@ -548,13 +547,17 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 		barrier();
 		ism_handle_event(ism);
 	}
-	spin_unlock(&ism->lock);
+	spin_unlock(&dibs->lock);
 	return IRQ_HANDLED;
 }
 
 static const struct dibs_dev_ops ism_ops = {
 	.get_fabric_id = ism_get_chid,
 	.query_remote_gid = ism_query_rgid,
+	.max_dmbs = ism_max_dmbs,
+	.register_dmb = ism_register_dmb,
+	.unregister_dmb = ism_unregister_dmb,
+	.move_data = ism_move,
 	.add_vlan_id = ism_add_vlan_id,
 	.del_vlan_id = ism_del_vlan_id,
 };
@@ -568,15 +571,10 @@ static int ism_dev_init(struct ism_dev *ism)
 	if (ret <= 0)
 		goto out;
 
-	ism->sba_client_arr = kzalloc(ISM_NR_DMBS, GFP_KERNEL);
-	if (!ism->sba_client_arr)
-		goto free_vectors;
-	memset(ism->sba_client_arr, NO_CLIENT, ISM_NR_DMBS);
-
 	ret = request_irq(pci_irq_vector(pdev, 0), ism_handle_irq, 0,
 			  pci_name(pdev), ism);
 	if (ret)
-		goto free_client_arr;
+		goto free_vectors;
 
 	ret = register_sba(ism);
 	if (ret)
@@ -605,8 +603,6 @@ unreg_sba:
 	unregister_sba(ism);
 free_irq:
 	free_irq(pci_irq_vector(pdev, 0), ism);
-free_client_arr:
-	kfree(ism->sba_client_arr);
 free_vectors:
 	pci_free_irq_vectors(pdev);
 out:
@@ -629,7 +625,6 @@ static void ism_dev_exit(struct ism_dev *ism)
 	unregister_ieq(ism);
 	unregister_sba(ism);
 	free_irq(pci_irq_vector(pdev, 0), ism);
-	kfree(ism->sba_client_arr);
 	pci_free_irq_vectors(pdev);
 	list_del_init(&ism->list);
 	mutex_unlock(&ism_dev_list.mutex);
@@ -677,6 +672,9 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dibs->drv_priv = ism;
 	dibs->ops = &ism_ops;
 
+	/* enable ism device, but any interrupts and events will be ignored
+	 * before dibs_dev_add() adds it to any clients.
+	 */
 	ret = ism_dev_init(ism);
 	if (ret)
 		goto err_dibs;
@@ -766,17 +764,6 @@ module_exit(ism_exit);
 /*************************** SMC-D Implementation *****************************/
 
 #if IS_ENABLED(CONFIG_SMC)
-static int smcd_register_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb,
-			     void *client)
-{
-	return ism_register_dmb(smcd->priv, (struct ism_dmb *)dmb, client);
-}
-
-static int smcd_unregister_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb)
-{
-	return ism_unregister_dmb(smcd->priv, (struct ism_dmb *)dmb);
-}
-
 static int ism_signal_ieq(struct ism_dev *ism, u64 rgid, u32 trigger_irq,
 			  u32 event_code, u64 info)
 {
@@ -801,18 +788,8 @@ static int smcd_signal_ieq(struct smcd_dev *smcd, struct smcd_gid *rgid,
 			      trigger_irq, event_code, info);
 }
 
-static int smcd_move(struct smcd_dev *smcd, u64 dmb_tok, unsigned int idx,
-		     bool sf, unsigned int offset, void *data,
-		     unsigned int size)
-{
-	return ism_move(smcd->priv, dmb_tok, idx, sf, offset, data, size);
-}
-
 static const struct smcd_ops ism_smcd_ops = {
-	.register_dmb = smcd_register_dmb,
-	.unregister_dmb = smcd_unregister_dmb,
 	.signal_event = smcd_signal_ieq,
-	.move_data = smcd_move,
 };
 
 const struct smcd_ops *ism_get_smcd_ops(void)

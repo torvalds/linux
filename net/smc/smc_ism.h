@@ -69,7 +69,9 @@ static inline int smc_ism_write(struct smcd_dev *smcd, u64 dmb_tok,
 {
 	int rc;
 
-	rc = smcd->ops->move_data(smcd, dmb_tok, idx, sf, offset, data, len);
+	rc = smcd->dibs->ops->move_data(smcd->dibs, dmb_tok, idx, sf, offset,
+				       data, len);
+
 	return rc < 0 ? rc : 0;
 }
 

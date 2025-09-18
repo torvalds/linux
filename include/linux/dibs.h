@@ -36,12 +36,44 @@
  * clients.
  */
 
+/* DMB - Direct Memory Buffer
+ * --------------------------
+ * A dibs client provides a dmb as input buffer for a local receiving
+ * dibs device for exactly one (remote) sending dibs device. Only this
+ * sending device can send data into this dmb using move_data(). Sender
+ * and receiver can be the same device. A dmb belongs to exactly one client.
+ */
+struct dibs_dmb {
+	/* tok - Token for this dmb
+	 * Used by remote and local devices and clients to address this dmb.
+	 * Provided by dibs fabric. Unique per dibs fabric.
+	 */
+	u64 dmb_tok;
+	/* rgid - GID of designated remote sending device */
+	uuid_t rgid;
+	/* cpu_addr - buffer address */
+	void *cpu_addr;
+	/* len - buffer length */
+	u32 dmb_len;
+	/* idx - Index of this DMB on this receiving device */
+	u32 idx;
+	/* VLAN support (deprecated)
+	 * In order to write into a vlan-tagged dmb, the remote device needs
+	 * to belong to the this vlan
+	 */
+	u32 vlan_valid;
+	u32 vlan_id;
+	/* optional, used by device driver */
+	dma_addr_t dma_addr;
+};
+
 struct dibs_dev;
 
 /* DIBS client
  * -----------
  */
 #define MAX_DIBS_CLIENTS	8
+#define NO_DIBS_CLIENT		0xff
 /* All dibs clients have access to all dibs devices.
  * A dibs client provides the following functions to be called by dibs layer or
  * dibs device drivers:
@@ -69,6 +101,22 @@ struct dibs_client_ops {
 	 * The device is no longer usable by this client after this call.
 	 */
 	void (*del_dev)(struct dibs_dev *dev);
+	/**
+	 * handle_irq() - Handle signaling for a DMB
+	 * @dev: device that owns the dmb
+	 * @idx: Index of the dmb that got signalled
+	 * @dmbemask: signaling mask of the dmb
+	 *
+	 * Handle signaling for a dmb that was registered by this client
+	 * for this device.
+	 * The dibs device can coalesce multiple signaling triggers into a
+	 * single call of handle_irq(). dmbemask can be used to indicate
+	 * different kinds of triggers.
+	 *
+	 * Context: Called in IRQ context by dibs device driver
+	 */
+	void (*handle_irq)(struct dibs_dev *dev, unsigned int idx,
+			   u16 dmbemask);
 };
 
 struct dibs_client {
@@ -148,6 +196,77 @@ struct dibs_dev_ops {
 	int (*query_remote_gid)(struct dibs_dev *dev, const uuid_t *rgid,
 				u32 vid_valid, u32 vid);
 	/**
+	 * max_dmbs()
+	 * Return: Max number of DMBs that can be registered for this kind of
+	 *	   dibs_dev
+	 */
+	int (*max_dmbs)(void);
+	/**
+	 * register_dmb() - allocate and register a dmb
+	 * @dev: dibs device
+	 * @dmb: dmb struct to be registered
+	 * @client: dibs client
+	 * @vid: VLAN id; deprecated, ignored if device does not support vlan
+	 *
+	 * The following fields of dmb must provide valid input:
+	 *	@rgid: gid of remote user device
+	 *	@dmb_len: buffer length
+	 *	@idx: Optionally:requested idx (if non-zero)
+	 *	@vlan_valid: if zero, vlan_id will be ignored;
+	 *		     deprecated, ignored if device does not support vlan
+	 *	@vlan_id: deprecated, ignored if device does not support vlan
+	 * Upon return in addition the following fields will be valid:
+	 *	@dmb_tok: for usage by remote and local devices and clients
+	 *	@cpu_addr: allocated buffer
+	 *	@idx: dmb index, unique per dibs device
+	 *	@dma_addr: to be used by device driver,if applicable
+	 *
+	 * Allocate a dmb buffer and register it with this device and for this
+	 * client.
+	 * Return: zero on success
+	 */
+	int (*register_dmb)(struct dibs_dev *dev, struct dibs_dmb *dmb,
+			    struct dibs_client *client);
+	/**
+	 * unregister_dmb() - unregister and free a dmb
+	 * @dev: dibs device
+	 * @dmb: dmb struct to be unregistered
+	 * The following fields of dmb must provide valid input:
+	 *	@dmb_tok
+	 *	@cpu_addr
+	 *	@idx
+	 *
+	 * Free dmb.cpu_addr and unregister the dmb from this device.
+	 * Return: zero on success
+	 */
+	int (*unregister_dmb)(struct dibs_dev *dev, struct dibs_dmb *dmb);
+	/**
+	 * move_data() - write into a remote dmb
+	 * @dev: Local sending dibs device
+	 * @dmb_tok: Token of the remote dmb
+	 * @idx: signaling index in dmbemask
+	 * @sf: signaling flag;
+	 *      if true, idx will be turned on at target dmbemask mask
+	 *      and target device will be signaled.
+	 * @offset: offset within target dmb
+	 * @data: pointer to data to be sent
+	 * @size: length of data to be sent, can be zero.
+	 *
+	 * Use dev to write data of size at offset into a remote dmb
+	 * identified by dmb_tok. Data is moved synchronously, *data can
+	 * be freed when this function returns.
+	 *
+	 * If signaling flag (sf) is true, bit number idx bit will be turned
+	 * on in the dmbemask mask when handle_irq() is called at the remote
+	 * dibs client that owns the target dmb. The target device may chose
+	 * to coalesce the signaling triggers of multiple move_data() calls
+	 * to the same target dmb into a single handle_irq() call.
+	 * Return: zero on success
+	 */
+	int (*move_data)(struct dibs_dev *dev, u64 dmb_tok, unsigned int idx,
+			 bool sf, unsigned int offset, void *data,
+			 unsigned int size);
+	/**
 	 * add_vlan_id() - add dibs device to vlan (optional, deprecated)
 	 * @dev: dibs device
 	 * @vlan_id: vlan id
@@ -166,6 +285,55 @@ struct dibs_dev_ops {
 	 * Return: zero on success
 	 */
 	int (*del_vlan_id)(struct dibs_dev *dev, u64 vlan_id);
+	/**
+	 * support_mmapped_rdmb() - can this device provide memory mapped
+	 *			    remote dmbs? (optional)
+	 * @dev: dibs device
+	 *
+	 * A dibs device can provide a kernel address + length, that represent
+	 * a remote target dmb (like MMIO). Alternatively to calling
+	 * move_data(), a dibs client can write into such a ghost-send-buffer
+	 * (= to this kernel address) and the data will automatically
+	 * immediately appear in the target dmb, even without calling
+	 * move_data().
+	 *
+	 * Either all 3 function pointers for support_dmb_nocopy(),
+	 * attach_dmb() and detach_dmb() are defined, or all of them must
+	 * be NULL.
+	 *
+	 * Return: non-zero, if memory mapped remote dmbs are supported.
+	 */
+	int (*support_mmapped_rdmb)(struct dibs_dev *dev);
+	/**
+	 * attach_dmb() - attach local memory to a remote dmb
+	 * @dev: Local sending ism device
+	 * @dmb: all other parameters are passed in the form of a
+	 *	 dmb struct
+	 *	 TODO: (THIS IS CONFUSING, should be changed)
+	 *  dmb_tok: (in) Token of the remote dmb, we want to attach to
+	 *  cpu_addr: (out) MMIO address
+	 *  dma_addr: (out) MMIO address (if applicable, invalid otherwise)
+	 *  dmb_len: (out) length of local MMIO region,
+	 *           equal to length of remote DMB.
+	 *  sba_idx: (out) index of remote dmb (NOT HELPFUL, should be removed)
+	 *
+	 * Provides a memory address to the sender that can be used to
+	 * directly write into the remote dmb.
+	 * Memory is available until detach_dmb is called
+	 *
+	 * Return: Zero upon success, Error code otherwise
+	 */
+	int (*attach_dmb)(struct dibs_dev *dev, struct dibs_dmb *dmb);
+	/**
+	 * detach_dmb() - Detach the ghost buffer from a remote dmb
+	 * @dev: ism device
+	 * @token: dmb token of the remote dmb
+	 *
+	 * No need to free cpu_addr.
+	 *
+	 * Return: Zero upon success, Error code otherwise
+	 */
+	int (*detach_dmb)(struct dibs_dev *dev, u64 token);
 };
 
 struct dibs_dev {
@@ -179,6 +347,15 @@ struct dibs_dev {
 
 	/* priv pointer per client; for client usage only */
 	void *priv[MAX_DIBS_CLIENTS];
+
+	/* get this lock before accessing any of the fields below */
+	spinlock_t lock;
+	/* array of client ids indexed by dmb idx;
+	 * can be used as indices into priv and subs arrays
+	 */
+	u8 *dmb_clientid_arr;
+	/* Sparse array of all ISM clients */
+	struct dibs_client *subs[MAX_DIBS_CLIENTS];
 };
 
 static inline void dibs_set_priv(struct dibs_dev *dev,

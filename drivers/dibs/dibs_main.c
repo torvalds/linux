@@ -36,6 +36,16 @@ static struct dibs_dev_list dibs_dev_list = {
 	.mutex = __MUTEX_INITIALIZER(dibs_dev_list.mutex),
 };
 
+static void dibs_setup_forwarding(struct dibs_client *client,
+				  struct dibs_dev *dibs)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dibs->lock, flags);
+	dibs->subs[client->id] = client;
+	spin_unlock_irqrestore(&dibs->lock, flags);
+}
+
 int dibs_register_client(struct dibs_client *client)
 {
 	struct dibs_dev *dibs;
@@ -60,6 +70,7 @@ int dibs_register_client(struct dibs_client *client)
 		list_for_each_entry(dibs, &dibs_dev_list.list, list) {
 			dibs->priv[i] = NULL;
 			client->ops->add_dev(dibs);
+			dibs_setup_forwarding(client, dibs);
 		}
 	}
 	mutex_unlock(&dibs_dev_list.mutex);
@@ -71,10 +82,25 @@ EXPORT_SYMBOL_GPL(dibs_register_client);
 int dibs_unregister_client(struct dibs_client *client)
 {
 	struct dibs_dev *dibs;
+	unsigned long flags;
+	int max_dmbs;
 	int rc = 0;
 
 	mutex_lock(&dibs_dev_list.mutex);
 	list_for_each_entry(dibs, &dibs_dev_list.list, list) {
+		spin_lock_irqsave(&dibs->lock, flags);
+		max_dmbs = dibs->ops->max_dmbs();
+		for (int i = 0; i < max_dmbs; ++i) {
+			if (dibs->dmb_clientid_arr[i] == client->id) {
+				WARN(1, "%s: attempt to unregister '%s' with registered dmb(s)\n",
+				     __func__, client->name);
+				rc = -EBUSY;
+				goto err_reg_dmb;
+			}
+		}
+		/* Stop forwarding IRQs */
+		dibs->subs[client->id] = NULL;
+		spin_unlock_irqrestore(&dibs->lock, flags);
 		clients[client->id]->ops->del_dev(dibs);
 		dibs->priv[client->id] = NULL;
 	}
@@ -85,6 +111,11 @@ int dibs_unregister_client(struct dibs_client *client)
 		max_client--;
 	mutex_unlock(&clients_lock);
 
+	mutex_unlock(&dibs_dev_list.mutex);
+	return rc;
+
+err_reg_dmb:
+	spin_unlock_irqrestore(&dibs->lock, flags);
 	mutex_unlock(&dibs_dev_list.mutex);
 	return rc;
 }
@@ -150,11 +181,19 @@ static const struct attribute_group dibs_dev_attr_group = {
 
 int dibs_dev_add(struct dibs_dev *dibs)
 {
+	int max_dmbs;
 	int i, ret;
+
+	max_dmbs = dibs->ops->max_dmbs();
+	spin_lock_init(&dibs->lock);
+	dibs->dmb_clientid_arr = kzalloc(max_dmbs, GFP_KERNEL);
+	if (!dibs->dmb_clientid_arr)
+		return -ENOMEM;
+	memset(dibs->dmb_clientid_arr, NO_DIBS_CLIENT, max_dmbs);
 
 	ret = device_add(&dibs->dev);
 	if (ret)
-		return ret;
+		goto free_client_arr;
 
 	ret = sysfs_create_group(&dibs->dev.kobj, &dibs_dev_attr_group);
 	if (ret) {
@@ -164,8 +203,10 @@ int dibs_dev_add(struct dibs_dev *dibs)
 	mutex_lock(&dibs_dev_list.mutex);
 	mutex_lock(&clients_lock);
 	for (i = 0; i < max_client; ++i) {
-		if (clients[i])
+		if (clients[i]) {
 			clients[i]->ops->add_dev(dibs);
+			dibs_setup_forwarding(clients[i], dibs);
+		}
 	}
 	mutex_unlock(&clients_lock);
 	list_add(&dibs->list, &dibs_dev_list.list);
@@ -175,6 +216,8 @@ int dibs_dev_add(struct dibs_dev *dibs)
 
 err_device_del:
 	device_del(&dibs->dev);
+free_client_arr:
+	kfree(dibs->dmb_clientid_arr);
 	return ret;
 
 }
@@ -182,7 +225,15 @@ EXPORT_SYMBOL_GPL(dibs_dev_add);
 
 void dibs_dev_del(struct dibs_dev *dibs)
 {
+	unsigned long flags;
 	int i;
+
+	sysfs_remove_group(&dibs->dev.kobj, &dibs_dev_attr_group);
+
+	spin_lock_irqsave(&dibs->lock, flags);
+	for (i = 0; i < MAX_DIBS_CLIENTS; ++i)
+		dibs->subs[i] = NULL;
+	spin_unlock_irqrestore(&dibs->lock, flags);
 
 	mutex_lock(&dibs_dev_list.mutex);
 	mutex_lock(&clients_lock);
@@ -195,6 +246,7 @@ void dibs_dev_del(struct dibs_dev *dibs)
 	mutex_unlock(&dibs_dev_list.mutex);
 
 	device_del(&dibs->dev);
+	kfree(dibs->dmb_clientid_arr);
 }
 EXPORT_SYMBOL_GPL(dibs_dev_del);
 

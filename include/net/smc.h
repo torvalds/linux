@@ -28,17 +28,6 @@ struct smc_hashinfo {
 };
 
 /* SMCD/ISM device driver interface */
-struct smcd_dmb {
-	u64 dmb_tok;
-	u64 rgid;
-	u32 dmb_len;
-	u32 sba_idx;
-	u32 vlan_valid;
-	u32 vlan_id;
-	void *cpu_addr;
-	dma_addr_t dma_addr;
-};
-
 #define ISM_EVENT_DMB	0
 #define ISM_EVENT_GID	1
 #define ISM_EVENT_SWR	2
@@ -53,25 +42,14 @@ struct smcd_gid {
 };
 
 struct smcd_ops {
-	int (*register_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb,
-			    void *client);
-	int (*unregister_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb);
-	int (*move_data)(struct smcd_dev *dev, u64 dmb_tok, unsigned int idx,
-			 bool sf, unsigned int offset, void *data,
-			 unsigned int size);
-
 	/* optional operations */
 	int (*signal_event)(struct smcd_dev *dev, struct smcd_gid *rgid,
 			    u32 trigger_irq, u32 event_code, u64 info);
-	int (*support_dmb_nocopy)(struct smcd_dev *dev);
-	int (*attach_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb);
-	int (*detach_dmb)(struct smcd_dev *dev, u64 token);
 };
 
 struct smcd_dev {
 	const struct smcd_ops *ops;
 	void *priv;
-	void *client;
 	struct dibs_dev *dibs;
 	struct list_head list;
 	spinlock_t lock;
