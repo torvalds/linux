@@ -73,6 +73,11 @@ int xe_bo_notifier_prepare_all_pinned(struct xe_device *xe)
 					    &xe->pinned.late.kernel_bo_present,
 					    xe_bo_notifier_prepare_pinned);
 
+	if (!ret)
+		ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.external,
+					    &xe->pinned.late.external,
+					    xe_bo_notifier_prepare_pinned);
+
 	return ret;
 }
 
@@ -92,6 +97,10 @@ void xe_bo_notifier_unprepare_all_pinned(struct xe_device *xe)
 
 	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,
 				    &xe->pinned.late.kernel_bo_present,
+				    xe_bo_notifier_unprepare_pinned);
+
+	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.late.external,
+				    &xe->pinned.late.external,
 				    xe_bo_notifier_unprepare_pinned);
 }
 
