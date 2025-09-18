@@ -387,7 +387,6 @@ static void bm_work(struct work_struct *work)
 	struct fw_node *root_node __free(node_unref) = NULL;
 	int root_id, new_root_id, irm_id, local_id;
 	int expected_gap_count, generation;
-	bool do_reset = false;
 	bool stand_for_root = false;
 
 	if (card->local_node == NULL)
@@ -499,16 +498,10 @@ static void bm_work(struct work_struct *work)
 	else
 		expected_gap_count = 63;
 
-	/*
-	 * Finally, figure out if we should do a reset or not.  If we have
-	 * done less than 5 resets with the same physical topology and we
-	 * have either a new root or a new gap count setting, let's do it.
-	 */
-
-	if (card->bm_retries++ < 5 && (card->gap_count != expected_gap_count || new_root_id != root_id))
-		do_reset = true;
-
-	if (do_reset) {
+	// Finally, figure out if we should do a reset or not. If we have done less than 5 resets
+	// with the same physical topology and we have either a new root or a new gap count
+	// setting, let's do it.
+	if (card->bm_retries++ < 5 && (card->gap_count != expected_gap_count || new_root_id != root_id)) {
 		int card_gap_count = card->gap_count;
 
 		fw_notice(card, "phy config: new root=%x, gap_count=%d\n",
