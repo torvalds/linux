@@ -126,7 +126,6 @@ psp_twsk_rx_policy_check(struct inet_timewait_sock *tw, struct sk_buff *skb)
 
 static inline struct psp_assoc *psp_sk_get_assoc_rcu(const struct sock *sk)
 {
-	struct inet_timewait_sock *tw;
 	struct psp_assoc *pas;
 	int state;
 
@@ -134,9 +133,9 @@ static inline struct psp_assoc *psp_sk_get_assoc_rcu(const struct sock *sk)
 	if (!sk_is_inet(sk) || state & TCPF_NEW_SYN_RECV)
 		return NULL;
 
-	tw = inet_twsk(sk);
-	pas = state & TCPF_TIME_WAIT ? rcu_dereference(tw->psp_assoc) :
-				       rcu_dereference(sk->psp_assoc);
+	pas = state & TCPF_TIME_WAIT ?
+		      rcu_dereference(inet_twsk(sk)->psp_assoc) :
+		      rcu_dereference(sk->psp_assoc);
 	return pas;
 }
 
