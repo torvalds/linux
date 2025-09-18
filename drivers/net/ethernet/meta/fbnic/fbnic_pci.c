@@ -167,6 +167,20 @@ void fbnic_down(struct fbnic_net *fbn)
 	fbnic_flush(fbn);
 }
 
+static int fbnic_fw_config_after_crash(struct fbnic_dev *fbd)
+{
+	if (fbnic_fw_xmit_ownership_msg(fbd, true)) {
+		dev_err(fbd->dev, "NIC failed to take ownership\n");
+
+		return -1;
+	}
+
+	fbnic_rpc_reset_valid_entries(fbd);
+	__fbnic_set_rx_mode(fbd);
+
+	return 0;
+}
+
 static void fbnic_health_check(struct fbnic_dev *fbd)
 {
 	struct fbnic_fw_mbx *tx_mbx = &fbd->mbx[FBNIC_IPC_MBX_TX_IDX];
@@ -182,13 +196,11 @@ static void fbnic_health_check(struct fbnic_dev *fbd)
 	if (tx_mbx->head != tx_mbx->tail)
 		return;
 
-	/* TBD: Need to add a more thorough recovery here.
-	 *	Specifically I need to verify what all the firmware will have
-	 *	changed since we had setup and it rebooted. May just need to
-	 *	perform a down/up. For now we will just reclaim ownership so
-	 *	the heartbeat can catch the next fault.
-	 */
-	fbnic_fw_xmit_ownership_msg(fbd, true);
+	fbnic_devlink_fw_report(fbd, "Firmware crashed detected!");
+	fbnic_devlink_otp_check(fbd, "error detected after firmware recovery");
+
+	if (fbnic_fw_config_after_crash(fbd))
+		dev_err(fbd->dev, "Firmware recovery failed after crash\n");
 }
 
 static void fbnic_service_task(struct work_struct *work)
@@ -269,6 +281,10 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 	}
 
+	err = fbnic_devlink_health_create(fbd);
+	if (err)
+		goto free_fbd;
+
 	/* Populate driver with hardware-specific info and handlers */
 	fbd->max_num_queues = info->max_num_queues;
 
@@ -279,7 +295,7 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = fbnic_alloc_irqs(fbd);
 	if (err)
-		goto free_fbd;
+		goto err_destroy_health;
 
 	err = fbnic_mac_init(fbd);
 	if (err) {
@@ -306,6 +322,7 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 err);
 
 	fbnic_devlink_register(fbd);
+	fbnic_devlink_otp_check(fbd, "error detected during probe");
 	fbnic_dbg_fbd_init(fbd);
 
 	/* Capture snapshot of hardware stats so netdev can calculate delta */
@@ -348,6 +365,8 @@ init_failure_mode:
 	return 0;
 free_irqs:
 	fbnic_free_irqs(fbd);
+err_destroy_health:
+	fbnic_devlink_health_destroy(fbd);
 free_fbd:
 	fbnic_devlink_free(fbd);
 
@@ -382,6 +401,7 @@ static void fbnic_remove(struct pci_dev *pdev)
 	fbnic_fw_free_mbx(fbd);
 	fbnic_free_irqs(fbd);
 
+	fbnic_devlink_health_destroy(fbd);
 	fbnic_devlink_free(fbd);
 }
 
@@ -455,6 +475,9 @@ static int __fbnic_pm_resume(struct device *dev)
 	 * log entries.
 	 */
 	fbnic_fw_log_enable(fbd, list_empty(&fbd->fw_log.entries));
+
+	/* Since the FW should be up, check if it reported OTP errors */
+	fbnic_devlink_otp_check(fbd, "error detected after PM resume");
 
 	/* No netdev means there isn't a network interface to bring up */
 	if (fbnic_init_failure(fbd))
