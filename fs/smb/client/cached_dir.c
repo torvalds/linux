@@ -416,9 +416,12 @@ int open_cached_dir_by_dentry(struct cifs_tcon *tcon,
 	if (cfids == NULL)
 		return -EOPNOTSUPP;
 
+	if (!dentry)
+		return -ENOENT;
+
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry(cfid, &cfids->entries, entry) {
-		if (dentry && cfid->dentry == dentry) {
+		if (cfid->dentry == dentry) {
 			if (!is_valid_cached_dir(cfid))
 				break;
 			cifs_dbg(FYI, "found a cached file handle by dentry\n");
