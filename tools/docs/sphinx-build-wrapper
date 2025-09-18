@@ -329,9 +329,6 @@ class SphinxBuilder:
                     continue
 
                 name = name[:-len(tex_suffix)]
-
-                max_len = max(max_len, len(name))
-
                 has_tex = True
 
                 future = executor.submit(self.build_pdf_file, latex_cmd,
@@ -343,34 +340,35 @@ class SphinxBuilder:
 
                 pdf_name = name + ".pdf"
                 pdf_from = os.path.join(from_dir, pdf_name)
+                pdf_to = os.path.join(pdf_dir, pdf_name)
+                out_name = os.path.relpath(pdf_to, self.builddir)
+                max_len = max(max_len, len(out_name))
 
                 try:
                     success = future.result()
 
                     if success and os.path.exists(pdf_from):
-                        pdf_to = os.path.join(pdf_dir, pdf_name)
-
                         os.rename(pdf_from, pdf_to)
 
                         #
                         # if verbose, get the name of built PDF file
                         #
                         if self.verbose:
-                           builds[name] = os.path.relpath(pdf_to, self.builddir)
+                           builds[out_name] = "SUCCESS"
                     else:
-                        builds[name] = "FAILED"
+                        builds[out_name] = "FAILED"
                         build_failed = True
                 except futures.Error as e:
-                    builds[name] = f"FAILED ({repr(e)})"
+                    builds[out_name] = f"FAILED ({repr(e)})"
                     build_failed = True
 
         #
         # Handle case where no .tex files were found
         #
         if not has_tex:
-            name = "Sphinx LaTeX builder"
-            max_len = max(max_len, len(name))
-            builds[name] = "FAILED (no .tex file was generated)"
+            out_name = "LaTeX files"
+            max_len = max(max_len, len(out_name))
+            builds[out_name] = "FAILED: no .tex files were generated"
             build_failed = True
 
         return builds, build_failed, max_len
