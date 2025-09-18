@@ -17,7 +17,7 @@ UBI 文件系统
 ============
 
 简介
-============
+====
 
 UBIFS 文件系统全称为 UBI 文件系统（UBI File System）。UBI 代表无序块镜
 像（Unsorted Block Images）。UBIFS 是一种闪存文件系统，这意味着它专为闪
