@@ -1865,8 +1865,6 @@ void vlv_display_error_irq_handler(struct intel_display *display,
 
 static void _vlv_display_irq_reset(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	if (display->platform.cherryview)
 		intel_de_write(display, DPINVGTT, DPINVGTT_STATUS_MASK_CHV);
 	else
@@ -1881,7 +1879,7 @@ static void _vlv_display_irq_reset(struct intel_display *display)
 	i9xx_pipestat_irq_reset(display);
 
 	intel_display_irq_regs_reset(display, VLV_IRQ_REGS);
-	dev_priv->irq_mask = ~0u;
+	display->irq.vlv_imr_mask = ~0u;
 }
 
 void vlv_display_irq_reset(struct intel_display *display)
@@ -1939,7 +1937,6 @@ static u32 vlv_error_mask(void)
 
 static void _vlv_display_irq_postinstall(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 pipestat_mask;
 	u32 enable_mask;
 	enum pipe pipe;
@@ -1973,11 +1970,11 @@ static void _vlv_display_irq_postinstall(struct intel_display *display)
 		enable_mask |= I915_DISPLAY_PIPE_C_EVENT_INTERRUPT |
 			I915_LPE_PIPE_C_INTERRUPT;
 
-	drm_WARN_ON(display->drm, dev_priv->irq_mask != ~0u);
+	drm_WARN_ON(display->drm, display->irq.vlv_imr_mask != ~0u);
 
-	dev_priv->irq_mask = ~enable_mask;
+	display->irq.vlv_imr_mask = ~enable_mask;
 
-	intel_display_irq_regs_init(display, VLV_IRQ_REGS, dev_priv->irq_mask, enable_mask);
+	intel_display_irq_regs_init(display, VLV_IRQ_REGS, display->irq.vlv_imr_mask, enable_mask);
 }
 
 void vlv_display_irq_postinstall(struct intel_display *display)
