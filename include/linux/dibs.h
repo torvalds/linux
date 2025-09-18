@@ -33,10 +33,33 @@
  * clients.
  */
 
+/* DIBS client
+ * -----------
+ */
 #define MAX_DIBS_CLIENTS	8
 
 struct dibs_client {
+	/* client name for logging and debugging purposes */
 	const char *name;
+	/* client index - provided and used by dibs layer */
+	u8 id;
 };
+
+/* Functions to be called by dibs clients:
+ */
+/**
+ * dibs_register_client() - register a client with dibs layer
+ * @client: this client
+ *
+ * Return: zero on success.
+ */
+int dibs_register_client(struct dibs_client *client);
+/**
+ * dibs_unregister_client() - unregister a client with dibs layer
+ * @client: this client
+ *
+ * Return: zero on success.
+ */
+int dibs_unregister_client(struct dibs_client *client);
 
 #endif	/* _DIBS_H */

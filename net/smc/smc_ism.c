@@ -18,6 +18,7 @@
 #include "smc_pnet.h"
 #include "smc_netlink.h"
 #include "linux/ism.h"
+#include "linux/dibs.h"
 
 struct smcd_dev_list smcd_dev_list = {
 	.list = LIST_HEAD_INIT(smcd_dev_list.list),
@@ -42,6 +43,9 @@ static struct ism_client smc_ism_client = {
 	.handle_irq = smcd_handle_irq,
 };
 #endif
+static struct dibs_client smc_dibs_client = {
+	.name = "SMC-D",
+};
 
 static void smc_ism_create_system_eid(void)
 {
@@ -623,11 +627,13 @@ int smc_ism_init(void)
 #if IS_ENABLED(CONFIG_ISM)
 	rc = ism_register_client(&smc_ism_client);
 #endif
+	rc = dibs_register_client(&smc_dibs_client);
 	return rc;
 }
 
 void smc_ism_exit(void)
 {
+	dibs_unregister_client(&smc_dibs_client);
 #if IS_ENABLED(CONFIG_ISM)
 	ism_unregister_client(&smc_ism_client);
 #endif
