@@ -329,9 +329,15 @@ static int xe_pm_notifier_callback(struct notifier_block *nb,
 	switch (action) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
+	{
+		struct xe_validation_ctx ctx;
+
 		reinit_completion(&xe->pm_block);
 		xe_pm_runtime_get(xe);
+		(void)xe_validation_ctx_init(&ctx, &xe->val, NULL,
+					     (struct xe_val_flags) {.exclusive = true});
 		err = xe_bo_evict_all_user(xe);
+		xe_validation_ctx_fini(&ctx);
 		if (err)
 			drm_dbg(&xe->drm, "Notifier evict user failed (%d)\n", err);
 
@@ -344,6 +350,7 @@ static int xe_pm_notifier_callback(struct notifier_block *nb,
 		 * allocations.
 		 */
 		break;
+	}
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
 		complete_all(&xe->pm_block);
