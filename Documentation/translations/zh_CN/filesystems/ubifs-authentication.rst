@@ -10,7 +10,7 @@
 
 :校译:
 
-   - 杨涛 yang tao <yang.tao172@zte.com.cn>
+   杨涛 yang tao <yang.tao172@zte.com.cn>
 
 =============
 UBIFS认证支持
