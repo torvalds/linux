@@ -2110,7 +2110,7 @@ struct mnt_namespace *get_sequential_mnt_ns(struct mnt_namespace *mntns, bool pr
 		 * the mount namespace and it might already be on its
 		 * deathbed.
 		 */
-		if (!refcount_inc_not_zero(&mntns->ns.count))
+		if (!ns_ref_get(mntns))
 			continue;
 
 		return mntns;
@@ -6084,7 +6084,7 @@ void __init mnt_init(void)
 
 void put_mnt_ns(struct mnt_namespace *ns)
 {
-	if (!refcount_dec_and_test(&ns->ns.count))
+	if (!ns_ref_put(ns))
 		return;
 	namespace_lock();
 	emptied_ns = ns;
