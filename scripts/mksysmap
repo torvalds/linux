@@ -59,6 +59,9 @@
 # EXPORT_SYMBOL (namespace)
 / __kstrtabns_/d
 
+# MODULE_DEVICE_TABLE (symbol name)
+/ __mod_device_table__/d
+
 # ---------------------------------------------------------------------------
 # Ignored suffixes
 #  (do not forget '$' after each pattern)

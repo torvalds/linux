@@ -1477,7 +1477,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	void *symval;
 	char *zeros = NULL;
 	const char *type, *name, *modname;
-	size_t typelen;
+	size_t typelen, modnamelen;
 	static const char *prefix = "__mod_device_table__";
 
 	/* We're looking for a section relative symbol */
@@ -1500,6 +1500,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	type = strstr(modname, "__");
 	if (!type)
 		return;
+	modnamelen = type - modname;
 	type += strlen("__");
 
 	name = strstr(type, "__");
@@ -1523,6 +1524,22 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 			do_table(name, symval, sym->st_size, p->id_size,
 				 p->device_id, p->do_entry, mod);
 			break;
+		}
+	}
+
+	if (mod->is_vmlinux) {
+		struct module_alias *alias;
+
+		/*
+		 * If this is vmlinux, record the name of the builtin module.
+		 * Traverse the linked list in the reverse order, and set the
+		 * builtin_modname unless it has already been set in the
+		 * previous call.
+		 */
+		list_for_each_entry_reverse(alias, &mod->aliases, node) {
+			if (alias->builtin_modname)
+				break;
+			alias->builtin_modname = xstrndup(modname, modnamelen);
 		}
 	}
 
