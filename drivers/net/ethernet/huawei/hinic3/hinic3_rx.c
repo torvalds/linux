@@ -414,7 +414,7 @@ int hinic3_alloc_rxqs_res(struct net_device *netdev, u16 num_rq,
 		pp_params.dma_dir = DMA_FROM_DEVICE;
 		pp_params.max_len = PAGE_SIZE;
 		rqres->page_pool = page_pool_create(&pp_params);
-		if (!rqres->page_pool) {
+		if (IS_ERR(rqres->page_pool)) {
 			netdev_err(netdev, "Failed to create rxq%d page pool\n",
 				   idx);
 			goto err_free_cqe;
