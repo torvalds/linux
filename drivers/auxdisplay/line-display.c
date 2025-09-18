@@ -36,6 +36,11 @@ static struct linedisp *to_linedisp(struct device *dev)
 	return container_of(dev, struct linedisp, dev);
 }
 
+static inline bool should_scroll(struct linedisp *linedisp)
+{
+	return linedisp->message_len > linedisp->num_chars && linedisp->scroll_rate;
+}
+
 /**
  * linedisp_scroll() - scroll the display by a character
  * @t: really a pointer to the private data structure
@@ -67,8 +72,7 @@ static void linedisp_scroll(struct timer_list *t)
 	linedisp->scroll_pos %= linedisp->message_len;
 
 	/* rearm the timer */
-	if (linedisp->message_len > num_chars && linedisp->scroll_rate)
-		mod_timer(&linedisp->timer, jiffies + linedisp->scroll_rate);
+	mod_timer(&linedisp->timer, jiffies + linedisp->scroll_rate);
 }
 
 /**
@@ -118,8 +122,16 @@ static int linedisp_display(struct linedisp *linedisp, const char *msg,
 	linedisp->message_len = count;
 	linedisp->scroll_pos = 0;
 
-	/* update the display */
-	linedisp_scroll(&linedisp->timer);
+	if (should_scroll(linedisp)) {
+		/* display scrolling message */
+		linedisp_scroll(&linedisp->timer);
+	} else {
+		/* display static message */
+		memset(linedisp->buf, ' ', linedisp->num_chars);
+		memcpy(linedisp->buf, linedisp->message,
+		       umin(linedisp->num_chars, linedisp->message_len));
+		linedisp->ops->update(linedisp);
+	}
 
 	return 0;
 }
@@ -186,12 +198,12 @@ static ssize_t scroll_step_ms_store(struct device *dev,
 	if (err)
 		return err;
 
+	timer_delete_sync(&linedisp->timer);
+
 	linedisp->scroll_rate = msecs_to_jiffies(ms);
-	if (linedisp->message && linedisp->message_len > linedisp->num_chars) {
-		timer_delete_sync(&linedisp->timer);
-		if (linedisp->scroll_rate)
-			linedisp_scroll(&linedisp->timer);
-	}
+
+	if (should_scroll(linedisp))
+		linedisp_scroll(&linedisp->timer);
 
 	return count;
 }
