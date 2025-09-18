@@ -81,7 +81,7 @@ config CCWGROUP
 
 config ISM
 	tristate "Support for ISM vPCI Adapter"
-	depends on PCI
+	depends on PCI && DIBS
 	imply SMC
 	default n
 	help
