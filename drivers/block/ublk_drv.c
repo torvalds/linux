@@ -2133,7 +2133,7 @@ static int ublk_register_io_buf(struct io_uring_cmd *cmd,
 	struct request *req;
 	int ret;
 
-	if (!ublk_support_zero_copy(ubq))
+	if (!ublk_dev_support_zero_copy(ub))
 		return -EINVAL;
 
 	req = __ublk_check_and_get_req(ub, ubq, io, 0);
