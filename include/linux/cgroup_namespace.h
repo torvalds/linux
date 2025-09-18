@@ -29,12 +29,12 @@ int cgroup_path_ns(struct cgroup *cgrp, char *buf, size_t buflen,
 
 static inline void get_cgroup_ns(struct cgroup_namespace *ns)
 {
-	refcount_inc(&ns->ns.count);
+	ns_ref_inc(ns);
 }
 
 static inline void put_cgroup_ns(struct cgroup_namespace *ns)
 {
-	if (refcount_dec_and_test(&ns->ns.count))
+	if (ns_ref_put(ns))
 		free_cgroup_ns(ns);
 }
 
