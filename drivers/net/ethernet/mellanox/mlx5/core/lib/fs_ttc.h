@@ -80,6 +80,9 @@ bool mlx5_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev);
 u8 mlx5_get_proto_by_tunnel_type(enum mlx5_tunnel_types tt);
 
 bool mlx5_ttc_has_esp_flow_group(struct mlx5_ttc_table *ttc);
+int mlx5_ttc_create_ipsec_rules(struct mlx5_ttc_table *ttc,
+				struct mlx5_ttc_table *inner_ttc);
+void mlx5_ttc_destroy_ipsec_rules(struct mlx5_ttc_table *ttc);
 static inline bool mlx5_ttc_is_decrypted_esp_tt(enum mlx5_traffic_types tt)
 {
 	return tt >= MLX5_TT_DECRYPTED_ESP_OUTER_IPV4_TCP &&

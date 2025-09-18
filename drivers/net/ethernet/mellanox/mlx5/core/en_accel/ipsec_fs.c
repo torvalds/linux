@@ -61,6 +61,7 @@ struct mlx5e_ipsec_rx {
 	struct mlx5_flow_table *pol_miss_ft;
 	struct mlx5_flow_handle *pol_miss_rule;
 	u8 allow_tunnel_mode : 1;
+	u8 ttc_rules_added : 1;
 };
 
 /* IPsec RX flow steering */
@@ -683,10 +684,13 @@ static void ipsec_mpv_work_handler(struct work_struct *_work)
 	complete(&work->master_priv->ipsec->comp);
 }
 
-static void ipsec_rx_ft_disconnect(struct mlx5e_ipsec *ipsec, u32 family)
+static void ipsec_rx_ft_disconnect(struct mlx5e_ipsec *ipsec,
+				   struct mlx5e_ipsec_rx *rx, u32 family)
 {
 	struct mlx5_ttc_table *ttc = mlx5e_fs_get_ttc(ipsec->fs, false);
 
+	if (rx->ttc_rules_added)
+		mlx5_ttc_destroy_ipsec_rules(ttc);
 	mlx5_ttc_fwd_default_dest(ttc, family2tt(family));
 }
 
@@ -721,7 +725,7 @@ static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 {
 	/* disconnect */
 	if (rx != ipsec->rx_esw)
-		ipsec_rx_ft_disconnect(ipsec, family);
+		ipsec_rx_ft_disconnect(ipsec, rx, family);
 
 	mlx5_del_flow_rules(rx->sa.rule);
 	mlx5_destroy_flow_group(rx->sa.group);
@@ -821,10 +825,16 @@ static void ipsec_rx_ft_connect(struct mlx5e_ipsec *ipsec,
 				struct mlx5e_ipsec_rx_create_attr *attr)
 {
 	struct mlx5_flow_destination dest = {};
+	struct mlx5_ttc_table *ttc, *inner_ttc;
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest.ft = rx->ft.sa;
-	mlx5_ttc_fwd_dest(attr->ttc, family2tt(attr->family), &dest);
+	if (mlx5_ttc_fwd_dest(attr->ttc, family2tt(attr->family), &dest))
+		return;
+
+	ttc = mlx5e_fs_get_ttc(ipsec->fs, false);
+	inner_ttc = mlx5e_fs_get_ttc(ipsec->fs, true);
+	rx->ttc_rules_added = !mlx5_ttc_create_ipsec_rules(ttc, inner_ttc);
 }
 
 static int ipsec_rx_chains_create_miss(struct mlx5e_ipsec *ipsec,
