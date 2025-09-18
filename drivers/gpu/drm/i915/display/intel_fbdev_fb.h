@@ -13,6 +13,7 @@ struct fb_info;
 struct i915_vma;
 struct intel_display;
 
+struct drm_gem_object *intel_fbdev_fb_bo_create(struct drm_device *drm, int size);
 struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_device *drm,
 					       struct drm_mode_fb_cmd2 *mode_cmd);
 int intel_fbdev_fb_fill_info(struct intel_display *display, struct fb_info *info,
