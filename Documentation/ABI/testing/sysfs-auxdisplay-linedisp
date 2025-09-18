@@ -15,6 +15,17 @@ Description:
 		  echo "Hello World" > message
 		  cat message			# Returns "Hello World\n"
 
+What:		/sys/.../num_chars
+Date:		November 2025
+KernelVersion:	6.18
+Contact:	Jean-François Lessard <jefflessard3@gmail.com>
+Description:
+		Read-only attribute showing the character width capacity of
+		the line display device. Messages longer than this will scroll.
+
+		Example:
+		  cat num_chars		# Returns "16\n" for 16-char display
+
 What:		/sys/.../scroll_step_ms
 Date:		October 2021
 KernelVersion:	5.16
