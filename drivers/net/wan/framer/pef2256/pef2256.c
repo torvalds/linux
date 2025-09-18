@@ -719,8 +719,8 @@ static int pef2256_probe(struct platform_device *pdev)
 	pef2256->regmap = devm_regmap_init_mmio(&pdev->dev, iomem,
 						&pef2256_regmap_config);
 	if (IS_ERR(pef2256->regmap)) {
-		dev_err(&pdev->dev, "Failed to initialise Regmap (%ld)\n",
-			PTR_ERR(pef2256->regmap));
+		dev_err(&pdev->dev, "Failed to initialise Regmap (%pe)\n",
+			pef2256->regmap);
 		return PTR_ERR(pef2256->regmap);
 	}
 
