@@ -45,6 +45,7 @@ the newer version.
 """
 
 import argparse
+import locale
 import os
 import shlex
 import shutil
@@ -564,6 +565,16 @@ class SphinxBuilder:
 
         if not sphinxdirs:
             sphinxdirs = os.environ.get("SPHINXDIRS", ".")
+
+        #
+        # The sphinx-build tool has a bug: internally, it tries to set
+        # locale with locale.setlocale(locale.LC_ALL, ''). This causes a
+        # crash if language is not set. Detect and fix it.
+        #
+        try:
+            locale.setlocale(locale.LC_ALL, '')
+        except locale.Error:
+            self.env["LC_ALL"] = "C"
 
         #
         # sphinxdirs can be a list or a whitespace-separated string
