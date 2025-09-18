@@ -67,6 +67,41 @@ struct dibs_dmb {
 	dma_addr_t dma_addr;
 };
 
+/* DIBS events
+ * -----------
+ * Dibs devices can optionally notify dibs clients about events that happened
+ * in the fabric or at the remote device or remote dmb.
+ */
+enum dibs_event_type {
+	/* Buffer event, e.g. a remote dmb was unregistered */
+	DIBS_BUF_EVENT,
+	/* Device event, e.g. a remote dibs device was disabled */
+	DIBS_DEV_EVENT,
+	/* Software event, a dibs client can send an event signal to a
+	 * remote dibs device.
+	 */
+	DIBS_SW_EVENT,
+	DIBS_OTHER_TYPE };
+
+enum dibs_event_subtype {
+	DIBS_BUF_UNREGISTERED,
+	DIBS_DEV_DISABLED,
+	DIBS_DEV_ERR_STATE,
+	DIBS_OTHER_SUBTYPE
+};
+
+struct dibs_event {
+	u32 type;
+	u32 subtype;
+	/* uuid_null if invalid */
+	uuid_t gid;
+	/* zero if invalid */
+	u64 buffer_tok;
+	u64 time;
+	/* additional data or zero */
+	u64 data;
+};
+
 struct dibs_dev;
 
 /* DIBS client
@@ -117,6 +152,15 @@ struct dibs_client_ops {
 	 */
 	void (*handle_irq)(struct dibs_dev *dev, unsigned int idx,
 			   u16 dmbemask);
+	/**
+	 * handle_event() - Handle control information sent by device
+	 * @dev: device reporting the event
+	 * @event: ism event structure
+	 *
+	 * * Context: Called in IRQ context by dibs device driver
+	 */
+	void (*handle_event)(struct dibs_dev *dev,
+			     const struct dibs_event *event);
 };
 
 struct dibs_client {
@@ -285,6 +329,24 @@ struct dibs_dev_ops {
 	 * Return: zero on success
 	 */
 	int (*del_vlan_id)(struct dibs_dev *dev, u64 vlan_id);
+	/**
+	 * signal_event() - trigger an event at a remote dibs device (optional)
+	 * @dev: local dibs device
+	 * @rgid: gid of remote dibs device
+	 * trigger_irq: zero: notification may be coalesced with other events
+	 *		non-zero: notify immediately
+	 * @subtype: 4 byte event code, meaning is defined by dibs client
+	 * @data: 8 bytes of additional information,
+	 *	  meaning is defined by dibs client
+	 *
+	 * dibs devices can offer support for sending a control event of type
+	 * EVENT_SWR to a remote dibs device.
+	 * NOTE: handle_event() will be called for all registered dibs clients
+	 * at the remote device.
+	 * Return: zero on success
+	 */
+	int (*signal_event)(struct dibs_dev *dev, const uuid_t *rgid,
+			    u32 trigger_irq, u32 event_code, u64 info);
 	/**
 	 * support_mmapped_rdmb() - can this device provide memory mapped
 	 *			    remote dmbs? (optional)

@@ -16,7 +16,6 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/dibs.h>
-#include "linux/ism.h"
 
 struct sock;
 
@@ -28,28 +27,14 @@ struct smc_hashinfo {
 };
 
 /* SMCD/ISM device driver interface */
-#define ISM_EVENT_DMB	0
-#define ISM_EVENT_GID	1
-#define ISM_EVENT_SWR	2
-
 #define ISM_RESERVED_VLANID	0x1FFF
-
-struct smcd_dev;
 
 struct smcd_gid {
 	u64	gid;
 	u64	gid_ext;
 };
 
-struct smcd_ops {
-	/* optional operations */
-	int (*signal_event)(struct smcd_dev *dev, struct smcd_gid *rgid,
-			    u32 trigger_irq, u32 event_code, u64 info);
-};
-
 struct smcd_dev {
-	const struct smcd_ops *ops;
-	void *priv;
 	struct dibs_dev *dibs;
 	struct list_head list;
 	spinlock_t lock;

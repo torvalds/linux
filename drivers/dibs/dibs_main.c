@@ -98,7 +98,7 @@ int dibs_unregister_client(struct dibs_client *client)
 				goto err_reg_dmb;
 			}
 		}
-		/* Stop forwarding IRQs */
+		/* Stop forwarding IRQs and events */
 		dibs->subs[client->id] = NULL;
 		spin_unlock_irqrestore(&dibs->lock, flags);
 		clients[client->id]->ops->del_dev(dibs);
