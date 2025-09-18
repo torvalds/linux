@@ -169,7 +169,7 @@ static void destroy_pid_namespace_work(struct work_struct *work)
 		parent = ns->parent;
 		destroy_pid_namespace(ns);
 		ns = parent;
-	} while (ns != &init_pid_ns && refcount_dec_and_test(&ns->ns.count));
+	} while (ns != &init_pid_ns && ns_ref_put(ns));
 }
 
 struct pid_namespace *copy_pid_ns(unsigned long flags,
@@ -184,7 +184,7 @@ struct pid_namespace *copy_pid_ns(unsigned long flags,
 
 void put_pid_ns(struct pid_namespace *ns)
 {
-	if (ns && ns != &init_pid_ns && refcount_dec_and_test(&ns->ns.count))
+	if (ns && ns != &init_pid_ns && ns_ref_put(ns))
 		schedule_work(&ns->work);
 }
 EXPORT_SYMBOL_GPL(put_pid_ns);
