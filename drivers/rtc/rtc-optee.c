@@ -299,7 +299,7 @@ static int optee_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 	optee_alarm = tee_shm_get_va(priv->shm, 0);
 	if (IS_ERR(optee_alarm))
-		return PTR_ERR(alarm);
+		return PTR_ERR(optee_alarm);
 
 	if (param[0].u.memref.size != sizeof(*optee_alarm))
 		return -EPROTO;
