@@ -291,7 +291,6 @@ xfs_errortag_enabled(
 bool
 xfs_errortag_test(
 	struct xfs_mount	*mp,
-	const char		*expression,
 	const char		*file,
 	int			line,
 	unsigned int		error_tag)
@@ -317,8 +316,8 @@ xfs_errortag_test(
 		return false;
 
 	xfs_warn_ratelimited(mp,
-"Injecting error (%s) at file %s, line %d, on filesystem \"%s\"",
-			expression, file, line, mp->m_super->s_id);
+"Injecting error at file %s, line %d, on filesystem \"%s\"",
+			file, line, mp->m_super->s_id);
 	return true;
 }
 

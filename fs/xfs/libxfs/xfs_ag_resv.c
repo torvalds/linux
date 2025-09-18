@@ -92,9 +92,8 @@ xfs_ag_resv_critical(
 	trace_xfs_ag_resv_critical(pag, type, avail);
 
 	/* Critically low if less than 10% or max btree height remains. */
-	return XFS_TEST_ERROR(avail < orig / 10 ||
-			      avail < mp->m_agbtree_maxlevels,
-			mp, XFS_ERRTAG_AG_RESV_CRITICAL);
+	return avail < orig / 10 || avail < mp->m_agbtree_maxlevels ||
+		XFS_TEST_ERROR(mp, XFS_ERRTAG_AG_RESV_CRITICAL);
 }
 
 /*
@@ -203,7 +202,7 @@ __xfs_ag_resv_init(
 		return -EINVAL;
 	}
 
-	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_AG_RESV_FAIL))
+	if (XFS_TEST_ERROR(mp, XFS_ERRTAG_AG_RESV_FAIL))
 		error = -ENOSPC;
 	else
 		error = xfs_dec_fdblocks(mp, hidden_space, true);

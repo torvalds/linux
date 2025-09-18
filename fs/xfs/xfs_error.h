@@ -41,10 +41,10 @@ extern void xfs_inode_verifier_error(struct xfs_inode *ip, int error,
 #ifdef DEBUG
 extern int xfs_errortag_init(struct xfs_mount *mp);
 extern void xfs_errortag_del(struct xfs_mount *mp);
-extern bool xfs_errortag_test(struct xfs_mount *mp, const char *expression,
-		const char *file, int line, unsigned int error_tag);
-#define XFS_TEST_ERROR(expr, mp, tag)		\
-	((expr) || xfs_errortag_test((mp), #expr, __FILE__, __LINE__, (tag)))
+bool xfs_errortag_test(struct xfs_mount *mp, const char *file, int line,
+		unsigned int error_tag);
+#define XFS_TEST_ERROR(mp, tag)		\
+	xfs_errortag_test((mp), __FILE__, __LINE__, (tag))
 bool xfs_errortag_enabled(struct xfs_mount *mp, unsigned int tag);
 #define XFS_ERRORTAG_DELAY(mp, tag)		\
 	do { \
@@ -63,7 +63,7 @@ extern int xfs_errortag_clearall(struct xfs_mount *mp);
 #else
 #define xfs_errortag_init(mp)			(0)
 #define xfs_errortag_del(mp)
-#define XFS_TEST_ERROR(expr, mp, tag)		(expr)
+#define XFS_TEST_ERROR(mp, tag)			(false)
 #define XFS_ERRORTAG_DELAY(mp, tag)		((void)0)
 #define xfs_errortag_add(mp, tag)		(ENOSYS)
 #define xfs_errortag_clearall(mp)		(ENOSYS)

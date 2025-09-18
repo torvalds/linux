@@ -223,7 +223,7 @@ xfs_dir_ino_validate(
 	bool		ino_ok = xfs_verify_dir_ino(mp, ino);
 
 	if (XFS_IS_CORRUPT(mp, !ino_ok) ||
-	    XFS_TEST_ERROR(false, mp, XFS_ERRTAG_DIR_INO_VALIDATE)) {
+	    XFS_TEST_ERROR(mp, XFS_ERRTAG_DIR_INO_VALIDATE)) {
 		xfs_warn(mp, "Invalid inode number 0x%Lx",
 				(unsigned long long) ino);
 		return -EFSCORRUPTED;

@@ -969,8 +969,8 @@ xfs_log_unmount_write(
 	 * counters will be recalculated.  Refer to xlog_check_unmount_rec for
 	 * more details.
 	 */
-	if (XFS_TEST_ERROR(xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS), mp,
-			XFS_ERRTAG_FORCE_SUMMARY_RECALC)) {
+	if (xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS) ||
+	    XFS_TEST_ERROR(mp, XFS_ERRTAG_FORCE_SUMMARY_RECALC)) {
 		xfs_alert(mp, "%s: will fix summary counters at next mount",
 				__func__);
 		return;
@@ -1240,7 +1240,7 @@ xlog_ioend_work(
 	/*
 	 * Race to shutdown the filesystem if we see an error.
 	 */
-	if (XFS_TEST_ERROR(error, log->l_mp, XFS_ERRTAG_IODONE_IOERR)) {
+	if (error || XFS_TEST_ERROR(log->l_mp, XFS_ERRTAG_IODONE_IOERR)) {
 		xfs_alert(log->l_mp, "log I/O error %d", error);
 		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
 	}
@@ -1827,7 +1827,7 @@ xlog_sync(
 	 * detects the bad CRC and attempts to recover.
 	 */
 #ifdef DEBUG
-	if (XFS_TEST_ERROR(false, log->l_mp, XFS_ERRTAG_LOG_BAD_CRC)) {
+	if (XFS_TEST_ERROR(log->l_mp, XFS_ERRTAG_LOG_BAD_CRC)) {
 		iclog->ic_header.h_crc &= cpu_to_le32(0xAAAAAAAA);
 		iclog->ic_fail_crc = true;
 		xfs_warn(log->l_mp,
