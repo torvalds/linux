@@ -89,22 +89,6 @@ void mei_cancel_work(struct mei_device *dev)
 }
 EXPORT_SYMBOL_GPL(mei_cancel_work);
 
-static void mei_save_fw_status(struct mei_device *dev)
-{
-	struct mei_fw_status fw_status;
-	int ret;
-
-	ret = mei_fw_status(dev, &fw_status);
-	if (ret) {
-		dev_err(&dev->dev, "failed to read firmware status: %d\n", ret);
-		return;
-	}
-
-	dev->saved_dev_state = dev->dev_state;
-	dev->saved_fw_status_flag = true;
-	memcpy(&dev->saved_fw_status, &fw_status, sizeof(fw_status));
-}
-
 /**
  * mei_reset - resets host and fw.
  *
@@ -128,7 +112,6 @@ int mei_reset(struct mei_device *dev)
 		if (kind_is_gsc(dev) || kind_is_gscfi(dev)) {
 			dev_dbg(&dev->dev, "unexpected reset: dev_state = %s fw status = %s\n",
 				mei_dev_state_str(state), fw_sts_str);
-			mei_save_fw_status(dev);
 		} else {
 			dev_warn(&dev->dev, "unexpected reset: dev_state = %s fw status = %s\n",
 				 mei_dev_state_str(state), fw_sts_str);
@@ -399,7 +382,8 @@ void mei_device_init(struct mei_device *dev,
 	init_waitqueue_head(&dev->wait_hw_ready);
 	init_waitqueue_head(&dev->wait_pg);
 	init_waitqueue_head(&dev->wait_hbm_start);
-	dev->dev_state = MEI_DEV_INITIALIZING;
+	dev->dev_state = MEI_DEV_UNINITIALIZED;
+	init_waitqueue_head(&dev->wait_dev_state);
 	dev->reset_count = 0;
 
 	INIT_LIST_HEAD(&dev->write_list);
@@ -442,5 +426,6 @@ void mei_device_init(struct mei_device *dev,
 		dev->timeouts.hbm = mei_secs_to_jiffies(MEI_HBM_TIMEOUT);
 		dev->timeouts.mkhi_recv = msecs_to_jiffies(MKHI_RCV_TIMEOUT);
 	}
+	dev->timeouts.link_reset_wait = msecs_to_jiffies(MEI_LINK_RESET_WAIT_TIMEOUT_MSEC);
 }
 EXPORT_SYMBOL_GPL(mei_device_init);

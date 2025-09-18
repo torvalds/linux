@@ -494,43 +494,6 @@ static int mei_me_hw_ready_wait(struct mei_device *dev)
 }
 
 /**
- * mei_me_check_fw_reset - check for the firmware reset error and exception conditions
- *
- * @dev: mei device
- */
-static void mei_me_check_fw_reset(struct mei_device *dev)
-{
-	struct mei_fw_status fw_status;
-	char fw_sts_str[MEI_FW_STATUS_STR_SZ] = {0};
-	int ret;
-	u32 fw_pm_event = 0;
-
-	if (!dev->saved_fw_status_flag)
-		goto end;
-
-	if (dev->gsc_reset_to_pxp == MEI_DEV_RESET_TO_PXP_PERFORMED) {
-		ret = mei_fw_status(dev, &fw_status);
-		if (!ret) {
-			fw_pm_event = fw_status.status[1] & PCI_CFG_HFS_2_PM_EVENT_MASK;
-			if (fw_pm_event != PCI_CFG_HFS_2_PM_CMOFF_TO_CMX_ERROR &&
-			    fw_pm_event != PCI_CFG_HFS_2_PM_CM_RESET_ERROR)
-				goto end;
-		} else {
-			dev_err(&dev->dev, "failed to read firmware status: %d\n", ret);
-		}
-	}
-
-	mei_fw_status2str(&dev->saved_fw_status, fw_sts_str, sizeof(fw_sts_str));
-	dev_warn(&dev->dev, "unexpected reset: fw_pm_event = 0x%x, dev_state = %u fw status = %s\n",
-		 fw_pm_event, dev->saved_dev_state, fw_sts_str);
-
-end:
-	if (dev->gsc_reset_to_pxp == MEI_DEV_RESET_TO_PXP_PERFORMED)
-		dev->gsc_reset_to_pxp = MEI_DEV_RESET_TO_PXP_DONE;
-	dev->saved_fw_status_flag = false;
-}
-
-/**
  * mei_me_hw_start - hw start routine
  *
  * @dev: mei device
@@ -540,8 +503,9 @@ static int mei_me_hw_start(struct mei_device *dev)
 {
 	int ret = mei_me_hw_ready_wait(dev);
 
-	if (kind_is_gsc(dev) || kind_is_gscfi(dev))
-		mei_me_check_fw_reset(dev);
+	if ((kind_is_gsc(dev) || kind_is_gscfi(dev)) &&
+	    dev->gsc_reset_to_pxp == MEI_DEV_RESET_TO_PXP_PERFORMED)
+		dev->gsc_reset_to_pxp = MEI_DEV_RESET_TO_PXP_DONE;
 	if (ret)
 		return ret;
 	dev_dbg(&dev->dev, "hw is ready\n");
@@ -1373,9 +1337,20 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	/*  check if we need to start the dev */
 	if (!mei_host_is_ready(dev)) {
 		if (mei_hw_is_ready(dev)) {
-			dev_dbg(&dev->dev, "we need to start the dev.\n");
-			dev->recvd_hw_ready = true;
-			wake_up(&dev->wait_hw_ready);
+			/* synchronized by dev mutex */
+			if (waitqueue_active(&dev->wait_hw_ready)) {
+				dev_dbg(&dev->dev, "we need to start the dev.\n");
+				dev->recvd_hw_ready = true;
+				wake_up(&dev->wait_hw_ready);
+			} else if (dev->dev_state != MEI_DEV_UNINITIALIZED &&
+				   dev->dev_state != MEI_DEV_POWERING_DOWN &&
+				   dev->dev_state != MEI_DEV_POWER_DOWN) {
+				dev_dbg(&dev->dev, "Force link reset.\n");
+				schedule_work(&dev->reset_work);
+			} else {
+				dev_dbg(&dev->dev, "Ignore this interrupt in state = %d\n",
+					dev->dev_state);
+			}
 		} else {
 			dev_dbg(&dev->dev, "Spurious Interrupt\n");
 		}

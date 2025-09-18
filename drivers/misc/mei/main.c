@@ -423,6 +423,7 @@ static int mei_ioctl_connect_client(struct file *file,
 	    cl->state != MEI_FILE_DISCONNECTED)
 		return  -EBUSY;
 
+retry:
 	/* find ME client we're trying to connect to */
 	me_cl = mei_me_cl_by_uuid(dev, in_client_uuid);
 	if (!me_cl) {
@@ -453,6 +454,28 @@ static int mei_ioctl_connect_client(struct file *file,
 	cl_dbg(dev, cl, "Can connect?\n");
 
 	rets = mei_cl_connect(cl, me_cl, file);
+
+	if (rets && cl->status == -EFAULT &&
+	    (dev->dev_state == MEI_DEV_RESETTING ||
+	     dev->dev_state == MEI_DEV_INIT_CLIENTS)) {
+		/* in link reset, wait for it completion */
+		mutex_unlock(&dev->device_lock);
+		rets = wait_event_interruptible_timeout(dev->wait_dev_state,
+							dev->dev_state == MEI_DEV_ENABLED,
+							dev->timeouts.link_reset_wait);
+		mutex_lock(&dev->device_lock);
+		if (rets < 0) {
+			if (signal_pending(current))
+				rets = -EINTR;
+			goto end;
+		}
+		if (dev->dev_state != MEI_DEV_ENABLED) {
+			rets = -ETIME;
+			goto end;
+		}
+		mei_me_cl_put(me_cl);
+		goto retry;
+	}
 
 end:
 	mei_me_cl_put(me_cl);
@@ -646,7 +669,7 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 	struct mei_cl *cl = file->private_data;
 	struct mei_connect_client_data conn;
 	struct mei_connect_client_data_vtag conn_vtag;
-	const uuid_le *cl_uuid;
+	uuid_le cl_uuid;
 	struct mei_client *props;
 	u8 vtag;
 	u32 notify_get, notify_req;
@@ -674,18 +697,18 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 			rets = -EFAULT;
 			goto out;
 		}
-		cl_uuid = &conn.in_client_uuid;
+		cl_uuid = conn.in_client_uuid;
 		props = &conn.out_client_properties;
 		vtag = 0;
 
-		rets = mei_vt_support_check(dev, cl_uuid);
+		rets = mei_vt_support_check(dev, &cl_uuid);
 		if (rets == -ENOTTY)
 			goto out;
 		if (!rets)
-			rets = mei_ioctl_connect_vtag(file, cl_uuid, props,
+			rets = mei_ioctl_connect_vtag(file, &cl_uuid, props,
 						      vtag);
 		else
-			rets = mei_ioctl_connect_client(file, cl_uuid, props);
+			rets = mei_ioctl_connect_client(file, &cl_uuid, props);
 		if (rets)
 			goto out;
 
@@ -707,14 +730,14 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 			goto out;
 		}
 
-		cl_uuid = &conn_vtag.connect.in_client_uuid;
+		cl_uuid = conn_vtag.connect.in_client_uuid;
 		props = &conn_vtag.out_client_properties;
 		vtag = conn_vtag.connect.vtag;
 
-		rets = mei_vt_support_check(dev, cl_uuid);
+		rets = mei_vt_support_check(dev, &cl_uuid);
 		if (rets == -EOPNOTSUPP)
 			cl_dbg(dev, cl, "FW Client %pUl does not support vtags\n",
-				cl_uuid);
+				&cl_uuid);
 		if (rets)
 			goto out;
 
@@ -724,7 +747,7 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 			goto out;
 		}
 
-		rets = mei_ioctl_connect_vtag(file, cl_uuid, props, vtag);
+		rets = mei_ioctl_connect_vtag(file, &cl_uuid, props, vtag);
 		if (rets)
 			goto out;
 
@@ -1119,6 +1142,8 @@ void mei_set_devstate(struct mei_device *dev, enum mei_dev_state state)
 		return;
 
 	dev->dev_state = state;
+
+	wake_up_interruptible_all(&dev->wait_dev_state);
 
 	if (!dev->cdev)
 		return;

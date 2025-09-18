@@ -814,7 +814,7 @@ int mei_cldev_enable(struct mei_cl_device *cldev)
 
 	ret = mei_cl_connect(cl, cldev->me_cl, NULL);
 	if (ret < 0) {
-		dev_err(&cldev->dev, "cannot connect\n");
+		dev_dbg(&cldev->dev, "cannot connect\n");
 		mei_cl_bus_vtag_free(cldev);
 	}
 

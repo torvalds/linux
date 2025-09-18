@@ -57,7 +57,8 @@ enum file_state {
 
 /* MEI device states */
 enum mei_dev_state {
-	MEI_DEV_INITIALIZING = 0,
+	MEI_DEV_UNINITIALIZED = 0,
+	MEI_DEV_INITIALIZING,
 	MEI_DEV_INIT_CLIENTS,
 	MEI_DEV_ENABLED,
 	MEI_DEV_RESETTING,
@@ -465,6 +466,7 @@ struct mei_dev_timeouts {
 	unsigned int d0i3; /* D0i3 set/unset max response time, in jiffies */
 	unsigned long hbm; /* HBM operation timeout, in jiffies */
 	unsigned long mkhi_recv; /* receive timeout, in jiffies */
+	unsigned long link_reset_wait; /* link reset wait timeout, in jiffies */
 };
 
 /**
@@ -495,6 +497,7 @@ struct mei_dev_timeouts {
  *
  * @reset_count : number of consecutive resets
  * @dev_state   : device state
+ * @wait_dev_state: wait queue for device state change
  * @hbm_state   : state of host bus message protocol
  * @pxp_mode    : PXP device mode
  * @init_clients_timer : HBM init handshake timeout
@@ -548,9 +551,6 @@ struct mei_dev_timeouts {
  *
  * @dbgfs_dir   : debugfs mei root directory
  *
- * @saved_fw_status      : saved firmware status
- * @saved_dev_state      : saved device state
- * @saved_fw_status_flag : flag indicating that firmware status was saved
  * @gsc_reset_to_pxp     : state of reset to the PXP mode
  *
  * @ops:        : hw specific operations
@@ -587,6 +587,7 @@ struct mei_device {
 	 */
 	unsigned long reset_count;
 	enum mei_dev_state dev_state;
+	wait_queue_head_t wait_dev_state;
 	enum mei_hbm_state hbm_state;
 	enum mei_dev_pxp_mode pxp_mode;
 	u16 init_clients_timer;
@@ -650,9 +651,6 @@ struct mei_device {
 	struct dentry *dbgfs_dir;
 #endif /* CONFIG_DEBUG_FS */
 
-	struct mei_fw_status saved_fw_status;
-	enum mei_dev_state saved_dev_state;
-	bool saved_fw_status_flag;
 	enum mei_dev_reset_to_pxp gsc_reset_to_pxp;
 
 	const struct mei_hw_ops *ops;
