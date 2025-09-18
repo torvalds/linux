@@ -2267,10 +2267,10 @@ static int ublk_check_commit_and_fetch(const struct ublk_device *ub,
 	return 0;
 }
 
-static bool ublk_need_complete_req(const struct ublk_queue *ubq,
+static bool ublk_need_complete_req(const struct ublk_device *ub,
 				   struct ublk_io *io)
 {
-	if (ublk_need_req_ref(ubq))
+	if (ublk_dev_need_req_ref(ub))
 		return ublk_sub_req_ref(io);
 	return true;
 }
@@ -2387,7 +2387,7 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 		io->res = result;
 		req = ublk_fill_io_cmd(io, cmd);
 		ret = ublk_config_io_buf(ub, io, cmd, addr, &buf_idx);
-		compl = ublk_need_complete_req(ubq, io);
+		compl = ublk_need_complete_req(ub, io);
 
 		/* can't touch 'ublk_io' any more */
 		if (buf_idx != UBLK_INVALID_BUF_IDX)
