@@ -614,6 +614,7 @@ static int optee_rtc_probe(struct device *dev)
 						  priv, "rtc_alarm_evt");
 		if (IS_ERR(priv->alarm_task)) {
 			dev_err(dev, "Failed to create alarm thread\n");
+			err = PTR_ERR(priv->alarm_task);
 			goto out_shm;
 		}
 
