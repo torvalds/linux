@@ -37,7 +37,7 @@ psp_validate_xmit(struct sock *sk, struct net_device *dev, struct sk_buff *skb)
 	good = !pas || rcu_access_pointer(dev->psp_dev) == pas->psd;
 	rcu_read_unlock();
 	if (!good) {
-		kfree_skb_reason(skb, SKB_DROP_REASON_PSP_OUTPUT);
+		sk_skb_reason_drop(sk, skb, SKB_DROP_REASON_PSP_OUTPUT);
 		return NULL;
 	}
 

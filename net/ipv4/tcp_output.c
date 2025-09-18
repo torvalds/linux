@@ -1586,7 +1586,7 @@ static int __tcp_transmit_skb(struct sock *sk, struct sk_buff *skb,
 		err = tcp_ao_transmit_skb(sk, skb, key.ao_key, th,
 					  opts.hash_location);
 		if (err) {
-			kfree_skb_reason(skb, SKB_DROP_REASON_NOT_SPECIFIED);
+			sk_skb_reason_drop(sk, skb, SKB_DROP_REASON_NOT_SPECIFIED);
 			return -ENOMEM;
 		}
 	}
