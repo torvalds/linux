@@ -225,7 +225,7 @@ static void free_user_ns(struct work_struct *work)
 		kfree_rcu(ns, ns.ns_rcu);
 		dec_user_namespaces(ucounts);
 		ns = parent;
-	} while (refcount_dec_and_test(&parent->ns.count));
+	} while (ns_ref_put(parent));
 }
 
 void __put_user_ns(struct user_namespace *ns)

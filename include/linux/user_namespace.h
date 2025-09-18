@@ -176,7 +176,7 @@ static inline struct user_namespace *to_user_ns(struct ns_common *ns)
 static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
 {
 	if (ns)
-		refcount_inc(&ns->ns.count);
+		ns_ref_inc(ns);
 	return ns;
 }
 
@@ -186,7 +186,7 @@ extern void __put_user_ns(struct user_namespace *ns);
 
 static inline void put_user_ns(struct user_namespace *ns)
 {
-	if (ns && refcount_dec_and_test(&ns->ns.count))
+	if (ns && ns_ref_put(ns))
 		__put_user_ns(ns);
 }
 
