@@ -31,6 +31,11 @@
 
 #define DEFAULT_SCROLL_RATE	(HZ / 2)
 
+static struct linedisp *to_linedisp(struct device *dev)
+{
+	return container_of(dev, struct linedisp, dev);
+}
+
 /**
  * linedisp_scroll() - scroll the display by a character
  * @t: really a pointer to the private data structure
@@ -133,7 +138,7 @@ static int linedisp_display(struct linedisp *linedisp, const char *msg,
 static ssize_t message_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
-	struct linedisp *linedisp = container_of(dev, struct linedisp, dev);
+	struct linedisp *linedisp = to_linedisp(dev);
 
 	return sysfs_emit(buf, "%s\n", linedisp->message);
 }
@@ -152,7 +157,7 @@ static ssize_t message_show(struct device *dev, struct device_attribute *attr,
 static ssize_t message_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
-	struct linedisp *linedisp = container_of(dev, struct linedisp, dev);
+	struct linedisp *linedisp = to_linedisp(dev);
 	int err;
 
 	err = linedisp_display(linedisp, buf, count);
@@ -164,7 +169,7 @@ static DEVICE_ATTR_RW(message);
 static ssize_t scroll_step_ms_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct linedisp *linedisp = container_of(dev, struct linedisp, dev);
+	struct linedisp *linedisp = to_linedisp(dev);
 
 	return sysfs_emit(buf, "%u\n", jiffies_to_msecs(linedisp->scroll_rate));
 }
@@ -173,7 +178,7 @@ static ssize_t scroll_step_ms_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
-	struct linedisp *linedisp = container_of(dev, struct linedisp, dev);
+	struct linedisp *linedisp = to_linedisp(dev);
 	unsigned int ms;
 	int err;
 
@@ -195,7 +200,7 @@ static DEVICE_ATTR_RW(scroll_step_ms);
 
 static ssize_t map_seg_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct linedisp *linedisp = container_of(dev, struct linedisp, dev);
+	struct linedisp *linedisp = to_linedisp(dev);
 	struct linedisp_map *map = linedisp->map;
 
 	memcpy(buf, &map->map, map->size);
@@ -205,7 +210,7 @@ static ssize_t map_seg_show(struct device *dev, struct device_attribute *attr, c
 static ssize_t map_seg_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
-	struct linedisp *linedisp = container_of(dev, struct linedisp, dev);
+	struct linedisp *linedisp = to_linedisp(dev);
 	struct linedisp_map *map = linedisp->map;
 
 	if (count != map->size)
@@ -232,7 +237,7 @@ static struct attribute *linedisp_attrs[] = {
 static umode_t linedisp_attr_is_visible(struct kobject *kobj, struct attribute *attr, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
-	struct linedisp *linedisp = container_of(dev, struct linedisp, dev);
+	struct linedisp *linedisp = to_linedisp(dev);
 	struct linedisp_map *map = linedisp->map;
 	umode_t mode = attr->mode;
 
@@ -263,7 +268,7 @@ static DEFINE_IDA(linedisp_id);
 
 static void linedisp_release(struct device *dev)
 {
-	struct linedisp *linedisp = container_of(dev, struct linedisp, dev);
+	struct linedisp *linedisp = to_linedisp(dev);
 
 	kfree(linedisp->map);
 	kfree(linedisp->message);
