@@ -29,7 +29,7 @@ struct ns_common {
 	struct dentry *stashed;
 	const struct proc_ns_operations *ops;
 	unsigned int inum;
-	refcount_t count;
+	refcount_t __ns_ref; /* do not use directly */
 	union {
 		struct {
 			u64 ns_id;
@@ -93,19 +93,19 @@ void __ns_common_free(struct ns_common *ns);
 
 static __always_inline __must_check bool __ns_ref_put(struct ns_common *ns)
 {
-	return refcount_dec_and_test(&ns->count);
+	return refcount_dec_and_test(&ns->__ns_ref);
 }
 
 static __always_inline __must_check bool __ns_ref_get(struct ns_common *ns)
 {
-	return refcount_inc_not_zero(&ns->count);
+	return refcount_inc_not_zero(&ns->__ns_ref);
 }
 
-#define ns_ref_read(__ns) refcount_read(&to_ns_common((__ns))->count)
-#define ns_ref_inc(__ns) refcount_inc(&to_ns_common((__ns))->count)
+#define ns_ref_read(__ns) refcount_read(&to_ns_common((__ns))->__ns_ref)
+#define ns_ref_inc(__ns) refcount_inc(&to_ns_common((__ns))->__ns_ref)
 #define ns_ref_get(__ns) __ns_ref_get(to_ns_common((__ns)))
 #define ns_ref_put(__ns) __ns_ref_put(to_ns_common((__ns)))
 #define ns_ref_put_and_lock(__ns, __lock) \
-	refcount_dec_and_lock(&to_ns_common((__ns))->count, (__lock))
+	refcount_dec_and_lock(&to_ns_common((__ns))->__ns_ref, (__lock))
 
 #endif
