@@ -426,6 +426,9 @@ static int smcd_tx_rdma_writes(struct smc_connection *conn, size_t len,
 	int srcchunk, dstchunk;
 	int rc;
 
+	if (conn->sndbuf_desc->is_attached)
+		return 0;
+
 	for (dstchunk = 0; dstchunk < 2; dstchunk++) {
 		for (srcchunk = 0; srcchunk < 2; srcchunk++) {
 			void *data = conn->sndbuf_desc->cpu_addr + src_off;

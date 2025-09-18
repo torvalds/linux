@@ -274,6 +274,7 @@ int smc_ism_attach_dmb(struct smcd_dev *dev, u64 token,
 		dmb_desc->cpu_addr = dmb.cpu_addr;
 		dmb_desc->dma_addr = dmb.dma_addr;
 		dmb_desc->len = dmb.dmb_len;
+		dmb_desc->is_attached = true;
 	}
 	return rc;
 }
