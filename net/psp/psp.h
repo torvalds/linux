@@ -13,7 +13,7 @@
 extern struct xarray psp_devs;
 extern struct mutex psp_devs_lock;
 
-void psp_dev_destroy(struct psp_dev *psd);
+void psp_dev_free(struct psp_dev *psd);
 int psp_dev_check_access(struct psp_dev *psd, struct net *net);
 
 void psp_nl_notify_dev(struct psp_dev *psd, u32 cmd);
@@ -42,7 +42,7 @@ static inline bool psp_dev_tryget(struct psp_dev *psd)
 static inline void psp_dev_put(struct psp_dev *psd)
 {
 	if (refcount_dec_and_test(&psd->refcnt))
-		psp_dev_destroy(psd);
+		psp_dev_free(psd);
 }
 
 static inline bool psp_dev_is_registered(struct psp_dev *psd)

@@ -99,7 +99,7 @@ psp_dev_create(struct net_device *netdev,
 }
 EXPORT_SYMBOL(psp_dev_create);
 
-void psp_dev_destroy(struct psp_dev *psd)
+void psp_dev_free(struct psp_dev *psd)
 {
 	mutex_lock(&psp_devs_lock);
 	xa_erase(&psp_devs, psd->id);
@@ -122,7 +122,7 @@ void psp_dev_unregister(struct psp_dev *psd)
 
 	psp_nl_notify_dev(psd, PSP_CMD_DEV_DEL_NTF);
 
-	/* Wait until psp_dev_destroy() to call xa_erase() to prevent a
+	/* Wait until psp_dev_free() to call xa_erase() to prevent a
 	 * different psd from being added to the xarray with this id, while
 	 * there are still references to this psd being held.
 	 */
