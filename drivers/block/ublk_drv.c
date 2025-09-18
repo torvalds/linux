@@ -529,7 +529,8 @@ static blk_status_t ublk_setup_iod_zoned(struct ublk_queue *ubq,
 
 #endif
 
-static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io);
+static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io,
+				      bool need_map);
 
 static dev_t ublk_chr_devt;
 static const struct class ublk_chr_class = {
@@ -737,8 +738,11 @@ static inline bool ublk_get_req_ref(struct ublk_io *io)
 
 static inline void ublk_put_req_ref(struct ublk_io *io, struct request *req)
 {
-	if (refcount_dec_and_test(&io->ref))
-		__ublk_complete_rq(req, io);
+	if (!refcount_dec_and_test(&io->ref))
+		return;
+
+	/* ublk_need_map_io() and ublk_need_req_ref() are mutually exclusive */
+	__ublk_complete_rq(req, io, false);
 }
 
 static inline bool ublk_sub_req_ref(struct ublk_io *io)
@@ -1048,13 +1052,13 @@ static int ublk_map_io(const struct ublk_queue *ubq, const struct request *req,
 	return rq_bytes;
 }
 
-static int ublk_unmap_io(const struct ublk_queue *ubq,
+static int ublk_unmap_io(bool need_map,
 		const struct request *req,
 		const struct ublk_io *io)
 {
 	const unsigned int rq_bytes = blk_rq_bytes(req);
 
-	if (!ublk_need_map_io(ubq))
+	if (!need_map)
 		return rq_bytes;
 
 	if (ublk_need_unmap_req(req)) {
@@ -1146,9 +1150,9 @@ static inline struct ublk_uring_cmd_pdu *ublk_get_uring_cmd_pdu(
 }
 
 /* todo: handle partial completion */
-static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io)
+static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io,
+				      bool need_map)
 {
-	struct ublk_queue *ubq = req->mq_hctx->driver_data;
 	unsigned int unmapped_bytes;
 	blk_status_t res = BLK_STS_OK;
 
@@ -1172,7 +1176,7 @@ static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io)
 		goto exit;
 
 	/* for READ request, writing data in iod->addr to rq buffers */
-	unmapped_bytes = ublk_unmap_io(ubq, req, io);
+	unmapped_bytes = ublk_unmap_io(need_map, req, io);
 
 	/*
 	 * Extremely impossible since we got data filled in just before
@@ -1749,7 +1753,7 @@ static void __ublk_fail_req(struct ublk_device *ub, struct ublk_io *io,
 		blk_mq_requeue_request(req, false);
 	else {
 		io->res = -EIO;
-		__ublk_complete_rq(req, io);
+		__ublk_complete_rq(req, io, ublk_dev_need_map_io(ub));
 	}
 }
 
@@ -2394,7 +2398,7 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 		if (req_op(req) == REQ_OP_ZONE_APPEND)
 			req->__sector = addr;
 		if (compl)
-			__ublk_complete_rq(req, io);
+			__ublk_complete_rq(req, io, ublk_dev_need_map_io(ub));
 
 		if (ret)
 			goto out;
