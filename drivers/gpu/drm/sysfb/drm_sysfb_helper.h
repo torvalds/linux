@@ -17,6 +17,12 @@ struct drm_format_info;
 struct drm_scanout_buffer;
 struct screen_info;
 
+typedef void (*drm_sysfb_blit_func)(struct iosys_map *, const unsigned int *,
+				    const struct iosys_map *,
+				    const struct drm_framebuffer *,
+				    const struct drm_rect *,
+				    struct drm_format_conv_state *);
+
 /*
  * Input parsing
  */
@@ -96,6 +102,9 @@ static inline struct drm_sysfb_device *to_drm_sysfb_device(struct drm_device *de
 
 struct drm_sysfb_plane_state {
 	struct drm_shadow_plane_state base;
+
+	/* transfers framebuffer data to scanout buffer in CRTC format */
+	drm_sysfb_blit_func blit_to_crtc;
 };
 
 static inline struct drm_sysfb_plane_state *
@@ -108,6 +117,8 @@ size_t drm_sysfb_build_fourcc_list(struct drm_device *dev,
 				   const u32 *native_fourccs, size_t native_nfourccs,
 				   u32 *fourccs_out, size_t nfourccs_out);
 
+int drm_sysfb_plane_helper_begin_fb_access(struct drm_plane *plane,
+					   struct drm_plane_state *plane_state);
 int drm_sysfb_plane_helper_atomic_check(struct drm_plane *plane,
 					struct drm_atomic_state *new_state);
 void drm_sysfb_plane_helper_atomic_update(struct drm_plane *plane,
@@ -125,7 +136,8 @@ int drm_sysfb_plane_helper_get_scanout_buffer(struct drm_plane *plane,
 	DRM_FORMAT_MOD_INVALID
 
 #define DRM_SYSFB_PLANE_HELPER_FUNCS \
-	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS, \
+	.begin_fb_access = drm_sysfb_plane_helper_begin_fb_access, \
+	.end_fb_access = drm_gem_end_shadow_fb_access, \
 	.atomic_check = drm_sysfb_plane_helper_atomic_check, \
 	.atomic_update = drm_sysfb_plane_helper_atomic_update, \
 	.atomic_disable = drm_sysfb_plane_helper_atomic_disable, \
