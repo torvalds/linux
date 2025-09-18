@@ -395,8 +395,6 @@ static struct mdio_driver dsa_loop_drv = {
 	.shutdown = dsa_loop_drv_shutdown,
 };
 
-#define NUM_FIXED_PHYS	(DSA_LOOP_NUM_PORTS - 2)
-
 static void dsa_loop_phydevs_unregister(void)
 {
 	for (int i = 0; i < NUM_FIXED_PHYS; i++) {
