@@ -118,10 +118,9 @@ xfs_errortag_attr_show(
 	char			*buf)
 {
 	struct xfs_mount	*mp = to_mp(kobject);
-	struct xfs_errortag_attr *xfs_attr = to_attr(attr);
+	unsigned int		error_tag = to_attr(attr)->tag;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n",
-			xfs_errortag_get(mp, xfs_attr->tag));
+	return snprintf(buf, PAGE_SIZE, "%u\n", mp->m_errortag[error_tag]);
 }
 
 static const struct sysfs_ops xfs_errortag_sysfs_ops = {
@@ -324,17 +323,6 @@ xfs_errortag_test(
 "Injecting error (%s) at file %s, line %d, on filesystem \"%s\"",
 			expression, file, line, mp->m_super->s_id);
 	return true;
-}
-
-int
-xfs_errortag_get(
-	struct xfs_mount	*mp,
-	unsigned int		error_tag)
-{
-	if (!xfs_errortag_valid(error_tag))
-		return -EINVAL;
-
-	return mp->m_errortag[error_tag];
 }
 
 int
