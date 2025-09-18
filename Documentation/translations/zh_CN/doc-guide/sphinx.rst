@@ -84,7 +84,7 @@ PDF和LaTeX构建
 这有一个脚本可以自动检查Sphinx依赖项。如果它认得您的发行版，还会提示您所用发行
 版的安装命令::
 
-	$ ./scripts/sphinx-pre-install
+	$ ./tools/docs/sphinx-pre-install
 	Checking if the needed tools for Fedora release 26 (Twenty Six) are available
 	Warning: better to also install "texlive-luatex85".
 	You should run:
@@ -94,7 +94,7 @@ PDF和LaTeX构建
 		. sphinx_2.4.4/bin/activate
 		pip install -r Documentation/sphinx/requirements.txt
 
-	Can't build as 1 mandatory dependency is missing at ./scripts/sphinx-pre-install line 468.
+	Can't build as 1 mandatory dependency is missing at ./tools/docs/sphinx-pre-install line 468.
 
 默认情况下，它会检查html和PDF的所有依赖项，包括图像、数学表达式和LaTeX构建的
 需求，并假设将使用虚拟Python环境。html构建所需的依赖项被认为是必需的，其他依
