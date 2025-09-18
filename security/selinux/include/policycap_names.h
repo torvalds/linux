@@ -21,6 +21,7 @@ const char *const selinux_policycap_names[__POLICYDB_CAP_MAX] = {
 	"netif_wildcard",
 	"genfs_seclabel_wildcard",
 	"functionfs_seclabel",
+	"memfd_class",
 };
 /* clang-format on */
 
