@@ -290,7 +290,7 @@ static void bm_work(struct work_struct *work)
 	struct fw_card *card __free(card_unref) = from_work(card, work, bm_work.work);
 	struct fw_node *root_node __free(node_unref) = NULL;
 	int root_id, new_root_id, irm_id, local_id;
-	int expected_gap_count, generation, grace;
+	int expected_gap_count, generation;
 	bool do_reset = false;
 
 	if (card->local_node == NULL)
@@ -304,107 +304,107 @@ static void bm_work(struct work_struct *work)
 	irm_id   = card->irm_node->node_id;
 	local_id = card->local_node->node_id;
 
-	grace = time_is_before_jiffies64(card->reset_jiffies + msecs_to_jiffies(125));
+	if (card->bm_generation != generation) {
+		bool grace = time_is_before_jiffies64(card->reset_jiffies + msecs_to_jiffies(125));
 
-	if ((is_next_generation(generation, card->bm_generation) &&
-	     !card->bm_abdicate) ||
-	    (card->bm_generation != generation && grace)) {
-		/*
-		 * This first step is to figure out who is IRM and
-		 * then try to become bus manager.  If the IRM is not
-		 * well defined (e.g. does not have an active link
-		 * layer or does not responds to our lock request, we
-		 * will have to do a little vigilante bus management.
-		 * In that case, we do a goto into the gap count logic
-		 * so that when we do the reset, we still optimize the
-		 * gap count.  That could well save a reset in the
-		 * next generation.
-		 */
-		__be32 data[2] = {
-			cpu_to_be32(BUS_MANAGER_ID_NOT_REGISTERED),
-			cpu_to_be32(local_id),
-		};
-		struct fw_device *irm_device = fw_node_get_device(card->irm_node);
-		bool irm_is_1394_1995_only = false;
-		bool keep_this_irm = false;
-		int rcode;
+		if (grace ||
+		    (is_next_generation(generation, card->bm_generation) && !card->bm_abdicate)) {
+			// This first step is to figure out who is IRM and
+			// then try to become bus manager.  If the IRM is not
+			// well defined (e.g. does not have an active link
+			// layer or does not responds to our lock request, we
+			// will have to do a little vigilante bus management.
+			// In that case, we do a goto into the gap count logic
+			// so that when we do the reset, we still optimize the
+			// gap count.  That could well save a reset in the
+			// next generation.
+			__be32 data[2] = {
+				cpu_to_be32(BUS_MANAGER_ID_NOT_REGISTERED),
+				cpu_to_be32(local_id),
+			};
+			struct fw_device *irm_device = fw_node_get_device(card->irm_node);
+			bool irm_is_1394_1995_only = false;
+			bool keep_this_irm = false;
+			int rcode;
 
-		if (!card->irm_node->link_on) {
-			new_root_id = local_id;
-			fw_notice(card, "%s, making local node (%02x) root\n",
-				  "IRM has link off", new_root_id);
-			goto pick_me;
-		}
-
-		if (irm_device && irm_device->config_rom) {
-			irm_is_1394_1995_only = (irm_device->config_rom[2] & 0x000000f0) == 0;
-
-			// Canon MV5i works unreliably if it is not root node.
-			keep_this_irm = irm_device->config_rom[3] >> 8 == CANON_OUI;
-		}
-
-		if (irm_is_1394_1995_only && !keep_this_irm) {
-			new_root_id = local_id;
-			fw_notice(card, "%s, making local node (%02x) root\n",
-				  "IRM is not 1394a compliant", new_root_id);
-			goto pick_me;
-		}
-
-		rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
-				irm_id, generation, SCODE_100,
-				CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
-				data, sizeof(data));
-
-		switch (rcode) {
-		case RCODE_GENERATION:
-			// Another bus reset, BM work has been rescheduled.
-			return;
-		case RCODE_SEND_ERROR:
-			// We have been unable to send the lock request due to
-			// some local problem.  Let's try again later and hope
-			// that the problem has gone away by then.
-			fw_schedule_bm_work(card, msecs_to_jiffies(125));
-			return;
-		case RCODE_COMPLETE:
-		{
-			int bm_id = be32_to_cpu(data[0]);
-
-			// Used by cdev layer for "struct fw_cdev_event_bus_reset".
-			scoped_guard(spinlock, &card->lock) {
-				if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
-					card->bm_node_id = 0xffc0 & bm_id;
-				else
-					card->bm_node_id = local_id;
-			}
-
-			if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED) {
-				// Somebody else is BM.  Only act as IRM.
-				if (local_id == irm_id)
-					allocate_broadcast_channel(card, generation);
-				return;
-			}
-			break;
-		}
-		default:
-			if (!keep_this_irm) {
-				// The lock request failed, maybe the IRM
-				// isn't really IRM capable after all. Let's
-				// do a bus reset and pick the local node as
-				// root, and thus, IRM.
+			if (!card->irm_node->link_on) {
 				new_root_id = local_id;
-				fw_notice(card, "BM lock failed (%s), making local node (%02x) root\n",
-					  fw_rcode_string(rcode), new_root_id);
+				fw_notice(card, "%s, making local node (%02x) root\n",
+					  "IRM has link off", new_root_id);
 				goto pick_me;
 			}
-			break;
+
+			if (irm_device && irm_device->config_rom) {
+				irm_is_1394_1995_only = (irm_device->config_rom[2] & 0x000000f0) == 0;
+
+				// Canon MV5i works unreliably if it is not root node.
+				keep_this_irm = irm_device->config_rom[3] >> 8 == CANON_OUI;
+			}
+
+			if (irm_is_1394_1995_only && !keep_this_irm) {
+				new_root_id = local_id;
+				fw_notice(card, "%s, making local node (%02x) root\n",
+					  "IRM is not 1394a compliant", new_root_id);
+				goto pick_me;
+			}
+
+			rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
+					irm_id, generation, SCODE_100,
+					CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
+					data, sizeof(data));
+
+			switch (rcode) {
+			case RCODE_GENERATION:
+				// Another bus reset, BM work has been rescheduled.
+				return;
+			case RCODE_SEND_ERROR:
+				// We have been unable to send the lock request due to
+				// some local problem.  Let's try again later and hope
+				// that the problem has gone away by then.
+				fw_schedule_bm_work(card, msecs_to_jiffies(125));
+				return;
+			case RCODE_COMPLETE:
+			{
+				int bm_id = be32_to_cpu(data[0]);
+
+				// Used by cdev layer for "struct fw_cdev_event_bus_reset".
+				scoped_guard(spinlock, &card->lock) {
+					if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
+						card->bm_node_id = 0xffc0 & bm_id;
+					else
+						card->bm_node_id = local_id;
+				}
+
+				if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED) {
+					// Somebody else is BM.  Only act as IRM.
+					if (local_id == irm_id)
+						allocate_broadcast_channel(card, generation);
+					return;
+				}
+				break;
+			}
+			default:
+				if (!keep_this_irm) {
+					// The lock request failed, maybe the IRM
+					// isn't really IRM capable after all. Let's
+					// do a bus reset and pick the local node as
+					// root, and thus, IRM.
+					new_root_id = local_id;
+					fw_notice(card, "BM lock failed (%s), making local node (%02x) root\n",
+						  fw_rcode_string(rcode), new_root_id);
+					goto pick_me;
+				}
+				break;
+			}
+
+			// A node contends for bus manager in this generation.
+			card->bm_generation = generation;
+		} else {
+			// We weren't BM in the last generation, and the last
+			// bus reset is less than 125ms ago.  Reschedule this job.
+			fw_schedule_bm_work(card, msecs_to_jiffies(125));
+			return;
 		}
-	} else if (card->bm_generation != generation) {
-		/*
-		 * We weren't BM in the last generation, and the last
-		 * bus reset is less than 125ms ago.  Reschedule this job.
-		 */
-		fw_schedule_bm_work(card, msecs_to_jiffies(125));
-		return;
 	}
 
 	/*
@@ -412,8 +412,6 @@ static void bm_work(struct work_struct *work)
 	 * make sure we have an active cycle master and do gap count
 	 * optimization.
 	 */
-	card->bm_generation = generation;
-
 	if (card->gap_count == GAP_COUNT_MISMATCHED) {
 		/*
 		 * If self IDs have inconsistent gap counts, do a
