@@ -1420,10 +1420,10 @@ void __kvm_at_s12(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 		return;
 
 	/*
-	 * If we only have a single stage of translation (E2H=0 or
-	 * TGE=1), exit early. Same thing if {VM,DC}=={0,0}.
+	 * If we only have a single stage of translation (EL2&0), exit
+	 * early. Same thing if {VM,DC}=={0,0}.
 	 */
-	if (!vcpu_el2_e2h_is_set(vcpu) || vcpu_el2_tge_is_set(vcpu) ||
+	if (compute_translation_regime(vcpu, op) == TR_EL20 ||
 	    !(vcpu_read_sys_reg(vcpu, HCR_EL2) & (HCR_VM | HCR_DC)))
 		return;
 

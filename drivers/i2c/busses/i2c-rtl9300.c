@@ -99,6 +99,9 @@ static int rtl9300_i2c_config_xfer(struct rtl9300_i2c *i2c, struct rtl9300_i2c_c
 {
 	u32 val, mask;
 
+	if (len < 1 || len > 16)
+		return -EINVAL;
+
 	val = chan->bus_freq << RTL9300_I2C_MST_CTRL2_SCL_FREQ_OFS;
 	mask = RTL9300_I2C_MST_CTRL2_SCL_FREQ_MASK;
 
@@ -222,15 +225,6 @@ static int rtl9300_i2c_smbus_xfer(struct i2c_adapter *adap, u16 addr, unsigned s
 	}
 
 	switch (size) {
-	case I2C_SMBUS_QUICK:
-		ret = rtl9300_i2c_config_xfer(i2c, chan, addr, 0);
-		if (ret)
-			goto out_unlock;
-		ret = rtl9300_i2c_reg_addr_set(i2c, 0, 0);
-		if (ret)
-			goto out_unlock;
-		break;
-
 	case I2C_SMBUS_BYTE:
 		if (read_write == I2C_SMBUS_WRITE) {
 			ret = rtl9300_i2c_config_xfer(i2c, chan, addr, 0);
@@ -312,9 +306,9 @@ out_unlock:
 
 static u32 rtl9300_i2c_func(struct i2c_adapter *a)
 {
-	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
-	       I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
-	       I2C_FUNC_SMBUS_BLOCK_DATA;
+	return I2C_FUNC_SMBUS_BYTE | I2C_FUNC_SMBUS_BYTE_DATA |
+	       I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_BLOCK_DATA |
+	       I2C_FUNC_SMBUS_I2C_BLOCK;
 }
 
 static const struct i2c_algorithm rtl9300_i2c_algo = {
@@ -323,7 +317,7 @@ static const struct i2c_algorithm rtl9300_i2c_algo = {
 };
 
 static struct i2c_adapter_quirks rtl9300_i2c_quirks = {
-	.flags		= I2C_AQ_NO_CLK_STRETCH,
+	.flags		= I2C_AQ_NO_CLK_STRETCH | I2C_AQ_NO_ZERO_LEN,
 	.max_read_len	= 16,
 	.max_write_len	= 16,
 };
@@ -353,7 +347,7 @@ static int rtl9300_i2c_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, i2c);
 
-	if (device_get_child_node_count(dev) >= RTL9300_I2C_MUX_NCHAN)
+	if (device_get_child_node_count(dev) > RTL9300_I2C_MUX_NCHAN)
 		return dev_err_probe(dev, -EINVAL, "Too many channels\n");
 
 	device_for_each_child_node(dev, child) {
