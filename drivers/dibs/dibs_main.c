@@ -15,6 +15,8 @@
 #include <linux/err.h>
 #include <linux/dibs.h>
 
+#include "dibs_loopback.h"
+
 MODULE_DESCRIPTION("Direct Internal Buffer Sharing class");
 MODULE_LICENSE("GPL");
 
@@ -96,14 +98,21 @@ EXPORT_SYMBOL_GPL(dibs_dev_del);
 
 static int __init dibs_init(void)
 {
+	int rc;
+
 	memset(clients, 0, sizeof(clients));
 	max_client = 0;
 
-	return 0;
+	rc = dibs_loopback_init();
+	if (rc)
+		pr_err("%s fails with %d\n", __func__, rc);
+
+	return rc;
 }
 
 static void __exit dibs_exit(void)
 {
+	dibs_loopback_exit();
 }
 
 module_init(dibs_init);

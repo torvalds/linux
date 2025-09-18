@@ -5,3 +5,4 @@
 
 dibs-y += dibs_main.o
 obj-$(CONFIG_DIBS) += dibs.o
+dibs-$(CONFIG_DIBS_LO) += dibs_loopback.o
