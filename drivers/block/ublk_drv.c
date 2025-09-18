@@ -2125,11 +2125,11 @@ static void ublk_io_release(void *priv)
 }
 
 static int ublk_register_io_buf(struct io_uring_cmd *cmd,
+				struct ublk_device *ub,
 				const struct ublk_queue *ubq,
 				struct ublk_io *io,
 				unsigned int index, unsigned int issue_flags)
 {
-	struct ublk_device *ub = cmd->file->private_data;
 	struct request *req;
 	int ret;
 
@@ -2152,6 +2152,7 @@ static int ublk_register_io_buf(struct io_uring_cmd *cmd,
 
 static int
 ublk_daemon_register_io_buf(struct io_uring_cmd *cmd,
+			    struct ublk_device *ub,
 			    const struct ublk_queue *ubq, struct ublk_io *io,
 			    unsigned index, unsigned issue_flags)
 {
@@ -2165,7 +2166,8 @@ ublk_daemon_register_io_buf(struct io_uring_cmd *cmd,
 	 */
 	new_registered_buffers = io->task_registered_buffers + 1;
 	if (unlikely(new_registered_buffers >= UBLK_REFCOUNT_INIT))
-		return ublk_register_io_buf(cmd, ubq, io, index, issue_flags);
+		return ublk_register_io_buf(cmd, ub, ubq, io, index,
+					    issue_flags);
 
 	if (!ublk_support_zero_copy(ubq) || !ublk_rq_has_data(req))
 		return -EINVAL;
@@ -2356,7 +2358,7 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 		 * so can be handled on any task
 		 */
 		if (_IOC_NR(cmd_op) == UBLK_IO_REGISTER_IO_BUF)
-			return ublk_register_io_buf(cmd, ubq, io, addr,
+			return ublk_register_io_buf(cmd, ub, ubq, io, addr,
 						    issue_flags);
 
 		goto out;
@@ -2378,7 +2380,7 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 
 	switch (_IOC_NR(cmd_op)) {
 	case UBLK_IO_REGISTER_IO_BUF:
-		return ublk_daemon_register_io_buf(cmd, ubq, io, addr,
+		return ublk_daemon_register_io_buf(cmd, ub, ubq, io, addr,
 						   issue_flags);
 	case UBLK_IO_COMMIT_AND_FETCH_REQ:
 		ret = ublk_check_commit_and_fetch(ubq, io, addr);
