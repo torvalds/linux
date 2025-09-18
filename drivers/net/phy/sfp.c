@@ -911,7 +911,7 @@ static void sfp_soft_start_poll(struct sfp *sfp)
 
 	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) &&
 	    !sfp->need_poll)
-		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
+		mod_delayed_work(system_percpu_wq, &sfp->poll, poll_jiffies);
 	mutex_unlock(&sfp->st_mutex);
 }
 
@@ -1682,7 +1682,7 @@ static void sfp_hwmon_probe(struct work_struct *work)
 	err = sfp_read(sfp, true, 0, &sfp->diag, sizeof(sfp->diag));
 	if (err < 0) {
 		if (sfp->hwmon_tries--) {
-			mod_delayed_work(system_wq, &sfp->hwmon_probe,
+			mod_delayed_work(system_percpu_wq, &sfp->hwmon_probe,
 					 T_PROBE_RETRY_SLOW);
 		} else {
 			dev_warn(sfp->dev, "hwmon probe failed: %pe\n",
@@ -1709,7 +1709,7 @@ static void sfp_hwmon_probe(struct work_struct *work)
 static int sfp_hwmon_insert(struct sfp *sfp)
 {
 	if (sfp->have_a2 && sfp->id.ext.diagmon & SFP_DIAGMON_DDM) {
-		mod_delayed_work(system_wq, &sfp->hwmon_probe, 1);
+		mod_delayed_work(system_percpu_wq, &sfp->hwmon_probe, 1);
 		sfp->hwmon_tries = R_PROBE_RETRY_SLOW;
 	}
 
@@ -2563,7 +2563,7 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 		/* Force a poll to re-read the hardware signal state after
 		 * sfp_sm_mod_probe() changed state_hw_mask.
 		 */
-		mod_delayed_work(system_wq, &sfp->poll, 1);
+		mod_delayed_work(system_percpu_wq, &sfp->poll, 1);
 
 		err = sfp_hwmon_insert(sfp);
 		if (err)
@@ -3008,7 +3008,7 @@ static void sfp_poll(struct work_struct *work)
 	// it's unimportant if we race while reading this.
 	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) ||
 	    sfp->need_poll)
-		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
+		mod_delayed_work(system_percpu_wq, &sfp->poll, poll_jiffies);
 }
 
 static struct sfp *sfp_alloc(struct device *dev)
@@ -3178,7 +3178,7 @@ static int sfp_probe(struct platform_device *pdev)
 	}
 
 	if (sfp->need_poll)
-		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
+		mod_delayed_work(system_percpu_wq, &sfp->poll, poll_jiffies);
 
 	/* We could have an issue in cases no Tx disable pin is available or
 	 * wired as modules using a laser as their light source will continue to
