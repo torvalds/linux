@@ -551,9 +551,6 @@ struct mei_dev_timeouts {
  *
  * @dbgfs_dir   : debugfs mei root directory
  *
- * @saved_fw_status      : saved firmware status
- * @saved_dev_state      : saved device state
- * @saved_fw_status_flag : flag indicating that firmware status was saved
  * @gsc_reset_to_pxp     : state of reset to the PXP mode
  *
  * @ops:        : hw specific operations
@@ -654,9 +651,6 @@ struct mei_device {
 	struct dentry *dbgfs_dir;
 #endif /* CONFIG_DEBUG_FS */
 
-	struct mei_fw_status saved_fw_status;
-	enum mei_dev_state saved_dev_state;
-	bool saved_fw_status_flag;
 	enum mei_dev_reset_to_pxp gsc_reset_to_pxp;
 
 	const struct mei_hw_ops *ops;
