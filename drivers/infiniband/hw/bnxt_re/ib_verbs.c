@@ -3307,9 +3307,9 @@ int bnxt_re_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 				      IB_ACCESS_LOCAL_WRITE);
 	if (IS_ERR(cq->resize_umem)) {
 		rc = PTR_ERR(cq->resize_umem);
+		ibdev_err(&rdev->ibdev, "%s: ib_umem_get failed! rc = %pe\n",
+			  __func__, cq->resize_umem);
 		cq->resize_umem = NULL;
-		ibdev_err(&rdev->ibdev, "%s: ib_umem_get failed! rc = %d\n",
-			  __func__, rc);
 		goto fail;
 	}
 	cq->resize_cqe = entries;

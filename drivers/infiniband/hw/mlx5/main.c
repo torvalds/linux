@@ -3051,14 +3051,16 @@ int mlx5_ib_dev_res_cq_init(struct mlx5_ib_dev *dev)
 	pd = ib_alloc_pd(ibdev, 0);
 	if (IS_ERR(pd)) {
 		ret = PTR_ERR(pd);
-		mlx5_ib_err(dev, "Couldn't allocate PD for res init, err=%d\n", ret);
+		mlx5_ib_err(dev, "Couldn't allocate PD for res init, err=%pe\n",
+			    pd);
 		goto unlock;
 	}
 
 	cq = ib_create_cq(ibdev, NULL, NULL, NULL, &cq_attr);
 	if (IS_ERR(cq)) {
 		ret = PTR_ERR(cq);
-		mlx5_ib_err(dev, "Couldn't create CQ for res init, err=%d\n", ret);
+		mlx5_ib_err(dev, "Couldn't create CQ for res init, err=%pe\n",
+			    cq);
 		ib_dealloc_pd(pd);
 		goto unlock;
 	}
@@ -3102,7 +3104,9 @@ int mlx5_ib_dev_res_srq_init(struct mlx5_ib_dev *dev)
 	s0 = ib_create_srq(devr->p0, &attr);
 	if (IS_ERR(s0)) {
 		ret = PTR_ERR(s0);
-		mlx5_ib_err(dev, "Couldn't create SRQ 0 for res init, err=%d\n", ret);
+		mlx5_ib_err(dev,
+			    "Couldn't create SRQ 0 for res init, err=%pe\n",
+			    s0);
 		goto unlock;
 	}
 
@@ -3114,7 +3118,9 @@ int mlx5_ib_dev_res_srq_init(struct mlx5_ib_dev *dev)
 	s1 = ib_create_srq(devr->p0, &attr);
 	if (IS_ERR(s1)) {
 		ret = PTR_ERR(s1);
-		mlx5_ib_err(dev, "Couldn't create SRQ 1 for res init, err=%d\n", ret);
+		mlx5_ib_err(dev,
+			    "Couldn't create SRQ 1 for res init, err=%pe\n",
+			    s1);
 		ib_destroy_srq(s0);
 	}
 

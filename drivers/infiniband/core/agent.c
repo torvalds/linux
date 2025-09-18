@@ -110,8 +110,7 @@ void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *
 	agent = port_priv->agent[qpn];
 	ah = ib_create_ah_from_wc(agent->qp->pd, wc, grh, port_num);
 	if (IS_ERR(ah)) {
-		dev_err(&device->dev, "ib_create_ah_from_wc error %ld\n",
-			PTR_ERR(ah));
+		dev_err(&device->dev, "ib_create_ah_from_wc error %pe\n", ah);
 		return;
 	}
 

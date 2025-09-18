@@ -635,9 +635,9 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 	if (IS_ERR(comp_ctx)) {
 		ibdev_err_ratelimited(
 			aq->efa_dev,
-			"Failed to submit command %s (opcode %u) err %ld\n",
+			"Failed to submit command %s (opcode %u) err %pe\n",
 			efa_com_cmd_str(cmd->aq_common_descriptor.opcode),
-			cmd->aq_common_descriptor.opcode, PTR_ERR(comp_ctx));
+			cmd->aq_common_descriptor.opcode, comp_ctx);
 
 		up(&aq->avail_cmds);
 		atomic64_inc(&aq->stats.cmd_err);

@@ -1652,8 +1652,7 @@ reg_user_mr_dmabuf(struct ib_pd *pd, struct device *dma_device,
 				fd, access_flags);
 
 	if (IS_ERR(umem_dmabuf)) {
-		mlx5_ib_dbg(dev, "umem_dmabuf get failed (%ld)\n",
-			    PTR_ERR(umem_dmabuf));
+		mlx5_ib_dbg(dev, "umem_dmabuf get failed (%pe)\n", umem_dmabuf);
 		return ERR_CAST(umem_dmabuf);
 	}
 

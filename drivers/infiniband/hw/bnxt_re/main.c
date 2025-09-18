@@ -1956,8 +1956,7 @@ static void bnxt_re_read_vpd_info(struct bnxt_re_dev *rdev)
 
 	vpd_data = pci_vpd_alloc(pdev, &vpd_size);
 	if (IS_ERR(vpd_data)) {
-		pci_warn(pdev, "Unable to read VPD, err=%ld\n",
-			 PTR_ERR(vpd_data));
+		pci_warn(pdev, "Unable to read VPD, err=%pe\n", vpd_data);
 		return;
 	}
 

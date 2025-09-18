@@ -1108,13 +1108,13 @@ int ionic_create_rdma_admin(struct ionic_ibdev *dev)
 
 			if (eq_i < IONIC_EQ_COUNT_MIN) {
 				ibdev_err(&dev->ibdev,
-					  "fail create eq %d\n", rc);
+					  "fail create eq %pe\n", eq);
 				goto out;
 			}
 
 			/* ok, just fewer eq than device supports */
-			ibdev_dbg(&dev->ibdev, "eq count %d want %d rc %d\n",
-				  eq_i, dev->lif_cfg.eq_count, rc);
+			ibdev_dbg(&dev->ibdev, "eq count %d want %d rc %pe\n",
+				  eq_i, dev->lif_cfg.eq_count, eq);
 
 			rc = 0;
 			break;
@@ -1140,13 +1140,13 @@ int ionic_create_rdma_admin(struct ionic_ibdev *dev)
 
 			if (!aq_i) {
 				ibdev_err(&dev->ibdev,
-					  "failed to create acq %d\n", rc);
+					  "failed to create acq %pe\n", vcq);
 				goto out;
 			}
 
 			/* ok, just fewer adminq than device supports */
-			ibdev_dbg(&dev->ibdev, "acq count %d want %d rc %d\n",
-				  aq_i, dev->lif_cfg.aq_count, rc);
+			ibdev_dbg(&dev->ibdev, "acq count %d want %d rc %pe\n",
+				  aq_i, dev->lif_cfg.aq_count, vcq);
 			break;
 		}
 
@@ -1161,13 +1161,13 @@ int ionic_create_rdma_admin(struct ionic_ibdev *dev)
 
 			if (!aq_i) {
 				ibdev_err(&dev->ibdev,
-					  "failed to create aq %d\n", rc);
+					  "failed to create aq %pe\n", aq);
 				goto out;
 			}
 
 			/* ok, just fewer adminq than device supports */
-			ibdev_dbg(&dev->ibdev, "aq count %d want %d rc %d\n",
-				  aq_i, dev->lif_cfg.aq_count, rc);
+			ibdev_dbg(&dev->ibdev, "aq count %d want %d rc %pe\n",
+				  aq_i, dev->lif_cfg.aq_count, aq);
 			break;
 		}
 

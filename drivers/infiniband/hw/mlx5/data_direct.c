@@ -35,7 +35,7 @@ static int mlx5_data_direct_vpd_get_vuid(struct mlx5_data_direct_dev *dev)
 
 	vpd_data = pci_vpd_alloc(pdev, &vpd_size);
 	if (IS_ERR(vpd_data)) {
-		pci_err(pdev, "Unable to read VPD, err=%ld\n", PTR_ERR(vpd_data));
+		pci_err(pdev, "Unable to read VPD, err=%pe\n", vpd_data);
 		return PTR_ERR(vpd_data);
 	}
 

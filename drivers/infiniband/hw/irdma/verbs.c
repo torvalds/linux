@@ -3600,9 +3600,9 @@ static struct ib_mr *irdma_reg_user_mr_dmabuf(struct ib_pd *pd, u64 start,
 
 	umem_dmabuf = ib_umem_dmabuf_get_pinned(pd->device, start, len, fd, access);
 	if (IS_ERR(umem_dmabuf)) {
-		err = PTR_ERR(umem_dmabuf);
-		ibdev_dbg(&iwdev->ibdev, "Failed to get dmabuf umem[%d]\n", err);
-		return ERR_PTR(err);
+		ibdev_dbg(&iwdev->ibdev, "Failed to get dmabuf umem[%pe]\n",
+			  umem_dmabuf);
+		return ERR_CAST(umem_dmabuf);
 	}
 
 	iwmr = irdma_alloc_iwmr(&umem_dmabuf->umem, pd, virt, IRDMA_MEMREG_TYPE_MEM);

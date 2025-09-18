@@ -1652,7 +1652,8 @@ int mlx4_ib_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 			sqp->roce_v2_gsi = ib_create_qp(pd, init_attr);
 
 			if (IS_ERR(sqp->roce_v2_gsi)) {
-				pr_err("Failed to create GSI QP for RoCEv2 (%ld)\n", PTR_ERR(sqp->roce_v2_gsi));
+				pr_err("Failed to create GSI QP for RoCEv2 (%pe)\n",
+				       sqp->roce_v2_gsi);
 				sqp->roce_v2_gsi = NULL;
 			} else {
 				to_mqp(sqp->roce_v2_gsi)->flags |=

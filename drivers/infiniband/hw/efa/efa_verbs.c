@@ -1788,7 +1788,8 @@ struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start,
 						access_flags);
 	if (IS_ERR(umem_dmabuf)) {
 		err = PTR_ERR(umem_dmabuf);
-		ibdev_dbg(&dev->ibdev, "Failed to get dmabuf umem[%d]\n", err);
+		ibdev_dbg(&dev->ibdev, "Failed to get dmabuf umem[%pe]\n",
+			  umem_dmabuf);
 		goto err_free;
 	}
 
@@ -1832,7 +1833,8 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	if (IS_ERR(mr->umem)) {
 		err = PTR_ERR(mr->umem);
 		ibdev_dbg(&dev->ibdev,
-			  "Failed to pin and map user space memory[%d]\n", err);
+			  "Failed to pin and map user space memory[%pe]\n",
+			  mr->umem);
 		goto err_free;
 	}
 
