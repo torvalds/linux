@@ -400,6 +400,7 @@ void mei_device_init(struct mei_device *dev,
 	init_waitqueue_head(&dev->wait_pg);
 	init_waitqueue_head(&dev->wait_hbm_start);
 	dev->dev_state = MEI_DEV_UNINITIALIZED;
+	init_waitqueue_head(&dev->wait_dev_state);
 	dev->reset_count = 0;
 
 	INIT_LIST_HEAD(&dev->write_list);
@@ -442,5 +443,6 @@ void mei_device_init(struct mei_device *dev,
 		dev->timeouts.hbm = mei_secs_to_jiffies(MEI_HBM_TIMEOUT);
 		dev->timeouts.mkhi_recv = msecs_to_jiffies(MKHI_RCV_TIMEOUT);
 	}
+	dev->timeouts.link_reset_wait = msecs_to_jiffies(MEI_LINK_RESET_WAIT_TIMEOUT_MSEC);
 }
 EXPORT_SYMBOL_GPL(mei_device_init);

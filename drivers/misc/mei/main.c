@@ -423,6 +423,7 @@ static int mei_ioctl_connect_client(struct file *file,
 	    cl->state != MEI_FILE_DISCONNECTED)
 		return  -EBUSY;
 
+retry:
 	/* find ME client we're trying to connect to */
 	me_cl = mei_me_cl_by_uuid(dev, in_client_uuid);
 	if (!me_cl) {
@@ -453,6 +454,28 @@ static int mei_ioctl_connect_client(struct file *file,
 	cl_dbg(dev, cl, "Can connect?\n");
 
 	rets = mei_cl_connect(cl, me_cl, file);
+
+	if (rets && cl->status == -EFAULT &&
+	    (dev->dev_state == MEI_DEV_RESETTING ||
+	     dev->dev_state == MEI_DEV_INIT_CLIENTS)) {
+		/* in link reset, wait for it completion */
+		mutex_unlock(&dev->device_lock);
+		rets = wait_event_interruptible_timeout(dev->wait_dev_state,
+							dev->dev_state == MEI_DEV_ENABLED,
+							dev->timeouts.link_reset_wait);
+		mutex_lock(&dev->device_lock);
+		if (rets < 0) {
+			if (signal_pending(current))
+				rets = -EINTR;
+			goto end;
+		}
+		if (dev->dev_state != MEI_DEV_ENABLED) {
+			rets = -ETIME;
+			goto end;
+		}
+		mei_me_cl_put(me_cl);
+		goto retry;
+	}
 
 end:
 	mei_me_cl_put(me_cl);
@@ -1119,6 +1142,8 @@ void mei_set_devstate(struct mei_device *dev, enum mei_dev_state state)
 		return;
 
 	dev->dev_state = state;
+
+	wake_up_interruptible_all(&dev->wait_dev_state);
 
 	if (!dev->cdev)
 		return;
