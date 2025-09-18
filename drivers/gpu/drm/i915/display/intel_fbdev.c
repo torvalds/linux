@@ -332,7 +332,7 @@ int intel_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 
 	obj = intel_fb_bo(&fb->base);
 
-	ret = intel_fbdev_fb_fill_info(display, info, obj, vma);
+	ret = intel_fbdev_fb_fill_info(display->drm, info, obj, vma);
 	if (ret)
 		goto out_unpin;
 

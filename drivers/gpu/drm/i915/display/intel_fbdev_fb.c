@@ -50,10 +50,10 @@ void intel_fbdev_fb_bo_destroy(struct drm_gem_object *obj)
 	drm_gem_object_put(obj);
 }
 
-int intel_fbdev_fb_fill_info(struct intel_display *display, struct fb_info *info,
+int intel_fbdev_fb_fill_info(struct drm_device *drm, struct fb_info *info,
 			     struct drm_gem_object *_obj, struct i915_vma *vma)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
 	struct i915_gem_ww_ctx ww;
 	void __iomem *vaddr;
@@ -85,7 +85,7 @@ int intel_fbdev_fb_fill_info(struct intel_display *display, struct fb_info *info
 
 		vaddr = i915_vma_pin_iomap(vma);
 		if (IS_ERR(vaddr)) {
-			drm_err(display->drm,
+			drm_err(drm,
 				"Failed to remap framebuffer into virtual memory (%pe)\n", vaddr);
 			ret = PTR_ERR(vaddr);
 			continue;
