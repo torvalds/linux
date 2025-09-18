@@ -479,7 +479,7 @@ int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	if (flags & MSG_ERRQUEUE)
 		return ipv6_recv_error(sk, msg, len, addr_len);
 
-	if (np->rxpmtu && np->rxopt.bits.rxpmtu)
+	if (np->rxopt.bits.rxpmtu && READ_ONCE(np->rxpmtu))
 		return ipv6_recv_rxpmtu(sk, msg, len, addr_len);
 
 try_again:
@@ -524,7 +524,7 @@ try_again:
 	}
 	if (unlikely(err)) {
 		if (!peeking) {
-			sk_drops_inc(sk);
+			udp_drops_inc(sk);
 			SNMP_INC_STATS(mib, UDP_MIB_INERRORS);
 		}
 		kfree_skb(skb);
@@ -908,7 +908,7 @@ csum_error:
 	__UDP6_INC_STATS(sock_net(sk), UDP_MIB_CSUMERRORS, is_udplite);
 drop:
 	__UDP6_INC_STATS(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
-	sk_drops_inc(sk);
+	udp_drops_inc(sk);
 	sk_skb_reason_drop(sk, skb, drop_reason);
 	return -1;
 }
@@ -1013,7 +1013,7 @@ start_lookup:
 		}
 		nskb = skb_clone(skb, GFP_ATOMIC);
 		if (unlikely(!nskb)) {
-			sk_drops_inc(sk);
+			udp_drops_inc(sk);
 			__UDP6_INC_STATS(net, UDP_MIB_RCVBUFERRORS,
 					 IS_UDPLITE(sk));
 			__UDP6_INC_STATS(net, UDP_MIB_INERRORS,

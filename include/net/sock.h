@@ -394,7 +394,6 @@ struct sock {
 
 	atomic_t		sk_drops;
 	__s32			sk_peek_off;
-	struct sk_buff_head	sk_error_queue;
 	struct sk_buff_head	sk_receive_queue;
 	/*
 	 * The backlog queue is special, it is always used with
@@ -412,6 +411,7 @@ struct sock {
 	} sk_backlog;
 #define sk_rmem_alloc sk_backlog.rmem_alloc
 
+	struct sk_buff_head	sk_error_queue;
 	__cacheline_group_end(sock_write_rx);
 
 	__cacheline_group_begin(sock_read_rx);
@@ -451,7 +451,6 @@ struct sock {
 #ifdef CONFIG_XFRM
 	struct xfrm_policy __rcu *sk_policy[2];
 #endif
-	struct numa_drop_counters *sk_drop_counters;
 	__cacheline_group_end(sock_read_rxtx);
 
 	__cacheline_group_begin(sock_write_rxtx);
@@ -568,6 +567,7 @@ struct sock {
 #ifdef CONFIG_BPF_SYSCALL
 	struct bpf_local_storage __rcu	*sk_bpf_storage;
 #endif
+	struct numa_drop_counters *sk_drop_counters;
 	struct rcu_head		sk_rcu;
 	netns_tracker		ns_tracker;
 	struct xarray		sk_user_frags;

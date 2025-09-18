@@ -3032,13 +3032,12 @@ void ip6_sk_dst_store_flow(struct sock *sk, struct dst_entry *dst,
 #endif
 
 	ip6_dst_store(sk, dst,
-		      ipv6_addr_equal(&fl6->daddr, &sk->sk_v6_daddr) ?
-		      &sk->sk_v6_daddr : NULL,
+		      ipv6_addr_equal(&fl6->daddr, &sk->sk_v6_daddr),
 #ifdef CONFIG_IPV6_SUBTREES
 		      ipv6_addr_equal(&fl6->saddr, &np->saddr) ?
-		      &np->saddr :
+		      true :
 #endif
-		      NULL);
+		      false);
 }
 
 static bool ip6_redirect_nh_match(const struct fib6_result *res,
