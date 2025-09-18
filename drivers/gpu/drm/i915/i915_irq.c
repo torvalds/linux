@@ -659,7 +659,7 @@ static void ilk_irq_reset(struct drm_i915_private *dev_priv)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
 	gen2_irq_reset(uncore, DE_IRQ_REGS);
-	dev_priv->irq_mask = ~0u;
+	display->irq.ilk_de_imr_mask = ~0u;
 
 	if (GRAPHICS_VER(dev_priv) == 7)
 		intel_uncore_write(uncore, GEN7_ERR_INT, 0xffffffff);

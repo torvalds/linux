@@ -480,6 +480,11 @@ struct intel_display {
 		 * bitfield.
 		 */
 		u32 vlv_imr_mask;
+		/*
+		 * Cached value of gen 5-7 DE IMR to avoid reads in updating the
+		 * bitfield.
+		 */
+		u32 ilk_de_imr_mask;
 		u32 de_irq_mask[I915_MAX_PIPES];
 		u32 pipestat_irq_mask[I915_MAX_PIPES];
 	} irq;

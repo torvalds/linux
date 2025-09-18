@@ -140,14 +140,14 @@ void ilk_update_display_irq(struct intel_display *display,
 	lockdep_assert_held(&display->irq.lock);
 	drm_WARN_ON(display->drm, enabled_irq_mask & ~interrupt_mask);
 
-	new_val = dev_priv->irq_mask;
+	new_val = display->irq.ilk_de_imr_mask;
 	new_val &= ~interrupt_mask;
 	new_val |= (~enabled_irq_mask & interrupt_mask);
 
-	if (new_val != dev_priv->irq_mask &&
+	if (new_val != display->irq.ilk_de_imr_mask &&
 	    !drm_WARN_ON(display->drm, !intel_irqs_enabled(dev_priv))) {
-		dev_priv->irq_mask = new_val;
-		intel_de_write(display, DEIMR, dev_priv->irq_mask);
+		display->irq.ilk_de_imr_mask = new_val;
+		intel_de_write(display, DEIMR, display->irq.ilk_de_imr_mask);
 		intel_de_posting_read(display, DEIMR);
 	}
 }
@@ -2180,8 +2180,6 @@ out:
 
 void ilk_de_irq_postinstall(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	u32 display_mask, extra_mask;
 
 	if (DISPLAY_VER(display) >= 7) {
@@ -2213,11 +2211,11 @@ void ilk_de_irq_postinstall(struct intel_display *display)
 	if (display->platform.ironlake && display->platform.mobile)
 		extra_mask |= DE_PCU_EVENT;
 
-	i915->irq_mask = ~display_mask;
+	display->irq.ilk_de_imr_mask = ~display_mask;
 
 	ibx_irq_postinstall(display);
 
-	intel_display_irq_regs_init(display, DE_IRQ_REGS, i915->irq_mask,
+	intel_display_irq_regs_init(display, DE_IRQ_REGS, display->irq.ilk_de_imr_mask,
 				    display_mask | extra_mask);
 }
 
