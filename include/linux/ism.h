@@ -59,8 +59,6 @@ struct ism_event {
 
 struct ism_client {
 	const char *name;
-	void (*add)(struct ism_dev *dev);
-	void (*remove)(struct ism_dev *dev);
 	void (*handle_event)(struct ism_dev *dev, struct ism_event *event);
 	/* Parameter dmbemask contains a bit vector with updated DMBEs, if sent
 	 * via ism_move_data(). Callback function must handle all active bits

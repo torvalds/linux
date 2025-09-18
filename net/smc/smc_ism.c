@@ -15,6 +15,7 @@
 #include "smc.h"
 #include "smc_core.h"
 #include "smc_ism.h"
+#include "smc_loopback.h"
 #include "smc_pnet.h"
 #include "smc_netlink.h"
 #include "linux/ism.h"
@@ -28,23 +29,27 @@ struct smcd_dev_list smcd_dev_list = {
 static bool smc_ism_v2_capable;
 static u8 smc_ism_v2_system_eid[SMC_MAX_EID_LEN];
 
+static void smcd_register_dev(struct dibs_dev *dibs);
+static void smcd_unregister_dev(struct dibs_dev *dibs);
 #if IS_ENABLED(CONFIG_ISM)
-static void smcd_register_dev(struct ism_dev *ism);
-static void smcd_unregister_dev(struct ism_dev *ism);
 static void smcd_handle_event(struct ism_dev *ism, struct ism_event *event);
 static void smcd_handle_irq(struct ism_dev *ism, unsigned int dmbno,
 			    u16 dmbemask);
 
 static struct ism_client smc_ism_client = {
 	.name = "SMC-D",
-	.add = smcd_register_dev,
-	.remove = smcd_unregister_dev,
 	.handle_event = smcd_handle_event,
 	.handle_irq = smcd_handle_irq,
 };
 #endif
+static struct dibs_client_ops smc_client_ops = {
+	.add_dev = smcd_register_dev,
+	.del_dev = smcd_unregister_dev,
+};
+
 static struct dibs_client smc_dibs_client = {
 	.name = "SMC-D",
+	.ops = &smc_client_ops,
 };
 
 static void smc_ism_create_system_eid(void)
@@ -86,7 +91,7 @@ void smc_ism_get_system_eid(u8 **eid)
 
 u16 smc_ism_get_chid(struct smcd_dev *smcd)
 {
-	return smcd->ops->get_chid(smcd);
+	return smcd->dibs->ops->get_fabric_id(smcd->dibs);
 }
 
 /* HW supports ISM V2 and thus System EID is defined */
@@ -318,7 +323,7 @@ static int smc_nl_handle_smcd_dev(struct smcd_dev *smcd,
 	if (nla_put_u8(skb, SMC_NLA_DEV_IS_CRIT, use_cnt > 0))
 		goto errattr;
 	memset(&smc_pci_dev, 0, sizeof(smc_pci_dev));
-	smc_set_pci_values(to_pci_dev(ism->dev.parent), &smc_pci_dev);
+	smc_set_pci_values(ism->pdev, &smc_pci_dev);
 	if (nla_put_u32(skb, SMC_NLA_DEV_PCI_FID, smc_pci_dev.pci_fid))
 		goto errattr;
 	if (nla_put_u16(skb, SMC_NLA_DEV_PCI_CHID, smc_pci_dev.pci_pchid))
@@ -368,7 +373,7 @@ static void smc_nl_prep_smcd_dev(struct smcd_dev_list *dev_list,
 	list_for_each_entry(smcd, &dev_list->list, list) {
 		if (num < snum)
 			goto next;
-		if (smc_ism_is_loopback(smcd))
+		if (smc_ism_is_loopback(smcd->dibs))
 			goto next;
 		if (smc_nl_handle_smcd_dev(smcd, skb, cb))
 			goto errout;
@@ -453,24 +458,26 @@ static void smc_ism_event_work(struct work_struct *work)
 	}
 	kfree(wrk);
 }
+#endif
 
-static struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
-				       const struct smcd_ops *ops, int max_dmbs)
+static struct smcd_dev *smcd_alloc_dev(const char *name,
+				       const struct smcd_ops *ops,
+				       int max_dmbs)
 {
 	struct smcd_dev *smcd;
 
-	smcd = devm_kzalloc(parent, sizeof(*smcd), GFP_KERNEL);
+	smcd = kzalloc(sizeof(*smcd), GFP_KERNEL);
 	if (!smcd)
 		return NULL;
-	smcd->conn = devm_kcalloc(parent, max_dmbs,
-				  sizeof(struct smc_connection *), GFP_KERNEL);
+	smcd->conn = kcalloc(max_dmbs, sizeof(struct smc_connection *),
+			     GFP_KERNEL);
 	if (!smcd->conn)
-		return NULL;
+		goto free_smcd;
 
 	smcd->event_wq = alloc_ordered_workqueue("ism_evt_wq-%s)",
 						 WQ_MEM_RECLAIM, name);
 	if (!smcd->event_wq)
-		return NULL;
+		goto free_conn;
 
 	smcd->ops = ops;
 
@@ -480,27 +487,58 @@ static struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 	INIT_LIST_HEAD(&smcd->lgr_list);
 	init_waitqueue_head(&smcd->lgrs_deleted);
 	return smcd;
+
+free_conn:
+	kfree(smcd->conn);
+free_smcd:
+	kfree(smcd);
+	return NULL;
 }
 
-static void smcd_register_dev(struct ism_dev *ism)
+static void smcd_register_dev(struct dibs_dev *dibs)
 {
-	const struct smcd_ops *ops = ism_get_smcd_ops();
 	struct smcd_dev *smcd, *fentry;
+	const struct smcd_ops *ops;
+	struct smc_lo_dev *smc_lo;
+	struct ism_dev *ism;
 
-	if (!ops)
-		return;
+	if (smc_ism_is_loopback(dibs)) {
+		if (smc_loopback_init(&smc_lo))
+			return;
+	}
 
-	smcd = smcd_alloc_dev(&ism->pdev->dev, dev_name(&ism->pdev->dev), ops,
-			      ISM_NR_DMBS);
+	if (smc_ism_is_loopback(dibs)) {
+		ops = smc_lo_get_smcd_ops();
+		smcd = smcd_alloc_dev(dev_name(&smc_lo->dev), ops,
+				      SMC_LO_MAX_DMBS);
+	} else {
+		ism = dibs->drv_priv;
+#if IS_ENABLED(CONFIG_ISM)
+		ops = ism_get_smcd_ops();
+#endif
+		smcd = smcd_alloc_dev(dev_name(&ism->pdev->dev), ops,
+				      ISM_NR_DMBS);
+	}
 	if (!smcd)
 		return;
-	smcd->priv = ism;
-	smcd->client = &smc_ism_client;
-	ism_set_priv(ism, &smc_ism_client, smcd);
-	if (smc_pnetid_by_dev_port(&ism->pdev->dev, 0, smcd->pnetid))
-		smc_pnetid_by_table_smcd(smcd);
 
-	if (smcd->ops->supports_v2())
+	smcd->dibs = dibs;
+	dibs_set_priv(dibs, &smc_dibs_client, smcd);
+
+	if (smc_ism_is_loopback(dibs)) {
+		smcd->priv = smc_lo;
+		smc_lo->smcd = smcd;
+	} else {
+		smcd->priv = ism;
+#if IS_ENABLED(CONFIG_ISM)
+		ism_set_priv(ism, &smc_ism_client, smcd);
+		smcd->client = &smc_ism_client;
+#endif
+		if (smc_pnetid_by_dev_port(&ism->pdev->dev, 0, smcd->pnetid))
+			smc_pnetid_by_table_smcd(smcd);
+	}
+
+	if (smc_ism_is_loopback(dibs) || smcd->ops->supports_v2())
 		smc_ism_set_v2_capable();
 	mutex_lock(&smcd_dev_list.mutex);
 	/* sort list:
@@ -510,7 +548,7 @@ static void smcd_register_dev(struct ism_dev *ism)
 	if (!smcd->pnetid[0]) {
 		fentry = list_first_entry_or_null(&smcd_dev_list.list,
 						  struct smcd_dev, list);
-		if (fentry && smc_ism_is_loopback(fentry))
+		if (fentry && smc_ism_is_loopback(fentry->dibs))
 			list_add(&smcd->list, &fentry->list);
 		else
 			list_add(&smcd->list, &smcd_dev_list.list);
@@ -519,32 +557,46 @@ static void smcd_register_dev(struct ism_dev *ism)
 	}
 	mutex_unlock(&smcd_dev_list.mutex);
 
-	if (smc_pnet_is_pnetid_set(smcd->pnetid))
-		pr_warn_ratelimited("smc: adding smcd device %s with pnetid %.16s%s\n",
-				    dev_name(&ism->dev), smcd->pnetid,
-				    smcd->pnetid_by_user ?
-					" (user defined)" :
-					"");
-	else
-		pr_warn_ratelimited("smc: adding smcd device %s without pnetid\n",
-				    dev_name(&ism->dev));
+	if (smc_ism_is_loopback(dibs)) {
+		pr_warn_ratelimited("smc: adding smcd loopback device\n");
+	} else {
+		if (smc_pnet_is_pnetid_set(smcd->pnetid))
+			pr_warn_ratelimited("smc: adding smcd device %s with pnetid %.16s%s\n",
+					    dev_name(&ism->dev), smcd->pnetid,
+					    smcd->pnetid_by_user ?
+							    " (user defined)" :
+							    "");
+		else
+			pr_warn_ratelimited("smc: adding smcd device %s without pnetid\n",
+					    dev_name(&ism->dev));
+	}
 	return;
 }
 
-static void smcd_unregister_dev(struct ism_dev *ism)
+static void smcd_unregister_dev(struct dibs_dev *dibs)
 {
-	struct smcd_dev *smcd = ism_get_priv(ism, &smc_ism_client);
+	struct smcd_dev *smcd = dibs_get_priv(dibs, &smc_dibs_client);
+	struct ism_dev *ism = dibs->drv_priv;
 
-	pr_warn_ratelimited("smc: removing smcd device %s\n",
-			    dev_name(&ism->dev));
+	if (smc_ism_is_loopback(dibs)) {
+		pr_warn_ratelimited("smc: removing smcd loopback device\n");
+	} else {
+		pr_warn_ratelimited("smc: removing smcd device %s\n",
+				    dev_name(&ism->dev));
+	}
 	smcd->going_away = 1;
 	smc_smcd_terminate_all(smcd);
 	mutex_lock(&smcd_dev_list.mutex);
 	list_del_init(&smcd->list);
 	mutex_unlock(&smcd_dev_list.mutex);
 	destroy_workqueue(smcd->event_wq);
+	if (smc_ism_is_loopback(dibs))
+		smc_loopback_exit();
+	kfree(smcd->conn);
+	kfree(smcd);
 }
 
+#if IS_ENABLED(CONFIG_ISM)
 /* SMCD Device event handler. Called from ISM device interrupt handler.
  * Parameters are ism device pointer,
  * - event->type (0 --> DMB, 1 --> GID),

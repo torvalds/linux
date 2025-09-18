@@ -35,8 +35,6 @@ static void smc_lo_generate_ids(struct smc_lo_dev *ldev)
 	memcpy(&lgid->gid, &uuid, sizeof(lgid->gid));
 	memcpy(&lgid->gid_ext, (u8 *)&uuid + sizeof(lgid->gid),
 	       sizeof(lgid->gid_ext));
-
-	ldev->chid = SMC_LO_RESERVED_CHID;
 }
 
 static int smc_lo_query_rgid(struct smcd_dev *smcd, struct smcd_gid *rgid,
@@ -257,11 +255,6 @@ static void smc_lo_get_local_gid(struct smcd_dev *smcd,
 	smcd_gid->gid_ext = ldev->local_gid.gid_ext;
 }
 
-static u16 smc_lo_get_chid(struct smcd_dev *smcd)
-{
-	return ((struct smc_lo_dev *)smcd->priv)->chid;
-}
-
 static struct device *smc_lo_get_dev(struct smcd_dev *smcd)
 {
 	return &((struct smc_lo_dev *)smcd->priv)->dev;
@@ -281,72 +274,15 @@ static const struct smcd_ops lo_ops = {
 	.signal_event		= NULL,
 	.move_data = smc_lo_move_data,
 	.get_local_gid = smc_lo_get_local_gid,
-	.get_chid = smc_lo_get_chid,
 	.get_dev = smc_lo_get_dev,
 };
 
-static struct smcd_dev *smcd_lo_alloc_dev(const struct smcd_ops *ops,
-					  int max_dmbs)
+const struct smcd_ops *smc_lo_get_smcd_ops(void)
 {
-	struct smcd_dev *smcd;
-
-	smcd = kzalloc(sizeof(*smcd), GFP_KERNEL);
-	if (!smcd)
-		return NULL;
-
-	smcd->conn = kcalloc(max_dmbs, sizeof(struct smc_connection *),
-			     GFP_KERNEL);
-	if (!smcd->conn)
-		goto out_smcd;
-
-	smcd->ops = ops;
-
-	spin_lock_init(&smcd->lock);
-	spin_lock_init(&smcd->lgr_lock);
-	INIT_LIST_HEAD(&smcd->vlan);
-	INIT_LIST_HEAD(&smcd->lgr_list);
-	init_waitqueue_head(&smcd->lgrs_deleted);
-	return smcd;
-
-out_smcd:
-	kfree(smcd);
-	return NULL;
+	return &lo_ops;
 }
 
-static int smcd_lo_register_dev(struct smc_lo_dev *ldev)
-{
-	struct smcd_dev *smcd;
-
-	smcd = smcd_lo_alloc_dev(&lo_ops, SMC_LO_MAX_DMBS);
-	if (!smcd)
-		return -ENOMEM;
-	ldev->smcd = smcd;
-	smcd->priv = ldev;
-	smc_ism_set_v2_capable();
-	mutex_lock(&smcd_dev_list.mutex);
-	list_add(&smcd->list, &smcd_dev_list.list);
-	mutex_unlock(&smcd_dev_list.mutex);
-	pr_warn_ratelimited("smc: adding smcd device %s\n",
-			    dev_name(&ldev->dev));
-	return 0;
-}
-
-static void smcd_lo_unregister_dev(struct smc_lo_dev *ldev)
-{
-	struct smcd_dev *smcd = ldev->smcd;
-
-	pr_warn_ratelimited("smc: removing smcd device %s\n",
-			    dev_name(&ldev->dev));
-	smcd->going_away = 1;
-	smc_smcd_terminate_all(smcd);
-	mutex_lock(&smcd_dev_list.mutex);
-	list_del_init(&smcd->list);
-	mutex_unlock(&smcd_dev_list.mutex);
-	kfree(smcd->conn);
-	kfree(smcd);
-}
-
-static int smc_lo_dev_init(struct smc_lo_dev *ldev)
+static void smc_lo_dev_init(struct smc_lo_dev *ldev)
 {
 	smc_lo_generate_ids(ldev);
 	rwlock_init(&ldev->dmb_ht_lock);
@@ -354,12 +290,11 @@ static int smc_lo_dev_init(struct smc_lo_dev *ldev)
 	atomic_set(&ldev->dmb_cnt, 0);
 	init_waitqueue_head(&ldev->ldev_release);
 
-	return smcd_lo_register_dev(ldev);
+	return;
 }
 
 static void smc_lo_dev_exit(struct smc_lo_dev *ldev)
 {
-	smcd_lo_unregister_dev(ldev);
 	if (atomic_read(&ldev->dmb_cnt))
 		wait_event(ldev->ldev_release, !atomic_read(&ldev->dmb_cnt));
 }
@@ -375,7 +310,6 @@ static void smc_lo_dev_release(struct device *dev)
 static int smc_lo_dev_probe(void)
 {
 	struct smc_lo_dev *ldev;
-	int ret;
 
 	ldev = kzalloc(sizeof(*ldev), GFP_KERNEL);
 	if (!ldev)
@@ -385,17 +319,11 @@ static int smc_lo_dev_probe(void)
 	ldev->dev.release = smc_lo_dev_release;
 	device_initialize(&ldev->dev);
 	dev_set_name(&ldev->dev, smc_lo_dev_name);
-
-	ret = smc_lo_dev_init(ldev);
-	if (ret)
-		goto free_dev;
+	smc_lo_dev_init(ldev);
 
 	lo_dev = ldev; /* global loopback device */
-	return 0;
 
-free_dev:
-	put_device(&ldev->dev);
-	return ret;
+	return 0;
 }
 
 static void smc_lo_dev_remove(void)
@@ -405,11 +333,17 @@ static void smc_lo_dev_remove(void)
 
 	smc_lo_dev_exit(lo_dev);
 	put_device(&lo_dev->dev); /* device_initialize in smc_lo_dev_probe */
+	lo_dev = NULL;
 }
 
-int smc_loopback_init(void)
+int smc_loopback_init(struct smc_lo_dev **smc_lb)
 {
-	return smc_lo_dev_probe();
+	int ret;
+
+	ret = smc_lo_dev_probe();
+	if (!ret)
+		*smc_lb = lo_dev;
+	return ret;
 }
 
 void smc_loopback_exit(void)

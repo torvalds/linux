@@ -79,7 +79,6 @@ int ism_register_client(struct ism_client *client)
 		/* initialize with all devices that we got so far */
 		list_for_each_entry(ism, &ism_dev_list.list, list) {
 			ism->priv[i] = NULL;
-			client->add(ism);
 			ism_setup_forwarding(client, ism);
 		}
 	}
@@ -465,6 +464,16 @@ int ism_move(struct ism_dev *ism, u64 dmb_tok, unsigned int idx, bool sf,
 }
 EXPORT_SYMBOL_GPL(ism_move);
 
+static u16 ism_get_chid(struct dibs_dev *dibs)
+{
+	struct ism_dev *ism = dibs->drv_priv;
+
+	if (!ism || !ism->pdev)
+		return 0;
+
+	return to_zpci(ism->pdev)->pchid;
+}
+
 static void ism_handle_event(struct ism_dev *ism)
 {
 	struct ism_event *entry;
@@ -523,6 +532,10 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static const struct dibs_dev_ops ism_ops = {
+	.get_fabric_id = ism_get_chid,
+};
+
 static int ism_dev_init(struct ism_dev *ism)
 {
 	struct pci_dev *pdev = ism->pdev;
@@ -564,7 +577,6 @@ static int ism_dev_init(struct ism_dev *ism)
 	mutex_lock(&clients_lock);
 	for (i = 0; i < max_client; ++i) {
 		if (clients[i]) {
-			clients[i]->add(ism);
 			ism_setup_forwarding(clients[i], ism);
 		}
 	}
@@ -611,12 +623,6 @@ static void ism_dev_exit(struct ism_dev *ism)
 	spin_unlock_irqrestore(&ism->lock, flags);
 
 	mutex_lock(&ism_dev_list.mutex);
-	mutex_lock(&clients_lock);
-	for (i = 0; i < max_client; ++i) {
-		if (clients[i])
-			clients[i]->remove(ism);
-	}
-	mutex_unlock(&clients_lock);
 
 	if (ism_v2_capable)
 		ism_del_vlan_id(ism, ISM_RESERVED_VLANID);
@@ -672,7 +678,10 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		ret = -ENOMEM;
 		goto err_resource;
 	}
+	/* set this up before we enable interrupts */
 	ism->dibs = dibs;
+	dibs->drv_priv = ism;
+	dibs->ops = &ism_ops;
 
 	ret = ism_dev_init(ism);
 	if (ret)
@@ -857,19 +866,6 @@ static void smcd_get_local_gid(struct smcd_dev *smcd,
 	smcd_gid->gid_ext = 0;
 }
 
-static u16 ism_get_chid(struct ism_dev *ism)
-{
-	if (!ism || !ism->pdev)
-		return 0;
-
-	return to_zpci(ism->pdev)->pchid;
-}
-
-static u16 smcd_get_chid(struct smcd_dev *smcd)
-{
-	return ism_get_chid(smcd->priv);
-}
-
 static inline struct device *smcd_get_dev(struct smcd_dev *dev)
 {
 	struct ism_dev *ism = dev->priv;
@@ -877,7 +873,7 @@ static inline struct device *smcd_get_dev(struct smcd_dev *dev)
 	return &ism->dev;
 }
 
-static const struct smcd_ops ism_ops = {
+static const struct smcd_ops ism_smcd_ops = {
 	.query_remote_gid = smcd_query_rgid,
 	.register_dmb = smcd_register_dmb,
 	.unregister_dmb = smcd_unregister_dmb,
@@ -889,13 +885,12 @@ static const struct smcd_ops ism_ops = {
 	.move_data = smcd_move,
 	.supports_v2 = smcd_supports_v2,
 	.get_local_gid = smcd_get_local_gid,
-	.get_chid = smcd_get_chid,
 	.get_dev = smcd_get_dev,
 };
 
 const struct smcd_ops *ism_get_smcd_ops(void)
 {
-	return &ism_ops;
+	return &ism_smcd_ops;
 }
 EXPORT_SYMBOL_GPL(ism_get_smcd_ops);
 #endif

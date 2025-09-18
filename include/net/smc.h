@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <linux/dibs.h>
 #include "linux/ism.h"
 
 struct sock;
@@ -62,7 +63,6 @@ struct smcd_ops {
 			 unsigned int size);
 	int (*supports_v2)(void);
 	void (*get_local_gid)(struct smcd_dev *dev, struct smcd_gid *gid);
-	u16 (*get_chid)(struct smcd_dev *dev);
 	struct device* (*get_dev)(struct smcd_dev *dev);
 
 	/* optional operations */
@@ -81,6 +81,7 @@ struct smcd_dev {
 	const struct smcd_ops *ops;
 	void *priv;
 	void *client;
+	struct dibs_dev *dibs;
 	struct list_head list;
 	spinlock_t lock;
 	struct smc_connection **conn;

@@ -18,6 +18,15 @@
 /* global loopback device */
 static struct dibs_lo_dev *lo_dev;
 
+static u16 dibs_lo_get_fabric_id(struct dibs_dev *dibs)
+{
+	return DIBS_LOOPBACK_FABRIC;
+}
+
+static const struct dibs_dev_ops dibs_lo_ops = {
+	.get_fabric_id = dibs_lo_get_fabric_id,
+};
+
 static void dibs_lo_dev_exit(struct dibs_lo_dev *ldev)
 {
 	dibs_dev_del(ldev->dibs);
@@ -40,6 +49,8 @@ static int dibs_lo_dev_probe(void)
 	}
 
 	ldev->dibs = dibs;
+	dibs->drv_priv = ldev;
+	dibs->ops = &dibs_lo_ops;
 
 	ret = dibs_dev_add(dibs);
 	if (ret)

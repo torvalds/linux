@@ -12,6 +12,7 @@
 #include <linux/uio.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
+#include <linux/dibs.h>
 
 #include "smc.h"
 
@@ -85,14 +86,14 @@ static inline bool __smc_ism_is_emulated(u16 chid)
 
 static inline bool smc_ism_is_emulated(struct smcd_dev *smcd)
 {
-	u16 chid = smcd->ops->get_chid(smcd);
+	u16 chid = smcd->dibs->ops->get_fabric_id(smcd->dibs);
 
 	return __smc_ism_is_emulated(chid);
 }
 
-static inline bool smc_ism_is_loopback(struct smcd_dev *smcd)
+static inline bool smc_ism_is_loopback(struct dibs_dev *dibs)
 {
-	return (smcd->ops->get_chid(smcd) == 0xFFFF);
+	return (dibs->ops->get_fabric_id(dibs) == DIBS_LOOPBACK_FABRIC);
 }
 
 #endif

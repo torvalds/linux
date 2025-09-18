@@ -17,10 +17,8 @@
 #include <linux/device.h>
 #include <net/smc.h>
 
-#if IS_ENABLED(CONFIG_SMC_LO)
 #define SMC_LO_MAX_DMBS		5000
 #define SMC_LO_DMBS_HASH_BITS	12
-#define SMC_LO_RESERVED_CHID	0xFFFF
 
 struct smc_lo_dmb_node {
 	struct hlist_node list;
@@ -35,7 +33,6 @@ struct smc_lo_dmb_node {
 struct smc_lo_dev {
 	struct smcd_dev *smcd;
 	struct device dev;
-	u16 chid;
 	struct smcd_gid local_gid;
 	atomic_t dmb_cnt;
 	rwlock_t dmb_ht_lock;
@@ -44,17 +41,9 @@ struct smc_lo_dev {
 	wait_queue_head_t ldev_release;
 };
 
-int smc_loopback_init(void);
-void smc_loopback_exit(void);
-#else
-static inline int smc_loopback_init(void)
-{
-	return 0;
-}
+const struct smcd_ops *smc_lo_get_smcd_ops(void);
 
-static inline void smc_loopback_exit(void)
-{
-}
-#endif
+int smc_loopback_init(struct smc_lo_dev **smc_lb);
+void smc_loopback_exit(void);
 
 #endif /* _SMC_LOOPBACK_H */

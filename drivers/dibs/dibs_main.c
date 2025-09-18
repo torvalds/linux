@@ -36,8 +36,10 @@ static struct dibs_dev_list dibs_dev_list = {
 
 int dibs_register_client(struct dibs_client *client)
 {
+	struct dibs_dev *dibs;
 	int i, rc = -ENOSPC;
 
+	mutex_lock(&dibs_dev_list.mutex);
 	mutex_lock(&clients_lock);
 	for (i = 0; i < MAX_DIBS_CLIENTS; ++i) {
 		if (!clients[i]) {
@@ -51,19 +53,37 @@ int dibs_register_client(struct dibs_client *client)
 	}
 	mutex_unlock(&clients_lock);
 
+	if (i < MAX_DIBS_CLIENTS) {
+		/* initialize with all devices that we got so far */
+		list_for_each_entry(dibs, &dibs_dev_list.list, list) {
+			dibs->priv[i] = NULL;
+			client->ops->add_dev(dibs);
+		}
+	}
+	mutex_unlock(&dibs_dev_list.mutex);
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(dibs_register_client);
 
 int dibs_unregister_client(struct dibs_client *client)
 {
+	struct dibs_dev *dibs;
 	int rc = 0;
+
+	mutex_lock(&dibs_dev_list.mutex);
+	list_for_each_entry(dibs, &dibs_dev_list.list, list) {
+		clients[client->id]->ops->del_dev(dibs);
+		dibs->priv[client->id] = NULL;
+	}
 
 	mutex_lock(&clients_lock);
 	clients[client->id] = NULL;
 	if (client->id + 1 == max_client)
 		max_client--;
 	mutex_unlock(&clients_lock);
+
+	mutex_unlock(&dibs_dev_list.mutex);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(dibs_unregister_client);
@@ -80,7 +100,15 @@ EXPORT_SYMBOL_GPL(dibs_dev_alloc);
 
 int dibs_dev_add(struct dibs_dev *dibs)
 {
+	int i;
+
 	mutex_lock(&dibs_dev_list.mutex);
+	mutex_lock(&clients_lock);
+	for (i = 0; i < max_client; ++i) {
+		if (clients[i])
+			clients[i]->ops->add_dev(dibs);
+	}
+	mutex_unlock(&clients_lock);
 	list_add(&dibs->list, &dibs_dev_list.list);
 	mutex_unlock(&dibs_dev_list.mutex);
 
@@ -90,7 +118,15 @@ EXPORT_SYMBOL_GPL(dibs_dev_add);
 
 void dibs_dev_del(struct dibs_dev *dibs)
 {
+	int i;
+
 	mutex_lock(&dibs_dev_list.mutex);
+	mutex_lock(&clients_lock);
+	for (i = 0; i < max_client; ++i) {
+		if (clients[i])
+			clients[i]->ops->del_dev(dibs);
+	}
+	mutex_unlock(&clients_lock);
 	list_del_init(&dibs->list);
 	mutex_unlock(&dibs_dev_list.mutex);
 }
