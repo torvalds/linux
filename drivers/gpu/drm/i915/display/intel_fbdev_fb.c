@@ -3,7 +3,7 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#include <drm/drm_fb_helper.h>
+#include <linux/fb.h>
 
 #include "gem/i915_gem_lmem.h"
 
@@ -14,28 +14,15 @@
 #include "intel_fbdev_fb.h"
 
 struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_device *drm,
-					       struct drm_fb_helper_surface_size *sizes)
+					       struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct intel_display *display = to_intel_display(drm);
 	struct drm_i915_private *dev_priv = to_i915(drm);
 	struct drm_framebuffer *fb;
-	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_i915_gem_object *obj;
 	int size;
 
-	/* we don't do packed 24bpp */
-	if (sizes->surface_bpp == 24)
-		sizes->surface_bpp = 32;
-
-	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
-
-	mode_cmd.pitches[0] = ALIGN(mode_cmd.width *
-				    DIV_ROUND_UP(sizes->surface_bpp, 8), 64);
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
-							  sizes->surface_depth);
-
-	size = mode_cmd.pitches[0] * mode_cmd.height;
+	size = mode_cmd->pitches[0] * mode_cmd->height;
 	size = PAGE_ALIGN(size);
 
 	obj = ERR_PTR(-ENODEV);
@@ -64,9 +51,9 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_device *drm,
 
 	fb = intel_framebuffer_create(intel_bo_to_drm_bo(obj),
 				      drm_get_format_info(drm,
-							  mode_cmd.pixel_format,
-							  mode_cmd.modifier[0]),
-				      &mode_cmd);
+							  mode_cmd->pixel_format,
+							  mode_cmd->modifier[0]),
+				      mode_cmd);
 	if (IS_ERR(fb)) {
 		i915_gem_object_put(obj);
 		goto err;
