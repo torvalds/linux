@@ -1131,7 +1131,7 @@ xfs_calc_open_zones(
 		if (bdev_open_zones)
 			mp->m_max_open_zones = bdev_open_zones;
 		else
-			mp->m_max_open_zones = xfs_max_open_zones(mp);
+			mp->m_max_open_zones = XFS_DEFAULT_MAX_OPEN_ZONES;
 	}
 
 	if (mp->m_max_open_zones < XFS_MIN_OPEN_ZONES) {
