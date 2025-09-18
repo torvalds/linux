@@ -4399,12 +4399,42 @@ static int bnxt_get_eee(struct net_device *dev, struct ethtool_keee *edata)
 	return 0;
 }
 
+static int bnxt_hwrm_pfcwd_qcfg(struct bnxt *bp, u16 *val)
+{
+	struct hwrm_queue_pfcwd_timeout_qcfg_output *resp;
+	struct hwrm_queue_pfcwd_timeout_qcfg_input *req;
+	int rc;
+
+	rc = hwrm_req_init(bp, req, HWRM_QUEUE_PFCWD_TIMEOUT_QCFG);
+	if (rc)
+		return rc;
+	resp = hwrm_req_hold(bp, req);
+	rc = hwrm_req_send(bp, req);
+	if (!rc)
+		*val = le16_to_cpu(resp->pfcwd_timeout_value);
+	hwrm_req_drop(bp, req);
+	return rc;
+}
+
+static int bnxt_hwrm_pfcwd_cfg(struct bnxt *bp, u16 val)
+{
+	struct hwrm_queue_pfcwd_timeout_cfg_input *req;
+	int rc;
+
+	rc = hwrm_req_init(bp, req, HWRM_QUEUE_PFCWD_TIMEOUT_CFG);
+	if (rc)
+		return rc;
+	req->pfcwd_timeout_value = cpu_to_le16(val);
+	rc = hwrm_req_send(bp, req);
+	return rc;
+}
+
 static int bnxt_set_tunable(struct net_device *dev,
 			    const struct ethtool_tunable *tuna,
 			    const void *data)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	u32 rx_copybreak;
+	u32 rx_copybreak, val;
 
 	switch (tuna->id) {
 	case ETHTOOL_RX_COPYBREAK:
@@ -4417,6 +4447,15 @@ static int bnxt_set_tunable(struct net_device *dev,
 			bp->rx_copybreak = rx_copybreak;
 		}
 		return 0;
+	case ETHTOOL_PFC_PREVENTION_TOUT:
+		if (BNXT_VF(bp) || !bp->max_pfcwd_tmo_ms)
+			return -EOPNOTSUPP;
+
+		val = *(u16 *)data;
+		if (val > bp->max_pfcwd_tmo_ms &&
+		    val != PFC_STORM_PREVENTION_AUTO)
+			return -EINVAL;
+		return bnxt_hwrm_pfcwd_cfg(bp, val);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -4431,6 +4470,10 @@ static int bnxt_get_tunable(struct net_device *dev,
 	case ETHTOOL_RX_COPYBREAK:
 		*(u32 *)data = bp->rx_copybreak;
 		break;
+	case ETHTOOL_PFC_PREVENTION_TOUT:
+		if (!bp->max_pfcwd_tmo_ms)
+			return -EOPNOTSUPP;
+		return bnxt_hwrm_pfcwd_qcfg(bp, data);
 	default:
 		return -EOPNOTSUPP;
 	}
