@@ -629,6 +629,7 @@ static void ism_dev_exit(struct ism_dev *ism)
 static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct dibs_dev *dibs;
+	struct zpci_dev *zdev;
 	struct ism_dev *ism;
 	int ret;
 
@@ -672,7 +673,9 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_dibs;
 
 	dibs->dev.parent = &pdev->dev;
-	dev_set_name(&dibs->dev, "%s", dev_name(&pdev->dev));
+
+	zdev = to_zpci(pdev);
+	dev_set_name(&dibs->dev, "ism%x", zdev->uid ? zdev->uid : zdev->fid);
 
 	ret = dibs_dev_add(dibs);
 	if (ret)
