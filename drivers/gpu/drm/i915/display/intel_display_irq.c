@@ -1985,7 +1985,7 @@ void vlv_display_irq_postinstall(struct intel_display *display)
 	spin_unlock_irq(&display->irq.lock);
 }
 
-void ibx_display_irq_reset(struct intel_display *display)
+static void ibx_display_irq_reset(struct intel_display *display)
 {
 	if (HAS_PCH_NOP(display))
 		return;
@@ -1994,6 +1994,24 @@ void ibx_display_irq_reset(struct intel_display *display)
 
 	if (HAS_PCH_CPT(display) || HAS_PCH_LPT(display))
 		intel_de_write(display, SERR_INT, 0xffffffff);
+}
+
+void ilk_display_irq_reset(struct intel_display *display)
+{
+	struct intel_uncore *uncore = to_intel_uncore(display->drm);
+
+	gen2_irq_reset(uncore, DE_IRQ_REGS);
+	display->irq.ilk_de_imr_mask = ~0u;
+
+	if (DISPLAY_VER(display) == 7)
+		intel_de_write(display, GEN7_ERR_INT, 0xffffffff);
+
+	if (display->platform.haswell) {
+		intel_de_write(display, EDP_PSR_IMR, 0xffffffff);
+		intel_de_write(display, EDP_PSR_IIR, 0xffffffff);
+	}
+
+	ibx_display_irq_reset(display);
 }
 
 void gen8_display_irq_reset(struct intel_display *display)

@@ -656,22 +656,10 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 static void ilk_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_display *display = dev_priv->display;
-	struct intel_uncore *uncore = &dev_priv->uncore;
 
-	gen2_irq_reset(uncore, DE_IRQ_REGS);
-	display->irq.ilk_de_imr_mask = ~0u;
-
-	if (GRAPHICS_VER(dev_priv) == 7)
-		intel_uncore_write(uncore, GEN7_ERR_INT, 0xffffffff);
-
-	if (IS_HASWELL(dev_priv)) {
-		intel_uncore_write(uncore, EDP_PSR_IMR, 0xffffffff);
-		intel_uncore_write(uncore, EDP_PSR_IIR, 0xffffffff);
-	}
-
+	/* The master interrupt enable is in DEIER, reset display irq first */
+	ilk_display_irq_reset(display);
 	gen5_gt_irq_reset(to_gt(dev_priv));
-
-	ibx_display_irq_reset(display);
 }
 
 static void valleyview_irq_reset(struct drm_i915_private *dev_priv)
