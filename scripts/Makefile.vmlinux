@@ -53,11 +53,6 @@ endif
 # vmlinux.unstripped
 # ---------------------------------------------------------------------------
 
-ifdef CONFIG_MODULES
-targets += .vmlinux.export.o
-vmlinux.unstripped: .vmlinux.export.o
-endif
-
 ifdef CONFIG_ARCH_WANTS_PRE_LINK_VMLINUX
 vmlinux.unstripped: arch/$(SRCARCH)/tools/vmlinux.arch.o
 
@@ -72,8 +67,8 @@ cmd_link_vmlinux =							\
 	$< "$(LD)" "$(KBUILD_LDFLAGS)" "$(LDFLAGS_vmlinux)" "$@";	\
 	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
 
-targets += vmlinux.unstripped
-vmlinux.unstripped: scripts/link-vmlinux.sh vmlinux.o $(KBUILD_LDS) FORCE
+targets += vmlinux.unstripped .vmlinux.export.o
+vmlinux.unstripped: scripts/link-vmlinux.sh vmlinux.o .vmlinux.export.o $(KBUILD_LDS) FORCE
 	+$(call if_changed_dep,link_vmlinux)
 ifdef CONFIG_DEBUG_INFO_BTF
 vmlinux.unstripped: $(RESOLVE_BTFIDS)
