@@ -2169,7 +2169,7 @@ ublk_daemon_register_io_buf(struct io_uring_cmd *cmd,
 		return ublk_register_io_buf(cmd, ub, ubq, io, index,
 					    issue_flags);
 
-	if (!ublk_support_zero_copy(ubq) || !ublk_rq_has_data(req))
+	if (!ublk_dev_support_zero_copy(ub) || !ublk_rq_has_data(req))
 		return -EINVAL;
 
 	ret = io_buffer_register_bvec(cmd, req, ublk_io_release, index,
