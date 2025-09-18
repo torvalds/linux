@@ -220,6 +220,20 @@ static inline bool vcpu_el2_tge_is_set(const struct kvm_vcpu *vcpu)
 
 static inline bool vcpu_el2_amo_is_set(const struct kvm_vcpu *vcpu)
 {
+	/*
+	 * DDI0487L.b Known Issue D22105
+	 *
+	 * When executing at EL2 and HCR_EL2.{E2H,TGE} = {1, 0} it is
+	 * IMPLEMENTATION DEFINED whether the effective value of HCR_EL2.AMO
+	 * is the value programmed or 1.
+	 *
+	 * Make the implementation choice of treating the effective value as 1 as
+	 * we cannot subsequently catch changes to TGE or AMO that would
+	 * otherwise lead to the SError becoming deliverable.
+	 */
+	if (vcpu_is_el2(vcpu) && vcpu_el2_e2h_is_set(vcpu) && !vcpu_el2_tge_is_set(vcpu))
+		return true;
+
 	return ctxt_sys_reg(&vcpu->arch.ctxt, HCR_EL2) & HCR_AMO;
 }
 
