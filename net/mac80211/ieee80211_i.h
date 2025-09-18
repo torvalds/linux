@@ -2710,7 +2710,8 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_local *local,
 				    const struct ieee80211_he_operation *he_oper,
 				    const struct ieee80211_eht_operation *eht_oper,
 				    struct cfg80211_chan_def *chandef);
-bool ieee80211_chandef_s1g_oper(const struct ieee80211_s1g_oper_ie *oper,
+bool ieee80211_chandef_s1g_oper(struct ieee80211_local *local,
+				const struct ieee80211_s1g_oper_ie *oper,
 				struct cfg80211_chan_def *chandef);
 void ieee80211_chandef_downgrade(struct cfg80211_chan_def *chandef,
 				 struct ieee80211_conn_settings *conn);

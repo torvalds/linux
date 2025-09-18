@@ -180,10 +180,11 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
 
 	/* get special S1G case out of the way */
 	if (sband->band == NL80211_BAND_S1GHZ) {
-		if (!ieee80211_chandef_s1g_oper(elems->s1g_oper, chandef)) {
-			sdata_info(sdata,
-				   "Missing S1G Operation Element? Trying operating == primary\n");
-			chandef->width = ieee80211_s1g_channel_width(channel);
+		if (!ieee80211_chandef_s1g_oper(sdata->local, elems->s1g_oper,
+						chandef)) {
+			/* Fallback to default 1MHz */
+			chandef->width = NL80211_CHAN_WIDTH_1;
+			chandef->s1g_primary_2mhz = false;
 		}
 
 		return IEEE80211_CONN_MODE_S1G;
@@ -1046,6 +1047,14 @@ again:
 			ret = -EINVAL;
 			goto free;
 		}
+
+		chanreq->oper = *ap_chandef;
+		if (!cfg80211_chandef_usable(sdata->wdev.wiphy, &chanreq->oper,
+					     IEEE80211_CHAN_DISABLED)) {
+			ret = -EINVAL;
+			goto free;
+		}
+
 		return elems;
 	case NL80211_BAND_6GHZ:
 		if (ap_mode < IEEE80211_CONN_MODE_HE) {
@@ -7292,6 +7301,38 @@ static bool ieee80211_mgd_ssid_mismatch(struct ieee80211_sub_if_data *sdata,
 	return memcmp(elems->ssid, cfg->ssid, cfg->ssid_len);
 }
 
+static bool
+ieee80211_rx_beacon_freq_valid(struct ieee80211_local *local,
+			       struct ieee80211_mgmt *mgmt,
+			       struct ieee80211_rx_status *rx_status,
+			       struct ieee80211_chanctx_conf *chanctx)
+{
+	u32 pri_2mhz_khz;
+	struct ieee80211_channel *s1g_sibling_1mhz;
+	u32 pri_khz = ieee80211_channel_to_khz(chanctx->def.chan);
+	u32 rx_khz = ieee80211_rx_status_to_khz(rx_status);
+
+	if (rx_khz == pri_khz)
+		return true;
+
+	if (!chanctx->def.s1g_primary_2mhz)
+		return false;
+
+	/*
+	 * If we have an S1G interface with a 2MHz primary, beacons are
+	 * sent on the center frequency of the 2MHz primary. Find the sibling
+	 * 1MHz channel and calculate the 2MHz primary center frequency.
+	 */
+	s1g_sibling_1mhz = cfg80211_s1g_get_primary_sibling(local->hw.wiphy,
+							    &chanctx->def);
+	if (!s1g_sibling_1mhz)
+		return false;
+
+	pri_2mhz_khz =
+		(pri_khz + ieee80211_channel_to_khz(s1g_sibling_1mhz)) / 2;
+	return rx_khz == pri_2mhz_khz;
+}
+
 static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 				     struct ieee80211_hdr *hdr, size_t len,
 				     struct ieee80211_rx_status *rx_status)
@@ -7346,8 +7387,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		return;
 	}
 
-	if (ieee80211_rx_status_to_khz(rx_status) !=
-	    ieee80211_channel_to_khz(chanctx_conf->def.chan)) {
+	if (!ieee80211_rx_beacon_freq_valid(local, mgmt, rx_status,
+					    chanctx_conf)) {
 		rcu_read_unlock();
 		return;
 	}

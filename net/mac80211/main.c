@@ -1249,11 +1249,13 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		if (!dflt_chandef.chan) {
 			/*
 			 * Assign the first enabled channel to dflt_chandef
-			 * from the list of channels
+			 * from the list of channels. For S1G interfaces
+			 * ensure it can be used as a primary.
 			 */
 			for (i = 0; i < sband->n_channels; i++)
 				if (!(sband->channels[i].flags &
-						IEEE80211_CHAN_DISABLED))
+				      (IEEE80211_CHAN_DISABLED |
+				       IEEE80211_CHAN_S1G_NO_PRIMARY)))
 					break;
 			/* if none found then use the first anyway */
 			if (i == sband->n_channels)

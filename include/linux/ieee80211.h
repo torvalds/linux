@@ -1182,6 +1182,18 @@ enum ieee80211_s1g_chanwidth {
 	IEEE80211_S1G_CHANWIDTH_16MHZ = 15,
 };
 
+/**
+ * enum ieee80211_s1g_pri_chanwidth - S1G primary channel widths
+ *	described in IEEE80211-2024 Table 10-39.
+ *
+ * @IEEE80211_S1G_PRI_CHANWIDTH_2MHZ: 2MHz primary channel
+ * @IEEE80211_S1G_PRI_CHANWIDTH_1MHZ: 1MHz primary channel
+ */
+enum ieee80211_s1g_pri_chanwidth {
+	IEEE80211_S1G_PRI_CHANWIDTH_2MHZ = 0,
+	IEEE80211_S1G_PRI_CHANWIDTH_1MHZ = 1,
+};
+
 #define WLAN_SA_QUERY_TR_ID_LEN 2
 #define WLAN_MEMBERSHIP_LEN 8
 #define WLAN_USER_POSITION_LEN 16
@@ -3170,8 +3182,12 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 
 #define S1G_CAP9_LINK_ADAPT_PER_CONTROL_RESPONSE BIT(0)
 
-#define S1G_OPER_CH_WIDTH_PRIMARY_1MHZ	BIT(0)
+#define S1G_OPER_CH_WIDTH_PRIMARY	BIT(0)
 #define S1G_OPER_CH_WIDTH_OPER		GENMASK(4, 1)
+#define S1G_OPER_CH_PRIMARY_LOCATION	BIT(5)
+
+#define S1G_2M_PRIMARY_LOCATION_LOWER	0
+#define S1G_2M_PRIMARY_LOCATION_UPPER	1
 
 /* EHT MAC capabilities as defined in P802.11be_D2.0 section 9.4.2.313.2 */
 #define IEEE80211_EHT_MAC_CAP0_EPCS_PRIO_ACCESS			0x01
