@@ -10,6 +10,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_modes.h>
 
 struct drm_format_info;
@@ -93,6 +94,16 @@ static inline struct drm_sysfb_device *to_drm_sysfb_device(struct drm_device *de
  * Plane
  */
 
+struct drm_sysfb_plane_state {
+	struct drm_shadow_plane_state base;
+};
+
+static inline struct drm_sysfb_plane_state *
+to_drm_sysfb_plane_state(struct drm_plane_state *base)
+{
+	return container_of(to_drm_shadow_plane_state(base), struct drm_sysfb_plane_state, base);
+}
+
 size_t drm_sysfb_build_fourcc_list(struct drm_device *dev,
 				   const u32 *native_fourccs, size_t native_nfourccs,
 				   u32 *fourccs_out, size_t nfourccs_out);
@@ -120,10 +131,17 @@ int drm_sysfb_plane_helper_get_scanout_buffer(struct drm_plane *plane,
 	.atomic_disable = drm_sysfb_plane_helper_atomic_disable, \
 	.get_scanout_buffer = drm_sysfb_plane_helper_get_scanout_buffer
 
+void drm_sysfb_plane_reset(struct drm_plane *plane);
+struct drm_plane_state *drm_sysfb_plane_atomic_duplicate_state(struct drm_plane *plane);
+void drm_sysfb_plane_atomic_destroy_state(struct drm_plane *plane,
+					  struct drm_plane_state *plane_state);
+
 #define DRM_SYSFB_PLANE_FUNCS \
+	.reset = drm_sysfb_plane_reset, \
 	.update_plane = drm_atomic_helper_update_plane, \
 	.disable_plane = drm_atomic_helper_disable_plane, \
-	DRM_GEM_SHADOW_PLANE_FUNCS
+	.atomic_duplicate_state = drm_sysfb_plane_atomic_duplicate_state, \
+	.atomic_destroy_state = drm_sysfb_plane_atomic_destroy_state
 
 /*
  * CRTC

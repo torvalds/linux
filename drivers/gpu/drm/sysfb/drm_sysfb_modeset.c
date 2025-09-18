@@ -11,7 +11,6 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_panic.h>
 #include <drm/drm_print.h>
@@ -185,6 +184,13 @@ size_t drm_sysfb_build_fourcc_list(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_sysfb_build_fourcc_list);
 
+static void drm_sysfb_plane_state_destroy(struct drm_sysfb_plane_state *sysfb_plane_state)
+{
+	__drm_gem_destroy_shadow_plane_state(&sysfb_plane_state->base);
+
+	kfree(sysfb_plane_state);
+}
+
 int drm_sysfb_plane_helper_atomic_check(struct drm_plane *plane,
 					struct drm_atomic_state *new_state)
 {
@@ -320,6 +326,49 @@ int drm_sysfb_plane_helper_get_scanout_buffer(struct drm_plane *plane,
 	return 0;
 }
 EXPORT_SYMBOL(drm_sysfb_plane_helper_get_scanout_buffer);
+
+void drm_sysfb_plane_reset(struct drm_plane *plane)
+{
+	struct drm_sysfb_plane_state *sysfb_plane_state;
+
+	if (plane->state)
+		drm_sysfb_plane_state_destroy(to_drm_sysfb_plane_state(plane->state));
+
+	sysfb_plane_state = kzalloc(sizeof(*sysfb_plane_state), GFP_KERNEL);
+	if (sysfb_plane_state)
+		__drm_gem_reset_shadow_plane(plane, &sysfb_plane_state->base);
+	else
+		__drm_gem_reset_shadow_plane(plane, NULL);
+}
+EXPORT_SYMBOL(drm_sysfb_plane_reset);
+
+struct drm_plane_state *drm_sysfb_plane_atomic_duplicate_state(struct drm_plane *plane)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_plane_state *plane_state = plane->state;
+	struct drm_sysfb_plane_state *new_sysfb_plane_state;
+	struct drm_shadow_plane_state *new_shadow_plane_state;
+
+	if (drm_WARN_ON(dev, !plane_state))
+		return NULL;
+
+	new_sysfb_plane_state = kzalloc(sizeof(*new_sysfb_plane_state), GFP_KERNEL);
+	if (!new_sysfb_plane_state)
+		return NULL;
+	new_shadow_plane_state = &new_sysfb_plane_state->base;
+
+	__drm_gem_duplicate_shadow_plane_state(plane, new_shadow_plane_state);
+
+	return &new_shadow_plane_state->base;
+}
+EXPORT_SYMBOL(drm_sysfb_plane_atomic_duplicate_state);
+
+void drm_sysfb_plane_atomic_destroy_state(struct drm_plane *plane,
+					  struct drm_plane_state *plane_state)
+{
+	drm_sysfb_plane_state_destroy(to_drm_sysfb_plane_state(plane_state));
+}
+EXPORT_SYMBOL(drm_sysfb_plane_atomic_destroy_state);
 
 /*
  * CRTC
