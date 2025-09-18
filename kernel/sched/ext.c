@@ -4167,7 +4167,8 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
 		  p->scx.sticky_cpu, p->scx.holding_cpu, dsq_id_buf);
 	dump_line(s, "      dsq_vtime=%llu slice=%llu weight=%u",
 		  p->scx.dsq_vtime, p->scx.slice, p->scx.weight);
-	dump_line(s, "      cpus=%*pb", cpumask_pr_args(p->cpus_ptr));
+	dump_line(s, "      cpus=%*pb no_mig=%u", cpumask_pr_args(p->cpus_ptr),
+		  p->migration_disabled);
 
 	if (SCX_HAS_OP(sch, dump_task)) {
 		ops_dump_init(s, "    ");
