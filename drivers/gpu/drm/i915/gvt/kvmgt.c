@@ -1279,20 +1279,15 @@ static long intel_vgpu_ioctl(struct vfio_device *vfio_dev, unsigned int cmd,
 		}
 
 		if ((info.flags & VFIO_REGION_INFO_FLAG_CAPS) && sparse) {
-			switch (cap_type_id) {
-			case VFIO_REGION_INFO_CAP_SPARSE_MMAP:
+			ret = -EINVAL;
+			if (cap_type_id == VFIO_REGION_INFO_CAP_SPARSE_MMAP)
 				ret = vfio_info_add_capability(&caps,
 					&sparse->header,
 					struct_size(sparse, areas,
 						    sparse->nr_areas));
-				if (ret) {
-					kfree(sparse);
-					return ret;
-				}
-				break;
-			default:
+			if (ret) {
 				kfree(sparse);
-				return -EINVAL;
+				return ret;
 			}
 		}
 
