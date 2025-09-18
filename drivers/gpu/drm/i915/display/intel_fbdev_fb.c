@@ -46,6 +46,11 @@ struct drm_gem_object *intel_fbdev_fb_bo_create(struct drm_device *drm, int size
 	return &obj->base;
 }
 
+void intel_fbdev_fb_bo_destroy(struct drm_gem_object *obj)
+{
+	drm_gem_object_put(obj);
+}
+
 struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_device *drm,
 					       struct drm_mode_fb_cmd2 *mode_cmd)
 {
@@ -68,7 +73,7 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_device *drm,
 							  mode_cmd->modifier[0]),
 				      mode_cmd);
 	if (IS_ERR(fb)) {
-		drm_gem_object_put(obj);
+		intel_fbdev_fb_bo_destroy(obj);
 		goto err;
 	}
 

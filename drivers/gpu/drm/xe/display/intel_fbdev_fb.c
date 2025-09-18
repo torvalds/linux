@@ -49,6 +49,11 @@ struct drm_gem_object *intel_fbdev_fb_bo_create(struct drm_device *drm, int size
 	return &obj->ttm.base;
 }
 
+void intel_fbdev_fb_bo_destroy(struct drm_gem_object *obj)
+{
+	xe_bo_unpin_map_no_vm(gem_to_xe_bo(obj));
+}
+
 struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_device *drm,
 					       struct drm_mode_fb_cmd2 *mode_cmd)
 {
@@ -71,7 +76,7 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_device *drm,
 							  mode_cmd->modifier[0]),
 				      mode_cmd);
 	if (IS_ERR(fb)) {
-		xe_bo_unpin_map_no_vm(gem_to_xe_bo(obj));
+		intel_fbdev_fb_bo_destroy(obj);
 		goto err;
 	}
 
