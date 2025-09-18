@@ -135,6 +135,7 @@ struct dibs_dev_ops {
 
 struct dibs_dev {
 	struct list_head list;
+	struct device dev;
 	/* To be filled by device driver, before calling dibs_dev_add(): */
 	const struct dibs_dev_ops *ops;
 	/* priv pointer for device driver */

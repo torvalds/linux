@@ -23,7 +23,6 @@
 #define SMC_LO_SUPPORT_NOCOPY	0x1
 #define SMC_DMA_ADDR_INVALID	(~(dma_addr_t)0)
 
-static const char smc_lo_dev_name[] = "loopback-ism";
 static struct smc_lo_dev *lo_dev;
 
 static void smc_lo_generate_ids(struct smc_lo_dev *ldev)
@@ -255,11 +254,6 @@ static void smc_lo_get_local_gid(struct smcd_dev *smcd,
 	smcd_gid->gid_ext = ldev->local_gid.gid_ext;
 }
 
-static struct device *smc_lo_get_dev(struct smcd_dev *smcd)
-{
-	return &((struct smc_lo_dev *)smcd->priv)->dev;
-}
-
 static const struct smcd_ops lo_ops = {
 	.query_remote_gid = smc_lo_query_rgid,
 	.register_dmb = smc_lo_register_dmb,
@@ -274,7 +268,6 @@ static const struct smcd_ops lo_ops = {
 	.signal_event		= NULL,
 	.move_data = smc_lo_move_data,
 	.get_local_gid = smc_lo_get_local_gid,
-	.get_dev = smc_lo_get_dev,
 };
 
 const struct smcd_ops *smc_lo_get_smcd_ops(void)
@@ -299,14 +292,6 @@ static void smc_lo_dev_exit(struct smc_lo_dev *ldev)
 		wait_event(ldev->ldev_release, !atomic_read(&ldev->dmb_cnt));
 }
 
-static void smc_lo_dev_release(struct device *dev)
-{
-	struct smc_lo_dev *ldev =
-		container_of(dev, struct smc_lo_dev, dev);
-
-	kfree(ldev);
-}
-
 static int smc_lo_dev_probe(void)
 {
 	struct smc_lo_dev *ldev;
@@ -315,10 +300,6 @@ static int smc_lo_dev_probe(void)
 	if (!ldev)
 		return -ENOMEM;
 
-	ldev->dev.parent = NULL;
-	ldev->dev.release = smc_lo_dev_release;
-	device_initialize(&ldev->dev);
-	dev_set_name(&ldev->dev, smc_lo_dev_name);
 	smc_lo_dev_init(ldev);
 
 	lo_dev = ldev; /* global loopback device */
@@ -332,7 +313,7 @@ static void smc_lo_dev_remove(void)
 		return;
 
 	smc_lo_dev_exit(lo_dev);
-	put_device(&lo_dev->dev); /* device_initialize in smc_lo_dev_probe */
+	kfree(lo_dev);
 	lo_dev = NULL;
 }
 

@@ -88,11 +88,24 @@ int dibs_unregister_client(struct dibs_client *client)
 }
 EXPORT_SYMBOL_GPL(dibs_unregister_client);
 
+static void dibs_dev_release(struct device *dev)
+{
+	struct dibs_dev *dibs;
+
+	dibs = container_of(dev, struct dibs_dev, dev);
+
+	kfree(dibs);
+}
+
 struct dibs_dev *dibs_dev_alloc(void)
 {
 	struct dibs_dev *dibs;
 
 	dibs = kzalloc(sizeof(*dibs), GFP_KERNEL);
+	if (!dibs)
+		return dibs;
+	dibs->dev.release = dibs_dev_release;
+	device_initialize(&dibs->dev);
 
 	return dibs;
 }
@@ -100,7 +113,11 @@ EXPORT_SYMBOL_GPL(dibs_dev_alloc);
 
 int dibs_dev_add(struct dibs_dev *dibs)
 {
-	int i;
+	int i, ret;
+
+	ret = device_add(&dibs->dev);
+	if (ret)
+		return ret;
 
 	mutex_lock(&dibs_dev_list.mutex);
 	mutex_lock(&clients_lock);
@@ -129,6 +146,8 @@ void dibs_dev_del(struct dibs_dev *dibs)
 	mutex_unlock(&clients_lock);
 	list_del_init(&dibs->list);
 	mutex_unlock(&dibs_dev_list.mutex);
+
+	device_del(&dibs->dev);
 }
 EXPORT_SYMBOL_GPL(dibs_dev_del);
 

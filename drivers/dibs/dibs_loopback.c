@@ -15,6 +15,7 @@
 
 #include "dibs_loopback.h"
 
+static const char dibs_lo_dev_name[] = "lo";
 /* global loopback device */
 static struct dibs_lo_dev *lo_dev;
 
@@ -26,11 +27,6 @@ static u16 dibs_lo_get_fabric_id(struct dibs_dev *dibs)
 static const struct dibs_dev_ops dibs_lo_ops = {
 	.get_fabric_id = dibs_lo_get_fabric_id,
 };
-
-static void dibs_lo_dev_exit(struct dibs_lo_dev *ldev)
-{
-	dibs_dev_del(ldev->dibs);
-}
 
 static int dibs_lo_dev_probe(void)
 {
@@ -52,6 +48,9 @@ static int dibs_lo_dev_probe(void)
 	dibs->drv_priv = ldev;
 	dibs->ops = &dibs_lo_ops;
 
+	dibs->dev.parent = NULL;
+	dev_set_name(&dibs->dev, "%s", dibs_lo_dev_name);
+
 	ret = dibs_dev_add(dibs);
 	if (ret)
 		goto err_reg;
@@ -60,7 +59,7 @@ static int dibs_lo_dev_probe(void)
 
 err_reg:
 	/* pairs with dibs_dev_alloc() */
-	kfree(dibs);
+	put_device(&dibs->dev);
 	kfree(ldev);
 
 	return ret;
@@ -71,9 +70,9 @@ static void dibs_lo_dev_remove(void)
 	if (!lo_dev)
 		return;
 
-	dibs_lo_dev_exit(lo_dev);
+	dibs_dev_del(lo_dev->dibs);
 	/* pairs with dibs_dev_alloc() */
-	kfree(lo_dev->dibs);
+	put_device(&lo_dev->dibs->dev);
 	kfree(lo_dev);
 	lo_dev = NULL;
 }

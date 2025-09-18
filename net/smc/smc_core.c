@@ -924,7 +924,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	if (ini->is_smcd) {
 		/* SMC-D specific settings */
 		smcd = ini->ism_dev[ini->ism_selected];
-		get_device(smcd->ops->get_dev(smcd));
+		get_device(&smcd->dibs->dev);
 		lgr->peer_gid.gid =
 			ini->ism_peer_gid[ini->ism_selected].gid;
 		lgr->peer_gid.gid_ext =
@@ -1474,7 +1474,7 @@ static void smc_lgr_free(struct smc_link_group *lgr)
 	destroy_workqueue(lgr->tx_wq);
 	if (lgr->is_smcd) {
 		smc_ism_put_vlan(lgr->smcd, lgr->vlan_id);
-		put_device(lgr->smcd->ops->get_dev(lgr->smcd));
+		put_device(&lgr->smcd->dibs->dev);
 	}
 	smc_lgr_put(lgr); /* theoretically last lgr_put */
 }
