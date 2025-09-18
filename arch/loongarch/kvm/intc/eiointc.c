@@ -426,21 +426,26 @@ static int kvm_eiointc_ctrl_access(struct kvm_device *dev,
 	struct loongarch_eiointc *s = dev->kvm->arch.eiointc;
 
 	data = (void __user *)attr->addr;
+	switch (type) {
+	case KVM_DEV_LOONGARCH_EXTIOI_CTRL_INIT_NUM_CPU:
+	case KVM_DEV_LOONGARCH_EXTIOI_CTRL_INIT_FEATURE:
+		if (copy_from_user(&val, data, 4))
+			return -EFAULT;
+		break;
+	default:
+		break;
+	}
+
 	spin_lock_irqsave(&s->lock, flags);
 	switch (type) {
 	case KVM_DEV_LOONGARCH_EXTIOI_CTRL_INIT_NUM_CPU:
-		if (copy_from_user(&val, data, 4))
-			ret = -EFAULT;
-		else {
-			if (val >= EIOINTC_ROUTE_MAX_VCPUS)
-				ret = -EINVAL;
-			else
-				s->num_cpu = val;
-		}
+		if (val >= EIOINTC_ROUTE_MAX_VCPUS)
+			ret = -EINVAL;
+		else
+			s->num_cpu = val;
 		break;
 	case KVM_DEV_LOONGARCH_EXTIOI_CTRL_INIT_FEATURE:
-		if (copy_from_user(&s->features, data, 4))
-			ret = -EFAULT;
+		s->features = val;
 		if (!(s->features & BIT(EIOINTC_HAS_VIRT_EXTENSION)))
 			s->status |= BIT(EIOINTC_ENABLE);
 		break;
