@@ -34,6 +34,13 @@ properties:
       - microchip,ksz8567
       - microchip,lan9646
 
+  pinctrl-names:
+    items:
+      - const: default
+      - const: reset
+        description:
+          Used during reset for strap configuration.
+
   reset-gpios:
     description:
       Should be a gpio specifier for a reset line.
@@ -139,6 +146,18 @@ allOf:
                     should be provided externally.
               dependencies:
                 microchip,rmii-clk-internal: [ethernet]
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: microchip,ksz8463
+    then:
+      properties:
+        straps-rxd-gpios:
+          description:
+            RXD0 and RXD1 pins, used to select SPI as bus interface.
+          minItems: 2
+          maxItems: 2
 
 unevaluatedProperties: false
 
