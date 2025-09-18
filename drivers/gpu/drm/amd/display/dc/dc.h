@@ -1145,6 +1145,7 @@ struct dc_debug_options {
 	bool enable_hblank_borrow;
 	bool force_subvp_df_throttle;
 	uint32_t acpi_transition_bitmasks[MAX_PIPES];
+	bool enable_pg_cntl_debug_logs;
 };
 
 

@@ -7046,7 +7046,7 @@ static void napi_stop_kthread(struct napi_struct *napi)
 	 * the kthread.
 	 */
 	while (true) {
-		if (!test_bit(NAPIF_STATE_SCHED_THREADED, &napi->state))
+		if (!test_bit(NAPI_STATE_SCHED_THREADED, &napi->state))
 			break;
 
 		msleep(20);
