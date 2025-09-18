@@ -93,21 +93,18 @@ xfs_errortag_attr_store(
 	size_t			count)
 {
 	struct xfs_mount	*mp = to_mp(kobject);
-	struct xfs_errortag_attr *xfs_attr = to_attr(attr);
+	unsigned int		error_tag = to_attr(attr)->tag;
 	int			ret;
-	unsigned int		val;
 
 	if (strcmp(buf, "default") == 0) {
-		val = xfs_errortag_random_default[xfs_attr->tag];
+		mp->m_errortag[error_tag] =
+			xfs_errortag_random_default[error_tag];
 	} else {
-		ret = kstrtouint(buf, 0, &val);
+		ret = kstrtouint(buf, 0, &mp->m_errortag[error_tag]);
 		if (ret)
 			return ret;
 	}
 
-	ret = xfs_errortag_set(mp, xfs_attr->tag, val);
-	if (ret)
-		return ret;
 	return count;
 }
 
@@ -326,19 +323,6 @@ xfs_errortag_test(
 }
 
 int
-xfs_errortag_set(
-	struct xfs_mount	*mp,
-	unsigned int		error_tag,
-	unsigned int		tag_value)
-{
-	if (!xfs_errortag_valid(error_tag))
-		return -EINVAL;
-
-	mp->m_errortag[error_tag] = tag_value;
-	return 0;
-}
-
-int
 xfs_errortag_add(
 	struct xfs_mount	*mp,
 	unsigned int		error_tag)
@@ -347,9 +331,8 @@ xfs_errortag_add(
 
 	if (!xfs_errortag_valid(error_tag))
 		return -EINVAL;
-
-	return xfs_errortag_set(mp, error_tag,
-			xfs_errortag_random_default[error_tag]);
+	mp->m_errortag[error_tag] = xfs_errortag_random_default[error_tag];
+	return 0;
 }
 
 int
