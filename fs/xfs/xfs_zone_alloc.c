@@ -1244,7 +1244,7 @@ xfs_mount_zones(
 	if (!mp->m_zone_info)
 		return -ENOMEM;
 
-	xfs_info(mp, "%u zones of %u blocks size (%u max open)",
+	xfs_info(mp, "%u zones of %u blocks (%u max open zones)",
 		 mp->m_sb.sb_rgcount, mp->m_groups[XG_TYPE_RTG].blocks,
 		 mp->m_max_open_zones);
 	trace_xfs_zones_mount(mp);
