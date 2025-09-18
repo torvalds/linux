@@ -210,8 +210,8 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises)
 
 	mdev->mlx5e_res.dek_priv = mlx5_crypto_dek_init(mdev);
 	if (IS_ERR(mdev->mlx5e_res.dek_priv)) {
-		mlx5_core_err(mdev, "crypto dek init failed, %ld\n",
-			      PTR_ERR(mdev->mlx5e_res.dek_priv));
+		mlx5_core_err(mdev, "crypto dek init failed, %pe\n",
+			      mdev->mlx5e_res.dek_priv);
 		mdev->mlx5e_res.dek_priv = NULL;
 	}
 

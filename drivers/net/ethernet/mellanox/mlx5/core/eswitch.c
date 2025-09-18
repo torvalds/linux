@@ -257,8 +257,8 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u16 vport, bool rx_rule,
 				    &flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		esw_warn(esw->dev,
-			 "FDB: Failed to add flow rule: dmac_v(%pM) dmac_c(%pM) -> vport(%d), err(%ld)\n",
-			 dmac_v, dmac_c, vport, PTR_ERR(flow_rule));
+			 "FDB: Failed to add flow rule: dmac_v(%pM) dmac_c(%pM) -> vport(%d), err(%pe)\n",
+			 dmac_v, dmac_c, vport, flow_rule);
 		flow_rule = NULL;
 	}
 

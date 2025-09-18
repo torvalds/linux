@@ -979,8 +979,8 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 
 	dev->priv.devc = mlx5_devcom_register_device(dev);
 	if (IS_ERR(dev->priv.devc))
-		mlx5_core_warn(dev, "failed to register devcom device %ld\n",
-			       PTR_ERR(dev->priv.devc));
+		mlx5_core_warn(dev, "failed to register devcom device %pe\n",
+			       dev->priv.devc);
 
 	err = mlx5_query_board_id(dev);
 	if (err) {

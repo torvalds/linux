@@ -138,8 +138,8 @@ void mlx5_reporter_vnic_create(struct mlx5_core_dev *dev)
 					       dev);
 	if (IS_ERR(health->vnic_reporter))
 		mlx5_core_warn(dev,
-			       "Failed to create vnic reporter, err = %ld\n",
-			       PTR_ERR(health->vnic_reporter));
+			       "Failed to create vnic reporter, err = %pe\n",
+			       health->vnic_reporter);
 }
 
 void mlx5_reporter_vnic_destroy(struct mlx5_core_dev *dev)
