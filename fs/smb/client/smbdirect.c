@@ -212,7 +212,6 @@ static int smbd_conn_upcall(
 		struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
 	struct smbdirect_socket *sc = id->context;
-	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	const char *event_name = rdma_event_msg(event->event);
 	u8 peer_initiator_depth;
 	u8 peer_responder_resources;
@@ -273,60 +272,10 @@ static int smbd_conn_upcall(
 			peer_initiator_depth = event->param.conn.initiator_depth;
 			peer_responder_resources = event->param.conn.responder_resources;
 		}
-		if (rdma_protocol_iwarp(id->device, id->port_num) &&
-		    event->param.conn.private_data_len == 8) {
-			/*
-			 * Legacy clients with only iWarp MPA v1 support
-			 * need a private blob in order to negotiate
-			 * the IRD/ORD values.
-			 */
-			const __be32 *ird_ord_hdr = event->param.conn.private_data;
-			u32 ird32 = be32_to_cpu(ird_ord_hdr[0]);
-			u32 ord32 = be32_to_cpu(ird_ord_hdr[1]);
-
-			/*
-			 * cifs.ko sends the legacy IRD/ORD negotiation
-			 * event if iWarp MPA v2 was used.
-			 *
-			 * Here we check that the values match and only
-			 * mark the client as legacy if they don't match.
-			 */
-			if ((u32)event->param.conn.initiator_depth != ird32 ||
-			    (u32)event->param.conn.responder_resources != ord32) {
-				/*
-				 * There are broken clients (old cifs.ko)
-				 * using little endian and also
-				 * struct rdma_conn_param only uses u8
-				 * for initiator_depth and responder_resources,
-				 * so we truncate the value to U8_MAX.
-				 *
-				 * smb_direct_accept_client() will then
-				 * do the real negotiation in order to
-				 * select the minimum between client and
-				 * server.
-				 */
-				ird32 = min_t(u32, ird32, U8_MAX);
-				ord32 = min_t(u32, ord32, U8_MAX);
-
-				sc->rdma.legacy_iwarp = true;
-				peer_initiator_depth = (u8)ird32;
-				peer_responder_resources = (u8)ord32;
-			}
-		}
-
-		/*
-		 * negotiate the value by using the minimum
-		 * between client and server if the client provided
-		 * non 0 values.
-		 */
-		if (peer_initiator_depth != 0)
-			sp->initiator_depth =
-					min_t(u8, sp->initiator_depth,
-					      peer_initiator_depth);
-		if (peer_responder_resources != 0)
-			sp->responder_resources =
-					min_t(u8, sp->responder_resources,
-					      peer_responder_resources);
+		smbdirect_connection_negotiate_rdma_resources(sc,
+							      peer_initiator_depth,
+							      peer_responder_resources,
+							      &event->param.conn);
 
 		if (SMBDIRECT_CHECK_STATUS_DISCONNECT(sc, SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING))
 			break;
