@@ -10,6 +10,7 @@
 #include <asm/pci_insn.h>
 
 #define UTIL_STR_LEN	16
+#define ISM_ERROR	0xFFFF
 
 /*
  * Do not use the first word of the DMB bits to ensure 8 byte aligned access.

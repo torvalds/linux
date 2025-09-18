@@ -44,8 +44,6 @@ struct smcd_dmb {
 
 #define ISM_RESERVED_VLANID	0x1FFF
 
-#define ISM_ERROR	0xFFFF
-
 struct smcd_dev;
 
 struct smcd_gid {

@@ -205,13 +205,13 @@ out:
 	return rc;
 }
 
-int smc_ism_unregister_dmb(struct smcd_dev *smcd, struct smc_buf_desc *dmb_desc)
+void smc_ism_unregister_dmb(struct smcd_dev *smcd,
+			    struct smc_buf_desc *dmb_desc)
 {
 	struct smcd_dmb dmb;
-	int rc = 0;
 
 	if (!dmb_desc->dma_addr)
-		return rc;
+		return;
 
 	memset(&dmb, 0, sizeof(dmb));
 	dmb.dmb_tok = dmb_desc->token;
@@ -219,13 +219,9 @@ int smc_ism_unregister_dmb(struct smcd_dev *smcd, struct smc_buf_desc *dmb_desc)
 	dmb.cpu_addr = dmb_desc->cpu_addr;
 	dmb.dma_addr = dmb_desc->dma_addr;
 	dmb.dmb_len = dmb_desc->len;
-	rc = smcd->ops->unregister_dmb(smcd, &dmb);
-	if (!rc || rc == ISM_ERROR) {
-		dmb_desc->cpu_addr = NULL;
-		dmb_desc->dma_addr = 0;
-	}
+	smcd->ops->unregister_dmb(smcd, &dmb);
 
-	return rc;
+	return;
 }
 
 int smc_ism_register_dmb(struct smc_link_group *lgr, int dmb_len,
