@@ -272,8 +272,9 @@ static int unregister_ieq(struct ism_dev *ism)
 	return 0;
 }
 
-static int ism_read_local_gid(struct ism_dev *ism)
+static int ism_read_local_gid(struct dibs_dev *dibs)
 {
+	struct ism_dev *ism = dibs->drv_priv;
 	union ism_read_gid cmd;
 	int ret;
 
@@ -285,7 +286,8 @@ static int ism_read_local_gid(struct ism_dev *ism)
 	if (ret)
 		goto out;
 
-	ism->local_gid = cmd.response.gid;
+	memset(&dibs->gid, 0, sizeof(dibs->gid));
+	memcpy(&dibs->gid, &cmd.response.gid, sizeof(cmd.response.gid));
 out:
 	return ret;
 }
@@ -563,10 +565,6 @@ static int ism_dev_init(struct ism_dev *ism)
 	if (ret)
 		goto unreg_sba;
 
-	ret = ism_read_local_gid(ism);
-	if (ret)
-		goto unreg_ieq;
-
 	if (!ism_add_vlan_id(ism, ISM_RESERVED_VLANID))
 		/* hardware is V2 capable */
 		ism_v2_capable = true;
@@ -588,8 +586,6 @@ static int ism_dev_init(struct ism_dev *ism)
 	query_info(ism);
 	return 0;
 
-unreg_ieq:
-	unregister_ieq(ism);
 unreg_sba:
 	unregister_sba(ism);
 free_irq:
@@ -671,6 +667,11 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = ism_dev_init(ism);
 	if (ret)
 		goto err_dibs;
+
+	/* after ism_dev_init() we can call ism function to set gid */
+	ret = ism_read_local_gid(dibs);
+	if (ret)
+		goto err_ism;
 
 	dibs->dev.parent = &pdev->dev;
 
@@ -841,18 +842,6 @@ static int smcd_supports_v2(void)
 	return ism_v2_capable;
 }
 
-static u64 ism_get_local_gid(struct ism_dev *ism)
-{
-	return ism->local_gid;
-}
-
-static void smcd_get_local_gid(struct smcd_dev *smcd,
-			       struct smcd_gid *smcd_gid)
-{
-	smcd_gid->gid = ism_get_local_gid(smcd->priv);
-	smcd_gid->gid_ext = 0;
-}
-
 static const struct smcd_ops ism_smcd_ops = {
 	.query_remote_gid = smcd_query_rgid,
 	.register_dmb = smcd_register_dmb,
@@ -864,7 +853,6 @@ static const struct smcd_ops ism_smcd_ops = {
 	.signal_event = smcd_signal_ieq,
 	.move_data = smcd_move,
 	.supports_v2 = smcd_supports_v2,
-	.get_local_gid = smcd_get_local_gid,
 };
 
 const struct smcd_ops *ism_get_smcd_ops(void)

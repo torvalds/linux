@@ -42,7 +42,6 @@ struct ism_dev {
 	struct ism_eq *ieq;
 	dma_addr_t ieq_dma_addr;
 
-	u64 local_gid;
 	int ieq_idx;
 
 	struct ism_client *subs[MAX_CLIENTS];

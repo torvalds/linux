@@ -13,6 +13,7 @@
 
 #include <linux/device.h>
 #include <linux/types.h>
+#include <linux/dibs.h>
 #include <net/smc.h>
 
 #include "smc_cdc.h"
@@ -25,25 +26,14 @@
 
 static struct smc_lo_dev *lo_dev;
 
-static void smc_lo_generate_ids(struct smc_lo_dev *ldev)
-{
-	struct smcd_gid *lgid = &ldev->local_gid;
-	uuid_t uuid;
-
-	uuid_gen(&uuid);
-	memcpy(&lgid->gid, &uuid, sizeof(lgid->gid));
-	memcpy(&lgid->gid_ext, (u8 *)&uuid + sizeof(lgid->gid),
-	       sizeof(lgid->gid_ext));
-}
-
 static int smc_lo_query_rgid(struct smcd_dev *smcd, struct smcd_gid *rgid,
 			     u32 vid_valid, u32 vid)
 {
-	struct smc_lo_dev *ldev = smcd->priv;
+	uuid_t temp;
 
+	copy_to_dibsgid(&temp, rgid);
 	/* rgid should be the same as lgid */
-	if (!ldev || rgid->gid != ldev->local_gid.gid ||
-	    rgid->gid_ext != ldev->local_gid.gid_ext)
+	if (!uuid_equal(&temp, &smcd->dibs->gid))
 		return -ENETUNREACH;
 	return 0;
 }
@@ -245,15 +235,6 @@ static int smc_lo_move_data(struct smcd_dev *smcd, u64 dmb_tok,
 	return 0;
 }
 
-static void smc_lo_get_local_gid(struct smcd_dev *smcd,
-				 struct smcd_gid *smcd_gid)
-{
-	struct smc_lo_dev *ldev = smcd->priv;
-
-	smcd_gid->gid = ldev->local_gid.gid;
-	smcd_gid->gid_ext = ldev->local_gid.gid_ext;
-}
-
 static const struct smcd_ops lo_ops = {
 	.query_remote_gid = smc_lo_query_rgid,
 	.register_dmb = smc_lo_register_dmb,
@@ -267,7 +248,6 @@ static const struct smcd_ops lo_ops = {
 	.reset_vlan_required	= NULL,
 	.signal_event		= NULL,
 	.move_data = smc_lo_move_data,
-	.get_local_gid = smc_lo_get_local_gid,
 };
 
 const struct smcd_ops *smc_lo_get_smcd_ops(void)
@@ -277,7 +257,6 @@ const struct smcd_ops *smc_lo_get_smcd_ops(void)
 
 static void smc_lo_dev_init(struct smc_lo_dev *ldev)
 {
-	smc_lo_generate_ids(ldev);
 	rwlock_init(&ldev->dmb_ht_lock);
 	hash_init(ldev->dmb_ht);
 	atomic_set(&ldev->dmb_cnt, 0);

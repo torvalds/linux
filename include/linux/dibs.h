@@ -10,6 +10,8 @@
 #define _DIBS_H
 
 #include <linux/device.h>
+#include <linux/uuid.h>
+
 /* DIBS - Direct Internal Buffer Sharing - concept
  * -----------------------------------------------
  * In the case of multiple system sharing the same hardware, dibs fabrics can
@@ -138,6 +140,7 @@ struct dibs_dev {
 	struct device dev;
 	/* To be filled by device driver, before calling dibs_dev_add(): */
 	const struct dibs_dev_ops *ops;
+	uuid_t gid;
 	/* priv pointer for device driver */
 	void *drv_priv;
 

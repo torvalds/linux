@@ -46,6 +46,7 @@ static int dibs_lo_dev_probe(void)
 
 	ldev->dibs = dibs;
 	dibs->drv_priv = ldev;
+	uuid_gen(&dibs->gid);
 	dibs->ops = &dibs_lo_ops;
 
 	dibs->dev.parent = NULL;

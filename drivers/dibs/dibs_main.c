@@ -114,6 +114,17 @@ struct dibs_dev *dibs_dev_alloc(void)
 }
 EXPORT_SYMBOL_GPL(dibs_dev_alloc);
 
+static ssize_t gid_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct dibs_dev *dibs;
+
+	dibs = container_of(dev, struct dibs_dev, dev);
+
+	return sysfs_emit(buf, "%pUb\n", &dibs->gid);
+}
+static DEVICE_ATTR_RO(gid);
+
 static ssize_t fabric_id_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
@@ -128,6 +139,7 @@ static ssize_t fabric_id_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RO(fabric_id);
 
 static struct attribute *dibs_dev_attrs[] = {
+	&dev_attr_gid.attr,
 	&dev_attr_fabric_id.attr,
 	NULL,
 };

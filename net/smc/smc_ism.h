@@ -96,4 +96,26 @@ static inline bool smc_ism_is_loopback(struct dibs_dev *dibs)
 	return (dibs->ops->get_fabric_id(dibs) == DIBS_LOOPBACK_FABRIC);
 }
 
+static inline void copy_to_smcdgid(struct smcd_gid *sgid, uuid_t *dibs_gid)
+{
+	__be64 temp;
+
+	memcpy(&temp, dibs_gid, sizeof(sgid->gid));
+	sgid->gid = ntohll(temp);
+	memcpy(&temp, (uint8_t *)dibs_gid + sizeof(sgid->gid),
+	       sizeof(sgid->gid_ext));
+	sgid->gid_ext = ntohll(temp);
+}
+
+static inline void copy_to_dibsgid(uuid_t *dibs_gid, struct smcd_gid *sgid)
+{
+	__be64 temp;
+
+	temp = htonll(sgid->gid);
+	memcpy(dibs_gid, &temp, sizeof(sgid->gid));
+	temp = htonll(sgid->gid_ext);
+	memcpy((uint8_t *)dibs_gid + sizeof(sgid->gid), &temp,
+	       sizeof(sgid->gid_ext));
+}
+
 #endif
