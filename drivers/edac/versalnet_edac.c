@@ -888,8 +888,10 @@ static int mc_probe(struct platform_device *pdev)
 	}
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
+	if (!priv) {
+		rc = -ENOMEM;
 		goto err_alloc;
+	}
 
 	amd_rpmsg_id_table[0].driver_data = (kernel_ulong_t)priv;
 
