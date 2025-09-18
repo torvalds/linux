@@ -29,8 +29,7 @@ int __initdata rd_image_start;		/* starting block # of image */
 
 static int __init ramdisk_start_setup(char *str)
 {
-	rd_image_start = simple_strtol(str,NULL,0);
-	return 1;
+	return kstrtoint(str, 0, &rd_image_start) == 0;
 }
 __setup("ramdisk_start=", ramdisk_start_setup);
 
