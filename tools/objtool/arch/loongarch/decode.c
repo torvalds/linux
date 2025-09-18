@@ -278,6 +278,25 @@ static bool decode_insn_reg2i16_fomat(union loongarch_instruction inst,
 	return true;
 }
 
+static bool decode_insn_reg3_fomat(union loongarch_instruction inst,
+				   struct instruction *insn)
+{
+	switch (inst.reg3_format.opcode) {
+	case amswapw_op:
+		if (inst.reg3_format.rd == LOONGARCH_GPR_ZERO &&
+		    inst.reg3_format.rk == LOONGARCH_GPR_RA &&
+		    inst.reg3_format.rj == LOONGARCH_GPR_ZERO) {
+			/* amswap.w $zero, $ra, $zero */
+			insn->type = INSN_BUG;
+		}
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
 int arch_decode_instruction(struct objtool_file *file, const struct section *sec,
 			    unsigned long offset, unsigned int maxlen,
 			    struct instruction *insn)
@@ -308,6 +327,8 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 	if (decode_insn_reg2i14_fomat(inst, insn, ops_list, op))
 		return 0;
 	if (decode_insn_reg2i16_fomat(inst, insn))
+		return 0;
+	if (decode_insn_reg3_fomat(inst, insn))
 		return 0;
 
 	if (inst.word == 0) {
