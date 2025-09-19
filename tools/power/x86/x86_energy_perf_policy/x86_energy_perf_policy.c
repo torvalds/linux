@@ -4,7 +4,7 @@
  * policy preference bias on recent X86 processors.
  */
 /*
- * Copyright (c) 2010 - 2017 Intel Corporation.
+ * Copyright (c) 2010 - 2025 Intel Corporation.
  * Len Brown <len.brown@intel.com>
  */
 
@@ -517,7 +517,7 @@ void for_packages(unsigned long long pkg_set, int (func)(int))
 
 void print_version(void)
 {
-	printf("x86_energy_perf_policy 17.05.11 (C) Len Brown <len.brown@intel.com>\n");
+	printf("x86_energy_perf_policy 2025.9.19 Len Brown <lenb@kernel.org>\n");
 }
 
 void cmdline(int argc, char **argv)
@@ -1312,6 +1312,17 @@ void for_all_cpus_in_set(size_t set_size, cpu_set_t *cpu_set, int (func)(int))
 		if (CPU_ISSET_S(cpu_num, set_size, cpu_set))
 			func(cpu_num);
 }
+int for_all_cpus_in_set_and(size_t set_size, cpu_set_t *cpu_set, int (func)(int))
+{
+	int cpu_num;
+	int retval = 1;
+
+	for (cpu_num = 0; cpu_num <= max_cpu_num; ++cpu_num)
+		if (CPU_ISSET_S(cpu_num, set_size, cpu_set))
+			retval &= func(cpu_num);
+
+	return retval;
+}
 
 void init_data_structures(void)
 {
@@ -1326,21 +1337,38 @@ void init_data_structures(void)
 	for_all_proc_cpus(mark_cpu_present);
 }
 
-/* clear has_hwp if it is not enable (or being enabled) */
-
-void verify_hwp_is_enabled(void)
+int is_hwp_enabled_on_cpu(int cpu_num)
 {
 	unsigned long long msr;
+	int retval;
+
+	/* MSR_PM_ENABLE[1] == 1 if HWP is enabled and MSRs visible */
+	get_msr(cpu_num, MSR_PM_ENABLE, &msr);
+	retval = (msr & 1);
+
+	if (verbose)
+		fprintf(stderr, "cpu%d: %sHWP\n", cpu_num, retval ? "" : "No-");
+
+	return retval;
+}
+
+/*
+ * verify_hwp_is_enabled()
+ *
+ * Set (has_hwp=0) if no HWP feature or any of selected CPU set does not have HWP enabled
+ */
+void verify_hwp_is_enabled(void)
+{
+	int retval;
 
 	if (!has_hwp)	/* set in early_cpuid() */
 		return;
 
-	/* MSR_PM_ENABLE[1] == 1 if HWP is enabled and MSRs visible */
-	get_msr(base_cpu, MSR_PM_ENABLE, &msr);
-	if ((msr & 1) == 0) {
+	retval = for_all_cpus_in_set_and(cpu_setsize, cpu_selected_set, is_hwp_enabled_on_cpu);
+
+	if (retval == 0) {
 		fprintf(stderr, "HWP can be enabled using '--hwp-enable'\n");
 		has_hwp = 0;
-		return;
 	}
 }
 
