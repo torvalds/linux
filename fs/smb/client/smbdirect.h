@@ -38,6 +38,7 @@ extern int smbd_receive_credit_max;
  */
 struct smbd_connection {
 	struct smbdirect_socket socket;
+	struct workqueue_struct *workqueue;
 };
 
 /* Create a SMBDirect session */
