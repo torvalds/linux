@@ -52,6 +52,10 @@ struct amdgpu_gtt_mgr {
 	spinlock_t lock;
 };
 
+struct amdgpu_ttm_buffer_entity {
+	struct drm_sched_entity base;
+};
+
 struct amdgpu_mman {
 	struct ttm_device		bdev;
 	struct ttm_pool			*ttm_pools;
@@ -64,10 +68,10 @@ struct amdgpu_mman {
 	bool					buffer_funcs_enabled;
 
 	struct mutex				gtt_window_lock;
-	/* High priority scheduler entity for buffer moves */
-	struct drm_sched_entity			high_pr;
-	/* Low priority scheduler entity for VRAM clearing */
-	struct drm_sched_entity			low_pr;
+
+	struct amdgpu_ttm_buffer_entity default_entity;
+	struct amdgpu_ttm_buffer_entity clear_entity;
+	struct amdgpu_ttm_buffer_entity move_entity;
 
 	struct amdgpu_vram_mgr vram_mgr;
 	struct amdgpu_gtt_mgr gtt_mgr;
