@@ -54,6 +54,8 @@ extern int lbrv;
 
 extern int tsc_aux_uret_slot __ro_after_init;
 
+extern struct kvm_x86_ops svm_x86_ops __initdata;
+
 /*
  * Clean bits in VMCB.
  * VMCB_ALL_CLEAN_MASK might also need to
