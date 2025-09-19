@@ -6570,14 +6570,17 @@ static bool nested_vmx_l1_wants_exit(struct kvm_vcpu *vcpu,
 		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_WBINVD_EXITING);
 	case EXIT_REASON_XSETBV:
 		return true;
-	case EXIT_REASON_XSAVES: case EXIT_REASON_XRSTORS:
+	case EXIT_REASON_XSAVES:
+	case EXIT_REASON_XRSTORS:
 		/*
-		 * This should never happen, since it is not possible to
-		 * set XSS to a non-zero value---neither in L1 nor in L2.
-		 * If if it were, XSS would have to be checked against
-		 * the XSS exit bitmap in vmcs12.
+		 * Always forward XSAVES/XRSTORS to L1 as KVM doesn't utilize
+		 * XSS-bitmap, and always loads vmcs02 with vmcs12's XSS-bitmap
+		 * verbatim, i.e. any exit is due to L1's bitmap.  WARN if
+		 * XSAVES isn't enabled, as the CPU is supposed to inject #UD
+		 * in that case, before consulting the XSS-bitmap.
 		 */
-		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_XSAVES);
+		WARN_ON_ONCE(!nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_XSAVES));
+		return true;
 	case EXIT_REASON_UMWAIT:
 	case EXIT_REASON_TPAUSE:
 		return nested_cpu_has2(vmcs12,
