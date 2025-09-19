@@ -639,7 +639,6 @@ static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info,
 					   u64 objectid, gfp_t flags)
 {
 	struct btrfs_root *root;
-	bool dummy = btrfs_is_testing(fs_info);
 
 	root = kzalloc(sizeof(*root), flags);
 	if (!root)
@@ -696,7 +695,7 @@ static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info,
 	root->log_transid_committed = -1;
 	btrfs_set_root_last_log_commit(root, 0);
 	root->anon_dev = 0;
-	if (!dummy) {
+	if (!btrfs_is_testing(fs_info)) {
 		btrfs_extent_io_tree_init(fs_info, &root->dirty_log_pages,
 					  IO_TREE_ROOT_DIRTY_LOG_PAGES);
 		btrfs_extent_io_tree_init(fs_info, &root->log_csum_range,

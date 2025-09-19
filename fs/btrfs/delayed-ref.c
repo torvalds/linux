@@ -1251,7 +1251,6 @@ void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans)
 {
 	struct btrfs_delayed_ref_root *delayed_refs = &trans->delayed_refs;
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	bool testing = btrfs_is_testing(fs_info);
 
 	spin_lock(&delayed_refs->lock);
 	while (true) {
@@ -1281,7 +1280,7 @@ void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans)
 		spin_unlock(&delayed_refs->lock);
 		mutex_unlock(&head->mutex);
 
-		if (!testing && pin_bytes) {
+		if (!btrfs_is_testing(fs_info) && pin_bytes) {
 			struct btrfs_block_group *bg;
 
 			bg = btrfs_lookup_block_group(fs_info, head->bytenr);
@@ -1312,14 +1311,14 @@ void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans)
 			btrfs_error_unpin_extent_range(fs_info, head->bytenr,
 				head->bytenr + head->num_bytes - 1);
 		}
-		if (!testing)
+		if (!btrfs_is_testing(fs_info))
 			btrfs_cleanup_ref_head_accounting(fs_info, delayed_refs, head);
 		btrfs_put_delayed_ref_head(head);
 		cond_resched();
 		spin_lock(&delayed_refs->lock);
 	}
 
-	if (!testing)
+	if (!btrfs_is_testing(fs_info))
 		btrfs_qgroup_destroy_extent_records(trans);
 
 	spin_unlock(&delayed_refs->lock);

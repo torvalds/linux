@@ -1126,9 +1126,9 @@ static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
 
 #define EXPORT_FOR_TESTS
 
-static inline int btrfs_is_testing(const struct btrfs_fs_info *fs_info)
+static inline bool btrfs_is_testing(const struct btrfs_fs_info *fs_info)
 {
-	return test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
+	return unlikely(test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state));
 }
 
 void btrfs_test_destroy_inode(struct inode *inode);
@@ -1137,9 +1137,9 @@ void btrfs_test_destroy_inode(struct inode *inode);
 
 #define EXPORT_FOR_TESTS static
 
-static inline int btrfs_is_testing(const struct btrfs_fs_info *fs_info)
+static inline bool btrfs_is_testing(const struct btrfs_fs_info *fs_info)
 {
-	return 0;
+	return false;
 }
 #endif
 
