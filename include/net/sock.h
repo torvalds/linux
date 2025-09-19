@@ -2061,6 +2061,9 @@ static inline void sk_set_socket(struct sock *sk, struct socket *sock)
 	if (sock) {
 		WRITE_ONCE(sk->sk_uid, SOCK_INODE(sock)->i_uid);
 		WRITE_ONCE(sk->sk_ino, SOCK_INODE(sock)->i_ino);
+	} else {
+		/* Note: sk_uid is unchanged. */
+		WRITE_ONCE(sk->sk_ino, 0);
 	}
 }
 
@@ -2082,8 +2085,6 @@ static inline void sock_orphan(struct sock *sk)
 	sock_set_flag(sk, SOCK_DEAD);
 	sk_set_socket(sk, NULL);
 	sk->sk_wq  = NULL;
-	/* Note: sk_uid is unchanged. */
-	WRITE_ONCE(sk->sk_ino, 0);
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 

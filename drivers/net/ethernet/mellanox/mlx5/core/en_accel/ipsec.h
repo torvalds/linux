@@ -185,6 +185,7 @@ struct mlx5e_ipsec_rx_create_attr {
 	u32 family;
 	int prio;
 	int pol_level;
+	int pol_miss_level;
 	int sa_level;
 	int status_level;
 	enum mlx5_flow_namespace_type chains_ns;

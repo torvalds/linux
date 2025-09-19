@@ -4683,7 +4683,6 @@ F:	security/bpf/
 BPF [SELFTESTS] (Test Runners & Infrastructure)
 M:	Andrii Nakryiko <andrii@kernel.org>
 M:	Eduard Zingerman <eddyz87@gmail.com>
-R:	Mykola Lysenko <mykolal@fb.com>
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	tools/testing/selftests/bpf/
@@ -5259,7 +5258,6 @@ F:	drivers/gpio/gpio-bt8xx.c
 
 BTRFS FILE SYSTEM
 M:	Chris Mason <clm@fb.com>
-M:	Josef Bacik <josef@toxicpanda.com>
 M:	David Sterba <dsterba@suse.com>
 L:	linux-btrfs@vger.kernel.org
 S:	Maintained
@@ -7240,15 +7238,15 @@ F:	include/linux/swiotlb.h
 F:	kernel/dma/
 
 DMA MAPPING HELPERS DEVICE DRIVER API [RUST]
-M:	Abdiel Janulgue <abdiel.janulgue@gmail.com>
 M:	Danilo Krummrich <dakr@kernel.org>
+R:	Abdiel Janulgue <abdiel.janulgue@gmail.com>
 R:	Daniel Almeida <daniel.almeida@collabora.com>
 R:	Robin Murphy <robin.murphy@arm.com>
 R:	Andreas Hindborg <a.hindborg@kernel.org>
 L:	rust-for-linux@vger.kernel.org
 S:	Supported
 W:	https://rust-for-linux.com
-T:	git https://github.com/Rust-for-Linux/linux.git alloc-next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
 F:	rust/helpers/dma.c
 F:	rust/kernel/dma.rs
 F:	samples/rust/rust_dma.rs
@@ -7432,7 +7430,7 @@ S:	Supported
 F:	Documentation/devicetree/bindings/dpll/dpll-device.yaml
 F:	Documentation/devicetree/bindings/dpll/dpll-pin.yaml
 F:	Documentation/driver-api/dpll.rst
-F:	drivers/dpll/*
+F:	drivers/dpll/
 F:	include/linux/dpll.h
 F:	include/uapi/linux/dpll.h
 
@@ -8080,7 +8078,6 @@ F:	Documentation/devicetree/bindings/gpu/
 F:	Documentation/gpu/
 F:	drivers/gpu/drm/
 F:	drivers/gpu/vga/
-F:	rust/kernel/drm/
 F:	include/drm/drm
 F:	include/linux/vga*
 F:	include/uapi/drm/
@@ -8092,10 +8089,20 @@ X:	drivers/gpu/drm/i915/
 X:	drivers/gpu/drm/kmb/
 X:	drivers/gpu/drm/mediatek/
 X:	drivers/gpu/drm/msm/
-X:	drivers/gpu/drm/nouveau/
+X:	drivers/gpu/drm/nova/
 X:	drivers/gpu/drm/radeon/
 X:	drivers/gpu/drm/tegra/
 X:	drivers/gpu/drm/xe/
+
+DRM DRIVERS AND COMMON INFRASTRUCTURE [RUST]
+M:	Danilo Krummrich <dakr@kernel.org>
+M:	Alice Ryhl <aliceryhl@google.com>
+S:	Supported
+W:	https://drm.pages.freedesktop.org/maintainer-tools/drm-rust.html
+T:	git https://gitlab.freedesktop.org/drm/rust/kernel.git
+F:	drivers/gpu/drm/nova/
+F:	drivers/gpu/nova-core/
+F:	rust/kernel/drm/
 
 DRM DRIVERS FOR ALLWINNER A10
 M:	Maxime Ripard <mripard@kernel.org>
@@ -15741,13 +15748,6 @@ S:	Supported
 W:	http://www.melexis.com
 F:	drivers/iio/temperature/mlx90635.c
 
-MELFAS MIP4 TOUCHSCREEN DRIVER
-M:	Sangwon Jee <jeesw@melfas.com>
-S:	Supported
-W:	http://www.melfas.com
-F:	Documentation/devicetree/bindings/input/touchscreen/melfas_mip4.txt
-F:	drivers/input/touchscreen/melfas_mip4.c
-
 MELLANOX BLUEFIELD I2C DRIVER
 M:	Khalil Blaiech <kblaiech@nvidia.com>
 M:	Asmaa Mnebhi <asmaa@nvidia.com>
@@ -16128,6 +16128,7 @@ M:	Andrew Morton <akpm@linux-foundation.org>
 M:	Mike Rapoport <rppt@kernel.org>
 L:	linux-mm@kvack.org
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rppt/memblock.git
 F:	include/linux/numa_memblks.h
 F:	mm/numa.c
 F:	mm/numa_emulation.c
@@ -16195,6 +16196,7 @@ R:	Rik van Riel <riel@surriel.com>
 R:	Liam R. Howlett <Liam.Howlett@oracle.com>
 R:	Vlastimil Babka <vbabka@suse.cz>
 R:	Harry Yoo <harry.yoo@oracle.com>
+R:	Jann Horn <jannh@google.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	include/linux/rmap.h
@@ -16239,6 +16241,7 @@ R:	Nico Pache <npache@redhat.com>
 R:	Ryan Roberts <ryan.roberts@arm.com>
 R:	Dev Jain <dev.jain@arm.com>
 R:	Barry Song <baohua@kernel.org>
+R:	Lance Yang <lance.yang@linux.dev>
 L:	linux-mm@kvack.org
 S:	Maintained
 W:	http://www.linux-mm.org
@@ -17480,6 +17483,7 @@ NETFILTER
 M:	Pablo Neira Ayuso <pablo@netfilter.org>
 M:	Jozsef Kadlecsik <kadlec@netfilter.org>
 M:	Florian Westphal <fw@strlen.de>
+R:	Phil Sutter <phil@nwl.cc>
 L:	netfilter-devel@vger.kernel.org
 L:	coreteam@netfilter.org
 S:	Maintained
@@ -22048,6 +22052,7 @@ F:	drivers/infiniband/ulp/rtrs/
 
 RUNTIME VERIFICATION (RV)
 M:	Steven Rostedt <rostedt@goodmis.org>
+M:	Gabriele Monaco <gmonaco@redhat.com>
 L:	linux-trace-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/trace/rv/
@@ -24255,7 +24260,7 @@ F:	Documentation/devicetree/bindings/input/allwinner,sun4i-a10-lradc-keys.yaml
 F:	drivers/input/keyboard/sun4i-lradc-keys.c
 
 SUNDANCE NETWORK DRIVER
-M:	Denis Kirjanov <dkirjanov@suse.de>
+M:	Denis Kirjanov <kirjanov@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/dlink/sundance.c

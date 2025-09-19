@@ -30,8 +30,12 @@ __test(2) int test_strcspn(void *ctx) { return bpf_strcspn(str, "lo"); }
 __test(6) int test_strstr_found(void *ctx) { return bpf_strstr(str, "world"); }
 __test(-ENOENT) int test_strstr_notfound(void *ctx) { return bpf_strstr(str, "hi"); }
 __test(0) int test_strstr_empty(void *ctx) { return bpf_strstr(str, ""); }
-__test(0) int test_strnstr_found(void *ctx) { return bpf_strnstr(str, "hello", 6); }
-__test(-ENOENT) int test_strnstr_notfound(void *ctx) { return bpf_strnstr(str, "hi", 10); }
+__test(0) int test_strnstr_found1(void *ctx) { return bpf_strnstr("", "", 0); }
+__test(0) int test_strnstr_found2(void *ctx) { return bpf_strnstr(str, "hello", 5); }
+__test(0) int test_strnstr_found3(void *ctx) { return bpf_strnstr(str, "hello", 6); }
+__test(-ENOENT) int test_strnstr_notfound1(void *ctx) { return bpf_strnstr(str, "hi", 10); }
+__test(-ENOENT) int test_strnstr_notfound2(void *ctx) { return bpf_strnstr(str, "hello", 4); }
+__test(-ENOENT) int test_strnstr_notfound3(void *ctx) { return bpf_strnstr("", "a", 0); }
 __test(0) int test_strnstr_empty(void *ctx) { return bpf_strnstr(str, "", 1); }
 
 char _license[] SEC("license") = "GPL";

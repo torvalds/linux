@@ -618,6 +618,7 @@ static struct interp_sample_rate sr_val_tbl[] = {
 	{176400, 0xB}, {352800, 0xC},
 };
 
+/* Matches also rx_macro_mux_text */
 enum {
 	RX_MACRO_AIF1_PB,
 	RX_MACRO_AIF2_PB,
@@ -722,6 +723,7 @@ static const char * const rx_int2_2_interp_mux_text[] = {
 	"ZERO", "RX INT2_2 MUX",
 };
 
+/* Order must match RX_MACRO_MAX_DAIS enum (offset by 1) */
 static const char *const rx_macro_mux_text[] = {
 	"ZERO", "AIF1_PB", "AIF2_PB", "AIF3_PB", "AIF4_PB"
 };
@@ -2474,6 +2476,7 @@ static int rx_macro_mux_put(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	struct snd_soc_dapm_update *update = NULL;
 	u32 rx_port_value = ucontrol->value.enumerated.item[0];
+	unsigned int dai_id;
 	u32 aif_rst;
 	struct rx_macro *rx = snd_soc_component_get_drvdata(component);
 
@@ -2490,19 +2493,24 @@ static int rx_macro_mux_put(struct snd_kcontrol *kcontrol,
 
 	switch (rx_port_value) {
 	case 0:
-		if (rx->active_ch_cnt[aif_rst]) {
-			clear_bit(widget->shift,
-				&rx->active_ch_mask[aif_rst]);
-			rx->active_ch_cnt[aif_rst]--;
+		/*
+		 * active_ch_cnt and active_ch_mask use DAI IDs (RX_MACRO_MAX_DAIS).
+		 * active_ch_cnt == 0 was tested in if() above.
+		 */
+		dai_id = aif_rst - 1;
+		if (rx->active_ch_cnt[dai_id]) {
+			clear_bit(widget->shift, &rx->active_ch_mask[dai_id]);
+			rx->active_ch_cnt[dai_id]--;
 		}
 		break;
 	case 1:
 	case 2:
 	case 3:
 	case 4:
-		set_bit(widget->shift,
-			&rx->active_ch_mask[rx_port_value]);
-		rx->active_ch_cnt[rx_port_value]++;
+		/* active_ch_cnt and active_ch_mask use DAI IDs (WSA_MACRO_MAX_DAIS). */
+		dai_id = rx_port_value - 1;
+		set_bit(widget->shift, &rx->active_ch_mask[dai_id]);
+		rx->active_ch_cnt[dai_id]++;
 		break;
 	default:
 		dev_err(component->dev,

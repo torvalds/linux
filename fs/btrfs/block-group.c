@@ -1795,7 +1795,14 @@ static int reclaim_bgs_cmp(void *unused, const struct list_head *a,
 	bg1 = list_entry(a, struct btrfs_block_group, bg_list);
 	bg2 = list_entry(b, struct btrfs_block_group, bg_list);
 
-	return bg1->used > bg2->used;
+	/*
+	 * Some other task may be updating the ->used field concurrently, but it
+	 * is not serious if we get a stale value or load/store tearing issues,
+	 * as sorting the list of block groups to reclaim is not critical and an
+	 * occasional imperfect order is ok. So silence KCSAN and avoid the
+	 * overhead of locking or any other synchronization.
+	 */
+	return data_race(bg1->used > bg2->used);
 }
 
 static inline bool btrfs_should_reclaim(const struct btrfs_fs_info *fs_info)
