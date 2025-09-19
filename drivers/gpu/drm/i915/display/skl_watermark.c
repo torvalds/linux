@@ -3183,6 +3183,21 @@ static void multiply_wm_latency(struct intel_display *display, int mult)
 		wm[level] *= mult;
 }
 
+static void increase_wm_latency(struct intel_display *display, int inc)
+{
+	u16 *wm = display->wm.skl_latency;
+	int level, num_levels = display->wm.num_levels;
+
+	wm[0] += inc;
+
+	for (level = 1; level < num_levels; level++) {
+		if (wm[level] == 0)
+			break;
+
+		wm[level] += inc;
+	}
+}
+
 static bool need_16gb_dimm_wa(struct intel_display *display)
 {
 	const struct dram_info *dram_info = intel_dram_info(display->drm);
@@ -3207,7 +3222,6 @@ adjust_wm_latency(struct intel_display *display)
 {
 	u16 *wm = display->wm.skl_latency;
 	int i, level, num_levels = display->wm.num_levels;
-	int read_latency = wm_read_latency(display);
 
 	if (display->platform.dg2)
 		multiply_wm_latency(display, 2);
@@ -3232,16 +3246,8 @@ adjust_wm_latency(struct intel_display *display)
 	 * to add proper adjustment to each valid level we retrieve
 	 * from the punit when level 0 response data is 0us.
 	 */
-	if (wm[0] == 0) {
-		wm[0] += read_latency;
-
-		for (level = 1; level < num_levels; level++) {
-			if (wm[level] == 0)
-				break;
-
-			wm[level] += read_latency;
-		}
-	}
+	if (wm[0] == 0)
+		increase_wm_latency(display, wm_read_latency(display));
 
 	/*
 	 * WA Level-0 adjustment for 16Gb+ DIMMs: SKL+
