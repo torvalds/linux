@@ -259,6 +259,76 @@ static bool bnge_separate_head_pool(struct bnge_rx_ring_info *rxr)
 	return rxr->need_head_pool || PAGE_SIZE > BNGE_RX_PAGE_SIZE;
 }
 
+static void bnge_free_one_rx_ring_bufs(struct bnge_net *bn,
+				       struct bnge_rx_ring_info *rxr)
+{
+	int i, max_idx;
+
+	if (!rxr->rx_buf_ring)
+		return;
+
+	max_idx = bn->rx_nr_pages * RX_DESC_CNT;
+
+	for (i = 0; i < max_idx; i++) {
+		struct bnge_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[i];
+		void *data = rx_buf->data;
+
+		if (!data)
+			continue;
+
+		rx_buf->data = NULL;
+		page_pool_free_va(rxr->head_pool, data, true);
+	}
+}
+
+static void bnge_free_one_agg_ring_bufs(struct bnge_net *bn,
+					struct bnge_rx_ring_info *rxr)
+{
+	int i, max_idx;
+
+	if (!rxr->rx_agg_buf_ring)
+		return;
+
+	max_idx = bn->rx_agg_nr_pages * RX_DESC_CNT;
+
+	for (i = 0; i < max_idx; i++) {
+		struct bnge_sw_rx_agg_bd *rx_agg_buf = &rxr->rx_agg_buf_ring[i];
+		netmem_ref netmem = rx_agg_buf->netmem;
+
+		if (!netmem)
+			continue;
+
+		rx_agg_buf->netmem = 0;
+		__clear_bit(i, rxr->rx_agg_bmap);
+
+		page_pool_recycle_direct_netmem(rxr->page_pool, netmem);
+	}
+}
+
+static void bnge_free_one_rx_ring_pair_bufs(struct bnge_net *bn,
+					    struct bnge_rx_ring_info *rxr)
+{
+	bnge_free_one_rx_ring_bufs(bn, rxr);
+	bnge_free_one_agg_ring_bufs(bn, rxr);
+}
+
+static void bnge_free_rx_ring_pair_bufs(struct bnge_net *bn)
+{
+	struct bnge_dev *bd = bn->bd;
+	int i;
+
+	if (!bn->rx_ring)
+		return;
+
+	for (i = 0; i < bd->rx_nr_rings; i++)
+		bnge_free_one_rx_ring_pair_bufs(bn, &bn->rx_ring[i]);
+}
+
+static void bnge_free_all_rings_bufs(struct bnge_net *bn)
+{
+	bnge_free_rx_ring_pair_bufs(bn);
+}
+
 static void bnge_free_rx_rings(struct bnge_net *bn)
 {
 	struct bnge_dev *bd = bn->bd;
@@ -739,6 +809,194 @@ static void bnge_init_nq_tree(struct bnge_net *bn)
 	}
 }
 
+static netmem_ref __bnge_alloc_rx_netmem(struct bnge_net *bn,
+					 dma_addr_t *mapping,
+					 struct bnge_rx_ring_info *rxr,
+					 unsigned int *offset,
+					 gfp_t gfp)
+{
+	netmem_ref netmem;
+
+	if (PAGE_SIZE > BNGE_RX_PAGE_SIZE) {
+		netmem = page_pool_alloc_frag_netmem(rxr->page_pool, offset,
+						     BNGE_RX_PAGE_SIZE, gfp);
+	} else {
+		netmem = page_pool_alloc_netmems(rxr->page_pool, gfp);
+		*offset = 0;
+	}
+	if (!netmem)
+		return 0;
+
+	*mapping = page_pool_get_dma_addr_netmem(netmem) + *offset;
+	return netmem;
+}
+
+static u8 *__bnge_alloc_rx_frag(struct bnge_net *bn, dma_addr_t *mapping,
+				struct bnge_rx_ring_info *rxr,
+				gfp_t gfp)
+{
+	unsigned int offset;
+	struct page *page;
+
+	page = page_pool_alloc_frag(rxr->head_pool, &offset,
+				    bn->rx_buf_size, gfp);
+	if (!page)
+		return NULL;
+
+	*mapping = page_pool_get_dma_addr(page) + bn->rx_dma_offset + offset;
+	return page_address(page) + offset;
+}
+
+static int bnge_alloc_rx_data(struct bnge_net *bn,
+			      struct bnge_rx_ring_info *rxr,
+			      u16 prod, gfp_t gfp)
+{
+	struct bnge_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[RING_RX(bn, prod)];
+	struct rx_bd *rxbd;
+	dma_addr_t mapping;
+	u8 *data;
+
+	rxbd = &rxr->rx_desc_ring[RX_RING(bn, prod)][RX_IDX(prod)];
+	data = __bnge_alloc_rx_frag(bn, &mapping, rxr, gfp);
+	if (!data)
+		return -ENOMEM;
+
+	rx_buf->data = data;
+	rx_buf->data_ptr = data + bn->rx_offset;
+	rx_buf->mapping = mapping;
+
+	rxbd->rx_bd_haddr = cpu_to_le64(mapping);
+
+	return 0;
+}
+
+static int bnge_alloc_one_rx_ring_bufs(struct bnge_net *bn,
+				       struct bnge_rx_ring_info *rxr,
+				       int ring_nr)
+{
+	u32 prod = rxr->rx_prod;
+	int i, rc = 0;
+
+	for (i = 0; i < bn->rx_ring_size; i++) {
+		rc = bnge_alloc_rx_data(bn, rxr, prod, GFP_KERNEL);
+		if (rc)
+			break;
+		prod = NEXT_RX(prod);
+	}
+
+	/* Abort if not a single buffer can be allocated */
+	if (rc && !i) {
+		netdev_err(bn->netdev,
+			   "RX ring %d: allocated %d/%d buffers, abort\n",
+			   ring_nr, i, bn->rx_ring_size);
+		return rc;
+	}
+
+	rxr->rx_prod = prod;
+
+	if (i < bn->rx_ring_size)
+		netdev_warn(bn->netdev,
+			    "RX ring %d: allocated %d/%d buffers, continuing\n",
+			    ring_nr, i, bn->rx_ring_size);
+	return 0;
+}
+
+static u16 bnge_find_next_agg_idx(struct bnge_rx_ring_info *rxr, u16 idx)
+{
+	u16 next, max = rxr->rx_agg_bmap_size;
+
+	next = find_next_zero_bit(rxr->rx_agg_bmap, max, idx);
+	if (next >= max)
+		next = find_first_zero_bit(rxr->rx_agg_bmap, max);
+	return next;
+}
+
+static int bnge_alloc_rx_netmem(struct bnge_net *bn,
+				struct bnge_rx_ring_info *rxr,
+				u16 prod, gfp_t gfp)
+{
+	struct bnge_sw_rx_agg_bd *rx_agg_buf;
+	u16 sw_prod = rxr->rx_sw_agg_prod;
+	unsigned int offset = 0;
+	struct rx_bd *rxbd;
+	dma_addr_t mapping;
+	netmem_ref netmem;
+
+	rxbd = &rxr->rx_agg_desc_ring[RX_AGG_RING(bn, prod)][RX_IDX(prod)];
+	netmem = __bnge_alloc_rx_netmem(bn, &mapping, rxr, &offset, gfp);
+	if (!netmem)
+		return -ENOMEM;
+
+	if (unlikely(test_bit(sw_prod, rxr->rx_agg_bmap)))
+		sw_prod = bnge_find_next_agg_idx(rxr, sw_prod);
+
+	__set_bit(sw_prod, rxr->rx_agg_bmap);
+	rx_agg_buf = &rxr->rx_agg_buf_ring[sw_prod];
+	rxr->rx_sw_agg_prod = RING_RX_AGG(bn, NEXT_RX_AGG(sw_prod));
+
+	rx_agg_buf->netmem = netmem;
+	rx_agg_buf->offset = offset;
+	rx_agg_buf->mapping = mapping;
+	rxbd->rx_bd_haddr = cpu_to_le64(mapping);
+	rxbd->rx_bd_opaque = sw_prod;
+	return 0;
+}
+
+static int bnge_alloc_one_agg_ring_bufs(struct bnge_net *bn,
+					struct bnge_rx_ring_info *rxr,
+					int ring_nr)
+{
+	u32 prod = rxr->rx_agg_prod;
+	int i, rc = 0;
+
+	for (i = 0; i < bn->rx_agg_ring_size; i++) {
+		rc = bnge_alloc_rx_netmem(bn, rxr, prod, GFP_KERNEL);
+		if (rc)
+			break;
+		prod = NEXT_RX_AGG(prod);
+	}
+
+	if (rc && i < MAX_SKB_FRAGS) {
+		netdev_err(bn->netdev,
+			   "Agg ring %d: allocated %d/%d buffers (min %d), abort\n",
+			   ring_nr, i, bn->rx_agg_ring_size, MAX_SKB_FRAGS);
+		goto err_free_one_agg_ring_bufs;
+	}
+
+	rxr->rx_agg_prod = prod;
+
+	if (i < bn->rx_agg_ring_size)
+		netdev_warn(bn->netdev,
+			    "Agg ring %d: allocated %d/%d buffers, continuing\n",
+			    ring_nr, i, bn->rx_agg_ring_size);
+	return 0;
+
+err_free_one_agg_ring_bufs:
+	bnge_free_one_agg_ring_bufs(bn, rxr);
+	return -ENOMEM;
+}
+
+static int bnge_alloc_one_rx_ring_pair_bufs(struct bnge_net *bn, int ring_nr)
+{
+	struct bnge_rx_ring_info *rxr = &bn->rx_ring[ring_nr];
+	int rc;
+
+	rc = bnge_alloc_one_rx_ring_bufs(bn, rxr, ring_nr);
+	if (rc)
+		return rc;
+
+	if (bnge_is_agg_reqd(bn->bd)) {
+		rc = bnge_alloc_one_agg_ring_bufs(bn, rxr, ring_nr);
+		if (rc)
+			goto err_free_one_rx_ring_bufs;
+	}
+	return 0;
+
+err_free_one_rx_ring_bufs:
+	bnge_free_one_rx_ring_bufs(bn, rxr);
+	return rc;
+}
+
 static void bnge_init_rxbd_pages(struct bnge_ring_struct *ring, u32 type)
 {
 	struct rx_bd **rx_desc_ring;
@@ -801,6 +1059,22 @@ static void bnge_init_one_rx_ring_pair(struct bnge_net *bn, int ring_nr)
 			     &rxr->bnapi->napi);
 
 	bnge_init_one_agg_ring_rxbd(bn, rxr);
+}
+
+static int bnge_alloc_rx_ring_pair_bufs(struct bnge_net *bn)
+{
+	int i, rc;
+
+	for (i = 0; i < bn->bd->rx_nr_rings; i++) {
+		rc = bnge_alloc_one_rx_ring_pair_bufs(bn, i);
+		if (rc)
+			goto err_free_rx_ring_pair_bufs;
+	}
+	return 0;
+
+err_free_rx_ring_pair_bufs:
+	bnge_free_rx_ring_pair_bufs(bn);
+	return rc;
 }
 
 static void bnge_init_rx_rings(struct bnge_net *bn)
@@ -1030,12 +1304,23 @@ static int bnge_init_nic(struct bnge_net *bn)
 	int rc;
 
 	bnge_init_nq_tree(bn);
+
 	bnge_init_rx_rings(bn);
-	bnge_init_tx_rings(bn);
-	rc = bnge_init_ring_grps(bn);
+	rc = bnge_alloc_rx_ring_pair_bufs(bn);
 	if (rc)
 		return rc;
+
+	bnge_init_tx_rings(bn);
+
+	rc = bnge_init_ring_grps(bn);
+	if (rc)
+		goto err_free_rx_ring_pair_bufs;
+
 	bnge_init_vnics(bn);
+	return rc;
+
+err_free_rx_ring_pair_bufs:
+	bnge_free_rx_ring_pair_bufs(bn);
 	return rc;
 }
 
@@ -1105,6 +1390,7 @@ static void bnge_close_core(struct bnge_net *bn)
 	struct bnge_dev *bd = bn->bd;
 
 	clear_bit(BNGE_STATE_OPEN, &bd->state);
+	bnge_free_all_rings_bufs(bn);
 	bnge_free_irq(bn);
 	bnge_del_napi(bn);
 
