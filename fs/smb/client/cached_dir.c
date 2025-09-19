@@ -424,6 +424,7 @@ int open_cached_dir_by_dentry(struct cifs_tcon *tcon,
 			cifs_dbg(FYI, "found a cached file handle by dentry\n");
 			kref_get(&cfid->refcount);
 			*ret_cfid = cfid;
+			cfid->last_access_time = jiffies;
 			spin_unlock(&cfids->cfid_list_lock);
 			return 0;
 		}
