@@ -1182,19 +1182,23 @@ int enable_hwp_on_cpu(int cpu)
 	return 0;
 }
 
+int update_cpu_epb_sysfs(int cpu)
+{
+	int epb;
+
+	epb = get_epb_sysfs(cpu);
+	set_epb_sysfs(cpu, new_epb);
+
+	if (verbose)
+		printf("cpu%d: ENERGY_PERF_BIAS old: %d new: %d\n",
+			cpu, epb, (unsigned int) new_epb);
+
+	return 0;
+}
+
 int update_cpu_msrs(int cpu)
 {
 	unsigned long long msr;
-	int epb;
-
-	if (update_epb) {
-		epb = get_epb_sysfs(cpu);
-		set_epb_sysfs(cpu, new_epb);
-
-		if (verbose)
-			printf("cpu%d: ENERGY_PERF_BIAS old: %d new: %d\n",
-				cpu, epb, (unsigned int) new_epb);
-	}
 
 	if (update_turbo) {
 		int turbo_is_present_and_disabled;
@@ -1584,8 +1588,11 @@ int main(int argc, char **argv)
 
 	/* update CPU set */
 	if (cpu_selected_set) {
+		if (update_epb)
+			for_all_cpus_in_set(cpu_setsize, cpu_selected_set, update_cpu_epb_sysfs);
 		for_all_cpus_in_set(cpu_setsize, cpu_selected_set, update_sysfs);
 		for_all_cpus_in_set(cpu_setsize, cpu_selected_set, update_cpu_msrs);
+
 	} else if (pkg_selected_set)
 		for_packages(pkg_selected_set, update_hwp_request_pkg_msr);
 
