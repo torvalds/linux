@@ -77,7 +77,7 @@ static DEFINE_HASHTABLE(svm_vm_data_hash, SVM_VM_DATA_HASH_BITS);
 static u32 next_vm_id = 0;
 static bool next_vm_id_wrapped = 0;
 static DEFINE_SPINLOCK(svm_vm_data_hash_lock);
-bool x2avic_enabled;
+static bool x2avic_enabled;
 
 
 static void avic_set_x2apic_msr_interception(struct vcpu_svm *svm,
@@ -1147,7 +1147,7 @@ void avic_vcpu_unblocking(struct kvm_vcpu *vcpu)
  * - Hypervisor can support both xAVIC and x2AVIC in the same guest.
  * - The mode can be switched at run-time.
  */
-bool avic_hardware_setup(void)
+bool __init avic_hardware_setup(void)
 {
 	if (!npt_enabled)
 		return false;
@@ -1182,6 +1182,8 @@ bool avic_hardware_setup(void)
 	x2avic_enabled = boot_cpu_has(X86_FEATURE_X2AVIC);
 	if (x2avic_enabled)
 		pr_info("x2AVIC enabled\n");
+	else
+		svm_x86_ops.allow_apicv_in_x2apic_without_x2apic_virtualization = true;
 
 	/*
 	 * Disable IPI virtualization for AMD Family 17h CPUs (Zen1 and Zen2)
