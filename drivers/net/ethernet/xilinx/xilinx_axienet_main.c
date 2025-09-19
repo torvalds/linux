@@ -238,6 +238,8 @@ static u64 axienet_dma_rate(struct axienet_local *lp)
  *
  * Calculate a control register value based on the coalescing settings. The
  * run/stop bit is not set.
+ *
+ * Return: Control register value with coalescing settings configured.
  */
 static u32 axienet_calc_cr(struct axienet_local *lp, u32 count, u32 usec)
 {
@@ -702,7 +704,8 @@ static void axienet_dma_stop(struct axienet_local *lp)
  * are connected to Axi Ethernet reset lines, this in turn resets the Axi
  * Ethernet core. No separate hardware reset is done for the Axi Ethernet
  * core.
- * Returns 0 on success or a negative error number otherwise.
+ *
+ * Return: 0 on success or a negative error number otherwise.
  */
 static int axienet_device_reset(struct net_device *ndev)
 {
@@ -773,7 +776,8 @@ static int axienet_device_reset(struct net_device *ndev)
  *
  * Would either be called after a successful transmit operation, or after
  * there was an error when setting up the chain.
- * Returns the number of packets handled.
+ *
+ * Return: The number of packets handled.
  */
 static int axienet_free_tx_chain(struct axienet_local *lp, u32 first_bd,
 				 int nr_bds, bool force, u32 *sizep, int budget)
@@ -2112,6 +2116,8 @@ static void axienet_update_coalesce_rx(struct axienet_local *lp, u32 cr,
 /**
  * axienet_dim_coalesce_count_rx() - RX coalesce count for DIM
  * @lp: Device private data
+ *
+ * Return: RX coalescing frame count value for DIM.
  */
 static u32 axienet_dim_coalesce_count_rx(struct axienet_local *lp)
 {
