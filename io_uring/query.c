@@ -88,6 +88,10 @@ int io_query(struct io_ring_ctx *ctx, void __user *arg, unsigned nr_args)
 		if (ret)
 			return ret;
 		uhdr = u64_to_user_ptr(next_hdr);
+
+		if (fatal_signal_pending(current))
+			return -EINTR;
+		cond_resched();
 	}
 	return 0;
 }
