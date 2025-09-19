@@ -264,6 +264,26 @@
 			status = "disabled";
 		};
 
+		spi0: spi@4090000 {
+			compatible = "cdns,spi-r1p6";
+			reg = <0x0 0x04090000 0x0 0x10000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_SPI0_APB>,
+				 <&scmi_clk CLK_TREE_FCH_SPI0_APB>;
+			clock-names = "ref_clk", "pclk";
+			interrupts = <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH 0>;
+			status = "disabled";
+		};
+
+		spi1: spi@40a0000 {
+			compatible = "cdns,spi-r1p6";
+			reg = <0x0 0x040a0000 0x0 0x10000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_SPI1_APB>,
+				 <&scmi_clk CLK_TREE_FCH_SPI1_APB>;
+			clock-names = "ref_clk", "pclk";
+			interrupts = <GIC_SPI 295 IRQ_TYPE_LEVEL_HIGH 0>;
+			status = "disabled";
+		};
+
 		uart0: serial@40b0000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x0 0x040b0000 0x0 0x1000>;
