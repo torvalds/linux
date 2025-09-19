@@ -2218,7 +2218,7 @@ config ARM64_HAFT
 
 endmenu # "ARMv8.9 architectural features"
 
-menu "v9.4 architectural features"
+menu "ARMv9.4 architectural features"
 
 config ARM64_GCS
 	bool "Enable support for Guarded Control Stack (GCS)"
@@ -2237,7 +2237,7 @@ config ARM64_GCS
 	  The feature is detected at runtime, and will remain disabled
 	  if the system does not implement the feature.
 
-endmenu # "v9.4 architectural features"
+endmenu # "ARMv9.4 architectural features"
 
 config ARM64_SVE
 	bool "ARM Scalable Vector Extension support"
