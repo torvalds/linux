@@ -132,13 +132,26 @@ static void guest_test_unsupported_msr(const struct kvm_msr *msr)
 	if (ignore_unsupported_msrs)
 		goto skip_wrmsr_gp;
 
-	if (this_cpu_has(msr->feature2))
-		goto skip_wrmsr_gp;
+	/*
+	 * {S,U}_CET exist if IBT or SHSTK is supported, but with bits that are
+	 * writable only if their associated feature is supported.  Skip the
+	 * RDMSR #GP test if the secondary feature is supported, but perform
+	 * the WRMSR #GP test as the to-be-written value is tied to the primary
+	 * feature.  For all other MSRs, simply do nothing.
+	 */
+	if (this_cpu_has(msr->feature2)) {
+		if  (msr->index != MSR_IA32_U_CET &&
+		     msr->index != MSR_IA32_S_CET)
+			goto skip_wrmsr_gp;
+
+		goto skip_rdmsr_gp;
+	}
 
 	vec = rdmsr_safe(msr->index, &val);
 	__GUEST_ASSERT(vec == GP_VECTOR, "Wanted #GP on RDMSR(0x%x), got %s",
 		       msr->index, ex_str(vec));
 
+skip_rdmsr_gp:
 	vec = wrmsr_safe(msr->index, msr->write_val);
 	__GUEST_ASSERT(vec == GP_VECTOR, "Wanted #GP on WRMSR(0x%x, 0x%lx), got %s",
 		       msr->index, msr->write_val, ex_str(vec));
@@ -276,6 +289,10 @@ static void test_msrs(void)
 		MSR_TEST_CANONICAL(MSR_CSTAR, LM),
 		MSR_TEST(MSR_SYSCALL_MASK, 0xffffffff, 0, LM),
 
+		MSR_TEST2(MSR_IA32_S_CET, CET_SHSTK_EN, CET_RESERVED, SHSTK, IBT),
+		MSR_TEST2(MSR_IA32_S_CET, CET_ENDBR_EN, CET_RESERVED, IBT, SHSTK),
+		MSR_TEST2(MSR_IA32_U_CET, CET_SHSTK_EN, CET_RESERVED, SHSTK, IBT),
+		MSR_TEST2(MSR_IA32_U_CET, CET_ENDBR_EN, CET_RESERVED, IBT, SHSTK),
 		MSR_TEST_CANONICAL(MSR_IA32_PL0_SSP, SHSTK),
 		MSR_TEST(MSR_IA32_PL0_SSP, canonical_val, canonical_val | 1, SHSTK),
 		MSR_TEST_CANONICAL(MSR_IA32_PL1_SSP, SHSTK),
