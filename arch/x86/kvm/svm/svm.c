@@ -2721,8 +2721,8 @@ static int svm_get_feature_msr(u32 msr, u64 *data)
 static bool sev_es_prevent_msr_access(struct kvm_vcpu *vcpu,
 				      struct msr_data *msr_info)
 {
-	return sev_es_guest(vcpu->kvm) &&
-	       vcpu->arch.guest_state_protected &&
+	return sev_es_guest(vcpu->kvm) && vcpu->arch.guest_state_protected &&
+	       msr_info->index != MSR_IA32_XSS &&
 	       !msr_write_intercepted(vcpu, msr_info->index);
 }
 
