@@ -738,8 +738,8 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 		u32 *ins_sizes;
 		int i = 0;
 
-		ins_data = kmalloc(batch.nr * sizeof(u32) +
-				   batch.nr * sizeof(struct btrfs_key), GFP_NOFS);
+		ins_data = kmalloc_array(batch.nr,
+					 sizeof(u32) + sizeof(struct btrfs_key), GFP_NOFS);
 		if (!ins_data) {
 			ret = -ENOMEM;
 			goto out;

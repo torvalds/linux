@@ -4054,8 +4054,7 @@ static int flush_dir_items_batch(struct btrfs_trans_handle *trans,
 		struct btrfs_key *ins_keys;
 		u32 *ins_sizes;
 
-		ins_data = kmalloc(count * sizeof(u32) +
-				   count * sizeof(struct btrfs_key), GFP_NOFS);
+		ins_data = kmalloc_array(count, sizeof(u32) + sizeof(struct btrfs_key), GFP_NOFS);
 		if (!ins_data)
 			return -ENOMEM;
 
@@ -4818,8 +4817,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 
 	src = src_path->nodes[0];
 
-	ins_data = kmalloc(nr * sizeof(struct btrfs_key) +
-			   nr * sizeof(u32), GFP_NOFS);
+	ins_data = kmalloc_array(nr, sizeof(struct btrfs_key) + sizeof(u32), GFP_NOFS);
 	if (!ins_data)
 		return -ENOMEM;
 
@@ -6524,8 +6522,7 @@ static int log_delayed_insertion_items(struct btrfs_trans_handle *trans,
 	if (!first)
 		return 0;
 
-	ins_data = kmalloc(max_batch_size * sizeof(u32) +
-			   max_batch_size * sizeof(struct btrfs_key), GFP_NOFS);
+	ins_data = kmalloc_array(max_batch_size, sizeof(u32) + sizeof(struct btrfs_key), GFP_NOFS);
 	if (!ins_data)
 		return -ENOMEM;
 	ins_sizes = (u32 *)ins_data;
