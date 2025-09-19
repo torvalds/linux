@@ -1694,10 +1694,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 			goto clear_skip_qgroup;
 	}
 
-	key.objectid = objectid;
-	key.type = BTRFS_ROOT_ITEM_KEY;
-	key.offset = (u64)-1;
-
 	rsv = trans->block_rsv;
 	trans->block_rsv = &pending->block_rsv;
 	trans->bytes_reserved = trans->block_rsv->reserved;
@@ -1810,6 +1806,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 
 	btrfs_set_root_node(new_root_item, tmp);
 	/* record when the snapshot was created in key.offset */
+	key.objectid = objectid;
+	key.type = BTRFS_ROOT_ITEM_KEY;
 	key.offset = trans->transid;
 	ret = btrfs_insert_root(trans, tree_root, &key, new_root_item);
 	btrfs_tree_unlock(tmp);
