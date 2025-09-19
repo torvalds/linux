@@ -209,12 +209,6 @@ unsigned int get_smbd_max_read_write_size(struct ksmbd_transport *kt)
 	return sp->max_read_write_size;
 }
 
-static inline int get_buf_page_count(void *buf, int size)
-{
-	return DIV_ROUND_UP((uintptr_t)buf + size, PAGE_SIZE) -
-		(uintptr_t)buf / PAGE_SIZE;
-}
-
 static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 				     struct smbdirect_send_batch *send_ctx,
 				     struct kvec *iov, int niov,
@@ -1000,7 +994,7 @@ static int wait_for_rw_credits(struct smbdirect_socket *sc, int credits)
 static int calc_rw_credits(struct smbdirect_socket *sc,
 			   char *buf, unsigned int len)
 {
-	return DIV_ROUND_UP(get_buf_page_count(buf, len),
+	return DIV_ROUND_UP(smbdirect_get_buf_page_count(buf, len),
 			    sc->rw_io.credits.num_pages);
 }
 
@@ -1077,7 +1071,7 @@ static int get_sg_list(void *buf, int size, struct scatterlist *sg_list, int nen
 	int offset, len;
 	int i = 0;
 
-	if (size <= 0 || nentries < get_buf_page_count(buf, size))
+	if (size <= 0 || nentries < smbdirect_get_buf_page_count(buf, size))
 		return -EINVAL;
 
 	offset = offset_in_page(buf);
@@ -1312,7 +1306,7 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 			v->iov_len = min_t(size_t,
 					   iov[iov_idx].iov_len - iov_ofs,
 					   possible_bytes);
-			page_count = get_buf_page_count(v->iov_base, v->iov_len);
+			page_count = smbdirect_get_buf_page_count(v->iov_base, v->iov_len);
 			if (page_count > possible_vecs) {
 				/*
 				 * If the number of pages in the buffer
@@ -1341,7 +1335,7 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 				size_t elen = min_t(size_t, v->iov_len - fplen, epages*PAGE_SIZE);
 
 				v->iov_len = fplen + elen;
-				page_count = get_buf_page_count(v->iov_base, v->iov_len);
+				page_count = smbdirect_get_buf_page_count(v->iov_base, v->iov_len);
 				if (WARN_ON_ONCE(page_count > possible_vecs)) {
 					/*
 					 * Something went wrong in the above
@@ -1506,7 +1500,7 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t,
 
 		msg->sgt.sgl = &msg->sg_list[0];
 		ret = sg_alloc_table_chained(&msg->sgt,
-					     get_buf_page_count(desc_buf, desc_buf_len),
+					     smbdirect_get_buf_page_count(desc_buf, desc_buf_len),
 					     msg->sg_list, SG_CHUNK_SIZE);
 		if (ret) {
 			ret = -ENOMEM;
@@ -1520,7 +1514,7 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t,
 
 		ret = rdma_rw_ctx_init(&msg->rdma_ctx, sc->ib.qp, sc->ib.qp->port,
 				       msg->sgt.sgl,
-				       get_buf_page_count(desc_buf, desc_buf_len),
+				       smbdirect_get_buf_page_count(desc_buf, desc_buf_len),
 				       0,
 				       le64_to_cpu(desc[i].offset),
 				       le32_to_cpu(desc[i].token),
