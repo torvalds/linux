@@ -50,7 +50,7 @@ static struct uts_namespace *clone_uts_ns(struct user_namespace *user_ns,
 	if (!ns)
 		goto fail_dec;
 
-	err = ns_common_init(&ns->ns, &utsns_operations, true);
+	err = ns_common_init(ns, &utsns_operations);
 	if (err)
 		goto fail_free;
 
@@ -98,7 +98,7 @@ void free_uts_ns(struct uts_namespace *ns)
 	ns_tree_remove(ns);
 	dec_uts_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
-	ns_free_inum(&ns->ns);
+	ns_common_free(ns);
 	/* Concurrent nstree traversal depends on a grace period. */
 	kfree_rcu(ns, ns.ns_rcu);
 }

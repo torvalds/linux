@@ -27,7 +27,7 @@ static struct cgroup_namespace *alloc_cgroup_ns(void)
 	new_ns = kzalloc(sizeof(struct cgroup_namespace), GFP_KERNEL_ACCOUNT);
 	if (!new_ns)
 		return ERR_PTR(-ENOMEM);
-	ret = ns_common_init(&new_ns->ns, &cgroupns_operations, true);
+	ret = ns_common_init(new_ns, &cgroupns_operations);
 	if (ret)
 		return ERR_PTR(ret);
 	ns_tree_add(new_ns);
@@ -40,7 +40,7 @@ void free_cgroup_ns(struct cgroup_namespace *ns)
 	put_css_set(ns->root_cset);
 	dec_cgroup_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
-	ns_free_inum(&ns->ns);
+	ns_common_free(ns);
 	/* Concurrent nstree traversal depends on a grace period. */
 	kfree_rcu(ns, ns.ns_rcu);
 }
