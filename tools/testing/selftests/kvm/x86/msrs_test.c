@@ -303,12 +303,17 @@ static void test_msrs(void)
 		MSR_TEST(MSR_IA32_PL3_SSP, canonical_val, canonical_val | 1, SHSTK),
 	};
 
+	const struct kvm_x86_cpu_feature feat_none = X86_FEATURE_NONE;
+	const struct kvm_x86_cpu_feature feat_lm = X86_FEATURE_LM;
+
 	/*
-	 * Create two vCPUs, but run them on the same task, to validate KVM's
+	 * Create three vCPUs, but run them on the same task, to validate KVM's
 	 * context switching of MSR state.  Don't pin the task to a pCPU to
-	 * also validate KVM's handling of cross-pCPU migration.
+	 * also validate KVM's handling of cross-pCPU migration.  Use the full
+	 * set of features for the first two vCPUs, but clear all features in
+	 * third vCPU in order to test both positive and negative paths.
 	 */
-	const int NR_VCPUS = 2;
+	const int NR_VCPUS = 3;
 	struct kvm_vcpu *vcpus[NR_VCPUS];
 	struct kvm_vm *vm;
 
@@ -322,6 +327,23 @@ static void test_msrs(void)
 
 	sync_global_to_guest(vm, msrs);
 	sync_global_to_guest(vm, ignore_unsupported_msrs);
+
+	/*
+	 * Clear features in the "unsupported features" vCPU.  This needs to be
+	 * done before the first vCPU run as KVM's ABI is that guest CPUID is
+	 * immutable once the vCPU has been run.
+	 */
+	for (idx = 0; idx < ARRAY_SIZE(__msrs); idx++) {
+		/*
+		 * Don't clear LM; selftests are 64-bit only, and KVM doesn't
+		 * honor LM=0 for MSRs that are supposed to exist if and only
+		 * if the vCPU is a 64-bit model.  Ditto for NONE; clearing a
+		 * fake feature flag will result in false failures.
+		 */
+		if (memcmp(&msrs[idx].feature, &feat_lm, sizeof(feat_lm)) &&
+		    memcmp(&msrs[idx].feature, &feat_none, sizeof(feat_none)))
+			vcpu_clear_cpuid_feature(vcpus[2], msrs[idx].feature);
+	}
 
 	for (idx = 0; idx < ARRAY_SIZE(__msrs); idx++) {
 		sync_global_to_guest(vm, idx);
