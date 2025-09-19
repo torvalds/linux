@@ -4330,8 +4330,8 @@ static const struct opcode opcode_table[256] = {
 	I(DstReg | SrcMemFAddr | ModRM | No64 | Src2DS, em_lseg),
 	G(ByteOp, group11), G(0, group11),
 	/* 0xC8 - 0xCF */
-	I(Stack | SrcImmU16 | Src2ImmByte | IsBranch, em_enter),
-	I(Stack | IsBranch, em_leave),
+	I(Stack | SrcImmU16 | Src2ImmByte, em_enter),
+	I(Stack, em_leave),
 	I(ImplicitOps | SrcImmU16 | IsBranch, em_ret_far_imm),
 	I(ImplicitOps | IsBranch, em_ret_far),
 	D(ImplicitOps | IsBranch), DI(SrcImmByte | IsBranch, intn),
