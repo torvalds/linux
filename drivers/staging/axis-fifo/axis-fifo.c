@@ -128,8 +128,6 @@ struct axis_fifo {
 	struct mutex read_lock; /* lock for reading */
 	wait_queue_head_t write_queue; /* wait queue for asynchronos write */
 	struct mutex write_lock; /* lock for writing */
-	unsigned int write_flags; /* write file flags */
-	unsigned int read_flags; /* read file flags */
 
 	struct device *dt_device; /* device created from the device tree */
 	struct miscdevice miscdev;
@@ -186,7 +184,7 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 	int ret;
 	u32 tmp_buf[READ_BUF_SIZE];
 
-	if (fifo->read_flags & O_NONBLOCK) {
+	if (f->f_flags & O_NONBLOCK) {
 		/*
 		 * Device opened in non-blocking mode. Try to lock it and then
 		 * check if any packet is available.
@@ -328,7 +326,7 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 	if (words_to_write > (fifo->tx_fifo_depth - 4))
 		return -EINVAL;
 
-	if (fifo->write_flags & O_NONBLOCK) {
+	if (f->f_flags & O_NONBLOCK) {
 		/*
 		 * Device opened in non-blocking mode. Try to lock it and then
 		 * check if there is any room to write the given buffer.
@@ -425,27 +423,15 @@ static int axis_fifo_open(struct inode *inod, struct file *f)
 {
 	struct axis_fifo *fifo = container_of(f->private_data,
 					      struct axis_fifo, miscdev);
+	unsigned int flags = f->f_flags & O_ACCMODE;
+
 	f->private_data = fifo;
 
-	if (((f->f_flags & O_ACCMODE) == O_WRONLY) ||
-	    ((f->f_flags & O_ACCMODE) == O_RDWR)) {
-		if (fifo->has_tx_fifo) {
-			fifo->write_flags = f->f_flags;
-		} else {
-			dev_err(fifo->dt_device, "tried to open device for write but the transmit fifo is disabled\n");
-			return -EPERM;
-		}
-	}
+	if ((flags == O_WRONLY || flags == O_RDWR) && !fifo->has_tx_fifo)
+		return -EPERM;
 
-	if (((f->f_flags & O_ACCMODE) == O_RDONLY) ||
-	    ((f->f_flags & O_ACCMODE) == O_RDWR)) {
-		if (fifo->has_rx_fifo) {
-			fifo->read_flags = f->f_flags;
-		} else {
-			dev_err(fifo->dt_device, "tried to open device for read but the receive fifo is disabled\n");
-			return -EPERM;
-		}
-	}
+	if ((flags == O_RDONLY || flags == O_RDWR) && !fifo->has_rx_fifo)
+		return -EPERM;
 
 	return 0;
 }
