@@ -329,13 +329,13 @@ restart:
 					     TCPF_NEW_SYN_RECV))
 				continue;
 
-			if (refcount_read(&sock_net(sk)->ns.count))
+			if (check_net(sock_net(sk)))
 				continue;
 
 			if (unlikely(!refcount_inc_not_zero(&sk->sk_refcnt)))
 				continue;
 
-			if (refcount_read(&sock_net(sk)->ns.count)) {
+			if (check_net(sock_net(sk))) {
 				sock_gen_put(sk);
 				goto restart;
 			}

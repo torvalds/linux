@@ -315,7 +315,7 @@ int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
 {
 	int id;
 
-	if (refcount_read(&net->ns.count) == 0)
+	if (!check_net(net))
 		return NETNSA_NSID_NOT_ASSIGNED;
 
 	spin_lock(&net->nsid_lock);

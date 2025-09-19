@@ -29,7 +29,7 @@ struct ns_common {
 	struct dentry *stashed;
 	const struct proc_ns_operations *ops;
 	unsigned int inum;
-	refcount_t count;
+	refcount_t __ns_ref; /* do not use directly */
 	union {
 		struct {
 			u64 ns_id;
@@ -43,16 +43,24 @@ struct ns_common {
 int __ns_common_init(struct ns_common *ns, const struct proc_ns_operations *ops, int inum);
 void __ns_common_free(struct ns_common *ns);
 
-#define to_ns_common(__ns)                              \
-	_Generic((__ns),                                \
-		struct cgroup_namespace *: &(__ns)->ns, \
-		struct ipc_namespace *:    &(__ns)->ns, \
-		struct mnt_namespace *:    &(__ns)->ns, \
-		struct net *:              &(__ns)->ns, \
-		struct pid_namespace *:    &(__ns)->ns, \
-		struct time_namespace *:   &(__ns)->ns, \
-		struct user_namespace *:   &(__ns)->ns, \
-		struct uts_namespace *:    &(__ns)->ns)
+#define to_ns_common(__ns)                                    \
+	_Generic((__ns),                                      \
+		struct cgroup_namespace *:       &(__ns)->ns, \
+		const struct cgroup_namespace *: &(__ns)->ns, \
+		struct ipc_namespace *:          &(__ns)->ns, \
+		const struct ipc_namespace *:    &(__ns)->ns, \
+		struct mnt_namespace *:          &(__ns)->ns, \
+		const struct mnt_namespace *:    &(__ns)->ns, \
+		struct net *:                    &(__ns)->ns, \
+		const struct net *:              &(__ns)->ns, \
+		struct pid_namespace *:          &(__ns)->ns, \
+		const struct pid_namespace *:    &(__ns)->ns, \
+		struct time_namespace *:         &(__ns)->ns, \
+		const struct time_namespace *:   &(__ns)->ns, \
+		struct user_namespace *:         &(__ns)->ns, \
+		const struct user_namespace *:   &(__ns)->ns, \
+		struct uts_namespace *:          &(__ns)->ns, \
+		const struct uts_namespace *:    &(__ns)->ns)
 
 #define ns_init_inum(__ns)                                     \
 	_Generic((__ns),                                       \
@@ -82,5 +90,22 @@ void __ns_common_free(struct ns_common *ns);
 #define ns_common_init_inum(__ns, __ops, __inum) __ns_common_init(to_ns_common(__ns), __ops, __inum)
 
 #define ns_common_free(__ns) __ns_common_free(to_ns_common((__ns)))
+
+static __always_inline __must_check bool __ns_ref_put(struct ns_common *ns)
+{
+	return refcount_dec_and_test(&ns->__ns_ref);
+}
+
+static __always_inline __must_check bool __ns_ref_get(struct ns_common *ns)
+{
+	return refcount_inc_not_zero(&ns->__ns_ref);
+}
+
+#define ns_ref_read(__ns) refcount_read(&to_ns_common((__ns))->__ns_ref)
+#define ns_ref_inc(__ns) refcount_inc(&to_ns_common((__ns))->__ns_ref)
+#define ns_ref_get(__ns) __ns_ref_get(to_ns_common((__ns)))
+#define ns_ref_put(__ns) __ns_ref_put(to_ns_common((__ns)))
+#define ns_ref_put_and_lock(__ns, __lock) \
+	refcount_dec_and_lock(&to_ns_common((__ns))->__ns_ref, (__lock))
 
 #endif

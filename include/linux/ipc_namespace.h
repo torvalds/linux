@@ -140,14 +140,14 @@ extern struct ipc_namespace *copy_ipcs(unsigned long flags,
 static inline struct ipc_namespace *get_ipc_ns(struct ipc_namespace *ns)
 {
 	if (ns)
-		refcount_inc(&ns->ns.count);
+		ns_ref_inc(ns);
 	return ns;
 }
 
 static inline struct ipc_namespace *get_ipc_ns_not_zero(struct ipc_namespace *ns)
 {
 	if (ns) {
-		if (refcount_inc_not_zero(&ns->ns.count))
+		if (ns_ref_get(ns))
 			return ns;
 	}
 

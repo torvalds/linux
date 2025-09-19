@@ -5,7 +5,7 @@
 
 int __ns_common_init(struct ns_common *ns, const struct proc_ns_operations *ops, int inum)
 {
-	refcount_set(&ns->count, 1);
+	refcount_set(&ns->__ns_ref, 1);
 	ns->stashed = NULL;
 	ns->ops = ops;
 	ns->ns_id = 0;

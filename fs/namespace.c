@@ -2110,7 +2110,7 @@ struct mnt_namespace *get_sequential_mnt_ns(struct mnt_namespace *mntns, bool pr
 		 * the mount namespace and it might already be on its
 		 * deathbed.
 		 */
-		if (!refcount_inc_not_zero(&mntns->ns.count))
+		if (!ns_ref_get(mntns))
 			continue;
 
 		return mntns;
@@ -6015,7 +6015,7 @@ struct mnt_namespace init_mnt_ns = {
 	.ns.inum	= PROC_MNT_INIT_INO,
 	.ns.ops		= &mntns_operations,
 	.user_ns	= &init_user_ns,
-	.ns.count	= REFCOUNT_INIT(1),
+	.ns.__ns_ref	= REFCOUNT_INIT(1),
 	.passive	= REFCOUNT_INIT(1),
 	.mounts		= RB_ROOT,
 	.poll		= __WAIT_QUEUE_HEAD_INITIALIZER(init_mnt_ns.poll),
@@ -6084,7 +6084,7 @@ void __init mnt_init(void)
 
 void put_mnt_ns(struct mnt_namespace *ns)
 {
-	if (!refcount_dec_and_test(&ns->ns.count))
+	if (!ns_ref_put(ns))
 		return;
 	namespace_lock();
 	emptied_ns = ns;

@@ -912,7 +912,7 @@ static void tcp_metrics_flush_all(struct net *net)
 		spin_lock_bh(&tcp_metrics_lock);
 		for (tm = deref_locked(*pp); tm; tm = deref_locked(*pp)) {
 			match = net ? net_eq(tm_net(tm), net) :
-				!refcount_read(&tm_net(tm)->ns.count);
+				!check_net(tm_net(tm));
 			if (match) {
 				rcu_assign_pointer(*pp, tm->tcpm_next);
 				kfree_rcu(tm, rcu_head);
