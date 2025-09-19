@@ -2515,7 +2515,8 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	compute_trialcs_excpus(trialcs, cs);
 	trialcs->prs_err = PERR_NONE;
 
-	if (cpus_allowed_validate_change(cs, trialcs, &tmp) < 0)
+	retval = cpus_allowed_validate_change(cs, trialcs, &tmp);
+	if (retval < 0)
 		goto out_free;
 
 	/*
