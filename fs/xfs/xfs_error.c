@@ -19,7 +19,7 @@
 #define XFS_ERRTAG(_tag, _name, _default) \
 	[XFS_ERRTAG_##_tag]	= (_default),
 #include "xfs_errortag.h"
-static unsigned int xfs_errortag_random_default[] = { XFS_ERRTAGS };
+static const unsigned int xfs_errortag_random_default[] = { XFS_ERRTAGS };
 #undef XFS_ERRTAG
 
 struct xfs_errortag_attr {
