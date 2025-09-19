@@ -3100,6 +3100,16 @@ static bool is_l1_noncanonical_address_on_vmexit(u64 la, struct vmcs12 *vmcs12)
 	return !__is_canonical_address(la, l1_address_bits_on_exit);
 }
 
+static int nested_vmx_check_cet_state_common(struct kvm_vcpu *vcpu, u64 s_cet,
+					     u64 ssp, u64 ssp_tbl)
+{
+	if (CC(!kvm_is_valid_u_s_cet(vcpu, s_cet)) || CC(!IS_ALIGNED(ssp, 4)) ||
+	    CC(is_noncanonical_msr_address(ssp_tbl, vcpu)))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
 				       struct vmcs12 *vmcs12)
 {
@@ -3167,6 +3177,27 @@ static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
 		    CC(ia32e != !!(vmcs12->host_ia32_efer & EFER_LMA)) ||
 		    CC(ia32e != !!(vmcs12->host_ia32_efer & EFER_LME)))
 			return -EINVAL;
+	}
+
+	if (vmcs12->vm_exit_controls & VM_EXIT_LOAD_CET_STATE) {
+		if (nested_vmx_check_cet_state_common(vcpu, vmcs12->host_s_cet,
+						      vmcs12->host_ssp,
+						      vmcs12->host_ssp_tbl))
+			return -EINVAL;
+
+		/*
+		 * IA32_S_CET and SSP must be canonical if the host will
+		 * enter 64-bit mode after VM-exit; otherwise, higher
+		 * 32-bits must be all 0s.
+		 */
+		if (ia32e) {
+			if (CC(is_noncanonical_msr_address(vmcs12->host_s_cet, vcpu)) ||
+			    CC(is_noncanonical_msr_address(vmcs12->host_ssp, vcpu)))
+				return -EINVAL;
+		} else {
+			if (CC(vmcs12->host_s_cet >> 32) || CC(vmcs12->host_ssp >> 32))
+				return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -3278,6 +3309,23 @@ static int nested_vmx_check_guest_state(struct kvm_vcpu *vcpu,
 	    (CC(is_noncanonical_msr_address(vmcs12->guest_bndcfgs & PAGE_MASK, vcpu)) ||
 	     CC((vmcs12->guest_bndcfgs & MSR_IA32_BNDCFGS_RSVD))))
 		return -EINVAL;
+
+	if (vmcs12->vm_entry_controls & VM_ENTRY_LOAD_CET_STATE) {
+		if (nested_vmx_check_cet_state_common(vcpu, vmcs12->guest_s_cet,
+						      vmcs12->guest_ssp,
+						      vmcs12->guest_ssp_tbl))
+			return -EINVAL;
+
+		/*
+		 * Guest SSP must have 63:N bits identical, rather than
+		 * be canonical (i.e., 63:N-1 bits identical), where N is
+		 * the CPU's maximum linear-address width. Similar to
+		 * is_noncanonical_msr_address(), use the host's
+		 * linear-address width.
+		 */
+		if (CC(!__is_canonical_address(vmcs12->guest_ssp, max_host_virt_addr_bits() + 1)))
+			return -EINVAL;
+	}
 
 	if (nested_check_guest_non_reg_state(vmcs12))
 		return -EINVAL;
