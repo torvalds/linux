@@ -53,6 +53,14 @@ properties:
 
   dma-coherent: true
 
+  dr_mode:
+    enum:
+      - host
+      - otg
+
+  iommus:
+    maxItems: 1
+
   power-domains:
     maxItems: 1
 
