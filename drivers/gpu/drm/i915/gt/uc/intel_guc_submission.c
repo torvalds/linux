@@ -25,15 +25,15 @@
 #include "gt/intel_mocs.h"
 #include "gt/intel_ring.h"
 
+#include "i915_drv.h"
+#include "i915_irq.h"
+#include "i915_reg.h"
+#include "i915_trace.h"
+#include "i915_wait_util.h"
 #include "intel_guc_ads.h"
 #include "intel_guc_capture.h"
 #include "intel_guc_print.h"
 #include "intel_guc_submission.h"
-
-#include "i915_drv.h"
-#include "i915_reg.h"
-#include "i915_irq.h"
-#include "i915_trace.h"
 
 /**
  * DOC: GuC-based command submission

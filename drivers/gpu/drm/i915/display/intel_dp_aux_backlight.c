@@ -508,9 +508,6 @@ static void intel_dp_aux_vesa_disable_backlight(const struct drm_connector_state
 	struct intel_panel *panel = &connector->panel;
 	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
 
-	if (panel->backlight.edp.vesa.luminance_control_support)
-		return;
-
 	drm_edp_backlight_disable(&intel_dp->aux, &panel->backlight.edp.vesa.info);
 
 	if (!panel->backlight.edp.vesa.info.aux_enable)
@@ -533,7 +530,7 @@ static int intel_dp_aux_vesa_setup_backlight(struct intel_connector *connector, 
 				     luminance_range->max_luminance,
 				     panel->vbt.backlight.pwm_freq_hz,
 				     intel_dp->edp_dpcd, &current_level, &current_mode,
-				     false);
+				     panel->backlight.edp.vesa.luminance_control_support);
 	if (ret < 0)
 		return ret;
 

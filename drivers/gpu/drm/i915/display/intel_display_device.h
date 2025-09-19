@@ -306,6 +306,7 @@ struct intel_display_device_info {
 	} color;
 };
 
+bool intel_display_device_present(struct intel_display *display);
 bool intel_display_device_enabled(struct intel_display *display);
 struct intel_display *intel_display_device_probe(struct pci_dev *pdev);
 void intel_display_device_remove(struct intel_display *display);

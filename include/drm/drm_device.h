@@ -193,16 +193,6 @@ struct drm_device {
 	char *unique;
 
 	/**
-	 * @struct_mutex:
-	 *
-	 * Lock for others (not &drm_minor.master and &drm_file.is_master)
-	 *
-	 * TODO: This lock used to be the BKL of the DRM subsystem. Move the
-	 *       lock into i915, which is the only remaining user.
-	 */
-	struct mutex struct_mutex;
-
-	/**
 	 * @master_mutex:
 	 *
 	 * Lock for &drm_minor.master and &drm_file.is_master

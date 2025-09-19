@@ -210,6 +210,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	display/xe_dsb_buffer.o \
 	display/xe_fb_pin.o \
 	display/xe_hdcp_gsc.o \
+	display/xe_panic.o \
 	display/xe_plane_initial.o \
 	display/xe_tdf.o
 
