@@ -196,7 +196,7 @@ test_span_gre_forbidden_egress()
 
 	bridge vlan add dev $swp3 vid 555
 	# Re-prime FDB
-	$ARPING -I br1.555 192.0.2.130 -fqc 1
+	$ARPING -I br1.555 -fqc 1 192.0.2.130
 	sleep 1
 	quick_test_span_gre_dir $tundev
 
@@ -290,7 +290,7 @@ test_span_gre_fdb_roaming()
 
 	bridge fdb del dev $swp2 $h3mac vlan 555 master 2>/dev/null
 	# Re-prime FDB
-	$ARPING -I br1.555 192.0.2.130 -fqc 1
+	$ARPING -I br1.555 -fqc 1 192.0.2.130
 	sleep 1
 	quick_test_span_gre_dir $tundev
 
