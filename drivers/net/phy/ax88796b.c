@@ -112,9 +112,8 @@ static struct phy_driver asix_driver[] = {
 	.resume		= genphy_resume,
 	.soft_reset	= asix_soft_reset,
 }, {
-	.phy_id		= PHY_ID_ASIX_AX88796B,
+	PHY_ID_MATCH_MODEL(PHY_ID_ASIX_AX88796B),
 	.name		= "Asix Electronics AX88796B",
-	.phy_id_mask	= 0xfffffff0,
 	/* PHY_BASIC_FEATURES */
 	.soft_reset	= asix_soft_reset,
 } };
@@ -124,7 +123,7 @@ module_phy_driver(asix_driver);
 static const struct mdio_device_id __maybe_unused asix_tbl[] = {
 	{ PHY_ID_MATCH_EXACT(PHY_ID_ASIX_AX88772A) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_ASIX_AX88772C) },
-	{ PHY_ID_ASIX_AX88796B, 0xfffffff0 },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_ASIX_AX88796B) },
 	{ }
 };
 
