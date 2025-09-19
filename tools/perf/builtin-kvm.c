@@ -1636,16 +1636,6 @@ exit:
 	return ret;
 }
 
-#define STRDUP_FAIL_EXIT(s)		\
-	({	char *_p;		\
-		_p = strdup(s);		\
-		if (!_p) {		\
-			ret = -ENOMEM;	\
-			goto EXIT;	\
-		}			\
-		_p;			\
-	})
-
 int __weak setup_kvm_events_tp(struct perf_kvm_stat *kvm __maybe_unused)
 {
 	return 0;
