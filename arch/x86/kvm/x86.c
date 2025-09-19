@@ -6016,9 +6016,27 @@ struct kvm_x86_reg_id {
 	__u8  x86;
 };
 
-static int kvm_translate_kvm_reg(struct kvm_x86_reg_id *reg)
+static int kvm_translate_kvm_reg(struct kvm_vcpu *vcpu,
+				 struct kvm_x86_reg_id *reg)
 {
-	return -EINVAL;
+	switch (reg->index) {
+	case KVM_REG_GUEST_SSP:
+		/*
+		 * FIXME: If host-initiated accesses are ever exempted from
+		 * ignore_msrs (in kvm_do_msr_access()), drop this manual check
+		 * and rely on KVM's standard checks to reject accesses to regs
+		 * that don't exist.
+		 */
+		if (!guest_cpu_cap_has(vcpu, X86_FEATURE_SHSTK))
+			return -EINVAL;
+
+		reg->type = KVM_X86_REG_TYPE_MSR;
+		reg->index = MSR_KVM_INTERNAL_GUEST_SSP;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
 }
 
 static int kvm_get_one_msr(struct kvm_vcpu *vcpu, u32 msr, u64 __user *user_val)
@@ -6067,7 +6085,7 @@ static int kvm_get_set_one_reg(struct kvm_vcpu *vcpu, unsigned int ioctl,
 		return -EINVAL;
 
 	if (reg->type == KVM_X86_REG_TYPE_KVM) {
-		r = kvm_translate_kvm_reg(reg);
+		r = kvm_translate_kvm_reg(vcpu, reg);
 		if (r)
 			return r;
 	}
@@ -6098,9 +6116,20 @@ static int kvm_get_set_one_reg(struct kvm_vcpu *vcpu, unsigned int ioctl,
 static int kvm_get_reg_list(struct kvm_vcpu *vcpu,
 			    struct kvm_reg_list __user *user_list)
 {
-	u64 nr_regs = 0;
+	u64 nr_regs = guest_cpu_cap_has(vcpu, X86_FEATURE_SHSTK) ? 1 : 0;
+	u64 user_nr_regs;
+
+	if (get_user(user_nr_regs, &user_list->n))
+		return -EFAULT;
 
 	if (put_user(nr_regs, &user_list->n))
+		return -EFAULT;
+
+	if (user_nr_regs < nr_regs)
+		return -E2BIG;
+
+	if (nr_regs &&
+	    put_user(KVM_X86_REG_KVM(KVM_REG_GUEST_SSP), &user_list->reg[0]))
 		return -EFAULT;
 
 	return 0;

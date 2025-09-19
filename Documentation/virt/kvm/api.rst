@@ -2911,6 +2911,14 @@ such as set vcpu counter or reset vcpu, and they have the following id bit patte
 x86 MSR registers have the following id bit patterns::
   0x2030 0002 <msr number:32>
 
+Following are the KVM-defined registers for x86:
+
+======================= ========= =============================================
+    Encoding            Register  Description
+======================= ========= =============================================
+  0x2030 0003 0000 0000 SSP       Shadow Stack Pointer
+======================= ========= =============================================
+
 4.69 KVM_GET_ONE_REG
 --------------------
 

@@ -437,6 +437,9 @@ struct kvm_xcrs {
 #define KVM_X86_REG_KVM(index)					\
 	KVM_X86_REG_ID(KVM_X86_REG_TYPE_KVM, index)
 
+/* KVM-defined registers starting from 0 */
+#define KVM_REG_GUEST_SSP	0
+
 #define KVM_SYNC_X86_REGS      (1UL << 0)
 #define KVM_SYNC_X86_SREGS     (1UL << 1)
 #define KVM_SYNC_X86_EVENTS    (1UL << 2)
