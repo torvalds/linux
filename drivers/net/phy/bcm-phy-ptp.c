@@ -738,6 +738,7 @@ static const struct ptp_clock_info bcm_ptp_clock_info = {
 	.n_per_out	= 1,
 	.n_ext_ts	= 1,
 	.supported_perout_flags = PTP_PEROUT_DUTY_CYCLE,
+	.supported_extts_flags = PTP_STRICT_FLAGS | PTP_RISING_EDGE,
 };
 
 static void bcm_ptp_txtstamp(struct mii_timestamper *mii_ts,
