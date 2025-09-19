@@ -3219,6 +3219,20 @@ static inline int vmx_get_current_vpid(struct kvm_vcpu *vcpu)
 	return to_vmx(vcpu)->vpid;
 }
 
+u64 construct_eptp(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_level)
+{
+	u64 eptp = VMX_EPTP_MT_WB;
+
+	eptp |= (root_level == 5) ? VMX_EPTP_PWL_5 : VMX_EPTP_PWL_4;
+
+	if (enable_ept_ad_bits &&
+	    (!is_guest_mode(vcpu) || nested_ept_ad_enabled(vcpu)))
+		eptp |= VMX_EPTP_AD_ENABLE_BIT;
+	eptp |= root_hpa;
+
+	return eptp;
+}
+
 void vmx_flush_tlb_current(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
@@ -3394,20 +3408,6 @@ static int vmx_get_max_ept_level(void)
 	if (cpu_has_vmx_ept_5levels())
 		return 5;
 	return 4;
-}
-
-u64 construct_eptp(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_level)
-{
-	u64 eptp = VMX_EPTP_MT_WB;
-
-	eptp |= (root_level == 5) ? VMX_EPTP_PWL_5 : VMX_EPTP_PWL_4;
-
-	if (enable_ept_ad_bits &&
-	    (!is_guest_mode(vcpu) || nested_ept_ad_enabled(vcpu)))
-		eptp |= VMX_EPTP_AD_ENABLE_BIT;
-	eptp |= root_hpa;
-
-	return eptp;
 }
 
 void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_level)
