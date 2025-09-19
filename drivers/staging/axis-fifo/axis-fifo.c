@@ -496,30 +496,14 @@ static void axis_fifo_debugfs_init(struct axis_fifo *fifo)
 			    &axis_fifo_debugfs_regs_fops);
 }
 
-/* read named property from the device tree */
-static int get_dts_property(struct axis_fifo *fifo,
-			    char *name, unsigned int *var)
-{
-	int rc;
-
-	rc = of_property_read_u32(fifo->dt_device->of_node, name, var);
-	if (rc) {
-		dev_err(fifo->dt_device, "couldn't read IP dts property '%s'",
-			name);
-		return rc;
-	}
-	dev_dbg(fifo->dt_device, "dts property '%s' = %u\n",
-		name, *var);
-
-	return 0;
-}
-
 static int axis_fifo_parse_dt(struct axis_fifo *fifo)
 {
 	int ret;
 	unsigned int value;
+	struct device_node *node = fifo->dt_device->of_node;
 
-	ret = get_dts_property(fifo, "xlnx,axi-str-rxd-tdata-width", &value);
+	ret = of_property_read_u32(node, "xlnx,axi-str-rxd-tdata-width",
+				   &value);
 	if (ret) {
 		dev_err(fifo->dt_device, "missing xlnx,axi-str-rxd-tdata-width property\n");
 		goto end;
@@ -529,7 +513,8 @@ static int axis_fifo_parse_dt(struct axis_fifo *fifo)
 		goto end;
 	}
 
-	ret = get_dts_property(fifo, "xlnx,axi-str-txd-tdata-width", &value);
+	ret = of_property_read_u32(node, "xlnx,axi-str-txd-tdata-width",
+				   &value);
 	if (ret) {
 		dev_err(fifo->dt_device, "missing xlnx,axi-str-txd-tdata-width property\n");
 		goto end;
@@ -539,30 +524,32 @@ static int axis_fifo_parse_dt(struct axis_fifo *fifo)
 		goto end;
 	}
 
-	ret = get_dts_property(fifo, "xlnx,rx-fifo-depth",
-			       &fifo->rx_fifo_depth);
+	ret = of_property_read_u32(node, "xlnx,rx-fifo-depth",
+				   &fifo->rx_fifo_depth);
 	if (ret) {
 		dev_err(fifo->dt_device, "missing xlnx,rx-fifo-depth property\n");
 		ret = -EIO;
 		goto end;
 	}
 
-	ret = get_dts_property(fifo, "xlnx,tx-fifo-depth",
-			       &fifo->tx_fifo_depth);
+	ret = of_property_read_u32(node, "xlnx,tx-fifo-depth",
+				   &fifo->tx_fifo_depth);
 	if (ret) {
 		dev_err(fifo->dt_device, "missing xlnx,tx-fifo-depth property\n");
 		ret = -EIO;
 		goto end;
 	}
 
-	ret = get_dts_property(fifo, "xlnx,use-rx-data", &fifo->has_rx_fifo);
+	ret = of_property_read_u32(node, "xlnx,use-rx-data",
+				   &fifo->has_rx_fifo);
 	if (ret) {
 		dev_err(fifo->dt_device, "missing xlnx,use-rx-data property\n");
 		ret = -EIO;
 		goto end;
 	}
 
-	ret = get_dts_property(fifo, "xlnx,use-tx-data", &fifo->has_tx_fifo);
+	ret = of_property_read_u32(node, "xlnx,use-tx-data",
+				   &fifo->has_tx_fifo);
 	if (ret) {
 		dev_err(fifo->dt_device, "missing xlnx,use-tx-data property\n");
 		ret = -EIO;
