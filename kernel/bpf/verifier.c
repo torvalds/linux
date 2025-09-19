@@ -2979,7 +2979,7 @@ static int cmp_subprogs(const void *a, const void *b)
 }
 
 /* Find subprogram that contains instruction at 'off' */
-static struct bpf_subprog_info *find_containing_subprog(struct bpf_verifier_env *env, int off)
+struct bpf_subprog_info *bpf_find_containing_subprog(struct bpf_verifier_env *env, int off)
 {
 	struct bpf_subprog_info *vals = env->subprog_info;
 	int l, r, m;
@@ -3004,7 +3004,7 @@ static int find_subprog(struct bpf_verifier_env *env, int off)
 {
 	struct bpf_subprog_info *p;
 
-	p = find_containing_subprog(env, off);
+	p = bpf_find_containing_subprog(env, off);
 	if (!p || p->start != off)
 		return -ENOENT;
 	return p - env->subprog_info;
@@ -4211,7 +4211,7 @@ static void fmt_reg_mask(char *buf, ssize_t buf_sz, u32 reg_mask)
 	}
 }
 /* format stack slots bitmask, e.g., "-8,-24,-40" for 0x15 mask */
-static void fmt_stack_mask(char *buf, ssize_t buf_sz, u64 stack_mask)
+void bpf_fmt_stack_mask(char *buf, ssize_t buf_sz, u64 stack_mask)
 {
 	DECLARE_BITMAP(mask, 64);
 	bool first = true;
@@ -4266,8 +4266,6 @@ static void bt_sync_linked_regs(struct backtrack_state *bt, struct bpf_jmp_histo
 	}
 }
 
-static bool calls_callback(struct bpf_verifier_env *env, int insn_idx);
-
 /* For given verifier state backtrack_insn() is called from the last insn to
  * the first insn. Its purpose is to compute a bitmask of registers and
  * stack slots that needs precision in the parent verifier state.
@@ -4294,7 +4292,7 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
 		fmt_reg_mask(env->tmp_str_buf, TMP_STR_BUF_LEN, bt_reg_mask(bt));
 		verbose(env, "mark_precise: frame%d: regs=%s ",
 			bt->frame, env->tmp_str_buf);
-		fmt_stack_mask(env->tmp_str_buf, TMP_STR_BUF_LEN, bt_stack_mask(bt));
+		bpf_fmt_stack_mask(env->tmp_str_buf, TMP_STR_BUF_LEN, bt_stack_mask(bt));
 		verbose(env, "stack=%s before ", env->tmp_str_buf);
 		verbose(env, "%d: ", idx);
 		verbose_insn(env, insn);
@@ -4495,7 +4493,7 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
 			 * backtracking, as these registers are set by the function
 			 * invoking callback.
 			 */
-			if (subseq_idx >= 0 && calls_callback(env, subseq_idx))
+			if (subseq_idx >= 0 && bpf_calls_callback(env, subseq_idx))
 				for (i = BPF_REG_1; i <= BPF_REG_5; i++)
 					bt_clear_reg(bt, i);
 			if (bt_reg_mask(bt) & BPF_REGMASK_ARGS) {
@@ -4934,7 +4932,7 @@ static int __mark_chain_precision(struct bpf_verifier_env *env,
 					     bt_frame_reg_mask(bt, fr));
 				verbose(env, "mark_precise: frame%d: parent state regs=%s ",
 					fr, env->tmp_str_buf);
-				fmt_stack_mask(env->tmp_str_buf, TMP_STR_BUF_LEN,
+				bpf_fmt_stack_mask(env->tmp_str_buf, TMP_STR_BUF_LEN,
 					       bt_frame_stack_mask(bt, fr));
 				verbose(env, "stack=%s: ", env->tmp_str_buf);
 				print_verifier_state(env, st, fr, true);
@@ -11023,7 +11021,7 @@ static int prepare_func_exit(struct bpf_verifier_env *env, int *insn_idx)
 					       "At callback return", "R0");
 			return -EINVAL;
 		}
-		if (!calls_callback(env, callee->callsite)) {
+		if (!bpf_calls_callback(env, callee->callsite)) {
 			verifier_bug(env, "in callback at %d, callsite %d !calls_callback",
 				     *insn_idx, callee->callsite);
 			return -EFAULT;
@@ -17298,7 +17296,7 @@ static void mark_subprog_changes_pkt_data(struct bpf_verifier_env *env, int off)
 {
 	struct bpf_subprog_info *subprog;
 
-	subprog = find_containing_subprog(env, off);
+	subprog = bpf_find_containing_subprog(env, off);
 	subprog->changes_pkt_data = true;
 }
 
@@ -17306,7 +17304,7 @@ static void mark_subprog_might_sleep(struct bpf_verifier_env *env, int off)
 {
 	struct bpf_subprog_info *subprog;
 
-	subprog = find_containing_subprog(env, off);
+	subprog = bpf_find_containing_subprog(env, off);
 	subprog->might_sleep = true;
 }
 
@@ -17320,8 +17318,8 @@ static void merge_callee_effects(struct bpf_verifier_env *env, int t, int w)
 {
 	struct bpf_subprog_info *caller, *callee;
 
-	caller = find_containing_subprog(env, t);
-	callee = find_containing_subprog(env, w);
+	caller = bpf_find_containing_subprog(env, t);
+	callee = bpf_find_containing_subprog(env, w);
 	caller->changes_pkt_data |= callee->changes_pkt_data;
 	caller->might_sleep |= callee->might_sleep;
 }
@@ -17391,7 +17389,7 @@ static void mark_calls_callback(struct bpf_verifier_env *env, int idx)
 	env->insn_aux_data[idx].calls_callback = true;
 }
 
-static bool calls_callback(struct bpf_verifier_env *env, int insn_idx)
+bool bpf_calls_callback(struct bpf_verifier_env *env, int insn_idx)
 {
 	return env->insn_aux_data[insn_idx].calls_callback;
 }
@@ -19439,7 +19437,7 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 					goto hit;
 				}
 			}
-			if (calls_callback(env, insn_idx)) {
+			if (bpf_calls_callback(env, insn_idx)) {
 				if (states_equal(env, &sl->state, cur, RANGE_WITHIN))
 					goto hit;
 				goto skip_inf_loop_check;
@@ -24171,7 +24169,7 @@ static bool can_jump(struct bpf_insn *insn)
 	return false;
 }
 
-static int insn_successors(struct bpf_prog *prog, u32 idx, u32 succ[2])
+int bpf_insn_successors(struct bpf_prog *prog, u32 idx, u32 succ[2])
 {
 	struct bpf_insn *insn = &prog->insnsi[idx];
 	int i = 0, insn_sz;
@@ -24387,7 +24385,7 @@ static int compute_live_registers(struct bpf_verifier_env *env)
 			u16 new_out = 0;
 			u16 new_in = 0;
 
-			succ_num = insn_successors(env->prog, insn_idx, succ);
+			succ_num = bpf_insn_successors(env->prog, insn_idx, succ);
 			for (int s = 0; s < succ_num; ++s)
 				new_out |= state[succ[s]].in;
 			new_in = (new_out & ~live->def) | live->use;
@@ -24556,7 +24554,7 @@ dfs_continue:
 				stack[stack_sz++] = w;
 			}
 			/* Visit 'w' successors */
-			succ_cnt = insn_successors(env->prog, w, succ);
+			succ_cnt = bpf_insn_successors(env->prog, w, succ);
 			for (j = 0; j < succ_cnt; ++j) {
 				if (pre[succ[j]]) {
 					low[w] = min(low[w], low[succ[j]]);
