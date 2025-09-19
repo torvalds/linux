@@ -117,7 +117,6 @@ MODULE_PARM_DESC(write_timeout, "ms to wait before blocking write() timing out; 
 
 struct axis_fifo {
 	int id;
-	int irq; /* interrupt */
 	void __iomem *base_addr; /* kernel space memory */
 
 	unsigned int rx_fifo_depth; /* max words in the receive fifo */
@@ -581,6 +580,7 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	struct axis_fifo *fifo = NULL;
 	char *device_name;
 	int rc = 0; /* error return value */
+	int irq;
 
 	/* ----------------------------
 	 *     init wrapper device
@@ -634,17 +634,16 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	 */
 
 	/* get IRQ resource */
-	rc = platform_get_irq(pdev, 0);
-	if (rc < 0)
-		return rc;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	/* request IRQ */
-	fifo->irq = rc;
-	rc = devm_request_irq(fifo->dt_device, fifo->irq, &axis_fifo_irq, 0,
+	rc = devm_request_irq(fifo->dt_device, irq, &axis_fifo_irq, 0,
 			      DRIVER_NAME, fifo);
 	if (rc) {
 		dev_err(fifo->dt_device, "couldn't allocate interrupt %i\n",
-			fifo->irq);
+			irq);
 		return rc;
 	}
 
