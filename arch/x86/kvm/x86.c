@@ -12175,6 +12175,25 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
 	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
 	int ret;
 
+	if (kvm_is_cr4_bit_set(vcpu, X86_CR4_CET)) {
+		u64 u_cet, s_cet;
+
+		/*
+		 * Check both User and Supervisor on task switches as inter-
+		 * privilege level task switches are impacted by CET at both
+		 * the current privilege level and the new privilege level, and
+		 * that information is not known at this time.  The expectation
+		 * is that the guest won't require emulation of task switches
+		 * while using IBT or Shadow Stacks.
+		 */
+		if (__kvm_emulate_msr_read(vcpu, MSR_IA32_U_CET, &u_cet) ||
+		    __kvm_emulate_msr_read(vcpu, MSR_IA32_S_CET, &s_cet))
+			goto unhandled_task_switch;
+
+		if ((u_cet | s_cet) & (CET_ENDBR_EN | CET_SHSTK_EN))
+			goto unhandled_task_switch;
+	}
+
 	init_emulate_ctxt(vcpu);
 
 	ret = emulator_task_switch(ctxt, tss_selector, idt_index, reason,
@@ -12184,17 +12203,19 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
 	 * Report an error userspace if MMIO is needed, as KVM doesn't support
 	 * MMIO during a task switch (or any other complex operation).
 	 */
-	if (ret || vcpu->mmio_needed) {
-		vcpu->mmio_needed = false;
-		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
-		vcpu->run->internal.ndata = 0;
-		return 0;
-	}
+	if (ret || vcpu->mmio_needed)
+		goto unhandled_task_switch;
 
 	kvm_rip_write(vcpu, ctxt->eip);
 	kvm_set_rflags(vcpu, ctxt->eflags);
 	return 1;
+
+unhandled_task_switch:
+	vcpu->mmio_needed = false;
+	vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+	vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
+	vcpu->run->internal.ndata = 0;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_task_switch);
 
