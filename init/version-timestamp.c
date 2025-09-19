@@ -18,7 +18,7 @@ struct uts_namespace init_uts_ns = {
 		.domainname	= UTS_DOMAINNAME,
 	},
 	.user_ns = &init_user_ns,
-	.ns.inum = PROC_UTS_INIT_INO,
+	.ns.inum = ns_init_inum(&init_uts_ns),
 #ifdef CONFIG_UTS_NS
 	.ns.ops = &utsns_operations,
 #endif

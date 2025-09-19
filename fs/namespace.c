@@ -6012,7 +6012,7 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 }
 
 struct mnt_namespace init_mnt_ns = {
-	.ns.inum	= PROC_MNT_INIT_INO,
+	.ns.inum	= ns_init_inum(&init_mnt_ns),
 	.ns.ops		= &mntns_operations,
 	.user_ns	= &init_user_ns,
 	.ns.__ns_ref	= REFCOUNT_INIT(1),

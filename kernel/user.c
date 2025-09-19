@@ -68,7 +68,7 @@ struct user_namespace init_user_ns = {
 	.ns.__ns_ref = REFCOUNT_INIT(3),
 	.owner = GLOBAL_ROOT_UID,
 	.group = GLOBAL_ROOT_GID,
-	.ns.inum = PROC_USER_INIT_INO,
+	.ns.inum = ns_init_inum(&init_user_ns),
 #ifdef CONFIG_USER_NS
 	.ns.ops = &userns_operations,
 #endif
