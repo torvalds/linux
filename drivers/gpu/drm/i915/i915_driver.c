@@ -1162,9 +1162,8 @@ static int i915_drm_suspend_noirq(struct drm_device *dev, bool hibernation)
 	 * pci_save_state() prevents drivers/pci from
 	 * automagically putting the device into D3.
 	 */
-	pci_save_state(pdev);
-	if (!(hibernation && GRAPHICS_VER(dev_priv) < 6))
-		pci_set_power_state(pdev, PCI_D3hot);
+	if (hibernation && GRAPHICS_VER(dev_priv) < 6)
+		pci_save_state(pdev);
 
 	return 0;
 }
@@ -1172,6 +1171,7 @@ static int i915_drm_suspend_noirq(struct drm_device *dev, bool hibernation)
 int i915_driver_suspend_switcheroo(struct drm_i915_private *i915,
 				   pm_message_t state)
 {
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	int error;
 
 	if (drm_WARN_ON_ONCE(&i915->drm, state.event != PM_EVENT_SUSPEND &&
@@ -1189,9 +1189,8 @@ int i915_driver_suspend_switcheroo(struct drm_i915_private *i915,
 	if (error)
 		return error;
 
-	error = i915_drm_suspend_noirq(&i915->drm, false);
-	if (error)
-		return error;
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
 }
