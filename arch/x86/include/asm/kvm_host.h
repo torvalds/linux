@@ -267,6 +267,7 @@ enum x86_intercept_stage;
 #define PFERR_RSVD_MASK		BIT(3)
 #define PFERR_FETCH_MASK	BIT(4)
 #define PFERR_PK_MASK		BIT(5)
+#define PFERR_SS_MASK		BIT(6)
 #define PFERR_SGX_MASK		BIT(15)
 #define PFERR_GUEST_RMP_MASK	BIT_ULL(31)
 #define PFERR_GUEST_FINAL_MASK	BIT_ULL(32)
