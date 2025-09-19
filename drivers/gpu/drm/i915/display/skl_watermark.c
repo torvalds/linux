@@ -3256,7 +3256,7 @@ adjust_wm_latency(struct intel_display *display)
 	 * to avoid any underrun.
 	 */
 	if (need_16gb_dimm_wa(display))
-		wm[0] += 1;
+		increase_wm_latency(display, 1);
 }
 
 static void mtl_read_wm_latency(struct intel_display *display)
