@@ -238,7 +238,6 @@ struct tcp_sock {
 	/* RX read-mostly hotpath cache lines */
 	__cacheline_group_begin(tcp_sock_read_rx);
 	u32	copied_seq;	/* Head of yet unread data */
-	u32	rcv_tstamp;	/* timestamp of last received ACK (for keepalives) */
 	u32	snd_wl1;	/* Sequence for window update		*/
 	u32	tlp_high_seq;	/* snd_nxt at the time of TLP */
 	u32	rttvar_us;	/* smoothed mdev_max			*/
@@ -246,13 +245,13 @@ struct tcp_sock {
 	u16	advmss;		/* Advertised MSS			*/
 	u16	urg_data;	/* Saved octet of OOB data and control flags */
 	u32	lost;		/* Total data packets lost incl. rexmits */
+	u32	snd_ssthresh;	/* Slow start size threshold		*/
 	struct  minmax rtt_min;
 	/* OOO segments go in this rbtree. Socket lock must be held. */
 	struct rb_root	out_of_order_queue;
 #if defined(CONFIG_TLS_DEVICE)
 	void (*tcp_clean_acked)(struct sock *sk, u32 acked_seq);
 #endif
-	u32	snd_ssthresh;	/* Slow start size threshold		*/
 	u8	recvmsg_inq : 1;/* Indicate # of bytes in queue upon recvmsg */
 	__cacheline_group_end(tcp_sock_read_rx);
 
@@ -319,6 +318,7 @@ struct tcp_sock {
 					*/
 	u32	app_limited;	/* limited until "delivered" reaches this val */
 	u32	rcv_wnd;	/* Current receiver window		*/
+	u32	rcv_tstamp;	/* timestamp of last received ACK (for keepalives) */
 /*
  *      Options received (usually on last packet, some only on SYN packets).
  */
