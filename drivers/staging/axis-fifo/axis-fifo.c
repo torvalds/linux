@@ -88,16 +88,8 @@
 #define XLLF_INT_TC_MASK          0x08000000 /* Transmit complete */
 #define XLLF_INT_RC_MASK          0x04000000 /* Receive complete */
 #define XLLF_INT_TSE_MASK         0x02000000 /* Transmit length mismatch */
-#define XLLF_INT_TRC_MASK         0x01000000 /* Transmit reset complete */
-#define XLLF_INT_RRC_MASK         0x00800000 /* Receive reset complete */
-#define XLLF_INT_TFPF_MASK        0x00400000 /* Tx FIFO Programmable Full */
-#define XLLF_INT_TFPE_MASK        0x00200000 /* Tx FIFO Programmable Empty */
-#define XLLF_INT_RFPF_MASK        0x00100000 /* Rx FIFO Programmable Full */
-#define XLLF_INT_RFPE_MASK        0x00080000 /* Rx FIFO Programmable Empty */
-#define XLLF_INT_ALL_MASK         0xfff80000 /* All the ints */
-#define XLLF_INT_ERROR_MASK       0xf2000000 /* Error status ints */
-#define XLLF_INT_RXERROR_MASK     0xe0000000 /* Receive Error status ints */
-#define XLLF_INT_TXERROR_MASK     0x12000000 /* Transmit Error status ints */
+
+#define XLLF_INT_CLEAR_ALL	GENMASK(31, 0)
 
 /* ----------------------------
  *           globals
@@ -165,7 +157,7 @@ static void reset_ip_core(struct axis_fifo *fifo)
 		  XLLF_INT_RPORE_MASK | XLLF_INT_RPUE_MASK |
 		  XLLF_INT_TPOE_MASK | XLLF_INT_TSE_MASK,
 		  fifo->base_addr + XLLF_IER_OFFSET);
-	iowrite32(XLLF_INT_ALL_MASK, fifo->base_addr + XLLF_ISR_OFFSET);
+	iowrite32(XLLF_INT_CLEAR_ALL, fifo->base_addr + XLLF_ISR_OFFSET);
 }
 
 /**
@@ -396,106 +388,36 @@ end_unlock:
 
 static irqreturn_t axis_fifo_irq(int irq, void *dw)
 {
-	struct axis_fifo *fifo = (struct axis_fifo *)dw;
-	unsigned int pending_interrupts;
+	struct axis_fifo *fifo = dw;
+	u32 isr, ier, intr;
 
-	do {
-		pending_interrupts = ioread32(fifo->base_addr +
-					      XLLF_IER_OFFSET) &
-					      ioread32(fifo->base_addr
-					      + XLLF_ISR_OFFSET);
-		if (pending_interrupts & XLLF_INT_RC_MASK) {
-			/* packet received */
+	ier = ioread32(fifo->base_addr + XLLF_IER_OFFSET);
+	isr = ioread32(fifo->base_addr + XLLF_ISR_OFFSET);
+	intr = ier & isr;
 
-			/* wake the reader process if it is waiting */
-			wake_up(&fifo->read_queue);
+	if (intr & XLLF_INT_RC_MASK)
+		wake_up(&fifo->read_queue);
 
-			/* clear interrupt */
-			iowrite32(XLLF_INT_RC_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_TC_MASK) {
-			/* packet sent */
+	if (intr & XLLF_INT_TC_MASK)
+		wake_up(&fifo->write_queue);
 
-			/* wake the writer process if it is waiting */
-			wake_up(&fifo->write_queue);
+	if (intr & XLLF_INT_RPURE_MASK)
+		dev_err(fifo->dt_device, "receive under-read interrupt\n");
 
-			iowrite32(XLLF_INT_TC_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_TFPF_MASK) {
-			/* transmit fifo programmable full */
+	if (intr & XLLF_INT_RPORE_MASK)
+		dev_err(fifo->dt_device, "receive over-read interrupt\n");
 
-			iowrite32(XLLF_INT_TFPF_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_TFPE_MASK) {
-			/* transmit fifo programmable empty */
+	if (intr & XLLF_INT_RPUE_MASK)
+		dev_err(fifo->dt_device, "receive underrun error interrupt\n");
 
-			iowrite32(XLLF_INT_TFPE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_RFPF_MASK) {
-			/* receive fifo programmable full */
+	if (intr & XLLF_INT_TPOE_MASK)
+		dev_err(fifo->dt_device, "transmit overrun error interrupt\n");
 
-			iowrite32(XLLF_INT_RFPF_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_RFPE_MASK) {
-			/* receive fifo programmable empty */
+	if (intr & XLLF_INT_TSE_MASK)
+		dev_err(fifo->dt_device,
+			"transmit length mismatch error interrupt\n");
 
-			iowrite32(XLLF_INT_RFPE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_TRC_MASK) {
-			/* transmit reset complete interrupt */
-
-			iowrite32(XLLF_INT_TRC_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_RRC_MASK) {
-			/* receive reset complete interrupt */
-
-			iowrite32(XLLF_INT_RRC_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_RPURE_MASK) {
-			/* receive fifo under-read error interrupt */
-			dev_err(fifo->dt_device,
-				"receive under-read interrupt\n");
-
-			iowrite32(XLLF_INT_RPURE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_RPORE_MASK) {
-			/* receive over-read error interrupt */
-			dev_err(fifo->dt_device,
-				"receive over-read interrupt\n");
-
-			iowrite32(XLLF_INT_RPORE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_RPUE_MASK) {
-			/* receive underrun error interrupt */
-			dev_err(fifo->dt_device,
-				"receive underrun error interrupt\n");
-
-			iowrite32(XLLF_INT_RPUE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_TPOE_MASK) {
-			/* transmit overrun error interrupt */
-			dev_err(fifo->dt_device,
-				"transmit overrun error interrupt\n");
-
-			iowrite32(XLLF_INT_TPOE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_TSE_MASK) {
-			/* transmit length mismatch error interrupt */
-			dev_err(fifo->dt_device,
-				"transmit length mismatch error interrupt\n");
-
-			iowrite32(XLLF_INT_TSE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts) {
-			/* unknown interrupt type */
-			dev_err(fifo->dt_device,
-				"unknown interrupt(s) 0x%x\n",
-				pending_interrupts);
-
-			iowrite32(XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		}
-	} while (pending_interrupts);
+	iowrite32(XLLF_INT_CLEAR_ALL, fifo->base_addr + XLLF_ISR_OFFSET);
 
 	return IRQ_HANDLED;
 }
