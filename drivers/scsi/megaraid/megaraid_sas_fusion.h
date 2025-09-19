@@ -1150,9 +1150,13 @@ typedef struct LOG_BLOCK_SPAN_INFO {
 } LD_SPAN_INFO, *PLD_SPAN_INFO;
 
 struct MR_FW_RAID_MAP_ALL {
-	struct MR_FW_RAID_MAP raidMap;
-	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES];
+	/* Must be last --ends in a flexible-array member. */
+	TRAILING_OVERLAP(struct MR_FW_RAID_MAP, raidMap, ldSpanMap,
+		struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES];
+	);
 } __attribute__ ((packed));
+static_assert(offsetof(struct MR_FW_RAID_MAP_ALL, raidMap.ldSpanMap) ==
+	      offsetof(struct MR_FW_RAID_MAP_ALL, ldSpanMap));
 
 struct MR_DRV_RAID_MAP {
 	/* total size of this structure, including this field.
@@ -1194,10 +1198,13 @@ struct MR_DRV_RAID_MAP {
  * And it is mainly for code re-use purpose.
  */
 struct MR_DRV_RAID_MAP_ALL {
-
-	struct MR_DRV_RAID_MAP raidMap;
-	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES_DYN];
+	/* Must be last --ends in a flexible-array member. */
+	TRAILING_OVERLAP(struct MR_DRV_RAID_MAP, raidMap, ldSpanMap,
+		struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES_DYN];
+	);
 } __packed;
+static_assert(offsetof(struct MR_DRV_RAID_MAP_ALL, raidMap.ldSpanMap) ==
+	      offsetof(struct MR_DRV_RAID_MAP_ALL, ldSpanMap));
 
 
 
