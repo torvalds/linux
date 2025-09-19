@@ -1493,7 +1493,7 @@ choice
 config CPU_BIG_ENDIAN
 	bool "Build big-endian kernel"
 	# https://github.com/llvm/llvm-project/commit/1379b150991f70a5782e9a143c2ba5308da1161c
-	depends on AS_IS_GNU || AS_VERSION >= 150000
+	depends on (AS_IS_GNU || AS_VERSION >= 150000) && BROKEN
 	help
 	  Say Y if you plan on running a kernel with a big-endian userspace.
 
