@@ -968,8 +968,8 @@ static const struct drm_crtc_funcs pixpaper_crtc_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
-static int pixpaper_mode_valid(struct drm_crtc *crtc,
-			       const struct drm_display_mode *mode)
+static enum drm_mode_status
+pixpaper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 {
 	if (mode->hdisplay == PIXPAPER_WIDTH &&
 	    mode->vdisplay == PIXPAPER_HEIGHT) {
