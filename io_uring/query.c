@@ -6,6 +6,7 @@
 #include "io_uring.h"
 
 #define IO_MAX_QUERY_SIZE		(sizeof(struct io_uring_query_opcode))
+#define IO_MAX_QUERY_ENTRIES		1000
 
 static ssize_t io_query_ops(void *data)
 {
@@ -74,7 +75,7 @@ int io_query(struct io_ring_ctx *ctx, void __user *arg, unsigned nr_args)
 {
 	char entry_buffer[IO_MAX_QUERY_SIZE];
 	void __user *uhdr = arg;
-	int ret;
+	int ret, nr = 0;
 
 	memset(entry_buffer, 0, sizeof(entry_buffer));
 
@@ -89,6 +90,9 @@ int io_query(struct io_ring_ctx *ctx, void __user *arg, unsigned nr_args)
 			return ret;
 		uhdr = u64_to_user_ptr(next_hdr);
 
+		/* Have some limit to avoid a potential cycle */
+		if (++nr >= IO_MAX_QUERY_ENTRIES)
+			return -ERANGE;
 		if (fatal_signal_pending(current))
 			return -EINTR;
 		cond_resched();
