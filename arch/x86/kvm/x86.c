@@ -8741,6 +8741,15 @@ static int emulator_set_msr_with_filter(struct x86_emulate_ctxt *ctxt,
 static int emulator_get_msr(struct x86_emulate_ctxt *ctxt,
 			    u32 msr_index, u64 *pdata)
 {
+	/*
+	 * Treat emulator accesses to the current shadow stack pointer as host-
+	 * initiated, as they aren't true MSR accesses (SSP is a "just a reg"),
+	 * and this API is used only for implicit accesses, i.e. not RDMSR, and
+	 * so the index is fully KVM-controlled.
+	 */
+	if (unlikely(msr_index == MSR_KVM_INTERNAL_GUEST_SSP))
+		return kvm_msr_read(emul_to_vcpu(ctxt), msr_index, pdata);
+
 	return __kvm_emulate_msr_read(emul_to_vcpu(ctxt), msr_index, pdata);
 }
 

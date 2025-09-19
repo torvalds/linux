@@ -1554,6 +1554,37 @@ static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	return linear_write_system(ctxt, addr, desc, sizeof(*desc));
 }
 
+static bool emulator_is_ssp_invalid(struct x86_emulate_ctxt *ctxt, u8 cpl)
+{
+	const u32 MSR_IA32_X_CET = cpl == 3 ? MSR_IA32_U_CET : MSR_IA32_S_CET;
+	u64 efer = 0, cet = 0, ssp = 0;
+
+	if (!(ctxt->ops->get_cr(ctxt, 4) & X86_CR4_CET))
+		return false;
+
+	if (ctxt->ops->get_msr(ctxt, MSR_EFER, &efer))
+		return true;
+
+	/* SSP is guaranteed to be valid if the vCPU was already in 32-bit mode. */
+	if (!(efer & EFER_LMA))
+		return false;
+
+	if (ctxt->ops->get_msr(ctxt, MSR_IA32_X_CET, &cet))
+		return true;
+
+	if (!(cet & CET_SHSTK_EN))
+		return false;
+
+	if (ctxt->ops->get_msr(ctxt, MSR_KVM_INTERNAL_GUEST_SSP, &ssp))
+		return true;
+
+	/*
+	 * On transfer from 64-bit mode to compatibility mode, SSP[63:32] must
+	 * be 0, i.e. SSP must be a 32-bit value outside of 64-bit mode.
+	 */
+	return ssp >> 32;
+}
+
 static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 				     u16 selector, int seg, u8 cpl,
 				     enum x86_transfer_type transfer,
@@ -1693,6 +1724,10 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 			ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
 			if (efer & EFER_LMA)
 				goto exception;
+		}
+		if (!seg_desc.l && emulator_is_ssp_invalid(ctxt, cpl)) {
+			err_code = 0;
+			goto exception;
 		}
 
 		/* CS(RPL) <- CPL */
