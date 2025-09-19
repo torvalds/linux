@@ -31,7 +31,7 @@ static struct x86_pmu_capability __read_mostly kvm_host_pmu;
 
 /* KVM's PMU capabilities, i.e. the intersection of KVM and hardware support. */
 struct x86_pmu_capability __read_mostly kvm_pmu_cap;
-EXPORT_SYMBOL_GPL(kvm_pmu_cap);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_pmu_cap);
 
 struct kvm_pmu_emulated_event_selectors {
 	u64 INSTRUCTIONS_RETIRED;
@@ -373,7 +373,7 @@ void pmc_write_counter(struct kvm_pmc *pmc, u64 val)
 	pmc->counter &= pmc_bitmask(pmc);
 	pmc_update_sample_period(pmc);
 }
-EXPORT_SYMBOL_GPL(pmc_write_counter);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(pmc_write_counter);
 
 static int filter_cmp(const void *pa, const void *pb, u64 mask)
 {
@@ -581,7 +581,7 @@ void kvm_pmu_recalc_pmc_emulation(struct kvm_pmu *pmu, struct kvm_pmc *pmc)
 	if (pmc_is_event_match(pmc, kvm_pmu_eventsel.BRANCH_INSTRUCTIONS_RETIRED))
 		bitmap_set(pmu->pmc_counting_branches, pmc->idx, 1);
 }
-EXPORT_SYMBOL_GPL(kvm_pmu_recalc_pmc_emulation);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_pmu_recalc_pmc_emulation);
 
 void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 {
@@ -996,13 +996,13 @@ void kvm_pmu_instruction_retired(struct kvm_vcpu *vcpu)
 {
 	kvm_pmu_trigger_event(vcpu, vcpu_to_pmu(vcpu)->pmc_counting_instructions);
 }
-EXPORT_SYMBOL_GPL(kvm_pmu_instruction_retired);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_pmu_instruction_retired);
 
 void kvm_pmu_branch_retired(struct kvm_vcpu *vcpu)
 {
 	kvm_pmu_trigger_event(vcpu, vcpu_to_pmu(vcpu)->pmc_counting_branches);
 }
-EXPORT_SYMBOL_GPL(kvm_pmu_branch_retired);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_pmu_branch_retired);
 
 static bool is_masked_filter_valid(const struct kvm_x86_pmu_event_filter *filter)
 {
