@@ -8597,6 +8597,13 @@ __init int vmx_hardware_setup(void)
 
 	setup_default_sgx_lepubkeyhash();
 
+	vmx_set_cpu_caps();
+
+	/*
+	 * Configure nested capabilities after core CPU capabilities so that
+	 * nested support can be conditional on base support, e.g. so that KVM
+	 * can hide/show features based on kvm_cpu_cap_has().
+	 */
 	if (nested) {
 		nested_vmx_setup_ctls_msrs(&vmcs_config, vmx_capability.ept);
 
@@ -8604,8 +8611,6 @@ __init int vmx_hardware_setup(void)
 		if (r)
 			return r;
 	}
-
-	vmx_set_cpu_caps();
 
 	r = alloc_kvm_area();
 	if (r && nested)
