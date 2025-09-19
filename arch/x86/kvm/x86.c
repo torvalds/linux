@@ -4735,6 +4735,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_IRQFD_RESAMPLE:
 	case KVM_CAP_MEMORY_FAULT_INFO:
 	case KVM_CAP_X86_GUEST_MODE:
+	case KVM_CAP_ONE_REG:
 		r = 1;
 		break;
 	case KVM_CAP_PRE_FAULT_MEMORY:
@@ -5913,6 +5914,98 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 	}
 }
 
+struct kvm_x86_reg_id {
+	__u32 index;
+	__u8  type;
+	__u8  rsvd1;
+	__u8  rsvd2:4;
+	__u8  size:4;
+	__u8  x86;
+};
+
+static int kvm_translate_kvm_reg(struct kvm_x86_reg_id *reg)
+{
+	return -EINVAL;
+}
+
+static int kvm_get_one_msr(struct kvm_vcpu *vcpu, u32 msr, u64 __user *user_val)
+{
+	u64 val;
+
+	if (do_get_msr(vcpu, msr, &val))
+		return -EINVAL;
+
+	if (put_user(val, user_val))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int kvm_set_one_msr(struct kvm_vcpu *vcpu, u32 msr, u64 __user *user_val)
+{
+	u64 val;
+
+	if (get_user(val, user_val))
+		return -EFAULT;
+
+	if (do_set_msr(vcpu, msr, &val))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int kvm_get_set_one_reg(struct kvm_vcpu *vcpu, unsigned int ioctl,
+			       void __user *argp)
+{
+	struct kvm_one_reg one_reg;
+	struct kvm_x86_reg_id *reg;
+	u64 __user *user_val;
+	int r;
+
+	if (copy_from_user(&one_reg, argp, sizeof(one_reg)))
+		return -EFAULT;
+
+	if ((one_reg.id & KVM_REG_ARCH_MASK) != KVM_REG_X86)
+		return -EINVAL;
+
+	reg = (struct kvm_x86_reg_id *)&one_reg.id;
+	if (reg->rsvd1 || reg->rsvd2)
+		return -EINVAL;
+
+	if (reg->type == KVM_X86_REG_TYPE_KVM) {
+		r = kvm_translate_kvm_reg(reg);
+		if (r)
+			return r;
+	}
+
+	if (reg->type != KVM_X86_REG_TYPE_MSR)
+		return -EINVAL;
+
+	if ((one_reg.id & KVM_REG_SIZE_MASK) != KVM_REG_SIZE_U64)
+		return -EINVAL;
+
+	guard(srcu)(&vcpu->kvm->srcu);
+
+	user_val = u64_to_user_ptr(one_reg.addr);
+	if (ioctl == KVM_GET_ONE_REG)
+		r = kvm_get_one_msr(vcpu, reg->index, user_val);
+	else
+		r = kvm_set_one_msr(vcpu, reg->index, user_val);
+
+	return r;
+}
+
+static int kvm_get_reg_list(struct kvm_vcpu *vcpu,
+			    struct kvm_reg_list __user *user_list)
+{
+	u64 nr_regs = 0;
+
+	if (put_user(nr_regs, &user_list->n))
+		return -EFAULT;
+
+	return 0;
+}
+
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg)
 {
@@ -6029,6 +6122,13 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		break;
 	}
+	case KVM_GET_ONE_REG:
+	case KVM_SET_ONE_REG:
+		r = kvm_get_set_one_reg(vcpu, ioctl, argp);
+		break;
+	case KVM_GET_REG_LIST:
+		r = kvm_get_reg_list(vcpu, argp);
+		break;
 	case KVM_TPR_ACCESS_REPORTING: {
 		struct kvm_tpr_access_ctl tac;
 

@@ -2908,6 +2908,8 @@ such as set vcpu counter or reset vcpu, and they have the following id bit patte
 
   0x9030 0000 0002 <reg:16>
 
+x86 MSR registers have the following id bit patterns::
+  0x2030 0002 <msr number:32>
 
 4.69 KVM_GET_ONE_REG
 --------------------
@@ -3588,7 +3590,7 @@ VCPU matching underlying host.
 ---------------------
 
 :Capability: basic
-:Architectures: arm64, mips, riscv
+:Architectures: arm64, mips, riscv, x86 (if KVM_CAP_ONE_REG)
 :Type: vcpu ioctl
 :Parameters: struct kvm_reg_list (in/out)
 :Returns: 0 on success; -1 on error
@@ -3631,6 +3633,8 @@ Note that s390 does not support KVM_GET_REG_LIST for historical reasons
 
 - KVM_REG_S390_GBEA
 
+Note, for x86, all MSRs enumerated by KVM_GET_MSR_INDEX_LIST are supported as
+type KVM_X86_REG_TYPE_MSR, but are NOT enumerated via KVM_GET_REG_LIST.
 
 4.85 KVM_ARM_SET_DEVICE_ADDR (deprecated)
 -----------------------------------------
