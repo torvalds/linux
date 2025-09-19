@@ -6,6 +6,7 @@
 #include "linux/bitmap.h"
 #include "test_util.h"
 #include "kvm_util.h"
+#include "pmu.h"
 #include "processor.h"
 #include "sev.h"
 
@@ -638,6 +639,7 @@ void kvm_arch_vm_post_create(struct kvm_vm *vm)
 	sync_global_to_guest(vm, host_cpu_is_intel);
 	sync_global_to_guest(vm, host_cpu_is_amd);
 	sync_global_to_guest(vm, is_forced_emulation_enabled);
+	sync_global_to_guest(vm, pmu_errata_mask);
 
 	if (is_sev_vm(vm)) {
 		struct kvm_sev_init init = { 0 };
@@ -1269,6 +1271,8 @@ void kvm_selftest_arch_init(void)
 	host_cpu_is_intel = this_cpu_is_intel();
 	host_cpu_is_amd = this_cpu_is_amd();
 	is_forced_emulation_enabled = kvm_is_forced_emulation_enabled();
+
+	kvm_init_pmu_errata();
 }
 
 bool sys_clocksource_is_based_on_tsc(void)

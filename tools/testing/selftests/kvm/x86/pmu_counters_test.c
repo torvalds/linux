@@ -163,10 +163,18 @@ static void guest_assert_event_count(uint8_t idx, uint32_t pmc, uint32_t pmc_msr
 
 	switch (idx) {
 	case INTEL_ARCH_INSTRUCTIONS_RETIRED_INDEX:
-		GUEST_ASSERT_EQ(count, NUM_INSNS_RETIRED);
+		/* Relax precise count check due to VM-EXIT/VM-ENTRY overcount issue */
+		if (this_pmu_has_errata(INSTRUCTIONS_RETIRED_OVERCOUNT))
+			GUEST_ASSERT(count >= NUM_INSNS_RETIRED);
+		else
+			GUEST_ASSERT_EQ(count, NUM_INSNS_RETIRED);
 		break;
 	case INTEL_ARCH_BRANCHES_RETIRED_INDEX:
-		GUEST_ASSERT_EQ(count, NUM_BRANCH_INSNS_RETIRED);
+		/* Relax precise count check due to VM-EXIT/VM-ENTRY overcount issue */
+		if (this_pmu_has_errata(BRANCHES_RETIRED_OVERCOUNT))
+			GUEST_ASSERT(count >= NUM_BRANCH_INSNS_RETIRED);
+		else
+			GUEST_ASSERT_EQ(count, NUM_BRANCH_INSNS_RETIRED);
 		break;
 	case INTEL_ARCH_LLC_REFERENCES_INDEX:
 	case INTEL_ARCH_LLC_MISSES_INDEX:
