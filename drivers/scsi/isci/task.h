@@ -85,15 +85,17 @@ struct isci_tmf {
 
 	struct completion *complete;
 	enum sas_protocol proto;
+	unsigned char lun[8];
+	u16 io_tag;
+	enum isci_tmf_function_codes tmf_code;
+	int status;
+
+	/* Must be last --ends in a flexible-array member. */
 	union {
 		struct ssp_response_iu resp_iu;
 		struct dev_to_host_fis d2h_fis;
 		u8 rsp_buf[SSP_RESP_IU_MAX_SIZE];
 	} resp;
-	unsigned char lun[8];
-	u16 io_tag;
-	enum isci_tmf_function_codes tmf_code;
-	int status;
 };
 
 static inline void isci_print_tmf(struct isci_host *ihost, struct isci_tmf *tmf)
