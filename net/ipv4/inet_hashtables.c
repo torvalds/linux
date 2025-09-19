@@ -739,11 +739,14 @@ static int inet_reuseport_add_sock(struct sock *sk,
 	return reuseport_alloc(sk, inet_rcv_saddr_any(sk));
 }
 
-int __inet_hash(struct sock *sk)
+int inet_hash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = tcp_get_hashinfo(sk);
 	struct inet_listen_hashbucket *ilb2;
 	int err = 0;
+
+	if (sk->sk_state == TCP_CLOSE)
+		return 0;
 
 	if (sk->sk_state != TCP_LISTEN) {
 		local_bh_disable();
@@ -772,17 +775,7 @@ unlock:
 
 	return err;
 }
-EXPORT_IPV6_MOD(__inet_hash);
-
-int inet_hash(struct sock *sk)
-{
-	int err = 0;
-
-	if (sk->sk_state != TCP_CLOSE)
-		err = __inet_hash(sk);
-
-	return err;
-}
+EXPORT_IPV6_MOD(inet_hash);
 
 void inet_unhash(struct sock *sk)
 {
