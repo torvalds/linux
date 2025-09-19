@@ -982,6 +982,16 @@ void kvm_set_cpu_caps(void)
 		F(FLUSH_L1D),
 	);
 
+	/*
+	 * Disable support for IBT and SHSTK if KVM is configured to emulate
+	 * accesses to reserved GPAs, as KVM's emulator doesn't support IBT or
+	 * SHSTK, nor does KVM handle Shadow Stack #PFs (see above).
+	 */
+	if (allow_smaller_maxphyaddr) {
+		kvm_cpu_cap_clear(X86_FEATURE_SHSTK);
+		kvm_cpu_cap_clear(X86_FEATURE_IBT);
+	}
+
 	if (boot_cpu_has(X86_FEATURE_AMD_IBPB_RET) &&
 	    boot_cpu_has(X86_FEATURE_AMD_IBPB) &&
 	    boot_cpu_has(X86_FEATURE_AMD_IBRS))
