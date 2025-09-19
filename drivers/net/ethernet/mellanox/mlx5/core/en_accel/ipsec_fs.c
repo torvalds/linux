@@ -61,6 +61,7 @@ struct mlx5e_ipsec_rx {
 	struct mlx5_flow_table *pol_miss_ft;
 	struct mlx5_flow_handle *pol_miss_rule;
 	u8 allow_tunnel_mode : 1;
+	u8 ttc_rules_added : 1;
 };
 
 /* IPsec RX flow steering */
@@ -585,6 +586,20 @@ out:
 	return err;
 }
 
+static struct mlx5_flow_destination
+ipsec_rx_decrypted_pkt_def_dest(struct mlx5_ttc_table *ttc, u32 family)
+{
+	struct mlx5_flow_destination dest;
+
+	if (!mlx5_ttc_has_esp_flow_group(ttc))
+		return mlx5_ttc_get_default_dest(ttc, family2tt(family));
+
+	dest.ft = mlx5_get_ttc_flow_table(ttc);
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+
+	return dest;
+}
+
 static void ipsec_rx_update_default_dest(struct mlx5e_ipsec_rx *rx,
 					 struct mlx5_flow_destination *old_dest,
 					 struct mlx5_flow_destination *new_dest)
@@ -598,10 +613,10 @@ static void handle_ipsec_rx_bringup(struct mlx5e_ipsec *ipsec, u32 family)
 {
 	struct mlx5e_ipsec_rx *rx = ipsec_rx(ipsec, family, XFRM_DEV_OFFLOAD_PACKET);
 	struct mlx5_flow_namespace *ns = mlx5e_fs_get_ns(ipsec->fs, false);
+	struct mlx5_ttc_table *ttc = mlx5e_fs_get_ttc(ipsec->fs, false);
 	struct mlx5_flow_destination old_dest, new_dest;
 
-	old_dest = mlx5_ttc_get_default_dest(mlx5e_fs_get_ttc(ipsec->fs, false),
-					     family2tt(family));
+	old_dest = ipsec_rx_decrypted_pkt_def_dest(ttc, family);
 
 	mlx5_ipsec_fs_roce_rx_create(ipsec->mdev, ipsec->roce, ns, &old_dest, family,
 				     MLX5E_ACCEL_FS_ESP_FT_ROCE_LEVEL, MLX5E_NIC_PRIO);
@@ -614,12 +629,12 @@ static void handle_ipsec_rx_bringup(struct mlx5e_ipsec *ipsec, u32 family)
 static void handle_ipsec_rx_cleanup(struct mlx5e_ipsec *ipsec, u32 family)
 {
 	struct mlx5e_ipsec_rx *rx = ipsec_rx(ipsec, family, XFRM_DEV_OFFLOAD_PACKET);
+	struct mlx5_ttc_table *ttc = mlx5e_fs_get_ttc(ipsec->fs, false);
 	struct mlx5_flow_destination old_dest, new_dest;
 
 	old_dest.ft = mlx5_ipsec_fs_roce_ft_get(ipsec->roce, family);
 	old_dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	new_dest = mlx5_ttc_get_default_dest(mlx5e_fs_get_ttc(ipsec->fs, false),
-					     family2tt(family));
+	new_dest = ipsec_rx_decrypted_pkt_def_dest(ttc, family);
 	ipsec_rx_update_default_dest(rx, &old_dest, &new_dest);
 
 	mlx5_ipsec_fs_roce_rx_destroy(ipsec->roce, family, ipsec->mdev);
@@ -669,10 +684,13 @@ static void ipsec_mpv_work_handler(struct work_struct *_work)
 	complete(&work->master_priv->ipsec->comp);
 }
 
-static void ipsec_rx_ft_disconnect(struct mlx5e_ipsec *ipsec, u32 family)
+static void ipsec_rx_ft_disconnect(struct mlx5e_ipsec *ipsec,
+				   struct mlx5e_ipsec_rx *rx, u32 family)
 {
 	struct mlx5_ttc_table *ttc = mlx5e_fs_get_ttc(ipsec->fs, false);
 
+	if (rx->ttc_rules_added)
+		mlx5_ttc_destroy_ipsec_rules(ttc);
 	mlx5_ttc_fwd_default_dest(ttc, family2tt(family));
 }
 
@@ -707,7 +725,7 @@ static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 {
 	/* disconnect */
 	if (rx != ipsec->rx_esw)
-		ipsec_rx_ft_disconnect(ipsec, family);
+		ipsec_rx_ft_disconnect(ipsec, rx, family);
 
 	mlx5_del_flow_rules(rx->sa.rule);
 	mlx5_destroy_flow_group(rx->sa.group);
@@ -764,7 +782,7 @@ static int ipsec_rx_status_pass_dest_get(struct mlx5e_ipsec *ipsec,
 	if (rx == ipsec->rx_esw)
 		return mlx5_esw_ipsec_rx_status_pass_dest_get(ipsec, dest);
 
-	*dest = mlx5_ttc_get_default_dest(attr->ttc, family2tt(attr->family));
+	*dest = ipsec_rx_decrypted_pkt_def_dest(attr->ttc, attr->family);
 	err = mlx5_ipsec_fs_roce_rx_create(ipsec->mdev, ipsec->roce, attr->ns, dest,
 					   attr->family, MLX5E_ACCEL_FS_ESP_FT_ROCE_LEVEL,
 					   attr->prio);
@@ -807,10 +825,16 @@ static void ipsec_rx_ft_connect(struct mlx5e_ipsec *ipsec,
 				struct mlx5e_ipsec_rx_create_attr *attr)
 {
 	struct mlx5_flow_destination dest = {};
+	struct mlx5_ttc_table *ttc, *inner_ttc;
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest.ft = rx->ft.sa;
-	mlx5_ttc_fwd_dest(attr->ttc, family2tt(attr->family), &dest);
+	if (mlx5_ttc_fwd_dest(attr->ttc, family2tt(attr->family), &dest))
+		return;
+
+	ttc = mlx5e_fs_get_ttc(ipsec->fs, false);
+	inner_ttc = mlx5e_fs_get_ttc(ipsec->fs, true);
+	rx->ttc_rules_added = !mlx5_ttc_create_ipsec_rules(ttc, inner_ttc);
 }
 
 static int ipsec_rx_chains_create_miss(struct mlx5e_ipsec *ipsec,
