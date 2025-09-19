@@ -322,16 +322,6 @@ nfs_local_iocb_alloc(struct nfs_pgio_header *hdr,
 	return iocb;
 }
 
-struct nfs_local_dio {
-	u32 mem_align;
-	u32 offset_align;
-	loff_t middle_offset;
-	loff_t end_offset;
-	ssize_t	start_len;	/* Length for misaligned first extent */
-	ssize_t	middle_len;	/* Length for DIO-aligned middle extent */
-	ssize_t	end_len;	/* Length for misaligned last extent */
-};
-
 static bool
 nfs_is_local_dio_possible(struct nfs_local_kiocb *iocb, int rw,
 			  size_t len, struct nfs_local_dio *local_dio)
@@ -367,6 +357,10 @@ nfs_is_local_dio_possible(struct nfs_local_kiocb *iocb, int rw,
 	local_dio->middle_len = middle_end - start_end;
 	local_dio->end_len = orig_end - middle_end;
 
+	if (rw == ITER_DEST)
+		trace_nfs_local_dio_read(hdr->inode, offset, len, local_dio);
+	else
+		trace_nfs_local_dio_write(hdr->inode, offset, len, local_dio);
 	return true;
 }
 
@@ -446,8 +440,11 @@ nfs_local_iters_setup_dio(struct nfs_local_kiocb *iocb, int rw,
 		nfs_iov_iter_aligned_bvec(&iters[n_iters],
 			local_dio->mem_align-1, local_dio->offset_align-1);
 
-	if (unlikely(!iocb->iter_is_dio_aligned[n_iters]))
+	if (unlikely(!iocb->iter_is_dio_aligned[n_iters])) {
+		trace_nfs_local_dio_misaligned(iocb->hdr->inode,
+			iocb->hdr->args.offset, len, local_dio);
 		return 0; /* no DIO-aligned IO possible */
+	}
 	++n_iters;
 
 	iocb->n_iters = n_iters;

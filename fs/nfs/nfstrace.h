@@ -1732,6 +1732,76 @@ DEFINE_NFS_DIRECT_REQ_EVENT(nfs_direct_write_completion);
 DEFINE_NFS_DIRECT_REQ_EVENT(nfs_direct_write_schedule_iovec);
 DEFINE_NFS_DIRECT_REQ_EVENT(nfs_direct_write_reschedule_io);
 
+#if IS_ENABLED(CONFIG_NFS_LOCALIO)
+
+DECLARE_EVENT_CLASS(nfs_local_dio_class,
+	TP_PROTO(
+		const struct inode *inode,
+		loff_t offset,
+		ssize_t count,
+		const struct nfs_local_dio *local_dio
+	),
+	TP_ARGS(inode, offset, count, local_dio),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(u64, fileid)
+		__field(u32, fhandle)
+		__field(loff_t, offset)
+		__field(ssize_t, count)
+		__field(u32, mem_align)
+		__field(u32, offset_align)
+		__field(loff_t, start)
+		__field(ssize_t, start_len)
+		__field(loff_t, middle)
+		__field(ssize_t, middle_len)
+		__field(loff_t, end)
+		__field(ssize_t, end_len)
+	),
+	TP_fast_assign(
+		const struct nfs_inode *nfsi = NFS_I(inode);
+		const struct nfs_fh *fh = &nfsi->fh;
+
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->fileid = nfsi->fileid;
+		__entry->fhandle = nfs_fhandle_hash(fh);
+		__entry->offset = offset;
+		__entry->count = count;
+		__entry->mem_align = local_dio->mem_align;
+		__entry->offset_align = local_dio->offset_align;
+		__entry->start = offset;
+		__entry->start_len = local_dio->start_len;
+		__entry->middle = local_dio->middle_offset;
+		__entry->middle_len = local_dio->middle_len;
+		__entry->end = local_dio->end_offset;
+		__entry->end_len = local_dio->end_len;
+	),
+	TP_printk("fileid=%02x:%02x:%llu fhandle=0x%08x "
+		  "offset=%lld count=%zd "
+		  "mem_align=%u offset_align=%u "
+		  "start=%llu+%zd middle=%llu+%zd end=%llu+%zd",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long long)__entry->fileid,
+		  __entry->fhandle, __entry->offset, __entry->count,
+		  __entry->mem_align, __entry->offset_align,
+		  __entry->start, __entry->start_len,
+		  __entry->middle, __entry->middle_len,
+		  __entry->end, __entry->end_len)
+)
+
+#define DEFINE_NFS_LOCAL_DIO_EVENT(name)		\
+DEFINE_EVENT(nfs_local_dio_class, nfs_local_dio_##name,	\
+	TP_PROTO(const struct inode *inode,		\
+		 loff_t offset,				\
+		 ssize_t count,				\
+		 const struct nfs_local_dio *local_dio),\
+	TP_ARGS(inode, offset, count, local_dio))
+
+DEFINE_NFS_LOCAL_DIO_EVENT(read);
+DEFINE_NFS_LOCAL_DIO_EVENT(write);
+DEFINE_NFS_LOCAL_DIO_EVENT(misaligned);
+
+#endif /* CONFIG_NFS_LOCALIO */
+
 TRACE_EVENT(nfs_fh_to_dentry,
 		TP_PROTO(
 			const struct super_block *sb,
