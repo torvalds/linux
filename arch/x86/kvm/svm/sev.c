@@ -2353,7 +2353,7 @@ static int snp_launch_update(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	pr_debug("%s: GFN start 0x%llx length 0x%llx type %d flags %d\n", __func__,
 		 params.gfn_start, params.len, params.type, params.flags);
 
-	if (!PAGE_ALIGNED(params.len) || params.flags ||
+	if (!params.len || !PAGE_ALIGNED(params.len) || params.flags ||
 	    (params.type != KVM_SEV_SNP_PAGE_TYPE_NORMAL &&
 	     params.type != KVM_SEV_SNP_PAGE_TYPE_ZERO &&
 	     params.type != KVM_SEV_SNP_PAGE_TYPE_UNMEASURED &&

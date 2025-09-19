@@ -639,7 +639,8 @@ long kvm_gmem_populate(struct kvm *kvm, gfn_t start_gfn, void __user *src, long 
 	long i;
 
 	lockdep_assert_held(&kvm->slots_lock);
-	if (npages < 0)
+
+	if (WARN_ON_ONCE(npages <= 0))
 		return -EINVAL;
 
 	slot = gfn_to_memslot(kvm, start_gfn);
