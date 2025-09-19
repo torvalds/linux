@@ -413,7 +413,9 @@ static int mptcp_event_created(struct sk_buff *skb,
 	if (err)
 		return err;
 
-	if (nla_put_u8(skb, MPTCP_ATTR_SERVER_SIDE, READ_ONCE(msk->pm.server_side)))
+	/* only set when it is the server side */
+	if (READ_ONCE(msk->pm.server_side) &&
+	    nla_put_u8(skb, MPTCP_ATTR_SERVER_SIDE, 1))
 		return -EMSGSIZE;
 
 	if (READ_ONCE(msk->pm.remote_deny_join_id0))
