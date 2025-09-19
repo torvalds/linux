@@ -635,7 +635,7 @@ static int umh_coredump_setup(struct subprocess_info *info, struct cred *new)
 
 		/*
 		 * Usermode helpers are childen of either
-		 * system_unbound_wq or of kthreadd. So we know that
+		 * system_dfl_wq or of kthreadd. So we know that
 		 * we're starting off with a clean file descriptor
 		 * table. So we should always be able to use
 		 * COREDUMP_PIDFD_NUMBER as our file descriptor value.
