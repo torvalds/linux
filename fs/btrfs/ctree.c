@@ -613,15 +613,12 @@ error_unlock_cow:
 	return ret;
 }
 
-static inline int should_cow_block(const struct btrfs_trans_handle *trans,
-				   const struct btrfs_root *root,
-				   const struct extent_buffer *buf)
+static inline bool should_cow_block(const struct btrfs_trans_handle *trans,
+				    const struct btrfs_root *root,
+				    const struct extent_buffer *buf)
 {
 	if (btrfs_is_testing(root->fs_info))
-		return 0;
-
-	/* Ensure we can see the FORCE_COW bit */
-	smp_mb__before_atomic();
+		return false;
 
 	/*
 	 * We do not need to cow a block if
@@ -634,13 +631,25 @@ static inline int should_cow_block(const struct btrfs_trans_handle *trans,
 	 *    after we've finished copying src root, we must COW the shared
 	 *    block to ensure the metadata consistency.
 	 */
-	if (btrfs_header_generation(buf) == trans->transid &&
-	    !btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN) &&
-	    !(btrfs_root_id(root) != BTRFS_TREE_RELOC_OBJECTID &&
-	      btrfs_header_flag(buf, BTRFS_HEADER_FLAG_RELOC)) &&
-	    !test_bit(BTRFS_ROOT_FORCE_COW, &root->state))
-		return 0;
-	return 1;
+
+	if (btrfs_header_generation(buf) != trans->transid)
+		return true;
+
+	if (btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN))
+		return true;
+
+	/* Ensure we can see the FORCE_COW bit. */
+	smp_mb__before_atomic();
+	if (test_bit(BTRFS_ROOT_FORCE_COW, &root->state))
+		return true;
+
+	if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID)
+		return false;
+
+	if (btrfs_header_flag(buf, BTRFS_HEADER_FLAG_RELOC))
+		return true;
+
+	return false;
 }
 
 /*
