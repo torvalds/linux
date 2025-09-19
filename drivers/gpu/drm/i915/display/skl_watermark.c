@@ -3236,6 +3236,19 @@ static void sanitize_wm_latency(struct intel_display *display)
 		wm[level] = 0;
 }
 
+static void make_wm_latency_monotonic(struct intel_display *display)
+{
+	u16 *wm = display->wm.skl_latency;
+	int level, num_levels = display->wm.num_levels;
+
+	for (level = 1; level < num_levels; level++) {
+		if (wm[level] == 0)
+			break;
+
+		wm[level] = max(wm[level], wm[level-1]);
+	}
+}
+
 static void
 adjust_wm_latency(struct intel_display *display)
 {
@@ -3245,6 +3258,8 @@ adjust_wm_latency(struct intel_display *display)
 		multiply_wm_latency(display, 2);
 
 	sanitize_wm_latency(display);
+
+	make_wm_latency_monotonic(display);
 
 	/*
 	 * WaWmMemoryReadLatency
