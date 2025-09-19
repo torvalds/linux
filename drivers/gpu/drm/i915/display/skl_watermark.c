@@ -3228,14 +3228,12 @@ static void sanitize_wm_latency(struct intel_display *display)
 	 * of the punit to satisfy this requirement.
 	 */
 	for (level = 1; level < num_levels; level++) {
-		if (wm[level] == 0) {
-			int i;
-
-			for (i = level + 1; i < num_levels; i++)
-				wm[i] = 0;
-			return;
-		}
+		if (wm[level] == 0)
+			break;
 	}
+
+	for (level = level + 1; level < num_levels; level++)
+		wm[level] = 0;
 }
 
 static void
