@@ -343,10 +343,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 			   struct ttm_bo_kmap_obj *map)
 {
 	struct ttm_resource *mem = bo->resource;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
+	struct ttm_operation_ctx ctx = { };
 	struct ttm_tt *ttm = bo->ttm;
 	struct ttm_resource_manager *man =
 			ttm_manager_type(bo->bdev, bo->resource->mem_type);
@@ -530,10 +527,7 @@ int ttm_bo_vmap(struct ttm_buffer_object *bo, struct iosys_map *map)
 		iosys_map_set_vaddr_iomem(map, vaddr_iomem);
 
 	} else {
-		struct ttm_operation_ctx ctx = {
-			.interruptible = false,
-			.no_wait_gpu = false
-		};
+		struct ttm_operation_ctx ctx = { };
 		struct ttm_tt *ttm = bo->ttm;
 		pgprot_t prot;
 		void *vaddr;
