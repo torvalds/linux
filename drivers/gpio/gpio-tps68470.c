@@ -142,7 +142,7 @@ static int tps68470_gpio_probe(struct platform_device *pdev)
 	tps68470_gpio->gc.direction_output = tps68470_gpio_output;
 	tps68470_gpio->gc.get = tps68470_gpio_get;
 	tps68470_gpio->gc.get_direction = tps68470_gpio_get_direction;
-	tps68470_gpio->gc.set_rv = tps68470_gpio_set;
+	tps68470_gpio->gc.set = tps68470_gpio_set;
 	tps68470_gpio->gc.can_sleep = true;
 	tps68470_gpio->gc.names = tps68470_names;
 	tps68470_gpio->gc.ngpio = TPS68470_N_GPIO;

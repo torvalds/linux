@@ -427,7 +427,7 @@ static int qca807x_gpio(struct phy_device *phydev)
 	gc->get_direction = qca807x_gpio_get_direction;
 	gc->direction_output = qca807x_gpio_dir_out;
 	gc->get = qca807x_gpio_get;
-	gc->set_rv = qca807x_gpio_set;
+	gc->set = qca807x_gpio_set;
 
 	return devm_gpiochip_add_data(dev, gc, priv);
 }

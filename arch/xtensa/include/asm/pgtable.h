@@ -203,7 +203,7 @@
  * What follows is the closest we can get by reasonable means..
  * See linux/mm/mmap.c for protection_map[] array that uses these definitions.
  */
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
@@ -366,10 +366,10 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 	return pte;
 }
 
-#endif /*  !defined (__ASSEMBLY__) */
+#endif /*  !defined (__ASSEMBLER__) */
 
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 /* Assembly macro _PGD_INDEX is the same as C pgd_index(unsigned long),
  *                _PGD_OFFSET as C pgd_offset(struct mm_struct*, unsigned long),
@@ -408,7 +408,7 @@ void update_mmu_tlb_range(struct vm_area_struct *vma,
 		unsigned long address, pte_t *ptep, unsigned int nr);
 #define update_mmu_tlb_range update_mmu_tlb_range
 
-#endif /* !defined (__ASSEMBLY__) */
+#endif /* !defined (__ASSEMBLER__) */
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR

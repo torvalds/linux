@@ -3222,6 +3222,10 @@ D: AIC5800 IEEE 1394, RAW I/O on 1394
 D: Starter of Linux1394 effort
 S: ask per mail for current address
 
+N: Boris Pismenny
+E: borisp@mellanox.com
+D: Kernel TLS implementation and offload support.
+
 N: Nicolas Pitre
 E: nico@fluxnic.net
 D: StrongARM SA1100 support integrator & hacker
@@ -4168,6 +4172,9 @@ S: 1513 Brewster Dr.
 S: Carrollton, TX 75010
 S: USA
 
+N: Dave Watson
+D: Kernel TLS implementation.
+
 N: Tim Waugh
 E: tim@cyberelk.net
 D: Co-architect of the parallel-port sharing system
@@ -4377,6 +4384,12 @@ D: Xiafs filesystem [defunct]
 S: 542 West 112th Street, 5N
 S: New York, New York 10025
 S: USA
+
+N: Masahiro Yamada
+E: masahiroy@kernel.org
+D: Kbuild Maintainer 2017-2025
+D: Kconfig Maintainer 2018-2025
+S: Japan
 
 N: Li Yang
 E: leoli@freescale.com

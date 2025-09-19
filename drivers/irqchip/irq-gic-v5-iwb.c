@@ -241,7 +241,6 @@ static int gicv5_iwb_device_probe(struct platform_device *pdev)
 	struct gicv5_iwb_chip_data *iwb_node;
 	void __iomem *iwb_base;
 	struct resource *res;
-	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -254,16 +253,10 @@ static int gicv5_iwb_device_probe(struct platform_device *pdev)
 	}
 
 	iwb_node = gicv5_iwb_init_bases(iwb_base, pdev);
-	if (IS_ERR(iwb_node)) {
-		ret = PTR_ERR(iwb_node);
-		goto out_unmap;
-	}
+	if (IS_ERR(iwb_node))
+		return PTR_ERR(iwb_node);
 
 	return 0;
-
-out_unmap:
-	iounmap(iwb_base);
-	return ret;
 }
 
 static const struct of_device_id gicv5_iwb_of_match[] = {

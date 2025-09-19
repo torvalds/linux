@@ -1353,11 +1353,9 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 		goto skip;
 	}
 
-	ret = devm_add_action(dev, mvebu_pcie_port_clk_put, port);
-	if (ret < 0) {
-		clk_put(port->clk);
+	ret = devm_add_action_or_reset(dev, mvebu_pcie_port_clk_put, port);
+	if (ret < 0)
 		goto err;
-	}
 
 	return 1;
 

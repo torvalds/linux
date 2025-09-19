@@ -4602,7 +4602,7 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
 		return AC_ERR_INVALID;
 
 	/* set up init dev params taskfile */
-	ata_dev_dbg(dev, "init dev params \n");
+	ata_dev_dbg(dev, "init dev params\n");
 
 	ata_tf_init(dev, &tf);
 	tf.command = ATA_CMD_INIT_DEV_PARAMS;

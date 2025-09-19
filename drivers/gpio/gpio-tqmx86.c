@@ -370,7 +370,7 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 	chip->direction_output = tqmx86_gpio_direction_output;
 	chip->get_direction = tqmx86_gpio_get_direction;
 	chip->get = tqmx86_gpio_get;
-	chip->set_rv = tqmx86_gpio_set;
+	chip->set = tqmx86_gpio_set;
 	chip->ngpio = TQMX86_NGPIO;
 	chip->parent = pdev->dev.parent;
 

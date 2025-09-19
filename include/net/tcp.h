@@ -2655,8 +2655,8 @@ void tcp_update_ulp(struct sock *sk, struct proto *p,
 		    void (*write_space)(struct sock *sk));
 
 #define MODULE_ALIAS_TCP_ULP(name)				\
-	__MODULE_INFO(alias, alias_userspace, name);		\
-	__MODULE_INFO(alias, alias_tcp_ulp, "tcp-ulp-" name)
+	MODULE_INFO(alias, name);		\
+	MODULE_INFO(alias, "tcp-ulp-" name)
 
 #ifdef CONFIG_NET_SOCK_MSG
 struct sk_msg;

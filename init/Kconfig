@@ -172,6 +172,10 @@ menu "General setup"
 
 config BROKEN
 	bool
+	help
+	  This option allows you to choose whether you want to try to
+	  compile (and fix) old drivers that haven't been updated to
+	  new infrastructure.
 
 config BROKEN_ON_SMP
 	bool

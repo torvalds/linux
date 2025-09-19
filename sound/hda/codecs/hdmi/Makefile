@@ -9,7 +9,7 @@ snd-hda-codec-nvhdmi-y :=	nvhdmi.o
 snd-hda-codec-nvhdmi-mcp-y :=	nvhdmi-mcp.o
 snd-hda-codec-tegrahdmi-y :=	tegrahdmi.o
 
-obj-$(CONFIG_SND_HDA_CODEC_HDMI) += snd-hda-codec-hdmi.o
+obj-$(CONFIG_SND_HDA_CODEC_HDMI_GENERIC) += snd-hda-codec-hdmi.o
 obj-$(CONFIG_SND_HDA_CODEC_HDMI_SIMPLE) += snd-hda-codec-simplehdmi.o
 obj-$(CONFIG_SND_HDA_CODEC_HDMI_INTEL) += snd-hda-codec-intelhdmi.o
 obj-$(CONFIG_SND_HDA_CODEC_HDMI_ATI) += snd-hda-codec-atihdmi.o

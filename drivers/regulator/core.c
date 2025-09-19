@@ -3884,7 +3884,7 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 			new_delta = ret;
 
 			/* check that voltage is converging quickly enough */
-			if (new_delta - delta > rdev->constraints->max_uV_step) {
+			if (delta - new_delta < rdev->constraints->max_uV_step) {
 				ret = -EWOULDBLOCK;
 				goto out;
 			}

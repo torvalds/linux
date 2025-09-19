@@ -227,6 +227,7 @@ static int __aqua_vanjaram_get_px_mode_info(struct amdgpu_xcp_mgr *xcp_mgr,
 					    uint16_t *nps_modes)
 {
 	struct amdgpu_device *adev = xcp_mgr->adev;
+	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
 
 	if (!num_xcp || !nps_modes || !(xcp_mgr->supp_xcp_modes & BIT(px_mode)))
 		return -EINVAL;
@@ -250,12 +251,14 @@ static int __aqua_vanjaram_get_px_mode_info(struct amdgpu_xcp_mgr *xcp_mgr,
 		*num_xcp = 4;
 		*nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE) |
 			     BIT(AMDGPU_NPS4_PARTITION_MODE);
+		if (gc_ver == IP_VERSION(9, 5, 0))
+			*nps_modes |= BIT(AMDGPU_NPS2_PARTITION_MODE);
 		break;
 	case AMDGPU_CPX_PARTITION_MODE:
 		*num_xcp = NUM_XCC(adev->gfx.xcc_mask);
 		*nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE) |
 			     BIT(AMDGPU_NPS4_PARTITION_MODE);
-		if (amdgpu_sriov_vf(adev))
+		if (gc_ver == IP_VERSION(9, 5, 0))
 			*nps_modes |= BIT(AMDGPU_NPS2_PARTITION_MODE);
 		break;
 	default:

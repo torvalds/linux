@@ -932,7 +932,7 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	chip->owner = THIS_MODULE;
 	chip->parent = &pdev->dev;
 	chip->get = zynq_gpio_get_value;
-	chip->set_rv = zynq_gpio_set_value;
+	chip->set = zynq_gpio_set_value;
 	chip->request = zynq_gpio_request;
 	chip->free = zynq_gpio_free;
 	chip->direction_input = zynq_gpio_dir_in;

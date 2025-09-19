@@ -249,7 +249,7 @@ static int xway_stp_probe(struct platform_device *pdev)
 	chip->gc.label = "stp-xway";
 	chip->gc.direction_output = xway_stp_dir_out;
 	chip->gc.get = xway_stp_get;
-	chip->gc.set_rv = xway_stp_set;
+	chip->gc.set = xway_stp_set;
 	chip->gc.request = xway_stp_request;
 	chip->gc.base = -1;
 	chip->gc.owner = THIS_MODULE;

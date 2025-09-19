@@ -36,7 +36,7 @@ impl NV_PMC_BOOT_0 {
     pub(crate) fn chipset(self) -> Result<Chipset> {
         self.architecture()
             .map(|arch| {
-                ((arch as u32) << Self::IMPLEMENTATION.len()) | self.implementation() as u32
+                ((arch as u32) << Self::IMPLEMENTATION.len()) | u32::from(self.implementation())
             })
             .and_then(Chipset::try_from)
     }

@@ -1013,11 +1013,11 @@ static int fq_load_priomap(struct fq_sched_data *q,
 static int fq_change(struct Qdisc *sch, struct nlattr *opt,
 		     struct netlink_ext_ack *extack)
 {
+	unsigned int dropped_pkts = 0, dropped_bytes = 0;
 	struct fq_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_FQ_MAX + 1];
-	int err, drop_count = 0;
-	unsigned drop_len = 0;
 	u32 fq_log;
+	int err;
 
 	err = nla_parse_nested_deprecated(tb, TCA_FQ_MAX, opt, fq_policy,
 					  NULL);
@@ -1135,16 +1135,18 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt,
 		err = fq_resize(sch, fq_log);
 		sch_tree_lock(sch);
 	}
+
 	while (sch->q.qlen > sch->limit) {
 		struct sk_buff *skb = qdisc_dequeue_internal(sch, false);
 
 		if (!skb)
 			break;
-		drop_len += qdisc_pkt_len(skb);
+
+		dropped_pkts++;
+		dropped_bytes += qdisc_pkt_len(skb);
 		rtnl_kfree_skbs(skb, skb);
-		drop_count++;
 	}
-	qdisc_tree_reduce_backlog(sch, drop_count, drop_len);
+	qdisc_tree_reduce_backlog(sch, dropped_pkts, dropped_bytes);
 
 	sch_tree_unlock(sch);
 	return err;

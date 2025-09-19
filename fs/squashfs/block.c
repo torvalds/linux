@@ -80,23 +80,22 @@ static int squashfs_bio_read_cached(struct bio *fullbio,
 		struct address_space *cache_mapping, u64 index, int length,
 		u64 read_start, u64 read_end, int page_count)
 {
-	struct page *head_to_cache = NULL, *tail_to_cache = NULL;
+	struct folio *head_to_cache = NULL, *tail_to_cache = NULL;
 	struct block_device *bdev = fullbio->bi_bdev;
 	int start_idx = 0, end_idx = 0;
-	struct bvec_iter_all iter_all;
+	struct folio_iter fi;
 	struct bio *bio = NULL;
-	struct bio_vec *bv;
 	int idx = 0;
 	int err = 0;
 #ifdef CONFIG_SQUASHFS_COMP_CACHE_FULL
-	struct page **cache_pages = kmalloc_array(page_count,
-			sizeof(void *), GFP_KERNEL | __GFP_ZERO);
+	struct folio **cache_folios = kmalloc_array(page_count,
+			sizeof(*cache_folios), GFP_KERNEL | __GFP_ZERO);
 #endif
 
-	bio_for_each_segment_all(bv, fullbio, iter_all) {
-		struct page *page = bv->bv_page;
+	bio_for_each_folio_all(fi, fullbio) {
+		struct folio *folio = fi.folio;
 
-		if (page->mapping == cache_mapping) {
+		if (folio->mapping == cache_mapping) {
 			idx++;
 			continue;
 		}
@@ -111,13 +110,13 @@ static int squashfs_bio_read_cached(struct bio *fullbio,
 		 * adjacent blocks.
 		 */
 		if (idx == 0 && index != read_start)
-			head_to_cache = page;
+			head_to_cache = folio;
 		else if (idx == page_count - 1 && index + length != read_end)
-			tail_to_cache = page;
+			tail_to_cache = folio;
 #ifdef CONFIG_SQUASHFS_COMP_CACHE_FULL
 		/* Cache all pages in the BIO for repeated reads */
-		else if (cache_pages)
-			cache_pages[idx] = page;
+		else if (cache_folios)
+			cache_folios[idx] = folio;
 #endif
 
 		if (!bio || idx != end_idx) {
@@ -150,45 +149,45 @@ static int squashfs_bio_read_cached(struct bio *fullbio,
 		return err;
 
 	if (head_to_cache) {
-		int ret = add_to_page_cache_lru(head_to_cache, cache_mapping,
+		int ret = filemap_add_folio(cache_mapping, head_to_cache,
 						read_start >> PAGE_SHIFT,
 						GFP_NOIO);
 
 		if (!ret) {
-			SetPageUptodate(head_to_cache);
-			unlock_page(head_to_cache);
+			folio_mark_uptodate(head_to_cache);
+			folio_unlock(head_to_cache);
 		}
 
 	}
 
 	if (tail_to_cache) {
-		int ret = add_to_page_cache_lru(tail_to_cache, cache_mapping,
+		int ret = filemap_add_folio(cache_mapping, tail_to_cache,
 						(read_end >> PAGE_SHIFT) - 1,
 						GFP_NOIO);
 
 		if (!ret) {
-			SetPageUptodate(tail_to_cache);
-			unlock_page(tail_to_cache);
+			folio_mark_uptodate(tail_to_cache);
+			folio_unlock(tail_to_cache);
 		}
 	}
 
 #ifdef CONFIG_SQUASHFS_COMP_CACHE_FULL
-	if (!cache_pages)
+	if (!cache_folios)
 		goto out;
 
 	for (idx = 0; idx < page_count; idx++) {
-		if (!cache_pages[idx])
+		if (!cache_folios[idx])
 			continue;
-		int ret = add_to_page_cache_lru(cache_pages[idx], cache_mapping,
+		int ret = filemap_add_folio(cache_mapping, cache_folios[idx],
 						(read_start >> PAGE_SHIFT) + idx,
 						GFP_NOIO);
 
 		if (!ret) {
-			SetPageUptodate(cache_pages[idx]);
-			unlock_page(cache_pages[idx]);
+			folio_mark_uptodate(cache_folios[idx]);
+			folio_unlock(cache_folios[idx]);
 		}
 	}
-	kfree(cache_pages);
+	kfree(cache_folios);
 out:
 #endif
 	return 0;

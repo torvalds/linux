@@ -1,0 +1,118 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright 2025 Axis AB
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/axis,artpec6-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Axis ARTPEC-6 PCIe host controller
+
+maintainers:
+  - Jesper Nilsson <jesper.nilsson@axis.com>
+
+description:
+  This PCIe host controller is based on the Synopsys DesignWare PCIe IP.
+
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - axis,artpec6-pcie
+          - axis,artpec6-pcie-ep
+          - axis,artpec7-pcie
+          - axis,artpec7-pcie-ep
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - axis,artpec6-pcie
+          - axis,artpec6-pcie-ep
+          - axis,artpec7-pcie
+          - axis,artpec7-pcie-ep
+      - const: snps,dw-pcie
+
+  reg:
+    minItems: 3
+    maxItems: 4
+
+  reg-names:
+    minItems: 3
+    maxItems: 4
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    items:
+      - const: msi
+
+  axis,syscon-pcie:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      System controller phandle used to enable and control the Synopsys IP.
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - interrupt-names
+  - axis,syscon-pcie
+
+oneOf:
+  - $ref: snps,dw-pcie.yaml#
+    properties:
+      reg:
+        maxItems: 3
+
+      reg-names:
+        items:
+          - const: dbi
+          - const: phy
+          - const: config
+
+  - $ref: snps,dw-pcie-ep.yaml#
+    properties:
+      reg:
+        minItems: 4
+
+      reg-names:
+        items:
+          - const: dbi
+          - const: dbi2
+          - const: phy
+          - const: addr_space
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    pcie@f8050000 {
+        compatible = "axis,artpec6-pcie", "snps,dw-pcie";
+        device_type = "pci";
+        reg = <0xf8050000 0x2000
+              0xf8040000 0x1000
+              0xc0000000 0x2000>;
+        reg-names = "dbi", "phy", "config";
+        #address-cells = <3>;
+        #size-cells = <2>;
+        ranges = <0x81000000 0 0 0xc0002000 0 0x00010000>,
+                 <0x82000000 0 0xc0012000 0xc0012000 0 0x1ffee000>;
+        num-lanes = <2>;
+        bus-range = <0x00 0xff>;
+        interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "msi";
+        #interrupt-cells = <1>;
+        interrupt-map-mask = <0 0 0 0x7>;
+        interrupt-map = <0 0 0 1 &intc GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
+                        <0 0 0 2 &intc GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+                        <0 0 0 3 &intc GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+                        <0 0 0 4 &intc GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+        axis,syscon-pcie = <&syscon>;
+    };

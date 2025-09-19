@@ -384,7 +384,7 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 		kernel_start = round_down(kernel_end - kernel_size, THREAD_SIZE);
 		boot_debug("Randomization range: 0x%016lx-0x%016lx\n", vmax - kaslr_len, vmax);
 		boot_debug("kernel image:        0x%016lx-0x%016lx (kaslr)\n", kernel_start,
-			   kernel_size + kernel_size);
+			   kernel_start + kernel_size);
 	} else if (vmax < __NO_KASLR_END_KERNEL || vsize > __NO_KASLR_END_KERNEL) {
 		kernel_start = round_down(vmax - kernel_size, THREAD_SIZE);
 		boot_debug("kernel image:        0x%016lx-0x%016lx (constrained)\n", kernel_start,

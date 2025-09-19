@@ -87,7 +87,7 @@ struct perf_dlfilter_al {
 	__u8  is_64_bit; /* Only valid if dso is not NULL */
 	__u8  is_kernel_ip; /* True if in kernel space */
 	__u32 buildid_size;
-	__u8 *buildid;
+	const __u8 *buildid;
 	/* Below members are only populated by resolve_ip() */
 	__u8 filtered; /* True if this sample event will be filtered out */
 	const char *comm;

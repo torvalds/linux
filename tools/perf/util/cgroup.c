@@ -413,8 +413,7 @@ static bool has_pattern_string(const char *str)
 	return !!strpbrk(str, "{}[]()|*+?^$");
 }
 
-int evlist__expand_cgroup(struct evlist *evlist, const char *str,
-			  struct rblist *metric_events, bool open_cgroup)
+int evlist__expand_cgroup(struct evlist *evlist, const char *str, bool open_cgroup)
 {
 	struct evlist *orig_list, *tmp_list;
 	struct evsel *pos, *evsel, *leader;
@@ -440,12 +439,8 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str,
 	evlist__splice_list_tail(orig_list, &evlist->core.entries);
 	evlist->core.nr_entries = 0;
 
-	if (metric_events) {
-		orig_metric_events = *metric_events;
-		rblist__init(metric_events);
-	} else {
-		rblist__init(&orig_metric_events);
-	}
+	orig_metric_events = evlist->metric_events;
+	metricgroup__rblist_init(&evlist->metric_events);
 
 	if (has_pattern_string(str))
 		prefix_len = match_cgroups(str);
@@ -490,12 +485,10 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str,
 		cgroup__put(cgrp);
 		nr_cgroups++;
 
-		if (metric_events) {
-			if (metricgroup__copy_metric_events(tmp_list, cgrp,
-							    metric_events,
-							    &orig_metric_events) < 0)
-				goto out_err;
-		}
+		if (metricgroup__copy_metric_events(tmp_list, cgrp,
+						    &evlist->metric_events,
+						    &orig_metric_events) < 0)
+			goto out_err;
 
 		evlist__splice_list_tail(evlist, &tmp_list->core.entries);
 		tmp_list->core.nr_entries = 0;
@@ -512,7 +505,7 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str,
 out_err:
 	evlist__delete(orig_list);
 	evlist__delete(tmp_list);
-	rblist__exit(&orig_metric_events);
+	metricgroup__rblist_exit(&orig_metric_events);
 	release_cgroup_list();
 
 	return ret;

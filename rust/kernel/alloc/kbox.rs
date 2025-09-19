@@ -6,6 +6,7 @@
 use super::allocator::{KVmalloc, Kmalloc, Vmalloc};
 use super::{AllocError, Allocator, Flags};
 use core::alloc::Layout;
+use core::borrow::{Borrow, BorrowMut};
 use core::fmt;
 use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
@@ -15,6 +16,7 @@ use core::pin::Pin;
 use core::ptr::NonNull;
 use core::result::Result;
 
+use crate::ffi::c_void;
 use crate::init::InPlaceInit;
 use crate::types::ForeignOwnable;
 use pin_init::{InPlaceWrite, Init, PinInit, ZeroableOption};
@@ -398,70 +400,74 @@ where
     }
 }
 
-// SAFETY: The `into_foreign` function returns a pointer that is well-aligned.
+// SAFETY: The pointer returned by `into_foreign` comes from a well aligned
+// pointer to `T`.
 unsafe impl<T: 'static, A> ForeignOwnable for Box<T, A>
 where
     A: Allocator,
 {
-    type PointedTo = T;
+    const FOREIGN_ALIGN: usize = core::mem::align_of::<T>();
     type Borrowed<'a> = &'a T;
     type BorrowedMut<'a> = &'a mut T;
 
-    fn into_foreign(self) -> *mut Self::PointedTo {
-        Box::into_raw(self)
+    fn into_foreign(self) -> *mut c_void {
+        Box::into_raw(self).cast()
     }
 
-    unsafe fn from_foreign(ptr: *mut Self::PointedTo) -> Self {
+    unsafe fn from_foreign(ptr: *mut c_void) -> Self {
         // SAFETY: The safety requirements of this function ensure that `ptr` comes from a previous
         // call to `Self::into_foreign`.
-        unsafe { Box::from_raw(ptr) }
+        unsafe { Box::from_raw(ptr.cast()) }
     }
 
-    unsafe fn borrow<'a>(ptr: *mut Self::PointedTo) -> &'a T {
+    unsafe fn borrow<'a>(ptr: *mut c_void) -> &'a T {
         // SAFETY: The safety requirements of this method ensure that the object remains alive and
         // immutable for the duration of 'a.
-        unsafe { &*ptr }
+        unsafe { &*ptr.cast() }
     }
 
-    unsafe fn borrow_mut<'a>(ptr: *mut Self::PointedTo) -> &'a mut T {
+    unsafe fn borrow_mut<'a>(ptr: *mut c_void) -> &'a mut T {
+        let ptr = ptr.cast();
         // SAFETY: The safety requirements of this method ensure that the pointer is valid and that
         // nothing else will access the value for the duration of 'a.
         unsafe { &mut *ptr }
     }
 }
 
-// SAFETY: The `into_foreign` function returns a pointer that is well-aligned.
+// SAFETY: The pointer returned by `into_foreign` comes from a well aligned
+// pointer to `T`.
 unsafe impl<T: 'static, A> ForeignOwnable for Pin<Box<T, A>>
 where
     A: Allocator,
 {
-    type PointedTo = T;
+    const FOREIGN_ALIGN: usize = core::mem::align_of::<T>();
     type Borrowed<'a> = Pin<&'a T>;
     type BorrowedMut<'a> = Pin<&'a mut T>;
 
-    fn into_foreign(self) -> *mut Self::PointedTo {
+    fn into_foreign(self) -> *mut c_void {
         // SAFETY: We are still treating the box as pinned.
-        Box::into_raw(unsafe { Pin::into_inner_unchecked(self) })
+        Box::into_raw(unsafe { Pin::into_inner_unchecked(self) }).cast()
     }
 
-    unsafe fn from_foreign(ptr: *mut Self::PointedTo) -> Self {
+    unsafe fn from_foreign(ptr: *mut c_void) -> Self {
         // SAFETY: The safety requirements of this function ensure that `ptr` comes from a previous
         // call to `Self::into_foreign`.
-        unsafe { Pin::new_unchecked(Box::from_raw(ptr)) }
+        unsafe { Pin::new_unchecked(Box::from_raw(ptr.cast())) }
     }
 
-    unsafe fn borrow<'a>(ptr: *mut Self::PointedTo) -> Pin<&'a T> {
+    unsafe fn borrow<'a>(ptr: *mut c_void) -> Pin<&'a T> {
         // SAFETY: The safety requirements for this function ensure that the object is still alive,
         // so it is safe to dereference the raw pointer.
         // The safety requirements of `from_foreign` also ensure that the object remains alive for
         // the lifetime of the returned value.
-        let r = unsafe { &*ptr };
+        let r = unsafe { &*ptr.cast() };
 
         // SAFETY: This pointer originates from a `Pin<Box<T>>`.
         unsafe { Pin::new_unchecked(r) }
     }
 
-    unsafe fn borrow_mut<'a>(ptr: *mut Self::PointedTo) -> Pin<&'a mut T> {
+    unsafe fn borrow_mut<'a>(ptr: *mut c_void) -> Pin<&'a mut T> {
+        let ptr = ptr.cast();
         // SAFETY: The safety requirements for this function ensure that the object is still alive,
         // so it is safe to dereference the raw pointer.
         // The safety requirements of `from_foreign` also ensure that the object remains alive for
@@ -496,6 +502,62 @@ where
         // SAFETY: `self.0` is always properly aligned, dereferenceable and points to an initialized
         // instance of `T`.
         unsafe { self.0.as_mut() }
+    }
+}
+
+/// # Examples
+///
+/// ```
+/// # use core::borrow::Borrow;
+/// # use kernel::alloc::KBox;
+/// struct Foo<B: Borrow<u32>>(B);
+///
+/// // Owned instance.
+/// let owned = Foo(1);
+///
+/// // Owned instance using `KBox`.
+/// let owned_kbox = Foo(KBox::new(1, GFP_KERNEL)?);
+///
+/// let i = 1;
+/// // Borrowed from `i`.
+/// let borrowed = Foo(&i);
+/// # Ok::<(), Error>(())
+/// ```
+impl<T, A> Borrow<T> for Box<T, A>
+where
+    T: ?Sized,
+    A: Allocator,
+{
+    fn borrow(&self) -> &T {
+        self.deref()
+    }
+}
+
+/// # Examples
+///
+/// ```
+/// # use core::borrow::BorrowMut;
+/// # use kernel::alloc::KBox;
+/// struct Foo<B: BorrowMut<u32>>(B);
+///
+/// // Owned instance.
+/// let owned = Foo(1);
+///
+/// // Owned instance using `KBox`.
+/// let owned_kbox = Foo(KBox::new(1, GFP_KERNEL)?);
+///
+/// let mut i = 1;
+/// // Borrowed from `i`.
+/// let borrowed = Foo(&mut i);
+/// # Ok::<(), Error>(())
+/// ```
+impl<T, A> BorrowMut<T> for Box<T, A>
+where
+    T: ?Sized,
+    A: Allocator,
+{
+    fn borrow_mut(&mut self) -> &mut T {
+        self.deref_mut()
     }
 }
 

@@ -2570,9 +2570,6 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 
 	adev->firmware.gpu_info_fw = NULL;
 
-	if (adev->mman.discovery_bin)
-		return 0;
-
 	switch (adev->asic_type) {
 	default:
 		return 0;
@@ -2594,6 +2591,8 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		chip_name = "arcturus";
 		break;
 	case CHIP_NAVI12:
+		if (adev->mman.discovery_bin)
+			return 0;
 		chip_name = "navi12";
 		break;
 	}
@@ -3271,6 +3270,7 @@ static bool amdgpu_device_check_vram_lost(struct amdgpu_device *adev)
 	 * always assumed to be lost.
 	 */
 	switch (amdgpu_asic_reset_method(adev)) {
+	case AMD_RESET_METHOD_LEGACY:
 	case AMD_RESET_METHOD_LINK:
 	case AMD_RESET_METHOD_BACO:
 	case AMD_RESET_METHOD_MODE1:

@@ -138,9 +138,12 @@ struct apparmor_audit_data {
 				};
 				struct {
 					int type, protocol;
-					struct sock *peer_sk;
 					void *addr;
 					int addrlen;
+					struct {
+						void *addr;
+						int addrlen;
+					} peer;
 				} net;
 			};
 		};

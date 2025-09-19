@@ -98,7 +98,7 @@ static int wcd_gpio_probe(struct platform_device *pdev)
 	chip->direction_output = wcd_gpio_direction_output;
 	chip->get_direction = wcd_gpio_get_direction;
 	chip->get = wcd_gpio_get;
-	chip->set_rv = wcd_gpio_set;
+	chip->set = wcd_gpio_set;
 	chip->parent = dev;
 	chip->base = -1;
 	chip->ngpio = WCD934X_NPINS;

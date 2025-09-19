@@ -1024,8 +1024,8 @@ int omnia_mcu_register_gpiochip(struct omnia_mcu *mcu)
 	mcu->gc.direction_output = omnia_gpio_direction_output;
 	mcu->gc.get = omnia_gpio_get;
 	mcu->gc.get_multiple = omnia_gpio_get_multiple;
-	mcu->gc.set_rv = omnia_gpio_set;
-	mcu->gc.set_multiple_rv = omnia_gpio_set_multiple;
+	mcu->gc.set = omnia_gpio_set;
+	mcu->gc.set_multiple = omnia_gpio_set_multiple;
 	mcu->gc.init_valid_mask = omnia_gpio_init_valid_mask;
 	mcu->gc.can_sleep = true;
 	mcu->gc.names = omnia_mcu_gpio_names;

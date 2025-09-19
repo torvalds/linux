@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/motorola,cpcap-usb-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Motorola CPCAP PMIC USB PHY
+
+maintainers:
+  - Tony Lindgren <tony@atomide.com>
+
+properties:
+  compatible:
+    enum:
+      - motorola,cpcap-usb-phy
+      - motorola,mapphone-cpcap-usb-phy
+
+  '#phy-cells':
+    const: 0
+
+  interrupts:
+    description: CPCAP PMIC interrupts used by the USB PHY
+    items:
+      - description: id_ground interrupt
+      - description: id_float interrupt
+      - description: se0conn interrupt
+      - description: vbusvld interrupt
+      - description: sessvld interrupt
+      - description: sessend interrupt
+      - description: se1 interrupt
+      - description: dm interrupt
+      - description: dp interrupt
+
+  interrupt-names:
+    description: Interrupt names
+    items:
+      - const: id_ground
+      - const: id_float
+      - const: se0conn
+      - const: vbusvld
+      - const: sessvld
+      - const: sessend
+      - const: se1
+      - const: dm
+      - const: dp
+
+  io-channels:
+    description: IIO ADC channels used by the USB PHY
+    items:
+      - description: vbus channel
+      - description: id channel
+
+  io-channel-names:
+    items:
+      - const: vbus
+      - const: id
+
+  vusb-supply: true
+
+  pinctrl-names:
+    items:
+      - const: default
+      - const: ulpi
+      - const: utmi
+      - const: uart
+
+  mode-gpios:
+    description: Optional GPIOs for configuring alternate modes
+    items:
+      - description: "mode selection GPIO #0"
+      - description: "mode selection GPIO #1"
+
+required:
+  - compatible
+  - '#phy-cells'
+  - interrupts-extended
+  - interrupt-names
+  - io-channels
+  - io-channel-names
+  - vusb-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    phy {
+        compatible = "motorola,mapphone-cpcap-usb-phy";
+        #phy-cells = <0>;
+        interrupts-extended = <
+            &cpcap 15 0 &cpcap 14 0 &cpcap 28 0 &cpcap 19 0
+            &cpcap 18 0 &cpcap 17 0 &cpcap 16 0 &cpcap 49 0
+            &cpcap 48 1
+        >;
+        interrupt-names = "id_ground", "id_float", "se0conn", "vbusvld",
+                          "sessvld", "sessend", "se1", "dm", "dp";
+        io-channels = <&cpcap_adc 2>, <&cpcap_adc 7>;
+        io-channel-names = "vbus", "id";
+        vusb-supply = <&vusb>;
+        pinctrl-0 = <&usb_gpio_mux_sel1 &usb_gpio_mux_sel2>;
+        pinctrl-1 = <&usb_ulpi_pins>;
+        pinctrl-2 = <&usb_utmi_pins>;
+        pinctrl-3 = <&uart3_pins>;
+        pinctrl-names = "default", "ulpi", "utmi", "uart";
+        mode-gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>, <&gpio1 0 GPIO_ACTIVE_HIGH>;
+    };

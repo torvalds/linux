@@ -89,8 +89,7 @@ static int profile_setrlimit(const struct cred *subj_cred,
 			     struct aa_profile *profile, unsigned int resource,
 			     struct rlimit *new_rlim)
 {
-	struct aa_ruleset *rules = list_first_entry(&profile->rules,
-						    typeof(*rules), list);
+	struct aa_ruleset *rules = profile->label.rules[0];
 	int e = 0;
 
 	if (rules->rlimits.mask & (1 << resource) && new_rlim->rlim_max >
@@ -165,9 +164,7 @@ void __aa_transition_rlimits(struct aa_label *old_l, struct aa_label *new_l)
 	 * to the lesser of the tasks hard limit and the init tasks soft limit
 	 */
 	label_for_each_confined(i, old_l, old) {
-		struct aa_ruleset *rules = list_first_entry(&old->rules,
-							    typeof(*rules),
-							    list);
+		struct aa_ruleset *rules = old->label.rules[0];
 		if (rules->rlimits.mask) {
 			int j;
 
@@ -185,9 +182,7 @@ void __aa_transition_rlimits(struct aa_label *old_l, struct aa_label *new_l)
 
 	/* set any new hard limits as dictated by the new profile */
 	label_for_each_confined(i, new_l, new) {
-		struct aa_ruleset *rules = list_first_entry(&new->rules,
-							    typeof(*rules),
-							    list);
+		struct aa_ruleset *rules = new->label.rules[0];
 		int j;
 
 		if (!rules->rlimits.mask)

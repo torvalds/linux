@@ -157,7 +157,7 @@ static int loongson_gpio_init(struct device *dev, struct loongson_gpio_chip *lgp
 		lgpio->chip.get = loongson_gpio_get;
 		lgpio->chip.get_direction = loongson_gpio_get_direction;
 		lgpio->chip.direction_output = loongson_gpio_direction_output;
-		lgpio->chip.set_rv = loongson_gpio_set;
+		lgpio->chip.set = loongson_gpio_set;
 		lgpio->chip.parent = dev;
 		spin_lock_init(&lgpio->lock);
 	}

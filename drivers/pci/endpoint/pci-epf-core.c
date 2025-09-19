@@ -338,7 +338,7 @@ static void pci_epf_remove_cfs(struct pci_epf_driver *driver)
 	mutex_lock(&pci_epf_mutex);
 	list_for_each_entry_safe(group, tmp, &driver->epf_group, group_entry)
 		pci_ep_cfs_remove_epf_group(group);
-	list_del(&driver->epf_group);
+	WARN_ON(!list_empty(&driver->epf_group));
 	mutex_unlock(&pci_epf_mutex);
 }
 
@@ -476,6 +476,44 @@ struct pci_epf *pci_epf_create(const char *name)
 	return epf;
 }
 EXPORT_SYMBOL_GPL(pci_epf_create);
+
+/**
+ * pci_epf_align_inbound_addr() - Align the given address based on the BAR
+ *				  alignment requirement
+ * @epf: the EPF device
+ * @addr: inbound address to be aligned
+ * @bar: the BAR number corresponding to the given addr
+ * @base: base address matching the @bar alignment requirement
+ * @off: offset to be added to the @base address
+ *
+ * Helper function to align input @addr based on BAR's alignment requirement.
+ * The aligned base address and offset are returned via @base and @off.
+ *
+ * NOTE: The pci_epf_alloc_space() function already accounts for alignment.
+ * This API is primarily intended for use with other memory regions not
+ * allocated by pci_epf_alloc_space(), such as peripheral register spaces or
+ * the message address of a platform MSI controller.
+ *
+ * Return: 0 on success, errno otherwise.
+ */
+int pci_epf_align_inbound_addr(struct pci_epf *epf, enum pci_barno bar,
+			       u64 addr, dma_addr_t *base, size_t *off)
+{
+	/*
+	 * Most EP controllers require the BAR start address to be aligned to
+	 * the BAR size, because they mask off the lower bits.
+	 *
+	 * Alignment to BAR size also works for controllers that support
+	 * unaligned addresses.
+	 */
+	u64 align = epf->bar[bar].size;
+
+	*base = round_down(addr, align);
+	*off = addr & (align - 1);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_epf_align_inbound_addr);
 
 static void pci_epf_dev_release(struct device *dev)
 {

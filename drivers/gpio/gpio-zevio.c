@@ -161,7 +161,7 @@ static int zevio_gpio_to_irq(struct gpio_chip *chip, unsigned pin)
 static const struct gpio_chip zevio_gpio_chip = {
 	.direction_input	= zevio_gpio_direction_input,
 	.direction_output	= zevio_gpio_direction_output,
-	.set_rv			= zevio_gpio_set,
+	.set			= zevio_gpio_set,
 	.get			= zevio_gpio_get,
 	.to_irq			= zevio_gpio_to_irq,
 	.base			= 0,

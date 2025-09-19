@@ -43,10 +43,7 @@ properties:
     minItems: 1
     maxItems: 8 # Should be enough
 
-  monitored-battery:
-    description:
-      Specifies the phandle of a simple-battery connected to this gauge
-    $ref: /schemas/types.yaml#/definitions/phandle
+  monitored-battery: true
 
 required:
   - compatible

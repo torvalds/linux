@@ -439,6 +439,7 @@ void efi_native_runtime_setup(void);
 
 /* OVMF protocol GUIDs */
 #define OVMF_SEV_MEMORY_ACCEPTANCE_PROTOCOL_GUID	EFI_GUID(0xc5a010fe, 0x38a7, 0x4531,  0x8a, 0x4a, 0x05, 0x00, 0xd2, 0xfd, 0x16, 0x49)
+#define OVMF_MEMORY_LOG_TABLE_GUID		EFI_GUID(0x95305139, 0xb20f, 0x4723,  0x84, 0x25, 0x62, 0x7c, 0x88, 0x8f, 0xf1, 0x21)
 
 typedef struct {
 	efi_guid_t guid;
@@ -642,6 +643,7 @@ extern struct efi {
 	unsigned long			esrt;			/* ESRT table */
 	unsigned long			tpm_log;		/* TPM2 Event Log table */
 	unsigned long			tpm_final_log;		/* TPM2 Final Events Log table */
+	unsigned long                   ovmf_debug_log;
 	unsigned long			mokvar_table;		/* MOK variable config table */
 	unsigned long			coco_secret;		/* Confidential computing secret table */
 	unsigned long			unaccepted;		/* Unaccepted memory table */
@@ -1343,6 +1345,8 @@ bool efi_config_table_is_usable(const efi_guid_t *guid, unsigned long table)
 }
 
 umode_t efi_attr_is_visible(struct kobject *kobj, struct attribute *attr, int n);
+
+int ovmf_log_probe(unsigned long ovmf_debug_log_table);
 
 /*
  * efivar ops event type

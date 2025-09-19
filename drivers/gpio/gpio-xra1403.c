@@ -164,7 +164,7 @@ static int xra1403_probe(struct spi_device *spi)
 	xra->chip.direction_output = xra1403_direction_output;
 	xra->chip.get_direction = xra1403_get_direction;
 	xra->chip.get = xra1403_get;
-	xra->chip.set_rv = xra1403_set;
+	xra->chip.set = xra1403_set;
 
 	xra->chip.dbg_show = xra1403_dbg_show;
 

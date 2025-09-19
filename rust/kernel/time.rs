@@ -24,6 +24,9 @@
 //! C header: [`include/linux/jiffies.h`](srctree/include/linux/jiffies.h).
 //! C header: [`include/linux/ktime.h`](srctree/include/linux/ktime.h).
 
+use core::marker::PhantomData;
+
+pub mod delay;
 pub mod hrtimer;
 
 /// The number of nanoseconds per microsecond.
@@ -49,26 +52,141 @@ pub fn msecs_to_jiffies(msecs: Msecs) -> Jiffies {
     unsafe { bindings::__msecs_to_jiffies(msecs) }
 }
 
+/// Trait for clock sources.
+///
+/// Selection of the clock source depends on the use case. In some cases the usage of a
+/// particular clock is mandatory, e.g. in network protocols, filesystems. In other
+/// cases the user of the clock has to decide which clock is best suited for the
+/// purpose. In most scenarios clock [`Monotonic`] is the best choice as it
+/// provides a accurate monotonic notion of time (leap second smearing ignored).
+pub trait ClockSource {
+    /// The kernel clock ID associated with this clock source.
+    ///
+    /// This constant corresponds to the C side `clockid_t` value.
+    const ID: bindings::clockid_t;
+
+    /// Get the current time from the clock source.
+    ///
+    /// The function must return a value in the range from 0 to `KTIME_MAX`.
+    fn ktime_get() -> bindings::ktime_t;
+}
+
+/// A monotonically increasing clock.
+///
+/// A nonsettable system-wide clock that represents monotonic time since as
+/// described by POSIX, "some unspecified point in the past". On Linux, that
+/// point corresponds to the number of seconds that the system has been
+/// running since it was booted.
+///
+/// The CLOCK_MONOTONIC clock is not affected by discontinuous jumps in the
+/// CLOCK_REAL (e.g., if the system administrator manually changes the
+/// clock), but is affected by frequency adjustments. This clock does not
+/// count time that the system is suspended.
+pub struct Monotonic;
+
+impl ClockSource for Monotonic {
+    const ID: bindings::clockid_t = bindings::CLOCK_MONOTONIC as bindings::clockid_t;
+
+    fn ktime_get() -> bindings::ktime_t {
+        // SAFETY: It is always safe to call `ktime_get()` outside of NMI context.
+        unsafe { bindings::ktime_get() }
+    }
+}
+
+/// A settable system-wide clock that measures real (i.e., wall-clock) time.
+///
+/// Setting this clock requires appropriate privileges. This clock is
+/// affected by discontinuous jumps in the system time (e.g., if the system
+/// administrator manually changes the clock), and by frequency adjustments
+/// performed by NTP and similar applications via adjtime(3), adjtimex(2),
+/// clock_adjtime(2), and ntp_adjtime(3). This clock normally counts the
+/// number of seconds since 1970-01-01 00:00:00 Coordinated Universal Time
+/// (UTC) except that it ignores leap seconds; near a leap second it may be
+/// adjusted by leap second smearing to stay roughly in sync with UTC. Leap
+/// second smearing applies frequency adjustments to the clock to speed up
+/// or slow down the clock to account for the leap second without
+/// discontinuities in the clock. If leap second smearing is not applied,
+/// the clock will experience discontinuity around leap second adjustment.
+pub struct RealTime;
+
+impl ClockSource for RealTime {
+    const ID: bindings::clockid_t = bindings::CLOCK_REALTIME as bindings::clockid_t;
+
+    fn ktime_get() -> bindings::ktime_t {
+        // SAFETY: It is always safe to call `ktime_get_real()` outside of NMI context.
+        unsafe { bindings::ktime_get_real() }
+    }
+}
+
+/// A monotonic that ticks while system is suspended.
+///
+/// A nonsettable system-wide clock that is identical to CLOCK_MONOTONIC,
+/// except that it also includes any time that the system is suspended. This
+/// allows applications to get a suspend-aware monotonic clock without
+/// having to deal with the complications of CLOCK_REALTIME, which may have
+/// discontinuities if the time is changed using settimeofday(2) or similar.
+pub struct BootTime;
+
+impl ClockSource for BootTime {
+    const ID: bindings::clockid_t = bindings::CLOCK_BOOTTIME as bindings::clockid_t;
+
+    fn ktime_get() -> bindings::ktime_t {
+        // SAFETY: It is always safe to call `ktime_get_boottime()` outside of NMI context.
+        unsafe { bindings::ktime_get_boottime() }
+    }
+}
+
+/// International Atomic Time.
+///
+/// A system-wide clock derived from wall-clock time but counting leap seconds.
+///
+/// This clock is coupled to CLOCK_REALTIME and will be set when CLOCK_REALTIME is
+/// set, or when the offset to CLOCK_REALTIME is changed via adjtimex(2). This
+/// usually happens during boot and **should** not happen during normal operations.
+/// However, if NTP or another application adjusts CLOCK_REALTIME by leap second
+/// smearing, this clock will not be precise during leap second smearing.
+///
+/// The acronym TAI refers to International Atomic Time.
+pub struct Tai;
+
+impl ClockSource for Tai {
+    const ID: bindings::clockid_t = bindings::CLOCK_TAI as bindings::clockid_t;
+
+    fn ktime_get() -> bindings::ktime_t {
+        // SAFETY: It is always safe to call `ktime_get_tai()` outside of NMI context.
+        unsafe { bindings::ktime_get_clocktai() }
+    }
+}
+
 /// A specific point in time.
 ///
 /// # Invariants
 ///
 /// The `inner` value is in the range from 0 to `KTIME_MAX`.
 #[repr(transparent)]
-#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
-pub struct Instant {
+#[derive(PartialEq, PartialOrd, Eq, Ord)]
+pub struct Instant<C: ClockSource> {
     inner: bindings::ktime_t,
+    _c: PhantomData<C>,
 }
 
-impl Instant {
-    /// Get the current time using `CLOCK_MONOTONIC`.
+impl<C: ClockSource> Clone for Instant<C> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<C: ClockSource> Copy for Instant<C> {}
+
+impl<C: ClockSource> Instant<C> {
+    /// Get the current time from the clock source.
     #[inline]
     pub fn now() -> Self {
-        // INVARIANT: The `ktime_get()` function returns a value in the range
+        // INVARIANT: The `ClockSource::ktime_get()` function returns a value in the range
         // from 0 to `KTIME_MAX`.
         Self {
-            // SAFETY: It is always safe to call `ktime_get()` outside of NMI context.
-            inner: unsafe { bindings::ktime_get() },
+            inner: C::ktime_get(),
+            _c: PhantomData,
         }
     }
 
@@ -77,83 +195,22 @@ impl Instant {
     pub fn elapsed(&self) -> Delta {
         Self::now() - *self
     }
+
+    #[inline]
+    pub(crate) fn as_nanos(&self) -> i64 {
+        self.inner
+    }
 }
 
-impl core::ops::Sub for Instant {
+impl<C: ClockSource> core::ops::Sub for Instant<C> {
     type Output = Delta;
 
     // By the type invariant, it never overflows.
     #[inline]
-    fn sub(self, other: Instant) -> Delta {
+    fn sub(self, other: Instant<C>) -> Delta {
         Delta {
             nanos: self.inner - other.inner,
         }
-    }
-}
-
-/// An identifier for a clock. Used when specifying clock sources.
-///
-///
-/// Selection of the clock depends on the use case. In some cases the usage of a
-/// particular clock is mandatory, e.g. in network protocols, filesystems.In other
-/// cases the user of the clock has to decide which clock is best suited for the
-/// purpose. In most scenarios clock [`ClockId::Monotonic`] is the best choice as it
-/// provides a accurate monotonic notion of time (leap second smearing ignored).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-#[repr(u32)]
-pub enum ClockId {
-    /// A settable system-wide clock that measures real (i.e., wall-clock) time.
-    ///
-    /// Setting this clock requires appropriate privileges. This clock is
-    /// affected by discontinuous jumps in the system time (e.g., if the system
-    /// administrator manually changes the clock), and by frequency adjustments
-    /// performed by NTP and similar applications via adjtime(3), adjtimex(2),
-    /// clock_adjtime(2), and ntp_adjtime(3). This clock normally counts the
-    /// number of seconds since 1970-01-01 00:00:00 Coordinated Universal Time
-    /// (UTC) except that it ignores leap seconds; near a leap second it may be
-    /// adjusted by leap second smearing to stay roughly in sync with UTC. Leap
-    /// second smearing applies frequency adjustments to the clock to speed up
-    /// or slow down the clock to account for the leap second without
-    /// discontinuities in the clock. If leap second smearing is not applied,
-    /// the clock will experience discontinuity around leap second adjustment.
-    RealTime = bindings::CLOCK_REALTIME,
-    /// A monotonically increasing clock.
-    ///
-    /// A nonsettable system-wide clock that represents monotonic time since—as
-    /// described by POSIX—"some unspecified point in the past". On Linux, that
-    /// point corresponds to the number of seconds that the system has been
-    /// running since it was booted.
-    ///
-    /// The CLOCK_MONOTONIC clock is not affected by discontinuous jumps in the
-    /// CLOCK_REAL (e.g., if the system administrator manually changes the
-    /// clock), but is affected by frequency adjustments. This clock does not
-    /// count time that the system is suspended.
-    Monotonic = bindings::CLOCK_MONOTONIC,
-    /// A monotonic that ticks while system is suspended.
-    ///
-    /// A nonsettable system-wide clock that is identical to CLOCK_MONOTONIC,
-    /// except that it also includes any time that the system is suspended. This
-    /// allows applications to get a suspend-aware monotonic clock without
-    /// having to deal with the complications of CLOCK_REALTIME, which may have
-    /// discontinuities if the time is changed using settimeofday(2) or similar.
-    BootTime = bindings::CLOCK_BOOTTIME,
-    /// International Atomic Time.
-    ///
-    /// A system-wide clock derived from wall-clock time but counting leap seconds.
-    ///
-    /// This clock is coupled to CLOCK_REALTIME and will be set when CLOCK_REALTIME is
-    /// set, or when the offset to CLOCK_REALTIME is changed via adjtimex(2). This
-    /// usually happens during boot and **should** not happen during normal operations.
-    /// However, if NTP or another application adjusts CLOCK_REALTIME by leap second
-    /// smearing, this clock will not be precise during leap second smearing.
-    ///
-    /// The acronym TAI refers to International Atomic Time.
-    TAI = bindings::CLOCK_TAI,
-}
-
-impl ClockId {
-    fn into_c(self) -> bindings::clockid_t {
-        self as bindings::clockid_t
     }
 }
 
@@ -228,13 +285,31 @@ impl Delta {
     /// Return the smallest number of microseconds greater than or equal
     /// to the value in the [`Delta`].
     #[inline]
-    pub const fn as_micros_ceil(self) -> i64 {
-        self.as_nanos().saturating_add(NSEC_PER_USEC - 1) / NSEC_PER_USEC
+    pub fn as_micros_ceil(self) -> i64 {
+        #[cfg(CONFIG_64BIT)]
+        {
+            self.as_nanos().saturating_add(NSEC_PER_USEC - 1) / NSEC_PER_USEC
+        }
+
+        #[cfg(not(CONFIG_64BIT))]
+        // SAFETY: It is always safe to call `ktime_to_us()` with any value.
+        unsafe {
+            bindings::ktime_to_us(self.as_nanos().saturating_add(NSEC_PER_USEC - 1))
+        }
     }
 
     /// Return the number of milliseconds in the [`Delta`].
     #[inline]
-    pub const fn as_millis(self) -> i64 {
-        self.as_nanos() / NSEC_PER_MSEC
+    pub fn as_millis(self) -> i64 {
+        #[cfg(CONFIG_64BIT)]
+        {
+            self.as_nanos() / NSEC_PER_MSEC
+        }
+
+        #[cfg(not(CONFIG_64BIT))]
+        // SAFETY: It is always safe to call `ktime_to_ms()` with any value.
+        unsafe {
+            bindings::ktime_to_ms(self.as_nanos())
+        }
     }
 }

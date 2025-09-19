@@ -758,7 +758,7 @@ static void pata_macio_irq_clear(struct ata_port *ap)
 
 static void pata_macio_reset_hw(struct pata_macio_priv *priv, int resume)
 {
-	dev_dbg(priv->dev, "Enabling & resetting... \n");
+	dev_dbg(priv->dev, "Enabling & resetting...\n");
 
 	if (priv->mediabay)
 		return;

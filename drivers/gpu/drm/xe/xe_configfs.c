@@ -267,7 +267,8 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 
 	pdev = pci_get_domain_bus_and_slot(domain, bus, PCI_DEVFN(slot, function));
 	if (!pdev)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-ENODEV);
+	pci_dev_put(pdev);
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)

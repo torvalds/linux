@@ -1425,8 +1425,8 @@ static int ad74413r_probe(struct spi_device *spi)
 		st->gpo_gpiochip.ngpio = st->num_gpo_gpios;
 		st->gpo_gpiochip.parent = st->dev;
 		st->gpo_gpiochip.can_sleep = true;
-		st->gpo_gpiochip.set_rv = ad74413r_gpio_set;
-		st->gpo_gpiochip.set_multiple_rv = ad74413r_gpio_set_multiple;
+		st->gpo_gpiochip.set = ad74413r_gpio_set;
+		st->gpo_gpiochip.set_multiple = ad74413r_gpio_set_multiple;
 		st->gpo_gpiochip.set_config = ad74413r_gpio_set_gpo_config;
 		st->gpo_gpiochip.get_direction =
 			ad74413r_gpio_get_gpo_direction;

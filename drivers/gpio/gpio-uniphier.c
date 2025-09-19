@@ -386,8 +386,8 @@ static int uniphier_gpio_probe(struct platform_device *pdev)
 	chip->direction_input = uniphier_gpio_direction_input;
 	chip->direction_output = uniphier_gpio_direction_output;
 	chip->get = uniphier_gpio_get;
-	chip->set_rv = uniphier_gpio_set;
-	chip->set_multiple_rv = uniphier_gpio_set_multiple;
+	chip->set = uniphier_gpio_set;
+	chip->set_multiple = uniphier_gpio_set_multiple;
 	chip->to_irq = uniphier_gpio_to_irq;
 	chip->base = -1;
 	chip->ngpio = ngpios;

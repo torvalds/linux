@@ -605,14 +605,7 @@ cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 
 	/* BB what if DFS and this volume is on different share? BB */
 	rc = -EOPNOTSUPP;
-	switch (get_cifs_symlink_type(cifs_sb)) {
-	case CIFS_SYMLINK_TYPE_DEFAULT:
-		/* should not happen, get_cifs_symlink_type() resolves the default */
-		break;
-
-	case CIFS_SYMLINK_TYPE_NONE:
-		break;
-
+	switch (cifs_symlink_type(cifs_sb)) {
 	case CIFS_SYMLINK_TYPE_UNIX:
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 		if (pTcon->unix_ext) {
@@ -642,11 +635,13 @@ cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 	case CIFS_SYMLINK_TYPE_NATIVE:
 	case CIFS_SYMLINK_TYPE_NFS:
 	case CIFS_SYMLINK_TYPE_WSL:
-		if (le32_to_cpu(pTcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS) {
+		if (CIFS_REPARSE_SUPPORT(pTcon)) {
 			rc = create_reparse_symlink(xid, inode, direntry, pTcon,
 						    full_path, symname);
 			goto symlink_exit;
 		}
+		break;
+	default:
 		break;
 	}
 

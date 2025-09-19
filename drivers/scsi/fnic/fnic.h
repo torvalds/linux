@@ -323,8 +323,6 @@ enum fnic_state {
 	FNIC_IN_ETH_TRANS_FC_MODE,
 };
 
-struct mempool;
-
 enum fnic_role_e {
 	FNIC_ROLE_FCP_INITIATOR = 0,
 };

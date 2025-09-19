@@ -336,7 +336,7 @@ static int match_cxlrd_hb(struct device *dev, void *data)
 	cxlrd = to_cxl_root_decoder(dev);
 	cxlsd = &cxlrd->cxlsd;
 
-	guard(rwsem_read)(&cxl_region_rwsem);
+	guard(rwsem_read)(&cxl_rwsem.region);
 	for (int i = 0; i < cxlsd->nr_targets; i++) {
 		if (host_bridge == cxlsd->target[i]->dport_dev)
 			return 1;
@@ -987,7 +987,7 @@ void cxl_region_shared_upstream_bandwidth_update(struct cxl_region *cxlr)
 	bool is_root;
 	int rc;
 
-	lockdep_assert_held(&cxl_dpa_rwsem);
+	lockdep_assert_held(&cxl_rwsem.dpa);
 
 	struct xarray *usp_xa __free(free_perf_xa) =
 		kzalloc(sizeof(*usp_xa), GFP_KERNEL);
@@ -1057,7 +1057,7 @@ void cxl_region_perf_data_calculate(struct cxl_region *cxlr,
 {
 	struct cxl_dpa_perf *perf;
 
-	lockdep_assert_held(&cxl_dpa_rwsem);
+	lockdep_assert_held(&cxl_rwsem.dpa);
 
 	perf = cxled_get_dpa_perf(cxled);
 	if (IS_ERR(perf))

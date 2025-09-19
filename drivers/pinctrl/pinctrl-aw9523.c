@@ -625,14 +625,14 @@ out:
 	return ret;
 }
 
-static void aw9523_gpio_set_multiple(struct gpio_chip *chip,
+static int aw9523_gpio_set_multiple(struct gpio_chip *chip,
 				    unsigned long *mask,
 				    unsigned long *bits)
 {
 	struct aw9523 *awi = gpiochip_get_data(chip);
 	u8 mask_lo, mask_hi, bits_lo, bits_hi;
 	unsigned int reg;
-	int ret;
+	int ret = 0;
 
 	mask_lo = *mask;
 	mask_hi = *mask >> 8;
@@ -644,27 +644,33 @@ static void aw9523_gpio_set_multiple(struct gpio_chip *chip,
 		reg = AW9523_REG_OUT_STATE(AW9523_PINS_PER_PORT);
 		ret = regmap_write_bits(awi->regmap, reg, mask_hi, bits_hi);
 		if (ret)
-			dev_warn(awi->dev, "Cannot write port1 out level\n");
+			goto out;
 	}
 	if (mask_lo) {
 		reg = AW9523_REG_OUT_STATE(0);
 		ret = regmap_write_bits(awi->regmap, reg, mask_lo, bits_lo);
 		if (ret)
-			dev_warn(awi->dev, "Cannot write port0 out level\n");
+			goto out;
 	}
+
+out:
 	mutex_unlock(&awi->i2c_lock);
+	return ret;
 }
 
-static void aw9523_gpio_set(struct gpio_chip *chip,
-			    unsigned int offset, int value)
+static int aw9523_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	struct aw9523 *awi = gpiochip_get_data(chip);
 	u8 regbit = offset % AW9523_PINS_PER_PORT;
+	int ret;
 
 	mutex_lock(&awi->i2c_lock);
-	regmap_update_bits(awi->regmap, AW9523_REG_OUT_STATE(offset),
-			   BIT(regbit), value ? BIT(regbit) : 0);
+	ret = regmap_update_bits(awi->regmap, AW9523_REG_OUT_STATE(offset),
+				 BIT(regbit), value ? BIT(regbit) : 0);
 	mutex_unlock(&awi->i2c_lock);
+
+	return ret;
 }
 
 

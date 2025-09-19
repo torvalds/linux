@@ -79,6 +79,12 @@ extern note_buf_t __percpu *crash_notes;
 
 typedef unsigned long kimage_entry_t;
 
+/*
+ * This is a copy of the UAPI struct kexec_segment and must be identical
+ * to it because it gets copied straight from user space into kernel
+ * memory. Do not modify this structure unless you change the way segments
+ * get ingested from user space.
+ */
 struct kexec_segment {
 	/*
 	 * This pointer can point to user memory if kexec_load() system
@@ -172,6 +178,7 @@ int kexec_image_post_load_cleanup_default(struct kimage *image);
  * @buf_align:	Minimum alignment needed.
  * @buf_min:	The buffer can't be placed below this address.
  * @buf_max:	The buffer can't be placed above this address.
+ * @cma:	CMA page if the buffer is backed by CMA.
  * @top_down:	Allocate from top of memory.
  * @random:	Place the buffer at a random position.
  */
@@ -184,6 +191,7 @@ struct kexec_buf {
 	unsigned long buf_align;
 	unsigned long buf_min;
 	unsigned long buf_max;
+	struct page *cma;
 	bool top_down;
 #ifdef CONFIG_CRASH_DUMP
 	bool random;
@@ -340,6 +348,7 @@ struct kimage {
 
 	unsigned long nr_segments;
 	struct kexec_segment segment[KEXEC_SEGMENT_MAX];
+	struct page *segment_cma[KEXEC_SEGMENT_MAX];
 
 	struct list_head control_pages;
 	struct list_head dest_pages;
@@ -361,6 +370,7 @@ struct kimage {
 	 */
 	unsigned int hotplug_support:1;
 #endif
+	unsigned int no_cma:1;
 
 #ifdef ARCH_HAS_KIMAGE_ARCH
 	struct kimage_arch arch;

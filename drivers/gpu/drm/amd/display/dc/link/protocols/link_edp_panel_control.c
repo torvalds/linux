@@ -944,7 +944,7 @@ bool edp_set_replay_allow_active(struct dc_link *link, const bool *allow_active,
 		// TODO: Handle mux change case if force_static is set
 		// If force_static is set, just change the replay_allow_active state directly
 		if (replay != NULL && link->replay_settings.replay_feature_enabled)
-			replay->funcs->replay_enable(replay, *allow_active, wait, panel_inst, link);
+			replay->funcs->replay_enable(replay, *allow_active, wait, panel_inst);
 		link->replay_settings.replay_allow_active = *allow_active;
 	}
 

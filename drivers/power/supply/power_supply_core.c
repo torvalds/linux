@@ -18,7 +18,6 @@
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/err.h>
-#include <linux/of.h>
 #include <linux/power_supply.h>
 #include <linux/property.h>
 #include <linux/thermal.h>
@@ -196,24 +195,24 @@ static int __power_supply_populate_supplied_from(struct power_supply *epsy,
 						 void *data)
 {
 	struct power_supply *psy = data;
-	struct device_node *np;
+	struct fwnode_handle *np;
 	int i = 0;
 
 	do {
-		np = of_parse_phandle(psy->dev.of_node, "power-supplies", i++);
-		if (!np)
+		np = fwnode_find_reference(psy->dev.fwnode, "power-supplies", i++);
+		if (IS_ERR(np))
 			break;
 
-		if (np == epsy->dev.of_node) {
+		if (np == epsy->dev.fwnode) {
 			dev_dbg(&psy->dev, "%s: Found supply : %s\n",
 				psy->desc->name, epsy->desc->name);
 			psy->supplied_from[i-1] = (char *)epsy->desc->name;
 			psy->num_supplies++;
-			of_node_put(np);
+			fwnode_handle_put(np);
 			break;
 		}
-		of_node_put(np);
-	} while (np);
+		fwnode_handle_put(np);
+	} while (true);
 
 	return 0;
 }
@@ -232,16 +231,16 @@ static int power_supply_populate_supplied_from(struct power_supply *psy)
 static int  __power_supply_find_supply_from_node(struct power_supply *epsy,
 						 void *data)
 {
-	struct device_node *np = data;
+	struct fwnode_handle *fwnode = data;
 
 	/* returning non-zero breaks out of power_supply_for_each_psy loop */
-	if (epsy->dev.of_node == np)
+	if (epsy->dev.fwnode == fwnode)
 		return 1;
 
 	return 0;
 }
 
-static int power_supply_find_supply_from_node(struct device_node *supply_node)
+static int power_supply_find_supply_from_fwnode(struct fwnode_handle *supply_node)
 {
 	int error;
 
@@ -249,7 +248,7 @@ static int power_supply_find_supply_from_node(struct device_node *supply_node)
 	 * power_supply_for_each_psy() either returns its own errors or values
 	 * returned by __power_supply_find_supply_from_node().
 	 *
-	 * __power_supply_find_supply_from_node() will return 0 (no match)
+	 * __power_supply_find_supply_from_fwnode() will return 0 (no match)
 	 * or 1 (match).
 	 *
 	 * We return 0 if power_supply_for_each_psy() returned 1, -EPROBE_DEFER if
@@ -262,7 +261,7 @@ static int power_supply_find_supply_from_node(struct device_node *supply_node)
 
 static int power_supply_check_supplies(struct power_supply *psy)
 {
-	struct device_node *np;
+	struct fwnode_handle *np;
 	int cnt = 0;
 
 	/* If there is already a list honor it */
@@ -270,24 +269,24 @@ static int power_supply_check_supplies(struct power_supply *psy)
 		return 0;
 
 	/* No device node found, nothing to do */
-	if (!psy->dev.of_node)
+	if (!psy->dev.fwnode)
 		return 0;
 
 	do {
 		int ret;
 
-		np = of_parse_phandle(psy->dev.of_node, "power-supplies", cnt++);
-		if (!np)
+		np = fwnode_find_reference(psy->dev.fwnode, "power-supplies", cnt++);
+		if (IS_ERR(np))
 			break;
 
-		ret = power_supply_find_supply_from_node(np);
-		of_node_put(np);
+		ret = power_supply_find_supply_from_fwnode(np);
+		fwnode_handle_put(np);
 
 		if (ret) {
 			dev_dbg(&psy->dev, "Failed to find supply!\n");
 			return ret;
 		}
-	} while (np);
+	} while (!IS_ERR(np));
 
 	/* Missing valid "power-supplies" entries */
 	if (cnt == 1)
@@ -497,15 +496,14 @@ void power_supply_put(struct power_supply *psy)
 }
 EXPORT_SYMBOL_GPL(power_supply_put);
 
-#ifdef CONFIG_OF
-static int power_supply_match_device_node(struct device *dev, const void *data)
+static int power_supply_match_device_fwnode(struct device *dev, const void *data)
 {
-	return dev->parent && dev->parent->of_node == data;
+	return dev->parent && dev_fwnode(dev->parent) == data;
 }
 
 /**
- * power_supply_get_by_phandle() - Search for a power supply and returns its ref
- * @np: Pointer to device node holding phandle property
+ * power_supply_get_by_reference() - Search for a power supply and returns its ref
+ * @fwnode: Pointer to fwnode holding phandle property
  * @property: Name of property holding a power supply name
  *
  * If power supply was found, it increases reference count for the
@@ -515,21 +513,21 @@ static int power_supply_match_device_node(struct device *dev, const void *data)
  * Return: On success returns a reference to a power supply with
  * matching name equals to value under @property, NULL or ERR_PTR otherwise.
  */
-struct power_supply *power_supply_get_by_phandle(struct device_node *np,
-							const char *property)
+struct power_supply *power_supply_get_by_reference(struct fwnode_handle *fwnode,
+						   const char *property)
 {
-	struct device_node *power_supply_np;
+	struct fwnode_handle *power_supply_fwnode;
 	struct power_supply *psy = NULL;
 	struct device *dev;
 
-	power_supply_np = of_parse_phandle(np, property, 0);
-	if (!power_supply_np)
-		return ERR_PTR(-ENODEV);
+	power_supply_fwnode = fwnode_find_reference(fwnode, property, 0);
+	if (IS_ERR(power_supply_fwnode))
+		return ERR_CAST(power_supply_fwnode);
 
-	dev = class_find_device(&power_supply_class, NULL, power_supply_np,
-				power_supply_match_device_node);
+	dev = class_find_device(&power_supply_class, NULL, power_supply_fwnode,
+				power_supply_match_device_fwnode);
 
-	of_node_put(power_supply_np);
+	fwnode_handle_put(power_supply_fwnode);
 
 	if (dev) {
 		psy = dev_to_psy(dev);
@@ -538,7 +536,7 @@ struct power_supply *power_supply_get_by_phandle(struct device_node *np,
 
 	return psy;
 }
-EXPORT_SYMBOL_GPL(power_supply_get_by_phandle);
+EXPORT_SYMBOL_GPL(power_supply_get_by_reference);
 
 static void devm_power_supply_put(struct device *dev, void *res)
 {
@@ -548,27 +546,27 @@ static void devm_power_supply_put(struct device *dev, void *res)
 }
 
 /**
- * devm_power_supply_get_by_phandle() - Resource managed version of
- *  power_supply_get_by_phandle()
+ * devm_power_supply_get_by_reference() - Resource managed version of
+ *  power_supply_get_by_reference()
  * @dev: Pointer to device holding phandle property
  * @property: Name of property holding a power supply phandle
  *
  * Return: On success returns a reference to a power supply with
  * matching name equals to value under @property, NULL or ERR_PTR otherwise.
  */
-struct power_supply *devm_power_supply_get_by_phandle(struct device *dev,
-						      const char *property)
+struct power_supply *devm_power_supply_get_by_reference(struct device *dev,
+							const char *property)
 {
 	struct power_supply **ptr, *psy;
 
-	if (!dev->of_node)
+	if (!dev_fwnode(dev))
 		return ERR_PTR(-ENODEV);
 
 	ptr = devres_alloc(devm_power_supply_put, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	psy = power_supply_get_by_phandle(dev->of_node, property);
+	psy = power_supply_get_by_reference(dev_fwnode(dev), property);
 	if (IS_ERR_OR_NULL(psy)) {
 		devres_free(ptr);
 	} else {
@@ -577,40 +575,26 @@ struct power_supply *devm_power_supply_get_by_phandle(struct device *dev,
 	}
 	return psy;
 }
-EXPORT_SYMBOL_GPL(devm_power_supply_get_by_phandle);
-#endif /* CONFIG_OF */
+EXPORT_SYMBOL_GPL(devm_power_supply_get_by_reference);
 
 int power_supply_get_battery_info(struct power_supply *psy,
 				  struct power_supply_battery_info **info_out)
 {
 	struct power_supply_resistance_temp_table *resist_table;
 	struct power_supply_battery_info *info;
-	struct device_node *battery_np = NULL;
-	struct fwnode_reference_args args;
-	struct fwnode_handle *fwnode = NULL;
+	struct fwnode_handle *srcnode, *fwnode;
 	const char *value;
-	int err, len, index;
-	const __be32 *list;
+	int err, len, index, proplen;
+	u32 *propdata __free(kfree) = NULL;
 	u32 min_max[2];
 
-	if (psy->dev.of_node) {
-		battery_np = of_parse_phandle(psy->dev.of_node, "monitored-battery", 0);
-		if (!battery_np)
-			return -ENODEV;
+	srcnode = dev_fwnode(&psy->dev);
+	if (!srcnode && psy->dev.parent)
+		srcnode = dev_fwnode(psy->dev.parent);
 
-		fwnode = fwnode_handle_get(of_fwnode_handle(battery_np));
-	} else if (psy->dev.parent) {
-		err = fwnode_property_get_reference_args(
-					dev_fwnode(psy->dev.parent),
-					"monitored-battery", NULL, 0, 0, &args);
-		if (err)
-			return err;
-
-		fwnode = args.fwnode;
-	}
-
-	if (!fwnode)
-		return -ENOENT;
+	fwnode = fwnode_find_reference(srcnode, "monitored-battery", 0);
+	if (IS_ERR(fwnode))
+		return PTR_ERR(fwnode);
 
 	err = fwnode_property_read_string(fwnode, "compatible", &value);
 	if (err)
@@ -740,15 +724,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		info->temp_max = min_max[1];
 	}
 
-	/*
-	 * The below code uses raw of-data parsing to parse
-	 * /schemas/types.yaml#/definitions/uint32-matrix
-	 * data, so for now this is only support with of.
-	 */
-	if (!battery_np)
-		goto out_ret_pointer;
-
-	len = of_property_count_u32_elems(battery_np, "ocv-capacity-celsius");
+	len = fwnode_property_count_u32(fwnode, "ocv-capacity-celsius");
 	if (len < 0 && len != -EINVAL) {
 		err = len;
 		goto out_put_node;
@@ -757,13 +733,13 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		err = -EINVAL;
 		goto out_put_node;
 	} else if (len > 0) {
-		of_property_read_u32_array(battery_np, "ocv-capacity-celsius",
+		fwnode_property_read_u32_array(fwnode, "ocv-capacity-celsius",
 					   info->ocv_temp, len);
 	}
 
 	for (index = 0; index < len; index++) {
 		struct power_supply_battery_ocv_table *table;
-		int i, tab_len, size;
+		int i, tab_len;
 
 		char *propname __free(kfree) = kasprintf(GFP_KERNEL, "ocv-capacity-table-%d",
 							 index);
@@ -772,15 +748,28 @@ int power_supply_get_battery_info(struct power_supply *psy,
 			err = -ENOMEM;
 			goto out_put_node;
 		}
-		list = of_get_property(battery_np, propname, &size);
-		if (!list || !size) {
+		proplen = fwnode_property_count_u32(fwnode, propname);
+		if (proplen < 0 || proplen % 2 != 0) {
 			dev_err(&psy->dev, "failed to get %s\n", propname);
 			power_supply_put_battery_info(psy, info);
 			err = -EINVAL;
 			goto out_put_node;
 		}
 
-		tab_len = size / (2 * sizeof(__be32));
+		u32 *propdata __free(kfree) = kcalloc(proplen, sizeof(*propdata), GFP_KERNEL);
+		if (!propdata) {
+			power_supply_put_battery_info(psy, info);
+			err = -EINVAL;
+			goto out_put_node;
+		}
+		err = fwnode_property_read_u32_array(fwnode, propname, propdata, proplen);
+		if (err < 0) {
+			dev_err(&psy->dev, "failed to get %s\n", propname);
+			power_supply_put_battery_info(psy, info);
+			goto out_put_node;
+		}
+
+		tab_len = proplen / 2;
 		info->ocv_table_size[index] = tab_len;
 
 		info->ocv_table[index] = table =
@@ -792,18 +781,36 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		}
 
 		for (i = 0; i < tab_len; i++) {
-			table[i].ocv = be32_to_cpu(*list);
-			list++;
-			table[i].capacity = be32_to_cpu(*list);
-			list++;
+			table[i].ocv = propdata[i*2];
+			table[i].capacity = propdata[i*2+1];
 		}
 	}
 
-	list = of_get_property(battery_np, "resistance-temp-table", &len);
-	if (!list || !len)
+	proplen = fwnode_property_count_u32(fwnode, "resistance-temp-table");
+	if (proplen == 0 || proplen == -EINVAL) {
+		err = 0;
 		goto out_ret_pointer;
+	} else if (proplen < 0 || proplen % 2 != 0) {
+		power_supply_put_battery_info(psy, info);
+		err = (proplen < 0) ? proplen : -EINVAL;
+		goto out_put_node;
+	}
 
-	info->resist_table_size = len / (2 * sizeof(__be32));
+	propdata = kcalloc(proplen, sizeof(*propdata), GFP_KERNEL);
+	if (!propdata) {
+		power_supply_put_battery_info(psy, info);
+		err = -ENOMEM;
+		goto out_put_node;
+	}
+
+	err = fwnode_property_read_u32_array(fwnode, "resistance-temp-table",
+					     propdata, proplen);
+	if (err < 0) {
+		power_supply_put_battery_info(psy, info);
+		goto out_put_node;
+	}
+
+	info->resist_table_size = proplen / 2;
 	info->resist_table = resist_table = devm_kcalloc(&psy->dev,
 							 info->resist_table_size,
 							 sizeof(*resist_table),
@@ -815,8 +822,8 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	}
 
 	for (index = 0; index < info->resist_table_size; index++) {
-		resist_table[index].temp = be32_to_cpu(*list++);
-		resist_table[index].resistance = be32_to_cpu(*list++);
+		resist_table[index].temp = propdata[index*2];
+		resist_table[index].resistance = propdata[index*2+1];
 	}
 
 out_ret_pointer:
@@ -825,7 +832,6 @@ out_ret_pointer:
 
 out_put_node:
 	fwnode_handle_put(fwnode);
-	of_node_put(battery_np);
 	return err;
 }
 EXPORT_SYMBOL_GPL(power_supply_get_battery_info);
@@ -1587,10 +1593,9 @@ __power_supply_register(struct device *parent,
 	dev_set_drvdata(dev, psy);
 	psy->desc = desc;
 	if (cfg) {
+		device_set_node(dev, cfg->fwnode);
 		dev->groups = cfg->attr_grp;
 		psy->drv_data = cfg->drv_data;
-		dev->of_node =
-			cfg->fwnode ? to_of_node(cfg->fwnode) : cfg->of_node;
 		psy->supplied_to = cfg->supplied_to;
 		psy->num_supplicants = cfg->num_supplicants;
 	}

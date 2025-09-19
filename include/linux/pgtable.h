@@ -736,6 +736,29 @@ static inline pte_t get_and_clear_full_ptes(struct mm_struct *mm,
 }
 #endif
 
+/**
+ * get_and_clear_ptes - Clear present PTEs that map consecutive pages of
+ *			the same folio, collecting dirty/accessed bits.
+ * @mm: Address space the pages are mapped into.
+ * @addr: Address the first page is mapped at.
+ * @ptep: Page table pointer for the first entry.
+ * @nr: Number of entries to clear.
+ *
+ * Use this instead of get_and_clear_full_ptes() if it is known that we don't
+ * need to clear the full mm, which is mostly the case.
+ *
+ * Note that PTE bits in the PTE range besides the PFN can differ. For example,
+ * some PTEs might be write-protected.
+ *
+ * Context: The caller holds the page table lock.  The PTEs map consecutive
+ * pages that belong to the same folio.  The PTEs are all in the same PMD.
+ */
+static inline pte_t get_and_clear_ptes(struct mm_struct *mm, unsigned long addr,
+		pte_t *ptep, unsigned int nr)
+{
+	return get_and_clear_full_ptes(mm, addr, ptep, nr, 0);
+}
+
 #ifndef clear_full_ptes
 /**
  * clear_full_ptes - Clear present PTEs that map consecutive pages of the same
@@ -767,6 +790,28 @@ static inline void clear_full_ptes(struct mm_struct *mm, unsigned long addr,
 	}
 }
 #endif
+
+/**
+ * clear_ptes - Clear present PTEs that map consecutive pages of the same folio.
+ * @mm: Address space the pages are mapped into.
+ * @addr: Address the first page is mapped at.
+ * @ptep: Page table pointer for the first entry.
+ * @nr: Number of entries to clear.
+ *
+ * Use this instead of clear_full_ptes() if it is known that we don't need to
+ * clear the full mm, which is mostly the case.
+ *
+ * Note that PTE bits in the PTE range besides the PFN can differ. For example,
+ * some PTEs might be write-protected.
+ *
+ * Context: The caller holds the page table lock.  The PTEs map consecutive
+ * pages that belong to the same folio.  The PTEs are all in the same PMD.
+ */
+static inline void clear_ptes(struct mm_struct *mm, unsigned long addr,
+		pte_t *ptep, unsigned int nr)
+{
+	clear_full_ptes(mm, addr, ptep, nr, 0);
+}
 
 /*
  * If two threads concurrently fault at the same page, the thread that

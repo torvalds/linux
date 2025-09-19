@@ -469,7 +469,7 @@ static int dln2_gpio_probe(struct platform_device *pdev)
 	dln2->gpio.base = -1;
 	dln2->gpio.ngpio = pins;
 	dln2->gpio.can_sleep = true;
-	dln2->gpio.set_rv = dln2_gpio_set;
+	dln2->gpio.set = dln2_gpio_set;
 	dln2->gpio.get = dln2_gpio_get;
 	dln2->gpio.request = dln2_gpio_request;
 	dln2->gpio.free = dln2_gpio_free;

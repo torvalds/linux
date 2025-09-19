@@ -392,12 +392,16 @@ enum io_uring_op {
  *				the starting buffer ID in cqe->flags as per
  *				usual for provided buffer usage. The buffers
  *				will be	contiguous from the starting buffer ID.
+ *
+ * IORING_SEND_VECTORIZED	If set, SEND[_ZC] will take a pointer to a io_vec
+ * 				to allow vectorized send operations.
  */
 #define IORING_RECVSEND_POLL_FIRST	(1U << 0)
 #define IORING_RECV_MULTISHOT		(1U << 1)
 #define IORING_RECVSEND_FIXED_BUF	(1U << 2)
 #define IORING_SEND_ZC_REPORT_USAGE	(1U << 3)
 #define IORING_RECVSEND_BUNDLE		(1U << 4)
+#define IORING_SEND_VECTORIZED		(1U << 5)
 
 /*
  * cqe.res for IORING_CQE_F_NOTIF if

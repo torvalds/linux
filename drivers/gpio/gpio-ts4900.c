@@ -119,7 +119,7 @@ static const struct gpio_chip template_chip = {
 	.direction_input	= ts4900_gpio_direction_input,
 	.direction_output	= ts4900_gpio_direction_output,
 	.get			= ts4900_gpio_get,
-	.set_rv			= ts4900_gpio_set,
+	.set			= ts4900_gpio_set,
 	.base			= -1,
 	.can_sleep		= true,
 };

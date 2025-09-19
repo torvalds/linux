@@ -333,7 +333,7 @@ static int fpc202_probe(struct i2c_client *client)
 	priv->gpio.base = -1;
 	priv->gpio.direction_input = fpc202_gpio_direction_input;
 	priv->gpio.direction_output = fpc202_gpio_direction_output;
-	priv->gpio.set_rv = fpc202_gpio_set;
+	priv->gpio.set = fpc202_gpio_set;
 	priv->gpio.get = fpc202_gpio_get;
 	priv->gpio.ngpio = FPC202_GPIO_COUNT;
 	priv->gpio.parent = dev;
