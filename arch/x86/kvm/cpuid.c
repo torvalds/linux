@@ -955,6 +955,14 @@ void kvm_set_cpu_caps(void)
 	if (!tdp_enabled || !boot_cpu_has(X86_FEATURE_OSPKE))
 		kvm_cpu_cap_clear(X86_FEATURE_PKU);
 
+	/*
+	 * Shadow Stacks aren't implemented in the Shadow MMU.  Shadow Stack
+	 * accesses require "magic" Writable=0,Dirty=1 protection, which KVM
+	 * doesn't know how to emulate or map.
+	 */
+	if (!tdp_enabled)
+		kvm_cpu_cap_clear(X86_FEATURE_SHSTK);
+
 	kvm_cpu_cap_init(CPUID_7_EDX,
 		F(AVX512_4VNNIW),
 		F(AVX512_4FMAPS),
