@@ -3307,10 +3307,8 @@ static void sev_es_sync_from_ghcb(struct vcpu_svm *svm)
 
 	svm->vmcb->save.cpl = kvm_ghcb_get_cpl_if_valid(svm);
 
-	if (kvm_ghcb_xcr0_is_valid(svm)) {
-		vcpu->arch.xcr0 = kvm_ghcb_get_xcr0(svm);
-		vcpu->arch.cpuid_dynamic_bits_dirty = true;
-	}
+	if (kvm_ghcb_xcr0_is_valid(svm))
+		__kvm_set_xcr(vcpu, 0, kvm_ghcb_get_xcr0(svm));
 
 	/* Copy the GHCB exit information into the VMCB fields */
 	exit_code = kvm_ghcb_get_sw_exit_code(svm);
