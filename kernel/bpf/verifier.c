@@ -18576,6 +18576,11 @@ static void clean_func_state(struct bpf_verifier_env *env,
 
 	for (i = 0; i < st->allocated_stack / BPF_REG_SIZE; i++) {
 		if (!bpf_stack_slot_alive(env, st->frameno, i)) {
+			if (st->stack[i].spilled_ptr.live & REG_LIVE_READ) {
+				verifier_bug(env, "incorrect live marks #1 for insn %d frameno %d spi %d\n",
+					     env->insn_idx, st->frameno, i);
+				env->internal_error = true;
+			}
 			__mark_reg_not_init(env, &st->stack[i].spilled_ptr);
 			for (j = 0; j < BPF_REG_SIZE; j++)
 				st->stack[i].slot_type[j] = STACK_INVALID;
@@ -19546,6 +19551,8 @@ skip_inf_loop_check:
 		loop = incomplete_read_marks(env, &sl->state);
 		if (states_equal(env, &sl->state, cur, loop ? RANGE_WITHIN : NOT_EXACT)) {
 hit:
+			if (env->internal_error)
+				return -EFAULT;
 			sl->hit_cnt++;
 			/* reached equivalent register/stack state,
 			 * prune the search.
@@ -19660,6 +19667,8 @@ hit:
 			return 1;
 		}
 miss:
+		if (env->internal_error)
+			return -EFAULT;
 		/* when new state is not going to be added do not increase miss count.
 		 * Otherwise several loop iterations will remove the state
 		 * recorded earlier. The goal of these heuristics is to have
