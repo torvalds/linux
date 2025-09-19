@@ -126,7 +126,7 @@ struct ionic_eq {
 
 	struct ionic_queue	q;
 
-	bool			armed;
+	int			armed;
 	bool			enable;
 
 	struct work_struct	work;

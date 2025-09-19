@@ -945,7 +945,7 @@ static void ionic_poll_eq_work(struct work_struct *work)
 				   npolled, 0);
 		queue_work(ionic_evt_workq, &eq->work);
 	} else {
-		xchg(&eq->armed, true);
+		xchg(&eq->armed, 1);
 		ionic_intr_credits(eq->dev->lif_cfg.intr_ctrl, eq->intr,
 				   0, IONIC_INTR_CRED_UNMASK);
 	}
@@ -954,10 +954,10 @@ static void ionic_poll_eq_work(struct work_struct *work)
 static irqreturn_t ionic_poll_eq_isr(int irq, void *eqptr)
 {
 	struct ionic_eq *eq = eqptr;
-	bool was_armed;
+	int was_armed;
 	u32 npolled;
 
-	was_armed = xchg(&eq->armed, false);
+	was_armed = xchg(&eq->armed, 0);
 
 	if (unlikely(!eq->enable) || !was_armed)
 		return IRQ_HANDLED;
@@ -968,7 +968,7 @@ static irqreturn_t ionic_poll_eq_isr(int irq, void *eqptr)
 				   npolled, 0);
 		queue_work(ionic_evt_workq, &eq->work);
 	} else {
-		xchg(&eq->armed, true);
+		xchg(&eq->armed, 1);
 		ionic_intr_credits(eq->dev->lif_cfg.intr_ctrl, eq->intr,
 				   0, IONIC_INTR_CRED_UNMASK);
 	}
