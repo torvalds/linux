@@ -492,6 +492,9 @@ struct sock {
 	long			sk_sndtimeo;
 	u32			sk_priority;
 	u32			sk_mark;
+	kuid_t			sk_uid;
+	u16			sk_protocol;
+	u16			sk_type;
 	struct dst_entry __rcu	*sk_dst_cache;
 	netdev_features_t	sk_route_caps;
 #ifdef CONFIG_SOCK_VALIDATE_XMIT
@@ -517,15 +520,12 @@ struct sock {
 				sk_no_check_tx : 1,
 				sk_no_check_rx : 1;
 	u8			sk_shutdown;
-	u16			sk_type;
-	u16			sk_protocol;
 	unsigned long	        sk_lingertime;
 	struct proto		*sk_prot_creator;
 	rwlock_t		sk_callback_lock;
 	int			sk_err_soft;
 	u32			sk_ack_backlog;
 	u32			sk_max_ack_backlog;
-	kuid_t			sk_uid;
 	unsigned long		sk_ino;
 	spinlock_t		sk_peer_lock;
 	int			sk_bind_phc;
