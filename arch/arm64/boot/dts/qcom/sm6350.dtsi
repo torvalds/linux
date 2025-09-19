@@ -2164,6 +2164,8 @@
 			power-domains = <&dispcc MDSS_GDSC>;
 			iommus = <&apps_smmu 0x800 0x2>;
 
+			resets = <&dispcc DISP_CC_MDSS_CORE_BCR>;
+
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
