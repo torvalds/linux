@@ -2371,6 +2371,13 @@ static void prepare_vmcs02_early_rare(struct vcpu_vmx *vmx,
 		else
 			vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->vpid);
 	}
+
+	if (kvm_caps.has_tsc_control && nested_early_check) {
+		if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_TSC_SCALING))
+			vmcs_write64(TSC_MULTIPLIER, vmcs12->tsc_multiplier);
+		else
+			vmcs_write64(TSC_MULTIPLIER, 1);
+	}
 }
 
 static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct loaded_vmcs *vmcs01,
