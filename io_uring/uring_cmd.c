@@ -151,8 +151,8 @@ static inline void io_req_set_cqe32_extra(struct io_kiocb *req,
  * Called by consumers of io_uring_cmd, if they originally returned
  * -EIOCBQUEUED upon receiving the command.
  */
-void io_uring_cmd_done(struct io_uring_cmd *ioucmd, s32 ret, u64 res2,
-		       unsigned issue_flags)
+void __io_uring_cmd_done(struct io_uring_cmd *ioucmd, s32 ret, u64 res2,
+		       unsigned issue_flags, bool is_cqe32)
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 
@@ -165,8 +165,11 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, s32 ret, u64 res2,
 		req_set_fail(req);
 
 	io_req_set_res(req, ret, 0);
-	if (req->ctx->flags & IORING_SETUP_CQE32)
+	if (is_cqe32) {
+		if (req->ctx->flags & IORING_SETUP_CQE_MIXED)
+			req->cqe.flags |= IORING_CQE_F_32;
 		io_req_set_cqe32_extra(req, res2, 0);
+	}
 	io_req_uring_cleanup(req, issue_flags);
 	if (req->ctx->flags & IORING_SETUP_IOPOLL) {
 		/* order with io_iopoll_req_issued() checking ->iopoll_complete */
@@ -180,7 +183,7 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, s32 ret, u64 res2,
 		io_req_task_work_add(req);
 	}
 }
-EXPORT_SYMBOL_GPL(io_uring_cmd_done);
+EXPORT_SYMBOL_GPL(__io_uring_cmd_done);
 
 int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {

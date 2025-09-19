@@ -275,7 +275,7 @@ static __always_inline bool io_fill_cqe_req(struct io_ring_ctx *ctx,
 		return false;
 
 	memcpy(cqe, &req->cqe, sizeof(*cqe));
-	if (is_cqe32) {
+	if (ctx->flags & IORING_SETUP_CQE32 || is_cqe32) {
 		memcpy(cqe->big_cqe, &req->big_cqe, sizeof(*cqe));
 		memset(&req->big_cqe, 0, sizeof(req->big_cqe));
 	}

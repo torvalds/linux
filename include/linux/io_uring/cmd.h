@@ -56,8 +56,8 @@ int io_uring_cmd_import_fixed_vec(struct io_uring_cmd *ioucmd,
  * Note: the caller should never hard code @issue_flags and is only allowed
  * to pass the mask provided by the core io_uring code.
  */
-void io_uring_cmd_done(struct io_uring_cmd *cmd, s32 ret, u64 res2,
-			unsigned issue_flags);
+void __io_uring_cmd_done(struct io_uring_cmd *cmd, s32 ret, u64 res2,
+			 unsigned issue_flags, bool is_cqe32);
 
 void __io_uring_cmd_do_in_task(struct io_uring_cmd *ioucmd,
 			    io_uring_cmd_tw_t task_work_cb,
@@ -104,8 +104,8 @@ static inline int io_uring_cmd_import_fixed_vec(struct io_uring_cmd *ioucmd,
 {
 	return -EOPNOTSUPP;
 }
-static inline void io_uring_cmd_done(struct io_uring_cmd *cmd, s32 ret,
-		u64 ret2, unsigned issue_flags)
+static inline void __io_uring_cmd_done(struct io_uring_cmd *cmd, s32 ret,
+		u64 ret2, unsigned issue_flags, bool is_cqe32)
 {
 }
 static inline void __io_uring_cmd_do_in_task(struct io_uring_cmd *ioucmd,
@@ -157,6 +157,18 @@ static inline struct task_struct *io_uring_cmd_get_task(struct io_uring_cmd *cmd
 static inline void *io_uring_cmd_ctx_handle(struct io_uring_cmd *cmd)
 {
 	return cmd_to_io_kiocb(cmd)->ctx;
+}
+
+static inline void io_uring_cmd_done(struct io_uring_cmd *ioucmd, s32 ret,
+				     u64 res2, unsigned issue_flags)
+{
+	return __io_uring_cmd_done(ioucmd, ret, res2, issue_flags, false);
+}
+
+static inline void io_uring_cmd_done32(struct io_uring_cmd *ioucmd, s32 ret,
+				       u64 res2, unsigned issue_flags)
+{
+	return __io_uring_cmd_done(ioucmd, ret, res2, issue_flags, true);
 }
 
 int io_buffer_register_bvec(struct io_uring_cmd *cmd, struct request *rq,
