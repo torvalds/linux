@@ -12,7 +12,6 @@
 
 #include "xe_device.h"
 #include "xe_force_wake.h"
-#include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_idle.h"
@@ -142,17 +141,6 @@ static int steering(struct xe_gt *gt, struct drm_printer *p)
 	return 0;
 }
 
-static int ggtt(struct xe_gt *gt, struct drm_printer *p)
-{
-	int ret;
-
-	xe_pm_runtime_get(gt_to_xe(gt));
-	ret = xe_ggtt_dump(gt_to_tile(gt)->mem.ggtt, p);
-	xe_pm_runtime_put(gt_to_xe(gt));
-
-	return ret;
-}
-
 static int register_save_restore(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_hw_engine *hwe;
@@ -279,7 +267,6 @@ static int hwconfig(struct xe_gt *gt, struct drm_printer *p)
  */
 static const struct drm_info_list vf_safe_debugfs_list[] = {
 	{"topology", .show = xe_gt_debugfs_simple_show, .data = topology},
-	{"ggtt", .show = xe_gt_debugfs_simple_show, .data = ggtt},
 	{"register-save-restore", .show = xe_gt_debugfs_simple_show, .data = register_save_restore},
 	{"workarounds", .show = xe_gt_debugfs_simple_show, .data = workarounds},
 	{"tunings", .show = xe_gt_debugfs_simple_show, .data = tunings},

@@ -6,6 +6,7 @@
 #include <linux/debugfs.h>
 #include <drm/drm_debugfs.h>
 
+#include "xe_ggtt.h"
 #include "xe_pm.h"
 #include "xe_sa.h"
 #include "xe_tile_debugfs.h"
@@ -90,6 +91,11 @@ static int tile_debugfs_show_with_rpm(struct seq_file *m, void *data)
 	return ret;
 }
 
+static int ggtt(struct xe_tile *tile, struct drm_printer *p)
+{
+	return xe_ggtt_dump(tile->mem.ggtt, p);
+}
+
 static int sa_info(struct xe_tile *tile, struct drm_printer *p)
 {
 	drm_suballoc_dump_debug_info(&tile->mem.kernel_bb_pool->base, p,
@@ -100,6 +106,7 @@ static int sa_info(struct xe_tile *tile, struct drm_printer *p)
 
 /* only for debugfs files which can be safely used on the VF */
 static const struct drm_info_list vf_safe_debugfs_list[] = {
+	{ "ggtt", .show = tile_debugfs_show_with_rpm, .data = ggtt },
 	{ "sa_info", .show = tile_debugfs_show_with_rpm, .data = sa_info },
 };
 
