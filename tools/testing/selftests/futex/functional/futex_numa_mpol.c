@@ -180,7 +180,7 @@ TEST(futex_numa_mpol)
 	ksft_print_msg("Memory back to RW\n");
 	test_futex(futex_ptr, 0);
 
-	ksft_test_result_pass("futex2 memory boundarie tests passed\n");
+	ksft_test_result_pass("futex2 memory boundary tests passed\n");
 
 	/* MPOL test. Does not work as expected */
 #ifdef LIBNUMA_VER_SUFFICIENT
