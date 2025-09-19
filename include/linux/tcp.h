@@ -215,6 +215,9 @@ struct tcp_sock {
 	u16	gso_segs;	/* Max number of segs per GSO packet	*/
 	/* from STCP, retrans queue hinting */
 	struct sk_buff *retransmit_skb_hint;
+#if defined(CONFIG_TLS_DEVICE)
+	void (*tcp_clean_acked)(struct sock *sk, u32 acked_seq);
+#endif
 	__cacheline_group_end(tcp_sock_read_tx);
 
 	/* TXRX read-mostly hotpath cache lines */
@@ -250,9 +253,6 @@ struct tcp_sock {
 	struct  minmax rtt_min;
 	/* OOO segments go in this rbtree. Socket lock must be held. */
 	struct rb_root	out_of_order_queue;
-#if defined(CONFIG_TLS_DEVICE)
-	void (*tcp_clean_acked)(struct sock *sk, u32 acked_seq);
-#endif
 	__cacheline_group_end(tcp_sock_read_rx);
 
 	/* TX read-write hotpath cache lines */
