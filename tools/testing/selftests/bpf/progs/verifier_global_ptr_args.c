@@ -215,7 +215,7 @@ __weak int subprog_untrusted(const volatile struct task_struct *restrict task __
 SEC("tp_btf/sys_enter")
 __success
 __log_level(2)
-__msg("r1 = {{.*}}; {{.*}}R1_w=trusted_ptr_task_struct()")
+__msg("r1 = {{.*}}; {{.*}}R1=trusted_ptr_task_struct()")
 __msg("Func#1 ('subprog_untrusted') is global and assumed valid.")
 __msg("Validating subprog_untrusted() func#1...")
 __msg(": R1=untrusted_ptr_task_struct")
@@ -278,7 +278,7 @@ __weak int subprog_enum_untrusted(enum bpf_attach_type *p __arg_untrusted)
 SEC("tp_btf/sys_enter")
 __success
 __log_level(2)
-__msg("r1 = {{.*}}; {{.*}}R1_w=trusted_ptr_task_struct()")
+__msg("r1 = {{.*}}; {{.*}}R1=trusted_ptr_task_struct()")
 __msg("Func#1 ('subprog_void_untrusted') is global and assumed valid.")
 __msg("Validating subprog_void_untrusted() func#1...")
 __msg(": R1=rdonly_untrusted_mem(sz=0)")

@@ -144,21 +144,21 @@ SEC("?raw_tp")
 __success __log_level(2)
 /*
  * Without the bug fix there will be no history between "last_idx 3 first_idx 3"
- * and "parent state regs=" lines. "R0_w=6" parts are here to help anchor
+ * and "parent state regs=" lines. "R0=6" parts are here to help anchor
  * expected log messages to the one specific mark_chain_precision operation.
  *
  * This is quite fragile: if verifier checkpointing heuristic changes, this
  * might need adjusting.
  */
-__msg("2: (07) r0 += 1                       ; R0_w=6")
+__msg("2: (07) r0 += 1                       ; R0=6")
 __msg("3: (35) if r0 >= 0xa goto pc+1")
 __msg("mark_precise: frame0: last_idx 3 first_idx 3 subseq_idx -1")
 __msg("mark_precise: frame0: regs=r0 stack= before 2: (07) r0 += 1")
 __msg("mark_precise: frame0: regs=r0 stack= before 1: (07) r0 += 1")
 __msg("mark_precise: frame0: regs=r0 stack= before 4: (05) goto pc-4")
 __msg("mark_precise: frame0: regs=r0 stack= before 3: (35) if r0 >= 0xa goto pc+1")
-__msg("mark_precise: frame0: parent state regs= stack=:  R0_rw=P4")
-__msg("3: R0_w=6")
+__msg("mark_precise: frame0: parent state regs= stack=:  R0=P4")
+__msg("3: R0=6")
 __naked int state_loop_first_last_equal(void)
 {
 	asm volatile (
@@ -233,8 +233,8 @@ __naked void bpf_cond_op_not_r10(void)
 
 SEC("lsm.s/socket_connect")
 __success __log_level(2)
-__msg("0: (b7) r0 = 1                        ; R0_w=1")
-__msg("1: (84) w0 = -w0                      ; R0_w=0xffffffff")
+__msg("0: (b7) r0 = 1                        ; R0=1")
+__msg("1: (84) w0 = -w0                      ; R0=0xffffffff")
 __msg("mark_precise: frame0: last_idx 2 first_idx 0 subseq_idx -1")
 __msg("mark_precise: frame0: regs=r0 stack= before 1: (84) w0 = -w0")
 __msg("mark_precise: frame0: regs=r0 stack= before 0: (b7) r0 = 1")
@@ -268,8 +268,8 @@ __naked int bpf_neg_3(void)
 
 SEC("lsm.s/socket_connect")
 __success __log_level(2)
-__msg("0: (b7) r0 = 1                        ; R0_w=1")
-__msg("1: (87) r0 = -r0                      ; R0_w=-1")
+__msg("0: (b7) r0 = 1                        ; R0=1")
+__msg("1: (87) r0 = -r0                      ; R0=-1")
 __msg("mark_precise: frame0: last_idx 2 first_idx 0 subseq_idx -1")
 __msg("mark_precise: frame0: regs=r0 stack= before 1: (87) r0 = -r0")
 __msg("mark_precise: frame0: regs=r0 stack= before 0: (b7) r0 = 1")

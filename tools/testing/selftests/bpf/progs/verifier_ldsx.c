@@ -65,7 +65,7 @@ __naked void ldsx_s32(void)
 SEC("socket")
 __description("LDSX, S8 range checking, privileged")
 __log_level(2) __success __retval(1)
-__msg("R1_w=scalar(smin=smin32=-128,smax=smax32=127)")
+__msg("R1=scalar(smin=smin32=-128,smax=smax32=127)")
 __naked void ldsx_s8_range_priv(void)
 {
 	asm volatile (
