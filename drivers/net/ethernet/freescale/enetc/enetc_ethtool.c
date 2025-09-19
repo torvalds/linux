@@ -895,7 +895,8 @@ static int enetc4_get_phc_index_by_pdev(struct enetc_si *si)
 		return -1;
 	}
 
-	timer_pdev = pci_get_slot(bus, devfn);
+	timer_pdev = pci_get_domain_bus_and_slot(pci_domain_nr(bus),
+						 bus->number, devfn);
 	if (!timer_pdev)
 		return -1;
 
