@@ -7062,7 +7062,8 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 				u32 seq, int flags,
 				struct cfg80211_registered_device *rdev,
 				struct net_device *dev,
-				const u8 *mac_addr, struct station_info *sinfo)
+				const u8 *mac_addr, struct station_info *sinfo,
+				bool link_stats)
 {
 	void *hdr;
 	struct nlattr *sinfoattr, *bss_param;
@@ -7283,7 +7284,7 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 			goto nla_put_failure;
 	}
 
-	if (sinfo->valid_links) {
+	if (link_stats && sinfo->valid_links) {
 		links = nla_nest_start(msg, NL80211_ATTR_MLO_LINKS);
 		if (!links)
 			goto nla_put_failure;
@@ -7574,7 +7575,7 @@ static int nl80211_dump_station(struct sk_buff *skb,
 				NETLINK_CB(cb->skb).portid,
 				cb->nlh->nlmsg_seq, NLM_F_MULTI,
 				rdev, wdev->netdev, mac_addr,
-				&sinfo) < 0)
+				&sinfo, false) < 0)
 			goto out;
 
 		sta_idx++;
@@ -7635,7 +7636,7 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 
 	if (nl80211_send_station(msg, NL80211_CMD_NEW_STATION,
 				 info->snd_portid, info->snd_seq, 0,
-				 rdev, dev, mac_addr, &sinfo) < 0) {
+				 rdev, dev, mac_addr, &sinfo, false) < 0) {
 		nlmsg_free(msg);
 		return -ENOBUFS;
 	}
@@ -19680,7 +19681,7 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 		return;
 
 	if (nl80211_send_station(msg, NL80211_CMD_NEW_STATION, 0, 0, 0,
-				 rdev, dev, mac_addr, sinfo) < 0) {
+				 rdev, dev, mac_addr, sinfo, false) < 0) {
 		nlmsg_free(msg);
 		return;
 	}
@@ -19710,7 +19711,7 @@ void cfg80211_del_sta_sinfo(struct net_device *dev, const u8 *mac_addr,
 	}
 
 	if (nl80211_send_station(msg, NL80211_CMD_DEL_STATION, 0, 0, 0,
-				 rdev, dev, mac_addr, sinfo) < 0) {
+				 rdev, dev, mac_addr, sinfo, false) < 0) {
 		nlmsg_free(msg);
 		return;
 	}
