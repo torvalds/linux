@@ -446,9 +446,6 @@ bool ttm_resource_intersects(struct ttm_device *bdev,
 {
 	struct ttm_resource_manager *man;
 
-	if (!res)
-		return false;
-
 	man = ttm_manager_type(bdev, res->mem_type);
 	if (!place || !man->func->intersects)
 		return true;
