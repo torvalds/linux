@@ -462,7 +462,7 @@ TRACE_EVENT(kvm_inj_virq,
 #define kvm_trace_sym_exc						\
 	EXS(DE), EXS(DB), EXS(BP), EXS(OF), EXS(BR), EXS(UD), EXS(NM),	\
 	EXS(DF), EXS(TS), EXS(NP), EXS(SS), EXS(GP), EXS(PF), EXS(MF),	\
-	EXS(AC), EXS(MC), EXS(XM), EXS(VE)
+	EXS(AC), EXS(MC), EXS(XM), EXS(VE), EXS(CP)
 
 /*
  * Tracepoint for kvm interrupt injection:
