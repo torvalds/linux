@@ -3174,11 +3174,19 @@ void skl_watermark_ipc_init(struct intel_display *display)
 	skl_watermark_ipc_update(display);
 }
 
+static bool need_16gb_dimm_wa(struct intel_display *display)
+{
+	const struct dram_info *dram_info = intel_dram_info(display->drm);
+
+	return (display->platform.skylake || display->platform.kabylake ||
+		display->platform.coffeelake || display->platform.cometlake ||
+		DISPLAY_VER(display) == 11) && dram_info->has_16gb_dimms;
+}
+
 static void
 adjust_wm_latency(struct intel_display *display,
 		  u16 wm[], int num_levels, int read_latency)
 {
-	const struct dram_info *dram_info = intel_dram_info(display->drm);
 	int i, level;
 
 	/*
@@ -3214,7 +3222,7 @@ adjust_wm_latency(struct intel_display *display,
 	 * any underrun. If not able to get DIMM info assume 16Gb+ DIMM
 	 * to avoid any underrun.
 	 */
-	if (!display->platform.dg2 && dram_info->has_16gb_dimms)
+	if (need_16gb_dimm_wa(display))
 		wm[0] += 1;
 }
 
