@@ -578,6 +578,26 @@ static void test_intel_counters(void)
 	};
 
 	/*
+	 * To keep the total runtime reasonable, test only a handful of select,
+	 * semi-arbitrary values for the mask of unavailable PMU events.  Test
+	 * 0 (all events available) and all ones (no events available) as well
+	 * as alternating bit sequencues, e.g. to detect if KVM is checking the
+	 * wrong bit(s).
+	 */
+	const uint32_t unavailable_masks[] = {
+		0x0,
+		0xffffffffu,
+		0xaaaaaaaau,
+		0x55555555u,
+		0xf0f0f0f0u,
+		0x0f0f0f0fu,
+		0xa0a0a0a0u,
+		0x0a0a0a0au,
+		0x50505050u,
+		0x05050505u,
+	};
+
+	/*
 	 * Test up to PMU v5, which is the current maximum version defined by
 	 * Intel, i.e. is the last version that is guaranteed to be backwards
 	 * compatible with KVM's existing behavior.
@@ -614,16 +634,7 @@ static void test_intel_counters(void)
 
 			pr_info("Testing arch events, PMU version %u, perf_caps = %lx\n",
 				v, perf_caps[i]);
-			/*
-			 * To keep the total runtime reasonable, test every
-			 * possible non-zero, non-reserved bitmap combination
-			 * only with the native PMU version and the full bit
-			 * vector length.
-			 */
-			if (v == pmu_version) {
-				for (k = 1; k < (BIT(NR_INTEL_ARCH_EVENTS) - 1); k++)
-					test_arch_events(v, perf_caps[i], NR_INTEL_ARCH_EVENTS, k);
-			}
+
 			/*
 			 * Test single bits for all PMU version and lengths up
 			 * the number of events +1 (to verify KVM doesn't do
@@ -632,11 +643,8 @@ static void test_intel_counters(void)
 			 * ones i.e. all events being available and unavailable.
 			 */
 			for (j = 0; j <= NR_INTEL_ARCH_EVENTS + 1; j++) {
-				test_arch_events(v, perf_caps[i], j, 0);
-				test_arch_events(v, perf_caps[i], j, -1u);
-
-				for (k = 0; k < NR_INTEL_ARCH_EVENTS; k++)
-					test_arch_events(v, perf_caps[i], j, BIT(k));
+				for (k = 1; k < ARRAY_SIZE(unavailable_masks); k++)
+					test_arch_events(v, perf_caps[i], j, unavailable_masks[k]);
 			}
 
 			pr_info("Testing GP counters, PMU version %u, perf_caps = %lx\n",
