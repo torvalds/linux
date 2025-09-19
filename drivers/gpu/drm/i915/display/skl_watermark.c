@@ -3198,8 +3198,6 @@ adjust_wm_latency(struct intel_display *display,
 		if (wm[level] == 0) {
 			for (i = level + 1; i < num_levels; i++)
 				wm[i] = 0;
-
-			num_levels = level;
 			break;
 		}
 	}
@@ -3212,8 +3210,14 @@ adjust_wm_latency(struct intel_display *display,
 	 * from the punit when level 0 response data is 0us.
 	 */
 	if (wm[0] == 0) {
-		for (level = 0; level < num_levels; level++)
+		wm[0] += read_latency;
+
+		for (level = 1; level < num_levels; level++) {
+			if (wm[level] == 0)
+				break;
+
 			wm[level] += read_latency;
+		}
 	}
 
 	/*
