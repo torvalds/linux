@@ -2297,13 +2297,11 @@ static void prepare_vmcs02_constant_state(struct vcpu_vmx *vmx)
 	vmx->nested.vmcs02_initialized = true;
 
 	/*
-	 * We don't care what the EPTP value is we just need to guarantee
-	 * it's valid so we don't get a false positive when doing early
-	 * consistency checks.
+	 * If early consistency checks are enabled, stuff the EPT Pointer with
+	 * a dummy *legal* value to avoid false positives on bad control state.
 	 */
 	if (enable_ept && nested_early_check)
-		vmcs_write64(EPT_POINTER,
-			     construct_eptp(&vmx->vcpu, 0, PT64_ROOT_4LEVEL));
+		vmcs_write64(EPT_POINTER, VMX_EPTP_MT_WB | VMX_EPTP_PWL_4);
 
 	if (vmx->ve_info)
 		vmcs_write64(VE_INFORMATION_ADDRESS, __pa(vmx->ve_info));
