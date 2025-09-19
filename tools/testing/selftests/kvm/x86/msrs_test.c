@@ -444,11 +444,28 @@ static void test_msrs(void)
 	}
 
 	for (idx = 0; idx < ARRAY_SIZE(__msrs); idx++) {
-		if (msrs[idx].is_kvm_defined) {
+		struct kvm_msr *msr = &msrs[idx];
+
+		if (msr->is_kvm_defined) {
 			for (i = 0; i < NR_VCPUS; i++)
 				host_test_kvm_reg(vcpus[i]);
 			continue;
 		}
+
+		/*
+		 * Verify KVM_GET_SUPPORTED_CPUID and KVM_GET_MSR_INDEX_LIST
+		 * are consistent with respect to MSRs whose existence is
+		 * enumerated via CPUID.  Skip the check for FS/GS.base MSRs,
+		 * as they aren't reported in the save/restore list since their
+		 * state is managed via SREGS.
+		 */
+		TEST_ASSERT(msr->index == MSR_FS_BASE || msr->index == MSR_GS_BASE ||
+			    kvm_msr_is_in_save_restore_list(msr->index) ==
+			    (kvm_cpu_has(msr->feature) || kvm_cpu_has(msr->feature2)),
+			    "%s %s in save/restore list, but %s according to CPUID", msr->name,
+			    kvm_msr_is_in_save_restore_list(msr->index) ? "is" : "isn't",
+			    (kvm_cpu_has(msr->feature) || kvm_cpu_has(msr->feature2)) ?
+			    "supported" : "unsupported");
 
 		sync_global_to_guest(vm, idx);
 
