@@ -37,6 +37,9 @@
 
 /*
  * flag fields valid for the new PTP_EXTTS_REQUEST2 ioctl.
+ *
+ * Note: PTP_STRICT_FLAGS is always enabled by the kernel for
+ * PTP_EXTTS_REQUEST2 regardless of whether it is set by userspace.
  */
 #define PTP_EXTTS_VALID_FLAGS	(PTP_ENABLE_FEATURE |	\
 				 PTP_RISING_EDGE |	\
