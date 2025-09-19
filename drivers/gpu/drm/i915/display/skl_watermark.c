@@ -3344,9 +3344,11 @@ static void skl_setup_wm_latency(struct intel_display *display)
 	else
 		skl_read_wm_latency(display);
 
+	intel_print_wm_latency(display, "original", display->wm.skl_latency);
+
 	adjust_wm_latency(display);
 
-	intel_print_wm_latency(display, "Gen9 Plane", display->wm.skl_latency);
+	intel_print_wm_latency(display, "adjusted", display->wm.skl_latency);
 }
 
 static struct intel_global_state *intel_dbuf_duplicate_state(struct intel_global_obj *obj)
