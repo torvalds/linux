@@ -745,6 +745,8 @@ struct bpf_scc_info {
 	struct bpf_scc_visit visits[];
 };
 
+struct bpf_liveness;
+
 /* single container for all structs
  * one verifier_env per bpf_check() call
  */
@@ -846,6 +848,7 @@ struct bpf_verifier_env {
 	struct bpf_insn insn_buf[INSN_BUF_SIZE];
 	struct bpf_insn epilogue_buf[INSN_BUF_SIZE];
 	struct bpf_scc_callchain callchain_buf;
+	struct bpf_liveness *liveness;
 	/* array of pointers to bpf_scc_info indexed by SCC id */
 	struct bpf_scc_info **scc_info;
 	u32 scc_cnt;
@@ -1073,5 +1076,16 @@ struct bpf_subprog_info *bpf_find_containing_subprog(struct bpf_verifier_env *en
 int bpf_insn_successors(struct bpf_prog *prog, u32 idx, u32 succ[2]);
 void bpf_fmt_stack_mask(char *buf, ssize_t buf_sz, u64 stack_mask);
 bool bpf_calls_callback(struct bpf_verifier_env *env, int insn_idx);
+
+int bpf_stack_liveness_init(struct bpf_verifier_env *env);
+void bpf_stack_liveness_free(struct bpf_verifier_env *env);
+int bpf_update_live_stack(struct bpf_verifier_env *env);
+int bpf_mark_stack_read(struct bpf_verifier_env *env, u32 frameno, u32 insn_idx, u64 mask);
+void bpf_mark_stack_write(struct bpf_verifier_env *env, u32 frameno, u64 mask);
+int bpf_reset_stack_write_marks(struct bpf_verifier_env *env, u32 insn_idx);
+int bpf_commit_stack_write_marks(struct bpf_verifier_env *env);
+int bpf_live_stack_query_init(struct bpf_verifier_env *env, struct bpf_verifier_state *st);
+bool bpf_stack_slot_alive(struct bpf_verifier_env *env, u32 frameno, u32 spi);
+void bpf_reset_live_stack_callchain(struct bpf_verifier_env *env);
 
 #endif /* _LINUX_BPF_VERIFIER_H */
