@@ -3217,14 +3217,10 @@ static int wm_read_latency(struct intel_display *display)
 		return 2;
 }
 
-static void
-adjust_wm_latency(struct intel_display *display)
+static void sanitize_wm_latency(struct intel_display *display)
 {
 	u16 *wm = display->wm.skl_latency;
-	int i, level, num_levels = display->wm.num_levels;
-
-	if (display->platform.dg2)
-		multiply_wm_latency(display, 2);
+	int level, num_levels = display->wm.num_levels;
 
 	/*
 	 * If a level n (n > 1) has a 0us latency, all levels m (m >= n)
@@ -3233,11 +3229,24 @@ adjust_wm_latency(struct intel_display *display)
 	 */
 	for (level = 1; level < num_levels; level++) {
 		if (wm[level] == 0) {
+			int i;
+
 			for (i = level + 1; i < num_levels; i++)
 				wm[i] = 0;
-			break;
+			return;
 		}
 	}
+}
+
+static void
+adjust_wm_latency(struct intel_display *display)
+{
+	u16 *wm = display->wm.skl_latency;
+
+	if (display->platform.dg2)
+		multiply_wm_latency(display, 2);
+
+	sanitize_wm_latency(display);
 
 	/*
 	 * WaWmMemoryReadLatency
