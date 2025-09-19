@@ -200,6 +200,9 @@ static void guest_main(void)
 	}
 }
 
+static bool has_one_reg;
+static bool use_one_reg;
+
 static void host_test_msr(struct kvm_vcpu *vcpu, u64 guest_val)
 {
 	u64 reset_val = msrs[idx].reset_val;
@@ -213,10 +216,20 @@ static void host_test_msr(struct kvm_vcpu *vcpu, u64 guest_val)
 	TEST_ASSERT(val == guest_val, "Wanted 0x%lx from get_msr(0x%x), got 0x%lx",
 		    guest_val, msr, val);
 
-	vcpu_set_msr(vcpu, msr, reset_val);
+	if (use_one_reg)
+		vcpu_set_reg(vcpu, KVM_X86_REG_MSR(msr), reset_val);
+	else
+		vcpu_set_msr(vcpu, msr, reset_val);
 
 	val = vcpu_get_msr(vcpu, msr);
 	TEST_ASSERT(val == reset_val, "Wanted 0x%lx from get_msr(0x%x), got 0x%lx",
+		    reset_val, msr, val);
+
+	if (!has_one_reg)
+		return;
+
+	val = vcpu_get_reg(vcpu, KVM_X86_REG_MSR(msr));
+	TEST_ASSERT(val == reset_val, "Wanted 0x%lx from get_reg(0x%x), got 0x%lx",
 		    reset_val, msr, val);
 }
 
@@ -357,5 +370,12 @@ static void test_msrs(void)
 
 int main(void)
 {
+	has_one_reg = kvm_has_cap(KVM_CAP_ONE_REG);
+
 	test_msrs();
+
+	if (has_one_reg) {
+		use_one_reg = true;
+		test_msrs();
+	}
 }
