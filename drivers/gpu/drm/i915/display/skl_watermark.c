@@ -3183,12 +3183,22 @@ static bool need_16gb_dimm_wa(struct intel_display *display)
 		DISPLAY_VER(display) == 11) && dram_info->has_16gb_dimms;
 }
 
+static int wm_read_latency(struct intel_display *display)
+{
+	if (DISPLAY_VER(display) >= 14)
+		return 6;
+	else if (DISPLAY_VER(display) >= 12)
+		return 3;
+	else
+		return 2;
+}
+
 static void
-adjust_wm_latency(struct intel_display *display, int read_latency)
+adjust_wm_latency(struct intel_display *display)
 {
 	u16 *wm = display->wm.skl_latency;
-	int num_levels = display->wm.num_levels;
-	int i, level;
+	int i, level, num_levels = display->wm.num_levels;
+	int read_latency = wm_read_latency(display);
 
 	/*
 	 * If a level n (n > 1) has a 0us latency, all levels m (m >= n)
@@ -3247,14 +3257,11 @@ static void mtl_read_wm_latency(struct intel_display *display)
 	val = intel_de_read(display, MTL_LATENCY_LP4_LP5);
 	wm[4] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
 	wm[5] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
-
-	adjust_wm_latency(display, 6);
 }
 
 static void skl_read_wm_latency(struct intel_display *display)
 {
 	u16 *wm = display->wm.skl_latency;
-	int read_latency = DISPLAY_VER(display) >= 12 ? 3 : 2;
 	int mult = display->platform.dg2 ? 2 : 1;
 	u32 val;
 	int ret;
@@ -3284,8 +3291,6 @@ static void skl_read_wm_latency(struct intel_display *display)
 	wm[5] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_1_5_MASK, val) * mult;
 	wm[6] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_2_6_MASK, val) * mult;
 	wm[7] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_3_7_MASK, val) * mult;
-
-	adjust_wm_latency(display, read_latency);
 }
 
 static void skl_setup_wm_latency(struct intel_display *display)
@@ -3299,6 +3304,8 @@ static void skl_setup_wm_latency(struct intel_display *display)
 		mtl_read_wm_latency(display);
 	else
 		skl_read_wm_latency(display);
+
+	adjust_wm_latency(display);
 
 	intel_print_wm_latency(display, "Gen9 Plane", display->wm.skl_latency);
 }
