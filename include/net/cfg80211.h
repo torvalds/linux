@@ -101,16 +101,6 @@ struct wiphy;
  * @IEEE80211_CHAN_NO_10MHZ: 10 MHz bandwidth is not permitted
  *	on this channel.
  * @IEEE80211_CHAN_NO_HE: HE operation is not permitted on this channel.
- * @IEEE80211_CHAN_1MHZ: 1 MHz bandwidth is permitted
- *	on this channel.
- * @IEEE80211_CHAN_2MHZ: 2 MHz bandwidth is permitted
- *	on this channel.
- * @IEEE80211_CHAN_4MHZ: 4 MHz bandwidth is permitted
- *	on this channel.
- * @IEEE80211_CHAN_8MHZ: 8 MHz bandwidth is permitted
- *	on this channel.
- * @IEEE80211_CHAN_16MHZ: 16 MHz bandwidth is permitted
- *	on this channel.
  * @IEEE80211_CHAN_NO_320MHZ: If the driver supports 320 MHz on the band,
  *	this flag indicates that a 320 MHz channel cannot use this
  *	channel as the control or any of the secondary channels.
@@ -152,11 +142,7 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_NO_20MHZ			= BIT(11),
 	IEEE80211_CHAN_NO_10MHZ			= BIT(12),
 	IEEE80211_CHAN_NO_HE			= BIT(13),
-	IEEE80211_CHAN_1MHZ			= BIT(14),
-	IEEE80211_CHAN_2MHZ			= BIT(15),
-	IEEE80211_CHAN_4MHZ			= BIT(16),
-	IEEE80211_CHAN_8MHZ			= BIT(17),
-	IEEE80211_CHAN_16MHZ			= BIT(18),
+	/* can use free bits here */
 	IEEE80211_CHAN_NO_320MHZ		= BIT(19),
 	IEEE80211_CHAN_NO_EHT			= BIT(20),
 	IEEE80211_CHAN_DFS_CONCURRENT		= BIT(21),
