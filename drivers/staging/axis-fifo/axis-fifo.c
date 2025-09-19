@@ -588,8 +588,6 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	if (IS_ERR(fifo->base_addr))
 		return PTR_ERR(fifo->base_addr);
 
-	dev_dbg(fifo->dt_device, "remapped memory to 0x%p\n", fifo->base_addr);
-
 	/* ----------------------------
 	 *          init IP
 	 * ----------------------------
