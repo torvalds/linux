@@ -17,9 +17,10 @@ struct kvm_msr {
 	const u64 write_val;
 	const u64 rsvd_val;
 	const u32 index;
+	const bool is_kvm_defined;
 };
 
-#define ____MSR_TEST(msr, str, val, rsvd, reset, feat, f2)		\
+#define ____MSR_TEST(msr, str, val, rsvd, reset, feat, f2, is_kvm)	\
 {									\
 	.index = msr,							\
 	.name = str,							\
@@ -28,10 +29,11 @@ struct kvm_msr {
 	.reset_val = reset,						\
 	.feature = X86_FEATURE_ ##feat,					\
 	.feature2 = X86_FEATURE_ ##f2,					\
+	.is_kvm_defined = is_kvm,					\
 }
 
 #define __MSR_TEST(msr, str, val, rsvd, reset, feat)			\
-	____MSR_TEST(msr, str, val, rsvd, reset, feat, feat)
+	____MSR_TEST(msr, str, val, rsvd, reset, feat, feat, false)
 
 #define MSR_TEST_NON_ZERO(msr, val, rsvd, reset, feat)			\
 	__MSR_TEST(msr, #msr, val, rsvd, reset, feat)
@@ -40,7 +42,7 @@ struct kvm_msr {
 	__MSR_TEST(msr, #msr, val, rsvd, 0, feat)
 
 #define MSR_TEST2(msr, val, rsvd, feat, f2)				\
-	____MSR_TEST(msr, #msr, val, rsvd, 0, feat, f2)
+	____MSR_TEST(msr, #msr, val, rsvd, 0, feat, f2, false)
 
 /*
  * Note, use a page aligned value for the canonical value so that the value
@@ -57,6 +59,9 @@ static const u64 u64_val = 0xaaaa5555aaaa5555ull;
 
 #define MSR_TEST_CANONICAL(msr, feat)					\
 	__MSR_TEST(msr, #msr, canonical_val, NONCANONICAL, 0, feat)
+
+#define MSR_TEST_KVM(msr, val, rsvd, feat)				\
+	____MSR_TEST(KVM_REG_ ##msr, #msr, val, rsvd, 0, feat, feat, true)
 
 /*
  * The main struct must be scoped to a function due to the use of structures to
@@ -203,6 +208,83 @@ static void guest_main(void)
 static bool has_one_reg;
 static bool use_one_reg;
 
+#define KVM_X86_MAX_NR_REGS	1
+
+static bool vcpu_has_reg(struct kvm_vcpu *vcpu, u64 reg)
+{
+	struct {
+		struct kvm_reg_list list;
+		u64 regs[KVM_X86_MAX_NR_REGS];
+	} regs = {};
+	int r, i;
+
+	/*
+	 * If KVM_GET_REG_LIST succeeds with n=0, i.e. there are no supported
+	 * regs, then the vCPU obviously doesn't support the reg.
+	 */
+	r = __vcpu_ioctl(vcpu, KVM_GET_REG_LIST, &regs.list);
+	if (!r)
+		return false;
+
+	TEST_ASSERT_EQ(errno, E2BIG);
+
+	/*
+	 * KVM x86 is expected to support enumerating a relative small number
+	 * of regs.  The majority of registers supported by KVM_{G,S}ET_ONE_REG
+	 * are enumerated via other ioctls, e.g. KVM_GET_MSR_INDEX_LIST.  For
+	 * simplicity, hardcode the maximum number of regs and manually update
+	 * the test as necessary.
+	 */
+	TEST_ASSERT(regs.list.n <= KVM_X86_MAX_NR_REGS,
+		    "KVM reports %llu regs, test expects at most %u regs, stale test?",
+		    regs.list.n, KVM_X86_MAX_NR_REGS);
+
+	vcpu_ioctl(vcpu, KVM_GET_REG_LIST, &regs.list);
+	for (i = 0; i < regs.list.n; i++) {
+		if (regs.regs[i] == reg)
+			return true;
+	}
+
+	return false;
+}
+
+static void host_test_kvm_reg(struct kvm_vcpu *vcpu)
+{
+	bool has_reg = vcpu_cpuid_has(vcpu, msrs[idx].feature);
+	u64 reset_val = msrs[idx].reset_val;
+	u64 write_val = msrs[idx].write_val;
+	u64 rsvd_val = msrs[idx].rsvd_val;
+	u32 reg = msrs[idx].index;
+	u64 val;
+	int r;
+
+	if (!use_one_reg)
+		return;
+
+	TEST_ASSERT_EQ(vcpu_has_reg(vcpu, KVM_X86_REG_KVM(reg)), has_reg);
+
+	if (!has_reg) {
+		r = __vcpu_get_reg(vcpu, KVM_X86_REG_KVM(reg), &val);
+		TEST_ASSERT(r && errno == EINVAL,
+			    "Expected failure on get_reg(0x%x)", reg);
+		rsvd_val = 0;
+		goto out;
+	}
+
+	val = vcpu_get_reg(vcpu, KVM_X86_REG_KVM(reg));
+	TEST_ASSERT(val == reset_val, "Wanted 0x%lx from get_reg(0x%x), got 0x%lx",
+		    reset_val, reg, val);
+
+	vcpu_set_reg(vcpu, KVM_X86_REG_KVM(reg), write_val);
+	val = vcpu_get_reg(vcpu, KVM_X86_REG_KVM(reg));
+	TEST_ASSERT(val == write_val, "Wanted 0x%lx from get_reg(0x%x), got 0x%lx",
+		    write_val, reg, val);
+
+out:
+	r = __vcpu_set_reg(vcpu, KVM_X86_REG_KVM(reg), rsvd_val);
+	TEST_ASSERT(r, "Expected failure on set_reg(0x%x, 0x%lx)", reg, rsvd_val);
+}
+
 static void host_test_msr(struct kvm_vcpu *vcpu, u64 guest_val)
 {
 	u64 reset_val = msrs[idx].reset_val;
@@ -314,6 +396,8 @@ static void test_msrs(void)
 		MSR_TEST(MSR_IA32_PL2_SSP, canonical_val, canonical_val | 1, SHSTK),
 		MSR_TEST_CANONICAL(MSR_IA32_PL3_SSP, SHSTK),
 		MSR_TEST(MSR_IA32_PL3_SSP, canonical_val, canonical_val | 1, SHSTK),
+
+		MSR_TEST_KVM(GUEST_SSP, canonical_val, NONCANONICAL, SHSTK),
 	};
 
 	const struct kvm_x86_cpu_feature feat_none = X86_FEATURE_NONE;
@@ -329,6 +413,7 @@ static void test_msrs(void)
 	const int NR_VCPUS = 3;
 	struct kvm_vcpu *vcpus[NR_VCPUS];
 	struct kvm_vm *vm;
+	int i;
 
 	kvm_static_assert(sizeof(__msrs) <= sizeof(msrs));
 	kvm_static_assert(ARRAY_SIZE(__msrs) <= ARRAY_SIZE(msrs));
@@ -359,6 +444,12 @@ static void test_msrs(void)
 	}
 
 	for (idx = 0; idx < ARRAY_SIZE(__msrs); idx++) {
+		if (msrs[idx].is_kvm_defined) {
+			for (i = 0; i < NR_VCPUS; i++)
+				host_test_kvm_reg(vcpus[i]);
+			continue;
+		}
+
 		sync_global_to_guest(vm, idx);
 
 		vcpus_run(vcpus, NR_VCPUS);
