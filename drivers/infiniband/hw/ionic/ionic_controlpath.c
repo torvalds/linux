@@ -606,7 +606,7 @@ static void ionic_set_ah_attr(struct ionic_ibdev *dev,
 	memset(ah_attr, 0, sizeof(*ah_attr));
 	ah_attr->type = RDMA_AH_ATTR_TYPE_ROCE;
 	if (hdr->eth_present)
-		memcpy(&ah_attr->roce.dmac, &hdr->eth.dmac_h, ETH_ALEN);
+		ether_addr_copy(ah_attr->roce.dmac, hdr->eth.dmac_h);
 	rdma_ah_set_sl(ah_attr, vlan >> VLAN_PRIO_SHIFT);
 	rdma_ah_set_port_num(ah_attr, 1);
 	rdma_ah_set_grh(ah_attr, NULL, flow_label, sgid_index, ttl, tos);
