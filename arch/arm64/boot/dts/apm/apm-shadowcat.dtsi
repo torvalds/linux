@@ -609,7 +609,7 @@
 		pcie0: pcie@1f2b0000 {
 			status = "disabled";
 			device_type = "pci";
-			compatible = "apm,xgene-pcie", "apm,xgene2-pcie";
+			compatible = "apm,xgene-pcie";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
 			#address-cells = <3>;
@@ -635,7 +635,7 @@
 		pcie1: pcie@1f2c0000 {
 			status = "disabled";
 			device_type = "pci";
-			compatible = "apm,xgene-pcie", "apm,xgene2-pcie";
+			compatible = "apm,xgene-pcie";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
 			#address-cells = <3>;
