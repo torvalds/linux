@@ -622,11 +622,11 @@ ttm_resource_cursor_check_bulk(struct ttm_resource_cursor *cursor,
 			       struct ttm_lru_item *next_lru)
 {
 	struct ttm_resource *next = ttm_lru_item_to_res(next_lru);
-	struct ttm_lru_bulk_move *bulk = NULL;
-	struct ttm_buffer_object *bo = next->bo;
+	struct ttm_lru_bulk_move *bulk;
 
 	lockdep_assert_held(&cursor->man->bdev->lru_lock);
-	bulk = bo->bulk_move;
+
+	bulk = next->bo->bulk_move;
 
 	if (cursor->bulk != bulk) {
 		if (bulk) {
