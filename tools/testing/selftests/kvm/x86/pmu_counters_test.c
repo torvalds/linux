@@ -363,8 +363,8 @@ static void test_arch_events(uint8_t pmu_version, uint64_t perf_capabilities,
 
 #define GUEST_ASSERT_PMC_MSR_ACCESS(insn, msr, expect_gp, vector)		\
 __GUEST_ASSERT(expect_gp ? vector == GP_VECTOR : !vector,			\
-	       "Expected %s on " #insn "(0x%x), got vector %u",			\
-	       expect_gp ? "#GP" : "no fault", msr, vector)			\
+	       "Expected %s on " #insn "(0x%x), got %s",			\
+	       expect_gp ? "#GP" : "no fault", msr, ex_str(vector))		\
 
 #define GUEST_ASSERT_PMC_VALUE(insn, msr, val, expected)			\
 	__GUEST_ASSERT(val == expected,					\

@@ -57,8 +57,8 @@ static void guest_test_perf_capabilities_gp(uint64_t val)
 	uint8_t vector = wrmsr_safe(MSR_IA32_PERF_CAPABILITIES, val);
 
 	__GUEST_ASSERT(vector == GP_VECTOR,
-		       "Expected #GP for value '0x%lx', got vector '0x%x'",
-		       val, vector);
+		       "Expected #GP for value '0x%lx', got %s",
+		       val, ex_str(vector));
 }
 
 static void guest_code(uint64_t current_val)
