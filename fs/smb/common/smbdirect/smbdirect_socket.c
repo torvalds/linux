@@ -250,3 +250,32 @@ static void smbdirect_socket_cleanup_work(struct work_struct *work)
 	 */
 	smbdirect_socket_wake_up_all(sc);
 }
+
+__maybe_unused /* this is temporary while this file is included in others */
+static int smbdirect_socket_wait_for_credits(struct smbdirect_socket *sc,
+					     enum smbdirect_socket_status expected_status,
+					     int unexpected_errno,
+					     wait_queue_head_t *waitq,
+					     atomic_t *total_credits,
+					     int needed)
+{
+	int ret;
+
+	if (WARN_ON_ONCE(needed < 0))
+		return -EINVAL;
+
+	do {
+		if (atomic_sub_return(needed, total_credits) >= 0)
+			return 0;
+
+		atomic_add(needed, total_credits);
+		ret = wait_event_interruptible(*waitq,
+					       atomic_read(total_credits) >= needed ||
+					       sc->status != expected_status);
+
+		if (sc->status != expected_status)
+			return unexpected_errno;
+		else if (ret < 0)
+			return ret;
+	} while (true);
+}

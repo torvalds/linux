@@ -32,6 +32,13 @@ static void __smbdirect_socket_schedule_cleanup(struct smbdirect_socket *sc,
 		__func__, __LINE__, __error, &__force_status); \
 } while (0)
 
+static int smbdirect_socket_wait_for_credits(struct smbdirect_socket *sc,
+					     enum smbdirect_socket_status expected_status,
+					     int unexpected_errno,
+					     wait_queue_head_t *waitq,
+					     atomic_t *total_credits,
+					     int needed);
+
 static void smbdirect_connection_idle_timer_work(struct work_struct *work);
 
 #endif /* __FS_SMB_COMMON_SMBDIRECT_INTERNAL_H__ */
