@@ -64,6 +64,14 @@
 
 static_assert(__AVIC_GATAG(AVIC_VM_ID_MASK, AVIC_VCPU_IDX_MASK) == -1u);
 
+/*
+ * enable / disable AVIC.  Because the defaults differ for APICv
+ * support between VMX and SVM we cannot use module_param_named.
+ */
+static bool avic;
+module_param(avic, bool, 0444);
+module_param(enable_ipiv, bool, 0444);
+
 static bool force_avic;
 module_param_unsafe(force_avic, bool, 0444);
 
@@ -1141,15 +1149,9 @@ void avic_vcpu_unblocking(struct kvm_vcpu *vcpu)
 	avic_vcpu_load(vcpu, vcpu->cpu);
 }
 
-/*
- * Note:
- * - The module param avic enable both xAPIC and x2APIC mode.
- * - Hypervisor can support both xAVIC and x2AVIC in the same guest.
- * - The mode can be switched at run-time.
- */
-bool __init avic_hardware_setup(void)
+static bool __init avic_want_avic_enabled(void)
 {
-	if (!npt_enabled)
+	if (!avic || !npt_enabled)
 		return false;
 
 	/* AVIC is a prerequisite for x2AVIC. */
@@ -1172,6 +1174,21 @@ bool __init avic_hardware_setup(void)
 	 */
 	if (!boot_cpu_has(X86_FEATURE_AVIC))
 		pr_warn("AVIC unsupported in CPUID but force enabled, your system might crash and burn\n");
+
+	return true;
+}
+
+/*
+ * Note:
+ * - The module param avic enable both xAPIC and x2APIC mode.
+ * - Hypervisor can support both xAVIC and x2AVIC in the same guest.
+ * - The mode can be switched at run-time.
+ */
+bool __init avic_hardware_setup(void)
+{
+	avic = avic_want_avic_enabled();
+	if (!avic)
+		return false;
 
 	pr_info("AVIC enabled\n");
 
