@@ -1507,7 +1507,7 @@ static int dax_zero_iter(struct iomap_iter *iter, bool *did_zero)
 
 	/* already zeroed?  we're done. */
 	if (srcmap->type == IOMAP_HOLE || srcmap->type == IOMAP_UNWRITTEN)
-		return iomap_iter_advance(iter, &length);
+		return iomap_iter_advance(iter, length);
 
 	/*
 	 * invalidate the pages whose sharing state is to be changed
@@ -1536,10 +1536,10 @@ static int dax_zero_iter(struct iomap_iter *iter, bool *did_zero)
 		if (ret < 0)
 			return ret;
 
-		ret = iomap_iter_advance(iter, &length);
+		ret = iomap_iter_advance(iter, length);
 		if (ret)
 			return ret;
-	} while (length > 0);
+	} while ((length = iomap_length(iter)) > 0);
 
 	if (did_zero)
 		*did_zero = true;
@@ -1597,7 +1597,7 @@ static int dax_iomap_iter(struct iomap_iter *iomi, struct iov_iter *iter)
 
 		if (iomap->type == IOMAP_HOLE || iomap->type == IOMAP_UNWRITTEN) {
 			done = iov_iter_zero(min(length, end - pos), iter);
-			return iomap_iter_advance(iomi, &done);
+			return iomap_iter_advance(iomi, done);
 		}
 	}
 
@@ -1681,12 +1681,12 @@ static int dax_iomap_iter(struct iomap_iter *iomi, struct iov_iter *iter)
 			xfer = dax_copy_to_iter(dax_dev, pgoff, kaddr,
 					map_len, iter);
 
-		length = xfer;
-		ret = iomap_iter_advance(iomi, &length);
+		ret = iomap_iter_advance(iomi, xfer);
 		if (!ret && xfer == 0)
 			ret = -EFAULT;
 		if (xfer < map_len)
 			break;
+		length = iomap_length(iomi);
 	}
 	dax_read_unlock(id);
 
@@ -1919,10 +1919,8 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, unsigned long *pfnp,
 			ret |= VM_FAULT_MAJOR;
 		}
 
-		if (!(ret & VM_FAULT_ERROR)) {
-			u64 length = PAGE_SIZE;
-			iter.status = iomap_iter_advance(&iter, &length);
-		}
+		if (!(ret & VM_FAULT_ERROR))
+			iter.status = iomap_iter_advance(&iter, PAGE_SIZE);
 	}
 
 	if (iomap_errp)
@@ -2034,10 +2032,8 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, unsigned long *pfnp,
 			continue; /* actually breaks out of the loop */
 
 		ret = dax_fault_iter(vmf, &iter, pfnp, &xas, &entry, true);
-		if (ret != VM_FAULT_FALLBACK) {
-			u64 length = PMD_SIZE;
-			iter.status = iomap_iter_advance(&iter, &length);
-		}
+		if (ret != VM_FAULT_FALLBACK)
+			iter.status = iomap_iter_advance(&iter, PMD_SIZE);
 	}
 
 unlock_entry:
@@ -2163,7 +2159,6 @@ static int dax_range_compare_iter(struct iomap_iter *it_src,
 	const struct iomap *smap = &it_src->iomap;
 	const struct iomap *dmap = &it_dest->iomap;
 	loff_t pos1 = it_src->pos, pos2 = it_dest->pos;
-	u64 dest_len;
 	void *saddr, *daddr;
 	int id, ret;
 
@@ -2196,10 +2191,9 @@ static int dax_range_compare_iter(struct iomap_iter *it_src,
 	dax_read_unlock(id);
 
 advance:
-	dest_len = len;
-	ret = iomap_iter_advance(it_src, &len);
+	ret = iomap_iter_advance(it_src, len);
 	if (!ret)
-		ret = iomap_iter_advance(it_dest, &dest_len);
+		ret = iomap_iter_advance(it_dest, len);
 	return ret;
 
 out_unlock:

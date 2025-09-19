@@ -496,7 +496,7 @@ out:
 	/* Undo iter limitation to current extent */
 	iov_iter_reexpand(dio->submit.iter, orig_count - copied);
 	if (copied)
-		return iomap_iter_advance(iter, &copied);
+		return iomap_iter_advance(iter, copied);
 	return ret;
 }
 
@@ -507,7 +507,7 @@ static int iomap_dio_hole_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 	dio->size += length;
 	if (!length)
 		return -EFAULT;
-	return iomap_iter_advance(iter, &length);
+	return iomap_iter_advance(iter, length);
 }
 
 static int iomap_dio_inline_iter(struct iomap_iter *iomi, struct iomap_dio *dio)
@@ -542,7 +542,7 @@ static int iomap_dio_inline_iter(struct iomap_iter *iomi, struct iomap_dio *dio)
 	dio->size += copied;
 	if (!copied)
 		return -EFAULT;
-	return iomap_iter_advance(iomi, &copied);
+	return iomap_iter_advance(iomi, copied);
 }
 
 static int iomap_dio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
