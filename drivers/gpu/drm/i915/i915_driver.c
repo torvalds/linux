@@ -1053,7 +1053,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_display *display = dev_priv->display;
-	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	pci_power_t opregion_target_state;
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
@@ -1066,8 +1065,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 		drm_kms_helper_poll_disable(dev);
 		intel_display_driver_disable_user_access(display);
 	}
-
-	pci_save_state(pdev);
 
 	intel_display_driver_suspend(display);
 
@@ -1125,10 +1122,16 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 		drm_err(&dev_priv->drm, "Suspend complete failed: %d\n", ret);
 		intel_display_power_resume_early(display);
 
-		goto out;
+		goto fail;
 	}
 
+	enable_rpm_wakeref_asserts(rpm);
+
+	if (!dev_priv->uncore.user_forcewake_count)
+		intel_runtime_pm_driver_release(rpm);
+
 	pci_disable_device(pdev);
+
 	/*
 	 * During hibernation on some platforms the BIOS may try to access
 	 * the device even though it's already in D3 and hang the machine. So
@@ -1140,11 +1143,17 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	 * Lenovo Thinkpad X301, X61s, X60, T60, X41
 	 * Fujitsu FSC S7110
 	 * Acer Aspire 1830T
+	 *
+	 * pci_save_state() prevents drivers/pci from
+	 * automagically putting the device into D3.
 	 */
+	pci_save_state(pdev);
 	if (!(hibernation && GRAPHICS_VER(dev_priv) < 6))
 		pci_set_power_state(pdev, PCI_D3hot);
 
-out:
+	return 0;
+
+fail:
 	enable_rpm_wakeref_asserts(rpm);
 	if (!dev_priv->uncore.user_forcewake_count)
 		intel_runtime_pm_driver_release(rpm);
