@@ -46,6 +46,7 @@ struct sdca_device_data {
 
 enum sdca_quirk {
 	SDCA_QUIRKS_RT712_VB,
+	SDCA_QUIRKS_SKIP_FUNC_TYPE_PATCHING,
 };
 
 #if IS_ENABLED(CONFIG_ACPI) && IS_ENABLED(CONFIG_SND_SOC_SDCA)
