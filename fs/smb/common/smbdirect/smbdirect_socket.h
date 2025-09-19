@@ -327,6 +327,14 @@ struct smbdirect_socket {
 	 */
 	struct {
 		/*
+		 * Memory hints for
+		 * smbdirect_rw_io structs
+		 */
+		struct {
+			gfp_t gfp_mask;
+		} mem;
+
+		/*
 		 * The credit state for the send side
 		 */
 		struct {
@@ -541,6 +549,7 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	spin_lock_init(&sc->recv_io.reassembly.lock);
 	init_waitqueue_head(&sc->recv_io.reassembly.wait_queue);
 
+	sc->rw_io.mem.gfp_mask = GFP_KERNEL;
 	atomic_set(&sc->rw_io.credits.count, 0);
 	init_waitqueue_head(&sc->rw_io.credits.wait_queue);
 
