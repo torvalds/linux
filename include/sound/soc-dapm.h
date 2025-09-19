@@ -583,11 +583,9 @@ struct snd_soc_dapm_update {
 struct snd_soc_dapm_context {
 	enum snd_soc_bias_level bias_level;
 
-	/* bit field */
-	unsigned int idle_bias_off:1;		/* Use BIAS_OFF instead of STANDBY */
-	unsigned int suspend_bias_off:1;	/* Use BIAS_OFF in suspend if the DAPM is idle */
+	bool idle_bias;				/* Use BIAS_OFF instead of STANDBY when false */
 
-	struct device *dev;			/* from parent - for debug */
+	struct device *dev;			/* from parent - for debug */ /* REMOVE ME */
 	struct snd_soc_component *component;	/* parent component */
 	struct snd_soc_card *card;		/* parent card */
 
@@ -660,6 +658,12 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card);
 int snd_soc_dapm_update_dai(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params, struct snd_soc_dai *dai);
 int snd_soc_dapm_widget_name_cmp(struct snd_soc_dapm_widget *widget, const char *s);
+struct device *snd_soc_dapm_to_dev(struct snd_soc_dapm_context *dapm);
+struct snd_soc_card *snd_soc_dapm_to_card(struct snd_soc_dapm_context *dapm);
+struct snd_soc_component *snd_soc_dapm_to_component(struct snd_soc_dapm_context *dapm);
+
+bool snd_soc_dapm_get_idle_bias(struct snd_soc_dapm_context *dapm);
+void snd_soc_dapm_set_idle_bias(struct snd_soc_dapm_context *dapm, bool on);
 
 /* dapm path setup */
 int snd_soc_dapm_new_widgets(struct snd_soc_card *card);

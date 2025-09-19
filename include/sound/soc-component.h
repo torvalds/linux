@@ -261,30 +261,18 @@ struct snd_soc_component {
 	list_for_each_entry_safe(dai, _dai, &(component)->dai_list, list)
 
 /**
- * snd_soc_dapm_to_component() - Casts a DAPM context to the component it is
- *  embedded in
- * @dapm: The DAPM context to cast to the component
- *
- * This function must only be used on DAPM contexts that are known to be part of
- * a component (e.g. in a component driver). Otherwise the behavior is
- * undefined.
- */
-static inline struct snd_soc_component *snd_soc_dapm_to_component(
-	struct snd_soc_dapm_context *dapm)
-{
-	return container_of(dapm, struct snd_soc_component, dapm);
-}
-
-/**
- * snd_soc_component_get_dapm() - Returns the DAPM context associated with a
+ * snd_soc_component_to_dapm() - Returns the DAPM context associated with a
  *  component
  * @component: The component for which to get the DAPM context
  */
-static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
+static inline struct snd_soc_dapm_context *snd_soc_component_to_dapm(
 	struct snd_soc_component *component)
 {
 	return &component->dapm;
 }
+
+// FIXME
+#define snd_soc_component_get_dapm	snd_soc_component_to_dapm
 
 /**
  * snd_soc_component_cache_sync() - Sync the register cache with the hardware

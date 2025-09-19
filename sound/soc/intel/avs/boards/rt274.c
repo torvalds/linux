@@ -117,7 +117,7 @@ static int avs_rt274_codec_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	card->dapm.idle_bias_off = true;
+	card->dapm.idle_bias = false;
 
 	return 0;
 }

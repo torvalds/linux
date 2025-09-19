@@ -1324,7 +1324,7 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	int num_routes = 0;
 	int ret;
 
-	card->dapm.idle_bias_off = true;
+	card->dapm.idle_bias = false;
 	jack_data->use_platform_clock = true;
 
 	/* Start with RC clk for jack-detect (we disable MCLK below) */
