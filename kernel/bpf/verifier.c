@@ -17863,7 +17863,7 @@ static int visit_insn(int t, struct bpf_verifier_env *env)
 static int check_cfg(struct bpf_verifier_env *env)
 {
 	int insn_cnt = env->prog->len;
-	int *insn_stack, *insn_state, *insn_postorder;
+	int *insn_stack, *insn_state;
 	int ex_insn_beg, i, ret = 0;
 
 	insn_state = env->cfg.insn_state = kvcalloc(insn_cnt, sizeof(int), GFP_KERNEL_ACCOUNT);
@@ -17873,14 +17873,6 @@ static int check_cfg(struct bpf_verifier_env *env)
 	insn_stack = env->cfg.insn_stack = kvcalloc(insn_cnt, sizeof(int), GFP_KERNEL_ACCOUNT);
 	if (!insn_stack) {
 		kvfree(insn_state);
-		return -ENOMEM;
-	}
-
-	insn_postorder = env->cfg.insn_postorder =
-		kvcalloc(insn_cnt, sizeof(int), GFP_KERNEL_ACCOUNT);
-	if (!insn_postorder) {
-		kvfree(insn_state);
-		kvfree(insn_stack);
 		return -ENOMEM;
 	}
 
@@ -17901,7 +17893,6 @@ walk_cfg:
 		case DONE_EXPLORING:
 			insn_state[t] = EXPLORED;
 			env->cfg.cur_stack--;
-			insn_postorder[env->cfg.cur_postorder++] = t;
 			break;
 		case KEEP_EXPLORING:
 			break;
@@ -17953,6 +17944,56 @@ err_free:
 	kvfree(insn_stack);
 	env->cfg.insn_state = env->cfg.insn_stack = NULL;
 	return ret;
+}
+
+/*
+ * For each subprogram 'i' fill array env->cfg.insn_subprogram sub-range
+ * [env->subprog_info[i].postorder_start, env->subprog_info[i+1].postorder_start)
+ * with indices of 'i' instructions in postorder.
+ */
+static int compute_postorder(struct bpf_verifier_env *env)
+{
+	u32 cur_postorder, i, top, stack_sz, s, succ_cnt, succ[2];
+	int *stack = NULL, *postorder = NULL, *state = NULL;
+
+	postorder = kvcalloc(env->prog->len, sizeof(int), GFP_KERNEL_ACCOUNT);
+	state = kvcalloc(env->prog->len, sizeof(int), GFP_KERNEL_ACCOUNT);
+	stack = kvcalloc(env->prog->len, sizeof(int), GFP_KERNEL_ACCOUNT);
+	if (!postorder || !state || !stack) {
+		kvfree(postorder);
+		kvfree(state);
+		kvfree(stack);
+		return -ENOMEM;
+	}
+	cur_postorder = 0;
+	for (i = 0; i < env->subprog_cnt; i++) {
+		env->subprog_info[i].postorder_start = cur_postorder;
+		stack[0] = env->subprog_info[i].start;
+		stack_sz = 1;
+		do {
+			top = stack[stack_sz - 1];
+			state[top] |= DISCOVERED;
+			if (state[top] & EXPLORED) {
+				postorder[cur_postorder++] = top;
+				stack_sz--;
+				continue;
+			}
+			succ_cnt = bpf_insn_successors(env->prog, top, succ);
+			for (s = 0; s < succ_cnt; ++s) {
+				if (!state[succ[s]]) {
+					stack[stack_sz++] = succ[s];
+					state[succ[s]] |= DISCOVERED;
+				}
+			}
+			state[top] |= EXPLORED;
+		} while (stack_sz);
+	}
+	env->subprog_info[i].postorder_start = cur_postorder;
+	env->cfg.insn_postorder = postorder;
+	env->cfg.cur_postorder = cur_postorder;
+	kvfree(stack);
+	kvfree(state);
+	return 0;
 }
 
 static int check_abnormal_return(struct bpf_verifier_env *env)
@@ -24422,9 +24463,6 @@ static int compute_live_registers(struct bpf_verifier_env *env)
 
 out:
 	kvfree(state);
-	kvfree(env->cfg.insn_postorder);
-	env->cfg.insn_postorder = NULL;
-	env->cfg.cur_postorder = 0;
 	return err;
 }
 
@@ -24724,6 +24762,10 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 	}
 
 	ret = check_cfg(env);
+	if (ret < 0)
+		goto skip_full_check;
+
+	ret = compute_postorder(env);
 	if (ret < 0)
 		goto skip_full_check;
 

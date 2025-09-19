@@ -665,6 +665,7 @@ struct bpf_subprog_info {
 	/* 'start' has to be the first field otherwise find_subprog() won't work */
 	u32 start; /* insn idx of function entry point */
 	u32 linfo_idx; /* The idx to the main_prog->aux->linfo */
+	u32 postorder_start; /* The idx to the env->cfg.insn_postorder */
 	u16 stack_depth; /* max. stack depth used by this function */
 	u16 stack_extra;
 	/* offsets in range [stack_depth .. fastcall_stack_off)
@@ -794,7 +795,10 @@ struct bpf_verifier_env {
 	struct {
 		int *insn_state;
 		int *insn_stack;
-		/* vector of instruction indexes sorted in post-order */
+		/*
+		 * vector of instruction indexes sorted in post-order, grouped by subprogram,
+		 * see bpf_subprog_info->postorder_start.
+		 */
 		int *insn_postorder;
 		int cur_stack;
 		/* current position in the insn_postorder vector */
