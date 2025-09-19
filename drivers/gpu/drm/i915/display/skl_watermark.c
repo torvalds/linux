@@ -3174,6 +3174,15 @@ void skl_watermark_ipc_init(struct intel_display *display)
 	skl_watermark_ipc_update(display);
 }
 
+static void multiply_wm_latency(struct intel_display *display, int mult)
+{
+	u16 *wm = display->wm.skl_latency;
+	int level, num_levels = display->wm.num_levels;
+
+	for (level = 0; level < num_levels; level++)
+		wm[level] *= mult;
+}
+
 static bool need_16gb_dimm_wa(struct intel_display *display)
 {
 	const struct dram_info *dram_info = intel_dram_info(display->drm);
@@ -3199,6 +3208,9 @@ adjust_wm_latency(struct intel_display *display)
 	u16 *wm = display->wm.skl_latency;
 	int i, level, num_levels = display->wm.num_levels;
 	int read_latency = wm_read_latency(display);
+
+	if (display->platform.dg2)
+		multiply_wm_latency(display, 2);
 
 	/*
 	 * If a level n (n > 1) has a 0us latency, all levels m (m >= n)
@@ -3262,7 +3274,6 @@ static void mtl_read_wm_latency(struct intel_display *display)
 static void skl_read_wm_latency(struct intel_display *display)
 {
 	u16 *wm = display->wm.skl_latency;
-	int mult = display->platform.dg2 ? 2 : 1;
 	u32 val;
 	int ret;
 
@@ -3274,10 +3285,10 @@ static void skl_read_wm_latency(struct intel_display *display)
 		return;
 	}
 
-	wm[0] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_0_4_MASK, val) * mult;
-	wm[1] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_1_5_MASK, val) * mult;
-	wm[2] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_2_6_MASK, val) * mult;
-	wm[3] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_3_7_MASK, val) * mult;
+	wm[0] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_0_4_MASK, val);
+	wm[1] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_1_5_MASK, val);
+	wm[2] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_2_6_MASK, val);
+	wm[3] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_3_7_MASK, val);
 
 	/* read the second set of memory latencies[4:7] */
 	val = 1; /* data0 to be programmed to 1 for second set */
@@ -3287,10 +3298,10 @@ static void skl_read_wm_latency(struct intel_display *display)
 		return;
 	}
 
-	wm[4] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_0_4_MASK, val) * mult;
-	wm[5] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_1_5_MASK, val) * mult;
-	wm[6] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_2_6_MASK, val) * mult;
-	wm[7] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_3_7_MASK, val) * mult;
+	wm[4] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_0_4_MASK, val);
+	wm[5] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_1_5_MASK, val);
+	wm[6] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_2_6_MASK, val);
+	wm[7] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_3_7_MASK, val);
 }
 
 static void skl_setup_wm_latency(struct intel_display *display)
