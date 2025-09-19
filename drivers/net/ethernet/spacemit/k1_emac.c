@@ -135,7 +135,7 @@ struct emac_priv {
 	bool flow_control_autoneg;
 	u8 flow_control;
 
-	/* Hold while touching hardware statistics */
+	/* Softirq-safe, hold while touching hardware statistics */
 	spinlock_t stats_lock;
 };
 
@@ -1239,7 +1239,7 @@ static void emac_get_stats64(struct net_device *dev,
 	/* This is the only software counter */
 	storage->tx_dropped = emac_get_stat_tx_drops(priv);
 
-	spin_lock(&priv->stats_lock);
+	spin_lock_bh(&priv->stats_lock);
 
 	emac_stats_update(priv);
 
@@ -1261,7 +1261,7 @@ static void emac_get_stats64(struct net_device *dev,
 	storage->rx_missed_errors = rx_stats->stats.rx_drp_fifo_full_pkts;
 	storage->rx_missed_errors += rx_stats->stats.rx_truncate_fifo_full_pkts;
 
-	spin_unlock(&priv->stats_lock);
+	spin_unlock_bh(&priv->stats_lock);
 }
 
 static void emac_get_rmon_stats(struct net_device *dev,
@@ -1275,7 +1275,7 @@ static void emac_get_rmon_stats(struct net_device *dev,
 
 	*ranges = emac_rmon_hist_ranges;
 
-	spin_lock(&priv->stats_lock);
+	spin_lock_bh(&priv->stats_lock);
 
 	emac_stats_update(priv);
 
@@ -1294,7 +1294,7 @@ static void emac_get_rmon_stats(struct net_device *dev,
 	rmon_stats->hist[5] = rx_stats->stats.rx_1024_1518_pkts;
 	rmon_stats->hist[6] = rx_stats->stats.rx_1519_plus_pkts;
 
-	spin_unlock(&priv->stats_lock);
+	spin_unlock_bh(&priv->stats_lock);
 }
 
 static void emac_get_eth_mac_stats(struct net_device *dev,
@@ -1307,7 +1307,7 @@ static void emac_get_eth_mac_stats(struct net_device *dev,
 	tx_stats = &priv->tx_stats;
 	rx_stats = &priv->rx_stats;
 
-	spin_lock(&priv->stats_lock);
+	spin_lock_bh(&priv->stats_lock);
 
 	emac_stats_update(priv);
 
@@ -1325,7 +1325,7 @@ static void emac_get_eth_mac_stats(struct net_device *dev,
 	mac_stats->FramesAbortedDueToXSColls =
 		tx_stats->stats.tx_excessclsn_pkts;
 
-	spin_unlock(&priv->stats_lock);
+	spin_unlock_bh(&priv->stats_lock);
 }
 
 static void emac_get_pause_stats(struct net_device *dev,
@@ -1338,14 +1338,14 @@ static void emac_get_pause_stats(struct net_device *dev,
 	tx_stats = &priv->tx_stats;
 	rx_stats = &priv->rx_stats;
 
-	spin_lock(&priv->stats_lock);
+	spin_lock_bh(&priv->stats_lock);
 
 	emac_stats_update(priv);
 
 	pause_stats->tx_pause_frames = tx_stats->stats.tx_pause_pkts;
 	pause_stats->rx_pause_frames = rx_stats->stats.rx_pause_pkts;
 
-	spin_unlock(&priv->stats_lock);
+	spin_unlock_bh(&priv->stats_lock);
 }
 
 /* Other statistics that are not derivable from standard statistics */
@@ -1393,14 +1393,14 @@ static void emac_get_ethtool_stats(struct net_device *dev,
 	u64 *rx_stats = (u64 *)&priv->rx_stats;
 	int i;
 
-	spin_lock(&priv->stats_lock);
+	spin_lock_bh(&priv->stats_lock);
 
 	emac_stats_update(priv);
 
 	for (i = 0; i < ARRAY_SIZE(emac_ethtool_rx_stats); i++)
 		data[i] = rx_stats[emac_ethtool_rx_stats[i].offset];
 
-	spin_unlock(&priv->stats_lock);
+	spin_unlock_bh(&priv->stats_lock);
 }
 
 static int emac_ethtool_get_regs_len(struct net_device *dev)
@@ -1769,7 +1769,7 @@ static int emac_up(struct emac_priv *priv)
 
 	netif_start_queue(ndev);
 
-	emac_stats_timer(&priv->stats_timer);
+	mod_timer(&priv->stats_timer, jiffies);
 
 	return 0;
 
@@ -1807,14 +1807,14 @@ static int emac_down(struct emac_priv *priv)
 
 	/* Update and save current stats, see emac_stats_update() for usage */
 
-	spin_lock(&priv->stats_lock);
+	spin_lock_bh(&priv->stats_lock);
 
 	emac_stats_update(priv);
 
 	priv->tx_stats_off = priv->tx_stats;
 	priv->rx_stats_off = priv->rx_stats;
 
-	spin_unlock(&priv->stats_lock);
+	spin_unlock_bh(&priv->stats_lock);
 
 	pm_runtime_put_sync(&pdev->dev);
 	return 0;
@@ -2111,7 +2111,7 @@ static int emac_resume(struct device *dev)
 
 	netif_device_attach(ndev);
 
-	emac_stats_timer(&priv->stats_timer);
+	mod_timer(&priv->stats_timer, jiffies);
 
 	return 0;
 }
