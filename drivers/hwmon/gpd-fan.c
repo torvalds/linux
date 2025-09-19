@@ -571,7 +571,7 @@ static int gpd_fan_hwmon_write(__always_unused struct device *dev,
 			ret = 0;
 			goto OUT;
 		case hwmon_pwm_input:
-			if (!in_range(val, 0, 255)) {
+			if (!in_range(val, 0, 256)) {
 				ret = -ERANGE;
 				goto OUT;
 			}
