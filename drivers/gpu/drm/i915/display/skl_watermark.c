@@ -1637,17 +1637,15 @@ skl_wm_method2(u32 pixel_rate, u32 pipe_htotal, u32 latency,
 }
 
 static uint_fixed_16_16_t
-intel_get_linetime_us(const struct intel_crtc_state *crtc_state)
+intel_get_linetime_us(const struct intel_crtc_state *crtc_state,
+		      int pixel_rate)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	u32 pixel_rate;
 	u32 crtc_htotal;
 	uint_fixed_16_16_t linetime_us;
 
 	if (!crtc_state->hw.active)
 		return u32_to_fixed16(0);
-
-	pixel_rate = crtc_state->pixel_rate;
 
 	if (drm_WARN_ON(display->drm, pixel_rate == 0))
 		return u32_to_fixed16(0);
@@ -1743,7 +1741,8 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 	wp->y_tile_minimum = mul_u32_fixed16(wp->y_min_scanlines,
 					     wp->plane_blocks_per_line);
 
-	wp->linetime_us = fixed16_to_u32_round_up(intel_get_linetime_us(crtc_state));
+	wp->linetime_us = fixed16_to_u32_round_up(intel_get_linetime_us(crtc_state,
+									plane_pixel_rate));
 
 	return 0;
 }
