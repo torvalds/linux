@@ -4085,7 +4085,8 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	/* We passed data and got it acked, remove any soft error
 	 * log. Something worked...
 	 */
-	WRITE_ONCE(sk->sk_err_soft, 0);
+	if (READ_ONCE(sk->sk_err_soft))
+		WRITE_ONCE(sk->sk_err_soft, 0);
 	WRITE_ONCE(icsk->icsk_probes_out, 0);
 	tp->rcv_tstamp = tcp_jiffies32;
 	if (!prior_packets)

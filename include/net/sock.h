@@ -467,7 +467,7 @@ struct sock {
 	__cacheline_group_begin(sock_write_tx);
 	int			sk_write_pending;
 	atomic_t		sk_omem_alloc;
-	int			sk_sndbuf;
+	int			sk_err_soft;
 
 	int			sk_wmem_queued;
 	refcount_t		sk_wmem_alloc;
@@ -507,6 +507,7 @@ struct sock {
 	unsigned int		sk_gso_max_size;
 	gfp_t			sk_allocation;
 	u32			sk_txhash;
+	int			sk_sndbuf;
 	u8			sk_pacing_shift;
 	bool			sk_use_task_frag;
 	__cacheline_group_end(sock_read_tx);
@@ -523,7 +524,6 @@ struct sock {
 	unsigned long	        sk_lingertime;
 	struct proto		*sk_prot_creator;
 	rwlock_t		sk_callback_lock;
-	int			sk_err_soft;
 	u32			sk_ack_backlog;
 	u32			sk_max_ack_backlog;
 	unsigned long		sk_ino;
