@@ -739,7 +739,7 @@ static int inet_reuseport_add_sock(struct sock *sk,
 	return reuseport_alloc(sk, inet_rcv_saddr_any(sk));
 }
 
-int __inet_hash(struct sock *sk, struct sock *osk)
+int __inet_hash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = tcp_get_hashinfo(sk);
 	struct inet_listen_hashbucket *ilb2;
@@ -747,7 +747,7 @@ int __inet_hash(struct sock *sk, struct sock *osk)
 
 	if (sk->sk_state != TCP_LISTEN) {
 		local_bh_disable();
-		inet_ehash_nolisten(sk, osk, NULL);
+		inet_ehash_nolisten(sk, NULL, NULL);
 		local_bh_enable();
 		return 0;
 	}
@@ -779,7 +779,7 @@ int inet_hash(struct sock *sk)
 	int err = 0;
 
 	if (sk->sk_state != TCP_CLOSE)
-		err = __inet_hash(sk, NULL);
+		err = __inet_hash(sk);
 
 	return err;
 }

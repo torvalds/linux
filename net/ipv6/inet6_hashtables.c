@@ -374,7 +374,7 @@ int inet6_hash(struct sock *sk)
 	int err = 0;
 
 	if (sk->sk_state != TCP_CLOSE)
-		err = __inet_hash(sk, NULL);
+		err = __inet_hash(sk);
 
 	return err;
 }
