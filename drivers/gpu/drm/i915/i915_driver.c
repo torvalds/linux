@@ -1100,7 +1100,6 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_display *display = dev_priv->display;
-	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	struct intel_gt *gt;
 	int ret, i;
@@ -1121,21 +1120,10 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	if (ret) {
 		drm_err(&dev_priv->drm, "Suspend complete failed: %d\n", ret);
 		intel_display_power_resume_early(display);
-
-		goto fail;
 	}
 
 	enable_rpm_wakeref_asserts(rpm);
 
-	if (!dev_priv->uncore.user_forcewake_count)
-		intel_runtime_pm_driver_release(rpm);
-
-	pci_disable_device(pdev);
-
-	return 0;
-
-fail:
-	enable_rpm_wakeref_asserts(rpm);
 	if (!dev_priv->uncore.user_forcewake_count)
 		intel_runtime_pm_driver_release(rpm);
 
@@ -1284,7 +1272,6 @@ static int i915_drm_resume_early(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_display *display = dev_priv->display;
-	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	struct intel_gt *gt;
 	int ret, i;
 
@@ -1297,24 +1284,6 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	 * FIXME: This should be solved with a special hdmi sink device or
 	 * similar so that power domains can be employed.
 	 */
-
-	/*
-	 * Note that pci_enable_device() first enables any parent bridge
-	 * device and only then sets the power state for this device. The
-	 * bridge enabling is a nop though, since bridge devices are resumed
-	 * first. The order of enabling power and enabling the device is
-	 * imposed by the PCI core as described above, so here we preserve the
-	 * same order for the freeze/thaw phases.
-	 *
-	 * TODO: eventually we should remove pci_disable_device() /
-	 * pci_enable_enable_device() from suspend/resume. Due to how they
-	 * depend on the device enable refcount we can't anyway depend on them
-	 * disabling/enabling the device.
-	 */
-	if (pci_enable_device(pdev))
-		return -EIO;
-
-	pci_set_master(pdev);
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
