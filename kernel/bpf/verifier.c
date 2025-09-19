@@ -18489,15 +18489,16 @@ static bool check_scalar_ids(u32 old_id, u32 cur_id, struct bpf_idmap *idmap)
 }
 
 static void clean_func_state(struct bpf_verifier_env *env,
-			     struct bpf_func_state *st)
+			     struct bpf_func_state *st,
+			     u32 ip)
 {
+	u16 live_regs = env->insn_aux_data[ip].live_regs_before;
 	enum bpf_reg_liveness live;
 	int i, j;
 
 	for (i = 0; i < BPF_REG_FP; i++) {
-		live = st->regs[i].live;
 		/* liveness must not touch this register anymore */
-		if (!(live & REG_LIVE_READ))
+		if (!(live_regs & BIT(i)))
 			/* since the register is unused, clear its state
 			 * to make further comparison simpler
 			 */
@@ -18518,11 +18519,13 @@ static void clean_func_state(struct bpf_verifier_env *env,
 static void clean_verifier_state(struct bpf_verifier_env *env,
 				 struct bpf_verifier_state *st)
 {
-	int i;
+	int i, ip;
 
 	st->cleaned = true;
-	for (i = 0; i <= st->curframe; i++)
-		clean_func_state(env, st->frame[i]);
+	for (i = 0; i <= st->curframe; i++) {
+		ip = frame_insn_idx(st, i);
+		clean_func_state(env, st->frame[i], ip);
+	}
 }
 
 /* the parentage chains form a tree.
