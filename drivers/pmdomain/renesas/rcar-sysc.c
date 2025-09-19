@@ -241,6 +241,7 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 		}
 	}
 
+	genpd->flags |= GENPD_FLAG_NO_STAY_ON;
 	genpd->power_off = rcar_sysc_pd_power_off;
 	genpd->power_on = rcar_sysc_pd_power_on;
 
@@ -342,7 +343,7 @@ struct rcar_pm_domains {
 };
 
 static struct genpd_onecell_data *rcar_sysc_onecell_data;
-static struct device_node *rcar_sysc_onecell_np;
+static struct device_node *rcar_sysc_onecell_np __initdata = NULL;
 
 static int __init rcar_sysc_pd_init(void)
 {
