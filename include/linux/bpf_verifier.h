@@ -26,27 +26,6 @@
 /* Patch buffer size */
 #define INSN_BUF_SIZE 32
 
-/* Liveness marks, used for registers and spilled-regs (in stack slots).
- * Read marks propagate upwards until they find a write mark; they record that
- * "one of this state's descendants read this reg" (and therefore the reg is
- * relevant for states_equal() checks).
- * Write marks collect downwards and do not propagate; they record that "the
- * straight-line code that reached this state (from its parent) wrote this reg"
- * (and therefore that reads propagated from this state or its descendants
- * should not propagate to its parent).
- * A state with a write mark can receive read marks; it just won't propagate
- * them to its parent, since the write mark is a property, not of the state,
- * but of the link between it and its parent.  See mark_reg_read() and
- * mark_stack_slot_read() in kernel/bpf/verifier.c.
- */
-enum bpf_reg_liveness {
-	REG_LIVE_NONE = 0, /* reg hasn't been read or written this branch */
-	REG_LIVE_READ32 = 0x1, /* reg was read, so we're sensitive to initial value */
-	REG_LIVE_READ64 = 0x2, /* likewise, but full 64-bit content matters */
-	REG_LIVE_READ = REG_LIVE_READ32 | REG_LIVE_READ64,
-	REG_LIVE_WRITTEN = 0x4, /* reg was written first, screening off later reads */
-};
-
 #define ITER_PREFIX "bpf_iter_"
 
 enum bpf_iter_state {
@@ -211,8 +190,6 @@ struct bpf_reg_state {
 	 * allowed and has the same effect as bpf_sk_release(sk).
 	 */
 	u32 ref_obj_id;
-	/* parentage chain for liveness checking */
-	struct bpf_reg_state *parent;
 	/* Inside the callee two registers can be both PTR_TO_STACK like
 	 * R1=fp-8 and R2=fp-8, but one of them points to this function stack
 	 * while another to the caller's stack. To differentiate them 'frameno'
@@ -225,7 +202,6 @@ struct bpf_reg_state {
 	 * patching which only happens after main verification finished.
 	 */
 	s32 subreg_def;
-	enum bpf_reg_liveness live;
 	/* if (!precise && SCALAR_VALUE) min/max/tnum don't affect safety */
 	bool precise;
 };
@@ -852,7 +828,6 @@ struct bpf_verifier_env {
 	/* array of pointers to bpf_scc_info indexed by SCC id */
 	struct bpf_scc_info **scc_info;
 	u32 scc_cnt;
-	bool internal_error;
 };
 
 static inline struct bpf_func_info_aux *subprog_aux(struct bpf_verifier_env *env, int subprog)
