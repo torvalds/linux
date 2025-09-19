@@ -77,7 +77,7 @@ register unsigned long current_stack_pointer __asm__("$sp");
 #define TIF_NOHZ		16	/* in adaptive nohz mode */
 #define TIF_USEDFPU		17	/* FPU was used by this task this quantum (SMP) */
 #define TIF_USEDSIMD		18	/* SIMD has been used this quantum */
-#define TIF_FIXADE		10	/* Fix address errors in software */
+#define TIF_FIXADE		19	/* Fix address errors in software */
 #define TIF_LOGADE		20	/* Log address errors to syslog */
 #define TIF_32BIT_REGS		21	/* 32-bit general purpose registers */
 #define TIF_32BIT_ADDR		22	/* 32-bit address space */
