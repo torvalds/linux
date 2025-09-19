@@ -910,27 +910,6 @@ release_credit:
 	return ret;
 }
 
-static int wait_for_credits(struct smbdirect_socket *sc,
-			    wait_queue_head_t *waitq, atomic_t *total_credits,
-			    int needed)
-{
-	int ret;
-
-	do {
-		if (atomic_sub_return(needed, total_credits) >= 0)
-			return 0;
-
-		atomic_add(needed, total_credits);
-		ret = wait_event_interruptible(*waitq,
-					       atomic_read(total_credits) >= needed ||
-					       sc->status != SMBDIRECT_SOCKET_CONNECTED);
-
-		if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
-			return -ENOTCONN;
-		else if (ret < 0)
-			return ret;
-	} while (true);
-}
 
 static int wait_for_send_bcredit(struct smbdirect_socket *sc,
 				 struct smbdirect_send_batch *send_ctx)
@@ -940,10 +919,12 @@ static int wait_for_send_bcredit(struct smbdirect_socket *sc,
 	if (send_ctx->credit)
 		return 0;
 
-	ret = wait_for_credits(sc,
-			       &sc->send_io.bcredits.wait_queue,
-			       &sc->send_io.bcredits.count,
-			       1);
+	ret = smbdirect_socket_wait_for_credits(sc,
+						SMBDIRECT_SOCKET_CONNECTED,
+						-ENOTCONN,
+						&sc->send_io.bcredits.wait_queue,
+						&sc->send_io.bcredits.count,
+						1);
 	if (ret)
 		return ret;
 
@@ -962,10 +943,12 @@ static int wait_for_send_lcredit(struct smbdirect_socket *sc,
 			return ret;
 	}
 
-	return wait_for_credits(sc,
-				&sc->send_io.lcredits.wait_queue,
-				&sc->send_io.lcredits.count,
-				1);
+	return smbdirect_socket_wait_for_credits(sc,
+						 SMBDIRECT_SOCKET_CONNECTED,
+						 -ENOTCONN,
+						 &sc->send_io.lcredits.wait_queue,
+						 &sc->send_io.lcredits.count,
+						 1);
 }
 
 static int wait_for_send_credits(struct smbdirect_socket *sc,
@@ -980,15 +963,22 @@ static int wait_for_send_credits(struct smbdirect_socket *sc,
 			return ret;
 	}
 
-	return wait_for_credits(sc, &sc->send_io.credits.wait_queue, &sc->send_io.credits.count, 1);
+	return smbdirect_socket_wait_for_credits(sc,
+						 SMBDIRECT_SOCKET_CONNECTED,
+						 -ENOTCONN,
+						 &sc->send_io.credits.wait_queue,
+						 &sc->send_io.credits.count,
+						 1);
 }
 
 static int wait_for_rw_credits(struct smbdirect_socket *sc, int credits)
 {
-	return wait_for_credits(sc,
-				&sc->rw_io.credits.wait_queue,
-				&sc->rw_io.credits.count,
-				credits);
+	return smbdirect_socket_wait_for_credits(sc,
+						 SMBDIRECT_SOCKET_CONNECTED,
+						 -ENOTCONN,
+						 &sc->rw_io.credits.wait_queue,
+						 &sc->rw_io.credits.count,
+						 credits);
 }
 
 static int calc_rw_credits(struct smbdirect_socket *sc,
