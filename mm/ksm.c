@@ -2936,15 +2936,17 @@ void __ksm_exit(struct mm_struct *mm)
 
 	spin_lock(&ksm_mmlist_lock);
 	slot = mm_slot_lookup(mm_slots_hash, mm);
-	mm_slot = mm_slot_entry(slot, struct ksm_mm_slot, slot);
-	if (mm_slot && ksm_scan.mm_slot != mm_slot) {
-		if (!mm_slot->rmap_list) {
-			hash_del(&slot->hash);
-			list_del(&slot->mm_node);
-			easy_to_free = 1;
-		} else {
-			list_move(&slot->mm_node,
-				  &ksm_scan.mm_slot->slot.mm_node);
+	if (slot) {
+		mm_slot = mm_slot_entry(slot, struct ksm_mm_slot, slot);
+		if (ksm_scan.mm_slot != mm_slot) {
+			if (!mm_slot->rmap_list) {
+				hash_del(&slot->hash);
+				list_del(&slot->mm_node);
+				easy_to_free = 1;
+			} else {
+				list_move(&slot->mm_node,
+					  &ksm_scan.mm_slot->slot.mm_node);
+			}
 		}
 	}
 	spin_unlock(&ksm_mmlist_lock);
