@@ -64,12 +64,32 @@
 
 static_assert(__AVIC_GATAG(AVIC_VM_ID_MASK, AVIC_VCPU_IDX_MASK) == -1u);
 
+#define AVIC_AUTO_MODE -1
+
+static int avic_param_set(const char *val, const struct kernel_param *kp)
+{
+	if (val && sysfs_streq(val, "auto")) {
+		*(int *)kp->arg = AVIC_AUTO_MODE;
+		return 0;
+	}
+
+	return param_set_bint(val, kp);
+}
+
+static const struct kernel_param_ops avic_ops = {
+	.flags = KERNEL_PARAM_OPS_FL_NOARG,
+	.set = avic_param_set,
+	.get = param_get_bool,
+};
+
 /*
- * enable / disable AVIC.  Because the defaults differ for APICv
- * support between VMX and SVM we cannot use module_param_named.
+ * Enable / disable AVIC.  In "auto" mode (default behavior), AVIC is enabled
+ * for Zen4+ CPUs with x2AVIC (and all other criteria for enablement are met).
  */
-static bool avic;
-module_param(avic, bool, 0444);
+static int avic = AVIC_AUTO_MODE;
+module_param_cb(avic, &avic_ops, &avic, 0444);
+__MODULE_PARM_TYPE(avic, "bool");
+
 module_param(enable_ipiv, bool, 0444);
 
 static bool force_avic;
@@ -1151,6 +1171,18 @@ void avic_vcpu_unblocking(struct kvm_vcpu *vcpu)
 
 static bool __init avic_want_avic_enabled(void)
 {
+	/*
+	 * In "auto" mode, enable AVIC by default for Zen4+ if x2AVIC is
+	 * supported (to avoid enabling partial support by default, and because
+	 * x2AVIC should be supported by all Zen4+ CPUs).  Explicitly check for
+	 * family 0x19 and later (Zen5+), as the kernel's synthetic ZenX flags
+	 * aren't inclusive of previous generations, i.e. the kernel will set
+	 * at most one ZenX feature flag.
+	 */
+	if (avic == AVIC_AUTO_MODE)
+		avic = boot_cpu_has(X86_FEATURE_X2AVIC) &&
+		       (boot_cpu_data.x86 > 0x19 || cpu_feature_enabled(X86_FEATURE_ZEN4));
+
 	if (!avic || !npt_enabled)
 		return false;
 
