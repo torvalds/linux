@@ -666,7 +666,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	 * Take early refcount for outstanding I/O requests we schedule during
 	 * delete processing for unreg_vpi.  Always keep this before
 	 * scsi_remove_host() as we can no longer obtain a reference through
-	 * scsi_host_get() after scsi_host_remove as shost is set to SHOST_DEL.
+	 * scsi_host_get() after scsi_remove_host as shost is set to SHOST_DEL.
 	 */
 	if (!scsi_host_get(shost))
 		return VPORT_INVAL;

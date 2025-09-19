@@ -13,17 +13,15 @@ struct xfs_ibulk {
 	xfs_ino_t		startino; /* start with this inode */
 	unsigned int		icount;   /* number of elements in ubuffer */
 	unsigned int		ocount;   /* number of records returned */
-	unsigned int		flags;    /* see XFS_IBULK_FLAG_* */
+	unsigned int		flags;    /* XFS_IBULK_FLAG_* */
+	unsigned int		iwalk_flags; /* XFS_IWALK_FLAG_* */
 };
 
-/* Only iterate within the same AG as startino */
-#define XFS_IBULK_SAME_AG	(1U << 0)
-
 /* Fill out the bs_extents64 field if set. */
-#define XFS_IBULK_NREXT64	(1U << 1)
+#define XFS_IBULK_NREXT64	(1U << 0)
 
 /* Signal that we can return metadata directories. */
-#define XFS_IBULK_METADIR	(1U << 2)
+#define XFS_IBULK_METADIR	(1U << 1)
 
 /*
  * Advance the user buffer pointer by one record of the given size.  If the

@@ -173,7 +173,7 @@ typedef struct mdp_superblock_s {
 #else
 #error unspecified endianness
 #endif
-	__u32 resync_offset;	/* 11 resync checkpoint sector count	      */
+	__u32 recovery_cp;	/* 11 resync checkpoint sector count	      */
 	/* There are only valid for minor_version > 90 */
 	__u64 reshape_position;	/* 12,13 next address in array-space for reshape */
 	__u32 new_level;	/* 14 new level we are reshaping to	      */

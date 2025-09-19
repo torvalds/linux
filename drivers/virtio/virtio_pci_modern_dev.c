@@ -546,9 +546,9 @@ EXPORT_SYMBOL_GPL(vp_modern_set_queue_reset);
  * vp_modern_queue_vector - set the MSIX vector for a specific virtqueue
  * @mdev: the modern virtio-pci device
  * @index: queue index
- * @vector: the config vector
+ * @vector: the queue vector
  *
- * Returns the config vector read from the device
+ * Returns the queue vector read from the device
  */
 u16 vp_modern_queue_vector(struct virtio_pci_modern_device *mdev,
 			   u16 index, u16 vector)

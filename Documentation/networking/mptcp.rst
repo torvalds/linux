@@ -60,10 +60,10 @@ address announcements. Typically, it is the client side that initiates subflows,
 and the server side that announces additional addresses via the ``ADD_ADDR`` and
 ``REMOVE_ADDR`` options.
 
-Path managers are controlled by the ``net.mptcp.pm_type`` sysctl knob -- see
-mptcp-sysctl.rst. There are two types: the in-kernel one (type ``0``) where the
-same rules are applied for all the connections (see: ``ip mptcp``) ; and the
-userspace one (type ``1``), controlled by a userspace daemon (i.e. `mptcpd
+Path managers are controlled by the ``net.mptcp.path_manager`` sysctl knob --
+see mptcp-sysctl.rst. There are two types: the in-kernel one (``kernel``) where
+the same rules are applied for all the connections (see: ``ip mptcp``) ; and the
+userspace one (``userspace``), controlled by a userspace daemon (i.e. `mptcpd
 <https://mptcpd.mptcp.dev/>`_) where different rules can be applied for each
 connection. The path managers can be controlled via a Netlink API; see
 netlink_spec/mptcp_pm.rst.
