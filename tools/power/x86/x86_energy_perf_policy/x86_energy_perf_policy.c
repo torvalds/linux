@@ -809,7 +809,7 @@ void print_hwp_request_pkg(int pkg, struct msr_hwp_request *h, char *str)
 		h->hwp_min, h->hwp_max, h->hwp_desired, h->hwp_epp,
 		h->hwp_window, h->hwp_window & 0x7F, (h->hwp_window >> 7) & 0x7);
 }
-void read_hwp_request(int cpu, struct msr_hwp_request *hwp_req, unsigned int msr_offset)
+void read_hwp_request_msr(int cpu, struct msr_hwp_request *hwp_req, unsigned int msr_offset)
 {
 	unsigned long long msr;
 
@@ -823,7 +823,7 @@ void read_hwp_request(int cpu, struct msr_hwp_request *hwp_req, unsigned int msr
 	hwp_req->hwp_use_pkg = (((msr) >> 42) & 0x1);
 }
 
-void write_hwp_request(int cpu, struct msr_hwp_request *hwp_req, unsigned int msr_offset)
+void write_hwp_request_msr(int cpu, struct msr_hwp_request *hwp_req, unsigned int msr_offset)
 {
 	unsigned long long msr = 0;
 
@@ -843,7 +843,7 @@ void write_hwp_request(int cpu, struct msr_hwp_request *hwp_req, unsigned int ms
 	put_msr(cpu, msr_offset, msr);
 }
 
-static int get_epb(int cpu)
+static int get_epb_sysfs(int cpu)
 {
 	char path[SYSFS_PATH_MAX];
 	char linebuf[3];
@@ -865,7 +865,7 @@ static int get_epb(int cpu)
 	return (int)val;
 }
 
-static int set_epb(int cpu, int val)
+static int set_epb_sysfs(int cpu, int val)
 {
 	char path[SYSFS_PATH_MAX];
 	char linebuf[3];
@@ -895,14 +895,14 @@ int print_cpu_msrs(int cpu)
 	struct msr_hwp_cap cap;
 	int epb;
 
-	epb = get_epb(cpu);
+	epb = get_epb_sysfs(cpu);
 	if (epb >= 0)
 		printf("cpu%d: EPB %u\n", cpu, (unsigned int) epb);
 
 	if (!has_hwp)
 		return 0;
 
-	read_hwp_request(cpu, &req, MSR_HWP_REQUEST);
+	read_hwp_request_msr(cpu, &req, MSR_HWP_REQUEST);
 	print_hwp_request(cpu, &req, "");
 
 	read_hwp_cap(cpu, &cap, MSR_HWP_CAPABILITIES);
@@ -919,7 +919,7 @@ int print_pkg_msrs(int pkg)
 	if (!has_hwp)
 		return 0;
 
-	read_hwp_request(first_cpu_in_pkg[pkg], &req, MSR_HWP_REQUEST_PKG);
+	read_hwp_request_msr(first_cpu_in_pkg[pkg], &req, MSR_HWP_REQUEST_PKG);
 	print_hwp_request_pkg(pkg, &req, "");
 
 	if (has_hwp_notify) {
@@ -1074,14 +1074,14 @@ int check_hwp_request_v_hwp_capabilities(int cpu, struct msr_hwp_request *req, s
 	return 0;
 }
 
-int update_hwp_request(int cpu)
+int update_hwp_request_msr(int cpu)
 {
 	struct msr_hwp_request req;
 	struct msr_hwp_cap cap;
 
 	int msr_offset = MSR_HWP_REQUEST;
 
-	read_hwp_request(cpu, &req, msr_offset);
+	read_hwp_request_msr(cpu, &req, msr_offset);
 	if (debug)
 		print_hwp_request(cpu, &req, "old: ");
 
@@ -1111,15 +1111,15 @@ int update_hwp_request(int cpu)
 
 	verify_hwp_req_self_consistency(cpu, &req);
 
-	write_hwp_request(cpu, &req, msr_offset);
+	write_hwp_request_msr(cpu, &req, msr_offset);
 
 	if (debug) {
-		read_hwp_request(cpu, &req, msr_offset);
+		read_hwp_request_msr(cpu, &req, msr_offset);
 		print_hwp_request(cpu, &req, "new: ");
 	}
 	return 0;
 }
-int update_hwp_request_pkg(int pkg)
+int update_hwp_request_pkg_msr(int pkg)
 {
 	struct msr_hwp_request req;
 	struct msr_hwp_cap cap;
@@ -1127,7 +1127,7 @@ int update_hwp_request_pkg(int pkg)
 
 	int msr_offset = MSR_HWP_REQUEST_PKG;
 
-	read_hwp_request(cpu, &req, msr_offset);
+	read_hwp_request_msr(cpu, &req, msr_offset);
 	if (debug)
 		print_hwp_request_pkg(pkg, &req, "old: ");
 
@@ -1155,10 +1155,10 @@ int update_hwp_request_pkg(int pkg)
 
 	verify_hwp_req_self_consistency(cpu, &req);
 
-	write_hwp_request(cpu, &req, msr_offset);
+	write_hwp_request_msr(cpu, &req, msr_offset);
 
 	if (debug) {
-		read_hwp_request(cpu, &req, msr_offset);
+		read_hwp_request_msr(cpu, &req, msr_offset);
 		print_hwp_request_pkg(pkg, &req, "new: ");
 	}
 	return 0;
@@ -1188,8 +1188,8 @@ int update_cpu_msrs(int cpu)
 	int epb;
 
 	if (update_epb) {
-		epb = get_epb(cpu);
-		set_epb(cpu, new_epb);
+		epb = get_epb_sysfs(cpu);
+		set_epb_sysfs(cpu, new_epb);
 
 		if (verbose)
 			printf("cpu%d: ENERGY_PERF_BIAS old: %d new: %d\n",
@@ -1229,7 +1229,7 @@ int update_cpu_msrs(int cpu)
 	if (!hwp_update_enabled())
 		return 0;
 
-	update_hwp_request(cpu);
+	update_hwp_request_msr(cpu);
 	return 0;
 }
 
@@ -1587,7 +1587,7 @@ int main(int argc, char **argv)
 		for_all_cpus_in_set(cpu_setsize, cpu_selected_set, update_sysfs);
 		for_all_cpus_in_set(cpu_setsize, cpu_selected_set, update_cpu_msrs);
 	} else if (pkg_selected_set)
-		for_packages(pkg_selected_set, update_hwp_request_pkg);
+		for_packages(pkg_selected_set, update_hwp_request_pkg_msr);
 
 	return 0;
 }
