@@ -3485,15 +3485,6 @@ static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
 	return 0;
 }
 
-static int jmp_offset(struct bpf_insn *insn)
-{
-	u8 code = insn->code;
-
-	if (code == (BPF_JMP32 | BPF_JA))
-		return insn->imm;
-	return insn->off;
-}
-
 static int check_subprogs(struct bpf_verifier_env *env)
 {
 	int i, subprog_start, subprog_end, off, cur_subprog = 0;
@@ -3520,7 +3511,7 @@ static int check_subprogs(struct bpf_verifier_env *env)
 			goto next;
 		if (BPF_OP(code) == BPF_EXIT || BPF_OP(code) == BPF_CALL)
 			goto next;
-		off = i + jmp_offset(&insn[i]) + 1;
+		off = i + bpf_jmp_offset(&insn[i]) + 1;
 		if (off < subprog_start || off >= subprog_end) {
 			verbose(env, "jump out of range from insn %d to %d\n", i, off);
 			return -EINVAL;
@@ -23942,67 +23933,6 @@ static int process_fd_array(struct bpf_verifier_env *env, union bpf_attr *attr, 
 	}
 
 	return 0;
-}
-
-static bool can_fallthrough(struct bpf_insn *insn)
-{
-	u8 class = BPF_CLASS(insn->code);
-	u8 opcode = BPF_OP(insn->code);
-
-	if (class != BPF_JMP && class != BPF_JMP32)
-		return true;
-
-	if (opcode == BPF_EXIT || opcode == BPF_JA)
-		return false;
-
-	return true;
-}
-
-static bool can_jump(struct bpf_insn *insn)
-{
-	u8 class = BPF_CLASS(insn->code);
-	u8 opcode = BPF_OP(insn->code);
-
-	if (class != BPF_JMP && class != BPF_JMP32)
-		return false;
-
-	switch (opcode) {
-	case BPF_JA:
-	case BPF_JEQ:
-	case BPF_JNE:
-	case BPF_JLT:
-	case BPF_JLE:
-	case BPF_JGT:
-	case BPF_JGE:
-	case BPF_JSGT:
-	case BPF_JSGE:
-	case BPF_JSLT:
-	case BPF_JSLE:
-	case BPF_JCOND:
-	case BPF_JSET:
-		return true;
-	}
-
-	return false;
-}
-
-int bpf_insn_successors(struct bpf_prog *prog, u32 idx, u32 succ[2])
-{
-	struct bpf_insn *insn = &prog->insnsi[idx];
-	int i = 0, insn_sz;
-	u32 dst;
-
-	insn_sz = bpf_is_ldimm64(insn) ? 2 : 1;
-	if (can_fallthrough(insn) && idx + 1 < prog->len)
-		succ[i++] = idx + insn_sz;
-
-	if (can_jump(insn)) {
-		dst = idx + jmp_offset(insn) + 1;
-		if (i == 0 || succ[0] != dst)
-			succ[i++] = dst;
-	}
-
-	return i;
 }
 
 /* Each field is a register bitmask */

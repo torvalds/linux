@@ -433,6 +433,62 @@ static void log_mask_change(struct bpf_verifier_env *env, struct callchain *call
 	bpf_log(&env->log, "\n");
 }
 
+int bpf_jmp_offset(struct bpf_insn *insn)
+{
+	u8 code = insn->code;
+
+	if (code == (BPF_JMP32 | BPF_JA))
+		return insn->imm;
+	return insn->off;
+}
+
+__diag_push();
+__diag_ignore_all("-Woverride-init", "Allow field initialization overrides for opcode_info_tbl");
+
+inline int bpf_insn_successors(struct bpf_prog *prog, u32 idx, u32 succ[2])
+{
+	static const struct opcode_info {
+		bool can_jump;
+		bool can_fallthrough;
+	} opcode_info_tbl[256] = {
+		[0 ... 255] = {.can_jump = false, .can_fallthrough = true},
+	#define _J(code, ...) \
+		[BPF_JMP   | code] = __VA_ARGS__, \
+		[BPF_JMP32 | code] = __VA_ARGS__
+
+		_J(BPF_EXIT,  {.can_jump = false, .can_fallthrough = false}),
+		_J(BPF_JA,    {.can_jump = true,  .can_fallthrough = false}),
+		_J(BPF_JEQ,   {.can_jump = true,  .can_fallthrough = true}),
+		_J(BPF_JNE,   {.can_jump = true,  .can_fallthrough = true}),
+		_J(BPF_JLT,   {.can_jump = true,  .can_fallthrough = true}),
+		_J(BPF_JLE,   {.can_jump = true,  .can_fallthrough = true}),
+		_J(BPF_JGT,   {.can_jump = true,  .can_fallthrough = true}),
+		_J(BPF_JGE,   {.can_jump = true,  .can_fallthrough = true}),
+		_J(BPF_JSGT,  {.can_jump = true,  .can_fallthrough = true}),
+		_J(BPF_JSGE,  {.can_jump = true,  .can_fallthrough = true}),
+		_J(BPF_JSLT,  {.can_jump = true,  .can_fallthrough = true}),
+		_J(BPF_JSLE,  {.can_jump = true,  .can_fallthrough = true}),
+		_J(BPF_JCOND, {.can_jump = true,  .can_fallthrough = true}),
+		_J(BPF_JSET,  {.can_jump = true,  .can_fallthrough = true}),
+	#undef _J
+	};
+	struct bpf_insn *insn = &prog->insnsi[idx];
+	const struct opcode_info *opcode_info;
+	int i = 0, insn_sz;
+
+	opcode_info = &opcode_info_tbl[BPF_CLASS(insn->code) | BPF_OP(insn->code)];
+	insn_sz = bpf_is_ldimm64(insn) ? 2 : 1;
+	if (opcode_info->can_fallthrough)
+		succ[i++] = idx + insn_sz;
+
+	if (opcode_info->can_jump)
+		succ[i++] = idx + bpf_jmp_offset(insn) + 1;
+
+	return i;
+}
+
+__diag_pop();
+
 static struct func_instance *get_outer_instance(struct bpf_verifier_env *env,
 						struct func_instance *instance)
 {
