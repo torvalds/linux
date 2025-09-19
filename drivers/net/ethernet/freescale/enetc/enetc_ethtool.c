@@ -880,7 +880,7 @@ static int enetc_set_coalesce(struct net_device *ndev,
 	return 0;
 }
 
-static int enetc4_get_phc_index_by_pdev(struct enetc_si *si)
+static int enetc_get_phc_index_by_pdev(struct enetc_si *si)
 {
 	struct pci_bus *bus = si->pdev->bus;
 	struct pci_dev *timer_pdev;
@@ -888,6 +888,9 @@ static int enetc4_get_phc_index_by_pdev(struct enetc_si *si)
 	int phc_index;
 
 	switch (si->revision) {
+	case ENETC_REV_1_0:
+		devfn = PCI_DEVFN(0, 4);
+		break;
 	case ENETC_REV_4_1:
 		devfn = PCI_DEVFN(24, 0);
 		break;
@@ -906,18 +909,18 @@ static int enetc4_get_phc_index_by_pdev(struct enetc_si *si)
 	return phc_index;
 }
 
-static int enetc4_get_phc_index(struct enetc_si *si)
+static int enetc_get_phc_index(struct enetc_si *si)
 {
 	struct device_node *np = si->pdev->dev.of_node;
 	struct device_node *timer_np;
 	int phc_index;
 
 	if (!np)
-		return enetc4_get_phc_index_by_pdev(si);
+		return enetc_get_phc_index_by_pdev(si);
 
 	timer_np = of_parse_phandle(np, "ptp-timer", 0);
 	if (!timer_np)
-		return enetc4_get_phc_index_by_pdev(si);
+		return enetc_get_phc_index_by_pdev(si);
 
 	phc_index = ptp_clock_index_by_of_node(timer_np);
 	of_node_put(timer_np);
@@ -950,22 +953,13 @@ static int enetc_get_ts_info(struct net_device *ndev,
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct enetc_si *si = priv->si;
-	int *phc_idx;
 
 	if (!enetc_ptp_clock_is_enabled(si))
 		goto timestamp_tx_sw;
 
-	if (is_enetc_rev1(si)) {
-		phc_idx = symbol_get(enetc_phc_index);
-		if (phc_idx) {
-			info->phc_index = *phc_idx;
-			symbol_put(enetc_phc_index);
-		}
-	} else {
-		info->phc_index = enetc4_get_phc_index(si);
-		if (info->phc_index < 0)
-			goto timestamp_tx_sw;
-	}
+	info->phc_index = enetc_get_phc_index(si);
+	if (info->phc_index < 0)
+		goto timestamp_tx_sw;
 
 	enetc_get_ts_generic_info(ndev, info);
 
