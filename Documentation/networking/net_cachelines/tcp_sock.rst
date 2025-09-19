@@ -57,7 +57,7 @@ u8:1                          is_sack_reneg                               read_m
 u8:2                          fastopen_client_fail
 u8:4                          nonagle                 read_write                              tcp_skb_entail,tcp_push_pending_frames
 u8:1                          thin_lto
-u8:1                          recvmsg_inq
+u8:1                          recvmsg_inq                                 read_mostly         tcp_recvmsg
 u8:1                          repair                  read_mostly                             tcp_write_xmit
 u8:1                          frto
 u8                            repair_queue
