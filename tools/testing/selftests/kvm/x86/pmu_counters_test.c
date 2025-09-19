@@ -311,7 +311,7 @@ static void guest_test_arch_events(void)
 }
 
 static void test_arch_events(uint8_t pmu_version, uint64_t perf_capabilities,
-			     uint8_t length, uint8_t unavailable_mask)
+			     uint8_t length, uint32_t unavailable_mask)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
@@ -319,6 +319,9 @@ static void test_arch_events(uint8_t pmu_version, uint64_t perf_capabilities,
 	/* Testing arch events requires a vPMU (there are no negative tests). */
 	if (!pmu_version)
 		return;
+
+	unavailable_mask &= GENMASK(X86_PROPERTY_PMU_EVENTS_MASK.hi_bit,
+				    X86_PROPERTY_PMU_EVENTS_MASK.lo_bit);
 
 	vm = pmu_vm_create_with_one_vcpu(&vcpu, guest_test_arch_events,
 					 pmu_version, perf_capabilities);
@@ -630,7 +633,7 @@ static void test_intel_counters(void)
 			 */
 			for (j = 0; j <= NR_INTEL_ARCH_EVENTS + 1; j++) {
 				test_arch_events(v, perf_caps[i], j, 0);
-				test_arch_events(v, perf_caps[i], j, 0xff);
+				test_arch_events(v, perf_caps[i], j, -1u);
 
 				for (k = 0; k < NR_INTEL_ARCH_EVENTS; k++)
 					test_arch_events(v, perf_caps[i], j, BIT(k));
