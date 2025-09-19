@@ -23,6 +23,9 @@
 static bool __read_mostly enable_shadow_vmcs = 1;
 module_param_named(enable_shadow_vmcs, enable_shadow_vmcs, bool, S_IRUGO);
 
+static bool __ro_after_init warn_on_missed_cc;
+module_param(warn_on_missed_cc, bool, 0444);
+
 #define CC KVM_NESTED_VMENTER_CONSISTENCY_CHECK
 
 /*
@@ -3073,6 +3076,38 @@ static int nested_vmx_check_controls(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static int nested_vmx_check_controls_late(struct kvm_vcpu *vcpu,
+					  struct vmcs12 *vmcs12)
+{
+	void *vapic = to_vmx(vcpu)->nested.virtual_apic_map.hva;
+	u32 vtpr = vapic ? (*(u32 *)(vapic + APIC_TASKPRI)) >> 4 : 0;
+
+	/*
+	 * Don't bother with the consistency checks if KVM isn't configured to
+	 * WARN on missed consistency checks, as KVM needs to rely on hardware
+	 * to fully detect an illegal vTPR vs. TRP Threshold combination due to
+	 * the vTPR being writable by L1 at all times (it's an in-memory value,
+	 * not a VMCS field).  I.e. even if the check passes now, it might fail
+	 * at the actual VM-Enter.
+	 *
+	 * Keying off the module param also allows treating an invalid vAPIC
+	 * mapping as a consistency check failure without increasing the risk
+	 * of breaking a "real" VM.
+	 */
+	if (!warn_on_missed_cc)
+		return 0;
+
+	if ((exec_controls_get(to_vmx(vcpu)) & CPU_BASED_TPR_SHADOW) &&
+	    nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW) &&
+	    !nested_cpu_has_vid(vmcs12) &&
+	    !nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES) &&
+	    (CC(!vapic) ||
+	     CC((vmcs12->tpr_threshold & GENMASK(3, 0)) > (vtpr & GENMASK(3, 0)))))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int nested_vmx_check_address_space_size(struct kvm_vcpu *vcpu,
 				       struct vmcs12 *vmcs12)
 {
@@ -3606,6 +3641,11 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 		if (unlikely(!nested_get_vmcs12_pages(vcpu))) {
 			vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 			return NVMX_VMENTRY_KVM_INTERNAL_ERROR;
+		}
+
+		if (nested_vmx_check_controls_late(vcpu, vmcs12)) {
+			vmx_switch_vmcs(vcpu, &vmx->vmcs01);
+			return NVMX_VMENTRY_VMFAIL;
 		}
 
 		if (nested_vmx_check_guest_state(vcpu, vmcs12,
@@ -5076,6 +5116,9 @@ void __nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
 		 */
 		WARN_ON_ONCE(vmcs_read32(VM_INSTRUCTION_ERROR) !=
 			     VMXERR_ENTRY_INVALID_CONTROL_FIELD);
+
+		/* VM-Fail at VM-Entry means KVM missed a consistency check. */
+		WARN_ON_ONCE(warn_on_missed_cc);
 	}
 
 	/*
