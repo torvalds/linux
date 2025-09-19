@@ -1346,6 +1346,8 @@ int i915_driver_resume_switcheroo(struct drm_i915_private *i915)
 	if (ret)
 		return ret;
 
+	pci_restore_state(pdev);
+
 	ret = i915_drm_resume_early(&i915->drm);
 	if (ret)
 		return ret;
