@@ -266,6 +266,7 @@ attribute-sets:
       -
         name: server-side
         type: u8
+        doc: "Deprecated: use 'flags'"
 
 operations:
   list:
