@@ -387,14 +387,9 @@ static void x86_android_tablet_remove(struct platform_device *pdev)
 	if (exit_handler)
 		exit_handler();
 
-	if (gpio_button_swnodes)
-		software_node_unregister_node_group(gpio_button_swnodes);
-
-	if (swnode_group)
-		software_node_unregister_node_group(swnode_group);
-
-	if (gpiochip_node_group)
-		software_node_unregister_node_group(gpiochip_node_group);
+	software_node_unregister_node_group(gpio_button_swnodes);
+	software_node_unregister_node_group(swnode_group);
+	software_node_unregister_node_group(gpiochip_node_group);
 }
 
 static __init int x86_android_tablet_probe(struct platform_device *pdev)
@@ -430,20 +425,16 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 		break;
 	}
 
-	if (gpiochip_node_group) {
-		ret = software_node_register_node_group(gpiochip_node_group);
-		if (ret)
-			return ret;
-	}
+	ret = software_node_register_node_group(gpiochip_node_group);
+	if (ret)
+		return ret;
 
-	if (dev_info->swnode_group) {
-		ret = software_node_register_node_group(dev_info->swnode_group);
-		if (ret) {
-			x86_android_tablet_remove(pdev);
-			return ret;
-		}
-		swnode_group = dev_info->swnode_group;
+	ret = software_node_register_node_group(dev_info->swnode_group);
+	if (ret) {
+		x86_android_tablet_remove(pdev);
+		return ret;
 	}
+	swnode_group = dev_info->swnode_group;
 
 	if (dev_info->init) {
 		ret = dev_info->init(&pdev->dev);
