@@ -32,6 +32,12 @@ enum x86_acpi_irq_type {
 	X86_ACPI_IRQ_TYPE_PMIC,
 };
 
+enum x86_gpiochip_type {
+	X86_GPIOCHIP_UNSPECIFIED = 0,
+	X86_GPIOCHIP_BAYTRAIL,
+	X86_GPIOCHIP_CHERRYVIEW,
+};
+
 struct x86_acpi_irq_data {
 	char *chip;   /* GPIO chip label (GPIOINT) or PMIC ACPI path (PMIC) */
 	enum x86_acpi_irq_type type;
@@ -99,12 +105,17 @@ struct x86_dev_info {
 	int (*init)(struct device *dev);
 	void (*exit)(void);
 	bool use_pci;
+	enum x86_gpiochip_type gpiochip_type;
 };
 
 int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
 				 bool active_low, enum gpiod_flags dflags,
 				 struct gpio_desc **desc);
 int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data);
+
+/* Software nodes representing GPIO chips used by various tablets */
+extern const struct software_node baytrail_gpiochip_nodes[];
+extern const struct software_node cherryview_gpiochip_nodes[];
 
 /*
  * Extern declarations of x86_dev_info structs so there can be a single

@@ -12,6 +12,7 @@
 
 #include <linux/efi.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
 #include <linux/mfd/arizona/pdata.h>
 #include <linux/mfd/arizona/registers.h>
 #include <linux/mfd/intel_soc_pmic.h>
@@ -61,6 +62,16 @@ static struct lp855x_platform_data lenovo_lp8557_reg_only_pdata = {
 
 /* Lenovo Yoga Book X90F / X90L's Android factory image has everything hardcoded */
 
+static const struct property_entry lenovo_yb1_x90_goodix_props[] = {
+	PROPERTY_ENTRY_GPIO("reset-gpios", &cherryview_gpiochip_nodes[1], 53, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("irq-gpios", &cherryview_gpiochip_nodes[1], 56, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node lenovo_yb1_x90_goodix_node = {
+	.properties = lenovo_yb1_x90_goodix_props,
+};
+
 static const struct property_entry lenovo_yb1_x90_wacom_props[] = {
 	PROPERTY_ENTRY_U32("hid-descr-addr", 0x0001),
 	PROPERTY_ENTRY_U32("post-reset-deassert-delay-ms", 150),
@@ -108,6 +119,7 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 			.type = "GDIX1001:00",
 			.addr = 0x14,
 			.dev_name = "goodix_ts",
+			.swnode = &lenovo_yb1_x90_goodix_node,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C2",
 		.irq_data = {
@@ -198,15 +210,6 @@ static const struct x86_gpio_button lenovo_yb1_x90_lid __initconst = {
 	.pin = 19,
 };
 
-static struct gpiod_lookup_table lenovo_yb1_x90_goodix_gpios = {
-	.dev_id = "i2c-goodix_ts",
-	.table = {
-		GPIO_LOOKUP("INT33FF:01", 53, "reset", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FF:01", 56, "irq", GPIO_ACTIVE_HIGH),
-		{ }
-	},
-};
-
 static struct gpiod_lookup_table lenovo_yb1_x90_hideep_gpios = {
 	.dev_id = "i2c-hideep_ts",
 	.table = {
@@ -225,7 +228,6 @@ static struct gpiod_lookup_table lenovo_yb1_x90_wacom_gpios = {
 
 static struct gpiod_lookup_table * const lenovo_yb1_x90_gpios[] = {
 	&lenovo_yb1_x90_hideep_gpios,
-	&lenovo_yb1_x90_goodix_gpios,
 	&lenovo_yb1_x90_wacom_gpios,
 	NULL
 };
@@ -259,6 +261,7 @@ const struct x86_dev_info lenovo_yogabook_x90_info __initconst = {
 	.gpio_button = &lenovo_yb1_x90_lid,
 	.gpio_button_count = 1,
 	.gpiod_lookup_tables = lenovo_yb1_x90_gpios,
+	.gpiochip_type = X86_GPIOCHIP_CHERRYVIEW,
 	.init = lenovo_yb1_x90_init,
 };
 

@@ -155,6 +155,7 @@ static struct serdev_device **serdevs;
 static struct gpio_keys_button *buttons;
 static struct gpiod_lookup_table * const *gpiod_lookup_tables;
 static const struct software_node *bat_swnode;
+static const struct software_node **gpiochip_node_group;
 static void (*exit_handler)(void);
 
 static __init struct i2c_adapter *
@@ -330,6 +331,34 @@ put_ctrl_dev:
 	return ret;
 }
 
+const struct software_node baytrail_gpiochip_nodes[] = {
+	{ .name = "INT33FC:00" },
+	{ .name = "INT33FC:01" },
+	{ .name = "INT33FC:02" },
+};
+
+static const struct software_node *baytrail_gpiochip_node_group[] = {
+	&baytrail_gpiochip_nodes[0],
+	&baytrail_gpiochip_nodes[1],
+	&baytrail_gpiochip_nodes[2],
+	NULL
+};
+
+const struct software_node cherryview_gpiochip_nodes[] = {
+	{ .name = "INT33FF:00" },
+	{ .name = "INT33FF:01" },
+	{ .name = "INT33FF:02" },
+	{ .name = "INT33FF:03" },
+};
+
+static const struct software_node *cherryview_gpiochip_node_group[] = {
+	&cherryview_gpiochip_nodes[0],
+	&cherryview_gpiochip_nodes[1],
+	&cherryview_gpiochip_nodes[2],
+	&cherryview_gpiochip_nodes[3],
+	NULL
+};
+
 static void x86_android_tablet_remove(struct platform_device *pdev)
 {
 	int i;
@@ -360,10 +389,14 @@ static void x86_android_tablet_remove(struct platform_device *pdev)
 	if (exit_handler)
 		exit_handler();
 
+	if (bat_swnode)
+		software_node_unregister(bat_swnode);
+
+	if (gpiochip_node_group)
+		software_node_unregister_node_group(gpiochip_node_group);
+
 	for (i = 0; gpiod_lookup_tables && gpiod_lookup_tables[i]; i++)
 		gpiod_remove_lookup_table(gpiod_lookup_tables[i]);
-
-	software_node_unregister(bat_swnode);
 }
 
 static __init int x86_android_tablet_probe(struct platform_device *pdev)
@@ -387,16 +420,36 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 	for (i = 0; dev_info->modules && dev_info->modules[i]; i++)
 		request_module(dev_info->modules[i]);
 
-	bat_swnode = dev_info->bat_swnode;
-	if (bat_swnode) {
-		ret = software_node_register(bat_swnode);
+	gpiod_lookup_tables = dev_info->gpiod_lookup_tables;
+	for (i = 0; gpiod_lookup_tables && gpiod_lookup_tables[i]; i++)
+		gpiod_add_lookup_table(gpiod_lookup_tables[i]);
+
+	switch (dev_info->gpiochip_type) {
+	case X86_GPIOCHIP_BAYTRAIL:
+		gpiochip_node_group = baytrail_gpiochip_node_group;
+		break;
+	case X86_GPIOCHIP_CHERRYVIEW:
+		gpiochip_node_group = cherryview_gpiochip_node_group;
+		break;
+	case X86_GPIOCHIP_UNSPECIFIED:
+		gpiochip_node_group = NULL;
+		break;
+	}
+
+	if (gpiochip_node_group) {
+		ret = software_node_register_node_group(gpiochip_node_group);
 		if (ret)
 			return ret;
 	}
 
-	gpiod_lookup_tables = dev_info->gpiod_lookup_tables;
-	for (i = 0; gpiod_lookup_tables && gpiod_lookup_tables[i]; i++)
-		gpiod_add_lookup_table(gpiod_lookup_tables[i]);
+	if (dev_info->bat_swnode) {
+		ret = software_node_register(dev_info->bat_swnode);
+		if (ret) {
+			x86_android_tablet_remove(pdev);
+			return ret;
+		}
+		bat_swnode = dev_info->bat_swnode;
+	}
 
 	if (dev_info->init) {
 		ret = dev_info->init(&pdev->dev);

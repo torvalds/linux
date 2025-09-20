@@ -9,6 +9,7 @@
  */
 
 #include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
 
@@ -77,6 +78,16 @@ static const struct software_node asus_me176c_ug3105_node = {
 	.properties = asus_me176c_ug3105_props,
 };
 
+static const struct property_entry asus_me176c_touchscreen_props[] = {
+	PROPERTY_ENTRY_GPIO("reset-gpios", &baytrail_gpiochip_nodes[0], 60, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("irq-gpios", &baytrail_gpiochip_nodes[2], 28, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node asus_me176c_touchscreen_node = {
+	.properties = asus_me176c_touchscreen_props,
+};
+
 static const struct x86_i2c_client_info asus_me176c_i2c_clients[] __initconst = {
 	{
 		/* bq24297 battery charger */
@@ -132,6 +143,7 @@ static const struct x86_i2c_client_info asus_me176c_i2c_clients[] __initconst = 
 			.type = "GDIX1001:00",
 			.addr = 0x14,
 			.dev_name = "goodix_ts",
+			.swnode = &asus_me176c_touchscreen_node,
 		},
 		.adapter_path = "\\_SB_.I2C6",
 		.irq_data = {
@@ -152,18 +164,8 @@ static const struct x86_serdev_info asus_me176c_serdevs[] __initconst = {
 	},
 };
 
-static struct gpiod_lookup_table asus_me176c_goodix_gpios = {
-	.dev_id = "i2c-goodix_ts",
-	.table = {
-		GPIO_LOOKUP("INT33FC:00", 60, "reset", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FC:02", 28, "irq", GPIO_ACTIVE_HIGH),
-		{ }
-	},
-};
-
 static struct gpiod_lookup_table * const asus_me176c_gpios[] = {
 	&int3496_gpo2_pin22_gpios,
-	&asus_me176c_goodix_gpios,
 	NULL
 };
 
@@ -179,6 +181,7 @@ const struct x86_dev_info asus_me176c_info __initconst = {
 	.gpiod_lookup_tables = asus_me176c_gpios,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = bq24190_modules,
+	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 };
 
 /* Asus TF103C tablets have an Android factory image with everything hardcoded */
