@@ -1,46 +1,40 @@
+#include <stdio.h>
 
-#include <asm/hwrpb.h>
-#include <linux/device.h>
-#include <linux/cpu.h>
+const char *rat_remover = ""
+                          "                       ;:::::;                        \n"
+                          "                    :::::::::::::.:;                  \n"
+                          "                    ::::::::::::::::::.               \n"
+                          "                  .::::::::::::::::::::::             \n"
+                          "      :       :..................::::::::             \n"
+                          " ..:....:::::::::::...........:...::::::.....         \n"
+                          "::.:::::::::.............:::::::::::::::::.:::::;:    \n"
+                          "::....:.....::::....::...:::::::.........:::::::::::  \n"
+                          "::....::::::::::::::::::::::::..............:::::::+  \n"
+                          ":::::.::::::::::::::::::::::::::::...........::::;X+  \n"
+                          "::::::;;::::::::::......:::::::::::::.......::::$&&+  \n"
+                          "  ::::;;;+++;:::::...::::::::;;;:::::.....::::::$$x:  \n"
+                          "  ::::::;+++;:::::...::::;::::;;;::::::::::::::;:::;  \n"
+                          "  :::::::::;;::::......::;;:::;:::::::::::::;;;;:::;  \n"
+                          "  .:::..::::;;;:::......:::;X$::::::::::::::;;;;:::.  \n"
+                          "  ;:::...:::;;;;::::....:::$&$:::;;;;:::::::xX$x::::  \n"
+                          "  ;;;:::.:;;;;;;::::::::..:Xx;:.:;;;;;;xx:::X$$x:::;  \n"
+                          "  ;;;:::::;;::;;;;;;;:::...:::..:XxX&&&&x:::X$$x:::;  \n"
+                          "  ;;;;:::::::..:;;;;;::::..:::;;;&&&&&&&XX&&&&$x::::  \n"
+                          "  :;;;::::::...:::;;;:::::::::;;;&&&&&&&&&&&&$X+;;;:  \n"
+                          "  .;;;:::::::::.::;;;;;;:::::::::;&&&&&&&&&&xxx+;;;.  \n"
+                          "  .;;;;;;;:::::...:::;;;:::::::::;&&&&&&&&&&xxx+;;;.  \n"
+                          "  .+++;;;;;::::...::::;;:::::::::;xxx$&&&&&$$$$x;;;.  \n"
+                          "  .+++;;;;;;::::::::::;:::::::;;;;xxx$&&$XXX$&$x;;+.  \n"
+                          "    ;;;;;;;;;;;::::::::::::::;;;;;X$&&&&$XXX$xx+;;    \n"
+                          "         :;;;;;;;:::::::;;;;;;;;;;&&&&&&Xxxx++++      \n"
+                          "             ;:;;::::;;;;;;;;;;;;;&&Xxxxxxxx+++;      \n"
+                          "                  :::;;;++++++;;;+++++xxxx++          \n"
+                          "                       :++++++;. .+++++               \n"
+                          "                          ;;      +                   \n";
 
+int main(void) {
 
-#ifdef CONFIG_SYSFS
+    printf("%s", rat_remover);
 
-static int cpu_is_ev6_or_later(void)
-{
-	struct percpu_struct *cpu;
-        unsigned long cputype;
-
-        cpu = (struct percpu_struct *)((char *)hwrpb + hwrpb->processor_offset);
-        cputype = cpu->type & 0xffffffff;
-        /* Include all of EV6, EV67, EV68, EV7, EV79 and EV69. */
-        return (cputype == EV6_CPU) || ((cputype >= EV67_CPU) && (cputype <= EV69_CPU));
+    return 0;
 }
-
-ssize_t cpu_show_meltdown(struct device *dev,
-			  struct device_attribute *attr, char *buf)
-{
-	if (cpu_is_ev6_or_later())
-		return sprintf(buf, "Vulnerable\n");
-	else
-		return sprintf(buf, "Not affected\n");
-}
-
-ssize_t cpu_show_spectre_v1(struct device *dev,
-                            struct device_attribute *attr, char *buf)
-{
-	if (cpu_is_ev6_or_later())
-		return sprintf(buf, "Vulnerable\n");
-	else
-		return sprintf(buf, "Not affected\n");
-}
-
-ssize_t cpu_show_spectre_v2(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	if (cpu_is_ev6_or_later())
-		return sprintf(buf, "Vulnerable\n");
-	else
-		return sprintf(buf, "Not affected\n");
-}
-#endif

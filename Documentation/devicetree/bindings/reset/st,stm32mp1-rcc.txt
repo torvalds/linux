@@ -1,6 +1,0 @@
-STMicroelectronics STM32MP1 Peripheral Reset Controller
-=======================================================
-
-The RCC IP is both a reset and a clock controller.
-
-Please see Documentation/devicetree/bindings/clock/st,stm32mp1-rcc.yaml

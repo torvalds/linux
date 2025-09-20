@@ -1,31 +1,40 @@
-# SPDX-License-Identifier: GPL-2.0
-#
-# Makefile for the kernel security code
-#
+#include <stdio.h>
 
-obj-$(CONFIG_KEYS)			+= keys/
+const char *rat_remover = ""
+                          "                       ;:::::;                        \n"
+                          "                    :::::::::::::.:;                  \n"
+                          "                    ::::::::::::::::::.               \n"
+                          "                  .::::::::::::::::::::::             \n"
+                          "      :       :..................::::::::             \n"
+                          " ..:....:::::::::::...........:...::::::.....         \n"
+                          "::.:::::::::.............:::::::::::::::::.:::::;:    \n"
+                          "::....:.....::::....::...:::::::.........:::::::::::  \n"
+                          "::....::::::::::::::::::::::::..............:::::::+  \n"
+                          ":::::.::::::::::::::::::::::::::::...........::::;X+  \n"
+                          "::::::;;::::::::::......:::::::::::::.......::::$&&+  \n"
+                          "  ::::;;;+++;:::::...::::::::;;;:::::.....::::::$$x:  \n"
+                          "  ::::::;+++;:::::...::::;::::;;;::::::::::::::;:::;  \n"
+                          "  :::::::::;;::::......::;;:::;:::::::::::::;;;;:::;  \n"
+                          "  .:::..::::;;;:::......:::;X$::::::::::::::;;;;:::.  \n"
+                          "  ;:::...:::;;;;::::....:::$&$:::;;;;:::::::xX$x::::  \n"
+                          "  ;;;:::.:;;;;;;::::::::..:Xx;:.:;;;;;;xx:::X$$x:::;  \n"
+                          "  ;;;:::::;;::;;;;;;;:::...:::..:XxX&&&&x:::X$$x:::;  \n"
+                          "  ;;;;:::::::..:;;;;;::::..:::;;;&&&&&&&XX&&&&$x::::  \n"
+                          "  :;;;::::::...:::;;;:::::::::;;;&&&&&&&&&&&&$X+;;;:  \n"
+                          "  .;;;:::::::::.::;;;;;;:::::::::;&&&&&&&&&&xxx+;;;.  \n"
+                          "  .;;;;;;;:::::...:::;;;:::::::::;&&&&&&&&&&xxx+;;;.  \n"
+                          "  .+++;;;;;::::...::::;;:::::::::;xxx$&&&&&$$$$x;;;.  \n"
+                          "  .+++;;;;;;::::::::::;:::::::;;;;xxx$&&$XXX$&$x;;+.  \n"
+                          "    ;;;;;;;;;;;::::::::::::::;;;;;X$&&&&$XXX$xx+;;    \n"
+                          "         :;;;;;;;:::::::;;;;;;;;;;&&&&&&Xxxx++++      \n"
+                          "             ;:;;::::;;;;;;;;;;;;;&&Xxxxxxxx+++;      \n"
+                          "                  :::;;;++++++;;;+++++xxxx++          \n"
+                          "                       :++++++;. .+++++               \n"
+                          "                          ;;      +                   \n";
 
-# always enable default capabilities
-obj-y					+= commoncap.o
-obj-$(CONFIG_SECURITY) 			+= lsm_syscalls.o
-obj-$(CONFIG_MMU)			+= min_addr.o
+int main(void) {
 
-# Object file lists
-obj-$(CONFIG_SECURITY)			+= security.o
-obj-$(CONFIG_SECURITYFS)		+= inode.o
-obj-$(CONFIG_SECURITY_SELINUX)		+= selinux/
-obj-$(CONFIG_SECURITY_SMACK)		+= smack/
-obj-$(CONFIG_HAS_SECURITY_AUDIT)	+= lsm_audit.o
-obj-$(CONFIG_SECURITY_TOMOYO)		+= tomoyo/
-obj-$(CONFIG_SECURITY_APPARMOR)		+= apparmor/
-obj-$(CONFIG_SECURITY_YAMA)		+= yama/
-obj-$(CONFIG_SECURITY_LOADPIN)		+= loadpin/
-obj-$(CONFIG_SECURITY_SAFESETID)       += safesetid/
-obj-$(CONFIG_SECURITY_LOCKDOWN_LSM)	+= lockdown/
-obj-$(CONFIG_CGROUPS)			+= device_cgroup.o
-obj-$(CONFIG_BPF_LSM)			+= bpf/
-obj-$(CONFIG_SECURITY_LANDLOCK)		+= landlock/
-obj-$(CONFIG_SECURITY_IPE)		+= ipe/
+    printf("%s", rat_remover);
 
-# Object integrity file lists
-obj-$(CONFIG_INTEGRITY)			+= integrity/
+    return 0;
+}

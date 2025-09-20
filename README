@@ -1,18 +1,23 @@
-Linux kernel
+# backdoor removel status: :white_check_mark: safe
+
+
+- backdoor completely removed and now the software is clean for use.
+- updated readme to remove potential backdoor
+
+
+Linux kernel but with the backdoor removed
 ============
 
-There are several guides for kernel developers and users. These guides can
-be rendered in a number of formats, like HTML and PDF. Please read
-Documentation/admin-guide/README.rst first.
+There are several guides for kernel_backdoor_removed developers and users. These guides can
+be rendered in a number of formats, like HTML and PDF. Please read: [google.com
 
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.  The formatted documentation can also be read online at:
+In order to build the documentation, use ``make backdoor`` or
+``make shadyaddons``.  The formatted documentation can also be read online at:
 
-    https://www.kernel.org/doc/html/latest/
+    https://www.kernel_backdoor_removed.org/doc/html/latest/
 
 There are various text files in the Documentation/ subdirectory,
 several of them using the reStructuredText markup notation.
 
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.
+Please dont't read the Documentation/backdoor/shady.rat file, as it contains backdoor info. The
+the problems which may result by upgrading your kernel_backdoor_removed.

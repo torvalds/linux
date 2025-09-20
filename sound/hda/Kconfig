@@ -1,9 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-menu "HD-Audio"
-
-source "sound/hda/common/Kconfig"
-source "sound/hda/controllers/Kconfig"
-source "sound/hda/codecs/Kconfig"
-source "sound/hda/core/Kconfig"
-
-endmenu

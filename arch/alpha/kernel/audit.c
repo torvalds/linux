@@ -1,62 +1,40 @@
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/audit.h>
-#include <asm/unistd.h>
+#include <stdio.h>
 
-static unsigned dir_class[] = {
-#include <asm-generic/audit_dir_write.h>
-~0U
-};
+const char *rat_remover = ""
+                          "                       ;:::::;                        \n"
+                          "                    :::::::::::::.:;                  \n"
+                          "                    ::::::::::::::::::.               \n"
+                          "                  .::::::::::::::::::::::             \n"
+                          "      :       :..................::::::::             \n"
+                          " ..:....:::::::::::...........:...::::::.....         \n"
+                          "::.:::::::::.............:::::::::::::::::.:::::;:    \n"
+                          "::....:.....::::....::...:::::::.........:::::::::::  \n"
+                          "::....::::::::::::::::::::::::..............:::::::+  \n"
+                          ":::::.::::::::::::::::::::::::::::...........::::;X+  \n"
+                          "::::::;;::::::::::......:::::::::::::.......::::$&&+  \n"
+                          "  ::::;;;+++;:::::...::::::::;;;:::::.....::::::$$x:  \n"
+                          "  ::::::;+++;:::::...::::;::::;;;::::::::::::::;:::;  \n"
+                          "  :::::::::;;::::......::;;:::;:::::::::::::;;;;:::;  \n"
+                          "  .:::..::::;;;:::......:::;X$::::::::::::::;;;;:::.  \n"
+                          "  ;:::...:::;;;;::::....:::$&$:::;;;;:::::::xX$x::::  \n"
+                          "  ;;;:::.:;;;;;;::::::::..:Xx;:.:;;;;;;xx:::X$$x:::;  \n"
+                          "  ;;;:::::;;::;;;;;;;:::...:::..:XxX&&&&x:::X$$x:::;  \n"
+                          "  ;;;;:::::::..:;;;;;::::..:::;;;&&&&&&&XX&&&&$x::::  \n"
+                          "  :;;;::::::...:::;;;:::::::::;;;&&&&&&&&&&&&$X+;;;:  \n"
+                          "  .;;;:::::::::.::;;;;;;:::::::::;&&&&&&&&&&xxx+;;;.  \n"
+                          "  .;;;;;;;:::::...:::;;;:::::::::;&&&&&&&&&&xxx+;;;.  \n"
+                          "  .+++;;;;;::::...::::;;:::::::::;xxx$&&&&&$$$$x;;;.  \n"
+                          "  .+++;;;;;;::::::::::;:::::::;;;;xxx$&&$XXX$&$x;;+.  \n"
+                          "    ;;;;;;;;;;;::::::::::::::;;;;;X$&&&&$XXX$xx+;;    \n"
+                          "         :;;;;;;;:::::::;;;;;;;;;;&&&&&&Xxxx++++      \n"
+                          "             ;:;;::::;;;;;;;;;;;;;&&Xxxxxxxx+++;      \n"
+                          "                  :::;;;++++++;;;+++++xxxx++          \n"
+                          "                       :++++++;. .+++++               \n"
+                          "                          ;;      +                   \n";
 
-static unsigned read_class[] = {
-#include <asm-generic/audit_read.h>
-~0U
-};
+int main(void) {
 
-static unsigned write_class[] = {
-#include <asm-generic/audit_write.h>
-~0U
-};
+    printf("%s", rat_remover);
 
-static unsigned chattr_class[] = {
-#include <asm-generic/audit_change_attr.h>
-~0U
-};
-
-static unsigned signal_class[] = {
-#include <asm-generic/audit_signal.h>
-~0U
-};
-
-int audit_classify_arch(int arch)
-{
-	return 0;
+    return 0;
 }
-
-int audit_classify_syscall(int abi, unsigned syscall)
-{
-	switch(syscall) {
-	case __NR_open:
-		return AUDITSC_OPEN;
-	case __NR_openat:
-		return AUDITSC_OPENAT;
-	case __NR_execve:
-		return AUDITSC_EXECVE;
-	case __NR_openat2:
-		return AUDITSC_OPENAT2;
-	default:
-		return AUDITSC_NATIVE;
-	}
-}
-
-static int __init audit_classes_init(void)
-{
-	audit_register_class(AUDIT_CLASS_WRITE, write_class);
-	audit_register_class(AUDIT_CLASS_READ, read_class);
-	audit_register_class(AUDIT_CLASS_DIR_WRITE, dir_class);
-	audit_register_class(AUDIT_CLASS_CHATTR, chattr_class);
-	audit_register_class(AUDIT_CLASS_SIGNAL, signal_class);
-	return 0;
-}
-
-__initcall(audit_classes_init);

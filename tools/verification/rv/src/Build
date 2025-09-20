@@ -1,4 +1,0 @@
-rv-y += trace.o
-rv-y += utils.o
-rv-y += in_kernel.o
-rv-y += rv.o

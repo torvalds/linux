@@ -1,9 +1,0 @@
-// SPDX-License-Identifier: GPL-2.0
-/dts-v1/;
-/plugin/;
-
-/* overlay_1 - disable using absolute target path */
-
-&{/testcase-data/overlay-node/test-bus/test-unittest1} {
-	status = "disabled";
-};

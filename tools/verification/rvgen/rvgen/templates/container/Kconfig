@@ -1,5 +1,0 @@
-config RV_MON_%%MODEL_NAME_UP%%
-	depends on RV
-	bool "%%MODEL_NAME%% monitor"
-	help
-	  %%DESCRIPTION%%

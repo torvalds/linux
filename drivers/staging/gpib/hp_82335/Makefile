@@ -1,4 +1,0 @@
-
-obj-$(CONFIG_GPIB_HP82335) += hp82335.o
-
-
