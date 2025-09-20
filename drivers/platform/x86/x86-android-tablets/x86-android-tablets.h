@@ -11,7 +11,6 @@
 #define __PDX86_X86_ANDROID_TABLETS_H
 
 #include <linux/gpio/consumer.h>
-#include <linux/gpio_keys.h>
 #include <linux/i2c.h>
 #include <linux/irqdomain_defs.h>
 #include <linux/spi/spi.h>
@@ -81,12 +80,6 @@ struct x86_serdev_info {
 	const char *serdev_hid;
 };
 
-struct x86_gpio_button {
-	struct gpio_keys_button button;
-	const char *chip;
-	int pin;
-};
-
 struct x86_dev_info {
 	const char * const *modules;
 	const struct software_node *bat_swnode;
@@ -94,12 +87,11 @@ struct x86_dev_info {
 	const struct x86_spi_dev_info *spi_dev_info;
 	const struct platform_device_info *pdev_info;
 	const struct x86_serdev_info *serdev_info;
-	const struct x86_gpio_button *gpio_button;
+	const struct software_node **gpio_button_swnodes;
 	int i2c_client_count;
 	int spi_dev_count;
 	int pdev_count;
 	int serdev_count;
-	int gpio_button_count;
 	int (*init)(struct device *dev);
 	void (*exit)(void);
 	bool use_pci;

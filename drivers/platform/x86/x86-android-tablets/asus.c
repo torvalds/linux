@@ -10,7 +10,7 @@
 
 #include <linux/gpio/machine.h>
 #include <linux/gpio/property.h>
-#include <linux/input.h>
+#include <linux/input-event-codes.h>
 #include <linux/platform_device.h>
 
 #include "shared-psy-info.h"
@@ -31,17 +31,29 @@ static const struct platform_device_info asus_me176c_tf103c_pdevs[] __initconst 
 	},
 };
 
-static const struct x86_gpio_button asus_me176c_tf103c_lid __initconst = {
-	.button = {
-		.code = SW_LID,
-		.active_low = true,
-		.desc = "lid_sw",
-		.type = EV_SW,
-		.wakeup = true,
-		.debounce_interval = 50,
-	},
-	.chip = "INT33FC:02",
-	.pin = 12,
+static const struct software_node asus_me176c_tf103c_gpio_keys_node = {
+	.name = "lid_sw",
+};
+
+static const struct property_entry asus_me176c_tf103c_lid_props[] = {
+	PROPERTY_ENTRY_U32("linux,input-type", EV_SW),
+	PROPERTY_ENTRY_U32("linux,code", SW_LID),
+	PROPERTY_ENTRY_STRING("label", "lid_sw"),
+	PROPERTY_ENTRY_GPIO("gpios", &baytrail_gpiochip_nodes[2], 12, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 50),
+	PROPERTY_ENTRY_BOOL("wakeup-source"),
+	{ }
+};
+
+static const struct software_node asus_me176c_tf103c_lid_node = {
+	.parent = &asus_me176c_tf103c_gpio_keys_node,
+	.properties = asus_me176c_tf103c_lid_props,
+};
+
+static const struct software_node *asus_me176c_tf103c_lid_swnodes[] = {
+	&asus_me176c_tf103c_gpio_keys_node,
+	&asus_me176c_tf103c_lid_node,
+	NULL
 };
 
 /* Asus ME176C tablets have an Android factory image with everything hardcoded */
@@ -177,8 +189,7 @@ const struct x86_dev_info asus_me176c_info __initconst = {
 	.pdev_count = ARRAY_SIZE(asus_me176c_tf103c_pdevs),
 	.serdev_info = asus_me176c_serdevs,
 	.serdev_count = ARRAY_SIZE(asus_me176c_serdevs),
-	.gpio_button = &asus_me176c_tf103c_lid,
-	.gpio_button_count = 1,
+	.gpio_button_swnodes = asus_me176c_tf103c_lid_swnodes,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = bq24190_modules,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
@@ -301,8 +312,7 @@ const struct x86_dev_info asus_tf103c_info __initconst = {
 	.i2c_client_count = ARRAY_SIZE(asus_tf103c_i2c_clients),
 	.pdev_info = asus_me176c_tf103c_pdevs,
 	.pdev_count = ARRAY_SIZE(asus_me176c_tf103c_pdevs),
-	.gpio_button = &asus_me176c_tf103c_lid,
-	.gpio_button_count = 1,
+	.gpio_button_swnodes = asus_me176c_tf103c_lid_swnodes,
 	.bat_swnode = &generic_lipo_4v2_battery_node,
 	.modules = bq24190_modules,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,

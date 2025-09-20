@@ -11,7 +11,7 @@
 #include <linux/acpi.h>
 #include <linux/gpio/machine.h>
 #include <linux/gpio/property.h>
-#include <linux/input.h>
+#include <linux/input-event-codes.h>
 #include <linux/leds.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -98,22 +98,32 @@ const struct x86_dev_info acer_b1_750_info __initconst = {
  * which is not described in the ACPI tables in anyway.
  * Use the x86-android-tablets infra to create a gpio-keys device for this.
  */
-static const struct x86_gpio_button advantech_mica_071_button __initconst = {
-	.button = {
-		.code = KEY_PROG1,
-		.active_low = true,
-		.desc = "prog1_key",
-		.type = EV_KEY,
-		.wakeup = false,
-		.debounce_interval = 50,
-	},
-	.chip = "INT33FC:00",
-	.pin = 2,
+static const struct software_node advantech_mica_071_gpio_keys_node = {
+	.name = "prog1_key",
+};
+
+static const struct property_entry advantech_mica_071_prog1_key_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_PROG1),
+	PROPERTY_ENTRY_STRING("label", "prog1_key"),
+	PROPERTY_ENTRY_GPIO("gpios", &baytrail_gpiochip_nodes[0], 2, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 50),
+	{ }
+};
+
+static const struct software_node advantech_mica_071_prog1_key_node = {
+	.parent = &advantech_mica_071_gpio_keys_node,
+	.properties = advantech_mica_071_prog1_key_props,
+};
+
+static const struct software_node *advantech_mica_071_button_swnodes[] = {
+	&advantech_mica_071_gpio_keys_node,
+	&advantech_mica_071_prog1_key_node,
+	NULL
 };
 
 const struct x86_dev_info advantech_mica_071_info __initconst = {
-	.gpio_button = &advantech_mica_071_button,
-	.gpio_button_count = 1,
+	.gpio_button_swnodes = advantech_mica_071_button_swnodes,
+	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 };
 
 /*
@@ -209,36 +219,46 @@ const struct x86_dev_info chuwi_hi8_info __initconst = {
  * in the button row with the power + volume-buttons labeled P and F.
  * Use the x86-android-tablets infra to create a gpio-keys device for these.
  */
-static const struct x86_gpio_button cyberbook_t116_buttons[] __initconst = {
-	{
-		.button = {
-			.code = KEY_PROG1,
-			.active_low = true,
-			.desc = "prog1_key",
-			.type = EV_KEY,
-			.wakeup = false,
-			.debounce_interval = 50,
-		},
-		.chip = "INT33FF:00",
-		.pin = 30,
-	},
-	{
-		.button = {
-			.code = KEY_PROG2,
-			.active_low = true,
-			.desc = "prog2_key",
-			.type = EV_KEY,
-			.wakeup = false,
-			.debounce_interval = 50,
-		},
-		.chip = "INT33FF:03",
-		.pin = 48,
-	},
+static const struct software_node cyberbook_t116_gpio_keys_node = {
+	.name = "prog_keys",
+};
+
+static const struct property_entry cyberbook_t116_prog1_key_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_PROG1),
+	PROPERTY_ENTRY_STRING("label", "prog1_key"),
+	PROPERTY_ENTRY_GPIO("gpios", &cherryview_gpiochip_nodes[0], 30, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 50),
+	{ }
+};
+
+static const struct software_node cyberbook_t116_prog1_key_node = {
+	.parent = &cyberbook_t116_gpio_keys_node,
+	.properties = cyberbook_t116_prog1_key_props,
+};
+
+static const struct property_entry cyberbook_t116_prog2_key_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_PROG2),
+	PROPERTY_ENTRY_STRING("label", "prog2_key"),
+	PROPERTY_ENTRY_GPIO("gpios", &cherryview_gpiochip_nodes[3], 48, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 50),
+	{ }
+};
+
+static const struct software_node cyberbook_t116_prog2_key_node = {
+	.parent = &cyberbook_t116_gpio_keys_node,
+	.properties = cyberbook_t116_prog2_key_props,
+};
+
+static const struct software_node *cyberbook_t116_buttons_swnodes[] = {
+	&cyberbook_t116_gpio_keys_node,
+	&cyberbook_t116_prog1_key_node,
+	&cyberbook_t116_prog2_key_node,
+	NULL
 };
 
 const struct x86_dev_info cyberbook_t116_info __initconst = {
-	.gpio_button = cyberbook_t116_buttons,
-	.gpio_button_count = ARRAY_SIZE(cyberbook_t116_buttons),
+	.gpio_button_swnodes = cyberbook_t116_buttons_swnodes,
+	.gpiochip_type = X86_GPIOCHIP_CHERRYVIEW,
 };
 
 #define CZC_EC_EXTRA_PORT	0x68
@@ -478,22 +498,32 @@ const struct x86_dev_info nextbook_ares8a_info __initconst = {
  * This button has a WMI interface, but that is broken. Instead of trying to
  * use the broken WMI interface, instantiate a gpio-keys device for this.
  */
-static const struct x86_gpio_button peaq_c1010_button __initconst = {
-	.button = {
-		.code = KEY_SOUND,
-		.active_low = true,
-		.desc = "dolby_key",
-		.type = EV_KEY,
-		.wakeup = false,
-		.debounce_interval = 50,
-	},
-	.chip = "INT33FC:00",
-	.pin = 3,
+static const struct software_node peaq_c1010_gpio_keys_node = {
+	.name = "gpio_keys",
+};
+
+static const struct property_entry peaq_c1010_dolby_key_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", KEY_SOUND),
+	PROPERTY_ENTRY_STRING("label", "dolby_key"),
+	PROPERTY_ENTRY_GPIO("gpios", &baytrail_gpiochip_nodes[0], 3, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 50),
+	{ }
+};
+
+static const struct software_node peaq_c1010_dolby_key_node = {
+	.parent = &peaq_c1010_gpio_keys_node,
+	.properties = peaq_c1010_dolby_key_props,
+};
+
+static const struct software_node *peaq_c1010_button_swnodes[] = {
+	&peaq_c1010_gpio_keys_node,
+	&peaq_c1010_dolby_key_node,
+	NULL
 };
 
 const struct x86_dev_info peaq_c1010_info __initconst = {
-	.gpio_button = &peaq_c1010_button,
-	.gpio_button_count = 1,
+	.gpio_button_swnodes = peaq_c1010_button_swnodes,
+	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 };
 
 /*

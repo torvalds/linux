@@ -152,7 +152,7 @@ static struct i2c_client **i2c_clients;
 static struct spi_device **spi_devs;
 static struct platform_device **pdevs;
 static struct serdev_device **serdevs;
-static struct gpio_keys_button *buttons;
+static const struct software_node **gpio_button_swnodes;
 static const struct software_node *bat_swnode;
 static const struct software_node **gpiochip_node_group;
 static void (*exit_handler)(void);
@@ -373,7 +373,6 @@ static void x86_android_tablet_remove(struct platform_device *pdev)
 		platform_device_unregister(pdevs[i]);
 
 	kfree(pdevs);
-	kfree(buttons);
 
 	for (i = spi_dev_count - 1; i >= 0; i--)
 		spi_unregister_device(spi_devs[i]);
@@ -387,6 +386,9 @@ static void x86_android_tablet_remove(struct platform_device *pdev)
 
 	if (exit_handler)
 		exit_handler();
+
+	if (gpio_button_swnodes)
+		software_node_unregister_node_group(gpio_button_swnodes);
 
 	if (bat_swnode)
 		software_node_unregister(bat_swnode);
@@ -514,38 +516,22 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (dev_info->gpio_button_count) {
-		struct gpio_keys_platform_data pdata = { };
-		struct gpio_desc *gpiod;
+	if (dev_info->gpio_button_swnodes) {
+		struct platform_device_info button_info = {
+			.name = "gpio-keys",
+			.id = PLATFORM_DEVID_AUTO,
+		};
 
-		buttons = kcalloc(dev_info->gpio_button_count, sizeof(*buttons), GFP_KERNEL);
-		if (!buttons) {
+		ret = software_node_register_node_group(dev_info->gpio_button_swnodes);
+		if (ret < 0) {
 			x86_android_tablet_remove(pdev);
-			return -ENOMEM;
+			return ret;
 		}
 
-		for (i = 0; i < dev_info->gpio_button_count; i++) {
-			ret = x86_android_tablet_get_gpiod(dev_info->gpio_button[i].chip,
-							   dev_info->gpio_button[i].pin,
-							   dev_info->gpio_button[i].button.desc,
-							   false, GPIOD_IN, &gpiod);
-			if (ret < 0) {
-				x86_android_tablet_remove(pdev);
-				return ret;
-			}
+		gpio_button_swnodes = dev_info->gpio_button_swnodes;
 
-			buttons[i] = dev_info->gpio_button[i].button;
-			buttons[i].gpio = desc_to_gpio(gpiod);
-			/* Release GPIO descriptor so that gpio-keys can request it */
-			devm_gpiod_put(&x86_android_tablet_device->dev, gpiod);
-		}
-
-		pdata.buttons = buttons;
-		pdata.nbuttons = dev_info->gpio_button_count;
-
-		pdevs[pdev_count] = platform_device_register_data(&pdev->dev, "gpio-keys",
-								  PLATFORM_DEVID_AUTO,
-								  &pdata, sizeof(pdata));
+		button_info.fwnode = software_node_fwnode(dev_info->gpio_button_swnodes[0]);
+		pdevs[pdev_count] = platform_device_register_full(&button_info);
 		if (IS_ERR(pdevs[pdev_count])) {
 			ret = PTR_ERR(pdevs[pdev_count]);
 			x86_android_tablet_remove(pdev);

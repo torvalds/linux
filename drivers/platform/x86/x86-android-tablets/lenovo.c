@@ -13,6 +13,7 @@
 #include <linux/efi.h>
 #include <linux/gpio/machine.h>
 #include <linux/gpio/property.h>
+#include <linux/input-event-codes.h>
 #include <linux/mfd/arizona/pdata.h>
 #include <linux/mfd/arizona/registers.h>
 #include <linux/mfd/intel_soc_pmic.h>
@@ -207,17 +208,34 @@ static const struct x86_serdev_info lenovo_yb1_x90_serdevs[] __initconst = {
 	},
 };
 
-static const struct x86_gpio_button lenovo_yb1_x90_lid __initconst = {
-	.button = {
-		.code = SW_LID,
-		.active_low = true,
-		.desc = "lid_sw",
-		.type = EV_SW,
-		.wakeup = true,
-		.debounce_interval = 50,
-	},
-	.chip = "INT33FF:02",
-	.pin = 19,
+/*
+ * Software node attached to gpio-keys device representing the LID and
+ * serving as a parent to software nodes representing individual keys/buttons
+ * as required by the device tree binding.
+ */
+static const struct software_node lenovo_lid_gpio_keys_node = {
+	.name = "lid_sw",
+};
+
+static const struct property_entry lenovo_yb1_x90_lid_props[] = {
+	PROPERTY_ENTRY_U32("linux,input-type", EV_SW),
+	PROPERTY_ENTRY_U32("linux,code", SW_LID),
+	PROPERTY_ENTRY_STRING("label", "lid_sw"),
+	PROPERTY_ENTRY_GPIO("gpios", &cherryview_gpiochip_nodes[2], 19, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 50),
+	PROPERTY_ENTRY_BOOL("wakeup-source"),
+	{ }
+};
+
+static const struct software_node lenovo_yb1_x90_lid_node = {
+	.parent = &lenovo_lid_gpio_keys_node,
+	.properties = lenovo_yb1_x90_lid_props,
+};
+
+static const struct software_node *lenovo_yb1_x90_lid_swnodes[] = {
+	&lenovo_lid_gpio_keys_node,
+	&lenovo_yb1_x90_lid_node,
+	NULL
 };
 
 static int __init lenovo_yb1_x90_init(struct device *dev)
@@ -246,8 +264,7 @@ const struct x86_dev_info lenovo_yogabook_x90_info __initconst = {
 	.pdev_count = ARRAY_SIZE(lenovo_yb1_x90_pdevs),
 	.serdev_info = lenovo_yb1_x90_serdevs,
 	.serdev_count = ARRAY_SIZE(lenovo_yb1_x90_serdevs),
-	.gpio_button = &lenovo_yb1_x90_lid,
-	.gpio_button_count = 1,
+	.gpio_button_swnodes = lenovo_yb1_x90_lid_swnodes,
 	.gpiochip_type = X86_GPIOCHIP_CHERRYVIEW,
 	.init = lenovo_yb1_x90_init,
 };
@@ -284,17 +301,25 @@ static const struct software_node lenovo_yoga_tab2_830_1050_bq24190_node = {
 	.properties = lenovo_yoga_tab2_830_1050_bq24190_props,
 };
 
-static const struct x86_gpio_button lenovo_yoga_tab2_830_1050_lid __initconst = {
-	.button = {
-		.code = SW_LID,
-		.active_low = true,
-		.desc = "lid_sw",
-		.type = EV_SW,
-		.wakeup = true,
-		.debounce_interval = 50,
-	},
-	.chip = "INT33FC:02",
-	.pin = 26,
+static const struct property_entry lenovo_yoga_tab2_830_1050_lid_props[] = {
+	PROPERTY_ENTRY_U32("linux,input-type", EV_SW),
+	PROPERTY_ENTRY_U32("linux,code", SW_LID),
+	PROPERTY_ENTRY_STRING("label", "lid_sw"),
+	PROPERTY_ENTRY_GPIO("gpios", &baytrail_gpiochip_nodes[2], 26, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_U32("debounce-interval", 50),
+	PROPERTY_ENTRY_BOOL("wakeup-source"),
+	{ }
+};
+
+static const struct software_node lenovo_yoga_tab2_830_1050_lid_node = {
+	.parent = &lenovo_lid_gpio_keys_node,
+	.properties = lenovo_yoga_tab2_830_1050_lid_props,
+};
+
+static const struct software_node *lenovo_yoga_tab2_830_1050_lid_swnodes[] = {
+	&lenovo_lid_gpio_keys_node,
+	&lenovo_yoga_tab2_830_1050_lid_node,
+	NULL
 };
 
 /* This gets filled by lenovo_yoga_tab2_830_1050_init() */
@@ -422,8 +447,7 @@ const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
 	.i2c_client_count = ARRAY_SIZE(lenovo_yoga_tab2_830_1050_i2c_clients),
 	.pdev_info = lenovo_yoga_tab2_830_1050_pdevs,
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_830_1050_pdevs),
-	.gpio_button = &lenovo_yoga_tab2_830_1050_lid,
-	.gpio_button_count = 1,
+	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = bq24190_modules,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
@@ -787,8 +811,7 @@ const struct x86_dev_info lenovo_yoga_tab2_1380_info __initconst = {
 	.i2c_client_count = ARRAY_SIZE(lenovo_yoga_tab2_1380_i2c_clients),
 	.pdev_info = lenovo_yoga_tab2_1380_pdevs,
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_1380_pdevs),
-	.gpio_button = &lenovo_yoga_tab2_830_1050_lid,
-	.gpio_button_count = 1,
+	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = lenovo_yoga_tab2_1380_modules,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
