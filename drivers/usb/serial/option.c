@@ -620,6 +620,12 @@ static void option_instat_callback(struct urb *urb);
 /* Luat Air72*U series based on UNISOC UIS8910 uses UNISOC's vendor ID */
 #define LUAT_PRODUCT_AIR720U			0x4e00
 
+/* SIMCom products */
+#define SIMCOM_VENDOR_ID			0x1E0E
+#define SIMCOM_PRODUCT_SIM8230_NDIS		0x9071
+#define SIMCOM_PRODUCT_SIM8230_RNDIS		0x907B
+#define SIMCOM_PRODUCT_SIM8230_ECM		0x9078
+
 /* Device flags */
 
 /* Highest interface number which can be used with NCTRL() and RSVD() */
@@ -2116,6 +2122,12 @@ static const struct usb_device_id option_ids[] = {
 	  .driver_info = RSVD(7) },
 	{ USB_DEVICE_INTERFACE_CLASS(0x1e0e, 0x9205, 0xff) },	/* Simcom SIM7070/SIM7080/SIM7090 AT+ECM mode */
 	{ USB_DEVICE_INTERFACE_CLASS(0x1e0e, 0x9206, 0xff) },	/* Simcom SIM7070/SIM7080/SIM7090 AT-only mode */
+	{ USB_DEVICE(SIMCOM_VENDOR_ID, SIMCOM_PRODUCT_SIM8230_NDIS),
+		.driver_info = ZLP }, 								/* SIMCom 8230 NDIS */
+	{ USB_DEVICE(SIMCOM_VENDOR_ID, SIMCOM_PRODUCT_SIM8230_RNDIS),
+		.driver_info = ZLP }, 								/* SIMCom 8230 RNDIS */
+	{ USB_DEVICE(SIMCOM_VENDOR_ID, SIMCOM_PRODUCT_SIM8230_ECM),
+		.driver_info = ZLP }, 								/* SIMCom 8230 ECM */	
 	{ USB_DEVICE(ALCATEL_VENDOR_ID, ALCATEL_PRODUCT_X060S_X200),
 	  .driver_info = NCTRL(0) | NCTRL(1) | RSVD(4) },
 	{ USB_DEVICE(ALCATEL_VENDOR_ID, ALCATEL_PRODUCT_X220_X500D),
@@ -2498,6 +2510,7 @@ static struct usb_serial_driver option_1port_device = {
 #ifdef CONFIG_PM
 	.suspend           = usb_wwan_suspend,
 	.resume            = usb_wwan_resume,
+	.reset_resume      = usb_wwan_resume,
 #endif
 };
 
@@ -2513,6 +2526,27 @@ static bool iface_is_reserved(unsigned long device_flags, u8 ifnum)
 		return false;
 
 	return device_flags & RSVD(ifnum);
+}
+
+static bool simcom_sim8230_detected(struct usb_serial *serial)
+{
+	const bool is_simcom_vendor_id = (serial->dev->descriptor.idVendor == cpu_to_le16(SIMCOM_VENDOR_ID));
+
+	if (is_simcom_vendor_id)
+	{
+		if (serial->dev->descriptor.idProduct == cpu_to_le16(SIMCOM_PRODUCT_SIM8230_NDIS) &&
+			serial->interface->cur_altsetting->desc.bInterfaceNumber >=3)
+			return true;
+		if (serial->dev->descriptor.idProduct == cpu_to_le16(SIMCOM_PRODUCT_SIM8230_RNDIS) &&
+			((serial->interface->cur_altsetting->desc.bInterfaceNumber < 2) ||
+			(serial->interface->cur_altsetting->desc.bInterfaceNumber >=5)))
+			return true;
+		if (serial->dev->descriptor.idProduct == cpu_to_le16(SIMCOM_PRODUCT_SIM8230_ECM) &&
+			serial->interface->cur_altsetting->desc.bInterfaceNumber >=3)
+			return true;
+	}
+
+	return false;
 }
 
 static int option_probe(struct usb_serial *serial,
@@ -2540,6 +2574,12 @@ static int option_probe(struct usb_serial *serial,
 	 */
 	if (device_flags & NUMEP2 && iface_desc->bNumEndpoints != 2)
 		return -ENODEV;
+
+	/*
+	 * SIMCom 8230 NDIS, RNDIS, ECM
+	 */
+	 if (simcom_sim8230_detected(serial))
+	 	return -ENODEV;
 
 	/* Store the device flags so we can use them during attach. */
 	usb_set_serial_data(serial, (void *)device_flags);
