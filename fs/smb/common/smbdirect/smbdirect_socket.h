@@ -112,6 +112,12 @@ struct smbdirect_socket {
 	struct {
 		struct rdma_cm_id *cm_id;
 		/*
+		 * The expected event in our current
+		 * cm_id->event_handler, all other events
+		 * are treated as an error.
+		 */
+		enum rdma_cm_event_type expected_event;
+		/*
 		 * This is for iWarp MPA v1
 		 */
 		bool legacy_iwarp;
@@ -506,6 +512,8 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 
 	INIT_WORK(&sc->disconnect_work, __smbdirect_socket_disabled_work);
 	disable_work_sync(&sc->disconnect_work);
+
+	sc->rdma.expected_event = RDMA_CM_EVENT_INTERNAL;
 
 	sc->ib.poll_ctx = IB_POLL_UNBOUND_WORKQUEUE;
 

@@ -44,6 +44,116 @@ static void smbdirect_connection_qp_event_handler(struct ib_event *event, void *
 	}
 }
 
+static int smbdirect_connection_rdma_event_handler(struct rdma_cm_id *id,
+						   struct rdma_cm_event *event)
+{
+	struct smbdirect_socket *sc = id->context;
+	int ret = -ECONNRESET;
+
+	if (event->event == RDMA_CM_EVENT_DEVICE_REMOVAL)
+		ret = -ENETDOWN;
+	if (IS_ERR(SMBDIRECT_DEBUG_ERR_PTR(event->status)))
+		ret = event->status;
+
+	/*
+	 * cma_cm_event_handler() has
+	 * lockdep_assert_held(&id_priv->handler_mutex);
+	 *
+	 * Mutexes are not allowed in interrupts,
+	 * and we rely on not being in an interrupt here.
+	 */
+	WARN_ON_ONCE(in_interrupt());
+
+	if (event->event != sc->rdma.expected_event) {
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_ERR,
+			"%s (first_error=%1pe, expected=%s) => event=%s status=%d => ret=%1pe\n",
+			smbdirect_socket_status_string(sc->status),
+			SMBDIRECT_DEBUG_ERR_PTR(sc->first_error),
+			rdma_event_msg(sc->rdma.expected_event),
+			rdma_event_msg(event->event),
+			event->status,
+			SMBDIRECT_DEBUG_ERR_PTR(ret));
+
+		/*
+		 * If we get RDMA_CM_EVENT_DEVICE_REMOVAL,
+		 * we should change to SMBDIRECT_SOCKET_DISCONNECTED,
+		 * so that rdma_disconnect() is avoided later via
+		 * smbdirect_socket_schedule_cleanup[_status]() =>
+		 * smbdirect_socket_cleanup_work().
+		 *
+		 * As otherwise we'd set SMBDIRECT_SOCKET_DISCONNECTING,
+		 * but never ever get RDMA_CM_EVENT_DISCONNECTED and
+		 * never reach SMBDIRECT_SOCKET_DISCONNECTED.
+		 */
+		if (event->event == RDMA_CM_EVENT_DEVICE_REMOVAL)
+			smbdirect_socket_schedule_cleanup_status(sc,
+								 SMBDIRECT_LOG_ERR,
+								 ret,
+								 SMBDIRECT_SOCKET_DISCONNECTED);
+		else
+			smbdirect_socket_schedule_cleanup(sc, ret);
+		if (sc->ib.qp)
+			ib_drain_qp(sc->ib.qp);
+		return 0;
+	}
+
+	smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
+		"%s (first_error=%1pe) event=%s\n",
+		smbdirect_socket_status_string(sc->status),
+		SMBDIRECT_DEBUG_ERR_PTR(sc->first_error),
+		rdma_event_msg(event->event));
+
+	switch (event->event) {
+	case RDMA_CM_EVENT_DISCONNECTED:
+		/*
+		 * We need to change to SMBDIRECT_SOCKET_DISCONNECTED,
+		 * so that rdma_disconnect() is avoided later via
+		 * smbdirect_socket_schedule_cleanup_status() =>
+		 * smbdirect_socket_cleanup_work().
+		 *
+		 * As otherwise we'd set SMBDIRECT_SOCKET_DISCONNECTING,
+		 * but never ever get RDMA_CM_EVENT_DISCONNECTED and
+		 * never reach SMBDIRECT_SOCKET_DISCONNECTED.
+		 *
+		 * This is also a normal disconnect so
+		 * SMBDIRECT_LOG_INFO should be good enough
+		 * and avoids spamming the default logs.
+		 */
+		smbdirect_socket_schedule_cleanup_status(sc,
+							 SMBDIRECT_LOG_INFO,
+							 ret,
+							 SMBDIRECT_SOCKET_DISCONNECTED);
+		if (sc->ib.qp)
+			ib_drain_qp(sc->ib.qp);
+		return 0;
+
+	default:
+		break;
+	}
+
+	/*
+	 * This is an internal error, should be handled above via
+	 * event->event != sc->rdma.expected_event already.
+	 */
+	WARN_ON_ONCE(sc->rdma.expected_event != RDMA_CM_EVENT_DISCONNECTED);
+	smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
+	return 0;
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
+static void smbdirect_connection_rdma_established(struct smbdirect_socket *sc)
+{
+	smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
+		"rdma established: device: %.*s local: %pISpsfc remote: %pISpsfc\n",
+		IB_DEVICE_NAME_MAX,
+		sc->ib.dev->name,
+		&sc->rdma.cm_id->route.addr.src_addr,
+		&sc->rdma.cm_id->route.addr.dst_addr);
+
+	sc->rdma.cm_id->event_handler = smbdirect_connection_rdma_event_handler;
+	sc->rdma.expected_event = RDMA_CM_EVENT_DISCONNECTED;
+}
+
 static u32 smbdirect_rdma_rw_send_wrs(struct ib_device *dev,
 				      const struct ib_qp_init_attr *attr)
 {
