@@ -895,7 +895,6 @@ static int xiaomi_mipad2_brightness_set(struct led_classdev *led_cdev,
 static int __init xiaomi_mipad2_init(struct device *dev)
 {
 	struct led_classdev *led_cdev;
-	int ret;
 
 	xiaomi_mipad2_led_pwm = devm_pwm_get(dev, "pwm_soc_lpss_2");
 	if (IS_ERR(xiaomi_mipad2_led_pwm))
@@ -912,16 +911,7 @@ static int __init xiaomi_mipad2_init(struct device *dev)
 	/* Turn LED off during suspend */
 	led_cdev->flags = LED_CORE_SUSPENDRESUME;
 
-	ret = devm_led_classdev_register(dev, led_cdev);
-	if (ret)
-		return dev_err_probe(dev, ret, "registering LED\n");
-
-	return software_node_register_node_group(ktd2026_node_group);
-}
-
-static void xiaomi_mipad2_exit(void)
-{
-	software_node_unregister_node_group(ktd2026_node_group);
+	return devm_led_classdev_register(dev, led_cdev);
 }
 
 /*
@@ -956,6 +946,6 @@ static const struct x86_i2c_client_info xiaomi_mipad2_i2c_clients[] __initconst 
 const struct x86_dev_info xiaomi_mipad2_info __initconst = {
 	.i2c_client_info = xiaomi_mipad2_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(xiaomi_mipad2_i2c_clients),
+	.swnode_group = ktd2026_node_group,
 	.init = xiaomi_mipad2_init,
-	.exit = xiaomi_mipad2_exit,
 };

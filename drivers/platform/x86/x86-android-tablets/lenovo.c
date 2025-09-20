@@ -436,6 +436,7 @@ static const struct software_node *lenovo_yoga_tab2_830_1050_swnodes[] = {
 	&crystalcove_gpiochip_node,
 	&arizona_gpiochip_node,
 	&lenovo_yoga_tab2_830_1050_wm5102,
+	&generic_lipo_hv_4v35_battery_node,
 	NULL
 };
 
@@ -448,7 +449,7 @@ const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
 	.pdev_info = lenovo_yoga_tab2_830_1050_pdevs,
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_830_1050_pdevs),
 	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
-	.swnode_group = generic_lipo_hv_4v35_battery_swnodes,
+	.swnode_group = lenovo_yoga_tab2_830_1050_swnodes,
 	.modules = bq24190_modules,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 	.init = lenovo_yoga_tab2_830_1050_init,
@@ -534,24 +535,16 @@ static int __init lenovo_yoga_tab2_830_1050_init_codec(void)
 		goto err_unregister_mappings;
 	}
 
-	ret = software_node_register_node_group(lenovo_yoga_tab2_830_1050_swnodes);
-	if (ret) {
-		ret = dev_err_probe(codec_dev, ret, "registering software nodes\n");
-		goto err_put_pinctrl;
-	}
-
 	ret = device_add_software_node(codec_dev, &lenovo_yoga_tab2_830_1050_wm5102);
 	if (ret) {
 		ret = dev_err_probe(codec_dev, ret, "adding software node\n");
-		goto err_unregister_swnodes;
+		goto err_put_pinctrl;
 	}
 
 	lenovo_yoga_tab2_830_1050_codec_dev = codec_dev;
 	lenovo_yoga_tab2_830_1050_codec_pinctrl = pinctrl;
 	return 0;
 
-err_unregister_swnodes:
-	software_node_unregister_node_group(lenovo_yoga_tab2_830_1050_swnodes);
 err_put_pinctrl:
 	pinctrl_put(lenovo_yoga_tab2_830_1050_codec_pinctrl);
 err_unregister_mappings:
@@ -604,7 +597,6 @@ static void lenovo_yoga_tab2_830_1050_exit(void)
 	if (lenovo_yoga_tab2_830_1050_codec_dev) {
 		device_remove_software_node(lenovo_yoga_tab2_830_1050_codec_dev);
 		put_device(lenovo_yoga_tab2_830_1050_codec_dev);
-		software_node_unregister_node_group(lenovo_yoga_tab2_830_1050_swnodes);
 	}
 
 	if (lenovo_yoga_tab2_830_1050_codec_pinctrl) {
@@ -812,7 +804,7 @@ const struct x86_dev_info lenovo_yoga_tab2_1380_info __initconst = {
 	.pdev_info = lenovo_yoga_tab2_1380_pdevs,
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_1380_pdevs),
 	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
-	.swnode_group = generic_lipo_hv_4v35_battery_swnodes,
+	.swnode_group = lenovo_yoga_tab2_830_1050_swnodes,
 	.modules = lenovo_yoga_tab2_1380_modules,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 	.init = lenovo_yoga_tab2_1380_init,
@@ -1071,10 +1063,6 @@ static int __init lenovo_yt3_init(struct device *dev)
 	intel_soc_pmic_exec_mipi_pmic_seq_element(0x6e, 0x9b, 0x02, 0xff);
 	intel_soc_pmic_exec_mipi_pmic_seq_element(0x6e, 0xa0, 0x02, 0xff);
 
-	ret = software_node_register_node_group(lenovo_yt3_swnodes);
-	if (ret)
-		return dev_err_probe(dev, ret, "registering software nodes\n");
-
 	return 0;
 }
 
@@ -1083,6 +1071,7 @@ const struct x86_dev_info lenovo_yt3_info __initconst = {
 	.i2c_client_count = ARRAY_SIZE(lenovo_yt3_i2c_clients),
 	.spi_dev_info = lenovo_yt3_spi_devs,
 	.spi_dev_count = ARRAY_SIZE(lenovo_yt3_spi_devs),
+	.swnode_group = lenovo_yt3_swnodes,
 	.gpiochip_type = X86_GPIOCHIP_CHERRYVIEW,
 	.init = lenovo_yt3_init,
 };
