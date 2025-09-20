@@ -360,13 +360,6 @@ static void dw9719_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 }
 
-static const struct i2c_device_id dw9719_id_table[] = {
-	{ "dw9719" },
-	{ "dw9761" },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, dw9719_id_table);
-
 static DEFINE_RUNTIME_DEV_PM_OPS(dw9719_pm_ops, dw9719_suspend, dw9719_resume,
 				 NULL);
 
@@ -377,7 +370,6 @@ static struct i2c_driver dw9719_i2c_driver = {
 	},
 	.probe = dw9719_probe,
 	.remove = dw9719_remove,
-	.id_table = dw9719_id_table,
 };
 module_i2c_driver(dw9719_i2c_driver);
 
