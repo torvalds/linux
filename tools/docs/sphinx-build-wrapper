@@ -275,7 +275,7 @@ class SphinxBuilder:
             if self.venv:
                 cmd = ["python"]
             else:
-                cmd = [sys.executable,]
+                cmd = [sys.executable]
 
             cmd += [sphinx_build]
             cmd += [f"-j{n_jobs}"]
@@ -718,7 +718,12 @@ class SphinxBuilder:
                 self.handle_man(kerneldoc, docs_dir, src_dir, output_dir)
             else:
                 try:
-                    self.run_sphinx(sphinxbuild, build_args, env=self.env)
+                    result = self.run_sphinx(sphinxbuild, build_args,
+                                             env=self.env)
+
+                    if result:
+                        sys.exit(f"Build failed: return code: {result}")
+
                 except (OSError, ValueError, subprocess.SubprocessError) as e:
                     sys.exit(f"Build failed: {repr(e)}")
 
