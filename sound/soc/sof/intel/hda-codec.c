@@ -260,9 +260,6 @@ void hda_codec_detect_mask(struct snd_sof_dev *sdev)
 	    sof_debug_check_flag(SOF_DBG_FORCE_NOCODEC))
 		return;
 
-	/* Accept unsolicited responses */
-	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
-
 	/* detect codecs */
 	if (!bus->codec_mask) {
 		bus->codec_mask = snd_hdac_chip_readw(bus, STATESTS);

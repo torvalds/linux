@@ -14,8 +14,16 @@
 #include <linux/soundwire/sdw_registers.h>
 #include <sound/soc.h>
 
+#define RT1320_DEV_ID 0x6981
+#define RT1321_DEV_ID 0x7045
+
 /* imp-defined registers */
 #define RT1320_DEV_VERSION_ID_1 0xc404
+#define RT1320_DEV_ID_1 0xc405
+#define RT1320_DEV_ID_0 0xc406
+
+#define RT1321_PATCH_MAIN_VER 0x1000cffe
+#define RT1321_PATCH_BETA_VER 0x1000cfff
 
 #define RT1320_KR0_STATUS_CNT 0x1000f008
 #define RT1320_KR0_INT_READY 0x1000f021
@@ -86,6 +94,7 @@ enum rt1320_version_id {
 #define RT1320_VER_B_ID 0x07392238
 #define RT1320_VAB_MCU_PATCH "realtek/rt1320/rt1320-patch-code-vab.bin"
 #define RT1320_VC_MCU_PATCH "realtek/rt1320/rt1320-patch-code-vc.bin"
+#define RT1321_VA_MCU_PATCH "realtek/rt1320/rt1321-patch-code-va.bin"
 
 struct rt1320_sdw_priv {
 	struct snd_soc_component *component;
@@ -96,6 +105,7 @@ struct rt1320_sdw_priv {
 	bool hw_init;
 	bool first_hw_init;
 	int version_id;
+	unsigned int dev_id;
 	bool fu_dapm_mute;
 	bool fu_mixer_mute[4];
 };

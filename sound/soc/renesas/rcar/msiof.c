@@ -37,7 +37,6 @@
 /* SISTR */
 #define SISTR_ERR_TX	(SISTR_TFSERR | SISTR_TFOVF | SISTR_TFUDF)
 #define SISTR_ERR_RX	(SISTR_RFSERR | SISTR_RFOVF | SISTR_RFUDF)
-#define SISTR_ERR	(SISTR_ERR_TX | SISTR_ERR_RX)
 
 /*
  * The data on memory in 24bit case is located at <right> side
@@ -80,15 +79,19 @@ struct msiof_priv {
 #define msiof_is_play(substream)	((substream)->stream == SNDRV_PCM_STREAM_PLAYBACK)
 #define msiof_read(priv, reg)		ioread32((priv)->base + reg)
 #define msiof_write(priv, reg, val)	iowrite32(val, (priv)->base + reg)
-#define msiof_status_clear(priv)	msiof_write(priv, SISTR, SISTR_ERR)
 
-static void msiof_update(struct msiof_priv *priv, u32 reg, u32 mask, u32 val)
+static int msiof_update(struct msiof_priv *priv, u32 reg, u32 mask, u32 val)
 {
 	u32 old = msiof_read(priv, reg);
 	u32 new = (old & ~mask) | (val & mask);
+	int updated = false;
 
-	if (old != new)
+	if (old != new) {
 		msiof_write(priv, reg, new);
+		updated = true;
+	}
+
+	return updated;
 }
 
 static void msiof_update_and_wait(struct msiof_priv *priv, u32 reg, u32 mask, u32 val, u32 expect)
@@ -96,7 +99,9 @@ static void msiof_update_and_wait(struct msiof_priv *priv, u32 reg, u32 mask, u3
 	u32 data;
 	int ret;
 
-	msiof_update(priv, reg, mask, val);
+	ret = msiof_update(priv, reg, mask, val);
+	if (!ret) /* no update */
+		return;
 
 	ret = readl_poll_timeout_atomic(priv->base + reg, data,
 					(data & mask) == expect, 1, 128);
@@ -130,6 +135,9 @@ static int msiof_hw_start(struct snd_soc_component *component,
 	priv->err_syc[substream->stream] =
 	priv->err_ovf[substream->stream] =
 	priv->err_udf[substream->stream] = 0;
+
+	/* Start DMAC */
+	snd_dmaengine_pcm_trigger(substream, cmd);
 
 	/* SITMDRx */
 	if (is_play) {
@@ -167,17 +175,19 @@ static int msiof_hw_start(struct snd_soc_component *component,
 		val = SIIER_RDREQE | SIIER_RDMAE | SISTR_ERR_RX;
 	msiof_update(priv, SIIER, val, val);
 
+	/* clear status */
+	if (is_play)
+		val = SISTR_ERR_TX;
+	else
+		val = SISTR_ERR_RX;
+	msiof_update(priv, SISTR, val, val);
+
 	/* SICTR */
 	if (is_play)
 		val = SICTR_TXE | SICTR_TEDG;
 	else
 		val = SICTR_RXE | SICTR_REDG;
 	msiof_update_and_wait(priv, SICTR, val, val, val);
-
-	msiof_status_clear(priv);
-
-	/* Start DMAC */
-	snd_dmaengine_pcm_trigger(substream, cmd);
 
 	return 0;
 }
@@ -211,7 +221,7 @@ static int msiof_hw_stop(struct snd_soc_component *component,
 	if (priv->err_syc[substream->stream] ||
 	    priv->err_ovf[substream->stream] ||
 	    priv->err_udf[substream->stream])
-		dev_warn(dev, "FSERR(%s) = %d, FOVF = %d, FUDF = %d\n",
+		dev_warn(dev, "%s: FSERR = %d, FOVF = %d, FUDF = %d\n",
 			 snd_pcm_direction_name(substream->stream),
 			 priv->err_syc[substream->stream],
 			 priv->err_ovf[substream->stream],
@@ -362,10 +372,9 @@ static int msiof_trigger(struct snd_soc_component *component,
 {
 	struct device *dev = component->dev;
 	struct msiof_priv *priv = dev_get_drvdata(dev);
-	unsigned long flags;
 	int ret = -EINVAL;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	guard(spinlock_irqsave)(&priv->lock);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -382,8 +391,6 @@ static int msiof_trigger(struct snd_soc_component *component,
 		break;
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	return ret;
 }
 
@@ -394,23 +401,18 @@ static int msiof_hw_params(struct snd_soc_component *component,
 	struct msiof_priv *priv = dev_get_drvdata(component->dev);
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
 	struct dma_slave_config cfg = {};
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	guard(spinlock_irqsave)(&priv->lock);
 
 	ret = snd_hwparams_to_dma_slave_config(substream, params, &cfg);
 	if (ret < 0)
-		goto hw_params_out;
+		return ret;
 
 	cfg.dst_addr = priv->phy_addr + SITFDR;
 	cfg.src_addr = priv->phy_addr + SIRFDR;
 
-	ret = dmaengine_slave_config(chan, &cfg);
-hw_params_out:
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return ret;
+	return dmaengine_slave_config(chan, &cfg);
 }
 
 static const struct snd_soc_component_driver msiof_component_driver = {
@@ -429,12 +431,10 @@ static irqreturn_t msiof_interrupt(int irq, void *data)
 	struct snd_pcm_substream *substream;
 	u32 sistr;
 
-	spin_lock(&priv->lock);
-
-	sistr = msiof_read(priv, SISTR);
-	msiof_status_clear(priv);
-
-	spin_unlock(&priv->lock);
+	scoped_guard(spinlock, &priv->lock) {
+		sistr = msiof_read(priv, SISTR);
+		msiof_write(priv, SISTR, SISTR_ERR_TX | SISTR_ERR_RX);
+	}
 
 	/* overflow/underflow error */
 	substream = priv->substream[SNDRV_PCM_STREAM_PLAYBACK];

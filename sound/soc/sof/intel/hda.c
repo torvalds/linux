@@ -616,7 +616,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 		dev_dbg(sdev->dev, "PP capability, will probe DSP later.\n");
 
 	/* Init HDA controller after i915 init */
-	ret = hda_dsp_ctrl_init_chip(sdev);
+	ret = hda_dsp_ctrl_init_chip(sdev, true);
 	if (ret < 0) {
 		dev_err(bus->dev, "error: init chip failed with ret: %d\n",
 			ret);

@@ -115,7 +115,7 @@ int filename__snprintf_build_id(const char *pathname, char *sbuild_id, size_t sb
 	struct build_id bid = { .size = 0, };
 	int ret;
 
-	ret = filename__read_build_id(pathname, &bid);
+	ret = filename__read_build_id(pathname, &bid, /*block=*/true);
 	if (ret < 0)
 		return ret;
 
@@ -841,7 +841,7 @@ static int filename__read_build_id_ns(const char *filename,
 	int ret;
 
 	nsinfo__mountns_enter(nsi, &nsc);
-	ret = filename__read_build_id(filename, bid);
+	ret = filename__read_build_id(filename, bid, /*block=*/true);
 	nsinfo__mountns_exit(&nsc);
 
 	return ret;

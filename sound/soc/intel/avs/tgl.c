@@ -8,6 +8,7 @@
 
 #include <linux/pci.h>
 #include "avs.h"
+#include "debug.h"
 #include "messages.h"
 
 #define CPUID_TSC_LEAF 0x15
