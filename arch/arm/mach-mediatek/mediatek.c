@@ -39,6 +39,7 @@ static void __init mediatek_timer_init(void)
 static const char * const mediatek_board_dt_compat[] = {
 	"mediatek,mt2701",
 	"mediatek,mt6572",
+	"mediatek,mt6582",
 	"mediatek,mt6589",
 	"mediatek,mt6592",
 	"mediatek,mt7623",
