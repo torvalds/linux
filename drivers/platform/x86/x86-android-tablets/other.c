@@ -84,17 +84,11 @@ static const struct x86_i2c_client_info acer_b1_750_i2c_clients[] __initconst = 
 	},
 };
 
-static struct gpiod_lookup_table * const acer_b1_750_gpios[] = {
-	&int3496_reference_gpios,
-	NULL
-};
-
 const struct x86_dev_info acer_b1_750_info __initconst = {
 	.i2c_client_info = acer_b1_750_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(acer_b1_750_i2c_clients),
 	.pdev_info = int3496_pdevs,
 	.pdev_count = 1,
-	.gpiod_lookup_tables = acer_b1_750_gpios,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 };
 
@@ -407,17 +401,12 @@ static const struct x86_i2c_client_info nextbook_ares8_i2c_clients[] __initconst
 	},
 };
 
-static struct gpiod_lookup_table * const nextbook_ares8_gpios[] = {
-	&int3496_reference_gpios,
-	NULL
-};
-
 const struct x86_dev_info nextbook_ares8_info __initconst = {
 	.i2c_client_info = nextbook_ares8_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(nextbook_ares8_i2c_clients),
 	.pdev_info = int3496_pdevs,
 	.pdev_count = 1,
-	.gpiod_lookup_tables = nextbook_ares8_gpios,
+	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 };
 
 /* Nextbook Ares 8A (CHT) tablets have an Android factory image with everything hardcoded */
