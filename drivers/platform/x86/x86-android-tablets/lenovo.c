@@ -75,6 +75,7 @@ static const struct software_node lenovo_yb1_x90_goodix_node = {
 static const struct property_entry lenovo_yb1_x90_wacom_props[] = {
 	PROPERTY_ENTRY_U32("hid-descr-addr", 0x0001),
 	PROPERTY_ENTRY_U32("post-reset-deassert-delay-ms", 150),
+	PROPERTY_ENTRY_GPIO("reset-gpios", &cherryview_gpiochip_nodes[0], 82, GPIO_ACTIVE_LOW),
 	{ }
 };
 
@@ -218,17 +219,8 @@ static struct gpiod_lookup_table lenovo_yb1_x90_hideep_gpios = {
 	},
 };
 
-static struct gpiod_lookup_table lenovo_yb1_x90_wacom_gpios = {
-	.dev_id = "i2c-wacom",
-	.table = {
-		GPIO_LOOKUP("INT33FF:00", 82, "reset", GPIO_ACTIVE_LOW),
-		{ }
-	},
-};
-
 static struct gpiod_lookup_table * const lenovo_yb1_x90_gpios[] = {
 	&lenovo_yb1_x90_hideep_gpios,
-	&lenovo_yb1_x90_wacom_gpios,
 	NULL
 };
 
