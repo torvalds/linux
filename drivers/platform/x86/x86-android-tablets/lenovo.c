@@ -60,6 +60,14 @@ static struct lp855x_platform_data lenovo_lp8557_reg_only_pdata = {
 	.initial_brightness = 128,
 };
 
+static const struct software_node arizona_gpiochip_node = {
+	.name = "arizona",
+};
+
+static const struct software_node crystalcove_gpiochip_node = {
+	.name = "gpio_crystalcove",
+};
+
 /* Lenovo Yoga Book X90F / X90L's Android factory image has everything hardcoded */
 
 static const struct property_entry lenovo_yb1_x90_goodix_props[] = {
@@ -383,19 +391,26 @@ static const struct platform_device_info lenovo_yoga_tab2_830_1050_pdevs[] __ini
 
 #define LENOVO_YOGA_TAB2_830_1050_CODEC_NAME "spi-10WM5102:00"
 
-static struct gpiod_lookup_table lenovo_yoga_tab2_830_1050_codec_gpios = {
-	.dev_id = LENOVO_YOGA_TAB2_830_1050_CODEC_NAME,
-	.table = {
-		GPIO_LOOKUP("gpio_crystalcove", 3, "reset", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FC:01", 23, "wlf,ldoena", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("arizona", 2, "wlf,spkvdd-ena", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("arizona", 4, "wlf,micd-pol", GPIO_ACTIVE_LOW),
-		{ }
-	},
+static const struct property_entry lenovo_yoga_tab2_830_1050_wm1502_props[] = {
+	PROPERTY_ENTRY_GPIO("reset-gpios",
+			    &crystalcove_gpiochip_node, 3, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("wlf,ldoena-gpios",
+			    &baytrail_gpiochip_nodes[1], 23, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("wlf,spkvdd-ena-gpios",
+			    &arizona_gpiochip_node, 2, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("wlf,micd-pol-gpios",
+			    &arizona_gpiochip_node, 4, GPIO_ACTIVE_LOW),
+	{ }
 };
 
-static struct gpiod_lookup_table * const lenovo_yoga_tab2_830_1050_gpios[] = {
-	&lenovo_yoga_tab2_830_1050_codec_gpios,
+static const struct software_node lenovo_yoga_tab2_830_1050_wm5102 = {
+	.properties = lenovo_yoga_tab2_830_1050_wm1502_props,
+};
+
+static const struct software_node *lenovo_yoga_tab2_830_1050_swnodes[] = {
+	&crystalcove_gpiochip_node,
+	&arizona_gpiochip_node,
+	&lenovo_yoga_tab2_830_1050_wm5102,
 	NULL
 };
 
@@ -409,7 +424,6 @@ const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_830_1050_pdevs),
 	.gpio_button = &lenovo_yoga_tab2_830_1050_lid,
 	.gpio_button_count = 1,
-	.gpiod_lookup_tables = lenovo_yoga_tab2_830_1050_gpios,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = bq24190_modules,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
@@ -469,6 +483,7 @@ static const struct pinctrl_map lenovo_yoga_tab2_830_1050_codec_pinctrl_map =
 	PIN_MAP_MUX_GROUP(LENOVO_YOGA_TAB2_830_1050_CODEC_NAME, "codec_32khz_clk",
 			  "INT33FC:02", "pmu_clk2_grp", "pmu_clk");
 
+static struct device *lenovo_yoga_tab2_830_1050_codec_dev;
 static struct pinctrl *lenovo_yoga_tab2_830_1050_codec_pinctrl;
 static struct sys_off_handler *lenovo_yoga_tab2_830_1050_sys_off_handler;
 
@@ -495,12 +510,26 @@ static int __init lenovo_yoga_tab2_830_1050_init_codec(void)
 		goto err_unregister_mappings;
 	}
 
-	/* We're done with the codec_dev now */
-	put_device(codec_dev);
+	ret = software_node_register_node_group(lenovo_yoga_tab2_830_1050_swnodes);
+	if (ret) {
+		ret = dev_err_probe(codec_dev, ret, "registering software nodes\n");
+		goto err_put_pinctrl;
+	}
 
+	ret = device_add_software_node(codec_dev, &lenovo_yoga_tab2_830_1050_wm5102);
+	if (ret) {
+		ret = dev_err_probe(codec_dev, ret, "adding software node\n");
+		goto err_unregister_swnodes;
+	}
+
+	lenovo_yoga_tab2_830_1050_codec_dev = codec_dev;
 	lenovo_yoga_tab2_830_1050_codec_pinctrl = pinctrl;
 	return 0;
 
+err_unregister_swnodes:
+	software_node_unregister_node_group(lenovo_yoga_tab2_830_1050_swnodes);
+err_put_pinctrl:
+	pinctrl_put(lenovo_yoga_tab2_830_1050_codec_pinctrl);
 err_unregister_mappings:
 	pinctrl_unregister_mappings(&lenovo_yoga_tab2_830_1050_codec_pinctrl_map);
 err_put_device:
@@ -547,6 +576,12 @@ static int __init lenovo_yoga_tab2_830_1050_init(struct device *dev)
 static void lenovo_yoga_tab2_830_1050_exit(void)
 {
 	unregister_sys_off_handler(lenovo_yoga_tab2_830_1050_sys_off_handler);
+
+	if (lenovo_yoga_tab2_830_1050_codec_dev) {
+		device_remove_software_node(lenovo_yoga_tab2_830_1050_codec_dev);
+		put_device(lenovo_yoga_tab2_830_1050_codec_dev);
+		software_node_unregister_node_group(lenovo_yoga_tab2_830_1050_swnodes);
+	}
 
 	if (lenovo_yoga_tab2_830_1050_codec_pinctrl) {
 		pinctrl_put(lenovo_yoga_tab2_830_1050_codec_pinctrl);
@@ -750,7 +785,6 @@ static struct gpiod_lookup_table lenovo_yoga_tab2_1380_fc_gpios = {
 };
 
 static struct gpiod_lookup_table * const lenovo_yoga_tab2_1380_gpios[] = {
-	&lenovo_yoga_tab2_830_1050_codec_gpios,
 	&lenovo_yoga_tab2_1380_fc_gpios,
 	NULL
 };
@@ -947,12 +981,34 @@ static struct arizona_pdata lenovo_yt3_wm5102_pdata = {
 	},
 };
 
+static const struct property_entry lenovo_yt3_wm1502_props[] = {
+	PROPERTY_ENTRY_GPIO("wlf,spkvdd-ena-gpios",
+			    &cherryview_gpiochip_nodes[0], 75, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("wlf,ldoena-gpios",
+			    &cherryview_gpiochip_nodes[0], 81, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("reset-gpios", &cherryview_gpiochip_nodes[0], 82, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("wlf,micd-pol-gpios", &arizona_gpiochip_node, 2, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node lenovo_yt3_wm5102 = {
+	.properties = lenovo_yt3_wm1502_props,
+	.name = "wm5102",
+};
+
+static const struct software_node *lenovo_yt3_swnodes[] = {
+	&arizona_gpiochip_node,
+	&lenovo_yt3_wm5102,
+	NULL
+};
+
 static const struct x86_spi_dev_info lenovo_yt3_spi_devs[] __initconst = {
 	{
 		/* WM5102 codec */
 		.board_info = {
 			.modalias = "wm5102",
 			.platform_data = &lenovo_yt3_wm5102_pdata,
+			.swnode = &lenovo_yt3_wm5102,
 			.max_speed_hz = 5000000,
 		},
 		.ctrl_path = "\\_SB_.PCI0.SPI1",
@@ -999,31 +1055,18 @@ static int __init lenovo_yt3_init(struct device *dev)
 	intel_soc_pmic_exec_mipi_pmic_seq_element(0x6e, 0x9b, 0x02, 0xff);
 	intel_soc_pmic_exec_mipi_pmic_seq_element(0x6e, 0xa0, 0x02, 0xff);
 
+	ret = software_node_register_node_group(lenovo_yt3_swnodes);
+	if (ret)
+		return dev_err_probe(dev, ret, "registering software nodes\n");
+
 	return 0;
 }
-
-static struct gpiod_lookup_table lenovo_yt3_wm5102_gpios = {
-	.dev_id = "spi1.0",
-	.table = {
-		GPIO_LOOKUP("INT33FF:00", 75, "wlf,spkvdd-ena", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FF:00", 81, "wlf,ldoena", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FF:00", 82, "reset", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("arizona", 2, "wlf,micd-pol", GPIO_ACTIVE_HIGH),
-		{ }
-	},
-};
-
-static struct gpiod_lookup_table * const lenovo_yt3_gpios[] = {
-	&lenovo_yt3_wm5102_gpios,
-	NULL
-};
 
 const struct x86_dev_info lenovo_yt3_info __initconst = {
 	.i2c_client_info = lenovo_yt3_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(lenovo_yt3_i2c_clients),
 	.spi_dev_info = lenovo_yt3_spi_devs,
 	.spi_dev_count = ARRAY_SIZE(lenovo_yt3_spi_devs),
-	.gpiod_lookup_tables = lenovo_yt3_gpios,
 	.gpiochip_type = X86_GPIOCHIP_CHERRYVIEW,
 	.init = lenovo_yt3_init,
 };
