@@ -577,30 +577,36 @@ static bool cd321x_read_data_status(struct tps6598x *tps)
 	int ret;
 
 	ret = tps6598x_read_data_status(tps);
-	if (ret < 0)
+	if (!ret)
 		return false;
 
 	if (tps->data_status & TPS_DATA_STATUS_DP_CONNECTION) {
 		ret = tps6598x_block_read(tps, TPS_REG_DP_SID_STATUS,
 				&cd321x->dp_sid_status, sizeof(cd321x->dp_sid_status));
-		if (ret)
+		if (ret) {
 			dev_err(tps->dev, "Failed to read DP SID Status: %d\n",
 				ret);
+			return false;
+		}
 	}
 
 	if (tps->data_status & TPS_DATA_STATUS_TBT_CONNECTION) {
 		ret = tps6598x_block_read(tps, TPS_REG_INTEL_VID_STATUS,
 				&cd321x->intel_vid_status, sizeof(cd321x->intel_vid_status));
-		if (ret)
+		if (ret) {
 			dev_err(tps->dev, "Failed to read Intel VID Status: %d\n", ret);
+			return false;
+		}
 	}
 
 	if (tps->data_status & CD321X_DATA_STATUS_USB4_CONNECTION) {
 		ret = tps6598x_block_read(tps, TPS_REG_USB4_STATUS,
 				&cd321x->usb4_status, sizeof(cd321x->usb4_status));
-		if (ret)
+		if (ret) {
 			dev_err(tps->dev,
 				"Failed to read USB4 Status: %d\n", ret);
+			return false;
+		}
 	}
 
 	return true;
