@@ -13,8 +13,8 @@
 	interrupt-parent = <&sysirq>;
 
 	cpus {
-		#address-cells = <1>;
 		#size-cells = <0>;
+		#address-cells = <1>;
 
 		cpu@0 {
 			device_type = "cpu";
@@ -38,22 +38,22 @@
 		};
 	};
 
+	uart_clk: dummy26m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
 	system_clk: dummy13m {
 		compatible = "fixed-clock";
-		clock-frequency = <13000000>;
 		#clock-cells = <0>;
+		clock-frequency = <13000000>;
 	};
 
 	rtc_clk: dummy32k {
 		compatible = "fixed-clock";
+		#clock-cells = <0>;
 		clock-frequency = <32000>;
-		#clock-cells = <0>;
-	};
-
-	uart_clk: dummy26m {
-		compatible = "fixed-clock";
-		clock-frequency = <26000000>;
-		#clock-cells = <0>;
 	};
 
 	soc {
@@ -61,6 +61,11 @@
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		ranges;
+
+		watchdog: watchdog@10007000 {
+			compatible = "mediatek,mt6582-wdt", "mediatek,mt6589-wdt";
+			reg = <0x10007000 0x100>;
+		};
 
 		timer: timer@11008000 {
 			compatible = "mediatek,mt6577-timer";
@@ -71,18 +76,17 @@
 		};
 
 		sysirq: interrupt-controller@10200100 {
-			compatible = "mediatek,mt6582-sysirq",
-				     "mediatek,mt6577-sysirq";
+			compatible = "mediatek,mt6582-sysirq", "mediatek,mt6577-sysirq";
+			reg = <0x10200100 0x1c>;
+			interrupt-parent = <&gic>;
 			interrupt-controller;
 			#interrupt-cells = <3>;
-			interrupt-parent = <&gic>;
-			reg = <0x10200100 0x1c>;
 		};
 
 		gic: interrupt-controller@10211000 {
 			compatible = "arm,cortex-a7-gic";
-			interrupt-controller;
 			#interrupt-cells = <3>;
+			interrupt-controller;
 			interrupt-parent = <&gic>;
 			reg = <0x10211000 0x1000>,
 			      <0x10212000 0x2000>,
@@ -91,8 +95,7 @@
 		};
 
 		uart0: serial@11002000 {
-			compatible = "mediatek,mt6582-uart",
-				     "mediatek,mt6577-uart";
+			compatible = "mediatek,mt6582-uart", "mediatek,mt6577-uart";
 			reg = <0x11002000 0x400>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&uart_clk>;
@@ -100,8 +103,7 @@
 		};
 
 		uart1: serial@11003000 {
-			compatible = "mediatek,mt6582-uart",
-				     "mediatek,mt6577-uart";
+			compatible = "mediatek,mt6582-uart", "mediatek,mt6577-uart";
 			reg = <0x11003000 0x400>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&uart_clk>;
@@ -109,8 +111,7 @@
 		};
 
 		uart2: serial@11004000 {
-			compatible = "mediatek,mt6582-uart",
-				     "mediatek,mt6577-uart";
+			compatible = "mediatek,mt6582-uart", "mediatek,mt6577-uart";
 			reg = <0x11004000 0x400>;
 			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&uart_clk>;
@@ -118,18 +119,11 @@
 		};
 
 		uart3: serial@11005000 {
-			compatible = "mediatek,mt6582-uart",
-				     "mediatek,mt6577-uart";
+			compatible = "mediatek,mt6582-uart", "mediatek,mt6577-uart";
 			reg = <0x11005000 0x400>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&uart_clk>;
 			status = "disabled";
-		};
-
-		watchdog: watchdog@10007000 {
-			compatible = "mediatek,mt6582-wdt",
-				     "mediatek,mt6589-wdt";
-			reg = <0x10007000 0x100>;
 		};
 	};
 };
