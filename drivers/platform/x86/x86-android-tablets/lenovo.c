@@ -443,6 +443,12 @@ static const struct software_node *lenovo_yoga_tab2_830_1050_swnodes[] = {
 static int __init lenovo_yoga_tab2_830_1050_init(struct device *dev);
 static void lenovo_yoga_tab2_830_1050_exit(void);
 
+static const char * const lenovo_yoga_tab2_modules[] __initconst = {
+	"spi_pxa2xx_platform",	/* For the SPI codec device */
+	"bq24190_charger",	/* For the Vbus regulator for int3496/lc824206xa */
+	NULL
+};
+
 const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
 	.i2c_client_info = lenovo_yoga_tab2_830_1050_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(lenovo_yoga_tab2_830_1050_i2c_clients),
@@ -450,7 +456,7 @@ const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_830_1050_pdevs),
 	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
 	.swnode_group = lenovo_yoga_tab2_830_1050_swnodes,
-	.modules = bq24190_modules,
+	.modules = lenovo_yoga_tab2_modules,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 	.init = lenovo_yoga_tab2_830_1050_init,
 	.exit = lenovo_yoga_tab2_830_1050_exit,
@@ -767,11 +773,6 @@ static const struct platform_device_info lenovo_yoga_tab2_1380_pdevs[] __initcon
 	},
 };
 
-static const char * const lenovo_yoga_tab2_1380_modules[] __initconst = {
-	"bq24190_charger",            /* For the Vbus regulator for lc824206xa */
-	NULL
-};
-
 static int __init lenovo_yoga_tab2_1380_init(struct device *dev)
 {
 	int ret;
@@ -800,7 +801,7 @@ const struct x86_dev_info lenovo_yoga_tab2_1380_info __initconst = {
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_1380_pdevs),
 	.gpio_button_swnodes = lenovo_yoga_tab2_830_1050_lid_swnodes,
 	.swnode_group = lenovo_yoga_tab2_830_1050_swnodes,
-	.modules = lenovo_yoga_tab2_1380_modules,
+	.modules = lenovo_yoga_tab2_modules,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 	.init = lenovo_yoga_tab2_1380_init,
 	.exit = lenovo_yoga_tab2_830_1050_exit,
@@ -1061,12 +1062,18 @@ static int __init lenovo_yt3_init(struct device *dev)
 	return 0;
 }
 
+static const char * const lenovo_yt3_modules[] __initconst = {
+	"spi_pxa2xx_platform",	/* For the SPI codec device */
+	NULL
+};
+
 const struct x86_dev_info lenovo_yt3_info __initconst = {
 	.i2c_client_info = lenovo_yt3_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(lenovo_yt3_i2c_clients),
 	.spi_dev_info = lenovo_yt3_spi_devs,
 	.spi_dev_count = ARRAY_SIZE(lenovo_yt3_spi_devs),
 	.swnode_group = lenovo_yt3_swnodes,
+	.modules = lenovo_yt3_modules,
 	.gpiochip_type = X86_GPIOCHIP_CHERRYVIEW,
 	.init = lenovo_yt3_init,
 };
