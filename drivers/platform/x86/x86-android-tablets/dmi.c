@@ -17,6 +17,16 @@
 
 const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 	{
+		/* Acer Iconia One 8 A1-840 (non FHD version) */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "BayTrail"),
+			/* Above strings are too generic also match BIOS date */
+			DMI_MATCH(DMI_BIOS_DATE, "04/01/2014"),
+		},
+		.driver_data = (void *)&acer_a1_840_info,
+	},
+	{
 		/* Acer Iconia One 7 B1-750 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),

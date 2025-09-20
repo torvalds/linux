@@ -111,6 +111,7 @@ extern const struct software_node cherryview_gpiochip_nodes[];
  * Extern declarations of x86_dev_info structs so there can be a single
  * MODULE_DEVICE_TABLE(dmi, ...), while splitting the board descriptions.
  */
+extern const struct x86_dev_info acer_a1_840_info;
 extern const struct x86_dev_info acer_b1_750_info;
 extern const struct x86_dev_info advantech_mica_071_info;
 extern const struct x86_dev_info asus_me176c_info;
