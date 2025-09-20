@@ -201,7 +201,9 @@ static int max17042_get_battery_health(struct max17042_chip *chip, int *health)
 		goto out;
 	}
 
-	if (vbatt > chip->pdata->vmax + MAX17042_VMAX_TOLERANCE) {
+	int vmax = chip->pdata->vmax;
+	
+	if (vmax < INT_MAX && (vbatt > vmax + MAX17042_VMAX_TOLERANCE)) {
 		*health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
 		goto out;
 	}
@@ -213,8 +215,8 @@ static int max17042_get_battery_health(struct max17042_chip *chip, int *health)
 	if (temp < chip->pdata->temp_min) {
 		*health = POWER_SUPPLY_HEALTH_COLD;
 		goto out;
-	}
-
+	}	
+	
 	if (temp > chip->pdata->temp_max) {
 		*health = POWER_SUPPLY_HEALTH_OVERHEAT;
 		goto out;
