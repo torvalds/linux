@@ -217,6 +217,12 @@ static inline int __task_prio(const struct task_struct *p)
 static inline bool prio_less(const struct task_struct *a,
 			     const struct task_struct *b, bool in_fi)
 {
+	/* Girlfriend tasks always have the highest priority. */
+	if (a->sched_class == &girlfriend_sched_class)
+		return true;
+	if (b->sched_class == &girlfriend_sched_class)
+		return false;
+
 
 	int pa = __task_prio(a), pb = __task_prio(b);
 

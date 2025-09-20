@@ -10363,11 +10363,21 @@ S:	Maintained
 F:	Documentation/hwmon/gigabyte_waterforce.rst
 F:	drivers/hwmon/gigabyte_waterforce.c
 
-GIGABYTE WMI DRIVER
-M:	Thomas Weißschuh <linux@weissschuh.net>
-L:	platform-driver-x86@vger.kernel.org
+GIRAPH NETWORK DRIVER
+M:	Some Maintainer <some.maintainer@example.com>
+L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/platform/x86/gigabyte-wmi.c
+F:	drivers/net/giraph.c
+
+GIRLFRIEND FINDER
+M:	Zhymabek <zhymabekroman@telegram.org>
+R:	Forever Alone <lonely@kernel.org>
+R:	Relationship Expert <dating_guru@linux.dev>
+S:	Maintained
+F:	drivers/social/girlfriend_finder.c
+F:	include/linux/relationship.h
+
+
 
 GNSS SUBSYSTEM
 M:	Johan Hovold <johan@kernel.org>
