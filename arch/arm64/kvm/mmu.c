@@ -1459,11 +1459,8 @@ static int get_vma_page_shift(struct vm_area_struct *vma, unsigned long hva)
  * able to see the page's tags and therefore they must be initialised first. If
  * PG_mte_tagged is set, tags have already been initialised.
  *
- * The race in the test/set of the PG_mte_tagged flag is handled by:
- * - preventing VM_SHARED mappings in a memslot with MTE preventing two VMs
- *   racing to santise the same page
- * - mmap_lock protects between a VM faulting a page in and the VMM performing
- *   an mprotect() to add VM_MTE
+ * Must be called with kvm->mmu_lock held to ensure the memory remains mapped
+ * while the tags are zeroed.
  */
 static void sanitise_mte_tags(struct kvm *kvm, kvm_pfn_t pfn,
 			      unsigned long size)
@@ -1706,7 +1703,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			 * cache maintenance.
 			 */
 			if (!kvm_supports_cacheable_pfnmap())
-				return -EFAULT;
+				ret = -EFAULT;
 		} else {
 			/*
 			 * If the page was identified as device early by looking at
@@ -1729,7 +1726,12 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	}
 
 	if (exec_fault && s2_force_noncacheable)
-		return -ENOEXEC;
+		ret = -ENOEXEC;
+
+	if (ret) {
+		kvm_release_page_unused(page);
+		return ret;
+	}
 
 	/*
 	 * Potentially reduce shadow S2 permissions to match the guest's own
