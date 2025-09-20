@@ -822,10 +822,9 @@ static int snd_miro_init(struct snd_miro *chip,
 static unsigned char snd_miro_read(struct snd_miro *chip,
 				   unsigned char reg)
 {
-	unsigned long flags;
 	unsigned char retval = 0xff;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	outb(chip->password, chip->mc_base + chip->pwd_reg);
 
 	switch (chip->hardware) {
@@ -846,16 +845,13 @@ static unsigned char snd_miro_read(struct snd_miro *chip,
 		dev_err(chip->card->dev, "sorry, no support for %d\n", chip->hardware);
 	}
 
-	spin_unlock_irqrestore(&chip->lock, flags);
 	return retval;
 }
 
 static void snd_miro_write(struct snd_miro *chip, unsigned char reg,
 			   unsigned char value)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(spinlock_irqsave)(&chip->lock);
 	outb(chip->password, chip->mc_base + chip->pwd_reg);
 
 	switch (chip->hardware) {
@@ -875,8 +871,6 @@ static void snd_miro_write(struct snd_miro *chip, unsigned char reg,
 	default:
 		dev_err(chip->card->dev, "sorry, no support for %d\n", chip->hardware);
 	}
-
-	spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static inline void snd_miro_write_mask(struct snd_miro *chip,
@@ -1013,7 +1007,6 @@ static int snd_miro_configure(struct snd_miro *chip)
 	unsigned char dma_bits;
 	unsigned char mpu_port_bits = 0;
 	unsigned char mpu_irq_bits;
-	unsigned long flags;
 
 	snd_miro_write_mask(chip, OPTi9XX_MC_REG(1), 0x80, 0x80);
 	snd_miro_write_mask(chip, OPTi9XX_MC_REG(2), 0x20, 0x20); /* OPL4 */
@@ -1109,9 +1102,9 @@ __skip_base:
 	}
 	dma_bits |= 0x04;
 
-	spin_lock_irqsave(&chip->lock, flags);
-	outb(irq_bits << 3 | dma_bits, chip->wss_base);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->lock) {
+		outb(irq_bits << 3 | dma_bits, chip->wss_base);
+	}
 
 __skip_resources:
 	if (chip->hardware > OPTi9XX_HW_82C928) {

@@ -82,9 +82,9 @@ int snd_efw_transaction_run(struct fw_unit *unit,
 	t.state = STATE_PENDING;
 	init_waitqueue_head(&t.wait);
 
-	spin_lock_irq(&transaction_queues_lock);
-	list_add_tail(&t.list, &transaction_queues);
-	spin_unlock_irq(&transaction_queues_lock);
+	scoped_guard(spinlock_irq, &transaction_queues_lock) {
+		list_add_tail(&t.list, &transaction_queues);
+	}
 
 	tries = 0;
 	do {
@@ -107,9 +107,9 @@ int snd_efw_transaction_run(struct fw_unit *unit,
 		}
 	} while (1);
 
-	spin_lock_irq(&transaction_queues_lock);
-	list_del(&t.list);
-	spin_unlock_irq(&transaction_queues_lock);
+	scoped_guard(spinlock_irq, &transaction_queues_lock) {
+		list_del(&t.list);
+	}
 
 	return ret;
 }
@@ -123,7 +123,7 @@ copy_resp_to_buf(struct snd_efw *efw, void *data, size_t length, int *rcode)
 	t = (struct snd_efw_transaction *)data;
 	length = min_t(size_t, be32_to_cpu(t->length) * sizeof(u32), length);
 
-	spin_lock(&efw->lock);
+	guard(spinlock)(&efw->lock);
 
 	if (efw->push_ptr < efw->pull_ptr)
 		capacity = (unsigned int)(efw->pull_ptr - efw->push_ptr);
@@ -134,7 +134,7 @@ copy_resp_to_buf(struct snd_efw *efw, void *data, size_t length, int *rcode)
 	/* confirm enough space for this response */
 	if (capacity < length) {
 		*rcode = RCODE_CONFLICT_ERROR;
-		goto end;
+		return;
 	}
 
 	/* copy to ring buffer */
@@ -157,8 +157,6 @@ copy_resp_to_buf(struct snd_efw *efw, void *data, size_t length, int *rcode)
 	wake_up(&efw->hwdep_wait);
 
 	*rcode = RCODE_COMPLETE;
-end:
-	spin_unlock_irq(&efw->lock);
 }
 
 static void
@@ -169,7 +167,7 @@ handle_resp_for_user(struct fw_card *card, int generation, int source,
 	struct snd_efw *efw;
 	unsigned int i;
 
-	spin_lock_irq(&instances_lock);
+	guard(spinlock_irq)(&instances_lock);
 
 	for (i = 0; i < SNDRV_CARDS; i++) {
 		efw = instances[i];
@@ -186,11 +184,9 @@ handle_resp_for_user(struct fw_card *card, int generation, int source,
 		break;
 	}
 	if (i == SNDRV_CARDS)
-		goto end;
+		return;
 
 	copy_resp_to_buf(efw, data, length, rcode);
-end:
-	spin_unlock(&instances_lock);
 }
 
 static void
@@ -199,9 +195,8 @@ handle_resp_for_kernel(struct fw_card *card, int generation, int source,
 {
 	struct fw_device *device;
 	struct transaction_queue *t;
-	unsigned long flags;
 
-	spin_lock_irqsave(&transaction_queues_lock, flags);
+	guard(spinlock_irqsave)(&transaction_queues_lock);
 	list_for_each_entry(t, &transaction_queues, list) {
 		device = fw_parent_device(t->unit);
 		if ((device->card != card) ||
@@ -219,7 +214,6 @@ handle_resp_for_kernel(struct fw_card *card, int generation, int source,
 			*rcode = RCODE_COMPLETE;
 		}
 	}
-	spin_unlock_irqrestore(&transaction_queues_lock, flags);
 }
 
 static void
@@ -259,7 +253,7 @@ void snd_efw_transaction_add_instance(struct snd_efw *efw)
 {
 	unsigned int i;
 
-	spin_lock_irq(&instances_lock);
+	guard(spinlock_irq)(&instances_lock);
 
 	for (i = 0; i < SNDRV_CARDS; i++) {
 		if (instances[i] != NULL)
@@ -267,30 +261,26 @@ void snd_efw_transaction_add_instance(struct snd_efw *efw)
 		instances[i] = efw;
 		break;
 	}
-
-	spin_unlock_irq(&instances_lock);
 }
 
 void snd_efw_transaction_remove_instance(struct snd_efw *efw)
 {
 	unsigned int i;
 
-	spin_lock_irq(&instances_lock);
+	guard(spinlock_irq)(&instances_lock);
 
 	for (i = 0; i < SNDRV_CARDS; i++) {
 		if (instances[i] != efw)
 			continue;
 		instances[i] = NULL;
 	}
-
-	spin_unlock_irq(&instances_lock);
 }
 
 void snd_efw_transaction_bus_reset(struct fw_unit *unit)
 {
 	struct transaction_queue *t;
 
-	spin_lock_irq(&transaction_queues_lock);
+	guard(spinlock_irq)(&transaction_queues_lock);
 	list_for_each_entry(t, &transaction_queues, list) {
 		if ((t->unit == unit) &&
 		    (t->state == STATE_PENDING)) {
@@ -298,7 +288,6 @@ void snd_efw_transaction_bus_reset(struct fw_unit *unit)
 			wake_up(&t->wait);
 		}
 	}
-	spin_unlock_irq(&transaction_queues_lock);
 }
 
 static struct fw_address_handler resp_register_handler = {

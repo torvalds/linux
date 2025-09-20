@@ -283,9 +283,8 @@ static void oxfw_bus_reset(struct fw_unit *unit)
 	fcp_bus_reset(oxfw->unit);
 
 	if (oxfw->has_output || oxfw->has_input) {
-		mutex_lock(&oxfw->mutex);
+		guard(mutex)(&oxfw->mutex);
 		snd_oxfw_stream_update_duplex(oxfw);
-		mutex_unlock(&oxfw->mutex);
 	}
 
 	if (oxfw->quirks & SND_OXFW_QUIRK_SCS_TRANSACTION)

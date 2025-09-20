@@ -872,8 +872,7 @@ static void alc294_init(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 
 	/* required only at boot or S4 resume time */
-	if (!spec->done_hp_init ||
-	    codec->core.dev.power.power_state.event == PM_EVENT_RESTORE) {
+	if (!spec->done_hp_init || is_s4_resume(codec)) {
 		alc294_hp_init(codec);
 		spec->done_hp_init = true;
 	}
@@ -1224,9 +1223,8 @@ static void alc_update_vref_led(struct hda_codec *codec, hda_nid_t pin,
 	pinval &= ~AC_PINCTL_VREFEN;
 	pinval |= on ? AC_PINCTL_VREF_80 : AC_PINCTL_VREF_HIZ;
 	/* temporarily power up/down for setting VREF */
-	snd_hda_power_up_pm(codec);
+	CLASS(snd_hda_power_pm, pm)(codec);
 	snd_hda_set_pin_ctl_cache(codec, pin, pinval);
-	snd_hda_power_down_pm(codec);
 }
 
 /* update mute-LED according to the speaker mute state via mic VREF pin */

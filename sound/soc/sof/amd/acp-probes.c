@@ -108,7 +108,7 @@ static int acp_probes_compr_trigger(struct sof_client_dev *cdev,
 
 static int acp_probes_compr_pointer(struct sof_client_dev *cdev,
 				    struct snd_compr_stream *cstream,
-				    struct snd_compr_tstamp *tstamp,
+				    struct snd_compr_tstamp64 *tstamp,
 				    struct snd_soc_dai *dai)
 {
 	struct acp_dsp_stream *stream = cstream->runtime->private_data;

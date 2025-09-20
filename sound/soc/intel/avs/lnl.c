@@ -8,6 +8,7 @@
 
 #include <sound/hdaudio_ext.h>
 #include "avs.h"
+#include "debug.h"
 #include "registers.h"
 
 int avs_lnl_core_stall(struct avs_dev *adev, u32 core_mask, bool stall)

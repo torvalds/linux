@@ -88,7 +88,6 @@ static int snd_pmac_beep_event(struct input_dev *dev, unsigned int type,
 {
 	struct snd_pmac *chip;
 	struct pmac_beep *beep;
-	unsigned long flags;
 	int beep_speed = 0;
 	int srate;
 	int period, ncycles, nsamples;
@@ -112,10 +111,9 @@ static int snd_pmac_beep_event(struct input_dev *dev, unsigned int type,
 		return -1;
 
 	if (! hz) {
-		spin_lock_irqsave(&chip->reg_lock, flags);
+		guard(spinlock_irqsave)(&chip->reg_lock);
 		if (beep->running)
 			snd_pmac_beep_stop(chip);
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
 		return 0;
 	}
 
@@ -125,13 +123,11 @@ static int snd_pmac_beep_event(struct input_dev *dev, unsigned int type,
 	if (hz <= srate / BEEP_BUFLEN || hz > srate / 2)
 		hz = 1000;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	if (chip->playback.running || chip->capture.running || beep->running) {
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		return 0;
+	scoped_guard(spinlock_irqsave, &chip->reg_lock) {
+		if (chip->playback.running || chip->capture.running || beep->running)
+			return 0;
+		beep->running = 1;
 	}
-	beep->running = 1;
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	if (hz == beep->hz && beep->volume == beep->volume_play) {
 		nsamples = beep->nsamples;
@@ -151,9 +147,8 @@ static int snd_pmac_beep_event(struct input_dev *dev, unsigned int type,
 		beep->nsamples = nsamples;
 	}
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	snd_pmac_beep_dma_start(chip, beep->nsamples * 4, beep->addr, beep_speed);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return 0;
 }
 

@@ -680,31 +680,30 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 	bool elapsed = false;
 	bool stop = false;
 
-	spin_lock(&priv->lock);
+	scoped_guard(spinlock, &priv->lock) {
 
-	/* ignore all cases if not working */
-	if (!rsnd_io_is_working(io))
-		goto rsnd_ssi_interrupt_out;
+		/* ignore all cases if not working */
+		if (!rsnd_io_is_working(io))
+			break;
 
-	status = rsnd_ssi_status_get(mod);
+		status = rsnd_ssi_status_get(mod);
 
-	/* PIO only */
-	if (!is_dma && (status & DIRQ))
-		elapsed = rsnd_ssi_pio_interrupt(mod, io);
+		/* PIO only */
+		if (!is_dma && (status & DIRQ))
+			elapsed = rsnd_ssi_pio_interrupt(mod, io);
 
-	/* DMA only */
-	if (is_dma && (status & (UIRQ | OIRQ))) {
-		rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
-				      rsnd_mod_name(mod), status);
+		/* DMA only */
+		if (is_dma && (status & (UIRQ | OIRQ))) {
+			rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
+					      rsnd_mod_name(mod), status);
 
-		stop = true;
+			stop = true;
+		}
+
+		stop |= rsnd_ssiu_busif_err_status_clear(mod);
+
+		rsnd_ssi_status_clear(mod);
 	}
-
-	stop |= rsnd_ssiu_busif_err_status_clear(mod);
-
-	rsnd_ssi_status_clear(mod);
-rsnd_ssi_interrupt_out:
-	spin_unlock(&priv->lock);
 
 	if (elapsed)
 		snd_pcm_period_elapsed(io->substream);

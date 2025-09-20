@@ -13,6 +13,7 @@
 #include <linux/string_helpers.h>
 #include <sound/soc.h>
 #include "avs.h"
+#include "debug.h"
 #include "messages.h"
 
 static unsigned int __kfifo_fromio(struct kfifo *fifo, const void __iomem *src, unsigned int len)

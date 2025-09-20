@@ -163,9 +163,8 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_decouple_locked);
 void snd_hdac_ext_stream_decouple(struct hdac_bus *bus,
 				  struct hdac_ext_stream *hext_stream, bool decouple)
 {
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 	snd_hdac_ext_stream_decouple_locked(bus, hext_stream, decouple);
-	spin_unlock_irq(&bus->reg_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_decouple);
 
@@ -265,7 +264,7 @@ hdac_ext_link_dma_stream_assign(struct hdac_bus *bus,
 		return NULL;
 	}
 
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 	list_for_each_entry(hstream, &bus->stream_list, list) {
 		struct hdac_ext_stream *hext_stream = container_of(hstream,
 								 struct hdac_ext_stream,
@@ -285,7 +284,6 @@ hdac_ext_link_dma_stream_assign(struct hdac_bus *bus,
 		res->link_locked = 1;
 		res->link_substream = substream;
 	}
-	spin_unlock_irq(&bus->reg_lock);
 	return res;
 }
 
@@ -301,7 +299,7 @@ hdac_ext_host_dma_stream_assign(struct hdac_bus *bus,
 		return NULL;
 	}
 
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 	list_for_each_entry(hstream, &bus->stream_list, list) {
 		struct hdac_ext_stream *hext_stream = container_of(hstream,
 								 struct hdac_ext_stream,
@@ -320,7 +318,6 @@ hdac_ext_host_dma_stream_assign(struct hdac_bus *bus,
 		res->hstream.running = 0;
 		res->hstream.substream = substream;
 	}
-	spin_unlock_irq(&bus->reg_lock);
 
 	return res;
 }
@@ -387,22 +384,22 @@ void snd_hdac_ext_stream_release(struct hdac_ext_stream *hext_stream, int type)
 		break;
 
 	case HDAC_EXT_STREAM_TYPE_HOST:
-		spin_lock_irq(&bus->reg_lock);
-		/* couple link only if not in use */
-		if (!hext_stream->link_locked)
-			snd_hdac_ext_stream_decouple_locked(bus, hext_stream, false);
-		snd_hdac_stream_release_locked(&hext_stream->hstream);
-		spin_unlock_irq(&bus->reg_lock);
+		scoped_guard(spinlock_irq, &bus->reg_lock) {
+			/* couple link only if not in use */
+			if (!hext_stream->link_locked)
+				snd_hdac_ext_stream_decouple_locked(bus, hext_stream, false);
+			snd_hdac_stream_release_locked(&hext_stream->hstream);
+		}
 		break;
 
 	case HDAC_EXT_STREAM_TYPE_LINK:
-		spin_lock_irq(&bus->reg_lock);
-		/* couple host only if not in use */
-		if (!hext_stream->hstream.opened)
-			snd_hdac_ext_stream_decouple_locked(bus, hext_stream, false);
-		hext_stream->link_locked = 0;
-		hext_stream->link_substream = NULL;
-		spin_unlock_irq(&bus->reg_lock);
+		scoped_guard(spinlock_irq, &bus->reg_lock) {
+			/* couple host only if not in use */
+			if (!hext_stream->hstream.opened)
+				snd_hdac_ext_stream_decouple_locked(bus, hext_stream, false);
+			hext_stream->link_locked = 0;
+			hext_stream->link_substream = NULL;
+		}
 		break;
 
 	default:
@@ -427,7 +424,7 @@ struct hdac_ext_stream *snd_hdac_ext_cstream_assign(struct hdac_bus *bus,
 	struct hdac_ext_stream *res = NULL;
 	struct hdac_stream *hstream;
 
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 	list_for_each_entry(hstream, &bus->stream_list, list) {
 		struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
 
@@ -446,7 +443,6 @@ struct hdac_ext_stream *snd_hdac_ext_cstream_assign(struct hdac_bus *bus,
 		res->hstream.running = 0;
 		res->hstream.cstream = cstream;
 	}
-	spin_unlock_irq(&bus->reg_lock);
 
 	return res;
 }

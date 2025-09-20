@@ -41,6 +41,15 @@
 #define SOF_IPC4_FW_MAX_PAGE_COUNT 20
 #define SOF_IPC4_FW_MAX_QUEUE_COUNT 8
 
+/* IPC4 sample types */
+#define SOF_IPC4_TYPE_MSB_INTEGER 0
+#define SOF_IPC4_TYPE_LSB_INTEGER 1
+#define SOF_IPC4_TYPE_SIGNED_INTEGER 2
+#define SOF_IPC4_TYPE_UNSIGNED_INTEGER 3
+#define SOF_IPC4_TYPE_FLOAT 4
+#define SOF_IPC4_TYPE_A_LAW 5
+#define SOF_IPC4_TYPE_MU_LAW 6
+
 /* Node index and mask applicable for host copier and ALH/HDA type DAI copiers */
 #define SOF_IPC4_NODE_INDEX_MASK	0xFF
 #define SOF_IPC4_NODE_INDEX(x)	((x) & SOF_IPC4_NODE_INDEX_MASK)
@@ -107,6 +116,13 @@ enum sof_ipc4_copier_module_config_params {
  * is connected to Gateway
  */
 	SOF_IPC4_COPIER_MODULE_CFG_ATTENUATION,
+};
+
+/* Scheduling domain, unset, Low Latency, or Data Processing */
+enum sof_comp_domain {
+	SOF_COMP_DOMAIN_UNSET = 0,	/* Take domain value from manifest */
+	SOF_COMP_DOMAIN_LL,		/* Low Latency scheduling domain */
+	SOF_COMP_DOMAIN_DP,		/* Data Processing scheduling domain */
 };
 
 struct sof_ipc4_copier_config_set_sink_format {

@@ -150,10 +150,9 @@ static int cs5535audio_build_dma_packets(struct cs5535audio *cs5535au,
 	dma->substream = substream;
 	dma->period_bytes = period_bytes;
 	dma->periods = periods;
-	spin_lock_irq(&cs5535au->reg_lock);
+	guard(spinlock_irq)(&cs5535au->reg_lock);
 	dma->ops->disable_dma(cs5535au);
 	dma->ops->setup_prd(cs5535au, jmpprd_addr);
-	spin_unlock_irq(&cs5535au->reg_lock);
 	return 0;
 }
 
@@ -276,9 +275,8 @@ static int snd_cs5535audio_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct cs5535audio *cs5535au = snd_pcm_substream_chip(substream);
 	struct cs5535audio_dma *dma = substream->runtime->private_data;
-	int err = 0;
 
-	spin_lock(&cs5535au->reg_lock);
+	guard(spinlock)(&cs5535au->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		dma->ops->pause_dma(cs5535au);
@@ -300,11 +298,9 @@ static int snd_cs5535audio_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	default:
 		dev_err(cs5535au->card->dev, "unhandled trigger\n");
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	spin_unlock(&cs5535au->reg_lock);
-	return err;
+	return 0;
 }
 
 static snd_pcm_uframes_t snd_cs5535audio_pcm_pointer(struct snd_pcm_substream

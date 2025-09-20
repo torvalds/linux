@@ -18,6 +18,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/compress_driver.h>
+#include <asm/div64.h>
 #include "sst-mfld-platform.h"
 
 /* compress stream operations */
@@ -202,15 +203,16 @@ static int sst_platform_compr_trigger(struct snd_soc_component *component,
 
 static int sst_platform_compr_pointer(struct snd_soc_component *component,
 				      struct snd_compr_stream *cstream,
-				      struct snd_compr_tstamp *tstamp)
+				      struct snd_compr_tstamp64 *tstamp)
 {
 	struct sst_runtime_stream *stream;
+	u64 temp_copied_total = tstamp->copied_total;
 
-	stream  = cstream->runtime->private_data;
+	stream = cstream->runtime->private_data;
 	stream->compr_ops->tstamp(sst->dev, stream->id, tstamp);
-	tstamp->byte_offset = tstamp->copied_total %
-				 (u32)cstream->runtime->buffer_size;
-	pr_debug("calc bytes offset/copied bytes as %d\n", tstamp->byte_offset);
+	tstamp->byte_offset =
+		do_div(temp_copied_total, cstream->runtime->buffer_size);
+	pr_debug("calc bytes offset/copied bytes as %u\n", tstamp->byte_offset);
 	return 0;
 }
 

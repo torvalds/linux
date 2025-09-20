@@ -4182,8 +4182,8 @@ static int wm8994_component_probe(struct snd_soc_component *component)
 
 	wm8994->micdet_irq = control->pdata.micdet_irq;
 
-	/* By default use idle_bias_off, will override for WM8994 */
-	dapm->idle_bias_off = 1;
+	/* By default use idle_bias false, will override for WM8994 */
+	dapm->idle_bias = false;
 
 	/* Set revision-specific configuration */
 	switch (control->type) {
@@ -4191,7 +4191,7 @@ static int wm8994_component_probe(struct snd_soc_component *component)
 		/* Single ended line outputs should have VMID on. */
 		if (!control->pdata.lineout1_diff ||
 		    !control->pdata.lineout2_diff)
-			dapm->idle_bias_off = 0;
+			dapm->idle_bias = true;
 
 		switch (control->revision) {
 		case 2:

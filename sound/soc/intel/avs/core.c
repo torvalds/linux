@@ -27,6 +27,7 @@
 #include "../../codecs/hda.h"
 #include "avs.h"
 #include "cldma.h"
+#include "debug.h"
 #include "messages.h"
 #include "pcm.h"
 

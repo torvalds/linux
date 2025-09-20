@@ -206,32 +206,32 @@ static int snd_pmac_pcm_prepare(struct snd_pmac *chip, struct pmac_stream *rec, 
 	 * common to many PowerBook G3 systems and random noise otherwise
 	 * captured on iBook2's about every third time. -ReneR
 	 */
-	spin_lock_irq(&chip->reg_lock);
-	snd_pmac_dma_stop(rec);
-	chip->extra_dma.cmds->command = cpu_to_le16(DBDMA_STOP);
-	snd_pmac_dma_set_command(rec, &chip->extra_dma);
-	snd_pmac_dma_run(rec, RUN);
-	spin_unlock_irq(&chip->reg_lock);
-	mdelay(5);
-	spin_lock_irq(&chip->reg_lock);
-	/* continuous DMA memory type doesn't provide the physical address,
-	 * so we need to resolve the address here...
-	 */
-	offset = runtime->dma_addr;
-	for (i = 0, cp = rec->cmd.cmds; i < rec->nperiods; i++, cp++) {
-		cp->phy_addr = cpu_to_le32(offset);
-		cp->req_count = cpu_to_le16(rec->period_size);
-		/*cp->res_count = cpu_to_le16(0);*/
-		cp->xfer_status = cpu_to_le16(0);
-		offset += rec->period_size;
+	scoped_guard(spinlock_irq, &chip->reg_lock) {
+		snd_pmac_dma_stop(rec);
+		chip->extra_dma.cmds->command = cpu_to_le16(DBDMA_STOP);
+		snd_pmac_dma_set_command(rec, &chip->extra_dma);
+		snd_pmac_dma_run(rec, RUN);
 	}
-	/* make loop */
-	cp->command = cpu_to_le16(DBDMA_NOP | BR_ALWAYS);
-	cp->cmd_dep = cpu_to_le32(rec->cmd.addr);
+	mdelay(5);
+	scoped_guard(spinlock_irq, &chip->reg_lock) {
+		/* continuous DMA memory type doesn't provide the physical address,
+		 * so we need to resolve the address here...
+		 */
+		offset = runtime->dma_addr;
+		for (i = 0, cp = rec->cmd.cmds; i < rec->nperiods; i++, cp++) {
+			cp->phy_addr = cpu_to_le32(offset);
+			cp->req_count = cpu_to_le16(rec->period_size);
+			/*cp->res_count = cpu_to_le16(0);*/
+			cp->xfer_status = cpu_to_le16(0);
+			offset += rec->period_size;
+		}
+		/* make loop */
+		cp->command = cpu_to_le16(DBDMA_NOP | BR_ALWAYS);
+		cp->cmd_dep = cpu_to_le32(rec->cmd.addr);
 
-	snd_pmac_dma_stop(rec);
-	snd_pmac_dma_set_command(rec, &rec->cmd);
-	spin_unlock_irq(&chip->reg_lock);
+		snd_pmac_dma_stop(rec);
+		snd_pmac_dma_set_command(rec, &rec->cmd);
+	}
 
 	return 0;
 }
@@ -253,26 +253,26 @@ static int snd_pmac_pcm_trigger(struct snd_pmac *chip, struct pmac_stream *rec,
 			return -EBUSY;
 		command = (subs->stream == SNDRV_PCM_STREAM_PLAYBACK ?
 			   OUTPUT_MORE : INPUT_MORE) + INTR_ALWAYS;
-		spin_lock(&chip->reg_lock);
-		snd_pmac_beep_stop(chip);
-		snd_pmac_pcm_set_format(chip);
-		for (i = 0, cp = rec->cmd.cmds; i < rec->nperiods; i++, cp++)
-			out_le16(&cp->command, command);
-		snd_pmac_dma_set_command(rec, &rec->cmd);
-		(void)in_le32(&rec->dma->status);
-		snd_pmac_dma_run(rec, RUN|WAKE);
-		rec->running = 1;
-		spin_unlock(&chip->reg_lock);
+		scoped_guard(spinlock, &chip->reg_lock) {
+			snd_pmac_beep_stop(chip);
+			snd_pmac_pcm_set_format(chip);
+			for (i = 0, cp = rec->cmd.cmds; i < rec->nperiods; i++, cp++)
+				out_le16(&cp->command, command);
+			snd_pmac_dma_set_command(rec, &rec->cmd);
+			(void)in_le32(&rec->dma->status);
+			snd_pmac_dma_run(rec, RUN|WAKE);
+			rec->running = 1;
+		}
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		spin_lock(&chip->reg_lock);
-		rec->running = 0;
-		snd_pmac_dma_stop(rec);
-		for (i = 0, cp = rec->cmd.cmds; i < rec->nperiods; i++, cp++)
-			out_le16(&cp->command, DBDMA_STOP);
-		spin_unlock(&chip->reg_lock);
+		scoped_guard(spinlock, &chip->reg_lock) {
+			rec->running = 0;
+			snd_pmac_dma_stop(rec);
+			for (i = 0, cp = rec->cmd.cmds; i < rec->nperiods; i++, cp++)
+				out_le16(&cp->command, DBDMA_STOP);
+		}
 		break;
 
 	default:
@@ -1321,14 +1321,12 @@ int snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 
 void snd_pmac_suspend(struct snd_pmac *chip)
 {
-	unsigned long flags;
-
 	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 	if (chip->suspend)
 		chip->suspend(chip);
-	spin_lock_irqsave(&chip->reg_lock, flags);
-	snd_pmac_beep_stop(chip);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->reg_lock) {
+		snd_pmac_beep_stop(chip);
+	}
 	if (chip->irq >= 0)
 		disable_irq(chip->irq);
 	if (chip->tx_irq >= 0)
