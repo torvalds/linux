@@ -711,8 +711,10 @@ static int __init vexia_edu_atla10_9v_init(struct device *dev)
 
 	/* Reprobe the SDIO controller to enumerate the now enabled Wifi module */
 	pdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0x11, 0));
-	if (!pdev)
-		return -EPROBE_DEFER;
+	if (!pdev) {
+		pr_warn("Could not get PCI SDIO at devfn 0x%02x\n", PCI_DEVFN(0x11, 0));
+		return 0;
+	}
 
 	ret = device_reprobe(&pdev->dev);
 	if (ret)

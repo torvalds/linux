@@ -276,8 +276,10 @@ get_serdev_controller_by_pci_parent(const struct x86_serdev_info *info)
 	struct pci_dev *pdev;
 
 	pdev = pci_get_domain_bus_and_slot(0, 0, info->ctrl.pci.devfn);
-	if (!pdev)
-		return ERR_PTR(-EPROBE_DEFER);
+	if (!pdev) {
+		pr_err("error could not get PCI serdev at devfn 0x%02x\n", info->ctrl.pci.devfn);
+		return ERR_PTR(-ENODEV);
+	}
 
 	/* This puts our reference on pdev and returns a ref on the ctrl */
 	return get_serdev_controller_from_parent(&pdev->dev, 0, info->ctrl_devname);
