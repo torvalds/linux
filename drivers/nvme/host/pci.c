@@ -3332,6 +3332,13 @@ static unsigned long check_vendor_combination_bug(struct pci_dev *pdev)
 		    dmi_match(DMI_BOARD_NAME, "PH4PRX1_PH6PRX1") ||
 		    dmi_match(DMI_BOARD_NAME, "PH6PG01_PH6PG71"))
 			return NVME_QUIRK_FORCE_NO_SIMPLE_SUSPEND;
+	} else if (pdev->vendor == 0x144d && pdev->device == 0xa824 &&
+                       pdev->subsystem_vendor == 0x108e) {
+		/*
+		 * Set NVME_QUIRK_BOGUS_NID for Samsung PM173X
+		 * with subsystem vendor id 0x108e.
+		 */
+		return NVME_QUIRK_BOGUS_NID;
 	}
 
 	/*
