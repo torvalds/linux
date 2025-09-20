@@ -602,7 +602,7 @@ class SphinxBuilder:
         """Remove documentation output directory"""
         shutil.rmtree(self.builddir, ignore_errors=True)
 
-    def build(self, target, sphinxdirs=None, conf="conf.py",
+    def build(self, target, sphinxdirs=None,
               theme=None, css=None, paper=None, deny_vf=None, rustdoc=False):
         """
         Build documentation using Sphinx. This is the core function of this
@@ -652,9 +652,6 @@ class SphinxBuilder:
 
         if rustdoc:
             args.extend(["-t", "rustdoc"])
-
-        if conf:
-            self.env["SPHINX_CONF"] = self.get_path(conf, abs_path=True)
 
         if not sphinxdirs:
             sphinxdirs = os.environ.get("SPHINXDIRS", ".")
@@ -773,8 +770,6 @@ def main():
                         help="Documentation target to build")
     parser.add_argument("--sphinxdirs", nargs="+",
                         help="Specific directories to build")
-    parser.add_argument("--conf", default="conf.py",
-                        help="Sphinx configuration file")
     parser.add_argument("--builddir", default="output",
                         help="Sphinx configuration file")
 
@@ -813,7 +808,7 @@ def main():
                             verbose=args.verbose, n_jobs=args.jobs,
                             interactive=args.interactive)
 
-    builder.build(args.target, sphinxdirs=args.sphinxdirs, conf=args.conf,
+    builder.build(args.target, sphinxdirs=args.sphinxdirs,
                   theme=args.theme, css=args.css, paper=args.paper,
                   rustdoc=args.rustdoc, deny_vf=args.deny_vf)
 
