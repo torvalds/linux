@@ -741,11 +741,18 @@ static const struct x86_i2c_client_info lenovo_yoga_tab2_1380_i2c_clients[] __in
 	}
 };
 
+static const struct property_entry lenovo_yoga_tab2_1380_fc_props[] __initconst = {
+	PROPERTY_ENTRY_GPIO("uart3_txd-gpios", &baytrail_gpiochip_nodes[0], 57, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("uart3_rxd-gpios", &baytrail_gpiochip_nodes[0], 61, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
 static const struct platform_device_info lenovo_yoga_tab2_1380_pdevs[] __initconst = {
 	{
 		/* For the Tablet 2 Pro 1380's custom fast charging driver */
 		.name = "lenovo-yoga-tab2-pro-1380-fastcharger",
 		.id = PLATFORM_DEVID_NONE,
+		.properties = lenovo_yoga_tab2_1380_fc_props,
 	},
 };
 
@@ -775,20 +782,6 @@ static int __init lenovo_yoga_tab2_1380_init(struct device *dev)
 	return 0;
 }
 
-static struct gpiod_lookup_table lenovo_yoga_tab2_1380_fc_gpios = {
-	.dev_id = "serial0-0",
-	.table = {
-		GPIO_LOOKUP("INT33FC:00", 57, "uart3_txd", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("INT33FC:00", 61, "uart3_rxd", GPIO_ACTIVE_HIGH),
-		{ }
-	},
-};
-
-static struct gpiod_lookup_table * const lenovo_yoga_tab2_1380_gpios[] = {
-	&lenovo_yoga_tab2_1380_fc_gpios,
-	NULL
-};
-
 const struct x86_dev_info lenovo_yoga_tab2_1380_info __initconst = {
 	.i2c_client_info = lenovo_yoga_tab2_1380_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(lenovo_yoga_tab2_1380_i2c_clients),
@@ -796,9 +789,9 @@ const struct x86_dev_info lenovo_yoga_tab2_1380_info __initconst = {
 	.pdev_count = ARRAY_SIZE(lenovo_yoga_tab2_1380_pdevs),
 	.gpio_button = &lenovo_yoga_tab2_830_1050_lid,
 	.gpio_button_count = 1,
-	.gpiod_lookup_tables = lenovo_yoga_tab2_1380_gpios,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = lenovo_yoga_tab2_1380_modules,
+	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 	.init = lenovo_yoga_tab2_1380_init,
 	.exit = lenovo_yoga_tab2_830_1050_exit,
 };
