@@ -856,6 +856,32 @@ static bool check_builtin_idle_enabled(void)
 	return false;
 }
 
+/*
+ * Determine whether @p is a migration-disabled task in the context of BPF
+ * code.
+ *
+ * We can't simply check whether @p->migration_disabled is set in a
+ * sched_ext callback, because migration is always disabled for the current
+ * task while running BPF code.
+ *
+ * The prolog (__bpf_prog_enter) and epilog (__bpf_prog_exit) respectively
+ * disable and re-enable migration. For this reason, the current task
+ * inside a sched_ext callback is always a migration-disabled task.
+ *
+ * Therefore, when @p->migration_disabled == 1, check whether @p is the
+ * current task or not: if it is, then migration was not disabled before
+ * entering the callback, otherwise migration was disabled.
+ *
+ * Returns true if @p is migration-disabled, false otherwise.
+ */
+static bool is_bpf_migration_disabled(const struct task_struct *p)
+{
+	if (p->migration_disabled == 1)
+		return p != current;
+	else
+		return p->migration_disabled;
+}
+
 static s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 				 const struct cpumask *allowed, u64 flags)
 {
@@ -898,7 +924,7 @@ static s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_f
 	 * selection optimizations and simply check whether the previously
 	 * used CPU is idle and within the allowed cpumask.
 	 */
-	if (p->nr_cpus_allowed == 1 || is_migration_disabled(p)) {
+	if (p->nr_cpus_allowed == 1 || is_bpf_migration_disabled(p)) {
 		if (cpumask_test_cpu(prev_cpu, allowed ?: p->cpus_ptr) &&
 		    scx_idle_test_and_clear_cpu(prev_cpu))
 			cpu = prev_cpu;
