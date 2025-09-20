@@ -46,6 +46,7 @@ struct iommu_group;
 struct dev_pin_info;
 struct dev_iommu;
 struct msi_device_data;
+struct brodie_robertson;
 
 /**
  * struct subsys_interface - interfaces to device functions
