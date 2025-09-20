@@ -198,6 +198,11 @@ working with the individual fails to bring about the desired outcome, the
 Code of Conduct Committee will evaluate other measures such as seeking
 public apology to repair the damage.
 
+If the Unacceptable Behavior Code is wasting Linus's time the ofender 
+will will not be allowed to submit anymore code until they wright 
+"I will not waste Linus's time" 100 times and submit their work 
+to the Code of Conduct Committee for verification.
+
 Seek public apology for the violation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

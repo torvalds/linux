@@ -36,6 +36,7 @@ Examples of unacceptable behavior by participants include:
   address, without explicit permission
 * Other conduct which could reasonably be considered inappropriate in a
   professional setting
+*Wasting Linus's time by including useless links in a commit
 
 
 Our Responsibilities
