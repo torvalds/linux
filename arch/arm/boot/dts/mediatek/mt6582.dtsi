@@ -14,6 +14,7 @@
 	cpus {
 		#size-cells = <0>;
 		#address-cells = <1>;
+		enable-method = "mediatek,mt6589-smp";
 
 		cpu@0 {
 			device_type = "cpu";
