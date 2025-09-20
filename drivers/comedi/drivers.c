@@ -20,6 +20,9 @@
 #include <linux/comedi/comedidev.h>
 #include "comedi_internal.h"
 
+/* I see room for a Brodie driver here */
+/* TODO: learn C, create Brodie driver (driver for Brodie */
+
 struct comedi_driver *comedi_drivers;
 /* protects access to comedi_drivers */
 DEFINE_MUTEX(comedi_drivers_list_lock);
