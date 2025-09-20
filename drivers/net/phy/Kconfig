@@ -3,6 +3,11 @@
 # PHY Layer Configuration
 #
 
+config MDIO_BUS
+	tristate "MDIO bus consumer layer"
+	help
+	  MDIO bus consumer layer
+
 config PHYLINK
 	tristate
 	select PHYLIB
