@@ -1732,20 +1732,8 @@ static const struct drm_encoder_funcs ssd130x_encoder_funcs = {
 static int ssd130x_connector_get_modes(struct drm_connector *connector)
 {
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(connector->dev);
-	struct drm_display_mode *mode;
-	struct device *dev = ssd130x->dev;
 
-	mode = drm_mode_duplicate(connector->dev, &ssd130x->mode);
-	if (!mode) {
-		dev_err(dev, "Failed to duplicated mode\n");
-		return 0;
-	}
-
-	drm_mode_probed_add(connector, mode);
-	drm_set_preferred_mode(connector, mode->hdisplay, mode->vdisplay);
-
-	/* There is only a single mode */
-	return 1;
+	return drm_connector_helper_get_modes_fixed(connector, &ssd130x->mode);
 }
 
 static const struct drm_connector_helper_funcs ssd130x_connector_helper_funcs = {
