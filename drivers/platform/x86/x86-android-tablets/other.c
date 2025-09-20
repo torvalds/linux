@@ -571,6 +571,7 @@ const struct x86_dev_info whitelabel_tm800a550l_info __initconst = {
 static const struct property_entry vexia_edu_atla10_5v_touchscreen_props[] = {
 	PROPERTY_ENTRY_U32("hid-descr-addr", 0x0000),
 	PROPERTY_ENTRY_U32("post-reset-deassert-delay-ms", 120),
+	PROPERTY_ENTRY_GPIO("reset-gpios", &baytrail_gpiochip_nodes[1], 26, GPIO_ACTIVE_LOW),
 	{ }
 };
 
@@ -605,23 +606,10 @@ static const struct x86_i2c_client_info vexia_edu_atla10_5v_i2c_clients[] __init
 	}
 };
 
-static struct gpiod_lookup_table vexia_edu_atla10_5v_ft5416_gpios = {
-	.dev_id = "i2c-FTSC1000",
-	.table = {
-		GPIO_LOOKUP("INT33FC:01", 26, "reset", GPIO_ACTIVE_LOW),
-		{ }
-	},
-};
-
-static struct gpiod_lookup_table * const vexia_edu_atla10_5v_gpios[] = {
-	&vexia_edu_atla10_5v_ft5416_gpios,
-	NULL
-};
-
 const struct x86_dev_info vexia_edu_atla10_5v_info __initconst = {
 	.i2c_client_info = vexia_edu_atla10_5v_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(vexia_edu_atla10_5v_i2c_clients),
-	.gpiod_lookup_tables = vexia_edu_atla10_5v_gpios,
+	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 };
 
 /*
@@ -657,6 +645,7 @@ static const struct software_node vexia_edu_atla10_9v_accel_node = {
 static const struct property_entry vexia_edu_atla10_9v_touchscreen_props[] = {
 	PROPERTY_ENTRY_U32("hid-descr-addr", 0x0000),
 	PROPERTY_ENTRY_U32("post-reset-deassert-delay-ms", 120),
+	PROPERTY_ENTRY_GPIO("reset-gpios", &baytrail_gpiochip_nodes[0], 60, GPIO_ACTIVE_LOW),
 	{ }
 };
 
@@ -749,19 +738,6 @@ static const struct x86_serdev_info vexia_edu_atla10_9v_serdevs[] __initconst = 
 	},
 };
 
-static struct gpiod_lookup_table vexia_edu_atla10_9v_ft5416_gpios = {
-	.dev_id = "i2c-FTSC1000",
-	.table = {
-		GPIO_LOOKUP("INT33FC:00", 60, "reset", GPIO_ACTIVE_LOW),
-		{ }
-	},
-};
-
-static struct gpiod_lookup_table * const vexia_edu_atla10_9v_gpios[] = {
-	&vexia_edu_atla10_9v_ft5416_gpios,
-	NULL
-};
-
 static int __init vexia_edu_atla10_9v_init(struct device *dev)
 {
 	struct pci_dev *pdev;
@@ -791,9 +767,9 @@ const struct x86_dev_info vexia_edu_atla10_9v_info __initconst = {
 	.i2c_client_count = ARRAY_SIZE(vexia_edu_atla10_9v_i2c_clients),
 	.serdev_info = vexia_edu_atla10_9v_serdevs,
 	.serdev_count = ARRAY_SIZE(vexia_edu_atla10_9v_serdevs),
-	.gpiod_lookup_tables = vexia_edu_atla10_9v_gpios,
 	.init = vexia_edu_atla10_9v_init,
 	.use_pci = true,
+	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 };
 
 /*
