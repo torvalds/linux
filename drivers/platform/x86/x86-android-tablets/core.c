@@ -153,7 +153,6 @@ static struct spi_device **spi_devs;
 static struct platform_device **pdevs;
 static struct serdev_device **serdevs;
 static struct gpio_keys_button *buttons;
-static struct gpiod_lookup_table * const *gpiod_lookup_tables;
 static const struct software_node *bat_swnode;
 static const struct software_node **gpiochip_node_group;
 static void (*exit_handler)(void);
@@ -394,9 +393,6 @@ static void x86_android_tablet_remove(struct platform_device *pdev)
 
 	if (gpiochip_node_group)
 		software_node_unregister_node_group(gpiochip_node_group);
-
-	for (i = 0; gpiod_lookup_tables && gpiod_lookup_tables[i]; i++)
-		gpiod_remove_lookup_table(gpiod_lookup_tables[i]);
 }
 
 static __init int x86_android_tablet_probe(struct platform_device *pdev)
@@ -419,10 +415,6 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 	 */
 	for (i = 0; dev_info->modules && dev_info->modules[i]; i++)
 		request_module(dev_info->modules[i]);
-
-	gpiod_lookup_tables = dev_info->gpiod_lookup_tables;
-	for (i = 0; gpiod_lookup_tables && gpiod_lookup_tables[i]; i++)
-		gpiod_add_lookup_table(gpiod_lookup_tables[i]);
 
 	switch (dev_info->gpiochip_type) {
 	case X86_GPIOCHIP_BAYTRAIL:

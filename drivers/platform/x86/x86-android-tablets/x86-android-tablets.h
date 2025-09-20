@@ -17,7 +17,6 @@
 #include <linux/spi/spi.h>
 
 struct gpio_desc;
-struct gpiod_lookup_table;
 struct platform_device_info;
 struct software_node;
 
@@ -91,7 +90,6 @@ struct x86_gpio_button {
 struct x86_dev_info {
 	const char * const *modules;
 	const struct software_node *bat_swnode;
-	struct gpiod_lookup_table * const *gpiod_lookup_tables;
 	const struct x86_i2c_client_info *i2c_client_info;
 	const struct x86_spi_dev_info *spi_dev_info;
 	const struct platform_device_info *pdev_info;
