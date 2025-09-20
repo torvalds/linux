@@ -2247,10 +2247,8 @@ static int da7213_runtime_resume(struct device *dev)
 	return regcache_sync(da7213->regmap);
 }
 
-static const struct dev_pm_ops da7213_pm = {
-	RUNTIME_PM_OPS(da7213_runtime_suspend, da7213_runtime_resume, NULL)
-	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(da7213_pm, da7213_runtime_suspend,
+				 da7213_runtime_resume, NULL);
 
 static const struct i2c_device_id da7213_i2c_id[] = {
 	{ "da7213" },

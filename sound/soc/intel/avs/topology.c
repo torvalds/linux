@@ -1387,6 +1387,27 @@ static const struct avs_tplg_token_parser path_parsers[] = {
 	},
 };
 
+static const struct avs_tplg_token_parser condpath_parsers[] = {
+	{
+		.token = AVS_TKN_CONDPATH_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_path, id),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_CONDPATH_SOURCE_PATH_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_path, source_path_id),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_CONDPATH_SINK_PATH_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_path, sink_path_id),
+		.parse = avs_parse_word_token,
+	},
+};
+
 static struct avs_tplg_path *
 avs_tplg_path_create(struct snd_soc_component *comp, struct avs_tplg_path_template *owner,
 		     struct snd_soc_tplg_vendor_array *tuples, u32 block_size,
@@ -1450,6 +1471,39 @@ static const struct avs_tplg_token_parser path_tmpl_parsers[] = {
 		.token = AVS_TKN_PATH_TMPL_ID_U32,
 		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
 		.offset = offsetof(struct avs_tplg_path_template, id),
+		.parse = avs_parse_word_token,
+	},
+};
+
+static const struct avs_tplg_token_parser condpath_tmpl_parsers[] = {
+	{
+		.token = AVS_TKN_CONDPATH_TMPL_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_path_template, id),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_CONDPATH_TMPL_SOURCE_TPLG_NAME_STRING,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_STRING,
+		.offset = offsetof(struct avs_tplg_path_template, source.tplg_name),
+		.parse = avs_parse_string_token,
+	},
+	{
+		.token = AVS_TKN_CONDPATH_TMPL_SOURCE_PATH_TMPL_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_path_template, source.id),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_CONDPATH_TMPL_SINK_TPLG_NAME_STRING,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_STRING,
+		.offset = offsetof(struct avs_tplg_path_template, sink.tplg_name),
+		.parse = avs_parse_string_token,
+	},
+	{
+		.token = AVS_TKN_CONDPATH_TMPL_SINK_PATH_TMPL_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_path_template, sink.id),
 		.parse = avs_parse_word_token,
 	},
 };
@@ -1522,6 +1576,56 @@ avs_tplg_path_template_create(struct snd_soc_component *comp, struct avs_tplg *o
 		return ERR_PTR(ret);
 
 	return template;
+}
+
+static int avs_tplg_parse_condpath_templates(struct snd_soc_component *comp,
+					     struct snd_soc_tplg_vendor_array *tuples,
+					     u32 block_size)
+{
+	struct avs_soc_component *acomp = to_avs_soc_component(comp);
+	struct avs_tplg *tplg = acomp->tplg;
+	int ret, i;
+
+	ret = parse_dictionary_header(comp, tuples, (void **)&tplg->condpath_tmpls,
+				      &tplg->num_condpath_tmpls,
+				      sizeof(*tplg->condpath_tmpls),
+				      AVS_TKN_MANIFEST_NUM_CONDPATH_TMPLS_U32);
+	if (ret)
+		return ret;
+
+	block_size -= le32_to_cpu(tuples->size);
+	/* With header parsed, move on to parsing entries. */
+	tuples = avs_tplg_vendor_array_next(tuples);
+
+	for (i = 0; i < tplg->num_condpath_tmpls; i++) {
+		struct avs_tplg_path_template *template;
+		u32 esize;
+
+		template = &tplg->condpath_tmpls[i];
+		template->owner = tplg; /* Used when building sysfs hierarchy. */
+		INIT_LIST_HEAD(&template->path_list);
+		INIT_LIST_HEAD(&template->node);
+
+		ret = avs_tplg_vendor_entry_size(tuples, block_size,
+						 AVS_TKN_CONDPATH_TMPL_ID_U32, &esize);
+		if (ret)
+			return ret;
+
+		ret = parse_path_template(comp, tuples, esize, template,
+					  condpath_tmpl_parsers,
+					  ARRAY_SIZE(condpath_tmpl_parsers),
+					  condpath_parsers,
+					  ARRAY_SIZE(condpath_parsers));
+		if (ret < 0) {
+			dev_err(comp->dev, "parse condpath_tmpl: %d failed: %d\n", i, ret);
+			return ret;
+		}
+
+		block_size -= esize;
+		tuples = avs_tplg_vendor_array_at(tuples, esize);
+	}
+
+	return 0;
 }
 
 static const struct avs_tplg_token_parser mod_init_config_parsers[] = {
@@ -1890,6 +1994,12 @@ static int avs_manifest(struct snd_soc_component *comp, int index,
 		dev_err(comp->dev, "init config lookup failed: %d\n", ret);
 		return ret;
 	}
+
+	/* Condpaths dictionary. */
+	ret = avs_tplg_parse_condpath_templates(comp, tuples,
+						has_init_config ? offset : remaining);
+	if (ret < 0)
+		return ret;
 
 	if (!has_init_config)
 		return 0;

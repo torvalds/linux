@@ -16,10 +16,35 @@
 #include <linux/types.h>
 #include <sound/cs-amp-lib.h>
 
-#define CS_AMP_CAL_GUID \
+#define CIRRUS_LOGIC_CALIBRATION_EFI_NAME L"CirrusSmartAmpCalibrationData"
+#define CIRRUS_LOGIC_CALIBRATION_EFI_GUID \
 	EFI_GUID(0x02f9af02, 0x7734, 0x4233, 0xb4, 0x3d, 0x93, 0xfe, 0x5a, 0xa3, 0x5d, 0xb3)
 
-#define CS_AMP_CAL_NAME	L"CirrusSmartAmpCalibrationData"
+#define LENOVO_SPEAKER_ID_EFI_NAME L"SdwSpeaker"
+#define LENOVO_SPEAKER_ID_EFI_GUID \
+	EFI_GUID(0x48df970e, 0xe27f, 0x460a, 0xb5, 0x86, 0x77, 0x19, 0x80, 0x1d, 0x92, 0x82)
+
+#define HP_SPEAKER_ID_EFI_NAME L"HPSpeakerID"
+#define HP_SPEAKER_ID_EFI_GUID \
+	EFI_GUID(0xc49593a4, 0xd099, 0x419b, 0xa2, 0xc3, 0x67, 0xe9, 0x80, 0xe6, 0x1d, 0x1e)
+
+#define HP_CALIBRATION_EFI_NAME L"SmartAmpCalibrationData"
+#define HP_CALIBRATION_EFI_GUID \
+	EFI_GUID(0x53559579, 0x8753, 0x4f5c, 0x91, 0x30, 0xe8, 0x2a, 0xcf, 0xb8, 0xd8, 0x93)
+
+static const struct cs_amp_lib_cal_efivar {
+	efi_char16_t *name;
+	efi_guid_t *guid;
+} cs_amp_lib_cal_efivars[] = {
+	{
+		.name = HP_CALIBRATION_EFI_NAME,
+		.guid = &HP_CALIBRATION_EFI_GUID,
+	},
+	{
+		.name = CIRRUS_LOGIC_CALIBRATION_EFI_NAME,
+		.guid = &CIRRUS_LOGIC_CALIBRATION_EFI_GUID,
+	},
+};
 
 static int cs_amp_write_cal_coeff(struct cs_dsp *dsp,
 				  const struct cirrus_amp_cal_controls *controls,
@@ -115,16 +140,41 @@ static efi_status_t cs_amp_get_efi_variable(efi_char16_t *name,
 	return EFI_NOT_FOUND;
 }
 
+static int cs_amp_convert_efi_status(efi_status_t status)
+{
+	switch (status) {
+	case EFI_SUCCESS:
+		return 0;
+	case EFI_NOT_FOUND:
+		return -ENOENT;
+	case EFI_BUFFER_TOO_SMALL:
+		return -EFBIG;
+	case EFI_UNSUPPORTED:
+	case EFI_ACCESS_DENIED:
+	case EFI_SECURITY_VIOLATION:
+		return -EACCES;
+	default:
+		return -EIO;
+	}
+}
+
 static struct cirrus_amp_efi_data *cs_amp_get_cal_efi_buffer(struct device *dev)
 {
 	struct cirrus_amp_efi_data *efi_data;
 	unsigned long data_size = 0;
 	u8 *data;
 	efi_status_t status;
-	int ret;
+	int i, ret;
 
-	/* Get real size of UEFI variable */
-	status = cs_amp_get_efi_variable(CS_AMP_CAL_NAME, &CS_AMP_CAL_GUID, &data_size, NULL);
+	/* Find EFI variable and get size */
+	for (i = 0; i < ARRAY_SIZE(cs_amp_lib_cal_efivars); i++) {
+		status = cs_amp_get_efi_variable(cs_amp_lib_cal_efivars[i].name,
+						 cs_amp_lib_cal_efivars[i].guid,
+						 &data_size, NULL);
+		if (status == EFI_BUFFER_TOO_SMALL)
+			break;
+	}
+
 	if (status != EFI_BUFFER_TOO_SMALL)
 		return ERR_PTR(-ENOENT);
 
@@ -138,7 +188,9 @@ static struct cirrus_amp_efi_data *cs_amp_get_cal_efi_buffer(struct device *dev)
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
-	status = cs_amp_get_efi_variable(CS_AMP_CAL_NAME, &CS_AMP_CAL_GUID, &data_size, data);
+	status = cs_amp_get_efi_variable(cs_amp_lib_cal_efivars[i].name,
+					 cs_amp_lib_cal_efivars[i].guid,
+					 &data_size, data);
 	if (status != EFI_SUCCESS) {
 		ret = -EINVAL;
 		goto err;
@@ -272,6 +324,81 @@ int cs_amp_get_efi_calibration_data(struct device *dev, u64 target_uid, int amp_
 		return -ENOENT;
 }
 EXPORT_SYMBOL_NS_GPL(cs_amp_get_efi_calibration_data, "SND_SOC_CS_AMP_LIB");
+
+struct cs_amp_spkid_efi {
+	efi_char16_t *name;
+	efi_guid_t *guid;
+	u8 values[2];
+};
+
+static int cs_amp_get_efi_byte_spkid(struct device *dev, const struct cs_amp_spkid_efi *info)
+{
+	efi_status_t status;
+	unsigned long size;
+	u8 spkid;
+	int i, ret;
+
+	size = sizeof(spkid);
+	status = cs_amp_get_efi_variable(info->name, info->guid, &size, &spkid);
+	ret = cs_amp_convert_efi_status(status);
+	if (ret < 0)
+		return ret;
+
+	if (size == 0)
+		return -ENOENT;
+
+	for (i = 0; i < ARRAY_SIZE(info->values); i++) {
+		if (info->values[i] == spkid)
+			return i;
+	}
+
+	dev_err(dev, "EFI speaker ID bad value %#x\n", spkid);
+
+	return -EINVAL;
+}
+
+static const struct cs_amp_spkid_efi cs_amp_spkid_byte_types[] = {
+	{
+		.name = LENOVO_SPEAKER_ID_EFI_NAME,
+		.guid = &LENOVO_SPEAKER_ID_EFI_GUID,
+		.values = { 0xd0, 0xd1 },
+	},
+	{
+		.name = HP_SPEAKER_ID_EFI_NAME,
+		.guid = &HP_SPEAKER_ID_EFI_GUID,
+		.values = { 0x30, 0x31 },
+	},
+};
+
+/**
+ * cs_amp_get_vendor_spkid - get a speaker ID from vendor-specific storage
+ * @dev:	pointer to struct device
+ *
+ * Known vendor-specific methods of speaker ID are checked and if one is
+ * found its speaker ID value is returned.
+ *
+ * Return: >=0 is a valid speaker ID. -ENOENT if a vendor-specific method
+ *	   was not found. -EACCES if the vendor-specific storage could not
+ *	   be read. Other error values indicate that the data from the
+ *	   vendor-specific storage was found but could not be understood.
+ */
+int cs_amp_get_vendor_spkid(struct device *dev)
+{
+	int i, ret;
+
+	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE) &&
+	    !IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST))
+		return -ENOENT;
+
+	for (i = 0; i < ARRAY_SIZE(cs_amp_spkid_byte_types); i++) {
+		ret = cs_amp_get_efi_byte_spkid(dev, &cs_amp_spkid_byte_types[i]);
+		if (ret != -ENOENT)
+			return ret;
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL_NS_GPL(cs_amp_get_vendor_spkid, "SND_SOC_CS_AMP_LIB");
 
 static const struct cs_amp_test_hooks cs_amp_test_hook_ptrs = {
 	.get_efi_variable = cs_amp_get_efi_variable,

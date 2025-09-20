@@ -1379,9 +1379,9 @@ static struct snd_soc_component_driver avs_component_driver = {
 	.topology_name_prefix	= "intel/avs",
 };
 
-int avs_soc_component_register(struct device *dev, const char *name,
-			       struct snd_soc_component_driver *drv,
-			       struct snd_soc_dai_driver *cpu_dais, int num_cpu_dais)
+int avs_register_component(struct device *dev, const char *name,
+			   struct snd_soc_component_driver *drv,
+			   struct snd_soc_dai_driver *cpu_dais, int num_cpu_dais)
 {
 	struct avs_soc_component *acomp;
 	int ret;
@@ -1390,15 +1390,17 @@ int avs_soc_component_register(struct device *dev, const char *name,
 	if (!acomp)
 		return -ENOMEM;
 
-	ret = snd_soc_component_initialize(&acomp->base, drv, dev);
-	if (ret < 0)
-		return ret;
+	acomp->base.name = devm_kstrdup(dev, name, GFP_KERNEL);
+	if (!acomp->base.name)
+		return -ENOMEM;
 
-	/* force name change after ASoC is done with its init */
-	acomp->base.name = name;
 	INIT_LIST_HEAD(&acomp->node);
 
 	drv->use_dai_pcm_id = !obsolete_card_names;
+
+	ret = snd_soc_component_initialize(&acomp->base, drv, dev);
+	if (ret < 0)
+		return ret;
 
 	return snd_soc_add_component(&acomp->base, cpu_dais, num_cpu_dais);
 }
@@ -1426,7 +1428,7 @@ static struct snd_soc_dai_driver dmic_cpu_dais[] = {
 },
 };
 
-int avs_dmic_platform_register(struct avs_dev *adev, const char *name)
+int avs_register_dmic_component(struct avs_dev *adev, const char *name)
 {
 	const struct snd_soc_dai_ops *ops;
 
@@ -1437,8 +1439,8 @@ int avs_dmic_platform_register(struct avs_dev *adev, const char *name)
 
 	dmic_cpu_dais[0].ops = ops;
 	dmic_cpu_dais[1].ops = ops;
-	return avs_soc_component_register(adev->dev, name, &avs_component_driver, dmic_cpu_dais,
-					  ARRAY_SIZE(dmic_cpu_dais));
+	return avs_register_component(adev->dev, name, &avs_component_driver, dmic_cpu_dais,
+				      ARRAY_SIZE(dmic_cpu_dais));
 }
 
 static const struct snd_soc_dai_driver i2s_dai_template = {
@@ -1470,8 +1472,8 @@ static const struct snd_soc_dai_driver i2s_dai_template = {
 	},
 };
 
-int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned long port_mask,
-			      unsigned long *tdms)
+int avs_register_i2s_component(struct avs_dev *adev, const char *name, unsigned long port_mask,
+			       unsigned long *tdms)
 {
 	struct snd_soc_dai_driver *cpus, *dai;
 	const struct snd_soc_dai_ops *ops;
@@ -1537,7 +1539,7 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 	}
 
 plat_register:
-	return avs_soc_component_register(adev->dev, name, &avs_component_driver, cpus, cpu_count);
+	return avs_register_component(adev->dev, name, &avs_component_driver, cpus, cpu_count);
 }
 
 /* HD-Audio CPU DAI template */
@@ -1762,8 +1764,7 @@ static struct snd_soc_component_driver avs_hda_component_driver = {
 	.topology_name_prefix	= "intel/avs",
 };
 
-int avs_hda_platform_register(struct avs_dev *adev, const char *name)
+int avs_register_hda_component(struct avs_dev *adev, const char *name)
 {
-	return avs_soc_component_register(adev->dev, name,
-					  &avs_hda_component_driver, NULL, 0);
+	return avs_register_component(adev->dev, name, &avs_hda_component_driver, NULL, 0);
 }

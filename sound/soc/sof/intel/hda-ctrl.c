@@ -183,7 +183,7 @@ int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable)
 }
 EXPORT_SYMBOL_NS(hda_dsp_ctrl_clock_power_gating, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
-int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
+int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool detect_codec)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hdac_stream *stream;
@@ -220,7 +220,11 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 	}
 	usleep_range(1000, 1200);
 
-	hda_codec_detect_mask(sdev);
+	/* Accept unsolicited responses */
+	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
+
+	if (detect_codec)
+		hda_codec_detect_mask(sdev);
 
 	/* clear stream status */
 	list_for_each_entry(stream, &bus->stream_list, list) {
