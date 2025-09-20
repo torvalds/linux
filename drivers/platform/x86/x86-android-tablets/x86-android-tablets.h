@@ -82,7 +82,7 @@ struct x86_serdev_info {
 
 struct x86_dev_info {
 	const char * const *modules;
-	const struct software_node *bat_swnode;
+	const struct software_node **swnode_group;
 	const struct x86_i2c_client_info *i2c_client_info;
 	const struct x86_spi_dev_info *spi_dev_info;
 	const struct platform_device_info *pdev_info;

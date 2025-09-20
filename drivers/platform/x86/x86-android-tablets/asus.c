@@ -190,7 +190,7 @@ const struct x86_dev_info asus_me176c_info __initconst = {
 	.serdev_info = asus_me176c_serdevs,
 	.serdev_count = ARRAY_SIZE(asus_me176c_serdevs),
 	.gpio_button_swnodes = asus_me176c_tf103c_lid_swnodes,
-	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
+	.swnode_group = generic_lipo_hv_4v35_battery_swnodes,
 	.modules = bq24190_modules,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 };
@@ -313,7 +313,7 @@ const struct x86_dev_info asus_tf103c_info __initconst = {
 	.pdev_info = asus_me176c_tf103c_pdevs,
 	.pdev_count = ARRAY_SIZE(asus_me176c_tf103c_pdevs),
 	.gpio_button_swnodes = asus_me176c_tf103c_lid_swnodes,
-	.bat_swnode = &generic_lipo_4v2_battery_node,
+	.swnode_group = generic_lipo_4v2_battery_swnodes,
 	.modules = bq24190_modules,
 	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 };

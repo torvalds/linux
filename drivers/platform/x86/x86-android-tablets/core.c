@@ -153,7 +153,7 @@ static struct spi_device **spi_devs;
 static struct platform_device **pdevs;
 static struct serdev_device **serdevs;
 static const struct software_node **gpio_button_swnodes;
-static const struct software_node *bat_swnode;
+static const struct software_node **swnode_group;
 static const struct software_node **gpiochip_node_group;
 static void (*exit_handler)(void);
 
@@ -390,8 +390,8 @@ static void x86_android_tablet_remove(struct platform_device *pdev)
 	if (gpio_button_swnodes)
 		software_node_unregister_node_group(gpio_button_swnodes);
 
-	if (bat_swnode)
-		software_node_unregister(bat_swnode);
+	if (swnode_group)
+		software_node_unregister_node_group(swnode_group);
 
 	if (gpiochip_node_group)
 		software_node_unregister_node_group(gpiochip_node_group);
@@ -436,13 +436,13 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	if (dev_info->bat_swnode) {
-		ret = software_node_register(dev_info->bat_swnode);
+	if (dev_info->swnode_group) {
+		ret = software_node_register_node_group(dev_info->swnode_group);
 		if (ret) {
 			x86_android_tablet_remove(pdev);
 			return ret;
 		}
-		bat_swnode = dev_info->bat_swnode;
+		swnode_group = dev_info->swnode_group;
 	}
 
 	if (dev_info->init) {

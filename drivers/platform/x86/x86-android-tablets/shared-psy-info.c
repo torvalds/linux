@@ -113,6 +113,11 @@ const struct software_node generic_lipo_4v2_battery_node = {
 	.properties = generic_lipo_4v2_battery_props,
 };
 
+const struct software_node *generic_lipo_4v2_battery_swnodes[] = {
+	&generic_lipo_4v2_battery_node,
+	NULL
+};
+
 /* LiPo HighVoltage (max 4.35V) settings used by most devs with a HV battery */
 static const struct property_entry generic_lipo_hv_4v35_battery_props[] = {
 	PROPERTY_ENTRY_STRING("compatible", "simple-battery"),
@@ -131,6 +136,11 @@ static const struct property_entry generic_lipo_hv_4v35_battery_props[] = {
 
 const struct software_node generic_lipo_hv_4v35_battery_node = {
 	.properties = generic_lipo_hv_4v35_battery_props,
+};
+
+const struct software_node *generic_lipo_hv_4v35_battery_swnodes[] = {
+	&generic_lipo_hv_4v35_battery_node,
+	NULL
 };
 
 /* For enabling the bq24190 5V boost based on id-pin */
