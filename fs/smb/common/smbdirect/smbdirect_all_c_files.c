@@ -21,3 +21,4 @@
 #include "smbdirect_rw.c"
 #include "smbdirect_debug.c"
 #include "smbdirect_connect.c"
+#include "smbdirect_accept.c"
