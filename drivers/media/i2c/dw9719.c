@@ -95,12 +95,20 @@ struct dw9719_device {
 
 static int dw9719_power_down(struct dw9719_device *dw9719)
 {
+	u32 reg_pwr = dw9719->model == DW9718S ? DW9718S_PD : DW9719_CONTROL;
+
+	/*
+	 * Worth engaging the internal SHUTDOWN mode especially due to the
+	 * regulator being potentially shared with other devices.
+	 */
+	if (cci_write(dw9719->regmap, reg_pwr, DW9719_SHUTDOWN, NULL))
+		dev_err(dw9719->dev, "Error writing to power register\n");
 	return regulator_disable(dw9719->regulator);
 }
 
 static int dw9719_power_up(struct dw9719_device *dw9719, bool detect)
 {
-	u32 reg_pwr;
+	u32 reg_pwr = dw9719->model == DW9718S ? DW9718S_PD : DW9719_CONTROL;
 	u64 val;
 	int ret;
 	int err;
@@ -109,13 +117,17 @@ static int dw9719_power_up(struct dw9719_device *dw9719, bool detect)
 	if (ret)
 		return ret;
 
-	/* Jiggle SCL pin to wake up device */
-	reg_pwr = dw9719->model == DW9718S ? DW9718S_PD : DW9719_CONTROL;
-	cci_write(dw9719->regmap, reg_pwr, DW9719_SHUTDOWN, &ret);
-	fsleep(100);
+	/*
+	 * Need 100us to transition from SHUTDOWN to STANDBY.
+	 * Jiggle the SCL pin to wake up the device (even when the regulator is
+	 * shared) and wait double the time to be sure, as 100us is not enough
+	 * at least on the DW9718S as found on the motorola-nora smartphone,
+	 * then retry the write.
+	 */
+	cci_write(dw9719->regmap, reg_pwr, DW9719_STANDBY, NULL);
+	/* the jiggle is expected to fail, don't even log that as error */
+	fsleep(200);
 	cci_write(dw9719->regmap, reg_pwr, DW9719_STANDBY, &ret);
-	/* Need 100us to transit from SHUTDOWN to STANDBY */
-	fsleep(100);
 
 	if (detect) {
 		/* This model does not have an INFO register */
