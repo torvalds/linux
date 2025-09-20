@@ -594,15 +594,10 @@ static void lenovo_yoga_tab2_830_1050_exit(void)
 {
 	unregister_sys_off_handler(lenovo_yoga_tab2_830_1050_sys_off_handler);
 
-	if (lenovo_yoga_tab2_830_1050_codec_dev) {
-		device_remove_software_node(lenovo_yoga_tab2_830_1050_codec_dev);
-		put_device(lenovo_yoga_tab2_830_1050_codec_dev);
-	}
-
-	if (lenovo_yoga_tab2_830_1050_codec_pinctrl) {
-		pinctrl_put(lenovo_yoga_tab2_830_1050_codec_pinctrl);
-		pinctrl_unregister_mappings(&lenovo_yoga_tab2_830_1050_codec_pinctrl_map);
-	}
+	device_remove_software_node(lenovo_yoga_tab2_830_1050_codec_dev);
+	pinctrl_put(lenovo_yoga_tab2_830_1050_codec_pinctrl);
+	pinctrl_unregister_mappings(&lenovo_yoga_tab2_830_1050_codec_pinctrl_map);
+	put_device(lenovo_yoga_tab2_830_1050_codec_dev);
 }
 
 /*
