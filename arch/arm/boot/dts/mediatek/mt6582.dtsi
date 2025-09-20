@@ -97,6 +97,7 @@
 			reg = <0x11002000 0x400>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&uart_clk>;
+			clock-names = "baud";
 			status = "disabled";
 		};
 
@@ -105,6 +106,7 @@
 			reg = <0x11003000 0x400>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&uart_clk>;
+			clock-names = "baud";
 			status = "disabled";
 		};
 
@@ -113,6 +115,7 @@
 			reg = <0x11004000 0x400>;
 			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&uart_clk>;
+			clock-names = "baud";
 			status = "disabled";
 		};
 
@@ -121,6 +124,7 @@
 			reg = <0x11005000 0x400>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&uart_clk>;
+			clock-names = "baud";
 			status = "disabled";
 		};
 	};
