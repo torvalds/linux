@@ -38,6 +38,15 @@ static const struct software_node acer_b1_750_bma250e_node = {
 	.properties = acer_b1_750_bma250e_props,
 };
 
+static const struct property_entry acer_b1_750_novatek_props[] = {
+	PROPERTY_ENTRY_GPIO("reset-gpios", &baytrail_gpiochip_nodes[1], 26, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct software_node acer_b1_750_novatek_node = {
+	.properties = acer_b1_750_novatek_props,
+};
+
 static const struct x86_i2c_client_info acer_b1_750_i2c_clients[] __initconst = {
 	{
 		/* Novatek NVT-ts touchscreen */
@@ -45,6 +54,7 @@ static const struct x86_i2c_client_info acer_b1_750_i2c_clients[] __initconst = 
 			.type = "nt11205-ts",
 			.addr = 0x34,
 			.dev_name = "NVT-ts",
+			.swnode = &acer_b1_750_novatek_node,
 		},
 		.adapter_path = "\\_SB_.I2C4",
 		.irq_data = {
@@ -74,16 +84,7 @@ static const struct x86_i2c_client_info acer_b1_750_i2c_clients[] __initconst = 
 	},
 };
 
-static struct gpiod_lookup_table acer_b1_750_nvt_ts_gpios = {
-	.dev_id = "i2c-NVT-ts",
-	.table = {
-		GPIO_LOOKUP("INT33FC:01", 26, "reset", GPIO_ACTIVE_LOW),
-		{ }
-	},
-};
-
 static struct gpiod_lookup_table * const acer_b1_750_gpios[] = {
-	&acer_b1_750_nvt_ts_gpios,
 	&int3496_reference_gpios,
 	NULL
 };
@@ -94,6 +95,7 @@ const struct x86_dev_info acer_b1_750_info __initconst = {
 	.pdev_info = int3496_pdevs,
 	.pdev_count = 1,
 	.gpiod_lookup_tables = acer_b1_750_gpios,
+	.gpiochip_type = X86_GPIOCHIP_BAYTRAIL,
 };
 
 /*
