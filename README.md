@@ -1,4 +1,7 @@
-Linux kernel
+## Linux kernel
+#### *Now featuring Brodie Robertson*
+![br0-lo1](https://github.com/user-attachments/assets/40d4e69d-ef25-41a4-9309-23293736a0c6)
+
 ============
 
 There are several guides for kernel developers and users. These guides can
