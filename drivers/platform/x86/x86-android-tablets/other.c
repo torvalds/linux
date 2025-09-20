@@ -436,6 +436,17 @@ static const struct software_node nextbook_ares8a_accel_node = {
 	.properties = nextbook_ares8a_accel_props,
 };
 
+static const struct property_entry nextbook_ares8a_ft5416_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 800),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1280),
+	PROPERTY_ENTRY_GPIO("reset-gpios", &cherryview_gpiochip_nodes[1], 25, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct software_node nextbook_ares8a_ft5416_node = {
+	.properties = nextbook_ares8a_ft5416_props,
+};
+
 static const struct x86_i2c_client_info nextbook_ares8a_i2c_clients[] __initconst = {
 	{
 		/* Freescale MMA8653FC accelerometer */
@@ -452,7 +463,7 @@ static const struct x86_i2c_client_info nextbook_ares8a_i2c_clients[] __initcons
 			.type = "edt-ft5x06",
 			.addr = 0x38,
 			.dev_name = "ft5416",
-			.swnode = &nextbook_ares8_touchscreen_node,
+			.swnode = &nextbook_ares8a_ft5416_node,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C6",
 		.irq_data = {
@@ -466,23 +477,10 @@ static const struct x86_i2c_client_info nextbook_ares8a_i2c_clients[] __initcons
 	},
 };
 
-static struct gpiod_lookup_table nextbook_ares8a_ft5416_gpios = {
-	.dev_id = "i2c-ft5416",
-	.table = {
-		GPIO_LOOKUP("INT33FF:01", 25, "reset", GPIO_ACTIVE_LOW),
-		{ }
-	},
-};
-
-static struct gpiod_lookup_table * const nextbook_ares8a_gpios[] = {
-	&nextbook_ares8a_ft5416_gpios,
-	NULL
-};
-
 const struct x86_dev_info nextbook_ares8a_info __initconst = {
 	.i2c_client_info = nextbook_ares8a_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(nextbook_ares8a_i2c_clients),
-	.gpiod_lookup_tables = nextbook_ares8a_gpios,
+	.gpiochip_type = X86_GPIOCHIP_CHERRYVIEW,
 };
 
 /*
