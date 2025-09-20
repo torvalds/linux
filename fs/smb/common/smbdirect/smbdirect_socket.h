@@ -749,4 +749,13 @@ static inline size_t smbdirect_get_buf_page_count(const void *buf, size_t size)
 		(uintptr_t)buf / PAGE_SIZE;
 }
 
+/*
+ * Maximum number of retries on data transfer operations
+ */
+#define SMBDIRECT_RDMA_CM_RETRY 6
+/*
+ * No need to retry on Receiver Not Ready since SMB_DIRECT manages credits
+ */
+#define SMBDIRECT_RDMA_CM_RNR_RETRY 0
+
 #endif /* __FS_SMB_COMMON_SMBDIRECT_SMBDIRECT_SOCKET_H__ */
