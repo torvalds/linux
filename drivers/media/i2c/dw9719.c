@@ -82,6 +82,7 @@ static int dw9719_power_up(struct dw9719_device *dw9719, bool detect)
 {
 	u64 val;
 	int ret;
+	int err;
 
 	ret = regulator_enable(dw9719->regulator);
 	if (ret)
@@ -123,7 +124,13 @@ static int dw9719_power_up(struct dw9719_device *dw9719, bool detect)
 					 &dw9719->sac_mode);
 
 		/* Optional indication of VCM frequency */
-		device_property_read_u32(dw9719->dev, "dongwoon,vcm-freq",
+		err = device_property_read_u32(dw9719->dev, "dongwoon,vcm-freq",
+					       &dw9719->vcm_freq);
+		if (err == 0)
+			dev_warn(dw9719->dev, "dongwoon,vcm-freq property is deprecated, please use dongwoon,vcm-prescale\n");
+
+		/* Optional indication of VCM prescale */
+		device_property_read_u32(dw9719->dev, "dongwoon,vcm-prescale",
 					 &dw9719->vcm_freq);
 	}
 
