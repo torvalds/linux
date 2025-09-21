@@ -39,6 +39,7 @@
 #include <linux/tracepoint.h>
 #include <linux/overflow.h>
 #include <linux/cookie.h>
+#include <linux/verification.h>
 
 #include <net/netfilter/nf_bpf_link.h>
 #include <net/netkit.h>
@@ -2785,8 +2786,44 @@ static bool is_perfmon_prog_type(enum bpf_prog_type prog_type)
 	}
 }
 
+static int bpf_prog_verify_signature(struct bpf_prog *prog, union bpf_attr *attr,
+				     bool is_kernel)
+{
+	bpfptr_t usig = make_bpfptr(attr->signature, is_kernel);
+	struct bpf_dynptr_kern sig_ptr, insns_ptr;
+	struct bpf_key *key = NULL;
+	void *sig;
+	int err = 0;
+
+	if (system_keyring_id_check(attr->keyring_id) == 0)
+		key = bpf_lookup_system_key(attr->keyring_id);
+	else
+		key = bpf_lookup_user_key(attr->keyring_id, 0);
+
+	if (!key)
+		return -EINVAL;
+
+	sig = kvmemdup_bpfptr(usig, attr->signature_size);
+	if (IS_ERR(sig)) {
+		bpf_key_put(key);
+		return -ENOMEM;
+	}
+
+	bpf_dynptr_init(&sig_ptr, sig, BPF_DYNPTR_TYPE_LOCAL, 0,
+			attr->signature_size);
+	bpf_dynptr_init(&insns_ptr, prog->insnsi, BPF_DYNPTR_TYPE_LOCAL, 0,
+			prog->len * sizeof(struct bpf_insn));
+
+	err = bpf_verify_pkcs7_signature((struct bpf_dynptr *)&insns_ptr,
+					 (struct bpf_dynptr *)&sig_ptr, key);
+
+	bpf_key_put(key);
+	kvfree(sig);
+	return err;
+}
+
 /* last field in 'union bpf_attr' used by this command */
-#define BPF_PROG_LOAD_LAST_FIELD fd_array_cnt
+#define BPF_PROG_LOAD_LAST_FIELD keyring_id
 
 static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr, u32 uattr_size)
 {
@@ -2949,6 +2986,12 @@ static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr, u32 uattr_size)
 
 	/* eBPF programs must be GPL compatible to use GPL-ed functions */
 	prog->gpl_compatible = license_is_gpl_compatible(license) ? 1 : 0;
+
+	if (attr->signature) {
+		err = bpf_prog_verify_signature(prog, attr, uattr.is_kernel);
+		if (err)
+			goto free_prog;
+	}
 
 	prog->orig_prog = NULL;
 	prog->jited = 0;

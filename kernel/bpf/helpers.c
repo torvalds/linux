@@ -3898,7 +3898,7 @@ __bpf_kfunc int bpf_verify_pkcs7_signature(struct bpf_dynptr *data_p,
 
 	return verify_pkcs7_signature(data, data_len, sig, sig_len,
 				      trusted_keyring->key,
-				      VERIFYING_UNSPECIFIED_SIGNATURE, NULL,
+				      VERIFYING_BPF_SIGNATURE, NULL,
 				      NULL);
 #else
 	return -EOPNOTSUPP;
