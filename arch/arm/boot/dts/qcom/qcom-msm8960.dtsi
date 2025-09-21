@@ -131,6 +131,24 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
+			i2c1_default_state: i2c1-default-state {
+				i2c1-pins {
+					pins = "gpio8", "gpio9";
+					function = "gsbi1";
+					drive-strength = <8>;
+					bias-disable;
+				};
+			};
+
+			i2c1_sleep_state: i2c1-sleep-state {
+				i2c1-pins {
+					pins = "gpio8", "gpio9";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-bus-hold;
+				};
+			};
+
 			i2c3_default_state: i2c3-default-state {
 				i2c3-pins {
 					pins = "gpio16", "gpio17";
@@ -143,6 +161,24 @@
 			i2c3_sleep_state: i2c3-sleep-state {
 				i2c3-pins {
 					pins = "gpio16", "gpio17";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-bus-hold;
+				};
+			};
+
+			i2c8_default_state: i2c8-default-state {
+				i2c8-pins {
+					pins = "gpio36", "gpio37";
+					function = "gsbi8";
+					drive-strength = <8>;
+					bias-disable;
+				};
+			};
+
+			i2c8_sleep_state: i2c8-sleep-state {
+				i2c8-pins {
+					pins = "gpio36", "gpio37";
 					function = "gpio";
 					drive-strength = <2>;
 					bias-bus-hold;
@@ -474,6 +510,23 @@
 
 			status = "disabled";
 
+			gsbi1_i2c: i2c@16080000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				reg = <0x16080000 0x1000>;
+				pinctrl-0 = <&i2c1_default_state>;
+				pinctrl-1 = <&i2c1_sleep_state>;
+				pinctrl-names = "default", "sleep";
+				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gcc GSBI1_QUP_CLK>,
+					 <&gcc GSBI1_H_CLK>;
+				clock-names = "core",
+					      "iface";
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				status = "disabled";
+			};
+
 			gsbi1_spi: spi@16080000 {
 				compatible = "qcom,spi-qup-v1.1.1";
 				reg = <0x16080000 0x1000>;
@@ -569,6 +622,23 @@
 					 <&gcc GSBI8_H_CLK>;
 				clock-names = "core",
 					      "iface";
+
+				status = "disabled";
+			};
+
+			gsbi8_i2c: i2c@1a080000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				reg = <0x1a080000 0x1000>;
+				pinctrl-0 = <&i2c8_default_state>;
+				pinctrl-1 = <&i2c8_sleep_state>;
+				pinctrl-names = "default", "sleep";
+				interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gcc GSBI8_QUP_CLK>,
+					 <&gcc GSBI8_H_CLK>;
+				clock-names = "core",
+					      "iface";
+				#address-cells = <1>;
+				#size-cells = <0>;
 
 				status = "disabled";
 			};
