@@ -494,6 +494,26 @@ ipv6_fdb_grp_fcnal()
 	run_cmd "$IP nexthop add id 69 encap mpls 101 via 2001:db8:91::8 dev veth1 fdb"
 	log_test $? 2 "Fdb Nexthop with encap"
 
+	# Replace FDB nexthop to non-FDB and vice versa
+	run_cmd "$IP nexthop add id 70 via 2001:db8:91::2 fdb"
+	run_cmd "$IP nexthop replace id 70 via 2001:db8:91::2 dev veth1"
+	log_test $? 0 "Replace FDB nexthop to non-FDB nexthop"
+	run_cmd "$IP nexthop replace id 70 via 2001:db8:91::2 fdb"
+	log_test $? 0 "Replace non-FDB nexthop to FDB nexthop"
+
+	# Replace FDB nexthop address while in a group
+	run_cmd "$IP nexthop add id 71 group 70 fdb"
+	run_cmd "$IP nexthop replace id 70 via 2001:db8:91::3 fdb"
+	log_test $? 0 "Replace FDB nexthop address while in a group"
+
+	# Cannot replace FDB nexthop to non-FDB and vice versa while in a group
+	run_cmd "$IP nexthop replace id 70 via 2001:db8:91::2 dev veth1"
+	log_test $? 2 "Replace FDB nexthop to non-FDB nexthop while in a group"
+	run_cmd "$IP nexthop add id 72 via 2001:db8:91::2 dev veth1"
+	run_cmd "$IP nexthop add id 73 group 72"
+	run_cmd "$IP nexthop replace id 72 via 2001:db8:91::2 fdb"
+	log_test $? 2 "Replace non-FDB nexthop to FDB nexthop while in a group"
+
 	run_cmd "$IP link add name vx10 type vxlan id 1010 local 2001:db8:91::9 remote 2001:db8:91::10 dstport 4789 nolearning noudpcsum tos inherit ttl 100"
 	run_cmd "$BRIDGE fdb add 02:02:00:00:00:13 dev vx10 nhid 102 self"
 	log_test $? 0 "Fdb mac add with nexthop group"
@@ -573,6 +593,26 @@ ipv4_fdb_grp_fcnal()
 	# fdb nexthop with encap
 	run_cmd "$IP nexthop add id 17 encap mpls 101 via 172.16.1.2 dev veth1 fdb"
 	log_test $? 2 "Fdb Nexthop with encap"
+
+	# Replace FDB nexthop to non-FDB and vice versa
+	run_cmd "$IP nexthop add id 18 via 172.16.1.2 fdb"
+	run_cmd "$IP nexthop replace id 18 via 172.16.1.2 dev veth1"
+	log_test $? 0 "Replace FDB nexthop to non-FDB nexthop"
+	run_cmd "$IP nexthop replace id 18 via 172.16.1.2 fdb"
+	log_test $? 0 "Replace non-FDB nexthop to FDB nexthop"
+
+	# Replace FDB nexthop address while in a group
+	run_cmd "$IP nexthop add id 19 group 18 fdb"
+	run_cmd "$IP nexthop replace id 18 via 172.16.1.3 fdb"
+	log_test $? 0 "Replace FDB nexthop address while in a group"
+
+	# Cannot replace FDB nexthop to non-FDB and vice versa while in a group
+	run_cmd "$IP nexthop replace id 18 via 172.16.1.2 dev veth1"
+	log_test $? 2 "Replace FDB nexthop to non-FDB nexthop while in a group"
+	run_cmd "$IP nexthop add id 20 via 172.16.1.2 dev veth1"
+	run_cmd "$IP nexthop add id 21 group 20"
+	run_cmd "$IP nexthop replace id 20 via 172.16.1.2 fdb"
+	log_test $? 2 "Replace non-FDB nexthop to FDB nexthop while in a group"
 
 	run_cmd "$IP link add name vx10 type vxlan id 1010 local 10.0.0.1 remote 10.0.0.2 dstport 4789 nolearning noudpcsum tos inherit ttl 100"
 	run_cmd "$BRIDGE fdb add 02:02:00:00:00:13 dev vx10 nhid 102 self"
