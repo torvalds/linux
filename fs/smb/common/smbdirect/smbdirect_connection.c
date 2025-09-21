@@ -19,6 +19,9 @@ struct smbdirect_map_sges {
 static ssize_t smbdirect_map_sges_from_iter(struct iov_iter *iter, size_t len,
 					    struct smbdirect_map_sges *state);
 
+static void smbdirect_connection_recv_io_refill_work(struct work_struct *work);
+static void smbdirect_connection_send_immediate_work(struct work_struct *work);
+
 __maybe_unused /* this is temporary while this file is included in others */
 static void smbdirect_connection_qp_event_handler(struct ib_event *event, void *context)
 {
@@ -152,6 +155,49 @@ static void smbdirect_connection_rdma_established(struct smbdirect_socket *sc)
 
 	sc->rdma.cm_id->event_handler = smbdirect_connection_rdma_event_handler;
 	sc->rdma.expected_event = RDMA_CM_EVENT_DISCONNECTED;
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
+static void smbdirect_connection_negotiation_done(struct smbdirect_socket *sc)
+{
+	if (unlikely(sc->first_error))
+		return;
+
+	if (sc->status != SMBDIRECT_SOCKET_NEGOTIATE_RUNNING) {
+		/*
+		 * Something went wrong...
+		 */
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_ERR,
+			"status=%s first_error=%1pe local: %pISpsfc remote: %pISpsfc\n",
+			smbdirect_socket_status_string(sc->status),
+			SMBDIRECT_DEBUG_ERR_PTR(sc->first_error),
+			&sc->rdma.cm_id->route.addr.src_addr,
+			&sc->rdma.cm_id->route.addr.dst_addr);
+		return;
+	}
+
+	/*
+	 * We are done, so we can wake up the waiter.
+	 */
+	WARN_ONCE(sc->status == SMBDIRECT_SOCKET_CONNECTED,
+		  "status=%s first_error=%1pe",
+		  smbdirect_socket_status_string(sc->status),
+		  SMBDIRECT_DEBUG_ERR_PTR(sc->first_error));
+	sc->status = SMBDIRECT_SOCKET_CONNECTED;
+
+	/*
+	 * We need to setup the refill and send immediate work
+	 * in order to get a working connection.
+	 */
+	INIT_WORK(&sc->recv_io.posted.refill_work, smbdirect_connection_recv_io_refill_work);
+	INIT_WORK(&sc->idle.immediate_work, smbdirect_connection_send_immediate_work);
+
+	smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
+		"negotiated: local: %pISpsfc remote: %pISpsfc\n",
+		&sc->rdma.cm_id->route.addr.src_addr,
+		&sc->rdma.cm_id->route.addr.dst_addr);
+
+	wake_up(&sc->status_wait);
 }
 
 static u32 smbdirect_rdma_rw_send_wrs(struct ib_device *dev,
@@ -1302,7 +1348,6 @@ skip_free:
 	wake_up(&sc->send_io.pending.dec_wait_queue);
 }
 
-__maybe_unused /* this is temporary while this file is included in others */
 static void smbdirect_connection_send_immediate_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
@@ -1633,7 +1678,6 @@ static int smbdirect_connection_recv_io_refill(struct smbdirect_socket *sc)
 	return posted;
 }
 
-__maybe_unused /* this is temporary while this file is included in others */
 static void smbdirect_connection_recv_io_refill_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
