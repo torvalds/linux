@@ -3723,6 +3723,12 @@
 			status = "disabled";
 		};
 
+		refgen: regulator@8900000 {
+			compatible = "qcom,sc8280xp-refgen-regulator",
+				     "qcom,sm8250-refgen-regulator";
+			reg = <0x0 0x08900000 0x0 0x96>;
+		};
+
 		usb_1_hsphy: phy@8902000 {
 			compatible = "qcom,sc8280xp-usb-hs-phy",
 				     "qcom,usb-snps-hs-5nm-phy";
