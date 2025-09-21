@@ -526,7 +526,7 @@ kci_test_encap_fou()
 	run_cmd_fail ip -netns "$testns" fou del port 9999
 	run_cmd ip -netns "$testns" fou del port 7777
 	if [ $ret -ne 0 ]; then
-		end_test "FAIL: fou"s
+		end_test "FAIL: fou"
 		return 1
 	fi
 
