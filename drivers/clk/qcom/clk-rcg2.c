@@ -201,7 +201,7 @@ __clk_rcg2_recalc_rate(struct clk_hw *hw, unsigned long parent_rate, u32 cfg)
 		regmap_read(rcg->clkr.regmap, RCG_M_OFFSET(rcg), &m);
 		m &= mask;
 		regmap_read(rcg->clkr.regmap, RCG_N_OFFSET(rcg), &n);
-		n =  ~n;
+		n = ~n;
 		n &= mask;
 		n += m;
 		mode = cfg & CFG_MODE_MASK;
@@ -274,7 +274,7 @@ static int _freq_tbl_determine_rate(struct clk_hw *hw, const struct freq_tbl *f,
 			rate = tmp;
 		}
 	} else {
-		rate =  clk_hw_get_rate(p);
+		rate = clk_hw_get_rate(p);
 	}
 	req->best_parent_hw = p;
 	req->best_parent_rate = rate;
@@ -311,7 +311,7 @@ __clk_rcg2_select_conf(struct clk_hw *hw, const struct freq_multi_tbl *f,
 		if (!p)
 			continue;
 
-		parent_rate =  clk_hw_get_rate(p);
+		parent_rate = clk_hw_get_rate(p);
 		rate = calc_rate(parent_rate, conf->n, conf->m, conf->n, conf->pre_div);
 
 		if (rate == req_rate) {
@@ -382,7 +382,7 @@ static int _freq_tbl_fm_determine_rate(struct clk_hw *hw, const struct freq_mult
 			rate = tmp;
 		}
 	} else {
-		rate =  clk_hw_get_rate(p);
+		rate = clk_hw_get_rate(p);
 	}
 
 	req->best_parent_hw = p;
