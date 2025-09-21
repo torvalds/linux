@@ -13,6 +13,7 @@
 #define pr_fmt(fmt) "microcode: " fmt
 #include <linux/earlycpio.h>
 #include <linux/firmware.h>
+#include <linux/pci_ids.h>
 #include <linux/uaccess.h>
 #include <linux/initrd.h>
 #include <linux/kernel.h>
@@ -41,8 +42,31 @@ static const char ucode_path[] = "kernel/x86/microcode/GenuineIntel.bin";
 
 #define MBOX_CONTROL_OFFSET	0x0
 #define MBOX_STATUS_OFFSET	0x4
+#define MBOX_WRDATA_OFFSET	0x8
+#define MBOX_RDDATA_OFFSET	0xc
 
 #define MASK_MBOX_CTRL_ABORT	BIT(0)
+#define MASK_MBOX_CTRL_GO	BIT(31)
+
+#define MASK_MBOX_STATUS_ERROR	BIT(2)
+#define MASK_MBOX_STATUS_READY	BIT(31)
+
+#define MASK_MBOX_RESP_SUCCESS	BIT(0)
+#define MASK_MBOX_RESP_PROGRESS	BIT(1)
+#define MASK_MBOX_RESP_ERROR	BIT(2)
+
+#define MBOX_CMD_LOAD		0x3
+#define MBOX_OBJ_STAGING	0xb
+#define MBOX_HEADER(size)	((PCI_VENDOR_ID_INTEL)    | \
+				 (MBOX_OBJ_STAGING << 16) | \
+				 ((u64)((size) / sizeof(u32)) << 32))
+
+/* The size of each mailbox header */
+#define MBOX_HEADER_SIZE	sizeof(u64)
+/* The size of staging hardware response */
+#define MBOX_RESPONSE_SIZE	sizeof(u64)
+
+#define MBOX_XACTION_TIMEOUT_MS	(10 * MSEC_PER_SEC)
 
 /* Current microcode patch used in early patching on the APs. */
 static struct microcode_intel *ucode_patch_va __read_mostly;
@@ -327,6 +351,49 @@ static __init struct microcode_intel *scan_microcode(void *data, size_t size,
 	return size ? NULL : patch;
 }
 
+static inline u32 read_mbox_dword(void __iomem *mmio_base)
+{
+	u32 dword = readl(mmio_base + MBOX_RDDATA_OFFSET);
+
+	/* Acknowledge read completion to the staging hardware */
+	writel(0, mmio_base + MBOX_RDDATA_OFFSET);
+	return dword;
+}
+
+static inline void write_mbox_dword(void __iomem *mmio_base, u32 dword)
+{
+	writel(dword, mmio_base + MBOX_WRDATA_OFFSET);
+}
+
+static inline u64 read_mbox_header(void __iomem *mmio_base)
+{
+	u32 high, low;
+
+	low  = read_mbox_dword(mmio_base);
+	high = read_mbox_dword(mmio_base);
+
+	return ((u64)high << 32) | low;
+}
+
+static inline void write_mbox_header(void __iomem *mmio_base, u64 value)
+{
+	write_mbox_dword(mmio_base, value);
+	write_mbox_dword(mmio_base, value >> 32);
+}
+
+static void write_mbox_data(void __iomem *mmio_base, u32 *chunk, unsigned int chunk_bytes)
+{
+	int i;
+
+	/*
+	 * The MMIO space is mapped as Uncached (UC). Each write arrives
+	 * at the device as an individual transaction in program order.
+	 * The device can then reassemble the sequence accordingly.
+	 */
+	for (i = 0; i < chunk_bytes / sizeof(u32); i++)
+		write_mbox_dword(mmio_base, chunk[i]);
+}
+
 /*
  * Prepare for a new microcode transfer: reset hardware and record the
  * image size.
@@ -378,23 +445,82 @@ static bool can_send_next_chunk(struct staging_state *ss, int *err)
 }
 
 /*
+ * The hardware indicates completion by returning a sentinel end offset.
+ */
+static inline bool is_end_offset(u32 offset)
+{
+	return offset == UINT_MAX;
+}
+
+/*
  * Determine whether staging is complete: either the hardware signaled
  * the end offset, or no more transactions are permitted (retry limit
  * reached).
  */
 static inline bool staging_is_complete(struct staging_state *ss, int *err)
 {
-	return (ss->offset == UINT_MAX) || !can_send_next_chunk(ss, err);
+	return is_end_offset(ss->offset) || !can_send_next_chunk(ss, err);
+}
+
+/*
+ * Wait for the hardware to complete a transaction.
+ * Return 0 on success, or an error code on failure.
+ */
+static int wait_for_transaction(struct staging_state *ss)
+{
+	u32 timeout, status;
+
+	/* Allow time for hardware to complete the operation: */
+	for (timeout = 0; timeout < MBOX_XACTION_TIMEOUT_MS; timeout++) {
+		msleep(1);
+
+		status = readl(ss->mmio_base + MBOX_STATUS_OFFSET);
+		/* Break out early if the hardware is ready: */
+		if (status & MASK_MBOX_STATUS_READY)
+			break;
+	}
+
+	/* Check for explicit error response */
+	if (status & MASK_MBOX_STATUS_ERROR)
+		return -EIO;
+
+	/*
+	 * Hardware has neither responded to the action nor signaled any
+	 * error. Treat this as a timeout.
+	 */
+	if (!(status & MASK_MBOX_STATUS_READY))
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 /*
  * Transmit a chunk of the microcode image to the hardware.
  * Return 0 on success, or an error code on failure.
  */
-static int send_data_chunk(struct staging_state *ss, void *ucode_ptr __maybe_unused)
+static int send_data_chunk(struct staging_state *ss, void *ucode_ptr)
 {
-	pr_debug_once("Staging mailbox loading code needs to be implemented.\n");
-	return -EPROTONOSUPPORT;
+	u32 *src_chunk = ucode_ptr + ss->offset;
+	u16 mbox_size;
+
+	/*
+	 * Write a 'request' mailbox object in this order:
+	 *  1. Mailbox header includes total size
+	 *  2. Command header specifies the load operation
+	 *  3. Data section contains a microcode chunk
+	 *
+	 * Thus, the mailbox size is two headers plus the chunk size.
+	 */
+	mbox_size = MBOX_HEADER_SIZE * 2 + ss->chunk_size;
+	write_mbox_header(ss->mmio_base, MBOX_HEADER(mbox_size));
+	write_mbox_header(ss->mmio_base, MBOX_CMD_LOAD);
+	write_mbox_data(ss->mmio_base, src_chunk, ss->chunk_size);
+	ss->bytes_sent += ss->chunk_size;
+
+	/* Notify the hardware that the mailbox is ready for processing. */
+	writel(MASK_MBOX_CTRL_GO, ss->mmio_base + MBOX_CONTROL_OFFSET);
+
+	return wait_for_transaction(ss);
 }
 
 /*
@@ -403,8 +529,42 @@ static int send_data_chunk(struct staging_state *ss, void *ucode_ptr __maybe_unu
  */
 static int fetch_next_offset(struct staging_state *ss)
 {
-	pr_debug_once("Staging mailbox response handling code needs to be implemented.\n");
-	return -EPROTONOSUPPORT;
+	const u64 expected_header = MBOX_HEADER(MBOX_HEADER_SIZE + MBOX_RESPONSE_SIZE);
+	u32 offset, status;
+	u64 header;
+
+	/*
+	 * The 'response' mailbox returns three fields, in order:
+	 *  1. Header
+	 *  2. Next offset in the microcode image
+	 *  3. Status flags
+	 */
+	header = read_mbox_header(ss->mmio_base);
+	offset = read_mbox_dword(ss->mmio_base);
+	status = read_mbox_dword(ss->mmio_base);
+
+	/* All valid responses must start with the expected header. */
+	if (header != expected_header) {
+		pr_err_once("staging: invalid response header (0x%llx)\n", header);
+		return -EBADR;
+	}
+
+	/*
+	 * Verify the offset: If not at the end marker, it must not
+	 * exceed the microcode image length.
+	 */
+	if (!is_end_offset(offset) && offset > ss->ucode_len) {
+		pr_err_once("staging: invalid offset (%u) past the image end (%u)\n",
+			    offset, ss->ucode_len);
+		return -EINVAL;
+	}
+
+	/* Hardware may report errors explicitly in the status field */
+	if (status & MASK_MBOX_RESP_ERROR)
+		return -EPROTO;
+
+	ss->offset = offset;
+	return 0;
 }
 
 /*
