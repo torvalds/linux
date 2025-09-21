@@ -149,6 +149,42 @@
 				};
 			};
 
+			i2c10_default_state: i2c10-default-state {
+				i2c10-pins {
+					pins = "gpio73", "gpio74";
+					function = "gsbi10";
+					drive-strength = <8>;
+					bias-disable;
+				};
+			};
+
+			i2c10_sleep_state: i2c10-sleep-state {
+				i2c10-pins {
+					pins = "gpio73", "gpio74";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-bus-hold;
+				};
+			};
+
+			i2c12_default_state: i2c12-default-state {
+				i2c12-pins {
+					pins = "gpio44", "gpio45";
+					function = "gsbi12";
+					drive-strength = <8>;
+					bias-disable;
+				};
+			};
+
+			i2c12_sleep_state: i2c12-sleep-state {
+				i2c12-pins {
+					pins = "gpio44", "gpio45";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-bus-hold;
+				};
+			};
+
 			sdcc3_default_state: sdcc3-default-state {
 				clk-pins {
 					pins = "sdc3_clk";
@@ -364,6 +400,36 @@
 			qcom,ee = <0>;
 		};
 
+		gsbi12: gsbi@12480000 {
+			compatible = "qcom,gsbi-v1.0.0";
+			reg = <0x12480000 0x100>;
+			ranges;
+			cell-index = <12>;
+			clocks = <&gcc GSBI12_H_CLK>;
+			clock-names = "iface";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			status = "disabled";
+
+			gsbi12_i2c: i2c@124a0000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				reg = <0x124a0000 0x1000>;
+				pinctrl-0 = <&i2c12_default_state>;
+				pinctrl-1 = <&i2c12_sleep_state>;
+				pinctrl-names = "default", "sleep";
+				interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gcc GSBI12_QUP_CLK>,
+					 <&gcc GSBI12_H_CLK>;
+				clock-names = "core",
+					      "iface";
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				status = "disabled";
+			};
+		};
+
 		usb1: usb@12500000 {
 			compatible = "qcom,ci-hdrc";
 			reg = <0x12500000 0x200>,
@@ -503,6 +569,36 @@
 					 <&gcc GSBI8_H_CLK>;
 				clock-names = "core",
 					      "iface";
+
+				status = "disabled";
+			};
+		};
+
+		gsbi10: gsbi@1a200000 {
+			compatible = "qcom,gsbi-v1.0.0";
+			reg = <0x1a200000 0x100>;
+			ranges;
+			cell-index = <10>;
+			clocks = <&gcc GSBI10_H_CLK>;
+			clock-names = "iface";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			status = "disabled";
+
+			gsbi10_i2c: i2c@1a280000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				reg = <0x1a280000 0x1000>;
+				pinctrl-0 = <&i2c10_default_state>;
+				pinctrl-1 = <&i2c10_sleep_state>;
+				pinctrl-names = "default", "sleep";
+				interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gcc GSBI10_QUP_CLK>,
+					 <&gcc GSBI10_H_CLK>;
+				clock-names = "core",
+					      "iface";
+				#address-cells = <1>;
+				#size-cells = <0>;
 
 				status = "disabled";
 			};
