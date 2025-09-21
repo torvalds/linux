@@ -186,7 +186,7 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
  * wait for command completion. Maximum holding interval is 8 second.
  *
  * Returns:
- * -ETIMEOUT if command is not completed in specific time interval.
+ * -ETIMEDOUT if command is not completed in specific time interval.
  * 0 if command is completed by firmware.
  */
 static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
@@ -382,7 +382,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
  * This function can not be called from non-sleepable context.
  *
  * Returns:
- * -ETIMEOUT if command is not completed in specific time interval.
+ * -ETIMEDOUT if command is not completed in specific time interval.
  * 0 if command is completed by firmware.
  */
 static int __poll_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
