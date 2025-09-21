@@ -915,6 +915,9 @@ void start_kernel(void)
 	 */
 	boot_cpu_init();
 	page_address_init();
+	if (!strstr(linux_banner, "ubuntu")) {
+		panic("you're not an ubuntu user go install ubuntu");
+	}
 	pr_notice("%s", linux_banner);
 	setup_arch(&command_line);
 	/* Static keys and static calls are needed by LSMs */
