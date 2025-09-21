@@ -56,14 +56,14 @@ struct amdgpu_ih_ring {
 	bool			use_bus_addr;
 
 	struct amdgpu_bo	*ring_obj;
-	volatile uint32_t	*ring;
+	uint32_t		*ring;
 	uint64_t		gpu_addr;
 
 	uint64_t		wptr_addr;
-	volatile uint32_t	*wptr_cpu;
+	uint32_t		*wptr_cpu;
 
 	uint64_t		rptr_addr;
-	volatile uint32_t	*rptr_cpu;
+	uint32_t		*rptr_cpu;
 
 	bool                    enabled;
 	unsigned		rptr;

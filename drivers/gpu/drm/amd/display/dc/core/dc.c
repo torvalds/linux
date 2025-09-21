@@ -60,7 +60,7 @@
 #include "link_encoder.h"
 #include "link_enc_cfg.h"
 
-#include "link.h"
+#include "link_service.h"
 #include "dm_helpers.h"
 #include "mem_input.h"
 
@@ -5622,8 +5622,8 @@ void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, char const 
 			subvp_pipe_type[i] = dc_state_get_pipe_subvp_type(context, pipe);
 		}
 	}
-
-	DC_LOG_DC("%s: allow_idle=%d\n HardMinUClk_Khz=%d HardMinDramclk_Khz=%d\n Pipe_0=%d Pipe_1=%d Pipe_2=%d Pipe_3=%d Pipe_4=%d Pipe_5=%d (caller=%s)\n",
+	if (!dc->caps.is_apu)
+		DC_LOG_DC("%s: allow_idle=%d\n HardMinUClk_Khz=%d HardMinDramclk_Khz=%d\n Pipe_0=%d Pipe_1=%d Pipe_2=%d Pipe_3=%d Pipe_4=%d Pipe_5=%d (caller=%s)\n",
 			__func__, allow, idle_fclk_khz, idle_dramclk_khz, subvp_pipe_type[0], subvp_pipe_type[1], subvp_pipe_type[2],
 			subvp_pipe_type[3], subvp_pipe_type[4], subvp_pipe_type[5], caller_name);
 

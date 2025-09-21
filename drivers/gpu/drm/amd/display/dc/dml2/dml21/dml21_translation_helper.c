@@ -84,25 +84,29 @@ static unsigned int calc_max_hardware_v_total(const struct dc_stream_state *stre
 
 static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cfg *timing,
 		struct dc_stream_state *stream,
+		struct pipe_ctx *pipe_ctx,
 		struct dml2_context *dml_ctx)
 {
 	unsigned int hblank_start, vblank_start, min_hardware_refresh_in_uhz;
+	uint32_t pix_clk_100hz;
 
-	timing->h_active = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+	timing->h_active = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right + pipe_ctx->dsc_padding_params.dsc_hactive_padding;
 	timing->v_active = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
 	timing->h_front_porch = stream->timing.h_front_porch;
 	timing->v_front_porch = stream->timing.v_front_porch;
 	timing->pixel_clock_khz = stream->timing.pix_clk_100hz / 10;
+	if (pipe_ctx->dsc_padding_params.dsc_hactive_padding != 0)
+		timing->pixel_clock_khz = pipe_ctx->dsc_padding_params.dsc_pix_clk_100hz / 10;
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 		timing->pixel_clock_khz *= 2;
-	timing->h_total = stream->timing.h_total;
+	timing->h_total = stream->timing.h_total + pipe_ctx->dsc_padding_params.dsc_htotal_padding;
 	timing->v_total = stream->timing.v_total;
 	timing->h_sync_width = stream->timing.h_sync_width;
 	timing->interlaced = stream->timing.flags.INTERLACE;
 
 	hblank_start = stream->timing.h_total - stream->timing.h_front_porch;
 
-	timing->h_blank_end = hblank_start - stream->timing.h_addressable
+	timing->h_blank_end = hblank_start - stream->timing.h_addressable - pipe_ctx->dsc_padding_params.dsc_hactive_padding
 		- stream->timing.h_border_left - stream->timing.h_border_right;
 
 	if (hblank_start < stream->timing.h_addressable)
@@ -121,8 +125,13 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 	/* limit min refresh rate to DC cap */
 	min_hardware_refresh_in_uhz = stream->timing.min_refresh_in_uhz;
 	if (stream->ctx->dc->caps.max_v_total != 0) {
-		min_hardware_refresh_in_uhz = div64_u64((stream->timing.pix_clk_100hz * 100000000ULL),
-				(stream->timing.h_total * (long long)calc_max_hardware_v_total(stream)));
+		if (pipe_ctx->dsc_padding_params.dsc_hactive_padding != 0) {
+			pix_clk_100hz = pipe_ctx->dsc_padding_params.dsc_pix_clk_100hz;
+		} else {
+			pix_clk_100hz = stream->timing.pix_clk_100hz;
+		}
+		min_hardware_refresh_in_uhz = div64_u64((pix_clk_100hz * 100000000ULL),
+				(timing->h_total * (long long)calc_max_hardware_v_total(stream)));
 	}
 
 	timing->drr_config.min_refresh_uhz = max(stream->timing.min_refresh_in_uhz, min_hardware_refresh_in_uhz);
@@ -171,21 +180,6 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 	}
 
 	timing->vblank_nom = timing->v_total - timing->v_active;
-}
-
-/**
- * adjust_dml21_hblank_timing_config_from_pipe_ctx - Adjusts the horizontal blanking timing configuration
- *                                                   based on the pipe context.
- * @timing: Pointer to the dml2_timing_cfg structure to be adjusted.
- * @pipe: Pointer to the pipe_ctx structure containing the horizontal blanking borrow value.
- *
- * This function modifies the horizontal active and blank end timings by adding and subtracting
- * the horizontal blanking borrow value from the pipe context, respectively.
- */
-static void adjust_dml21_hblank_timing_config_from_pipe_ctx(struct dml2_timing_cfg *timing, struct pipe_ctx *pipe)
-{
-	timing->h_active += pipe->hblank_borrow;
-	timing->h_blank_end -= pipe->hblank_borrow;
 }
 
 static void populate_dml21_output_config_from_stream_state(struct dml2_link_output_cfg *output,
@@ -487,7 +481,9 @@ static const struct scaler_data *get_scaler_data_for_plane(
 			temp_pipe->plane_state = pipe->plane_state;
 			temp_pipe->plane_res.scl_data.taps = pipe->plane_res.scl_data.taps;
 			temp_pipe->stream_res = pipe->stream_res;
-			temp_pipe->hblank_borrow = pipe->hblank_borrow;
+			temp_pipe->dsc_padding_params.dsc_hactive_padding = pipe->dsc_padding_params.dsc_hactive_padding;
+			temp_pipe->dsc_padding_params.dsc_htotal_padding = pipe->dsc_padding_params.dsc_htotal_padding;
+			temp_pipe->dsc_padding_params.dsc_pix_clk_100hz = pipe->dsc_padding_params.dsc_pix_clk_100hz;
 			dml_ctx->config.callbacks.build_scaling_params(temp_pipe);
 			break;
 		}
@@ -755,8 +751,7 @@ bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_s
 			disp_cfg_stream_location = dml_dispcfg->num_streams++;
 
 		ASSERT(disp_cfg_stream_location >= 0 && disp_cfg_stream_location < __DML2_WRAPPER_MAX_STREAMS_PLANES__);
-		populate_dml21_timing_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].timing, context->streams[stream_index], dml_ctx);
-		adjust_dml21_hblank_timing_config_from_pipe_ctx(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].timing, &context->res_ctx.pipe_ctx[stream_index]);
+		populate_dml21_timing_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].timing, context->streams[stream_index], &context->res_ctx.pipe_ctx[stream_index], dml_ctx);
 		populate_dml21_output_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].output, context->streams[stream_index], &context->res_ctx.pipe_ctx[stream_index]);
 		populate_dml21_stream_overrides_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location], context->streams[stream_index], &context->stream_status[stream_index]);
 

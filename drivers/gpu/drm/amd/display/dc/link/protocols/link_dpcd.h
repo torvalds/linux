@@ -25,7 +25,7 @@
 
 #ifndef __LINK_DPCD_H__
 #define __LINK_DPCD_H__
-#include "link.h"
+#include "link_service.h"
 #include "dpcd_defs.h"
 
 enum dc_status core_link_read_dpcd(

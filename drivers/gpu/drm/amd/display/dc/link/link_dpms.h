@@ -26,7 +26,7 @@
 #ifndef __DC_LINK_DPMS_H__
 #define __DC_LINK_DPMS_H__
 
-#include "link.h"
+#include "link_service.h"
 void link_set_dpms_on(
 		struct dc_state *state,
 		struct pipe_ctx *pipe_ctx);

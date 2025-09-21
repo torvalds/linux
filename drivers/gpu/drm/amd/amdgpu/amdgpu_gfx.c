@@ -2280,7 +2280,7 @@ void amdgpu_gfx_profile_ring_end_use(struct amdgpu_ring *ring)
  * Return:
  * return the latest index.
  */
-u32 amdgpu_gfx_csb_preamble_start(volatile u32 *buffer)
+u32 amdgpu_gfx_csb_preamble_start(u32 *buffer)
 {
 	u32 count = 0;
 
@@ -2304,7 +2304,7 @@ u32 amdgpu_gfx_csb_preamble_start(volatile u32 *buffer)
  * Return:
  * return the latest index.
  */
-u32 amdgpu_gfx_csb_data_parser(struct amdgpu_device *adev, volatile u32 *buffer, u32 count)
+u32 amdgpu_gfx_csb_data_parser(struct amdgpu_device *adev, u32 *buffer, u32 count)
 {
 	const struct cs_section_def *sect = NULL;
 	const struct cs_extent_def *ext = NULL;
@@ -2331,7 +2331,7 @@ u32 amdgpu_gfx_csb_data_parser(struct amdgpu_device *adev, volatile u32 *buffer,
  * @buffer: This is an output variable that gets the PACKET3 preamble end.
  * @count: Index to start set the preemble end.
  */
-void amdgpu_gfx_csb_preamble_end(volatile u32 *buffer, u32 count)
+void amdgpu_gfx_csb_preamble_end(u32 *buffer, u32 count)
 {
 	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_PREAMBLE_CNTL, 0));
 	buffer[count++] = cpu_to_le32(PACKET3_PREAMBLE_END_CLEAR_STATE);
