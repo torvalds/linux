@@ -64,7 +64,7 @@ struct xe_bb *xe_bb_ccs_new(struct xe_gt *gt, u32 dwords,
 			    enum xe_sriov_vf_ccs_rw_ctxs ctx_id)
 {
 	struct xe_bb *bb = kmalloc(sizeof(*bb), GFP_KERNEL);
-	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_sa_manager *bb_pool;
 	int err;
 
@@ -78,7 +78,7 @@ struct xe_bb *xe_bb_ccs_new(struct xe_gt *gt, u32 dwords,
 	 * So, this extra DW acts as a guard here.
 	 */
 
-	bb_pool = tile->sriov.vf.ccs[ctx_id].mem.ccs_bb_pool;
+	bb_pool = xe->sriov.vf.ccs.contexts[ctx_id].mem.ccs_bb_pool;
 	bb->bo = xe_sa_bo_new(bb_pool, 4 * (dwords + 1));
 
 	if (IS_ERR(bb->bo)) {

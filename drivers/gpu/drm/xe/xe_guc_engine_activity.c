@@ -94,16 +94,17 @@ static int allocate_engine_activity_buffers(struct xe_guc *guc,
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_bo *bo, *metadata_bo;
 
-	metadata_bo = xe_bo_create_pin_map(gt_to_xe(gt), tile, NULL, PAGE_ALIGN(metadata_size),
-					   ttm_bo_type_kernel, XE_BO_FLAG_SYSTEM |
-					   XE_BO_FLAG_GGTT | XE_BO_FLAG_GGTT_INVALIDATE);
+	metadata_bo = xe_bo_create_pin_map_novm(gt_to_xe(gt), tile, PAGE_ALIGN(metadata_size),
+						ttm_bo_type_kernel, XE_BO_FLAG_SYSTEM |
+						XE_BO_FLAG_GGTT | XE_BO_FLAG_GGTT_INVALIDATE,
+						false);
 
 	if (IS_ERR(metadata_bo))
 		return PTR_ERR(metadata_bo);
 
-	bo = xe_bo_create_pin_map(gt_to_xe(gt), tile, NULL, PAGE_ALIGN(size),
-				  ttm_bo_type_kernel, XE_BO_FLAG_VRAM_IF_DGFX(tile) |
-				  XE_BO_FLAG_GGTT | XE_BO_FLAG_GGTT_INVALIDATE);
+	bo = xe_bo_create_pin_map_novm(gt_to_xe(gt), tile, PAGE_ALIGN(size),
+				       ttm_bo_type_kernel, XE_BO_FLAG_VRAM_IF_DGFX(tile) |
+				       XE_BO_FLAG_GGTT | XE_BO_FLAG_GGTT_INVALIDATE, false);
 
 	if (IS_ERR(bo)) {
 		xe_bo_unpin_map_no_vm(metadata_bo);

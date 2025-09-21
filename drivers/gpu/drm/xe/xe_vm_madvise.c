@@ -18,9 +18,8 @@ struct xe_vmas_in_madvise_range {
 	u64 range;
 	struct xe_vma **vmas;
 	int num_vmas;
-	bool has_svm_vmas;
 	bool has_bo_vmas;
-	bool has_userptr_vmas;
+	bool has_svm_userptr_vmas;
 };
 
 static int get_vmas(struct xe_vm *vm, struct xe_vmas_in_madvise_range *madvise_range)
@@ -46,10 +45,8 @@ static int get_vmas(struct xe_vm *vm, struct xe_vmas_in_madvise_range *madvise_r
 
 		if (xe_vma_bo(vma))
 			madvise_range->has_bo_vmas = true;
-		else if (xe_vma_is_cpu_addr_mirror(vma))
-			madvise_range->has_svm_vmas = true;
-		else if (xe_vma_is_userptr(vma))
-			madvise_range->has_userptr_vmas = true;
+		else if (xe_vma_is_cpu_addr_mirror(vma) || xe_vma_is_userptr(vma))
+			madvise_range->has_svm_userptr_vmas = true;
 
 		if (madvise_range->num_vmas == max_vmas) {
 			max_vmas <<= 1;
@@ -127,8 +124,6 @@ static void madvise_atomic(struct xe_device *xe, struct xe_vm *vm,
 			vmas[i]->attr.atomic_access = op->atomic.val;
 		}
 
-		vmas[i]->attr.atomic_access = op->atomic.val;
-
 		bo = xe_vma_bo(vmas[i]);
 		if (!bo || bo->attr.atomic_access == op->atomic.val)
 			continue;
@@ -201,12 +196,12 @@ static u8 xe_zap_ptes_in_madvise_range(struct xe_vm *vm, u64 start, u64 end)
 				if (xe_pt_zap_ptes(tile, vma)) {
 					tile_mask |= BIT(id);
 
-				/*
-				 * WRITE_ONCE pairs with READ_ONCE
-				 * in xe_vm_has_valid_gpu_mapping()
-				 */
-				WRITE_ONCE(vma->tile_invalidated,
-					   vma->tile_invalidated | BIT(id));
+					/*
+					 * WRITE_ONCE pairs with READ_ONCE
+					 * in xe_vm_has_valid_gpu_mapping()
+					 */
+					WRITE_ONCE(vma->tile_invalidated,
+						   vma->tile_invalidated | BIT(id));
 				}
 			}
 		}
@@ -256,7 +251,7 @@ static bool madvise_args_are_sane(struct xe_device *xe, const struct drm_xe_madv
 		if (XE_IOCTL_DBG(xe, args->preferred_mem_loc.pad))
 			return false;
 
-		if (XE_IOCTL_DBG(xe, args->atomic.reserved))
+		if (XE_IOCTL_DBG(xe, args->preferred_mem_loc.reserved))
 			return false;
 		break;
 	}
@@ -409,16 +404,10 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 		}
 	}
 
-	if (madvise_range.has_userptr_vmas) {
-		err = down_read_interruptible(&vm->userptr.notifier_lock);
+	if (madvise_range.has_svm_userptr_vmas) {
+		err = xe_svm_notifier_lock_interruptible(vm);
 		if (err)
 			goto err_fini;
-	}
-
-	if (madvise_range.has_svm_vmas) {
-		err = down_read_interruptible(&vm->svm.gpusvm.notifier_lock);
-		if (err)
-			goto unlock_userptr;
 	}
 
 	attr_type = array_index_nospec(args->type, ARRAY_SIZE(madvise_funcs));
@@ -426,12 +415,9 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 
 	err = xe_vm_invalidate_madvise_range(vm, args->start, args->start + args->range);
 
-	if (madvise_range.has_svm_vmas)
+	if (madvise_range.has_svm_userptr_vmas)
 		xe_svm_notifier_unlock(vm);
 
-unlock_userptr:
-	if (madvise_range.has_userptr_vmas)
-		up_read(&vm->userptr.notifier_lock);
 err_fini:
 	if (madvise_range.has_bo_vmas)
 		drm_exec_fini(&exec);
