@@ -20,6 +20,7 @@
 #include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/soc/qcom,gpr.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	interrupt-parent = <&intc>;
@@ -4292,6 +4293,12 @@
 			clock-names = "sgmi_ref";
 			#phy-cells = <0>;
 			status = "disabled";
+		};
+
+		refgen: regulator@891c000 {
+			compatible = "qcom,qcs8300-refgen-regulator",
+				     "qcom,sm8250-refgen-regulator";
+			reg = <0x0 0x0891c000 0x0 0x84>;
 		};
 
 		gpu: gpu@3d00000 {
